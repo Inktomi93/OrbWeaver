@@ -14,7 +14,7 @@
 //
 // `axes.ts` is the root of the directory-module: its siblings import it, it imports none of them.
 
-export { requireWorkloadFunder, WORKLOAD_NOT_ADMISSIBLE } from "./admission.ts";
+export { requireWorkloadFunder, WORKLOAD_NOT_ADMISSIBLE, WORKLOAD_OWNER_ONLY_REFUSAL } from "./admission.ts";
 export type { IndexSource, ScheduleCadence, WireWorkloadKind, WorkloadKind, WorkloadMode, WorkloadStatus } from "./axes.ts";
 export {
   ACTIVE_WORKLOAD_STATUSES,
@@ -59,6 +59,7 @@ export {
   importStWorkloadParams,
   indexWorkloadParams,
   maintenanceWorkloadParams,
+  readsOperatorTree,
   startWorkloadEnvelope,
   WORKLOAD_LIST_MAX_LIMIT,
   wireStartWorkloadEnvelope,

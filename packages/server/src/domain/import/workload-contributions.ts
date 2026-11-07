@@ -7,7 +7,7 @@ import { basename, dirname, join, resolve, sep } from "node:path";
 import type { ImportFsPort, ImportPreview } from "@orb/contracts/import";
 import { STAGED_UPLOAD_OUTDATED } from "@orb/contracts/import";
 import type { BundleImportWorkloadResult, ImportTokenUsageBackfillResult, MaintenanceResult, ReportProgress, WorkloadKind } from "@orb/contracts/workloads";
-import { importBundleWorkloadParams, importStWorkloadParams, maintenanceWorkloadParams } from "@orb/contracts/workloads";
+import { importBundleWorkloadParams, importStWorkloadParams, maintenanceWorkloadParams, readsOperatorTree } from "@orb/contracts/workloads";
 import { DomainOperationError } from "@orb/kit/errors";
 import { isPlainObject } from "@orb/kit/guards";
 import type { UserId } from "@orb/kit/ids";
@@ -250,8 +250,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
       // Every per-entity write is dedupe-gated, so a retry re-runs the whole loop safely.
       resume: "idempotent-restart",
       admit: ({ params }) => Promise.resolve(params.stagedDir !== undefined && params.stagedDigest === undefined ? STAGED_UPLOAD_OUTDATED : null),
-      // With no upload behind it the run reads the operator's tree (D340).
-      ownerOnly: (params) => params.stagedDir === undefined,
+      ownerOnly: readsOperatorTree,
       releaseUnrun: ({ ownerId, params }) => releaseStaged(deps, ownerId, params.stagedDir),
       // Declared once: both staged kinds share this root, and the sweep reads the rows of both.
       sweepOnBoot: (active) => sweepStaging(deps, active),

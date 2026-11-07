@@ -9,13 +9,14 @@ import {
   INDEX_SOURCES,
   OPERATOR_TREE_WORKLOAD_KIND,
   ROUTE_STARTED_WORKLOAD_KIND,
+  readsOperatorTree,
   WORKLOAD_KIND_MODES,
   WORKLOAD_KINDS,
   WORKLOAD_LANES,
 } from "@orb/contracts/workloads";
 import type { BadgeProps } from "@orb/ui/badge";
 import type { SelectItems } from "@orb/ui/select/items";
-import type { inferInput } from "@trpc/tanstack-react-query";
+import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 
 export type WorkloadProgressView = Readonly<{ pct: NonNullable<WorkloadProgress["pct"]> | null; label: NonNullable<WorkloadProgress["message"]> | null }>;
@@ -159,9 +160,16 @@ export function isActiveWorkloadStatus(status: WorkloadStatus): boolean {
   return (ACTIVE_WORKLOAD_STATUSES as readonly WorkloadStatus[]).includes(status);
 }
 
-/** A terminal-failure-ish status — Retry is offered exactly here. */
-export function isRetryableWorkloadStatus(status: WorkloadStatus): boolean {
+/** A terminal-failure-ish status: the only rows Retry can apply to. */
+function isRetryableWorkloadStatus(status: WorkloadStatus): boolean {
   return status === "failed" || status === "cancelled" || status === "worker_died";
+}
+
+/** Whether a viewer gets Retry on a row. The server refuses anyone but the box owner a run of the operator's tree, and that
+ *  refusal would read as a conflict. A poison row's params cannot be read, so it stays the repair path. */
+export function canRetryWorkload(workload: inferOutput<Trpc["workloads"]["list"]>[number], viewerIsOwner: boolean): boolean {
+  const operatorRun = workload.kind === OPERATOR_TREE_WORKLOAD_KIND && !workload.poison && readsOperatorTree(workload.params);
+  return isRetryableWorkloadStatus(workload.status) && (viewerIsOwner || !operatorRun);
 }
 
 export const WORKLOAD_FILTERS = ["all", "running", "recent", "failed"] as const;

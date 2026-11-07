@@ -1,9 +1,12 @@
 // The upload routes alone mint staged params, so no tRPC caller can name a handle or a digest, and a member who plants
-// links in staging gains neither a delete nor a hash oracle. Only the box owner imports the operator's ST_PROFILE_DIR.
+// links in staging gains neither a delete nor a hash oracle. Only the box owner imports the operator's ST_PROFILE_DIR,
+// and a stored trigger is judged too: the rows below that a build before D340 could store are written directly.
 // @subject packages/contracts/src/workloads/params.ts
 // @subject packages/server/src/transport/trpc/routers/workloads.ts
 // @subject packages/server/src/domain/import/workload-contributions.ts
 // @subject packages/server/src/domain/workloads/substrate/params.ts
+// @subject packages/server/src/domain/workloads/engine/runner.ts
+// @subject packages/server/src/domain/workloads/engine/schedule-tick.ts
 
 import { createHash } from "node:crypto";
 import { lstat, mkdir, rename, symlink, writeFile } from "node:fs/promises";
@@ -11,9 +14,10 @@ import { basename, dirname, join } from "node:path";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { importStartedSchema, ST_SETTINGS_FILE, STAGED_MANIFEST_FILE } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
-import type { wireStartWorkloadEnvelope } from "@orb/contracts/workloads";
-import { workloads } from "@orb/db";
-import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
+import type { WorkloadMode, wireStartWorkloadEnvelope } from "@orb/contracts/workloads";
+import { OPERATOR_TREE_WORKLOAD_KIND, WORKLOAD_OWNER_ONLY_REFUSAL } from "@orb/contracts/workloads";
+import { workloadSchedules, workloads } from "@orb/db";
+import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -54,6 +58,7 @@ async function sent(procedure: (input: never) => Promise<unknown>, input: unknow
 }
 
 const PLAIN_RUN = { kind: "reconcile-stats", params: {} } satisfies WireStartWorkloadInput;
+const OPERATOR_RUN = { kind: OPERATOR_TREE_WORKLOAD_KIND, params: {} } satisfies WireStartWorkloadInput;
 
 interface WireVerb {
   readonly verb: string;
@@ -124,6 +129,14 @@ async function plantOperatorTree(root: ServerTestHarness): Promise<void> {
 async function ownedCharacters(root: ServerTestHarness, ownerId: UserId): Promise<readonly string[]> {
   const rows = CHARACTER_ROWS.parse((await tableContents(root))["characters"]);
   return rows.filter((row) => row["owner_id"] === ownerId).map((row) => row.name);
+}
+
+/** A bare schedule the owner stores, then hands to `holder` already due: what a build before D340 stored for a member. */
+async function dueSchedule(root: ServerTestHarness, holder: UserId): Promise<WorkloadScheduleId> {
+  const owner = await root.internalCallerFor(root.ownerId);
+  const { id } = await owner.workloads.createSchedule({ input: OPERATOR_RUN, cadence: "hourly", mode: "singular" });
+  await root.db.update(workloadSchedules).set({ ownerId: holder, nextRunAt: 0 }).where(eq(workloadSchedules.id, id));
+  return id;
 }
 
 /** The two ways a queued upload ends: its run reads it, or a cancel frees it. Both reach the contained rm. */
@@ -267,6 +280,79 @@ test("a member's retry of a stored bare row is refused, and the owner's retry of
 
   expect(await run(root, (await owner.workloads.retry({ id: held.id })).id)).toMatchObject({ status: "succeeded" });
   expect(await ownedCharacters(root, id)).toEqual([]);
+});
+
+test("at the tick a member's stored bare schedule enqueues nothing, and the owner's fires and imports", SLOW, async () => {
+  await using root = await harness();
+  await plantOperatorTree(root);
+  const owner = await root.internalCallerFor(root.ownerId);
+  const { id, trpc } = await member(root);
+  const held = await dueSchedule(root, id);
+  await dueSchedule(root, root.ownerId);
+  await trpc.workloads.setScheduleEnabled({ id: held, enabled: false });
+  await trpc.workloads.setScheduleEnabled({ id: held, enabled: true });
+
+  await root.tickWorkloadSchedules?.();
+
+  expect(await trpc.workloads.list()).toEqual([]);
+  expect((await trpc.workloads.listSchedules()).find((row) => row.id === held)?.nextRunAt).toBeGreaterThan(0);
+  const fired = (await owner.workloads.list()).filter((row) => row.kind === OPERATOR_TREE_WORKLOAD_KIND);
+  expect(fired.map((row) => row.ownerId)).toEqual([root.ownerId]);
+  const [firedRow] = fired;
+  if (firedRow === undefined) {
+    throw new Error("the owner's schedule fired no row");
+  }
+  expect(await run(root, firedRow.id)).toMatchObject({ status: "succeeded" });
+  expect(await ownedCharacters(root, root.ownerId)).toContain("Aria");
+  expect(await ownedCharacters(root, id)).toEqual([]);
+});
+
+const MEMBER_HELD_ROWS: readonly { readonly name: string; readonly mode: WorkloadMode; readonly funder: "member" | "owner" | "gone" }[] = [
+  { name: "a singular row a member funds", mode: "singular", funder: "member" },
+  { name: "a singular row under a member the owner funds", mode: "singular", funder: "owner" },
+  { name: "a bulk row a member funds", mode: "bulk", funder: "member" },
+  { name: "a bulk row with no funder", mode: "bulk", funder: "gone" },
+];
+
+test.for(MEMBER_HELD_ROWS)("$name fails at dispatch and reads nothing of the operator's tree", SLOW, async ({ mode, funder }) => {
+  await using root = await harness();
+  await plantOperatorTree(root);
+  const owner = await root.internalCallerFor(root.ownerId);
+  const { id } = await member(root);
+  const held = await owner.workloads.start({ input: OPERATOR_RUN, mode: "singular" });
+  const funderUserId = { member: id, owner: root.ownerId, gone: null }[funder];
+  await root.db.update(workloads).set({ ownerId: id, mode, funderUserId }).where(eq(workloads.id, held.id));
+
+  expect(await run(root, held.id)).toEqual({ status: "failed", error: WORKLOAD_OWNER_ONLY_REFUSAL });
+
+  expect(await ownedCharacters(root, id)).toEqual([]);
+  expect(JSON.stringify(await tableContents(root))).not.toContain(SECRET);
+
+  const bulk = await owner.workloads.start({ input: OPERATOR_RUN, mode: "bulk", targetOwnerId: id });
+  expect(await run(root, bulk.id)).toMatchObject({ status: "succeeded" });
+  expect(await ownedCharacters(root, id)).toContain("Aria");
+});
+
+test("the owner cannot store a run that would refuse: a member's schedule or bare row stays out of reach", SLOW, async () => {
+  await using root = await harness();
+  await plantOperatorTree(root);
+  const owner = await root.internalCallerFor(root.ownerId);
+  const { id, trpc } = await member(root);
+  const { id: schedule } = await trpc.workloads.createSchedule({ input: PLAIN_RUN, cadence: "weekly", mode: "singular" });
+  const held = await owner.workloads.start({ input: OPERATOR_RUN, mode: "singular" });
+  await owner.workloads.cancel({ id: held.id });
+  await root.db.update(workloads).set({ ownerId: id }).where(eq(workloads.id, held.id));
+
+  await expect(owner.workloads.updateSchedule({ id: schedule, input: OPERATOR_RUN })).toThrowTRPCError("FORBIDDEN");
+  await expect(owner.workloads.retry({ id: held.id })).toThrowTRPCError("FORBIDDEN");
+  await expect(owner.workloads.estimateRetryModelCalls({ id: held.id })).toThrowTRPCError("FORBIDDEN");
+
+  expect(await owner.workloads.updateSchedule({ id: schedule, input: PLAIN_RUN })).toMatchObject({ kind: PLAIN_RUN.kind });
+  const bulk = await owner.workloads.start({ input: OPERATOR_RUN, mode: "bulk", targetOwnerId: id });
+  await owner.workloads.cancel({ id: bulk.id });
+  const clone = await owner.workloads.retry({ id: bulk.id });
+  expect(await run(root, clone.id)).toMatchObject({ status: "succeeded" });
+  expect(await ownedCharacters(root, id)).toContain("Aria");
 });
 
 test("the owner's bulk run imports the operator's tree into the account it names", SLOW, async () => {

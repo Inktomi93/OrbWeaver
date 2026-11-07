@@ -11,7 +11,7 @@ import type { WorkloadService, WorkloadServiceContext } from "../contract/servic
 import { isActiveKindUniqueViolation, isWorkloadForeignKeyViolation } from "../persistence/constraints.ts";
 import { findActiveAdmittedWorkloadId, findUnavailableWorkloadDependency, insertWorkload } from "../persistence/queries.ts";
 import { resolveRunOwner } from "../substrate/authorize.ts";
-import { activeConflictMessage, assertAdmissible, parseWorkloadInput, resolveAdmissionKey } from "../substrate/params.ts";
+import { activeConflictMessage, assertAdmissible, parseWorkloadInput, resolveAdmissionKey, runAccount } from "../substrate/params.ts";
 
 /** The row an admission attempt inserts, minus the id (a retry mints a fresh one). Derived from
  *  `insertWorkload`'s own parameter rather than re-spelled — one shape, one home. */
@@ -86,7 +86,9 @@ function asConflict(cause: unknown, kind: WorkloadKind): DomainConflictError {
 export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, "start"> {
   async function start(params: StartWorkloadParams): Promise<WorkloadRef> {
     const contributions = ctx.getContributions();
-    const input = parseWorkloadInput(ctx, params.caller, params.input);
+    const funderUserId = params.caller === null ? params.funderUserId : params.caller.userId;
+    const account = runAccount({ mode: params.mode, ownerId: params.caller?.userId ?? params.ownerId, funderUserId });
+    const input = await parseWorkloadInput(ctx, { caller: params.caller, account }, params.input);
     const ownerId = resolveRunOwner(ctx.requireOwner, params, input.kind);
     const dependsOn = params.dependsOn ?? [];
     const unavailableDependency = await findUnavailableWorkloadDependency(ctx.db, dependsOn, ownerId);
@@ -110,7 +112,7 @@ export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, 
         lane: contributions[input.kind].lane,
         params: input.params,
         ownerId,
-        funderUserId: params.caller === null ? params.funderUserId : params.caller.userId,
+        funderUserId,
         dependsOn: params.dependsOn ?? null,
         scheduledAt: params.scheduledAt ?? now,
         createdAt: now,

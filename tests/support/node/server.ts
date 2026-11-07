@@ -22,7 +22,7 @@ import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
 import type { ShareGraph, ShareGraphOptions } from "@orb/server/domain/share";
 import type { WorkloadRunnerAssemblyDeps } from "@orb/server/domain/workloads";
 import { loadWorkload, runWorkload, tickWorkloadSchedules } from "@orb/server/domain/workloads";
-import { authConfigFromEnv, createHostPrincipalResolver } from "@orb/server/entry/auth";
+import { authConfigFromEnv, createBoxOwnerRead, createHostPrincipalResolver } from "@orb/server/entry/auth";
 import type { BootOwner } from "@orb/server/entry/boot";
 import { announceOwnerClaim, handOffBootOwnerSweeps, prepareBootOwner, removeOwnerClaimFileOnSpend } from "@orb/server/entry/boot";
 import type { createConfiguredOidc, createHttpApp, ServicesDeps, ServicesResult } from "@orb/server/entry/compose";
@@ -714,6 +714,7 @@ export async function createServerHarness(
     traces: rings.traces,
     now: clock.now,
     contributions: app.workloadContributions,
+    isBoxOwner: createBoxOwnerRead(app.sessions),
     audit: audit.log,
     emitEvent: app.workloadEvents.emitWorkloadEvent,
     scheduleInterval: timers.interval,

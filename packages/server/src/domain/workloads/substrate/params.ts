@@ -4,13 +4,12 @@
 // so this file only routes a blob to the right contribution and translates a parse failure into a domain
 // error.
 
-import type { Principal } from "@orb/contracts/identity";
-import type { StartWorkloadInput, WorkloadEstimateScope, WorkloadKind, WorkloadParamsByKind } from "@orb/contracts/workloads";
-import { DEFAULT_ADMISSION_KEY, startWorkloadEnvelope, WORKLOAD_NOT_ADMISSIBLE } from "@orb/contracts/workloads";
-import { DomainOperationError } from "@orb/kit/errors";
+import type { StartWorkloadInput, WorkloadEstimateScope, WorkloadKind, WorkloadMode, WorkloadParamsByKind } from "@orb/contracts/workloads";
+import { DEFAULT_ADMISSION_KEY, startWorkloadEnvelope, WORKLOAD_NOT_ADMISSIBLE, WORKLOAD_OWNER_ONLY_REFUSAL } from "@orb/contracts/workloads";
+import { DomainForbiddenError, DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import type { WorkloadContributions } from "../contract/contribution.ts";
-import type { WorkloadServiceContext } from "../contract/service.ts";
+import type { RunAsker, WorkloadRunnerDeps, WorkloadServiceContext } from "../contract/service.ts";
 
 /** Parse ONE kind's params blob against its contribution schema. Throws the raw Zod error — callers that
  *  face a client wrap it (`parseKindParams`); the row read path catches it for poison tolerance. */
@@ -31,33 +30,46 @@ function parseKindParams(contributions: WorkloadContributions, input: StartWorkl
   }
 }
 
-/** Refuse a person who is not the box owner a run its owning domain declares owner-only. A `null` caller is a trusted
- *  system trigger. {@link parseWorkloadInput} calls this, and `retry` calls it on the row it clones. */
-export function assertRunAuthority<K extends WorkloadKind>(
-  ctx: Pick<WorkloadServiceContext, "getContributions" | "requireOwner">,
-  caller: Principal | null,
+/** The account a stored run answers to. A bulk row's owner is only the account it targets, which the box owner may
+ *  name freely (D340), so a bulk row answers to its funder, the account that started it. */
+export function runAccount(row: { readonly mode: WorkloadMode; readonly ownerId: UserId | null; readonly funderUserId: UserId | null }): UserId | null {
+  return row.mode === "bulk" ? row.funderUserId : row.ownerId;
+}
+
+/** Refuse a run its owning domain declares owner-only unless every account behind it is the box owner: the person asking,
+ *  when one is, and the account the run answers to. Nothing here skips a `null` caller, so a schedule tick and a
+ *  dispatched row are judged like a door, whatever build stored them. */
+export async function assertRunAuthority<K extends WorkloadKind>(
+  deps: Pick<WorkloadRunnerDeps, "contributions" | "isBoxOwner">,
+  asker: RunAsker,
   kind: K,
   params: WorkloadParamsByKind[K],
-): void {
-  if (caller !== null && ctx.getContributions()[kind].ownerOnly?.(params) === true) {
-    ctx.requireOwner(caller);
+): Promise<void> {
+  if (deps.contributions[kind].ownerOnly?.(params) !== true) {
+    return;
+  }
+  for (const account of new Set([asker.caller?.userId ?? asker.account, asker.account])) {
+    if (account === null || !(await deps.isBoxOwner(account))) {
+      throw new DomainForbiddenError(WORKLOAD_OWNER_ONLY_REFUSAL);
+    }
   }
 }
 
 /**
- * The door a person's input enters by: the envelope (a known kind + a params object), the OWNING domain's per-kind
- * schema, then the run's authority. It takes the caller so no door can read input without answering who asked. The
+ * The door input enters by: the envelope (a known kind + a params object), the OWNING domain's per-kind schema, then
+ * the run's authority. It takes the asker so no door can read input without answering who asked. The
  * re-parse is defense in depth — the wire already validated its envelope, and mocked-procedure tests bypass it entirely.
  * A malformed params blob is a caller error, so it surfaces as a BAD_REQUEST-mapped domain error rather than an
  * escaping ZodError (which would 500).
  */
-export function parseWorkloadInput(
-  ctx: Pick<WorkloadServiceContext, "getContributions" | "requireOwner">,
-  caller: Principal | null,
+export async function parseWorkloadInput(
+  ctx: Pick<WorkloadServiceContext, "getContributions" | "isBoxOwner">,
+  asker: RunAsker,
   input: StartWorkloadInput,
-): StartWorkloadInput {
-  const parsed = parseKindParams(ctx.getContributions(), input);
-  assertRunAuthority(ctx, caller, parsed.kind, parsed.params);
+): Promise<StartWorkloadInput> {
+  const contributions = ctx.getContributions();
+  const parsed = parseKindParams(contributions, input);
+  await assertRunAuthority({ contributions, isBoxOwner: ctx.isBoxOwner }, asker, parsed.kind, parsed.params);
   return parsed;
 }
 

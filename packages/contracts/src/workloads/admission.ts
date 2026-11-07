@@ -4,6 +4,9 @@ import type { UserId } from "@orb/kit/ids";
 /** The owning contribution refused admission before creating a workload row. */
 export const WORKLOAD_NOT_ADMISSIBLE = "not_admissible";
 
+/** Why a run that only the box owner may reach was refused. A stored run shows it as the failed row's reason. */
+export const WORKLOAD_OWNER_ONLY_REFUSAL = "Only the box owner can run this job.";
+
 /** Missing admitted liability for a generative workload. */
 export const WORKLOAD_UNFUNDED = "workload_unfunded";
 

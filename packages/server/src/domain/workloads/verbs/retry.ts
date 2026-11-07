@@ -17,7 +17,7 @@ import type { WorkloadService, WorkloadServiceContext } from "../contract/servic
 import { isActiveKindUniqueViolation, isWorkloadForeignKeyViolation } from "../persistence/constraints.ts";
 import { findUnavailableWorkloadDependency, insertWorkload, loadRawWorkloadParams, loadWorkload } from "../persistence/queries.ts";
 import { canCloneRow } from "../substrate/authorize.ts";
-import { activeConflictMessage, assertAdmissible, assertRunAuthority, resolveAdmissionKey } from "../substrate/params.ts";
+import { activeConflictMessage, assertAdmissible, assertRunAuthority, resolveAdmissionKey, runAccount } from "../substrate/params.ts";
 
 const ENTITY = "workload";
 
@@ -62,7 +62,12 @@ export function createRetry(ctx: WorkloadServiceContext): Pick<WorkloadService, 
     // land the vacuous run again. DECLARED LIMIT: a POISON row is skipped, because a precondition takes the
     // kind's PARSED params and a poison row has none; surfacing it for repair is the whole point of retry.
     if (!original.poison) {
-      assertRunAuthority(ctx, params.caller, original.kind, original.params);
+      await assertRunAuthority(
+        { contributions, isBoxOwner: ctx.isBoxOwner },
+        { caller: params.caller, account: runAccount(original) },
+        original.kind,
+        original.params,
+      );
       await assertAdmissible(contributions, original.kind, original.params, original.ownerId);
     }
     const id = ctx.newWorkloadId();

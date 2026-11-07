@@ -69,8 +69,9 @@ export interface WorkloadContribution<K extends WorkloadKind = WorkloadKind> {
   /**
    * Whether this run reaches something only the box owner may reach, whatever the row's owner. Every door a person
    * calls refuses anyone else before anything is stored or counted, schedules included, so this is authority and never
-   * an {@link WorkloadContribution.admit} precondition. A trusted system trigger is not judged: a stored schedule
-   * already answered this when a person made it. OMIT IT when any authed caller may run the kind on their own data.
+   * an {@link WorkloadContribution.admit} precondition. A system trigger is judged too: the tick against the schedule's
+   * owner, and the runner against the row before its body, so a stored run refuses whatever build stored it. OMIT IT
+   * when any authed caller may run the kind on their own data.
    */
   readonly ownerOnly?: (params: WorkloadParamsByKind[K]) => boolean;
   /**

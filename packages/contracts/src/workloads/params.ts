@@ -104,6 +104,11 @@ export const importStWorkloadParams = z
   })
   .strip();
 
+/** Whether an `import-st` run reads the operator's tree: no upload stands behind it (D340). */
+export function readsOperatorTree(params: Pick<z.infer<typeof importStWorkloadParams>, "stagedDir">): boolean {
+  return params.stagedDir === undefined;
+}
+
 /** import-bundle: a server-minted staging handle (a single safe path segment); the import contribution
  *  resolves it to a strict descendant of the staging root (path-traversal-safe). `source` selects the staged
  *  shape: `zip` (a single archive, the default) or `dir` (a folder-upload tree). Every field is the route's, so this

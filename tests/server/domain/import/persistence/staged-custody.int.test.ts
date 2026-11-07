@@ -35,6 +35,11 @@ const SLOW = { tags: "slow" } as const;
 // What the control that owns each case raises. A case that only said "failed" would stay green with its control gone,
 // because the next control down also refuses.
 const LEAF_CHANGED = "a staged file changed after the server wrote it";
+// The label tells a leaf refusal from a manifest refusal, so a fixture that lost its carried manifest cannot pass as one.
+const PROFILE_LEAF_CHANGED = `${LEAF_CHANGED}: profile/`;
+const BUNDLE_LEAF_CHANGED = `${LEAF_CHANGED}: ${CARD_PLANE}/`;
+const MANIFEST_CHANGED = `${LEAF_CHANGED}: ${STAGED_MANIFEST_FILE}`;
+const zipChanged = (token: string): string => `${LEAF_CHANGED}: ${token}`;
 const PATH_ESCAPED = "escapes the staging root (symlinked path)";
 
 function profileTree(root: ServerTestHarness, text: string): Files {
@@ -120,7 +125,7 @@ interface Swap {
 const PROFILE_SWAPS: readonly Swap[] = [
   {
     name: "the staged root swapped for a directory",
-    refusal: LEAF_CHANGED,
+    refusal: PROFILE_LEAF_CHANGED,
     swap: async (root, staged) => {
       await moveAside(staged);
       await writeTree(join(staged, "profile"), profileTree(root, REPLACEMENT));
@@ -129,7 +134,7 @@ const PROFILE_SWAPS: readonly Swap[] = [
   },
   {
     name: "a plane swapped for a directory",
-    refusal: LEAF_CHANGED,
+    refusal: PROFILE_LEAF_CHANGED,
     swap: async (_root, staged) => {
       await moveAside(join(staged, "profile", "chats"));
       await writeTree(join(staged, "profile", "chats"), { "Aria/first.jsonl": chatOf(`${REPLACEMENT}-solo`) });
@@ -137,7 +142,7 @@ const PROFILE_SWAPS: readonly Swap[] = [
   },
   {
     name: "a chat directory swapped for a directory",
-    refusal: LEAF_CHANGED,
+    refusal: PROFILE_LEAF_CHANGED,
     swap: async (_root, staged) => {
       await moveAside(join(staged, "profile", "chats", "Aria"));
       await writeTree(join(staged, "profile", "chats", "Aria"), { "first.jsonl": chatOf(`${REPLACEMENT}-solo`) });
@@ -145,7 +150,7 @@ const PROFILE_SWAPS: readonly Swap[] = [
   },
   {
     name: "a leaf replaced by a new file",
-    refusal: LEAF_CHANGED,
+    refusal: PROFILE_LEAF_CHANGED,
     swap: async (_root, staged) => {
       const leaf = join(staged, "profile", CHAT_LEAF);
       await rm(leaf);
@@ -154,14 +159,14 @@ const PROFILE_SWAPS: readonly Swap[] = [
   },
   {
     name: "a leaf rewritten in place",
-    refusal: LEAF_CHANGED,
+    refusal: PROFILE_LEAF_CHANGED,
     swap: async (_root, staged) => {
       await writeFile(join(staged, "profile", CHAT_LEAF), chatOf(`${REPLACEMENT}-solo`));
     },
   },
   {
     name: "a leaf replaced by a directory",
-    refusal: LEAF_CHANGED,
+    refusal: PROFILE_LEAF_CHANGED,
     swap: async (_root, staged) => {
       const leaf = join(staged, "profile", CHAT_LEAF);
       await rm(leaf);
@@ -170,14 +175,14 @@ const PROFILE_SWAPS: readonly Swap[] = [
   },
   {
     name: "a leaf removed, which must not read as a profile without it",
-    refusal: LEAF_CHANGED,
+    refusal: PROFILE_LEAF_CHANGED,
     swap: async (_root, staged) => {
       await rm(join(staged, "profile", ST_SETTINGS_FILE));
     },
   },
   {
     name: "a plane swapped to a link",
-    refusal: LEAF_CHANGED,
+    refusal: PROFILE_LEAF_CHANGED,
     swap: async (root, staged) => {
       await writeTree(outsideOf(root), { "Aria/first.jsonl": chatOf(`${REPLACEMENT}-solo`) });
       await moveAside(join(staged, "profile", "chats"));
@@ -208,7 +213,7 @@ const PROFILE_SWAPS: readonly Swap[] = [
   },
   {
     name: "the manifest rewritten to vouch for a replacement",
-    refusal: LEAF_CHANGED,
+    refusal: MANIFEST_CHANGED,
     swap: async (_root, staged) => {
       await writeFile(join(staged, "profile", CHAT_LEAF), chatOf(`${REPLACEMENT}-solo`));
       await writeFile(join(staged, STAGED_MANIFEST_FILE), "[]");
@@ -243,7 +248,7 @@ test.for(PROFILE_SWAPS)("$name fails the run and imports nothing", SLOW, async (
 const BUNDLE_SWAPS: readonly Swap[] = [
   {
     name: "the staged root swapped for a directory",
-    refusal: LEAF_CHANGED,
+    refusal: BUNDLE_LEAF_CHANGED,
     swap: async (root, staged) => {
       await moveAside(staged);
       await writeTree(staged, bundleTree(root, REPLACEMENT));
@@ -252,7 +257,7 @@ const BUNDLE_SWAPS: readonly Swap[] = [
   },
   {
     name: "a plane swapped for a directory",
-    refusal: LEAF_CHANGED,
+    refusal: BUNDLE_LEAF_CHANGED,
     swap: async (root, staged) => {
       await moveAside(join(staged, CARD_PLANE));
       await writeTree(staged, { [`${PORTABLE_DIRECTORIES.character}aria.png`]: cardPng(root, REPLACEMENT) });
@@ -260,14 +265,14 @@ const BUNDLE_SWAPS: readonly Swap[] = [
   },
   {
     name: "a leaf rewritten in place",
-    refusal: LEAF_CHANGED,
+    refusal: BUNDLE_LEAF_CHANGED,
     swap: async (root, staged) => {
       await writeFile(join(staged, CARD_PLANE, "aria.png"), cardPng(root, REPLACEMENT));
     },
   },
   {
     name: "a plane swapped to a link",
-    refusal: LEAF_CHANGED,
+    refusal: BUNDLE_LEAF_CHANGED,
     swap: async (root, staged) => {
       await writeTree(outsideOf(root), { "aria.png": cardPng(root, REPLACEMENT) });
       await moveAside(join(staged, CARD_PLANE));
@@ -316,10 +321,10 @@ test.for(BUNDLE_SWAPS)("in a bundle folder, $name fails the run and imports none
   expect(await stored(root)).not.toContain(REPLACEMENT);
 });
 
-test.for<{ name: string; tree: (root: ServerTestHarness, text: string) => Files; replacement: string }>([
-  { name: "a profile", tree: profileTree, replacement: "profile" },
-  { name: "a bundle folder", tree: bundleTree, replacement: "" },
-])("$name swapped to a link after the path check, carrying the real manifest, fails at the first leaf", SLOW, async ({ tree, replacement }) => {
+test.for<{ name: string; tree: (root: ServerTestHarness, text: string) => Files; replacement: string; refusal: string }>([
+  { name: "a profile", tree: profileTree, replacement: "profile", refusal: PROFILE_LEAF_CHANGED },
+  { name: "a bundle folder", tree: bundleTree, replacement: "", refusal: BUNDLE_LEAF_CHANGED },
+])("$name swapped to a link after the path check, carrying the real manifest, fails at the first leaf", SLOW, async ({ tree, replacement, refusal }) => {
   await using root = await harness();
   const id = await admit(root, tree(root, ORIGINAL));
   const staged = await stagedTree(root);
@@ -331,7 +336,7 @@ test.for<{ name: string; tree: (root: ServerTestHarness, text: string) => Files;
     await symlink(outside, staged, DIRECTORY_LINK);
   });
 
-  expect(await run(root, id)).toMatchObject({ status: "failed", error: expect.stringContaining(LEAF_CHANGED) });
+  expect(await run(root, id)).toMatchObject({ status: "failed", error: expect.stringContaining(refusal) });
 
   expect(race.fired()).toBe(true);
   expect(await stored(root)).not.toContain(REPLACEMENT);
@@ -368,11 +373,11 @@ test("an unchanged staged zip imports what the server wrote", SLOW, async () => 
   expect(await stored(root)).toContain(ORIGINAL);
 });
 
-test.for<{ name: string; refusal: string; swap: (root: ServerTestHarness, path: string, replacement: Uint8Array) => Promise<void> }>([
-  { name: "rewritten in place", refusal: LEAF_CHANGED, swap: (_root, path, replacement) => writeFile(path, replacement) },
+test.for<{ name: string; refusal: (token: string) => string; swap: (root: ServerTestHarness, path: string, replacement: Uint8Array) => Promise<void> }>([
+  { name: "rewritten in place", refusal: zipChanged, swap: (_root, path, replacement) => writeFile(path, replacement) },
   {
     name: "replaced by a new file",
-    refusal: LEAF_CHANGED,
+    refusal: zipChanged,
     swap: async (_root, path, replacement) => {
       await moveAside(path);
       await writeFile(path, replacement);
@@ -380,7 +385,7 @@ test.for<{ name: string; refusal: string; swap: (root: ServerTestHarness, path: 
   },
   {
     name: "swapped to a link",
-    refusal: PATH_ESCAPED,
+    refusal: () => PATH_ESCAPED,
     swap: async (root, path, replacement) => {
       await writeTree(outsideOf(root), { "bundle.zip": replacement });
       await moveAside(path);
@@ -389,7 +394,7 @@ test.for<{ name: string; refusal: string; swap: (root: ServerTestHarness, path: 
   },
   {
     name: "replaced by a directory",
-    refusal: LEAF_CHANGED,
+    refusal: zipChanged,
     swap: async (_root, path) => {
       await moveAside(path);
       await mkdir(path);
@@ -399,9 +404,10 @@ test.for<{ name: string; refusal: string; swap: (root: ServerTestHarness, path: 
   const [original, replacement] = await originalAndReplacement();
   await using root = await signedInBox();
   const id = await uploadArchive(root, original);
-  await swap(root, await stagedTree(root), replacement);
+  const staged = await stagedTree(root);
+  await swap(root, staged, replacement);
 
-  expect(await run(root, id)).toMatchObject({ status: "failed", error: expect.stringContaining(refusal) });
+  expect(await run(root, id)).toMatchObject({ status: "failed", error: expect.stringContaining(refusal(basename(staged))) });
 
   expect(await stored(root)).not.toContain(REPLACEMENT);
 });
