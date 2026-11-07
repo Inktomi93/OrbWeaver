@@ -27,7 +27,6 @@
 //
 // Routine model-free selection: the real turn uses only the external scripted provider.
 
-import { setTimeout as sleep } from "node:timers/promises";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -44,12 +43,11 @@ import {
 } from "./support/fixture-provider.ts";
 import { E2E_RUN_PORTS, LOCAL_MEMBER } from "./support/modes.ts";
 import type { StreamValue } from "./support/sse.ts";
-import { collectChatRoomFrames, deliveredText, readStreamEvent, requireSatisfied, textDeltaOf } from "./support/sse.ts";
+import { collectChatRoomFrames, deliveredText, openChatRoomCollection, readStreamEvent, requireSatisfied, textDeltaOf } from "./support/sse.ts";
 import { CASE_LIVE_FOLLOW_UP_MS } from "./support/timeouts.ts";
 
 const CARD_HANDLE = "e2e-span-resume";
 const STREAM_TIMEOUT_MS = 60_000;
-const PRESENCE_SETTLE_MS = 1500;
 /** A distinctive fragment of the opener chunk — used to LOCATE its durable frame in the host's stream. */
 const OPENER_MARKER = FIXTURE_LIE_SPAN_OPEN.slice(-24);
 
@@ -102,10 +100,9 @@ test("P3 mid-slot resume: a MEMBER resuming INSIDE an open <lie> tag never recei
     // The HOST watches the turn live — their stream carries the raw deltas, which is how we learn the
     // durable seq of the opener chunk (the cursor the member will resume from). The host fires the turn
     // themselves, so no host-presence defer applies.
-    const hostLive = collectChatRoomFrames({ baseUrl: origin, headers: host.headers, chatId, until: sawReply, timeoutMs: STREAM_TIMEOUT_MS });
-    await sleep(PRESENCE_SETTLE_MS);
+    const hostLive = await openChatRoomCollection({ baseUrl: origin, headers: host.headers, chatId, until: sawReply, timeoutMs: STREAM_TIMEOUT_MS });
     await host.trpc.chat.send.mutate({ chatId, timeZone: UTC_TIME_ZONE, content: "What happened to the well?", intent: { maxOutputTokens: 64 } });
-    const hostValues = requireSatisfied(await hostLive, "host live");
+    const hostValues = requireSatisfied(await hostLive.collection, "host live");
 
     const cursor = openerSeq(hostValues);
     expect(cursor, "the host's stream must carry the span's opener chunk (the fixture streams it split)").toBeDefined();

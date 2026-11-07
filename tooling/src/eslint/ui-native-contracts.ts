@@ -368,10 +368,25 @@ export const opaqueVariantSpreadRule: OrbRule = {
   },
 };
 
+// An index signature carries a class only if its value can be one: a `Record` of handlers or counts writes none.
+function indexHoldsClass(native: Native, type: ts.Type): boolean {
+  const text = native.checker.getStringType();
+  return (
+    type.flags === ts.TypeFlags.Any ||
+    native.checker
+      .getIndexInfosOfType(type)
+      .some(
+        (info) =>
+          info.keyType.flags === ts.TypeFlags.String &&
+          (native.checker.isTypeAssignableTo(text, info.type) || native.checker.isTypeAssignableTo(info.type, text)),
+      )
+  );
+}
+
 // A key a type declares `never` or `undefined` names a class that cannot be written, which is how a body says its rest holds none.
 function classKeys(native: Native, spread: ts.Type, at: ts.Node): readonly string[] {
   const parts = members(spread);
-  if (parts.some((part) => carriesAnyKey(native, part))) {
+  if (parts.some((part) => indexHoldsClass(native, part))) {
     return [ANY_CLASS_KEY];
   }
   const keys = parts.flatMap((part) => part.getProperties()).filter(({ name }) => isClassProperty(name));
@@ -383,8 +398,8 @@ function classKeys(native: Native, spread: ts.Type, at: ts.Node): readonly strin
  * nested object, an alias, a call or another file; its type still names the key. Omit the key from the type, or spread what the static rules read.
  *
  * @remarks
- * A type is the limit: a value that holds a class under a type that omits the key passes. `orb/no-built-class-string` refuses that value where it leaves
- * its declaration, and its comment names the one shape left.
+ * A type is the limit: a value that holds a class under a type that omits the key passes (`rest as object`), as does a template-keyed `Record`. The comment on
+ * `orb/no-built-class-string` lists what stays out of reach. A class key on a spread is refused whatever it holds, so RPG data spreads under another key.
  */
 export const opaqueClassSpreadRule: OrbRule = {
   meta: { type: "problem", schema: [] },

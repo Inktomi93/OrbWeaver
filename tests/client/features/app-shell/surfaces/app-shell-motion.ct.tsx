@@ -10,7 +10,6 @@ import { emulateMedia, releaseEmulatedMedia, resolvedLength, seedShellState, she
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
-import { keysOf } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
@@ -31,6 +30,9 @@ const REM20 = 1.25;
 // The UA root font size the `:root { font-size }` scale multiplies; no token names a browser default.
 const UA_ROOT_PX = 16;
 const BOTH_DOCKED = { activeSection: "chats", panelOverrides: { chats: { list: "docked", context: "docked" } } } as const;
+// What an open room offers a door to read, and what a section without a room offers.
+const ROOM_BOXES = ["main", "trail", "listPanel", "contextPanel", "row", "composer", "listAction"] as const;
+type DoorBox = (typeof ROOM_BOXES)[number];
 // The boxes a door moves. The rail is absent: it is grid column 1 and no door moves it.
 const DOOR_BOXES = {
   main: ".shell-main",
@@ -40,14 +42,12 @@ const DOOR_BOXES = {
   row: '[data-slot="message-row"]',
   composer: '[data-slot="composer"]',
   listAction: '[data-slot="list-pane-action"]',
-} as const;
-type DoorBox = keyof typeof DOOR_BOXES;
+} as const satisfies Readonly<Record<DoorBox, string>>;
 // The LIST door moves the list pane itself, so its action travels with it by design and is not held.
 const LIST_DOOR: readonly DoorBox[] = ["main", "trail", "listPanel", "row", "composer"];
 const CONTEXT_DOOR: readonly DoorBox[] = ["main", "trail", "contextPanel", "listAction", "row", "composer"];
 const CARRIERS: readonly DoorBox[] = ["row", "composer"];
-// What an open room offers a door to read, and what a section without a room offers.
-const ROOM_BOXES = keysOf(DOOR_BOXES);
+// What a section without a room offers a door to read.
 const SECTION_BOXES: readonly DoorBox[] = ["main", "trail", "listPanel"];
 // A rounded pixel either side: the panel tracks and the centring margin each round to the device pixel.
 const HOLD_SLACK = 2;

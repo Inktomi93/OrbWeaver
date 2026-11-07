@@ -58,7 +58,7 @@ export { notifyNewRoomPersona } from "./new-room-persona-notice.ts";
 export { peekQueryData } from "./peek-query.ts";
 export { postBugReport } from "./post-bug-report.ts";
 export { createAppQueryClient, retryUnlessBadRequest } from "./query-client.ts";
-export { QueryErrorState } from "./query-error-state.tsx";
+export { QueryErrorState, QueryUnavailableState } from "./query-error-state.tsx";
 export { QueryInlineStates } from "./query-inline-states.tsx";
 export { restoreCardLorebook } from "./restore-card-lorebook.ts";
 export type { SectionPatchVars } from "./section-patch-vars.ts";

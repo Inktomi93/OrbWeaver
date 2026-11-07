@@ -1,9 +1,8 @@
 import { CtIsolation } from "@orb/testkit/browser";
-import { keysOf } from "@orb/testkit/iso";
 import { Accordion, AccordionHeader, AccordionItem, AccordionPanel, AccordionTrigger } from "@orb/ui/accordion";
 import { Avatar } from "@orb/ui/avatar";
 import { Button } from "@orb/ui/button";
-import { BUTTON_BOX_OVERFLOW } from "@orb/ui/button/box-hit-area";
+import { BUTTON_BOX_STEPS } from "@orb/ui/button/box-hit-area";
 import { Checkbox } from "@orb/ui/checkbox";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import { Icon, Plus } from "@orb/ui/icons";
@@ -22,25 +21,22 @@ import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import type { ReactElement } from "react";
 
-const steps = <Component extends keyof typeof BUTTON_BOX_OVERFLOW>(component: Component): (keyof (typeof BUTTON_BOX_OVERFLOW)[Component])[] =>
-  keysOf(BUTTON_BOX_OVERFLOW[component]);
-
 /** Every interactive `@orb/ui` primitive, one of each button-family box, spaced so a neighbour never answers another control's hit test. */
 export function InteractivePrimitivesStory(): ReactElement {
   return (
     <CtIsolation subject="Interactive primitives" isolates="isolates each primitive from feature layout so its own touch target is measured">
       <div style={{ display: "flex", flexDirection: "column", gap: 48, padding: 48, alignItems: "flex-start" }}>
-        {steps("button").map((size) => (
+        {BUTTON_BOX_STEPS.button.map((size) => (
           <Button key={size} size={size}>
             {`Size ${size}`}
           </Button>
         ))}
-        {steps("glyphButton").map((glyph) => (
+        {BUTTON_BOX_STEPS.glyphButton.map((glyph) => (
           <GlyphButton aria-label={`Glyph ${glyph}`} glyph={glyph} key={glyph}>
             <Icon icon={Plus} size="xs" />
           </GlyphButton>
         ))}
-        {steps("inlineAction").map((step) => (
+        {BUTTON_BOX_STEPS.inlineAction.map((step) => (
           <InlineAction key={step} step={step}>
             {`Inline ${step}`}
           </InlineAction>

@@ -184,7 +184,7 @@ export function classClassifier(candidatesToCss: CandidatesToCss): ClassClassifi
 
 const CLASS_HELPERS = new Set(["cn", "clsx"]);
 const CLIENT_DIRECTORY = "/packages/client/src/";
-// The prop that names the element a carrier renders. It only tightens: a class at the call site is judged against the primitive it names, and no body is exempt.
+// The prop that names the element a carrier renders: a class at the call site is judged against that primitive, so a plain layout class is legal there, and no body is exempt.
 const CARRIER_PROP = "of";
 
 // A boolean or numeric arm is a JSX expression, a named arm a string.
@@ -213,6 +213,8 @@ const MESSAGES = {
   forwarded: "A className read from a parameter hands a caller's class to a primitive; name what the caller wants with a prop and spell the class here.",
   props: "An object that carries a className hides its tokens from lint; pass the part's own prop.",
   merged: "`Object.assign` carrying a class object hides its tokens from lint; pass the part's own prop.",
+  written: "A class written onto an object after its declaration hides its tokens from lint; pass the part's own prop.",
+  aliased: "An alias of `Object.assign` hides the merge from lint; spread the objects into a literal.",
   factory: "An element factory call hides its className from the element rules; write JSX and pass the primitive's own prop.",
   opaque:
     "A className lint cannot read hides its tokens (a computed key, a spread, a tagged template, a reassigned or destructured name, a sequence); spell the tokens as strings and put the state in a primitive prop.",
@@ -494,16 +496,36 @@ function carriesClass(context: OrbRuleContext, node: TSESTree.Node, seen = new S
   });
 }
 
-const isObjectAssign = (context: OrbRuleContext, { callee }: TSESTree.CallExpression): boolean =>
-  callee.type === AST_NODE_TYPES.MemberExpression &&
-  callee.object.type === AST_NODE_TYPES.Identifier &&
-  callee.object.name === "Object" &&
-  accessedName(context, callee) === "assign";
+// A class key on the value itself. A return or an export stops here: a list of RPG sheets holds `className` as data, and a spread of one is the typed rule's to judge.
+const holdsClass = (context: OrbRuleContext, node: TSESTree.Node): boolean =>
+  staticValueOptions(context, node).some((value) =>
+    staticObjectProperties(context, value).some((property) => isClassProperty(staticKeyName(context, property))),
+  );
 
-// A class object is refused where it leaves its declaration, at any depth: returned, passed as an attribute value or an element factory's props, exported, or
-// merged by `Object.assign`. A call's other arguments stay open, because an RPG sheet's `className` is data: `save({ className })` is legal. So a class object
-// that a call hands back under a wider type is out of reach of this rule and the typed one: `<Row {...widen(HELD)} />` passes, where `widen` takes and returns
-// `{ readonly inert: boolean }`. The plant is in tests/tooling/eslint-opaque-variant-spread.test.ts.
+const isObjectGlobal = (context: OrbRuleContext, node: TSESTree.Node): boolean =>
+  node.type === AST_NODE_TYPES.MemberExpression
+    ? node.object.type === AST_NODE_TYPES.Identifier && node.object.name === "globalThis" && accessedName(context, node) === "Object"
+    : node.type === AST_NODE_TYPES.Identifier && node.name === "Object";
+
+const isObjectAssign = (context: OrbRuleContext, node: TSESTree.Node): boolean =>
+  node.type === AST_NODE_TYPES.MemberExpression && isObjectGlobal(context, node.object) && accessedName(context, node) === "assign";
+
+// `const { assign } = Object` or `const merge = Object.assign`: a call through the alias reads as any function, so the alias itself is refused.
+function aliasesAssign(context: OrbRuleContext, { id, init }: TSESTree.VariableDeclarator): boolean {
+  if (init === null) {
+    return false;
+  }
+  return id.type === AST_NODE_TYPES.ObjectPattern
+    ? isObjectGlobal(context, init) &&
+        id.properties.some((property) => property.type === AST_NODE_TYPES.Property && staticKeyName(context, property) === "assign")
+    : isObjectAssign(context, init);
+}
+
+// A class object is refused where it leaves its declaration: a key on the value returned or exported, a key at any depth of an attribute value or an element
+// factory's props, an `Object.assign` that merges one, and a class key written onto an object. A call's other arguments stay open, because an RPG sheet's
+// `className` is data: `save({ className })` is legal. Data under the key handed to a component stays refused; rename the key.
+// Out of reach of this rule and the typed one, each a plant in tests/tooling/eslint-opaque-variant-spread.test.ts: a value under a type that omits the key
+// (`widen(HELD)`, `rest as object`, `{ box = HELD }: { box?: object }`), `Reflect.set`, and a template-keyed `Record`.
 export const noBuiltClassStringRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
@@ -515,19 +537,33 @@ export const noBuiltClassStringRule: OrbRule = {
         context.report({ node, message });
       }
     };
+    const reportHeld = (node: MaybeNode, message: string): void => {
+      if (node !== null && node !== undefined && holdsClass(context, node)) {
+        context.report({ node, message });
+      }
+    };
     return {
-      ReturnStatement: (node: TSESTree.ReturnStatement): void => reportCarried(node.argument, MESSAGES.helper),
-      ArrowFunctionExpression: (node: TSESTree.ArrowFunctionExpression): void => reportCarried(node.expression ? node.body : null, MESSAGES.helper),
+      ReturnStatement: (node: TSESTree.ReturnStatement): void => reportHeld(node.argument, MESSAGES.helper),
+      ArrowFunctionExpression: (node: TSESTree.ArrowFunctionExpression): void => reportHeld(node.expression ? node.body : null, MESSAGES.helper),
       "JSXAttribute > JSXExpressionContainer": (node: TSESTree.JSXExpressionContainer): void => reportCarried(node.expression, MESSAGES.props),
-      "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator": (node: TSESTree.VariableDeclarator): void =>
-        reportCarried(node.init, MESSAGES.props),
-      ExportSpecifier: (node: TSESTree.ExportSpecifier): void => reportCarried(node.local, MESSAGES.props),
-      ExportDefaultDeclaration: (node: TSESTree.ExportDefaultDeclaration): void => reportCarried(node.declaration, MESSAGES.props),
+      "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator": (node: TSESTree.VariableDeclarator): void => reportHeld(node.init, MESSAGES.props),
+      ExportSpecifier: (node: TSESTree.ExportSpecifier): void => reportHeld(node.local, MESSAGES.props),
+      ExportDefaultDeclaration: (node: TSESTree.ExportDefaultDeclaration): void => reportHeld(node.declaration, MESSAGES.props),
+      AssignmentExpression: (node: TSESTree.AssignmentExpression): void => {
+        if (node.left.type === AST_NODE_TYPES.MemberExpression && isClassProperty(accessedName(context, node.left))) {
+          context.report({ node, message: MESSAGES.written });
+        }
+      },
+      VariableDeclarator: (node: TSESTree.VariableDeclarator): void => {
+        if (aliasesAssign(context, node)) {
+          context.report({ node, message: MESSAGES.aliased });
+        }
+      },
       CallExpression: (node: TSESTree.CallExpression): void => {
         if (isElementFactoryCall(context, node)) {
           reportCarried(node.arguments[1], MESSAGES.factory);
         }
-        if (isObjectAssign(context, node) && node.arguments.some((argument) => carriesClass(context, argument))) {
+        if (isObjectAssign(context, node.callee) && node.arguments.some((argument) => carriesClass(context, argument))) {
           context.report({ node, message: MESSAGES.merged });
         }
       },

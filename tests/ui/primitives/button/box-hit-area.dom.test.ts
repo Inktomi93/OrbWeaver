@@ -1,7 +1,6 @@
-import { keysOf } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { Button } from "@orb/ui/button";
-import { BUTTON_BOX_OVERFLOW } from "@orb/ui/button/box-hit-area";
+import { BUTTON_BOX_OVERFLOW, BUTTON_BOX_STEPS } from "@orb/ui/button/box-hit-area";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import { InlineAction } from "@orb/ui/inline-action";
 import { Stack } from "@orb/ui/layout";
@@ -35,11 +34,11 @@ interface BoxRow {
 const CASES: readonly { readonly component: string; readonly rows: readonly BoxRow[] }[] = [
   {
     component: "button",
-    rows: keysOf(BUTTON_BOX_OVERFLOW.button).map((step) => ({ step, overflows: BUTTON_BOX_OVERFLOW.button[step], element: RENDER.button(step) })),
+    rows: BUTTON_BOX_STEPS.button.map((step) => ({ step, overflows: BUTTON_BOX_OVERFLOW.button[step], element: RENDER.button(step) })),
   },
   {
     component: "glyphButton",
-    rows: keysOf(BUTTON_BOX_OVERFLOW.glyphButton).map((step) => ({
+    rows: BUTTON_BOX_STEPS.glyphButton.map((step) => ({
       step,
       overflows: BUTTON_BOX_OVERFLOW.glyphButton[step],
       element: RENDER.glyphButton(step),
@@ -47,7 +46,7 @@ const CASES: readonly { readonly component: string; readonly rows: readonly BoxR
   },
   {
     component: "inlineAction",
-    rows: keysOf(BUTTON_BOX_OVERFLOW.inlineAction).map((step) => ({
+    rows: BUTTON_BOX_STEPS.inlineAction.map((step) => ({
       step,
       overflows: BUTTON_BOX_OVERFLOW.inlineAction[step],
       element: RENDER.inlineAction(step),
@@ -55,7 +54,7 @@ const CASES: readonly { readonly component: string; readonly rows: readonly BoxR
   },
   {
     component: "pictureButton",
-    rows: keysOf(BUTTON_BOX_OVERFLOW.pictureButton).map((step) => ({
+    rows: BUTTON_BOX_STEPS.pictureButton.map((step) => ({
       step,
       overflows: BUTTON_BOX_OVERFLOW.pictureButton[step],
       element: RENDER.pictureButton(step),

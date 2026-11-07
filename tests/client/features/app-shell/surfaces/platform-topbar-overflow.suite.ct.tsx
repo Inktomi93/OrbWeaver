@@ -113,7 +113,7 @@ test.describe("a list band on a phone", () => {
       );
       await trigger.click();
       await page.getByRole("menuitem", { name: band.entry, exact: true }).click();
-      await expect(page.getByRole("dialog")).toBeVisible();
+      await expect(page.getByRole("dialog", { name: band.entry, exact: true })).toBeVisible();
     });
   }
 });

@@ -32,7 +32,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useRef } from "react";
 import { QueryBoundary } from "#components";
-import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { QueryErrorState, QueryUnavailableState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import type { PluginPageKey } from "#state";
 import { openConfigTo, pluginPageKey, selectPluginPageFromList, usePluginPageKey } from "#state";
@@ -110,6 +110,9 @@ function CentredEmpty({ title, description, action }: { readonly title: string; 
 }
 
 function NoPages({ empty }: { readonly empty: ExtensionsEmptyView }): ReactElement | null {
+  if (empty.unread !== null) {
+    return <QueryUnavailableState label="your plugins" onRetry={empty.unread.retry} paused={empty.unread.paused} />;
+  }
   if (empty.reason === null) {
     return null;
   }

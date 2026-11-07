@@ -8,11 +8,12 @@ import type { FlankPresentation } from "#client/features/chat/hooks/use-flank-pr
 
 const NOOP = (): void => undefined;
 
-/** The three states a room's plugin column takes: out of the way, over the transcript, and beside it. */
+/** The states a room's plugin column takes: out of the way, over the transcript, in the row as a panel, and in the row outside panel mode. */
 const STATES = {
   parked: { panelMode: true, inline: false, expanded: false, occupiesRow: false, toggle: NOOP },
   overlaid: { panelMode: true, inline: false, expanded: true, occupiesRow: false, toggle: NOOP },
-  inline: { panelMode: true, inline: true, expanded: true, occupiesRow: true, toggle: NOOP },
+  inRowPanel: { panelMode: true, inline: true, expanded: true, occupiesRow: true, toggle: NOOP },
+  band: { panelMode: false, inline: false, expanded: true, occupiesRow: true, toggle: NOOP },
 } as const satisfies Record<string, FlankPresentation>;
 
 /** The production flank column in one presentation state, in a clipped row, beside a probe of the overlay shadow. */
