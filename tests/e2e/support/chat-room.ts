@@ -40,7 +40,7 @@ import { streamTapOf, waitForRoomOpened } from "./stream-tap.ts";
 import { WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS } from "./timeouts.ts";
 import type { CanonMessage } from "./trpc.ts";
 import { batchResultData, listCanon } from "./trpc.ts";
-import { newReplyRow, newUserRow } from "./turn-witness.ts";
+import { newReplyRow, newUserRows, soleUserRow } from "./turn-witness.ts";
 
 // The character row's chat affordance (character-card.tsx `NormalRowActions`): the dual-purpose resume-or-new
 // Chat CTA. Each row exposes a `aria-label="Chat with <name>"` button — visually hover-revealed on fine
@@ -265,33 +265,35 @@ async function pollCanon<T>(chatId: ChatId, read: (canon: readonly CanonMessage[
   return found;
 }
 
-/** Witness the turn `trigger` sends: canon is read first, so only a row this send created can satisfy it. */
+/** Witness the turn `trigger` sends: canon is read first, so only a row this send created can satisfy it. The sent row
+ *  is checked again when the reply lands, because a second send can land after the first row is seen. */
 export async function witnessTurn(room: TurnRoom, content: string, trigger: () => Promise<void>, userRowTimeoutMs: number = WAIT_SETTLE_MS): Promise<HeldTurn> {
   const before = await listCanon(room.chatId);
   await trigger();
-  const userId = await pollCanon(
+  await pollCanon(
     room.chatId,
-    (canon) => newUserRow(before, canon, content),
+    (canon) => newUserRows(before, canon, content)[0],
     `no new user row with the sent content in ${room.chatId}: ${content}`,
     userRowTimeoutMs,
   );
+  const userId = soleUserRow(before, await listCanon(room.chatId), content);
   return {
     userId,
-    awaitReply: async (timeoutMs = WAIT_LIVE_TURN_MS): Promise<SentTurn> => ({
-      userId,
-      assistantId: await pollCanon(
+    awaitReply: async (timeoutMs = WAIT_LIVE_TURN_MS): Promise<SentTurn> => {
+      const assistantId = await pollCanon(
         room.chatId,
         (canon) => newReplyRow(before, canon, userId),
         `no new assistant row after ${userId} in ${room.chatId}`,
         timeoutMs,
-      ),
-    }),
+      );
+      soleUserRow(before, await listCanon(room.chatId), content);
+      return { userId, assistantId };
+    },
   };
 }
 
-// The Send button sends under either `enterSends` preference; plain Enter would insert a newline under one of them.
 // A lost controlled value fails here instead of being retyped.
-async function typeAndSubmit(page: Page, message: string): Promise<void> {
+async function typeMessage(page: Page, message: string): Promise<{ readonly composer: Locator; readonly input: Locator }> {
   const composer = page.getByRole("group", { name: CHAT_COMPOSER_NAME, exact: true });
   const input = composer.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
   await expect(input).toBeEditable({ timeout: WAIT_SETTLE_MS });
@@ -300,6 +302,12 @@ async function typeAndSubmit(page: Page, message: string): Promise<void> {
   await input.press("Delete");
   await input.pressSequentially(message, { delay: 15 });
   await expect(input).toHaveValue(message, { timeout: WAIT_SETTLE_MS });
+  return { composer, input };
+}
+
+// The Send button sends under either `enterSends` preference; plain Enter would insert a newline under one of them.
+async function typeAndSubmit(page: Page, message: string): Promise<void> {
+  const { composer } = await typeMessage(page, message);
   await composer.getByRole("button", { name: CHAT_SEND_NAME, exact: true }).click();
 }
 
@@ -307,6 +315,20 @@ async function typeAndSubmit(page: Page, message: string): Promise<void> {
  *  watches or holds it: the ghost, Stop, a scripted provider's held stream. */
 export async function sendHeldTurn(room: TurnRoom, message: string, userRowTimeoutMs?: number): Promise<HeldTurn> {
   return await witnessTurn(room, message, () => typeAndSubmit(room.page, message), userRowTimeoutMs);
+}
+
+/** Send by pressing `key` in the composer, the gesture the other drivers leave to the Send button. The `enterSends`
+ *  preference decides whether `key` sends: a key that only inserts a newline rejects with "no new user row". */
+export async function sendByKey(room: TurnRoom, message: string, key: string, userRowTimeoutMs?: number): Promise<HeldTurn> {
+  return await witnessTurn(
+    room,
+    message,
+    async () => {
+      const { input } = await typeMessage(room.page, message);
+      await input.press(key);
+    },
+    userRowTimeoutMs,
+  );
 }
 
 /** Send through the composer and return the ids of the new user row and its reply. */

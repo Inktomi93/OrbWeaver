@@ -7,13 +7,13 @@ import type { Page } from "@playwright/test";
 import { CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME, CHAT_STOP_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { configureCustomProvider, ownerActor } from "./support/actors.ts";
 import type { HeldTurn } from "./support/chat-room.ts";
-import { messageRow, openCharacterRoom, renameOpenChat, sendHeldTurn, waitForAppReady } from "./support/chat-room.ts";
+import { messageRow, openCharacterRoom, renameOpenChat, sendByKey, sendHeldTurn, waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import type { FixtureProvider, FixtureTurn } from "./support/fixture-provider.ts";
 import { startFixtureProvider } from "./support/fixture-provider.ts";
 import { WAIT_INSTANT_MS } from "./support/timeouts.ts";
 import type { CanonMessage } from "./support/trpc.ts";
-import { isTrpcRequestFor, listCanon, mintFreshCharacter, removeCharacter } from "./support/trpc.ts";
+import { getUserSettings, isTrpcRequestFor, listCanon, mintFreshCharacter, removeCharacter, updateSettingsSection } from "./support/trpc.ts";
 
 const CHARACTER = "Smoke Wire Character";
 const GREETING = "A known greeting from the smoke-owned character.";
@@ -23,6 +23,8 @@ const SCRIPTED_CHAT_CASE_BASE_MS = 120_000;
 const TITLE = "Smoke wire conversation";
 const FIRST = { userMessage: "SMOKE_FIRST: explain the synthetic lantern.", prefix: "The synthetic lantern ", suffix: "glows amber." };
 const SECOND = { userMessage: "SMOKE_SECOND: describe its synthetic switch.", prefix: "Its synthetic switch ", suffix: "is brass." };
+const ENTER_SENDS = { userMessage: "SMOKE_ENTER: say the synthetic enter reply.", prefix: "The enter ", suffix: "reply landed." };
+const CHORD_SENDS = { userMessage: "SMOKE_CHORD: say the synthetic chord reply.", prefix: "The chord ", suffix: "reply landed." };
 const STOP = { userMessage: "SMOKE_STOP: hold this synthetic response.", prefix: "This partial answer stays.", suffix: " THIS MUST NEVER LAND." };
 
 async function assertHeldPrefix(page: Page, fixture: FixtureProvider, index: number, turn: FixtureTurn): Promise<void> {
@@ -166,3 +168,47 @@ for (const stopped of [false, true]) {
     expect(await listCanon(chatId)).toEqual(before);
   });
 }
+
+test("Enter sends while enterSends is on; with it off Enter is a newline and Control+Enter sends", { tag: "@smoke" }, async ({ page, baseURL }) => {
+  test.setTimeout(budget(SCRIPTED_CHAT_CASE_BASE_MS));
+  const host = ownerActor(baseURL ?? "");
+  await using teardown = new AsyncDisposableStack();
+  await using fixture = await startFixtureProvider(0, [ENTER_SENDS, CHORD_SENDS]);
+  const characterId = await mintFreshCharacter(castId<CharacterHandle>("e2e-enter-keys"), CHARACTER, GREETING);
+  teardown.defer(async () => {
+    await removeCharacter(characterId);
+  });
+  teardown.defer(await configureCustomProvider(host, fixture.baseUrl, "fixture-enter-keys"));
+  const priorEnterSends = (await getUserSettings()).config.chat.enterSends;
+  teardown.defer(async () => {
+    await updateSettingsSection("chat", { enterSends: priorEnterSends });
+  });
+  await updateSettingsSection("chat", { enterSends: true });
+  const chatId = await openCharacterRoom(page, CHARACTER);
+  const room = { page, chatId };
+
+  const byEnter = await sendByKey(room, ENTER_SENDS.userMessage, "Enter");
+  await expect.poll(() => fixture.requests.length).toBe(1);
+  fixture.release(0);
+  await assertReply(page, byEnter, ENTER_SENDS);
+  await assertIdle(page);
+  const sent = await listCanon(chatId);
+
+  await updateSettingsSection("chat", { enterSends: false });
+  // The reload re-reads the preference; the app-ready signal waits on that boot read.
+  await page.reload();
+  await waitForAppReady(page);
+  const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
+  await expect(input).toBeVisible();
+  await expect(sendByKey(room, CHORD_SENDS.userMessage, "Enter", WAIT_INSTANT_MS)).rejects.toThrow("no new user row");
+  await expect(input).toHaveValue(`${CHORD_SENDS.userMessage}\n`);
+  expect(fixture.requests).toHaveLength(1);
+  expect(await listCanon(chatId)).toEqual(sent);
+
+  // The same draft sends once the gesture carries the modifier, so the newline above was the preference at work.
+  const byChord = await sendByKey(room, CHORD_SENDS.userMessage, "Control+Enter");
+  await expect.poll(() => fixture.requests.length).toBe(2);
+  fixture.release(1);
+  await assertReply(page, byChord, CHORD_SENDS);
+  await assertIdle(page);
+});

@@ -10,10 +10,23 @@ function newRows(before: readonly WitnessRow[], after: readonly WitnessRow[]): r
   return after.filter((row) => !retained.has(row.id));
 }
 
-/** The one new user row carrying exactly `content`. Two such rows are a double send, not a witness. */
-export function newUserRow(before: readonly WitnessRow[], after: readonly WitnessRow[], content: string): MessageId | undefined {
-  const matches = newRows(before, after).filter((row) => row.role === "user" && row.content === content);
-  return matches.length === 1 ? matches[0]?.id : undefined;
+/** The new user rows carrying exactly `content`, oldest first. */
+export function newUserRows(before: readonly WitnessRow[], after: readonly WitnessRow[], content: string): readonly MessageId[] {
+  return newRows(before, after)
+    .filter((row) => row.role === "user" && row.content === content)
+    .map((row) => row.id);
+}
+
+/** The send's one user row. No row is a send that never landed; two are a double send, which a witness must not absorb. */
+export function soleUserRow(before: readonly WitnessRow[], after: readonly WitnessRow[], content: string): MessageId {
+  const [first, ...rest] = newUserRows(before, after, content);
+  if (first === undefined) {
+    throw new Error(`no new user row carries the sent content: ${content}`);
+  }
+  if (rest.length > 0) {
+    throw new Error(`${String(rest.length + 1)} new user rows carry the sent content, so the composer sent it ${String(rest.length + 1)} times: ${content}`);
+  }
+  return first;
 }
 
 /** The first new non-blank assistant row after the user row `userId`. A group round's later speakers follow it. */
