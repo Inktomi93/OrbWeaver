@@ -85,6 +85,7 @@ export interface BandProps
   extends Omit<
     ButtonBaseProps,
     | "children"
+    | "className"
     | "placed"
     | "variant"
     | "tone"

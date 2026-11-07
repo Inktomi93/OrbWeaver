@@ -2,7 +2,7 @@
 
 import { ROW_DELETE_NAME } from "@orb/client/lib";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
-import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { absenceWindow, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { z } from "zod";
@@ -59,7 +59,7 @@ for (const shown of [true, false]) {
     // The handler closes the editor, then raises its notice in the same tick, so a hidden editor means the notice is decided.
     await expect(editor).toBeHidden();
     // The notice mounts a beat after the call that raises it, so an absence is read after the beat the positive case needs.
-    await page.evaluate((beat) => new Promise((resolve) => setTimeout(resolve, beat)), NOTICE_BEAT_MS);
+    await absenceWindow(page, NOTICE_BEAT_MS);
     expect((await caller.persona.list()).some((persona) => persona.id === doomed.id)).toBe(false);
     expect(z.boolean().parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__noticeSeen")))).toBe(shown);
   });

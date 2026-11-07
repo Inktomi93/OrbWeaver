@@ -393,6 +393,7 @@ export function AppShell(): ReactElement {
                       contentLabel={contentLabel}
                       title={layout.activeSectionLabel}
                       header={activeDef.header?.()}
+                      mark={activeDef.topbarMark?.()}
                       trail={<TopbarTrailChrome mobile={layout.mobileViewport} />}
                       listAvailable={layout.listAvailable}
                       listMode={layout.listMode}

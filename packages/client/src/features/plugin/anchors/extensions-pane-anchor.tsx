@@ -11,5 +11,5 @@ export interface ExtensionsPaneAnchorProps {
 
 /** Provide the container box the inset arms of the extensions pane consume. */
 export function ExtensionsPaneAnchor({ children }: ExtensionsPaneAnchorProps): ReactElement {
-  return <Container fill={true}>{children}</Container>;
+  return <Container height="fill">{children}</Container>;
 }

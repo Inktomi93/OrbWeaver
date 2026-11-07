@@ -75,7 +75,7 @@ function RampDiagram(): ReactElement {
 function GlowDiagram(): ReactElement {
   return (
     <ThemePreviewPane fill="background" shape="row" padding="none" height="strip" width="full" className="overflow-hidden">
-      <Row gap="row" width="full" fill={true} padding="row">
+      <Row gap="row" width="full" height="fill" padding="row">
         <ThemePreviewPane grow={true} height="part" padding="none" fill="sidebar" lifted={true} shape="inset" />
         <ThemePreviewPane grow="double" height="part" padding="none" fill="sidebarEdge" lifted={true} shape="inset" />
       </Row>
@@ -107,7 +107,7 @@ export function ElevationCards({ value, onPick }: ElevationCardsProps): ReactEle
           <RadioGroupPickerItem
             key={item.value}
             art={
-              <Stack width="full" fill={true} padding="tight" justify="center">
+              <Stack width="full" height="fill" padding="tight" justify="center">
                 <Diagram />
               </Stack>
             }

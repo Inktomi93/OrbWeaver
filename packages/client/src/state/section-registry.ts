@@ -145,11 +145,14 @@ export type SectionDefinition = SectionDefinitionBase &
     | ({
         readonly content: () => ReactNode;
         readonly header?: () => ReactNode;
+        /** A mark that stands beside the topbar identity at every width, where `header` (the wide identity) is hidden on a phone. */
+        readonly topbarMark?: () => ReactNode;
         readonly context: ContextDefinition;
       } & (SectionWithList | SectionWithoutList))
     | (SectionWithoutList & {
         readonly content: { readonly planned: string };
         readonly header?: never;
+        readonly topbarMark?: never;
         readonly context: Extract<ContextDefinition, { readonly kind: "none" }>;
       })
   );

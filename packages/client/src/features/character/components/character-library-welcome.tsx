@@ -129,7 +129,7 @@ export function CharacterLibraryWelcome(): ReactElement {
     // ancestor container answers that query exactly as the frame's own did. `relative` rides along too: a
     // scroll box with no containing block dumps every `position:absolute` descendant — `sr-only` announcers
     // included — into an ANCESTOR's scrollable area, and the pane scrolls past its last shelf into blank space.
-    <Container scroll="y" fill={true}>
+    <Container scroll="y" height="fill">
       <QueryBoundary
         resetKeys={[]}
         fallback={<SkeletonRows count={3} shape="avatar-row" />}

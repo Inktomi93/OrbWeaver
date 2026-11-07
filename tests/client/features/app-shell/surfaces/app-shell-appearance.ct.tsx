@@ -1366,7 +1366,7 @@ for (const scale of [1, 1.5]) {
     await routeStoredAppearance(page, corpus, { readingBodyScale: scale, chatWidthPct: 100 });
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: await groupRoomId() });
     await roomReady(page);
-    for (const selector of [".orb-composer-track", '[data-slot="message-content-column"]']) {
+    for (const selector of ['[data-track="composer"]', '[data-slot="message-content-column"]']) {
       const box = page.locator(selector).first();
       const measured = await box.evaluate((node, measure) => {
         const probe = document.createElement("span");

@@ -22,7 +22,7 @@ import { Fragment, useDeferredValue, useId, useRef } from "react";
 import type { ChatBusDeps } from "#data";
 import { SkeletonRows, useCarriedAppearance, useTRPC } from "#data";
 import type { ChatRoomSurfaceState, ChatSurfaceAnchor, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
-import { deriveChatTitle, useFocusOnMount } from "#lib";
+import { deriveChatTitle, useFocusRoomArrival } from "#lib";
 import type { ActiveChatHandle } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor.tsx";
 import { RoomFlankAnchor } from "../anchors/room-flank-anchor.tsx";
@@ -89,7 +89,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   const bodyMounted: boolean = useDeferredValue(true, false);
   const surfaceRef = useRef<HTMLDivElement>(null);
   // Gated on the body so this parent effect runs after the transcript's and the composer's own focus effects.
-  useFocusOnMount(surfaceRef, bodyMounted);
+  useFocusRoomArrival(surfaceRef, bodyMounted);
   const composerRef = useRef<HTMLDivElement>(null);
   useRoomEndWhileWriting(surfaceRef, composerRef);
 
@@ -155,7 +155,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           // chat 8px): the room steps its side inset down to `tight`, the transcript adds the ring clearance.
           className="overscroll-y-none"
           paddingBlockEnd="block"
-          fill={true}
+          height="fill"
           scroll="y"
           paddingInline="block"
           paddingInlineNarrow="tight"
@@ -214,7 +214,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                     align="stretch"
                     className="relative overflow-x-clip"
                     minHeight="roomThread"
-                    fill={true}
+                    height="fill"
                     stackBelow="cq-32"
                     data-slot="chat-room-flank-row"
                     ref={flankRowRef}

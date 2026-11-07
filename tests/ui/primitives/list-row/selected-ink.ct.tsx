@@ -2,8 +2,7 @@
 // paints only its border, so the cell's own fill is the surface its ink sits on.
 import { AA_NORMAL_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { pixelContrast, pixelSurface } from "@orb/testkit/browser/spec";
-import { keysOf } from "@orb/testkit/iso";
-import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
+import { SEED_THEME_NAMES } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
 import type { SelectedInkSeedStory, SelectedInkStory } from "./_selected-ink-stories.tsx";
 
@@ -30,7 +29,7 @@ for (const [name, label] of [
 
 const LABELS = ["Connections", "Active cell"] as const;
 
-for (const theme of [undefined, ...keysOf(SEED_THEME_VALUE_SETS)]) {
+for (const theme of [undefined, ...SEED_THEME_NAMES]) {
   test(`${theme ?? "hearth"}: the selected row and the active cell paint the tone's text-on-tint, which differs from the page ink`, async ({ mount }) => {
     const component = await mount<typeof SelectedInkSeedStory>(
       "tests/ui/primitives/list-row/_selected-ink-stories/SelectedInkSeedStory",

@@ -18,16 +18,25 @@ export function ParamSelect({
   value,
   items,
   onValueChange,
+  unavailableNote,
 }: {
   readonly label: string;
   readonly value: string;
   readonly items: SelectItems;
   readonly onValueChange: (value: string) => void;
+  /** The id of the visible line that says why this select has nothing to choose; present ⇒ the select is disabled. */
+  readonly unavailableNote?: string | undefined;
 }): ReactElement {
   return (
     <Stack gap="field">
       <Text voice="kicker">{label}</Text>
-      <Select items={items} value={value} onValueChange={(next): void => onValueChange(next as string)} aria-label={label} />
+      <Select
+        items={items}
+        value={value}
+        onValueChange={(next): void => onValueChange(next as string)}
+        aria-label={label}
+        {...(unavailableNote === undefined ? {} : { disabled: true, "aria-describedby": unavailableNote })}
+      />
     </Stack>
   );
 }

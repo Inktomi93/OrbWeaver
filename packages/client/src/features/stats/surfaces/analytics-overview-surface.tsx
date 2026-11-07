@@ -67,13 +67,13 @@ export function AnalyticsOverviewSurface({ returnFocusTo = null }: { readonly re
     }
   }, [returnFocusTo]);
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="min-block-0" fill={true} focusTarget={true} data-testid={testId("analyticsOverviewSurface")}>
+    <Stack ref={surfaceRef} tabIndex={-1} className="min-block-0" height="fill" focusTarget={true} data-testid={testId("analyticsOverviewSurface")}>
       {/* THE SCROLL BOX IS THE SURFACE'S, NOT THE BODY'S (the `character-editor-surface` hoist).
           `reserveKey`'s measuring Stack is auto-height, so a scroller under the
           boundary resolves `h-full` to `auto` and the surface stops scrolling; hoisted, the measuring wrapper
           sits INSIDE the scroller and the scroller survives the read. The inset and the `analytics-content`
           slot ride the scroller. */}
-      <Stack scroll="y" fill={true} paddingBlock="section" data-slot="analytics-content">
+      <Stack scroll="y" height="fill" paddingBlock="section" data-slot="analytics-content">
         <QueryBoundary
           resetKeys={[]}
           fallback={<SkeletonRows count={3} shape="datum" />}

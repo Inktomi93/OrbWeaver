@@ -666,7 +666,8 @@ function componentGallery(): Plugin {
 export default defineConfig(({ mode }) => {
   const gallery = mode === "component-test";
   return {
-    ...(gallery ? { root: WORKSPACE_ROOT, publicDir: join(import.meta.dirname, "public") } : {}),
+    // Development React (the CT server sets NODE_ENV) over the shipped product arms: a dev-only arm is no component's contract.
+    ...(gallery ? { root: WORKSPACE_ROOT, publicDir: join(import.meta.dirname, "public"), define: { ["import.meta.env.DEV"]: "false" } } : {}),
     // Vite replaces its writable deps directory; concurrent dev origins must not replace a peer's output.
     cacheDir: join(import.meta.dirname, "node_modules", `.vite-${String(DEV_SERVER_PORT)}`),
     resolve: {

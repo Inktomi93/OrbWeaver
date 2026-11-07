@@ -2,7 +2,7 @@
 version: "1"
 nodes:
   - id: keys-of-record
-    name: Replace keyof casts over Object.keys
+    name: Replace keysOf with the owning tuple
     type: automatic
     steps:
       - name: TypeScript files

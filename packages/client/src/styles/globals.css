@@ -16,23 +16,6 @@
   initial-value: 0;
 }
 
-/* The room's track (features/chat/lib/chat-track.tsx) centres on the device-pixel grid (integer-line-boxes.md Law 3):
- * `mx-auto` halves an odd remainder and lands every backdrop-filter layer inside the track on a half pixel, so the
- * start margin is floored and the end margin absorbs the odd pixel. */
-@utility orb-chat-track {
-  margin-inline: round(down, calc((100% - min(100%, var(--width-shell-content))) / 2), var(--dimension-device-pixel)) auto;
-}
-
-/* The composer's track: the dial's width, capped by the very expression the content column carries. A `ch` resolves in
- * the element's own font and rounds to whole pixels, so the track takes the prose font for its own box; the composer's
- * voices and controls set their own sizes. Centred on the same pixel grid as the transcript's track. */
-@utility orb-composer-track {
-  font-size: calc(var(--text-body) * var(--appearance-reading-body-scale));
-  --composer-track: min(var(--width-shell-content), var(--reading-measure));
-  max-inline-size: var(--composer-track);
-  margin-inline: round(down, calc((100% - min(100%, var(--composer-track))) / 2), var(--dimension-device-pixel)) auto;
-}
-
 @layer client {
   :root {
     --orb-layout-viewport-height: 100dvh;
@@ -130,9 +113,31 @@
     background-color: var(--color-background);
     text-shadow: none;
   }
-  /* The history pager pins at its own size, so its box cannot be the track; it starts where the track starts. */
+  /* A room's track (`Track`, features/chat/lib/chat-track.tsx): every carrier fills its pane up to its track's cap and centres, so the
+   * room has one answer to where the middle is. The carrier's stamp owns the box whatever primitive wears it, and no class of it reaches a
+   * primitive. The track owns placement; the reading measure on the content column below owns line length. */
+  [data-track] {
+    inline-size: 100%;
+  }
+  /* `--width-shell-content` is the reader's `chatWidthPct` dial. Centred on the device-pixel grid (integer-line-boxes.md Law 3): `margin-inline:
+   * auto` halves the leftover width, and the pane width and the dial set its parity, so an odd remainder would put the track and every
+   * backdrop-filter layer inside it on a half pixel, with every glyph in the reading column. The start margin is floored and the end margin
+   * absorbs the odd pixel. The history pager pins at its own size, so its box cannot be the track; it starts where the track starts. */
+  [data-track="chat"],
   [data-slot="message-list-leading-action"] {
-    @apply orb-chat-track;
+    margin-inline: round(down, calc((100% - min(100%, var(--width-shell-content))) / 2), var(--dimension-device-pixel)) auto;
+  }
+  [data-track="chat"] {
+    max-inline-size: var(--width-shell-content);
+  }
+  /* The composer's track: the dial's width, capped by the very expression the content column carries. A `ch` resolves in the element's own font
+   * and rounds to whole pixels, so the track takes the prose font for its own box; the composer's voices and controls set their own sizes.
+   * Centred on the same pixel grid as the transcript's track. */
+  [data-track="composer"] {
+    font-size: calc(var(--text-body) * var(--appearance-reading-body-scale));
+    --composer-track: min(var(--width-shell-content), var(--reading-measure));
+    max-inline-size: var(--composer-track);
+    margin-inline: round(down, calc((100% - min(100%, var(--composer-track))) / 2), var(--dimension-device-pixel)) auto;
   }
   /* The reading measure caps the content column, never the transcript region, which the user's width dial owns.
    * It is homed here because the message row and the ghost row both stamp the slot and their measures must not
@@ -244,9 +249,9 @@
       min-block-size: var(--height-scroll-sm);
     }
     :root[data-keyboard-up]
-      [data-slot="chat-room-surface"]:has(.orb-composer-track:focus-within, .orb-composer-track [data-popup-open])
+      [data-slot="chat-room-surface"]:has([data-track="composer"]:focus-within, [data-track="composer"] [data-popup-open])
       :has(> [data-slot="chat-room-flank-row"]),
-    :root:not([data-keyboard-up]) [data-slot="chat-room-surface"]:has(.orb-composer-track textarea:focus) :has(> [data-slot="chat-room-flank-row"]) {
+    :root:not([data-keyboard-up]) [data-slot="chat-room-surface"]:has([data-track="composer"] textarea:focus) :has(> [data-slot="chat-room-flank-row"]) {
       min-block-size: 0;
     }
   }
@@ -351,9 +356,10 @@
   [data-has-bg-image] [data-slot="message-name-row"][data-placement="inside"] [data-slot^="message-metadata-"] {
     color: inherit;
   }
-  /* Echo's track is the content track plus its art width; the skin's own caps live in message-row-variants. */
-  .orb-echo-track {
+  /* Echo's track is the content track plus its art width, centred on the composer's axis; the skin's own caps live in message-row-variants. */
+  [data-track="echo"] {
     max-inline-size: calc(var(--width-shell-content) + var(--immersive-echo-art-width));
+    margin-inline: auto;
   }
 }
 

@@ -29,7 +29,7 @@ import { QueryBoundary } from "#components";
 import type { ChatBusDeps, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useChatBus, useDisplayScripts, usePrefetchDisplayScripts, useSuspenseQuery, useTRPC } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
-import { RenderProfiler, resolveRowRenderPolicy, useFocusOnMount } from "#lib";
+import { RenderProfiler, resolveRowRenderPolicy, useFocusRoomArrival } from "#lib";
 import { isLiveTurnPhase, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
 import { ArtViewerProvider } from "../components/art-viewer-provider.tsx";
 import { GhostMessageRow } from "../components/ghost-message-row.tsx";
@@ -102,7 +102,7 @@ export interface MessageListSurfaceProps {
 /** The scrolling chat transcript for one chat. */
 export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolRenderers, leading }: MessageListSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
+  useFocusRoomArrival(surfaceRef);
 
   useChatBus(chatId, busDeps);
   // OUTSIDE the boundary on purpose (#514): the display-tier regex reads are needed by the rows INSIDE it,
@@ -112,7 +112,7 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
   const chatStyle = useChatStyle();
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="min-block-0" width="full" fill={true} focusTarget={true}>
+    <Stack ref={surfaceRef} tabIndex={-1} className="min-block-0" width="full" height="fill" focusTarget={true}>
       <QueryBoundary
         resetKeys={[chatId]}
         // THE LOADING STATE IS PART OF THE COLUMN, NOT A BARE FALLBACK (#468). It takes the transcript's
@@ -413,7 +413,7 @@ function ChatThread({
     );
   if (items.length === 0) {
     return (
-      <Stack className="relative min-block-0" fill={true}>
+      <Stack className="relative min-block-0" height="fill">
         {sourceStatus}
         {/* The list's own leading slot, so the room's stylesheet shows this copy only where it shows the list's. */}
         <Stack data-slot={MESSAGE_LIST_LEADING_SLOT}>{leading}</Stack>
@@ -426,7 +426,7 @@ function ChatThread({
   }
   return (
     <ArtViewerProvider>
-      <Stack className="relative min-block-0" fill={true}>
+      <Stack className="relative min-block-0" height="fill">
         {sourceStatus}
         <PrintCoverage edges={edges} />
         <MessageList
@@ -459,7 +459,7 @@ function ChatThread({
           blockPaddingToken="block"
           // Narrow tracks keep exactly the row focus ring's clearance (2px outline + 2px offset) and no more:
           // the phone's transcript margin is the room's own inset (owner ruling, about 24px of text margin).
-          fill={true}
+          height="fill"
           paddingInlineNarrow="tight"
         />
         <JumpToLatestPill count={jump.count} visible={jump.visible} onJump={jump.onJump} />
@@ -480,7 +480,7 @@ function PrintCoverage({ edges }: { readonly edges: TranscriptEdges }): ReactEle
 /** The empty-transcript state — a room whose opening policy seeded nothing, before its first turn. */
 function EmptyThread(): ReactElement {
   return (
-    <Stack align="center" justify="center" padding="section" fill={true}>
+    <Stack align="center" justify="center" padding="section" height="fill">
       {/* An empty state stays READABLE PROSE — the prose default, not a muted gloss (density S3 ruling):
           the one line standing in for a whole transcript is the last thing that should recede. */}
       <Text>No messages yet.</Text>

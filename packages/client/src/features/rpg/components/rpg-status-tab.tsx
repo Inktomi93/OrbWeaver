@@ -34,6 +34,7 @@ import { useInvalidation, useTRPC } from "#data";
 import { revealContextPanel } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useEditSnapshot, usePatchActor } from "../hooks/use-rpg-mutations.ts";
+import { useRpgStatusSheetRequest } from "../hooks/use-rpg-status-sheet-request.ts";
 import { actorKey, actorSubjects } from "../lib/actor-key.ts";
 import type { ActorEdit } from "./rpg-actor-trackers.tsx";
 import { ActorMeters, ActorTrackerRows, ConditionChips, StatusLine } from "./rpg-actor-trackers.tsx";
@@ -67,6 +68,8 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
   // one a reader actually hears in this tab: an npc with the same name lives on Scene and is never in
   // this tree, so qualifying against it would rename a character for a rival nobody here can reach.
   const subjects = actorSubjects(characters);
+
+  useRpgStatusSheetRequest(characters, chatId, state.viewerUserId, setOpenKey);
 
   if (characters.length === 0) {
     return <Text>No characters yet — add them in Members.</Text>;

@@ -22,6 +22,8 @@ export interface ShellTopbarProps {
   readonly title: string;
   /** Per-section header node the route may supply (defaults to just the title). */
   readonly header?: ReactNode;
+  /** A mark beside the identity at every width, so a fact the wide header states (a temporary room) survives the phone's narrow identity. */
+  readonly mark?: ReactNode;
   /** The registry-derived `topbar.trail` zone render (⌘K + chrome widgets): the measured overflow row, which
    *  carries the `shell-topbar-trail` class itself. */
   readonly trail: ReactNode;
@@ -151,6 +153,7 @@ export function ShellTopbar({ ref, ...props }: ShellTopbarProps): ReactElement {
         <div className="shell-topbar-identity" data-identity="narrow">
           <TopbarTitle shellLine={true}>{props.screenTitle ?? props.title}</TopbarTitle>
         </div>
+        {props.mark}
       </div>
 
       {props.trail}

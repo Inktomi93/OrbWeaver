@@ -10,7 +10,6 @@ import { emulateMedia, releaseEmulatedMedia, resolvedLength, seedShellState, she
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
-import { keysOf } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
@@ -31,6 +30,9 @@ const REM20 = 1.25;
 // The UA root font size the `:root { font-size }` scale multiplies; no token names a browser default.
 const UA_ROOT_PX = 16;
 const BOTH_DOCKED = { activeSection: "chats", panelOverrides: { chats: { list: "docked", context: "docked" } } } as const;
+// What an open room offers a door to read, and what a section without a room offers.
+const ROOM_BOXES = ["main", "trail", "listPanel", "contextPanel", "row", "composer", "listAction"] as const;
+type DoorBox = (typeof ROOM_BOXES)[number];
 // The boxes a door moves. The rail is absent: it is grid column 1 and no door moves it.
 const DOOR_BOXES = {
   main: ".shell-main",
@@ -40,14 +42,12 @@ const DOOR_BOXES = {
   row: '[data-slot="message-row"]',
   composer: '[data-slot="composer"]',
   listAction: '[data-slot="list-pane-action"]',
-} as const;
-type DoorBox = keyof typeof DOOR_BOXES;
+} as const satisfies Readonly<Record<DoorBox, string>>;
 // The LIST door moves the list pane itself, so its action travels with it by design and is not held.
 const LIST_DOOR: readonly DoorBox[] = ["main", "trail", "listPanel", "row", "composer"];
 const CONTEXT_DOOR: readonly DoorBox[] = ["main", "trail", "contextPanel", "listAction", "row", "composer"];
 const CARRIERS: readonly DoorBox[] = ["row", "composer"];
-// What an open room offers a door to read, and what a section without a room offers.
-const ROOM_BOXES = keysOf(DOOR_BOXES);
+// What a section without a room offers a door to read.
 const SECTION_BOXES: readonly DoorBox[] = ["main", "trail", "listPanel"];
 // A rounded pixel either side: the panel tracks and the centring margin each round to the device pixel.
 const HOLD_SLACK = 2;
@@ -740,7 +740,7 @@ test.describe("a row mounted mid-door", () => {
     await waitForShellIdle(page);
     // The tracks already mounted, kept in page memory so the read below can tell a newcomer from them.
     await page.evaluate(() => {
-      for (const track of document.querySelectorAll(".orb-chat-track")) {
+      for (const track of document.querySelectorAll('[data-track="chat"]')) {
         track.setAttribute("data-ct-at-rest", "");
       }
     });
@@ -761,11 +761,11 @@ test.describe("a row mounted mid-door", () => {
       let newcomers: Element[] = [];
       while (reference.playState === "running" && newcomers.length === 0) {
         await frame();
-        newcomers = Array.from(document.querySelectorAll(".orb-chat-track")).filter((track) => !track.hasAttribute("data-ct-at-rest"));
+        newcomers = Array.from(document.querySelectorAll('[data-track="chat"]')).filter((track) => !track.hasAttribute("data-ct-at-rest"));
       }
       // Read in the next painted frame, over the newcomers still mounted then: the list drops rows it scrolled past.
       await frame();
-      const mounted = Array.from(document.querySelectorAll(".orb-chat-track")).filter((track) => !track.hasAttribute("data-ct-at-rest"));
+      const mounted = Array.from(document.querySelectorAll('[data-track="chat"]')).filter((track) => !track.hasAttribute("data-ct-at-rest"));
       return {
         reference: reference.playState === "running" ? Number(reference.currentTime) : null,
         newcomers: mounted.map((track) => {
@@ -791,7 +791,7 @@ test.describe("a row mounted mid flank door", () => {
     await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
     await expect(page.getByText(FLANK_PANEL, { exact: true })).toBeVisible();
     await waitForShellIdle(page);
-    await using _clock = await holdDoorClock(page, "Hide plugin panels", '[data-slot="chat-room-flank-row"] .orb-chat-track', "room-flank-centre-flip");
+    await using _clock = await holdDoorClock(page, "Hide plugin panels", '[data-slot="chat-room-flank-row"] [data-track="chat"]', "room-flank-centre-flip");
     const read = await page.evaluate(async (maxFrames) => {
       const frame = (): Promise<number> => new Promise((resolve) => requestAnimationFrame(resolve));
       const scroller = document.querySelector('[data-slot="message-list-scroll"]');
@@ -802,7 +802,7 @@ test.describe("a row mounted mid flank door", () => {
       const row = (): Element | null => document.querySelector('[data-slot="chat-room-flank-row"]');
       const flip = (element: Element): Animation | undefined =>
         element.getAnimations().find((candidate) => candidate instanceof CSSAnimation && candidate.animationName === "room-flank-centre-flip");
-      const tracks = (): Element[] => Array.from(row()?.querySelectorAll(".orb-chat-track") ?? []);
+      const tracks = (): Element[] => Array.from(row()?.querySelectorAll('[data-track="chat"]') ?? []);
       const armed = new Set(tracks().filter((track) => flip(track) !== undefined));
       // Read before the scroll: the held clock fixes this time, and the scroll can replace every armed row.
       const at = Array.from(armed)

@@ -38,6 +38,7 @@ import type { ReactElement, ReactNode, Ref, RefObject } from "react";
 import { Component, isValidElement, Suspense, useEffect, useId, useRef } from "react";
 import { rememberSurfaceBox, useSurfaceBox } from "#state";
 import { QueryErrorState } from "../data/query-error-state.tsx";
+import { QUERY_WAITING_LINE } from "../data/query-state-copy.ts";
 import { skeletonRowCountFor } from "../data/skeleton-row-metrics.ts";
 import type { SkeletonRowsProps } from "../data/skeleton-rows.tsx";
 import { SkeletonRows } from "../data/skeleton-rows.tsx";
@@ -226,7 +227,7 @@ function PendingFallback({ onPending, children }: { readonly onPending: () => vo
       {children}
       {online ? null : (
         <Text role="status" ink="muted" textAlign="center" voice="gloss">
-          Waiting for connection…
+          {QUERY_WAITING_LINE}
         </Text>
       )}
     </>
@@ -347,7 +348,7 @@ function ReservedFallback({
   const measured = useSurfaceBox(reserveKey);
   const box = measured ?? reserveBlock ?? null;
   if (box === null) {
-    return <Stack fill={fill}>{children}</Stack>;
+    return <Stack height={fill ? "fill" : undefined}>{children}</Stack>;
   }
   return (
     <Stack
@@ -381,7 +382,7 @@ function MeasuredSettle({ reserveKey, fill, children }: { readonly reserveKey: s
     return (): void => observer.disconnect();
   }, [reserveKey]);
   return (
-    <Stack fill={fill} ref={bodyRef}>
+    <Stack height={fill ? "fill" : undefined} ref={bodyRef}>
       {children}
     </Stack>
   );

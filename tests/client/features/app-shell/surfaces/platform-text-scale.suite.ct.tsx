@@ -10,7 +10,7 @@ import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
-import { channelName, emulateSoftKeyboard, ROOM_PROCEDURES, SECTION_PROCEDURES } from "@orb/testkit/ct";
+import { absenceWindow, channelName, emulateSoftKeyboard, ROOM_PROCEDURES, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
@@ -997,27 +997,7 @@ test.describe("printing a room", () => {
       });
     // The reader comes to rest: this listener is added after the virtualizer's, so each scroll event re-arms its
     // timer after the virtualizer's own, and the quiet period ends after the list stops counting as scrolling.
-    await list.evaluate(
-      (node, quietMs) =>
-        new Promise<void>((resolve) => {
-          const quiet = new AbortController();
-          const settle = (): void => {
-            quiet.abort();
-            resolve();
-          };
-          let timer = setTimeout(settle, quietMs);
-          node.addEventListener(
-            "scroll",
-            () => {
-              clearTimeout(timer);
-              timer = setTimeout(settle, quietMs);
-            },
-            { signal: quiet.signal },
-          );
-          node.scrollTop -= 2000;
-        }),
-      VIRTUAL_CORE_SCROLLING_RESET_MS,
-    );
+    await absenceWindow(page, VIRTUAL_CORE_SCROLLING_RESET_MS, { scroller: list, byPx: -2000 });
     await expect.poll(() => list.evaluate((node) => node.scrollHeight - node.scrollTop - node.clientHeight)).toBeGreaterThan(500);
     await expect.poll(topRow).toEqual(await topRow());
     const reading = await topRow();

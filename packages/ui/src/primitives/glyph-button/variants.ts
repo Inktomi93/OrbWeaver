@@ -1,6 +1,6 @@
 import type { ClassValue } from "tailwind-variants";
 import { TOUCH_TARGET_PSEUDO, tv } from "#lib";
-import type { BUTTON_BOX_OVERFLOW } from "../button/box-hit-area.ts";
+import type { BUTTON_BOX_STEPS } from "../button/box-hit-area.ts";
 
 // A square display box at a glyph step, never a control height and never pointer-narrowed, for a micro control inside a
 // dense row (a chip's dismiss, a row's trailing delete) where a control height would outgrow its host. Every step sits
@@ -18,6 +18,6 @@ export const glyphButtonVariants = tv({
       sm: glyphBox("size-(--size-glyph-sm)"),
       md: glyphBox("size-(--size-glyph-md)"),
       lg: glyphBox("size-(--size-glyph-lg)"),
-    } satisfies Record<keyof typeof BUTTON_BOX_OVERFLOW.glyphButton, ClassValue>,
+    } satisfies Record<(typeof BUTTON_BOX_STEPS.glyphButton)[number], ClassValue>,
   },
 });
