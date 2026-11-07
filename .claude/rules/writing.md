@@ -79,3 +79,4 @@ by a tool, or denser than prose.
     Roles get no memory.
 16. Reports and commit messages lead with the outcome and stay short.
 17. Skills hold procedure, never plan state or dated history. Plan order and dependencies live in `docs/plans/`.
+18. A plan folder holds only `design.md` and `tasks.md`. Put findings and lane output in work items or reports.
