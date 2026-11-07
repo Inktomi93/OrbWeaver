@@ -8,7 +8,6 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { connect, createServer as createTcpServer } from "node:net";
 import { join } from "node:path";
-import process from "node:process";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { expect, test } from "@orb/testkit/tooling";
 import { processEnvValue } from "@orb/tooling/floor/process/process-env";
@@ -196,5 +195,5 @@ test("down with nothing recorded and nothing bound is a clean no-op, and a bare 
   const status = await runCli("stack", ["status"], { env, timeoutMs: STOP_CEILING_MS });
   expect(status.code, `${status.stdout}\n${status.stderr}`).toBe(0);
   expect(resultLine(status.stdout)).toContain("status=down");
-  expect(process.platform === "win32" || existsSync(join(scratch, "run", LEADER_RECORD_FILE))).toBe(false);
+  expect(existsSync(join(scratch, "run", LEADER_RECORD_FILE))).toBe(false);
 });
