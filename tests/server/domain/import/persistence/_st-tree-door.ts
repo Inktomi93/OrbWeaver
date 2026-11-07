@@ -10,7 +10,7 @@ import type { UserId, WorkloadId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
 import { expect } from "@orb/testkit/node";
-import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import type { ServerHarnessOptions, ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makeAssetBytes, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { sql } from "drizzle-orm";
 import { CSRF_HEADERS } from "../../../entry/http/_body-limit-inputs.ts";
@@ -25,13 +25,14 @@ export type Files = Readonly<Record<string, Bytes>>;
 
 // The owner's default content seeds in the background after the first authed request. Settling it here keeps a
 // test's before/after row deltas from racing the seed.
-export async function harness(): Promise<ServerTestHarness> {
+export async function harness(db?: ServerHarnessOptions["db"]): Promise<ServerTestHarness> {
   await using construction = new AsyncDisposableStack();
   const root = construction.use(
     await createServerHarness({
       env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
       physicalPeer: () => "127.0.0.1",
       startJobs: false,
+      ...(db === undefined ? {} : { db }),
     }),
   );
   await (await post(root, {}, ["refused"])).arrayBuffer();

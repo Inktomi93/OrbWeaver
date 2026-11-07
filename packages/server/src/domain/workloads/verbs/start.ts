@@ -11,7 +11,7 @@ import type { WorkloadService, WorkloadServiceContext } from "../contract/servic
 import { isActiveKindUniqueViolation, isWorkloadForeignKeyViolation } from "../persistence/constraints.ts";
 import { findActiveAdmittedWorkloadId, findUnavailableWorkloadDependency, insertWorkload } from "../persistence/queries.ts";
 import { resolveRunOwner } from "../substrate/authorize.ts";
-import { activeConflictMessage, assertAdmissible, parseWorkloadInput, resolveAdmissionKey, runAccount } from "../substrate/params.ts";
+import { activeConflictMessage, assertAdmissible, parseWorkloadInput, resolveAdmissionKey, resolveLane, runAccount } from "../substrate/params.ts";
 
 /** The row an admission attempt inserts, minus the id (a retry mints a fresh one). Derived from
  *  `insertWorkload`'s own parameter rather than re-spelled — one shape, one home. */
@@ -109,7 +109,7 @@ export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, 
         // row runs; this decides WHETHER an identical unit may be enqueued at all).
         admissionKey: resolveAdmissionKey(contributions, input.kind, input.params),
         // The execution lane is the OWNING domain's declaration, stamped here so it survives a restart.
-        lane: contributions[input.kind].lane,
+        lane: resolveLane(contributions, input.kind, input.params),
         params: input.params,
         ownerId,
         funderUserId,
