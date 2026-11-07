@@ -1,9 +1,10 @@
 // Every decision `pnpm dev` makes, pure: argv, ports, watch roots, both spawn plans and the banner.
 // Paths are composed with node:path and every spawn is node plus a JS file, so no plan needs a shell.
 import { join } from "node:path";
+import { stripVTControlCharacters } from "node:util";
 import { DEV_PORTS, MAX_TCP_PORT } from "../../floor/host/ports.ts";
 import { SERVER_ENTRY_IN_PACKAGE, SERVER_NODE_FLAGS } from "../../floor/process/server-entry.ts";
-import type { DevParse, DevSpawnPlan, PortParse, WorkspacePackage } from "../contract/types.ts";
+import type { DevChildName, DevParse, DevSpawnPlan, PortParse, WorkspacePackage } from "../contract/types.ts";
 
 export const DEV_USAGE = "usage: pnpm dev";
 
@@ -118,6 +119,39 @@ export function viteSpawnPlan(opts: {
     cwd: opts.client.dir,
     env: opts.env,
   };
+}
+
+/** The env key naming the built client directory the server serves. The server defaults it to a path, so only the
+ *  process env says a launcher was told where a built client is. */
+export const CLIENT_DIST_DIR_ENV = "CLIENT_DIST_DIR";
+
+/**
+ * A Playwright-owned stack (`E2E_HARNESS=on`) that names its built client serves it from the server, and its
+ * specs drive the server origin. A dev server for it has no reader, so it is never started. A harness stack that
+ * names no built client drives the operator's vite and keeps one.
+ */
+export function servesBuiltClient(opts: { readonly e2eHarness: string; readonly clientDistDir: string | undefined }): boolean {
+  return opts.e2eHarness === "on" && opts.clientDistDir !== undefined && opts.clientDistDir !== "";
+}
+
+export function builtClientLine(clientDistDir: string): string {
+  return `dev: the server serves the client built into ${clientDistDir}; vite is not started.`;
+}
+
+/** The last `count` lines of a log that say anything, with terminal colour removed. */
+export function tailLines(text: string, count: number): readonly string[] {
+  return stripVTControlCharacters(text)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter((line) => line.length > 0)
+    .slice(-count);
+}
+
+/** The line that ends a launch when a child exits unasked; the tail of its log is the reason it gives.
+ *  `survivor` is the child still running that the launcher now stops, or null when none was started. */
+export function childExitLine(name: DevChildName, summary: string, logTail: readonly string[], survivor: DevChildName | null): string {
+  const why = logTail.length === 0 ? "" : `: ${logTail.join(" | ")}`;
+  return `dev: ${name} exited (${summary})${why}${survivor === null ? "." : `; stopping ${survivor}.`}`;
 }
 
 export function devBannerLines(opts: { readonly vitePort: number; readonly serverPort: number; readonly authMode: string }): readonly string[] {

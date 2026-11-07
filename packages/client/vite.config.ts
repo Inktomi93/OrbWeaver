@@ -1,9 +1,11 @@
 import { createHash, randomUUID } from "node:crypto";
+import { subscribe, unsubscribe } from "node:diagnostics_channel";
 import { mkdir, readdir, readFile, rename, rm, stat, writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import process from "node:process";
 import { promisify } from "node:util";
+import { Worker } from "node:worker_threads";
 import { brotliCompress, gzip, constants as zlibConstants, zstdCompress } from "node:zlib";
 import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
@@ -160,6 +162,43 @@ function devCspMirror(): Plugin {
             next(error);
           });
       });
+    },
+  };
+}
+
+const WORKER_THREADS_CHANNEL = "worker_threads";
+
+/**
+ * Reports a worker thread's failure instead of letting it end the dev server. vite-plugin-checker starts its
+ * lint worker without an `error` listener, so any throw inside it (the Tailwind rule's synckit `Atomics.wait`
+ * timeout under box load, for one) reaches the main thread as an uncaught exception and vite exits. Must be
+ * listed before the checker: it subscribes in `config`, which is when the checker starts its worker.
+ */
+function reportWorkerFailures(): Plugin {
+  let logger: ResolvedConfig["logger"] | null = null;
+  const onWorker = (message: unknown): void => {
+    if (typeof message !== "object" || message === null || !("worker" in message) || !(message.worker instanceof Worker)) {
+      return;
+    }
+    message.worker.on("error", (error: Error): void => {
+      logger?.error(`orb: a worker thread failed, so its checks stop until vite restarts; vite keeps serving.\n${error.stack ?? error.message}`, {
+        timestamp: true,
+      });
+    });
+  };
+  return {
+    name: "orb:report-worker-failures",
+    apply: "serve",
+    // The checker is `pre` too, and vite runs `config` hooks in that order: without this the plugin subscribes after the worker exists.
+    enforce: "pre",
+    config(): void {
+      subscribe(WORKER_THREADS_CHANNEL, onWorker);
+    },
+    configResolved(config): void {
+      logger = config.logger;
+    },
+    buildEnd(): void {
+      unsubscribe(WORKER_THREADS_CHANNEL, onWorker);
     },
   };
 }
@@ -656,6 +695,7 @@ export default defineConfig(({ mode }) => {
         ? [componentGallery()]
         : [
             nativeTypecheck(WORKSPACE_ROOT),
+            reportWorkerFailures(),
             // Native TypeScript and typed ESLint retain terminal and browser diagnostics without duplicate JS programs.
             // enableBuild:false — `pnpm check` owns gate-time. eslint auto-discovers the root eslint.config.js.
             checker({
