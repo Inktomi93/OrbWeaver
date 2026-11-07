@@ -352,6 +352,28 @@ test.for([
   ["a forward beside a condition", "export function Pass({ box, on }) { return <Row className={on && box} />; }\n"],
   ["a class handed to a part through a props object", 'export const T = (<Dialog titleProps={{ className: "truncate" }} />);\n'],
   ["an exported object that carries a class", 'export const PROPS = { className: "justify-end" };\n'],
+  ["a class object exported by a specifier", 'const LATE = { className: "justify-end" };\nexport { LATE };\n'],
+  ["a class object exported as the default", 'const LATE = { className: "justify-end" };\nexport default LATE;\n'],
+  ["a class object handed to a component by name", `const PASSED = { className: "justify-end" };\n${element("box={PASSED}")}`],
+  ["a class object handed to a component by a condition", `const PASSED = { className: "justify-end" };\n${element("box={on ? PASSED : null}")}`],
+  ["a class object in the props of createElement", 'export const T = createElement(Row, { className: "justify-end" });\n'],
+  [
+    "a class object in the props of a namespaced createElement",
+    'const PASSED = { className: "justify-end" };\nexport const T = React.createElement(Row, PASSED);\n',
+  ],
+  ["a class object in the props of the JSX runtime", 'export const T = jsx(Row, { className: "justify-end" });\n'],
+  ["a computed key in cn", element('className={cn({ ["justify-end"]: cond })}')],
+  ["a spread argument of cn", `const LIST = ["justify-end"];\n${element("className={cn(...LIST)}")}`],
+  ["a spread inside an array", `const LIST = ["justify-end"];\n${element('className={cn(["min-inline-0", ...LIST])}')}`],
+  ["a spread inside an object", `const HELD = { "justify-end": true };\n${element("className={cn({ ...HELD })}")}`],
+  ["a tagged template", `const tw = String.raw;\n${element("className={tw`justify-end`}")}`],
+  ["a reassigned local", `let late = "";\nlate = "justify-end";\n${element("className={late}")}`],
+  ["a local with no initializer", `let late;\n${element("className={late}")}`],
+  ["a destructured name", `const { box } = { box: "justify-end" };\n${element("className={box}")}`],
+  ["a function declaration", `function pick() { return "justify-end"; }\n${element("className={pick}")}`],
+  ["a global", element("className={SHARED}")],
+  ["a sequence", element('className={(0, "justify-end")}')],
+  ["an awaited value", element("className={await load()}")],
 ] as const)("the built-string rule reports %s", async ([, source]) => {
   expect(await findings(BUILT_RULE, source)).toHaveLength(1);
 });
@@ -369,6 +391,13 @@ test.for([
     "export function Track({ of: Primitive, className }) { return <Primitive className={className} />; }\n",
   ],
   ["an unrelated className data field", 'const record = { className: "Wizard" }; export const T = <Text patch={save({ className: record.className })} />;\n'],
+  ["a class object that stays where it is declared", 'const RECORD = { className: "Wizard" };\nexport const T = RECORD.className.length;\n'],
+  ["an export specifier of a string", 'const ROW = "flex";\nexport { ROW };\n'],
+  ["an element factory without a class", "export const T = createElement(Row, { inert: true });\n"],
+  ["an element factory with no props", "export const T = createElement(Row, null);\n"],
+  ["a local that is never reassigned", `let ROW = "flex";\n${element("className={ROW}")}`],
+  ["a key written as a literal", element('className={cn({ "min-inline-0": narrow, shrink: tight })}')],
+  ["a nested conditional and a numeric guard", element('className={cn(count > 1 ? "flex" : null, 0 && "hidden")}')],
 ] as const)("the built-string rule passes %s", async ([, source]) => {
   expect(await findings(BUILT_RULE, source)).toEqual([]);
 });

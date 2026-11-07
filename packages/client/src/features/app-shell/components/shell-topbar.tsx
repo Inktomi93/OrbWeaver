@@ -62,9 +62,6 @@ export interface TopbarIconButtonProps {
   readonly expanded?: boolean;
   readonly onClick: () => void;
   readonly focusReturnMarker?: string;
-  /** A shell MARKER class for this button, so `shell.css` can reason about ONE topbar control by name
-   *  (the `.shell-chat-member-chip` precedent). Deliberately not `className`:
-   *  this is a handle for the shell's own rules, never a styling hatch for a caller. */
   /** The button is the shell's context toggle, the hook `shell.css` keys on. */
   readonly contextToggle?: boolean;
 }

@@ -4,9 +4,9 @@
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
-import { jsxProperties, staticKeyName, staticObjectProperties, staticValueOptions } from "./static-values.ts";
+import { constantInitializer, jsxProperties, staticKeyName, staticObjectProperties, staticValueOptions } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
-import { posixPath } from "./syntax.ts";
+import { isElementFactoryCall, posixPath } from "./syntax.ts";
 import { plainLayout } from "./ui-classes/plain-layout.ts";
 
 /** How a class token paints: `layout` emits only layout properties, `paint` emits anything else, `unknown` does not compile. */
@@ -211,6 +211,9 @@ const MESSAGES = {
     `\`${prop}\` on ${name}: a client component takes no class, because the class would reach a primitive unjudged. Name what the caller wants with a prop and spell the class inside.`,
   forwarded: "A className read from a parameter hands a caller's class to a primitive; name what the caller wants with a prop and spell the class here.",
   props: "An object that carries a className hides its tokens from lint; pass the part's own prop.",
+  factory: "An element factory call hides its className from the element rules; write JSX and pass the primitive's own prop.",
+  opaque:
+    "A className lint cannot read hides its tokens (a computed key, a spread, a tagged template, a reassigned or destructured name, a sequence); spell the tokens as strings and put the state in a primitive prop.",
   template: "A template className builds a class string; spell the static tokens and put the state in a primitive prop.",
   concatenation: "A concatenated className builds a class string; spell the static tokens and put the state in a primitive prop.",
   imported: "An imported class string hides its paint from the variant system; add the variant to the primitive and pass a prop.",
@@ -246,18 +249,6 @@ function resolvedVariable(context: OrbRuleContext, identifier: TSESTree.Identifi
   return context.sourceCode.getScope(identifier).references.find((reference) => reference.identifier === identifier)?.resolved;
 }
 
-function localInitializer(context: OrbRuleContext, identifier: TSESTree.Identifier): TSESTree.Expression | undefined {
-  const definition = resolvedVariable(context, identifier)?.defs[0];
-  if (definition?.type !== TSESLint.Scope.DefinitionType.Variable) {
-    return undefined;
-  }
-  return definition.node.init ?? undefined;
-}
-
-function isImported(context: OrbRuleContext, identifier: TSESTree.Identifier): boolean {
-  return resolvedVariable(context, identifier)?.defs[0]?.type === TSESLint.Scope.DefinitionType.ImportBinding;
-}
-
 /** The static class tokens a node spells itself: a string, a template's quasis, or an object's keys. */
 function ownTokens(node: TSESTree.Node): readonly string[] {
   if (node.type === AST_NODE_TYPES.Literal) {
@@ -279,8 +270,8 @@ function ownTokens(node: TSESTree.Node): readonly string[] {
 
 type MaybeNode = TSESTree.Node | null | undefined;
 
-/** The nodes under a className value that can carry class tokens; identifiers are followed to a local initializer only. */
-function childNodes(context: OrbRuleContext, node: TSESTree.Node): readonly MaybeNode[] {
+/** The nodes under a className value that can carry class tokens, identifiers followed to a local initializer only; undefined for a kind the reader cannot open. */
+function childNodes(context: OrbRuleContext, node: TSESTree.Node): readonly MaybeNode[] | undefined {
   switch (node.type) {
     case AST_NODE_TYPES.TemplateLiteral:
       return node.expressions;
@@ -306,7 +297,7 @@ function childNodes(context: OrbRuleContext, node: TSESTree.Node): readonly Mayb
     case AST_NODE_TYPES.TSNonNullExpression:
       return [node.expression];
     default:
-      return [];
+      return undefined;
   }
 }
 
@@ -319,7 +310,7 @@ function collectTokens(context: OrbRuleContext, root: MaybeNode): readonly strin
     }
     seen.add(node);
     tokens.push(...ownTokens(node));
-    for (const child of childNodes(context, node)) {
+    for (const child of childNodes(context, node) ?? []) {
       visit(child);
     }
   };
@@ -437,24 +428,37 @@ export function featureClassNameLayoutOnlyRule(classify: ClassClassifier, ownerO
   };
 }
 
+// An identifier is read only as a binding with one constant initializer; a reassigned `let`, a destructured name, a function or a global is opaque.
 function identifierReason(context: OrbRuleContext, node: TSESTree.Identifier): string | undefined {
-  if (isImported(context, node)) {
-    return MESSAGES.imported;
+  switch (resolvedVariable(context, node)?.defs[0]?.type) {
+    case TSESLint.Scope.DefinitionType.ImportBinding:
+      return MESSAGES.imported;
+    case TSESLint.Scope.DefinitionType.Parameter:
+      return MESSAGES.forwarded;
+    default: {
+      const initializer = constantInitializer(context, node);
+      return initializer === undefined ? MESSAGES.opaque : builtReason(context, initializer);
+    }
   }
-  return resolvedVariable(context, node)?.defs[0]?.type === TSESLint.Scope.DefinitionType.Parameter
-    ? MESSAGES.forwarded
-    : builtReason(context, localInitializer(context, node));
 }
+
+// A key a lint can read is a name or a literal; a computed key or a spread writes tokens it cannot see.
+const isReadableMember = (property: TSESTree.ObjectLiteralElement): boolean => property.type === AST_NODE_TYPES.Property && !property.computed;
 
 function firstReason(context: OrbRuleContext, nodes: readonly MaybeNode[]): string | undefined {
   return nodes.map((node) => builtReason(context, node)).find((reason) => reason !== undefined);
 }
 
+// Default-deny: a node kind the reader cannot open is refused, never skipped.
 function builtReason(context: OrbRuleContext, node: MaybeNode): string | undefined {
   if (node === null || node === undefined) {
     return undefined;
   }
   switch (node.type) {
+    case AST_NODE_TYPES.Literal:
+      return undefined;
+    case AST_NODE_TYPES.ObjectExpression:
+      return node.properties.every(isReadableMember) ? undefined : MESSAGES.opaque;
     case AST_NODE_TYPES.TemplateLiteral:
       return node.expressions.length > 0 ? MESSAGES.template : undefined;
     case AST_NODE_TYPES.BinaryExpression:
@@ -471,14 +475,18 @@ function builtReason(context: OrbRuleContext, node: MaybeNode): string | undefin
       return identifierReason(context, node);
     case AST_NODE_TYPES.MemberExpression:
       return MESSAGES.member;
-    default:
-      return firstReason(context, childNodes(context, node));
+    default: {
+      const children = childNodes(context, node);
+      return children === undefined ? MESSAGES.opaque : firstReason(context, children);
+    }
   }
 }
 
 const carriesClass = (context: OrbRuleContext, node: TSESTree.Node): boolean =>
   staticObjectProperties(context, node).some((property) => isClassProperty(staticKeyName(context, property)));
 
+// A class object is refused where it leaves its declaration: returned, passed as an attribute value or an element factory's props, or exported. One nested
+// inside another object or array, or merged by `Object.assign`, is not followed and stays a review check: its tokens travel through code a lint does not run.
 export const noBuiltClassStringRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
@@ -493,9 +501,16 @@ export const noBuiltClassStringRule: OrbRule = {
     return {
       ReturnStatement: (node: TSESTree.ReturnStatement): void => reportCarried(node.argument, MESSAGES.helper),
       ArrowFunctionExpression: (node: TSESTree.ArrowFunctionExpression): void => reportCarried(node.expression ? node.body : null, MESSAGES.helper),
-      "JSXAttribute > JSXExpressionContainer > ObjectExpression": (node: TSESTree.ObjectExpression): void => reportCarried(node, MESSAGES.props),
+      "JSXAttribute > JSXExpressionContainer": (node: TSESTree.JSXExpressionContainer): void => reportCarried(node.expression, MESSAGES.props),
       "ExportNamedDeclaration > VariableDeclaration > VariableDeclarator": (node: TSESTree.VariableDeclarator): void =>
         reportCarried(node.init, MESSAGES.props),
+      ExportSpecifier: (node: TSESTree.ExportSpecifier): void => reportCarried(node.local, MESSAGES.props),
+      ExportDefaultDeclaration: (node: TSESTree.ExportDefaultDeclaration): void => reportCarried(node.declaration, MESSAGES.props),
+      CallExpression: (node: TSESTree.CallExpression): void => {
+        if (isElementFactoryCall(context, node)) {
+          reportCarried(node.arguments[1], MESSAGES.factory);
+        }
+      },
       "JSXOpeningElement:exit": (element: TSESTree.JSXOpeningElement): void => {
         // A carrier's `of` element takes the caller's class by design: the class was judged where the caller wrote `of`.
         for (const carrier of isOfCarrier(context, element) ? [] : classCarriers(context, element)) {
