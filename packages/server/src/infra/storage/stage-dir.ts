@@ -1,44 +1,42 @@
 // stageDirectory — adapt an ALREADY-STAGED, already-validated directory tree on disk into the same
 // `StagedArchive` contract `extractZip` yields, so the entity-agnostic bundle importer (`importStagedArchive`)
-// can consume a folder upload exactly as it consumes an extracted zip. This is NOT a trust boundary: the
-// folder-import HTTP route sanitizes every relative path + writes the files itself (fresh dir, O_EXCL |
-// O_NOFOLLOW), so by the time this walks the tree the bytes are ours. Reads still go through O_NOFOLLOW as
-// defense-in-depth, matching the zip staging reader.
+// can consume a folder upload exactly as it consumes an extracted zip. The folder-import HTTP route sanitizes
+// every relative path and writes the files itself. Reads stay bound to the directories held here (`held-dir.ts`).
 
-import { constants as fsConstants } from "node:fs";
-import { open, readdir, rm } from "node:fs/promises";
-import { relative, sep } from "node:path";
+import { rm } from "node:fs/promises";
 import type { StagedArchive, StagedEntry } from "./contract.ts";
-
-/** Refuse a staged leaf replaced by a symlink, closing the handle on every read outcome. */
-export async function readStorageFileNoFollow(path: string): Promise<Uint8Array> {
-  // `await using`: node's `FileHandle` carries `[Symbol.asyncDispose]` (= `close()`), so the fd is closed on
-  // every exit of this scope — and a close that throws while the READ also threw now surfaces as a
-  // SuppressedError carrying BOTH, instead of the finally's close error masking the real fault.
-  // biome-ignore lint/suspicious/noBitwiseOperators: OR-ing POSIX open() flag bits is the intended API (same exemption zip.ts's staging reader carries).
-  await using handle = await open(path, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW);
-  const data = await handle.readFile();
-  return new Uint8Array(data.buffer, data.byteOffset, data.byteLength);
-}
+import type { HeldDirectory } from "./held-dir.ts";
+import { holdChild, holdTree, listHeld, readHeldFile } from "./held-dir.ts";
 
 /**
- * Walk `dir` recursively and present every regular file as a {@link StagedEntry} whose `path` is the
- * forward-slash relative path within `dir` (the bundle importer's routing key) and whose `read` lazily loads
- * the bytes off disk. `dispose()` removes `dir` (the workload owns cleanup, mirroring the zip staging path).
+ * Walk `dir` and present every regular file as a {@link StagedEntry} whose `path` is the forward-slash relative path
+ * within `dir` (the bundle importer's routing key) and whose `read` lazily loads the bytes off disk. `dispose()`
+ * releases the held directories and removes `dir` (the workload owns cleanup, mirroring the zip staging path).
  */
 export async function stageDirectory(dir: string): Promise<StagedArchive> {
-  const dirents = await readdir(dir, { recursive: true, withFileTypes: true });
+  await using holds = new AsyncDisposableStack();
   const entries: StagedEntry[] = [];
-  for (const dirent of dirents) {
-    if (!dirent.isFile()) {
-      continue;
+  const walk = async (held: HeldDirectory | null, prefix: string): Promise<void> => {
+    if (held === null) {
+      return;
     }
-    const absolute = `${dirent.parentPath}${sep}${dirent.name}`;
-    const rel = relative(dir, absolute).split(sep).join("/");
-    entries.push({ path: rel, read: () => readStorageFileNoFollow(absolute) });
-  }
+    for (const dirent of await listHeld(held)) {
+      const { name } = dirent;
+      const path = `${prefix}${name}`;
+      if (dirent.isFile()) {
+        entries.push({ path, read: () => readHeldFile(held, name) });
+      } else if (dirent.isDirectory()) {
+        await walk(holds.use(await holdChild(held, name)), `${path}/`);
+      }
+    }
+  };
+  await walk(holds.use(await holdTree(dir)), "");
+  const lifetime = holds.move();
   return {
     entries,
-    dispose: (): Promise<void> => rm(dir, { recursive: true, force: true }),
+    dispose: async (): Promise<void> => {
+      await lifetime.disposeAsync();
+      await rm(dir, { recursive: true, force: true });
+    },
   };
 }

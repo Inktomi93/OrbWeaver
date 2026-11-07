@@ -3,9 +3,10 @@
 // @subject packages/server/src/infra/storage/zip.ts
 
 import { createCipheriv } from "node:crypto";
-import { mkdtemp, open, readdir, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, open, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import process from "node:process";
 import { crc32, deflateRawSync } from "node:zlib";
 import { extractZip, packZip } from "@orb/server/infra/storage/zip";
 import { expect, test } from "@orb/testkit/node";
@@ -246,4 +247,20 @@ test("a staged archive whose writer deflated an empty file stages it empty", asy
   const outcome = await extract("staged file", foreignZip([empty]));
 
   expect({ refused: outcome.refused, entries: outcome.entries }).toEqual({ refused: null, entries: [{ path: empty.path, bytes: [] }] });
+});
+
+// Linux only: Node has no openat, and only /proc/self/fd reads through a held parent.
+test.runIf(process.platform === "linux")("an extraction folder swapped after staging reads the archive's bytes, not the replacement", async () => {
+  const stagingRoot = await mkdtemp(join(tmpdir(), "orb-zip-custody-"));
+  onTestFinished(() => rm(stagingRoot, { recursive: true, force: true }));
+  const staged = await extractZip(await packed(), { stagingRoot });
+  const [extraction] = await readdir(stagingRoot);
+  const dir = join(stagingRoot, extraction ?? "");
+
+  await rename(dir, `${dir}-moved-aside`);
+  await mkdir(dir);
+  await writeFile(join(dir, "0"), "the late replacement");
+
+  expect(Array.from((await staged.entries[0]?.read()) ?? [])).toEqual(Array.from(ENTRIES[0].bytes));
+  await staged.dispose();
 });

@@ -1,13 +1,13 @@
 // domain/import/loader/collect — profile-dir collector. Walks a staged ST profile through the injected
 // ImportFsPort (domain-no-node-fs), reads/hashes/parses PNG cards + chat JSONL + settings.json personas,
-// and pairs them into per-character bundles. Pure over the injected port — fixture-testable.
+// and pairs them into per-character bundles. Every read goes through an open `ImportDirectory`, never a path.
 //
 // Layout: <profileDir>/characters/*.png, /chats/<charDir>/*.jsonl, /settings.json, /User Avatars/*.png,
 // /worlds/*.json, /OpenAI Settings/*.json (chat-completion presets), /groups/*.json + /group chats/*.jsonl.
 // Cards and chat dirs pair by slugifyHandle. Every non-happy path is recorded in CollectResult, never silent.
 
 import { characterHandleSchema, deriveCharacterHandle } from "@orb/contracts/character";
-import type { ImportFsPort, StProfileHandledEntry } from "@orb/contracts/import";
+import type { ImportDirectory, ImportFsPort, StProfileHandledEntry } from "@orb/contracts/import";
 import { chatDirCardCandidates, ST_SETTINGS_FILE, stProfileEntryDisposition } from "@orb/contracts/import";
 import type { RegexScriptCard } from "@orb/contracts/regex";
 import { regexScriptCardSchema } from "@orb/contracts/regex";
@@ -55,7 +55,7 @@ interface Group {
 
 /** One profile directory with its own listing, which says what each plane really is. */
 interface ListedProfile {
-  readonly dir: string;
+  readonly dir: ImportDirectory;
   readonly entries: readonly { readonly name: string; readonly kind: string }[];
 }
 
@@ -124,22 +124,22 @@ function group(state: CollectState, handle: CharacterHandle): Group {
 // hostile staging dir, but a silent slice is exactly the "reports success over an incomplete import" shape
 // this collector's header forbids. The port's own failures arrive typed here too (the dir EXISTS but is
 // unreadable ⇒ `ImportInfraFailureError`, never a raw errno escaping the domain).
-async function listDir(fs: ImportFsPort, dir: string, state: CollectState): Promise<{ name: string; kind: string }[]> {
+async function listDir(dir: ImportDirectory, state: CollectState): Promise<{ name: string; kind: string }[]> {
   let entries: readonly { name: string; kind: string }[];
   // The catch RE-THROWS — `rethrowInfraFailure` maps an
   // infra fault to the typed error and the trailing `throw` re-raises anything else unchanged (a missing dir
-  // is the PORT's `[]`, so nothing is swallowed here).
+  // is the PORT's null at open, so nothing is swallowed here).
   try {
-    entries = await fs.readdir(dir);
+    entries = await dir.list();
   } catch (error) {
-    rethrowInfraFailure(error, dir, "readdir");
+    rethrowInfraFailure(error, dir.path, "readdir");
     throw error;
   }
   const sorted = entries.toSorted((a, b) => a.name.localeCompare(b.name));
   if (sorted.length <= MAX_DIR_ENTRIES) {
     return sorted;
   }
-  state.truncatedDirs.push({ dir, kept: MAX_DIR_ENTRIES, total: sorted.length });
+  state.truncatedDirs.push({ dir: dir.path, kept: MAX_DIR_ENTRIES, total: sorted.length });
   return sorted.slice(0, MAX_DIR_ENTRIES);
 }
 
@@ -148,24 +148,35 @@ async function listDir(fs: ImportFsPort, dir: string, state: CollectState): Prom
  *  EACCES/EIO propagated as a raw errno: the caller saw "collection failed" with no path and no operation,
  *  which is precisely the claim {@link ImportInfraFailureError} exists to make. A non-infra error (a
  *  race-deleted `ENOENT`, anything `.code`-less) re-raises UNCHANGED — this wrapper only types the fault. */
-async function readStagedFile(fs: ImportFsPort, path: string): Promise<Uint8Array> {
+async function readStagedFile(fs: ImportFsPort, dir: ImportDirectory, name: string): Promise<Uint8Array> {
   // The catch RE-THROWS in both arms (typed infra error,
   // else the original) — nothing is swallowed.
   try {
-    return await fs.readFile(path);
+    return await dir.readFile(name);
   } catch (error) {
-    rethrowInfraFailure(error, path, "readFile");
+    rethrowInfraFailure(error, fs.join(dir.path, name), "readFile");
     throw error;
   }
 }
 
 /** {@link readStagedFile}'s `stat` twin — the chat-size gate reads a file's size before deciding to read it. */
-async function statStagedFile(fs: ImportFsPort, path: string): Promise<{ readonly size: number }> {
+async function statStagedFile(fs: ImportFsPort, dir: ImportDirectory, name: string): Promise<{ readonly size: number }> {
   // The catch RE-THROWS in both arms.
   try {
-    return await fs.stat(path);
+    return await dir.stat(name);
   } catch (error) {
-    rethrowInfraFailure(error, path, "stat");
+    rethrowInfraFailure(error, fs.join(dir.path, name), "stat");
+    throw error;
+  }
+}
+
+/** Open one plane of `parent`, typing its infrastructure faults. Null is the port's absent plane. */
+async function openPlane(fs: ImportFsPort, parent: ImportDirectory, name: string): Promise<ImportDirectory | null> {
+  // The catch RE-THROWS in both arms.
+  try {
+    return await parent.openDirectory(name);
+  } catch (error) {
+    rethrowInfraFailure(error, fs.join(parent.path, name), "readdir");
     throw error;
   }
 }
@@ -208,14 +219,20 @@ function rethrowInfraFailure(error: unknown, path: string, operation: string): v
   }
 }
 
-// The files a plane holds, for resolving a name read from file content. Such a name only selects an entry this
-// listing already returned and never reaches the filesystem itself, so a climb, an absolute path or a separator has
-// nothing to match. A link is neither a "file" nor a "directory" entry, so a linked file or plane stays out of reach.
-async function planeFiles(fs: ImportFsPort, profile: ListedProfile, plane: string, state: CollectState): Promise<ReadonlySet<string>> {
-  if (!profile.entries.some((ent) => ent.name === plane && ent.kind === "directory")) {
+// A plane the profile listing says is a directory, opened for resolving names read from file content. The read stays
+// on this same open directory, so what a later name selects is what this listing held.
+async function listedPlane(fs: ImportFsPort, profile: ListedProfile, plane: string): Promise<ImportDirectory | null> {
+  return profile.entries.some((ent) => ent.name === plane && ent.kind === "directory") ? await openPlane(fs, profile.dir, plane) : null;
+}
+
+// The files a plane holds. A name from file content only selects an entry this listing already returned and never
+// reaches the filesystem itself, so a climb, an absolute path or a separator has nothing to match. A link is neither a
+// "file" nor a "directory" entry, so a linked file or plane stays out of reach.
+async function planeFiles(plane: ImportDirectory | null, state: CollectState): Promise<ReadonlySet<string>> {
+  if (plane === null) {
     return new Set();
   }
-  const entries = await listDir(fs, fs.join(profile.dir, plane), state);
+  const entries = await listDir(plane, state);
   return new Set(entries.filter((ent) => ent.kind === "file").map((ent) => ent.name));
 }
 
@@ -232,13 +249,16 @@ function disambiguate(state: CollectState, base: string): CharacterHandle {
   return handle;
 }
 
-async function collectCards(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
-  const charsDir = fs.join(profileDir, CHARACTERS_DIR);
-  for (const ent of await listDir(fs, charsDir, state)) {
+async function collectCards(fs: ImportFsPort, profileDir: ImportDirectory, state: CollectState): Promise<void> {
+  await using charsDir = await openPlane(fs, profileDir, CHARACTERS_DIR);
+  if (charsDir === null) {
+    return;
+  }
+  for (const ent of await listDir(charsDir, state)) {
     if (ent.kind !== "file" || !PNG_EXT.test(ent.name)) {
       continue;
     }
-    const bytes = await readStagedFile(fs, fs.join(charsDir, ent.name));
+    const bytes = await readStagedFile(fs, charsDir, ent.name);
     const stem = ent.name.replace(PNG_EXT, "");
     const parsed = await parseCardPng(bytes, stem);
     if (parsed === null) {
@@ -270,7 +290,7 @@ async function collectCards(fs: ImportFsPort, profileDir: string, state: Collect
 
 async function collectChatsForDir(args: {
   readonly fs: ImportFsPort;
-  readonly chatsDir: string;
+  readonly chatsDir: ImportDirectory;
   readonly dirName: string;
   readonly state: CollectState;
   readonly wallClockZone: string | undefined;
@@ -280,19 +300,21 @@ async function collectChatsForDir(args: {
   if (state.skippedHandles.has(handle)) {
     return;
   }
-  const dirPath = fs.join(chatsDir, dirName);
+  await using chatDir = await openPlane(fs, chatsDir, dirName);
   group(state, handle).dirName ??= dirName;
-  for (const fileEnt of await listDir(fs, dirPath, state)) {
+  if (chatDir === null) {
+    return;
+  }
+  for (const fileEnt of await listDir(chatDir, state)) {
     if (fileEnt.kind !== "file" || !JSONL_EXT.test(fileEnt.name)) {
       continue;
     }
-    const filePath = fs.join(dirPath, fileEnt.name);
-    const sz = await statStagedFile(fs, filePath);
+    const sz = await statStagedFile(fs, chatDir, fileEnt.name);
     if (sz.size > MAX_JSONL_BYTES) {
       state.skippedChats.push(fs.join(dirName, fileEnt.name));
       continue;
     }
-    const bytes = await readStagedFile(fs, filePath);
+    const bytes = await readStagedFile(fs, chatDir, fileEnt.name);
     const parsed = parseChatJsonl(new TextDecoder().decode(bytes), {
       fileName: fileEnt.name,
       charDirName: dirName,
@@ -309,6 +331,18 @@ async function collectChatsForDir(args: {
       importHash: chatContentHash(parsed),
       fileHash: importFileHash(bytes),
     });
+  }
+}
+
+async function collectChats(fs: ImportFsPort, profileDir: ImportDirectory, state: CollectState, wallClockZone: string | undefined): Promise<void> {
+  await using chatsDir = await openPlane(fs, profileDir, CHATS_DIR);
+  if (chatsDir === null) {
+    return;
+  }
+  for (const dirEnt of await listDir(chatsDir, state)) {
+    if (dirEnt.kind === "directory") {
+      await collectChatsForDir({ fs, chatsDir, dirName: dirEnt.name, state, wallClockZone });
+    }
   }
 }
 
@@ -333,13 +367,16 @@ function fuzzyPair(state: CollectState): void {
 // Standalone lorebooks: `<profileDir>/worlds/*.json`, the ST grammar or an orb export, through the ONE
 // world-info serde (an ST file takes the filename stem as its name); an unparseable file is recorded, never
 // silent. A missing `worlds/` dir yields [].
-async function collectWorlds(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
-  const worldsDir = fs.join(profileDir, WORLDS_DIR);
-  for (const ent of await listDir(fs, worldsDir, state)) {
+async function collectWorlds(fs: ImportFsPort, profileDir: ImportDirectory, state: CollectState): Promise<void> {
+  await using worldsDir = await openPlane(fs, profileDir, WORLDS_DIR);
+  if (worldsDir === null) {
+    return;
+  }
+  for (const ent of await listDir(worldsDir, state)) {
     if (ent.kind !== "file" || !JSON_EXT.test(ent.name)) {
       continue;
     }
-    const bytes = await readStagedFile(fs, fs.join(worldsDir, ent.name));
+    const bytes = await readStagedFile(fs, worldsDir, ent.name);
     const book = parseWorldBookFile(bytes, ent.name.replace(JSON_EXT, ""));
     if (!book.ok) {
       state.unreadableWorlds.push(ent.name);
@@ -352,14 +389,17 @@ async function collectWorlds(fs: ImportFsPort, profileDir: string, state: Collec
 // ST saved CHAT-COMPLETION presets: `<profileDir>/OpenAI Settings/*.json`. Each is mapped to the orb-native
 // portable shape by the substrate (through `tryImportStChatCompletionPreset`); an unparseable
 // file is recorded, never silent. A missing dir yields nothing (the port resolves [] for a missing dir).
-async function collectPresetDir(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
-  const dir = fs.join(profileDir, ST_PRESET_DIR);
-  for (const ent of await listDir(fs, dir, state)) {
+async function collectPresetDir(fs: ImportFsPort, profileDir: ImportDirectory, state: CollectState): Promise<void> {
+  await using dir = await openPlane(fs, profileDir, ST_PRESET_DIR);
+  if (dir === null) {
+    return;
+  }
+  for (const ent of await listDir(dir, state)) {
     if (ent.kind !== "file" || !JSON_EXT.test(ent.name)) {
       continue;
     }
     const sourceFile = fs.join(ST_PRESET_DIR, ent.name);
-    const bytes = await readStagedFile(fs, fs.join(dir, ent.name));
+    const bytes = await readStagedFile(fs, dir, ent.name);
     const parsed = parseStPresetFile(bytes, ent.name.replace(JSON_EXT, ""));
     if (parsed === null) {
       state.unreadablePresets.push(sourceFile);
@@ -372,14 +412,17 @@ async function collectPresetDir(fs: ImportFsPort, profileDir: string, state: Col
 // Saved UI THEMES: `<profileDir>/themes/*.json`, through the ONE theme serde (an ST theme converts to the
 // orb palette its colours safely map to; an orb export reads back as itself). A refusal always carries its
 // reason, never a silent drop. A missing dir yields nothing.
-async function collectThemes(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
-  const dir = fs.join(profileDir, ST_THEME_DIR);
-  for (const ent of await listDir(fs, dir, state)) {
+async function collectThemes(fs: ImportFsPort, profileDir: ImportDirectory, state: CollectState): Promise<void> {
+  await using dir = await openPlane(fs, profileDir, ST_THEME_DIR);
+  if (dir === null) {
+    return;
+  }
+  for (const ent of await listDir(dir, state)) {
     if (ent.kind !== "file" || !JSON_EXT.test(ent.name)) {
       continue;
     }
     const sourceFile = fs.join(ST_THEME_DIR, ent.name);
-    const bytes = await readStagedFile(fs, fs.join(dir, ent.name));
+    const bytes = await readStagedFile(fs, dir, ent.name);
     const result = parseThemeFile(bytes, ent.name.replace(JSON_EXT, ""));
     if (!result.ok) {
       state.refusedThemes.push({ file: sourceFile, reason: result.detail ?? portableParseError(THEME_SCHEMA_KIND, result.reason) });
@@ -394,9 +437,12 @@ async function collectThemes(fs: ImportFsPort, profileDir: string, state: Collec
 // ST app BACKGROUNDS: `<profileDir>/backgrounds/*`. The bytes ride through to the driver (the domain cannot
 // reach `domain/assets`); a non-media extension is recorded with its reason rather than guessed at. A missing
 // dir yields nothing.
-async function collectBackgrounds(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
-  const dir = fs.join(profileDir, ST_BACKGROUND_DIR);
-  for (const ent of await listDir(fs, dir, state)) {
+async function collectBackgrounds(fs: ImportFsPort, profileDir: ImportDirectory, state: CollectState): Promise<void> {
+  await using dir = await openPlane(fs, profileDir, ST_BACKGROUND_DIR);
+  if (dir === null) {
+    return;
+  }
+  for (const ent of await listDir(dir, state)) {
     if (ent.kind !== "file") {
       continue;
     }
@@ -406,7 +452,7 @@ async function collectBackgrounds(fs: ImportFsPort, profileDir: string, state: C
       state.skippedBackgrounds.push({ file: sourceFile, reason: "not an importable image/video file (unrecognized extension)" });
       continue;
     }
-    const bytes = await readStagedFile(fs, fs.join(dir, ent.name));
+    const bytes = await readStagedFile(fs, dir, ent.name);
     state.backgrounds.push({ filename: sourceFile, name: stBackgroundName(ent.name), mime, bytes });
   }
 }
@@ -414,14 +460,14 @@ async function collectBackgrounds(fs: ImportFsPort, profileDir: string, state: C
 /** The LIVE `oai_settings` blob — the selected preset PLUS the author's unsaved edits, so dropping it would
  *  lose real tuning. Named `OpenAI (active)`, which never collides with a file preset. A missing/corrupt
  *  settings.json contributes nothing (the same best-effort posture as tags/personas). */
-async function collectSettingsPreset(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<void> {
+async function collectSettingsPreset(fs: ImportFsPort, profileDir: ImportDirectory, state: CollectState): Promise<void> {
   let settingsRaw: unknown;
-  const settingsPath = fs.join(profileDir, ST_SETTINGS_FILE);
+  const settingsPath = fs.join(profileDir.path, ST_SETTINGS_FILE);
   // `rethrowInfraFailure` escalates any real infra
   // fault (permission/disk); only a missing/corrupt settings.json falls through here, the documented
   // best-effort posture above (same as tags/personas) — nothing is dropped, there is nothing to collect.
   try {
-    const bytes = await fs.readFile(settingsPath);
+    const bytes = await profileDir.readFile(ST_SETTINGS_FILE);
     settingsRaw = JSON.parse(new TextDecoder().decode(bytes));
   } catch (error) {
     rethrowInfraFailure(error, settingsPath, "readFile");
@@ -437,37 +483,36 @@ async function collectSettingsPreset(fs: ImportFsPort, profileDir: string, state
 // `group chats/` dir. A claimed leaf with no readable/parseable file is recorded on the group, never silent.
 async function collectGroupChats(args: {
   readonly fs: ImportFsPort;
-  readonly profileDir: string;
+  /** The open `group chats/` plane, or null when the profile has none. */
+  readonly plane: ImportDirectory | null;
   /** The plane's own files: `leaves` come from a group file, so they may only select one of these. */
   readonly files: ReadonlySet<string>;
   readonly leaves: readonly string[];
   readonly groupName: string;
   readonly wallClockZone: string | undefined;
 }): Promise<Pick<CollectedGroup, "chats" | "missingChatLeaves">> {
-  const { fs, profileDir, files, leaves, groupName, wallClockZone } = args;
-  const dir = fs.join(profileDir, GROUP_CHATS_DIR);
+  const { fs, plane, files, leaves, groupName, wallClockZone } = args;
   const chats: CollectedChat[] = [];
   const missingChatLeaves: string[] = [];
   for (const leaf of leaves) {
     const fileName = `${leaf}.jsonl`;
-    if (!files.has(fileName)) {
+    if (plane === null || !files.has(fileName)) {
       missingChatLeaves.push(fileName);
       continue;
     }
-    const filePath = fs.join(dir, fileName);
     let bytes: Uint8Array;
     // the catch pushes the leaf onto `missingChatLeaves`, which
     // `collectGroupChats` returns and `mergeRecords` copies to the report's `missingGroupChats`. Infra faults
     // rethrow first. Ends if `missingChatLeaves` stops being returned.
     try {
-      const sz = await statStagedFile(fs, filePath);
+      const sz = await statStagedFile(fs, plane, fileName);
       if (sz.size > MAX_JSONL_BYTES) {
         missingChatLeaves.push(fileName);
         continue;
       }
-      bytes = await fs.readFile(filePath);
+      bytes = await plane.readFile(fileName);
     } catch (error) {
-      rethrowInfraFailure(error, filePath, "readFile");
+      rethrowInfraFailure(error, fs.join(plane.path, fileName), "readFile");
       missingChatLeaves.push(fileName);
       continue;
     }
@@ -498,21 +543,24 @@ async function collectGroupChats(args: {
 // ST groups: `<profileDir>/groups/*.json`. Members stay UNRESOLVED here (card filenames) — the filename →
 // characterId mapping only exists after the character wave, so the driver owns the resolve.
 async function collectGroups(fs: ImportFsPort, profile: ListedProfile, state: CollectState, wallClockZone: string | undefined): Promise<void> {
-  const profileDir = profile.dir;
-  const groupsDir = fs.join(profileDir, GROUPS_DIR);
-  const files = await planeFiles(fs, profile, GROUP_CHATS_DIR, state);
-  for (const ent of await listDir(fs, groupsDir, state)) {
+  await using plane = await listedPlane(fs, profile, GROUP_CHATS_DIR);
+  const files = await planeFiles(plane, state);
+  await using groupsDir = await openPlane(fs, profile.dir, GROUPS_DIR);
+  if (groupsDir === null) {
+    return;
+  }
+  for (const ent of await listDir(groupsDir, state)) {
     if (ent.kind !== "file" || !JSON_EXT.test(ent.name)) {
       continue;
     }
     const sourceFile = fs.join(GROUPS_DIR, ent.name);
-    const bytes = await readStagedFile(fs, fs.join(groupsDir, ent.name));
+    const bytes = await readStagedFile(fs, groupsDir, ent.name);
     const parsed = parseStGroupFile(bytes, ent.name.replace(JSON_EXT, ""));
     if (parsed === null) {
       state.unreadableGroups.push(sourceFile);
       continue;
     }
-    const { chats, missingChatLeaves } = await collectGroupChats({ fs, profileDir, files, leaves: parsed.chatLeaves, groupName: parsed.name, wallClockZone });
+    const { chats, missingChatLeaves } = await collectGroupChats({ fs, plane, files, leaves: parsed.chatLeaves, groupName: parsed.name, wallClockZone });
     state.groups.push({ parsed, sourceFile, chats, missingChatLeaves });
   }
 }
@@ -526,12 +574,12 @@ async function collectUnhandled(fs: ImportFsPort, profile: ListedProfile, state:
       state.unhandled.push(ent.kind === "directory" ? `${ent.name}/` : ent.name);
     }
   }
-  const settingsPath = fs.join(profile.dir, ST_SETTINGS_FILE);
+  const settingsPath = fs.join(profile.dir.path, ST_SETTINGS_FILE);
   // `rethrowInfraFailure` escalates real infra
   // faults; a missing/corrupt settings.json is documented below as nothing-to-report (personas collection
   // records its own absence separately).
   try {
-    const bytes = await fs.readFile(settingsPath);
+    const bytes = await profile.dir.readFile(ST_SETTINGS_FILE);
     const parsed: unknown = JSON.parse(new TextDecoder().decode(bytes));
     if (typeof parsed === "object" && parsed !== null) {
       for (const key of Object.keys(parsed)) {
@@ -548,13 +596,13 @@ async function collectUnhandled(fs: ImportFsPort, profile: ListedProfile, state:
 
 /** Best-effort: the orb `appearance` patch this profile's `power_user` section carries (the VIEWER half of
  *  what ST bundles into a theme file). A missing/corrupt settings.json yields `{}` — nothing is patched. */
-async function collectAppearance(fs: ImportFsPort, profileDir: string): Promise<Record<string, unknown>> {
-  const settingsPath = fs.join(profileDir, ST_SETTINGS_FILE);
+async function collectAppearance(fs: ImportFsPort, profileDir: ImportDirectory): Promise<Record<string, unknown>> {
+  const settingsPath = fs.join(profileDir.path, ST_SETTINGS_FILE);
   // `rethrowInfraFailure` escalates real infra
   // faults; only a missing/corrupt settings.json falls through, documented above as "yields `{}` — nothing
   // is patched."
   try {
-    const bytes = await fs.readFile(settingsPath);
+    const bytes = await profileDir.readFile(ST_SETTINGS_FILE);
     return stAppearancePatch(JSON.parse(new TextDecoder().decode(bytes)));
   } catch (error) {
     rethrowInfraFailure(error, settingsPath, "readFile");
@@ -577,13 +625,13 @@ function descend(raw: unknown, ...keys: string[]): unknown {
 
 /** Best-effort settings.json read shared by the two side-collectors below (tags/personas already own their
  *  copies of this posture): null on a missing/corrupt file, never a throw. */
-async function readSettingsJson(fs: ImportFsPort, profileDir: string): Promise<unknown> {
-  const settingsPath = fs.join(profileDir, ST_SETTINGS_FILE);
+async function readSettingsJson(fs: ImportFsPort, profileDir: ImportDirectory): Promise<unknown> {
+  const settingsPath = fs.join(profileDir.path, ST_SETTINGS_FILE);
   // `rethrowInfraFailure` escalates real infra
   // faults; documented above — "null on a missing/corrupt file, never a throw," the shared best-effort
   // posture every side-collector below relies on.
   try {
-    const bytes = await fs.readFile(settingsPath);
+    const bytes = await profileDir.readFile(ST_SETTINGS_FILE);
     return JSON.parse(new TextDecoder().decode(bytes));
   } catch (error) {
     rethrowInfraFailure(error, settingsPath, "readFile");
@@ -595,7 +643,7 @@ async function readSettingsJson(fs: ImportFsPort, profileDir: string): Promise<u
  *  (orb's identical semantic is the `global_regex_scripts` attachment). Each candidate parses through the
  *  ONE ST card-wire schema; a malformed one is COUNTED (the report prints it), never silent. A
  *  missing/corrupt settings.json yields zeroes — the same best-effort posture as tags/personas. */
-async function collectGlobalRegexScripts(fs: ImportFsPort, profileDir: string): Promise<{ scripts: RegexScriptCard[]; malformed: number }> {
+async function collectGlobalRegexScripts(fs: ImportFsPort, profileDir: ImportDirectory): Promise<{ scripts: RegexScriptCard[]; malformed: number }> {
   const list = descend(await readSettingsJson(fs, profileDir), "extension_settings", "regex");
   const scripts: RegexScriptCard[] = [];
   let malformed = 0;
@@ -626,7 +674,7 @@ function charLoreBinding(entry: unknown): { stem: string; books: string[] } | nu
  *  by `getCharaFilename`, the avatar filename sans extension). Book names resolve at the driver against
  *  the owner's imported/standing library; the card's own `extensions.world` is the PRIMARY channel and
  *  rides `CollectedCard.worldName`. A missing/corrupt settings.json yields an empty map. */
-async function collectCharLore(fs: ImportFsPort, profileDir: string): Promise<Map<string, string[]>> {
+async function collectCharLore(fs: ImportFsPort, profileDir: ImportDirectory): Promise<Map<string, string[]>> {
   const out = new Map<string, string[]>();
   const charLore = descend(await readSettingsJson(fs, profileDir), "world_info_settings", "world_info", "charLore");
   for (const entry of Array.isArray(charLore) ? charLore : []) {
@@ -644,27 +692,26 @@ async function collectCharLore(fs: ImportFsPort, profileDir: string): Promise<Ma
  *  gallery (orb counterpart: the assets gallery verbs). BOTH are EMPTY on the real corpus, so the write
  *  waves are a named follow-up — this count line is what guarantees a future profile that carries data can
  *  never again lose it silently. */
-async function countUserPlanes(fs: ImportFsPort, profileDir: string, state: CollectState): Promise<{ databankFiles: number; galleryImages: number }> {
-  let databankFiles = 0;
-  for (const ent of await listDir(fs, fs.join(profileDir, "user", "files"), state)) {
-    if (ent.kind === "file") {
-      databankFiles += 1;
-    }
+async function countUserPlanes(fs: ImportFsPort, profileDir: ImportDirectory, state: CollectState): Promise<{ databankFiles: number; galleryImages: number }> {
+  await using userDir = await openPlane(fs, profileDir, "user");
+  if (userDir === null) {
+    return { databankFiles: 0, galleryImages: 0 };
   }
+  await using filesDir = await openPlane(fs, userDir, "files");
+  const databankFiles = filesDir === null ? 0 : (await listDir(filesDir, state)).filter((ent) => ent.kind === "file").length;
   let galleryImages = 0;
-  const imagesDir = fs.join(profileDir, "user", "images");
-  for (const ent of await listDir(fs, imagesDir, state)) {
+  await using imagesDir = await openPlane(fs, userDir, "images");
+  for (const ent of imagesDir === null ? [] : await listDir(imagesDir, state)) {
     if (ent.kind === "file") {
       galleryImages += 1;
       continue;
     }
-    if (ent.kind !== "directory") {
+    if (ent.kind !== "directory" || imagesDir === null) {
       continue;
     }
-    for (const sub of await listDir(fs, fs.join(imagesDir, ent.name), state)) {
-      if (sub.kind === "file") {
-        galleryImages += 1;
-      }
+    await using characterDir = await openPlane(fs, imagesDir, ent.name);
+    if (characterDir !== null) {
+      galleryImages += (await listDir(characterDir, state)).filter((sub) => sub.kind === "file").length;
     }
   }
   return { databankFiles, galleryImages };
@@ -673,12 +720,12 @@ async function countUserPlanes(fs: ImportFsPort, profileDir: string, state: Coll
 // Best-effort: the ST library-tag assignments (`settings.tags` + `tag_map`) resolved to per-entity tag names.
 // A missing/corrupt settings.json yields an empty map. The driver attaches these to each imported character
 // by matching the card filename against the map key (ST's `tag_map[character.avatar]`).
-async function collectTags(fs: ImportFsPort, profileDir: string): Promise<ReadonlyMap<string, readonly string[]>> {
-  const settingsPath = fs.join(profileDir, ST_SETTINGS_FILE);
+async function collectTags(fs: ImportFsPort, profileDir: ImportDirectory): Promise<ReadonlyMap<string, readonly string[]>> {
+  const settingsPath = fs.join(profileDir.path, ST_SETTINGS_FILE);
   // `rethrowInfraFailure` escalates real infra
   // faults; only a missing/corrupt settings.json falls through, documented above as "yields an empty map."
   try {
-    const bytes = await fs.readFile(settingsPath);
+    const bytes = await profileDir.readFile(ST_SETTINGS_FILE);
     return parseStTags(JSON.parse(new TextDecoder().decode(bytes))).byEntityKey;
   } catch (error) {
     rethrowInfraFailure(error, settingsPath, "readFile");
@@ -688,38 +735,36 @@ async function collectTags(fs: ImportFsPort, profileDir: string): Promise<Readon
 
 // Best-effort: a missing/corrupt settings.json yields []; a missing avatar yields an avatar-less persona, recorded.
 async function collectPersonas(fs: ImportFsPort, profile: ListedProfile, state: CollectState): Promise<CollectedPersona[]> {
-  const profileDir = profile.dir;
   let settingsRaw: unknown;
-  const settingsPath = fs.join(profileDir, ST_SETTINGS_FILE);
+  const settingsPath = fs.join(profile.dir.path, ST_SETTINGS_FILE);
   // `rethrowInfraFailure` escalates real infra
   // faults; documented above — "a missing/corrupt settings.json yields []."
   try {
-    const bytes = await fs.readFile(settingsPath);
+    const bytes = await profile.dir.readFile(ST_SETTINGS_FILE);
     settingsRaw = JSON.parse(new TextDecoder().decode(bytes));
   } catch (error) {
     rethrowInfraFailure(error, settingsPath, "readFile");
     return [];
   }
   const { personas } = parseStPersonas(settingsRaw);
-  const avatarsDir = fs.join(profileDir, AVATARS_DIR);
+  await using avatarsDir = await listedPlane(fs, profile, AVATARS_DIR);
   // `personas` keys come from settings.json, so a name may only select a file this listing holds.
-  const avatarFiles = await planeFiles(fs, profile, AVATARS_DIR, state);
+  const avatarFiles = await planeFiles(avatarsDir, state);
   const out: CollectedPersona[] = [];
   for (const parsed of personas) {
-    if (!avatarFiles.has(parsed.avatarFile)) {
+    if (avatarsDir === null || !avatarFiles.has(parsed.avatarFile)) {
       state.missingPersonaAvatars.push(parsed.avatarFile);
       out.push({ parsed });
       continue;
     }
     let avatarBytes: Uint8Array | undefined;
-    const avatarPath = fs.join(avatarsDir, parsed.avatarFile);
     // `rethrowInfraFailure` escalates real infra
     // faults; documented above — "a missing avatar yields an avatar-less persona" (the `out.push` below
     // branches on `avatarBytes !== undefined`).
     try {
-      avatarBytes = await fs.readFile(avatarPath);
+      avatarBytes = await avatarsDir.readFile(parsed.avatarFile);
     } catch (error) {
-      rethrowInfraFailure(error, avatarPath, "readFile");
+      rethrowInfraFailure(error, fs.join(avatarsDir.path, parsed.avatarFile), "readFile");
       avatarBytes = undefined;
     }
     out.push(avatarBytes !== undefined ? { parsed, avatarBytes } : { parsed });
@@ -729,7 +774,7 @@ async function collectPersonas(fs: ImportFsPort, profile: ListedProfile, state: 
 
 export async function collectBundlesFromDir(
   fs: ImportFsPort,
-  profileDir: string,
+  profileDir: ImportDirectory,
   skipCharacterNames: readonly string[] = [],
   /** The zone ST's wall-clock chat dates were written in (see `ImportProfileDeps.stWallClockZone`); absent ⇒
    *  the serde's `"UTC"` default. */
@@ -758,7 +803,7 @@ export async function collectBundlesFromDir(
     truncatedDirs: [],
   };
 
-  const profile: ListedProfile = { dir: profileDir, entries: await listDir(fs, profileDir, state) };
+  const profile: ListedProfile = { dir: profileDir, entries: await listDir(profileDir, state) };
   await collectCards(fs, profileDir, state);
   await collectWorlds(fs, profileDir, state);
   await collectPresetDir(fs, profileDir, state);
@@ -768,12 +813,7 @@ export async function collectBundlesFromDir(
   await collectGroups(fs, profile, state, wallClockZone);
   await collectUnhandled(fs, profile, state);
 
-  const chatsDir = fs.join(profileDir, CHATS_DIR);
-  for (const dirEnt of await listDir(fs, chatsDir, state)) {
-    if (dirEnt.kind === "directory") {
-      await collectChatsForDir({ fs, chatsDir, dirName: dirEnt.name, state, wallClockZone });
-    }
-  }
+  await collectChats(fs, profileDir, state, wallClockZone);
 
   fuzzyPair(state);
   const personas = await collectPersonas(fs, profile, state);
