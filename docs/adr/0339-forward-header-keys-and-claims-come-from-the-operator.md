@@ -16,7 +16,7 @@ The signed path trusts only the operator's env. `FORWARD_AUTH_JWKS`, an https UR
 
 ## Consequences
 
-An operator on the signed path sets three env lines. A deployment with verification off changes nothing. A proxy whose token has no `aud` or no `exp` cannot use the signed path; it uses the trusted-proxy path. A key removed at the provider stays trusted until the key cache ages out. A failed key fetch refuses sign-ins until the provider answers.
+An operator on the signed path sets three env lines. A deployment with verification off changes nothing. A proxy whose token has no `aud` or no `exp` cannot use the signed path; it uses the trusted-proxy path, with `FORWARD_AUTH_VERIFY_JWT=false` if it still sends `X-authentik-jwt`, because a forwarded JWT that fails verification is refused and never falls through. A key removed at the provider stays trusted until the key cache ages out. A failed key fetch refuses sign-ins until the provider answers.
 
 ## Alternatives rejected
 

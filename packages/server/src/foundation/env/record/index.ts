@@ -123,6 +123,13 @@ function positiveSafeIntegerEnv(fallback: number): z.ZodDefault<z.ZodCodec<z.Zod
     .default(fallback);
 }
 
+/** A blank line in an env file means unset, so a deployment that does not use the key still boots; the path that needs
+ *  the key refuses it as missing. */
+const blankIsUnset = z
+  .string()
+  .transform((value) => (value === "" ? undefined : value))
+  .optional();
+
 /** The env keys the forward-header signed path cannot boot without. */
 const FORWARD_SIGNED_REQUIRED_ENV = ["FORWARD_AUTH_JWT_ISSUER", "FORWARD_AUTH_JWT_AUDIENCE"] as const;
 
@@ -419,8 +426,8 @@ const envObjectSchema = z.object({
   // The proxy's signing keys: an https URL or a JWKS JSON literal. Unset, every forwarded JWT is refused.
   FORWARD_AUTH_JWKS: operatorJwksSchema.optional(),
   // Both required with FORWARD_AUTH_JWKS: a token the same provider signed for another application must not sign in here.
-  FORWARD_AUTH_JWT_ISSUER: z.string().min(1).optional(),
-  FORWARD_AUTH_JWT_AUDIENCE: z.string().min(1).optional(),
+  FORWARD_AUTH_JWT_ISSUER: blankIsUnset,
+  FORWARD_AUTH_JWT_AUDIENCE: blankIsUnset,
 
   // 32 random bytes for AES-256-GCM (hex or base64). Unset ⇒ `<DATA_DIR>/secrets/credentials_key` is
   // generated on first boot and reused (`infra/crypto/key.ts`); an explicit value always wins.

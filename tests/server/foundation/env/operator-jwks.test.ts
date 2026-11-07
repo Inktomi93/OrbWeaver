@@ -53,6 +53,17 @@ test("the signed path boots with its issuer and audience", () => {
   expect({ issuer: env.FORWARD_AUTH_JWT_ISSUER, audience: env.FORWARD_AUTH_JWT_AUDIENCE }).toEqual({ issuer: ISSUER, audience: AUDIENCE });
 });
 
+test.for<{ name: string; env: Record<string, string> }>([
+  { name: "the default mode", env: {} },
+  {
+    name: "forward-header with verification off",
+    env: { [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny", ["FORWARD_AUTH_VERIFY_JWT"]: "false" },
+  },
+])("a blank issuer and audience read as unset under $name, so the boot goes on", ({ env }) => {
+  const parsed = createTestEnv({ ...env, ["FORWARD_AUTH_JWT_ISSUER"]: "", ["FORWARD_AUTH_JWT_AUDIENCE"]: "" });
+  expect({ issuer: parsed.FORWARD_AUTH_JWT_ISSUER, audience: parsed.FORWARD_AUTH_JWT_AUDIENCE }).toEqual({ issuer: undefined, audience: undefined });
+});
+
 test("an unsigned deployment needs no issuer or audience", () => {
   expect(createTestEnv({ ...SIGNED_KEYS, ["FORWARD_AUTH_VERIFY_JWT"]: "false" }).FORWARD_AUTH_VERIFY_JWT).toBe(false);
   expect(createTestEnv({ [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny" }).FORWARD_AUTH_JWKS).toBeUndefined();

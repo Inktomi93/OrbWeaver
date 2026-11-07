@@ -18,7 +18,8 @@ const OPERATOR_KEY_URL = new URL("jwks", ISSUER).href;
 const OTHER_APP_KEY_URL = new URL("other-app/jwks", ISSUER).href;
 const ANONYMOUS = { authenticated: false, handle: null, role: null };
 const PRIVATE_KEY_ADDRESS = "192.168.1.10";
-const JOSE_FETCH_REFUSAL = new errors.JOSEError().code;
+// The verifier's own fixed reason for a key source that did not answer with keys; it has no export to read.
+const KEY_FETCH_FAILED = "key_fetch_failed";
 
 function rootOver(execution: typeof fetch, resolved = PUBLIC_PEER_ADDRESS): Promise<ServerTestHarness> {
   return createServerHarness({
@@ -145,16 +146,37 @@ test("a key source on a private address is reached with no egress allowlist entr
   expect(operator.calls).toEqual(["GET /jwks"]);
 });
 
-test("a key fetch failure and a bad signature log different fixed reasons, and neither logs token bytes", async () => {
+test.for<{ name: string; answer: () => Promise<Response> }>([
+  { name: "a redirect", answer: () => Promise.resolve(new Response(null, { status: 301, headers: { location: `${OPERATOR_KEY_URL}/` } })) },
+  { name: "a 404", answer: () => Promise.resolve(new Response("no", { status: 404 })) },
+  { name: "a 503", answer: () => Promise.resolve(new Response(null, { status: 503 })) },
+  { name: "an html body", answer: () => Promise.resolve(new Response("<html>", { status: 200 })) },
+  { name: "a timeout", answer: () => Promise.reject(new DOMException("timed out", "TimeoutError")) },
+  { name: "a refused connection", answer: () => Promise.reject(new TypeError("fetch failed")) },
+])("a key source answering with $name refuses and logs a key fetch failure, and no token bytes", async ({ answer }) => {
   const operator = await createNativeIssuer();
   const jwt = await token(operator, "reason-member", "reason-subject");
-  {
-    await using root = await rootOver(() => Promise.resolve(new Response(null, { status: 503 })));
-    expect(await me(root, { "x-authentik-jwt": jwt })).toEqual(ANONYMOUS);
-    const lines = root.rings.logs.recent().join("\n");
-    expect(lines).toContain(`"reason":"${JOSE_FETCH_REFUSAL}"`);
-    expect(lines).not.toContain(jwt.split(".")[2]);
-  }
+  await using root = await rootOver(answer);
+
+  expect(await me(root, { "x-authentik-jwt": jwt })).toEqual(ANONYMOUS);
+
+  const lines = root.rings.logs.recent().join("\n");
+  expect(lines).toContain(`"reason":"${KEY_FETCH_FAILED}"`);
+  expect(lines).not.toContain(jwt.split(".")[2]);
+});
+
+test("a key document with no key logs its own reason, not a fetch failure", async () => {
+  const operator = await createNativeIssuer();
+  await using root = await rootOver(() => Promise.resolve(Response.json({})));
+
+  expect(await me(root, { "x-authentik-jwt": await token(operator, "empty-member", "empty-subject") })).toEqual(ANONYMOUS);
+
+  expect(root.rings.logs.recent().join("\n")).toContain(`"reason":"${new errors.JWKSInvalid().code}"`);
+});
+
+test("a bad signature logs its own fixed reason and no token bytes", async () => {
+  const operator = await createNativeIssuer();
+  const jwt = await token(operator, "reason-member", "reason-subject");
   await using root = await rootFor(operator, await createNativeIssuer());
   const [header, payload, signature = ""] = jwt.split(".");
   const tampered = `${header}.${payload}.${signature.startsWith("A") ? "B" : "A"}${signature.slice(1)}`;

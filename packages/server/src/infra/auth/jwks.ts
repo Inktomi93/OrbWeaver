@@ -34,8 +34,9 @@ const PINNED_ALGS = ["RS256", "ES256"] as const;
 const REQUIRED_KEY_URL_PROTOCOL = "https:";
 // A token with no expiry stays valid forever once the operator's key signed it.
 const REQUIRED_CLAIMS = ["exp"];
-// jwtVerify raises its own error class for every verdict, so anything else came from retrieving the keys.
 const KEY_FETCH_FAILED = "key_fetch_failed";
+// jose raises its bare class for a non-200 or an unreadable key response, and a named class for every verdict on a token.
+const KEY_FETCH_CODES: ReadonlySet<string> = new Set([errors.JOSEError.code, errors.JWKSTimeout.code]);
 
 /** Hold the operator's key set for one graph. Its remote retrieval runs on the graph's injected execution. */
 export function createOperatorKeys(source: OperatorJwks, execution: typeof fetch): OperatorKeys {
@@ -95,6 +96,11 @@ function groupsFromClaim(claim: unknown): string[] {
   return [];
 }
 
+/** The fixed reason a refusal logs. Anything jose did not raise came from retrieving the keys too. */
+function refusalReason(err: unknown): string {
+  return err instanceof errors.JOSEError && !KEY_FETCH_CODES.has(err.code) ? err.code : KEY_FETCH_FAILED;
+}
+
 /** Verify `jwt` against `keyset` with the pinned alg allowlist, issuer and audience, returning the payload — or null
  *  on ANY failure (bad signature, wrong alg, expired, no expiry, issuer/audience mismatch, alg-confusion, a failed
  *  key fetch). jose throws on every one of those; we catch and null. The log carries jose's fixed code, never token bytes. */
@@ -112,8 +118,7 @@ async function jwtVerifyOrNull(
     });
     return payload;
   } catch (err) {
-    const reason = err instanceof errors.JOSEError ? err.code : KEY_FETCH_FAILED;
-    securityEvent("jwt_verify_failed", { reason }, "security: forwarded JWT refused (`reason` names the failed step) — rejecting", log);
+    securityEvent("jwt_verify_failed", { reason: refusalReason(err) }, "security: forwarded JWT refused (`reason` names the failed step) — rejecting", log);
     return null;
   }
 }
