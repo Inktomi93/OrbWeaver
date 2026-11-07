@@ -51,8 +51,8 @@ export function PresetDetailShellStory({ presetId }: { readonly presetId: Preset
 
 /** The production shell with one registered modal open over the home section. */
 export function ModalShellStory({ modal }: { readonly modal: ModalSlotId }): ReactElement {
+  // StrictMode runs this initializer twice, and a section write dismisses a content-scoped modal, so the open stays the only write.
   useState(() => {
-    setActiveSection("home");
     openModal(modal);
     return true;
   });
@@ -92,9 +92,9 @@ export function ConfigGroupStory({ group, appearance }: { readonly group: Config
   );
 }
 
+// StrictMode runs this initializer twice, and a section write dismisses a content-scoped modal, so the seed stays the only write.
 function SeededShell({ seed }: { readonly seed: () => void }): ReactElement {
   useState(() => {
-    setActiveSection("home");
     seed();
     return true;
   });

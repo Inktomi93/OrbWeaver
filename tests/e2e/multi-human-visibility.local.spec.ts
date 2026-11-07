@@ -13,7 +13,6 @@
 // clamp arm cannot be a false positive from an empty room or a broken read.
 //
 
-import { setTimeout as sleep } from "node:timers/promises";
 import type { CharacterHandle, CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
@@ -22,14 +21,13 @@ import type { ActorClient } from "./support/actors.ts";
 import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from "./support/actors.ts";
 import { FIXTURE_COVER_MARKER, startFixtureProvider } from "./support/fixture-provider.ts";
 import { E2E_RUN_PORTS, LOCAL_MEMBER } from "./support/modes.ts";
-import { collectChatRoomFrames, requireSatisfied } from "./support/sse.ts";
+import { collectChatRoomFrames, openChatRoomCollection, requireSatisfied } from "./support/sse.ts";
 import { CASE_LIVE_FOLLOW_UP_MS, CASE_LIVE_TURN_MS } from "./support/timeouts.ts";
 import type { TrpcClientOutput, TrpcInput } from "./support/trpc.ts";
 
 const STREAM_TIMEOUT_MS = 20_000;
 const REPLY_POLL_TIMEOUT_MS = 60_000;
 const REPLY_POLL_INTERVAL_MS = 500;
-const PRESENCE_SETTLE_MS = 1500;
 const HTTP_BAD_REQUEST = 400;
 const NOT_FOUND = 404;
 const OK = 200;
@@ -422,15 +420,17 @@ test("D122 ANCHOR: a HOST-pinned MEMBER-OWNED persona resolves in the room plane
  *  reds `types:tests-dom` with TS7030 (`noImplicitReturns`, which the root `typecheck:graph` program does
  *  NOT enforce — it only surfaced in the commit hook). One accumulator + one return satisfies both. */
 async function pollForReply(host: ActorClient, chatId: ChatId): Promise<MessagesPage["messages"][number] | undefined> {
-  const deadline = Date.now() + REPLY_POLL_TIMEOUT_MS;
   let reply: MessagesPage["messages"][number] | undefined;
-  while (reply === undefined && Date.now() < deadline) {
-    const page = await host.trpc.chat.listMessages.query({ chatId });
-    reply = [...page.messages].reverse().find((m) => m.role === "assistant" && m.content.includes(FIXTURE_COVER_MARKER));
-    if (reply === undefined) {
-      await sleep(REPLY_POLL_INTERVAL_MS);
-    }
-  }
+  await expect
+    .poll(
+      async () => {
+        const page = await host.trpc.chat.listMessages.query({ chatId });
+        reply = [...page.messages].reverse().find((m) => m.role === "assistant" && m.content.includes(FIXTURE_COVER_MARKER));
+        return reply !== undefined;
+      },
+      { timeout: REPLY_POLL_TIMEOUT_MS, intervals: [REPLY_POLL_INTERVAL_MS] },
+    )
+    .toBe(true);
   return reply;
 }
 
@@ -471,21 +471,20 @@ test("D122 TRIGGER: a MEMBER-triggered turn ships THEIR persona in the assembled
     // socket-less host commits the user row and generates NOTHING. Holding a host chat-room socket open for
     // the turn is what a real co-present host has, and it is the difference between a live turn and a
     // silently deferred one (this cost a run to find).
-    const hostSocket = collectChatRoomFrames({
+    const hostSocket = await openChatRoomCollection({
       baseUrl: origin,
       headers: host.headers,
       chatId,
       until: (values) => values.some((v) => JSON.stringify(v).includes(FIXTURE_COVER_MARKER)),
       timeoutMs: REPLY_POLL_TIMEOUT_MS,
     });
-    await sleep(PRESENCE_SETTLE_MS);
 
     // The MEMBER fires the turn. The anchor is deliberately UNSET, so the only way their persona can reach
     // the prompt is the trigger-plane resolution D122 widened.
     await member.trpc.chat.send.mutate({ chatId, timeZone: UTC_TIME_ZONE, content: "What happened to the well?", intent: { maxOutputTokens: 64 } });
     // The presence socket must have SEEN the reply: a timed-out socket means the host was offline for part of
     // the turn, and the proof below would then describe a deferred turn rather than a live one.
-    requireSatisfied(await hostSocket, "host presence socket");
+    requireSatisfied(await hostSocket.collection, "host presence socket");
 
     // The reply row + its variant, read as the HOST (the wire record is a host/admin inspector read).
     // `chat.send` resolves when the turn is ACCEPTED, not when it commits (the reply lands over the bus), so

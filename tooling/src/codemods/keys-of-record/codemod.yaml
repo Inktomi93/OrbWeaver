@@ -1,7 +1,7 @@
 schema_version: "1.0"
 name: "keys-of-record"
 version: "0.1.0"
-description: "Replace Object.keys(R) as (keyof typeof R)[] with the testkit keysOf reader."
+description: "Replace keysOf(R) with the tuple that owns the record's keys."
 author: "Orbweaver"
 license: "MIT"
 targets:

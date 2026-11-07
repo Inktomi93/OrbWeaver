@@ -35,6 +35,8 @@ Review the completed change, then batch confirmed findings. Limit follow-up revi
 
 If your own check disagrees with an active gate's green result, suspect your own check first.
 
+When the change is a tool, lint rule or type guard, try to beat it. Plant real inputs that should be refused and report what passes.
+
 Scoped-command spellings are in the `lane` skill, "Running tools". Never pass a partial file list
 to a whole-repo verb.
 

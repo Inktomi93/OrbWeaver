@@ -28,6 +28,7 @@ CodeGraph's server instructions say to answer directly instead of delegating a l
 | Off-budget mechanical volume on the local model | `qwen-run`; load the `qwen-lane` skill first |
 
 - Send work to `builder` only when its brief names the check that proves it done.
+- Send work that judges, designs or changes an analysis tool or lint rule to `opus-builder`, never `builder`.
 - Split a lane that would run long enough to compact. A long cross-cutting lane goes to `opus-builder`.
 - Never do security work yourself or route it to a role whose model is `fable`.
 - Send a trivial diff to `code-reviewer`, not `deep-reviewer`.
@@ -90,6 +91,7 @@ Re-derive the item first:
 2. Read the cited `file:line`.
 3. Run `git log --all --grep="<key noun>"`.
 
+- Before you rule on a lane's design, read the ledger row, the law clause and the token or table it touches.
 - Write What, Why and Done when for an item that holds template text before you route it. `pnpm doc drift` lists these items.
 - A claim that work is unbuilt needs the same evidence as a claim that it is done.
 - A claim that something does not exist, to the owner or in a brief, needs two search methods and a check of wrappers and re-exports. Otherwise say "I did not find it" and name what you searched.
@@ -112,6 +114,9 @@ not get your conversation, your reads, or your output style. Write each brief so
 - The contracts to read first: `packages/contracts/src/<domain>/`, the domain's own `contract/`, and the drizzle schema files it touches.
 - Scope limits against sibling lanes, and the hunk regions when two lanes share a file.
 - A lane-unique prefix for scratch files.
+- The reason for each scope limit. Lift a limit when a lane reports a design bent around it.
+- A `git merge` line when the lane stacks on an unmerged branch, because a worktree starts from main.
+- Owed runs, never a floor, for `pnpm e2e` and `pnpm unwired`: the guard refuses them in a lane, so you run them.
 - The exact CT files and suites its floor runs.
 - That a correct refusal with evidence is a success.
 - The hazards you know for that area.
@@ -135,6 +140,7 @@ The `lane` skill carries the standing lane rules. Restate only the deltas.
 - During a visual migration, run `ux-reviewer` once, after the CSS work lands. Do not run it per batch.
 - Call `ux-reviewer` for a new UI surface or redesign, imagery or effects near text, settings panes, forms, wizards, empty, error, or loading states, and any accessibility doubt. Skip it for backend-only changes.
 - Treat scout findings as input. Check the important ones before you act on them.
+- Rerun a tool's headline number yourself before you repeat it to the owner. A clean count is not a clean result: say what the tool cannot see.
 - Before a status report, check each "dispatched", "filed", "queued", or "merged" claim against your lane list and the tree. Retract an unsupported claim in the same message.
 - To sweep finished lanes for dropped follow-ups, read each lane's last message in full. A keyword search misses other wording.
 
@@ -190,10 +196,10 @@ Scoped lane green does not prove the combined tree, including a fast-forward wit
 3. Record the starting HEAD before integration. Check that no whole-tree check is reading the checkout.
 4. Merge the frozen batch. Confirm HEAD moved and review conflict resolutions and shared composition changes.
 5. Commit integration changes, then record the ending HEAD. Keep the tested checkout clean.
-6. Leave whole-tree evidence to the barrier. Run no combined check after a train (D317).
+6. Leave whole-tree evidence to pre-push and CI. Run no combined check after a train (D317).
 
 - Freeze the batch before the barrier. A merge or edit changes the tested tree and invalidates affected evidence.
-- A merge that combines shared-interface edits needs typechecking. The barrier covers it; run a separate typecheck only for earlier feedback.
+- A merge that combines shared-interface edits needs typechecking. Pre-push covers it; run a separate typecheck only for earlier feedback.
 - A merge touching `packages/server/src/transport/trpc/routers/**` runs the affected native integration tests first. Legacy test files outside the repository are reference-only.
 - The sweep does not cover a room's resume read. A merge touching a room's `authorizeAttach` or replay verb also runs that room's recipient-scope test, for example `tests/server/domain/notifications/verbs/durable-resume.int.test.ts`.
 - A merge restarts the dev server and clears the in-memory recorders. Never merge while a live drive depends on them.
@@ -202,11 +208,9 @@ Scoped lane green does not prove the combined tree, including a fast-forward wit
 
 CI runs the native application checks before release. Pre-push checks GitHub synchronization, Biome, dependency-cruiser, ESLint, knip and typecheck sequentially.
 
-1. Check that main is clean and that no whole-tree check is reading the checkout.
-2. Run `pnpm lint`, `pnpm typecheck`, `pnpm test` and `pnpm test:ct` as applicable.
-3. Run affected integration and rendered checks not established by matching lane evidence.
-4. Read completed results. Return concrete failures to their owning lanes together.
-5. Recheck only changed behavior or invalidated evidence after corrections.
+1. Do not hand-run lint, typecheck or whole suites before a push. Pre-push and CI run them.
+2. Run only what neither covers: named e2e specs, live specs and rendered checks not established by lane evidence.
+3. Read CI's result after the push. Return concrete failures to their owning lanes together.
 
 CI runs the native lint, typecheck, Node, CT and smoke jobs. No custom checker qualification is required.
 
@@ -264,7 +268,7 @@ Lanes can share main's checkout with you.
 
 Run autonomously only when the user says overnight, finish, or keep going.
 
-- In that mode, re-derive, dispatch and merge while safe work exists. Run the barrier when a batch is ready for the owner to push.
+- In that mode, re-derive, dispatch and merge while safe work exists. Run the owed e2e and rendered checks when a batch is ready for the owner to push.
 - Stop only for a destructive or irreversible action, an owner-reserved product choice, a scope change, or a push.
 - The engines and the dev stack are yours to start and stop without asking.
 - Before a decision becomes a question for the owner, try in order: a `deep-reviewer` pass when unattended, CodeGraph, `ast-grep` and `rg` on the code, the docs and the ledger, then your own judgment.

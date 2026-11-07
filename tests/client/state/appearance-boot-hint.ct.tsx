@@ -4,8 +4,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { THEME_DENSITIES } from "@orb/contracts/theme";
 import { FONT_SCALE } from "@orb/kit/font-scale";
 import { pickKeys } from "@orb/kit/objects";
-import { keysOf } from "@orb/testkit/iso";
-import { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
+import { SEED_THEME_NAMES } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { APPEARANCE_BOOT_HINT_NAME, APPEARANCE_BOOT_HINT_VERSION } from "#client/state/durable-local-keys.ts";
@@ -22,7 +21,7 @@ const axes = {
   density: loudDensity ?? defaults.density,
 };
 // The blob keys are the production seed palette names: Object.keys on the generated table is the roster.
-const SEED_NAMES = keysOf(SEED_THEME_VALUE_SETS);
+const SEED_NAMES = SEED_THEME_NAMES;
 const [theme = "light"] = SEED_NAMES;
 const props = { axes, defaults, theme } as const;
 

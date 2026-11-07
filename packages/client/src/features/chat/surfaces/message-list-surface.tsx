@@ -29,7 +29,7 @@ import { QueryBoundary } from "#components";
 import type { ChatBusDeps, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useChatBus, useDisplayScripts, usePrefetchDisplayScripts, useSuspenseQuery, useTRPC } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
-import { RenderProfiler, resolveRowRenderPolicy, useFocusOnMount } from "#lib";
+import { RenderProfiler, resolveRowRenderPolicy, useFocusRoomArrival } from "#lib";
 import { isLiveTurnPhase, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
 import { ArtViewerProvider } from "../components/art-viewer-provider.tsx";
 import { GhostMessageRow } from "../components/ghost-message-row.tsx";
@@ -102,7 +102,7 @@ export interface MessageListSurfaceProps {
 /** The scrolling chat transcript for one chat. */
 export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolRenderers, leading }: MessageListSurfaceProps): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
+  useFocusRoomArrival(surfaceRef);
 
   useChatBus(chatId, busDeps);
   // OUTSIDE the boundary on purpose (#514): the display-tier regex reads are needed by the rows INSIDE it,

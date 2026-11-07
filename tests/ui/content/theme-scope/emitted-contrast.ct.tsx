@@ -9,9 +9,8 @@ import {
   wcagContrastRatio,
 } from "@orb/kit/theme-derivation";
 import { pixelContrast, pixelSurface } from "@orb/testkit/browser/spec";
-import { keysOf } from "@orb/testkit/iso";
 import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_NON_PALETTE_VARS } from "@orb/ui/theme-scope/emit-vars";
-import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
+import { SEED_THEME_NAMES, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
 import type {
   BoxElementsStory,
@@ -47,7 +46,7 @@ import {
   TYPED_CROSSOVER,
 } from "./contrast-cases.ts";
 
-const SEED_THEMES = keysOf(SEED_THEME_VALUE_SETS);
+const SEED_THEMES = SEED_THEME_NAMES;
 
 /** Every shipped palette, then a custom scope on each contrast-case base: the per-palette sweep of the neutral ink pairs. */
 const SEMANTIC_CASES = [

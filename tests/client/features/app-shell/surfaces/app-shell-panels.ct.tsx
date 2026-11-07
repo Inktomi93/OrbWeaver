@@ -507,9 +507,13 @@ test.describe("across the width regimes", () => {
       document.documentElement.style.fontSize = "";
     });
     await expect(context).toHaveAttribute("data-panel-mode", "docked");
-    expect((await counts()).observe).toBe(1);
+    const live = async (): Promise<number> => {
+      const { observe, disconnect } = await counts();
+      return observe - disconnect;
+    };
+    expect(await live()).toBe(1);
     await component.unmount();
-    expect((await counts()).disconnect).toBe(1);
+    expect(await live()).toBe(0);
   });
 
   for (const profile of ["defaults", "reading"] as const) {

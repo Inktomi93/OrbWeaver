@@ -6,7 +6,6 @@ import { CONFIG_GROUP_IDS, MODAL_SLOT_IDS, SECTION_IDS } from "@orb/client/state
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { auditSurface, formatDensityFindings } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { keysOf } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { LENGTH_BASE_PX, TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
@@ -24,11 +23,11 @@ const DEFAULTS = appearanceSettingsSchema.parse({});
 const APPEARANCE = { fontScale: FONT_SCALE, readingBodyScale: DEFAULTS.readingBodyScale, readingNameScale: DEFAULTS.readingNameScale };
 // A step sized by its art container rather than the root (Text `artScale`, UI-Density-Law.md §2.3).
 const CONTAINER_UNIT = /\dcq(?:min|max|[whib])\b/u;
-const TEXT_PATHS = keysOf(TOKENS).filter((path) => path.startsWith("text."));
+const TEXT_TOKENS = Object.entries(TOKENS).filter(([path]) => path.startsWith("text."));
 /** The ramp: every `text.*` token that is a served dimension. */
-const RAMP_VARS = TEXT_PATHS.filter((path) => path in LENGTH_BASE_PX).map((path) => TOKENS[path].cssVar);
+const RAMP_VARS = TEXT_TOKENS.filter(([path]) => path in LENGTH_BASE_PX).map(([, token]) => token.cssVar);
 /** The container-sized steps' utility classes; a run that wears one is the one exemption. */
-const CONTAINER_SIZED_CLASSES = TEXT_PATHS.filter((path) => CONTAINER_UNIT.test(TOKENS[path].value)).map((path) => TOKENS[path].cssVar.slice("--".length));
+const CONTAINER_SIZED_CLASSES = TEXT_TOKENS.filter(([, token]) => CONTAINER_UNIT.test(token.value)).map(([, token]) => token.cssVar.slice("--".length));
 
 interface OffRampRun {
   readonly text: string;

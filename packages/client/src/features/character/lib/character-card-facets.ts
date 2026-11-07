@@ -48,86 +48,77 @@ export interface CharacterCardFacet {
   readonly glyph: LucideIcon;
 }
 
-/** The registry, in render order. A `tsc` error until every id has a full entry. */
-export const CHARACTER_CARD_FACETS: readonly CharacterCardFacet[] = [
-  {
-    id: "description",
+// Every id's row, so an omitted facet fails `tsc`; render order comes from the id tuple.
+const CHARACTER_CARD_FACET_ROWS: Readonly<Record<CharacterCardFacetId, Omit<CharacterCardFacet, "id">>> = {
+  description: {
     tier: "voice",
     label: "Description",
     subtitle: "Who they are — the core of the card.",
     glyph: BookOpen,
   },
-  {
-    id: "personality",
+  personality: {
     tier: "voice",
     label: "Personality",
     subtitle: "A summary of traits and temperament.",
     glyph: Drama,
   },
-  {
-    id: "scenario",
+  scenario: {
     tier: "voice",
     label: "Scenario",
     subtitle: "The setting or situation the chat opens in.",
     glyph: Anchor,
   },
-  {
-    id: "exampleMessages",
+  exampleMessages: {
     tier: "extras",
     label: "Example messages",
     subtitle: "Sample exchanges teaching the model their voice.",
     glyph: Sparkles,
   },
-  {
-    id: "creatorNotes",
+  creatorNotes: {
     tier: "extras",
     label: "Creator notes",
     subtitle: "Notes for humans — never sent to the model.",
     glyph: Pencil,
   },
-  {
-    id: "systemPrompt",
+  systemPrompt: {
     tier: "advanced",
     label: "System prompt",
     subtitle: "Overrides the assembled system prompt.",
     glyph: Send,
   },
-  {
-    id: "postHistoryInstructions",
+  postHistoryInstructions: {
     tier: "advanced",
     label: "Post-history instructions",
     subtitle: "Injected after history, just before the reply.",
     glyph: Send,
   },
-  {
-    id: "depthPrompt",
+  depthPrompt: {
     tier: "advanced",
     label: "Note at depth",
     subtitle: "A recurring note spliced in at a fixed depth.",
     glyph: Hash,
   },
-  {
-    id: "regexScripts",
+  regexScripts: {
     tier: "advanced",
     label: "Regex scripts",
     subtitle: "Find/replace passes over the card's text.",
     glyph: Zap,
   },
-  {
-    id: "provenance",
+  provenance: {
     tier: "advanced",
     label: "Provenance",
     subtitle: "Creator, version, and import metadata.",
     glyph: Info,
   },
-];
+};
 
-/** The one facet by id (for the drill-in header / the CONTEXT Field inspector). A static lookup — an id can
- *  never miss (the union is closed), so no null branch. */
+/** The one facet by id (for the drill-in header / the CONTEXT Field inspector). */
 export function facetById(id: CharacterCardFacetId): CharacterCardFacet {
-  // The registry is exhaustive over the id union (a `tsc`-checked tuple), so `find` always hits.
-  return CHARACTER_CARD_FACETS.find((facet) => facet.id === id) as CharacterCardFacet;
+  return { id, ...CHARACTER_CARD_FACET_ROWS[id] };
 }
+
+/** The registry, in render order. */
+export const CHARACTER_CARD_FACETS: readonly CharacterCardFacet[] = CHARACTER_CARD_FACET_IDS.map(facetById);
 
 /** A facet preview is present exactly when the facet has authored content. */
 export type CharacterFacetFill = { readonly filled: true; readonly preview: string } | { readonly filled: false; readonly preview: null };

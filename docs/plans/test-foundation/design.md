@@ -37,7 +37,7 @@ Use existing repository checks for changed behavior. Keep unrelated failures sep
 | Corpus flows | Complete corpus-backed e2e smoke across the required authentication, provider and viewport modes. | The actual wires and user-visible results pass without private owner data in artifacts. |
 | Replacement suites | Rebuild server domains, component CTs and remaining cases in substantial related batches. | Meaningful cases survive, a production defect control fails, and the replacement contains no copied assembly. |
 
-Start a replacement batch when its actual harness dependencies are available. Owed proof runs on merged code, such as [1778](../../work/1778-owed-runs-on-merged-code-the-sillytavern-folder.md), run before a new batch opens.
+Start a replacement batch when its actual harness dependencies are available. Owed proof runs on merged code run before a new batch opens.
 
 ### Current foundation
 

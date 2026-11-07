@@ -1,7 +1,6 @@
 // The router's auth guard on the local corpus: a signed-out alias or invite survives the redirect to sign-in, overlapping
 // navigations settle on the latest one, and a signed-in invite handoff scrubs only its own query fields.
 import { randomBytes } from "node:crypto";
-import { setTimeout as sleep } from "node:timers/promises";
 import { CORPUS_MODE_LABELS, testId } from "@orb/client/lib";
 import { SIGNUP_MAX_TTL_MS } from "@orb/contracts/chat";
 import { viewerViewSchema } from "@orb/contracts/identity";
@@ -18,7 +17,7 @@ import { WAIT_SETTLE_MS } from "./support/timeouts.ts";
 
 const AUTH_ME = "**/api/auth/me";
 // Long enough that a second guard read, if anything starts one, is still out when the first redirect lands.
-const SLOW_ME_MS = 1200;
+const GUARD_READ_BUDGET_MS = 1200;
 const APP_FAILURE = "[data-app-failure]";
 const PASSWORD_BYTES = 16;
 
@@ -42,15 +41,16 @@ async function signedOutContext(browser: Browser, baseURL: string, info: TestInf
   return await browser.newContext({ ...devices[project.device], baseURL, locale: "en-US", timezoneId: "UTC", extraHTTPHeaders: { forwarded: "" } });
 }
 
-/** Every guard read waits before it reaches the real server; returns the running count of reads. */
-async function slowAuthMe(page: Page): Promise<() => number> {
+/** Holds every guard read short of the real server until `release`, then lets the held and later reads through. */
+async function holdAuthMe(page: Page): Promise<{ readonly reads: () => number; readonly release: () => void }> {
   let reads = 0;
+  const released = Promise.withResolvers<void>();
   await page.route(AUTH_ME, async (route) => {
     reads += 1;
-    await sleep(SLOW_ME_MS);
+    await released.promise;
     await route.continue();
   });
-  return (): number => reads;
+  return { reads: (): number => reads, release: released.resolve };
 }
 
 /** A real signup invite to a fresh room the owner hosts; the room is deleted after `run`. */
@@ -134,15 +134,21 @@ test.describe("local corpus auth guard", () => {
           await page.goto("/login");
           await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
           const before = await address(page);
-          const reads = await slowAuthMe(page);
-          await page.goto(`/?join=${token}`);
+          const guard = await holdAuthMe(page);
+          await page.goto(`/?join=${token}`, { waitUntil: "commit" });
+          await expect.poll(guard.reads).toBeGreaterThanOrEqual(1);
+          const join = page.getByRole("button", { name: "Create account and join", exact: true });
+          // The held read gates the form: this is the slow window the fallback once crashed in.
+          await expect(join).toBeHidden();
+          await expect(page.locator(APP_FAILURE)).toHaveCount(0);
+          guard.release();
 
-          await expect(page.getByRole("button", { name: "Create account and join", exact: true })).toBeVisible({ timeout: SLOW_ME_MS * 4 });
+          await expect(join).toBeVisible({ timeout: GUARD_READ_BUDGET_MS * 4 });
           await expect(page.locator(APP_FAILURE)).toHaveCount(0);
           // The redirect replaces the landing's own entry, so the token leaves the address bar and Back alike.
           await expect.poll(() => address(page)).toEqual({ href: "/login", length: before.length + 1 });
           // One guard read for `/` and one for `/login`: a scrub the router hears as a navigation would re-run `/`.
-          expect(reads()).toBe(2);
+          expect(guard.reads()).toBe(2);
         } finally {
           await context.close();
         }
@@ -156,7 +162,7 @@ test.describe("local corpus auth guard", () => {
       const page = await context.newPage();
       await page.goto("/login?first=1");
       await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible();
-      const reads = await slowAuthMe(page);
+      const guard = await holdAuthMe(page);
       // A second entry for Forward to return to; the router is not told, as with any entry it did not make.
       await page.evaluate(() => history.pushState(null, "", "/login?second=1"));
       // Back, and Forward the moment Back lands: the router has begun Back's navigation and its guard read is
@@ -171,10 +177,11 @@ test.describe("local corpus auth guard", () => {
         );
         history.back();
       });
-      await expect.poll(reads).toBeGreaterThanOrEqual(2);
-      await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible({ timeout: SLOW_ME_MS * 8 });
+      await expect.poll(guard.reads).toBeGreaterThanOrEqual(2);
+      guard.release();
+      await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible({ timeout: GUARD_READ_BUDGET_MS * 8 });
       await expect(page.locator(APP_FAILURE)).toHaveCount(0);
-      await expect.poll(async () => (await address(page)).href, { timeout: SLOW_ME_MS * 8 }).toBe("/login?second=1");
+      await expect.poll(async () => (await address(page)).href, { timeout: GUARD_READ_BUDGET_MS * 8 }).toBe("/login?second=1");
     } finally {
       await context.close();
     }
