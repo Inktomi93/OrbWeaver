@@ -324,6 +324,11 @@ const MEMBERS_CHIP = '[aria-label^="Members — "]';
 const MEMORY_CHIP = '[aria-label^="Memory — "]';
 const CONTEXT = '.shell-panel[data-panel-side="context"]';
 const BOTH_DOCKED = { activeSection: "chats", panelOverrides: { chats: { list: "docked", context: "docked" } } } as const;
+const ROOM_MOUNTING = '[data-slot="chat-room-mounting"]';
+const LIST_PANE = '[data-panel-side="list"]';
+const LIST_SEARCH = `${LIST_PANE} input`;
+const ROOM_BODY = '[data-slot="chat-room-surface"] textarea';
+const ACTED_DURING_MOUNT = "data-acted-during-mount";
 const LONG_NAME = "The Extraordinarily Long Saga of the Ninth Epoch Beneath the Violet Braziers";
 
 type RoomCaller = Awaited<ReturnType<Root["internalCallerFor"]>>;
@@ -375,6 +380,66 @@ async function expectPrimaryRoomHeading(page: Page, title: string): Promise<void
   await expect(surface.getByRole("heading", { level: 1, name: title, exact: true })).toHaveCount(1);
 }
 
+/** The docked list over a settled room, and the title of a second room to switch to. */
+async function settledRoomBesideList(page: Page, corpus: CorpusPlayback, mountRoom: (chatId: ChatId) => Promise<unknown>): Promise<Locator> {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "docked", context: "collapsed" } } });
+  const caller = await ownerCaller();
+  const room = await openNamedRoom(page, corpus, caller);
+  await mountRoom(room.id);
+  await expectPrimaryRoomHeading(page, room.title);
+  const rows = (await caller.chat.listChats({ limit: 100 })).items.map((row) => chatRoomTitle(row.title, row.participantNames));
+  const other = rows.find((title) => title !== room.screenTitle);
+  if (other === undefined) {
+    throw new Error("The corpus needs a second room");
+  }
+  return page.locator(LIST_PANE).getByText(other, { exact: true }).first();
+}
+
+/** Acts on `selector` at the first mutation that shows the entered room's body still mounting. */
+async function actDuringNextRoomMount(page: Page, selector: string, act: "click" | "focus"): Promise<void> {
+  await page.evaluate(
+    ({ target, action, mounting, witness }) => {
+      const observer = new MutationObserver(() => {
+        if (document.querySelector(mounting) !== null) {
+          observer.disconnect();
+          document.documentElement.setAttribute(witness, "true");
+          document.querySelector<HTMLElement>(target)?.[action]();
+        }
+      });
+      observer.observe(document, { subtree: true, childList: true });
+    },
+    { target: selector, action: act, mounting: ROOM_MOUNTING, witness: ACTED_DURING_MOUNT },
+  );
+}
+
+async function expectRoomMounted(page: Page): Promise<void> {
+  await expect(page.locator("html")).toHaveAttribute(ACTED_DURING_MOUNT, "true");
+  await expect(page.locator(ROOM_MOUNTING)).toHaveCount(0);
+}
+
+test.describe("arrival focus on a room switch", () => {
+  test("a plain switch from the list lands focus in the entered room", async ({ corpus, mount, page }) => {
+    const other = await settledRoomBesideList(page, corpus, (chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }));
+    await other.click();
+    await expect(page.locator(ROOM_MOUNTING)).toHaveCount(0);
+    const surface = page.locator('[data-slot="chat-room-surface"]');
+    await expect.poll(() => surface.evaluate((element) => element.contains(document.activeElement))).toBe(true);
+  });
+
+  test("the list search focused while the room body mounts keeps its focus and its typing", async ({ corpus, mount, page }) => {
+    const other = await settledRoomBesideList(page, corpus, (chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }));
+    const search = page.locator(LIST_SEARCH);
+    await actDuringNextRoomMount(page, LIST_SEARCH, "focus");
+    await other.click();
+    await expectRoomMounted(page);
+    await expect(page.locator(ROOM_BODY)).toBeVisible();
+    await expect(search).toBeFocused();
+    await page.keyboard.type("harbour");
+    await expect(search).toHaveValue("harbour");
+  });
+});
+
 test.describe("an open named group room", () => {
   test.describe("room heading at 1440", () => {
     test.use({ viewport: { width: 1440, height: 900 } });
@@ -392,6 +457,34 @@ test.describe("an open named group room", () => {
       await expect(rename).toBeFocused();
       await expectPrimaryRoomHeading(page, room.title);
     });
+  });
+
+  test("a rename opened while the room body is still mounting keeps its field and the words typed into it", async ({ corpus, mount, page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
+    const room = await openNamedRoom(page, corpus, await ownerCaller());
+    // A pointer cannot land inside one commit gap on demand, so the click runs at the mutation that paints the title.
+    await page.addInitScript(
+      ({ button, mounting, witness }) => {
+        const observer = new MutationObserver(() => {
+          const control = document.querySelector<HTMLElement>(button);
+          if (control !== null) {
+            observer.disconnect();
+            document.documentElement.setAttribute(witness, String(document.querySelector(mounting) !== null));
+            control.click();
+          }
+        });
+        observer.observe(document, { subtree: true, childList: true });
+      },
+      { button: `button[aria-label^="${RENAME_CHAT_NAME}"]`, mounting: ROOM_MOUNTING, witness: ACTED_DURING_MOUNT },
+    );
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: room.id });
+    await expect(page.locator("html")).toHaveAttribute(ACTED_DURING_MOUNT, "true");
+    await expect(page.locator(ROOM_MOUNTING)).toHaveCount(0);
+    const field = page.getByRole("textbox", { name: CHAT_NAME_FIELD_NAME, exact: true });
+    await expect(field).toBeFocused();
+    await page.keyboard.type("The harbour job");
+    await expect(field).toHaveValue("The harbour job");
   });
 
   for (const [name, rootPx] of [

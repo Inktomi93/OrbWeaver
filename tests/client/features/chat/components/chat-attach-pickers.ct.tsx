@@ -3,12 +3,14 @@
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import type { ChatId } from "@orb/kit/ids";
 import type { TrpcRoutes } from "@orb/testkit/ct";
-import { holdServed, routeAuthConfig, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { absenceWindow, holdServed, routeAuthConfig, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import type { ChatContextTabStory } from "./_chat-forks-stories.tsx";
 
+// A dialog that does close has finished its exit transition inside this span.
+const DIALOG_EXIT_WINDOW_MS = 800;
 const TAB_STORY = "tests/client/features/chat/components/_chat-forks-stories/ChatContextTabStory";
 
 const TAB_PROCEDURES = [
@@ -130,7 +132,7 @@ test("a script attach in flight keeps the picker open, so its failure is said in
   await hold.requested;
   await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
   // Let a dialog that does close finish its exit transition before asserting that this one stayed.
-  await page.evaluate(() => new Promise<void>((settled) => setTimeout(settled, 800)));
+  await absenceWindow(page, DIALOG_EXIT_WINDOW_MS);
   await expect(dialog).toBeVisible();
   hold.fail();
   await expect(dialog.getByText("Couldn't attach those scripts to this chat.", { exact: true })).toBeVisible();

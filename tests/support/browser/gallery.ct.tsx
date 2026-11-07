@@ -1,6 +1,14 @@
 import { expect, test } from "@playwright/test";
-import { GALLERY_JITLESS_TEXT, GALLERY_READY_LABEL, GALLERY_READY_TEXT, GALLERY_RENDER_FAILURE, GALLERY_SCHEMA_LABEL } from "../iso/gallery-fixtures.ts";
-import type { GalleryReadyStory, GalleryRenderFailureStory } from "./_gallery-stories.tsx";
+import {
+  GALLERY_EFFECT_SETUPS_LABEL,
+  GALLERY_JITLESS_TEXT,
+  GALLERY_READY_LABEL,
+  GALLERY_READY_TEXT,
+  GALLERY_RENDER_FAILURE,
+  GALLERY_REPLAYED_EFFECT_SETUPS,
+  GALLERY_SCHEMA_LABEL,
+} from "../iso/gallery-fixtures.ts";
+import type { GalleryEffectReplayStory, GalleryReadyStory, GalleryRenderFailureStory } from "./_gallery-stories.tsx";
 
 const READY_STORY = "tests/support/browser/_gallery-stories/GalleryReadyStory";
 
@@ -21,4 +29,9 @@ test("a React render failure rejects and leaves the next mount usable", async ({
   await expect(component.getByRole("status", { name: GALLERY_READY_LABEL, exact: true })).toHaveText(GALLERY_READY_TEXT);
   await component.unmount();
   await expect(component).toBeEmpty();
+});
+
+test("the gallery runs development React, so StrictMode replays effect setup", async ({ mount }) => {
+  const component = await mount<typeof GalleryEffectReplayStory>("tests/support/browser/_gallery-stories/GalleryEffectReplayStory");
+  await expect(component.getByRole("status", { name: GALLERY_EFFECT_SETUPS_LABEL, exact: true })).toHaveText(String(GALLERY_REPLAYED_EFFECT_SETUPS));
 });

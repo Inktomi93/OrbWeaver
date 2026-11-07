@@ -1,6 +1,5 @@
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { CtIsolation } from "@orb/testkit/browser";
-import { keysOf } from "@orb/testkit/iso";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -12,7 +11,7 @@ import { Text } from "@orb/ui/text";
 import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
 import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ToneRole } from "@orb/ui/tokens";
-import { SEED_THEME_VALUE_SETS, TOKENS, TONE_ROLE_RECIPES, TONE_ROLES, TONES } from "@orb/ui/tokens";
+import { SEED_THEME_NAMES, SEED_THEME_VALUE_SETS, TOKENS, TONE_ROLE_RECIPES, TONE_ROLES, TONES } from "@orb/ui/tokens";
 import type { CSSProperties, ReactElement } from "react";
 
 const SEMANTIC_PAIRS = [
@@ -221,7 +220,7 @@ function ToneHueSamples(): ReactElement {
 /** Each seed palette's stamp: the base palette by its own block, the value-set palettes by `data-theme`. */
 const SEED_STAMPS = [
   { name: "base", stamp: { "data-palette": "base" } },
-  ...keysOf(SEED_THEME_VALUE_SETS).map((name) => ({ name, stamp: { "data-theme": name } })),
+  ...SEED_THEME_NAMES.map((name) => ({ name, stamp: { "data-theme": name } })),
 ] as const;
 
 /** Every tone role under each seed palette, one fill per role addressed by `data-role-sample`. */

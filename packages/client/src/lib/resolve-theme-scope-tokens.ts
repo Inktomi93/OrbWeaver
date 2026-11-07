@@ -24,15 +24,15 @@
 // Without this the ST-imported library's inks landed unjudged on the Light seed at 2.11:1.
 
 import type { Theme, ThemeDensity, ThemeOverride } from "@orb/contracts/theme";
-import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
+import { SEED_THEME_NAMES, SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 
 /** The generated seed palettes that own a `[data-theme]` block. Hearth is represented by `null` — it IS
  *  the base `@theme`, so it has no block and stamps nothing. */
-export type SeedThemeName = keyof typeof SEED_THEME_VALUE_SETS;
+export type SeedThemeName = (typeof SEED_THEME_NAMES)[number];
 
 /** Boundary guard: a persisted/server string may name only a generated seed palette. */
 export function isSeedThemeName(value: string): value is SeedThemeName {
-  return Object.hasOwn(SEED_THEME_VALUE_SETS, value);
+  return SEED_THEME_NAMES.some((name) => name === value);
 }
 
 /** The `[data-theme]` value a resolved theme row paints from — the SHELL stamps it on `<html>` and a

@@ -333,6 +333,7 @@ const SERVER_DOORS = [`${SRV}[^/]+/[^/]+/index\\.ts$`, ...exportedDoors("server"
 // One entry per owning file, naming its symbols. The compile-time registries knip.ts trusts are read here too.
 // A suite of another module still needs its reach line below.
 const TEST_CONSTANT_HOMES = {
+  "packages/client/src/data/query-state-copy.ts": "QUERY_WAITING_LINE and queryFailedLabel: the words of a read with no data",
   "packages/server/src/domain/character/contract/errors.ts": "CharacterNotFoundError: the refusal class greeting suites assert",
   "packages/server/src/domain/imagery/substrate/size.ts": "SIZE_PRESETS: the dimensions a size preset puts on the provider request",
   "packages/server/src/domain/chat/contract/errors.ts": "CHAT_OP_CODES and ChatNotFoundError: the refusal codes and class chat suites assert",

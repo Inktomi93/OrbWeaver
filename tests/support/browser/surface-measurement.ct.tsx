@@ -16,6 +16,7 @@ import {
   touchTargetFindings,
   webVitalsInitScript,
 } from "@orb/testkit/browser/spec";
+import { absenceWindow } from "@orb/testkit/ct";
 import { SURFACE_HTTP_ANNOTATION, SURFACE_PASSES } from "@orb/testkit/iso";
 import { webVitalsSource } from "@orb/testkit/node/helpers";
 import { readBrowserAcceleration } from "@orb/tooling/floor/browser/browser-acceleration";
@@ -30,6 +31,8 @@ import { hitExtent, touchFloorPx } from "./touch-floor.ts";
 
 test.use({ reuseContext: false });
 
+// The browser's CLS session boundary is one second of quiet, not an application performance budget.
+const CLS_SESSION_QUIET_MS = 1100;
 const CONTROL_PATH = "/surface-measurement-control";
 const DOCUMENT =
   '<!doctype html><html lang="en"><head><title>Measurement control</title></head><body><main><h1>Measurement control</h1><button>Continue</button></main></body></html>';
@@ -522,8 +525,7 @@ test("document CLS uses separate session windows and excludes recent-input shift
     main.style.paddingTop = "80px";
   });
   await expect.poll(async () => (await rawShifts()).filter((entry) => !entry.hadRecentInput).length).toBeGreaterThan(0);
-  // The browser's CLS session boundary is one second of quiet, not an application performance budget.
-  await page.evaluate(() => new Promise<void>((resolve) => setTimeout(resolve, 1100)));
+  await absenceWindow(page, CLS_SESSION_QUIET_MS);
   const beforeSecond = (await rawShifts()).length;
   await page.getByRole("main").evaluate((main) => {
     main.style.paddingTop = "160px";

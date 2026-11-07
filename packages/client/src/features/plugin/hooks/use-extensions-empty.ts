@@ -29,10 +29,11 @@ export interface ExtensionsEmptyView {
   readonly reason: keyof typeof EXTENSIONS_EMPTY_COPY | null;
   readonly awaitingPlugins: readonly PluginView[];
   readonly erroredCount: number;
+  /** The first read settled with no data: whether it is paused offline, and the retry of both reads. */
+  readonly unread: { readonly paused: boolean; readonly retry: () => void } | null;
 }
 
-const PENDING: ExtensionsEmptyView = { settled: false, reason: null, awaitingPlugins: [], erroredCount: 0 };
-const UNREAD: ExtensionsEmptyView = { settled: true, reason: null, awaitingPlugins: [], erroredCount: 0 };
+const PENDING: ExtensionsEmptyView = { settled: false, reason: null, awaitingPlugins: [], erroredCount: 0, unread: null };
 
 /**
  * Resolve why the caller sees no extension pages. Ordered by what they must do next, most-blocking first:
@@ -50,26 +51,34 @@ const UNREAD: ExtensionsEmptyView = { settled: true, reason: null, awaitingPlugi
  */
 export function useExtensionsEmpty(): ExtensionsEmptyView {
   const trpc = useTRPC();
-  const { data: plugins, isLoading: pluginsLoading } = useQuery(trpc.plugin.list.queryOptions());
-  const { data: surfaces, isLoading: surfacesLoading } = useQuery(trpc.plugin.listSurfaces.queryOptions());
+  const pluginsRead = useQuery(trpc.plugin.list.queryOptions());
+  const surfacesRead = useQuery(trpc.plugin.listSurfaces.queryOptions());
+  const plugins = pluginsRead.data;
+  const surfaces = surfacesRead.data;
   if (plugins === undefined || surfaces === undefined) {
     // A read in flight is pending; one that failed or is paused offline cannot proceed, and the pane says so with its own copy.
-    return pluginsLoading || surfacesLoading ? PENDING : UNREAD;
+    if (pluginsRead.isLoading || surfacesRead.isLoading) {
+      return PENDING;
+    }
+    const retry = (): void => {
+      Promise.all([pluginsRead.refetch(), surfacesRead.refetch()]).catch((error: unknown) => globalThis.reportError(error));
+    };
+    return { ...PENDING, settled: true, unread: { paused: pluginsRead.isPaused || surfacesRead.isPaused, retry } };
   }
   // By name, so the waiting group and the action that opens its first review read in one order.
   const awaitingPlugins = plugins.filter((plugin) => plugin.reconsentPending).toSorted((a, b) => a.name.localeCompare(b.name));
   if (plugins.length === 0) {
-    return { settled: true, reason: "none-installed", awaitingPlugins, erroredCount: 0 };
+    return { settled: true, reason: "none-installed", awaitingPlugins, erroredCount: 0, unread: null };
   }
   if (awaitingPlugins.length > 0) {
-    return { settled: true, reason: "awaiting-consent", awaitingPlugins, erroredCount: 0 };
+    return { settled: true, reason: "awaiting-consent", awaitingPlugins, erroredCount: 0, unread: null };
   }
   const errored = plugins.filter((plugin) => plugin.status === "errored");
   if (errored.length > 0) {
-    return { settled: true, reason: "some-errored", awaitingPlugins, erroredCount: errored.length };
+    return { settled: true, reason: "some-errored", awaitingPlugins, erroredCount: errored.length, unread: null };
   }
   if (plugins.every((plugin) => plugin.status !== "enabled")) {
-    return { settled: true, reason: "all-off", awaitingPlugins, erroredCount: 0 };
+    return { settled: true, reason: "all-off", awaitingPlugins, erroredCount: 0, unread: null };
   }
-  return { settled: true, reason: "no-pages", awaitingPlugins, erroredCount: 0 };
+  return { settled: true, reason: "no-pages", awaitingPlugins, erroredCount: 0, unread: null };
 }
