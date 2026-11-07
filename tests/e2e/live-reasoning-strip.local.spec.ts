@@ -23,7 +23,6 @@
 //
 // Routine model-free selection: the real turn uses only the external scripted provider.
 
-import { setTimeout as sleep } from "node:timers/promises";
 import type { MessageView } from "@orb/contracts/chat";
 import { messageViewSchema } from "@orb/contracts/chat";
 import type { Handle } from "@orb/kit/ids";
@@ -35,7 +34,7 @@ import { addMemberToChat, configureCustomProvider, loginLocal, ownerActor } from
 import { FIXTURE_COVER_MARKER, FIXTURE_LIE_TRUTH, startFixtureProvider } from "./support/fixture-provider.ts";
 import { E2E_RUN_PORTS, LOCAL_MEMBER } from "./support/modes.ts";
 import type { StreamValue } from "./support/sse.ts";
-import { collectChatRoomFrames, readStreamEvent, requireSatisfied } from "./support/sse.ts";
+import { collectChatRoomFrames, openChatRoomCollection, readStreamEvent, requireSatisfied } from "./support/sse.ts";
 import { CASE_LIVE_FOLLOW_UP_MS } from "./support/timeouts.ts";
 
 const CARD_HANDLE = "e2e-reasoning-strip";
@@ -131,15 +130,15 @@ test("P3 reasoning host-only: a deception turn's reasoning channel is withheld f
 
     // ── LIVE: both viewers subscribe their OWN stream, THEN the host fires a real turn (the fixture streams a
     // reasoning channel + a <lie>). Collect each stream until the assistant reply commits. ──
-    const memberLive = collectChatRoomFrames({ baseUrl: origin, headers: member.headers, chatId, until: sawReply, timeoutMs: STREAM_TIMEOUT_MS });
-    const hostLive = collectChatRoomFrames({ baseUrl: origin, headers: host.headers, chatId, until: sawReply, timeoutMs: STREAM_TIMEOUT_MS });
-    // Give both sockets a beat to go live before the turn (the room's live listener attaches on connect).
-    await sleep(1500);
+    const [memberLive, hostLive] = await Promise.all([
+      openChatRoomCollection({ baseUrl: origin, headers: member.headers, chatId, until: sawReply, timeoutMs: STREAM_TIMEOUT_MS }),
+      openChatRoomCollection({ baseUrl: origin, headers: host.headers, chatId, until: sawReply, timeoutMs: STREAM_TIMEOUT_MS }),
+    ]);
     await host.trpc.chat.send.mutate({ chatId, timeZone: UTC_TIME_ZONE, content: "What happened to the well?", intent: { maxOutputTokens: 64 } });
 
     // Both collections must have SEEN the reply commit: the member's arm below is all absence assertions, which a
     // timed-out empty stream would pass without delivering a byte.
-    const [memberCollection, hostCollection] = await Promise.all([memberLive, hostLive]);
+    const [memberCollection, hostCollection] = await Promise.all([memberLive.collection, hostLive.collection]);
     const memberValues = requireSatisfied(memberCollection, "member live");
     const hostValues = requireSatisfied(hostCollection, "host live");
 

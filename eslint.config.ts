@@ -420,7 +420,7 @@ const TEST_SYNTAX = [INTERNAL_MODULE_MOCK_RESTRICTION, EXTERNAL_MODULE_MOCK_REST
 const CLIENT_SUBJECT_TEST_SYNTAX = TEST_SYNTAX.filter((restriction) => restriction !== RAW_DB_OPEN_RESTRICTION);
 // `playwright/no-wait-for-timeout` judges one method, so a timer inside `page.evaluate` passes it. `test.setTimeout` is the case budget.
 const PAGE_SLEEP_RESTRICTION = {
-  selector: "CallExpression:matches([callee.name='setTimeout'], [callee.property.name='setTimeout']:not([callee.object.name='test']))",
+  selector: String.raw`CallExpression:matches([callee.name='setTimeout'], [callee.property.name='setTimeout']:not([callee.object.name='test'])), ImportDeclaration[source.value=/^(node:)?timers(\/promises)?$/] > ImportSpecifier[imported.name='setTimeout']`,
   message:
     "A fixed wait proves nothing. Wait on a rendered witness; an absence window goes through absenceWindow from @orb/testkit/ct with a positive control.",
 };
@@ -1331,7 +1331,7 @@ export const DOM_LOOKUP_HOMES = [
   },
   {
     file: "packages/client/src/lib/use-focus-on-mount.ts",
-    function: "useArrivalFocus",
+    function: "keepsFocus",
     method: "closest",
     receiver: "active",
     selector: '[role="dialog"], [role="alertdialog"]',
@@ -1339,9 +1339,9 @@ export const DOM_LOOKUP_HOMES = [
   },
   {
     file: "packages/client/src/lib/use-focus-on-mount.ts",
-    function: "useArrivalFocus",
+    function: "keepsFocus",
     method: "closest",
-    receiver: "ref.current",
+    receiver: "target",
     selector: '[role="dialog"], [role="alertdialog"]',
     reason: "The shared focus boundary checks dialog ownership before moving focus, including a surviving global dialog.",
   },
