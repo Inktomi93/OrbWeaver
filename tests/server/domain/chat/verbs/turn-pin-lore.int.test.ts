@@ -75,8 +75,8 @@ async function hostOnline(h: ChatRoot): Promise<Disposable> {
 
 /** Every string of the newest request the act itself sent. */
 async function newestWire(h: ChatRoot, act: () => Promise<unknown>): Promise<string> {
-  const { bodies } = await wireOf(h, act);
-  return wireText(bodies.at(-1) ?? bodies[0]);
+  const { newest } = await wireOf(h, act);
+  return wireText(newest);
 }
 
 async function previewOf(h: ChatRoot, chatId = h.chatId): Promise<{ readonly text: string; readonly activated: readonly string[] }> {
@@ -350,7 +350,7 @@ test("generate, continue and impersonate carry the held pin's book", async () =>
   await send(h);
 
   const generated = await wireOf(h, () => h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId }));
-  expect(wireText(generated.bodies.at(-1) ?? generated.bodies[0])).toContain(PINNED_RENDERED);
+  expect(wireText(generated.newest)).toContain(PINNED_RENDERED);
 
   const tail = generated.outcome.messages.at(-1);
   if (tail === undefined) {

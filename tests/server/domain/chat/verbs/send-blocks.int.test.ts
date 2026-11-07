@@ -13,6 +13,7 @@ import { tokenizeContent } from "@orb/kit/content";
 import type { AssetId, ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { appendedBy } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -131,25 +132,24 @@ function partOrder(parts: readonly WireContentPart[]): string[] {
   return parts.map((part) => imageUrlOf(part) ?? (typeof part["text"] === "string" ? part["text"].trim() : ""));
 }
 
-function lastRequest(box: Box): string {
-  const body = box.chatBodies.at(-1);
-  if (body === undefined) {
-    throw new Error("no chat request reached the provider");
-  }
-  return body;
+/** The newest chat body the act itself sent the provider. */
+async function sentBy(box: Box, act: () => Promise<unknown>): Promise<string> {
+  return (await appendedBy(box.chatBodies, act)).newest;
 }
 
 /** One more host turn; answers the image urls its provider request re-sent. */
 async function replayedImageUrls(box: Box, chatId: ChatId): Promise<string[]> {
-  await box.caller.chat.send({ chatId, content: TURN_CUE, timeZone: UTC_TIME_ZONE });
-  return userParts(lastRequest(box)).flatMap((parts) => parts.flatMap((part) => imageUrlOf(part) ?? []));
+  const body = await sentBy(box, () => box.caller.chat.send({ chatId, content: TURN_CUE, timeZone: UTC_TIME_ZONE }));
+  return userParts(body).flatMap((parts) => parts.flatMap((part) => imageUrlOf(part) ?? []));
 }
 
 test("mixed blocks persist as one body, project to the same render order and reach a vision model as ordered parts", async () => {
   await using box = await openBox();
   const assetId = await storePicture(box, box.host);
 
-  const outcome = await box.caller.chat.send({ chatId: box.chatId, content: "", blocks: mixedBlocks(assetId), timeZone: UTC_TIME_ZONE });
+  const { outcome, newest } = await appendedBy(box.chatBodies, () =>
+    box.caller.chat.send({ chatId: box.chatId, content: "", blocks: mixedBlocks(assetId), timeZone: UTC_TIME_ZONE }),
+  );
 
   const user = outcome.messages.find((message) => message.role === "user");
   expect(user?.content).toBe(`${BEFORE}\n\n![${ALT}](asset:${assetId})\n\n${AFTER}`);
@@ -160,7 +160,7 @@ test("mixed blocks persist as one body, project to the same render order and rea
     AFTER,
   ]);
   expect((await box.root.services.assets.resolveChatAssetRefs(box.member.userId, box.chatId, [assetId])).map((ref) => ref.assetId)).toEqual([assetId]);
-  expect(userParts(lastRequest(box)).map(partOrder)).toContainEqual([expect.stringContaining(BEFORE), await wireUrl(box, assetId), AFTER]);
+  expect(userParts(newest).map(partOrder)).toContainEqual([expect.stringContaining(BEFORE), await wireUrl(box, assetId), AFTER]);
 });
 
 test("a blocks body rides every later turn through swipe, edit, fork, duplicate and a bundle round trip", async () => {
@@ -174,8 +174,8 @@ test("a blocks body rides every later turn through swipe, edit, fork, duplicate 
     throw new Error("the structured send committed no turn");
   }
 
-  await box.caller.chat.swipe({ chatId: box.chatId, messageId: reply.id, timeZone: UTC_TIME_ZONE });
-  expect(userParts(lastRequest(box)).map(partOrder)).toContainEqual([expect.stringContaining(BEFORE), url, AFTER]);
+  const swiped = await sentBy(box, () => box.caller.chat.swipe({ chatId: box.chatId, messageId: reply.id, timeZone: UTC_TIME_ZONE }));
+  expect(userParts(swiped).map(partOrder)).toContainEqual([expect.stringContaining(BEFORE), url, AFTER]);
 
   await box.caller.chat.editMessage({ chatId: box.chatId, messageId: user.id, content: `${user.content}\n\nEdited.`, timeZone: UTC_TIME_ZONE });
   expect(await replayedImageUrls(box, box.chatId)).toEqual([url]);
@@ -220,10 +220,9 @@ test("a text-only model keeps the block text and reports the one dropped picture
   using subscription = new DisposableStack();
   subscription.defer(box.root.app.liveBuses.chat.subscribeAllChatEvents(({ event }) => events.push(event)));
 
-  await box.caller.chat.send({ chatId: box.chatId, content: "", blocks: mixedBlocks(assetId), timeZone: UTC_TIME_ZONE });
+  const body = await sentBy(box, () => box.caller.chat.send({ chatId: box.chatId, content: "", blocks: mixedBlocks(assetId), timeZone: UTC_TIME_ZONE }));
 
   expect(events.filter((event) => event.type === "warning" && event.code === "image_dropped")).toHaveLength(1);
-  const body = lastRequest(box);
   expect(body).not.toContain("image_url");
   expect(body).not.toContain("data:image/");
   expect(body).toContain(BEFORE);
@@ -293,11 +292,13 @@ test("a USER_INPUT regex reads the block text only and cannot touch a picture re
   await box.root.services.regex.attachGlobal({ principal: box.host, scriptId: script.id });
   const assetId = await storePicture(box, box.host);
 
-  const outcome = await box.caller.chat.send({ chatId: box.chatId, content: "", blocks: mixedBlocks(assetId), timeZone: UTC_TIME_ZONE });
+  const { outcome, newest } = await appendedBy(box.chatBodies, () =>
+    box.caller.chat.send({ chatId: box.chatId, content: "", blocks: mixedBlocks(assetId), timeZone: UTC_TIME_ZONE }),
+  );
 
   const user = outcome.messages.find((message) => message.role === "user");
   expect(user?.content).toBe(`Before the x.\n\n![${ALT}](asset:${assetId})\n\nAfter the x.`);
-  expect(userParts(lastRequest(box)).map(partOrder)).toContainEqual([expect.stringContaining("Before the x."), await wireUrl(box, assetId), "After the x."]);
+  expect(userParts(newest).map(partOrder)).toContainEqual([expect.stringContaining("Before the x."), await wireUrl(box, assetId), "After the x."]);
 });
 
 test("a volatile macro freezes in the block text around a picture", async () => {
@@ -359,8 +360,9 @@ async function userBodies(box: Box): Promise<string[]> {
   return (await box.caller.chat.listMessages({ chatId: box.chatId })).messages.filter((message) => message.role === "user").map((message) => message.content);
 }
 
-async function sendBlocks(box: Box, blocks: readonly SendContentBlock[]): Promise<void> {
-  await box.caller.chat.send({ chatId: box.chatId, content: "", blocks: [...blocks], timeZone: UTC_TIME_ZONE });
+/** Send the blocks as one host turn and answer the chat body that turn sent the provider. */
+async function sendBlocks(box: Box, blocks: readonly SendContentBlock[]): Promise<string> {
+  return await sentBy(box, () => box.caller.chat.send({ chatId: box.chatId, content: "", blocks: [...blocks], timeZone: UTC_TIME_ZONE }));
 }
 
 test.for([
@@ -381,10 +383,10 @@ test("a conditional the wire leaves literal keeps the picture between its marker
   await using box = await openBox();
   const assetId = await storePicture(box, box.host);
 
-  await sendBlocks(box, [MARKDOWN("{{#if 0}}"), IMAGE_BLOCK(assetId), MARKDOWN("{{/if}}")]);
+  const body = await sendBlocks(box, [MARKDOWN("{{#if 0}}"), IMAGE_BLOCK(assetId), MARKDOWN("{{/if}}")]);
 
   expect(
-    userParts(lastRequest(box))
+    userParts(body)
       .flat()
       .flatMap((part) => imageUrlOf(part) ?? []),
   ).toEqual([await wireUrl(box, assetId)]);
@@ -487,9 +489,9 @@ test("{{input}} reads the block text, as on an attachment send, and no placehold
   const room = await box.root.services.chat.startChat({ principal: box.host, characterIds: [character.id], opening: "none" });
   const assetId = await storePicture(box, box.host);
 
-  await box.caller.chat.send({ chatId: room.chat.id, content: "", blocks: mixedBlocks(assetId), timeZone: UTC_TIME_ZONE });
+  const body = await sentBy(box, () => box.caller.chat.send({ chatId: room.chat.id, content: "", blocks: mixedBlocks(assetId), timeZone: UTC_TIME_ZONE }));
 
-  expect(lastRequest(box)).toContain(JSON.stringify(`INPUT<${BEFORE}\n\n${AFTER}>`).slice(1, -1));
+  expect(body).toContain(JSON.stringify(`INPUT<${BEFORE}\n\n${AFTER}>`).slice(1, -1));
   expect(box.chatBodies.join()).not.toContain(PLACEHOLDER);
 });
 
@@ -509,10 +511,10 @@ test("a world-info key never matches a picture placeholder", async () => {
   });
   await box.root.services.worldInfo.attachToChat({ principal: box.host, chatId: box.chatId, bookId: book.id });
 
-  await sendBlocks(box, mixedBlocks(await storePicture(box, box.host)));
+  const body = await sendBlocks(box, mixedBlocks(await storePicture(box, box.host)));
 
-  expect(lastRequest(box)).toContain("CONTROL-FIRED");
-  expect(lastRequest(box)).not.toContain("SCAN-FIRED");
+  expect(body).toContain("CONTROL-FIRED");
+  expect(body).not.toContain("SCAN-FIRED");
 });
 
 test("a macro that spans a picture stores the ref, never a placeholder, in its freeze record", async () => {
@@ -536,10 +538,10 @@ test("a repeated picture places once per occurrence with one link", async () => 
   const assetId = await storePicture(box, box.host);
   const url = await wireUrl(box, assetId);
 
-  await sendBlocks(box, [IMAGE_BLOCK(assetId), MARKDOWN("between"), IMAGE_BLOCK(assetId)]);
+  const body = await sendBlocks(box, [IMAGE_BLOCK(assetId), MARKDOWN("between"), IMAGE_BLOCK(assetId)]);
 
   expect(
-    userParts(lastRequest(box))
+    userParts(body)
       .flat()
       .filter((part) => imageUrlOf(part) === url),
   ).toHaveLength(2);

@@ -444,19 +444,20 @@ const EMPTY_POPULATION_RESTRICTIONS = [
   },
 ];
 
-// The newest entry of a recorded request history is the previous act's request when the act under test sent none.
+// The newest entry of a recorded request or body history is the previous act's when the act under test sent none. The
+// recorders are the tests' own arrays, so the rule keys on the recorder's name: `requests`, or any name ending in `bodies`.
+const RECORDER = "/^(requests|[A-Za-z]*[bB]odies)$/";
+const recorderAt = (path: string): string => `:matches([${path}.name=${RECORDER}], [${path}.property.name=${RECORDER}])`;
 const TAIL_REQUEST_MESSAGE =
-  "The newest recorded request is the previous act's when this act sent none. Bracket the act: wireOf(h, act) or quietOf(h, act) from tests/server/domain/chat/scenario-physical.ts, or slice the history from a mark taken before the act.";
+  "The newest recorded entry is the previous act's when this act sent none. Bracket the act: wireOf(h, act) or quietOf(h, act) from tests/server/domain/chat/scenario-physical.ts, appendedBy(log, act) from @orb/testkit/iso, or the act's own `newest`.";
 const TAIL_REQUEST_RESTRICTIONS = [
   {
-    selector:
-      "CallExpression[callee.property.name='at'][callee.object.property.name='requests'][arguments.0.type='UnaryExpression'][arguments.0.operator='-'][arguments.0.argument.value=1]",
+    selector: `CallExpression[callee.property.name='at']${recorderAt("callee.object")}[arguments.0.type='UnaryExpression'][arguments.0.operator='-'][arguments.0.argument.value=1]`,
     message: TAIL_REQUEST_MESSAGE,
   },
-  { selector: "CallExpression[callee.property.name=/^findLast(Index)?$/][callee.object.property.name='requests']", message: TAIL_REQUEST_MESSAGE },
+  { selector: `CallExpression[callee.property.name=/^findLast(Index)?$/]${recorderAt("callee.object")}`, message: TAIL_REQUEST_MESSAGE },
   {
-    selector:
-      "MemberExpression[computed=true][object.property.name='requests'][property.type='BinaryExpression'][property.operator='-'][property.left.property.name='length'][property.left.object.property.name='requests']",
+    selector: `MemberExpression[computed=true]${recorderAt("object")}[property.type='BinaryExpression'][property.operator='-'][property.left.property.name='length']`,
     message: TAIL_REQUEST_MESSAGE,
   },
 ];

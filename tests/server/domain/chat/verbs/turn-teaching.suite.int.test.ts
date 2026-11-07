@@ -37,8 +37,8 @@ async function send(h: ChatRoot): Promise<void> {
 
 /** Every string of the newest request the act itself sent. */
 async function newestWire(h: ChatRoot, act: () => Promise<unknown>, path?: ProviderPath): Promise<string> {
-  const { bodies } = await wireOf(h, act, path);
-  return wireText(bodies.at(-1) ?? bodies[0]);
+  const { newest } = await wireOf(h, act, path);
+  return wireText(newest);
 }
 
 /** Run one turn and read the request it made; the flush it schedules settles first, so no bytes cross turns. */
@@ -91,9 +91,9 @@ test("in a labelled multi-human room the teach never reads as part of the player
   await connectDevice(h.root, bob.userId, online.signal);
   await h.root.services.chat.setOfferChoices({ principal: h.owner, chatId: h.chatId, enabled: true });
   await seatPersona(h, h.owner, "Alice", "A guide.");
-  const { outcome, bodies } = await wireOf(h, () => h.root.services.chat.send({ principal: bob, chatId: h.chatId, content: "bob speaks" }), MESSAGES_PATH);
+  const { outcome, newest } = await wireOf(h, () => h.root.services.chat.send({ principal: bob, chatId: h.chatId, content: "bob speaks" }), MESSAGES_PATH);
   expect(outcome.aborted).toBe(false);
-  const rows = inputMessages(bodies.at(-1) ?? bodies[0]).map(messageText);
+  const rows = inputMessages(newest).map(messageText);
   const line = rows.find((row) => row.includes("bob speaks"));
   expect(line).toBeDefined();
   expect(line).not.toContain(CHOICES_TEACH);
@@ -256,8 +256,7 @@ test("a game's state block is accounted under its own budget source and reaches 
 
 /** The tool declarations the act's newest provider request carried, one serialized declaration each. */
 async function declaredTools(h: ChatRoot, act: () => Promise<unknown>): Promise<readonly string[]> {
-  const { bodies } = await wireOf(h, act);
-  const body = bodies.at(-1) ?? bodies[0];
+  const { newest: body } = await wireOf(h, act);
   const tools = body !== null && typeof body === "object" && !Array.isArray(body) ? body["tools"] : undefined;
   return Array.isArray(tools) ? tools.map((tool) => JSON.stringify(tool)) : [];
 }

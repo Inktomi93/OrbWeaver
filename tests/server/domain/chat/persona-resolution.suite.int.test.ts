@@ -39,8 +39,8 @@ function probe(text: string, key: string): string | null {
 
 /** The system block and the history text of the newest native request the act sent. */
 async function newestInput(h: ChatRoot, act: () => Promise<unknown>): Promise<{ readonly system: string; readonly history: string }> {
-  const { bodies } = await wireOf(h, act, MESSAGES_PATH);
-  const body = bodies.at(-1) ?? bodies[0];
+  const { newest } = await wireOf(h, act, MESSAGES_PATH);
+  const body = newest;
   return { system: inputSystem(body), history: inputMessages(body).map(messageText).join("\n") };
 }
 

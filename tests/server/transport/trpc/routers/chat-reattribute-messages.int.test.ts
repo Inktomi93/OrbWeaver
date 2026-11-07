@@ -378,9 +378,9 @@ test("the next prompt labels the row with its new speaker", async () => {
   await using seeded = await room({ group: { output: "per-speaker", cardScope: "scoped", policy: "list" } }, ["the next reply"]);
   const { h, secondReply, ada, bex } = seeded;
   await h.caller.chat.reattributeMessages({ chatId: h.chatId, messageIds: [secondReply], characterId: bex });
-  const { outcome, bodies } = await wireOf(h, () => h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: ada }));
+  const { outcome, newest } = await wireOf(h, () => h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: ada }));
   expect(outcome.aborted).toBe(false);
-  const wire = wireText(bodies.at(-1) ?? bodies[0]);
+  const wire = wireText(newest);
   expect(wire).toContain(`${BEX.name}: ${SECOND_REPLY}`);
   expect(wire).not.toContain(`${ADA.name}: ${SECOND_REPLY}`);
 });

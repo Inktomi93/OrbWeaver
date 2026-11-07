@@ -122,9 +122,9 @@ test("a preview names a plugin's macros, hyphen alias included, without a value 
   await everyPreview(h, member);
 
   // Counting runs in the guest's own storage: the first run of all is the turn's, so no preview ran it.
-  const { outcome, bodies } = await wireOf(h, () => h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Draw." }));
+  const { outcome, newest } = await wireOf(h, () => h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Draw." }));
   expect(outcome.aborted).toBe(false);
-  const wire = wireText(bodies.at(-1) ?? bodies[0]);
+  const wire = wireText(newest);
   expect(wire).toContain(`${live}=1`);
   expect(wire).toContain(`${legacy}=1`);
 });

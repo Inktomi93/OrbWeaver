@@ -45,8 +45,8 @@ async function send(h: ChatRoot, timeZone?: IanaTimeZone): Promise<void> {
 
 /** Every string the provider received on the newest request the act sent. */
 async function newestWire(h: ChatRoot, act: () => Promise<unknown>): Promise<string> {
-  const { bodies } = await wireOf(h, act);
-  return wireText(bodies.at(-1) ?? bodies[0]);
+  const { newest } = await wireOf(h, act);
+  return wireText(newest);
 }
 
 function cardsOf(budget: AssemblyPreview["budget"]): AssemblyPreview["budget"]["sources"][number] | undefined {
@@ -306,9 +306,9 @@ test("a guided steer previews through the same assembly the guided turn sends, a
   expect(plain.trace.guidedInstructionIncluded).toBe(false);
   expect(JSON.stringify(plain.prompt)).not.toContain(steer);
 
-  const { outcome, bodies } = await wireOf(h, () => h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Go on.", guided }));
+  const { outcome, newest } = await wireOf(h, () => h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Go on.", guided }));
   expect(outcome.aborted).toBe(false);
-  expect(wireText(bodies.at(-1) ?? bodies[0])).toContain(present(instruction));
+  expect(wireText(newest)).toContain(present(instruction));
 });
 
 test("the preview binds {{user}} to the host's own persona or the room's anchor, never a member's, as the turn does", async () => {

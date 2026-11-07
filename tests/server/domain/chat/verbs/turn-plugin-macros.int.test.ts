@@ -42,8 +42,8 @@ type SendOutcome = Awaited<ReturnType<ChatRoot["root"]["services"]["chat"]["send
 
 /** Run the send and read every string of the newest request it sent. */
 async function sentWire(h: ChatRoot, send: () => Promise<SendOutcome>): Promise<{ readonly sent: SendOutcome; readonly wire: string }> {
-  const { outcome, bodies } = await wireOf(h, send);
-  return { sent: outcome, wire: wireText(bodies.at(-1) ?? bodies[0]) };
+  const { outcome, newest } = await wireOf(h, send);
+  return { sent: outcome, wire: wireText(newest) };
 }
 
 /** The macro slice the host reads back for the turn's assistant variant. */

@@ -17,6 +17,7 @@ import {
   createChatRoot,
   createCorpusProviderExecution,
 } from "@orb/testkit/node/composed";
+import { wireOf } from "../scenario-physical.ts";
 
 const PROBE = "Reply with exactly: names-probe-ok";
 
@@ -54,12 +55,9 @@ async function room(promptConfig: PromptConfig): Promise<ChatRoot> {
   return h;
 }
 
-/** The user rows of the newest chat request the provider received. */
-async function userRowsOnWire(h: ChatRoot): Promise<readonly WireRow[]> {
-  const bodies = await Promise.all(
-    h.requests.filter((request) => request.url.endsWith("/chat/completions")).map(async (request) => await request.clone().json()),
-  );
-  const newest: unknown = bodies.at(-1);
+/** The user rows of the newest chat request the act sent the provider. */
+async function userRowsOnWire(h: ChatRoot, act: () => Promise<unknown>): Promise<readonly WireRow[]> {
+  const { newest } = await wireOf(h, act);
   const messages: unknown = isPlainObject(newest) ? newest["messages"] : undefined;
   if (!Array.isArray(messages)) {
     throw new Error("the provider received no chat request");
@@ -75,16 +73,16 @@ test("role handling none carries the speaker in the name field and leaves the co
     namesBehavior: "completion",
     params: { ...DEFAULT_PROMPT_CONFIG.params, advanced: { roleHandling: "none" } },
   });
-  await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: PROBE });
-
-  expect(await userRowsOnWire(h)).toContainEqual({ role: "user", content: PROBE, name: DEFAULT_PERSONA_NAME });
+  expect(await userRowsOnWire(h, () => h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: PROBE }))).toContainEqual({
+    role: "user",
+    content: PROBE,
+    name: DEFAULT_PERSONA_NAME,
+  });
 });
 
 test("the default floor inlines the speaker, so no name field reaches the wire", async () => {
   await using h = await room({ ...DEFAULT_PROMPT_CONFIG, namesBehavior: "completion" });
-  await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: PROBE });
-
-  const rows = await userRowsOnWire(h);
+  const rows = await userRowsOnWire(h, () => h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: PROBE }));
   expect(rows.map(({ name }) => name)).toEqual(rows.map(() => undefined));
   expect(rows.some(({ content }) => typeof content === "string" && content.includes(`${DEFAULT_PERSONA_NAME}: ${PROBE}`))).toBe(true);
 });

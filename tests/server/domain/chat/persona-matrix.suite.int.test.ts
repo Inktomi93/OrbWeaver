@@ -490,8 +490,8 @@ test("the current persona matrix runs all 23 combinations and writes its native-
         await quietOf(room.h, () => runStep(room, step), MESSAGES_PATH);
         continue;
       }
-      const { outcome: label, bodies } = await wireOf(room.h, () => runStep(room, step), MESSAGES_PATH);
-      rows.push(readRow(present(label), bodies.at(-1) ?? bodies[0]));
+      const { outcome: label, newest } = await wireOf(room.h, () => runStep(room, step), MESSAGES_PATH);
+      rows.push(readRow(present(label), newest));
     }
     results.push({ combo, rows });
   }

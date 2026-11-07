@@ -64,6 +64,7 @@ export interface WireOf<T> {
   readonly outcome: T;
   /** The act's provider bodies, oldest first. */
   readonly bodies: readonly [JsonValue, ...JsonValue[]];
+  readonly newest: JsonValue;
 }
 
 /** Run the act and read only the provider bodies it sent to `path`. A tail of the room's whole history would hand an
@@ -75,7 +76,7 @@ export async function wireOf<T>(h: ChatRoot, act: () => Promise<T>, path: Provid
   if (first === undefined) {
     throw new Error(`the act made no ${path} request`);
   }
-  return { outcome, bodies: [first, ...rest] };
+  return { outcome, bodies: [first, ...rest], newest: rest.at(-1) ?? first };
 }
 
 /** Run an act that must reach no provider at `path`, and throw when it sent a request there. */
