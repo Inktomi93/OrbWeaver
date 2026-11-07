@@ -9,7 +9,7 @@ interface ScrollHost {
 }
 
 /** A scroll the window starts, and whose events restart it, so the window ends only after the scroller has stayed quiet. */
-export interface QuietScroll {
+interface QuietScroll {
   readonly scroller: Locator;
   readonly byPx: number;
 }

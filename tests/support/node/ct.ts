@@ -1,7 +1,6 @@
 // The Playwright door for component specs: network interception and section navigation on the Node side.
 
 export { emulateSoftKeyboard } from "@orb/tooling/floor/browser/soft-keyboard";
-export type { QuietScroll } from "./absence-window.ts";
 export { absenceWindow } from "./absence-window.ts";
 export { channelName } from "./appearance-channel-name.ts";
 export type { HeldCorpusProcedure, ServedHold } from "./ct-corpus-procedures.ts";
