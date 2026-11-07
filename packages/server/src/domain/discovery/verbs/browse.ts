@@ -7,7 +7,7 @@ import { BROWSE_DEFAULT_LIMIT } from "@orb/contracts/discovery";
 import type { Db } from "@orb/db";
 import { assets, characterSummaries, characters } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
-import { and, asc, desc, eq, gt, isNotNull, lt, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, isNotNull, lt, ne, or, sql } from "drizzle-orm";
 import type { BrowseCursor, BrowseFilter } from "../contract/params.ts";
 import type { BrowseCharacter, BrowseCharactersPage, CharacterFacets, FacetCount } from "../contract/results.ts";
 import type { DiscoveryContext, DiscoveryService } from "../contract/service.ts";
@@ -56,6 +56,9 @@ async function browseCharacters(db: Db, ownerId: UserId, filter: BrowseFilter = 
   if (filter.tone !== undefined) {
     conds.push(eq(characterSummaries.tone, filter.tone));
   }
+  if (filter.setting !== undefined) {
+    conds.push(eq(characterSummaries.setting, filter.setting));
+  }
   if (filter.tag !== undefined) {
     // json_each membership is an exact-string test (never a fragile LIKE %"tag"% that would hit JSON quotes/commas).
     const tag = filter.tag.toLowerCase();
@@ -91,6 +94,7 @@ async function browseCharacters(db: Db, ownerId: UserId, filter: BrowseFilter = 
       name: characters.name,
       genre: characterSummaries.genre,
       tone: characterSummaries.tone,
+      setting: characterSummaries.setting,
       elevatorPitch: characterSummaries.elevatorPitch,
       avatarHash: assets.hash,
       createdAt: characters.createdAt,
@@ -111,16 +115,17 @@ async function browseCharacters(db: Db, ownerId: UserId, filter: BrowseFilter = 
 }
 
 async function characterFacets(db: Db, ownerId: UserId): Promise<CharacterFacets> {
-  const facet = async (col: typeof characterSummaries.genre | typeof characterSummaries.tone): Promise<FacetCount[]> => {
+  const facet = async (col: typeof characterSummaries.genre | typeof characterSummaries.tone | typeof characterSummaries.setting): Promise<FacetCount[]> => {
+    // `setting` is free text, so an empty reply is storable; the client reads "" as "any", never as a value.
     const rows = await db
       .select({ value: col, count: sql<number>`count(*)` })
       .from(characterSummaries)
       .innerJoin(characters, eq(characters.id, characterSummaries.characterId))
-      .where(and(eq(characters.ownerId, ownerId), isNotNull(col)))
+      .where(and(eq(characters.ownerId, ownerId), isNotNull(col), ne(col, "")))
       .groupBy(col)
       .orderBy(desc(sql`count(*)`));
     return rows.flatMap((r) => (r.value === null ? [] : [{ value: r.value, count: r.count }]));
   };
-  const [genres, tones] = await Promise.all([facet(characterSummaries.genre), facet(characterSummaries.tone)]);
-  return { genres, tones };
+  const [genres, tones, settings] = await Promise.all([facet(characterSummaries.genre), facet(characterSummaries.tone), facet(characterSummaries.setting)]);
+  return { genres, tones, settings };
 }

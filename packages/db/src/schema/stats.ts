@@ -220,7 +220,7 @@ export const dailyStats = sqliteTable(
     costSamples: integer("cost_samples").notNull().default(0),
     notionalCostSamples: integer("notional_cost_samples").notNull().default(0),
     genTimeMs: integer("gen_time_ms").notNull().default(0),
-    // OR-merged in the upsert: once a day is flagged migration-approximate it stays (esoteric #7).
+    // Set by the canon rebuild; the live upsert never touches it, so a bucket flagged migration-approximate stays flagged.
     messageDatesApprox: integer("message_dates_approx", { mode: "boolean" }).notNull().default(false),
     computedAt: integer("computed_at").notNull().default(NOW_MS),
   },

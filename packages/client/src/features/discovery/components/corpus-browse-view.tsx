@@ -1,6 +1,6 @@
 // The corpus BROWSE view (the omnibox's rest state) — a facet filter bar over the owner's distilled
-// catalog. genre/tone come from `discovery.characterFacets` and the tag axis from `discovery.catalog`'s
-// top tags (each value carries its card count) and `sort` orders the result (recent/name). All four drive
+// catalog. genre/tone/setting come from `discovery.characterFacets` and the tag axis from `discovery.catalog`'s
+// top tags (each value carries its card count) and `sort` orders the result (recent/name). All five drive
 // `discovery.browseCharacters`; each row selects a character into the dossier CONTENT. facets are
 // suspense-read (stable); the rows are a keyset-paged `createCollectionSurface` so a filter change
 // re-fetches without re-suspending the whole panel.
@@ -67,6 +67,7 @@ type BrowseRow = BrowsePage["items"][number];
 interface CorpusBrowseParams {
   readonly genre: string;
   readonly tone: string;
+  readonly setting: string;
   readonly tag: string;
   readonly sort: string;
 }
@@ -79,6 +80,7 @@ const useCorpusBrowseCollection = createCollectionSurface({
       {
         ...(params.genre === ANY_VALUE ? {} : { genre: params.genre }),
         ...(params.tone === ANY_VALUE ? {} : { tone: params.tone }),
+        ...(params.setting === ANY_VALUE ? {} : { setting: params.setting }),
         ...(params.tag === ANY_VALUE ? {} : { tag: params.tag }),
         ...(params.sort === ANY_VALUE ? {} : { sort: params.sort as BrowseSort }),
       },
@@ -94,9 +96,10 @@ export function CorpusBrowseView(): ReactElement {
   const trpc = useTRPC();
   const [genre, setGenre] = useState(ANY_VALUE);
   const [tone, setTone] = useState(ANY_VALUE);
+  const [setting, setSetting] = useState(ANY_VALUE);
   const [tag, setTag] = useState(ANY_VALUE);
   const [sort, setSort] = useState(ANY_VALUE);
-  const collection = useCorpusBrowseCollection({ trpc }, { genre, tone, tag, sort });
+  const collection = useCorpusBrowseCollection({ trpc }, { genre, tone, setting, tag, sort });
   const [facetsRead, catalogRead] = useQueries({
     queries: [trpc.discovery.characterFacets.queryOptions(), trpc.discovery.catalog.queryOptions()],
   });
@@ -119,6 +122,7 @@ export function CorpusBrowseView(): ReactElement {
   }
   const genreItems = toSelectItems("All genres", facets.genres);
   const toneItems = toSelectItems("All tones", facets.tones);
+  const settingItems = toSelectItems("All settings", facets.settings);
   const tagItems = toSelectItems(
     "All tags",
     catalog.topTags.map((t) => ({ value: t.tag, count: t.count })),
@@ -129,6 +133,7 @@ export function CorpusBrowseView(): ReactElement {
       <Row align="center" gap="field" className="flex-wrap">
         <ParamSelect label="Genre" value={genre} items={genreItems} onValueChange={setGenre} />
         <ParamSelect label="Tone" value={tone} items={toneItems} onValueChange={setTone} />
+        <ParamSelect label="Setting" value={setting} items={settingItems} onValueChange={setSetting} />
         <ParamSelect label="Tag" value={tag} items={tagItems} onValueChange={setTag} />
         <ParamSelect label="Sort" value={sort} items={SORT_ITEMS} onValueChange={setSort} />
       </Row>
@@ -194,7 +199,7 @@ function BrowseRows({
 }
 
 function BrowseCharacterRow({ row }: { readonly row: BrowseRow }): ReactElement {
-  const facet = characterFacetLine(row.genre, row.tone);
+  const facet = characterFacetLine(row.genre, row.tone, row.setting);
   const subtitle = row.elevatorPitch ?? (facet === "" ? "Not distilled" : facet);
   return (
     <ListRow

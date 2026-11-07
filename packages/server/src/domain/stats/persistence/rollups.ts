@@ -195,6 +195,7 @@ export async function readTimeseries(db: Db, ownerId: UserId, opts: TimeseriesOp
     assistantTurns: r.assistantTurns,
     tokensOut: recordedTokens(r.tokensOut, r.tokensOutMeasuredSamples, r.tokensOutEstimatedSamples),
     tokensOutProvenance: aggregateTokenProvenance(r.tokensOutMeasuredSamples, r.tokensOutEstimatedSamples),
+    messageDatesApprox: r.messageDatesApprox,
   }));
 }
 
