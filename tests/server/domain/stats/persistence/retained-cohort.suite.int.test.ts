@@ -246,8 +246,8 @@ test("an accepted native copy handoff rebases exact retained cohorts and signed 
 
 test("a stale voice owner refuses canon even when accepted copying preserves the exact retained owner cohort", async () => {
   using held = await freshHeldDb();
-  await using ownership = new AsyncDisposableStack();
   using wire = paidReplies();
+  await using ownership = new AsyncDisposableStack();
   const root = ownership.use(await createServerHarness({ db: held.db, providerFetch: wire.execute }));
   const actors = await seedCorpusActors(root);
   const nominee = await root.principalFor(actors.secondUserId);
@@ -319,8 +319,8 @@ test("a stale voice owner refuses canon even when accepted copying preserves the
 for (const change of ["none", "source-variant"] as const) {
   test(`native continuation transfers paid facts only through retained generation first-write guards: ${change}`, async () => {
     using held = await freshHeldDb();
-    await using ownership = new AsyncDisposableStack();
     using wire = paidReplies(2);
+    await using ownership = new AsyncDisposableStack();
     const root = ownership.use(await createServerHarness({ db: held.db, providerFetch: wire.execute }));
     const actors = await seedCorpusActors(root);
     const nominee = await root.principalFor(actors.secondUserId);
@@ -383,8 +383,8 @@ for (const change of ["none", "source-variant"] as const) {
 
 test("native continuation settles before handoff rebases its retained cohort and signed economics", async () => {
   using held = await freshHeldDb();
-  await using ownership = new AsyncDisposableStack();
   using wire = paidReplies(2);
+  await using ownership = new AsyncDisposableStack();
   const root = ownership.use(await createServerHarness({ db: held.db, providerFetch: wire.execute }));
   const actors = await seedCorpusActors(root);
   const nominee = await root.principalFor(actors.secondUserId);

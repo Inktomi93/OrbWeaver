@@ -251,7 +251,8 @@ function blackPng(side: number): Buffer {
  * page from the same root under the owner's own cookie.
  */
 async function blackArtRoot(page: Page): Promise<Root> {
-  const art = await createCorpusHarness();
+  await using construction = new AsyncDisposableStack();
+  const art = construction.use(await createCorpusHarness());
   const owner = await art.principalFor(art.ownerId);
   const { cookie } = await captureCookieAuth(art, owner, BLACK_ART_PASSWORD);
   const form = new FormData();
@@ -282,6 +283,7 @@ async function blackArtRoot(page: Page): Promise<Root> {
     const headers = Object.fromEntries([...response.headers].filter(([name]) => name !== "set-cookie"));
     await route.fulfill({ status: response.status, headers, body: Buffer.from(await response.arrayBuffer()) });
   });
+  construction.move();
   return art;
 }
 

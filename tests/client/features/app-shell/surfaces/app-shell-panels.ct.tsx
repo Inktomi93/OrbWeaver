@@ -101,15 +101,12 @@ async function rootWithProfile(name: string): Promise<Root> {
   if ("error" in profile) {
     throw new Error(profile.error);
   }
-  const profiled = await createCorpusHarness();
-  try {
-    const caller = await profiled.internalCallerFor(profiled.ownerId);
-    await caller.settings.updateUserSettingsSection({ section: "appearance", patch: { ...defaults.patch, ...profile.patch } });
-    return profiled;
-  } catch (error) {
-    await profiled[Symbol.asyncDispose]();
-    throw error;
-  }
+  await using construction = new AsyncDisposableStack();
+  const profiled = construction.use(await createCorpusHarness());
+  const caller = await profiled.internalCallerFor(profiled.ownerId);
+  await caller.settings.updateUserSettingsSection({ section: "appearance", patch: { ...defaults.patch, ...profile.patch } });
+  construction.move();
+  return profiled;
 }
 
 /** The band's inset shadow stops read by geometry: the ember edge sits at the top (a positive block offset), the separator at the bottom. */

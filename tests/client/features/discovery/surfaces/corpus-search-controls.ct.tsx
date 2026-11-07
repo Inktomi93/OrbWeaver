@@ -48,15 +48,18 @@ async function seededHarness(withReranker: boolean): Promise<Awaited<ReturnType<
     structuredReplies: CORPUS_STRUCTURED_REPLIES,
     images: [],
   });
-  const root = await createCorpusHarness(undefined, {
-    providerFetch: async (input, init) => {
-      const request = new Request(input, init);
-      if (new URL(request.url).pathname !== "/v1/rerank") {
-        return await wire.execute(request);
-      }
-      return Response.json({ results: [{ index: 0, ["relevance_score"]: 1 }] });
-    },
-  });
+  await using construction = new AsyncDisposableStack();
+  const root = construction.use(
+    await createCorpusHarness(undefined, {
+      providerFetch: async (input, init) => {
+        const request = new Request(input, init);
+        if (new URL(request.url).pathname !== "/v1/rerank") {
+          return await wire.execute(request);
+        }
+        return Response.json({ results: [{ index: 0, ["relevance_score"]: 1 }] });
+      },
+    }),
+  );
   const principal = await root.principalFor(root.ownerId);
   if (!withReranker) {
     // The local-light seed binds a Rerank model by default; clear it to reach the unset state.
@@ -77,6 +80,7 @@ async function seededHarness(withReranker: boolean): Promise<Awaited<ReturnType<
     });
     await root.services.connection.setBinding({ principal, task: "rerank", connectionId: reranker.id });
   }
+  construction.move();
   return root;
 }
 

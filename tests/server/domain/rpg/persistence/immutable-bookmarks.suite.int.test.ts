@@ -299,8 +299,8 @@ test("checkpoint writes and restores retain actual host and game authority witho
 
 test("a held checkpoint commit serializes a competing hand edit through its new immutable head", async () => {
   using held = await freshHeldDb();
-  await using ownership = new AsyncDisposableStack();
   using wire = physicalScene();
+  await using ownership = new AsyncDisposableStack();
   const root = ownership.use(await createServerHarness({ db: held.db, providerFetch: wire.execute }));
   const scene = await foldedScene(root);
   const params = { principal: scene.owner, chatId: scene.chatId };
@@ -334,8 +334,8 @@ test("a held checkpoint commit serializes a competing hand edit through its new 
 
 test("a real continuation overlaps the held bookmark without replacing its saved state or source variant identity", async () => {
   using held = await freshHeldDb();
-  await using ownership = new AsyncDisposableStack();
   using wire = physicalScene("rain");
+  await using ownership = new AsyncDisposableStack();
   const root = ownership.use(await createServerHarness({ db: held.db, providerFetch: wire.execute }));
   const scene = await foldedScene(root);
   const params = { principal: scene.owner, chatId: scene.chatId };
@@ -386,8 +386,8 @@ test("a real continuation overlaps the held bookmark without replacing its saved
 
 test("a held restore orders a competing hand gesture after its faithful narrator and snapshot batch", async () => {
   using held = await freshHeldDb();
-  await using ownership = new AsyncDisposableStack();
   using wire = physicalScene();
+  await using ownership = new AsyncDisposableStack();
   const root = ownership.use(await createServerHarness({ db: held.db, providerFetch: wire.execute }));
   const scene = await foldedScene(root);
   const params = { principal: scene.owner, chatId: scene.chatId };

@@ -287,6 +287,7 @@ const EXTERNAL_MODULE_MOCK_RESTRICTION = {
 };
 
 // useDisposables judges a declaration, so an acquisition passed, awaited alone or read through a member escapes it.
+// A selector matches a bare name and a member call (`kit.freshDb()`), because a namespace import hides the callee.
 const OWNED_DB_MESSAGE =
   "A test database has one owner. Write `using held = await freshDb()` before the graph that borrows it, or pass it to a stack's `.use(...)`; a fixture writes `using held` and then `await use(held)`.";
 const OWNED_PLAN_MESSAGE =
@@ -294,28 +295,50 @@ const OWNED_PLAN_MESSAGE =
 // A harness or room has a `Db` member, and a member typed `Db` by name blinds useDisposables, so this rule is the only check on these acquisitions.
 const OWNED_ROOT_MESSAGE =
   "A root has one owner. Write `await using root = await createServerHarness()`, pass it to a stack's `.use(...)`, or return it from a helper that owns it.";
+const RAW_DB_OPEN_MESSAGE =
+  "A raw `createDb` handle has no owner. Write `using opened = ownDb(await createDb(url))`, or `await using held = ownFileDb(await createDb(url))` for a file the next reader opens. A suite whose subject is the client opens it by hand.";
+const PLAN_ORDER_MESSAGE =
+  "A reply plan is judged when it is disposed, and disposal runs in reverse. Declare the plan above every `await using` in its block, so the root closes first.";
 const OWNED_ROOT_ACQUISITIONS =
   "/^(createServerHarness|createChatRoot|createFirstBootHarness|createCorpusHarness|createAuthModeRoot|createRuntimeRoot|conformanceRoot|coreHttpRoom|coreDispatchRoom|textRoom|followupRoom|personaRoom|turnToolsRoom|signedInBox)$/";
+// Every helper that returns a plan the caller declares: a new one joins this list in the change that adds it.
+const REPLY_PLAN_ACQUISITIONS =
+  "/^(finiteReplies|textProvider|openAiServer|scriptedResponses|physicalScene|physicalExecution|tailSwipeScene|paidReplies|provider|planned)$/";
+const ownedCall = (names: string): string =>
+  `CallExpression:matches([callee.name=${names}], [callee.property.name=${names}], [callee.property.value=${names}])`;
+const RAW_DB_OPEN_RESTRICTION = {
+  selector: `${ownedCall("/^createDb$/")}:not(CallExpression[callee.name=/^(ownDb|ownFileDb)$/] > AwaitExpression > CallExpression)`,
+  message: RAW_DB_OPEN_MESSAGE,
+};
 const OWNED_DB_RESTRICTIONS = [
   {
-    selector:
-      "CallExpression[callee.name=/^(freshDb|freshHeldDb|freshCountedDb)$/]:not(VariableDeclaration[kind=/using/] > VariableDeclarator > AwaitExpression > CallExpression):not(CallExpression[callee.property.name='use'] > AwaitExpression > CallExpression)",
+    selector: `${ownedCall("/^(freshDb|freshHeldDb|freshCountedDb)$/")}:not(VariableDeclaration[kind=/using/] > VariableDeclarator > AwaitExpression > CallExpression):not(CallExpression[callee.property.name='use'] > AwaitExpression > CallExpression)`,
     message: OWNED_DB_MESSAGE,
   },
   {
-    selector:
-      "CallExpression[callee.name=/^(ownDb|ownFileDb)$/]:not(VariableDeclaration[kind=/using/] > VariableDeclarator > CallExpression):not(CallExpression[callee.property.name='use'] > CallExpression):not(ReturnStatement > CallExpression)",
+    selector: `${ownedCall("/^(ownDb|ownFileDb)$/")}:not(VariableDeclaration[kind=/using/] > VariableDeclarator > CallExpression):not(CallExpression[callee.property.name='use'] > CallExpression):not(ReturnStatement > CallExpression)`,
     message: OWNED_DB_MESSAGE,
   },
   {
-    selector:
-      "CallExpression[callee.name=/^(finiteReplies|textProvider|openAiServer|scriptedResponses)$/]:not(VariableDeclaration[kind=/using/] > VariableDeclarator > CallExpression):not(CallExpression[callee.property.name='use'] > CallExpression)",
+    selector: `${ownedCall("/^(finiteReplies|textProvider|openAiServer|scriptedResponses)$/")}:not(VariableDeclaration[kind=/using/] > VariableDeclarator > CallExpression):not(CallExpression[callee.property.name='use'] > CallExpression)`,
     message: OWNED_PLAN_MESSAGE,
   },
   {
-    selector: `CallExpression[callee.name=${OWNED_ROOT_ACQUISITIONS}]:not(VariableDeclaration[kind=/using/] > VariableDeclarator > AwaitExpression > CallExpression):not(VariableDeclaration[kind=/using/] > VariableDeclarator > ConditionalExpression > AwaitExpression > CallExpression):not(CallExpression[callee.property.name='use'] > AwaitExpression > CallExpression):not(ReturnStatement > AwaitExpression > CallExpression):not(ReturnStatement > CallExpression):not(ArrowFunctionExpression > CallExpression):not(ArrowFunctionExpression > AwaitExpression > CallExpression):not(CallExpression[callee.name='expect'] > CallExpression)`,
+    // The plan check runs at disposal, and a later `await using` disposes before an earlier `using`.
+    selector: `VariableDeclaration[kind='await using'] ~ VariableDeclaration[kind='using'] > VariableDeclarator > ${ownedCall(REPLY_PLAN_ACQUISITIONS)}`,
+    message: PLAN_ORDER_MESSAGE,
+  },
+  {
+    // The same order inside a helper's stack: a plan registered after a root is judged before the root closes.
+    selector: `:matches(VariableDeclaration, ExpressionStatement):has(CallExpression[callee.property.name='use'] AwaitExpression > ${ownedCall(OWNED_ROOT_ACQUISITIONS)}) ~ :matches(VariableDeclaration, ExpressionStatement):has(CallExpression[callee.property.name='use'] > ${ownedCall(REPLY_PLAN_ACQUISITIONS)})`,
+    message: PLAN_ORDER_MESSAGE,
+  },
+  {
+    // A refusal test may leave the root unbuilt; `.resolves` hands the caller a root nobody closes.
+    selector: `${ownedCall(OWNED_ROOT_ACQUISITIONS)}:not(VariableDeclaration[kind=/using/] > VariableDeclarator > AwaitExpression > CallExpression):not(VariableDeclaration[kind=/using/] > VariableDeclarator > ConditionalExpression > AwaitExpression > CallExpression):not(CallExpression[callee.property.name='use'] > AwaitExpression > CallExpression):not(ReturnStatement > AwaitExpression > CallExpression):not(ReturnStatement > CallExpression):not(ArrowFunctionExpression > CallExpression):not(ArrowFunctionExpression > AwaitExpression > CallExpression):not(MemberExpression[property.name='rejects'] > CallExpression[callee.name='expect'] > CallExpression):not(CallExpression:matches([callee.name=/^(beforeAll|beforeEach)$/], [callee.property.name=/^(beforeAll|beforeEach)$/]) > ArrowFunctionExpression > BlockStatement > ExpressionStatement > AssignmentExpression > AwaitExpression > CallExpression)`,
     message: OWNED_ROOT_MESSAGE,
   },
+  RAW_DB_OPEN_RESTRICTION,
 ];
 
 const FILESYSTEM_MODULE_MOCK_RESTRICTION = {
@@ -380,6 +403,11 @@ const TEST_ENVIRONMENT_RESTRICTIONS = [
     message: ENV_MESSAGE,
   },
 ];
+
+// A later block that sets `no-restricted-syntax` replaces this list, so every test class composes it instead of restating a part.
+const TEST_SYNTAX = [INTERNAL_MODULE_MOCK_RESTRICTION, EXTERNAL_MODULE_MOCK_RESTRICTION, ...TEST_ENVIRONMENT_RESTRICTIONS, ...OWNED_DB_RESTRICTIONS];
+// A suite whose subject is the database client, the testkit's own database owners and the child process that holds a raw connection open and close the handle themselves.
+const CLIENT_SUBJECT_TEST_SYNTAX = TEST_SYNTAX.filter((restriction) => restriction !== RAW_DB_OPEN_RESTRICTION);
 
 const TEST_PROJECTS = ["tsconfig.node.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json"];
 
@@ -2264,19 +2292,16 @@ export default [
     files: ["tests/**/*.{ts,tsx}"],
     // Tooling CLI subjects own process-environment inputs; inherited runner cleanup restores their stubs.
     ignores: ["tests/tooling/**", "**/*.test-d.ts"],
-    rules: {
-      "no-restricted-syntax": restrictedSyntax(
-        INTERNAL_MODULE_MOCK_RESTRICTION,
-        EXTERNAL_MODULE_MOCK_RESTRICTION,
-        ...TEST_ENVIRONMENT_RESTRICTIONS,
-        ...OWNED_DB_RESTRICTIONS,
-      ),
-    },
+    rules: { "no-restricted-syntax": restrictedSyntax(...TEST_SYNTAX) },
+  },
+  {
+    files: ["tests/db/client/**/*.{ts,tsx}", "tests/support/node/db.ts", "tests/support/node/db-holder.ts"],
+    rules: { "no-restricted-syntax": restrictedSyntax(...CLIENT_SUBJECT_TEST_SYNTAX) },
   },
   {
     files: ["tests/e2e/*.spec.ts"],
     rules: {
-      "no-restricted-syntax": restrictedSyntax(INTERNAL_MODULE_MOCK_RESTRICTION, EXTERNAL_MODULE_MOCK_RESTRICTION, ...TEST_ENVIRONMENT_RESTRICTIONS, {
+      "no-restricted-syntax": restrictedSyntax(...TEST_SYNTAX, {
         selector: "Literal[value=/data-role=/], TemplateElement[value.raw=/data-role=/]",
         message: "A hand-written role selector accepts retained rows. Read the ids a send driver returns and assert through messageRow.",
       }),
@@ -2286,9 +2311,7 @@ export default [
     files: ["tests/**/*.ct.tsx"],
     rules: {
       "no-restricted-syntax": restrictedSyntax(
-        INTERNAL_MODULE_MOCK_RESTRICTION,
-        EXTERNAL_MODULE_MOCK_RESTRICTION,
-        ...TEST_ENVIRONMENT_RESTRICTIONS,
+        ...TEST_SYNTAX,
         { selector: "JSXElement, JSXFragment", message: "Keep component composition in browser stories; CT specs call native mount with data props." },
         {
           selector: "CallExpression[callee.name='mount']:not([typeArguments])",

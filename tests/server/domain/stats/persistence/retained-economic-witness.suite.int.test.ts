@@ -40,7 +40,6 @@ for (const [operation, unselected] of [
 ] as const) {
   test(`a real cheap round invalidates captured ${operation} economics; unselected contribution: ${unselected}`, async () => {
     using held = await freshHeldDb();
-    await using ownership = new AsyncDisposableStack();
     const roundEntered = Promise.withResolvers<void>();
     const roundReleased = Promise.withResolvers<void>();
     const Narrative = "The paid narrative remains unchanged.";
@@ -57,6 +56,7 @@ for (const [operation, unselected] of [
           ? { text: "", toolCalls: [{ name: roundPlan.take(), argumentsJson: "{}" }], usage: { promptTokens: 70, completionTokens: 15 } }
           : { text: narrativePlan.take(), toolCalls: [], usage: { promptTokens: 100, completionTokens: 35 } },
     });
+    await using ownership = new AsyncDisposableStack();
     const root = ownership.use(
       await createServerHarness({
         db: held.db,
