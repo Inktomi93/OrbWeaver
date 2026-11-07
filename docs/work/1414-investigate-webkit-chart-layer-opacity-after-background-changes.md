@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
-updated: 2026-11-06
-priority: P1
+status: blocked
+updated: 2026-11-07
+priority: P3
 area: ui
+blocked: owner
 plan: surface-walk
 ---
 
