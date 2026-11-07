@@ -1,5 +1,6 @@
 // orb/no-opaque-variant-spread refuses a JSX spread on an @orb/ui element that can write one of the element's variant axes
 // unless the variant census can read it: an object literal, a conditional or logical of literals, or a same-file const of one.
+// orb/no-opaque-class-spread holds the same spread to the key a class travels under, on any component and in an element factory's props.
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
@@ -10,6 +11,7 @@ import { resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
 const RULE = "orb/no-opaque-variant-spread";
+const CLASS_RULE = "orb/no-opaque-class-spread";
 const PROBE = "packages/client/src/features/probe/opaque-variant-spread-probe.tsx";
 const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
 
@@ -39,9 +41,9 @@ function programFor(fileName: string, source: string): ts.Program {
   return ts.createProgram([fileName], options, host);
 }
 
-async function findings(body: string): Promise<readonly Linter.LintMessage[]> {
+async function findings(body: string, rule: string = RULE): Promise<readonly Linter.LintMessage[]> {
   const fileName = join(ROOT, PROBE);
-  const source = `import type { ReactElement, ComponentProps } from "react";\nimport { Button } from "@orb/ui/button";\n${body}\n`;
+  const source = `import type { ReactElement, ComponentProps } from "react";\nimport { Button } from "@orb/ui/button";\nimport { Row } from "@orb/ui/layout";\n${body}\n`;
   const config = await resolvedConfig(eslint, fileName);
   const found = new Linter({ cwd: ROOT }).verify(
     source,
@@ -52,7 +54,7 @@ async function findings(body: string): Promise<readonly Linter.LintMessage[]> {
         parser: tseslint.parser,
         parserOptions: { project: false, projectService: false, programs: [programFor(fileName, source)], ecmaFeatures: { jsx: true } },
       },
-      rules: { [RULE]: config.rules[RULE] ?? "off" },
+      rules: { [rule]: config.rules[rule] ?? "off" },
     },
     { filename: fileName },
   );
@@ -60,7 +62,7 @@ async function findings(body: string): Promise<readonly Linter.LintMessage[]> {
     found.filter(({ fatal }) => fatal === true),
     body,
   ).toEqual([]);
-  return found.filter(({ ruleId }) => ruleId === RULE);
+  return found.filter(({ ruleId }) => ruleId === rule);
 }
 
 test.for([
@@ -83,6 +85,8 @@ test.for([
     "a union with an index-signature arm",
     "export const Probe = (bag: Readonly<Record<string, string>> | { readonly id: string }): ReactElement => <Button {...bag}>x</Button>;",
   ],
+  ["an index signature of a class union", 'export const Probe = (bag: Readonly<Record<string, "flex" | "grid">>): ReactElement => <Row {...bag} />;'],
+  ["an index signature typed unknown", "export const Probe = (bag: Readonly<Record<string, unknown>>): ReactElement => <Row {...bag} />;"],
   ["a spread typed any", "export const Probe = (bag: any): ReactElement => <Button {...bag}>x</Button>;"],
 ] as const)("flags %s", async ([, body]) => {
   const found = await findings(body);
@@ -111,4 +115,85 @@ test.for([
 test("a literal with a computed key stays opaque when its type names an axis", async () => {
   const body = 'declare const KEY: "variant";\nexport const Probe = (): ReactElement => <Button {...{ [KEY]: "ghost" as const }}>x</Button>;';
   expect(await findings(body)).toHaveLength(1);
+});
+
+const FACTORY = "declare function createElement(type: unknown, props: unknown): ReactElement;";
+
+test.for([
+  [
+    "a nested member",
+    "export const Probe = ({ box }: { readonly box: { readonly inner: { readonly className: string } } }): ReactElement => <Row {...box.inner} />;",
+  ],
+  ["an array element", "export const Probe = ({ box }: { readonly box: readonly { readonly className: string }[] }): ReactElement => <Row {...box[0]} />;"],
+  [
+    "a merged object",
+    'const PASSED = { className: "justify-end" };\nconst MERGED = Object.assign({}, PASSED);\nexport const Probe = (): ReactElement => <Row {...MERGED} />;',
+  ],
+  [
+    "an aliased merge",
+    'const PASSED = { className: "justify-end" };\nconst { assign } = Object;\nexport const Probe = (): ReactElement => <Row {...assign({}, PASSED)} />;',
+  ],
+  ["built entries", 'export const Probe = (): ReactElement => <Row {...Object.fromEntries([["className", "justify-end"]])} />;'],
+  ["a call's return", "declare function look(): { readonly className: string };\nexport const Probe = (): ReactElement => <Row {...look()} />;"],
+  ["an optional key", "export const Probe = (rest: { readonly className?: string }): ReactElement => <Row {...rest} />;"],
+  ["a part's class key", "export const Probe = (rest: { readonly restClassName: string }): ReactElement => <Row {...rest} />;"],
+  ["a raw element's own props on a primitive", 'export const Probe = (rest: ComponentProps<"div">): ReactElement => <Row {...rest} />;'],
+  [
+    "a client component",
+    "declare function Local(props: object): ReactElement;\nexport const Probe = (rest: { readonly className: string }): ReactElement => <Local {...rest} />;",
+  ],
+  ["an index signature", "export const Probe = (bag: Readonly<Record<string, string>>): ReactElement => <Row {...bag} />;"],
+  ["an index signature of a class union", 'export const Probe = (bag: Readonly<Record<string, "flex" | "grid">>): ReactElement => <Row {...bag} />;'],
+  ["an index signature typed unknown", "export const Probe = (bag: Readonly<Record<string, unknown>>): ReactElement => <Row {...bag} />;"],
+  ["a spread typed any", "export const Probe = (bag: any): ReactElement => <Row {...bag} />;"],
+  [
+    "an element factory's props",
+    `${FACTORY}\nexport const Probe = ({ box }: { readonly box: { readonly className: string } }): ReactElement => createElement(Row, box);`,
+  ],
+] as const)("the class rule flags %s", async ([, body]) => {
+  const found = await findings(body, CLASS_RULE);
+  expect(found).toHaveLength(1);
+  expect(found[0]?.message).toContain("onto a component");
+});
+
+test.for([
+  ["a type that omits the key", 'export const Probe = (rest: Omit<ComponentProps<"div">, "className">): ReactElement => <Row {...rest} />;'],
+  ["a type that closes the key", "export const Probe = (rest: { readonly className?: never }): ReactElement => <Row {...rest} />;"],
+  ["an object literal the static rules read", 'export const Probe = (): ReactElement => <Row {...{ className: "shrink-0" }} />;'],
+  ["a same-file const the static rules read", 'const HELD = { className: "shrink-0" };\nexport const Probe = (): ReactElement => <Row {...HELD} />;'],
+  ["a record of handlers", "export const Probe = (bag: Readonly<Record<string, () => void>>): ReactElement => <Row {...bag} />;"],
+  ["a record of counts", "export const Probe = (bag: Readonly<Record<string, number>>): ReactElement => <Row {...bag} />;"],
+  ["a raw element, which the intrinsic rule owns", 'export const Probe = (rest: ComponentProps<"div">): ReactElement => <div {...rest} />;'],
+  [
+    "an element factory's props with no class",
+    `${FACTORY}\nexport const Probe = ({ box }: { readonly box: { readonly inert: boolean } }): ReactElement => createElement(Row, box);`,
+  ],
+] as const)("the class rule passes %s", async ([, body]) => {
+  expect(await findings(body, CLASS_RULE)).toEqual([]);
+});
+
+// Spells a template placeholder inside a fixture.
+const TEMPLATE_HOLE = "$";
+
+// The limits the rule comments name: a type is all this rule reads, and a call's argument stays open because an RPG sheet's `className` is data. Each is a class
+// that lands, so a row that starts failing has closed a limit and its comment changes with it.
+test.for([
+  [
+    "a call that hands a class back under a wider type",
+    [
+      "interface Kept { readonly inert: boolean }",
+      "const widen = (kept: Kept): Kept => kept;",
+      'const HELD = { className: "justify-end", inert: true };',
+      "export const Probe = (): ReactElement => <Row {...widen(HELD)} />;",
+    ].join("\n"),
+  ],
+  ["a rest cast to object", "export const Probe = (rest: { readonly className: string }): ReactElement => <Row {...(rest as object)} />;"],
+  [
+    "a default under a wider type",
+    'const HELD = { className: "justify-end" };\nexport const Probe = ({ box = HELD }: { readonly box?: object }): ReactElement => <Row {...box} />;',
+  ],
+  ["Reflect.set", 'const box = {};\nReflect.set(box, "className", "justify-end");\nexport const Probe = (): ReactElement => <Row {...box} />;'],
+  ["a template-keyed record", `export const Probe = (bag: Readonly<Record<\`${TEMPLATE_HOLE}{string}ClassName\`, string>>): ReactElement => <Row {...bag} />;`],
+] as const)("out of reach of the class rule: %s", async ([, body]) => {
+  expect(await findings(body, CLASS_RULE)).toEqual([]);
 });

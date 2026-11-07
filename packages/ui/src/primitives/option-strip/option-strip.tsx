@@ -1,4 +1,4 @@
-import type { ReactElement, ReactNode } from "react";
+import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { Button } from "#primitives/button";
 import { optionStripVariants } from "./variants.ts";
 
@@ -25,7 +25,7 @@ export interface OptionStripItem {
   readonly highlighted?: boolean | undefined;
 }
 
-export interface OptionStripProps {
+export interface OptionStripProps extends Omit<ComponentProps<"div">, "aria-label" | "children" | "id" | "onSelect" | "role"> {
   /** The listbox's accessible name. */
   readonly "aria-label": string;
   /** The listbox's DOM id — what an external control names via `aria-controls`. */
@@ -34,7 +34,6 @@ export interface OptionStripProps {
   /** Pointer activation of a row. Called even for a disabled row's forced click? No — the button's
    *  `disabled` blocks it; a caller re-checks availability on its own keyboard path. */
   readonly onSelect: (item: OptionStripItem) => void;
-  readonly className?: string;
 }
 
 /**
@@ -47,10 +46,10 @@ export interface OptionStripProps {
  * Domain-agnostic — slots + ids only. The caller owns what a row means, the id space, and (for a keyboard
  * pick) the availability re-check; the strip owns the ARIA shape and the highlight/hover skin.
  */
-export function OptionStrip({ "aria-label": ariaLabel, id, items, onSelect, className }: OptionStripProps): ReactElement {
+export function OptionStrip({ "aria-label": ariaLabel, id, items, onSelect, className, ...rest }: OptionStripProps): ReactElement {
   const slots = optionStripVariants();
   return (
-    <div aria-label={ariaLabel} className={slots.listbox({ className })} data-slot="option-strip" id={id} role="listbox">
+    <div {...rest} aria-label={ariaLabel} className={slots.listbox({ className })} data-slot="option-strip" id={id} role="listbox">
       {items.map((item) => {
         const styled = optionStripVariants({ highlighted: item.highlighted ?? false });
         return (

@@ -147,7 +147,7 @@ export function ControlAxesStory(): ReactElement {
         <VirtualList
           aria-label="Filled list"
           estimateSize={(): number => LIST_ROW_PX}
-          fill={true}
+          height="fill"
           gapToken="tight"
           getItemKey={(row: string): string => row}
           items={LIST_ROWS}

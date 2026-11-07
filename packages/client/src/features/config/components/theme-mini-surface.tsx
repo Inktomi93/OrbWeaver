@@ -62,7 +62,7 @@ const PREVIEW_DENSITY = "comfortable";
 /** The room, painted entirely from whatever palette the wrapper put in scope. */
 function MiniRoom(): ReactElement {
   return (
-    <Stack width="full" fill={true} padding="tight" justify="between" data-slot="theme-mini-room" gap="tight" ground="background">
+    <Stack width="full" height="fill" padding="tight" justify="between" data-slot="theme-mini-room" gap="tight" ground="background">
       {/* CARD + SHAPE + INK: the theme's own card tone, radius and hairline, with a foreground sample on
           it — the pair a theme exists to keep readable, and the one pair that clears 3:1 on both
           polarities without asking two ramp neighbours to do something they cannot. */}
@@ -91,7 +91,7 @@ export function ThemeMiniSurface({ theme }: ThemeMiniSurfaceProps): ReactElement
     // A seed paints from its generated block ONLY — the `[data-theme]` block for a named palette, and the
     // base-palette block for Hearth, which has no theme block to name.
     return (
-      <Stack width="full" fill={true} data-slot="theme-mini-surface" {...(dataTheme === null ? { "data-palette": "base" } : { "data-theme": dataTheme })}>
+      <Stack width="full" height="fill" data-slot="theme-mini-surface" {...(dataTheme === null ? { "data-palette": "base" } : { "data-theme": dataTheme })}>
         <MiniRoom />
       </Stack>
     );
@@ -99,7 +99,7 @@ export function ThemeMiniSurface({ theme }: ThemeMiniSurfaceProps): ReactElement
   const resolved = resolveThemeScopeTokens(theme, PREVIEW_DENSITY);
   return (
     <ThemeScope ambientAccent={resolved.ambientAccent} ambientBackground={resolved.ambientBackground} box="fill" tokens={resolved.tokens}>
-      <Stack width="full" fill={true} data-slot="theme-mini-surface">
+      <Stack width="full" height="fill" data-slot="theme-mini-surface">
         <MiniRoom />
       </Stack>
     </ThemeScope>

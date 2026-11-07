@@ -98,7 +98,7 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
   };
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} fill={true} focusTarget={true}>
+    <Stack ref={surfaceRef} tabIndex={-1} height="fill" focusTarget={true}>
       {/* The registered commands' invisible runner mounts — the palette is a slash-command host too. */}
       {slash.mounts}
       {/* One ranking across every group: a row whose label or keyword equals or starts with the query outranks

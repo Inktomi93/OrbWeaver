@@ -264,7 +264,7 @@ function SurfaceImage({ node, url }: { readonly node: PluginImageNode; readonly 
   const media =
     url === undefined ? (
       // Owner-scope miss: the installer does not own this asset (or it is gone). NEVER another user's blob.
-      <Card centres={true} fill={framed} width={framed ? "full" : undefined} variant="outline" dashed={true}>
+      <Card centres={true} height={framed ? "fill" : undefined} width={framed ? "full" : undefined} variant="outline" dashed={true}>
         <Text voice="gloss">{node.alt ?? "Image unavailable"}</Text>
       </Card>
     ) : (
