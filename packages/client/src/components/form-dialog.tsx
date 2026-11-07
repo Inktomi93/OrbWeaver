@@ -6,7 +6,7 @@ import { Button } from "@orb/ui/button";
 import type { DialogPopupProps } from "@orb/ui/dialog";
 import { Dialog, DialogClose, DialogDescription, DialogFooter, DialogPopup, DialogTitle } from "@orb/ui/dialog";
 import { Icon, X } from "@orb/ui/icons";
-import { DialogBody, Stack } from "@orb/ui/layout";
+import { Corner, DialogBody, Stack } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { useId, useRef } from "react";
 import { DIALOG_VERBS, testId } from "#lib";
@@ -120,13 +120,15 @@ export function FormDialog({
           <OwnedFooter dismissLabel={dismissLabel} formId={promptFormId} submit={submit} />
         </DialogBody>
         {closeButton ? (
-          <DialogClose
-            render={
-              <Button aria-label={DIALOG_VERBS.close} corner="badge" variant="ghost" square={true} type="button">
-                <Icon icon={X} size="sm" />
-              </Button>
-            }
-          />
+          <Corner>
+            <DialogClose
+              render={
+                <Button aria-label={DIALOG_VERBS.close} variant="ghost" square={true} type="button">
+                  <Icon icon={X} size="sm" />
+                </Button>
+              }
+            />
+          </Corner>
         ) : null}
       </DialogPopup>
     </Dialog>

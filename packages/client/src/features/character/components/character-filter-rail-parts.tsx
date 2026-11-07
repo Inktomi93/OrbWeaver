@@ -140,7 +140,7 @@ export function TagVocabularyPanel({
         viewportProps={{ role: "region", "aria-label": CHARACTER_TAG_VOCABULARY_NAME }}
         wrapContent={true}
       >
-        {/* `pe-row` is the SCROLLBAR's own width token (`scrollbar: w-row` in the primitive's variants):
+        {/* The end inset is the SCROLLBAR's own width token (`scrollbar: w-row` in the primitive's variants):
             Base UI's scrollbar is positioned over the content, so without the inline-end gutter the last
             chip of every line renders underneath the thumb. */}
         {/* `role="toolbar"` is what makes the roving stop legible to AT: it announces a GROUP of controls
@@ -150,7 +150,8 @@ export function TagVocabularyPanel({
         <Row
           aria-label="Tag filter vocabulary"
           aria-orientation="horizontal"
-          className="flex-wrap pe-row"
+          className="flex-wrap"
+          paddingInlineEnd="row"
           gap="tight"
           onFocus={roving.onFocus}
           onKeyDown={roving.onKeyDown}

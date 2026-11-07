@@ -96,7 +96,7 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
               size="sm"
               wrap={true}
             >
-              <Row align="center" className="inline-full min-inline-0" gap="row">
+              <Row align="center" className="min-inline-0" width="full" gap="row">
                 {/* THE RANK IS A DATUM, NOT AN IMPLICATION (side-eye populated arm, [P2-2] / #536). The
                     shelf ranks by the CONJUNCTION volume × how-long-quiet and BARS tokens returned, so at
                     320 characters the audited row 2 read left→right 510,000 · 540,000 · 570,000 — bars

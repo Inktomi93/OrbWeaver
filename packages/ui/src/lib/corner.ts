@@ -1,5 +1,7 @@
 // Where a mark sits in its positioned parent's corner. `badge` pins it to the block-start, inline-end corner, the
-// place a count, a lock, a close or a selection check rides on a tile or a control.
+// place a count, a lock, a close or a selection check rides on a tile or a control; `tight` is the same corner on a
+// glyph-sized host, where the mark must stay clear of the glyph.
 export const CORNER = {
   badge: "absolute inset-e-field inset-bs-field",
+  tight: "absolute inset-e-tight inset-bs-tight",
 } as const;

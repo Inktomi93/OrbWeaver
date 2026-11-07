@@ -41,7 +41,6 @@ export function MessageRowRoot({
 // track at every placement: a body that hugged its content made a bubble's phone cap a share of the bubble itself, and
 // sat a centred skin's short rows in narrow, sliding columns. At a phone width only the gap tightens; the chip keeps the
 // reader's own size and is never hidden (owner ruling, as Moonlit Echoes keeps its 40px avatar on a phone).
-const ROW_BODY = "inline-full min-inline-0 @max-cq-28:gap-field";
 
 /** The row body (#1728 arm B): a flex line for an `anchored` skin, the three `gutterCentred` rails for a centred one.
  *  Tracks on the same element rather than a swapped one, because swapping the element at a width step would remount
@@ -52,10 +51,12 @@ export function MessageRowBody({ skin, ...props }: ComponentProps<"div"> & { rea
       {...props}
       align="start"
       gap="row"
+      gapNarrow="field"
       cap="fit"
+      width="full"
       data-slot="message-row-body"
       tracks={skin.columnPlacement === "gutterCentred" ? "gutterCentred" : undefined}
-      className={ROW_BODY}
+      className="min-inline-0"
     />
   );
 }

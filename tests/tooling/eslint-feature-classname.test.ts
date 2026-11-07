@@ -93,6 +93,7 @@ test.for([
   ["a raw element, which the intrinsic rule owns", 'export const T = (<div className="text-primary" />);\n'],
   ["layout in an alternate class prop", element('restClassName="min-inline-0"')],
   ["layout in a spread", element('{...{ className: "flex gap-row" }}')],
+  ["a zero step of a family an axis chooses in", 'import { Stack } from "@orb/ui/layout";\nexport const T = (<Stack className="min-inline-0 pe-0" />);\n'],
   ["the selected safe member only", `const rows = { paint: { className: "text-primary" }, layout: { className: "flex" } };\n${element("{...rows.layout}")}`],
   ["an unrelated className data field", 'const record = { className: "Wizard" }; export const T = <Text>{record.className}</Text>;'],
 ] as const)("the layout rule passes %s", async ([, source]) => {
@@ -100,6 +101,7 @@ test.for([
 });
 
 const PRIMITIVES = 'import { Row, Stack } from "@orb/ui/layout";\nimport { Text } from "@orb/ui/text";\n';
+const BOXES = 'import { Container, Grid, Row, Stack } from "@orb/ui/layout";\n';
 
 test.for([
   ["a class a Row prop writes", `${PRIMITIVES}export const T = (<Row className="justify-end" />);\n`, '`justify-end` is `justify="end"`'],
@@ -137,6 +139,29 @@ test.for([
     "`justify-end`",
   ],
   ["an owned class on the element a carrier renders", `${PRIMITIVES}export const T = (<Track of={Row} className="justify-end" />);\n`, "`justify-end`"],
+  [
+    "a width cap no arm writes, on a Stack",
+    `${BOXES}export const T = (<Stack className="max-inline-(--reading-measure-prose)" />);\n`,
+    "`max-inline-(--reading-measure-prose)` is a step `cap` chooses among",
+  ],
+  ["a width cap no arm writes, on a Row", `${BOXES}export const T = (<Row className="max-inline-cq-32" />);\n`, "`max-inline-cq-32` is a step `cap`"],
+  ["a lone half of a capped arm, on a Grid", `${BOXES}export const T = (<Grid className="max-inline-(--width-sidebar-sm)" />);\n`, '`cap="sidebar"`'],
+  [
+    "a width cap no arm writes, on a Container",
+    `${BOXES}export const T = (<Container className="max-inline-(--reading-measure-prose)" />);\n`,
+    "chooses among",
+  ],
+  ["a width cap under a variant", `${BOXES}export const T = (<Stack className="@max-cq-32:max-inline-none" />);\n`, "`cap`"],
+  ["an inline size a width arm writes", `${BOXES}export const T = (<Stack className="inline-full" />);\n`, '`inline-full` is `width="full"`'],
+  ["an inline size no width arm writes", `${BOXES}export const T = (<Row className="inline-(--size-avatar-md)" />);\n`, "is a step `width` chooses among"],
+  ["a side inset a padding prop writes", `${BOXES}export const T = (<Row className="pe-block" />);\n`, '`pe-block` is `paddingInlineEnd="block"`'],
+  ["a side inset off the ramp", `${BOXES}export const T = (<Stack className="ps-(--spacing-block)" />);\n`, "is a step `paddingInlineStart` chooses among"],
+  ["a bleed the reach prop pays back", `${BOXES}export const T = (<Stack className="-mx-section" />);\n`, "`-mx-section` is `reach="],
+  [
+    "the name row's reach to a card's edges, in a constant",
+    `${BOXES}const REACH = "-ms-(--row-reach-left) ps-(--row-reach-left) -me-(--row-reach-right) pe-(--row-reach-right)";\nexport const T = (<Row className={REACH} />);\n`,
+    'is `reachCard="header"`',
+  ],
 ] as const)("the layout rule reports %s", async ([, source, tokens]) => {
   const messages = await findings(LAYOUT_RULE, source);
   expect(messages).toHaveLength(1);

@@ -40,10 +40,8 @@ export interface SwipeStripProps {
 // An inside foot never sets its container's width: `contain: inline-size` takes it out of a shrink-to-fit bubble's
 // intrinsic width, so a "Hi." bubble stays as narrow as its header and the foot stretches to fit.
 const FOOT_INSIDE = "flex-wrap contain-inline-size";
-// Echo's foot reaches across the art pane to the card's bottom edge (`--row-reach-*`), and its group ends at the card's
-// corner: the inset it keeps on each side is `--row-foot-inset-*`, the card inset in client globals.css.
-const FOOT_CARD =
-  "flex-wrap contain-inline-size -ms-(--row-reach-left) ps-(--row-foot-inset-left) -me-(--row-reach-right) pe-(--row-foot-inset-right) -mbe-row";
+// Echo's foot reaches across the art pane to the card's bottom edge.
+const FOOT_CARD = "flex-wrap contain-inline-size -mbe-row";
 
 /** The foot line's own box for the chat style's edge: its reach past the reading inset, and any fill or plate. */
 function FootRow({
@@ -54,7 +52,7 @@ function FootRow({
   ...props
 }: ComponentProps<"div"> & { readonly edge: SwipeFoot["edge"] } & Pick<ComponentProps<typeof Row>, "align" | "justify" | "gap">): ReactElement {
   if (edge === "card") {
-    return <Row {...props} align={align} justify={justify} gap={gap} ground="bubble" cardCorners="bottom" className={FOOT_CARD} />;
+    return <Row {...props} align={align} justify={justify} gap={gap} ground="bubble" cardCorners="bottom" reachCard="foot" className={FOOT_CARD} />;
   }
   if (edge === "plate") {
     return <Row {...props} align={align} justify={justify} gap={gap} plate="card" className="flex-wrap" paddingInline="field" />;

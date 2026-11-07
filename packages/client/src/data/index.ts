@@ -26,6 +26,7 @@ export {
 } from "./auth-config.ts";
 export type { ChatBusDeps } from "./bus/apply-chat-bus-event.ts";
 export { markTurnStopping, recoverTurnAfterStopFailure, useChatBusDeps } from "./bus/chat-bus-writes.ts";
+export { RECOVERY_RETRY_BACKOFF_MS } from "./bus/recovery-retry.ts";
 export { useBusRoom } from "./bus/use-bus-room.ts";
 export { useChatBus } from "./bus/use-chat-bus.ts";
 export { useOrbSocket } from "./bus/use-orb-socket.ts";

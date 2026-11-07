@@ -167,7 +167,7 @@ export function ActionsView({ form, presetId, onSelectSection }: ActionsViewProp
             member (`steer`, `voice`, `studio`), which is a code identifier standing in for a heading. */}
         {groups.map((group) => (
           <Section key={group.kind} kicker={TEMPLATE_KIND_LABEL[group.kind]}>
-            <Stack className="pe-field" gap="tight">
+            <Stack paddingInlineEnd="field" gap="tight">
               {group.rows.map((row) => (
                 <TemplateListRow
                   form={form}

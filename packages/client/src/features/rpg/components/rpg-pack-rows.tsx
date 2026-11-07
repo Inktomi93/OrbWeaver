@@ -121,11 +121,13 @@ function PackCellInk({ item, pinned = false }: { readonly item: RpgInventoryItem
           {/* The hand-pin TELL, so the host can see the story is held off this item; the tile editor one tap
               in explains the pin and carries its Release. */}
           {pinned ? (
-            // `pr-block` keeps the word clear of the quest-bound dot, which is absolutely positioned in this
+            // The end inset keeps the word clear of the quest-bound dot, which is absolutely positioned in this
             // same top-right corner — abutting, the two read as one token ("Pinned●") instead of two facts.
-            <Text as="span" voice="gloss" className="shrink-0 pe-block">
-              Pinned
-            </Text>
+            <Row className="shrink-0" paddingInlineEnd="block">
+              <Text as="span" voice="gloss">
+                Pinned
+              </Text>
+            </Row>
           ) : null}
         </Row>
         {/* #37a — WHERE it is kept, on the tile itself (the list lens is no longer the only place it reads).
@@ -190,7 +192,7 @@ function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
  *  so one authoring vocabulary serves both lenses. */
 function PackTileEditor({ item, edit }: { readonly item: RpgInventoryItem; readonly edit: PackEdit }): ReactElement {
   return (
-    <Stack gap="row" className="inline-(--width-control-col)" data-slot="rpg-pack-tile-editor">
+    <Stack gap="row" width="controlCol" data-slot="rpg-pack-tile-editor">
       <Row gap="field" align="center" className="min-inline-0">
         <ItemGlyph item={item} onPickIcon={(icon: string): void => edit.onPickIcon(item.id, icon)} />
         <ItemName item={item} edit={edit} />

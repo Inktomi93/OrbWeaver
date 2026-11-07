@@ -317,9 +317,10 @@ function FaceStripPlaceholder({ caption, kicker, label }: { readonly caption: bo
         // button adds nothing else) around the avatar token and its caption line.
         <Stack
           align="center"
-          className={cn("shrink-0 min-block-(--size-control-md) min-inline-(--size-control-md)", caption ? CAPTIONED_FACE_WIDTH : undefined)}
+          className="shrink-0 min-block-(--size-control-md) min-inline-(--size-control-md)"
           gap="tight"
           key={slot}
+          width={caption ? "avatarHero" : undefined}
         >
           <Skeleton variant="circle" className="block-(--size-avatar-md) inline-(--size-avatar-md)" />
           {caption ? (

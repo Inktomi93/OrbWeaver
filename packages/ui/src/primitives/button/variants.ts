@@ -4,7 +4,6 @@ import {
   CONTROL_INLINE,
   CONTROL_MIN_BLOCK,
   CONTROL_SIZE,
-  CORNER,
   DISABLED_STATE,
   DISABLED_STATE_NATIVE,
   FOCUS_RING,
@@ -46,7 +45,6 @@ export const buttonVariants = tv({
     "aria-busy:cursor-progress",
   ],
   variants: {
-    corner: CORNER,
     // A button that is a row's door: it takes the room left beside its siblings and sets its label at the start.
     // `line` is a whole list line: the full width and the field inset, its text set at the start.
     stretch: { row: "flex-1 justify-start min-inline-0", line: "px-field text-start inline-full" },

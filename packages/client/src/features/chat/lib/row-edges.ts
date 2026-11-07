@@ -11,7 +11,7 @@ export interface ActionsRow {
   readonly chip: boolean;
 }
 
-const PINNED_REACHES = ["card", "column", "train", "none"] as const;
+const PINNED_REACHES = ["card", "column", "page", "train", "none"] as const;
 /** How far the pinned bar's backing reaches. */
 type PinnedReach = (typeof PINNED_REACHES)[number];
 
@@ -21,7 +21,7 @@ export interface PinnedHeader<Reach extends PinnedReach = PinnedReach> {
   readonly fill: "role" | "band" | "none";
   /** The card corners the bar's fill follows: a card's top edge, or a pill's whole outline. */
   readonly corners?: "top" | "all";
-  /** The backing reaches the card edges, the column inset, or the train's full reading width. */
+  /** The backing reaches the card edges, the plate's or the page's inset, or the train's full reading width. */
   readonly reach: Reach;
 }
 
@@ -31,8 +31,11 @@ export const PINNED_CARD: PinnedHeader<"card"> = { fill: "role", corners: "top",
 /** Tide: the role-filled pinned header spans the train so it cannot mask only part of a prose line. */
 export const PINNED_TRAIN: PinnedHeader<"train"> = { fill: "role", reach: "train" };
 
-/** Flat, hush and document: the pinned bar covers the reading width without adding a filled box at rest. */
+/** Flat and hush: the pinned bar covers the reading width without adding a filled box at rest. */
 export const PINNED_BAND: PinnedHeader<"column"> = { fill: "band", reach: "column" };
+
+/** Document: the same bar across the page's wider inset. */
+export const PINNED_PAGE: PinnedHeader<"page"> = { fill: "band", reach: "page" };
 
 export const ACTIONS_WITH_IDENTITY: ActionsRow = { identity: true, chip: false };
 export const ACTIONS_ONLY: ActionsRow = { identity: false, chip: true };

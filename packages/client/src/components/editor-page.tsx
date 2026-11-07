@@ -31,7 +31,9 @@ export function EditorPage({ kind = "form", inset = "none", gap, padding, focusT
         paddingBlock={inset === "none" ? undefined : inset}
         focusTarget={focusTarget}
         cap={kind === "form" ? "columnWide" : "column"}
-        className="mx-auto inline-full min-inline-0"
+        width="full"
+        centred={true}
+        className="min-inline-0"
       />
     </Surface>
   );

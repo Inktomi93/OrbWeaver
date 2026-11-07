@@ -264,7 +264,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
           form.handleSubmit().catch(() => notify.error("Couldn't save the character."));
         }}
       >
-        <Stack gap="section" className="mx-auto inline-full" cap="pane" paddingBlock="section">
+        <Stack gap="section" centred={true} width="full" cap="pane" paddingBlock="section">
           {/* THE CENSUS IS `meta`, NOT AN ACTION. In the bar's `children`, beside `shrink-0` siblings, the
               token line would clip the character's NAME — the one thing a phone's save bar is telling you.
               The `meta` slot keeps the census inline where there is room and drops it to its own full-width
@@ -346,7 +346,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
       {/* Contributed review sections (§6c) — outside the autosave `<form>` (they carry their own
           mutations), in the SAME centered column so a live section can't crush the editor width. */}
       {detailSections.length === 0 ? null : (
-        <Stack gap="section" className="mx-auto inline-full" cap="pane" paddingBlock="section" data-slot="character-editor-sections">
+        <Stack gap="section" centred={true} width="full" cap="pane" paddingBlock="section" data-slot="character-editor-sections">
           {detailSections.map((section) => (
             <Fragment key={section.id}>{section.node}</Fragment>
           ))}

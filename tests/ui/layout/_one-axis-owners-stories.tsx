@@ -38,9 +38,11 @@ export function OneAxisOwnersStory(): ReactElement {
         <Corner inset="tight" data-probe="corner-tight">
           <IndicatorDot />
         </Corner>
-        <Button aria-label="Close" corner="badge" data-probe="corner-button" square={true} variant="ghost">
-          x
-        </Button>
+        <Corner data-probe="corner-button">
+          <Button aria-label="Close" square={true} variant="ghost">
+            x
+          </Button>
+        </Corner>
       </div>
       <Surface tier="form">
         <Card padding="none" data-probe="card-padding-none">

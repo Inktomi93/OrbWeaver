@@ -218,11 +218,10 @@ export function ConfigContentSurface({ groups, hostContentRef }: ConfigContentSu
       <Stack
         aria-label={regionLabel}
         scroll="y"
-        className="-mx-row"
         fill={true}
         grow={true}
         paddingBlock="section"
-        paddingInline="row"
+        reach="row"
         focusTarget={true}
         data-slot="config-content"
         ref={(node): void => {

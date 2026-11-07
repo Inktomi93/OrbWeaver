@@ -162,7 +162,7 @@ function CollectionControlRow({
 }): ReactElement {
   const filterRef = useRef<HTMLInputElement>(null);
   return (
-    <Container className="inline-full">
+    <Container width="full">
       <Row align="center" className="flex-wrap" data-slot="collection-control-row" gap="field">
         {/* The local filter is not the settings index's jump search; its field floor wraps peer commands before the typing area collapses. */}
         <Row align="center" className="min-inline-0" floor="field" grow={true} cap="fit">

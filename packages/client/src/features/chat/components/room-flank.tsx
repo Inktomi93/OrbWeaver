@@ -8,9 +8,9 @@ import { PanelEdgeControl } from "#components";
 import { cn, publishInlineFlankFit } from "#lib";
 import type { FlankPresentation } from "../hooks/use-flank-presentation.ts";
 
-/** Publishes whether the transcript would still hold its reading floor with the plugin flank beside it: the
- *  room's width against the floor plus the flank column and the gap between them, each read off its token so the
- *  threshold tracks the font scale. The sentinel is the threshold itself, laid out and measured. */
+/** Publishes whether the transcript would still hold its reading floor with the plugin flank beside it: the room's
+ *  width against the token that sums them, so the threshold tracks the font scale. The sentinel is the threshold
+ *  itself, laid out and measured, because a custom property holding a sum cannot be read as pixels. */
 export function InlineFlankFitProbe(): ReactElement {
   const sentinel = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
@@ -28,14 +28,7 @@ export function InlineFlankFitProbe(): ReactElement {
       publishInlineFlankFit(true);
     };
   }, []);
-  return (
-    // The sentinel's width is its three token-sized children laid end to end, so the sum is resolved at this element.
-    <Row aria-hidden={true} className="pointer-events-none invisible absolute block-0" ref={sentinel}>
-      <Row className="shrink-0 inline-(--dimension-content-reading-floor)" />
-      <Row className="shrink-0 inline-(--width-sidebar-sm)" />
-      <Row className="shrink-0 inline-(--spacing-block)" />
-    </Row>
-  );
+  return <Row aria-hidden={true} className="pointer-events-none invisible absolute block-0" ref={sentinel} width="flankFit" />;
 }
 
 // A panel-mode column slides; an inline column never moves.
@@ -65,13 +58,14 @@ export function FlankColumn({
   return (
     <Stack
       gap="block"
-      paddingBlockStart={flank.panelMode ? "control" : "block"}
+      paddingBlockStart={flank.panelMode ? "clearance" : "block"}
       cap={flank.panelMode ? undefined : "sidebar"}
+      width={flank.panelMode ? "sidebarSm" : undefined}
       className={cn(
         "empty:hidden",
         flank.panelMode
           ? cn(
-              "relative overflow-y-auto inline-(--width-sidebar-sm) min-block-0",
+              "relative overflow-y-auto min-block-0",
               !flank.occupiesRow && "absolute inset-e-0 inset-bs-0 inset-be-0",
               overlaid ? "z-(--z-raised)" : undefined,
             )

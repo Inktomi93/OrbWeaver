@@ -162,7 +162,8 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           aria-hidden={true}
           data-slot="context-rail-fade"
           data-edge="start"
-          className="pointer-events-none absolute inset-y-0 inset-s-0 inline-gutter"
+          className="pointer-events-none absolute inset-y-0 inset-s-0"
+          width="gutter"
           fade="start"
           fadeFrom={fill}
         >
@@ -178,7 +179,8 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           aria-hidden={true}
           data-slot="context-rail-fade"
           data-edge="end"
-          className="pointer-events-none absolute inset-y-0 inset-e-0 inline-gutter"
+          className="pointer-events-none absolute inset-y-0 inset-e-0"
+          width="gutter"
           fade="end"
           fadeFrom={fill}
         >
@@ -364,9 +366,7 @@ function ContextCell({
         {tab.label}
       </Text>
       {/* THE CORNER ORNAMENTS SIT ONE `field` OFF THE CELL'S OWN CORNER: the rail is full-bleed, so the LAST
-          cell's inline-end edge IS the pane's edge and a flush glyph reads as clipped.
-          LOGICAL (`end-*`), never `right-*`. Spelled as a whole literal at each site (not hoisted) because
-          `ui-size-via-variant` reads these class strings statically. */}
+          cell's inline-end edge IS the pane's edge and a flush glyph reads as clipped. */}
       {locked ? (
         <Corner>
           <Icon icon={Lock} size="xs" aria-hidden={true} ink="muted" receded={true} />

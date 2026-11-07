@@ -192,7 +192,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
   });
 
   return (
-    <Stack className="inline-full min-block-0 min-inline-0" grow="content" gap="glyph" data-slot="composer-guided-cluster">
+    <Stack className="min-block-0 min-inline-0" width="full" grow="content" gap="glyph" data-slot="composer-guided-cluster">
       <Row align="center" justify="between" gap="glyph" className="shrink-0 min-inline-0" data-slot="composer-utilities" ref={seatRow}>
         <Row aria-label="Composer tools" align="center" gap="glyph" className="shrink-0" role="group" ref={seatTools}>
           <ComposerGuidedUtilityMenu

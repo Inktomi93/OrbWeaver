@@ -18,6 +18,8 @@ interface DeclaredAxis {
 
 const ELEMENT_ONLY_ATTRIBUTES: ReadonlySet<string> = new Set(["className", "key", "ref", "children"]);
 const MIN_FAMILY_CHOICES = 2;
+/** A zero step is structure, not a design number: the restricted-classes rule admits it, and no arm is asked for it. */
+export const ZERO_STEP = /-0$/u;
 
 /** The name a component takes in an owner label. */
 export const kebab = (name: string): string => name.replaceAll(/([a-z0-9])([A-Z])/gu, "$1-$2").toLowerCase();
@@ -58,21 +60,27 @@ const armsOf = (arms: ArmClasses): readonly Arm[] => [...arms.values()];
 const writesOnly = (arm: Arm, token: string): boolean => arm.tokens.length === 1 && arm.tokens[0] === token;
 
 /**
- * The axis chooses within the class's utility family: every arm that writes anything writes that family, and the arms do not all agree.
- * A class every arm repeats, such as the `relative` an art axis needs, is what the axis rides on, not what it picks.
+ * The axis chooses within the class's utility family: every arm that writes anything writes that family, under a variant or not, and the
+ * unconditional choices do not all agree. A class every arm repeats, such as the `relative` an art axis needs, is what the axis rides on, not what it picks.
  */
 function picksFamily(arms: ArmClasses, base: string): boolean {
-  const written = writtenChoices(arms, base);
-  return written.every((family) => family.length > 0) && new Set(written.flat()).size >= MIN_FAMILY_CHOICES && alternatives(arms);
+  const writing = armsOf(arms).filter((arm) => arm.tokens.length > 0);
+  return writing.every((arm) => writesFamily(arm, base)) && new Set(writtenChoices(arms, base).flat()).size >= MIN_FAMILY_CHOICES;
 }
+
+const unconditional = (token: string): string => token.slice(baseOf(token).variants.length);
+const writesFamily = (arm: Arm, base: string): boolean => arm.tokens.some((token) => sameFamily(unconditional(token), base));
 
 const coveredBy = (from: readonly string[], onto: readonly string[]): boolean => from.every((token) => onto.some((other) => sameFamily(token, other)));
 
-/** The writing arms are alternatives: each writes the same utility families. Arms that each compose a different set of classes are named compositions, not a ramp. */
+/**
+ * The writing arms are alternatives: each writes the same utility families. Arms that each compose a different set of classes are named
+ * compositions, not a ramp, so a new class of the family is no arm of theirs. It decides that label alone: such an axis still picks its family.
+ */
 function alternatives(arms: ArmClasses): boolean {
   const plain = armsOf(arms)
-    .filter((arm) => arm.tokens.length > 0)
-    .map((arm) => arm.tokens.filter((token) => baseOf(token).variants === ""));
+    .map((arm) => arm.tokens.filter((token) => baseOf(token).variants === ""))
+    .filter((tokens) => tokens.length > 0);
   return plain.every((one) => coveredBy(one, plain[0] ?? []) && coveredBy(plain[0] ?? [], one));
 }
 
@@ -121,10 +129,16 @@ export function writingAxis(elem: Elem | null, token: string, siblings: readonly
   return elem === null || found === undefined ? null : declaredAxis(elem, found[0], found[1]);
 }
 
+/** The axis whose ramp a class of this family belongs on, whether or not an arm writes the class: what the census asks a new arm of and what the lint refuses. */
+export function axisChoosing(recipe: ComponentRecipe | undefined, token: string): readonly [string, ArmClasses] | undefined {
+  const { base } = baseOf(token);
+  return ZERO_STEP.test(base) ? undefined : [...(recipe?.axes ?? [])].find(([, arms]) => picksFamily(arms, base) && alternatives(arms));
+}
+
 /** The verdict for a class of a family one of the element's axes picks within, when no arm writes the class itself; else null. */
 export function newArmJudgement(elem: Elem | null, token: string, guarded: boolean, components: ComponentTables): Judgement | null {
-  const base = baseOf(token).base;
-  const found = [...(recipeOf(elem, components)?.axes ?? [])].find(([, arms]) => picksFamily(arms, base) || offersFamily(arms, base));
+  const recipe = recipeOf(elem, components);
+  const found = axisChoosing(recipe, token) ?? [...(recipe?.axes ?? [])].find(([, arms]) => offersFamily(arms, baseOf(token).base));
   if (elem === null || found === undefined) {
     return null;
   }
@@ -158,7 +172,7 @@ export function undeclaredJudgement(elem: Elem | null, token: string, components
     reason:
       own === undefined
         ? `${component} applies no tv() table in its own file, so no axis is read for ${token}`
-        : `${component} declares no ${writer[0]} axis (its axes: ${[...own.axes.keys()].join(", ")}), so ${token} has no arm to move to`,
+        : `no axis of ${component} chooses ${base} as a ramp (its axes: ${[...own.axes.keys()].join(", ")}), so ${token} has no arm to move to`,
     keep: null,
   };
 }

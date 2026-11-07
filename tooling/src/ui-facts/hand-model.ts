@@ -22,7 +22,7 @@ type Where = (typeof WHERES)[number];
 export const KEEP_REASONS = {
   "zero-sentinel": "zero, one or none as a state or stacking sentinel, legal in every home (client-architecture-lockdown.md 4.4)",
   "relative-unit": "a viewport, container, font-relative or percentage unit is layout structure, legal in the shell (client-architecture-lockdown.md 4.4)",
-  "unit-cast": "a 1 beside a * turns a unitless dial into the length it means; the unit is the cast, not a design value",
+  "unit-cast": "a 1 beside a * and a variable turns a unitless dial into the length it means; the unit is the cast, not a design value",
   "angle-or-fraction": "an angle is geometry; no token family prices it",
   "derived-colour": "a colour derived from a token (relative colour or mix) is composition, legal per site (client-architecture-lockdown.md 4.4)",
   "css-mechanism": "a transform, clip, mask or track formula is the CSS mechanism itself; no token family prices it",
@@ -35,7 +35,6 @@ export const KEEP_REASONS = {
     "a container query condition cannot read a custom property and no generated variant spells it; query conditions are structural literals (client-architecture-lockdown.md 4.4)",
   "single-constant": "one timing or measurement constant with no repeat and no token that holds it; it is a runtime threshold",
   "keyframe-waypoint": "a keyframe waypoint is an animation value, not a meaning, so it stays a literal (the opacity group in tokens.json)",
-  "one-sided-clearance": "padding on one inline edge clears a neighbouring mark; a recipe owns both edges, and no axis names a side",
   "coincident-number": "constants that share a number and name different things; each stays with its own meaning",
   "dom-api-literal": "a literal a DOM API takes in a fixed grammar (a colour input's `#rrggbb` value) cannot be a custom property",
   "svg-geometry": "an SVG radius or centre is in user units of the drawing, not a length the spacing or size scales price",
@@ -43,7 +42,7 @@ export const KEEP_REASONS = {
     "an important modifier inside `@orb/ui` beats a vendor library's inline style, which no variant can out-rank; the suppression at the site states the part",
   "dev-seed-data": "a value the dev seed writes into the app's own records is authored sample data, not paint the client draws",
   "owned-gradient":
-    "a gradient the ui layer spells sits in the recipe arm or primitive rule that owns that look, with its stops drawn from tokens; only a gradient written outside ui is unowned",
+    "a gradient the ui layer spells sits in the recipe arm or primitive rule that owns that look; a raw colour, length or alpha in its stops is a row of its own, and only a gradient written outside ui is unowned",
 } as const;
 export type KeepCode = keyof typeof KEEP_REASONS;
 
@@ -186,7 +185,7 @@ export const GRADIENT_OWNER = "decide: gradient has no owner";
 /** The owner an important modifier gets before the layer it sits in is known. */
 export const IMPORTANT_OWNER = "decide: an important modifier needs a variant";
 
-const DEV_SEED_PATH = "packages/client/src/dev/";
+const DEV_SEED_PATH = "packages/client/src/dev/agent-seed/";
 
 /** What the place the hit sits in settles: ui spells its own gradients and vendor overrides, and the dev seed writes sample data. */
 function placedJudgement(place: Place, written: Written, judgement: Judgement): Judgement {

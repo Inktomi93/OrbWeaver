@@ -84,7 +84,7 @@ function OwnerBudgetBody(): ReactElement {
       <SettingRowGroup>
         <SettingTrackRow>
           <Field label="Runs per hour" orientation="horizontal" description="Across every library-wide rule you have.">
-            <Stack className="inline-(--width-control-col) min-inline-0" cap="fit">
+            <Stack className="min-inline-0" width="controlCol" cap="fit">
               <NumberField
                 min={OWNER_CAP_MIN}
                 max={OWNER_CAP_MAX}

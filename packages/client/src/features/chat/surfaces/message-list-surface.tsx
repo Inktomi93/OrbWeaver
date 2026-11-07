@@ -112,7 +112,7 @@ export function MessageListSurface({ chatId, busDeps, surfaceContributors, toolR
   const chatStyle = useChatStyle();
 
   return (
-    <Stack ref={surfaceRef} tabIndex={-1} className="inline-full min-block-0" fill={true} focusTarget={true}>
+    <Stack ref={surfaceRef} tabIndex={-1} className="min-block-0" width="full" fill={true} focusTarget={true}>
       <QueryBoundary
         resetKeys={[chatId]}
         // THE LOADING STATE IS PART OF THE COLUMN, NOT A BARE FALLBACK (#468). It takes the transcript's

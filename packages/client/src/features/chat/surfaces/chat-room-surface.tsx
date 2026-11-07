@@ -22,7 +22,7 @@ import { Fragment, useDeferredValue, useId, useRef } from "react";
 import type { ChatBusDeps } from "#data";
 import { SkeletonRows, useCarriedAppearance, useTRPC } from "#data";
 import type { ChatRoomSurfaceState, ChatSurfaceAnchor, ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
-import { cn, deriveChatTitle, useFocusOnMount } from "#lib";
+import { deriveChatTitle, useFocusOnMount } from "#lib";
 import type { ActiveChatHandle } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor.tsx";
 import { RoomFlankAnchor } from "../anchors/room-flank-anchor.tsx";
@@ -109,10 +109,11 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   // `min-w-0` beside `min-h-0`: inside the flank ROW the thread is a horizontal flex child, and without it
   // a long unbreakable line in the transcript would push the column past its share instead of scrolling.
   // With the plugin column out of the row, its edge control sits over the transcript's top corner: the thread keeps
-  // that corner clear (`pe-(--size-control-lg)` is the control plus a gap; shell.css's flank distance reads the same token).
+  // that corner clear; shell.css's flank distance reads the same clearance.
   const thread = (
     <Stack
-      className={cn("min-block-(--height-room-thread-min) min-inline-0", !flank.occupiesRow && "pe-(--size-control-lg)")}
+      className="min-block-(--height-room-thread-min) min-inline-0"
+      paddingInlineEnd={flank.occupiesRow ? undefined : "clearance"}
       grow={true}
       data-slot="chat-room-thread"
     >

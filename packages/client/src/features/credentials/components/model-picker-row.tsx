@@ -11,8 +11,8 @@ import { formatContextLength, formatPromptPrice, hasTools, hasVision } from "../
 export function ModelPickerRow({ entry, picked, current }: { readonly entry: PickerEntry; readonly picked: boolean; readonly current: boolean }): ReactElement {
   return (
     <Container className="min-inline-0" grow={true}>
-      <Row align="start" gap="row" stackBelow="cq-32">
-        <Stack className="min-inline-0 @max-cq-32:inline-full" grow={true} gap="field">
+      <Row align="start" gap="row" stackBelow="cq-32" stretchBelow="cq-32">
+        <Stack className="min-inline-0" grow={true} gap="field">
           <Text as="span" className="line-clamp-2 min-inline-0" wrap="word" ink="inherit">
             {entry.label}
           </Text>
@@ -42,7 +42,7 @@ function ModelMetadata({ entry, picked, current }: Parameters<typeof ModelPicker
     return null;
   }
   return (
-    <Row align="center" className="flex-wrap min-inline-0 @max-cq-32:inline-full @cq-32:shrink-0" gap="field">
+    <Row align="center" className="flex-wrap min-inline-0 @cq-32:shrink-0" gap="field">
       {vision ? (
         <Badge tone="info" variant="solid" size="sm">
           Vision

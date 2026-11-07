@@ -143,7 +143,7 @@ export function TeachingState({ onStart, starting, resume }: TeachingStateProps)
           />
         </Stack>
       </Card>
-      <Section cap="reading" className="inline-full" kicker="How it works">
+      <Section cap="reading" kicker="How it works" width="full">
         {/* Equal tracks keep the longest explanation from becoming the dominant step. */}
         <Grid cols="triple" data-testid={testId("refineryTeachingSteps")} gap="block">
           {STEPS.map((step, index) => (

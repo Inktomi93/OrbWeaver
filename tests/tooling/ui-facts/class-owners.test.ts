@@ -11,14 +11,15 @@ const VARIANTS = [
   "    paddingInline: { block: 'px-block' },",
   "    sway: { left: 'float-left', right: 'float-right' },",
   "    art: { portrait: 'ps-4 pe-4' },",
+  "    trim: { tight: 'ps-1 font-bold', loose: 'ps-2 font-bold', plain: 'italic' },",
   "  },",
   "});",
   "export const rowVariants = tv({ variants: { justify: { end: 'justify-end' }, align: { start: 'items-start' } } });",
   "export const panelVariants = tv({ slots: { root: '', label: '' }, variants: { tone: { loud: { label: 'font-bold' }, rooted: { root: 'italic' } } } });",
 ].join("\n");
 const COMPONENTS = [
-  "export function Stack({ paddingInline, sway, art, className }) {",
-  "  return <div className={stackVariants({ paddingInline, sway, art, className })} />;",
+  "export function Stack({ paddingInline, sway, art, trim, className }) {",
+  "  return <div className={stackVariants({ paddingInline, sway, art, trim, className })} />;",
   "}",
   "export function Row({ justify, className }) {",
   "  return <div className={rowVariants({ justify, className })} />;",
@@ -57,6 +58,10 @@ test("an arm that writes a part inside the component owns nothing on its root", 
   expect(ownerOf("layout", "Panel", "italic", [])).toEqual({ axis: "panel.tone", prop: "tone", arm: "rooted" });
 });
 
+test("an axis with an arm outside the family does not choose it, so a class of one composed arm has no owner", ({ scratch }) => {
+  expect(owners(scratch)("layout", "Stack", "ps-1", [])).toBeNull();
+});
+
 test("the real layout tables own justify on Row and truncate on Text", () => {
   const ownerOf = classOwners(REPO_ROOT);
   expect(ownerOf("layout", "Row", "justify-end", [])).toEqual({ axis: "row.justify", prop: "justify", arm: "end" });
@@ -75,14 +80,19 @@ test("the real Row owns each class it writes below a container step, on the step
 test("the real Stack and Row own an inset that steps down below the phone container step, and the block-start inset", () => {
   const ownerOf = classOwners(REPO_ROOT);
   expect(ownerOf("layout", "Stack", "@max-cq-28:px-tight", [])).toEqual({ axis: "stack.paddingInlineNarrow", prop: "paddingInlineNarrow", arm: "tight" });
-  expect(ownerOf("layout", "Stack", "@max-cq-28:pe-block", ["px-section", "py-row"])).toEqual({
-    axis: "stack.readingInset",
-    prop: "readingInset",
-    arm: "plate",
-  });
-  expect(ownerOf("layout", "Stack", "@max-cq-28:pe-block", [])).toBeNull();
   expect(ownerOf("layout", "Row", "@max-cq-28:px-row", [])).toEqual({ axis: "row.paddingInlineNarrow", prop: "paddingInlineNarrow", arm: "row" });
+  expect(ownerOf("layout", "Stack", "@max-cq-28:pe-block", [])).toEqual({ axis: "stack.paddingInlineEndNarrow", prop: "paddingInlineEndNarrow", arm: "block" });
   expect(ownerOf("layout", "Stack", "pbs-row", [])).toEqual({ axis: "stack.paddingBlockStart", prop: "paddingBlockStart", arm: "row" });
+});
+
+test("a class of a family an axis chooses in is that axis's, with no arm named when no arm writes it", () => {
+  const ownerOf = classOwners(REPO_ROOT);
+  expect(ownerOf("layout", "Stack", "max-inline-(--reading-measure-prose)", [])).toEqual({ axis: "stack.cap", prop: "cap", arm: null });
+  expect(ownerOf("layout", "Stack", "@max-cq-32:pe-block", [])).toEqual({ axis: "stack.paddingInlineEnd", prop: "paddingInlineEnd", arm: null });
+  expect(ownerOf("layout", "Grid", "max-inline-(--width-sidebar-sm)", [])).toEqual({ axis: "grid.cap", prop: "cap", arm: "sidebar" });
+  // A zero step is structure, and a family no axis chooses in is the caller's to write.
+  expect(ownerOf("layout", "Row", "pe-0", [])).toBeNull();
+  expect(ownerOf("layout", "Row", "min-inline-0", [])).toBeNull();
 });
 
 const CARD_PACKAGE = JSON.stringify({ exports: { "./card": "./src/primitives/card/index.ts" } });

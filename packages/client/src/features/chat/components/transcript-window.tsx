@@ -121,7 +121,7 @@ function HistoryPager({ available, hasEarlier, busy, failure, pinned, announceme
           onRetry={onRetry}
         />
       )}
-      <Row gap="field" align="center">
+      <Row gap="field" align="center" paddingInlineEnd="block">
         {/* Focusable at every state, so paging on with the keyboard never drops focus onto the page. */}
         <Button
           ref={earlier}
@@ -138,7 +138,7 @@ function HistoryPager({ available, hasEarlier, busy, failure, pinned, announceme
           {EARLIER_MESSAGES_LABEL}
         </Button>
         {/* The end of history is read on screen; the sr-only form is only the pager's description while older pages remain. */}
-        <Text id={description} className={hasEarlier ? "sr-only" : "pe-block"} role="status" voice={hasEarlier ? "gloss" : "label"}>
+        <Text id={description} className={hasEarlier ? "sr-only" : undefined} role="status" voice={hasEarlier ? "gloss" : "label"}>
           {hasEarlier ? "Load older conversation history without moving your reading position." : "Beginning of available history."}
           {loaded === null ? "" : ` ${String(loaded)} messages loaded.`}
         </Text>

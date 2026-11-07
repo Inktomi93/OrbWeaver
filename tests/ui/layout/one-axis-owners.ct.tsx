@@ -1,3 +1,5 @@
+import { resolvedLength } from "@orb/testkit/browser/spec";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { OneAxisOwnersStory } from "./_one-axis-owners-stories.tsx";
@@ -91,28 +93,20 @@ test.describe("recipe axes the client used to hand-write", () => {
 });
 
 test.describe("corner", () => {
-  test("a Corner pins its mark to its parent's block-start, inline-end corner, tight or one field step in", async ({ mount }) => {
+  test("every mark sits one field step in from its host's block-start, inline-end corner, and a tight one a tight step in", async ({ mount, page }) => {
     const component = await mount<typeof OneAxisOwnersStory>(STORY);
     const host = await component.locator('[data-probe="corner-host"]').boundingBox();
+    const field = await resolvedLength(page, `var(${TOKENS["spacing.field"].cssVar})`, component);
+    const tight = await resolvedLength(page, `var(${TOKENS["spacing.tight"].cssVar})`, component);
+    const insets = { "corner-badge": field, "corner-text": field, "corner-dot": field, "corner-button": field, "corner-icon": field, "corner-tight": tight };
     expect(host).not.toBeNull();
-    const marks = {
-      "corner-badge": component.locator('[data-probe="corner-badge"]'),
-      "corner-text": component.locator('[data-probe="corner-text"]'),
-      "corner-dot": component.locator('[data-probe="corner-dot"]'),
-      "corner-button": component.locator('[data-probe="corner-button"]'),
-      "corner-icon": component.locator('[data-probe="corner-icon"]'),
-      "corner-tight": component.locator('[data-probe="corner-tight"]'),
-    };
-    for (const [probe, element] of Object.entries(marks)) {
-      await expect(element, probe).toHaveCSS("position", "absolute");
-      const box = await element.boundingBox();
+    for (const [probe, inset] of Object.entries(insets)) {
+      // The mark inside the wrapper, so a mark that drifts inside its Corner is seen.
+      const box = await component.locator(`[data-probe="${probe}"] > *`).boundingBox();
       expect(box, probe).not.toBeNull();
-      expect(box?.y ?? Number.NaN, probe).toBeLessThan((host?.y ?? 0) + (host?.height ?? 0) / 2);
-      expect(box?.x ?? Number.NaN, probe).toBeGreaterThan((host?.x ?? 0) + (host?.width ?? 0) / 2);
+      expect((box?.y ?? Number.NaN) - (host?.y ?? 0), probe).toBeCloseTo(inset, 1);
+      expect((host?.x ?? 0) + (host?.width ?? 0) - (box?.x ?? Number.NaN) - (box?.width ?? 0), probe).toBeCloseTo(inset, 1);
     }
-    // The tight inset sits nearer the host's corner than the field inset does.
-    const [tight, field] = await Promise.all([marks["corner-tight"].boundingBox(), marks["corner-badge"].boundingBox()]);
-    expect((tight?.x ?? 0) + (tight?.width ?? 0)).toBeGreaterThan((field?.x ?? 0) + (field?.width ?? 0));
   });
 });
 

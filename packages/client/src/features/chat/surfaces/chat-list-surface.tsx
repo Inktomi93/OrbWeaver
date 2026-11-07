@@ -153,7 +153,8 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
         <Row align="center" className="relative min-inline-0" grow={true}>
           <Input
             aria-label={SEARCH_LABEL}
-            className="flex-1 pe-(--size-control-sm) min-inline-0"
+            className="flex-1 min-inline-0"
+            clearsGlyph={true}
             onValueChange={setChatListSearch}
             placeholder="Search chats…"
             value={query}

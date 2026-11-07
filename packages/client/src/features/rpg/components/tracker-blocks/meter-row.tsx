@@ -126,7 +126,7 @@ function ValueCell({
 }): ReactElement {
   return (
     // The inline buttons' token-sized hit pseudos extend beyond their text boxes; reserve that edge inside the row.
-    <Row gap="field" align="center" className="shrink-0 pe-block">
+    <Row gap="field" align="center" className="shrink-0" paddingInlineEnd="block">
       <TrackerValue
         ariaLabel={`${name} value`}
         // Unset ⇒ an EMPTY field wearing the em-dash placeholder, never a `0` the host has to notice is fake.

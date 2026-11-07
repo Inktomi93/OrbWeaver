@@ -221,7 +221,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
           // diff into a column no prose fits in. (Refinery's own `panelDefaults` collapse both panels — the
           // D62 content-first hub — so the three-lane arm is the default, not the lucky case.)
           <Row align="start" gap="block" stackBelow="cq-64" stretchBelow="cq-64">
-            <Stack className="shrink-0 inline-full @cq-64:inline-(--width-lane)" gap="row">
+            <Stack className="shrink-0" gap="row" width="lane">
               <PayloadLane
                 arrived={lanes.score.run !== null && landedRunIds.has(lanes.score.run.id)}
                 behind={lanes.score.behind}
@@ -249,7 +249,7 @@ function RefinerySessionPane({ sessionId }: { sessionId: RefinerySessionId }): R
                 viewingBack={lanes.rewrite.viewingBack}
               />
             </Stack>
-            <Stack className="shrink-0 inline-full @cq-64:inline-(--width-lane)" gap="row">
+            <Stack className="shrink-0" gap="row" width="lane">
               <PayloadLane
                 arrived={lanes.analyze.run !== null && landedRunIds.has(lanes.analyze.run.id)}
                 behind={lanes.analyze.behind}

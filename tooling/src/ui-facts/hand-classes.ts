@@ -1,8 +1,8 @@
 // Hand-written class tokens: utilities a recipe prop or token already owns, Tailwind arbitrary values, repeated clusters and raw layout containers.
-import type { TokenFact } from "./classes.ts";
+import type { ClassConstants, TokenFact } from "./classes.ts";
 import { ALPHA_UTILITY, baseOf, classifyToken, classStringsOf } from "./classes.ts";
 import { clusterKey, proposeName } from "./classify.ts";
-import { coveredJudgement, elementRefOf, newArmJudgement, undeclaredJudgement, writingAxis } from "./hand-arms.ts";
+import { coveredJudgement, elementRefOf, kebab, newArmJudgement, undeclaredJudgement, writingAxis, ZERO_STEP } from "./hand-arms.ts";
 import type { Hit, Judgement, Place } from "./hand-model.ts";
 import { GRADIENT_OWNER, hitOf, IMPORTANT_OWNER, judgeLit, keepJudgement } from "./hand-model.ts";
 import type { Lit } from "./literals.ts";
@@ -32,15 +32,13 @@ const PREFIX_PROPERTY: readonly (readonly [RegExp, string])[] = [
 
 // The step every bare `border`, `border-s`, `divide-*` and `ring` compiles to, when the theme declares it.
 const DEFAULT_EDGE_TOKEN = "--border-width-default";
-// Padding on one inline edge. A recipe arm that writes the class still wins; this names the hits no arm owns.
+// Padding on one inline edge: a box's axis, so on a primitive that is no box it has no owner and stays a row.
 const ONE_SIDED_INLINE = /^p[se]-/u;
-// Zero is structure, not a design number: the restricted-classes rule admits it, and no arm is asked for it.
-const ZERO_STEP = /-0$/u;
 
 export interface ClassContext {
   readonly tokens: ValueTokens;
   readonly components: ComponentTables;
-  readonly referenced: ReadonlySet<string>;
+  readonly referenced: ClassConstants;
 }
 
 const placeOf = (source: Source, line: number): Place => ({ path: source.path, line, section: source.section, layer: source.layer });
@@ -215,10 +213,24 @@ function ownedJudgement({ token, elem, guarded, siblings }: UsedToken, context: 
   if (ZERO_STEP.test(base)) {
     return null;
   }
-  if (elem?.kind === "ui" && ONE_SIDED_INLINE.test(base)) {
-    return keepJudgement("one-sided-clearance", token);
+  return (
+    newArmJudgement(elem, token, guarded, context.components) ?? undeclaredJudgement(elem, token, context.components) ?? sideInsetJudgement(elem, token, base)
+  );
+}
+
+/** A side inset on a primitive whose door writes none: the box around it owns the inset. */
+function sideInsetJudgement(elem: Elem | null, token: string, base: string): Judgement | null {
+  if (elem?.kind !== "ui" || !ONE_SIDED_INLINE.test(base)) {
+    return null;
   }
-  return newArmJudgement(elem, token, guarded, context.components) ?? undeclaredJudgement(elem, token, context.components);
+  const component = kebab(elem.imported?.name ?? elem.tag);
+  return {
+    verdict: "decide",
+    match: null,
+    owner: `no axis: ${token} on ${component}`,
+    reason: `${component} is no layout box, so ${token} has no arm to move to; a box around it owns the inset`,
+    keep: null,
+  };
 }
 
 const LAYOUT_OWNER: readonly (readonly [string, string])[] = [
@@ -354,12 +366,16 @@ function clusterHits(uses: readonly ClusterUse[]): readonly Hit[] {
 export function classHits(sources: readonly Source[], context: ClassContext): readonly Hit[] {
   const hits: Hit[] = [];
   const uses: ClusterUse[] = [];
+  const clustered = new Set<string>();
   for (const source of sources) {
     for (const classString of source.sf === null ? [] : classStringsOf(source.path, source.sf, context.referenced)) {
       const use: ClassUse = { ...classString, source, guarded: classString.conditional };
       const layout = rawLayoutHit(use);
       hits.push(...tokenHits(use, context), ...(layout === null ? [] : [layout]));
-      if (use.tokens.length >= CLUSTER_TOKENS) {
+      // One string worn by several elements is one write: a repeat is the class set written again.
+      const written = `${source.path}:${use.line}:${use.column}`;
+      if (use.tokens.length >= CLUSTER_TOKENS && !clustered.has(written)) {
+        clustered.add(written);
         const key = clusterKey(use.tokens.join(" "));
         uses.push({ key, label: key.slice(0, CLUSTER_LABEL_MAX), place: placeOf(source, use.line), door: use.elem?.door ?? null, elem: use.elem });
       }

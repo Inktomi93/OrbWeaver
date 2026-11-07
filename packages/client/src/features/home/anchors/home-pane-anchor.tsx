@@ -11,7 +11,7 @@ export interface HomePaneAnchorProps {
 /** Provide the container box the home grid consumes; an ultrawide pane centres the grid at the surface cap. */
 export function HomePaneAnchor({ children }: HomePaneAnchorProps): ReactElement {
   return (
-    <Container className="mx-auto inline-full" cap="surface">
+    <Container centred={true} width="full" cap="surface">
       {children}
     </Container>
   );

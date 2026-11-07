@@ -70,7 +70,7 @@ export function DiscoverHitRow({ hit, rank }: { readonly hit: DiscoverHit; reado
         subtitleWrap={true}
         meta={rank.toString()}
       />
-      <Stack className="ps-gutter" gap="row" data-testid={testId("corpusDiscoverEvidence")}>
+      <Stack indent={true} gap="row" data-testid={testId("corpusDiscoverEvidence")}>
         {[...passages].map(([snippet, occurrences]) => (
           <Stack key={snippet} gap="tight">
             <Text voice="gloss">“{snippet}”</Text>

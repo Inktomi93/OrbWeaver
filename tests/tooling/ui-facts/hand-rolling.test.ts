@@ -310,7 +310,7 @@ test("a rule inside a cascade layer is read, and a 1 beside a star is a unit cas
   ]);
 });
 
-test("two arms that each compose a different set of classes are not a ramp, so a class of the family they share is no new arm", ({ scratch }) => {
+test("two arms that each compose a different set of classes are not offered as the owner, and the class still shows", ({ scratch }) => {
   const root = plantDir(scratch, "composed-arms");
   plant(root, { "components/uses.tsx": 'import { Stack } from "@orb/ui/layout";\nexport const A = () => <Stack className="inline-full" />;' });
   plantFile(
@@ -323,7 +323,71 @@ test("two arms that each compose a different set of classes are not a ramp, so a
     "packages/ui/src/layout/components.tsx",
     "export function Stack({ pane, className }) {\n  return <div className={stackVariants({ pane, className })} />;\n}",
   );
-  expect(census(root).hits.filter((hit) => hit.detail === "inline-full")).toEqual([]);
+  expect(census(root).hits.filter((hit) => hit.detail === "inline-full")).toMatchObject([{ verdict: "decide", owner: "no axis: inline-full on stack" }]);
+});
+
+test("a composed axis still owns a class it picks, so a class of the family shows on the element", ({ scratch }) => {
+  const root = plantDir(scratch, "composed-size");
+  plant(root, { "components/uses.tsx": 'import { Badge } from "@orb/ui/badge";\nexport const A = () => <Badge className="px-block" />;' });
+  plantFile(
+    root,
+    "packages/ui/src/primitives/badge/variants.ts",
+    "export const badgeVariants = tv({ variants: { size: { sm: 'px-field text-micro', md: 'px-row text-label block-6' } } });",
+  );
+  plantFile(
+    root,
+    "packages/ui/src/primitives/badge/badge.tsx",
+    "export function Badge({ size, className }) {\n  return <span className={badgeVariants({ size, className })} />;\n}",
+  );
+  plantFile(root, "packages/ui/package.json", JSON.stringify({ exports: { "./badge": "./src/primitives/badge/index.ts" } }));
+  plantFile(root, "packages/ui/src/primitives/badge/index.ts", 'export { Badge } from "./badge.tsx";');
+  expect(census(root).hits.filter((hit) => hit.detail === "px-block")).toMatchObject([{ verdict: "decide", owner: "no axis: px-block on badge" }]);
+});
+
+test("a class held in a constant is judged on the element that wears it, and a plan leaves it for review", ({ scratch }) => {
+  const root = plantDir(scratch, "worn-constant");
+  plant(root, {
+    "components/held.ts": 'export const PACKED = "justify-end";',
+    "components/uses.tsx": [
+      'import { Row } from "@orb/ui/layout";',
+      'import { PACKED } from "./held.ts";',
+      'const REACH = "gap-row flex-wrap";',
+      "export const A = ({ on }) => <Row className={on ? REACH : undefined} />;",
+      "export const B = () => <Row className={PACKED} />;",
+    ].join("\n"),
+  });
+  const { hits } = census(root);
+  expect(hits.filter((hit) => hit.detail === "gap-row")).toMatchObject([
+    { verdict: "recipe", owner: "row.gap, conditional", element: { name: "Row", place: { plain: false } } },
+  ]);
+  expect(hits.filter((hit) => hit.detail === "justify-end")).toMatchObject([
+    { verdict: "recipe", owner: "row.justify", path: expect.stringContaining("held.ts") },
+  ]);
+});
+
+test("one constant worn by three elements is one class set, not a repeat", ({ scratch }) => {
+  const root = plantDir(scratch, "constant-cluster");
+  plant(root, {
+    "components/uses.tsx": [
+      'const MEDIA = "shrink-0 grow rounded-base overflow-hidden";',
+      "export const A = () => <><img className={MEDIA} /><video className={MEDIA} /><audio className={MEDIA} /></>;",
+    ].join("\n"),
+  });
+  expect(census(root).hits.filter((hit) => hit.category === "repeated-cluster")).toEqual([]);
+});
+
+test("a side inset no arm writes stays a row, on a box or on a primitive that is no box", ({ scratch }) => {
+  const root = plantDir(scratch, "side-inset");
+  plant(root, {
+    "components/uses.tsx": [
+      'import { Row } from "@orb/ui/layout";',
+      'import { Text } from "@orb/ui/text";',
+      'export const A = () => <><Text className="pe-block" /><Row className="@cq-20:ps-row" /></>;',
+    ].join("\n"),
+  });
+  const { hits } = census(root);
+  expect(named(hits, "pe-block")).toMatchObject({ verdict: "decide", owner: "no axis: pe-block on text" });
+  expect(named(hits, "@cq-20:ps-row")).toMatchObject({ verdict: "decide", owner: "no axis: @cq-20:ps-row on row" });
 });
 
 test("an alpha named for an opacity step stays visible beside a numbered one", ({ scratch }) => {
@@ -332,18 +396,6 @@ test("an alpha named for an opacity step stays visible beside a numbered one", (
   const { hits } = census(root);
   expect(brief(named(hits, "active:bg-accent/hover"))).toEqual(["class-utility", "decide", "decide: alpha on a neutral colour has no named step"]);
   expect(brief(named(hits, "bg-primary/hover"))).toEqual(["class-utility", "token", "opaque tone role"]);
-});
-
-test("one-sided inline padding on a primitive is a coded keep", ({ scratch }) => {
-  const root = plantDir(scratch, "one-sided");
-  plant(root, {
-    "components/uses.tsx": [
-      'import { Row } from "@orb/ui/layout";',
-      'export const A = () => <><Row className="pe-block" /><Row className="@cq-20:ps-row" /></>;',
-    ].join("\n"),
-  });
-  const { hits } = census(root);
-  expect([named(hits, "pe-block")?.keep, named(hits, "@cq-20:ps-row")?.keep]).toEqual(["one-sided-clearance", "one-sided-clearance"]);
 });
 
 test("constants that share a number and name different things are keeps, until another constant joins them", ({ scratch }) => {
@@ -611,15 +663,17 @@ test("a plan lists a row only when the arm writes exactly its class on a named c
   const { code, printed } = migrate(root, "plan");
   const plan = planOf(root);
   expect(code).toBe(0);
-  expect(printed).toContain("planned row.justify: 2 sites in 1 files, 1 for review");
+  expect(printed).toContain("planned row.justify: 2 sites in 1 files, 2 for review");
   // The alias is planned under the name its import exports, with the specifier a rewrite must prove.
   expect(plan.sites.map(({ line, source, name, token, prop, value }) => [line, source, name, token, prop, value])).toEqual([
     [4, "@orb/ui/layout", "Row", "justify-end", "justify", "end"],
     [5, "@orb/ui/layout", "Row", "justify-end", "justify", "end"],
   ]);
-  // The conditional site is a different owner and never appears; the carrier goes to review. The `between` arm composes two classes, so
-  // the axis is no ramp of alternatives and its lone class (line 6) is owned by nothing.
-  expect(plan.review.map(({ line, reason }) => [line, reason])).toEqual([[8, "the class is written on a carrier that renders Row"]]);
+  // The conditional site is a different owner and never appears; the arm that writes two classes and the carrier go to review.
+  expect(plan.review.map(({ line, reason }) => [line, reason])).toEqual([
+    [6, 'arm "between" writes justify-between items-baseline, which the class string does not hold whole'],
+    [8, "the class is written on a carrier that renders Row"],
+  ]);
 });
 
 test("a boolean arm plans its prop as a JSX expression", ({ scratch }) => {
@@ -675,7 +729,8 @@ test("a gradient, a vendor override, an SVG radius, a native control value and d
   plantFile(root, "packages/ui/src/primitives/probe/probe.tsx", probe);
   plantFile(root, "packages/ui/src/primitives/probe/probe.css", ".orb-probe {\n  background: linear-gradient(to right, red, blue);\n}\n");
   plantFile(root, "packages/ui/src/primitives/probe/native.ts", 'export const FALLBACK_NATIVE_HEX = "#808080";\nexport const FALLBACK_HEX = "#818181";');
-  plantFile(root, "packages/client/src/dev/seed.ts", 'export const SEED = { color: "#e05a5a" };');
+  plantFile(root, "packages/client/src/dev/agent-seed/seed.ts", 'export const SEED = { color: "#e05a5a" };');
+  plantFile(root, "packages/client/src/dev/probe.ts", 'export const PROBE = { color: "#e05a5b" };');
   const { hits } = census(root);
   const at = (path: string, detail: string): readonly unknown[] => {
     const hit = hits.find((candidate) => candidate.path.endsWith(path) && candidate.detail.includes(detail));
@@ -689,7 +744,47 @@ test("a gradient, a vendor override, an SVG radius, a native control value and d
   expect(at("styles/probe.css", "r: 1.05px")).toEqual(["keep", "svg-geometry"]);
   expect(at("native.ts", "#808080")).toEqual(["keep", "dom-api-literal"]);
   expect(at("native.ts", "#818181")[0]).toBe("token");
-  expect(at("dev/seed.ts", "#e05a5a")).toEqual(["keep", "dev-seed-data"]);
+  expect(at("dev/agent-seed/seed.ts", "#e05a5a")).toEqual(["keep", "dev-seed-data"]);
+  expect(at("dev/probe.ts", "#e05a5b")[1]).toBeNull();
+});
+
+test("a ui gradient keeps its look, and a raw colour, length or alpha in its stops is a row of its own", ({ scratch }) => {
+  const root = plantDir(scratch, "gradient-stops");
+  plant(root, { "components/uses.tsx": "export const A = 1;" });
+  plantFile(
+    root,
+    "packages/ui/src/primitives/probe/probe.css",
+    [
+      ".a {",
+      "  background: linear-gradient(to right, #ff0000 13px, rgb(1 2 3) 70%, transparent);",
+      "}",
+      ".b {",
+      "  background: linear-gradient(to bottom, oklch(from var(--probe-ink) l c h / 0.35), var(--probe-ink) 60%, transparent);",
+      "}",
+      ".c {",
+      "  background: radial-gradient(circle at 50% 50%, var(--color-primary), transparent 70%);",
+      "}",
+      "",
+    ].join("\n"),
+  );
+  const rows = census(root).hits.filter((hit) => hit.path.endsWith("probe.css"));
+  const of = (line: number): readonly (string | null)[] => rows.filter((hit) => hit.line === line).map((hit) => hit.keep);
+  expect(of(2)).toEqual(["owned-gradient", null, null, null]);
+  expect(of(5)).toEqual(["owned-gradient", null]);
+  // A stop drawn from tokens and placed in percent is what the code keeps.
+  expect(of(8)).toEqual(["owned-gradient"]);
+});
+
+test("a unit cast multiplies a variable; a literal times a unit is a hand-written length", ({ scratch }) => {
+  const root = plantDir(scratch, "unit-cast");
+  plant(root, { "styles/probe.css": ".a {\n  inline-size: calc(13*1px);\n  block-size: calc(var(--dial)*1px);\n  gap: calc(1rem*var(--dial));\n}\n" });
+  const keepAt = (line: number): readonly (string | null)[] =>
+    census(root)
+      .hits.filter((hit) => hit.line === line)
+      .map((hit) => hit.keep);
+  expect(keepAt(2)).not.toContain("unit-cast");
+  expect(keepAt(3)).toEqual(["unit-cast"]);
+  expect(keepAt(4)).toEqual(["unit-cast"]);
 });
 
 test("an arm of several classes plans each of them when the class string holds all, and none when a class is missing", ({ scratch }) => {
@@ -1086,7 +1181,7 @@ test("a proof passes when every remaining row has a reason, and fails on a row n
     ),
   });
   expect(migrate(root, "prove")).toMatchObject({ code: 0 });
-  expect(migrate(root, "prove").printed).toContain("1 remain, 0 without a reason");
+  expect(migrate(root, "prove").printed).toContain("2 remain, 0 without a reason");
   // A row the plan listed and the codemod skipped is explained only by the skip it recorded.
   plant(root, { "components/uses.tsx": MIGRATING });
   const unexplained = migrate(root, "prove");

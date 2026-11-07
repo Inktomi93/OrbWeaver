@@ -250,9 +250,9 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
         {/* THE ENABLE SWITCH IS A SIBLING OF THE TRIGGER, NEVER INSIDE IT. A control nested in a `button` is
             unreachable by keyboard and invalid content — so the header is a Row: the disclosure takes the
             slack (`min-w-0 flex-1`, so a long name wraps instead of pushing the switch off the 384px pane)
-            and the one control a host needs WITHOUT opening the row sits beside it. `pr-block` supplies the
+            and the one control a host needs WITHOUT opening the row sits beside it. The end inset supplies the
             padding the trigger's own `p-block` does not reach. */}
-        <Row align="center" className="flex-wrap pe-block" gap="field">
+        <Row align="center" className="flex-wrap" paddingInlineEnd="block" gap="field">
           {/* `size="control"` pins the pointer-conditional `--size-control-sm` floor (44px coarse / 32px
               fine) — the same arm the fire-log disclosure and the Field-overrides triggers take. `text-start`
               because a `button`'s UA `text-align: center` would centre a multi-line summary; the single-line

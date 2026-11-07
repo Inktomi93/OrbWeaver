@@ -20,7 +20,7 @@ function optionFor(value: string): { readonly label: string; readonly descriptio
 /** Artwork emphasizes structural differences without claiming to reproduce the viewer's transcript. */
 function StylePreview({ style }: { readonly style: ChatStyle }): ReactElement {
   return (
-    <Stack className="inline-full" fill={true} data-chat-style={style} ink="foreground" data-slot="chat-style-preview">
+    <Stack width="full" fill={true} data-chat-style={style} ink="foreground" data-slot="chat-style-preview">
       <ChatStyleDiagram headerPlacement={MESSAGE_ROW_SKINS[style].headerPlacement} style={style} />
     </Stack>
   );

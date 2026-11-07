@@ -150,12 +150,67 @@ function holdsLiteral(value: CssNode): boolean {
 }
 
 const isMultiply = (node: CssNode | undefined): boolean => node?.type === "Operator" && node.value === "*";
+const isVariable = (node: CssNode | undefined): boolean => node?.type === "Function" && node.name.toLowerCase() === "var";
 
-/** A `1<unit>` beside a `*` is a unit, not a length: it turns a unitless dial into the length the dial means. */
+type Step = ListItem<CssNode> | null | undefined;
+const skipSpace = (step: Step, along: "prev" | "next"): Step => (step?.data.type === "WhiteSpace" ? step[along] : step);
+
+/** The operator beside a value, and the factor past it, are both the next non-space nodes that way. */
+function multipliesVariable(item: ListItem<CssNode> | undefined, along: "prev" | "next"): boolean {
+  const operator = skipSpace(item?.[along], along);
+  return isMultiply(operator?.data) && isVariable(skipSpace(operator?.[along], along)?.data);
+}
+
+/** A `1<unit>` multiplying a variable is a unit, not a length: it turns a unitless dial into the length the dial means. */
 function isUnitCast(node: CssNode & { value: string }, item: ListItem<CssNode> | undefined): boolean {
-  const near = (step: ListItem<CssNode> | null | undefined): CssNode | undefined => (step?.data.type === "WhiteSpace" ? step.prev?.data : step?.data);
-  const after = (step: ListItem<CssNode> | null | undefined): CssNode | undefined => (step?.data.type === "WhiteSpace" ? step.next?.data : step?.data);
-  return Number(node.value) === 1 && (isMultiply(near(item?.prev)) || isMultiply(after(item?.next)));
+  return Number(node.value) === 1 && (multipliesVariable(item, "prev") || multipliesVariable(item, "next"));
+}
+
+const isTokenKind = (found: Lit): boolean => (VALUE_KINDS as readonly string[]).includes(found.kind);
+
+/** The alpha a relative colour writes by number: the one number in it that is a value and not composition. */
+function relativeAlpha(node: FunctionNode): Lit | null {
+  const parts = argumentNodes(node);
+  const slash = parts.findIndex((part) => part.type === "Operator" && part.value === "/");
+  const alpha = slash === -1 ? undefined : parts[slash + 1];
+  return alpha?.type === "Number" ? lit("opacity", String(round(Number(alpha.value))), alpha.value) : null;
+}
+
+function leafStopLits(node: CssNode): readonly Lit[] {
+  const found = leafLit(null, node);
+  return found !== null && isTokenKind(found) ? [found] : [];
+}
+
+function functionStopLits(node: FunctionNode, found: Lit | null): readonly Lit[] {
+  const priced = found?.kind === "derived" ? relativeAlpha(node) : found;
+  return priced === null ? [] : [priced];
+}
+
+/** The priced values a gradient's stops hold: a raw colour, a length, the alpha of a relative colour. A token, a percentage and an angle hold none. */
+function stopLits(gradient: FunctionNode): readonly Lit[] {
+  const out: Lit[] = [];
+  walk(gradient, {
+    enter(node): symbol | undefined {
+      if (node === gradient) {
+        return undefined;
+      }
+      if (node.type !== "Function") {
+        out.push(...leafStopLits(node));
+        return undefined;
+      }
+      const found = functionLit(node);
+      out.push(...functionStopLits(node, found));
+      return found !== null || isVariable(node) ? walk.skip : undefined;
+    },
+  });
+  return out;
+}
+
+function withStops(node: FunctionNode, found: Lit | null): readonly Lit[] {
+  if (found === null) {
+    return [];
+  }
+  return found.kind === "gradient" ? [found, ...stopLits(node)] : [found];
 }
 
 /** Every literal a property's value writes, in source order. Mechanism properties and shadows read as one literal each. */
@@ -177,9 +232,7 @@ export function litsOf(property: string | null, value: CssNode): readonly Lit[] 
       }
       if (node.type === "Function") {
         const found = functionLit(node);
-        if (found !== null) {
-          out.push(found);
-        }
+        out.push(...withStops(node, found));
         return found !== null || OPAQUE_FUNCTIONS.has(node.name.toLowerCase()) ? walk.skip : undefined;
       }
       const found = leafLit(name, node);
@@ -229,8 +282,6 @@ function onlyValues(root: CssNode): boolean {
   });
   return pure;
 }
-
-const isTokenKind = (found: Lit): boolean => (VALUE_KINDS as readonly string[]).includes(found.kind);
 
 /** The token-priced literals of a string that is a CSS value on its own (`"20rem"`, `"#fff"`); empty for any other string. */
 export function valueStringLits(text: string, property: string | null = null): readonly Lit[] {

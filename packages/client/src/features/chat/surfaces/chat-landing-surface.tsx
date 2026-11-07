@@ -39,7 +39,7 @@ export function ChatLandingSurface({ onNewChat }: ChatLandingSurfaceProps): Reac
 
   return (
     <Stack align="center" scroll="y" fill={true} justify="center" focusTarget={true} padding="section" ref={surfaceRef} tabIndex={-1}>
-      <Stack className="inline-full" cap="shell" gap="section">
+      <Stack width="full" cap="shell" gap="section">
         <EmptyState
           action={
             <Button aria-label={START_NEW_CHAT_NAME} onClick={onNewChat}>

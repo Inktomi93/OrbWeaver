@@ -105,7 +105,7 @@ export function ContextBracket({ view, headerRef, band, empty, railLabel, paneLa
       <Row ref={headerRef} data-slot="context-bracket-header" align="center" className="shell-context-header shrink-0">
         <ContextHeaderTabs ariaLabel={railLabel} paneLabel={paneLabel} tabs={metaTabs} activeTab={view.activeTab} onSelect={view.selectTab} />
         {view.actions === undefined ? null : (
-          <Row align="center" className="shrink-0 pe-field">
+          <Row align="center" className="shrink-0" paddingInlineEnd="field">
             {view.actions}
           </Row>
         )}

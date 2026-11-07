@@ -201,8 +201,6 @@ const groupKey = (constant: Constant): string => `${constant.found.canon}|${cons
 // Constants read and found to share a number and not a meaning. A group with any other member is a repeat again, so a new constant is judged.
 const COINCIDENT_CONSTANTS: readonly (readonly [why: string, names: ReadonlySet<string>])[] = [
   ["one polls an embedder rebuild, one polls a live share", new Set(["REBUILD_POLL_MS", "LIVE_POLL_MS"])],
-  ["two retry ladders for two protocols: room announce and workload reconcile", new Set(["ANNOUNCE_RETRY_FIRST_MS", "RECONCILE_RETRY_FIRST_MS"])],
-  ["two retry ladders for two protocols: room announce and workload reconcile", new Set(["ANNOUNCE_RETRY_SECOND_MS", "RECONCILE_RETRY_SECOND_MS"])],
   ["one reaps an idle temp chat, one waits for an idle warmup", new Set(["REAP_IDLE_TIMEOUT_MS", "IDLE_WARMUP_TIMEOUT_MS"])],
   ["one waits out a rerank, one waits out an edited draft", new Set(["RERANK_SETTLE_MS", "SCHEMA_PLAN_SETTLE_MS"])],
   ["one revokes a download URL, one is a blur-close guard", new Set(["REVOKE_DELAY_MS", "BLUR_CLOSE_DELAY_MS"])],

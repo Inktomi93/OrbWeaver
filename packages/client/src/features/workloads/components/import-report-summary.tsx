@@ -56,9 +56,9 @@ export function ImportReportSummary({ summary }: ImportReportSummaryProps): Reac
                 </Text>
               </Row>
               {(outcome.notes ?? []).map((note) => (
-                <Text key={note} voice="gloss" className="ps-row">
-                  {note}
-                </Text>
+                <Row indent={true} key={note}>
+                  <Text voice="gloss">{note}</Text>
+                </Row>
               ))}
             </Stack>
           ))}

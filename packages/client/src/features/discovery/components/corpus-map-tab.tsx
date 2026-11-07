@@ -70,7 +70,7 @@ function MapBody(): ReactElement {
     // chart rather than a strip if a host ever hands it no height at all.
     <Stack className="min-block-0" fill={true} gap="block" grow={true}>
       <Text voice="gloss">{points.length} cards, projected by semantic similarity, colored by genre. Click a card to open its dossier.</Text>
-      <Stack className="inline-full min-block-(--height-scroll-lg)" grow={true}>
+      <Stack className="min-block-(--height-scroll-lg)" width="full" grow={true}>
         {/* THE KEY IS THE HALF THAT COULD BE READ (side-eye corpus re-pass B5). The tab said "colored by
             genre" and named no genre anywhere — eight-pixel dots in five hues with no decoder, over ~350px
             of empty panel. The meaning was carried by colour ALONE, which is both the accessibility failure

@@ -36,6 +36,8 @@ export const fieldVariants = tv({
     controlCol: "flex shrink-0 flex-col items-end gap-field",
   },
   variants: {
+    // `content` sizes the field to its control, for fields that share a row at their own widths.
+    width: { full: {}, content: { root: "inline-auto" } },
     // Label + description left, control docked right in a fixed control column so a select can't stretch to 100%.
     orientation: {
       vertical: {},

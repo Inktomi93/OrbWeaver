@@ -17,7 +17,8 @@ export interface PropOwner {
   /** `component.prop` in kebab case: `row.justify`. */
   readonly axis: string;
   readonly prop: string;
-  readonly arm: string;
+  /** Null when the prop chooses in the class's family and has no step for this class: the step is added to the axis, never written by hand. */
+  readonly arm: string | null;
 }
 
 /**
@@ -170,11 +171,18 @@ export function classClassifier(candidatesToCss: CandidatesToCss): ClassClassifi
 const CLASS_HELPERS = new Set(["cn", "clsx"]);
 const CLIENT_DIRECTORY = "/packages/client/src/";
 
+function ownerPhrase(token: string, { prop, arm }: PropOwner): string {
+  if (arm === null) {
+    return `\`${token}\` is a step \`${prop}\` chooses among and has no arm for`;
+  }
+  return `\`${token}\` is \`${prop}=${arm === "true" || arm === "false" ? `{${arm}}` : `"${arm}"`}\``;
+}
+
 const MESSAGES = {
   paint: (tokens: readonly string[]): string =>
     `A feature className paints (${tokens.map((token) => `\`${token}\``).join(", ")}); colour, type, border, radius and shadow come from a primitive prop or variant.`,
   owned: (component: string, owned: readonly (readonly [string, PropOwner])[]): string =>
-    `A feature className writes what ${component}'s own prop owns (${owned.map(([token, { prop, arm }]) => `\`${token}\` is \`${prop}=${arm === "true" || arm === "false" ? `{${arm}}` : `"${arm}"`}\``).join(", ")}); pass the prop and drop the class.`,
+    `A feature className writes what ${component}'s own prop owns (${owned.map(([token, owner]) => ownerPhrase(token, owner)).join(", ")}); pass the prop and drop the class, adding the arm the prop lacks.`,
   template: "A template className builds a class string; spell the static tokens and put the state in a primitive prop.",
   concatenation: "A concatenated className builds a class string; spell the static tokens and put the state in a primitive prop.",
   imported: "An imported class string hides its paint from the variant system; add the variant to the primitive and pass a prop.",

@@ -66,6 +66,13 @@ function readingInk(box: RowSkin["box"], role: MessageRole): "prose" | "muted" |
   return role === "system" ? "muted" : undefined;
 }
 
+// The inset a reading box lays on its column. The plate is inset a section from its gutter, and its end edge a block on a phone. The page is
+// inset the gutter, with no block-end inset so the next page runs on, and a tight step on a phone.
+const READING_INSET = {
+  plate: { paddingInline: "section", paddingBlock: "row", paddingBlockStart: undefined, paddingInlineNarrow: undefined, paddingInlineEndNarrow: "block" },
+  page: { paddingInline: "gutter", paddingBlock: undefined, paddingBlockStart: "row", paddingInlineNarrow: "tight", paddingInlineEndNarrow: undefined },
+} as const;
+
 // The skins with no fill at rest: a full-width column that takes the reading plate over a wallpaper.
 function ReadingBox({ box, role, shape, lastRowFloor, receded, positioned, children }: ReadingBoxProps): ReactElement {
   const page = box === "page";
@@ -73,6 +80,7 @@ function ReadingBox({ box, role, shape, lastRowFloor, receded, positioned, child
   const floor = page && lastRowFloor;
   const overlayPage = page && !lastRowFloor;
   const weld = shape === "weld";
+  const boxInset = inset ? READING_INSET[box] : undefined;
   return (
     <Stack
       data-slot={MESSAGE_BUBBLE_SLOT}
@@ -81,14 +89,13 @@ function ReadingBox({ box, role, shape, lastRowFloor, receded, positioned, child
       plate="reading"
       ink={readingInk(box, role)}
       receded={receded}
-      readingInset={inset ? box : undefined}
-      className={cn(
-        "inline-full",
-        overlayPage ? "grid" : undefined,
-        weld ? "flex-row" : undefined,
-        floor ? PAGE_LAST_ROW_FLOOR : undefined,
-        positioned && "relative",
-      )}
+      paddingInline={boxInset?.paddingInline}
+      paddingBlock={boxInset?.paddingBlock}
+      paddingBlockStart={boxInset?.paddingBlockStart}
+      paddingInlineNarrow={boxInset?.paddingInlineNarrow}
+      paddingInlineEndNarrow={boxInset?.paddingInlineEndNarrow}
+      width="full"
+      className={cn(overlayPage ? "grid" : undefined, weld ? "flex-row" : undefined, floor ? PAGE_LAST_ROW_FLOOR : undefined, positioned && "relative")}
     >
       {children}
     </Stack>

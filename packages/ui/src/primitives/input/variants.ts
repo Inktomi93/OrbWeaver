@@ -61,6 +61,8 @@ export const inputVariants = tv({
     typeStep: { field: "", title: "text-title leading-title" },
     // The edit twin of an italic line (a character's thought) keeps the slant.
     italic: { true: "italic", false: "" },
+    // The field's text stops short of a glyph floating over its inline end, so a long value never runs under it.
+    clearsGlyph: { true: "pe-(--size-control-clearance)", false: "" },
   },
   defaultVariants: { size: "sm", layout: "field", width: "full", numeric: false, typeStep: "field", italic: false },
 });

@@ -86,7 +86,7 @@ export function PresetEditorHeader({
           offset between this header and the deck shows on Params and on no other tab. A CT pins the header
           to the panel column; the deck's cap is argued at its own site. */}
       <Stack gap="block" className="sticky inset-bs-0 z-(--z-raised)" paddingBlock="block" ground="card">
-        <Container className="inline-full">
+        <Container width="full">
           <EditorPage gap="block">
             <DetailHeader
               actions={

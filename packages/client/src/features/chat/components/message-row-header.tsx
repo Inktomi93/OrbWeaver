@@ -28,8 +28,7 @@ import { NameRowFrame } from "./message-name-row-frame.tsx";
 
 // A phone puts the timestamp under the name (`stackBelow`), packed to the side the speaker's header packs to: stretched for the start,
 // at the end for a mirrored row.
-const STAMP_STACK_START = "@max-cq-28:flex-nowrap @max-cq-28:gap-0";
-const STAMP_STACK_END = "@max-cq-28:flex-nowrap @max-cq-28:items-end @max-cq-28:gap-0";
+const STAMP_STACK = "@max-cq-28:flex-nowrap @max-cq-28:gap-0";
 
 /** The live turn always names its speaker on a line of its own. */
 const GHOST_SHAPE: HeaderShape = { identity: true, ownLine: true };
@@ -97,7 +96,8 @@ function renderRowIdentity(args: {
       align="center"
       stackBelow={stackStamp ? "cq-28" : undefined}
       stretchBelow={stackStamp && !mirrored ? "cq-28" : undefined}
-      className={cn("flex-wrap min-inline-0", mirrored && "flex-row-reverse", stackStamp && (mirrored ? STAMP_STACK_END : STAMP_STACK_START))}
+      alignEndBelow={stackStamp && mirrored ? "cq-28" : undefined}
+      className={cn("flex-wrap min-inline-0", mirrored && "flex-row-reverse", stackStamp && STAMP_STACK)}
     >
       {attribution.name === null ? null : (
         // BASELINE, like the ghost's copy of this cluster (`renderGhostNameRow`) and like the appearance
