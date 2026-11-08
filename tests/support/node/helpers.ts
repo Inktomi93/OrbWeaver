@@ -62,6 +62,7 @@ export {
   PROVIDER_TAPE_RECORD_DIR,
   PROVIDER_TAPE_RECORD_ENV,
   providerTapeLeaks,
+  RPG_LOOP_JOURNEYS,
   readProviderTape,
   scrubTapeFrame,
   writeProviderTape,
