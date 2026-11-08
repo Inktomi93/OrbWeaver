@@ -28,10 +28,9 @@
 //      reaches the prompt via the reminder AND the prose reacts). Where the 8B under-decomposes a plane that is
 //      model-bounded coverage, NOT a code defect — but the writes that DO land must be FE=BE=DB consistent.
 //
-// OPT-IN (`@live`): the loop specs fire real Agent-SDK subprocess turns (each ~a minute of live generation), so
-// the whole file is SKIPPED unless E2E_LIVE=1 (playwright.config.ts `grepInvert:/@live/`). The hand-plane specs
-// need no inference but ride the same @live gate (they share the seed harness + the stack the loop specs boot).
-// Run with:  E2E_LIVE=1 pnpm e2e rpg-lite-loop.spec.ts
+// PROVIDER: the hand-plane specs bind `chat` to a provider tape peer (support/tape-provider.ts) that declares no
+// steps, so routine e2e runs them with no engine and any provider request they send fails the case. The two loop
+// specs stay opt-in (`@live`, E2E_LIVE=1) on the local engine until their tapes are recorded.
 //
 // SEED (owner rule): NEVER seed the "Mira" character in a live-inference seed — she destabilizes the 8B →
 // flaky asserts. Each spec mints its OWN spec-owned chatless probe card (Thornwick) on a fresh chat.
@@ -48,6 +47,8 @@ import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { messageRow, openContextTab, openNewestChat, sendAndAwaitReply } from "./support/chat-room.ts";
 import { hasRpgFlush, rpgRoundSettled, rpgTurnSettled } from "./support/rpg-settle.ts";
+import type { TapeProvider } from "./support/tape-provider.ts";
+import { startTapeProvider } from "./support/tape-provider.ts";
 import {
   CASE_LIVE_LOOP_MS,
   CASE_LIVE_TURN_MS,
@@ -79,6 +80,7 @@ import {
   patchActor,
   patchSheet,
   pinChatToLocalEngine,
+  pinChatToTape,
   removeCharacter,
   requireWireCaptures,
   restoreChatBinding,
@@ -142,8 +144,21 @@ async function characterActor(chatId: ChatId, characterId: CharacterId): Promise
   return found;
 }
 
-/** Seed a fresh lite game on a virgin chat with a spec-owned character, with `chat` bound to the harness's
- *  local-engine connection — the WRITE-CAPABLE pick the live loop needs (it advertises `tools`, so the state
+// The live loop specs bind the harness's local engine until their tapes are recorded.
+const LOCAL_ENGINE = "local-engine";
+
+async function pinChatTo(target: TapeProvider | typeof LOCAL_ENGINE): Promise<() => Promise<void>> {
+  if (target !== LOCAL_ENGINE) {
+    return await pinChatToTape(target);
+  }
+  const prior = await pinChatToLocalEngine();
+  return async (): Promise<void> => {
+    await restoreChatBinding(prior);
+  };
+}
+
+/** Seed a fresh lite game on a virgin chat with a spec-owned character, with `chat` bound to the spec's tape
+ *  connection or the local engine — the WRITE-CAPABLE pick the live loop needs (both offer `tools`, so the state
  *  round is eligible). Returns the ids + a cleanup handle that deletes the chat, removes the character AND
  *  restores the prior `chat` binding (the shared single-user rows). The chat is deleted explicitly because
  *  removing a character cascades its SEAT, not the chat row: a leaked chat stays in the shared DB, where a
@@ -151,15 +166,16 @@ async function characterActor(chatId: ChatId, characterId: CharacterId): Promise
  *  handle) so serial specs never collide on the shared DB. */
 async function seedGame(
   handle: CharacterHandle,
+  target: TapeProvider | typeof LOCAL_ENGINE,
 ): Promise<{ readonly chatId: ChatId; readonly characterId: CharacterId; readonly cleanup: () => Promise<void> }> {
-  const priorChatBinding = await pinChatToLocalEngine();
+  const restoreBinding = await pinChatTo(target);
   const characterId = await mintFreshCharacter(handle, GM_NAME, GM_GREETING);
   const chatId = await startChat([characterId]);
   await createLiteGame(chatId);
   const cleanup = async (): Promise<void> => {
     await deleteChat(chatId);
     await removeCharacter(characterId);
-    await restoreChatBinding(priorChatBinding);
+    await restoreBinding();
   };
   return { chatId, characterId, cleanup };
 }
@@ -168,11 +184,10 @@ async function seedGame(
 // SPEC 1 — THE HAND-PLANE BACKBONE (deterministic, no inference): born-default empty state → hand-write EVERY
 // plane → FE=BE=DB parity for each. This proves the write→read→render seam for every rpg plane without a model.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB consistent", {
-  tag: "@live",
-}, async ({ page }) => {
+test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB consistent", async ({ page }) => {
   test.setTimeout(CASE_LIVE_TURN_MS);
-  const { chatId, characterId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-hand"));
+  await using tape = await startTapeProvider("rpg-lite-loop/hand-planes", []);
+  const { chatId, characterId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-hand"), tape);
   try {
     // ── BORN-DEFAULT (no-born-seed synthesis): a freeform lite game starts with NO snapshot row, so the read
     // synthesizes the empty steady state — null ambient, no beats, no conditions, roster actors with null
@@ -359,11 +374,10 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
 // SPEC 2 — HAND-EDIT LOCK + DELTA: a hand edit becomes canon, AUTO-LOCKS (fieldLocks — a later write can't
 // clobber it), and the DELTA block (prev→current) is rendered in the next turn's reminder (swipe-consistent).
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-test("rpg-lite: a hand edit auto-locks (canon wins) and the delta reaches the next turn's reminder", {
-  tag: "@live",
-}, async ({ page: _page }) => {
+test("rpg-lite: a hand edit auto-locks (canon wins) and the delta reaches the next turn's reminder", async ({ page: _page }) => {
   test.setTimeout(CASE_LIVE_TURN_MS);
-  const { chatId, characterId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-lock"));
+  await using tape = await startTapeProvider("rpg-lite-loop/hand-lock", []);
+  const { chatId, characterId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-lock"), tape);
   try {
     const view = await getTrackerView(chatId);
     const ref = characterRef(view, characterId);
@@ -404,7 +418,7 @@ test("rpg-lite (born default): a live character turn + state capture moves the s
   tag: "@live",
 }, async ({ page }) => {
   test.setTimeout(CASE_LIVE_LOOP_MS);
-  const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-default"));
+  const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-default"), LOCAL_ENGINE);
   try {
     // Pre-seed a KNOWN state so the reminder carries it into the turn's prompt (the steering proof): the model
     // reads a location the GM set, and the wire capture must contain it.
@@ -428,7 +442,11 @@ test("rpg-lite (born default): a live character turn + state capture moves the s
     // (NOT the agent-sdk `prompt`). Flatten every message's content and assert it carries the tracked location
     // AND the steering-reminder markers (the "Game state" block heading + the license line) — this proves the
     // tracked state REACHED the model (the reminder assembled the game-state block + license into the prompt).
-    const [turnCapture] = await requireWireCaptures(chatId, "vllm");
+    // Oldest first: the captures read newest-first, and the post-commit state round may already have been sent.
+    const [turnCapture] = (await requireWireCaptures(chatId, "vllm")).toSorted((left, right) => left.at - right.at);
+    if (turnCapture === undefined) {
+      throw new Error(`no vllm wire capture for ${chatId}`);
+    }
     const messages = pageArray(turnCapture.body["messages"], "vllm wire capture messages");
     const promptText = messages
       .map((m) => {
@@ -505,7 +523,7 @@ test("rpg-lite (cheap): the tool-round state-round arm wires end-to-end without 
   tag: "@live",
 }, async ({ page }) => {
   test.setTimeout(CASE_LIVE_LOOP_MS);
-  const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-cheap"));
+  const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-cheap"), LOCAL_ENGINE);
   try {
     await setExtractionMode(chatId, "cheap");
     expect((await getGame(chatId)).extractionMode).toBe("cheap");
@@ -537,11 +555,10 @@ test("rpg-lite (cheap): the tool-round state-round arm wires end-to-end without 
 // snapshot: read the tracker, and assert the projection is stable across repeated reads (swipe-consistent by
 // construction — every plane reads the same resolved-current snapshot).
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-test("rpg-lite: the tracker view is swipe-consistent — every plane resolves from ONE current snapshot", {
-  tag: "@live",
-}, async () => {
+test("rpg-lite: the tracker view is swipe-consistent — every plane resolves from ONE current snapshot", async () => {
   test.setTimeout(WAIT_STREAM_MS);
-  const { chatId, characterId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-swipe"));
+  await using tape = await startTapeProvider("rpg-lite-loop/swipe", []);
+  const { chatId, characterId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-swipe"), tape);
   try {
     const ref = characterRef(await getTrackerView(chatId), characterId);
     await editSnapshot(chatId, { location: "The Glass Bridge" });
@@ -569,11 +586,10 @@ test("rpg-lite: the tracker view is swipe-consistent — every plane resolves fr
 // SPEC 6 — CHECKPOINT / RESTORE (rewind): checkpoint the current snapshot, mutate forward, restore, and prove
 // the snapshot rewound to the checkpointed state. FE=BE: the panel re-renders the restored state.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-test("rpg-lite: checkpoint captures the snapshot and restore rewinds it (FE=BE)", {
-  tag: "@live",
-}, async () => {
+test("rpg-lite: checkpoint captures the snapshot and restore rewinds it (FE=BE)", async () => {
   test.setTimeout(CASE_STREAM_MS);
-  const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-checkpoint"));
+  await using tape = await startTapeProvider("rpg-lite-loop/checkpoint", []);
+  const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-checkpoint"), tape);
   try {
     await editSnapshot(chatId, { location: "The Old Chapel", recentEvents: ["Lit the first candle"] });
     const checkpointId = await createCheckpoint(chatId, "at the chapel");
@@ -598,11 +614,10 @@ test("rpg-lite: checkpoint captures the snapshot and restore rewinds it (FE=BE)"
 // visible-refusal paths are timing/infra-sensitive and covered by the loop spec's error-ring assertion + the
 // stack's own engines-down fast-fail (documented in the proof matrix) rather than a flaky race here.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-test("rpg-lite (sad paths): a deleted turn leaves the snapshot readable + an idle abort is a clean no-op", {
-  tag: "@live",
-}, async () => {
+test("rpg-lite (sad paths): a deleted turn leaves the snapshot readable + an idle abort is a clean no-op", async () => {
   test.setTimeout(CASE_STREAM_MS);
-  const { chatId, characterId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-sad"));
+  await using tape = await startTapeProvider("rpg-lite-loop/sad-paths", []);
+  const { chatId, characterId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-sad"), tape);
   try {
     // Hand-edit posts narrator rows; a subsequent read must stay well-formed after we delete one.
     await editSnapshot(chatId, { location: "The Watchtower" });
@@ -647,13 +662,12 @@ test("rpg-lite (sad paths): a deleted turn leaves the snapshot readable + an idl
 // nothing), and it reaches `deriveTrackersReadOnly` by the same refusal. The SUBJECT survives; its input
 // changed with the product.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-test("rpg-lite (readonly): a capability-absent connection is born read-only but hand-steering still lands", {
-  tag: "@live",
-}, async () => {
+test("rpg-lite (readonly): a capability-absent connection is born read-only but hand-steering still lands", async () => {
   test.setTimeout(CASE_STREAM_MS);
-  // seedGame binds `chat` to the local engine; we UNBIND it for THIS spec, then rely on cleanup's
+  // seedGame binds `chat` to the tape connection; we UNBIND it for THIS spec, then rely on cleanup's
   // binding-restore. A fresh game read with no chat connection resolves readonly-by-construction.
-  const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-readonly"));
+  await using tape = await startTapeProvider("rpg-lite-loop/readonly", []);
+  const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-readonly"), tape);
   try {
     await setChatBinding(null);
     // The game read now derives read-only (`no-connection` ⇒ no write path).
