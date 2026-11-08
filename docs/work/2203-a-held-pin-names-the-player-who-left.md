@@ -25,3 +25,5 @@ After a member who shares a persona name with another player leaves, the held-pi
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Visibility ruling: the departed player's handle is shown to every current member of the room, including one who joined after that player left. Handles are already visible to every member through the roster and are what invites use, and the deployment is sized as a roleplay app, so the held-pin line names the player for anyone who can see the pin.

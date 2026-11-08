@@ -11,6 +11,7 @@ import { useSortable } from "@dnd-kit/react/sortable";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
 import { usePrefersReducedMotion } from "#lib";
 import { GripVertical, Icon } from "#primitives/icons";
+import { sortablePositionName } from "./sortable-names.ts";
 import { sortableVariants } from "./variants.ts";
 
 // Mirrors @dnd-kit/abstract's UniqueIdentifier shape locally to avoid importing the undeclared transitive dep.
@@ -190,13 +191,8 @@ function rankOf(entity: AnnounceEntity, field: "index" | "initialIndex" = "index
 /** The drop line. A cancel puts the row back, so it names where the row returned to, not where it was dragged. */
 function dragEndLine(source: AnnounceEntity, canceled: boolean, total: number): string {
   return canceled
-    ? `Reorder cancelled. ${atPosition(nameOf(source), rankOf(source, "initialIndex"), total)}.`
-    : `Dropped ${atPosition(nameOf(source), rankOf(source), total)}.`;
-}
-
-/** `name, position N of M` — or the bare name when there is no rank to state. */
-function atPosition(name: string, rank: number | null, total: number): string {
-  return rank === null ? name : `${name}, position ${rank} of ${total}`;
+    ? `Reorder cancelled. ${sortablePositionName(nameOf(source), rankOf(source, "initialIndex"), total)}.`
+    : `Dropped ${sortablePositionName(nameOf(source), rankOf(source), total)}.`;
 }
 
 /**
@@ -221,14 +217,16 @@ const withAnnouncements: NonNullable<ComponentProps<typeof DragDropProvider>["pl
       ? Accessibility.configure({
           announcements: {
             dragstart: ({ operation: { source } }: AnnounceEvent, manager: AnnounceManager): string | undefined =>
-              source === null || source === undefined ? undefined : `Picked up ${atPosition(nameOf(source), rankOf(source), totalOf(source, manager))}.`,
+              source === null || source === undefined
+                ? undefined
+                : `Picked up ${sortablePositionName(nameOf(source), rankOf(source), totalOf(source, manager))}.`,
             // The DESTINATION is the hovered TARGET's rank, not the source's: the optimistic-sorting plugin
             // registers after this one, so at this instant the source still sits at its old index and the
             // target sits at the one it is about to take.
             dragover: ({ operation: { source, target } }: AnnounceEvent, manager: AnnounceManager): string | undefined =>
               source === null || source === undefined || target === null || target === undefined || source.id === target.id
                 ? undefined
-                : `${atPosition(nameOf(source), rankOf(target), totalOf(source, manager))}.`,
+                : `${sortablePositionName(nameOf(source), rankOf(target), totalOf(source, manager))}.`,
             dragend: ({ operation: { source }, canceled }: AnnounceEvent, manager: AnnounceManager): string | undefined =>
               source === null || source === undefined ? undefined : dragEndLine(source, canceled === true, totalOf(source, manager)),
           },

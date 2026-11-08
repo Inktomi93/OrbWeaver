@@ -1,45 +1,16 @@
-import { CtIsolation } from "@orb/testkit/browser";
+import type { SeedScopeProps } from "@orb/testkit/browser";
+import { CtIsolation, SeedScope } from "@orb/testkit/browser";
 import { CurrentGrid, CurrentStack } from "@orb/ui/current";
 import { FocalSection } from "@orb/ui/focal-section";
 import { Row, Section, Stack } from "@orb/ui/layout";
-import { ThemeScope } from "@orb/ui/theme-scope";
-import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
-import type { ReactElement, ReactNode } from "react";
-
-interface StoryProps {
-  readonly theme?: keyof typeof SEED_THEME_VALUE_SETS;
-  readonly background?: string;
-}
-
-/** The page ground under a seed palette and an optional nested custom scope, so a skin resolves against both. */
-function Ground({ theme, background, children }: StoryProps & { readonly children: ReactNode }): ReactElement {
-  const ambient = theme === undefined ? undefined : SEED_THEME_VALUE_SETS[theme].vars;
-  return (
-    <div
-      data-theme={theme}
-      style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, color: `var(${TOKENS["color.foreground"].cssVar})`, padding: "1rem" }}
-    >
-      {background === undefined ? (
-        children
-      ) : (
-        <ThemeScope
-          tokens={{ background }}
-          {...(ambient === undefined
-            ? {}
-            : { ambientBackground: ambient[TOKENS["color.background"].cssVar], ambientAccent: ambient[TOKENS["color.primary"].cssVar] })}
-        >
-          {children}
-        </ThemeScope>
-      )}
-    </div>
-  );
-}
+import { TOKENS } from "@orb/ui/tokens";
+import type { ReactElement } from "react";
 
 /** A FocalSection with the focal on and off beside a plain Section, and the neutral probe that names the page ground. */
-export function FocalSectionStory(props: StoryProps): ReactElement {
+export function FocalSectionStory(props: SeedScopeProps): ReactElement {
   return (
     <CtIsolation subject="FocalSection" isolates="A focal and an unfocal FocalSection beside a plain Section, under a seed palette and a nested custom scope">
-      <Ground {...props}>
+      <SeedScope {...props}>
         <Stack gap="block">
           <FocalSection data-case="focal" heading="Focal">
             on
@@ -54,16 +25,16 @@ export function FocalSectionStory(props: StoryProps): ReactElement {
             speaker
           </span>
         </Stack>
-      </Ground>
+      </SeedScope>
     </CtIsolation>
   );
 }
 
 /** The aria-current boxes at rest and current, and a bare Stack and Grid for the geometry they must keep. */
-export function CurrentBoxesStory(props: StoryProps): ReactElement {
+export function CurrentBoxesStory(props: SeedScopeProps): ReactElement {
   return (
     <CtIsolation subject="CurrentStack and CurrentGrid" isolates="A current and a resting CurrentStack and CurrentGrid beside their bare twins">
-      <Ground {...props}>
+      <SeedScope {...props}>
         <Stack gap="block">
           <CurrentStack aria-current="true" data-case="stack-current" gap="row">
             <span>one</span>
@@ -98,16 +69,16 @@ export function CurrentBoxesStory(props: StoryProps): ReactElement {
             style={{ display: "block", blockSize: "1rem", inlineSize: "2rem", backgroundColor: `var(${TOKENS["color.background"].cssVar})` }}
           />
         </Stack>
-      </Ground>
+      </SeedScope>
     </CtIsolation>
   );
 }
 
 /** A tone-stamped divider on a Row and a Stack, a plain divider, and a colour probe under the same stamp. */
-export function DividerToneStory(props: StoryProps): ReactElement {
+export function DividerToneStory(props: SeedScopeProps): ReactElement {
   return (
     <CtIsolation subject="Divider tone stamp" isolates="A primary and a warning divider on a Row and a Stack beside an unstamped one">
-      <Ground {...props}>
+      <SeedScope {...props}>
         <Stack gap="block">
           <Row data-case="row-primary" divider="start" dividerWeight="rule" tone="primary">
             primary
@@ -125,7 +96,7 @@ export function DividerToneStory(props: StoryProps): ReactElement {
             probe
           </Row>
         </Stack>
-      </Ground>
+      </SeedScope>
     </CtIsolation>
   );
 }

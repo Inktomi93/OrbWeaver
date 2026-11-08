@@ -2,12 +2,11 @@
 // paints around, and stays below the focus ring on the card, under each seed and under custom ThemeScopes near the crossover.
 import { AA_NON_TEXT_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { pixelSurface } from "@orb/testkit/browser/spec";
-import { SEED_THEME_NAMES } from "@orb/ui/tokens";
+import { HEARTH_ACCENT, MID_GREY, SEED_SCOPES } from "@orb/testkit/iso";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { LIGHT_MID_TONE, MID_GREY, STRONG_ACCENT } from "../../content/theme-scope/contrast-cases.ts";
+import { LIGHT_MID_TONE, STRONG_ACCENT } from "../../content/theme-scope/contrast-cases.ts";
 import type { CarrierEdgeStory } from "./_checkbox-contrast-stories.tsx";
-import { INHERITED_ACCENT } from "./carrier-scopes.ts";
 
 const STORY = "tests/ui/primitives/checkbox/_checkbox-contrast-stories/CarrierEdgeStory";
 const CARRIERS = [
@@ -17,11 +16,10 @@ const CARRIERS = [
   { label: "Input", role: "textbox" },
 ] as const;
 const CASES = [
-  { name: "hearth seed" },
-  ...SEED_THEME_NAMES.map((theme) => ({ name: `${theme} seed`, theme })),
+  ...SEED_SCOPES,
   { name: "custom mid-grey ThemeScope", background: MID_GREY, accent: STRONG_ACCENT },
-  { name: "custom mid-grey ThemeScope with the inherited app accent", background: MID_GREY, ambientAccent: INHERITED_ACCENT },
-  { name: "custom light mid-tone ThemeScope", background: LIGHT_MID_TONE, ambientAccent: INHERITED_ACCENT },
+  { name: "custom mid-grey ThemeScope with the inherited app accent", background: MID_GREY, ambientAccent: HEARTH_ACCENT },
+  { name: "custom light mid-tone ThemeScope", background: LIGHT_MID_TONE, ambientAccent: HEARTH_ACCENT },
 ] as const;
 
 function borderColorOf(locator: Locator): Promise<string> {

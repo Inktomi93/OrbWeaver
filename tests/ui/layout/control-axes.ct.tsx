@@ -1,3 +1,4 @@
+import { computedStyle } from "@orb/testkit/browser/spec";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { ControlAxesStory } from "./_control-axes-stories.tsx";
@@ -18,8 +19,6 @@ const boxOf = (locator: Locator): Promise<Box> =>
     const { left, right, top, bottom, width, height } = element.getBoundingClientRect();
     return { left, right, top, bottom, width, height };
   });
-const style = (locator: Locator, property: string): Promise<string> =>
-  locator.evaluate((element, name) => getComputedStyle(element).getPropertyValue(name), property);
 const probeOf =
   (component: Locator) =>
   (name: string): Locator =>
@@ -36,10 +35,10 @@ test("Button grow, floor and cap take their sizes from the row and the ramp", as
 
 test("Button textAlign sets the label's end and inset takes the field step", async ({ mount }) => {
   const probe = probeOf(await mount<typeof ControlAxesStory>(STORY));
-  expect(await style(probe("button-text-end"), "text-align")).toBe("end");
-  const step = await style(probe("ref-field-inset"), "padding-inline-start");
-  expect(await style(probe("button-inset"), "padding-inline-start")).toBe(step);
-  expect(await style(probe("button-plain"), "padding-inline-start")).not.toBe(step);
+  expect(await computedStyle(probe("button-text-end"), "text-align")).toBe("end");
+  const step = await computedStyle(probe("ref-field-inset"), "padding-inline-start");
+  expect(await computedStyle(probe("button-inset"), "padding-inline-start")).toBe(step);
+  expect(await computedStyle(probe("button-plain"), "padding-inline-start")).not.toBe(step);
 });
 
 test("whitespace lets a Button and a Badge wrap inside a host the nowrap base outgrows", async ({ mount }) => {
@@ -83,7 +82,7 @@ test("DialogFooter push sends the footer to the block end, and DialogHeader wrap
   const probe = probeOf(await mount<typeof ControlAxesStory>(STORY));
   // The footer is sticky, so its painted box follows the viewport: the auto margin is what proves where it sits in the column.
   const free = (await boxOf(probe("dialog-host"))).height - (await boxOf(probe("dialog-push"))).height;
-  expect(await style(probe("dialog-push"), "margin-block-start")).toBe(`${free}px`);
+  expect(await computedStyle(probe("dialog-push"), "margin-block-start")).toBe(`${free}px`);
   expect((await boxOf(probe("wrap-second"))).top).toBeGreaterThanOrEqual((await boxOf(probe("wrap-first"))).bottom);
 });
 
@@ -116,7 +115,7 @@ test("Grid gapInline and gapBlock are two steps on two axes", async ({ mount }) 
 
 test("Contents adds no box: its child sits in the parent's line", async ({ mount }) => {
   const probe = probeOf(await mount<typeof ControlAxesStory>(STORY));
-  expect(await style(probe("contents"), "display")).toBe("contents");
+  expect(await computedStyle(probe("contents"), "display")).toBe("contents");
   expect((await boxOf(probe("contents-child"))).left).toBe((await boxOf(probe("contents-row"))).left);
 });
 

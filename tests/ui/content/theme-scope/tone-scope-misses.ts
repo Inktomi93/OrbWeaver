@@ -12,6 +12,7 @@ import {
   tonePaletteOn,
   toneRoleColors,
 } from "@orb/kit/theme-derivation";
+import { HEARTH_ACCENT } from "@orb/testkit/iso";
 import type { Tone, ToneMixKnob, ToneRole } from "@orb/ui/tokens";
 import { TOKENS, TONE_MIX_DEFAULTS, TONE_ROLE_RECIPES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
@@ -19,10 +20,7 @@ import type { ParsedOklch } from "../../../../packages/ui/src/content/theme-scop
 import { toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import { carriedPaletteOf } from "../../../../packages/ui/src/content/theme-scope/derive-vars.ts";
 import type { CarriedTone, CarriedToneScheme } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
-import { carriedToneScheme, carriedToneSources } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
-
-/** The accent a scope inherits from Hearth when it carries none of its own. */
-export const HEARTH_ACCENT = TOKENS["color.primary"].value;
+import { carriedToneScheme, carriedToneSources, MIX_FALLBACK } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
 
 /** A colour the case authored, parsed; a spelling that does not parse is a broken case. */
 export function parsed(color: string): ParsedOklch {
@@ -33,13 +31,22 @@ export function parsed(color: string): ParsedOklch {
   return value;
 }
 
-/** The ink the clamp emits as `oklch(from <fill> <l> 0 h / 1)`: an achromatic pixel at that lightness. */
-export function emittedInk(spelling: string | undefined): Oklch {
-  const lightness = /^oklch\(from .+ ([\d.]+) 0 h \/ 1\)$/u.exec(spelling ?? "")?.[1];
-  if (lightness === undefined) {
-    throw new Error(`not an emitted ink: ${spelling}`);
+/** An emitted `oklch(from <origin> <l> 0 h / <alpha>)` as the achromatic pixel it paints at `hue`, and its alpha. */
+export function emittedGrey(spelling: string | undefined, hue = 0): { readonly color: Oklch; readonly alpha: number } {
+  const match = /^oklch\(from .+ ([\d.]+) 0 h \/ ([\d.]+)\)$/u.exec(spelling ?? "");
+  if (match?.[1] === undefined || match[2] === undefined) {
+    throw new Error(`not an emitted grey: ${spelling}`);
   }
-  return { l: Number(lightness), c: 0, h: 0 };
+  return { color: { l: Number(match[1]), c: 0, h: hue }, alpha: Number(match[2]) };
+}
+
+/** The ink the clamp emits as `oklch(from <fill> <l> 0 h / 1)`: an opaque achromatic pixel at that lightness. */
+export function emittedInk(spelling: string | undefined, hue = 0): Oklch {
+  const { color, alpha } = emittedGrey(spelling, hue);
+  if (alpha !== 1) {
+    throw new Error(`not an opaque emitted ink: ${spelling}`);
+  }
+  return color;
 }
 
 /** The mix one tone reads from a scope's emitted variables: its own step knob when set, else the scope's knob. */
@@ -81,7 +88,7 @@ export function emittedLiterals(vars: Readonly<Record<string, string>>, tone: To
   return Object.fromEntries(
     LITERAL_ROLES.flatMap((role) => {
       const spelling = vars[toneLiteralVar(tone, role)];
-      return spelling === undefined || spelling === "initial" ? [] : [[role, parsed(spelling)] as const];
+      return spelling === undefined || spelling === MIX_FALLBACK ? [] : [[role, parsed(spelling)] as const];
     }),
   );
 }
