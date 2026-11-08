@@ -48,7 +48,7 @@ const OWNERS = {
 const IMPORTS =
   'import { sessions } from "../../domain/sessions/contract/service.ts";\nimport type { SessionsService } from "../../domain/sessions/contract/service.ts";\nimport { seams } from "../../../../kit/src/time/index.ts";';
 
-function lint(root: string, file: string, source: string): readonly Linter.LintMessage[] {
+function lint(root: string, file: string, source: string, rule: NonNullable<ESLint.Plugin["rules"]>[string]): readonly Linter.LintMessage[] {
   const options: ts.CompilerOptions = {
     strict: true,
     target: ts.ScriptTarget.ESNext,
@@ -63,7 +63,7 @@ function lint(root: string, file: string, source: string): readonly Linter.LintM
     source,
     {
       files: ["**/*.ts"],
-      plugins: { orb: { rules: { "derived-port-member": derivedPortMemberRule } } },
+      plugins: { orb: { rules: { "derived-port-member": rule } } },
       languageOptions: { parser: tseslint.parser, parserOptions: { programs: [program], project: false, projectService: false } },
       rules: { [RULE]: "error" },
     },
@@ -73,45 +73,54 @@ function lint(root: string, file: string, source: string): readonly Linter.LintM
   return found;
 }
 
+// A lint message carries its messageId but not its data, so a row's data is checked the way RuleTester checks it: filled
+// into the rule's own template for that id and compared with the reported message.
+type Reported = Pick<Linter.LintMessage, "messageId" | "message">;
+
+function reported({ messageId, data }: { readonly messageId: NonNullable<Reported["messageId"]>; readonly data: Readonly<Record<string, string>> }): Reported {
+  const template = derivedPortMemberRule.meta.messages?.[messageId] ?? "";
+  return { messageId, message: template.replaceAll(/\{\{\s*(\w+)\s*\}\}/gu, (_: string, key: string) => data[key] ?? `{{${key}}}`) };
+}
+
 test.for([
   {
     name: "a whole port restated by hand",
     file: SITE,
     source: `${IMPORTS}\ninterface Port { readonly create: (userId: string) => Promise<{ token: string; expiresAt: number }>; }\nexport const deps: { sessions: Port } = { sessions };`,
-    findings: ["Port.create hand-restates SessionsService.create"],
+    findings: [{ messageId: "handRestated", data: { restating: "Port.create", owner: "SessionsService.create" } }],
   },
   {
     name: "a member forwarded through a lambda",
     file: SITE,
     source: `${IMPORTS}\ninterface Port { revoke(token: string): Promise<void>; }\nexport const port: Port = { revoke: (token) => sessions.revoke(token) };`,
-    findings: ["Port.revoke hand-restates SessionsService.revoke"],
+    findings: [{ messageId: "handRestated", data: { restating: "Port.revoke", owner: "SessionsService.revoke" } }],
   },
   {
     name: "a clock restated beside the named kit type",
     file: SITE,
     source: `${IMPORTS}\ninterface Port { readonly now: () => number; }\nexport const port: Port = seams;`,
-    findings: ["Port.now hand-restates Seams.now"],
+    findings: [{ messageId: "handRestated", data: { restating: "Port.now", owner: "Seams.now" } }],
   },
   {
     name: "a port in one domain restating another domain's member",
     file: CROSS,
     source:
       'import { sessions } from "../../sessions/contract/service.ts";\ninterface Port { readonly revoke: (token: string) => Promise<void>; }\nexport const port: Port = sessions;',
-    findings: ["move the shape to packages/contracts"],
+    findings: [{ messageId: "crossDomainShape", data: { restating: "Port.revoke", owner: "SessionsService.revoke" } }],
   },
   {
     name: "a cross-domain signature that still names the owner's domain data",
     file: CROSS,
     source:
       'import { sessions } from "../../sessions/contract/service.ts";\nimport type { DropInput } from "../../sessions/contract/service.ts";\ninterface Port { readonly drop: (input: DropInput, signal: AbortSignal) => Promise<void>; }\nexport const port: Port = sessions;',
-    findings: ["with domain data (DropInput): move that data to packages/contracts"],
+    findings: [{ messageId: "crossDomainData", data: { restating: "Port.drop", owner: "SessionsService.drop", types: "DropInput" } }],
   },
   {
     name: "a cross-domain signature that passes a db handle",
     file: CROSS,
     source:
       'import { sessions } from "../../sessions/contract/service.ts";\nimport type { StatementToken } from "../../../../../db/src/wiring.ts";\ninterface Port { readonly statement: (id: string) => StatementToken; }\nexport const port: Port = sessions;',
-    findings: ["passes a db handle (StatementToken) across domains"],
+    findings: [{ messageId: "crossDomainDbHandle", data: { restating: "Port.statement", owner: "SessionsService.statement", handles: "StatementToken" } }],
   },
   {
     name: "a cross-domain db handle the ledger rules as a joint batch",
@@ -170,7 +179,7 @@ test.for([
     name: "a port that narrows the return but hand-copies the parameters",
     file: SITE,
     source: `${IMPORTS}\ninterface Port { readonly create: (userId: string) => Promise<{ token: string }>; }\nexport const port: Port = sessions;`,
-    findings: ["Port.create hand-copies the parameters of SessionsService.create"],
+    findings: [{ messageId: "copiedParameters", data: { restating: "Port.create", owner: "SessionsService.create" } }],
   },
   {
     name: "a port that derives the parameters and narrows only the return",
@@ -182,20 +191,20 @@ test.for([
     name: "a whole port restated by hand and wired by a spread",
     file: SITE,
     source: `${IMPORTS}\ninterface Port { readonly revoke: (token: string) => Promise<void>; }\nexport const port: Port = { ...sessions };`,
-    findings: ["Port.revoke hand-restates SessionsService.revoke"],
+    findings: [{ messageId: "handRestated", data: { restating: "Port.revoke", owner: "SessionsService.revoke" } }],
   },
   {
     name: "a spread into an argument literal",
     file: SITE,
     source: `${IMPORTS}\ninterface Port { readonly revoke: (token: string) => Promise<void>; }\ndeclare function wire(port: Port): void;\nwire({ ...sessions });`,
-    findings: ["Port.revoke hand-restates SessionsService.revoke"],
+    findings: [{ messageId: "handRestated", data: { restating: "Port.revoke", owner: "SessionsService.revoke" } }],
   },
   {
     name: "a cross-domain port restated behind a spread",
     file: CROSS,
     source:
       'import { sessions } from "../../sessions/contract/service.ts";\ninterface Port { readonly revoke: (token: string) => Promise<void>; }\nexport const port: Port = { ...sessions };',
-    findings: ["move the shape to packages/contracts"],
+    findings: [{ messageId: "crossDomainShape", data: { restating: "Port.revoke", owner: "SessionsService.revoke" } }],
   },
   {
     name: "a spread into a port derived from its owner",
@@ -219,19 +228,19 @@ test.for([
     name: "a spread whose other member no later property overrides",
     file: SITE,
     source: `${IMPORTS}\ninterface Port { readonly revoke: (token: string) => Promise<void>; readonly create: (userId: string) => Promise<{ token: string; expiresAt: number }>; }\ndeclare const other: (userId: string) => Promise<{ token: string; expiresAt: number }>;\nexport const port: Port = { ...sessions, create: other };`,
-    findings: ["Port.revoke hand-restates SessionsService.revoke"],
+    findings: [{ messageId: "handRestated", data: { restating: "Port.revoke", owner: "SessionsService.revoke" } }],
   },
   {
     name: "a spread nested in a literal property",
     file: SITE,
     source: `${IMPORTS}\ninterface Port { readonly revoke: (token: string) => Promise<void>; }\ninterface Outer { readonly inner: Port; }\nexport const outer: Outer = { inner: { ...sessions } };`,
-    findings: ["Port.revoke hand-restates SessionsService.revoke"],
+    findings: [{ messageId: "handRestated", data: { restating: "Port.revoke", owner: "SessionsService.revoke" } }],
   },
   {
     name: "two spreads of one owner",
     file: SITE,
     source: `${IMPORTS}\ninterface Port { readonly revoke: (token: string) => Promise<void>; }\nexport const port: Port = { ...sessions, ...sessions };`,
-    findings: ["Port.revoke hand-restates SessionsService.revoke"],
+    findings: [{ messageId: "handRestated", data: { restating: "Port.revoke", owner: "SessionsService.revoke" } }],
   },
   {
     name: "a member a let hop carries to the port",
@@ -250,21 +259,21 @@ test.for([
     file: SITE,
     source:
       'import { rooms } from "../../../../contracts/src/rooms.ts";\ninterface Candidate { readonly id: string; readonly lastTurnAt: number | null }\nfunction split<Room extends Candidate>(items: readonly Room[]): Room | undefined {\n  return items[0];\n}\nexport const first = split(rooms);',
-    findings: ["Candidate restates fields of a contract type"],
+    findings: [{ messageId: "restatedFields", data: { local: "Candidate", fields: "id, lastTurnAt" } }],
   },
   {
     name: "a local type taking a contract value as a call argument",
     file: SITE,
     source:
       'import { room } from "../../../../contracts/src/rooms.ts";\ntype Shown = { readonly id: string; readonly title: string };\nfunction show(value: Shown): string {\n  return value.title;\n}\nexport const text = show(room);',
-    findings: ["Shown restates fields of a contract type"],
+    findings: [{ messageId: "restatedFields", data: { local: "Shown", fields: "id, title" } }],
   },
   {
     name: "two calls of one restating local type",
     file: SITE,
     source:
       'import { room } from "../../../../contracts/src/rooms.ts";\ninterface Shown { readonly id: string; readonly title: string }\nfunction show(value: Shown): string {\n  return value.title;\n}\nexport const both = [show(room), show(room)];',
-    findings: ["Shown restates fields of a contract type"],
+    findings: [{ messageId: "restatedFields", data: { local: "Shown", fields: "id, title" } }],
   },
   {
     name: "a local helper type inside a contract file",
@@ -317,22 +326,27 @@ test.for([
   },
 ] as const)("derived-port-member judges $name", async ({ file, source, findings }, { plantedTree }) => {
   const root = await plantedTree({ ...OWNERS, [file]: source });
-  const messages = lint(root, file, source).map(({ message }) => message);
-  expect(messages).toHaveLength(findings.length);
-  for (const [index, expected] of findings.entries()) {
-    expect(messages[index]).toContain(expected);
-  }
+  const found = lint(root, file, source, derivedPortMemberRule).map(({ messageId, message }) => ({ messageId, message }));
+  expect(found).toEqual(findings.map(reported));
 });
 
-// The cases above register the rule by hand to give it a planted program; this one reads the production config, so the
-// rule's name, its severity and its plugin registration are proven where they are wired.
-test("the production config registers derived-port-member as an error on server compose files", { timeout: 120_000 }, async () => {
+// The cases above register the rule by hand to give it a planted program; this one takes the rule the production config
+// registers under the name, so a name mapped to another rule fails the planted restatement.
+test("the production config registers derived-port-member as an error on server compose files", { timeout: 120_000 }, async ({ plantedTree }) => {
   const root = join(import.meta.dirname, "../..");
   const config = await resolvedConfig(
     new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: root }),
     join(root, "packages/server/src/entry/compose/chat.ts"),
   );
   expect(config.rules[RULE]).toEqual([2]);
-  // The config loads its own module instance, so the registered rule is compared by its declared meta.
-  expect(config.plugins["orb"]?.rules?.["derived-port-member"]?.meta).toEqual(derivedPortMemberRule.meta);
+  const registered = config.plugins["orb"]?.rules?.["derived-port-member"];
+  if (registered === undefined) {
+    throw new Error("The production config registers no orb/derived-port-member rule.");
+  }
+  const source = `${IMPORTS}\ninterface Port { readonly create: (userId: string) => Promise<{ token: string; expiresAt: number }>; }\nexport const deps: { sessions: Port } = { sessions };`;
+  const planted = await plantedTree({ ...OWNERS, [SITE]: source });
+  // The source rule's own finding on the plant is the expected value, so the registered rule must judge it the same.
+  const expected = lint(planted, SITE, source, derivedPortMemberRule);
+  expect(expected).toHaveLength(1);
+  expect(lint(planted, SITE, source, registered)).toEqual(expected);
 });

@@ -142,6 +142,12 @@ rows([
   ["a forEach that ignores its element keeps nothing", KEPT("kept.forEach(() => undefined);"), 1],
   ["a copy nothing reads keeps nothing", KEPT("const copy = [...kept];\n    void 0;"), 1],
   ["a bare values() call keeps nothing", KEPT("kept.values();"), 1],
+  // Each copy is one binding hop; the rule follows four, and an await after the fourth copy is out of its reach.
+  [
+    "a join four copies away is past the followed flow",
+    KEPT("const a = [...kept];\n    const b = a;\n    const c = b;\n    const d = c;\n    await Promise.all(d);"),
+    1,
+  ],
   [
     "a bound promise that is never kept is still invisible",
     "export function stop(w: W): void {\n  const stopped = w.terminate();\n  void stopped.catch(() => undefined);\n}\n",
@@ -173,6 +179,7 @@ rows([
   ],
   ["a join bound to a name that is later awaited is consumed", KEPT("const all = Promise.allSettled([...kept]);\n    await all;"), 0],
   ["a copy that is joined and awaited is consumed", KEPT("const copy = [...kept];\n    await Promise.all(copy);"), 0],
+  ["a join three copies away is consumed", KEPT("const a = [...kept];\n    const b = a;\n    const c = b;\n    await Promise.all(c);"), 0],
   ["a loop that awaits each element is consumed", KEPT("for (const item of kept) {\n      await item.catch(() => undefined);\n    }"), 0],
   [
     "a forEach that returns its element is consumed",

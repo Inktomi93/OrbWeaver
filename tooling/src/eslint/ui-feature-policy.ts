@@ -1,4 +1,4 @@
-import { alternation, MATCH_MEDIA, TANSTACK_FORM_MINTS, wholeModule } from "./syntax.ts";
+import { alternation, homeReasons, MATCH_MEDIA, TANSTACK_FORM_MINTS, wholeModule } from "./syntax.ts";
 
 // Attributes that tell a component where it is placed. The container answers that question (UI-Architecture-and-Layout.md §4b axis 1).
 // No @orb/ui variant is keyed by these names: `compact` appears only as a value of `size`/`density`/`listSize`.
@@ -56,17 +56,12 @@ const DESTRUCTIVE_MESSAGE =
 
 // Files exempt from `destructive-needs-confirm`, each with the owner-delegated call that permits it
 // (docs/law/client-architecture-state-and-gates.md §14, "Destructive confirms"). `pnpm ui-facts` reads the same list.
-export const DESTRUCTIVE_EXEMPT: readonly { readonly path: string; readonly reason: string }[] = [
-  { path: "packages/client/src/features/persona/components/persona-room-block.tsx", reason: "Clear pin moves a pointer, which the same menu sets again" },
-  {
-    path: "packages/client/src/features/refinery/components/apply-outcome.tsx",
-    reason: "the label names the discard, and the refused rewrite was never applied",
-  },
-  {
-    path: "packages/client/src/features/config/components/config-teacher.tsx",
-    reason: "resets one setting to the default its row shows; a list or object value gets an Undo toast, and a scalar is one click from set again",
-  },
-];
+export const DESTRUCTIVE_EXEMPT = homeReasons({
+  "packages/client/src/features/persona/components/persona-room-block.tsx": "Clear pin moves a pointer, which the same menu sets again",
+  "packages/client/src/features/refinery/components/apply-outcome.tsx": "the label names the discard, and the refused rewrite was never applied",
+  "packages/client/src/features/config/components/config-teacher.tsx":
+    "resets one setting to the default its row shows; a list or object value gets an Undo toast, and a scalar is one click from set again",
+});
 
 export const UI_FEATURE_RESTRICTIONS = [
   {

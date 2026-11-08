@@ -543,6 +543,21 @@ for (const [name, rule, path, source, count] of [
     'import { createContext } from "react";\nimport type { Registry } from "../lib/registry.ts";\nexport const C = createContext<Outer | null>(null);\ntype Outer = Inner;\ntype Inner = Registry<string, number>;\n',
     1,
   ],
+  // A chain declared outermost first resolves one alias per pass, so its length is the passes the rule must run.
+  [
+    "registry-context-via-mint three alias hops declared in reverse",
+    CONTEXT,
+    CONTEXT_FILE,
+    'import { createContext } from "react";\nimport type { Registry } from "../lib/registry.ts";\nexport const C = createContext<A | null>(null);\ntype A = B;\ntype B = C2;\ntype C2 = Registry<string, number>;\n',
+    1,
+  ],
+  [
+    "registry-context-via-mint eight alias hops declared in reverse",
+    CONTEXT,
+    CONTEXT_FILE,
+    'import { createContext } from "react";\nimport type { Registry } from "../lib/registry.ts";\nexport const C = createContext<A1 | null>(null);\ntype A1 = A2;\ntype A2 = A3;\ntype A3 = A4;\ntype A4 = A5;\ntype A5 = A6;\ntype A6 = A7;\ntype A7 = A8;\ntype A8 = Registry<string, number>;\n',
+    1,
+  ],
   [
     "registry-context-via-mint an alias hop through a union arm",
     CONTEXT,

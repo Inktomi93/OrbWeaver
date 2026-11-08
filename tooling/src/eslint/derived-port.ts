@@ -7,22 +7,32 @@ import { requireTypeServices } from "./checker.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 import { CONTRACT_FILE, declaredHere } from "./trpc-output.ts";
 
-function messageFor(found: Restatement): string {
-  const restating = memberLabel(found.restating);
-  const owner = memberLabel(found.owner);
-  if (found.foreign === null && found.relation === RELATION.params) {
-    return `${restating} hand-copies the parameters of ${owner}: derive them (\`Parameters<Owner["member"]>\`) and narrow only the return.`;
-  }
+const MESSAGES = {
+  copiedParameters: '{{restating}} hand-copies the parameters of {{owner}}: derive them (`Parameters<Owner["member"]>`) and narrow only the return.',
+  handRestated:
+    '{{restating}} hand-restates {{owner}}: derive it from the owner (`Owner["member"]`, or `Pick<Owner, …>` for a whole port) so the reference stays linked.',
+  crossDomainDbHandle:
+    "{{restating}} passes a db handle ({{handles}}) across domains from {{owner}} with no ledger row ruling the joint batch: rule it (tooling/src/unwired/ruled-ops.ts follows the ledger) or redesign it into an op that returns data.",
+  crossDomainData:
+    "{{restating}} restates {{owner}} across domains with domain data ({{types}}): move that data to packages/contracts; the runtime types stay with their owners and the signature stays in this domain's contract.",
+  crossDomainShape:
+    "{{restating}} restates {{owner}} across domains, and no domain imports another: move the shape to packages/contracts and derive both members from it.",
+  restatedFields:
+    "{{local}} restates fields of a contract type that flows straight into it ({{fields}}): derive it from the contract type (`Pick<Contract, …>`) so the reference stays linked.",
+};
+
+function reportFor(found: Restatement): { readonly messageId: keyof typeof MESSAGES; readonly data: Record<string, string> } {
+  const pair = { restating: memberLabel(found.restating), owner: memberLabel(found.owner) };
   if (found.foreign === null) {
-    return `${restating} hand-restates ${owner}: derive it from the owner (\`Owner["member"]\`, or \`Pick<Owner, …>\` for a whole port) so the reference stays linked.`;
+    return { messageId: found.relation === RELATION.params ? "copiedParameters" : "handRestated", data: pair };
   }
   if (passesDbHandle(found.foreign)) {
-    return `${restating} passes a db handle (${found.foreign.db.join(", ")}) across domains from ${owner} with no ledger row ruling the joint batch: rule it (tooling/src/unwired/ruled-ops.ts follows the ledger) or redesign it into an op that returns data.`;
+    return { messageId: "crossDomainDbHandle", data: { ...pair, handles: found.foreign.db.join(", ") } };
   }
   if (runtimeTypes(found.foreign).length > 0) {
-    return `${restating} restates ${owner} across domains with domain data (${found.foreign.server.join(", ")}): move that data to packages/contracts; the runtime types stay with their owners and the signature stays in this domain's contract.`;
+    return { messageId: "crossDomainData", data: { ...pair, types: found.foreign.server.join(", ") } };
   }
-  return `${restating} restates ${owner} across domains, and no domain imports another: move the shape to packages/contracts and derive both members from it.`;
+  return { messageId: "crossDomainShape", data: pair };
 }
 
 // A one-field type is a name for one column, not a copy of a contract's shape.
@@ -90,7 +100,7 @@ function subsetRestatement(checker: ts.TypeChecker, argument: ts.Expression, par
  *  and a consumer signature left naming only contracts data and runtime types, or a ledger-ruled db handle, is the
  *  consumer's own contract. */
 export const derivedPortMemberRule: OrbRule = {
-  meta: { type: "problem", schema: [] },
+  meta: { type: "problem", schema: [], messages: MESSAGES },
   create(context: OrbRuleContext): RuleVisitor {
     const { checker, esTreeNodeToTSNodeMap: toTsMap, tsNodeToESTreeNodeMap: toEsMap } = requireTypeServices(context);
     const reported = new Set<ts.Node>();
@@ -110,10 +120,7 @@ export const derivedPortMemberRule: OrbRule = {
         const at = found === null ? undefined : toEsMap.get(found.local.name);
         if (found !== null && at !== undefined && !reported.has(found.local)) {
           reported.add(found.local);
-          context.report({
-            node: at,
-            message: `${found.local.name.text} restates fields of a contract type that flows straight into it (${found.fields.join(", ")}): derive it from the contract type (\`Pick<Contract, …>\`) so the reference stays linked.`,
-          });
+          context.report({ node: at, messageId: "restatedFields", data: { local: found.local.name.text, fields: found.fields.join(", ") } });
         }
       }
     };
@@ -123,7 +130,7 @@ export const derivedPortMemberRule: OrbRule = {
         if (found.relation === RELATION.narrowed || found.ruling !== null) {
           continue;
         }
-        context.report({ node, message: messageFor(found) });
+        context.report({ node, ...reportFor(found) });
       }
     };
     return {

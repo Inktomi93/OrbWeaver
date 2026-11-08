@@ -45,6 +45,28 @@ test("a trailing comment and every statement keyword are parked code", async () 
   expect(await findings("// if (x) {\n// for (const a of b) {\n// await run();\n// throw new Error();\n")).toHaveLength(4);
 });
 
+// One parked line per leading keyword the rule knows, so a keyword dropped from its list fails its own row.
+test.for([
+  'import { run } from "./run.ts";',
+  "export const kept = 1;",
+  "const dead = compute();",
+  "let dead = compute();",
+  "var dead = compute();",
+  "function dead() {",
+  "class Dead {",
+  "interface Dead {",
+  "type Dead = string;",
+  "return dead;",
+  "if (dead) {",
+  "for (const item of items) {",
+  "while (dead) {",
+  "switch (dead) {",
+  "throw new Error();",
+  "await run();",
+])("a line comment opening with its keyword is parked code: %s", async (line) => {
+  expect(await findings(`// ${line}\nexport const x = 1;\n`)).toHaveLength(1);
+});
+
 test.for([
   ["prose carrying no statement keyword and terminator", "// this explains WHY the value is 1 (a prose comment)\nexport const x = 1;\n"],
   ["comment-looking text inside a template string is data", "export const source = `\n// const rendered = true;\n`;\n"],

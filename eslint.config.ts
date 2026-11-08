@@ -11,6 +11,8 @@ import {
   DESTRUCTIVE_EXEMPT,
   exportedLabels,
   exportedProductionValues,
+  homeReasons,
+  homes,
   shellOwnedSlots,
 } from "@orb/tooling/eslint";
 import { BUTTON_BOX_OVERFLOW } from "@orb/ui/button/box-hit-area";
@@ -240,33 +242,35 @@ const REACT_HOOK_RULES: Linter.RulesRecord = {
 
 // The only tests/support files that may read rows directly; each line says why its read cannot go through a verb.
 const ROW_READ_HOMES = [
-  // The rows door: persistence-tier suites assert stored facts no read verb shows, and dependency-cruiser fences its importers.
-  "tests/support/node/factories/rows.ts",
-  // The rows tier behind that door: each `<seed>Rows` twin and capture reads what its verb-only seed left.
+  // The rows tier behind the rows door: each `<seed>Rows` twin and capture reads what its verb-only seed left.
   "tests/support/node/factories/rows/*.ts",
   // Testkit self-tests prove a seed or capture stored what it claims; they are the testkit's own persistence tier.
   "tests/support/**/*.test.ts",
-  // A child process with no server: its one query takes the WAL lock a layout migration must refuse to move under.
-  "tests/support/node/db-holder.ts",
-  // Corpus publication producers: the fixture CT and snap consumers replay is a snapshot of the rows each producer's
-  // production pass left, and that snapshot is the product, so no read verb can stand in for it.
-  // corpus.ts also refuses a copied private db holding unfinished work before the server that would resume it boots.
-  "tests/support/node/corpus.ts",
-  // Surface intake identifies the original owner, inventories consent/completed embedding metadata and refuses resumable work before composition.
-  "tests/support/node/surface-data.ts",
-  "tests/support/node/corpus-chat-lifecycle.ts",
-  "tests/support/node/corpus-connection.ts",
-  "tests/support/node/corpus-image-variants.ts",
-  "tests/support/node/corpus-imagery.ts",
-  "tests/support/node/corpus-knowledge-images.ts",
-  "tests/support/node/corpus-knowledge-variants.ts",
-  "tests/support/node/corpus-library-views.ts",
-  "tests/support/node/corpus-notifications.ts",
-  "tests/support/node/corpus-oidc.ts",
-  "tests/support/node/corpus-plugin.ts",
-  "tests/support/node/corpus-rpg.ts",
-  "tests/support/node/corpus-search.ts",
-  "tests/support/node/corpus-stats-settings.ts",
+  ...homes(
+    // The rows door: persistence-tier suites assert stored facts no read verb shows, and dependency-cruiser fences its importers.
+    "tests/support/node/factories/rows.ts",
+    // A child process with no server: its one query takes the WAL lock a layout migration must refuse to move under.
+    "tests/support/node/db-holder.ts",
+    // Corpus publication producers: the fixture CT and snap consumers replay is a snapshot of the rows each producer's
+    // production pass left, and that snapshot is the product, so no read verb can stand in for it.
+    // corpus.ts also refuses a copied private db holding unfinished work before the server that would resume it boots.
+    "tests/support/node/corpus.ts",
+    // Surface intake identifies the original owner, inventories consent/completed embedding metadata and refuses resumable work before composition.
+    "tests/support/node/surface-data.ts",
+    "tests/support/node/corpus-chat-lifecycle.ts",
+    "tests/support/node/corpus-connection.ts",
+    "tests/support/node/corpus-image-variants.ts",
+    "tests/support/node/corpus-imagery.ts",
+    "tests/support/node/corpus-knowledge-images.ts",
+    "tests/support/node/corpus-knowledge-variants.ts",
+    "tests/support/node/corpus-library-views.ts",
+    "tests/support/node/corpus-notifications.ts",
+    "tests/support/node/corpus-oidc.ts",
+    "tests/support/node/corpus-plugin.ts",
+    "tests/support/node/corpus-rpg.ts",
+    "tests/support/node/corpus-search.ts",
+    "tests/support/node/corpus-stats-settings.ts",
+  ),
 ];
 const PLAYWRIGHT_TESTS = ["tests/**/*.ct.tsx", "tests/**/*.spec.ts", "tests/e2e/**/!(*.test).{ts,tsx}"];
 
@@ -648,7 +652,7 @@ const CLIENT_FORM_NAME_SYNTAX = {
 };
 // A room's track is a stamp the client stylesheet keys on. It is written in the one file below, and every carrier renders through the chat
 // feature's `Track` component, so a copy cannot drift from the CSS that reads it.
-const TRACK_STAMP_HOMES = ["packages/client/src/features/chat/lib/chat-track.tsx"];
+const TRACK_STAMP_HOMES = homes("packages/client/src/features/chat/lib/chat-track.tsx");
 const TRACK_STAMP_PATTERN = String.raw`/\bdata-track\b/`;
 const TRACK_STAMP_SYNTAX = {
   selector: `:matches(JSXAttribute[name.name='data-track'], Literal[value=${TRACK_STAMP_PATTERN}], TemplateElement[value.raw=${TRACK_STAMP_PATTERN}])`,
@@ -852,7 +856,7 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
   },
   {
     // Generic bridges between a runtime value and a conditional or mapped testkit type; an assertion is the only way to build the target.
-    files: [
+    files: homes(
       "tests/support/node/ct-corpus-procedures.ts",
       "tests/support/iso/corpus-admission.ts",
       "tests/support/node/route-trpc.ts",
@@ -860,12 +864,12 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
       "tests/support/node/corpus-procedure.ts",
       "tests/support/node/sdk-process-control.ts",
       "tests/support/node/route-orb-socket.ts",
-    ],
+    ),
     rules: { "@typescript-eslint/no-unsafe-type-assertion": "off", "@typescript-eslint/consistent-type-assertions": "off" },
   },
   {
     // The one home of the deliberately invalid input cast.
-    files: ["tests/support/iso/forged.ts"],
+    files: homes("tests/support/iso/forged.ts"),
     rules: {
       "@typescript-eslint/no-unsafe-type-assertion": "off",
       "@typescript-eslint/consistent-type-assertions": "off",
@@ -884,7 +888,7 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
     rules: { "@typescript-eslint/triple-slash-reference": ["error", { lib: "never", types: "never", path: "never" }] },
   },
   {
-    files: ["packages/plugin-sdk/main.d.ts", "packages/plugin-sdk/ui.d.ts"],
+    files: homes("packages/plugin-sdk/main.d.ts", "packages/plugin-sdk/ui.d.ts"),
     rules: { "@typescript-eslint/triple-slash-reference": ["error", { lib: "never", types: "never", path: "always" }] },
   },
   {
@@ -962,11 +966,11 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
   },
   {
     // The React compiler deliberately skips these third-party virtualizer wrappers.
-    files: [
+    files: homes(
       "packages/ui/src/primitives/virtual-list/virtual-list.tsx",
       "packages/ui/src/primitives/message-list/message-list.tsx",
       "packages/ui/src/primitives/media-grid/media-grid.tsx",
-    ],
+    ),
     rules: { "react-hooks/incompatible-library": "off" },
   },
   {
@@ -1657,15 +1661,15 @@ const localPlugin = createOrbPlugin({
     media: new Map(Object.entries(MEDIA_QUERIES).map(([key, condition]) => [condition, key])),
   },
 });
-const APPEARANCE_LITERAL_FIXTURES = [
+const APPEARANCE_LITERAL_FIXTURES = homes(
   "tests/tooling/eslint-appearance-name.test.ts",
   "tests/tooling/eslint-custom-property-declared.test.ts",
   "tests/tooling/eslint-test-authoring.test.ts",
   "tests/tooling/stylelint-rules.test.ts",
-];
+);
 // The only files that may spell a portal-float z token: each is a surface that portals to
 // [data-slot="portal-root"] or mounts at the document root. A new consumer is a finding, not an entry here.
-const PORTAL_FLOAT_HOMES = {
+const PORTAL_FLOAT_HOMES = homeReasons({
   "packages/ui/src/lib/popup-surface.ts": "the shared popup surface every portaled popup composes",
   "packages/ui/src/primitives/combobox/variants.ts": "its positioner portals to the portal root",
   "packages/ui/src/primitives/popover/variants.ts": "its positioner portals to the portal root",
@@ -1678,10 +1682,10 @@ const PORTAL_FLOAT_HOMES = {
   "packages/ui/src/primitives/dialog/variants.ts": "its viewport portals to the portal root",
   "packages/ui/src/primitives/drawer/variants.ts": "its backdrop and viewport portal to the portal root",
   "packages/ui/src/art/web-weave/variants.ts": "the boot veil mounts at the document root, above the whole shell",
-} as const;
+});
 // The only files that make motion in JS (motion-and-animation-guide.md §1.5). Each carries a shape the rule matches and says
 // why CSS cannot express it; tests/tooling/eslint-motion-gates.test.ts fails a home the rule no longer matches.
-const FLIP_INVERSION_HOMES = {
+const FLIP_INVERSION_HOMES = homeReasons({
   "packages/ui/src/primitives/tabs/tabs.tsx":
     "the tabs indicator glide: the delta between two runtime boxes, inverted inline and flushed so the slot's transition runs it home",
   "packages/ui/src/art/web-weave/web-weave.tsx":
@@ -1689,20 +1693,20 @@ const FLIP_INVERSION_HOMES = {
   "packages/ui/src/stream/use-smooth-text.ts": "the streamed-text pacer reveals a string prefix on frames; text content has no style property to transition",
   "packages/client/src/features/refinery/hooks/use-count-up.ts":
     "the hero gauge counts a printed figure that must equal the Meter's value; the figure is text content, not a style",
-} as const;
+});
 // The only client files that touch browser storage directly. client-architecture-state-and-gates.md §10a sanctions each one and states why.
-const RAW_STORAGE_HOMES = [
+const RAW_STORAGE_HOMES = homes(
   "packages/client/src/state/durable-local.ts",
   "packages/client/src/data/session-resume.ts",
   "packages/client/src/lib/probe-mode.ts",
   "packages/client/src/main.tsx",
-];
+);
 const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
   [
     { files: ["tests/**/*.{ts,tsx}"], rules: { "orb/no-test-fabrication": "error" } },
     {
       files: ["packages/**/*.{ts,tsx}", "tooling/src/**/*.{ts,tsx}", "tests/**/*.{ts,tsx}"],
-      ignores: [
+      ignores: homes(
         // Generated CSS is exempt (D336): the token map the build emits, and the generator that emits the appearance channel.
         "packages/ui/src/tokens/index.ts",
         "packages/client/appearance-channel.build.ts",
@@ -1710,7 +1714,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
 
         "tests/tooling/eslint-intent-color-recipe.test.ts",
         "tests/tooling/stylelint-intent-color-recipe.test.ts",
-      ],
+      ),
       rules: { "orb/no-intent-color-recipe": "error" },
     },
     {
@@ -1765,30 +1769,30 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     {
       files: ["packages/client/src/**/*.{ts,tsx}"],
-      ignores: ["packages/client/src/state/entity-draft-store-implementation.ts", "packages/client/src/state/persisted-store-implementation.ts"],
+      ignores: homes("packages/client/src/state/entity-draft-store-implementation.ts", "packages/client/src/state/persisted-store-implementation.ts"),
       rules: { "orb/no-raw-zustand-persist": "error" },
     },
     { files: ["packages/client/src/state/durable-local.ts"], rules: { "orb/no-raw-zustand-persist-registry": "error" } },
     {
       files: AUTHORED_SRC,
-      ignores: ["packages/client/src/forms/editor/contexts.ts", "packages/client/src/forms/editor/use-app-form.ts"],
+      ignores: homes("packages/client/src/forms/editor/contexts.ts", "packages/client/src/forms/editor/use-app-form.ts"),
       rules: { "orb/no-direct-useform": "error" },
     },
     {
       files: ["packages/server/src/**/*.{ts,tsx}"],
-      ignores: ["packages/server/src/entry/compose/automation-watcher.ts", "packages/server/src/transport/trpc/index.ts"],
+      ignores: homes("packages/server/src/entry/compose/automation-watcher.ts", "packages/server/src/transport/trpc/index.ts"),
       rules: { "orb/firehose-import-allowlist": "error" },
     },
     {
       files: ["packages/server/src/transport/**/*.{ts,tsx}"],
-      ignores: ["packages/server/src/transport/trpc/bus-channel.ts"],
+      ignores: homes("packages/server/src/transport/trpc/bus-channel.ts"),
       rules: { "orb/bus-channel-primitive": "error" },
     },
     {
       files: ["packages/client/src/**/*.{ts,tsx}", "packages/ui/src/**/*.{ts,tsx}"],
       // Polarity is light-dark()'s job, not a named condition (client-architecture-lockdown.md §4.6), so the
       // colour-scheme read keeps its own query.
-      ignores: ["packages/ui/src/lib/use-prefers-light-color-scheme.ts"],
+      ignores: homes("packages/ui/src/lib/use-prefers-light-color-scheme.ts"),
       rules: { "orb/no-raw-matchmedia": "error" },
     },
     { files: ["packages/client/src/features/**/*.{ts,tsx}"], rules: { "orb/fetch-fn-in-features": "error" } },
@@ -1809,12 +1813,12 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     {
       files: ["packages/client/src/**/*.{ts,tsx}"],
-      ignores: ["packages/client/src/data/invalidation.ts"],
+      ignores: homes("packages/client/src/data/invalidation.ts"),
       rules: { "orb/no-inline-invalidate-outside-seam": "error" },
     },
     {
       files: ["packages/client/src/**/*.{ts,tsx}"],
-      ignores: ["packages/client/src/data/create-entity-mutation.ts"],
+      ignores: homes("packages/client/src/data/create-entity-mutation.ts"),
       rules: { "orb/mutation-only-in-factory": "error" },
     },
     {
@@ -1833,7 +1837,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     {
       files: ["packages/client/src/**/*.{ts,tsx}"],
       // The forced first-run ask, ruled by D330.
-      ignores: ["packages/client/src/features/persona/anchors/first-run-persona-dialog.tsx"],
+      ignores: homes("packages/client/src/features/persona/anchors/first-run-persona-dialog.tsx"),
       rules: { "orb/required-dialog-home": "error" },
     },
     { files: ["packages/client/src/features/**/*.{ts,tsx}"], rules: { "orb/page-template-shapes": "error" } },
@@ -1842,7 +1846,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     {
       files: ["packages/client/src/**/*.tsx"],
       // Each exempt file names its reason in DESTRUCTIVE_EXEMPT (docs/law/client-architecture-state-and-gates.md §14).
-      ignores: DESTRUCTIVE_EXEMPT.map(({ path }) => path),
+      ignores: Object.keys(DESTRUCTIVE_EXEMPT),
       rules: { "orb/destructive-needs-confirm": "error" },
     },
     {
@@ -1852,7 +1856,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     {
       files: ["packages/client/src/features/**/*.tsx"],
-      ignores: ["packages/client/src/features/app-shell/surfaces/app-shell.tsx"],
+      ignores: homes("packages/client/src/features/app-shell/surfaces/app-shell.tsx"),
       rules: { "orb/no-raw-interactive-intrinsics": "error" },
     },
     {
@@ -1862,7 +1866,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     {
       files: AUTHORED_SRC,
-      ignores: ["packages/ui/src/markdown/dialogue-paragraph.tsx"],
+      ignores: homes("packages/ui/src/markdown/dialogue-paragraph.tsx"),
       rules: { "orb/no-legacy-react-api": "error" },
     },
     { files: ["packages/server/src/infra/auth/**/*.{ts,tsx}"], rules: { "orb/infra-auth-no-userid": "error", "orb/infra-auth-pre-row-imports": "error" } },
@@ -1905,27 +1909,27 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     {
       files: ["packages/server/src/**/*.{ts,tsx}"],
-      ignores: [
+      ignores: homes(
         "packages/server/src/domain/sessions/persistence/users.ts",
         "packages/server/src/domain/sessions/verbs/link-external-id.ts",
         "packages/server/src/domain/sessions/verbs/provision-identity.ts",
-      ],
+      ),
       rules: { "orb/external-id-claim-writer-callers": "error" },
     },
     {
       files: ["packages/server/src/**/*.{ts,tsx}"],
-      ignores: ["packages/server/src/domain/sessions/persistence/users.ts", "packages/server/src/domain/sessions/verbs/pending-signup.ts"],
+      ignores: homes("packages/server/src/domain/sessions/persistence/users.ts", "packages/server/src/domain/sessions/verbs/pending-signup.ts"),
       rules: { "orb/external-id-pending-join-writer-callers": "error" },
     },
     { files: ["packages/server/src/domain/sessions/persistence/users.ts"], rules: { "orb/external-id-writer-home": "error" } },
     {
       files: ["packages/server/src/**/*.{ts,tsx}"],
-      ignores: ["packages/server/src/domain/sessions/persistence/users.ts", "packages/server/src/domain/sessions/verbs/provision-identity.ts"],
+      ignores: homes("packages/server/src/domain/sessions/persistence/users.ts", "packages/server/src/domain/sessions/verbs/provision-identity.ts"),
       rules: { "orb/external-id-subject-binds": "error", "orb/external-id-opaque-users-writes": "error" },
     },
     {
       files: ["packages/server/src/**/*.{ts,tsx}"],
-      ignores: ["packages/server/src/domain/sessions/persistence/users.ts"],
+      ignores: homes("packages/server/src/domain/sessions/persistence/users.ts"),
       rules: { "orb/external-id-raw-users-writes": "error" },
     },
     { files: ["packages/ui/src/**/*.{ts,tsx}"], ignores: ["packages/ui/src/lib/**"], rules: { "orb/ui-skin-fragment-purity": "error" } },
@@ -1956,17 +1960,17 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     { files: ["packages/server/src/domain/chat/**/*.{ts,tsx}"], rules: { "orb/membership-fan-guard": "error" } },
     {
       files: ["packages/server/src/**/*.{ts,tsx}", "packages/inference/src/**/*.{ts,tsx}"],
-      ignores: ["packages/server/src/infra/network/egress.ts"],
+      ignores: homes("packages/server/src/infra/network/egress.ts"),
       rules: { "orb/no-raw-egress": "error" },
     },
     {
       files: ["packages/server/src/**/*.{ts,tsx}", "packages/inference/src/**/*.{ts,tsx}"],
-      ignores: ["packages/server/src/infra/network/tls-terminator.ts"],
+      ignores: homes("packages/server/src/infra/network/tls-terminator.ts"),
       rules: { "orb/no-raw-http-client": "error" },
     },
     {
       files: ["packages/server/src/**/*.{ts,tsx}", "packages/inference/src/**/*.{ts,tsx}"],
-      ignores: ["packages/server/src/foundation/env/index.ts"],
+      ignores: homes("packages/server/src/foundation/env/index.ts"),
       rules: { "orb/sole-env-reader": "error" },
     },
     {
@@ -1981,28 +1985,28 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
         "packages/default-content/src/**/*.{ts,tsx}",
         "packages/inference/src/**/*.{ts,tsx}",
       ],
-      ignores: ["packages/server/src/domain/chat/substrate/member-visibility.ts"],
+      ignores: homes("packages/server/src/domain/chat/substrate/member-visibility.ts"),
       rules: { "orb/scrubber-home": "error" },
     },
     { files: ["packages/client/src/features/config/surfaces/config-content-surface.tsx"], rules: { "orb/config-host-no-feature-import": "error" } },
     {
       files: ["packages/client/src/forms/editor/bound-fields/**/*.{ts,tsx}"],
-      ignores: ["packages/client/src/forms/editor/bound-fields/use-bound-field.ts"],
+      ignores: homes("packages/client/src/forms/editor/bound-fields/use-bound-field.ts"),
       rules: { "orb/bound-field-via-hook": "error" },
     },
     {
       files: AUTHORED_SRC,
-      ignores: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", "packages/client/src/data/bus/chat-bus-writes.ts"],
+      ignores: ["**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}", ...homes("packages/client/src/data/bus/chat-bus-writes.ts")],
       rules: { "orb/chat-stream-writes-in-bus-only": "error" },
     },
     { files: ["packages/client/src/data/bus/**/*.{ts,tsx}"], rules: { "orb/bus-on-data-no-store-write": "error" } },
     {
       files: ["packages/client/src/state/*-selection-store.ts"],
-      ignores: [
+      ignores: homes(
         "packages/client/src/state/create-drill-selection-store.ts",
         "packages/client/src/state/create-kinded-selection-store.ts",
         "packages/client/src/state/message-selection-store.ts",
-      ],
+      ),
       rules: { "orb/selection-store-via-factory": "error" },
     },
     {
@@ -2010,13 +2014,13 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       ignores: ["packages/client/src/compose/**"],
       rules: { "orb/registry-assembly-at-door-only": "error" },
     },
-    { files: ["packages/client/src/state/*.{ts,tsx}"], ignores: ["packages/client/src/state/index.ts"], rules: { "orb/state-files": "error" } },
+    { files: ["packages/client/src/state/*.{ts,tsx}"], ignores: homes("packages/client/src/state/index.ts"), rules: { "orb/state-files": "error" } },
     { files: ["tests/**/_*stories.tsx", "tests/**/*.stories.tsx"], rules: { "orb/testid-typed-only-stories": "error" } },
     { files: ["tests/**/*.ct.tsx"], rules: { "orb/route-trpc-lifo-order": "error" } },
     { files: ["packages/server/src/domain/*/contract/service.ts"], rules: { "orb/types-in-contract": "error" } },
     {
       files: ["packages/server/src/**/*.{ts,tsx}"],
-      ignores: ["packages/server/src/primitives/serde/card/index.ts"],
+      ignores: homes("packages/server/src/primitives/serde/card/index.ts"),
       rules: { "orb/serde-core-definition-uniqueness": "error" },
     },
     { files: ["packages/db/src/schema/**/*.ts"], rules: { "orb/db-enum-from-tuple": "error" } },
@@ -2066,12 +2070,12 @@ const SUSPENSE_READ_IMPORT = {
   message: "Import the suspending reads from #data: they check that a QueryBoundary sits above the read (client-architecture-state-and-gates.md §11).",
 };
 // The only client files that page a suspending read; each says why the collection factory cannot carry it.
-const SUSPENSE_INFINITE_HOMES = {
+const SUSPENSE_INFINITE_HOMES = homeReasons({
   "packages/client/src/components/character-picker.tsx":
     "a cmdk Command body whose search suspends behind a deferred value and whose tail-fetch error shows beside the retained rows; the factory is a virtual-list machine that neither suspends nor exposes the tail error",
   "packages/client/src/features/chat/components/transcript-window.tsx":
     "a bidirectional message window with before and after cursors; the factory pages one direction",
-} as const;
+});
 const SUSPENSE_INFINITE_IMPORT = {
   name: "#data",
   importNames: ["useSuspenseInfiniteQuery"],
@@ -2083,7 +2087,7 @@ const UI_LAW_BLOCKS: FlatConfig.Config[] = [
   // Flat config replaces a rule's options per block, so each file gets the one block naming every path it must refuse.
   {
     files: [CLIENT_SRC],
-    ignores: [INFINITE_QUERY_HOME, SUSPENSE_READS_HOME, ...Object.keys(SUSPENSE_INFINITE_HOMES)],
+    ignores: [...homes(INFINITE_QUERY_HOME, SUSPENSE_READS_HOME), ...Object.keys(SUSPENSE_INFINITE_HOMES)],
     rules: refuseImports(INFINITE_QUERY_IMPORT, SUSPENSE_READ_IMPORT, SUSPENSE_INFINITE_IMPORT),
   },
   { files: Object.keys(SUSPENSE_INFINITE_HOMES), rules: refuseImports(INFINITE_QUERY_IMPORT, SUSPENSE_READ_IMPORT) },
@@ -2093,7 +2097,7 @@ const UI_LAW_BLOCKS: FlatConfig.Config[] = [
 
 // Files whose module state is one process's by construction: each is its own process root or a documented
 // per-process latch, so `orb/no-module-state` does not apply. Each entry names its reason.
-const MODULE_STATE_OWN_PROCESS = [
+const MODULE_STATE_OWN_PROCESS = homes(
   // The one process.env reader: the .env file's provenance is written once, at load, from this process's file.
   "packages/server/src/foundation/env/index.ts",
   // The process's build identity, read once and frozen so every surface reports the same string.
@@ -2106,7 +2110,7 @@ const MODULE_STATE_OWN_PROCESS = [
   "packages/server/src/infra/plugin-host/worker-runtime.ts",
   // The compiled QuickJS WASM module the guest runtime shares, compiled once per process.
   "packages/server/src/infra/plugin-host/module.ts",
-];
+);
 const PRINCIPAL_SCOPE = rootSources("@server", "@inference");
 
 // Hand-rolled DOM and style work in the client (docs/law/client-architecture-lockdown.md §0 and §4, motion-and-animation-guide.md §5.3).
@@ -2245,7 +2249,7 @@ export default [
   },
   {
     files: [CLIENT_SRC],
-    ignores: ["packages/client/src/lib/session-channel.ts"],
+    ignores: homes("packages/client/src/lib/session-channel.ts"),
     plugins: { orb: localPlugin },
     rules: { "orb/session-channel-boundary": "error" },
   },
@@ -2285,7 +2289,7 @@ export default [
   {
     // This suite's subject is that a spread capture cannot answer playback.
     files: ["tests/**/*.{ts,tsx}"],
-    ignores: ["tests/support/node/corpus-read-responder.int.test.ts"],
+    ignores: homes("tests/support/node/corpus-read-responder.int.test.ts"),
     plugins: { orb: localPlugin },
     rules: { "orb/no-spread-corpus-capture": "error" },
   },
@@ -2293,7 +2297,7 @@ export default [
     // These two suites pin the wire spelling itself, so a derived value would make them assert nothing: the first
     // asserts that a code is a member of two vocabularies, the second reads the key spellings of the shipped env files.
     files: ["tests/**/*.{ts,tsx}"],
-    ignores: ["tests/contracts/inference/warnings.contract.test.ts", "tests/tooling/container-security-config.int.test.ts"],
+    ignores: homes("tests/contracts/inference/warnings.contract.test.ts", "tests/tooling/container-security-config.int.test.ts"),
     plugins: { orb: localPlugin },
     rules: { "orb/no-hand-copied-label": ["error", { scope: "all" }] },
   },
@@ -2357,7 +2361,7 @@ export default [
   {
     files: ["tooling/src/**/*.{ts,tsx}", "scripts/**/*.{ts,tsx}"],
     // These existing adapters own native OS process behavior; ordinary tooling callers do not.
-    ignores: ["tooling/src/floor/host/platform.ts", "tooling/src/floor/host/platform-probes.ts", "tooling/src/floor/process/proc.ts"],
+    ignores: homes("tooling/src/floor/host/platform.ts", "tooling/src/floor/host/platform-probes.ts", "tooling/src/floor/process/proc.ts"),
     rules: { "no-restricted-syntax": restrictedSyntax(...PORTABLE_PROCESS_SYNTAX) },
   },
   {
