@@ -79,12 +79,31 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
     if (el.getAttribute("aria-selected") === "true" || el.hasAttribute("data-selected")) return "selected";
     var current = el.getAttribute("aria-current");
     if (current !== null && current !== "false") return "current";
+    // A wrapper member (a virtual-list row) carries no state itself; the row inside it paints the selection skin.
+    if (el.querySelector('[aria-selected="true"], [data-selected]')) return "selected";
+    if (el.querySelector('[aria-current]:not([aria-current="false"])')) return "current";
     if (el.getAttribute("aria-pressed") === "true" || el.getAttribute("aria-checked") === "true") return "pressed";
     if (el.getAttribute("aria-expanded") === "true" || el.hasAttribute("data-popup-open")) return "open";
     if (el.matches(":disabled") || el.getAttribute("aria-disabled") === "true") return "disabled";
     if (el.matches(":focus-within")) return "focused";
     if (el.matches(":hover")) return "hovered";
     return "rest";
+  }
+
+  // The largest corner radius in CSS pixels: a rounded corner shows the parent's backdrop inside the member's own box.
+  function memberCornerRadius(el, rect) {
+    var style = getComputedStyle(el);
+    var corners = [style.borderTopLeftRadius, style.borderTopRightRadius, style.borderBottomRightRadius, style.borderBottomLeftRadius];
+    var shortSide = Math.min(rect.width, rect.height);
+    var largest = 0;
+    for (var ri = 0; ri < corners.length; ri += 1) {
+      var first = String(corners[ri]).split(" ")[0];
+      var value = parseFloat(first);
+      if (!isFinite(value)) continue;
+      var px = first.slice(-1) === "%" ? (value / 100) * shortSide : value;
+      if (px > largest) largest = px;
+    }
+    return Math.min(largest, shortSide / 2);
   }
 
   // A cohort is scoped to ONE parent: same-slot elements in two different lists are two populations and
@@ -230,7 +249,15 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
         distinctHeights: distinct.length,
         animating: animating,
         memberRenders: members.map(function (m) {
-          return { selector: describe(m.el), x: m.rect.x, y: m.rect.y, width: m.rect.width, height: m.rect.height, state: memberRenderState(m.el) };
+          return {
+            selector: describe(m.el),
+            x: m.rect.x,
+            y: m.rect.y,
+            width: m.rect.width,
+            height: m.rect.height,
+            radiusPx: memberCornerRadius(m.el, m.rect),
+            state: memberRenderState(m.el),
+          };
         }),
       });
       relationalAccounting["cohort-anatomy"].judged += 1;

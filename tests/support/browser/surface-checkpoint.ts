@@ -178,9 +178,17 @@ async function checkpointTextGeometry(
   // A profile the document did not take measures default text; that is no enlarged-text verdict at all.
   expect(rootFontPx, `${request.name}: the enlarged-text profile must reach the checkpoint's document`).toBe(expectedRootFontPx);
   const shellRegime = await page.evaluate((desktop) => (matchMedia(desktop).matches ? "desktop" : "mobile"), MEDIA_QUERIES["shell-desktop"]);
+  // While a content swap's view transition runs, its pseudo-element overlay takes every hit test in the captured pane,
+  // so a centre probe reads the document root as the cover. Probe once the swap's own animations have ended.
+  const swapRunning = async (): Promise<boolean> =>
+    await page.evaluate(() =>
+      document.getAnimations().some(({ effect }) => effect instanceof KeyframeEffect && effect.pseudoElement?.startsWith("::view-transition") === true),
+    );
+  const swapAtReadiness = await swapRunning();
+  await expect.poll(swapRunning, { message: `${request.name}: the content swap's view transition must end before its hit tests are read` }).toBe(false);
   const findings = await enlargedTextFindings(request.scope);
   await attachNativeFile(info, step, `${request.name}-text-geometry`, {
-    body: JSON.stringify({ rootFontPx, shellRegime, viewport: page.viewportSize(), findings }, null, 2),
+    body: JSON.stringify({ rootFontPx, shellRegime, swapAtReadiness, viewport: page.viewportSize(), findings }, null, 2),
     contentType: "application/json",
   });
   step.annotations.push({

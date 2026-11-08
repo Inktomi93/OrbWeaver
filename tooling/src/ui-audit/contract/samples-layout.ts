@@ -48,6 +48,8 @@ export interface CohortMemberRender {
   readonly y: number;
   readonly width: number;
   readonly height: number;
+  /** The largest corner radius in CSS pixels, at most half the short side. */
+  readonly radiusPx: number;
   readonly state: CohortMemberState;
 }
 

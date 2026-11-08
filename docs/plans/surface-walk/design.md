@@ -68,7 +68,7 @@ Compare cross-section controls only when their semantic role, declared density a
 Run the existing public design-audit engine last in evidence checkpoints.
 Compare governed tier and variant values against their browser-resolved tokens, not another section's screenshot.
 Keep sibling geometry cohorts within one containing parent and the same authored component, variant, density and tier claims.
-Retain each cohort member's box and a perimeter-ring pixel fingerprint, and compare resting members with the comparison ui-facts uses for source cohorts. Fail a cohort whose majority has outliers. Record a member in another interaction state, outside the viewport, or with a ring that is not one colour as incomplete, not as a match.
+Retain each cohort member's box and a perimeter-ring pixel fingerprint, and compare resting members with the comparison ui-facts uses for source cohorts. The ring leaves out the rounded corners. A ring that matches the one-pixel band outside the box reads as the parent's backdrop, so transparent members over chat art still match. Fail a cohort whose majority has outliers. Record these members as incomplete, not as a match: a member in another interaction state, or with a selected or current descendant; a member outside the viewport; a member whose ring or surrounding band is not one colour.
 Retain original samples, findings, population accounting and incomplete-evidence details in native files and step parameters.
 Resolve pending backdrops through the public pixel pass before judging samples. Retain original samples, resolved samples and sampling refusals.
 Keep unresolved populations incomplete rather than presenting them as product defects or clean results.

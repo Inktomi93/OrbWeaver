@@ -399,6 +399,48 @@ test("rendered cohort fingerprints agree on an identical cohort and flag the mem
   expect(planted.comparisons.flatMap(({ outliers }) => outliers).map(({ at }) => at)).toEqual([expect.stringContaining(SMALL_CONTROLS[2])]);
 });
 
+test("members that paint no edge of their own match over a backdrop that changes between them", async ({ mount, page }, info) => {
+  await mount<typeof SurfaceDesignStory>("tests/support/browser/surface-design-fixtures/SurfaceDesignStory", { width: 640 });
+  const first = page.getByRole("button", { name: SMALL_CONTROLS[0], exact: true });
+  const second = page.getByRole("button", { name: SMALL_CONTROLS[1], exact: true });
+  await expect(second).toBeVisible();
+  const firstBox = await first.boundingBox();
+  const secondBox = await second.boundingBox();
+  if (firstBox === null || secondBox === null) {
+    throw new Error("The small controls have no layout box");
+  }
+  // A hard colour stop in the gap puts the first control on one backdrop and the rest on another, the way chat art does.
+  const stopX = (firstBox.x + firstBox.width + secondBox.x) / 2;
+  await first.evaluate(
+    (element, { stop, from, to }) => {
+      const parent = element.parentElement;
+      if (parent === null) {
+        throw new Error("The small control has no parent");
+      }
+      const offset = stop - parent.getBoundingClientRect().x;
+      parent.style.setProperty("background-image", `linear-gradient(to right, var(${from}) ${String(offset)}px, var(${to}) ${String(offset)}px)`);
+    },
+    { stop: stopX, from: TOKENS["color.background"].cssVar, to: TOKENS["color.primary"].cssVar },
+  );
+  const cohort = await smallControlRenders(page, info, "cohort-renders-split-backdrop");
+  expect(cohort.members.map(({ fingerprint }) => fingerprint.status)).toEqual(["measured", "measured", "measured"]);
+  expect(cohort.verdict).toBe("uniform");
+});
+
+test("a member whose subtree carries the selection skin is left out instead of read as a divergent anatomy", async ({ mount, page }, info) => {
+  await mount<typeof SurfaceDesignStory>("tests/support/browser/surface-design-fixtures/SurfaceDesignStory", { width: 640 });
+  const target = page.getByRole("button", { name: SMALL_CONTROLS[2], exact: true });
+  await target.evaluate((element, primary) => {
+    element.style.setProperty("background-color", `var(${primary})`);
+    element.firstElementChild?.setAttribute("data-selected", "");
+  }, TOKENS["color.primary"].cssVar);
+  const cohort = await smallControlRenders(page, info, "cohort-renders-selected-descendant");
+  const member = cohort.members.find(({ selector }) => selector.includes(SMALL_CONTROLS[2]));
+  expect(member?.state).toBe("selected");
+  expect(member?.fingerprint.status).toBe("incomplete");
+  expect(cohort.verdict).toBe("uniform");
+});
+
 test("a member whose perimeter ring is not one colour stays incomplete rather than matching its cohort", async ({ mount, page }, info) => {
   await mount<typeof SurfaceDesignStory>("tests/support/browser/surface-design-fixtures/SurfaceDesignStory", { width: 640 });
   const target = page.getByRole("button", { name: SMALL_CONTROLS[2], exact: true });
@@ -441,6 +483,7 @@ for (const clipped of [false, true]) {
   }, info) => {
     test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
     const profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+    await page.addInitScript({ content: webVitalsInitScript(await webVitalsSource()) });
     await mount<typeof SurfaceTextGeometryStory>("tests/support/browser/surface-design-fixtures/SurfaceTextGeometryStory", { clipped });
     const witness = page.getByRole("button", { name: "Continue to the next step", exact: true });
     const name = `text-geometry-${clipped ? "clipped" : "reflowed"}`;
