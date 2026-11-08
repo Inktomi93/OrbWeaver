@@ -1,10 +1,11 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-25
+status: doing
+updated: 2026-11-08
 priority: P3
-plan: test-foundation
 area: tooling
+lane: wt/agent-a9db028f1d127e510
+plan: test-foundation
 ---
 
 # snap --dirty boots on a lane worktree

@@ -47,13 +47,19 @@ export type ResolveCharacterTagsOp = (params: {
  *  seat) or `ownerId: null` (no resolvable host) yields the bare global floor + a null card — fail-closed. */
 export type ResolveSeatDecoOp = (params: { readonly ownerId: UserId | null; readonly characterId: CharacterId | null }) => Promise<SeatDeco>;
 
+declare const viewerVisibilityBrand: unique symbol;
+
 /** ONE human's read-visibility over ONE chat — membership AND the D16 canon floor as a SINGLE value, because
  *  they are one inseparable answer. `historyFloorSeq` is the INCLUSIVE `messages.seq` floor this viewer may
  *  read from (`NO_HISTORY_FLOOR` = 0 = unclamped); it is DERIVED by the one resolver
  *  (`substrate/auth/clamp::resolveHistoryFloorSeq`), never re-computed by the consumer. There is deliberately
  *  no "member: yes" projection without the floor — a consumer that only wants membership still receives the
- *  floor, so "forgot to clamp" is unrepresentable rather than merely discouraged. */
+ *  floor, so "forgot to clamp" is unrepresentable rather than merely discouraged.
+ *
+ *  Branded, so a hand-built answer does not compile. Only chat's resolver mints one, in a chat-private registry that a
+ *  canon read checks by object identity, so a spread copy with a defaulted floor is refused when the read runs. */
 export interface ViewerVisibility {
+  readonly [viewerVisibilityBrand]: true;
   readonly role: ParticipantRoleState;
   readonly historyFloorSeq: HistoryFloorSeq;
   /** The parity-plus §3.6 / D106 hidden-content verdict for THIS viewer: `true` ⇒ they read hidden-class spans

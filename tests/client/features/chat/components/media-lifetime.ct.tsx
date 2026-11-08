@@ -59,7 +59,7 @@ test("Tide retains zoom for identical snapshots and closes obsolete media on mes
     chatId,
   });
   await expect(page.locator('[data-slot="message-bubble-train"]').filter({ hasText: "Lead paragraph" })).toBeVisible();
-  await page.getByRole("button", { name: /^External media — load from / }).click();
+  await page.getByRole("button", { name: /^External media: load from / }).click();
   const firstImage = page.getByRole("img", { name: "First witness", exact: true });
   await expect.poll(() => firstImage.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
   expect(
@@ -71,7 +71,7 @@ test("Tide retains zoom for identical snapshots and closes obsolete media on mes
   await page.getByRole("button", { name: "First witness", exact: true }).click();
   const zoom = page.getByRole("dialog");
   await expect(zoom).toBeVisible();
-  await zoom.getByRole("button", { name: /^External media — load from / }).click();
+  await zoom.getByRole("button", { name: /^External media: load from / }).click();
   await expect
     .poll(() =>
       zoom.getByRole("img", { name: "First witness", exact: true }).evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0),
@@ -93,7 +93,7 @@ test("Tide retains zoom for identical snapshots and closes obsolete media on mes
   await component.update({ chatId, revision: 2 });
   await expect(page.locator('output[aria-label="Read revision"]')).toHaveText("2");
   await expect(zoom).toHaveCount(0);
-  await page.getByRole("button", { name: /^External media — load from / }).click();
+  await page.getByRole("button", { name: /^External media: load from / }).click();
   const replacement = page.getByRole("img", { name: "Replacement witness", exact: true });
   await expect.poll(() => replacement.evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
   expect(
@@ -104,7 +104,7 @@ test("Tide retains zoom for identical snapshots and closes obsolete media on mes
   ).toBe(true);
   await page.getByRole("button", { name: "Replacement witness", exact: true }).click();
   await expect(zoom).toBeVisible();
-  await zoom.getByRole("button", { name: /^External media — load from / }).click();
+  await zoom.getByRole("button", { name: /^External media: load from / }).click();
   await expect
     .poll(() =>
       zoom.getByRole("img", { name: "Replacement witness", exact: true }).evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0),

@@ -311,7 +311,8 @@ test("settled search publication survives native authenticated clone reads and r
   assert(sourcePath !== undefined);
   cloneStageDb(sourcePath, { databaseUrl: cloneLayout.databaseUrl, assetsDir: cloneLayout.assets });
   const db = ownership.use(ownDb(await createDb(cloneLayout.databaseUrl))).db;
-  const replay = replayCorpusSearchWire(produced.exchanges);
+  // biome-ignore lint/nursery/useDisposables: ownership.use registers disposal; the replay is declared after that stack, so a `using` would order the plan after an `await using`.
+  const replay = ownership.use(replayCorpusSearchWire(produced.exchanges, "every-step"));
   await using clone = await createServerHarness({
     db,
     clock,
@@ -362,7 +363,6 @@ test("settled search publication survives native authenticated clone reads and r
       expect(z.object({ result: z.object({ data: schema }) }).parse(body).result.data).toEqual(read.output);
     }
   }
-  expect(replay.remaining()).toBe(0);
   const exchange = produced.exchanges[0];
   assert(exchange !== undefined, "native settled search did not exercise the physical provider edge");
   await expect(

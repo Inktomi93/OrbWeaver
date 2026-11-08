@@ -47,7 +47,7 @@ export const APPEARANCE_READING_SUBCATEGORY: ConfigSubcategory = {
       label: "Message text size",
       teach: {
         summary: "A multiplier on message body text, independent of the global text size.",
-        affects: ["message body text only — the rest of the app keeps the global size"],
+        affects: ["message body text only; the rest of the app keeps the global size"],
         related: [{ group: "appearance", sub: "sizing", setting: "font-scale" }],
       },
     },

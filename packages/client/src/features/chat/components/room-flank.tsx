@@ -1,6 +1,7 @@
 // The room's plugin column, its edge control and the probe that decides whether it fits beside the transcript.
 // The presentation they render is `use-flank-presentation.ts`.
 
+import { Blocks } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useLayoutEffect, useRef } from "react";
@@ -109,7 +110,15 @@ export function FlankEdge({
   }
   return (
     <Row placed="flushEnd" layer="raised">
-      <PanelEdgeControl controls={controls} edge="end" expanded={flank.expanded} noun={SIDECAR_PANELS_NOUN} onToggle={flank.toggle} ref={controlRef} />
+      <PanelEdgeControl
+        controls={controls}
+        edge="end"
+        expanded={flank.expanded}
+        mark={Blocks}
+        noun={SIDECAR_PANELS_NOUN}
+        onToggle={flank.toggle}
+        ref={controlRef}
+      />
     </Row>
   );
 }

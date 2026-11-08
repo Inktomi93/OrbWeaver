@@ -31,7 +31,7 @@ import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
 test("native registry recursion retains terminal state and journal calls from both actual request depths on one committed variant", async () => {
-  const wire = createRpgFlightWire();
+  const wire = createRpgFlightWire("as-needed");
   const physical = createCorpusProviderExecution({
     modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL, RPG_RECURSION_MODEL, RPG_ROUND_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -83,7 +83,7 @@ test("native registry recursion retains terminal state and journal calls from bo
 });
 
 test("native member and host game lifecycle preserves scoped sheets, projections, host fork lineage and offered handoff identities", async () => {
-  const wire = createRpgFlightWire();
+  const wire = createRpgFlightWire("as-needed");
   const physical = createCorpusProviderExecution({
     modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL, RPG_RECURSION_MODEL, RPG_ROUND_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -162,7 +162,7 @@ test("native member and host game lifecycle preserves scoped sheets, projections
 });
 
 test("native post-commit round cancellation keeps its gather barrier until physical unwind while a member Stop leaves the owner's round intact", async () => {
-  const wire = createRpgFlightWire();
+  const wire = createRpgFlightWire("as-needed");
   const physical = createCorpusProviderExecution({
     modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL, RPG_RECURSION_MODEL, RPG_ROUND_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,

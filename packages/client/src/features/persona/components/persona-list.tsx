@@ -20,8 +20,19 @@ import { selectPersonaEditor, usePersonaEditorId } from "#state";
 import { useCreatePersona, useImportPersonaFile, useRemovePersona } from "../hooks/use-persona-mutations.ts";
 import { useDefaultPersona } from "../hooks/use-playing-persona.ts";
 import { nowDefaultNotice } from "../lib/persona-copy.ts";
+import { resolveNewChatPersona } from "../lib/persona-current.ts";
 import { PersonaFromCharacterDialog } from "./persona-from-character-dialog.tsx";
 import { PersonaPanelRow } from "./persona-panel-row.tsx";
+
+/** Who the crown moves to when the default is deleted: the last-played survivor, else the newest (the list is newest first). */
+function successorName(
+  personas: readonly { readonly id: PersonaId; readonly name: string }[],
+  deletedId: PersonaId,
+  currentPersonaId: PersonaId | null,
+): string | null {
+  const survivors = personas.filter((persona) => persona.id !== deletedId);
+  return resolveNewChatPersona(survivors, { defaultPersonaId: null, currentPersonaId })?.persona.name ?? null;
+}
 
 /** The list: band + rows. A row never switches who you play; that is the switcher's job. */
 export function PersonaList(): ReactElement {
@@ -136,6 +147,7 @@ export function PersonaList(): ReactElement {
               expanded={persona.id === expandedId}
               onSetDefault={(): void => crown.set(persona)}
               onClearDefault={crown.clear}
+              nextDefaultName={persona.id === seeds.defaultPersonaId ? successorName(personas, persona.id, seeds.currentPersonaId) : null}
               onToggleExpand={(): void => setExpandedId(expandedId === persona.id ? null : persona.id)}
               onDelete={(): Promise<void> => onDelete(persona.id)}
             />

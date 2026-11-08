@@ -4,7 +4,7 @@ import type { AssetId, ChatId, PluginId, SandboxWireId, UserId, WorldBookId } fr
 import type { OwnedAssetBytes } from "#assets";
 import type { Principal } from "#identity";
 import type { NotificationEvent, NotificationType, PluginNotificationRecipient } from "#notifications";
-import type { HistoryFloorSeq } from "../chat/roster.ts";
+import type { ViewerVisibility } from "../chat/owner-ops.ts";
 import type { PluginAssetView, PluginCharacterView, PluginMessageView, PluginSearchHit, PluginWorldBookView, PluginWorldEntryView } from "./host-v1.ts";
 import type { PluginSuggestedAct } from "./suggestion.ts";
 
@@ -12,23 +12,18 @@ export interface PluginChatReads {
   /** Recent canon projected to the REDUCED plugin view (the read floor is "what a member sees").
    *  `capability: chat.read`.
    *
-   *  `floorSeq` is REQUIRED, not optional, and is the D16 canon floor of the human this read runs for — the
-   *  read returns only `messages.seq >= floorSeq`. It is required BY TYPE because the admission that reaches
-   *  this op resolves membership only (`can(installer,"read",chat)` / `loadPresentRole`), and membership
-   *  alone is not visibility: a `from-join`-clamped member is admitted to their room yet may not read its
-   *  pre-join rows. A caller therefore cannot obtain the value without asking chat's `resolveViewerVisibility`
-   *  first — {@link buildPluginBridge} is that caller, and a non-member short-circuits to `[]` there.
+   *  `visibility` is REQUIRED and is the whole answer chat's `resolveViewerVisibility` gave for the human this
+   *  read runs for. The admission that reaches this op resolves membership only (`can(installer,"read",chat)` /
+   *  `loadPresentRole`), and membership alone is not visibility: a `from-join`-clamped member is admitted to
+   *  their room yet may not read its pre-join rows. The value is branded and only that resolver mints it, so a
+   *  non-member branch (the resolver's `null`) or a defaulted floor cannot reach this read; {@link buildPluginBridge}
+   *  short-circuits a non-member to `[]` before it.
    *
-   *  `readsHidden` is the SECOND half of the same viewer verdict (parity-plus §3.6 / D106): `true` when the
-   *  human this read runs for is the chat HOST (they read hidden-class spans — the reveal plane), `false` for a
-   *  member (hidden `<lie>`/`<ofilter>` spans are STRIPPED from the body before it crosses the realm boundary —
-   *  the plugin realm is a member-reachable surface, so an unstripped body would launder a GM-plane secret to a
-   *  non-host member's snippet). REQUIRED BY TYPE for the same reason as `floorSeq`: the only source is chat's
-   *  `resolveViewerVisibility` (its `role`), so a caller cannot obtain it without the visibility resolve. */
-  readonly listMessages: (
-    chatId: ChatId,
-    opts: { readonly limit?: number; readonly floorSeq: HistoryFloorSeq; readonly readsHidden: boolean },
-  ) => Promise<readonly PluginMessageView[]>;
+   *  The read returns only `messages.seq >= visibility.historyFloorSeq`, and strips hidden `<lie>`/`<ofilter>`
+   *  spans unless `visibility.readsHidden` (parity-plus §3.6 / D106: the host reveal plane). The plugin realm is
+   *  a member-reachable surface, so an unstripped body would launder a GM-plane secret to a non-host member's
+   *  snippet. */
+  readonly listMessages: (chatId: ChatId, opts: { readonly limit?: number; readonly visibility: ViewerVisibility }) => Promise<readonly PluginMessageView[]>;
   /** The invocation chat's PRESENT CHARACTER roster, projected to the reduced `PluginCharacterView`
    *  (`chat.listCharacters`, capability `chat.read` — #788 F11). PRINCIPAL-FREE, the `listMessages` posture: the
    *  bridge resolves the installer's membership via `resolveViewerVisibility` FIRST and short-circuits a

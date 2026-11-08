@@ -178,6 +178,26 @@ test("the plugin column's edge control keeps its screen position across a hide a
   expect(Math.abs(((await edge.boundingBox())?.y ?? Number.NaN) - (open?.y ?? Number.NaN))).toBeLessThanOrEqual(0.5);
 });
 
+test("the plugin column's edge control draws a different icon set than the details control at the same edge", async ({ corpus, page, mount }) => {
+  await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
+  const { room } = await preparePanels(root, page, corpus);
+  await mount<typeof PluginHideFocusStory>("tests/client/features/plugin/components/_hide-focus-stories/PluginHideFocusStory", { chatId: room.id });
+  await page.getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true }).click();
+  const context = page.getByRole("region", { name: CHAT_PLUGINS_TAB_LABEL, exact: true });
+  await context.getByRole("button", { name: movePluginPanelLabel("Context witness", "First", true), exact: true }).click();
+  const icons = (name: RegExp): Promise<string[]> =>
+    page
+      .getByRole("button", { name })
+      .locator("svg")
+      .evaluateAll((svgs) => svgs.map((svg) => Array.from(svg.classList).find((token) => token.startsWith("lucide-")) ?? ""));
+  const column = await icons(SIDECAR_EDGE);
+  const details = await icons(/^(?:Show|Hide) details$/u);
+
+  expect(column.length).toBeGreaterThan(0);
+  expect(details.length).toBeGreaterThan(0);
+  expect(column.some((icon) => !details.includes(icon))).toBe(true);
+});
+
 test("a room with no plugin panels reserves no sidecar or collapse control and Context teaches the next step", async ({ corpus, page, mount }) => {
   await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
   const { room, routes } = await preparePanels(root, page, corpus, false);

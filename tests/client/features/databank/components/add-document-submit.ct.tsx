@@ -24,6 +24,19 @@ test("Enter in the paste arm's name field adds the document", async ({ mount, pa
   await expect.poll(async () => (await caller.databank.list({})).items.map((item) => item.name)).toContain(DOCUMENT_NAME);
 });
 
+test("clicking Add in the paste arm adds the document", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  await routeTrpc(page, serveCorpusProcedures(caller, ["databank.createFromText"]));
+  await mount<typeof AddDocumentStory>(STORY, {});
+  await page.getByRole("button", { name: DATABANK_PASTE_TEXT_NAME, exact: true }).click();
+  await page.getByRole("textbox", { name: "Name", exact: true }).fill(DOCUMENT_NAME);
+  await page.getByRole("textbox", { name: "Text", exact: true }).fill("The bloodlines of the house.");
+  await page.getByRole("button", { name: "Add", exact: true }).click();
+
+  await expect.poll(async () => (await caller.databank.list({})).items.map((item) => item.name)).toContain(DOCUMENT_NAME);
+});
+
 test("Enter in the link field fetches, and a refused fetch leaves focus on the field its line describes", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), ["databank.scrapeWeb"]));

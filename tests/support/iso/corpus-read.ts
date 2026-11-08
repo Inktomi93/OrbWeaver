@@ -44,7 +44,7 @@ export interface CorpusProcedures {
   readonly "workloads.list": Capture<z.input<typeof workloads.workloadListInputSchema>, readonly z.output<typeof workloads.workloadRowAnyKindSchema>[]>;
   readonly "workloads.listSchedules": Capture<
     z.input<typeof workloads.workloadScheduleListInputSchema>,
-    readonly z.output<typeof workloads.workloadScheduleViewSchema>[]
+    readonly z.output<typeof workloads.workloadScheduleListItemSchema>[]
   >;
   readonly "share.signInMode": InputlessCapture<z.output<typeof identity.signInModeViewSchema>>;
   readonly "share.status": InputlessCapture<z.output<typeof identity.shareStatusSchema>>;

@@ -4,7 +4,7 @@
 /** A settled save. */
 export const AUTOSAVE_SAVED_TEXT = "Saved";
 
-/** A refused or failed write; the readout appends a dash and a Retry door when a retry can succeed. */
+/** A refused or failed write; the readout appends a full stop and a Retry door when a retry can succeed. */
 export const AUTOSAVE_SAVE_FAILED_TEXT = "Save failed";
 
 /** What a draft restored over a refused save leads with, before it says it is not saved. */

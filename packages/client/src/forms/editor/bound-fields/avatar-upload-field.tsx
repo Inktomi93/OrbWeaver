@@ -62,7 +62,7 @@ export function AvatarUploadField(props: AvatarUploadFieldProps): ReactElement {
       setSuccess(true);
     } catch {
       if (epoch === uploadEpoch.current) {
-        setUploadError("Upload failed — try again.");
+        setUploadError("Upload failed. Try again.");
       }
     } finally {
       if (epoch === uploadEpoch.current) {

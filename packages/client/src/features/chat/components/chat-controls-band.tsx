@@ -93,7 +93,7 @@ const CHIP_INLINE_CAP = 4;
  *  both halves of one contract and an unstyled child lands on the proven pair. */
 function BandReadingSurface({ children }: { readonly children: ReactNode }): ReactElement {
   return (
-    <RoomIsland ownSlot="chat-controls">
+    <RoomIsland ownSlot="chat-controls" paddingInlineNarrow="inset">
       <Stack gap="row">{children}</Stack>
     </RoomIsland>
   );

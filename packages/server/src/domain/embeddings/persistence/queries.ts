@@ -146,11 +146,23 @@ interface InsertImageSkipInput {
 
 /** Record an admission-floor skip. `onConflictDoNothing` on the asset PK: the first verdict stands (a
  *  duplicate bus delivery or a concurrent write is an idempotent no-op) — the read short-circuit means this
- *  is normally reached only once per asset. */
+ *  is normally reached only once per asset. Selects from the asset like the vector upserts, so an asset deleted
+ *  after its bytes were read records nothing. */
 export async function insertImageSkip(db: Db, input: InsertImageSkipInput): Promise<void> {
   await db
     .insert(imageIndexSkips)
-    .values({ assetId: input.assetId, reason: input.reason, width: input.width, height: input.height, createdAt: input.now })
+    .select(
+      db
+        .select({
+          assetId: assets.id,
+          reason: sql<ImageSkipReason>`${input.reason}`.as("reason"),
+          width: sql<number | null>`${input.width}`.as("width"),
+          height: sql<number | null>`${input.height}`.as("height"),
+          createdAt: sql<number>`${input.now}`.as("created_at"),
+        })
+        .from(assets)
+        .where(eq(assets.id, input.assetId)),
+    )
     .onConflictDoNothing();
 }
 

@@ -24,7 +24,7 @@ import { createServerHarness } from "./server.ts";
 const SCRIPTED_REQUESTS = 7;
 
 test("native model population, structured and required-tool resync, and changed folded calls retain their real planes and lineage", async () => {
-  const wire = createCorpusRpgWire();
+  using wire = createCorpusRpgWire("every-step");
   const physical = createCorpusProviderExecution({
     modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -117,7 +117,6 @@ test("native model population, structured and required-tool resync, and changed 
     { type: "event", label: "" },
     { type: "custom", label: "Expedition" },
   ]);
-  expect(wire.remaining()).toBe(0);
   expect(wire.requests).toHaveLength(SCRIPTED_REQUESTS);
   expect(physical.requests.filter((request) => request === "POST /v1/chat/completions")).toHaveLength(SCRIPTED_REQUESTS);
   // The script's final request, pinned by position: a replay of the exhausted script must be refused.
@@ -126,12 +125,12 @@ test("native model population, structured and required-tool resync, and changed 
     throw new Error("native RPG physical script captured no model request");
   }
   expect(() => wire.completion(lastRequest)).toThrow("unscripted RPG corpus request");
-  expect(() => createCorpusRpgWire().completion(lastRequest)).toThrow("unscripted RPG corpus request");
+  expect(() => createCorpusRpgWire("as-needed").completion(lastRequest)).toThrow("unscripted RPG corpus request");
   await assertReferentialIntegrity(root.db);
 });
 
 test("native RPG host doors distinguish no-card, stranger, writer-less and physical provider failure before changing canon", async () => {
-  const wire = createCorpusRpgWire();
+  const wire = createCorpusRpgWire("as-needed");
   const physical = createCorpusProviderExecution({
     modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,

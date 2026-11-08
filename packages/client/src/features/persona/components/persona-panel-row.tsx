@@ -38,6 +38,8 @@ export interface PersonaPanelRowProps {
   readonly onSetDefault: () => void;
   readonly onClearDefault: () => void;
   readonly onToggleExpand: () => void;
+  /** The persona the crown moves to when this row's persona is deleted; `null` unless this row is the default. */
+  readonly nextDefaultName: string | null;
   /** Reaches `ConfirmDialog.onConfirm`, which awaits a returned promise: busy while pending, closed on
    *  resolve, open with the reason on rejection. */
   readonly onDelete: () => void | Promise<void>;
@@ -51,6 +53,7 @@ export function PersonaPanelRow({
   onSetDefault,
   onClearDefault,
   onToggleExpand,
+  nextDefaultName,
   onDelete,
 }: PersonaPanelRowProps): ReactElement {
   const trpc = useTRPC();
@@ -118,7 +121,7 @@ export function PersonaPanelRow({
 
       <Collapsible onOpenChange={onToggleExpand} open={expanded}>
         <CollapsiblePanel>
-          <PersonaEditorRegion persona={persona} subject={subject} onDelete={onDelete} />
+          <PersonaEditorRegion nextDefaultName={nextDefaultName} persona={persona} subject={subject} onDelete={onDelete} />
         </CollapsiblePanel>
       </Collapsible>
     </Stack>

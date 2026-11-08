@@ -30,6 +30,7 @@ import { ASSISTANT_PREFILL_WARNING, downloadTextFile, MESSAGE_ROLE_ITEMS, notify
 import { takePersonaEditorFocus, usePersonaEditorFocusRequest } from "#state";
 import { PersonaForm } from "../hooks/use-persona-form.ts";
 import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-mutations.ts";
+import { deleteMovesDefaultNote } from "../lib/persona-copy.ts";
 import type { PersonaFormValues } from "../lib/persona-editor-model.ts";
 import { isPrefillCombo, personaFormFromEntity, personaInputFromForm } from "../lib/persona-editor-model.ts";
 import { PersonaConnectedCharacters } from "./persona-connected-characters.tsx";
@@ -55,11 +56,13 @@ export interface PersonaEditorProps {
    *  way out of the create-on-click flow: "New persona" instantly persists a row, so the freshly-opened
    *  autosave editor must offer an explicit discard — the row's own delete is hover-revealed only. */
   readonly onDelete: () => void | Promise<void>;
+  /** The persona the crown moves to when this one is deleted; `null` when this persona is not the default. */
+  readonly nextDefaultName: string | null;
 }
 
 // The persona DETAILS — autosaving, no repeated avatar/name (the panel-row's expand-to-edit body).
 //  Mounted through the D78 session boundary (`PersonaForm`), which owns the persona.id key.
-function PersonaEditor({ persona, onDelete }: PersonaEditorProps): ReactElement {
+function PersonaEditor({ persona, onDelete, nextDefaultName }: PersonaEditorProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const update = useUpdatePersona({ trpc, invalidation });
@@ -73,14 +76,14 @@ function PersonaEditor({ persona, onDelete }: PersonaEditorProps): ReactElement 
 
   return (
     <PersonaForm entityId={persona.id} serverValues={personaFormFromEntity(persona)} save={save}>
-      {(session): ReactElement => <PersonaEditorBody session={session} persona={persona} onDelete={onDelete} />}
+      {(session): ReactElement => <PersonaEditorBody session={session} persona={persona} onDelete={onDelete} nextDefaultName={nextDefaultName} />}
     </PersonaForm>
   );
 }
 
 /** The editor inside its named, bordered row panel. Focus lands on it only on a pending request from the
  *  switcher's Edit door (mounting or already mounted); a chevron expand leaves focus where it is. */
-export function PersonaEditorRegion({ persona, subject, onDelete }: PersonaEditorProps & { readonly subject: string }): ReactElement {
+export function PersonaEditorRegion({ persona, subject, onDelete, nextDefaultName }: PersonaEditorProps & { readonly subject: string }): ReactElement {
   const regionRef = useRef<HTMLDivElement>(null);
   const request = usePersonaEditorFocusRequest();
   useEffect(() => {
@@ -91,7 +94,7 @@ export function PersonaEditorRegion({ persona, subject, onDelete }: PersonaEdito
   }, [request, persona.id]);
   return (
     <Card aria-label={`Edit ${subject}`} focusable={true} ref={regionRef} role="group" tabIndex={-1} variant="outline">
-      <PersonaEditor persona={persona} onDelete={onDelete} />
+      <PersonaEditor persona={persona} onDelete={onDelete} nextDefaultName={nextDefaultName} />
     </Card>
   );
 }
@@ -100,10 +103,11 @@ interface PersonaEditorBodyProps {
   readonly session: AutosaveSession<PersonaFormValues>;
   readonly persona: PersonaDetail;
   readonly onDelete: () => void | Promise<void>;
+  readonly nextDefaultName: string | null;
 }
 
 /** The form-bearing persona details body — remounted per persona by the boundary's keyed Session. */
-function PersonaEditorBody({ session, persona, onDelete }: PersonaEditorBodyProps): ReactElement {
+function PersonaEditorBody({ session, persona, onDelete, nextDefaultName }: PersonaEditorBodyProps): ReactElement {
   const { form } = session;
   const trpc = useTRPC();
   const invalidation = useInvalidation();
@@ -148,7 +152,7 @@ function PersonaEditorBody({ session, persona, onDelete }: PersonaEditorBodyProp
           </form.AppField>
           <form.AppField name="title">
             {(field): ReactElement => (
-              <field.TextField label="Title" hint="A display subtitle for pickers — never injected into the prompt." placeholder="Optional" />
+              <field.TextField label="Title" hint="A display subtitle for pickers. It is never injected into the prompt." placeholder="Optional" />
             )}
           </form.AppField>
           <AutosaveStatus state={session.status} onRetry={session.retrySave} />
@@ -230,7 +234,12 @@ function PersonaEditorBody({ session, persona, onDelete }: PersonaEditorBodyProp
         <DestructiveAction
           confirm={{
             confirmLabel: "Delete",
-            description: <>This permanently deletes “{persona.name}”. Past messages you authored as it keep their name and avatar. This can't be undone.</>,
+            description: (
+              <>
+                This permanently deletes “{persona.name}”. Past messages you authored as it keep their name and avatar.
+                {nextDefaultName === null ? "" : ` ${deleteMovesDefaultNote(nextDefaultName)}`} This can't be undone.
+              </>
+            ),
             title: "Delete this persona?",
           }}
           onConfirm={onDelete}

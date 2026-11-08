@@ -90,7 +90,7 @@ function SizingBody({
               SAME token the shell clamps against; `746` is not spelled here or there. */}
           {dialIsDead ? (
             <SettingRow settingId="chat-width" span={true}>
-              <Text voice="gloss">The chat column already fills this screen — this setting takes effect on a wider one.</Text>
+              <Text voice="gloss">The chat column already fills this screen. This setting takes effect on a wider one.</Text>
             </SettingRow>
           ) : (
             <SettingRow settingId="chat-width">

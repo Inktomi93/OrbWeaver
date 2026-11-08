@@ -52,5 +52,5 @@ test("a refused create is said by the ask's own sentence", async ({ corpus, moun
   await page.getByTestId(testId("firstRunPersonaCreate")).click();
 
   const alerts = page.getByRole("region", { name: "Alerts", exact: true });
-  await expect(alerts.getByText("Couldn't create your persona — try again.", { exact: true })).toBeVisible();
+  await expect(alerts.getByText("Couldn't create your persona. Try again.", { exact: true })).toBeVisible();
 });

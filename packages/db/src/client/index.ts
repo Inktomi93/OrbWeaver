@@ -474,12 +474,14 @@ function readJournalEntries(migrationsFolder: string): readonly { readonly when:
  * copy the db aside, while the backup-before-change guarantee is unchanged for boots that change anything.
  */
 export async function hasPendingMigrations(db: Db, migrationsFolder: string): Promise<boolean> {
+  return (await pendingMigrations(db, migrationsFolder)).length > 0;
+}
+
+/** The tag of every journal entry {@link runMigrations} would still apply to this db, in apply order. Read-only. */
+export async function pendingMigrations(db: Db, migrationsFolder: string): Promise<readonly string[]> {
   const entries = readJournalEntries(migrationsFolder);
   const applied = await readAppliedBaseline(db);
-  if (applied === undefined) {
-    return entries.length > 0;
-  }
-  return entries.some((entry) => entry.when > applied.folderMillis);
+  return entries.filter((entry) => applied === undefined || entry.when > applied.folderMillis).map((entry) => entry.tag);
 }
 
 interface MigrationIdentity {

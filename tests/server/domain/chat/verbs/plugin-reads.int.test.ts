@@ -1,8 +1,10 @@
 // Production room readers must not send foreign, pre-join or hidden canon into a guest.
 
 import { createCharacterSchema } from "@orb/contracts/character";
+import { NO_HISTORY_FLOOR } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { databaseHandle } from "@orb/db/wiring-driver";
+import type { ChatId } from "@orb/kit/ids";
 import { createChatAutomationReads, createResolveViewerVisibility, loadPluginCharacters, loadPluginMessages } from "@orb/server/domain/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -15,6 +17,9 @@ import {
   seedInvitedChatParticipant,
   seedMessage,
 } from "@orb/testkit/node/composed";
+
+// The read's refusal names the cause; no production export carries the sentence, so the case matches its wording.
+const UNRESOLVED_VISIBILITY = /is not an answer chat's resolver handed out/u;
 
 async function actor(harness: ServerTestHarness): Promise<Principal> {
   return await harness.principalFor((await harness.actor()).id);
@@ -37,11 +42,12 @@ test("a cross-wired message fact cannot hydrate another room's canon", async ():
   expect((await read.getMessageFact(foreign.id, message.id))?.content).toBe("Foreign room marker");
 });
 
-test("the guest page applies the floor in SQL and strips hidden bytes before returning content", async (): Promise<void> => {
-  await using root = await createServerHarness();
+type Visibility = NonNullable<Awaited<ReturnType<ReturnType<typeof createResolveViewerVisibility>>>>;
+
+/** A room with a pre-join line, a hidden span and a from-join guest, and chat's resolved answer for each human. */
+async function fromJoinRoom(root: ServerTestHarness): Promise<{ readonly roomId: ChatId; readonly hostView: Visibility; readonly memberView: Visibility }> {
   const { owner: host } = await seedCorpusActors(root);
   const guest = await actor(root);
-  const db = root.db;
   const {
     view: { chat: room },
   } = await seedChat(root, { principal: host, characterIds: [] });
@@ -51,14 +57,20 @@ test("the guest page applies the floor in SQL and strips hidden bytes before ret
   await seedInvitedChatParticipant(root, { principal: guest, inviteId: invite.invite.id });
   await root.services.chat.setMemberHistoryVisibility({ principal: host, chatId: room.id, userId: guest.userId, visibility: "from-join" });
   await seedMessage(root, { principal: host, chatId: room.id, content: "Newest" });
-  const visibility = createResolveViewerVisibility({ db: databaseHandle(db) });
+  const visibility = createResolveViewerVisibility({ db: databaseHandle(root.db) });
   const hostView = await visibility(room.id, host.userId);
   const memberView = await visibility(room.id, guest.userId);
   if (hostView === null || memberView === null) {
     throw new Error("each present human must have a visibility verdict");
   }
-  const member = await loadPluginMessages(databaseHandle(db), room.id, { floorSeq: memberView.historyFloorSeq, readsHidden: memberView.readsHidden, limit: 3 });
-  const hosted = await loadPluginMessages(databaseHandle(db), room.id, { floorSeq: hostView.historyFloorSeq, readsHidden: hostView.readsHidden, limit: 3 });
+  return { roomId: room.id, hostView, memberView };
+}
+
+test("the guest page applies the floor in SQL and strips hidden bytes before returning content", async (): Promise<void> => {
+  await using root = await createServerHarness();
+  const { roomId, hostView, memberView } = await fromJoinRoom(root);
+  const member = await loadPluginMessages(databaseHandle(root.db), roomId, { visibility: memberView, limit: 3 });
+  const hosted = await loadPluginMessages(databaseHandle(root.db), roomId, { visibility: hostView, limit: 3 });
   expect(member.map((row) => [row.seq, row.content])).toEqual([
     [2, "Visible "],
     [3, "Newest"],
@@ -66,6 +78,18 @@ test("the guest page applies the floor in SQL and strips hidden bytes before ret
   expect(JSON.stringify(member)).not.toContain("marker");
   expect(hosted.map((row) => row.seq)).toEqual([1, 2, 3]);
   expect(hosted[1]?.content).toContain("Host-only marker");
+});
+
+// A spread copy keeps the brand key, so only the resolver's own object may open the read.
+test("the guest page refuses an answer chat's resolver did not hand out, such as a copy with its floor or strip defaulted", async (): Promise<void> => {
+  await using root = await createServerHarness();
+  const { roomId, memberView } = await fromJoinRoom(root);
+  const read = (visibility: Visibility): ReturnType<typeof loadPluginMessages> => loadPluginMessages(databaseHandle(root.db), roomId, { visibility, limit: 3 });
+
+  // Control: the resolved answer itself reads the member's page.
+  expect((await read(memberView)).map((row) => row.seq)).toEqual([2, 3]);
+  await expect(read({ ...memberView, historyFloorSeq: NO_HISTORY_FLOOR })).rejects.toThrow(UNRESOLVED_VISIBILITY);
+  await expect(read({ ...memberView, readsHidden: true })).rejects.toThrow(UNRESOLVED_VISIBILITY);
 });
 
 test("a departed character seat is not exposed as a present guest roster member", async ({ harness, db }): Promise<void> => {

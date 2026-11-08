@@ -3,13 +3,14 @@
 // yes (`model-run-confirm-dialog.tsx` is what they read). An estimate that fails starts nothing; a run that fails
 // rejects to its caller, whose mutation owns the message.
 
+import { WORKLOAD_RUN_ACCOUNT_NOT_OWNER, WORKLOAD_RUN_ACCOUNT_REFUSAL } from "@orb/contracts/workloads";
 import { errorMessage } from "@orb/kit/error-message";
 import { useQueryClient } from "@tanstack/react-query";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import { useState } from "react";
 import type { Trpc } from "#data";
 import { readFresh, useTRPC } from "#data";
-import { notify } from "#lib";
+import { notify, trpcErrorReason } from "#lib";
 import type { ModelRunConfirmDialogProps } from "./model-run-confirm-dialog.tsx";
 
 // A run is counted by the scope it would start under, or, for a retry, by the row it would clone: a retry re-runs
@@ -39,7 +40,12 @@ export function useModelRunConfirm(): {
           : readFresh(queryClient, trpc.workloads.estimateModelCalls.queryOptions(request)),
       ),
     ).catch((err: unknown) => {
-      notify.error({ title: ESTIMATE_FAILED, description: errorMessage(err) });
+      // The estimate judges who the run answers to before it counts, so a refused account is the reason, not the count.
+      notify.error(
+        trpcErrorReason(err) === WORKLOAD_RUN_ACCOUNT_NOT_OWNER
+          ? { title: WORKLOAD_RUN_ACCOUNT_REFUSAL }
+          : { title: ESTIMATE_FAILED, description: errorMessage(err) },
+      );
       return null;
     });
     if (answers === null) {

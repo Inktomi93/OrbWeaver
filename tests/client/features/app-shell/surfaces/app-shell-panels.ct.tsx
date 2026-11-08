@@ -12,7 +12,7 @@ import { loadAppearancePreset } from "@orb/testkit/node/helpers";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { z } from "zod";
-import { CHARACTER_IMPORT_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_IMPORT_NAME, CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
 import type { AppShellListDockStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -340,7 +340,7 @@ test.describe("on a wide desktop", () => {
     await expect(page.getByRole("main")).toBeFocused();
   });
 
-  test("at 1280 the Characters band keeps its full title and both create doors at the touch-free control floor, with one pane docked and with both", async ({
+  test("at 1280 the Characters band keeps its whole title, folding the create doors into its menu with both panes docked and showing both at the touch-free control floor with one", async ({
     mount,
     page,
   }) => {
@@ -349,35 +349,36 @@ test.describe("on a wide desktop", () => {
     await mount<typeof AppShellStory>(STORY, {});
     const band = page.locator(`${LIST} .shell-panel-header`);
     const floor = await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`);
-    const read = (): Promise<{ readonly width: number; readonly clipped: boolean; readonly doors: number[] }> =>
+    // The band's New is a word or a glyph by its own container width; at most one of the pair is in the tree.
+    const doors = band.getByRole("button", { name: /^(?:New|New character|Import a character card)$/u });
+    const fold = band.locator('[data-slot="overflow-actions-trigger"]');
+    const read = (): Promise<{ readonly width: number; readonly clipped: boolean }> =>
       band.evaluate((header) => {
         const title = header.querySelector('[data-slot="list-pane-title"]');
-        const doors = [...header.querySelectorAll("button")].filter(
-          (button) =>
-            button.checkVisibility() && /^(?:New|New character|Import a character card)$/u.test(button.getAttribute("aria-label") ?? button.textContent.trim()),
-        );
         return {
           width: Math.round(header.closest(".shell-panel")?.getBoundingClientRect().width ?? 0),
           clipped: title === null || title.scrollWidth > title.clientWidth,
-          doors: doors.map((button) => Math.min(button.getBoundingClientRect().width, button.getBoundingClientRect().height)),
         };
       });
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "docked");
-    // The band's New is a word or a glyph by its own container width; exactly one of the pair is in the tree.
-    await expect(band.getByRole("button", { name: /^New(?: character)?$/u })).toHaveCount(1);
-    await expect(band.getByRole("button", { name: CHARACTER_IMPORT_NAME, exact: true })).toHaveCount(1);
     await expect(band.locator('[data-slot="list-pane-title"]')).toContainText(/\d/u);
+    // The squeeze narrows the pane: the name stays whole and the actions fold first.
+    await expect(fold).toBeVisible();
+    await expect(doors).toHaveCount(0);
     const squeezed = await read();
+    await fold.click();
+    await expect(page.getByRole("menuitem", { name: CHARACTER_IMPORT_NAME, exact: true })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: CHARACTER_NEW_NAME, exact: true })).toBeVisible();
+    await page.keyboard.press("Escape");
     await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).click();
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "collapsed");
     await expect.poll(async () => (await read()).width).toBeGreaterThan(squeezed.width);
-    const single = await read();
-    expect(
-      [squeezed, single].map(({ clipped, doors }) => ({ clipped, doors: doors.length, short: doors.filter((side) => side < floor - SUBPIXEL).length })),
-    ).toStrictEqual([
-      { clipped: false, doors: 2, short: 0 },
-      { clipped: false, doors: 2, short: 0 },
-    ]);
+    await expect(fold).toHaveCount(0);
+    await expect(doors).toHaveCount(2);
+    const sides = await doors.evaluateAll((buttons) =>
+      buttons.map((button) => Math.min(button.getBoundingClientRect().width, button.getBoundingClientRect().height)),
+    );
+    expect([squeezed.clipped, (await read()).clipped, sides.filter((side) => side < floor - SUBPIXEL).length]).toStrictEqual([false, false, 0]);
   });
 
   test("both docked at 1360 the content track reaches its reading floor and each pane keeps its own floor", async ({ mount, page }) => {

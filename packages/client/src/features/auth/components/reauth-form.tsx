@@ -19,7 +19,7 @@ export function ReauthForm(): ReactElement {
   const config = useAuthConfig();
   return (
     <Stack gap="block" data-testid={testId("reauthSurface")}>
-      <Text voice="gloss">Your session expired. Sign back in and you'll pick up exactly where you left off — nothing you were working on has been lost.</Text>
+      <Text voice="gloss">Your session expired. Sign back in and you'll pick up exactly where you left off. Nothing you were working on has been lost.</Text>
       {/* The form seeds its handle from `defaultHandle` in `useState` — an INITIAL value, so mounting it
           before `/api/auth/config` lands would bake in a blank prefill that never corrects itself. Wait for
           the read (the AccountSurface precedent) rather than ship a field the user has to retype. */}

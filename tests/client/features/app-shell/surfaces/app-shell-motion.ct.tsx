@@ -12,7 +12,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
-import type { Page } from "@playwright/test";
+import type { Page, PlaywrightTestArgs } from "@playwright/test";
 import { z } from "zod";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, PHONE, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -1018,7 +1018,13 @@ const ROOM_TRACKS = {
 const FLANK_ROOM = { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } } as const;
 const AXIS_SLACK = 1;
 // What each resting state of the column asks of the room: whether it is registered, and whether its edge control hid it.
-const COLUMN_STATES = { absent: { flank: false, hidden: false }, inline: { flank: true, hidden: false }, parked: { flank: true, hidden: true } } as const;
+const COLUMN_STATE_NAMES = ["absent", "inline", "parked"] as const;
+type ColumnState = (typeof COLUMN_STATE_NAMES)[number];
+const COLUMN_STATES = {
+  absent: { flank: false, hidden: false },
+  inline: { flank: true, hidden: false },
+  parked: { flank: true, hidden: true },
+} as const satisfies Record<ColumnState, { readonly flank: boolean; readonly hidden: boolean }>;
 
 interface TrackBox {
   readonly left: number;
@@ -1041,7 +1047,10 @@ function readTracks(page: Page): Promise<Record<keyof typeof ROOM_TRACKS, TrackB
 
 const centreOf = (track: TrackBox): number => track.left + track.width / 2;
 
-type ColumnState = keyof typeof COLUMN_STATES;
+/** Mount the named group room in the shell. */
+function mountRoom(mount: PlaywrightTestArgs["mount"]): Promise<unknown> {
+  return mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+}
 
 /** Serve the room at `width` with the column in `state`; the caller mounts it. */
 async function routeRoom(page: Page, corpus: CorpusPlayback, width: number, state: ColumnState): Promise<void> {
@@ -1105,6 +1114,88 @@ async function toggleRecorded(
   return { before, after: await readTracks(page), frames };
 }
 
+// The keyframes the room's glide runs on the rows and on the composer; the CSS owns the names.
+const GLIDE_ANIMATIONS = ["room-flank-centre-flip", "room-flank-composer-flip"] as const;
+const GLIDE_HELD_DURATION = "20s";
+const GLIDE_POLL_MS = 50;
+// Where in the glide the tracks are read: its first instant, its middle and its last.
+const GLIDE_POINTS = [0, 0.5, 1] as const;
+const GlideCentres = z.array(z.object({ chat: z.number(), composer: z.number() }));
+
+/**
+ * Press `leg` and freeze both glides the instant they start, then read both tracks' centres at the start, middle and end
+ * of the glide. The glide is read where it stands, never by painted frames, so a slow frame cannot hide a snap or invent one.
+ */
+async function toggleGlideSampled(
+  page: Page,
+  leg: string,
+): Promise<{
+  readonly before: Record<keyof typeof ROOM_TRACKS, TrackBox>;
+  readonly after: Record<keyof typeof ROOM_TRACKS, TrackBox>;
+  readonly centres: z.infer<typeof GlideCentres>;
+}> {
+  const before = await readTracks(page);
+  // A glide this long outlasts any stalled first frame, so it is still running when it is frozen and read.
+  await page.addStyleTag({ content: `.shell-grid { --shell-motion: ${GLIDE_HELD_DURATION}; }` });
+  await page.evaluate((glideNames) => {
+    const names: readonly string[] = glideNames;
+    const onStart = (event: Event): void => {
+      if (!(event instanceof AnimationEvent && names.includes(event.animationName))) {
+        return;
+      }
+      for (const animation of document.getAnimations()) {
+        if (animation instanceof CSSAnimation && names.includes(animation.animationName)) {
+          animation.pause();
+        }
+      }
+      Reflect.set(globalThis, "__glideFrozen", true);
+    };
+    Reflect.set(globalThis, "__glideFrozen", false);
+    document.addEventListener("animationstart", onStart, { capture: true, once: true });
+    // An animation starts on a rendered frame, so keep frames coming until the glide is frozen.
+    const pump = (): void => {
+      if (Reflect.get(globalThis, "__glideFrozen") !== true) {
+        requestAnimationFrame(pump);
+      }
+    };
+    requestAnimationFrame(pump);
+  }, GLIDE_ANIMATIONS);
+  await page.getByRole("button", { name: leg, exact: true }).click();
+  await page.waitForFunction(() => Reflect.get(globalThis, "__glideFrozen") === true, undefined, { polling: GLIDE_POLL_MS });
+  const centres = GlideCentres.parse(
+    await page.evaluate(
+      ({ selectors, glideNames, points }) => {
+        const names: readonly string[] = glideNames;
+        const glides = document
+          .getAnimations()
+          .filter((animation): animation is CSSAnimation => animation instanceof CSSAnimation && names.includes(animation.animationName));
+        const centre = (selector: string): number => {
+          const box = Array.from(document.querySelectorAll(selector)).at(-1)?.getBoundingClientRect();
+          return box === undefined ? Number.NaN : box.left + box.width / 2;
+        };
+        const read = (point: number): { chat: number; composer: number } => {
+          for (const glide of glides) {
+            const duration = Number(glide.effect?.getComputedTiming().duration);
+            glide.currentTime = duration * point;
+          }
+          return { chat: centre(selectors.chat), composer: centre(selectors.composer) };
+        };
+        const sampled = points.map(read);
+        // The stretched duration reaches every shell animation the toggle started, so all of them end here.
+        for (const animation of document.getAnimations()) {
+          if (animation.timeline instanceof DocumentTimeline && animation.playState !== "finished") {
+            animation.finish();
+          }
+        }
+        return sampled;
+      },
+      { selectors: ROOM_TRACKS, glideNames: GLIDE_ANIMATIONS, points: GLIDE_POINTS },
+    ),
+  );
+  await waitForShellIdle(page);
+  return { before, after: await readTracks(page), centres };
+}
+
 /** Serve the room with the column in the row at 1440 under `motion`; the caller mounts it. */
 async function routeFlankRoom(page: Page, corpus: CorpusPlayback, motion: "no-preference" | "reduce"): Promise<void> {
   await emulateMedia(page, { motion });
@@ -1122,36 +1213,35 @@ function axisGap(tracks: Record<keyof typeof ROOM_TRACKS, TrackBox>): number {
 }
 
 test.describe("the room's one axis", () => {
-  test("at 1280 and 1440 the rows and the composer share a middle with the column absent, in the row and parked", async ({ corpus, mount, page }) => {
-    for (const width of [1280, 1440]) {
-      for (const state of ["absent", "inline", "parked"] as const) {
+  for (const width of [1280, 1440]) {
+    for (const state of COLUMN_STATE_NAMES) {
+      test(`at ${String(width)} the rows and the composer share a middle with the column ${state}`, async ({ corpus, mount, page }) => {
         await routeRoom(page, corpus, width, state);
-        await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
-        expect(axisGap(await restingTracks(page, state)), `${String(width)} ${state}`).toBeLessThanOrEqual(AXIS_SLACK);
-        await page.reload();
-      }
+        await mountRoom(mount);
+        expect(axisGap(await restingTracks(page, state))).toBeLessThanOrEqual(AXIS_SLACK);
+      });
     }
-  });
+  }
 
   test("the composer glides with the rows when the column leaves and joins, with no snap at either toggle", async ({ corpus, mount, page }) => {
     await routeFlankRoom(page, corpus, "no-preference");
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
     await settleFlankRoom(page);
     for (const leg of [`Hide ${SIDECAR_PANELS_NOUN}`, `Show ${SIDECAR_PANELS_NOUN}`]) {
-      const { before, after, frames } = await toggleRecorded(page, leg);
+      const { before, after, centres } = await toggleGlideSampled(page, leg);
       expect(axisGap(before), "before").toBeLessThanOrEqual(AXIS_SLACK);
       expect(axisGap(after), "after").toBeLessThanOrEqual(AXIS_SLACK);
-      // Every painted frame, the glide's included, has the two tracks on one axis.
-      expect(frames.filter((frame) => Math.abs(frame.chat - frame.composer) > AXIS_SLACK)).toStrictEqual([]);
+      // Every point of the glide has the two tracks on one axis.
+      expect(centres.filter((point) => Math.abs(point.chat - point.composer) > AXIS_SLACK)).toStrictEqual([]);
       const travel = centreOf(after.composer) - centreOf(before.composer);
       expect(Math.abs(travel), "the toggle moved nothing, so the read proves nothing").toBeGreaterThan(REAL_TRACK / 2);
-      expect(
-        frames.some((frame) => frame.flipping),
-        "no flip ran, so the read proves nothing",
-      ).toBe(true);
-      // No frame carries the composer the whole way: it starts where it stood and moves over the glide.
-      const widest = Math.max(...frames.slice(1).map((frame, index) => Math.abs(frame.composer - (frames[index]?.composer ?? Number.NaN))));
-      expect(widest).toBeLessThan(Math.abs(travel) * 0.75);
+      const [first, middle, last] = centres;
+      // The composer starts where it stood, is still on its way at the middle of the glide, and ends where the room puts it.
+      const travelled = (centre: number | undefined): number => Math.abs((centre ?? Number.NaN) - centreOf(before.composer));
+      expect(travelled(first?.composer), "the glide's first instant").toBeLessThanOrEqual(AXIS_SLACK);
+      expect(travelled(middle?.composer), "the glide's middle moved").toBeGreaterThan(AXIS_SLACK);
+      expect(travelled(middle?.composer), "the glide's middle has not arrived").toBeLessThan(Math.abs(travel) - AXIS_SLACK);
+      expect(Math.abs((last?.composer ?? Number.NaN) - centreOf(after.composer)), "the glide's last instant").toBeLessThanOrEqual(AXIS_SLACK);
     }
   });
 

@@ -2,6 +2,8 @@
 import type { RpgToolName } from "@orb/contracts/rpg";
 import { RPG_NO_CHANGES_TOOL } from "@orb/contracts/rpg";
 import type { CorpusProviderCompletion } from "./corpus-provider.ts";
+import type { CorpusWireSpend } from "./corpus-wire-spend.ts";
+import { refuseUnspentSteps } from "./corpus-wire-spend.ts";
 
 export const CORPUS_RPG_CARD_NAME = "Corpus provider traveller";
 export const CORPUS_RPG_ITEM_NAME = "Loom shuttle";
@@ -30,11 +32,13 @@ function forcedRequest(body: string): boolean {
 interface CorpusRpgWire {
   readonly completion: (requestBody: string) => CorpusProviderCompletion | undefined;
   readonly requests: readonly string[];
-  readonly remaining: () => number;
 }
 
-/** Refuse a missing or reordered RPG request; unrelated corpus model traffic retains its own script. */
-export function createCorpusRpgWire(): CorpusRpgWire {
+/** Refuse a missing or reordered RPG request; unrelated corpus model traffic retains its own script. An `every-step` wire
+ *  is owned with `using`. */
+export function createCorpusRpgWire(spend: "every-step"): CorpusRpgWire & Disposable;
+export function createCorpusRpgWire(spend: "as-needed"): CorpusRpgWire;
+export function createCorpusRpgWire(spend: CorpusWireSpend): CorpusRpgWire & Disposable {
   const steps: readonly PhysicalStep[] = [
     {
       matches: populateRequest,
@@ -118,7 +122,7 @@ export function createCorpusRpgWire(): CorpusRpgWire {
   let cursor = 0;
   return {
     requests,
-    remaining: (): number => steps.length - cursor,
+    [Symbol.dispose]: (): void => refuseUnspentSteps("RPG corpus wire", spend, steps.length - cursor),
     completion: (body): CorpusProviderCompletion | undefined => {
       const rpgRequest = body.includes('"name":"rpg_state_') || body.includes(`"name":${JSON.stringify(CORPUS_RPG_SCENE_TOOL)}`);
       if (!(rpgRequest && body.includes(CORPUS_RPG_CARD_NAME))) {

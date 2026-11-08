@@ -27,6 +27,7 @@ import {
   workloadRefSchema,
   workloadRowAnyKindSchema,
   workloadScheduleListInputSchema,
+  workloadScheduleListItemSchema,
   workloadScheduleRefSchema,
   workloadScheduleViewSchema,
 } from "@orb/contracts/workloads";
@@ -203,7 +204,7 @@ export const workloadsRouter = t.router({
     ),
 
   listSchedules: authedProcedure
-    .output(z.array(workloadScheduleViewSchema).readonly())
+    .output(z.array(workloadScheduleListItemSchema).readonly())
     .input(workloadScheduleListInputSchema)
     .query(({ ctx, input }) =>
       ctx.services.workloads.listSchedules({

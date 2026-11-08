@@ -7,6 +7,8 @@ import type { ControlledTimers } from "../iso/timers.ts";
 import { createCorpusChatWire } from "./corpus-chat-wire.ts";
 import type { CorpusProviderCompletion } from "./corpus-provider.ts";
 import { CORPUS_RPG_JOURNAL_TOOL, CORPUS_RPG_SCENE_TOOL } from "./corpus-rpg-wire.ts";
+import type { CorpusWireSpend } from "./corpus-wire-spend.ts";
+import { refuseUnspentSteps } from "./corpus-wire-spend.ts";
 
 export const RPG_RECURSION_MODEL = modelIdSchema.parse("corpus-rpg-recursion-v1");
 export const RPG_ROUND_MODEL = modelIdSchema.parse("corpus-rpg-round-v1");
@@ -60,7 +62,6 @@ interface RpgFlightWire {
   readonly attempts: readonly string[];
   readonly recursionRequests: readonly string[];
   readonly roundRequests: readonly string[];
-  readonly remaining: () => { readonly recursion: number; readonly rounds: number };
 }
 
 const recursionReplies: readonly CorpusProviderCompletion[] = [
@@ -125,9 +126,13 @@ function announceRequest(observers: Map<string, PromiseWithResolvers<string>>, b
   }
 }
 
-/** Each admitted depth/request spends its own bytes; the cancelled physical round spends no completed reply. */
-export function createRpgFlightWire(): RpgFlightWire {
-  const physical = createCorpusChatWire();
+/** Each admitted depth/request spends its own bytes; the cancelled physical round spends no completed reply. An
+ *  `every-step` wire is owned with `using`. */
+export function createRpgFlightWire(spend: "every-step"): RpgFlightWire & Disposable;
+export function createRpgFlightWire(spend: "as-needed"): RpgFlightWire;
+export function createRpgFlightWire(spend: CorpusWireSpend): RpgFlightWire & Disposable {
+  // Only its hold is borrowed; the lifecycle replies stay with the lifecycle wire.
+  const physical = createCorpusChatWire("as-needed");
   const attempts: string[] = [];
   const recursionRequests: string[] = [];
   const roundRequests: string[] = [];
@@ -149,7 +154,7 @@ export function createRpgFlightWire(): RpgFlightWire {
     recursionRequests,
     roundRequests,
     hold: physical.hold,
-    remaining: () => ({ recursion: recursionReplies.length - recursion, rounds: roundReplies.length - rounds }),
+    [Symbol.dispose]: (): void => refuseUnspentSteps("RPG flight wire", spend, recursionReplies.length - recursion + roundReplies.length - rounds),
     nextRequest: (cue): Promise<string> => {
       if (observers.has(cue)) {
         throw new Error("an RPG physical request observation is already armed");

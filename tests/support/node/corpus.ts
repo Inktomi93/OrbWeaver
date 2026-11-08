@@ -1,9 +1,10 @@
 // Capsules own disposable persisted graphs. Private intake preserves the source and remains Node-local;
 // only fresh synthetic captures may enter portable publication.
 
+import { createHash } from "node:crypto";
 import { constants, existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import type { FileHandle } from "node:fs/promises";
-import { cp, mkdir, mkdtemp, open, rm, writeFile } from "node:fs/promises";
+import { copyFile, cp, mkdir, mkdtemp, open, rm, writeFile } from "node:fs/promises";
 import { networkInterfaces, tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -11,6 +12,7 @@ import { inspect } from "node:util";
 import { healthResponseSchema } from "@orb/contracts/diagnostics";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, DEFAULT_USER_HANDLE_KEY, OWNER_HANDLES_KEY } from "@orb/contracts/identity";
 import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
+import type { Db } from "@orb/db";
 import { localPath, pendingTurns, workloads } from "@orb/db";
 import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
@@ -18,7 +20,7 @@ import type { DataLayout } from "@orb/server/foundation/data-layout";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { runNicedSync } from "@orb/tooling/floor/process/proc";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
-import { count, inArray } from "drizzle-orm";
+import { count, inArray, sql } from "drizzle-orm";
 import { z } from "zod";
 import { createFrozenClock } from "../iso/clock.ts";
 import type { CorpusPlayback } from "../iso/corpus.ts";
@@ -270,6 +272,63 @@ function parsePrivateCorpusWire(serialized: string): CorpusPlayback {
     throw new Error("Private corpus wire is malformed");
   }
   return wire;
+}
+
+/** What a capture lacks against the shipped migration chain: the migrations its database never applied, and each schema
+ *  object whose DDL differs from a database the whole chain built. Both empty means the capture is current. */
+export interface CorpusFreshness {
+  readonly lag: readonly string[];
+  readonly drift: readonly string[];
+}
+
+// The schema a migration chain leaves, named per object so a drift says where; the migration ledger is not schema.
+async function schemaObjects(db: Db): Promise<ReadonlyMap<string, string>> {
+  const rows = await db.all<{ type: string; name: string; sql: string | null }>(
+    sql`SELECT type, name, sql FROM sqlite_master WHERE name NOT LIKE 'sqlite_%' AND name <> '__drizzle_migrations' ORDER BY type, name`,
+  );
+  return new Map(
+    rows.map((row) => [
+      `${row.type} ${row.name}`,
+      createHash("sha256")
+        .update(row.sql ?? "")
+        .digest("hex"),
+    ]),
+  );
+}
+
+/** Read a capture's migration head and schema against the shipped chain. It opens a copy, so the publication stays as written. */
+export async function readCorpusFreshness(fixture: Pick<CorpusFixture, "layout">): Promise<CorpusFreshness> {
+  const { createDb, pendingMigrations, runMigrations } = await import("@orb/db");
+  const { ownDb, ownFileDb, SHIPPED_MIGRATIONS } = await import("./db.ts");
+  const scratch = await mkdtemp(join(tmpdir(), "orb-corpus-freshness-"));
+  try {
+    const copy = join(scratch, "capture.db");
+    await copyFile(corpusDatabaseFile(fixture.layout), copy);
+    await using captured = ownFileDb(await createDb(`file:${copy}`));
+    // The chain itself, not `freshDb`: that pushes the live schema, and a capture is a database the chain migrated.
+    using shipped = ownDb(await createDb(":memory:"));
+    await runMigrations(shipped.db, SHIPPED_MIGRATIONS);
+    const [lag, capturedSchema, shippedSchema] = await Promise.all([
+      pendingMigrations(captured.db, SHIPPED_MIGRATIONS),
+      schemaObjects(captured.db),
+      schemaObjects(shipped.db),
+    ]);
+    const names = [...new Set([...capturedSchema.keys(), ...shippedSchema.keys()])].toSorted();
+    return { lag, drift: names.filter((name) => capturedSchema.get(name) !== shippedSchema.get(name)) };
+  } finally {
+    await rm(scratch, { recursive: true, force: true });
+  }
+}
+
+/** Refuse a capture that lags the shipped migration chain or whose schema drifted from it, naming what differs. */
+export function assertCorpusFresh(freshness: CorpusFreshness): void {
+  const problems = [
+    ...(freshness.lag.length === 0 ? [] : [`it lags the migration chain by ${String(freshness.lag.length)}: ${freshness.lag.join(", ")}`]),
+    ...(freshness.drift.length === 0 ? [] : [`its schema differs from the shipped chain at ${freshness.drift.join(", ")}`]),
+  ];
+  if (problems.length > 0) {
+    throw new Error(`Corpus capture is stale: ${problems.join("; ")}. Republish it with scripts/corpus-fixture.ts publish.`);
+  }
 }
 
 /** Borrow a completed publication; the committed synthetic input is the lazy default, never a writable app root. */
@@ -819,7 +878,8 @@ async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProdu
   signal?.throwIfAborted();
   await using lifetimes = new AsyncDisposableStack();
   const dbHold = createDbStatementHold();
-  const chatWire = createCorpusChatWire();
+  // This wire only holds requests; the recipe's own lifecycle wire answers them.
+  const chatWire = createCorpusChatWire("as-needed");
   const db = lifetimes.use(ownFileDb(await createDb(layout.databaseUrl, dbHold.wrap))).db;
   signal?.throwIfAborted();
   await runMigrations(db, SHIPPED_MIGRATIONS);
@@ -828,9 +888,10 @@ async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProdu
   signal?.throwIfAborted();
   const clock = options.server.clock ?? createFrozenClock();
   const rpgFlightTimers = createRpgFlightTimers(createControlledTimers(clock));
-  const rpgFlightWire = createRpgFlightWire();
-  const connectionWire = createCorpusConnectionWire();
-  const imageWire = await createCorpusImageWire();
+  const rpgFlightWire = createRpgFlightWire("as-needed");
+  // The connection producer must spend every recipe it enqueues; the image wire serves whichever producers run.
+  const connectionWire = lifetimes.use(createCorpusConnectionWire("every-step"));
+  const imageWire = await createCorpusImageWire("as-needed");
   const sdkExecution = createCorpusSdkExecution();
   const searchWire = createCorpusSearchWire(
     imageWire.wrap(connectionWire.wrap(rpgFlightWire.wrap(chatWire.wrap(options.server.networkExecution?.fetch ?? options.server.providerFetch ?? fetch)))),
@@ -925,9 +986,6 @@ async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProdu
   const search = await seedCorpusSearch(root, { actors, libraries, recall, images: knowledgeVariants.images });
   signal?.throwIfAborted();
   const connection = await seedCorpusConnection(root, actors, connectionWire);
-  if (connectionWire.remaining() !== 0) {
-    throw new Error("completed native connection corpus left unspent physical recipes");
-  }
   signal?.throwIfAborted();
   const libraryViews = await seedCorpusLibraryViews(root, libraries, actors);
   signal?.throwIfAborted();

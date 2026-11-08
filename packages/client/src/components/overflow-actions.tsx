@@ -1,6 +1,7 @@
 // OverflowActions — the ONE overflow row for the shell's action rows (the topbar trail and each list band). Actions stay
-// inline in their declared priority order while they fit the room their row has; the rest move into a "More" menu at the
-// row's end. Nothing wraps, clips or slides under a neighbour.
+// inline in their declared order while they fit the room their row has; the rest move into a "More" menu at the row's
+// end. The row keeps its leading actions, or its trailing ones when its primary action sits at the end (the list band).
+// Nothing wraps, clips or slides under a neighbour.
 //
 // THE ROOM IS THE PARENT'S, NOT THE ROW'S OWN. The row measures the parent's content width minus the floor of every
 // sibling (what each may shrink to) and the gaps, so it can grow back after it has overflowed, and it claims only the
@@ -77,18 +78,36 @@ function runWidth(widths: readonly number[], gap: number): number {
   return shown.reduce((sum, width) => sum + width, 0) + Math.max(0, shown.length - 1) * gap;
 }
 
-/** How many leading actions stay inline in `available`, keeping the declared order: the first that does not fit, and
- *  everything after it, go to the menu. The claim is the width of what then shows. */
-function fitActions(widths: readonly number[], trigger: number, gap: number, available: number): Fit {
+/** Which end of the row keeps its actions inline when room runs out. */
+type Keeps = "leading" | "trailing";
+
+/** What the row has to fit in: the trigger's width, the gap between its boxes, the room, and the end it keeps. */
+interface FitRoom {
+  readonly trigger: number;
+  readonly gap: number;
+  readonly available: number;
+  readonly keeps: Keeps;
+}
+
+/** How many actions stay inline in `available`, keeping the declared order: with `leading` the first that does not fit,
+ *  and everything after it, go to the menu; with `trailing` the last that does not fit, and everything before it. The
+ *  claim is the width of what then shows. */
+function fitActions(widths: readonly number[], { trigger, gap, available, keeps }: FitRoom): Fit {
   const natural = runWidth(widths, gap);
   if (natural <= available + FIT_EPSILON) {
     return { visible: widths.length, claim: natural };
   }
+  const kept = (count: number): readonly number[] => (keeps === "leading" ? widths.slice(0, count) : widths.slice(widths.length - count));
   let visible = widths.length;
-  while (visible > 0 && runWidth([...widths.slice(0, visible), trigger], gap) > available + FIT_EPSILON) {
+  while (visible > 0 && runWidth([...kept(visible), trigger], gap) > available + FIT_EPSILON) {
     visible -= 1;
   }
-  return { visible, claim: runWidth([...widths.slice(0, visible), trigger], gap) };
+  return { visible, claim: runWidth([...kept(visible), trigger], gap) };
+}
+
+/** Whether the action at `index` of `total` is among the `visible` the row keeps inline. */
+function shownAt(index: number, total: number, visible: number, keeps: Keeps): boolean {
+  return keeps === "leading" ? index < visible : index >= total - visible;
 }
 
 /** The parent that lays the row out: a `display: contents` wrapper has no box, so the box above it is the parent. */
@@ -153,11 +172,13 @@ export interface OverflowActionsProps {
   /** The row is the topbar's trail, the owner-CSS hook the shell lays out. */
   readonly topbarTrail?: boolean;
   readonly gap?: "row" | "field";
+  /** Which end of the row keeps its actions when room runs out. A row whose primary action sits at its end keeps `trailing`. */
+  readonly keeps?: Keeps;
   /** The row's `data-slot`; each caller spells its own literal so the owner-CSS surface harvest sees it. */
   readonly slot: string;
 }
 
-export function OverflowActions({ actions, label, topbarTrail = false, gap = "row", slot }: OverflowActionsProps): ReactElement {
+export function OverflowActions({ actions, label, topbarTrail = false, gap = "row", keeps = "leading", slot }: OverflowActionsProps): ReactElement {
   const rootRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popupRef = useRef<HTMLDivElement>(null);
@@ -183,7 +204,7 @@ export function OverflowActions({ actions, label, topbarTrail = false, gap = "ro
       const gapWidth = Number.isNaN(columnGap) ? 0 : columnGap;
       const trigger = triggerWidth > 0 ? triggerWidth : Number.parseFloat(getComputedStyle(root).minWidth);
       const { room, gap: outerGap } = roomFor(root);
-      const next = fitActions(widths, Number.isNaN(trigger) ? 0 : trigger, gapWidth, room);
+      const next = fitActions(widths, { trigger: Number.isNaN(trigger) ? 0 : trigger, gap: gapWidth, available: room, keeps });
       setRowGap(outerGap);
       setFit((previous) => (previous !== null && previous.visible === next.visible && Math.abs(previous.claim - next.claim) < FIT_EPSILON ? previous : next));
     };
@@ -201,16 +222,16 @@ export function OverflowActions({ actions, label, topbarTrail = false, gap = "ro
     }
     measure();
     return (): void => observer.disconnect();
-  }, [idKey, triggerWidth]);
+  }, [idKey, triggerWidth, keeps]);
 
   // Focus on an action that just left the row moves to the trigger instead of dropping to the page.
   useLayoutEffect(() => {
     for (const [index, action] of actions.entries()) {
-      if (index >= visible && items.current.get(action.id)?.contains(document.activeElement) === true) {
+      if (!shownAt(index, actions.length, visible, keeps) && items.current.get(action.id)?.contains(document.activeElement) === true) {
         triggerRef.current?.focus();
       }
     }
-  }, [actions, visible]);
+  }, [actions, visible, keeps]);
 
   // A menu form opens a surface that returns focus to its own, out-of-reach control. Armed when a form is chosen, the
   // rescue notes the surface taking focus, and when that focused element is gone and focus has dropped to the page it
@@ -264,7 +285,7 @@ export function OverflowActions({ actions, label, topbarTrail = false, gap = "ro
     };
   }, []);
 
-  const overflowed = actions.slice(visible);
+  const overflowed = actions.filter((_, index) => !shownAt(index, actions.length, visible, keeps));
   const empty = fit !== null && fit.claim === 0;
   return (
     <Row
@@ -279,7 +300,7 @@ export function OverflowActions({ actions, label, topbarTrail = false, gap = "ro
       style={fit === null ? undefined : { flexBasis: fit.claim, ...(empty ? { marginInlineStart: -rowGap } : {}) }}
     >
       {actions.map((action, index) => {
-        const shown = index < visible;
+        const shown = shownAt(index, actions.length, visible, keeps);
         return (
           <Row
             align="center"

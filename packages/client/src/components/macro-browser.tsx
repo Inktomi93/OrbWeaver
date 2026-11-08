@@ -80,7 +80,7 @@ export function MacroBrowser({ catalog }: MacroBrowserProps): ReactElement {
       <Section kicker="Flags">
         {/* Same paragraph cap as the macro glosses below, and for the same reason (#859 T-3). */}
         <Text cap="prose" voice="gloss">
-          A flag run sits between the braces and the name — {"{{#name}}…{{/name}}"}. Reserved flags parse and carry but do nothing yet.
+          A flag run sits between the braces and the name: {"{{#name}}…{{/name}}"}. Reserved flags parse and carry but do nothing yet.
         </Text>
         <Stack gap="field">
           {MACRO_FLAG_DEFS.filter((def) => def.key !== "closing").map((def) => (
@@ -145,7 +145,7 @@ function MacroRow({ macro }: { readonly macro: CatalogMacro }): ReactElement {
           line is capped on the paragraph, never on the pane. */}
       <Text cap="prose" voice="gloss">
         {meta.description}
-        {signature === "" ? "" : ` — args: ${signature}`}
+        {signature === "" ? "" : `, args: ${signature}`}
       </Text>
     </Stack>
   );
