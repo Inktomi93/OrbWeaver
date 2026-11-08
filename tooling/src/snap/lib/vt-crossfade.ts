@@ -2,8 +2,9 @@
 // judged for a monotonic fade and its declared end state. The trace channels read no opacity, so a snapshot
 // that returns to full opacity mid-fade is invisible to them.
 import type { Page } from "@playwright/test";
+import type { EvidenceGap } from "../../floor/verdict/evidence.ts";
 import type { SnapAnalyzerProblem } from "../contract/analyzer.ts";
-import type { CrossfadeEvidence, CrossfadeTrack } from "../contract/motion.ts";
+import type { CrossfadeEvidence, CrossfadeTrack, CrossfadeTransition } from "../contract/motion.ts";
 
 const CROSSFADE_VERDICTS = ["unsupported", "none", "pass", "fail", "unjudged"] as const;
 export type CrossfadeVerdict = (typeof CROSSFADE_VERDICTS)[number];
@@ -20,65 +21,87 @@ const MIN_JUDGED_SAMPLES = 2;
 
 const SAMPLER_KEY = "__snapCrossfade";
 
-// The page script wraps `document.startViewTransition` once per document and clears its records on every
-// install, so a window reads only the transitions it started. Tracks come from the live animations at
-// `ready`, so any capture name is sampled. A track stops at teardown: its animation goes `idle` there, and
-// a computed read after teardown would report the element's own opacity, not the snapshot's.
+// The page script wraps `document.startViewTransition` for one window and the read puts the page's own function
+// back. It never attaches a handler to the transition's promises: a handler marks a rejection handled, and the
+// page's own unhandled "Transition was skipped" must still reach page-errors. Each transition is followed per
+// rAF through `document.activeViewTransition` and its snapshot animations instead. A transition that leaves
+// `activeViewTransition` with every snapshot animation `finished` on its last frame ran to its end; one that
+// leaves mid-fade was interrupted by a later transition or `skipTransition()`.
 const INSTALL_SAMPLER = `(() => {
   const key = ${JSON.stringify(SAMPLER_KEY)};
-  const existing = globalThis[key];
-  if (existing !== undefined) { existing.records.length = 0; return existing.supported; }
-  const original = typeof document.startViewTransition === "function" ? document.startViewTransition.bind(document) : null;
-  const state = { supported: original !== null, records: [] };
+  if (globalThis[key] !== undefined) globalThis[key].restore();
+  const hadOwn = Object.prototype.hasOwnProperty.call(document, "startViewTransition");
+  const previous = document.startViewTransition;
+  const supported = typeof previous === "function" && "activeViewTransition" in document;
+  const state = { supported, records: [], closed: false, restore: () => {} };
   globalThis[key] = state;
-  if (original === null) return false;
+  if (!supported) return false;
+  state.restore = () => {
+    state.closed = true;
+    if (hadOwn) document.startViewTransition = previous;
+    else delete document.startViewTransition;
+    delete globalThis[key];
+  };
   const snapshot = /^::view-transition-(old|new)\\(/u;
-  document.startViewTransition = (update) => {
-    const transition = original(update);
+  const discover = (record) => document.getAnimations().flatMap((animation) => {
+    const effect = animation.effect;
+    const pseudo = effect === null ? null : effect.pseudoElement;
+    if (typeof pseudo !== "string" || !snapshot.test(pseudo)) return [];
+    const frames = effect.getKeyframes().filter((frame) => frame.opacity !== undefined);
+    if (frames.length < 2) return [];
+    const track = { pseudo, from: Number(frames[0].opacity), to: Number(frames[frames.length - 1].opacity), samples: [] };
+    record.tracks.push(track);
+    return [{ animation, track }];
+  });
+  document.startViewTransition = function (...args) {
+    const transition = previous.apply(document, args);
     const record = { outcome: "unfinished", tracks: [] };
     state.records.push(record);
-    let done = false;
-    transition.finished.then(() => { done = true; if (record.outcome === "unfinished") record.outcome = "finished"; }, () => { done = true; });
-    transition.ready.then(() => {
-      const start = performance.now();
-      const live = document.getAnimations().flatMap((animation) => {
-        const effect = animation.effect;
-        const pseudo = effect === null ? null : effect.pseudoElement;
-        if (typeof pseudo !== "string" || !snapshot.test(pseudo)) return [];
-        const frames = effect.getKeyframes().filter((frame) => frame.opacity !== undefined);
-        if (frames.length < 2) return [];
-        const track = { pseudo, from: Number(frames[0].opacity), to: Number(frames[frames.length - 1].opacity), samples: [] };
-        record.tracks.push(track);
-        return [{ animation, track }];
-      });
-      const frame = () => {
-        if (done) return;
+    let live = null;
+    let start = 0;
+    let endedFinished = false;
+    const frame = () => {
+      if (state.closed) return;
+      const active = document.activeViewTransition === transition;
+      if (!active) {
+        record.outcome = live === null ? "skipped" : endedFinished ? "finished" : "interrupted";
+        return;
+      }
+      if (live === null) {
+        const found = discover(record);
+        if (found.length > 0) { live = found; start = performance.now(); }
+      }
+      if (live !== null) {
         const t = performance.now() - start;
         for (const { animation, track } of live) {
           if (animation.playState === "idle") continue;
           track.samples.push({ t, opacity: Number(getComputedStyle(document.documentElement, track.pseudo).opacity) });
         }
-        requestAnimationFrame(frame);
-      };
-      frame();
-    }, () => { record.outcome = "skipped"; });
+        endedFinished = live.every(({ animation }) => animation.playState === "finished");
+      }
+      requestAnimationFrame(frame);
+    };
+    requestAnimationFrame(frame);
     return transition;
   };
   return true;
 })()`;
 
-const READ_SAMPLER = `(() => {
+const READ_AND_RESTORE = `(() => {
   const state = globalThis[${JSON.stringify(SAMPLER_KEY)}];
-  return state === undefined ? { supported: false, transitions: [] } : { supported: state.supported, transitions: structuredClone(state.records) };
+  if (state === undefined) return { supported: false, transitions: [] };
+  state.restore();
+  return { supported: state.supported, transitions: structuredClone(state.records) };
 })()`;
 
-/** Arm the sampler for one window; transitions started before this call are dropped. */
+/** Arm the sampler for one window; a sampler a crashed window left behind is restored first. */
 export async function installCrossfadeSampler(page: Page): Promise<void> {
   await page.evaluate(INSTALL_SAMPLER);
 }
 
+/** Read the window's samples and put the page's own `startViewTransition` back. */
 export async function readCrossfadeSamples(page: Page): Promise<CrossfadeEvidence> {
-  return await page.evaluate<CrossfadeEvidence>(READ_SAMPLER);
+  return await page.evaluate<CrossfadeEvidence>(READ_AND_RESTORE);
 }
 
 type CrossfadeProblemRow = Pick<SnapAnalyzerProblem, "metric" | "subject" | "observed" | "threshold" | "detail">;
@@ -129,33 +152,53 @@ function trackProblems(track: CrossfadeTrack): SnapAnalyzerProblem[] {
   return problems;
 }
 
-/** A finished transition is judged per snapshot track; a skipped or unfinished one, or a track with too few
- *  frames, is `unjudged` rather than clean. */
+// The tracks of one transition the judge can read, and how many it had to leave unseen.
+function tallyTransition(transition: CrossfadeTransition): { readonly judged: readonly CrossfadeTrack[]; readonly unseen: number } {
+  if (transition.outcome === "unfinished" || transition.outcome === "interrupted") {
+    return { judged: [], unseen: 1 };
+  }
+  const tracks = transition.outcome === "finished" ? transition.tracks : [];
+  const judged = tracks.filter((track) => track.samples.length >= MIN_JUDGED_SAMPLES);
+  return { judged, unseen: tracks.length - judged.length };
+}
+
+/** A finished transition is judged per snapshot track. A skipped one never faded, so it is not judged. An
+ *  unfinished or interrupted one, or a track with too few frames, leaves the window `unjudged` unless another
+ *  transition was judged: a fade the channel could not see to its end is not a clean one. */
 export function judgeCrossfade(evidence: CrossfadeEvidence): CrossfadeJudgement {
   if (!evidence.supported) {
     return { verdict: "unsupported", problems: [] };
   }
-  if (evidence.transitions.length === 0) {
-    return { verdict: "none", problems: [] };
-  }
   const problems: SnapAnalyzerProblem[] = [];
   let judged = 0;
+  let unseen = 0;
   for (const transition of evidence.transitions) {
-    if (transition.outcome !== "finished") {
-      continue;
-    }
-    for (const track of transition.tracks) {
-      if (track.samples.length < MIN_JUDGED_SAMPLES) {
-        continue;
-      }
-      judged += 1;
-      problems.push(...trackProblems(track));
-    }
+    const tally = tallyTransition(transition);
+    judged += tally.judged.length;
+    unseen += tally.unseen;
+    problems.push(...tally.judged.flatMap(trackProblems));
   }
   if (problems.length > 0) {
     return { verdict: "fail", problems };
   }
-  return { verdict: judged === 0 ? "unjudged" : "pass", problems };
+  if (judged > 0) {
+    return { verdict: "pass", problems };
+  }
+  return { verdict: unseen > 0 ? "unjudged" : "none", problems };
+}
+
+/** An `unjudged` window started a fade the channel could not judge, so the motion run cannot claim it. */
+export function crossfadeGaps(evidence: CrossfadeEvidence): EvidenceGap[] {
+  if (judgeCrossfade(evidence).verdict !== "unjudged") {
+    return [];
+  }
+  const outcomes = evidence.transitions.map((transition) => transition.outcome).join(", ");
+  return [
+    {
+      evidence: "a judged view-transition crossfade",
+      detail: `the window started ${String(evidence.transitions.length)} view transition(s) (${outcomes}) and none ran to its end with enough frames to judge the fade. An unfinished transition needs a longer --motion-window; an interrupted one was superseded by a later transition or skipTransition().`,
+    },
+  ];
 }
 
 /** The terminal block: the verdict, then one line per failed track. Empty when no window ran. */
@@ -165,7 +208,7 @@ export function crossfadeReportLines(evidence: CrossfadeEvidence | null): string
   }
   const judgement = judgeCrossfade(evidence);
   return [
-    `vt-crossfade ${judgement.verdict} · transitions ${String(evidence.transitions.length)}`,
+    `vt-crossfade ${judgement.verdict} · transitions ${String(evidence.transitions.length)} (${evidence.transitions.map((transition) => transition.outcome).join(", ")})`,
     ...judgement.problems.map((row) => `[vt-crossfade] FAIL ${row.metric} ${row.subject} observed=${row.observed} threshold=${row.threshold}`),
   ];
 }

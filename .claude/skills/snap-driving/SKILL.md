@@ -150,6 +150,7 @@ are JSON).
   before it and its frame population is empty or near empty.
 - **Read `vt-crossfade=` on a motion run that starts a view transition.** It samples every old and new
   snapshot's opacity per frame. It fails on an opacity return or a fade that ends off its declared value.
+  A window whose only fades were cut off or still running reads `unjudged` and refuses with exit 2.
 - **Measure a route or section fade with `--motion-goto <target>`.** Plain `--motion` after a `--goto` opens its
   window after the navigation and resets the evidence, so the fade is gone (`frames-raw=0/0`). `--motion-goto`
   opens the trace first and runs the `--goto` inside it. It takes the place of `--motion` (one window per run) and

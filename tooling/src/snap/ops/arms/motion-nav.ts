@@ -39,11 +39,20 @@ export async function runMotionWindow(
 ): Promise<MotionWindowResult> {
   const { selector, goto, windowMs } = window;
   await installCrossfadeSampler(page);
-  const audit = await runAudit(
-    page,
-    cdp,
-    { selector, windowMs, ...(goto === null ? {} : { measuredNav: (): Promise<boolean> => navigateInsideWindow(page, goto) }) },
-    measuredClick,
-  );
-  return { ...audit, crossfade: await readCrossfadeSamples(page) };
+  let crossfade: CrossfadeEvidence | null = null;
+  try {
+    const audit = await runAudit(
+      page,
+      cdp,
+      { selector, windowMs, ...(goto === null ? {} : { measuredNav: (): Promise<boolean> => navigateInsideWindow(page, goto) }) },
+      measuredClick,
+    );
+    crossfade = await readCrossfadeSamples(page);
+    return { ...audit, crossfade };
+  } finally {
+    // A window that threw still hands the page its own startViewTransition back.
+    if (crossfade === null) {
+      await readCrossfadeSamples(page);
+    }
+  }
 }

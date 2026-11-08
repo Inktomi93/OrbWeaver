@@ -62,7 +62,7 @@ import type { SnapRatePosture } from "../../lib/rate-posture.ts";
 import { snapTimingPolicy } from "../../lib/rate-posture.ts";
 import type { CpuRateBracket } from "../../lib/throttle.ts";
 import { motionCpuRates } from "../../lib/throttle.ts";
-import { crossfadeReportLines, judgeCrossfade } from "../../lib/vt-crossfade.ts";
+import { crossfadeGaps, crossfadeReportLines, judgeCrossfade } from "../../lib/vt-crossfade.ts";
 import { consumeOptionalSelector, pushStep } from "../flags-support.ts";
 import { runMotionWindow } from "./motion-nav.ts";
 
@@ -149,7 +149,7 @@ async function measureMotionAction(
   const cdp = await page.context().newCDPSession(page);
   // the failure is returned as an evidence gap; report() prints it through printEvidenceGaps and exit() returns EXIT.toolError while gaps.length > 0. Ends if exit() stops reading measurement.gaps.
   try {
-    return await withCpuRate(cdp, motionCpuRates(opts.motionThrottle, opts.cpuThrottle), async (): Promise<MotionMeasurement> => {
+    return await withCpuRate(await pageThrottleSession(page), motionCpuRates(opts.motionThrottle, opts.cpuThrottle), async (): Promise<MotionMeasurement> => {
       const environment = await readBrowserEnvironment(page, session.environmentContract);
       const measuredClick = await prepareMeasuredClick(page, selector);
       await settleAndReset(page, selector, ctx.actionIndex);
@@ -164,7 +164,7 @@ async function measureMotionAction(
       const evaluated = evaluateMotionAudit(data, opts.motionWindowMs, snapTimingPolicy(ratePosture));
       // `lib/motion-gaps.ts` decides when the hints ride and in what order: the CAUSE (nothing moved in this
       // window) prints before the arithmetic it produced (a zero frame population), #2464.
-      const gaps = orderMotionGaps([...evaluated.gaps, ...rateEvidenceGaps(ratePosture)], hints, data);
+      const gaps = orderMotionGaps([...evaluated.gaps, ...rateEvidenceGaps(ratePosture), ...crossfadeGaps(crossfade)], hints, data);
       // A crossfade flicker is a product failure whatever the timing posture, like a dirty animation.
       const pass = evaluated.budgetsPass && judgeCrossfade(crossfade).verdict !== "fail";
       return { timing: ratePosture.timing, data, crossfade, gaps, pass, artifact: null, loadSuspect: motionLoadSuspect(ratePosture) };
@@ -188,6 +188,22 @@ async function measureMotionAction(
 interface CpuRateCdp {
   // biome-ignore lint/style/useConsistentMethodSignatures: method syntax compares `params` bivariantly, which is what lets Playwright's generic `CDPSession.send` satisfy this.
   send(method: string, params: object): Promise<unknown>;
+}
+
+type MotionPage = ArmActionContext["page"];
+
+// Chrome resets the CPU rate to 1x when the CDP session that last set it detaches, so the bracket sends on one
+// session per page that is never detached; it closes with the page.
+const THROTTLE_SESSIONS = new WeakMap<MotionPage, Promise<CpuRateCdp>>();
+
+function pageThrottleSession(page: MotionPage): Promise<CpuRateCdp> {
+  const held = THROTTLE_SESSIONS.get(page);
+  if (held !== undefined) {
+    return held;
+  }
+  const opened = page.context().newCDPSession(page);
+  THROTTLE_SESSIONS.set(page, opened);
+  return opened;
 }
 
 /** Run `work` at the bracket's window rate, then send its restore rate, also on a throw. An equal pair sends

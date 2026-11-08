@@ -17,8 +17,9 @@ export interface CrossfadeTrack {
 }
 
 export interface CrossfadeTransition {
-  /** `unfinished`: still running when the window closed; `skipped`: the browser aborted it before `ready`. */
-  readonly outcome: "finished" | "skipped" | "unfinished";
+  /** `unfinished`: still running when the window closed; `skipped`: it ended before any snapshot animated;
+   *  `interrupted`: it ended mid-fade, superseded by a later transition or `skipTransition()`. */
+  readonly outcome: "finished" | "skipped" | "interrupted" | "unfinished";
   readonly tracks: readonly CrossfadeTrack[];
 }
 
