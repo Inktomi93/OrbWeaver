@@ -8,6 +8,7 @@ import { routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES,
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createFirstBootHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { DATABANK_ADD_DOCUMENT_TITLE } from "#client/features/databank/lib/databank-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const READS = [
@@ -41,7 +42,7 @@ test("with the list on screen an empty bank shows the list's one empty state and
   const content = page.locator('[data-slot="databank-content"]');
   await expect(content.getByRole("heading", { level: 2 })).toBeVisible();
   // The control: the list's own empty state and its Add door are on screen, so the count below is not an empty page.
-  await expect(page.getByRole("button", { name: "Add a document", exact: true }).first()).toBeVisible();
+  await expect(page.getByRole("button", { name: DATABANK_ADD_DOCUMENT_TITLE, exact: true }).first()).toBeVisible();
   await expect(page.locator(EMPTY_STATE)).toHaveCount(1);
   await expect(content.locator(EMPTY_STATE)).toHaveCount(0);
 });
