@@ -35,8 +35,9 @@ test("a bulk schedule persists its owner's funding through the trusted tick and 
     throw new Error("schedule did not admit its workload");
   }
   expect(ref).toMatchObject({ ownerId: null, funderUserId: owner.userId });
+  const fundersBefore = wire.funders.length;
   await executeAdmitted(root, ref.id);
-  expect(wire.funders.at(-1)).toBe(owner.userId);
+  expect(new Set(wire.funders.slice(fundersBefore))).toEqual(new Set([owner.userId]));
   await root.services.workloads.setScheduleEnabled({ caller: owner, id: schedule.id, enabled: false });
   root.clock.advance(CADENCE_INTERVAL_MS.daily);
   await tickWorkloadSchedules(tick);

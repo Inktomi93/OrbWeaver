@@ -217,7 +217,7 @@ const BAND_PORTS = stageBandPorts(BAND);
 const BAND_HELD = table(new Map([[BAND_PORTS.server, { kind: "pid", pid: STAGE_PID }]]));
 
 /** A stranded band no row accounts for, bound and held only by stage-rooted processes. */
-const ROWLESS: StageBandView = { band: BAND, row: null, bandBound: true, bandIsStageRooted: true, healthy: false, liveSessions: [] };
+const ROWLESS: StageBandView = { band: BAND, row: null, bandBound: true, bandIsStageRooted: true, healthy: false, liveSessions: [], liveHolders: [] };
 
 test("the sweep's reap of a band whose stage group survives TERM and KILL is not reported as reaped", ({ scratch }) => {
   const run = planted([BAND_HELD]);

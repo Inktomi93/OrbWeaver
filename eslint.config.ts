@@ -14,6 +14,7 @@ import {
   exportedProductionValues,
   homeReasons,
   homes,
+  OWNED_ROOT_ACQUISITIONS,
   shellOwnedSlots,
 } from "@orb/tooling/eslint";
 import { BUTTON_BOX_OVERFLOW } from "@orb/ui/button/box-hit-area";
@@ -312,8 +313,7 @@ const RAW_DB_OPEN_MESSAGE =
   "A raw `createDb` handle has no owner. Write `using opened = ownDb(await createDb(url))`, or `await using held = ownFileDb(await createDb(url))` for a file the next reader opens. A suite whose subject is the client opens it by hand.";
 const PLAN_ORDER_MESSAGE =
   "A reply plan is judged when it is disposed, and disposal runs in reverse. Declare the plan above every `await using` in its block, so the root closes first.";
-const OWNED_ROOT_ACQUISITIONS =
-  "/^(createServerHarness|createChatRoot|createFirstBootHarness|createCorpusHarness|createAuthModeRoot|createRuntimeRoot|conformanceRoot|coreHttpRoom|coreDispatchRoom|textRoom|followupRoom|personaRoom|turnToolsRoom|signedInBox)$/";
+const OWNED_ROOT_NAMES = `/^(${OWNED_ROOT_ACQUISITIONS.join("|")})$/`;
 // Every helper that returns a plan the caller declares: a new one joins this list in the change that adds it.
 const REPLY_PLAN_ACQUISITIONS =
   "/^(finiteReplies|textProvider|openAiServer|scriptedResponses|physicalScene|physicalExecution|tailSwipeScene|paidReplies|provider|planned|createCorpusChatWire|createCorpusRpgWire|createKnowledgeSwipeWire|createRpgFlightWire|createCorpusConnectionWire|createCorpusImageWire|createCorpusPluginDownloads|replayCorpusSearchWire)$/";
@@ -343,12 +343,12 @@ const OWNED_DB_RESTRICTIONS = [
   },
   {
     // The same order inside a helper's stack: a plan registered after a root is judged before the root closes.
-    selector: `:matches(VariableDeclaration, ExpressionStatement):has(CallExpression[callee.property.name='use'] AwaitExpression > ${ownedCall(OWNED_ROOT_ACQUISITIONS)}) ~ :matches(VariableDeclaration, ExpressionStatement):has(CallExpression[callee.property.name='use'] > ${ownedCall(REPLY_PLAN_ACQUISITIONS)})`,
+    selector: `:matches(VariableDeclaration, ExpressionStatement):has(CallExpression[callee.property.name='use'] AwaitExpression > ${ownedCall(OWNED_ROOT_NAMES)}) ~ :matches(VariableDeclaration, ExpressionStatement):has(CallExpression[callee.property.name='use'] > ${ownedCall(REPLY_PLAN_ACQUISITIONS)})`,
     message: PLAN_ORDER_MESSAGE,
   },
   {
     // A refusal test may leave the root unbuilt; `.resolves` hands the caller a root nobody closes.
-    selector: `${ownedCall(OWNED_ROOT_ACQUISITIONS)}:not(VariableDeclaration[kind=/using/] > VariableDeclarator > AwaitExpression > CallExpression):not(VariableDeclaration[kind=/using/] > VariableDeclarator > ConditionalExpression > AwaitExpression > CallExpression):not(CallExpression[callee.property.name='use'] > AwaitExpression > CallExpression):not(ReturnStatement > AwaitExpression > CallExpression):not(ReturnStatement > CallExpression):not(ArrowFunctionExpression > CallExpression):not(ArrowFunctionExpression > AwaitExpression > CallExpression):not(MemberExpression[property.name='rejects'] > CallExpression[callee.name='expect'] > CallExpression):not(CallExpression:matches([callee.name=/^(beforeAll|beforeEach)$/], [callee.property.name=/^(beforeAll|beforeEach)$/]) > ArrowFunctionExpression > BlockStatement > ExpressionStatement > AssignmentExpression > AwaitExpression > CallExpression)`,
+    selector: `${ownedCall(OWNED_ROOT_NAMES)}:not(VariableDeclaration[kind=/using/] > VariableDeclarator > AwaitExpression > CallExpression):not(VariableDeclaration[kind=/using/] > VariableDeclarator > ConditionalExpression > AwaitExpression > CallExpression):not(CallExpression[callee.property.name='use'] > AwaitExpression > CallExpression):not(ReturnStatement > AwaitExpression > CallExpression):not(ReturnStatement > CallExpression):not(ArrowFunctionExpression > CallExpression):not(ArrowFunctionExpression > AwaitExpression > CallExpression):not(MemberExpression[property.name='rejects'] > CallExpression[callee.name='expect'] > CallExpression):not(CallExpression:matches([callee.name=/^(beforeAll|beforeEach)$/], [callee.property.name=/^(beforeAll|beforeEach)$/]) > ArrowFunctionExpression > BlockStatement > ExpressionStatement > AssignmentExpression > AwaitExpression > CallExpression)`,
     message: OWNED_ROOT_MESSAGE,
   },
   RAW_DB_OPEN_RESTRICTION,
@@ -387,6 +387,16 @@ const PORTABLE_PROCESS_SYNTAX = [
     message: "Pass the executable and argv directly instead of a first bash/sh -c option; a deliberate Bash script invocation remains allowed.",
   },
 ];
+// These existing adapters own native OS process behavior; ordinary tooling callers do not.
+const PROCESS_ADAPTER_HOMES = ["tooling/src/floor/host/platform.ts", "tooling/src/floor/host/platform-probes.ts", "tooling/src/floor/process/proc.ts"] as const;
+
+// A cast compiles over any brand, so the load-emulation brand keeps its one construction door here: the RESULT line it
+// feeds must not echo an argv the browser never received.
+const LOAD_EMULATION_MINT_HOME = "tooling/src/snap/ops/session.ts";
+const LOAD_EMULATION_CAST_RESTRICTION = {
+  selector: ":matches(TSAsExpression, TSTypeAssertion) > TSTypeReference.typeAnnotation[typeName.name='AppliedLoadEmulation']",
+  message: `Only applyLoadEmulation (${LOAD_EMULATION_MINT_HOME}) mints an AppliedLoadEmulation, from what each page was sent. Take the value it returns.`,
+};
 
 // A walker segment is a template literal, which consumes a single backslash: `/\s+/` there emits `/s+/`, a regex over the
 // letter s, and `\d` and `\w` fail the same way. The cooked text is what the page receives, so the selector reads it.
@@ -440,37 +450,32 @@ const TEST_ENVIRONMENT_RESTRICTIONS = [
 // A check true of nothing reads like a check that ran: a negative on a field of a row that was never found compares
 // `undefined`, and `every` holds on an empty list. Both narrow through `@orb/testkit/iso` first.
 // An `every` on an optional receiver parses as a ChainExpression around the call, so the second rule names both forms.
-// A `??` or `||` fallback around the chain hides the ChainExpression from the subject, so its left side is searched too.
-const UNPROVEN_EVERY = "[callee.property.name='every']:not([callee.object.callee.name='nonEmpty'])";
-const NEGATED_EXPECT = "MemberExpression[property.name='not'] > CallExpression.object[callee.name='expect']";
+// A `??` or `||` fallback around the chain hides the ChainExpression from the subject, so both its sides are searched too.
+// "No row matches" is the same check as "every row fails", so `some(...)` held to false needs the same proof.
+const unproven = (method: string): string => `[callee.property.name='${method}']:not([callee.object.callee.name='nonEmpty'])`;
+const EXPECT_CALL = "CallExpression:matches([callee.name='expect'], [callee.object.name='expect'][callee.property.name='soft'])";
+const NEGATED_EXPECT = `MemberExpression[property.name='not'] > ${EXPECT_CALL}.object`;
 const FALLBACK_SUBJECT = `${NEGATED_EXPECT} > LogicalExpression.arguments:first-child:matches([operator='??'], [operator='||'])`;
+const subjectOf = (call: string, method: string): string =>
+  `${call} > CallExpression.arguments:first-child${unproven(method)}, ${call} > ChainExpression.arguments:first-child > CallExpression.expression${unproven(method)}`;
+const FALSE_MATCHER =
+  "CallExpression:matches([callee.property.name=/^(toBe|toEqual|toStrictEqual)$/][arguments.0.value=false], [callee.property.name='toBeFalsy'])";
+const TRUE_MATCHER =
+  "CallExpression:matches([callee.property.name=/^(toBe|toEqual|toStrictEqual)$/][arguments.0.value=true], [callee.property.name='toBeTruthy'])";
+const HELD_FALSE = `:matches(${FALSE_MATCHER} > MemberExpression.callee > ${EXPECT_CALL}.object, ${TRUE_MATCHER} > MemberExpression.callee > ${NEGATED_EXPECT})`;
 const EMPTY_POPULATION_RESTRICTIONS = [
   {
-    selector: `${NEGATED_EXPECT}[arguments.0.type='ChainExpression'], ${FALLBACK_SUBJECT} > ChainExpression.left, ${FALLBACK_SUBJECT} > .left ChainExpression`,
+    selector: `${NEGATED_EXPECT}[arguments.0.type='ChainExpression'], ${FALLBACK_SUBJECT} > ChainExpression:matches(.left, .right), ${FALLBACK_SUBJECT} > :matches(.left, .right) ChainExpression`,
     message:
       "A negative check on an optional chain passes when the chain is missing. Narrow the value first: present(row).field, or nonEmpty(rows)[0], from @orb/testkit/iso.",
   },
   {
-    selector: `CallExpression[callee.name='expect'] > CallExpression.arguments:first-child${UNPROVEN_EVERY}, CallExpression[callee.name='expect'] > ChainExpression.arguments:first-child > CallExpression.expression${UNPROVEN_EVERY}`,
+    selector: subjectOf(EXPECT_CALL, "every"),
     message: "`every` holds on an empty list. Prove the population first: expect(nonEmpty(rows).every(...)), with nonEmpty from @orb/testkit/iso.",
   },
-];
-
-// The newest entry of a recorded request or body history is the previous act's when the act under test sent none. The
-// recorders are the tests' own arrays, so the rule keys on the recorder's name: `requests`, or any name ending in `bodies`.
-const RECORDER = "/^(requests|[A-Za-z]*[bB]odies)$/";
-const recorderAt = (path: string): string => `:matches([${path}.name=${RECORDER}], [${path}.property.name=${RECORDER}])`;
-const TAIL_REQUEST_MESSAGE =
-  "The newest recorded entry is the previous act's when this act sent none. Bracket the act: wireOf(h, act) or quietOf(h, act) from tests/server/domain/chat/scenario-physical.ts, appendedBy(log, act) from @orb/testkit/iso, or the act's own `newest`.";
-const TAIL_REQUEST_RESTRICTIONS = [
   {
-    selector: `CallExpression[callee.property.name='at']${recorderAt("callee.object")}[arguments.0.type='UnaryExpression'][arguments.0.operator='-'][arguments.0.argument.value=1]`,
-    message: TAIL_REQUEST_MESSAGE,
-  },
-  { selector: `CallExpression[callee.property.name=/^findLast(Index)?$/]${recorderAt("callee.object")}`, message: TAIL_REQUEST_MESSAGE },
-  {
-    selector: `MemberExpression[computed=true]${recorderAt("object")}[property.type='BinaryExpression'][property.operator='-'][property.left.property.name='length']`,
-    message: TAIL_REQUEST_MESSAGE,
+    selector: subjectOf(HELD_FALSE, "some"),
+    message: "`some` is false on an empty list. Prove the population first: expect(nonEmpty(rows).some(...)).toBe(false), with nonEmpty from @orb/testkit/iso.",
   },
 ];
 
@@ -481,7 +486,6 @@ const TEST_SYNTAX = [
   ...TEST_ENVIRONMENT_RESTRICTIONS,
   ...OWNED_DB_RESTRICTIONS,
   ...EMPTY_POPULATION_RESTRICTIONS,
-  ...TAIL_REQUEST_RESTRICTIONS,
 ];
 // A suite whose subject is the database client, the testkit's own database owners and the child process that holds a raw connection open and close the handle themselves.
 const CLIENT_SUBJECT_TEST_SYNTAX = TEST_SYNTAX.filter((restriction) => restriction !== RAW_DB_OPEN_RESTRICTION);
@@ -492,8 +496,10 @@ const PAGE_SLEEP_RESTRICTION = {
     "A fixed wait proves nothing. Wait on a rendered witness; an absence window goes through absenceWindow from @orb/testkit/ct with a positive control.",
 };
 
+// One alert picked by position out of every alert on the page: `first()`, `last()` or `nth(n)` over a role read or a role selector.
+const ALERT_LOCATOR = String.raw`:matches([callee.object.callee.property.name='getByRole'][callee.object.arguments.0.value='alert'], [callee.object.callee.property.name='locator'][callee.object.arguments.0.value=/role\s*=\s*["']?alert["']?\s*\]/])`;
 const FIRST_ALERT_RESTRICTION = {
-  selector: "CallExpression[callee.property.name='first'][callee.object.callee.property.name='getByRole'][callee.object.arguments.0.value='alert']",
+  selector: `CallExpression[callee.property.name=/^(first|last|nth)$/]${ALERT_LOCATOR}`,
   message:
     "A first-alert read accepts any toast, including the generic one. Read the notice with noticeToast from @orb/testkit/ct, over the copy production computes for it.",
 };
@@ -2288,7 +2294,13 @@ export default [
   {
     files: ["tests/**/*.{ts,tsx}"],
     plugins: { orb: localPlugin },
-    rules: { "orb/ct-negative-only-case": ["error", { absence: false }], "orb/no-bare-throw-assertion": "error", "orb/no-filtered-case-table": "error" },
+    rules: {
+      "orb/ct-negative-only-case": ["error", { absence: false }],
+      "orb/no-bare-throw-assertion": "error",
+      "orb/no-filtered-case-table": "error",
+      "orb/no-tail-recorder-read": "error",
+      "orb/owned-root-alias": "error",
+    },
   },
   {
     files: ["tests/**/*.ct.tsx", "tests/e2e/**/*.spec.ts"],
@@ -2383,22 +2395,30 @@ export default [
   },
   {
     files: ["tooling/src/**/*.{ts,tsx}", "scripts/**/*.{ts,tsx}"],
-    // These existing adapters own native OS process behavior; ordinary tooling callers do not.
-    ignores: homes("tooling/src/floor/host/platform.ts", "tooling/src/floor/host/platform-probes.ts", "tooling/src/floor/process/proc.ts"),
-    rules: { "no-restricted-syntax": restrictedSyntax(...PORTABLE_PROCESS_SYNTAX) },
+    ignores: homes(...PROCESS_ADAPTER_HOMES, LOAD_EMULATION_MINT_HOME),
+    rules: { "no-restricted-syntax": restrictedSyntax(...PORTABLE_PROCESS_SYNTAX, LOAD_EMULATION_CAST_RESTRICTION) },
   },
+  { files: homes(...PROCESS_ADAPTER_HOMES), rules: { "no-restricted-syntax": restrictedSyntax(LOAD_EMULATION_CAST_RESTRICTION) } },
+  { files: homes(LOAD_EMULATION_MINT_HOME), rules: { "no-restricted-syntax": restrictedSyntax(...PORTABLE_PROCESS_SYNTAX) } },
   {
     files: ["tooling/src/ui-audit/ops/walker/**/*.ts"],
-    rules: { "no-restricted-syntax": restrictedSyntax(...PORTABLE_PROCESS_SYNTAX, WALKER_LETTER_REGEX_SYNTAX, WALKER_UPPERCASE_SVG_TAG_SYNTAX) },
+    rules: {
+      "no-restricted-syntax": restrictedSyntax(
+        ...PORTABLE_PROCESS_SYNTAX,
+        WALKER_LETTER_REGEX_SYNTAX,
+        WALKER_UPPERCASE_SVG_TAG_SYNTAX,
+        LOAD_EMULATION_CAST_RESTRICTION,
+      ),
+    },
   },
   {
     files: ["tests/tooling/**/*.{ts,tsx,mts,cts}"],
     rules: {
       "no-restricted-syntax": restrictedSyntax(
         FILESYSTEM_MODULE_MOCK_RESTRICTION,
+        LOAD_EMULATION_CAST_RESTRICTION,
         ...OWNED_DB_RESTRICTIONS,
         ...EMPTY_POPULATION_RESTRICTIONS,
-        ...TAIL_REQUEST_RESTRICTIONS,
       ),
     },
   },

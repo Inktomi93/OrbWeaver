@@ -9,6 +9,7 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { CorpusWire } from "../iso/corpus.ts";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
 import { createCorpusReadResponder, createCorpusViewerReadResponder } from "../iso/corpus-read-responder.ts";
+import { nonEmpty } from "../iso/non-empty.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import { captureCorpusRead } from "./corpus-capture.ts";
 import { captureCorpusMemberMessages, seedCorpusChatLifecycle } from "./corpus-chat-lifecycle.ts";
@@ -251,7 +252,7 @@ test("notification corpus preserves seven actual viewer and lifecycle snapshots 
   Object.assign(driftedIdentity.memberIdentities.sharedMember.authMe, { [shared.cookie]: true });
   expect(() => serializeCorpusWire(driftedIdentity, secrets)).toThrow("Corpus publication contains private material");
   const publicBytes = serializeCorpusWire(extended, secrets);
-  expect(secrets.some((secret) => publicBytes.includes(secret))).toBe(false);
+  expect(nonEmpty(secrets).some((secret) => publicBytes.includes(secret))).toBe(false);
   for (const identity of Object.values(memberIdentities)) {
     const witness = await seedUserCredentialRows(root, { principal, provider: "custom-openai", key: identity.viewer.handle });
     const knownIdentitySecret = [...secrets, identity.viewer.handle, witness.row.ciphertext, witness.row.iv, witness.row.tag];

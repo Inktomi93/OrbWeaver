@@ -93,8 +93,9 @@ test("unfunded system paid jobs and their retries never borrow the saved owner b
   expect(wire.requests).toEqual(before);
   expect(await root.db.select().from(characterSummaries)).toEqual([]);
   const admitted = await root.services.workloads.start({ caller: owner, ownerId: owner.userId, mode: "bulk", input: DISTILL });
+  const fundersBefore = wire.funders.length;
   await executeAdmitted(root, admitted.id);
-  expect(wire.funders.at(-1)).toBe(owner.userId);
+  expect(new Set(wire.funders.slice(fundersBefore))).toEqual(new Set([owner.userId]));
   expect(await root.db.select({ id: characterSummaries.characterId }).from(characterSummaries)).toEqual([{ id: subject.id }]);
 });
 

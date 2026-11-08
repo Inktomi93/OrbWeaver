@@ -10,6 +10,7 @@ import { emulateMedia, releaseEmulatedMedia, resolvedLength, seedShellState, she
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
+import { nonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Page, PlaywrightTestArgs } from "@playwright/test";
@@ -1257,7 +1258,7 @@ test.describe("the room's one axis", () => {
       expect(Math.abs(centreOf(after.composer) - centreOf(before.composer)), "the toggle moved nothing, so the read proves nothing").toBeGreaterThan(
         REAL_TRACK / 2,
       );
-      expect(frames.some((frame) => frame.flipping)).toBe(false);
+      expect(nonEmpty(frames).some((frame) => frame.flipping)).toBe(false);
     }
   });
 });

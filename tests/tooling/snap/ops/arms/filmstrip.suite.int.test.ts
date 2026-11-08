@@ -3,6 +3,7 @@
 import { existsSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { basename, join } from "node:path";
+import { nonEmpty } from "@orb/testkit/iso";
 import { startFilmstripAuthFixture } from "@orb/testkit/node/helpers";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
@@ -95,6 +96,7 @@ test("a small capture remains ordered and labelled by the true argv action order
   controller.mark(1, { type: "step", action: { kind: "hover", selector: "#menu", page: 0 } });
   now = 40;
   cdp.frame(Buffer.from("three"), 3);
+  const beforeStop = cdp.calls.length;
   const receipt = await controller.stop();
   expect(receipt.frames.map((frame) => [frame.sequence, frame.label])).toEqual([
     [0, "before actions"],
@@ -105,7 +107,7 @@ test("a small capture remains ordered and labelled by the true argv action order
   expect(receipt).toMatchObject({ observedFrames: 3, retainedBytes: 11, acked: 3 });
   expect(receipt.limits[0]).toMatchObject({ complete: true, events: [] });
   expect(cdp.calls.filter((method) => method === "Page.screencastFrameAck")).toHaveLength(3);
-  expect(cdp.calls.slice(-2)).toEqual(["Page.stopScreencast", "detach"]);
+  expect(cdp.calls.slice(beforeStop)).toEqual(["Page.stopScreencast", "detach"]);
 });
 
 test("a multi-action capture over the cap retains first, last, and every action bracket before thinning intermediates", async () => {
@@ -187,7 +189,7 @@ test("the CLI withholds an over-cap action tape whose required brackets cannot a
     detail: expect.stringMatching(/^FILMSTRIP REFUSED: action-relative frame was not retained \(\$\.actions\[\d+\]\.(?:before|at|after)\)$/u),
   });
   expect(index.resultPairs).toContainEqual(["filmstrip", "REFUSED"]);
-  expect(index.artifacts.some((artifact) => artifact.channel === "filmstrip")).toBe(false);
+  expect(nonEmpty(index.artifacts).some((artifact) => artifact.channel === "filmstrip")).toBe(false);
   const fact = index.results?.batches.flatMap((batch) => batch.arms).find((candidate) => candidate.arm === "filmstrip");
   expect(fact).toMatchObject({
     data: {

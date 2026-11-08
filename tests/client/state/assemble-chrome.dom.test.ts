@@ -6,6 +6,7 @@
 import type { ModalDefinition } from "@orb/client/state";
 import { assembleChrome, mobileBarCuration, SECTION_IDS } from "@orb/client/state";
 import { createAuthedComposition, createClientRuntime } from "@orb/testkit/browser";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { chromeWidgets } from "#client/compose/contributors.ts";
 
@@ -44,7 +45,7 @@ test("every section is a rail entry in its declared zone, in section order, carr
   const defaults = new Set(sections.filter((section) => section.rail.zone === undefined).map((section) => entryOf(section.id)?.zone));
   expect(defaults.size).toBe(1);
   expect(declared.length).toBeGreaterThan(0);
-  expect(declared.some((section) => defaults.has(section.rail.zone))).toBe(false);
+  expect(nonEmpty(declared).some((section) => defaults.has(section.rail.zone))).toBe(false);
 });
 
 test("a modal trigger on a chrome placement becomes a chrome entry on that zone with its own label, glyph and order", () => {

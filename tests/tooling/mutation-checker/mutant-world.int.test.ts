@@ -52,6 +52,38 @@ test("a mutant that changes its declaration fails on the importer it breaks, two
   expect(verdict.errors.map(({ fileName }) => fileName)).toEqual([join(root, APP)]);
 });
 
+// Neither reader imports the mutated file: each reads the shape it augments through a global, or through the module it augments.
+const FLAGS = "src/flags.ts";
+const HOST = "src/host.ts";
+const READER = "src/reader.ts";
+const FLAGS_VALUE = "{ dark: true }";
+const augmenting = (augmentation: readonly string[]): string => [`export const FLAGS = ${FLAGS_VALUE};`, ...augmentation].join("\n");
+const AUGMENTED_WORLDS = [
+  {
+    name: "a global",
+    flags: augmenting(["declare global {", "  interface OrbFlags {", "    readonly current: typeof FLAGS;", "  }", "}"]),
+    reader: "export const dark = (flags: OrbFlags): boolean => flags.current.dark;",
+  },
+  {
+    name: "a module",
+    flags: augmenting(['declare module "./host.ts" {', "  interface HostShape {", "    readonly current: typeof FLAGS;", "  }", "}"]),
+    reader: ['import type { HostShape } from "./host.ts";', "export const dark = (host: HostShape): boolean => host.current.dark;"].join("\n"),
+  },
+] as const;
+
+test.for(AUGMENTED_WORLDS)("a mutant whose break shows only through $name it augments fails on the reader", async ({ flags, reader }, { plantedTree }) => {
+  const root = await plantedTree({ [WORLD]: plantedTsconfig({ lib: ["ESNext"] }), [FLAGS]: flags, [HOST]: "export interface HostShape {}", [READER]: reader });
+  using world = MutantWorld.open(root, WORLD);
+  const before = flags.slice(0, flags.indexOf(FLAGS_VALUE)).split("\n");
+  const start = { line: before.length - 1, column: before.at(-1)?.length ?? 0 };
+  const verdict = world.judge({
+    fileName: join(root, FLAGS),
+    replacement: "{}",
+    location: { start, end: { ...start, column: start.column + FLAGS_VALUE.length } },
+  });
+  expect(verdict.errors.map(({ fileName }) => fileName)).toEqual([join(root, READER)]);
+});
+
 test("a mutant outside the world's program passes unread", async ({ plantedTree }) => {
   const root = await plantedTree(TREE);
   using world = MutantWorld.open(root, WORLD);

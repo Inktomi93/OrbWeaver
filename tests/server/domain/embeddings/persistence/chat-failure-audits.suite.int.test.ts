@@ -55,6 +55,7 @@ for (const status of [401, 402]) {
     const successfulCalls = fundingProvider.calls.length;
     expect(successfulCalls).toBeGreaterThan(0);
     fundingProvider.status(status);
+    const errorsBefore = fundingProvider.errors.length;
     let received: Error | undefined;
     try {
       await app.services.chat.send({ principal: await harness.principalFor(harness.ownerId), chatId, content: "The failure control." });
@@ -65,7 +66,7 @@ for (const status of [401, 402]) {
       received = error;
     }
     expect(received).toBeInstanceOf(ProviderError);
-    expect(received).toBe(fundingProvider.errors.at(-1));
+    expect(fundingProvider.errors.slice(errorsBefore)).toContain(received);
     expect(received).toMatchObject({ kind: status === 401 ? "auth_failed" : "billing" });
     const keyNow = (await ownerCaller.credentials.list()).find((row) => row.id === key.id);
     expect(keyNow?.revokedReason).toBe(status === 401 ? "auth_failed" : null);

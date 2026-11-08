@@ -1,5 +1,6 @@
 // Makes a test check prove its population before it judges it: `expect(rows.every(p))` becomes
-// `expect(nonEmpty(rows).every(p))`, and each `?.` on the spine of an `expect(...).not` subject or matcher argument
+// `expect(nonEmpty(rows).every(p))`, `some(p)` held false proves its receiver the same way, and each `?.` on the
+// spine of an `expect(...).not` subject or matcher argument
 // becomes a `present(...)` narrowing, so a missing row throws instead of comparing `undefined`.
 
 import type { Codemod, Edit, GetSelector, RuleConfig, SgNode } from "codemod:ast-grep";
@@ -102,9 +103,36 @@ function planChain(expectCall: SgNode<TS>, subject: SgNode<TS>, plan: Planned): 
   edits.increment({ shape: "chain-not" });
 }
 
-function planEvery(subject: SgNode<TS>, plan: Planned): void {
+const EQUALITY_MATCHERS = new Set(["toBe", "toEqual", "toStrictEqual"]);
+
+/** Whether the check holds the subject false: `.toBe(false)`, `.toBeFalsy()`, `.not.toBe(true)` or `.not.toBeTruthy()`. */
+function heldFalse(expectCall: SgNode<TS>): boolean {
+  const first = expectCall.parent();
+  const negated = first?.kind() === "member_expression" && first.field("property")?.text() === "not";
+  const matcher = negated ? first.parent() : first;
+  const call = matcher?.parent();
+  if (matcher?.kind() !== "member_expression" || call?.kind() !== "call_expression") {
+    return false;
+  }
+  const name = matcher.field("property")?.text() ?? "";
+  const args = argumentsOf(call).map((arg) => arg.text());
+  const expected = negated ? "true" : "false";
+  return (EQUALITY_MATCHERS.has(name) && args.length === 1 && args[0] === expected) || name === (negated ? "toBeTruthy" : "toBeFalsy");
+}
+
+/** `every` holds on an empty list, and `some` held false is the same check: both prove the receiver first. */
+function planProven(expectCall: SgNode<TS>, subject: SgNode<TS>, plan: Planned): void {
   const callee = subject.kind() === "call_expression" ? subject.field("function") : null;
-  if (callee?.kind() !== "member_expression" || callee.field("property")?.text() !== "every" || isOptional(callee)) {
+  const method = callee?.kind() === "member_expression" ? callee.field("property")?.text() : undefined;
+  if (method === "every") {
+    planReceiver(callee, "every", plan);
+  } else if (method === "some" && heldFalse(expectCall)) {
+    planReceiver(callee, "some-false", plan);
+  }
+}
+
+function planReceiver(callee: SgNode<TS> | null, shape: string, plan: Planned): void {
+  if (callee === null || isOptional(callee)) {
     return;
   }
   const receiver = callee.field("object");
@@ -120,7 +148,7 @@ function planEvery(subject: SgNode<TS>, plan: Planned): void {
   }
   plan.edits.push(receiver.replace(`${NON_EMPTY}(${narrowed(receiver)})`));
   plan.helpers.add(NON_EMPTY);
-  edits.increment({ shape: "every" });
+  edits.increment({ shape });
 }
 
 function sourceOf(statement: SgNode<TS>): string | undefined {
@@ -186,7 +214,7 @@ const codemod: Codemod<TS> = (root) => {
       continue;
     }
     planChain(expectCall, subject, plan);
-    planEvery(subject, plan);
+    planProven(expectCall, subject, plan);
   }
   if (plan.edits.length === 0) {
     return Promise.resolve(null);

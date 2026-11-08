@@ -106,11 +106,12 @@ test("a native SDK utility rejection settles its owned timer and strikes once", 
     timersAtExecution = harness.timers.pending();
   });
   const callsBefore = nativeSdk.children.length;
+  const tokensBefore = nativeSdk.tokens.length;
   await expect(
     app.runtime.executor.summarize({ connection, inputs: [{ systemPrompt: "Answer briefly.", userPrompt: "native-auth-rejection utility funding" }] }),
   ).toThrowProviderError("auth_failed");
   expect(nativeSdk.children).toHaveLength(callsBefore + 1);
-  expect(nativeSdk.tokens.at(-1)).toBe("sdk-utility-funding-token");
+  expect(nativeSdk.tokens.slice(tokensBefore)).toEqual(["sdk-utility-funding-token"]);
   expect(timersAtExecution).toBe(timersBefore + 1);
   expect(harness.timers.pending()).toBe(timersBefore);
   expect((await ownerCaller.credentials.list()).find((row) => row.id === key.id)?.revokedReason).toBe("auth_failed");

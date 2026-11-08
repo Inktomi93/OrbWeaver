@@ -86,11 +86,12 @@ test("admin authority does not widen card ownership; foreign and synthetic refus
   const text = await root.services.character.loadCardText(card.id);
   expect(text).toContain(card.description);
   const beforeBodies = fundingProvider.requestBodies.length;
+  const beforeAuthorizations = fundingProvider.authorizations.length;
   await root.services.admin.embedCharacterCard({ principal: owner, characterId: card.id });
   expect(fundingProvider.requestBodies.slice(beforeBodies).map((body) => JSON.parse(body))).toEqual([
     expect.objectContaining({ model: FUNDING_MODEL, input: [text] }),
   ]);
-  expect(fundingProvider.authorizations.at(-1)).toBe(`Bearer ${FUNDING_KEY}`);
+  expect(fundingProvider.authorizations.slice(beforeAuthorizations)).toEqual([`Bearer ${FUNDING_KEY}`]);
   expect(await root.db.select().from(characterEmbeddings)).toMatchObject([
     { characterId: card.id, model: FUNDING_MODEL, dim: 3, embedding: new Float32Array([1, 0, 0]) },
   ]);

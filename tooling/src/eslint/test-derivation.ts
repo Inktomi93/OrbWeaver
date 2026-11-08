@@ -17,7 +17,8 @@ const REASONLESS_CLASSES = new Set(["Error", "DomainOperationError"]);
 const NEGATION = "not";
 const EXPECT = "expect";
 
-function staticName(member: TSESTree.MemberExpression): string | undefined {
+/** A member's property name when the source spells it: `a.b`, `a["b"]` or a substitution-free template. */
+export function staticName(member: TSESTree.MemberExpression): string | undefined {
   const { computed, property } = member;
   if (!computed) {
     return property.type === AST_NODE_TYPES.Identifier ? property.name : undefined;
@@ -28,8 +29,8 @@ function staticName(member: TSESTree.MemberExpression): string | undefined {
   return property.type === AST_NODE_TYPES.TemplateLiteral && property.expressions.length === 0 ? (property.quasis[0]?.value.cooked ?? undefined) : undefined;
 }
 
-// `a?.b`, `a!.b`, `a as T` and `a satisfies T` read the same value as `a`.
-function unwrapped(node: TSESTree.Node): TSESTree.Node {
+/** The expression under its wrappers: `a?.b`, `a!.b`, `a as T` and `a satisfies T` read the same value as `a`. */
+export function unwrapped(node: TSESTree.Node): TSESTree.Node {
   let current = node;
   while (
     current.type === AST_NODE_TYPES.ChainExpression ||
@@ -50,7 +51,8 @@ function rootName(callee: TSESTree.Node): string | undefined {
   return node.type === AST_NODE_TYPES.Identifier ? node.name : undefined;
 }
 
-function constInitOf(sourceCode: Source, identifier: TSESTree.Identifier): TSESLint.Scope.Definition | undefined {
+/** The single `const` declaration an identifier resolves to, or undefined for any other binding. */
+export function constInitOf(sourceCode: Source, identifier: TSESTree.Identifier): TSESLint.Scope.Definition | undefined {
   for (let scope: TSESLint.Scope.Scope | null = sourceCode.getScope(identifier); scope !== null; scope = scope.upper) {
     const variable = scope.set.get(identifier.name);
     if (variable !== undefined) {

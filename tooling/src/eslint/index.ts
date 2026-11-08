@@ -37,6 +37,7 @@ import {
 } from "./test-derivation.ts";
 import type { ExportedLabel } from "./test-labels.ts";
 import { handCopiedLabelRule } from "./test-labels.ts";
+import { ownedRootAliasRule } from "./test-owners.ts";
 import {
   CT_SPEC_RESTRICTIONS,
   CT_STORY_ROOT_RESTRICTIONS,
@@ -44,6 +45,7 @@ import {
   TEST_APPEARANCE_RESTRICTIONS,
   TEST_FABRICATION_RESTRICTIONS,
 } from "./test-policy.ts";
+import { noTailRecorderReadRule } from "./test-recorders.ts";
 import { ctResponderReadsInputRule } from "./test-routes.ts";
 import { ctPollIntervalsSharedRule, evaluateNoScopeCaptureRule, typedTestIdRule, uiCtColorRule } from "./tests.ts";
 import { textVoiceOnlyRule } from "./text-voices.ts";
@@ -90,6 +92,7 @@ export { baseUiDoors } from "./motion.ts";
 export { shellOwnedSlots } from "./shell-slots.ts";
 export { homeReasons, homes } from "./syntax.ts";
 export { exportedLabels, exportedProductionValues } from "./test-labels.ts";
+export { OWNED_ROOT_ACQUISITIONS } from "./test-owners.ts";
 export { conflicts, survives } from "./ui-classes/class-conflict.ts";
 export type { ClassExpression } from "./ui-classes/class-expression.ts";
 export { classesIn, classesWhen, guardsIn, opaqueIn } from "./ui-classes/class-expression.ts";
@@ -254,6 +257,8 @@ export function createOrbPlugin(options: {
       "no-unseeded-type-id": noUnseededTypeIdRule,
       "no-filtered-case-table": noFilteredCaseTableRule,
       "no-spread-corpus-capture": noSpreadCorpusCaptureRule,
+      "no-tail-recorder-read": noTailRecorderReadRule,
+      "owned-root-alias": ownedRootAliasRule,
       "no-hand-copied-label": handCopiedLabelRule(options.exportedLabels, options.exportedProductionValues),
       "no-floorless-control-in-wrap": floorlessControlRule(options.floorlessControls),
       "evaluate-no-scope-capture": evaluateNoScopeCaptureRule,

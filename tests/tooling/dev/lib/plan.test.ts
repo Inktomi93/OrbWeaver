@@ -1,5 +1,6 @@
 // `pnpm dev`'s pure decisions: which source trees restart the server, and which port and proxy target vite gets.
 import { join } from "node:path";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { DEV_PORTS, MAX_TCP_PORT } from "@orb/tooling/floor/host/ports";
 import type { WorkspacePackage } from "../../../../tooling/src/dev/index.ts";
@@ -58,7 +59,7 @@ test("Windows filters actual imported files while other platforms retain explici
   const options = { nodePath: "node", server: pkg(SERVER_PACKAGE), watchRoots: roots, watch: true, cwd: "/repo", env: {} };
   const windows = serverSpawnPlan({ ...options, platform: "win32" });
   expect(windows.args).toContain("--watch");
-  expect(windows.args.some((arg) => arg.startsWith("--watch-path="))).toBe(false);
+  expect(nonEmpty(windows.args).some((arg) => arg.startsWith("--watch-path="))).toBe(false);
   for (const platform of ["linux", "darwin"] as const) {
     expect(serverSpawnPlan({ ...options, platform }).args).toContain(`--watch-path=${roots[0]}`);
   }
@@ -71,7 +72,7 @@ test("a server planned without watch carries no watch flag, so a source edit can
   const fixed = serverSpawnPlan({ ...options, watch: false }).args;
   // POSITIVE CONTROL: the watched plan really does carry the flags the fixed plan must not.
   expect(watched.some((arg) => arg.startsWith("--watch"))).toBe(true);
-  expect(fixed.some((arg) => arg.startsWith("--watch"))).toBe(false);
+  expect(nonEmpty(fixed).some((arg) => arg.startsWith("--watch"))).toBe(false);
   expect(fixed.at(-1)).toBe(watched.at(-1));
 });
 

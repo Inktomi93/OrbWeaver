@@ -4,6 +4,7 @@
 import type { MessageView, TurnOutcome } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { NoConnectionError } from "@orb/inference";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { connectDevice, readRoomCanon } from "@orb/testkit/node/composed";
@@ -28,7 +29,7 @@ test("a valid member binding cannot replace the absent host binding or commit a 
   await expect(h.root.services.chat.send({ principal: member, chatId: h.chatId, content: "hi" })).rejects.toBeInstanceOf(NoConnectionError);
   expect(await readRoomCanon(h.root, h.owner, h.chatId)).toEqual([]);
   expect(await speakerInputs(room.peer.requests, B_CHAT_MODEL)).toEqual([]);
-  expect(room.peer.requests.some((r) => r.method === "POST" && r.headers.get("authorization") === `Bearer ${memberKey}`)).toBe(false);
+  expect(nonEmpty(room.peer.requests).some((r) => r.method === "POST" && r.headers.get("authorization") === `Bearer ${memberKey}`)).toBe(false);
 });
 
 // The committed assistant views of one outcome, as the room's canon reads them back.

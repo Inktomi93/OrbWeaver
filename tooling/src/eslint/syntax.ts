@@ -9,8 +9,9 @@ export const posixPath = (path: string): string => path.replaceAll("\\", "/");
 
 // `(` covers the extglob groups (`+(a|b)`, `@(a)`) and `!` a negation, either of which widens an exemption.
 type GlobPath = `${string}${"*" | "?" | "{" | "[" | "(" | "!"}${string}`;
-/** A repository path with no glob character; a glob literal resolves to `never`, so it fails where an exact file is required. */
-export type ExactPath<H extends string> = H extends GlobPath ? never : H;
+/** A repository path with no glob character; a glob literal resolves to `never`, so it fails where an exact file is required.
+ *  A plain `string` resolves to `never` too: its value is unknown to the checker, so it may hold a glob. */
+export type ExactPath<H extends string> = string extends H ? never : H extends GlobPath ? never : H;
 
 /**
  * The exact files a rule exempts.
@@ -22,7 +23,9 @@ export const homes = <const H extends string>(...paths: ExactPath<H>[]): string[
  * Exempt files keyed to the reason each is exempt.
  * @remarks A glob key fails `tsc` for the same reason as in {@link homes}.
  */
-export const homeReasons = <const R extends Record<string, string>>(reasons: R & Record<Extract<keyof R, GlobPath>, never>): R => reasons;
+export const homeReasons = <const R extends Record<string, string>>(
+  reasons: R & Record<Extract<keyof R, GlobPath>, never> & (string extends keyof R ? never : unknown),
+): R => reasons;
 
 export const memberNamed = (name: string, prefix = ""): string =>
   `:matches([${prefix}computed=false][${prefix}property.name='${name}'], [${prefix}computed=true][${prefix}property.type='Literal'][${prefix}property.value='${name}'], [${prefix}computed=true][${prefix}property.type='TemplateLiteral'][${prefix}property.expressions.length=0][${prefix}property.quasis.0.value.cooked='${name}'])`;

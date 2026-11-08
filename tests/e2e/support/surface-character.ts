@@ -8,7 +8,7 @@ import type { DistributiveOmit } from "@orb/testkit/browser/spec";
 import { controlledPanel, markExpectedSurfaceHttpFailure } from "@orb/testkit/browser/spec";
 import type { SurfaceAuditRequest } from "@orb/testkit/ct";
 import type { SurfaceCoverageInventory } from "@orb/testkit/iso";
-import { parseSurfaceProviderEvidence } from "@orb/testkit/iso";
+import { nonEmpty, parseSurfaceProviderEvidence } from "@orb/testkit/iso";
 import { abortProcedure, attachNativeFile, isTrpcRequestFor, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
@@ -1192,7 +1192,7 @@ async function commandsJourney(flow: CharacterFlow): Promise<void> {
     expectSubject(flow, id, "action");
   }
   expect((await flow.client.character.list.query({ search: name })).items).toHaveLength(0);
-  expect((await flow.client.tag.listTagFilterVocabulary.query()).some((tag) => tag.name === tagName)).toBe(false);
+  expect(nonEmpty(await flow.client.tag.listTagFilterVocabulary.query()).some((tag) => tag.name === tagName)).toBe(false);
   try {
     const parent = await createCommandCharacter(flow, name, subjects);
     const copy = await duplicateCommandCharacter(flow, parent, copyName, subjects);

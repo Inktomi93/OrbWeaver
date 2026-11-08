@@ -301,7 +301,7 @@ test("the real React renderer ranks the planted hot component and retains the ag
     expect(hotFibers.some((fiber) => fiber.reason.kind === "direct-change" && fiber.reason.hooks.includes(0))).toBe(true);
     expect(hiddenActivityFibers.length).toBeGreaterThan(0);
     expect(nonEmpty(hiddenActivityFibers).every((fiber) => fiber.activityState === "retained-hidden")).toBe(true);
-    expect(artifact.ranked.some((row) => row.name === "HiddenActivityWork")).toBe(false);
+    expect(nonEmpty(artifact.ranked).some((row) => row.name === "HiddenActivityWork")).toBe(false);
     expect(fibers.some((fiber) => fiber.name === "Suspense" && fiber.boundary?.status === "fallback")).toBe(true);
     expect(
       fibers.some(

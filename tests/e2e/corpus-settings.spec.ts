@@ -146,7 +146,7 @@ async function restoreBackup(
   },
 ): Promise<RegexScriptRow> {
   await host.trpc.regex.removeScript.mutate({ scriptId: witness.id });
-  expect((await host.trpc.regex.listScripts.query(undefined)).some((script) => script.name === witness.name)).toBe(false);
+  expect(nonEmpty(await host.trpc.regex.listScripts.query(undefined)).some((script) => script.name === witness.name)).toBe(false);
   await chooseBackup(page, input.path, input.folder);
   await assertNativeRestore(page, host, input);
   if (!input.folder) {

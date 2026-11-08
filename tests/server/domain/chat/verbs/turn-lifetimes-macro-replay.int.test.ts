@@ -35,5 +35,5 @@ test("a public SEND saves its actual random-pick draw and SWIPE replays it despi
   const inputs = await Promise.all(h.requests.filter(({ method }) => method === "POST").map(async (request) => await request.clone().text()));
   expect(inputs).toHaveLength(2);
   expect(nonEmpty(inputs).every((body) => body.includes("Scene tone: grim."))).toBe(true);
-  expect(inputs.some((body) => body.includes("Scene tone: wry."))).toBe(false);
+  expect(nonEmpty(inputs).some((body) => body.includes("Scene tone: wry."))).toBe(false);
 });

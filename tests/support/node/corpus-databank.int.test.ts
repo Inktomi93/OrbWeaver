@@ -59,14 +59,14 @@ test("native databank output suppliers retain envelope, canon, consent and workl
   expect(views.active.find((view) => view.id === created.row.id)?.sources).toEqual(["global", "chat", "character"]);
   expect(views.active.find((view) => view.id === hidden.row.id)).toMatchObject({ hidden: true, sources: ["chat"] });
   expect(views.active.find((view) => view.id === memberGlobal.row.id)).toMatchObject({ hidden: false, sources: ["global"] });
-  expect(views.active.some((view) => view.id === memberPrivate.row.id)).toBe(false);
+  expect(nonEmpty(views.active).some((view) => view.id === memberPrivate.row.id)).toBe(false);
   expect(memberViews.page.totalCount).toBe(2);
   expect(memberViews.globalIds).toEqual([memberGlobal.row.id]);
-  expect(memberViews.active.some((view) => view.id === hidden.row.id)).toBe(false);
+  expect(nonEmpty(memberViews.active).some((view) => view.id === hidden.row.id)).toBe(false);
   expect(nonEmpty(memberViews.active).every((view) => !view.hidden)).toBe(true);
   expect(JSON.stringify(memberViews.active)).not.toContain(hidden.row.name);
   expect(result.departedAttachments).toEqual({ global: true, chats: [], characters: [{ id: result.character.id, name: result.character.name }] });
-  expect(result.handedRoom.participants.some((seat) => seat.characterId === result.character.id)).toBe(false);
+  expect(nonEmpty(result.handedRoom.participants).some((seat) => seat.characterId === result.character.id)).toBe(false);
   expect(result.departedActive.find((view) => view.id === created.row.id)?.sources).toEqual(["chat"]);
   const member = await root.internalCallerFor(result.memberUserId);
   const caller = await root.internalCallerFor(result.viewerUserId);

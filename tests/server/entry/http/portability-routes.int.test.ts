@@ -11,6 +11,7 @@ import { PORTABILITY_ROUTES, PORTABLE_DIRECTORIES } from "@orb/contracts/portabi
 import type { WorkloadParamsByKind } from "@orb/contracts/workloads";
 import type { Handle, UserId, WorkloadId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, extractZip, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
@@ -111,7 +112,7 @@ describe("portability routes — GET /api/export/library + POST /api/import/bund
     expect(paths.some((path) => path.startsWith(PORTABLE_DIRECTORIES.tag))).toBe(true);
     const filtered = await zipPaths(new Uint8Array(await (await root.http.request(`${EXPORT_ROUTE}?kinds=preset`)).arrayBuffer()));
     expect(filtered.some((path) => path.startsWith(PORTABLE_DIRECTORIES.preset))).toBe(true);
-    expect(filtered.some((path) => path.startsWith(PORTABLE_DIRECTORIES.tag))).toBe(false);
+    expect(nonEmpty(filtered).some((path) => path.startsWith(PORTABLE_DIRECTORIES.tag))).toBe(false);
   });
 
   test("bundle route: a library zip → import writes the ROWS for the uploading owner", async () => {

@@ -10,6 +10,7 @@
 // A bound this instrument chose for itself is the same class of fact, so the remainder is published on
 // the SELECTOR line, in `selectors-unproven`, and here — never as a run-level NO VERDICT about the app.
 
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import type { Finding } from "@orb/tooling/ui-audit";
 import { designAuditProblems } from "../../../../tooling/src/snap/lib/design-audit-problems.ts";
@@ -44,7 +45,7 @@ test("a truncated selector proof publishes its remainder as a problem row naming
 
 test("a complete selector proof publishes NO cap row — the remainder is a fact, not a permanent warning", () => {
   // The negative control: without it the assertion above would pass on a row emitted unconditionally.
-  expect(problems(0).some((problem) => problem.subject === "selector-proof-cap")).toBe(false);
+  expect(nonEmpty(problems(0)).some((problem) => problem.subject === "selector-proof-cap")).toBe(false);
   // …and the ordinary finding row is still there, so the filter above is not simply finding nothing.
   expect(problems(0).some((problem) => problem.metric === "tap-target")).toBe(true);
 });

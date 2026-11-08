@@ -12,7 +12,7 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import { controlledPanel, settledBox, usesProgrammaticScroll, walkDisclosures } from "@orb/testkit/browser/spec";
 import type { SurfaceWitnessDisposition } from "@orb/testkit/iso";
-import { parseSurfaceProviderEvidence } from "@orb/testkit/iso";
+import { nonEmpty, parseSurfaceProviderEvidence } from "@orb/testkit/iso";
 import { attachNativeFile, isTrpcRequestFor, matchesTrpcRequestInput, readTrpcOutput, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Locator, Response, Route } from "@playwright/test";
@@ -1524,7 +1524,7 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
   let createdId: ChatId | undefined;
   try {
     const { chat } = await flow.client.chat.startChat.mutate({ characterIds: [], opening: "none", title });
-    expect(flow.run.subjects.chats.some(({ id }) => id === chat.id)).toBe(false);
+    expect(nonEmpty(flow.run.subjects.chats).some(({ id }) => id === chat.id)).toBe(false);
     createdId = chat.id;
     await flow.client.chat.updateTitle.mutate({ chatId: chat.id, title });
     await flow.client.chat.commitMessage.mutate({
@@ -1819,7 +1819,7 @@ async function messageFork(flow: Journey, message: MessageView, forks: ChatId[])
   const fork = await readTrpcOutput(await pending, "chat.forkChat", forkResultSchema);
   forks.push(fork.chat.id);
   expect(fork.chat.id).not.toBe(message.chatId);
-  expect(flow.run.subjects.chats.some(({ id }) => id === fork.chat.id)).toBe(false);
+  expect(nonEmpty(flow.run.subjects.chats).some(({ id }) => id === fork.chat.id)).toBe(false);
   const copied = await readCanon(flow, fork.chat.id);
   expect(copied.map(({ content, role }) => ({ content, role }))).toEqual(parent.map(({ content, role }) => ({ content, role })));
   const tail = copied.at(-1);
@@ -2083,7 +2083,7 @@ async function disposableRoom(
   const { name, content, attachments } = request;
   const title = `Surface walk ${name} ${flow.ids.uuid()}`;
   const { chat } = await flow.client.chat.startChat.mutate({ characterIds: [], opening: "none", title });
-  expect(flow.run.subjects.chats.some(({ id }) => id === chat.id)).toBe(false);
+  expect(nonEmpty(flow.run.subjects.chats).some(({ id }) => id === chat.id)).toBe(false);
   try {
     await flow.client.chat.updateTitle.mutate({ chatId: chat.id, title });
     await flow.client.chat.commitMessage.mutate({ chatId: chat.id, content, attachmentAssetIds: [...attachments], timeZone: UTC_TIME_ZONE });

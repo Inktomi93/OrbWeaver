@@ -38,7 +38,7 @@ test("each row's door enqueues its own pass, chained in order, and the rail read
     expect(nonEmpty(rows).every((row) => isReadinessRun(stage, row))).toBe(true);
     // Every other row's pass leaves these rows alone, so one live pass never marks a sibling row running.
     for (const other of CORPUS_READINESS_STAGE_IDS.filter((candidate) => candidate !== stage)) {
-      expect(rows.some((row) => isReadinessRun(other, row))).toBe(false);
+      expect(nonEmpty(rows).some((row) => isReadinessRun(other, row))).toBe(false);
     }
   }
 });

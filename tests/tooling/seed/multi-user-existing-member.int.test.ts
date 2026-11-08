@@ -4,6 +4,7 @@
 import { createServer } from "node:http";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import { EXIT } from "../../../tooling/src/floor/cli/exit-contract.ts";
@@ -72,7 +73,7 @@ test("a member handle that already exists gets the fixture password instead of s
     { id: "user_existing_member", handle: castId<Handle>("Member") },
   ]);
   expect(calls).toContainEqual({ proc: "admin.resetPassword", body: { userId: "user_existing_member", password: MEMBER_PASSWORD } });
-  expect(calls.some((call) => call.proc === "admin.createUser")).toBe(false);
+  expect(nonEmpty(calls).some((call) => call.proc === "admin.createUser")).toBe(false);
 });
 
 test("a missing member is created, and nobody else's password is touched", async () => {

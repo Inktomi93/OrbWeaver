@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { runInNewContext } from "node:vm";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { parse } from "yaml";
 import { z } from "zod";
@@ -101,7 +102,7 @@ test("privileged run approval never checks out candidate code or restores candid
   const job = workflow.jobs.approve;
   expect(job.permissions).toEqual({ contents: "read", "pull-requests": "read", actions: "write" });
   expect(job.steps[0]?.with).toEqual({ ref: "main", "persist-credentials": false });
-  expect(job.steps.some((step) => step.uses?.includes("cache") === true)).toBe(false);
+  expect(nonEmpty(job.steps).some((step) => step.uses?.includes("cache") === true)).toBe(false);
   expect(job.steps.map((step) => step.run ?? "").join("\n")).not.toMatch(/pull_request.head|checkout.*head|release edit|merge/u);
 });
 

@@ -8,6 +8,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { localPath } from "@orb/db";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { afterEach } from "vitest";
 import { parseSnapArgs } from "../../../../tooling/src/snap/index.ts";
@@ -250,7 +251,7 @@ test("publication removes private runtime identities and physical free-page byte
     } finally {
       published.close();
     }
-    expect(source.literals.some((literal) => readFileSync(path).includes(literal))).toBe(false);
+    expect(nonEmpty(source.literals).some((literal) => readFileSync(path).includes(literal))).toBe(false);
     expect(sha256(source.db)).toBe(baseline);
   } finally {
     source.writer.close();

@@ -276,7 +276,7 @@ async function labelMenus(journey: Journey, scope: Locator, prefix: string): Pro
 
 async function disposableLabelDelete(journey: Journey, scope: Locator, prefix: string): Promise<void> {
   const tag = await journey.client.tag.createTag.mutate({ input: { name: `Surface menu ${journey.ids.uuid()}` } });
-  expect(journey.run.subjects.tags.some(({ id }) => id === tag.id)).toBe(false);
+  expect(nonEmpty(journey.run.subjects.tags).some(({ id }) => id === tag.id)).toBe(false);
   try {
     await scope.getByRole("textbox", { name: TAG_FILTER_NAME, exact: true }).fill(tag.name);
     const row = scope.locator(`[data-label-row=${JSON.stringify(tag.id)}]`);
@@ -1208,7 +1208,7 @@ async function createDisposablePreset(journey: Journey, onCreated: (created: Lis
       ]);
       created = await readTrpcOutput(response, "preset.create", presetDetailSchema);
       expect(
-        journey.run.subjects.presets.some(({ id }) => id === created?.id),
+        nonEmpty(journey.run.subjects.presets).some(({ id }) => id === created?.id),
         "Disposable mutation must never select an original preset",
       ).toBe(false);
       onCreated(created);
@@ -1293,7 +1293,7 @@ async function runDisposablePreset(flow: SurfaceFlow): Promise<{ readonly expect
     await journey.page.goto("/");
     await waitForAppReady(journey.page);
     for (const id of createdIds) {
-      expect(journey.run.subjects.presets.some(({ id: originalId }) => originalId === id)).toBe(false);
+      expect(nonEmpty(journey.run.subjects.presets).some(({ id: originalId }) => originalId === id)).toBe(false);
       await journey.client.preset.remove.mutate({ id });
       await expect.poll(async () => (await journey.client.preset.list.query()).some(({ id: remaining }) => remaining === id)).toBe(false);
     }
@@ -1362,7 +1362,7 @@ async function walkPresetCommands(
           menu.getByRole("menuitem", { name: "Duplicate", exact: true }).click(),
         ]);
         const copied = await readTrpcOutput(response, "preset.create", presetDetailSchema);
-        expect(flow.run.subjects.presets.some(({ id }) => id === copied.id)).toBe(false);
+        expect(nonEmpty(flow.run.subjects.presets).some(({ id }) => id === copied.id)).toBe(false);
         created.add(copied.id);
       },
       ready: async () => {
@@ -1623,7 +1623,7 @@ async function exportDisposablePreset(run: PresetCommandRun, name: string): Prom
 
 async function deleteDisposablePreset(run: PresetCommandRun, name: string): Promise<void> {
   const { journey, presetId } = run;
-  expect(journey.run.subjects.presets.some(({ id }) => id === presetId)).toBe(false);
+  expect(nonEmpty(journey.run.subjects.presets).some(({ id }) => id === presetId)).toBe(false);
   const menu = await openPresetRowMenu(journey, name);
   await menu.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
   const confirm = journey.page.getByRole("alertdialog", { name: `Delete "${name}"?`, exact: true });
@@ -1662,7 +1662,7 @@ async function importDisposablePreset(
       if (!(outcome.ok && outcome.created) || outcome.presetId === undefined) {
         throw new Error("The native roundtrip import did not create a separate preset");
       }
-      expect(journey.run.subjects.presets.some(({ id }) => id === outcome.presetId)).toBe(false);
+      expect(nonEmpty(journey.run.subjects.presets).some(({ id }) => id === outcome.presetId)).toBe(false);
       run.created.add(outcome.presetId);
       importedIds.push(outcome.presetId);
     },
@@ -1770,7 +1770,7 @@ async function databankDisposable(journey: Journey): Promise<void> {
   if (document === undefined) {
     throw new Error("Native Paste did not create the disposable document");
   }
-  expect(journey.run.subjects.documents.some(({ id }) => id === document.id)).toBe(false);
+  expect(nonEmpty(journey.run.subjects.documents).some(({ id }) => id === document.id)).toBe(false);
   await attachNativeFile(journey.info, journey.info, "databank-disposable-identity", {
     body: JSON.stringify({ id: document.id, name, provenance: "production-native-paste-disposable", original: false }),
     contentType: "application/json",
@@ -2050,7 +2050,7 @@ export async function walkRefineryExecution(flow: SurfaceFlow): Promise<void> {
   });
   cleanup.defer(async () => {
     for (const characterId of characters) {
-      expect(flow.run.subjects.characters.some(({ id }) => id === characterId)).toBe(false);
+      expect(nonEmpty(flow.run.subjects.characters).some(({ id }) => id === characterId)).toBe(false);
       await flow.client.character.remove.mutate({ characterId });
     }
   });
@@ -2058,7 +2058,7 @@ export async function walkRefineryExecution(flow: SurfaceFlow): Promise<void> {
     for (const sessionId of sessions) {
       await flow.client.refinery.deleteSession.mutate({ sessionId });
     }
-    expect((await flow.client.refinery.listSessions.query()).some(({ id }) => sessions.has(id))).toBe(false);
+    expect(nonEmpty(await flow.client.refinery.listSessions.query()).some(({ id }) => sessions.has(id))).toBe(false);
   });
   cleanup.defer(async () => {
     await flow.client.connection.setBinding.mutate({ task: "summarize", connectionId: previousBinding });
@@ -2078,13 +2078,13 @@ export async function walkRefineryExecution(flow: SurfaceFlow): Promise<void> {
     await flow.client.connection.setBinding.mutate({ task: "summarize", connectionId });
     const copy = await flow.client.character.duplicate.mutate({ characterId: originalId });
     characters.add(copy.id);
-    expect(flow.run.subjects.characters.some(({ id }) => id === copy.id)).toBe(false);
+    expect(nonEmpty(flow.run.subjects.characters).some(({ id }) => id === copy.id)).toBe(false);
     const name = `Surface refinery ${flow.ids.uuid()}`;
     await flow.client.character.update.mutate({ characterId: copy.id, input: { name } });
     const before = await flow.client.character.get.query({ characterId: copy.id });
     const session = await flow.client.refinery.startSession.mutate({ characterId: copy.id, name });
     sessions.add(session.id);
-    expect(flow.run.subjects.refinerySessions.some(({ id }) => id === session.id)).toBe(false);
+    expect(nonEmpty(flow.run.subjects.refinerySessions).some(({ id }) => id === session.id)).toBe(false);
     await attachNativeFile(flow.info, flow.info, "refinery-execution-custody", {
       body: JSON.stringify({
         originalId,
@@ -2350,7 +2350,7 @@ async function disposableRefinery(journey: Journey): Promise<void> {
   }
   const name = `Surface session ${journey.ids.uuid()}`;
   const session = await journey.client.refinery.startSession.mutate({ characterId: character.id, name });
-  expect(journey.run.subjects.refinerySessions.some(({ id }) => id === session.id)).toBe(false);
+  expect(nonEmpty(journey.run.subjects.refinerySessions).some(({ id }) => id === session.id)).toBe(false);
   try {
     const summaries = await journey.client.refinery.listSessions.query();
     const summary = summaries.find(({ id }) => id === session.id);

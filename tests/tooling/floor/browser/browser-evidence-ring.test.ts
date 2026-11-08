@@ -1,6 +1,7 @@
 // Browser evidence retention truth: replacement is not observation/eviction, while protected overflow
 // is incomplete even though no active request body may be dropped.
 
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { exactScope } from "../../../../tooling/src/floor/artifacts/artifact-scope.ts";
 import {
@@ -106,7 +107,7 @@ test("protected oldest evidence may exceed capacity but receipt and limit stay e
   expect(ring.length).toBe(2);
   const reconciled = retentionBatch(ring.receipts("network"));
   expect(reconciled.rows[0]).toMatchObject({ capacity: 2, observed: 3, retained: 2, dropped: 1, complete: false });
-  expect(reconciled.limits.flatMap((limit) => limit.events).some((event) => event.kind === "protected-overflow")).toBe(false);
+  expect(nonEmpty(reconciled.limits.flatMap((limit) => limit.events)).some((event) => event.kind === "protected-overflow")).toBe(false);
   expect(reconciled.limits.flatMap((limit) => limit.events)).toContainEqual(expect.objectContaining({ kind: "eviction", omitted: 1 }));
 });
 

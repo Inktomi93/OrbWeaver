@@ -2,6 +2,8 @@
 // variable only when every path after it awaits, returns or Promise.all-settles that variable; any path that can skip
 // the await, any rebinding, and any declaration outside a block keeps the finding. expect-expect treats a listed
 // wrapper that forwards its own, never rebound, last (body) parameter into a test call as a test-block definition.
+
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import vitest from "@vitest/eslint-plugin";
 import { ESLint, Linter } from "eslint";
@@ -120,7 +122,7 @@ test.for(["@orb/testkit/node", "@orb/testkit/tooling", "@orb/testkit/node/fixtur
       { filename },
     );
     expect(messages.map((message) => message.ruleId)).toEqual(expect.arrayContaining([...rules]));
-    expect(messages.some((message) => message.fatal === true)).toBe(false);
+    expect(nonEmpty(messages).some((message) => message.fatal === true)).toBe(false);
   },
 );
 

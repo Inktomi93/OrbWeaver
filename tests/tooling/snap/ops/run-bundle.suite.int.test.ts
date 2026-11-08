@@ -342,13 +342,13 @@ test("a completed run writes a self-consistent index and its receipt READ comman
   // …and the quiet plant is VISIBLE on the receipt, so this green can never be a run that was quiet only
   // because someone exported the knob.
   expect(index.resultPairs.find(([key]) => key === "load")?.[1]).toContain("(planted)");
-  expect(index.resultPairs.some(([key]) => key === "load-suspect")).toBe(false);
+  expect(nonEmpty(index.resultPairs).some(([key]) => key === "load-suspect")).toBe(false);
   expect(index.findings).toEqual([]);
   expect(index.resultPairs.filter(([key]) => key === "motion-evidence" || key === "motion")).toEqual([
     ["motion-evidence", "live"],
     ["motion", "off"],
   ]);
-  expect(index.verdict.arms.some((arm) => arm.arm === "motion")).toBe(false);
+  expect(nonEmpty(index.verdict.arms).some((arm) => arm.arm === "motion")).toBe(false);
   expect(run.stdout).toContain(`EVIDENCE   ${path}`);
   expect(run.stdout).toContain(`READ       pnpm snap --report ${path} --problems`);
   expect(run.stdout.trimEnd().split("\n").at(-1)).toContain(`index=${path}`);
@@ -565,7 +565,7 @@ test("same-SHA worktrees retain checkout and byte-sensitive dirty identity; exac
   expect(runLines).toHaveLength(20);
   expect(runLines[0]).toContain("RUN history-22 ");
   expect(runLines.at(-1)).toContain("RUN history-03 ");
-  expect(runLines.some((line) => line.includes("history-02"))).toBe(false);
+  expect(nonEmpty(runLines).some((line) => line.includes("history-02"))).toBe(false);
   expect(lines.filter((line) => line.startsWith("RUNS OMITTED"))).toEqual([
     // #1345 — the omission line now names the two filters that widen/narrow the window.
     "RUNS OMITTED valid=7 total=27 showing-newest=20; widen with --last N, narrow with --lane <name>, or inspect a known run with pnpm snap --report <exact-run-id> --problems",
@@ -573,7 +573,7 @@ test("same-SHA worktrees retain checkout and byte-sensitive dirty identity; exac
   expect(lines.filter((line) => line.startsWith("RUN INDEX SKIPPED"))).toEqual([
     expect.stringMatching(/invalid=5 scanned=\d+ examples=3 omitted=2 .*pnpm snap --report/u),
   ]);
-  expect(lines.some((line) => line.startsWith("RUN INDEX REFUSED"))).toBe(false);
+  expect(nonEmpty(lines).some((line) => line.startsWith("RUN INDEX REFUSED"))).toBe(false);
 });
 
 test("failed Git identity reads are unknown with field-level failures rather than a fabricated dirty tree", async ({ runCli, scratch }) => {
@@ -1215,7 +1215,9 @@ test("composite findings correlate the same unsafe-port failure across diagnosti
   });
   // Narrow on purpose: only an ATTRIBUTED instrumentation line is re-typed. Ordinary console prose that
   // happens to carry the same words keeps its own text verbatim (the negative control two rows below).
-  expect(index.findings.filter((finding) => finding.channels.includes("orb-attribution")).some((finding) => finding.what.includes("color:red"))).toBe(false);
+  expect(nonEmpty(index.findings.filter((finding) => finding.channels.includes("orb-attribution"))).some((finding) => finding.what.includes("color:red"))).toBe(
+    false,
+  );
   expect(index.findings.find((finding) => finding.what.startsWith("User preference: [perf]"))).toMatchObject({
     severity: "warning",
     arms: [],

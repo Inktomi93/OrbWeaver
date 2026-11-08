@@ -5,6 +5,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { afterEach } from "vitest";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
@@ -121,7 +122,7 @@ test("a ticket whose waiter is gone is reaped, so it cannot block the queue", ()
   expect(stageWaiterTurn(h.home, b, h.deps)).toEqual({ kind: "exit", code: EXIT.clean });
   expect(h.booted).toEqual([ASK_B]);
   expect(readStageWaits(h.home).map((ticket) => ticket.id)).toEqual([b]);
-  expect(readStageWaits(h.home).some((ticket) => ticket.id === a)).toBe(false);
+  expect(nonEmpty(readStageWaits(h.home)).some((ticket) => ticket.id === a)).toBe(false);
 });
 
 test("a ticket past its deadline expires with exit 2, boots nothing, and the caller is told", async () => {

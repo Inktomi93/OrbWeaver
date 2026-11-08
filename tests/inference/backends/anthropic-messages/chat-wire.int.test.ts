@@ -317,7 +317,7 @@ test("a thinking block the API dropped for a prefix mismatch is counted on the r
 
   const clean = await drive({ model: "claude-fable-5-1", reply: (model) => textReply(model, "ok", []), params });
   expect(clean.turn.providerMetadata).toMatchObject({ provider: "anthropic", thinkingDropped: 0 });
-  expect(clean.errorLog.some((line) => line["event"] === "provider.thinking_dropped")).toBe(false);
+  expect(clean.errorLog).toEqual([]);
 });
 
 test("a turn-scoped system cue after a user row reaches the wire with clear_at under its beta", async () => {
@@ -444,5 +444,5 @@ test("a classifier block is a filter finish with a refusal event carrying its ca
   });
 
   const plain = await drive({ model: "claude-fable-5-1", reply: textReply });
-  expect(plain.turn.events.some((event) => event.kind === "refusal")).toBe(false);
+  expect(plain.turn.events).toEqual([]);
 });

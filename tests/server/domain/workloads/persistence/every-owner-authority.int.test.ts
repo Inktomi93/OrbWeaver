@@ -48,8 +48,9 @@ test("only actual NULL-owner execution carries every-owner authority, independen
   const run = vi.spyOn(root.app.workloadContributions.csls, "run");
   const input = { kind: "csls", params: {} } satisfies StartWorkloadInput;
   const owned = await root.services.workloads.start({ caller: null, funderUserId: null, mode: "singular", ownerId: member.userId, input });
+  const ownedMark = run.mock.calls.length;
   await executeAdmitted(root, owned.id);
-  expect(run.mock.calls.at(-1)?.[0]).toMatchObject({ ownerId: member.userId, userId: member.userId, everyOwnerRun: null });
+  expect(run.mock.calls.slice(ownedMark).at(-1)?.[0]).toMatchObject({ ownerId: member.userId, userId: member.userId, everyOwnerRun: null });
   const storedOwned = await root.services.workloads.get({ caller: member, id: owned.id });
   expect(storedOwned).toMatchObject({ ownerId: member.userId, status: "succeeded", result: { scanned: 2, written: 2 } });
   const foreign = await root.db
@@ -64,6 +65,7 @@ test("only actual NULL-owner execution carries every-owner authority, independen
   const ownerTick = root.app.liveBuses.user.subscribeUserEvents(owner.userId, audience.signal)[Symbol.asyncIterator]().next();
   const memberTick = root.app.liveBuses.user.subscribeUserEvents(member.userId, audience.signal)[Symbol.asyncIterator]().next();
   const bulk = await root.services.workloads.start({ caller: owner, mode: "bulk", ownerId: owner.userId, input });
+  const bulkMark = run.mock.calls.length;
   try {
     await executeAdmitted(root, bulk.id);
     expect(await ownerTick).toEqual({ done: false, value: { type: "corpusRecomputed" } });
@@ -71,7 +73,7 @@ test("only actual NULL-owner execution carries every-owner authority, independen
   } finally {
     audience.abort();
   }
-  const context = run.mock.calls.at(-1)?.[0];
+  const context = run.mock.calls.slice(bulkMark).at(-1)?.[0];
   expect(context?.ownerId).toBeNull();
   expect(context?.everyOwnerRun).toBeDefined();
   expect(present(context).everyOwnerRun).not.toBeNull();
@@ -86,9 +88,11 @@ test("only actual NULL-owner execution carries every-owner authority, independen
   const scores = await root.db.select({ score: characterEmbeddings.hubScore }).from(characterEmbeddings);
   expect(scores.map((row) => row.score)).toEqual([1, 1, 1, 1]);
   const systemBulk = await root.services.workloads.start({ caller: null, funderUserId: null, mode: "bulk", ownerId: member.userId, input });
+  const systemMark = run.mock.calls.length;
   await executeAdmitted(root, systemBulk.id);
-  expect(run.mock.calls.at(-1)?.[0]).toMatchObject({ ownerId: null });
-  expect(present(run.mock.calls.at(-1))[0].everyOwnerRun).not.toBeNull();
+  const systemCall = present(run.mock.calls.slice(systemMark).at(-1));
+  expect(systemCall[0]).toMatchObject({ ownerId: null });
+  expect(systemCall[0].everyOwnerRun).not.toBeNull();
   run.mockRestore();
 });
 

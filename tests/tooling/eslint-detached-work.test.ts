@@ -38,7 +38,7 @@ async function messages(root: string, source: string, path: string): Promise<rea
     },
     { filename },
   );
-  expect(found.some(({ fatal }) => fatal === true)).toBe(false);
+  expect(found.filter(({ fatal }) => fatal === true)).toEqual([]);
   return found;
 }
 

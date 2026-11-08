@@ -3,6 +3,7 @@
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { scaledBudget } from "./_load-budget.ts";
@@ -42,5 +43,5 @@ try {
     ]),
   );
   expect(observed.excluded).toContain("@orb/ui");
-  expect(observed.ids.some((id) => id === "@orb/ui" || id.startsWith("@orb/ui/"))).toBe(false);
+  expect(nonEmpty(observed.ids).some((id) => id === "@orb/ui" || id.startsWith("@orb/ui/"))).toBe(false);
 });

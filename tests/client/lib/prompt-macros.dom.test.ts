@@ -77,7 +77,7 @@ test("plugin macros follow the lead builtins, so sixteen of them never push {{ch
   const { suggestions } = macroCatalog(presetPlane([]), pluginMacroPlanes(many));
   const firstEight = suggestions.slice(0, BARE_POPOVER_ROWS);
   expect(firstEight.map((row) => row.name)).toContain("char");
-  expect(firstEight.some((row) => row.source?.startsWith("Plugin"))).toBe(false);
+  expect(nonEmpty(firstEight).some((row) => row.source?.startsWith("Plugin"))).toBe(false);
   expect(suggestions.filter((row) => row.source?.startsWith("Plugin"))).toHaveLength(many.length);
 });
 

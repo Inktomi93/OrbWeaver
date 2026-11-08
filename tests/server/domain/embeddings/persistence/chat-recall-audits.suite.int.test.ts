@@ -70,6 +70,7 @@ for (const failedRole of ["embed", "chat"] as const) {
     }
     fundingProvider.statusFor(failedRole === "embed" ? queryPath : generationPath, 401, failedRole === "embed" ? 1 : 0);
     const beforeFailure = fundingProvider.calls.length;
+    const errorsBefore = fundingProvider.errors.length;
     let failure: Error | undefined;
     try {
       await app.services.chat.send({ principal, chatId, content: "Recall the ledger again.", intent: FITTED_INTENT });
@@ -81,7 +82,7 @@ for (const failedRole of ["embed", "chat"] as const) {
     }
     expect(failure).toBeInstanceOf(ProviderError);
     expect(failure).toMatchObject({ kind: "auth_failed", apiErrorStatus: 401 });
-    const rejection = fundingProvider.errors.at(-1);
+    const rejection = fundingProvider.errors.slice(errorsBefore).at(-1);
     if (rejection === undefined) {
       throw new Error("the scripted provider recorded no rejection");
     }

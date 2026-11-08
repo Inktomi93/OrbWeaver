@@ -198,7 +198,7 @@ test("bound memory ports retain shared buckets and enforce real join, leave and 
     }
     expect(scoped.some((row) => row.text.includes(MEMORY_PHASES[1].memory))).toBe(true);
     expect(scoped.some((row) => row.text.includes(MEMORY_PHASES[3].memory))).toBe(true);
-    expect(scoped.some((row) => row.text.includes(MEMORY_PHASES[0].memory) || row.text.includes(MEMORY_PHASES[2].memory))).toBe(false);
+    expect(nonEmpty(scoped).some((row) => row.text.includes(MEMORY_PHASES[0].memory) || row.text.includes(MEMORY_PHASES[2].memory))).toBe(false);
     expect(await root.db.select().from(chatSegments).where(eq(chatSegments.chatId, chatId))).not.toEqual([]);
 
     const priorRecall = root.app.recallRecorder.recent({ chatId }).at(-1)?.seq ?? 0;

@@ -20,7 +20,7 @@ import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABLE_DIRECTORIES, PORTABLE_IMPORT_ORDER } from "@orb/contracts/portability";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { createSeededIds, FIXTURE_ID_CURSOR, present } from "@orb/testkit/iso";
+import { createSeededIds, FIXTURE_ID_CURSOR, nonEmpty, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -100,7 +100,7 @@ test("a split native backup skips entries outside native directories instead of 
   const plan = await planTreeImport(files, SPLIT_CAPS);
   expect(plan.layout).toBe("orb");
   expect(plan.skipped).toHaveLength(outside.length);
-  expect(plan.batches.flat().some((file) => outside.includes(file))).toBe(false);
+  expect(nonEmpty(plan.batches.flat()).some((file) => outside.includes(file))).toBe(false);
   for (const paths of uploadedPaths(plan.batches)) {
     expect(admitTreeBatch(paths, plan.layout).kind).toBe("orb");
   }

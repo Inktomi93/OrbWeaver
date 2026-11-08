@@ -13,7 +13,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { present } from "@orb/testkit/iso";
+import { nonEmpty, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { aggregateScope, artifactRef } from "@orb/tooling/floor/artifacts/artifact-scope";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
@@ -107,7 +107,7 @@ test("a failing arm becomes its OWN row carrying the arm's detail — the fallba
   // The row narrows to the arm that produced it, so `next=` is a command that replays exactly this.
   expect(findings[0]?.next).toContain("--arm contrast");
   // The fallback's own text is a CLAIM about the run, and it may only be made when it is true.
-  expect(findings.some((row) => row.what.includes("no structured problem row"))).toBe(false);
+  expect(nonEmpty(findings).some((row) => row.what.includes("no structured problem row"))).toBe(false);
   expect(findings[0]?.disposition).toEqual({ counted: true, reason: "contrast-arm" });
 });
 
@@ -144,7 +144,7 @@ test("a LOAD-SUSPECT arm annotates even a PASSING run, and the annotation can ne
   // names the arm through `where`.)
   expect(annotation?.where).toBe("arm motion");
   // NEGATIVE CONTROL: it is not a voting row, so the passing run stays free of error rows.
-  expect(findings.some((row) => row.severity === "error")).toBe(false);
+  expect(nonEmpty(findings).some((row) => row.severity === "error")).toBe(false);
 });
 
 test("a failing arm gets its row even BESIDE another error row — the arm rows are not a fallback (#1566)", async () => {
@@ -179,7 +179,7 @@ test("a console line that merely MENTIONS an arm does not cost that arm its own 
   expect(problem?.arms).toEqual(["motion"]);
   expect(problem?.what).toBe("dropped frames over budget");
   // The fallback's claim is FALSE here, so it must not be made.
-  expect(findings.some((row) => row.what.includes("no structured problem row"))).toBe(false);
+  expect(nonEmpty(findings).some((row) => row.what.includes("no structured problem row"))).toBe(false);
   // …and the annotation still rides beside it — the arm row REPLACES nothing.
   expect(findings.some((row) => row.severity === "annotation" && row.arms.includes("motion"))).toBe(true);
 });
@@ -208,7 +208,7 @@ test("an arm a PRODUCER already described gets no second row — de-duplicated b
   const problems = findings.filter((row) => row.severity === "error" && row.arms.includes("motion"));
   expect(problems).toHaveLength(1);
   expect(problems[0]?.what).toContain("dropped-frames");
-  expect(findings.some((row) => row.what === "dropped frames over budget")).toBe(false);
+  expect(nonEmpty(findings).some((row) => row.what === "dropped frames over budget")).toBe(false);
 });
 
 // #1780: the exemption row is a note about a measurement that did NOT fail. Two things it must never do:
@@ -241,7 +241,7 @@ test("an EXEMPTION problem row reads as a non-counting annotation naming the car
   expect(row?.what).toBe("loaf-style-layout-count: 0 budgeted, 1 excused (bounded-input-dispatch-layout-frame)");
   // The carve-out is NAMED on the printed row; the conditions stay in the artifact behind `next=`.
   expect(present(row).what).not.toContain("requires all four of");
-  expect(findings.some((finding) => finding.severity === "error")).toBe(false);
+  expect(nonEmpty(findings).some((finding) => finding.severity === "error")).toBe(false);
   // An excused measurement did not vote, and the printed disposition says so.
   expect(row?.disposition).toEqual({ counted: false, reason: "exemption-record-only" });
   expect(row === undefined ? "" : findingDispositionDisplay(row)).toBe("excluded-from-verdict(exemption-record-only)");
@@ -349,5 +349,5 @@ test("recorded timing breaches survive the browser-free reader as non-counting a
   expect(row?.severity).toBe("annotation");
   expect(row?.what).toContain("181ms");
   expect(row?.disposition).toEqual({ counted: false, reason: "timing-record-only" });
-  expect(findings.some((finding) => finding.severity === "error")).toBe(false);
+  expect(nonEmpty(findings).some((finding) => finding.severity === "error")).toBe(false);
 });

@@ -103,7 +103,7 @@ test("canon advances between speakers: speaker k+1's history includes speaker k'
   const requests = await inputs(h);
   expect(requests).toHaveLength(2);
   expect(requests[1]?.length).toBeGreaterThan(requests[0]?.length ?? 0);
-  expect(requests[0]?.some(({ content }) => content.includes("A committed round reply."))).toBe(false);
+  expect(nonEmpty(present(requests[0])).some(({ content }) => content.includes("A committed round reply."))).toBe(false);
   expect(requests[1]?.some(({ content }) => content.includes("A committed round reply."))).toBe(true);
 });
 

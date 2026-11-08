@@ -2,6 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "nod
 import { tmpdir } from "node:os";
 import { basename, dirname, join } from "node:path";
 import process from "node:process";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
@@ -111,7 +112,7 @@ test("native CPD covers package and tooling implementation while excluding non-i
     const pairs = duplicatePairs(report);
     expect(pairs).toContain("package-a.ts ↔ package-b.ts");
     expect(pairs).toContain("tooling-a.ts ↔ tooling-b.ts");
-    expect(pairs.some((pair) => /excluded|generated|vendor/u.test(pair))).toBe(false);
+    expect(nonEmpty(pairs).some((pair) => /excluded|generated|vendor/u.test(pair))).toBe(false);
 
     const config = JSON.parse(readFileSync(fixtureConfig, "utf8")) as JscpdConfig;
     const exposedConfig = join(root, "jscpd-vendor-exposed.json");

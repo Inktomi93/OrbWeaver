@@ -3,6 +3,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import { runInNewContext } from "node:vm";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { parse } from "yaml";
@@ -88,8 +89,8 @@ test("E2E startup dispatch is bounded, immutable and retains failed global setup
   expect(upload?.uses).toBe("actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9");
   // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(upload?.with).toEqual({ name: "reports-e2e-startup-diagnostic-${{ matrix.project }}", path: "reports/\ntest-results/\n", "retention-days": 7 });
-  expect(job.steps.some((step) => step.name?.includes("ORB_CI_QUALIFICATION_GENERATION") === true)).toBe(false);
-  expect(job.steps.some((step) => step.uses?.startsWith("actions/cache/") === true)).toBe(false);
+  expect(nonEmpty(job.steps).some((step) => step.name?.includes("ORB_CI_QUALIFICATION_GENERATION") === true)).toBe(false);
+  expect(nonEmpty(job.steps).some((step) => step.uses?.startsWith("actions/cache/") === true)).toBe(false);
   expect(job.steps.map((step) => step.run ?? "").join("\n")).not.toMatch(/verified|weekly-proof|pnpm verify|test:ct|ORB_SELECT/u);
 });
 
