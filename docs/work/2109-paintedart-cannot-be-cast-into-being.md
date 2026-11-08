@@ -20,7 +20,7 @@ A forgeable witness proves nothing about painted art.
 
 ## Done when
 
-The cast fails tsc, with a type test.
+Every cast to a brand shape outside its minter fails lint, with a plant row in the lint tests for each spelling the rule refuses; a compile failure is ruled out because an empty object cast compiles for every brand shape.
 
 ## Evidence
 
