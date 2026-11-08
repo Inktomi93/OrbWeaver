@@ -645,11 +645,7 @@ test("a custom light theme carries its palette and light polarity through the sh
 });
 
 for (const modalId of ["command", "you"] as const satisfies readonly ModalSlotId[]) {
-  test(`colorization follows the shell into the ${modalId} portal without a remount, and a nested theme scope keeps its own`, async ({
-    corpus,
-    mount,
-    page,
-  }) => {
+  test(`colorization follows the shell into the ${modalId} portal without a remount`, async ({ corpus, mount, page }) => {
     const { root } = await themedRoot(CUSTOM_DARK, { enableThemeColorization: false });
     await using _root = root;
     await routeShell(page, corpus, await root.internalCallerFor(root.ownerId), SERVED);

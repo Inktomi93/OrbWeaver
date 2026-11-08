@@ -5,8 +5,9 @@ import { pixelSurface } from "@orb/testkit/browser/spec";
 import { SEED_THEME_NAMES } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { LIGHT_MID_TONE, MID_GREY, STRONG_ACCENT } from "../../content/theme-scope/contrast-cases.ts";
 import type { CarrierEdgeStory } from "./_checkbox-contrast-stories.tsx";
-import { CUSTOM_LIGHT_MID_TONE, CUSTOM_MID_GREY, INHERITED_ACCENT, STRONG_ACCENT } from "./carrier-scopes.ts";
+import { INHERITED_ACCENT } from "./carrier-scopes.ts";
 
 const STORY = "tests/ui/primitives/checkbox/_checkbox-contrast-stories/CarrierEdgeStory";
 const CARRIERS = [
@@ -18,9 +19,9 @@ const CARRIERS = [
 const CASES = [
   { name: "hearth seed" },
   ...SEED_THEME_NAMES.map((theme) => ({ name: `${theme} seed`, theme })),
-  { name: "custom mid-grey ThemeScope", background: CUSTOM_MID_GREY, accent: STRONG_ACCENT },
-  { name: "custom mid-grey ThemeScope with the inherited app accent", background: CUSTOM_MID_GREY, ambientAccent: INHERITED_ACCENT },
-  { name: "custom light mid-tone ThemeScope", background: CUSTOM_LIGHT_MID_TONE, ambientAccent: INHERITED_ACCENT },
+  { name: "custom mid-grey ThemeScope", background: MID_GREY, accent: STRONG_ACCENT },
+  { name: "custom mid-grey ThemeScope with the inherited app accent", background: MID_GREY, ambientAccent: INHERITED_ACCENT },
+  { name: "custom light mid-tone ThemeScope", background: LIGHT_MID_TONE, ambientAccent: INHERITED_ACCENT },
 ] as const;
 
 function borderColorOf(locator: Locator): Promise<string> {

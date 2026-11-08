@@ -1,5 +1,5 @@
 import { seedShellState } from "@orb/testkit/browser/spec";
-import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { ALERTS_REGION_NAME, createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
@@ -50,7 +50,7 @@ for (const { status, reason } of REFUSALS) {
 
     await page.getByRole("button", { name: CHAT_SEND_NAME, exact: true }).click();
 
-    await expect(page.getByRole("region", { name: "Alerts" }).getByText(reason, { exact: true })).toBeVisible();
+    await expect(page.getByRole("region", { name: ALERTS_REGION_NAME }).getByText(reason, { exact: true })).toBeVisible();
     await expect(input).toHaveValue(DRAFT);
     await expect(page.locator('[data-slot="composer-attachment"]')).toHaveCount(1);
     expect(rpc.count("chat.send")).toBe(0);

@@ -148,19 +148,19 @@ test.describe("pane capability per section", () => {
     await expect(context).toHaveAttribute("data-panel-available", "false");
     await expect(context.locator(".shell-panel-body")).toBeEmpty();
 
-    await openSection(page, "Plugin pages", "extensions");
+    await openSection(page, SECTION_LABELS.extensions, "extensions");
     await expect(page.getByRole("button", { name: LIST_TOGGLE })).toBeVisible();
     await expect(page.getByRole("button", { name: CONTEXT_TOGGLE })).toHaveCount(0);
     await expect(list).toHaveAttribute("data-panel-available", "true");
     await expect(context).toHaveAttribute("data-panel-available", "false");
 
-    await openSection(page, "Chats", "chats");
+    await openSection(page, SECTION_LABELS.chats, "chats");
     await expect(page.getByRole("button", { name: LIST_TOGGLE })).toBeVisible();
     await expect(page.getByRole("button", { name: CONTEXT_TOGGLE })).toBeVisible();
     await expect(list).toHaveAttribute("data-panel-available", "true");
     await expect(context).toHaveAttribute("data-panel-available", "true");
 
-    await openSection(page, "Presets", "presets");
+    await openSection(page, SECTION_LABELS.presets, "presets");
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
     await expect(context).toHaveAttribute("data-panel-mode", "docked");
   });
@@ -239,7 +239,7 @@ test.describe("on a wide desktop", () => {
     const chatsBody = await context.locator(".shell-panel-body").innerHTML();
     await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).click();
     await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
-    await openSection(page, "Presets", "presets");
+    await openSection(page, SECTION_LABELS.presets, "presets");
     await expect(context.locator(".shell-panel-body")).not.toBeEmpty();
     expect(await context.locator(".shell-panel-body").innerHTML()).not.toBe(chatsBody);
   });
@@ -277,10 +277,10 @@ test.describe("on a wide desktop", () => {
     const band = list.locator('[data-slot="list-pane-title"]');
     await expect(band).toBeVisible();
     await expect(list).toHaveAttribute("aria-labelledby", (await band.getAttribute("id")) ?? "");
-    await expect(list).toHaveAccessibleName(/^Chats\b/u);
-    await openSection(page, "Presets", "presets");
-    await expect(band).toContainText("Presets");
-    await expect(list).toHaveAccessibleName(/^Presets\b/u);
+    await expect(list).toHaveAccessibleName(new RegExp(`^${RegExp.escape(SECTION_LABELS.chats)}\\b`, "u"));
+    await openSection(page, SECTION_LABELS.presets, "presets");
+    await expect(band).toContainText(SECTION_LABELS.presets);
+    await expect(list).toHaveAccessibleName(new RegExp(`^${RegExp.escape(SECTION_LABELS.presets)}\\b`, "u"));
   });
 
   test("the skip link is the grid's first tab stop, a real target once revealed, and lands focus on the main column", async ({ mount, page }) => {

@@ -4,8 +4,8 @@ import { expect, test } from "@orb/testkit/node";
 import { TOKENS, TONE_HOST_VAR, TONE_MIX_KNOBS, TONE_ROLES, TONES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { THEME_SCOPE_EMIT_VARS } from "../../../../packages/ui/src/content/theme-scope/emit-vars.ts";
+import { HEARTH_ACCENT } from "./tone-scope-misses.ts";
 
-const HEARTH_ACCENT = TOKENS["color.primary"].value;
 const ROSTER: ReadonlySet<string> = new Set(THEME_SCOPE_EMIT_VARS);
 
 /** Every override field set to a value the clamp keeps, so the scope writes its whole surface. */

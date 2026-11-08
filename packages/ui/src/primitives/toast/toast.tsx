@@ -2,6 +2,7 @@ import type { ToastPortalProps as BasePortalProps, ToastProviderProps as BasePro
 import { Toast as BaseToast } from "@base-ui/react/toast";
 import type { ReactElement } from "react";
 import { Check, CircleAlert, Icon, TriangleAlert, X } from "#primitives/icons";
+import { ALERTS_REGION_NAME } from "./toast-names.ts";
 import { TOAST_ACTION_TONE, toastVariants } from "./variants.ts";
 
 const slots = toastVariants();
@@ -138,7 +139,7 @@ export function Toaster(props: ToasterProps): ReactElement {
           name of this app's NOTIFICATION BELL and of its inbox popover, so every screen carried two
           unrelated "Notifications" landmarks and a rotor/landmark jump was a coin flip. The bell owns the
           word (it is a durable per-user inbox); this stack is transient app alerts, and says so. */}
-      <BaseToast.Viewport aria-label="Alerts" className={viewport} data-slot="toast-viewport">
+      <BaseToast.Viewport aria-label={ALERTS_REGION_NAME} className={viewport} data-slot="toast-viewport">
         <div className={slots.stack()} data-slot="toast-stack">
           <ToastItems swipeDirection={swipeDirection} />
         </div>

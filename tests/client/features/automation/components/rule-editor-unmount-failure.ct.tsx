@@ -2,7 +2,7 @@
 import { automationRuleEditableSchema } from "@orb/contracts/automation";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { ALERTS_REGION_NAME, holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { RuleActionGroupsStory } from "./_rule-action-groups-stories.tsx";
@@ -64,7 +64,7 @@ test("a rule edit flushed by Close editor that then fails is still said, by the 
   await hold.requested;
   expect(calls.count("automation.updateRule")).toBe(1);
   const toast = page
-    .getByRole("region", { name: "Alerts", exact: true })
+    .getByRole("region", { name: ALERTS_REGION_NAME, exact: true })
     .getByRole("alert", { name: "Couldn't save that rule. Your draft is kept.", exact: true });
   await expect(toast).toHaveCount(0);
   hold.fail();

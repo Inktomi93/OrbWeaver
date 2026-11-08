@@ -15,6 +15,7 @@ import { z } from "zod";
 import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
+import { ROUTE_PENDING_NAME } from "#client/routes/route-pending-names.ts";
 import type { AppearanceBootHintState } from "#client/state/appearance-boot-hint.ts";
 import {
   ACTIVE_USER_KEY,
@@ -45,7 +46,7 @@ const SKIP_LINK = "Skip to content";
 // The topbar's list toggle in both regimes: a desktop names the panel, a phone names the screen a tap lands on.
 const LIST_TOGGLE = /^(?:(?:Show|Hide) list panel|Show .+ (?:list|overview))$/u;
 // The phone's curated bar: three tab sections and the You sheet's door.
-const PHONE_BAR = [SECTION_LABELS.home, "Chats", "Characters", "You"] as const;
+const PHONE_BAR = [SECTION_LABELS.home, SECTION_LABELS.chats, SECTION_LABELS.characters, "You"] as const;
 const PHONE_ONLY = "The bottom bar, the You sheet and push-and-Back are the phone's navigation model";
 const PROBE_GREETING = "The shell probe waits.";
 const PROBE_NAMES = ["Shell Probe Aster", "Shell Probe Birch"] as const;
@@ -210,11 +211,15 @@ async function partialCharacterSearch(host: ActorClient): Promise<string> {
 const CHARACTER_SEARCH = "Search characters";
 
 const CENSUS_CASES: readonly CensusCase[] = [
-  { section: "Chats", label: "Chats", census: async (host) => countCensus(await host.trpc.chat.countChats.query({})) },
-  { section: "Characters", label: "Characters", census: async (host) => countCensus(await host.trpc.character.count.query({ archived: false })) },
+  { section: SECTION_LABELS.chats, label: SECTION_LABELS.chats, census: async (host) => countCensus(await host.trpc.chat.countChats.query({})) },
   {
-    section: "Characters",
-    label: "Characters",
+    section: SECTION_LABELS.characters,
+    label: SECTION_LABELS.characters,
+    census: async (host) => countCensus(await host.trpc.character.count.query({ archived: false })),
+  },
+  {
+    section: SECTION_LABELS.characters,
+    label: SECTION_LABELS.characters,
     search: { box: CHARACTER_SEARCH, term: partialCharacterSearch },
     census: async (host) => {
       const search = await partialCharacterSearch(host);
@@ -227,7 +232,7 @@ const CENSUS_CASES: readonly CensusCase[] = [
     },
   },
   {
-    section: "Corpus",
+    section: SECTION_LABELS.corpus,
     label: CORPUS_MODE_LABELS.explore,
     census: async (host) => {
       const { totalDistilled, totalCharacters } = await host.trpc.discovery.catalog.query();
@@ -238,7 +243,7 @@ const CENSUS_CASES: readonly CensusCase[] = [
     },
   },
   {
-    section: "Corpus",
+    section: SECTION_LABELS.corpus,
     mode: CORPUS_MODE_LABELS.insights,
     label: CORPUS_MODE_LABELS.insights,
     listStartsCollapsed: true,
@@ -254,13 +259,17 @@ const CENSUS_CASES: readonly CensusCase[] = [
     },
   },
   {
-    section: "Corpus",
+    section: SECTION_LABELS.corpus,
     mode: CORPUS_MODE_LABELS.labels,
     label: CORPUS_MODE_LABELS.labels,
     census: async (host) => countCensus((await host.trpc.tag.listTagsWithUsage.query()).length),
   },
-  { section: "Presets", label: "Presets", census: async (host) => countCensus((await host.trpc.preset.list.query()).length) },
-  { section: "Databank", label: "Databank", census: async (host) => countCensus((await host.trpc.databank.bankHealth.query()).total) },
+  { section: SECTION_LABELS.presets, label: SECTION_LABELS.presets, census: async (host) => countCensus((await host.trpc.preset.list.query()).length) },
+  {
+    section: SECTION_LABELS.databank,
+    label: SECTION_LABELS.databank,
+    census: async (host) => countCensus((await host.trpc.databank.bankHealth.query()).total),
+  },
   {
     section: SECTION_LABELS.refinery,
     label: SECTION_LABELS.refinery,
@@ -422,7 +431,7 @@ test.describe("committed corpus shell", () => {
     await page.waitForLoadState("load");
     const retry = page.getByRole("button", { name: "Retry", exact: true });
     await expect(retry).toBeVisible();
-    await expect(page.getByRole("status", { name: "Loading" })).toHaveCount(0);
+    await expect(page.getByRole("status", { name: ROUTE_PENDING_NAME })).toHaveCount(0);
     // Each document asked for the chunk once, so nothing loops.
     expect(chunkRequests).toBe(documents);
     await Promise.all([page.waitForEvent("framenavigated"), retry.click()]);
@@ -470,7 +479,7 @@ test.describe("committed corpus shell", () => {
     await held.requested;
     await expect(rail(page)).toBeVisible();
     await expect(page.locator(".shell-topbar")).toBeVisible();
-    await expect(page.getByRole("status", { name: "Loading", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("status", { name: ROUTE_PENDING_NAME, exact: true })).toHaveCount(0);
     // The list region is the one that waits: it holds its pending status while the read is held.
     await expect(listPanel(page).getByRole("status", { name: /^Loading/u })).toBeVisible();
     await held.release();
@@ -552,9 +561,9 @@ test.describe("committed corpus shell on a phone", () => {
       throw new Error("Corpus has no character or document");
     }
     const walks: readonly { readonly section: string; readonly open: (page: Page) => Promise<void> }[] = [
-      { section: "Chats", open: async (p) => p.getByRole("list", { name: CHAT_LIST_NAME, exact: true }).getByRole("button").first().click() },
-      { section: "Characters", open: async (p) => libraryRow(p, character.name).click() },
-      { section: "Databank", open: async (p) => listPanel(p).getByRole("button", { name: document.name }).first().click() },
+      { section: SECTION_LABELS.chats, open: async (p) => p.getByRole("list", { name: CHAT_LIST_NAME, exact: true }).getByRole("button").first().click() },
+      { section: SECTION_LABELS.characters, open: async (p) => libraryRow(p, character.name).click() },
+      { section: SECTION_LABELS.databank, open: async (p) => listPanel(p).getByRole("button", { name: document.name }).first().click() },
     ];
     await openHome(page);
     for (const { section, open } of walks) {
@@ -578,7 +587,7 @@ test.describe("committed corpus shell on a phone", () => {
   test("an open room gives the tab bar's row to the room, and Back closes the details sheet before the room", { tag: "@smoke" }, async ({ page, isMobile }) => {
     test.skip(!isMobile, PHONE_ONLY);
     await openHome(page);
-    await reachOnPhone(page, "Chats");
+    await reachOnPhone(page, SECTION_LABELS.chats);
     const grid = page.locator(GRID);
     const context = page.locator(CONTEXT_PANEL);
     await page.getByRole("list", { name: CHAT_LIST_NAME, exact: true }).getByRole("button").first().click();
@@ -614,7 +623,7 @@ test.describe("committed corpus shell on a phone", () => {
     await expect(grid).toHaveAttribute("data-section", "home");
     await expect(grid).not.toHaveAttribute("data-room-screen", /.*/u);
 
-    await reachOnPhone(page, "Chats");
+    await reachOnPhone(page, SECTION_LABELS.chats);
     await page.getByRole("list", { name: CHAT_LIST_NAME, exact: true }).getByRole("button").first().click();
     await expect(grid).toHaveAttribute("data-room-screen", "true");
     await page.getByRole("button", { name: "Back to Chats", exact: true }).click();
@@ -629,7 +638,7 @@ test.describe("committed corpus shell on a phone", () => {
       throw new Error("Corpus has no character");
     }
     await openHome(page);
-    await reachOnPhone(page, "Characters");
+    await reachOnPhone(page, SECTION_LABELS.characters);
     await libraryRow(page, character.name).click();
     await expect(page.getByRole("button", { name: "Back to Characters", exact: true })).toBeVisible();
     await expect(rail(page)).toBeVisible();
@@ -638,7 +647,7 @@ test.describe("committed corpus shell on a phone", () => {
   test("the topbar toggle drops the Corpus roster screen to its overview and restores it", { tag: "@smoke" }, async ({ page, isMobile }) => {
     test.skip(!isMobile, PHONE_ONLY);
     await openHome(page);
-    await reachOnPhone(page, "Corpus");
+    await reachOnPhone(page, SECTION_LABELS.corpus);
     const list = listPanel(page);
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
     await page.getByRole("button", { name: `Show ${CORPUS_MODE_LABELS.explore} overview`, exact: true }).click();
@@ -655,7 +664,7 @@ test.describe("committed corpus shell on a phone", () => {
       throw new Error("Corpus has no character");
     }
     await openHome(page);
-    await reachOnPhone(page, "Characters");
+    await reachOnPhone(page, SECTION_LABELS.characters);
     const row = libraryRow(page, character.name);
     await row.focus();
     await row.press("Enter");
@@ -674,7 +683,7 @@ test.describe("committed corpus shell on a phone", () => {
     );
     try {
       await openHome(page);
-      await reachOnPhone(page, "Characters");
+      await reachOnPhone(page, SECTION_LABELS.characters);
       await page.getByRole("textbox", { name: "Search characters", exact: true }).fill("Shell Probe");
       await libraryRow(page, PROBE_NAMES[0]).click();
       const main = page.getByRole("main", { name: "Characters content", exact: true });

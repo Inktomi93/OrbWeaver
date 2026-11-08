@@ -440,6 +440,8 @@ const TEST_CONSTANT_HOMES = {
     "warningNotice: the notice each chat warning code raises, which a notice case reads its expected toast from",
   "packages/client/src/features/config/lib/config-copy.ts": "CONFIG_SECTION_LABEL: the settings section labels",
   "packages/client/src/lib/dialog-verbs.ts": "DIALOG_VERBS: the exit and commit words every dialog prints, which the surface walk drivers locate controls by",
+  "packages/client/src/routes/route-pending-names.ts":
+    "ROUTE_PENDING_NAME: the router's pending mark, which a slow-guard case reads to prove the window is open",
   "packages/client/src/components/shared-control-names.ts":
     "TAG_NAME_FIELD_NAME and its siblings: the names of controls a shared component mounts for several features",
   "packages/client/src/features/chat/lib/transcript-copy.ts": "CHAT_PRINT_COVERAGE: the printed line for a partial transcript",

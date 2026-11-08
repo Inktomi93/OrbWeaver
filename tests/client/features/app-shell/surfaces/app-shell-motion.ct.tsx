@@ -558,8 +558,8 @@ test.describe("a section swap", () => {
     const grid = page.locator(".shell-grid");
     for (const [label, id] of [
       [SECTION_LABELS.home, "home"],
-      ["Chats", "chats"],
-      ["Characters", "characters"],
+      [SECTION_LABELS.chats, "chats"],
+      [SECTION_LABELS.characters, "characters"],
     ] as const) {
       await page.locator(".shell-rail").getByRole("button", { name: label, exact: true }).click();
       await expect(grid).toHaveAttribute("data-section", id);

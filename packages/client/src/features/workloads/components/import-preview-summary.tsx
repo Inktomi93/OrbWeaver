@@ -1,6 +1,6 @@
 // The staged folder's dry run in the preflight: counts per kind and skip reasons up front, names behind a toggle.
 
-import type { ImportPreview, ImportPreviewKind, ImportPreviewList } from "@orb/contracts/import";
+import type { ImportPreview } from "@orb/contracts/import";
 import { IMPORT_PREVIEW_KINDS } from "@orb/contracts/import";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -10,30 +10,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import type { ImportPreviewState } from "../hooks/use-library-import.ts";
-import { IMPORT_PREVIEW_RETRY_NAME } from "../lib/portability-model.ts";
-
-const KIND_NOUNS: Readonly<Record<ImportPreviewKind, readonly [one: string, many: string]>> = {
-  characters: ["character", "characters"],
-  chats: ["chat", "chats"],
-  personas: ["persona", "personas"],
-  worlds: ["world book", "world books"],
-  presets: ["preset", "presets"],
-  themes: ["theme", "themes"],
-  backgrounds: ["background", "backgrounds"],
-  groups: ["group", "groups"],
-  orphans: ["character made from chats with no card", "characters made from chats with no card"],
-};
-
-function counted(count: number, [one, many]: readonly [string, string]): string {
-  return `${String(count)} ${count === 1 ? one : many}`;
-}
-
-function kindLine(kind: ImportPreviewKind, list: ImportPreviewList): string {
-  const owned = list.items.filter((item) => item.inLibrary === true).length;
-  const bare = list.items.filter((item) => item.withoutArt === true).length;
-  const notes = [...(owned === 0 ? [] : [`${String(owned)} already in your library`]), ...(bare === 0 ? [] : [`${String(bare)} will import without art`])];
-  return [counted(list.total, KIND_NOUNS[kind]), ...notes].join(", ");
-}
+import { counted, IMPORT_PREVIEW_RETRY_NAME, KIND_NOUNS, previewKindLine } from "../lib/portability-model.ts";
 
 function namesLine(names: readonly string[], total: number): string {
   const unlisted = total - names.length;
@@ -64,7 +41,7 @@ function PreviewReport({ preview }: { readonly preview: ImportPreview }): ReactE
     <Stack gap="tight" role="group" aria-label="What this import would bring">
       {kinds.map((kind) => (
         <Text key={kind} voice="reading">
-          {kindLine(kind, preview.kinds[kind])}
+          {previewKindLine(kind, preview.kinds[kind])}
         </Text>
       ))}
       {skipped.total === 0 ? null : (

@@ -323,7 +323,7 @@ test.describe("the phone topbar at 320, coarse pointer", () => {
   test("the roster frame names the section and the pushed frame names the member", async ({ mount, page }) => {
     await mount<typeof AppShellStory>(STORY, {});
     const title = page.locator(NARROW_TITLE);
-    await expect(title).toHaveText(/^Characters\b/u);
+    await expect(title).toHaveText(new RegExp(`^${RegExp.escape(SECTION_LABELS.characters)}\\b`, "u"));
     const first = library(page).getByRole("button").first();
     const memberName = ((await first.locator('[data-slot="list-row-title"]').textContent()) ?? "").trim();
     await pushMember(page);

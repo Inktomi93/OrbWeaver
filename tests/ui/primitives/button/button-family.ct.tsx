@@ -1,14 +1,13 @@
 // D336 step four: GlyphButton, InlineAction and PictureButton each draw their own box through their own door, and take
 // the busy, disabled, focal and tone states from the one Button core. Tones under each seed live in the tone-variant matrix.
 
+import { BUTTON_BOX_STEPS } from "@orb/ui/button/box-hit-area";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { ButtonFamilyBoxesStory, ButtonFamilyStatesStory } from "./_button-family-stories.tsx";
 
 const STORIES = "tests/ui/primitives/button/_button-family-stories";
-const GLYPH_STEPS = ["xs", "sm", "md", "lg"] as const;
-const INLINE_STEPS = ["label", "body"] as const;
 
 function style(locator: Locator, property: string, pseudo?: "::before"): Promise<string> {
   return locator.evaluate((element, [name, from]) => getComputedStyle(element, from).getPropertyValue(name), [property, pseudo ?? null] as const);
@@ -17,7 +16,7 @@ function style(locator: Locator, property: string, pseudo?: "::before"): Promise
 test("each glyph step is its token's square, carries the touch-target hit area and stamps its step", async ({ mount }) => {
   const component = await mount<typeof ButtonFamilyBoxesStory>(`${STORIES}/ButtonFamilyBoxesStory`, {});
   const touchTarget = await style(component.locator('[data-probe="touch-target"]'), "block-size");
-  for (const glyph of GLYPH_STEPS) {
+  for (const glyph of BUTTON_BOX_STEPS.glyphButton) {
     const button = component.getByRole("button", { name: `Glyph ${glyph}`, exact: true });
     const probe = component.locator(`[data-probe="glyph-${glyph}"]`);
     await expect(button).toHaveAttribute("data-slot", "button");
@@ -31,7 +30,7 @@ test("each glyph step is its token's square, carries the touch-target hit area a
 test("each inline step is text-height at its type step and carries the touch-target hit area", async ({ mount }) => {
   const component = await mount<typeof ButtonFamilyBoxesStory>(`${STORIES}/ButtonFamilyBoxesStory`, {});
   const touchTarget = await style(component.locator('[data-probe="touch-target"]'), "block-size");
-  for (const step of INLINE_STEPS) {
+  for (const step of BUTTON_BOX_STEPS.inlineAction) {
     const action = component.getByRole("button", { name: `Inline ${step}`, exact: true });
     const probe = component.locator(`[data-probe="inline-${step}"]`);
     await expect(action).toHaveAttribute("data-step", step);

@@ -1,6 +1,6 @@
 // A refused schedule create is said once, in the dialog that stays open.
 import { testId } from "@orb/client/lib";
-import { routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { ALERTS_REGION_NAME, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { WORKLOAD_KIND_LABELS } from "#client/features/workloads/lib/workloads-model.ts";
@@ -31,7 +31,7 @@ test("a refused schedule create is said in the open dialog, and the submit adds 
   await expect(dialog.getByText("Couldn't create the schedule. Try again.", { exact: true })).toBeVisible();
   await expect(dialog.getByRole("button", { name: "Create schedule", exact: true })).toBeEnabled();
   // The mutation's toast is the only other message: the submit's rethrow adds none.
-  await expect(page.getByRole("region", { name: "Alerts", exact: true }).getByRole("alert")).toHaveCount(1);
+  await expect(page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByRole("alert")).toHaveCount(1);
 });
 
 test("a refused schedule create behind the paid-run confirm is said by the confirm, with the toast beside it and no form line under it", async ({
@@ -62,7 +62,7 @@ test("a refused schedule create behind the paid-run confirm is said by the confi
   const confirm = page.getByRole("alertdialog");
   await confirm.getByRole("button", { name: "Create schedule", exact: true }).click();
   await expect(confirm.getByRole("alert")).toBeVisible();
-  await expect(page.getByRole("region", { name: "Alerts", exact: true }).getByRole("alert")).toHaveCount(1);
+  await expect(page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByRole("alert")).toHaveCount(1);
   await expect(dialog.getByText("Couldn't create the schedule. Try again.", { exact: true })).toHaveCount(0);
 
   await confirm.getByRole("button", { name: "Cancel", exact: true }).click();

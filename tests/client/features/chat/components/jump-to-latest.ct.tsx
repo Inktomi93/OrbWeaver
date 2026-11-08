@@ -21,6 +21,31 @@ const ROWS = 14;
 const SCROLL_ROUNDING_PX = 1;
 const SETTLE_MARGIN_MS = 400;
 
+const WITHHOLD_FLAG = "__withholdScrollend";
+const SILENCE_SCROLL = "__silenceScroll";
+
+// The capability stays advertised and the reader's scroll away reports its end, but once armed no scroll ends with a
+// `scrollend`: the jump's smooth scroll reaches the tail without one.
+const withholdArmedScrollend = (flag: string): void => {
+  const native = EventTarget.prototype.addEventListener;
+  EventTarget.prototype.addEventListener = function patched(this: EventTarget, type: string, ...rest: unknown[]): void {
+    const [listener, ...options] = rest;
+    if (type === "scrollend" && typeof listener === "function") {
+      Reflect.apply(native, this, [
+        type,
+        (event: Event): void => {
+          if (!Reflect.get(globalThis, flag)) {
+            Reflect.apply(listener, this, [event]);
+          }
+        },
+        ...options,
+      ]);
+      return;
+    }
+    Reflect.apply(native, this, [type, ...rest]);
+  };
+};
+
 const withoutScrollend = (): void => {
   const native = EventTarget.prototype.addEventListener;
   EventTarget.prototype.addEventListener = function patched(this: EventTarget, type: string, ...rest: unknown[]): void {
@@ -35,17 +60,22 @@ const withoutScrollend = (): void => {
   Reflect.deleteProperty(Document.prototype, "onscrollend");
 };
 
-for (const [title, nativeScrollend] of [
-  ["a browser with scrollend", true],
-  ["a browser without scrollend", false],
+// `quiet` names the scroll whose end the page learns of only from the other signal.
+for (const [title, nativeScrollend, profile, quiet] of [
+  ["a browser with scrollend", true, undefined, undefined],
+  ["a browser without scrollend", false, withoutScrollend, undefined],
+  ["a browser whose jump scroll ends without a scrollend", true, withholdArmedScrollend, "jump"],
+  ["a browser that reports the end of a scroll but delivers no scroll events", true, undefined, "away"],
 ] as const) {
   test(`the pill counts a message that lands while the reader is away, and clears once the jump reaches the tail, in ${title}`, async ({
     corpus,
     mount,
     page,
   }) => {
-    if (!nativeScrollend) {
-      await page.addInitScript(withoutScrollend);
+    if (profile === withholdArmedScrollend) {
+      await page.addInitScript(profile, WITHHOLD_FLAG);
+    } else if (profile !== undefined) {
+      await page.addInitScript(profile);
     }
     const provider = createCorpusProviderExecution({
       modelIds: [CORPUS_EMBED_MODEL],
@@ -132,10 +162,28 @@ for (const [title, nativeScrollend] of [
     await expect(pill).toHaveCount(0);
     await listening.promise;
     await expect.poll(() => socket.attaches().some((ref) => ref.channel === "chat" && ref.chatId === chatId)).toBe(true);
+    if (quiet === "away") {
+      // Let the arrival scrolls' quiet-period sample land first, or it would read the scroll away below.
+      await absenceWindow(page, SETTLE_MARGIN_MS);
+      // Capture-phase delivery stops at the document, so no scroll listener on the transcript hears the reader's scroll away.
+      await page.evaluate((key) => {
+        const controller = new AbortController();
+        Reflect.set(globalThis, key, controller);
+        document.addEventListener("scroll", (event) => event.stopPropagation(), { capture: true, signal: controller.signal });
+      }, SILENCE_SCROLL);
+    }
     await scroller.evaluate((element) => {
       element.scrollTop = 0;
     });
     await absenceWindow(page, SETTLE_MARGIN_MS);
+    if (quiet === "away") {
+      await page.evaluate((key) => {
+        const controller: unknown = Reflect.get(globalThis, key);
+        if (controller instanceof AbortController) {
+          controller.abort();
+        }
+      }, SILENCE_SCROLL);
+    }
     expect(await distanceFromTail()).toBeGreaterThan(await scroller.evaluate((element) => element.clientHeight));
     const outcome = await caller.chat.commitMessage({ chatId, content: source.content, timeZone: UTC_TIME_ZONE });
     const committed = outcome.messages.at(-1);
@@ -143,6 +191,9 @@ for (const [title, nativeScrollend] of [
       throw new Error("The native commit returned no message");
     }
     await expect(page.getByRole("button", { name: "Jump to latest, 1 new message", exact: true })).toBeVisible();
+    if (quiet === "jump") {
+      await page.evaluate((flag) => Reflect.set(globalThis, flag, true), WITHHOLD_FLAG);
+    }
     await page.getByRole("button", { name: "Jump to latest, 1 new message", exact: true }).click();
     await expect.poll(distanceFromTail).toBeLessThanOrEqual(SCROLL_ROUNDING_PX);
     await expect(page.locator(`[data-message-id="${committed.id}"]`)).toBeVisible();

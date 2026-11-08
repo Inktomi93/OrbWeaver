@@ -104,6 +104,12 @@ export const PICKED_ROOM_CASES = [
 /** A neutral mid-grey, where a fixed-colour edge has the least room on either side. */
 export const MID_GREY = "oklch(0.6 0 0)";
 
+/** A light-polarity page near the crossover, whose nearest clearing edge would otherwise sit on top of the near-white text field fill. */
+export const LIGHT_MID_TONE = "oklch(0.6599 0.14 30)";
+
+/** An accent that clears the card as authored, so the focus ring is not pulled down to the 3:1 floor the edge also holds. */
+export const STRONG_ACCENT = "oklch(0.2 0.1 260)";
+
 /** A typed fractional page whose card lands a hair across the crossover from it. */
 export const TYPED_CROSSOVER = "oklch(0.5606 0.12 240)";
 

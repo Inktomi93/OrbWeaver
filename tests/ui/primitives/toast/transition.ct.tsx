@@ -1,3 +1,4 @@
+import { ALERTS_REGION_NAME } from "@orb/testkit/ct";
 import { expect, test } from "@playwright/test";
 import type { ToastTransitionStory } from "./_transition-stories.tsx";
 
@@ -21,7 +22,7 @@ test("toast viewport padding leaves underlying controls operable", async ({ moun
     const box = node.getBoundingClientRect();
     return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
   });
-  const viewport = await page.getByRole("region", { name: "Alerts", exact: true }).boundingBox();
+  const viewport = await page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).boundingBox();
   const card = await toast.boundingBox();
   expect(point.x).toBeGreaterThan(viewport?.x ?? Number.NaN);
   expect(point.y).toBeGreaterThan(viewport?.y ?? Number.NaN);

@@ -254,7 +254,7 @@ test("a section change that lands while the palette is open leaves focus in the 
   const search = palette.getByRole("combobox");
   await expect(search).toBeFocused();
   // Programmatic navigation runs while the palette owns the inert boundary behind it.
-  const pages = page.locator('.shell-rail button[aria-label="Plugin pages"]');
+  const pages = page.locator(`.shell-rail button[aria-label="${SECTION_LABELS.extensions}"]`);
   await pages.evaluate((node) => node.dispatchEvent(new MouseEvent("click", { bubbles: true })));
   await expect(pages).toHaveAttribute("aria-current", "page");
   await page.evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => resolve())));

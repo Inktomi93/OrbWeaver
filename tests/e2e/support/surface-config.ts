@@ -39,6 +39,7 @@ import { ROW_DELETE_NAME } from "#client/lib/row-menu-names.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
 import type { ConfigGroupId } from "#client/state/config-group-ids.ts";
 import { CONFIG_GROUP_IDS } from "#client/state/config-group-ids.ts";
+import { ALERTS_REGION_NAME } from "../../../packages/ui/src/primitives/toast/toast-names.ts";
 import { waitForAppReady } from "./chat-room.ts";
 import type { SurfaceFlow } from "./surface-flow.ts";
 import type { SurfaceWalk } from "./surface-walker.ts";
@@ -721,7 +722,9 @@ async function worldInfo(flow: SurfaceWalk): Promise<void> {
     await flow.page.getByRole("menuitem", { name: WORLD_INFO_IMPORT_BOOK_NAME, exact: true }).click();
     await (await chooser).setFiles(path);
     await expect(
-      flow.page.getByRole("region", { name: "Alerts", exact: true }).getByText("That book is already in your library — nothing was added.", { exact: true }),
+      flow.page
+        .getByRole("region", { name: ALERTS_REGION_NAME, exact: true })
+        .getByText("That book is already in your library — nothing was added.", { exact: true }),
     ).toBeVisible();
     await expect.poll(async () => (await flow.client.worldInfo.listBooks.query()).filter((candidate) => candidate.name === name).length).toBe(1);
     note(
