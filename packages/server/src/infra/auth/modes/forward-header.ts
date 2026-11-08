@@ -6,6 +6,7 @@
 
 import type { ResolvedIdentity } from "@orb/contracts/identity";
 import { externalIdSchema, handleSchema } from "@orb/contracts/identity";
+import { decodeProtectedHeader } from "jose";
 import { securityEvent } from "#foundation/observability";
 import { isInRanges } from "#infra/network";
 import type { AuthConfig, IdentityRefused, ResolveDeps } from "../contract.ts";
@@ -82,8 +83,35 @@ function emailFromHeader(name: string | undefined, headers: Headers): string | n
   return raw !== null && raw.trim().length > 0 ? raw.trim() : null;
 }
 
+// The HMAC algorithms. A token signed with one is a shared-secret MAC that no published key can verify; a stock
+// authentik proxy provider signs `X-authentik-jwt` this way, with its client secret.
+const SHARED_SECRET_ALGS: ReadonlySet<string> = new Set(["HS256", "HS384", "HS512"]);
+
+// The shared-secret algorithm a token's unverified header names, or null. Read only to name the refusal: the
+// verifier's pinned asymmetric algorithms refuse such a token whatever this returns.
+function sharedSecretAlg(jwt: string): string | null {
+  try {
+    const { alg } = decodeProtectedHeader(jwt);
+    return alg !== undefined && SHARED_SECRET_ALGS.has(alg) ? alg : null;
+  } catch {
+    return null;
+  }
+}
+
 // A presented JWT is resolved or refused, never absent: every failure here, the verifier's `null` included, is REFUSED.
 async function resolveSignedJwt(jwt: string, config: AuthConfig, deps: ResolveDeps): Promise<ResolvedIdentity | IdentityRefused> {
+  // Checked before the key source: FORWARD_AUTH_JWKS can never verify this token, so naming it would send the
+  // operator after a key that does not exist.
+  const alg = sharedSecretAlg(jwt);
+  if (alg !== null) {
+    securityEvent(
+      "jwt_shared_secret_alg",
+      { alg },
+      "security: forwarded JWT is signed with a shared secret, which no FORWARD_AUTH_JWKS key can verify — rejecting (an authentik proxy provider signs this way: set FORWARD_AUTH_VERIFY_JWT=false and FORWARD_AUTH_TRUSTED_PROXIES to the address the proxy connects from)",
+      deps.log,
+    );
+    return REFUSED;
+  }
   if (deps.verifyForwardJwt === undefined) {
     securityEvent("jwt_no_key_source", {}, "security: forwarded JWT presented but FORWARD_AUTH_JWKS is unset — rejecting forwarded identity", deps.log);
     return REFUSED;
