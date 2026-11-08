@@ -7,7 +7,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { ConnectionRoleSlot, QueryBoundary, useFirstBootBox } from "#components";
+import { ConnectionRoleSlot, QueryBoundary, useFirstBootRows } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { CONNECTIONS_LIST_ADDRESS, ROLE_ROWS_ORDERED } from "#lib";
@@ -23,14 +23,14 @@ function settingControlId(settingId: string | undefined): string | undefined {
 }
 
 export function ConnectionsRolesSection({ anchorId }: { readonly anchorId: string }): ReactElement {
-  const firstBootBox = useFirstBootBox({ wide: 25, narrow: 22 });
+  const firstBootRows = useFirstBootRows({ wide: 25, narrow: 22 });
   return (
     // RESERVED (#1098) — a config section that settles into one row per model role — the tallest block on this pane.
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={4} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your model roles" onRetry={retry} />}
-      reserveBlock={firstBootBox}
+      reserveRows={firstBootRows}
       reserveKey="config.connections.roles"
     >
       <ModelRolesBody anchorId={anchorId} />

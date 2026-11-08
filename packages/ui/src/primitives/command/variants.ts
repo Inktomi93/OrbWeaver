@@ -71,8 +71,8 @@ export const commandVariants = tv({
     elevated: { true: { root: "shadow-overlay" } },
     // The palette takes its parent's whole block extent; in a short dialog it takes the room the dialog leaves, so its list is the box that scrolls.
     fill: { true: { root: "block-full dialog-short:glass-short:block-auto" } },
-    // A dialog with room (over the cq-32 height step) holds the box a picker settles at, so its footer takes room from the list and the dialog does not
-    // jump on the first keystroke. Below that step, enlarged text, the footer is taller than the window it would take from, so it adds to the box.
+    // A roomy dialog holds the box a picker settles at, so its footer takes room from the list and the dialog does not jump on the first
+    // keystroke. Below that step the window is too small to give the footer room and still keep a touch row, so the footer adds to the box.
     // On a landscape phone the box shrinks with the dialog, down to its search strip and one touch row.
     windowed: { true: { root: "dialog-short:glass-short:min-block-(--height-picker-floor) dialog-roomy:max-block-(--height-picker-box)" } },
     listSize: {

@@ -103,7 +103,8 @@ async function expectRetryContained(context: Locator, retry: Locator): Promise<v
       const style = getComputedStyle(host);
       const clipX = /^(?:auto|scroll|hidden|clip)$/u.test(style.overflowX);
       const clipY = /^(?:auto|scroll|hidden|clip)$/u.test(style.overflowY);
-      if (host.getAttribute("data-slot") === "tabs-panel" && clipY) {
+      // A pane short enough for one scroller lets the tab body flow and the pane body scroll the whole sheet, so either is the viewport.
+      if (host.matches('[data-slot="tabs-panel"], .shell-panel-body') && clipY) {
         tabViewports += 1;
       }
       const bounds = host.getBoundingClientRect();

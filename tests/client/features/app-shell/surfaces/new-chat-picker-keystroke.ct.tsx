@@ -32,6 +32,11 @@ const CELLS = [
   { name: "1440x900 at 100%", width: 1440, height: 900, factor: 1 },
   { name: "390x844 at 100%", width: 390, height: 844, factor: 1 },
   { name: "1440x900 at 150%", width: 1440, height: 900, factor: 1.5 },
+  // Enlarged text on common screens, where the cap still leaves the list two to four rows after the footer.
+  { name: "1280x800 at 150%", width: 1280, height: 800, factor: 1.5 },
+  { name: "1440x900 at 175%", width: 1440, height: 900, factor: 1.75 },
+  { name: "375x667 at 150%", width: 375, height: 667, factor: 1.5 },
+  { name: "320x568 at 125%", width: 320, height: 568, factor: 1.25 },
 ] as const;
 
 interface Frame {

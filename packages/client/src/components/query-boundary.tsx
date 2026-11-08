@@ -27,7 +27,8 @@
 // well as height; the authored count survives as the first-boot guess. DECLARED LIMIT: only the `line`
 // shape is re-filled — `skeleton-row-metrics.ts` inverts exactly that arm's pitch (its own header rules
 // `datum` out; `avatar-row`'s pitch is content-determined) — other shapes/fallbacks reserve unfilled.
-// A declared CSS length is held but never refilled (the count needs a pixel box), and `data-tile-reserved` then carries the length itself.
+// A declared `reserveRows` count builds its length from tokens and refills the skeleton to the same count, so no render reads the document. A declared
+// CSS length is held but never refilled (the count needs a pixel box), and `data-tile-reserved` then carries the length itself.
 // The `data-tile-reserved`/`data-tile-reserve-source` attributes are the pinned vocabulary (#837
 // sentinel tier) shared with every consumer, home-born name and all. `data-reserve-key` names which
 // surface a reserved box belongs to, for a test that holds several boundaries at once.
@@ -40,7 +41,7 @@ import { Component, isValidElement, Suspense, useEffect, useId, useRef } from "r
 import { rememberSurfaceBox, useSurfaceBox } from "#state";
 import { QueryErrorState } from "../data/query-error-state.tsx";
 import { QUERY_WAITING_LINE } from "../data/query-state-copy.ts";
-import { skeletonRowCountFor } from "../data/skeleton-row-metrics.ts";
+import { skeletonLengthFor, skeletonRowCountFor } from "../data/skeleton-row-metrics.ts";
 import type { SkeletonRowsProps } from "../data/skeleton-rows.tsx";
 import { SkeletonRows } from "../data/skeleton-rows.tsx";
 import { QueryBoundaryScope } from "../data/suspense-reads.ts";
@@ -65,6 +66,11 @@ export interface QueryBoundaryProps {
    * measurement exists, and only with `reserveKey`.
    */
   readonly reserveBlock?: number | string | undefined;
+  /**
+   * A declared first-boot box as a count of `SkeletonRows shape="line"` rows, for a surface that knows how many rows it settles at. The boundary builds the
+   * length from tokens and refills the skeleton to the count, so no render reads the document. Wins over `reserveBlock`; used only with `reserveKey`.
+   */
+  readonly reserveRows?: number | undefined;
   /** Preserve a parent-owned definite height through the reservation wrapper. */
   readonly fill?: boolean;
   /** The wrappers share the room a flex parent leaves and give way below their content, so a bounded dialog holds the skeleton and the settled child in one box. */
@@ -317,11 +323,11 @@ function settledChildren(phase: RetryPhase, children: ReactNode): ReactNode {
   );
 }
 
-/** A `SkeletonRows` fallback with a static count, re-filled to the reserved box; anything else
+/** A `SkeletonRows` fallback with a static count, re-filled to the reserved box's row count; anything else
  *  passes through untouched (the box still reserves — see the header's declared limit). Re-rendered as a
  *  fresh element rather than `cloneElement` (`no-legacy-react-api`): the type check has already narrowed
  *  the props, so a plain spread carries everything and overrides only the count. */
-function fillToBox(fallback: ReactNode, box: number): ReactNode {
+function fillRows(fallback: ReactNode, rowsFor: (authored: number) => number): ReactNode {
   if (!isValidElement<SkeletonRowsProps>(fallback) || fallback.type !== SkeletonRows) {
     return fallback;
   }
@@ -329,7 +335,20 @@ function fillToBox(fallback: ReactNode, box: number): ReactNode {
   if (typeof props.count !== "number" || (props.shape !== undefined && props.shape !== "line")) {
     return fallback;
   }
-  return <SkeletonRows {...props} count={skeletonRowCountFor(box, props.count)} />;
+  return <SkeletonRows {...props} count={rowsFor(props.count)} />;
+}
+
+/** The skeleton refilled to the box it stands in for: a declared row count is that count, a pixel box is its pitch, and a CSS length leaves the skeleton as authored. */
+function refilled(skeleton: ReactNode, box: number | string, declaredRows: number | undefined): ReactNode {
+  if (declaredRows !== undefined) {
+    return fillRows(skeleton, () => declaredRows);
+  }
+  return typeof box === "number" ? fillRows(skeleton, (authored) => skeletonRowCountFor(box, authored)) : skeleton;
+}
+
+/** The declared first-boot box: a row count wins over a length or a pixel constant. */
+function declaredBox(reserveRows: number | undefined, reserveBlock: number | string | undefined): number | string | null {
+  return reserveRows === undefined ? (reserveBlock ?? null) : skeletonLengthFor(reserveRows);
 }
 
 /** The keyed loading box. THREE SOURCES, ONE MECHANISM (#177): the measured box wins (what THIS device
@@ -341,18 +360,20 @@ function fillToBox(fallback: ReactNode, box: number): ReactNode {
 function ReservedFallback({
   reserveKey,
   reserveBlock,
+  reserveRows,
   fill,
   grow,
   children,
 }: {
   readonly reserveKey: string;
   readonly reserveBlock: number | string | undefined;
+  readonly reserveRows: number | undefined;
   readonly fill: boolean;
   readonly grow: boolean;
   readonly children: ReactNode;
 }): ReactElement {
   const measured = useSurfaceBox(reserveKey);
-  const box = measured ?? reserveBlock ?? null;
+  const box = measured ?? declaredBox(reserveRows, reserveBlock);
   if (box === null) {
     return (
       <Stack grow={grow ? "onLandscape" : undefined} height={fill ? "fill" : undefined} minHeight={grow ? "holdsPickerOnLandscape" : undefined}>
@@ -360,8 +381,7 @@ function ReservedFallback({
       </Stack>
     );
   }
-  // Only a pixel box can refill the skeleton's row count; a CSS length is held as it is.
-  const skeleton = typeof box === "number" ? fillToBox(children, box) : children;
+  const skeleton = refilled(children, box, measured === null ? reserveRows : undefined);
   return (
     <Stack
       className="overflow-clip"
@@ -417,6 +437,7 @@ export function QueryBoundary({
   fallback,
   reserveKey,
   reserveBlock,
+  reserveRows,
   fill = false,
   grow = false,
   renderError = defaultRenderError,
@@ -428,7 +449,7 @@ export function QueryBoundary({
     reserveKey === undefined ? (
       fallback
     ) : (
-      <ReservedFallback fill={fill} grow={grow} reserveBlock={reserveBlock} reserveKey={reserveKey}>
+      <ReservedFallback fill={fill} grow={grow} reserveBlock={reserveBlock} reserveKey={reserveKey} reserveRows={reserveRows}>
         {fallback}
       </ReservedFallback>
     );

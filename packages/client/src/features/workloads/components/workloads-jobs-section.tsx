@@ -16,7 +16,7 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ModelRunConfirmDialog, QueryBoundary, useFirstBootBox, useModelRunConfirm } from "#components";
+import { ModelRunConfirmDialog, QueryBoundary, useFirstBootRows, useModelRunConfirm } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import { DIALOG_VERBS, testId } from "#lib";
@@ -45,14 +45,14 @@ function isWorkloadFilter(value: unknown): value is WorkloadFilter {
 
 /** The Jobs section body — mounted at the workloads pane's sections anchor. */
 export function WorkloadsJobsSection({ anchorId }: { readonly anchorId: string }): ReactElement {
-  const firstBootBox = useFirstBootBox({ wide: 5, narrow: 5 });
+  const firstBootRows = useFirstBootRows({ wide: 5, narrow: 5 });
   return (
     // RESERVED (#1098) — a config section that settles into the job table — the longest block in Workloads.
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={4} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your jobs" onRetry={retry} />}
-      reserveBlock={firstBootBox}
+      reserveRows={firstBootRows}
       reserveKey="config.workloads.jobs"
     >
       <WorkloadsJobsBody anchorId={anchorId} />

@@ -73,7 +73,7 @@ export { TrailingArrow } from "./trailing-arrow.tsx";
 export type { ConfigLeafValue } from "./use-config-leaf.ts";
 export { configLeafKey, useConfigLeaf, useConfigLeafReadings } from "./use-config-leaf.ts";
 export { useEmbedderRebuild } from "./use-embedder-rebuild.ts";
-export { useFirstBootBox } from "./use-first-boot-box.ts";
+export { useFirstBootRows } from "./use-first-boot-rows.ts";
 export { useModelRunConfirm } from "./use-model-run-confirm.ts";
 export type { RowDeleteFocus } from "./use-row-delete-focus.ts";
 export { useRowDeleteFocus } from "./use-row-delete-focus.ts";

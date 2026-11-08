@@ -66,7 +66,7 @@ export type { SectionPatchVars } from "./section-patch-vars.ts";
 export { seedPresetId } from "./seed-preset-id.ts";
 export {} from "./session-freshness.ts";
 export { clearJoinStash, peekJoinStash } from "./session-resume.ts";
-export { PICKER_FIRST_OPEN_BOX, skeletonRowCountFor } from "./skeleton-row-metrics.ts";
+export { PICKER_FIRST_OPEN_BOX, PICKER_FIRST_OPEN_BOX_WITH_DOOR, skeletonLengthFor, skeletonRowCountFor } from "./skeleton-row-metrics.ts";
 export { SkeletonRows } from "./skeleton-rows.tsx";
 export { completeReauth } from "./stale-session.ts";
 export { requireQueryBoundary, useSuspenseInfiniteQuery, useSuspenseQueries, useSuspenseQuery } from "./suspense-reads.ts";

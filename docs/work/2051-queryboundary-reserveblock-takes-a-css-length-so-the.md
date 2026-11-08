@@ -24,4 +24,4 @@ reserveBlock accepts a length, and the picker and boot boxes read no DOM in rend
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Every boot-box site passes its row count: useFirstBootRows returns the count and QueryBoundary reserveRows builds the length from tokens (skeletonLengthFor) and refills the skeleton to the count, so no render reads the document at the 17 client sites. New chat reserves PICKER_FIRST_OPEN_BOX, a token length. Held by tests/client/components/skeleton-reservation.ct.tsx (declared length equals the painted skeleton at scales 0.8 and 1.25, fine and coarse pointer, with owner CSS) and tests/client/features/config/surfaces/first-boot-boxes.ct.tsx (each group settles within half a row of the box it declared). The measured-box path still resolves the row pitch through the document once a device has a remembered pixel box.

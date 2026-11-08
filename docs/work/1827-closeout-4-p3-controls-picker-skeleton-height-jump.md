@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: doing
-updated: 2026-11-07
+updated: 2026-11-08
 priority: P3
 area: ui
 lane: wt/agent-afb5bff2b14113d1d
@@ -24,6 +24,4 @@ The skeleton reserves the height of the loaded list, the switch sits beside its 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
-
-Source: `reports/side-eye/2026-11-01-closeout-4.md` (gitignored, on main's checkout), run on 822d61a82e. Each finding there carries its run ids.
+Picker skeleton: tests/client/features/app-shell/surfaces/new-chat-picker-skeleton.ct.tsx holds the skeleton box, the loaded box and the dialog within 1px on a desktop, a coarse portrait and two landscape phones, with and without saved rosters, and with the roster list cached (the cold first open stays refused in 2062). Plugin panel switch and the omnibox floor: platform-plugin-presentation.suite.ct.tsx and corpus-search-controls.ct.tsx pass on this tip. Appearance stepper: tests/ui/primitives/number-field/inline-height.ct.tsx asserts the input and both steppers reach the touch-target token under a coarse pointer. The design audit was not run in this lane (no snap stack).

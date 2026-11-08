@@ -120,30 +120,33 @@ test.describe("scaled new-chat footer", () => {
         }
         const frame = footer.getBoundingClientRect();
         const style = getComputedStyle(footer);
-        return [...footer.querySelectorAll("button")].map((action) => {
-          const box = action.getBoundingClientRect();
-          const walker = document.createTreeWalker(action, NodeFilter.SHOW_TEXT);
-          const ink: DOMRect[] = [];
-          for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
-            if (node.textContent?.trim() === "" || node.parentElement?.checkVisibility() !== true) {
-              continue;
+        // The roster door lives in this footer too and shows on a landscape phone only, so a portrait footer holds it unpainted.
+        return [...footer.querySelectorAll("button")]
+          .filter((action) => action.checkVisibility())
+          .map((action) => {
+            const box = action.getBoundingClientRect();
+            const walker = document.createTreeWalker(action, NodeFilter.SHOW_TEXT);
+            const ink: DOMRect[] = [];
+            for (let node = walker.nextNode(); node !== null; node = walker.nextNode()) {
+              if (node.textContent?.trim() === "" || node.parentElement?.checkVisibility() !== true) {
+                continue;
+              }
+              const range = document.createRange();
+              range.selectNodeContents(node);
+              ink.push(range.getBoundingClientRect());
             }
-            const range = document.createRange();
-            range.selectNodeContents(node);
-            ink.push(range.getBoundingClientRect());
-          }
-          return {
-            text: action.textContent,
-            inkRects: ink.length,
-            left: box.left,
-            right: box.right,
-            height: box.height,
-            inkLeft: Math.min(...ink.map((rect) => rect.left)),
-            inkRight: Math.max(...ink.map((rect) => rect.right)),
-            floorLeft: frame.left + Number.parseFloat(style.paddingLeft),
-            floorRight: frame.right - Number.parseFloat(style.paddingRight),
-          };
-        });
+            return {
+              text: action.textContent,
+              inkRects: ink.length,
+              left: box.left,
+              right: box.right,
+              height: box.height,
+              inkLeft: Math.min(...ink.map((rect) => rect.left)),
+              inkRight: Math.max(...ink.map((rect) => rect.right)),
+              floorLeft: frame.left + Number.parseFloat(style.paddingLeft),
+              floorRight: frame.right - Number.parseFloat(style.paddingRight),
+            };
+          });
       });
       await testInfo.attach(`footer-${width}`, { body: JSON.stringify(geometry), contentType: "application/json" });
       expect(geometry).toHaveLength(2);
