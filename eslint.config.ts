@@ -492,6 +492,12 @@ const PAGE_SLEEP_RESTRICTION = {
     "A fixed wait proves nothing. Wait on a rendered witness; an absence window goes through absenceWindow from @orb/testkit/ct with a positive control.",
 };
 
+const FIRST_ALERT_RESTRICTION = {
+  selector: "CallExpression[callee.property.name='first'][callee.object.callee.property.name='getByRole'][callee.object.arguments.0.value='alert']",
+  message:
+    "A first-alert read accepts any toast, including the generic one. Read the notice with noticeToast from @orb/testkit/ct, over the copy production computes for it.",
+};
+
 const TEST_PROJECTS = ["tsconfig.node.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json"];
 
 const NODE_TOOL_SOURCE = ["*.{ts,mts,cts}", "packages/*/*.{ts,mts,cts}", "scripts/**/*.{ts,mts,cts}"];
@@ -2417,6 +2423,7 @@ export default [
       "no-restricted-syntax": restrictedSyntax(
         ...TEST_SYNTAX,
         PAGE_SLEEP_RESTRICTION,
+        FIRST_ALERT_RESTRICTION,
         { selector: "JSXElement, JSXFragment", message: "Keep component composition in browser stories; CT specs call native mount with data props." },
         {
           selector: "CallExpression[callee.name='mount']:not([typeArguments])",

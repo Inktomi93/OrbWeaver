@@ -8,9 +8,8 @@ import { CSRF_HEADER } from "@orb/contracts/identity";
 import type { AppearanceSettings, OsPreferenceMode } from "@orb/contracts/settings/appearance";
 import { appearanceSettingsSchema, BACKGROUND_DIM_MIN, BLUR_SURFACES } from "@orb/contracts/settings/appearance";
 import type { CharacterId, ChatId, ThemeId } from "@orb/kit/ids";
-import type { Rgb } from "@orb/kit/theme-derivation";
 import { AA_NON_TEXT_RATIO, AA_NORMAL_RATIO, readingPlateAlpha, wcagContrastRatio } from "@orb/kit/theme-derivation";
-import { emulateMedia, pixel, releaseEmulatedMedia, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
+import { emulateMedia, landedMutedContrast, paintedArt, pixel, releaseEmulatedMedia, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
@@ -35,6 +34,7 @@ const HANDOVER = "tests/client/features/app-shell/surfaces/_shell-handover-stori
 const LIST = '.shell-panel[data-panel-side="list"]';
 const CONTEXT = '.shell-panel[data-panel-side="context"]';
 const DIALOG = '[data-slot="dialog-popup"]';
+const ART_LAYER = '[data-slot="theme-background-layer"]';
 const WIDE = { width: 1280, height: 800 } as const;
 const BOTH_DOCKED = { activeSection: "chats", panelOverrides: { chats: { list: "docked", context: "docked" } } } as const;
 // Every axis the cascade cases read, pinned so the corpus viewer's own appearance never decides a case.
@@ -196,34 +196,6 @@ async function noiseSpread(page: Page, box: { x: number; y: number; width: numbe
   );
 }
 
-/** A design token resolved to the RGB it paints, through a canvas, inside `host` so it takes that box's theme. */
-function tokenInk(host: Locator, token: string): Promise<Rgb> {
-  return host.evaluate((element, name) => {
-    const canvas = document.createElement("canvas");
-    canvas.width = 1;
-    canvas.height = 1;
-    const context = canvas.getContext("2d");
-    if (context === null) {
-      throw new Error("no 2d context");
-    }
-    context.fillStyle = getComputedStyle(element).getPropertyValue(name).trim();
-    context.fillRect(0, 0, 1, 1);
-    const [r = 0, g = 0, b = 0] = context.getImageData(0, 0, 1, 1).data;
-    return { b, g, r };
-  }, token);
-}
-
-interface Box {
-  readonly x: number;
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
-}
-
-function centre(box: Box): { x: number; y: number } {
-  return { x: box.x + box.width / 2, y: box.y + box.height / 2 };
-}
-
 /** A one-grey PNG: pure black or white is the worst art a glass surface can sit over, built byte for byte so no image library is needed. */
 function greyPng(side: number, grey: number): Buffer {
   const chunk = (type: string, data: Buffer): Buffer => {
@@ -298,19 +270,6 @@ function lightPlateFloor(): number {
     .slice(1)
     .map(Number);
   return readingPlateAlpha({ l, c, h });
-}
-
-/** The surface's weakest ink, `--color-muted-foreground`, against the pixel that lands at its centre over the wallpaper. */
-async function landedMutedContrast(page: Page, surface: Locator, label: string, at: (box: Box) => { x: number; y: number } = centre): Promise<number> {
-  const box = await surface.boundingBox();
-  if (box === null) {
-    throw new Error(`${label} is not laid out`);
-  }
-  const point = at(box);
-  const landed = await pixel(page, Math.floor(point.x), Math.floor(point.y));
-  const ratio = wcagContrastRatio(await tokenInk(surface, TOKENS["color.muted-foreground"].cssVar), landed);
-  test.info().annotations.push({ type: "over-art-contrast", description: `${label} ${ratio.toFixed(2)}:1 over ${JSON.stringify(landed)}` });
-  return ratio;
 }
 
 /** The shell's reads for a room on `art`, opening on Chats. */
@@ -1091,7 +1050,8 @@ test.describe("the light arm's plate over a wallpaper", () => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(page.locator(".shell-grid")).toHaveAttribute("data-has-bg-image", "true");
     await expect.poll(async () => fillAlpha(pane, "::before")).toBeGreaterThanOrEqual(lightPlateFloor());
-    expect(await landedMutedContrast(page, pane, "light pane")).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+    const painted = await paintedArt(page.locator(ART_LAYER), { dark: false });
+    expect(await landedMutedContrast(pane, painted, "light pane")).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     await light.unmount();
 
     state = { appearance: { ...wallpaper(corpus), blurSurfaces: ["panels"] } };
@@ -1115,7 +1075,8 @@ test.describe("the light arm's plate over a wallpaper", () => {
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(page.locator(".shell-grid")).toHaveAttribute("data-has-bg-image", "true");
     await expect.poll(() => fillAlpha(page.locator(".shell-main"), "::before")).toBeGreaterThanOrEqual(lightPlateFloor());
-    expect(await landedMutedContrast(page, page.locator(".shell-main"), "light reading surface")).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
+    const painted = await paintedArt(page.locator(ART_LAYER), { dark: false });
+    expect(await landedMutedContrast(page.locator(".shell-main"), painted, "light reading surface")).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
   });
 
   test("a light dialog takes the plated fill with or without a wallpaper and clears AA over one, while a dark dialog stays glass and does not move", async ({
@@ -1143,7 +1104,8 @@ test.describe("the light arm's plate over a wallpaper", () => {
       await expect.poll(() => page.locator("html").getAttribute("data-theme")).toBe(arm.selectedThemeId === undefined ? null : "light");
       await expect.poll(() => fillAlpha(dialog)).toBeGreaterThan(0);
       reads[arm.name] = await computed(dialog, "background-color");
-      reads[`${arm.name}Contrast`] = String(arm.name === "lightArt" ? await landedMutedContrast(page, dialog, "light dialog") : 0);
+      const painted = arm.name === "lightArt" ? await paintedArt(page.locator(ART_LAYER), { dark: false }) : null;
+      reads[`${arm.name}Contrast`] = String(painted === null ? 0 : await landedMutedContrast(dialog, painted, "light dialog"));
       await mounted.unmount();
     }
     test.info().annotations.push({ type: "dialog-fills", description: JSON.stringify(reads) });
@@ -1178,8 +1140,9 @@ test.describe("the light arm's plate over a wallpaper", () => {
       await expect.poll(() => page.locator("html").getAttribute("data-theme")).toBe(arm.selectedThemeId === undefined ? null : "light");
       await expect.poll(() => fillAlpha(page.locator(COMPOSER))).toBeLessThan(1);
       fills[arm.name] = await Promise.all(surfaces.map((surface) => computed(surface, "background-color")));
+      const painted = arm.name === "light" ? await paintedArt(page.locator(ART_LAYER), { dark: false }) : null;
       const ratios =
-        arm.name === "light" ? await Promise.all(surfaces.map((surface, index) => landedMutedContrast(page, surface, `light ${String(index)}`))) : [];
+        painted === null ? [] : await Promise.all(surfaces.map((surface, index) => landedMutedContrast(surface, painted, `light ${String(index)}`)));
       expect(ratios.filter((ratio) => ratio < AA_NORMAL_RATIO)).toStrictEqual([]);
       await mounted.unmount();
     }
@@ -1268,21 +1231,22 @@ test.describe("the light arm over the darkest wallpaper a viewer can save", () =
     await mount<typeof AppShellStory>(STORY, {});
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
     await expect(page.locator(".shell-grid")).toHaveAttribute("data-has-bg-image", "true");
-    await expect(page.locator('[data-slot="theme-background-layer"]')).toBeVisible();
+    await expect(page.locator(ART_LAYER)).toBeVisible();
+    const painted = await paintedArt(page.locator(ART_LAYER), { dark: true });
     const plateFloor = lightPlateFloor();
     // The rendered plate is the derived one, and the pane's glass sits over it rather than over the art.
     expect(alphaOf((await computed(page.locator(LIST), TOKENS["color.reading-plate"].cssVar)).trim())).toBeGreaterThanOrEqual(plateFloor);
     await expect.poll(() => fillAlpha(page.locator(LIST), "::before")).toBeGreaterThanOrEqual(plateFloor);
     // The pane's right gutter, beside its rows, where only the glass lands.
     expect(
-      await landedMutedContrast(page, page.locator(LIST), "pane over black", (box) => ({ x: box.x + box.width - 6, y: box.y + box.height / 2 })),
+      await landedMutedContrast(page.locator(LIST), painted, "pane over black", (box) => ({ x: box.x + box.width - 6, y: box.y + box.height / 2 })),
     ).toBeGreaterThanOrEqual(AA_NORMAL_RATIO);
     await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.characters, exact: true }).click();
     await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "characters");
     await expect.poll(() => fillAlpha(page.locator(".shell-main"), "::before")).toBeGreaterThanOrEqual(plateFloor);
     // The reading surface's far corner, past the landing's content.
     expect(
-      await landedMutedContrast(page, page.locator(".shell-main"), "reading surface over black", (box) => ({
+      await landedMutedContrast(page.locator(".shell-main"), painted, "reading surface over black", (box) => ({
         x: box.x + box.width - 10,
         y: box.y + box.height - 10,
       })),
@@ -1299,7 +1263,8 @@ test.describe("the light arm over the darkest wallpaper a viewer can save", () =
     await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: await groupRoomId() });
     await roomReady(page);
     await expect(page.locator("html")).toHaveAttribute("data-theme", "light");
-    await expect(page.locator('[data-slot="theme-background-layer"]')).toBeVisible();
+    await expect(page.locator(ART_LAYER)).toBeVisible();
+    const painted = await paintedArt(page.locator(ART_LAYER), { dark: true });
     const plateFloor = lightPlateFloor();
     expect(alphaOf((await computed(page.locator(COMPOSER), TOKENS["color.reading-plate"].cssVar)).trim())).toBeGreaterThanOrEqual(plateFloor);
     for (const surface of [page.locator(COMPOSER), ...ROOM_ROLES.map((role) => bubble(page, role))]) {
@@ -1307,10 +1272,10 @@ test.describe("the light arm over the darkest wallpaper a viewer can save", () =
     }
     // Each surface's own padding, clear of its text and controls.
     const ratios = [
-      await landedMutedContrast(page, page.locator(COMPOSER), "composer over black", (box) => ({ x: box.x + box.width / 2, y: box.y + 3 })),
+      await landedMutedContrast(page.locator(COMPOSER), painted, "composer over black", (box) => ({ x: box.x + box.width / 2, y: box.y + 3 })),
       ...(await Promise.all(
         ROOM_ROLES.map((role) =>
-          landedMutedContrast(page, bubble(page, role), `${role} bubble over black`, (box) => ({ x: box.x + 4, y: box.y + box.height / 2 })),
+          landedMutedContrast(bubble(page, role), painted, `${role} bubble over black`, (box) => ({ x: box.x + 4, y: box.y + box.height / 2 })),
         ),
       )),
     ];

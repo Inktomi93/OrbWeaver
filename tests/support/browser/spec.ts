@@ -13,6 +13,7 @@ export type { DisclosureWalkHooks } from "./disclosure-walk.ts";
 export { usesProgrammaticScroll, walkDisclosures } from "./disclosure-walk.ts";
 export { formatFormIdentityFindings } from "./form-identity.ts";
 export { emulateMedia, releaseEmulatedMedia } from "./media-emulation.ts";
+export { landedMutedContrast, paintedArt } from "./over-art-contrast.ts";
 export { diagnosticTarget } from "./performance-entry.ts";
 export { pixelContrast, pixelMarkContrast, pixelSurface } from "./pixel-contrast.ts";
 export { beginReading, scrollIntoReadingMessage, tokenColor } from "./reading-position.ts";
