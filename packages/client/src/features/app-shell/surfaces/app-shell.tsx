@@ -11,6 +11,7 @@ import type { ReactElement, ReactNode, RefCallback, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import { preload } from "react-dom";
 import { ListPaneHeaderHost } from "#components";
+import { useWarmSavedRosters } from "#data";
 import { resolveThemeScopeTokens } from "#lib";
 import type { PanelMode, PanelName, SectionId } from "#state";
 import {
@@ -204,6 +205,7 @@ export function AppShell(): ReactElement {
   // A file dropped anywhere but a dropzone would navigate the tab to that file and take the session with it.
   useKeyboardInsetVar();
   useStrayFileDropGuard();
+  useWarmSavedRosters();
   const chatBg = useChatBackground();
   const effectiveBg = chatBg ?? appearanceBackgroundSource(appearance);
   const bgUrl = resolveThemeBackgroundUrl(effectiveBg);

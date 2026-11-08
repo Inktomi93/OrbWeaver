@@ -287,11 +287,13 @@
   --leading-code-field: round(up, max(1.5rem, 24px), 1px);
   --leading-micro: round(up, 0.8125rem, 1px);
   --container-cq-8: 8rem;
+  --container-cq-12: 12rem;
   --container-cq-14: 14rem;
   --container-cq-15: 15rem;
   --container-cq-16: 16rem;
   --container-cq-20: 20rem;
   --container-cq-24: 24rem;
+  --container-cq-26: 26rem;
   --container-cq-28: 28rem;
   --container-cq-32: 32rem;
   --container-cq-40: 40rem;
@@ -444,6 +446,7 @@
     --height-picker-box: calc(var(--size-control-sm) + var(--height-picker-window) + 2 * var(--border-width-control));
     --height-picker-floor: calc(var(--size-control-sm) + var(--height-scroll-short) + 2 * var(--border-width-control));
     --height-command-strip: calc(var(--size-control-sm) + 2 * var(--border-width-control));
+    --height-picker-door-row: calc(var(--size-control-sm) + 2 * var(--spacing-block));
     --height-dialog-gutter: min(var(--spacing-gutter), 5dvh);
     --dimension-shell-topbar-block: calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-16) + var(--dimension-device-pixel) - 100dvw) * 1000), var(--dimension-chrome-row) / 2));
     --immersive-whisper-banner-inline-cap: calc(var(--immersive-whisper-banner-cap) * var(--aspect-banner));
@@ -918,6 +921,7 @@
   [data-density] {
     --dimension-room-flank: calc(var(--width-sidebar-sm) + var(--spacing-block));
     --dimension-room-flank-fit: calc(var(--dimension-content-reading-floor) + var(--width-sidebar-sm) + var(--spacing-block));
+    --height-picker-door-row: calc(var(--size-control-sm) + 2 * var(--spacing-block));
     --size-control-clearance: calc(var(--size-control-sm) + var(--spacing-row));
     --size-room-island-inset-narrow: calc(var(--spacing-field) - var(--spacing-tight));
     --size-combobox-chip-sm: calc(var(--size-control-sm) - 2 * var(--border-width-control) - 2 * var(--spacing-field));

@@ -1,13 +1,14 @@
 // The New chat picker's skeleton holds the box of the picker that replaces it, so the dialog does not jump when the library arrives. Every cell is a
 // device's first-ever open: no box is remembered yet, so the declared box is all the skeleton has. The library is longer than a page, so the picker's
-// footer is there at load. A library with saved rosters adds a door row above the picker that a first open cannot know about: the rosters arrive in the
-// same response as the library. A landscape phone has no such row, and its picker takes whatever room the dialog leaves.
-import { seedShellState } from "@orb/testkit/browser/spec";
-import { createShellAmbientReads, holdCorpusProcedure, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+// footer is there at load. A library with saved rosters adds a door row above the picker, so a cell with rosters opens on a device that has cached the
+// roster list (the shell warms it at boot) and the declared box carries the row. A stacked or landscape dialog hides that row, and its declared box
+// drops it again. A landscape phone's picker takes whatever room the dialog leaves.
+import { seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
+import { channelName, createShellAmbientReads, holdCorpusProcedure, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
-import type { AppShellModalStory } from "./_app-shell-stories.tsx";
+import type { AppShellModalStory, AppShellWarmRostersNewChatStory } from "./_app-shell-stories.tsx";
 import { SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellModalStory`;
@@ -15,6 +16,8 @@ const SETTLE_TOLERANCE_PX = 1;
 const RESERVED = "[data-reserve-key]";
 const COMMAND_ROOT = '[data-slot="command-root"]';
 const DECLARED_BOX = `var(${TOKENS["height.picker-box"].cssVar})`;
+const DECLARED_BOX_WITH_DOOR = `calc(${DECLARED_BOX} + var(${TOKENS["height.picker-door-row"].cssVar}))`;
+const WARM_STORY = `${SHELL_STORIES}/AppShellWarmRostersNewChatStory`;
 
 const CELLS = [
   { name: "desktop", width: 1440, height: 900, coarse: false, landscape: false },
@@ -23,9 +26,17 @@ const CELLS = [
   { name: "coarse small landscape", width: 568, height: 320, coarse: true, landscape: true },
 ] as const;
 
+// Rosters are a library fact: a cell without them removes them, a cell with them opens warm. The stacked step (a dialog short and narrow in the container,
+// reached by 300% text on a phone or a desktop) hides the door row, so the declared box must not carry it there.
+const ARMS = [
+  { rosters: false, factor: 1 },
+  { rosters: true, factor: 1 },
+  { rosters: true, factor: 3 },
+] as const;
+
 for (const cell of CELLS) {
-  for (const rosters of cell.landscape ? [true, false] : [false]) {
-    test.describe(`on a ${cell.name} screen, ${rosters ? "with" : "without"} saved rosters`, () => {
+  for (const { rosters, factor } of cell.landscape ? ARMS.filter((arm) => arm.factor === 1) : ARMS) {
+    test.describe(`on a ${cell.name} screen at ${String(factor * 100)}% text, ${rosters ? "with" : "without"} saved rosters`, () => {
       test.use({ viewport: { width: cell.width, height: cell.height }, hasTouch: cell.coarse, isMobile: cell.coarse });
 
       test("the dialog and the picker keep their height from the skeleton to the list", async ({ corpus, mount, page }) => {
@@ -43,11 +54,16 @@ for (const cell of CELLS) {
           ...held.routes,
         });
         await seedShellState(page, { activeSection: "chats" });
-        await mount<typeof AppShellModalStory>(STORY, { modalId: "newChat" });
+        if (rosters) {
+          await mount<typeof AppShellWarmRostersNewChatStory>(WARM_STORY);
+        } else {
+          await mount<typeof AppShellModalStory>(STORY, { modalId: "newChat" });
+        }
         await held.requested;
         const dialog = page.getByRole("dialog");
         await expect(dialog.locator(RESERVED)).toBeVisible();
-        await expect(dialog.locator(RESERVED)).toHaveAttribute("data-tile-reserved", DECLARED_BOX);
+        await expect(dialog.locator(RESERVED)).toHaveAttribute("data-tile-reserved", rosters ? DECLARED_BOX_WITH_DOOR : DECLARED_BOX);
+        await setRootFontScale(page, channelName("fontScale"), factor);
         const skeleton = { box: await dialog.locator(RESERVED).boundingBox(), popup: await dialog.boundingBox() };
         held.release();
         await expect(dialog.locator(COMMAND_ROOT)).toBeVisible();

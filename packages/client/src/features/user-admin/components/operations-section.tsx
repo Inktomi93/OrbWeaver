@@ -14,7 +14,7 @@ import type { AppSettings, LogLevel } from "@orb/contracts/settings";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { QueryBoundary, SettingRowGroup, useFirstBootBox } from "#components";
+import { QueryBoundary, SettingRowGroup, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
@@ -26,14 +26,14 @@ import { RestartServerControl } from "./restart-server-control.tsx";
 
 /** The section's own suspense/error boundary — it reads for itself, so it must recover for itself. */
 export function OperationsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
-  const firstBootBox = useFirstBootBox({ wide: 5, narrow: 6 });
+  const firstBootRows = useFirstBootRows({ wide: 5, narrow: 6 });
   return (
     // RESERVED (#1098) — an admin settings section that settles into an override knob stack.
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="operations — administrators only" onRetry={retry} />}
-      reserveBlock={firstBootBox}
+      reserveRows={firstBootRows}
       reserveKey="config.admin.operations"
     >
       <OperationsBody anchorId={anchorId} sectionId={sectionId} />

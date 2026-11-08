@@ -37,7 +37,7 @@ import { Heading, Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
-import { QueryBoundary, RowActionsMenu, useFirstBootBox, useReindexConfirm, useUpdateConnection } from "#components";
+import { QueryBoundary, RowActionsMenu, useFirstBootRows, useReindexConfirm, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import { connectionSummary } from "#lib";
@@ -64,14 +64,14 @@ type ListFocusIntent =
 const ADD_CONNECTION_CONTROL_ID = configSettingControlId("connections", ADD_CONNECTION_SETTING);
 
 export function ConnectionsListSection({ anchorId }: { readonly anchorId: string }): ReactElement {
-  const firstBootBox = useFirstBootBox({ wide: 6, narrow: 7 });
+  const firstBootRows = useFirstBootRows({ wide: 6, narrow: 7 });
   return (
     // RESERVED (#1098) — a config section that settles into one row per connection.
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your connections" onRetry={retry} />}
-      reserveBlock={firstBootBox}
+      reserveRows={firstBootRows}
       reserveKey="config.connections.list"
     >
       <ConnectionsBody anchorId={anchorId} />

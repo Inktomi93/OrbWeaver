@@ -15,7 +15,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { QueryBoundary, useFirstBootBox } from "#components";
+import { QueryBoundary, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import { testId } from "#lib";
 import { useSetEnabled, useSetRole } from "../hooks/use-admin-mutations.ts";
@@ -32,14 +32,14 @@ interface UserTarget {
 
 /** The Users section body — mounted at the admin pane's sections anchor. */
 export function AdminUsersSection({ anchorId }: { readonly anchorId: string }): ReactElement {
-  const firstBootBox = useFirstBootBox({ wide: 2, narrow: 3 });
+  const firstBootRows = useFirstBootRows({ wide: 2, narrow: 3 });
   return (
     // RESERVED (#1098) — an admin section that settles into the account table — the tallest block on the pane.
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={4} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the admin panel — it's available to administrators only" onRetry={retry} />}
-      reserveBlock={firstBootBox}
+      reserveRows={firstBootRows}
       reserveKey="config.admin.users"
     >
       <AdminUsersBody anchorId={anchorId} />

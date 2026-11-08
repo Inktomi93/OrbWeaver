@@ -40,7 +40,7 @@ for (const touch of [false, true]) {
           const rendered = page.locator('[aria-busy="true"]');
           await expect(rendered).toBeVisible();
           const actual = await rendered.evaluate((element) => element.getBoundingClientRect().height);
-          const declared = Number(await page.getByRole("status", { name: "Declared skeleton height", exact: true }).textContent());
+          const declared = (await page.getByRole("group", { name: "Declared skeleton box", exact: true }).boundingBox())?.height ?? Number.NaN;
           expect(Number.isFinite(declared)).toBe(true);
           expect(Math.abs(declared - actual)).toBeLessThanOrEqual(SUBPIXEL_PX);
           await expect(page.getByRole("status", { name: "Recovered skeleton rows", exact: true })).toHaveText(String(ROWS));

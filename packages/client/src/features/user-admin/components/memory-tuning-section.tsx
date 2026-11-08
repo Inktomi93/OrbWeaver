@@ -16,7 +16,7 @@ import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, SettingRowGroup, useFirstBootBox } from "#components";
+import { QueryBoundary, SettingRowGroup, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
@@ -125,14 +125,14 @@ function diffNumeric(effective: ResolvedMemoryDefaults, draft: NumericDraft): Me
 
 /** The section's own suspense/error boundary so it is self-contained. */
 export function MemoryTuningSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
-  const firstBootBox = useFirstBootBox({ wide: 16, narrow: 22 });
+  const firstBootRows = useFirstBootRows({ wide: 16, narrow: 22 });
   return (
     // RESERVED (#1098) — one of the two LONGEST admin knob stacks — the sentence it replaced under-reserved by most of a screen.
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={5} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="memory tuning — administrators only" onRetry={retry} />}
-      reserveBlock={firstBootBox}
+      reserveRows={firstBootRows}
       reserveKey="config.admin.memoryTuning"
     >
       <MemoryTuningBody anchorId={anchorId} sectionId={sectionId} />

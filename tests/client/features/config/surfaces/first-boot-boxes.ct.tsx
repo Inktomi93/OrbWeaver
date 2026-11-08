@@ -7,7 +7,7 @@ import type { Page } from "@playwright/test";
 import { z } from "zod";
 import type { FirstBootStory } from "./_first-boot-stories.tsx";
 
-// A first boot has no remembered box, so the Settings groups reserve the box their `reserveBlock` declares.
+// A first boot has no remembered box, so the Settings groups reserve the box their `reserveRows` declares.
 // This holds each group's data reads pending, reads the box every boundary reserved, releases the reads and
 // compares it with the height the same boundary settles at. Only the surfaces whose settled height is fixed
 // by their own controls are asserted (knob stacks, the role rows, the theme grid): a list that settles into
@@ -192,7 +192,7 @@ async function declaredBoxes(page: Page, keys: readonly string[]): Promise<Reado
     const box = page.locator(`[data-reserve-key="${key}"]`);
     await expect(box, `${key} reserves a box while its read is pending`).toBeAttached();
     await expect(box).toHaveAttribute("data-tile-reserve-source", "declared");
-    out.set(key, Number(await box.getAttribute("data-tile-reserved")));
+    out.set(key, (await box.boundingBox())?.height ?? Number.NaN);
   }
   return out;
 }

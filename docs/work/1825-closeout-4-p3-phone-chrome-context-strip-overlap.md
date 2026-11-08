@@ -23,6 +23,4 @@ Each finding is fixed with a component test, or answered with a cited reason, an
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
-
-Source: `reports/side-eye/2026-11-01-closeout-4.md` (gitignored, on main's checkout), run on 822d61a82e. Each finding there carries its run ids.
+Context strip overlap: not reproducible at 390x844 (the strip ends at 282 and All Chat tabs starts at 282). Twin kebabs: real, tracked as 2053. Truncated screen titles: landed with 2045 in the P2 batch. Refinery short landscape opening scrolled: not re-measured; the snap instrument could not boot a page in this worktree.

@@ -1,7 +1,7 @@
 // A box 24rem tall or less has one scroller: a picker's list takes what its dialog's chrome leaves and nothing nests inside it.
 // Layer: CT. Production entry: the AppShell opening the registered `newChat` and `command` modals over the corpus root's own reads.
-import { resolvedLength, seedShellState, settledBox } from "@orb/testkit/browser/spec";
-import { createShellAmbientReads, holdCorpusProcedure, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { resolvedLength, seedShellState, setRootFontScale, settledBox } from "@orb/testkit/browser/spec";
+import { channelName, createShellAmbientReads, holdCorpusProcedure, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
@@ -17,6 +17,7 @@ const COMMAND_ROOT = '[data-slot="command-root"]';
 const ACTIONS = '[data-slot="new-chat-actions"]';
 const RESERVED = "[data-reserve-key]";
 const GEOMETRY_EPSILON = 1;
+const ENLARGED_TEXT = 3;
 /** Upload, Paste and Link. */
 const ADD_DOCUMENT_ARMS = 3;
 /** "Several": the window shows this many whole rows before the dialog asks anything of the reader. */
@@ -136,6 +137,7 @@ for (const viewport of [
       await mount<typeof AppShellModalStory>(STORY, { modalId: "addDocument" });
       const dialog = page.getByRole("dialog");
       await expect(dialog.locator("button[aria-pressed]").first()).toBeVisible();
+      await expectLandscapeRegime(dialog, "Add a document", true);
       // The mode strip is the row of pressable modes directly above the region the arms swap through.
       const modes = await dialog.locator("button[aria-pressed]").evaluateAll((buttons) => {
         const strip = buttons.at(-1)?.parentElement;
@@ -173,6 +175,28 @@ for (const regime of [
       expect(found.list.scroll).toBeGreaterThan(found.list.client + GEOMETRY_EPSILON);
       expect(found.scrollers).toEqual(["command-list"]);
       expect(Math.abs(found.list.client - window)).toBeLessThanOrEqual(GEOMETRY_EPSILON);
+    });
+  });
+}
+
+// Enlarged text makes these dialogs short in the container, so only the media height keeps them out of the landscape regime.
+for (const regime of [
+  { name: "coarse portrait", viewport: { width: 390, height: 844 }, coarse: true },
+  { name: "desktop", viewport: { width: 1440, height: 900 }, coarse: false },
+] as const) {
+  test.describe(`${regime.name} at enlarged text`, () => {
+    test.use({ viewport: regime.viewport, hasTouch: regime.coarse, isMobile: regime.coarse });
+
+    test("the New chat dialog keeps its header in flow and its title wrapping", async ({ corpus, mount, page }) => {
+      await using root = await createCorpusHarness();
+      const caller = await root.internalCallerFor(root.ownerId);
+      await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, SECTION_PROCEDURES) });
+      await seedShellState(page, { activeSection: "chats" });
+      await mount<typeof AppShellModalStory>(STORY, { modalId: "newChat" });
+      const dialog = page.getByRole("dialog");
+      await setRootFontScale(page, channelName("fontScale"), ENLARGED_TEXT);
+      await expect(dialog.locator(ROW).first()).toBeVisible();
+      await expectLandscapeRegime(dialog, "New chat", false);
     });
   });
 }
