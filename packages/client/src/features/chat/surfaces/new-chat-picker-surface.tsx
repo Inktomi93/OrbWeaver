@@ -72,7 +72,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ComponentProps, ReactElement } from "react";
 import { useState } from "react";
 import { CharacterPicker } from "#components";
-import { pickerWindowBox, useStartChat, useTRPC } from "#data";
+import { PICKER_FIRST_OPEN_BOX, useStartChat, useTRPC } from "#data";
 import { BLANK_CHAT_NAME, TEMPORARY_CHAT_BADGE } from "#lib";
 import { clearNewChatIntent, closeModal, openModal, useNewChatIntent } from "#state";
 import { CHAT_SAVED_ROSTER_DOOR_NAME } from "../lib/chat-surface-names.ts";
@@ -117,8 +117,6 @@ export function NewChatPicker(): ReactElement {
   // Cleared by a real modal dismiss — never component cleanup, which React Strict Mode probes while this
   // modal remains logically open. Every opener also overwrites it before opening.
   const intent = useNewChatIntent();
-  // Resolved once per mount: the box moves with tokens, not with a render.
-  const [pickerBox] = useState(pickerWindowBox);
   const { startChat, isPending } = useStartChat();
   const trpc = useTRPC();
   // #26 — the "Start from a saved roster" door, shown only when the library HAS saved rosters (the program
@@ -222,7 +220,7 @@ export function NewChatPicker(): ReactElement {
         onEscape={dismiss}
         onSelect={toggle}
         placeholder="Search characters…"
-        reserveBlock={pickerBox}
+        reserveBlock={PICKER_FIRST_OPEN_BOX}
         reserveKey="chat.newChatPicker"
         rowsHeading="Characters"
         skeletonCount={SKELETON_ROW_COUNT}

@@ -154,6 +154,7 @@ const REFINES: Readonly<Record<string, ArmsByTable>> = {
   "receded > arrival": { [STACK]: ["false", "true"] },
   "receded > artDim": { [STACK]: ["true"] },
   "receded > reveal": { [ROW]: ["true"] },
+  "reserve > height": { [STACK]: ["exact", "gives"] },
   "reveal > painted": { [PICTURE_BUTTON]: ["faint"] },
   "selection > focusRing": { [BUTTON]: ["negated"] },
   "selection > painted": { [PICTURE_BUTTON]: ["negated", "on"] },

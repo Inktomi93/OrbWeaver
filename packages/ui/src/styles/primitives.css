@@ -5,12 +5,14 @@
  * root, and the box it reads is the viewport less its gutters. A query cannot read a var, so these are the `container.cq-*`
  * tokens' values. Under the cq-32 width step a short dialog's footer cannot keep its actions on one row, so it stacks
  * (`dialog-stacked`); wider, they keep their one pinned row. `dialog-tiny` is the cq-14 step, where even a one-control
- * footer would cover the row. A landscape phone's dialog is the one that is also short in the glass: `glass-short:dialog-short:`
- * stacks the media height step (a `rem` there keeps the platform default) on the dialog's own, so enlarged text on a tall screen
- * or a desktop window is a short dialog and never a landscape one. */
+ * footer would cover the row. `dialog-roomy` is the cq-32 step above which a dialog has room to hold a picker's settled box. A landscape
+ * phone's dialog is the one that is also short in the glass: `dialog-short:glass-short:` stacks the media height step (a `rem` there keeps the
+ * platform default) on the dialog's own. A screen 27rem tall or less is in it at any text scale; enlarged text alone never moves a taller
+ * screen into it. */
 @custom-variant dialog-short (@container dialog (height <= 24rem));
 @custom-variant dialog-stacked (@container dialog (height <= 24rem) and (width <= 32rem));
 @custom-variant dialog-tiny (@container dialog (height <= 14rem));
+@custom-variant dialog-roomy (@container dialog (height > 32rem));
 
 /* A non-interactive paint layer fills its positioned host without intercepting the host's controls. */
 @utility orb-paint-carrier {
@@ -123,6 +125,13 @@
   syntax: "<length> | none";
   inherits: false;
   initial-value: none;
+}
+
+/* The length a keyed loading box reserves, written inline by the boundary that holds it. */
+@property --stack-reserve {
+  syntax: "<length>";
+  inherits: false;
+  initial-value: 0;
 }
 
 @layer ui {

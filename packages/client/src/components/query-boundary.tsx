@@ -27,6 +27,7 @@
 // well as height; the authored count survives as the first-boot guess. DECLARED LIMIT: only the `line`
 // shape is re-filled — `skeleton-row-metrics.ts` inverts exactly that arm's pitch (its own header rules
 // `datum` out; `avatar-row`'s pitch is content-determined) — other shapes/fallbacks reserve unfilled.
+// A declared CSS length is held but never refilled (the count needs a pixel box), and `data-tile-reserved` then carries the length itself.
 // The `data-tile-reserved`/`data-tile-reserve-source` attributes are the pinned vocabulary (#837
 // sentinel tier) shared with every consumer, home-born name and all. `data-reserve-key` names which
 // surface a reserved box belongs to, for a test that holds several boundaries at once.
@@ -58,11 +59,12 @@ export interface QueryBoundaryProps {
    */
   readonly reserveKey?: string;
   /**
-   * A declared first-boot box in CSS px, for a surface whose settled height is a known constant
-   * (`HomeTileContribution.skeletonBlock`, the rpg band's measured-range estimate). Used only until
-   * this device's own measurement exists, and only with `reserveKey`.
+   * A declared first-boot box, for a surface whose settled height is a known constant
+   * (`HomeTileContribution.skeletonBlock`, the rpg band's measured-range estimate): CSS px, or a CSS length
+   * built from tokens, which the browser resolves and no render reads. Used only until this device's own
+   * measurement exists, and only with `reserveKey`.
    */
-  readonly reserveBlock?: number | undefined;
+  readonly reserveBlock?: number | string | undefined;
   /** Preserve a parent-owned definite height through the reservation wrapper. */
   readonly fill?: boolean;
   /** The wrappers share the room a flex parent leaves and give way below their content, so a bounded dialog holds the skeleton and the settled child in one box. */
@@ -344,7 +346,7 @@ function ReservedFallback({
   children,
 }: {
   readonly reserveKey: string;
-  readonly reserveBlock: number | undefined;
+  readonly reserveBlock: number | string | undefined;
   readonly fill: boolean;
   readonly grow: boolean;
   readonly children: ReactNode;
@@ -358,20 +360,23 @@ function ReservedFallback({
       </Stack>
     );
   }
+  // Only a pixel box can refill the skeleton's row count; a CSS length is held as it is.
+  const skeleton = typeof box === "number" ? fillToBox(children, box) : children;
   return (
     <Stack
       className="overflow-clip"
       grow={grow ? "onLandscape" : undefined}
       minHeight={grow ? "holdsPickerOnLandscape" : undefined}
+      reserve={grow ? "gives" : "exact"}
+      reserveBlock={typeof box === "number" ? `${String(Math.round(box))}px` : box}
       data-reserve-key={reserveKey}
-      data-tile-reserved={Math.round(box)}
+      data-tile-reserved={typeof box === "number" ? Math.round(box) : box}
       // WHICH source held the box open: "this device MEASURED it" is a different claim from "the mount
       // declared a constant" — a first-boot assertion reading only `data-tile-reserved` would silently
       // start passing for the wrong reason.
       data-tile-reserve-source={measured === null ? "declared" : "measured"}
-      style={{ blockSize: `${Math.round(box)}px` }}
     >
-      {fillToBox(children, box)}
+      {skeleton}
     </Stack>
   );
 }

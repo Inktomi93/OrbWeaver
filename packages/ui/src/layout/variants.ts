@@ -267,12 +267,11 @@ const SCROLL_FADE = { x: SCROLL_FADE_X_CLASS, y: SCROLL_FADE_Y_CLASS } as const;
 const SCROLL = { y: SCROLLER_Y } as const;
 
 // `dialog-stacked` is two conditions, so it has no negation to hide under: these arms restore the display, and only a flex box can name them.
-// `unlessDialogLandscape` is a landscape phone's dialog; `unlessDialogLandscapeWide` the one that is not stacked, which keeps its actions in a single pinned row.
+// `unlessDialogLandscape` is a landscape phone's dialog.
 const BOX_HIDDEN_AT = {
   ...HIDDEN_AT,
-  unlessDialogLandscape: "hidden glass-short:dialog-short:flex",
+  unlessDialogLandscape: "hidden dialog-short:glass-short:flex",
   unlessDialogStacked: "hidden dialog-stacked:flex",
-  unlessDialogLandscapeWide: "hidden glass-short:dialog-short:flex dialog-stacked:hidden",
 } as const;
 
 // A wrapped child that queues behind its siblings until the container is wide enough to seat it beside them, where its
@@ -310,6 +309,9 @@ export const stackVariants = tv({
     // A reading box keeps its element across the skins, so its flow is a choice here, not another primitive: `weld` seats the body beside its art, and
     // `page` is the grid a pinned band stays pinned in.
     readingFlow: { weld: "flex-row", page: "grid" },
+    // A loading box that holds the length its caller writes to `--stack-reserve`. `gives` is a picker's: on a landscape phone the box it stands in for
+    // takes the room its dialog leaves, so the skeleton asks for no length of its own and its rows fill and shrink to the same remainder.
+    reserve: { exact: "block-(--stack-reserve)", gives: "block-(--stack-reserve) dialog-short:glass-short:block-auto" },
     // THE ROW-PITCH FLOOR (#884 C3 — #850's class: rows of floorless inline-edit affordances stacked at a
     // sub-floor pitch, so a Button's hit pseudo overflows onto the NEIGHBOUR ROW'S TEXT and loses
     // hit-testing to it; 28 P1 tap-targets on one rpg tab). `control` floors every DIRECT child at the
@@ -403,7 +405,7 @@ export const stackVariants = tv({
 // Inline bleed preserves glyph hit areas inside the scroller; scroll padding clears its sticky action footer. A landscape phone's
 // dialog popup inset is the row step, so its body reaches exactly that far and no further: past the popup's padding box it would only be clipped.
 const DIALOG_SCROLL_CLASS =
-  "relative -mx-glyph-bleed min-block-0 overflow-x-hidden overflow-y-auto overscroll-contain px-glyph-bleed scroll-pbe-(--size-control-lg) glass-short:dialog-short:-mx-row glass-short:dialog-short:px-row";
+  "relative -mx-glyph-bleed min-block-0 overflow-x-hidden overflow-y-auto overscroll-contain px-glyph-bleed scroll-pbe-(--size-control-lg) dialog-short:glass-short:-mx-row dialog-short:glass-short:px-row";
 
 export const dialogBodyVariants = tv({
   base: DIALOG_SCROLL_CLASS,
