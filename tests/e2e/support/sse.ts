@@ -86,7 +86,8 @@ export async function collectChatRoomFrames(args: {
 }): Promise<ChatRoomCollection> {
   const { baseUrl, headers, chatId, until, timeoutMs, sinceSeq, onLive } = args;
   // One socket per collect call — this instrument IS a tab, and a distinct id keeps two concurrent viewers
-  // (host + member) on genuinely independent cells.
+  // (host + member) on genuinely independent cells. Random by design: the id keys a server cell that outlives a
+  // restarted worker, so a seeded counter that restarts could attach to a cell another worker still holds.
   const socketId = globalThis.crypto.randomUUID();
   const ref = { channel: "chat", chatId };
 

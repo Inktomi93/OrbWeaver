@@ -33,7 +33,9 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import process from "node:process";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
-import { assertPrivateCorpusNetwork, assertPrivateCorpusOutput, assertPrivateCorpusOutputArguments, loadCorpusFixture } from "@orb/testkit/node/composed";
+import { OPENROUTER_API_KEY_ENV } from "@orb/server/foundation/env/record";
+// Never the composed door: importing it loads the operator `.env` into the runner, and every webServer inherits it.
+import { assertPrivateCorpusNetwork, assertPrivateCorpusOutput, assertPrivateCorpusOutputArguments, loadCorpusFixture } from "@orb/testkit/node/helpers";
 import { DEV_PORTS, E2E_PORT_OFFSET_ENV, ENGINE_PORTS, e2eRunPorts } from "@orb/tooling/floor/host/ports";
 import { exportProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
@@ -45,6 +47,7 @@ import { devTargetAllowed } from "./target-guard.ts";
 const RUN_TOKEN_ENV = "ORB_E2E_RUN_TOKEN";
 /** Only the runner creates disposal authority; workers inherit its native environment. */
 export const E2E_RUN_IS_OWNER = process.env["TEST_WORKER_INDEX"] === undefined;
+// Random by design: the token names this run's disposable state, so two runs on one box must never share it.
 const runToken = E2E_RUN_IS_OWNER ? `${String(process.pid)}-${randomUUID()}` : process.env[RUN_TOKEN_ENV];
 if (runToken === undefined || !/^[1-9]\d*-[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/u.test(runToken)) {
   throw new Error("An E2E worker requires its runner's generated run token");
@@ -160,6 +163,14 @@ export const E2E_SSO_GROUPS = { member: "e2e-members", admin: "e2e-admins", owne
  * spelling it here keeps the row identical to what a user would type.
  */
 export const E2E_LOCAL_ENGINE_BASE_URL = `http://127.0.0.1:${String(ENGINE_PORTS.generate)}/v1`;
+
+/** `pnpm e2e:tapes:record` sets this: the tape peer (`support/tape-provider.ts`) forwards to the upstream and writes each tape. */
+export const E2E_TAPE_RECORDING = process.env["E2E_TAPE_RECORD"] === "1";
+/** The upstream key a recording spends; only the recording run reads it, and no tape may hold it. */
+export const E2E_TAPE_RECORD_KEY = process.env[OPENROUTER_API_KEY_ENV];
+/** Where a recording run writes its tapes. Gitignored, because the run's working-tree guard refuses a tracked write;
+ *  the record script copies the tapes into the committed tape directory after the run passes. */
+export const E2E_TAPE_RECORD_DIR = resolve(CHECKOUT_ROOT, "reports", "provider-tapes");
 
 /** The provider that row is authored under; its model list is read under the same id. */
 export const E2E_LOCAL_ENGINE_PROVIDER = "vllm";

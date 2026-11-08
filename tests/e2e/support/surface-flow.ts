@@ -3,7 +3,7 @@ import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { SurfaceActionGroup, SurfaceActionWindow, SurfacePaneRequest } from "@orb/testkit/browser/spec";
 import { surfaceAction, surfaceCheckpoint, surfaceTopology } from "@orb/testkit/browser/spec";
 import type { SurfaceAuditRequest } from "@orb/testkit/ct";
-import type { SurfacePass } from "@orb/testkit/iso";
+import type { SeededIds, SurfacePass } from "@orb/testkit/iso";
 import type { SurfaceRunConfig } from "@orb/testkit/node/helpers";
 import type { Page, TestInfo } from "@playwright/test";
 import { expect } from "@playwright/test";
@@ -18,6 +18,8 @@ export interface SurfaceFlowInput {
   readonly run: SurfaceRunConfig;
   readonly chatStyle: ThemeChatStyle;
   readonly fontScale: number;
+  /** The run's id source; every name a journey mints draws from it. */
+  readonly ids: SeededIds;
 }
 
 export interface SurfaceFlow extends SurfaceFlowInput {

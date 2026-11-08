@@ -1,6 +1,7 @@
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { observeSurfaceSession } from "@orb/testkit/browser/spec";
-import { SURFACE_PASSES } from "@orb/testkit/iso";
+import type { SeededIds } from "@orb/testkit/iso";
+import { createSeededIds, FIXTURE_ID_CURSOR, SURFACE_PASSES } from "@orb/testkit/iso";
 import type { SurfaceRunConfig, SurfaceWalkOptions } from "@orb/testkit/node/helpers";
 import { attachNativeFile, readSurfaceRunConfig, surfaceArtifactModes } from "@orb/testkit/node/helpers";
 import { test as base, expect } from "@playwright/test";
@@ -15,14 +16,28 @@ export { expect } from "@playwright/test";
 const defaults = appearanceSettingsSchema.parse({});
 const nativeRun = await readSurfaceRunConfig();
 
+// Each worker process mints from its own band, so a worker Playwright restarts after a failure never repeats a name
+// an earlier worker left in the shared disposable clone.
+const WORKER_ID_BAND = 2 ** 16;
+
 interface SurfaceWalkFixtures {
   readonly run: SurfaceRunConfig;
   readonly client: TrpcClient;
   readonly flow: SurfaceFlow;
 }
 
+interface SurfaceWalkWorkerFixtures {
+  readonly runIds: SeededIds;
+}
+
 /** A fresh page receives observers before its first navigation; dataset preparation never drives the browser. */
-export const test = base.extend<SurfaceWalkOptions & SurfaceWalkFixtures>({
+export const test = base.extend<SurfaceWalkOptions & SurfaceWalkFixtures, SurfaceWalkWorkerFixtures>({
+  runIds: [
+    async ({}, use, worker) => {
+      await use(createSeededIds(FIXTURE_ID_CURSOR + worker.workerIndex * WORKER_ID_BAND));
+    },
+    { scope: "worker" },
+  ],
   surfacePass: [SURFACE_PASSES[0], { option: true }],
   requestedPanes: [{ kind: "desktop", panes: { list: true, context: true } }, { option: true }],
   chatStyle: [defaults.chatStyle, { option: true }],
@@ -38,8 +53,8 @@ export const test = base.extend<SurfaceWalkOptions & SurfaceWalkFixtures>({
     expect({ userId: viewer.userId, handle: viewer.handle }).toEqual(run.owner);
     await use(client);
   },
-  flow: async ({ page, client, requestedPanes, run, chatStyle, fontScale, surfacePass }, use, info) => {
-    await use(createSurfaceFlow({ page, client, requestedPanes, run, chatStyle, fontScale, info, pass: surfacePass }));
+  flow: async ({ page, client, requestedPanes, run, chatStyle, fontScale, surfacePass, runIds }, use, info) => {
+    await use(createSurfaceFlow({ page, client, requestedPanes, run, chatStyle, fontScale, info, pass: surfacePass, ids: runIds }));
   },
   context: async ({ context, run, surfacePass, trace, screenshot, video }, use, info) => {
     const posture = { pass: surfacePass, trace, screenshot, video };

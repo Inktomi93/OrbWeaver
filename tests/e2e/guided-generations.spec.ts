@@ -29,11 +29,10 @@
 // speaker voiced the next row), never MODEL OBEDIENCE — a small local model needn't semantically obey a
 // steer for the app to have done its job (the house doctrine).
 //
-// SPEND: local vLLM only. The route is pinned to the stateless openai-compat wire in beforeAll (the arm
-// that keeps turns bounded), restored in afterAll. Each leg fires a handful of short turns. Turns are
-// free on the local stack; the @live tag keeps the routine/CI-smoke lane model-free (config grepInvert),
-// and every leg records a runner-native conditional skip when the operator's stack has no local chat
-// backend wired, so unavailable evidence is not recorded as a pass.
+// PROVIDER: each leg plays its own recorded provider tape (support/tape-provider.ts) through a custom endpoint
+// connection, one tape step per request the leg sends, so routine e2e runs every leg with no engine and
+// production parses the recorded stream. `pnpm e2e:tapes:record` re-records the tapes. The @live smoke at the
+// end fires one guided response on the local engine and skips when none is wired.
 //
 // SELF-SEEDING: each test mints its OWN spec-owned character(s) (unique handle + unique display name) and
 // its OWN uniquely-titled chat via startGroupChat (opening:"none" ⇒ empty canon, so every assertion counts
@@ -49,6 +48,7 @@ import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-
 import { COMPOSER_CORRECTIONS_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
 import { MESSAGE_ACTIONS_MENU_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { messageRow, openChatByTitle } from "./support/chat-room.ts";
+import { startTapeProvider } from "./support/tape-provider.ts";
 import { WAIT_UI_MS } from "./support/timeouts.ts";
 import {
   assembledPromptText,
@@ -59,6 +59,7 @@ import {
   listCanon,
   mintFreshCharacter,
   pinChatToLocalEngine,
+  pinChatToTape,
   previewAssembly,
   probeLocalChatBackend,
   removeCharacter,
@@ -147,41 +148,18 @@ async function pollAssistantCount(chatId: ChatId, n: number): Promise<void> {
   await expect.poll(async () => (await listCanon(chatId)).filter((m) => m.role === "assistant").length, { timeout: LIVE_TIMEOUT_MS }).toBe(n);
 }
 
-test.describe("guided generations on the live local stack", () => {
-  /** The `chat` Model role as it stood before this file ran (restored in afterAll — the rows are the
-   *  single-user owner's and serial specs share them). */
-  let priorChatBinding: { readonly connectionId: UserConnectionId } | null = null;
-  /** Null ⇒ the local engine is there; a string ⇒ the unavailable reason every arm reports to the runner. */
-  let unavailable: string | null = null;
-
-  // The ENVIRONMENT verdict, paid ONCE: pin the stateless local route, then ask production's probe whether the engine
-  // is there. A box with no local vllm engine listening at the harness's loopback port fails every local turn — an
-  // environment verdict, not a regression — so only that may skip. Anything else throws here, and the arms below
-  // never swallow their own errors.
-  test.beforeAll(async () => {
-    // The stateless openai-compat local wire — the arm that keeps a UI-fired turn bounded (the group-modes
-    // precedent). A guided icon fires without an output-ceiling intent, so this pin is what caps the spend.
-    priorChatBinding = await pinChatToLocalEngine();
-    unavailable = await probeLocalChatBackend();
-  });
-
-  test.afterAll(async () => {
-    await restoreChatBinding(priorChatBinding);
-  });
-
-  function skipWhenBackendUnavailable(): void {
-    test.skip(unavailable !== null, unavailable ?? "local chat backend available");
-  }
-
+test.describe("guided generations on recorded provider turns", () => {
   // ── LEG 1 — STEER SHAPES THE TURN ────────────────────────────────────────────────────────────────
   // The honest pre-turn instrument: previewAssembly routes the steer through the SAME gather→build a real
   // turn gets, so the steer INSTRUCTION is assertable in the assembled prompt BEFORE any generation (and a
   // plain preview must NOT carry it — the isolation proof). Then fire the same steer via the composer's
   // guided Response icon and assert a NEW assistant row commits. App fidelity (steer reached assembly + a row landed),
   // never model obedience (we do not read the reply's prose).
-  test("steer shapes the turn: the instruction reaches the assembly and a guided response commits", { tag: "@live" }, async ({ page }) => {
+  test("steer shapes the turn: the instruction reaches the assembly and a guided response commits", async ({ page }) => {
     test.setTimeout(LIVE_TIMEOUT_MS);
-    skipWhenBackendUnavailable();
+    await using tape = await startTapeProvider("guided-generations/steer", ["guided-response"]);
+    await using binding = new AsyncDisposableStack();
+    binding.defer(await pinChatToTape(tape));
     const charId = await mintFreshCharacter(SOLO.handle, SOLO.name, SOLO.greeting);
     const title = `e2e-guided-steer-${Date.now()}`;
     const chat = await startGroupChat({ characterIds: [charId], title });
@@ -213,9 +191,11 @@ test.describe("guided generations on the live local stack", () => {
   // Fire Rewrite with a steer on the tail assistant reply; the correction lands as a NEW VARIANT of the
   // SAME slot (variantCount +1), the original variant intact (still idx 0 content), the new variant
   // SELECTED (selectedVariantIdx advances). Server truth = the slot's variant metadata + content on canon.
-  test("rewrite lands as a variant: same slot, +1 variant, original intact, new one selected", { tag: "@live" }, async ({ page }) => {
+  test("rewrite lands as a variant: same slot, +1 variant, original intact, new one selected", async ({ page }) => {
     test.setTimeout(LIVE_TIMEOUT_MS);
-    skipWhenBackendUnavailable();
+    await using tape = await startTapeProvider("guided-generations/rewrite", ["seed-response", "rewrite"]);
+    await using binding = new AsyncDisposableStack();
+    binding.defer(await pinChatToTape(tape));
     const charId = await mintFreshCharacter(SOLO.handle, SOLO.name, SOLO.greeting);
     const title = `e2e-guided-rewrite-${Date.now()}`;
     const chat = await startGroupChat({ characterIds: [charId], title });
@@ -266,9 +246,11 @@ test.describe("guided generations on the live local stack", () => {
   // Continue the tail reply (content grows); Undo via the ⋯ menu → content returns to pre-continue; Revert
   // → the continued content returns. Server truth = the slot's content across the round-trip. Also: the ⋯
   // items are DISABLED-WITH-REASON on a never-continued reply (owner: no hidden affordances).
-  test("undo/revert continue round-trips: content grows, undo restores, revert re-applies", { tag: "@live" }, async ({ page }) => {
+  test("undo/revert continue round-trips: content grows, undo restores, revert re-applies", async ({ page }) => {
     test.setTimeout(LIVE_TIMEOUT_MS);
-    skipWhenBackendUnavailable();
+    await using tape = await startTapeProvider("guided-generations/continue", ["seed-response", "continue"]);
+    await using binding = new AsyncDisposableStack();
+    binding.defer(await pinChatToTape(tape));
     const charId = await mintFreshCharacter(SOLO.handle, SOLO.name, SOLO.greeting);
     const title = `e2e-guided-continue-${Date.now()}`;
     const chat = await startGroupChat({ characterIds: [charId], title });
@@ -320,9 +302,11 @@ test.describe("guided generations on the live local stack", () => {
   // In a group room, fire the guided Response icon choosing a SPECIFIC speaker from its member menu; the
   // steer + the chosen speaker ride ONE chat.generate, and the next committed assistant row's characterId
   // IS the chosen speaker. Server truth = the committed row's characterId.
-  test("steer + speaker: the guided response commits a row authored by the chosen speaker", { tag: "@live" }, async ({ page }) => {
+  test("steer + speaker: the guided response commits a row authored by the chosen speaker", async ({ page }) => {
     test.setTimeout(LIVE_TIMEOUT_MS);
-    skipWhenBackendUnavailable();
+    await using tape = await startTapeProvider("guided-generations/speaker", ["speaker-response"]);
+    await using binding = new AsyncDisposableStack();
+    binding.defer(await pinChatToTape(tape));
     const alphaId = await mintFreshCharacter(DUO[0].handle, DUO[0].name, DUO[0].greeting);
     const bravoId = await mintFreshCharacter(DUO[1].handle, DUO[1].name, DUO[1].greeting);
     const title = `e2e-guided-speaker-${Date.now()}`;
@@ -362,4 +346,28 @@ test.describe("guided generations on the live local stack", () => {
   // other legs and the whole suite depend on (and racing that restore back is brittle). Per the leg-5
   // rubric ("only add if the kit can induce a failing fire without contortion — otherwise SKIP and say
   // so"), this proof is DELIBERATELY DEFERRED to the CT, named here so it is never silently absent.
+});
+
+// The optional live smoke: one guided response on the operator's local engine. A box with no engine at the
+// harness's loopback port records a runner-native skip, never a pass.
+test("live smoke: a guided response commits on the local engine", { tag: "@live" }, async ({ page }) => {
+  test.setTimeout(LIVE_TIMEOUT_MS);
+  const priorChatBinding: { readonly connectionId: UserConnectionId } | null = await pinChatToLocalEngine();
+  try {
+    const unavailable = await probeLocalChatBackend();
+    test.skip(unavailable !== null, unavailable ?? "local chat backend available");
+    const charId = await mintFreshCharacter(SOLO.handle, SOLO.name, SOLO.greeting);
+    const title = `e2e-guided-live-${Date.now()}`;
+    const chat = await startGroupChat({ characterIds: [charId], title });
+    try {
+      await openChatByTitle(page, title);
+      const tailId = await seedAssistantTail(page, chat.id, STEER_RESPONSE);
+      expect((await canonMessage(chat.id, tailId))?.content).toMatch(/\S/u);
+    } finally {
+      await deleteChat(chat.id).catch(() => null);
+      await removeCharacter(charId).catch(() => null);
+    }
+  } finally {
+    await restoreChatBinding(priorChatBinding);
+  }
 });
