@@ -2,11 +2,13 @@
 // `chat.startChat`, `invites.redeemInvite`). Each parses its defaults through the contract schema, so a new
 // required field fails here once instead of silently passing every fixture; an override is spread after the parse.
 
+import type { MessageView } from "@orb/contracts/chat";
 import {
   chatDetailSchema,
   chatSummarySchema,
   DEFAULT_GROUP_CONFIG,
   DEFAULT_ROOM_OVERRIDES,
+  messageViewSchema,
   participantViewSchema,
   redeemInviteResultSchema,
   TALKATIVENESS_DEFAULT,
@@ -107,6 +109,55 @@ export function makeChatDetail(overrides: Partial<ChatDetailWire> = {}): ChatDet
       createdAt: FROZEN_AT_MS,
       updatedAt: FROZEN_AT_MS,
       identities: [],
+    }),
+    ...overrides,
+  };
+}
+
+/** One canon row as a room's history read and its bus carriers deliver it: an unedited user line. */
+export function makeMessageView(overrides: Partial<MessageView> & Pick<MessageView, "chatId" | "seq">): MessageView {
+  return {
+    ...messageViewSchema.parse({
+      id: ids.typeId(ID_PREFIX.message),
+      chatId: overrides.chatId,
+      seq: overrides.seq,
+      role: "user",
+      kind: "standard",
+      authorUserId: null,
+      characterId: null,
+      personaId: null,
+      excludedFromPrompt: false,
+      createdAt: FROZEN_AT_MS,
+      editedAt: null,
+      selectedVariantId: ids.typeId(ID_PREFIX.messageVariant),
+      selectedVariantIdx: 0,
+      variantCount: 1,
+      hasContinuation: false,
+      outputCapReached: false,
+      content: "A line in the room.",
+      reasoning: null,
+      model: null,
+      provider: null,
+      finishReason: null,
+      stopReason: null,
+      terminalReason: null,
+      tokensIn: null,
+      tokensOut: null,
+      tokenProvenance: "unrecorded",
+      cacheReadTokens: null,
+      cacheWriteTokens: null,
+      contextWindow: null,
+      contextBoundaryMessageId: null,
+      costUsd: null,
+      costProvenance: "unrecorded",
+      ttftMs: null,
+      genStartedAt: null,
+      genFinishedAt: null,
+      hasGeneratedVariant: false,
+      generationId: null,
+      connectionAttributionProvenance: "unrecorded",
+      connectionId: null,
+      toolCalls: [],
     }),
     ...overrides,
   };

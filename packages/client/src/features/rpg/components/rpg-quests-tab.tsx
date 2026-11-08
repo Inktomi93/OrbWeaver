@@ -30,6 +30,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { DestructiveAction, Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
+import { deleteConfirmTitle } from "#lib";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useDeleteQuest, useEditQuestObjective, useEditSnapshot, useUpsertQuest } from "../hooks/use-rpg-mutations.ts";
 import { buildPlotEdit } from "../lib/plot-edit.ts";
@@ -133,7 +134,7 @@ function DeleteQuestAction({ quest, onDelete }: { readonly quest: RpgQuestView; 
   return (
     <DestructiveAction
       confirm={{
-        title: `Delete "${quest.name}"?`,
+        title: deleteConfirmTitle(quest.name),
         description: "The quest and its objectives leave the game state for good. The chronicle keeps whatever already happened in the story.",
         confirmLabel: "Delete",
       }}

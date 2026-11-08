@@ -16,6 +16,7 @@ import type { CorpusWire } from "@orb/testkit/iso";
 import { createSeededIds, nonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { IMAGINE_PROMPT_NAME } from "#client/features/imagery/lib/imagine-names.ts";
 import { PRESET_RENAME_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { routeSurfaceReads } from "./_surface-harness.ts";
 import { groupScenario, modalScenario, sectionScenario } from "./_surface-scenarios.ts";
@@ -206,7 +207,7 @@ test("the imagine modal reads clean on a seeded prompt", async ({ corpus, mount,
     name: "seeded image prompt",
     scope: page.getByRole("dialog"),
     state: "loaded",
-    witnesses: [page.getByRole("textbox", { name: "Image prompt", exact: true })],
+    witnesses: [page.getByRole("textbox", { name: IMAGINE_PROMPT_NAME, exact: true })],
     checks: ["density"],
   });
   expect(boundary).toEqual([]);

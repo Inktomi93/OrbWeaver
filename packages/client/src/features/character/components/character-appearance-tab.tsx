@@ -34,7 +34,7 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import { ThemePreviewPane, ThemeSwatchStrip } from "@orb/ui/theme-swatch";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { BackgroundSourceField, CORNER_RADIUS_NAME, DestructiveAction, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
+import { BackgroundSourceField, CORNER_RADIUS_NAME, DestructiveAction, FONT_FIELD_NAME, QueryBoundary, SettingRowGroup, SettingTrackRow } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { AutosaveStatus } from "#forms/editor";
@@ -42,6 +42,7 @@ import { notify, THEME_RADIUS_LABELS } from "#lib";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { CharacterThemeForm } from "../hooks/use-character-theme-form.ts";
 import { usePromoteTheme } from "../hooks/use-promote-theme.ts";
+import { CHARACTER_START_FROM_THEME_NAME } from "../lib/character-names.ts";
 import type { CharacterThemeFormValues } from "../lib/character-theme-form-model.ts";
 import {
   characterThemeFormFromOverride,
@@ -287,7 +288,7 @@ function ThemeControlsBody({ characterName, session }: ThemeControlsBodyProps): 
         <Section heading="Type & shape">
           <SettingRowGroup>
             <SettingTrackRow>
-              <form.AppField name="font">{(field): ReactElement => <field.SelectField label="Font" items={FONT_ITEMS} />}</form.AppField>
+              <form.AppField name="font">{(field): ReactElement => <field.SelectField label={FONT_FIELD_NAME} items={FONT_ITEMS} />}</form.AppField>
             </SettingTrackRow>
             <SettingTrackRow>
               <form.AppField name="radius">{(field): ReactElement => <field.SelectField label={CORNER_RADIUS_NAME} items={RADIUS_ITEMS} />}</form.AppField>
@@ -367,7 +368,7 @@ function StartFromThemeField({ onPick }: { readonly onPick: (theme: Theme) => vo
       <MenuTrigger
         render={
           <Button disabled={rows.length === 0} variant="outline" size="sm">
-            Start from a theme…
+            {CHARACTER_START_FROM_THEME_NAME}
             <Icon icon={ChevronDown} size="xs" />
           </Button>
         }

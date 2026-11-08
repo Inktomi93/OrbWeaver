@@ -13,6 +13,7 @@ import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { z } from "zod";
 import { CHARACTER_IMPORT_NAME, CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
+import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import type { AppShellListDockStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -258,7 +259,7 @@ test.describe("on a wide desktop", () => {
     await mount<typeof AppShellStory>(STORY, {});
     await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
     await expect(page.getByRole("main")).toHaveCount(1);
-    await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: PRIMARY_NAV_NAME, exact: true })).toBeVisible();
     const names = await page.getByRole("complementary", { includeHidden: true }).evaluateAll((elements) =>
       elements.map((element) => {
         const labelledBy = element.getAttribute("aria-labelledby");

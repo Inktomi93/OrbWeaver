@@ -14,6 +14,7 @@ import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { Page, Response } from "@playwright/test";
 import { z } from "zod";
 import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { assistantRows, charactersRailButton, waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
@@ -29,7 +30,7 @@ const PROBE_GREETING = "The night market hums.";
 // The phone's bottom bar carries only the curated sections, so it reaches Home and Chats through the command palette.
 async function goToSection(page: Page, isMobile: boolean, name: typeof SECTION_LABELS.home | typeof SECTION_LABELS.chats): Promise<void> {
   if (!isMobile) {
-    await page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name, exact: true }).click();
+    await page.getByRole("navigation", { name: PRIMARY_NAV_NAME }).getByRole("button", { name, exact: true }).click();
     return;
   }
   // The shortcut ignores text-entry targets, so leave the composer first.

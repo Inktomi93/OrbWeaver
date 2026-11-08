@@ -26,6 +26,7 @@ import type { ReactElement } from "react";
 import { useTRPC } from "#data";
 import { authoredChatName, deriveChatTitle } from "#lib";
 import { useRoomRoster } from "../hooks/use-room-roster.ts";
+import { chatMembersEntryName } from "../lib/chat-surface-names.ts";
 import { openMembersTab } from "../lib/open-members-tab.ts";
 import { filterCharacters } from "../lib/roster.ts";
 import { ChatHeaderTitle } from "./chat-header-title.tsx";
@@ -133,7 +134,7 @@ function RosterChipButton({ count, onClick }: { readonly count: number; readonly
       variant="outline"
       shape="pill"
       size="sm"
-      aria-label={`Members: ${count}`}
+      aria-label={chatMembersEntryName(count)}
       className="shrink-0"
       touchFloor="inline"
       onClick={onClick}

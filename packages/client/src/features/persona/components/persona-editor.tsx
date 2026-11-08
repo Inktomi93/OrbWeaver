@@ -30,7 +30,16 @@ import { ASSISTANT_PREFILL_WARNING, downloadTextFile, MESSAGE_ROLE_ITEMS, notify
 import { takePersonaEditorFocus, usePersonaEditorFocusRequest } from "#state";
 import { PersonaForm } from "../hooks/use-persona-form.ts";
 import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-mutations.ts";
-import { deleteMovesDefaultNote } from "../lib/persona-copy.ts";
+import {
+  deleteMovesDefaultNote,
+  PERSONA_DELETE_NAME,
+  PERSONA_DESCRIPTION_FIELD_NAME,
+  PERSONA_DUPLICATE_NAME,
+  PERSONA_EXPORT_NAME,
+  PERSONA_FROM_CARD_NAME,
+  PERSONA_NAME_FIELD_NAME,
+  PERSONA_TITLE_FIELD_NAME,
+} from "../lib/persona-copy.ts";
 import type { PersonaFormValues } from "../lib/persona-editor-model.ts";
 import { isPrefillCombo, personaFormFromEntity, personaInputFromForm } from "../lib/persona-editor-model.ts";
 import { PersonaConnectedCharacters } from "./persona-connected-characters.tsx";
@@ -148,11 +157,15 @@ function PersonaEditorBody({ session, persona, onDelete, nextDefaultName }: Pers
         <AvatarTrigger persona={persona} />
         <Stack gap="row" className="min-inline-0" grow={true}>
           <form.AppField name="name">
-            {(field): ReactElement => <field.TextField label="Name" hint="Characters call you this. It can't be empty." />}
+            {(field): ReactElement => <field.TextField label={PERSONA_NAME_FIELD_NAME} hint="Characters call you this. It can't be empty." />}
           </form.AppField>
           <form.AppField name="title">
             {(field): ReactElement => (
-              <field.TextField label="Title" hint="A display subtitle for pickers. It is never injected into the prompt." placeholder="Optional" />
+              <field.TextField
+                label={PERSONA_TITLE_FIELD_NAME}
+                hint="A display subtitle for pickers. It is never injected into the prompt."
+                placeholder="Optional"
+              />
             )}
           </form.AppField>
           <AutosaveStatus state={session.status} onRetry={session.retrySave} />
@@ -163,7 +176,7 @@ function PersonaEditorBody({ session, persona, onDelete, nextDefaultName }: Pers
         <form.AppField name="description">
           {(field): ReactElement => (
             <field.MacroField
-              label="Description"
+              label={PERSONA_DESCRIPTION_FIELD_NAME}
               hint="How this persona is described to the model. Use {{user}}/{{persona}} to self-reference."
               suggestions={macroSuggestions}
               rows={6}
@@ -219,7 +232,7 @@ function PersonaEditorBody({ session, persona, onDelete, nextDefaultName }: Pers
       <Row gap="row" align="center" wrap={true} justify="end" data-slot="persona-editor-footer">
         <Button disabled={duplicate.isPending} variant="ghost" size="sm" onClick={duplicatePersona}>
           <Icon icon={Copy} size="sm" />
-          Duplicate
+          {PERSONA_DUPLICATE_NAME}
         </Button>
         <Button
           variant="ghost"
@@ -229,11 +242,11 @@ function PersonaEditorBody({ session, persona, onDelete, nextDefaultName }: Pers
           }}
         >
           <Icon icon={Download} size="sm" />
-          Export
+          {PERSONA_EXPORT_NAME}
         </Button>
         <DestructiveAction
           confirm={{
-            confirmLabel: "Delete",
+            confirmLabel: PERSONA_DELETE_NAME,
             description: (
               <>
                 This permanently deletes “{persona.name}”. Past messages you authored as it keep their name and avatar.
@@ -246,7 +259,7 @@ function PersonaEditorBody({ session, persona, onDelete, nextDefaultName }: Pers
           trigger={
             <Button variant="ghost" size="sm">
               <Icon icon={Trash} size="sm" />
-              Delete
+              {PERSONA_DELETE_NAME}
             </Button>
           }
         />
@@ -301,7 +314,7 @@ function ProvenanceChip({ metadata }: { readonly metadata: PersonaMetadata | nul
   return (
     <Row gap="field" align="center">
       <Badge tone="info" variant="solid">
-        From a character card
+        {PERSONA_FROM_CARD_NAME}
       </Badge>
       {metadata.swapMacros === true ? (
         <Text voice="gloss">

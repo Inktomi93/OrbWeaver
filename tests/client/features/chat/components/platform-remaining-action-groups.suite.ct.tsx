@@ -12,6 +12,7 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, TestInfo } from "@playwright/test";
+import { CHAT_GALLERY_ADD_NAME, CHAT_GALLERY_ADD_PICKER_TITLE, CHAT_GALLERY_EMPTY_TITLE } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { GalleryActionsStory, GameTrackerActionsStory, ToolActionsStory } from "./_remaining-action-groups-stories.tsx";
 
 const STORIES = "tests/client/features/chat/components/_remaining-action-groups-stories";
@@ -139,10 +140,10 @@ for (const regime of REGIMES) {
         await opener.focus();
         await page.keyboard.press("Enter");
         const gallery = page.getByRole("dialog", { name: `${card.name}'s gallery`, exact: true });
-        const add = gallery.getByRole("button", { name: "Add images", exact: true });
+        const add = gallery.getByRole("button", { name: CHAT_GALLERY_ADD_NAME, exact: true });
         const close = gallery.getByRole("button", { name: "Close", exact: true });
         await expect(add).toBeEnabled();
-        await expect(gallery.getByText("No images yet", { exact: true })).toHaveCount(populated ? 0 : 1);
+        await expect(gallery.getByText(CHAT_GALLERY_EMPTY_TITLE, { exact: true })).toHaveCount(populated ? 0 : 1);
         await measure(gallery, [add, close], testInfo, "gallery-actions");
         if (populated) {
           await measure(add.locator(".."), [add, close], testInfo, "gallery-header-actions");
@@ -160,7 +161,7 @@ for (const regime of REGIMES) {
         await expectBlockContained(gallery, [add, close], regime.viewport.height);
         await add.focus();
         await page.keyboard.press("Enter");
-        const picker = page.getByRole("dialog", { name: "Add images to the gallery", exact: true });
+        const picker = page.getByRole("dialog", { name: CHAT_GALLERY_ADD_PICKER_TITLE, exact: true });
         await expect(picker).toBeVisible();
         await picker.getByRole("button", { name: "Cancel", exact: true }).click();
         await expect(picker).toBeHidden();

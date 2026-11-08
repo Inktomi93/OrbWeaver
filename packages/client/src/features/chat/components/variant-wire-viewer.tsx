@@ -50,6 +50,7 @@ import type { ReactElement } from "react";
 import { QueryBoundary, ViewerDialog } from "#components";
 import { QueryErrorState, retryUnlessBadRequest, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId, trpcErrorCode } from "#lib";
+import { WIRE_AUTHORED_TEXT_HEADING, WIRE_NO_PROMPT_TITLE, WIRE_STATIC_PREFIX_HEADING } from "../lib/chat-surface-names.ts";
 
 export interface VariantWireViewerProps {
   readonly chatId: ChatId;
@@ -147,7 +148,7 @@ function WireProvenance({ wire }: { readonly wire: VariantWireView }): ReactElem
       <MacroFreezesSection freezes={macroFreezes} />
       {rawContent === null ? null : (
         <WireSection
-          heading="Authored text, before transforms"
+          heading={WIRE_AUTHORED_TEXT_HEADING}
           gloss="What this reply said before the receive transforms and the freeze rewrote it. Absent means no distinct pre-transform text is recorded. Never that the two were identical."
           text={rawContent}
         />
@@ -167,7 +168,7 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
         <EmptyState
           action={null}
           icon={<Icon icon={ScrollText} size="lg" />}
-          title="No prompt was captured for this reply"
+          title={WIRE_NO_PROMPT_TITLE}
           description="Only generated replies record the prompt they sent. A message you typed, an imported turn, or a seeded greeting never ran one. Raw provider bytes aren't stored at all; they live only in the dev wire-capture ring (WIRE_CAPTURE)."
         />
         <WireProvenance wire={wire} />
@@ -181,7 +182,7 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
         the chat history rows are not stored here. Host-only: it carries every member's content, the room's hidden spans, and each character's full card.
       </Text>
       <WireSection
-        heading="Static prefix"
+        heading={WIRE_STATIC_PREFIX_HEADING}
         gloss="The cache-stable half: the preset's fixed sections: prose, cards and always-on world info."
         text={prompt.static}
       />

@@ -51,7 +51,7 @@ import { useRef } from "react";
 import { RowActionsMenu } from "#components";
 import { useIds } from "#data";
 import type { AppFormInstance } from "#forms/editor";
-import { notify, useFocusOnSwap } from "#lib";
+import { notify, ROW_DUPLICATE_NAME, useFocusOnSwap } from "#lib";
 import {
   GENERATION_TYPE_ITEMS,
   hasRoleField,
@@ -66,7 +66,7 @@ import {
 } from "#src/features/preset/lib/assembly-model.ts";
 import { PRESET_NUMBER_FORMAT } from "#src/features/preset/lib/format-count.ts";
 import type { PresetEditorValues } from "../../lib/preset-editor-values.ts";
-import { PRESET_BACK_TO_RACK_NAME, PRESET_DELETE_SECTION_TITLE, PRESET_SECTION_ACTIONS_NAME } from "../../lib/preset-names.ts";
+import { PRESET_BACK_TO_RACK_NAME, PRESET_DELETE_SECTION_TITLE, PRESET_SECTION_ACTIONS_NAME, PRESET_SECTION_NAME_FIELD_NAME } from "../../lib/preset-names.ts";
 import { DeliveryCluster } from "../delivery-cluster.tsx";
 import type { DerivedZones } from "./derive-zones.ts";
 import { deriveZones } from "./derive-zones.ts";
@@ -210,7 +210,9 @@ interface ZonedClusterProps extends SectionEditProps {
 function DeliveryFields({ form, section, index, inChat }: ZonedClusterProps): ReactElement {
   const inject = "inject" in section ? section.inject : undefined;
   const injectName = `sections[${index}].inject` as const;
-  const nameField = <form.AppField name={`sections[${index}].name`}>{(field): ReactElement => <field.TextField label="Name" />}</form.AppField>;
+  const nameField = (
+    <form.AppField name={`sections[${index}].name`}>{(field): ReactElement => <field.TextField label={PRESET_SECTION_NAME_FIELD_NAME} />}</form.AppField>
+  );
   return (
     <DeliveryCluster
       depth={inject?.depth ?? null}
@@ -416,7 +418,7 @@ function SectionActionsMenu({ form, section, index, onBack }: SectionEditProps &
           >
             <MenuItem onClick={(): void => duplicate(form, section, index, () => mintPromptSectionId(ids.uuid()))}>
               <Icon icon={Copy} size="sm" />
-              Duplicate
+              {ROW_DUPLICATE_NAME}
             </MenuItem>
             {move}
           </RowActionsMenu>

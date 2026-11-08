@@ -3,6 +3,7 @@ import { worldEntryIdInputSchema } from "@orb/contracts/world-info";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { WORLD_INFO_ENTRY_TITLE_NAME } from "#client/features/world-info/lib/world-info-names.ts";
 import type { WorldInfoMemberStory } from "./_member-stories.tsx";
 
 const STORY = "tests/client/features/world-info/surfaces/_member-stories/WorldInfoMemberStory";
@@ -36,7 +37,7 @@ for (const width of PHONE_WIDTHS) {
       context: false,
       phone: true,
     });
-    const title = component.getByRole("textbox", { name: "Title", exact: true });
+    const title = component.getByRole("textbox", { name: WORLD_INFO_ENTRY_TITLE_NAME, exact: true });
     await expect(title).toHaveValue(world.reads.entry.output.title);
     const editor = await title.boundingBox();
     const priority = await component.getByRole("textbox", { name: "Priority", exact: true }).boundingBox();

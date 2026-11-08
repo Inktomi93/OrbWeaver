@@ -10,6 +10,7 @@ import { Check, Icon } from "#primitives/icons";
 import { Input } from "#primitives/input";
 import { Popover, PopoverPopup, PopoverTrigger } from "#primitives/popover";
 import { WebSpinner } from "#primitives/spinner";
+import { COLOR_HEX_FIELD_NAME, colorPickerName } from "./color-field-names.ts";
 import { colorFieldVariants } from "./variants.ts";
 
 export interface ColorSwatchProps extends Omit<ComponentProps<"span">, "children" | "style"> {
@@ -153,7 +154,7 @@ export function ColorField({
   const nativeHex = NATIVE_HEX_RE.test(draft) ? draft : FALLBACK_NATIVE_HEX;
   // A ColorField's popover is a dialog context. Bound fields supply their existing visible label through
   // `aria-label`; retain a stable generic name for label-less consumers rather than shipping an unnamed dialog.
-  const popupLabel = ariaLabel === undefined ? "Color picker" : `${ariaLabel} color picker`;
+  const popupLabel = colorPickerName(ariaLabel);
 
   const handleOpenChange = (next: boolean, details: ColorFieldOpenChangeDetails): void => {
     setOpen(next);
@@ -220,7 +221,7 @@ export function ColorField({
             type="color"
             value={nativeHex}
           />
-          <Field className={slots.hexField()} label="Hex" {...(showError ? { error: unrenderableMessage(draft) } : {})}>
+          <Field className={slots.hexField()} label={COLOR_HEX_FIELD_NAME} {...(showError ? { error: unrenderableMessage(draft) } : {})}>
             <Input onValueChange={commit} spellCheck={false} value={draft} />
           </Field>
           <Button className={slots.resetButton()} data-slot="color-field-reset" variant="ghost" onClick={handleReset} size="sm" type="button">

@@ -7,6 +7,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { CharacterPicker, QueryBoundary } from "#components";
 import { SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { DIALOG_VERBS } from "#lib";
 
 /** A selected character is read by identity, never searched for in the first library page. */
 export function RuleCharacterField({
@@ -34,7 +35,7 @@ export function RuleCharacterField({
               </Text>
               <Text voice="gloss">The selected character is unavailable. Its saved identity is retained until you replace it.</Text>
               <Button variant="ghost" justify="start" onClick={retry}>
-                Retry
+                {DIALOG_VERBS.retry}
               </Button>
             </Stack>
           )}

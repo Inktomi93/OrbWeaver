@@ -11,6 +11,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { pluginSurfaceAuditAttributes, testId } from "#lib";
+import { PLUGIN_SURFACE_KICKER } from "../lib/plugin-panel-copy.ts";
 
 /** Host-selected chrome: boxed panels, unboxed settings blocks, or transcript-inline attribution. */
 const SHELL_CHROMES = ["panel", "block", "inline"] as const;
@@ -92,7 +93,7 @@ export function PluginSurfaceShell({
           {/* The KICKER names the CLASS, not the instance: "this is a plugin", which is the sentence a
               faked settings screen most needs contradicted. */}
           <Text push="inlineEnd" voice="kicker">
-            Plugin
+            {PLUGIN_SURFACE_KICKER}
           </Text>
         </Row>
         {/* `relative` is load-bearing, not decoration: a scroll container establishes no containing block on

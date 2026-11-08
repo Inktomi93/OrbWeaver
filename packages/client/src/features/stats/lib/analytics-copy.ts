@@ -6,3 +6,6 @@ export const APPROX_DATES_MARK = "~";
 /** Explains the mark and the aggregates that count approximate messages without a per-bucket mark. */
 export const APPROX_DATES_NOTE =
   "~ marks days with approximate dates. Imported chats can date messages long after the chat began. The rhythm, weekday and hour figures count those messages too.";
+
+/** The analytics list's empty state before any rolled-up activity exists. */
+export const ANALYTICS_NO_ACTIVITY_TEXT = "No characters have any rolled-up activity yet.";

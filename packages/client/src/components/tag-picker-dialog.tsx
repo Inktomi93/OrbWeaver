@@ -28,7 +28,7 @@ import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data"
 import { sortTagsBy } from "#lib";
 import { FormDialog } from "./form-dialog.tsx";
 import { QueryBoundary } from "./query-boundary.tsx";
-import { TAG_NAME_FIELD_NAME } from "./shared-control-names.ts";
+import { createTagName, TAG_NAME_FIELD_NAME } from "./shared-control-names.ts";
 
 /** How many suggestions the inline list renders at once — a scroll of 400 is not a suggestion list (the
  *  box itself shows ~4 and scrolls, so this is the depth of the scroll, not the height of the box). */
@@ -94,7 +94,7 @@ export function TagPickerDialog({ open, onOpenChange, title, description, confir
         onOpenChange(next);
       }}
       open={open}
-      submit={{ label: creating ? `Create "${trimmed}"` : confirmLabel, onSubmit: confirm, disabled: trimmed === "" || alreadyAttached }}
+      submit={{ label: creating ? createTagName(trimmed) : confirmLabel, onSubmit: confirm, disabled: trimmed === "" || alreadyAttached }}
       title={title}
     >
       <Stack gap="field">

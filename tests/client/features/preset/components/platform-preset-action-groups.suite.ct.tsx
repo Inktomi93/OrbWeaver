@@ -5,6 +5,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { PRESET_NAME_FIELD_NAME, PRESET_RENAME_NAME } from "#client/features/preset/lib/preset-names.ts";
+import { CLEAR_SEARCH_NAME } from "#client/lib/search-empty-names.ts";
 import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_preset-action-groups-stories/PresetActionGroupsStory";
@@ -97,7 +98,7 @@ for (const regime of REGIMES) {
       await mount<typeof PresetActionGroupsStory>(STORY, { width: regime.width, appearance: regime.appearance, subject: "list" });
       const search = page.getByRole("textbox", { name: "Search presets", exact: true });
       await search.fill("No matching layout qualification preset");
-      const clear = page.getByRole("button", { name: "Clear search", exact: true });
+      const clear = page.getByRole("button", { name: CLEAR_SEARCH_NAME, exact: true });
       const create = page.getByRole("button", { name: "New preset", exact: true });
       await clear.focus();
       await page.keyboard.press("Tab");

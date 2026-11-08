@@ -3,6 +3,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusReadResponder } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { CONFIG_SEARCH_NAME } from "#client/features/config/lib/config-control-names.ts";
 import type { ConfigPanesStory } from "./_list-stories.tsx";
 
 const PANES_STORY = "tests/client/features/config/surfaces/_list-stories/ConfigPanesStory";
@@ -49,7 +50,7 @@ const MEMBER_QUERY = "luck ledg";
 test("Enter on a member hit lands in its editor, because the search field started the arrival", async ({ corpus, corpusViewer, mount, page }) => {
   await routeConfig(page, corpus, corpusViewer);
   await mount<typeof ConfigPanesStory>(PANES_STORY, { showList: true });
-  const search = page.getByRole("combobox", { name: "Search settings" });
+  const search = page.getByRole("combobox", { name: CONFIG_SEARCH_NAME });
   await search.fill(MEMBER_QUERY);
   await expect(page.getByRole("option", { name: /luck ledger/u }).first()).toBeVisible();
   await search.press("Enter");
@@ -62,7 +63,7 @@ test("a member hit whose read is held leaves a reader who went back to typing in
   held.defer(book.release);
   await routeConfig(page, corpus, corpusViewer, () => book);
   await mount<typeof ConfigPanesStory>(PANES_STORY, { showList: true });
-  const search = page.getByRole("combobox", { name: "Search settings" });
+  const search = page.getByRole("combobox", { name: CONFIG_SEARCH_NAME });
   await search.fill(MEMBER_QUERY);
   await expect(page.getByRole("option", { name: /luck ledger/u }).first()).toBeVisible();
   await search.press("Enter");
@@ -79,7 +80,7 @@ test("a search hit on a section inside a closed fold opens the fold", async ({ c
   await mount<typeof ConfigPanesStory>(PANES_STORY, { showList: true, initialGroup: "appearance" });
   const fold = page.getByRole("button", { name: /Customize this look/u });
   await expect(fold).toHaveAttribute("aria-expanded", "false");
-  await page.getByRole("combobox", { name: "Search settings" }).fill("effects");
+  await page.getByRole("combobox", { name: CONFIG_SEARCH_NAME }).fill("effects");
   await page
     .getByRole("option", { name: /Effects/u })
     .first()

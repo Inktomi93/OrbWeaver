@@ -106,6 +106,22 @@ export const VARIANT_NEXT_NAME = "Next variant";
  */
 export const VARIANT_GENERATE_NAME = "Regenerate a variant";
 
+/** The row menu's clipboard copy of the shown text. */
+export const MESSAGE_COPY_NAME = "Copy";
+
+/** The row menu's prompt-exclusion toggle, in both states. */
+export const MESSAGE_HIDE_FROM_AI_NAME = "Hide from AI";
+export const MESSAGE_UNHIDE_FROM_AI_NAME = "Unhide from AI";
+
+/** The prompt-exclusion toggle's name for the message's current state. */
+export function messagePromptToggleName(excluded: boolean): string {
+  return excluded ? MESSAGE_UNHIDE_FROM_AI_NAME : MESSAGE_HIDE_FROM_AI_NAME;
+}
+
+/** The row menu's continue snapshot pair on an assistant reply. */
+export const MESSAGE_UNDO_CONTINUATION_NAME = "Undo last continuation";
+export const MESSAGE_REAPPLY_CONTINUATION_NAME = "Re-apply continuation";
+
 /** An earlier reply's swipe count, in words: "Reply 3 of 3", or "Edited reply, 3 alternates" off the list. */
 export function variantCountName(current: number | null, total: number): string {
   return current === null ? `Edited reply, ${String(total)} alternates` : `Reply ${String(current)} of ${String(total)}`;

@@ -42,12 +42,11 @@ import type { ListPaneHeaderView } from "#lib";
 import { openModal } from "#state";
 import { useDatabankBankHealth, useDatabankCensus, useDatabankListCensus } from "../hooks/use-databank-census.ts";
 import { DATABANK_SWEEPS_CHECK_FAILED, DATABANK_SWEEPS_NEED_DOCUMENT } from "../lib/databank-copy.ts";
-import { DATABANK_MAINTENANCE_NAME } from "../lib/databank-names.ts";
+import { DATABANK_ADD_DOCUMENT_TITLE, DATABANK_ADD_NAME, DATABANK_MAINTENANCE_NAME } from "../lib/databank-names.ts";
 import { DATABANK_SECTION_LABEL } from "../lib/databank-section-label.ts";
 import { useOwnerSweep } from "./use-owner-sweep.tsx";
 
 const MAINTENANCE_LABEL = DATABANK_MAINTENANCE_NAME;
-const ADD_DOCUMENT_LABEL = "Add a document";
 
 export function useDatabankListHeader(): ListPaneHeaderView {
   const health = useDatabankBankHealth();
@@ -81,7 +80,7 @@ export function useDatabankListHeader(): ListPaneHeaderView {
   }
   const shown = useDatabankListCensus();
   const countProp = shown === undefined ? {} : { count: shown };
-  const addDocument = { id: "databank-add", label: ADD_DOCUMENT_LABEL, icon: Plus, onSelect: (): void => openModal("addDocument") };
+  const addDocument = { id: "databank-add", label: DATABANK_ADD_DOCUMENT_TITLE, icon: Plus, onSelect: (): void => openModal("addDocument") };
 
   return {
     actions: [
@@ -162,7 +161,7 @@ export function useDatabankListHeader(): ListPaneHeaderView {
         inline: (
           <Button onClick={(): void => openModal("addDocument")} size="sm">
             <Icon icon={Plus} size="sm" />
-            Add
+            {DATABANK_ADD_NAME}
           </Button>
         ),
         menu: [addDocument],

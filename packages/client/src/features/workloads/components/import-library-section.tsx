@@ -38,6 +38,7 @@ import { useUploadCaps } from "#data";
 import { DIALOG_VERBS, testId } from "#lib";
 import type { ImportPreviewState, LibraryImport } from "../hooks/use-library-import.ts";
 import { useLibraryImport } from "../hooks/use-library-import.ts";
+import { IMPORT_FOLDER_NAME } from "../lib/import-library-names.ts";
 import { IMPORT_CONFIRM_NAMES, IMPORT_CONSEQUENCE, IMPORT_NOTHING_FOUND_NOTE, planNotes, previewIsEmpty } from "../lib/portability-model.ts";
 import { BundleWorkloadTracker } from "./bundle-workload-tracker.tsx";
 import { ImportPreviewSummary } from "./import-preview-summary.tsx";
@@ -258,7 +259,7 @@ export function ImportLibrarySection(): ReactElement {
             stageFolder(accepted);
           }}
         >
-          Import a folder…
+          {IMPORT_FOLDER_NAME}
         </FolderPicker>
         <Text cap="prose" voice="gloss">
           An unzipped Orbweaver backup or a SillyTavern profile folder. Your API keys (secrets.json) never leave this browser.

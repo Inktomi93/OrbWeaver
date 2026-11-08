@@ -1,8 +1,9 @@
-// Rewrites an exact string literal, or an expression matching an ast-grep pattern, to a production binding in the files
-// a plan lists, importing the binding once.
+// Rewrites an exact string literal, JSX text, or an expression matching an ast-grep pattern, to a production binding in
+// the files a plan lists, importing the binding once.
 
 import type { Codemod, Edit, GetSelector, RuleConfig, SgNode } from "codemod:ast-grep";
-import type TS from "codemod:ast-grep/langs/typescript";
+// The TSX grammar is a superset; the TypeScript step's nodes carry the same kinds.
+import type TS from "codemod:ast-grep/langs/tsx";
 import { readFileSync } from "fs";
 import { join } from "path";
 
@@ -32,8 +33,10 @@ const STRING_VALUE: RuleConfig<TS> = {
   },
 };
 
-/** Every string literal that could be a value; the plan decides which files and texts change. */
-export const getSelector: GetSelector<TS> = () => STRING_VALUE;
+const JSX_TEXT: RuleConfig<TS> = { rule: { kind: "jsx_text" } };
+
+/** Every string literal that could be a value, and every JSX text run; the plan decides which files and texts change. */
+export const getSelector: GetSelector<TS> = () => ({ rule: { any: [STRING_VALUE.rule, JSX_TEXT.rule] } });
 
 /** The string under `key`, or undefined when the entry holds none. */
 function stringField(entry: object, key: string): string | undefined {
@@ -88,24 +91,37 @@ function importsBinding(statements: readonly SgNode<TS>[], binding: string): boo
   );
 }
 
-const codemod: Codemod<TS> = (root, options) => {
-  const plan = readPlan(options.targetDir, options.params["plan"] ?? DEFAULT_PLAN_FILE);
-  const file = root.relativeFilename();
-  const rewrites = plan.filter((entry) => entry.files.includes(file));
-  if (rewrites.length === 0) {
-    return Promise.resolve(null);
-  }
-  const rootNode = root.root();
-  const edits: Edit[] = [];
-  const needed = new Map<string, LiteralRewrite>();
-  for (const node of options.matches ?? rootNode.findAll(STRING_VALUE)) {
+interface Planned {
+  readonly edits: Edit[];
+  readonly needed: Map<string, LiteralRewrite>;
+}
+
+function literalEdits(rootNode: SgNode<TS>, rewrites: readonly LiteralRewrite[], { edits, needed }: Planned): void {
+  for (const node of rootNode.findAll(STRING_VALUE)) {
     const text = node.text().slice(1, -1);
     const rewrite = rewrites.find((entry) => entry.literal === text);
     if (rewrite !== undefined && !isPropertyKey(node)) {
-      edits.push(node.replace(rewrite.expression));
+      // A JSX attribute value takes an expression only inside braces.
+      const braced = node.parent()?.kind() === "jsx_attribute";
+      edits.push(node.replace(braced ? `{${rewrite.expression}}` : rewrite.expression));
       needed.set(rewrite.binding, rewrite);
     }
   }
+}
+
+function jsxTextEdits(rootNode: SgNode<TS>, rewrites: readonly LiteralRewrite[], { edits, needed }: Planned): void {
+  for (const node of rootNode.findAll(JSX_TEXT)) {
+    const raw = node.text();
+    const rewrite = rewrites.find((entry) => entry.literal === raw.trim());
+    if (rewrite !== undefined && rewrite.literal !== undefined) {
+      const at = raw.indexOf(rewrite.literal);
+      edits.push(node.replace(`${raw.slice(0, at)}{${rewrite.expression}}${raw.slice(at + rewrite.literal.length)}`));
+      needed.set(rewrite.binding, rewrite);
+    }
+  }
+}
+
+function patternEdits(rootNode: SgNode<TS>, rewrites: readonly LiteralRewrite[], { edits, needed }: Planned): void {
   for (const rewrite of rewrites) {
     if (rewrite.pattern === undefined) {
       continue;
@@ -115,17 +131,39 @@ const codemod: Codemod<TS> = (root, options) => {
       needed.set(rewrite.binding, rewrite);
     }
   }
-  if (edits.length === 0) {
-    return Promise.resolve(null);
-  }
+}
+
+// One import line per module, so bindings from one copy module land together.
+function importEdit(rootNode: SgNode<TS>, needed: ReadonlyMap<string, LiteralRewrite>): Edit | undefined {
   const statements = rootNode.findAll({ rule: { kind: "import_statement" } });
   const last = statements.at(-1);
   const missing = [...needed.values()].filter((entry) => !importsBinding(statements, entry.binding));
-  if (missing.length > 0 && last !== undefined) {
-    const at = last.range().end.index;
-    edits.push({ startPos: at, endPos: at, insertedText: missing.map((entry) => `\nimport { ${entry.binding} } from "${entry.from}";`).join("") });
+  if (missing.length === 0 || last === undefined) {
+    return undefined;
   }
-  return Promise.resolve(rootNode.commitEdits(edits));
+  const byModule = Map.groupBy(missing, (entry) => entry.from);
+  const at = last.range().end.index;
+  const lines = [...byModule].map(([from, entries]) => `\nimport { ${entries.map((entry) => entry.binding).join(", ")} } from "${from}";`);
+  return { startPos: at, endPos: at, insertedText: lines.join("") };
+}
+
+const codemod: Codemod<TS> = (root, options) => {
+  const plan = readPlan(options.targetDir, options.params["plan"] ?? DEFAULT_PLAN_FILE);
+  const file = root.relativeFilename();
+  const rewrites = plan.filter((entry) => entry.files.includes(file));
+  if (rewrites.length === 0) {
+    return Promise.resolve(null);
+  }
+  const rootNode = root.root();
+  const planned: Planned = { edits: [], needed: new Map() };
+  literalEdits(rootNode, rewrites, planned);
+  jsxTextEdits(rootNode, rewrites, planned);
+  patternEdits(rootNode, rewrites, planned);
+  if (planned.edits.length === 0) {
+    return Promise.resolve(null);
+  }
+  const imports = importEdit(rootNode, planned.needed);
+  return Promise.resolve(rootNode.commitEdits(imports === undefined ? planned.edits : [...planned.edits, imports]));
 };
 
 export default codemod;

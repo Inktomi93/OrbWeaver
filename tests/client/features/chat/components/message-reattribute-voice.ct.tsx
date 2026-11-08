@@ -9,6 +9,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import {
   MESSAGE_ACTIONS_MENU_NAME,
+  MESSAGE_COPY_NAME,
   MESSAGE_REATTRIBUTE_GENERATING,
   MESSAGE_REATTRIBUTE_NAME,
   MESSAGE_REATTRIBUTE_NO_OTHER_SEAT,
@@ -177,6 +178,6 @@ test("a member is never offered the voice door", async ({ corpus, mount, page, c
   await mount<typeof RoomTranscriptStory>(STORY, storyProps(room.chatId));
 
   await openRowMenu(page, room.reply);
-  await expect(page.getByRole("menuitem", { name: "Copy", exact: true })).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: MESSAGE_COPY_NAME, exact: true })).toBeVisible();
   await expect(page.getByRole("menuitem", { name: MESSAGE_REATTRIBUTE_VOICE_NAME, exact: true })).toHaveCount(0);
 });

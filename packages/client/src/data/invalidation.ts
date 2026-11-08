@@ -11,6 +11,7 @@ import type { RpgBusEvent } from "@orb/contracts/rpg";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { ChatId } from "@orb/kit/ids";
 import type { InvalidateQueryFilters, Query, QueryClient } from "@tanstack/react-query";
+import { CancelledError, matchQuery } from "@tanstack/react-query";
 import { busDupCheck, busInvalidate, IS_DEV, runAfterViewTransition, surfaceDeferredFailure } from "#lib";
 import { collapseFilters, filterKeyName } from "./collapse-filters.ts";
 import { allAutomationRoomFilters, automationEventFilters } from "./invalidation-automation.ts";
@@ -35,7 +36,8 @@ import { allUserRootFilters, identityFilters, USER_BUS_FILTERS } from "./invalid
 import type { Trpc } from "./trpc.ts";
 
 export interface Invalidation {
-  /** The bus half — routes a `ChatBusEvent` through the exhaustive map. Fire-and-forget. */
+  /** The bus half — routes a `ChatBusEvent` through the exhaustive map. Fire-and-forget: the carrier lands at once,
+   *  and the events one task delivers share one refetch on the next task. */
   readonly invalidate: (event: ChatBusEvent) => void;
   /** The user-bus half — routes a `UserBusEvent` through `USER_BUS_FILTERS`. Fire-and-forget. */
   readonly invalidateUser: (event: UserBusEvent) => void;
@@ -212,6 +214,72 @@ function combinedRefetchTarget(targets: ReadonlySet<RefetchTarget>): RefetchTarg
 // Hook facades are recreated per render; an initial read owes one reconciliation across all of them.
 const initialReads = new WeakMap<Query, Set<RefetchTarget>>();
 
+// The room events one task delivers share one refetch. `held` maps a query to the refetch the wave started in place of
+// a read that predates one of its events; that refetch reads nothing until `gate` opens at the flush.
+interface ChatWave {
+  readonly filters: InvalidateQueryFilters[];
+  readonly gate: PromiseWithResolvers<void>;
+  readonly held: Map<Query, Promise<unknown>>;
+}
+
+// Keyed by client, not facade, for the same reason as `initialReads`.
+const chatWaves = new WeakMap<QueryClient, ChatWave>();
+
+// Query.fetch(options) and Query.setOptions are @internal in @tanstack/query-core 5.104.5. This is their only use;
+// tests/client/data/invalidation-chat-hold.dom.test.ts pins that the swapped queryFn reaches no other fetch.
+function holdRefetch(query: Query, gate: Promise<void>): Promise<unknown> | undefined {
+  const options = query.options;
+  const { queryFn } = options;
+  if (typeof queryFn !== "function") {
+    return undefined;
+  }
+  let held: Promise<unknown> | undefined;
+  try {
+    // cancelRefetch cancels the stale read silently, so a press waiting on it waits on this refetch instead.
+    query
+      .fetch(
+        {
+          ...options,
+          queryFn: async (context) => {
+            await gate;
+            // A fetch that replaced this one, or the query's removal, retires it before it reads.
+            if (query.promise !== held) {
+              throw new CancelledError();
+            }
+            return queryFn(context);
+          },
+        },
+        { cancelRefetch: true },
+      )
+      .catch(() => undefined);
+    held = query.promise;
+  } finally {
+    query.setOptions(options);
+  }
+  return held;
+}
+
+/** Whether `invalidateQueries(filter)` would refetch `query`. */
+function refetches(filter: InvalidateQueryFilters, query: Query): boolean {
+  const target = filter.refetchType ?? filter.type ?? "active";
+  return target !== "none" && matchQuery({ ...filter, type: target }, query) && !query.isDisabled() && !query.isStatic();
+}
+
+/** Whether `query` holds a read in flight from before this event that the wave must replace. An initial read has no
+ *  carrier to protect; `retainInitialReads` reconciles it at the flush. */
+function predatesWave(wave: ChatWave, filter: InvalidateQueryFilters, query: Query): boolean {
+  return query.state.data !== undefined && query.state.fetchStatus !== "idle" && wave.held.get(query) !== query.promise && refetches(filter, query);
+}
+
+function replaceStaleRead(wave: ChatWave, query: Query): void {
+  // Marked first, so a held refetch an unmount reverts still owes its refetch on the next mount.
+  query.invalidate();
+  const held = holdRefetch(query, wave.gate.promise);
+  if (held !== undefined) {
+    wave.held.set(query, held);
+  }
+}
+
 export function createInvalidation(deps: { readonly queryClient: QueryClient; readonly trpc: Trpc }): Invalidation {
   // Native invalidation reuses an initial in-flight read; its stale response then clears isInvalidated.
   function retainInitialInvalidation(query: Query, target: RefetchTarget): void {
@@ -267,6 +335,39 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
       }
     });
   };
+  const flushChatWave = (wave: ChatWave): void => {
+    chatWaves.delete(deps.queryClient);
+    wave.gate.resolve();
+    const unheld = (query: Query): boolean => {
+      const held = wave.held.get(query);
+      return held === undefined || held !== query.promise;
+    };
+    invalidateFilters(
+      collapseFilters(wave.filters).map((filter) => ({ ...filter, predicate: (query) => unheld(query) && (filter.predicate?.(query) ?? true) })),
+    );
+  };
+  const openChatWave = (): ChatWave => {
+    const wave: ChatWave = { filters: [], gate: Promise.withResolvers<void>(), held: new Map() };
+    chatWaves.set(deps.queryClient, wave);
+    setTimeout(() => flushChatWave(wave), 0);
+    return wave;
+  };
+  // A read in flight at an event predates it and would land over the carrier, so it is replaced at once by the wave's
+  // held refetch; everything else refetches once at the flush.
+  const enqueueChatWave = (filters: readonly InvalidateQueryFilters[]): void => {
+    if (filters.length === 0) {
+      return;
+    }
+    const wave = chatWaves.get(deps.queryClient) ?? openChatWave();
+    wave.filters.push(...filters);
+    for (const filter of filters) {
+      for (const query of deps.queryClient.getQueryCache().findAll(filter)) {
+        if (predatesWave(wave, filter, query)) {
+          replaceStaleRead(wave, query);
+        }
+      }
+    }
+  };
   return {
     invalidate: (event): void => {
       // Apply BEFORE the invalidate: the refetch this same event fires is what will confirm the row, and
@@ -277,7 +378,7 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
       if (IS_DEV) {
         busInvalidate(event.type, event.chatId, filters.map(filterKeyName));
       }
-      invalidateFilters(filters);
+      enqueueChatWave(filters);
     },
     invalidateUser: (event): void => {
       const handler = USER_BUS_FILTERS[event.type] as (e: UserBusEvent, t: Trpc) => readonly InvalidateQueryFilters[];
