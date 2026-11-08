@@ -43,7 +43,7 @@ export { readSurfaceCohortRenders, readSurfaceDesignAudit } from "./surface-desi
 export { publishSurfaceInventory } from "./surface-inventory.ts";
 export { markExpectedSurfaceHttpFailure, observeSurfaceSession } from "./surface-session.ts";
 export { surfaceTopology } from "./surface-topology.ts";
-export { touchTargetFindings } from "./touch-floor.ts";
+export { pressableWhole, touchTargetFindings } from "./touch-floor.ts";
 export type {
   ActorRefInput,
   CompactionIntent,

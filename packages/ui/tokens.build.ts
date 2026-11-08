@@ -477,7 +477,7 @@ function renderTokensTs({ tokens, polarityArms, lengths, conditions, tones, pigm
     "}",
     "",
     "/** The seed [data-theme] value-sets — their own generated module (see tokens.build.ts), re-exported here so `@orb/ui/tokens` stays the ONE import for every token surface. */",
-    `export { SEED_THEME_NAMES, SEED_THEME_VALUE_SETS } from "${THEMES_MODULE}";`,
+    `export { BASE_PALETTE_STAMP, SEED_THEME_NAMES, SEED_THEME_VALUE_SETS } from "${THEMES_MODULE}";`,
     "",
   ].join("\n");
 }
@@ -579,10 +579,16 @@ function renderSeedThemesBlock(themes: readonly SeedTheme[], resets: readonly st
   return parts.join("");
 }
 
+// The stamp that names the base palette block. Its selector and the `BASE_PALETTE_STAMP` a caller spreads come from this one pair, so the
+// attribute is ui's vocabulary and a caller cannot rename it out from under the block.
+const BASE_PALETTE_ATTRIBUTE = "data-palette";
+const BASE_PALETTE_VALUE = "base";
+const BASE_PALETTE_SELECTOR = `[${BASE_PALETTE_ATTRIBUTE}="${BASE_PALETTE_VALUE}"]`;
+
 /**
- * The base palette (Hearth) restated under `[data-palette="base"]`. Hearth IS the base `@theme`, so it owns no
+ * The base palette (Hearth) restated under its stamp. Hearth IS the base `@theme`, so it owns no
  * `[data-theme]` block and the shell paints it by stamping nothing; a nested box that must show Hearth under another
- * palette's scope (a theme thumbnail) names this block instead. Same keys as a seed block, values from the base tokens.
+ * palette's scope (a theme thumbnail) spreads `BASE_PALETTE_STAMP` instead. Same keys as a seed block, values from the base tokens.
  */
 function renderBasePaletteBlock(seeds: readonly SeedTheme[], portableByPath: ReadonlyMap<string, string>, resets: readonly string[]): string {
   const [seed] = seeds;
@@ -597,8 +603,8 @@ function renderBasePaletteBlock(seeds: readonly SeedTheme[], portableByPath: Rea
     }
     return `  ${name}: ${value};`;
   });
-  const block = `\n[data-palette="base"] {\n  color-scheme: dark;\n${[...lines, ...resets.map((line) => `  ${line}`)].join("\n")}\n}\n`;
-  assertSeedBlockRestatesEmitSurface(block, '[data-palette="base"]');
+  const block = `\n${BASE_PALETTE_SELECTOR} {\n  color-scheme: dark;\n${[...lines, ...resets.map((line) => `  ${line}`)].join("\n")}\n}\n`;
+  assertSeedBlockRestatesEmitSurface(block, BASE_PALETTE_SELECTOR);
   return block;
 }
 
@@ -617,6 +623,9 @@ function renderSeedThemesTs(themes: readonly SeedTheme[]): string {
     0,
     "/** The seed palette names, in file order: the tuple that owns the keys of `SEED_THEME_VALUE_SETS`. */",
     `export const SEED_THEME_NAMES = [${themes.map((theme) => JSON.stringify(theme.name)).join(", ")}] as const;`,
+    "",
+    "/** The props that put a box under the base palette's restated block, for a box nested in another palette's scope. */",
+    `export const BASE_PALETTE_STAMP = { ${JSON.stringify(BASE_PALETTE_ATTRIBUTE)}: ${JSON.stringify(BASE_PALETTE_VALUE)} } as const;`,
     "",
   );
   for (const theme of themes) {

@@ -23,6 +23,7 @@
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { pseudoHitEnvelope, readPseudoGeometry, walkFrom } from "../iso/hit-extent-walk.ts";
+import { LAYOUT_SUBPIXEL_PX } from "./enlarged-text-geometry.ts";
 import { diagnosticTarget } from "./performance-entry.ts";
 
 /** One control's effective hit target, in CSS px. */
@@ -203,6 +204,21 @@ export async function touchTargetFindings(page: Page): Promise<readonly string[]
     await Promise.all(controls.map((control) => control.dispose()));
   }
   return findings;
+}
+
+/** Whether the control is whole on screen and takes a press at its top, middle and foot down its centre line, so nothing lies over any part of it.
+ *  Each edge sample sits a pixel past the layout rounding, because a box at a fractional offset snaps its edge pixel onto the neighbour it abuts. */
+export function pressableWhole(control: Locator): Promise<boolean> {
+  return control.evaluate((el, inset) => {
+    const box = el.getBoundingClientRect();
+    if (box.top < 0 || box.bottom > window.innerHeight) {
+      return false;
+    }
+    return [box.top + inset, box.top + box.height / 2, box.bottom - inset].every((y) => {
+      const hit = document.elementFromPoint(box.left + box.width / 2, y);
+      return hit !== null && el.contains(hit);
+    });
+  }, LAYOUT_SUBPIXEL_PX + 1);
 }
 
 /** Every control's effective hit box, in DOM order. */

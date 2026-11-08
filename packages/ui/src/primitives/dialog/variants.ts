@@ -24,11 +24,13 @@ export const dialogVariants = tv({
     // The inline step queries and the `dialog-short` variant both read this box; its size container is primitives.css's rule.
     viewport: "fixed inset-0 z-(--z-modal) flex justify-center",
     // A landscape phone's dialog gives its inset and its heading gap back to its content, because its chrome is already most of the box. A stacked
-    // dialog (enlarged text on a portrait phone or a desktop) gives its heading gap back to the row step for the same reason.
+    // dialog (enlarged text on a portrait phone or a desktop) gives its heading gap back to the row step, and its inset back to the field step at any
+    // width, for the same reason; a landscape phone's keeps its own insets.
     popup: `relative flex flex-col overflow-x-hidden overflow-y-auto overscroll-contain max-block-full ${MODAL_SURFACE}
       @max-cq-20:p-field
       dialog-short:glass-short:gap-row dialog-short:glass-short:p-row dialog-short:glass-short:pbs-0
       dialog-stacked:gap-row
+      dialog-stacked:not-glass-short:p-field
       dialog-tiny:glass-short:gap-0 dialog-tiny:glass-short:pbe-0
       ${OVERLAY_MOTION.modalPopup}
     `,

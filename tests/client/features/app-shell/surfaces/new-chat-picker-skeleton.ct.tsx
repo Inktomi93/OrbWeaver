@@ -5,7 +5,7 @@
 // drops it again. A landscape phone's picker takes whatever room the dialog leaves, and at enlarged text its list stays a window the dialog scrolls past
 // to Start rather than growing to the whole library.
 import { BLANK_CHAT_NAME } from "@orb/client/lib";
-import { seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
+import { pressableWhole, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, holdCorpusProcedure, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -157,19 +157,6 @@ const REST_CELLS = [
   { name: "1280x800", width: 1280, height: 800, coarse: false },
 ] as const;
 
-/** Whether the control is on screen whole and every point down its middle hits it, so nothing lies over any part of it. */
-function pressableWhole(control: Element): boolean {
-  const box = control.getBoundingClientRect();
-  const onScreen = box.top >= 0 && box.bottom <= window.innerHeight;
-  return (
-    onScreen &&
-    [box.top + 1, box.top + box.height / 2, box.bottom - 1].every((y) => {
-      const hit = document.elementFromPoint(box.left + box.width / 2, y);
-      return hit !== null && control.contains(hit);
-    })
-  );
-}
-
 for (const cell of REST_CELLS) {
   for (const rosters of [false, true]) {
     test.describe(`at rest on a ${cell.name} screen at 300% text, ${rosters ? "with" : "without"} saved rosters`, () => {
@@ -195,8 +182,8 @@ for (const cell of REST_CELLS) {
         const row = dialog.getByRole("option").first();
         await expect(row).toBeVisible();
         const blank = dialog.getByRole("button", { name: BLANK_CHAT_NAME, exact: true });
-        await expect.poll(() => row.evaluate(pressableWhole), "the first row is whole and takes its own press").toBe(true);
-        await expect.poll(() => blank.evaluate(pressableWhole), "Blank chat is whole and takes its own press").toBe(true);
+        await expect.poll(() => pressableWhole(row), "the first row is whole and takes its own press").toBe(true);
+        await expect.poll(() => pressableWhole(blank), "Blank chat is whole and takes its own press").toBe(true);
       });
     });
   }

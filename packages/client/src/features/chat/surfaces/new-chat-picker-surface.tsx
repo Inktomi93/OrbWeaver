@@ -227,9 +227,9 @@ export function NewChatPicker(): ReactElement {
         rowsHeading="Characters"
         skeletonCount={SKELETON_ROW_COUNT}
       />
-      {/* PERSISTENT ACTION FOOTER (#334). Below the picker's own scrolling list, so a pick made deep in the
-          list still has the Start action in view. `sticky bottom-0` keeps it pinned when the modal body
-          scrolls; `bg-popover` matches the modal surface so scrolled rows don't bleed through. */}
+      {/* Below the picker's own scrolling list, so a pick made deep in the list still has Start in view. The row pins to the
+          foot of the scrolling modal body except where pinning would cover the list (`PINNED.dialogFooter`). Its ground is the
+          modal surface, or the glass's blur in an appearance with glass (globals.css), so the text of a row scrolled under it never reads through. */}
       <Row
         align="center"
         wrap={true}

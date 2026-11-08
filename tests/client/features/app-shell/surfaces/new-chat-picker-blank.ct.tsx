@@ -3,7 +3,7 @@
 // pinned row says it is below while the first row stays whole.
 
 import { BLANK_CHAT_NAME } from "@orb/client/lib";
-import { seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
+import { pressableWhole, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
@@ -15,37 +15,28 @@ import { SHELL_STORIES } from "./app-shell-ct.ts";
 
 const ACTIONS = '[data-slot="new-chat-actions"]';
 
-// The 1280x720 desktop at 300% is 15rem tall but wide, so its two actions share one line and fit (primitives.css, `dialog-stacked-cramped`).
+// The wide desktops at 300% are stacked but wide, so their two actions share one line (primitives.css, `dialog-stacked-cramped`): 1280x720 at a fine
+// pointer is 13.5rem tall against the 12rem step, and the touch screens at 14.4rem and 15rem clear the 13.5rem step.
 const PINNED_CELLS = [
   { name: "phone at 100%", width: 390, height: 844, touch: true, factor: 1 },
   { name: "phone at 300%", width: 390, height: 844, touch: true, factor: 3 },
   { name: "desktop at 100%", width: 1440, height: 900, touch: false, factor: 1 },
   { name: "desktop at 300%", width: 1440, height: 900, touch: false, factor: 3 },
   { name: "1280x720 desktop at 300%", width: 1280, height: 720, touch: false, factor: 3 },
+  { name: "1280x800 touch screen at 300%", width: 1280, height: 800, touch: true, factor: 3 },
+  { name: "1024x768 touch screen at 300%", width: 1024, height: 768, touch: true, factor: 3 },
 ] as const;
 
 // The narrow phones at 300% sit under the narrow case's height step (16.75rem at a coarse pointer): a 360x800 dialog is 15.9rem tall, and a 320 one is
-// under the 7rem width floor.
+// under the 7rem width floor. A 360x720 dialog is 14.25rem tall, too short for the cue and Start pinned over a whole row, so the row flows instead.
 const BELOW_CELLS = [
   { name: "360x800 phone at 300%", width: 360, height: 800, touch: true, factor: 3 },
+  { name: "360x720 phone at 300%", width: 360, height: 720, touch: true, factor: 3 },
   { name: "320x844 phone at 300%", width: 320, height: 844, touch: true, factor: 3 },
 ] as const;
 
 // A landscape phone at 300% is a tiny dialog: the whole sheet scrolls and Start is unpinned (ui-platform-rulings §8.1), so Blank chat sits right after it.
 const SHEET_CELL = { name: "844x390 landscape phone at 300%", width: 844, height: 390, touch: true, factor: 3 } as const;
-
-/** Whether the control is on screen whole and every point down its middle hits it, so nothing lies over any part of it. */
-function pressableWhole(control: Element): boolean {
-  const box = control.getBoundingClientRect();
-  const onScreen = box.top >= 0 && box.bottom <= window.innerHeight;
-  return (
-    onScreen &&
-    [box.top + 1, box.top + box.height / 2, box.bottom - 1].every((y) => {
-      const hit = document.elementFromPoint(box.left + box.width / 2, y);
-      return hit !== null && control.contains(hit);
-    })
-  );
-}
 
 /** Scales the opened New chat's text and waits until its first row is whole and pressable; returns the dialog. */
 async function expectWholeFirstRow(page: Page, factor: number): Promise<Locator> {
@@ -53,7 +44,7 @@ async function expectWholeFirstRow(page: Page, factor: number): Promise<Locator>
   await setRootFontScale(page, channelName("fontScale"), factor);
   const row = dialog.getByRole("option").first();
   await expect(row).toBeVisible();
-  await expect.poll(() => row.evaluate(pressableWhole), "the first row is whole and takes its own press").toBe(true);
+  await expect.poll(() => pressableWhole(row), "the first row is whole and takes its own press").toBe(true);
   return dialog;
 }
 
@@ -75,7 +66,7 @@ for (const cell of PINNED_CELLS) {
       const actions = (await expectWholeFirstRow(page, cell.factor)).locator(ACTIONS);
       const blank = actions.getByRole("button", { name: BLANK_CHAT_NAME, exact: true });
       await expect(blank).toBeInViewport({ ratio: 1 });
-      await expect.poll(() => blank.evaluate(pressableWhole)).toBe(true);
+      await expect.poll(() => pressableWhole(blank)).toBe(true);
       await expect(actions.getByText(CHAT_MORE_BELOW_CUE, { exact: true })).toBeHidden();
     });
   });
@@ -95,7 +86,7 @@ for (const cell of BELOW_CELLS) {
       await expect(actions.getByRole("button", { name: BLANK_CHAT_NAME, exact: true })).toBeHidden();
       const blank = dialog.getByRole("button", { name: BLANK_CHAT_NAME, exact: true });
       await blank.scrollIntoViewIfNeeded();
-      await expect.poll(() => blank.evaluate(pressableWhole)).toBe(true);
+      await expect.poll(() => pressableWhole(blank)).toBe(true);
     });
   });
 }
@@ -119,7 +110,7 @@ test.describe(`New chat on a ${SHEET_CELL.name}`, () => {
     // Start is disabled until a pick, so it takes no pointer; whole on screen is its reach here.
     await expect(start).toBeInViewport({ ratio: 1 });
     await blank.evaluate((node) => node.scrollIntoView({ block: "end" }));
-    await expect.poll(() => blank.evaluate(pressableWhole)).toBe(true);
+    await expect.poll(() => pressableWhole(blank)).toBe(true);
     const startBox = await start.boundingBox();
     const blankBox = await blank.boundingBox();
     expect(blankBox?.y ?? Number.NEGATIVE_INFINITY).toBeGreaterThanOrEqual((startBox?.y ?? Number.POSITIVE_INFINITY) + (startBox?.height ?? 0));

@@ -603,13 +603,13 @@ async function expectPressable(control: Locator): Promise<void> {
 }
 
 /** A short dialog's list stays a scroller, so the tail still loads by scroll, and is shorter than the body around it, so a
- *  swipe that ends on the list hands off to the body. Blank chat is pinned with Start unless the dialog's height cannot hold both over a
- *  whole row (`dialog-stacked-cramped` in primitives.css), where it sits below the footer. */
-async function expectFooterStep(dialog: Locator, short: boolean, blankPinned: boolean): Promise<void> {
+ *  swipe that ends on the list hands off to the body. The action row pins with Blank chat and Start unless the dialog's height cannot hold
+ *  both over a whole row (`dialog-stacked-cramped` in primitives.css), where the row flows after the list and Blank chat sits below it. */
+async function expectFooterStep(dialog: Locator, short: boolean, pinned: boolean): Promise<void> {
   const footer = dialog.locator('[data-slot="new-chat-actions"]');
-  await expect(footer).toHaveCSS("position", "sticky");
+  await expect(footer).toHaveCSS("position", pinned ? "sticky" : "static");
   await expect(footer).toBeInViewport({ ratio: 1 });
-  await expect(footer.getByRole("button", { name: BLANK_CHAT_NAME, exact: true })).toHaveCount(blankPinned ? 1 : 0);
+  await expect(footer.getByRole("button", { name: BLANK_CHAT_NAME, exact: true })).toHaveCount(pinned ? 1 : 0);
   const geometry = await dialog.locator('[data-slot="command-list"]').evaluate((list) => {
     let body = list.parentElement;
     while (body !== null && !/auto|scroll/u.test(getComputedStyle(body).overflowY)) {
