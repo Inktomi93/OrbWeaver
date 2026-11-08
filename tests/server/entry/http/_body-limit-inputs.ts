@@ -4,7 +4,13 @@ import { CARD_FRAME_MINT_BODY_MAX_BYTES, CARD_FRAME_ROUTE } from "@orb/contracts
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { PLUGIN_FRAME_MINT_BODY_MAX_BYTES, PLUGIN_FRAME_ROUTE } from "@orb/contracts/plugin";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
-import { ASSET_UPLOAD_MAX_BYTES, DATABANK_UPLOAD_MAX_BYTES, IMPORT_MAX_TOTAL_BYTES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
+import {
+  ASSET_UPLOAD_MAX_BYTES,
+  DATABANK_UPLOAD_MAX_BYTES,
+  DATABANK_UPLOAD_ROUTE,
+  IMPORT_MAX_TOTAL_BYTES,
+  IMPORT_TREE_MAX_TOTAL_BYTES,
+} from "@orb/contracts/uploads";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 
 export const REQUEST_CHUNK_BYTES = 64 * 1024;
@@ -12,7 +18,7 @@ export const REQUEST_CHUNK_BYTES = 64 * 1024;
 const AUTH_ATTACK_BYTES = PLUGIN_FRAME_MINT_BODY_MAX_BYTES * 4;
 export const INTAKE_ROUTES = [
   { path: "/api/assets/upload", bytes: ASSET_UPLOAD_MAX_BYTES + 1 },
-  { path: "/api/databank/upload", bytes: DATABANK_UPLOAD_MAX_BYTES + 1 },
+  { path: DATABANK_UPLOAD_ROUTE, bytes: DATABANK_UPLOAD_MAX_BYTES + 1 },
   { path: PORTABILITY_ROUTES.importCards, bytes: IMPORT_MAX_TOTAL_BYTES + 1 },
   { path: PORTABILITY_ROUTES.restoreCardLorebook, bytes: IMPORT_MAX_TOTAL_BYTES + 1 },
   { path: PORTABILITY_ROUTES.importChat, bytes: IMPORT_MAX_TOTAL_BYTES + 1 },
