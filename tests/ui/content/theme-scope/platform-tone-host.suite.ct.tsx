@@ -3,7 +3,7 @@
 import type { ToneHost } from "@orb/kit/theme-derivation";
 import { oklabDistance, srgbToOklch, TONE_HOSTS, TONE_TINT_SEPARATION } from "@orb/kit/theme-derivation";
 import { pixelSurface } from "@orb/testkit/browser/spec";
-import { SEED_THEME_NAMES } from "@orb/ui/tokens";
+import { SEED_SCOPES } from "@orb/testkit/iso";
 import { expect, test } from "@playwright/test";
 import type { ToneHostStory } from "./_tone-host-stories.tsx";
 import { BASES } from "./contrast-cases.ts";
@@ -14,11 +14,7 @@ const SURFACE_HOSTS: readonly ToneHost[] = TONE_HOSTS.filter((host) => host !== 
 // A tint on a host: a soft badge, an inline token in each tone, and the dice chip the transcript renders.
 const TINTS = '[data-badge], [data-slot="message-dice-chip"]';
 
-const CASES = [
-  { name: "hearth seed" },
-  ...SEED_THEME_NAMES.map((theme) => ({ name: `${theme} seed`, theme })),
-  ...BASES.map(({ name, background }) => ({ name: `custom ${name}`, background })),
-] as const;
+const CASES = [...SEED_SCOPES, ...BASES.map(({ name, background }) => ({ name: `custom ${name}`, background }))] as const;
 
 test("an inline token's side padding is the tight spacing token, so the dice stamp's text clears its tint edge", async ({ mount, page }) => {
   await mount<typeof ToneHostStory>(STORY, {});

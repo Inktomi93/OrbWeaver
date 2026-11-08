@@ -1,11 +1,10 @@
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
-import { CtIsolation } from "@orb/testkit/browser";
+import type { SeedScopeProps } from "@orb/testkit/browser";
+import { CtIsolation, cssVar, SeedScope } from "@orb/testkit/browser";
 import { Surface } from "@orb/ui/layout";
 import { MessageBubble } from "@orb/ui/message-bubble";
 import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
-import type { SeedScopeProps } from "../_seed-scope.tsx";
-import { SeedScope } from "../_seed-scope.tsx";
 
 const GROUNDS = {
   user: { fill: "color.user-bubble", ink: "color.user-bubble-foreground" },
@@ -13,8 +12,6 @@ const GROUNDS = {
   system: { fill: "color.system-bubble", ink: "color.system-bubble-foreground" },
 } as const satisfies Record<(typeof MESSAGE_ROLES)[number], { readonly fill: keyof typeof TOKENS; readonly ink: keyof typeof TOKENS }>;
 const STEPS = ["spacing.row", "spacing.block", "radius.base", "radius.card"] as const satisfies readonly (keyof typeof TOKENS)[];
-
-const cssVar = (token: keyof typeof TOKENS): string => `var(${TOKENS[token].cssVar})`;
 
 function Bubbles(): ReactElement {
   return (

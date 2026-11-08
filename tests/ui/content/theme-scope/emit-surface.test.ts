@@ -1,10 +1,12 @@
 // THEME_SCOPE_EMIT_VARS is a claim about the clamp: it lists exactly the custom properties a ThemeScope writes, each
 // one a served token or a generated tone variable, and it never splits a surface from its paired ink or edge.
+
+import { HEARTH_ACCENT } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { TOKENS, TONE_HOST_VAR, TONE_MIX_KNOBS, TONE_ROLES, TONES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
+import type { ThemeScopeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { THEME_SCOPE_EMIT_VARS } from "../../../../packages/ui/src/content/theme-scope/emit-vars.ts";
-import { HEARTH_ACCENT } from "./tone-scope-misses.ts";
 
 const ROSTER: ReadonlySet<string> = new Set(THEME_SCOPE_EMIT_VARS);
 
@@ -23,7 +25,7 @@ const FULL_OVERRIDE = {
   background: "oklch(0.5 0.01 60)",
   borderColor: "oklch(0.7 0.1 330)",
   density: "compact",
-} as const;
+} as const satisfies Required<ThemeScopeTokens>;
 
 /** The custom properties the generated token surface names: every served token, every per-tone knob and literal, and the tone host. */
 function generatedVars(): ReadonlySet<string> {

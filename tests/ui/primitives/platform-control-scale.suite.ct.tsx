@@ -17,18 +17,6 @@ const STEP_TOKEN = {
   lg: "size.control-lg",
 } as const satisfies Record<ControlSize, keyof typeof TOKENS>;
 
-// The visible box of each control: the root of a pressable, the bordered box of a field.
-const CONTROL_BOXES = [
-  '[data-slot="button"]',
-  '[data-slot="toggle"]',
-  '[data-slot="input-root"]',
-  '[data-slot="select-trigger"]',
-  '[data-slot="number-field-group"]',
-  '[data-slot="combobox-input-group"]',
-  '[data-slot="autocomplete-input-group"]',
-  '[data-slot="color-field-trigger"]',
-].join(", ");
-
 interface RowReading {
   /** Each control's rendered height, labelled by its slot. */
   readonly heights: readonly string[];
@@ -38,27 +26,27 @@ interface RowReading {
   readonly token: number;
 }
 
-/** One row's control heights and its token, in one browser round trip. */
+/**
+ * One row's control heights and its token, in one browser round trip. Every child of the row is one control or the cell
+ * that holds it, so a control the story gains is judged without a list here; a child that renders no control reads empty.
+ */
 function readRow(row: Locator, cssVar: string): Promise<RowReading> {
-  return row.evaluate(
-    (element, { selector, variable }) => {
-      const boxes = [...element.querySelectorAll(selector)].map((node) => ({
-        slot: node.getAttribute("data-slot") ?? "?",
-        height: Math.round(node.getBoundingClientRect().height * 100) / 100,
-      }));
-      const probe = document.createElement("div");
-      probe.style.blockSize = `var(${variable})`;
-      element.append(probe);
-      const token = probe.getBoundingClientRect().height;
-      probe.remove();
-      return {
-        heights: boxes.map(({ slot, height }) => `${slot} ${String(height)}`),
-        distinct: [...new Set(boxes.map(({ height }) => height))],
-        token,
-      };
-    },
-    { selector: CONTROL_BOXES, variable: cssVar },
-  );
+  return row.evaluate((element, variable) => {
+    const boxes = [...element.children].map((child) => {
+      const control = child.matches("[data-slot]") ? child : child.querySelector("[data-slot]");
+      return { slot: control?.getAttribute("data-slot") ?? "empty", height: Math.round(child.getBoundingClientRect().height * 100) / 100 };
+    });
+    const probe = document.createElement("div");
+    probe.style.blockSize = `var(${variable})`;
+    element.append(probe);
+    const token = probe.getBoundingClientRect().height;
+    probe.remove();
+    return {
+      heights: boxes.map(({ slot, height }) => `${slot} ${String(height)}`),
+      distinct: [...new Set(boxes.map(({ height }) => height))],
+      token,
+    };
+  }, cssVar);
 }
 
 for (const coarse of [false, true]) {
@@ -72,7 +60,11 @@ for (const coarse of [false, true]) {
         const row = component.locator(`[data-step="${step}"]`);
         await expect(row).toBeVisible();
         const { heights, distinct, token } = await readRow(row, TOKENS[STEP_TOKEN[step]].cssVar);
-        expect(heights, `${step}: every control rendered`).toHaveLength(10);
+        expect(
+          heights.filter((reading) => reading.startsWith("empty ")),
+          `${step}: every cell renders its control`,
+        ).toEqual([]);
+        expect(heights.length, `${step}: the row holds controls`).toBeGreaterThan(1);
         expect.soft(distinct, `${step}: ${heights.join(", ")}`).toEqual([token]);
       }
     });

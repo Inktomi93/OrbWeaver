@@ -17,4 +17,7 @@ export { CtProviders } from "./ct-providers.tsx";
 export { SettingsCompositionStory } from "./ct-settings-composition-stories.tsx";
 export { ShellAmbientStory } from "./ct-shell-reads-stories.tsx";
 export { CtShellRoom } from "./ct-shell-room.tsx";
+export type { SeedScopeProps } from "./seed-scope.tsx";
+export { SeedScope } from "./seed-scope.tsx";
 export { storyTestId } from "./story-test-ids.ts";
+export { cssVar, roleVar } from "./token-var.ts";

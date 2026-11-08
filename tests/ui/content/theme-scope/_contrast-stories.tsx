@@ -1,5 +1,6 @@
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
-import { CtIsolation } from "@orb/testkit/browser";
+import type { SeedScopeProps } from "@orb/testkit/browser";
+import { CtIsolation, SeedScope } from "@orb/testkit/browser";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -13,6 +14,7 @@ import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ToneRole } from "@orb/ui/tokens";
 import { SEED_THEME_NAMES, SEED_THEME_VALUE_SETS, TOKENS, TONE_ROLE_RECIPES, TONE_ROLES, TONES } from "@orb/ui/tokens";
 import type { CSSProperties, ReactElement } from "react";
+import { TONE_MARK_ACCENTS } from "./contrast-cases.ts";
 
 const SEMANTIC_PAIRS = [
   ["background", "foreground"],
@@ -147,30 +149,12 @@ function ToneFloorPairs(): ReactElement {
  * The tone roles under a seed palette (`theme`, Hearth when absent) and, when `background` is set, a nested custom
  * scope. The nested scope takes the seed's base and accent as its ambient, as the shell root hands them down.
  */
-export function ToneRoleContrastStory({
-  theme,
-  background,
-}: {
-  readonly theme?: keyof typeof SEED_THEME_VALUE_SETS;
-  readonly background?: string;
-}): ReactElement {
-  const ambient = theme === undefined ? undefined : SEED_THEME_VALUE_SETS[theme].vars;
+export function ToneRoleContrastStory(props: SeedScopeProps): ReactElement {
   return (
     <CtIsolation subject="Tone roles" isolates="Generated [data-tone] role variables over seed palettes and a nested custom ThemeScope">
-      <div data-theme={theme}>
-        {background === undefined ? (
-          <ToneFloorPairs />
-        ) : (
-          <ThemeScope
-            tokens={{ background }}
-            {...(ambient === undefined
-              ? {}
-              : { ambientBackground: ambient[TOKENS["color.background"].cssVar], ambientAccent: ambient[TOKENS["color.primary"].cssVar] })}
-          >
-            <ToneFloorPairs />
-          </ThemeScope>
-        )}
-      </div>
+      <SeedScope {...props}>
+        <ToneFloorPairs />
+      </SeedScope>
     </CtIsolation>
   );
 }
@@ -319,12 +303,12 @@ export function ToneMarkStory({ theme }: { readonly theme?: keyof typeof SEED_TH
         data-mark="ground"
         style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, padding: "1rem", display: "grid", gap: "1rem" }}
       >
-        {(["info", "warning"] as const).map((accent) => (
+        {TONE_MARK_ACCENTS.map((accent) => (
           <div key={accent} data-mark={`meter-${accent}`}>
             <TrackBar value={50} max={100} accent={accent} />
           </div>
         ))}
-        {(["warning", "info"] as const).map((tone) => (
+        {TONE_MARK_ACCENTS.map((tone) => (
           <Card key={tone} tone={tone} variant="soft" data-mark={`card-${tone}`}>
             {tone} box
           </Card>

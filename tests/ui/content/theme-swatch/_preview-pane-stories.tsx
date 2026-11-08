@@ -1,11 +1,10 @@
-import { CtIsolation } from "@orb/testkit/browser";
+import type { SeedScopeProps } from "@orb/testkit/browser";
+import { CtIsolation, SeedScope } from "@orb/testkit/browser";
 import { Card } from "@orb/ui/card";
 import { Surface } from "@orb/ui/layout";
 import { ThemePreviewPane } from "@orb/ui/theme-swatch";
 import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
-import type { SeedScopeProps } from "../../primitives/_seed-scope.tsx";
-import { SeedScope } from "../../primitives/_seed-scope.tsx";
 
 const FILLS = ["background", "accent", "sidebar", "sidebarEdge", "translucent"] as const;
 

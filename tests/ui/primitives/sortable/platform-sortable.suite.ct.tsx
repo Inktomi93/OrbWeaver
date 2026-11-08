@@ -1,6 +1,7 @@
 // SortableList reorders by keyboard through dnd-kit; the seal's own wiring keeps focus on the handle and speaks row names, never ids.
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { sortablePositionName } from "../../../../packages/ui/src/primitives/sortable/sortable-names.ts";
 import type { ReorderableTracksStory } from "./sortable-stories.tsx";
 
 const STORY = "tests/ui/primitives/sortable/sortable-stories/ReorderableTracksStory";
@@ -40,14 +41,21 @@ test("a cancelled keyboard drag reports no reorder", async ({ mount, page }) => 
 test("the live region names the row and its position, never its id", async ({ mount, page }) => {
   await mount<typeof ReorderableTracksStory>(STORY, { disabled: false });
   const alpha = handleOf(page, "Alpha");
+  const rows = await page.getByRole("listitem").count();
+  expect(rows, "the story mounts more than one row").toBeGreaterThan(1);
   await alpha.focus();
   await page.keyboard.press("Space");
   const announcements = page.locator("[aria-live]").filter({ hasText: "Alpha" });
-  await expect(announcements.first()).toContainText("position 1 of 4");
+  const picked = sortablePositionName("Alpha", 1, rows);
+  const moved = sortablePositionName("Alpha", 2, rows);
+  // The control: the two lines differ only by the rank, so the cases below prove the rank is spoken and moves.
+  expect(moved).not.toBe(picked);
+  await expect(announcements.first()).toContainText(picked);
   await page.keyboard.press("ArrowDown");
-  await expect(announcements.first()).toContainText("position 2 of 4");
+  await expect(announcements.first()).toContainText(moved);
+  await expect(announcements.first()).not.toContainText(picked);
   await page.keyboard.press("Space");
-  await expect(announcements.first()).toContainText("position 2 of 4");
+  await expect(announcements.first()).toContainText(moved);
   await expect(announcements.first()).not.toContainText("trk_");
 });
 

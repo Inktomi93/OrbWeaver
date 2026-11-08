@@ -1,11 +1,10 @@
-import { CtIsolation } from "@orb/testkit/browser";
+import type { SeedScopeProps } from "@orb/testkit/browser";
+import { CtIsolation, SeedScope } from "@orb/testkit/browser";
 import { Card } from "@orb/ui/card";
 import { Stack } from "@orb/ui/layout";
 import { Spoiler } from "@orb/ui/spoiler";
 import { TOKENS, TONES } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
-import type { SeedScopeProps } from "../_seed-scope.tsx";
-import { SeedScope } from "../_seed-scope.tsx";
 
 /** A layout twin: the same gap on a bare Stack, so the Spoiler's forwarded layout reads against it. */
 function Rows(): ReactElement {

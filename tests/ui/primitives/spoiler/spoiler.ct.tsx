@@ -1,15 +1,12 @@
 // A Spoiler is a Stack that blurs its content while concealed; it never paints the box around it.
+
+import { computedStyle } from "@orb/testkit/browser/spec";
+import { SEED_CASES } from "@orb/testkit/iso";
 import { TONES } from "@orb/ui/tokens";
-import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { SEED_CASES } from "../seed-scope-cases.ts";
 import type { SpoilerStory } from "./_spoiler-stories.tsx";
 
 const STORY = "tests/ui/primitives/spoiler/_spoiler-stories/SpoilerStory";
-
-function style(locator: Locator, property: string): Promise<string> {
-  return locator.evaluate((element, name) => getComputedStyle(element).getPropertyValue(name), property);
-}
 
 for (const { name, ...props } of SEED_CASES) {
   test(`${name}: a concealed Spoiler blurs and takes no selection, a revealed one does neither, and both lay out as a Stack`, async ({ mount }) => {
@@ -19,13 +16,13 @@ for (const { name, ...props } of SEED_CASES) {
     await expect(concealed).toHaveAttribute("data-slot", "spoiler");
     await expect(concealed).toHaveAttribute("data-concealed", "");
     await expect(revealed).not.toHaveAttribute("data-concealed");
-    expect(await style(concealed, "filter")).toContain("blur");
-    expect(await style(concealed, "user-select")).toBe("none");
-    expect(await style(revealed, "filter")).toBe("none");
-    expect(await style(revealed, "user-select")).not.toBe("none");
+    expect(await computedStyle(concealed, "filter")).toContain("blur");
+    expect(await computedStyle(concealed, "user-select")).toBe("none");
+    expect(await computedStyle(revealed, "filter")).toBe("none");
+    expect(await computedStyle(revealed, "user-select")).not.toBe("none");
     const twin = component.locator('[data-probe="stack"]');
     for (const property of ["display", "flex-direction", "row-gap"]) {
-      expect(await style(concealed, property), property).toBe(await style(twin, property));
+      expect(await computedStyle(concealed, property), property).toBe(await computedStyle(twin, property));
     }
   });
 
@@ -34,9 +31,9 @@ for (const { name, ...props } of SEED_CASES) {
     for (const tone of TONES) {
       const card = component.locator(`[data-case="card-${tone}"]`);
       const spoiler = component.locator(`[data-case="spoiler-${tone}"]`);
-      expect(await style(spoiler, "filter"), tone).toContain("blur");
-      expect(await style(card, "filter"), tone).toBe("none");
-      expect(await style(card, "user-select"), tone).not.toBe("none");
+      expect(await computedStyle(spoiler, "filter"), tone).toContain("blur");
+      expect(await computedStyle(card, "filter"), tone).toBe("none");
+      expect(await computedStyle(card, "user-select"), tone).not.toBe("none");
     }
   });
 }

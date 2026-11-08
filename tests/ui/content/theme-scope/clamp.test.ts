@@ -1,12 +1,13 @@
 import { AA_NORMAL_RATIO, carriedLiteralRoles, carriedReadingHosts, oklchToSrgb, proseInkCorrection, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { HEARTH_ACCENT } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ToneMixKnob } from "@orb/ui/tokens";
 import { SEED_THEME_VALUE_SETS, TOKENS, TONE_MIX_DEFAULTS, TONE_MIX_KNOBS, TONE_ROLE_RECIPES, TONES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import { carriedPaletteOf } from "../../../../packages/ui/src/content/theme-scope/derive-vars.ts";
-import { carriedToneScheme, carriedToneSources, solveCarriedToneMix } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
-import { HEARTH_ACCENT, parsed } from "./tone-scope-misses.ts";
+import { carriedToneScheme, carriedToneSources, MIX_FALLBACK, solveCarriedToneMix } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
+import { parsed } from "./tone-scope-misses.ts";
 
 const DARK_BASE = "oklch(0.158 0.006 60)";
 const MID_BASE = "oklch(0.5 0.01 60)";
@@ -58,14 +59,14 @@ test("a carried scope emits every tone literal: a colour for each tone it judges
   const unknownPrimary = literalVars(clampThemeTokens({ background: MID_BASE }).vars);
   expect(Object.keys(unknownPrimary).toSorted()).toEqual([...LITERAL_VARS].toSorted());
   for (const role of LITERAL_ROLES) {
-    expect(unknownPrimary[toneLiteralVar("primary", role)], role).toBe("initial");
+    expect(unknownPrimary[toneLiteralVar("primary", role)], role).toBe(MIX_FALLBACK);
     expect(toOklch(unknownPrimary[toneLiteralVar("warning", role)] ?? ""), role).not.toBeNull();
   }
 });
 
 test("a scope that paints its own accent over a seed palette resets the primary literals, and an ink-only scope emits none", () => {
   const accentOnly = literalVars(clampThemeTokens({ accent: "oklch(0.6 0.2 300)" }, MID_BASE, HEARTH_ACCENT).vars);
-  expect(accentOnly).toEqual(Object.fromEntries(LITERAL_ROLES.map((role) => [toneLiteralVar("primary", role), "initial"])));
+  expect(accentOnly).toEqual(Object.fromEntries(LITERAL_ROLES.map((role) => [toneLiteralVar("primary", role), MIX_FALLBACK])));
   expect(literalVars(clampThemeTokens({ dialogueColor: "oklch(0.8 0.1 90)" }, MID_BASE, HEARTH_ACCENT).vars)).toEqual({});
 });
 
