@@ -35,7 +35,13 @@ import process from "node:process";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import { isSecretEnvKey } from "@orb/server/foundation/env/record";
 // Never the composed door: importing it loads the operator `.env` into the runner, and every webServer inherits it.
-import { assertPrivateCorpusNetwork, assertPrivateCorpusOutput, assertPrivateCorpusOutputArguments, loadCorpusFixture } from "@orb/testkit/node/helpers";
+import {
+  assertPrivateCorpusNetwork,
+  assertPrivateCorpusOutput,
+  assertPrivateCorpusOutputArguments,
+  loadCorpusFixture,
+  PROVIDER_TAPE_RECORD_ENV,
+} from "@orb/testkit/node/helpers";
 import { DEV_PORTS, E2E_PORT_OFFSET_ENV, ENGINE_PORTS, e2eRunPorts } from "@orb/tooling/floor/host/ports";
 import { exportProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
@@ -165,16 +171,13 @@ export const E2E_SSO_GROUPS = { member: "e2e-members", admin: "e2e-admins", owne
 export const E2E_LOCAL_ENGINE_BASE_URL = `http://127.0.0.1:${String(ENGINE_PORTS.generate)}/v1`;
 
 /** `pnpm e2e:tapes:record` sets this: the tape peer (`support/tape-provider.ts`) forwards to the upstream and writes each tape. */
-export const E2E_TAPE_RECORDING = process.env["E2E_TAPE_RECORD"] === "1";
+export const E2E_TAPE_RECORDING = process.env[PROVIDER_TAPE_RECORD_ENV] === "1";
 /** The recording run's upstream key variable. The server reads no such name, so a recording seeds no credential. */
 export const E2E_TAPE_UPSTREAM_API_KEY_ENV = "E2E_TAPE_UPSTREAM_API_KEY";
 /** The upstream key a recording spends; only the recording run reads it, and no tape may hold it. */
 export const E2E_TAPE_RECORD_KEY = process.env[E2E_TAPE_UPSTREAM_API_KEY_ENV];
 /** The upstream a recording forwards to when set, so a recording can run against a loopback stub. */
 export const E2E_TAPE_UPSTREAM_URL = process.env["E2E_TAPE_UPSTREAM_URL"];
-/** Where a recording run writes its tapes. Gitignored, because the run's working-tree guard refuses a tracked write;
- *  the record script copies the tapes into the committed tape directory after the run passes. */
-export const E2E_TAPE_RECORD_DIR = resolve(CHECKOUT_ROOT, "reports", "provider-tapes");
 
 /** The provider that row is authored under; its model list is read under the same id. */
 export const E2E_LOCAL_ENGINE_PROVIDER = "vllm";

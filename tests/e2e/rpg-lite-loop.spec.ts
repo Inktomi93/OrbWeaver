@@ -442,11 +442,8 @@ test("rpg-lite (born default): a live character turn + state capture moves the s
     // (NOT the agent-sdk `prompt`). Flatten every message's content and assert it carries the tracked location
     // AND the steering-reminder markers (the "Game state" block heading + the license line) — this proves the
     // tracked state REACHED the model (the reminder assembled the game-state block + license into the prompt).
-    // Oldest first: the captures read newest-first, and the post-commit state round may already have been sent.
-    const [turnCapture] = (await requireWireCaptures(chatId, "vllm")).toSorted((left, right) => left.at - right.at);
-    if (turnCapture === undefined) {
-      throw new Error(`no vllm wire capture for ${chatId}`);
-    }
+    // The captures read oldest first, so the turn's own request leads any post-commit state round already sent.
+    const [turnCapture] = await requireWireCaptures(chatId, "vllm");
     const messages = pageArray(turnCapture.body["messages"], "vllm wire capture messages");
     const promptText = messages
       .map((m) => {

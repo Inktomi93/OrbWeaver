@@ -97,7 +97,8 @@ export const KIND_TO_INTENT: Record<TurnKind, TurnIntent> = {
  *   • new-slot — a fresh slot+variant at the canon tail (role assistant or user for impersonate). Context =
  *     the full canon.
  *   • append-variant — swipe/regenerate: append a variant to an existing assistant slot + select it. Context
- *     = the canon up to (excluding) the slot.
+ *     = the canon up to (excluding) the slot; `readsTarget` keeps the slot in it (a guided rewrite, which
+ *     revises the reply the model must see).
  *   • continue — extend the target slot's selected variant in place, snapshotting undo state. Context = the
  *     canon up to and including the slot.
  */
@@ -110,7 +111,7 @@ export type TurnPersist =
       /** The persona voicing a role:"user" slot (impersonate); null otherwise. */
       readonly personaId?: PersonaId | null | undefined;
     }
-  | { readonly mode: "append-variant"; readonly targetMessageId: MessageId }
+  | { readonly mode: "append-variant"; readonly targetMessageId: MessageId; readonly readsTarget: boolean }
   | { readonly mode: "continue"; readonly targetMessageId: MessageId };
 
 /** An authorized attachment's classified kind and ready URL or deferred URL preparation. D51's CONVERT

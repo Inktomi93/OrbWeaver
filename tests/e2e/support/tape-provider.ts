@@ -4,8 +4,8 @@ import type { IncomingMessage, Server, ServerResponse } from "node:http";
 import { createServer } from "node:http";
 import { isPlainObject } from "@orb/kit/guards";
 import type { ProviderTape, ProviderTapeStep } from "@orb/testkit/node/helpers";
-import { providerTapeLeaks, readProviderTape, scrubTapeFrame, writeProviderTape } from "@orb/testkit/node/helpers";
-import { E2E_TAPE_RECORD_DIR, E2E_TAPE_RECORD_KEY, E2E_TAPE_RECORDING, E2E_TAPE_UPSTREAM_API_KEY_ENV, E2E_TAPE_UPSTREAM_URL } from "./modes.ts";
+import { PROVIDER_TAPE_RECORD_DIR, providerTapeLeaks, readProviderTape, scrubTapeFrame, writeProviderTape } from "@orb/testkit/node/helpers";
+import { E2E_TAPE_RECORD_KEY, E2E_TAPE_RECORDING, E2E_TAPE_UPSTREAM_API_KEY_ENV, E2E_TAPE_UPSTREAM_URL } from "./modes.ts";
 
 const RECORD_UPSTREAM = E2E_TAPE_UPSTREAM_URL ?? "https://openrouter.ai/api/v1";
 // The model every tape is recorded from (owner policy: local vLLM or OpenRouter Sonnet 5 for live turns).
@@ -168,7 +168,7 @@ function recordPlayer(name: string, steps: readonly string[], failures: string[]
         failures.push(`recording provider tape "${name}" refused: it holds ${leaks.join(", ")}`);
         return;
       }
-      writeProviderTape(name, tape, E2E_TAPE_RECORD_DIR);
+      writeProviderTape(name, tape, PROVIDER_TAPE_RECORD_DIR);
     },
   };
 }

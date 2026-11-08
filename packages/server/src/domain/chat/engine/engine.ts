@@ -1199,12 +1199,12 @@ function markRpgDiceEligible(ctx: EngineContext, prep: TurnPrep, turnId: ChatTur
 }
 
 /** Scopes the loaded canon to the turn's context window: new-slot sees the full canon; append-variant
- *  regenerates from before the target slot; continue sees up to and including it. */
+ *  regenerates from before the target slot unless it reads the target; continue sees up to and including it. */
 function scopeCanon(canon: readonly MessageView[], persist: TurnPersist, target: SlotTarget | null): readonly MessageView[] {
   if (persist.mode === "new-slot" || target === null) {
     return canon;
   }
-  return persist.mode === "append-variant" ? canon.filter((m) => m.seq < target.seq) : canon.filter((m) => m.seq <= target.seq);
+  return persist.mode === "append-variant" && !persist.readsTarget ? canon.filter((m) => m.seq < target.seq) : canon.filter((m) => m.seq <= target.seq);
 }
 
 /**
