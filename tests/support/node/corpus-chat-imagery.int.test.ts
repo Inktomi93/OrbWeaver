@@ -15,7 +15,7 @@ import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
 test("native chat lifecycle preserves imported canon, exact reactions/spend/refusal and physically held owner, deferred and handoff snapshots", async () => {
-  const wire = createCorpusChatWire();
+  using wire = createCorpusChatWire("every-step");
   const physical = createCorpusProviderExecution({
     modelIds: [CORPUS_CHAT_MODEL, CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -102,7 +102,6 @@ test("native chat lifecycle preserves imported canon, exact reactions/spend/refu
   expect(result.handoff.copiedCharacter.id).toBe(result.handoff.acceptedSeat.characterId);
   expect(result.handoff.finalSeat.characterId).toBe(result.handoff.copiedCharacter.id);
   expect(result.handoff.copiedCharacter.id).not.toBe(result.handoff.character.id);
-  expect(wire.remaining()).toBe(0);
   expect(wire.requests).toHaveLength(5);
   await assertReferentialIntegrity(root.db);
 });

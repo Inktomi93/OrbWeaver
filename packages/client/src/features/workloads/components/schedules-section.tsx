@@ -17,6 +17,7 @@
 // features/workloads: it owns its own read (viewer + schedules + the gated admin handle map, which the
 // retired pane surface used to hand down as props) and its own suspense boundary.
 
+import { WORKLOAD_RUN_ACCOUNT_REFUSAL } from "@orb/contracts/workloads";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
@@ -158,7 +159,8 @@ function ScheduleRow({
   // arm that is TOTAL: a schedule's next run is a wall-clock appointment at any distance, where "in 8 months"
   // is not a thing anyone can act on.
   const nextRun = schedule.enabled ? `Next ${timeLib.formatDateTime(schedule.nextRunAt)}` : "Paused";
-  const subtitleParts = [`${cadence} · ${nextRun}`];
+  // A schedule its tick refuses starts nothing, so the row names the refusal where the next run would read.
+  const subtitleParts = [`${cadence} · ${schedule.refusal === undefined ? nextRun : WORKLOAD_RUN_ACCOUNT_REFUSAL}`];
   if (ownerHandle !== null) {
     subtitleParts.push(`for ${ownerHandle}`);
   }
@@ -166,6 +168,7 @@ function ScheduleRow({
     <ListRow
       title={kindLabel}
       subtitle={subtitleParts.join(" · ")}
+      subtitleWrap={schedule.refusal !== undefined}
       stackActions={true}
       actions={
         <Row align="center" gap="row" wrap={true} cap="fit">

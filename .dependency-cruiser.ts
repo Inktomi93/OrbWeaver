@@ -476,6 +476,10 @@ const SERVER_TEST_REACHES = {
   "tests/server/domain/automation/engine/dispatch.int.test.ts": {
     "domain/imagery": "SIZE_PRESETS: the dimensions a size preset puts on the provider request",
   },
+  // A host who hands the seat off mid-invocation meets chat's host gate, and the guest sees that gate's error class.
+  "tests/server/domain/plugin/substrate/guest-room-reads.suite.int.test.ts": {
+    "domain/chat": "ChatOperationError: the refusal the host gate raises for a handed-off installer",
+  },
   // A staged upload's life ends at a boot, and the boot sweep removes the zip extractor's directories by their name.
   "tests/server/domain/import/persistence/import-staging-lifetime.int.test.ts": {
     "entry/boot": "reclaimLocksOnBoot: the boot step the sweep runs in",

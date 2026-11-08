@@ -47,13 +47,19 @@ export type ResolveCharacterTagsOp = (params: {
  *  seat) or `ownerId: null` (no resolvable host) yields the bare global floor + a null card — fail-closed. */
 export type ResolveSeatDecoOp = (params: { readonly ownerId: UserId | null; readonly characterId: CharacterId | null }) => Promise<SeatDeco>;
 
+declare const viewerVisibilityBrand: unique symbol;
+
 /** ONE human's read-visibility over ONE chat — membership AND the D16 canon floor as a SINGLE value, because
  *  they are one inseparable answer. `historyFloorSeq` is the INCLUSIVE `messages.seq` floor this viewer may
  *  read from (`NO_HISTORY_FLOOR` = 0 = unclamped); it is DERIVED by the one resolver
  *  (`substrate/auth/clamp::resolveHistoryFloorSeq`), never re-computed by the consumer. There is deliberately
  *  no "member: yes" projection without the floor — a consumer that only wants membership still receives the
- *  floor, so "forgot to clamp" is unrepresentable rather than merely discouraged. */
+ *  floor, so "forgot to clamp" is unrepresentable rather than merely discouraged.
+ *
+ *  Branded: only {@link viewerVisibility} mints one, and only chat's resolver calls it. A read that takes this
+ *  value therefore cannot be fed from a non-member branch or a defaulted floor; the phantom key erases at runtime. */
 export interface ViewerVisibility {
+  readonly [viewerVisibilityBrand]: true;
   readonly role: ParticipantRoleState;
   readonly historyFloorSeq: HistoryFloorSeq;
   /** The parity-plus §3.6 / D106 hidden-content verdict for THIS viewer: `true` ⇒ they read hidden-class spans
@@ -61,6 +67,12 @@ export interface ViewerVisibility {
    *  hidden-stripped before any cross-domain consumer serves the body. DERIVED here from `role` via chat's ONE
    *  `viewerReadsHidden` home so a cross-domain consumer (the plugin realm) never re-derives `role === "host"`. */
   readonly readsHidden: boolean;
+}
+
+/** Mint a present member's {@link ViewerVisibility}. Reserved for chat's `resolveViewerVisibility`, which calls it
+ *  only after loading the viewer's present participant row; every other site receives the value from that op. */
+export function viewerVisibility(answer: Omit<ViewerVisibility, typeof viewerVisibilityBrand>): ViewerVisibility {
+  return answer as ViewerVisibility;
 }
 
 /** THE cross-domain viewer-visibility op (the D-ledger read-visibility entry). Any NON-chat domain that must

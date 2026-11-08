@@ -5,7 +5,15 @@
 // the box owner.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { ScheduleCadence, StartWorkloadInput, StartWorkloadOp, WorkloadKind, WorkloadMode, WorkloadScheduleRef } from "@orb/contracts/workloads";
+import type {
+  ScheduleCadence,
+  StartWorkloadInput,
+  StartWorkloadOp,
+  WORKLOAD_RUN_ACCOUNT_NOT_OWNER,
+  WorkloadKind,
+  WorkloadMode,
+  WorkloadScheduleRef,
+} from "@orb/contracts/workloads";
 import type { Db, workloadSchedules } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { UserId, WorkloadScheduleId } from "@orb/kit/ids";
@@ -16,6 +24,9 @@ import type { Logger } from "#foundation/observability";
  *  via `$inferSelect`). It was a hand-written interface listing the same eleven columns; a column added to the
  *  table would have left it silently stale. */
 export type WorkloadScheduleRow = typeof workloadSchedules.$inferSelect;
+
+/** A listed schedule: its row and the refusal its tick meets (`workloadScheduleListItemSchema`). */
+export type WorkloadScheduleListItem = WorkloadScheduleRow & { readonly refusal?: typeof WORKLOAD_RUN_ACCOUNT_NOT_OWNER };
 
 /** The first run is one cadence-interval out (a fresh schedule doesn't fire the instant it's made). */
 export interface CreateScheduleParams {
@@ -57,7 +68,7 @@ export interface WorkloadScheduleService {
   readonly updateSchedule: (params: UpdateScheduleParams) => Promise<WorkloadScheduleRow>;
   readonly deleteSchedule: (params: DeleteScheduleParams) => Promise<void>;
   readonly setScheduleEnabled: (params: SetScheduleEnabledParams) => Promise<WorkloadScheduleRow>;
-  readonly listSchedules: (params: ListSchedulesParams) => Promise<readonly WorkloadScheduleRow[]>;
+  readonly listSchedules: (params: ListSchedulesParams) => Promise<readonly WorkloadScheduleListItem[]>;
 }
 
 /** start is the workloads front door, so a scheduled run flows through dispatch + the single-active lock exactly like a manual start. */

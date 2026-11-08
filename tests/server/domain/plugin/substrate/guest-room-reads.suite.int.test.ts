@@ -8,6 +8,7 @@ import { spawn } from "node:child_process";
 import type { Principal } from "@orb/contracts/identity";
 import { PluginSuggestedError } from "@orb/contracts/plugin";
 import type { WorldBookId } from "@orb/kit/ids";
+import { ChatOperationError } from "@orb/server/domain/chat";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot, GuestOps, GuestRun } from "@orb/testkit/node/composed";
@@ -163,7 +164,8 @@ test("a host who hands the seat off while their guest is mid-invocation runs no 
   await r.h.root.services.chat.nominateHostHandoff({ principal: r.h.owner, chatId: r.h.chatId, userId: r.member.userId });
   await r.h.root.services.chat.acceptHostHandoff({ principal: r.member, chatId: r.h.chatId });
   r.release();
-  expect(await pending).toMatchObject({ ok: false });
+  // The host gate's own refusal, so a crash in the guest or the bridge cannot pass for it.
+  expect(await pending).toEqual({ ok: false, name: ChatOperationError.name });
   await r.h.root.settleBackground();
   expect(await assistantTurns()).toBe(1);
 });

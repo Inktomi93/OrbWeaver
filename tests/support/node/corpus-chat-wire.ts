@@ -4,6 +4,8 @@ import { readSeedAvatar } from "@orb/default-content";
 import { WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import sharp from "sharp";
 import type { CorpusProviderCompletion } from "./corpus-provider.ts";
+import type { CorpusWireSpend } from "./corpus-wire-spend.ts";
+import { refuseUnspentSteps } from "./corpus-wire-spend.ts";
 
 export const CORPUS_CHAT_MODEL = modelIdSchema.parse("corpus-lifecycle-text-v1");
 export const CORPUS_CHAT_IMPORT_CUE = "Record the imported ledger scene.";
@@ -29,21 +31,22 @@ interface CorpusChatRequestHold {
 }
 interface CorpusChatWire {
   readonly requests: readonly string[];
-  readonly remaining: () => number;
   readonly completion: (body: string) => CorpusProviderCompletion | undefined;
   readonly hold: (cue: string, options?: { readonly deferAbortUntilRelease: boolean }) => CorpusChatRequestHold;
   readonly wrap: (execute: typeof fetch) => typeof fetch;
 }
 
-/** Finite raw replies are independent of the real lifecycle that spends them. */
-export function createCorpusChatWire(): CorpusChatWire {
+/** Finite raw replies are independent of the real lifecycle that spends them. An `every-step` wire is owned with `using`. */
+export function createCorpusChatWire(spend: "every-step"): CorpusChatWire & Disposable;
+export function createCorpusChatWire(spend: "as-needed"): CorpusChatWire;
+export function createCorpusChatWire(spend: CorpusWireSpend): CorpusChatWire & Disposable {
   const cues = [CORPUS_CHAT_IMPORT_CUE, "Conversation to summarize:", CORPUS_CHAT_EMPTY_CUE, CORPUS_CHAT_HELD_CUE, CORPUS_CHAT_DEFERRED_CUE] as const;
   const requests: string[] = [];
   let cursor = 0;
   let active: PhysicalGate | undefined;
   return {
     requests,
-    remaining: (): number => cues.length - cursor,
+    [Symbol.dispose]: (): void => refuseUnspentSteps("lifecycle corpus wire", spend, cues.length - cursor),
     completion: (body: string): CorpusProviderCompletion | undefined => {
       if (!body.includes(`"model":${JSON.stringify(CORPUS_CHAT_MODEL)}`)) {
         return undefined;

@@ -20,6 +20,7 @@
 // membership row through, so it inherits the change instead of drifting from it.
 
 import type { ResolveViewerVisibility } from "@orb/contracts/chat";
+import { viewerVisibility } from "@orb/contracts/chat";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatContext } from "../contract/context.ts";
@@ -40,6 +41,6 @@ export function createResolveViewerVisibility(input: DbAssemblyInput<VisibilityC
     if (membership === null) {
       return null;
     }
-    return { role: membership.role, historyFloorSeq: resolveHistoryFloorSeq(membership), readsHidden: viewerReadsHidden(membership) };
+    return viewerVisibility({ role: membership.role, historyFloorSeq: resolveHistoryFloorSeq(membership), readsHidden: viewerReadsHidden(membership) });
   };
 }

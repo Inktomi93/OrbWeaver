@@ -68,6 +68,7 @@ export { seedCharacterDistillations } from "./factories/discovery.ts";
 export { plantForeignCardBackground, plantForeignRoomBackground, plantForeignSettingsBytes, plantForeignSettingsValue } from "./factories/foreign-build.ts";
 export { plantLegacyZeroCanon } from "./factories/legacy-canon.ts";
 export { plantLegacyCheckpoint } from "./factories/legacy-checkpoint.ts";
+export { plantMemberOperatorRun, plantMemberOperatorSchedule } from "./factories/legacy-operator-runs.ts";
 // The memory-backfill room whose provider answers each summarize call, shared by the estimate suites.
 export { createMemoryBackfillRoom, MEMORY_BACKFILL_BLOCK_SIZE, memoryBackfillLines } from "./factories/memory-backfill-room.ts";
 export { seedMessage } from "./factories/message.ts";

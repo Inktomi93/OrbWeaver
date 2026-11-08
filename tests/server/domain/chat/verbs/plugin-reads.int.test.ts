@@ -57,8 +57,8 @@ test("the guest page applies the floor in SQL and strips hidden bytes before ret
   if (hostView === null || memberView === null) {
     throw new Error("each present human must have a visibility verdict");
   }
-  const member = await loadPluginMessages(databaseHandle(db), room.id, { floorSeq: memberView.historyFloorSeq, readsHidden: memberView.readsHidden, limit: 3 });
-  const hosted = await loadPluginMessages(databaseHandle(db), room.id, { floorSeq: hostView.historyFloorSeq, readsHidden: hostView.readsHidden, limit: 3 });
+  const member = await loadPluginMessages(databaseHandle(db), room.id, { visibility: memberView, limit: 3 });
+  const hosted = await loadPluginMessages(databaseHandle(db), room.id, { visibility: hostView, limit: 3 });
   expect(member.map((row) => [row.seq, row.content])).toEqual([
     [2, "Visible "],
     [3, "Newest"],

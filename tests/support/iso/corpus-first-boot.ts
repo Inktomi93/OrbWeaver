@@ -6,7 +6,7 @@ import { bindingViewSchema, connectionViewSchema, providerAvailabilitySchema } f
 import { presetSummarySchema } from "@orb/contracts/preset";
 import { searchSpaceStatusSchema } from "@orb/contracts/search";
 import { appSettingsViewSchema, themeViewSchema, userSettingsViewSchema } from "@orb/contracts/settings";
-import { EMBEDDER_REBUILD_KINDS, workloadRowAnyKindSchema, workloadScheduleViewSchema } from "@orb/contracts/workloads";
+import { EMBEDDER_REBUILD_KINDS, workloadRowAnyKindSchema, workloadScheduleListItemSchema } from "@orb/contracts/workloads";
 import { z } from "zod";
 import type { CorpusRead } from "./corpus-read.ts";
 
@@ -22,7 +22,7 @@ export const firstBootSchema = z
       providers: providerAvailabilitySchema.array(),
       credentials: credentialViewSchema.array(),
       users: adminUserViewSchema.array(),
-      schedules: workloadScheduleViewSchema.array(),
+      schedules: workloadScheduleListItemSchema.array(),
       signInMode: signInModeViewSchema,
       shareStatus: shareStatusSchema,
       presets: presetSummarySchema.array(),

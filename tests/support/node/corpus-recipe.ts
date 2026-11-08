@@ -107,12 +107,14 @@ export async function runCorpusSnapConsumer(
   return code;
 }
 
-/** The publisher and physical stage edge consume the same request-specific response script. */
+/** The publisher and physical stage edge consume the same request-specific response script. Its wires spend as needed: a
+ *  clone-boundary capsule runs only some producers, and the stage edge answers whatever its consumer drives. A case that
+ *  must spend a whole script owns an `every-step` wire of its own. */
 export async function createCorpusRecipeExecution(baseUrl?: string): Promise<CorpusRecipeExecution> {
-  const rpgWire = createCorpusRpgWire();
-  const swipes = createKnowledgeSwipeWire();
-  const lifecycleWire = createCorpusChatWire();
-  const rpgFlightWire = createRpgFlightWire();
+  const rpgWire = createCorpusRpgWire("as-needed");
+  const swipes = createKnowledgeSwipeWire("as-needed");
+  const lifecycleWire = createCorpusChatWire("as-needed");
+  const rpgFlightWire = createRpgFlightWire("as-needed");
   const execution = createCorpusProviderExecution({
     ...(baseUrl === undefined ? {} : { baseUrl }),
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL, CORPUS_CHAT_MODEL, CORPUS_IMAGE_MODEL, RPG_RECURSION_MODEL, RPG_ROUND_MODEL],

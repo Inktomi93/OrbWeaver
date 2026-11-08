@@ -316,7 +316,7 @@ const OWNED_ROOT_ACQUISITIONS =
   "/^(createServerHarness|createChatRoot|createFirstBootHarness|createCorpusHarness|createAuthModeRoot|createRuntimeRoot|conformanceRoot|coreHttpRoom|coreDispatchRoom|textRoom|followupRoom|personaRoom|turnToolsRoom|signedInBox)$/";
 // Every helper that returns a plan the caller declares: a new one joins this list in the change that adds it.
 const REPLY_PLAN_ACQUISITIONS =
-  "/^(finiteReplies|textProvider|openAiServer|scriptedResponses|physicalScene|physicalExecution|tailSwipeScene|paidReplies|provider|planned)$/";
+  "/^(finiteReplies|textProvider|openAiServer|scriptedResponses|physicalScene|physicalExecution|tailSwipeScene|paidReplies|provider|planned|createCorpusChatWire|createCorpusRpgWire|createKnowledgeSwipeWire|createRpgFlightWire)$/";
 const ownedCall = (names: string): string =>
   `CallExpression:matches([callee.name=${names}], [callee.property.name=${names}], [callee.property.value=${names}])`;
 const RAW_DB_OPEN_RESTRICTION = {
