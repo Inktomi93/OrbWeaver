@@ -1,6 +1,6 @@
 // The production rail keeps its brand/footer fixed while short desktop layouts scroll section navigation.
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import { resolvedLength, seedShellState, settledBox } from "@orb/testkit/browser/spec";
+import { LAYOUT_SUBPIXEL_PX, resolvedLength, seedShellState, settledBox } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { nonEmpty } from "@orb/testkit/iso";
@@ -10,7 +10,7 @@ import type { Locator, Page, TestInfo } from "@playwright/test";
 import type { SectionShellStory } from "../_surface-stories.tsx";
 
 const STORY = "tests/client/features/app-shell/_surface-stories/SectionShellStory";
-const GEOMETRY_EPSILON = 1;
+
 const FONT_SCALES = [1, 1.5] as const;
 const REGIMES = [
   { name: "short desktop", viewport: { width: 1440, height: 390 }, coarse: false, portrait: false },
@@ -119,9 +119,6 @@ interface RailEdge {
   readonly straddling: readonly { readonly label: string | null; readonly visible: number; readonly hidden: number; readonly height: number }[];
 }
 
-/** How far a cap may sit from its button's midline: the fit floors the midline to a whole pixel. */
-const MIDLINE_EPSILON = 1;
-
 interface RailFit {
   readonly overflow: number;
   /** The section the live bottom edge cuts through. */
@@ -205,7 +202,7 @@ for (const viewport of LANDSCAPE_PHONES) {
           fit.expected !== null &&
           fit.cut === fit.expected.label &&
           fit.cap !== null &&
-          Math.abs(fit.cap - fit.expected.middle) <= MIDLINE_EPSILON
+          Math.abs(fit.cap - fit.expected.middle) <= LAYOUT_SUBPIXEL_PX
         );
       };
       await expect.poll(fitsRoom, { message: "the cut rests on the last midline that fits at boot" }).toBe(true);
@@ -241,7 +238,7 @@ for (const viewport of LANDSCAPE_PHONES) {
       const current = sections.locator('[aria-current="page"]');
       const inView = async (): Promise<boolean> => {
         const [scroller, active] = [await settledBox(sections), await settledBox(current)];
-        return active.y >= scroller.y - GEOMETRY_EPSILON && active.y + active.height <= scroller.y + scroller.height + GEOMETRY_EPSILON;
+        return active.y >= scroller.y - LAYOUT_SUBPIXEL_PX && active.y + active.height <= scroller.y + scroller.height + LAYOUT_SUBPIXEL_PX;
       };
       await expect(current).toHaveAccessibleName(SECTION_LABELS.databank);
       await expect.poll(inView).toBe(true);
@@ -313,10 +310,10 @@ async function withinViewport(control: Locator): Promise<void> {
   await expect(control).toBeInViewport();
   const box = await settledBox(control);
   const viewport = await control.page().evaluate(() => ({ width: innerWidth, height: innerHeight }));
-  expect(box.x).toBeGreaterThanOrEqual(-GEOMETRY_EPSILON);
-  expect(box.y).toBeGreaterThanOrEqual(-GEOMETRY_EPSILON);
-  expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + GEOMETRY_EPSILON);
-  expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + GEOMETRY_EPSILON);
+  expect(box.x).toBeGreaterThanOrEqual(-LAYOUT_SUBPIXEL_PX);
+  expect(box.y).toBeGreaterThanOrEqual(-LAYOUT_SUBPIXEL_PX);
+  expect(box.x + box.width).toBeLessThanOrEqual(viewport.width + LAYOUT_SUBPIXEL_PX);
+  expect(box.y + box.height).toBeLessThanOrEqual(viewport.height + LAYOUT_SUBPIXEL_PX);
 }
 
 async function portraitPointer(page: Page, rail: Locator): Promise<void> {
@@ -335,15 +332,15 @@ async function columnPointer(page: Page, rail: Locator, home: Locator, info: Tes
   await withinViewport(refinery);
   const controlSize = await resolvedLength(page, `var(${TOKENS["size.control-lg"].cssVar})`);
   const chromeRow = await resolvedLength(page, `var(${TOKENS["dimension.chrome-row"].cssVar})`);
-  expect((await settledBox(refinery)).height).toBeGreaterThanOrEqual(controlSize - GEOMETRY_EPSILON);
-  expect((await settledBox(home)).height).toBeGreaterThanOrEqual(chromeRow - GEOMETRY_EPSILON);
+  expect((await settledBox(refinery)).height).toBeGreaterThanOrEqual(controlSize - LAYOUT_SUBPIXEL_PX);
+  expect((await settledBox(home)).height).toBeGreaterThanOrEqual(chromeRow - LAYOUT_SUBPIXEL_PX);
   const settings = rail.getByRole("button", { name: SECTION_LABELS.settings, exact: true });
   await withinViewport(settings);
-  expect((await settledBox(settings)).height).toBeGreaterThanOrEqual(controlSize - GEOMETRY_EPSILON);
+  expect((await settledBox(settings)).height).toBeGreaterThanOrEqual(controlSize - LAYOUT_SUBPIXEL_PX);
   const geometry = await rail
     .locator(".shell-rail-sections")
     .evaluate((node) => ({ height: node.clientHeight, total: node.scrollHeight, position: node.scrollTop }));
-  expect(geometry.total).toBeGreaterThan(geometry.height + GEOMETRY_EPSILON);
+  expect(geometry.total).toBeGreaterThan(geometry.height + LAYOUT_SUBPIXEL_PX);
   expect(geometry.position).toBeGreaterThan(0);
   await info.attach("rail-section-scroll", { body: JSON.stringify(geometry), contentType: "application/json" });
 }
@@ -353,7 +350,7 @@ async function portraitReturn(rail: Locator): Promise<void> {
   for (const button of await rail.getByRole("button").all()) {
     await withinViewport(button);
   }
-  expect(await rail.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(GEOMETRY_EPSILON);
+  expect(await rail.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
 }
 
 async function columnKeyboard(page: Page, rail: Locator, home: Locator, info: TestInfo): Promise<void> {

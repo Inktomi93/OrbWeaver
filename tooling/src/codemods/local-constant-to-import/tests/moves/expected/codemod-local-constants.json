@@ -1,0 +1,6 @@
+{
+  "moves": [
+    { "name": "ESTIMATED_ROW_PX", "expression": "ROW_ESTIMATE_PX.compact", "binding": "ROW_ESTIMATE_PX", "from": "#lib", "files": ["a.ts"] },
+    { "name": "EPSILON", "expression": "LAYOUT_SUBPIXEL_PX", "binding": "LAYOUT_SUBPIXEL_PX", "from": "@orb/testkit/browser/spec", "files": ["a.ts", "b.ts"] }
+  ]
+}

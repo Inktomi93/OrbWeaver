@@ -16,9 +16,6 @@
 export const DATABANK_INGEST_GLOSS =
   "Upload a file, paste text, or pull in a page. Choose which chats it feeds. Relevant passages can reach those chats after indexing.";
 
-/** The CONTENT pane's title on the landing, empty bank or not. */
-export const DATABANK_LANDING_TITLE = "Your databank";
-
 /** What an open document shows, said beside the LIST's own empty state: the LIST owns the one call to action, so this
  *  names what the pane holds and does not tell the reader to add anything. */
 export const DATABANK_EMPTY_BANK_NOTE = "A document you add opens here, with its extracted text, indexing status, and where it is used.";

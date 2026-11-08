@@ -1,5 +1,7 @@
 // The Textarea's autosize with the browser's `field-sizing: content` taken away: the script arm must size the box
 // to the same height the native arm gives it, inside the same min and max rows.
+
+import { LAYOUT_SUBPIXEL_PX } from "@orb/testkit/browser/spec";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { AutosizeTextareaStory, ClassFixedLaterStory, FixedClassHeightStory, FixedInlineHeightStory } from "./textarea-autosize-stories.tsx";
@@ -8,8 +10,6 @@ const STORIES = "tests/ui/primitives/textarea/textarea-autosize-stories";
 const STORY = `${STORIES}/AutosizeTextareaStory`;
 const FOUR_LINES = "a\nb\nc\nd";
 const TWELVE_LINES = Array.from({ length: 12 }, (_, line) => `line ${String(line)}`).join("\n");
-// Sub-pixel line boxes round differently in the two arms.
-const SLACK = 1;
 
 /** The box the native arm gives the same text: a sibling clone with the property forced on and no height set. */
 function nativeHeight(field: Locator): Promise<number> {
@@ -57,11 +57,11 @@ test.describe("without field-sizing support", () => {
   test("the box is sized before the first paint, grows with its text, and stops at its rows", async ({ mount }) => {
     const component = await mount<typeof AutosizeTextareaStory>(STORY);
     const field = component.getByRole("textbox", { name: "Notes", exact: true });
-    expect(Math.abs((await ownHeight(field)) - (await nativeHeight(field)))).toBeLessThanOrEqual(SLACK);
+    expect(Math.abs((await ownHeight(field)) - (await nativeHeight(field)))).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
     const heights: number[] = [];
     for (const text of ["", FOUR_LINES, TWELVE_LINES]) {
       await field.fill(text);
-      expect(Math.abs((await ownHeight(field)) - (await nativeHeight(field))), JSON.stringify(text)).toBeLessThanOrEqual(SLACK);
+      expect(Math.abs((await ownHeight(field)) - (await nativeHeight(field))), JSON.stringify(text)).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
       heights.push(await ownHeight(field));
     }
     const [empty = 0, four = 0, twelve = 0] = heights;
@@ -88,7 +88,7 @@ test.describe("without field-sizing support", () => {
     const field = component.getByRole("textbox", { name: "Fixed inline", exact: true });
     await expect(field).toHaveCSS("height", "40px");
     await field.evaluate((element) => element.style.removeProperty("height"));
-    await expect.poll(async () => Math.abs((await ownHeight(field)) - (await nativeHeight(field)))).toBeLessThanOrEqual(SLACK);
+    await expect.poll(async () => Math.abs((await ownHeight(field)) - (await nativeHeight(field)))).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
     expect(await ownHeight(field)).toBeGreaterThan(40);
   });
 
@@ -103,8 +103,8 @@ test.describe("without field-sizing support", () => {
       return height;
     });
     await field.evaluate((element) => element.style.removeProperty("height"));
-    await expect.poll(() => ownHeight(field)).toBeGreaterThan(rowsHeight + SLACK);
-    expect(Math.abs((await ownHeight(field)) - (await nativeHeight(field)))).toBeLessThanOrEqual(SLACK);
+    await expect.poll(() => ownHeight(field)).toBeGreaterThan(rowsHeight + LAYOUT_SUBPIXEL_PX);
+    expect(Math.abs((await ownHeight(field)) - (await nativeHeight(field)))).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
   });
 
   test("a height class added after mount wins over the script's height, and one removed lets it size again", async ({ mount }) => {

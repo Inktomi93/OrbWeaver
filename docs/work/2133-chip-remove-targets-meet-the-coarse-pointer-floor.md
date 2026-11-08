@@ -24,4 +24,6 @@ At a coarse pointer the remove target meets the D62 floor, a tap just inside the
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Fixed in the shared owner, `packages/ui/src/primitives/combobox/variants.ts`. The remove box is the glyph step. Its `::before` hit area bleeds by the pointer-conditional `glyph-bleed`. Chips on a line keep `glyph-gap`, and wrapped lines keep the new `combobox-wrap-*` spacing tokens, so the target never covers the next chip, the line below or the draft input.
+
+CT `tests/ui/primitives/combobox/platform-combobox-chips.suite.ct.tsx` measures `hitExtent` at a fine and a coarse pointer against the floor and probes one pixel inside each neighbour. It fails on the prior source and passes now. The tag, rule and autocomplete suites that mount a combobox pass.

@@ -205,8 +205,6 @@ export function summaryCaption(summary: ImportSummary): string {
   return parts.join(" · ");
 }
 
-export const IMPORT_PREVIEW_RETRY_NAME = "Try again";
-
 /** The preflight's confirm button, named for what it imports so no other control on the page shares its name. */
 export const IMPORT_CONFIRM_NAMES = { folder: "Import this folder", file: "Import this file", files: "Import these files" } as const;
 

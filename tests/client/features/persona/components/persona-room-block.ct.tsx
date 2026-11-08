@@ -115,4 +115,8 @@ test("a pin held after its player left still names that player", async ({ corpus
   const line = page.locator('[data-slot="persona-anchor-line"]');
   await expect(line).toHaveAttribute("data-anchor-state", "held");
   await expect(line).toContainText(expected);
+  // Nobody is left to pin, so the line offers the one thing it can do directly, not a menu holding only that.
+  await expect(line.getByRole("button", { name: "Re-pin…", exact: true })).toHaveCount(0);
+  await line.getByRole("button", { name: "Clear pin", exact: true }).click();
+  await expect(line).toHaveAttribute("data-anchor-state", "none");
 });

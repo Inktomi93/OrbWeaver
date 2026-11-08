@@ -1,6 +1,7 @@
 // RPG tracker blocks keep labels and value text as the accessible datum; rails are decorative.
 // Unset readings stay null. Edit callbacks enable in-place authoring; their absence is read-only.
 
+import { NO_VALUE } from "@orb/kit/strings";
 import { Badge } from "@orb/ui/badge";
 import { Card } from "@orb/ui/card";
 import { HintTrigger } from "@orb/ui/hint-trigger";
@@ -8,7 +9,6 @@ import { Gauge, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { UNSET_DATUM } from "../../lib/unset-datum.ts";
 import { TrackerValue } from "./tracker-value.tsx";
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
@@ -47,7 +47,7 @@ export function StatCell({ label, value, hint, onEditValue, range }: StatCellPro
         {onEditValue === undefined ? (
           <Text as="span" ink={value === null ? "muted" : undefined} numeric={true} voice="promoted">
             {/* `??`, never `||` — a real reading of ZERO is a reading, and must not fall through to the em-dash. */}
-            {value ?? UNSET_DATUM}
+            {value ?? NO_VALUE}
           </Text>
         ) : (
           <TrackerValue
@@ -56,7 +56,7 @@ export function StatCell({ label, value, hint, onEditValue, range }: StatCellPro
             // The rest state's em-dash for an unset-but-editable cell — TrackerValue renders `placeholder` muted
             // when the display is empty, which is the same "intentionally blank, not unfinished" arm every other
             // editable value uses. An editor typing over it sees an EMPTY field, not a floor value to delete.
-            placeholder={UNSET_DATUM}
+            placeholder={NO_VALUE}
             kind="numeric"
             {...(range === undefined ? {} : { range })}
             onEdit={(next): void => {

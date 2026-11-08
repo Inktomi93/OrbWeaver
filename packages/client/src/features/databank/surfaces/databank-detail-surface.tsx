@@ -35,9 +35,9 @@ import { renameActionName, timeLib, useFocusOnMount } from "#lib";
 import { LIST_OFF_SCREEN_HINT, useSectionListMode, useSelectedDocumentId } from "#state";
 import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
 import { useReindexDocuments, useRenameDocument } from "../hooks/use-databank-mutations.ts";
-import { DATABANK_EMPTY_BANK_NOTE, DATABANK_LANDING_TITLE } from "../lib/databank-copy.ts";
+import { DATABANK_EMPTY_BANK_NOTE } from "../lib/databank-copy.ts";
 import { characterCount, documentTypeLabel, ingestBadge, ingestEmptyHint, ingestStallHint, originLabel, passageTally } from "../lib/databank-model.ts";
-import { databankSourceToggleName } from "../lib/databank-names.ts";
+import { DATABANK_LANDING_NAME, databankSourceToggleName } from "../lib/databank-names.ts";
 
 export function DatabankDetailSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -137,7 +137,7 @@ function WelcomeBody({ total, listCollapsed }: { readonly total: number; readonl
     return (
       <Stack align="center" gap="field">
         <Heading level={2} voice="focal">
-          {DATABANK_LANDING_TITLE}
+          {DATABANK_LANDING_NAME}
         </Heading>
         <Text cap="prose" textAlign="center" voice="gloss">
           {DATABANK_EMPTY_BANK_NOTE}
@@ -147,7 +147,7 @@ function WelcomeBody({ total, listCollapsed }: { readonly total: number; readonl
   }
   return (
     // action={null}: the Databank CONTENT landing. It nudges a pick (populated bank) or, with the list off screen, stands in for the list's empty state and points at the one Add door, which lives in the sibling list (the band's Add and the empty bank's own CTA); minting a second Add button here is the refused two-Add-doors arm. Ends if the library stops carrying a create door.
-    <EmptyState action={null} description={welcomeCopy(total, listCollapsed)} icon={<Icon icon={FileText} size="lg" />} title={DATABANK_LANDING_TITLE} />
+    <EmptyState action={null} description={welcomeCopy(total, listCollapsed)} icon={<Icon icon={FileText} size="lg" />} title={DATABANK_LANDING_NAME} />
   );
 }
 

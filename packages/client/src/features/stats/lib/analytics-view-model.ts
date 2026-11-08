@@ -15,6 +15,7 @@ import type { TokenProvenance } from "@orb/contracts/chat";
 import { combineTokenProvenance } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
+import { NO_VALUE } from "@orb/kit/strings";
 import type { TimeLib } from "@orb/kit/time";
 import { MS_PER_HOUR, MS_PER_MINUTE, MS_PER_SECOND } from "@orb/kit/time";
 import type { BarListItem } from "@orb/ui/bar-list";
@@ -56,7 +57,6 @@ const HOURS_PER_DAY = 24;
 const SHORT_REF_LEN = 4;
 /** `YYYY` is the first four characters of a `YYYY-MM-DD` calendar day. */
 const YEAR_KEY_LENGTH = 4;
-const EM_DASH = "—";
 
 /** Shared legend for absent accounting and estimates; missing totals are not measured zeros. */
 export const UNRECORDED_NOTE =
@@ -126,7 +126,7 @@ export function formatDurationMs(ms: number): string {
 
 /** A nullable millisecond figure — `—` when the metric has no samples yet. */
 export function formatMs(ms: number | null): string {
-  return ms === null ? EM_DASH : formatDurationMs(ms);
+  return ms === null ? NO_VALUE : formatDurationMs(ms);
 }
 
 /** A compact count with its noun, singular at exactly one: `1 reply` · `842 replies` · `1.2k replies`. */
@@ -159,7 +159,7 @@ export function formatDecimal(n: number): string {
  *  no token accounting at all, and a `0 tok` there asserts a measurement that never happened). */
 export function formatCount(n: number | null, provenance?: TokenProvenance): string {
   if (n === null || provenance === "unrecorded") {
-    return EM_DASH;
+    return NO_VALUE;
   }
   return `${provenance === "estimated" ? "~" : ""}${formatCompact(n)}`;
 }
@@ -168,7 +168,7 @@ export function formatCount(n: number | null, provenance?: TokenProvenance): str
  *  inside so an unrecorded row reads `—` and not the nonsense `— tok`. */
 export function formatTokens(n: number | null, provenance: TokenProvenance): string {
   if (n === null || provenance === "unrecorded") {
-    return EM_DASH;
+    return NO_VALUE;
   }
   return `${provenance === "estimated" ? "~" : ""}${formatCompact(n)} tok`;
 }
@@ -177,7 +177,7 @@ export function formatTokens(n: number | null, provenance: TokenProvenance): str
  *  `<1%` for a real-but-tiny rate that would otherwise round to the `0%` that reads as "never". */
 export function formatPercent(rate: number | null, provenance?: TokenProvenance): string {
   if (rate === null || provenance === "unrecorded") {
-    return EM_DASH;
+    return NO_VALUE;
   }
   const whole = Math.round(rate * PERCENT);
   const value = whole === 0 && rate > 0 ? "<1%" : `${whole}%`;
@@ -193,7 +193,7 @@ export function throughputProvenance(totalGenTimeMs: number, tokensOutProvenance
 /** Token-derived throughput with the same provenance spelling as the total it divides. */
 export function formatThroughput(rate: number | null, provenance: TokenProvenance): string {
   if (rate === null || provenance === "unrecorded") {
-    return EM_DASH;
+    return NO_VALUE;
   }
   return `${provenance === "estimated" ? "~" : ""}${rate.toFixed(1)} t/s`;
 }

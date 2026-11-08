@@ -2,6 +2,7 @@
 // Commits compare with the opening value; concurrent changes require an explicit second commit.
 // Escape cancels without writing, and passive rerenders never replace an open draft.
 
+import { NO_VALUE } from "@orb/kit/strings";
 import { InlineAction } from "@orb/ui/inline-action";
 import { Input } from "@orb/ui/input";
 import type { ToneInkSelection } from "@orb/ui/lib";
@@ -12,7 +13,6 @@ import { useId, useRef, useState } from "react";
 import { Tip } from "#components";
 import type { EditSession } from "#lib";
 import { resolveCommit } from "#lib";
-import { UNSET_DATUM } from "../../lib/unset-datum.ts";
 
 type TrackerVoice = Extract<ComponentProps<typeof Text>["voice"], "label" | "promoted">;
 interface TrackerValueOwnProps {
@@ -98,7 +98,7 @@ function TrackerValueRest({
   readonly buttonRef: Ref<HTMLButtonElement>;
 }): ReactElement {
   const empty = display === "";
-  const restText = empty ? (placeholder ?? UNSET_DATUM) : display;
+  const restText = empty ? (placeholder ?? NO_VALUE) : display;
   const restPaint: ToneInkSelection = ink === undefined ? { tone } : { ink };
   return (
     <Tip text={editTitle}>

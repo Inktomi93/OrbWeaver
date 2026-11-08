@@ -24,4 +24,10 @@ Every no-value placeholder reads the one constant, no feature spells the glyph i
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+`NO_VALUE` and `NO_VALUE_NAME` live in `@orb/kit/strings`, beside the USD formatter that already used the glyph. `NoValue` in `@orb/ui/text` renders the glyph under that name, and `StatFigure` renders it for a value equal to `NO_VALUE`, so every Insights figure carries the name.
+
+Moved by codemod: the nine `UNSET_DATUM` readers through `move-import-names`, and the lone-dash literals in the stats overview, rhythm figures and assembly diagnostics through `literal-to-binding`. Each dry run listed exactly the files an independent `rg` listed, and a rerun changed nothing. By hand: the local constants in the stats view model, payload view, regex tier row and preset format-count, and the JSX sites in payload view and the compare tab, which render `NoValue`. The swipe counters read the constant, because their text is hidden from assistive technology beside a separate spoken count.
+
+`packages/client/src/features/rpg/lib/unset-datum.ts` is gone. Tests that read a placeholder import the constant. CT `tests/ui/charts/stat-figure/no-value.ct.tsx` fails without the mapping.
+
+Kept as developer diagnostics: the lone dash in `trpc-devlog.ts` and `bus-devlog.ts`, which only reach the console.

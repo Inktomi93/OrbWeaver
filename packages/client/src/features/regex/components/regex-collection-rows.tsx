@@ -53,6 +53,7 @@ import type { CollectionListView } from "#lib";
 import {
   COLLECTION_LARGE_GROUP,
   downloadTextFile,
+  ESTIMATED_ROW_PX,
   notify,
   REGEX_PLACEMENT_GLYPHS,
   REGEX_PLACEMENT_LABELS,
@@ -73,11 +74,6 @@ import {
 } from "#state";
 import { useDuplicateRegexScript, useRemoveRegexScript } from "../hooks/use-regex-library.ts";
 import { RegexBulkBar } from "./regex-bulk-bar.tsx";
-
-/** One row's height guess for the windowed arm — the MEASURED height at the real 290px list mount (name +
- *  scent subtitle + the reserved cluster). The virtualizer re-measures after mount; the guess only decides
- *  how many rows the first frame windows. */
-const ESTIMATED_ROW_PX = 52;
 
 /** How many §12.2 cluster slots THIS list reserves per row: ONE — the kebab at rest, the bulk checkbox
  *  while bulk mode runs. It declared two while the global switch lived here (see the header). */
@@ -177,7 +173,7 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
           // primitive's own unbounded-window throw.
           className="min-block-0"
           grow={true}
-          estimateSize={(): number => ESTIMATED_ROW_PX}
+          estimateSize={(): number => ESTIMATED_ROW_PX.subtitled}
           // The cap is a fixed box and the rows are 51.5px, so the window ends MID-ROW every time; with
           // overlay scrollbars that half-row is the only cue there is more, and it reads as clipping (the tag
           // arm carries the same fade). The fade is state-gated on the live scroll position, so at the bottom it lifts.

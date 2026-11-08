@@ -36,14 +36,11 @@ import type { ReactElement } from "react";
 import { LibraryRow } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC, useTRPCClient } from "#data";
 import type { CollectionListView } from "#lib";
-import { COLLECTION_LARGE_GROUP, downloadTextFile, notify } from "#lib";
+import { COLLECTION_LARGE_GROUP, downloadTextFile, ESTIMATED_ROW_PX, notify } from "#lib";
 import { clearCollectionSelection } from "#state";
 import { useDuplicateWorldBook, useRemoveWorldBook } from "../hooks/use-world-info-mutations.ts";
 import { WORLD_BOOKS_LIST_NAME } from "../lib/world-books-list-name.ts";
 import { bookScent } from "../lib/world-info-model.ts";
-
-/** One compact row's height guess for the windowed arm (name + scent subtitle). */
-const ESTIMATED_ROW_PX = 44;
 
 export function WorldInfoCollectionRows({ view }: { readonly view: CollectionListView }): ReactElement {
   const trpc = useTRPC();
@@ -132,7 +129,7 @@ export function WorldInfoCollectionRows({ view }: { readonly view: CollectionLis
           // primitive's own unbounded-window throw.
           className="min-block-0"
           grow={true}
-          estimateSize={(): number => ESTIMATED_ROW_PX}
+          estimateSize={(): number => ESTIMATED_ROW_PX.compact}
           // Same reason as the tag/regex arms (side-eye 2026-08-06 P2): a fixed cap over uniform rows ends
           // mid-row, and under overlay scrollbars that sliver is the only "there is more" cue there is.
           fadeEdge={true}

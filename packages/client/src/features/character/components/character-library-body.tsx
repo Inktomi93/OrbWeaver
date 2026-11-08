@@ -22,12 +22,12 @@ import { VirtualList } from "@orb/ui/virtual-list";
 import type { ReactElement, ReactNode } from "react";
 import type { CollectionSurface } from "#data";
 import { QueryErrorState, SkeletonRows } from "#data";
+import { ESTIMATED_ROW_PX } from "#lib";
 import { clearCharacterFilters } from "#state";
 import { groupByTag } from "../lib/character-list-view.ts";
 import type { CharacterCardItem } from "./character-card.tsx";
 import { CharacterCategorizedList } from "./character-categorized-list.tsx";
 
-const ESTIMATED_ROW_PX = 80;
 const SKELETON_ROW_COUNT = 6;
 
 export interface CharacterLibraryBodyProps {
@@ -171,7 +171,7 @@ export function CharacterLibraryBody({
         className="min-block-0"
         grow={true}
         endApproachRows={listProps.endApproachRows}
-        estimateSize={(): number => ESTIMATED_ROW_PX}
+        estimateSize={(): number => ESTIMATED_ROW_PX.portrait}
         gapToken="row"
         getItemKey={(item): string => item.id}
         items={filtered}

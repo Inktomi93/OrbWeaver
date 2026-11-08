@@ -21,6 +21,7 @@
 // alternates AND the room is still in its window.
 
 import type { ChatId, MessageId } from "@orb/kit/ids";
+import { NO_VALUE } from "@orb/kit/strings";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import { ChevronLeft, ChevronRight, Icon } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
@@ -85,7 +86,7 @@ export function GreetingSwipeStrip({ chatId, messageId, variants, current, foot 
       }
       count={
         <Text as="span" voice="datum" aria-hidden="true" data-slot="greeting-swipe-strip-counter" whitespace="nowrap" ink="muted">
-          {atCustom ? "—" : currentIdx + 1} / {total}
+          {atCustom ? NO_VALUE : currentIdx + 1} / {total}
         </Text>
       }
       next={

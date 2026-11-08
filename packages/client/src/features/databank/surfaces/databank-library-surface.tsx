@@ -45,7 +45,7 @@ import { useRef, useState } from "react";
 import { LibraryListRows, LibrarySurfaceShell, ListPage, useRowDeleteFocus } from "#components";
 import type { Trpc } from "#data";
 import { createCollectionSurface, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { SEARCH_DEBOUNCE_MS, timeLib, useDebouncedValue, useFocusListArrival } from "#lib";
+import { ESTIMATED_ROW_PX, SEARCH_DEBOUNCE_MS, timeLib, useDebouncedValue, useFocusListArrival } from "#lib";
 import {
   clearDatabankPhaseFilter,
   clearDocumentSelection,
@@ -71,8 +71,6 @@ import { ingestBadge, ingestPollInterval } from "../lib/databank-model.ts";
 import { DATABANK_SEARCH_NAME } from "../lib/databank-names.ts";
 
 const SKELETON_ROW_COUNT = 6;
-/** Initial row-height guess; `<VirtualList>` re-measures every row after mount. A two-line entity row. */
-const ESTIMATED_ROW_PX = 72;
 
 type DatabankListPage = inferOutput<Trpc["databank"]["list"]>;
 
@@ -249,7 +247,7 @@ function DatabankList({ query, phaseFilter, onClearSearch, listRootRef }: Databa
           aria-label="Documents"
           height="fill"
           endApproachRows={collection.listProps.endApproachRows}
-          estimateSize={(): number => ESTIMATED_ROW_PX}
+          estimateSize={(): number => ESTIMATED_ROW_PX.entity}
           gapToken="tight"
           getItemKey={(item): string => item.id}
           items={documents}

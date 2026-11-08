@@ -24,4 +24,8 @@ Name, Description and the other persona editor fields end on one right edge at d
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The member editors share one cap, `CAP.column` (`--width-content-col`). `MacroTextarea` takes it as a length at its root, and `PersonaEditor` uses `cap="column"`, so the macro fields and the plain fields end on one edge.
+
+CT `tests/client/features/persona/components/platform-persona-editor-footprint.suite.ct.tsx` resolves the token and compares the Name, Title and Description right edges at desktop, enlarged and phone widths. It fails on the prior source and passes now.
+
+Open: the Character editor still caps at `pane`, so its macro fields and plain fields differ by the gap between `pane` and `column`. That surface is outside this item.

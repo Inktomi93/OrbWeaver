@@ -27,6 +27,7 @@
 
 import type { RegexTierKey, RegexTierRowView } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
+import { NO_VALUE } from "@orb/kit/strings";
 import { BookOpen, Icon, Unlink } from "@orb/ui/icons";
 import { InlineToken } from "@orb/ui/inline-token";
 import { Row } from "@orb/ui/layout";
@@ -43,10 +44,6 @@ import { useDetachScriptFromChat, useSetRegexScriptEnabled } from "../hooks/use-
 
 /** The config group the script library lives in — the `⋯ → Open in library` destination. */
 const REGEX_COLLECTION = "regex";
-
-/** What an unranked row draws where the numeral goes. An EM DASH, never a blank: the column stays a column,
- *  and "this one does not run" is a statement rather than an absence. */
-const NO_RANK = "—";
 
 export interface RegexTierRowProps {
   readonly chatId: ChatId;
@@ -133,7 +130,7 @@ function rankLabel(runsAt: number | null, isHost: boolean): string {
   if (runsAt !== null) {
     return String(runsAt);
   }
-  return isHost ? NO_RANK : "";
+  return isHost ? NO_VALUE : "";
 }
 
 /** The title-line marks: the `+N` chip (also attached at N other tiers of this room), the `OFF` state, and

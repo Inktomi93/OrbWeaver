@@ -1,5 +1,6 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { RETRY_NAME } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import type { ImportPreview } from "@orb/contracts/import";
@@ -13,7 +14,6 @@ import {
   TREE_FILE_FIELD,
 } from "@orb/contracts/import";
 import { createPersonaSchema } from "@orb/contracts/persona";
-
 import { exportCharacterPath, PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { StreamFrame } from "@orb/contracts/stream";
@@ -29,7 +29,6 @@ import {
   IMPORT_CONFIRM_NAMES,
   IMPORT_CONSEQUENCE,
   IMPORT_NOTHING_FOUND_NOTE,
-  IMPORT_PREVIEW_RETRY_NAME,
   previewKindLine,
 } from "#client/features/workloads/lib/portability-model.ts";
 import type { ImportPreviewStory } from "./_import-preview-stories.tsx";
@@ -305,7 +304,7 @@ test("a failed dry run says so in plain words and tone, and Try again reads the 
   await expect(failure).toHaveAttribute("data-tone", "destructive");
   await expect(preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.folder, exact: true })).toBeEnabled();
 
-  await preflight.getByRole("button", { name: IMPORT_PREVIEW_RETRY_NAME, exact: true }).click();
+  await preflight.getByRole("button", { name: RETRY_NAME, exact: true }).click();
   await expect(preflight.getByRole("group", { name: "What this import would bring", exact: true })).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
 });
 

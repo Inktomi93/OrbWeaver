@@ -210,6 +210,7 @@ function createCreateInvite(ctx: ChatContext, claimChat: ClaimChatOp): ChatServi
       remainingUses: maxUses, // uses = 0 at creation
       expiresAt,
       invitedUserId,
+      invitedHandle: input.invitedHandle ?? null,
       allowSignup,
       createdAt: at,
     };
@@ -368,17 +369,20 @@ function createListInvites(ctx: ChatContext): ChatService["listInvites"] {
   return async ({ principal, chatId }: ListInvitesParams): Promise<readonly InviteView[]> => {
     await requireHost(ctx, principal, chatId);
     const rows = await listInvitesForChat(ctx.db, chatId);
-    return rows.map((row) => ({
-      id: row.id,
-      chatId: row.chatId,
-      status: row.status,
-      maxUses: row.maxUses,
-      remainingUses: row.maxUses === null ? null : Math.max(0, row.maxUses - row.uses),
-      expiresAt: row.expiresAt,
-      invitedUserId: row.invitedUserId,
-      allowSignup: row.allowSignup,
-      createdAt: row.createdAt,
-    }));
+    return await Promise.all(
+      rows.map(async (row) => ({
+        id: row.id,
+        chatId: row.chatId,
+        status: row.status,
+        maxUses: row.maxUses,
+        remainingUses: row.maxUses === null ? null : Math.max(0, row.maxUses - row.uses),
+        expiresAt: row.expiresAt,
+        invitedUserId: row.invitedUserId,
+        invitedHandle: row.invitedUserId === null ? null : ((await ctx.resolveUserPublics(row.invitedUserId, null))?.handle ?? null),
+        allowSignup: row.allowSignup,
+        createdAt: row.createdAt,
+      })),
+    );
   };
 }
 

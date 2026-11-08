@@ -1,7 +1,7 @@
 // The first character typed into New chat's search brings the picker's footer ("Showing N of M", Clear search) into the command box. Where the dialog
 // is roomy the box and the dialog around it keep their size and place: the footer takes room from the list and never adds to the box. Where it is
 // not, the footer adds to the box. Either way the list keeps a whole touch row.
-import { seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
+import { LAYOUT_SUBPIXEL_PX, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -24,7 +24,6 @@ const SERVED = [
   "plugin.listSurfaces",
 ] as const;
 
-const SUBPIXEL_PX = 1;
 const COMMAND_ROOT = '[data-slot="command-root"]';
 const LIST = "[cmdk-list]";
 const FONT_SCALE = channelName("fontScale");
@@ -94,15 +93,17 @@ for (const cell of CELLS) {
         if (!cell.holds) {
           return;
         }
-        expect(Math.abs(after.box - before.box), `the picker box went ${String(before.box)}px to ${String(after.box)}px`).toBeLessThanOrEqual(SUBPIXEL_PX);
+        expect(Math.abs(after.box - before.box), `the picker box went ${String(before.box)}px to ${String(after.box)}px`).toBeLessThanOrEqual(
+          LAYOUT_SUBPIXEL_PX,
+        );
         expect(
           Math.abs(after.dialog.height - before.dialog.height),
           `the dialog went ${String(before.dialog.height)}px to ${String(after.dialog.height)}px`,
-        ).toBeLessThanOrEqual(SUBPIXEL_PX);
+        ).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
         expect(
           Math.abs(after.dialog.top - before.dialog.top),
           `the dialog top went ${String(before.dialog.top)}px to ${String(after.dialog.top)}px`,
-        ).toBeLessThanOrEqual(SUBPIXEL_PX);
+        ).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
       },
     );
   });

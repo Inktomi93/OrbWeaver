@@ -21,7 +21,7 @@ import { useDeferredValue, useRef, useState } from "react";
 import { LibraryRow, ListPage, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
-import { testId, useFocusOnMount } from "#lib";
+import { ESTIMATED_ROW_PX, testId, useFocusOnMount } from "#lib";
 import { selectAnalyticsCharacterFromList, setAnalyticsSearchQuery, useAnalyticsSearchQuery, useSelectedAnalyticsCharacterId } from "#state";
 import { ANALYTICS_SEARCH_NAME } from "../lib/analytics-names.ts";
 import {
@@ -45,8 +45,6 @@ type LeaderboardPage = inferOutput<Trpc["stats"]["leaderboard"]>;
 type LeaderboardPageRow = LeaderboardPage["rows"][number];
 
 const SKELETON_ROW_COUNT = 6;
-/** The row's first-paint height guess (rank + title + subtitle + trailing tokens); rows re-measure after mount. */
-const ESTIMATED_ROW_PX = 64;
 
 export function AnalyticsListSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -145,7 +143,7 @@ function LeaderboardBody({
     <VirtualList
       aria-label="Character leaderboard"
       height="fill"
-      estimateSize={(): number => ESTIMATED_ROW_PX}
+      estimateSize={(): number => ESTIMATED_ROW_PX.ranked}
       fadeEdge={true}
       gapToken="row"
       getItemKey={(row): string => row.characterId}

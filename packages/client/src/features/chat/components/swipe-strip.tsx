@@ -16,6 +16,7 @@
 // duplicate RENDERED affordance behind one of the two call sites, ruled there and not here.
 
 import type { MessageView } from "@orb/contracts/chat";
+import { NO_VALUE } from "@orb/kit/strings";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import { ChevronLeft, ChevronRight, Icon } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
@@ -193,7 +194,7 @@ export function SwipeCount({ current, total, foot }: { readonly current: number 
   return (
     <FootRow edge={foot.edge} align="center" justify="end" data-slot="swipe-count">
       <Text as="span" voice="datum" aria-hidden="true" data-slot="swipe-strip-counter" whitespace="nowrap" ink="muted">
-        {current ?? "—"} / {total}
+        {current ?? NO_VALUE} / {total}
       </Text>
       <Text as="span" className="sr-only">
         {variantCountName(current, total)}

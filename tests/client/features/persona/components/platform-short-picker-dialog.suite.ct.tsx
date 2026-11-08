@@ -1,6 +1,7 @@
 // A box 24rem tall or less has one scroller: the picker that creates a persona from a character takes what its dialog's chrome leaves.
 // Layer: CT. Production entry: the Personas section's own "New persona from a character" door over the corpus root's reads.
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
+import { LAYOUT_SUBPIXEL_PX } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -20,7 +21,6 @@ const READS = [
   "plugin.listMacros",
 ] as const;
 const ROW = "[cmdk-item]";
-const GEOMETRY_EPSILON = 1;
 
 for (const regime of [
   { name: "coarse landscape", viewport: { width: 844, height: 390 } },
@@ -43,7 +43,7 @@ for (const regime of [
           [popup, ...popup.querySelectorAll("*")]
             .filter((element) => /auto|scroll/u.test(getComputedStyle(element).overflowY) && element.scrollHeight - element.clientHeight > epsilon)
             .map((element) => element.getAttribute("data-slot") ?? element.tagName.toLowerCase()),
-        GEOMETRY_EPSILON,
+        LAYOUT_SUBPIXEL_PX,
       );
       expect(scrollers).toHaveLength(1);
     });

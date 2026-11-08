@@ -58,7 +58,7 @@ import { useRef } from "react";
 import { ListPage } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useTRPC } from "#data";
-import { SEARCH_DEBOUNCE_MS, useDebouncedValue, useFocusListArrival } from "#lib";
+import { ESTIMATED_ROW_PX, SEARCH_DEBOUNCE_MS, useDebouncedValue, useFocusListArrival } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
 import {
   clearChatListCharacterFilter,
@@ -95,9 +95,6 @@ import { CHAT_CLEAR_SEARCH_NAME, CHAT_LIST_NAME, CHAT_SEARCH_NAME } from "../lib
 type ChatListItem = inferOutput<Trpc["chat"]["listChats"]>["items"][number];
 
 const SKELETON_ROW_COUNT = 5;
-
-/** Row-height guess for the virtualizer; every row re-measures itself after mount. */
-const ESTIMATED_ROW_PX = 44;
 
 // THE MONTH BOUND LIVES IN ITS OWN COMPONENT (`components/chat-list-month-filter.tsx`) since #1350 — the
 // direction ruling (#490/#1348) and the native-picker record (#500/#522) are stated there, at the code that
@@ -378,7 +375,7 @@ function ChatRows({
         aria-label={CHAT_LIST_NAME}
         height="fill"
         endApproachRows={listProps.endApproachRows}
-        estimateSize={(): number => ESTIMATED_ROW_PX}
+        estimateSize={(): number => ESTIMATED_ROW_PX.compact}
         gapToken="tight"
         getItemKey={(item): string => item.id}
         items={items}

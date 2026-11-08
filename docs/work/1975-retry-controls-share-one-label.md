@@ -24,4 +24,6 @@ One constant names the retry label, no client file spells it by hand, and the la
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+`RETRY_NAME` in `packages/client/src/lib/retry-names.ts` is the one label, exported from `#lib`. The chat and import-preview constants are gone. Their readers moved with `move-import-names` and the hand-written literals with `literal-to-binding`; each dry run listed the files an independent `rg` of the exact string listed, and a rerun changed nothing. The share card, which wrote the label as JSX text, was edited by hand.
+
+The label rule in `tooling/src/eslint/test-labels.ts` reads exported labels from production, so it now names `RETRY_NAME` as the one owner of this label. Sentences that end in "Try again" are copy, not the control label, and stay.

@@ -26,6 +26,7 @@
 
 import type { RpgClockTime, RpgDateMode, RpgEffectiveDelivery, RpgTrackerOrb, RpgTrackerView } from "@orb/contracts/rpg";
 import { clockTimeOfDay, rpgWeatherText } from "@orb/contracts/rpg";
+import { NO_VALUE } from "@orb/kit/strings";
 import { Badge } from "@orb/ui/badge";
 import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Icon, Lock } from "@orb/ui/icons";
@@ -33,7 +34,6 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Waystone } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { UNSET_DATUM } from "../lib/unset-datum.ts";
 import { RpgFreshnessIndicator } from "./rpg-freshness-indicator.tsx";
 import { RpgSatelliteRow } from "./rpg-satellite-row.tsx";
 
@@ -87,7 +87,7 @@ function clockTime(clock: RpgClockTime | null): string | null {
   if (clock === null || clock.hour === null) {
     return null;
   }
-  const minute = clock.minute === null ? UNSET_DATUM : String(clock.minute).padStart(2, "0");
+  const minute = clock.minute === null ? NO_VALUE : String(clock.minute).padStart(2, "0");
   return `${String(clock.hour).padStart(2, "0")}:${minute}`;
 }
 

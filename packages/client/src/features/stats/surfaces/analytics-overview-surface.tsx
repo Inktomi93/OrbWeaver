@@ -13,7 +13,7 @@
 // at all — so the inset goes on the same element that already owns the scroll here, not one level up.
 
 import type { CharacterId } from "@orb/kit/ids";
-import { formatSignedDelta, formatUsd } from "@orb/kit/strings";
+import { formatSignedDelta, formatUsd, NO_VALUE } from "@orb/kit/strings";
 import { BarList } from "@orb/ui/bar-list";
 import { Button } from "@orb/ui/button";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -152,12 +152,15 @@ function OverviewBody(): ReactElement {
             <StatFigure label="Swipes" value={formatCompact(wrapped.swipes)} />
             <StatFigure label="Forked chats" value={formatCompact(wrapped.forkedChats)} />
             <StatFigure label={formatCostLabel(wrapped.costUsd)} value={formatUsd(wrapped.costUsd)} />
-            <StatFigure label="Time generating" value={wrapped.genTimeMs === 0 && overview.avgGenMs === null ? "—" : formatDurationMs(wrapped.genTimeMs)} />
-            <StatFigure label="First chat" value={wrapped.firstChatAt === null ? "—" : timeLib.formatDate(wrapped.firstChatAt)} />
+            <StatFigure
+              label="Time generating"
+              value={wrapped.genTimeMs === 0 && overview.avgGenMs === null ? NO_VALUE : formatDurationMs(wrapped.genTimeMs)}
+            />
+            <StatFigure label="First chat" value={wrapped.firstChatAt === null ? NO_VALUE : timeLib.formatDate(wrapped.firstChatAt)} />
             {/* The swiped share divides by replies and the depth by re-rolled replies; with no sample each reads
                 unrecorded rather than the 0 an empty denominator divides to. */}
             <StatFigure label="Swiped replies" value={formatPercent(wrapped.replies === 0 ? null : wrapped.swipeRate)} />
-            <StatFigure label="Swipes to kept reply" value={overview.variantMessages === 0 ? "—" : formatDecimal(wrapped.avgSwipeDepth)} />
+            <StatFigure label="Swipes to kept reply" value={overview.variantMessages === 0 ? NO_VALUE : formatDecimal(wrapped.avgSwipeDepth)} />
           </Grid>
           {/* THE DEFINITIONS, STATED. "Words" is your turns PLUS the replies — one definition, here and on
               the drill. The swipe words sit beside "Swipes" and are NOT in it, so the pair does not read as a

@@ -4,7 +4,7 @@
 // roster list (the shell warms it at boot) and the declared box carries the row. A stacked or landscape dialog hides that row, and its declared box
 // drops it again. A landscape phone's picker takes whatever room the dialog leaves, and at enlarged text its list stays a window the dialog scrolls past
 // to Start rather than growing to the whole library.
-import { seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
+import { LAYOUT_SUBPIXEL_PX, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, holdCorpusProcedure, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -13,7 +13,7 @@ import type { AppShellModalStory, AppShellWarmRostersNewChatStory } from "./_app
 import { SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellModalStory`;
-const SETTLE_TOLERANCE_PX = 1;
+
 const RESERVED = "[data-reserve-key]";
 const COMMAND_ROOT = '[data-slot="command-root"]';
 const LIST = "[cmdk-list]";
@@ -85,11 +85,11 @@ for (const cell of CELLS) {
         expect(
           Math.abs((loaded.box?.height ?? 0) - (skeleton.box?.height ?? 0)),
           `the skeleton held ${String(skeleton.box?.height)}px and the picker ${String(loaded.box?.height)}px`,
-        ).toBeLessThanOrEqual(SETTLE_TOLERANCE_PX);
+        ).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
         expect(
           Math.abs((loaded.popup?.height ?? 0) - (skeleton.popup?.height ?? 0)),
           `the dialog went from ${String(skeleton.popup?.height)}px to ${String(loaded.popup?.height)}px`,
-        ).toBeLessThanOrEqual(SETTLE_TOLERANCE_PX);
+        ).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
       });
 
       test("the list is a window onto the library and Start scrolls onto the screen", async ({ corpus, mount, page }) => {

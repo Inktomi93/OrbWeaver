@@ -1,9 +1,10 @@
+import { LAYOUT_SUBPIXEL_PX } from "@orb/testkit/browser/spec";
 import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
 import type { SkeletonReservationStory } from "./_skeleton-reservation-stories.tsx";
 
 const ROWS = 3;
-const SUBPIXEL_PX = 1;
+
 const SCALES = [0.8, 1.25] as const;
 
 for (const touch of [false, true]) {
@@ -42,7 +43,7 @@ for (const touch of [false, true]) {
           const actual = await rendered.evaluate((element) => element.getBoundingClientRect().height);
           const declared = (await page.getByRole("group", { name: "Declared skeleton box", exact: true }).boundingBox())?.height ?? Number.NaN;
           expect(Number.isFinite(declared)).toBe(true);
-          expect(Math.abs(declared - actual)).toBeLessThanOrEqual(SUBPIXEL_PX);
+          expect(Math.abs(declared - actual)).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
           await expect(page.getByRole("status", { name: "Recovered skeleton rows", exact: true })).toHaveText(String(ROWS));
         });
       }
