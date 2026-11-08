@@ -3,7 +3,7 @@
 
 /**
  * The condition under which the box is `display: none`, leaving layout and the accessibility tree: a pointer class, always, while it holds no
- * children, in print, in a short dialog, in a stacked short dialog or everywhere else, at or above a container step, or below one. Two boxes with complementary arms
+ * children, in print, on a landscape phone, in a stacked short dialog or everywhere else, at or above a container step, or below one. Two boxes with complementary arms
  * swap one thing for another at that condition, with exactly one in layout.
  */
 export const HIDDEN_AT = {
@@ -17,8 +17,9 @@ export const HIDDEN_AT = {
   emptyBody: "has-[[data-section-body]:empty]:hidden",
   print: "print:hidden",
   unlessPrint: "not-print:hidden",
-  dialogShort: "dialog-short:hidden",
+  dialogLandscape: "glass-short:dialog-short:hidden",
   dialogStacked: "dialog-stacked:hidden",
+  stackedOrDialogLandscape: "dialog-stacked:hidden glass-short:dialog-short:hidden",
   "cq-20": "@cq-20:hidden",
   "cq-28": "@cq-28:hidden",
   "cq-32": "@cq-32:hidden",

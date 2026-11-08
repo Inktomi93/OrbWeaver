@@ -161,7 +161,9 @@ export const buttonVariants = tv({
        *  `data-selected`, and the rail box is reserved at rest so selecting never shifts the row. */
       rail: SELECTION_RAIL,
     },
-    hiddenAt: HIDDEN_AT,
+    // `unlessDialogLandscapeWide` is a landscape phone's dialog that is not stacked, the one that keeps its actions in a single pinned row; `dialog-stacked` is two
+    // conditions with no negation to hide under, so this arm restores the display.
+    hiddenAt: { ...HIDDEN_AT, unlessDialogLandscapeWide: "hidden dialog-short:glass-short:inline-flex dialog-stacked:hidden" },
     reveal: HOVER_REVEAL,
     // A glyph-only chip is narrower than the touch floor at a coarse pointer; its `sm` height already clears it.
     touchFloor: { inline: TOUCH_FLOOR_AT_COARSE.inline },

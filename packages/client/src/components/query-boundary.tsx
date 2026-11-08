@@ -353,7 +353,7 @@ function ReservedFallback({
   const box = measured ?? reserveBlock ?? null;
   if (box === null) {
     return (
-      <Stack grow={grow ? "content" : undefined} height={fill ? "fill" : undefined} minHeight={grow ? "shrinks" : undefined}>
+      <Stack grow={grow ? "onLandscape" : undefined} height={fill ? "fill" : undefined} minHeight={grow ? "holdsPickerOnLandscape" : undefined}>
         {children}
       </Stack>
     );
@@ -361,8 +361,8 @@ function ReservedFallback({
   return (
     <Stack
       className="overflow-clip"
-      grow={grow ? "content" : undefined}
-      minHeight={grow ? "shrinks" : undefined}
+      grow={grow ? "onLandscape" : undefined}
+      minHeight={grow ? "holdsPickerOnLandscape" : undefined}
       data-reserve-key={reserveKey}
       data-tile-reserved={Math.round(box)}
       // WHICH source held the box open: "this device MEASURED it" is a different claim from "the mount
@@ -402,7 +402,7 @@ function MeasuredSettle({
     return (): void => observer.disconnect();
   }, [reserveKey]);
   return (
-    <Stack grow={grow ? "content" : undefined} height={fill ? "fill" : undefined} minHeight={grow ? "shrinks" : undefined} ref={bodyRef}>
+    <Stack grow={grow ? "onLandscape" : undefined} height={fill ? "fill" : undefined} minHeight={grow ? "holdsPickerOnLandscape" : undefined} ref={bodyRef}>
       {children}
     </Stack>
   );

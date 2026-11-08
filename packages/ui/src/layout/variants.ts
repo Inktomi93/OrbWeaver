@@ -265,12 +265,12 @@ const SCROLL_FADE = { x: SCROLL_FADE_X_CLASS, y: SCROLL_FADE_Y_CLASS } as const;
 const SCROLL = { y: SCROLLER_Y } as const;
 
 // `dialog-stacked` is two conditions, so it has no negation to hide under: these arms restore the display, and only a flex box can name them.
-// `unlessDialogShortWide` is a short dialog that is not stacked, the one that keeps its actions in a single pinned row.
+// `unlessDialogLandscape` is a landscape phone's dialog; `unlessDialogLandscapeWide` the one that is not stacked, which keeps its actions in a single pinned row.
 const BOX_HIDDEN_AT = {
   ...HIDDEN_AT,
-  unlessDialogShort: "hidden dialog-short:flex",
+  unlessDialogLandscape: "hidden glass-short:dialog-short:flex",
   unlessDialogStacked: "hidden dialog-stacked:flex",
-  unlessDialogShortWide: "hidden dialog-short:flex dialog-stacked:hidden",
+  unlessDialogLandscapeWide: "hidden glass-short:dialog-short:flex dialog-stacked:hidden",
 } as const;
 
 // A wrapped child that queues behind its siblings until the container is wide enough to seat it beside them, where its
@@ -398,10 +398,10 @@ export const stackVariants = tv({
   compoundVariants: [...DIVIDER_RULE],
 });
 
-// Inline bleed preserves glyph hit areas inside the scroller; scroll padding clears its sticky action footer. A short dialog's
-// popup inset is the row step, so its body reaches exactly that far and no further: past the popup's padding box it would only be clipped.
+// Inline bleed preserves glyph hit areas inside the scroller; scroll padding clears its sticky action footer. A landscape phone's
+// dialog popup inset is the row step, so its body reaches exactly that far and no further: past the popup's padding box it would only be clipped.
 const DIALOG_SCROLL_CLASS =
-  "relative -mx-glyph-bleed min-block-0 overflow-x-hidden overflow-y-auto overscroll-contain px-glyph-bleed scroll-pbe-(--size-control-lg) dialog-short:-mx-row dialog-short:px-row";
+  "relative -mx-glyph-bleed min-block-0 overflow-x-hidden overflow-y-auto overscroll-contain px-glyph-bleed scroll-pbe-(--size-control-lg) glass-short:dialog-short:-mx-row glass-short:dialog-short:px-row";
 
 export const dialogBodyVariants = tv({
   base: DIALOG_SCROLL_CLASS,
@@ -435,6 +435,8 @@ export const rowVariants = tv({
     // `rail` is a slot fixed at the glyph height (its controls stay reachable) that takes its content's height, never less than the glyph, in a narrow container.
     // `none` takes no room, for a parked box only a measure reads.
     height: { ...HEIGHT, rail: "block-(--size-glyph-lg) min-block-(--size-glyph-lg) @max-cq-20:block-auto", glyph: "block-(--size-glyph-lg)", none: "block-0" },
+    // A row of a short dialog gives its block inset back to the content.
+    paddingBlockShort: { none: "dialog-short:py-0" },
     minHeight: MIN_HEIGHT,
     minWidth: MIN_WIDTH,
     padding: PADDING,

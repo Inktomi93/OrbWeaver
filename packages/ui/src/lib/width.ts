@@ -72,6 +72,8 @@ export const PICTURE_SIZE = { fill: "block-full inline-full", hero: "block-(--si
 /** The least block size a box holds, by what must fit in it: the control it seats, a scroll region's floor, or a named surface. */
 export const MIN_HEIGHT = {
   shrinks: "min-block-0",
+  shrinksOnLandscape: "glass-short:dialog-short:min-block-0",
+  holdsPickerOnLandscape: "glass-short:dialog-short:min-block-(--height-picker-floor)",
   viewport: "min-block-dvh",
   full: "min-block-full",
   control: "min-block-(--size-control-sm)",

@@ -9,9 +9,9 @@ import { MODAL_SURFACE, OVERLAY_MOTION, POPUP_DESCRIPTION, PUSH, SCRIM, TITLE_ST
 // `overflow-y-auto overscroll-contain` (matching drawer-content) so tall content — a FormDialog whose
 // body outgrows the viewport — actually scrolls to its submit button instead of overflowing off-screen.
 // The gutter is a rem token, so enlarged text grows it with the type; at a narrow width it steps down to the field inset so
-// a phone keeps a readable dialog width at 300%. Its block axis is capped at a twentieth of the screen, so a short landscape
+// a phone keeps a readable dialog width at 300%. On a landscape phone its block axis is capped at a twentieth of the screen, so the
 // screen at 300% keeps its room for the dialog.
-const VIEWPORT_GUTTER = "px-gutter py-(--height-dialog-gutter) inline-narrow:p-field";
+const VIEWPORT_GUTTER = "p-gutter inline-narrow:p-field glass-short:py-(--height-dialog-gutter)";
 
 export const dialogVariants = tv({
   slots: {
@@ -23,24 +23,27 @@ export const dialogVariants = tv({
     // legible where an arm neutralising an inherited one is not.
     // The inline step queries and the `dialog-short` variant both read this box; its size container is primitives.css's rule.
     viewport: "fixed inset-0 z-(--z-modal) flex justify-center",
-    // A short dialog gives its inset and its heading gap back to its content, because its chrome is already most of the box.
+    // A landscape phone's dialog gives its inset and its heading gap back to its content, because its chrome is already most of the box.
     popup: `relative flex flex-col overflow-x-hidden overflow-y-auto overscroll-contain max-block-full ${MODAL_SURFACE}
       @max-cq-20:p-field
-      dialog-short:gap-row dialog-short:p-row dialog-short:pbs-0
-      dialog-tiny:gap-0 dialog-tiny:pbe-0
+      dialog-short:glass-short:gap-row dialog-short:glass-short:p-row dialog-short:glass-short:pbs-0
+      dialog-tiny:glass-short:gap-0 dialog-tiny:glass-short:pbe-0
       ${OVERLAY_MOTION.modalPopup}
     `,
-    // A short dialog scrolls as one sheet, so its header stays at the top of the sheet: the popup gives its top inset to the header,
+    // A landscape phone's dialog scrolls as one sheet, so its header stays at the top of the sheet: the popup gives its top inset to the header,
     // which rests against the true edge and keeps the body from scrolling through the padding above it. The header holds one line, so
-    // its title gives way before Close takes a second line of a screen with no room for it. A tiny dialog (enlarged text on a landscape
-    // phone) spends none of its height on insets: its title row, field and rows are all it has.
+    // its title gives way before Close takes a second line of a screen with no room for it. A tiny one (enlarged text on a landscape
+    // phone) spends none of its height on insets: its title row, field and rows are all it has. A phone-width screen (a width in the glass, so a
+    // landscape phone is never one) scrolls its header away: at enlarged text it is taller than the room a control below it needs.
     header: `
       flex shrink-0 items-center justify-between gap-row border-be border-border pbe-field
-      dialog-short:sticky dialog-short:inset-bs-0 dialog-short:z-(--z-raised) dialog-short:flex-nowrap dialog-short:bg-popover dialog-short:pbs-row
-      dialog-tiny:pbs-0 dialog-tiny:pbe-0
+      dialog-short:glass-short:flex-nowrap dialog-short:glass-short:bg-popover dialog-short:glass-short:pbs-row
+      dialog-short:glass-short:not-inline-narrow:sticky dialog-short:glass-short:not-inline-narrow:inset-bs-0
+      dialog-short:glass-short:not-inline-narrow:z-(--z-raised)
+      dialog-tiny:glass-short:pbs-0 dialog-tiny:glass-short:pbe-0
     `,
-    // A short dialog's title truncates to one line; its full text stays the dialog's accessible name.
-    title: `${TITLE_STEP} dialog-short:truncate`,
+    // A landscape phone's dialog title truncates to one line; its full text stays the dialog's accessible name.
+    title: `${TITLE_STEP} dialog-short:glass-short:truncate`,
     description: POPUP_DESCRIPTION,
     // The action row: the LAST child of a DialogBody, never of the popup itself. The popup's padding
     // surrounds that region, so `sticky bottom-0` lands the buttons exactly one popup inset above the popup edge.
