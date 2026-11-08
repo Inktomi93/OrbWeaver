@@ -24,3 +24,5 @@ A test parses a chat of about five megabytes and records no event-loop gap above
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+A folder dry run of fifteen chat files of 63 MiB each, at the upload limits in `packages/contracts/src/uploads/index.ts`, stalled the event loop up to 4.2 s (p99 2.7 s). The measurement is in the 2075 import-preview lane report, `reports/lanes/2026-11-07-import-preview.md`.
