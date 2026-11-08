@@ -14,7 +14,7 @@ import { useId } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useReattributePersona, useSuspenseQuery, useTRPC } from "#data";
 import { deriveChatTitle, notify } from "#lib";
-import { personaWithPlayer } from "../lib/persona-copy.ts";
+import { personaWithPlayer, playerNameOf } from "../lib/persona-copy.ts";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
@@ -30,11 +30,13 @@ function personaLabel(chat: ChatDetail, personas: readonly PersonaListItem[], id
 
 /** The other present players' seat personas — what the host can pin besides their own. */
 function memberPins(chat: ChatDetail): readonly { readonly personaId: PersonaId; readonly label: string }[] {
-  return chat.participants.flatMap((p) =>
-    p.kind === "human" && p.userId !== chat.viewerUserId && p.activePersonaId !== null
-      ? [{ personaId: p.activePersonaId, label: personaWithPlayer(personaLabel(chat, [], p.activePersonaId), p.displayName) }]
-      : [],
-  );
+  return chat.participants.flatMap((p) => {
+    if (p.kind !== "human" || p.userId === chat.viewerUserId || p.activePersonaId === null) {
+      return [];
+    }
+    const persona = personaLabel(chat, [], p.activePersonaId);
+    return [{ personaId: p.activePersonaId, label: personaWithPlayer(persona, playerNameOf(p, persona)) }];
+  });
 }
 
 function hasOtherHumans(chat: ChatDetail): boolean {
@@ -49,20 +51,21 @@ function roomLabel(chat: ChatDetail): string {
   );
 }
 
-// Who the card's {{user}} is, in words. A held pin never says why its player is gone.
+// Who the card's {{user}} is, in words. A held pin names its player but never says why they are gone.
 function anchorLine(chat: ChatDetail, personas: readonly PersonaListItem[]): string {
   if (chat.anchorPersonaId === null) {
     return hasOtherHumans(chat) ? "Card follows the host's persona" : "Card follows your persona";
   }
   const name = personaLabel(chat, personas, chat.anchorPersonaId);
   if (chat.anchorState === "held") {
-    return `${name} is no longer in the room. The card still means ${name}.`;
+    const holder = chat.anchorOwnerHandle === null ? name : personaWithPlayer(name, chat.anchorOwnerHandle);
+    return `${holder} is no longer in the room. The card still means ${name}.`;
   }
   if (personas.some((p) => p.id === chat.anchorPersonaId)) {
     return `Card sees you as ${name}`;
   }
   const owner = chat.participants.find((p) => p.kind === "human" && p.activePersonaId === chat.anchorPersonaId);
-  return owner === undefined ? `Card's persona: ${name}` : `Card's persona: ${personaWithPlayer(name, owner.displayName)}`;
+  return owner === undefined ? `Card's persona: ${name}` : `Card's persona: ${personaWithPlayer(name, playerNameOf(owner, name))}`;
 }
 
 export interface PersonaRoomBlockProps {

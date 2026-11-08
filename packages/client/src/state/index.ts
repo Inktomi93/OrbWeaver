@@ -379,6 +379,7 @@ export {
   useAggregateSaveStatus,
   useBlockedSaveSections,
   useErroredSaveSections,
+  useUnsavedSaveSections,
 } from "./settings-save-status-store.ts";
 export { clearShellContentFocus, requestShellContentFocus, usePendingShellContentFocus } from "./shell-content-focus-store.ts";
 export {

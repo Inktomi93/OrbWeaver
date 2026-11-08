@@ -32,7 +32,7 @@
 import type { ChatIdentity, ChatIdentityKind } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";
 import { assets, characters, personas } from "@orb/db";
-import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowMacroStamps } from "@orb/kit/macro";
 import { eq, inArray } from "drizzle-orm";
 import type { ParticipantMacroIdSource } from "../contract/macro-ids.ts";
@@ -81,6 +81,13 @@ function collectIdentityIds<Id extends string>(args: ChatIdentityLoadArgs, sourc
     }
   }
   return [...ids];
+}
+
+/** The account that owns a persona, or `null` once the persona is gone. A room's pin can outlive its player's
+ *  seat, but never the persona row, which is how a held pin still names its player. */
+export async function loadPersonaOwnerId(db: Db, personaId: PersonaId): Promise<UserId | null> {
+  const [row] = await db.select({ ownerId: personas.ownerId }).from(personas).where(eq(personas.id, personaId)).limit(1);
+  return row?.ownerId ?? null;
 }
 
 /**

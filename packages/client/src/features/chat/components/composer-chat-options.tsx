@@ -45,6 +45,8 @@ export function ActiveChatOptionsMenu({ chatId }: { readonly chatId: ChatId }): 
       characters={characters}
       galleryCharacters={galleryCharacters}
       onGroupSettings={chat?.viewerIsHost === true && characters.length > 1 ? openGroupSettings : undefined}
+      // Role-gated actions wait for a read that names the role; a loading or failed read offers none of them.
+      viewerIsHost={chat?.viewerIsHost}
     />
   );
 }

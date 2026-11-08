@@ -17,7 +17,7 @@
 // may import it; the store it writes holds plain enums in `#state` (forms → state is the legal direction).
 
 import type { ReactElement } from "react";
-import type { SaveLifecycleState } from "#state";
+import type { AutosaveSaveState } from "../create-autosave-entity-form-model.ts";
 import { useReportSaveStatus, useSaveStatusHosted } from "../save-status-seam.ts";
 import { AutosaveStatus } from "./autosave-status.tsx";
 
@@ -25,7 +25,8 @@ export interface SectionSaveStatusProps {
   /** The reporting section's registry id (`ConfigSectionContribution.id`) — the key the aggregate footer
    *  and the nav error marker locate the section by. */
   readonly id: string;
-  readonly state: SaveLifecycleState;
+  /** A driver's lifecycle: an autosave section never waits on a Save press, so it has no `unsaved`. */
+  readonly state: AutosaveSaveState;
   /** Re-run the pending save — the section's OWN retry (an autosave session's `retrySave`). */
   readonly onRetry: () => void;
 }

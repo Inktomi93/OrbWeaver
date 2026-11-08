@@ -169,7 +169,7 @@ import {
   humanSeatPersonasOf,
   lorePersonaIdsOf,
   presentAndEnabledHumanUserIdsOf,
-  resolveAnchorState,
+  resolveAnchor,
   seatsMultipleHumans,
 } from "../substrate/participants-humans.ts";
 import { regexAllowOf, resolveRegexTiers } from "../substrate/regex-tier.ts";
@@ -838,7 +838,7 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
       viewerUserId: principal.userId,
       viewerOwnedCharacterIds: await resolveViewerOwnedCharacterIds(ctx.getCard, participants, principal.userId),
       viewerHistoryFloorSeq: membership.historyFloorSeq,
-      anchorState: await resolveAnchorState(ctx, participants, anchorPersonaId),
+      anchor: await resolveAnchor(ctx, participants, anchorPersonaId),
     });
   };
 }

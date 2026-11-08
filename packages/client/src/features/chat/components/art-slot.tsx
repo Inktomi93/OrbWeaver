@@ -77,13 +77,15 @@ function ArtButton({
   view,
   cardCorners,
   placed,
+  reach,
   ...button
-}: Pick<PictureButtonProps, "cardCorners" | "placed" | "children"> & { readonly view: ArtView }): ReactElement {
+}: Pick<PictureButtonProps, "cardCorners" | "placed" | "reach" | "children"> & { readonly view: ArtView }): ReactElement {
   return (
     <PictureButton
       {...button}
       cardCorners={cardCorners}
       placed={placed}
+      reach={reach}
       ref={(opener): void => view.control.attach(opener)}
       aria-label={view.label}
       onClick={(event): void => view.open(event.currentTarget)}
@@ -302,5 +304,9 @@ export function ChipAvatar({
   if (!tappable) {
     return chip;
   }
-  return <ArtButton view={view}>{chip}</ArtButton>;
+  return (
+    <ArtButton view={view} reach="floor">
+      {chip}
+    </ArtButton>
+  );
 }

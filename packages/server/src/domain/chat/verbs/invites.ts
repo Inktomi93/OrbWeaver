@@ -44,7 +44,7 @@ import {
 import { loadChatRow, loadMemberChat } from "../persistence/queries.ts";
 import { resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
-import { resolveAnchorState } from "../substrate/participants-humans.ts";
+import { resolveAnchor } from "../substrate/participants-humans.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
 
 /** The collaborators the invite verbs close over (see the file header). */
@@ -292,7 +292,7 @@ function createRedeemInvite(ctx: ChatContext, deps: InviteDeps): ChatService["re
         // receive the compaction checkpoint (a distillation of the canon their floor withholds) on the very
         // response that seats them.
         viewerHistoryFloorSeq: resolveHistoryFloorSeq(participant),
-        anchorState: await resolveAnchorState(ctx, participants, chat.anchorPersonaId),
+        anchor: await resolveAnchor(ctx, participants, chat.anchorPersonaId),
       }),
       participant,
     };
@@ -354,7 +354,7 @@ function createAcceptInvite(ctx: ChatContext, deps: InviteDeps): ChatService["ac
         // receive the compaction checkpoint (a distillation of the canon their floor withholds) on the very
         // response that seats them.
         viewerHistoryFloorSeq: resolveHistoryFloorSeq(participant),
-        anchorState: await resolveAnchorState(ctx, participants, chat.anchorPersonaId),
+        anchor: await resolveAnchor(ctx, participants, chat.anchorPersonaId),
       }),
       participant,
     };

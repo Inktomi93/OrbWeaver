@@ -10,5 +10,6 @@ export {} from "./save-circuit-breaker.ts";
 export {
   SaveStatusHostContext,
   SaveUnwritableContext,
+  saveStateOf,
   useReportSaveStatus,
 } from "./save-status-seam.ts";

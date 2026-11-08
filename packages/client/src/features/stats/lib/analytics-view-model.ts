@@ -14,6 +14,7 @@
 import type { TokenProvenance } from "@orb/contracts/chat";
 import { combineTokenProvenance } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import { modelDisplayName } from "@orb/kit/model-name";
 import type { TimeLib } from "@orb/kit/time";
 import { MS_PER_HOUR, MS_PER_MINUTE, MS_PER_SECOND } from "@orb/kit/time";
 import type { BarListItem } from "@orb/ui/bar-list";
@@ -309,9 +310,20 @@ export function disambiguatedNames(rows: readonly { readonly characterId: Charac
   return out;
 }
 
-/** Per-model rows → ranked generation-count bars. */
+/** Per-model rows → ranked generation-count bars. The axis paints the readable name, which drops the vendor
+ *  prefix every model of one provider shares; the whole id stays the tooltip and text-equivalent name. Two
+ *  ids that read the same (one model through two routes, two builds of one basename) paint their whole ids
+ *  instead, since the readable name would draw them as one bar. */
 export function byModelBarItems(rows: readonly { readonly model: string; readonly generations: number }[]): BarListItem[] {
-  return rows.map((row) => ({ id: row.model, label: row.model, value: row.generations }));
+  const readings: Record<string, number> = {};
+  for (const row of rows) {
+    const reading = modelDisplayName(row.model);
+    readings[reading] = (readings[reading] ?? 0) + 1;
+  }
+  return rows.map((row) => {
+    const reading = modelDisplayName(row.model);
+    return { id: row.model, label: row.model, ...((readings[reading] ?? 0) > 1 ? {} : { shortLabel: reading }), value: row.generations };
+  });
 }
 
 /** Persona-usage rows → ranked message-count bars. */

@@ -21,9 +21,9 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, SettingRowGroup, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { useReportSaveStatus } from "#forms";
+import { saveStateOf, useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
-import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
+import { envFloor, isOverridden } from "../lib/app-override-model.ts";
 import { MULTI_USER_SUBCATEGORY } from "../lib/system-config-nav.ts";
 import { AdminOverrideResetRow, AdminOverrideSwitch } from "./admin-override-field.tsx";
 import { ShareCard } from "./share-card.tsx";
@@ -65,7 +65,6 @@ function MultiUserBody({ anchorId, sectionId }: { readonly anchorId: string; rea
 
   const resolved = data.resolved;
   const overrides = data.overrides;
-  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null));
 
   const multiUserOverridden = isOverridden(overrides.localMultiUser);
   const discreetOverridden = isOverridden(overrides.discreetLogin);
@@ -76,6 +75,8 @@ function MultiUserBody({ anchorId, sectionId }: { readonly anchorId: string; rea
     .map((entry) => entry.trim())
     .filter((entry) => entry.length > 0);
   const allowlistDirty = !sameEntries(allowlistEntries, resolved.privateEndpointAllowlist);
+  // The allowlist's Save is owner-only, so a non-owner's untouched-by-them draft never holds the footer.
+  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null, { dirty: isOwner && allowlistDirty, invalid: false }));
   const allowlistFloor = envFloor(allowlistOverridden, resolved.privateEndpointAllowlist);
   // Only the keys THIS viewer may clear count toward the Reset affordance (a delegated admin may clear the
   // login posture but not the owner-gated controls), and the Reset patch names exactly those keys.

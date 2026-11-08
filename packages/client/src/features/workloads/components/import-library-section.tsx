@@ -38,19 +38,11 @@ import { useUploadCaps } from "#data";
 import { DIALOG_VERBS, testId } from "#lib";
 import type { ImportPreviewState, LibraryImport } from "../hooks/use-library-import.ts";
 import { useLibraryImport } from "../hooks/use-library-import.ts";
-import { IMPORT_CONFIRM_NAMES, IMPORT_NOTHING_FOUND_NOTE, planNotes, previewIsEmpty } from "../lib/portability-model.ts";
+import { IMPORT_CONFIRM_NAMES, IMPORT_CONSEQUENCE, IMPORT_NOTHING_FOUND_NOTE, planNotes, previewIsEmpty } from "../lib/portability-model.ts";
 import { BundleWorkloadTracker } from "./bundle-workload-tracker.tsx";
 import { ImportPreviewSummary } from "./import-preview-summary.tsx";
 import { ImportReportSummary } from "./import-report-summary.tsx";
 import { PersonaCollisionReview } from "./persona-collision-review.tsx";
-
-/** What an import DOES to a library that already has things in it — the sentence the reader needs BEFORE
- *  the request, not in the report afterwards. One home: the preflight is the only place it is spoken. */
-const IMPORT_CONSEQUENCE = [
-  "Importing ADDS to your library — nothing you already have is deleted. Settings in an Orbweaver backup merge into yours.",
-  "Anything already in your library — the same card, world book, theme or preset — is skipped, so running the same import twice is not a duplicate.",
-  "A world book, theme or preset that shares a name with a DIFFERENT one of yours is imported under a numbered name, and so is a persona restored from an Orbweaver backup. Two different cards that share a name stay two characters.",
-] as const;
 
 const NOTHING_TO_SEND_ID = "import-preflight-nothing-to-send";
 const EVERYTHING_LEFT_OUT_NOTE = "Every file in this folder is being left out, so there is nothing to import. The reasons are listed above.";
@@ -123,7 +115,7 @@ function ImportPreflight({
     // pick (tabIndex -1: focusable by script, not a tab stop) so a screen reader lands on its name.
     <Card aria-label={title} data-slot="import-preflight" padding="none" role="group" shape="row" variant="outline" tabIndex={-1} ref={ref}>
       <Stack gap="field" padding="field">
-        <Text voice="label">{title}</Text>
+        <Text voice="promoted">{title}</Text>
         <ImportPreviewSummary state={preview} onRetry={onRetryPreview} />
         <PersonaCollisionReview collisions={collisions} choices={choices} onChoose={onChoose} onChooseAll={onChooseAll} />
         <Stack gap="tight">
@@ -135,7 +127,7 @@ function ImportPreflight({
           {plan === null
             ? null
             : planNotes(plan).map((line) => (
-                <Text key={line} cap="prose" voice="gloss">
+                <Text key={line} cap="prose" voice="reading">
                   {line}
                 </Text>
               ))}

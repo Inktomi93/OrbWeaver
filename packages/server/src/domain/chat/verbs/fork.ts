@@ -67,7 +67,7 @@ import { permitsHost } from "../substrate/auth/index.ts";
 import { toChatDetail } from "../substrate/chat-detail.ts";
 import { continuationToolsAreUndone } from "../substrate/content-signatures.ts";
 import { viewerReadsHidden } from "../substrate/member-visibility.ts";
-import { resolveAnchorState } from "../substrate/participants-humans.ts";
+import { resolveAnchor } from "../substrate/participants-humans.ts";
 import { foldChain } from "../substrate/runtime-variables.ts";
 import { appendStatsDeltas, canonMessageDelta, chatCreatedDelta, seatChatDelta, swipeVariantDelta } from "../substrate/stats-delta.ts";
 import { resolveViewerOwnedCharacterIds } from "../substrate/viewer-gallery.ts";
@@ -845,7 +845,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
         // The forker is the NEW room's born-here host (`joinSeq` 0) — unclamped in the fork, which already
         // carries only what their source-room floor allowed.
         viewerHistoryFloorSeq: NO_HISTORY_FLOOR,
-        anchorState: await resolveAnchorState(ctx, participants, forkRow.anchorPersonaId),
+        anchor: await resolveAnchor(ctx, participants, forkRow.anchorPersonaId),
       }),
     };
   };

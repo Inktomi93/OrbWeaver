@@ -11,6 +11,7 @@
 import { CircleUser, Crown, Eye, EyeOff, Icon, LogOut, UserX, Volume2, VolumeX, Zap } from "@orb/ui/icons";
 import { MenuItem, MenuSeparator } from "@orb/ui/menu";
 import type { ReactNode } from "react";
+import { CHAT_LEAVE_NAME } from "../lib/chat-options-names.ts";
 import type { MEMBER_ROW_CONFIRMS, MemberCharacterRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows.ts";
 
 /** Which of a person row's dialogs is open — DERIVED from the one homed tuple, never re-spelled (a fourth
@@ -89,7 +90,7 @@ function personMenuItems(row: MemberPersonRow, actions: MemberRowActions, setCon
       items.push(
         <MenuItem key="leave" onClick={(): void => setConfirm("leave")}>
           <Icon icon={LogOut} size="sm" />
-          Leave chat…
+          {CHAT_LEAVE_NAME}
         </MenuItem>,
       );
     }

@@ -10,13 +10,16 @@
 // the widest formatted label, the category column from a share of the container width, with the name
 // ellipsized inside it (the untruncated name survives in the tooltip).
 import type { OrbChartOption } from "../chart/echarts-setup.ts";
-import { widestChartLabelPx } from "../chart/label-metrics.ts";
+import { middleEllipsisLabel, widestChartLabelPx } from "../chart/label-metrics.ts";
 import { AXIS_LABEL_OUTER_BOUNDS, chartTooltipChrome } from "../chart/merge-option.ts";
 import type { ChartColors } from "../chart/use-chart-theme.ts";
 
 export interface BarListItem {
   readonly id: string;
+  /** The whole name: the tooltip and the text equivalent speak it. */
   readonly label: string;
+  /** What the axis paints instead of `label`, for a name whose leading part is shared by its neighbours. */
+  readonly shortLabel?: string;
   readonly value: number;
 }
 
@@ -37,6 +40,10 @@ export interface BarListItem {
 const BAR_LIST_INTENTS = ["accent", "positive", "negative", "quiet"] as const;
 export type BarListIntent = (typeof BAR_LIST_INTENTS)[number];
 
+/** Where a category name gives way when it outgrows its column. `middle` keeps both ends, for names that
+ *  differ in their tail (model ids sharing a vendor prefix). */
+export type BarListTruncation = "end" | "middle";
+
 export interface BarListLayout {
   /** The chart's measured container width in CSS px. `0` = not measured yet (first paint / no DOM), which
    *  falls back to the fixed floors below rather than to a share of an unknown width. */
@@ -45,6 +52,7 @@ export interface BarListLayout {
   /** A value-axis maximum SHARED with a twin chart, so two columns are on one scale. `undefined` keeps
    *  ECharts' per-chart auto-scale (correct for a lone chart, a lie for a pair). */
   readonly valueMax: number | undefined;
+  readonly truncation: BarListTruncation;
 }
 
 /** Last-resort ceiling: a pathological formatter must not consume the plot. The tooltip still has the value. */
@@ -86,6 +94,7 @@ export function buildBarListOption(
   layout: BarListLayout,
 ): OrbChartOption {
   const valueLabels = items.map((item) => valueFormatter(item.value));
+  const labelBudgetPx = categoryLabelBudgetPx(layout.widthPx, colors);
   return {
     grid: {
       left: colors.metrics.padding,
@@ -114,9 +123,13 @@ export function buildBarListOption(
         fontSize: colors.metrics.fontSize,
         fontWeight: colors.fontWeight,
         lineHeight: colors.metrics.lineHeight,
-        width: categoryLabelBudgetPx(layout.widthPx, colors),
-        overflow: "truncate",
-        ellipsis: "…",
+        // A middle-ellipsized label is already fitted to the budget; ECharts truncating it again at the end
+        // (its own measure differs by a pixel) would cut the tail that tells the names apart.
+        ...(layout.truncation === "middle" ? {} : { width: labelBudgetPx, overflow: "truncate" as const, ellipsis: "…" }),
+        formatter: (name: string, index: number): string => {
+          const painted = items[index]?.shortLabel ?? name;
+          return layout.truncation === "middle" ? middleEllipsisLabel(painted, labelBudgetPx, colors) : painted;
+        },
       },
     },
     series: [

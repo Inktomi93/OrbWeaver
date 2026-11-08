@@ -49,6 +49,32 @@ export function useSaveUnwritable(): boolean {
   return use(SaveUnwritableContext);
 }
 
+/** The state of an explicit-Save section's draft, which a mutation's own flags cannot see. `invalid` = a
+ *  field holds a value Save cannot send (the write is held until it is fixed); `dirty` = a valid change is
+ *  waiting for the reader's Save press. */
+export interface SectionDraft {
+  readonly dirty: boolean;
+  readonly invalid: boolean;
+}
+
+const NO_DRAFT: SectionDraft = { dirty: false, invalid: false };
+
+/** One mutation's lifecycle, plus its draft if the section has an explicit Save, as the seam's states. A
+ *  section with its OWN save affordance still REPORTS, so the aggregate footer and the nav marker see its
+ *  failure and its unsent draft — the footer must not say Saved over either. */
+export function saveStateOf(isPending: boolean, errored: boolean, draft: SectionDraft = NO_DRAFT): SaveLifecycleState {
+  if (errored) {
+    return "error";
+  }
+  if (isPending) {
+    return "saving";
+  }
+  if (draft.invalid) {
+    return "blocked";
+  }
+  return draft.dirty ? "unsaved" : "saved";
+}
+
 /** Report one settings section's save lifecycle to the aggregate host. Reporting is an EFFECT (a store
  *  write during render is a tearing hazard) and is cleared on unmount so a pane swap can't leave a ghost
  *  "saving" in the footer. */

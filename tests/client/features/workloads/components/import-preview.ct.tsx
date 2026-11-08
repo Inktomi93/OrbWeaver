@@ -3,7 +3,15 @@ import { join } from "node:path";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import type { ImportPreview } from "@orb/contracts/import";
-import { IMPORT_PREVIEW_KINDS, importStartedSchema, ST_SETTINGS_FILE, TREE_DRY_RUN_FIELD, TREE_DRY_RUN_VALUE, TREE_FILE_FIELD } from "@orb/contracts/import";
+import {
+  IMPORT_PREVIEW_KINDS,
+  importStartedSchema,
+  ST_SECRETS_FILE,
+  ST_SETTINGS_FILE,
+  TREE_DRY_RUN_FIELD,
+  TREE_DRY_RUN_VALUE,
+  TREE_FILE_FIELD,
+} from "@orb/contracts/import";
 import { createPersonaSchema } from "@orb/contracts/persona";
 
 import { exportCharacterPath, PORTABILITY_ROUTES } from "@orb/contracts/portability";
@@ -15,10 +23,11 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS, nonEmpty } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, servePhysicalPeer, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
-import type { Page, Request } from "@playwright/test";
+import type { Locator, Page, Request } from "@playwright/test";
 import {
   asImportPreview,
   IMPORT_CONFIRM_NAMES,
+  IMPORT_CONSEQUENCE,
   IMPORT_NOTHING_FOUND_NOTE,
   IMPORT_PREVIEW_RETRY_NAME,
   previewKindLine,
@@ -452,4 +461,31 @@ test("a folder's persona the library already holds is counted as already there, 
   const lines = (await report.locator(":scope > *").allTextContents()).filter((text) => /^\d/u.test(text));
   const populated = IMPORT_PREVIEW_KINDS.filter((kind) => preview.kinds[kind].total > 0);
   expect(lines).toEqual(populated.map((kind) => previewKindLine(kind, preview.kinds[kind])));
+});
+
+test("the folder's skip reasons and left-out files read at least as large as the standing policy text", async ({ mount, page, baseURL }, testInfo) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  const folder = testInfo.outputPath("profile");
+  await stageFolder(root, folder);
+  await writeFile(join(folder, ST_SECRETS_FILE), "{}");
+  await root.settleBackground();
+  await using _native = await routeNativeImport(page, root, baseURL);
+  const caller = await openImport(page, root);
+  await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
+
+  await pickFolder(page, folder);
+  const preflight = page.getByRole("group", { name: PREFLIGHT });
+  const report = preflight.getByRole("group", { name: "What this import would bring", exact: true });
+  await expect(report).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
+  const [preview] = nonEmpty((await caller.workloads.list({ kind: "import-st" })).flatMap((run) => asImportPreview(run.result) ?? []));
+  const [skip] = nonEmpty(preview.skipped.items);
+
+  const fontSize = (text: Locator): Promise<number> => text.evaluate((element) => Number.parseFloat(getComputedStyle(element).fontSize));
+  const policy = await fontSize(preflight.getByText(IMPORT_CONSEQUENCE[0], { exact: true }));
+  const reason = await fontSize(report.getByText(skip.reason, { exact: false }));
+  const leftOnDisk = await fontSize(preflight.getByText(/will stay on your disk/u));
+  const question = await fontSize(preflight.getByText(PREFLIGHT));
+  expect(reason).toBeGreaterThanOrEqual(policy);
+  expect(leftOnDisk).toBeGreaterThanOrEqual(policy);
+  expect(question).toBeGreaterThanOrEqual(policy);
 });
