@@ -5,10 +5,10 @@
 import type { AvatarProps } from "@orb/ui/avatar";
 import { AVATAR_PIGMENT, Avatar } from "@orb/ui/avatar";
 import { Stack } from "@orb/ui/layout";
-import type { PictureButtonProps } from "@orb/ui/picture-button";
+import type { PictureButtonProps, PictureReach } from "@orb/ui/picture-button";
 import { PictureButton } from "@orb/ui/picture-button";
 import { Text } from "@orb/ui/text";
-import type { ComponentProps, CSSProperties, ReactElement } from "react";
+import type { ComponentProps, CSSProperties, MouseEvent, ReactElement } from "react";
 import { useEffect, useLayoutEffect, useState, useSyncExternalStore } from "react";
 import type { BubbleDecoration } from "../lib/art-decorations.ts";
 import { isFailedArt, rememberFailedArt, subscribeFailedArt } from "../lib/failed-art.ts";
@@ -78,18 +78,18 @@ function ArtButton({
   cardCorners,
   placed,
   reach,
-  ...button
-}: Pick<PictureButtonProps, "cardCorners" | "placed" | "reach" | "children"> & { readonly view: ArtView }): ReactElement {
-  return (
-    <PictureButton
-      {...button}
-      cardCorners={cardCorners}
-      placed={placed}
-      reach={reach}
-      ref={(opener): void => view.control.attach(opener)}
-      aria-label={view.label}
-      onClick={(event): void => view.open(event.currentTarget)}
-    />
+  children,
+}: Pick<PictureButtonProps, "cardCorners" | "children"> & PictureReach & { readonly view: ArtView }): ReactElement {
+  const attach = (opener: HTMLButtonElement | null): void => view.control.attach(opener);
+  const open = (event: MouseEvent<HTMLButtonElement>): void => view.open(event.currentTarget);
+  return reach === "floor" ? (
+    <PictureButton ref={attach} aria-label={view.label} onClick={open} cardCorners={cardCorners} reach="floor">
+      {children}
+    </PictureButton>
+  ) : (
+    <PictureButton ref={attach} aria-label={view.label} onClick={open} cardCorners={cardCorners} placed={placed}>
+      {children}
+    </PictureButton>
   );
 }
 

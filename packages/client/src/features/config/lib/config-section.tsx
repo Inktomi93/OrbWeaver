@@ -22,6 +22,7 @@
 
 import { Settings } from "@orb/ui/icons";
 import type { RefObject } from "react";
+import type { ScreenTitle } from "#lib";
 import type { ConfigGroupRegistry, SectionDefinition, SectionSelection } from "#state";
 import { clearActiveConfigGroup, collectionMemberSelection, getActiveConfigGroup, subscribeConfigNav, worldEntrySelectionSeam } from "#state";
 import { ConfigContentSurface } from "../surfaces/config-content-surface.tsx";
@@ -107,7 +108,10 @@ export function makeConfigSection(groups: ConfigGroupRegistry): SectionDefinitio
     // address change is.
     useListHeader: configListHeader,
     selection: makeSelectionSeam(),
-    useSelectionTitle: (): string | null => useConfigSelectionTitle(groups),
+    useSelectionTitle: (): ScreenTitle | null => {
+      const name = useConfigSelectionTitle(groups);
+      return name === null ? null : { name };
+    },
     content: () => <ConfigContentSurface groups={groups} hostContentRef={contentRef} />,
     // The TEACHER (S3): the pane rides the #860 bracket as tabs over `ConfigContextState` — About ·
     // Applies · Learn, fed by the focused-setting seam. The band names what the pane answers (never the

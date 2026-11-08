@@ -9,12 +9,13 @@
 // goes back with the noun that survives, off the SAME bank-health read the band prints from.
 
 import { useGatedQuery, useTRPC } from "#data";
+import type { ScreenTitle } from "#lib";
 import { censusTitle } from "#lib";
 import { useSelectedDocumentId } from "#state";
 import { useDatabankListCensus } from "../hooks/use-databank-census.ts";
 import { DATABANK_SECTION_LABEL } from "./databank-section-label.ts";
 
-export function useDatabankSelectionTitle(): string | null {
+export function useDatabankSelectionTitle(): ScreenTitle | null {
   const trpc = useTRPC();
   const documentId = useSelectedDocumentId();
   const { data } = useGatedQuery(documentId, (id) => trpc.databank.get.queryOptions({ id }));
@@ -26,7 +27,7 @@ export function useDatabankSelectionTitle(): string | null {
   // with a member open this screen is that member's, so an unlanded name heals to the shell's section label,
   // never to the library's size — a true number about the wrong screen is not an improvement on a blank one.
   if (documentId !== null) {
-    return title.length === 0 ? null : title;
+    return title.length === 0 ? null : { name: title };
   }
   return censusTitle(DATABANK_SECTION_LABEL, census);
 }

@@ -13,6 +13,10 @@ test("a picture button draws nothing or the ghost tint, at the picture's own siz
   createElement(PictureButton, { tone: "primary" }, "x");
   // @ts-expect-error the picture is the box, so no scale step
   createElement(PictureButton, { size: "md" }, "x");
+  // @ts-expect-error the touch-floor reach anchors itself with `relative`, so it cannot sit beside a placement
+  createElement(PictureButton, { reach: "floor", placed: "fill" }, "x");
+  createElement(PictureButton, { reach: "floor" }, "x");
+  createElement(PictureButton, { placed: "fill" }, "x");
   createElement(PictureButton, { cardCorners: "topStart", confirming: true }, "art");
   createElement(PictureButton, { variant: "ghost", shape: "pill" }, "portrait");
   expectTypeOf<NonNullable<PictureButtonProps["variant"]>>().toEqualTypeOf<"ghost">();

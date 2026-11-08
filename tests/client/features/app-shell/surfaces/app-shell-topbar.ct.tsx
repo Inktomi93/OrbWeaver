@@ -2,7 +2,7 @@
 // row's geometry at the narrowest width, the Characters band's doors moving to the trail while the list is the screen,
 // and an open room's identity: its participants, its name, its chips and the context pane's header on the same horizon.
 import { TRAIL_OVERFLOW_LABEL } from "@orb/client/components";
-import { CHAT_NAME_FIELD_NAME, censusTitle, chatRoomTitle, contextToggleLabel, RENAME_CHAT_NAME } from "@orb/client/lib";
+import { CHAT_NAME_FIELD_NAME, censusSuffix, chatRoomTitle, contextToggleLabel, RENAME_CHAT_NAME } from "@orb/client/lib";
 import type { ChatId } from "@orb/kit/ids";
 import { pixel, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import type { TrpcWireOutput } from "@orb/testkit/ct";
@@ -123,7 +123,7 @@ test.describe("on a phone", () => {
     const label = (await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.characters, exact: true }).getAttribute("aria-label")) ?? "";
     const title = page.locator(NARROW_TITLE);
     // The roster arm first, so the census is proven present before the open is asked to remove it.
-    await expect(title).toHaveText(censusTitle(label, census) ?? label);
+    await expect(title).toHaveText(`${label}${censusSuffix(census)}`);
     const first = library(page).getByRole("button").first();
     const name = ((await first.locator('[data-slot="list-row-title"]').textContent()) ?? "").trim();
     await first.click();
@@ -157,7 +157,7 @@ test.describe("on a phone", () => {
   test("the Plugin pages screen name carries the registered page count beside the section noun", async ({ corpus, mount, page }) => {
     await routePluginPages(page, corpus, 2);
     await mount<typeof AppShellStory>(STORY, {});
-    await expect(page.locator(NARROW_TITLE)).toHaveText(censusTitle(SECTION_LABELS.extensions, 2) ?? SECTION_LABELS.extensions);
+    await expect(page.locator(NARROW_TITLE)).toHaveText(`${SECTION_LABELS.extensions}${censusSuffix(2)}`);
   });
 
   test("with no plugin page registered the screen name is the bare section noun", async ({ corpus, mount, page }) => {
@@ -170,9 +170,9 @@ test.describe("on a phone", () => {
     await routePluginPages(page, corpus, 3);
     await mount<typeof AppShellStory>(STORY, {});
     const title = page.locator(NARROW_TITLE);
-    await expect(title).toHaveText(censusTitle(SECTION_LABELS.extensions, 3) ?? SECTION_LABELS.extensions);
+    await expect(title).toHaveText(`${SECTION_LABELS.extensions}${censusSuffix(3)}`);
     await page.getByLabel("Search plugin pages").fill("no page has this name");
-    await expect(title).toHaveText(censusTitle(SECTION_LABELS.extensions, "0 of 3") ?? SECTION_LABELS.extensions);
+    await expect(title).toHaveText(`${SECTION_LABELS.extensions}${censusSuffix("0 of 3")}`);
   });
 
   for (const width of PHONE_WIDTHS) {
@@ -192,25 +192,30 @@ test.describe("on a phone", () => {
       expect(offset).toBeLessThan(await resolvedLength(page, `var(${TOKENS["dimension.chrome-row"].cssVar})`));
       await expect(page.locator(`${LIST} .shell-panel-header`)).toBeHidden();
       const trail = page.locator(".shell-topbar-trail");
-      await expect(trail.getByRole("button", { name: "New", exact: true })).toBeVisible();
+      await expect(trail.getByRole("button", { name: CHARACTER_NEW_NAME, exact: true })).toBeVisible();
       await expect(trail.getByRole("button", { name: CHARACTER_IMPORT_NAME })).toBeVisible();
       expect((await page.locator('.shell-topbar-identity[data-identity="narrow"]').boundingBox())?.width ?? 0).toBeGreaterThan(0);
       await library(page).getByRole("button").first().click();
-      await expect(trail.getByRole("button", { name: "New", exact: true })).toHaveCount(0);
+      await expect(trail.getByRole("button", { name: CHARACTER_NEW_NAME, exact: true })).toHaveCount(0);
     });
   }
 
-  test("at 320 the Characters doors ride the trail's menu, not past the row's edge, until a character opens", async ({ corpus, mount, page }) => {
+  test("at 320 the Characters trail keeps New and folds Import into its menu, not past the row's edge, until a character opens", async ({
+    corpus,
+    mount,
+    page,
+  }) => {
     await page.setViewportSize({ width: NARROW_PHONE_WIDTH, height: 800 });
     await routeSections(page, corpus);
     await seedShellState(page, { activeSection: "characters" });
     await mount<typeof AppShellStory>(STORY, {});
     await expect(library(page).getByRole("button").first()).toBeVisible();
     const trail = page.locator(".shell-topbar-trail");
-    await expect(trail.getByRole("button", { name: "New", exact: true })).toBeHidden();
+    await expect(trail.getByRole("button", { name: CHARACTER_NEW_NAME, exact: true })).toBeVisible();
+    await expect(trail.getByRole("button", { name: CHARACTER_IMPORT_NAME, exact: true })).toBeHidden();
     await trail.getByRole("button", { name: TRAIL_OVERFLOW_LABEL }).click();
-    await expect(page.getByRole("menuitem", { name: CHARACTER_NEW_NAME, exact: true })).toBeVisible();
     await expect(page.getByRole("menuitem", { name: CHARACTER_IMPORT_NAME, exact: true })).toBeVisible();
+    await expect(page.getByRole("menuitem", { name: CHARACTER_NEW_NAME, exact: true })).toHaveCount(0);
     await page.keyboard.press("Escape");
     await library(page).getByRole("button").first().click();
     await expect(trail.getByRole("button", { name: TRAIL_OVERFLOW_LABEL })).toHaveCount(0);

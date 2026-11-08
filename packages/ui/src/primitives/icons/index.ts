@@ -91,6 +91,7 @@ export {
   MoveHorizontal,
   Package,
   Palette,
+  PanelBottomOpen,
   PanelLeftClose,
   PanelLeftOpen,
   PanelRightClose,

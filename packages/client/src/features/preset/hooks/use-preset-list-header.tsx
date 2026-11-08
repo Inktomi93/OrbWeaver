@@ -60,6 +60,8 @@ export function usePresetListHeader(): ListPaneHeaderView {
     return null;
   };
 
+  const newPreset = { id: "preset-new", label: NEW_PRESET_LABEL, icon: Plus, onSelect: onCreate, disabled: create.isPending };
+
   return {
     actions: [
       {
@@ -84,7 +86,8 @@ export function usePresetListHeader(): ListPaneHeaderView {
             New
           </Button>
         ),
-        menu: [{ id: "preset-new", label: NEW_PRESET_LABEL, icon: Plus, onSelect: onCreate, disabled: create.isPending }],
+        menu: [newPreset],
+        compact: newPreset,
       },
     ],
     count: census ?? 0,

@@ -61,30 +61,19 @@ for (const width of PHONE_WIDTHS) {
     await mount<typeof AppShellStory>(STORY, {});
     await page.getByLabel("Search plugin pages").fill(NOTHING_MATCHES);
     const title = page.locator(TITLE);
+    const name = title.locator(".shell-topbar-title-name");
+    const census = title.locator(".shell-topbar-title-census");
     await expect(title).toContainText(`${SECTION_LABELS.extensions} · 0 of ${String(PAGES)}`);
-    // The positive control: grow the text until the row is short of room, so the title really is cut.
+    // The positive control: grow the text until the row is short of room, so the census really is cut.
     let step = 0;
     await expect
       .poll(async () => {
         await setRootFontScale(page, channelName("fontScale"), TEXT_LADDER[Math.min(step, TEXT_LADDER.length - 1)] ?? null);
         step += 1;
-        return title.evaluate((element) => element.scrollWidth > element.clientWidth);
+        return census.evaluate((element) => element.scrollWidth > element.clientWidth);
       })
       .toBe(true);
-    // The name's own glyphs end inside the title's box, so what the row cut comes after it.
-    await expect
-      .poll(() =>
-        title.evaluate((element, name) => {
-          const text = element.firstChild;
-          if (text === null) {
-            throw new Error("The screen name has no text");
-          }
-          const range = document.createRange();
-          range.setStart(text, 0);
-          range.setEnd(text, name.length);
-          return range.getBoundingClientRect().right <= element.getBoundingClientRect().right + 0.5;
-        }, SECTION_LABELS.extensions),
-      )
-      .toBe(true);
+    // The name is the title's floor, so what the row cut is the census and the name is whole.
+    await expect.poll(() => name.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
   });
 }

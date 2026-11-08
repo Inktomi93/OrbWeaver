@@ -9,13 +9,14 @@
 // a row from the creation click, so there is one arm and the shared display-title chain names it.
 
 import { useGatedQuery, useTRPC } from "#data";
+import type { ScreenTitle } from "#lib";
 import { censusTitle, chatRoomTitle } from "#lib";
 import { useActiveChatId } from "#state";
 import { useChatCensus } from "../hooks/use-chat-census.ts";
 import { CHATS_SECTION_LABEL } from "./chats-section-label.ts";
 import { filterCharacters } from "./roster.ts";
 
-export function useChatsSelectionTitle(): string | null {
+export function useChatsSelectionTitle(): ScreenTitle | null {
   const trpc = useTRPC();
   const chatId = useActiveChatId();
   const { data } = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
@@ -31,10 +32,12 @@ export function useChatsSelectionTitle(): string | null {
       return null;
     }
     // The user's own room name leads when there is one, so same-cast rooms read apart; participants otherwise.
-    return chatRoomTitle(
-      data.title,
-      filterCharacters(data.participants).map((character) => character.displayName),
-    );
+    return {
+      name: chatRoomTitle(
+        data.title,
+        filterCharacters(data.participants).map((character) => character.displayName),
+      ),
+    };
   }
   return censusTitle(CHATS_SECTION_LABEL, census);
 }

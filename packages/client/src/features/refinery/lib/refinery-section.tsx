@@ -9,7 +9,7 @@
 import { FlaskConical } from "@orb/ui/icons";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import type { ContextTabDef, RefineryContextState } from "#lib";
+import type { ContextTabDef, RefineryContextState, ScreenTitle } from "#lib";
 import { censusTitle, defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
 import { refinerySectionSelection, useSelectedRefinerySessionId } from "#state";
@@ -66,7 +66,7 @@ function useRefineryContextState(): RefineryContextState | null {
  *  IS the screen and the ONE-NAME rule (shell.css) sheds the LIST band's title — and the census travels INSIDE
  *  that title (`components/list-pane-header.tsx`), so how many sessions you have was printed nowhere at all.
  *  The count goes back with the noun that survives, off the same one `useRefineryCensus` the band reads. */
-function useRefinerySelectionTitle(): string | null {
+function useRefinerySelectionTitle(): ScreenTitle | null {
   const sessionId = useSelectedRefinerySessionId();
   const sessions = useRefinerySessions();
   // Unconditional, above the early return: this is a hook, and the shell calls THIS hook unconditionally for
@@ -74,7 +74,7 @@ function useRefinerySelectionTitle(): string | null {
   const census = useRefineryCensus();
   if (sessionId !== null) {
     const row = sessions.data?.find((s) => s.id === sessionId);
-    return row === undefined ? null : (row.name ?? row.characterName);
+    return row === undefined ? null : { name: row.name ?? row.characterName };
   }
   // The SECTION's name, not the band's: this row replaces the shell's section-label fallback, and the band
   // one panel over is naming the pane's CONTENTS ("Sessions") rather than the screen.

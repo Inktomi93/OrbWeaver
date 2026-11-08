@@ -24,8 +24,7 @@ import type { ProbeSession } from "../../../floor/browser/browser-contract.ts";
 import { pageErrorText } from "../../../floor/browser/browser-contract.ts";
 import { readBrowserEnvironment } from "../../../floor/browser/browser-environment.ts";
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
-import { EXIT } from "../../../floor/cli/exit-contract.ts";
-import type { EvidenceGap, VerdictDenominator } from "../../../floor/verdict/evidence.ts";
+import type { VerdictDenominator } from "../../../floor/verdict/evidence.ts";
 import { printEvidenceGaps } from "../../../floor/verdict/evidence.ts";
 import type { AuditData } from "../../../motion-audit/index.ts";
 import {
@@ -54,19 +53,23 @@ import type {
 } from "../../contract/arms.ts";
 import type { MotionMeasurement } from "../../contract/motion.ts";
 import type { Args } from "../../contract/types.ts";
-import { motionLoadSuspect, motionPrecedingInputHint, motionQueueHint, orderMotionGaps, rateEvidenceGaps } from "../../lib/motion-gaps.ts";
+import type { MotionHints } from "../../lib/motion-gaps.ts";
+import { motionHintList, motionLoadSuspect, motionPrecedingInputHint, motionQueueHint, orderMotionGaps, rateEvidenceGaps } from "../../lib/motion-gaps.ts";
 import { motionProblems } from "../../lib/motion-problems.ts";
-import { motionFactState, motionStatus, motionTimingPolicy } from "../../lib/motion-verdict.ts";
+import { motionExit, motionFactState, motionStatus, motionTimingPolicy } from "../../lib/motion-verdict.ts";
 import { scrubPrivateText } from "../../lib/private-values.ts";
 import type { SnapRatePosture } from "../../lib/rate-posture.ts";
 import { snapTimingPolicy } from "../../lib/rate-posture.ts";
+import type { CpuRateBracket } from "../../lib/throttle.ts";
+import { motionCpuRates } from "../../lib/throttle.ts";
+import { crossfadeGaps, crossfadeReportLines, judgeCrossfade } from "../../lib/vt-crossfade.ts";
 import { consumeOptionalSelector, pushStep } from "../flags-support.ts";
 import { runMotionWindow } from "./motion-nav.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 const DEFAULT_MOTION_WINDOW_MS = 2500;
-const MOTION_THROTTLE_RATE = 4;
+const CPU_THROTTLE_METHOD = "Emulation.setCPUThrottlingRate";
 const RESET_AFTER_GEOMETRY = `new Promise((resolve, reject) => requestAnimationFrame(() => requestAnimationFrame(() => {
   try {
     if (typeof globalThis.__orb?.resetEvidence !== "function") throw new Error("__orb.resetEvidence is unavailable");
@@ -133,56 +136,87 @@ async function measureMotionAction(
 ): Promise<MotionMeasurement> {
   const { session, opts, ctx, selector, goto, ratePosture } = input;
   const page = ctx.page;
-  // Both hints ride the same rule (lib/motion-gaps.ts): they explain a run that ALREADY could not measure,
-  // and neither is a parse-time refusal. `hints` is empty on a clean window.
-  const hints = [motionQueueHint(opts, ctx.actionIndex), motionPrecedingInputHint(opts, ctx.actionIndex, selector ?? goto)].filter(
-    (hint): hint is EvidenceGap => hint !== null,
-  );
+  // Both hints ride the same rule (lib/motion-gaps.ts): they explain a run that could not measure, and
+  // neither is a parse-time refusal.
+  const hints: MotionHints = {
+    queue: motionQueueHint(opts, ctx.actionIndex),
+    precedingInput: motionPrecedingInputHint(opts, ctx.actionIndex, selector ?? goto),
+  };
   const gap = apparatusGap({ url: scrubPrivateText(page.url()), ready: true, bridge: await hasOrbBridge(page), readyTimeoutMs: 0 });
   if (gap !== null) {
-    return { timing: ratePosture.timing, data: null, gaps: [gap, ...hints], pass: false, artifact: null, loadSuspect: null };
+    return { timing: ratePosture.timing, data: null, crossfade: null, gaps: [gap, ...motionHintList(hints)], pass: false, artifact: null, loadSuspect: null };
   }
   const cdp = await page.context().newCDPSession(page);
   // the failure is returned as an evidence gap; report() prints it through printEvidenceGaps and exit() returns EXIT.toolError while gaps.length > 0. Ends if exit() stops reading measurement.gaps.
   try {
-    if (opts.motionThrottle) {
-      await cdp.send("Emulation.setCPUThrottlingRate", { rate: MOTION_THROTTLE_RATE });
-    }
-    const environment = await readBrowserEnvironment(page, session.environmentContract);
-    const measuredClick = await prepareMeasuredClick(page, selector);
-    await settleAndReset(page, selector, ctx.actionIndex);
-    const raw = await runMotionWindow(page, cdp, { selector, goto, windowMs: opts.motionWindowMs }, measuredClick);
-    const data: AuditData = {
-      ...raw,
-      environment,
-      applicationMotion: await applicationMotionEvidence(session, opts),
-      pageErrors: session.pageErrors.map(pageErrorText),
-      reachFailures: ctx.navFailuresBefore + ctx.stepFailuresBefore,
-    };
-    const evaluated = evaluateMotionAudit(data, opts.motionWindowMs, snapTimingPolicy(ratePosture));
-    // Only a run that ALREADY could not measure gets the hints — on a clean window, measure-then-navigate
-    // and reach-then-measure are ordinary chains and a lecture about argv order would be noise. Order is
-    // `lib/motion-gaps.ts`'s to decide: the CAUSE (nothing moved in this window) prints before the
-    // arithmetic it produced (a zero frame population), #2464.
-    const gaps = orderMotionGaps([...evaluated.gaps, ...rateEvidenceGaps(ratePosture)], hints);
-    return { timing: ratePosture.timing, data, gaps, pass: evaluated.budgetsPass, artifact: null, loadSuspect: motionLoadSuspect(ratePosture) };
+    return await withCpuRate(await pageThrottleSession(page), motionCpuRates(opts.motionThrottle, opts.cpuThrottle), async (): Promise<MotionMeasurement> => {
+      const environment = await readBrowserEnvironment(page, session.environmentContract);
+      const measuredClick = await prepareMeasuredClick(page, selector);
+      await settleAndReset(page, selector, ctx.actionIndex);
+      const { crossfade, ...raw } = await runMotionWindow(page, cdp, { selector, goto, windowMs: opts.motionWindowMs }, measuredClick);
+      const data: AuditData = {
+        ...raw,
+        environment,
+        applicationMotion: await applicationMotionEvidence(session, opts),
+        pageErrors: session.pageErrors.map(pageErrorText),
+        reachFailures: ctx.navFailuresBefore + ctx.stepFailuresBefore,
+      };
+      const evaluated = evaluateMotionAudit(data, opts.motionWindowMs, snapTimingPolicy(ratePosture));
+      // `lib/motion-gaps.ts` decides when the hints ride and in what order: the CAUSE (nothing moved in this
+      // window) prints before the arithmetic it produced (a zero frame population), #2464.
+      const gaps = orderMotionGaps([...evaluated.gaps, ...rateEvidenceGaps(ratePosture), ...crossfadeGaps(crossfade)], hints, data);
+      // A crossfade flicker is a product failure whatever the timing posture, like a dirty animation.
+      const pass = evaluated.budgetsPass && judgeCrossfade(crossfade).verdict !== "fail";
+      return { timing: ratePosture.timing, data, crossfade, gaps, pass, artifact: null, loadSuspect: motionLoadSuspect(ratePosture) };
+    });
   } catch (error) {
     return {
       timing: ratePosture.timing,
       data: null,
-      gaps: [{ evidence: "the motion measurement window", detail: error instanceof Error ? error.message : String(error) }, ...hints],
+      crossfade: null,
+      gaps: [{ evidence: "the motion measurement window", detail: error instanceof Error ? error.message : String(error) }, ...motionHintList(hints)],
       pass: false,
       artifact: null,
       loadSuspect: null,
     };
   } finally {
-    try {
-      if (opts.motionThrottle) {
-        await cdp.send("Emulation.setCPUThrottlingRate", { rate: 1 });
-      }
-    } finally {
-      await cdp.detach();
-    }
+    await cdp.detach();
+  }
+}
+
+/** The one CDP call the motion window's CPU bracket makes. */
+interface CpuRateCdp {
+  // biome-ignore lint/style/useConsistentMethodSignatures: method syntax compares `params` bivariantly, which is what lets Playwright's generic `CDPSession.send` satisfy this.
+  send(method: string, params: object): Promise<unknown>;
+}
+
+type MotionPage = ArmActionContext["page"];
+
+// Chrome resets the CPU rate to 1x when the CDP session that last set it detaches, so the bracket sends on one
+// session per page that is never detached; it closes with the page.
+const THROTTLE_SESSIONS = new WeakMap<MotionPage, Promise<CpuRateCdp>>();
+
+function pageThrottleSession(page: MotionPage): Promise<CpuRateCdp> {
+  const held = THROTTLE_SESSIONS.get(page);
+  if (held !== undefined) {
+    return held;
+  }
+  const opened = page.context().newCDPSession(page);
+  THROTTLE_SESSIONS.set(page, opened);
+  return opened;
+}
+
+/** Run `work` at the bracket's window rate, then send its restore rate, also on a throw. An equal pair sends
+ *  nothing, so the session's own `--cpu-throttle` stands untouched. */
+export async function withCpuRate<T>(cdp: CpuRateCdp, rates: CpuRateBracket, work: () => Promise<T>): Promise<T> {
+  if (rates.window === rates.restore) {
+    return await work();
+  }
+  await cdp.send(CPU_THROTTLE_METHOD, { rate: rates.window });
+  try {
+    return await work();
+  } finally {
+    await cdp.send(CPU_THROTTLE_METHOD, { rate: rates.restore });
   }
 }
 
@@ -241,6 +275,7 @@ function motionPairs(opts: Args, snapshot: MotionMeasurement | null): readonly R
     ["anim-flags", data.flags === null ? "absent" : data.flags.filter((flag) => flag.tag === "anim").length],
     ["library-height-animations", animations.sanctionedLibrary],
     ["dirty-animations-budgeted", animations.budgetedDirty],
+    ["vt-crossfade", snapshot.crossfade === null ? "absent" : judgeCrossfade(snapshot.crossfade).verdict],
   ];
 }
 
@@ -307,7 +342,8 @@ export const MOTION_ARM = {
                           navigates inside it, so a route or section fade is in the window. Replaces --motion
                           (one window per run); it does not combine with --filmstrip or --matrix.
   --motion-window <ms>    measured observation window (default 2500)
-  --motion-no-throttle    disable motion's default 4x CPU throttle. Dropped-frame rates are advisory only
+  --motion-no-throttle    disable motion's default 4x CPU throttle (a higher --cpu-throttle wins inside the window and
+                          stands after it). Dropped-frame rates are advisory only
                           when this run's RATE POSTURE is not "hardware" — headless is NOT structurally
                           vsync-less here: snap launches Chromium with the GPU enabled and classifies the
                           posture from SystemInfo (floor/browser/browser-acceleration.ts). What withholds the
@@ -350,6 +386,7 @@ export const MOTION_ARM = {
             return;
           }
           MOTION_RECEIPTS.set(session, measurement.data);
+          const crossfade = measurement.crossfade === null ? null : judgeCrossfade(measurement.crossfade);
           const motion = measurement.data?.motion;
           const retained = (motion?.loafs.length ?? 0) + (motion?.shifts?.length ?? 0) + (measurement.data?.flags?.length ?? 0);
           const path = await artifactFile("motion", `${ctx.name}-motion`, ".json", {
@@ -378,7 +415,7 @@ export const MOTION_ARM = {
           });
           await writeFile(
             path,
-            `${JSON.stringify({ contract: "snap-motion-v1", selector: ctx.opts.actions.find((entry) => entry.type === "step" && entry.action.kind === "motion-click"), windowMs: opts.motionWindowMs, timing: measurement.timing, timingPolicy: motionTimingPolicy(measurement), throttle: opts.motionThrottle ? MOTION_THROTTLE_RATE : 1, gaps: measurement.gaps, problems: motionProblems(measurement.data, measurement.gaps, motionTimingPolicy(measurement)), data: measurement.data }, null, 2)}\n`,
+            `${JSON.stringify({ contract: "snap-motion-v1", selector: ctx.opts.actions.find((entry) => entry.type === "step" && entry.action.kind === "motion-click"), windowMs: opts.motionWindowMs, timing: measurement.timing, timingPolicy: motionTimingPolicy(measurement), throttle: motionCpuRates(opts.motionThrottle, opts.cpuThrottle).window, gaps: measurement.gaps, problems: [...motionProblems(measurement.data, measurement.gaps, motionTimingPolicy(measurement)), ...(crossfade?.problems ?? [])], crossfade: crossfade === null ? null : { verdict: crossfade.verdict, evidence: measurement.crossfade }, data: measurement.data }, null, 2)}\n`,
           );
           measurement = { ...measurement, artifact: path };
         },
@@ -397,6 +434,9 @@ export const MOTION_ARM = {
               `frames      raw ${frameToken(data.frames.raw.dropped, data.frames.raw.total)} · budgeted ${frameToken(data.frames.budgeted.dropped, data.frames.budgeted.total)}`,
             );
             print(`LoAF        raw worst ${String(loaf.rawWorstBlocking)}ms · budgeted worst ${String(loaf.budgetedWorstBlocking)}ms`);
+          }
+          for (const line of crossfadeReportLines(measurement.crossfade)) {
+            print(line);
           }
           if (measurement.artifact !== null) {
             print(`motion json ${measurement.artifact}`);
@@ -427,19 +467,7 @@ export const MOTION_ARM = {
             },
           ];
         },
-        exit: (code: number): number => {
-          if (!opts.motion) {
-            return code;
-          }
-          if (measurement === null || measurement.gaps.length > 0) {
-            return EXIT.toolError;
-          }
-          // Non-voting timing thresholds do not suppress semantic failures.
-          if (measurement.pass || code === EXIT.toolError) {
-            return code;
-          }
-          return EXIT.violations;
-        },
+        exit: (code: number): number => motionExit(opts.motion, measurement, code),
       };
     },
   },

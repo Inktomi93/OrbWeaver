@@ -10,11 +10,12 @@
 // `N of TOTAL` relationship is stated once and identically in both regimes.
 
 import { useGatedQuery, useTRPC } from "#data";
+import type { ScreenTitle } from "#lib";
 import { CORPUS_MODE_LABELS, censusTitle } from "#lib";
 import { useSelectedAnalyticsCharacterId } from "#state";
 import { useAnalyticsCensus } from "../hooks/use-analytics-census.ts";
 
-export function useAnalyticsSelectionTitle(active: boolean): string | null {
+export function useAnalyticsSelectionTitle(active: boolean): ScreenTitle | null {
   const trpc = useTRPC();
   const characterId = useSelectedAnalyticsCharacterId();
   const { data } = useGatedQuery(active ? characterId : null, (id) => trpc.character.get.queryOptions({ characterId: id }));
@@ -29,8 +30,8 @@ export function useAnalyticsSelectionTitle(active: boolean): string | null {
     return null;
   }
   if (characterId !== null) {
-    return name.length === 0 ? null : name;
+    return name.length === 0 ? null : { name };
   }
   // A mode with no census still names itself, never the bare section.
-  return censusTitle(CORPUS_MODE_LABELS.insights, census) ?? CORPUS_MODE_LABELS.insights;
+  return censusTitle(CORPUS_MODE_LABELS.insights, census) ?? { name: CORPUS_MODE_LABELS.insights };
 }

@@ -264,7 +264,7 @@ Reviewers compare selected original cases with the maintained assertions, not on
 
 ## Run and report
 
-Use `pnpm test <paths>`, `pnpm test:ct <paths>` or the relevant native E2E command. Tooling CTs use the `tooling` project in `playwright-ct.config.ts`.
+Use `pnpm test <paths>`, `pnpm test:ct <paths>` or the relevant native E2E command. Run tooling CTs with `pnpm test:ct:tools <paths>`, which selects the `tooling` project in `playwright-ct.config.ts`.
 
 Run affected compiler programs, lint and dependency checks. Reuse matching completed results; do not repeat unchanged checks merely for confidence.
 

@@ -10,6 +10,7 @@ import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import { Slider } from "@orb/ui/slider";
+import { TOKENS } from "@orb/ui/tokens";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useId } from "react";
@@ -325,10 +326,12 @@ export function WalkerBoxCarriedIsolatedControlStory(): ReactElement {
  *     this arm's extent must EQUAL the isolated one. That equality is the finding, not a weakening: the
  *     old gap between these two arms was the isolated glyph's fabricated wrapper credit, not the row's
  *     loss. Keeping the arm keeps the shape the live measurement was taken from.
- *   · TIGHT-ROW — the same prose moved to `1.3rem`, INSIDE the pseudo's reach at every root scale (the
- *     glyph box is `1.25rem`, its hit pseudo `1.75rem` at a fine pointer, both centred). This is where
- *     #807's ruling still bites: the prose answers pixels the pseudo covers, it forwards nothing, and the
- *     extent must cap below the isolated arm's. Without it #807 has no failing arm left.
+ *   · TIGHT-ROW — prose on BOTH sides of the glyph box, from its edges outward, so it answers every ring
+ *     pixel the pseudo covers on the inline axis. This is where #807's ruling still bites: the prose
+ *     forwards nothing, and the extent must cap below the isolated arm's. Without it #807 has no failing
+ *     arm left. One side is not enough: the walker credits contiguous owned pixels on each side of the
+ *     centre separately, so prose on one ring leaves the box plus the other ring (`1.25rem` box, `1.75rem`
+ *     fine pseudo: 24px), which is the isolated arm's own rung.
  *
  *  Every arm pins `variant="ghost"`: the default is the focal solid primary, which stamps `data-cta` and paints the CTA
  *  gradient ring, and a second pseudo is a second variable in a story about which element owns a pixel. */
@@ -350,12 +353,23 @@ export function WalkerRowWrappedGlyphStory(): ReactElement {
         </p>
       </div>
       <div data-testid={storyTestId("tightRow")} style={{ display: "flex", position: "relative", width: 360 }}>
+        <p style={{ fontSize: 15, insetBlock: 0, insetInlineEnd: "100%", inlineSize: 48, margin: 0, position: "absolute", textAlign: "end", zIndex: 1 }}>
+          lets it
+        </p>
         <GlyphButton aria-label="Grant network access" data-testid={storyTestId("glyphInTightRow")} variant="ghost" glyph="sm" />
         <p
           data-testid={storyTestId("tightProse")}
-          style={{ fontSize: 15, insetBlock: 0, insetInlineEnd: 0, insetInlineStart: "1.3rem", margin: 0, position: "absolute", zIndex: 1 }}
+          style={{
+            fontSize: 15,
+            insetBlock: 0,
+            insetInlineEnd: 0,
+            insetInlineStart: `var(${TOKENS["size.glyph-sm"].cssVar})`,
+            margin: 0,
+            position: "absolute",
+            zIndex: 1,
+          }}
         >
-          reaches the network
+          reach the network
         </p>
       </div>
     </div>

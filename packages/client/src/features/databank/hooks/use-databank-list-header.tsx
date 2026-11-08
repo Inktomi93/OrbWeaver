@@ -81,6 +81,7 @@ export function useDatabankListHeader(): ListPaneHeaderView {
   }
   const shown = useDatabankListCensus();
   const countProp = shown === undefined ? {} : { count: shown };
+  const addDocument = { id: "databank-add", label: ADD_DOCUMENT_LABEL, icon: Plus, onSelect: (): void => openModal("addDocument") };
 
   return {
     actions: [
@@ -164,7 +165,8 @@ export function useDatabankListHeader(): ListPaneHeaderView {
             Add
           </Button>
         ),
-        menu: [{ id: "databank-add", label: ADD_DOCUMENT_LABEL, icon: Plus, onSelect: (): void => openModal("addDocument") }],
+        menu: [addDocument],
+        compact: addDocument,
       },
     ],
     ...countProp,

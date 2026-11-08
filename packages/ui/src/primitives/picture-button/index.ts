@@ -1,2 +1,2 @@
-export type { PictureButtonProps } from "./picture-button.tsx";
+export type { PictureButtonProps, PictureReach } from "./picture-button.tsx";
 export { PictureButton } from "./picture-button.tsx";

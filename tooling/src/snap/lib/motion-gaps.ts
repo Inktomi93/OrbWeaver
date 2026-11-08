@@ -2,6 +2,8 @@
 // argv-ordered action queue. Split out of ops/arms/motion.ts at the tooling-size cap (Core-Tooling-Law §4.3) when
 // #1616 turned load from a gap into a label; nothing here touches a browser or a file.
 import type { EvidenceGap } from "../../floor/verdict/evidence.ts";
+import type { AuditData } from "../../motion-audit/index.ts";
+import { framePopulationBasis } from "../../motion-audit/index.ts";
 import type { SnapAction, Step } from "../contract/actions.ts";
 import type { Args } from "../contract/types.ts";
 import type { SnapRatePosture } from "./rate-posture.ts";
@@ -26,16 +28,34 @@ export function motionLoadSuspect(ratePosture: SnapRatePosture): string | null {
   return disposition.disposition === "load-suspect" ? disposition.reason : null;
 }
 
+/** The two argv-position hints of one window; either may be absent. */
+export interface MotionHints {
+  readonly queue: EvidenceGap | null;
+  readonly precedingInput: EvidenceGap | null;
+}
+
+export function motionHintList(hints: MotionHints): EvidenceGap[] {
+  return [hints.queue, hints.precedingInput].filter((hint): hint is EvidenceGap => hint !== null);
+}
+
 /**
  * THE CAUSE FIRST, THE ARITHMETIC SECOND (#2464). A selector-less window that opened after reach actions
  * refuses on a ZERO FRAME POPULATION — correct arithmetic over an empty window — and the reason the window
  * was empty is the hint. Printed measured-gap-first, the operator reads "no frames composited" and
  * concludes the browser cannot composite; printed hint-first they read that nothing moved in the window
- * they asked for. Same set, same gating (hints ride only a run that ALREADY could not measure, so an empty
- * `measured` yields an empty list and a clean window gets no lecture), different order.
+ * they asked for. Hints ride a run that ALREADY could not measure, so a clean window gets no lecture.
+ *
+ * A NEAR-EMPTY window is the one exception. One stray frame lifts the population off zero, so the window
+ * measures no gap and would report RECORDED over nothing. When the window dispatched no input of its own,
+ * inputs ran before it, and its frame population cannot carry a verdict, the preceding-input hint is the
+ * refusal itself.
  */
-export function orderMotionGaps(measured: readonly EvidenceGap[], hints: readonly EvidenceGap[]): EvidenceGap[] {
-  return measured.length === 0 ? [] : [...hints, ...measured];
+export function orderMotionGaps(measured: readonly EvidenceGap[], hints: MotionHints, window: Pick<AuditData, "measuredInput" | "frames">): EvidenceGap[] {
+  if (measured.length > 0) {
+    return [...motionHintList(hints), ...measured];
+  }
+  const nearEmpty = !window.measuredInput && framePopulationBasis(window.frames.raw.total) !== "verdict";
+  return nearEmpty && hints.precedingInput !== null ? [hints.precedingInput] : [];
 }
 
 /** How many later queue entries the hint names before it stops listing them. */
@@ -116,6 +136,6 @@ export function motionPrecedingInputHint(opts: Args, actionIndex: number, select
   const shown = inputs.slice(-MOTION_QUEUE_HINT_ENTRIES).map(actionLabel);
   return {
     evidence: "the measured input",
-    detail: `${String(inputs.length)} input action(s) ran BEFORE this window opened (${shown.join(", ")}) and --motion was written with no selector, so the window is the post-reach entry window: snap settles the flaggers and calls __orb.resetEvidence() before it starts, which DISCARDS every frame those inputs caused. This window says nothing about them — frames-raw 0/0 here is an empty measurement, not a smooth one. To measure an input's own cost use --perf (per-step LoAF/EventTiming attribution across the whole tape) or --cpu-profile for self time; to measure a click's window give --motion that selector so the click is dispatched inside the trace.`,
+    detail: `${String(inputs.length)} input action(s) ran BEFORE this window opened (${shown.join(", ")}) and --motion was written with no selector, so the window is the post-reach entry window: snap settles the flaggers and calls __orb.resetEvidence() before it starts, which DISCARDS every frame those inputs caused. This window says nothing about them — a zero or near-empty frame population here is an empty measurement, not a smooth one. To measure an input's own cost use --perf (per-step LoAF/EventTiming attribution across the whole tape) or --cpu-profile for self time; to measure a click's window give --motion that selector so the click is dispatched inside the trace.`,
   };
 }

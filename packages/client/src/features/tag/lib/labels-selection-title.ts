@@ -1,11 +1,12 @@
 // The Corpus Labels phone title: the open tag's name, else the mode and its census (the #1676 rule — the
 // census rides the noun that survives on a phone). An inactive mode fetches nothing.
 
+import type { ScreenTitle } from "#lib";
 import { CORPUS_MODE_LABELS, censusTitle } from "#lib";
 import { useSelectedLabelId } from "#state";
 import { useTagCensus, useTagName } from "../hooks/use-tag-library.ts";
 
-export function useLabelsSelectionTitle(active: boolean): string | null {
+export function useLabelsSelectionTitle(active: boolean): ScreenTitle | null {
   const tagId = useSelectedLabelId();
   const name = useTagName(active ? tagId : null);
   const census = useTagCensus(active && tagId === null);
@@ -13,7 +14,7 @@ export function useLabelsSelectionTitle(active: boolean): string | null {
     return null;
   }
   if (tagId !== null) {
-    return name ?? null;
+    return name === undefined ? null : { name };
   }
-  return censusTitle(CORPUS_MODE_LABELS.labels, census) ?? CORPUS_MODE_LABELS.labels;
+  return censusTitle(CORPUS_MODE_LABELS.labels, census) ?? { name: CORPUS_MODE_LABELS.labels };
 }

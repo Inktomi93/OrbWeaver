@@ -9,7 +9,7 @@ import {
   automationRulesSection,
   automationSuggestionSource,
 } from "#features/automation";
-import { characterCreateChrome, characterSlashCommands } from "#features/character";
+import { characterCreateChrome, characterImportChrome, characterSlashCommands } from "#features/character";
 import { chatMembersChrome, chatMemoryChrome, chatMessageReactionsSurface, chatSlashCommands, makeChatControlsContribution } from "#features/chat";
 import { configPaletteSource } from "#features/config";
 import { corpusModePaletteSource } from "#features/discovery";
@@ -153,8 +153,8 @@ export const corpusContextTabs = createContributorRegistry<ContextTabDef<CorpusC
 // `pluginTopbarChrome` renders only the commands a plugin placed at `topbar`, and nothing when none did.
 // `bugReportChrome` is visible in every build ("Report a bug"); only its developer capture is dev-gated,
 // inside the form.
-// `characterCreateChrome` (#1669) is the first SECTION-scoped trail entry: the Characters pane's primary,
-// on a phone only, where the LIST band that used to carry it is shed. Its `useVisible` states the three
+// `characterCreateChrome` and `characterImportChrome` (#1669) are the first SECTION-scoped trail entries: the Characters pane's primary and secondary,
+// on a phone only, where the LIST band that used to carry them is shed. Their `useVisible` states the three
 // conditions; the zone is shell-global, the affordance is not.
 export const chromeWidgets: readonly ChromeEntry[] = [
   notificationsChrome,
@@ -162,6 +162,7 @@ export const chromeWidgets: readonly ChromeEntry[] = [
   chatMemoryChrome,
   pluginTopbarChrome,
   characterCreateChrome,
+  characterImportChrome,
   contextToggleChrome,
   personaChrome,
   bugReportChrome,

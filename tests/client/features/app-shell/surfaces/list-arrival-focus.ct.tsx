@@ -1,6 +1,6 @@
-// Keyboard arrival into a list surface lands on the LIST band's first control, so a forward Tab runs the band's door to New
-// (New itself, or the menu that holds it when the pane has no room for it), then the search field, then the rows. Each case
-// arrives through the rail the way a keyboard user does, on the production section registry.
+// Keyboard arrival into a list surface lands on the LIST band's first control, so a forward Tab runs the band's New (inline
+// in every pane width: a band folds its other actions first), then the search field, then the rows. Each case arrives
+// through the rail the way a keyboard user does, on the production section registry.
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -101,8 +101,8 @@ for (const section of SECTIONS) {
     }
     // Arrival is the band's own control, never the surface root a Tab would start past the band from.
     expect(["band-action", "new", "fold"]).toContain(stops[0]);
-    // The door to New is New itself, or the fold's menu when the pane has no room for it; the band's name stays whole.
-    const door = stops.includes("new") ? stops.indexOf("new") : stops.indexOf("fold");
+    // New is in the tab order whatever room the pane has: the band folds its other actions, never its primary.
+    const door = stops.indexOf("new");
     // Every kind is reached, so the order below is a comparison of real stops and not of missing ones.
     expect([door, stops.indexOf("search"), stops.indexOf("row")]).not.toContain(-1);
     expect(door).toBeLessThan(stops.indexOf("search"));

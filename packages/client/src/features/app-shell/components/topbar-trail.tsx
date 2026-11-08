@@ -38,7 +38,7 @@ export function TopbarTrailChrome({ mobile }: { readonly mobile: boolean }): Rea
     .list()
     .filter(isTrailEntry)
     .filter((e) => !(mobile && e.mobile === "sheet"))
-    .map((entry) => ({ id: entry.id, inline: <TrailEntry entry={entry} />, menu: <TrailMenuEntry entry={entry} /> }));
+    .map((entry) => ({ id: entry.id, inline: <TrailEntry entry={entry} />, menu: <TrailMenuEntry entry={entry} />, primary: entry.primary === true }));
   return <OverflowActions actions={actions} topbarTrail={true} gap="field" label={TRAIL_OVERFLOW_LABEL} slot="overflow-actions" />;
 }
 

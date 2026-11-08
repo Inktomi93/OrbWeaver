@@ -16,6 +16,20 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
 /** No throttling — CDP's own identity rate. */
 export const NO_CPU_THROTTLE = 1;
+/** The CPU rate a `--motion` window runs at unless `--motion-no-throttle` turns it off. */
+export const MOTION_CPU_THROTTLE = 4;
+
+/** The rate one CDP bracket applies around a window, and the rate it hands back afterwards. */
+export interface CpuRateBracket {
+  readonly window: number;
+  readonly restore: number;
+}
+
+/** A `--motion` window never runs lighter than the session's own `--cpu-throttle`, and it hands that rate
+ *  back afterwards: restoring the identity rate would un-throttle the rest of a throttled session. */
+export function motionCpuRates(motionThrottle: boolean, sessionRate: number): CpuRateBracket {
+  return { window: motionThrottle ? Math.max(MOTION_CPU_THROTTLE, sessionRate) : sessionRate, restore: sessionRate };
+}
 
 // Chrome DevTools' predefined conditions, resolved from `front_end/core/sdk/NetworkManager.ts` (fetched
 // 2026-08-30). Each derivation is written out so the number is auditable against that file rather than

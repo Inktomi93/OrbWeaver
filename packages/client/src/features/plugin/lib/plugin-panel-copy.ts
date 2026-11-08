@@ -1,8 +1,13 @@
+import { CHAT_PLUGINS_TAB_LABEL, MESSAGE_TOOLS_LABEL } from "#lib";
+
 export const CHAT_PLUGINS_EMPTY_TITLE = "No chat panels here";
-export const CHAT_PLUGINS_EMPTY_DESCRIPTION =
-  "Enabled plugins with chat panels appear here. Choose a panel's sidecar action to keep it beside the conversation.";
+const CHAT_PLUGINS_EMPTY_LEAD = "Enabled plugins with chat panels appear here.";
+export const CHAT_PLUGINS_EMPTY_DESCRIPTION = `${CHAT_PLUGINS_EMPTY_LEAD} Choose a panel's sidecar action to keep it beside the conversation.`;
+/** On touch the sidecar is a sheet, so the copy names its door instead of the conversation. */
+export const CHAT_PLUGINS_EMPTY_DESCRIPTION_TOUCH = `${CHAT_PLUGINS_EMPTY_LEAD} Move a panel to the sidecar to keep it one tap away in ${MESSAGE_TOOLS_LABEL}.`;
 export const CHAT_PLUGINS_MANAGE_LABEL = "Manage plugins";
-export const CHAT_PLUGINS_OPEN_LABEL = "Plugin panels";
+/** The Plugin actions menu's door to Context's Plugins tab, named by its destination. */
+export const CHAT_PLUGINS_OPEN_LABEL = `Open ${CHAT_PLUGINS_TAB_LABEL} tab`;
 
 /** The placement action stays distinct when one plugin registers several panels. */
 export function movePluginPanelLabel(pluginName: string, title: string, sidecar: boolean): string {

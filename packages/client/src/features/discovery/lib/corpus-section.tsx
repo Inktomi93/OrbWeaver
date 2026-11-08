@@ -4,7 +4,7 @@
 // imports stats and tag and hands them in, so discovery imports neither (§6c).
 
 import { Library } from "@orb/ui/icons";
-import type { ContextTabDef, ContributorRegistry, CorpusContextState, ListPaneHeaderView } from "#lib";
+import type { ContextTabDef, ContributorRegistry, CorpusContextState, ListPaneHeaderView, ScreenTitle } from "#lib";
 import { CORPUS_MODE_LABELS, defineContextTabs } from "#lib";
 import type { SectionDefinition } from "#state";
 import { corpusSectionSelection, useCorpusMode, useSelectedCorpusDestination } from "#state";
@@ -36,7 +36,7 @@ function useCorpusContextState(): CorpusContextState {
 }
 
 /** Every mode's title hook runs on every render, so the hook order never depends on the mode. */
-function useCorpusWorkspaceTitle(modes: CorpusModes): string | null {
+function useCorpusWorkspaceTitle(modes: CorpusModes): ScreenTitle | null {
   const mode = useCorpusMode();
   const titles = {
     explore: useCorpusSelectionTitle(mode === "explore"),
@@ -81,7 +81,7 @@ export function makeCorpusSection(contributions: CorpusSectionContributions): Se
       },
       useContentLabel: (): string => CORPUS_MODE_LABELS[useCorpusMode()],
     },
-    useSelectionTitle: (): string | null => useCorpusWorkspaceTitle(modes),
+    useSelectionTitle: (): ScreenTitle | null => useCorpusWorkspaceTitle(modes),
     content: () => <CorpusWorkspaceContent modes={modes} />,
     context: defineContextTabs<CorpusContextState>({
       useContextState: useCorpusContextState,

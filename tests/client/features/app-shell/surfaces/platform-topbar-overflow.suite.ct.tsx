@@ -5,9 +5,10 @@
 
 import { TRAIL_OVERFLOW_LABEL } from "@orb/client/components";
 import { enlargeUntilVisible, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
-import { channelName, SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
+import { channelName, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { DATABANK_MAINTENANCE_NAME } from "#client/features/databank/lib/databank-names.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -83,22 +84,27 @@ for (const form of [
 
 const LIST_BAND_ACTION = '.shell-panel[data-panel-side="list"] [data-slot="list-pane-action"]';
 const OVERFLOW_TRIGGER = '[data-slot="overflow-actions-trigger"]';
+// The band's shown actions: each is a cell of the action row, and a folded cell is marked out of the row.
+const SHOWN_CONTROLS = `${LIST_BAND_ACTION} > :not([data-overflowed]) :is(button, a)`;
 
 const SCALES = [3, 4, 5, 6, 7] as const;
 
 // A band overflows where the list pane is the whole screen, so its width is the viewport's and text growth narrows it
-// against fixed pixels. (On a desktop the pane's width scales with the text, and the band keeps its room.) The Characters
+// against fixed pixels. (On a desktop the pane's width scales with the text, and the band keeps its room.) The band folds
+// its secondary actions into its menu and keeps its primary inline, as an icon once its word does not fit. The Characters
 // band carries no action on a phone: its doors ride the topbar trail, covered above.
 test.describe("a list band on a phone", () => {
   test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
   for (const band of [
-    { section: "chats", label: SECTION_LABELS.chats, entry: "New chat", from: 3 },
+    { section: "chats", primary: "New chat", secondary: "Import a chat transcript", surface: "Import chats", from: 3 },
     // Import is the first action, so the case enlarges past the step where New alone has moved.
-    { section: "presets", label: SECTION_LABELS.presets, entry: "Import a preset", from: 5 },
-    { section: "databank", label: SECTION_LABELS.databank, entry: "Add a document", from: 3 },
+    { section: "presets", primary: "New preset", secondary: "Import a preset", surface: "Import a preset", from: 5 },
   ] as const) {
-    test(`the ${band.section} band moves its actions into its menu as it narrows, and the entry opens the same surface`, async ({ mount, page }) => {
+    test(`the ${band.section} band moves its secondary action into its menu as it narrows, keeps its primary inline, and the entry opens the same surface`, async ({
+      mount,
+      page,
+    }) => {
       await seedShellState(page, { activeSection: band.section });
       await mount<typeof AppShellStory>(STORY, {});
       const action = page.locator(LIST_BAND_ACTION);
@@ -111,9 +117,38 @@ test.describe("a list band on a phone", () => {
         FONT_SCALE_PROPERTY,
         SCALES.filter((scale) => scale >= band.from),
       );
+      // The primary is the one control the row still shows besides the trigger.
+      await expect(page.locator(SHOWN_CONTROLS)).toHaveCount(1);
+      await expect(page.locator(SHOWN_CONTROLS)).toHaveAccessibleName(new RegExp(`^(?:New|${band.primary})$`, "u"));
       await trigger.click();
-      await page.getByRole("menuitem", { name: band.entry, exact: true }).click();
-      await expect(page.getByRole("dialog", { name: band.entry, exact: true })).toBeVisible();
+      await expect(page.getByRole("menuitem", { name: band.primary, exact: true })).toHaveCount(0);
+      await page.getByRole("menuitem", { name: band.secondary, exact: true }).click();
+      await expect(page.getByRole("dialog", { name: band.surface, exact: true })).toBeVisible();
     });
   }
+
+  // Databank's secondary action is its maintenance menu: folded, it is a submenu whose sweeps open the same confirm the inline menu's do.
+  test("the databank band moves its maintenance menu into its own menu as it narrows, keeps Add a document inline, and each sweep opens its confirm", async ({
+    mount,
+    page,
+  }) => {
+    await seedShellState(page, { activeSection: "databank" });
+    await mount<typeof AppShellStory>(STORY, {});
+    const action = page.locator(LIST_BAND_ACTION);
+    await expect(action).toBeVisible();
+    const trigger = action.locator(OVERFLOW_TRIGGER);
+    await expect(trigger).toBeHidden();
+    await enlargeUntilVisible(page, trigger, FONT_SCALE_PROPERTY, SCALES);
+    await expect(page.locator(SHOWN_CONTROLS)).toHaveCount(1);
+    await expect(page.locator(SHOWN_CONTROLS)).toHaveAccessibleName("Add a document");
+    for (const sweep of ["Rebuild all documents", "Re-read all documents"]) {
+      await trigger.click();
+      await expect(page.getByRole("menuitem", { name: "Add a document", exact: true })).toHaveCount(0);
+      await page.getByRole("menuitem", { name: DATABANK_MAINTENANCE_NAME, exact: true }).click();
+      await page.getByRole("menuitem", { name: sweep, exact: true }).click();
+      await expect(page.getByRole("alertdialog", { name: `${sweep}?`, exact: true })).toBeVisible();
+      await page.keyboard.press("Escape");
+      await expect(page.getByRole("alertdialog")).toHaveCount(0);
+    }
+  });
 });
