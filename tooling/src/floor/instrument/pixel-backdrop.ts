@@ -106,7 +106,7 @@ function ringPixels(data: Buffer | Uint8Array, imageWidth: number, channels: num
 
 /** `ringBackdropOfRegion`, or `null` when the ring is not one backdrop (p90:p10 luminance spread over
  *  {@link RING_MAX_SPREAD_RATIO}). The caller must report the measurement unresolved, never the median. */
-export function uniformRingBackdropOfRegion(data: Buffer | Uint8Array, imageWidth: number, channels: number, region: PixelRect): Rgb | null {
+export function uniformRingBackdropOfRegion(data: Buffer | Uint8Array, imageWidth: number, channels: number, region: RingRegion): Rgb | null {
   const { rs, gs, bs } = ringPixels(data, imageWidth, channels, region);
   const luminances = rs.map((r, i) => relativeLuminance({ r, g: gs[i] ?? 0, b: bs[i] ?? 0 })).sort((a, b) => a - b);
   const low = percentile(luminances, RING_SPREAD_LOW_QUANTILE);

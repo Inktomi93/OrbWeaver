@@ -254,7 +254,7 @@ async function openRoom(flow: Journey, room: ChatSummary, inspectList = false): 
     },
   });
   await flow.requestPanes();
-  if (flow.requestedPanes.kind === "desktop" && flow.requestedPanes.panes.context) {
+  if (flow.requestedPanes.kind === "desktop" && flow.requestedPanes.panes.context && (await flow.desktopShell())) {
     await contextReady(flow);
   }
   await checkpoint(flow, `chat-room-${room.id}`, flow.page.locator("body"), flow.page.getByRole("group", { name: CHAT_COMPOSER_NAME, exact: true }));

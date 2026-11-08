@@ -1,7 +1,7 @@
 // The composition read: skeletons, section structure, read shape, feedback shape, form shape and the variant report, in one pass over the sources.
 import type { DeclaredVariants, FileFacts, Source, VariantReport } from "../eslint/index.ts";
 import { variantReport } from "../eslint/index.ts";
-import type { Cohort } from "./compare.ts";
+import type { Cohort } from "../floor/verdict/cohort-compare.ts";
 import type { FeedbackScan } from "./feedback.ts";
 import { buildFeedbackCohort } from "./feedback.ts";
 import type { FormScan } from "./forms.ts";

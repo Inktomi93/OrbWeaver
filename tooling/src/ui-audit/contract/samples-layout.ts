@@ -34,6 +34,23 @@ export interface CohortAnatomyInput {
   /** A member was mid-transition when the boxes were read — a moment, not a design. The check DECLINES
    *  rather than judging it (the same fence `ControlAspectInput.animating` declares). */
   readonly animating: boolean;
+  /** Every member's own box in viewport CSS pixels and its interaction state, for the rendered cohort comparison. */
+  readonly memberRenders: readonly CohortMemberRender[];
+}
+
+/** A resting member paints the cohort's anatomy; every other state paints that state instead. */
+const COHORT_MEMBER_STATES = ["rest", "selected", "current", "pressed", "open", "disabled", "focused", "hovered"] as const;
+export type CohortMemberState = (typeof COHORT_MEMBER_STATES)[number];
+
+export interface CohortMemberRender {
+  readonly selector: string;
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+  /** The largest corner radius in CSS pixels, at most half the short side. */
+  readonly radiusPx: number;
+  readonly state: CohortMemberState;
 }
 
 /** One row-shaped container and the widest gap between two horizontally-adjacent children that share a
