@@ -4,7 +4,7 @@ status: doing
 updated: 2026-11-08
 priority: P3
 area: ui
-lane: wt/agent-afb5bff2b14113d1d
+lane: main
 plan: cross-surface-consistency
 ---
 
