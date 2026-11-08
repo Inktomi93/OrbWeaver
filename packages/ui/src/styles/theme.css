@@ -398,6 +398,7 @@
   --spacing-combobox-wrap-lg: max(var(--spacing-field), calc(var(--size-touch-target) - var(--size-control-lg) + 2 * var(--border-width-control) + 2 * var(--spacing-field)));
   --size-switch-travel: calc(var(--size-switch-track) - var(--size-switch-track-height));
   --spacing-glyph-bleed: calc((var(--size-touch-target) - var(--size-glyph-xs)) / 2);
+  --spacing-avatar-reach: max(var(--spacing-field), calc((var(--size-touch-target) - var(--size-avatar-sm)) / 2));
   --size-name-row-min: calc(var(--size-glyph-lg) - 2 * var(--spacing-row));
   --height-prose-cap: 60cqh;
   --height-picker-art-landscape: calc(round(nearest, 100cqw * 9 / 16, 1px));
@@ -940,6 +941,7 @@
     --spacing-combobox-wrap-sm: max(var(--spacing-field), calc(var(--size-touch-target) - var(--size-control-sm) + 2 * var(--border-width-control) + 2 * var(--spacing-field)));
     --spacing-combobox-wrap-md: max(var(--spacing-field), calc(var(--size-touch-target) - var(--size-control-md) + 2 * var(--border-width-control) + 2 * var(--spacing-field)));
     --spacing-combobox-wrap-lg: max(var(--spacing-field), calc(var(--size-touch-target) - var(--size-control-lg) + 2 * var(--border-width-control) + 2 * var(--spacing-field)));
+    --spacing-avatar-reach: max(var(--spacing-field), calc((var(--size-touch-target) - var(--size-avatar-sm)) / 2));
     --size-name-row-min: calc(var(--size-glyph-lg) - 2 * var(--spacing-row));
   }
 }

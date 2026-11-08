@@ -10,7 +10,6 @@ import { CopyButton } from "@orb/ui/copy-button";
 import { FileTrigger } from "@orb/ui/file-trigger";
 import { Row, Stack } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
-import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
@@ -26,6 +25,7 @@ import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, toBundleBase64 } from "../lib/plugin-bundle.ts";
 import {
   builtAgainstLine,
+  enablePluginLabel,
   PLUGIN_DETAILS_LABEL,
   PLUGIN_ERROR_COPY_SUBJECT,
   PLUGIN_ERROR_SENTENCE,
@@ -66,15 +66,13 @@ function ShowInChatSwitch({ pluginId, pluginName }: { readonly pluginId: PluginI
     return null;
   }
   return (
-    <SettingRowGroup>
-      <SettingTrackRow>
-        <SettingSwitchRow
-          checked={!chatVisibility.isHidden(pluginId)}
-          label={showInChatLabel(pluginName)}
-          onChange={(shown): void => chatVisibility.setShown(pluginId, shown)}
-        />
-      </SettingTrackRow>
-    </SettingRowGroup>
+    <SettingTrackRow>
+      <SettingSwitchRow
+        checked={!chatVisibility.isHidden(pluginId)}
+        label={showInChatLabel(pluginName)}
+        onChange={(shown): void => chatVisibility.setShown(pluginId, shown)}
+      />
+    </SettingTrackRow>
   );
 }
 
@@ -149,15 +147,18 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
             <Stack className="min-inline-0" grow={true} gap="tight">
               <Row align="center" wrap={true} gap="field">
                 <Text voice="promoted">{plugin.name}</Text>
-                <Badge tone={status.tone} size="sm">
-                  {status.label}
-                </Badge>
+                {status.tone === "success" ? null : (
+                  // A plain "On" repeats the Enabled switch below; the badge speaks only for states the switch cannot (a warning, an error, a pending ask).
+                  <Badge tone={status.tone} size="sm">
+                    {status.label}
+                  </Badge>
+                )}
               </Row>
               {/* What the plugin is for, from its own manifest: the person approving needs it before the ask. */}
               <Text cap="prose" prose={true}>
                 {plugin.description}
               </Text>
-              <Text prose={true} voice="gloss">
+              <Text cap="prose" prose={true} voice="gloss">
                 Version {plugin.version}
                 {provenance === null ? "" : ` · ${provenance}`}
               </Text>
@@ -172,15 +173,6 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
               )}
             </Stack>
             <Row align="center" className="shrink-0" gap="field">
-              <Switch
-                // The label follows STATE: an enabled plugin's switch says what clicking DOES ("Turn … off").
-                // The static "Turn … on" told a screen reader (and a driving instrument — measured, it toggled
-                // a live plugin off) that the enabled plugin was off.
-                aria-label={plugin.status === "enabled" ? `Turn ${plugin.name} off` : `Turn ${plugin.name} on`}
-                checked={plugin.status === "enabled"}
-                disabled={setEnabled.isPending}
-                onCheckedChange={onEnabledChange}
-              />
               {/* The bundle upload and Remove both live in the overflow, so the cluster holds one update door
                   ("Check for updates" below, where the source can serve one) and the irreversible act cannot be
                   reached by a single click beside the toggle. The FileTrigger wraps the menu so its input stays
@@ -219,17 +211,28 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
           </Row>
         </Stack>
 
-        {/* Per user and in every room: the plugin's chat panels show by default and are hidden from the panel itself. */}
-        <ShowInChatSwitch pluginId={plugin.id} pluginName={plugin.name} />
+        {/* The card's switches share the settings track: Enabled, then (per user and in every room) the plugin's chat
+            panels, which show by default and are hidden from the panel itself. */}
+        <SettingRowGroup>
+          <SettingTrackRow>
+            <SettingSwitchRow
+              checked={plugin.status === "enabled"}
+              disabled={setEnabled.isPending}
+              label={enablePluginLabel(plugin.name, plugin.status === "enabled")}
+              onChange={onEnabledChange}
+            />
+          </SettingTrackRow>
+          <ShowInChatSwitch pluginId={plugin.id} pluginName={plugin.name} />
+        </SettingRowGroup>
 
         {upgrade.isPending ? (
-          <Text prose={true} role="status" voice="gloss">
+          <Text cap="prose" prose={true} role="status" voice="gloss">
             Installing the new bundle…
           </Text>
         ) : null}
 
         {uploadError === null ? null : (
-          <Text tone="destructive" prose={true} role="alert">
+          <Text tone="destructive" cap="prose" prose={true} role="alert">
             {uploadError}
           </Text>
         )}
@@ -296,7 +299,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                   <CollapsiblePanel>
                     <Stack paddingInlineStart="block">
                       {plugin.declaredCapabilities.length === 0 ? (
-                        <Text prose={true} voice="gloss">
+                        <Text cap="prose" prose={true} voice="gloss">
                           Nothing. It can run its own code and reach nothing else.
                         </Text>
                       ) : (

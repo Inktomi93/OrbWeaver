@@ -172,11 +172,7 @@ function ScheduleRow({
       stackActions={true}
       actions={
         <Row align="center" gap="row" wrap={true} cap="fit">
-          {schedule.mode === "bulk" ? (
-            <Badge tone="warning" variant="solid">
-              Bulk
-            </Badge>
-          ) : null}
+          {schedule.mode === "bulk" ? <Badge>Bulk</Badge> : null}
           <Switch aria-label={`Enable ${kindLabel} schedule`} checked={schedule.enabled} onCheckedChange={onToggle} />
           <Button variant="outline" size="sm" aria-label={`Edit ${kindLabel} schedule`} onClick={onEdit}>
             Edit

@@ -7,6 +7,7 @@ import { spawn } from "node:child_process";
 import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, installMacroGuest } from "@orb/testkit/node/composed";
+import { enablePluginLabel } from "#client/features/plugin/lib/plugin-copy.ts";
 import type { PluginMacroBrowserStory } from "./_plugin-macro-browser-stories.tsx";
 
 const STORY = "tests/client/features/plugin/components/_plugin-macro-browser-stories/PluginMacroBrowserStory";
@@ -75,9 +76,9 @@ test("a plugin turned off in its card leaves the browser, and turned back on ret
   await expect(macroName).toBeVisible();
 
   const card = page.getByRole("group", { name: `${PLUGIN_NAME} plugin`, exact: true });
-  await card.getByRole("switch", { name: `Turn ${PLUGIN_NAME} off`, exact: true }).click();
+  await card.getByRole("switch", { name: enablePluginLabel(PLUGIN_NAME, true), exact: true }).click();
   await expect(macroName).toHaveCount(0);
 
-  await card.getByRole("switch", { name: `Turn ${PLUGIN_NAME} on`, exact: true }).click();
+  await card.getByRole("switch", { name: enablePluginLabel(PLUGIN_NAME, false), exact: true }).click();
   await expect(macroName).toBeVisible();
 });

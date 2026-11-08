@@ -18,6 +18,7 @@ import { Button } from "@orb/ui/button";
 import { ChevronDown, ChevronLeft, ChevronRight, Crown, Icon, Lock } from "@orb/ui/icons";
 import { IndicatorDot } from "@orb/ui/indicator-dot";
 import { Corner, Row, Stack } from "@orb/ui/layout";
+import { scrollBehavior } from "@orb/ui/lib";
 import { Menu, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuTrigger } from "@orb/ui/menu";
 import { Tabs, TabsIndicator, TabsList, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
@@ -274,11 +275,18 @@ export function ContextHeaderTabs({
   );
 }
 
+// A tab chosen without focus (the overflow menu, a door from another menu) can sit under the fade and the overflow control;
+// the strip's scroll-padding clears the fade once the tab is scrolled to. A ref callback runs when a tab becomes the active one.
+function revealSelectedTab(node: HTMLButtonElement | null): void {
+  node?.scrollIntoView({ block: "nearest", inline: "nearest", behavior: scrollBehavior() });
+}
+
 function ContextTab({ tab, isActive }: { readonly tab: ResolvedContextTab; readonly isActive: boolean }): ReactElement {
   const locked = tab.disabledReason !== null;
   const count = typeof tab.badge === "number" ? tab.badge : 0;
   return (
     <TabsTab
+      ref={isActive ? revealSelectedTab : undefined}
       value={tab.id}
       id={cellDomId(tab.id)}
       // The lock is in the name (Base UI emits `aria-disabled="false"` here, so a glyph-only lock was

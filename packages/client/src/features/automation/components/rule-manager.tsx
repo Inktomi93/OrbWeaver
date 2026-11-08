@@ -127,7 +127,7 @@ export function RuleManager({ chatId, rules }: { readonly chatId: ChatId | null;
             }}
           >
             <Icon icon={Plus} size="sm" />
-            Custom rule
+            Write your own
           </Button>
           <RulePresetPicker chatId={chatId} />
         </Row>

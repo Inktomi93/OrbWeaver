@@ -239,7 +239,7 @@ export function RulePresetPicker({ chatId }: RulePresetPickerProps): ReactElemen
       {/* `modal` — this popover carries INPUT; the rule + its receipt live on `Popover` in @orb/ui's popover.tsx (#2444). */}
       <PopoverTrigger
         render={
-          <Button variant="outline" size="sm">
+          <Button size="sm">
             <Icon icon={Plus} size="sm" />
             Add a rule
           </Button>
