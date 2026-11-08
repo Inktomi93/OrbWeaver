@@ -49,7 +49,7 @@ The app's outbound firewall refuses private addresses until the owner admits the
 PRIVATE_ENDPOINT_ALLOWLIST=host.docker.internal
 ```
 
-`EGRESS_ALLOWLIST` is for other private hosts, such as a proxy or a webhook. The OIDC issuer host and the `FORWARD_AUTH_JWKS` URL host need no entry.
+`EGRESS_ALLOWLIST` is for other private hosts, such as a proxy or a webhook. It takes hosts and `host:port` entries. A bare host admits every port on it, and `host:port` admits only that port. When one host has both spellings, the `host:port` entries win. The OIDC issuer and the `FORWARD_AUTH_JWKS` URL need no entry: each admits its own host at its own port, and no other port on that host. If your identity provider serves the app on another port, add that `host:port` entry.
 
 ### Your own vLLM
 

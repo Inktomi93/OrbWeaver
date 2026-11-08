@@ -8,7 +8,8 @@ import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { CLIENT_ID, createNativeIssuer, ISSUER } from "@orb/testkit/node/helpers";
-import { errors } from "jose";
+import { errors, SignJWT } from "jose";
+import { z } from "zod";
 
 type Issuer = Awaited<ReturnType<typeof createNativeIssuer>>;
 
@@ -172,6 +173,70 @@ test("a key document with no key logs its own reason, not a fetch failure", asyn
   expect(await me(root, { "x-authentik-jwt": await token(operator, "empty-member", "empty-subject") })).toEqual(ANONYMOUS);
 
   expect(root.rings.logs.recent().join("\n")).toContain(`"reason":"${new errors.JWKSInvalid().code}"`);
+});
+
+// The security line for a token signed with a shared secret; it has no export to read, and this case pins it.
+const SHARED_SECRET_EVENT = "jwt_shared_secret_alg";
+const SHARED_SECRET_ALG = "HS256";
+const AUTHENTIK_USER = "x-authentik-username";
+const logLineSchema = z.object({ event: z.string().optional(), alg: z.string().optional() });
+
+/** A token the way a stock authentik proxy provider signs it: HS256 under the provider's client secret. */
+function sharedSecretToken(handle: string): Promise<string> {
+  // biome-ignore lint/style/useNamingConvention: preferred_username is the native signed issuer claim.
+  return new SignJWT({ preferred_username: handle, sub: `${handle}-subject` })
+    .setProtectedHeader({ alg: SHARED_SECRET_ALG })
+    .setIssuer(ISSUER)
+    .setAudience(CLIENT_ID)
+    .setExpirationTime("5m")
+    .sign(new TextEncoder().encode("the provider's client secret"));
+}
+
+/** Every forwarded-JWT security line the root logged, whichever step refused the token. */
+function jwtSecurityEvents(root: ServerTestHarness): readonly z.infer<typeof logLineSchema>[] {
+  return root.rings.logs
+    .recent()
+    .map((line) => logLineSchema.parse(JSON.parse(line)))
+    .filter((line) => line.event?.startsWith("jwt_") === true);
+}
+
+test.for<{ name: string; root: () => Promise<ServerTestHarness> }>([
+  {
+    name: "no key source",
+    root: () =>
+      createServerHarness({
+        env: { [AUTH_MODE_KEY]: "forward-header", [AUTH_FALLBACK_KEY]: "deny" },
+        logLevel: "debug",
+        physicalPeer: () => PUBLIC_PEER_ADDRESS,
+      }),
+  },
+  { name: "the operator's key source", root: async () => await rootFor(await createNativeIssuer(), await createNativeIssuer()) },
+])("a shared-secret token is refused under $name, and the log names the shared-secret signature", async ({ root: build }) => {
+  await using root = await build();
+  const jwt = await sharedSecretToken("stock-proxy-member");
+
+  expect(await me(root, { "x-authentik-jwt": jwt, [AUTHENTIK_USER]: "stock-proxy-member" })).toEqual(ANONYMOUS);
+
+  expect(jwtSecurityEvents(root)).toEqual([{ event: SHARED_SECRET_EVENT, alg: SHARED_SECRET_ALG }]);
+});
+
+test("the configuration the shared-secret refusal names admits the same request from the trusted proxy", async () => {
+  await using root = await createServerHarness({
+    env: {
+      [AUTH_MODE_KEY]: "forward-header",
+      [AUTH_FALLBACK_KEY]: "deny",
+      ["FORWARD_AUTH_VERIFY_JWT"]: "false",
+      [FORWARD_AUTH_TRUSTED_PROXIES_KEY]: `${PUBLIC_PEER_ADDRESS}/32`,
+    },
+    physicalPeer: () => PUBLIC_PEER_ADDRESS,
+  });
+  const jwt = await sharedSecretToken("stock-proxy-member");
+
+  expect(await me(root, { "x-authentik-jwt": jwt, [AUTHENTIK_USER]: "stock-proxy-member" })).toEqual({
+    authenticated: true,
+    handle: "stock-proxy-member",
+    role: "user",
+  });
 });
 
 test("a bad signature logs its own fixed reason and no token bytes", async () => {
