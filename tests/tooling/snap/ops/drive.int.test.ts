@@ -95,6 +95,31 @@ test("a failed first navigation stays failed even when a second document would s
   }
 });
 
+/** A cold stage: the client's own ceiling hands over `degraded`, then the late reads land and the marker upgrades. */
+const LATE_SETTLING_DOCUMENT =
+  '<!doctype html><html lang="en" data-app-ready="degraded"><body><main>cold</main><script>globalThis.__orb={queries:()=>[{k:1}]};' +
+  'setTimeout(()=>{document.documentElement.dataset.appReady="";},500);</script></body></html>';
+
+test("a cold first navigation that settles after the client's own ceiling is the settled app, on that one document", {
+  timeout: BROWSER_TIMEOUT_MS,
+}, async () => {
+  let documents = 0;
+  const server = createServer((_request, response) => {
+    documents += 1;
+    response.writeHead(200, { "content-type": "text/html; charset=utf-8" }).end(LATE_SETTLING_DOCUMENT);
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  bindBootedStage();
+  try {
+    expect(await driveOnce(["/", "--isolated"], `http://127.0.0.1:${String(listeningAddress(server).port)}`)).toBeNull();
+    expect(documents).toBe(1);
+    expect(takeStageOutcome()).toBeNull();
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+});
+
 const NOT_FOUND_DOCUMENT =
   '<!doctype html><html lang="en" data-app-ready=""><body><main data-app-failure="not-found">not found</main><script>globalThis.__orb={queries:()=>[]};</script></body></html>';
 

@@ -41,7 +41,7 @@ import { createAuditWiring, createDetachedSupervision, initTracing, wrapLibSqlCl
 import { versionIdentity } from "#foundation/version";
 import { createOwnerClaimCode, createPasswordHasher, oidcRedirectAllowlist } from "#infra/auth";
 import { bootSecretProvenance, keyfileReport, resolveCredentialsKey, resolveSessionSecret } from "#infra/crypto";
-import { drainHttpServer, installEgressFirewall, SHUTDOWN_DRAIN_MS, serveHttpServer, trustedProxiesOf } from "#infra/network";
+import { drainHttpServer, installEgressFirewall, SHUTDOWN_DRAIN_MS, SHUTDOWN_MESSAGES, serveHttpServer, trustedProxiesOf } from "#infra/network";
 import type { CloudflaredPin, RelayAssetFetch, SpawnRelay } from "#infra/relay";
 
 import { authConfigFromEnv, createHostPrincipalResolver } from "./auth/index.ts";
@@ -692,7 +692,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   async function drain(request: { readonly drainMs?: number }): Promise<void> {
     const httpDrainMs = request.drainMs ?? SHUTDOWN_DRAIN_MS;
     isShuttingDown = true;
-    log.info("shutdown: draining");
+    log.info(SHUTDOWN_MESSAGES.draining);
     let shareFailure: Error | undefined;
     if (sharing !== null) {
       const graph = sharing;
@@ -718,7 +718,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       // WHICH stage it was in, which is the whole reason the original report could not be diagnosed. The
       // bounded drain announces only its FORCED path (a warn); this is the quiet one. Measured 2026-09-19 on
       // an isolated prod instance: 12 ms idle, and exactly 10.001 s with one in-flight request.
-      log.info("shutdown: http drained");
+      log.info(SHUTDOWN_MESSAGES.httpDrained);
     }
     if (oidcLifetime !== null) {
       const oidc = oidcLifetime;
@@ -740,7 +740,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       closeLocalLight = null;
       // Bounded: a native ONNX run cannot be interrupted. A close that outlasts its wait is logged, and the
       // process exit then tears the worker down mid-run, which aborts the process (exit 134) after db housekeeping.
-      log.info("shutdown: closing the service graph");
+      log.info(SHUTDOWN_MESSAGES.closingServices);
       await close();
     }
     if (db !== null) {
@@ -753,11 +753,11 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       // bounded planner refresh + `wal_checkpoint(TRUNCATE)` (`@orb/db`'s `preCloseHousekeeping`), whose cost is a
       // function of the db, not of a timeout we control. Announced before the await for the same reason as
       // the worker join: a shutdown that stalls here must say so rather than look identical to a wedge.
-      log.info("shutdown: db housekeeping");
+      log.info(SHUTDOWN_MESSAGES.dbHousekeeping);
       await preCloseHousekeeping(db);
       db = null;
     }
-    log.info("shutdown: complete");
+    log.info(SHUTDOWN_MESSAGES.complete);
     if (shareFailure !== undefined) {
       throw shareFailure;
     }

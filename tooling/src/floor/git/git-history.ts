@@ -1,13 +1,12 @@
 // Git owns filename transitions; consumers own allocation and admission rules over these facts.
 import { lstatSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
-import { budget } from "../host/load-budget.ts";
+import { budgets } from "../host/load-budget.ts";
 import { GIT_READ_PREFIX, runGit } from "./git.ts";
 import type { GitPathHistory, GitPathHistoryRequest, GitPathHistoryResult } from "./git-history-contract.ts";
 
 const COMMIT_ID = /^[0-9a-f]{40,64}$/u;
-const TIMEOUT_BASE_MS = 30_000;
-const TIMEOUT_MS = budget(TIMEOUT_BASE_MS);
+const CEILINGS_MS = budgets({ timeout: 30_000 });
 const MAX_BYTES = 16_777_216;
 
 function paths(source: string): readonly string[] {
@@ -35,13 +34,13 @@ function changes(source: string): { readonly added: readonly string[]; readonly 
 /** Read complete native Git history without consulting branch-name baselines or modifying the repository. */
 export function readGitPathHistory(root: string, request: GitPathHistoryRequest): GitPathHistoryResult {
   const read = (args: readonly string[]): string => {
-    const result = runGit(root, [...GIT_READ_PREFIX, ...args], { timeout: TIMEOUT_MS, maxBuffer: MAX_BYTES });
+    const result = runGit(root, [...GIT_READ_PREFIX, ...args], { timeout: CEILINGS_MS.timeout, maxBuffer: MAX_BYTES });
     if (result.status !== 0) {
       throw new Error(`Git filename history cannot resolve ${args[0] ?? "command"}: ${result.stderr.trim()}`);
     }
     return result.stdout;
   };
-  const repository = runGit(root, [...GIT_READ_PREFIX, "rev-parse", "--git-dir"], { timeout: TIMEOUT_MS, maxBuffer: MAX_BYTES });
+  const repository = runGit(root, [...GIT_READ_PREFIX, "rev-parse", "--git-dir"], { timeout: CEILINGS_MS.timeout, maxBuffer: MAX_BYTES });
   try {
     if (repository.status !== 0) {
       if (hasGitWorktreeIdentity(root)) {
@@ -52,7 +51,7 @@ export function readGitPathHistory(root: string, request: GitPathHistoryRequest)
     if (read(["rev-parse", "--is-shallow-repository"]).trim() !== "false") {
       throw new Error("Git filename history requires complete, non-shallow history");
     }
-    const headResult = runGit(root, [...GIT_READ_PREFIX, "rev-parse", "--verify", "HEAD^{commit}"], { timeout: TIMEOUT_MS, maxBuffer: MAX_BYTES });
+    const headResult = runGit(root, [...GIT_READ_PREFIX, "rev-parse", "--verify", "HEAD^{commit}"], { timeout: CEILINGS_MS.timeout, maxBuffer: MAX_BYTES });
     const head = headResult.status === 0 ? headResult.stdout.trim() : null;
     if (head !== null && !COMMIT_ID.test(head)) {
       throw new Error("Git filename history has malformed HEAD identity");

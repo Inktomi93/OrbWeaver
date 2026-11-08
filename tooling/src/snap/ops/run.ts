@@ -17,6 +17,7 @@ import type { ArmPairInput, ArmRunContext } from "../contract/arms.ts";
 import type { EvidenceWindow, SessionRunHooks, SessionRunTarget, SnapDetailedPlan, SnapDetailedResult } from "../contract/run.ts";
 import { snapExitCode, snapExitState } from "../contract/run-facts.ts";
 import type { Args, CaptureOutcome, ReportCtx, ShotPlan } from "../contract/types.ts";
+import { diskSafeUrl } from "../lib/disk-safe-argv.ts";
 import { pageOut, shouldProduceShot } from "../lib/out-names.ts";
 import { ratePostureResultPairs } from "../lib/rate-posture.ts";
 import { throttleResultValue } from "../lib/throttle.ts";
@@ -202,7 +203,7 @@ export async function runOnSession(session: ProbeSession, opts: Args, target: Se
     const artifacts = await hooks.finish(red);
     const manifestInput = {
       status: red ? "fail" : "pass",
-      target: { url, name },
+      target: { url: diskSafeUrl(url), name },
       environment: {
         viewport: opts.viewport,
         device: opts.device,

@@ -85,8 +85,8 @@ function bandCensus(
   const rows = readBands(markerRoot(root));
   // `targetSha: null` — the status read arbitrates nothing, so no row is a shared-reuse candidate and no
   // health probe is taken. A visibility read must never spawn a served-probe child per band.
-  const views = stageBandViews({ rows, root, checkout: root, targetSha: null, nowMs });
   const bound = socketTableOrThrow(listeningPids());
+  const views = stageBandViews({ rows, root, checkout: root, targetSha: null, nowMs, bound });
   const verdicts = new Map<number, StageSweepVerdict>();
   for (const view of views) {
     const ports = stageBandPorts(view.band);

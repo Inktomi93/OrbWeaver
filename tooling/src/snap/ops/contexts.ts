@@ -15,6 +15,7 @@ import type { ArmPairInput, ArmRunContext } from "../contract/arms.ts";
 import type { FixtureTarget } from "../contract/fixture.ts";
 import { snapExitCode, snapExitState } from "../contract/run-facts.ts";
 import type { Args, CaptureOutcome, ReportCtx, ShotPlan } from "../contract/types.ts";
+import { diskSafeUrl } from "../lib/disk-safe-argv.ts";
 import { contextOut, shouldProduceShot } from "../lib/out-names.ts";
 import type { SnapRatePosture } from "../lib/rate-posture.ts";
 import { ratePostureResultPairs } from "../lib/rate-posture.ts";
@@ -255,7 +256,7 @@ async function runOwnedContexts(session: ProbeSession, opts: Args, users: readon
   await writePageArmEvidence(pairInput);
   const manifestPath = await writeManifestIfRequested(opts, name, {
     status: red ? "fail" : "pass",
-    target: { url, name },
+    target: { url: diskSafeUrl(url), name },
     environment: {
       viewport: opts.viewport,
       device: opts.device,

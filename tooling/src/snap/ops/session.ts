@@ -17,6 +17,7 @@ import { prepareDevToolsCascadeRuntime } from "../../floor/devtools/devtools-run
 import type { AppliedLoadEmulation, NetworkProfileName } from "../contract/load-emulation.ts";
 import type { FailureArtifacts } from "../contract/run.ts";
 import type { Args } from "../contract/types.ts";
+import { revealBasicCredentials } from "../lib/disk-safe-argv.ts";
 import { writeNetworkHar } from "../lib/network-har.ts";
 import { stopTraceToFile } from "../lib/private-values.ts";
 import { NETWORK_PROFILES, NO_CPU_THROTTLE } from "../lib/throttle.ts";
@@ -247,6 +248,8 @@ function buildLaunchOptions(opts: Args, profile: LaunchProfile): ProbeLaunchOpti
     ...scaleLaunchOverride(opts),
     trace: opts.failureEvidence,
     ...(opts.visitor ? { extraHTTPHeaders: VISITOR_RELAY_HEADERS } : {}),
+    // Scoped to the base origin: Playwright otherwise answers a basic-auth challenge from any origin the page loads.
+    ...(opts.baseCredentials === null ? {} : { httpCredentials: { ...revealBasicCredentials(opts.baseCredentials), origin: new URL(opts.base).origin } }),
     ...(persistent === null ? {} : { persistentProfileDir: persistent.profileDir, browserArgs: persistent.browserArgs }),
   };
 }
@@ -381,8 +384,8 @@ interface LoadEmulationCdp {
   send(method: string, params: object): Promise<unknown>;
 }
 
-/** The contexts the load arm sends through; a {@link ProbeSession} satisfies it, and so does a recording stand-in. */
-export interface LoadEmulationTarget<P> {
+// The contexts the load arm sends through; a ProbeSession satisfies it, and so does a recording stand-in.
+interface LoadEmulationTarget<P> {
   readonly contexts: readonly {
     readonly context: { readonly pages: () => readonly P[]; readonly newCDPSession: (page: P) => Promise<LoadEmulationCdp> };
   }[];

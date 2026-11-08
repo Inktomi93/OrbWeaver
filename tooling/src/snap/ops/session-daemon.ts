@@ -28,7 +28,7 @@ import type { DiskSafeArgv } from "../contract/disk-safe-argv.ts";
 import type { SessionRow } from "../contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";
-import { diskSafeArgv } from "../lib/disk-safe-argv.ts";
+import { diskSafeArgv, diskSafeUrl } from "../lib/disk-safe-argv.ts";
 import { currentSnapStageProvenance } from "../lib/run-provenance.ts";
 import { SESSION_INSTRUMENT, sessionSocketPath } from "../lib/session-plan.ts";
 import { sessionCapRefusal } from "../lib/session-refusals.ts";
@@ -49,9 +49,9 @@ refuseDirectInvocation(import.meta.url, "pnpm snap --session <name> <route>");
 
 function bindingOf(bootArgs: Args): SessionRow["binding"] {
   if (bootArgs.file !== null) {
-    return { kind: "file", url: snapDestination(bootArgs).url };
+    return { kind: "file", url: diskSafeUrl(snapDestination(bootArgs).url) };
   }
-  return { kind: bootArgs.isolated ? "stage" : "base", url: bootArgs.base };
+  return { kind: bootArgs.isolated ? "stage" : "base", url: diskSafeUrl(bootArgs.base) };
 }
 
 export function sessionEnvironmentOf(bootArgs: Args): SessionRow["environment"] {

@@ -361,6 +361,7 @@ export function parseSnapArgs(
     sseSeconds: 0,
     base: DEFAULT_BASE,
     debugToken: privateText(DEFAULT_DEBUG_TOKEN),
+    baseCredentials: null,
     actions: [],
     pages: 1,
     contexts: 1,

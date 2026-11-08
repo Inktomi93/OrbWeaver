@@ -12,6 +12,9 @@ export type DiskSafeArgv = readonly string[] & { readonly [diskSafe]: "argv" };
 /** A session op: one line naming a request, built from masked arguments. */
 export type DiskSafeOp = string & { readonly [diskSafe]: "op" };
 
+/** A URL with its userinfo and every sensitive query value masked. */
+export type DiskSafeUrl = string & { readonly [diskSafe]: "url" };
+
 /** Text read back from a page or the browser, with every revealed private value replaced. */
 export type DiskSafeText = string & { readonly [diskSafe]: "text" };
 

@@ -7,7 +7,7 @@
 import type { ProbeAttachOptions } from "../../floor/browser/browser-contract.ts";
 import type { OrbConsoleCompletenessSummary } from "../../floor/browser/browser-diagnostics.ts";
 import type { Viewport } from "../../floor/instrument/argv.ts";
-import type { DiskSafeArgv, DiskSafeOp } from "./disk-safe-argv.ts";
+import type { DiskSafeArgv, DiskSafeOp, DiskSafeUrl } from "./disk-safe-argv.ts";
 import type { SnapRunFactBatch } from "./run-facts.ts";
 import type { StageBoundIdentity } from "./stage.ts";
 
@@ -17,7 +17,7 @@ export const SESSION_PROTOCOL_VERSION = 1;
  *  the unchanged `ensureStage`; per-lane bands are phase 2 (§3.6). */
 export interface SessionBinding {
   readonly kind: "base" | "file" | "stage";
-  readonly url: string;
+  readonly url: DiskSafeUrl;
 }
 
 /** The exact session evidence interval an adopted client run belongs to. The daemon owns these counters

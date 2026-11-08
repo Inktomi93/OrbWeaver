@@ -18,6 +18,7 @@ import type { AppearanceInvariantResult } from "../contract/appearance-invariant
 import type { DiskSafeBrowserPageError, DiskSafeLimitReceipt } from "../contract/browser-evidence-redaction.ts";
 import type { CoreCapturePopulations } from "../contract/core-capture.ts";
 import { CORE_CAPTURE_BASIS } from "../contract/core-capture.ts";
+import type { DiskSafeUrl } from "../contract/disk-safe-argv.ts";
 import type { Args, CaptureOutcome, DriveFailure, WatchTick } from "../contract/types.ts";
 import type { SnapFailureSummary } from "../contract/verdict.ts";
 import {
@@ -33,7 +34,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 interface SnapManifest {
   readonly schemaVersion: 1;
   readonly status: "pass" | "fail";
-  readonly target: { readonly url: string; readonly name: string };
+  readonly target: { readonly url: DiskSafeUrl; readonly name: string };
   readonly environment: {
     readonly viewport: Viewport;
     readonly device: string | null;

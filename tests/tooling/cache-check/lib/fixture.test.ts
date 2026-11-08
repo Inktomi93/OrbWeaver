@@ -1,7 +1,8 @@
 import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import type { CacheCase, CasePlan, ProbeStep } from "@orb/tooling/cache-check";
-import { CACHE_CASES, CASE_PLANS, judgedReplies, plannedReplies, ROOM_KINDS, ROOMS, roomRuns } from "@orb/tooling/cache-check";
+import { CACHE_CASES, CASE_PLANS, ROOM_KINDS, ROOMS, roomRuns } from "@orb/tooling/cache-check";
+import { judgedReplies, plannedReplies } from "../../../../tooling/src/cache-check/contract/plan.ts";
 
 // How many judged calls a step contributes: the same reading ops/drive.ts applies to the replies a turn returns.
 function measuredCalls(step: ProbeStep): number {

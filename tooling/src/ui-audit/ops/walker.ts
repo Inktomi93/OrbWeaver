@@ -30,7 +30,7 @@
 // triage, the divergences, and the license statement.
 
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import { CENSUS_OBSERVE_CEILING_MS, CENSUS_OBSERVE_MIN_MS, CENSUS_SETTLE_POLL_MS } from "../lib/budgets.ts";
+import { CENSUS_OBSERVE_MIN_MS, CENSUS_SETTLE_POLL_MS, UI_AUDIT_CEILINGS_MS } from "../lib/budgets.ts";
 import { WALKER_ACCESSIBLE_NAME } from "./walker/accessible-name.ts";
 import { WALKER_CENSUS_ACCENT } from "./walker/census-accent.ts";
 import { WALKER_CENSUS_BORDER } from "./walker/census-border.ts";
@@ -91,7 +91,7 @@ ${WALKER_MUTATION_CARRIES}  var preWalkObserver = new MutationObserver(function 
   var preWalkLatest = document.getElementsByTagName("*").length;
   var preWalkLastRevision = preWalkRevision;
   var preWalkHeld = false;
-  while (Date.now() - preWalkStarted < ${CENSUS_OBSERVE_CEILING_MS}) {
+  while (Date.now() - preWalkStarted < ${UI_AUDIT_CEILINGS_MS.censusObserve}) {
     await new Promise(function (resolve) { setTimeout(resolve, ${CENSUS_SETTLE_POLL_MS}); });
     var preWalkCurrent = document.getElementsByTagName("*").length;
     preWalkHeld = preWalkCurrent === preWalkLatest && preWalkRevision === preWalkLastRevision;

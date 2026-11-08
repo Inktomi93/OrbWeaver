@@ -9,6 +9,7 @@ import { settle } from "../../floor/browser/browser.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { Args, DriveFailure } from "../contract/types.ts";
 import { MOUNT_SETTLE_MS, SNAP_CEILINGS_MS } from "../lib/budgets.ts";
+import { noteUrlSecrets } from "../lib/disk-safe-argv.ts";
 import { READ_FAILURE_SURFACE_JS } from "../lib/failure-surface.ts";
 import { scrubPrivateText } from "../lib/private-values.ts";
 import { markStageSettled, markStageUnsettled } from "../lib/stage-run-binding.ts";
@@ -41,6 +42,7 @@ async function everReadAnything(page: Page): Promise<boolean | null> {
 }
 
 async function appReadiness(page: Page, timeoutMs: number): Promise<AppReadiness> {
+  const deadline = Date.now() + timeoutMs;
   const flag = page.locator("html[data-app-ready]");
   // a failed wait converts to attached=false and appReadiness returns absent; navigate maps absent to UNSETTLED_REASON and returns it as navError, which capture.ts stores in outcome.navError for verdict.ts and report.ts. Ends if absent stops mapping to a navError.
   const attached = await flag
@@ -60,7 +62,17 @@ async function appReadiness(page: Page, timeoutMs: number): Promise<AppReadiness
   if (failureKind === NOT_FOUND_FAILURE_KIND) {
     return "notFound";
   }
-  if ((await flag.getAttribute("data-app-ready")) === "degraded") {
+  // The client hands over `degraded` at its own ceiling and upgrades the marker when the late reads land. A cold
+  // stage's on-demand transforms cross that ceiling, so the drive judges the marker at the end of its own budget.
+  // a failed wait converts to false and appReadiness returns degraded, which navigate reports as navError. Ends if degraded stops mapping to a navError.
+  if (
+    (await flag.getAttribute("data-app-ready")) === "degraded" &&
+    !(await page
+      .locator('html[data-app-ready=""]')
+      .waitFor({ state: "attached", timeout: Math.max(1, deadline - Date.now()) })
+      .then(() => true)
+      .catch(() => false))
+  ) {
     return "degraded";
   }
   return (await everReadAnything(page)) === false ? "dataless" : "settled";
@@ -71,7 +83,7 @@ const UNSETTLED_REASON: Record<Exclude<AppReadiness, "settled">, string> = {
   absent:
     "app never signalled data-app-ready — the capture is MID-HYDRATION, not the settled app. This first navigation failed; inspect its browser evidence and preserved stack log.",
   degraded:
-    "data-app-ready came up DEGRADED — reads were still in flight at the client's own readiness ceiling, so the capture is mid-hydration, not the settled app. This first navigation failed; inspect its browser evidence and preserved stack log.",
+    "data-app-ready came up DEGRADED and did not settle within the drive's readiness budget — reads were still in flight, so the capture is mid-hydration, not the settled app. This first navigation failed; inspect its browser evidence and preserved stack log.",
   dataless:
     "data-app-ready came up settled but the query cache is EMPTY — the app never reached its data layer, so this capture is a boot placeholder, not the app. This first navigation failed; inspect its browser evidence and preserved stack log.",
   notFound:
@@ -92,6 +104,7 @@ export async function navigate(page: Page, opts: Args, url: string, failures?: D
   // lib/throttle.ts driveBudgets for why a throttled run cannot be held to the un-throttled budget.
   const budgets = driveBudgets({ isolated: opts.isolated, cpuRate: opts.cpuThrottle, network: opts.network });
   const navTimeout = budgets.nav;
+  noteUrlSecrets(url);
   const resp = opts.coldStart
     ? await awaitDevClientReady(page, url, Date.now() + SNAP_CEILINGS_MS.coldStartReady)
     : await page.goto(url, { waitUntil: "domcontentloaded", timeout: navTimeout });

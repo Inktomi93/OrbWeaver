@@ -12,6 +12,7 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import type { StageRow } from "../contract/stage.ts";
 import type { Args } from "../contract/types.ts";
+import { diskSafeUrl } from "../lib/disk-safe-argv.ts";
 import { registerSnapStageProvenance } from "../lib/run-provenance.ts";
 import { stageRowBaseUrl } from "../lib/stage-plan.ts";
 import { ensureStage } from "./stage.ts";
@@ -99,7 +100,7 @@ function registerLiveProvenance(opts: Args): void {
     ownerCheckout: null,
     band: null,
     ref: null,
-    binding: opts.file === null ? { kind: "base", url: opts.base } : { kind: "file", url: snapDestination(opts).url },
+    binding: opts.file === null ? { kind: "base", url: diskSafeUrl(opts.base) } : { kind: "file", url: diskSafeUrl(snapDestination(opts).url) },
     failure: null,
   });
 }
@@ -132,7 +133,7 @@ export function configureStage(opts: Args): number | null {
         ownerCheckout: stage.checkout,
         band: stage.band,
         ref: stage.sha,
-        binding: { kind: "stage", url: opts.base },
+        binding: { kind: "stage", url: diskSafeUrl(opts.base) },
         failure: null,
       });
     } catch (e) {

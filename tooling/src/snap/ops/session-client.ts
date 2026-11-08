@@ -23,10 +23,8 @@ import type { SessionEvent, SessionRequest, SessionRequestKind, SessionRow } fro
 import { SESSION_PROTOCOL_VERSION } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";
 import {
-  SESSION_BOOT_TIMEOUT_MS,
-  SESSION_CALL_SILENCE_MS,
+  SESSION_CEILINGS_MS,
   SESSION_INSTRUMENT,
-  SESSION_PING_SILENCE_MS,
   SESSION_READY_POLL_MS,
   sessionAccess,
   sessionLogPath,
@@ -55,7 +53,7 @@ const SNAP_CLI = fileURLToPath(new URL("../cli.ts", import.meta.url));
  *
  *  `silenceMs` is REQUIRED (#1508). This door had no clock at all: a daemon that ACCEPTED the connection
  *  and then wrote nothing held its caller forever — including `pingOk`, which the boot poll awaits
- *  unwrapped, so `SESSION_BOOT_TIMEOUT_MS` was checked only after a wait that never ended and the boot
+ *  unwrapped, so `SESSION_CEILINGS_MS.boot` was checked only after a wait that never ended and the boot
  *  ceiling was unreachable. It bounds SILENCE, not duration: every event restarts the clock, so a
  *  long-running call is never cut off while the daemon is still talking. Required rather than defaulted
  *  because a handshake and a browser-driving call are two different silences (`session-plan.ts`). */
@@ -136,7 +134,7 @@ async function pingOk(socketPath: string, root: string): Promise<boolean> {
   };
   // a refused or silent socket is a false ping; bootSession keeps polling until the daemon exits (session-client.ts:226) or the budget prints SESSION BOOT FAILED and returns EXIT.toolError (:234). Ends if the poll stops being bounded.
   try {
-    return (await sessionRequest(socketPath, ping, () => undefined, SESSION_PING_SILENCE_MS)) === EXIT.clean;
+    return (await sessionRequest(socketPath, ping, () => undefined, SESSION_CEILINGS_MS.pingSilence)) === EXIT.clean;
   } catch {
     return false;
   }
@@ -175,7 +173,7 @@ interface SessionCallContext {
  *  box's wait, not its boot, and the pool's own ceiling bounds it, so the budget pauses while it queues. */
 function bootBudget(daemonPid: number | undefined): () => boolean {
   const pool = ctHostSlotPool("");
-  let deadline = Date.now() + SESSION_BOOT_TIMEOUT_MS;
+  let deadline = Date.now() + SESSION_CEILINGS_MS.boot;
   let polledAt = Date.now();
   return (): boolean => {
     const now = Date.now();
@@ -238,7 +236,7 @@ async function bootSession(opts: Args, ctx: SessionCallContext): Promise<number 
       }
       if (bootExpired()) {
         child.killGroup("SIGKILL");
-        print(`SESSION BOOT FAILED  ${name} did not answer within ${SESSION_BOOT_TIMEOUT_MS}ms — its log is above (${logPath})`);
+        print(`SESSION BOOT FAILED  ${name} did not answer within ${SESSION_CEILINGS_MS.boot}ms — its log is above (${logPath})`);
         return EXIT.toolError;
       }
       await sleep(SESSION_READY_POLL_MS);
@@ -293,7 +291,7 @@ async function forwardRequest(kind: SessionRequestKind, ctx: SessionCallContext,
         }
         printEvent(event);
       },
-      SESSION_CALL_SILENCE_MS,
+      SESSION_CEILINGS_MS.callSilence,
     );
   } catch (error) {
     const row = readRow(home, name);

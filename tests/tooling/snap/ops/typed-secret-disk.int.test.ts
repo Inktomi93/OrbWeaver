@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { pid } from "node:process";
 import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { DEDICATED_BOX_ENV } from "@orb/tooling/floor/host/concurrency-profile";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
 import { unzipSync, zipSync } from "fflate";
@@ -389,6 +390,198 @@ test("a value read from the environment reaches the field and no argument or fil
   const unset = await runCli("snap", ["--file", fixture, "--fill-env", "#field=L4_UNSET_VARIABLE"], { timeoutMs: CLI_BUDGET_MS });
   expect(unset.code).not.toBe(0);
   expect(unset.stdout).toContain("--fill-env names L4_UNSET_VARIABLE");
+});
+
+const BASE_USER = "canary";
+const BASE_PLANTS = { password: "plant-base-pass-6d1f", token: "plant-base-token-2b8e" } as const;
+const BASE_CREDENTIALS_ENV = "L4_BASE_CREDENTIALS";
+/** What the browser sends a basic-auth gate: the pair, base64, as the standard library spells it. */
+const BASE_AUTHORIZATION = `Basic ${Buffer.from(`${BASE_USER}:${BASE_PLANTS.password}`).toString("base64")}`;
+const BASE_SPELLINGS = [BASE_PLANTS.password, BASE_PLANTS.token, BASE_AUTHORIZATION.slice("Basic ".length)] as const;
+
+/** A loopback peer behind a basic-auth gate, the reason an operator hands snap credentials for a base. Its page can
+ *  embed an image from another origin, which a scoped credential must never answer. */
+async function gatedServer(embeddedOrigin?: string): Promise<AsyncDisposable & { readonly origin: string; readonly admitted: () => number }> {
+  let admitted = 0;
+  const page = embeddedOrigin === undefined ? FIXTURE_HTML : FIXTURE_HTML.replace("</main>", `<img alt="" src="${embeddedOrigin}/pixel.png"></main>`);
+  const server = createServer((request, response) => {
+    if (request.headers.authorization !== BASE_AUTHORIZATION) {
+      response.writeHead(401, { "www-authenticate": 'Basic realm="gate"' }).end();
+      return;
+    }
+    admitted += 1;
+    response.writeHead(200, { "content-type": "text/html" }).end(page);
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  return {
+    origin: `http://127.0.0.1:${String(listeningAddress(server).port)}`,
+    admitted: () => admitted,
+    [Symbol.asyncDispose]: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  };
+}
+
+/** A second origin that asks every request for basic auth and records what each one carried. */
+async function challengingServer(): Promise<
+  AsyncDisposable & { readonly origin: string; readonly requests: () => number; readonly authorizations: () => readonly string[] }
+> {
+  let requests = 0;
+  const authorizations: string[] = [];
+  const server = createServer((request, response) => {
+    requests += 1;
+    if (request.headers.authorization !== undefined) {
+      authorizations.push(request.headers.authorization);
+    }
+    response.writeHead(401, { "www-authenticate": 'Basic realm="other"' }).end();
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  return {
+    origin: `http://127.0.0.1:${String(listeningAddress(server).port)}`,
+    requests: () => requests,
+    authorizations: () => authorizations,
+    [Symbol.asyncDispose]: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  };
+}
+
+/** A loopback port nothing listens on: bound, read and released, so a navigation to it is refused. */
+async function deadOrigin(): Promise<string> {
+  const server = createServer();
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = listeningAddress(server);
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+  return `http://127.0.0.1:${String(port)}`;
+}
+
+/** Every file under `roots` holding a base credential, by name or by bytes, a zip read entry by entry. */
+function baseDisclosures(roots: readonly string[]): readonly string[] {
+  const found: string[] = [];
+  const judge = (label: string, text: string): void => {
+    found.push(...BASE_SPELLINGS.filter((spelling) => text.includes(spelling)).map((spelling) => `${label} holds ${spelling}`));
+  };
+  for (const path of roots.flatMap(filesUnder)) {
+    const bytes = readFileSync(path);
+    judge(`the name ${path}`, path);
+    judge(path, bytes.toString("latin1"));
+    if (path.endsWith(".zip")) {
+      for (const [entry, content] of Object.entries(unzipSync(bytes))) {
+        judge(`${path}!${entry}`, `${entry} ${Buffer.from(content).toString("latin1")}`);
+      }
+    }
+  }
+  return found;
+}
+
+function linesHolding(run: { readonly stdout: string; readonly stderr: string }): readonly string[] {
+  return BASE_SPELLINGS.filter((spelling) => run.stdout.includes(spelling) || run.stderr.includes(spelling));
+}
+
+test.for([
+  ["--base", "--base-credentials-env"],
+  ["--fixture-base", "takes no credentials"],
+  ["--fixture-server", "takes no credentials"],
+] as const)("%s refuses a URL that carries user:password, names the remedy, and echoes no part of it", async ([flag, remedy], { runCli }) => {
+  const run = await runCli("snap", [flag, `http://${BASE_USER}:${BASE_PLANTS.password}@127.0.0.1:1/?token=${BASE_PLANTS.token}`, "/", "--no-shot"], {
+    timeoutMs: CLI_BUDGET_MS,
+  });
+  expect(run.code).toBe(EXIT.misuse);
+  expect(run.stdout).toContain(`ARG ERROR    ${flag} carries user:password credentials`);
+  expect(run.stdout).toContain(remedy);
+  expect(linesHolding(run)).toEqual([]);
+});
+
+test("environment credentials answer only the base origin, never another origin its page loads", async ({ runCli }) => {
+  await using other = await challengingServer();
+  await using peer = await gatedServer(other.origin);
+  const run = await runCli("snap", ["--base", peer.origin, "--base-credentials-env", BASE_CREDENTIALS_ENV, "/", "--wait-for", "img", "--no-shot"], {
+    timeoutMs: CLI_BUDGET_MS,
+    env: { [BASE_CREDENTIALS_ENV]: `${BASE_USER}:${BASE_PLANTS.password}` },
+  });
+  // The positive controls: the base origin authenticated, and the other origin was really asked and challenged.
+  expect(peer.admitted()).toBeGreaterThan(0);
+  expect(other.requests()).toBeGreaterThan(0);
+  expect(other.authorizations()).toEqual([]);
+  expect(linesHolding(run)).toEqual([]);
+});
+
+test("credentials read from the environment open the gate, and no file, log or line holds them", async ({ runCli }) => {
+  await using peer = await gatedServer();
+  const run = await runCli(
+    "snap",
+    [
+      "--base",
+      `${peer.origin}/?token=${BASE_PLANTS.token}`,
+      "--base-credentials-env",
+      BASE_CREDENTIALS_ENV,
+      "/",
+      "--requests",
+      "--json",
+      "--expect-text",
+      ASSERT_FAILS,
+      "--no-shot",
+    ],
+    { timeoutMs: CLI_BUDGET_MS, env: { [BASE_CREDENTIALS_ENV]: `${BASE_USER}:${BASE_PLANTS.password}` } },
+  );
+  // The positive control: the browser presented the credentials and the gate let the page through.
+  expect(peer.admitted()).toBeGreaterThan(0);
+  expect(run.code).not.toBe(0);
+  expect(linesHolding(run)).toEqual([]);
+  const slot = slotOf(run.stdout);
+  expect(baseDisclosures([slot])).toEqual([]);
+  const index = JSON.parse(readFileSync(join(slot, "run.json"), "utf8")) as { readonly process: { readonly argv: readonly string[] } };
+  expect(index.process.argv).toEqual(expect.arrayContaining(["--base-credentials-env", BASE_CREDENTIALS_ENV, `${peer.origin}/?token=${PRIVATE_MASK}`]));
+  expect(keptTrace(slot)).toContain(PRIVATE_MASK);
+});
+
+test("a token-bearing --base that cannot connect keeps the token out of the nav error and the manifest", async ({ runCli }) => {
+  const origin = await deadOrigin();
+  const run = await runCli("snap", ["--base", `${origin}/?token=${BASE_PLANTS.token}`, "/", "--json", "--no-shot"], { timeoutMs: CLI_BUDGET_MS });
+  expect(run.code).not.toBe(0);
+  // The positive control: the refused navigation is reported, with the URL it tried and the token masked.
+  expect(run.stdout).toContain("NAV ERROR");
+  expect(run.stdout).toContain(`token=${PRIVATE_MASK}`);
+  expect(linesHolding(run)).toEqual([]);
+  expect(baseDisclosures([slotOf(run.stdout)])).toEqual([]);
+});
+
+test("a session booted with environment credentials keeps them and its token out of its row, log and slots", async ({ runCli, scratch }) => {
+  await using peer = await gatedServer();
+  const home = join(scratch, "registry");
+  mkdirSync(home);
+  const env = {
+    [SESSION_HOME_KEY]: home,
+    [HOST_POOL_ROOT_ENV]: join(scratch, "host-slots"),
+    [DEDICATED_BOX_ENV]: "0",
+    [BASE_CREDENTIALS_ENV]: `${BASE_USER}:${BASE_PLANTS.password}`,
+  };
+  const snap = (args: readonly string[]): ReturnType<typeof runCli> => runCli("snap", args, { env, timeoutMs: CLI_BUDGET_MS });
+  const name = `gated-base-${pid}`;
+  try {
+    const boot = await snap([
+      "--session",
+      name,
+      "--base",
+      `${peer.origin}/?token=${BASE_PLANTS.token}`,
+      "--base-credentials-env",
+      BASE_CREDENTIALS_ENV,
+      "/",
+      "--no-shot",
+    ]);
+    expect(boot.code).toBe(0);
+    expect(peer.admitted()).toBeGreaterThan(0);
+    // A call with no route names its artifacts after the live page, whose URL carries the token.
+    const routeless = await snap(["--session", name, "--text", "--no-shot"]);
+    expect(routeless.code).toBe(0);
+    const status = await snap(["--session-status", name]);
+    expect(status.stdout).toContain(`token=${PRIVATE_MASK}`);
+    expect([...linesHolding(boot), ...linesHolding(routeless), ...linesHolding(status)]).toEqual([]);
+    expect(existsSync(join(home, `${name}.log`))).toBe(true);
+    // The positive control: the routeless call wrote named artifacts, so the name scan below has files to read.
+    expect(filesUnder(slotOf(routeless.stdout)).length).toBeGreaterThan(1);
+    expect(baseDisclosures([home, slotOf(boot.stdout), slotOf(routeless.stdout)])).toEqual([]);
+  } finally {
+    await snap(["--session-close", name]);
+    await snap(["--session-sweep"]);
+  }
+  expect(baseDisclosures([home])).toEqual([]);
 });
 
 test("a session keeps boot and call values out of its row, log, slots and export", async ({ runCli, scratch }) => {

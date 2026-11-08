@@ -18,7 +18,7 @@
 
 import { readFileSync } from "node:fs";
 import { relative } from "node:path";
-import { budget } from "@orb/tooling/floor/host/load-budget";
+import { budgets } from "@orb/tooling/floor/host/load-budget";
 import { print, REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ExitCode } from "../../floor/cli/exit-contract.ts";
@@ -39,15 +39,14 @@ const MODULE_EXT_RE = /\.(?:ts|tsx)$/u;
 /** How far down the newest-first list to walk before giving up on finding a comparable module. */
 const CANDIDATE_DEPTH = 5;
 // A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base.
-const FETCH_TIMEOUT_MS_BASE = 3000;
-const FETCH_TIMEOUT_MS = budget(FETCH_TIMEOUT_MS_BASE);
+const CEILINGS_MS = budgets({ fetchTimeout: 3000 });
 const HTTP_OK = 200;
 
 /** `/@fs/<abs>` is vite's own escape hatch for a file outside root. */
 async function fetchServed(absPath: string, vitePort: number): Promise<string | null> {
   // a failed or non-200 fetch returns null, which classifyServedTransform words as "unreachable" (verdicts.ts:165); runServedProbe prints it and exits tool-error and `stack status` prints it (dev-status.ts:115). Ends if null can satisfy the served probe.
   try {
-    const res = await fetch(`${viteUrl(vitePort)}@fs${absPath}`, { signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) });
+    const res = await fetch(`${viteUrl(vitePort)}@fs${absPath}`, { signal: AbortSignal.timeout(CEILINGS_MS.fetchTimeout) });
     return res.status === HTTP_OK ? await res.text() : null;
   } catch {
     return null;

@@ -3,6 +3,7 @@
 // argv or a mutable band table after measurement.
 import type { SnapStageProvenance } from "../contract/run-index.ts";
 import type { Args } from "../contract/types.ts";
+import { diskSafeUrl } from "./disk-safe-argv.ts";
 
 let terminalStageProvenance: SnapStageProvenance | null = null;
 
@@ -43,7 +44,7 @@ function defaultSnapStageProvenance(opts: Args): SnapStageProvenance {
     ownerCheckout: null,
     band: null,
     ref: null,
-    binding: opts.file === null ? { kind: "base", url: opts.base } : { kind: "file", url: opts.file },
+    binding: opts.file === null ? { kind: "base", url: diskSafeUrl(opts.base) } : { kind: "file", url: diskSafeUrl(opts.file) },
     failure: null,
   };
 }

@@ -1,5 +1,6 @@
 // The three read-the-evidence classifiers: the shutdown drain, the client-bundle freshness, and the
 // /api/_debug arming posture. All pure — each turns an observation into a WORD the operator can act on.
+import { SHUTDOWN_MESSAGES } from "@orb/server/infra/network";
 import type { DebugPosture, DistVerdict, DrainOutcome, ServedVerdict } from "../contract/types.ts";
 import { CLIENT_DIST_INDEX_REL } from "./spawn-plan.ts";
 
@@ -42,10 +43,10 @@ export const DRAIN_WATCH_MS = SERVER_DRAIN_MS + DRAIN_MARGIN_MS;
  *  failure: the drain force-closed a long-lived SSE stream at 10s and said so (a warn, because a client
  *  saw a truncated stream) — expected during a deploy. */
 export function classifyDrainTail(tail: string): DrainOutcome {
-  if (tail.includes("shutdown: complete")) {
+  if (tail.includes(SHUTDOWN_MESSAGES.complete)) {
     return "complete";
   }
-  if (tail.includes("shutdown: drain deadline hit")) {
+  if (tail.includes(SHUTDOWN_MESSAGES.drainDeadline)) {
     return "deadline-hit";
   }
   return "pending";

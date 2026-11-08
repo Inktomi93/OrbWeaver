@@ -35,4 +35,5 @@ export {
 export { isInRanges, isPrivateOrLoopback, isPublicUnicast } from "./ip-ranges.ts";
 export { createNetworkPluginGitSource } from "./plugin-git.ts";
 export { createOwnedResponseBody } from "./response-body.ts";
+export { SHUTDOWN_MESSAGES } from "./shutdown-messages.ts";
 export { startTlsTerminator } from "./tls-terminator.ts";

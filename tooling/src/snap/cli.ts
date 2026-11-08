@@ -26,6 +26,7 @@ import {
   runSessionAdmin,
   runSessionCall,
   SNAP_HELP,
+  scrubPrivateError,
   sessionRouteErrors,
   settleStageReadiness,
   snap,
@@ -197,5 +198,12 @@ export async function main(opts: Args, argv: readonly string[]): Promise<number>
 const cliEntry = process.argv[1];
 if (cliEntry !== undefined && import.meta.url === pathToFileURL(cliEntry).href) {
   const argv = process.argv.slice(2);
-  await runTool(() => main(parseSnapArgs(argv), argv));
+  // the rethrow keeps the error's class, so runTool still tells a UsageError from a tool error. Ends if scrubPrivateError stops returning the error it was given.
+  await runTool(async () => {
+    try {
+      return await main(parseSnapArgs(argv), argv);
+    } catch (error) {
+      throw scrubPrivateError(error);
+    }
+  });
 }

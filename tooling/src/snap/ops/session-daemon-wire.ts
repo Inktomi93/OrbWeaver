@@ -2,20 +2,19 @@ import type { Server, Socket } from "node:net";
 import { errorMessage } from "@orb/kit/error-message";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { warn } from "../../floor/cli/log.ts";
-import { budget } from "../../floor/host/load-budget.ts";
+import { budgets } from "../../floor/host/load-budget.ts";
 import type { SessionRequest } from "../contract/session.ts";
 import { readSessionRequest } from "../lib/session-wire.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --session <name> <route>");
 
-const REQUEST_LINE_BASE_MS = 30_000;
-const REQUEST_LINE_TIMEOUT_MS = budget(REQUEST_LINE_BASE_MS);
+const CEILINGS_MS = budgets({ requestLineTimeout: 30_000 });
 
 export function readSessionRequestLine(socket: Socket): Promise<SessionRequest | null> {
   return new Promise<SessionRequest | null>((resolve) => {
     let buffer = "";
     socket.setEncoding("utf8");
-    socket.setTimeout(REQUEST_LINE_TIMEOUT_MS, () => {
+    socket.setTimeout(CEILINGS_MS.requestLineTimeout, () => {
       socket.destroy();
       resolve(null);
     });

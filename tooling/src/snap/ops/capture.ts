@@ -19,6 +19,7 @@ import type { ArmPageContext } from "../contract/arms.ts";
 import type { CaptureEvidence, PagePlan } from "../contract/plan.ts";
 import type { Args, CaptureOutcome, ShotPlan } from "../contract/types.ts";
 import { planOut } from "../lib/out-names.ts";
+import { scrubPrivateText } from "../lib/private-values.ts";
 import type { SnapRatePosture } from "../lib/rate-posture.ts";
 import { EVAL_ARM } from "./arms/eval.ts";
 import type { RunArms } from "./arms/registry.ts";
@@ -141,7 +142,8 @@ export async function capture(args: CaptureArgs): Promise<CaptureOutcome> {
       evidence.evidence.pageErrors.push(consoleGap, exactScope(evidence.evidence.contextIndex, pageIndex, evidence.diagnosticWindow.value));
     }
   } catch (e) {
-    outcome.navError = `nav/wait threw: ${errorMessage(e)}`;
+    // Playwright quotes the URL it was navigating to, so the error carries whatever navigate noted as private.
+    outcome.navError = scrubPrivateText(`nav/wait threw: ${errorMessage(e)}`);
     // Try to screenshot whatever we got anyway. THE ONE ARM NAMED BY HAND, and only here: the fallback
     // is about the NAV FAILURE, not about the pixel arm — the run has to hand back an image of whatever
     // state it reached even though the pass above never got as far as the shutter.

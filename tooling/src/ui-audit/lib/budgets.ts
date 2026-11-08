@@ -7,9 +7,7 @@
 // dir stopped navigating and clicking when the scan became a Snap arm, and Snap's own `lib/budgets.ts`
 // owns those three (nav 15 s · wait 10 s · step 5 s) plus the throttled and isolated-stage variants a
 // drive actually needs. One drive, one budget table.
-import { budget } from "@orb/tooling/floor/host/load-budget";
-
-const CENSUS_OBSERVE_CEILING_BASE_MS = 5000;
+import { budgets } from "@orb/tooling/floor/host/load-budget";
 
 // ── the CENSUS-STABILITY window (#808) ──────────────────────────────────────
 // `data-app-ready` is a ONE-SHOT BOOT signal (packages/client/src/lib/app-ready-signal.ts resolves a
@@ -29,4 +27,4 @@ export const CENSUS_OBSERVE_MIN_MS = 2000;
 /** The ceiling for a page that keeps CHANGING past the floor — a run still moving here is refused. Scaled,
  *  because it IS a ceiling: on a contended box a page legitimately keeps moving longer, and refusing it at
  *  the quiet-box number is a finding about the box. */
-export const CENSUS_OBSERVE_CEILING_MS = budget(CENSUS_OBSERVE_CEILING_BASE_MS);
+export const UI_AUDIT_CEILINGS_MS = budgets({ censusObserve: 5000 });

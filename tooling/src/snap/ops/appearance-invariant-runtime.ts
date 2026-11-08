@@ -10,7 +10,7 @@ import { settle } from "../../floor/browser/browser.ts";
 import type { ProbeSession } from "../../floor/browser/browser-contract.ts";
 import { readBrowserEnvironment } from "../../floor/browser/browser-environment.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import { budget } from "../../floor/host/load-budget.ts";
+import { budgets } from "../../floor/host/load-budget.ts";
 import { buildNavScript } from "../../floor/instrument/nav.ts";
 import type { AppearanceCheckContext, AppearanceMutationIsolationEvidence } from "../contract/appearance-check-context.ts";
 import type { AppearanceCascadeExpectation, AppearanceInvariantReceipt, AppearanceMergeExpectation } from "../contract/appearance-invariants.ts";
@@ -33,8 +33,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap --matrix");
 
 /** The dialog attach/detach CEILING, not a sleep — a healthy popup returns in a frame or two, so `budget()`
  *  (#1266) only matters on a saturated box, where it beats calling a descheduled render a missing dialog. */
-const DIALOG_ATTACH_BASE_MS = 5000;
-const DIALOG_ATTACH_TIMEOUT_MS = budget(DIALOG_ATTACH_BASE_MS);
+const CEILINGS_MS = budgets({ dialogAttachTimeout: 5000 });
 
 async function resetCheckpoint(page: Page): Promise<void> {
   // #1004 — each read below already had an INSTRUMENT ERROR arm for a FALSE answer and none for a
@@ -87,13 +86,13 @@ async function openPortalDialog(page: Page, row: RuntimeAppearanceHistoricalRow)
   if (!result.ok) {
     instrumentRefusal(`Appearance row ${row.id} dialog navigation refused: ${result.reason ?? "unknown"}`);
   }
-  await page.locator('[data-slot="portal-root"] [data-slot="dialog-popup"]').waitFor({ state: "attached", timeout: DIALOG_ATTACH_TIMEOUT_MS });
+  await page.locator('[data-slot="portal-root"] [data-slot="dialog-popup"]').waitFor({ state: "attached", timeout: CEILINGS_MS.dialogAttachTimeout });
   await settle(page, STEP_SETTLE_MS);
 }
 
 async function closePortalDialog(page: Page): Promise<void> {
   await page.keyboard.press("Escape");
-  await page.locator('[data-slot="portal-root"] [data-slot="dialog-popup"]').waitFor({ state: "detached", timeout: DIALOG_ATTACH_TIMEOUT_MS });
+  await page.locator('[data-slot="portal-root"] [data-slot="dialog-popup"]').waitFor({ state: "detached", timeout: CEILINGS_MS.dialogAttachTimeout });
   await settle(page, STEP_SETTLE_MS);
 }
 

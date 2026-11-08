@@ -21,7 +21,7 @@ import { snapArmFact } from "../../../../tooling/src/snap/contract/run-facts.ts"
 import type { SnapRunArtifact } from "../../../../tooling/src/snap/contract/run-index.ts";
 import type { Args } from "../../../../tooling/src/snap/contract/types.ts";
 import { redactBrowserDiagnostics } from "../../../../tooling/src/snap/lib/browser-evidence-redaction.ts";
-import { diskSafeArgv } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
+import { diskSafeArgv, diskSafeUrl } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import { FilmstripBuffer } from "../../../../tooling/src/snap/lib/filmstrip-buffer.ts";
 import { collectSnapRunArtifacts, snapDirtyIdentity, snapGitIdentity } from "../../../../tooling/src/snap/lib/run-bundle-files.ts";
 import { readSnapAnalyzerProblems } from "../../../../tooling/src/snap/lib/run-report-problems.ts";
@@ -918,13 +918,13 @@ test("named session on an isolated stage preserves multi-context diagnostic iden
     name: "p-isolated",
     call: 2,
     evidenceWindow: 9,
-    binding: { kind: "base", url: "http://127.0.0.1:4173" },
+    binding: { kind: "base", url: diskSafeUrl("http://127.0.0.1:4173") },
     stage: {
       state: "bound",
       ownerCheckout: root,
       band: 6,
       ref: "stage/p-isolated-b6",
-      binding: { kind: "base", url: "http://127.0.0.1:4173" },
+      binding: { kind: "base", url: diskSafeUrl("http://127.0.0.1:4173") },
       failure: null,
     },
   });
@@ -943,7 +943,7 @@ test("named session on an isolated stage preserves multi-context diagnostic iden
     ownerCheckout: root,
     band: 6,
     ref: "stage/p-isolated-b6",
-    binding: { kind: "base", url: "http://127.0.0.1:4173" },
+    binding: { kind: "base", url: diskSafeUrl("http://127.0.0.1:4173") },
     failure: null,
   });
   expect(index.diagnostics).toMatchObject({
@@ -1316,13 +1316,13 @@ test("interrupted session runs synthesize terminal evidence, indices are immutab
     name: "p-interrupted",
     call: 3,
     evidenceWindow: 4,
-    binding: { kind: "base", url: "http://127.0.0.1:5173" },
+    binding: { kind: "base", url: diskSafeUrl("http://127.0.0.1:5173") },
     stage: {
       state: "bound",
       ownerCheckout: root,
       band: 4,
       ref: "stage/p-interrupted-b4",
-      binding: { kind: "base", url: "http://127.0.0.1:5173" },
+      binding: { kind: "base", url: diskSafeUrl("http://127.0.0.1:5173") },
       failure: null,
     },
   });
@@ -1346,7 +1346,7 @@ test("interrupted session runs synthesize terminal evidence, indices are immutab
       ownerCheckout: root,
       band: 4,
       ref: "stage/p-interrupted-b4",
-      binding: { kind: "base", url: "http://127.0.0.1:5173" },
+      binding: { kind: "base", url: diskSafeUrl("http://127.0.0.1:5173") },
       failure: null,
     },
     concurrency: ["parallel-run"],

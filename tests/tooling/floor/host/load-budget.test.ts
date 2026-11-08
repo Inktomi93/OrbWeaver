@@ -21,6 +21,7 @@ import {
   boxFactor,
   boxLoadKnobError,
   budget,
+  budgets,
   computeLoadFactor,
   FACTOR_CAP,
   hasMeasurement,
@@ -141,6 +142,15 @@ test("T15 — a quiet reading leaves factor 1 and every budget BYTE-IDENTICAL to
   // …and the arm's number is a VERDICT. Without this half, a stub that always labels satisfies T14.
   expect(judgeMeasurementLoad(QUIET, "the dropped-frame rate").disposition).toBe("complete");
   expect(isJudgeableMeasurement(judgeMeasurementLoad(QUIET, "the dropped-frame rate"))).toBe(true);
+});
+
+test("a module's ceilings record stretches every base from its own value, all against one reading", () => {
+  const bases = { short: 2000, long: 30_000 } as const;
+  expect(budgets(bases, readQuiet)).toEqual(bases);
+  expect(budgets(bases, readLoaded)).toEqual({ short: budget(2000, readLoaded), long: budget(30_000, readLoaded) });
+  // A box that gets busier between reads still yields one record judged on one reading: the first.
+  const readings = [QUIET, LOADED];
+  expect(budgets(bases, () => readings.shift() ?? LOADED)).toEqual(bases);
 });
 
 test("T15 — the boundary is computeLoadFactor's own, not a second constant", () => {

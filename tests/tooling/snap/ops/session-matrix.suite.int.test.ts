@@ -3,25 +3,15 @@
 // base, then runs a scenario matrix as a later session call. Discovery and every cell must inherit that
 // binding; each cell gets a fresh context; the owner page and its storage survive after the cells close.
 //
-// #2434: the `settings.getUserSettings` fixture below used to carry no `appearance.backgroundLibrary` at
-// all, which was fine while the matrix's `asset` background arm could fall back to the static `kind:"seeded"`
-// catalog. That catalog retired 2026-09-18 (the same commit this file's cell-count comment already
-// cites), so `planSnapAppearanceMatrix` (`ops/matrix.ts`) now REQUIRES a real
-// `discovery.settings.backgroundLibraryFirst` (`floor/appearance/appearance.ts` `readBackgroundCapability`) before it
-// will build ANY matrix cells — scenario-checkpoints mode included, since cell planning is appearance-shared
-// even though scenario mode never reports appearance receipts. Proven red-first: the unmocked fixture makes
-// `--matrix --scenario` refuse in `runRatedMatrix` before a single cell runs (`INSTRUMENT ERROR: matrix
-// discovery found no background-library asset to paint the \`asset\` Appearance arm with`), which zeroes
-// EVERY registered fact batch and surfaces at the run-index layer as the unrelated-looking "dead-css"/
-// "app-snapshot" arm refusals (`enabled arm emitted no typed fact` — `snap/lib/run-bundle-verdict.ts`): with
-// no batches at all, the fallback terminal-only batch carries no arm facts, and both default-enabled arms
-// read as refused. The fix is this test's own premise, not `tooling/src/snap/**`: mint one background asset
-// row so discovery has something to plant.
+// `runRatedMatrix` (`ops/matrix.ts`) plans no cell, scenario mode included, until discovery reads a background
+// library entry whose id parses as an asset TypeID (`readBackgroundCapability`). Without one it refuses before any
+// cell runs, and the run index shows that only as "dead-css"/"app-snapshot" arms that emitted no typed fact.
 
 import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import process from "node:process";
+import { ID_PREFIX } from "@orb/kit/ids";
 import type { CliResult } from "@orb/testkit/tooling";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
@@ -67,7 +57,9 @@ fetch("/api/trpc/settings.getUserSettings?batch=1&input=%7B%7D")
 </script></body></html>`;
 }
 
-async function loopbackFixture(): Promise<{ readonly base: string; readonly requests: string[]; readonly close: () => Promise<void> }> {
+async function loopbackFixture(
+  backgroundAssetId: string,
+): Promise<{ readonly base: string; readonly requests: string[]; readonly close: () => Promise<void> }> {
   const requests: string[] = [];
   const server = createServer((request, response) => {
     const url = request.url ?? "/";
@@ -84,9 +76,9 @@ async function loopbackFixture(): Promise<{ readonly base: string; readonly requ
             result: {
               data: {
                 config: {
-                  // #2434: the `asset` background arm (the only paintable one since `kind:"seeded"` retired
-                  // 2026-09-18) needs a real library entry or matrix discovery refuses before any cell runs.
-                  appearance: { backgroundLibrary: [{ assetId: "f10-bg-asset", assetHash: "f10-bg-hash", mime: "image/png" }] },
+                  // Discovery reads the entry through the asset id schema, so anything but a real asset TypeID
+                  // leaves the `asset` arm unpaintable and the matrix refuses before any cell runs.
+                  appearance: { backgroundLibrary: [{ assetId: backgroundAssetId, assetHash: "f10-bg-hash", mime: "image/png" }] },
                   theme: { selectedThemeId: null },
                 },
               },
@@ -122,8 +114,8 @@ function browserChildren(pid: number): readonly number[] {
 
 // @instrument-proof: every matrix cell reports the synthetic origin and fresh storage through the real
 // daemon call; a one-shot/fallback browser or reused context changes those receipts.
-test("F10 — a session matrix inherits the daemon base, isolates every cell context, and leaves the owner usable", async ({ plantedTree, runCli }) => {
-  const fixture = await loopbackFixture();
+test("F10 — a session matrix inherits the daemon base, isolates every cell context, and leaves the owner usable", async ({ ids, plantedTree, runCli }) => {
+  const fixture = await loopbackFixture(ids.typeId(ID_PREFIX.asset));
   const session = `p-f10-matrix-${process.pid}`;
   const cellEval =
     "new Promise((resolve) => setTimeout(() => resolve(JSON.stringify({origin:location.origin,owner:localStorage.getItem('f10-owner'),cell:localStorage.getItem('f10-cell')}) + (localStorage.setItem('f10-cell','set'),'')), 250))";

@@ -11,14 +11,7 @@ import { EXIT } from "../../floor/cli/exit-contract.ts";
 import type { SessionEvent, SessionRequest, SessionRow, SessionSweepVerdict } from "../contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";
-import {
-  SESSION_CLOSE_GRACE_MS,
-  SESSION_INSTRUMENT,
-  SESSION_PING_SILENCE_MS,
-  sessionIdleMs,
-  sessionSocketPath,
-  sessionSweepVerdict,
-} from "../lib/session-plan.ts";
+import { SESSION_CEILINGS_MS, SESSION_CLOSE_GRACE_MS, SESSION_INSTRUMENT, sessionIdleMs, sessionSocketPath, sessionSweepVerdict } from "../lib/session-plan.ts";
 import { foreignSessionRefusal, sessionDeadText } from "../lib/session-refusals.ts";
 import { describeStageAgePhrase } from "../lib/stage-plan.ts";
 import { sessionRequest } from "./session-client.ts";
@@ -63,7 +56,7 @@ async function askStatus(home: string, root: string, row: SessionRow): Promise<E
       },
       // A status round trip is a handshake, so it takes the PING silence (#1508): before this door had a
       // clock, one wedged daemon hung `--session-status` for every row behind it, forever.
-      SESSION_PING_SILENCE_MS,
+      SESSION_CEILINGS_MS.pingSilence,
     );
   } catch {
     return null;

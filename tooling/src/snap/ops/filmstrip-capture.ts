@@ -2,7 +2,7 @@
 import { performance } from "node:perf_hooks";
 import type { CDPSession, Page } from "@playwright/test";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import { budget } from "../../floor/host/load-budget.ts";
+import { budgets } from "../../floor/host/load-budget.ts";
 import { readMember } from "../../floor/instrument/member.ts";
 import type { FilmstripCaptureReceipt, FilmstripLimits } from "../contract/filmstrip.ts";
 import { FILMSTRIP_LIMITS } from "../contract/filmstrip.ts";
@@ -45,8 +45,7 @@ export interface FilmstripCaptureDeps {
 
 type OperationOutcome = { readonly status: "ok" } | { readonly status: "failed"; readonly error: Error };
 
-const INITIAL_FRAME_TIMEOUT_BASE_MS = 1000;
-const INITIAL_FRAME_TIMEOUT_MS = budget(INITIAL_FRAME_TIMEOUT_BASE_MS);
+const CEILINGS_MS = budgets({ initialFrameTimeout: 1000 });
 
 function filmstripActionLabel(action: SnapAction): string {
   if (action.type === "eval") {
@@ -207,7 +206,7 @@ export async function startFilmstripCapture(
 
   if (deps.createCdp === undefined) {
     const timeoutResult = Promise.withResolvers<false>();
-    const timeout = setTimeout(() => timeoutResult.resolve(false), INITIAL_FRAME_TIMEOUT_MS);
+    const timeout = setTimeout(() => timeoutResult.resolve(false), CEILINGS_MS.initialFrameTimeout);
     const initialFrame = await Promise.race([firstFrame.then(() => true), timeoutResult.promise]);
     clearTimeout(timeout);
     if (!initialFrame) {

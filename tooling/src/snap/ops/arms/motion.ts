@@ -57,6 +57,7 @@ import type { Args } from "../../contract/types.ts";
 import { motionLoadSuspect, motionPrecedingInputHint, motionQueueHint, orderMotionGaps, rateEvidenceGaps } from "../../lib/motion-gaps.ts";
 import { motionProblems } from "../../lib/motion-problems.ts";
 import { motionFactState, motionStatus, motionTimingPolicy } from "../../lib/motion-verdict.ts";
+import { scrubPrivateText } from "../../lib/private-values.ts";
 import type { SnapRatePosture } from "../../lib/rate-posture.ts";
 import { snapTimingPolicy } from "../../lib/rate-posture.ts";
 import { consumeOptionalSelector, pushStep } from "../flags-support.ts";
@@ -137,7 +138,7 @@ async function measureMotionAction(
   const hints = [motionQueueHint(opts, ctx.actionIndex), motionPrecedingInputHint(opts, ctx.actionIndex, selector ?? goto)].filter(
     (hint): hint is EvidenceGap => hint !== null,
   );
-  const gap = apparatusGap({ url: page.url(), ready: true, bridge: await hasOrbBridge(page), readyTimeoutMs: 0 });
+  const gap = apparatusGap({ url: scrubPrivateText(page.url()), ready: true, bridge: await hasOrbBridge(page), readyTimeoutMs: 0 });
   if (gap !== null) {
     return { timing: ratePosture.timing, data: null, gaps: [gap, ...hints], pass: false, artifact: null, loadSuspect: null };
   }

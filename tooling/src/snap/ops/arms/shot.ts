@@ -8,7 +8,7 @@ import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
 import type { OwnerMetrics } from "../../../floor/browser/browser-emulation-guard.ts";
 import { overrideOwnerViewport, reassertOwnerViewport } from "../../../floor/browser/browser-emulation-guard.ts";
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
-import { budget } from "../../../floor/host/load-budget.ts";
+import { budgets } from "../../../floor/host/load-budget.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds } from "../../contract/arms.ts";
 import type { Args, ReportCtx } from "../../contract/types.ts";
 import { captureScope } from "../../lib/capture-scope.ts";
@@ -80,8 +80,7 @@ const PAINT_SETTLE_FRAME_MS = 50;
  *  fetch and decode the same bytes. A warm surface answers both questions in microseconds and pays none of
  *  it; an image that never arrives spends the deadline and the shot happens anyway (proved by the 404 arm
  *  of the pin). */
-const PAINT_SETTLE_RESOURCE_BASE_MS = 5000;
-const PAINT_SETTLE_RESOURCE_MS = budget(PAINT_SETTLE_RESOURCE_BASE_MS);
+const CEILINGS_MS = budgets({ paintSettleResource: 5000 });
 
 /** `everyImage`: `--full` shoots the whole scrollable page, so every image is IN the artifact and owes its
  *  decode; a viewport shot waits only for the images it will actually show. */
@@ -94,7 +93,7 @@ async function waitForPaintSettle(page: Page, everyImage: boolean): Promise<void
     await page.evaluate(`(async () => {
       const maxFrames = ${PAINT_SETTLE_MAX_FRAMES};
       const frameTimeoutMs = ${PAINT_SETTLE_FRAME_MS};
-      const resourceMs = ${PAINT_SETTLE_RESOURCE_MS};
+      const resourceMs = ${CEILINGS_MS.paintSettleResource};
       const everyImage = ${String(everyImage)};
       // ONE deadline for both resource questions, so the two waits cannot compound into an unnamed total.
       const resourceDeadline = performance.now() + resourceMs;

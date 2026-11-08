@@ -4,7 +4,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import type { SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../../../../tooling/src/snap/contract/session.ts";
 import type { StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
-import { diskSafeArgv } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
+import { diskSafeArgv, diskSafeUrl } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import { touchSessionHeartbeat } from "../../../../tooling/src/snap/ops/session-heartbeat.ts";
 import { readRow, writeRow } from "../../../../tooling/src/snap/ops/session-registry.ts";
 import { readBands, writeBands } from "../../../../tooling/src/snap/ops/stage-marker.ts";
@@ -25,7 +25,7 @@ test("one heartbeat stamps the session row and its bound stage row to the same i
     socket: join(home, "p-heartbeat.sock"),
     cdpEndpoint: "http://127.0.0.1:9222",
     slotDir: join(root, "slot"),
-    binding: { kind: "stage", url: "http://127.0.0.1:5273" },
+    binding: { kind: "stage", url: diskSafeUrl("http://127.0.0.1:5273") },
     stage: { band: 0, status: "live", detectedAt: null, op: null },
     environment: {
       viewport: { width: 1280, height: 720 },

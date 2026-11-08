@@ -9,6 +9,7 @@
 // runs on a private run dir in index.int.test.ts.
 import { readFileSync } from "node:fs";
 import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
+import { SHUTDOWN_MESSAGES } from "@orb/server/infra/network";
 import { expect, test } from "@orb/testkit/tooling";
 import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "@orb/tooling/floor/process/server-entry";
 import type { ObservedInstance, ProdRecord } from "../../../tooling/src/stack/index.ts";
@@ -372,34 +373,24 @@ test("the census names the dev stack on the port prod shares with it", () => {
 
 // ── drain ────────────────────────────────────────────────────────────────────────────────────────────
 
+/** A message as the server's JSON log line spells it. */
+const logged = (message: string): string => `{"msg":${JSON.stringify(message)}}`;
+
 test("the drain watch reads the server's own shutdown lines", () => {
-  expect(classifyDrainTail("boot: listening\nshutdown: complete\n")).toBe("complete");
-  expect(classifyDrainTail('{"msg":"shutdown: drain deadline hit — force-closing"}')).toBe("deadline-hit");
-  expect(classifyDrainTail("shutdown: draining")).toBe("pending");
+  expect(classifyDrainTail(`boot: listening\n${logged(SHUTDOWN_MESSAGES.complete)}\n`)).toBe("complete");
+  expect(classifyDrainTail(logged(SHUTDOWN_MESSAGES.drainDeadline))).toBe("deadline-hit");
+  expect(classifyDrainTail(logged(SHUTDOWN_MESSAGES.draining))).toBe("pending");
 });
 
-// #1936 — THE STAGE BREADCRUMBS MUST STAY NON-TERMINAL. `shutdown()` now announces each stage it enters
-// (`http drained` / `closing the service graph` / `db housekeeping`) so an escalation says WHICH stage
-// was in flight; until then everything between `draining` and `complete` was silent, which is why the
-// original report could not be diagnosed. They share this classifier's `shutdown: ` prefix, so a future
-// breadcrumb worded "shutdown: complete db housekeeping" would make `down` declare a clean shutdown while
-// the process was still checkpointing. This row is what makes that wording red.
+// The stage lines share this classifier's `shutdown: ` prefix, so a stage worded "shutdown: complete db housekeeping"
+// would make `down` declare a clean shutdown while the process was still checkpointing.
 test("the stage breadcrumbs are progress, never a terminal verdict", () => {
-  for (const line of ['{"msg":"shutdown: http drained"}', '{"msg":"shutdown: closing the service graph"}', '{"msg":"shutdown: db housekeeping"}']) {
-    expect(classifyDrainTail(`{"msg":"shutdown: draining"}\n${line}\n`), `${line} must not be read as a terminal outcome`).toBe("pending");
+  const { complete, draining, drainDeadline: _terminal, ...stages } = SHUTDOWN_MESSAGES;
+  for (const line of Object.values(stages).map(logged)) {
+    expect(classifyDrainTail(`${logged(draining)}\n${line}\n`), `${line} must not be read as a terminal outcome`).toBe("pending");
   }
   // …and a real sequence still terminates on the line that means it: the breadcrumbs do not mask `complete`.
-  expect(classifyDrainTail('{"msg":"shutdown: http drained"}\n{"msg":"shutdown: db housekeeping"}\n{"msg":"shutdown: complete"}\n')).toBe("complete");
-});
-
-// The breadcrumbs are emitted by the server, read by this tool, and coupled by their exact TEXT — the same
-// two-sided pin `SERVER_DRAIN_MS` gets below, for the same reason: a silent rename on the server side would
-// leave the classifier's sibling row above green while the operator's log lost the stage it names.
-test("the server still emits the stage breadcrumbs this classifier is written against", () => {
-  const source = readFileSync(new URL("../../../packages/server/src/entry/lifecycle.ts", import.meta.url), "utf8");
-  for (const breadcrumb of ["shutdown: http drained", "shutdown: closing the service graph", "shutdown: db housekeeping"]) {
-    expect(source, `entry/lifecycle.ts no longer logs "${breadcrumb}"`).toContain(`log.info("${breadcrumb}")`);
-  }
+  expect(classifyDrainTail([...Object.values(stages), complete].map(logged).join("\n"))).toBe("complete");
 });
 
 test("SERVER_DRAIN_MS still matches the server's own SHUTDOWN_DRAIN_MS", () => {

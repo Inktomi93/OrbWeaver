@@ -22,6 +22,7 @@ argv is wrong; nothing ran; the `ARG ERROR` line names the fix).
 | `--band <value>` | with --stage-down, release only that band of your own stages; refuses a band with a live session |
 | `--base <value>` | an already-running origin (a private stack, a stage you booted) |
 | `--cold-start` | bounded cold bootstrap on the captured document; waits for the normal readiness marker |
+| `--base-credentials-env <value>` | ENV_NAME holding user:password — answer the --base origin's basic auth without credentials in argv |
 | `--debug-token <value>` | seed orb:debug-token before navigation for token-gated development routes |
 | `--dirty` | stage the working tree instead of a commit (implies --isolated) |
 | `--file <value>` | render a local HTML file (a committed mock) instead of a dev-stack route |
