@@ -398,9 +398,10 @@ export const stackVariants = tv({
   compoundVariants: [...DIVIDER_RULE],
 });
 
-// Inline bleed preserves glyph hit areas inside the scroller; scroll padding clears its sticky action footer.
+// Inline bleed preserves glyph hit areas inside the scroller; scroll padding clears its sticky action footer. A short dialog's
+// popup inset is the row step, so its body reaches exactly that far and no further: past the popup's padding box it would only be clipped.
 const DIALOG_SCROLL_CLASS =
-  "relative -mx-glyph-bleed min-block-0 overflow-x-hidden overflow-y-auto overscroll-contain px-glyph-bleed scroll-pbe-(--size-control-lg)";
+  "relative -mx-glyph-bleed min-block-0 overflow-x-hidden overflow-y-auto overscroll-contain px-glyph-bleed scroll-pbe-(--size-control-lg) dialog-short:-mx-row dialog-short:px-row";
 
 export const dialogBodyVariants = tv({
   base: DIALOG_SCROLL_CLASS,

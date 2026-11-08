@@ -29,8 +29,12 @@ import { CAPTION, FIELD_STACK, FOCUS_RING_WITHIN_INSET, MAX_HEIGHT, ROW_STRIP, t
  */
 export const commandVariants = tv({
   slots: {
-    // In a short dialog the command box is a flex child that shares the room the dialog leaves; `overflow-hidden` lets it shrink below its list.
-    root: `flex flex-col overflow-hidden rounded-card border border-border bg-popover text-popover-foreground tone-host-popover dialog-short:flex-auto ${FOCUS_RING_WITHIN_INSET}
+    // In a short dialog the command box is a flex child that shares the room the dialog leaves; `overflow-hidden` lets it shrink below its list,
+    // down to its search strip, and the dialog scrolls past that.
+    root: `
+      flex flex-col overflow-hidden rounded-card border border-border bg-popover text-popover-foreground tone-host-popover
+      dialog-short:flex-auto dialog-short:min-block-(--height-command-strip)
+      ${FOCUS_RING_WITHIN_INSET}
     `,
     // The coarse-pointer arm is the 44px tap floor (side-eye: the picker's input measured 43px on a
     // phone). `control-sm` already varies by pointer (2.75rem coarse / 2rem fine, theme.css) but only
@@ -65,21 +69,18 @@ export const commandVariants = tv({
   variants: {
     // A palette that floats on its own (not inside a dialog that already lifts it) casts the overlay shadow.
     elevated: { true: { root: "shadow-overlay" } },
-    // The palette takes its parent's whole block extent.
-    fill: { true: { root: "block-full" } },
-    // The box is a picker window's frame and never outgrows it, so a footer inside takes room from the list; a short dialog lets it shrink with the dialog instead.
-    windowed: { true: { root: "max-block-(--height-picker-box) dialog-short:max-block-none" } },
+    // The palette takes its parent's whole block extent; in a short dialog it takes the room the dialog leaves, so its list is the box that scrolls.
+    fill: { true: { root: "block-full dialog-short:block-auto" } },
+    // The box is a picker window's frame and never outgrows it, so a footer inside takes room from the list; a short dialog lets it shrink with the dialog
+    // instead, down to its search strip and one touch row.
+    windowed: { true: { root: "max-block-(--height-picker-box) dialog-short:max-block-none dialog-short:min-block-(--height-picker-floor)" } },
     listSize: {
       content: { list: "" },
       // A stable compact viewport keeps filtering from moving its containing dialog without reserving
       // the giant empty cavity the old full-height palette left behind.
       // A short dialog lets it share the room the dialog leaves, like a picker window, so the dialog body is the only other box.
       compact: {
-        list: `
-          block-(--height-scroll-sm)
-          dialog-short:flex-auto dialog-short:overscroll-auto dialog-short:block-auto dialog-short:min-block-(--height-scroll-short)
-          **:[[cmdk-list-sizer]]:block-full
-        `,
+        list: "block-(--height-scroll-sm) dialog-short:flex-auto dialog-short:overscroll-auto dialog-short:block-auto **:[[cmdk-list-sizer]]:block-full",
       },
       // The model picker's list: tall enough to fill its box, still a fixed viewport so a narrowing search holds still.
       grow: { list: "block-(--height-scroll-lg) **:[[cmdk-list-sizer]]:block-full" },

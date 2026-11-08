@@ -9,8 +9,9 @@ import { MODAL_SURFACE, OVERLAY_MOTION, POPUP_DESCRIPTION, PUSH, SCRIM, TITLE_ST
 // `overflow-y-auto overscroll-contain` (matching drawer-content) so tall content — a FormDialog whose
 // body outgrows the viewport — actually scrolls to its submit button instead of overflowing off-screen.
 // The gutter is a rem token, so enlarged text grows it with the type; at a narrow width it steps down to the field inset so
-// a phone keeps a readable dialog width at 300%.
-const VIEWPORT_GUTTER = "p-gutter inline-narrow:p-field";
+// a phone keeps a readable dialog width at 300%. Its block axis is capped at a twentieth of the screen, so a short landscape
+// screen at 300% keeps its room for the dialog.
+const VIEWPORT_GUTTER = "px-gutter py-(--height-dialog-gutter) inline-narrow:p-field";
 
 export const dialogVariants = tv({
   slots: {
@@ -25,10 +26,15 @@ export const dialogVariants = tv({
     // A short dialog gives its inset and its heading gap back to its content, because its chrome is already most of the box.
     popup: `relative flex flex-col overflow-x-hidden overflow-y-auto overscroll-contain max-block-full ${MODAL_SURFACE}
       @max-cq-20:p-field
-      dialog-short:gap-row dialog-short:p-row
+      dialog-short:gap-row dialog-short:p-row dialog-short:pbs-0
       ${OVERLAY_MOTION.modalPopup}
     `,
-    header: "flex shrink-0 items-center justify-between gap-row border-be border-border pbe-field",
+    // A short dialog scrolls as one sheet, so its header stays at the top of the sheet: the popup gives its top inset to the header,
+    // which rests against the true edge and keeps the body from scrolling through the padding above it.
+    header: `
+      flex shrink-0 items-center justify-between gap-row border-be border-border pbe-field
+      dialog-short:sticky dialog-short:inset-bs-0 dialog-short:z-(--z-raised) dialog-short:bg-popover dialog-short:pbs-row
+    `,
     title: TITLE_STEP,
     description: POPUP_DESCRIPTION,
     // The action row: the LAST child of a DialogBody, never of the popup itself. The popup's padding

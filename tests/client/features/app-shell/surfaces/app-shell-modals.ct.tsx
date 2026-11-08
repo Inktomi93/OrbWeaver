@@ -3,6 +3,7 @@
 import { BLANK_CHAT_NAME, START_NEW_CHAT_NAME } from "@orb/client/lib";
 import type { ModalSlotId } from "@orb/client/state";
 import { MODAL_SLOT_IDS } from "@orb/client/state";
+import { createCharacterSchema } from "@orb/contracts/character";
 import type { ThemeId } from "@orb/kit/ids";
 import { seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, SECTION_LABELS } from "@orb/testkit/ct";
@@ -47,6 +48,14 @@ const ENLARGED_LANDSCAPE_CELLS = [
   { width: 844, height: 390, factor: 3 },
   { width: 568, height: 320, factor: 2 },
 ] as const;
+// The Jump to palette opens by its keyboard door on both landscape phone sizes, at every text size where its title and one search strip fit
+// the dialog together: at 300% they are taller than the dialog, so only the title stays.
+const PALETTE_CELLS = [
+  { width: 844, height: 390, factor: 1 },
+  { width: 844, height: 390, factor: 2 },
+  { width: 568, height: 320, factor: 1 },
+  { width: 568, height: 320, factor: 2 },
+] as const;
 
 /** A saved roster for the owner, so New chat shows its saved-roster door. */
 async function seedRosterPreset(root: Root): Promise<void> {
@@ -80,6 +89,29 @@ function firstRowAtOpen(option: Element): {
   };
 }
 
+/** How far, in px, the popup's body box reaches past the popup's padding box on either inline side. */
+function bodyReachPastPopup(popup: Element): number {
+  const body = popup.querySelector(":scope > div");
+  if (body === null) {
+    return Number.NaN;
+  }
+  const edge = popup.getBoundingClientRect();
+  const left = edge.left + popup.clientLeft;
+  const right = left + popup.clientWidth;
+  const box = body.getBoundingClientRect();
+  return Math.max(left - box.left, box.right - right, 0);
+}
+
+/** How many of the list's options sit whole inside the list's own box. */
+function wholeRowCount(list: Element): number {
+  const frame = list.getBoundingClientRect();
+  return [...list.querySelectorAll('[role="option"]')].filter((option) => {
+    const box = option.getBoundingClientRect();
+    return box.top >= frame.top - 0.5 && box.bottom <= frame.bottom + 0.5;
+  }).length;
+}
+
+const FIELD_IN_VIEW_RATIO = 0.98;
 const BROWSER_DEFAULT_FONT_PX = 16;
 const LIST_BAND_MENU = '[data-slot="list-pane-action"] [data-slot="overflow-actions-trigger"]';
 const DOOR_TIMEOUT_MS = 2000;
@@ -358,6 +390,41 @@ test.describe("on the corpus owner's own settings", () => {
     });
   });
 
+  // The search field is where the user types, so it opens in view with the title above it and the first group below it.
+  forEachNonEmpty(PALETTE_CELLS, "PALETTE_CELLS", (cell) => {
+    test.describe(`the palette opened at ${String(cell.factor * 100)}% text on ${String(cell.width)}x${String(cell.height)}`, () => {
+      test.use({ viewport: { width: cell.width, height: cell.height }, hasTouch: true, isMobile: true });
+
+      test("opens with its search field on screen and focused, under a header that stays put while the list scrolls", async ({ mount, page }) => {
+        await mount<typeof AppShellStory>(STORY, {});
+        await expect(page.locator(".shell-topbar")).toBeVisible();
+        await setRootFontScale(page, channelName("fontScale"), cell.factor);
+        await expect.poll(() => page.evaluate(rootFontPx)).toBe(BROWSER_DEFAULT_FONT_PX * cell.factor);
+        await page.keyboard.press("Control+k");
+        const dialog = page.getByRole("dialog");
+        const search = dialog.getByRole("combobox");
+        await expect(search).toBeFocused();
+        await expect(dialog.getByRole("option").first()).toBeAttached();
+        await expect(dialog.getByRole("heading", { name: "Jump to…", exact: true })).toBeInViewport({ ratio: 1 });
+        // A centred popup lands on a half pixel, which the viewport test rounds against the field.
+        await expect(search).toBeInViewport({ ratio: FIELD_IN_VIEW_RATIO });
+        // The command box carries the focus ring, so a box that stands whole in the dialog draws the whole ring.
+        await expect(dialog.locator('[data-slot="command-root"]')).toBeInViewport({ ratio: FIELD_IN_VIEW_RATIO });
+        await expect.poll(() => search.evaluate(takesPressAtCentre)).toBe(true);
+        await expect(dialog.getByRole("option").first()).toBeAttached();
+        // The body's glyph bleed never reaches past the popup's own inset, so nothing of it is clipped.
+        expect(await dialog.evaluate(bodyReachPastPopup)).toBeLessThanOrEqual(0);
+        // The positive control: whatever scrolls here carries rows past the header and leaves the header and the field where they were.
+        const header = dialog.locator('[data-slot="dialog-header"]');
+        const before = await Promise.all([header.boundingBox(), search.boundingBox()]);
+        expect(await scrollPopupToEnd(page)).toBe(true);
+        const after = await Promise.all([header.boundingBox(), search.boundingBox()]);
+        expect(after[0]?.y).toBeCloseTo(before[0]?.y ?? Number.NaN, 0);
+        expect(after[1]?.y).toBeCloseTo(before[1]?.y ?? Number.NaN, 0);
+      });
+    });
+  });
+
   for (const modalId of MODAL_SLOT_IDS) {
     test(`the ${modalId} modal keeps the document still and its header put, whatever its body's height`, async ({ mount, page }) => {
       await page.setViewportSize({ width: 1024, height: 320 });
@@ -436,6 +503,34 @@ test.describe("on the corpus owner's own settings", () => {
         }),
       )
       .toBe(true);
+  });
+});
+
+// More characters than the picker's one page, so its census line ("Showing 100 of N") stands inside the box with the rows.
+const CHARACTERS_PAST_ONE_PAGE = 110;
+
+test.describe("New chat over a library longer than one page, at 844x390", () => {
+  test.use({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
+
+  test("keeps three whole rows beside its census line", async ({ corpus, mount, page }) => {
+    await using library = await createCorpusHarness();
+    const caller = await library.internalCallerFor(library.ownerId);
+    for (let index = 0; index < CHARACTERS_PAST_ONE_PAGE; index += 1) {
+      await caller.character.create({
+        input: createCharacterSchema.parse({
+          handle: `census-${String(index)}`,
+          name: `Census ${String(index)}`,
+          description: "One more card past the first page.",
+        }),
+      });
+    }
+    await seedRosterPreset(library);
+    await routeShell(page, corpus, caller, SERVED);
+    await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "newChat" });
+    const dialog = page.getByRole("dialog");
+    // The positive control: the census line is on screen, so the rows below are counted beside it.
+    await expect(dialog.getByText(/^Showing \d+ of \d+$/u)).toBeVisible();
+    await expect.poll(() => dialog.locator('[data-slot="command-list"]').evaluate(wholeRowCount)).toBeGreaterThanOrEqual(3);
   });
 });
 
