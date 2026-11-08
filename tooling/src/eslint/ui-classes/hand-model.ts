@@ -16,7 +16,7 @@ export const VERDICTS = ["token", "recipe", "primitive", "decide", "keep"] as co
 export type Verdict = (typeof VERDICTS)[number];
 
 /** Where the hand-written thing sits, so a reader can tell a sheet literal from a class token. */
-const WHERES = ["sheet", "query", "string", "constant", "timer", "class", "style", "element", "cluster"] as const;
+const WHERES = ["sheet", "query", "string", "constant", "timer", "prop", "class", "style", "element", "cluster"] as const;
 type Where = (typeof WHERES)[number];
 
 export const KEEP_REASONS = {

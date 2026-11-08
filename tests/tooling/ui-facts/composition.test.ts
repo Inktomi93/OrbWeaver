@@ -70,6 +70,55 @@ test("a useQuery whose pending flag picks the render is a ladder, a bare enabled
   ]);
 });
 
+test("an aliased useQuery and a useQueries result read through an element or a callback are classified like a bare useQuery", ({ scratch }) => {
+  const root = plantDir(scratch, "query-aliases");
+  plant(root, {
+    "hooks/use-many.ts": [
+      'import { useQuery as useRead, useQueries } from "@tanstack/react-query";',
+      'import * as rq from "@tanstack/react-query";',
+      "export function useAliased(trpc) {",
+      "  const { isPending } = useRead(trpc.a.queryOptions());",
+      "  return isPending;",
+      "}",
+      "export function useNamespaced(trpc) {",
+      "  return rq.useQuery(trpc.b.queryOptions()).data;",
+      "}",
+      "export function useSome(trpc) {",
+      "  const rows = useQueries({ queries: [trpc.c.queryOptions()] });",
+      "  return rows.some((row) => row.isPending) ? null : rows;",
+      "}",
+      "export function useFirst(trpc) {",
+      "  const [first, second] = useQueries({ queries: [trpc.d.queryOptions(), trpc.e.queryOptions()] });",
+      "  return first.isError ? null : second.data;",
+      "}",
+      "export function useData(trpc) {",
+      "  const rows = useQueries({ queries: [trpc.f.queryOptions()] });",
+      "  return rows.map((row) => row.data);",
+      "}",
+    ].join("\n"),
+  });
+  const members = analyse(root, [], null).cohorts.find((entry) => entry.name === "read-shape")?.members ?? [];
+  expect(members.map((member) => [member.label, member.cells["shape"]?.value])).toEqual([
+    ["useAliased", "ladder"],
+    ["useNamespaced", "background"],
+    ["useSome", "ladder"],
+    ["useFirst", "ladder"],
+    ["useData", "background"],
+  ]);
+});
+
+test("a label map wrapped in as const or satisfies is one copy of the same keyed map", ({ scratch }) => {
+  const root = plantDir(scratch, "wrapped-maps");
+  plant(root, {
+    "lib/one.ts": 'export const PHASE_LABELS = { draft: "Draft", live: "Live" } as const;',
+    "lib/two.ts": 'export const PHASE_LABEL = { draft: "Draft", live: "Live" } satisfies Record<string, string>;',
+  });
+  const groups = analyse(root, [], null).duplicates;
+  expect(groups.map((group) => [group.keys, group.copies.map((copy) => copy.name), group.identical])).toEqual([
+    [["draft", "live"], ["PHASE_LABELS", "PHASE_LABEL"], true],
+  ]);
+});
+
 test("variant values reached through a const map or a conditional count as written, and a prop stays unresolved", ({ scratch }) => {
   const root = plantDir(scratch, "variants");
   plant(root, {

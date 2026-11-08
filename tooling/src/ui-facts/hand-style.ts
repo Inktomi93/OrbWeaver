@@ -2,6 +2,7 @@
 import ts from "typescript";
 import type { Elem, Hit, Judgement, Lit, Place, Source, ValueTokens } from "../eslint/index.ts";
 import { constInitializer, hitOf, judgeLit, keepJudgement, lineOf, litsOf, parseValue, unwrap } from "../eslint/index.ts";
+import { numberOf, staticTemplate } from "./syntax.ts";
 
 // React writes a bare number as pixels except on these.
 const UNITLESS: ReadonlySet<string> = new Set([
@@ -21,11 +22,30 @@ const LAYOUT_DISPLAY = /^(?:inline-)?(?:flex|grid)$/u;
 
 const kebab = (key: string): string => key.replace(/[A-Z]/gu, (letter) => `-${letter.toLowerCase()}`);
 
-/** The literal leaves a style value can take: itself, or the branches of a conditional, `??` and `||`. */
-function literalLeaves(expression: ts.Expression): readonly (ts.StringLiteralLike | ts.NumericLiteral)[] {
+/** A value a style property can take that the syntax knows: a literal, a number held in a same-file const, or a template of known numbers. */
+interface Leaf {
+  readonly text: string;
+  readonly numeric: boolean;
+  /** The source the write shows, so a value read through a const names the const. */
+  readonly shown: string;
+}
+
+/**
+ * The leaves a style value can take: itself, or the branches of a conditional, `??` and `||`.
+ * A const is opened only for a number: a string const is read where it is declared, so opening it here would count it twice.
+ */
+function literalLeaves(expression: ts.Expression): readonly Leaf[] {
   const node = unwrap(expression);
-  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node) || ts.isNumericLiteral(node)) {
-    return [node];
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+    return [{ text: node.text, numeric: false, shown: node.getText() }];
+  }
+  const amount = numberOf(node, true);
+  if (amount !== null) {
+    return [{ text: String(amount), numeric: true, shown: node.getText() }];
+  }
+  const built = ts.isTemplateExpression(node) ? staticTemplate(node) : null;
+  if (built !== null) {
+    return [{ text: built, numeric: false, shown: node.getText() }];
   }
   if (ts.isConditionalExpression(node)) {
     return [...literalLeaves(node.whenTrue), ...literalLeaves(node.whenFalse)];
@@ -34,8 +54,8 @@ function literalLeaves(expression: ts.Expression): readonly (ts.StringLiteralLik
   return either ? [...literalLeaves(node.left), ...literalLeaves(node.right)] : [];
 }
 
-function leafLits(property: string, leaf: ts.StringLiteralLike | ts.NumericLiteral): readonly Lit[] {
-  if (ts.isNumericLiteral(leaf)) {
+function leafLits(property: string, leaf: Leaf): readonly Lit[] {
+  if (leaf.numeric) {
     const amount = Number(leaf.text);
     const text = UNITLESS.has(property) || amount === 0 ? leaf.text : `${leaf.text}px`;
     const node = parseValue(text);
@@ -76,10 +96,10 @@ function writesOf(sf: ts.SourceFile, property: ts.ObjectLiteralElementLike): rea
   const name = key.startsWith("--") ? key : kebab(key);
   return literalLeaves(property.initializer).map((leaf) => ({
     property: name,
-    detail: `${key}: ${leaf.getText(sf)}`,
+    detail: `${key}: ${leaf.shown}`,
     line,
     lits: leafLits(name, leaf),
-    keyword: ts.isNumericLiteral(leaf) ? null : leaf.text.trim(),
+    keyword: leaf.numeric ? null : leaf.text.trim(),
   }));
 }
 
