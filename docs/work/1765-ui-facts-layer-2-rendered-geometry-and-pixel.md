@@ -1,9 +1,10 @@
 ---
 kind: tooling
-status: open
-updated: 2026-11-06
+status: doing
+updated: 2026-11-08
 priority: P2
 area: tooling
+lane: wt/agent-a50a88db0026232d7
 plan: surface-walk
 ---
 
