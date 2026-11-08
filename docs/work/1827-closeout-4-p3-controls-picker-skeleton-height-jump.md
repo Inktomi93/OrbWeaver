@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-11-08
 priority: P3
 area: ui
-lane: main
 plan: cross-surface-consistency
 ---
 
