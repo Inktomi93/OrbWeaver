@@ -1,5 +1,7 @@
 // The primitive props the feature className drain moves paint onto. Each arm is read as a computed value
 // against a probe painted from the same token, so a token retune never breaks the test and a dead arm always does.
+
+import { computedStyle } from "@orb/testkit/browser/spec";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type {
@@ -19,36 +21,32 @@ import type {
 const STORIES = "tests/ui/primitives/_classname-drain-stories";
 const TONES = ["info", "accolade", "speaker", "dialogue", "narration"] as const;
 
-function style(locator: Locator, property: string): Promise<string> {
-  return locator.evaluate((element, name) => getComputedStyle(element).getPropertyValue(name), property);
-}
-
 test("a meaning tone and each named ink paint Text and Icon in their own token", async ({ mount }) => {
   const component = await mount<typeof ToneStory>(`${STORIES}/ToneStory`, {});
   for (const tone of TONES) {
     const row = component.locator(`[data-tone-case="${tone}"]`);
-    const expected = await style(row.locator(`[data-probe="${tone}"]`), "color");
-    expect(await style(row.locator('[data-slot="text"]'), "color"), tone).toBe(expected);
-    expect(await style(row.locator("svg"), "color"), tone).toBe(expected);
+    const expected = await computedStyle(row.locator(`[data-probe="${tone}"]`), "color");
+    expect(await computedStyle(row.locator('[data-slot="text"]'), "color"), tone).toBe(expected);
+    expect(await computedStyle(row.locator("svg"), "color"), tone).toBe(expected);
   }
 });
 
 test("the Icon shadow arm lifts the glyph with a drop shadow", async ({ mount }) => {
   const component = await mount<typeof ToneStory>(`${STORIES}/ToneStory`, {});
-  expect(await style(component.getByRole("img", { name: "shadowed icon", exact: true }), "filter")).toContain("drop-shadow");
-  expect(await style(component.getByRole("img", { name: "plain icon", exact: true }), "filter")).toBe("none");
+  expect(await computedStyle(component.getByRole("img", { name: "shadowed icon", exact: true }), "filter")).toContain("drop-shadow");
+  expect(await computedStyle(component.getByRole("img", { name: "plain icon", exact: true }), "filter")).toBe("none");
 });
 
 test("strike draws a line-through, numeric sets tabular figures, and code is the mono face in the foreground ink", async ({ mount }) => {
   const component = await mount<typeof TextModifierStory>(`${STORIES}/TextModifierStory`, {});
-  expect(await style(component.getByText("struck", { exact: true }), "text-decoration-line")).toBe("line-through");
-  expect(await style(component.getByText("plain", { exact: true }), "text-decoration-line")).toBe("none");
-  expect(await style(component.getByText("1234", { exact: true }), "font-variant-numeric")).toBe("tabular-nums");
-  expect(await style(component.getByText("plain", { exact: true }), "font-variant-numeric")).toBe("normal");
+  expect(await computedStyle(component.getByText("struck", { exact: true }), "text-decoration-line")).toBe("line-through");
+  expect(await computedStyle(component.getByText("plain", { exact: true }), "text-decoration-line")).toBe("none");
+  expect(await computedStyle(component.getByText("1234", { exact: true }), "font-variant-numeric")).toBe("tabular-nums");
+  expect(await computedStyle(component.getByText("plain", { exact: true }), "font-variant-numeric")).toBe("normal");
   const code = component.getByText("id_01hx", { exact: true });
   const probe = component.locator('[data-probe="code"]');
-  expect(await style(code, "font-family")).toBe(await style(probe, "font-family"));
-  expect(await style(code, "color")).toBe(await style(probe, "color"));
+  expect(await computedStyle(code, "font-family")).toBe(await computedStyle(probe, "font-family"));
+  expect(await computedStyle(code, "color")).toBe(await computedStyle(probe, "color"));
 });
 
 test("the link intent is an underlined run in the primary ink with no fill", async ({ mount }) => {
@@ -57,9 +55,9 @@ test("the link intent is an underlined run in the primary ink with no fill", asy
   const probe = component.locator('[data-probe="primary"]');
   // The pointer starts over the story's first element; park it on the probe so the link reads at rest.
   await probe.hover();
-  expect(await style(link, "text-decoration-line")).toBe("underline");
-  expect(await style(link, "background-color")).toBe(await style(probe, "background-color"));
-  expect(await style(link, "color")).toBe(await style(probe, "color"));
+  expect(await computedStyle(link, "text-decoration-line")).toBe("underline");
+  expect(await computedStyle(link, "background-color")).toBe(await computedStyle(probe, "background-color"));
+  expect(await computedStyle(link, "color")).toBe(await computedStyle(probe, "color"));
 });
 
 function srOnly(locator: Locator): Promise<boolean> {
@@ -79,7 +77,7 @@ for (const pointer of [
 
     test("hiddenAt drops the element only at its pointer class, and srOnlyAt keeps it announced", async ({ mount }) => {
       const component = await mount<typeof PointerVisibilityStory>(`${STORIES}/PointerVisibilityStory`, {});
-      const display = (locator: Locator): Promise<string> => style(locator, "display");
+      const display = (locator: Locator): Promise<string> => computedStyle(locator, "display");
       expect((await display(component.getByText("text hidden at coarse", { exact: true }))) === "none").toBe(coarse);
       expect((await display(component.getByText("text hidden at fine", { exact: true }))) === "none").toBe(!coarse);
       expect((await display(component.locator('[data-case="row-hidden-coarse"]'))) === "none").toBe(coarse);
@@ -97,22 +95,22 @@ for (const pointer of [
 
     test("touchFloor lifts each box to the touch target only at a coarse pointer", async ({ mount }) => {
       const component = await mount<typeof TouchFloorStory>(`${STORIES}/TouchFloorStory`, {});
-      const touch = await style(component.locator('[data-probe="touch"]'), "block-size");
-      const floored = async (locator: Locator, property: string): Promise<boolean> => (await style(locator, property)) === touch;
+      const touch = await computedStyle(component.locator('[data-probe="touch"]'), "block-size");
+      const floored = async (locator: Locator, property: string): Promise<boolean> => (await computedStyle(locator, property)) === touch;
       expect(await floored(component.locator('[data-case="row-block"]'), "min-block-size")).toBe(coarse);
       expect(await floored(component.locator('[data-case="stack-block"]'), "min-block-size")).toBe(coarse);
       expect(await floored(component.getByRole("button", { name: "glyph chip", exact: true }), "min-inline-size")).toBe(coarse);
       expect(await floored(component.locator('[data-slot="badge"]'), "min-block-size")).toBe(coarse);
       expect(await floored(component.getByRole("button", { name: "Tool chip", exact: true }), "min-block-size")).toBe(coarse);
-      const blockGap = await style(component.locator('[data-probe="block-gap"]'), "inline-size");
-      expect((await style(component.locator('[data-case="row-gap"]'), "column-gap")) === blockGap).toBe(coarse);
+      const blockGap = await computedStyle(component.locator('[data-probe="block-gap"]'), "inline-size");
+      expect((await computedStyle(component.locator('[data-case="row-gap"]'), "column-gap")) === blockGap).toBe(coarse);
     });
 
     test("a revealed Row rests hidden and shows on its group's hover, and a coarse pointer keeps it shown", async ({ mount }) => {
       const component = await mount<typeof RevealStory>(`${STORIES}/RevealStory`, {});
       const hover = component.locator('[data-case="row-hover"]');
       const faint = component.locator('[data-case="row-faint"]');
-      const opacity = (locator: Locator): Promise<string> => style(locator, "opacity");
+      const opacity = (locator: Locator): Promise<string> => computedStyle(locator, "opacity");
       await component.locator('[data-case="away"]').hover();
       await expect.poll(() => opacity(hover)).toBe(coarse ? "1" : "0");
       expect(await opacity(faint)).toBe(coarse ? "0.4" : "0");
@@ -122,7 +120,7 @@ for (const pointer of [
 
 test("at a fine pointer the group's hover reveals the Row: full for an action, faint for secondary chrome", async ({ mount }) => {
   const component = await mount<typeof RevealStory>(`${STORIES}/RevealStory`, {});
-  const opacity = (locator: Locator): Promise<string> => style(locator, "opacity");
+  const opacity = (locator: Locator): Promise<string> => computedStyle(locator, "opacity");
   // Over the action row, so the faint row reads its group's hover and not its own.
   await component.locator('[data-case="row-hover"]').hover();
   await expect.poll(() => opacity(component.locator('[data-case="row-hover"]'))).toBe("1");
@@ -132,22 +130,22 @@ test("at a fine pointer the group's hover reveals the Row: full for an action, f
 test("the row shape takes the control radius in and out of a tier, and the neutral soft style takes the muted tint", async ({ mount }) => {
   const component = await mount<typeof CardShapeStory>(`${STORIES}/CardShapeStory`, {});
   const card = (name: string): Locator => component.locator(`[data-case="${name}"]`);
-  const control = await style(component.locator('[data-probe="control"]'), "border-start-start-radius");
-  expect(await style(card("row"), "border-start-start-radius")).toBe(control);
-  expect(await style(card("tier-row"), "border-start-start-radius")).toBe(control);
-  expect(await style(card("island"), "border-start-start-radius")).not.toBe(control);
-  expect(await style(card("row"), "border-block-start-width")).toBe("1px");
-  expect(await style(card("well"), "background-color")).toBe(await style(component.locator('[data-probe="muted"]'), "background-color"));
-  expect(await style(card("clear"), "background-color")).toBe(await style(component.locator('[data-probe="clear"]'), "background-color"));
-  expect(await style(card("clear"), "border-block-start-width")).toBe("1px");
+  const control = await computedStyle(component.locator('[data-probe="control"]'), "border-start-start-radius");
+  expect(await computedStyle(card("row"), "border-start-start-radius")).toBe(control);
+  expect(await computedStyle(card("tier-row"), "border-start-start-radius")).toBe(control);
+  expect(await computedStyle(card("island"), "border-start-start-radius")).not.toBe(control);
+  expect(await computedStyle(card("row"), "border-block-start-width")).toBe("1px");
+  expect(await computedStyle(card("well"), "background-color")).toBe(await computedStyle(component.locator('[data-probe="muted"]'), "background-color"));
+  expect(await computedStyle(card("clear"), "background-color")).toBe(await computedStyle(component.locator('[data-probe="clear"]'), "background-color"));
+  expect(await computedStyle(card("clear"), "border-block-start-width")).toBe("1px");
 });
 
 test("an Input width step reaches the element and numeric sets tabular figures", async ({ mount }) => {
   const component = await mount<typeof InputStory>(`${STORIES}/InputStory`, {});
   const sized = component.getByRole("textbox", { name: "avatar-md", exact: true });
-  expect(await style(sized, "inline-size")).toBe(await style(component.locator('[data-probe="avatar-md"]'), "inline-size"));
-  expect(await style(sized, "font-variant-numeric")).toBe("tabular-nums");
-  expect(await style(component.getByRole("textbox", { name: "full", exact: true }), "font-variant-numeric")).toBe("normal");
+  expect(await computedStyle(sized, "inline-size")).toBe(await computedStyle(component.locator('[data-probe="avatar-md"]'), "inline-size"));
+  expect(await computedStyle(sized, "font-variant-numeric")).toBe("tabular-nums");
+  expect(await computedStyle(component.getByRole("textbox", { name: "full", exact: true }), "font-variant-numeric")).toBe("normal");
 });
 
 const EDGE_WIDTH = {
@@ -165,32 +163,32 @@ const EDGE_COLOR = {
 
 test("each divider draws one hairline edge in the border ink and leaves the other edges bare", async ({ mount }) => {
   const component = await mount<typeof DividerStory>(`${STORIES}/DividerStory`, {});
-  const ink = await style(component.locator('[data-probe="border"]'), "color");
+  const ink = await computedStyle(component.locator('[data-probe="border"]'), "color");
   for (const box of ["row", "stack"] as const) {
     for (const edge of ["start", "end", "top", "bottom"] as const) {
       const element = component.locator(`[data-case="${box}-${edge}"]`);
-      expect(await style(element, EDGE_WIDTH[edge]), `${box} ${edge}`).toBe("1px");
-      expect(await style(element, EDGE_COLOR[edge]), `${box} ${edge}`).toBe(ink);
+      expect(await computedStyle(element, EDGE_WIDTH[edge]), `${box} ${edge}`).toBe("1px");
+      expect(await computedStyle(element, EDGE_COLOR[edge]), `${box} ${edge}`).toBe(ink);
       const others = (["start", "end", "top", "bottom"] as const).filter((other) => other !== edge);
-      expect(await Promise.all(others.map((other) => style(element, EDGE_WIDTH[other]))), `${box} ${edge}`).toEqual(others.map(() => "0px"));
+      expect(await Promise.all(others.map((other) => computedStyle(element, EDGE_WIDTH[other]))), `${box} ${edge}`).toEqual(others.map(() => "0px"));
     }
   }
 });
 
 test("a Button tone and a named ink colour the ghost and link styles", async ({ mount }) => {
   const component = await mount<typeof ButtonToneStory>(`${STORIES}/ButtonToneStory`, {});
-  const probe = (name: string): Promise<string> => style(component.locator(`[data-probe="${name}"]`), "color");
+  const probe = (name: string): Promise<string> => computedStyle(component.locator(`[data-probe="${name}"]`), "color");
   const button = (name: string): Locator => component.getByRole("button", { name, exact: true });
   // The pointer starts over the story's first element; park it on a probe so every control reads at rest.
   await component.locator('[data-probe="muted"]').hover();
-  expect(await style(button("ghost primary"), "color")).toBe(await probe("primary"));
-  expect(await style(button("ghost destructive"), "color")).toBe(await probe("destructive"));
-  expect(await style(button("link muted"), "color")).toBe(await probe("muted"));
+  expect(await computedStyle(button("ghost primary"), "color")).toBe(await probe("primary"));
+  expect(await computedStyle(button("ghost destructive"), "color")).toBe(await probe("destructive"));
+  expect(await computedStyle(button("link muted"), "color")).toBe(await probe("muted"));
 });
 
 test("receded dims each primitive to the token's opacity", async ({ mount }) => {
   const component = await mount<typeof RecededStory>(`${STORIES}/RecededStory`, {});
-  const step = await style(component.locator('[data-probe="receded"]'), "opacity");
+  const step = await computedStyle(component.locator('[data-probe="receded"]'), "opacity");
   expect(step).not.toBe("1");
   for (const element of [
     component.getByText("receded text", { exact: true }),
@@ -199,7 +197,7 @@ test("receded dims each primitive to the token's opacity", async ({ mount }) => 
     component.locator('[data-case="stack"]'),
     component.locator('[data-slot="list-row-root"]'),
   ]) {
-    expect(await style(element, "opacity")).toBe(step);
+    expect(await computedStyle(element, "opacity")).toBe(step);
   }
-  expect(await style(component.getByText("plain text", { exact: true }), "opacity")).toBe("1");
+  expect(await computedStyle(component.getByText("plain text", { exact: true }), "opacity")).toBe("1");
 });

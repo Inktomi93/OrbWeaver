@@ -1,17 +1,12 @@
 import type { SeedScopeProps } from "@orb/testkit/browser";
-import { CtIsolation, SeedScope } from "@orb/testkit/browser";
+import { CtIsolation, roleVar, SeedScope } from "@orb/testkit/browser";
 import { Dices, Icon } from "@orb/ui/icons";
 import { IndicatorDot } from "@orb/ui/indicator-dot";
 import { InlineToken } from "@orb/ui/inline-token";
-import type { ToneRole } from "@orb/ui/tokens";
 import { TOKENS, TONE_ROLES, TONES } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 
 const RUN_WIDTH = "24rem";
-
-function roleVar(role: ToneRole): string {
-  return `var(${TOKENS[`color.tone-${role}`].cssVar})`;
-}
 
 /**
  * Each tone's row: an inline token in a line of prose beside the same line with plain text, a solid dot and a ring, a probe

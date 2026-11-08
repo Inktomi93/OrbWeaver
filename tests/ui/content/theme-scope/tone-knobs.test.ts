@@ -3,7 +3,7 @@
 // reads the emitted variables back, knobs and literals, and judges the pixels they spell.
 import type { Oklch } from "@orb/kit/theme-derivation";
 import { AA_NORMAL_RATIO, oklchToSrgb, quantized, rampDeltas, rampSurface, srgbToOklch, toneContrast, toneFloorMisses } from "@orb/kit/theme-derivation";
-import { ACCEPTED_BASES, MID_GREY } from "@orb/testkit/iso";
+import { ACCEPTED_BASES, HEARTH_ACCENT, MID_GREY } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ToneRole } from "@orb/ui/tokens";
 import { TOKEN_POLARITY_ARMS, TOKENS, TONE_MIX_DEFAULTS } from "@orb/ui/tokens";
@@ -18,7 +18,6 @@ import {
   emittedMisses,
   emittedMix,
   emittedScope,
-  HEARTH_ACCENT,
   hueAdjacent,
   nestedAccentScope,
   paintedRoles,

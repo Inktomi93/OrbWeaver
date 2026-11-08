@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/codemod/codemod/refs/heads/main/schemas/workflow.json
+version: "1"
+nodes:
+  - id: computed-style-reader
+    name: Replace local style() readers with computedStyle
+    type: automatic
+    steps:
+      - name: Component tests
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "tsx"
+          include: ["**/*.ct.tsx"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]

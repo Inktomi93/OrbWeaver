@@ -12,6 +12,7 @@ import {
   tonePaletteOn,
   toneRoleColors,
 } from "@orb/kit/theme-derivation";
+import { HEARTH_ACCENT } from "@orb/testkit/iso";
 import type { Tone, ToneMixKnob, ToneRole } from "@orb/ui/tokens";
 import { TOKENS, TONE_MIX_DEFAULTS, TONE_ROLE_RECIPES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
@@ -20,9 +21,6 @@ import { toOklch } from "../../../../packages/ui/src/content/theme-scope/color-p
 import { carriedPaletteOf } from "../../../../packages/ui/src/content/theme-scope/derive-vars.ts";
 import type { CarriedTone, CarriedToneScheme } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
 import { carriedToneScheme, carriedToneSources, MIX_FALLBACK } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
-
-/** The accent a scope inherits from Hearth when it carries none of its own. */
-export const HEARTH_ACCENT = TOKENS["color.primary"].value;
 
 /** A colour the case authored, parsed; a spelling that does not parse is a broken case. */
 export function parsed(color: string): ParsedOklch {

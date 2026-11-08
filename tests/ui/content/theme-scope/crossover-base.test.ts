@@ -1,12 +1,12 @@
 // A base typed with fractional digits can put a ramp member a hair across the black/white crossover from the page (D202).
 // Each case runs the production clamp and judges the emitted inks over the panels they paint.
 import { AA_NORMAL_RATIO, rampDeltas, rampSurface, toneContrast } from "@orb/kit/theme-derivation";
-import { CROSSOVER_BASES, TYPED_CROSSOVER_BASES } from "@orb/testkit/iso";
+import { CROSSOVER_BASES, HEARTH_ACCENT, TYPED_CROSSOVER_BASES } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { TOKENS } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { serializeOpaqueOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
-import { emittedInk, HEARTH_ACCENT, parsed } from "./tone-scope-misses.ts";
+import { emittedInk, parsed } from "./tone-scope-misses.ts";
 
 const SWEEP_TIMEOUT_MS = 180_000;
 const PANEL_INKS = [

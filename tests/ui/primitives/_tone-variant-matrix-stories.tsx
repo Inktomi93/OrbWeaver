@@ -1,5 +1,5 @@
 import type { SeedScopeProps } from "@orb/testkit/browser";
-import { CtIsolation, SeedScope } from "@orb/testkit/browser";
+import { CtIsolation, roleVar, SeedScope } from "@orb/testkit/browser";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -9,7 +9,6 @@ import { InlineAction } from "@orb/ui/inline-action";
 import { WebSpinner } from "@orb/ui/spinner";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
-import type { ToneRole } from "@orb/ui/tokens";
 import { TOKENS, TONE_HOST_UTILITIES, TONE_ROLES, TONES } from "@orb/ui/tokens";
 import { WeaveGlyph } from "@orb/ui/web-weave";
 import type { ReactElement, ReactNode } from "react";
@@ -34,10 +33,6 @@ const NAMED_PROBES = {
   selection: "color.selection-quiet",
   "selection-foreground": "color.selection-quiet-foreground",
 } as const satisfies Record<string, keyof typeof TOKENS>;
-
-function roleVar(role: ToneRole): string {
-  return `var(${TOKENS[`color.tone-${role}`].cssVar})`;
-}
 
 /** Every primitive in every tone and style, each tone beside a probe per role painted straight from its variable. */
 function Matrix(): ReactElement {

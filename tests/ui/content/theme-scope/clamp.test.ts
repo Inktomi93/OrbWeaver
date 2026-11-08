@@ -1,4 +1,5 @@
 import { AA_NORMAL_RATIO, carriedLiteralRoles, carriedReadingHosts, oklchToSrgb, proseInkCorrection, wcagContrastRatio } from "@orb/kit/theme-derivation";
+import { HEARTH_ACCENT } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ToneMixKnob } from "@orb/ui/tokens";
 import { SEED_THEME_VALUE_SETS, TOKENS, TONE_MIX_DEFAULTS, TONE_MIX_KNOBS, TONE_ROLE_RECIPES, TONES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
@@ -6,7 +7,7 @@ import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scop
 import { toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import { carriedPaletteOf } from "../../../../packages/ui/src/content/theme-scope/derive-vars.ts";
 import { carriedToneScheme, carriedToneSources, MIX_FALLBACK, solveCarriedToneMix } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
-import { HEARTH_ACCENT, parsed } from "./tone-scope-misses.ts";
+import { parsed } from "./tone-scope-misses.ts";
 
 const DARK_BASE = "oklch(0.158 0.006 60)";
 const MID_BASE = "oklch(0.5 0.01 60)";

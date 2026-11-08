@@ -1,4 +1,4 @@
-import { CtIsolation } from "@orb/testkit/browser";
+import { CtIsolation, cssVar } from "@orb/testkit/browser";
 import { Avatar } from "@orb/ui/avatar";
 import type { BUTTON_BOX_OVERFLOW } from "@orb/ui/button/box-hit-area";
 import { BUTTON_BOX_STEPS } from "@orb/ui/button/box-hit-area";
@@ -6,7 +6,7 @@ import { GlyphButton } from "@orb/ui/glyph-button";
 import { Circle, Icon } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
 import { PictureButton } from "@orb/ui/picture-button";
-import { TOKENS } from "@orb/ui/tokens";
+import type { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 
 type InlineStep = keyof typeof BUTTON_BOX_OVERFLOW.inlineAction;
@@ -16,8 +16,6 @@ const INLINE_TYPE = {
   label: { size: "text.label", leading: "leading.label" },
   body: { size: "text.body", leading: "leading.body" },
 } as const satisfies Record<InlineStep, { readonly size: keyof typeof TOKENS; readonly leading: keyof typeof TOKENS }>;
-
-const cssVar = (token: keyof typeof TOKENS): string => `var(${TOKENS[token].cssVar})`;
 
 /** Every glyph and inline step beside a probe sized from its own token, and a picture beside its portrait's twin. */
 export function ButtonFamilyBoxesStory(): ReactElement {

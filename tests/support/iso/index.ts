@@ -21,7 +21,7 @@ export { appendedBy, forEachNonEmpty, nonEmpty, present } from "./non-empty.ts";
 export { makePromptConfig } from "./preset-config.ts";
 export { makePluginProviderRow, makeProviderRow, pluginProviderId } from "./provider-rows.ts";
 export { makeRpgActorIdentity, makeRpgActorVolatile } from "./rpg-state.ts";
-export { MID_GREY, SEED_CASES, SEED_SCOPES } from "./seed-scopes.ts";
+export { HEARTH_ACCENT, MID_GREY, SEED_CASES, SEED_SCOPES } from "./seed-scopes.ts";
 export { decodeStreamChunk } from "./stream-chunk.ts";
 export type { SurfaceCoverageInventory, SurfaceSkipReason, SurfaceWitnessDisposition } from "./surface-coverage.ts";
 export type { SurfaceProviderEvidence } from "./surface-data.ts";

@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "computed-style-reader"
+version: "0.1.0"
+description: "Replace a spec's local style() computed-style reader with computedStyle from @orb/testkit/browser/spec."
+author: "Orbweaver"
+license: "AGPL-3.0-only"
+targets:
+  languages: ["tsx"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

@@ -46,11 +46,16 @@ test("the live region names the row and its position, never its id", async ({ mo
   await alpha.focus();
   await page.keyboard.press("Space");
   const announcements = page.locator("[aria-live]").filter({ hasText: "Alpha" });
-  await expect(announcements.first()).toContainText(sortablePositionName("Alpha", 1, rows));
+  const picked = sortablePositionName("Alpha", 1, rows);
+  const moved = sortablePositionName("Alpha", 2, rows);
+  // The control: the two lines differ only by the rank, so the cases below prove the rank is spoken and moves.
+  expect(moved).not.toBe(picked);
+  await expect(announcements.first()).toContainText(picked);
   await page.keyboard.press("ArrowDown");
-  await expect(announcements.first()).toContainText(sortablePositionName("Alpha", 2, rows));
+  await expect(announcements.first()).toContainText(moved);
+  await expect(announcements.first()).not.toContainText(picked);
   await page.keyboard.press("Space");
-  await expect(announcements.first()).toContainText(sortablePositionName("Alpha", 2, rows));
+  await expect(announcements.first()).toContainText(moved);
   await expect(announcements.first()).not.toContainText("trk_");
 });
 

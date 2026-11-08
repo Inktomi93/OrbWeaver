@@ -1,5 +1,5 @@
 import type { SeedScopeProps } from "@orb/testkit/browser";
-import { CtIsolation, SeedScope } from "@orb/testkit/browser";
+import { CtIsolation, roleVar, SeedScope } from "@orb/testkit/browser";
 import { Card } from "@orb/ui/card";
 import type { ToneRole } from "@orb/ui/tokens";
 import { TOKENS, TONE_HOST_UTILITIES, TONES } from "@orb/ui/tokens";
@@ -9,10 +9,6 @@ const VARIANTS = ["surface", "soft"] as const;
 const PROBED_ROLES = ["text-on-tint", "tint-active"] as const satisfies readonly ToneRole[];
 // A surface Card is its own tint host; a soft Card mixes over the page under it.
 const VARIANT_HOST = { surface: TONE_HOST_UTILITIES.card, soft: undefined } as const satisfies Record<(typeof VARIANTS)[number], string | undefined>;
-
-function roleVar(role: ToneRole): string {
-  return `var(${TOKENS[`color.tone-${role}`].cssVar})`;
-}
 
 /** An operable Card in every tone and fill style, each tone beside a probe per style and role it reads when pressed, on that style's host. */
 function Cards(): ReactElement {

@@ -1,13 +1,13 @@
 // The desktop rail's active cell paints the primary tone's roles (D336): its tint, its on-tint ink, and on the Home brand
 // the pigment glyph and accent bar. The cell stamps that tone itself, so no inner stamp can reset it to neutral.
 
-import { seedShellState } from "@orb/testkit/browser/spec";
+import { computedStyle, seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { ToneRole } from "@orb/ui/tokens";
 import { TOKENS } from "@orb/ui/tokens";
-import type { Locator, Page } from "@playwright/test";
+import type { Page } from "@playwright/test";
 import type { AppShellStory } from "../surfaces/_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "../surfaces/app-shell-ct.ts";
 
@@ -39,10 +39,6 @@ function primaryRole(page: Page, role: ToneRole): Promise<string> {
   }, TOKENS[`color.tone-${role}`].cssVar);
 }
 
-function style(locator: Locator, property: string, pseudo?: string): Promise<string> {
-  return locator.evaluate((element, [name, at]) => getComputedStyle(element, at).getPropertyValue(name), [property, pseudo ?? null] as const);
-}
-
 test("the active section cell takes the primary tint and its on-tint ink", async ({ corpus, mount, page }) => {
   await routeShell(page, corpus, await root.internalCallerFor(root.ownerId), SECTION_PROCEDURES);
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -51,8 +47,8 @@ test("the active section cell takes the primary tint and its on-tint ink", async
   const cell = page.locator(ACTIVE);
   await expect(cell).toHaveAccessibleName(SECTION_LABELS.characters);
   await page.locator(".shell-topbar").hover();
-  expect(await style(cell, "background-color")).toBe(await primaryRole(page, "tint"));
-  expect(await style(cell.locator("svg").first(), "color")).toBe(await primaryRole(page, "text-on-tint"));
+  expect(await computedStyle(cell, "background-color")).toBe(await primaryRole(page, "tint"));
+  expect(await computedStyle(cell.locator("svg").first(), "color")).toBe(await primaryRole(page, "text-on-tint"));
 });
 
 test("the active phone tab keeps the rail's tint and on-tint ink, a pair the D336 floors judge", async ({ corpus, mount, page }) => {
@@ -63,9 +59,9 @@ test("the active phone tab keeps the rail's tint and on-tint ink, a pair the D33
   const cell = page.locator(ACTIVE);
   await expect(cell).toHaveAccessibleName(SECTION_LABELS.characters);
   await page.locator(".shell-topbar").hover();
-  expect(await style(cell, "background-color")).toBe(await primaryRole(page, "tint"));
-  expect(await style(cell.locator(".shell-rail-button-label"), "color")).toBe(await primaryRole(page, "text-on-tint"));
-  expect(await style(cell.locator("svg").first(), "color")).toBe(await primaryRole(page, "text-on-tint"));
+  expect(await computedStyle(cell, "background-color")).toBe(await primaryRole(page, "tint"));
+  expect(await computedStyle(cell.locator(".shell-rail-button-label"), "color")).toBe(await primaryRole(page, "text-on-tint"));
+  expect(await computedStyle(cell.locator("svg").first(), "color")).toBe(await primaryRole(page, "text-on-tint"));
 });
 
 test("the active Home brand takes the primary tint, the pigment glyph and the accent bar", async ({ corpus, mount, page }) => {
@@ -76,7 +72,7 @@ test("the active Home brand takes the primary tint, the pigment glyph and the ac
   const brand = page.locator('.shell-rail-brand-button[aria-current="page"]');
   await expect(brand).toBeVisible();
   await page.locator(".shell-topbar").hover();
-  expect(await style(brand, "background-color")).toBe(await primaryRole(page, "tint"));
-  expect(await style(brand.locator("svg"), "color")).toBe(await primaryRole(page, "solid"));
-  expect(await style(brand, "background-color", "::before")).toBe(await primaryRole(page, "solid"));
+  expect(await computedStyle(brand, "background-color")).toBe(await primaryRole(page, "tint"));
+  expect(await computedStyle(brand.locator("svg"), "color")).toBe(await primaryRole(page, "solid"));
+  expect(await computedStyle(brand, "background-color", "::before")).toBe(await primaryRole(page, "solid"));
 });
