@@ -104,14 +104,17 @@ function validateEvidenceFlagValue(flag: string, raw: string, errors: string[]):
   }
 }
 
-// The refusal quotes no part of the value: the value is the credential.
+// The refusal quotes no part of the value: the value is the credential. Only the base origin takes credentials
+// (`--base-credentials-env` is scoped to it), so a fixture origin's refusal names no remedy flag.
 function validateUrlFlagValue(flag: string, raw: string, errors: string[]): void {
-  if ((URL_VALUE_FLAGS as readonly string[]).includes(flag) && urlCarriesCredentials(raw)) {
-    errors.push(
-      `${flag} carries user:password credentials, which would sit in argv, the process table and every log that echoes the command. ` +
-        "Pass the URL without them, put user:password in an environment variable, and add --base-credentials-env <ENV_NAME>",
-    );
+  if (!((URL_VALUE_FLAGS as readonly string[]).includes(flag) && urlCarriesCredentials(raw))) {
+    return;
   }
+  const remedy =
+    flag === "--base"
+      ? "Pass the URL without them, put user:password in an environment variable, and add --base-credentials-env <ENV_NAME>"
+      : "A fixture origin takes no credentials: pass the URL without them and serve the fixture with no basic-auth gate";
+  errors.push(`${flag} carries user:password credentials, which would sit in argv, the process table and every log that echoes the command. ${remedy}`);
 }
 
 // Names only: the variable's value is what this flag exists to keep off the command line.

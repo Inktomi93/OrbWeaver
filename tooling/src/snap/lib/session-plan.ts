@@ -16,6 +16,7 @@ import { splitPageSuffix } from "../../floor/instrument/argv.ts";
 import type { SessionAccess, SessionCallTarget, SessionLimits, SessionRow, SessionSweepVerdict } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";
 import { sessionLevelArmFlags } from "../ops/arms/registry.ts";
+import { diskSafeUrl } from "./disk-safe-argv.ts";
 
 // ── the registry (repo-keyed like the stage marker, #108) ─────────────────────────────────────────────
 
@@ -387,7 +388,9 @@ export function livePageSlug(pageUrl: string): string {
     const base = basename(url.pathname);
     return routeSlug(base.slice(0, base.length - extname(base).length));
   }
-  return routeSlug(`${url.pathname}${url.search}`);
+  // The slug becomes a file name, a batch id and a printed line, so it is built from the masked URL.
+  const masked = new URL(diskSafeUrl(pageUrl));
+  return routeSlug(`${masked.pathname}${masked.search}`);
 }
 
 // ── the parse-time refusal rows (ops/parse.ts consumes them; here because they are pure and session-owned) ──

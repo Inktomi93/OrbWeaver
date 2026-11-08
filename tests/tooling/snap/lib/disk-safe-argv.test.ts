@@ -63,6 +63,12 @@ test("a fragment token and a URL behind leading whitespace are masked as the par
   expect(diskSafeArgv(["--fixture-server", "http://u:pw@127.0.0.1:8790"])).toEqual(["--fixture-server", "http://<private>@127.0.0.1:8790"]);
 });
 
+test("key and code are private as exact URL pair names, and a longer name ending in them is not", () => {
+  expect(diskSafeUrl("http://h.test/cb?code=c0de&key=k3y&sortKey=s&langCode=en#key=f")).toBe(
+    "http://h.test/cb?code=<private>&key=<private>&sortKey=s&langCode=en#key=<private>",
+  );
+});
+
 test("a URL flag with userinfo is refused at parse without quoting it, and a credentials variable must be user:password", () => {
   for (const flag of URL_VALUE_FLAGS) {
     const errors = parseSnapArgs([flag, " http://u:hunter2@127.0.0.1:1/", "/"]).errors.join(" ");

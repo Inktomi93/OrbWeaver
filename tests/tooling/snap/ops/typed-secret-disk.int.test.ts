@@ -399,21 +399,45 @@ const BASE_CREDENTIALS_ENV = "L4_BASE_CREDENTIALS";
 const BASE_AUTHORIZATION = `Basic ${Buffer.from(`${BASE_USER}:${BASE_PLANTS.password}`).toString("base64")}`;
 const BASE_SPELLINGS = [BASE_PLANTS.password, BASE_PLANTS.token, BASE_AUTHORIZATION.slice("Basic ".length)] as const;
 
-/** A loopback peer behind a basic-auth gate, the reason an operator hands snap credentials for a base. */
-async function gatedServer(): Promise<AsyncDisposable & { readonly origin: string; readonly admitted: () => number }> {
+/** A loopback peer behind a basic-auth gate, the reason an operator hands snap credentials for a base. Its page can
+ *  embed an image from another origin, which a scoped credential must never answer. */
+async function gatedServer(embeddedOrigin?: string): Promise<AsyncDisposable & { readonly origin: string; readonly admitted: () => number }> {
   let admitted = 0;
+  const page = embeddedOrigin === undefined ? FIXTURE_HTML : FIXTURE_HTML.replace("</main>", `<img alt="" src="${embeddedOrigin}/pixel.png"></main>`);
   const server = createServer((request, response) => {
     if (request.headers.authorization !== BASE_AUTHORIZATION) {
       response.writeHead(401, { "www-authenticate": 'Basic realm="gate"' }).end();
       return;
     }
     admitted += 1;
-    response.writeHead(200, { "content-type": "text/html" }).end(FIXTURE_HTML);
+    response.writeHead(200, { "content-type": "text/html" }).end(page);
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   return {
     origin: `http://127.0.0.1:${String(listeningAddress(server).port)}`,
     admitted: () => admitted,
+    [Symbol.asyncDispose]: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  };
+}
+
+/** A second origin that asks every request for basic auth and records what each one carried. */
+async function challengingServer(): Promise<
+  AsyncDisposable & { readonly origin: string; readonly requests: () => number; readonly authorizations: () => readonly string[] }
+> {
+  let requests = 0;
+  const authorizations: string[] = [];
+  const server = createServer((request, response) => {
+    requests += 1;
+    if (request.headers.authorization !== undefined) {
+      authorizations.push(request.headers.authorization);
+    }
+    response.writeHead(401, { "www-authenticate": 'Basic realm="other"' }).end();
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  return {
+    origin: `http://127.0.0.1:${String(listeningAddress(server).port)}`,
+    requests: () => requests,
+    authorizations: () => authorizations,
     [Symbol.asyncDispose]: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };
 }
@@ -435,10 +459,11 @@ function baseDisclosures(roots: readonly string[]): readonly string[] {
   };
   for (const path of roots.flatMap(filesUnder)) {
     const bytes = readFileSync(path);
+    judge(`the name ${path}`, path);
     judge(path, bytes.toString("latin1"));
     if (path.endsWith(".zip")) {
       for (const [entry, content] of Object.entries(unzipSync(bytes))) {
-        judge(`${path}!${entry}`, Buffer.from(content).toString("latin1"));
+        judge(`${path}!${entry}`, `${entry} ${Buffer.from(content).toString("latin1")}`);
       }
     }
   }
@@ -449,18 +474,33 @@ function linesHolding(run: { readonly stdout: string; readonly stderr: string })
   return BASE_SPELLINGS.filter((spelling) => run.stdout.includes(spelling) || run.stderr.includes(spelling));
 }
 
-test.for(["--base", "--fixture-base", "--fixture-server"] as const)(
-  "%s refuses a URL that carries user:password, names the env flag, and echoes no part of it",
-  async (flag, { runCli }) => {
-    const run = await runCli("snap", [flag, `http://${BASE_USER}:${BASE_PLANTS.password}@127.0.0.1:1/?token=${BASE_PLANTS.token}`, "/", "--no-shot"], {
-      timeoutMs: CLI_BUDGET_MS,
-    });
-    expect(run.code).toBe(EXIT.misuse);
-    expect(run.stdout).toContain(`ARG ERROR    ${flag} carries user:password credentials`);
-    expect(run.stdout).toContain("--base-credentials-env");
-    expect(linesHolding(run)).toEqual([]);
-  },
-);
+test.for([
+  ["--base", "--base-credentials-env"],
+  ["--fixture-base", "takes no credentials"],
+  ["--fixture-server", "takes no credentials"],
+] as const)("%s refuses a URL that carries user:password, names the remedy, and echoes no part of it", async ([flag, remedy], { runCli }) => {
+  const run = await runCli("snap", [flag, `http://${BASE_USER}:${BASE_PLANTS.password}@127.0.0.1:1/?token=${BASE_PLANTS.token}`, "/", "--no-shot"], {
+    timeoutMs: CLI_BUDGET_MS,
+  });
+  expect(run.code).toBe(EXIT.misuse);
+  expect(run.stdout).toContain(`ARG ERROR    ${flag} carries user:password credentials`);
+  expect(run.stdout).toContain(remedy);
+  expect(linesHolding(run)).toEqual([]);
+});
+
+test("environment credentials answer only the base origin, never another origin its page loads", async ({ runCli }) => {
+  await using other = await challengingServer();
+  await using peer = await gatedServer(other.origin);
+  const run = await runCli("snap", ["--base", peer.origin, "--base-credentials-env", BASE_CREDENTIALS_ENV, "/", "--wait-for", "img", "--no-shot"], {
+    timeoutMs: CLI_BUDGET_MS,
+    env: { [BASE_CREDENTIALS_ENV]: `${BASE_USER}:${BASE_PLANTS.password}` },
+  });
+  // The positive controls: the base origin authenticated, and the other origin was really asked and challenged.
+  expect(peer.admitted()).toBeGreaterThan(0);
+  expect(other.requests()).toBeGreaterThan(0);
+  expect(other.authorizations()).toEqual([]);
+  expect(linesHolding(run)).toEqual([]);
+});
 
 test("credentials read from the environment open the gate, and no file, log or line holds them", async ({ runCli }) => {
   await using peer = await gatedServer();
@@ -527,11 +567,16 @@ test("a session booted with environment credentials keeps them and its token out
     ]);
     expect(boot.code).toBe(0);
     expect(peer.admitted()).toBeGreaterThan(0);
+    // A call with no route names its artifacts after the live page, whose URL carries the token.
+    const routeless = await snap(["--session", name, "--text", "--no-shot"]);
+    expect(routeless.code).toBe(0);
     const status = await snap(["--session-status", name]);
     expect(status.stdout).toContain(`token=${PRIVATE_MASK}`);
-    expect([...linesHolding(boot), ...linesHolding(status)]).toEqual([]);
+    expect([...linesHolding(boot), ...linesHolding(routeless), ...linesHolding(status)]).toEqual([]);
     expect(existsSync(join(home, `${name}.log`))).toBe(true);
-    expect(baseDisclosures([home, slotOf(boot.stdout)])).toEqual([]);
+    // The positive control: the routeless call wrote named artifacts, so the name scan below has files to read.
+    expect(filesUnder(slotOf(routeless.stdout)).length).toBeGreaterThan(1);
+    expect(baseDisclosures([home, slotOf(boot.stdout), slotOf(routeless.stdout)])).toEqual([]);
   } finally {
     await snap(["--session-close", name]);
     await snap(["--session-sweep"]);

@@ -141,8 +141,9 @@ export interface ProbeLaunchOptions {
   readonly browserArgs?: readonly string[];
   /** Headers every request from every context carries, set on the context before its first page. */
   readonly extraHTTPHeaders?: Readonly<Record<string, string>>;
-  /** The basic-auth answer every context gives a challenge, so no URL a page or trace sees carries it. */
-  readonly httpCredentials?: { readonly username: string; readonly password: string };
+  /** The basic-auth answer every context gives a challenge from `origin` and no other, so no URL a page or trace
+   *  sees carries it and no embedded origin can ask for it. */
+  readonly httpCredentials?: { readonly username: string; readonly password: string; readonly origin: string };
   /** Focused retention proofs inject small caps; production omits this and uses measured policy caps. */
   readonly evidenceLimits?: BrowserEvidenceLimits;
 }

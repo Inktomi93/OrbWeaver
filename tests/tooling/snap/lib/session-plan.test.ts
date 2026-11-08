@@ -410,3 +410,11 @@ test("a live page's default artifact base is the file's basename or the route's 
   expect(livePageSlug("http://localhost:5173/")).toBe("root");
   expect(livePageSlug("not a url")).toBe("live");
 });
+
+test("a live page's artifact base names no token value its URL carries", () => {
+  const slug = livePageSlug("http://localhost:5173/chats/abc?token=plant-slug-token-41c2&x=1#access_token=plant-slug-frag-9d0e");
+  expect(slug).not.toContain("plant-slug");
+  // The positive control: the route and the ordinary query pair still name the artifact.
+  expect(slug).toContain("chats_abc");
+  expect(slug).toContain("x_1");
+});

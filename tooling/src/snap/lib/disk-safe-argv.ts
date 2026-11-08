@@ -15,9 +15,17 @@ const SCHEME_AUTHORITY = /^[a-z][a-z0-9+.-]*:\/\//iu;
 // The last `@` before the path ends the userinfo, as the URL parser reads it.
 const USERINFO = /^([a-z][a-z0-9+.-]*:\/\/)[^/?#]*@/iu;
 
+// Private only as whole URL pair names: `?key=` is the usual API-key spelling and `?code=` an OAuth code. The shared
+// predicate stays without them, because it also judges JSON keys, where `code` and `key` are ordinary fields.
+const URL_ONLY_SENSITIVE_NAMES: ReadonlySet<string> = new Set(["key", "code"]);
+
+function sensitiveUrlPairName(name: string): boolean {
+  return URL_ONLY_SENSITIVE_NAMES.has(name.toLowerCase()) || isSensitiveEvidenceName(name);
+}
+
 function sensitivePairName(encoded: string): boolean {
   // URLSearchParams decodes as the query parser does, and leaves a malformed escape as written instead of throwing.
-  return isSensitiveEvidenceName([...new URLSearchParams(`${encoded}=`).keys()][0] ?? encoded);
+  return sensitiveUrlPairName([...new URLSearchParams(`${encoded}=`).keys()][0] ?? encoded);
 }
 
 function maskPairs(section: string): string {
@@ -95,7 +103,7 @@ export function noteUrlSecrets(url: string): void {
     privateText(Buffer.from(`${decodedUserinfo(parsed.username)}:${password}`).toString("base64")).reveal();
   }
   for (const [name, value] of [...parsed.searchParams, ...new URLSearchParams(parsed.hash.slice(1))]) {
-    if (isSensitiveEvidenceName(name)) {
+    if (sensitiveUrlPairName(name)) {
       privateText(value).reveal();
     }
   }

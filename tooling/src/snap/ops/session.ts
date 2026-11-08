@@ -248,7 +248,8 @@ function buildLaunchOptions(opts: Args, profile: LaunchProfile): ProbeLaunchOpti
     ...scaleLaunchOverride(opts),
     trace: opts.failureEvidence,
     ...(opts.visitor ? { extraHTTPHeaders: VISITOR_RELAY_HEADERS } : {}),
-    ...(opts.baseCredentials === null ? {} : { httpCredentials: revealBasicCredentials(opts.baseCredentials) }),
+    // Scoped to the base origin: Playwright otherwise answers a basic-auth challenge from any origin the page loads.
+    ...(opts.baseCredentials === null ? {} : { httpCredentials: { ...revealBasicCredentials(opts.baseCredentials), origin: new URL(opts.base).origin } }),
     ...(persistent === null ? {} : { persistentProfileDir: persistent.profileDir, browserArgs: persistent.browserArgs }),
   };
 }
