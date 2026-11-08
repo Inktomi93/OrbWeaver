@@ -11,7 +11,7 @@ plan: cross-surface-consistency
 
 ## What
 
-After 2181, Blank chat sits in New chat's pinned row, but a stacked dialog under 16rem tall keeps it below the footer. A 360x800 phone at 300% text measures about 15.9rem and a 320 phone at 300% falls under the gate too, so both still find Blank chat below the fold.
+After 2181, Blank chat sits in New chat's pinned row, but a stacked dialog under 16rem tall keeps it below the footer. A 360x800 phone at 300% text measures about 15.9rem and a 320 phone at 300% falls under the gate too, so both still find Blank chat below the fold. The leg 10 review also found Blank chat off screen at rest at 300% text on 320x844, on a 1280x720 desktop and on an 844x390 landscape phone. The fix needs a design call: a cue that more actions sit below, or a footer that fits.
 
 ## Why
 
@@ -19,7 +19,7 @@ Users at the largest text on common phones still cannot see the way to start a c
 
 ## Done when
 
-Blank chat is visible without scrolling at 300% text on 320 and 360 phones, by a footer that fits or a gate measured on the footer itself, with cells in new-chat-picker-blank.ct.tsx.
+Blank chat is visible without scrolling at 300% text on 320 and 360 phones, a 1280x720 desktop and an 844x390 landscape phone, or a visible cue shows it sits below, with cells in new-chat-picker-blank.ct.tsx.
 
 ## Evidence
 
