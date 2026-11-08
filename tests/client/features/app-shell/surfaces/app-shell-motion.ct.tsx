@@ -1018,7 +1018,13 @@ const ROOM_TRACKS = {
 const FLANK_ROOM = { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } } as const;
 const AXIS_SLACK = 1;
 // What each resting state of the column asks of the room: whether it is registered, and whether its edge control hid it.
-const COLUMN_STATES = { absent: { flank: false, hidden: false }, inline: { flank: true, hidden: false }, parked: { flank: true, hidden: true } } as const;
+const COLUMN_STATE_NAMES = ["absent", "inline", "parked"] as const;
+type ColumnState = (typeof COLUMN_STATE_NAMES)[number];
+const COLUMN_STATES = {
+  absent: { flank: false, hidden: false },
+  inline: { flank: true, hidden: false },
+  parked: { flank: true, hidden: true },
+} as const satisfies Record<ColumnState, { readonly flank: boolean; readonly hidden: boolean }>;
 
 interface TrackBox {
   readonly left: number;
@@ -1040,8 +1046,6 @@ function readTracks(page: Page): Promise<Record<keyof typeof ROOM_TRACKS, TrackB
 }
 
 const centreOf = (track: TrackBox): number => track.left + track.width / 2;
-
-type ColumnState = keyof typeof COLUMN_STATES;
 
 /** Mount the named group room in the shell. */
 function mountRoom(mount: PlaywrightTestArgs["mount"]): Promise<unknown> {
@@ -1210,7 +1214,7 @@ function axisGap(tracks: Record<keyof typeof ROOM_TRACKS, TrackBox>): number {
 
 test.describe("the room's one axis", () => {
   for (const width of [1280, 1440]) {
-    for (const state of Object.keys(COLUMN_STATES) as ColumnState[]) {
+    for (const state of COLUMN_STATE_NAMES) {
       test(`at ${String(width)} the rows and the composer share a middle with the column ${state}`, async ({ corpus, mount, page }) => {
         await routeRoom(page, corpus, width, state);
         await mountRoom(mount);
