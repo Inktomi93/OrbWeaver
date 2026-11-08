@@ -35,8 +35,7 @@ import { allUserRootFilters, identityFilters, USER_BUS_FILTERS } from "./invalid
 import type { Trpc } from "./trpc.ts";
 
 export interface Invalidation {
-  /** The bus half — routes a `ChatBusEvent` through the exhaustive map. Fire-and-forget: the event's carrier
-   *  lands at once, and the events of one burst share one refetch on the next task. */
+  /** The bus half — routes a `ChatBusEvent` through the exhaustive map. Fire-and-forget. */
   readonly invalidate: (event: ChatBusEvent) => void;
   /** The user-bus half — routes a `UserBusEvent` through `USER_BUS_FILTERS`. Fire-and-forget. */
   readonly invalidateUser: (event: UserBusEvent) => void;
@@ -212,10 +211,6 @@ function combinedRefetchTarget(targets: ReadonlySet<RefetchTarget>): RefetchTarg
 
 // Hook facades are recreated per render; an initial read owes one reconciliation across all of them.
 const initialReads = new WeakMap<Query, Set<RefetchTarget>>();
-// A burst of room events refetches once. Each invalidation cancels and restarts every loaded page of the room's
-// reads, so one refetch per event re-reads the whole transcript once per event. Keyed by client, not facade,
-// for the same reason as `initialReads`.
-const chatWaves = new WeakMap<QueryClient, InvalidateQueryFilters[]>();
 
 export function createInvalidation(deps: { readonly queryClient: QueryClient; readonly trpc: Trpc }): Invalidation {
   // Native invalidation reuses an initial in-flight read; its stale response then clears isInvalidated.
@@ -272,29 +267,6 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
       }
     });
   };
-  const invalidateChatWave = (filters: readonly InvalidateQueryFilters[]): void => {
-    // Only the refetch waits for the wave. A read in flight now predates this event; left running, it would
-    // land over the carrier before the wave refetches. Reverting restores the carrier, the last manual write.
-    // An initial read has no carrier to protect and its loader shares its promise, so it keeps running.
-    for (const filter of filters) {
-      for (const query of deps.queryClient.getQueryCache().findAll(filter)) {
-        if (query.state.data !== undefined && query.state.fetchStatus !== "idle") {
-          query.cancel({ revert: true }).catch(surfaceDeferredFailure);
-        }
-      }
-    }
-    const pending = chatWaves.get(deps.queryClient);
-    if (pending !== undefined) {
-      pending.push(...filters);
-      return;
-    }
-    const wave = [...filters];
-    chatWaves.set(deps.queryClient, wave);
-    setTimeout(() => {
-      chatWaves.delete(deps.queryClient);
-      invalidateFilters(wave);
-    }, 0);
-  };
   return {
     invalidate: (event): void => {
       // Apply BEFORE the invalidate: the refetch this same event fires is what will confirm the row, and
@@ -305,7 +277,7 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
       if (IS_DEV) {
         busInvalidate(event.type, event.chatId, filters.map(filterKeyName));
       }
-      invalidateChatWave(filters);
+      invalidateFilters(filters);
     },
     invalidateUser: (event): void => {
       const handler = USER_BUS_FILTERS[event.type] as (e: UserBusEvent, t: Trpc) => readonly InvalidateQueryFilters[];

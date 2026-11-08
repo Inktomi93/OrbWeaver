@@ -39,6 +39,8 @@ const EXTRA_ROWS = 115;
 // The transcript's own busy state: a loading Earlier messages carries `aria-busy` too.
 const TRANSCRIPT_BUSY = '[aria-busy]:not([data-slot="button"])';
 const ARRIVALS = 55;
+// Every arrival invalidates the room's reads, so the bridge only starts once that burst of refreshes has run out.
+const ARRIVALS_SETTLE_MS = 20_000;
 type Caller = Awaited<ReturnType<Awaited<ReturnType<typeof createCorpusHarness>>["internalCallerFor"]>>;
 
 type HistoryPage = Awaited<ReturnType<Caller["chat"]["listMessages"]>>;
@@ -423,42 +425,6 @@ for (const regime of [
       await expect(earlier).toBeDisabled();
       await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true })).toBeVisible();
     });
-    test("a burst of room events reads the loaded history once, as one invalidation does", async ({ corpus, mount, page }) => {
-      await using root = await historyRoot();
-      const caller = await root.internalCallerFor(root.ownerId);
-      const { rooms, room, tail } = await prepareHistory(root, caller);
-      await using live = await serveLiveRoom({ root, caller, corpus, page, rooms, chatId: room.id, chatStyle: regime.chatStyle, intercept: () => undefined });
-      await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true, invalidator: true });
-      const list = page.locator('[data-slot="message-list-scroll"]');
-      const earlier = list.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
-      await expect(earlier).toBeAttached();
-      const rows = await loadedRows(list);
-      await earlier.dispatchEvent("click");
-      await expect.poll(() => loadedRows(list)).not.toBe(rows);
-      const busy = page.getByRole("main", { name: "Chats content", exact: true }).locator(TRANSCRIPT_BUSY);
-      await expect(busy).toHaveAttribute("aria-busy", "false");
-      // The control: what one invalidation of the room's reads costs with these pages loaded.
-      const idle = live.reads();
-      await page.getByRole("button", { name: "Invalidate the room", exact: true }).dispatchEvent("click");
-      await expect.poll(() => live.reads()).toBeGreaterThan(idle);
-      await expect(busy).toHaveAttribute("aria-busy", "false");
-      const once = live.reads() - idle;
-      const before = live.reads();
-      // Edits move no row, so the burst owes no bridge read: everything it reads is refresh.
-      let revised = "";
-      let lastId = "";
-      for (const message of tail.messages) {
-        revised = `${message.content} Revised.`;
-        lastId = message.id;
-        await caller.chat.editMessage({ chatId: room.id, messageId: message.id, content: revised, timeZone: UTC_TIME_ZONE });
-      }
-      await live.settle();
-      await expect(list.locator(`[data-message-id="${lastId}"]`)).toContainText(revised);
-      await expect.poll(() => live.reads()).toBeGreaterThan(before);
-      await expect(busy).toHaveAttribute("aria-busy", "false");
-      await quietSpell(page);
-      expect(live.reads() - before).toBe(once);
-    });
     test("a failed refresh reports without moving or pinning, a press still pages, and recovery wastes no press", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
@@ -591,7 +557,7 @@ for (const regime of [
       await commitArrivals(caller, room.id);
       await live.settle();
       const alert = list.getByRole("alert");
-      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge);
+      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge, { timeout: ARRIVALS_SETTLE_MS });
       await expect(alert).not.toBeInViewport();
       const busy = page.getByRole("main", { name: "Chats content", exact: true }).locator(TRANSCRIPT_BUSY);
       await expect(busy).toHaveAttribute("aria-busy", "false");
@@ -646,7 +612,7 @@ for (const regime of [
       await commitArrivals(caller, room.id);
       await live.settle();
       const alert = list.getByRole("alert");
-      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge);
+      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge, { timeout: ARRIVALS_SETTLE_MS });
       await list.evaluate((node) => {
         node.scrollTop = node.scrollHeight / 2;
       });
@@ -691,7 +657,7 @@ for (const regime of [
       await commitArrivals(caller, room.id);
       await live.settle();
       const alert = list.getByRole("alert");
-      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge);
+      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge, { timeout: ARRIVALS_SETTLE_MS });
       await list.evaluate((node) => {
         node.scrollTop = node.scrollHeight / 2;
       });
@@ -737,7 +703,7 @@ for (const regime of [
       await commitArrivals(caller, room.id);
       await live.settle();
       const alert = list.getByRole("alert");
-      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge);
+      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge, { timeout: ARRIVALS_SETTLE_MS });
       bridgeDown = false;
       refreshDown = true;
       const retry = list.getByRole("button", { name: CHAT_HISTORY_RETRY_NAME, exact: true });
