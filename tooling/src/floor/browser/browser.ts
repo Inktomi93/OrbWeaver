@@ -10,7 +10,7 @@ import { warn } from "../cli/log.ts";
 import type { GraphicalSessionDeps } from "../host/platform.ts";
 import { ownGraphicalSession } from "../host/platform.ts";
 import { DEV_PORTS } from "../host/ports.ts";
-import { inheritedProcessEnv, processEnvValue } from "../process/process-env.ts";
+import { browserProcessEnv, processEnvValue } from "../process/process-env.ts";
 import { currentRunLease, currentRunMarker, inheritedRunMarker, runLeaseArg, runLeaseEnv, runMarkerArg, runMarkerEnv } from "../process/run-marker.ts";
 import { browserArgsWithAcceleration } from "./browser-acceleration.ts";
 import { createPageCapture, watchProbeContextPages } from "./browser-capture.ts";
@@ -167,19 +167,27 @@ export function browserLaunchEnvironment(environment: NodeJS.ProcessEnv, args: r
   return session === null ? environment : { ...environment, ["DISPLAY"]: session.display, ["XAUTHORITY"]: session.authority };
 }
 
+/** Graphics discovery plus the ambient environment a launch draws from; both default to this process. */
+export interface BrowserLaunchDeps extends GraphicalSessionDeps {
+  readonly ambient?: NodeJS.ProcessEnv;
+}
+
 /** Native runners share probe acceleration and graphics discovery without minting a resource owner during config import. */
 export function nativeBrowserLaunchOptions(
   browserName: PlaywrightWorkerOptions["browserName"],
   options: LaunchOptions = {},
-  deps: GraphicalSessionDeps = {},
+  deps: BrowserLaunchDeps = {},
 ): LaunchOptions {
   const marker = inheritedRunMarker();
   const lease = currentRunLease();
-  const environment = inheritedProcessEnv({
-    ...options.env,
-    ...(marker === null ? {} : runMarkerEnv(marker)),
-    ...(lease === null ? {} : runLeaseEnv(lease)),
-  });
+  const environment = browserProcessEnv(
+    {
+      ...options.env,
+      ...(marker === null ? {} : runMarkerEnv(marker)),
+      ...(lease === null ? {} : runLeaseEnv(lease)),
+    },
+    deps.ambient,
+  );
   if (browserName !== "chromium") {
     return { ...options, env: environment };
   }
@@ -201,9 +209,13 @@ export function nativeBrowserLaunchOptions(
  *  BOTH IDENTITIES RIDE WHEN THIS PROCESS HOLDS A LEASE (#2504): the OUTER run's marker, so that run's kill
  *  path still reaches this browser exactly as #1848 requires, AND the lease this process minted, which is
  *  the only value its own teardown may sweep. One stamp would have to serve both, and it could not. */
-function markedBrowserEnv(args: readonly string[]): NodeJS.ProcessEnv {
+function markedBrowserEnv(args: readonly string[], deps: BrowserLaunchDeps): NodeJS.ProcessEnv {
   const lease = currentRunLease();
-  return browserLaunchEnvironment(inheritedProcessEnv({ ...runMarkerEnv(currentRunMarker()), ...(lease === null ? {} : runLeaseEnv(lease)) }), args);
+  return browserLaunchEnvironment(
+    browserProcessEnv({ ...runMarkerEnv(currentRunMarker()), ...(lease === null ? {} : runLeaseEnv(lease)) }, deps.ambient),
+    args,
+    deps,
+  );
 }
 
 /** …AND THE ARG, because the env alone does not survive: chromium rewrites its own environ area for its
@@ -217,11 +229,19 @@ function markedBrowserArgs(args: readonly string[]): string[] {
   return [...args, runMarkerArg(currentRunMarker()), ...(lease === null ? [] : [runLeaseArg(lease)])];
 }
 
-async function launchOwnedBrowser(opts: ProbeLaunchOptions, deviceDescriptor: (typeof devices)[string] | null): Promise<LaunchedBrowser> {
+type PersistentLaunchOptions = NonNullable<Parameters<typeof chromium.launchPersistentContext>[1]>;
+
+/** What one owned probe launch hands Playwright: a plain browser, or a persistent profile with its context sizing. */
+export type OwnedLaunch =
+  | { readonly kind: "browser"; readonly options: LaunchOptions }
+  | { readonly kind: "persistent"; readonly profileDir: string; readonly options: PersistentLaunchOptions };
+
+/** The options `launchOwnedBrowser` launches with, built without launching anything. */
+export function ownedLaunchOptions(opts: ProbeLaunchOptions, deviceDescriptor: (typeof devices)[string] | null, deps: BrowserLaunchDeps = {}): OwnedLaunch {
   const browserArgs = browserArgsWithAcceleration(opts.browserArgs);
-  const environment = markedBrowserEnv(browserArgs);
+  const launch = { headless: opts.headless, args: markedBrowserArgs(browserArgs), env: markedBrowserEnv(browserArgs, deps) };
   if (opts.persistentProfileDir === undefined) {
-    return { browser: await chromium.launch({ headless: opts.headless, args: markedBrowserArgs(browserArgs), env: environment }) };
+    return { kind: "browser", options: launch };
   }
   // ONE SIZE ANSWER (#1668): the descriptor supplies touch/DPR/UA/isMobile while the shared size resolver
   // composes viewport + screen, so the launch options and environment receipt cannot disagree.
@@ -230,12 +250,15 @@ async function launchOwnedBrowser(opts: ProbeLaunchOptions, deviceDescriptor: (t
     ...effectiveContextSize(opts, deviceDescriptor),
     ...(opts.deviceScaleFactor === undefined ? {} : { deviceScaleFactor: opts.deviceScaleFactor }),
   };
-  const persistentContext = await chromium.launchPersistentContext(opts.persistentProfileDir, {
-    ...sizing,
-    headless: opts.headless,
-    args: markedBrowserArgs(browserArgs),
-    env: environment,
-  });
+  return { kind: "persistent", profileDir: opts.persistentProfileDir, options: { ...sizing, ...launch } };
+}
+
+async function launchOwnedBrowser(opts: ProbeLaunchOptions, deviceDescriptor: (typeof devices)[string] | null): Promise<LaunchedBrowser> {
+  const launch = ownedLaunchOptions(opts, deviceDescriptor);
+  if (launch.kind === "browser") {
+    return { browser: await chromium.launch(launch.options) };
+  }
+  const persistentContext = await chromium.launchPersistentContext(launch.profileDir, launch.options);
   const browser = persistentContext.browser();
   if (browser === null) {
     await persistentContext.close();

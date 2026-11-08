@@ -43,10 +43,10 @@ import { warn } from "../../floor/cli/log.ts";
 import { isWsl2, openUrl, pnpmInvocation } from "../../floor/host/platform.ts";
 import { httpOk } from "../../floor/http/http-probe.ts";
 import { spawnFullPriorityChild, spawnFullPrioritySync } from "../../floor/process/proc.ts";
-import type { SetupMachine, SetupResult, StartInvocation, StartSpawn } from "../contract/types.ts";
+import type { SetupMachine, SetupResult, StartInvocation, StartLaunch, StartSpawn } from "../contract/types.ts";
 import { CLIENT_DIST_INDEX_REL } from "../lib/spawn-plan.ts";
 import { healthzUrl } from "../lib/stack-plan.ts";
-import { decideStartBuild, parseStartArgv, START_USAGE, shareLaunchRefusal, startBannerLines, startBrowser, startLaunch } from "../lib/start-plan.ts";
+import { decideStartBuild, parseStartArgv, START_USAGE, startBannerLines, startBrowser, startLaunch } from "../lib/start-plan.ts";
 import { superviseStart } from "../lib/supervisor.ts";
 import { AMBIENT, ENV_FILE_PATH, LOG_PATH, MS_PER_SECOND, readEnvFile, resolvePort } from "./prod-state.ts";
 import { distVerdict } from "./prod-support.ts";
@@ -126,6 +126,10 @@ async function prepareEnvFile(setup: boolean): Promise<number | null> {
   return SETUP_OUTCOMES[result.kind]();
 }
 
+function launchFor(invocation: StartInvocation, fileEnv: Readonly<Record<string, string | undefined>>): StartLaunch {
+  return startLaunch({ repoRoot: REPO_ROOT, nodePath: process.execPath, fileEnv, ambient: AMBIENT, invocation, logPath: LOG_PATH() });
+}
+
 /** Everything before the first spawn, once per invocation: the setup pass, the build, the bundle check. Returns an
  *  exit code when the launch must stop. */
 async function prepareLaunch(invocation: StartInvocation): Promise<number | null> {
@@ -133,10 +137,11 @@ async function prepareLaunch(invocation: StartInvocation): Promise<number | null
   if (stop !== null) {
     return stop;
   }
-  // After the setup pass, so the mode is the one this launch would boot in.
-  const shareRefused = invocation.share ? shareLaunchRefusal(readEnvFile(), AMBIENT) : null;
-  if (shareRefused !== null) {
-    warn(`start: ${shareRefused}`);
+  // After the setup pass, so the mode is the one this launch would boot in; before the build, so a refused share builds
+  // nothing. The supervisor refuses again on every spawn, because only a `launch` carries a plan.
+  const launch = launchFor(invocation, readEnvFile());
+  if (launch.kind === "refused") {
+    warn(`start: ${launch.reason}`);
     return EXIT.misuse;
   }
   const decision = decideStartBuild(distVerdict(), invocation.build);
@@ -168,16 +173,19 @@ async function prepareLaunch(invocation: StartInvocation): Promise<number | null
   return null;
 }
 
-/** One spawn's plan from `.env` as it is now, and the banner for it. The app loads the file itself; the launcher reads
- *  it for the child env overlays, the port to print and the auth mode in force. */
+/** One spawn's plan from `.env` as it is now and the banner for it, or the launch's refusal. The app loads the file
+ *  itself; the launcher reads it for the child env overlays, the port to print and the auth mode in force. */
 function launchFromFile(invocation: StartInvocation): StartSpawn {
   const fileEnv = readEnvFile();
-  const launch = startLaunch({ repoRoot: REPO_ROOT, nodePath: process.execPath, fileEnv, ambient: AMBIENT, invocation, logPath: LOG_PATH() });
+  const launch = launchFor(invocation, fileEnv);
+  if (launch.kind === "refused") {
+    return launch;
+  }
   const port = invocation.port ?? resolvePort(fileEnv);
   for (const line of startBannerLines({ port, mode: launch.mode, fallbackFilled: launch.fallbackFilled, share: invocation.share })) {
     print(line);
   }
-  return { plan: launch.plan, port };
+  return { kind: "launch", plan: launch.plan, port };
 }
 
 /** Poll `/healthz` until the server answers or the child it belongs to exits. The timer is unref'd, so a launcher

@@ -6,22 +6,21 @@
 // refusal `tests/tooling/stack/index.test.ts` records for `stack up prod`), and the answers that matter
 // most here are for macOS and WINDOWS — platforms this box does not have. Every platform-sensitive answer
 // is therefore a value computed from `{platform, env}`. A macOS/Windows boot remains unverified by construction.
-import { readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
 import { parseEnv } from "node:util";
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, SETUP_COMMAND } from "@orb/contracts/identity";
+import type { AuthMode } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, AUTH_MODES, SETUP_COMMAND } from "@orb/contracts/identity";
 import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import { ENV_FROM_FILE_KEY, ENV_NO_OVERRIDE_KEY } from "@orb/kit/env-file";
 import { OPENROUTER_API_KEY_ENV } from "@orb/server/foundation/env/record";
 import { expect, test } from "@orb/testkit/tooling";
 import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "@orb/tooling/floor/process/server-entry";
+import type { StartLaunch } from "../../../../tooling/src/stack/index.ts";
 import {
   decideStartBuild,
   effectiveAuthMode,
   OPEN_BROWSER_KEY,
   parseStartArgv,
   restateFileEnv,
-  shareLaunchRefusal,
   singleUserFallbackEnv,
   startBannerLines,
   startBrowser,
@@ -175,7 +174,7 @@ test("a start over SSH opens no browser: the terminal is on another machine, and
 });
 
 /** `pnpm start --share`'s launch from a `.env` text, the way ops/start.ts builds each spawn. */
-function launchFrom(text: string, share: boolean, ambient = env(["PATH", "/bin"], [AUTH_MODE_KEY, "oidc"])): ReturnType<typeof startLaunch> {
+function launchFrom(text: string, share: boolean, ambient = env(["PATH", "/bin"], [AUTH_MODE_KEY, "oidc"])): StartLaunch {
   return startLaunch({
     repoRoot: "/repo",
     nodePath: "/usr/bin/node",
@@ -186,6 +185,15 @@ function launchFrom(text: string, share: boolean, ambient = env(["PATH", "/bin"]
   });
 }
 
+/** {@link launchFrom} for a case whose launch must be planned; a refusal fails the case with its reason. */
+function plannedFrom(...args: Parameters<typeof launchFrom>): Extract<StartLaunch, { kind: "launch" }> {
+  const launch = launchFrom(...args);
+  if (launch.kind === "refused") {
+    throw new Error(`the launch was refused: ${launch.reason}`);
+  }
+  return launch;
+}
+
 test("argv: --share asks for a shared launch, alone or beside the other flags", () => {
   expect(parseStartArgv(["--share"])).toEqual({ ok: true, invocation: { build: "auto", setup: false, port: null, share: true } });
   expect(parseStartArgv(["--no-build", "--share", "--port=9001"])).toEqual({ ok: true, invocation: { build: "skip", setup: false, port: 9001, share: true } });
@@ -193,7 +201,7 @@ test("argv: --share asks for a shared launch, alone or beside the other flags", 
 
 test("--share on a just-me file restates .env, switches to local with a quick relay, and pins the bind to loopback", () => {
   const file = "PORT=8788\nAUTH_MODE=single-user\nOPENROUTER_API_KEY=sk-or-abc\n";
-  const launch = launchFrom(file, true);
+  const launch = plannedFrom(file, true);
   // Every .env value rides the child env with the file's override off, so the file still wins over the shell.
   expect(launch.plan.env[ENV_NO_OVERRIDE_KEY]).toBe("1");
   expect(launch.plan.env["PORT"]).toBe("8788");
@@ -208,48 +216,47 @@ test("--share on a just-me file restates .env, switches to local with a quick re
   expect(launch.fallbackFilled).toBe(false);
   // An empty file under a bare shell is just-me too: the schema default mode is single-user. A shell export of a login
   // mode is the box's mode when the file names none, so that box is a network box and keeps its bind.
-  expect(launchFrom("", true, env(["PATH", "/bin"])).plan.env["BIND_HOST"]).toBe("127.0.0.1");
-  expect(launchFrom("", true).plan.env["BIND_HOST"]).toBeUndefined();
+  expect(plannedFrom("", true, env(["PATH", "/bin"])).plan.env["BIND_HOST"]).toBe("127.0.0.1");
+  expect(plannedFrom("", true, env(["PATH", "/bin"], [AUTH_MODE_KEY, "local"])).plan.env["BIND_HOST"]).toBeUndefined();
 });
 
 test("--share on a network file keeps its own BIND_HOST and ALLOWED_HOSTS exactly as the file says", () => {
-  const pinned = launchFrom("AUTH_MODE=local\nBIND_HOST=192.168.1.5\nALLOWED_HOSTS=orb.lan\n", true);
+  const pinned = plannedFrom("AUTH_MODE=local\nBIND_HOST=192.168.1.5\nALLOWED_HOSTS=orb.lan\n", true);
   expect(pinned.plan.env["BIND_HOST"]).toBe("192.168.1.5");
   expect(pinned.plan.env[ALLOWED_HOSTS_KEY]).toBe("orb.lan");
   expect(pinned.plan.env[AUTH_MODE_KEY]).toBe("local");
   expect(pinned.plan.env["SHARE_RELAY"]).toBe("quick");
   // A network file with no BIND_HOST keeps the server's own default bind.
-  expect(launchFrom("AUTH_MODE=local\n", true).plan.env["BIND_HOST"]).toBeUndefined();
+  expect(plannedFrom("AUTH_MODE=local\n", true).plan.env["BIND_HOST"]).toBeUndefined();
 });
 
 // An SSO box already signs people in its own way, and a relay breaks that way: a random relay name is never an OIDC
-// redirect address, and a same-host relay would reach a forward-header box as a trusted loopback peer.
-test("--share refuses an oidc or forward-header box, from the file or the shell, and never overrides its mode", () => {
+// redirect address, and a same-host relay would reach a forward-header box as a trusted loopback peer. The table is
+// keyed by the production mode union, so a new mode fails to compile until a case says how `--share` answers it.
+const SHARED = { kind: "launch", plan: { env: expect.objectContaining(env(["SHARE_RELAY", "quick"])) } };
+const REFUSED = { kind: "refused", reason: expect.stringContaining("--share") };
+const SHARE_ANSWER: Readonly<Record<AuthMode, typeof SHARED | typeof REFUSED>> = {
+  "single-user": SHARED,
+  local: SHARED,
+  oidc: REFUSED,
+  "forward-header": REFUSED,
+};
+
+test("--share on an oidc or forward-header box, from the file or the shell, is a refusal with no plan; every other box shares", () => {
   const bareShell = env(["PATH", "/bin"]);
-  for (const mode of ["oidc", "forward-header"] as const) {
-    expect(shareLaunchRefusal(parseEnv(`AUTH_MODE=${mode}\n`), bareShell), mode).toEqual(expect.stringContaining("--share"));
-    expect(shareLaunchRefusal(parseEnv(""), env(["PATH", "/bin"], [AUTH_MODE_KEY, mode])), mode).not.toBeNull();
-    expect(launchFrom(`AUTH_MODE=${mode}\n`, true, bareShell).plan.env[AUTH_MODE_KEY], mode).toBe(mode);
+  for (const mode of AUTH_MODES) {
+    expect(launchFrom(`AUTH_MODE=${mode}\n`, true, bareShell), `${mode} in .env`).toMatchObject(SHARE_ANSWER[mode]);
+    expect(launchFrom("", true, env(["PATH", "/bin"], [AUTH_MODE_KEY, mode])), `${mode} in the shell`).toMatchObject(SHARE_ANSWER[mode]);
+    // The same box started without --share is never refused.
+    expect(launchFrom(`AUTH_MODE=${mode}\n`, false, bareShell).kind, mode).toBe("launch");
   }
 });
 
-test("control: --share on a single-user or local box is not refused", () => {
-  const bareShell = env(["PATH", "/bin"]);
-  for (const text of ["", "AUTH_MODE=single-user\n", "AUTH_MODE=local\n"]) {
-    expect(shareLaunchRefusal(parseEnv(text), bareShell), text).toBeNull();
-  }
-});
-
-test("control: a plain start leaves the env to the file, and neither launch writes a byte to .env", ({ scratch }) => {
-  const envPath = join(scratch, ".env");
-  const file = "# mine\r\nPORT=8788\r\nAUTH_MODE=single-user\r\n";
-  writeFileSync(envPath, file);
-  const plain = launchFrom(readFileSync(envPath, "utf8"), false);
+test("control: a plain start leaves the env to the file", () => {
+  const plain = plannedFrom("# mine\r\nPORT=8788\r\nAUTH_MODE=single-user\r\n", false);
   for (const key of [ENV_NO_OVERRIDE_KEY, "SHARE_RELAY", "BIND_HOST", "PORT"]) {
     expect(plain.plan.env[key], key).toBeUndefined();
   }
   expect(plain.plan.env[AUTH_MODE_KEY]).toBe("oidc");
   expect(plain.mode).toBe("single-user");
-  launchFrom(readFileSync(envPath, "utf8"), true);
-  expect(readFileSync(envPath, "utf8")).toBe(file);
 });

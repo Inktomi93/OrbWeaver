@@ -1,9 +1,16 @@
 import { expect, test } from "@orb/testkit/tooling";
-import { browserLaunchEnvironment, nativeBrowserLaunchOptions } from "@orb/tooling/floor/browser/browser";
+import { browserLaunchEnvironment, nativeBrowserLaunchOptions, ownedLaunchOptions } from "@orb/tooling/floor/browser/browser";
 import { GPU_LAUNCH_SWITCH } from "@orb/tooling/floor/browser/browser-acceleration";
+import type { ProbeLaunchOptions } from "@orb/tooling/floor/browser/browser-contract";
 import type { GraphicalSessionDeps } from "@orb/tooling/floor/host/platform";
 import { inheritedProcessEnv, withProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { inheritedRunMarker, mintRunMarker, RUN_LEASE_ENV, RUN_MARKER_ENV, runLeaseArg, runMarkerArg } from "@orb/tooling/floor/process/run-marker";
+
+// A failing matcher prints what it received. Compare only named keys and key lists, so a regression that
+// hands the browser the real environment can never print a credential into a log or transcript.
+function pickedEnv(env: NodeJS.ProcessEnv | undefined, keys: readonly string[]): Record<string, string | undefined> {
+  return Object.fromEntries(keys.map((key) => [key, env?.[key]]));
+}
 
 test("native Chromium preserves explicit graphics and caller launch choices beside inherited ownership", async () => {
   const marker = mintRunMarker(41, 1000);
@@ -17,7 +24,8 @@ test("native Chromium preserves explicit graphics and caller launch choices besi
         timeout: 1234,
       });
       expect(options.args).toEqual([GPU_LAUNCH_SWITCH, "--disable-gpu", "--ozone-platform=wayland", runMarkerArg(marker), runLeaseArg(lease)]);
-      expect(options.env).toMatchObject({ ["DISPLAY"]: "", ["XAUTHORITY"]: "/caller/authority", [RUN_MARKER_ENV]: marker, [RUN_LEASE_ENV]: lease });
+      const expected = { ["DISPLAY"]: "", ["XAUTHORITY"]: "/caller/authority", [RUN_MARKER_ENV]: marker, [RUN_LEASE_ENV]: lease };
+      expect(pickedEnv(options.env, Object.keys(expected))).toEqual(expected);
       expect(options.headless).toBe(true);
       expect(options.timeout).toBe(1234);
       expect(inheritedRunMarker()).toBe(marker);
@@ -106,6 +114,52 @@ test("WebKit and Firefox never invoke the Chromium graphics discovery path", () 
   for (const browserName of ["firefox", "webkit"] as const) {
     const options = nativeBrowserLaunchOptions(browserName, {}, deps);
     expect(options.args).toBeUndefined();
-    expect(options.env).toMatchObject(inheritedProcessEnv());
   }
+});
+
+// A reporter writes the resolved launch options to disk, so an inherited secret becomes a file on disk.
+const CANARY_KEY = "ORB_CANARY_SECRET";
+const CANARY = "canary-browser-env";
+const LAUNCH_PLUMBING = { ["PATH"]: "/canary/bin", ["HOME"]: "/canary-home", ["DISPLAY"]: ":7" };
+const LAUNCH_AMBIENT = { ...LAUNCH_PLUMBING, [CANARY_KEY]: CANARY };
+// The injected ambient plumbing plus the identities the builders stamp; any other key was inherited by mistake.
+const LAUNCH_KEYS = new Set([...Object.keys(LAUNCH_PLUMBING), RUN_MARKER_ENV, RUN_LEASE_ENV]);
+
+// The plumbing values, every key outside LAUNCH_KEYS, and the keys holding the canary value: only names
+// and the injected plumbing can appear in a failure.
+function launchEnvShape(env: NodeJS.ProcessEnv | undefined): {
+  readonly plumbing: Record<string, string | undefined>;
+  readonly strayKeys: readonly string[];
+  readonly canaryValueKeys: readonly string[];
+} {
+  const entries = Object.entries(env ?? {});
+  return {
+    plumbing: pickedEnv(env, Object.keys(LAUNCH_PLUMBING)),
+    strayKeys: entries.flatMap(([key]) => (LAUNCH_KEYS.has(key) ? [] : [key])).sort(),
+    canaryValueKeys: entries.flatMap(([key, value]) => (value === CANARY ? [key] : [])),
+  };
+}
+
+const PLUMBING_ONLY = { plumbing: LAUNCH_PLUMBING, strayKeys: [], canaryValueKeys: [] };
+
+test.for(["chromium", "webkit", "firefox"] as const)("a %s config launch inherits plumbing and never an ambient secret", (browserName) => {
+  const options = nativeBrowserLaunchOptions(browserName, { headless: true }, { ambient: LAUNCH_AMBIENT, platform: "darwin" });
+  expect(launchEnvShape(options.env)).toEqual(PLUMBING_ONLY);
+});
+
+test("an owned probe launch inherits plumbing and never an ambient secret on either launch kind", () => {
+  const opts = {
+    headless: true,
+    viewport: { width: 320, height: 240 },
+    colorScheme: null,
+    reducedMotion: false,
+    localStorage: [],
+  } as const satisfies ProbeLaunchOptions;
+  const deps = { ambient: LAUNCH_AMBIENT, platform: "darwin" } as const;
+  const plain = ownedLaunchOptions(opts, null, deps);
+  expect(plain.kind).toBe("browser");
+  expect(launchEnvShape(plain.options.env)).toEqual(PLUMBING_ONLY);
+  const persistent = ownedLaunchOptions({ ...opts, persistentProfileDir: "/canary-profile" }, null, deps);
+  expect(persistent.kind).toBe("persistent");
+  expect(launchEnvShape(persistent.options.env)).toEqual(PLUMBING_ONLY);
 });

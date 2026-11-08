@@ -137,6 +137,11 @@ export function stageViteOk(vitePort: number): boolean {
   return httpOkSync(`${stageBaseUrl(vitePort)}/`);
 }
 
+/** Does the stage still answer: its server's `/healthz` AND its vite? One half alone is a dead stage. */
+export function stageAnswers(ports: StagePorts): boolean {
+  return stageHealthzOk(ports.server) && stageViteOk(ports.vite);
+}
+
 /** Probe 3 of 3: is that vite serving the code that is ON DISK, or a transform from before its watcher died?
  *
  *  THE VERB ALREADY EXISTS and is not re-spelled here: `tooling/src/stack/ops/served-probe.ts`, reached
