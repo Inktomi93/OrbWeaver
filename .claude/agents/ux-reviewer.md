@@ -39,7 +39,7 @@ Breadth never replaces depth on the named targets.
 
 ## Instrument doubt
 
-- Zero motion frames means the instrument failed, not the product. The one exception is the `--matrix --motion` `STATIC-EXPECTED` verdict for the reduced-motion mobile entry. It holds only with exact app, OS and device identity plus its `requiredTwins` full-motion mobile control that shows frames.
+- Measure a click with `--motion '<selector>'`, never `--click` then a bare `--motion`. A selector-less window opens after the click and the evidence reset, so zero or few frames mean nothing moved in it, not that the instrument failed. A `--matrix --motion` `STATIC-EXPECTED` verdict holds only with exact app, OS and device identity plus its `requiredTwins` full-motion mobile control that shows frames.
 - An `[anim]` OVER BUDGET on `height`, `left` or `width` from an `@orb/ui` primitive: suspect the instrument first, and prove the defect before you report it.
 
 ## Write scope

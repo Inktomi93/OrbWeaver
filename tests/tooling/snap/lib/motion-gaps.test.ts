@@ -17,13 +17,24 @@
 // under test are the ones snap actually builds.
 
 import { expect, test } from "@orb/testkit/tooling";
+import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
+import { timingCapability } from "../../../../tooling/src/floor/host/timing-capability.ts";
+import type { AuditData } from "../../../../tooling/src/motion-audit/index.ts";
+import { FRAME_POPULATION_RESOLUTION_FLOOR } from "../../../../tooling/src/motion-audit/index.ts";
 import type { Args } from "../../../../tooling/src/snap/contract/types.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/index.ts";
 import { motionPrecedingInputHint, motionQueueHint, orderMotionGaps } from "../../../../tooling/src/snap/lib/motion-gaps.ts";
+import { motionExit, motionStatus } from "../../../../tooling/src/snap/lib/motion-verdict.ts";
 
 // A REAL rendered selector, and deliberately not a `data-testid` one: these fixtures only exercise the
 // argv parser, and a testid nothing mints would be a dead selector promise (`testid-liveness` A1).
 const BURST = '[data-slot="message-list-scroll"]=100:10';
+
+/** A selector-less window that composited `total` frames, none dropped. */
+function plantedWindow(total: number): Pick<AuditData, "measuredInput" | "frames"> {
+  const totals = { total, dropped: 0, pct: total === 0 ? null : 0 };
+  return { measuredInput: false, frames: { raw: totals, classified: { total, dropped: 0 }, budgeted: totals } };
+}
 
 /** The queue position `--motion` took, which is what both hints are keyed on. */
 function motionIndex(args: Args): number {
@@ -71,13 +82,34 @@ test("the REFUSED gap list leads with the CAUSE, not with the zero-frame arithme
   const hint = motionPrecedingInputHint(args, motionIndex(args), null);
   expect(hint).not.toBeNull();
 
-  const ordered = orderMotionGaps([frameRefusal], hint === null ? [] : [hint]);
+  const ordered = orderMotionGaps([frameRefusal], { queue: null, precedingInput: hint }, plantedWindow(0));
   expect(ordered[0]?.evidence).toBe("the measured input");
   expect(ordered.at(-1)).toEqual(frameRefusal);
 
-  // The gating is unchanged and is the control: a window that MEASURED gets no hint at all, so a clean run
+  // The control: a window that MEASURED a verdict-sized population gets no hint at all, so a clean run
   // never grows a lecture — and an ordering that leaked one would fail here.
-  expect(orderMotionGaps([], hint === null ? [] : [hint])).toEqual([]);
+  expect(orderMotionGaps([], { queue: null, precedingInput: hint }, plantedWindow(FRAME_POPULATION_RESOLUTION_FLOOR))).toEqual([]);
+});
+
+test("a near-empty window after a click and a selector-less --motion refuses with the hint instead of reporting RECORDED", () => {
+  // The selector-less shape: the click runs before the window and its frames are reset away, so the window
+  // holds two stray frames. No gap is measured, so before the near-empty rule the run read RECORDED.
+  const args = parseSnapArgs(["/", "--goto", "chats", "--click", '[data-slot="composer-chat-actions"]', "--motion"]);
+  const hints = { queue: motionQueueHint(args, motionIndex(args)), precedingInput: motionPrecedingInputHint(args, motionIndex(args), null) };
+  const gaps = orderMotionGaps([], hints, plantedWindow(2));
+  expect(gaps.map((gap) => gap.evidence)).toEqual(["the measured input"]);
+  expect(gaps[0]?.detail).toContain("--click");
+
+  const measurement = { gaps, pass: true, timing: timingCapability({}), loadSuspect: null };
+  expect(motionStatus(measurement)).toBe("REFUSED");
+  expect(motionExit(true, measurement, EXIT.clean)).toBe(EXIT.toolError);
+
+  // Controls: the same two frames with no input before the window are the entry window itself, and a
+  // selector-bearing window dispatched its own input, so neither is the misuse the hint names.
+  const bare = parseSnapArgs(["/", "--goto", "chats", "--motion"]);
+  const bareHints = { queue: null, precedingInput: motionPrecedingInputHint(bare, motionIndex(bare), null) };
+  expect(orderMotionGaps([], bareHints, plantedWindow(2))).toEqual([]);
+  expect(orderMotionGaps([], hints, { ...plantedWindow(2), measuredInput: true })).toEqual([]);
 });
 
 test("the sibling queue hint still owns the mirror-image case, and neither hint claims the other's shape", () => {

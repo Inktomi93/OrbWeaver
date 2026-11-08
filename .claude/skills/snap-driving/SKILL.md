@@ -144,6 +144,12 @@ are JSON).
 - `--scale <css|device|n>`: the css default is one image pixel per CSS pixel, half the image tokens on
   a hi-dpi context; raise it only for a human reader. `--mobile` and `--viewport` compose. Read the
   `RESULT` line's `device=<pointer>:dpr<n>:<WxH>` token before trusting any geometry number.
+- **Give `--motion` the selector of the control you measure: `--motion '<selector>'`.** Snap then clicks it
+  inside the trace (`measured-input=1`). A selector-less `--motion` opens after the preceding `--click` and after
+  `__orb.resetEvidence()`, so it measures a settled page. Its window refuses with exit 2 when inputs ran
+  before it and its frame population is empty or near empty.
+- **Read `vt-crossfade=` on a motion run that starts a view transition.** It samples every old and new
+  snapshot's opacity per frame. It fails on an opacity return or a fade that ends off its declared value.
 - **Measure a route or section fade with `--motion-goto <target>`.** Plain `--motion` after a `--goto` opens its
   window after the navigation and resets the evidence, so the fade is gone (`frames-raw=0/0`). `--motion-goto`
   opens the trace first and runs the `--goto` inside it. It takes the place of `--motion` (one window per run) and
