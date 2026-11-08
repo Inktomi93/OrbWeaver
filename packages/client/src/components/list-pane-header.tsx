@@ -22,7 +22,7 @@ import type { ReactElement } from "react";
 import type { ListPaneHeaderProps, OverflowMenuItem } from "#lib";
 import { LIST_PANE_TITLE_ID } from "#lib";
 import { CountText } from "./count-text.tsx";
-import { BAND_OVERFLOW_LABEL, OverflowActions, OverflowMenuForms } from "./overflow-actions.tsx";
+import { BAND_OVERFLOW_LABEL, FLOOR_AT_CONTENT, OverflowActions, OverflowMenuForms } from "./overflow-actions.tsx";
 import { Tip } from "./tip.tsx";
 
 /** The primary's icon form: the same command its menu form runs, named by its label. */
@@ -39,12 +39,25 @@ function CompactAction({ command }: { readonly command: OverflowMenuItem }): Rea
 
 /** One LIST chrome-band: `[‹] Title · accent  count … action`. */
 export function ListPaneHeader({ title, accent, count, back, actions }: ListPaneHeaderProps): ReactElement {
+  // Zero is suppressed in both spellings: `count` is `number | string`, so a string "0" built by a caller that formats its
+  // own datum would render the empty count the numeric arm hides. A composed "0 of 896" is a real sentence and stays.
+  const hasCensus = !(count === undefined || count === 0 || count === "0");
   return (
     <>
       {/* `data-slot="list-pane-identity"` names this cluster for the shell: on a phone the ONE-SHELL rule
           sheds the unscoped title (below), and the shell then needs to know whether ANYTHING is left in the
           band before it keeps spending a 48px chrome row on it. See shell.css's mobile arm. */}
-      <Row align="center" data-slot="list-pane-identity" gap="field" minWidth={accent === undefined ? undefined : "title"}>
+      {/* An unscoped band clips its identity (a flex item with `overflow` has no content minimum), so when the actions
+          cannot fit beside the whole name and census even in their smallest form, the census gives and the name stays
+          whole. The fit still reads the identity's content width as its floor, so the actions fold first. */}
+      <Row
+        align="center"
+        className={accent === undefined ? "overflow-hidden" : undefined}
+        data-slot="list-pane-identity"
+        {...(accent === undefined ? { [FLOOR_AT_CONTENT]: "" } : {})}
+        gap="field"
+        minWidth={accent === undefined ? undefined : "title"}
+      >
         {back === undefined ? null : (
           <Button aria-label={back.label} data-slot="list-pane-back" variant="ghost" onClick={back.onClick} square={true} type="button">
             <Icon icon={ChevronLeft} size="sm" />
@@ -94,7 +107,7 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
           {/* An unscoped title is a section's name and the identity row floors at its whole width with the census, so
               the band's actions fold into their overflow before the name is cut: "Cha…" does not read as its pane.
               A scoped title carries an entity's name, which is what gives, down to the title floor. */}
-          <Text as="span" truncate={true} voice="masthead">
+          <Text as="span" className={accent === undefined ? "shrink-0" : undefined} truncate={true} voice="masthead">
             {accent === undefined ? title : `${title} · `}
             {/* The entity half is the same step; it carries the MUTED tone now that the name it qualifies
                 owns the foreground, so the pane still reads as "Chats, scoped to HER" rather than as two
@@ -105,25 +118,17 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
               </Text>
             )}
           </Text>
-          {/* ZERO IS SUPPRESSED IN BOTH SPELLINGS. `count` is `number | string`, so a numeric-only test let a
-              string `"0"` — the same fact, built by a caller that formats its own datum — render the empty
-              count the numeric arm exists to hide. Only the bare `"0"`: a composed `"0 of 896"` is a real
-              sentence about a filter and stays. */}
-          {count === undefined || count === 0 || count === "0" ? null : (
-            // THE COUNT RIDES `label`, NOT `micro` (#1136): beside a 24px name a 10.5px datum is not quiet,
-            // it is unreadable. The step is a LEGIBILITY call and nothing else — measured in the CT browser
-            // inside the real band, the datum lands at top 15.5 either way, because the .5 is the BAND's,
-            // not this element's: `.shell-panel-header` is `height: 48px` + a 1px bottom rule, so its
-            // content box is 47 and `align-items:center` halves an odd remainder for every child it holds
-            // (the heading at 8.5, the 32px action buttons at 7.5 — the two `off-grid-text` findings #1135
-            // already carries on this band). That is the band's row to fix, not this one's.
-            // `normal-case` is gone with the heading's caps: the #525 defect it existed to stop
-            // (`CHATS 129 OF 896` — the joining word shouting at the section name's weight) cannot occur
-            // now that nothing in this cluster uppercases.
-            // THE COUNT WEARS THE TITLE'S FAMILY: an unlabelled mono figure beside a sans name reads as a stray
-            // datum, not the census of the list. Tabular figures keep it from jittering as it changes.
-            <CountText>{count}</CountText>
-          )}
+          {/* THE COUNT RIDES `label`, NOT `micro` (#1136): beside a 24px name a 10.5px datum is not quiet, it is
+              unreadable; the step is a legibility call. It wears the title's family (an unlabelled mono figure
+              beside a sans name reads as a stray datum) with tabular figures so it does not jitter. A scoped band's
+              census stays whole, because its entity name is what gives. An unscoped band's census gives, ellipsized,
+              and its whole text stays in the DOM for assistive tech. */}
+          {hasCensus && accent === undefined ? (
+            <Text as="span" data-slot="list-pane-census" ink="muted" voice="label" numeric={true} truncate={true}>
+              {count}
+            </Text>
+          ) : null}
+          {hasCensus && accent !== undefined ? <CountText>{count}</CountText> : null}
         </Heading>
       </Row>
       {/* THE ACTION IS WRAPPED SO THE SHELL CAN COUNTER IT (#2463), and the wrapper is the marker rather

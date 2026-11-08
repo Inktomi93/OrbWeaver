@@ -197,15 +197,20 @@ function layoutParent(root: HTMLElement): HTMLElement | null {
   return parent;
 }
 
-/** The smallest an element can be: its computed `min-inline-size`, or its min-content when that is a keyword. */
+/** A sibling that can clip below its content (a flex item with `overflow`, whose minimum computes to 0) marks itself with this
+ *  attribute to be floored at its content anyway, so the actions fold before it is cut. */
+export const FLOOR_AT_CONTENT = "data-floor-at-content";
+
+/** The smallest an element can be: its computed `min-inline-size`, or its min-content when that is a keyword or the
+ *  element asks to be floored at its content. */
 function floorOf(element: HTMLElement, minimum: string): number {
   const length = Number.parseFloat(minimum);
-  if (!Number.isNaN(length)) {
+  if (!(Number.isNaN(length) || element.hasAttribute(FLOOR_AT_CONTENT))) {
     return length;
   }
   const { flex, inlineSize } = element.style;
   element.style.flex = "none";
-  element.style.inlineSize = "min-content";
+  element.style.inlineSize = element.hasAttribute(FLOOR_AT_CONTENT) ? "max-content" : "min-content";
   const width = element.getBoundingClientRect().width;
   element.style.flex = flex;
   element.style.inlineSize = inlineSize;
@@ -340,8 +345,12 @@ export function OverflowActions({ actions, label, topbarTrail = false, gap = "ro
     const observer = new ResizeObserver(measure);
     observer.observe(root);
     const parent = layoutParent(root);
+    // A sibling's floor is its content (a census growing from "326" to "0 of 326"), and a clipped sibling's box does
+    // not change when its content does, so the parent's resize alone never re-reads it.
+    const siblingContent = new MutationObserver(measure);
     if (parent !== null) {
       observer.observe(parent);
+      siblingContent.observe(parent, { characterData: true, childList: true, subtree: true });
     }
     for (const element of items.current.values()) {
       observer.observe(element);
@@ -350,7 +359,10 @@ export function OverflowActions({ actions, label, topbarTrail = false, gap = "ro
       observer.observe(triggerRef.current);
     }
     measure();
-    return (): void => observer.disconnect();
+    return (): void => {
+      observer.disconnect();
+      siblingContent.disconnect();
+    };
   }, [idKey, primaryKey, compactId, triggerWidth, keeps]);
 
   // Focus on a form that just left the row moves to the next control the row shows, or to the trigger, instead of

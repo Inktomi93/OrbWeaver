@@ -75,6 +75,34 @@ for (const collection of FOLDING) {
   });
 }
 
+for (const collection of [...FOLDING, ...UNFOLDED]) {
+  test(`the ${collection.id} band's actions overlap neither its whole name nor its census, with Context docked`, async ({ mount, page }) => {
+    await seedShellState(page, { activeSection: collection.id, panelOverrides: { [collection.id]: { list: "docked", context: "docked" } } });
+    await mount<typeof AppShellStory>(STORY, {});
+    const { band } = await widestBand(page, collection.label);
+    const title = band.getByRole("heading", { level: 2 });
+    const name = title.locator("> span").first();
+    const census = band.locator('[data-slot="list-pane-census"]');
+    await expect(census).toBeVisible();
+    // The room settles a frame after the census grows, so the clearances are read until they hold.
+    await expect
+      .poll(async () => {
+        const [nameBox, censusBox, actionBoxes] = await Promise.all([
+          name.boundingBox(),
+          census.boundingBox(),
+          band.locator(SHOWN_CONTROLS).evaluateAll((controls) => controls.map((control) => control.getBoundingClientRect().left)),
+        ]);
+        const firstAction = Math.min(...actionBoxes);
+        return {
+          nameClearsCensus: nameBox !== null && censusBox !== null && nameBox.x + nameBox.width <= censusBox.x,
+          censusClearsActions: censusBox !== null && censusBox.x + censusBox.width <= firstAction,
+          nameWhole: await name.evaluate((element) => element.scrollWidth <= element.clientWidth),
+        };
+      })
+      .toEqual({ nameClearsCensus: true, censusClearsActions: true, nameWhole: true });
+  });
+}
+
 for (const collection of UNFOLDED) {
   test(`the ${collection.id} band keeps its whole name, its secondary action and its primary inline, with Context docked`, async ({ mount, page }) => {
     await seedShellState(page, { activeSection: collection.id, panelOverrides: { [collection.id]: { list: "docked", context: "docked" } } });

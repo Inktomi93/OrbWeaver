@@ -457,10 +457,10 @@ function ChatThread({
           // pinned the sticky name band 12px below the visible top with a guillotined strip of prose
           // permanently above it (#204). The first/last rows still breathe off the topbar/composer edges.
           blockPaddingToken="block"
-          // Narrow tracks keep exactly the row focus ring's clearance (2px outline + 2px offset) and no more:
-          // the phone's transcript margin is the room's own inset (owner ruling, about 24px of text margin).
+          // The rows sit one `block` step in at a narrow width so a chip keeps its whole 44px touch reach inside the
+          // scroller's clip; the composer takes the same edge (`room-composer-anchor.tsx`).
           height="fill"
-          paddingInlineNarrow="tight"
+          paddingInlineNarrow="chipReach"
         />
         <JumpToLatestPill count={jump.count} visible={jump.visible} onJump={jump.onJump} />
       </Stack>

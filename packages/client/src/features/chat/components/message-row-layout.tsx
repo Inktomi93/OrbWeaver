@@ -54,7 +54,7 @@ export function MessageRowBody({ skin, ...props }: RowBoxProps & { readonly skin
       {...props}
       align="start"
       gap="row"
-      gapNarrow="field"
+      gapNarrow="block"
       cap="fit"
       width="full"
       data-slot="message-row-body"
