@@ -2,11 +2,12 @@
 // measured to fail: a row claims only what it shows and keeps its trigger on screen; a surface opened from the More menu
 // returns focus to the trigger; arrival focus skips an action that moved into the menu; a pane whose first read cannot proceed
 // offline paints its own copy; hidden entries leave no box and no gap.
-import { enlargeUntilVisible, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
+import { enlargeUntilVisible, resolvedLength, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { QUERY_WAITING_LINE, queryFailedLabel } from "#client/data/query-state-copy.ts";
 import { CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
@@ -201,9 +202,15 @@ test.describe("on a desktop", () => {
     await page.keyboard.press("Enter");
     const popup = page.locator('[data-slot="popover-popup"]');
     await expect(popup).toBeVisible();
-    // The bell's own control is folded, inert and out of the row, which is the popover's anchor; the popup still opens
-    // whole on the screen instead of off its edge.
+    // The bell's own control is folded, inert and out of the row, which is the popover's anchor. The popup opens whole
+    // on the screen, and its edge sits within a control's width of the trigger, so the anchor has not been displaced.
     const opened = await boxOf(popup);
+    const anchor = await boxOf(trigger);
+    const apart = Math.hypot(
+      Math.max(anchor.left - opened.right, opened.left - anchor.right, 0),
+      Math.max(anchor.top - opened.bottom, opened.top - anchor.bottom, 0),
+    );
+    expect(apart).toBeLessThanOrEqual(await resolvedLength(page, `var(${TOKENS["size.control-md"].cssVar})`));
     expect([
       opened.top >= -SUBPIXEL,
       opened.left >= -SUBPIXEL,

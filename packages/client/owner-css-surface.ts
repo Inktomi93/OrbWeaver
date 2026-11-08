@@ -1079,6 +1079,7 @@ export const OWNER_CSS_TOKEN_VARS = [
   "--dimension-shell-notice-cap",
   "--dimension-shell-title-floor",
   "--dimension-shell-topbar-block",
+  "--dimension-shell-topbar-block-primary",
   "--ease-out-expo",
   "--ease-spinner",
   "--fade-edge-stop",

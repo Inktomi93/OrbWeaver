@@ -37,6 +37,9 @@ export interface OverflowAction {
   /** The icon form of a kept primary, shown when its inline form does not fit beside the trigger. */
   readonly compact?: ReactNode;
   readonly menu: ReactNode;
+  /** The row's section primary: while it renders, the row says so with `data-holds-primary`, which the shell's phone
+   *  topbar reads to give the name its own line instead of folding the primary. */
+  readonly primary?: boolean;
 }
 
 /** The menu node for an action whose forms are plain data. */
@@ -298,7 +301,12 @@ export function OverflowActions({ actions, label, topbarTrail = false, gap = "ro
   const items = useRef(new Map<string, HTMLElement>());
   const [fit, setFit] = useState<Fit | null>(null);
   const [rowGap, setRowGap] = useState(0);
+  const [holdsPrimary, setHoldsPrimary] = useState(false);
   const idKey = actions.map((action) => action.id).join("\u0000");
+  const primaryKey = actions
+    .filter((action) => action.primary === true)
+    .map((action) => action.id)
+    .join("\u0000");
   // The primary's compact form is the last action's, so the key says whether it exists.
   const compactId = keeps === "primary" && actions.at(-1)?.compact !== undefined ? (actions.at(-1)?.id ?? null) : null;
   const visible = fit === null ? actions.length : fit.visible;
@@ -311,6 +319,7 @@ export function OverflowActions({ actions, label, topbarTrail = false, gap = "ro
       return;
     }
     const ids = idKey === "" ? [] : idKey.split("\u0000");
+    const primaries = new Set(primaryKey === "" ? [] : primaryKey.split("\u0000"));
     const measure = (): void => {
       const widths = ids.map((id) => items.current.get(id)?.getBoundingClientRect().width ?? 0);
       const compact = compactId === null ? 0 : (items.current.get(compactKey(compactId))?.getBoundingClientRect().width ?? 0);
@@ -320,6 +329,8 @@ export function OverflowActions({ actions, label, topbarTrail = false, gap = "ro
       const { room, gap: outerGap } = roomFor(root);
       const next = fitActions(widths, { trigger: Number.isNaN(trigger) ? 0 : trigger, gap: gapWidth, available: room, keeps, compact });
       setRowGap(outerGap);
+      // A primary that renders nothing has no box, and a row without one holds none.
+      setHoldsPrimary(ids.some((id, index) => primaries.has(id) && (widths[index] ?? 0) > 0));
       setFit((previous) =>
         previous !== null && previous.visible === next.visible && previous.compact === next.compact && Math.abs(previous.claim - next.claim) < FIT_EPSILON
           ? previous
@@ -340,7 +351,7 @@ export function OverflowActions({ actions, label, topbarTrail = false, gap = "ro
     }
     measure();
     return (): void => observer.disconnect();
-  }, [idKey, compactId, triggerWidth, keeps]);
+  }, [idKey, primaryKey, compactId, triggerWidth, keeps]);
 
   // Focus on a form that just left the row moves to the next control the row shows, or to the trigger, instead of
   // dropping to the page.
@@ -417,6 +428,7 @@ export function OverflowActions({ actions, label, topbarTrail = false, gap = "ro
       minWidth="controlMd"
       className={topbarTrail ? "shell-topbar-trail" : ""}
       data-empty={empty ? "" : undefined}
+      data-holds-primary={holdsPrimary ? "" : undefined}
       data-slot={slot}
       gap={gap}
       justify="end"

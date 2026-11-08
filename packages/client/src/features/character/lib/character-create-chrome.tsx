@@ -57,6 +57,7 @@ export const characterCreateChrome: ChromeEntry = {
   // Ahead of the shell's own toggles (focus 20 / detail panel 30): the section's primary is what a reader
   // reaches for on this screen, and the trail reads outward from the title.
   order: 10,
+  primary: true,
   useVisible: useOnCharactersScreen,
   // The same body in both lenses — this entry is never curated `mobile: "sheet"`, so `body("sheet")` is
   // unreachable and `presentation` has nothing to branch on.
