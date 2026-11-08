@@ -11,7 +11,7 @@ import { IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
 import { formatVersionIdentity } from "@orb/kit/version-identity";
 import { nonEmpty } from "@orb/testkit/iso";
-import { prepareBackupFolder } from "@orb/testkit/node/composed";
+import { prepareBackupFolder } from "@orb/testkit/node/helpers";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page, Response } from "@playwright/test";
 import { CHECK_FOR_UPDATES_LABEL } from "#client/features/plugin/lib/plugin-copy.ts";

@@ -13,7 +13,7 @@ import { ENV_FROM_FILE_KEY, ENV_NO_FILE_KEY, ENV_NO_OVERRIDE_KEY, envFromFileKey
 import { isSupervised } from "@orb/kit/supervisor";
 import { CONTAINER_MARKER_FILES } from "./container.ts";
 import type { Env } from "./record/index.ts";
-import { APP_SECRET_ENV_KEYS, parseEnv } from "./record/index.ts";
+import { isSecretEnvKey, parseEnv } from "./record/index.ts";
 
 export { resolveAllowedHosts } from "./allowed-hosts.ts";
 export { bindPostureWarnings, loopbackCompanion, resolveBindPosture } from "./bind.ts";
@@ -134,11 +134,12 @@ export const env: Env = parseEnv({
   readFile: (path) => readFileSync(path, "utf8"),
 });
 
-/** Deletes every {@link APP_SECRET_ENV_KEYS} entry from `process.env`, so no child process started afterwards inherits
- *  an app secret. The server entry calls it once, right after the parse. It cannot run at module load: the dev
- *  launcher imports this module to preflight the env and then hands its own `process.env` to the server it spawns. */
+/** Deletes every key {@link isSecretEnvKey} names from `process.env`, so no child process started afterwards inherits
+ *  an app secret or a provider credential the parse never read. The server entry calls it once, right after the
+ *  parse. It cannot run at module load: the dev launcher imports this module to preflight the env and then hands its
+ *  own `process.env` to the server it spawns. */
 export function scrubAppSecretsFromProcessEnv(): void {
-  for (const key of APP_SECRET_ENV_KEYS) {
+  for (const key of Object.keys(process.env).filter(isSecretEnvKey)) {
     Reflect.deleteProperty(process.env, key);
   }
 }

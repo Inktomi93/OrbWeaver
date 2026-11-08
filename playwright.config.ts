@@ -12,6 +12,7 @@ import {
   oidcIssuerTls,
   SINGLE_USER,
   selectedModeProjects,
+  webServerProcessEnv,
 } from "./tests/e2e/support/modes.ts";
 
 // E2E — full-stack `.spec.ts` under tests/e2e (NOT a src mirror; spans the whole app). Browser lane =
@@ -95,7 +96,8 @@ const webServers = bootedModes.map((mode) => ({
   reuseExistingServer: mode.name === SINGLE_USER.name && DEV_TARGET_ALLOWED && !inCI,
   gracefulShutdown: { signal: "SIGTERM" as const, timeout: budget(15_000) },
   timeout: budget(180_000),
-  env: mode.webServerEnv,
+  // Playwright types `env` as strings only, but spawns it with Node, which drops the deliberate undefined entries.
+  env: webServerProcessEnv(mode) as Record<string, string>,
   stdout: "pipe" as const,
   stderr: "pipe" as const,
 }));

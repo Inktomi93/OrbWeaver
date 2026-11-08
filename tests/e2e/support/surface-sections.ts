@@ -15,8 +15,14 @@ import { controlledPanel, usesProgrammaticScroll } from "@orb/testkit/browser/sp
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { SurfaceProviderEvidence } from "@orb/testkit/iso";
 import { nonEmpty, parseSurfaceProviderEvidence } from "@orb/testkit/iso";
-import { CORPUS_STRUCTURED_REPLIES } from "@orb/testkit/node/composed";
-import { attachNativeFile, isTrpcRequestFor, matchesTrpcRequestInput, readTrpcOutput, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
+import {
+  attachNativeFile,
+  CORPUS_STRUCTURED_REPLIES,
+  isTrpcRequestFor,
+  matchesTrpcRequestInput,
+  readTrpcOutput,
+  SURFACE_CHECKS,
+} from "@orb/testkit/node/helpers";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Locator, Request, Response } from "@playwright/test";
 import { expect } from "@playwright/test";

@@ -13,6 +13,7 @@ export {
   thinkingBlock,
   toolUseBlock,
 } from "./anthropic-stream.ts";
+export { prepareBackupFolder } from "./backup-folder.ts";
 export { bootGrantFor } from "./boot-grant.ts";
 export { assertEventSequence } from "./chat/assertions.ts";
 export type { ChromiumIdentity } from "./chromium-processes.ts";
@@ -24,7 +25,14 @@ export {
   terminateChromiumIdentities,
   watchChromiumDescendants,
 } from "./chromium-processes.ts";
-export { assertPrivateCorpusNetwork, assertPrivateCorpusOutput, assertPrivateCorpusOutputArguments, loadCorpusFixture } from "./corpus.ts";
+export {
+  assertPrivateCorpusNetwork,
+  assertPrivateCorpusOutput,
+  assertPrivateCorpusOutputArguments,
+  isPrivateCorpusConfigArgument,
+  loadCorpusFixture,
+} from "./corpus.ts";
+export { CORPUS_STRUCTURED_REPLIES } from "./corpus-provider.ts";
 export { createTestEnv } from "./env.ts";
 export { makeRuleView } from "./factories/automation-view.ts";
 export { makeChatDetail, makeChatId, makeChatSummaryView, makeRedeemInviteResult } from "./factories/chat-view.ts";
