@@ -271,7 +271,7 @@ export function NewChatPicker(): ReactElement {
       {/* After the pinned row, so nothing passes under Start and a focused action is never hidden behind it. */}
       <Stack hiddenAt="unlessDialogStacked" gap="field" padding="block">
         {blankAction({ width: "full" })}
-        {rosterDoor()}
+        {hasRosters ? rosterDoor() : null}
       </Stack>
     </Stack>
   );

@@ -27,8 +27,9 @@
 // well as height; the authored count survives as the first-boot guess. DECLARED LIMIT: only the `line`
 // shape is re-filled — `skeleton-row-metrics.ts` inverts exactly that arm's pitch (its own header rules
 // `datum` out; `avatar-row`'s pitch is content-determined) — other shapes/fallbacks reserve unfilled.
-// A declared `reserveRows` count builds its length from tokens and refills the skeleton to the same count, so no render reads the document. A declared
-// CSS length is held but never refilled (the count needs a pixel box), and `data-tile-reserved` then carries the length itself.
+// A declared `reserveRows` count builds its length from tokens and refills the skeleton to the same count, and a measured box refills to the count remembered
+// beside it, so neither reads the document in render. A declared CSS length is held but never refilled (the count needs a pixel box), and
+// `data-tile-reserved` then carries the length itself. A declared pixel constant still inverts its pitch from the document.
 // The `data-tile-reserved`/`data-tile-reserve-source` attributes are the pinned vocabulary (#837
 // sentinel tier) shared with every consumer, home-born name and all. `data-reserve-key` names which
 // surface a reserved box belongs to, for a test that holds several boundaries at once.
@@ -38,7 +39,7 @@ import { Text } from "@orb/ui/text";
 import { QueryErrorResetBoundary } from "@tanstack/react-query";
 import type { ReactElement, ReactNode, Ref, RefObject } from "react";
 import { Component, isValidElement, Suspense, useEffect, useId, useRef } from "react";
-import { rememberSurfaceBox, useSurfaceBox } from "#state";
+import { rememberSurfaceBox, useSurfaceBox, useSurfaceRows } from "#state";
 import { QueryErrorState } from "../data/query-error-state.tsx";
 import { QUERY_WAITING_LINE } from "../data/query-state-copy.ts";
 import { skeletonLengthFor, skeletonRowCountFor } from "../data/skeleton-row-metrics.ts";
@@ -47,7 +48,17 @@ import { SkeletonRows } from "../data/skeleton-rows.tsx";
 import { QueryBoundaryScope } from "../data/suspense-reads.ts";
 import { useOnlineStatus } from "../data/use-online-status.ts";
 
-export interface QueryBoundaryProps {
+/**
+ * A declared first-boot box, used only until this device's own measurement exists, and only with `reserveKey`. A boundary declares it one way or the other:
+ * `reserveBlock` for a surface whose settled height is a known constant (`HomeTileContribution.skeletonBlock`, the rpg band's estimate), as CSS px or a
+ * CSS length built from tokens, which the browser resolves and no render reads; or `reserveRows` for a surface that knows how many `SkeletonRows`
+ * `shape="line"` rows it settles at, from which the boundary builds the length from tokens and refills the skeleton to the count.
+ */
+type DeclaredReserve =
+  | { readonly reserveBlock?: number | string | undefined; readonly reserveRows?: never }
+  | { readonly reserveRows?: number | undefined; readonly reserveBlock?: never };
+
+interface QueryBoundaryBase {
   /** The suspense fallback (a skeleton, never a spinner-only flash). */
   readonly fallback: ReactNode;
   /**
@@ -59,18 +70,6 @@ export interface QueryBoundaryProps {
    * REDs a repeated literal).
    */
   readonly reserveKey?: string;
-  /**
-   * A declared first-boot box, for a surface whose settled height is a known constant
-   * (`HomeTileContribution.skeletonBlock`, the rpg band's measured-range estimate): CSS px, or a CSS length
-   * built from tokens, which the browser resolves and no render reads. Used only until this device's own
-   * measurement exists, and only with `reserveKey`.
-   */
-  readonly reserveBlock?: number | string | undefined;
-  /**
-   * A declared first-boot box as a count of `SkeletonRows shape="line"` rows, for a surface that knows how many rows it settles at. The boundary builds the
-   * length from tokens and refills the skeleton to the count, so no render reads the document. Wins over `reserveBlock`; used only with `reserveKey`.
-   */
-  readonly reserveRows?: number | undefined;
   /** Preserve a parent-owned definite height through the reservation wrapper. */
   readonly fill?: boolean;
   /** The wrappers share the room a flex parent leaves and give way below their content, so a bounded dialog holds the skeleton and the settled child in one box. */
@@ -88,6 +87,8 @@ export interface QueryBoundaryProps {
   readonly resetKeys: readonly unknown[];
   readonly children: ReactNode;
 }
+
+export type QueryBoundaryProps = QueryBoundaryBase & DeclaredReserve;
 
 const defaultRenderError = (_error: unknown, retry: () => void): ReactNode => <QueryErrorState label="this" onRetry={retry} />;
 
@@ -338,17 +339,22 @@ function fillRows(fallback: ReactNode, rowsFor: (authored: number) => number): R
   return <SkeletonRows {...props} count={rowsFor(props.count)} />;
 }
 
-/** The skeleton refilled to the box it stands in for: a declared row count is that count, a pixel box is its pitch, and a CSS length leaves the skeleton as authored. */
-function refilled(skeleton: ReactNode, box: number | string, declaredRows: number | undefined): ReactNode {
-  if (declaredRows !== undefined) {
-    return fillRows(skeleton, () => declaredRows);
-  }
-  return typeof box === "number" ? fillRows(skeleton, (authored) => skeletonRowCountFor(box, authored)) : skeleton;
+/** The skeleton refilled to a remembered count; a box remembered without one leaves it as authored. */
+function fillRowsTo(skeleton: ReactNode, rows: number | null): ReactNode {
+  return rows === null ? skeleton : fillRows(skeleton, () => rows);
 }
 
-/** The declared first-boot box: a row count wins over a length or a pixel constant. */
-function declaredBox(reserveRows: number | undefined, reserveBlock: number | string | undefined): number | string | null {
+/** The declared box as a length: a row count builds it from tokens, a pixel constant or a CSS length is itself. */
+function declaredBox({ reserveBlock, reserveRows }: DeclaredReserve): number | string | null {
   return reserveRows === undefined ? (reserveBlock ?? null) : skeletonLengthFor(reserveRows);
+}
+
+/** The skeleton refilled to a declared box: a row count is that count, a pixel constant is its pitch, and a CSS length leaves the skeleton as authored. */
+function declaredSkeleton(skeleton: ReactNode, { reserveBlock, reserveRows }: DeclaredReserve): ReactNode {
+  if (reserveRows !== undefined) {
+    return fillRows(skeleton, () => reserveRows);
+  }
+  return typeof reserveBlock === "number" ? fillRows(skeleton, (authored) => skeletonRowCountFor(reserveBlock, authored)) : skeleton;
 }
 
 /** The keyed loading box. THREE SOURCES, ONE MECHANISM (#177): the measured box wins (what THIS device
@@ -359,21 +365,20 @@ function declaredBox(reserveRows: number | undefined, reserveBlock: number | str
  *  not a design value — no token exists for "the height this surface happened to occupy"). */
 function ReservedFallback({
   reserveKey,
-  reserveBlock,
-  reserveRows,
+  declared,
   fill,
   grow,
   children,
 }: {
   readonly reserveKey: string;
-  readonly reserveBlock: number | string | undefined;
-  readonly reserveRows: number | undefined;
+  readonly declared: DeclaredReserve;
   readonly fill: boolean;
   readonly grow: boolean;
   readonly children: ReactNode;
 }): ReactElement {
   const measured = useSurfaceBox(reserveKey);
-  const box = measured ?? declaredBox(reserveRows, reserveBlock);
+  const measuredRows = useSurfaceRows(reserveKey);
+  const box = measured ?? declaredBox(declared);
   if (box === null) {
     return (
       <Stack grow={grow ? "onLandscape" : undefined} height={fill ? "fill" : undefined} minHeight={grow ? "holdsPickerOnLandscape" : undefined}>
@@ -381,7 +386,8 @@ function ReservedFallback({
       </Stack>
     );
   }
-  const skeleton = refilled(children, box, measured === null ? reserveRows : undefined);
+  // The measured box refills from the row count remembered beside it, so a boot after the first reads no document.
+  const skeleton = measured === null ? declaredSkeleton(children, declared) : fillRowsTo(children, measuredRows);
   return (
     <Stack
       className="overflow-clip"
@@ -422,7 +428,10 @@ function MeasuredSettle({
     if (el === null) {
       return;
     }
-    const observer = new ResizeObserver(() => rememberSurfaceBox(reserveKey, el.getBoundingClientRect().height));
+    const observer = new ResizeObserver(() => {
+      const height = el.getBoundingClientRect().height;
+      rememberSurfaceBox(reserveKey, height, skeletonRowCountFor(height, 1));
+    });
     observer.observe(el);
     return (): void => observer.disconnect();
   }, [reserveKey]);
@@ -445,11 +454,12 @@ export function QueryBoundary({
   children,
 }: QueryBoundaryProps): ReactElement {
   const landing = useRef<HTMLParagraphElement>(null);
+  const declared: DeclaredReserve = reserveRows === undefined ? { reserveBlock } : { reserveRows };
   const reservedFallback =
     reserveKey === undefined ? (
       fallback
     ) : (
-      <ReservedFallback fill={fill} grow={grow} reserveBlock={reserveBlock} reserveKey={reserveKey} reserveRows={reserveRows}>
+      <ReservedFallback declared={declared} fill={fill} grow={grow} reserveKey={reserveKey}>
         {fallback}
       </ReservedFallback>
     );

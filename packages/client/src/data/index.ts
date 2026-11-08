@@ -95,3 +95,4 @@ export { useSessionRecovery } from "./use-session-recovery.ts";
 export { useSettingsViewerView } from "./use-settings-viewer-view.ts";
 export { useStartChat } from "./use-start-chat.ts";
 export { useUploadAsset } from "./use-upload-asset.ts";
+export { useWarmSavedRosters } from "./use-warm-saved-rosters.ts";
