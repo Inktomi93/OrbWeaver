@@ -54,8 +54,8 @@ export function hasAny(facts: FileFacts, ...tags: readonly string[]): boolean {
   return tags.some((tag) => facts.tags.has(tag));
 }
 
-// `packages/client/src/lib/dialog-verbs.ts` spells each verb as its key with a capital first letter.
-function dialogVerbOf(element: ts.JsxElement | ts.JsxSelfClosingElement): string | null {
+/** The word a `{DIALOG_VERBS.<key>}` child prints: `packages/client/src/lib/dialog-verbs.ts` spells each verb as its key with a capital first letter. */
+export function dialogVerbOf(element: ts.JsxElement | ts.JsxSelfClosingElement): string | null {
   const [only, ...rest] = ts.isJsxElement(element) ? element.children.filter((child) => !(ts.isJsxText(child) && child.containsOnlyTriviaWhiteSpaces)) : [];
   const read = only !== undefined && rest.length === 0 && ts.isJsxExpression(only) ? only.expression : undefined;
   if (read === undefined || !ts.isPropertyAccessExpression(read) || !ts.isIdentifier(read.expression) || read.expression.text !== "DIALOG_VERBS") {

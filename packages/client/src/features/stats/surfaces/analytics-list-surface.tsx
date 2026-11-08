@@ -9,6 +9,8 @@
 
 import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
+import { EmptyState } from "@orb/ui/empty-state";
+import { ChartColumn, Icon, Search } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
 import { shownValue, Text } from "@orb/ui/text";
@@ -21,7 +23,7 @@ import { useDeferredValue, useRef, useState } from "react";
 import { LibraryRow, ListPage, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
-import { CLEAR_SEARCH_NAME, ESTIMATED_ROW_PX, testId, useFocusListArrival } from "#lib";
+import { CLEAR_SEARCH_NAME, ESTIMATED_ROW_PX, NO_MATCHES_TITLE, testId, useFocusListArrival } from "#lib";
 import { selectAnalyticsCharacterFromList, setAnalyticsSearchQuery, useAnalyticsSearchQuery, useSelectedAnalyticsCharacterId } from "#state";
 import { ANALYTICS_NO_ACTIVITY_TEXT } from "../lib/analytics-copy.ts";
 import { ANALYTICS_SEARCH_NAME } from "../lib/analytics-names.ts";
@@ -126,14 +128,19 @@ function LeaderboardBody({
 }): ReactElement {
   if (page.rows.length === 0) {
     return trimmed === "" ? (
-      <Text voice="gloss">{ANALYTICS_NO_ACTIVITY_TEXT}</Text>
+      // No action: activity rolls up from chatting, and this read-only pane has no verb that makes any.
+      <EmptyState action={null} icon={<Icon icon={ChartColumn} size="lg" />} title={ANALYTICS_NO_ACTIVITY_TEXT} />
     ) : (
-      <Stack gap="field" align="start">
-        <Text voice="gloss">{`No character matches "${trimmed}".`}</Text>
-        <Button variant="outline" size="sm" onClick={(): void => setAnalyticsSearchQuery("")}>
-          {CLEAR_SEARCH_NAME}
-        </Button>
-      </Stack>
+      <EmptyState
+        action={
+          <Button variant="outline" size="sm" onClick={(): void => setAnalyticsSearchQuery("")}>
+            {CLEAR_SEARCH_NAME}
+          </Button>
+        }
+        description={`No character matches "${trimmed}".`}
+        icon={<Icon icon={Search} size="lg" />}
+        title={NO_MATCHES_TITLE}
+      />
     );
   }
 

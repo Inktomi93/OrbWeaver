@@ -133,7 +133,7 @@ export { filteredCensus } from "./filtered-census.ts";
 export { MESSAGE_TOOLS_LABEL, SIDECAR_PANELS_LABEL, SIDECAR_PANELS_NOUN } from "./flank-names.ts";
 export { publishFlankHost, publishInlineFlankFit, setFlankSheetOpen, useFlankHost, useFlankSheetOpen, useInlineFlankFits } from "./flank-placement.ts";
 export { holdFlipInPhase } from "./flip-phase.ts";
-export { IMAGE_SIZE_LABELS, IMAGE_SIZE_MODE_DEFAULT } from "./image-size-copy.ts";
+export { IMAGE_MODE_LABELS, IMAGE_SIZE_LABELS, IMAGE_SIZE_MODE_DEFAULT } from "./image-size-copy.ts";
 export type { SendRefusalKey } from "./injection-copy.ts";
 export {
   ADD_CONNECTION_PATH,
@@ -193,7 +193,7 @@ export type {
 export { UI_GUEST_BOOT_WALL_MS, UI_GUEST_WALL_MS } from "./plugin-ui-guest-protocol.ts";
 export {} from "./probe-mode.ts";
 export type { CatalogMacro, MacroCatalog, MacroPlane } from "./prompt-macros.ts";
-export { BUILTIN_MACRO_SUGGESTIONS, macroCatalog, macroSourceLabel, pluginMacroPlanes, presetNamesPlane } from "./prompt-macros.ts";
+export { BUILTIN_MACRO_SUGGESTIONS, MACRO_CATEGORY_WORDS, macroCatalog, macroSourceLabel, pluginMacroPlanes, presetNamesPlane } from "./prompt-macros.ts";
 export { PRIMARY_NAV_NAME, YOU_TAB_LABEL } from "./rail-names.ts";
 export {
   REGEX_PLACEMENT_GLYPHS,
@@ -259,6 +259,7 @@ export { cycleTagFilterEntries, tagFilterStateOf } from "./tag-filter-state.ts";
 export {
   LABELS_BLURB,
   LABELS_EMPTY,
+  LABELS_NONE,
   NEW_LABEL_NAME,
   pruneConfirmLabel,
   tagSortItems,

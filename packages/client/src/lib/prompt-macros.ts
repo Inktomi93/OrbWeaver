@@ -33,7 +33,7 @@
 
 import type { PluginMacroView } from "@orb/contracts/plugin";
 import type { PresetId } from "@orb/kit/ids";
-import type { MacroMetadata, MacroSourceKind, MacroSourceRef, RejectedUserMacro, UserMacroDef } from "@orb/kit/macro";
+import type { MacroCategory, MacroMetadata, MacroSourceKind, MacroSourceRef, RejectedUserMacro, UserMacroDef } from "@orb/kit/macro";
 import { createDefaultRegistry, queryMacros, registerUserMacros } from "@orb/kit/macro";
 
 // ── the curation ─────────────────────────────────────────────────────────────────────────────────────
@@ -149,6 +149,19 @@ const SOURCE_KIND_WORDS: Record<MacroSourceKind, string> = {
   preset: "preset",
   game: "game",
   plugin: "plugin",
+};
+
+/** The word the macro browser badge shows for a category; total, so a new category fails `tsc`. The completion list keeps the raw category, its grouping key. */
+export const MACRO_CATEGORY_WORDS: Readonly<Record<MacroCategory, string>> = {
+  identity: "Identity",
+  card: "Card",
+  conversation: "Conversation",
+  variables: "Variables",
+  time: "Time",
+  random: "Random",
+  expression: "Expression",
+  system: "System",
+  user: "User",
 };
 
 /** What the completion row and the browser badge say about a plane: "This preset", "Plugin: Oracle Deck", or the

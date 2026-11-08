@@ -5,14 +5,13 @@ import { EllipsisVertical, Icon, Trash } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Menu, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import { Select } from "@orb/ui/select";
-import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { LibrarySurfaceShell, ListPage } from "#components";
 import { useFocusOnMount } from "#lib";
 import { selectLabelFromList, setLabelFilter, setTagPruneConfirmOpen, useLabelFilter, useMobileViewport, useSectionListMode, useSelectedLabelId } from "#state";
 import { TagCollectionRows } from "../components/tag-collection-rows.tsx";
-import { useTagCensus, useTagSortControl } from "../hooks/use-tag-library.ts";
+import { useTagSortControl } from "../hooks/use-tag-library.ts";
 import { LABELS_FINDER_SLOT } from "../lib/labels-focus-targets.ts";
 import { TAG_FILTER_NAME, TAG_MORE_ACTIONS_NAME, TAG_PRUNE_NAME } from "../lib/tag-list-name.ts";
 
@@ -23,18 +22,9 @@ export function LabelsListSurface(): ReactElement {
   useFocusOnMount(surfaceRef, phone && listMode !== "collapsed");
   const filter = useLabelFilter();
   const selectedId = useSelectedLabelId();
-  // The rows say nothing over an empty library (a filter miss is theirs to say), so the finder does.
-  const empty = useTagCensus() === 0;
   return (
     <ListPage
       data-slot={LABELS_FINDER_SLOT}
-      filters={
-        empty ? (
-          <Text voice="gloss" data-slot="labels-finder-empty">
-            No tags yet.
-          </Text>
-        ) : null
-      }
       ref={surfaceRef}
       search={<Input aria-label={TAG_FILTER_NAME} onValueChange={setLabelFilter} placeholder={`${TAG_FILTER_NAME}…`} value={filter} />}
       skipTo="Skip to labels"

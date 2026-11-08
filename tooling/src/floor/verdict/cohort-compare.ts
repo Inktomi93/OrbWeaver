@@ -24,7 +24,7 @@ export interface Cohort {
   readonly defects?: Readonly<Record<string, readonly string[]>>;
   /** Values a ruling allows beside the majority: column to value to the cited ruling. They are no outlier. */
   readonly kept?: Readonly<Record<string, Readonly<Record<string, string>>>>;
-  /** Members a ruling allows to differ, whatever their value: column to member path to the cited ruling. */
+  /** Members a ruling allows to differ, whatever their value: column to member path to the cited ruling. They are no outlier and no defect. */
   readonly keptSites?: Readonly<Record<string, Readonly<Record<string, string>>>>;
   /** Per column: read straight off the syntax, or inferred from it. A column absent here is unlabelled. */
   readonly basis?: Readonly<Record<string, ColumnBasis>>;
@@ -111,7 +111,7 @@ function compareColumn(cohort: Cohort, column: string, informational = false): C
     tied: runnerUp !== undefined && runnerUp[1] === top[1],
     distribution: Object.fromEntries(ranked),
     outliers: informational ? [] : differs.filter((row) => !(bySite.includes(row) || byValue.includes(row))).map(outlierOf),
-    defects: rows.filter((row) => cohort.defects?.[column]?.includes(row.cell.value) === true).map(outlierOf),
+    defects: rows.filter((row) => cohort.defects?.[column]?.includes(row.cell.value) === true && !Object.hasOwn(siteRulings, row.member.path)).map(outlierOf),
     kept: [...keptValues, ...keptSites],
     informational,
     basis: cohort.basis?.[column] ?? null,

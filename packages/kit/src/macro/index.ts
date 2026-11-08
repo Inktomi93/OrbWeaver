@@ -25,6 +25,7 @@ export type {
 export { resolveRowMacros } from "./row-macros.ts";
 export type {
   MacroArgType,
+  MacroCategory,
   MacroContext,
   MacroDiagnostic,
   MacroEnv,

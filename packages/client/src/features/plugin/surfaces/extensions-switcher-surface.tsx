@@ -21,10 +21,9 @@ import { EmptyState } from "@orb/ui/empty-state";
 import { Blocks, Icon } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
-import { ListRow } from "@orb/ui/list-row";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { LibrarySurfaceShell, ListPage } from "#components";
+import { LibraryRow, LibrarySurfaceShell, ListPage } from "#components";
 import { SkeletonRows } from "#data";
 import { CLEAR_SEARCH_NAME, testId, useFocusListArrival } from "#lib";
 import { openConfigTo, selectPluginPageFromList, setExtensionsSearchQuery, useExtensionsSearchQuery, usePluginPageKey } from "#state";
@@ -80,14 +79,12 @@ function ExtensionsPageList(): ReactElement {
       {matching.length === 0 ? null : (
         <Stack gap="tight">
           {matching.map((page) => (
-            <ListRow
-              clickable={true}
+            <LibraryRow
               key={page.key}
               leading={<Icon icon={Blocks} size="sm" />}
-              onClick={(): void => selectPluginPageFromList(page.key)}
-              data-selected={page.key === active ? "" : undefined}
+              onSelect={(): void => selectPluginPageFromList(page.key)}
+              selected={page.key === active}
               title={page.title}
-              titleQualifierFace="body"
               // Two plugins may legitimately register a page with the same title ("Browse"). The plugin name
               // is the disambiguator, and `titleQualifier` both renders it after the title and carries it into
               // the accessible name, so it is not repeated as a subtitle. A page titled exactly like its plugin
