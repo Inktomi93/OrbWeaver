@@ -410,6 +410,8 @@ export interface PropertyReferences {
   readonly sends: ReadonlyMap<string, readonly Send[]>;
   /** The {@link siteKey} of every read that only copies a value into a stored column, which no audit may count as a read. */
   readonly copied: ReadonlySet<string>;
+  /** Each declaration key's flows: the keys its value is carried into. */
+  readonly carriesInto: ReadonlyMap<string, ReadonlySet<string>>;
 }
 
 /** What a world's files say before any join: each site with the declarations it resolves to, in walk order. */
@@ -773,6 +775,7 @@ export function joinFacts(facts: readonly PropertyFacts[]): PropertyReferences {
     direct: withCarried(index, carriedAlong(index, down, isWrite)),
     sends,
     copied: new Set(facts.flatMap((part) => [...part.copied])),
+    carriesInto: down,
   };
 }
 

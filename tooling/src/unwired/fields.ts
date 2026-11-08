@@ -23,7 +23,7 @@ import type { APIRequestGenerator, Checker, Symbol as NativeSymbol } from "@type
 import type { SendDestination } from "./boundaries.ts";
 import type { Site, SyntaxRole } from "./classify.ts";
 import { isProductionFile, roleAt, Sources, siteKey } from "./classify.ts";
-import type { SortEvidence, Verdict } from "./field-sort.ts";
+import type { SortEvidence, SortedField, Verdict } from "./field-sort.ts";
 import { FieldSort } from "./field-sort.ts";
 import { serviceReferences } from "./language-service.ts";
 import { constituents, declarationKeys, homeFiles, NativeWorld } from "./native.ts";
@@ -99,7 +99,8 @@ const FIELD_LIMITS: readonly string[] = [
   "A $inferSelect or $inferInsert row member has no declaration; it reads the column of the table whose column names are exactly the row's member names, so a narrowed or widened row type reads nothing.",
   "A value spread or copied into an object that is then serialized is not followed to that serialization.",
   "The plugin SDK surface is matched by home and member name against packages/plugin-sdk/*.d.ts; a renamed home is missed.",
-  "The sort matches reader history by member name, so a common name over-matches; a one-word lowercase member is promised only by a backticked Home.member.",
+  "Reader history counts any removed read of a member name one scanned home declares; for a shared name, only a removed read in a file whose parent version names the home, its schema or type twin, or an alias the current tree gives either; a read through an inferred type in a file that never names the home is missed, and a home renamed since is matched only under its current names.",
+  "A promise is a backticked Home.member under any of the home's names, a distinctive bare member that one scanned home declares, a settings field itself, or a field a flow from a settings field fills; a settings field of the same name that no flow connects sorts the row as ask.",
 ];
 
 const SAMPLE = 3;
@@ -470,6 +471,62 @@ function sentCounts(findings: readonly UnwiredField[]): FieldsReport["sentBy"] {
   return counts;
 }
 
+// A settings field promises its feature to whoever sets it. A flow carries that promise into each field it fills, so a
+// knob mirrored into a carrier stays promised without a name match.
+const SETTINGS_HOMES = "packages/contracts/src/settings/";
+
+interface SettingPromises {
+  /** Each settings field, and each field a flow from one fills, to that setting's `file:line`. */
+  readonly fed: ReadonlyMap<string, string>;
+  /** The first settings field of each member name, `file:line`. */
+  readonly named: ReadonlyMap<string, string>;
+}
+
+// Every declaration key a value starting at `keys` reaches through flows, however many hops.
+function carriedFrom(keys: Iterable<string>, carriesInto: ReadonlyMap<string, ReadonlySet<string>>): ReadonlySet<string> {
+  const seen = new Set(keys);
+  const queue = [...seen];
+  for (let next = queue.pop(); next !== undefined; next = queue.pop()) {
+    for (const into of [...(carriesInto.get(next) ?? [])].filter((key) => !seen.has(key))) {
+      seen.add(into);
+      queue.push(into);
+    }
+  }
+  return seen;
+}
+
+function settingPromises(rolled: readonly Tally[], carriesInto: ReadonlyMap<string, ReadonlySet<string>>): SettingPromises {
+  const owner = new Map(rolled.flatMap(({ field, keys }) => [...keys].map((key) => [key, field.key] as const)));
+  const fed = new Map<string, string>();
+  const named = new Map<string, string>();
+  for (const { field, keys } of rolled.filter((entry) => entry.field.site.file.startsWith(SETTINGS_HOMES))) {
+    const at = `${field.site.file}:${String(field.line)}`;
+    named.set(field.member, named.get(field.member) ?? at);
+    for (const filled of [field.key, ...[...carriedFrom(keys, carriesInto)].flatMap((key) => owner.get(key) ?? [])]) {
+      fed.set(filled, fed.get(filled) ?? at);
+    }
+  }
+  return { fed, named };
+}
+
+// What the sort's promise test needs about a field from the whole scan: whether one home alone declares its member
+// name, the setting that feeds it, and a same-named setting no flow connects.
+function promiseFacts(
+  rolled: readonly Tally[],
+  carriesInto: ReadonlyMap<string, ReadonlySet<string>>,
+): (field: FieldDeclaration) => Pick<SortedField, "onlyHome" | "setting" | "namedSetting"> {
+  const homes = new Map<string, Set<string>>();
+  for (const { field } of rolled) {
+    homes.set(field.member, (homes.get(field.member) ?? new Set()).add(homeOf(field)));
+  }
+  const { fed, named } = settingPromises(rolled, carriesInto);
+  return ({ key, member }) => ({
+    onlyHome: homes.get(member)?.size === 1,
+    setting: fed.get(key) ?? null,
+    namedSetting: named.get(member) ?? null,
+  });
+}
+
 /** Run both engines over the worlds of `root` for dead data. */
 export function scanFields(options: ScanOptions): FieldsReport {
   const { worlds, testWorlds } = scanWorlds(options);
@@ -498,7 +555,12 @@ export function scanFields(options: ScanOptions): FieldsReport {
   const second = serviceReferences(options.root, [...worlds, ...testWorlds], asked, { log: options.log, crossCheck: options.crossCheck });
   const located = (site: Site): string => `${site.file}:${sources.line(site)}`;
   const surface = sdkSurface(options.root);
-  const sorter = new FieldSort(options.root, sources, new Set(judged.map(({ field }) => field.member)));
+  const promiseOf = promiseFacts(rolled, references.carriesInto);
+  const sorter = new FieldSort(
+    options.root,
+    sources,
+    judged.map(({ field }) => ({ key: field.key, home: field.home, member: field.member, onlyHome: promiseOf(field).onlyHome })),
+  );
   const findings: UnwiredField[] = [];
   const received: ReceivedField[] = [];
   const disagreements: FieldsReport["disagreements"][number][] = [];
@@ -521,7 +583,15 @@ export function scanFields(options: ScanOptions): FieldsReport {
     }
     const sample = [...roles.write, ...roles.read].slice(0, SAMPLE).map(located);
     const sent = sends.map((send) => `${send.destination} ${located(send.site)}`);
-    const { verdict, evidence } = sorter.sort({ home, member, writes: roles.write, siblingsUsed: wiredHomes.has(homeOf(field)), sent });
+    const { verdict, evidence } = sorter.sort({
+      key,
+      home,
+      member,
+      writes: roles.write,
+      siblingsUsed: wiredHomes.has(homeOf(field)),
+      sent,
+      ...promiseOf(field),
+    });
     findings.push({ key, file: site.file, line, home, member, origin, kind, tests: Math.max(roles.tests, audit.tests), sample, sent, verdict, evidence });
   }
   return {

@@ -14,8 +14,8 @@ const SDK_FILES = [
 // The guest-facing plugin contract the SDK mirrors.
 const PLUGIN_CONTRACT = "packages/contracts/src/plugin/";
 
-// `pluginManifestSchema` mirrors the SDK's `PluginManifest`.
-const typeNameOf = (home: string): string => {
+/** The type a schema home mirrors by name: `pluginManifestSchema` is `PluginManifest`. */
+export const typeNameOf = (home: string): string => {
   const [head = "", ...rest] = home.split(".");
   const named = head.endsWith("Schema") ? `${head.charAt(0).toUpperCase()}${head.slice(1, -"Schema".length)}` : head;
   return [named, ...rest].join(".");
