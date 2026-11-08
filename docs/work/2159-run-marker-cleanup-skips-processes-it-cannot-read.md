@@ -24,3 +24,5 @@ Cleanup skips an unreadable process, a test plants one and sees cleanup finish, 
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+The same sweep failure also hangs the run after its cases finish. A corpus-joiner run passed all its cases, logged `metadataRead: EACCES` on an unrelated process and "Consumer completion unconfirmed", and its corpus-fixture process stayed alive about 25 minutes until it was stopped by hand.
