@@ -1,3 +1,4 @@
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@playwright/test";
 import type { MathStory } from "./_math-stories.tsx";
 
@@ -20,7 +21,7 @@ $$`,
     await expect(component.locator(".katex").first()).toHaveCSS("font-family", /KaTeX_Main/u);
     const fonts = await component.evaluate(async () => (await document.fonts.load("16px KaTeX_Main")).map((face) => face.status));
     expect(fonts.length).toBeGreaterThan(0);
-    expect(fonts.every((status) => status === "loaded")).toBe(true);
+    expect(nonEmpty(fonts).every((status) => status === "loaded")).toBe(true);
   });
 
   test(`${trust} Markdown keeps surrounding prose when an equation is invalid`, async ({ mount }) => {

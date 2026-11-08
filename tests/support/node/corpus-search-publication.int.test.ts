@@ -26,6 +26,7 @@ import { createCorpusViewerReadResponder } from "../iso/corpus-read-responder.ts
 import type { CorpusSearchLibrary } from "../iso/corpus-search.ts";
 import { publishCorpusSearch } from "../iso/corpus-search.ts";
 import { createSeededIds } from "../iso/ids.ts";
+import { nonEmpty } from "../iso/non-empty.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import { captureCorpusCookieIdentity } from "./corpus-auth.ts";
 import { corpusKnowledgeText } from "./corpus-knowledge.ts";
@@ -249,12 +250,12 @@ test("settled search publication survives native authenticated clone reads and r
     const restored = await captureCorpusSearchPublication(root, source);
     assert(restored.reads.imagesRaw.output.over === "images");
     expect(restored.reads.imagesRaw.output.hits.length).toBeGreaterThan(0);
-    expect(restored.reads.imagesRaw.output.hits.every((hit) => hit.lens === "image-raw")).toBe(true);
+    expect(nonEmpty(restored.reads.imagesRaw.output.hits).every((hit) => hit.lens === "image-raw")).toBe(true);
     expect(restored.reads.status.output).toEqual({ paused: false, embed: false, imageEmbed: false });
     const expectedNeighbours = restored.reads.similarRaw.output.map((hit) => hit.characterId).toSorted();
     expect(expectedNeighbours).toEqual(expect.arrayContaining(tiedCards.map((card) => card.id)));
     expect(restored.reads.similarRaw.output.map((hit) => hit.characterId)).toEqual(expectedNeighbours);
-    expect(restored.reads.similarRaw.output.every((hit) => hit.score === 0 && hit.relevance === 1)).toBe(true);
+    expect(nonEmpty(restored.reads.similarRaw.output).every((hit) => hit.score === 0 && hit.relevance === 1)).toBe(true);
     // Graceful source shutdown refreshes planner statistics before the real DB/CAS clone is read.
     await optimizeDb(sourceDb);
     const analyzed = await captureCorpusSearchPublication(root, source);
@@ -267,7 +268,7 @@ test("settled search publication survives native authenticated clone reads and r
     }
     for (const read of [restored.reads.imagesRaw, restored.reads.imagesCaptioned]) {
       assert(read.output.over === "images");
-      expect(read.output.hits.every((hit) => hit.score === 0 && hit.relevance === 1)).toBe(true);
+      expect(nonEmpty(read.output.hits).every((hit) => hit.score === 0 && hit.relevance === 1)).toBe(true);
       const assetIds = read.output.hits.map((hit) => hit.assetId);
       expect(assetIds).toEqual(assetIds.toSorted());
       expect((await caller.search.search({ ...read.input, topN: 1 })).hits).toEqual(read.output.hits.slice(0, 1));
@@ -281,7 +282,7 @@ test("settled search publication survives native authenticated clone reads and r
     const fallback = await captureCorpusSearchPublication(root, source);
     assert(fallback.reads.imagesRaw.output.over === "images");
     expect(fallback.reads.imagesRaw.output.hits.length).toBeGreaterThan(0);
-    expect(fallback.reads.imagesRaw.output.hits.every((hit) => hit.lens === "image-captioned")).toBe(true);
+    expect(nonEmpty(fallback.reads.imagesRaw.output.hits).every((hit) => hit.lens === "image-captioned")).toBe(true);
     expect(fallback.reads.similarRaw.output.length).toBeGreaterThan(0);
     expect(fallback.reads.imagesRaw.input.lens).toBe("image-raw");
     await caller.connection.setBinding({ task: "imageEmbed", connectionId: images.connection.id });

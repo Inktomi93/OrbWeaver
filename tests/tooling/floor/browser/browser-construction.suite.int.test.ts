@@ -7,6 +7,7 @@ import type { Server } from "node:http";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import { setTimeout as sleep } from "node:timers/promises";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { exactScope } from "@orb/tooling/floor/artifacts/artifact-scope";
 import { attachProbeSession, closeProbeSession, launchProbeSession } from "@orb/tooling/floor/browser/browser";
@@ -199,7 +200,7 @@ test("launch, buildProbeContext, and probeSessionForContext preserve selection a
     await built?.context.close();
     await closeProbeSession(owner);
   }
-  expect(ownerPages.every((page) => page.isClosed())).toBe(true);
+  expect(nonEmpty(ownerPages).every((page) => page.isClosed())).toBe(true);
 });
 
 test("attach preserves the shared projection and leaves the owner's browser running after disconnect", async ({ scratch }) => {

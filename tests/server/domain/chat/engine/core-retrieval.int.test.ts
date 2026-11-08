@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // Real stored digests and a genuinely unbound reranker exercise scope and per-turn degradation episodes.
 import { createCharacterSchema } from "@orb/contracts/character";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot, ChatRootOptions, HeldStatement } from "@orb/testkit/node/composed";
 import {
@@ -121,7 +122,7 @@ test.for(RETRIEVAL_ROWS)("$label retain their real recall scope and warn once pe
     const recalls = h.root.app.recallRecorder.recent({ chatId: h.chatId }).filter((recall) => recall.seq > beforeRecall);
     expect(recalls).toHaveLength(row.recalls);
     expect(recalls.map((recall) => recall.scopedCharacterId)).toEqual(row.recalls === 3 ? [shared, ...characterIds] : [shared]);
-    expect(recalls.every((recall) => recall.trace.poolSize > 0 && recall.trace.candidateCount > 0 && recall.trace.surfaced > 0)).toBe(true);
+    expect(nonEmpty(recalls).every((recall) => recall.trace.poolSize > 0 && recall.trace.candidateCount > 0 && recall.trace.surfaced > 0)).toBe(true);
     const events = (await h.root.services.chat.replayChatEvents({ principal: h.owner, chatId: h.chatId })).slice(beforeWarning);
     expect(events.filter(({ event }) => event.type === "warning" && event.code === "memory_rerank_unavailable")).toHaveLength(1);
     expect(events.filter(({ event }) => event.type === "warning" && event.code === "retrieval_index_unavailable")).toEqual([]);

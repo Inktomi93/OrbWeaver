@@ -1,3 +1,4 @@
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import {
   BROWSER_TEST_SUFFIXES,
@@ -106,7 +107,7 @@ test("derived selectors and runtime dispatch cover the registry without duplicat
   );
   expect(TYPE_TEST_SUFFIXES).toContain(".test-d.ts");
   expect(TYPE_TEST_SUFFIXES).toContain(".dom.test-d.ts");
-  expect(TYPE_TEST_SUFFIXES.every((suffix) => !RUNTIME_TEST_SUFFIXES.includes(suffix))).toBe(true);
+  expect(nonEmpty(TYPE_TEST_SUFFIXES).every((suffix) => !RUNTIME_TEST_SUFFIXES.includes(suffix))).toBe(true);
   expect(BROWSER_TEST_SUFFIXES).toEqual(expect.arrayContaining([".dom.test.ts", ".dom.test-d.ts", ".ct.tsx", ".spec.ts"]));
   expect(runtimeForTestFamily("integration")).toBe("vitest");
   expect(TEST_KIND_DEFINITIONS.filter(({ resource }) => resource === "repository").map(({ suffix }) => suffix)).toEqual([

@@ -4,7 +4,7 @@
 // @subject packages/server/src/domain/chat/memory/recall/recall.ts
 
 import { streamConnectInputSchema } from "@orb/contracts/stream";
-import { decodeStreamChunk } from "@orb/testkit/iso";
+import { decodeStreamChunk, nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import {
@@ -108,7 +108,7 @@ test("minScore is a graded floor, and a query on an axis no digest holds surface
   expect(offCorpus.trace.queryEmbedded).toBe(true);
   expect(offCorpus.trace.surfaced).toBe(0);
   expect(offCorpus.trace.candidates.length).toBeGreaterThan(0);
-  expect(offCorpus.trace.candidates.every((candidate) => candidate.verdict === "below-floor")).toBe(true);
+  expect(nonEmpty(offCorpus.trace.candidates).every((candidate) => candidate.verdict === "below-floor")).toBe(true);
 });
 
 test("queryWindow decides which recent lines the query is made of", async () => {
@@ -169,7 +169,7 @@ test("a ceiling below the consolidated tier keeps those digests out; raising it 
   await w.h.caller.settings.updateAppSettings({ partial: { memoryDefaults: { maxTier: 0 } } });
   const flat = await recallTurn(w.h, ask("bath"));
   expect(flat.trace.candidates.length).toBeGreaterThan(0);
-  expect(flat.trace.candidates.every((candidate) => candidate.tier === 0)).toBe(true);
+  expect(nonEmpty(flat.trace.candidates).every((candidate) => candidate.tier === 0)).toBe(true);
 });
 
 test("tiered reports the tier-0 blocks a surfaced consolidation covers, and mixA reports the higher tiers it never reads", async () => {
@@ -178,7 +178,7 @@ test("tiered reports the tier-0 blocks a surfaced consolidation covers, and mixA
   const coarse = tiered.trace.candidates.filter((candidate) => candidate.tier === 1 && candidate.verdict === "admitted");
   expect(coarse.length).toBeGreaterThan(0);
   expect(verdicts(tiered.trace, "bridge-covered").length).toBeGreaterThan(0);
-  expect(verdicts(tiered.trace, "bridge-covered").every((candidate) => candidate.tier === 0)).toBe(true);
+  expect(nonEmpty(verdicts(tiered.trace, "bridge-covered")).every((candidate) => candidate.tier === 0)).toBe(true);
   expect(tiered.trace.queryEmbedded).toBe(false);
 
   await w.h.caller.settings.updateAppSettings({ partial: { memoryDefaults: { mode: "mixA" } } });
@@ -186,9 +186,9 @@ test("tiered reports the tier-0 blocks a surfaced consolidation covers, and mixA
   expect(mixA.trace.queryEmbedded).toBe(false);
   expect(admitted(mixA.trace)).toEqual(expect.arrayContaining(ARCS.map(blockOf)));
   expect(admitted(mixA.trace)).toEqual(admitted(mixA.trace).toSorted((a, b) => a - b));
-  expect(mixA.trace.candidates.filter((candidate) => candidate.verdict === "admitted").every((candidate) => candidate.tier === 0)).toBe(true);
+  expect(nonEmpty(mixA.trace.candidates.filter((candidate) => candidate.verdict === "admitted")).every((candidate) => candidate.tier === 0)).toBe(true);
   expect(verdicts(mixA.trace, "mode-excluded").length).toBeGreaterThan(0);
-  expect(verdicts(mixA.trace, "mode-excluded").every((candidate) => candidate.tier === 1)).toBe(true);
+  expect(nonEmpty(verdicts(mixA.trace, "mode-excluded")).every((candidate) => candidate.tier === 1)).toBe(true);
 });
 
 test("hiding a trailing span reclaims its digest, so the room no longer holds it", async () => {
@@ -249,7 +249,7 @@ test("a scoped speaker recalls the shared era and its own era, never another spe
 
   const asScout = await bucketsRead(scout.id);
   expect(asScout.get(scout.id)).toEqual(new Set([shared, scout.id]));
-  expect([...asScout.values()].every((buckets) => !buckets.has(keeper.id))).toBe(true);
+  expect(nonEmpty([...asScout.values()]).every((buckets) => !buckets.has(keeper.id))).toBe(true);
 
   await h.caller.chat.setGroupConfig({ chatId: h.chatId, config: { output: "per-speaker", policy: "list", cardScope: "merged" } });
   const merged = await bucketsRead(keeper.id);

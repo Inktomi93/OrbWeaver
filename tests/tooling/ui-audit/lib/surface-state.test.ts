@@ -10,6 +10,7 @@
 // unmounted shell was still reached either at rest or under an action queue.
 
 import process from "node:process";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import type { ShellStateSnapshot } from "../../../../tooling/src/ui-audit/index.ts";
 import { buildSurfaceStateAccounting, DRIVE_STATE_SPACE, PANEL_MODE_SPACE, surfaceStateAxisLabel } from "../../../../tooling/src/ui-audit/index.ts";
@@ -215,7 +216,7 @@ test("#1122 the printed SURFACE-AXIS lines name the exclusion and its count, wit
     paneLess.some((line) => line.includes("SURFACE-AXIS panel-list") && line.includes("excluded(sectionDeclaresNoPane=3)") && line.endsWith("excluded")),
   ).toBe(true);
   // No axis on a pane-less section may still say "withheld(...)" with a count in it.
-  expect(paneLess.filter((line) => line.startsWith("SURFACE-AXIS panel")).every((line) => line.includes("withheld()"))).toBe(true);
+  expect(nonEmpty(paneLess.filter((line) => line.startsWith("SURFACE-AXIS panel"))).every((line) => line.includes("withheld()"))).toBe(true);
 
   // THE CONTROL: an ordinary section still prints the withheld census, so this is not "excluded always".
   const measured = capturedSurfaceStateLines(shell());

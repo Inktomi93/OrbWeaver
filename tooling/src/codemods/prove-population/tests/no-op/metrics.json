@@ -1,0 +1,10 @@
+{
+  "prove-population-skips": [
+    {
+      "cardinality": {
+        "reason": "already-proven"
+      },
+      "count": 1
+    }
+  ]
+}

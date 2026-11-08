@@ -17,6 +17,7 @@ import {
   plantLegacyZeroCanon,
 } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
+import { wireOf } from "../../chat/scenario-physical.ts";
 
 const OPENING = "The opening oath is sworn at the old gate.";
 // Well past the fresh window plus the protect tail, so only the settled window can carry the opening row.
@@ -50,12 +51,10 @@ test("a cold lore pass over a room numbered from seq 0 summarizes that opening r
     actions: [{ type: "run_analysis", brief: "Record the gate's lore.", routes: { lore: { apply: "direct", bookId: book.id } } }],
   });
   await h.root.services.automation.setRuleEnabled({ principal: h.owner, ruleId: rule.id, enabled: true });
-  const before = h.requests.length;
-
-  expect((await h.root.services.automation.runRuleNow({ principal: h.owner, ruleId: rule.id })).outcome).toBe("fired");
-  const passes = h.requests.slice(before).filter((request) => request.method === "POST" && new URL(request.url).pathname.endsWith("/chat/completions"));
-  expect(passes).toHaveLength(1);
-  expect(await passes[0]?.clone().text()).toContain(OPENING);
+  const { outcome, bodies } = await wireOf(h, () => h.root.services.automation.runRuleNow({ principal: h.owner, ruleId: rule.id }));
+  expect(outcome.outcome).toBe("fired");
+  expect(bodies).toHaveLength(1);
+  expect(JSON.stringify(bodies[0])).toContain(OPENING);
   const stored = await h.root.db.select({ state: automationRuleState.state }).from(automationRuleState).where(eq(automationRuleState.ruleId, rule.id)).get();
   expect(stored?.state).toMatchObject({ settledThroughSeq: expect.any(Number) });
 });

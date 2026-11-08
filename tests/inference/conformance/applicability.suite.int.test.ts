@@ -1,9 +1,8 @@
 // @subject packages/inference/src/index.ts
 // @subject packages/inference/src/registry/backends.ts
 import { WIRE_DEFS } from "@orb/contracts/inference";
-
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-
 import { CONFORMANCE_TASKS, CONFORMANCE_WIRES, conformanceRoot, hasDriver, skipReasonFor } from "./runtime.fixtures.ts";
 
 test("every wire is available through the actual production root — no arm may stand in for an unbuilt sibling", async () => {
@@ -13,7 +12,7 @@ test("every wire is available through the actual production root — no arm may 
     const rows = providers.filter((row) => row.provider.wire === wire);
     expect(rows.length, `${wire} is actually listed by the production runtime`).toBeGreaterThan(0);
     expect(
-      rows.every((row) => row.available),
+      nonEmpty(rows).every((row) => row.available),
       `${wire} is available in the runtime every arm executes through`,
     ).toBe(true);
   }

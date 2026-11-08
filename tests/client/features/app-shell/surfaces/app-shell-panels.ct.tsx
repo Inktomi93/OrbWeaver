@@ -6,6 +6,7 @@ import { contextToggleLabel } from "@orb/client/lib";
 import { persistedOverrides, resolvedLength, seedShellState, shellTracks } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { nonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { loadAppearancePreset } from "@orb/testkit/node/helpers";
 import { TOKENS } from "@orb/ui/tokens";
@@ -266,7 +267,7 @@ test.describe("on a wide desktop", () => {
       }),
     );
     expect(names.length).toBeGreaterThan(1);
-    expect(names.every((name) => name.length > 0)).toBe(true);
+    expect(nonEmpty(names).every((name) => name.length > 0)).toBe(true);
     expect(new Set(names).size).toBe(names.length);
   });
 

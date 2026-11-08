@@ -1,4 +1,6 @@
 // @subject packages/ui/src/lib/hover-reveal.ts
+
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@playwright/test";
 import type { HoverRevealStory } from "./_hover-reveal-stories.tsx";
 
@@ -29,7 +31,7 @@ test("a hover reveal is gated by hover capability alone, never by pointer size",
   const conditions = await page.evaluate(carriedMediaConditions, carried.flat());
   expect(conditions.length).toBeGreaterThan(0);
   expect(conditions.filter((condition) => condition.includes("pointer"))).toEqual([]);
-  expect(conditions.every((condition) => condition.includes("hover"))).toBe(true);
+  expect(nonEmpty(conditions).every((condition) => condition.includes("hover"))).toBe(true);
 });
 
 test("a mouse hides the clusters at rest and reveals them on the row's hover", async ({ mount, page }) => {

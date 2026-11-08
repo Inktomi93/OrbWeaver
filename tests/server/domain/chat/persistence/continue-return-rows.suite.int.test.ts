@@ -5,6 +5,7 @@
 import type { MessageView } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import { chatEvents, chatParticipants, messageVariants, statsCanonVersions } from "@orb/db";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { and, eq, gt } from "drizzle-orm";
 import { beforeAll } from "vitest";
@@ -64,7 +65,7 @@ function expectNativeB(next: typeof messageVariants.$inferSelect | undefined, be
       turnId: expect.any(String),
     }),
   ]);
-  expect(priorCalls?.map(({ turnId }) => turnId)).not.toContain(nextCall?.turnId);
+  expect(present(priorCalls).map(({ turnId }) => turnId)).not.toContain(present(nextCall).turnId);
   expect(next?.metadata?.continuationTools).toEqual({
     beforeContent: restoredContent,
     before: priorCalls,

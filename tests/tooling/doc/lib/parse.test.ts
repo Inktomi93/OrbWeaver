@@ -1,6 +1,7 @@
 // The argv parser: every verb's shape, the list-taking forms, and misuse refused as UsageError so the cli
 // exits 3, never 1 or 2.
 
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { parseDocCommand, USAGE } from "../../../../tooling/src/doc/index.ts";
 import { UsageError } from "../../../../tooling/src/floor/cli/run-tool.ts";
@@ -107,7 +108,7 @@ test("<verb> --help and -h are help for that verb alone; a bare doc, help, --hel
       }
       const heads = command.text.split("\n").filter((line) => !/^ {3}/u.test(line));
       expect(heads.length).toBeGreaterThan(0);
-      expect(heads.every((line) => line.startsWith(`  ${verb} `) || line === `  ${verb}`)).toBe(true);
+      expect(nonEmpty(heads).every((line) => line.startsWith(`  ${verb} `) || line === `  ${verb}`)).toBe(true);
     }
   }
   for (const argv of [[], ["help"], ["--help"], ["-h"]]) {

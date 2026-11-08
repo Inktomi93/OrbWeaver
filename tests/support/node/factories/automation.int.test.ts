@@ -5,6 +5,7 @@ import { automationFires, automationRuleState } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { eq } from "drizzle-orm";
+import { nonEmpty } from "../../iso/non-empty.ts";
 import { seedCorpusConnections } from "../corpus-actors.ts";
 import {
   CORPUS_EMBED_MODEL,
@@ -52,7 +53,7 @@ test("dry-run provenance and same-clock real fires retain distinct IDs without i
   ]);
   expect(new Set(fired.map((row) => row.id)).size).toBe(2);
   expect(new Set(fired.map((row) => row.firedAt)).size).toBe(1);
-  expect(fired.every((row) => row.ruleId === rule.id && row.chatId === null)).toBe(true);
+  expect(nonEmpty(fired).every((row) => row.ruleId === rule.id && row.chatId === null)).toBe(true);
 });
 
 test("foreign rule captures refuse before provenance or arm effects", async () => {

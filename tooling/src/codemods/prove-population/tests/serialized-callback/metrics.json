@@ -1,0 +1,10 @@
+{
+  "prove-population-skips": [
+    {
+      "cardinality": {
+        "reason": "serialized-callback"
+      },
+      "count": 2
+    }
+  ]
+}

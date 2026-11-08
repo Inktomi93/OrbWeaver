@@ -13,6 +13,7 @@
 import { mkdir, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { aggregateScope, artifactRef } from "@orb/tooling/floor/artifacts/artifact-scope";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
@@ -239,7 +240,7 @@ test("an EXEMPTION problem row reads as a non-counting annotation naming the car
   expect(row?.severity).toBe("annotation");
   expect(row?.what).toBe("loaf-style-layout-count: 0 budgeted, 1 excused (bounded-input-dispatch-layout-frame)");
   // The carve-out is NAMED on the printed row; the conditions stay in the artifact behind `next=`.
-  expect(row?.what).not.toContain("requires all four of");
+  expect(present(row).what).not.toContain("requires all four of");
   expect(findings.some((finding) => finding.severity === "error")).toBe(false);
   // An excused measurement did not vote, and the printed disposition says so.
   expect(row?.disposition).toEqual({ counted: false, reason: "exemption-record-only" });

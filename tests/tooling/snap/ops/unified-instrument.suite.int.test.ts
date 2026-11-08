@@ -3,6 +3,7 @@ import { createServer } from "node:http";
 import type { Profiler } from "node:inspector";
 import { join } from "node:path";
 import { pathToFileURL } from "node:url";
+import { nonEmpty, present } from "@orb/testkit/iso";
 import type { CliResult } from "@orb/testkit/tooling";
 import { expect, test } from "@orb/testkit/tooling";
 import type { MeterData, StepReport } from "@orb/tooling/cpu-profile";
@@ -480,9 +481,9 @@ test("the CPU arm profiles the shared action tape and refuses an empty tape", as
   expect(Number.isFinite(artifact.endTime)).toBe(true);
   expect(artifact.endTime).toBeGreaterThan(artifact.startTime);
   expect(artifact.timeDeltas?.length).toBe(artifact.samples?.length);
-  expect(artifact.timeDeltas?.every(Number.isFinite)).toBe(true);
+  expect(nonEmpty(present(artifact.timeDeltas)).every(Number.isFinite)).toBe(true);
   const nodeIds = new Set(artifact.nodes.map(({ id }) => id));
-  expect(artifact.samples?.every((id) => nodeIds.has(id))).toBe(true);
+  expect(nonEmpty(present(artifact.samples)).every((id) => nodeIds.has(id))).toBe(true);
   const sampledIds = new Set(artifact.samples);
   expect(artifact.nodes.some(({ id, callFrame }) => sampledIds.has(id) && callFrame.url === pathToFileURL(file).href)).toBe(true);
 

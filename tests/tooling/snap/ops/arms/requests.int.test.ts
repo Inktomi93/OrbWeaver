@@ -10,6 +10,7 @@ import { readFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import process from "node:process";
+import { nonEmpty, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
@@ -145,7 +146,7 @@ test("every request is ordered under one denominator with measured sizes() evide
         }),
       ],
     });
-    expect(artifact?.publishedPath).not.toBeNull();
+    expect(present(artifact).publishedPath).not.toBeNull();
     await expect(readFile(artifact?.publishedPath as string, "utf8")).resolves.toContain('"requests"');
     const report = await runCli("snap", ["--report", indexPath as string, "--arm", "requests"]);
     expect(report.stdout).toContain("producer=requests arm=requests channel=request-log");
@@ -185,7 +186,7 @@ test("eligible JSON is retained whole and the filed log redacts URL secrets", as
     expect(logText).toContain("[REDACTED]");
     const log = JSON.parse(logText) as { total: number; requests: readonly { sizes: { responseBodySize: number } | null }[] };
     expect(log.total).toBe(4);
-    expect(log.requests.every((entry) => entry.sizes === null || entry.sizes.responseBodySize >= 0)).toBe(true);
+    expect(nonEmpty(log.requests).every((entry) => entry.sizes === null || entry.sizes.responseBodySize >= 0)).toBe(true);
     await expect(run).toExitWith(EXIT.clean);
   } finally {
     await server.close();

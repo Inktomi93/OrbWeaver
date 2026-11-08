@@ -1,4 +1,5 @@
 import { readFileSync } from "node:fs";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import { appearanceMatrixContract } from "#client/lib/appearance-carrier-manifest.ts";
@@ -131,21 +132,21 @@ test("joins every mandatory historical row to its exact planner cell or twin end
     .map((cell) => cell.assignment);
   expect(hoverAssignments).toHaveLength(2);
   expect(hoverAssignments.map((assignment) => assignment["device"])).toEqual(expect.arrayContaining(["desktop-fine-hover", "mobile-coarse-none"]));
-  expect(hoverAssignments.every((assignment) => assignment["appearance.readingBodyScale"] === "0.8")).toBe(true);
-  expect(hoverAssignments.every((assignment) => assignment["appearance.readingLineHeight"] === "1.2")).toBe(true);
+  expect(nonEmpty(hoverAssignments).every((assignment) => assignment["appearance.readingBodyScale"] === "0.8")).toBe(true);
+  expect(nonEmpty(hoverAssignments).every((assignment) => assignment["appearance.readingLineHeight"] === "1.2")).toBe(true);
   // #2437 — THE POPULATION>0 PIN. Both endpoints must also hold the ROOT SCALE at its born value: measured
   // on the v05 cell's own patch, `fontScale` 1.25 on the phone endpoint turns every visible header sticky,
   // which empties `:not([data-sticky])` and takes the row's ENTIRE subject census to population 0 (bubble,
   // name-row, actions-slot, actions-row, action-buttons, message-carrier — all of them). The cell then has
   // no verdict and, because a refused row throws, every LATER cell of the run goes unmeasured. Without this
   // assertion the pin is one pairwise reshuffle away from silently disappearing again.
-  expect(hoverAssignments.every((assignment) => assignment["appearance.fontScale"] === "1")).toBe(true);
+  expect(nonEmpty(hoverAssignments).every((assignment) => assignment["appearance.fontScale"] === "1")).toBe(true);
   const densityTwin = matrix.plan.receipt.requiredTwins.find((twin) => twin.id === "density-preview");
   const densityAssignments = matrix.plan.cells
     .filter((cell) => cell.id === densityTwin?.leftCellId || cell.id === densityTwin?.rightCellId)
     .map((cell) => cell.assignment);
   expect(densityAssignments).toHaveLength(2);
-  expect(densityAssignments.every((assignment) => assignment["device"] === "mobile-coarse-none")).toBe(true);
+  expect(nonEmpty(densityAssignments).every((assignment) => assignment["device"] === "mobile-coarse-none")).toBe(true);
   const artRow = matrix.plan.receipt.requiredRows.find((row) => row.id === "light-art-scrim-glass-elevation");
   expect(matrix.plan.cells.find((cell) => cell.id === artRow?.cellId)?.assignment).toMatchObject({
     device: "desktop-fine-hover",

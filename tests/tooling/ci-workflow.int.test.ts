@@ -7,16 +7,12 @@ import { spawnNiced } from "@orb/tooling/floor/process/proc";
 import { z } from "zod";
 import { read, setupSteps, workflowJobs } from "./_workflow-support.ts";
 
-test("published-image scans cannot turn registry failure into a successful skip", async ({ repoRoot, fakeBin }) => {
+test("published-image scans cannot turn registry failure into a successful skip", ({ repoRoot }) => {
   const image = workflowJobs(repoRoot, "security-scans")["image"];
   expect(image?.if).toBe("github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'");
   const steps = image?.steps ?? [];
   // The obsolete prelaunch probe swallowed every manifest error, including authentication/network errors.
-  await fakeBin("docker", "process.exit(1);");
-  const probe = steps.find((step) => step.id === "exists");
-  const result = probe?.run === undefined ? undefined : await spawnNiced("bash", ["-euo", "pipefail", "-c", probe.run], { env: { ["IMAGE"]: "proof-image" } });
-  expect(result?.code, "registry failure must not be reported as a successful skipped scan").not.toBe(0);
-  expect(probe).toBeUndefined();
+  expect(steps.find((step) => step.id === "exists")).toBeUndefined();
   const scan = steps.find((step) => step.uses?.startsWith("aquasecurity/trivy-action@") === true);
   const upload = steps.find((step) => step.uses?.startsWith("github/codeql-action/upload-sarif@") === true);
   expect(scan).toBeDefined();

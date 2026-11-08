@@ -12,6 +12,7 @@ import {
   createChatRoot,
   createCorpusProviderExecution,
 } from "@orb/testkit/node/composed";
+import { wireOf } from "../../chat/scenario-physical.ts";
 
 const VISIBLE = "The gate stands open.";
 const SECRET = "ledger-truth";
@@ -39,10 +40,8 @@ async function analysisPrompt(reply: string): Promise<string> {
     actions: [{ type: "run_analysis", brief: "Audit the reply.", routes: { rewrite: {} } }],
   });
   await h.root.services.automation.setRuleEnabled({ principal: h.owner, ruleId: rule.id, enabled: true });
-  const before = h.requests.length;
-  await h.root.services.automation.runRuleNow({ principal: h.owner, ruleId: rule.id });
-  const passes = h.requests.slice(before).filter((request) => request.method === "POST" && new URL(request.url).pathname.endsWith("/chat/completions"));
-  return (await Promise.all(passes.map((pass) => pass.clone().text()))).join("\n");
+  const { bodies } = await wireOf(h, () => h.root.services.automation.runRuleNow({ principal: h.owner, ruleId: rule.id }));
+  return bodies.map((body) => JSON.stringify(body)).join("\n");
 }
 
 test("a clean reply is read and audited", async () => {

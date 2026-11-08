@@ -1,5 +1,6 @@
 // Windows cases script only external process-table and taskkill results; every PID belongs to a disposable fixture.
 import process from "node:process";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test as toolingTest } from "@orb/testkit/tooling";
 import type { FullPriorityChild, ProcessGroupDeps, RunNicedSyncResult } from "@orb/tooling/floor/process/proc";
 import { captureProcessGroup, killPidGroup, observeProcessGroup, spawnFullPriorityChild } from "@orb/tooling/floor/process/proc";
@@ -97,7 +98,7 @@ test("Windows signals only creation-qualified descendants and confirms their com
   tree.signal("SIGTERM");
   expect(edge.tasks()).toEqual([["taskkill", ["/PID", String(owned[0].pid), "/PID", String(owned[1].pid), "/F"]]]);
   expect(tree.alive()).toBe(false);
-  expect(owned.every(({ child }) => !child.hasExited())).toBe(true);
+  expect(nonEmpty(owned).every(({ child }) => !child.hasExited())).toBe(true);
 });
 
 test("taskkill refusal is surfaced unless a fresh strict observation proves the captured tree gone", ({ owned }) => {

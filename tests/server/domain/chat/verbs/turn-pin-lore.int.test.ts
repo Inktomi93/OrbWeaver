@@ -18,12 +18,11 @@ import {
   inputSystemBlocks,
   invitePerson,
   personaAutoTurn,
-  personaInputs,
   personaRoom,
   seatPersona,
   withoutCacheDirective,
 } from "../persona-cache-physical.ts";
-import { textRoom, wireBodies, wireText } from "../scenario-physical.ts";
+import { MESSAGES_PATH, quietOf, textRoom, wireOf, wireText } from "../scenario-physical.ts";
 
 const PINNED_LORE = "{{user}} keeps the ledger";
 const PINNED_RENDERED = "Ledgerkeeper keeps the ledger";
@@ -74,12 +73,10 @@ async function hostOnline(h: ChatRoot): Promise<Disposable> {
   return { [Symbol.dispose]: (): void => online.abort() };
 }
 
-async function newestWire(h: ChatRoot): Promise<string> {
-  const body = (await wireBodies(h)).at(-1);
-  if (body === undefined) {
-    throw new Error("the room made no chat-completions request");
-  }
-  return wireText(body);
+/** Every string of the newest request the act itself sent. */
+async function newestWire(h: ChatRoot, act: () => Promise<unknown>): Promise<string> {
+  const { newest } = await wireOf(h, act);
+  return wireText(newest);
 }
 
 async function previewOf(h: ChatRoot, chatId = h.chatId): Promise<{ readonly text: string; readonly activated: readonly string[] }> {
@@ -105,8 +102,7 @@ test("the pin's book feeds a turn whose speaker is another persona, in the wire,
   expect(preview.activated).toContain(PIN_TITLE);
   expect(await inheritedPersonaBooks(h)).toEqual(expect.arrayContaining(["Ledgerkeeper", "Wanderer"]));
 
-  await send(h);
-  const wire = await newestWire(h);
+  const wire = await newestWire(h, () => send(h));
   expect(wire).toContain(PINNED_RENDERED);
   expect(wire).toContain(SEAT_LORE);
 });
@@ -117,11 +113,10 @@ test("a pin whose owner left keeps its book for the host and a member, and a mem
   await heldPinRoom(h);
   using _online = await hostOnline(h);
 
-  await send(h);
-  expect(await newestWire(h)).toContain(PINNED_RENDERED);
-  await send(h, carol);
-  expect(await wireBodies(h)).toHaveLength(2);
-  expect(await newestWire(h)).toContain(PINNED_RENDERED);
+  expect(await newestWire(h, () => send(h))).toContain(PINNED_RENDERED);
+  const { bodies: memberTurn } = await wireOf(h, () => send(h, carol));
+  expect(memberTurn).toHaveLength(1);
+  expect(wireText(memberTurn[0])).toContain(PINNED_RENDERED);
   expect((await previewOf(h)).text).toContain(PINNED_RENDERED);
   expect(await inheritedPersonaBooks(h)).toEqual(["Ledgerkeeper"]);
 
@@ -153,8 +148,7 @@ test("a pin seated as the speaker contributes each entry once", async () => {
   await pin(h, persona.id);
 
   expect((await previewOf(h)).activated.filter((title) => title === PIN_TITLE)).toHaveLength(1);
-  await send(h);
-  expect((await newestWire(h)).split(PINNED_RENDERED)).toHaveLength(2);
+  expect((await newestWire(h, () => send(h))).split(PINNED_RENDERED)).toHaveLength(2);
 });
 
 test("no pin adds nothing: an unseated persona's book stays out, and a re-pin moves the book in and out", async () => {
@@ -169,8 +163,7 @@ test("no pin adds nothing: an unseated persona's book stays out, and a re-pin mo
   expect((await previewOf(h)).activated).toEqual([PIN_TITLE]);
   await pin(h, null);
   expect((await previewOf(h)).activated).toEqual([]);
-  await send(h);
-  expect(await newestWire(h)).not.toContain(PINNED_RENDERED);
+  expect(await newestWire(h, () => send(h))).not.toContain(PINNED_RENDERED);
 });
 
 test("a pin with no book adds nothing to the pool", async () => {
@@ -221,8 +214,7 @@ test("the host's member-lore switch governs a member's pin as it governs a membe
   await h.root.services.chat.setMemberPersonaLore({ principal: h.owner, chatId: h.chatId, enabled: false });
   expect((await previewOf(h)).activated).toEqual([]);
   expect(await inheritedPersonaBooks(h)).toEqual([]);
-  await send(h);
-  expect(await newestWire(h)).not.toContain(PINNED_RENDERED);
+  expect(await newestWire(h, () => send(h))).not.toContain(PINNED_RENDERED);
 
   await h.root.services.chat.setMemberPersonaLore({ principal: h.owner, chatId: h.chatId, enabled: true });
   expect((await previewOf(h)).activated).toEqual([PIN_TITLE]);
@@ -266,8 +258,7 @@ test("group rounds, a forced turn and an automation turn carry the held pin's bo
   await using h = await textRoom(REPLIES.slice(0, 4), { characters, group: { output: "per-speaker", policy: "list" } });
   await heldPinRoom(h);
 
-  await send(h);
-  const groupRounds = await wireBodies(h);
+  const { bodies: groupRounds } = await wireOf(h, () => send(h));
   expect(groupRounds.length).toBeGreaterThan(1);
   expect(groupRounds.filter((body) => !wireText(body).includes(PINNED_RENDERED))).toEqual([]);
 
@@ -277,14 +268,10 @@ test("group rounds, a forced turn and an automation turn carry the held pin's bo
   if (aria === undefined) {
     throw new Error("the room seated no character");
   }
-  await h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: aria });
-  expect(await newestWire(h)).toContain(PINNED_RENDERED);
-
-  const before = (await wireBodies(h)).length;
-  await personaAutoTurn(h);
-  const after = await wireBodies(h);
-  expect(after.length).toBeGreaterThan(before);
-  expect(wireText(after.at(-1) ?? null)).toContain(PINNED_RENDERED);
+  expect(await newestWire(h, () => h.root.services.chat.forceCharacterTurn({ principal: h.owner, chatId: h.chatId, characterId: aria }))).toContain(
+    PINNED_RENDERED,
+  );
+  expect(await newestWire(h, () => personaAutoTurn(h))).toContain(PINNED_RENDERED);
 });
 
 test("a fork carries the pin and so its book", async () => {
@@ -293,8 +280,7 @@ test("a fork carries the pin and so its book", async () => {
   await send(h);
   const fork = await h.root.services.chat.forkChat({ principal: h.owner, chatId: h.chatId });
   expect((await previewOf(h, fork.chat.id)).text).toContain(PINNED_RENDERED);
-  await send(h, h.owner, "Go on in the fork.", fork.chat.id);
-  expect(await newestWire(h)).toContain(PINNED_RENDERED);
+  expect(await newestWire(h, () => send(h, h.owner, "Go on in the fork.", fork.chat.id))).toContain(PINNED_RENDERED);
 });
 
 test("a keyword entry in the pin's book fires only on a scan hit", async () => {
@@ -304,10 +290,8 @@ test("a keyword entry in the pin's book fires only on a scan hit", async () => {
   await pin(h, pinned.id);
   await seatPersona(h, h.owner, "Wanderer", "The persona speaking now.");
 
-  await send(h, h.owner, "Nothing to see.");
-  expect(await newestWire(h)).not.toContain("KEYED-PIN-ENTRY");
-  await send(h, h.owner, "Light the lantern.");
-  expect(await newestWire(h)).toContain("KEYED-PIN-ENTRY");
+  expect(await newestWire(h, () => send(h, h.owner, "Nothing to see."))).not.toContain("KEYED-PIN-ENTRY");
+  expect(await newestWire(h, () => send(h, h.owner, "Light the lantern."))).toContain("KEYED-PIN-ENTRY");
 });
 
 test("a held pin keeps the system blocks identical across senders; a re-pin is one change, then stable", async () => {
@@ -317,13 +301,19 @@ test("a held pin keeps the system blocks identical across senders; a re-pin is o
   const hostPersona = await seatPersona(h, h.owner, "Wanderer", "The host's seat.");
   using _online = await hostOnline(h);
 
-  await send(h);
-  await send(h, carol, "Carol speaks.");
-  await pin(h, hostPersona.id);
-  await send(h);
-  await send(h, carol, "Carol speaks again.");
-
-  const [first, second, third, fourth] = (await personaInputs(h)).map((body) => JSON.stringify(inputSystemBlocks(body).map(withoutCacheDirective)));
+  const { bodies } = await wireOf(
+    h,
+    async () => {
+      await send(h);
+      await send(h, carol, "Carol speaks.");
+      await pin(h, hostPersona.id);
+      await send(h);
+      await send(h, carol, "Carol speaks again.");
+    },
+    MESSAGES_PATH,
+  );
+  expect(bodies).toHaveLength(4);
+  const [first, second, third, fourth] = bodies.map((body) => JSON.stringify(inputSystemBlocks(body).map(withoutCacheDirective)));
   expect(first).toContain(PINNED_RENDERED);
   expect(second).toBe(first);
   expect(third).not.toContain(PINNED_RENDERED);
@@ -333,13 +323,15 @@ test("a held pin keeps the system blocks identical across senders; a re-pin is o
 async function memberSendDrained(h: ChatRoot, between: () => Promise<void>): Promise<string> {
   const carol = await invitePerson(h);
   await heldPinRoom(h);
-  await h.root.services.chat.send({ principal: carol, chatId: h.chatId, content: "An owed reply." });
-  expect(await wireBodies(h)).toHaveLength(0);
+  await quietOf(h, () => h.root.services.chat.send({ principal: carol, chatId: h.chatId, content: "An owed reply." }));
   await between();
-  using _online = await hostOnline(h);
-  await expect.poll(async () => (await wireBodies(h)).length, { timeout: 15_000 }).toBeGreaterThan(0);
-  await h.root.settleBackground();
-  return await newestWire(h);
+  return await newestWire(h, async () => {
+    using _online = await hostOnline(h);
+    const replied = async (): Promise<boolean> =>
+      (await h.root.services.chat.listMessages({ principal: h.owner, chatId: h.chatId })).messages.some(({ role }) => role === "assistant");
+    await expect.poll(replied, { timeout: 15_000 }).toBe(true);
+    await h.root.settleBackground();
+  });
 }
 
 test("a deferred drain carries the held pin's book", async () => {
@@ -357,26 +349,21 @@ test("generate, continue and impersonate carry the held pin's book", async () =>
   await heldPinRoom(h);
   await send(h);
 
-  const beforeGenerate = (await wireBodies(h)).length;
-  const generated = await h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId });
-  expect((await wireBodies(h)).length).toBeGreaterThan(beforeGenerate);
-  expect(await newestWire(h)).toContain(PINNED_RENDERED);
+  const generated = await wireOf(h, () => h.root.services.chat.generate({ principal: h.owner, chatId: h.chatId }));
+  expect(wireText(generated.newest)).toContain(PINNED_RENDERED);
 
-  const tail = generated.messages.at(-1);
+  const tail = generated.outcome.messages.at(-1);
   if (tail === undefined) {
     throw new Error("generate returned no message");
   }
-  const beforeContinue = (await wireBodies(h)).length;
-  await h.root.services.chat.continueTurn({ principal: h.owner, chatId: h.chatId, messageId: tail.id });
-  expect((await wireBodies(h)).length).toBeGreaterThan(beforeContinue);
-  expect(await newestWire(h)).toContain(PINNED_RENDERED);
+  expect(await newestWire(h, () => h.root.services.chat.continueTurn({ principal: h.owner, chatId: h.chatId, messageId: tail.id }))).toContain(PINNED_RENDERED);
 
-  const beforeImpersonate = (await wireBodies(h)).length;
-  for await (const _delta of h.root.services.chat.impersonateStream({ principal: h.owner, chatId: h.chatId })) {
-    // The stream only runs while it is drained.
-  }
-  expect((await wireBodies(h)).length).toBeGreaterThan(beforeImpersonate);
-  expect(await newestWire(h)).toContain(PINNED_RENDERED);
+  const impersonate = async (): Promise<void> => {
+    for await (const _delta of h.root.services.chat.impersonateStream({ principal: h.owner, chatId: h.chatId })) {
+      // The stream only runs while it is drained.
+    }
+  };
+  expect(await newestWire(h, impersonate)).toContain(PINNED_RENDERED);
 });
 
 test.for([
@@ -393,8 +380,7 @@ test.for([
   await pin(h, pinned.id);
 
   expect((await previewOf(h)).text).toContain("SHARED Speaking walks");
-  await send(h);
-  const wire = await newestWire(h);
+  const wire = await newestWire(h, () => send(h));
   expect(wire).toContain("SHARED Speaking walks");
   expect(wire).not.toContain("SHARED Pinned walks");
 });

@@ -23,6 +23,7 @@
 // still fails — is `tests/tooling/design-audit-walker.ct.tsx` (#1067); only a browser can prove that. This
 // file is the coupling: it goes red when a floor moves and no rung follows it.
 
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
 import { checkTapTarget } from "../../../../../tooling/src/ui-audit/lib/checks-a11y.ts";
@@ -70,7 +71,7 @@ describe("the hit-extent ladder and the tap-target floors", () => {
   test("every floor the rule judges is expressible by a probe radius", () => {
     const floors = judgedFloors();
     expect(
-      floors.every((floor) => Number.isFinite(floor)),
+      nonEmpty(floors).every((floor) => Number.isFinite(floor)),
       `a floor was not recoverable from checkTapTarget — got ${JSON.stringify(floors)}`,
     ).toBe(true);
 

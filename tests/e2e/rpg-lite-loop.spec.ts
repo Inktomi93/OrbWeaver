@@ -40,6 +40,7 @@ import type { RpgActorRef } from "@orb/contracts/rpg";
 import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { nonEmpty } from "@orb/testkit/iso";
 import { pageArray } from "@orb/tooling/floor/browser/page-validate";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
@@ -181,7 +182,7 @@ test("rpg-lite: born-default empty state + every hand-plane write is FE=BE=DB co
     expect(before.recentBeats).toEqual([]);
     expect(before.quests).toEqual([]);
     expect(before.cast).toEqual([]);
-    expect(before.actors.every((a) => a.volatile === null)).toBe(true);
+    expect(nonEmpty(before.actors).every((a) => a.volatile === null)).toBe(true);
     // getGame BE truth: a fresh lite game is active, FOLDED-by-default (the one-call fold — owner ruling
     // 2026-08-01), not read-only.
     const game = await getGame(chatId);

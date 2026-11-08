@@ -11,6 +11,7 @@ import {
 } from "@orb/contracts/identity";
 import type { ExternalId, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { isAdmin, isOwner } from "@orb/testkit/node/auth";
 import { createServerHarness, damageOwnerRow, readAccounts } from "@orb/testkit/node/composed";
@@ -48,7 +49,7 @@ test("the real header seam hands sessions a pre-row identity and never trusts fo
     ]);
     const row = (await readAccounts(root)).find(({ externalId }) => externalId === headers["x-authentik-uid"]);
     expect(row).toMatchObject({ handle: headers["x-authentik-username"], role: "user" });
-    expect(row?.id).not.toBe(root.ownerId);
+    expect(present(row).id).not.toBe(root.ownerId);
   } finally {
     provision.mockRestore();
   }

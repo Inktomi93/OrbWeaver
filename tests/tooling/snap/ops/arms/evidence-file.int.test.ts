@@ -17,6 +17,7 @@
 // `evidence/map.json` claiming a population this run never measured.
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { scaledBudget } from "../../../_load-budget.ts";
@@ -90,5 +91,5 @@ test("a planted --eval value is recoverable from the run slot with no browser, a
   // …and every filed row is inventoried with a real record count, which is what makes it citable.
   const filed = index.artifacts.filter((artifact) => artifact.relativePath.startsWith("evidence/") && artifact.producerArm !== null);
   expect(filed.length).toBeGreaterThanOrEqual(4);
-  expect(filed.every((artifact) => (artifact.records ?? 0) > 0)).toBe(true);
+  expect(nonEmpty(filed).every((artifact) => (artifact.records ?? 0) > 0)).toBe(true);
 });

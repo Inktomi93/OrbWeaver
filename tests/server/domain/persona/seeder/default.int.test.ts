@@ -6,6 +6,7 @@ import { userSettings } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { createFindSeededDefault } from "@orb/server/domain/persona";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, freshDb, refuseWrites } from "@orb/testkit/node/composed";
 import { principal } from "@orb/testkit/node/helpers";
@@ -29,7 +30,7 @@ test("a real-stack seed performs no persona or latch write; automation creates t
   const rows = await automated.services.persona.list({ principal: subject });
   expect(rows).toHaveLength(1);
   expect(rows[0]).toMatchObject({ name: "Traveler", title: "Your first persona", description: "", metadata: { seededDefault: true } });
-  expect(rows[0]?.avatarAssetId).not.toBeNull();
+  expect(present(rows[0]).avatarAssetId).not.toBeNull();
   const config = (await automated.services.settings.getUserSettings({ principal: subject })).config;
   expect(config.seeds.defaultPersonaId).toBe(rows[0]?.id);
   expect(config.seeds.currentPersonaId).toBe(rows[0]?.id);

@@ -1,6 +1,7 @@
 // Security controls for the one HAR disk-safety door. Every credential carrier gets a distinct canary;
 // the positive control proves the raw fixture contains it before the serialized result proves it cannot.
 
+import { nonEmpty, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { PRIVATE_MASK } from "../../../../tooling/src/snap/contract/disk-safe-argv.ts";
 import type { RawNetworkEvidence } from "../../../../tooling/src/snap/contract/har-redaction.ts";
@@ -135,7 +136,7 @@ test("signed URL carriers and malformed authorities cannot retain bearer materia
     expect(serialized).not.toContain(canary);
   }
   expect(signed.query.find((pair) => pair.name === "ordinary")?.value).toBe("kept");
-  expect(signed.query.filter((pair) => pair.name !== "ordinary").every((pair) => pair.value === REDACTED)).toBe(true);
+  expect(nonEmpty(signed.query.filter((pair) => pair.name !== "ordinary")).every((pair) => pair.value === REDACTED)).toBe(true);
   expect(malformed.url.startsWith("[OMITTED]")).toBe(true);
   expect(malformed._orbMeasuredLimit.events).toContainEqual(expect.objectContaining({ kind: "unreadable", path: "$.url", retained: 0 }));
   expect(relative.url).toContain("tab=details");
@@ -245,7 +246,7 @@ test("cycle, depth, field, and string caps have deterministic explicit receipts"
   expect(kinds).toContain("depth");
   expect(kinds).toContain("fields");
   expect(kinds).toContain("string");
-  expect(output._orbMeasuredLimit.events.every((item) => item.path.startsWith("$"))).toBe(true);
+  expect(nonEmpty(output._orbMeasuredLimit.events).every((item) => item.path.startsWith("$"))).toBe(true);
 });
 
 test("streaming and non-text bodies retain type, size, encoding, and a specific omission reason", () => {
@@ -355,7 +356,7 @@ test("a revealed value under a plain name leaves a URL, its pairs and every body
       { url: "https://example.test/", responseContent: { mimeType: "text/plain", text: `${"x".repeat(12)}${typed}${"y".repeat(40)}` } },
       { maxBodyBytes: 20 },
     );
-    expect(cut.response.content?.text).not.toContain("pl");
+    expect(present(cut.response.content).text).not.toContain("pl");
   } finally {
     __resetPrivateValues();
   }

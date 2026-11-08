@@ -478,7 +478,7 @@ async function restoredSignatures(
   root: ServerTestHarness,
   content: string,
   attached: readonly string[],
-): Promise<{ readonly matchesContent: boolean; readonly imagesResolve: boolean } | null> {
+): Promise<{ readonly matchesContent: boolean; readonly imagesResolve: readonly boolean[] } | null> {
   const staged = await extractZip(await exportLibrary(root, ["character", "chat"]));
   try {
     const entry = staged.entries.find((candidate) => candidate.path.startsWith(`${PORTABLE_DIRECTORIES.chat}${CHOSEN_HANDLE}/`));
@@ -486,7 +486,7 @@ async function restoredSignatures(
     const snapshot = parsed?.ok === true ? parseVariantMetadata(parsed.value.messages[0]?.variants[0]?.metadata ?? null).contentSignatures : undefined;
     return snapshot === undefined
       ? null
-      : { matchesContent: snapshot.content === content, imagesResolve: snapshot.images.every((image) => attached.includes(image.assetId)) };
+      : { matchesContent: snapshot.content === content, imagesResolve: snapshot.images.map((image) => attached.includes(image.assetId)) };
   } finally {
     await staged.dispose();
   }
@@ -558,7 +558,7 @@ test("a full library restore into a fresh box reports no failures and leaves no 
     gallery: await galleryHashes(target),
   }).toEqual({
     outcome: { status: "succeeded", failed: 0 },
-    room: { background: plate.assetHash, attachment: [plate.assetHash], signed: { matchesContent: true, imagesResolve: true } },
+    room: { background: plate.assetHash, attachment: [plate.assetHash], signed: { matchesContent: true, imagesResolve: [true] } },
     gallery: sourceGallery,
   });
 });

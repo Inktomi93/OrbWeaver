@@ -5,6 +5,7 @@ import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contrac
 import { controlledPanel, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { nonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
 import { CORPUS_MODE_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
@@ -71,7 +72,7 @@ for (const regime of [
       const own = await ringLayers(overflow);
       expect(own.length).toBeGreaterThan(0);
       expect(
-        own.every((layer) => /\binset\b/u.test(layer)),
+        nonEmpty(own).every((layer) => /\binset\b/u.test(layer)),
         own.join(" | "),
       ).toBe(true);
       // The detector sees an outer ring: the details toggle beside the pane paints one.

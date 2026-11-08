@@ -4,6 +4,7 @@ import { existsSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import { basename, join } from "node:path";
 import process from "node:process";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { launchProbeSession, settle, withProbeSession } from "@orb/tooling/floor/browser/browser";
 import { createPageCapture, wireProbePage } from "@orb/tooling/floor/browser/browser-capture";
@@ -127,7 +128,7 @@ test("real Chromium retains console, uncaught, Log, Audits, page identity, filte
       const auditIssues = session.diagnostics.filter((record) => record.origin === "audits");
       const liveIssue = auditIssues.find((record) => record.issueCode !== null && record.raw !== null);
       expect(liveIssue, JSON.stringify(session.diagnostics, null, 2)).toBeDefined();
-      expect(liveIssue?.details).not.toBeNull();
+      expect(present(liveIssue).details).not.toBeNull();
       expect(liveIssue?.contextIndex).toBe(0);
       expect(liveIssue?.pageIndex).toBe(0);
 

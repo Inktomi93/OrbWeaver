@@ -2,6 +2,7 @@
 
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { assertReferentialIntegrity } from "@orb/db";
+import { present } from "../iso/non-empty.ts";
 import { CHAT_OUTPUT_BODY, CHAT_OUTPUT_CONNECTION_LABEL, CHAT_OUTPUT_SECRET, seedCorpusChatOutputs } from "./corpus-chat-outputs.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import { expect, test } from "./fixtures.ts";
@@ -82,7 +83,7 @@ test("native chat output suppliers retain exact canon, viewer projections, page 
   expect(result.fork.chat.parentChatId).toBe(result.room.chat.id);
   expect(reads.getChatLineage.chain.map((chat) => chat.id)).toEqual([result.room.chat.id, result.fork.chat.id]);
   expect(result.pages.map((page) => page.totalCount)).toEqual([reads.countChats + 1, reads.countChats + 1, reads.countChats + 1]);
-  expect(result.pages[0]?.items[0]?.id).not.toBe(result.pages[1]?.items[0]?.id);
+  expect(present(present(result.pages[0]).items[0]).id).not.toBe(present(present(result.pages[1]).items[0]).id);
   expect(result.pages[0]?.nextCursor?.id).toBe(result.pages[0]?.items[0]?.id);
   expect(result.pages[1]?.nextCursor?.id).toBe(result.pages[1]?.items[0]?.id);
   expect(result.pages[2]).toMatchObject({ items: [], nextCursor: null });

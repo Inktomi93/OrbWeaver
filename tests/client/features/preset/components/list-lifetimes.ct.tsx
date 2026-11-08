@@ -1,6 +1,7 @@
 import { choiceBlockSchema, presetDetailSchema, userMacroSchema } from "@orb/contracts/preset";
 import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { present } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { AUTOSAVE_RESUME_NAME, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import type { PresetListLifetimeStory } from "./_list-lifetime-stories.tsx";
@@ -139,7 +140,7 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   await expect(dialog).toBeVisible();
   await expect(dialog.locator('input[name="userMacros[0].args[0].name"]')).toHaveValue("second_edited");
   expect(trpc.lastInput("preset.update")?.config?.userMacros?.[0]?.inputs?.[0]?.name).toBe("second_input");
-  expect(trpc.lastInput("preset.update")?.config).not.toHaveProperty("macroRowIds");
+  expect(present(trpc.lastInput("preset.update")).config).not.toHaveProperty("macroRowIds");
   const macroScreenshot = testInfo.outputPath("macro-after-removal-and-echo.png");
   await page.screenshot({ path: macroScreenshot });
   await testInfo.attach("macro-after-removal-and-echo", { path: macroScreenshot });
@@ -189,7 +190,7 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   await page.getByRole("button", { name: "Retry", exact: true }).press("Enter");
   await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toBeVisible();
   expect(trpc.lastInput("preset.update")?.config?.variables?.[0]?.options[0]?.label).toBe("Louder draft");
-  expect(trpc.lastInput("preset.update")?.config).not.toHaveProperty("variableRowIds");
+  expect(present(trpc.lastInput("preset.update")).config).not.toHaveProperty("variableRowIds");
   await component.update({ presetId, revision: 5 });
   await expect(page.getByLabel("Read revision", { exact: true })).toHaveText("5");
 
@@ -278,5 +279,5 @@ test("pending writes cannot replace newer edits, and explicit reset admits a new
   await expect(dialog.getByRole("textbox", { name: "Question", exact: true })).toBeFocused();
   await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toBeVisible();
   expect(trpc.lastInput("preset.update")?.config?.variables?.[0]?.question).toBe("New owner after reset");
-  expect(trpc.lastInput("preset.update")?.config).not.toHaveProperty("variableRowIds");
+  expect(present(trpc.lastInput("preset.update")).config).not.toHaveProperty("variableRowIds");
 });

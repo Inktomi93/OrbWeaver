@@ -10,6 +10,7 @@ import {
 } from "@orb/contracts/refinery";
 import { assertReferentialIntegrity } from "@orb/db";
 import { vi } from "vitest";
+import { present } from "../iso/non-empty.ts";
 import { seedCorpusConnections } from "./corpus-actors.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import { seedCorpusRefinery } from "./corpus-refinery.ts";
@@ -70,7 +71,7 @@ test("the refinery corpus retains real fixed/manual run lineage and reviewed cop
     result.operateBack.id,
   ]);
   expect(result.dropped).toMatchObject({ applied: [], dropped: [{ field: "scenario", reason: "not_in_rewrite" }], snapshotId: null });
-  expect(result.copy.character?.id).not.toBe(result.character.id);
+  expect(present(result.copy.character).id).not.toBe(result.character.id);
   expect(result.copy.applied).toEqual([{ field: "description", kind: "replaced" }]);
   expect(result.applied.snapshotId).not.toBeNull();
   expect(result.applied.character).toMatchObject({ id: result.character.id, description: "A careful keeper records the orbital witnesses in a ledger." });

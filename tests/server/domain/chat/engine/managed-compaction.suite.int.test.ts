@@ -4,7 +4,7 @@
 import type { UserIntent } from "@orb/contracts/preset";
 import { DEFAULT_COMPACT_INSTRUCTIONS, DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { makePromptConfig } from "@orb/testkit/iso";
+import { makePromptConfig, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL } from "@orb/testkit/node/composed";
 import { sdkEngineRoom } from "./engine-physical.ts";
@@ -51,7 +51,7 @@ test("the detached post-turn marker opens its own successful request trace", asy
   expect(currentTrace).toMatchObject({ status: "ok" });
   expect(currentTrace?.requestId).toBe(`compaction-turn:${turnId}`);
   expect(root?.parentSpanId).toBeUndefined();
-  expect(currentTrace?.requestId).not.toBe(outer);
+  expect(present(currentTrace).requestId).not.toBe(outer);
 });
 
 test("the active preset's mode, threshold and cap drive compaction with an empty per-send intent", async () => {

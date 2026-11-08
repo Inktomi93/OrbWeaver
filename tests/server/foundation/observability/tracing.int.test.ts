@@ -8,6 +8,7 @@ import {
   span,
   withRequestSpan,
 } from "@orb/server/foundation/observability";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createTestEnv } from "@orb/testkit/node/helpers";
 import { Hono } from "hono";
@@ -110,7 +111,7 @@ test("the ring keeps bounded scalar metadata, native arrays and event attributes
   );
   const child = rings.traces.get(requestId)?.spans.find((entry) => entry.name === CHILD);
   expect(child?.attributes).toMatchObject({ "native.array": '["first","second"]', count: 2, enabled: true });
-  expect(child?.attributes).not.toHaveProperty("absent");
+  expect(present(child).attributes).not.toHaveProperty("absent");
   const bounded = child?.attributes["detail"];
   expect(bounded).toBe(`${long.slice(0, 512)}…`);
   expect(child?.events).toEqual([expect.objectContaining({ name: "metadata.event", attributes: { detail: bounded, count: 2, enabled: true } })]);

@@ -6,6 +6,7 @@
 import { auditLogs, users } from "@orb/db";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
+import { present } from "@orb/testkit/iso";
 import { expect } from "@orb/testkit/node";
 import { signInWithPassword } from "@orb/testkit/node/auth";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -25,7 +26,7 @@ test("an admin mints a user; the password is hashed and absent from the wire vie
   expect(Object.keys(view)).not.toContain("passwordHash");
   const row = await root.db.select().from(users).where(eq(users.id, view.id)).get();
   expect(row?.passwordHash).toMatch(/^scrypt\$/u);
-  expect(row?.passwordHash).not.toContain(PASSWORD);
+  expect(present(row).passwordHash).not.toContain(PASSWORD);
   await expect(signInWithPassword(root, NEW_HANDLE, PASSWORD)).resolves.not.toBe("");
   expect((await createAudits(root)).map((entry) => entry.entityId)).toEqual([view.id]);
 });

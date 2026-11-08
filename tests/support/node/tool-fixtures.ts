@@ -23,6 +23,7 @@ import { delimiter, dirname, join, relative, resolve, sep, win32 } from "node:pa
 import process from "node:process";
 import { isWithinRoot } from "@orb/kit/path-containment";
 import { exportProcessEnv, processEnvValue } from "@orb/tooling/floor/process/process-env";
+import { nonEmpty } from "../iso/non-empty.ts";
 import { expect, test as houseTest } from "./fixtures.ts";
 import type { AuditRuleProof, FiresAuditRuleProof, RelationalPopulationReport } from "./ui-audit-relational.ts";
 import { expectPopulation } from "./ui-audit-relational.ts";
@@ -308,7 +309,7 @@ export function auditRuleTest<const Proofs extends readonly AuditRuleProof[]>(
   ) => Proofs[number] extends FiresAuditRuleProof ? Promise<void> | void : Promise<RelationalPopulationReport>,
 ): void {
   test(title, async ({ runCli, scratch }) => {
-    expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
+    expect(nonEmpty(proofs).every((proof) => proof.reason.trim() !== "")).toBe(true);
     const report = await fn({ runCli, scratch });
     for (const proof of proofs) {
       if (proof.kind === "silent" && report !== undefined) {

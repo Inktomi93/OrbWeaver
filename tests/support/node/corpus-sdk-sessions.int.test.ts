@@ -5,6 +5,7 @@ import { assertReferentialIntegrity } from "@orb/db";
 import { toChatRequest } from "@orb/inference";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
+import { nonEmpty, present } from "../iso/non-empty.ts";
 import { SDK_SCRIPT_IDENTITY_TYPE } from "./contract/sdk-process.ts";
 import { CORPUS_SDK_HOLD, CORPUS_SDK_QUERY, CORPUS_SDK_REPLY, CORPUS_SDK_REUSE } from "./corpus-sdk-protocol.ts";
 import { seedCorpusSdkActor, seedCorpusSdkSessions } from "./corpus-sdk-sessions.ts";
@@ -62,7 +63,7 @@ test("native resumed transcript identities replay without dropping distinct chil
     expect(JSON.stringify(third?.frames)).toContain(CORPUS_SDK_QUERY);
     expect(JSON.stringify(third?.frames)).toContain(CORPUS_SDK_REUSE);
     expect(JSON.stringify(wire.receipts)).not.toContain(SDK_SCRIPT_IDENTITY_TYPE);
-    expect(wire.children.every((child) => child.exitCode === 0 && child.signalCode === null)).toBe(true);
+    expect(nonEmpty(wire.children).every((child) => child.exitCode === 0 && child.signalCode === null)).toBe(true);
     return wire.receipts;
   };
   expect(await replay()).toEqual(await replay());
@@ -82,10 +83,10 @@ test("native SDK canon lineage persists, resumes, branches and returns without f
   expect(result.readopted.rows.filter((row) => row.isPrimary).map((row) => row.sdkSessionId)).toEqual([result.seeded.rows[0]?.sdkSessionId]);
   expect(result.reseeded.rows).toHaveLength(result.readopted.rows.length);
   expect(result.reseeded.rows[0]?.sdkSessionId).toBe(result.seeded.rows[0]?.sdkSessionId);
-  expect(result.reseeded.rows[0]?.canonHash).not.toBe(result.seeded.rows[0]?.canonHash);
+  expect(present(result.reseeded.rows[0]).canonHash).not.toBe(present(result.seeded.rows[0]).canonHash);
   expect(result.restored.rows).toEqual(result.readopted.rows);
   expect(result.alternate.rows).toHaveLength(1);
-  expect(result.alternate.rows[0]?.sdkSessionId).not.toBe(result.seeded.rows[0]?.sdkSessionId);
+  expect(present(result.alternate.rows[0]).sdkSessionId).not.toBe(present(result.seeded.rows[0]).sdkSessionId);
   expect(result.alternate.rows[0]?.connectionId).toBe(result.alternateConnection.id);
   expect(result.rows.filter((row) => row.isPrimary).map((row) => row.connectionId)).toEqual([result.connection.id, result.alternateConnection.id]);
   expect(result.seeded.result).toMatchObject({ reply: CORPUS_SDK_REPLY, providerMetadata: { sdkSessionId: result.seeded.rows[0]?.sdkSessionId } });
@@ -111,7 +112,7 @@ test("native SDK canon lineage persists, resumes, branches and returns without f
   expect(result.foreign.after).toEqual(result.foreign.before);
   expect(result.foreign.callsAfter).toBe(result.foreign.callsBefore);
   expect(result.cancellation).toMatchObject({ kind: "aborted" });
-  expect(result.exits.every(({ exitCode, signalCode }) => exitCode === 0 && signalCode === null)).toBe(true);
+  expect(nonEmpty(result.exits).every(({ exitCode, signalCode }) => exitCode === 0 && signalCode === null)).toBe(true);
   expect(result.receipts.some(({ resume, frames }) => resume !== null && frames.length > 0)).toBe(true);
   await assertReferentialIntegrity(root.db);
 });
@@ -153,6 +154,6 @@ test("native SDK root disposal joins its actual held child before closing the co
     await Promise.all([disposal, wire.settle()]);
   }
   expect(await turn).toMatchObject({ kind: "aborted" });
-  expect(wire.children.every((child) => child.exitCode === 0 && child.signalCode === null)).toBe(true);
+  expect(nonEmpty(wire.children).every((child) => child.exitCode === 0 && child.signalCode === null)).toBe(true);
   await expect(root.db.all(sql`select 1`)).rejects.toMatchObject({ cause: { code: "CLIENT_CLOSED" } });
 });

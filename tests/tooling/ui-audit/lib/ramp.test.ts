@@ -2,6 +2,7 @@
 // change what every ramp-bound rule means. These pin the derivation itself: finite, in band, and still
 // judging. Sibling behaviour lives in tests/tooling/ui-audit/index.test.ts (the rule proofs).
 
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import type { TextStyleInput } from "../../../../tooling/src/ui-audit/contract/samples.ts";
 import { checkTextStyle } from "../../../../tooling/src/ui-audit/lib/checks-typography.ts";
@@ -76,5 +77,5 @@ test("the leading floor still JUDGES — ratified leading passes and genuinely t
   expect(rulesFor(15 * 1.05)).toContain("tight-leading");
   // The floor a finding QUOTES is the derived number, so a NaN never reaches an operator as prose.
   const finding = checkTextStyle({ ...base, lineHeightPx: 15 * 1.05 }).find(({ rule }) => rule === "tight-leading");
-  expect(finding?.message).not.toContain("NaN");
+  expect(present(finding).message).not.toContain("NaN");
 });

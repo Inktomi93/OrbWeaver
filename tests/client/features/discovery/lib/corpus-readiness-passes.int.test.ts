@@ -1,6 +1,7 @@
 // Each readiness row's door, sent through the production `workloads.start` verb: the rows it enqueues, their chain,
 // and the queue rows the rail then reads as that pass running.
 
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { CorpusReadinessStageId } from "#client/features/discovery/lib/corpus-analysis-state.ts";
 import { CORPUS_READINESS_STAGE_IDS } from "#client/features/discovery/lib/corpus-analysis-state.ts";
@@ -34,7 +35,7 @@ test("each row's door enqueues its own pass, chained in order, and the rail read
     expect(rows.map(({ kind, mode, params }) => ({ kind, mode, params }))).toEqual(EXPECTED_RUNS[stage]);
     expect(rows.map((row) => row.dependsOn ?? [])).toEqual(started.map((_id, index) => (index === 0 ? [] : [started[index - 1]])));
     expect(rows.map((row) => row.ownerId)).toEqual(rows.map((row) => (row.mode === "bulk" ? null : harness.ownerId)));
-    expect(rows.every((row) => isReadinessRun(stage, row))).toBe(true);
+    expect(nonEmpty(rows).every((row) => isReadinessRun(stage, row))).toBe(true);
     // Every other row's pass leaves these rows alone, so one live pass never marks a sibling row running.
     for (const other of CORPUS_READINESS_STAGE_IDS.filter((candidate) => candidate !== stage)) {
       expect(rows.some((row) => isReadinessRun(other, row))).toBe(false);

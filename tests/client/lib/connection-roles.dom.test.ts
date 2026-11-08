@@ -1,5 +1,6 @@
 import { ROLE_ROWS_ORDERED, roleRequirementVerdicts } from "@orb/client/lib";
 import { bindingTaskOf, GENERATION_FLOOR, ROUTABLE_TASKS, TASKS, taskDef } from "@orb/contracts/inference";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 
 test("authored role rails cover each actual task requirement", () => {
@@ -24,7 +25,7 @@ test("the actual utility rail distinguishes supported prose from unavailable str
   }
   const textOnly = roleRequirementVerdicts(utility, { kind: "generation", generation: GENERATION_FLOOR });
   expect(textOnly.map(({ met }) => met)).toEqual([true, false, false]);
-  expect(textOnly.filter(({ met }) => met === false).every(({ unmet }) => unmet.length > 0)).toBe(true);
+  expect(nonEmpty(textOnly.filter(({ met }) => met === false)).every(({ unmet }) => unmet.length > 0)).toBe(true);
   const capable = roleRequirementVerdicts(utility, {
     kind: "generation",
     generation: { ...GENERATION_FLOOR, input: ["text", "image"], output: { ...GENERATION_FLOOR.output, structured: true } },

@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/notifications/verbs/list.ts
 // @subject packages/server/src/domain/notifications/persistence/queries.ts
 import { NOTIFICATIONS_LIST_MAX_LIMIT } from "@orb/contracts/notifications";
+import { present } from "@orb/testkit/iso";
 import { describe } from "vitest";
 import { expect, test } from "../_fixtures.ts";
 
@@ -65,7 +66,7 @@ describe("list — ordering + paging", () => {
     await svc.dismiss({ principal: actors.alice, notificationId: a.id });
     const page = await svc.list({ principal: actors.alice });
     expect(page.items).toHaveLength(1);
-    expect(page.items[0]?.id).not.toBe(a.id);
+    expect(present(page.items[0]).id).not.toBe(a.id);
   });
 });
 

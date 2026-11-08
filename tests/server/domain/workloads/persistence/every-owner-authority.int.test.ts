@@ -10,6 +10,7 @@ import type { StartWorkloadInput } from "@orb/contracts/workloads";
 import { characterEmbeddings, characterSummaries, characters, embedGenerations, themeClusters, workloads } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, seedCorpusConnections, seedRecallCorpus } from "@orb/testkit/node/composed";
 import { eq, inArray } from "drizzle-orm";
@@ -73,9 +74,9 @@ test("only actual NULL-owner execution carries every-owner authority, independen
   const context = run.mock.calls.at(-1)?.[0];
   expect(context?.ownerId).toBeNull();
   expect(context?.everyOwnerRun).toBeDefined();
-  expect(context?.everyOwnerRun).not.toBeNull();
+  expect(present(context).everyOwnerRun).not.toBeNull();
   expect(Object.isFrozen(context?.everyOwnerRun)).toBe(true);
-  expect(context?.userId).not.toBe(owner.userId);
+  expect(present(context).userId).not.toBe(owner.userId);
   expect(await root.services.workloads.get({ caller: owner, id: bulk.id })).toMatchObject({
     ownerId: null,
     status: "succeeded",
@@ -87,7 +88,7 @@ test("only actual NULL-owner execution carries every-owner authority, independen
   const systemBulk = await root.services.workloads.start({ caller: null, funderUserId: null, mode: "bulk", ownerId: member.userId, input });
   await executeAdmitted(root, systemBulk.id);
   expect(run.mock.calls.at(-1)?.[0]).toMatchObject({ ownerId: null });
-  expect(run.mock.calls.at(-1)?.[0].everyOwnerRun).not.toBeNull();
+  expect(present(run.mock.calls.at(-1))[0].everyOwnerRun).not.toBeNull();
   run.mockRestore();
 });
 

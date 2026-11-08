@@ -7,6 +7,7 @@ import { spawn } from "node:child_process";
 import type { Principal } from "@orb/contracts/identity";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makePluginBundle, seedCorpusActors } from "@orb/testkit/node/composed";
@@ -76,7 +77,7 @@ test("a member's plugin reads canon from its installer's history floor with hidd
   const memberSees = await read(member, memberPlugin);
   expect(memberSees.map((row) => row.id)).toContain(after);
   expect(memberSees.map((row) => row.id)).not.toContain(before);
-  expect(memberSees.find((row) => row.id === after)?.content).not.toContain(SECRET);
+  expect(present(memberSees.find((row) => row.id === after)).content).not.toContain(SECRET);
 });
 
 test("variable operations are closed over the installer: each user's plugin sees only its own values", { tags: ["slow"] }, async () => {

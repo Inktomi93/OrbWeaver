@@ -1,0 +1,16 @@
+{
+  "prove-population-edits": [
+    {
+      "cardinality": {
+        "shape": "chain-not"
+      },
+      "count": 1
+    },
+    {
+      "cardinality": {
+        "shape": "every"
+      },
+      "count": 1
+    }
+  ]
+}

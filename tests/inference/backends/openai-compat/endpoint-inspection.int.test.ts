@@ -2,6 +2,7 @@
 // @subject packages/inference/src/backends/openai-compat/diagnostics.ts
 
 import { toError } from "@orb/kit/error-message";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { RecordedRequest } from "@orb/testkit/node/helpers";
 import { openAiServer, recordRequest } from "@orb/testkit/node/helpers";
@@ -50,7 +51,7 @@ test("an Ollama row's test request takes the native route its chat turn takes, w
   expect(inspection.request.url).toBe(chat?.url);
   expect(inspected?.body["options"]).toMatchObject({ ["num_ctx"]: OLLAMA_WINDOW, ["num_predict"]: 1 });
   expect(chat?.body["options"]).toMatchObject({ ["num_ctx"]: OLLAMA_WINDOW });
-  expect(inspected?.body).not.toHaveProperty("max_tokens");
+  expect(present(inspected).body).not.toHaveProperty("max_tokens");
   expect(inspection).toMatchObject({ ok: true });
 });
 
@@ -82,7 +83,7 @@ test("a Custom row's test request takes /chat/completions with the row's own bod
   expect(chat?.body["mirostat_tau"]).toBe(5);
   expect(inspected?.body["mirostat_tau"]).toBe(5);
   expect(inspected?.body["max_completion_tokens"]).toBe(1);
-  expect(inspected?.body).not.toHaveProperty("max_tokens");
+  expect(present(inspected).body).not.toHaveProperty("max_tokens");
   expect(bodyOf(inspection.request.body)).toEqual(inspected?.body);
   expect(inspection.ok).toBe(true);
 });

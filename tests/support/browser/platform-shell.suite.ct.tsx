@@ -1,6 +1,8 @@
 // Platform checks on the production shell, run on Chromium and on the opt-in `webkit-iphone` project
 // (playwright-ct.config.ts). Playwright's WebKit on Linux is not Safari and reports 0 for every safe-area inset,
 // so the paid-inset arm is proved on Chromium with an inset override and WebKit records what it reports.
+
+import { nonEmpty } from "../iso/non-empty.ts";
 import { channelName } from "../node/appearance-channel-name.ts";
 import { expect, test } from "../node/ct-corpus.ts";
 import { createShellAmbientReads } from "../node/ct-shell-reads.ts";
@@ -47,7 +49,7 @@ for (const viewport of [PHONE_PORTRAIT, PHONE_LANDSCAPE]) {
       return insets;
     });
     testInfo.annotations.push({ type: "safe-area", description: JSON.stringify(reported) });
-    expect(Object.values(reported).every((side) => /^\d+(\.\d+)?px$/u.test(side))).toBe(true);
+    expect(nonEmpty(Object.values(reported)).every((side) => /^\d+(\.\d+)?px$/u.test(side))).toBe(true);
   });
 
   test(`the grid fills the dynamic viewport and the document neither scrolls nor chains at ${label}`, async ({ mount, page }) => {

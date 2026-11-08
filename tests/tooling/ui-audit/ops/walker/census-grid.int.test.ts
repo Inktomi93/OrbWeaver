@@ -12,6 +12,7 @@
 // cannot silently disappear from the denominator").
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { present } from "@orb/testkit/iso";
 import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
 import { expect, test } from "@orb/testkit/tooling";
 
@@ -92,7 +93,7 @@ test("Law 4 EXCLUDES screen-reader-only text and still judges its painted twin i
   const law4 = report.findings.filter((finding) => finding.rule === "off-grid-text");
   expect(law4, "the painted twin at the same landing is still a finding").toHaveLength(1);
   expect(law4[0]?.value).toContain("14px text");
-  expect(law4[0]?.selector, "the sr-only nodes must not be the subject").not.toContain("clipped");
+  expect(present(law4[0]).selector, "the sr-only nodes must not be the subject").not.toContain("clipped");
 });
 
 /** The three shapes Law 3 names, one host each, so the KIND is proved by the emitted value rather than by

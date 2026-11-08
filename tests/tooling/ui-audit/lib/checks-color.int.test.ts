@@ -10,6 +10,7 @@
 //   3. the usability signal SURVIVES the exemption: a control so dim it may not read as present at all
 //      still says so, as a P3 advisory that explicitly disclaims being a WCAG violation.
 
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
 import { INACTIVE_KIND_EXPR, isContrastExempt, remainsOperable } from "../../../../tooling/src/floor/instrument/wcag.ts";
@@ -46,8 +47,8 @@ describe("design-audit contrast — #624: the inactive-control exemption, both d
 
   test("the SAME element, natively :disabled, is no longer a WCAG P1 (snap already skipped it)", () => {
     const finding = checkContrast(sample({ inactive: "native" }));
-    expect(finding?.rule).not.toBe("contrast");
-    expect(finding?.severity).not.toBe("P1");
+    expect(present(finding).rule).not.toBe("contrast");
+    expect(present(finding).severity).not.toBe("P1");
   });
 
   test("an ABSENT flag reads as active — fixture sample sets that predate the field keep their verdicts", () => {
@@ -85,7 +86,7 @@ describe("design-audit contrast — #624: the exemption must not swallow the USA
     expect(aria?.rule).toBe("inactive-control-legibility");
     expect(aria?.message).toContain("FOCUSABLE");
     // ...and a natively-disabled control does NOT claim that, because it is not focusable.
-    expect(checkContrast(sample({ inactive: "native" }))?.message).not.toContain("FOCUSABLE");
+    expect(present(checkContrast(sample({ inactive: "native" }))).message).not.toContain("FOCUSABLE");
   });
 });
 

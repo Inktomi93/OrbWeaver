@@ -149,19 +149,27 @@ function outsideScroller(page: Page): Promise<string | null> {
   }, POPUP);
 }
 
+/** What a scroll to the popup's end did: its region moved, or the popup has nothing to scroll. Any other answer
+ *  means a header that stayed put proves nothing. */
+const POPUP_SCROLLS = ["scrolled", "fits", "no popup", "overflow without a scroll region", "region did not move"] as const;
+type PopupScroll = (typeof POPUP_SCROLLS)[number];
+
 /** Scroll the popup's own scroll region to its end; the header must not travel with it. */
-function scrollPopupToEnd(page: Page): Promise<boolean> {
-  return page.evaluate((selector) => {
+function scrollPopupToEnd(page: Page): Promise<PopupScroll> {
+  return page.evaluate((selector): PopupScroll => {
     const popup = document.querySelector(selector);
-    const region = [...(popup?.querySelectorAll("*") ?? [])].find((node) => {
+    if (popup === null) {
+      return "no popup";
+    }
+    const region = [...popup.querySelectorAll("*")].find((node) => {
       const style = getComputedStyle(node);
       return (style.overflowY === "auto" || style.overflowY === "scroll") && node.scrollHeight > node.clientHeight + 1;
     });
     if (region === undefined) {
-      return false;
+      return popup.scrollHeight <= popup.clientHeight + 1 ? "fits" : "overflow without a scroll region";
     }
     region.scrollTop = region.scrollHeight;
-    return true;
+    return region.scrollTop > 0 ? "scrolled" : "region did not move";
   }, POPUP);
 }
 
@@ -290,7 +298,7 @@ test.describe("on the corpus owner's own settings", () => {
     await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "newChat" });
     await expect(page.getByRole("dialog")).toBeVisible();
     // The positive control for the loop below: a real body does overflow here, and only inside the popup.
-    await expect.poll(() => scrollPopupToEnd(page)).toBe(true);
+    await expect.poll(() => scrollPopupToEnd(page)).toBe("scrolled");
   });
 
   // A short dialog wide enough for one footer row: a landscape phone and a short desktop window.
@@ -375,7 +383,7 @@ test.describe("on the corpus owner's own settings", () => {
       await expect.poll(() => outsideScroller(page)).toBeNull();
       const header = page.locator('[data-slot="dialog-header"]');
       const before = await header.boundingBox();
-      await scrollPopupToEnd(page);
+      expect(["scrolled", "fits"]).toContain(await scrollPopupToEnd(page));
       await expect.poll(async () => Math.abs(((await header.boundingBox())?.y ?? Number.NaN) - (before?.y ?? Number.NaN))).toBeLessThan(1.5);
     });
 
@@ -426,7 +434,7 @@ test.describe("on the corpus owner's own settings", () => {
     await expect(header).toBeVisible();
     await expect(header).toHaveCSS("position", "sticky");
     await expect(header).toHaveCSS("z-index", TOKENS["z.raised"].value);
-    expect(await scrollPopupToEnd(page)).toBe(true);
+    expect(await scrollPopupToEnd(page)).toBe("scrolled");
     await expect
       .poll(() =>
         header.evaluate((element) => {

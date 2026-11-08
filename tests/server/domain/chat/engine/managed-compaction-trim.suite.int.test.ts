@@ -3,7 +3,7 @@
 // Fit trimming without a marker: a real over-window room trims, warns and commits through the native SDK route.
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_PROMPT_CONFIG } from "@orb/contracts/preset";
-import { makePromptConfig } from "@orb/testkit/iso";
+import { makePromptConfig, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { sdkEngineRoom } from "./engine-physical.ts";
 import { ENGINE_SDK_REPLY } from "./engine-sdk-physical.mjs";
@@ -48,7 +48,7 @@ for (const descriptionWords of [0, 2000]) {
     expect(request?.importedSeed?.rowCount).toBeLessThan(160);
     expect(request?.argv).toContain(`--resume=${request?.importedSeed?.sessionId}`);
     expect(request?.importedSeed?.lastText).toContain("turn 160 —");
-    expect(request?.importedSeed?.firstText).not.toContain("turn 1 —");
+    expect(present(present(request).importedSeed).firstText).not.toContain("turn 1 —");
     expect(await fixture.warnings()).toContainEqual(expect.objectContaining({ code: "context_trimmed_no_summary" }));
     expect((await fixture.marker()).compactSummary).toBeNull();
     await annotate(

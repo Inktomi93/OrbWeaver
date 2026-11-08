@@ -8,7 +8,7 @@
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { Principal } from "@orb/contracts/identity";
 import { chatDigests, chatSegments, messages, messageVariants } from "@orb/db";
-import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
+import { nonEmpty, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -238,7 +238,7 @@ test("bound memory ports retain shared buckets and enforce real join, leave and 
     );
     const funded = provider.requests.filter(({ request }) => request.method === "POST");
     expect(funded).not.toEqual([]);
-    expect(funded.every(({ request }) => request.headers.get(FUNDING_HEADER) === HOST_FUNDING)).toBe(true);
+    expect(nonEmpty(funded).every(({ request }) => request.headers.get(FUNDING_HEADER) === HOST_FUNDING)).toBe(true);
   } finally {
     hostOnline.abort();
   }

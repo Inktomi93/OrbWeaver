@@ -4,6 +4,7 @@ import { spawn } from "node:child_process";
 import { distributedPluginViewSchema, pluginFanoutResultSchema } from "@orb/contracts/plugin";
 import { assertReferentialIntegrity, pluginKv, pluginProviderClaims } from "@orb/db";
 import { PluginNotFoundError } from "../../../packages/server/src/domain/plugin/contract/errors.ts";
+import { nonEmpty } from "../iso/non-empty.ts";
 import {
   CORPUS_ADMIN_PROVIDER,
   CORPUS_PLUGIN_ASSET_PATH,
@@ -22,7 +23,7 @@ test("native withdrawal removes matching copies but retains a recipient's upgrad
   const recipient = await root.actor();
   const captured = await seedCorpusPluginWithdrawal(root, recipient.id);
   expect(captured.published.outcome.applied).toBe(2);
-  expect(captured.published.installs.every(({ plugin }) => plugin.status === "disabled" && plugin.grantedCapabilities.length === 0)).toBe(true);
+  expect(nonEmpty(captured.published.installs).every(({ plugin }) => plugin.status === "disabled" && plugin.grantedCapabilities.length === 0)).toBe(true);
   expect(captured.upgraded).toMatchObject({ version: "2.0.0", status: "enabled", grantedCapabilities: ["storage.kv"] });
   expect(captured.refused).toEqual([expect.objectContaining({ status: "rejected" })]);
   expect(captured.stillPublished).toHaveLength(1);

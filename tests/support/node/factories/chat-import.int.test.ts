@@ -7,6 +7,7 @@ import { chatImportClaims, chats, messages } from "@orb/db";
 import { contentSpanRaw } from "@orb/kit/content";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { eq } from "drizzle-orm";
+import { nonEmpty } from "../../iso/non-empty.ts";
 import { seedCorpusConnections, seedRecallRoom } from "../corpus-actors.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "../corpus-provider.ts";
 import { expect, test } from "../fixtures.ts";
@@ -58,7 +59,7 @@ test("native chat import captures returned claims, injections and owned attachme
   }
   const restored = await caller.chat.listMessages({ chatId: importedId });
   expect(restored.messages.map((message) => message.content)).toEqual(turn.messages.map((message) => message.content));
-  expect(imported.attachments.every((row) => restored.messages.some((message) => message.id === row.messageId))).toBe(true);
+  expect(nonEmpty(imported.attachments).every((row) => restored.messages.some((message) => message.id === row.messageId))).toBe(true);
   const allClaims = await root.db.select().from(chatImportClaims).orderBy(chatImportClaims.chatId);
   const repeated = await seedImportedChatRows(root, [root.ownerId, file]);
   expect(repeated).toMatchObject({ outcome: { ok: true, created: false }, claims: [], injections: [], attachments: [] });

@@ -55,8 +55,7 @@ function rows(table: readonly Row[]): void {
       `${RULE} ${name}`,
       async ({ repoRoot }) => {
         const found = await messages(repoRoot, source, path ?? SERVER);
-        expect(found).toHaveLength(count);
-        expect(found.every(({ ruleId }) => ruleId === RULE)).toBe(true);
+        expect(found.map(({ ruleId }) => ruleId)).toEqual(Array.from({ length: count }, () => RULE));
       },
       CONFIG_LOAD_TIMEOUT_MS,
     );

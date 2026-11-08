@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // @subject packages/server/src/domain/chat/assembly/assemble.ts
 import type { MessageView, TurnOutcome, VariantWireView } from "@orb/contracts/chat";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { textRoom } from "../scenario-physical.ts";
@@ -121,6 +122,6 @@ test("actual continuation of a length-capped native reply retains its original p
   expect(await draw(h, after)).toEqual(before);
   const inputs = await wires(h);
   expect(inputs).toHaveLength(2);
-  expect(inputs.every((body) => body.includes("Scene tone: grim."))).toBe(true);
+  expect(nonEmpty(inputs).every((body) => body.includes("Scene tone: grim."))).toBe(true);
   expect(inputs.some((body) => body.includes("Scene tone: wry."))).toBe(false);
 });

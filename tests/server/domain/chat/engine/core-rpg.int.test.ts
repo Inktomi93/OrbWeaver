@@ -3,6 +3,7 @@
 import { resolveProseText } from "@orb/contracts/prose";
 import type { RPG_TOOL_ROUND_TOOL_NAMES } from "@orb/contracts/rpg";
 import { jsonValueSchema } from "@orb/kit/json";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, readRoomCanon } from "@orb/testkit/node/composed";
@@ -145,6 +146,6 @@ test.for(EMPTY_RPG_ROWS)("a real folded game refuses $label without a recovery l
     );
   expect(abortTraces).toHaveLength(1);
   expect(abortTraces[0]).toMatchObject({ status: "ok", requestId: expect.stringMatching(/^rpg-turn-abort:/u) });
-  expect(abortTraces[0]?.requestId).not.toBe(outer);
+  expect(present(abortTraces[0]).requestId).not.toBe(outer);
   expect(abortTraces[0]?.spans.find((span) => span.name === "rpg.turnAborted")?.parentSpanId).toBeUndefined();
 });

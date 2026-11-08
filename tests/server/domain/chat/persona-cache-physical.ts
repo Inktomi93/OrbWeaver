@@ -5,7 +5,6 @@ import { builtinProvider, SHIPPED_PROMPT_CACHE } from "@orb/contracts/inference"
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { createBookSchema, createEntrySchema } from "@orb/contracts/world-info";
 import type { JsonValue } from "@orb/kit/json";
-import { jsonValueSchema } from "@orb/kit/json";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { finiteReplies, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import type { ChatRoot, ChatRootOptions } from "@orb/testkit/node/composed";
@@ -18,6 +17,7 @@ import {
   createCorpusProviderExecution,
   SECRET_BOX_TEST_KEY,
 } from "@orb/testkit/node/composed";
+import { MESSAGES_PATH } from "./scenario-physical.ts";
 
 const MODEL = "claude-opus-5-5";
 
@@ -77,7 +77,7 @@ export async function personaRoom(
       },
       providerFetch: async (input, init) => {
         const request = new Request(input, init);
-        if (request.method === "POST" && new URL(request.url).pathname.endsWith("/messages")) {
+        if (request.method === "POST" && new URL(request.url).pathname.endsWith(MESSAGES_PATH)) {
           request.signal.throwIfAborted();
           return reply(nextReply(), model);
         }
@@ -100,15 +100,6 @@ export async function personaRoom(
   }
   const lifetime = construction.move();
   return { ...h, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
-}
-
-/** Read exactly what the physical provider received, including its actual cache directives. */
-export async function personaInputs(h: ChatRoot): Promise<JsonValue[]> {
-  return await Promise.all(
-    h.requests
-      .filter((request) => request.method === "POST" && new URL(request.url).pathname.endsWith("/messages"))
-      .map(async (request) => jsonValueSchema.parse(JSON.parse(await request.clone().text()))),
-  );
 }
 
 /** Decode the native text-only vendor body without reconstructing a TurnRequest. */

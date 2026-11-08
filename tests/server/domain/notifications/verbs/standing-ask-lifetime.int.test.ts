@@ -11,6 +11,7 @@ import type { InboxView } from "@orb/contracts/notifications";
 import type { PluginManifest } from "@orb/contracts/plugin";
 import { PLUGIN_MAIN_ENTRY, PLUGIN_MANIFEST_ENTRY } from "@orb/contracts/plugin";
 import { MS_PER_SECOND } from "@orb/kit/time";
+import { present } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { makePluginBundle, PLUGIN_ZIP_MTIME_SECONDS_RANGE } from "@orb/testkit/node/composed";
 import { unzipSync } from "fflate";
@@ -71,7 +72,7 @@ describe("refreshStanding — the QUIET correction", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]?.payload).toEqual(consent.corrected);
     expect(rows[0]?.seq).toBe(raised.seq);
-    expect(rows[0]?.readAt).not.toBeNull();
+    expect(present(rows[0]).readAt).not.toBeNull();
   });
 
   test("it does NOT resurrect a dismissed ask — no active row means no write", async ({ harness, notificationActors: actors, consentSnapshots: consent }) => {

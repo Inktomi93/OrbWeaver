@@ -20,6 +20,7 @@ import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import type { CharacterId, WorkloadId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makeAssetBytes, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
@@ -143,7 +144,7 @@ test("a JSON card, then its PNG, then the JSON again is one character, and the s
 
   const alt = await dialog(root, "lantern-keeper-alt.png", writeCardChunk(otherArt(root), json));
   expect(alt.imported[0]).toMatchObject({ created: true });
-  expect(alt.imported[0]?.characterId).not.toBe(id);
+  expect(present(alt.imported[0]).characterId).not.toBe(id);
   expect(await charactersNamed(root, "Lantern Keeper")).toBe(2);
 });
 

@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, utimesS
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import type { RunSlot } from "@orb/tooling/floor/artifacts/artifacts";
 import { scaledBudget } from "../../_load-budget.ts";
@@ -248,7 +249,7 @@ test("twelve POINTER-LESS runs published inside one minute all survive the ring"
   // Every EVIDENCE path those twelve runs printed still resolves. Under the count-only ring the two
   // oldest were deleted by the eleventh publish, inside one minute of being cited.
   expect(readdirSync(base).sort()).toEqual(Array.from({ length: CHEAP_RUNS }, (_, i) => `cheap-${String(i).padStart(2, "0")}`));
-  expect(readdirSync(base).every((name) => existsSync(join(base, name, "artifact.json")))).toBe(true);
+  expect(nonEmpty(readdirSync(base)).every((name) => existsSync(join(base, name, "artifact.json")))).toBe(true);
 });
 
 test("past the age floor the count cap applies, and the pruned run is RECORDED rather than vanishing", async ({ plantedTree }) => {

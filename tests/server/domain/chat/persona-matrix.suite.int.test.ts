@@ -10,19 +10,12 @@ import type { NamesBehavior, PromptConfig, PromptSection } from "@orb/contracts/
 import { DEFAULT_GUIDED_ACTIONS, DEFAULT_PROMPT_CONFIG, promptSectionIdSchema } from "@orb/contracts/preset";
 import { resolveProseText } from "@orb/contracts/prose";
 import type { PersonaId } from "@orb/kit/ids";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { connectDevice } from "@orb/testkit/node/composed";
-import {
-  attachPersonaLore,
-  inputMessages,
-  inputSystem,
-  invitePerson,
-  messageText,
-  personaAutoTurn,
-  personaInputs,
-  personaRoom,
-} from "./persona-cache-physical.ts";
+import { attachPersonaLore, inputMessages, inputSystem, invitePerson, messageText, personaAutoTurn, personaRoom } from "./persona-cache-physical.ts";
+import { MESSAGES_PATH, quietOf, wireOf } from "./scenario-physical.ts";
 
 const PRESET_PROBE: PromptSection = {
   type: "literal",
@@ -174,6 +167,9 @@ async function runStep(room: Room, step: Step): Promise<string | null> {
       return assertNeverStep(step);
   }
 }
+
+// Steps that change who holds the room and must reach no provider; every other step makes the call its row reads.
+const SILENT_STEPS: ReadonlySet<Step["kind"]> = new Set<Step["kind"]>(["reanchor", "leave"]);
 
 function assertNeverStep(step: never): never {
   throw new Error(`unhandled persona step ${JSON.stringify(step)}`);
@@ -490,18 +486,12 @@ test("the current persona matrix runs all 23 combinations and writes its native-
     const steps = await combo.setup(room);
     const rows: ReturnType<typeof readRow>[] = [];
     for (const step of steps) {
-      const before = (await personaInputs(room.h)).length;
-      const label = await runStep(room, step);
-      if (label === null) {
+      if (SILENT_STEPS.has(step.kind)) {
+        await quietOf(room.h, () => runStep(room, step), MESSAGES_PATH);
         continue;
       }
-      const inputs = (await personaInputs(room.h)).slice(before);
-      expect(inputs.length, `${combo.id}: ${label} made no physical call`).toBeGreaterThan(0);
-      const input = inputs.at(-1);
-      if (input === undefined) {
-        throw new Error("the current matrix step made no native request");
-      }
-      rows.push(readRow(label, input));
+      const { outcome: label, newest } = await wireOf(room.h, () => runStep(room, step), MESSAGES_PATH);
+      rows.push(readRow(present(label), newest));
     }
     results.push({ combo, rows });
   }

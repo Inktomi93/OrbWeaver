@@ -4,6 +4,7 @@ import { refinerySignalsSchema } from "@orb/contracts/character";
 import { themeOverrideSchema } from "@orb/contracts/theme";
 import { assets, characters, chatParticipants, chats } from "@orb/db";
 import { DomainNotFoundError } from "@orb/kit/errors";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { and, eq, isNull, sql } from "drizzle-orm";
@@ -88,7 +89,7 @@ test("a valid offered card keeps its parsed look and re-owned avatar but never i
     .where(and(eq(characters.ownerId, actors.nominee.userId), eq(characters.importedFrom, `handoff:${actors.chat.id}:${first.id}`)));
   expect(copied).toHaveLength(1);
   expect(copied[0]).toMatchObject({ name: first.name, themeOverride: look, interactiveHtml: null, refinery: null });
-  expect(copied[0]?.avatarAssetId).not.toBe(actors.avatar.assetId);
+  expect(present(copied[0]).avatarAssetId).not.toBe(actors.avatar.assetId);
   const reowned = await harness.db.select({ id: assets.id, hash: assets.hash }).from(assets).where(eq(assets.ownerId, actors.nominee.userId));
   expect(reowned).toEqual([{ id: copied[0]?.avatarAssetId, hash: actors.avatar.hash }]);
 });

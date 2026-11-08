@@ -1,3 +1,4 @@
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { TOKENS } from "@orb/ui/tokens";
 import { themeCssHookWarnings } from "#client/features/config/lib/theme-css-warnings.ts";
@@ -44,7 +45,7 @@ test("a recorded rename names its successor, and a retirement names none", () =>
   expect(renamed[0]?.message).toContain("message-bubble");
   const retired = themeCssHookWarnings('[data-slot="old-chip"] {}', SURFACE, RENAMES);
   expect(retired).toHaveLength(1);
-  expect(retired[0]?.message).not.toContain("message-bubble");
+  expect(present(retired[0]).message).not.toContain("message-bubble");
 });
 
 test("current hooks, the sheet's own custom properties, partial slot matches and comments raise nothing", () => {

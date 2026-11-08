@@ -1,6 +1,7 @@
 // The rate posture belongs to one Snap run. Every rate arm must consume the same acceleration/load
 // sample even when a hypothetical second read would disagree.
 
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import { launchProbeSession, withProbeSession } from "../../../../tooling/src/floor/browser/browser.ts";
@@ -60,8 +61,8 @@ test("one failed acceleration read is owned once and withholds every rate consum
 
     expect(acceleration).toHaveBeenCalledOnce();
     expect(load).toHaveBeenCalledOnce();
-    expect(dispositions.every((row) => row.disposition === "withheld")).toBe(true);
-    expect(dispositions.every((row) => row.reason.includes("planted SystemInfo refusal"))).toBe(true);
+    expect(nonEmpty(dispositions).every((row) => row.disposition === "withheld")).toBe(true);
+    expect(nonEmpty(dispositions).every((row) => row.reason.includes("planted SystemInfo refusal"))).toBe(true);
   });
 });
 

@@ -11,6 +11,7 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { liftJsonSchema, projectJsonSchema } from "@orb/kit/json-schema";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { nonEmpty } from "../../iso/non-empty.ts";
 import { seedCorpusConnections } from "../corpus-actors.ts";
 import {
   CORPUS_EMBED_MODEL,
@@ -114,10 +115,10 @@ test("native automation read suppliers keep rule scope, preset provenance, fire 
     produced.analysis.fires.map((fire) => [fire.id, fire.ruleId, fire.chatId, fire.outcome]),
   );
   expect(capture.activity.map((fire) => fire.id)).toEqual(capture.fires.map((fire) => fire.id));
-  expect(capture.activity.every((fire) => fire.chatId === room.chat.id)).toBe(true);
+  expect(nonEmpty(capture.activity).every((fire) => fire.chatId === room.chat.id)).toBe(true);
   const globalFires = await root.services.automation.listFires({ principal, ruleId: produced.globalRule.id });
   expect(globalFires.map((fire) => fire.id)).toEqual(expect.arrayContaining(produced.completed.execution.fires.map((fire) => fire.id)));
-  expect(globalFires.every((fire) => fire.chatId === null && fire.ruleId === produced.globalRule.id)).toBe(true);
+  expect(nonEmpty(globalFires).every((fire) => fire.chatId === null && fire.ruleId === produced.globalRule.id)).toBe(true);
   expect(capture.presets.map((item) => item.id)).toEqual([...RULE_PRESET_IDS]);
   const preset = capture.presets.find((item) => item.id === "openerChips");
   if (preset === undefined) {
@@ -126,7 +127,7 @@ test("native automation read suppliers keep rule scope, preset provenance, fire 
   const caller = await root.internalCallerFor(root.ownerId);
   const minted = await caller.automation.createRuleFromPreset({ chatId: room.chat.id, presetId: preset.id, timeZone: UTC_TIME_ZONE });
   expect(minted).toHaveLength(preset.ruleCount);
-  expect(minted.every((rule) => !rule.enabled && rule.rulePresetId === preset.id && rule.rulePresetKnobs !== null)).toBe(true);
+  expect(nonEmpty(minted).every((rule) => !rule.enabled && rule.rulePresetId === preset.id && rule.rulePresetKnobs !== null)).toBe(true);
   expect((await caller.automation.listRules({ chatId: room.chat.id })).map((rule) => rule.id)).toEqual([
     ...capture.rules.map((rule) => rule.id),
     ...minted.map((rule) => rule.id),

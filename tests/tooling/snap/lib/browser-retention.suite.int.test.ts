@@ -5,6 +5,7 @@
 
 import type { ServerResponse } from "node:http";
 import { createServer } from "node:http";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { aggregateScope, exactScope } from "@orb/tooling/floor/artifacts/artifact-scope";
 import { launchProbeSession, settle, withProbeSession } from "@orb/tooling/floor/browser/browser";
@@ -68,7 +69,7 @@ test("bounded browser evidence keeps cursor attribution and active network chain
       await session.page.evaluate("fetch('/summary-secret?token=planted-secret').then(response => response.text())");
       await expect.poll(() => [...session.requests.keys()].some((key) => key.includes("/summary-secret"))).toBe(true);
       const summaryEntry = [...session.requests.entries()].find(([key]) => key.includes("/summary-secret"));
-      expect(summaryEntry?.[0]).not.toContain("planted-secret");
+      expect(present(summaryEntry)[0]).not.toContain("planted-secret");
       expect(summaryEntry?.[0]).toContain("%5BREDACTED%5D");
       expect(summaryEntry?.[1].url).toBe(summaryEntry?.[0]);
       for (let index = 0; index < 5; index += 1) {

@@ -3,6 +3,7 @@
 // Corrupt/missing/ambiguous evidence refuses rather than becoming a false-clean summary.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
+import { nonEmpty, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import type { InstrumentArtifactMetadata } from "@orb/tooling/floor/artifacts/artifact-out";
 import { beginInstrumentRun, finishInstrumentRun, registerInstrumentArtifact } from "@orb/tooling/floor/artifacts/artifact-out";
@@ -305,11 +306,11 @@ test("a completed run writes a self-consistent index and its receipt READ comman
   expect(index.identity.dirty.digest).not.toBe("");
   expect(index.process.argv).toEqual(argv);
   expect(index.artifacts.length).toBeGreaterThan(0);
-  expect(index.artifacts.every((artifact) => artifact.path.startsWith(path.slice(0, -"run.json".length)) && artifact.bytes > 0)).toBe(true);
+  expect(nonEmpty(index.artifacts).every((artifact) => artifact.path.startsWith(path.slice(0, -"run.json".length)) && artifact.bytes > 0)).toBe(true);
   expect(index.artifacts.some((artifact) => artifact.relativePath.endsWith(".png") && artifact.role === "primary")).toBe(true);
-  expect(index.artifacts.every((artifact) => artifact.declaration === "declared" && artifact.channel !== undefined && artifact.mediaType !== undefined)).toBe(
-    true,
-  );
+  expect(
+    nonEmpty(index.artifacts).every((artifact) => artifact.declaration === "declared" && artifact.channel !== undefined && artifact.mediaType !== undefined),
+  ).toBe(true);
   const captureManifest = index.artifacts.find((artifact) => artifact.relativePath.startsWith("snaps/") && artifact.relativePath.endsWith(".json"));
   expect(captureManifest).toMatchObject({
     producer: "snap",
@@ -600,7 +601,7 @@ test("failed Git identity reads are unknown with field-level failures rather tha
       expect.objectContaining({ field: "untracked-list" }),
     ],
   });
-  expect([...gitIdentity.failures, ...dirtyIdentity.failures].every((failure) => failure.detail !== "")).toBe(true);
+  expect(nonEmpty([...gitIdentity.failures, ...dirtyIdentity.failures]).every((failure) => failure.detail !== "")).toBe(true);
 
   const slot = await openSlot(root, "unknown-source");
   registerSnapResultPairs([["app-snapshot", "measured"]]);
@@ -811,9 +812,9 @@ test("multi-arm diagnostics round-trip preserves severity/caps and keeps trace.z
     detail: "enabled arm emitted no typed fact",
   });
   expect(index.verdict.arms.find((arm) => arm.arm === "cpu-profile")).toMatchObject({ state: "refused" });
-  expect(index.verdict.arms.every((arm) => arm.source !== "" && arm.lifetime !== "")).toBe(true);
+  expect(nonEmpty(index.verdict.arms).every((arm) => arm.source !== "" && arm.lifetime !== "")).toBe(true);
   expect(receiptLines.filter((line) => line.startsWith("FINDING    "))).toHaveLength(5);
-  expect(receiptLines.filter((line) => line.startsWith("FINDING    ")).every((line) => line.startsWith("FINDING    error"))).toBe(true);
+  expect(nonEmpty(receiptLines.filter((line) => line.startsWith("FINDING    "))).every((line) => line.startsWith("FINDING    error"))).toBe(true);
   // THE PRINTED DENOMINATOR IS THE INDEXED POPULATION — derived from the run's own index rather than
   // written down, because a LITERAL here is only ever right until the fixture changes size. That is not a
   // hypothetical: the previous literal (`51`) was stale and this suite was RED on main before #1566
@@ -1200,7 +1201,7 @@ test("composite findings correlate the same unsafe-port failure across diagnosti
     occurrences: 4,
   });
   expect(unsafe?.evidence.map((evidence) => evidence.source).toSorted()).toEqual(["console-api", "core-capture", "har", "network"]);
-  expect(unsafe?.evidence.every((evidence) => scopeMatches(evidence.scope, { context: 0, page: 0, window: "7" }))).toBe(true);
+  expect(nonEmpty(present(unsafe).evidence).every((evidence) => scopeMatches(evidence.scope, { context: 0, page: 0, window: "7" }))).toBe(true);
   // #1372 — an instrumentation line is TYPED at the producer: the `%c` timestamp prefix and the trailing
   // colour arguments are terminal configuration, not evidence, and carrying them cost ~250 bytes a row.
   // The attribution (arm + channel) is unchanged; what the row SAYS is now the reading.

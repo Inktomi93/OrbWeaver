@@ -1,7 +1,7 @@
 // CDP network events are normalized once at the typed handler boundary; retained records and HAR never
 // reinterpret raw protocol objects with Reflect.
 
-import { forged } from "@orb/testkit/iso";
+import { forged, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import type { CDPSession, Page } from "@playwright/test";
 import { networkRecordsForPages, selectNetworkBodies, wirePageNetwork } from "../../../../tooling/src/floor/browser/browser-network.ts";
@@ -142,8 +142,8 @@ test("typed CDP handlers retain only the normalized request/response/initiator/e
     response: { status: 201, protocol: "h2", timing: { dnsStart: 1, receiveHeadersEnd: 8 }, securityDetails: { protocol: "TLS 1.3" } },
     responseExtra: { statusCode: 201, headersText: "HTTP/2 201\r\n" },
   });
-  expect(records[0]?.request).not.toHaveProperty("rawProtocolOnly");
-  expect(records[0]?.response).not.toHaveProperty("rawProtocolOnly");
+  expect(present(records[0]).request).not.toHaveProperty("rawProtocolOnly");
+  expect(present(records[0]).response).not.toHaveProperty("rawProtocolOnly");
 
   const har = (await buildNetworkHar(pageOwner(page))) as { readonly log: { readonly entries: readonly Record<string, unknown>[] } };
   expect(har.log.entries).toHaveLength(1);

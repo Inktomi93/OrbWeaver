@@ -5,7 +5,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
+import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { RpgRoomStory } from "./_own-key-panels-stories.tsx";
 
@@ -68,15 +68,21 @@ for (const populated of [false, true]) {
     const stone = header.locator('[data-slot="waystone"]');
     await expect(header).toBeVisible();
     const freshness = header.locator('[data-slot="rpg-freshness"]');
-    const recordedCue = await freshness.allTextContents();
+    // The populated ambient carries a clock, so its when-line must render before and after the tab switch.
+    const clockLine = header.locator('[data-slot="rpg-band-when-state"]');
+    await expect(clockLine).toHaveCount(populated ? 1 : 0);
+    const recordedClock = await clockLine.allTextContents();
     // The room has no model connection, so the tracker view reports read-only and the header must show the badge.
     const tracker = await caller.rpg.getTrackerView({ chatId });
     expect(tracker.trackersReadOnly).toBe(true);
     const readOnly = header.getByText("Read-only", { exact: true });
     await expect(readOnly).toHaveCount(1);
+    // A read-only room delivers no state, so the Read-only pill is its one cue and the freshness pill stays out.
+    await expect(freshness).toHaveCount(0);
     await page.getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true }).click();
     await expect(page.getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true })).toHaveAttribute("aria-selected", "true");
-    await expect(freshness).toHaveText(recordedCue);
+    await expect(clockLine).toHaveText(recordedClock);
+    await expect(freshness).toHaveCount(0);
     await expect(readOnly).toHaveCount(1);
     const size = await resolvedLength(page, populated ? `var(${TOKENS["size.meter-hero"].cssVar})` : `var(${TOKENS["size.meter-sm"].cssVar})`);
     await expect.poll(async () => (await stone.boundingBox())?.height).toBe(size);
@@ -86,3 +92,52 @@ for (const populated of [false, true]) {
     await expect(satellite).toContainText(`${TRACKER.label} ${VALUE}/${TRACKER.max}`);
   });
 }
+
+test("a room whose model writes state shows the freshness cue, not Read-only, while Plugins owns the phone Context", async ({ corpus, mount, page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await using root = await createCorpusHarness();
+  const chatId = await prepareRoom(root, true);
+  const principal = await root.principalFor(root.ownerId);
+  const writer = await root.services.connection.create({
+    principal,
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: CORPUS_PROVIDER_ENDPOINT,
+    model: CORPUS_TEXT_MODEL,
+    allowBackground: true,
+    declared: {
+      kind: "generation",
+      generation: { input: ["text"], context: { window: 32_000 }, output: {}, tools: { parallel: true, silencesProse: false, requiredChoice: true } },
+      features: { detectServer: false },
+    },
+  });
+  await root.services.connection.setBinding({ principal, task: "chat", connectionId: writer.id });
+  const caller = await root.internalCallerFor(root.ownerId);
+  expect((await caller.rpg.getTrackerView({ chatId })).trackersReadOnly).toBe(false);
+  expect((await caller.rpg.getGame({ chatId })).effectiveDelivery.path).not.toBe("none");
+  await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
+  await routeTrpc(page, {
+    ...createShellAmbientReads(corpus, root.ownerId),
+    ...serveCorpusProcedures(caller, [
+      ...SECTION_PROCEDURES,
+      ...ROOM_PROCEDURES,
+      "rpg.getGame",
+      "rpg.getTrackerView",
+      "rpg.revealHidden",
+      "rpg.listTurnToolCalls",
+    ]),
+  });
+  await mount<typeof RpgRoomStory>(STORY, { chatId });
+  await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
+  const header = page.locator('[data-slot="rpg-takeover-header"]');
+  await expect(header).toBeVisible();
+  const freshness = header.locator('[data-slot="rpg-freshness"]');
+  const readOnly = header.getByText("Read-only", { exact: true });
+  await expect(freshness).toHaveCount(1);
+  await expect(readOnly).toHaveCount(0);
+  const recordedCue = await freshness.allTextContents();
+  await page.getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true }).click();
+  await expect(page.getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true })).toHaveAttribute("aria-selected", "true");
+  await expect(freshness).toHaveText(recordedCue);
+  await expect(readOnly).toHaveCount(0);
+});

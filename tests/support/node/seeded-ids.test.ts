@@ -1,6 +1,7 @@
 // @subject tests/support/iso/ids.ts
 
 import { createSeededIds, SEEDED_ID_MAX_CURSOR } from "../iso/ids.ts";
+import { nonEmpty } from "../iso/non-empty.ts";
 import { expect, test } from "./fixtures.ts";
 
 test("restored business IDs continue the shared TypeID and opaque UUID sequence without replaying earlier identities", () => {
@@ -10,7 +11,7 @@ test("restored business IDs continue the shared TypeID and opaque UUID sequence 
   const expected = [source.next("persona"), source.uuid(), source.next("chat")];
   const restored = createSeededIds(cursor);
   expect([restored.next("persona"), restored.uuid(), restored.next("chat")]).toEqual(expected);
-  expect(expected.every((id) => !earlier.includes(id))).toBe(true);
+  expect(nonEmpty(expected).every((id) => !earlier.includes(id))).toBe(true);
   restored.reset();
   expect([restored.next("persona"), restored.uuid(), restored.next("chat")]).toEqual(expected);
 });

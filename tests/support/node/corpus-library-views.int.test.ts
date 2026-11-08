@@ -12,6 +12,7 @@ import { assertReferentialIntegrity } from "@orb/db";
 import { CHAT_WARNING_CODES } from "../../../packages/contracts/src/chat/bus.ts";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
 import { createCorpusReadResponder, createCorpusViewerReadResponder } from "../iso/corpus-read-responder.ts";
+import { nonEmpty } from "../iso/non-empty.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import { captureCorpusRead } from "./corpus-capture.ts";
 import { CORPUS_LIBRARY_RULE_PRESET, seedCorpusLibraryViews } from "./corpus-library-views.ts";
@@ -198,7 +199,7 @@ test("native library projections retain canonical usage, ordering, intake and re
   expect(documents.intake).toHaveLength(1);
   expect(documents.settledIntake).toMatchObject([{ kind: "databank-ingest", status: "succeeded", result: { documents: 1, failed: [] } }]);
   expect(documents.chunks.length).toBeGreaterThan(0);
-  expect(documents.chunks.every((row) => row.documentId === documents.created.output.document.id && row.contentHash.length === 64)).toBe(true);
+  expect(nonEmpty(documents.chunks).every((row) => row.documentId === documents.created.output.document.id && row.contentHash.length === 64)).toBe(true);
   expect(documents.chunks.map((row) => Array.from(row.embedding))).toEqual(documents.chunks.map(() => [...CORPUS_EMBEDDING_VECTOR]));
   expect(documents.repeated.output).toMatchObject({ outcome: "duplicate", ingest: "skipped", document: { id: documents.created.output.document.id } });
   expect(documents.repeatedChunks).toEqual(documents.chunks);

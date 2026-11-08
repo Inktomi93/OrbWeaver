@@ -10,6 +10,7 @@
 // The two rows are mutually exclusive by construction, which is why `exemption` is its own non-failing
 // kind rather than a sentence appended to a `threshold` row.
 
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import type { AuditData, BrowserEnvironmentEvidence, MotionSnapshot } from "../../../../tooling/src/motion-audit/index.ts";
 import { motionProblems } from "../../../../tooling/src/snap/lib/motion-problems.ts";
@@ -148,7 +149,7 @@ test("a layout frame that does not meet the carve-out prints the failing row and
   expect(rows[0]?.kind).toBe("threshold");
   expect(rows[0]?.observed).toBe("1");
   expect(rows[0]?.threshold).toBe("0");
-  expect(rows[0]?.detail).not.toContain("bounded-input-dispatch");
+  expect(present(rows[0]).detail).not.toContain("bounded-input-dispatch");
 });
 
 test("a window with no style/layout at all prints neither row", () => {

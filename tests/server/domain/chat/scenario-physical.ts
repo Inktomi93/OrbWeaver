@@ -44,13 +44,50 @@ export async function textRoom(replies: readonly string[], options: Omit<ChatRoo
   return { ...h, [Symbol.asyncDispose]: () => lifetime.disposeAsync() };
 }
 
-/** The JSON bodies of the room's recorded chat-completions requests, oldest first. */
-export async function wireBodies(h: ChatRoot): Promise<JsonValue[]> {
-  return await Promise.all(
-    h.requests
-      .filter((request) => request.method === "POST" && new URL(request.url).pathname.endsWith("/chat/completions"))
+// The provider path an OpenAI-compatible chat turn posts to, and the default for wireOf and quietOf.
+const CHAT_COMPLETIONS_PATH = "/chat/completions";
+/** The provider path a native Anthropic turn posts to. */
+export const MESSAGES_PATH = "/messages";
+
+export type ProviderPath = typeof CHAT_COMPLETIONS_PATH | typeof MESSAGES_PATH;
+
+function sentBodies(requests: readonly Request[], path: ProviderPath): Promise<JsonValue[]> {
+  return Promise.all(
+    requests
+      .filter((request) => request.method === "POST" && new URL(request.url).pathname.endsWith(path))
       .map(async (request) => jsonValueSchema.parse(JSON.parse(await request.clone().text()))),
   );
+}
+
+/** What one act sent the provider, with the act's own outcome. */
+export interface WireOf<T> {
+  readonly outcome: T;
+  /** The act's provider bodies, oldest first. */
+  readonly bodies: readonly [JsonValue, ...JsonValue[]];
+  readonly newest: JsonValue;
+}
+
+/** Run the act and read only the provider bodies it sent to `path`. A tail of the room's whole history would hand an
+ *  act that sent nothing the previous round's body, so this throws when the act sent none. */
+export async function wireOf<T>(h: ChatRoot, act: () => Promise<T>, path: ProviderPath = CHAT_COMPLETIONS_PATH): Promise<WireOf<T>> {
+  const mark = h.requests.length;
+  const outcome = await act();
+  const [first, ...rest] = await sentBodies(h.requests.slice(mark), path);
+  if (first === undefined) {
+    throw new Error(`the act made no ${path} request`);
+  }
+  return { outcome, bodies: [first, ...rest], newest: rest.at(-1) ?? first };
+}
+
+/** Run an act that must reach no provider at `path`, and throw when it sent a request there. */
+export async function quietOf<T>(h: ChatRoot, act: () => Promise<T>, path: ProviderPath = CHAT_COMPLETIONS_PATH): Promise<T> {
+  const mark = h.requests.length;
+  const outcome = await act();
+  const sent = await sentBodies(h.requests.slice(mark), path);
+  if (sent.length > 0) {
+    throw new Error(`the act made ${String(sent.length)} ${path} request(s); it must make none`);
+  }
+  return outcome;
 }
 
 function leaves(value: JsonValue): readonly string[] {

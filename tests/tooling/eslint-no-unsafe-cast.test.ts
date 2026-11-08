@@ -154,8 +154,8 @@ test.for([
   { name: "a typed row cast to the contract", source: "declare const row: ProbeRow;\nexport const a = row as ProbeView;", found: null },
 ])("the cast rule reports $name", ({ source, found }, { scratch }) => {
   const messages = lint(scratch, FILE, source);
-  expect(messages.length).toBe(found === null ? 0 : 1);
-  expect(messages.every((message) => message.includes(found ?? ""))).toBe(true);
+  expect(messages).toHaveLength(found === null ? 0 : 1);
+  expect(messages.filter((message) => !message.includes(found ?? ""))).toEqual([]);
 });
 
 test("a mint home makes a brand from a plain string; the same lines elsewhere are refused", ({ scratch }) => {

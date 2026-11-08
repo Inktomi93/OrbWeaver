@@ -2,6 +2,7 @@
 // @subject tests/support/node/factories/discovery.ts
 import { assertReferentialIntegrity } from "@orb/db";
 import { THEME_NAME_KEYWORDS_LEAD } from "../../../packages/server/src/domain/discovery/themes/name-prompt.ts";
+import { nonEmpty } from "../iso/non-empty.ts";
 import { seedCorpusConnections } from "./corpus-actors.ts";
 import { corpusKnowledgeText, seedCorpusKnowledge } from "./corpus-knowledge.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
@@ -40,9 +41,11 @@ test("public jobs retain owned and owner-admitted bulk scopes while producing di
   expect(result.memoryJobs).toMatchObject([{ kind: "memory-backfill", ownerId: root.ownerId, mode: "singular", status: "succeeded" }]);
   expect(new Set(result.memory.digests.map((digest) => digest.contentHash)).size).toBeGreaterThan(1);
   expect(result.jobs).toHaveLength(6);
-  expect(result.jobs.every((job) => job.status === "succeeded")).toBe(true);
+  expect(nonEmpty(result.jobs).every((job) => job.status === "succeeded")).toBe(true);
   expect(result.jobs.find((job) => job.kind === "compute-cooccurrence")).toMatchObject({ ownerId: null, mode: "bulk" });
-  expect(result.jobs.filter((job) => job.kind !== "compute-cooccurrence").every((job) => job.ownerId === root.ownerId && job.mode === "singular")).toBe(true);
+  expect(
+    nonEmpty(result.jobs.filter((job) => job.kind !== "compute-cooccurrence")).every((job) => job.ownerId === root.ownerId && job.mode === "singular"),
+  ).toBe(true);
   expect(result.summaries.map((row) => row.characterId)).toContain(result.comparisonCard.id);
   expect(result.summaries.map((row) => row.characterId)).toContain(result.refinery.character.id);
   expect(result.duplicateCharacters.length).toBeGreaterThan(0);
@@ -51,10 +54,10 @@ test("public jobs retain owned and owner-admitted bulk scopes while producing di
   );
   expect(result.keywords.pairs.length).toBeGreaterThan(0);
   expect(result.keywords.profiles.length).toBeGreaterThan(0);
-  expect(result.keywords.pairs.every((row) => row.ownerId === root.ownerId)).toBe(true);
+  expect(nonEmpty(result.keywords.pairs).every((row) => row.ownerId === root.ownerId)).toBe(true);
   expect(result.themes.clusters.length).toBeGreaterThan(0);
   expect(result.themes.assignments.length).toBeGreaterThan(0);
-  expect(result.themes.assignments.every((row) => row.msgMidAt !== null)).toBe(true);
+  expect(nonEmpty(result.themes.assignments).every((row) => row.msgMidAt !== null)).toBe(true);
   expect(result.reads.themeDetails.map((detail) => detail?.id)).toEqual(
     [...result.reads.home.sceneThemes, ...result.reads.home.arcThemes].map((theme) => theme.id),
   );

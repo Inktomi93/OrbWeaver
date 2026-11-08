@@ -6,6 +6,7 @@
 import { chatDigests, chatSegments, digestThemeAssignments } from "@orb/db";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import {
   CORPUS_EMBED_MODEL,
@@ -19,7 +20,6 @@ import {
 } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
 import { vi } from "vitest";
-
 import { executeAdmitted } from "../../workloads/funding.fixtures.ts";
 
 const QUERY = "orbital ledger";
@@ -89,7 +89,7 @@ test("a csls run scores digests and segments, search reads the scores, and the s
   const segmentsBefore = await root.db.select({ score: chatSegments.hubScore }).from(chatSegments);
   expect(digestsBefore.length).toBeGreaterThan(1);
   expect(segmentsBefore.length).toBeGreaterThan(1);
-  expect(digestsBefore.every((row) => row.score === null)).toBe(true);
+  expect(nonEmpty(digestsBefore).every((row) => row.score === null)).toBe(true);
   const search = async (): Promise<readonly number[]> => {
     const result = await caller.search.search({ query: QUERY, over: "digests", scope: { kind: "chat", chatId }, topN: 20, rerank: false });
     if (result.over !== "digests") {
@@ -105,12 +105,12 @@ test("a csls run scores digests and segments, search reads the scores, and the s
   await executeAdmitted(root, ref.id);
 
   expect(await root.services.workloads.get({ caller: owner, id: ref.id })).toMatchObject({ status: "succeeded" });
-  expect((await root.db.select({ score: chatDigests.hubScore }).from(chatDigests)).every((row) => row.score !== null)).toBe(true);
-  expect((await root.db.select({ score: chatSegments.hubScore }).from(chatSegments)).every((row) => row.score !== null)).toBe(true);
+  expect(nonEmpty(await root.db.select({ score: chatDigests.hubScore }).from(chatDigests)).every((row) => row.score !== null)).toBe(true);
+  expect(nonEmpty(await root.db.select({ score: chatSegments.hubScore }).from(chatSegments)).every((row) => row.score !== null)).toBe(true);
   expect(backfill).toHaveBeenCalledTimes(1);
   const assignments = await root.db.select({ at: digestThemeAssignments.msgMidAt }).from(digestThemeAssignments);
   expect(assignments.length).toBeGreaterThan(0);
-  expect(assignments.every((row) => row.at !== null)).toBe(true);
+  expect(nonEmpty(assignments).every((row) => row.at !== null)).toBe(true);
   // The ranking signal the search reads moves once the scores are computed.
   expect(await search()).not.toEqual(scoresBefore);
 });
@@ -156,8 +156,8 @@ test("a csls run over more segments than one batch should hold writes its scores
   expect(await root.services.workloads.get({ caller: owner, id: ref.id })).toMatchObject({ status: "succeeded" });
   const sizes = batch.mock.calls.map(([statements]) => statements.length);
   expect(Math.max(...sizes)).toBeLessThanOrEqual(MAX_STATEMENTS_PER_BATCH);
-  expect((await root.db.select({ score: chatSegments.hubScore }).from(chatSegments)).every((row) => row.score !== null)).toBe(true);
-  expect((await root.db.select({ at: digestThemeAssignments.msgMidAt }).from(digestThemeAssignments)).every((row) => row.at !== null)).toBe(true);
+  expect(nonEmpty(await root.db.select({ score: chatSegments.hubScore }).from(chatSegments)).every((row) => row.score !== null)).toBe(true);
+  expect(nonEmpty(await root.db.select({ at: digestThemeAssignments.msgMidAt }).from(digestThemeAssignments)).every((row) => row.at !== null)).toBe(true);
 });
 
 test("a cancelled csls run stops between passes without scoring the later kinds", async () => {
@@ -181,5 +181,5 @@ test("a cancelled csls run stops between passes without scoring the later kinds"
   expect(digests).not.toHaveBeenCalled();
   expect(segments).not.toHaveBeenCalled();
   expect(backfill).not.toHaveBeenCalled();
-  expect((await root.db.select({ score: chatDigests.hubScore }).from(chatDigests)).every((digest) => digest.score === null)).toBe(true);
+  expect(nonEmpty(await root.db.select({ score: chatDigests.hubScore }).from(chatDigests)).every((digest) => digest.score === null)).toBe(true);
 });

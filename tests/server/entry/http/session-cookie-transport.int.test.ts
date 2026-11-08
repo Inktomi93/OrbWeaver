@@ -6,6 +6,7 @@ import { isPlainObject } from "@orb/kit/guards";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { MS_PER_HOUR } from "@orb/kit/time";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { cookieHeader } from "@orb/testkit/node/auth";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -74,7 +75,7 @@ describe("logout — CSRF gate (real app)", () => {
     expect((await authMe(root, { cookie })).authenticated).toBe(true);
     const logout = await root.http.request("/api/auth/logout", { method: "POST", headers: { cookie, [CSRF_HEADER]: "1" } });
     expect(logout.status).toBe(200);
-    expect(logout.headers.getSetCookie().every((line) => line.includes("Max-Age=0"))).toBe(true);
+    expect(nonEmpty(logout.headers.getSetCookie()).every((line) => line.includes("Max-Age=0"))).toBe(true);
     expect((await authMe(root, { cookie })).authenticated).toBe(false);
   });
 });

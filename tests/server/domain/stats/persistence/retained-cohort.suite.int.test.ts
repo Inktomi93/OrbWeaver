@@ -20,7 +20,7 @@ import {
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterHandle, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { finiteReplies } from "@orb/testkit/iso";
+import { finiteReplies, nonEmpty, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -171,9 +171,9 @@ test("retained owners and owner-room inverse projections include departed charac
   );
   expect(await root.db.select().from(chats).where(eq(chats.id, husk.chat.id))).toMatchObject([{ startedAt: null }]);
   const retainedSeats = await root.db.select().from(chatParticipants).where(eq(chatParticipants.chatId, room.chat.id));
-  expect(retainedSeats.filter((seat) => seat.characterId === original.id || seat.characterId === duplicate.id).every((seat) => seat.leftSeq !== null)).toBe(
-    true,
-  );
+  expect(
+    nonEmpty(retainedSeats.filter((seat) => seat.characterId === original.id || seat.characterId === duplicate.id)).every((seat) => seat.leftSeq !== null),
+  ).toBe(true);
   for (const ownerId of [host.userId, member.userId, outsider.userId]) {
     await root.services.stats.reconcile(ownerId);
     expect(await root.services.stats.overview(ownerId)).toMatchObject({ chats: 1, assistantTurns: ownerId === outsider.userId ? 1 : 2 });
@@ -296,7 +296,7 @@ test("a stale voice owner refuses canon even when accepted copying preserves the
     gate.disarm();
     await root.services.chat.acceptHostHandoff({ principal: nominee, chatId });
     const [copied] = await root.db.select().from(messages).where(eq(messages.id, source.id));
-    expect(copied?.characterId).not.toBe(source.characterId);
+    expect(present(copied).characterId).not.toBe(source.characterId);
     for (const ownerId of [actors.owner.userId, nominee.userId]) {
       expect(await root.services.stats.overview(ownerId)).toMatchObject({ chats: 1, assistantTurns: 1, tokensIn: 100, tokensOut: 35 });
     }

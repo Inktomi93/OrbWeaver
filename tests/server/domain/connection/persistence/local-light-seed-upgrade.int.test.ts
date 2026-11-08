@@ -7,6 +7,7 @@ import { builtinProvider, LOCAL_LIGHT_SEED_ROWS, modelIdSchema } from "@orb/cont
 import { connectionBindings, userConnections } from "@orb/db";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { and, eq } from "drizzle-orm";
@@ -180,7 +181,7 @@ test("a reranker the user made on the earlier model is never adopted or moved, a
     seedModel: null,
   });
   expect(state.slot).toMatchObject({ label: RERANK_SEED.label, model: RERANK_SEED.model });
-  expect(state.slot?.id).not.toBe(own);
+  expect(present(state.slot).id).not.toBe(own);
   expect(state.boundTo).toBe(own);
   expect(state.servedModel).toBe(EARLIER_RERANK_MODEL);
 });

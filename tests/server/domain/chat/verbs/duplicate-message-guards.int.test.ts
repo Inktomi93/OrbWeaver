@@ -3,7 +3,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { TURN_LOCKED_OP_CODE } from "@orb/contracts/chat";
 import { expect, test } from "@orb/testkit/node";
 import { createChatRoot } from "@orb/testkit/node/composed";
-import { textProvider, wireBodies, wireText } from "../scenario-physical.ts";
+import { textProvider, wireOf, wireText } from "../scenario-physical.ts";
 
 const ADA = createCharacterSchema.parse({ handle: "dup-ada", name: "Ada Vane", description: "The first voice." });
 
@@ -95,9 +95,9 @@ test("a duplicated comment stays a comment and never reaches the prompt; a dupli
 
   // Drop the original aside so only the copy could carry it onto the wire.
   await chat.deleteMessages({ principal: h.owner, chatId: h.chatId, messageIds: [comment.id] });
-  await chat.send({ principal: h.owner, chatId: h.chatId, content: "go on" });
-  await h.root.settleBackground();
-  const bodies = await wireBodies(h);
-  expect(bodies.length).toBeGreaterThan(0);
+  const { bodies } = await wireOf(h, async () => {
+    await chat.send({ principal: h.owner, chatId: h.chatId, content: "go on" });
+    await h.root.settleBackground();
+  });
   expect(bodies.map(wireText).join("\n")).not.toContain(aside);
 }, 60_000);

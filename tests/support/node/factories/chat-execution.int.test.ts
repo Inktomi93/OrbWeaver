@@ -3,6 +3,7 @@
 import { declaredCapabilitySchema } from "@orb/contracts/inference";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { CHAT_OP_CODES } from "../../../../packages/server/src/domain/chat/contract/errors.ts";
+import { nonEmpty } from "../../iso/non-empty.ts";
 import { seedCorpusActors, seedRecallRoom } from "../corpus-actors.ts";
 import {
   CORPUS_EMBED_MODEL,
@@ -47,7 +48,7 @@ test("a real priced compaction captures the owner's durable spend and its curren
   expect(compacted.summary).toBe(REPLY);
   const captured = await captureCompactionSpend(root.db, root.ownerId);
   expect(captured).toHaveLength(1);
-  expect(captured.every((row) => row.ownerId === root.ownerId && row.costUsd > 0)).toBe(true);
+  expect(nonEmpty(captured).every((row) => row.ownerId === root.ownerId && row.costUsd > 0)).toBe(true);
   const calls = provider.requests.filter((request) => request === "POST /v1/chat/completions");
   expect(calls).toHaveLength(1);
   expect(await root.services.chat.compact({ principal: owner, chatId })).toEqual({ ...compacted, updated: false });
@@ -86,7 +87,7 @@ test("a real held turn owns its lock until canonical commit, then captures repla
     ]);
     const during = await captureChatReplayRows(root.db, chatId);
     expect(during.locks.map((row) => row.chatId)).toEqual([chatId]);
-    expect(during.locks.every((row) => row.holder !== "" && row.expiresAt > row.acquiredAt)).toBe(true);
+    expect(nonEmpty(during.locks).every((row) => row.holder !== "" && row.expiresAt > row.acquiredAt)).toBe(true);
   } finally {
     release.resolve();
   }

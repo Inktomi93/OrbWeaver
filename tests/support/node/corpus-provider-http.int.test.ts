@@ -2,6 +2,7 @@
 // The population case creates the 144-card regression population and indexes it through a real workload: intrinsic producer work, slow tag.
 import { createCharacterSchema } from "@orb/contracts/character";
 import { characterEmbeddings, characters, embeddingCalls } from "@orb/db";
+import { nonEmpty } from "../iso/non-empty.ts";
 import { seedCorpusConnections } from "./corpus-actors.ts";
 import {
   CORPUS_EMBED_MODEL,
@@ -110,7 +111,7 @@ test("request-sensitive corpus embeddings preserve real near-duplicates without 
   ]);
   const vectors = await root.db.select().from(characterEmbeddings);
   expect(vectors).toHaveLength(population);
-  expect(vectors.every((row) => cards.some((card) => card.id === row.characterId) && row.dim === CORPUS_EMBEDDING_VECTOR.length)).toBe(true);
+  expect(nonEmpty(vectors).every((row) => cards.some((card) => card.id === row.characterId) && row.dim === CORPUS_EMBEDDING_VECTOR.length)).toBe(true);
   expect(new Set(vectors.filter((row) => pair.some((card) => card.id === row.characterId)).map((row) => row.contentHash)).size).toBe(2);
   const [job] = await settleCorpusWorkloads(root, caller, [await caller.workloads.start({ mode: "singular", input: { kind: "find-duplicates", params: {} } })]);
   expect(job).toMatchObject({ status: "succeeded", result: { scanned: population, written: 1 } });
@@ -156,6 +157,6 @@ test("request-sensitive corpus embeddings preserve real near-duplicates without 
   expect(reordered.vectors).toEqual(batch.vectors.toReversed());
   expect(batch.vectors[0]).not.toEqual(batch.vectors[1]);
   expect(await root.db.select().from(characters)).toHaveLength(population);
-  expect((await root.db.select().from(embeddingCalls)).every((row) => row.outcome === "completed")).toBe(true);
+  expect(nonEmpty(await root.db.select().from(embeddingCalls)).every((row) => row.outcome === "completed")).toBe(true);
   expect(provider.requests).toContain("POST /v1/embeddings");
 });

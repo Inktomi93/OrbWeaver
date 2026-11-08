@@ -4,6 +4,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
+import { nonEmpty } from "@orb/testkit/iso";
 import type { ChromiumIdentity } from "@orb/testkit/node/helpers";
 import {
   chromiumDescendantIdentities,
@@ -761,7 +762,7 @@ test("scenario checkpoints share one browser context and emit one aggregate mani
   expect((report["captures"] as unknown[]).length).toBe(2);
   const checkpoints = (report["scenario"] as { checkpoints: Array<{ name: string; screenshot: string | null }> }).checkpoints;
   expect(checkpoints.map((checkpoint) => checkpoint.name)).toEqual(["first", "second"]);
-  expect(checkpoints.every((checkpoint) => checkpoint.screenshot === null)).toBe(true);
+  expect(nonEmpty(checkpoints).every((checkpoint) => checkpoint.screenshot === null)).toBe(true);
 });
 
 /** A PNG's pixel height, read straight out of the IHDR chunk (bytes 20-23, big-endian). `scale: "css"` in
@@ -811,6 +812,6 @@ test("watch durably records every poll, dedupes unchanged terminal noise, and mi
   expect(watch.totalMs).toBe(180);
   expect(watch.intervalMs).toBe(30);
   expect(watch.ticks.length).toBeGreaterThanOrEqual(3);
-  expect(watch.ticks.every((tick) => tick.shot === null && tick.evals.length === 1)).toBe(true);
+  expect(nonEmpty(watch.ticks).every((tick) => tick.shot === null && tick.evals.length === 1)).toBe(true);
   expect(() => readFileSync(join(REPORT_SNAPS, `${name}.png`))).toThrow(expect.objectContaining({ code: "ENOENT" }));
 });

@@ -1,3 +1,4 @@
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import type { CacheCase, CasePlan, ProbeStep } from "@orb/tooling/cache-check";
 import { CACHE_CASES, CASE_PLANS, ROOM_KINDS, ROOMS, roomRuns } from "@orb/tooling/cache-check";
@@ -42,7 +43,7 @@ test("the selected cases run once each, grouped one chat per room, with the deep
 test("the group plan judges two rounds after the judged opening, so two judged pairs cross a round boundary", () => {
   const steps = CASE_PLANS.group.steps;
   expect(steps).toHaveLength(2);
-  expect(steps.every((step) => step.kind === "send" && step.measure === "all" && step.speakers === 2)).toBe(true);
+  expect(nonEmpty(steps).every((step) => step.kind === "send" && step.measure === "all" && step.speakers === 2)).toBe(true);
 });
 
 test("the deep-note plan sets its note before any judged turn", () => {

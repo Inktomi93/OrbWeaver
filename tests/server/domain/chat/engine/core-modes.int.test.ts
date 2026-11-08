@@ -1,6 +1,7 @@
 // @subject packages/server/src/domain/chat/engine/engine.ts
 // @subject packages/server/src/domain/chat/engine/pipeline.ts
 import { CHAT_REACT_TOOL_NAME, reactToolArgsSchema } from "@orb/contracts/chat";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, readRoomCanon } from "@orb/testkit/node/composed";
 import { terminalSseLine } from "@orb/testkit/node/helpers";
@@ -71,7 +72,7 @@ test("a public continuation retains real prior calls, namespaces repeated wire i
     textOffset: "Before.Start.After.".length,
     isError: false,
   });
-  expect(message.toolCalls[1]?.turnId).not.toBe(prior?.turnId);
+  expect(present(message.toolCalls[1]).turnId).not.toBe(present(prior).turnId);
   expect((await readRoomCanon(h.root, h.owner, h.chatId)).find(({ id }) => id === message.id)).toMatchObject({
     selectedVariantId: message.selectedVariantId,
     content: message.content,

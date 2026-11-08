@@ -2,7 +2,8 @@
 // @subject packages/server/src/domain/chat/verbs/participants.ts
 import { expect, test } from "@orb/testkit/node";
 import { connectDevice } from "@orb/testkit/node/composed";
-import { attachPersonaLore, invitePerson, personaInputs, personaRoom, seatPersona } from "../persona-cache-physical.ts";
+import { attachPersonaLore, invitePerson, personaRoom, seatPersona } from "../persona-cache-physical.ts";
+import { MESSAGES_PATH, wireOf } from "../scenario-physical.ts";
 
 const HOST_LORE = "HOST-PERSONA-ONLY-LORE";
 const MEMBER_LORE = "MEMBER-PERSONA-ONLY-LORE";
@@ -20,11 +21,14 @@ test("the host's disabled member-persona-lore policy also excludes the initiatin
   using presence = new DisposableStack();
   presence.defer(() => online.abort());
   await connectDevice(h.root, h.owner.userId, online.signal);
-  const outcome = await h.root.services.chat.send({ principal: member, chatId: h.chatId, content: "Ask the keeper." });
+  const { outcome, bodies: inputs } = await wireOf(
+    h,
+    () => h.root.services.chat.send({ principal: member, chatId: h.chatId, content: "Ask the keeper." }),
+    MESSAGES_PATH,
+  );
   expect(outcome.aborted).toBe(false);
   expect(outcome.messages.filter(({ role }) => role === "user")).toMatchObject([{ authorUserId: member.userId, personaId: memberPersona.id }]);
   expect(outcome.messages.filter(({ role }) => role === "assistant")).toMatchObject([{ content: "The keeper answers the member." }]);
-  const inputs = await personaInputs(h);
   expect(inputs).toHaveLength(1);
   const wire = JSON.stringify(inputs[0]);
   expect(wire).toContain(HOST_LORE);

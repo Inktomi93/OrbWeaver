@@ -8,6 +8,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { UserBusEvent } from "@orb/contracts/user-bus";
 import type { LibSqlWrap } from "@orb/db";
 import type { UserConnectionId } from "@orb/kit/ids";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import {
@@ -163,7 +164,7 @@ test("binding a second encoder queues the owner's own forced rebuild, readable b
     params: { source: "all", force: true, embedderChanged: true },
   });
   expect(queued.find((row) => row.kind === "databank-reindex")).toMatchObject({ ownerId: box.root.ownerId, params: { embedderChanged: true } });
-  expect(queued.every((row) => row.mode === "singular")).toBe(true);
+  expect(nonEmpty(queued).every((row) => row.mode === "singular")).toBe(true);
 
   const run = box.root.runAdmittedWorkload;
   if (run === undefined) {

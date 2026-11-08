@@ -6,6 +6,7 @@
 
 import { auditLogs } from "@orb/db";
 import { ProviderError } from "@orb/inference";
+import { nonEmpty, present } from "@orb/testkit/iso";
 import { expect } from "@orb/testkit/node";
 import { TEST_PROVIDER_ID } from "@orb/testkit/node/helpers";
 import { seedRecallCorpusRows } from "@orb/testkit/node/rows";
@@ -40,9 +41,9 @@ for (const failedRole of ["embed", "chat"] as const) {
     ]);
     const firstIds = first.messages.map((message) => message.id);
     expect((await ownerCaller.chat.listMessages({ chatId })).messages.slice(-4, -2).map((message) => message.id)).toEqual(firstIds);
-    expect(first.messages.find((message) => message.role === "assistant")?.contextBoundaryMessageId).not.toBeNull();
+    expect(present(first.messages.find((message) => message.role === "assistant")).contextBoundaryMessageId).not.toBeNull();
     expect(seeded.jobs.map((job) => job.kind).sort()).toEqual(["databank-reindex", "index", "memory-backfill"]);
-    expect(seeded.jobs.every((job) => job.status === "succeeded")).toBe(true);
+    expect(nonEmpty(seeded.jobs).every((job) => job.status === "succeeded")).toBe(true);
     expect(seeded.memory.segments.length).toBeGreaterThan(0);
     expect(seeded.memory.digests.length).toBeGreaterThan(0);
     expect(seeded.traces.some((trace) => trace.queryEmbedded && trace.poolSize > 0)).toBe(true);
@@ -54,7 +55,7 @@ for (const failedRole of ["embed", "chat"] as const) {
     expect((await ownerCaller.chat.listMessages({ chatId })).messages.slice(-2).map((message) => message.id)).toEqual(
       recalled.messages.map((message) => message.id),
     );
-    expect(recalled.messages.find((message) => message.role === "assistant")?.contextBoundaryMessageId).not.toBeNull();
+    expect(present(recalled.messages.find((message) => message.role === "assistant")).contextBoundaryMessageId).not.toBeNull();
     const queryPath = fundingProvider.calls[beforeRecall];
     expect(queryPath).toMatch(/\/embeddings$/u);
     if (queryPath === undefined) {

@@ -6,6 +6,7 @@ import type { LogLevel } from "@orb/contracts/settings";
 import { WORKLOAD_LIST_MAX_LIMIT } from "@orb/contracts/workloads";
 import { characterEmbeddings, embeddingCalls } from "@orb/db";
 import { createFrozenClock } from "../iso/clock.ts";
+import { nonEmpty } from "../iso/non-empty.ts";
 import { createControlledTimers } from "../iso/timers.ts";
 import { seedCorpusConnections } from "./corpus-actors.ts";
 import { seedCorpusAccount } from "./corpus-auth.ts";
@@ -259,7 +260,7 @@ test("physical provider completion cannot advance persisted corpus workload time
     expect(await root.db.select().from(characterEmbeddings)).toHaveLength(1);
     const accounting = await root.db.select().from(embeddingCalls);
     expect(accounting.length).toBeGreaterThan(0);
-    expect(accounting.every((call) => call.connectionId === connection.embed.id && call.ownerId === root.ownerId)).toBe(true);
+    expect(nonEmpty(accounting).every((call) => call.connectionId === connection.embed.id && call.ownerId === root.ownerId)).toBe(true);
     return { jobs, now: root.clock.now() };
   };
   expect(await run(100)).toEqual(await run(0));

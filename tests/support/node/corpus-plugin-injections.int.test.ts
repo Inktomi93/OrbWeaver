@@ -9,6 +9,7 @@ import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@
 import { neutralizeMacros } from "@orb/kit/macro";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import { pluginMacroName } from "../../../packages/server/src/domain/plugin/substrate/plugin-macros.ts";
+import { appendedBy } from "../iso/non-empty.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import { captureCorpusPluginHost } from "./corpus-plugin-host.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
@@ -112,15 +113,15 @@ test("native plugin values render once in authored injections without re-expandi
       intent: { maxOutputTokens: 64 },
       guided: { action: "response", input: "Prepared steer {{incvar::steerEscape}}", placement: { kind: "inject", role: "user" } },
     });
-  expect((await send(actors.owner, library.persona.id)).aborted).toBe(false);
-  const ownerWire = bodies.at(-1);
-  expect(ownerWire).toBeDefined();
+  const owned = await appendedBy(bodies, () => send(actors.owner, library.persona.id));
+  expect(owned.outcome.aborted).toBe(false);
+  const ownerWire = owned.newest;
   for (const position of CHAT_INJECTION_POSITIONS) {
     expect(ownerWire).toContain(`${position}: ${neutralizeMacros(OWNER_VALUE)} / ${library.character.name} / ${library.persona.name} /`);
   }
   expect(ownerWire).toContain("ordered-first: 1");
   expect(ownerWire).toContain("ordered-second: 1");
-  expect(ownerWire?.indexOf("ordered-first:")).toBeLessThan(ownerWire?.indexOf("ordered-second:") ?? 0);
+  expect(ownerWire.indexOf("ordered-first:")).toBeLessThan(ownerWire.indexOf("ordered-second:"));
   expect(ownerWire).toContain(neutralizeMacros("Prepared steer {{incvar::steerEscape}}"));
   expect(ownerWire).not.toContain(BROKEN);
   expect(ownerWire).not.toContain(PRIVATE_FAILURE);
@@ -157,10 +158,10 @@ test("native plugin values render once in authored injections without re-expandi
   const online = new AbortController();
   presenceLifetime.defer(() => online.abort());
   await connectDevice(root, root.ownerId, online.signal);
-  const priorRequests = bodies.length;
-  expect((await send(member, persona.id)).aborted).toBe(false);
-  expect(bodies).toHaveLength(priorRequests + 1);
-  const memberWire = bodies.at(-1);
+  const memberTurn = await appendedBy(bodies, () => send(member, persona.id));
+  expect(memberTurn.outcome.aborted).toBe(false);
+  expect(memberTurn.entries).toHaveLength(1);
+  const memberWire = memberTurn.newest;
   expect(memberWire).toContain(`in_chat: ${neutralizeMacros(OWNER_VALUE)} / ${library.character.name} / ${library.persona.name} /`);
   expect(memberWire).toContain(`${persona.name}: Consume authored native injections.`);
   expect(memberWire).not.toContain(neutralizeMacros(MEMBER_VALUE));
@@ -171,9 +172,10 @@ test("native plugin values render once in authored injections without re-expandi
   });
 
   await root.services.plugin.setEnabled({ caller: actors.owner, pluginId: installed.plugin.id, enabled: false });
-  expect((await send(actors.owner, library.persona.id)).aborted).toBe(false);
-  expect(bodies.at(-1)).not.toContain(neutralizeMacros(OWNER_VALUE));
-  expect(bodies.at(-1)).not.toContain(neutralizeMacros(MEMBER_VALUE));
+  const disabled = await appendedBy(bodies, () => send(actors.owner, library.persona.id));
+  expect(disabled.outcome.aborted).toBe(false);
+  expect(disabled.newest).not.toContain(neutralizeMacros(OWNER_VALUE));
+  expect(disabled.newest).not.toContain(neutralizeMacros(MEMBER_VALUE));
   expect((await captureCorpusPluginHost(root, installed.plugin.id)).observations[COUNT]).toBe(2);
   expect(await caller.chat.getRuntimeVariables({ chatId })).toMatchObject({ injectionRuns: "3" });
   expect(await caller.chat.listChatInjections({ chatId })).toEqual(expect.arrayContaining(templates));
@@ -188,21 +190,19 @@ test("native plugin values render once in authored injections without re-expandi
     opening: "none",
   });
   await other.chat.setChatInjection({ chatId: memberRoom.chat.id, position: "in_chat", role: "system", depth: 0, content: `member-owned: ${MACRO}` });
-  const beforeOwned = bodies.length;
-  expect(
-    (
-      await root.services.chat.send({
-        principal: member,
-        chatId: memberRoom.chat.id,
-        content: "Own funding scope.",
-        timeZone: UTC_TIME_ZONE,
-        intent: { maxOutputTokens: 64 },
-      })
-    ).aborted,
-  ).toBe(false);
-  expect(bodies).toHaveLength(beforeOwned + 1);
-  expect(bodies.at(-1)).toContain(`member-owned: ${neutralizeMacros(MEMBER_VALUE)}`);
-  expect(bodies.at(-1)).not.toContain(neutralizeMacros(OWNER_VALUE));
+  const memberOwned = await appendedBy(bodies, () =>
+    root.services.chat.send({
+      principal: member,
+      chatId: memberRoom.chat.id,
+      content: "Own funding scope.",
+      timeZone: UTC_TIME_ZONE,
+      intent: { maxOutputTokens: 64 },
+    }),
+  );
+  expect(memberOwned.outcome.aborted).toBe(false);
+  expect(memberOwned.entries).toHaveLength(1);
+  expect(memberOwned.newest).toContain(`member-owned: ${neutralizeMacros(MEMBER_VALUE)}`);
+  expect(memberOwned.newest).not.toContain(neutralizeMacros(OWNER_VALUE));
   expect((await captureCorpusPluginHost(root, memberInstall.plugin.id, member.userId)).observations[COUNT]).toBe(1);
   expect((await captureCorpusPluginHost(root, installed.plugin.id)).observations[COUNT]).toBe(2);
 });

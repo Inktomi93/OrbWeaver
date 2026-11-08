@@ -4,6 +4,7 @@
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { oidcPendingSignups, oidcTransactions, users } from "@orb/db";
 import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
+import { nonEmpty } from "../iso/non-empty.ts";
 import { seedOidcCorpus } from "./corpus-seed.ts";
 import { expect, test } from "./fixtures.ts";
 import { createNativeIssuer, ISSUER, NATIVE_OIDC_SETTINGS } from "./oidc-issuer.ts";
@@ -35,7 +36,7 @@ test.each([false, true])("native corpus captures real consumed OIDC rows and app
   const capture = await seedOidcCorpus(root, issuer);
   expect(capture.transactions.length).toBe(2);
   expect(new Set(capture.transactions.map((row) => row.state)).size).toBe(2);
-  expect(capture.transactions.every((row) => row.codeVerifier.length > 0 && row.nonce !== null && row.expiresAt > row.createdAt)).toBe(true);
+  expect(nonEmpty(capture.transactions).every((row) => row.codeVerifier.length > 0 && row.nonce !== null && row.expiresAt > row.createdAt)).toBe(true);
   expect((await root.db.select({ state: oidcTransactions.state }).from(oidcTransactions)).length).toBe(0);
   expect((await root.db.select({ subject: oidcPendingSignups.subject }).from(oidcPendingSignups)).length).toBe(0);
   expect(capture.pending.subject === capture.joiner.externalId).toBe(true);

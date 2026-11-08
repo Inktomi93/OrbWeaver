@@ -6,6 +6,7 @@
 // The impeccable-adapted checks (origin "impeccable") each get a firing fixture AND a passing/exempt
 // control — a green that cannot fail is not a fence.
 
+import { nonEmpty, present } from "@orb/testkit/iso";
 import type { PureAuditRuleProof } from "@orb/testkit/node";
 import { expect, test } from "@orb/testkit/tooling";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
@@ -76,7 +77,7 @@ const FLAT_WHITE: Backdrop = { kind: "flat", color: WHITE };
 
 function auditRuleTest(proofs: readonly PureAuditRuleProof[], title: string, fn: () => void | Promise<void>): void {
   test(title, () => {
-    expect(proofs.every((proof) => proof.reason.trim() !== "")).toBe(true);
+    expect(nonEmpty(proofs).every((proof) => proof.reason.trim() !== "")).toBe(true);
     return fn();
   });
 }
@@ -1986,7 +1987,7 @@ auditRuleTest(
       "RangeError: w\n  at c.js:4", // over the cap
     ]);
     expect(findings).toHaveLength(3);
-    expect(findings.every((f) => f.severity === "P0" && f.rule === "script-error")).toBe(true);
+    expect(nonEmpty(findings).every((f) => f.severity === "P0" && f.rule === "script-error")).toBe(true);
   },
 );
 
@@ -2147,7 +2148,7 @@ test("a withheld reason with a known remedy prints it; one without keeps the bar
   expect(remedied).toContain("Remedy —");
   // THE CONTROL. The remedy map is deliberately sparse — a reason with no verified operator action must
   // print exactly as before rather than carry invented advice.
-  expect(populationEvidenceGap({ "obscured-target": withheldAs("unaskable") })?.detail).not.toContain("Remedy —");
+  expect(present(populationEvidenceGap({ "obscured-target": withheldAs("unaskable") })).detail).not.toContain("Remedy —");
 });
 
 test("one withheld rule is a partial population: the other rules keep their verdicts", () => {
@@ -2336,7 +2337,7 @@ test("collectFindings fans the impeccable-adapted sample families out too, origi
   });
   const rules = findings.map((f) => f.rule).sort((a, b) => a.localeCompare(b));
   expect(rules).toEqual(["broken-image", "off-theme-font", "text-below-ramp", "text-overflow"]);
-  expect(findings.every((f) => f.origin === "impeccable")).toBe(true);
+  expect(nonEmpty(findings).every((f) => f.origin === "impeccable")).toBe(true);
 });
 
 test("collectFindings on an all-clean bundle (incl. a present main landmark) returns nothing", () => {

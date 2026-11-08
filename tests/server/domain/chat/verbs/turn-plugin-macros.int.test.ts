@@ -9,7 +9,7 @@ import type { PluginId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { installMacroGuest } from "@orb/testkit/node/composed";
-import { textRoom, wireBodies, wireText } from "../scenario-physical.ts";
+import { textRoom, wireOf, wireText } from "../scenario-physical.ts";
 
 // One step of the root's scoped clock; the poll repeats it until the macro deadline has passed.
 const TICK_MS = 250;
@@ -38,19 +38,16 @@ async function macroNameOf(h: ChatRoot, pluginId: PluginId): Promise<string> {
   return row.name;
 }
 
-async function newestWire(h: ChatRoot): Promise<string> {
-  const body = (await wireBodies(h)).at(-1);
-  if (body === undefined) {
-    throw new Error("the room made no chat-completions request");
-  }
-  return wireText(body);
+type SendOutcome = Awaited<ReturnType<ChatRoot["root"]["services"]["chat"]["send"]>>;
+
+/** Run the send and read every string of the newest request it sent. */
+async function sentWire(h: ChatRoot, send: () => Promise<SendOutcome>): Promise<{ readonly sent: SendOutcome; readonly wire: string }> {
+  const { outcome, newest } = await wireOf(h, send);
+  return { sent: outcome, wire: wireText(newest) };
 }
 
 /** The macro slice the host reads back for the turn's assistant variant. */
-async function storedSlice(
-  h: ChatRoot,
-  messages: Awaited<ReturnType<ChatRoot["root"]["services"]["chat"]["send"]>>["messages"],
-): Promise<MacroSlice | null | undefined> {
+async function storedSlice(h: ChatRoot, messages: SendOutcome["messages"]): Promise<MacroSlice | null | undefined> {
   const assistant = messages.find((message) => message.role === "assistant");
   if (assistant === undefined) {
     throw new Error("the turn produced no assistant message");
@@ -72,10 +69,9 @@ test("two plugins resolve to their own values in the turn, and the stored slice 
   const legacyOmen = "plugin_oracle_deck_omen";
   await writeOnCard(h, probe([omen, legacyOmen, tally]));
 
-  const sent = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Draw." });
+  const { sent, wire } = await sentWire(h, () => h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Draw." }));
 
   expect(sent.aborted).toBe(false);
-  const wire = await newestWire(h);
   expect(wire).toContain(`${omen}=OMEN-VALUE`);
   expect(wire).toContain(`${tally}=TALLY-VALUE`);
   expect(wire).toContain(`${legacyOmen}=OMEN-VALUE`);
@@ -97,9 +93,8 @@ test("a legacy spelling two plugins both claim stays with the live name in the t
   const plain = await installMacroGuest(h.root, h.owner, { slug: "foo" }, [{ name: "bar_baz", description: "d", answer: "PLAIN-VALUE" }]);
   await writeOnCard(h, probe([claimed]));
 
-  const sent = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Go." });
+  const { sent, wire } = await sentWire(h, () => h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Go." }));
 
-  const wire = await newestWire(h);
   expect(wire).toContain(`${claimed}=PLAIN-VALUE`);
   expect(wire).not.toContain("HYPHEN-VALUE");
   expect((await storedSlice(h, sent.messages))?.registered).toContainEqual({ name: claimed, source: { kind: "plugin", id: plain } });
@@ -113,22 +108,24 @@ test("a plugin macro that never answers renders empty at the deadline in the tur
   const quick = await installMacroGuest(h.root, h.owner, { slug: "quick-deck" }, [{ name: "quick", description: "Answers.", answer: "QUICK-VALUE" }]);
   await writeOnCard(h, `Omen:[{{${await macroNameOf(h, slow)}}}] Quick:[{{${await macroNameOf(h, quick)}}}]`);
 
-  let settled = false;
-  const sending = h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Go." }).finally(() => {
-    settled = true;
+  const { sent, wire } = await sentWire(h, async () => {
+    let settled = false;
+    const sending = h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Go." }).finally(() => {
+      settled = true;
+    });
+    await expect
+      .poll(
+        () => {
+          h.root.timers.advance(TICK_MS);
+          return settled;
+        },
+        { timeout: POLL_TIMEOUT_MS, interval: 25 },
+      )
+      .toBe(true);
+    return await sending;
   });
-  await expect
-    .poll(
-      () => {
-        h.root.timers.advance(TICK_MS);
-        return settled;
-      },
-      { timeout: POLL_TIMEOUT_MS, interval: 25 },
-    )
-    .toBe(true);
 
-  expect((await sending).aborted).toBe(false);
-  const wire = await newestWire(h);
+  expect(sent.aborted).toBe(false);
   expect(wire).toContain("Omen:[]");
   expect(wire).toContain("Quick:[QUICK-VALUE]");
 });

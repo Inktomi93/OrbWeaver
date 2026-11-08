@@ -5,6 +5,7 @@ import { assertReferentialIntegrity } from "@orb/db";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { createFrozenClock } from "../iso/clock.ts";
 import { createSeededIds } from "../iso/ids.ts";
+import { nonEmpty } from "../iso/non-empty.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import { seedCorpusConnection } from "./corpus-connection.ts";
 import {
@@ -181,7 +182,7 @@ test("native connection catalog, capability and account outputs retain real task
   expect(result.refusals.errors[9]).toMatchObject({ cause: { code: CONNECTION_OP_CODES.baseUrlShape } });
   expect(result.refusals.errors[10]).toMatchObject({ cause: { code: CONNECTION_OP_CODES.providerUnknown } });
   expect(result.refusals.errors[11]).toMatchObject({ cause: { code: CONNECTION_OP_CODES.baseUrlShape } });
-  expect(result.refusals.errors.slice(12, 14).every((error) => error instanceof Error)).toBe(true);
+  expect(nonEmpty(result.refusals.errors.slice(12, 14)).every((error) => error instanceof Error)).toBe(true);
   expect(result.refusals.errors[14]).toMatchObject({ cause: { code: CONNECTION_OP_CODES.backgroundRefused } });
   expect(result.refusals.errors[15]).toMatchObject({ cause: { code: CONNECTION_OP_CODES.taskUnservable } });
   expect(result.refusals.removed.find((row) => row.task === "summarize")).toMatchObject({

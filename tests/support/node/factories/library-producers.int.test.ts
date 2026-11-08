@@ -15,6 +15,7 @@ import { DomainConflictError } from "@orb/kit/errors";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { ensureSystemDefaultPreset } from "@orb/server/domain/preset";
 import { eq } from "drizzle-orm";
+import { present } from "../../iso/non-empty.ts";
 import { makePromptConfig } from "../../iso/preset-config.ts";
 import { CORPUS_LIBRARY_RULE_PRESET } from "../corpus-library-views.ts";
 import { seedCorpusLibraries } from "../corpus-seed.ts";
@@ -137,8 +138,8 @@ test("genuine preset export/import captures additive collision, content reuse an
   const repeated = await seedImportedPresetRows(root, actor.id, { fileText: text });
   expect(imported.outcome).toMatchObject({ ok: true, created: true, presetId: imported.row?.id, renamedFrom: source.view.name });
   expect(imported.row).toMatchObject({ ownerId: actor.id, config: source.row.config, forkedFrom: null });
-  expect(imported.row?.id).not.toBe(collision.row.id);
-  expect(imported.row?.name).not.toBe(collision.row.name);
+  expect(present(imported.row).id).not.toBe(collision.row.id);
+  expect(present(imported.row).name).not.toBe(collision.row.name);
   expect(repeated.outcome).toMatchObject({ ok: true, created: false, presetId: imported.row?.id });
   expect(repeated.row).toEqual(imported.row);
   expect(await root.db.select().from(presets).where(eq(presets.id, collision.row.id)).get()).toEqual(collision.row);

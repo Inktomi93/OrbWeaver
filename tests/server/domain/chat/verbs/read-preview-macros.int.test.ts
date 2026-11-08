@@ -15,7 +15,7 @@ import type { ChatRoot } from "@orb/testkit/node/composed";
 import { installMacroGuest } from "@orb/testkit/node/composed";
 import { CHAT_OP_CODES } from "#server/domain/chat/contract/errors.ts";
 import { invitePerson } from "../persona-cache-physical.ts";
-import { textRoom, wireBodies, wireText } from "../scenario-physical.ts";
+import { textRoom, wireOf, wireText } from "../scenario-physical.ts";
 import { GAME_MOOD } from "./turn-rpg-macro-data.ts";
 import { turnRpgRoom } from "./turn-rpg-physical.ts";
 
@@ -122,8 +122,9 @@ test("a preview names a plugin's macros, hyphen alias included, without a value 
   await everyPreview(h, member);
 
   // Counting runs in the guest's own storage: the first run of all is the turn's, so no preview ran it.
-  expect((await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Draw." })).aborted).toBe(false);
-  const wire = wireText((await wireBodies(h)).at(-1) ?? null);
+  const { outcome, newest } = await wireOf(h, () => h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "Draw." }));
+  expect(outcome.aborted).toBe(false);
+  const wire = wireText(newest);
   expect(wire).toContain(`${live}=1`);
   expect(wire).toContain(`${legacy}=1`);
 });

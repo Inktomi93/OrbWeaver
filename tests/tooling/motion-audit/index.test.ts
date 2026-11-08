@@ -14,6 +14,7 @@
 // gated number, making "journey under 0.1" unreachable by any app fix short of changing the virtualizer.
 // This file's home is the tests/tooling/motion-audit mirror (Spine-Testing.md §2).
 
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import type { AnimationRecord, AuditData, BrowserEnvironmentEvidence, MotionFlagRecord } from "../../../tooling/src/motion-audit/index.ts";
 import {
@@ -590,7 +591,7 @@ test("READY-TIMEOUT is diagnosed as readiness, NEVER as a missing bridge", () =>
     const gap = apparatusGap({ url: APPARATUS_URL, ready: false, bridge, readyTimeoutMs: READY_MS });
     expect(gap?.evidence).toBe("app readiness (data-app-ready)");
     // The exact wrong claim, asserted as one that must not be made.
-    expect(gap?.evidence).not.toContain("__orb dev bridge");
+    expect(present(gap).evidence).not.toContain("__orb dev bridge");
   }
 });
 

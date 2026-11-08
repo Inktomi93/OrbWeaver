@@ -1,5 +1,6 @@
 // @subject tests/support/node/corpus-rpg-outputs.ts
 import { assertReferentialIntegrity } from "@orb/db";
+import { present } from "../iso/non-empty.ts";
 import { RPG_OUTPUT_NAME, RPG_OUTPUT_NAME_MAX, RPG_OUTPUT_SECRET, seedCorpusRpgOutputs } from "./corpus-rpg-outputs.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
@@ -21,7 +22,7 @@ test("native RPG outputs preserve actor rekeying, disclosed name clamping, deter
   const promoted = result.afterPromotion.actors.find((entry) => entry.actorRef.kind === "character" && entry.actorRef.characterId !== foundingCharacterId);
   expect(promoted?.actorRef.kind).toBe("character");
   expect(promoted?.name).toHaveLength(RPG_OUTPUT_NAME_MAX);
-  expect(promoted?.name).not.toBe(RPG_OUTPUT_NAME);
+  expect(present(promoted).name).not.toBe(RPG_OUTPUT_NAME);
   expect(promoted?.identity).toBeNull();
   expect(promoted?.volatile?.inventory).toEqual(actor?.volatile?.inventory);
   expect(result.afterPromotion.actors).not.toContainEqual(actor);

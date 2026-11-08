@@ -7,6 +7,7 @@ import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/id
 import { importStartedSchema } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { streamConnectInputSchema } from "@orb/contracts/stream";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -72,7 +73,7 @@ test("a stream socket's room pump is supervised under the root's seeded nonce", 
     await ownerCaller.stream.attach({ socketId, ref: { channel: "chat", chatId: room.id }, sinceSeq: null });
     await ownerCaller.stream.detach({ socketId, ref: { channel: "chat", chatId: room.id } });
     await expect.poll(() => startedCounters(harness, before, prefix)).toHaveLength(1);
-    expect(startedCounters(harness, before, prefix).every(mintedWithin(minted, harness.ids.snapshot()))).toBe(true);
+    expect(nonEmpty(startedCounters(harness, before, prefix)).every(mintedWithin(minted, harness.ids.snapshot()))).toBe(true);
   } finally {
     await frames.return?.();
   }

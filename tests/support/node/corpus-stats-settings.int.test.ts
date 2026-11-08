@@ -4,6 +4,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { assertReferentialIntegrity } from "@orb/db";
 import { seedThemes } from "@orb/server/entry/boot";
+import { present } from "../iso/non-empty.ts";
 import { bootGrantFor } from "./boot-grant.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
@@ -155,7 +156,7 @@ test("native stats preserve nonzero retained history and user preferences surviv
   expect(settings.importedAgain.output).toMatchObject({ created: false });
   const importedSource = settings.importedThemes.output.find((theme) => theme.name === settings.source.output.name);
   expect(importedSource).toBeDefined();
-  expect(importedSource?.id).not.toBe(settings.source.output.id);
+  expect(present(importedSource).id).not.toBe(settings.source.output.id);
   expect(importedSource).toMatchObject({ override: settings.source.output.override, css: settings.source.output.css, isSeed: false });
   expect(settings.collision.output).toMatchObject({ created: true, renamedFrom: settings.source.output.name });
   expect(settings.collision.output.name).not.toBe(settings.source.output.name);

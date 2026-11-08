@@ -9,6 +9,7 @@ import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { SEED_MANIFEST } from "@orb/default-content";
 import { NoConnectionError } from "@orb/inference";
 import { hydrateCorpusWire, parseCorpusWire, serializeCorpusWire } from "../iso/corpus.ts";
+import { nonEmpty, present } from "../iso/non-empty.ts";
 import { seedCorpusActors, seedCorpusConnections } from "./corpus-actors.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import { seedSyntheticCorpus } from "./corpus-seed.ts";
@@ -107,7 +108,7 @@ test("the sole corpus seed retains actual turns, ingestion, library FKs and cook
   expect(corpus.rows.soloMessages.length).toBeGreaterThan(0);
   expect(corpus.rows.groupMessages.length).toBeGreaterThan(0);
   expect(corpus.seed.ingest.failed).toEqual([]);
-  expect(corpus.rows.documentChunks.every((row) => row.documentId === corpus.seed.document.document.id)).toBe(true);
+  expect(nonEmpty(corpus.rows.documentChunks).every((row) => row.documentId === corpus.seed.document.document.id)).toBe(true);
   expect(corpus.rows.documentChunks.map((row) => Array.from(row.embedding))).toEqual(corpus.rows.documentChunks.map(() => [...CORPUS_EMBEDDING_VECTOR]));
   expect(corpus.rows.worldInfo.book.id).toBe(corpus.seed.worldBook?.id);
   expect(corpus.rows.worldInfo.entries.map((row) => row.id).toSorted()).toEqual(corpus.seed.worldEntries.map((entry) => entry.id).toSorted());
@@ -130,7 +131,7 @@ test("the sole corpus seed retains actual turns, ingestion, library FKs and cook
   }
   const characterKeys = SEED_MANIFEST.filter((item) => item.kind === "character").map((item) => item.key);
   expect(corpus.rows.seedLedger.map((row) => row.itemKey)).toEqual(expect.arrayContaining(characterKeys));
-  expect(corpus.rows.seedLedger.every((row) => row.userId === root.ownerId)).toBe(true);
+  expect(nonEmpty(corpus.rows.seedLedger).every((row) => row.userId === root.ownerId)).toBe(true);
   expect(corpus.rows.ownerStats.models.some((row) => row.model === CORPUS_TEXT_MODEL && row.tokensOut > 0)).toBe(true);
   expect(corpus.rows.ownerStats.owner.ownerId).toBe(root.ownerId);
   expect(corpus.rows.secondUserStats.owner.ownerId).toBe(secondUserId);
@@ -170,15 +171,15 @@ test("the shared recall preparation captures genuine memory rows and fresh nonem
   }
   expect(recall.first.messages.map((message) => message.role)).toEqual(["user", "assistant"]);
   expect(recall.recalled.messages.map((message) => message.role)).toEqual(["user", "assistant"]);
-  expect(recall.recalled.messages.find((message) => message.role === "assistant")?.contextBoundaryMessageId).not.toBeNull();
+  expect(present(recall.recalled.messages.find((message) => message.role === "assistant")).contextBoundaryMessageId).not.toBeNull();
   expect(recall.jobs.map((job) => job.kind).toSorted()).toEqual(["databank-reindex", "index", "memory-backfill"]);
-  expect(recall.jobs.every((job) => job.status === "succeeded")).toBe(true);
+  expect(nonEmpty(recall.jobs).every((job) => job.status === "succeeded")).toBe(true);
   expect(recall.memory.segments.length).toBeGreaterThan(0);
   expect(recall.memory.digests.length).toBeGreaterThan(0);
-  expect(recall.memory.segments.every((row) => row.chatId === recall.chatId && row.contentHash.length > 0)).toBe(true);
-  expect(recall.memory.digests.every((row) => row.chatId === recall.chatId)).toBe(true);
+  expect(nonEmpty(recall.memory.segments).every((row) => row.chatId === recall.chatId && row.contentHash.length > 0)).toBe(true);
+  expect(nonEmpty(recall.memory.digests).every((row) => row.chatId === recall.chatId)).toBe(true);
   expect(recall.memory.speakers.some((row) => row.characterId === historySpeaker)).toBe(true);
-  expect(recall.memory.speakers.every((row) => recall.memory.digests.some((digest) => digest.id === row.digestId))).toBe(true);
+  expect(nonEmpty(recall.memory.speakers).every((row) => recall.memory.digests.some((digest) => digest.id === row.digestId))).toBe(true);
   expect(recall.traces.some((trace) => trace.queryEmbedded && trace.poolSize > 0)).toBe(true);
   const lastEncoder = wire.requests.lastIndexOf("POST /v1/embeddings");
   expect(lastEncoder).toBeGreaterThan(-1);

@@ -3,6 +3,7 @@
 // @subject tests/support/node/corpus-knowledge-wire.ts
 import { assertReferentialIntegrity } from "@orb/db";
 import sharp from "sharp";
+import { nonEmpty } from "../iso/non-empty.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import { CORPUS_KNOWLEDGE_IMAGE_SIZES } from "./corpus-knowledge-images.ts";
 import { seedCorpusKnowledgeVariants } from "./corpus-knowledge-variants.ts";
@@ -39,7 +40,7 @@ test("default-grid canon produces real arc themes and selected reroll hotspots w
   expect(result.themeJobs).toMatchObject([{ kind: "compute-themes", status: "succeeded", ownerId: root.ownerId }]);
   const higher = result.memory.digests.filter((digest) => digest.tier > 0);
   expect(higher.length).toBeGreaterThan(0);
-  expect(higher.every((digest) => digest.text.includes("preserved the harbor witnesses"))).toBe(true);
+  expect(nonEmpty(higher).every((digest) => digest.text.includes("preserved the harbor witnesses"))).toBe(true);
   const arcs = result.themes.clusters.filter((cluster) => cluster.level === "arc");
   expect(arcs.length).toBeGreaterThan(0);
   expect(result.home.arcThemes.map((theme) => theme.id)).toEqual(arcs.map((cluster) => cluster.id));
@@ -47,8 +48,8 @@ test("default-grid canon produces real arc themes and selected reroll hotspots w
   const assignments = result.themes.assignments.filter((row) => higher.some((digest) => digest.id === row.digestId));
   expect(assignments.length).toBeGreaterThan(0);
   const storyTimes = result.history.flatMap((turn) => turn.messages.map((message) => message.createdAt));
-  expect(assignments.every((row) => row.msgMidAt !== null && storyTimes.includes(row.msgMidAt))).toBe(true);
-  expect(assignments.every((row) => row.msgMidAt !== row.computedAt)).toBe(true);
+  expect(nonEmpty(assignments).every((row) => row.msgMidAt !== null && storyTimes.includes(row.msgMidAt))).toBe(true);
+  expect(nonEmpty(assignments).every((row) => row.msgMidAt !== row.computedAt)).toBe(true);
   expect(result.singleTake).toEqual([]);
   expect(result.firstHotspot).toMatchObject([{ messageId: result.slot.id, variantCount: 2, snippet: CORPUS_KNOWLEDGE_SWIPE_TAKES[1] }]);
   expect(result.secondHotspot).toMatchObject([{ messageId: result.slot.id, variantCount: 3, snippet: CORPUS_KNOWLEDGE_SWIPE_TAKES[2] }]);
@@ -61,17 +62,17 @@ test("default-grid canon produces real arc themes and selected reroll hotspots w
   expect(swipes.remaining()).toBe(0);
   expect(swipes.requests).toHaveLength(3);
   expect(result.images.assets.map(({ width, height }) => ({ width, height }))).toEqual([...CORPUS_KNOWLEDGE_IMAGE_SIZES]);
-  expect(result.images.assets.every((asset) => asset.kind === "avatar" && asset.mime === "image/gif")).toBe(true);
+  expect(nonEmpty(result.images.assets).every((asset) => asset.kind === "avatar" && asset.mime === "image/gif")).toBe(true);
   for (const [index, capture] of result.images.indexed.entries()) {
     expect(capture.skip).toBeUndefined();
     expect(capture.vectors.map((row) => row.lens)).toEqual(["image-captioned", "image-raw"]);
-    expect(capture.vectors.every((row) => row.assetId === result.images.assets[index]?.id && row.dim === CORPUS_EMBEDDING_VECTOR.length)).toBe(true);
+    expect(nonEmpty(capture.vectors).every((row) => row.assetId === result.images.assets[index]?.id && row.dim === CORPUS_EMBEDDING_VECTOR.length)).toBe(true);
     expect(new Set(capture.vectors.map((row) => row.generationId)).size).toBe(1);
     expect(capture.analysis).toMatchObject({
       contentHash: result.images.assets[index]?.hash,
       captionMeta: { model: CORPUS_TEXT_MODEL, artStyle: "illustration" },
     });
-    expect(capture.vectors.every((row) => row.contentHash === capture.analysis?.contentHash)).toBe(true);
+    expect(nonEmpty(capture.vectors).every((row) => row.contentHash === capture.analysis?.contentHash)).toBe(true);
     expect(capture.analysis?.revision).toBeGreaterThan(0);
     expect(result.images.repeated[index]?.vectors).toEqual(capture.vectors);
   }

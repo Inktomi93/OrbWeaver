@@ -5,6 +5,7 @@
 // required and a missing typed population cannot read as a clean structured verdict.
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { ZodError } from "zod";
 import {
@@ -352,7 +353,7 @@ test("current writer is cold-agent-readable, preserves pair bytes, and never emi
     context: { kind: "exact", value: 0 },
     page: { kind: "exact", value: 0 },
   });
-  expect(index.artifacts.every((row) => row.scope.kind === "scope-v1")).toBe(true);
+  expect(nonEmpty(index.artifacts).every((row) => row.scope.kind === "scope-v1")).toBe(true);
   expect(JSON.stringify(raw)).not.toMatch(/"(?:page|context|window)":null/u);
   expect(index.resultPairs).toEqual(resultPairsOf(run.stdout.split("\n")));
 
@@ -383,7 +384,7 @@ test("legacy v1 null triples normalize only in the reader and malformed current 
     await writeFile(path, `${JSON.stringify(legacy)}\n`);
     const read = await readSnapRunIndex(path);
     expect(read.results).toBeUndefined();
-    expect(read.artifacts.every((row) => row.scope.kind === "legacy")).toBe(true);
+    expect(nonEmpty(read.artifacts).every((row) => row.scope.kind === "legacy")).toBe(true);
 
     const malformed = {
       ...current,

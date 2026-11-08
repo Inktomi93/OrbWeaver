@@ -6,7 +6,7 @@ import { chats, createDb, runMigrations } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import { migrationsBefore, ownDb, plantLegacyZeroCanon, SHIPPED_MIGRATIONS } from "@orb/testkit/node/composed";
 import { eq } from "drizzle-orm";
-import { importedSeqs, textRoom } from "../scenario-physical.ts";
+import { importedSeqs, textRoom, wireOf } from "../scenario-physical.ts";
 
 const MIGRATION = "0005_renumber-imported-canon";
 const SUMMARY = "The traveller lit a lantern and the knight answered twice.";
@@ -63,11 +63,10 @@ test("a 0-based bundle import with a carried marker shows the row after the mark
 
   expect(await importedSeqs(h, imported.id)).toEqual([1, 2, 3, 4, 5, 6]);
   expect((await db.select({ at: chats.compactedAtSeq }).from(chats).where(eq(chats.id, imported.id)))[0]?.at).toBe(4);
-  const before = h.requests.length;
-  expect((await chat.send({ principal: h.owner, chatId: imported.id, content: "And then?" })).aborted).toBe(false);
-  const completions = h.requests.slice(before).filter((request) => request.method === "POST" && new URL(request.url).pathname.endsWith("/chat/completions"));
-  expect(completions).toHaveLength(1);
-  const wire = await completions[0]?.clone().text();
+  const { outcome: sent, bodies } = await wireOf(h, () => chat.send({ principal: h.owner, chatId: imported.id, content: "And then?" }));
+  expect(sent.aborted).toBe(false);
+  expect(bodies).toHaveLength(1);
+  const wire = JSON.stringify(bodies[0]);
   expect(wire).toContain(SUMMARY);
   expect(wire).toContain(AFTER_MARKER);
   expect(wire).toContain(AFTER_MARKER_REPLY);

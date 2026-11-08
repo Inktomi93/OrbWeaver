@@ -2,6 +2,7 @@
 import { readFileSync } from "node:fs";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import type { SpawnNicedOptions } from "@orb/tooling/floor/process/proc";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
@@ -146,7 +147,7 @@ test("development publication selects an exact source commit and cannot overwrit
   const build = image.steps.find((step) => step.uses?.startsWith("docker/build-push-action@") === true);
   // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(build?.with?.["tags"]).toBe("${{ env.IMAGE }}:sha-${{ github.sha }}\n");
-  expect(build?.with?.["push"]).not.toBe(true);
+  expect(present(present(build).with)["push"]).not.toBe(true);
   const stamp = image.steps.find((step) => step.name === "Prove development identity");
   expect(stamp?.run).toContain('.commit == $sha and .channel == "main"');
   const boot = image.steps.find((step) => step.name === "Prove fresh runtime boot");
@@ -156,7 +157,7 @@ test("development publication selects an exact source commit and cannot overwrit
   expect(publish).toBeGreaterThan(image.steps.findIndex((step) => step.name === "Prove development identity"));
   expect(publish).toBeGreaterThan(image.steps.findIndex((step) => step.name === "Prove fresh runtime boot"));
   expect(image.steps[publish]?.run).toContain('"$IMAGE:development"');
-  expect(image.steps[publish]?.run).not.toMatch(/:latest|:stable/u);
+  expect(present(image.steps[publish]).run).not.toMatch(/:latest|:stable/u);
   expect(read(repoRoot, "scripts/ci/anonymous-image-pull.sh")).toContain("--src-no-creds --preserve-digests");
   expect(read(repoRoot, "scripts/ci/anonymous-image-pull.sh")).toContain("oci:/proof/image:published");
 });
@@ -202,13 +203,13 @@ for (const [workflowName, cacheTag, publishName, proofName] of [
     // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
     expect(cacheExport?.["cache-to"]).toBe("type=registry,ref=${{ env.BUILD_CACHE }},mode=max,ignore-error=true");
     expect(env["BUILD_CACHE"]).toBe(`${env["IMAGE"]}:${cacheTag}`);
-    expect(build?.["tags"]).not.toContain(env["BUILD_CACHE"]);
+    expect(present(build)["tags"]).not.toContain(env["BUILD_CACHE"]);
     expect(build?.["load"]).toBe(true);
     // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
     expect(build?.["builder"]).toBe("${{ steps.builder.outputs.name }}");
-    expect(build?.["push"]).not.toBe(true);
-    expect(cacheExport?.["load"]).not.toBe(true);
-    expect(cacheExport?.["push"]).not.toBe(true);
+    expect(present(build)["push"]).not.toBe(true);
+    expect(present(cacheExport)["load"]).not.toBe(true);
+    expect(present(cacheExport)["push"]).not.toBe(true);
     expect(steps[exportIndex]?.uses).toBe(steps[buildIndex]?.uses);
     for (const key of ["context", "target", "platforms", "build-args", "builder"]) {
       expect(cacheExport?.[key], key).toBe(build?.[key]);
