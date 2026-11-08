@@ -391,7 +391,7 @@ test("selected native corpus settlement reads its exact admitted ID behind newer
   }
   const history = await caller.workloads.list();
   expect(history).toHaveLength(WORKLOAD_LIST_MAX_LIMIT);
-  expect(history.some((job) => job.id === admitted.id)).toBe(false);
+  expect(nonEmpty(history).some((job) => job.id === admitted.id)).toBe(false);
   const selected = await caller.workloads.get({ id: admitted.id });
   expect(selected).toMatchObject({ id: admitted.id, status: "succeeded" });
   expect(await settleCorpusWorkloads(root, caller, [admitted])).toEqual([selected]);

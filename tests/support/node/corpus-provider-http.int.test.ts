@@ -119,7 +119,7 @@ test("request-sensitive corpus embeddings preserve real near-duplicates without 
   expect(duplicates).toHaveLength(1);
   expect(new Set([duplicates[0]?.characterIdA, duplicates[0]?.characterIdB])).toEqual(new Set(pair.map((card) => card.id)));
   expect(duplicates[0]?.similarity).toBeCloseTo(1);
-  expect(duplicates.some((row) => row.characterIdA === cards[0]?.id || row.characterIdB === cards[0]?.id)).toBe(false);
+  expect(nonEmpty(duplicates).some((row) => row.characterIdA === cards[0]?.id || row.characterIdB === cards[0]?.id)).toBe(false);
   const [first, second] = pair;
   if (first === undefined || second === undefined) {
     throw new Error("native near-duplicate controls were not created");

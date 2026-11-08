@@ -1,5 +1,6 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { nonEmpty } from "@orb/testkit/iso";
 import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS } from "@orb/testkit/node";
 import { expect, test } from "@orb/testkit/tooling";
 
@@ -42,7 +43,7 @@ test("a closed inactive off-canvas pane stays in identity accounting without req
   });
   const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as ActivityAuditReport;
   expect(report.domPopulation.accounting).toMatchObject({ walked: 7, renderedSubjects: 4, retainedHiddenSubjects: 3 });
-  expect(report.findings.some(({ selector }) => selector?.includes("closed-") ?? false)).toBe(false);
+  expect(report.findings).toEqual([]);
   expect(result.stdout).not.toContain("INSTRUMENT ERROR");
 });
 
@@ -108,13 +109,13 @@ test("retained Activity-shaped DOM stays in identity accounting but outside the 
   });
   const report = JSON.parse(await readFile(auditReport(result.stdout), "utf8")) as ActivityAuditReport;
 
-  expect(report.findings.some(({ selector }) => selector?.includes("retained") ?? false)).toBe(false);
+  expect(nonEmpty(report.findings).some(({ selector }) => selector?.includes("retained") ?? false)).toBe(false);
   expect(
     report.findings.filter(({ rule }) => ["contrast", "skipped-heading", "tabindex-positive", "z-index-escalation", "aria-name", "tap-target"].includes(rule)),
   ).toHaveLength(0);
   expect(report.findings.some(({ rule, selector }) => rule === "inactive-control-legibility" && (selector?.includes("inert-paint") ?? false))).toBe(true);
   expect(
-    report.findings.some(
+    nonEmpty(report.findings).some(
       ({ rule, selector }) => ["aria-name", "tap-target", "duplicate-action-door"].includes(rule) && (selector?.includes("inert-control") ?? false),
     ),
   ).toBe(false);
@@ -160,6 +161,6 @@ test("a visibility-visible descendant is rendered and operable while its non-ove
   expect(report.findings.some(({ rule, selector }) => rule === "aria-name" && (selector?.includes("restored-control") ?? false))).toBe(true);
   expect(report.findings.some(({ rule, selector }) => rule === "tap-target" && (selector?.includes("restored-control") ?? false))).toBe(true);
   expect(report.findings.some(({ rule, selector }) => rule === "contrast" && (selector?.includes("restored-paint") ?? false))).toBe(true);
-  expect(report.findings.some(({ selector }) => selector?.includes("still-hidden") ?? false)).toBe(false);
+  expect(nonEmpty(report.findings).some(({ selector }) => selector?.includes("still-hidden") ?? false)).toBe(false);
   expect(report.domPopulation.accounting.retainedHiddenSubjects).toBeGreaterThan(0);
 });

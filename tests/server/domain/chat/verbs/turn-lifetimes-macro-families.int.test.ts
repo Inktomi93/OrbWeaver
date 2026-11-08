@@ -123,5 +123,5 @@ test("actual continuation of a length-capped native reply retains its original p
   const inputs = await wires(h);
   expect(inputs).toHaveLength(2);
   expect(nonEmpty(inputs).every((body) => body.includes("Scene tone: grim."))).toBe(true);
-  expect(inputs.some((body) => body.includes("Scene tone: wry."))).toBe(false);
+  expect(nonEmpty(inputs).some((body) => body.includes("Scene tone: wry."))).toBe(false);
 });

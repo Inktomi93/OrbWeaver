@@ -320,7 +320,7 @@ test("native stderr never publishes overlapping public fixture credential fragme
   ).rejects.toMatchObject({ kind: "server" });
   const lines = harness.observability.logLines(100).filter((line) => line.includes("sdk-overlap-diagnostic:"));
   expect(lines).toHaveLength(1);
-  expect(lines.some((line) => line.includes(PUBLIC_OVERLAP_TOKEN.slice(0, 8)))).toBe(false);
+  expect(nonEmpty(lines).some((line) => line.includes(PUBLIC_OVERLAP_TOKEN.slice(0, 8)))).toBe(false);
   expect(lines[0]).toContain("complete");
 });
 
@@ -342,8 +342,8 @@ test.each(["intact", "split"] as const)("native stderr protects a known sk-shape
   ).rejects.toMatchObject({ kind: "server" });
   const lines = harness.observability.logLines(100).filter((line) => line.includes(`sdk-shaped-diagnostic:${mode}:`));
   expect(lines).toHaveLength(1);
-  expect(lines.some((line) => line.includes(PUBLIC_SHAPED_TOKEN))).toBe(false);
-  expect(lines.some((line) => line.includes(PUBLIC_SHAPED_TOKEN.slice(32)))).toBe(false);
+  expect(nonEmpty(lines).some((line) => line.includes(PUBLIC_SHAPED_TOKEN))).toBe(false);
+  expect(nonEmpty(lines).some((line) => line.includes(PUBLIC_SHAPED_TOKEN.slice(32)))).toBe(false);
   expect(lines[0]).toContain("complete");
 });
 
@@ -588,7 +588,7 @@ test("default native decoder retains split UTF8 diagnostics with known credentia
   expect(lines).toHaveLength(1);
   expect(lines[0]).toContain("café");
   expect(lines[0]).toContain("complete");
-  expect(lines.some((line) => line.includes(SDK_TOKEN) || line.includes(JSON.stringify(SDK_TOKEN).slice(1, -1)))).toBe(false);
+  expect(nonEmpty(lines).some((line) => line.includes(SDK_TOKEN) || line.includes(JSON.stringify(SDK_TOKEN).slice(1, -1)))).toBe(false);
 });
 
 test("default native caller cancellation joins actual child while leaving its graph usable", async () => {
@@ -638,7 +638,7 @@ test("default native stderr protects an oversized known opaque credential in app
     .logLines()
     .filter((line) => line.includes("sdk-shaped-diagnostic:intact:") || line.includes("Claude Code process exited with code 7"));
   expect(lines).toHaveLength(1);
-  expect(lines.some((line) => line.includes("N".repeat(32)))).toBe(false);
+  expect(nonEmpty(lines).some((line) => line.includes("N".repeat(32)))).toBe(false);
 });
 
 const NATIVE_STARTUP_ARGS = ["--import", new URL("./sdk-native-startup-failure.ts", import.meta.url).href];
@@ -698,8 +698,11 @@ test.each(["chat", "verify"] as const)("default native startup diagnostics use s
   expect(failure.cause.stack?.includes("N".repeat(32))).toBe(false);
   expect(failure.cause.cause).toBeUndefined();
   expect(closed).toBe(true);
-  const lines = harness.observability.logLines(100).filter((line) => line.includes("sdk-native-startup-failure:"));
-  expect(lines.some((line) => line.includes("N".repeat(32)))).toBe(false);
+  // The startup stderr never reaches the log under its own prefix. A chat turn logs its failure and a verify logs nothing,
+  // so the leak check reads a known population on both paths.
+  const lines = harness.observability.logLines(100);
+  expect(lines.length > 0).toBe(operation === "chat");
+  expect(lines.filter((line) => line.includes("N".repeat(32)))).toEqual([]);
 });
 
 test("default native catalog refusal uses safe owned exit diagnostics", async () => {
@@ -725,8 +728,8 @@ test("default native catalog refusal uses safe owned exit diagnostics", async ()
   expect(result.reason.includes("N".repeat(32))).toBe(false);
   expect(result.reason).toContain("code 7");
   expect(closed).toBe(true);
-  const lines = harness.observability.logLines(100).filter((line) => line.includes("sdk-native-startup-failure:"));
-  expect(lines.some((line) => line.includes("N".repeat(32)))).toBe(false);
+  // The startup stderr never reaches the log: a refused catalog logs nothing at all.
+  expect(harness.observability.logLines(100)).toEqual([]);
 });
 
 test("default native concurrent exit does not relabel an unrelated caller event failure", async () => {
@@ -786,6 +789,6 @@ test("default native stderr never publishes a confirmed known credential prefix 
   });
   const lines = harness.observability.logLines(100).filter((line) => line.includes("sdk-prefix-eof:"));
   expect(lines).toHaveLength(1);
-  expect(lines.some((line) => line.includes("N".repeat(32)))).toBe(false);
+  expect(nonEmpty(lines).some((line) => line.includes("N".repeat(32)))).toBe(false);
   expect(lines[0]).toContain("█");
 });

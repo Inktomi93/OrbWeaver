@@ -158,7 +158,7 @@ test("the live window outranks relevance: a scene still verbatim in the prompt i
   const whole = await recallTurn(w.h, ask("bath"));
   expect(whole.trace.surfaced).toBe(0);
   expect(verdicts(whole.trace, "live-window").length).toBeGreaterThan(0);
-  expect(whole.trace.candidates.some((candidate) => candidate.verdict === "admitted")).toBe(false);
+  expect(nonEmpty(whole.trace.candidates).some((candidate) => candidate.verdict === "admitted")).toBe(false);
 });
 
 test("a ceiling below the consolidated tier keeps those digests out; raising it admits them", async () => {

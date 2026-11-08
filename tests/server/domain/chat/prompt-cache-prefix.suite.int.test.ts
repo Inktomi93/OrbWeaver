@@ -8,6 +8,7 @@ import { DEFAULT_MARKER_TEMPLATES, DEFAULT_PROMPT_CONFIG, promptSectionIdSchema 
 import { resolveProseText } from "@orb/contracts/prose";
 import type { JsonValue } from "@orb/kit/json";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { connectDevice, isOnline } from "@orb/testkit/node/composed";
@@ -25,7 +26,6 @@ import {
   seatPersona,
   withoutCacheDirective,
 } from "./persona-cache-physical.ts";
-
 import { MESSAGES_PATH, wireOf } from "./scenario-physical.ts";
 
 const newChatMarker = resolveProseText("preset.format.newChatMarker", {});
@@ -556,7 +556,7 @@ test("a real mid-conversation-system model retains depth-two and below-history s
   expect(blocks).toHaveLength(2);
   expect(nativeText(blocks[0] ?? null)).not.toContain(PER_TURN_NOTE);
   expect(nativeText(blocks[1] ?? null)).toContain(PER_TURN_NOTE);
-  expect(texts.some((text) => text.includes(PER_TURN_NOTE))).toBe(false);
+  expect(nonEmpty(texts).some((text) => text.includes(PER_TURN_NOTE))).toBe(false);
   expect(texts.slice(0, 2)).toEqual([`${newChatMarker}\n\nu1`, "a1"]);
   const index = texts.indexOf(DEPTH_TWO_NOTE);
   expect(rows[index]).toMatchObject({ role: "system" });
@@ -573,7 +573,7 @@ test("a real older model and strict preset fold the same system rows into user t
     const input = await placement(model, strict);
     const rows = inputMessages(input);
     const texts = rows.map(messageText);
-    expect(rows.some((row) => row !== null && typeof row === "object" && !Array.isArray(row) && row["role"] === "system")).toBe(false);
+    expect(nonEmpty(rows).some((row) => row !== null && typeof row === "object" && !Array.isArray(row) && row["role"] === "system")).toBe(false);
     expect(inputSystem(input)).toContain(PER_TURN_NOTE);
     const blocks = inputSystemBlocks(input);
     expect(blocks).toHaveLength(2);

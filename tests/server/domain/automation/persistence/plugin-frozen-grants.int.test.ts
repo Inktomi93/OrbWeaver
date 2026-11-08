@@ -5,6 +5,7 @@
 import { once } from "node:events";
 import { PLUGIN_CONTINUATION_WINDOW_MS } from "@orb/contracts/plugin";
 import { globalVariables } from "@orb/db";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { capturePluginRows } from "@orb/testkit/node/rows";
@@ -40,7 +41,7 @@ test("the parent rechecks a floated command's frozen grants on actual inherited-
     .poll(async () => (await guest.log()).map((line) => line.message))
     .toContain(`${STOPPED}Error:plugin broker: variables.set lacks capability global_vars`);
   expect(await root.db.select().from(globalVariables)).toEqual(before);
-  expect((await guest.log()).some((line) => line.message === "allowed completion")).toBe(false);
+  expect(nonEmpty(await guest.log()).some((line) => line.message === "allowed completion")).toBe(false);
   await expect(guest.invoke("noop")).resolves.toEqual({ toasts: [] });
 });
 
@@ -59,7 +60,7 @@ test("a real guest continuation retains its membrane grant refusal after the com
   delivery.release();
   await expect.poll(async () => (await guest.log()).map((line) => line.message).join("\n")).toContain(`${STOPPED}PluginCapabilityError:`);
   expect(await root.db.select().from(globalVariables)).toEqual(before);
-  expect(edge.delivered.some((value) => hasOperation(value, OP.variableWrite))).toBe(false);
+  expect(nonEmpty(edge.delivered).some((value) => hasOperation(value, OP.variableWrite))).toBe(false);
 });
 
 test("watchdog loss during activation fails closed without replay and permits only an explicit fresh activation", { timeout: NATIVE_TIMEOUT_MS }, async () => {

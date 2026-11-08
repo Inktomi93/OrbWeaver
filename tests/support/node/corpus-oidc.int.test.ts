@@ -58,7 +58,7 @@ test.each([false, true])("native corpus captures real consumed OIDC rows and app
     ...capture.ownerSessions.map((row) => row.tokenHash),
     ...capture.joinerSessions.map((row) => row.tokenHash),
   ].filter((value) => value !== null);
-  expect(secrets.some((secret) => wire.includes(secret))).toBe(false);
+  expect(nonEmpty(secrets).some((secret) => wire.includes(secret))).toBe(false);
 });
 
 test("a native JIT login cannot certify a pending-row corpus it did not produce", async () => {

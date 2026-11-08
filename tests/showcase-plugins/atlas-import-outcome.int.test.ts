@@ -1,6 +1,6 @@
 // These scripts observe guest requests and page outcomes, not application persistence or toast admission.
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
-import { createSeededIds } from "@orb/testkit/iso";
+import { createSeededIds, nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { AtlasBootOptions, CannedResponse } from "@orb/testkit/node/composed";
 import { bootAtlas, lastAtlasState } from "@orb/testkit/node/composed";
@@ -117,7 +117,7 @@ describe("the guest's provenance request does not hang off the notice", () => {
     const drive = await driveAdd({ ingest: () => ({ characterId: CHARACTER_ID, created: true }) });
 
     expect(drive.toasts.map(({ level }) => level)).toContain("success");
-    expect(drive.logs.some((line) => line.includes("toast refused"))).toBe(false);
+    expect(nonEmpty(drive.logs).some((line) => line.includes("toast refused"))).toBe(false);
     expect(drive.cardData.get(CHARACTER_ID)).toMatchObject({ source: "Wyvern", ref: "w1", keys: ["wyvern:w1"] });
     expect(drive.kv.has("owned:wyvern:w1")).toBe(false);
     expect(drive.ingests).toEqual([CHARACTER_ID]);

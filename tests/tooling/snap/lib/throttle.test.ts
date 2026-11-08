@@ -26,6 +26,9 @@ test("the stage's cold-vite budget and the load arm are independent causes, and 
   expect(driveBudgets({ isolated: true, cpuRate: 1, network: null }, CEILINGS)).toEqual({ nav: CEILINGS.stageNav, ready: CEILINGS.stageReady });
   // Stage wins nav and the throttle wins ready, so preferring either cause outright fails one axis.
   expect(driveBudgets({ isolated: true, cpuRate: 4, network: "slow-3g" }, CEILINGS)).toEqual({ nav: CEILINGS.stageNav, ready: CEILINGS.throttledReady });
+  // The opposite order on both axes, so taking one cause outright on a single axis fails here instead.
+  const reversed = { ...CEILINGS, stageNav: 20, throttledNav: 30, stageReady: 9, throttledReady: 7 };
+  expect(driveBudgets({ isolated: true, cpuRate: 4, network: "slow-3g" }, reversed)).toEqual({ nav: reversed.throttledNav, ready: reversed.stageReady });
 });
 
 test("the network vocabulary resolves DevTools' own names, aliases and refusals", () => {

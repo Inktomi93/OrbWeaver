@@ -266,7 +266,7 @@ test("perf meter thresholds are strict evidence but never become an exit gate", 
   expect(interactionPerfExit(EXIT.violations, [], null, breach)).toBe(EXIT.violations);
   expect(interactionPerfExit(EXIT.clean, [{ evidence: "planted", detail: "missing" }], null, boundary)).toBe(EXIT.toolError);
   expect(interactionPerfExit(EXIT.clean, [], "planted acceleration withhold", boundary)).toBe(EXIT.toolError);
-  expect(interactionPerfProblems(boundary, [], null, "assert").some((problem) => problem.metric === "rate-verdict")).toBe(false);
+  expect(interactionPerfProblems(boundary, [], null, "assert")).toEqual([]);
   expect(interactionPerfProblems(boundary, [], "planted acceleration withhold", "assert")).toContainEqual(
     expect.objectContaining({ kind: "evidence-gap", metric: "rate-verdict", observed: "withheld", threshold: "measured" }),
   );

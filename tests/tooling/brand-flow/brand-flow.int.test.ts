@@ -1,5 +1,7 @@
 // `pnpm brand-flow` over a planted tree: one case per class (mint, widen, re-narrow, missing, cross-brand), each with a
 // control the scan must leave alone. The kit ids module is a stub at the real path; the scan reads brands from the checker.
+
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { scanBrandFlow } from "../../../tooling/src/brand-flow/index.ts";
 import { JSX_NAMESPACE, LIB, WORLD } from "../unwired/_planted.ts";
@@ -119,7 +121,7 @@ test("the brand-flow scan reports each class with its slot, and leaves the contr
     ]),
   );
   // A brand slot and an interpolation are no widen.
-  expect(flow(report.widens).some(({ line }) => line === lineOf("chat satisfies ChatId") || line === lineOf("return `chat"))).toBe(false);
+  expect(nonEmpty(flow(report.widens)).some(({ line }) => line === lineOf("chat satisfies ChatId") || line === lineOf("return `chat"))).toBe(false);
 
   expect(flow(report.renarrows).map(({ line, how, proof }) => ({ line, how, proof }))).toEqual([
     { line: lineOf("castId<ChatId>(selected)"), how: "castId", proof: "slot-widened" },

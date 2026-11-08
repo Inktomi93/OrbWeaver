@@ -39,7 +39,9 @@ test("POSIX root TERM and group KILL permission refusals retain the actual produ
         },
       }),
     ).rejects.toThrow(`planted ${refused} permission refusal`);
-    expect(calls.filter(([, signal]) => signal !== 0).at(-1)).toEqual([refused === "SIGTERM" ? stop.record.pid : -stop.record.pid, refused]);
+    // The refused signal ends the sequence: nothing is sent after a permission refusal.
+    const term = [stop.record.pid, "SIGTERM"] as const;
+    expect(calls.filter(([, signal]) => signal !== 0)).toEqual(refused === "SIGTERM" ? [term] : [term, [-stop.record.pid, "SIGKILL"]]);
     expect(readFileSync(stop.pidfile, "utf8")).toBe(stop.original);
   }
 });

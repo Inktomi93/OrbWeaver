@@ -2,6 +2,7 @@
 // The room's identity set is read through its two public doors, `getChat` and `listMessages`; no row is read or written
 // here. Coverage is member-gated: every id the room's roster, pin or stored lines name resolves, whoever owns it.
 import type { ChatIdentity } from "@orb/contracts/chat";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { addCharacter, addPersona, startRoom, storeAvatar } from "@orb/testkit/node/composed";
 import { invitePerson } from "../persona-cache-physical.ts";
@@ -72,7 +73,9 @@ test("a removed character keeps the portrait its stored lines still show", async
 
   const { identities, messages } = await h.root.services.chat.listMessages({ principal: h.owner, chatId });
   expect(
-    (await h.root.services.chat.getChat({ principal: h.owner, chatId })).participants.some((seat) => seat.kind === "character" && seat.characterId === aria),
+    nonEmpty((await h.root.services.chat.getChat({ principal: h.owner, chatId })).participants).some(
+      (seat) => seat.kind === "character" && seat.characterId === aria,
+    ),
   ).toBe(false);
   expect(messages.some(({ role }) => role === "assistant")).toBe(true);
   expect(entry(identities, aria)).toEqual({ kind: "character", id: aria, name: "iris", avatarHash: portrait.hash });
@@ -111,7 +114,7 @@ test("a pinned persona whose owner left the room still resolves for the room tha
   const view = await h.root.services.chat.getChat({ principal: member, chatId });
 
   // No seat and no stored line names the founder's persona: only the pin does.
-  expect(view.participants.some((seat) => seat.userId === h.owner.userId)).toBe(false);
+  expect(nonEmpty(view.participants).some((seat) => seat.userId === h.owner.userId)).toBe(false);
   expect(view.anchorPersonaId).toBe(pinned);
   expect(entry(view.identities, pinned)).toMatchObject({ kind: "persona", name: "founder_pov" });
   expect(view.anchorState).toBe("held");

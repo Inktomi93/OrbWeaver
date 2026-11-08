@@ -2,6 +2,7 @@
 // @subject packages/kit/src/content/index.ts
 // @subject packages/server/src/domain/chat/substrate/member-visibility.ts
 
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { Room } from "./_held-room.ts";
 import { leaks, memberWatching, openRoom, SECRET_HEAD, storedMemberBytes, textOf } from "./_held-room.ts";
@@ -30,8 +31,9 @@ test.each([
     expect(textOf(device.frames)).toBe("Opening. ");
     expect(await latestReply(room, guest)).toBe("Opening. ");
     expect(await latestReply(room, room.host)).toBe(body);
+    const promptsBefore = room.prompts().length;
     await room.root.services.chat.send({ principal: room.host, chatId: room.chatId, content: "Carry on." });
-    expect(room.prompts().at(-1)).toContain(JSON.stringify(body).slice(1, -1));
+    expect(present(room.prompts().slice(promptsBefore).at(-1))).toContain(JSON.stringify(body).slice(1, -1));
   } finally {
     await device.close();
   }

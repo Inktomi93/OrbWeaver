@@ -106,7 +106,7 @@ export function evidenceFor(view: StageBandView, pids: readonly number[], nowMs:
     bandIsStageRooted: view.bandIsStageRooted,
     bandProcessAgeSeconds: oldestProcessAgeSeconds(pids),
     liveSessions: view.liveSessions,
-    liveHolders: view.liveHolders ?? [],
+    liveHolders: view.liveHolders,
     nowMs,
   };
 }
@@ -298,7 +298,7 @@ export function teardownView(input: {
   if (selection.band !== null && view.liveSessions.length > 0 && !selection.force) {
     return [liveSessionRefusal(view.row, view.liveSessions)];
   }
-  const readers = foreignHolders(view.liveHolders ?? [], owner);
+  const readers = foreignHolders(view.liveHolders, owner);
   if (readers.length > 0 && !selection.force) {
     return [heldTeardownRefusal(view.row, readers)];
   }

@@ -73,9 +73,9 @@ function views(placed: readonly { readonly row: StageRow; readonly over?: Partia
   return Array.from({ length: STAGE_BAND_COUNT }, (_unused, band) => {
     const hit = placed.find((entry) => entry.row.band === band);
     if (hit === undefined) {
-      return { band, row: null, bandBound: false, bandIsStageRooted: false, healthy: false, liveSessions: [] };
+      return { band, row: null, bandBound: false, bandIsStageRooted: false, healthy: false, liveSessions: [], liveHolders: [] };
     }
-    return { band, row: hit.row, bandBound: true, bandIsStageRooted: true, healthy: true, liveSessions: [], ...hit.over };
+    return { band, row: hit.row, bandBound: true, bandIsStageRooted: true, healthy: true, liveSessions: [], liveHolders: [], ...hit.over };
   });
 }
 
@@ -433,8 +433,10 @@ test("--stage-db keeps a stage that is warming from the SAME clone source, and r
 
 test("the band line marks a warming stage, and only a warming one", () => {
   const [warming, ready] = [row(0, { warming: { since: USED_RECENTLY } }), row(1)];
-  expect(describeStageBandRow({ band: 0, row: warming, bandBound: true, bandIsStageRooted: true, healthy: true, liveSessions: [] }, NOW)).toContain("WARMING");
-  expect(describeStageBandRow({ band: 1, row: ready, bandBound: true, bandIsStageRooted: true, healthy: true, liveSessions: [] }, NOW)).not.toContain(
-    "WARMING",
-  );
+  expect(
+    describeStageBandRow({ band: 0, row: warming, bandBound: true, bandIsStageRooted: true, healthy: true, liveSessions: [], liveHolders: [] }, NOW),
+  ).toContain("WARMING");
+  expect(
+    describeStageBandRow({ band: 1, row: ready, bandBound: true, bandIsStageRooted: true, healthy: true, liveSessions: [], liveHolders: [] }, NOW),
+  ).not.toContain("WARMING");
 });

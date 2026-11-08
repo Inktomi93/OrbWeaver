@@ -125,7 +125,7 @@ test("public jobs retain owned and owner-admitted bulk scopes while producing di
   const caller = await root.internalCallerFor(root.ownerId);
   const next = await caller.discovery.browseCharacters({ sort: "name", limit: 2, cursor: result.reads.browse.nextCursor });
   expect(next.totalCount).toBe(result.reads.browse.totalCount);
-  expect(next.items.map((item) => item.characterId).some((id) => result.reads.browse.items.some((item) => item.characterId === id))).toBe(false);
+  expect(nonEmpty(next.items.map((item) => item.characterId)).some((id) => result.reads.browse.items.some((item) => item.characterId === id))).toBe(false);
   await assertReferentialIntegrity(root.db);
 }, 15_000);
 

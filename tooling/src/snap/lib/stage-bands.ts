@@ -161,14 +161,14 @@ function viewIsStranded(view: StageBandView, nowMs: number, ttlMs: number): bool
         bandIsStageRooted: view.bandIsStageRooted,
         bandProcessAgeSeconds: null,
         liveSessions: view.liveSessions,
-        liveHolders: view.liveHolders ?? [],
+        liveHolders: view.liveHolders,
         nowMs,
       },
       ttlMs,
     ) === "stranded" ||
     // The dangling half: the row's band is not bound at all, so there is no process to kill and the row is
     // pure residue. Free by construction — but still a REAP, because the dir and the row must be cleared.
-    (!view.bandBound && view.liveSessions.length === 0 && (view.liveHolders ?? []).length === 0)
+    (!view.bandBound && view.liveSessions.length === 0 && view.liveHolders.length === 0)
   );
 }
 
@@ -236,7 +236,7 @@ export function allocateStageBand(input: {
       (view) =>
         rowOwner(view.row) === input.checkout &&
         view.row.holders !== undefined &&
-        foreignHolders(view.liveHolders ?? [], input.checkout).length === 0 &&
+        foreignHolders(view.liveHolders, input.checkout).length === 0 &&
         view.liveSessions.length === 0 &&
         stageIdleMs(view.row, input.nowMs) >= OWN_STAGE_REPLACE_IDLE_MS,
     );

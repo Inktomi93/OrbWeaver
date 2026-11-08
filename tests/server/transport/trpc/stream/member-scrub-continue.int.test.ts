@@ -4,6 +4,7 @@
 // @subject packages/kit/src/content/index.ts
 
 import type { ChatId, MessageId } from "@orb/kit/ids";
+import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { Device, Guest, Room } from "./_held-room.ts";
 import { leaks, memberWatching, openRoom, SECRET_HEAD, SECRET_TAIL, storedMemberBytes, textOf } from "./_held-room.ts";
@@ -60,8 +61,9 @@ test("a reply cut inside a hidden tag is hidden from members, verbatim for the h
     expect((await replyBody(room, room.host)).content).toBe(CUT_BODY);
     expect(carriesSecret(JSON.stringify(await room.root.services.chat.listChats({ principal: guest })))).toBe(false);
 
+    const promptsBefore = room.prompts().length;
     await room.root.services.chat.send({ principal: room.host, chatId: room.chatId, content: "Carry on." });
-    expect(room.prompts().at(-1)).toContain(JSON.stringify(CUT_OPEN).slice(1, -1));
+    expect(present(room.prompts().slice(promptsBefore).at(-1))).toContain(JSON.stringify(CUT_OPEN).slice(1, -1));
 
     const copy = await soleMemberFork(room, guest);
     expect(carriesSecret(JSON.stringify(await room.root.services.chat.listMessages({ principal: guest, chatId: copy })))).toBe(false);

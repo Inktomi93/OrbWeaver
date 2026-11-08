@@ -77,17 +77,19 @@ for (const vehicle of ["structured", "tools"] as const) {
       fundingProvider.reply(JSON.stringify({ [RPG_STATE_CHANGES_FIELD]: [{ tool: RPG_NO_CHANGES_TOOL, args: {} }] }));
     }
     const principal = await root.principalFor(root.ownerId);
+    const callsBefore = fundingProvider.calls.length;
     const first = await root.services.chat.send({ principal, chatId, content: "The party reaches the orbital ledger." });
     expect(first.messages.map((message) => message.role)).toEqual(["user", "assistant"]);
     await root.settleBackground();
     const before = fundingProvider.calls.length;
     expect(before).toBeGreaterThanOrEqual(2);
-    const path = fundingProvider.calls.at(-1);
+    const path = fundingProvider.calls.slice(callsBefore).at(-1);
     if (path === undefined) {
       throw new Error("the genuine RPG round never called its provider");
     }
     fundingProvider.statusFor(path, 401, 1);
     using warn = vi.spyOn(root.logger, "warn");
+    const errorsBefore = fundingProvider.errors.length;
     const committed = await root.services.chat.send({ principal, chatId, content: "The ledger remains open after the next beat." });
     await root.settleBackground();
     await vi.waitFor(async () => {
@@ -99,7 +101,7 @@ for (const vehicle of ["structured", "tools"] as const) {
     expect((await caller.chat.listMessages({ chatId })).messages.slice(-2).map((message) => message.id)).toEqual(
       committed.messages.map((message) => message.id),
     );
-    const failure = fundingProvider.errors.at(-1);
+    const failure = fundingProvider.errors.slice(errorsBefore).at(-1);
     expect(failure).toBeInstanceOf(ProviderError);
     expect(failure).toMatchObject({ kind: "auth_failed" });
     expect(warn).toHaveBeenCalledWith(expect.objectContaining({ event: "rpg.toolround.failed", chatId, err: failure }), expect.any(String));

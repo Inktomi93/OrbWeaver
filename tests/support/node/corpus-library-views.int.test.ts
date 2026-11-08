@@ -188,7 +188,7 @@ test("native library projections retain canonical usage, ordering, intake and re
   await expect(foreignCaller.preset.get(result.preset.detail.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
   await expect(foreignCaller.preset.resolveEffective(result.preset.effective.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
   await expect(foreignCaller.automation.listRules(roster.repeatedRules.input)).rejects.toMatchObject({ code: "NOT_FOUND" });
-  expect((await foreignCaller.preset.list()).some((preset) => preset.id === library.preset.id)).toBe(false);
+  expect(nonEmpty(await foreignCaller.preset.list()).some((preset) => preset.id === library.preset.id)).toBe(false);
   const ownForeignPreset = await foreignCaller.preset.create({ name: "Foreign effective witness", kind: "custom" });
   await expect(foreignCaller.preset.resolveEffective({ ...result.preset.effective.input, id: ownForeignPreset.id })).rejects.toMatchObject({
     code: "BAD_REQUEST",

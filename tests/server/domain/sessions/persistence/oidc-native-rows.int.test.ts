@@ -187,14 +187,16 @@ test.each([false, true])("a real JIT-closed pending join is consumed atomically 
   const owner = await root.internalCallerFor(ownerId);
   const room = (await owner.chat.startChat({ characterIds: [], opening: "none" })).chat;
   const invite = await owner.invites.createInvite({ chatId: room.id, input: { allowSignup: true, maxUses: 1, expiresAt: root.clock.now() + MS_PER_HOUR } });
+  const tokensBefore = issuer.idTokens.length;
   const result = await finishOidcLogin(root, await beginOidcLogin(root, issuer, MEMBER, `?invite=${encodeURIComponent(invite.token)}`));
+  const [idToken] = issuer.idTokens.slice(tokensBefore);
   expect(result.headers.get("location")).toBe("/login?pendingJoin=1");
   const pendingCookie = cookieHeader(result);
   const pending = await root.db.select().from(oidcPendingSignups);
   expect(pending).toHaveLength(1);
   expect(pending[0]?.subject).toBe(MEMBER.sub);
   expect(present(pending[0]).idTokenCiphertext).not.toBeNull();
-  expect(JSON.stringify(pending)).not.toContain(issuer.idTokens.at(-1));
+  expect(JSON.stringify(pending)).not.toContain(present(idToken));
   expect(pendingCookie).not.toContain(pending[0]?.secretHash);
   expect(await owner.admin.listUsers()).toHaveLength(1);
   const noCsrf = await root.http.request("/api/auth/oidc/pending/preview", { method: "POST", headers: { cookie: pendingCookie } });

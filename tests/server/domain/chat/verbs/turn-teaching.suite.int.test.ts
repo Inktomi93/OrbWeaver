@@ -9,6 +9,7 @@ import type { ProseOverrides } from "@orb/contracts/prose";
 import { PROSE_SLOTS, resolveProseText } from "@orb/contracts/prose";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { connectDevice } from "@orb/testkit/node/composed";
@@ -251,7 +252,7 @@ test("a game's state block is accounted under its own budget source and reaches 
 
   await using plain = await textRoom([]);
   const plainPreview = await plain.root.services.chat.previewAssembly({ principal: plain.owner, chatId: plain.chatId });
-  expect(plainPreview.budget.sources.some((source) => source.source === "game-state")).toBe(false);
+  expect(nonEmpty(plainPreview.budget.sources).some((source) => source.source === "game-state")).toBe(false);
 });
 
 /** The tool declarations the act's newest provider request carried, one serialized declaration each. */

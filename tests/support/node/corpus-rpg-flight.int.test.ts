@@ -10,6 +10,7 @@ import { DomainForbiddenError, DomainNotFoundError } from "@orb/kit/errors";
 import { CHAT_OP_CODES } from "../../../packages/server/src/domain/chat/contract/errors.ts";
 import { RPG_OP_CODES } from "../../../packages/server/src/domain/rpg/contract/op-codes.ts";
 import { createFrozenClock } from "../iso/clock.ts";
+import { nonEmpty } from "../iso/non-empty.ts";
 import { createControlledTimers } from "../iso/timers.ts";
 import { seedCorpusActors } from "./corpus-actors.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
@@ -149,13 +150,13 @@ test("native member and host game lifecycle preserves scoped sheets, projections
   }
   expect(sourceSheet.sheet).toMatchObject({ className: "Observatory warden", level: 3 });
   expect(copiedSheet.sheet).toEqual(sourceSheet.sheet);
-  expect(result.handedRows.sheets.some((row) => row.characterId === recursion.character.id)).toBe(false);
+  expect(nonEmpty(result.handedRows.sheets).some((row) => row.characterId === recursion.character.id)).toBe(false);
   const beforeActor = result.hostTracker.actors.find((row) => row.actorRef.kind === "character" && row.actorRef.characterId === recursion.character.id);
   const afterActor = result.handedTracker.actors.find((row) => row.actorRef.kind === "character" && row.actorRef.characterId === result.copiedCharacter.id);
   expect(beforeActor?.volatile?.inventory).toHaveLength(1);
   expect(afterActor?.volatile?.inventory).toEqual(beforeActor?.volatile?.inventory);
   expect(result.hostTracker.lockedPaths.some((path) => path.includes(recursion.character.id))).toBe(true);
-  expect(result.handedTracker.lockedPaths.some((path) => path.includes(recursion.character.id))).toBe(false);
+  expect(nonEmpty(result.handedTracker.lockedPaths).some((path) => path.includes(recursion.character.id))).toBe(false);
   expect(result.handedTracker.lockedPaths.some((path) => path.includes(result.copiedCharacter.id))).toBe(true);
   expect(physical.requests.filter((request) => request === "POST /v1/chat/completions")).toHaveLength(2);
   await assertReferentialIntegrity(root.db);

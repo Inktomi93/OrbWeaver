@@ -294,8 +294,8 @@ export interface StageBandView {
   readonly bandIsStageRooted: boolean;
   readonly healthy: boolean;
   readonly liveSessions: readonly string[];
-  /** The row's live holders (`liveHoldersOf`); absent means none were observed. */
-  readonly liveHolders?: readonly StageHolder[];
+  /** The row's live holders (`liveHoldersOf`). */
+  readonly liveHolders: readonly StageHolder[];
 }
 
 /** How a checkout may use ONE band, given its row (issue #108, generalized per row by #1276):

@@ -47,8 +47,8 @@ test("native connection catalog, capability and account outputs retain real task
     model: CORPUS_CONNECTION_MODEL,
   });
   expect(result.foreign.row.ownerId).toBe(actors.secondUserId);
-  expect(result.list.some((row) => row.id === result.foreign.row.id)).toBe(false);
-  expect(result.credentials.some((row) => row.id === result.foreign.credential.view.id)).toBe(false);
+  expect(nonEmpty(result.list).some((row) => row.id === result.foreign.row.id)).toBe(false);
+  expect(nonEmpty(result.credentials).some((row) => row.id === result.foreign.credential.view.id)).toBe(false);
   expect(result.own.credential.row.ciphertext.length).toBeGreaterThan(0);
   expect(result.own.credential.row.iv.length).toBeGreaterThan(0);
   expect(result.own.credential.row.tag.length).toBeGreaterThan(0);
@@ -123,8 +123,8 @@ test("native connection catalog, capability and account outputs retain real task
   }
   expect(result.catalogs.foreign).toMatchObject({ listed: true, models: [{ id: CORPUS_CONNECTION_FOREIGN_MODEL }] });
   expect(result.catalogs.afterRawDraft).toEqual(result.catalogs.beforeRawDraft);
-  expect(result.catalogs.beforeRawDraft.connections.some((row) => row.id === result.own.row.id)).toBe(false);
-  expect(result.catalogs.beforeRawDraft.credentials.some((row) => row.id === result.own.credential.view.id)).toBe(false);
+  expect(nonEmpty(result.catalogs.beforeRawDraft.connections).some((row) => row.id === result.own.row.id)).toBe(false);
+  expect(result.catalogs.beforeRawDraft.credentials).toEqual([]);
   expect(result.catalogs.requestsAfterBuiltin).toBe(result.catalogs.requestsBeforeBuiltin);
   expect(result.catalogs.builtin).toMatchObject({
     listed: true,

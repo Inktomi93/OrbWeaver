@@ -19,6 +19,7 @@ import {
   trpcError,
 } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
+import { nonEmpty } from "@orb/testkit/iso";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusHarness, createCorpusProviderExecution } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import {
@@ -254,7 +255,7 @@ for (const regime of [
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
       const { rooms, room, other, original, otherTail, tail, anchor, loadedFirst, removed } = await prepareHistory(caller);
-      expect(tail.messages.some((message) => message.id === original.id)).toBe(false);
+      expect(nonEmpty(tail.messages).some((message) => message.id === original.id)).toBe(false);
       await caller.settings.updateUserSettingsSection({
         section: "appearance",
         patch: appearanceSettingsSchema.parse({ chatStyle: regime.chatStyle, backgroundImageKind: "none" }),

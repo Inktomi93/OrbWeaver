@@ -3,7 +3,7 @@
 import { resolveProseText } from "@orb/contracts/prose";
 import type { RPG_TOOL_ROUND_TOOL_NAMES } from "@orb/contracts/rpg";
 import { jsonValueSchema } from "@orb/kit/json";
-import { present } from "@orb/testkit/iso";
+import { nonEmpty, present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
 import { CORPUS_PROVIDER_ENDPOINT, CORPUS_TEXT_MODEL, readRoomCanon } from "@orb/testkit/node/composed";
@@ -84,7 +84,7 @@ test("a real folded game recovers its prose once, keeps the first pass's state a
   expect(calls).toBe(2);
   const logs = h.root.observability.logLines(100).filter((line) => line.includes(h.chatId));
   expect(logs.some((line) => line.includes('"event":"chat.generation.recovering"'))).toBe(true);
-  expect(logs.some((line) => line.includes('"event":"chat.generation.empty"'))).toBe(false);
+  expect(nonEmpty(logs).some((line) => line.includes('"event":"chat.generation.empty"'))).toBe(false);
 });
 
 const EMPTY_RPG_ROWS = [
@@ -137,7 +137,7 @@ test.for(EMPTY_RPG_ROWS)("a real folded game refuses $label without a recovery l
   expect(logs.some((line) => line.includes('"event":"chat.generation.empty"'))).toBe(true);
   expect(logs.some((line) => line.includes('"event":"chat.generation.recovering"'))).toBe(row.calls);
   expect(logs.some((line) => line.includes('"event":"chat.generation.recoveryFailed"'))).toBe(row.calls);
-  expect(logs.some((line) => line.includes("turn-abort staging clear failed"))).toBe(false);
+  expect(nonEmpty(logs).some((line) => line.includes("turn-abort staging clear failed"))).toBe(false);
   const abortTraces = h.root.observability
     .traces(100)
     .filter(

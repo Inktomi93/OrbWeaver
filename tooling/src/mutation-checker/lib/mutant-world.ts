@@ -1,5 +1,6 @@
 // One world on the TypeScript 7.1 API, judging one mutant per layer snapshot. An importer reads a file only through
-// its declaration, so the importers are checked only when the mutant changed the file's declaration emit.
+// its declaration, so the importers are checked only when the mutant changed the file's declaration emit, and the
+// whole program when that emit augments a global or a module.
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import type { Location, Mutant, Position } from "@stryker-mutator/api/core";
@@ -61,6 +62,10 @@ function* fileErrors(program: Program, file: string): APIRequestGenerator<readon
 const isModuleSpecifier = (node: Node): node is StringLiteralLikeNode => isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node);
 
 const isWorldSource = (name: string): boolean => !(name.includes("/node_modules/") || name.endsWith(".d.ts"));
+
+// A declaration that augments a global or another module reaches files that never import it: they read the augmented
+// name through the module they do import. Its readers are not on the import graph, so the whole program is.
+const AUGMENTATION = /^[ \t]*(?:export[ \t]+)?declare[ \t]+(?:global\b|module[ \t]+["'])/mu;
 
 function* declarationOf(program: Program, file: string): APIRequestGenerator<string> {
   const emit = yield* program.getDeclarationEmit.gen([file]);
@@ -192,6 +197,10 @@ export class MutantWorld implements Disposable {
     return [...seen];
   }
 
+  #otherSources(file: string): readonly string[] {
+    return [...this.#held].filter((name) => name !== file && isWorldSource(name));
+  }
+
   #errorsIn(program: Program, files: readonly string[]): readonly Diagnostic[] {
     const bases = this.#baseErrorCounts(files);
     const found = this.#batch(files.map((file) => fileErrors(program, file)));
@@ -211,12 +220,13 @@ export class MutantWorld implements Disposable {
     if (own.length > 0) {
       return { errors: own, checked: [file] };
     }
-    const [declaration] = this.#batch([declarationOf(program, file)]);
-    if (declaration === this.#baseDeclaration(file)) {
+    const [declaration = ""] = this.#batch([declarationOf(program, file)]);
+    const base = this.#baseDeclaration(file);
+    if (declaration === base) {
       return { errors: [], checked: [file] };
     }
-    const importers = this.#transitiveImporters(file);
-    return { errors: this.#errorsIn(program, importers), checked: [file, ...importers] };
+    const readers = AUGMENTATION.test(declaration) || AUGMENTATION.test(base) ? this.#otherSources(file) : this.#transitiveImporters(file);
+    return { errors: this.#errorsIn(program, readers), checked: [file, ...readers] };
   }
 
   /** The errors as compiler-formatted text. */

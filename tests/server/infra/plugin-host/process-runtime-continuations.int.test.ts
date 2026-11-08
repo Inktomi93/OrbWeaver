@@ -1,3 +1,4 @@
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import {
@@ -62,7 +63,7 @@ test("a returned command continuation reaches the parent's call limit rather tha
   await settled;
   delivery.release();
   await expect.poll(async () => (await guest.log()).map((line) => line.message).join("\n")).toContain("continuation call budget");
-  expect((await guest.log()).some((line) => line.message === "unbounded completion")).toBe(false);
+  expect(nonEmpty(await guest.log()).some((line) => line.message === "unbounded completion")).toBe(false);
   const reads = edge.delivered.filter((value) => hasOperation(value, OP.read));
   expect(reads.length).toBeGreaterThan(1);
   expect(reads.length).toBeLessThan(FLOOD_HOST_CALLS);

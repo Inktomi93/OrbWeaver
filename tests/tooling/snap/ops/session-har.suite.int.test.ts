@@ -3,6 +3,7 @@ import { existsSync, readFileSync, rmSync } from "node:fs";
 import { createServer } from "node:http";
 import { join } from "node:path";
 import process from "node:process";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { openRunSlot, publishRunSlot } from "@orb/tooling/floor/artifacts/artifacts";
 import { launchProbeSession, settle, withProbeSession } from "@orb/tooling/floor/browser/browser";
@@ -360,7 +361,7 @@ test("session export snapshots the CDP HAR without closing its browser owner", a
     });
     // Other runs on the machine may or may not be live, so the list can be empty; each row it holds must be well formed.
     expect(concurrency.filter((row) => !/^\S+ \(pid \d+, started \d{4}-\d{2}-\d{2}T\S+Z\)$/u.test(row))).toEqual([]);
-    expect(concurrency.some((row) => row.startsWith(`${exportIndex.identity.runId} (`))).toBe(false);
+    expect(nonEmpty(concurrency).some((row) => row.startsWith(`${exportIndex.identity.runId} (`))).toBe(false);
 
     // A live sibling run is real provenance, not flake noise. Plant one through the production slot door
     // and prove export records it without ever listing the export run itself.
@@ -373,7 +374,7 @@ test("session export snapshots the CDP HAR without closing its browser owner", a
         readonly provenance: { readonly concurrency: readonly string[] };
       };
       expect(concurrentIndex.provenance.concurrency.some((row) => row.startsWith(`${sibling.runId} (`))).toBe(true);
-      expect(concurrentIndex.provenance.concurrency.some((row) => row.startsWith(`${concurrentIndex.identity.runId} (`))).toBe(false);
+      expect(nonEmpty(concurrentIndex.provenance.concurrency).some((row) => row.startsWith(`${concurrentIndex.identity.runId} (`))).toBe(false);
     } finally {
       publishRunSlot(repoRoot, sibling, []);
     }

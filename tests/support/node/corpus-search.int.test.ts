@@ -67,7 +67,7 @@ function assertRoutedArms(
   }
   expect(documents.hits.map((hit) => hit.chunkId)).toEqual(result.canonical.chunks.map((row) => row.id));
   expect(result.foreignChunks.length).toBeGreaterThan(0);
-  expect(documents.hits.some((hit) => hit.documentId === result.foreignDocument.document.id)).toBe(false);
+  expect(nonEmpty(documents.hits).some((hit) => hit.documentId === result.foreignDocument.document.id)).toBe(false);
   for (const hit of documents.hits) {
     const row = result.canonical.chunks.find((chunk) => chunk.id === hit.chunkId);
     expect(hit).toMatchObject({

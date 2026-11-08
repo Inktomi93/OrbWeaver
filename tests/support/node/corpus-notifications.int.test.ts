@@ -69,7 +69,7 @@ test("native notification corpus retains real recipient lifecycle and bounded ph
     actionable: true,
     payload: result.consent.first.payload,
   });
-  expect(result.consent.retracted.items.some((view) => view.type === "plugins-awaiting-consent")).toBe(false);
+  expect(nonEmpty(result.consent.retracted.items).some((view) => view.type === "plugins-awaiting-consent")).toBe(false);
   expect(result.consent.quietBytes).toContain(JSON.stringify(result.consent.quiet.payload));
   expect(result.consent.retractedBytes).toContain(result.consent.grown.id);
   expect(result.consent.retractedBytes).toContain(`"dismissedAt":${String(root.clock.frozenAt)}`);
@@ -145,7 +145,7 @@ test("native notification corpus retains real recipient lifecycle and bounded ph
   expect(result.rows.filter((row) => row.type === "deferred-turn-dropped")).toHaveLength(1);
   expect(result.dismissed).toMatchObject({ actionable: false, dismissedAt: root.clock.frozenAt });
   expect(result.dismissedAgain).toEqual(result.dismissed);
-  expect(result.final.items.some((view) => view.id === result.dismissed.id)).toBe(false);
+  expect(nonEmpty(result.final.items).some((view) => view.id === result.dismissed.id)).toBe(false);
   expect(result.finalReplay).toEqual([...result.final.items].reverse());
   expect(result.rows.find((row) => row.id === result.dismissed.id)?.dismissedAt).toBe(root.clock.frozenAt);
   expect(new Set(result.rows.map((row) => row.type))).toEqual(new Set(NOTIFICATION_TYPES));

@@ -14,7 +14,7 @@ beforeAll(async () => {
   await eslint.calculateConfigForFile(join(ROOT, "packages/server/src/index.ts"));
 }, 120_000);
 
-const LEVEL = { error: 2, off: 0 } as const;
+const LEVEL = { error: 2, warn: 1, off: 0 } as const;
 type Level = keyof typeof LEVEL;
 
 const SESSIONS = "packages/server/src/domain/sessions";
@@ -82,9 +82,60 @@ test.for([
   // A generated module carries no native rule; its authored neighbour carries every one.
   ["@typescript-eslint/no-floating-promises", "packages/server/src/domain/chat/probe.gen.ts", "off"],
   ["@typescript-eslint/no-floating-promises", "packages/server/src/domain/chat/probe.ts", "error"],
+  ["@typescript-eslint/no-unsafe-type-assertion", "tests/support/node/route-trpc.ts", "off"],
+  ["@typescript-eslint/no-unsafe-type-assertion", "tests/support/node/probe.ts", "error"],
+  ["@typescript-eslint/consistent-type-assertions", "tests/support/iso/forged.ts", "off"],
+  ["@typescript-eslint/consistent-type-assertions", "tests/support/iso/probe.ts", "error"],
+  ["react-hooks/incompatible-library", "packages/ui/src/primitives/virtual-list/virtual-list.tsx", "off"],
+  ["react-hooks/incompatible-library", "packages/ui/src/primitives/virtual-list/probe.tsx", "warn"],
+  ["orb/no-raw-zustand-persist", "packages/client/src/state/persisted-store-implementation.ts", "off"],
+  ["orb/no-raw-zustand-persist", "packages/client/src/state/probe.ts", "error"],
+  ["orb/no-direct-useform", "packages/client/src/forms/editor/use-app-form.ts", "off"],
+  ["orb/no-direct-useform", "packages/client/src/forms/editor/probe.ts", "error"],
+  ["orb/firehose-import-allowlist", "packages/server/src/transport/trpc/index.ts", "off"],
+  ["orb/firehose-import-allowlist", "packages/server/src/transport/trpc/probe.ts", "error"],
+  ["orb/bus-channel-primitive", "packages/server/src/transport/trpc/bus-channel.ts", "off"],
+  ["orb/bus-channel-primitive", "packages/server/src/transport/trpc/probe.ts", "error"],
+  ["orb/no-raw-matchmedia", "packages/ui/src/lib/use-prefers-light-color-scheme.ts", "off"],
+  ["orb/no-raw-matchmedia", "packages/ui/src/lib/probe.ts", "error"],
+  ["orb/no-inline-invalidate-outside-seam", "packages/client/src/data/invalidation.ts", "off"],
+  ["orb/no-inline-invalidate-outside-seam", "packages/client/src/data/probe.ts", "error"],
+  ["orb/mutation-only-in-factory", "packages/client/src/data/create-entity-mutation.ts", "off"],
+  ["orb/mutation-only-in-factory", "packages/client/src/data/probe.ts", "error"],
+  ["orb/required-dialog-home", "packages/client/src/features/persona/anchors/first-run-persona-dialog.tsx", "off"],
+  ["orb/required-dialog-home", "packages/client/src/features/persona/anchors/probe.tsx", "error"],
+  ["orb/no-raw-interactive-intrinsics", "packages/client/src/features/app-shell/surfaces/app-shell.tsx", "off"],
+  ["orb/no-raw-interactive-intrinsics", "packages/client/src/features/app-shell/surfaces/probe.tsx", "error"],
+  ["orb/no-legacy-react-api", "packages/ui/src/markdown/dialogue-paragraph.tsx", "off"],
+  ["orb/no-legacy-react-api", "packages/ui/src/markdown/probe.tsx", "error"],
+  ["orb/bound-field-via-hook", "packages/client/src/forms/editor/bound-fields/use-bound-field.ts", "off"],
+  ["orb/bound-field-via-hook", "packages/client/src/forms/editor/bound-fields/probe.tsx", "error"],
+  ["orb/chat-stream-writes-in-bus-only", "packages/client/src/data/bus/chat-bus-writes.ts", "off"],
+  ["orb/chat-stream-writes-in-bus-only", "packages/client/src/data/bus/probe.ts", "error"],
+  ["orb/selection-store-via-factory", "packages/client/src/state/message-selection-store.ts", "off"],
+  ["orb/selection-store-via-factory", "packages/client/src/state/probe-selection-store.ts", "error"],
+  ["orb/state-files", "packages/client/src/state/index.ts", "off"],
+  ["orb/state-files", "packages/client/src/state/probe.ts", "error"],
+  ["orb/serde-core-definition-uniqueness", "packages/server/src/primitives/serde/card/index.ts", "off"],
+  ["orb/serde-core-definition-uniqueness", "packages/server/src/primitives/serde/card/probe.ts", "error"],
+  ["orb/no-spread-corpus-capture", "tests/support/node/corpus-read-responder.int.test.ts", "off"],
+  ["orb/no-spread-corpus-capture", "tests/support/node/probe.int.test.ts", "error"],
 ] as const satisfies readonly (readonly [string, string, Level])[])("%s at %s is %s", async ([rule, path, level]) => {
   const config = await resolvedConfig(eslint, join(ROOT, path));
   expect(levelOf(config.rules[rule]) ?? LEVEL.off).toBe(LEVEL[level]);
+});
+
+// [rule, path, option, carried]: an exemption that changes a rule's options rather than its level, beside its neighbour.
+test.for([
+  ["@typescript-eslint/triple-slash-reference", "packages/plugin-sdk/main.d.ts", '"path":"always"', true],
+  ["@typescript-eslint/triple-slash-reference", "packages/plugin-sdk/probe.ts", '"path":"always"', false],
+  ["no-restricted-imports", "packages/client/src/components/character-picker.tsx", "A paged suspending read", false],
+  ["no-restricted-imports", "packages/client/src/components/probe.tsx", "A paged suspending read", true],
+  ["orb/no-hand-copied-label", "tests/contracts/inference/warnings.contract.test.ts", '"scope":"all"', false],
+  ["orb/no-hand-copied-label", "tests/contracts/inference/probe.contract.test.ts", '"scope":"all"', true],
+] as const)("%s at %s carries %s: %s", async ([rule, path, option, carried]) => {
+  const config = await resolvedConfig(eslint, join(ROOT, path));
+  expect(JSON.stringify(config.rules[rule] ?? null).includes(option)).toBe(carried);
 });
 
 // One row per family the config never lints, and the authored neighbour each family sits beside.

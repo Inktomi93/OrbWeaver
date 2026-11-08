@@ -33,7 +33,7 @@ function row(band: number, checkout = OWNER): StageRow {
 }
 
 function view(stage: StageRow | null, band: number, over: Partial<StageBandView> = {}): StageBandView {
-  return { band, row: stage, bandBound: stage !== null, bandIsStageRooted: stage !== null, healthy: true, liveSessions: [], ...over };
+  return { band, row: stage, bandBound: stage !== null, bandIsStageRooted: stage !== null, healthy: true, liveSessions: [], liveHolders: [], ...over };
 }
 
 /** Walk the views the way `teardownStage` does and report which bands the injected stop was asked to release. */

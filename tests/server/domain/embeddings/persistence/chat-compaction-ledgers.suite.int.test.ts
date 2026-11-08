@@ -162,7 +162,7 @@ test("a real native SDK stream strikes its late auth failure only after terminal
     expect(settled).toBe(false);
     expect(nativeSdk.children).toHaveLength(before + 1);
     expect((await ownerCaller.credentials.list()).find((row) => row.id === key.id)?.revokedAt).toBeNull();
-    const child = nativeSdk.children.at(-1);
+    const [child] = nativeSdk.children.slice(before);
     if (child === undefined) {
       throw new Error("the native stream never reached its actual subprocess");
     }

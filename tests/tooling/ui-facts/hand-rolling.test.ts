@@ -1,7 +1,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { present } from "@orb/testkit/iso";
+import { nonEmpty, present } from "@orb/testkit/iso";
 import { expect, plantDir, plantFile, test } from "@orb/testkit/tooling";
 import { vi } from "vitest";
 import type { Hit } from "../../../tooling/src/eslint/ui-classes/hand-model.ts";
@@ -892,7 +892,7 @@ test("constants repeat one concept across files; an equal animation duration is 
   expect(brief(named(hits, "FADE_MS = 130ms"))).toEqual(["token-literal", "token", "--motion-fast"]);
   // A 130ms number named TICK is not an animation, and a one-off retry has nothing to repeat; a rate is not a duration.
   expect([named(hits, "TICK_MS = 130ms")?.keep, named(hits, "RETRY_MS = 3000ms")?.keep]).toEqual(["single-constant", "single-constant"]);
-  expect(hits.some((hit) => hit.detail.startsWith("BACKLOG_PER_SEC"))).toBe(false);
+  expect(nonEmpty(hits).some((hit) => hit.detail.startsWith("BACKLOG_PER_SEC"))).toBe(false);
 });
 
 test("the report is sorted and grouped by owner with counts per category and per surface, deterministically, and skips generated files", ({ scratch }) => {
@@ -910,7 +910,7 @@ test("the report is sorted and grouped by owner with counts per category and per
   const second = census(root);
   expect(second.hits).toEqual(first.hits);
   expect(first.hits).toEqual(first.hits.toSorted(byPlace));
-  expect(first.hits.some((hit) => hit.path.endsWith("tokens/index.ts"))).toBe(false);
+  expect(nonEmpty(first.hits).some((hit) => hit.path.endsWith("tokens/index.ts"))).toBe(false);
   expect(first.markdown).toContain("### Hits per category");
   expect(first.markdown).toContain("| token-literal | 1 | 1 | 0 | 0 | 0 | 0 |");
   expect(first.markdown).toContain("| probe | 3 | 1 | 1 | 1 | 0 | 0 | 0 | 0 | 0 |");

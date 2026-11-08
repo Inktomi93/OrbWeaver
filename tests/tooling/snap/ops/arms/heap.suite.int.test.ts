@@ -5,6 +5,7 @@
 // growth is measured rather than blind; missing/malformed/incompatible evidence must refuse, never pass.
 import { copyFile, readFile, truncate, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
@@ -195,9 +196,9 @@ test("a named session preserves exact-page labels, reports retained growth/retai
     await expect(released).toExitWith(EXIT.clean);
     const releasedIndex = await readJson<SnapRunIndex>(indexPath(released.stdout));
     const cleanComparison = await readJson<HeapComparisonReceipt>(artifact(releasedIndex, "snap-heap-comparison-v1"));
-    expect(cleanComparison.classes.rows.some((row) => row.className === "OrbHeapLeak" && row.countDelta > 0)).toBe(false);
-    expect(cleanComparison.classes.rows.some((row) => row.className === "Detached <article>" && row.countDelta > 0)).toBe(false);
-    expect(cleanComparison.problems.some((row) => row.subject === "OrbHeapLeak")).toBe(false);
+    expect(nonEmpty(cleanComparison.classes.rows).some((row) => row.className === "OrbHeapLeak" && row.countDelta > 0)).toBe(false);
+    expect(nonEmpty(cleanComparison.classes.rows).some((row) => row.className === "Detached <article>" && row.countDelta > 0)).toBe(false);
+    expect(nonEmpty(cleanComparison.problems).some((row) => row.subject === "OrbHeapLeak")).toBe(false);
 
     const missing = await runCli("snap", ["--session", session, "--heap-compare", "missing=released", ...CALL_QUIET], { env, timeoutMs: CLI_TIMEOUT_MS });
     await expect(missing).toExitWith(EXIT.toolError);

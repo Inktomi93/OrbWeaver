@@ -2,7 +2,7 @@
 
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { assertReferentialIntegrity } from "@orb/db";
-import { present } from "../iso/non-empty.ts";
+import { nonEmpty, present } from "../iso/non-empty.ts";
 import { CHAT_OUTPUT_BODY, CHAT_OUTPUT_CONNECTION_LABEL, CHAT_OUTPUT_SECRET, seedCorpusChatOutputs } from "./corpus-chat-outputs.ts";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, CORPUS_STRUCTURED_REPLIES, CORPUS_TEXT_MODEL, createCorpusProviderExecution } from "./corpus-provider.ts";
 import { expect, test } from "./fixtures.ts";
@@ -70,7 +70,7 @@ test("native chat output suppliers retain exact canon, viewer projections, page 
   expect(JSON.stringify(member)).not.toContain(CHAT_OUTPUT_SECRET);
   expect(JSON.stringify(member)).not.toContain(CHAT_OUTPUT_CONNECTION_LABEL);
   expect(result.history.messages.map((message) => [message.id, message.seq])).toEqual([[assistant.id, invitation.joined.participant.joinSeq]]);
-  expect(result.history.messages.some((message) => message.role === "user")).toBe(false);
+  expect(nonEmpty(result.history.messages).some((message) => message.role === "user")).toBe(false);
   expect(reads.getMessageWindow).toMatchObject({
     outcome: "resolved",
     anchorMessageId: assistant.id,

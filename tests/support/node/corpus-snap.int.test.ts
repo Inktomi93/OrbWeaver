@@ -6,6 +6,7 @@ import { contextFitAnswerSchema } from "@orb/contracts/chat";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { localPath } from "@orb/db";
 import { z } from "zod";
+import { nonEmpty } from "../iso/non-empty.ts";
 import { createCorpusHarness, loadCorpusFixture } from "./corpus.ts";
 import { CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
 import { createCorpusProviderTransport, prepareCorpusSnapFixture } from "./corpus-recipe.ts";
@@ -31,7 +32,7 @@ test("native corpus stage clone reaches preview retrieval without changing its p
   const principal = await root.principalFor(root.ownerId);
   const owned = await root.services.connection.list({ principal });
   expect(owned.some((connection) => connection.baseUrl === prepared.provider.baseUrl)).toBe(true);
-  expect(owned.some((connection) => connection.baseUrl === CORPUS_PROVIDER_ENDPOINT)).toBe(false);
+  expect(nonEmpty(owned).some((connection) => connection.baseUrl === CORPUS_PROVIDER_ENDPOINT)).toBe(false);
   const memberId = source.wire.memberIdentities?.sharedMember.viewer.userId;
   if (memberId === undefined) {
     throw new Error("Corpus has no shared member");
@@ -39,7 +40,7 @@ test("native corpus stage clone reaches preview retrieval without changing its p
   const member = await root.principalFor(memberId);
   const foreign = await root.services.connection.list({ principal: member });
   expect(foreign.some((connection) => connection.baseUrl === CORPUS_PROVIDER_ENDPOINT)).toBe(true);
-  expect(foreign.some((connection) => connection.baseUrl === prepared.provider.baseUrl)).toBe(false);
+  expect(nonEmpty(foreign).some((connection) => connection.baseUrl === prepared.provider.baseUrl)).toBe(false);
   const chat = source.wire.reads["chat.listChats"][0]?.output.items.find((room) => room.title === "Getting started with Assistant");
   if (chat === undefined) {
     throw new Error("Corpus has no document-backed ledger room");

@@ -15,6 +15,7 @@
 // this repair (step 4: a printed `excluded`, not a silent skip).
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { nonEmpty } from "@orb/testkit/iso";
 import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import { auditRuleTest, expect } from "@orb/testkit/tooling";
 
@@ -75,13 +76,13 @@ auditRuleTest(
       // background COLOR at all (its paint is a gradient image), so an image-channel read here would have
       // convicted every CTA, active tab and active rail button on the tree.
       expect(
-        selectors.some((selector) => selector.startsWith("#ring")),
+        nonEmpty(selectors).some((selector) => selector.startsWith("#ring")),
         `${rule}: a full-box gradient ring is not an edge bar`,
       ).toBe(false);
       // SILENT, ratified: the picture of an accent edge inside an illustrated picker's art aperture. The
       // sample is still counted — `excluded(illustratedPickerArt)`, never dropped.
       expect(
-        selectors.some((selector) => selector.startsWith("#art-bar")),
+        nonEmpty(selectors).some((selector) => selector.startsWith("#art-bar")),
         `${rule}: #1642's art-pane exemption must reach the pseudo channel`,
       ).toBe(false);
     }

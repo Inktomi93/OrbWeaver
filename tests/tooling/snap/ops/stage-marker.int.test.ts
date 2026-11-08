@@ -330,6 +330,7 @@ const claimed = withBandsLock(HOME, () => {
     bandIsStageRooted: false,
     healthy: false,
     liveSessions: [],
+    liveHolders: [],
   }));
   const allocation = allocateStageBand({
     views,
