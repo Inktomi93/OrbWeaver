@@ -78,9 +78,16 @@ export const commandVariants = tv({
       content: { list: "" },
       // A stable compact viewport keeps filtering from moving its containing dialog without reserving
       // the giant empty cavity the old full-height palette left behind.
-      // A short dialog lets it share the room the dialog leaves, like a picker window, so the dialog body is the only other box.
+      // A short dialog lets it share the room the dialog leaves, like a picker window, so the dialog body is the only other box. It drops
+      // its inset so the box's strip floor holds the whole box: an inset the list cannot shrink past would overflow the box and let a
+      // highlighted row scroll the search field away.
       compact: {
-        list: "block-(--height-scroll-sm) dialog-short:flex-auto dialog-short:overscroll-auto dialog-short:block-auto **:[[cmdk-list-sizer]]:block-full",
+        list: `
+          block-(--height-scroll-sm)
+          dialog-short:mx-(--border-width-rule) dialog-short:mbe-(--border-width-rule) dialog-short:flex-auto dialog-short:overscroll-auto dialog-short:p-0
+          dialog-short:block-auto
+          **:[[cmdk-list-sizer]]:block-full
+        `,
       },
       // The model picker's list: tall enough to fill its box, still a fixed viewport so a narrowing search holds still.
       grow: { list: "block-(--height-scroll-lg) **:[[cmdk-list-sizer]]:block-full" },

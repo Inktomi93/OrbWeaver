@@ -27,15 +27,20 @@ export const dialogVariants = tv({
     popup: `relative flex flex-col overflow-x-hidden overflow-y-auto overscroll-contain max-block-full ${MODAL_SURFACE}
       @max-cq-20:p-field
       dialog-short:gap-row dialog-short:p-row dialog-short:pbs-0
+      dialog-tiny:gap-0 dialog-tiny:pbe-0
       ${OVERLAY_MOTION.modalPopup}
     `,
     // A short dialog scrolls as one sheet, so its header stays at the top of the sheet: the popup gives its top inset to the header,
-    // which rests against the true edge and keeps the body from scrolling through the padding above it.
+    // which rests against the true edge and keeps the body from scrolling through the padding above it. The header holds one line, so
+    // its title gives way before Close takes a second line of a screen with no room for it. A tiny dialog (enlarged text on a landscape
+    // phone) spends none of its height on insets: its title row, field and rows are all it has.
     header: `
       flex shrink-0 items-center justify-between gap-row border-be border-border pbe-field
-      dialog-short:sticky dialog-short:inset-bs-0 dialog-short:z-(--z-raised) dialog-short:bg-popover dialog-short:pbs-row
+      dialog-short:sticky dialog-short:inset-bs-0 dialog-short:z-(--z-raised) dialog-short:flex-nowrap dialog-short:bg-popover dialog-short:pbs-row
+      dialog-tiny:pbs-0 dialog-tiny:pbe-0
     `,
-    title: TITLE_STEP,
+    // A short dialog's title truncates to one line; its full text stays the dialog's accessible name.
+    title: `${TITLE_STEP} dialog-short:truncate`,
     description: POPUP_DESCRIPTION,
     // The action row: the LAST child of a DialogBody, never of the popup itself. The popup's padding
     // surrounds that region, so `sticky bottom-0` lands the buttons exactly one popup inset above the popup edge.
