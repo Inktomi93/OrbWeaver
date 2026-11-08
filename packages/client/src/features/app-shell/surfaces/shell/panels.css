@@ -29,7 +29,7 @@
   }
   /* The same answer for a bracketed Context pane, at a taller step because its header and bands can fill the pane: the
    * pane body is the one scroller, so the tab body flows at its content's height (never under a floor) and does not scroll
-   * inside it. This is the `container.cq-24` step, the one a short dialog reads as `dialog-short` (UI-Density-Law §8.1). */
+   * inside it. This is the `container.cq-24` step, the one a short dialog reads as `dialog-short` (ui-platform-rulings §8.1). */
   @container shell-panel (height <= 24rem) {
     .shell-panel-body:has([data-context-bracket]) {
       overflow-x: hidden;

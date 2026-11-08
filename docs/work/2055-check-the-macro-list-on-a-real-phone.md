@@ -12,7 +12,7 @@ plan: cross-surface-consistency
 
 ## What
 
-Open a prompt section editor on a real phone, type {{c with the soft keyboard up, in a short field and a long one, and see whether the suggestion rows stay on screen. Emulation passes; UI-Density-Law section 8.5 keeps keyboard behaviour open for a real device.
+Open a prompt section editor on a real phone, type {{c with the soft keyboard up, in a short field and a long one, and see whether the suggestion rows stay on screen. Emulation passes; ui-platform-rulings section 8.5 keeps keyboard behaviour open for a real device.
 
 ## Why
 

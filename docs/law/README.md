@@ -35,6 +35,7 @@ The locked principles are the first section of Core-0, the enforcement catalog i
 | [UI-Architecture-and-Layout: state and the stack (keep/dump)](ui-architecture-state-and-stack.md) | active |
 | [UI density law — the assignment law for the token scales](UI-Density-Law.md) | active |
 | [`@orb/ui` — the package design (structure · factories · seals · tokens)](ui-package-design.md) | active |
+| [UI platform rulings: styling, fonts, appearance, browser floor and evidence](ui-platform-rulings.md) | active |
 | [UI-Primitives-and-Reuse](UI-Primitives-and-Reuse.md) | active |
 | [UI-Theming-and-Content](UI-Theming-and-Content.md) | active |
 | [User docs](user-docs.md) | active |
