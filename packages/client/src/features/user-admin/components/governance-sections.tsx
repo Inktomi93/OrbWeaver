@@ -47,7 +47,7 @@ export function MultiUserSection({ anchorId, sectionId }: { readonly anchorId: s
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={4} />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="multi-user — administrators only" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="multi-user: administrators only" onRetry={retry} />}
       reserveRows={firstBootRows}
       reserveKey="config.admin.multiUser"
     >
@@ -123,7 +123,7 @@ function MultiUserBody({ anchorId, sectionId }: { readonly anchorId: string; rea
           />
           <AdminOverrideSwitch
             label="Discreet login"
-            hint="Show a blank sign-in form — no handle pre-fill on the login page (no account enumeration)."
+            hint="Show a blank sign-in form. No handle pre-fill on the login page (no account enumeration)."
             value={resolved.discreetLogin}
             overridden={discreetOverridden}
             floorLabel={envFloor(discreetOverridden, resolved.discreetLogin ? "on" : "off")}

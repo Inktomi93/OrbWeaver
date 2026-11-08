@@ -12,15 +12,15 @@ import { MODEL_REQUIRED_MESSAGE } from "./model-picker-model.ts";
 const ADD_MODEL_ACTION_COPY = {
   key: {
     label: "Add another model on this key",
-    gloss: (provider: string): string => `A new connection on ${provider} with the same key — you only pick the model.`,
+    gloss: (provider: string): string => `A new connection on ${provider} with the same key: you only pick the model.`,
   },
   server: {
     label: "Add another model on this server",
-    gloss: (provider: string): string => `A new connection on ${provider} at the same address — you only pick the model.`,
+    gloss: (provider: string): string => `A new connection on ${provider} at the same address: you only pick the model.`,
   },
   builtin: {
     label: "Add another built-in model",
-    gloss: (provider: string): string => `A new connection on ${provider} — you only pick the model.`,
+    gloss: (provider: string): string => `A new connection on ${provider}: you only pick the model.`,
   },
 } as const;
 

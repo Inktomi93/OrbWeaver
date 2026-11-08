@@ -77,7 +77,7 @@ export function RunControlsCard({ sessionId, guidance, running, canIterate, onMa
               }
             }}
             onChange={(e): void => setGuidanceDraft(e.target.value)}
-            placeholder="Guidance for every stage — e.g. keep her mean"
+            placeholder="Guidance for every stage: e.g. keep her mean"
             rows={2}
             value={guidanceDraft ?? guidance ?? ""}
           />

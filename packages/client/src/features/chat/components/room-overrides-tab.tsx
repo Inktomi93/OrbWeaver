@@ -76,7 +76,7 @@ export function ChatBackgroundSection({ chatId, background }: ChatBackgroundSect
       />
       {carried?.arm === "card-carried" ? (
         <Text voice="gloss">
-          Painting {CARRIED_SOURCE_LABEL} — from {carried.characterName}'s card. Pick one here to override it.
+          Painting {CARRIED_SOURCE_LABEL} from {carried.characterName}'s card. Pick one here to override it.
         </Text>
       ) : null}
     </Stack>

@@ -50,7 +50,7 @@ export function AddChatScriptDialog({ chatId, open, onOpenChange, attachedIds }:
   return (
     <DismissDialog
       closeButton={true}
-      description="Its rules run on this room's prompts, in the order the section shows — and only here. A script stays in your library; detaching it from this chat leaves every other chat alone."
+      description="Its rules run on this room's prompts, in the order the section shows, and only here. A script stays in your library; detaching it from this chat leaves every other chat alone."
       onOpenChange={(next): void => {
         if (next || !ownedRef.current) {
           onOpenChange(next);
@@ -101,7 +101,7 @@ function ScriptPicker({ attachedIds, chatId, onClose, ownedRef }: PickerBodyProp
         // The only next action REACHABLE from inside a modal is leaving it — the library lives behind the
         // rail, which this dialog is covering. Naming that honestly beats a CTA that cannot fire.
         action={<DialogClose render={<Button variant="outline">{DIALOG_VERBS.close}</Button>} />}
-        description="Write one in your script library — a find/replace rule with the streams it runs on — and it can run in this room."
+        description="Write one in your script library: a find/replace rule with the streams it runs on, and it can run in this room."
         icon={<Icon icon={Code} size="lg" />}
         title="You have no regex scripts yet"
       />
@@ -158,7 +158,7 @@ function ScriptPicker({ attachedIds, chatId, onClose, ownedRef }: PickerBodyProp
               // allowed to live in this primitive.
               actions={
                 <Checkbox
-                  aria-label={already ? `${name} — already attached to this chat` : `Attach ${name} to this chat`}
+                  aria-label={already ? `${name}: already attached to this chat` : `Attach ${name} to this chat`}
                   checked={already || picked.includes(script.id)}
                   disabled={already}
                   onCheckedChange={(next): void => {

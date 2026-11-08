@@ -3,7 +3,7 @@
 import ts from "typescript";
 import type { Elem, FileFacts, Source } from "../eslint/index.ts";
 import { attrString, childrenText, firstLine, visit } from "../eslint/index.ts";
-import type { Cohort, Member } from "./compare.ts";
+import type { Cohort, Member } from "../floor/verdict/cohort-compare.ts";
 
 const FACTORY_MODES: Readonly<Record<string, string>> = { createAutosaveEntityForm: "autosave", createSavedEntityForm: "saved" };
 const WORDS = ["Back", "Cancel", "Close", "Done"] as const;

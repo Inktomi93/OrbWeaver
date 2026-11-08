@@ -179,7 +179,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
             <StatFigure label="Time reasoning" value={formatDurationMs(stats.reasoningMs)} />
           </Grid>
           <Text voice="gloss">
-            Cache hits is the share of the tokens you sent that the provider served from its prompt cache — it is not rolled up per character, so it reads as a
+            Cache hits is the share of the tokens you sent that the provider served from its prompt cache. It is not rolled up per character, so it reads as a
             dash here. Reasoning counts thinking passes per reply or swipe. {UNRECORDED_NOTE}
           </Text>
         </Stack>

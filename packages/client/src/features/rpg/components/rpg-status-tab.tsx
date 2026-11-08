@@ -72,7 +72,7 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
   useRpgStatusSheetRequest(characters, chatId, state.viewerUserId, setOpenKey);
 
   if (characters.length === 0) {
-    return <Text>No characters yet — add them in Members.</Text>;
+    return <Text>No characters yet: add them in Members.</Text>;
   }
 
   // One op-and-mutate for a target actor's volatile: the panel names the OP it performed, the server applies
@@ -143,7 +143,7 @@ export function RpgStatusTab({ state }: RpgStatusTabProps): ReactElement {
           ) : null
         }
       >
-        Characters — {characters.length}
+        Characters: {characters.length}
       </Kicker>
       {/* THE ORIENTING LEAD. A just-started game lands here with a list of cards that are all em-dashes and
           `+ condition`, so the line says a game has started and what will fill it in. It shows only while the

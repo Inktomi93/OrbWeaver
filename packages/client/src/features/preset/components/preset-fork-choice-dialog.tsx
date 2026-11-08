@@ -102,7 +102,7 @@ export function PresetForkChoiceDialog({ open, sourceName, forkName, suggestedNa
               Start a new fork
             </Button>
           </Stack>
-          <Text voice="gloss">{`Either way this edit is saved — "${forkName}" is just the copy it would join.`}</Text>
+          <Text voice="gloss">{`Either way this edit is saved: "${forkName}" is just the copy it would join.`}</Text>
         </Stack>
       )}
     </DismissDialog>

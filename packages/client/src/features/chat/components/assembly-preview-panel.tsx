@@ -90,8 +90,8 @@ function PreviewBody({ chatId }: AssemblyPreviewPanelProps): ReactElement {
       {gameState === undefined ? null : <GameStateExcerpt text={gameState.text} />}
 
       <Text voice="gloss">
-        Counts are estimated locally (QuadChars) — the real count is the provider's post-turn usage. Host-only: what the model sees, nothing more, nothing
-        hidden from you.
+        Counts are estimated locally (QuadChars). The real count is the provider's post-turn usage. Host-only: what the model sees, nothing more, nothing hidden
+        from you.
       </Text>
 
       <AssemblyPreviewDiagnostics injections={prompt.afterHistory} shapeTrace={shapeTrace} trace={trace} />
@@ -161,7 +161,7 @@ function budgetGloss(budget: AssemblyBudgetPreview, roomKnown: boolean): ReactEl
   if (budget.ceilingEstimated) {
     return (
       <Text voice="gloss">
-        The connected model's context window isn't published (its catalog couldn't be read), so the fit runs against a fallback — the ratio would be fiction.
+        The connected model's context window isn't published (its catalog couldn't be read), so the fit runs against a fallback. The ratio would be fiction.
       </Text>
     );
   }
@@ -229,7 +229,7 @@ function SourceBody({ slice }: { readonly slice: AssemblyBudgetSlice }): ReactEl
   if (slice.text === "") {
     return (
       <Stack paddingBlockEnd="row">
-        <Text voice="gloss">Accounted by cost only — the wire history IS the transcript you're reading, so the preview never re-serves it.</Text>
+        <Text voice="gloss">Accounted by cost only. The wire history IS the transcript you're reading, so the preview never re-serves it.</Text>
       </Stack>
     );
   }

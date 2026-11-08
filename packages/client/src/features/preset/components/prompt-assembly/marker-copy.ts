@@ -60,13 +60,13 @@ export interface MarkerCopy {
 export const MARKER_COPY: Record<MarkerType, MarkerCopy> = {
   ["main_prompt"]: {
     label: "Main prompt",
-    oneLiner: "Your top-level system instruction — the character's card can replace it in place.",
+    oneLiner: "Your top-level system instruction. The character's card can replace it in place.",
     subtitle: "your core system instruction",
     glyph: Sparkles,
     templateNote:
       "The built-in default adapts to the turn: a narrator round gets a narrator framing instead of this one. Anything you write here replaces it on every turn, narrator and per-character alike.",
     templateNoteDetail: { label: "See the narrator framing", text: NARRATOR_MAIN_PROMPT_TEMPLATE },
-    previewCue: "Adapts on narrator turns — open it for what changes.",
+    previewCue: "Adapts on narrator turns. Open it for what changes.",
   },
   ["char_description"]: {
     label: "Character description",
@@ -94,13 +94,13 @@ export const MARKER_COPY: Record<MarkerType, MarkerCopy> = {
   },
   ["post_history"]: {
     label: "Post-history instructions",
-    oneLiner: "A reminder placed after the conversation — the character's card can replace it in place.",
+    oneLiner: "A reminder placed after the conversation. The character's card can replace it in place.",
     subtitle: "reminder after the conversation",
     glyph: Sparkles,
   },
   ["persona"]: {
     label: "Persona",
-    oneLiner: "Who YOU are in the scene — your persona's description, then the other people in the room.",
+    oneLiner: "Who YOU are in the scene. Your persona's description, then the other people in the room.",
     subtitle: "from your persona",
     glyph: CircleUser,
   },
@@ -139,20 +139,20 @@ export const MARKER_COPY: Record<MarkerType, MarkerCopy> = {
   },
   ["chat_history"]: {
     label: "Chat history",
-    oneLiner: "The conversation itself — the pivot everything sits before or after.",
+    oneLiner: "The conversation itself: the pivot everything sits before or after.",
     subtitle: "the conversation",
     glyph: MessagesSquare,
   },
   ["world_info_before"]: {
     label: "World info (before)",
     oneLiner: "World book entries positioned to sit before the conversation.",
-    subtitle: "world book — before",
+    subtitle: "world book: before",
     glyph: Library,
   },
   ["world_info_after"]: {
     label: "World info (after)",
     oneLiner: "World book entries positioned to sit after the conversation.",
-    subtitle: "world book — after",
+    subtitle: "world book: after",
     glyph: Library,
   },
 };
@@ -188,16 +188,16 @@ type PlainMarker = Exclude<MarkerType, keyof typeof DEFAULT_MARKER_TEMPLATES>;
 
 export const CARRIER_ATTRIBUTION: Record<PlainMarker, CarrierAttribution> = {
   ["chat_history"]: {
-    sentence: "This is the conversation itself — every message in the chat, spliced in at this point. There is nothing to write here.",
+    sentence: "This is the conversation itself. Every message in the chat, spliced in at this point. There is nothing to write here.",
   },
   ["world_info_before"]: {
     sentence:
-      "This content is pulled from World info and cannot be edited here — which entries are active is decided per chat, as the conversation triggers them.",
+      "This content is pulled from World info and cannot be edited here, which entries are active is decided per chat, as the conversation triggers them.",
     manage: { label: "Manage in World info", collection: WORLD_INFO_COLLECTION },
   },
   ["world_info_after"]: {
     sentence:
-      "This content is pulled from World info and cannot be edited here — which entries are active is decided per chat, as the conversation triggers them.",
+      "This content is pulled from World info and cannot be edited here, which entries are active is decided per chat, as the conversation triggers them.",
     manage: { label: "Manage in World info", collection: WORLD_INFO_COLLECTION },
   },
 };

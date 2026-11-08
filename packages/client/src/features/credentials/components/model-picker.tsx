@@ -263,7 +263,7 @@ function ListedPicker(props: ModelPickerProps & { readonly models: readonly Mode
         {models === null ? null : <CommandStatus />}
         {view.overflow > 0 ? (
           <Row padding="row">
-            <Text voice="gloss">{`+${view.overflow} more — keep typing to narrow`}</Text>
+            <Text voice="gloss">{`+${view.overflow} more: keep typing to narrow`}</Text>
           </Row>
         ) : null}
         {listReady && typedAllowed ? <TypedRow onPick={(id: string): void => onValueChange(id)} typed={typed} /> : null}
@@ -364,7 +364,7 @@ function PickedLine({
   }
   return (
     <Text tone="warning" cap="prose" data-slot="model-picker-picked" prose={true} role="status" voice="gloss">
-      Picked: {value} — {unlistedModelSentence(listOwner)}
+      Picked: {value}. {unlistedModelSentence(listOwner)}
     </Text>
   );
 }

@@ -184,8 +184,8 @@ export function ChatDocumentsSection({ chatId, isHost }: ChatDocumentsSectionPro
     <Stack data-databank-slot={slotState} gap="block">
       <Text voice="gloss">
         {isHost
-          ? "Indexed passages from these documents can be pulled into this chat's prompts. Hiding one stops it feeding this room — it stays attached everywhere else."
-          : "Indexed passages from these documents can be pulled into this chat's prompts — anyone in the room can contribute their own."}
+          ? "Indexed passages from these documents can be pulled into this chat's prompts. Hiding one stops it feeding this room. It stays attached everywhere else."
+          : "Indexed passages from these documents can be pulled into this chat's prompts. Anyone in the room can contribute their own."}
       </Text>
 
       {warnSlotless ? (
@@ -215,7 +215,7 @@ export function ChatDocumentsSection({ chatId, isHost }: ChatDocumentsSectionPro
         <Text voice="gloss">
           {isHost
             ? "No documents feed this chat yet."
-            : "No documents feed this chat yet — switch one of your own on for every chat in Databank and it joins the rooms you are in."}
+            : "No documents feed this chat yet. Switch one of your own on for every chat in Databank and it joins the rooms you are in."}
         </Text>
       ) : (
         // THE RACK OWNS ITS SCROLL. The union is membership-derived: every present member's Everywhere

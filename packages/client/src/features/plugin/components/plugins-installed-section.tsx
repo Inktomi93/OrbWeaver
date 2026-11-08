@@ -35,7 +35,7 @@ function InstalledPluginsList(): ReactElement {
   if (plugins.length === 0) {
     return (
       <Text voice="gloss">
-        Nothing installed yet. A plugin is a small sandboxed script that can watch a room, offer chips, write lore or add tools — and only ever what you allow
+        Nothing installed yet. A plugin is a small sandboxed script that can watch a room, offer chips, write lore or add tools, and only ever what you allow
         it. Add one below.
       </Text>
     );

@@ -63,7 +63,7 @@ function runCaveat(script: CreateRegexScriptInput): string | null {
   // the transformation while silently ignoring the scope would be the tester lying by omission — so it says
   // so, in the same breath as the result, exactly like the two arms above.
   if (script.historyDepth !== undefined && (script.historyDepth.min > 0 || script.historyDepth.max !== null)) {
-    return "Heads up: the depth range only applies to real chat history, so the result below ignores it — this shows what the pattern does, not which messages it reaches.";
+    return "Heads up: the depth range only applies to real chat history, so the result below ignores it. This shows what the pattern does, not which messages it reaches.";
   }
   return null;
 }

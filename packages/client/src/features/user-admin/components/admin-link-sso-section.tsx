@@ -30,7 +30,7 @@ export function AdminLinkSsoSection({ anchorId }: { readonly anchorId: string })
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={3} />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="the admin panel — it's available to administrators only" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="the admin panel: it's available to administrators only" onRetry={retry} />}
       reserveRows={firstBootRows}
       reserveKey="config.admin.linkSso"
     >
@@ -53,13 +53,13 @@ function AdminLinkSsoBody({ anchorId }: { readonly anchorId: string }): ReactEle
     <Section container={true} divider={true} heading={ADMIN_LINK_SSO_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="row" data-testid={testId("adminLinkSsoSection")}>
         <Text voice="label" ink="muted">
-          Link a local account to its stable SSO subject so a switch to single sign-on migrates it in place — otherwise a user whose IdP username differs from
+          Link a local account to its stable SSO subject so a switch to single sign-on migrates it in place. Otherwise a user whose IdP username differs from
           their handle gets a brand-new account and loses their data. Only unlinked, non-owner accounts appear here.
         </Text>
 
         {linkable.length === 0 ? (
           <Text voice="gloss" data-testid={testId("adminLinkSsoEmpty")}>
-            No accounts to link — every non-owner account is already linked to an SSO identity.
+            No accounts to link. Every non-owner account is already linked to an SSO identity.
           </Text>
         ) : (
           <Stack gap="field">

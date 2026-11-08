@@ -79,7 +79,7 @@ export const CONNECTIONS_ROLES_SUBCATEGORY: ConfigSubcategory = {
       label: "Text embedding model",
       keywords: ["embed", "vector", "search", "memory", "dimension"],
       teach: {
-        summary: "The model that turns text into vectors — memory recall, search and the corpus analyses all read from what it wrote.",
+        summary: "The model that turns text into vectors. Memory recall, search and the corpus analyses all read from what it wrote.",
         affects: ["memory recall, search and corpus analysis quality", "the whole index: changing it means re-embedding"],
       },
     },

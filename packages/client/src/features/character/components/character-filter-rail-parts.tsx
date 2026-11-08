@@ -237,7 +237,7 @@ function TagFilterChipButton({
             event.preventDefault();
             edit();
           }}
-          aria-label={`Filter by ${tag.name}: ${presentation.announced} — ${presentation.next}`}
+          aria-label={`Filter by ${tag.name}: ${presentation.announced}: ${presentation.next}`}
           cap="fit"
           className="min-inline-0"
           data-tag-filter-state={state}

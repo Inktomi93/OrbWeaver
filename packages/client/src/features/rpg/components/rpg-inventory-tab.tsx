@@ -161,7 +161,7 @@ function PackSection({
   return (
     <Stack gap="field">
       <Row gap="field" align="center" justify="between">
-        <Kicker trailing={onRelease === undefined ? null : <RpgFieldLock field="the pack" onRelease={onRelease} />}>Pack — {items.length}</Kicker>
+        <Kicker trailing={onRelease === undefined ? null : <RpgFieldLock field="the pack" onRelease={onRelease} />}>Pack: {items.length}</Kicker>
         {/* The compact-grid / list view knob (a display preference, session-local). */}
         {items.length === 0 ? null : (
           <Tip text={toggleLabel}>
@@ -173,7 +173,7 @@ function PackSection({
       </Row>
       {items.length === 0 ? (
         // No dead end: an empty pack still offers the host the first item.
-        <Text>Empty pack — {edit === undefined ? "the story fills it." : "the story fills it, or add the first thing below."}</Text>
+        <Text>Empty pack: {edit === undefined ? "the story fills it." : "the story fills it, or add the first thing below."}</Text>
       ) : (
         <PackBody view={view} items={items} {...(edit === undefined ? {} : { edit })} />
       )}
@@ -196,7 +196,7 @@ function LastChangeLine({ lastChange }: { readonly lastChange: string | null }):
   }
   return (
     <Text voice="gloss" data-slot="rpg-pack-last-change">
-      last change — {lastChange}
+      last change: {lastChange}
     </Text>
   );
 }
@@ -262,7 +262,7 @@ function PurseLine({
         <Icon icon={Coins} size="sm" label="Party purse" />
         {[...totals.entries()].map(([name, total]) => {
           const own = carried.find((c) => c.name === name)?.amount ?? 0;
-          const carriedNote = actorName !== undefined && own > 0 && own !== total ? ` — ${own} on ${actorName}` : "";
+          const carriedNote = actorName !== undefined && own > 0 && own !== total ? ` (${own} on ${actorName})` : "";
           return (
             <Text key={name} as="span" voice="datum">
               {total} {name}

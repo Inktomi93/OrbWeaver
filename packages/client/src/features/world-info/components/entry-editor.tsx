@@ -53,9 +53,9 @@ const KEYS_MAX = 500;
 const EntryForm = createAutosaveEntityForm<EntryFormValues>({ defaultValues: NEW_ENTRY_FORM, draft: entryDraftStore });
 
 const SCOPE_MODE_LABELS: Record<(typeof ENTRY_SCOPE_MODES)[number], string> = {
-  auto: "Auto — keyword if it has keys, always if not",
-  always: "Always — fires every turn, keys ignored",
-  keyword: "Keyword — fires only when a key matches",
+  auto: "Auto: keyword if it has keys, always if not",
+  always: "Always: fires every turn, keys ignored",
+  keyword: "Keyword: fires only when a key matches",
 };
 const SCOPE_MODE_ITEMS: SelectItems = ENTRY_SCOPE_MODES.map((value) => ({
   value,
@@ -133,7 +133,7 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
 
       <form.AppField name="title">
         {(field): ReactElement => (
-          <field.TextField label="Title" hint="A short label for the entry list — never injected into the prompt." placeholder="Entry title" />
+          <field.TextField label="Title" hint="A short label for the entry list. Never injected into the prompt." placeholder="Entry title" />
         )}
       </form.AppField>
 
@@ -183,7 +183,7 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
         </form.AppField>
         <form.AppField name="ignoreBudget">
           {(field): ReactElement => (
-            <field.SwitchField label="Always include" hint="Bypass the per-turn world-info token budget — must-have lore that's never dropped." />
+            <field.SwitchField label="Always include" hint="Bypass the per-turn world-info token budget: must-have lore that's never dropped." />
           )}
         </form.AppField>
       </Row>

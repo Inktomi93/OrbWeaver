@@ -21,7 +21,7 @@ interface HintEditorProps {
 }
 
 /** The gloss field: `hint · <the sentence the model reads>` + the near-cap counter. */
-export function HintEditor({ ariaLabel, hint, max, onEdit, placeholder = "what this means — the story reads this…" }: HintEditorProps): ReactElement | null {
+export function HintEditor({ ariaLabel, hint, max, onEdit, placeholder = "what this means: the story reads this…" }: HintEditorProps): ReactElement | null {
   // Read-only + empty = nothing to say (never an empty labelled row on a viewer's surface).
   if (onEdit === undefined && hint === "") {
     return null;

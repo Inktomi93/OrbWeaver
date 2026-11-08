@@ -47,7 +47,7 @@ const HTTP_SUCCESS_CEILING = 300;
 
 function verdictOf({ response, error }: EndpointInspection): { readonly kind: VerdictKind; readonly text: string } {
   if (response === null) {
-    return { kind: "unreachable", text: `The request never got an answer — ${error ?? "no reason was given"}.` };
+    return { kind: "unreachable", text: `The request never got an answer: ${error ?? "no reason was given"}.` };
   }
   const status = `${String(response.status)} ${response.statusText}`;
   if (response.status < HTTP_SUCCESS_FLOOR || response.status >= HTTP_SUCCESS_CEILING) {
@@ -57,7 +57,7 @@ function verdictOf({ response, error }: EndpointInspection): { readonly kind: Ve
   }
   return error === undefined
     ? { kind: "ok", text: `The server answered ${status}.` }
-    : { kind: "unreadable", text: `The server answered ${status}, but a chat turn could not use the reply — ${error}.` };
+    : { kind: "unreadable", text: `The server answered ${status}, but a chat turn could not use the reply: ${error}.` };
 }
 
 function InspectionResult({ inspection }: { readonly inspection: EndpointInspection }): ReactElement {

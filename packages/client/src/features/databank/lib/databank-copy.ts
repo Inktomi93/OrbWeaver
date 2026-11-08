@@ -14,7 +14,7 @@
  *  whether they describe one mechanism or two. Surfaces that need MORE than this add their own second
  *  sentence after it (the CONTENT welcome does) — they never re-word this one. */
 export const DATABANK_INGEST_GLOSS =
-  "Upload a file, paste text, or pull in a page — choose which chats it feeds. Relevant passages can reach those chats after indexing.";
+  "Upload a file, paste text, or pull in a page. Choose which chats it feeds. Relevant passages can reach those chats after indexing.";
 
 /** The CONTENT pane's title on the landing, empty bank or not. */
 export const DATABANK_LANDING_TITLE = "Your databank";
@@ -41,7 +41,7 @@ export const DATABANK_CONTEXT_EMPTY = {
 } as const;
 
 /** Why the owner-wide sweeps are closed over an empty bank: the maintenance group label. */
-export const DATABANK_SWEEPS_NEED_DOCUMENT = "Add a document first — these sweeps run over your whole bank.";
+export const DATABANK_SWEEPS_NEED_DOCUMENT = "Add a document first. These sweeps run over your whole bank.";
 
 /** Why they are closed when the bank-health read failed: the maintenance group label. */
 export const DATABANK_SWEEPS_CHECK_FAILED = "Couldn't check your bank, so these sweeps stay closed.";

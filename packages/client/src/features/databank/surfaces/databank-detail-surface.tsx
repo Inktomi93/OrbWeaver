@@ -172,7 +172,7 @@ function DetailBody({ documentId }: { readonly documentId: DocumentId }): ReactE
       { scope: { kind: "document", documentId } },
       {
         onSuccess: (): void => {
-          toast.add({ title: "Rebuilding the search index — the counts refresh as it runs." });
+          toast.add({ title: "Rebuilding the search index. The counts refresh as it runs." });
         },
       },
     );

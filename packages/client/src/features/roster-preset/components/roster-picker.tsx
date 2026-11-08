@@ -342,7 +342,7 @@ export function RosterPicker(): ReactElement {
       })
       .then((view) =>
         notify.success(
-          `Saved “${view.name}” — ${characterCountPhrase(view.members.length)}${view.rules.length > 0 ? `, ${view.rules.length} rule${view.rules.length === 1 ? "" : "s"}` : ""}.`,
+          `Saved “${view.name}”: ${characterCountPhrase(view.members.length)}${view.rules.length > 0 ? `, ${view.rules.length} rule${view.rules.length === 1 ? "" : "s"}` : ""}.`,
         ),
       )
       .catch(() => undefined); // errorToast owns the failure copy (e.g. the duplicate-name conflict).
@@ -362,7 +362,7 @@ export function RosterPicker(): ReactElement {
           description={
             active?.isHost === true
               ? "Save this room's roster below, and it becomes a roster you can drop into any new chat."
-              : "Open a chat you host and save it as a roster — then start new rooms from it in one pick."
+              : "Open a chat you host and save it as a roster, then start new rooms from it in one pick."
           }
           // THE EMPTY STATE'S CTA MAY NOT ABANDON THE ROOM IT WAS OPENED FROM (#848). "Start a new chat"
           // was the emphasised action in EVERY empty arm — including the host's, where it closes this
@@ -413,7 +413,7 @@ export function RosterPicker(): ReactElement {
           }
         }}
         title="Delete this roster?"
-        description={confirmDelete === null ? "" : `“${confirmDelete.name}” is a saved template — chats you started from it are untouched.`}
+        description={confirmDelete === null ? "" : `“${confirmDelete.name}” is a saved template: chats you started from it are untouched.`}
         confirmLabel="Delete"
         onConfirm={(): void => {
           if (confirmDelete !== null) {

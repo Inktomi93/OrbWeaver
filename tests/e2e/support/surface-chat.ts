@@ -1,5 +1,6 @@
 import { readFile, stat } from "node:fs/promises";
 import { extname } from "node:path";
+import { MESSAGE_TOOLS_LABEL } from "@orb/client/lib";
 import { ASSET_LIST_LIMIT_MAX, blobUrl } from "@orb/contracts/assets";
 import { characterHandleSchema } from "@orb/contracts/character";
 import type { ChatSummary, MessageView } from "@orb/contracts/chat";
@@ -253,7 +254,7 @@ async function openRoom(flow: Journey, room: ChatSummary, inspectList = false): 
     },
   });
   await flow.requestPanes();
-  if (flow.requestedPanes.kind === "desktop" && flow.requestedPanes.panes.context) {
+  if (flow.requestedPanes.kind === "desktop" && flow.requestedPanes.panes.context && (await flow.desktopShell())) {
     await contextReady(flow);
   }
   await checkpoint(flow, `chat-room-${room.id}`, flow.page.locator("body"), flow.page.getByRole("group", { name: CHAT_COMPOSER_NAME, exact: true }));
@@ -864,7 +865,7 @@ async function sidecarColumnReady(column: Locator, edge: Locator): Promise<void>
 
 async function inspectSidecarSheet(flow: Journey, room: ChatSummary, restoreLabel: string): Promise<void> {
   await closeContextOverlay(flow, `sidecar-${room.id}-return-to-content`);
-  await flow.page.getByRole("button", { name: "Message tools", exact: true }).click();
+  await flow.page.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true }).click();
   const item = flow.page.getByRole("menuitem", { name: SIDECAR_PANELS_LABEL, exact: true });
   await expect(item).toBeVisible();
   const sheet = flow.page.getByRole("dialog", { name: SIDECAR_PANELS_LABEL, exact: true });
@@ -1873,7 +1874,7 @@ async function messageVisibilityAndReaction(flow: Journey, message: MessageView)
   }
   await choice.click();
   await expect(picker).toBeHidden();
-  const pill = messageRow(flow.page, message.id).getByRole("button", { name: `${name} — 1 so far`, exact: true });
+  const pill = messageRow(flow.page, message.id).getByRole("button", { name: `${name}: 1 so far`, exact: true });
   await expect(pill).toHaveAttribute("aria-pressed", "true");
   await checkpoint(flow, "message-operations/reaction-added", messageRow(flow.page, message.id), pill);
   menu = await messageOperationMenu(flow, message);
@@ -2274,7 +2275,7 @@ export async function walkChatArcade(input: SurfaceFlow): Promise<void> {
           .click();
         await pluginContextReady(flow);
         const frame = activeContext(flow).locator("iframe").filter({ visible: true });
-        const titles = [plugin.name, `${plugin.name} — ${surface.title}`].map((title) => `[title=${JSON.stringify(title)}]`);
+        const titles = [plugin.name, `${plugin.name}: ${surface.title}`].map((title) => `[title=${JSON.stringify(title)}]`);
         const arcade = frame.and(flow.page.locator(titles.join(", ")));
         await expect(arcade).toHaveCount(1);
         await expect(arcade).toBeVisible();
@@ -2379,7 +2380,7 @@ export async function walkChatOracle(input: SurfaceFlow): Promise<void> {
           },
           ready: async () => {
             await expect(dialog).toBeVisible();
-            await expect(dialog.getByRole("group", { name: `${plugin.name} — ${revealSurface.title}`, exact: true })).toBeVisible();
+            await expect(dialog.getByRole("group", { name: `${plugin.name}: ${revealSurface.title}`, exact: true })).toBeVisible();
             await expect
               .poll(async () => (await flow.client.plugin.getSurfaceState.query({ pluginId: plugin.id, surfaceId: revealSurface.id }))?.["seed"])
               .toEqual(expect.any(String));

@@ -191,7 +191,7 @@ function PreviewResolution({
   if (!parsed.ok) {
     return (
       <Text tone="warning" voice="gloss">
-        That isn't JSON yet — paste the whole reply body.
+        That isn't JSON yet. Paste the whole reply body.
       </Text>
     );
   }

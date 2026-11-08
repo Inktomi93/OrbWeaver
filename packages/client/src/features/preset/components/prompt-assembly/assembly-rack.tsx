@@ -112,7 +112,7 @@ export function AssemblyRack({
                   <Row align="center" gap="row">
                     <Icon icon={TriangleAlert} size="sm" tone="warning" />
                     <Text grow={true} voice="label">
-                      No chat history marker — the conversation has nowhere to splice in.
+                      No chat history marker. The conversation has nowhere to splice in.
                     </Text>
                     <Button variant="outline" onClick={onAddChatHistory} size="sm" type="button">
                       Add chat history

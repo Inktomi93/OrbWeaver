@@ -45,13 +45,13 @@ function ResetPasswordBody({ handle, userId, onDone }: { readonly handle: string
       // The sticky mutation error renders below (plus the factory's errorToast) — stay open.
       return;
     }
-    notify.success("Password reset — their sessions were revoked.");
+    notify.success("Password reset: their sessions were revoked.");
     onDone();
   };
 
   return (
     <FormDialogPopup
-      description="Sets a new local password and revokes every live session — they'll need to sign in again on all devices."
+      description="Sets a new local password and revokes every live session. They'll need to sign in again on all devices."
       submit={{
         label: resetPassword.isPending ? "Resetting…" : "Reset password",
         disabled: resetPassword.isPending,
@@ -59,7 +59,7 @@ function ResetPasswordBody({ handle, userId, onDone }: { readonly handle: string
         onSubmit: (): void => void submit().catch(globalThis.reportError),
       }}
       testKey="adminResetPasswordDialog"
-      title={`Reset password — ${handle}`}
+      title={`Reset password: ${handle}`}
     >
       <Field label="New password" description={`At least ${MIN_PASSWORD_LENGTH} characters.`}>
         <Input
@@ -79,7 +79,7 @@ function ResetPasswordBody({ handle, userId, onDone }: { readonly handle: string
       ) : null}
       {!showTooShort && resetPassword.error !== null ? (
         <Text role="alert" tone="destructive" voice="label">
-          Couldn't reset the password — try again.
+          Couldn't reset the password. Try again.
         </Text>
       ) : null}
     </FormDialogPopup>

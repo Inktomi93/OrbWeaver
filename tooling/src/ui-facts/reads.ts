@@ -3,7 +3,7 @@
 import ts from "typescript";
 import type { Source } from "../eslint/index.ts";
 import { lineOf, visit } from "../eslint/index.ts";
-import type { Cohort, Member } from "./compare.ts";
+import type { Cohort, Member } from "../floor/verdict/cohort-compare.ts";
 import { anyNode, enclosingFunction, hasProperty, resultBinding } from "./syntax.ts";
 
 const STATE_FLAGS = new Set(["isPending", "isLoading", "isError", "isLoadingError", "status"]);

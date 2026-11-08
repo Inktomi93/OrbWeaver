@@ -76,7 +76,7 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
 
   return (
     <FormDialog
-      description="Give them a name and a one-line description — you can flesh out the rest in the editor."
+      description="Give them a name and a one-line description. You can flesh out the rest in the editor."
       onOpenChange={onOpenChange}
       open={open}
       submit={{ label: DIALOG_VERBS.create, disabled: incomplete || create.isPending, onSubmit: onCreate }}

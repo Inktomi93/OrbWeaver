@@ -166,7 +166,7 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
         // and re-deriving a client-side verdict would be the second parser this door exists to avoid.
         setError(failure);
       })
-      .catch(() => setError("Import failed — try the file again."));
+      .catch(() => setError("Import failed: try the file again."));
   };
 
   return (
@@ -230,7 +230,7 @@ function OrbSummary({ name }: { readonly name: string }): ReactElement {
   return (
     <Section kicker="Ready to import">
       <Text prose={true} voice="label">
-        orbweaver preset export — "{name}". That name is the merge key.
+        orbweaver preset export: "{name}". That name is the merge key.
       </Text>
     </Section>
   );
@@ -242,16 +242,16 @@ function StImportSummary({ name, result }: { readonly name: string; readonly res
   return (
     <Section kicker="Ready to import">
       <Text prose={true} voice="label">
-        SillyTavern preset — {sectionCount} section{sectionCount === 1 ? "" : "s"}, created as a new preset named "{name}".
+        SillyTavern preset: {sectionCount} section{sectionCount === 1 ? "" : "s"}, created as a new preset named "{name}".
       </Text>
       {dropped.length === 0 ? (
-        <Text voice="gloss">Everything mapped — nothing was dropped.</Text>
+        <Text voice="gloss">Everything mapped: nothing was dropped.</Text>
       ) : (
         <Stack gap="field">
           <Text voice="gloss">These SillyTavern fields have no orbweaver home and were left out:</Text>
           {dropped.map((field: StDroppedField) => (
             <Text key={field.field} voice="gloss">
-              <code>{field.field}</code> — {field.reason}
+              <code>{field.field}</code>: {field.reason}
             </Text>
           ))}
         </Stack>

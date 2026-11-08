@@ -126,7 +126,7 @@ function RulesSection({ chatId }: RulesSectionProps): ReactElement {
       <Text voice="gloss">{RULES_INTRO}</Text>
       {rules.length === 0 ? (
         <Text voice="gloss">
-          Nothing is watching this chat yet. Add a rule — post an image, nudge the pacing, offer chips — and it starts off until you enable it.
+          Nothing is watching this chat yet. Add a rule (post an image, nudge the pacing, offer chips) and it starts off until you enable it.
         </Text>
       ) : null}
       <RuleManager key={chatId} chatId={chatId} rules={rules} />

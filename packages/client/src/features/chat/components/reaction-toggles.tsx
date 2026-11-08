@@ -57,7 +57,7 @@ export function CharactersCanReactControl({ chatId }: ReactionTogglesProps): Rea
   return (
     <SettingSwitchRow
       label="Characters can react"
-      description="Let this chat's model drop an emoji reaction from a present character while it replies. Needs Reactions on; off by default — turning it on is the opt-in. Your default for new chats lives in Settings → Chat behavior."
+      description="Let this chat's model drop an emoji reaction from a present character while it replies. Needs Reactions on; off by default. Turning it on is the opt-in. Your default for new chats lives in Settings → Chat behavior."
       checked={resolveCharactersCanReact(chat.charactersCanReact ?? undefined, prefs.charactersCanReact)}
       onChange={(next): void => {
         setEnabled.mutate({ chatId, enabled: next });

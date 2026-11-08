@@ -149,7 +149,7 @@ function FactOverrideEditor({
   return (
     <Row align="end" gap="field" stackBelow="cq-32" alignBelow="stretch-cq-32">
       <Stack className="min-inline-0" grow="fill" gap="tight">
-        <FactEditControl edit={row.edit} label={`${row.name} — your value`} value={draft} onChange={setDraft} />
+        <FactEditControl edit={row.edit} label={`${row.name}: your value`} value={draft} onChange={setDraft} />
         {refusal === null ? (
           <Text voice="gloss">{editHint(row.edit)}</Text>
         ) : (
@@ -239,7 +239,7 @@ function editHint(edit: FactRow["edit"]): string {
   if (edit.kind === "number") {
     return "A number. What you type here is what we believe about this server.";
   }
-  return "What you type here is what we believe about this server — it does not change what the server does.";
+  return "What you type here is what we believe about this server. It does not change what the server does.";
 }
 
 /** "Endpoint quirks" — the `features` block's rows, or nothing when the fold has none to show. */
@@ -273,7 +273,7 @@ export function QuirksBlock({
     <Stack gap="tight">
       <Text voice="label">Endpoint quirks</Text>
       <Text voice="gloss">
-        How this kind of server behaves, and where each answer came from. Read-only — override a line only when this box differs from the others of its kind.
+        How this kind of server behaves, and where each answer came from. Read-only: override a line only when this box differs from the others of its kind.
       </Text>
       <FactRowList busy={busy} note={note} onOverride={onOverride} onReset={onReset} rowRef={rowRef} rows={rows} />
     </Stack>

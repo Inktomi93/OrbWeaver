@@ -187,7 +187,7 @@ function WalletChips({
   if (wallet.length === 0) {
     return (
       <Text as="span" voice="gloss">
-        No coin yet — the story hands it out.
+        No coin yet: the story hands it out.
       </Text>
     );
   }
@@ -275,7 +275,7 @@ function TrackerSection({
     <Stack gap="field">
       <Kicker>Trackers</Kicker>
       {carriesNone ? (
-        <RpgDoorwayLine>{`${actor.name} carries no trackers yet — the host defines them in the Game tab, and every carrier gets the same one.`}</RpgDoorwayLine>
+        <RpgDoorwayLine>{`${actor.name} carries no trackers yet: the host defines them in the Game tab, and every carrier gets the same one.`}</RpgDoorwayLine>
       ) : (
         <Stack gap="field">
           <ActorMeters actor={actor} {...(edit === undefined ? {} : { edit })} />

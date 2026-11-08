@@ -260,7 +260,7 @@ function variableUnsetSummary(spec: ChoiceBlockSpec): string {
   if (fallback.length === 0) {
     return "Use default (nothing)";
   }
-  return spec.multiSelect && spec.randomPick ? `Use default (${fallback}) — one part drawn each reply` : `Use default (${fallback})`;
+  return spec.multiSelect && spec.randomPick ? `Use default (${fallback}): one part drawn each reply` : `Use default (${fallback})`;
 }
 
 interface VariableControlProps {

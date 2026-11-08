@@ -21,7 +21,7 @@ function useRoomOpen(): boolean {
 
 function useMembersMenuForms(): readonly OverflowMenuForm[] {
   const { memberCount } = useRoomRoster();
-  return [{ id: "chat-members", label: `Members — ${memberCount}`, icon: Users, onSelect: openMembersTab }];
+  return [{ id: "chat-members", label: `Members: ${memberCount}`, icon: Users, onSelect: openMembersTab }];
 }
 
 function useMemoryMenuForms(): readonly OverflowMenuForm[] {

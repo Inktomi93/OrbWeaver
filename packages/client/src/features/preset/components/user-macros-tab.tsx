@@ -61,7 +61,7 @@ export function UserMacrosTab({ form, presetId }: UserMacrosTabProps): ReactElem
               getSubtitle={(macro): string => macro.description}
               getTitle={(macro): string => (macro.name === "" ? "Unnamed macro" : `{{${macro.name}}}`)}
               heading="User macros"
-              helperText="Your own template macros — call one anywhere macros resolve. Args and typed inputs bind by name inside the template."
+              helperText="Your own template macros. Call one anywhere macros resolve. Args and typed inputs bind by name inside the template."
               items={values.userMacros}
               getKey={(_macro, index): string | undefined => values.macroRowIds[index]?.id}
               onAdd={onAdd}

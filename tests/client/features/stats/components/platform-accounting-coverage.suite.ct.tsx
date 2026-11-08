@@ -10,7 +10,7 @@ import type { Locator, Page, TestInfo } from "@playwright/test";
 import type { AccountingCoverageStory } from "./_accounting-coverage-stories.tsx";
 
 const STORY = "tests/client/features/stats/components/_accounting-coverage-stories/AccountingCoverageStory";
-const IDENTITY = "Partial accounting — not your provider bill";
+const IDENTITY = "Partial accounting: not your provider bill";
 const SUMMARY = "Missing prices are omitted; some costs are estimates.";
 const PRICES =
   "Costs sum available compatible prices and omit missing prices. They may include provider-reported prices, configured-rate estimates or subscription-notional estimates, not invoice charges.";
@@ -110,7 +110,7 @@ for (const regime of REGIMES) {
       const view = regime.mobile ? singleView : "paired";
       const expectedScope =
         characterOnly && !regime.mobile
-          ? ["Whole library — not just the character you opened. Model usage is rolled up per model, with no per-character breakdown to narrow to."]
+          ? ["Whole library: not just the character you opened. Model usage is rolled up per model, with no per-character breakdown to narrow to."]
           : [];
       test(`${subject} retains its own full accounting explanation behind the concise notice`, async ({ mount, page }, testInfo) => {
         await using root = await createCorpusHarness(undefined, { startJobs: false });

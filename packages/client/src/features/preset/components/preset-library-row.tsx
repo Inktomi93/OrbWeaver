@@ -218,7 +218,7 @@ export function PresetLibraryRow({
                 </MenuItem>
               ),
               deleteDescription: active
-                ? "This is your active preset for generation. Deleting it clears the active pick — new chats fall back to the built-in default. This can't be undone."
+                ? "This is your active preset for generation. Deleting it clears the active pick. New chats fall back to the built-in default. This can't be undone."
                 : "This permanently removes the preset. This can't be undone.",
             },
           })}

@@ -85,7 +85,7 @@ const TEMPLATE_CLUSTER_LABEL: Record<TemplateClusterId, string> = {
 /** The tab's teaching sentence (the Actions-tab IA §2.5). Its predecessor taught `{{input}}` steering —
  *  true for 9 of 67 rows; the `{{input}}` teaching lives where it is true per-row (the drill-in's token
  *  vocabulary and its missing-`{{input}}` warning). Homed HERE with the other reword-able chrome copy. */
-export const ACTIONS_TAB_TEACH = "Every prompt template this preset authors — select a row to see where it lands, drill in to edit it.";
+export const ACTIONS_TAB_TEACH = "Every prompt template this preset authors. Select a row to see where it lands, drill in to edit it.";
 
 /** WHERE a kind's bytes reach the model — the readout's DELIVERY PATH dispatch (the Actions-tab IA §2.3,
  *  derived from the LIVE assembly code, receipts in the design doc §1). `marker` renders the standing
@@ -114,22 +114,22 @@ export const TEMPLATE_KIND_DELIVERY: Record<TemplateKind, TemplateDelivery> = {
   nudge: {
     kind: "static",
     channel: "The next user turn",
-    body: "Appended to the history as the newest user-role turn when its action fires with nothing typed. It rides the turn itself — the Guided instruction marker plays no part.",
+    body: "Appended to the history as the newest user-role turn when its action fires with nothing typed. It rides the turn itself. The Guided instruction marker plays no part.",
   },
   format: {
     kind: "static",
     channel: "The outgoing wire",
-    body: "Applied by the assembler wherever the wire's shape calls for it — wrapping an injection, marking the history's start, or cueing a continuation.",
+    body: "Applied by the assembler wherever the wire's shape calls for it. Wrapping an injection, marking the history's start, or cueing a continuation.",
   },
   group: {
     kind: "static",
     channel: "The group room",
-    body: "Applied by the assembler in a room with several characters or several humans — the co-speaker card headings into the card walk, the person heading over each other human's persona in the persona section, the round and narrator nudges as the round's trailing user turn.",
+    body: "Applied by the assembler in a room with several characters or several humans. The co-speaker card headings into the card walk, the person heading over each other human's persona in the persona section, the round and narrator nudges as the round's trailing user turn.",
   },
   teach: {
     kind: "static",
     channel: "The game turn",
-    body: "Composed into the steering reminder — one system note near the prompt's tail, rebuilt every game turn. Fires only while this preset drives a chat with a game running.",
+    body: "Composed into the steering reminder. One system note near the prompt's tail, rebuilt every game turn. Fires only while this preset drives a chat with a game running.",
   },
   extract: {
     kind: "static",
@@ -142,16 +142,16 @@ export const TEMPLATE_KIND_DELIVERY: Record<TemplateKind, TemplateDelivery> = {
  *  chat" for all 67 rows, false for the game rows (extract tokens are DATA the seam splices; the chat macro
  *  engine passes them through untouched — `kit/macro/evaluator.ts`'s passthrough). */
 export const TEMPLATE_KIND_UNBOUND_GLOSS: Record<TemplateKind, string> = {
-  steer: "Every macro here resolves in chat — open a chat and this readout binds to it, showing what the model actually receives.",
-  voice: "Every macro here resolves in chat — open a chat and this readout binds to it, showing what the model actually receives.",
-  studio: "Every macro here resolves in chat — open a chat and this readout binds to it, showing what the model actually receives.",
-  nudge: "Every macro here resolves in chat — open a chat and this readout binds to it, showing what the model actually receives.",
-  format: "Macros here fill when the assembler applies this row to a real turn — a frame's {{note}} is the wrapped injection's own content.",
+  steer: "Every macro here resolves in chat. Open a chat and this readout binds to it, showing what the model actually receives.",
+  voice: "Every macro here resolves in chat. Open a chat and this readout binds to it, showing what the model actually receives.",
+  studio: "Every macro here resolves in chat. Open a chat and this readout binds to it, showing what the model actually receives.",
+  nudge: "Every macro here resolves in chat. Open a chat and this readout binds to it, showing what the model actually receives.",
+  format: "Macros here fill when the assembler applies this row to a real turn. A frame's {{note}} is the wrapped injection's own content.",
   group:
-    "The {{name}}/{{names}} tokens here are spliced per character or per person when the assembler builds a group room's prompt — they are not chat macros.",
-  teach: "{{user}} and {{char}} resolve through the chat's identity registry on each game turn — open a game chat and this readout binds to it.",
+    "The {{name}}/{{names}} tokens here are spliced per character or per person when the assembler builds a group room's prompt. They are not chat macros.",
+  teach: "{{user}} and {{char}} resolve through the chat's identity registry on each game turn. Open a game chat and this readout binds to it.",
   extract:
-    "Braced tokens here are spliced from the game's own data at the state round — they are not chat macros. Binding a chat resolves only the identity names.",
+    "Braced tokens here are spliced from the game's own data at the state round. They are not chat macros. Binding a chat resolves only the identity names.",
 };
 
 /** The BOUND gloss's fire-time tail, per kind — the phrase after the surviving-token list. Its predecessor

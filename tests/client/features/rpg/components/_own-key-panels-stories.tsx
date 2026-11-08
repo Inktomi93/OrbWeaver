@@ -1,5 +1,6 @@
 import { rpgDiceComposerMediaSurface, rpgTurnToolCallsSurface } from "@orb/client/features/rpg";
 import type { ResolvedContextTabs } from "@orb/client/lib";
+import { MESSAGE_TOOLS_LABEL } from "@orb/client/lib";
 import { selectChat, useSectionRegistry } from "@orb/client/state";
 import type { MessageView } from "@orb/contracts/chat";
 import type { ChatId } from "@orb/kit/ids";
@@ -60,7 +61,7 @@ export function RpgDiceComposerStory({ chatId }: { readonly chatId: ChatId }): R
   return (
     <CtClientProviders>
       <Menu>
-        <MenuTrigger>Message tools</MenuTrigger>
+        <MenuTrigger>{MESSAGE_TOOLS_LABEL}</MenuTrigger>
         <MenuPopup>{rpgDiceComposerMediaSurface.anchor === "message-footer" ? null : rpgDiceComposerMediaSurface.body({ chatId })}</MenuPopup>
       </Menu>
     </CtClientProviders>

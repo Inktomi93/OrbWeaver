@@ -46,14 +46,14 @@ const NO_OVERRIDE = "";
  *  points somewhere the library cannot name — the dangling id as its own visibly-degraded row. */
 function gmVoiceItems(presets: readonly { readonly id: PresetId; readonly name: string }[] | undefined, current: PresetId | null): SelectItems {
   const items = [
-    { value: NO_OVERRIDE, label: "Your own preset", description: "Turns in this room assemble whichever preset is active for you — nothing is pinned." },
+    { value: NO_OVERRIDE, label: "Your own preset", description: "Turns in this room assemble whichever preset is active for you. Nothing is pinned." },
     ...(presets ?? []).map((preset) => ({ value: preset.id, label: preset.name })),
   ];
   if (current !== null && !(presets ?? []).some((preset) => preset.id === current)) {
     items.push({
       value: current,
       label: current,
-      description: "This game points at a preset you can't read any more — it was deleted, or it belongs to the previous host.",
+      description: "This game points at a preset you can't read any more. It was deleted, or it belongs to the previous host.",
     });
   }
   return items;
@@ -85,7 +85,7 @@ export function RpgGmVoice({ chatId, config }: { readonly chatId: ChatId; readon
         }}
       />
       <Text voice="gloss">
-        The preset a turn in this room assembles. Pinning one here changes this room only — your own active preset, and every other room, are untouched.
+        The preset a turn in this room assembles. Pinning one here changes this room only. Your own active preset, and every other room, are untouched.
       </Text>
     </Stack>
   );

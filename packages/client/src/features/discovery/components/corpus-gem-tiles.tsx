@@ -77,7 +77,7 @@ export function CorpusGemTiles({ gems }: { readonly gems: readonly ForgottenGem[
           the reader is meant to read: `prose` is the length statement that lifts the step to 13px without
           leaving the gloss voice, which is the lever the tiles below already use. */}
       <Text cap="prose" prose={true} voice="gloss">
-        Lifetime totals per character — the most played, longest left alone.
+        Lifetime totals per character. The most played, longest left alone.
       </Text>
       {/* auto-fit at the 16rem tile floor: a wider pane shows MORE tiles, never wider ones. `role="list"`
           needs real `listitem` CHILDREN or the cells are generic to AT and the list announces empty. */}

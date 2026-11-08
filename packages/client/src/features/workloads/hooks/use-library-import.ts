@@ -271,11 +271,11 @@ export function useLibraryImport(): LibraryImport {
     setState({ status: "done", summary });
     const caption = summaryCaption(summary);
     if (summary.failed === 0) {
-      notify.success(`Import complete — ${caption}`);
+      notify.success(`Import complete: ${caption}`);
     } else if (summary.imported === 0) {
-      notify.error(`Import failed — ${caption}`);
+      notify.error(`Import failed: ${caption}`);
     } else {
-      notify.info(`Imported with issues — ${caption}`);
+      notify.info(`Imported with issues: ${caption}`);
     }
   };
 

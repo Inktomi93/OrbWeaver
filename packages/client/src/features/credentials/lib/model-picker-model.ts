@@ -431,7 +431,7 @@ export function modelPickerView(source: ModelCatalogSource, args: { readonly lis
         ? emptyListView(`${args.listOwner} listed no models.`, args.typedAllowed, null)
         : { models: source.models, notice: null, warns: false, typingOffered: false, retry: null };
     case "failed":
-      return emptyListView(`Couldn't list ${args.listOwner}'s models — ${clauseOf(source.reason)}.`, args.typedAllowed, source.retry);
+      return emptyListView(`Couldn't list ${args.listOwner}'s models: ${clauseOf(source.reason)}.`, args.typedAllowed, source.retry);
     case "unlisted":
       return { models: null, notice: source.reason, warns: !args.typedAllowed, typingOffered: args.typedAllowed, retry: null };
   }

@@ -83,7 +83,7 @@ export function ActionsReadout({ sections, presetId, boundChatId, templateText }
     // nothing selected, with no row highlighted anywhere on screen. The region's accessible NAME carries the
     // row, and the visible header below it says the same thing in the same words (WCAG 2.5.3: what is spoken
     // is what is shown).
-    <Stack aria-label={`Action readout — ${row.def.label}`} gap="section" role="region">
+    <Stack aria-label={`Action readout: ${row.def.label}`} gap="section" role="region">
       {/* The PANEL's own header — a real `h2` above the section `h3`s, so the readout's subject is the first
           thing the outline (and the eye) reaches instead of being a suffix on the second section's kicker.
           The live announce is on it: selection is driven from the OTHER pane, so a screen-reader user who
@@ -103,7 +103,7 @@ export function ActionsReadout({ sections, presetId, boundChatId, templateText }
             <Text voice="label">{delivery.channel}</Text>
           </Row>
           <Text voice="gloss">{delivery.body}</Text>
-          <Text voice="gloss">This row — {row.def.fires}.</Text>
+          <Text voice="gloss">This row: {row.def.fires}.</Text>
         </Section>
       )}
       {/* The row's name moved UP to the panel header (it is a fact about the whole readout, not about this
@@ -131,7 +131,7 @@ function MarkerDeliveryPath({ sections }: { readonly sections: readonly PromptSe
           </Badge>
         </Row>
         <Text voice="gloss">
-          No Guided instruction marker is placed, so a steer has nowhere to land — every guided template resolves and is then dropped. Add the marker from the
+          No Guided instruction marker is placed, so a steer has nowhere to land. Every guided template resolves and is then dropped. Add the marker from the
           rack's Add menu in the Prompt view.
         </Text>
       </Section>
@@ -159,7 +159,7 @@ function MarkerDeliveryPath({ sections }: { readonly sections: readonly PromptSe
       <Text voice="gloss">
         {marker.enabled
           ? "Clicking the name opens that row in Prompt."
-          : "The marker is switched OFF — a steer resolves and is then dropped. Turn it back on from its rack row."}
+          : "The marker is switched OFF. A steer resolves and is then dropped. Turn it back on from its rack row."}
       </Text>
     </Section>
   );
@@ -191,7 +191,7 @@ function BoundPreview({ chatId, presetId, row }: { readonly chatId: ChatId; read
       fallback={<SkeletonRows count={RESOLVING_SKELETON_ROWS} shape="datum" />}
       renderError={(error, retry): ReactElement =>
         trpcErrorCode(error) === "FORBIDDEN" ? (
-          <Text voice="gloss">This chat cannot be inspected — its host resolves the prompt, and you are not it.</Text>
+          <Text voice="gloss">This chat cannot be inspected. Its host resolves the prompt, and you are not it.</Text>
         ) : (
           <QueryErrorState label="the resolved preview" onRetry={retry} />
         )
@@ -234,7 +234,7 @@ function boundGloss(runs: readonly MacroRun[], user: string | undefined, fireTim
   const names: readonly string[] = runs.filter((run) => run.kind === "macro").map((run) => `{{${run.value}}}`);
   const remaining: readonly string[] = [...new Set(names)];
   const bound = user === undefined ? "bound to this chat" : `bound: {{user}} resolves through the chat ("${user}")`;
-  const deferred = remaining.length === 0 ? "" : ` · ${remaining.join(" ")} stay deferred — ${fireTime}`;
+  const deferred = remaining.length === 0 ? "" : ` · ${remaining.join(" ")} stay deferred: ${fireTime}`;
   return `${bound}${deferred} · settle-live`;
 }
 

@@ -32,6 +32,6 @@ export const rosterCollection: CollectionContribution = {
   context: {
     kind: "none",
     title: "Nothing to attach",
-    description: "A saved roster is a template — it attaches to nothing. Start a chat from it, or add it to a room you host, from the Members tab.",
+    description: "A saved roster is a template. It attaches to nothing. Start a chat from it, or add it to a room you host, from the Members tab.",
   },
 };

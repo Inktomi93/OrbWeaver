@@ -69,7 +69,7 @@ const JUST_ADDED_SHELF_LIMIT = 6;
 const LEAD_GLOSS_DOCKED = "Your library, by who you were talking to. Open anyone to read or edit them; New at the top of the list makes someone new.";
 /** …and with the list off screen, where this pane carries the doors itself. `LIST_OFF_SCREEN_HINT` is the
  *  ONE spelling of the way back (#446) — never a hand-copy. */
-const LEAD_GLOSS_COLLAPSED = `Your library, by who you were talking to. The list is tucked away — everything you need is here.${LIST_OFF_SCREEN_HINT}`;
+const LEAD_GLOSS_COLLAPSED = `Your library, by who you were talking to. The list is tucked away: everything you need is here.${LIST_OFF_SCREEN_HINT}`;
 
 const FRESH_GLOSS_DOCKED =
   "Choose a character in the list to read, edit, or start a chat. Star the ones you like and they gather here; New at the top of the list makes someone new.";
@@ -78,7 +78,7 @@ const FRESH_GLOSS_COLLAPSED = `Choose a character below to read, edit, or start 
 const FRESH_HINT = "Characters you've chatted with show up here under Recently chatted.";
 
 const EMPTY_GLOSS_DOCKED = "Nobody lives here yet. New at the top of the list makes someone, and Import a card beside it brings one in.";
-const EMPTY_GLOSS_COLLAPSED = `Nobody lives here yet — make someone, or bring a card in.${LIST_OFF_SCREEN_HINT}`;
+const EMPTY_GLOSS_COLLAPSED = `Nobody lives here yet: make someone, or bring a card in.${LIST_OFF_SCREEN_HINT}`;
 
 /** The pitch ladder, the library row's own (#119): elevator pitch → the visible tag line → NOTHING. The
  *  handle is row IDENTITY, not caption copy, so a face with neither reads one line shorter rather than

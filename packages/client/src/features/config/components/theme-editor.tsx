@@ -115,7 +115,7 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
         <Section heading="Surface">
           <boundForm.AppField name="background">
             {(field): ReactElement => (
-              <field.ColorField label="Background" description="The base surface — the sidebar/panel/card ramp and all text colors derive from this." />
+              <field.ColorField label="Background" description="The base surface: the sidebar/panel/card ramp and all text colors derive from this." />
             )}
           </boundForm.AppField>
           <boundForm.AppField name="accent">{(field): ReactElement => <field.ColorField label="Accent" />}</boundForm.AppField>
@@ -270,7 +270,7 @@ function ContrastBadge({ label, color, against }: { readonly label: string; read
     <Row gap="field" align="center">
       <Text voice="kicker">{label}</Text>
       <Text voice="gloss" tone={passes ? undefined : "warning"}>
-        {passes ? `${rounded}:1` : `${rounded}:1 — hard to read`}
+        {passes ? `${rounded}:1` : `${rounded}:1: hard to read`}
       </Text>
     </Row>
   );

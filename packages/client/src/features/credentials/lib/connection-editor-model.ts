@@ -33,7 +33,7 @@ export function credentialReadout(auth: ProviderAuth, credentialId: string | nul
   if (credentialId !== null) {
     return "saved";
   }
-  return auth === "none" ? "none — this provider needs no key" : "not set — this provider requires a saved credential";
+  return auth === "none" ? "none: this provider needs no key" : "not set: this provider requires a saved credential";
 }
 
 /** ONE `extras` row while it is being edited. `id` is the row's IDENTITY (§5.3a property 1): the delete
@@ -152,7 +152,7 @@ export function purposeNotes(capability: Capability, ownServer: boolean): readon
   if (capability.kind === "embedding") {
     return capability.embedding.dimsEstimated === true
       ? [
-          `This server doesn't report the vector width, so we assume ${grouped(capability.embedding.dims)}. If the guess is wrong, indexing stops. Check the model's card for its output size and set the vector width under Advanced — changing it rebuilds your search index.`,
+          `This server doesn't report the vector width, so we assume ${grouped(capability.embedding.dims)}. If the guess is wrong, indexing stops. Check the model's card for its output size and set the vector width under Advanced: changing it rebuilds your search index.`,
         ]
       : [];
   }
@@ -220,12 +220,12 @@ export function beltKeyGloss(key: string): string | null {
     return null;
   }
   if (BELT_STREAM_KEYS.includes(key)) {
-    return `We own ${key} — it is how the reply is read back as it arrives. This row is dropped before the request is sent.`;
+    return `We own ${key}: it is how the reply is read back as it arrives. This row is dropped before the request is sent.`;
   }
   if (BELT_IDENTITY_KEYS.includes(key)) {
-    return `We own ${key} — the connection and the room already decide it. This row is dropped before the request is sent.`;
+    return `We own ${key}: the connection and the room already decide it. This row is dropped before the request is sent.`;
   }
-  return `We own ${key} — getting it wrong hangs or 400s the turn, so the history fit sets it. This row is dropped before the request is sent.`;
+  return `We own ${key}: getting it wrong hangs or 400s the turn, so the history fit sets it. This row is dropped before the request is sent.`;
 }
 
 // A value is strict JSON or exactly the text typed, surrounding whitespace included: a chat template or a

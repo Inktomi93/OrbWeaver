@@ -108,7 +108,7 @@ function RegexScopePanel({
           is that script's context arm, and the head band above it states the subject. */}
       <SettingSwitchRow
         checked={isGlobal}
-        description="The one scope this library owns — the other three attach this script from the thing it belongs to."
+        description="The one scope this library owns. The other three attach this script from the thing it belongs to."
         disabled={attach.isPending || detach.isPending}
         label="Runs in every chat"
         onChange={onGlobalChange}

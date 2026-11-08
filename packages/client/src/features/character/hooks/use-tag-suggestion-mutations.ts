@@ -9,8 +9,8 @@ import { trpcErrorReason } from "#lib";
 /** The two honest failures of a "Suggest tags" run, told apart by the wire reason code — because their FIXES
  *  are opposite. A transient summarizer/provider fault is worth retrying; a name-only card is not (retrying
  *  it forever produces the same refusal), so its copy names the one thing that unblocks it. */
-const SUGGEST_RETRY_COPY = "Couldn't generate tag suggestions — try again.";
-const SUGGEST_NOT_DISTILLABLE_COPY = "Nothing to summarize yet — add a description to this card, then suggest tags.";
+const SUGGEST_RETRY_COPY = "Couldn't generate tag suggestions. Try again.";
+const SUGGEST_NOT_DISTILLABLE_COPY = "Nothing to summarize yet. Add a description to this card, then suggest tags.";
 
 /** Run the on-demand distill producer for one card. Explicitly invalidates every pending read and the Labels census — the staging
  *  chokepoint emits no user-bus event.

@@ -94,7 +94,7 @@ export function makeConfigSection(groups: ConfigGroupRegistry): SectionDefinitio
     panelDefaults: { list: "docked", context: "collapsed" },
     placeholder: {
       title: CONFIG_SECTION_LABEL,
-      description: "Everything you configure — your personas, appearance and chat behavior, the app's connections, and the libraries every chat is built from.",
+      description: "Everything you configure: your personas, appearance and chat behavior, the app's connections, and the libraries every chat is built from.",
     },
     list: () => <ConfigListSurface groups={groups} preserveContentFocus={preserveContentFocus} />,
     // The band carries NO aggregate primary (C-2): create lives at the COLLECTION the reader is looking at,

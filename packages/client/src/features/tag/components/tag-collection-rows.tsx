@@ -173,7 +173,7 @@ function LabelsPruneConfirm({
       confirmLabel={pruneConfirmLabel(unusedCount)}
       description={
         hasUnused
-          ? `This deletes ${unusedTagsLabel(unusedCount)} — every tag attached to nothing. This can't be undone.`
+          ? `This deletes ${unusedTagsLabel(unusedCount)}: every tag attached to nothing. This can't be undone.`
           : "Every tag in this library is attached to something, so there is nothing to delete."
       }
       finalFocus={pruneFinalFocus}

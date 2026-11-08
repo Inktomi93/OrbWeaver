@@ -110,7 +110,7 @@ function SnippetOutput({ result }: { readonly result: SnippetResult }): ReactEle
     return (
       <Stack aria-label="Snippet output" gap="block" role="status">
         <Text tone="destructive" voice="gloss">
-          {`Didn't run — syntax error${result.errorLine === undefined ? "" : ` at line ${result.errorLine}`}: ${result.error}`}
+          {`Didn't run: syntax error${result.errorLine === undefined ? "" : ` at line ${result.errorLine}`}: ${result.error}`}
         </Text>
       </Stack>
     );

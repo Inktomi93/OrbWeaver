@@ -1,5 +1,6 @@
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
-import { observeSurfaceSession } from "@orb/testkit/browser/spec";
+import type { PlatformTextSize } from "@orb/testkit/browser/spec";
+import { observeSurfaceSession, setPlatformTextSize } from "@orb/testkit/browser/spec";
 import type { SeededIds } from "@orb/testkit/iso";
 import { createSeededIds, FIXTURE_ID_CURSOR, SURFACE_PASSES } from "@orb/testkit/iso";
 import type { SurfaceRunConfig, SurfaceWalkOptions } from "@orb/testkit/node/helpers";
@@ -20,10 +21,14 @@ const nativeRun = await readSurfaceRunConfig();
 // an earlier worker left in the shared disposable clone.
 const WORKER_ID_BAND = 2 ** 16;
 
+// The engine's own default font size; an enlarged-text project multiplies it.
+const BROWSER_DEFAULT_TEXT_SCALE = 1;
+
 interface SurfaceWalkFixtures {
   readonly run: SurfaceRunConfig;
   readonly client: TrpcClient;
   readonly flow: SurfaceFlow;
+  readonly textProfile: PlatformTextSize | null;
 }
 
 interface SurfaceWalkWorkerFixtures {
@@ -43,6 +48,23 @@ export const test = base.extend<SurfaceWalkOptions & SurfaceWalkFixtures, Surfac
   requestedPanes: [{ kind: "desktop", panes: { list: true, context: true } }, { option: true }],
   chatStyle: [defaults.chatStyle, { option: true }],
   fontScale: [defaults.fontScale, { option: true }],
+  platformTextScale: [BROWSER_DEFAULT_TEXT_SCALE, { option: true }],
+  textProfile: async ({ page, platformTextScale }, use, info) => {
+    if (platformTextScale === BROWSER_DEFAULT_TEXT_SCALE) {
+      await use(null);
+      return;
+    }
+    const profile = await setPlatformTextSize(page, platformTextScale);
+    await attachNativeFile(info, info, "text-profile", {
+      body: JSON.stringify(
+        { ...profile, door: "Chrome DevTools Protocol Page.setFontSizes: the browser's default font size, set before the first navigation" },
+        null,
+        2,
+      ),
+      contentType: "application/json",
+    });
+    await use(profile);
+  },
   run: async ({}, use, info) => {
     expect(info.config.workers, "Independent surface cases share one owner's settings and scripted peer and require serial native workers").toBe(1);
     await use(nativeRun);
@@ -54,8 +76,10 @@ export const test = base.extend<SurfaceWalkOptions & SurfaceWalkFixtures, Surfac
     expect({ userId: viewer.userId, handle: viewer.handle }).toEqual(run.owner);
     await use(client);
   },
-  flow: async ({ page, client, requestedPanes, run, chatStyle, fontScale, surfacePass, layoutStability, runIds }, use, info) => {
-    await use(createSurfaceFlow({ page, client, requestedPanes, run, chatStyle, fontScale, info, pass: surfacePass, layoutStability, ids: runIds }));
+  flow: async ({ page, client, requestedPanes, run, chatStyle, fontScale, textProfile, surfacePass, layoutStability, runIds }, use, info) => {
+    await use(
+      createSurfaceFlow({ page, client, requestedPanes, run, chatStyle, fontScale, textProfile, info, pass: surfacePass, layoutStability, ids: runIds }),
+    );
   },
   context: async ({ context, run, surfacePass, layoutStability, trace, screenshot, video }, use, info) => {
     const posture = { pass: surfacePass, trace, screenshot, video };

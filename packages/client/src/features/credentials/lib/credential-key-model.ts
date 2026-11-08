@@ -51,11 +51,11 @@ function revokedReasonCopy(reason: CredRevokedReason): string | null {
   switch (reason) {
     case "auth_failed":
       // Names the KEY as the problem: the fix is a new key, not "try again in a minute".
-      return "Revoked — the provider rejected this key";
+      return "Revoked: the provider rejected this key";
     case "unreachable":
       // Deliberately NOT "rejected": nothing answered, so nothing judged the key. Saying otherwise would send
       // a user to rotate a perfectly good key because their own box was off.
-      return "Revoked — the endpoint stopped responding";
+      return "Revoked: the endpoint stopped responding";
     case "user":
       return "Revoked by you";
     default:

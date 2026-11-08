@@ -103,7 +103,7 @@ export function AboutUpdatesSection({ anchorId }: { readonly anchorId: string })
         </Row>
         {update.error === null ? null : (
           <Text tone="destructive" voice="label">
-            Couldn't run the update check — try again in a moment.
+            Couldn't run the update check. Try again in a moment.
           </Text>
         )}
       </Stack>

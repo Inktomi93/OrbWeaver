@@ -5,7 +5,7 @@
 import type { UnavailableCause } from "@orb/contracts/inference";
 import type { ChatControlMode } from "./contribution-contracts.ts";
 
-export const ASSISTANT_PREFILL_WARNING = "Assistant role at depth 0 is a response prefill — unsupported across providers. Use depth ≥ 1, or role system/user.";
+export const ASSISTANT_PREFILL_WARNING = "Assistant role at depth 0 is a response prefill. Unsupported across providers. Use depth ≥ 1, or role system/user.";
 
 // `DRAFT_UNLOCK_AFTER_SEND` ("Available after you send the first message") was DELETED 2026-08-14: it was the
 // #8 grey-out reason for every ⋯ action a rowless room could not perform (rename, delete, message selection).
@@ -14,7 +14,7 @@ export const ASSISTANT_PREFILL_WARNING = "Assistant role at depth 0 is a respons
 
 /** Undo/revert the last continuation — need a continue to have run on this reply's shown swipe first
  *  (the D26 snapshot columns are empty until then). Phase-gate, never hidden (owner: no reduced menus). */
-export const NEEDS_CONTINUATION = "Continue this reply first — there's no added text to undo yet";
+export const NEEDS_CONTINUATION = "Continue this reply first: there's no added text to undo yet";
 
 // The composer's own disabled-affordance hover reasons — the empty composer is the FIRST thing a user
 // sees in a fresh room, so its secondary actions (the guided-generations wand + generate-image) must explain
@@ -29,10 +29,10 @@ export const IMAGE_GEN_NEEDS_TEXT = "Type a message to turn into an image";
 // enabled-row `title` helpers, the REGENERATE_PLAIN_HELPER idiom.
 
 /** The ENABLED generate-image-from-text row's helper — it spends immediately, with no preview step. */
-export const IMAGE_GEN_SPENDS_NOW = "Spends right away — your typed text is sent as the prompt, as-is. The room's host pays.";
+export const IMAGE_GEN_SPENDS_NOW = "Spends right away: your typed text is sent as the prompt, as-is. The room's host pays.";
 
 /** The ✨-menu row that opens the `/imagine` modal — the mode + preview door, findable without typing `/`. */
-export const IMAGINE_DOOR_HELPER = "Pick a mode, preview the prompt (and its price) before the image spend — the /imagine surface.";
+export const IMAGINE_DOOR_HELPER = "Pick a mode, preview the prompt (and its price) before the image spend. The /imagine surface.";
 
 /** The shared-room sentence at the image doors: both post the generated picture into the chat, and the room's
  *  host owns the file and funds it (D300). */
@@ -56,7 +56,7 @@ export const CHOICE_NEEDS_LIVE_CHAT = "Open the chat to pick a choice";
 // these two are the copy the band adds. `compose` needs none — it is never disabled.
 
 /** An `execute` control whose OWN verb call is already in flight (never a turn — it re-enables on settle). */
-export const CONTROL_ACTION_RUNNING = "Already running — wait for it to finish";
+export const CONTROL_ACTION_RUNNING = "Already running: wait for it to finish";
 
 /** The ENABLED control's `title` — the mode's CONSEQUENCE, in the enabled-row helper idiom
  *  (`REGENERATE_PLAIN_HELPER` above, `IMAGE_GEN_SPENDS_NOW` below: an operable affordance may still owe a
@@ -69,7 +69,7 @@ export const CONTROL_ACTION_RUNNING = "Already running — wait for it to finish
 export const CONTROL_MODE_CONSEQUENCE: Record<ChatControlMode, string> = {
   send: "Sends as your line",
   compose: "Drafts into your composer",
-  execute: "Runs now — nothing is sent",
+  execute: "Runs now: nothing is sent",
 };
 
 /** The mode WORD — the chip's visible mode channel AND the prefix of its accessible name (side-eye
@@ -134,7 +134,7 @@ export const SWIPE_NEEDS_REPLY = "needs an existing reply (try Generate reply or
 
 /** The ✨-menu Regenerate row's hover helper — distinguishes it from the top-row Swipe icon: Regenerate is a
  *  PLAIN reroll (ignores any typed steer), Swipe is the steer-aware reroll. Both reroll the tail assistant. */
-export const REGENERATE_PLAIN_HELPER = "Creates another version of the last reply — ignores your typed direction.";
+export const REGENERATE_PLAIN_HELPER = "Creates another version of the last reply. Ignores your typed direction.";
 
 /** The ✨-menu "Offer choices" row's hover helper (R3/B1). Its whole job is to distinguish the ONE-SHOT ask
  *  from the STANDING posture that wears the same two words in the "This chat" tab — a user who found only one
@@ -162,7 +162,7 @@ export const IMPERSONATE_FAILED_LEAD = "Couldn't draft your line.";
 
 /** The detail for a failure that carries no server message (a transport/link fault — its message is framework
  *  text like "Unknown error", never user copy). */
-export const GENERATION_FAILED_DETAIL = "The generation didn't complete — check the connection and try again.";
+export const GENERATION_FAILED_DETAIL = "The generation didn't complete. Check the connection and try again.";
 
 export const STEER_CUE_RESPONSE = "Uses your typed text as direction";
 export const STEER_CUE_SWIPE = "Uses your typed text as direction for another reply";
@@ -193,21 +193,21 @@ export type SendRefusalKey = UnavailableCause | "no-chat-connection" | "host-no-
 const SEND_UNAVAILABLE_REASON: Record<SendRefusalKey, string> = {
   // No connection is BOUND to your Chat role (§7.2). A saved connection binds nothing on its own, so the copy
   // names the role picker, not only "add one".
-  "no-connection": `No chat connection is set — choose one under ${MODEL_ROLES_PATH_TEXT} to send.`,
-  "no-chat-connection": `None of your connections can chat yet — add one under ${ADD_CONNECTION_PATH.trail} to send.`,
-  "host-no-chat-connection": "The host has no chat connection set — ask them to choose one before sending.",
+  "no-connection": `No chat connection is set: choose one under ${MODEL_ROLES_PATH_TEXT} to send.`,
+  "no-chat-connection": `None of your connections can chat yet: add one under ${ADD_CONNECTION_PATH.trail} to send.`,
+  "host-no-chat-connection": "The host has no chat connection set. Ask them to choose one before sending.",
   // The bound endpoint row's server did not answer its reachability probe (or a wake timed out).
   "endpoint-unreachable": "Can't reach your model's server. It may be down.",
   // A `claude-sub` row on a deployment where the Claude runtime does not resolve (§5.3a).
-  "runtime-missing": "The Claude subscription runtime isn't installed on this server — pick another connection to send.",
+  "runtime-missing": "The Claude subscription runtime isn't installed on this server. Pick another connection to send.",
   // The bound row has `allowBackground` off and the task runs unattended (§5.3a).
-  "background-refused": "Your connection doesn't allow background work — enable it in Settings → Connections.",
+  "background-refused": "Your connection doesn't allow background work. Enable it in Settings → Connections.",
   // The bound row's model cannot meet the task's requirement (a text-only model bound to chat with images, …).
-  "requirement-unmet": "Your connection's model can't serve this chat — pick another in Settings → Connections.",
+  "requirement-unmet": "Your connection's model can't serve this chat. Pick another in Settings → Connections.",
   // The generic fallback: the resolved wire isn't built on this deployment and no specific cause fits.
   unavailable: "That connection isn't available on this server.",
   // An in-process model (local-light) whose latest load failed; the next call retries the load.
-  "model-load-failed": "Your connection's built-in model failed to load on this server — send again to retry.",
+  "model-load-failed": "Your connection's built-in model failed to load on this server. Send again to retry.",
 };
 
 /** The composer disabled-reason for a refusal key — the single home the Send button + the guided fire

@@ -37,7 +37,7 @@ export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactEleme
       open={props.open}
       size="lg"
       testKey="adminSessionsDialog"
-      title={`Sessions — ${props.handle}`}
+      title={`Sessions: ${props.handle}`}
     >
       <Row align="center" justify="between">
         <Text voice="label" ink="muted">
@@ -46,7 +46,7 @@ export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactEleme
         <DestructiveAction
           confirm={{
             confirmLabel: "Revoke all",
-            description: `Every live session for ${props.handle} is revoked — their next request from any device is signed out.`,
+            description: `Every live session for ${props.handle} is revoked: their next request from any device is signed out.`,
             title: "Revoke all sessions?",
           }}
           forceRender={true}
@@ -63,8 +63,8 @@ export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactEleme
         status={sessions}
         isEmpty={rows.length === 0}
         pending="Loading sessions…"
-        error="Couldn't load the sessions — try reopening this dialog."
-        empty="No sessions on record — they've never signed in."
+        error="Couldn't load the sessions. Try reopening this dialog."
+        empty="No sessions on record. They've never signed in."
       />
 
       <Stack gap="field">

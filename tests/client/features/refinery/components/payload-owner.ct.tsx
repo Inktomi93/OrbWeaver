@@ -43,7 +43,7 @@ test("assay expansion survives a same-run clone but not a different immutable ru
     "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
   });
   const component = await mount<typeof PayloadOwnerStory>("tests/client/features/refinery/components/_payload-stories/PayloadOwnerStory", { run });
-  const assay = page.getByRole("button", { name: "description — 7", exact: true });
+  const assay = page.getByRole("button", { name: "description (7)", exact: true });
   await assay.click();
   await expect(assay).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByText("Recognizable voice", { exact: true })).toBeVisible();

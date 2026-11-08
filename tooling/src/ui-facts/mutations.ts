@@ -2,7 +2,7 @@
 import ts from "typescript";
 import type { Source } from "../eslint/index.ts";
 import { lineOf, visit } from "../eslint/index.ts";
-import type { Cohort, Member } from "./compare.ts";
+import type { Cohort, Member } from "../floor/verdict/cohort-compare.ts";
 
 const FACTORIES = new Set(["createEntityMutation", "useMutation"]);
 const HOOK_HOME = /\/hooks\/|-mutations?\.tsx?$|\/data\//u;

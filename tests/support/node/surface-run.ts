@@ -44,6 +44,8 @@ export interface SurfaceWalkOptions {
   readonly requestedPanes: SurfacePaneRequest;
   readonly chatStyle: ThemeChatStyle;
   readonly fontScale: number;
+  /** The browser's default font size as a multiple of the engine default; 1 leaves the browser setting alone. */
+  readonly platformTextScale: number;
 }
 
 export interface SurfaceArtifactPosture extends Pick<PlaywrightWorkerOptions, "trace" | "screenshot" | "video"> {

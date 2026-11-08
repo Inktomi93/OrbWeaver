@@ -244,7 +244,7 @@ export function OwnLookMark({ themeOverride }: { readonly themeOverride: ThemeOv
   // edited. The chip has no other job on press, so the press opens the same sentence as a Popover (the
   // `HintTrigger` anatomy); hover/`:focus-visible` keep the tooltip, whose `closeOnClick` default dismisses
   // it as the popover opens, so the two never stack.
-  const label = "This card carries its own look — edit it in the Look tab.";
+  const label = "This card carries its own look. Edit it in the Look tab.";
   return (
     <Popover>
       <Tooltip>

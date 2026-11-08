@@ -236,7 +236,7 @@ function removalDescription(roles: readonly string[], key: string | null): strin
   const rolesSentence =
     roles.length === 0
       ? "No model roles use it."
-      : `${roles.length} model role${roles.length === 1 ? "" : "s"} use${roles.length === 1 ? "s" : ""} it — ${joinRoleLabels(roles)}. They become Not set, and there is no default model, so those turns stop until you pick something else.`;
+      : `${roles.length} model role${roles.length === 1 ? "" : "s"} use${roles.length === 1 ? "s" : ""} it: ${joinRoleLabels(roles)}. They become Not set, and there is no default model, so those turns stop until you pick something else.`;
   const keySentence = key === null ? "" : ` The ${key} stays in Saved keys.`;
   return `${rolesSentence} Past messages keep their attribution.${keySentence} This can't be undone.`;
 }

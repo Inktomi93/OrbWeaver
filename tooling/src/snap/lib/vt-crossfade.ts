@@ -7,7 +7,7 @@ import type { SnapAnalyzerProblem } from "../contract/analyzer.ts";
 import type { CrossfadeEvidence, CrossfadeTrack, CrossfadeTransition } from "../contract/motion.ts";
 
 const CROSSFADE_VERDICTS = ["unsupported", "none", "pass", "fail", "unjudged"] as const;
-export type CrossfadeVerdict = (typeof CROSSFADE_VERDICTS)[number];
+type CrossfadeVerdict = (typeof CROSSFADE_VERDICTS)[number];
 
 export interface CrossfadeJudgement {
   readonly verdict: CrossfadeVerdict;

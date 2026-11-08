@@ -85,7 +85,7 @@ export const useReindexDocuments = createEntityMutation<inferInput<Trpc["databan
   // "Couldn't start the search index rebuild." is a lie about it. Name the state instead. Every other error keeps the
   // generic copy — it IS a failure, and there is nothing more specific to say about a 500.
   errorToast: (error) =>
-    isReindexAlreadyRunning(error) ? "That search index rebuild is already running — its counts move as it works." : "Couldn't start the search index rebuild.",
+    isReindexAlreadyRunning(error) ? "That search index rebuild is already running. Its counts move as it works." : "Couldn't start the search index rebuild.",
 });
 
 /** The workloads admission refusal (`DomainConflictError` → CONFLICT): this exact unit — this document, or

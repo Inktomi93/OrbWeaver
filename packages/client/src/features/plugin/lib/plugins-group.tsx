@@ -29,6 +29,6 @@ export const pluginsGroup: ConfigGroupDefinition = {
   shelf: "extensions",
   label: "Plugins",
   icon: Blocks,
-  description: "Sandboxed scripts that can extend chats — each one runs only with the permissions you grant it.",
+  description: "Sandboxed scripts that can extend chats. Each one runs only with the permissions you grant it.",
   body: { kind: "sections" },
 };

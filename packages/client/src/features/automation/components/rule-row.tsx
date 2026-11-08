@@ -320,7 +320,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
                   detail={runRefusal ?? undefined}
                   disabled={runRefusal !== null || runNow.isPending}
                   icon={spends ? Coins : Play}
-                  label={spends ? "Run now — spends a model call" : "Run now"}
+                  label={spends ? "Run now: spends a model call" : "Run now"}
                   onClick={onRunNow}
                 />
               </RowActionsMenu>

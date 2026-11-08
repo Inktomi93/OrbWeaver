@@ -93,7 +93,7 @@ function NeverPlayedList({
           indistinguishable from a top-8 of something. Both facts in one line, bounded by the reading measure
           so it cannot become the 145-chars/line finding it sits beside. */}
       <Text cap="prose" voice="gloss">
-        {`${formatCount(characters.length)} of ${formatCount(libraryCharacters)} characters have never been played — collected and never opened. Listed A–Z.`}
+        {`${formatCount(characters.length)} of ${formatCount(libraryCharacters)} characters have never been played: collected and never opened. Listed A–Z.`}
       </Text>
       <Stack aria-label="Never played characters" gap="row" role="list">
         {shown.map((character) => (

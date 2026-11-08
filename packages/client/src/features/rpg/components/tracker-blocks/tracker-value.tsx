@@ -352,7 +352,7 @@ export function TrackerValue({
       />
       {contested ? (
         <Text as="span" className="sr-only" id={conflictId}>
-          {`Changed to "${conflict}" while you were editing — commit again to overwrite it, Escape to keep it.`}
+          {`Changed to "${conflict}" while you were editing: commit again to overwrite it, Escape to keep it.`}
         </Text>
       ) : null}
     </>

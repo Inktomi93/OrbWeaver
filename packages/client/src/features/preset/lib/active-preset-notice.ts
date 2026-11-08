@@ -36,7 +36,7 @@ export function notifyActivePreset(name: string): void {
 export function notifyBuiltInFork(forkName: string, sourceName: string, inheritedActivePick: boolean): void {
   notify.success(
     inheritedActivePick
-      ? `Your edit created ${forkName} and it is now your active preset — ${sourceName} is unchanged.`
-      : `Your edit created ${forkName} — ${sourceName} is unchanged.`,
+      ? `Your edit created ${forkName} and it is now your active preset: ${sourceName} is unchanged.`
+      : `Your edit created ${forkName}: ${sourceName} is unchanged.`,
   );
 }

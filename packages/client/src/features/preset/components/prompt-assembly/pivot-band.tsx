@@ -37,7 +37,7 @@ export function PivotBand({ duplicate, restoreFocus, onSelect, onDrill }: PivotB
         <Row align="center" gap="row">
           <Icon icon={TriangleAlert} size="sm" tone="warning" />
           <Text grow={true} voice="label">
-            Duplicate chat history — only the first one splits the conversation. Remove this one.
+            Duplicate chat history: only the first one splits the conversation. Remove this one.
           </Text>
         </Row>
       </Card>
@@ -62,7 +62,7 @@ export function PivotBand({ duplicate, restoreFocus, onSelect, onDrill }: PivotB
               Chat history
             </Text>
             <Text as="span" truncate={true} voice="gloss">
-              your conversation splices in here — always on, always placed
+              your conversation splices in here: always on, always placed
             </Text>
           </Button>
           <Button aria-label="Edit Chat history" className="shrink-0" variant="ghost" onClick={onDrill} ref={chevronRef} square={true} type="button">

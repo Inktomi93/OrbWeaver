@@ -724,7 +724,7 @@ async function worldInfo(flow: SurfaceWalk): Promise<void> {
     await expect(
       flow.page
         .getByRole("region", { name: ALERTS_REGION_NAME, exact: true })
-        .getByText("That book is already in your library — nothing was added.", { exact: true }),
+        .getByText("That book is already in your library. Nothing was added.", { exact: true }),
     ).toBeVisible();
     await expect.poll(async () => (await flow.client.worldInfo.listBooks.query()).filter((candidate) => candidate.name === name).length).toBe(1);
     note(

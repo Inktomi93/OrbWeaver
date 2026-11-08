@@ -110,7 +110,7 @@ function MacroDrawsSection({ draws }: { readonly draws: VariantWireView["macroDr
   return (
     <Section heading={<Text voice="kicker">{`Frozen random draws (${lines.length})`}</Text>}>
       <Stack gap="field">
-        <Text voice="gloss">The random-pick macros this turn rolled, frozen at commit — a swipe or a continue of this reply replays these exact values.</Text>
+        <Text voice="gloss">The random-pick macros this turn rolled, frozen at commit. A swipe or a continue of this reply replays these exact values.</Text>
         <LogViewer lines={lines} maxHeight="scrollSm" />
       </Stack>
     </Section>
@@ -148,7 +148,7 @@ function WireProvenance({ wire }: { readonly wire: VariantWireView }): ReactElem
       {rawContent === null ? null : (
         <WireSection
           heading="Authored text, before transforms"
-          gloss="What this reply said before the receive transforms and the freeze rewrote it. Absent means no distinct pre-transform text is recorded — never that the two were identical."
+          gloss="What this reply said before the receive transforms and the freeze rewrote it. Absent means no distinct pre-transform text is recorded. Never that the two were identical."
           text={rawContent}
         />
       )}
@@ -168,7 +168,7 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
           action={null}
           icon={<Icon icon={ScrollText} size="lg" />}
           title="No prompt was captured for this reply"
-          description="Only generated replies record the prompt they sent — a message you typed, an imported turn, or a seeded greeting never ran one. Raw provider bytes aren't stored at all; they live only in the dev wire-capture ring (WIRE_CAPTURE)."
+          description="Only generated replies record the prompt they sent. A message you typed, an imported turn, or a seeded greeting never ran one. Raw provider bytes aren't stored at all; they live only in the dev wire-capture ring (WIRE_CAPTURE)."
         />
         <WireProvenance wire={wire} />
       </Stack>
@@ -177,21 +177,21 @@ function WireBody({ wire }: { readonly wire: VariantWireView }): ReactElement {
   return (
     <Stack gap="section">
       <Text cap="prose" data-slot="wire-intro" prose={true} voice="gloss">
-        The prompt text this reply was generated from, as recorded when it was sent — not a re-render. It holds the system prose and the in-history injections;
+        The prompt text this reply was generated from, as recorded when it was sent. Not a re-render. It holds the system prose and the in-history injections;
         the chat history rows are not stored here. Host-only: it carries every member's content, the room's hidden spans, and each character's full card.
       </Text>
       <WireSection
         heading="Static prefix"
-        gloss="The cache-stable half — the preset's fixed sections: prose, cards and always-on world info."
+        gloss="The cache-stable half: the preset's fixed sections: prose, cards and always-on world info."
         text={prompt.static}
       />
       <WireSection
         heading="Dynamic suffix"
-        gloss="The per-turn half — memory and databank recall, guided steering, trigger-gated sections and keyword-matched world info."
+        gloss="The per-turn half: memory and databank recall, guided steering, trigger-gated sections and keyword-matched world info."
         text={prompt.dynamic}
       />
       <InjectionsSection prompt={prompt} />
-      {prompt.sendHistory ? null : <Text voice="gloss">History was DISABLED for this turn — the model saw no transcript.</Text>}
+      {prompt.sendHistory ? null : <Text voice="gloss">History was DISABLED for this turn. The model saw no transcript.</Text>}
       {params === null ? null : (
         <Section heading={<Text voice="kicker">Settings this send ran under</Text>}>
           {Object.keys(params).length === 0 ? (

@@ -46,13 +46,13 @@ function LinkSsoBody({ handle, userId, onDone }: { readonly handle: string; read
       // The sticky mutation error renders below — stay open.
       return;
     }
-    notify.success("SSO identity linked — their next single sign-on will use this account.");
+    notify.success("SSO identity linked: their next single sign-on will use this account.");
     onDone();
   };
 
   return (
     <FormDialogPopup
-      description="Stamp this account's stable SSO subject (the IdP's sub/uid — never an email) so their first single sign-on lands on this same account instead of a new one."
+      description="Stamp this account's stable SSO subject (the IdP's sub/uid. Never an email) so their first single sign-on lands on this same account instead of a new one."
       submit={{
         label: link.isPending ? "Linking…" : "Link identity",
         disabled: link.isPending || trimmed.length === 0,
@@ -60,14 +60,14 @@ function LinkSsoBody({ handle, userId, onDone }: { readonly handle: string; read
         onSubmit: (): void => void submit().catch(globalThis.reportError),
       }}
       testKey="adminLinkSsoDialog"
-      title={`Link SSO identity — ${handle}`}
+      title={`Link SSO identity: ${handle}`}
     >
       <Field label="Stable SSO subject" description="The IdP's stable id for this user (e.g. authentik sub/uid). Not an email.">
         <Input autoComplete="off" onValueChange={(value): void => setSubject(value)} value={subject} data-testid={testId("adminLinkSsoSubject")} />
       </Field>
       {link.error !== null ? (
         <Text role="alert" tone="destructive" voice="label">
-          Couldn't link that identity — the subject may already be linked to another account, or this row is already bound.
+          Couldn't link that identity. The subject may already be linked to another account, or this row is already bound.
         </Text>
       ) : null}
     </FormDialogPopup>

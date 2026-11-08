@@ -51,7 +51,7 @@ export function RegexTab({ presetId, attachable }: { readonly presetId: PresetId
               `use-preset-autosave.ts`). Naming a Duplicate command that does not exist would be the X-19
               defect this file is fixing, one screen over. */}
           <Text prose={true} voice="gloss">
-            The built-in default can't hold regex scripts. Change any of its other settings and your edits are saved as your own copy of it — that copy can
+            The built-in default can't hold regex scripts. Change any of its other settings and your edits are saved as your own copy of it. That copy can
             attach them.
           </Text>
         </Stack>

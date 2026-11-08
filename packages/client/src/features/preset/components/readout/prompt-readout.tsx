@@ -138,7 +138,7 @@ function BoundPricing({
 }
 
 const PRICING_STATUS = "Pricing these rows against the bound chat…";
-const NOT_HOST_STATUS = "This chat cannot be priced — its host resolves the prompt, and you are not it.";
+const NOT_HOST_STATUS = "This chat cannot be priced. Its host resolves the prompt, and you are not it.";
 
 function BoundPricedSections({
   chatId,
@@ -161,9 +161,9 @@ function BoundPricedSections({
  *  readings — never one sentence that describes two of them. */
 function budgetGloss(costs: MaterializedCosts | null): string {
   if (costs !== null) {
-    return "A bar click selects its section. These are the REAL costs in the bound chat — carriers included; a struck row is switched off and costs nothing.";
+    return "A bar click selects its section. These are the REAL costs in the bound chat. Carriers included; a struck row is switched off and costs nothing.";
   }
-  return "A bar click selects its section. A struck row is switched off and costs nothing; carriers read ~— because their cost is the conversation's, not the preset's.";
+  return "A bar click selects its section. A struck row is switched off and costs nothing; carriers read ~, because their cost is the conversation's, not the preset's.";
 }
 
 /** The read-independent half — the pivot health and the preview disclosure — in ONE instance across the pricing read, so the
@@ -192,7 +192,7 @@ function PromptReadoutBody({ sections, children }: { readonly sections: readonly
         ) : (
           <DatumRow
             label="Chat history"
-            suffix={zones.duplicatePivotIndexes.length === 0 ? null : `${zones.duplicatePivotIndexes.length} duplicate — only the first splits`}
+            suffix={zones.duplicatePivotIndexes.length === 0 ? null : `${zones.duplicatePivotIndexes.length} duplicate: only the first splits`}
             value={`placed · ${String(zones.pivotIndex + 1)} of ${String(sections.length)}`}
           />
         )}
@@ -370,7 +370,7 @@ function SelectedSectionAttribution({ section }: { readonly section: PromptSecti
     return null;
   }
   return (
-    <Section kicker="Selected — source">
+    <Section kicker="Selected: source">
       <Text voice="label">{sectionName(section)}</Text>
       <Text voice="gloss">{CARRIER_ATTRIBUTION[section.marker].sentence}</Text>
     </Section>
@@ -420,7 +420,7 @@ function SelectedSectionMaterialization({
     return null;
   }
   return (
-    <Section kicker="Selected — materialized">
+    <Section kicker="Selected: materialized">
       <Text voice="label">{sectionName(section)}</Text>
       <Stack gap="tight">
         {keyRows(cost.rows).map((row) => (

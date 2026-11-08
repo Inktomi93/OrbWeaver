@@ -210,7 +210,7 @@ for (const regime of REGIMES) {
       await expect(view).toBeVisible();
       await view.focus();
       await page.keyboard.press("Enter");
-      const dialog = page.getByRole("dialog", { name: "Original card — pinned at session start", exact: true });
+      const dialog = page.getByRole("dialog", { name: "Original card: pinned at session start", exact: true });
       await expect(dialog).toBeVisible();
       await expect(dialog.getByRole("heading", { name: CARD_NAME, exact: true })).toBeVisible();
       for (const text of Object.values({ ...PINNED_TEXT, description: LONG_DESCRIPTION })) {

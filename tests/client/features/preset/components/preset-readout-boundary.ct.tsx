@@ -159,7 +159,7 @@ test("Prompt says a member cannot price a room they do not host, with no Retry",
     ...serveCorpusProcedures(host, ["chat.previewAssembly"], () => trpcError({ code: "FORBIDDEN" })),
   });
   await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "prompt", chatId });
-  await expect(page.getByText("This chat cannot be priced — its host resolves the prompt, and you are not it.", { exact: true })).toBeVisible();
+  await expect(page.getByText("This chat cannot be priced. Its host resolves the prompt, and you are not it.", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
 });
 
@@ -273,6 +273,6 @@ test("Actions says a member cannot inspect a room they do not host, with no Retr
     ...serveCorpusProcedures(host, ["chat.previewActionTemplates"], () => trpcError({ code: "FORBIDDEN" })),
   });
   await mount<typeof PresetReadoutStory>(STORY, { presetId, view: "actions", chatId });
-  await expect(page.getByText("This chat cannot be inspected — its host resolves the prompt, and you are not it.", { exact: true })).toBeVisible();
+  await expect(page.getByText("This chat cannot be inspected. Its host resolves the prompt, and you are not it.", { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
 });

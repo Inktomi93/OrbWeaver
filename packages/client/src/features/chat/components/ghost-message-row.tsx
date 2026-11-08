@@ -79,7 +79,7 @@ function FormingCardChip({ title }: { readonly title: string | null }): ReactEle
     // radius step (D6 reserved that for the floating bubble it streams inside).
     <Card aria-busy={true}>
       <Stack gap="row" data-slot="forming-card-chip">
-        <Text voice="gloss">✦ {title !== null && title !== "" ? title : "Immersive card"} — forming…</Text>
+        <Text voice="gloss">✦ {title !== null && title !== "" ? title : "Immersive card"}: forming…</Text>
         <Skeleton width="full" height="controlMd" />
         <Skeleton variant="text" height="control" />
       </Stack>

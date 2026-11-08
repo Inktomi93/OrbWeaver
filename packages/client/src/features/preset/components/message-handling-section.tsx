@@ -35,7 +35,7 @@ const ROLE_HANDLING_GLOSSES: Record<UserRoleHandling, string> = {
   none: "leave adjacent same-role messages as-is; system notes stay system messages",
   merge: "join adjacent same-role runs; system notes stay system messages",
   "semi-strict": "merge, and fold every system note into user text",
-  strict: "same as semi-strict here — the new-chat marker already opens the conversation on a user message",
+  strict: "same as semi-strict here: the new-chat marker already opens the conversation on a user message",
 };
 
 /** The vocabulary's least-strict member — a floor OF this value constrains nothing, so there is nothing to
@@ -97,7 +97,7 @@ export function MessageHandlingSection({
           <form.Subscribe selector={(state): UserRoleHandling | undefined => state.values.params.advanced?.roleHandling}>
             {(roleHandling): ReactElement => (
               <Field
-                hint="How back-to-back same-role messages and system notes are handled — your choice can only go stricter than the model's floor."
+                hint="How back-to-back same-role messages and system notes are handled. Your choice can only go stricter than the model's floor."
                 label="Adjacent-role merging"
               >
                 <Select

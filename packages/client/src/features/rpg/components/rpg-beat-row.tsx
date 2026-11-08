@@ -63,7 +63,7 @@ export function BeatRow({ beat, edit }: BeatRowProps): ReactElement {
         </Text>
         {beat.content === "" ? null : (
           <Text as="span" voice="gloss">
-            {` — ${beat.content}`}
+            {`: ${beat.content}`}
           </Text>
         )}
       </BeatLine>
@@ -252,7 +252,7 @@ function BeatBodyEditor({
         />
         {session.conflict === null ? null : (
           <Text data-slot="rpg-beat-body-conflict" id={conflictId} voice="label">
-            {`The beat changed while you were editing — save again to overwrite it, or press Escape to keep what arrived: “${session.conflict}”`}
+            {`The beat changed while you were editing: save again to overwrite it, or press Escape to keep what arrived: “${session.conflict}”`}
           </Text>
         )}
       </CollapsiblePanel>

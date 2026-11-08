@@ -209,7 +209,7 @@ export const SUGGEST_ON_REFUSAL_HELP =
  *  — appended AFTER the visible label so the visible text is contained exactly, which is what 2.5.3 asks
  *  and what a voice-control user speaks. */
 export function suggestOnRefusalAccessibleName(ruleName: string): string {
-  return `${SUGGEST_ON_REFUSAL_LABEL} — ${ruleName}`;
+  return `${SUGGEST_ON_REFUSAL_LABEL}: ${ruleName}`;
 }
 
 /** The rule row's SECOND line: what this rule does, in the words the rule itself carries. A minted rule
@@ -232,12 +232,12 @@ export function ruleGloss(rule: {
     return rule.description;
   }
   if (rule.actionsCorrupt === true) {
-    return `Runs ${triggerLabel(rule.trigger.type)} — but what it does can't be read.`;
+    return `Runs ${triggerLabel(rule.trigger.type)}: but what it does can't be read.`;
   }
   const first = rule.actions[0];
   const does = first === undefined ? "does nothing" : armLabel(first.type);
   const more = rule.actions.length > 1 ? `, +${rule.actions.length - 1} more` : "";
-  return `Runs ${triggerLabel(rule.trigger.type)} — ${does}${more}.`;
+  return `Runs ${triggerLabel(rule.trigger.type)}: ${does}${more}.`;
 }
 
 /** The rule row's STATE line: when it last did anything. `lastFiredAt` was on the view and rendered
@@ -319,9 +319,9 @@ function budgetRefusedLine(detail: Record<string, unknown>, caps: RuleFireCaps |
   // "unrecognized" get the same honest generic line.
   switch (detailString(detail, "limit") ?? "") {
     case "cooldown":
-      return caps === null ? "Its cooldown hadn't elapsed." : `Its cooldown hadn't elapsed — it now runs at most once every ${caps.cooldownSeconds}s.`;
+      return caps === null ? "Its cooldown hadn't elapsed." : `Its cooldown hadn't elapsed: it now runs at most once every ${caps.cooldownSeconds}s.`;
     case "rule_hourly":
-      return caps === null ? "It had already hit its own hourly cap." : `It had already hit its own hourly cap — now ${caps.maxFiresPerHour} per hour.`;
+      return caps === null ? "It had already hit its own hourly cap." : `It had already hit its own hourly cap: now ${caps.maxFiresPerHour} per hour.`;
     case "chat_hourly":
       return "This chat had already hit its hourly cap across all rules.";
     default:
@@ -334,9 +334,9 @@ function budgetRefusedLine(detail: Record<string, unknown>, caps: RuleFireCaps |
 function testRunLine(detail: Record<string, unknown>): string {
   const predicate = detail["predicate"];
   if (typeof predicate === "boolean") {
-    return predicate ? "Dry run — its condition would have matched." : "Dry run — its condition would NOT have matched.";
+    return predicate ? "Dry run: its condition would have matched." : "Dry run: its condition would NOT have matched.";
   }
-  return "Dry run — nothing was executed.";
+  return "Dry run: nothing was executed.";
 }
 
 /** ONE fire row's detail as a host-facing sentence, or `null` when the row genuinely has nothing to add
@@ -356,7 +356,7 @@ export function fireDetailLine(outcome: string, detail: Record<string, unknown> 
       return budgetRefusedLine(detail, caps);
     case "depth_refused": {
       const depth = detailNumber(detail, "eventDepth");
-      return depth === null ? "It was refused: too many rules had already chained." : `It was refused — another rule had already chained ${depth} deep.`;
+      return depth === null ? "It was refused: too many rules had already chained." : `It was refused: another rule had already chained ${depth} deep.`;
     }
     case "authority_refused":
       return "Its author no longer hosts this chat, so it may not act here.";
@@ -376,26 +376,26 @@ export function fireDetailLine(outcome: string, detail: Record<string, unknown> 
 export function runOutcomeNotice(name: string, outcome: AutomationRunOutcome): { readonly channel: "success" | "warn" | "error"; readonly line: string } {
   switch (outcome) {
     case "fired":
-      return { channel: "success", line: `Ran "${name}" — it fired.` };
+      return { channel: "success", line: `Ran "${name}": it fired.` };
     case "suggested":
-      return { channel: "success", line: `Ran "${name}" — it raised a suggestion card.` };
+      return { channel: "success", line: `Ran "${name}": it raised a suggestion card.` };
     case "predicate_false":
-      return { channel: "warn", line: `Ran "${name}" — its condition did not hold, so nothing happened.` };
+      return { channel: "warn", line: `Ran "${name}": its condition did not hold, so nothing happened.` };
     case "predicate_error":
-      return { channel: "error", line: `Ran "${name}" — its condition errored. Its recent activity has the reason.` };
+      return { channel: "error", line: `Ran "${name}": its condition errored. Its recent activity has the reason.` };
     case "budget_refused":
-      return { channel: "warn", line: `Ran "${name}" — the fire-rate cap turned it away.` };
+      return { channel: "warn", line: `Ran "${name}": the fire-rate cap turned it away.` };
     case "depth_refused":
-      return { channel: "warn", line: `Ran "${name}" — the cascade-depth cap turned it away.` };
+      return { channel: "warn", line: `Ran "${name}": the cascade-depth cap turned it away.` };
     case "action_error":
-      return { channel: "error", line: `Ran "${name}" — an action errored. Its recent activity has the reason.` };
+      return { channel: "error", line: `Ran "${name}": an action errored. Its recent activity has the reason.` };
     case "authority_refused":
-      return { channel: "warn", line: `Ran "${name}" — you no longer hold the authority it needs.` };
+      return { channel: "warn", line: `Ran "${name}": you no longer hold the authority it needs.` };
     // D146-d: the rule is HOLDING for a plugin that is switched off, not broken. `warn`, never `error` — the
     // whole point of the pause terminal is that nothing went wrong and nothing was spent, so the line says
     // what to DO (turn the plugin back on) instead of sending the host to a fire log with nothing in it.
     case "paused":
-      return { channel: "warn", line: `Ran "${name}" — it uses a tool from a plugin that isn't enabled, so it's paused until you turn that plugin back on.` };
+      return { channel: "warn", line: `Ran "${name}": it uses a tool from a plugin that isn't enabled, so it's paused until you turn that plugin back on.` };
     case "test_run":
       return { channel: "success", line: `Ran "${name}".` };
     default: {

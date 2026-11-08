@@ -319,7 +319,7 @@ function ReasoningCluster({
           grid would take the label track alone. */}
       {control.kind === "budget" && control.budgetRange !== undefined ? <BudgetKnob effective={effective} form={form} range={control.budgetRange} /> : null}
       {control.kind === "adaptive" ? (
-        <Text voice="gloss">This model reasons adaptively — it self-budgets per turn, so there is no manual effort dial.</Text>
+        <Text voice="gloss">This model reasons adaptively. It self-budgets per turn, so there is no manual effort dial.</Text>
       ) : null}
     </Section>
   );
