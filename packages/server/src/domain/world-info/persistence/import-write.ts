@@ -34,6 +34,7 @@ import type {
   BulkImportLorebook,
   BulkImportLorebookInput,
   BulkImportLorebookResult,
+  HasOwnedBook,
   HasPrimaryBook,
   ImportStandaloneLorebook,
 } from "@orb/contracts/world-info";
@@ -220,7 +221,7 @@ export function createBulkImportLorebook(input: DbAssemblyInput<WorldInfoImportC
     // CENTRAL DEDUP: before minting, link to an existing content-equivalent book the owner already holds
     // ("one source of books"). The primary seat is free here (no existing primary above), so the match
     // attaches as `primary`; onConflictDoNothing keeps a re-link idempotent.
-    const duplicate = findDuplicateBook(toDedupBook(book), await loadOwnedBooksForDedup(db, ownerId));
+    const duplicate = await findOwnedEqualBook(db, ownerId, book);
     if (duplicate !== null) {
       await db.insert(characterBooks).values({ characterId, worldBookId: duplicate.id, role: "primary", createdAt: at }).onConflictDoNothing();
       return { worldBookId: duplicate.id, entryCount: book.entries.length, replaced: false, created: false, name: duplicate.name, renamedFrom: null };
@@ -339,13 +340,24 @@ export function createAttachOwnedBooksByName(input: DbAssemblyInput<WorldInfoImp
 // character attach, additively: equal content reuses the owned row (under the name it carries), different
 // content lands under the next free name, and no owned row is ever edited.
 
+/** The owned book an equal incoming one reuses, or null. The one test both the write and {@link createHasOwnedBook} ask. */
+async function findOwnedEqualBook(db: Db, ownerId: UserId, book: BulkImportLorebookInput): Promise<DedupCandidateBook | null> {
+  return findDuplicateBook(toDedupBook(book), await loadOwnedBooksForDedup(db, ownerId));
+}
+
+/** The read-only twin of {@link createImportStandaloneLorebook}'s reuse test, for a preview that must not write. */
+export function createHasOwnedBook(input: DbAssemblyInput<Pick<WorldInfoImportContext, "db">>): HasOwnedBook {
+  const db = databaseForOwner(input.db);
+  return async ({ ownerId, book }): Promise<boolean> => (await findOwnedEqualBook(db, ownerId, book)) !== null;
+}
+
 export function createImportStandaloneLorebook(input: DbAssemblyInput<WorldInfoImportContext>): ImportStandaloneLorebook {
   const ctx: WorldInfoImportContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, book }): Promise<BulkImportLorebookResult> => {
     const { db } = ctx;
     const at = ctx.now();
 
-    const duplicate = findDuplicateBook(toDedupBook(book), await loadOwnedBooksForDedup(db, ownerId));
+    const duplicate = await findOwnedEqualBook(db, ownerId, book);
     if (duplicate !== null) {
       return { worldBookId: duplicate.id, entryCount: book.entries.length, replaced: false, created: false, name: duplicate.name, renamedFrom: null };
     }

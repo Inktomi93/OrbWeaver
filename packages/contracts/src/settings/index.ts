@@ -1130,3 +1130,10 @@ export type ResolveSeededPlateOp = (principal: Principal, slug: string) => Promi
 /** The settings-owned theme import: a bundle descriptor, a profile import or a single file. `fallbackName` names
  *  a raw SillyTavern theme that carries no `name`. */
 export type ImportThemeOp = (ownerId: UserId, bytes: Uint8Array, fallbackName?: string) => Promise<SettingsImportOutcome>;
+
+/** Does the owner hold a theme {@link ImportThemeOp} would reuse for each theme in these bytes? A read: it writes
+ *  nothing. A file that does not parse, or carries no theme, answers `false`. */
+export type HasOwnedTheme = (ownerId: UserId, bytes: Uint8Array, fallbackName?: string) => Promise<boolean>;
+
+/** The content hashes of the owner's background library, which a stored background image joins by its own hash. */
+export type OwnedBackgroundHashes = (ownerId: UserId) => Promise<ReadonlySet<string>>;

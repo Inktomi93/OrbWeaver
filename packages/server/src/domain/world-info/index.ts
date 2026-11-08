@@ -10,6 +10,7 @@ export { createCopyHandoffBooks, createCountHandoffBooks } from "./persistence/h
 export {
   createAttachOwnedBooksByName,
   createBulkImportLorebook,
+  createHasOwnedBook,
   createHasPrimaryBook,
   createImportStandaloneLorebook,
 } from "./persistence/import-write.ts";

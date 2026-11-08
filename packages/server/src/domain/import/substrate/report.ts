@@ -1,4 +1,5 @@
-import { ST_PROFILE_UNHANDLED_REASONS, ST_SETTINGS_UNHANDLED_REASONS } from "@orb/contracts/import";
+import type { ImportPreviewKind } from "@orb/contracts/import";
+import { IMPORT_PREVIEW_KINDS, ST_PROFILE_UNHANDLED_REASONS, ST_SETTINGS_UNHANDLED_REASONS } from "@orb/contracts/import";
 import type { ImportReport } from "../contract/results.ts";
 
 function unhandledReason(name: string): string | undefined {
@@ -112,26 +113,33 @@ function userPlaneLines(report: ImportReport): string[] {
   ];
 }
 
-/** The DRY-RUN banner + per-wave census. A rehearsal writes nothing, so every write count below it is zero by
- *  construction — which reads exactly like a profile carrying none of those planes unless the report says so. */
-function dryRunLines(report: ImportReport): string[] {
-  const census = report.dryRunWouldImport;
-  if (census === null) {
-    return [];
-  }
+const FOUND_LABELS: Readonly<Record<ImportPreviewKind, string>> = {
+  characters: "Characters",
+  chats: "Chat transcripts",
+  personas: "Personas",
+  worlds: "World books",
+  presets: "Presets",
+  themes: "Themes",
+  backgrounds: "Background images",
+  groups: "Group rooms",
+  orphans: "Orphan chat directories (a placeholder character each)",
+};
+
+/** What the folder holds, by kind: the same counts the dry run's preview lists. A rehearsal's write counts are
+ *  zero by construction, so its banner says so. */
+function foundLines(report: ImportReport): string[] {
   return [
+    ...(report.dryRun
+      ? [
+          "",
+          "> **DRY RUN — nothing was written.** Write outcomes are zero because no import wave ran.",
+          "> Scanned entities and predicted character creates are read-only counts.",
+        ]
+      : []),
     "",
-    "> **DRY RUN — nothing was written.** Write outcomes are zero because no import wave ran.",
-    "> Scanned entities and predicted character creates are read-only counts. A real run would attempt:",
+    "## Found in the folder",
     "",
-    `- Characters: ${census.characters} (with ${census.chats} chat transcript(s))`,
-    `- Personas: ${census.personas}`,
-    `- World books: ${census.worlds}`,
-    `- Presets: ${census.presets}`,
-    `- Themes: ${census.themes}`,
-    `- Background images: ${census.backgrounds}`,
-    `- Group rooms: ${census.groups} (with ${census.groupChats} group transcript(s))`,
-    `- Orphan chat directories (a placeholder character each): ${census.orphanChatDirs}`,
+    ...IMPORT_PREVIEW_KINDS.map((kind) => `- ${FOUND_LABELS[kind]}: ${report.found[kind]}`),
   ];
 }
 
@@ -141,7 +149,7 @@ export function formatImportReport(report: ImportReport, generatedAt: number): s
     "# SillyTavern import report",
     "",
     `Generated: ${new Date(generatedAt).toISOString()}`,
-    ...dryRunLines(report),
+    ...foundLines(report),
     "",
     "## Summary",
     "",

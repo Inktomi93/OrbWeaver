@@ -28,6 +28,9 @@ export type HasPrimaryBook = (args: { readonly ownerId: UserId; readonly charact
  *  row; different content lands as a fresh book under the next free name. Never edits an owned book. */
 export type ImportStandaloneLorebook = (args: { readonly ownerId: UserId; readonly book: BulkImportLorebookInput }) => Promise<BulkImportLorebookResult>;
 
+/** Does the owner hold a book {@link ImportStandaloneLorebook} would reuse for this one? A read: it writes nothing. */
+export type HasOwnedBook = (args: { readonly ownerId: UserId; readonly book: BulkImportLorebookInput }) => Promise<boolean>;
+
 /** Re-points the source character's attached books at the new character id (fresh character_books rows, role
  *  preserved). Reference-carry: the world_books themselves are never cloned; zero attachments is a no-op.
  *  `ownerId` is the owned-source gate at both ends: both character ids must be the caller's or the carry copies

@@ -13,7 +13,8 @@
 // group's own list, and the chat write op dedups by `importHash`, so the second claimant is a clean skip.
 
 import { isPlainObject } from "@orb/kit/guards";
-import type { ParsedStGroup } from "../contract/collection.ts";
+import type { CollectedGroup, ParsedStGroup } from "../contract/collection.ts";
+import type { ImportSkippedGroupMember } from "../contract/results.ts";
 
 /** ST's own group-config numerals we can read. `generation_mode` 0 = swap (one speaker per turn), 1 = append
  *  (the whole cast is joined into ONE generation) — which is exactly orb's `per-speaker` vs `narrator` output
@@ -60,4 +61,27 @@ export function parseStGroupFile(bytes: Uint8Array, fileStem: string): ParsedStG
     narratorOutput: raw["generation_mode"] === ST_GENERATION_MODE_APPEND,
     allowSelfResponses: raw["allow_self_responses"] === true,
   };
+}
+
+/** Resolve one group's member FILENAMES against the run's card-filename → character map. Order is preserved
+ *  (ST's own member order), and the FIRST resolved member becomes the room's primary — the character the write
+ *  op scopes its dedup + branch resolution on. */
+export function resolveMembers<Seat extends string>(
+  group: CollectedGroup,
+  byFilename: ReadonlyMap<string, Seat>,
+): { readonly seated: { readonly file: string; readonly characterId: Seat }[]; readonly skipped: ImportSkippedGroupMember[] } {
+  const seated: { file: string; characterId: Seat }[] = [];
+  const skipped: ImportSkippedGroupMember[] = [];
+  for (const file of group.parsed.memberFiles) {
+    const characterId = byFilename.get(file);
+    if (characterId === undefined) {
+      skipped.push({ group: group.parsed.name, member: file, reason: "no character with that card filename in the import set or the library" });
+      continue;
+    }
+    // ST allows a member listed twice; one seat per card (the write op would refuse a duplicate roster row).
+    if (!seated.some((s) => s.characterId === characterId)) {
+      seated.push({ file, characterId });
+    }
+  }
+  return { seated, skipped };
 }

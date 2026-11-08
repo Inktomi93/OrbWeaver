@@ -17,8 +17,8 @@ import type { CatalogRefreshResult } from "#inference";
 import type { RefineryScoreSweepResult } from "#refinery";
 import type { ReconcileStatsResult } from "#stats";
 import { storedImportWindowSchema } from "../chat/backfill.ts";
-import type { ImportPreview } from "../import/preview.ts";
-import { importPreviewSchema } from "../import/preview.ts";
+import type { ImportKindCounts, ImportPreview } from "../import/preview.ts";
+import { importKindCountsSchema, importPreviewSchema } from "../import/preview.ts";
 
 /** A maintenance pass's counts + the `dryRun` echo (assets backfill/gc, import-st). */
 export interface MaintenanceResult {
@@ -39,6 +39,8 @@ export interface MaintenanceResult {
   readonly mergedKeys?: readonly string[];
   /** import-st dry run only: what the upload holds, by kind, and what a real run would skip. */
   readonly preview?: ImportPreview;
+  /** import-st only: how many items of each kind the upload holds, counted the way the dry run's preview counts. */
+  readonly found?: ImportKindCounts;
 }
 
 /** A portability bundle import's per-entity tallies. `notes` (#1710) is what a file that DID import still
@@ -111,10 +113,12 @@ export const maintenanceResultSchema = z
     memoryScope: storedImportWindowSchema.nullable().optional(),
     mergedKeys: z.array(z.string()).readonly().optional(),
     preview: importPreviewSchema.optional(),
+    found: importKindCountsSchema.optional(),
   })
-  .transform(({ failed, reportPath, memoryScope, mergedKeys, preview, ...view }) => ({
+  .transform(({ failed, reportPath, memoryScope, mergedKeys, preview, found, ...view }) => ({
     ...view,
     ...(preview !== undefined ? { preview } : {}),
+    ...(found !== undefined ? { found } : {}),
     ...(mergedKeys !== undefined ? { mergedKeys } : {}),
     ...(failed !== undefined ? { failed } : {}),
     ...(reportPath !== undefined ? { reportPath } : {}),

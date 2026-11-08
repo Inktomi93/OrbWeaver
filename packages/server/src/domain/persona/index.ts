@@ -6,7 +6,7 @@ export type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "./contract/
 
 export type { PersonaAssemblyContext, PersonaService } from "./contract/service.ts";
 
-export { createBulkImportPersonas } from "./persistence/import-write.ts";
+export { createBulkImportPersonas, createFindOwnedPersonas } from "./persistence/import-write.ts";
 // R6 — the `(ownerId, name)` lookup the orb-native chat bundle re-links its anchor + per-turn personas
 // through. The SAME key persona's own import verb dedups on, so a bundle resolves exactly the row a persona
 // restore would have merged onto (a bundle gets one fresh ImportContext per file, so the profile run's

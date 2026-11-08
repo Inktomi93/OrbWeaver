@@ -3,9 +3,10 @@
 import { readdir } from "node:fs/promises";
 import { join } from "node:path";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
-import type { ImportPreview } from "@orb/contracts/import";
-import { importStartedSchema, TREE_DRY_RUN_FIELD, TREE_DRY_RUN_VALUE, TREE_FILE_FIELD } from "@orb/contracts/import";
+import type { ImportPreview, ImportPreviewKind } from "@orb/contracts/import";
+import { importStartedSchema, ST_SETTINGS_FILE, TREE_DRY_RUN_FIELD, TREE_DRY_RUN_VALUE, TREE_FILE_FIELD } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
+import type { MaintenanceResult } from "@orb/contracts/workloads";
 import type { UserId, WorkloadId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
 import { writeCardChunk } from "@orb/kit/png-card-chunk";
@@ -88,8 +89,8 @@ export async function admit(root: ServerTestHarness, files: Files, dryRunFields:
   return importStartedSchema.parse(await response.json()).workloadId;
 }
 
-/** Run an admitted import to success and hand back its preview. */
-export async function finish(root: ServerTestHarness, id: WorkloadId): Promise<ImportPreview | undefined> {
+/** Run an admitted import to success and hand back its result. */
+export async function finishRun(root: ServerTestHarness, id: WorkloadId): Promise<MaintenanceResult> {
   if (root.runAdmittedWorkload === undefined) {
     throw new Error("the harness owns workload execution only with startJobs: false");
   }
@@ -99,7 +100,12 @@ export async function finish(root: ServerTestHarness, id: WorkloadId): Promise<I
   if (row.kind !== "import-st" || row.poison || row.result === null) {
     throw new Error("the import has no canonical result");
   }
-  return row.result.preview;
+  return row.result;
+}
+
+/** Run an admitted import to success and hand back its preview. */
+export async function finish(root: ServerTestHarness, id: WorkloadId): Promise<ImportPreview | undefined> {
+  return (await finishRun(root, id)).preview;
 }
 
 export async function dryRun(root: ServerTestHarness, files: Files): Promise<ImportPreview> {
@@ -144,4 +150,69 @@ export async function storedBlobs(root: ServerTestHarness): Promise<readonly str
     .filter((entry) => entry.isFile())
     .map((entry) => join(entry.parentPath, entry.name))
     .toSorted((a, b) => a.localeCompare(b));
+}
+
+const KIND_GROUP = (name: string, member: string, leaf: string): string => JSON.stringify({ name, members: [member], chats: [leaf] });
+// A saved ST chat-completion preset; the text makes two presets differ in content.
+const presetOf = (text: string): string =>
+  JSON.stringify({
+    prompts: [{ identifier: "main", name: "Main", content: text, role: "system" }],
+    ["prompt_order"]: [{ ["character_id"]: 100_001, order: [{ identifier: "main", enabled: true }] }],
+  });
+const themeOf = (name: string, surface: string): string => JSON.stringify({ name, ["blur_tint_color"]: surface });
+
+/** What a folder holds of each kind, named as the preview names it. */
+export type KindNames = Readonly<Record<ImportPreviewKind, readonly string[]>>;
+
+/** One folder with an item of every import kind. `held` and `fresh` never share an identity, so a library that
+ *  imported `held` owns every item of it and none of `fresh`. */
+function kindFolder(root: ServerTestHarness, which: "held" | "fresh"): { readonly files: Files; readonly names: KindNames } {
+  const held = which === "held";
+  const [card, persona, personaFile, book, preset, theme, surface, group, groupLeaf, orphan, backdrop, text] = held
+    ? ["Aria", "Bob", "bob.png", "Eldoria", "Held", "Dusk", "rgba(23, 23, 40, 1)", "Held Group", "held-room", "Wanderer", "Dawn", "held"]
+    : ["Bram", "Cat", "cat.png", "Mirefen", "Fresh", "Ember", "rgba(60, 20, 20, 1)", "Fresh Group", "fresh-room", "Drifter", "Dusk", "fresh"];
+  const cardFile = `${card}.png`;
+  const files: Files = {
+    [ST_SETTINGS_FILE]: settings({ [personaFile]: persona }),
+    [`characters/${cardFile}`]: cardPng(root, card),
+    [`chats/${card}/solo.jsonl`]: chatOf(`${text} solo`),
+    [`worlds/${book}.json`]: JSON.stringify({ entries: { "0": { uid: 0, key: [book.toLowerCase()], comment: book, content: `${text} lore.`, order: 100 } } }),
+    [`OpenAI Settings/${preset}.json`]: presetOf(`You are ${text}.`),
+    [`themes/${theme}.json`]: themeOf(theme, surface),
+    [`backgrounds/${backdrop}.png`]: new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))),
+    [`groups/${text}.json`]: KIND_GROUP(group, cardFile, groupLeaf),
+    [`group chats/${groupLeaf}.jsonl`]: chatOf(`${text} room`),
+    [`chats/${orphan}/orphan.jsonl`]: chatOf(`${text} orphan`),
+  };
+  return {
+    files,
+    names: {
+      characters: [card],
+      chats: [`${card}: solo`, `${group}: ${groupLeaf}`, `${orphan}: orphan`],
+      personas: [persona],
+      worlds: [book],
+      presets: [`${preset} (OpenAI)`],
+      themes: [`${theme} (SillyTavern)`],
+      backgrounds: [backdrop],
+      groups: [group],
+      orphans: [orphan],
+    },
+  };
+}
+
+/** The `held` and `fresh` folders as one upload: both settings files name their persona, so the merge keeps both. */
+export function bothKindFolders(root: ServerTestHarness): {
+  readonly held: Files;
+  readonly fresh: Files;
+  readonly both: Files;
+  readonly names: Readonly<Record<"held" | "fresh", KindNames>>;
+} {
+  const held = kindFolder(root, "held");
+  const fresh = kindFolder(root, "fresh");
+  return {
+    held: held.files,
+    fresh: fresh.files,
+    both: { ...held.files, ...fresh.files, [ST_SETTINGS_FILE]: settings({ ["bob.png"]: "Bob", ["cat.png"]: "Cat" }) },
+    names: { held: held.names, fresh: fresh.names },
+  };
 }

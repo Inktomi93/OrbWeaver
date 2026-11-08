@@ -20,7 +20,7 @@
 // depend on readdir order. The parsed blob always has a value for every key (the schema defaults), so
 // "already set" is measured against the schema DEFAULT, not against absence.
 
-import type { ImportedAppearance, ImportedAppearanceOutcome, UserSettings } from "@orb/contracts/settings";
+import type { ImportedAppearance, ImportedAppearanceOutcome, OwnedBackgroundHashes, UserSettings } from "@orb/contracts/settings";
 import { parseUserSettings } from "@orb/contracts/settings";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { UserId } from "@orb/kit/ids";
@@ -103,5 +103,14 @@ export function createApplyImportedAppearance(
       ctx.emitUserEvent(ownerId, { type: "settingsChanged" });
       return { backgroundsAdded, patchedKeys };
     });
+  };
+}
+
+/** The hashes of the images the owner's background library already holds, for a preview that must not write. */
+export function createOwnedBackgroundHashes(input: Pick<SettingsAssemblyContext, "db">): OwnedBackgroundHashes {
+  const db = databaseForOwner(input.db);
+  return async (ownerId: UserId): Promise<ReadonlySet<string>> => {
+    const { config } = await readUserSettings(db, ownerId);
+    return new Set(config.appearance.backgroundLibrary.map((entry) => entry.assetHash));
   };
 }

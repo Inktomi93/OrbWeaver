@@ -2,10 +2,10 @@
 // and a skip names a path relative to the profile, never the staging directory. A skip's reason is written here,
 // one per kind of skip; the importer's own detail stays in the report and the logs.
 
-import type { ImportPreview, ImportPreviewItem, ImportPreviewList, ImportPreviewSkip } from "@orb/contracts/import";
+import type { ImportKindCounts, ImportPreview, ImportPreviewItem, ImportPreviewKind, ImportPreviewList, ImportPreviewSkip } from "@orb/contracts/import";
 import { IMPORT_PREVIEW_LIST_MAX, IMPORT_PREVIEW_TEXT_MAX } from "@orb/contracts/import";
 import type { CollectedChat } from "../contract/collection.ts";
-import type { ProfileCollected } from "../contract/profile-directory.ts";
+import type { ImportOwnership, ProfileCollected } from "../contract/profile-directory.ts";
 
 const JSONL_EXT = /\.jsonl$/iu;
 
@@ -55,34 +55,64 @@ function skippedItems(collected: ProfileCollected): ImportPreviewSkip[] {
   ];
 }
 
-/** `inLibrary` holds the card filenames the owner already has. */
-export function buildImportPreview(collected: ProfileCollected, inLibrary: ReadonlySet<string>): ImportPreview {
+/** Every item the folder holds, by kind, named by the source it is identified by. The one enumeration both the
+ *  preview's lists and the run's counts take. */
+function kindItems(collected: ProfileCollected): Readonly<Record<ImportPreviewKind, readonly ImportPreviewItem[]>> {
+  return {
+    characters: collected.bundles.map((bundle) => item(bundle.filename, bundle.cardName)),
+    chats: [
+      ...collected.bundles.flatMap((bundle) => chatItems(bundle.cardName, bundle.chats)),
+      ...collected.groups.flatMap((group) => chatItems(group.parsed.name, group.chats)),
+      ...collected.orphanBundles.flatMap((orphan) => chatItems(orphan.dirName, orphan.chats)),
+    ],
+    personas: collected.personas.map(({ parsed, avatarBytes }) => ({
+      ...item(parsed.avatarFile, parsed.name),
+      ...(avatarBytes === undefined ? { withoutArt: true as const } : {}),
+    })),
+    worlds: collected.worlds.map(({ book }) => item(book.name, book.name)),
+    presets: collected.presets.map(({ parsed, sourceFile }) => item(sourceFile, parsed.name)),
+    themes: collected.themes.map(({ parsed, sourceFile }) => item(sourceFile, parsed.name)),
+    backgrounds: collected.backgrounds.map(({ filename, name }) => item(filename, name)),
+    groups: collected.groups.map(({ parsed, sourceFile }) => item(sourceFile, parsed.name)),
+    orphans: collected.orphanBundles.map(({ dirName }) => item(dirName, dirName)),
+  };
+}
+
+/** How many items of each kind the folder holds: the numbers the preview lists carry and a real run reports. */
+export function countImportKinds(collected: ProfileCollected): ImportKindCounts {
+  const items = kindItems(collected);
+  return {
+    characters: items.characters.length,
+    chats: items.chats.length,
+    personas: items.personas.length,
+    worlds: items.worlds.length,
+    presets: items.presets.length,
+    themes: items.themes.length,
+    backgrounds: items.backgrounds.length,
+    groups: items.groups.length,
+    orphans: items.orphans.length,
+  };
+}
+
+/** `owned` holds, per kind, the sources of the items the owner already has. */
+export function buildImportPreview(collected: ProfileCollected, owned: ImportOwnership): ImportPreview {
   const skipped = skippedItems(collected);
+  const items = kindItems(collected);
+  const listed = (kind: ImportPreviewKind): ImportPreviewList => {
+    const held = new Set([...owned[kind]].map(clip));
+    return listOf(items[kind].map((entry) => (held.has(entry.source) ? { ...entry, inLibrary: true as const } : entry)));
+  };
   return {
     kinds: {
-      characters: listOf(
-        collected.bundles.map((bundle) => ({
-          ...item(bundle.filename, bundle.cardName),
-          ...(inLibrary.has(bundle.filename) ? { inLibrary: true as const } : {}),
-        })),
-      ),
-      chats: listOf([
-        ...collected.bundles.flatMap((bundle) => chatItems(bundle.cardName, bundle.chats)),
-        ...collected.groups.flatMap((group) => chatItems(group.parsed.name, group.chats)),
-        ...collected.orphanBundles.flatMap((orphan) => chatItems(orphan.dirName, orphan.chats)),
-      ]),
-      personas: listOf(
-        collected.personas.map(({ parsed, avatarBytes }) => ({
-          ...item(parsed.avatarFile, parsed.name),
-          ...(avatarBytes === undefined ? { withoutArt: true as const } : {}),
-        })),
-      ),
-      worlds: listOf(collected.worlds.map(({ book }) => item(book.name, book.name))),
-      presets: listOf(collected.presets.map(({ parsed, sourceFile }) => item(sourceFile, parsed.name))),
-      themes: listOf(collected.themes.map(({ parsed, sourceFile }) => item(sourceFile, parsed.name))),
-      backgrounds: listOf(collected.backgrounds.map(({ filename, name }) => item(filename, name))),
-      groups: listOf(collected.groups.map(({ parsed, sourceFile }) => item(sourceFile, parsed.name))),
-      orphans: listOf(collected.orphanBundles.map(({ dirName }) => item(dirName, dirName))),
+      characters: listed("characters"),
+      chats: listed("chats"),
+      personas: listed("personas"),
+      worlds: listed("worlds"),
+      presets: listed("presets"),
+      themes: listed("themes"),
+      backgrounds: listed("backgrounds"),
+      groups: listed("groups"),
+      orphans: listed("orphans"),
     },
     skipped: { total: skipped.length, items: skipped.slice(0, IMPORT_PREVIEW_LIST_MAX) },
   };

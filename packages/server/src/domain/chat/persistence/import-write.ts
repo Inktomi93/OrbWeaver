@@ -12,6 +12,7 @@ import type {
   BulkImportChatsResult,
   BulkImportVariantInput,
   ChatMetadata,
+  FindImportedChatHashes,
   ImportedChatIdentity,
   ImportedChatRemap,
   MessageKind,
@@ -21,7 +22,17 @@ import { DEFAULT_MESSAGE_KIND } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import { generationUsageSchema, modelIdSchema, providerIdSchema } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
-import { chatGenerationObservations, chatImportClaims, chatInjections, chatParticipants, chats, messageAssets, messages, messageVariants } from "@orb/db";
+import {
+  characters,
+  chatGenerationObservations,
+  chatImportClaims,
+  chatInjections,
+  chatParticipants,
+  chats,
+  messageAssets,
+  messages,
+  messageVariants,
+} from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt, chunkRows, isConstraintViolation } from "@orb/db/query";
 import { batchHandle, databaseForOwner } from "@orb/db/wiring-owner";
@@ -839,6 +850,26 @@ async function importOneChat(args: {
 
 /** Dup-skips by the scoped atomic import claim (healing the skipped room's persona attribution — see
  *  {@link healPersonaAttribution}), commits each fresh chat as ONE `db.batch`, then resolves branch parents. */
+/** The read-only twin of {@link createBulkImportChats}'s dedup gate, for a preview that must not write. */
+export function createFindImportedChatHashes(assembly: Pick<ChatImportAssemblyContext, "db">): FindImportedChatHashes {
+  const db = databaseForOwner(assembly.db);
+  return async ({ ownerId, characterId, hashes }): Promise<ReadonlySet<string>> => {
+    const found = new Set<string>();
+    // each chunk reserves the character and owner binds under the driver cap. Ends if the driver lifts its bind cap.
+    for (const chunk of chunkRows([...new Set(hashes)], SCOPED_FILTER_BIND_BUDGET + 1)) {
+      const rows = await db
+        .select({ importHash: chatImportClaims.importHash })
+        .from(chatImportClaims)
+        .innerJoin(characters, eq(characters.id, chatImportClaims.characterId))
+        .where(and(eq(chatImportClaims.characterId, characterId), eq(characters.ownerId, ownerId), inArray(chatImportClaims.importHash, chunk)));
+      for (const row of rows) {
+        found.add(row.importHash);
+      }
+    }
+    return found;
+  };
+}
+
 export function createBulkImportChats(assembly: ChatImportAssemblyContext): BulkImportChatsOp {
   const ctx: ChatImportContext = {
     ...assembly,

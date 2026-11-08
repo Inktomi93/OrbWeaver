@@ -1,7 +1,6 @@
-import { setImmediate as yieldToEventLoop } from "node:timers/promises";
 import type { StoreAvatarAsset } from "@orb/contracts/assets";
 import type { Principal } from "@orb/contracts/identity";
-import type { ImportDirectory, ImportFsPort, ImportPreview } from "@orb/contracts/import";
+import type { ImportDirectory, ImportFsPort, ImportKindCounts, ImportPreview } from "@orb/contracts/import";
 import type { ImportGlobalScripts, RegexScriptCard } from "@orb/contracts/regex";
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { ASSET_UPLOAD_MAX_BYTES, IMPORT_TREE_MAX_FILE_BYTES, IMPORT_TREE_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
@@ -22,19 +21,12 @@ import type {
 import { ProfileImportLimitError } from "../contract/errors.ts";
 import type { ImportPersonaInput } from "../contract/params.ts";
 import type { ProfileCollected, ProfileCollectRecords, ProfileDirImportDeps, ProfileWaveOutcomes } from "../contract/profile-directory.ts";
-import type {
-  ImportDryRunCensus,
-  ImportReport,
-  ImportSkippedCard,
-  ImportSkippedCardTag,
-  ImportUnresolvedPinnedPersona,
-  ImportWorldNote,
-} from "../contract/results.ts";
+import type { ImportReport, ImportSkippedCard, ImportSkippedCardTag, ImportUnresolvedPinnedPersona, ImportWorldNote } from "../contract/results.ts";
 import { createImportService } from "../service.ts";
 import { buildImportContext } from "../substrate/build-context.ts";
-import { findImportedCharacter, importFileHash } from "../substrate/card.ts";
-import { buildImportPreview } from "../substrate/preview.ts";
+import { buildImportPreview, countImportKinds } from "../substrate/preview.ts";
 import { collectBundlesFromDir } from "./collect.ts";
+import { findOwnership } from "./profile-ownership.ts";
 
 const AVATAR_MIME = "image/png";
 
@@ -235,54 +227,9 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
   };
 }
 
-/** scanned = every examined ST entity: happy-path bundles + personas + worlds + presets + groups (and their
- *  transcripts) + chat files, plus the recorded skips. */
-function tallyScanned(collected: ProfileCollected): number {
-  let scanned =
-    collected.bundles.length +
-    collected.personas.length +
-    collected.worlds.length +
-    collected.presets.length +
-    collected.themes.length +
-    collected.backgrounds.length +
-    collected.groups.length +
-    collected.skipped;
-  for (const b of collected.bundles) {
-    scanned += b.chats.length;
-  }
-  for (const g of collected.groups) {
-    scanned += g.chats.length;
-  }
-  return scanned;
-}
-
-/** dryRun prediction, returned as the filenames of the cards that will NOT write: a card writes iff neither the import-identity lookup (the one order every door uses)
- *  nor the handle oracle matches (a create). Every lookup is a read — zero writes. A text-only match counts as
- *  found: whether that row may take the PNG's art is decided by the write, not predicted here. Personas/chats
- *  can't be predicted without their write op, so they are examined (counted in scanned) but never in the
- *  dryRun `changed`. */
-async function findInLibrary(deps: ProfileDirImportDeps, bundles: readonly CollectedCard[]): Promise<ReadonlySet<string>> {
-  const ownerId = deps.principal.userId;
-  const inLibrary = new Set<string>();
-  for (const b of bundles) {
-    if (deps.signal.aborted) {
-      break;
-    }
-    const found = await findImportedCharacter(
-      async (importHash) => await deps.contextFor(deps.principal, deps.storeAvatar).characterOps.findByImportHash({ ownerId, importHash }),
-      {
-        importHash: b.contentHash,
-        textHash: b.textHash,
-        fileHash: importFileHash(b.cardBytes),
-      },
-    );
-    if (found !== null || (await deps.contextFor(deps.principal, deps.storeAvatar).characterOps.findByHandle({ ownerId, handle: b.handle })) !== null) {
-      inLibrary.add(b.filename);
-    }
-    // These reads resolve on microtasks, so a large folder would otherwise hold the event loop for the whole pass.
-    await yieldToEventLoop();
-  }
-  return inLibrary;
+/** scanned = every examined ST entity (each kind's count) plus the recorded skips. */
+function tallyScanned(found: ImportKindCounts, skipped: number): number {
+  return Object.values(found).reduce((sum, count) => sum + count, skipped);
 }
 
 /** Store one persona's avatar (maxBytes-capped) and pair it into the canonical persona-import input. */
@@ -470,39 +417,22 @@ interface ReportArgs {
   readonly collected: ProfileCollected;
   readonly scanned: number;
   readonly changed: number;
+  readonly dryRun: boolean;
   readonly skippedCards: readonly ImportSkippedCard[];
   readonly waves: ProfileWaveOutcomes;
-  /** Present ONLY on a dryRun — the census that keeps a rehearsal's structural zeroes from reading as "this
-   *  profile carries none of these planes" (#1469). */
-  readonly dryRunWouldImport?: ImportDryRunCensus;
-  /** Present ONLY on a dryRun — the names behind the census. */
+  /** What the folder holds, so a rehearsal's structural zeroes never read as "this profile carries none of
+   *  these planes". */
+  readonly found: ImportKindCounts;
+  /** Present ONLY on a dryRun — the names behind the counts. */
   readonly preview?: ImportPreview;
 }
 
-/** What each wave WOULD attempt, straight off the collect result: the counts a real run's wave outcomes
- *  report after writing. `characters` is the bundle count (`changed` separately carries the read-only
- *  create PREDICTION); chats are every transcript paired to a card. */
-function dryRunCensus(collected: ProfileCollected): ImportDryRunCensus {
-  return {
-    characters: collected.bundles.length,
-    personas: collected.personas.length,
-    chats: collected.bundles.reduce((n, b) => n + b.chats.length, 0),
-    worlds: collected.worlds.length,
-    presets: collected.presets.length,
-    themes: collected.themes.length,
-    backgrounds: collected.backgrounds.length,
-    groups: collected.groups.length,
-    groupChats: collected.groups.reduce((n, g) => n + g.chats.length, 0),
-    orphanChatDirs: collected.orphanChatDirs.length,
-  };
-}
-
-function reportFrom({ collected, scanned, changed, skippedCards, waves, dryRunWouldImport, preview }: ReportArgs): ImportReport {
+function reportFrom({ collected, scanned, changed, skippedCards, waves, found, dryRun, preview }: ReportArgs): ImportReport {
   return {
     scanned,
     changed,
-    dryRun: dryRunWouldImport !== undefined,
-    dryRunWouldImport: dryRunWouldImport ?? null,
+    dryRun,
+    found,
     preview: preview ?? null,
     skippedCards,
     unreadableCards: collected.unreadableCards,
@@ -849,20 +779,22 @@ function contextFor(deps: ProfileDirImportDeps, store: StoreAvatarAsset): Return
  */
 export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<ImportReport> {
   const collected = await collectProfileRoot({ ...deps, fs: withProfileReadLimits(deps.fs) });
-  const scanned = tallyScanned(collected);
+  const found = countImportKinds(collected);
+  const scanned = tallyScanned(found, collected.skipped);
 
   if (deps.dryRun) {
-    const inLibrary = await findInLibrary(deps, collected.bundles);
+    const owned = await findOwnership(deps, collected);
     return reportFrom({
       collected,
       scanned,
-      changed: collected.bundles.length - inLibrary.size,
+      changed: collected.bundles.length - owned.characters.size,
+      dryRun: true,
       skippedCards: [],
-      // Every WRITE outcome is zero because nothing was written; the census beside it says what the real run
-      // would attempt, per wave, so a rehearsal is never mistaken for an empty profile (#1469).
+      // Every WRITE outcome is zero because nothing was written; `found` beside it says what the folder holds,
+      // so a rehearsal is never mistaken for an empty profile.
       waves: NO_WAVES,
-      dryRunWouldImport: dryRunCensus(collected),
-      preview: buildImportPreview(collected, inLibrary),
+      found,
+      preview: buildImportPreview(collected, owned),
     });
   }
 
@@ -969,6 +901,8 @@ export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<I
     collected,
     scanned,
     changed,
+    dryRun: false,
+    found,
     skippedCards: bundleResult.skippedCards,
     waves: {
       presetsImported: presetResult.presetsImported,

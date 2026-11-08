@@ -12,8 +12,7 @@ import type { CollectedPreset } from "../contract/collection.ts";
 import type { ImportPresetNote, ImportPresetsResult, ImportSkippedCard } from "../contract/results.ts";
 import type { ImportContext, ImportService } from "../contract/service.ts";
 import { requireProfile } from "../guard.ts";
-
-const ENC = new TextEncoder();
+import { presetBytes } from "../substrate/landing-bytes.ts";
 
 /** One preset's lossiness note — emitted for EVERY imported preset, empty `fields` included, so the operator
  *  can tell "this landed whole" apart from "this was never looked at". */
@@ -96,7 +95,7 @@ export function createImportPresets(ctx: ImportContext): Pick<ImportService, "im
     const skippedPresets: ImportSkippedCard[] = [];
     const notes: ImportPresetNote[] = [];
     for (const p of input.presets) {
-      const outcome = await importPreset({ ownerId: ctx.ownerId, bytes: ENC.encode(JSON.stringify(p.parsed.file)) });
+      const outcome = await importPreset({ ownerId: ctx.ownerId, bytes: presetBytes(p) });
       if (!outcome.ok) {
         skippedPresets.push({ file: p.sourceFile, reason: outcome.error });
         continue;

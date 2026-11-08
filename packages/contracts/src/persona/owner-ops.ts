@@ -22,6 +22,14 @@ export type BulkImportPersonas = (args: {
   readonly collisions?: PersonaCollisionChoices | undefined;
 }) => Promise<BulkImportPersonasResult>;
 
+/** Which of these personas the owner already holds with equal content, one answer per input in order: the test
+ *  {@link BulkImportPersonas} reuses a persona by. A read: it writes nothing. `artHash` is the content hash of
+ *  the avatar image, or null for a persona without one. */
+export type FindOwnedPersonas = (args: {
+  readonly ownerId: UserId;
+  readonly personas: readonly (Pick<BulkImportPersonaInput, "name" | "description" | "metadata"> & { readonly artHash: string | null })[];
+}) => Promise<readonly boolean[]>;
+
 interface ListPersonasParams {
   readonly principal: Principal;
 }

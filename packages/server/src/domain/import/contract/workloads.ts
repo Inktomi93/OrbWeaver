@@ -2,7 +2,7 @@
 
 import type { FileHandle } from "node:fs/promises";
 import type { CompareAndSetImportedTokenUsage, ImportWindow, ListImportedTokenUsageCandidates } from "@orb/contracts/chat";
-import type { ImportFsPort, ImportPreview, PersonaCollisionChoices } from "@orb/contracts/import";
+import type { ImportFsPort, ImportKindCounts, ImportPreview, PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BundleImportWorkloadResult, ImportTokenUsageBackfillResult, ReportProgress } from "@orb/contracts/workloads";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { Logger } from "#foundation/observability";
@@ -33,6 +33,8 @@ interface ImportPassCounts {
   readonly reportPath?: string;
   /** What a dry run found. Absent on a real run. */
   readonly preview?: ImportPreview;
+  /** How many items of each kind the folder holds, counted the way the preview counts. */
+  readonly found: ImportKindCounts;
   /** The span in which the run wrote real conversations (null = none): the client's memory-build offer scope. */
   readonly memoryScope: ImportWindow | null;
 }
