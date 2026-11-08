@@ -301,8 +301,8 @@ export async function pinChatToLocalEngine(): Promise<{ readonly connectionId: U
 /** The recorded upstream calls tools, so a tape connection says so the way a user would: a declared capability. */
 const TAPE_DECLARED_CAPABILITY = { generation: { tools: { parallel: true } } } as const satisfies NewConnection["declared"];
 const TAPE_CONNECTION_LABEL = "e2e provider tape";
-// The provider a tape connection is authored under; wire captures are filed under the same id.
-const TAPE_PROVIDER_ID = "custom-openai";
+/** The provider a tape connection is authored under; wire captures are filed under the same id. */
+export const TAPE_PROVIDER_ID = "custom-openai";
 
 /** Bind `chat` to a tape peer (`tape-provider.ts`) through a custom endpoint connection. The returned restore
  *  re-points the role and removes the row; it runs in the spec's finally.

@@ -12,6 +12,13 @@ export const PROVIDER_TAPE_RECORD_DIR = join(import.meta.dirname, "..", "..", ".
 /** The variable that turns an e2e run into a recording; the record script sets it to `1`. */
 export const PROVIDER_TAPE_RECORD_ENV = "E2E_TAPE_RECORD";
 
+/** The rpg-lite loop journeys: the tape each plays and the requests it sends, in order. The e2e spec and the replay
+ *  contract test both read this table, so a renamed step cannot drift between the recording and its proof. */
+export const RPG_LOOP_JOURNEYS = {
+  bornDefault: { tape: "rpg-lite-loop/born-default", steps: ["character-turn", "state-round"] },
+  cheap: { tape: "rpg-lite-loop/cheap", steps: ["character-turn", "tool-round"] },
+} as const satisfies Record<string, { readonly tape: string; readonly steps: readonly string[] }>;
+
 const tapeStepSchema = z.strictObject({
   /** The journey step that sends this request. */
   step: z.string().min(1),

@@ -1,5 +1,6 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Stop must reach physical native HTTP and prevent tool, retry, completion and chained-generation effects.
+// Without Stop, a provider that never answers must still end the turn as a visible failure at the idle bound.
 import type { MessageView } from "@orb/contracts/chat";
 import { expect, test } from "@orb/testkit/node";
 import type { ChatRoot } from "@orb/testkit/node/composed";
@@ -66,6 +67,45 @@ for (const phase of ["stream", "headers"] as const) {
     });
   });
 }
+
+test("a provider that accepts the turn and never sends a byte fails the turn visibly once its idle windows run out", async () => {
+  await withPeer("headers", async (f) => {
+    const run = { settled: false };
+    const settle = <T>(value: T): T => {
+      run.settled = true;
+      return value;
+    };
+    const outcome = f.start().then(() => settle(null), settle);
+    // Read through a call: the settle above runs between awaits, where a narrowed property read would go stale.
+    const settled = (): boolean => run.settled;
+    // While the peer holds an attempt, the turn's only bound is the window armed for it. Firing that window, then
+    // the backoff it schedules, walks the product's own bound to its end; a stall with no armed bound fails a poll.
+    const idleWindows: number[] = [];
+    const armed = (): boolean => f.pendingTurnTimeouts().length > 0;
+    const heldAndBounded = (): boolean => settled() || (f.peer.requests.length > idleWindows.length && armed());
+    const backoffArmed = (): boolean => settled() || armed();
+    while (!settled()) {
+      await expect.poll(heldAndBounded).toBe(true);
+      if (settled()) {
+        break;
+      }
+      const idleMs = Math.max(...f.pendingTurnTimeouts());
+      idleWindows.push(idleMs);
+      f.h.root.timers.advance(idleMs);
+      await expect.poll(backoffArmed).toBe(true);
+      if (!settled()) {
+        f.h.root.timers.advance(Math.min(...f.pendingTurnTimeouts()));
+      }
+    }
+    expect(await outcome).toMatchObject({ kind: "server", retryable: true });
+    expect(idleWindows.length).toBeGreaterThan(1);
+    expect(new Set(idleWindows).size).toBe(1);
+    expect(f.peer.requests).toEqual(idleWindows.map(() => f.chatPath));
+    expect(f.events).toContainEqual(expect.objectContaining({ type: "turnAborted", reason: "error" }));
+    expect(f.events.map(({ type }) => type)).not.toContain("turnCompleted");
+    expect(await roles(f.h)).toEqual(["user"]);
+  });
+});
 
 test("Stop during an actual HTTP 503 backoff prevents the queued retry and chained generation", async () => {
   await withPeer("retry", async (f) => {
