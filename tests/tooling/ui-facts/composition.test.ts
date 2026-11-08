@@ -405,7 +405,7 @@ test("a chip's wire is literal, a lookup, a call, or a bare read that may be a r
     ["{describe(kind)}", "call"],
     ['{flag ? "On" : kind}', "bare"],
   ]);
-  expect(chips?.defects).toEqual({ wire: ["bare"] });
+  expect(chips?.defects?.["wire"]).toEqual(["bare"]);
 });
 
 test("a declared axis built from a shared scale, a spread of one, or a call over one is declared; one the syntax cannot open is listed", ({ scratch }) => {

@@ -74,6 +74,9 @@ export interface LibraryRowActions {
 
 export interface LibraryRowProps {
   readonly title: string;
+  /** Told after the title in the body face and carried into the accessible name, for a list whose titles may repeat:
+   *  a library row's qualifier is a name (the plugin a page belongs to), never a code. */
+  readonly titleQualifier?: string;
   readonly subtitle?: string;
   readonly subtitleStep?: "default" | "label";
   readonly selected: boolean;
@@ -172,14 +175,21 @@ function clusterSpacers(rendered: number, reserved: number): readonly ReactEleme
   ));
 }
 
-/** The four OPTIONAL `ListRow` slots this composite forwards, assembled in one place.
+/** The OPTIONAL `ListRow` slots this composite forwards, assembled in one place.
  *
  *  They are spread rather than passed as `undefined` because the project runs `exactOptionalPropertyTypes`:
- *  `subtitle={undefined}` is not the same as an absent `subtitle`. Hoisting the four conditionals out of the
+ *  `subtitle={undefined}` is not the same as an absent `subtitle`. Hoisting the conditionals out of the
  *  component keeps its own complexity under the ceiling (they cost 1 each, and the row already spends its
  *  budget on the cluster arithmetic below). */
-function optionalSlots({ leading, subtitle, markers, subtitleLead }: LibraryRowProps): Pick<ListRowProps, "leading" | "subtitle" | "markers" | "subtitleLead"> {
+function optionalSlots({
+  leading,
+  subtitle,
+  markers,
+  subtitleLead,
+  titleQualifier,
+}: LibraryRowProps): Pick<ListRowProps, "leading" | "subtitle" | "markers" | "subtitleLead" | "titleQualifier"> {
   return {
+    ...(titleQualifier === undefined ? {} : { titleQualifier }),
     ...(leading === undefined ? {} : { leading }),
     ...(subtitle === undefined ? {} : { subtitle }),
     ...(markers === undefined ? {} : { markers }),
@@ -224,6 +234,7 @@ export function LibraryRow(props: LibraryRowProps): ReactElement {
       onClick={onSelect}
       data-selected={selected ? "" : undefined}
       title={title}
+      titleQualifierFace="body"
       {...passthrough(props)}
       {...(props.subtitleStep === undefined ? {} : { subtitleStep: props.subtitleStep })}
       {...optionalSlots(props)}

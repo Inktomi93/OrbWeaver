@@ -9,7 +9,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { CatalogMacro, MacroCatalog, MacroPlane } from "#lib";
-import { macroSourceLabel } from "#lib";
+import { MACRO_CATEGORY_WORDS, macroSourceLabel } from "#lib";
 import { openInstalledPlugin, selectPreset, setActiveSection } from "#state";
 import type { StatusVocabulary } from "./status-chip.tsx";
 import { StatusChip } from "./status-chip.tsx";
@@ -124,7 +124,7 @@ function MacroRow({ macro }: { readonly macro: CatalogMacro }): ReactElement {
     <Stack gap="field">
       <Row gap="field" align="center">
         <code>{`{{${meta.name}}}`}</code>
-        <Badge size="sm">{meta.category}</Badge>
+        <Badge size="sm">{MACRO_CATEGORY_WORDS[meta.category]}</Badge>
         {meta.volatile ? (
           <Badge tone="warning" variant="solid" size="sm">
             Volatile

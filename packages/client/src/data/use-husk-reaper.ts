@@ -8,7 +8,7 @@
 // the common case tidy (most husks die within seconds of abandonment), and it obeys three rules:
 //   · it NEVER blocks navigation — the store has already moved on by the time the listener runs;
 //   · it NEVER surfaces an error — offline, a race with a claim, a reap of a room that turned out to be
-//     real: all are non-events for the user, so the mutation carries NO `errorToast` and the promise is
+//     real: all are non-events for the user, so the mutation declares `errorToast: false` and the promise is
 //     swallowed. A toast here would report a failure the user cannot act on and did not ask for;
 //   · it NEVER asserts husk-ness — `reapHusk` re-checks `started_at IS NULL` server-side and no-ops
 //     otherwise, so a wrong guess costs one cheap round-trip and changes nothing.
@@ -24,11 +24,12 @@ import type { Trpc } from "./trpc.ts";
 import { useTRPC } from "./trpc.ts";
 import { useInvalidation } from "./use-invalidation.ts";
 
-// NO `errorToast`: a failed best-effort reap is a non-event (see the header). `busDriven` because a reap
-// that DOES land fans `chatDeleted`, which the list + the active-chat pointer already react to.
+// `busDriven` because a reap that DOES land fans `chatDeleted`, which the list + the active-chat pointer already react to.
 const useReapHuskMutation = createEntityMutation<inferInput<Trpc["chat"]["reapHusk"]>, unknown>({
   options: (trpc) => trpc.chat.reapHusk.mutationOptions(),
   busDriven: true,
+  // Silent: no person started this reap, and a failed one is a non-event (see the header).
+  errorToast: false,
 });
 
 /** Mount once at the app root: fires `chat.reapHusk` when a created-but-unused room is navigated away from. */

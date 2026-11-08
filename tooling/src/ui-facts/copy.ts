@@ -26,6 +26,9 @@ const PRODUCT_NOUNS = new Set([
   "GitHub",
 ]);
 
+// A count leads its noun ("0 refs"): the number is the datum, and the noun after it is lower case by grammar.
+const COUNT_FIRST = "count first";
+
 function ellipsisOf(text: string): string {
   if (text.endsWith("…")) {
     return "…";
@@ -54,6 +57,9 @@ function caseOf(text: string): string {
   }
   if (first === undefined) {
     return NOT_APPLICABLE;
+  }
+  if (/^\d/u.test(text)) {
+    return COUNT_FIRST;
   }
   if (/^e\.g\./iu.test(first)) {
     return "example";
@@ -98,6 +104,8 @@ const DIALOG_TAGS = new Set([
   "Dialog",
   "AlertDialog",
 ]);
+// The verbs a search or filter box's placeholder opens with.
+const SEARCH_LEAD = /^(?:Search|Filter|Find|Jump to)\b/u;
 const LABEL_PROPS = ["confirmLabel", "cancelLabel", "dismissLabel"];
 const WORD_MAP = /(?:WORD|LABEL|COPY)S?$/u;
 
@@ -113,7 +121,20 @@ interface Collected {
 
 // How an expression gets the words it shows, worst first. A `bare` read shows whatever the value is: a raw wire value when
 // that value is an enum, a word when the caller already mapped it. Syntax cannot tell the two apart, so `bare` is a candidate.
-const WIRE_RANK = ["bare", "call", "template", "lookup", "literal", "other"] as const;
+const WIRE_RANK = ["bare", "call", "template", "lookup", "count", "word", "user value", "literal", "other"] as const;
+
+// What a bare read's own name says it holds, the last segment of `a.b.name`. A number is a count, a name built for display
+// is a mapped word, and a name or token the user wrote is their data; every other bare read stays the candidate.
+const BARE_BY_NAME: readonly (readonly [RegExp, string])[] = [
+  [/^(?:count|length|depth|iteration|kept|discarded|behind|total)$/u, "count"],
+  [/(?:^(?:label|word|badge|chip|text|over)$|Label$|Word$|_(?:BADGE|NAME|MARKER|LABEL|WORD)$)/u, "word"],
+  [/^(?:name|tag|token|key|model|themeName)$/u, "user value"],
+];
+
+function bareRead(node: ts.Identifier | ts.PropertyAccessExpression): string {
+  const name = ts.isIdentifier(node) ? node.text : node.name.text;
+  return BARE_BY_NAME.find(([pattern]) => pattern.test(name))?.[1] ?? "bare";
+}
 const MAX_WIRE_HOPS = 3;
 
 const worstWire = (...kinds: readonly string[]): string => WIRE_RANK.find((kind) => kinds.includes(kind)) ?? "other";
@@ -148,9 +169,11 @@ function wireOf(expression: ts.Expression, sf: ts.SourceFile, hops: number): str
   }
   if (ts.isIdentifier(node)) {
     const init = hops < MAX_WIRE_HOPS ? constInitializer(sf, node.text) : null;
-    return init === null ? "bare" : wireOf(init, sf, hops + 1);
+    // The initializer says more than the name; the name speaks only for a read the initializer leaves bare.
+    const followed = init === null ? "bare" : wireOf(init, sf, hops + 1);
+    return followed === "bare" ? bareRead(node) : followed;
   }
-  return ts.isPropertyAccessExpression(node) ? "bare" : "other";
+  return ts.isPropertyAccessExpression(node) ? bareRead(node) : "other";
 }
 
 interface ChipShown {
@@ -187,7 +210,7 @@ function elementStrings(facts: FileFacts): readonly Collected[] {
   };
   for (const elem of facts.elems) {
     const placeholder = attrString(elem.attrs.get("placeholder"));
-    add(placeholder?.startsWith("Search") === true ? "placeholder-search" : "placeholder", placeholder, elem.line);
+    add(placeholder !== undefined && SEARCH_LEAD.test(placeholder) ? "placeholder-search" : "placeholder", placeholder, elem.line);
     if (BUTTON_TAGS.has(elem.tag)) {
       add("button-label", childrenText(elem.element), elem.line);
     }
@@ -238,6 +261,29 @@ const KIND_WHAT: Readonly<Record<string, string>> = {
 };
 
 const CHIP_KIND = "chip";
+const TAXONOMY_CHIP = "packages/client/src/features/preset/components/template-drill-in.tsx";
+const TAXONOMY_RULING =
+  "the raw template kind is the drill-in header's taxonomy chip (packages/client/src/features/preset/lib/template-rows.ts `TEMPLATE_KIND_LABEL`)";
+const VOICE = "UI-Architecture-and-Layout.md §4.3, the voice table";
+// The voice table rules the case of labels and chips only; a placeholder, a title or a map value has no case ruling.
+const CASE_RULED = new Set(["button-label", CHIP_KIND]);
+
+/** The columns a kind compares against its majority and the ones it only spreads, from what the voice table rules. */
+function rulingsOf(kind: string): Pick<Cohort, "columns" | "info" | "defects" | "kept" | "keptSites" | "basis"> {
+  const cased = CASE_RULED.has(kind);
+  return {
+    columns: cased ? ["case"] : [],
+    info: [...(cased ? [] : ["case"]), "ellipsis", "period", "source", ...(kind === CHIP_KIND ? ["wire"] : [])],
+    defects: {
+      // One ellipsis character, never three dots, and a search placeholder ends in it.
+      ellipsis: kind === "placeholder-search" ? ["...", "none"] : ["..."],
+      ...(cased ? { case: ["lower", "Title Case", "mixed"] } : {}),
+      ...(kind === CHIP_KIND ? { wire: ["bare"] } : {}),
+    },
+    kept: cased ? { case: { [COUNT_FIRST]: `a count leads its noun, and the noun after a number is lower case (${VOICE})` } } : {},
+    ...(kind === CHIP_KIND ? { basis: { wire: "heuristic" as const }, keptSites: { wire: { [TAXONOMY_CHIP]: TAXONOMY_RULING } } } : {}),
+  };
+}
 
 /** One cohort per copy kind; each member is a string with its case, ellipsis and closing period. A chip also carries its wire. */
 export function buildCopyCohorts(all: readonly FileFacts[]): readonly Cohort[] {
@@ -245,8 +291,7 @@ export function buildCopyCohorts(all: readonly FileFacts[]): readonly Cohort[] {
   return Object.entries(KIND_WHAT).map(([kind, what]) => ({
     name: `copy:${kind}`,
     what,
-    columns: kind === CHIP_KIND ? ["case", "ellipsis", "period", "source", "wire"] : ["case", "ellipsis", "period", "source"],
-    ...(kind === CHIP_KIND ? { defects: { wire: ["bare"] }, basis: { wire: "heuristic" as const } } : {}),
+    ...rulingsOf(kind),
     members: collected
       .filter((entry) => entry.kind === kind)
       .map(

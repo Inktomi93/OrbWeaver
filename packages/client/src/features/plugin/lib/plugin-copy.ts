@@ -447,3 +447,9 @@ export const PLUGIN_DETAILS_LABEL = "Plugin details";
 export function pluginDetailsLabel(pluginName: string): string {
   return `${PLUGIN_DETAILS_LABEL}: ${pluginName}`;
 }
+
+/** Every failed URL preview reads this one fixed line, so the reason never becomes an SSRF oracle. */
+export const URL_FETCH_FAILED = "Couldn't fetch a plugin from that URL. It may be unreachable, refused, or not a plugin bundle.";
+
+/** Every failed Git preview reads this one fixed line. */
+export const GIT_FETCH_FAILED = "Couldn't read a plugin from that repository. It may be unreachable, refused, or not a plugin.";

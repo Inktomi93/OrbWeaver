@@ -53,6 +53,9 @@ export const NEW_LABEL_NAME = "New tag";
 export const LABELS_BLURB =
   "Your own tags for characters, chats, books, personas and presets. Generated genres, themes and archetypes are analysis facets, not tags.";
 
+/** The empty library's census, the title both the finder and the landing show. */
+export const LABELS_NONE = "No tags yet.";
+
 /** The empty library landing names its create door; the finder states only its census. */
 export const LABELS_EMPTY = `Create a tag with ${NEW_LABEL_NAME}. Tags you adopt from character cards land here too.`;
 

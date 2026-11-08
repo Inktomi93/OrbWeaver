@@ -34,6 +34,7 @@ import { notify } from "#lib";
 import { requestRpgStatusSheet, setContextTab } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useResyncFromStory, useUpdateConfig } from "../hooks/use-rpg-mutations.ts";
+import { TRACKER_SHAPE_LABEL } from "../lib/host-console-labels.ts";
 import { mintDefKey } from "../lib/mint-key.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
 import { RpgDoorwayLine } from "./rpg-doorway-line.tsx";
@@ -163,7 +164,7 @@ function TrackerRow({
         </Row>
       </Row>
       <Row gap="field" align="center" wrap={true}>
-        <Badge size="sm">{def.shape}</Badge>
+        <Badge size="sm">{TRACKER_SHAPE_LABEL[def.shape]}</Badge>
         <HintTrigger
           className=""
           hint="the shape decides how it renders and how the story writes it: fixed when it was named"

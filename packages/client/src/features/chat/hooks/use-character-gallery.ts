@@ -58,27 +58,21 @@ export const useGalleryCandidates = createCollectionSurface({
 });
 
 /** Curate an owned asset into a character's gallery (idempotent server-side). Refetches the gallery and the
- *  add-picker's candidates, which it just shrank.
- *  NO `errorToast`: both callers, the add-picker and the upload zone, name a failed add on their own inline
- *  line, and a toast on top would report one failure twice. A new caller without such a line owes one. */
+ *  add-picker's candidates, which it just shrank. Its callers, the add-picker and the upload zone, also name a
+ *  failed add on their own inline line. */
 export const useAddToGallery = createEntityMutation<inferInput<Trpc["assets"]["addToGallery"]>, inferOutput<Trpc["assets"]["addToGallery"]>>({
   options: (trpc) => trpc.assets.addToGallery.mutationOptions(),
   invalidates: (trpc) => [trpc.assets.listGallery.pathFilter(), trpc.assets.listOwned.pathFilter()],
+  errorToast: "Couldn't add the image to the gallery.",
 });
 
 /**
  * Remove a curated item from the gallery (the underlying asset is untouched). Refetches the gallery and the
- * add-picker's candidates, which the image rejoins.
- *
- * NO `errorToast`, deliberately (#1563a). Its ONE caller is the gallery lightbox's destructive confirm, and
- * #1563 gave `ConfirmDialog` an inline failure line that holds the dialog open with its own button as the
- * retry — so a toast on top made one refused press say the same thing twice, once in the dialog the reader
- * is looking at and once in a global notice over it.
- *
- * ENDS WHEN a second call site appears that does not own a failure surface — then this owes the function
- * form, not a bare string, so the confirm's press stays silent while the new caller toasts.
+ * add-picker's candidates, which the image rejoins. Its caller, the gallery lightbox's destructive confirm, also
+ * keeps the dialog open on its inline failure line with its own button as the retry.
  */
 export const useRemoveFromGallery = createEntityMutation<inferInput<Trpc["assets"]["removeFromGallery"]>, unknown>({
   options: (trpc) => trpc.assets.removeFromGallery.mutationOptions(),
   invalidates: (trpc) => [trpc.assets.listGallery.pathFilter(), trpc.assets.listOwned.pathFilter()],
+  errorToast: "Couldn't remove the image from the gallery.",
 });

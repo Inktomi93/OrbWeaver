@@ -22,9 +22,22 @@ export interface Cohort {
   readonly info?: readonly string[];
   /** Values that are a defect whatever the majority: column to the values. */
   readonly defects?: Readonly<Record<string, readonly string[]>>;
+  /** Values a ruling allows beside the majority: column to value to the cited ruling. They are no outlier. */
+  readonly kept?: Readonly<Record<string, Readonly<Record<string, string>>>>;
+  /** Members a ruling allows to differ, whatever their value: column to member path to the cited ruling. They are no outlier and no defect. */
+  readonly keptSites?: Readonly<Record<string, Readonly<Record<string, string>>>>;
   /** Per column: read straight off the syntax, or inferred from it. A column absent here is unlabelled. */
   readonly basis?: Readonly<Record<string, ColumnBasis>>;
   readonly members: readonly Member[];
+}
+
+/** A non-majority value, or one member's value, that a ruling allows, with the members it covers and the ruling's citation. */
+export interface KeptValue {
+  readonly value: string;
+  /** The member's path for a site ruling; null for a value ruling. */
+  readonly at: string | null;
+  readonly count: number;
+  readonly reason: string;
 }
 
 type ColumnBasis = "measured" | "heuristic";
@@ -48,6 +61,8 @@ export interface Comparison {
   readonly outliers: readonly Outlier[];
   /** Members holding a value the cohort names a defect, whatever the majority. */
   readonly defects: readonly Outlier[];
+  /** Non-majority values and members the cohort's `kept` and `keptSites` rulings allow; empty when it names none. */
+  readonly kept: readonly KeptValue[];
   readonly informational: boolean;
   readonly basis: ColumnBasis | null;
 }
@@ -80,6 +95,13 @@ function compareColumn(cohort: Cohort, column: string, informational = false): C
   if (top === undefined) {
     return null;
   }
+  const rulings = cohort.kept?.[column] ?? {};
+  const siteRulings = cohort.keptSites?.[column] ?? {};
+  const differs = rows.filter((row) => row.cell.value !== top[0]);
+  const bySite = differs.filter((row) => Object.hasOwn(siteRulings, row.member.path));
+  const byValue = differs.filter((row) => !bySite.includes(row) && Object.hasOwn(rulings, row.cell.value));
+  const keptValues = [...tally(byValue.map((row) => row.cell.value))].map(([value, count]) => ({ value, at: null, count, reason: rulings[value] ?? "" }));
+  const keptSites = bySite.map((row) => ({ value: row.cell.value, at: row.member.path, count: 1, reason: siteRulings[row.member.path] ?? "" }));
   return {
     cohort: cohort.name,
     column,
@@ -88,8 +110,9 @@ function compareColumn(cohort: Cohort, column: string, informational = false): C
     total: rows.length,
     tied: runnerUp !== undefined && runnerUp[1] === top[1],
     distribution: Object.fromEntries(ranked),
-    outliers: informational ? [] : rows.filter((row) => row.cell.value !== top[0]).map(outlierOf),
-    defects: rows.filter((row) => cohort.defects?.[column]?.includes(row.cell.value) === true).map(outlierOf),
+    outliers: informational ? [] : differs.filter((row) => !(bySite.includes(row) || byValue.includes(row))).map(outlierOf),
+    defects: rows.filter((row) => cohort.defects?.[column]?.includes(row.cell.value) === true && !Object.hasOwn(siteRulings, row.member.path)).map(outlierOf),
+    kept: [...keptValues, ...keptSites],
     informational,
     basis: cohort.basis?.[column] ?? null,
   };

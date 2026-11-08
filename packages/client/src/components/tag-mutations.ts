@@ -32,10 +32,11 @@ export const useUpdateTag = createEntityMutation<inferInput<Trpc["tag"]["updateT
   errorToast: "Couldn't update the tag.",
 });
 
-/** Delete a label; ConfirmDialog owns rejection feedback and retry. */
+/** Delete a label; the toast reports a refusal and ConfirmDialog keeps its inline line and retry. */
 export const useRemoveTag = createEntityMutation<inferInput<Trpc["tag"]["removeTag"]>, unknown>({
   options: (trpc) => trpc.tag.removeTag.mutationOptions(),
   busDriven: true,
+  errorToast: "Couldn't delete the tag.",
 });
 
 /** Merge one tag into another (re-points every attachment, then deletes the source). */
@@ -52,10 +53,11 @@ export const useSetTagOrder = createEntityMutation<inferInput<Trpc["tag"]["setTa
   errorToast: "Couldn't reorder the tags.",
 });
 
-/** Prune unused labels; ConfirmDialog owns rejection feedback and retry. */
+/** Prune unused labels; the toast reports a refusal and ConfirmDialog keeps its inline line and retry. */
 export const usePruneUnusedTags = createEntityMutation<void, unknown>({
   options: (trpc) => trpc.tag.pruneUnusedTags.mutationOptions(),
   busDriven: true,
+  errorToast: "Couldn't remove the unused tags.",
 });
 /** Apply a suggestion; the tag user-bus event refreshes both Labels and character projections. */
 export const useAcceptSuggestion = createEntityMutation<inferInput<Trpc["tag"]["attachTag"]> & TagTargetRef, unknown>({
