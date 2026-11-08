@@ -82,3 +82,61 @@ for (const events of [1, 2] as const) {
     }
   });
 }
+
+const EVENTS_PER_WAVE = 3;
+
+// A wave is the events delivered before its flush timer runs; frames arrive in tasks of their own, so each event here
+// waits for the next task while the timer is held.
+test("a press for older history spends one attempt per wave however many events and tasks the wave spans", async () => {
+  vi.useFakeTimers({ toFake: ["setTimeout"] });
+  const runtime = createClientRuntime("http://chat-press.test/api/trpc");
+  const facades: Invalidation[] = [];
+  // biome-ignore lint/correctness/noChildrenProp: The native createElement overload requires the provider's required children prop in its props argument.
+  renderToString(createElement(AppDataProviders, { runtime, children: createElement(CaptureInvalidation, { facades }) }));
+  const [invalidation] = facades;
+  if (invalidation === undefined) {
+    throw new Error("The production providers did not expose invalidation");
+  }
+  const { queryClient } = runtime;
+  const chatId = ids.typeId(ID_PREFIX.chat);
+  const queryKey = runtime.trpcProxy.chat.listMessages.infiniteQueryKey({ chatId });
+  const tail: Page = { messages: [{ id: ids.typeId(ID_PREFIX.message), seq: 2 }], previous: OLDER };
+  const older: Page = { messages: [{ id: ids.typeId(ID_PREFIX.message), seq: 1 }], previous: null };
+  const server = { olderReads: 0, answering: false };
+  const observer = new InfiniteQueryObserver<Page, Error, InfiniteData<Page>, typeof queryKey, string>(queryClient, {
+    queryKey,
+    initialPageParam: TAIL,
+    queryFn: ({ pageParam }) => {
+      if (pageParam === TAIL) {
+        return Promise.resolve(tail);
+      }
+      server.olderReads += 1;
+      return server.answering ? Promise.resolve(older) : new Promise<Page>(() => undefined);
+    },
+    getPreviousPageParam: (first) => first.previous ?? undefined,
+    getNextPageParam: () => undefined,
+  });
+  const unsubscribe = observer.subscribe(() => undefined);
+  const nextTask = (): Promise<void> => new Promise((resolve) => setImmediate(resolve));
+  try {
+    await vi.waitFor(() => expect(observer.getCurrentResult().data?.pages).toHaveLength(1));
+    const press = pressForPage((options) => observer.fetchPreviousPage(options), 1, "previous");
+    for (const wave of [0, 1]) {
+      await vi.waitFor(() => {
+        expect(server.olderReads).toBeGreaterThan(wave);
+        expect(queryClient.getQueryState(queryKey)?.fetchStatus).toBe("fetching");
+      });
+      for (let sent = 0; sent < EVENTS_PER_WAVE; sent += 1) {
+        invalidation.invalidate({ type: "messagesDeleted", chatId, messageIds: [ids.typeId(ID_PREFIX.message)] });
+        await nextTask();
+      }
+      server.answering = wave === 1;
+      vi.runOnlyPendingTimers();
+    }
+    expect(await press).toEqual([older, tail]);
+  } finally {
+    unsubscribe();
+    queryClient.clear();
+    vi.useRealTimers();
+  }
+});
