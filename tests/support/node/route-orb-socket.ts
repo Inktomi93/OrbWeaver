@@ -70,6 +70,12 @@ export interface OrbSocketRecorder {
   readonly detaches: () => readonly StreamRoomRef[];
   /** Attached room KEYS (`"user"` / `"rpg:<id>"` / `"workloads:<id>"`) — the terse form for an assertion. */
   readonly attachedChannels: () => readonly string[];
+  /**
+   * Resolves once the first connection's body, scripted frames included, has been handed to the page; rejects when the
+   * handshake fails first. Await it before asserting what the frames render, so the assertion's deadline covers the
+   * client's handling of the frames and not the mount's boot and attach round trips.
+   */
+  readonly served: () => Promise<void>;
 }
 
 export interface RouteOrbSocketOptions {
@@ -150,6 +156,9 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
   let completedAttaches = 0;
   const admittedRooms = new Set<string>();
   const handshake = Promise.withResolvers<boolean>();
+  const served = Promise.withResolvers<void>();
+  // A case that never awaits `served` must not see the handshake's failure as an unhandled rejection.
+  void served.promise.catch(() => undefined);
   const pendingAttaches = new Map<Request, readonly StreamRoomRef[]>();
   let settled = false;
   const settleHandshake = (success: boolean): void => {
@@ -162,6 +171,9 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
     page.off("close", closeHandshake);
     pendingAttaches.clear();
     handshake.resolve(success);
+    if (!success) {
+      served.reject(new Error("The socket handshake failed before its frames were served"));
+    }
   };
   const closeHandshake = (): void => {
     settleHandshake(false);
@@ -236,6 +248,7 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
           clean,
         ),
       });
+      served.resolve();
     } finally {
       stop.abort();
       page.off("close", closed);
@@ -283,5 +296,6 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
     // The ONE routing key, straight from the contract — a hand-rolled projection here would drift the moment
     // a channel is keyed by something other than a chatId (the `workloads` room, S5, is keyed by workloadId).
     attachedChannels: (): readonly string[] => attached.map(({ ref }) => roomKey(ref)),
+    served: (): Promise<void> => served.promise,
   };
 }

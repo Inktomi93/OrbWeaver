@@ -38,7 +38,7 @@ async function forwardTagEvent(page: Page, root: ServerTestHarness): Promise<Asy
   const stop = new AbortController();
   let started = false;
   await routeOrbSocket(page, {
-    awaitAttaches: 1,
+    awaitRooms: [{ channel: "user" }],
     frames: async (signal): Promise<readonly StreamFrame[]> => {
       started = true;
       const events = root.app.liveBuses.user.subscribeUserEvents(root.ownerId, AbortSignal.any([signal, stop.signal]));
