@@ -17,7 +17,7 @@
 import { openContextSections } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { WORLD_INFO_ENTRY_CONTENT_NAME } from "#client/features/world-info/lib/world-info-names.ts";
+import { CHAT_INJECTION_CONTENT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { openContextTab, openDetailPanel, openOrCreateChat, reopenFirstChat, waitForAppReady } from "./support/chat-room.ts";
 import { CASE_TWO_LIVE_TURNS_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 
@@ -65,7 +65,7 @@ async function expandInjectionRows(page: Page): Promise<void> {
  *  holding three persisted injections — an empty array that reads exactly like "the write never landed". */
 async function contentValues(page: Page): Promise<readonly string[]> {
   await expandInjectionRows(page);
-  const fields = page.getByRole("textbox", { name: WORLD_INFO_ENTRY_CONTENT_NAME });
+  const fields = page.getByRole("textbox", { name: CHAT_INJECTION_CONTENT_NAME });
   const count = await fields.count();
   return Promise.all(Array.from({ length: count }, (_, i) => fields.nth(i).inputValue()));
 }
@@ -92,7 +92,7 @@ test("injection: add → reload persists; remove → reload gone", async ({ page
   await addResp;
 
   // Type the marker into the new (last) Content field and blur to trigger the autosave write.
-  const content = page.getByRole("textbox", { name: WORLD_INFO_ENTRY_CONTENT_NAME }).last();
+  const content = page.getByRole("textbox", { name: CHAT_INJECTION_CONTENT_NAME }).last();
   await expect(content).toBeVisible({ timeout: WAIT_SHORT_MS });
   const saveResp = page.waitForResponse((r) => r.url().includes("/api/trpc/chat.setChatInjection") && r.status() < 500);
   await content.fill(marker);

@@ -18,6 +18,7 @@ import {
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { CHAT_MEMBERS_ENTRY_PREFIX } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -73,7 +74,7 @@ test("a held member card read shows the loading skeleton, a failed one the error
     }),
   );
   await mount<typeof ChatRoomShellStory>(STORY, { chatId });
-  await page.getByRole("button", { name: /^Members — /u }).click();
+  await page.getByRole("button", { name: CHAT_MEMBERS_ENTRY_PREFIX }).click();
   await page.getByRole("button", { name: new RegExp(`^${characterName} — character`, "u") }).click();
   await page.getByRole("menuitem", { name: "View character", exact: true }).click();
   const dialog = page.getByRole("dialog");
@@ -100,7 +101,7 @@ test("a card that left the room is the gone state, not the error block", async (
     serveCorpusProcedures(host, ["chat.getMemberCard"], () => trpcError({ code: "NOT_FOUND" })),
   );
   await mount<typeof ChatRoomShellStory>(STORY, { chatId });
-  await page.getByRole("button", { name: /^Members — /u }).click();
+  await page.getByRole("button", { name: CHAT_MEMBERS_ENTRY_PREFIX }).click();
   await page.getByRole("button", { name: new RegExp(`^${characterName} — character`, "u") }).click();
   await page.getByRole("menuitem", { name: "View character", exact: true }).click();
   const dialog = page.getByRole("dialog");
@@ -128,7 +129,7 @@ test("a held outstanding-invites read shows the loading skeleton, a failed one t
     }),
   );
   await mount<typeof ChatRoomShellStory>(STORY, { chatId });
-  await page.getByRole("button", { name: /^Members — /u }).click();
+  await page.getByRole("button", { name: CHAT_MEMBERS_ENTRY_PREFIX }).click();
   await page.getByRole("button", { name: "Invite people", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await hold.requested;

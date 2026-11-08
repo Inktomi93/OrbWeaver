@@ -24,6 +24,7 @@ import type { Handle, UserId } from "@orb/kit/ids";
 import type { Browser, BrowserContext, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { z } from "zod";
+import { CHAT_MEMBERS_ENTRY_PREFIX } from "#client/features/chat/lib/chat-surface-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { SESSION_COOKIE } from "./actors.ts";
 import { openChatByTitle } from "./chat-room.ts";
@@ -51,7 +52,7 @@ const READY_TIMEOUT_MS = 30_000;
 export const LOGIN_FAILED = "login failed";
 /** The chat header's roster entry, by its ACCESSIBLE NAME prefix (`Members — <count>`) — the count varies
  *  with the room, so the prefix is the stable half. */
-const MEMBERS_ENTRY = '[aria-label^="Members "]';
+const MEMBERS_ENTRY = `[aria-label^="${CHAT_MEMBERS_ENTRY_PREFIX}"]`;
 
 /** Open an ISOLATED browser context logged in as a seeded LOCAL user and land it on the app root.
  *  `baseUrl` is the project's vite origin (Playwright's `baseURL` fixture). Throws — loudly, with the HTTP

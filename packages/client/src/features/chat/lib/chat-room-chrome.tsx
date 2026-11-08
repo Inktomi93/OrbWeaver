@@ -9,6 +9,7 @@ import type { ChromeEntry } from "#state";
 import { useActiveSection, useRecallState } from "#state";
 import { RoomRecallChip, RoomRosterChip } from "../components/chat-header.tsx";
 import { useRoomRoster } from "../hooks/use-room-roster.ts";
+import { chatMembersEntryName } from "./chat-surface-names.ts";
 import { openMembersTab } from "./open-members-tab.ts";
 import { recallLabel } from "./recall-label.ts";
 import { recallRequests } from "./recall-requests.ts";
@@ -21,7 +22,7 @@ function useRoomOpen(): boolean {
 
 function useMembersMenuForms(): readonly OverflowMenuForm[] {
   const { memberCount } = useRoomRoster();
-  return [{ id: "chat-members", label: `Members — ${memberCount}`, icon: Users, onSelect: openMembersTab }];
+  return [{ id: "chat-members", label: chatMembersEntryName(memberCount), icon: Users, onSelect: openMembersTab }];
 }
 
 function useMemoryMenuForms(): readonly OverflowMenuForm[] {

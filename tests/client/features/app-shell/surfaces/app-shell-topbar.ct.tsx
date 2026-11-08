@@ -23,6 +23,7 @@ import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { commandShortcutLabel } from "#client/features/app-shell/lib/command-shortcut-label.ts";
 import { CHARACTER_IMPORT_NAME, CHARACTER_LIBRARY_NAME, CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHAT_MEMBERS_ENTRY_PREFIX } from "#client/features/chat/lib/chat-surface-names.ts";
 import { EXTENSIONS_SEARCH_NAME } from "#client/features/plugin/lib/extensions-copy.ts";
 import { renameChatButtonIdentity } from "#client/lib/chat-rename-names.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
@@ -339,7 +340,7 @@ test.describe("the phone topbar at 320, coarse pointer", () => {
 });
 
 const WIDE_TITLE = '.shell-topbar-identity[data-identity="wide"] .shell-topbar-title';
-const MEMBERS_PREFIX = "Members — ";
+const MEMBERS_PREFIX = CHAT_MEMBERS_ENTRY_PREFIX;
 const MEMORY_PREFIX = "Memory — ";
 const MEMBERS_CHIP = `[aria-label^="${MEMBERS_PREFIX}"]`;
 const MEMORY_CHIP = `[aria-label^="${MEMORY_PREFIX}"]`;

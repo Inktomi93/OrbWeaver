@@ -46,6 +46,7 @@ import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { createAutosaveEntityForm } from "#forms/editor";
 import { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "#lib";
 import { useDeleteChatInjection, useSetChatInjection } from "../hooks/use-context-panel-mutations.ts";
+import { CHAT_INJECTION_CONTENT_NAME } from "../lib/chat-surface-names.ts";
 import type { InjectionFormValues } from "../lib/injection-row-model.ts";
 import { DEFAULT_INJECTION_FORM, fromInjectionForm, toInjectionForm } from "../lib/injection-row-model.ts";
 import { NEW_INJECTION } from "../lib/injection-seed.ts";
@@ -250,7 +251,9 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete, rowFocus }: Inje
                   }
                 </form.Subscribe>
 
-                <form.AppField name="content">{(field): ReactElement => <field.TextareaField label="Content" disabled={!isHost} rows={2} />}</form.AppField>
+                <form.AppField name="content">
+                  {(field): ReactElement => <field.TextareaField label={CHAT_INJECTION_CONTENT_NAME} disabled={!isHost} rows={2} />}
+                </form.AppField>
 
                 {/* Remove sits where the Field-overrides row puts Clear — inside the panel, so an
                     irreversible action is never one click off a collapsed scan-list. */}

@@ -1,4 +1,3 @@
-import { ROW_DELETE_NAME } from "@orb/client/lib";
 import { createPersonaSchema } from "@orb/contracts/persona";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { actionGroupGeometry, resolvedLength } from "@orb/testkit/browser/spec";
@@ -7,9 +6,8 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
-import { WORLD_INFO_ENTRY_TITLE_NAME } from "#client/features/world-info/lib/world-info-names.ts";
+import { PERSONA_DELETE_NAME, PERSONA_DUPLICATE_NAME, PERSONA_EXPORT_NAME, PERSONA_TITLE_FIELD_NAME } from "#client/features/persona/lib/persona-copy.ts";
 import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
-import { ROW_DUPLICATE_NAME, ROW_EXPORT_NAME } from "#client/lib/row-menu-names.ts";
 import type { PersonaActionGroupsStory } from "./_persona-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/persona/components/_persona-action-groups-stories/PersonaActionGroupsStory";
@@ -73,9 +71,9 @@ for (const regime of REGIMES) {
       await page.keyboard.press("Enter");
       const editor = page.getByRole("group", { name: `Edit ${name}`, exact: true });
       const footer = editor.locator('[data-slot="persona-editor-footer"]');
-      const duplicate = footer.getByRole("button", { name: ROW_DUPLICATE_NAME, exact: true });
-      const exportButton = footer.getByRole("button", { name: ROW_EXPORT_NAME, exact: true });
-      const remove = footer.getByRole("button", { name: ROW_DELETE_NAME, exact: true });
+      const duplicate = footer.getByRole("button", { name: PERSONA_DUPLICATE_NAME, exact: true });
+      const exportButton = footer.getByRole("button", { name: PERSONA_EXPORT_NAME, exact: true });
+      const remove = footer.getByRole("button", { name: PERSONA_DELETE_NAME, exact: true });
       await expect(editor.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
       await duplicate.focus();
       await page.keyboard.press("Tab");
@@ -180,7 +178,7 @@ for (const regime of REGIMES) {
       await page.getByRole("button", { name: `Show details for ${persona.name}`, exact: true }).focus();
       await page.keyboard.press("Enter");
       const editor = page.getByRole("group", { name: `Edit ${persona.name}`, exact: true });
-      const title = editor.getByRole("textbox", { name: WORLD_INFO_ENTRY_TITLE_NAME, exact: true });
+      const title = editor.getByRole("textbox", { name: PERSONA_TITLE_FIELD_NAME, exact: true });
       await expect(title).toHaveValue(persona.title ?? "");
       const nextTitle = "A locally saved qualification identity";
       await title.fill(nextTitle);

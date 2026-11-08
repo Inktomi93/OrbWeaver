@@ -134,3 +134,15 @@ export function chatsWithCharacterName(characterName: string): string {
 
 /** The Home quick-picks tile's door to the character library. */
 export const CHAT_ALL_CHARACTERS_NAME = "All characters";
+
+/** A chat injection row's text field. */
+export const CHAT_INJECTION_CONTENT_NAME = "Content";
+
+/** The members panel's roster toolbar. */
+export const CHAT_MEMBERS_ROSTER_NAME = "Members and characters";
+
+/** The open room's Members entry: a fixed prefix, then the member count. */
+export const CHAT_MEMBERS_ENTRY_PREFIX = "Members — ";
+export function chatMembersEntryName(count: number): string {
+  return `${CHAT_MEMBERS_ENTRY_PREFIX}${count}`;
+}

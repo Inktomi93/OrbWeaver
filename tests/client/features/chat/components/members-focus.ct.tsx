@@ -14,6 +14,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { connectDevice, createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import { CHAT_MEMBERS_ENTRY_PREFIX, CHAT_MEMBERS_ROSTER_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -90,8 +91,8 @@ test("removing a member closes the real confirm onto a surviving roster control"
     },
   });
   const component = await mount<typeof ChatRoomShellStory>(STORY, { chatId, socket: true });
-  await page.getByRole("button", { name: /^Members — /u }).click();
-  const members = page.getByRole("toolbar", { name: "Members and characters", exact: true });
+  await page.getByRole("button", { name: CHAT_MEMBERS_ENTRY_PREFIX }).click();
+  const members = page.getByRole("toolbar", { name: CHAT_MEMBERS_ROSTER_NAME, exact: true });
   await expect(members).toBeVisible();
   const row = members.getByRole("button", { name: new RegExp(`^${member.displayName} — member`) });
   await row.click();
@@ -134,8 +135,8 @@ test("a row's open menu keeps its own Home and End keys from the roster's roving
     ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "notifications.presence", "rpg.getGame", "rpg.listTurnToolCalls"]),
   });
   await mount<typeof ChatRoomShellStory>(STORY, { chatId: chat.id });
-  await page.getByRole("button", { name: /^Members — /u }).click();
-  const members = page.getByRole("toolbar", { name: "Members and characters", exact: true });
+  await page.getByRole("button", { name: CHAT_MEMBERS_ENTRY_PREFIX }).click();
+  const members = page.getByRole("toolbar", { name: CHAT_MEMBERS_ROSTER_NAME, exact: true });
   const row = members.getByRole("button", { name: new RegExp(`^${RegExp.escape(character.displayName)} — character`, "u") });
   await row.focus();
   await row.press("Enter");
@@ -174,8 +175,8 @@ test("a member whose last device left shows when they were last around", async (
   });
   const { id: chatId } = await caller.chat.getChat({ chatId: chat.id });
   await mount<typeof ChatRoomShellStory>(STORY, { chatId });
-  await page.getByRole("button", { name: /^Members — /u }).click();
-  const members = page.getByRole("toolbar", { name: "Members and characters", exact: true });
+  await page.getByRole("button", { name: CHAT_MEMBERS_ENTRY_PREFIX }).click();
+  const members = page.getByRole("toolbar", { name: CHAT_MEMBERS_ROSTER_NAME, exact: true });
   const row = members
     .locator('[data-slot="member-row"]')
     .filter({ has: page.getByRole("button", { name: new RegExp(`^${member.displayName} — member, offline, `, "u") }) });
@@ -227,8 +228,8 @@ for (const { name, viewport, enlarged } of PEOPLE_ROW_REGIMES) {
       ]),
     });
     await mount<typeof ChatRoomShellStory>(STORY, { chatId });
-    await page.getByRole("button", { name: /^Members — /u }).click();
-    const members = page.getByRole("toolbar", { name: "Members and characters", exact: true });
+    await page.getByRole("button", { name: CHAT_MEMBERS_ENTRY_PREFIX }).click();
+    const members = page.getByRole("toolbar", { name: CHAT_MEMBERS_ROSTER_NAME, exact: true });
     const body = members.getByRole("button", { name: new RegExp(`^${member.displayName} — member, nominated as host, limited history, offline, `, "u") });
     await expect(body).toBeVisible();
     const geometry = await body.evaluate((element) => {

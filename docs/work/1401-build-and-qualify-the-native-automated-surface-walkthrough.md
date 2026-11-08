@@ -57,7 +57,7 @@ Phase B: the agreed surface, flow, device and pane coverage runs through one doc
 
 ## Surface status
 
-Source: the whole synthetic walk `surface-k2Hed1` on `desktop-1440-all-panes-measurement`, 56 of 56, and the per-case runs in the Evidence. The measurement pass proves reach and journey outcome, not evidence findings. A full evidence pass per surface, the layout-stability matrix and the other device and pane projects are still owed.
+Source: the per-case synthetic runs on `desktop-1440-all-panes-measurement` listed under Phase B step 2, which are this table's current evidence. The last whole walk, `surface-k2Hed1` (56 of 56 on 268a06a5bc), predates step 2 and has not been rerun on it. The measurement pass proves reach and journey outcome, not evidence findings. A full evidence pass per surface, the layout-stability matrix and the other device and pane projects are still owed.
 
 ### Per surface
 
@@ -354,6 +354,8 @@ Filled at landing: what ran and where its output is.
 - `tests/support/browser/disclosure-walk.ts` waits for each closed panel to hide, so a collapsing body's controls are not counted in the next census.
 - `returnHome` and the Refinery cleanup reach Home through the resolved shell: the rail or tab bar, else You, and the topbar back from a phone room screen. The blank Home door asserts an empty cast.
 - Cases: every case of the walk, one at a time on `desktop-1440-all-panes-measurement`, all pass with no unlisted skips, load 4 to 18 on 24 cores. `Rail independent home` also passes on `chromium-phone-portrait-measurement`.
+- Review follow-up: the codemod had matched labels by text alone, so five specs bound a same-text constant from a feature that does not print the label. Each now reads the home its component prints: the persona editor's Title, Duplicate, Export and Delete in `persona-copy.ts`, the plugin page kicker in `plugin-panel-copy.ts`, the injection Content field and the Members roster and entry names in `chat-surface-names.ts`, and the bulk bar's verbs from `CHARACTER_ACTIONS`. A sweep of every binding the codemod added checked each constant's production readers against the element its spec asserts; no other binding pointed at the wrong home.
+- `walkMenuTrigger` resolves false when it records a disabled skip, and the chat drills follow that record, so a busy composer's Impersonate and Response menus are skipped instead of timing out.
 - Owed names, with no production home yet or in a held file: the showcase guest strings (New game, the arrow pad, Retire this deck), the World Info entry delete, the preset prompt Add, Prompt and New, the New chat dialog, the roster delete confirm, the Character form Name, filter and tag disclosure names, and the row-pattern names in `surface-sections.ts` (Resume, Go to, Open, Start a chat with, Sort by, Move above or below, Keep, Run).
 
 ### Phase B step 1: the nine failures (lane cb-walk1401)

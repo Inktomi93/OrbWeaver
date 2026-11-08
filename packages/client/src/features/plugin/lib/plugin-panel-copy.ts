@@ -12,6 +12,9 @@ export const CHAT_PLUGINS_OPEN_LABEL = `Open ${CHAT_PLUGINS_TAB_LABEL} tab`;
 /** The plugin dialog's title before any guest content names it. */
 export const PLUGIN_DIALOG_TITLE = "Plugin";
 
+/** The page shell's kicker: it names the class, so a faked app screen inside a plugin is contradicted. */
+export const PLUGIN_SURFACE_KICKER = "Plugin";
+
 /** The placement action stays distinct when one plugin registers several panels. */
 export function movePluginPanelLabel(pluginName: string, title: string, sidecar: boolean): string {
   const name = pluginName === title ? pluginName : `${pluginName} — ${title}`;

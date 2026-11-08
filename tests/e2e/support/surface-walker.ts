@@ -340,11 +340,13 @@ async function walkMenuTerminal(walk: SurfaceWalk, menu: Locator, items: Locator
   await checkpoint(walk, `${prefix}/terminal`, menu, items.last());
 }
 
-/** Open one menu trigger, read its tree and restore the focus it took. */
-export async function walkMenuTrigger(walk: SurfaceWalk, trigger: Locator, id: string): Promise<void> {
+/** Open one menu trigger, read its tree and restore the focus it took. Resolves false when the walk recorded
+ *  the trigger as a disabled skip, so a caller drilling the same menu follows that record instead of reading
+ *  the trigger again after the room has moved on. */
+export async function walkMenuTrigger(walk: SurfaceWalk, trigger: Locator, id: string): Promise<boolean> {
   if (await trigger.isDisabled()) {
     skip(walk, id, "disabled", "Actual menu trigger is disabled");
-    return;
+    return false;
   }
   await walk.action(id, {
     action: async () => {
@@ -362,11 +364,12 @@ export async function walkMenuTrigger(walk: SurfaceWalk, trigger: Locator, id: s
   const radios = await menu.getByRole("menuitemradio").allTextContents();
   if (await overflowsContextTabs(walk, radios)) {
     await walkOverflowTabs(walk, { trigger, menu, id, names: radios.map((name) => name.trim()) });
-    return;
+    return true;
   }
   await menu.press("Escape");
   await expect(menu).toBeHidden();
   await expect(trigger).toBeFocused();
+  return true;
 }
 
 async function overflowsContextTabs(walk: SurfaceWalk, radios: readonly string[]): Promise<boolean> {

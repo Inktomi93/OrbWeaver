@@ -71,6 +71,7 @@ import { Text } from "@orb/ui/text";
 import type { KeyboardEvent, ReactElement, RefObject } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { testId } from "#lib";
+import { CHAT_MEMBERS_ROSTER_NAME } from "../lib/chat-surface-names.ts";
 import type { MemberCharacterRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows.ts";
 import { MemberRow } from "./member-row.tsx";
 
@@ -357,7 +358,7 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
             roving tabindex below has always BEHAVED as; until today it said nothing, so the arrow keys that
             are the only route to the Character rows were undiscoverable by AT and by sighted keyboard users
             alike. The name is the one word the tab that owns this pane does not already say. */}
-        <Stack gap="section" role="toolbar" aria-orientation="vertical" aria-label="Members and characters" onKeyDownCapture={handleKeyDownCapture}>
+        <Stack gap="section" role="toolbar" aria-orientation="vertical" aria-label={CHAT_MEMBERS_ROSTER_NAME} onKeyDownCapture={handleKeyDownCapture}>
           {showPeople ? (
             // The section is a GROUP named by its OWN visible kicker (`aria-labelledby`, never a second
             // copy of the word) — "People" and "Characters" are the list's structure, not decoration.

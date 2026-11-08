@@ -11,7 +11,7 @@ import { createCorpusReadResponder, createCorpusViewerReadResponder } from "@orb
 import { makePluginRow, makePluginScriptedPage } from "@orb/testkit/node/helpers";
 import type { Page } from "@playwright/test";
 import { EXTENSIONS_GONE_TITLE } from "#client/features/plugin/lib/extensions-copy.ts";
-import { PLUGIN_DIALOG_TITLE } from "#client/features/plugin/lib/plugin-panel-copy.ts";
+import { PLUGIN_SURFACE_KICKER } from "#client/features/plugin/lib/plugin-panel-copy.ts";
 import type { PluginProtocolStory } from "./_ct-stories.tsx";
 
 /** The server refuses a plugin the owner does not have, so a request for any other id is a defect, not an answer. */
@@ -331,7 +331,7 @@ test("the default shared corpus renders its native Ledger publication and captur
   const attribution = page.getByRole("group", { name: `${plugin.name} — ${surface.title}`, exact: true });
   await expect(attribution.getByText("Initial ledger entry", { exact: true })).toBeVisible();
   await expect(page.getByText(plugin.name, { exact: true })).toBeVisible();
-  await expect(page.getByText(PLUGIN_DIALOG_TITLE, { exact: true })).toBeVisible();
+  await expect(page.getByText(PLUGIN_SURFACE_KICKER, { exact: true })).toBeVisible();
   expect(trpc.lastInput("plugin.getSurfaceState")).toEqual(active.reads.state.input);
   stage = library.ownerDisabled;
   await component.update({ runtimeEpoch: 1, pluginId: active.ids.pluginId, surfaceId: surface.id });

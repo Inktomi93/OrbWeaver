@@ -309,8 +309,9 @@ async function listMenu(flow: Journey, room: ChatSummary, root: Locator): Promis
     observe(flow, `chat-list-${room.id}-menu`, "not-applicable", "This actual library subject has no host lifecycle menu");
     return;
   }
-  await walkMenuTrigger(flow, menu, `chat-list-${room.id}-menu`);
-  await safeMenuDrills(flow, menu, `chat-list-${room.id}-menu`);
+  if (await walkMenuTrigger(flow, menu, `chat-list-${room.id}-menu`)) {
+    await safeMenuDrills(flow, menu, `chat-list-${room.id}-menu`);
+  }
 }
 
 async function emptySearch(flow: Journey): Promise<void> {
@@ -653,8 +654,10 @@ async function composerMenus(flow: Journey, room: ChatSummary): Promise<void> {
         expectSubject(flow, `composer-${room.id}-${phase}-menu-${String(index)}`, "menu");
       }
       for (let index = 0; index < count; index += 1) {
-        await walkMenuTrigger(flow, triggers.nth(index), `composer-${room.id}-${phase}-menu-${String(index)}`);
-        await safeMenuDrills(flow, triggers.nth(index), `composer-${room.id}-${phase}-menu-${String(index)}`);
+        // Impersonate and Response are disabled while the composer is busy; the walk already recorded that skip.
+        if (await walkMenuTrigger(flow, triggers.nth(index), `composer-${room.id}-${phase}-menu-${String(index)}`)) {
+          await safeMenuDrills(flow, triggers.nth(index), `composer-${room.id}-${phase}-menu-${String(index)}`);
+        }
       }
       await expect(input).toHaveValue(value);
     }
@@ -1112,8 +1115,9 @@ async function independentMessageMenu(flow: Journey, message: MessageView): Prom
     observe(flow, `message-${message.id}-independent-menu`, "not-applicable", "This actual committed tail has no message menu");
     return;
   }
-  await walkMenuTrigger(messageMenuWalk(flow, message), trigger, `message-${message.id}-independent-menu`);
-  await safeMenuDrills(flow, trigger, `message-${message.id}-independent-menu`);
+  if (await walkMenuTrigger(messageMenuWalk(flow, message), trigger, `message-${message.id}-independent-menu`)) {
+    await safeMenuDrills(flow, trigger, `message-${message.id}-independent-menu`);
+  }
 }
 
 async function readingPosition(viewport: Locator, row: Locator, edge: number, position: "start" | "tail"): Promise<void> {
