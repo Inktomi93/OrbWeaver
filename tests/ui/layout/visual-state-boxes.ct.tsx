@@ -1,18 +1,12 @@
 // D336 step 4d: the focal section, the aria-current box and the tone-stamped divider paint through their own doors.
 import { AA_NON_TEXT_RATIO, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { pixelSurface } from "@orb/testkit/browser/spec";
-import { SEED_THEME_NAMES } from "@orb/ui/tokens";
+import { SEED_CASES } from "@orb/testkit/iso";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { MID_GREY } from "../content/theme-scope/contrast-cases.ts";
 import type { CurrentBoxesStory, DividerToneStory, FocalSectionStory } from "./_visual-state-boxes-stories.tsx";
 
 const STORIES = "tests/ui/layout/_visual-state-boxes-stories";
-const CASES = [
-  { name: "hearth seed" },
-  ...SEED_THEME_NAMES.map((theme) => ({ name: `${theme} seed`, theme })),
-  { name: "custom mid-grey scope nested in the light seed", theme: "light" as const, background: MID_GREY },
-] as const;
 
 function style(locator: Locator, property: string, pseudo?: string): Promise<string> {
   return locator.evaluate((element, [name, pseudoElement]) => getComputedStyle(element, pseudoElement).getPropertyValue(name), [property, pseudo] as const);
@@ -21,7 +15,7 @@ function style(locator: Locator, property: string, pseudo?: string): Promise<str
 const caseOf = (root: Locator, name: string): Locator => root.locator(`[data-case="${name}"]`);
 const probeOf = (root: Locator, name: string): Locator => root.locator(`[data-probe="${name}"]`);
 
-for (const { name, ...props } of CASES) {
+for (const { name, ...props } of SEED_CASES) {
   test(`${name}: a focal section wears the speaker edge ring and glow on a rounded box with no one-sided border, an unfocal one is the plain section, and neither changes element`, async ({
     mount,
   }) => {

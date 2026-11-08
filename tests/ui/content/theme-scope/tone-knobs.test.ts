@@ -2,8 +2,8 @@
 // included, for picked and inherited accents, and keeps each tint off every host and off every tint of a non-adjacent hue. Each case
 // reads the emitted variables back, knobs and literals, and judges the pixels they spell.
 import type { Oklch } from "@orb/kit/theme-derivation";
-import { AA_NORMAL_RATIO, oklchToSrgb, rampDeltas, rampSurface, srgbToOklch, toneContrast, toneFloorMisses } from "@orb/kit/theme-derivation";
-import { ACCEPTED_BASES } from "@orb/testkit/iso";
+import { AA_NORMAL_RATIO, oklchToSrgb, quantized, rampDeltas, rampSurface, srgbToOklch, toneContrast, toneFloorMisses } from "@orb/kit/theme-derivation";
+import { ACCEPTED_BASES, MID_GREY } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ToneRole } from "@orb/ui/tokens";
 import { TOKEN_POLARITY_ARMS, TOKENS, TONE_MIX_DEFAULTS } from "@orb/ui/tokens";
@@ -11,7 +11,7 @@ import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scop
 import { serializeOpaqueOklch, toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import { carriedPaletteOf } from "../../../../packages/ui/src/content/theme-scope/derive-vars.ts";
 import { carriedToneScheme, carriedToneSources } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
-import { keepsHue, MID_GREY } from "./contrast-cases.ts";
+import { keepsHue } from "./contrast-cases.ts";
 import {
   emittedInk,
   emittedLiterals,
@@ -29,11 +29,9 @@ import {
 // The sweeps run the production clamp per case; they outrun the default per-test budget.
 const SWEEP_TIMEOUT_MS = 180_000;
 
-// The hue and chroma a colour paints at in the 8-bit framebuffer. The kit's own twin stays private: only
-// `paintedDistance` reads it in production, and an export no production caller needs is a test-only door.
+/** The hue and chroma a colour paints at in the 8-bit framebuffer, through the kit's own pixel quantisation. */
 function framebuffer(color: Oklch): Oklch {
-  const { r, g, b } = oklchToSrgb(color);
-  return srgbToOklch({ r: Math.round(r), g: Math.round(g), b: Math.round(b) });
+  return srgbToOklch(quantized(oklchToSrgb(color)));
 }
 
 test("the adjacency bound exempts Hearth's primary beside warning, never destructive beside warning", () => {

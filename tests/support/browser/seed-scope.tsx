@@ -8,11 +8,14 @@ export interface SeedScopeProps {
   readonly background?: string;
 }
 
-/** The scope a primitive's CT mounts its cases in: the seed's page, or a carried scope nested in it, as the shell root hands one down. */
+/** The scope a primitive's CT mounts its cases in: the seed's page and ink, or a carried scope nested in it, as the shell root hands one down. */
 export function SeedScope({ theme, background, children }: SeedScopeProps & { readonly children: ReactNode }): ReactElement {
   const ambient = theme === undefined ? undefined : SEED_THEME_VALUE_SETS[theme].vars;
   return (
-    <div data-theme={theme} style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, padding: "1rem" }}>
+    <div
+      data-theme={theme}
+      style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, color: `var(${TOKENS["color.foreground"].cssVar})`, padding: "1rem" }}
+    >
       {background === undefined ? (
         children
       ) : (

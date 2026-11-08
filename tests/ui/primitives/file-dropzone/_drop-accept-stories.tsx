@@ -1,15 +1,16 @@
 import { CtIsolation } from "@orb/testkit/browser";
-import type { FileDropzoneResult } from "@orb/ui/file-dropzone";
+import type { FileDropzoneRejection, FileDropzoneResult } from "@orb/ui/file-dropzone";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import type { ReactElement } from "react";
 import { useState } from "react";
 
-interface Batch {
+/** One processed batch as the story logs it: the accepted file names, and each rejected name with the dropzone's reason. */
+export interface DropBatch {
   readonly accepted: readonly string[];
-  readonly rejected: readonly { readonly name: string; readonly reason: string }[];
+  readonly rejected: readonly { readonly name: string; readonly reason: FileDropzoneRejection["reason"] }[];
 }
 
-function toBatch(result: FileDropzoneResult): Batch {
+function toBatch(result: FileDropzoneResult): DropBatch {
   return {
     accepted: result.accepted.map((file) => file.name),
     rejected: result.rejected.map((entry) => ({ name: entry.file.name, reason: entry.reason })),
@@ -30,7 +31,7 @@ export function DropAcceptStory({
   readonly loading?: boolean;
   readonly maxSizeBytes?: number;
 }): ReactElement {
-  const [batches, setBatches] = useState<readonly Batch[]>([]);
+  const [batches, setBatches] = useState<readonly DropBatch[]>([]);
   return (
     <CtIsolation subject="File dropzone" isolates="Drag-and-drop and picker admission through the accept vocabulary, without a dialog or an upload">
       <FileDropzone

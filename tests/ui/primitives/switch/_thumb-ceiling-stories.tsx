@@ -1,9 +1,8 @@
-import { CtIsolation } from "@orb/testkit/browser";
+import type { SeedScopeProps } from "@orb/testkit/browser";
+import { CtIsolation, SeedScope } from "@orb/testkit/browser";
 import { Switch } from "@orb/ui/switch";
 import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
-import type { SeedScopeProps } from "../_seed-scope.tsx";
-import { SeedScope } from "../_seed-scope.tsx";
 
 const HOSTS = ["background", "card"] as const;
 

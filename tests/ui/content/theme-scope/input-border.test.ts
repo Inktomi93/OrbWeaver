@@ -2,14 +2,14 @@
 // Each case reads the emitted variables back and judges the pixels they spell, never the solver's own return.
 import type { Oklch } from "@orb/kit/theme-derivation";
 import { AA_NON_TEXT_RATIO, compositeSrgb, oklchToSrgb, RING_OVER_EDGE_MARGIN, rampDeltas, rampSurface, wcagContrastRatio } from "@orb/kit/theme-derivation";
-import { ACCEPTED_BASES } from "@orb/testkit/iso";
+import { ACCEPTED_BASES, MID_GREY } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { TOKEN_POLARITY_ARMS, TOKENS } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { serializeOpaqueOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_STATIC_SEED_VARS } from "../../../../packages/ui/src/content/theme-scope/emit-vars.ts";
-import { LIGHT_MID_TONE, MID_GREY, STRONG_ACCENT } from "./contrast-cases.ts";
-import { HEARTH_ACCENT, parsed } from "./tone-scope-misses.ts";
+import { LIGHT_MID_TONE, STRONG_ACCENT } from "./contrast-cases.ts";
+import { emittedGrey, HEARTH_ACCENT, parsed } from "./tone-scope-misses.ts";
 
 const SWEEP_TIMEOUT_MS = 180_000;
 const EDGE = TOKENS["color.input-border"].cssVar;
@@ -18,15 +18,6 @@ interface Pixel {
   readonly r: number;
   readonly g: number;
   readonly b: number;
-}
-
-/** An emitted `oklch(from <origin> <l> 0 h / <alpha>)` as the achromatic pixel it paints and its alpha. */
-function emittedGrey(spelling: string | undefined, hue: number): { readonly color: Oklch; readonly alpha: number } {
-  const match = /^oklch\(from .+ ([\d.]+) 0 h \/ ([\d.]+)\)$/u.exec(spelling ?? "");
-  if (match?.[1] === undefined || match[2] === undefined) {
-    throw new Error(`not an emitted grey: ${spelling}`);
-  }
-  return { color: { l: Number(match[1]), c: 0, h: hue }, alpha: Number(match[2]) };
 }
 
 /** The fill a text field paints from `--color-field-fill`: the light arm of the token a light scope restates, else the emitted wash. */

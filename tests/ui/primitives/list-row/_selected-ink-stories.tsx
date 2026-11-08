@@ -1,8 +1,8 @@
-import { CtIsolation } from "@orb/testkit/browser";
+import type { SeedScopeProps } from "@orb/testkit/browser";
+import { CtIsolation, SeedScope } from "@orb/testkit/browser";
 import { ListRow } from "@orb/ui/list-row";
 import { Tabs, TabsList, TabsTab } from "@orb/ui/tabs";
 import { ThemeScope } from "@orb/ui/theme-scope";
-import type { SEED_THEME_VALUE_SETS } from "@orb/ui/tokens";
 import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 
@@ -48,12 +48,12 @@ export function SelectedInkStory(): ReactElement {
 }
 
 /** The marked pair under a seed palette, where the tone's text-on-tint and the page ink are different colours. */
-export function SelectedInkSeedStory({ theme }: { readonly theme?: keyof typeof SEED_THEME_VALUE_SETS }): ReactElement {
+export function SelectedInkSeedStory({ theme }: Pick<SeedScopeProps, "theme">): ReactElement {
   return (
     <CtIsolation subject="Selected ListRow and active Tabs cell" isolates="Which ink each paints on its tone tint under a seed palette">
-      <div data-theme={theme}>
+      <SeedScope {...(theme === undefined ? {} : { theme })}>
         <Marked />
-      </div>
+      </SeedScope>
     </CtIsolation>
   );
 }

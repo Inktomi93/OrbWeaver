@@ -9,8 +9,9 @@ import {
   wcagContrastRatio,
 } from "@orb/kit/theme-derivation";
 import { pixelContrast, pixelSurface } from "@orb/testkit/browser/spec";
+import { MID_GREY, SEED_SCOPES } from "@orb/testkit/iso";
 import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_NON_PALETTE_VARS } from "@orb/ui/theme-scope/emit-vars";
-import { SEED_THEME_NAMES, TOKENS } from "@orb/ui/tokens";
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
 import type {
   BoxElementsStory,
@@ -36,22 +37,19 @@ import {
   CARRIED_BUBBLE_PALETTES,
   INHERITED_INK_CASE,
   keepsHue,
-  MID_GREY,
   PICKED_BUBBLE_FILLS,
   PICKED_BUBBLE_INKS,
   PICKED_BUBBLE_PALETTES,
   PICKED_ROOM_CASES,
   PICKED_ROOM_PALETTES,
   SPEAKER_DIALOGUE,
+  TONE_MARK_ACCENTS,
   TYPED_CROSSOVER,
 } from "./contrast-cases.ts";
 
-const SEED_THEMES = SEED_THEME_NAMES;
-
 /** Every shipped palette, then a custom scope on each contrast-case base: the per-palette sweep of the neutral ink pairs. */
 const SEMANTIC_CASES = [
-  { name: "hearth seed" },
-  ...SEED_THEMES.map((theme) => ({ name: `${theme} seed`, theme })),
+  ...SEED_SCOPES,
   ...BASES.map(({ name, background }) => ({ name, background })),
   { name: "typed crossover", background: TYPED_CROSSOVER },
 ] as const;
@@ -139,8 +137,7 @@ for (const { name, ...props } of SEMANTIC_CASES) {
 }
 
 const TONE_CASES = [
-  { name: "hearth seed" },
-  ...SEED_THEMES.map((theme) => ({ name: `${theme} seed`, theme })),
+  ...SEED_SCOPES,
   ...[...BASES, { name: "typed crossover", background: TYPED_CROSSOVER }].map(({ name, background }) => ({
     name: `custom ${name} nested in the light seed`,
     theme: "light" as const,
@@ -414,10 +411,10 @@ test("a seed palette nested inside a carried scope resolves its own value for ev
   expect(await resolved("carried")).toEqual(await resolved("page"));
 });
 
-for (const theme of [undefined, ...SEED_THEMES]) {
-  test(`${theme ?? "hearth"}: a meter zone fill and a status Card edge hold the 3:1 non-text floor`, async ({ mount, page }) => {
-    const component = await mount<typeof ToneMarkStory>("tests/ui/content/theme-scope/_contrast-stories/ToneMarkStory", theme === undefined ? {} : { theme });
-    for (const accent of ["info", "warning"]) {
+for (const { name, ...props } of SEED_SCOPES) {
+  test(`${name}: a meter zone fill and a status Card edge hold the 3:1 non-text floor`, async ({ mount, page }) => {
+    const component = await mount<typeof ToneMarkStory>("tests/ui/content/theme-scope/_contrast-stories/ToneMarkStory", props);
+    for (const accent of TONE_MARK_ACCENTS) {
       const bar = component.locator(`[data-mark="meter-${accent}"] [data-slot="track-bar"]`);
       await expect(bar).toBeVisible();
       const fill = await pixelSurface(page, bar.locator('[data-slot="track-bar-fill"]'));
@@ -426,7 +423,7 @@ for (const theme of [undefined, ...SEED_THEMES]) {
       expect(wcagContrastRatio(fill.rgb, track.rgb), `meter ${accent}: ${fill.describe} on ${track.describe}`).toBeGreaterThanOrEqual(AA_NON_TEXT_RATIO);
     }
     const ground = await pixelSurface(page, component.locator(`[data-mark="ground"]`), { region: { x0: 0.01, x1: 0.03, y0: 0.0, y1: 0.02 } });
-    for (const tone of ["warning", "info"]) {
+    for (const tone of TONE_MARK_ACCENTS) {
       const card = component.locator(`[data-mark="card-${tone}"]`);
       const box = await card.boundingBox();
       if (box === null) {

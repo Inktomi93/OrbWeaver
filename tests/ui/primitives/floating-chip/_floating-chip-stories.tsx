@@ -1,11 +1,10 @@
-import { CtIsolation } from "@orb/testkit/browser";
+import type { SeedScopeProps } from "@orb/testkit/browser";
+import { CtIsolation, SeedScope } from "@orb/testkit/browser";
 import { Card } from "@orb/ui/card";
 import { FloatingChip } from "@orb/ui/floating-chip";
 import { Surface } from "@orb/ui/layout";
 import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
-import type { SeedScopeProps } from "../_seed-scope.tsx";
-import { SeedScope } from "../_seed-scope.tsx";
 
 /** A shown and a hidden chip, in and out of an instrument tier, beside popover, edge, radius and shadow probes. */
 export function FloatingChipStory(props: SeedScopeProps): ReactElement {

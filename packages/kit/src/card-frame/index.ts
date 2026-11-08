@@ -461,6 +461,9 @@ function themeVarsBlock(themeTokens: Readonly<Record<string, string>>): string {
   return decls === "" ? "" : `:root { ${decls} }`;
 }
 
+/** The generic family the frame body ends its font list with, and paints alone when the theme font is dropped. */
+export const FRAME_FONT_FALLBACK = "sans-serif";
+
 // The base body rule so an UNSTYLED model card lands IN the app theme instead of browser-default
 // white/serif. It USES the injected surface/text vars (`--sandbox-bg`/`--sandbox-fg`) — so an under-filled
 // frame is a dark themed surface, not a white slab. The card's own CSS still layers on top of this.
@@ -468,7 +471,7 @@ function themeVarsBlock(themeTokens: Readonly<Record<string, string>>): string {
 // a frame that outgrows its box scrolls inside itself, and the platform's wide light bar reads as a stray
 // native control in a dark room. The frame has no access to the app's stylesheet, so the rule is restated here.
 function baseBodyBlock(fontFamily: string | undefined): string {
-  const font = fontFamily === undefined ? "sans-serif" : `${fontFamily}, sans-serif`;
+  const font = fontFamily === undefined ? FRAME_FONT_FALLBACK : `${fontFamily}, ${FRAME_FONT_FALLBACK}`;
   const scrollbar = "html { scrollbar-width: thin; scrollbar-color: color-mix(in oklab, var(--sandbox-fg) 22%, transparent) transparent; }";
   // The host's root font-size carries the user's font scale; the frame cannot inherit it, so the host injects it
   // as a root percentage and the frame's root follows. Card text in rem/em scales; authored px stays fixed.

@@ -1,4 +1,5 @@
-import { CtIsolation } from "@orb/testkit/browser";
+import type { SeedScopeProps } from "@orb/testkit/browser";
+import { CtIsolation, SeedScope } from "@orb/testkit/browser";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
@@ -7,19 +8,26 @@ import { Circle, Icon } from "@orb/ui/icons";
 import { InlineAction } from "@orb/ui/inline-action";
 import { WebSpinner } from "@orb/ui/spinner";
 import { Text } from "@orb/ui/text";
-import { ThemeScope } from "@orb/ui/theme-scope";
 import { Toggle } from "@orb/ui/toggle";
 import type { ToneRole } from "@orb/ui/tokens";
-import { SEED_THEME_VALUE_SETS, TOKENS, TONE_HOST_UTILITIES, TONE_ROLES, TONES } from "@orb/ui/tokens";
+import { TOKENS, TONE_HOST_UTILITIES, TONE_ROLES, TONES } from "@orb/ui/tokens";
 import { WeaveGlyph } from "@orb/ui/web-weave";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 
-const BUTTON_VARIANTS = ["solid", "outline", "ghost", "link"] as const;
-const BADGE_VARIANTS = ["solid", "soft", "outline"] as const;
-const CARD_VARIANTS = ["surface", "soft", "outline"] as const;
-const TOGGLE_VARIANTS = ["ghost", "outline"] as const;
-const GLYPH_VARIANTS = ["solid", "outline", "ghost"] as const;
-const INLINE_VARIANTS = ["ghost", "link"] as const;
+type VariantOf<C> = C extends (props: infer P) => ReactNode ? (P extends { readonly variant?: infer V } ? NonNullable<V> : never) : never;
+
+/** A tuple of every variant a primitive admits: a variant the primitive gains and the matrix lacks fails to compile. */
+function everyVariant<U extends string>() {
+  return <const T extends readonly U[]>(tuple: T & ([Exclude<U, T[number]>] extends [never] ? unknown : { readonly missing: Exclude<U, T[number]> })): T =>
+    tuple;
+}
+
+const BUTTON_VARIANTS = everyVariant<VariantOf<typeof Button>>()(["solid", "outline", "ghost", "link"]);
+const BADGE_VARIANTS = everyVariant<VariantOf<typeof Badge>>()(["solid", "soft", "outline"]);
+const CARD_VARIANTS = everyVariant<VariantOf<typeof Card>>()(["surface", "soft", "outline"]);
+const TOGGLE_VARIANTS = everyVariant<VariantOf<typeof Toggle>>()(["ghost", "outline"]);
+const GLYPH_VARIANTS = everyVariant<VariantOf<typeof GlyphButton>>()(["solid", "outline", "ghost", "link"]);
+const INLINE_VARIANTS = everyVariant<VariantOf<typeof InlineAction>>()(["ghost", "link"]);
 // The named colours a case reads that are not a tone role: the neutral toggle's resting ink and the selected fill.
 const NAMED_PROBES = {
   muted: "color.muted-foreground",
@@ -96,37 +104,16 @@ function Matrix(): ReactElement {
   );
 }
 
-/**
- * The matrix under a seed palette (`theme`, Hearth when absent) and, when `background` is set, a nested custom scope that
- * takes the seed's base and accent as its ambient, as the shell root hands them down.
- */
-export function ToneVariantMatrixStory({
-  theme,
-  background,
-}: {
-  readonly theme?: keyof typeof SEED_THEME_VALUE_SETS;
-  readonly background?: string;
-}): ReactElement {
-  const ambient = theme === undefined ? undefined : SEED_THEME_VALUE_SETS[theme].vars;
+/** The matrix under a seed palette (Hearth when absent) and, when `background` is set, a nested custom scope. */
+export function ToneVariantMatrixStory(props: SeedScopeProps): ReactElement {
   return (
     <CtIsolation
       subject="The D336 tone and variant matrix"
       isolates="Button, GlyphButton, InlineAction, Badge, Card, Toggle, Text, Icon, WebSpinner and WeaveGlyph in every tone and style"
     >
-      <div data-theme={theme} style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, padding: "1rem" }}>
-        {background === undefined ? (
-          <Matrix />
-        ) : (
-          <ThemeScope
-            tokens={{ background }}
-            {...(ambient === undefined
-              ? {}
-              : { ambientBackground: ambient[TOKENS["color.background"].cssVar], ambientAccent: ambient[TOKENS["color.primary"].cssVar] })}
-          >
-            <Matrix />
-          </ThemeScope>
-        )}
-      </div>
+      <SeedScope {...props}>
+        <Matrix />
+      </SeedScope>
     </CtIsolation>
   );
 }

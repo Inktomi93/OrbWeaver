@@ -1,10 +1,10 @@
-import { CtIsolation } from "@orb/testkit/browser";
+import type { SeedScopeProps } from "@orb/testkit/browser";
+import { CtIsolation, SeedScope } from "@orb/testkit/browser";
 import { Dices, Icon } from "@orb/ui/icons";
 import { IndicatorDot } from "@orb/ui/indicator-dot";
 import { InlineToken } from "@orb/ui/inline-token";
-import { ThemeScope } from "@orb/ui/theme-scope";
 import type { ToneRole } from "@orb/ui/tokens";
-import { SEED_THEME_VALUE_SETS, TOKENS, TONE_ROLES, TONES } from "@orb/ui/tokens";
+import { TOKENS, TONE_ROLES, TONES } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
 
 const RUN_WIDTH = "24rem";
@@ -57,28 +57,13 @@ function Family(): ReactElement {
   );
 }
 
-/**
- * The family under a seed palette (`theme`, Hearth when absent) and, when `background` is set, a nested custom scope that
- * takes the seed's base and accent as its ambient, as the shell root hands them down.
- */
-export function BadgeFamilyStory({ theme, background }: { readonly theme?: keyof typeof SEED_THEME_VALUE_SETS; readonly background?: string }): ReactElement {
-  const ambient = theme === undefined ? undefined : SEED_THEME_VALUE_SETS[theme].vars;
+/** The family under a seed palette (Hearth when absent) and, when `background` is set, a nested custom scope. */
+export function BadgeFamilyStory(props: SeedScopeProps): ReactElement {
   return (
     <CtIsolation subject="The badge family's marks" isolates="InlineToken and IndicatorDot in every tone, each beside its role probes">
-      <div data-theme={theme} style={{ backgroundColor: `var(${TOKENS["color.background"].cssVar})`, padding: "1rem" }}>
-        {background === undefined ? (
-          <Family />
-        ) : (
-          <ThemeScope
-            tokens={{ background }}
-            {...(ambient === undefined
-              ? {}
-              : { ambientBackground: ambient[TOKENS["color.background"].cssVar], ambientAccent: ambient[TOKENS["color.primary"].cssVar] })}
-          >
-            <Family />
-          </ThemeScope>
-        )}
-      </div>
+      <SeedScope {...props}>
+        <Family />
+      </SeedScope>
     </CtIsolation>
   );
 }

@@ -1,13 +1,12 @@
 // A base typed with fractional digits can put a ramp member a hair across the black/white crossover from the page (D202).
 // Each case runs the production clamp and judges the emitted inks over the panels they paint.
-import type { Oklch } from "@orb/kit/theme-derivation";
 import { AA_NORMAL_RATIO, rampDeltas, rampSurface, toneContrast } from "@orb/kit/theme-derivation";
 import { CROSSOVER_BASES, TYPED_CROSSOVER_BASES } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { TOKENS } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
-import { serializeOpaqueOklch, toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
-import { HEARTH_ACCENT } from "./tone-scope-misses.ts";
+import { serializeOpaqueOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
+import { emittedInk, HEARTH_ACCENT, parsed } from "./tone-scope-misses.ts";
 
 const SWEEP_TIMEOUT_MS = 180_000;
 const PANEL_INKS = [
@@ -16,20 +15,9 @@ const PANEL_INKS = [
   ["secondary", "color.secondary-foreground"],
 ] as const;
 
-function emittedInk(spelling: string | undefined, hue: number): Oklch {
-  const lightness = /^oklch\(from .+ ([\d.]+) 0 h \/ 1\)$/u.exec(spelling ?? "")?.[1];
-  if (lightness === undefined) {
-    throw new Error(`not an emitted ink: ${spelling}`);
-  }
-  return { l: Number(lightness), c: 0, h: hue };
-}
-
 /** What the page and each ramp panel paint under one typed background, and every way their inks part or miss. */
 function crossoverMisses(background: string): readonly string[] {
-  const base = toOklch(background);
-  if (base === null) {
-    throw new Error(`${background} does not parse`);
-  }
+  const base = parsed(background);
   const { vars } = clampThemeTokens({ background }, undefined, HEARTH_ACCENT);
   const deltas = rampDeltas(base);
   const page = emittedInk(vars[TOKENS["color.foreground"].cssVar], base.h);

@@ -45,6 +45,7 @@ export function ButtonFamilyBoxesStory(): ReactElement {
         ))}
         <span data-probe="touch-target" style={{ display: "block", blockSize: cssVar("size.touch-target") }} />
         <span data-probe="transparent" style={{ backgroundColor: "transparent" }} />
+        <span data-probe="hover-opacity" style={{ opacity: cssVar("opacity.hover") }} />
         <PictureButton aria-label="Bare picture">
           <Avatar size="hero">AB</Avatar>
         </PictureButton>

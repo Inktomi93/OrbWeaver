@@ -2,6 +2,7 @@
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { EdgeFadeStory, ResetHandshakeStory, UnboundedStory } from "./_virtual-list-stories.tsx";
+import { MANY_ROWS } from "./virtual-list-cases.ts";
 
 const STORIES = "tests/ui/primitives/virtual-list/_virtual-list-stories";
 const SCROLLED_PX = 1500;
@@ -45,7 +46,7 @@ test("a changed scope key returns the list to the top, but only once its rows ar
 });
 
 test("the bottom fade is held while rows remain below the fold and lifts at the end", async ({ mount, page }) => {
-  await mount<typeof EdgeFadeStory>(`${STORIES}/EdgeFadeStory`, { count: 300, fadeEdge: true });
+  await mount<typeof EdgeFadeStory>(`${STORIES}/EdgeFadeStory`, { count: MANY_ROWS, fadeEdge: true });
   const scroller = page.locator(SCROLL);
   await expect(scroller).toHaveAttribute("data-more", "");
   const masked = await scroller.evaluate((element) => {
@@ -69,7 +70,7 @@ test("the bottom fade is held while rows remain below the fold and lifts at the 
 });
 
 test("no fade is held without the prop", async ({ mount, page }) => {
-  await mount<typeof EdgeFadeStory>(`${STORIES}/EdgeFadeStory`, { count: 300, fadeEdge: false });
+  await mount<typeof EdgeFadeStory>(`${STORIES}/EdgeFadeStory`, { count: MANY_ROWS, fadeEdge: false });
   await expect(page.locator(SCROLL)).toBeVisible();
   await expect(page.locator(SCROLL)).not.toHaveAttribute("data-more", /.*/);
 });

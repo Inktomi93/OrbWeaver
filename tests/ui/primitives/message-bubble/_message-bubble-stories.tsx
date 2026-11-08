@@ -1,11 +1,10 @@
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
-import { CtIsolation } from "@orb/testkit/browser";
+import type { SeedScopeProps } from "@orb/testkit/browser";
+import { CtIsolation, SeedScope } from "@orb/testkit/browser";
 import { Surface } from "@orb/ui/layout";
 import { MessageBubble } from "@orb/ui/message-bubble";
 import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
-import type { SeedScopeProps } from "../_seed-scope.tsx";
-import { SeedScope } from "../_seed-scope.tsx";
 
 const GROUNDS = {
   user: { fill: "color.user-bubble", ink: "color.user-bubble-foreground" },

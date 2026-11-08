@@ -3,7 +3,7 @@
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { z } from "zod";
-import type { DropAcceptStory } from "./_drop-accept-stories.tsx";
+import type { DropAcceptStory, DropBatch } from "./_drop-accept-stories.tsx";
 
 const STORY = "tests/ui/primitives/file-dropzone/_drop-accept-stories/DropAcceptStory";
 
@@ -24,10 +24,13 @@ async function dropEvent(zone: Locator, type: "dragenter" | "dragover" | "dragle
   await zone.dispatchEvent(type, { dataTransfer: transfer });
 }
 
-const BATCH = z.object({ accepted: z.array(z.string()), rejected: z.array(z.object({ name: z.string(), reason: z.string() })) });
-type Batch = z.infer<typeof BATCH>;
+// The log crosses the page as JSON; its reader is pinned to the story's batch type, whose reasons are the dropzone's own.
+const BATCH = z.object({
+  accepted: z.array(z.string()),
+  rejected: z.array(z.object({ name: z.string(), reason: z.enum(["size", "type"]) })),
+}) satisfies z.ZodType<DropBatch>;
 
-async function batches(page: Page): Promise<readonly Batch[]> {
+async function batches(page: Page): Promise<readonly DropBatch[]> {
   const text = await page.locator('[data-slot="batches"]').textContent();
   return z.array(BATCH).parse(JSON.parse(text ?? "[]"));
 }
@@ -108,11 +111,17 @@ const INERT_ZONES = [
 
 for (const { state, props, marker } of INERT_ZONES) {
   test(`a ${state} zone ignores a drop`, async ({ mount, page }) => {
-    const zone = await zoneOf(await mount<typeof DropAcceptStory>(STORY, props));
+    const component = await mount<typeof DropAcceptStory>(STORY, props);
+    const zone = await zoneOf(component);
     await expect(zone).toHaveAttribute(marker, "");
     await dropEvent(zone, "dragenter", [{ name: "a.txt", type: "text/plain" }]);
     await expect(zone).not.toHaveAttribute("data-drag-over", /.*/);
     await dropEvent(zone, "drop", [{ name: "a.txt", type: "text/plain" }]);
     expect(await batches(page)).toEqual([]);
+    // The control: the same mount with the zone live again takes the same drop.
+    await component.update({});
+    await expect(zone).not.toHaveAttribute(marker, /.*/);
+    await dropEvent(zone, "drop", [{ name: "a.txt", type: "text/plain" }]);
+    await expect.poll(() => batches(page)).toEqual([{ accepted: ["a.txt"], rejected: [] }]);
   });
 }

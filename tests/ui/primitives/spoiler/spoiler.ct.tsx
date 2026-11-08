@@ -1,8 +1,9 @@
 // A Spoiler is a Stack that blurs its content while concealed; it never paints the box around it.
+
+import { SEED_CASES } from "@orb/testkit/iso";
 import { TONES } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { SEED_CASES } from "../seed-scope-cases.ts";
 import type { SpoilerStory } from "./_spoiler-stories.tsx";
 
 const STORY = "tests/ui/primitives/spoiler/_spoiler-stories/SpoilerStory";

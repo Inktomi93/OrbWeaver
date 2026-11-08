@@ -1,10 +1,10 @@
 // An operable Card paints the tone's text-on-tint ink on its pressed tint, and that ink clears its floor in the pixels.
 import { AA_NORMAL_RATIO } from "@orb/kit/theme-derivation";
 import { pixelContrast } from "@orb/testkit/browser/spec";
+import { SEED_CASES } from "@orb/testkit/iso";
 import { MEDIA_QUERIES, TONES } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { SEED_CASES } from "../seed-scope-cases.ts";
 import type { CardInteractiveStory } from "./_card-interactive-stories.tsx";
 
 const STORY = "tests/ui/primitives/card/_card-interactive-stories/CardInteractiveStory";

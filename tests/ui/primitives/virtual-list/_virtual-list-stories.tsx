@@ -4,10 +4,10 @@ import { UnboundedScrollHeightError } from "@orb/ui/lib";
 import { VirtualList } from "@orb/ui/virtual-list";
 import type { ReactElement, ReactNode } from "react";
 import { Component, useState } from "react";
+import { MANY_ROWS } from "./virtual-list-cases.ts";
 
 const ROW_HEIGHT_PX = 40;
 const WINDOW_HEIGHT_PX = 200;
-const MANY_ROWS = 300;
 
 function rowsOf(count: number): readonly { readonly id: string }[] {
   return Array.from({ length: count }, (_, index) => ({ id: `row-${String(index)}` }));

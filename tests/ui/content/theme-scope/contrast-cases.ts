@@ -101,9 +101,6 @@ export const PICKED_ROOM_CASES = [
   },
 ] as const;
 
-/** A neutral mid-grey, where a fixed-colour edge has the least room on either side. */
-export const MID_GREY = "oklch(0.6 0 0)";
-
 /** A light-polarity page near the crossover, whose nearest clearing edge would otherwise sit on top of the near-white text field fill. */
 export const LIGHT_MID_TONE = "oklch(0.6599 0.14 30)";
 
@@ -120,3 +117,6 @@ export const TYPED_CROSSOVER = "oklch(0.5606 0.12 240)";
 export function keepsHue(painted: Oklch, hue: number): boolean {
   return painted.c >= TONE_TINT_SEPARATION && hueDistance(painted.h, hue) < TONE_HUE_ADJACENT_DEGREES / 2;
 }
+
+/** The tones whose marks carry meaning on their own: each one's zone meter fill and status Card edge are judged at 3:1. */
+export const TONE_MARK_ACCENTS = ["info", "warning"] as const;

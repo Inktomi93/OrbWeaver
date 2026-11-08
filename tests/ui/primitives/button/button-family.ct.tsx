@@ -57,7 +57,9 @@ test("a picture button is its picture's box: the bare one draws nothing and dims
   expect(await style(bare, "background-color")).toBe(transparent);
   expect(await style(bare, "opacity")).toBe("1");
   await bare.hover();
-  await expect.poll(() => style(bare, "opacity")).toBe(hovers ? "0.8" : "1");
+  const hoverOpacity = await style(component.locator('[data-probe="hover-opacity"]'), "opacity");
+  expect(hoverOpacity, "the hover step dims").not.toBe("1");
+  await expect.poll(() => style(bare, "opacity")).toBe(hovers ? hoverOpacity : "1");
   await ghost.hover();
   await expect.poll(async () => (await style(ghost, "background-color")) !== transparent, "the ghost tints exactly when the device hovers").toBe(hovers);
 });

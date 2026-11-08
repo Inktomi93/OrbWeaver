@@ -1,10 +1,9 @@
-import { CtIsolation } from "@orb/testkit/browser";
+import type { SeedScopeProps } from "@orb/testkit/browser";
+import { CtIsolation, SeedScope } from "@orb/testkit/browser";
 import { Card } from "@orb/ui/card";
 import type { ToneRole } from "@orb/ui/tokens";
 import { TOKENS, TONE_HOST_UTILITIES, TONES } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
-import type { SeedScopeProps } from "../_seed-scope.tsx";
-import { SeedScope } from "../_seed-scope.tsx";
 
 const VARIANTS = ["surface", "soft"] as const;
 const PROBED_ROLES = ["text-on-tint", "tint-active"] as const satisfies readonly ToneRole[];

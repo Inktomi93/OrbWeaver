@@ -54,7 +54,7 @@ const COLORED_TONES = TONES.filter((tone): tone is ColoredTone => tone !== "neut
 const LITERAL_ROLES = carriedLiteralRoles(TONE_ROLE_RECIPES, TONE_MIX_DEFAULTS);
 
 /** The guaranteed-invalid value: a literal declared `initial` makes the `[data-tone]` block's `var()` take its mix. */
-const MIX_FALLBACK = "initial";
+export const MIX_FALLBACK = "initial";
 
 /** The fill a scope paints for an accent, and whether that pixel is the authored spelling itself. */
 export interface AccentPaint {

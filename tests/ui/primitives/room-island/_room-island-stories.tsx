@@ -1,10 +1,9 @@
-import { CtIsolation } from "@orb/testkit/browser";
+import type { SeedScopeProps } from "@orb/testkit/browser";
+import { CtIsolation, SeedScope } from "@orb/testkit/browser";
 import { Surface } from "@orb/ui/layout";
 import { RoomIsland } from "@orb/ui/room-island";
 import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
-import type { SeedScopeProps } from "../_seed-scope.tsx";
-import { SeedScope } from "../_seed-scope.tsx";
 
 /** An island in and out of an instrument tier, a field host, an armed drop target and a stack, beside role probes. */
 export function RoomIslandStory(props: SeedScopeProps): ReactElement {
