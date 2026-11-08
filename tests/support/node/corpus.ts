@@ -1,9 +1,9 @@
 // Capsules own disposable persisted graphs. Private intake preserves the source and remains Node-local;
 // only fresh synthetic captures may enter portable publication.
 
-import { existsSync, readFileSync, realpathSync, statSync } from "node:fs";
+import { constants, existsSync, readFileSync, realpathSync, statSync } from "node:fs";
 import type { FileHandle } from "node:fs/promises";
-import { mkdir, mkdtemp, open, rm, writeFile } from "node:fs/promises";
+import { cp, mkdir, mkdtemp, open, rm, writeFile } from "node:fs/promises";
 import { networkInterfaces, tmpdir } from "node:os";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -185,7 +185,7 @@ export type CorpusHarnessOptions = Omit<
 
 /** Resume a publication through the existing graph, joining it before closing and deleting its independent clone. */
 export async function createCorpusHarness(directory?: string, options: CorpusHarnessOptions = {}): Promise<CorpusServerHarness> {
-  const source = loadCorpusFixture(directory);
+  const source = directory === undefined ? await committedCorpusTemplate() : loadCorpusFixture(directory);
   if (source.replay === undefined) {
     throw new Error("Corpus server continuation requires replay state; publish this fixture with the canonical producer");
   }
@@ -196,7 +196,8 @@ export async function createCorpusHarness(directory?: string, options: CorpusHar
   await using ownership = new AsyncDisposableStack();
   const parent = await mkdtemp(join(tmpdir(), "orb-corpus-server-"));
   ownership.defer(() => rm(parent, { recursive: true, force: true }));
-  const corpus = ownership.use(await cloneCorpusFixture(source, join(parent, "consumer")));
+  const consumer = join(parent, "consumer");
+  const corpus = ownership.use(directory === undefined ? await copyCorpusTemplate(source, consumer) : await cloneCorpusFixture(source, consumer));
   const { createDb } = await import("@orb/db");
   const { ownFileDb } = await import("./db.ts");
   const db = ownership.use(ownFileDb(await createDb(corpus.layout.databaseUrl))).db;
@@ -220,6 +221,27 @@ export async function createCorpusHarness(directory?: string, options: CorpusHar
   );
   const lifetime = ownership.move();
   return Object.assign(root, { corpus, [Symbol.asyncDispose]: () => lifetime.disposeAsync() });
+}
+
+// The committed fixture does not change during a run, so each worker migrates, scrubs and verifies one clone of it,
+// and every default root copies that clone. A caller's directory may be a live root's clone, so it is never cached.
+// The run-owned temp root removes the template.
+let committedTemplate: Promise<CorpusFixture> | undefined;
+
+function committedCorpusTemplate(): Promise<CorpusFixture> {
+  committedTemplate ??= (async (): Promise<CorpusFixture> => {
+    const parent = await mkdtemp(join(tmpdir(), "orb-corpus-template-"));
+    const { [Symbol.asyncDispose]: _owned, ...template } = await cloneCorpusFixture(loadCorpusFixture(), join(parent, "template"));
+    return template;
+  })();
+  return committedTemplate;
+}
+
+/** An independent writable copy of a migrated, scrubbed clone; its parsed wire is the template's own. */
+async function copyCorpusTemplate(template: CorpusFixture, directory: string): Promise<PreparedCorpusFixture> {
+  const root = resolve(directory);
+  await cp(template.layout.root, root, { recursive: true, errorOnExist: true, force: false, mode: constants.COPYFILE_FICLONE });
+  return ownedCorpusFixture({ ...template, layout: resolveDataLayout({ ["DATA_DIR"]: root }) });
 }
 
 // Producers and resumed graphs share the canonical stateless corpus random, not caller overrides.

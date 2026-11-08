@@ -1,5 +1,5 @@
-// A root composed with no rate-limit input keeps every shipped bucket: each axis refuses the first attempt past its
-// cap through the real mount, while every earlier axis still passes, so the refusal belongs to the axis under test.
+// Each axis refuses the first attempt past its cap through the real mount, while every earlier axis still passes, so
+// the refusal belongs to the axis under test. A case spending a whole bucket lowers that bucket's floor in its record.
 // @subject packages/server/src/entry/rate-limit-gate.ts
 // @subject packages/server/src/entry/http/auth-routes.ts
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
@@ -17,6 +17,8 @@ const UNAUTHORIZED = 401;
 const TOO_MANY_REQUESTS = 429;
 // The handle axis sits above the per-IP axis; this bound only stops a broken axis from looping forever.
 const HANDLE_AXIS_SEARCH_MULTIPLE = 4;
+// A refusal past the cap reads the same at any floor; a low one spends a handful of hashed logins or requests, not hundreds.
+const LOWERED_FLOOR = "3";
 
 function localRoot(options: Pick<ServerHarnessOptions, "physicalPeer" | "env"> = {}): Promise<ServerTestHarness> {
   return createServerHarness({ physicalPeer: () => PEER, ...options, env: { ...LOCAL, ...options.env } });
@@ -60,7 +62,7 @@ test("the login route refuses the attempt past the per-IP cap, and only a raised
 
 test("the handle axis refuses one account past the per-IP cap when rotating peers never trip it", async () => {
   let peer = PEER;
-  await using root = await localRoot({ physicalPeer: () => peer });
+  await using root = await localRoot({ physicalPeer: () => peer, env: { ["RATE_LIMIT_LOGIN"]: LOWERED_FLOOR } });
   const cap = root.services.settings.getEffectiveConfig().rateLimits.login;
   const bound = cap * HANDLE_AXIS_SEARCH_MULTIPLE;
   let admitted = 0;
@@ -85,14 +87,14 @@ test("an anonymous caller is refused past the per-IP tRPC cap and told when to r
 });
 
 test("a signed-in member is refused past the per-user request cap", async () => {
-  await using root = await localRoot();
+  await using root = await localRoot({ env: { ["RATE_LIMIT_AUTHED"]: LOWERED_FLOOR } });
   const { cookie } = await signedInMember(root, castId<Handle>("general-bucket-member"));
   const cap = root.services.settings.getEffectiveConfig().rateLimits.authed;
   expect(await spend(cap + 1, () => statusOf(root, "/api/trpc/sessions.me", { headers: { cookie } }))).toEqual(admittedThenRefused(cap, OK));
 });
 
 test("an AI turn verb is refused past its stricter cap while the general bucket still has room", async () => {
-  await using root = await localRoot();
+  await using root = await localRoot({ env: { ["RATE_LIMIT_AI_TURN"]: LOWERED_FLOOR } });
   const { cookie } = await signedInMember(root, castId<Handle>("ai-turn-member"));
   const { aiTurn: cap, authed } = root.services.settings.getEffectiveConfig().rateLimits;
   expect(cap).toBeLessThan(authed);

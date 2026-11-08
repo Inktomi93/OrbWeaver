@@ -51,8 +51,13 @@ export interface StoredRef {
   readonly hash: string;
 }
 
-/** A box whose loopback HTTP requests act as its owner, so a suite can drive the export and import routes. */
-const LOOPBACK_OWNER = { physicalPeer: () => "127.0.0.1", env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner" } } as const;
+/** A box whose loopback HTTP requests act as its owner, so a suite can drive the export and import routes. The
+ *  shipped library stays unseeded: it would only grow the exported bundle and the restore that no case judges. */
+const LOOPBACK_OWNER = {
+  physicalPeer: () => "127.0.0.1",
+  env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "owner", ["SEED_CONTENT"]: "off" },
+} as const;
+const AUTH_ME_ROUTE = "/api/auth/me";
 
 /** One harness on a scratch CAS over the box's own held database. The scripted provider answers only an image
  *  generation, with whatever bytes a test pushes into `images` first. Plugin guests run as real processes, and the
@@ -101,6 +106,12 @@ export async function openBox(options: { readonly loopbackOwner?: boolean; reado
   await root.services.settings.updateAppSettings({ principal, partial: { privateEndpointAllowlist: [new URL(CORPUS_PROVIDER_ENDPOINT).hostname] } });
   // A committed message resolves the room's chat connection even when nothing generates; nothing here calls it.
   await seedCorpusConnections(root, principal);
+  if (options.loopbackOwner === true) {
+    // Production seeds its owner at boot. One owner request starts that seed and the box settles it, so a later
+    // hold parks only the statement its case names, never the first request's seed.
+    await (await root.http.request(AUTH_ME_ROUTE)).arrayBuffer();
+    await root.settleBackground();
+  }
   return { root, cas: casOf(root), principal, images, hold: held.hold };
 }
 

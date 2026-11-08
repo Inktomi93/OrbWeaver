@@ -8,6 +8,7 @@ import { vi } from "vitest";
 import { createFrozenClock } from "../iso/clock.ts";
 import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import { createControlledTimers } from "../iso/timers.ts";
+import { captureCorpusRead } from "./corpus-capture.ts";
 import { freshDb, freshHeldDb } from "./db.ts";
 import { expect, test } from "./fixtures.ts";
 import type { ServerTestHarness } from "./server.ts";
@@ -169,4 +170,19 @@ test("service jobs start once and root disposal waits for every actual lane read
     await harness?.[Symbol.asyncDispose]();
     stopObservation?.();
   }
+});
+
+// A single-user box admits its owner from a loopback peer, so the request below is authenticated and starts the seed.
+const LOOPBACK_PEER = "127.0.0.1";
+const AUTH_ME_ROUTE = "/api/auth/me";
+
+test("a capture right after an authed request reads the library the request's detached seed settled", async () => {
+  await using root = await createServerHarness({ physicalPeer: () => LOOPBACK_PEER });
+  const unseeded = (await captureCorpusRead(root, root.ownerId, "character.list", {})).output.items;
+  await (await root.http.request(AUTH_ME_ROUTE)).arrayBuffer();
+  const baseline = (await captureCorpusRead(root, root.ownerId, "character.list", {})).output.items;
+  await root.settleBackground();
+  // The control: the request did seed the owner's library, so the equality below is not two empty reads.
+  expect(baseline.length).toBeGreaterThan(unseeded.length);
+  expect((await captureCorpusRead(root, root.ownerId, "character.list", {})).output.items).toEqual(baseline);
 });
