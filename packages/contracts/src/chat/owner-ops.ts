@@ -56,8 +56,8 @@ declare const viewerVisibilityBrand: unique symbol;
  *  no "member: yes" projection without the floor — a consumer that only wants membership still receives the
  *  floor, so "forgot to clamp" is unrepresentable rather than merely discouraged.
  *
- *  Branded: only {@link viewerVisibility} mints one, and only chat's resolver calls it. A read that takes this
- *  value therefore cannot be fed from a non-member branch or a defaulted floor; the phantom key erases at runtime. */
+ *  Branded, so a hand-built answer does not compile. Only chat's resolver mints one, in a chat-private registry that a
+ *  canon read checks by object identity, so a spread copy with a defaulted floor is refused when the read runs. */
 export interface ViewerVisibility {
   readonly [viewerVisibilityBrand]: true;
   readonly role: ParticipantRoleState;
@@ -67,12 +67,6 @@ export interface ViewerVisibility {
    *  hidden-stripped before any cross-domain consumer serves the body. DERIVED here from `role` via chat's ONE
    *  `viewerReadsHidden` home so a cross-domain consumer (the plugin realm) never re-derives `role === "host"`. */
   readonly readsHidden: boolean;
-}
-
-/** Mint a present member's {@link ViewerVisibility}. Reserved for chat's `resolveViewerVisibility`, which calls it
- *  only after loading the viewer's present participant row; every other site receives the value from that op. */
-export function viewerVisibility(answer: Omit<ViewerVisibility, typeof viewerVisibilityBrand>): ViewerVisibility {
-  return answer as ViewerVisibility;
 }
 
 /** THE cross-domain viewer-visibility op (the D-ledger read-visibility entry). Any NON-chat domain that must

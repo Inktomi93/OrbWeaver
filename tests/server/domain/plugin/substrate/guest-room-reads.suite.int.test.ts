@@ -28,6 +28,8 @@ import {
 const NET_HOST = "plugin.example.test";
 const HELD_URL = `https://${NET_HOST}/held`;
 const OPENING_LINE = "The host opens the room.";
+// The guest sees only an error's name and message; no production export carries the host gate's sentence.
+const HOST_GATE_REFUSAL = /: this action requires the room host$/u;
 const ROOM_OPS = {
   reads:
     "async (h, room) => ({ messages: (await h.chat.listMessages(room)).map((m) => m.content), characters: (await h.chat.listCharacters(room)).length, variables: Object.keys(await h.chat.getVariables(room)).length, books: (await h.worldInfo.listBooks(room)).length })",
@@ -35,7 +37,9 @@ const ROOM_OPS = {
   entries: "async (h, room, a) => (await h.worldInfo.listEntries(room, a.bookId)).map((entry) => entry.content)",
   setVariable: "(h, room, a) => h.chat.applyVariableOps(room, [{ op: 'set', key: a.key, value: a.value }])",
   turn: "(h, room) => h.chat.requestTurn(room, {})",
-  heldTurn: "async (h, room, a) => { await h.net.fetch(a.url); await h.chat.requestTurn(room, {}); }",
+  // Reports the refusal itself, so the case can tell the host gate's answer from any other chat error.
+  heldTurn:
+    "async (h, room, a) => { await h.net.fetch(a.url); try { await h.chat.requestTurn(room, {}); return null; } catch (error) { return { name: error.name, message: error.message }; } }",
 } as const satisfies GuestOps;
 
 interface Room extends AsyncDisposable {
@@ -164,8 +168,8 @@ test("a host who hands the seat off while their guest is mid-invocation runs no 
   await r.h.root.services.chat.nominateHostHandoff({ principal: r.h.owner, chatId: r.h.chatId, userId: r.member.userId });
   await r.h.root.services.chat.acceptHostHandoff({ principal: r.member, chatId: r.h.chatId });
   r.release();
-  // The host gate's own refusal, so a crash in the guest or the bridge cannot pass for it.
-  expect(await pending).toEqual({ ok: false, name: ChatOperationError.name });
+  // The host gate's own refusal, so a crash in the guest or the bridge, or another chat refusal, cannot pass for it.
+  expect(await pending).toEqual({ ok: true, value: { name: ChatOperationError.name, message: expect.stringMatching(HOST_GATE_REFUSAL) } });
   await r.h.root.settleBackground();
   expect(await assistantTurns()).toBe(1);
 });

@@ -7,6 +7,7 @@ import { characters, chatParticipants, messages, messageVariants } from "@orb/db
 import { stripHiddenSpans } from "@orb/kit/content";
 import type { ChatId } from "@orb/kit/ids";
 import { and, desc, eq, gte, isNull } from "drizzle-orm";
+import { assertResolvedVisibility } from "../substrate/viewer-visibility-registry.ts";
 
 const PLUGIN_MESSAGE_DEFAULT_LIMIT = 20;
 const PLUGIN_MESSAGE_MAX_LIMIT = 50;
@@ -23,6 +24,7 @@ const PLUGIN_MESSAGE_MAX_LIMIT = 50;
  * post-filter — keeps the security predicate at the read.
  */
 export async function loadPluginMessages(db: Db, chatId: ChatId, opts: Parameters<PluginChatReads["listMessages"]>[1]): Promise<readonly PluginMessageView[]> {
+  assertResolvedVisibility(opts.visibility);
   const { historyFloorSeq, readsHidden } = opts.visibility;
   const limit = Math.min(opts.limit ?? PLUGIN_MESSAGE_DEFAULT_LIMIT, PLUGIN_MESSAGE_MAX_LIMIT);
   const rows = await db

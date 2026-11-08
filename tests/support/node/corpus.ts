@@ -889,8 +889,9 @@ async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProdu
   const clock = options.server.clock ?? createFrozenClock();
   const rpgFlightTimers = createRpgFlightTimers(createControlledTimers(clock));
   const rpgFlightWire = createRpgFlightWire("as-needed");
-  const connectionWire = createCorpusConnectionWire();
-  const imageWire = await createCorpusImageWire();
+  // The connection producer must spend every recipe it enqueues; the image wire serves whichever producers run.
+  const connectionWire = lifetimes.use(createCorpusConnectionWire("every-step"));
+  const imageWire = await createCorpusImageWire("as-needed");
   const sdkExecution = createCorpusSdkExecution();
   const searchWire = createCorpusSearchWire(
     imageWire.wrap(connectionWire.wrap(rpgFlightWire.wrap(chatWire.wrap(options.server.networkExecution?.fetch ?? options.server.providerFetch ?? fetch)))),
@@ -985,9 +986,6 @@ async function captureCapsule(options: CorpusCapsuleOptions & CorpusCapsuleProdu
   const search = await seedCorpusSearch(root, { actors, libraries, recall, images: knowledgeVariants.images });
   signal?.throwIfAborted();
   const connection = await seedCorpusConnection(root, actors, connectionWire);
-  if (connectionWire.remaining() !== 0) {
-    throw new Error("completed native connection corpus left unspent physical recipes");
-  }
   signal?.throwIfAborted();
   const libraryViews = await seedCorpusLibraryViews(root, libraries, actors);
   signal?.throwIfAborted();

@@ -25,7 +25,7 @@ import type { ServerTestHarness } from "./server.ts";
 import { createServerHarness, SECRET_BOX_TEST_KEY } from "./server.ts";
 
 test("native connection catalog, capability and account outputs retain real task identity while withholding actual private material", async () => {
-  const wire = createCorpusConnectionWire();
+  using wire = createCorpusConnectionWire("every-step");
   const physical = createCorpusProviderExecution({
     modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -190,14 +190,13 @@ test("native connection catalog, capability and account outputs retain real task
     resolved: null,
     unavailableCause: "no-connection",
   });
-  expect(wire.remaining()).toBe(0);
   await assertReferentialIntegrity(root.db);
 });
 
 test("native connection corpus spends its recipes after legitimate memory and persisted hosted catalog hits", async () => {
   using fresh = await freshDb();
   const db = fresh.db;
-  const wire = createCorpusConnectionWire();
+  using wire = createCorpusConnectionWire("every-step");
   const physical = createCorpusProviderExecution({
     modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -241,7 +240,6 @@ test("native connection corpus spends its recipes after legitimate memory and pe
       models: expect.arrayContaining([expect.objectContaining({ id: CORPUS_CONNECTION_HOSTED_MODEL })]),
     });
     expect(wire.requests).toHaveLength(3);
-    expect(wire.remaining()).toBe(0);
     expect(await caller.connection.catalogModels({ connectionId })).toEqual(cold);
     expect(wire.requests).toHaveLength(3);
   }
@@ -249,7 +247,6 @@ test("native connection corpus spends its recipes after legitimate memory and pe
   const caller = await root.internalCallerFor(ownerId);
   expect(await caller.connection.catalogModels({ connectionId })).toEqual(cold);
   expect(wire.requests).toHaveLength(3);
-  expect(wire.remaining()).toBe(0);
   const actors = await seedCorpusActors(root);
   const result = await seedCorpusConnection(root, actors, wire);
   expect(result.account.catalog).toEqual(cold);
@@ -264,7 +261,6 @@ test("native connection corpus spends its recipes after legitimate memory and pe
     return address.hostname === wire.hostname && address.pathname.endsWith("/models");
   });
   expect(hostedCatalogRequests).toHaveLength(6);
-  expect(wire.remaining()).toBe(0);
   const beforeExhausted = wire.requests.length;
   const delegatedBeforeRefusal = delegated;
   const exhausted = await caller.connection.catalogModels({ connectionId: result.own.row.id });
@@ -277,11 +273,9 @@ test("native connection corpus spends its recipes after legitimate memory and pe
   expect(unmatched).toMatchObject({ listed: false });
   expect(wire.requests).toHaveLength(beforeExhausted);
   expect(delegated).toBe(delegatedBeforeRefusal);
-  expect(wire.remaining()).toBe(1);
   const matched = await caller.connection.catalogModels({ connectionId: result.own.row.id });
   expect(matched).toMatchObject({ listed: true, models: [{ id: CORPUS_CONNECTION_MODEL }] });
   expect(wire.requests).toHaveLength(beforeExhausted + 1);
   expect(delegated).toBe(delegatedBeforeRefusal);
-  expect(wire.remaining()).toBe(0);
   await assertReferentialIntegrity(db);
 });

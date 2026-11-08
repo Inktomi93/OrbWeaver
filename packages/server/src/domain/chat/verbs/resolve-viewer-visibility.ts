@@ -20,13 +20,13 @@
 // membership row through, so it inherits the change instead of drifting from it.
 
 import type { ResolveViewerVisibility } from "@orb/contracts/chat";
-import { viewerVisibility } from "@orb/contracts/chat";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { ChatContext } from "../contract/context.ts";
 import { loadPresentVisibilityRow } from "../persistence/participants-read.ts";
 import { resolveHistoryFloorSeq } from "../substrate/auth/index.ts";
 import { viewerReadsHidden } from "../substrate/member-visibility.ts";
+import { mintViewerVisibility } from "../substrate/viewer-visibility-registry.ts";
 
 /** Only the db — the verdict is a pure function of the caller's own participant row (the `guard.ts::GuardCtx`
  *  narrowing precedent), so the composition root can build this op without the full chat DI bundle. */
@@ -41,6 +41,6 @@ export function createResolveViewerVisibility(input: DbAssemblyInput<VisibilityC
     if (membership === null) {
       return null;
     }
-    return viewerVisibility({ role: membership.role, historyFloorSeq: resolveHistoryFloorSeq(membership), readsHidden: viewerReadsHidden(membership) });
+    return mintViewerVisibility({ role: membership.role, historyFloorSeq: resolveHistoryFloorSeq(membership), readsHidden: viewerReadsHidden(membership) });
   };
 }

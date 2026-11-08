@@ -316,7 +316,7 @@ const OWNED_ROOT_ACQUISITIONS =
   "/^(createServerHarness|createChatRoot|createFirstBootHarness|createCorpusHarness|createAuthModeRoot|createRuntimeRoot|conformanceRoot|coreHttpRoom|coreDispatchRoom|textRoom|followupRoom|personaRoom|turnToolsRoom|signedInBox)$/";
 // Every helper that returns a plan the caller declares: a new one joins this list in the change that adds it.
 const REPLY_PLAN_ACQUISITIONS =
-  "/^(finiteReplies|textProvider|openAiServer|scriptedResponses|physicalScene|physicalExecution|tailSwipeScene|paidReplies|provider|planned|createCorpusChatWire|createCorpusRpgWire|createKnowledgeSwipeWire|createRpgFlightWire)$/";
+  "/^(finiteReplies|textProvider|openAiServer|scriptedResponses|physicalScene|physicalExecution|tailSwipeScene|paidReplies|provider|planned|createCorpusChatWire|createCorpusRpgWire|createKnowledgeSwipeWire|createRpgFlightWire|createCorpusConnectionWire|createCorpusImageWire|createCorpusPluginDownloads|replayCorpusSearchWire)$/";
 const ownedCall = (names: string): string =>
   `CallExpression:matches([callee.name=${names}], [callee.property.name=${names}], [callee.property.value=${names}])`;
 const RAW_DB_OPEN_RESTRICTION = {
@@ -570,6 +570,14 @@ const PNG_CHUNK_IMPORT = {
   regex: "^@orb/kit/png-card-chunk(?:/|$)",
   importNames: ["readCardChunk", "writeCardChunk", "isPng"],
   message: "Use the import or export domain for PNG card-chunk operations.",
+};
+
+// A canon read accepts only the visibility answer chat's resolver minted, so the minter has that one caller.
+const VISIBILITY_MINT_HOME = "packages/server/src/domain/chat/verbs/resolve-viewer-visibility.ts";
+const VISIBILITY_MINT_IMPORT = {
+  regex: "viewer-visibility-registry(?:\\.ts)?$",
+  importNames: ["mintViewerVisibility"],
+  message: "Only chat's resolveViewerVisibility mints a ViewerVisibility; take the answer from that op.",
 };
 
 // dependency-cruiser sees only literal import edges, so a computed specifier or a host loader reaches any db door
@@ -2147,9 +2155,10 @@ export default [
   ...UI_LAW_BLOCKS,
   {
     files: ["packages/server/src/**/*.{ts,tsx}"],
-    ignores: ["packages/server/src/domain/import/**", "packages/server/src/domain/export/**", "packages/server/src/domain/settings/**"],
-    rules: { "no-restricted-imports": ["error", { patterns: [SETTINGS_TABLE_IMPORT, PNG_CHUNK_IMPORT] }] },
+    ignores: ["packages/server/src/domain/import/**", "packages/server/src/domain/export/**", "packages/server/src/domain/settings/**", VISIBILITY_MINT_HOME],
+    rules: { "no-restricted-imports": ["error", { patterns: [SETTINGS_TABLE_IMPORT, PNG_CHUNK_IMPORT, VISIBILITY_MINT_IMPORT] }] },
   },
+  { files: [VISIBILITY_MINT_HOME], rules: { "no-restricted-imports": ["error", { patterns: [SETTINGS_TABLE_IMPORT, PNG_CHUNK_IMPORT] }] } },
   {
     files: ["packages/server/src/domain/import/**/*.{ts,tsx}", "packages/server/src/domain/export/**/*.{ts,tsx}"],
     rules: { "no-restricted-imports": ["error", { patterns: [SETTINGS_TABLE_IMPORT] }] },

@@ -1,51 +1,56 @@
-// Storage is the subject: every event the live chat channel delivers already has its chat_events row, under the
-// seq the delivery carries. A publish ahead of the insert hands a resuming client a cursor the log cannot replay.
+// Storage is the subject: the live chat channel delivers an event only after its chat_events row commits, under the seq
+// that row holds. A publish ahead of the insert hands a resuming client a cursor the log may never hold.
 // @subject packages/server/src/domain/chat/bus.ts
 // @subject packages/server/src/domain/chat/substrate/publication.ts
 
+import { setImmediate as eventLoopTurn } from "node:timers/promises";
 import type { ChatBusEvent } from "@orb/contracts/chat";
 import { chatEvents } from "@orb/db";
-import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { and, eq } from "drizzle-orm";
+import { freshHeldDb } from "@orb/testkit/node/composed";
+import { eq } from "drizzle-orm";
 import { textRoom } from "../scenario-physical.ts";
+
+// Enough event-loop turns for a publish that skipped its await to reach the listener.
+const SETTLE_TURNS = 5;
 
 interface Delivery {
   readonly seq: number | null;
   readonly type: ChatBusEvent["type"];
-  /** The log row for the delivered seq, read the moment the live channel hands the event over. */
-  readonly logged: Promise<readonly { readonly type: string }[]>;
 }
 
-test("a sent turn's live events each arrive after their durable row, under the seq that row holds", async () => {
-  await using h = await textRoom(["Hi there"]);
+test("an edit's live event waits for its held chat_events insert, then arrives under the seq that row holds", async () => {
+  using held = await freshHeldDb();
+  await using h = await textRoom([], { server: { db: held.db } });
+  const outcome = await h.root.services.chat.commitMessage({ principal: h.owner, chatId: h.chatId, content: "The first line." });
+  const [line] = outcome.messages;
+  if (line === undefined) {
+    throw new Error("the commit returned no message");
+  }
+  await h.root.settleBackground();
   const deliveries: Delivery[] = [];
   const unsubscribe = h.root.app.liveBuses.chat.subscribeAllChatEvents(({ seq, event }) => {
-    if (event.chatId !== h.chatId) {
-      return;
+    if (event.chatId === h.chatId) {
+      deliveries.push({ seq, type: event.type });
     }
-    // The listener runs inside the publish, so this read starts before the emitter regains control.
-    const logged =
-      seq === null
-        ? Promise.resolve([])
-        : h.root.db
-            .select({ type: chatEvents.type })
-            .from(chatEvents)
-            .where(and(eq(chatEvents.chatId, h.chatId), eq(chatEvents.seq, seq)))
-            .execute();
-    deliveries.push({ seq, type: event.type, logged });
   });
   try {
-    await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "hello" });
-    await h.root.settleBackground();
+    const insert = held.hold(/insert into "chat_events"/u);
+    const editing = h.root.services.chat.editMessage({ principal: h.owner, chatId: h.chatId, messageId: line.id, content: "The edited line." });
+    await insert.reached;
+    for (let turn = 0; turn < SETTLE_TURNS; turn += 1) {
+      await eventLoopTurn();
+    }
+    // Held: the row has not committed, so nothing may have reached the channel.
+    expect(deliveries).toEqual([]);
+
+    insert.release();
+    await editing;
+    const logged = await h.root.db.select({ seq: chatEvents.seq, type: chatEvents.type }).from(chatEvents).where(eq(chatEvents.chatId, h.chatId));
+    const edited = logged.filter(({ type }) => type === "messageEdited");
+    expect(deliveries).toEqual(edited);
+    expect(edited).toEqual([{ seq: expect.any(Number), type: "messageEdited" }]);
   } finally {
     unsubscribe();
   }
-
-  const observed = await Promise.all(nonEmpty(deliveries).map(async ({ seq, type, logged }) => ({ seq, type, logged: await logged })));
-  // The turn's whole lifecycle went through the channel: both commits, its delta and its terminal.
-  expect(observed.map(({ type }) => type)).toEqual(expect.arrayContaining(["messageCommitted", "turnStarted", "delta", "turnCompleted"]));
-  expect(observed).toEqual(observed.map(({ type }) => ({ seq: expect.any(Number), type, logged: [{ type }] })));
-  const seqs = observed.map(({ seq }) => seq ?? 0);
-  expect(seqs).toEqual([...new Set(seqs)].toSorted((a, b) => a - b));
 });
