@@ -46,7 +46,7 @@ const UNSET_VALUE = "";
 // The pane is as wide as the settings body; a sentence capped at the prose measure never runs across it.
 
 // Unbinding the text embedder queues nothing: the stored index stays, and search keeps answering from it.
-const TEXT_EMBEDDER_UNSET = "None set — search keeps using your last index until you pick an embedder.";
+const TEXT_EMBEDDER_UNSET = "None set. Search keeps using your last index until you pick an embedder.";
 
 type ConnectionListItem = inferOutput<Trpc["connection"]["list"]>[number];
 type BindingView = inferOutput<Trpc["connection"]["listBindings"]>[number];
@@ -334,20 +334,20 @@ function ReadoutLine({ readout, unsetSentence }: { readonly readout: RoleReadout
   if (readout.kind === "divergent") {
     return (
       <Text voice="gloss" {...appearance} cap="prose">
-        Not applied yet — still running on {readout.connection}.
+        Not applied yet. Still running on {readout.connection}.
       </Text>
     );
   }
   if (readout.kind === "unset") {
     return (
       <Text voice="gloss" {...appearance} cap="prose">
-        {unsetSentence ?? "Nothing — no connection is set."}
+        {unsetSentence ?? "Nothing. No connection is set."}
       </Text>
     );
   }
   return (
     <Text voice="gloss" {...appearance} cap="prose">
-      {ROLE_STATUS_LABELS.blocked} — {readout.cause}.
+      {ROLE_STATUS_LABELS.blocked}: {readout.cause}.
     </Text>
   );
 }
@@ -364,7 +364,7 @@ function RequirementRail({ verdicts }: { readonly verdicts: readonly RoleRequire
       {verdicts.map((verdict) => (
         <Badge key={verdict.label} size="sm" tone={verdict.met === true ? "success" : "neutral"} variant="outline">
           {verdict.met === null ? null : <Icon icon={verdict.met ? Check : X} size="xs" />}
-          {verdict.met === false ? `${verdict.label} — ${verdict.unmet}` : verdict.label}
+          {verdict.met === false ? `${verdict.label}: ${verdict.unmet}` : verdict.label}
         </Badge>
       ))}
     </Row>
@@ -386,7 +386,7 @@ function BackgroundRepair({
   const label = `Allow background work on ${connectionSummary(connection)}`;
   return (
     <Stack gap="tight">
-      <Text voice="gloss">{connectionSummary(connection)} doesn&apos;t allow background work — turn it on to use it here.</Text>
+      <Text voice="gloss">{connectionSummary(connection)} doesn&apos;t allow background work. Turn it on to use it here.</Text>
       <Row gap="field" align="center">
         <Switch aria-label={label} checked={false} disabled={pending} onCheckedChange={(): void => onAllow()} />
         <Text voice="gloss" as="span">

@@ -349,7 +349,7 @@ function ContextCell({
       // THE LOCK IS IN THE NAME: Base UI emits `aria-disabled="false"` on this cell (it is genuinely not
       // disabled), so a glyph-only lock would be one AT could not perceive. The visible
       // caption stays the prefix of the accessible name (WCAG 2.5.3 Label-in-Name).
-      aria-label={locked ? `${tab.label} — locked` : tab.label}
+      aria-label={locked ? `${tab.label}, locked` : tab.label}
       data-crown={tab.crown}
       // NO `min-w-0` HERE, EVER: with the spacing scale registered in tailwind-merge a call-site `min-w-0` wins
       // outright and deletes the touch floor the primitive's `min-w-touch-target` carries.

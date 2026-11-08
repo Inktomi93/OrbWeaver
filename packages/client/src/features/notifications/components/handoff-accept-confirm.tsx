@@ -50,10 +50,10 @@ function offerLines(offer: HandoffOfferContents): string[] {
   if (offer.regexScripts > 0) {
     // THE ONE LINE THAT SAYS WHAT THE THING DOES, because a regex script is the only member of the offer
     // that EXECUTES — on this room's prompts, its stored messages and what the reader sees.
-    lines.push(`${countLine(offer.regexScripts, "regex script", "regex scripts")} — find/replace that runs on this chat's text`);
+    lines.push(`${countLine(offer.regexScripts, "regex script", "regex scripts")}: find/replace that runs on this chat's text`);
   }
   if (offer.gmPreset) {
-    lines.push("The game's GM voice — the preset this room's turns speak with");
+    lines.push("The game's GM voice: the preset this room's turns speak with");
   }
   return lines;
 }
@@ -114,7 +114,7 @@ export function HandoffAcceptConfirm({ chatId, notificationId, offer, onClose, o
       description={
         lines.length === 0
           ? "You become the host of this chat. Nothing is copied into your library."
-          : "You become the host of this chat, and these copies land in your library — yours to edit or delete afterwards. The current host keeps their originals."
+          : "You become the host of this chat, and these copies land in your library. They are yours to edit or delete afterwards. The current host keeps their originals."
       }
       onConfirm={onConfirm}
       onOpenChange={(next): void => {

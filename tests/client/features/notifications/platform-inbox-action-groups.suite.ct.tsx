@@ -98,7 +98,7 @@ function actionMarker(page: Page, item: InboxView): Locator {
     case "plugins-awaiting-consent":
       return page.getByRole("button", { name: "Review what your plugins ask for", exact: true });
     case "plugin-disabled":
-      return page.getByRole("button", { name: `Open Plugins — ${PLUGIN_NAME}`, exact: true });
+      return page.getByRole("button", { name: `Open Plugins, ${PLUGIN_NAME}`, exact: true });
     case "kicked":
       return page.getByRole("button", { name: "Dismiss: You were removed from a chat", exact: true });
     case "automation-notice":
@@ -190,7 +190,7 @@ for (const regime of REGIMES) {
         await page.getByRole("button", { name: "Notifications", exact: true }).click();
       }
       await expect(review).toBeVisible();
-      const open = page.getByRole("button", { name: `Open Plugins — ${PLUGIN_NAME}`, exact: true });
+      const open = page.getByRole("button", { name: `Open Plugins, ${PLUGIN_NAME}`, exact: true });
       await open.click();
       expect(await caller.plugin.list()).toEqual(pluginsBefore);
       if (!regime.coarse) {

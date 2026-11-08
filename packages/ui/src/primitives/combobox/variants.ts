@@ -12,7 +12,6 @@ import {
   OVERLAY_ARROW,
   OVERLAY_MOTION,
   POPUP_SURFACE,
-  TOUCH_TARGET_PSEUDO,
   tv,
 } from "#lib";
 
@@ -32,11 +31,12 @@ export const comboboxVariants = tv({
       FOCUS_RING,
       "data-disabled:opacity-disabled",
     ],
-    // The glyph stays its own size; the pointer-conditional hit area rides `::before`, layout-neutral, so a fine
-    // pointer keeps its 24px floor without the chip growing.
+    // The glyph stays its own size; the hit area rides `::before`, layout-neutral, one field step past the glyph on every
+    // side. That is the 24px floor at any pointer, and it ends at the chip's own edge, so it never reaches the next chip or
+    // the draft input: the pointer-conditional touch target would, since chips sit a field step apart.
     chipRemove: [
       "relative flex shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none",
-      TOUCH_TARGET_PSEUDO,
+      "before:absolute before:-inset-field before:content-['']",
       // Offset-less ring — the ChipRemove sits INSIDE the chip; an offset ring would escape it.
       `${ACCENT_HOVER} ${FOCUS_RING_BARE}`,
       DISABLED_STATE_NATIVE,

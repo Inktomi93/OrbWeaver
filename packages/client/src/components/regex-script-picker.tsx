@@ -215,8 +215,8 @@ function EmptyLibrary({ onOpenLibrary }: { readonly onOpenLibrary: (() => void) 
     <Stack gap="field" align="start">
       <Text voice="gloss">
         {onOpenLibrary === undefined
-          ? "You haven't written any regex scripts yet — add one in Settings → Regex, then attach it here."
-          : "You haven't written any regex scripts yet — write one in your library, then attach it here."}
+          ? "You haven't written any regex scripts yet. Add one in Settings → Regex, then attach it here."
+          : "You haven't written any regex scripts yet. Write one in your library, then attach it here."}
       </Text>
       {onOpenLibrary === undefined ? null : (
         <Button variant="outline" onClick={onOpenLibrary} size="sm" type="button">

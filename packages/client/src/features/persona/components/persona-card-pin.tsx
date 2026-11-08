@@ -44,7 +44,7 @@ export function PersonaCardPin({ isPinned, isHost, name, subject, onPin, onUnpin
         <TooltipTrigger
           render={
             <Button
-              aria-label={isPinned ? `Card is pinned to ${subject} — press to unpin` : `Pin the card to ${subject}`}
+              aria-label={isPinned ? `Card is pinned to ${subject}. Press to unpin` : `Pin the card to ${subject}`}
               aria-pressed={isPinned}
               data-slot="persona-card-pin"
               variant="ghost"

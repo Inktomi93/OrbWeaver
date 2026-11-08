@@ -154,7 +154,7 @@ function SwitchRow({
       minHeight="controlMd"
       className={ROW_BOX}
       data-selected={isPlaying ? "" : undefined}
-      data-switch-row=""
+      data-slot="persona-switch-row"
       gap="row"
       paddingInline="field"
     >
@@ -202,7 +202,7 @@ function SwitchButton({
   return (
     <Button
       aria-current={isPlaying ? "true" : undefined}
-      aria-label={isPlaying ? `${subject} — current persona` : `Switch to ${subject}`}
+      aria-label={isPlaying ? `${subject}, current persona` : `Switch to ${subject}`}
       placed="fill"
       data-selected={isPlaying ? "" : undefined}
       data-switch-row-button=""

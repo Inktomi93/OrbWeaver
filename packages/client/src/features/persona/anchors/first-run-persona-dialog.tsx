@@ -131,7 +131,7 @@ export function FirstRunPersonaDialog(): ReactElement | null {
       await update.mutateAsync({ personaId: orphan.id, input: { name: name.trim(), description: description.trim() } });
       return true;
     } catch {
-      notify.error("Couldn't save your persona — try again.");
+      notify.error("Couldn't save your persona. Try again.");
       return false;
     }
   };
@@ -143,7 +143,7 @@ export function FirstRunPersonaDialog(): ReactElement | null {
       setCreatedId(created.id);
       return created.id;
     } catch {
-      notify.error("Couldn't create your persona — try again.");
+      notify.error("Couldn't create your persona. Try again.");
       return null;
     }
   };
@@ -169,7 +169,7 @@ export function FirstRunPersonaDialog(): ReactElement | null {
     } catch {
       // NAMED HONESTLY: the persona exists. "Couldn't create your persona" over a persona that WAS created is
       // the lie that sent the reader back to a Create button.
-      notify.error("Created your persona, but couldn't make it yours yet — try again.");
+      notify.error("Created your persona, but couldn't make it yours yet. Try again.");
       setPending(false);
       return;
     }
@@ -178,7 +178,7 @@ export function FirstRunPersonaDialog(): ReactElement | null {
 
   return (
     <RequiredFormDialog
-      description="Chats speak to you through a persona — the name (and optional description) characters see as you. Create yours to get started; you can refine it any time in Settings under Personas."
+      description="Chats speak to you through a persona: the name (and optional description) characters see as you. Create yours to get started; you can refine it any time in Settings under Personas."
       submit={{ label: submitLabel, disabled: !canSubmit, testKey: "firstRunPersonaCreate", onSubmit: (): void => void submit().catch(globalThis.reportError) }}
       testKey="firstRunPersonaDialog"
       title="Who are you in the story?"
@@ -187,7 +187,7 @@ export function FirstRunPersonaDialog(): ReactElement | null {
         <Input autoComplete="off" value={name} onValueChange={(value): void => setName(value)} data-testid={testId("firstRunPersonaName")} />
       </Field>
       {/* An always-visible description, not a hint tooltip: 2+ hints would duplicate accessible names. */}
-      <Field label="Description" description="Optional — how characters should picture you.">
+      <Field label="Description" description="Optional: how characters should picture you.">
         <Textarea value={description} onChange={(event): void => setDescription(event.target.value)} />
       </Field>
     </RequiredFormDialog>

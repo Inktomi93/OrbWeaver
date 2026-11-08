@@ -45,7 +45,7 @@ export function namedGroupRoom<const TRow extends { readonly title: string | nul
 export const SHELL_STORIES = "tests/client/features/app-shell/surfaces/_app-shell-stories";
 
 /** The ⌘K chip's accessible name leads with the word and carries the platform shortcut after it. */
-export const JUMP_CHIP = /^Jump — the command menu \(/u;
+export const JUMP_CHIP = /^Jump, the command menu \(/u;
 
 export const PHONE = { width: 390, height: 844 } as const;
 

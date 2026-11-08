@@ -16,7 +16,7 @@ import { useToastManager } from "@orb/ui/toast";
 import { useEffect } from "react";
 
 /** The nudge a stray drop earns — a silent swallow reads as the app ignoring the file entirely. */
-const STRAY_DROP_HINT = "Nothing imports from here — drop the file on an import zone.";
+const STRAY_DROP_HINT = "Nothing imports from here. Drop the file on an import zone.";
 
 function carriesFiles(event: DragEvent): boolean {
   return event.dataTransfer?.types.includes("Files") ?? false;

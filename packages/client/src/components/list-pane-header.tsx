@@ -129,6 +129,7 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
         <OverflowActions
           actions={actions.map((action) => ({ id: action.id, inline: action.inline, menu: <OverflowMenuForms forms={action.menu} /> }))}
           gap="field"
+          keeps="trailing"
           label={BAND_OVERFLOW_LABEL}
           slot="list-pane-action"
         />

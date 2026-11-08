@@ -53,7 +53,7 @@ export function PersonaAccountFoot(): ReactElement {
             // still work); a successful one navigates away and the reset is moot.
             signOut().catch((): void => {
               setSigningOut(false);
-              notify.error("Couldn't sign out — try again.");
+              notify.error("Couldn't sign out. Try again.");
             });
           }}
         >

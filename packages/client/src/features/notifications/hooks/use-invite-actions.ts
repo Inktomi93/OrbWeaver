@@ -13,7 +13,7 @@ type AcceptResult = inferOutput<Trpc["invites"]["acceptInvite"]>;
 export const useAcceptInvite = createEntityMutation<inferInput<Trpc["invites"]["acceptInvite"]>, AcceptResult>({
   options: (trpc) => trpc.invites.acceptInvite.mutationOptions(),
   invalidates: (trpc) => [trpc.chat.listChats.pathFilter()],
-  errorToast: "Couldn't join — the invite is invalid or expired.",
+  errorToast: "Couldn't join. The invite is invalid or expired.",
 });
 
 export const useDeclineInvite = createEntityMutation<inferInput<Trpc["invites"]["declineInvite"]>, unknown>({

@@ -48,10 +48,10 @@ type InputBase = `userMacros[${number}].inputs[${number}]`;
 // ── the editor's own select vocabularies (WAVE MU) — derived from the kit tuples, never re-spelled ──
 
 const USER_MACRO_INPUT_KIND_LABELS: Record<UserMacroInputKind, string> = {
-  "single-select": "Single select — pick one option",
-  "boolean-toggle": "Toggle — on/off",
-  "multi-select": "Multi select — pick several, joined",
-  "random-pick": "Random pick — draw one from your pool each turn",
+  "single-select": "Single select: pick one option",
+  "boolean-toggle": "Toggle: on/off",
+  "multi-select": "Multi select: pick several, joined",
+  "random-pick": "Random pick: draw one from your pool each turn",
 };
 const USER_MACRO_INPUT_KIND_ITEMS: SelectItems = USER_MACRO_INPUT_KINDS.map((value) => ({
   value,
@@ -116,7 +116,7 @@ export function UserMacroEditorDialog({ form, index, onClose, suggestions }: Use
           {(name): ReactElement | null =>
             BUILTIN_REGISTRY.get(name) !== undefined ? (
               <Text tone="warning" voice="gloss">
-                “{name}” is a built-in macro — user macros never shadow one, so this definition will be refused.
+                “{name}” is a built-in macro. User macros never shadow one, so this definition will be refused.
               </Text>
             ) : null
           }
@@ -160,7 +160,7 @@ function ArgList({ form, index }: { readonly form: UserMacroEditorForm; readonly
   return (
     <Section heading="Arguments">
       <Text ink="muted" voice="gloss">
-        Positional args a call passes ({"{{name::a::b}}"}) — each binds by name inside the template. Optional args must come last.
+        Positional args a call passes ({"{{name::a::b}}"}). Each binds by name inside the template. Optional args must come last.
       </Text>
       <form.Subscribe selector={(state): UserMacrosFormValues => state.values}>
         {(values): ReactElement => (
@@ -231,7 +231,7 @@ function InputList({ form, index }: { readonly form: UserMacroEditorForm; readon
   return (
     <Section heading="Inputs">
       <Text ink="muted" voice="gloss">
-        Typed controls each user answers per turn — the pick binds by name inside the template. Random pick draws one from the selected pool every generation
+        Typed controls each user answers per turn. The pick binds by name inside the template. Random pick draws one from the selected pool every generation
         (swipes replay the same draw).
       </Text>
       <form.Subscribe selector={(state): UserMacrosFormValues => state.values}>

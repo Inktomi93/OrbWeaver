@@ -1,5 +1,6 @@
-// Keyboard arrival into a list surface lands on the LIST band's first control, so a forward Tab runs New, then the search
-// field, then the rows. Each case arrives through the rail the way a keyboard user does, on the production section registry.
+// Keyboard arrival into a list surface lands on the LIST band's first control, so a forward Tab runs the band's door to New
+// (New itself, or the menu that holds it when the pane has no room for it), then the search field, then the rows. Each case
+// arrives through the rail the way a keyboard user does, on the production section registry.
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -54,10 +55,10 @@ function focusRegion(page: Page): Promise<"band" | "body" | "elsewhere"> {
   );
 }
 
-const STOP_KINDS = ["band-action", "new", "search", "row", "other"] as const;
+const STOP_KINDS = ["band-action", "new", "fold", "search", "row", "other"] as const;
 type StopKind = (typeof STOP_KINDS)[number];
 
-/** What the focused control is in the list pane's tab order: a band action (New apart), the search field, a row's control, or anything else. */
+/** What the focused control is in the list pane's tab order: a band action (New and the fold's menu apart), the search field, a row's control, or anything else. */
 function stopKind(page: Page): Promise<StopKind> {
   return page.evaluate(() => {
     const active = document.activeElement;
@@ -65,6 +66,9 @@ function stopKind(page: Page): Promise<StopKind> {
       return "other";
     }
     if (active.closest('[data-slot="list-pane-action"]') !== null) {
+      if (active.getAttribute("data-slot") === "overflow-actions-trigger") {
+        return "fold";
+      }
       const label = active.getAttribute("aria-label") ?? active.textContent.trim();
       return /^New\b/u.test(label) ? "new" : "band-action";
     }
@@ -96,10 +100,12 @@ for (const section of SECTIONS) {
       stops.push(await stopKind(page));
     }
     // Arrival is the band's own control, never the surface root a Tab would start past the band from.
-    expect(["band-action", "new"]).toContain(stops[0]);
+    expect(["band-action", "new", "fold"]).toContain(stops[0]);
+    // The door to New is New itself, or the fold's menu when the pane has no room for it; the band's name stays whole.
+    const door = stops.includes("new") ? stops.indexOf("new") : stops.indexOf("fold");
     // Every kind is reached, so the order below is a comparison of real stops and not of missing ones.
-    expect([stops.indexOf("new"), stops.indexOf("search"), stops.indexOf("row")]).not.toContain(-1);
-    expect(stops.indexOf("new")).toBeLessThan(stops.indexOf("search"));
+    expect([door, stops.indexOf("search"), stops.indexOf("row")]).not.toContain(-1);
+    expect(door).toBeLessThan(stops.indexOf("search"));
     expect(stops.indexOf("search")).toBeLessThan(stops.indexOf("row"));
   });
 }

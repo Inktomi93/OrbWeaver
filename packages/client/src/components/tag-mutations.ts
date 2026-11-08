@@ -8,7 +8,7 @@ import { createEntityMutation } from "#data";
 import { trpcErrorCode } from "#lib";
 
 /** The toast for a create the name index refused. */
-export const CREATE_TAG_CONFLICT_TOAST = "Couldn't create the tag — that name may already be in use.";
+export const CREATE_TAG_CONFLICT_TOAST = "Couldn't create the tag. That name may already be in use.";
 
 /** The server's case-folded name index refused the create (`DomainConflictError` → CONFLICT). Keyed on the
  *  structured code, never message text. */

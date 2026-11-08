@@ -13,6 +13,10 @@ const STEP_MS = 1000;
 async function person(root: ServerTestHarness, name: string): Promise<PersonaId> {
   // The injected clock stamps one instant, so each persona is a moment apart for "newest" to mean something.
   root.clock.advance(STEP_MS);
+  return await personaNow(root, name);
+}
+
+async function personaNow(root: ServerTestHarness, name: string): Promise<PersonaId> {
   const created = await root.services.persona.create({
     principal: await root.principalFor(root.ownerId),
     input: createPersonaSchema.parse({ name, description: `${name} description.` }),
@@ -63,6 +67,24 @@ test("removing the default persona points the default at the last-played persona
 
   expect(removed.newDefaultPersonaId).toBe(lastPlayed);
   expect(await pointers(root)).toEqual({ current: lastPlayed, default: lastPlayed });
+});
+
+test("personas minted in one instant list newest-id first, and the first survivor is the persona a deleted default moves to", async () => {
+  await using root = await createServerHarness();
+  // No clock step between the mints, so only the tie-break orders them.
+  await personaNow(root, "TiedA");
+  await personaNow(root, "TiedB");
+  const doomed = await personaNow(root, "TiedDoomed");
+  await personaNow(root, "TiedC");
+  await point(root, { defaultPersonaId: doomed });
+  const principal = await root.principalFor(root.ownerId);
+  const before = (await root.services.persona.list({ principal })).map((persona) => persona.id);
+  expect(before).toEqual(before.toSorted().toReversed());
+  const survivors = before.filter((id) => id !== doomed);
+
+  const removed = await remove(root, doomed);
+
+  expect(removed.newDefaultPersonaId).toBe(survivors[0]);
 });
 
 test("removing a persona that is not the default reports no default move", async () => {

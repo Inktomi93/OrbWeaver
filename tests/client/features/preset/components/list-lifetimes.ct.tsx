@@ -122,10 +122,10 @@ test("native nested lists preserve typing and successor bindings, retain own ech
     .getByRole("button", { name: "Remove", exact: true })
     .click();
   await dialog.getByRole("combobox", { name: "Kind", exact: true }).first().click();
-  await page.getByRole("option", { name: "Toggle — on/off", exact: true }).click();
+  await page.getByRole("option", { name: "Toggle: on/off", exact: true }).click();
   await expect(dialog.locator('input[name="userMacros[0].inputs[0].options[0].label"]')).toHaveCount(0);
   await dialog.getByRole("combobox", { name: "Kind", exact: true }).first().click();
-  await page.getByRole("option", { name: "Single select — pick one option", exact: true }).click();
+  await page.getByRole("option", { name: "Single select: pick one option", exact: true }).click();
   await expect(dialog.locator('input[name="userMacros[0].inputs[0].options[0].label"]')).toHaveValue("Beta");
   await dialog.getByRole("group", { name: "Macro input 1", exact: true }).getByRole("button", { name: "Remove", exact: true }).first().click();
   await expect(dialog.locator('input[name="userMacros[0].inputs[0].name"]')).toHaveValue("second_input");
@@ -176,16 +176,16 @@ test("native nested lists preserve typing and successor bindings, retain own ech
 
   failSaves = true;
   await remaining.fill("Louder draft");
-  await expect(page.getByText("Save failed —", { exact: true })).toBeVisible();
+  await expect(page.getByText("Save failed.", { exact: true })).toBeVisible();
   await component.update({ presetId, mounted: false });
   await component.update({ presetId });
   await page.getByRole("button", { name: "cohort_variable", exact: true }).click();
   await expect(remaining).toHaveValue("Louder draft");
-  await expect(page.getByText("Restored draft — not saved", { exact: true })).toBeVisible();
+  await expect(page.getByText("Restored draft, not saved", { exact: true })).toBeVisible();
   await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toHaveCount(0);
   await variable.getByRole("button", { name: "Done", exact: true }).click();
   await page.getByRole("button", { name: AUTOSAVE_RESUME_NAME, exact: true }).press("Enter");
-  await expect(page.getByText("Save failed —", { exact: true })).toBeVisible();
+  await expect(page.getByText("Save failed.", { exact: true })).toBeVisible();
   failSaves = false;
   await page.getByRole("button", { name: "Retry", exact: true }).press("Enter");
   await expect(page.getByText(AUTOSAVE_SAVED_TEXT, { exact: true })).toBeVisible();
@@ -197,7 +197,7 @@ test("native nested lists preserve typing and successor bindings, retain own ech
   failSaves = true;
   await page.getByRole("button", { name: "cohort_variable", exact: true }).click();
   await remaining.fill("Obsolete draft");
-  await expect(page.getByText("Save failed —", { exact: true })).toBeVisible();
+  await expect(page.getByText("Save failed.", { exact: true })).toBeVisible();
   await component.update({ presetId, mounted: false });
   await editElsewhere(caller, presetId, (config) => ({
     ...config,

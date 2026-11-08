@@ -238,7 +238,7 @@ test("the ⌘K chip paints no text, and its name and description carry Jump and 
   await expect(chip).toHaveText("");
   await expect(chip.locator("svg")).toHaveCount(1);
   const shortcut = commandShortcutLabel(await page.evaluate(() => navigator.userAgent));
-  await expect(chip).toHaveAccessibleName(`Jump — the command menu (${shortcut})`);
+  await expect(chip).toHaveAccessibleName(`Jump, the command menu (${shortcut})`);
   await expect(chip).toHaveAccessibleDescription(`Jump to… ${shortcut}`);
 });
 

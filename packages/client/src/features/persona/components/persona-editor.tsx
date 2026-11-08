@@ -152,7 +152,7 @@ function PersonaEditorBody({ session, persona, onDelete, nextDefaultName }: Pers
           </form.AppField>
           <form.AppField name="title">
             {(field): ReactElement => (
-              <field.TextField label="Title" hint="A display subtitle for pickers — never injected into the prompt." placeholder="Optional" />
+              <field.TextField label="Title" hint="A display subtitle for pickers. It is never injected into the prompt." placeholder="Optional" />
             )}
           </form.AppField>
           <AutosaveStatus state={session.status} onRetry={session.retrySave} />

@@ -79,7 +79,7 @@ test.describe("on a phone", () => {
     await routeRoom(page, corpus, await root.internalCallerFor(root.ownerId));
     await mount<typeof AppShellStory>(STORY, {});
     await page.locator(".shell-rail").getByRole("button", { name: "You", exact: true }).click();
-    const rows = page.locator('[data-slot="drawer-popup"] [data-switch-row]');
+    const rows = page.locator('[data-slot="drawer-popup"] [data-slot="persona-switch-row"]');
     await expect(rows.first()).toBeVisible();
     const floor = await resolvedLength(page, `var(${TOKENS["size.control-md"].cssVar})`);
 

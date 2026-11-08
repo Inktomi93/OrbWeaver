@@ -30,7 +30,7 @@ export function makeHomeSection(tiles: ContributorRegistry<HomeTileContribution>
     panelDefaults: { list: "collapsed", context: "collapsed" },
     placeholder: {
       title: "Home",
-      description: "Your landing — recent threads, quick jumps, and whatever you keep here.",
+      description: "Your landing: recent threads, quick jumps, and whatever you keep here.",
     },
     content: () => <HomeSurface onNewChat={openNewChatPicker} tiles={tiles} />,
     context: { kind: "none" },

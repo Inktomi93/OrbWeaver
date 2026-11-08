@@ -110,7 +110,7 @@ export function MessageMedia({
   if (gated) {
     return (
       <button type="button" onClick={requestLoad} className={fallbackClass} style={aspectStyle} data-slot="message-media-placeholder">
-        External media — load from {hostOf(src.url)}?
+        External media: load from {hostOf(src.url)}?
       </button>
     );
   }
