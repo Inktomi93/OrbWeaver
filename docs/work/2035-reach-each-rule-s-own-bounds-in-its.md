@@ -1,7 +1,7 @@
 ---
 kind: work
 status: open
-updated: 2026-11-07
+updated: 2026-11-08
 priority: P3
 area: tooling
 plan: test-foundation
@@ -19,7 +19,7 @@ A rule's depth, keyword list and exemptions can shrink with its table green.
 
 ## Done when
 
-Each row fails on its stated counterexample, and every file stays inside the default budget.
+Each row fails on its stated counterexample and every file stays inside the default budget. The real router record lookup in the ct-responder row moves to item 2073, because the real program costs more than the default budget.
 
 ## Evidence
 
