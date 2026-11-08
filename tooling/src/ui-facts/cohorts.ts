@@ -2,8 +2,8 @@
 
 import type { Elem, FileFacts } from "../eslint/index.ts";
 import { attrString, buttonWithText, childrenText, DESTRUCTIVE_EXEMPT, firstLine, hasAny, insideTag } from "../eslint/index.ts";
-import type { Cell, Cohort, Member } from "./compare.ts";
-import { NOT_APPLICABLE } from "./compare.ts";
+import type { Cell, Cohort, Member } from "../floor/verdict/cohort-compare.ts";
+import { NOT_APPLICABLE } from "../floor/verdict/cohort-compare.ts";
 
 const cell = (value: string, line: number): Cell => ({ value, line });
 const yesNo = (flag: boolean): string => (flag ? "yes" : "no");

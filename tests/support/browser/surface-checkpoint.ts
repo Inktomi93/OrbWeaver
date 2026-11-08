@@ -1,14 +1,16 @@
+import type { RawSamples } from "@orb/tooling/ui-audit";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
-import type { Locator, TestInfo, TestStepInfo } from "@playwright/test";
+import type { Locator, Page, TestInfo, TestStepInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { SurfacePass } from "../iso/surface-pass.ts";
 import { attachNativeFile } from "../node/native-attachments.ts";
 import type { SurfaceAuditRequest } from "../node/surface-audit.ts";
 import { accessibilityScan } from "./accessibility-scan.ts";
 import { actionGroupGeometry } from "./action-group-geometry.ts";
+import { enlargedTextFindings } from "./enlarged-text-geometry.ts";
 import { readCheckpointStability } from "./layout-stability.ts";
 import { assertSurfaceReady, auditSurface } from "./settle-surface.ts";
-import { readSurfaceDesignAudit } from "./surface-design-audit.ts";
+import { readSurfaceCohortRenders, readSurfaceDesignAudit } from "./surface-design-audit.ts";
 import { publishSurfaceInventory } from "./surface-inventory.ts";
 import { touchTargetFindings } from "./touch-floor.ts";
 import { readWebVitals } from "./web-vitals.ts";
@@ -18,10 +20,17 @@ export interface SurfaceActionGroup {
   readonly actions: readonly Locator[];
 }
 
+/** An enlarged-text profile: the root font size its document must resolve before its geometry is judged. */
+export interface SurfaceTextGeometry {
+  readonly expectedRootFontPx: number;
+}
+
 export interface SurfaceCheckpointPosture {
   readonly pass: SurfacePass;
   /** Sample the witnesses across the post-ready settle window; only the layout-stability matrix pays its cost. */
   readonly layoutStability: boolean;
+  /** Judge enlarged-text geometry in either pass; null outside an enlarged-text profile. */
+  readonly textGeometry: SurfaceTextGeometry | null;
 }
 
 /** Collect native evidence only after the checkpoint's declared subject has actually rendered. */
@@ -29,14 +38,12 @@ export async function surfaceCheckpoint(
   info: TestInfo,
   request: SurfaceAuditRequest,
   groups: readonly SurfaceActionGroup[] = [],
-  { pass, layoutStability }: SurfaceCheckpointPosture = { pass: "evidence", layoutStability: false },
+  { pass, layoutStability, textGeometry }: SurfaceCheckpointPosture = { pass: "evidence", layoutStability: false, textGeometry: null },
 ): Promise<void> {
   await test.step(`Checkpoint: ${request.name}`, async (step) => {
     const page = request.scope.page();
     await assertCheckpointReady(info, request);
-    if (layoutStability) {
-      await checkpointStability(info, step, request);
-    }
+    await profileMeasures(info, step, request, { layoutStability, textGeometry });
     const vitals = await readWebVitals(page, pass === "evidence");
     await attachNativeFile(info, step, `${request.name}-web-vitals`, { body: JSON.stringify(vitals, null, 2), contentType: "application/json" });
     step.annotations.push({
@@ -140,8 +147,78 @@ export async function surfaceCheckpoint(
           { params: { findings } },
         );
       }
+      await cohortRenders(info, designStep, { name: request.name, page, samples: design.samples });
     });
   });
+}
+
+// The measures only a profile's own projects pay for, in either pass.
+async function profileMeasures(
+  info: TestInfo,
+  step: TestStepInfo,
+  request: SurfaceAuditRequest,
+  { layoutStability, textGeometry }: Pick<SurfaceCheckpointPosture, "layoutStability" | "textGeometry">,
+): Promise<void> {
+  if (layoutStability) {
+    await checkpointStability(info, step, request);
+  }
+  if (textGeometry !== null) {
+    await checkpointTextGeometry(info, step, request, textGeometry);
+  }
+}
+
+async function checkpointTextGeometry(
+  info: TestInfo,
+  step: TestStepInfo,
+  request: SurfaceAuditRequest,
+  { expectedRootFontPx }: SurfaceTextGeometry,
+): Promise<void> {
+  const page = request.scope.page();
+  const rootFontPx = await page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize));
+  // A profile the document did not take measures default text; that is no enlarged-text verdict at all.
+  expect(rootFontPx, `${request.name}: the enlarged-text profile must reach the checkpoint's document`).toBe(expectedRootFontPx);
+  const shellRegime = await page.evaluate((desktop) => (matchMedia(desktop).matches ? "desktop" : "mobile"), MEDIA_QUERIES["shell-desktop"]);
+  // While a content swap's view transition runs, its pseudo-element overlay takes every hit test in the captured pane,
+  // so a centre probe reads the document root as the cover. Probe once the swap's own animations have ended.
+  const swapRunning = async (): Promise<boolean> =>
+    await page.evaluate(() =>
+      document.getAnimations().some(({ effect }) => effect instanceof KeyframeEffect && effect.pseudoElement?.startsWith("::view-transition") === true),
+    );
+  const swapAtReadiness = await swapRunning();
+  await expect.poll(swapRunning, { message: `${request.name}: the content swap's view transition must end before its hit tests are read` }).toBe(false);
+  const findings = await enlargedTextFindings(request.scope);
+  await attachNativeFile(info, step, `${request.name}-text-geometry`, {
+    body: JSON.stringify({ rootFontPx, shellRegime, swapAtReadiness, viewport: page.viewportSize(), findings }, null, 2),
+    contentType: "application/json",
+  });
+  step.annotations.push({
+    type: "text-geometry",
+    description: `Enlarged-text geometry over the checkpoint scope; root font=${String(rootFontPx)}px; shell regime=${shellRegime}; findings=${String(findings.length)}`,
+  });
+  expect.soft(findings, `${request.name}: enlarged-text geometry findings; inspect the text-geometry attachment`).toEqual([]);
+}
+
+// The rendered cohort layer: every member's box and band fingerprints are retained; only a divergent cohort fails.
+async function cohortRenders(
+  info: TestInfo,
+  step: TestStepInfo,
+  { name, page, samples }: { readonly name: string; readonly page: Page; readonly samples: RawSamples },
+): Promise<void> {
+  const renders = await readSurfaceCohortRenders(page, samples);
+  await attachNativeFile(info, step, `${name}-cohort-renders`, { body: JSON.stringify(renders, null, 2), contentType: "application/json" });
+  const count = (verdict: string): number => renders.cohorts.filter((cohort) => cohort.verdict === verdict).length;
+  const members = renders.cohorts.flatMap((cohort) => cohort.members);
+  const incomplete = members.filter(({ fingerprint }) => fingerprint.status === "incomplete").length;
+  step.annotations.push({
+    type: "cohort-renders",
+    description: `Census cohorts with member boxes and edge and fill band fingerprints; cohorts=${String(renders.cohorts.length)}; divergent=${String(count("divergent"))}; uniform=${String(count("uniform"))}; no-verdict=${String(count("no-verdict"))}; measured members=${String(members.length - incomplete)}; incomplete members=${String(incomplete)}${renders.error === null ? "" : `; census or screenshot error=${renders.error}`}`,
+  });
+  for (const cohort of renders.cohorts.filter(({ verdict }) => verdict === "divergent")) {
+    const outliers = cohort.comparisons.flatMap((comparison) => comparison.outliers);
+    expect
+      .soft(outliers, `${name}: cohort ${cohort.cohortKey} under ${cohort.parent} has members that render differently; inspect the cohort-renders attachment`)
+      .toEqual([]);
+  }
 }
 
 async function checkpointStability(info: TestInfo, step: TestStepInfo, request: SurfaceAuditRequest): Promise<void> {

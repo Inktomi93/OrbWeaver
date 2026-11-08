@@ -23,14 +23,15 @@
 //      patchSheet / upsertQuest / updateConfig / addJournalEntry). Driving each over the API and cross-checking
 //      FE=BE=DB proves the write→read→render seam for EVERY plane WITHOUT depending on the small 8B decomposing
 //      that plane (the honest-arms ceiling, plan-for-small-hardware). This is the bulk of the coverage.
-//   2. THE LIVE LOOP (real inference). The character turn (tool-less prose) + the dedicated post-commit STATE
-//      ROUND (the born `folded` fold AND the `cheap` tool-round arm) + steering (the tracked state
-//      reaches the prompt via the reminder AND the prose reacts). Where the 8B under-decomposes a plane that is
-//      model-bounded coverage, NOT a code defect — but the writes that DO land must be FE=BE=DB consistent.
+//   2. THE RECORDED LOOP (a real model's streams, replayed). The character turn (tool-less prose) + the dedicated
+//      post-commit STATE ROUND (the born `folded` fold AND the `cheap` tool-round arm) + steering (the tracked state
+//      reaches the prompt via the reminder). The recorded round either wrote a plane or left the state alone; the
+//      writes that DO land must be FE=BE=DB consistent.
 //
-// PROVIDER: the hand-plane specs bind `chat` to a provider tape peer (support/tape-provider.ts) that declares no
-// steps, so routine e2e runs them with no engine and any provider request they send fails the case. The two loop
-// specs stay opt-in (`@live`, E2E_LIVE=1) on the local engine until their tapes are recorded.
+// PROVIDER: every case binds `chat` to a provider tape peer (support/tape-provider.ts), so routine e2e runs with
+// no engine. The hand-plane cases declare no steps, so any provider request they send fails the case. The two loop
+// cases play `RPG_LOOP_JOURNEYS` tapes, one step per request, and production parses the recorded stream.
+// `pnpm e2e:tapes:record` re-records them. The one optional live smoke lives in guided-generations.spec.ts.
 //
 // SEED (owner rule): NEVER seed the "Mira" character in a live-inference seed — she destabilizes the 8B →
 // flaky asserts. Each spec mints its OWN spec-owned chatless probe card (Thornwick) on a fresh chat.
@@ -40,6 +41,7 @@ import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { nonEmpty } from "@orb/testkit/iso";
+import { RPG_LOOP_JOURNEYS } from "@orb/testkit/node/helpers";
 import { pageArray } from "@orb/tooling/floor/browser/page-validate";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
@@ -79,17 +81,16 @@ import {
   mintFreshCharacter,
   patchActor,
   patchSheet,
-  pinChatToLocalEngine,
   pinChatToTape,
   removeCharacter,
   requireWireCaptures,
-  restoreChatBinding,
   restoreCheckpoint,
   setChatBinding,
   setExtractionMode,
   setGameFeatures,
   setTrackers,
   startChat,
+  TAPE_PROVIDER_ID,
   upsertQuest,
 } from "./support/trpc.ts";
 
@@ -144,21 +145,8 @@ async function characterActor(chatId: ChatId, characterId: CharacterId): Promise
   return found;
 }
 
-// The live loop specs bind the harness's local engine until their tapes are recorded.
-const LOCAL_ENGINE = "local-engine";
-
-async function pinChatTo(target: TapeProvider | typeof LOCAL_ENGINE): Promise<() => Promise<void>> {
-  if (target !== LOCAL_ENGINE) {
-    return await pinChatToTape(target);
-  }
-  const prior = await pinChatToLocalEngine();
-  return async (): Promise<void> => {
-    await restoreChatBinding(prior);
-  };
-}
-
 /** Seed a fresh lite game on a virgin chat with a spec-owned character, with `chat` bound to the spec's tape
- *  connection or the local engine — the WRITE-CAPABLE pick the live loop needs (both offer `tools`, so the state
+ *  connection — the WRITE-CAPABLE pick the recorded loop needs (it declares `tools`, so the state
  *  round is eligible). Returns the ids + a cleanup handle that deletes the chat, removes the character AND
  *  restores the prior `chat` binding (the shared single-user rows). The chat is deleted explicitly because
  *  removing a character cascades its SEAT, not the chat row: a leaked chat stays in the shared DB, where a
@@ -166,9 +154,9 @@ async function pinChatTo(target: TapeProvider | typeof LOCAL_ENGINE): Promise<()
  *  handle) so serial specs never collide on the shared DB. */
 async function seedGame(
   handle: CharacterHandle,
-  target: TapeProvider | typeof LOCAL_ENGINE,
+  tape: TapeProvider,
 ): Promise<{ readonly chatId: ChatId; readonly characterId: CharacterId; readonly cleanup: () => Promise<void> }> {
-  const restoreBinding = await pinChatTo(target);
+  const restoreBinding = await pinChatToTape(tape);
   const characterId = await mintFreshCharacter(handle, GM_NAME, GM_GREETING);
   const chatId = await startChat([characterId]);
   await createLiteGame(chatId);
@@ -397,7 +385,7 @@ test("rpg-lite: a hand edit auto-locks (canon wins) and the delta reaches the ne
     // The DELTA reaches the next turn's reminder: a hand edit lands in the snapshot, so the prev→current diff
     // renders in the assembled prompt's steering reminder (the delta is snapshot-agnostic — a host tweak lands
     // in the fiction next turn, §2.7). We prove the reminder CARRIES the state via the wire capture on the next
-    // live turn in SPEC 3 (steering); here the deterministic proof is the persisted value the delta reads from.
+    // recorded turn in SPEC 3 (steering); here the deterministic proof is the persisted value the delta reads from.
     expect((await getTrackerView(chatId)).ambient?.location).toBe("The Sunken Vault");
     expect(await fetchDebugErrors()).toEqual([]);
   } finally {
@@ -406,19 +394,19 @@ test("rpg-lite: a hand edit auto-locks (canon wins) and the delta reaches the ne
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-// SPEC 3 — THE LIVE LOOP (born default): character turn → the turn's own state capture (or, on a wire that
+// SPEC 3 — THE RECORDED LOOP (born default): character turn → the turn's own state capture (or, on a wire that
 // cannot fold, the post-commit round) → flush → snapshot → bus emit → CP-4 re-render. Steering PROVEN via the wire capture (the tracked
-// state reached the prompt) + the canon landing. This is the real inference loop; model-bounded where noted.
+// state reached the prompt) + the canon landing. A loopback wire cannot fold, so the tape holds the character turn
+// and the post-commit state round, each played by its journey step.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
 const STATE_CHANGE_NARRATION =
   "I shove open the tavern door and stride out into the freezing night market of Ashfell, pulling my cloak tight. " +
   "Track this: my location is now the Ashfell Night Market, and I am Chilled from the cold. Narrate the scene.";
 
-test("rpg-lite (born default): a live character turn + state capture moves the snapshot and re-renders the panel", {
-  tag: "@live",
-}, async ({ page }) => {
+test("rpg-lite (born default): a recorded character turn + state capture moves the snapshot and re-renders the panel", async ({ page }) => {
   test.setTimeout(CASE_LIVE_LOOP_MS);
-  const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-default"), LOCAL_ENGINE);
+  await using tape = await startTapeProvider(RPG_LOOP_JOURNEYS.bornDefault.tape, RPG_LOOP_JOURNEYS.bornDefault.steps);
+  const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-default"), tape);
   try {
     // Pre-seed a KNOWN state so the reminder carries it into the turn's prompt (the steering proof): the model
     // reads a location the GM set, and the wire capture must contain it.
@@ -430,21 +418,21 @@ test("rpg-lite (born default): a live character turn + state capture moves the s
     await openNewestChat(page);
     await openGamePanel(page);
 
-    // The turn: one real Agent-SDK character turn.
+    // The turn: one character turn, played from the tape's first step.
     await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toBeVisible();
     const { assistantId } = await sendAndAwaitReply({ page, chatId }, STATE_CHANGE_NARRATION);
 
     // HOP RESULT (the turn ran): a new assistant row, never the seeded greeting, carries non-empty content.
     await expect(messageRow(page, assistantId)).toContainText(NON_WHITESPACE, { timeout: WAIT_SETTLE_MS });
 
-    // STEERING PROOF: the reminder carried the pre-seeded state into the provider prompt. On the local-engine
-    // connection the backend is `vllm` (chat-completions), so the capture body is the openai-compat `messages` array
+    // STEERING PROOF: the reminder carried the pre-seeded state into the provider prompt. The tape connection is a
+    // chat-completions endpoint, so the capture body is the openai-compat `messages` array
     // (NOT the agent-sdk `prompt`). Flatten every message's content and assert it carries the tracked location
     // AND the steering-reminder markers (the "Game state" block heading + the license line) — this proves the
     // tracked state REACHED the model (the reminder assembled the game-state block + license into the prompt).
     // The captures read oldest first, so the turn's own request leads any post-commit state round already sent.
-    const [turnCapture] = await requireWireCaptures(chatId, "vllm");
-    const messages = pageArray(turnCapture.body["messages"], "vllm wire capture messages");
+    const [turnCapture] = await requireWireCaptures(chatId, TAPE_PROVIDER_ID);
+    const messages = pageArray(turnCapture.body["messages"], "tape wire capture messages");
     const promptText = messages
       .map((m) => {
         const content = isPlainObject(m) ? m["content"] : undefined;
@@ -455,12 +443,12 @@ test("rpg-lite (born default): a live character turn + state capture moves the s
     expect(promptText).toContain("Game state");
 
     // HOP RESULT (state round → flush → snapshot): the persisted snapshot MOVES off the pre-seeded state as the
-    // extraction folds the beat. Poll (on a non-folding wire that is a SECOND model call after commit). The 8B is
-    // honest-arms bounded (plan-for-small-hardware): it USUALLY writes a beat, but a non-conforming / no-change
-    // extraction is a legitimate EMPTY delta — so a hard "must move" would be model-flaky. We give it a generous
-    // budget, then branch: if it moved, assert the DOM renders the SAME server-truth state (the full loop); if
+    // extraction folds the beat. Poll (on a non-folding wire that is a SECOND model call after commit). A
+    // non-conforming / no-change extraction is a legitimate EMPTY delta, so the case branches rather than
+    // demanding a move: if it moved, assert the DOM renders the SAME server-truth state (the full loop); if
     // it produced an empty delta, assert CANON WAS NOT CORRUPTED (the W1 backstop — the snapshot still resolves
     // clean, no error ring). Either way the loop is proven wired + steering reached the model (asserted above).
+    // The tape's state round carries a writing tool call (provider-tapes.int.test.ts), so a recorded run moves.
     let after: TrackerView = before;
     await expect
       .poll(
@@ -468,8 +456,7 @@ test("rpg-lite (born default): a live character turn + state capture moves the s
           after = await getTrackerView(chatId);
           // Settled once the barrier releases: EITHER the state moved (a beat / location / condition landed)
           // OR the extraction produced an empty delta and canon is intact (pre-seeded location still present).
-          // Both are terminal — the 8B empty-delta is an accepted honest-arms ceiling (plan-for-small-hardware),
-          // never a code defect. THE RULING SURVIVES; ITS INPUT CHANGED (#1493): the empty-delta arm used to be
+          // Both are terminal — an empty delta is an accepted outcome, never a code defect. THE RULING SURVIVES; ITS INPUT CHANGED (#1493): the empty-delta arm used to be
           // `(await fetchDebugErrors()).length === 0`, which is true on TICK ONE — an empty error ring is the
           // app's normal state, so this "wait for the flush" returned before the state round had run and every
           // assertion below raced it. The arm now OBSERVES the write boundary through the rpg flight recorder's
@@ -491,14 +478,14 @@ test("rpg-lite (born default): a live character turn + state capture moves the s
     // The ambient LOCATION is present in BOTH outcomes (pre-seeded, or model-changed) and renders AT REST as
     // static text on its edit button (display-at-rest, DESIGN §12.4.1) — the model-independent DOM witness.
     // Assert the rest text EQUALS the persisted snapshot location (never a stale frame): ONE unconditional
-    // parity assertion, both 8B outcomes covered.
+    // parity assertion, both outcomes covered.
     await openContextTab(page, "Scene");
     const sceneTab = page.locator('[data-slot="rpg-scene-tab"]');
     await expect(sceneTab).toBeVisible({ timeout: WAIT_SURFACE_MS });
     await expect(sceneTab.getByRole("button", { name: "Location value" })).toContainText(after.ambient?.location ?? "", { timeout: WAIT_SURFACE_MS });
 
     // The canon + chat-DB witness: the narration + reply committed as durable rows; no error ring entry (the
-    // HARD invariant — the loop ran clean regardless of whether the 8B decomposed a plane this run).
+    // HARD invariant — the loop ran clean whether or not the state round wrote a plane).
     const canon = await listCanon(chatId);
     expect(canon.some((m) => m.role === "user" && m.content.includes("Ashfell"))).toBe(true);
     expect(canon.some((m) => m.role === "assistant" && NON_WHITESPACE.test(m.content))).toBe(true);
@@ -511,16 +498,15 @@ test("rpg-lite (born default): a live character turn + state capture moves the s
 });
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-// SPEC 4 — THE LIVE LOOP (cheap): the state round rides the TOOL-ROUND arm (parallel tool calls) instead of the
+// SPEC 4 — THE RECORDED LOOP (cheap): the state round rides the TOOL-ROUND arm (parallel tool calls) instead of the
 // structured extraction. Same fold → same flush → same read-back. Proves the `cheap` delivery model wires end-
-// to-end; the 8B under-decomposes tools MORE than structured extraction (model-bounded), so we assert the loop
-// RAN clean (turn committed, no error ring, snapshot read-back is well-formed) rather than a specific plane.
+// to-end, so we assert the loop RAN clean (turn committed, no error ring, snapshot read-back is well-formed)
+// rather than a specific plane.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────────────
-test("rpg-lite (cheap): the tool-round state-round arm wires end-to-end without corrupting canon", {
-  tag: "@live",
-}, async ({ page }) => {
+test("rpg-lite (cheap): the tool-round state-round arm wires end-to-end without corrupting canon", async ({ page }) => {
   test.setTimeout(CASE_LIVE_LOOP_MS);
-  const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-cheap"), LOCAL_ENGINE);
+  await using tape = await startTapeProvider(RPG_LOOP_JOURNEYS.cheap.tape, RPG_LOOP_JOURNEYS.cheap.steps);
+  const { chatId, cleanup } = await seedGame(castId<CharacterHandle>("e2e-rpg-cheap"), tape);
   try {
     await setExtractionMode(chatId, "cheap");
     expect((await getGame(chatId)).extractionMode).toBe("cheap");
@@ -535,8 +521,8 @@ test("rpg-lite (cheap): the tool-round state-round arm wires end-to-end without 
     await expect.poll(async () => rpgRoundSettled(await fetchRpgTraces(chatId), "tool-round"), { timeout: WAIT_RPG_ROUND_MS, intervals: [1500] }).toBe(true);
     // The KEY invariant (the W1 canon-corruption backstop): whatever the tool round wrote, the snapshot read-back is
     // WELL-FORMED — a getTrackerView that RESOLVES proves the assembled snapshot passed the contract validation
-    // before insert; a corrupt row would throw here. A cheap round that writes nothing is an accepted 8B
-    // ceiling, NOT a defect — so we assert well-formedness (resolves + roster intact), never a specific write.
+    // before insert; a corrupt row would throw here. A cheap round that writes nothing is NOT a defect —
+    // so we assert well-formedness (resolves + roster intact), never a specific write.
     expect((await getTrackerView(chatId)).actors.length).toBeGreaterThan(0);
     const canon = await listCanon(chatId);
     expect(canon.some((m) => m.role === "assistant" && NON_WHITESPACE.test(m.content))).toBe(true);

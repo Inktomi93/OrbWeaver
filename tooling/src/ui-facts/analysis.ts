@@ -2,12 +2,12 @@
 
 import type { Hit, Source } from "../eslint/index.ts";
 import { componentTables, declaredVariants, factsOf, lengthTokensOf, loadSources, loadValueTokens, referencedClassConstants } from "../eslint/index.ts";
+import type { Cohort, Comparison } from "../floor/verdict/cohort-compare.ts";
+import { compareCohort } from "../floor/verdict/cohort-compare.ts";
 import type { SectionAdoption } from "./adoption.ts";
 import { adoptionBySection } from "./adoption.ts";
 import { buildContext, classifiable, classifySite, clusterKey } from "./classify.ts";
 import { buildCohorts } from "./cohorts.ts";
-import type { Cohort, Comparison } from "./compare.ts";
-import { compareCohort } from "./compare.ts";
 import type { Composition } from "./composition.ts";
 import { analyseComposition } from "./composition.ts";
 import { buildCopyCohorts } from "./copy.ts";
