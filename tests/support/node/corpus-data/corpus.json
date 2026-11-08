@@ -4250,6 +4250,7 @@
         "forkedAt": null,
         "anchorPersonaId": "persona_0000000000000000000000014j",
         "anchorState": "live",
+        "anchorOwnerHandle": null,
         "participants": [
           {
             "id": "chat_participant_000000000000000000000005nb",
@@ -6008,6 +6009,7 @@
         "forkedAt": null,
         "anchorPersonaId": "persona_0000000000000000000000014j",
         "anchorState": "live",
+        "anchorOwnerHandle": null,
         "participants": [
           {
             "id": "chat_participant_000000000000000000000006nf",
@@ -6135,6 +6137,7 @@
         "forkedAt": null,
         "anchorPersonaId": "persona_0000000000000000000000014j",
         "anchorState": "live",
+        "anchorOwnerHandle": null,
         "participants": [
           {
             "id": "chat_participant_000000000000000000000005nb",
@@ -6258,6 +6261,7 @@
         "forkedAt": null,
         "anchorPersonaId": "persona_0000000000000000000000014j",
         "anchorState": "live",
+        "anchorOwnerHandle": null,
         "participants": [
           {
             "id": "chat_participant_000000000000000000000005gg",
@@ -6358,6 +6362,7 @@
         "forkedAt": null,
         "anchorPersonaId": "persona_0000000000000000000000014j",
         "anchorState": "live",
+        "anchorOwnerHandle": null,
         "participants": [
           {
             "id": "chat_participant_000000000000000000000004sc",
@@ -6482,6 +6487,7 @@
         "forkedAt": null,
         "anchorPersonaId": "persona_0000000000000000000000014j",
         "anchorState": "live",
+        "anchorOwnerHandle": null,
         "participants": [
           {
             "id": "chat_participant_000000000000000000000004hc",
@@ -6605,6 +6611,7 @@
         "forkedAt": null,
         "anchorPersonaId": "persona_0000000000000000000000014j",
         "anchorState": "live",
+        "anchorOwnerHandle": null,
         "participants": [
           {
             "id": "chat_participant_0000000000000000000000046h",
@@ -6727,6 +6734,7 @@
         "forkedAt": null,
         "anchorPersonaId": "persona_0000000000000000000000014j",
         "anchorState": "live",
+        "anchorOwnerHandle": null,
         "participants": [
           {
             "id": "chat_participant_0000000000000000000000042s",
@@ -6849,6 +6857,7 @@
         "forkedAt": null,
         "anchorPersonaId": "persona_0000000000000000000000014j",
         "anchorState": "live",
+        "anchorOwnerHandle": null,
         "participants": [
           {
             "id": "chat_participant_0000000000000000000000040w",
@@ -7591,6 +7600,7 @@
         "forkedAt": null,
         "anchorPersonaId": "persona_0000000000000000000000014j",
         "anchorState": "live",
+        "anchorOwnerHandle": null,
         "participants": [
           {
             "id": "chat_participant_0000000000000000000000017e",
@@ -7691,6 +7701,7 @@
         "forkedAt": 1750000006000,
         "anchorPersonaId": "persona_0000000000000000000000014j",
         "anchorState": "live",
+        "anchorOwnerHandle": null,
         "participants": [
           {
             "id": "chat_participant_000000000000000000000001pr",
@@ -7791,6 +7802,7 @@
         "forkedAt": null,
         "anchorPersonaId": "persona_0000000000000000000000014j",
         "anchorState": "live",
+        "anchorOwnerHandle": null,
         "participants": [
           {
             "id": "chat_participant_00000000000000000000000296",
@@ -7891,6 +7903,7 @@
         "forkedAt": null,
         "anchorPersonaId": "persona_0000000000000000000000014j",
         "anchorState": "live",
+        "anchorOwnerHandle": null,
         "participants": [
           {
             "id": "chat_participant_000000000000000000000004hc",
@@ -8014,6 +8027,7 @@
         "forkedAt": null,
         "anchorPersonaId": "persona_0000000000000000000000014j",
         "anchorState": "live",
+        "anchorOwnerHandle": null,
         "participants": [
           {
             "id": "chat_participant_000000000000000000000004sc",
@@ -11474,6 +11488,7 @@
         "forkedAt": null,
         "anchorPersonaId": null,
         "anchorState": "none",
+        "anchorOwnerHandle": null,
         "participants": [
           {
             "id": "chat_participant_000000000000000000000000wp",
@@ -11591,6 +11606,7 @@
         "forkedAt": null,
         "anchorPersonaId": null,
         "anchorState": "none",
+        "anchorOwnerHandle": null,
         "participants": [
           {
             "id": "chat_participant_000000000000000000000000y4",

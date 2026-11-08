@@ -19,9 +19,9 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, SettingRowGroup, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { useReportSaveStatus } from "#forms";
+import { saveStateOf, useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
-import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
+import { envFloor, isOverridden } from "../lib/app-override-model.ts";
 import { MEDIA_TRUST_SUBCATEGORY } from "../lib/system-config-nav.ts";
 import { AdminOverrideField, AdminOverrideResetRow, AdminOverrideSwitch } from "./admin-override-field.tsx";
 
@@ -79,7 +79,7 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
 
   const bytes = toBytes(maxImageDraft);
   const dirty = bytes !== null && bytes !== resolved.maxImageBytes;
-  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null, dirty));
+  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null, { dirty, invalid: bytes === null }));
   const forbidOverridden = isOverridden(overrides.forbidExternalMedia);
   const trustOverridden = isOverridden(overrides.trustHtml);
   const interactiveOverridden = isOverridden(overrides.allowInteractiveCards);

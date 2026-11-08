@@ -3,8 +3,8 @@
 //
 // A decomposed pane stacks N self-owned sections; N stacked "Saved" footers is visual smear, and deleting
 // them outright leaves a write with no readout at all. So each section REPORTS its
-// save lifecycle here (four enum values per section id — never a callback, never a session) and the shell
-// renders ONE aggregate footer: error > blocked > saving > saved. The aggregate is READ-ONLY: retry belongs to the
+// save lifecycle here (one enum value per section id — never a callback, never a session) and the shell
+// renders ONE aggregate footer: error > blocked > unsaved > saving > saved. The aggregate is READ-ONLY: retry belongs to the
 // session that owns the edit (D41 — surface the failure where it happened; a broadcast retry would need
 // callbacks in a store), so an errored section renders its own inline retry at its anchor and the footer
 // only offers to JUMP there.
@@ -20,24 +20,30 @@ import { createGatedStore } from "./create-gated-store.ts";
 
 /** The save lifecycle a section reports. The tuple homes HERE rather than in `#forms` because the store
  *  that carries it is state-tier and state cannot import forms (`client-state-below-data`, no type-only
- *  exemption); `#forms`' `AutosaveSaveState` DERIVES from it (derive, don't re-declare). */
-/** `blocked` = the form is INVALID, so the save driver is holding the write on purpose (never a failure —
+ *  exemption); `#forms`' `AutosaveSaveState` DERIVES from it (derive, don't re-declare).
+ *
+ *  `blocked` = the form is INVALID, so the save driver is holding the write on purpose (never a failure —
  *  nothing was attempted). It exists because "Saved" over a withheld write is the one status that is
  *  actively false: the over-cap prose refusal held the write while both editors' `[role=status]` still read
  *  "Saved" (side-eye PROSE-LIMIT P2). The BADGE/field error is the reason; the
- *  status line is the STATE, and it is also the live-region announcement a screen-reader user gets. */
-/** `unreadable` = the entity's STORED blob could not be read, so the server refuses every write derived
+ *  status line is the STATE, and it is also the live-region announcement a screen-reader user gets.
+ *
+ *  `unsaved` = a VALID draft waiting on the reader's explicit Save. Nothing is wrong and nothing was
+ *  attempted: the write is the reader's to send. It is not `blocked` — that copy says the form needs a fix,
+ *  which is false here, and the autosave panes that produce `blocked` have no Save button to wait on.
+ *
+ *  `unreadable` = the entity's STORED blob could not be read, so the server refuses every write derived
  *  from it (`stored_config_unreadable`, the #471/#1026 guard) and the driver never even attempts one. It is
  *  a fifth state and not an `error` because the two demand opposite affordances: `error` owns Retry, and a
  *  retry here CANNOT succeed — the bytes are what they are. Before #1716 this rendered as a defaults-looking
  *  form that said "Saved" until the user typed, then a generic failure with a Retry that failed forever. */
-export const SAVE_LIFECYCLE_STATES = ["saved", "saving", "blocked", "error", "unreadable"] as const;
+export const SAVE_LIFECYCLE_STATES = ["saved", "saving", "unsaved", "blocked", "error", "unreadable"] as const;
 export type SaveLifecycleState = (typeof SAVE_LIFECYCLE_STATES)[number];
 
 interface SettingsSaveStatusState {
   /** section id → its last reported lifecycle state. */
   readonly states: Readonly<Record<string, SaveLifecycleState>>;
-  /** The precedence fold error \> blocked \> saving \> saved, or `null` when nothing has reported. */
+  /** The precedence fold error \> blocked \> unsaved \> saving \> saved, or `null` when nothing has reported. */
   readonly aggregate: SaveLifecycleState | null;
   /** The reporting sections currently in `error`, in report order — the nav markers + the footer's jump. */
   readonly erroredIds: readonly string[];
@@ -45,33 +51,43 @@ interface SettingsSaveStatusState {
    *  separate from `erroredIds` because the two are different facts and the copy differs: a failed write is
    *  urgent and retryable, a held one is waiting on the author. */
   readonly blockedIds: readonly string[];
+  /** The reporting sections currently `unsaved`, in report order — the footer's jump to a pending draft. */
+  readonly unsavedIds: readonly string[];
 }
 
 const EMPTY_IDS: readonly string[] = [];
 
-/** unreadable \> error \> blocked \> saving \> saved. `blocked` outranks `saving` because a save in flight
- *  settles by itself and a held one never does — the aggregate must name the state that needs a person.
- *  `unreadable` outranks even `error` because it EXPLAINS the errors underneath it: when the stored blob
- *  cannot be read every section refuses identically, and naming a retryable failure over a refusal that no
- *  retry can clear is the wrong verb on the loudest line (#1716). It carries no id list on purpose — the
- *  condition is the whole blob's, so every reporting section is in it and there is nothing to jump TO. */
-function foldAggregate(states: Readonly<Record<string, SaveLifecycleState>>): Pick<SettingsSaveStatusState, "aggregate" | "erroredIds" | "blockedIds"> {
+/** unreadable \> error \> blocked \> unsaved \> saving \> saved. `blocked` outranks `saving` because a save in
+ *  flight settles by itself and a held one never does — the aggregate must name the state that needs a person.
+ *  `unsaved` sits below `blocked` (an invalid field cannot be saved at all) and above `saving` (the reader's
+ *  Save press is still owed). `unreadable` outranks even `error` because it EXPLAINS the errors underneath
+ *  it: when the stored blob cannot be read every section refuses identically, and naming a retryable failure
+ *  over a refusal that no retry can clear is the wrong verb on the loudest line (#1716). It carries no id list
+ *  on purpose — the condition is the whole blob's, so every reporting section is in it and there is nothing to
+ *  jump TO. */
+function foldAggregate(
+  states: Readonly<Record<string, SaveLifecycleState>>,
+): Pick<SettingsSaveStatusState, "aggregate" | "erroredIds" | "blockedIds" | "unsavedIds"> {
   const ids = Object.keys(states);
   if (ids.length === 0) {
-    return { aggregate: null, erroredIds: EMPTY_IDS, blockedIds: EMPTY_IDS };
+    return { aggregate: null, erroredIds: EMPTY_IDS, blockedIds: EMPTY_IDS, unsavedIds: EMPTY_IDS };
   }
   if (ids.some((id) => states[id] === "unreadable")) {
-    return { aggregate: "unreadable", erroredIds: EMPTY_IDS, blockedIds: EMPTY_IDS };
+    return { aggregate: "unreadable", erroredIds: EMPTY_IDS, blockedIds: EMPTY_IDS, unsavedIds: EMPTY_IDS };
   }
   const erroredIds = ids.filter((id) => states[id] === "error");
   const blockedIds = ids.filter((id) => states[id] === "blocked");
+  const unsavedIds = ids.filter((id) => states[id] === "unsaved");
   if (erroredIds.length > 0) {
-    return { aggregate: "error", erroredIds, blockedIds };
+    return { aggregate: "error", erroredIds, blockedIds, unsavedIds };
   }
   if (blockedIds.length > 0) {
-    return { aggregate: "blocked", erroredIds: EMPTY_IDS, blockedIds };
+    return { aggregate: "blocked", erroredIds: EMPTY_IDS, blockedIds, unsavedIds };
   }
-  return { aggregate: ids.some((id) => states[id] === "saving") ? "saving" : "saved", erroredIds: EMPTY_IDS, blockedIds: EMPTY_IDS };
+  if (unsavedIds.length > 0) {
+    return { aggregate: "unsaved", erroredIds: EMPTY_IDS, blockedIds: EMPTY_IDS, unsavedIds };
+  }
+  return { aggregate: ids.some((id) => states[id] === "saving") ? "saving" : "saved", erroredIds: EMPTY_IDS, blockedIds: EMPTY_IDS, unsavedIds: EMPTY_IDS };
 }
 
 const useSettingsSaveStatusStore = createGatedStore<SettingsSaveStatusState>("settings-save-status", () => ({
@@ -79,6 +95,7 @@ const useSettingsSaveStatusStore = createGatedStore<SettingsSaveStatusState>("se
   aggregate: null,
   erroredIds: EMPTY_IDS,
   blockedIds: EMPTY_IDS,
+  unsavedIds: EMPTY_IDS,
 }));
 
 // ── The write API — intent-named module actions (the store handle never escapes this file). ──
@@ -120,4 +137,10 @@ export function useErroredSaveSections(): readonly string[] {
  *  save". Same locate-don't-retry posture as `erroredIds` (D41): only the section itself can fix it. */
 export function useBlockedSaveSections(): readonly string[] {
   return useSettingsSaveStatusStore((s) => s.blockedIds);
+}
+
+/** The sections holding a valid draft for the reader's explicit Save — the footer's "jump to the section
+ *  waiting on you". Locate, never save: the press belongs to the section's own Save button. */
+export function useUnsavedSaveSections(): readonly string[] {
+  return useSettingsSaveStatusStore((s) => s.unsavedIds);
 }

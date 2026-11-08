@@ -51,14 +51,15 @@ function roomLabel(chat: ChatDetail): string {
   );
 }
 
-// Who the card's {{user}} is, in words. A held pin never says why its player is gone.
+// Who the card's {{user}} is, in words. A held pin names its player but never says why they are gone.
 function anchorLine(chat: ChatDetail, personas: readonly PersonaListItem[]): string {
   if (chat.anchorPersonaId === null) {
     return hasOtherHumans(chat) ? "Card follows the host's persona" : "Card follows your persona";
   }
   const name = personaLabel(chat, personas, chat.anchorPersonaId);
   if (chat.anchorState === "held") {
-    return `${name} is no longer in the room. The card still means ${name}.`;
+    const holder = chat.anchorOwnerHandle === null ? name : personaWithPlayer(name, chat.anchorOwnerHandle);
+    return `${holder} is no longer in the room. The card still means ${name}.`;
   }
   if (personas.some((p) => p.id === chat.anchorPersonaId)) {
     return `Card sees you as ${name}`;

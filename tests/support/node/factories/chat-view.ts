@@ -83,6 +83,7 @@ export function makeChatDetail(overrides: Partial<ChatDetailWire> = {}): ChatDet
       forkedAt: null,
       anchorPersonaId: null,
       anchorState: "none",
+      anchorOwnerHandle: null,
       participants: [participant],
       viewerActivePersonaId: null,
       viewerIsHost: true,

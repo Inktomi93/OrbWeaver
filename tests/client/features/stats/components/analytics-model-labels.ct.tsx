@@ -13,12 +13,23 @@ import type { AccountingCoverageStory } from "./_accounting-coverage-stories.tsx
 const STORY = "tests/client/features/stats/components/_accounting-coverage-stories/AccountingCoverageStory";
 const CHART = "Generations by model";
 const ELLIPSIS = "…";
-// Four releases of one vendor: the vendor prefix and the date suffix are shared across pairs.
-const ONE_PROVIDER_MODELS = [
-  "anthropic/claude-sonnet-4-5-20250929",
-  "anthropic/claude-sonnet-4-5-20251001",
-  "anthropic/claude-haiku-4-5-20251001",
-  "anthropic/claude-opus-4-1-20250805",
+const MODEL_SETS = [
+  {
+    // Four releases of one vendor: the vendor prefix and the date suffix are shared across pairs.
+    name: "releases of one provider",
+    ids: [
+      "anthropic/claude-sonnet-4-5-20250929",
+      "anthropic/claude-sonnet-4-5-20251001",
+      "anthropic/claude-haiku-4-5-20251001",
+      "anthropic/claude-opus-4-1-20250805",
+    ],
+  },
+  {
+    // One model served through two routes, and two builds of one basename: each pair reads the same once
+    // the vendor prefix and the quantisation tail are dropped.
+    name: "ids that share a readable name",
+    ids: ["anthropic/claude-sonnet-4-5", "claude-sonnet-4-5", "Qwen/Qwen3-30B-A3B-W8A8-Dynamic", "/mnt/models/Qwen3-30B-A3B-W8A8-Static"],
+  },
 ] as const;
 
 const REGIMES = [
@@ -57,49 +68,57 @@ function standsFor(painted: string, name: string): boolean {
   return extra.length === 0 && head !== "" && name.startsWith(head) && name.endsWith(tail);
 }
 
-/** Whether a painted string could be this model: its id, or the readable name the axis may paint for it. */
-function paintsModel(painted: string, id: string): boolean {
-  return standsFor(painted, id) || standsFor(painted, modelDisplayName(id));
+/** Whether a painted string could be this model: its id, or the readable name the axis may paint for it. A
+ *  readable name that two of the ids share names neither of them. */
+function paintsModel(painted: string, id: string, ids: readonly string[]): boolean {
+  const readable = modelDisplayName(id);
+  const unique = ids.filter((other) => modelDisplayName(other) === readable).length === 1;
+  return standsFor(painted, id) || (unique && standsFor(painted, readable));
 }
 
 /** What the latest repaint drew, the models it names no label for, and the labels that name more than one model. */
-async function readLabelFit(page: Page): Promise<{ readonly painted: string[]; readonly unlabelled: string[]; readonly ambiguous: string[] }> {
+async function readLabelFit(
+  page: Page,
+  ids: readonly string[],
+): Promise<{ readonly painted: string[]; readonly unlabelled: string[]; readonly ambiguous: string[] }> {
   const painted = await page.evaluate(() => globalThis.paintedChartText ?? []);
   return {
     painted,
-    unlabelled: ONE_PROVIDER_MODELS.filter((id) => !painted.some((text) => paintsModel(text, id))),
-    ambiguous: painted.filter((text) => ONE_PROVIDER_MODELS.filter((id) => paintsModel(text, id)).length > 1),
+    unlabelled: ids.filter((id) => !painted.some((text) => paintsModel(text, id, ids))),
+    ambiguous: painted.filter((text) => ids.filter((id) => paintsModel(text, id, ids)).length > 1),
   };
 }
 
 for (const regime of REGIMES) {
-  test.describe(regime.name, () => {
-    test.use({ viewport: regime.viewport, isMobile: regime.mobile, hasTouch: regime.mobile });
+  for (const set of MODEL_SETS) {
+    test.describe(`${regime.name}, ${set.name}`, () => {
+      test.use({ viewport: regime.viewport, isMobile: regime.mobile, hasTouch: regime.mobile });
 
-    test("each model paints a label that no other model also fits", async ({ mount, page }) => {
-      await using root = await createCorpusHarness(undefined, { startJobs: false });
-      const caller = await root.internalCallerFor(root.ownerId);
-      const template = (await caller.stats.byModel())[0];
-      if (template === undefined) {
-        throw new Error("The committed corpus has no model usage");
-      }
-      // The corpus row keeps its production shape; only the ids become one provider's releases.
-      const rows = ONE_PROVIDER_MODELS.map((model, index) => ({ ...template, model, generations: ONE_PROVIDER_MODELS.length - index }));
-      await recordPaintedText(page);
-      await routeTrpc(page, {
-        ...serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "stats.freshness", "stats.wrapped", "stats.latency"]),
-        "stats.byModel": (input) => rows.slice(0, input?.limit),
+      test("each model paints a label that no other model also fits", async ({ mount, page }) => {
+        await using root = await createCorpusHarness(undefined, { startJobs: false });
+        const caller = await root.internalCallerFor(root.ownerId);
+        const template = (await caller.stats.byModel())[0];
+        if (template === undefined) {
+          throw new Error("The committed corpus has no model usage");
+        }
+        // The corpus row keeps its production shape; only the ids change.
+        const rows = set.ids.map((model, index) => ({ ...template, model, generations: set.ids.length - index }));
+        await recordPaintedText(page);
+        await routeTrpc(page, {
+          ...serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "stats.freshness", "stats.wrapped", "stats.latency"]),
+          "stats.byModel": (input) => rows.slice(0, input?.limit),
+        });
+        const component = await mount<typeof AccountingCoverageStory>(STORY, {
+          appearance: appearanceSettingsSchema.parse({}),
+          characterId: null,
+          view: "models",
+          width: regime.width,
+          height: 640,
+        });
+        // Positive control: the text equivalent names every id whole, so all four bars rendered.
+        await expect(component.getByRole("table", { name: CHART, exact: true }).getByRole("rowheader")).toHaveText([...set.ids]);
+        await expect.poll(() => readLabelFit(page, set.ids)).toMatchObject({ unlabelled: [], ambiguous: [] });
       });
-      const component = await mount<typeof AccountingCoverageStory>(STORY, {
-        appearance: appearanceSettingsSchema.parse({}),
-        characterId: null,
-        view: "models",
-        width: regime.width,
-        height: 640,
-      });
-      // Positive control: the text equivalent names every id whole, so all four bars rendered.
-      await expect(component.getByRole("table", { name: CHART, exact: true }).getByRole("rowheader")).toHaveText([...ONE_PROVIDER_MODELS]);
-      await expect.poll(() => readLabelFit(page)).toMatchObject({ unlabelled: [], ambiguous: [] });
     });
-  });
+  }
 }

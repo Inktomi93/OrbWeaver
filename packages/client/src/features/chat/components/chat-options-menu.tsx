@@ -14,7 +14,8 @@
 // phase to hide from. THREE EXCEPTIONS, all permission omits: a character's gallery row appears only
 // for a character the viewer owns (a gallery add is owner-only, so a non-owner's row could only open a gallery
 // whose every add fails), "Back to parent chat" appears only on a fork whose parent the viewer can open, and a
-// member's menu offers Leave in place of Rename and Delete, which only the host may do.
+// member's menu offers Leave in place of Rename and Delete, which only the host may do. Until the read names the
+// viewer's role (loading, or failed) the menu offers neither Rename, Delete chat nor Leave.
 
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
@@ -196,8 +197,9 @@ export interface ChatOptionsMenuProps {
   readonly galleryCharacters: readonly ChatOptionsCharacter[];
   /** Opens the existing room settings, only for the host of a group chat. */
   readonly onGroupSettings?: (() => void) | undefined;
-  /** `ChatDetail.viewerIsHost`. A member is offered Leave in place of Rename and Delete, which the server refuses them. */
-  readonly viewerIsHost: boolean;
+  /** `ChatDetail.viewerIsHost`, `undefined` while the read has not answered or has failed. A member is offered Leave
+   *  in place of Rename and Delete, which the server refuses them; an unknown role is offered neither. */
+  readonly viewerIsHost: boolean | undefined;
 }
 
 export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, onGroupSettings, viewerIsHost }: ChatOptionsMenuProps): ReactElement {
@@ -232,22 +234,26 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
   };
   // The confirm holds open while the leave runs and stays open with the reason if the server refuses it.
   const confirmLeave = (): Promise<void> => selfLeave.mutateAsync({ chatId }).then(goToLanding);
-  const exit: RowDestructiveAction = viewerIsHost
-    ? {
-        label: CHAT_DELETE_NAME,
-        title: "Delete this chat?",
-        description: "This permanently deletes the chat and its messages for everyone. This can't be undone.",
-        confirmLabel: "Delete",
-        onConfirm: confirmDelete,
-      }
-    : {
-        label: CHAT_LEAVE_NAME,
-        icon: LogOut,
-        title: CHAT_LEAVE_CONFIRM_TITLE,
-        description: CHAT_LEAVE_MEMBER_NOTE,
-        confirmLabel: "Leave",
-        onConfirm: confirmLeave,
-      };
+  // Until the role is known neither exit is offered: a guess is a host action shown to a member.
+  let exit: RowDestructiveAction | undefined;
+  if (viewerIsHost === true) {
+    exit = {
+      label: CHAT_DELETE_NAME,
+      title: "Delete this chat?",
+      description: "This permanently deletes the chat and its messages for everyone. This can't be undone.",
+      confirmLabel: "Delete",
+      onConfirm: confirmDelete,
+    };
+  } else if (viewerIsHost === false) {
+    exit = {
+      label: CHAT_LEAVE_NAME,
+      icon: LogOut,
+      title: CHAT_LEAVE_CONFIRM_TITLE,
+      description: CHAT_LEAVE_MEMBER_NOTE,
+      confirmLabel: "Leave",
+      onConfirm: confirmLeave,
+    };
+  }
   return (
     <>
       <RowActionsMenu
@@ -261,7 +267,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
         // visible label — WCAG 2.5.3, so the words a voice-control user could see did not reach the room's
         // only game door. `tooltip` is a boolean now; the divergence is unrepresentable.
         tooltip={true}
-        destructive={{ ...exit, separator: false }}
+        {...(exit === undefined ? {} : { destructive: { ...exit, separator: false } })}
       >
         <ParentChatItem chatId={chatId} />
         {characterIds.length > 0 ? (
@@ -320,7 +326,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
         </MenuItem>
 
         <MenuSeparator />
-        <TrailingItems onRename={viewerIsHost ? openRename : undefined} />
+        <TrailingItems onRename={viewerIsHost === true ? openRename : undefined} />
       </RowActionsMenu>
 
       <RenameChatDialog open={renameOpen} onOpenChange={setRenameOpen} value={renameValue} onValueChange={setRenameValue} onSave={saveRename} />

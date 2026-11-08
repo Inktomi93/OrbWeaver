@@ -3,23 +3,6 @@
 // floor-vs-override display + delta-save logic is identical across them; this is its one home (lib, no JSX
 // — a component module can't co-export a non-component, useComponentExportOnlyModules).
 
-import type { SaveLifecycleState } from "#state";
-
-/** One AppSettings-section mutation's lifecycle as the settings save-status seam's states (SET-SEAMS
- *  §3). A section with its OWN save affordance still REPORTS, so the shell's aggregate footer and the nav
- *  marker see its failure — eight sections share this mapping, so it lives here rather than per-section.
- *  A section with an explicit Save passes `dirty`: its draft is a write held until the reader presses Save,
- *  which the footer must not call Saved. */
-export function saveStateOf(isPending: boolean, errored: boolean, dirty = false): SaveLifecycleState {
-  if (errored) {
-    return "error";
-  }
-  if (isPending) {
-    return "saving";
-  }
-  return dirty ? "blocked" : "saved";
-}
-
 /** Is this stored-override value actively set? `null`/`undefined` = the deployment floor governs; anything
  *  else (INCLUDING `0` / `false`) = an active override. The nullish check is load-bearing — a falsy check
  *  would wrongly read `maxTier: 0` / `keywordMatch: false` as "not overridden". */

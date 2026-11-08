@@ -4,7 +4,7 @@
 // tRPC output parser of `invites.redeemInvite` and `invites.acceptInvite`, so a producer that adds a key to
 // the detail, a roster row or an identity entry fails the join response instead of reaching the new member.
 
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, Handle, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import type { ChatRpgPointer } from "#rpg";
@@ -42,6 +42,10 @@ export interface ChatDetail {
   /** How the pin stands: `live` while a present, enabled player owns it; `held` when its owner is no longer
    *  in the room, the card still meaning that persona; `none` with no pin. Never says why it is held. */
   readonly anchorState: AnchorState;
+  /** The handle of the player whose persona a `held` pin is: the account that is no longer in the room (or is
+   *  disabled), so the room can say whose pin it still carries. `null` for a `live` or absent pin, whose player
+   *  is already on the roster, and for a pin whose persona has no owner left. Still does not say why it is held. */
+  readonly anchorOwnerHandle: Handle | null;
   readonly participants: readonly ParticipantView[];
   /** The CALLER's own participant's `activePersonaId` (FINAL-Persona §A — Chat persona #3) — populated
    *  server-side from the resolving `principal`, so the client never has to find-and-match its own
@@ -145,6 +149,7 @@ export const chatDetailSchema = z.strictObject({
   forkedAt: z.number().nullable(),
   anchorPersonaId: typeIdSchema(ID_PREFIX.persona).nullable(),
   anchorState: z.enum(ANCHOR_STATES),
+  anchorOwnerHandle: brandedId("Handle").nullable(),
   participants: z.array(participantViewSchema).readonly(),
   viewerActivePersonaId: typeIdSchema(ID_PREFIX.persona).nullable(),
   viewerIsHost: z.boolean(),

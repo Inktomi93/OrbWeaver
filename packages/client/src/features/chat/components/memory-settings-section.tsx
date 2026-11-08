@@ -21,22 +21,12 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, SettingRowGroup, SettingSwitchRow, SettingTrackRow, UtilityModelDoor, useUtilityModel } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { useReportSaveStatus } from "#forms";
+import { saveStateOf, useReportSaveStatus } from "#forms";
 import { MEMORY_COST_SENTENCE } from "#lib";
-import type { SaveLifecycleState } from "#state";
 import { openConfigTo } from "#state";
 import { useSetMemoryEnabled, useStartMemoryBackfill } from "../hooks/use-memory-mutations.ts";
 import { MEMORY_EXISTING_CHATS_NOTE, MEMORY_SETTINGS_SUBCATEGORY } from "../lib/memory-settings-section-nav.ts";
 import { MemoryOnConfirm } from "./memory-on-confirm.tsx";
-
-/** The mutation's lifecycle as the settings save-status seam's three states (SET-SEAMS §3): a section with
- *  its own save affordance still REPORTS, so the shell's aggregate footer + the nav marker see its failure. */
-function saveStateOf(isPending: boolean, errored: boolean): SaveLifecycleState {
-  if (errored) {
-    return "error";
-  }
-  return isPending ? "saving" : "saved";
-}
 
 /** The Memory section body — mounted at the chat-behavior pane's contributed-sections anchor. */
 export function MemorySettingsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {

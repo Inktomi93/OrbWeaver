@@ -18,9 +18,9 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, SettingRowGroup, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { useReportSaveStatus } from "#forms";
+import { saveStateOf, useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
-import { anyFieldOverridden, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
+import { anyFieldOverridden, isOverridden } from "../lib/app-override-model.ts";
 import { MEMORY_TUNING_SUBCATEGORY } from "../lib/memory-tuning-nav.ts";
 import { AdminOverrideField, AdminOverrideResetRow, AdminOverrideSelect, AdminOverrideSwitch } from "./admin-override-field.tsx";
 
@@ -154,7 +154,8 @@ function MemoryTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
   const patch = diffNumeric(effective, draft);
   const dirty = Object.keys(patch).length > 0;
   const anyDefaultsOverridden = anyFieldOverridden(stored);
-  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null, dirty));
+  const invalid = NUMERIC_KNOBS.some(({ key }) => clampMemoryDefault(key, Number(draft[key])) === null);
+  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null, { dirty, invalid }));
 
   // memoryDefaults writes MERGE over the currently-stored overrides so untouched knobs survive; the enum +
   // boolean write immediately, the numeric knobs via Save. Reset clears the whole nested override.

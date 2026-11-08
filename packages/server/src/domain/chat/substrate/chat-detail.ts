@@ -5,12 +5,13 @@
 // `viewerActivePersonaId`) derive from the roster ⋈ `viewerUserId`; `viewerOwnedCharacterIds` needs an
 // ownership read, so the verb resolves it (`substrate/viewer-gallery.ts`), and the gallery subject derives here.
 
-import type { AnchorState, ChatIdentity, HistoryFloorSeq, ParticipantData } from "@orb/contracts/chat";
+import type { ChatIdentity, HistoryFloorSeq, ParticipantData } from "@orb/contracts/chat";
 import { DEFAULT_GROUP_CONFIG, DEFAULT_ROOM_OVERRIDES, NO_HISTORY_FLOOR } from "@orb/contracts/chat";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import type { ChatDetailData } from "../contract/views.ts";
 import type { loadChatRow } from "../persistence/queries.ts";
 import { viewerHoldsHost } from "./member-visibility.ts";
+import type { ResolvedAnchor } from "./participants-humans.ts";
 import { viewerGalleryCharacterIdOf } from "./viewer-gallery.ts";
 
 /** The projected `chats` row (metadata already parsed): persistence's `ChatRow`, which both `loadChatRow` and
@@ -27,8 +28,8 @@ interface ToChatDetailInput {
   readonly viewerHistoryFloorSeq: HistoryFloorSeq;
   /** `resolveViewerOwnedCharacterIds` over the same roster. REQUIRED for the same reason as the floor. */
   readonly viewerOwnedCharacterIds: readonly CharacterId[];
-  /** `resolveAnchorState` over the same roster (`substrate/participants-humans.ts`). */
-  readonly anchorState: AnchorState;
+  /** `resolveAnchor` over the same roster (`substrate/participants-humans.ts`). */
+  readonly anchor: ResolvedAnchor;
 }
 
 /** Map a loaded chat row + its resolved roster + chat-identity producer → `ChatDetailData`.
@@ -44,7 +45,7 @@ export function toChatDetail({
   viewerUserId,
   viewerHistoryFloorSeq,
   viewerOwnedCharacterIds,
-  anchorState,
+  anchor,
 }: ToChatDetailInput): ChatDetailData {
   const viewer = participants.find((p) => p.userId === viewerUserId);
   const checkpointVisible = viewerHistoryFloorSeq <= NO_HISTORY_FLOOR;
@@ -57,7 +58,8 @@ export function toChatDetail({
     parentChatId: chat.parentChatId,
     forkedAt: chat.forkedAt,
     anchorPersonaId: chat.anchorPersonaId,
-    anchorState,
+    anchorState: anchor.state,
+    anchorOwnerHandle: anchor.ownerHandle,
     participants,
     viewerActivePersonaId: viewer?.activePersonaId ?? null,
     // A role-derived PAYLOAD field, not a gate — DERIVED from its class home (`member-visibility.ts`, the

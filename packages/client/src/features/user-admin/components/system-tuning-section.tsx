@@ -14,9 +14,9 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, SettingRowGroup, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { useReportSaveStatus } from "#forms";
+import { saveStateOf, useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
-import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
+import { envFloor, isOverridden } from "../lib/app-override-model.ts";
 import { SYSTEM_TUNING_SUBCATEGORY } from "../lib/system-tuning-nav.ts";
 import { AdminOverrideField, AdminOverrideResetRow } from "./admin-override-field.tsx";
 
@@ -135,7 +135,8 @@ function SystemTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
   });
   const dirty = dirtyKnobs.length > 0;
   const anyOverridden = KNOBS.some((knob) => knob.overridden(overrides));
-  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null, dirty));
+  const invalid = KNOBS.some((knob) => !Number.isFinite(Number(draft[knob.id])));
+  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null, { dirty, invalid }));
 
   // Merge every dirty knob's sparse patch into ONE partial; nested setting groups retain untouched siblings.
   const onSave = (): void => {

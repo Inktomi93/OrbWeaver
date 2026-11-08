@@ -16,22 +16,12 @@ import type { ReactElement } from "react";
 
 import { QueryBoundary, SettingRowGroup } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { useReportSaveStatus } from "#forms";
-import type { SaveLifecycleState } from "#state";
+import { saveStateOf, useReportSaveStatus } from "#forms";
 import { useUpdateLibrary } from "../hooks/use-character-mutations.ts";
 import { LIBRARY_SETTINGS_SUBCATEGORY } from "../lib/library-settings-nav.ts";
 
 const LIBRARY_PAGE_SIZE_MIN = 10;
 const LIBRARY_PAGE_SIZE_MAX = 100;
-
-/** The mutation's lifecycle as the settings save-status seam's three states (SET-SEAMS §3): a section with
- *  its own save affordance still REPORTS, so the shell's aggregate footer + the nav marker see its failure. */
-function saveStateOf(isPending: boolean, errored: boolean): SaveLifecycleState {
-  if (errored) {
-    return "error";
-  }
-  return isPending ? "saving" : "saved";
-}
 
 /** The Library settings section body — mounted at the appearance pane's contributed-sections anchor. */
 export function LibrarySettingsSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {

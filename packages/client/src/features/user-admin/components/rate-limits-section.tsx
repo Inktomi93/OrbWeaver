@@ -14,9 +14,9 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { QueryBoundary, SettingRowGroup, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { useReportSaveStatus } from "#forms";
+import { saveStateOf, useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
-import { envFloor, isOverridden, saveStateOf } from "../lib/app-override-model.ts";
+import { envFloor, isOverridden } from "../lib/app-override-model.ts";
 import { RATE_LIMITS_SUBCATEGORY } from "../lib/rate-limits-nav.ts";
 import { AdminOverrideField, AdminOverrideResetRow } from "./admin-override-field.tsx";
 
@@ -81,7 +81,8 @@ function RateLimitsBody({ anchorId, sectionId }: { readonly anchorId: string; re
   const patch = diffRateLimits(baseline, draft);
   const dirty = Object.keys(patch).length > 0;
   const anyOverridden = FIELDS.some(({ key }) => isOverridden(stored?.[key]));
-  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null, dirty));
+  const invalid = FIELDS.some(({ key }) => clampRateLimit(Number(draft[key])) === null);
+  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null, { dirty, invalid }));
 
   const onSave = (): void => {
     save.mutateAsync({ partial: { rateLimits: patch } }).catch(() => undefined); // sticky error slot below

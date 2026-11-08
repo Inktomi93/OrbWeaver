@@ -5,7 +5,16 @@
 import { ROW_RENAME_NAME } from "@orb/client/lib";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { seedShellState } from "@orb/testkit/browser/spec";
-import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import {
+  holdServed,
+  ROOM_PROCEDURES,
+  routeAuthConfig,
+  routeTrpc,
+  SECTION_PROCEDURES,
+  SHELL_MOUNT_PROCEDURES,
+  serveCorpusProcedures,
+  trpcError,
+} from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -26,15 +35,16 @@ const SERVED = [
   "rpg.listTurnToolCalls",
 ] as const;
 const ROLES = ["host", "member"] as const;
+type RoomReadIntercept = NonNullable<Parameters<typeof serveCorpusProcedures<"chat.getChat">>[2]>;
 
 test.use({ hasTouch: false, isMobile: false, viewport: { width: 1440, height: 900 } });
 
-/** Serve the corpus room the owner hosts and the shared member sits in, as one of the two people in it. */
+/** Serve the corpus room the owner hosts and the shared member sits in, as one of the two people in it. The room read
+ *  `chat.getChat` is the one that names the viewer's role, so a test may hold or fail it. */
 async function routeSharedRoomAs(
+  { root, page, corpus }: { readonly root: ServerTestHarness; readonly page: Page; readonly corpus: CorpusPlayback },
   role: (typeof ROLES)[number],
-  root: ServerTestHarness,
-  page: Page,
-  corpus: CorpusPlayback,
+  roomRead?: RoomReadIntercept,
 ): Promise<{ readonly chatId: ChatId; readonly memberId: UserId }> {
   const memberId = corpus.memberIdentities?.sharedMember.viewer.userId;
   const captured = corpus.reads["chat.getChat"].find(({ output }) => output.participants.some((person) => person.userId === memberId))?.output;
@@ -46,14 +56,33 @@ async function routeSharedRoomAs(
   const viewer = await root.internalCallerFor(role === "host" ? root.ownerId : memberId);
   await seedShellState(page, { activeSection: "chats" });
   await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
-  await routeTrpc(page, serveCorpusProcedures(viewer, SERVED));
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(
+      viewer,
+      SERVED.filter((path) => path !== "chat.getChat"),
+    ),
+    ...serveCorpusProcedures(viewer, ["chat.getChat"], roomRead),
+  });
   return { chatId: captured.id, memberId };
+}
+
+/** Open Chat options and read which of the role-gated actions it offers. */
+async function openRoleGatedActions(page: Page): Promise<{ readonly host: number; readonly leave: number }> {
+  await page.getByRole("button", { name: CHAT_OPTIONS_NAME, exact: true }).click();
+  // Positive control: the menu is open and holds the actions every role shares.
+  await expect(page.getByRole("menuitem", { name: CHAT_SELECT_MESSAGES_NAME, exact: true })).toBeVisible();
+  return {
+    host:
+      (await page.getByRole("menuitem", { name: ROW_RENAME_NAME, exact: true }).count()) +
+      (await page.getByRole("menuitem", { name: CHAT_DELETE_NAME, exact: true }).count()),
+    leave: await page.getByRole("menuitem", { name: CHAT_LEAVE_NAME, exact: true }).count(),
+  };
 }
 
 for (const role of ROLES) {
   test(`the ${role}'s Chat options offer ${role === "host" ? "Rename and Delete chat" : "Leave chat"}`, async ({ corpus, mount, page }) => {
     await using root = await createCorpusHarness();
-    const { chatId } = await routeSharedRoomAs(role, root, page, corpus);
+    const { chatId } = await routeSharedRoomAs({ root, page, corpus }, role);
     await mount<typeof ChatRoomShellStory>(STORY, { chatId });
     await page.getByRole("button", { name: CHAT_OPTIONS_NAME, exact: true }).click();
     // Positive control: the menu is open and holds the actions both roles share.
@@ -66,9 +95,29 @@ for (const role of ROLES) {
   });
 }
 
+test("while the room read is still out, Chat options offers no role-gated action, then the member's own once it lands", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  const pending = holdServed();
+  const { chatId } = await routeSharedRoomAs({ root, page, corpus }, "member", () => pending);
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+  await pending.requested;
+  expect(await openRoleGatedActions(page)).toEqual({ host: 0, leave: 0 });
+  pending.release();
+  await expect(page.getByRole("menuitem", { name: CHAT_LEAVE_NAME, exact: true })).toHaveCount(1);
+  await expect(page.getByRole("menuitem", { name: ROW_RENAME_NAME, exact: true })).toHaveCount(0);
+  await expect(page.getByRole("menuitem", { name: CHAT_DELETE_NAME, exact: true })).toHaveCount(0);
+});
+
+test("when the room read fails, Chat options offers no role-gated action", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness();
+  const { chatId } = await routeSharedRoomAs({ root, page, corpus }, "member", () => trpcError());
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+  expect(await openRoleGatedActions(page)).toEqual({ host: 0, leave: 0 });
+});
+
 test("a member who confirms Leave chat from Chat options is out of the room", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness();
-  const { chatId, memberId } = await routeSharedRoomAs("member", root, page, corpus);
+  const { chatId, memberId } = await routeSharedRoomAs({ root, page, corpus }, "member");
   const host = await root.internalCallerFor(root.ownerId);
   expect((await host.chat.getChat({ chatId })).participants.some((person) => person.userId === memberId)).toBe(true);
   await mount<typeof ChatRoomShellStory>(STORY, { chatId });
