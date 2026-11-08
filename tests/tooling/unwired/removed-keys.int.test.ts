@@ -1,5 +1,5 @@
 // `pnpm unwired removed-keys` fails a deletion branch while a removed contract key still has a sender in the client,
-// the plugins or e2e; a key another contract still declares is listed for a person, never failed on.
+// the plugins or e2e; a plain-word key, or one another contract still declares, is listed for a person, never failed on.
 import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
@@ -7,10 +7,17 @@ import { execFixtureGit, FIXTURE_GIT_IDENTITY } from "@orb/tooling/floor/git/git
 import { checkRemovedKeys } from "../../../tooling/src/unwired/removed-keys.ts";
 
 const CONTRACT = "packages/contracts/src/chat/send.ts";
-const BEFORE = ["export interface SendInput {", "  readonly chatId: string;", "  readonly guided?: string;", "  readonly limit?: number;", "}"].join("\n");
+const BEFORE = [
+  "export interface SendInput {",
+  "  readonly chatId: string;",
+  "  readonly guidedPick?: string;",
+  "  readonly pageLimit?: number;",
+  "  readonly draft?: string;",
+  "}",
+].join("\n");
 const AFTER = ["export interface SendInput {", "  readonly chatId: string;", "}"].join("\n");
-// `limit` stays declared by another contract, so its hits may be that contract's.
-const OTHER = ["export interface ListInput {", "  readonly limit?: number;", "}"].join("\n");
+// `pageLimit` stays declared by another contract, so its hits may be that contract's; `draft` is a plain word.
+const OTHER = ["export interface ListInput {", "  readonly pageLimit?: number;", "}"].join("\n");
 
 const commit = (repo: string, files: Readonly<Record<string, string>>, message: string): void => {
   for (const [file, text] of Object.entries(files)) {
@@ -38,32 +45,36 @@ async function deletionBranch(plantedTree: (tree: Record<string, string>) => Pro
   ]) {
     execFixtureGit(repo, args);
   }
-  commit(repo, { [CONTRACT]: AFTER, ...senders }, "remove guided and limit");
+  commit(repo, { [CONTRACT]: AFTER, ...senders }, "remove guidedPick, pageLimit and draft");
   return repo;
 }
 
 test("a removed key with a sender in the client, a showcase plugin or e2e fails the branch", { timeout: 60_000 }, async ({ plantedTree }) => {
   const repo = await deletionBranch(plantedTree, {
-    "packages/client/src/send.ts": "export const send = { chatId: 'c', guided: 'g', limit: 3 };\n",
-    "packages/showcase-plugins/src/main.ts": "export const plugin = (input: { guided: string }) => input.guided;\n",
-    "tests/e2e/send.spec.ts": "export const spec = { guided: 'g' };\n",
+    "packages/client/src/send.ts": "export const send = { chatId: 'c', guidedPick: 'g', pageLimit: 3, draft: 'd' };\n",
+    "packages/showcase-plugins/src/main.ts": "export const plugin = (input: { guidedPick: string }) => input.guidedPick;\n",
+    "tests/e2e/send.spec.ts": "export const spec = { guidedPick: 'g' };\n",
   });
   const report = checkRemovedKeys(repo, "main", "HEAD");
   expect(report.failed).toBe(true);
-  const guided = report.removed.find((entry) => entry.key === "guided");
-  expect(guided?.ambiguous).toBe(false);
-  expect(guided?.hits.map(({ receiver, at }) => `${receiver} ${at}`)).toEqual([
+  const guidedPick = report.removed.find((entry) => entry.key === "guidedPick");
+  expect(guidedPick?.ambiguous).toBe(false);
+  expect(guidedPick?.hits.map(({ receiver, at }) => `${receiver} ${at}`)).toEqual([
     "client packages/client/src/send.ts:1",
     "plugins packages/showcase-plugins/src/main.ts:1",
     "e2e tests/e2e/send.spec.ts:1",
   ]);
-  expect(report.removed.find((entry) => entry.key === "limit")?.ambiguous).toBe(true);
+  expect(report.removed.filter((entry) => entry.ambiguous).map(({ key, hits }) => `${key} ${hits.length}`)).toEqual(["draft 1", "pageLimit 1"]);
   expect(report.scanned).toEqual({ client: 1, plugins: 1, e2e: 1 });
 });
 
 test("a branch whose removed keys have no sender, or only an ambiguous one, passes", { timeout: 60_000 }, async ({ plantedTree }) => {
-  const repo = await deletionBranch(plantedTree, { "packages/client/src/send.ts": "export const send = { chatId: 'c', limit: 3 };\n" });
+  const repo = await deletionBranch(plantedTree, { "packages/client/src/send.ts": "export const send = { chatId: 'c', pageLimit: 3 };\n" });
   const report = checkRemovedKeys(repo, "main", "HEAD");
-  expect(report.removed.map(({ key, ambiguous, hits }) => `${key} ${ambiguous} ${hits.length}`)).toEqual(["guided false 0", "limit true 1"]);
+  expect(report.removed.map(({ key, ambiguous, hits }) => `${key} ${ambiguous} ${hits.length}`)).toEqual([
+    "draft true 0",
+    "guidedPick false 0",
+    "pageLimit true 1",
+  ]);
   expect(report.failed).toBe(false);
 });

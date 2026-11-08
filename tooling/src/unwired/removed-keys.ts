@@ -20,15 +20,16 @@ const KEY_LINE = /^\s*(?:readonly\s+)?["']?([A-Za-z_$][\w$]*)["']?\??\s*:/u;
 const COMMENT_LINE = /^\s*(?:\/\/|\/?\*)/u;
 const NOT_KEYS: ReadonlySet<string> = new Set(["case", "default"]);
 const HIT_LINE = /^([^:]+):(\d+):(.*)$/u;
-// A one- or two-letter key (`a`, `id`) is a word on every page, so its hits say nothing about one procedure.
-const DISTINCT_KEY_LENGTH = 3;
+// A key with no capital or underscore (`macro`, `minted`, `id`) is an English word: its hits are prose, class names
+// and locals as often as senders, so they say nothing about one procedure.
+const DISTINCT_KEY = /[A-Z_]/u;
 // A short key's word match spans the whole client.
 const GREP_BUFFER = 268_435_456;
 
 /** One key the branch removes, the receivers that still name it, and whether the contracts still declare the name. */
 interface RemovedKey {
   readonly key: string;
-  /** Another contract declaration still uses the name, so a hit may be that one's: a person reads the procedure. */
+  /** The name is a plain word, or another contract declaration still uses it, so a hit may not be this key's: a person reads the procedure. */
   readonly ambiguous: boolean;
   readonly hits: readonly { readonly receiver: Receiver; readonly at: string; readonly text: string }[];
 }
@@ -93,7 +94,7 @@ export function checkRemovedKeys(root: string, base: string, head: string): Remo
         return COMMENT_LINE.test(text) ? [] : [{ receiver, at: `${file}:${number}`, text: text.trim() }];
       }),
     );
-    return { key, ambiguous: key.length < DISTINCT_KEY_LENGTH || stillDeclared(root, head, key), hits };
+    return { key, ambiguous: !DISTINCT_KEY.test(key) || stillDeclared(root, head, key), hits };
   });
   return { base, head, scanned, removed, failed: removed.some((entry) => !entry.ambiguous && entry.hits.length > 0) };
 }
