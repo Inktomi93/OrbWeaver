@@ -15,7 +15,7 @@ import { refuseDirectInvocation } from "@orb/tooling/floor/cli/entrypoint";
 import type { Page, Route } from "@playwright/test";
 import { settle } from "../../floor/browser/browser.ts";
 import type { AppearanceMutationIsolationEvidence } from "../contract/appearance-check-context.ts";
-import { MOUNT_SETTLE_MS, STEP_TIMEOUT_MS } from "../lib/budgets.ts";
+import { MOUNT_SETTLE_MS, SNAP_CEILINGS_MS } from "../lib/budgets.ts";
 import type { AppearanceDomSnapshot } from "./appearance-invariant-dom.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --matrix");
@@ -128,7 +128,7 @@ export async function driveOppositeDensity(page: Page, before: AppearanceDomSnap
   try {
     const mutation = page.waitForResponse(
       (response) => response.request().method() === "POST" && response.url().includes("/api/trpc/settings.updateUserSettingsSection"),
-      { timeout: STEP_TIMEOUT_MS },
+      { timeout: SNAP_CEILINGS_MS.step },
     );
     // THE DENSITY OPTION IS A RADIO, NOT A BUTTON (#2437, measured 2026-09-19). The sizing surface renders
     // each choice as a Base UI `Radio.Root` wearing `PickerCell` through its `render` prop

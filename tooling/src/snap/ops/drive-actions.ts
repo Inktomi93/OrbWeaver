@@ -15,7 +15,7 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { buildNavScript } from "../../floor/instrument/nav.ts";
 import type { ArmActionContext, ArmActionDisposition, ArmTapeContext } from "../contract/arms.ts";
 import type { Args, DriveFailure, EvalOutcome, NavAction, SnapAction, Step } from "../contract/types.ts";
-import { HOVER_REVEAL_MS, STEP_SETTLE_MS, STEP_TIMEOUT_MS, WAIT_SELECTOR_TIMEOUT_MS } from "../lib/budgets.ts";
+import { HOVER_REVEAL_MS, SNAP_CEILINGS_MS, STEP_SETTLE_MS } from "../lib/budgets.ts";
 import { CHURN_LINE, isContextChurn } from "../lib/eval-text.ts";
 import { scrubPrivateText } from "../lib/private-values.ts";
 import { captureEvals } from "./arms/eval.ts";
@@ -27,7 +27,7 @@ const WHEEL_BURST_SETTLE_MS = 30;
 
 async function runWheelStep(page: Page, step: Extract<Step, { readonly kind: "wheel" | "wheelburst" }>): Promise<void> {
   const loc = page.locator(step.selector).first();
-  await loc.waitFor({ state: "visible", timeout: STEP_TIMEOUT_MS });
+  await loc.waitFor({ state: "visible", timeout: SNAP_CEILINGS_MS.step });
   await loc.hover();
   const count = step.kind === "wheelburst" ? step.count : 1;
   for (let index = 0; index < count; index += 1) {
@@ -48,7 +48,7 @@ async function runTouchGesture(
   gesture: { readonly drag: { readonly dx: number; readonly dy: number } | null; readonly holdMs: number },
 ): Promise<void> {
   const loc = page.locator(selector).first();
-  await loc.waitFor({ state: "visible", timeout: STEP_TIMEOUT_MS });
+  await loc.waitFor({ state: "visible", timeout: SNAP_CEILINGS_MS.step });
   const box = await loc.boundingBox();
   if (box === null) {
     throw new Error(`${flag} target ${selector} has no box to touch`);
@@ -73,11 +73,11 @@ async function runLocatedStep(
 ): Promise<FileActionReceipt | null> {
   const loc = page.locator(step.selector).first();
   if (step.kind === "waitfor") {
-    await loc.waitFor({ state: "visible", timeout: WAIT_SELECTOR_TIMEOUT_MS });
+    await loc.waitFor({ state: "visible", timeout: SNAP_CEILINGS_MS.waitSelector });
     return null;
   }
   if (step.kind === "jsclick") {
-    await loc.waitFor({ state: "attached", timeout: STEP_TIMEOUT_MS });
+    await loc.waitFor({ state: "attached", timeout: SNAP_CEILINGS_MS.step });
     await loc.evaluate((element) => {
       const click: unknown = Reflect.get(element, "click");
       if (typeof click !== "function") {
@@ -88,30 +88,30 @@ async function runLocatedStep(
     return null;
   }
   if (step.kind === "press") {
-    await loc.waitFor({ state: "attached", timeout: STEP_TIMEOUT_MS });
+    await loc.waitFor({ state: "attached", timeout: SNAP_CEILINGS_MS.step });
     await loc.hover({ force: true });
     await settle(page, HOVER_REVEAL_MS);
-    await loc.click({ force: true, timeout: STEP_TIMEOUT_MS });
+    await loc.click({ force: true, timeout: SNAP_CEILINGS_MS.step });
     return null;
   }
   if (step.kind === "upload" || step.kind === "drop-files") {
     const fileReceipt =
       step.kind === "upload"
-        ? await driveFileUpload(loc, step.selector, step.paths, STEP_TIMEOUT_MS)
-        : await driveFileDrop(loc, step.selector, step.paths, STEP_TIMEOUT_MS);
+        ? await driveFileUpload(loc, step.selector, step.paths, SNAP_CEILINGS_MS.step)
+        : await driveFileDrop(loc, step.selector, step.paths, SNAP_CEILINGS_MS.step);
     print(fileActionReceiptLine(fileReceipt));
     return fileReceipt;
   }
-  await loc.waitFor({ state: "visible", timeout: STEP_TIMEOUT_MS });
+  await loc.waitFor({ state: "visible", timeout: SNAP_CEILINGS_MS.step });
   if (step.kind === "click") {
-    await loc.click({ timeout: STEP_TIMEOUT_MS });
+    await loc.click({ timeout: SNAP_CEILINGS_MS.step });
   } else if (step.kind === "tap") {
     // THE FINGER, NOT THE MOUSE (#2445). `locator.tap()` is `Input.dispatchTouchEvent` — touchstart/
     // touchend + the pointerType:"touch" pointer sequence — and dispatches NO mouseover/mouseenter, which
     // is exactly what makes a Base UI tooltip (`mouseOnly: true`, TooltipTrigger.js:147) stay shut under
     // it while `--click` opens one. It THROWS "The page does not support tap" without `hasTouch`, so the
     // parse-time refusal in ops/parse.ts is the operator-facing door and this is its backstop.
-    await loc.tap({ timeout: STEP_TIMEOUT_MS });
+    await loc.tap({ timeout: SNAP_CEILINGS_MS.step });
   } else if (step.kind === "hover") {
     await loc.hover();
   } else if (step.kind === "key") {
@@ -209,7 +209,7 @@ async function driveNav(page: Page, action: NavAction, index: number): Promise<D
   // an absent data-app-ready flag is not itself a nav failure; the nav script run below checks the __orb.nav bridge and returns { ok: false, reason } when it is missing, which driveNav prints as NAV FAILED and returns as a DriveFailure. Ends if the nav script stops refusing a missing bridge.
   await page
     .locator("html[data-app-ready]")
-    .waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS })
+    .waitFor({ state: "attached", timeout: SNAP_CEILINGS_MS.waitSelector })
     .catch(() => undefined);
   let result: NavResultShape;
   // the caught nav failure is printed as NAV FAILED and returned as a DriveFailure; dispatchOrdinaryAction counts it into navFailures and verdict.ts outcomeTotals sums navFailures. Ends if navFailures stops being summed there.

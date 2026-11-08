@@ -222,6 +222,67 @@ function sideLine(row: ContrastEdgeSideReading): string {
   return `${row.side}: ${row.ratio.toFixed(2)}:1 ${verdict} ${show(row.ink)} on ${show(row.neighbour)} (${(row.neighbourShare * PERCENT).toFixed(0)}% of the band)`;
 }
 
+/** Which match the edge reading came from. */
+type EdgeSubject = Pick<ContrastEdgeFacts, "matchIndex" | "total">;
+type EdgeOutcomes = {
+  readonly [K in ContrastEdgeReading["kind"]]: (selector: string, subject: EdgeSubject, reading: Extract<ContrastEdgeReading, { kind: K }>) => ContrastCapture;
+};
+
+function edgeTerminal(selector: string, subject: EdgeSubject, status: "instrument-error" | "refused", line: string): ContrastCapture {
+  return {
+    outcome: { line, failed: true },
+    evidence: terminalEvidence(selector, status, line, { total: subject.total, inViewport: 1, matchIndex: subject.matchIndex }),
+  };
+}
+
+const EDGE_OUTCOMES: EdgeOutcomes = {
+  // An instrument fault, never folded into the "edge unmeasurable" refusal family, so a reason pin there cannot red on a CDP message.
+  "capture-failed": (selector, subject, reading) => edgeTerminal(selector, subject, "instrument-error", `CONTRAST-EDGE ${selector}: ${reading.reason}`),
+  refused: (selector, subject, reading) =>
+    edgeTerminal(selector, subject, "refused", `CONTRAST-EDGE ${selector}: NO VERDICT (edge unmeasurable) — ${reading.refusal}`),
+  measured: (selector, subject, reading) => {
+    const measured = reading.sides.filter((row): row is Extract<ContrastEdgeSideReading, { kind: "measured" }> => row.kind === "measured");
+    const refusedSides = reading.sides.filter((row) => row.kind === "refused");
+    const detail = CONTRAST_EDGE_SIDES.map((side) =>
+      sideLine(reading.sides.find((row) => row.side === side) ?? { side, kind: "skipped", reason: "not read" }),
+    ).join(" · ");
+    if (measured.length === 0) {
+      return edgeTerminal(selector, subject, "refused", `CONTRAST-EDGE ${selector}: NO VERDICT (no side could be measured) — ${detail}`);
+    }
+    // The WORST side is the verdict: 1.4.11 asks whether the boundary is distinguishable, and a border that
+    // vanishes along one edge is not, whatever the other three measure.
+    const worst = measured.reduce((lowest, row) => (row.ratio < lowest.ratio ? row : lowest));
+    const passed = worst.ratio >= AA_NON_TEXT_RATIO && refusedSides.length === 0;
+    const tail = `(border · worst side ${worst.side} · need ${AA_NON_TEXT_RATIO.toFixed(1)} · edge-sample) — ${detail}`;
+    return {
+      outcome: { line: `CONTRAST-EDGE ${selector}: ${worst.ratio.toFixed(2)}:1  ${passed ? "PASS" : "FAIL"}  ${tail}`, failed: !passed },
+      evidence: {
+        selector,
+        candidates: subject.total,
+        inViewport: 1,
+        matchIndex: subject.matchIndex,
+        requiredRatio: AA_NON_TEXT_RATIO,
+        status: "ok",
+        sampled: measured.length,
+        method: "edge-sample",
+        ratio: worst.ratio,
+        passed,
+        foreground: worst.ink,
+        backdrop: worst.neighbour,
+        fillChannel: null,
+        reason: refusedSides.length === 0 ? null : detail,
+      },
+    };
+  },
+};
+
+/** The printed outcome and evidence row for one edge reading, with no browser in the path. */
+export function edgeOutcome(selector: string, subject: EdgeSubject, reading: ContrastEdgeReading): ContrastCapture {
+  // A mapped record cannot correlate `reading.kind` with its handler's parameter, so the lookup is widened once here.
+  const outcome = EDGE_OUTCOMES[reading.kind] as (selector: string, subject: EdgeSubject, reading: ContrastEdgeReading) => ContrastCapture;
+  return outcome(selector, subject, reading);
+}
+
 /**
  * The WCAG 1.4.11 verdict for a subject's BORDER: each painted side's ink against the surface immediately
  * outside it, at 3:1. The WORST measured side carries the verdict — one indistinguishable side is a
@@ -234,91 +295,5 @@ export async function measureEdgeContrast(page: Page, selector: string, viewport
     const line = `CONTRAST-EDGE ${selector}: ${subject.refusal}`;
     return { outcome: { line, failed: true }, evidence: terminalEvidence(selector, subject.refusal === "NOT FOUND" ? "instrument-error" : "refused", line) };
   }
-  const facts = subject.facts;
-  const base = { selector, candidates: facts.total, inViewport: 1, matchIndex: facts.matchIndex, requiredRatio: AA_NON_TEXT_RATIO } as const;
-  const reading = await readEdge(page, facts, viewport);
-  if (reading.kind === "capture-failed") {
-    // #1758: an INSTRUMENT fault, never folded into the "edge unmeasurable" domain-refusal family below —
-    // a reason-string pin on THAT family cannot red on a transient CDP message.
-    const line = `CONTRAST-EDGE ${selector}: ${reading.reason}`;
-    return {
-      outcome: { line, failed: true },
-      evidence: {
-        ...base,
-        status: "instrument-error",
-        sampled: 0,
-        method: null,
-        ratio: null,
-        requiredRatio: null,
-        passed: null,
-        foreground: null,
-        backdrop: null,
-        fillChannel: null,
-        reason: line,
-      },
-    };
-  }
-  if (reading.kind === "refused") {
-    const line = `CONTRAST-EDGE ${selector}: NO VERDICT (edge unmeasurable) — ${reading.refusal}`;
-    return {
-      outcome: { line, failed: true },
-      evidence: {
-        ...base,
-        status: "refused",
-        sampled: 0,
-        method: null,
-        ratio: null,
-        requiredRatio: null,
-        passed: null,
-        foreground: null,
-        backdrop: null,
-        fillChannel: null,
-        reason: line,
-      },
-    };
-  }
-  const measured = reading.sides.filter((row): row is Extract<ContrastEdgeSideReading, { kind: "measured" }> => row.kind === "measured");
-  const refusedSides = reading.sides.filter((row) => row.kind === "refused");
-  const detail = CONTRAST_EDGE_SIDES.map((side) =>
-    sideLine(reading.sides.find((row) => row.side === side) ?? { side, kind: "skipped", reason: "not read" }),
-  ).join(" · ");
-  if (measured.length === 0) {
-    const line = `CONTRAST-EDGE ${selector}: NO VERDICT (no side could be measured) — ${detail}`;
-    return {
-      outcome: { line, failed: true },
-      evidence: {
-        ...base,
-        status: "refused",
-        sampled: 0,
-        method: null,
-        ratio: null,
-        requiredRatio: null,
-        passed: null,
-        foreground: null,
-        backdrop: null,
-        fillChannel: null,
-        reason: line,
-      },
-    };
-  }
-  // The WORST side is the verdict: 1.4.11 asks whether the boundary is distinguishable, and a border that
-  // vanishes along one edge is not, whatever the other three measure.
-  const worst = measured.reduce((lowest, row) => (row.ratio < lowest.ratio ? row : lowest));
-  const passed = worst.ratio >= AA_NON_TEXT_RATIO && refusedSides.length === 0;
-  const tail = `(border · worst side ${worst.side} · need ${AA_NON_TEXT_RATIO.toFixed(1)} · edge-sample) — ${detail}`;
-  return {
-    outcome: { line: `CONTRAST-EDGE ${selector}: ${worst.ratio.toFixed(2)}:1  ${passed ? "PASS" : "FAIL"}  ${tail}`, failed: !passed },
-    evidence: {
-      ...base,
-      status: "ok",
-      sampled: measured.length,
-      method: "edge-sample",
-      ratio: worst.ratio,
-      passed,
-      foreground: worst.ink,
-      backdrop: worst.neighbour,
-      fillChannel: null,
-      reason: refusedSides.length === 0 ? null : detail,
-    },
-  };
+  return edgeOutcome(selector, subject.facts, await readEdge(page, subject.facts, viewport));
 }

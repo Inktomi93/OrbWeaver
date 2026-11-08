@@ -71,30 +71,19 @@ test("the WORST side carries the verdict, and a borderless subject is refused ra
 
     // Three sides clear 3:1 and the bottom does not. A perimeter average would call this a pass; 1.4.11 is
     // violated by the one side a user cannot see.
+    // Only the status class is pinned here: a capture fault under contention is an honest instrument error
+    // (the capture retries once). The worst-side wording and both refusals are pinned in
+    // tests/tooling/snap/ops/contrast-edge.test.ts, where no capture can fault.
     const split = await measureEdgeContrast(page, "#split", VIEWPORT);
-    // THE CLASS is pinned, not the reason string (#1758): a `Page.captureScreenshot` protocol error under
-    // contention is an INSTRUMENT fault (status "instrument-error", ops/contrast-edge.ts retries once and
-    // still failed) — a DIFFERENT, honest no-verdict reason from this fixture's real per-side verdict
-    // (status "ok", passed false). Both fail the run; only the measured happy path asserts the exact text.
     expect(["ok", "instrument-error"]).toContain(split.evidence.status);
     expect(split.outcome.failed).toBe(true);
-    const splitReceipt =
-      split.evidence.status !== "ok" ||
-      (!split.evidence.passed &&
-        split.outcome.line.includes("worst side bottom") &&
-        split.outcome.line.includes("top:") &&
-        split.outcome.line.includes("bottom:"));
-    expect(splitReceipt, `a measured verdict must name the worst side — ${split.outcome.line}`).toBe(true);
 
-    // A subject with no border at all is a REFUSAL that names the right arm — never a silent pass, which is
-    // what a "no failures found" edge check on a borderless element would read as.
+    // A subject with no border at all is a refusal, never a silent pass.
     const none = await measureEdgeContrast(page, "#none", VIEWPORT);
     expect(none.evidence.ratio).toBeNull();
     expect(none.evidence.passed).toBeNull();
     expect(none.outcome.failed).toBe(true);
     expect(["refused", "instrument-error"]).toContain(none.evidence.status);
-    const noneReceipt = none.evidence.status !== "refused" || (none.outcome.line.includes("no border on any side") && none.outcome.line.includes("--contrast"));
-    expect(noneReceipt, `a domain refusal must name the missing border — ${none.outcome.line}`).toBe(true);
 
     // …and a selector that matches nothing says so instead of measuring the page.
     const missing = await measureEdgeContrast(page, "#absent", VIEWPORT);

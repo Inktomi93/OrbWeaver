@@ -84,7 +84,7 @@ globalThis.__orb={
 <button id="target" onclick="{let total=0;for(let i=0;i<5000000;i+=1){total+=Math.sqrt(i)}globalThis.__plant=total}">hot</button>
 <div id="spin"></div></main></body></html>`;
 // The hot button burns 5M iterations (~0.5s here): an unmistakable long task (>50ms) and click duration
-// (>100ms) that stays an order of magnitude under STEP_TIMEOUT_MS (5s). At 50M it ran ~5.8s under moderate
+// (>100ms) that stays an order of magnitude under SNAP_CEILINGS_MS.step (5s). At 50M it ran ~5.8s under moderate
 // load and lost the race with the click's own step timeout (2026-09-04 battery; green alone).
 
 const DIRTY_MOTION_FIXTURE = FIXTURE.replace(

@@ -2,7 +2,7 @@ import process from "node:process";
 import { setImmediate as nextTurn, setTimeout as sleep } from "node:timers/promises";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
-import { STEP_BASE_MS } from "../../../../tooling/src/snap/lib/budgets.ts";
+import { SNAP_BASES_MS } from "../../../../tooling/src/snap/lib/budgets.ts";
 import { diskSafeOp } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import {
@@ -150,5 +150,5 @@ test("a live call's watchdog grows with its own tape, so a multi-step phone driv
   // A hung eval keeps the bare call ceiling: stopping it is the watchdog's job.
   expect(evalBase).toBe(sessionCallWatchdogBaseMs(false));
   // The drive owes each tap a full step timeout plus every pause it asked for, on top of that ceiling.
-  expect(driveBase).toBeGreaterThan(evalBase + 2 * STEP_BASE_MS + 1200 + 900);
+  expect(driveBase).toBeGreaterThan(evalBase + 2 * SNAP_BASES_MS.step + 1200 + 900);
 });

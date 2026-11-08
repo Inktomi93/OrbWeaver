@@ -9,7 +9,7 @@ import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
 import type { DiskSafeText } from "../../contract/disk-safe-argv.ts";
 import type { Args } from "../../contract/types.ts";
-import { WAIT_SELECTOR_TIMEOUT_MS } from "../../lib/budgets.ts";
+import { SNAP_CEILINGS_MS } from "../../lib/budgets.ts";
 import { scrubPrivateText } from "../../lib/private-values.ts";
 import { consumeOptionalSelector } from "../flags-support.ts";
 import { writeArmEvidenceFile } from "./evidence-file.ts";
@@ -24,7 +24,7 @@ interface AriaOutcome {
 async function captureAria(page: Page, opts: Args): Promise<AriaOutcome> {
   try {
     const root = page.locator(opts.ariaSelector).first();
-    await root.waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS });
+    await root.waitFor({ state: "attached", timeout: SNAP_CEILINGS_MS.waitSelector });
     const ariaOpts: { depth?: number; boxes?: boolean } = { boxes: opts.ariaBoxes };
     if (opts.ariaDepth !== null) {
       ariaOpts.depth = opts.ariaDepth;

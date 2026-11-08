@@ -8,7 +8,7 @@ import type { RuntimeAppearanceHistoricalRow } from "../../floor/appearance/appe
 import { settle } from "../../floor/browser/browser.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { buildNavScript } from "../../floor/instrument/nav.ts";
-import { MOUNT_SETTLE_MS, STEP_SETTLE_MS, WAIT_SELECTOR_TIMEOUT_MS } from "../lib/budgets.ts";
+import { MOUNT_SETTLE_MS, SNAP_CEILINGS_MS, STEP_SETTLE_MS } from "../lib/budgets.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap --matrix");
 
@@ -17,7 +17,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap --matrix");
  *  density preview, the shell grid for everything else. The subject is picked here rather than by the
  *  caller because the row is the only thing that knows which surface it judges.
  *
- *  The wait is bounded by WAIT_SELECTOR_TIMEOUT_MS — the budget every other snap surface wait uses — and
+ *  The wait is bounded by SNAP_CEILINGS_MS.waitSelector — the budget every other snap surface wait uses — and
  *  NOT by the dialog-attach ceiling it used until #1104: a popup that has been asked to open returns in a
  *  frame or two, but reaching a chat on a cold stage means a route chunk, a query and a virtualized list,
  *  and a 5s popup ceiling made that read as a defect on load alone. */
@@ -41,10 +41,10 @@ export async function driveSurface(page: Page, row: RuntimeAppearanceHistoricalR
   }
   // the failure is CONVERTED, never swallowed — a bare `Timeout 5000ms exceeded` reached the matrix loop as an unattributed throw and the drive reported NO VERDICT with nothing naming which row, surface or subject was missing (#1104). Ends when the wait stops being able to fail.
   try {
-    await page.locator(waitSelector).first().waitFor({ state: "attached", timeout: WAIT_SELECTOR_TIMEOUT_MS });
+    await page.locator(waitSelector).first().waitFor({ state: "attached", timeout: SNAP_CEILINGS_MS.waitSelector });
   } catch {
     instrumentRefusal(
-      `Appearance row ${row.id} reached ${kind} ${target} but its ${row.surface} surface never showed ${waitSelector} within ${String(WAIT_SELECTOR_TIMEOUT_MS)}ms — this row has NO VERDICT, not a failed one. The usual cause is a stage whose ${row.surface} surface has no content (an isolated stage with no chat turns); re-run against a stage that has it, or exclude this row's cell.`,
+      `Appearance row ${row.id} reached ${kind} ${target} but its ${row.surface} surface never showed ${waitSelector} within ${String(SNAP_CEILINGS_MS.waitSelector)}ms — this row has NO VERDICT, not a failed one. The usual cause is a stage whose ${row.surface} surface has no content (an isolated stage with no chat turns); re-run against a stage that has it, or exclude this row's cell.`,
     );
   }
   await settle(page, MOUNT_SETTLE_MS);

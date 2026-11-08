@@ -13,7 +13,7 @@ import type { RuntimeAppearanceHistoricalRow } from "../../../../tooling/src/flo
 import { anchorRowSubject, driveSurface } from "../../../../tooling/src/snap/ops/appearance-surface-drive.ts";
 import { scaledBudget } from "../../_load-budget.ts";
 
-// The refusing arm SPENDS the surface-settle budget (WAIT_SELECTOR_TIMEOUT_MS, 10s base) by design, so the
+// The refusing arm SPENDS the surface-settle budget (SNAP_CEILINGS_MS.waitSelector, 10s base) by design, so the
 // file's own ceiling is well clear of it.
 const BROWSER_TIMEOUT_MS = scaledBudget(90_000);
 const VIEWPORT = { width: 800, height: 600 } as const;

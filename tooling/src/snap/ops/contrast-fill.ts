@@ -15,7 +15,7 @@ import type { Viewport } from "../../floor/instrument/argv.ts";
 import type { Rgb } from "../../floor/instrument/wcag.ts";
 import type { ContrastCapture, ContrastFillReading, ContrastMeasured } from "../contract/contrast.ts";
 import { readFillChannels } from "../lib/contrast-fill.ts";
-import { FIELD_TAGS } from "../lib/contrast-verdict.ts";
+import { FIELD_TAGS, terminalEvidence } from "../lib/contrast-verdict.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -80,7 +80,7 @@ async function shootWithRetry(
  *  WITH one is ink, and routes to the ink arm instead). A bare `FILL … PASS` on a composer then reads as
  *  "the composer's contrast is fine", which is a claim about ink this arm never measured — so both the
  *  measured line and the undecodable refusal say out loud that there was no ink to judge. */
-function emptyFieldNote(facts: ContrastMeasured): string {
+function emptyFieldNote(facts: Pick<ContrastMeasured, "tag">): string {
   if (!FIELD_TAGS.has(facts.tag)) {
     return "";
   }
@@ -130,6 +130,67 @@ async function readFill(page: Page, facts: ContrastMeasured, viewport: Viewport)
   }
 }
 
+/** The facts a fill outcome reads: which match it measured, and its tag for the empty-field note. */
+type FillSubject = Pick<ContrastMeasured, "matchIndex" | "tag" | "total">;
+type FillOutcomes = {
+  readonly [K in ContrastFillReading["kind"]]: (selector: string, facts: FillSubject, reading: Extract<ContrastFillReading, { kind: K }>) => ContrastCapture;
+};
+
+function fillTerminal(selector: string, facts: FillSubject, status: "instrument-error" | "refused", line: string): ContrastCapture {
+  return {
+    outcome: { line, failed: true },
+    evidence: terminalEvidence(selector, status, line, { total: facts.total, inViewport: 1, matchIndex: facts.matchIndex }),
+  };
+}
+
+const FILL_OUTCOMES: FillOutcomes = {
+  // An instrument fault (the capture failed twice), never folded into the "undecodable" refusal family, so a reason pin
+  // there cannot red on a transient CDP message.
+  "capture-failed": (selector, facts, reading) => fillTerminal(selector, facts, "instrument-error", `CONTRAST ${selector}: ${reading.reason}`),
+  // The refusal fails the run: an unmeasurable fill has to be louder than a green line.
+  refused: (selector, facts, reading) =>
+    fillTerminal(selector, facts, "refused", `CONTRAST ${selector}: NO VERDICT (fill-only, undecodable) — ${reading.refusal}${emptyFieldNote(facts)}`),
+  measured: (selector, facts, reading) => {
+    const passed = reading.ratio >= AA_NON_TEXT_RATIO;
+    const share = `${(reading.share * PERCENT).toFixed(0)}% of the box`;
+    // The two colours are printed, not just the ratio: a reviewer takes them to the token vault, and an
+    // anti-aliased edge winning shows up as a colour that is neither fill nor surround.
+    const colours = `${show(reading.fill)} on ${show(reading.surround)} (${(reading.surroundShare * PERCENT).toFixed(0)}% of the band)`;
+    const tail = `(fill-only · channel ${reading.channel} ${share} · ${colours} · need ${AA_NON_TEXT_RATIO.toFixed(1)} · fill-sample)`;
+    // The fill verdict samples the box, not each painted side, so it names the edge check for the WCAG 1.4.11 border question.
+    const next = ` · next: pnpm snap --contrast-edge ${JSON.stringify(selector)} for the BORDER question (WCAG 1.4.11, per side)`;
+    return {
+      outcome: {
+        line: `CONTRAST ${selector}: FILL ${reading.ratio.toFixed(2)}:1  ${passed ? "PASS" : "FAIL"}  ${tail}${emptyFieldNote(facts)}${next}`,
+        failed: !passed,
+      },
+      evidence: {
+        selector,
+        candidates: facts.total,
+        inViewport: 1,
+        matchIndex: facts.matchIndex,
+        requiredRatio: AA_NON_TEXT_RATIO,
+        status: "ok",
+        sampled: 1,
+        method: "fill-sample",
+        ratio: reading.ratio,
+        passed,
+        foreground: reading.fill,
+        backdrop: reading.surround,
+        fillChannel: { kind: reading.channel, share: reading.share },
+        reason: null,
+      },
+    };
+  },
+};
+
+/** The printed outcome and evidence row for one fill reading, with no browser in the path. */
+export function fillOutcome(selector: string, facts: FillSubject, reading: ContrastFillReading): ContrastCapture {
+  // A mapped record cannot correlate `reading.kind` with its handler's parameter, so the lookup is widened once here.
+  const outcome = FILL_OUTCOMES[reading.kind] as (selector: string, facts: FillSubject, reading: ContrastFillReading) => ContrastCapture;
+  return outcome(selector, facts, reading);
+}
+
 /**
  * The verdict for a subject that paints no ink of its own: the loudest painted channel of its box against
  * the band around it, at WCAG 1.4.11's 3:1 non-text boundary — or a printed NO VERDICT.
@@ -138,81 +199,5 @@ async function readFill(page: Page, facts: ContrastMeasured, viewport: Viewport)
  * arm closes: something has to be louder than a green line, or the next reviewer quotes the ink again.
  */
 export async function measureFillContrast(page: Page, selector: string, facts: ContrastMeasured, viewport: Viewport): Promise<ContrastCapture> {
-  const reading = await readFill(page, facts, viewport);
-  const base = {
-    selector,
-    candidates: facts.total,
-    inViewport: 1,
-    matchIndex: facts.matchIndex,
-    requiredRatio: AA_NON_TEXT_RATIO,
-  } as const;
-  if (reading.kind === "capture-failed") {
-    // #1758: an INSTRUMENT fault (the capture itself, retried once, still failed) — never folded into the
-    // "undecodable" domain-refusal family below, so a reason-string pin on THAT family cannot red on a
-    // transient CDP message that says nothing about the fixture's pixels.
-    const line = `CONTRAST ${selector}: ${reading.reason}`;
-    return {
-      outcome: { line, failed: true },
-      evidence: {
-        ...base,
-        status: "instrument-error",
-        sampled: 0,
-        method: null,
-        ratio: null,
-        requiredRatio: null,
-        passed: null,
-        foreground: null,
-        backdrop: null,
-        fillChannel: null,
-        reason: line,
-      },
-    };
-  }
-  if (reading.kind === "refused") {
-    const line = `CONTRAST ${selector}: NO VERDICT (fill-only, undecodable) — ${reading.refusal}${emptyFieldNote(facts)}`;
-    return {
-      outcome: { line, failed: true },
-      evidence: {
-        ...base,
-        status: "refused",
-        sampled: 0,
-        method: null,
-        ratio: null,
-        requiredRatio: null,
-        passed: null,
-        foreground: null,
-        backdrop: null,
-        fillChannel: null,
-        reason: line,
-      },
-    };
-  }
-  const passed = reading.ratio >= AA_NON_TEXT_RATIO;
-  const share = `${(reading.share * PERCENT).toFixed(0)}% of the box`;
-  // The two COLOURS are printed, not just the ratio: a fill verdict a reviewer cannot take to the token
-  // vault is the same unquotable number this arm replaced, and seeing them is how a wrong channel is
-  // caught by eye (an anti-aliased edge winning would print a colour that is neither fill nor surround).
-  const colours = `${show(reading.fill)} on ${show(reading.surround)} (${(reading.surroundShare * PERCENT).toFixed(0)}% of the band)`;
-  const tail = `(fill-only · channel ${reading.channel} ${share} · ${colours} · need ${AA_NON_TEXT_RATIO.toFixed(1)} · fill-sample)`;
-  // #1385 item 3: a bare `FILL … FAIL` reads like a TEXT contrast verdict, and the question it does not
-  // answer — the boundary, WCAG 1.4.11 — is the one an empty input's affordance actually rests on. The
-  // fill arm cannot answer it (it samples the box, not each painted side), so it names the arm that can
-  // rather than letting a reader assume the box verdict covered the border.
-  const next = ` · next: pnpm snap --contrast-edge ${JSON.stringify(selector)} for the BORDER question (WCAG 1.4.11, per side)`;
-  const noInk = emptyFieldNote(facts);
-  return {
-    outcome: { line: `CONTRAST ${selector}: FILL ${reading.ratio.toFixed(2)}:1  ${passed ? "PASS" : "FAIL"}  ${tail}${noInk}${next}`, failed: !passed },
-    evidence: {
-      ...base,
-      status: "ok",
-      sampled: 1,
-      method: "fill-sample",
-      ratio: reading.ratio,
-      passed,
-      foreground: reading.fill,
-      backdrop: reading.surround,
-      fillChannel: { kind: reading.channel, share: reading.share },
-      reason: null,
-    },
-  };
+  return fillOutcome(selector, facts, await readFill(page, facts, viewport));
 }

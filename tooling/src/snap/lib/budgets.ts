@@ -1,54 +1,43 @@
-// The drive/settle wall-clock budgets — ceilings, not sleeps (a warm surface returns fast).
-//
-// Every CEILING here is `budget(<X>_BASE_MS)` (#1266, closing #1232's last four census rows): the literal
-// is the QUIET-BOX value, and the one load policy (floor/host/load-budget.ts) stretches it by the box's
-// per-core contention. A quiet run is byte-identical to the old fixed number (factor 1); only a saturated
-// one moves. The bases were NOT re-tuned in that conversion — a ceiling here is a VERDICT input (a step
-// that overruns is a real finding), so widening one to be safe would weaken the finding it exists to make.
-// That is the opposite trade from a leak guard, where generosity costs only a lingering handle.
-//
-// The `*_SETTLE_MS` / `*_REVEAL_MS` values below are deliberately NOT budgets and not scaled: they are
-// SLEEPS the run always pays in full, so stretching them under load would spend real time to buy nothing.
+// Snap's wall-clock ceilings: each is `budget` over its quiet-box base, stretched by box contention.
+// A ceiling is a verdict input (an overrun is a finding), so a base is never widened to be safe.
+// The `*_SETTLE_MS` and `*_REVEAL_MS` values are sleeps the run always pays, so they are never scaled.
+import type { BoxLoadReader } from "../../floor/host/load-budget.ts";
 import { budget } from "../../floor/host/load-budget.ts";
 import { processEnvValue } from "../../floor/process/process-env.ts";
 
-// The BASE consts are exported (not just their derived ceilings) so a load-scaling pin can drive the
-// SAME numbers this module actually uses through an injected reader (T14/T15)
-// instead of re-declaring them and risking drift.
-export const NAV_BASE_MS = 15_000;
-export const NAV_TIMEOUT_MS = budget(NAV_BASE_MS);
-export const WAIT_SELECTOR_BASE_MS = 10_000;
-export const WAIT_SELECTOR_TIMEOUT_MS = budget(WAIT_SELECTOR_BASE_MS);
-// A STAGE (`--isolated`/`--dirty`) is a vite dev server that may be transforming the module graph on demand:
-// a freshly-booted one legitimately needs far longer than the shared dev stack's budget for its FIRST
-// navigation (measured 2026-08-09: every cold stage blew the 15s goto). These are ceilings, not sleeps — a
-// warm stage returns just as fast — so the wide budget costs nothing and buys a first call that isn't a lie.
-export const STAGE_NAV_BASE_MS = 90_000;
-export const STAGE_NAV_TIMEOUT_MS = budget(STAGE_NAV_BASE_MS);
-export const STAGE_READY_BASE_MS = 60_000;
-export const STAGE_READY_TIMEOUT_MS = budget(STAGE_READY_BASE_MS);
-// Explicit cold bootstrap waits on one document for its actual readiness signal.
-export const COLD_START_READY_BASE_MS = 2 * STAGE_READY_BASE_MS;
-export const COLD_START_READY_TIMEOUT_MS = budget(COLD_START_READY_BASE_MS);
-// A LOAD-EMULATION ARM (`--cpu-throttle` / `--network`) MOVES THE WALL CLOCK IT IS MEASURED AGAINST
-// (#836). The whole point of `--network slow-4g` is that bytes arrive at 180 KB/s behind 562ms of added
-// latency; holding that run to the un-throttled 10s readiness budget makes the flag structurally
-// unusable — measured: every `--mobile --network slow-4g --cpu-throttle 4` run on `/` came back
-// `app never signalled data-app-ready` on BOTH the dev and the prod build, which reads as an app defect
-// and is really the instrument refusing its own arm. These are ceilings, not sleeps: an un-throttled run
-// never reaches them, and a throttled one that still misses them is a real finding.
-export const THROTTLED_NAV_BASE_MS = 90_000;
-export const THROTTLED_NAV_TIMEOUT_MS = budget(THROTTLED_NAV_BASE_MS);
-export const THROTTLED_READY_BASE_MS = 60_000;
-export const THROTTLED_READY_TIMEOUT_MS = budget(THROTTLED_READY_BASE_MS);
-export const STEP_BASE_MS = 5000;
-export const STEP_TIMEOUT_MS = budget(STEP_BASE_MS);
+const STAGE_READY_BASE_MS = 60_000;
+
+/** The quiet-box base of every snap ceiling. A key here gets its ceiling in {@link SNAP_CEILINGS_MS}. */
+export const SNAP_BASES_MS = {
+  nav: 15_000,
+  waitSelector: 10_000,
+  /** A cold `--isolated`/`--dirty` stage transforms its module graph on demand, so its first navigation runs far past the shared stack's. */
+  stageNav: 90_000,
+  stageReady: STAGE_READY_BASE_MS,
+  /** Explicit cold bootstrap waits on one document for its actual readiness signal. */
+  coldStartReady: 2 * STAGE_READY_BASE_MS,
+  /** A `--cpu-throttle`/`--network` arm slows the clock it is judged against; the un-throttled ceiling would refuse the arm itself. */
+  throttledNav: 90_000,
+  throttledReady: 60_000,
+  step: 5000,
+  networkIdle: 10_000,
+} as const satisfies Readonly<Record<string, number>>;
+
+type SnapCeilingName = keyof typeof SNAP_BASES_MS;
+export type SnapCeilings = Readonly<Record<SnapCeilingName, number>>;
+
+/** Every base through `budget`, read against one box reading. */
+export function snapCeilings(read?: BoxLoadReader): SnapCeilings {
+  // `Object.fromEntries` widens its keys to string; the entries come from SNAP_BASES_MS itself, so every key is present.
+  return Object.fromEntries(Object.entries(SNAP_BASES_MS).map(([name, base]) => [name, budget(base, read)])) as Record<SnapCeilingName, number>;
+}
+
+/** The ceilings in force for this process, read once at module load (each snap run is a fresh process). */
+export const SNAP_CEILINGS_MS: SnapCeilings = snapCeilings();
 // Let transitions/queries settle between steps (drawer slides, panel drops).
 export const STEP_SETTLE_MS = 400;
 // After a --force-click hover: give group-hover reveals a beat before the forced click.
 export const HOVER_REVEAL_MS = 150;
-export const NETWORKIDLE_BASE_MS = 10_000;
-export const NETWORKIDLE_TIMEOUT_MS = budget(NETWORKIDLE_BASE_MS);
 // Default post-nav settle so onMount queries have a chance to fire.
 export const MOUNT_SETTLE_MS = 500;
 // How many DISTINCT emitted design-audit finding selectors are proven unique in Node (#1326). Each proof
