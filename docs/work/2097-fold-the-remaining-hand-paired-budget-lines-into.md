@@ -11,7 +11,7 @@ plan: test-foundation
 
 ## What
 
-Some tooling modules still pair each load-scaled ceiling with its base by hand, starting with materialize-devtools and nav.ts.
+Thirteen or more tooling modules still pair each load-scaled ceiling with its base by hand outside snap/lib/budgets.ts, starting with materialize-devtools and nav.ts. The list is in the M7 review report under reports/code-reviewer.
 
 ## Why
 
