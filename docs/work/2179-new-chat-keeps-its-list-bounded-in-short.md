@@ -23,4 +23,4 @@ At 844x390 and 568x320 with 200% and 300% text the list stays bounded and Start 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Cause: below 14rem of dialog height (200% and 300% text on a landscape phone) globals.css lets New chat's popup scroll as one sheet, so nothing bounded the picker and its list ran the whole library: 3344px at 200% and 5016px at 300% on 844x390 and 568x320, with Start after every row. Red first: tests/client/features/app-shell/surfaces/new-chat-picker-skeleton.ct.tsx gained 844x390 and 568x320 at 200% and 300%, with and without saved rosters, each asserting the list is no taller than the screen and Start scrolls onto it (eight red on the unmodified tree). Fix: in that step the list holds to the picker window (height.picker-window) and the loading box to the matching floor box (globals.css). Green, with the skeleton, the loaded box and the dialog within 1px. tests/client/features/app-shell/surfaces/new-chat-picker-keystroke.ct.tsx has the same four cells and keeps a whole row after the first keystroke.

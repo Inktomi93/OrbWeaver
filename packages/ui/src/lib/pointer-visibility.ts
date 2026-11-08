@@ -19,6 +19,7 @@ export const HIDDEN_AT = {
   unlessPrint: "not-print:hidden",
   dialogLandscape: "dialog-short:glass-short:hidden",
   dialogStacked: "dialog-stacked:hidden",
+  dialogStackedCramped: "dialog-stacked-cramped:hidden",
   stackedOrDialogLandscape: "dialog-stacked:hidden dialog-short:glass-short:hidden",
   "cq-20": "@cq-20:hidden",
   "cq-28": "@cq-28:hidden",

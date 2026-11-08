@@ -23,4 +23,4 @@ Every command and picker search input renders at the field size or larger at a c
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The command input slot used text-body (15px at every pointer); it is now text-field leading-field (16px at a coarse pointer), and every command palette, character picker and model picker search renders through that slot. tests/ui/primitives/command/command-seal.ct.tsx reads the input's computed font size at a coarse pointer and expects it to equal the text.field token and to be at least 16px (red first: 15px received, 16 expected).

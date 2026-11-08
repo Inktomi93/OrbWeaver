@@ -188,6 +188,7 @@ export function NewChatPicker(): ReactElement {
       {rosterDoor()}
     </Row>
   ) : null;
+  // Blank chat is a pinned action wherever the pinned row can hold it; a stacked dialog too small for two pinned buttons and a whole list row sets it below.
   const blankAction = ({ grow, hiddenAt, width }: Pick<ComponentProps<typeof Button>, "grow" | "hiddenAt" | "width">): ReactElement => (
     <Button grow={grow} hiddenAt={hiddenAt} width={width} disabled={isPending} variant="ghost" wrap={true} onClick={(): void => found([])}>
       <Icon hiddenAt="belowCq20" icon={Plus} size="sm" />
@@ -244,7 +245,7 @@ export function NewChatPicker(): ReactElement {
         </Text>
         {/* The door is a direct child, so Start stays the actions' last button. */}
         {hasRosters ? rosterDoor({ hiddenAt: "unlessDialogLandscapeWide", push: "inlineStart" }) : null}
-        {blankAction({ grow: "contentNarrow", hiddenAt: "dialogStacked" })}
+        {blankAction({ grow: "contentNarrow", hiddenAt: "dialogStackedCramped" })}
         <Button
           grow="contentNarrow"
           quietDisabled={teaching}
@@ -269,8 +270,8 @@ export function NewChatPicker(): ReactElement {
         </Button>
       </Row>
       {/* After the pinned row, so nothing passes under Start and a focused action is never hidden behind it. */}
-      <Stack hiddenAt="unlessDialogStacked" gap="field" padding="block">
-        {blankAction({ width: "full" })}
+      <Stack hiddenAt={hasRosters ? "unlessDialogStacked" : "unlessDialogStackedCramped"} gap="field" padding="block">
+        <Stack hiddenAt="unlessDialogStackedCramped">{blankAction({ width: "full" })}</Stack>
         {hasRosters ? rosterDoor() : null}
       </Stack>
     </Stack>

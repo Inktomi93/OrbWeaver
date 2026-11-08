@@ -272,6 +272,7 @@ const BOX_HIDDEN_AT = {
   ...HIDDEN_AT,
   unlessDialogLandscape: "hidden dialog-short:glass-short:flex",
   unlessDialogStacked: "hidden dialog-stacked:flex",
+  unlessDialogStackedCramped: "hidden dialog-stacked-cramped:flex",
 } as const;
 
 // A wrapped child that queues behind its siblings until the container is wide enough to seat it beside them, where its

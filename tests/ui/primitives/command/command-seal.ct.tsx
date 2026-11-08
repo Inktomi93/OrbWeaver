@@ -1,7 +1,28 @@
+import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
 import type { CommandCenterRowStory, CommandInputRefStory } from "./_command-seal-stories.tsx";
 
 const STORIES = "tests/ui/primitives/command/_command-seal-stories";
+// iOS Safari zooms the page on focusing any text field painted under 16px and never zooms back, so a touch search field holds that floor.
+const FOCUS_ZOOM_FLOOR_PX = 16;
+
+test.describe("at a coarse pointer", () => {
+  test.use({ hasTouch: true, isMobile: true });
+
+  test("the search input paints at the field type step, so focusing it does not zoom the page", async ({ mount, page }) => {
+    await mount<typeof CommandInputRefStory>(`${STORIES}/CommandInputRefStory`);
+    const sizes = await page.getByRole("combobox").evaluate((input, cssVar) => {
+      const probe = document.createElement("span");
+      probe.style.fontSize = `var(${cssVar})`;
+      input.parentElement?.append(probe);
+      const field = Number.parseFloat(getComputedStyle(probe).fontSize);
+      probe.remove();
+      return { field, input: Number.parseFloat(getComputedStyle(input).fontSize) };
+    }, TOKENS["text.field"].cssVar);
+    expect(sizes.input).toBe(sizes.field);
+    expect(sizes.input).toBeGreaterThanOrEqual(FOCUS_ZOOM_FLOOR_PX);
+  });
+});
 
 test("a ref passed to the search input reaches the real input and leaves the seal's own aria-expanded correction in force", async ({ mount, page }) => {
   await mount<typeof CommandInputRefStory>(`${STORIES}/CommandInputRefStory`);

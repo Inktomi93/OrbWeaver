@@ -42,7 +42,7 @@ export const commandVariants = tv({
     // floor here keeps the tap target explicit rather than relying on that CSS-var-only coincidence.
     inputWrapper: `${ROW_STRIP} border-be border-border px-row block-(--size-control-sm) pointer-coarse:block-(--size-touch-target)`,
     input: `
-      flex-1 bg-transparent text-body leading-body text-foreground outline-none block-full inline-full min-inline-0
+      flex-1 bg-transparent text-field leading-field text-foreground outline-none block-full inline-full min-inline-0
       placeholder:text-muted-foreground
       pointer-coarse:block-(--size-touch-target)
     `,

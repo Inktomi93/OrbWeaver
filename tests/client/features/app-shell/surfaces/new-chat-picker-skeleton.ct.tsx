@@ -2,7 +2,8 @@
 // device's first-ever open: no box is remembered yet, so the declared box is all the skeleton has. The library is longer than a page, so the picker's
 // footer is there at load. A library with saved rosters adds a door row above the picker, so a cell with rosters opens on a device that has cached the
 // roster list (the shell warms it at boot) and the declared box carries the row. A stacked or landscape dialog hides that row, and its declared box
-// drops it again. A landscape phone's picker takes whatever room the dialog leaves.
+// drops it again. A landscape phone's picker takes whatever room the dialog leaves, and at enlarged text its list stays a window the dialog scrolls past
+// to Start rather than growing to the whole library.
 import { seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, holdCorpusProcedure, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -15,6 +16,8 @@ const STORY = `${SHELL_STORIES}/AppShellModalStory`;
 const SETTLE_TOLERANCE_PX = 1;
 const RESERVED = "[data-reserve-key]";
 const COMMAND_ROOT = '[data-slot="command-root"]';
+const LIST = "[cmdk-list]";
+const ACTIONS = '[data-slot="new-chat-actions"]';
 const DECLARED_BOX = `var(${TOKENS["height.picker-box"].cssVar})`;
 const DECLARED_BOX_WITH_DOOR = `calc(${DECLARED_BOX} + var(${TOKENS["height.picker-door-row"].cssVar}))`;
 const WARM_STORY = `${SHELL_STORIES}/AppShellWarmRostersNewChatStory`;
@@ -34,8 +37,18 @@ const ARMS = [
   { rosters: true, factor: 3 },
 ] as const;
 
+// A landscape phone is the short regime at every text size, so each size is a cell there.
+const LANDSCAPE_ARMS = [
+  { rosters: false, factor: 1 },
+  { rosters: true, factor: 1 },
+  { rosters: false, factor: 2 },
+  { rosters: true, factor: 2 },
+  { rosters: false, factor: 3 },
+  { rosters: true, factor: 3 },
+] as const;
+
 for (const cell of CELLS) {
-  for (const { rosters, factor } of cell.landscape ? ARMS.filter((arm) => arm.factor === 1) : ARMS) {
+  for (const { rosters, factor } of cell.landscape ? LANDSCAPE_ARMS : ARMS) {
     test.describe(`on a ${cell.name} screen at ${String(factor * 100)}% text, ${rosters ? "with" : "without"} saved rosters`, () => {
       test.use({ viewport: { width: cell.width, height: cell.height }, hasTouch: cell.coarse, isMobile: cell.coarse });
 
@@ -77,6 +90,37 @@ for (const cell of CELLS) {
           Math.abs((loaded.popup?.height ?? 0) - (skeleton.popup?.height ?? 0)),
           `the dialog went from ${String(skeleton.popup?.height)}px to ${String(loaded.popup?.height)}px`,
         ).toBeLessThanOrEqual(SETTLE_TOLERANCE_PX);
+      });
+
+      test("the list is a window onto the library and Start scrolls onto the screen", async ({ corpus, mount, page }) => {
+        await using root = await createCorpusHarness();
+        const caller = await root.internalCallerFor(root.ownerId);
+        if (!rosters) {
+          for (const roster of await caller.rosterPreset.list()) {
+            await caller.rosterPreset.remove({ presetId: roster.id });
+          }
+        }
+        await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, SECTION_PROCEDURES) });
+        await seedShellState(page, { activeSection: "chats" });
+        if (rosters) {
+          await mount<typeof AppShellWarmRostersNewChatStory>(WARM_STORY);
+        } else {
+          await mount<typeof AppShellModalStory>(STORY, { modalId: "newChat" });
+        }
+        const dialog = page.getByRole("dialog");
+        await setRootFontScale(page, channelName("fontScale"), factor);
+        await expect(dialog.getByRole("option").first()).toBeVisible();
+        const screenHeight = page.viewportSize()?.height ?? 0;
+        const list = await dialog.locator(LIST).boundingBox();
+        expect(
+          list?.height ?? Number.POSITIVE_INFINITY,
+          `the list is ${String(list?.height)}px tall on a ${String(screenHeight)}px screen`,
+        ).toBeLessThanOrEqual(screenHeight);
+        const start = dialog.locator(ACTIONS).getByRole("button").last();
+        await start.scrollIntoViewIfNeeded();
+        const startBox = await start.boundingBox();
+        expect(startBox?.y ?? Number.NaN, "Start's top is on the screen").toBeGreaterThanOrEqual(0);
+        expect((startBox?.y ?? Number.NaN) + (startBox?.height ?? Number.NaN), "Start's bottom is on the screen").toBeLessThanOrEqual(screenHeight);
       });
     });
   }

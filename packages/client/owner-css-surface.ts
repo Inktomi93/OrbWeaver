@@ -1057,6 +1057,7 @@ export const OWNER_CSS_TOKEN_VARS = [
   "--container-cq-40",
   "--container-cq-48",
   "--container-cq-56",
+  "--container-cq-6",
   "--container-cq-64",
   "--container-cq-72",
   "--container-cq-8",
