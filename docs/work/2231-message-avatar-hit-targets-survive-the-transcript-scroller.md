@@ -23,4 +23,4 @@ At a coarse pointer the avatar's hit-testable area inside the real transcript me
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Not fixed. The CT edge probe is written and red: inside the real transcript, the avatar's start-edge point at the reach's edge hits the scroller, not the avatar. The cause is geometric. The avatar's centre sits 16px from the scroller's clip edge and the reach is 44px, so 6px of it is outside the clip; even with the room island's 4px inset moved into the scroller the centre is still 2px short of the 22px the reach needs from the viewport edge. Every fix moves something the owner has pinned: shifting the chip inward 6px breaks the shared edge with the composer, and shifting the reach inward lets its extra 16px overlap the bubble that starts about 6px after the chip. This needs an owner call between those two. Default: shift the chip and the composer's start edge together by the clipped amount; not done here. The red CT is kept in the lane report folder, not committed.
