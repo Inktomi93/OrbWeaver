@@ -9,11 +9,13 @@
  * chrome, still leaves the footer's one line (about 3rem) and a 2.75rem touch row (this box is the screen less its gutters); above the width that footer
  * keeps its one line, and a wrapped footer would take the room the window has left. A landscape phone's dialog is the one that is also short in the glass: `dialog-short:glass-short:` stacks the media height step (a `rem` there keeps the
  * platform default) on the dialog's own. A screen 27rem tall or less is in it at any text scale; enlarged text alone never moves a taller
- * screen into it. */
+ * screen into it. `dialog-stacked-cramped` is a stacked dialog under the cq-16 height step or the cq-6 width step, where two pinned buttons leave
+ * the list less than a whole row; a roomier stacked dialog seats both. */
 @custom-variant dialog-short (@container dialog (height <= 24rem));
 @custom-variant dialog-stacked (@container dialog (height <= 24rem) and (width <= 32rem));
 @custom-variant dialog-tiny (@container dialog (height <= 14rem));
 @custom-variant dialog-roomy (@container dialog (height > 26rem) and (width > 12rem));
+@custom-variant dialog-stacked-cramped (@container dialog (height <= 24rem) and (width <= 32rem) and ((height <= 16rem) or (width <= 6rem)));
 
 /* A non-interactive paint layer fills its positioned host without intercepting the host's controls. */
 @utility orb-paint-carrier {

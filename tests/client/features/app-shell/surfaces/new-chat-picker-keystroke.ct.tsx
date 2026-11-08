@@ -44,6 +44,11 @@ const CELLS = [
   { name: "430x932 at 200%", width: 430, height: 932, factor: 2, holds: true },
   { name: "393x873 at 200%", width: 393, height: 873, factor: 2, holds: false },
   { name: "360x900 at 200%", width: 360, height: 900, factor: 2, holds: false },
+  // A landscape phone at enlarged text scrolls the dialog as one sheet around a one-row list window, and the footer still keeps that row.
+  { name: "844x390 at 200%", width: 844, height: 390, factor: 2, holds: false },
+  { name: "844x390 at 300%", width: 844, height: 390, factor: 3, holds: false },
+  { name: "568x320 at 200%", width: 568, height: 320, factor: 2, holds: false },
+  { name: "568x320 at 300%", width: 568, height: 320, factor: 3, holds: false },
 ] as const;
 
 interface Frame {
