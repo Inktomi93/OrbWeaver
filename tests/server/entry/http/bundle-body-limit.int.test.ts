@@ -33,7 +33,8 @@ test("actual raw bundle overflow cancels its source and removes the partial stag
   expect(await root.services.workloads.list({ caller: principal, kind: "import-bundle" })).toEqual(before);
 });
 
-test("a backup over the in-memory import cap is staged whole and its import reads the archive itself, not a size refusal", async () => {
+// The body must pass the in-memory cap, so the case streams and stages a body of that size to disk: that is its proven runtime.
+test("a backup over the in-memory import cap is staged whole and its import reads the archive itself, not a size refusal", { tags: ["slow"] }, async () => {
   await using root = await createServerHarness({
     env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
     physicalPeer: () => "127.0.0.1",

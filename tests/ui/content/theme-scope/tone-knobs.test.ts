@@ -34,8 +34,6 @@ import { BASES, keepsHue, MID_GREY } from "./contrast-cases.ts";
 
 // The sweeps run the production clamp per case; they outrun the default per-test budget.
 const SWEEP_TIMEOUT_MS = 180_000;
-// Every accent on every contrast-case base, picked and inherited: each pair is a distinct solve, and it measured 290 s at load 30.
-const ACCENT_SWEEP_TIMEOUT_MS = 2 * SWEEP_TIMEOUT_MS;
 const HEARTH_ACCENT = TOKENS["color.primary"].value;
 const ACCENT_LIGHTNESSES = Array.from({ length: 20 }, (_unused, index) => (index + 0.5) / 20);
 const ACCENT_CHROMAS = [0, 0.06, 0.12, 0.2, 0.37];
@@ -142,9 +140,27 @@ interface EmittedScope {
   readonly tones: readonly CarriedTone[];
 }
 
+type ClampedTheme = ReturnType<typeof clampThemeTokens>;
+
+/** The scope that inherits Hearth's accent on one page: several cases judge it, so each page is solved once. */
+const HEARTH_SCOPES = new Map<string, ClampedTheme>();
+
+function clampedScope(background: string, tokens: { readonly accent?: string }, ambientAccent?: string): ClampedTheme {
+  if (tokens.accent !== undefined || ambientAccent !== HEARTH_ACCENT) {
+    return clampThemeTokens({ background, ...tokens }, undefined, ambientAccent);
+  }
+  const known = HEARTH_SCOPES.get(background);
+  if (known !== undefined) {
+    return known;
+  }
+  const clamped = clampThemeTokens({ background }, undefined, HEARTH_ACCENT);
+  HEARTH_SCOPES.set(background, clamped);
+  return clamped;
+}
+
 /** A carried scope as the clamp emits it: its intents and neutral from the carried palette, its primary as emitted. */
 function emittedScope(background: string, tokens: { readonly accent?: string }, ambientAccent?: string): EmittedScope {
-  const { vars } = clampThemeTokens({ background, ...tokens }, undefined, ambientAccent);
+  const { vars } = clampedScope(background, tokens, ambientAccent);
   const scheme = schemeOf(background);
   const fill = vars[TOKENS["color.primary"].cssVar];
   const primary: CarriedTone[] =
@@ -157,7 +173,7 @@ function emittedScope(background: string, tokens: { readonly accent?: string }, 
  * with the nested scope's over them, and the outer palette's tones with the primary the nested scope paints.
  */
 function nestedAccentScope(background: string, accent: string): EmittedScope {
-  const outer = clampThemeTokens({ background }, undefined, HEARTH_ACCENT);
+  const outer = clampedScope(background, {}, HEARTH_ACCENT);
   const nested = clampThemeTokens({ accent }, outer.resolvedBackground, outer.accentSource, { palette: "carried" });
   const vars = { ...outer.vars, ...nested.vars };
   const scheme = schemeOf(background);
@@ -291,15 +307,12 @@ test(
   SWEEP_TIMEOUT_MS,
 );
 
-test(
-  "every picked and inherited accent clears every tone's floors and tint separations on each contrast-case base",
-  () => {
-    const misses = BASES.flatMap(({ background }) =>
-      ACCENTS.flatMap((accent) => [...emittedMisses(background, { accent }), ...emittedMisses(background, {}, accent)]),
-    );
-    expect(misses).toEqual([]);
+test.for(BASES)(
+  "every picked and inherited accent clears every tone's floors and tint separations on the $name contrast-case base",
+  { timeout: SWEEP_TIMEOUT_MS },
+  ({ background }) => {
+    expect(ACCENTS.flatMap((accent) => [...emittedMisses(background, { accent }), ...emittedMisses(background, {}, accent)])).toEqual([]);
   },
-  ACCENT_SWEEP_TIMEOUT_MS,
 );
 
 /** A dark accent no one ink covers with its solid steps, and a saturated one past the gamut. */
