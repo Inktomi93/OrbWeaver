@@ -8,6 +8,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import { landMerged, landStaged, newItem } from "../../../../tooling/src/doc/index.ts";
 import { configureFixtureGitIdentity, execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { checkoutState, fileTimes, pinFileTimes } from "../_checkout-state.ts";
 import { written } from "../_written-item.ts";
 
 const TODAY = "2026-09-23";
@@ -121,6 +122,8 @@ test("a refused land --stage stages, deletes and writes nothing", TIMEOUT, async
 
 test("land --stage under a held index lock refuses before any write and leaves the files and index as they were", TIMEOUT, async ({ plantedTree }) => {
   const root = await repoWithItems(plantedTree);
+  pinFileTimes(root);
+  const pinned = fileTimes(root);
   const indexLock = join(root, ".git", "index.lock");
   writeFileSync(indexLock, "");
   const locked = landStaged([1], root, TODAY);
@@ -128,11 +131,32 @@ test("land --stage under a held index lock refuses before any write and leaves t
   expect(locked.staged).toBeUndefined();
   expect(locked.refusals).toHaveLength(1);
   expect(locked.refusals[0]).toContain("index.lock");
+  // The lock refuses before the write: a file written and then put back would match its bytes but not its time.
+  expect(fileTimes(root)).toBe(pinned);
   expect(readFileSync(join(root, "docs/work/0002-b.md"), "utf8")).toContain("blocked: on 1");
   rmSync(indexLock);
   expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(true);
   expect(git(root, "status", "--porcelain")).toBe("");
   // Positive control: with the lock gone the same landing stages, so the refusal above stood in front of a real write.
+  expect(landStaged([1], root, TODAY).refusals).toEqual([]);
+  expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(false);
+});
+
+test("a land --stage whose staging git refuses puts every written file back and stages nothing", TIMEOUT, async ({ plantedTree }) => {
+  const root = await repoWithItems(plantedTree);
+  const before = checkoutState(root);
+  const indexPath = join(root, ".git", "index");
+  const goodIndex = readFileSync(indexPath);
+  // A damaged index is git's own refusal shape for the staging step, reached after the write and with no lock held.
+  writeFileSync(indexPath, "not an index");
+  const refused = landStaged([1], root, TODAY);
+  writeFileSync(indexPath, goodIndex);
+  expect(refused.written).toEqual([]);
+  expect(refused.staged).toBeUndefined();
+  expect(refused.refusals).toHaveLength(1);
+  expect(refused.refusals[0]).toContain("update-index");
+  expect(checkoutState(root)).toBe(before);
+  // Positive control: with the index whole the same landing stages, so the refusal above stood after a real write.
   expect(landStaged([1], root, TODAY).refusals).toEqual([]);
   expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(false);
 });

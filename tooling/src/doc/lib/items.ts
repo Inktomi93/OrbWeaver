@@ -266,9 +266,3 @@ export function stagedLanding(records: readonly LandingRecord[]): StagedLanding 
 export function workCommitMessage(ids: readonly number[], trailer: string): string {
   return `${workHeader("update", ids)}\n\n${trailer}`;
 }
-
-/** The refusal for a commit git would not make: the files stay written, so the message is given for the
- *  by-hand commit. */
-export function commitRefusal(what: string, reason: string, message: string): string {
-  return `the ${what} commit failed — ${reason}. The files are written; commit them by hand with this message:\n${message}`;
-}

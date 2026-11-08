@@ -316,7 +316,7 @@ const PLAN_ORDER_MESSAGE =
 const OWNED_ROOT_NAMES = `/^(${OWNED_ROOT_ACQUISITIONS.join("|")})$/`;
 // Every helper that returns a plan the caller declares: a new one joins this list in the change that adds it.
 const REPLY_PLAN_ACQUISITIONS =
-  "/^(finiteReplies|textProvider|openAiServer|scriptedResponses|physicalScene|physicalExecution|tailSwipeScene|paidReplies|provider|planned|createCorpusChatWire|createCorpusRpgWire|createKnowledgeSwipeWire|createRpgFlightWire|createCorpusConnectionWire|createCorpusImageWire|createCorpusPluginDownloads|replayCorpusSearchWire)$/";
+  "/^(finiteReplies|textProvider|openAiServer|ollamaServer|scriptedResponses|physicalScene|physicalExecution|tailSwipeScene|paidReplies|provider|planned|createCorpusChatWire|createCorpusRpgWire|createKnowledgeSwipeWire|createRpgFlightWire|createCorpusConnectionWire|createCorpusImageWire|createCorpusPluginDownloads|replayCorpusSearchWire)$/";
 const ownedCall = (names: string): string =>
   `CallExpression:matches([callee.name=${names}], [callee.property.name=${names}], [callee.property.value=${names}])`;
 const RAW_DB_OPEN_RESTRICTION = {
@@ -333,7 +333,7 @@ const OWNED_DB_RESTRICTIONS = [
     message: OWNED_DB_MESSAGE,
   },
   {
-    selector: `${ownedCall("/^(finiteReplies|textProvider|openAiServer|scriptedResponses)$/")}:not(VariableDeclaration[kind=/using/] > VariableDeclarator > CallExpression):not(CallExpression[callee.property.name='use'] > CallExpression)`,
+    selector: `${ownedCall("/^(finiteReplies|textProvider|openAiServer|ollamaServer|scriptedResponses)$/")}:not(VariableDeclaration[kind=/using/] > VariableDeclarator > CallExpression):not(CallExpression[callee.property.name='use'] > CallExpression)`,
     message: OWNED_PLAN_MESSAGE,
   },
   {

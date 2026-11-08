@@ -105,6 +105,22 @@ export function writeDoc(path: string, source: string, repoRoot = root): void {
   writeFileSync(abs, formattedDoc(source));
 }
 
+/** Each path a write may touch, with its bytes before the write; null for a path that did not exist. */
+export type PriorFiles = ReadonlyMap<string, string | null>;
+
+/** Put every path a write touched back to its bytes before the write; a path the write created is removed. */
+export function putBack(written: readonly string[], prior: PriorFiles, repoRoot = root): void {
+  for (const path of written) {
+    const source = prior.get(path) ?? null;
+    const abs = join(repoRoot, path);
+    if (source !== null) {
+      writeFileSync(abs, source);
+    } else if (existsSync(abs)) {
+      rmSync(abs);
+    }
+  }
+}
+
 /** Every tracked TEXT file's path, for the path rewrites `archive` and a retitling `set` do. */
 function trackedTextFiles(repoRoot = root): readonly string[] {
   const out = git(repoRoot, ["ls-files", "-z"]);

@@ -15,11 +15,12 @@ import { DOC_TOOL_TREES } from "../contract/vocab.ts";
 import { sectionsOf, splitDocument, structuralHeadings, withFields, withSectionText } from "../lib/frontmatter-write.ts";
 import { allItems } from "../lib/generated.ts";
 import { DESIGN_FILE } from "../lib/indexes.ts";
-import { applyPatch, commitRefusal, isItemPath, itemEditCommand, nextItemId, parseItemBatch, workCommitMessage } from "../lib/items.ts";
+import { applyPatch, isItemPath, itemEditCommand, nextItemId, parseItemBatch, workCommitMessage } from "../lib/items.ts";
 import { basenameOf, folderOf, numberedName, parseNumberedName, referencePatterns, slugify } from "../lib/names.ts";
 import { ITEM_SECTIONS, itemTemplate, templateItemFlags, unwrittenItemFlags } from "../lib/templates.ts";
 import { introducedDocProblems, pendingDocProblems } from "./check.ts";
 import { regenerateIndexes } from "./indexes.ts";
+import type { PriorFiles } from "./tree.ts";
 import {
   changedPaths,
   commitPaths,
@@ -27,11 +28,13 @@ import {
   governedPaths,
   highestHistoricId,
   mergeInProgress,
+  putBack,
   readDoc,
   rewriteTextFiles,
   root,
   stagedWorkDeletions,
   TOOL_TRAILER,
+  textFiles,
   today,
   uncommittedBoardPaths,
   uncommittedDocSources,
@@ -79,12 +82,19 @@ function commitBlockers(repoRoot: string): readonly string[] {
   return sources.length === 0 ? [] : [`--commit needs these docs committed first, because the generated indexes describe them: ${sources.join(", ")}`];
 }
 
+/** Every text file a board write can touch, with its bytes: the governed docs and the tracked files a retitle
+ *  rewrites references in. Read before the write, so a failed commit can put each one back. */
+function priorTextFiles(repoRoot: string): PriorFiles {
+  return new Map(textFiles(repoRoot).map((path) => [path, readFileSync(join(repoRoot, path), "utf8")] as const));
+}
+
 /** `--commit`: commit what the verb wrote plus every other uncommitted change under docs/work/ and the
  *  generated indexes and task lists they feed, so a run of `set`s ends in one commit that passes the docs
  *  check. `commitPaths` builds the commit from HEAD plus exactly these paths, so any other staged or
  *  unstaged file stays out. A refused write commits nothing, and a write that changed nothing makes no
- *  commit and says so. */
-function commitWork(outcome: WriteOutcome, repoRoot: string): WriteOutcome {
+ *  commit and says so. A commit git refuses puts back every file the verb wrote, so the tree is as it was
+ *  before the run — except when the commit reached history and HEAD moved on, where HEAD holds the files. */
+function commitWork(outcome: WriteOutcome, prior: PriorFiles, repoRoot: string): WriteOutcome {
   if (outcome.refusals.length > 0) {
     return outcome;
   }
@@ -92,9 +102,18 @@ function commitWork(outcome: WriteOutcome, repoRoot: string): WriteOutcome {
   if (changedPaths(paths, repoRoot).length === 0) {
     return { written: outcome.written, refusals: [], skipped: ["nothing to commit — the write changed nothing"] };
   }
-  const message = workCommitMessage(itemIdsOf(paths), TOOL_TRAILER);
-  const commit = commitPaths(paths, message, repoRoot);
-  return commit.ok ? { written: paths, refusals: [], committed: commit.sha } : { written: paths, refusals: [commitRefusal("work", commit.reason, message)] };
+  const commit = commitPaths(paths, workCommitMessage(itemIdsOf(paths), TOOL_TRAILER), repoRoot);
+  if (commit.ok) {
+    return { written: paths, refusals: [], committed: commit.sha };
+  }
+  if ("stranded" in commit) {
+    return {
+      written: paths,
+      refusals: [`the work commit failed after it reached history — ${commit.reason}. Read git log and git status before writing again`],
+    };
+  }
+  putBack(outcome.written, prior, repoRoot);
+  return { written: [], refusals: [`the work commit failed — ${commit.reason}. Nothing changed: the item files and indexes are as they were`] };
 }
 
 /** Run a write verb, committing its result when the caller asked. With `commit`, the blockers refuse
@@ -104,7 +123,11 @@ export function runWrite(commit: boolean, repoRoot: string, write: () => WriteOu
     return write();
   }
   const blockers = commitBlockers(repoRoot);
-  return blockers.length > 0 ? { written: [], refusals: blockers } : commitWork(write(), repoRoot);
+  if (blockers.length > 0) {
+    return { written: [], refusals: blockers };
+  }
+  const prior = priorTextFiles(repoRoot);
+  return commitWork(write(), prior, repoRoot);
 }
 
 function planExists(slug: string, repoRoot: string): boolean {

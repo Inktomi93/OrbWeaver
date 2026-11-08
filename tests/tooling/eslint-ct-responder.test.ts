@@ -1,7 +1,7 @@
 // orb/ct-responder-reads-input judges every route map the checker names for routeTrpc and defineTrpcRoutes, written in
 // the call, bound to a variable, spread in, or typed as TrpcRoutes: a responder answers the request it is given, or is
 // a kit marker, or its procedure takes no input.
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import ts from "typescript";
@@ -19,7 +19,8 @@ beforeAll(async () => {
 }, 120_000);
 
 // The router record, in a module named like the route helper so the rule finds it by its route-trpc.ts file lookup,
-// over two procedures: one takes a request, one takes none. Loading the real helper pulls the server graph past the budget.
+// over two procedures: one takes a request, one takes none. The planted record keeps the many probes below off the server
+// graph; one row at the end of the file reads the real record.
 const ROUTE_HELPER = join(ROOT, "tests/client/features/probe/route-trpc.ts");
 const ROUTER_RECORD = `
 interface Procedure<I, O> { readonly _def: { readonly $types: { readonly input: I; readonly output: O } } }
@@ -50,22 +51,38 @@ declare function defineTrpcRoutes<const R extends object>(routes: R & Routes<NoI
 declare const page: unknown;
 `;
 
-// A program of the spec and the planted route helper: the rule needs the route types, not the repo graph.
-function programFor(fileName: string, source: string): ts.Program {
-  const options: ts.CompilerOptions = {
-    target: ts.ScriptTarget.ES2024,
-    module: ts.ModuleKind.ESNext,
-    moduleResolution: ts.ModuleResolutionKind.Bundler,
-    jsx: ts.JsxEmit.Preserve,
-    strict: true,
-    skipLibCheck: true,
-    types: [],
-    noEmit: true,
-  };
-  const planted = new Map([
-    [fileName, source],
-    [ROUTE_HELPER, ROUTER_RECORD],
-  ]);
+// The real route helper, whose `AppRouterRecord` is the server's own router record.
+const REAL_HELPER = join(ROOT, "tests/support/node/route-trpc.ts");
+const REAL_PRELUDE = `
+import { routeTrpc } from ${JSON.stringify(relative(join(ROOT, "tests/client/features/probe"), REAL_HELPER))};
+declare const page: Parameters<typeof routeTrpc>[0];
+`;
+
+// The compiler options the repository's Node world checks with, so the real helper's imports resolve.
+function realOptions(): ts.CompilerOptions {
+  const config = ts.readConfigFile(join(ROOT, "tsconfig.node.json"), ts.sys.readFile);
+  return { ...ts.parseJsonConfigFileContent(config.config, ts.sys, ROOT).options, noEmit: true };
+}
+
+// A program of the spec and a route helper: the planted one gives the rule the route types without the repo graph,
+// the real one brings the server's router with it.
+function programFor(fileName: string, source: string, real: boolean): ts.Program {
+  const options: ts.CompilerOptions = real
+    ? realOptions()
+    : {
+        target: ts.ScriptTarget.ES2024,
+        module: ts.ModuleKind.ESNext,
+        moduleResolution: ts.ModuleResolutionKind.Bundler,
+        jsx: ts.JsxEmit.Preserve,
+        strict: true,
+        skipLibCheck: true,
+        types: [],
+        noEmit: true,
+      };
+  const planted = new Map([[fileName, source]]);
+  if (!real) {
+    planted.set(ROUTE_HELPER, ROUTER_RECORD);
+  }
   const host = ts.createCompilerHost(options, true);
   const read = host.getSourceFile.bind(host);
   host.getSourceFile = (name, version, onError, create): ts.SourceFile | undefined => {
@@ -76,12 +93,15 @@ function programFor(fileName: string, source: string): ts.Program {
   host.fileExists = (name): boolean => planted.has(name) || exists(name);
   const readFile = host.readFile.bind(host);
   host.readFile = (name): string | undefined => planted.get(name) ?? readFile(name);
-  return ts.createProgram([fileName, ROUTE_HELPER], options, host);
+  return ts.createProgram([fileName, real ? REAL_HELPER : ROUTE_HELPER], options, host);
 }
 
-async function findings(body: string, header = "", spec = SPEC): Promise<readonly Linter.LintMessage[]> {
+const probeSource = (body: string, header: string, real: boolean): string =>
+  `${header}${real ? REAL_PRELUDE : PRELUDE}\nexport async function probe(): Promise<void> {\n${body}\n}\n`;
+
+async function findings(body: string, header = "", spec = SPEC, real = false): Promise<readonly Linter.LintMessage[]> {
   const fileName = join(ROOT, spec);
-  const source = `${header}${PRELUDE}\nexport async function probe(): Promise<void> {\n${body}\n}\n`;
+  const source = probeSource(body, header, real);
   const config = await resolvedConfig(eslint, fileName);
   const found = new Linter({ cwd: ROOT }).verify(
     source,
@@ -90,7 +110,7 @@ async function findings(body: string, header = "", spec = SPEC): Promise<readonl
       plugins: config.plugins,
       languageOptions: {
         parser: tseslint.parser,
-        parserOptions: { project: false, projectService: false, programs: [programFor(fileName, source)], ecmaFeatures: { jsx: true } },
+        parserOptions: { project: false, projectService: false, programs: [programFor(fileName, source, real)], ecmaFeatures: { jsx: true } },
       },
       linterOptions: { reportUnusedDisableDirectives: "error" },
       rules: { [RULE]: config.rules[RULE] ?? "off" },
@@ -328,6 +348,26 @@ test.for([
   ["an object that is not a route map", `const other = { "a.list": ["x"] };\n void other;`],
 ] as const)("native responder wall admits: %s", async ([, body]) => {
   expect(await findings(body)).toEqual([]);
+});
+
+// The server's own router record, read through the real route helper: the rule takes a procedure's request from it, so a
+// planted record cannot show the rule drifting from the router. `health` takes no input and `echo` takes a message.
+test("the real router record decides which procedures take a request", async () => {
+  // One lint, so one program of the server graph: the budget pays for it once.
+  const fixedEcho = `echo: () => ({ message: "x" })`;
+  const body = [
+    "await routeTrpc(page, { echo: ({ message }) => ({ message }) });",
+    `await routeTrpc(page, { health: () => "ok" });`,
+    `await routeTrpc(page, { ${fixedEcho} });`,
+  ].join("\n");
+  const fixedLine =
+    probeSource(body, "", true)
+      .split("\n")
+      .findIndex((line) => line.includes(fixedEcho)) + 1;
+  const found = (await findings(body, "", SPEC, true)).filter(({ ruleId }) => ruleId === RULE);
+  // Only the fixed answer for the procedure that takes a message is refused; the responder that reads it and the
+  // fixed answer for the procedure with no input stand.
+  expect(found.map(({ messageId, line }) => ({ messageId, line }))).toEqual([{ messageId: FIXED, line: fixedLine }]);
 });
 
 test("a file header names the exception and its reason, and a stale one is refused", async () => {
