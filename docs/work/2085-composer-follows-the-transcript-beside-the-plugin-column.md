@@ -20,7 +20,7 @@ the room's one-track promise and Density law §8.1.
 
 ## Done when
 
-rows and composer share left edge and width with the column inline, parked and absent, at 1280 and 1440; a CT.
+With the sidecar panels inline, parked or absent, the composer and the transcript share one middle at 1280 and 1440, and the composer glides with the rows at the toggle. Their widths differ by design: the rows follow the reading dial cap and the composer the reading measure.
 
 ## Evidence
 
