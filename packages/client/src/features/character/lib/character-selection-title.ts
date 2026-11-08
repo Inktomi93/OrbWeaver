@@ -24,12 +24,13 @@
 // have to be a fourth place that knows about three sections' stores.
 
 import { useGatedQuery, useTRPC } from "#data";
+import type { ScreenTitle } from "#lib";
 import { censusTitle } from "#lib";
 import { useSelectedCharacterId } from "#state";
 import { useCharacterCensus } from "../hooks/use-character-census.ts";
 import { CHARACTERS_SECTION_LABEL } from "./characters-section-label.ts";
 
-export function useCharactersSelectionTitle(): string | null {
+export function useCharactersSelectionTitle(): ScreenTitle | null {
   const trpc = useTRPC();
   const selectedCharacterId = useSelectedCharacterId();
   const { data } = useGatedQuery(selectedCharacterId, (id) => trpc.character.get.queryOptions({ characterId: id }));
@@ -40,7 +41,7 @@ export function useCharactersSelectionTitle(): string | null {
     // Somebody is open, so this screen is HERS whatever the read has done. `null` while the name is in
     // flight (or empty) hands the shell its section label — never the roster's census over a member.
     const name = data?.name ?? "";
-    return name.length === 0 ? null : name;
+    return name.length === 0 ? null : { name };
   }
   return censusTitle(CHARACTERS_SECTION_LABEL, census);
 }

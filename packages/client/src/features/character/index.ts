@@ -17,7 +17,7 @@ export {} from "./components/character-library-welcome.tsx";
 export {} from "./components/character-relations-tab.tsx";
 
 export {} from "./components/character-trust-tab.tsx";
-export { characterCreateChrome } from "./lib/character-create-chrome.tsx";
+export { characterCreateChrome, characterImportChrome } from "./lib/character-create-chrome.tsx";
 
 export {} from "./lib/character-list-view.ts";
 

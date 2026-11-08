@@ -6,12 +6,12 @@
 // reads. The phone one-name rule sheds that band's title, so the size otherwise disappears (#1676).
 
 import { useGatedQuery, useTRPC } from "#data";
-import type { CorpusDestination } from "#lib";
+import type { CorpusDestination, ScreenTitle } from "#lib";
 import { CORPUS_MODE_LABELS, censusTitle } from "#lib";
 import { useSelectedCorpusCharacterId, useSelectedCorpusDestination } from "#state";
 import { useCorpusCensus } from "../hooks/use-corpus-census.ts";
 
-export function useCorpusSelectionTitle(active: boolean): string | null {
+export function useCorpusSelectionTitle(active: boolean): ScreenTitle | null {
   const trpc = useTRPC();
   const characterId = useSelectedCorpusCharacterId();
   const destination = useSelectedCorpusDestination();
@@ -24,16 +24,16 @@ export function useCorpusSelectionTitle(active: boolean): string | null {
   }
   const artifactTitle = destination === null ? null : destinationTitle(destination);
   if (artifactTitle !== null) {
-    return artifactTitle;
+    return { name: artifactTitle };
   }
   const name = data?.name ?? "";
   // THE CENSUS IS THE NO-SELECTION ARM, gated on the SELECTION rather than on "did a name land" (#1676):
   // with a member open this screen is that member's, so an unlanded name heals to the shell's section label,
   // never to the library's size — a true number about the wrong screen is not an improvement on a blank one.
   if (characterId !== null) {
-    return name.length === 0 ? null : name;
+    return name.length === 0 ? null : { name };
   }
-  return censusTitle(CORPUS_MODE_LABELS.explore, census) ?? CORPUS_MODE_LABELS.explore;
+  return censusTitle(CORPUS_MODE_LABELS.explore, census) ?? { name: CORPUS_MODE_LABELS.explore };
 }
 
 function assertDestinationNever(destination: never): never {

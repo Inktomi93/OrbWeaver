@@ -1,7 +1,7 @@
 import type { LucideIcon } from "@orb/ui/icons";
 
 /** One command in an action's menu form: what the menu shows and the handler its inline control also calls. */
-interface OverflowMenuItem {
+export interface OverflowMenuItem {
   readonly id: string;
   readonly label: string;
   readonly icon: LucideIcon;

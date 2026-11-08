@@ -924,7 +924,9 @@ export const OWNER_CSS_SHELL_CLASSES = [
   "shell-topbar-rename",
   "shell-topbar-subtitle",
   "shell-topbar-title",
+  "shell-topbar-title-census",
   "shell-topbar-title-group",
+  "shell-topbar-title-name",
   "shell-topbar-trail",
 ] as const;
 

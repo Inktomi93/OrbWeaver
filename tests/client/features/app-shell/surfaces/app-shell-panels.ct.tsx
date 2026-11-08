@@ -340,7 +340,7 @@ test.describe("on a wide desktop", () => {
     await expect(page.getByRole("main")).toBeFocused();
   });
 
-  test("at 1280 the Characters band keeps its whole title, folding the create doors into its menu with both panes docked and showing both at the touch-free control floor with one", async ({
+  test("at 1280 the Characters band keeps its whole title and New inline with both panes docked, and shows both doors at the touch-free control floor with one", async ({
     mount,
     page,
   }) => {
@@ -349,8 +349,9 @@ test.describe("on a wide desktop", () => {
     await mount<typeof AppShellStory>(STORY, {});
     const band = page.locator(`${LIST} .shell-panel-header`);
     const floor = await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`);
-    // The band's New is a word or a glyph by its own container width; at most one of the pair is in the tree.
-    const doors = band.getByRole("button", { name: /^(?:New|New character|Import a character card)$/u });
+    // New is the word while it fits and its icon form otherwise, so the band names it either way.
+    const create = band.getByRole("button", { name: new RegExp(`^(?:New|${CHARACTER_NEW_NAME})$`, "u") });
+    const doors = band.getByRole("button", { name: new RegExp(`^(?:New|${CHARACTER_NEW_NAME}|${CHARACTER_IMPORT_NAME})$`, "u") });
     const fold = band.locator('[data-slot="overflow-actions-trigger"]');
     const read = (): Promise<{ readonly width: number; readonly clipped: boolean }> =>
       band.evaluate((header) => {
@@ -362,14 +363,9 @@ test.describe("on a wide desktop", () => {
       });
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "docked");
     await expect(band.locator('[data-slot="list-pane-title"]')).toContainText(/\d/u);
-    // The squeeze narrows the pane: the name stays whole and the actions fold first.
-    await expect(fold).toBeVisible();
-    await expect(doors).toHaveCount(0);
+    // The squeeze narrows the pane: the name stays whole and New stays inline, as its icon once its word does not fit.
+    await expect(create).toBeVisible();
     const squeezed = await read();
-    await fold.click();
-    await expect(page.getByRole("menuitem", { name: CHARACTER_IMPORT_NAME, exact: true })).toBeVisible();
-    await expect(page.getByRole("menuitem", { name: CHARACTER_NEW_NAME, exact: true })).toBeVisible();
-    await page.keyboard.press("Escape");
     await page.getByRole("button", { name: contextToggleLabel(false), exact: true }).click();
     await expect(page.locator(CONTEXT)).toHaveAttribute("data-panel-mode", "collapsed");
     await expect.poll(async () => (await read()).width).toBeGreaterThan(squeezed.width);

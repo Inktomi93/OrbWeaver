@@ -10,12 +10,13 @@
 // `0 of 5` arm reads identically in both regimes.
 
 import { useGatedQuery, useTRPC } from "#data";
+import type { ScreenTitle } from "#lib";
 import { censusTitle } from "#lib";
 import { useSelectedPresetId } from "#state";
 import { usePresetCensus } from "../hooks/use-preset-census.ts";
 import { PRESETS_SECTION_LABEL } from "./presets-section-label.ts";
 
-export function usePresetSelectionTitle(): string | null {
+export function usePresetSelectionTitle(): ScreenTitle | null {
   const trpc = useTRPC();
   const presetId = useSelectedPresetId();
   const { data } = useGatedQuery(presetId, (id) => trpc.preset.get.queryOptions({ id }));
@@ -27,7 +28,7 @@ export function usePresetSelectionTitle(): string | null {
   // with a member open this screen is that member's, so an unlanded name heals to the shell's section label,
   // never to the library's size — a true number about the wrong screen is not an improvement on a blank one.
   if (presetId !== null) {
-    return name.length === 0 ? null : name;
+    return name.length === 0 ? null : { name };
   }
   return censusTitle(PRESETS_SECTION_LABEL, census);
 }

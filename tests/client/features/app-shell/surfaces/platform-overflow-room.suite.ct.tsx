@@ -9,6 +9,7 @@ import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { QUERY_WAITING_LINE, queryFailedLabel } from "#client/data/query-state-copy.ts";
+import { CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -71,18 +72,20 @@ const SCALES = [5, 6, 7, 8] as const;
 test.describe("on a phone", () => {
   test.use({ viewport: PHONE, hasTouch: true, isMobile: true });
 
-  test("Escape from the refinery start picker, opened from the band's menu, returns focus to the trigger", async ({ mount, page }) => {
-    await seedShellState(page, { activeSection: "refinery" });
+  test("Escape from the chat import dialog, opened from the band's menu, returns focus to the trigger", async ({ mount, page }) => {
+    await seedShellState(page, { activeSection: "chats" });
     await mount<typeof AppShellStory>(STORY, {});
     const trigger = page.locator(BAND_ACTION).locator(TRIGGER);
     await enlargeUntilVisible(page, trigger, FONT_SCALE_PROPERTY, SCALES);
-    // By keyboard, as a screen-reader user opens it: the item that held focus is gone when the picker closes.
+    // By keyboard, as a screen-reader user opens it: the item that held focus is gone when the dialog closes.
     await trigger.focus();
     await page.keyboard.press("Enter");
-    const item = page.getByRole("menuitem", { name: "Start a new session", exact: true });
+    // The band folds its other actions and keeps New, so its menu holds only the import door.
+    const item = page.getByRole("menuitem");
+    await expect(item).toHaveCount(1);
     await item.focus();
     await page.keyboard.press("Enter");
-    await expect(page.locator('[data-slot="popover-popup"]')).toBeVisible();
+    await expect(page.getByRole("dialog")).toBeVisible();
     await page.keyboard.press("Escape");
     await expect(trigger).toBeFocused();
   });
@@ -96,16 +99,16 @@ test.describe("on a phone", () => {
     expect(off).toEqual([]);
   });
 
-  test("keyboard arrival lands on the menu trigger when the band's first action has moved into it", async ({ mount, page }) => {
+  test("keyboard arrival skips the band's first action once it has moved into the menu, and lands on the primary", async ({ mount, page }) => {
     await seedShellState(page, { activeSection: "home" });
     await mount<typeof AppShellStory>(STORY, {});
     await setRootFontScale(page, FONT_SCALE_PROPERTY, 4);
     const entry = page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.chats, exact: true });
     await entry.focus();
     await entry.press("Enter");
-    const trigger = page.locator(BAND_ACTION).locator(TRIGGER);
-    await expect(trigger).toBeVisible();
-    await expect(trigger).toBeFocused();
+    const action = page.locator(BAND_ACTION);
+    await expect(action.locator(TRIGGER)).toBeVisible();
+    await expect(action.getByRole("button", { name: /^New/u })).toBeFocused();
   });
 
   test("at 200% text a band keeps its primary inline in the room its shed title left", async ({ mount, page }) => {
@@ -121,14 +124,16 @@ test.describe("on a phone", () => {
 test.describe("on the narrowest phone", () => {
   test.use({ viewport: NARROWEST_PHONE, hasTouch: true, isMobile: true });
 
-  test("the topbar title keeps the room the moved doors left, and the trail claims only its trigger", async ({ mount, page }) => {
+  test("the topbar title keeps the room the moved doors left, and the trail claims only New and its trigger", async ({ mount, page }) => {
     await seedShellState(page, { activeSection: "characters" });
     await mount<typeof AppShellStory>(STORY, {});
     const trail = page.locator(TRAIL);
     const trigger = trail.locator(TRIGGER);
     await expect(trigger).toBeVisible();
     const claim = (await boxOf(trail)).width;
-    expect(claim).toBeLessThanOrEqual((await boxOf(trigger)).width + SUBPIXEL);
+    // The trail spans New to its trigger: Import and the rest of the trail have folded into the menu.
+    const create = await boxOf(trail.getByRole("button", { name: CHARACTER_NEW_NAME, exact: true }));
+    expect(claim).toBeLessThanOrEqual((await boxOf(trigger)).right - create.left + SUBPIXEL);
     const title = page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title');
     await expect.poll(() => title.evaluate((element) => element.scrollWidth - element.clientWidth)).toBeLessThanOrEqual(0);
   });

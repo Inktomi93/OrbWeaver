@@ -10,7 +10,8 @@ import { ChevronLeft, Icon, PanelLeftClose, PanelLeftOpen } from "@orb/ui/icons"
 import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode, Ref } from "react";
-import { cn } from "#lib";
+import type { ScreenTitle } from "#lib";
+import { censusSuffix, cn } from "#lib";
 import type { PanelMode } from "#state";
 
 /** The list pane's durable focus-return target after its sheet closes. */
@@ -55,7 +56,7 @@ export interface ShellTopbarProps {
    *  (avatars + member chip + badges) is desktop-shaped, and with the trail taking 277 of 320px the LEAD
    *  collapsed to 10.7px — the back button's box overlapped the ⌘K chip and every hit sample on it opened
    *  the command palette, with that button the ONLY exit from a chat. */
-  readonly screenTitle?: string;
+  readonly screenTitle?: ScreenTitle;
 }
 
 export interface TopbarIconButtonProps {
@@ -132,6 +133,24 @@ function TopbarTitle({ shellLine = false, children }: { readonly shellLine?: boo
   );
 }
 
+/** The NARROW identity's screen name. A census sits beside the name as its own part: the name is the title's floor, so the
+ *  trail folds before the name is cut, and the census is what the row cuts first. */
+function ScreenName({ title }: { readonly title: ScreenTitle }): ReactElement {
+  if (title.census === undefined) {
+    return <TopbarTitle shellLine={true}>{title.name}</TopbarTitle>;
+  }
+  return (
+    <Text as="div" className="shell-topbar-title" data-census="" voice="masthead">
+      <Text as="span" className="shell-topbar-title-name" truncate={true} voice="masthead">
+        {title.name}
+      </Text>
+      <Text as="span" className="shell-topbar-title-census" truncate={true} voice="masthead">
+        {censusSuffix(title.census)}
+      </Text>
+    </Text>
+  );
+}
+
 /** The WIDE identity: the section's own header cluster where it supplies one, else the title while the list
  *  pane is hidden. Both identity arms are always in the DOM; `shell.css`'s `@container shell-main` query
  *  shows exactly one — the row's width is a container question, not a viewport prop (§4b axis 1). */
@@ -151,7 +170,7 @@ export function ShellTopbar({ ref, ...props }: ShellTopbarProps): ReactElement {
           {wideIdentity(props)}
         </div>
         <div className="shell-topbar-identity" data-identity="narrow">
-          <TopbarTitle shellLine={true}>{props.screenTitle ?? props.title}</TopbarTitle>
+          <ScreenName title={props.screenTitle ?? { name: props.title }} />
         </div>
         {props.mark}
       </div>

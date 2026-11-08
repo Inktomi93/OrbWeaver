@@ -6,6 +6,7 @@ import { useCreateLabel, useTagCensus } from "./use-tag-library.ts";
 export function useLabelsListHeader(active = true): ListPaneHeaderView {
   const count = useTagCensus(active);
   const create = useCreateLabel(active);
+  const newLabel = { id: "label-new", label: NEW_LABEL_NAME, icon: Plus, onSelect: create.run, disabled: create.pending };
   return {
     actions: [
       {
@@ -16,7 +17,8 @@ export function useLabelsListHeader(active = true): ListPaneHeaderView {
             {NEW_LABEL_NAME}
           </Button>
         ),
-        menu: [{ id: "label-new", label: NEW_LABEL_NAME, icon: Plus, onSelect: create.run, disabled: create.pending }],
+        menu: [newLabel],
+        compact: newLabel,
       },
     ],
     count: count ?? 0,

@@ -4,5 +4,8 @@
 /** What the column is, in the words of the edge control's verbs: "Hide sidecar panels". */
 export const SIDECAR_PANELS_NOUN = "sidecar panels";
 
+/** The composer's utility menu: the control that holds the sidecar sheet's door on touch. */
+export const MESSAGE_TOOLS_LABEL = "Message tools";
+
 /** The noun as a name on its own: the Message tools door and the sheet's title. */
 export const SIDECAR_PANELS_LABEL = `${SIDECAR_PANELS_NOUN.charAt(0).toUpperCase()}${SIDECAR_PANELS_NOUN.slice(1)}`;
