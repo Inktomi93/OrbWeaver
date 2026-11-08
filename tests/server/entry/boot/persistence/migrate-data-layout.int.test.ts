@@ -17,7 +17,13 @@ import { sql } from "drizzle-orm";
 import { onTestFinished } from "vitest";
 import { z } from "zod";
 import { DataLayoutRefusal } from "#server/entry/boot/migrate-data-layout.ts";
-import { DATABASE_URL_KEY, IMPORT_STAGING_DIR_KEY, LOCAL_LIGHT_CACHE_DIR_KEY } from "#server/foundation/data-layout/contract.ts";
+import {
+  CREDENTIALS_KEY_ENV,
+  DATABASE_URL_KEY,
+  IMPORT_STAGING_DIR_KEY,
+  LOCAL_LIGHT_CACHE_DIR_KEY,
+  SESSION_SECRET_ENV,
+} from "#server/foundation/data-layout/contract.ts";
 
 type DataLayoutMigrationReport = Awaited<ReturnType<typeof migrateDataLayout>>;
 type DataLayout = Parameters<typeof migrateDataLayout>[0]["layout"];
@@ -80,7 +86,7 @@ function layoutFor(root: string, over: EnvInput = {}): DataLayout {
 }
 
 function migrate(layout: DataLayout, deps: Partial<Parameters<typeof migrateDataLayout>[0]> = {}): Promise<DataLayoutMigrationReport> {
-  return migrateDataLayout({ layout, logger: createTestLogger(), env: { ["SESSION_SECRET"]: undefined, ["NODE_ENV"]: "test" }, ...deps });
+  return migrateDataLayout({ layout, logger: createTestLogger(), env: { [SESSION_SECRET_ENV]: undefined, ["NODE_ENV"]: "test" }, ...deps });
 }
 
 /** A rename that fails for the one target the entry `from` moves to, the way a same-device mount answers EBUSY. */
@@ -222,8 +228,8 @@ forEachNonEmpty(KEYED, "keyed legacy entries", ({ name, keptBy }) => {
     const root = freshRoot(importStagingDir);
     await plantLegacyTree(root, importStagingDir);
     const kept: Partial<Record<typeof keptBy, string>> = {
-      ["CREDENTIALS_KEY"]: "cd".repeat(32),
-      ["SESSION_SECRET"]: "ef".repeat(32),
+      [CREDENTIALS_KEY_ENV]: "cd".repeat(32),
+      [SESSION_SECRET_ENV]: "ef".repeat(32),
       [DATABASE_URL_KEY]: pathToFileURL(join(root, DB_FILE_NAME)).href,
       [LOCAL_LIGHT_CACHE_DIR_KEY]: join(root, name, MODELS_LEAF),
       [IMPORT_STAGING_DIR_KEY]: join(root, name),
@@ -515,13 +521,13 @@ test(
 test("a keyfile kept by an explicit key is warned with its keeper, never as an entry the layout does not name", {
   timeout: CHILD_BOOTS_TEST_TIMEOUT_MS,
 }, async ({ importStagingDir }) => {
-  const keyfile = keyedBy("CREDENTIALS_KEY");
+  const keyfile = keyedBy(CREDENTIALS_KEY_ENV);
   const root = freshRoot(importStagingDir);
   await plantLegacyTree(root, importStagingDir);
 
-  const kept = await migrateInChild(root, join(importStagingDir, "kept.json"), { ["CREDENTIALS_KEY"]: "cd".repeat(32) });
+  const kept = await migrateInChild(root, join(importStagingDir, "kept.json"), { [CREDENTIALS_KEY_ENV]: "cd".repeat(32) });
   expect(kept.error).toBeUndefined();
-  expect(kept.warnings.flatMap((warning) => warning.kept ?? [])).toEqual([{ entry: keyfile, keptBy: "CREDENTIALS_KEY" }]);
+  expect(kept.warnings.flatMap((warning) => warning.kept ?? [])).toEqual([{ entry: keyfile, keptBy: CREDENTIALS_KEY_ENV }]);
   expect(kept.warnings.flatMap((warning) => warning.entries ?? [])).toEqual([OPERATOR_FILE]);
   expect(existsSync(join(root, keyfile))).toBe(true);
 
@@ -539,22 +545,22 @@ test("a keyfile kept by an explicit key is warned with its keeper, never as an e
 test("a legacy session secret kept beside a different explicit SESSION_SECRET is warned on every boot; the same one, or none, is not", {
   timeout: CHILD_BOOTS_TEST_TIMEOUT_MS,
 }, async ({ importStagingDir }) => {
-  const keyfile = keyedBy("SESSION_SECRET");
+  const keyfile = keyedBy(SESSION_SECRET_ENV);
   const stranded = (outcome: ChildOutcome): readonly z.infer<typeof warningSchema>[] =>
     outcome.warnings.filter((warning) => warning.legacyKeyfile !== undefined);
   const root = freshRoot(importStagingDir);
   await plantLegacyTree(root, importStagingDir);
-  const minted = { ["SESSION_SECRET"]: "ef".repeat(32) };
+  const minted = { [SESSION_SECRET_ENV]: "ef".repeat(32) };
 
   for (const boot of ["first", "second"]) {
     const outcome = await migrateInChild(root, join(importStagingDir, `${boot}.json`), minted);
     expect(outcome.error, boot).toBeUndefined();
-    expect(stranded(outcome), boot).toEqual([expect.objectContaining({ keptBy: "SESSION_SECRET", legacyKeyfile: join(root, keyfile) })]);
+    expect(stranded(outcome), boot).toEqual([expect.objectContaining({ keptBy: SESSION_SECRET_ENV, legacyKeyfile: join(root, keyfile) })]);
   }
 
   const sameRoot = freshRoot(importStagingDir);
   await plantLegacyTree(sameRoot, importStagingDir);
-  const same = await migrateInChild(sameRoot, join(importStagingDir, "same.json"), { ["SESSION_SECRET"]: KEY_BYTES.trim() });
+  const same = await migrateInChild(sameRoot, join(importStagingDir, "same.json"), { [SESSION_SECRET_ENV]: KEY_BYTES.trim() });
   expect(same.error).toBeUndefined();
   expect(stranded(same)).toEqual([]);
 

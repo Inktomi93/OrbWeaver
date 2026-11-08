@@ -4,6 +4,7 @@ import { join, resolve } from "node:path";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { expect, test } from "@orb/testkit/tooling";
+import { SESSION_SECRET_ENV } from "../../../../packages/server/src/foundation/data-layout/contract.ts";
 import { DEV_PORTS } from "../../../../tooling/src/floor/host/ports.ts";
 import { cmdlineNamesCheckout, devStackPins, printablePins, stackContext, stackPorts, stackRunDir } from "../../../../tooling/src/stack/index.ts";
 
@@ -11,7 +12,7 @@ test("a host export wins over a pin, an empty export does not, and every source 
   const pins = devStackPins(
     Object.fromEntries([
       [AUTH_MODE_KEY, "local"],
-      ["SESSION_SECRET", ""],
+      [SESSION_SECRET_ENV, ""],
     ]),
   );
   expect(pins.env.AUTH_MODE).toBe("local");
@@ -27,14 +28,14 @@ test("the supervisor's pin verdict travels to the leader, where every pin arrive
   const supervisor = devStackPins(
     Object.fromEntries([
       [AUTH_MODE_KEY, "local"],
-      ["SESSION_SECRET", "s".repeat(40)],
+      [SESSION_SECRET_ENV, "s".repeat(40)],
     ]),
   );
   const ctx = stackContext(
     "/repo",
     Object.fromEntries([
       [AUTH_MODE_KEY, "local"],
-      ["SESSION_SECRET", "s".repeat(40)],
+      [SESSION_SECRET_ENV, "s".repeat(40)],
     ]),
     null,
   );

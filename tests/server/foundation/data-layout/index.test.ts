@@ -5,9 +5,11 @@ import { forEachNonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import {
   ASSETS_DIR_KEY,
+  CREDENTIALS_KEY_ENV,
   DATABASE_URL_KEY,
   IMPORT_STAGING_DIR_KEY,
   LOCAL_LIGHT_CACHE_DIR_KEY,
+  SESSION_SECRET_ENV,
   USER_RUNTIME_DIR_KEY,
 } from "#server/foundation/data-layout/contract.ts";
 
@@ -51,8 +53,8 @@ const INPUT_KIND: Readonly<Record<keyof DataLayoutInput, "root" | "slot" | "secr
   [LOCAL_LIGHT_CACHE_DIR_KEY]: "slot",
   [USER_RUNTIME_DIR_KEY]: "slot",
   [IMPORT_STAGING_DIR_KEY]: "slot",
-  ["CREDENTIALS_KEY"]: "secret",
-  ["SESSION_SECRET"]: "secret",
+  [CREDENTIALS_KEY_ENV]: "secret",
+  [SESSION_SECRET_ENV]: "secret",
   [DATA_LAYOUT_SKIP_KEY]: "skip",
 };
 const INPUT_KEYS = Object.keys(INPUT_KIND).filter((key): key is keyof DataLayoutInput => Object.hasOwn(INPUT_KIND, key));

@@ -10,7 +10,9 @@ export const DATA_LAYOUT_SLOT_KEYS = [DATABASE_URL_KEY, ASSETS_DIR_KEY, LOCAL_LI
 export type DataLayoutSlotKey = (typeof DATA_LAYOUT_SLOT_KEYS)[number];
 
 /** The env keys whose explicit value replaces a generated keyfile; a set one keeps the legacy keyfile in place. */
-export const SECRET_ENV_KEYS = ["CREDENTIALS_KEY", "SESSION_SECRET"] as const;
+export const CREDENTIALS_KEY_ENV = "CREDENTIALS_KEY";
+export const SESSION_SECRET_ENV = "SESSION_SECRET";
+export const SECRET_ENV_KEYS = [CREDENTIALS_KEY_ENV, SESSION_SECRET_ENV] as const;
 export type SecretEnvKey = (typeof SECRET_ENV_KEYS)[number];
 
 /** An env key that, once set, keeps a legacy root entry where it is. */

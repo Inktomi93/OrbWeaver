@@ -11,6 +11,7 @@ import { migrateDataLayout } from "@orb/server/entry/boot";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
 import { createLogger } from "@orb/server/foundation/observability";
 import { z } from "zod";
+import { SESSION_SECRET_ENV } from "../../../packages/server/src/foundation/data-layout/contract.ts";
 import { createTestEnv } from "./env.ts";
 
 const WARNING_CAPACITY = 64;
@@ -22,7 +23,7 @@ const keepers = z.record(z.string(), z.string()).parse(JSON.parse(keepersJson ??
 const warnings = createBoundedRing<string>(WARNING_CAPACITY);
 const outcome = await migrateDataLayout({
   layout: resolveDataLayout({ ["DATA_DIR"]: root, ...keepers }),
-  env: { ["SESSION_SECRET"]: keepers["SESSION_SECRET"], ["NODE_ENV"]: "test" },
+  env: { [SESSION_SECRET_ENV]: keepers[SESSION_SECRET_ENV], ["NODE_ENV"]: "test" },
   logger: createLogger(createTestEnv({ ["LOG_LEVEL"]: "warn" }).LOG_LEVEL, warnings),
 }).then(
   (report) => ({ report }),
