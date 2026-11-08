@@ -1,10 +1,9 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-06
+updated: 2026-11-08
 priority: P3
 area: server
-plan: cross-surface-consistency
 ---
 
 # Persona delete captures, deletes and reseats in one transaction, so a seat switched onto the deleted persona after capture is not left empty

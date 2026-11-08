@@ -1,10 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-06
+updated: 2026-11-08
 priority: P3
 area: client
-plan: cross-surface-consistency
+plan: type-law
 ---
 
 # Form seed builders derive from the procedure input (Omit of the view by the input's keys), so a widened view cannot ride an upcast into a strict input

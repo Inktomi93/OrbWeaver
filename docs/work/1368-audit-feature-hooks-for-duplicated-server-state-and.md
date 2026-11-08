@@ -1,9 +1,8 @@
 ---
 kind: work
 status: open
-updated: 2026-10-25
+updated: 2026-11-08
 priority: P2
-plan: cross-surface-consistency
 area: client
 ---
 

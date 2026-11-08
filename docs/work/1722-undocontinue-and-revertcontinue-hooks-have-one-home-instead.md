@@ -1,10 +1,9 @@
 ---
 kind: work
 status: open
-updated: 2026-11-06
+updated: 2026-11-08
 priority: P3
 area: client
-plan: cross-surface-consistency
 ---
 
 # undoContinue and revertContinue hooks have one home instead of copies in use-composer-utilities.ts and message-actions-row\.tsx
