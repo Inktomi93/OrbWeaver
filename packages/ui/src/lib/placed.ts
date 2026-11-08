@@ -30,13 +30,14 @@ export const CORNER = {
 } as const;
 
 // A row pinned to the foot of a scrolling dialog body: it gives its block inset back as the dialog gets short, drops it
-// when the dialog stacks, and stops pinning under the tiny step, where a pinned row would cover the content.
+// and its inline inset when the dialog stacks, so a stacked label keeps the whole line, and stops pinning under the tiny step and in a
+// cramped stacked dialog, where a pinned row would cover the content.
 //
 // `header` pins a message's name row to the scrollport's top as the row's one raised layer: only its top inset is cancelled, because a
 // negative bottom margin lets the band paint past the row's foot, and the one-pixel overshoot is the clip the pin observer reads. A
 // `headerOutside` row sits outside its box, so over a wallpaper the chrome plate supplies that inset and nothing is cancelled.
 export const PINNED = {
-  dialogFooter: "sticky inset-be-0 dialog-short:py-tight dialog-stacked:py-0 dialog-tiny:static",
+  dialogFooter: "sticky inset-be-0 dialog-short:py-tight dialog-stacked:p-0 dialog-stacked-cramped:static dialog-tiny:static",
   header: "-mbs-row sticky -inset-bs-px z-(--z-raised)",
   headerOutside: "not-in-data-[has-bg-image]:-mbs-row sticky -inset-bs-px z-(--z-raised)",
 } as const;

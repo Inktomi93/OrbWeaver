@@ -34,15 +34,23 @@ export function useCtRuntime(options?: CtRuntimeOptions): ReturnType<typeof crea
     return created;
   });
   const [host] = useState(() => (parent === null ? (options?.sessionDocumentHost ?? browserSessionDocumentHost()) : null));
+  const [mounts] = useState(() => ({ live: 0 }));
   useLayoutEffect(() => {
     if (host === null) {
       return;
     }
+    mounts.live += 1;
     const releaseDocument = leaseSessionDocumentHost(host)[Symbol.dispose];
     return (): void => {
-      runtime.queryClient.clear();
+      mounts.live -= 1;
       releaseDocument();
+      // StrictMode replays this effect in the same commit; clearing then would drop every boot read in flight, and each would be sent again.
+      queueMicrotask(() => {
+        if (mounts.live === 0) {
+          runtime.queryClient.clear();
+        }
+      });
     };
-  }, [host, runtime]);
+  }, [host, mounts, runtime]);
   return runtime;
 }

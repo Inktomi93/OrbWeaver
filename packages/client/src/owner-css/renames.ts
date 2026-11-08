@@ -60,6 +60,8 @@ export const OWNER_CSS_RENAMES: readonly OwnerCssRename[] = [
   { kind: "token", name: "--breakpoint-shell-short", to: null },
   { kind: "token", name: "--stroke-width-icon-hairline", to: null },
   { kind: "token", name: "--height-picker-art-square", to: null },
+  // A container query cannot read a variable, so the step was only ever a value; its one query now reads `--container-cq-7`.
+  { kind: "token", name: "--container-cq-6", to: null, see: "--container-cq-7" },
   { kind: "token", name: "--border-width-accent", to: "--border-width-rule" },
   // Tailwind read both once, at build time, so an override never moved a border; the weight they pointed at is the knob.
   { kind: "token", name: "--default-border-width", to: "--border-width-default" },

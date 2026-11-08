@@ -9,13 +9,38 @@
  * chrome, still leaves the footer's one line (about 3rem) and a 2.75rem touch row (this box is the screen less its gutters); above the width that footer
  * keeps its one line, and a wrapped footer would take the room the window has left. A landscape phone's dialog is the one that is also short in the glass: `dialog-short:glass-short:` stacks the media height step (a `rem` there keeps the
  * platform default) on the dialog's own. A screen 27rem tall or less is in it at any text scale; enlarged text alone never moves a taller
- * screen into it. `dialog-stacked-cramped` is a stacked dialog under the cq-16 height step or the cq-6 width step, where two pinned buttons leave
- * the list less than a whole row; a roomier stacked dialog seats both. */
+ * screen into it. */
 @custom-variant dialog-short (@container dialog (height <= 24rem));
 @custom-variant dialog-stacked (@container dialog (height <= 24rem) and (width <= 32rem));
 @custom-variant dialog-tiny (@container dialog (height <= 14rem));
 @custom-variant dialog-roomy (@container dialog (height > 26rem) and (width > 12rem));
-@custom-variant dialog-stacked-cramped (@container dialog (height <= 24rem) and (width <= 32rem) and ((height <= 16rem) or (width <= 6rem)));
+
+/* A stacked dialog whose height cannot hold a picker's pinned row with two actions over one whole row of its list; there the row stops
+ * pinning (`PINNED.dialogFooter`), so nothing it seats covers the list. Every term is a rem size, so each case is one height step at any
+ * text scale: the popup's two field insets (a stacked popup's at any width), the header (Close, its inset and the row gap), the search
+ * strip, the list's one-row window and the pinned row, plus room for the hairlines, which do not scale. From the cq-15 width the two
+ * actions share one line; narrower they take two; under the cq-7 width a pinned label or Close leaves its line, so it never seats both.
+ * A fine pointer's controls are smaller than a coarse one's (theme.css), so each pointer has its own steps:
+ * Fine, one line:    0.75 + 2.25 + 0.375 + 0.5 + 2 + 2.75 + 2.25                    = 10.875, the cq-12 step
+ * Fine, two lines:   0.75 + 2.25 + 0.375 + 0.5 + 2 + 2.75 + 2.25 + 0.375 + 2.25     = 13.5,   the cq-14 step
+ * Coarse, one line:  0.75 + 3 + 0.375 + 0.5 + 2.75 + 2.75 + 3                        = 13.125, the cq-13-5 step
+ * Coarse, two lines: 0.75 + 3 + 0.375 + 0.5 + 2.75 + 2.75 + 3 + 0.375 + 3           = 16.5,   the cq-16-75 step */
+@custom-variant dialog-stacked-cramped {
+  @variant pointer-fine {
+    @container dialog (height <= 24rem) and (width <= 32rem) and (not ((width >= 15rem) and (height >= 12rem))) and (
+      not ((width >= 7rem) and (height >= 14rem))
+    ) {
+      @slot;
+    }
+  }
+  @variant not-pointer-fine {
+    @container dialog (height <= 24rem) and (width <= 32rem) and (not ((width >= 15rem) and (height >= 13.5rem))) and (
+      not ((width >= 7rem) and (height >= 16.75rem))
+    ) {
+      @slot;
+    }
+  }
+}
 
 /* A non-interactive paint layer fills its positioned host without intercepting the host's controls. */
 @utility orb-paint-carrier {
@@ -45,6 +70,22 @@
   /* stylelint-disable-next-line orb/browser-support-css -- every carrier applies this utility inside its own `@supports (mask-clip: padding-box)` */
   mask-clip: padding-box, border-box;
   mask-composite: exclude;
+}
+
+/* A picker's loading box (`Stack reserve="gives"`) holds the door row as that row renders: a short dialog gives the row's block inset back, and a
+ * stacked or landscape-phone dialog moves the row out of the picker's box. A length spelled with the row's token follows it. */
+@utility orb-reserve-picker-door-row {
+  @variant dialog-short {
+    --height-picker-door-row: var(--size-control-sm);
+  }
+  @variant dialog-stacked {
+    --height-picker-door-row: 0px;
+  }
+  @variant dialog-short {
+    @variant glass-short {
+      --height-picker-door-row: 0px;
+    }
+  }
 }
 
 /* Two reserved lines (`Text lines={2}`): `line-clamp-2` caps a run, it never reserves the second line, so captions in
@@ -141,13 +182,6 @@
   /* `fixed inset-0` gives the dialog viewport a definite height, so size containment changes nothing about its layout. */
   [data-slot="dialog-viewport"] {
     container: dialog / size;
-  }
-
-  /* A stacked dialog moves the picker's door row out of the picker's box, so a loading box whose length is spelled with that row's token drops it there. */
-  [data-reserve-key] {
-    @variant dialog-stacked {
-      --height-picker-door-row: 0px;
-    }
   }
 
   /* The ceiling rides a custom property, never an inline max-height. Declared in layer ui, it loses to any unlayered

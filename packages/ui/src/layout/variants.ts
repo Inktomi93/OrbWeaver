@@ -312,8 +312,9 @@ export const stackVariants = tv({
     // `page` is the grid a pinned band stays pinned in.
     readingFlow: { weld: "flex-row", page: "grid" },
     // A loading box that holds the length its caller writes to `--stack-reserve`. `gives` is a picker's: on a landscape phone the box it stands in for
-    // takes the room its dialog leaves, so the skeleton asks for no length of its own and its rows fill and shrink to the same remainder.
-    reserve: { exact: "block-(--stack-reserve)", gives: "block-(--stack-reserve) dialog-short:glass-short:block-auto" },
+    // takes the room its dialog leaves, so the skeleton asks for no length of its own and its rows fill and shrink to the same remainder; where the
+    // picker's door row changes its height or leaves its box, a length that names that row follows it.
+    reserve: { exact: "block-(--stack-reserve)", gives: "orb-reserve-picker-door-row block-(--stack-reserve) dialog-short:glass-short:block-auto" },
     // THE ROW-PITCH FLOOR (#884 C3 — #850's class: rows of floorless inline-edit affordances stacked at a
     // sub-floor pitch, so a Button's hit pseudo overflows onto the NEIGHBOUR ROW'S TEXT and loses
     // hit-testing to it; 28 P1 tap-targets on one rpg tab). `control` floors every DIRECT child at the
