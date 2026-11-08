@@ -1,3 +1,4 @@
+import { EXIT } from "../../floor/cli/exit-contract.ts";
 import type { TimingEvidencePolicy } from "../../floor/host/timing-capability.ts";
 import type { MotionMeasurement } from "../contract/motion.ts";
 import type { SnapArmState } from "../contract/run-facts.ts";
@@ -35,6 +36,21 @@ export function motionStatus(snapshot: MotionVerdictInput): string {
     return "LOAD-SUSPECT";
   }
   return snapshot.timing.policy === "record" ? "RECORDED" : "PASS";
+}
+
+/** The run exit after the motion arm: any gap is a refusal, a failed window is a violation, and a tool error
+ *  the run already reached stands. Non-voting timing thresholds do not suppress semantic failures. */
+export function motionExit(requested: boolean, measurement: MotionVerdictInput | null, code: number): number {
+  if (!requested) {
+    return code;
+  }
+  if (measurement === null || measurement.gaps.length > 0) {
+    return EXIT.toolError;
+  }
+  if (measurement.pass || code === EXIT.toolError) {
+    return code;
+  }
+  return EXIT.violations;
 }
 
 export function motionTimingPolicy(snapshot: MotionVerdictInput): TimingEvidencePolicy {
