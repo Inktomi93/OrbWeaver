@@ -48,13 +48,19 @@ const ENLARGED_LANDSCAPE_CELLS = [
   { width: 844, height: 390, factor: 3 },
   { width: 568, height: 320, factor: 2 },
 ] as const;
-// The Jump to palette opens by its keyboard door on both landscape phone sizes, at every text size where its title and one search strip fit
-// the dialog together: at 300% they are taller than the dialog, so only the title stays.
+// The Jump to palette opens by its keyboard door on both landscape phone sizes at the default size and both enlarged ones.
 const PALETTE_CELLS = [
   { width: 844, height: 390, factor: 1 },
   { width: 844, height: 390, factor: 2 },
+  { width: 844, height: 390, factor: 3 },
   { width: 568, height: 320, factor: 1 },
   { width: 568, height: 320, factor: 2 },
+  { width: 568, height: 320, factor: 3 },
+] as const;
+// At 300% the Chats list door is out of reach of a press on these screens, so New chat opens through the palette's own command, as a keyboard user opens it.
+const PALETTE_NEW_CHAT_CELLS = [
+  { width: 844, height: 390, factor: 3 },
+  { width: 568, height: 320, factor: 3 },
 ] as const;
 
 /** A saved roster for the owner, so New chat shows its saved-roster door. */
@@ -112,6 +118,17 @@ function wholeRowCount(list: Element): number {
 }
 
 const FIELD_IN_VIEW_RATIO = 0.98;
+
+/** A short dialog's top: its title whole on one truncating line (the full text stays its name), Close pressable, and the search field in view. */
+async function expectTitleCloseAndFieldOnScreen(dialog: Locator, title: string): Promise<void> {
+  const heading = dialog.getByRole("heading", { name: title, exact: true });
+  await expect(heading).toBeInViewport({ ratio: 1 });
+  await expect(heading).toHaveCSS("white-space", "nowrap");
+  await expect(heading).toHaveCSS("text-overflow", "ellipsis");
+  await expect.poll(() => dialog.getByRole("button", { name: "Close", exact: true }).evaluate(takesPressAtCentre)).toBe(true);
+  // A centred popup lands on a half pixel, which the viewport test rounds against the field.
+  await expect(dialog.getByRole("combobox")).toBeInViewport({ ratio: FIELD_IN_VIEW_RATIO });
+}
 const BROWSER_DEFAULT_FONT_PX = 16;
 const LIST_BAND_MENU = '[data-slot="list-pane-action"] [data-slot="overflow-actions-trigger"]';
 const DOOR_TIMEOUT_MS = 2000;
@@ -391,9 +408,29 @@ test.describe("on the corpus owner's own settings", () => {
         const dialog = page.getByRole("dialog");
         await expect(dialog.getByRole("option").first()).toBeAttached();
         await expect(dialog.getByRole("combobox")).toBeFocused();
-        await expect(dialog.getByRole("heading", { name: "New chat", exact: true })).toBeInViewport({ ratio: 1 });
         // At 300% on a 390px screen the close control's touch box is taller than its row: it must take a press, whole or not.
-        await expect.poll(() => dialog.getByRole("button", { name: "Close", exact: true }).evaluate(takesPressAtCentre)).toBe(true);
+        await expectTitleCloseAndFieldOnScreen(dialog, "New chat");
+      });
+    });
+  });
+
+  forEachNonEmpty(PALETTE_NEW_CHAT_CELLS, "PALETTE_NEW_CHAT_CELLS", (cell) => {
+    test.describe(`opened from the palette at ${String(cell.factor * 100)}% text on ${String(cell.width)}x${String(cell.height)}`, () => {
+      test.use({ viewport: { width: cell.width, height: cell.height }, hasTouch: true, isMobile: true });
+
+      test("New chat keeps its title, Close and search field on screen", async ({ mount, page }) => {
+        await mount<typeof AppShellStory>(STORY, {});
+        await expect(page.locator(".shell-topbar")).toBeVisible();
+        await setRootFontScale(page, channelName("fontScale"), cell.factor);
+        await expect.poll(() => page.evaluate(rootFontPx)).toBe(BROWSER_DEFAULT_FONT_PX * cell.factor);
+        await page.keyboard.press("Control+k");
+        await expect(page.getByRole("combobox", { name: "Command palette", exact: true })).toBeFocused();
+        await page.keyboard.type("New chat");
+        await page.keyboard.press("Enter");
+        const dialog = page.getByRole("dialog");
+        await expect(dialog.getByRole("heading", { name: "New chat", exact: true })).toBeVisible();
+        await expect(dialog.getByRole("combobox")).toBeFocused();
+        await expectTitleCloseAndFieldOnScreen(dialog, "New chat");
       });
     });
   });
@@ -413,9 +450,7 @@ test.describe("on the corpus owner's own settings", () => {
         const search = dialog.getByRole("combobox");
         await expect(search).toBeFocused();
         await expect(dialog.getByRole("option").first()).toBeAttached();
-        await expect(dialog.getByRole("heading", { name: "Jump to…", exact: true })).toBeInViewport({ ratio: 1 });
-        // A centred popup lands on a half pixel, which the viewport test rounds against the field.
-        await expect(search).toBeInViewport({ ratio: FIELD_IN_VIEW_RATIO });
+        await expectTitleCloseAndFieldOnScreen(dialog, "Jump to…");
         // The command box carries the focus ring, so a box that stands whole in the dialog draws the whole ring.
         await expect(dialog.locator('[data-slot="command-root"]')).toBeInViewport({ ratio: FIELD_IN_VIEW_RATIO });
         await expect.poll(() => search.evaluate(takesPressAtCentre)).toBe(true);
@@ -425,13 +460,28 @@ test.describe("on the corpus owner's own settings", () => {
         // The positive control: whatever scrolls here carries rows past the header and leaves the header and the field where they were.
         const header = dialog.locator('[data-slot="dialog-header"]');
         const before = await Promise.all([header.boundingBox(), search.boundingBox()]);
-        expect(await scrollPopupToEnd(page)).toBe(true);
+        expect(await scrollPopupToEnd(page)).toBe("scrolled");
         const after = await Promise.all([header.boundingBox(), search.boundingBox()]);
         expect(after[0]?.y).toBeCloseTo(before[0]?.y ?? Number.NaN, 0);
         expect(after[1]?.y).toBeCloseTo(before[1]?.y ?? Number.NaN, 0);
       });
     });
   });
+
+  // The control for the truncating short title: a dialog with room keeps the wrapping title it always had.
+  for (const viewport of [
+    { width: 1280, height: 800 },
+    { width: 430, height: 740 },
+  ] as const) {
+    test(`the palette's title wraps outside a short dialog at ${String(viewport.width)}x${String(viewport.height)}`, async ({ mount, page }) => {
+      await page.setViewportSize(viewport);
+      await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "command" });
+      const heading = page.getByRole("dialog").getByRole("heading", { name: "Jump to…", exact: true });
+      await expect(heading).toBeVisible();
+      await expect(heading).toHaveCSS("white-space", "normal");
+      await expect(heading).toHaveCSS("text-overflow", "clip");
+    });
+  }
 
   for (const modalId of MODAL_SLOT_IDS) {
     test(`the ${modalId} modal keeps the document still and its header put, whatever its body's height`, async ({ mount, page }) => {
@@ -481,7 +531,7 @@ test.describe("on the corpus owner's own settings", () => {
     const popup = page.locator('[data-slot="drawer-popup"]');
     const header = popup.locator('[data-slot="dialog-header"]');
     await expect(header).toBeVisible();
-    expect(await scrollPopupToEnd(page)).toBe(true);
+    expect(await scrollPopupToEnd(page)).toBe("scrolled");
     await expect
       .poll(async () => {
         const top = (await popup.boundingBox())?.y ?? Number.NaN;
