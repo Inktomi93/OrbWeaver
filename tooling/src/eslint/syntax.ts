@@ -7,7 +7,8 @@ export const ROOT_SPAN_OPENERS = ["withRequestSpan", "superviseDetached", "super
 /** A path with `/` separators: ESLint hands rules native paths, and the directory policies below match `/`-spelled segments. */
 export const posixPath = (path: string): string => path.replaceAll("\\", "/");
 
-type GlobPath = `${string}${"*" | "?" | "{" | "["}${string}`;
+// `(` covers the extglob groups (`+(a|b)`, `@(a)`) and `!` a negation, either of which widens an exemption.
+type GlobPath = `${string}${"*" | "?" | "{" | "[" | "(" | "!"}${string}`;
 /** A repository path with no glob character; a glob literal resolves to `never`, so it fails where an exact file is required. */
 export type ExactPath<H extends string> = H extends GlobPath ? never : H;
 
