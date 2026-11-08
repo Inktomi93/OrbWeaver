@@ -10,7 +10,7 @@ import inferencePackage from "./packages/inference/package.json" with { type: "j
 import kitPackage from "./packages/kit/package.json" with { type: "json" };
 import serverPackage from "./packages/server/package.json" with { type: "json" };
 import uiPackage from "./packages/ui/package.json" with { type: "json" };
-import { BROWSER_TEST_SUFFIXES, TEST_KIND_SUFFIXES } from "./tooling/src/floor/testing/test-kinds.ts";
+import { BROWSER_TEST_SUFFIXES, TEST_KIND_DEFINITIONS, TEST_KIND_SUFFIXES } from "./tooling/src/floor/testing/test-kinds.ts";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
 const nodeTestProgram = ts.getParsedCommandLineOfConfigFile(
@@ -276,6 +276,16 @@ const UI_SATELLITE_OWNERS = [
   }),
 );
 
+// The files the Playwright runner and its workers load: every config, the global setups outside tests/e2e, and every
+// tests/e2e file that is not a vitest suite. Playwright starts each webServer over the runner's environment.
+const PLAYWRIGHT_RUNNER_FILES = [
+  "^playwright[^/]*\\.config\\.ts$",
+  "^tooling/src/floor/testing/(?:run-temp-root-setup|working-tree-guard)\\.ts$",
+  "^tests/e2e/",
+];
+const E2E_VITEST_SUITES = `(?:${TEST_KIND_DEFINITIONS.filter(({ family }) => family !== "e2e")
+  .map(({ suffix }) => suffix.replaceAll(".", "\\."))
+  .join("|")})$`;
 // The rows door and the tier behind it.
 const ROWS_TIER = "^tests/support/node/factories/rows(\\.ts$|/)";
 // The only testkit files that may import ROWS_TIER; each line says why its rows cannot come from a verb.
@@ -1105,6 +1115,14 @@ const TEST_WORLDS = [
         "^tests/support/node/factories/rows\\.ts$",
       ],
     },
+  },
+  {
+    name: "playwright-runner-no-env-loader",
+    comment:
+      "The server env module loads the operator `.env` into the process that imports it, and the composed door loads that module. A runner-side file that reaches either puts the operator's secrets into the runner, its workers and every webServer started after it. Import Node helpers through @orb/testkit/node/helpers. This rule reads each file's own imports: a reachable rule would follow the helpers door's lazy imports of the server graph, so tests/e2e/support/runner-env.int.test.ts holds the transitive reach by collecting every spec under an env the module refuses.",
+    severity: "error",
+    from: { path: PLAYWRIGHT_RUNNER_FILES, pathNot: E2E_VITEST_SUITES },
+    to: { path: ["^tests/support/node/composed\\.ts$", `${SRV}foundation/env/index\\.ts$`], dependencyTypesNot: ["type-only", "type-import"] },
   },
   {
     name: "testkit-rows-persistence-only",

@@ -3,12 +3,11 @@
 import type { IncomingMessage, Server, ServerResponse } from "node:http";
 import { createServer } from "node:http";
 import { isPlainObject } from "@orb/kit/guards";
-import { OPENROUTER_API_KEY_ENV } from "@orb/server/foundation/env/record";
 import type { ProviderTape, ProviderTapeStep } from "@orb/testkit/node/helpers";
 import { providerTapeLeaks, readProviderTape, scrubTapeFrame, writeProviderTape } from "@orb/testkit/node/helpers";
-import { E2E_TAPE_RECORD_DIR, E2E_TAPE_RECORD_KEY, E2E_TAPE_RECORDING } from "./modes.ts";
+import { E2E_TAPE_RECORD_DIR, E2E_TAPE_RECORD_KEY, E2E_TAPE_RECORDING, E2E_TAPE_UPSTREAM_API_KEY_ENV, E2E_TAPE_UPSTREAM_URL } from "./modes.ts";
 
-const RECORD_UPSTREAM = "https://openrouter.ai/api/v1";
+const RECORD_UPSTREAM = E2E_TAPE_UPSTREAM_URL ?? "https://openrouter.ai/api/v1";
 // The model every tape is recorded from (owner policy: local vLLM or OpenRouter Sonnet 5 for live turns).
 const TAPE_RECORD_MODEL = "anthropic/claude-sonnet-5";
 // The upstream refuses a request whose output ceiling the account cannot cover, and a product turn asks for the
@@ -121,7 +120,7 @@ function framesOf(text: string): readonly string[] {
 function recordPlayer(name: string, steps: readonly string[], failures: string[]): StepPlayer {
   const key = E2E_TAPE_RECORD_KEY;
   if (key === undefined || key === "") {
-    throw new Error(`recording provider tape "${name}" needs ${OPENROUTER_API_KEY_ENV} in the environment`);
+    throw new Error(`recording provider tape "${name}" needs ${E2E_TAPE_UPSTREAM_API_KEY_ENV} in the environment`);
   }
   const recorded: (ProviderTapeStep | undefined)[] = [];
   const toolCallIds = new Map<string, string>();

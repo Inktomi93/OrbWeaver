@@ -769,18 +769,18 @@ export const OPENROUTER_API_KEY_ENV = "OPENROUTER_API_KEY";
 export const DEBUG_TOKEN_ENV = "DEBUG_TOKEN";
 export const LOCAL_INITIAL_PASSWORD_ENV = "LOCAL_INITIAL_PASSWORD";
 
-/** The app secrets the parse reads. Every child process inherits `process.env` unless its spawn passes an `env`, so
- *  the process loader deletes these once its record holds them. Nothing reads them from `process.env` after the parse. */
-export const APP_SECRET_ENV_KEYS = [
-  "SESSION_SECRET",
-  "CREDENTIALS_KEY",
-  OIDC_CLIENT_SECRET_KEY,
-  OPENROUTER_API_KEY_ENV,
-  DEBUG_TOKEN_ENV,
-  LOCAL_INITIAL_PASSWORD_ENV,
-  // A remote database URL can carry a token.
-  DATABASE_URL_KEY,
-] as const satisfies readonly EnvKey[];
+// A credential-shaped name: every provider key (`*_API_KEY`), the probe `*_PROBE_KEY` and `*_PROBE_TOKEN` families, and
+// the app's own secrets. The shape is the rule, so a launcher or `.env` key that no code reads is still covered.
+const SECRET_ENV_KEY_SHAPE = /(?:_SECRET|_KEY|_TOKEN|_PASSWORD)$/iu;
+
+/** Whether `key` names a secret no child process may inherit: a credential-shaped name, or the database URL, which
+ *  can carry a token. */
+export function isSecretEnvKey(key: string): boolean {
+  return key === DATABASE_URL_KEY || SECRET_ENV_KEY_SHAPE.test(key);
+}
+
+/** The schema's own secrets, which the parse also reads from `<KEY>_FILE`. */
+export const APP_SECRET_ENV_KEYS: readonly EnvKey[] = ENV_KEYS.filter(isSecretEnvKey);
 
 /** The three stamps the persona auto-create policy reads. */
 type PersonaSeedStamps = Pick<Env, "E2E_HARNESS" | "DEV_SEED" | "E2E_FIRST_RUN_ASK_HANDLES">;

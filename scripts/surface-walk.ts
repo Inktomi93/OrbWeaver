@@ -5,14 +5,17 @@ import { join, resolve } from "node:path";
 import process from "node:process";
 import { parseArgs } from "node:util";
 import { AUTH_MODES } from "@orb/contracts/identity";
+import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { systemTimers } from "@orb/server/infra/timers";
 import { SURFACE_DATA_MODES } from "@orb/testkit/iso";
 import type { PreparedSurfaceData } from "@orb/testkit/node/helpers";
 import {
+  assertPrivateCorpusOutputArguments,
   assertSurfaceLocalExecution,
   assertSurfaceRunOutput,
   createSurfaceArtifactRun,
   initializeSurfaceAgentEntry,
+  isPrivateCorpusConfigArgument,
   openPreparedSurfaceRoot,
   prepareSurfaceData,
   SURFACE_AGENT_ENTRY,
@@ -30,7 +33,7 @@ import {
 import { runTool, UsageError } from "@orb/tooling/floor/cli/run-tool";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { spawnNicedTranscript } from "@orb/tooling/floor/process/proc";
-import { inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
+import { exportProcessEnv, inheritedProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { joinRunMarkerSweep, mintRunMarker, runMarkerEnv, runMarkerTranscriptTeardown } from "@orb/tooling/floor/process/run-marker";
 import { z } from "zod";
 
@@ -63,9 +66,8 @@ async function rememberRun(privateRoot: string, runRoot: string): Promise<void> 
   process.stdout.write(`Surface local artifacts: ${runRoot}\n`);
 }
 
-async function assertNativeArguments(args: readonly string[]): Promise<void> {
+function assertNativeArguments(args: readonly string[]): void {
   surfaceNativeTimeout(args, budget(SURFACE_NATIVE_TIMEOUT_MS), budget(REPORT_TEARDOWN_RESERVE_MS));
-  const { assertPrivateCorpusOutputArguments, isPrivateCorpusConfigArgument } = await import("@orb/testkit/node/composed");
   assertPrivateCorpusOutputArguments(args);
   if (args.some(isPrivateCorpusConfigArgument)) {
     throw new UsageError("Surface artifacts require the dedicated local native configuration");
@@ -253,6 +255,9 @@ async function controlsRun(
 }
 
 await runTool(async () => {
+  // The prepared root loads the server graph lazily, and its env module would load the operator `.env` into this
+  // process and every child it starts. Every root here takes its record from explicit input, so no read needs it.
+  exportProcessEnv(ENV_NO_FILE_KEY, "1");
   const environment = inheritedProcessEnv();
   assertSurfaceLocalExecution(environment);
   const [command, ...args] = process.argv.slice(2);
@@ -266,7 +271,7 @@ await runTool(async () => {
     args: ownArgs,
     options: { data: { type: "string" }, auth: { type: "string" }, "private-root": { type: "string" }, "owner-data": { type: "string" } },
   });
-  await assertNativeArguments(nativeArgs);
+  assertNativeArguments(nativeArgs);
   const privateRoot = await privateParent(values["private-root"]);
   setPrivateCreationMode();
   let runRoot: string | undefined;
