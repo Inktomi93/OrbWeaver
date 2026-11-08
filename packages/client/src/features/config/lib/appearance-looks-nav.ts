@@ -26,7 +26,7 @@ export const APPEARANCE_LOOKS_SUBCATEGORY: ConfigSubcategory = {
       keywords: ["hearth", "mocha", "light", "built-in", "default", "switch theme", "custom", "imported", "my themes", "apply", "export", "delete"],
       teach: {
         summary:
-          "Every theme, in one place and in one shape — the ones that ship with the app and the ones you build or import. Picking one applies it. What differs is what a theme LETS you do: a shipped theme can be applied, duplicated and exported; one of yours adds editing and deleting.",
+          "Every theme, in one place and in one shape. The ones that ship with the app and the ones you build or import. Picking one applies it. What differs is what a theme LETS you do: a shipped theme can be applied, duplicated and exported; one of yours adds editing and deleting.",
         affects: ["the whole app's palette, on this account everywhere you sign in"],
         related: [{ group: "appearance", sub: "looks", setting: "theme-builder" }],
       },
@@ -37,7 +37,7 @@ export const APPEARANCE_LOOKS_SUBCATEGORY: ConfigSubcategory = {
       keywords: ["builder", "editor", "custom css", "accent", "new theme", "customize colors"],
       teach: {
         summary:
-          "Starts from the look you are on and opens every token. Saving mints a NAMED THEME of yours — it never edits the shipped look, and there is no freestanding color knob anywhere else: a color decision always becomes a theme.",
+          "Starts from the look you are on and opens every token. Saving mints a NAMED THEME of yours. It never edits the shipped look, and there is no freestanding color knob anywhere else: a color decision always becomes a theme.",
         affects: ["a new card in the collection above; the app only changes when you apply it"],
         related: [{ group: "appearance", sub: "looks", setting: "shipped-looks" }],
       },

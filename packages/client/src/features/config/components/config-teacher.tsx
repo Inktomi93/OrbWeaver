@@ -74,7 +74,7 @@ function TeacherValueBlock({ value }: { readonly value: ConfigTeachValue }): Rea
   if (!value.modified) {
     return (
       <Text voice="gloss" data-slot="teacher-value-default">
-        Using the default — {value.defaultValue}.
+        Using the default: {value.defaultValue}.
       </Text>
     );
   }

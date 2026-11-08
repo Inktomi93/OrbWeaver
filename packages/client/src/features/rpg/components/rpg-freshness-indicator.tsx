@@ -55,7 +55,7 @@ const ROUNDING_REASON: Readonly<Record<RpgFoldFallbackReason, string>> = {
   // collided tools (the server log owns that detail; a name here would read as a setting the host can edit).
   "terminal-declaration-collided": "Another tool in this room claimed a name the state bookkeeping needs, so a second pass records the beat instead.",
 };
-const HOST_CHOSE_ROUNDING = "A dedicated pass records each beat's state after the turn commits — the delivery model you picked.";
+const HOST_CHOSE_ROUNDING = "A dedicated pass records each beat's state after the turn commits. The delivery model you picked.";
 // The host picked "Structured reply" on the Game tab and this room's model can't give one. Independent of the
 // rounding reason above, so a folded room whose model can neither fold nor give a structured reply states both.
 const STRUCTURED_UNAVAILABLE_REASON =
@@ -77,7 +77,7 @@ export function RpgFreshnessIndicator({ delivery, pending }: RpgFreshnessIndicat
             Live
           </Text>
         </Badge>
-        <HintTrigger className="" hint="The reply records its own state — the panel is current with this beat." subject="the panel's freshness" />
+        <HintTrigger className="" hint="The reply records its own state. The panel is current with this beat." subject="the panel's freshness" />
       </>
     );
   }
@@ -97,7 +97,7 @@ export function RpgFreshnessIndicator({ delivery, pending }: RpgFreshnessIndicat
             Updating…
           </Text>
         </Badge>
-        <HintTrigger className="" hint={`Writing this beat's state now — the panel refreshes when it lands. ${why}`} subject="the panel's freshness" />
+        <HintTrigger className="" hint={`Writing this beat's state now: the panel refreshes when it lands. ${why}`} subject="the panel's freshness" />
       </>
     );
   }

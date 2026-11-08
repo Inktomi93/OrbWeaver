@@ -20,7 +20,7 @@ import type { AnalyticsEmptyReason } from "@orb/contracts/discovery";
 import type { WorkloadKind, WorkloadResultByKind } from "@orb/contracts/workloads";
 
 /** What a succeeded row says when no renderer can speak for its result. */
-const RESULT_SUMMARY_FALLBACK = "Finished — this run reported no readable summary.";
+const RESULT_SUMMARY_FALLBACK = "Finished: this run reported no readable summary.";
 
 const PART_SEPARATOR = " · ";
 
@@ -77,13 +77,13 @@ const indexSummary: WorkloadResultRenderer<"index"> = (result) =>
  * no memory digests at all, and nothing on the row hinted that the missing input was memory).
  */
 const ANALYTICS_EMPTY_COPY: Record<AnalyticsEmptyReason, string> = {
-  "no-digests": "No memory digests to read — run the memory backfill first",
+  "no-digests": "No memory digests to read: run the memory backfill first",
   // A SEPARATE sentence, not a variant of the one above: the backfill has already run here, so repeating its
   // instruction would send the user to a job that changes nothing (issue #558).
-  "no-solo-digests": "Only group-room digests to read — themes and keyword profiles come from solo chats",
+  "no-solo-digests": "Only group-room digests to read: themes and keyword profiles come from solo chats",
   // A THIRD job, not a third phrasing of the backfill: the similarity passes read the embeddings the INDEX
   // pass writes, so pointing at memory here would send the user somewhere that cannot help (issue #561).
-  "no-embeddings": "Nothing embedded to compare — run the embeddings index first",
+  "no-embeddings": "Nothing embedded to compare: run the embeddings index first",
   "no-cards": "No characters to read yet",
 };
 
@@ -94,7 +94,7 @@ const analyticsSummary: WorkloadResultRenderer<"compute-themes"> = (result) =>
 
 /** A maintenance sweep: what it looked at, what it touched, and whether it was allowed to touch anything. */
 const maintenanceSummary: WorkloadResultRenderer<"assets-gc"> = (result) =>
-  summarize([count(result.scanned, "item"), tally(result.changed, "changed"), result.dryRun ? "dry run — nothing written" : null]);
+  summarize([count(result.scanned, "item"), tally(result.changed, "changed"), result.dryRun ? "dry run: nothing written" : null]);
 
 /** The index rebuild: a maintenance sweep that also names the files folders it skipped because no user owns them
  *  (`failed` counts them). `import-st` keeps the plain sweep line. */
@@ -167,11 +167,11 @@ const tokenUsageBackfillSummary: WorkloadResultRenderer<"import-token-usage-back
     countIfAny(result.legacyPromoted, "legacy count marked measured", "legacy counts marked measured"),
     tallyIfAny(result.estimated, "estimated"),
     tallyIfAny(result.compareAndSetSkipped, "changed concurrently"),
-    result.dryRun ? "dry run — nothing written" : null,
+    result.dryRun ? "dry run: nothing written" : null,
   ]);
 
 /** An inert v2 stub: `deferred:true` is not "zero work done", it is "this pass does not exist yet". */
-const deferredSummary: WorkloadResultRenderer<"reconcile-world-state"> = () => "Nothing to do — this pass isn't implemented yet.";
+const deferredSummary: WorkloadResultRenderer<"reconcile-world-state"> = () => "Nothing to do: this pass isn't implemented yet.";
 
 /**
  * kind → its result renderer, or `null` for a kind whose copy is not written yet (→ the generic fallback).

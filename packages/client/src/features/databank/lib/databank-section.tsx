@@ -47,7 +47,7 @@ export const databankSection: SectionDefinition = {
   panelDefaults: { list: "docked", context: "collapsed" },
   placeholder: {
     title: "Databank",
-    description: "Files, pages and pasted text you index once — the passages that matter get pulled into your chats as they happen.",
+    description: "Files, pages and pasted text you index once. The passages that matter get pulled into your chats as they happen.",
   },
   list: () => (
     <DatabankLibraryAnchor>

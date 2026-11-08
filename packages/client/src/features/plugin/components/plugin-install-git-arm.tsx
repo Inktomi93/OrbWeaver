@@ -19,7 +19,7 @@ interface PluginInstallGitArmProps {
   readonly onPreviewed: (epoch: number, manifest: PluginManifest, url: string, sourceCommit: string) => void;
 }
 
-const GIT_FETCH_FAILED = "Couldn't read a plugin from that repository — it may be unreachable, refused, or not a plugin.";
+const GIT_FETCH_FAILED = "Couldn't read a plugin from that repository. It may be unreachable, refused, or not a plugin.";
 
 export function PluginInstallGitArm({
   disabled,

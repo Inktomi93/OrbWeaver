@@ -18,7 +18,7 @@ export const useRestartServer = createEntityMutation<inferInput<Trpc["admin"]["r
 export const useCreateUser = createEntityMutation<inferInput<Trpc["admin"]["createUser"]>, unknown>({
   options: (trpc) => trpc.admin.createUser.mutationOptions(),
   invalidates: (trpc) => [trpc.admin.listUsers.queryFilter()],
-  errorToast: "Couldn't create the user — that handle may already be taken.",
+  errorToast: "Couldn't create the user. That handle may already be taken.",
 });
 
 /** Grant/revoke the delegated `admin` role (owner-only server-side — `requireOwner`). */
@@ -40,7 +40,7 @@ export const useSetEnabled = createEntityMutation<inferInput<Trpc["admin"]["setE
 export const useLinkSsoIdentity = createEntityMutation<inferInput<Trpc["admin"]["linkSsoIdentity"]>, unknown>({
   options: (trpc) => trpc.admin.linkSsoIdentity.mutationOptions(),
   invalidates: (trpc) => [trpc.admin.listUsers.queryFilter()],
-  errorToast: "Couldn't link the SSO identity — that subject may already be linked to another account.",
+  errorToast: "Couldn't link the SSO identity. That subject may already be linked to another account.",
 });
 
 /** Set a user's local password (revokes all of their live sessions server-side). */
@@ -90,5 +90,5 @@ export const useRefreshCatalog = createEntityMutation<inferInput<Trpc["connectio
 export const useEmbedCharacterCard = createEntityMutation<inferInput<Trpc["admin"]["embedCharacterCard"]>, { readonly ok: true }>({
   options: (trpc) => trpc.admin.embedCharacterCard.mutationOptions(),
   invalidates: () => [],
-  errorToast: "Couldn't embed the card — check the character id.",
+  errorToast: "Couldn't embed the card. Check the character id.",
 });

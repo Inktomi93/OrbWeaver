@@ -55,7 +55,7 @@ export function makeCharactersSection(
     panelDefaults: { list: "docked", context: "collapsed" },
     placeholder: {
       title: CHARACTERS_SECTION_LABEL,
-      description: "Your characters live here — browse the list, then open someone to see their card.",
+      description: "Your characters live here. Browse the list, then open someone to see their card.",
     },
     // The LIBRARY, whatever is selected (#501) — the picker is the pane's ONE role.
     list: () => (

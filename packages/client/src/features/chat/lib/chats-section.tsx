@@ -129,7 +129,7 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
       title: "Chats",
       // Side-agnostic ("on the left" is wrong the moment the list pane is a slide-over or collapsed) —
       // this copy is also the home jump tile's gloss for the section, where there is no left at all.
-      description: "Your conversations live here — pick a thread from your chats, or start a new one.",
+      description: "Your conversations live here. Pick a thread from your chats, or start a new one.",
     },
     list: () => (
       <ChatListAnchor>

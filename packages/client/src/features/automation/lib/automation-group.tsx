@@ -18,6 +18,6 @@ export const automationGroup: ConfigGroupDefinition = {
   icon: Zap,
   // The group's own teaching line — for search and for the welcome; it says what the group is FOR in the
   // host's own words, and it no longer has to point at a neighbouring feature as a "meanwhile".
-  description: "Rules that watch your whole library and act on their own — no chat has to be open. Per-chat rules live in that chat's own settings.",
+  description: "Rules that watch your whole library and act on their own. No chat has to be open. Per-chat rules live in that chat's own settings.",
   body: { kind: "sections" },
 };

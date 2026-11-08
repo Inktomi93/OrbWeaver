@@ -12,6 +12,6 @@ export const connectionsGroup: ConfigGroupDefinition = {
   shelf: "user",
   label: "Connections",
   icon: ExternalLink,
-  description: "Your providers, keys and models — and which one each role uses.",
+  description: "Your providers, keys and models, and which one each role uses.",
   body: { kind: "sections" },
 };

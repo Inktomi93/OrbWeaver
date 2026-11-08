@@ -83,7 +83,7 @@ export function RpgGameDoor({ chatId }: RpgGameDoorProps): ReactElement {
             {GAME_MODE_OFF_KICKER}
           </Text>
         </Row>
-        <Text>{`Game mode is off — ${GAME_MODE_KEPT_LINE.toLowerCase()} Turn it back on to pick up where you left off.`}</Text>
+        <Text>{`Game mode is off: ${GAME_MODE_KEPT_LINE.toLowerCase()} Turn it back on to pick up where you left off.`}</Text>
         <Button disabled={updateConfig.isPending} size="sm" onClick={engage}>
           <Icon icon={Play} size="xs" /> {GAME_MODE_RESUME_LABEL}
         </Button>
@@ -100,7 +100,7 @@ export function RpgGameDoor({ chatId }: RpgGameDoorProps): ReactElement {
           Game mode
         </Text>
       </Row>
-      <Text>A game mode for your roleplay — tracked state, quests, and a scene the story keeps current. Pick a ruleset any time once it's on.</Text>
+      <Text>A game mode for your roleplay. Tracked state, quests, and a scene the story keeps current. Pick a ruleset any time once it's on.</Text>
       <Button disabled={createGame.isPending} size="sm" onClick={create}>
         <Icon icon={Swords} size="xs" /> {GAME_MODE_ON_LABEL}
       </Button>

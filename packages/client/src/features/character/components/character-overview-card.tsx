@@ -154,7 +154,7 @@ function OverviewBody({ characterId }: CharacterOverviewCardProps): ReactElement
 }
 
 /** What the SHIPPED example cards say for `Source`. */
-const SHIPPED_SOURCE = "Example — shipped with Orbweaver";
+const SHIPPED_SOURCE = "Example: shipped with Orbweaver";
 /** …and what a card the owner really did author here says. */
 const AUTHORED_SOURCE = "Made here";
 /** The `imported` arm's word when the URL is absent. `characterProvenanceOf` derives `imported` FROM a

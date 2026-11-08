@@ -20,7 +20,7 @@ import { selectPresetSection } from "#state";
 export function DataReadout({ config }: { readonly config: PromptConfig }): ReactElement {
   const counts = scanReferences(config);
   return (
-    <Section kicker="References — this preset">
+    <Section kicker="References: this preset">
       {counts.length === 0 ? (
         <Text voice="gloss">This preset declares no variables or user macros yet. Add one in the Data view and its references show up here.</Text>
       ) : (
@@ -30,7 +30,7 @@ export function DataReadout({ config }: { readonly config: PromptConfig }): Reac
           ))}
         </Stack>
       )}
-      <Text voice="gloss">Counted inside this preset only — a macro can still be used at chat time somewhere this scan cannot see.</Text>
+      <Text voice="gloss">Counted inside this preset only. A macro can still be used at chat time somewhere this scan cannot see.</Text>
     </Section>
   );
 }

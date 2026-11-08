@@ -24,7 +24,7 @@ export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
       label: "Block external media",
       keywords: ["url", "image", "privacy", "ssrf", "tracking", "pixel"],
       teach: {
-        summary: "Blocks messages from loading media by external URL \u2014 no tracking pixels, no SSRF, no surprise fetches.",
+        summary: "Blocks messages from loading media by external URL. No tracking pixels, no SSRF, no surprise fetches.",
         affects: ["every account's message rendering, deployment-wide"],
       },
     },
@@ -33,7 +33,7 @@ export const MEDIA_TRUST_SUBCATEGORY: ConfigSubcategory = {
       label: "Render rich HTML as trusted",
       keywords: ["html", "sanitize", "xss", "cards"],
       teach: {
-        summary: "Renders rich HTML cards as trusted instead of sanitized \u2014 only for deployments where every author is trusted.",
+        summary: "Renders rich HTML cards as trusted instead of sanitized. Only for deployments where every author is trusted.",
         affects: ["every account's message rendering, deployment-wide"],
       },
     },
@@ -83,7 +83,7 @@ export const OPERATIONS_SUBCATEGORY: ConfigSubcategory = {
       id: "log-level",
       label: "Log level",
       keywords: ["logging", "verbosity", "debug", "trace"],
-      teach: { summary: "How verbose the server log is.", affects: ["server logging only \u2014 never user data"] },
+      teach: { summary: "How verbose the server log is.", affects: ["server logging only: never user data"] },
     },
   ],
 };

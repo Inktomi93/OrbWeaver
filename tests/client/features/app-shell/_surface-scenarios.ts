@@ -73,7 +73,7 @@ const GROUP_WITNESSES = {
   ],
   automation: (page): Witnesses => [
     page.getByRole("textbox", { name: "Runs per hour", exact: true }),
-    page.getByText("These rules watch your library and act on their own — no chat has to be open.", { exact: true }),
+    page.getByText("These rules watch your library and act on their own. No chat has to be open.", { exact: true }),
   ],
   admin: (page): Witnesses => [
     page.getByRole("textbox", { name: "Max generated-image download (MB)", exact: true }),

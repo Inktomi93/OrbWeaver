@@ -132,7 +132,7 @@ export function sumBundleCounts(a: BundleCounts, b: BundleCounts): BundleCounts 
 /** The plan's own lines, for the preflight AND the summary: what stays on your disk and why, and how many
  *  uploads the folder takes. One builder, so the two surfaces cannot disagree. */
 export function planNotes(plan: TreeImportPlan): string[] {
-  const lines = skippedByReason(plan.skipped).map(({ reason, files }) => `${String(files)} file${files === 1 ? "" : "s"} will stay on your disk — ${reason}.`);
+  const lines = skippedByReason(plan.skipped).map(({ reason, files }) => `${String(files)} file${files === 1 ? "" : "s"} will stay on your disk: ${reason}.`);
   if (plan.batches.length > 1) {
     lines.push(
       `The folder is over the per-upload cap, so it is sent as ${String(plan.batches.length)} uploads, one after another. Each one imports on its own.`,
@@ -218,8 +218,8 @@ export function previewIsEmpty(preview: ImportPreview): boolean {
 /** What an import DOES to a library that already has things in it — the sentence the reader needs BEFORE
  *  the request, not in the report afterwards. One home: the preflight is the only place it is spoken. */
 export const IMPORT_CONSEQUENCE = [
-  "Importing ADDS to your library — nothing you already have is deleted. Settings in an Orbweaver backup merge into yours.",
-  "Anything already in your library — the same card, world book, theme or preset — is skipped, so running the same import twice is not a duplicate.",
+  "Importing ADDS to your library. Nothing you already have is deleted. Settings in an Orbweaver backup merge into yours.",
+  "Anything already in your library (the same card, world book, theme or preset) is skipped, so running the same import twice is not a duplicate.",
   "A world book, theme or preset that shares a name with a DIFFERENT one of yours is imported under a numbered name, and so is a persona restored from an Orbweaver backup. Two different cards that share a name stay two characters.",
 ] as const;
 

@@ -282,7 +282,7 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
           {recentSteers.length > 0 ? (
             <RecoverInputSubmenu steers={recentSteers} onRecall={onRecall} />
           ) : (
-            <DescribedMenuItem detail="Fire a guided action first — then you can recall it" disabled={true} icon={History} label="Recover input" />
+            <DescribedMenuItem detail="Fire a guided action first, then you can recall it" disabled={true} icon={History} label="Recover input" />
           )}
           <DescribedMenuItem
             detail={canTargetTail ? undefined : SWIPE_NEEDS_REPLY}
@@ -362,20 +362,20 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
             </MenuSubmenuTrigger>
             <MenuPopup>
               <MenuGroup>
-                <MenuGroupLabel>{canUndoRevert ? "Continuation" : "Continue a reply first — nothing to undo or revert yet"}</MenuGroupLabel>
+                <MenuGroupLabel>{canUndoRevert ? "Continuation" : "Continue a reply first: nothing to undo or revert yet"}</MenuGroupLabel>
                 <UtilityActionItem
                   icon={Undo2}
                   label="Undo continuation"
                   onAction={onUndo}
                   enabled={onUndo !== undefined && canUndoRevert}
-                  disabledReason="Continue a reply first — nothing to undo yet"
+                  disabledReason="Continue a reply first: nothing to undo yet"
                 />
                 <UtilityActionItem
                   icon={Redo2}
                   label="Revert continuation"
                   onAction={onRevert}
                   enabled={onRevert !== undefined && canUndoRevert}
-                  disabledReason="Continue a reply first — nothing to revert yet"
+                  disabledReason="Continue a reply first: nothing to revert yet"
                 />
               </MenuGroup>
             </MenuPopup>

@@ -6,10 +6,10 @@ import type { RecallState } from "#state";
 
 export function recallLabel(recall: RecallState | null): string {
   if (recall === null) {
-    return "Memory — idle";
+    return "Memory: idle";
   }
   if (recall.phase === "recalling") {
-    return "Memory — recalling";
+    return "Memory: recalling";
   }
-  return `Memory — ${recall.count} recalled`;
+  return `Memory: ${recall.count} recalled`;
 }

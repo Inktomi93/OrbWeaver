@@ -37,10 +37,10 @@ export function stageWarnOf(stagePre: StagePreflightView | undefined, contextTok
   const inputOver = contextTokens !== null && stagePre.inputEstimate > contextTokens;
   if (outputOver) {
     return {
-      message: `The expected ${stagePre.stage} output likely exceeds the resolved max output (${stagePre.maxOutputTokens} tok) — a thinking model spends this budget on reasoning too. Raise max output in the preset, or narrow the selection.`,
+      message: `The expected ${stagePre.stage} output likely exceeds the resolved max output (${stagePre.maxOutputTokens} tok): a thinking model spends this budget on reasoning too. Raise max output in the preset, or narrow the selection.`,
     };
   }
-  return { message: inputOver ? "The assembled prompt likely exceeds the model's context — narrow the selection." : null };
+  return { message: inputOver ? "The assembled prompt likely exceeds the model's context. Narrow the selection." : null };
 }
 
 /**

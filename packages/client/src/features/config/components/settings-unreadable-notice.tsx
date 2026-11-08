@@ -66,7 +66,7 @@ export function SettingsUnreadableGate({ children }: { readonly children: ReactN
       />
       <ConfirmDialog
         confirmLabel="Reset settings"
-        description="This replaces every setting with the defaults. What is stored now can't be read, and resetting discards it — this can't be undone."
+        description="This replaces every setting with the defaults. What is stored now can't be read, and resetting discards it. This can't be undone."
         onConfirm={async (): Promise<void> => {
           await reset.mutateAsync();
         }}

@@ -160,7 +160,7 @@ export function ActionsView({ form, presetId, onSelectSection }: ActionsViewProp
         {groups.length === 0 ? (
           // The all-filtered-out state states its CONDITION (an empty state is required) — a silent blank
           // list reads as a broken tab, and the next step is the filter box one row up.
-          <Text voice="gloss">No template matches "{filter.trim()}" — clear the filter to see all of them.</Text>
+          <Text voice="gloss">No template matches "{filter.trim()}". Clear the filter to see all of them.</Text>
         ) : null}
 
         {/* HUMAN group labels (side-eye F-30 / ARIA rec 10): the kicker rendered the registry's raw enum

@@ -135,7 +135,7 @@ export function PresetEditorHeader({
                     // THE NAME LEADS WITH THE VISIBLE WORD (WCAG 2.5.3 label-in-name): a control reading
                     // "Activate" whose name lacks that word is unaddressable by speech. Visible word first, then the editor-voice gloss that keeps it distinct
                     // from the list's radio.
-                    <Button aria-label="Activate — use this preset for generation" variant="ghost" onClick={onActivate} size="sm" type="button">
+                    <Button aria-label="Activate: use this preset for generation" variant="ghost" onClick={onActivate} size="sm" type="button">
                       <Icon icon={Zap} size="sm" />
                       Activate
                     </Button>

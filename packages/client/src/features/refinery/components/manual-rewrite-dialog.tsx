@@ -91,7 +91,7 @@ export function ManualRewriteDialog({ open, onOpenChange, targets, saving, onSub
     >
       <Stack gap="row">
         <Text voice="gloss">
-          Your edit lands as a rewrite round, not a card write — analyze can judge it against the original, and nothing touches the card until you apply.
+          Your edit lands as a rewrite round, not a card write. Analyze can judge it against the original, and nothing touches the card until you apply.
           Untouched fields stay out of the round.
         </Text>
         {targets.length === 0 ? <Text voice="gloss">{REFINERY_HAND_EDIT_EMPTY_SCOPE}</Text> : null}
@@ -107,7 +107,7 @@ export function ManualRewriteDialog({ open, onOpenChange, targets, saving, onSub
               </Row>
               {draft.cleared ? (
                 <Text voice="gloss">
-                  {target.field === "greetings" ? "This greeting slot will be removed — later greetings shift up." : "This field will be emptied."}
+                  {target.field === "greetings" ? "This greeting slot will be removed. Later greetings shift up." : "This field will be emptied."}
                 </Text>
               ) : (
                 <Field label={`New text for ${slotLabelOf(target.field, target.greetingIndex)}`}>

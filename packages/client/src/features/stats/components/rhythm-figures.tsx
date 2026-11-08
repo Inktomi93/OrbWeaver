@@ -27,7 +27,7 @@ export function RhythmFigures({ rhythm }: { readonly rhythm: Rhythm }): ReactEle
         <Text voice="gloss">
           {busiest === null
             ? "A day counts as active once you exchange a turn or open a chat in it."
-            : `Your busiest day was ${busiest.approx ? APPROX_DATES_MARK : ""}${timeLib.formatDate(busiest.start)} — activity counts turns exchanged plus chats opened.`}
+            : `Your busiest day was ${busiest.approx ? APPROX_DATES_MARK : ""}${timeLib.formatDate(busiest.start)}: activity counts turns exchanged plus chats opened.`}
         </Text>
       </Stack>
     </Section>

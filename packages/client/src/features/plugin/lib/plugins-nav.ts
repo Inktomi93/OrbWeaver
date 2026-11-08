@@ -23,7 +23,7 @@ export const PLUGINS_INSTALLED_SUBCATEGORY: ConfigSubcategory = {
       label: "What a plugin is allowed to do",
       keywords: ["permission", "capability", "grant", "consent", "reach", "hosts", "network", "allow"],
       teach: {
-        summary: "Every capability a plugin asked for, granted or denied per plugin \u2014 nothing runs with a reach you did not consent to.",
+        summary: "Every capability a plugin asked for, granted or denied per plugin. Nothing runs with a reach you did not consent to.",
         affects: ["what that plugin may see and do, for your account only"],
       },
     },

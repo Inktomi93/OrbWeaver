@@ -63,8 +63,8 @@ const STAGE_WORD: Record<RefinerySchemaStage, string> = { score: "score", analyz
  *  DERIVE from the contract tuple so a new arm cannot ship without a word for it (the admin-items
  *  precedent). Owner-facing wording says what the arm COSTS and what it buys, never the mechanism. */
 const FORGE_ARM_LABELS: Record<RefineryForgeArm, string> = {
-  single: "One pass — fastest",
-  guided: "Field by field — best for big schemas",
+  single: "One pass: fastest",
+  guided: "Field by field: best for big schemas",
   "two-stage": "Shape first, then styling",
 };
 const FORGE_ARM_ITEMS: SelectItems = REFINERY_FORGE_ARMS.map((value) => ({ value, label: FORGE_ARM_LABELS[value] }));
@@ -91,7 +91,7 @@ const DISCARD_BODY = "Your description, the JSON schema and the name go with it.
 
 /** The no-preview arm's copy: an empty pane invites, a broken one teaches. */
 function previewEmptyTextOf(schemaText: string): string {
-  return schemaText.trim().length === 0 ? "Generate a draft, or paste a schema to preview it." : "That JSON doesn't parse yet — fix it to preview.";
+  return schemaText.trim().length === 0 ? "Generate a draft, or paste a schema to preview it." : "That JSON doesn't parse yet. Fix it to preview.";
 }
 
 function parseDraft(text: string): Record<string, unknown> | null {
@@ -164,7 +164,7 @@ function applyForgeResult(result: ForgeResult, { nameRef, setNameFilled, setSche
   }
   if (result.kind === "needs-raw") {
     setSchemaText(JSON.stringify(result.skeleton, null, 2));
-    setForgeNote(`${result.message} The JSON below is a starting point — edit it directly; the raw editor accepts the whole schema vocabulary.`);
+    setForgeNote(`${result.message} The JSON below is a starting point: edit it directly; the raw editor accepts the whole schema vocabulary.`);
     return;
   }
   setForgeNote(result.message);
@@ -348,7 +348,7 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
     >
       <Stack gap="row">
         <Text voice="gloss">
-          Two ways in, both first-class. Describe what you want in plain English and the designer builds it — the model answers into a fixed grammar, so it
+          Two ways in, both first-class. Describe what you want in plain English and the designer builds it. The model answers into a fixed grammar, so it
           cannot invent a shape this app can't render. Or write the schema yourself in the JSON pane below, which takes the full vocabulary: unions, mixed
           lists, deeper nesting. If a description needs something the designer can't express, it says so and hands you a starting point instead of guessing.
         </Text>
@@ -379,7 +379,7 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
             {forgeNote}
           </Text>
         ) : null}
-        <Field label="Schema (JSON — the full vocabulary)">
+        <Field label="Schema (JSON: the full vocabulary)">
           <Textarea onChange={(e): void => setSchemaText(e.target.value)} ref={schemaTextRef} rows={8} value={schemaText} />
         </Field>
         {/* THE RENDER-HINT ROLE PICKER (#73) — split out (`render-hint-picker.tsx`, component size): a typed source for the `x-orb-ui` role string, so an

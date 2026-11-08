@@ -52,7 +52,7 @@ for (const touch of [false, true]) {
       const rpc = await routeTrpc(page, serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "chat.getChat", "rpg.listTurnToolCalls"]));
       const component = await mount<typeof RpgTurnFooterStory>(STORY, { message: recorded.message });
       const disclosure = page.locator('[data-slot="turn-tool-calls"]');
-      const trigger = disclosure.getByRole("button", { name: `Game actions on this turn — ${recorded.record.calls.length}`, exact: true });
+      const trigger = disclosure.getByRole("button", { name: `Game actions on this turn: ${recorded.record.calls.length}`, exact: true });
       await expect(trigger).toBeVisible();
       await expect(trigger).toHaveText(String(recorded.record.calls.length));
       await expect(trigger).toHaveAttribute("aria-expanded", "false");
@@ -100,7 +100,7 @@ for (const touch of [false, true]) {
       await expect(trigger).toBeVisible();
       expect(rpc.count("rpg.listTurnToolCalls")).toBe(reads);
       await component.update({ message: partial.message });
-      const warning = disclosure.getByRole("button", { name: `Game actions on this turn — ${partial.record.calls.length} — needs attention`, exact: true });
+      const warning = disclosure.getByRole("button", { name: `Game actions on this turn: ${partial.record.calls.length}, needs attention`, exact: true });
       await expect(warning).toBeVisible();
       await expect(warning).toHaveText(String(partial.record.calls.length));
       const warningGlyph = warning.locator("svg").first();

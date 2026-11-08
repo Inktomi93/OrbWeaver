@@ -120,7 +120,7 @@ function resolveGuidedDetail(args: { disabled: boolean; hasText: boolean; steerC
 
 /** The tooltip string, unchanged: "<Label> — <detail>", or the bare label when there is no detail. */
 function joinTitle(label: string, detail: string | undefined): string {
-  return detail === undefined ? label : `${label} — ${detail}`;
+  return detail === undefined ? label : `${label}: ${detail}`;
 }
 
 // A control's description: its own `sr-only` copy of the detail, or the element that already states it.

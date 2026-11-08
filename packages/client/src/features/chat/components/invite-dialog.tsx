@@ -110,7 +110,7 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
       const share = values.mode === "link" ? await fetchLiveShare() : null;
       const { token } = await createInvite.mutateAsync({ chatId, input });
       if (share === null) {
-        notify.success(`Invited ${values.handle.trim()} — they'll see it in their notifications.`);
+        notify.success(`Invited ${values.handle.trim()}: they'll see it in their notifications.`);
         return { ...values, handle: "" };
       }
       setMintedLink(inviteJoinLink(token, share, globalThis.location.origin));
@@ -193,7 +193,7 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
                     {(field): ReactElement => (
                       <field.TextField
                         label="Handle"
-                        description="Their exact handle — the invite lands in their notifications."
+                        description="Their exact handle: the invite lands in their notifications."
                         autoComplete="off"
                         data-testid={testId("inviteHandleInput")}
                       />
@@ -288,7 +288,7 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
 
           {mintedLink === null ? null : (
             <Stack gap="field" data-testid={testId("inviteLinkResult")}>
-              <Text voice="label">Copy it now — you won't see this link again.</Text>
+              <Text voice="label">Copy it now: you won't see this link again.</Text>
               {/* Copied on arrival. A failed copy lands in this control's own status and field, inside the dialog:
                   a toast would paint under the modal backdrop, and the link is shown only once. */}
               <CopyButton autoCopy={true} copiedHint="Anyone with it can join." data-testid={testId("inviteCopyLink")} text={mintedLink} what="invite link">

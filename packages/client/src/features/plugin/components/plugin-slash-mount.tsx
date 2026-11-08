@@ -15,7 +15,7 @@ import { usePluginCommandRunner, usePluginCommands } from "../hooks/use-plugin-c
 import { parseCommandArgInputs, parsePluginArgContext, parsePluginCommand, pluginCommandArgOffers } from "../lib/plugin-command-dispatch.ts";
 
 /** The copy for a line that named no command. */
-const INCOMPLETE = "Use /plugin <plugin> <command> — Jump to… lists what you have.";
+const INCOMPLETE = "Use /plugin <plugin> <command>. Jump to… lists what you have.";
 
 export function PluginSlashMount({ context, onRunner, onArgComplete }: SlashCommandMountProps): ReactElement | null {
   const { run } = usePluginCommandRunner(context.chatId);

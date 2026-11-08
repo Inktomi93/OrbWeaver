@@ -51,14 +51,14 @@ function toPlacement(selected: readonly string[]): RegexPlacement[] {
  *  of the chips alone and never told a flag they did not pick. */
 function placementHint(placement: readonly RegexPlacement[]): string {
   if (placement.length === 0) {
-    return "Pick at least one stream — an empty selection would leave these running nowhere.";
+    return "Pick at least one stream. An empty selection would leave these running nowhere.";
   }
   const { markdownOnly, promptOnly } = deriveRegexTierFlags(placement);
   if (markdownOnly) {
-    return "Runs only on the rendered transcript — it never touches the prompt.";
+    return "Runs only on the rendered transcript. It never touches the prompt.";
   }
   if (promptOnly) {
-    return "Runs only on the prompt — it never touches what is shown.";
+    return "Runs only on the prompt. It never touches what is shown.";
   }
   return "Runs on both the prompt and the rendered transcript.";
 }

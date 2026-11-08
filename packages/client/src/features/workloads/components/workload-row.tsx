@@ -127,12 +127,12 @@ function WorkloadRowBody({
               </Badge>
             </Row>
             {active ? (
-              <Button type="button" variant="ghost" size="sm" aria-label={`Cancel — ${kindLabel}`} onClick={(): void => setConfirmCancel(true)}>
+              <Button type="button" variant="ghost" size="sm" aria-label={`Cancel: ${kindLabel}`} onClick={(): void => setConfirmCancel(true)}>
                 {DIALOG_VERBS.cancel}
               </Button>
             ) : null}
             {canRetryWorkload(workload, viewerIsOwner) ? (
-              <Button type="button" variant="outline" size="sm" aria-label={`Retry — ${kindLabel}`} onClick={onRetry}>
+              <Button type="button" variant="outline" size="sm" aria-label={`Retry: ${kindLabel}`} onClick={onRetry}>
                 {DIALOG_VERBS.retry}
               </Button>
             ) : null}

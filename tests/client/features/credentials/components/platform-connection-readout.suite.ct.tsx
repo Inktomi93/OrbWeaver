@@ -207,9 +207,9 @@ for (const regime of REGIMES) {
       const calls = await routeTrpc(page, serveCorpusProcedures(caller, READS));
       await mount<typeof ConnectionActionGroupsStory>(LIST_STORY, { width: regime.width, appearance: regime.appearance });
       for (const [connection, copy] of [
-        [keyless, "none — this provider needs no key"],
+        [keyless, "none: this provider needs no key"],
         [attached, "saved"],
-        [missing, "not set — this provider requires a saved credential"],
+        [missing, "not set: this provider requires a saved credential"],
       ] as const) {
         await page.locator('[data-slot="list-row-body"]').filter({ hasText: connection.label }).click();
         const editor = page.locator('[data-slot="connection-editor"]');

@@ -30,7 +30,7 @@ export const ATTACH_MEDIA_ACCEPT = [`${IMAGE_MIME_PREFIX}*`, ...ATTACHABLE_VIDEO
 //
 
 function unsupportedAttachMessage(file: File): string {
-  return `${file.name} isn't an image or video — attach a PNG, JPG, WEBP, GIF, MP4 or WEBM`;
+  return `${file.name} isn't an image or video: attach a PNG, JPG, WEBP, GIF, MP4 or WEBM`;
 }
 
 /**

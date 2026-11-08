@@ -70,8 +70,8 @@ function ReactionPill({ group, viewerReacted, onToggle }: ReactionPillProps): Re
       <Toggle
         aria-label={
           qualifier === null
-            ? `React with ${group.emoji} — ${String(count)} so far`
-            : `React with ${group.emoji} to ${qualifier}'s line — ${String(count)} so far`
+            ? `React with ${group.emoji}: ${String(count)} so far`
+            : `React with ${group.emoji} to ${qualifier}'s line: ${String(count)} so far`
         }
         data-slot="message-reaction-pill"
         variant="outline"

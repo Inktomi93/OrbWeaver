@@ -139,7 +139,7 @@ function analyzeBehind(analyze: RunView | null, rewrite: RunView | null): string
  *  rewrite, not the lane's shown run — walking the rewrite lane back to an older run does not un-run the
  *  stage, and a gate that flipped on a view-back pin would be lying about the server. */
 function analyzeBlocked(latestRewrite: RunView | undefined): string | null {
-  return latestRewrite === undefined ? "Run a rewrite first — analyze judges a rewrite against your original." : null;
+  return latestRewrite === undefined ? "Run a rewrite first. Analyze judges a rewrite against your original." : null;
 }
 
 /** The three lanes + the rewrite the accept work targets, derived from the ledger and the pins. */

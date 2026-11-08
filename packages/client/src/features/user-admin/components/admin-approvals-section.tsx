@@ -33,7 +33,7 @@ export function AdminApprovalsSection({ anchorId }: { readonly anchorId: string 
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={3} />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="the admin panel — it's available to administrators only" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="the admin panel: it's available to administrators only" onRetry={retry} />}
       reserveRows={firstBootRows}
       reserveKey="config.admin.approvals"
     >

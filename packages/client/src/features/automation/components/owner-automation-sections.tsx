@@ -142,10 +142,10 @@ function OwnerRulesBody(): ReactElement {
     <Stack gap="section">
       {/* The one-line gloss both rule surfaces open with, saying what is DIFFERENT here: these rules watch
           the library, not a room. */}
-      <Text voice="gloss">These rules watch your library and act on their own — no chat has to be open.</Text>
+      <Text voice="gloss">These rules watch your library and act on their own. No chat has to be open.</Text>
       {rules.length === 0 ? (
         <Text voice="gloss" prose={true} cap="prose">
-          Nothing is watching your library yet. Add a rule — illustrate a character when its card changes, for instance — and it starts off until you enable it.
+          Nothing is watching your library yet. Add a rule (illustrate a character when its card changes, for instance) and it starts off until you enable it.
         </Text>
       ) : null}
       <RuleManager chatId={null} rules={rules} />

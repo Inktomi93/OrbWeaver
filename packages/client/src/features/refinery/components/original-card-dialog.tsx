@@ -11,7 +11,7 @@ import { scopeChipLabelOf, slotLabelOf } from "../lib/render-plan.ts";
 
 export function OriginalCardDialog({ card, onOpenChange }: { readonly card: CharacterCard; readonly onOpenChange: (open: boolean) => void }): ReactElement {
   return (
-    <ViewerDialog onOpenChange={onOpenChange} open={true} title="Original card — pinned at session start">
+    <ViewerDialog onOpenChange={onOpenChange} open={true} title="Original card: pinned at session start">
       <Heading level={2}>{card.name}</Heading>
       <Text cap="prose" voice="gloss">
         Read-only authored fields pinned when this session started. Macros are shown as written.

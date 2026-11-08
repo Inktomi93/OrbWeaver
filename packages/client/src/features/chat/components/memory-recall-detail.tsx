@@ -65,7 +65,7 @@ export function MemoryRecallDetail({ recall }: { readonly recall: MemoryRecallSl
     );
   }
   return (
-    <Section heading={<Kicker>{`Memory recall — ${recall.surfaced} of ${recall.poolSize} surfaced`}</Kicker>}>
+    <Section heading={<Kicker>{`Memory recall: ${recall.surfaced} of ${recall.poolSize} surfaced`}</Kicker>}>
       <Stack gap="field">
         <TraceLine label="Mode" value={recall.mode} />
         <TraceLine label="Pool → candidates → surfaced" value={`${recall.poolSize} → ${recall.candidateCount} → ${recall.surfaced}`} />

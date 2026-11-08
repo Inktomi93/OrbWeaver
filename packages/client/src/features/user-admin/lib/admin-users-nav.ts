@@ -28,7 +28,7 @@ export const ADMIN_USERS_SUBCATEGORY: ConfigSubcategory = {
       label: "Roles & access",
       keywords: ["role", "admin", "owner", "promote", "demote", "disable", "enable"],
       teach: {
-        summary: "Each account's global role \u2014 what it may administer, not what it may chat about.",
+        summary: "Each account's global role: what it may administer, not what it may chat about.",
         affects: ["that account's reach across the whole deployment"],
       },
     },

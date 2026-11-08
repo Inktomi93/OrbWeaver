@@ -29,7 +29,7 @@ export function MacroSliceDetail({ macros }: { readonly macros: MacroSlice | und
     return null;
   }
   return (
-    <Section heading={<Text voice="kicker">{`Macros — ${macros.registered.length} registered, ${macros.rejected.length} rejected`}</Text>}>
+    <Section heading={<Text voice="kicker">{`Macros: ${macros.registered.length} registered, ${macros.rejected.length} rejected`}</Text>}>
       <Stack gap="field">
         {macros.rejected.map((entry) => (
           <Stack key={`${entry.source.kind}:${entry.source.id}:${entry.name}:${entry.reason}`} gap="row" data-slot="macro-rejected">

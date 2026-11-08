@@ -23,7 +23,7 @@ import { trpcErrorReason } from "./trpc-error-reason.ts";
 
 // The bus owns the stale-abort notice so the awaited mutation does not duplicate it.
 const TURN_STALE_ABORT_COPY =
-  "Generation stopped — the chat was taken over by another session. Your message wasn't saved, so nothing was added to the conversation.";
+  "Generation stopped: the chat was taken over by another session. Your message wasn't saved, so nothing was added to the conversation.";
 
 /** Bus-side: the user-visible notice for a `turnAborted` reason, or `null` for no notice. `stale` → the
  *  honest copy; `user` → silence (they cancelled); `error` → silence HERE (the tRPC error boundary owns it,
@@ -55,7 +55,7 @@ export function isSilencedTurnAbort(error: unknown): boolean {
 }
 
 // Contention names the retryable state instead of the caller-specific generic failure.
-const TURN_LOCKED_COPY = "Another reply is still generating in this room — nothing was changed. Try again once it finishes.";
+const TURN_LOCKED_COPY = "Another reply is still generating in this room. Nothing was changed. Try again once it finishes.";
 
 /**
  * Hook-side: the toast a turn mutation (send/swipe/continue/generate/impersonate/summon) should show for a

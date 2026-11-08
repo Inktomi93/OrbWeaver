@@ -103,7 +103,7 @@ const FACET_BODY_RENDERERS: Record<CharacterFacetId, (props: FacetBodyProps) => 
       form={form}
       name="description"
       label="Description"
-      hint="Who they are — the core of the card. Use {{char}}/{{user}} to self-reference."
+      hint="Who they are: the core of the card. Use {{char}}/{{user}} to self-reference."
       spoilerBlur={spoilerBlur}
       rows={16}
     />

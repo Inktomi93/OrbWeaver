@@ -31,7 +31,7 @@ export function UnderstandingPassUtilityNote({
   return (
     <Row align="center" wrap={true} data-slot="understanding-pass-utility" gap="field">
       <Text cap="prose" id={id} voice="gloss">
-        {utility.kind === "unset" ? "This needs a helper model — pick one in Model roles." : `Your helper model is set but not running: ${utility.cause}.`}
+        {utility.kind === "unset" ? "This needs a helper model. Pick one in Model roles." : `Your helper model is set but not running: ${utility.cause}.`}
       </Text>
       <UtilityModelDoor />
     </Row>

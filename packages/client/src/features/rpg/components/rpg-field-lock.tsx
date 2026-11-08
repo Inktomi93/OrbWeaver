@@ -28,7 +28,7 @@ export interface RpgFieldLockProps {
  *  low-stakes, self-healing action — any hand edit re-pins). The title states the state AND the gesture. */
 export function RpgFieldLock({ field, onRelease }: RpgFieldLockProps): ReactElement {
   return (
-    <Tip text={`${field} is pinned by hand — the story won't change it. Click to release it back to the model.`}>
+    <Tip text={`${field} is pinned by hand: the story won't change it. Click to release it back to the model.`}>
       <GlyphButton type="button" variant="ghost" ink="muted" glyph="sm" aria-label={`Release ${field} to the model`} onClick={onRelease}>
         <Icon icon={Pin} size="xs" />
       </GlyphButton>

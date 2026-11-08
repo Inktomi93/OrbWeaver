@@ -59,7 +59,7 @@ const NUMERIC_KNOBS = [
   {
     key: "retrieveK",
     label: "Search candidates",
-    hint: "Matches kept after vector search. Higher values give Sharper semantic recall more choices but make reranking compare more memories; when reranking succeeds, Reranked memories still caps what reaches the prompt. If reranking is unavailable—or Semantic recall is selected—more candidates can use more prompt space. Embedding and vector-search work stay the same.",
+    hint: "Matches kept after vector search. Higher values give Sharper semantic recall more choices but make reranking compare more memories; when reranking succeeds, Reranked memories still caps what reaches the prompt. If reranking is unavailable, or Semantic recall is selected, more candidates can use more prompt space. Embedding and vector-search work stay the same.",
     step: 1,
   },
   {
@@ -131,7 +131,7 @@ export function MemoryTuningSection({ anchorId, sectionId }: { readonly anchorId
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={5} />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="memory tuning — administrators only" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="memory tuning: administrators only" onRetry={retry} />}
       reserveRows={firstBootRows}
       reserveKey="config.admin.memoryTuning"
     >

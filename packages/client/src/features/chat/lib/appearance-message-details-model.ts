@@ -82,7 +82,7 @@ export const APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY: ConfigSubcategory = {
       label: "Action cluster",
       options: MESSAGE_ACTIONS_ITEMS,
       keywords: ["edit", "delete", "fork", "copy", "hide", "hover"],
-      teach: { summary: "Edit/hide/fork/delete/copy — shown on hover (default) or always.", affects: ["every message row's action affordances"] },
+      teach: { summary: "Edit/hide/fork/delete/copy: shown on hover (default) or always.", affects: ["every message row's action affordances"] },
     },
   ],
 };

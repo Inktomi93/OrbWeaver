@@ -11,6 +11,6 @@ export const CHAT_PLUGINS_OPEN_LABEL = `Open ${CHAT_PLUGINS_TAB_LABEL} tab`;
 
 /** The placement action stays distinct when one plugin registers several panels. */
 export function movePluginPanelLabel(pluginName: string, title: string, sidecar: boolean): string {
-  const name = pluginName === title ? pluginName : `${pluginName} — ${title}`;
+  const name = pluginName === title ? pluginName : `${pluginName}: ${title}`;
   return `Move to ${sidecar ? "sidecar" : "Context"}: ${name}`;
 }

@@ -83,7 +83,7 @@ function GlobalSection({ bookId, isGlobal }: BookAttachmentsProps & { readonly i
           }}
         />
       </Row>
-      <Text voice="gloss">On top of any character or persona attachment — the one scope that needs no carrier.</Text>
+      <Text voice="gloss">On top of any character or persona attachment. The one scope that needs no carrier.</Text>
     </Stack>
   );
 }

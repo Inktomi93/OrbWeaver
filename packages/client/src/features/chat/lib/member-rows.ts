@@ -127,9 +127,9 @@ export function rowAccessibleName(row: MemberPersonRow | MemberCharacterRow): st
     const history = row.historyVisibility === "from-join" ? ", limited history" : "";
     // Presence is the row's NON-COLOUR channel (#1039): the dot is `aria-hidden` decoration, so this word
     // is the whole announcement — a colour-blind or screen-reader user reads the state a sighted one sees.
-    return `${row.displayName} — ${role}${you}${nominated}${history}${presenceClause(row.online, row.lastSeenAt)}`;
+    return `${row.displayName}: ${role}${you}${nominated}${history}${presenceClause(row.online, row.lastSeenAt)}`;
   }
-  return `${row.displayName} — character${row.disabled ? ", muted" : ""}`;
+  return `${row.displayName}: character${row.disabled ? ", muted" : ""}`;
 }
 
 /** What the committed roster hands the two projections below. `identities` is the chat's own member-gated

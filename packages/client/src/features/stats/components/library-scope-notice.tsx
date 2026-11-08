@@ -24,7 +24,7 @@ export function LibraryScopeNotice({ reason }: { readonly reason: string }): Rea
   }
   return (
     <Text voice="gloss" role="note" data-slot="analytics-library-scope" prose={true} cap="prose">
-      Whole library — not just the character you opened. {reason}
+      Whole library: not just the character you opened. {reason}
     </Text>
   );
 }

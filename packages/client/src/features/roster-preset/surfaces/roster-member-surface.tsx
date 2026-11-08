@@ -173,7 +173,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
             the top of the surface: the decision it changes is that press. */}
       {contested ? (
         <Text data-slot="roster-editor-conflict" voice="label">
-          {`This roster changed elsewhere while you were editing — it is now “${roster.name}”. Saving replaces that with your text.`}
+          {`This roster changed elsewhere while you were editing: it is now “${roster.name}”. Saving replaces that with your text.`}
         </Text>
       ) : null}
       {/* `Section kicker` renders the SAME caps-micro band the two groupings had as bare spans — and a
@@ -208,7 +208,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
           </Row>
         ))}
         <Text voice="gloss" cap="prose">
-          To re-compose the roster, arrange a room you host and save it as a new roster — the saved-rosters door in Members.
+          To re-compose the roster, arrange a room you host and save it as a new roster. The saved-rosters door in Members.
         </Text>
       </Section>
       {roster.rules.length > 0 ? (
@@ -217,7 +217,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
             <RosterRuleBlock knobs={rule.knobs} key={rule.rulePresetId} preset={presetOf(rule.rulePresetId)} rulePresetId={rule.rulePresetId} />
           ))}
           <Text voice="gloss" cap="prose">
-            Applied with the roster — re-minted into the room and switched on. To change them, configure a room and save a new roster.
+            Applied with the roster: re-minted into the room and switched on. To change them, configure a room and save a new roster.
           </Text>
         </Section>
       ) : null}

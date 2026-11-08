@@ -113,8 +113,8 @@ function RunRow({
         </Row>
         {run.strippedKeys.length > 0 ? (
           <Text data-testid={testId("refineryStrippedWarn")} voice="gloss">
-            {run.strippedKeys.length} invented key{run.strippedKeys.length === 1 ? "" : "s"} dropped from this payload — {run.strippedKeys.join(", ")}. The
-            parse kept the shape; the keys are recorded, not silently swallowed.
+            {run.strippedKeys.length} invented key{run.strippedKeys.length === 1 ? "" : "s"} dropped from this payload: {run.strippedKeys.join(", ")}. The parse
+            kept the shape; the keys are recorded, not silently swallowed.
           </Text>
         ) : null}
         <Row wrap={true} gap="field">
@@ -142,7 +142,7 @@ export function RunsTab({ runs, viewedRunId, onView, armedRewriteId, onArmRewrit
             Go to Score
           </Button>
         }
-        description="Every stage you run is recorded here — what it cost, which model ran it, and the verdict it produced."
+        description="Every stage you run is recorded here. What it cost, which model ran it, and the verdict it produced."
         title="No runs yet"
       />
     );
@@ -327,7 +327,7 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
             Snapshot now
           </Button>
         }
-        description="Every apply snapshots the card first, and you can snapshot by hand — versions land here as they are made."
+        description="Every apply snapshots the card first, and you can snapshot by hand. Versions land here as they are made."
         title="No versions yet"
       />
     );
@@ -369,7 +369,7 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
               </Row>
               {compareId === snapshot.id ? (
                 <Stack gap="tight">
-                  <Text voice="kicker">description — this version vs live</Text>
+                  <Text voice="kicker">description: this version vs live</Text>
                   {comparing.data === undefined ? (
                     <Text voice="gloss">Loading that version…</Text>
                   ) : (

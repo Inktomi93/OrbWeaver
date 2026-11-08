@@ -39,7 +39,7 @@ type HandDoorVerdict = inferOutput<Trpc["rpg"]["editSnapshot"]>;
  * refusal actionable.
  */
 function handDoorRefusal(data: HandDoorVerdict): string | null {
-  return data.ok ? null : `That change wasn't applied — ${data.reason}`;
+  return data.ok ? null : `That change wasn't applied: ${data.reason}`;
 }
 
 /** The tracker aggregate this write repaints — taken off the proc so a reshape breaks here rather than
@@ -260,7 +260,7 @@ type ResyncVerdict = inferOutput<Trpc["rpg"]["resyncFromStory"]>;
  * Rides the FACTORY, not the call site — refusing-as-data is a property of the VERB.
  */
 function resyncRefusal(data: ResyncVerdict): string | null {
-  return data.ok ? null : `The rebuild didn't run — ${data.reason}`;
+  return data.ok ? null : `The rebuild didn't run: ${data.reason}`;
 }
 
 /** `rpg.resyncFromStory` — the §1.3 HOST re-derive-from-the-story escape hatch (host-only; the server gate
@@ -294,7 +294,7 @@ type PopulateVerdict = inferOutput<Trpc["rpg"]["populateFromCharacter"]>;
  * an info line. Rides the FACTORY, not the call site — refusing-as-data is a property of the VERB.
  */
 function populateRefusal(data: PopulateVerdict): string | null {
-  return data.ok ? null : `The card wasn't read — ${data.reason}`;
+  return data.ok ? null : `The card wasn't read: ${data.reason}`;
 }
 
 /** `rpg.populateFromCharacter` — the HOST born-state round (owner ruling 2026-08-01; host-only, the server

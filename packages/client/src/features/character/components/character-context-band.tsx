@@ -31,7 +31,7 @@ import { useTRPC } from "#data";
 import { characterCardFormFromDetail, totalTokenCount } from "../lib/character-card-form-model.ts";
 import { OwnLookMark } from "./character-hero-band.tsx";
 
-const TOKEN_CHIP_HINT = "Estimated tokens the card spends at its first greeting — the editor's own count.";
+const TOKEN_CHIP_HINT = "Estimated tokens the card spends at its first greeting. The editor's own count.";
 
 /** The census read is a page-of-ONE — only `totalCount` is spent here (the Overview card's key). */
 const CENSUS_PAGE = 1;

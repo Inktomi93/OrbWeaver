@@ -63,7 +63,7 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
   const total = Math.max(plot.acts.length, plot.act);
   const acts = Array.from({ length: total }, (_, i) => i + 1);
   const currentTitle = plot.acts[plot.act - 1]?.title ?? "";
-  const heading = currentTitle !== "" ? `Act ${actNumeral(plot.act)} — ${currentTitle}` : `Act ${actNumeral(plot.act)}`;
+  const heading = currentTitle !== "" ? `Act ${actNumeral(plot.act)}: ${currentTitle}` : `Act ${actNumeral(plot.act)}`;
   const pinned = edit === undefined ? null : ["plot", "plot.act", "plot.acts"].find((p) => edit.isLocked(p));
   return (
     <Card>
@@ -96,7 +96,7 @@ export function RpgActRail({ plot, edit }: { readonly plot: RpgPlot; readonly ed
                 ink="accolade"
               />
               <Text as="span" voice="label" aria-hidden={true} ink="muted">
-                —
+                :
               </Text>
               <TrackerValue
                 ariaLabel={`Act ${plot.act} title`}

@@ -43,11 +43,11 @@ export interface ResolveFailureCopy {
 const RESOLVE_FAILURE_COPY: Record<ResolveFailureCause, ResolveFailureCopy> = {
   "not-found": {
     headline: "This preset couldn't be read, so what the next turn will send can't be shown.",
-    guidance: "It may have been deleted or renamed in another tab — reopen it from Configuration → Presets.",
+    guidance: "It may have been deleted or renamed in another tab. Reopen it from Configuration → Presets.",
   },
   routing: {
     headline: "Your chat model couldn't be resolved, so what the next turn will send can't be shown.",
-    guidance: `This is a routing problem, not a missing connection — fix it under ${MODEL_ROLES_PATH_TEXT}.`,
+    guidance: `This is a routing problem, not a missing connection: fix it under ${MODEL_ROLES_PATH_TEXT}.`,
   },
   unknown: {
     // Deliberately names the READ, not a cause: on a 500 or a dropped socket we do not know which half of

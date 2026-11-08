@@ -108,7 +108,7 @@ for (const regime of REGIMES) {
       await page.keyboard.press("Enter");
       const hide = page.getByRole("button", { name: REFINERY_HIDE_COMPARE_NAME, exact: true });
       await expect(hide).toBeFocused();
-      await expect(page.getByText("description — this version vs live", { exact: true })).toBeVisible();
+      await expect(page.getByText("description: this version vs live", { exact: true })).toBeVisible();
       await expectContained(hide.locator(".."), [hide, restore]);
       await page.keyboard.press("Tab");
       await expect(restore).toBeFocused();

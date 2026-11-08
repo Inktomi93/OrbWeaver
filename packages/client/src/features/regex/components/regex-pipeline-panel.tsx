@@ -56,21 +56,21 @@ const LEG_ITEMS: readonly { readonly value: string; readonly label: string }[] =
 const SKIP_COPY: Record<(typeof REGEX_SKIP_REASONS)[number], string> = {
   disabled: "switched off",
   "not-on-this-leg": "doesn’t run on this stream",
-  "display-only": "display-only — it never touches the prompt",
-  "prompt-only": "prompt-only — it never touches the rendered transcript",
+  "display-only": "display-only: it never touches the prompt",
+  "prompt-only": "prompt-only: it never touches the rendered transcript",
 };
 
 /** What one stage did, in one line. The match count is READ off the production replacer, so "no matches"
  *  means the shipped engine found none. */
 function stageStatus(stage: RegexPipelineStage): string {
   if (stage.skipped !== null) {
-    return `Skipped — ${SKIP_COPY[stage.skipped]}.`;
+    return `Skipped: ${SKIP_COPY[stage.skipped]}.`;
   }
   if (stage.error !== null) {
     return `This pattern can’t run: ${stage.error}`;
   }
   if (stage.matchCount === 0) {
-    return "No matches — the text passes through unchanged.";
+    return "No matches: the text passes through unchanged.";
   }
   return stage.matchCount === ONE_MATCH ? "1 match" : `${String(stage.matchCount)} matches`;
 }
@@ -230,8 +230,8 @@ function PipelineCaveats({
   return (
     <Stack gap="tight">
       <Text voice="gloss">
-        A preset, a character or a room adds its own scripts AFTER these — in that order — and a library page has no room, no characters and no active preset,
-        so this run can’t include them.
+        A preset, a character or a room adds its own scripts AFTER these, in that order, and a library page has no room, no characters and no active preset, so
+        this run can’t include them.
       </Text>
       {subjectIsGlobal ? null : (
         <Text voice="gloss">This script isn’t in the always-on set, so it is shown last: every scope that can attach it runs after the always-on tier.</Text>
@@ -242,7 +242,7 @@ function PipelineCaveats({
         // depth range"); this one is about the RUN — every stage below was applied to one loose string, which
         // has no position for a depth bound to bite on.
         <Text tone="warning" voice="gloss">
-          Nothing here has a position in a chat history, so this script’s depth range is not applied — the run treats the sample as any message.
+          Nothing here has a position in a chat history, so this script’s depth range is not applied. The run treats the sample as any message.
         </Text>
       ) : null}
     </Stack>

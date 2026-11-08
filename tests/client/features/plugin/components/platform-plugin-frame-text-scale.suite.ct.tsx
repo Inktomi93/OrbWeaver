@@ -12,7 +12,7 @@ import { strToU8 } from "fflate";
 import type { PluginFrameTextScaleStory } from "./_consent-layout-stories.tsx";
 
 const STORY = "tests/client/features/plugin/components/_consent-layout-stories/PluginFrameTextScaleStory";
-const FRAME_TITLE = "Scale witness — Frame preferences";
+const FRAME_TITLE = "Scale witness: Frame preferences";
 const { min: MIN_SCALE, max: MAX_SCALE } = FONT_SCALE;
 // A scale no stored setting can hold, written straight onto the root: the frame must stop at the bound.
 const PLANTED_SCALE = MAX_SCALE + 1;

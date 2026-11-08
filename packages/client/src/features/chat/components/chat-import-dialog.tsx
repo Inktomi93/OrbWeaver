@@ -49,7 +49,7 @@ function importNotice({ imported, failed }: ChatImportResult): ImportNotice {
   }
   return {
     kind: "info",
-    message: `${imported.length} of ${imported.length + failed.length} imported — ${failureMessage(firstFailure)}`,
+    message: `${imported.length} of ${imported.length + failed.length} imported: ${failureMessage(firstFailure)}`,
   };
 }
 

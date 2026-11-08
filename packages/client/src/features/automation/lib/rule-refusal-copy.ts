@@ -44,7 +44,7 @@ export const RULE_UNREADABLE_BADGE = "Can't run";
  *  It names REMOVE-AND-ADD-AGAIN rather than a repair, because there is no in-app repair for a blob the
  *  schema rejects and pretending otherwise would be the lie this state exists to remove. */
 export function ruleUnreadableLine(lastError: string | null): string {
-  const base = "This rule can't run — what it was told to do can no longer be read. Remove it and add the rule again.";
+  const base = "This rule can't run. What it was told to do can no longer be read. Remove it and add the rule again.";
   return lastError === null || lastError.trim() === "" ? base : `${base} Its last run reported: ${lastError}`;
 }
 
@@ -52,14 +52,14 @@ export function ruleUnreadableLine(lastError: string | null): string {
  *  action, because the control is NOT offered: a switch announced "Enable X" that cannot be operated is the
  *  dead affordance this state exists to remove. */
 export function ruleUnreadableEnableRefusal(ruleName: string): string {
-  return `Can't enable "${ruleName}" — its saved actions can't be read`;
+  return `Can't enable "${ruleName}": its saved actions can't be read`;
 }
 
 /** The reason on the Run-now door of an unreadable rule (#1655) — the SAME refusal as the enable control's,
  *  in the same grammar, because the two doors are answers to one question and a surface that refuses to
  *  switch a rule on while still offering to run it says two different things about the same rule. */
 export function ruleUnreadableRunRefusal(ruleName: string): string {
-  return `Can't run "${ruleName}" — its saved actions can't be read`;
+  return `Can't run "${ruleName}": its saved actions can't be read`;
 }
 
 /** Does this rule do nothing but rewrite the draft inside a turn? Mirrors `engine/dispatch.ts::runRule`'s
@@ -78,5 +78,5 @@ export function isTransformOnlyRule(actions: readonly { readonly type: Automatio
  *  this control cannot do what it says. The sentence is the server's own reason in the host's words —
  *  "there is no draft to rewrite out of turn" — rather than the wire code `transform_not_runnable`. */
 export function ruleTransformOnlyRunRefusal(ruleName: string): string {
-  return `Can't run "${ruleName}" — it rewrites your draft while a reply is being built, so there's nothing to run out of turn`;
+  return `Can't run "${ruleName}": it rewrites your draft while a reply is being built, so there's nothing to run out of turn`;
 }

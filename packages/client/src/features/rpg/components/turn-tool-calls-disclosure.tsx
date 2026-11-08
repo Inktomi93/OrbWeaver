@@ -15,7 +15,7 @@ import { useTurnToolCallsForVariant } from "../hooks/use-turn-tool-calls.ts";
 /** WHY the args are not this reader's to see, said as a sentence rather than as the enum (#1690). A mapped
  *  Record over the tuple, so a second withhold reason fails `tsc` here instead of rendering as nothing. */
 const WITHHELD_LABEL: Record<RpgToolCallWithholdReason, string> = {
-  unparseable: "Arguments not shown — the model did not send readable ones.",
+  unparseable: "Arguments not shown: the model did not send readable ones.",
 };
 
 /** The verdict said as an OUTCOME, in the reader's terms — not the enum. "dropped" alone reads like a UI
@@ -56,11 +56,11 @@ export function TurnToolCallsDisclosure({ message }: TurnToolCallsDisclosureProp
   }
   const incomplete = calls.some((call) => call.verdict === "dropped" || call.verdict === "salvaged");
   const warning = failure !== null || incomplete;
-  const summary = failure === null ? `${calls.length}${incomplete ? " — needs attention" : ""}` : VERDICT_LABEL.dropped;
+  const summary = failure === null ? `${calls.length}${incomplete ? ", needs attention" : ""}` : VERDICT_LABEL.dropped;
   return (
     <Collapsible data-slot="turn-tool-calls">
       {/* Fine pointers retain the dense footer's text-height box; the native touch floor owns coarse height. */}
-      <CollapsibleTrigger aria-label={`Game actions on this turn — ${summary}`} self="start" touchFloor="block" size="text" data-target-floor="sub-floor-ok">
+      <CollapsibleTrigger aria-label={`Game actions on this turn: ${summary}`} self="start" touchFloor="block" size="text" data-target-floor="sub-floor-ok">
         <Icon icon={warning ? CircleAlert : Dices} size="sm" {...(warning ? ({ tone: "warning" } as const) : ({ ink: "muted" } as const))} />
         <Text voice="code">{failure === null ? calls.length : VERDICT_LABEL.dropped}</Text>
       </CollapsibleTrigger>

@@ -40,11 +40,11 @@ import { selectChat, setActiveSection } from "#state";
  *  re-derived here so the copy and the list can never disagree about what is on screen. */
 function bindingLine(isDefault: boolean, roomsListed: boolean): string {
   if (isDefault) {
-    return "Your active preset — every chat you host generates with it, unless a game points its GM voice somewhere else.";
+    return "Your active preset: every chat you host generates with it, unless a game points its GM voice somewhere else.";
   }
   return roomsListed
     ? "Not your active preset. A chat only reaches it through the GM voice of a game below."
-    : "Nothing uses this preset yet — activate it, or point a game's GM voice at it.";
+    : "Nothing uses this preset yet. Activate it, or point a game's GM voice at it.";
 }
 
 const USAGE_SKELETON_ROWS = 1;

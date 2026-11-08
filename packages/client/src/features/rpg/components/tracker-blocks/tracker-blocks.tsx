@@ -113,7 +113,7 @@ export function TrackerChip({ label, value, subject, guide = false, onEditValue 
     <Badge size="sm" data-slot={guide ? "guide-chip" : "tracker-chip"}>
       {guide ? <Icon icon={Gauge} size="sm" /> : null}
       <Text as="span" ink="muted" voice="label">
-        {label} —{" "}
+        {label}:{" "}
       </Text>
       {onEditValue === undefined ? (
         <Text ink="inherit" as="span" voice="label">
@@ -146,7 +146,7 @@ export function BeatLine({ children }: BeatLineProps): ReactElement {
   return (
     <Text ink="muted" data-slot="beat-line" flow="lineField" voice="gloss" prose={true}>
       <Text as="span" aria-hidden={true} receded={true} className="shrink-0" voice="gloss" prose={true} ink="foreground">
-        —
+        :
       </Text>
       {/* min-w-0: the content is model-authored free text (journal beats, recent events) with no length
           contract — as a flex child it must be allowed to shrink so its inline content WRAPS; without it

@@ -216,7 +216,7 @@ function overrideSource(providerLabel: string, fromProvider: boolean, replaced: 
   if (replaced === undefined) {
     return "your override";
   }
-  return fromProvider ? `your override — the ${providerLabel} provider row says ${replaced}` : `your override — the default is ${replaced}`;
+  return fromProvider ? `your override: the ${providerLabel} provider row says ${replaced}` : `your override: the default is ${replaced}`;
 }
 
 // ── "Endpoint quirks" (= `features`) ───────────────────────────────────────────────────────────────────
@@ -236,10 +236,10 @@ const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly
   effort: [{ path: "effort", name: "effort field", edit: { kind: "enum", options: EFFORT_SPELLINGS }, unset: NOT_SET }],
   outputCapField: [{ path: "outputCapField", name: "output cap field", edit: { kind: "enum", options: OUTPUT_CAP_FIELDS }, unset: NOT_SET }],
   reasoningKeys: [{ path: "reasoningKeys", name: "reasoning fields", edit: { kind: "list" }, unset: NOT_SET }],
-  images: [{ path: "images", name: "image generation arm", edit: { kind: "enum", options: IMAGE_ARMS }, unset: "not set — no image generation" }],
-  rerankPath: [{ path: "rerankPath", name: "rerank path", edit: { kind: "text" }, unset: "not set — no reranking" }],
+  images: [{ path: "images", name: "image generation arm", edit: { kind: "enum", options: IMAGE_ARMS }, unset: "not set: no image generation" }],
+  rerankPath: [{ path: "rerankPath", name: "rerank path", edit: { kind: "text" }, unset: "not set: no reranking" }],
   modelInfoApi: [{ path: "modelInfoApi", name: "model info API", edit: { kind: "enum", options: MODEL_INFO_APIS }, unset: NOT_SET }],
-  nativeChat: [{ path: "nativeChat", name: "native chat route", edit: { kind: "enum", options: NATIVE_CHAT_APIS }, unset: "not set — chat uses /v1" }],
+  nativeChat: [{ path: "nativeChat", name: "native chat route", edit: { kind: "enum", options: NATIVE_CHAT_APIS }, unset: "not set: chat uses /v1" }],
   detectServer: [{ path: "detectServer", name: "detect the server", edit: { kind: "boolean" }, unset: NOT_SET }],
   sleep: [
     { path: "sleep.isSleepingPath", name: "sleep check path", edit: { kind: "text" } },
@@ -271,21 +271,21 @@ const QUIRK_LEAVES_BY_FEATURE: Record<keyof Required<EndpointFeatures>, readonly
   ],
   samplerOrder: [{ path: "samplerOrder", name: "sampler order vocabulary", edit: { kind: "enum", options: SAMPLER_ORDER_SPELLINGS }, unset: NOT_SET }],
   bannedStrings: [
-    { path: "bannedStrings", name: "banned phrases form", edit: { kind: "enum", options: BANNED_STRINGS_SPELLINGS }, unset: "not set — a phrase list" },
+    { path: "bannedStrings", name: "banned phrases form", edit: { kind: "enum", options: BANNED_STRINGS_SPELLINGS }, unset: "not set: a phrase list" },
   ],
   tokenizeApi: [
-    { path: "tokenizeApi", name: "tokenize endpoint", edit: { kind: "enum", options: TOKENIZE_APIS }, unset: "not set — logit bias takes token ids only" },
+    { path: "tokenizeApi", name: "tokenize endpoint", edit: { kind: "enum", options: TOKENIZE_APIS }, unset: "not set: logit bias takes token ids only" },
   ],
   reasoningBudgetField: [
     {
       path: "reasoningBudgetField",
       name: "thinking budget field",
       edit: { kind: "enum", options: REASONING_BUDGET_FIELDS },
-      unset: "not set — no thinking budget",
+      unset: "not set: no thinking budget",
     },
   ],
-  keepAlive: [{ path: "keepAlive", name: "keep model loaded for", edit: { kind: "text" }, unset: "not set — the server's default" }],
-  numBatch: [{ path: "numBatch", name: "prompt batch size", edit: { kind: "number" }, unset: "not set — the server's default" }],
+  keepAlive: [{ path: "keepAlive", name: "keep model loaded for", edit: { kind: "text" }, unset: "not set: the server's default" }],
+  numBatch: [{ path: "numBatch", name: "prompt batch size", edit: { kind: "number" }, unset: "not set: the server's default" }],
   thinkingOff: [{ path: "thinkingOff", name: "template thinking switch", edit: { kind: "enum", options: THINKING_OFF_SPELLINGS }, unset: NOT_SET }],
   // One row per spelling the row states; a server that reads the default key needs none.
   samplerKeys: SAMPLER_KNOBS.map((knob): FactLeaf => ({ path: `samplerKeys.${knob}`, name: `${samplerWords(knob)} field`, edit: { kind: "text" } })),

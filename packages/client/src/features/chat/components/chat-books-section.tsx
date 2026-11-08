@@ -92,7 +92,7 @@ export function ChatBooksSection({ chatId, isHost }: ChatBooksSectionProps): Rea
         <Text voice="gloss">
           {isHost
             ? "No world books are attached to this chat yet."
-            : "No world books are attached to this chat yet — the host attaches the ones this room carries."}
+            : "No world books are attached to this chat yet. The host attaches the ones this room carries."}
         </Text>
       ) : (
         <Stack gap="tight">

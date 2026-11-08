@@ -103,10 +103,10 @@ function importedBookMessage({
   readonly renamedFrom: string | null;
 }): string {
   if (!created) {
-    return "That book is already in your library — nothing was added.";
+    return "That book is already in your library. Nothing was added.";
   }
   if (renamedFrom !== null) {
-    return `Imported as “${name ?? renamedFrom}” — you already have a different “${renamedFrom}”.`;
+    return `Imported as “${name ?? renamedFrom}”: you already have a different “${renamedFrom}”.`;
   }
   return "Book imported.";
 }

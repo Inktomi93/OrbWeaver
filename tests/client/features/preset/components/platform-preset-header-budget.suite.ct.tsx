@@ -65,7 +65,7 @@ for (const regime of REGIMES) {
       // The heading stays in the outline; the identity that has to fit the row is its painted twin.
       const paintedName = editor.getByText(preset.name, { exact: true }).and(editor.locator('[aria-hidden="true"]'));
       const rename = editor.getByRole("button", { name: PRESET_RENAME_NAME, exact: true });
-      const activate = editor.getByRole("button", { name: "Activate — use this preset for generation", exact: true });
+      const activate = editor.getByRole("button", { name: "Activate: use this preset for generation", exact: true });
       const reset = editor.getByRole("button", { name: "Reset to starter arrangement", exact: true });
       const status = editor.locator('[data-slot="autosave-status"]');
       await expect(title).toBeVisible();

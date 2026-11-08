@@ -190,7 +190,7 @@ function maxContextHint(context: GenerationCapability["context"], reserveOutputT
   const room = windowInputRoom(window, reserveOutputTokens);
   const base =
     settable === undefined
-      ? `Soft-caps the working set below the model window — older turns beyond this are trimmed. This model's window is ${groupThousands(window)} tokens; ${groupThousands(room)} of them fit prompt and history after the reply and the safety margin.`
+      ? `Soft-caps the working set below the model window: older turns beyond this are trimmed. This model's window is ${groupThousands(window)} tokens; ${groupThousands(room)} of them fit prompt and history after the reply and the safety margin.`
       : `How much context this server runs, up to ${groupThousands(settable.max)} tokens. Unset, it runs ${groupThousands(window)}.`;
   return maxContextTokens !== undefined && maxContextTokens <= reserveOutputTokens
     ? `${base} The reply (${groupThousands(reserveOutputTokens)}) is larger than this limit, so only the newest message is sent.`
@@ -233,7 +233,7 @@ function ContextCluster({ form }: { readonly form: AppForm }): ReactElement {
                 hint="Orbweaver can summarize older messages once the chat fills up, and keep that summary even if you switch models. Or the model's own app can handle it. Either way the chat stays within the model's limit."
                 items={COMPACTION_MODE_ITEMS}
                 label="Summarizing"
-                placeholder={`Default — ${compactionModeLabel(DEFAULT_COMPACTION_MODE)}`}
+                placeholder={`Default: ${compactionModeLabel(DEFAULT_COMPACTION_MODE)}`}
               />
             )}
           </form.AppField>

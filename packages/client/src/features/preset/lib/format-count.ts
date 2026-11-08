@@ -37,7 +37,7 @@ export const CARRIER_COST_GLYPH = "~—";
  * modalities carry the same fact rather than one of them carrying a punctuation mark.
  */
 export function spokenEstimate(tokens: number | null): string {
-  return tokens === null ? "cost not counted — this section's substance comes from the conversation" : `approximately ${formatCount(tokens)} tokens`;
+  return tokens === null ? "cost not counted: this section's substance comes from the conversation" : `approximately ${formatCount(tokens)} tokens`;
 }
 
 /**

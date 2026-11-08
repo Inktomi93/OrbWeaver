@@ -57,7 +57,7 @@ export const CAPABILITY_COPY_ROWS = [
   {
     id: "chat.read",
     label: "Read this room's messages",
-    consequence: "Sees recent messages and the room's variables — only in rooms you are already in.",
+    consequence: "Sees recent messages and the room's variables. Only in rooms you are already in.",
   },
   {
     id: "chat.variables.write",
@@ -82,7 +82,7 @@ export const CAPABILITY_COPY_ROWS = [
     // outside its own sandbox, unlike the write that adds durable room state.
     id: "worldinfo.read",
     label: "Read this room's world books",
-    consequence: "Reads the world book entries attached to rooms you are in — the room's own lore, never another room's or another person's.",
+    consequence: "Reads the world book entries attached to rooms you are in. The room's own lore, never another room's or another person's.",
   },
   {
     id: "worldinfo.write",
@@ -94,7 +94,7 @@ export const CAPABILITY_COPY_ROWS = [
     id: "global_vars",
     risk: true,
     label: "Use your global variables",
-    consequence: "Reads and writes your personal global-variable namespace — yours only, never another person's.",
+    consequence: "Reads and writes your personal global-variable namespace. Yours only, never another person's.",
   },
   {
     id: "storage.kv",
@@ -107,7 +107,7 @@ export const CAPABILITY_COPY_ROWS = [
     // budget, and it never leaves the sandbox to the internet.
     id: "assets.read",
     label: "Read your saved images and files",
-    consequence: "Reads back the contents of files in your own storage it has an id for — yours only, never another person's.",
+    consequence: "Reads back the contents of files in your own storage it has an id for. Yours only, never another person's.",
   },
   {
     // #788 F1 — the result is owner-scoped, but query embedding may use the installer's hosted provider, so it
@@ -126,7 +126,7 @@ export const CAPABILITY_COPY_ROWS = [
     id: "ui.surface",
     label: "Show its own panels and controls",
     consequence:
-      "Draws panels and controls the app renders itself, always inside a box labelled with the plugin's name — only for you, and it can't fake the app's own screens.",
+      "Draws panels and controls the app renders itself, always inside a box labelled with the plugin's name. Only for you, and it can't fake the app's own screens.",
   },
   {
     // THE CONSENT LINE IS VERBATIM FROM THE OWNER-RULED DESIGN and is a CONSENT ARTIFACT, not copy to tune. It
@@ -142,7 +142,7 @@ export const CAPABILITY_COPY_ROWS = [
     id: "ui.frame",
     label: "Show its own screens in an isolated frame",
     consequence:
-      "Runs its own interface code in an isolated frame — it can draw anything inside its box, use anything else this plugin is allowed to read, and send it out through browser channels no policy closes.",
+      "Runs its own interface code in an isolated frame. It can draw anything inside its box, use anything else this plugin is allowed to read, and send it out through browser channels no policy closes.",
     risk: true,
   },
   {
@@ -169,7 +169,7 @@ export const CAPABILITY_COPY_ROWS = [
     id: "databank.ingest",
     risk: true,
     label: "Add documents to your Data Bank",
-    consequence: "Saves text documents into your own Data Bank and indexes them for search — your library only, never another person's.",
+    consequence: "Saves text documents into your own Data Bank and indexes them for search. Your library only, never another person's.",
   },
   {
     // U8 seam 17 — the `databank.ingest` sibling, same consent grammar and the same not-`spends`
@@ -177,7 +177,7 @@ export const CAPABILITY_COPY_ROWS = [
     id: "character.ingest",
     risk: true,
     label: "Add characters to your library",
-    consequence: "Imports character cards into your own character library — your library only, never another person's.",
+    consequence: "Imports character cards into your own character library. Your library only, never another person's.",
   },
   {
     // U8 D148 — per-card plugin state: data saved ON your character cards, which travels with the card when you
@@ -188,19 +188,19 @@ export const CAPABILITY_COPY_ROWS = [
     risk: true,
     label: "Store its own data on your characters",
     consequence:
-      "Saves and reads its own private data on your character cards — its own data only, never another plugin's — and it never changes what the character says. That data leaves with the card when you export it.",
+      "Saves and reads its own private data on your character cards, its own data only, never another plugin's, and it never changes what the character says. That data leaves with the card when you export it.",
   },
   {
     id: "events.subscribe",
     label: "Watch for things happening",
-    consequence: "Runs its code when messages are committed, lore activates, and so on — only in rooms you are in.",
+    consequence: "Runs its code when messages are committed, lore activates, and so on. Only in rooms you are in.",
   },
   {
     // U8 §5a. BENIGN band (neither spend nor risk): the plane is private to YOUR plugins — it never reaches a
     // chat, another person, or the internet. It is what lets two of your plugins cooperate.
     id: "plugin_events",
     label: "Talk to your other plugins",
-    consequence: "Sends and receives private signals among your own installed plugins — never reaches a chat, another person, or the internet.",
+    consequence: "Sends and receives private signals among your own installed plugins. Never reaches a chat, another person, or the internet.",
   },
   {
     id: "tools.register",
@@ -212,7 +212,7 @@ export const CAPABILITY_COPY_ROWS = [
     id: "net.fetch",
     label: "Reach the internet",
     risk: true,
-    consequence: "Makes requests to the exact hosts its manifest lists, and nowhere else — at most 360 an hour per plugin.",
+    consequence: "Makes requests to the exact hosts its manifest lists, and nowhere else. At most 360 an hour per plugin.",
   },
   {
     // #798 — the remote-image-into-CAS arm. `risk`, on the `net.fetch` precedent (it reaches the open internet),
@@ -223,7 +223,7 @@ export const CAPABILITY_COPY_ROWS = [
     label: "Save images from the internet",
     risk: true,
     consequence:
-      "Downloads images from the exact hosts its manifest lists into your own storage — at most 1200 an hour per plugin, separately from internet text requests. Your library only, never another person's.",
+      "Downloads images from the exact hosts its manifest lists into your own storage. At most 1200 an hour per plugin, separately from internet text requests. Your library only, never another person's.",
   },
 ] as const satisfies readonly CapabilityCopy[];
 
@@ -267,7 +267,7 @@ export function grantSummaryLine(granted: readonly PluginCapability[]): string |
   }
   const notableWord = notable === 1 ? "1 of them reaches" : `${notable} of them reach`;
   const spendVerb = notable === 1 ? "spends" : "spend";
-  return `Granting ${permissions} — ${notableWord} past the sandbox or ${spendVerb} your budget.`;
+  return `Granting ${permissions}: ${notableWord} past the sandbox or ${spendVerb} your budget.`;
 }
 
 /** The approve button's label: "all" only when there is more than one permission to approve. */
@@ -281,7 +281,7 @@ export const PLUGIN_ERROR_SENTENCE = "Something went wrong the last time it ran.
 export const PLUGIN_ERROR_COPY_SUBJECT = "the error details";
 
 /** The note under a spend permission whose model role has nothing behind it yet. */
-export const NO_IMAGE_MODEL_NOTE = "You have no image model set up yet — this plugin can't paint until you add one under Connections.";
+export const NO_IMAGE_MODEL_NOTE = "You have no image model set up yet. This plugin can't paint until you add one under Connections.";
 
 /** The capabilities whose spend runs on a model role the person has to set up, and that role's routable task. A
  *  capability absent here either runs on a model the app always has or has no single role to name. */
@@ -318,7 +318,7 @@ export function statusCopy(plugin: ConsentAskFacts & { readonly status: PluginSt
   readonly tone: "success" | "neutral" | "warning" | "destructive";
 } {
   if (plugin.status === "enabled") {
-    return plugin.grantedCapabilities.length === 0 ? { label: "On — nothing granted yet", tone: "warning" } : { label: "On", tone: "success" };
+    return plugin.grantedCapabilities.length === 0 ? { label: "On: nothing granted yet", tone: "warning" } : { label: "On", tone: "success" };
   }
   if (plugin.status === "errored") {
     return { label: "Stopped after an error", tone: "destructive" };
@@ -328,7 +328,7 @@ export function statusCopy(plugin: ConsentAskFacts & { readonly status: PluginSt
   }
   return consentAskKind(plugin) === "first"
     ? { label: NEEDS_APPROVAL_LABEL, tone: "neutral" }
-    : { label: "Off — asked for more than you allowed", tone: "warning" };
+    : { label: "Off: asked for more than you allowed", tone: "warning" };
 }
 
 /** The quiet state a plugin waiting on its owner's first approval wears, on the Plugins screen and in the
@@ -391,7 +391,7 @@ export function reConsentLine(addedCapabilities: readonly PluginCapability[], ad
  *  (a showcase row can only reach `unreachable` by dropping out of the batch — nothing was fetched for it). */
 export const CHECK_FOR_UPDATES_LABEL = "Check for updates";
 /** The settled `up-to-date` line. */
-export const UPDATE_UP_TO_DATE_LINE = "Up to date — this is the latest version from its source.";
+export const UPDATE_UP_TO_DATE_LINE = "Up to date: this is the latest version from its source.";
 /** The settled `unreachable` line — leak-free by design (the server never says WHY, so neither do we). */
 export const UPDATE_UNREACHABLE_LINE = "Couldn't reach its source to check for updates.";
 /** The one-click affordance's label — names the version to move to, so the act is legible before the click. */
@@ -414,7 +414,7 @@ export function updateCommitAvailableLabel(sourceCommit: string): string {
  *  re-consent notice's escape action (P1-3) both trigger the SAME irreversible act, so they read the SAME
  *  sentence rather than two hand-written paraphrases drifting apart. */
 export const REMOVE_PLUGIN_DESCRIPTION =
-  "This deletes the plugin, its private storage and anything it registered. It can't be undone — you'd install it again from its bundle.";
+  "This deletes the plugin, its private storage and anything it registered. It can't be undone. You'd install it again from its bundle.";
 
 /** `builtAgainst` as a provenance line — display/warn only, never an install gate (the manifest's own rule). */
 export function builtAgainstLine(builtAgainst: PluginBuiltAgainst | null): string | null {
@@ -439,5 +439,5 @@ export const PLUGIN_DETAILS_LABEL = "Plugin details";
 
 /** The per-install management disclosure's disambiguated accessible name. */
 export function pluginDetailsLabel(pluginName: string): string {
-  return `${PLUGIN_DETAILS_LABEL} — ${pluginName}`;
+  return `${PLUGIN_DETAILS_LABEL}: ${pluginName}`;
 }

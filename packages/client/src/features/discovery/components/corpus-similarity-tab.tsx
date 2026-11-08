@@ -95,7 +95,7 @@ function NearestPairs(): ReactElement {
       <Stack gap="block">
         {/* …and this list is the WHOLE graph above the threshold, which is why it can show pairs the
             duplicate sections above do not (P2-5). */}
-        <Muted>Every pair above the threshold, ranked — not the near-duplicate pass's findings.</Muted>
+        <Muted>Every pair above the threshold, ranked. Not the near-duplicate pass's findings.</Muted>
         <Row wrap={true} gap="block">
           <ParamSelect items={MIN_SIMILARITY_ITEMS} label="Min similarity" onValueChange={setMinSimilarity} value={minSimilarity} />
           <ParamSelect items={MAX_NODES_ITEMS} label="Max nodes" onValueChange={setMaxNodes} value={maxNodes} />
@@ -133,7 +133,7 @@ function NearestPairsList({ minSimilarity, maxNodes }: { readonly minSimilarity:
           1,782 is the never-played defect in another section's clothing — and the sentence names the knob
           that changes it, because "raise the floor" is the real answer to "there are too many". */}
       {shown.length < ranked.length ? (
-        <Muted>{`Showing the closest ${shown.length.toString()} of ${ranked.length.toString()} pairs — raise Min similarity to narrow the field.`}</Muted>
+        <Muted>{`Showing the closest ${shown.length.toString()} of ${ranked.length.toString()} pairs: raise Min similarity to narrow the field.`}</Muted>
       ) : null}
       {shown.map((edge) => (
         <CharacterPairRow

@@ -76,7 +76,7 @@ export function SessionMasthead({
             <Row align="baseline" aria-label={REFINERY_SESSION_STATE_NAME} className="min-inline-0" wrap={true} cap="fit" gap="field" role="group">
               <RefineryChip tone={SESSION_STATUS_CHIP[status].tone}>{SESSION_STATUS_CHIP[status].word}</RefineryChip>
               <RefineryChip tone="neutral" wrap={true}>
-                {applied ? "Applied · snapshot taken" : "Draft — the live card is untouched"}
+                {applied ? "Applied · snapshot taken" : "Draft: the live card is untouched"}
               </RefineryChip>
             </Row>
             {/* No model here: each stage can run on a different model, so each lane credits its own result. */}

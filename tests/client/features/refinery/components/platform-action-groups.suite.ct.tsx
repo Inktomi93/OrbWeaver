@@ -61,11 +61,11 @@ for (const regime of REGIMES) {
       );
       await mount<typeof RefineryActionGroupsStory>(STORY, { sessionId: session.id, width: regime.width, appearance: regime.appearance });
       // The queue names its targets in its own words; the buttons are found by those words, read from the page.
-      await expect(page.getByRole("button", { name: / — show this change$/u }).first()).toBeVisible();
+      await expect(page.getByRole("button", { name: / show this change$/u }).first()).toBeVisible();
       const target = ((await page.getByRole("button", { name: /^Keep \(empties field\) /u }).textContent()) ?? "").replace(/^Keep \(empties field\) /u, "");
       const keep = page.getByRole("button", { name: `Keep (empties field) ${target}`, exact: true });
       const discard = page.getByRole("button", { name: `Discard ${target}`, exact: true });
-      const opener = page.getByRole("button", { name: `${target} — show this change`, exact: true });
+      const opener = page.getByRole("button", { name: `${target} show this change`, exact: true });
       const row = keep.locator("..");
       await expect(row.getByText(DROP_REASON_COPY.diverged_since_session.chip, { exact: true })).toBeVisible();
       const geometry = await actionGroupGeometry(row, [opener, discard, keep]);

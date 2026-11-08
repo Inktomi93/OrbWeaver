@@ -352,7 +352,7 @@ export function deriveCorpusAnalysisState(input: CorpusAnalysisInput): CorpusAna
     },
     {
       id: "distilled",
-      label: "Distilled — genre, tone, pitch",
+      label: "Distilled: genre, tone, pitch",
       datum: `${formatCount(input.distilled)} of ${formatCount(input.characters)}`,
       done: input.distilled > 0,
     },
