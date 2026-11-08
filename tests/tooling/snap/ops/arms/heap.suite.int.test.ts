@@ -19,6 +19,7 @@ import {
 } from "@orb/tooling/snap";
 import type { Page } from "@playwright/test";
 import { vi } from "vitest";
+import { HEAP_OUTGOING_EDGE_CAP } from "../../../../../tooling/src/snap/contract/heap.ts";
 import { captureRawHeap } from "../../../../../tooling/src/snap/ops/heap-capture.ts";
 import { scaledBudget } from "../../../_load-budget.ts";
 
@@ -49,6 +50,8 @@ document.querySelector("#grow").addEventListener("click", () => {
     const node = document.createElement("article");
     node.className = "heap-detached-plant";
     node.textContent = "detached plant " + index;
+    // Object-valued expandos: more outgoing edges than the retainer receipt's row cap keeps.
+    for (let edge = 0; edge < 60; edge += 1) node["orbExpando" + edge] = { edge };
     document.body.append(node);
     node.remove();
     globalThis.orbHeapLeaks.push(new OrbHeapLeak(node, index));
@@ -162,6 +165,14 @@ test("a named session preserves exact-page labels, reports retained growth/retai
     expect(retainers.paths.length).toBeGreaterThan(0);
     expect(retainers.dominators.length).toBeGreaterThan(1);
     expect(retainers.candidates).toBeGreaterThan(0);
+    // The selected node holds more outgoing edges than the policy cap: the real parser keeps the cap and the receipt owns the rest.
+    expect(retainers.outgoing.total).toBeGreaterThan(HEAP_OUTGOING_EDGE_CAP);
+    expect(retainers.outgoing.rows).toHaveLength(HEAP_OUTGOING_EDGE_CAP);
+    expect(retainers.outgoing).toMatchObject({ shown: HEAP_OUTGOING_EDGE_CAP, omitted: retainers.outgoing.total - HEAP_OUTGOING_EDGE_CAP });
+    expect(retainers.limits.find((limit) => limit.source === "heap-retainer-outgoing")).toMatchObject({
+      policy: { cap: HEAP_OUTGOING_EDGE_CAP },
+      complete: false,
+    });
 
     const report = await runCli("snap", ["--report", leakedIndexPath, "--problems", "--arm", "heap"], { env, timeoutMs: CLI_TIMEOUT_MS });
     await expect(report).toExitWith(EXIT.clean);

@@ -154,6 +154,22 @@ export function interactionPerfCompleteness(gaps: readonly EvidenceGap[]): {
   };
 }
 
+/** What one page's raw `__perfMeter` read yields: its parsed data, and the gaps that read recorded. An absent
+ *  meter and a malformed payload each leave no data and one gap, so neither can pass as a measured page. */
+export function pageMeterEvidence(raw: unknown, url: string): { readonly data: MeterData | null; readonly gaps: readonly EvidenceGap[] } {
+  if (raw === undefined) {
+    return { data: null, gaps: [meterApparatusGap(url)] };
+  }
+  const data = parseMeterData(raw);
+  if (data === null) {
+    return {
+      data: null,
+      gaps: [{ evidence: "the in-page meter payload", detail: `${url} returned a malformed __perfMeter payload; no rate or step data was trusted` }],
+    };
+  }
+  return { data, gaps: meterEvidenceGaps(data) };
+}
+
 async function collectPerfEvidence(
   ctx: ArmRunContext,
   data: MeterData[],
@@ -170,19 +186,11 @@ async function collectPerfEvidence(
       continue;
     }
     for (const page of context.pages) {
-      const rawPageData = await page.evaluate((): unknown => Reflect.get(globalThis, "__perfMeter"));
-      const pageData = parseMeterData(rawPageData);
-      if (rawPageData === undefined) {
-        gaps.push(meterApparatusGap(page.url()));
-      } else if (pageData === null) {
-        gaps.push({
-          evidence: "the in-page meter payload",
-          detail: `${page.url()} returned a malformed __perfMeter payload; no rate or step data was trusted`,
-        });
-      } else {
-        data.push(pageData);
-        gaps.push(...meterEvidenceGaps(pageData));
+      const evidence = pageMeterEvidence(await page.evaluate((): unknown => Reflect.get(globalThis, "__perfMeter")), page.url());
+      if (evidence.data !== null) {
+        data.push(evidence.data);
       }
+      gaps.push(...evidence.gaps);
     }
   }
   const reports = data.flatMap(buildReports);

@@ -23,12 +23,12 @@ test("multi-user runs under an env that is boot-fatal for the SERVER env schema"
   expect(result.stderr).not.toContain("OIDC_ISSUER is required");
 });
 
-test("demo and chat still resolve to the server-composing seeders (lazy import wired correctly)", async ({ runCli }) => {
+test.for(["demo", "chat"])("%s still resolves to its server-composing seeder (lazy import wired correctly)", async (verb, { runCli }) => {
   // Sanity check the OTHER two verbs still reach their real implementations — they should fail on the
   // server env schema (a thrown ZodError, mapped to tool error by run-tool.ts) rather than on an
   // unknown-command usage error, proving the lazy `await import("./ops/<verb>.ts")` dispatch in cli.ts
   // still resolves each verb correctly.
-  const result = await runCli("seed", ["demo"], {
+  const result = await runCli("seed", [verb], {
     env: { [AUTH_MODE_KEY]: "oidc" },
   });
   await expect(result).toExitWith(2);

@@ -38,6 +38,22 @@ export type ProbeStep =
   | { readonly kind: "commit"; readonly content: string }
   | { readonly kind: "generate"; readonly measure: Extract<Measure, "none" | "last"> };
 
+/** The steps that drive a turn and so produce replies. */
+export type TurnStep = Extract<ProbeStep, { kind: "send" | "continue" | "generate" }>;
+
+/** The replies a turn step is planned to produce; a generate answers with at least this many. */
+export function plannedReplies(step: TurnStep): number {
+  return step.kind === "send" ? (step.speakers ?? 1) : 1;
+}
+
+/** How many of a turn's `replies` a measure puts in the judged sequence. */
+export function judgedReplies(measure: Measure, replies: number): number {
+  if (measure === "none") {
+    return 0;
+  }
+  return measure === "last" ? Math.min(1, replies) : replies;
+}
+
 export interface CasePlan {
   readonly room: RoomKind;
   readonly steps: readonly ProbeStep[];

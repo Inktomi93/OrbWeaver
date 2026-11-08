@@ -10,7 +10,9 @@
 // express (the heap arm makes the same call for a snapshot whose population it cannot count).
 
 import { expect, test } from "@orb/testkit/tooling";
-import { interactionPerfCompleteness } from "../../../../../tooling/src/snap/ops/arms/interaction-perf.ts";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
+import { meterApparatusGap, meterEvidenceGaps } from "../../../../../tooling/src/cpu-profile/index.ts";
+import { interactionPerfCompleteness, interactionPerfExit, pageMeterEvidence } from "../../../../../tooling/src/snap/ops/arms/interaction-perf.ts";
 
 test("no gaps ⇒ the artifact is complete (#1507 positive control)", () => {
   expect(interactionPerfCompleteness([])).toEqual({
@@ -35,4 +37,46 @@ test("every gap is named, not just the first — a run with two blind pages says
   expect(stamp.completeness).toBe("unknown");
   expect(stamp.completenessDetail).toContain("2 evidence gap(s)");
   expect(stamp.completenessDetail).toContain("the in-page meter payload");
+});
+
+// The collector's own per-page read: what a page's raw `__perfMeter` becomes, then what the stamp and the exit do with it.
+const URL_UNDER_TEST = "http://x/";
+const MEASURED_METER = {
+  longTasks: [],
+  events: [],
+  shifts: [],
+  rafGaps: [],
+  stepMarks: [{ idx: 0, label: "click #go", t: 10 }],
+  installed: ["longtask"],
+};
+
+test("a page whose meter read back valid files a complete stamp and an exit that keeps the call's code", () => {
+  const evidence = pageMeterEvidence(MEASURED_METER, URL_UNDER_TEST);
+  expect(evidence.data).toEqual(MEASURED_METER);
+  expect(evidence.gaps).toEqual([]);
+  expect(interactionPerfCompleteness(evidence.gaps).completeness).toBe("complete");
+  expect(interactionPerfExit(EXIT.clean, evidence.gaps, null, [])).toBe(EXIT.clean);
+});
+
+test("a page with no meter global yields no data and a gap that turns the stamp unknown and the exit a tool error", () => {
+  const evidence = pageMeterEvidence(undefined, URL_UNDER_TEST);
+  expect(evidence.data).toBeNull();
+  expect(evidence.gaps).toEqual([meterApparatusGap(URL_UNDER_TEST)]);
+  expect(interactionPerfCompleteness(evidence.gaps).completeness).toBe("unknown");
+  expect(interactionPerfExit(EXIT.clean, evidence.gaps, null, [])).toBe(EXIT.toolError);
+});
+
+test("a malformed meter payload is distrusted: no data, one payload gap naming the page, unknown stamp", () => {
+  const evidence = pageMeterEvidence({ ...MEASURED_METER, longTasks: "none" }, URL_UNDER_TEST);
+  expect(evidence.data).toBeNull();
+  expect(evidence.gaps).toEqual([{ evidence: "the in-page meter payload", detail: expect.stringContaining(URL_UNDER_TEST) }]);
+  expect(interactionPerfCompleteness(evidence.gaps).completeness).toBe("unknown");
+  expect(interactionPerfExit(EXIT.clean, evidence.gaps, null, [])).toBe(EXIT.toolError);
+});
+
+test("a valid meter that dispatched no step keeps its data but still records the empty-population gap", () => {
+  const evidence = pageMeterEvidence({ ...MEASURED_METER, stepMarks: [] }, URL_UNDER_TEST);
+  expect(evidence.data).not.toBeNull();
+  expect(evidence.gaps).toEqual(meterEvidenceGaps({ ...MEASURED_METER, stepMarks: [] }));
+  expect(interactionPerfCompleteness(evidence.gaps).completeness).toBe("unknown");
 });

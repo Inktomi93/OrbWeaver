@@ -18,6 +18,12 @@ export const SHORT_SHA_LEN = 12;
 // vite.config.ts must READ this env var for the stage to isolate its /api proxy — its presence is the
 // ref-supports-isolation tripwire (see the header VERSION TRIPWIRE note).
 export const ISOLATION_TRIPWIRE = "VITE_API_TARGET";
+const ISOLATION_ENV_READ = new RegExp(`process\\.env(?:\\.${ISOLATION_TRIPWIRE}\\b|\\[\\s*["']${ISOLATION_TRIPWIRE}["']\\s*\\])`, "u");
+
+/** Does a vite.config source read the tripwire env var? A comment naming the variable is not a read. */
+export function readsIsolationTarget(viteConfigSource: string): boolean {
+  return ISOLATION_ENV_READ.test(viteConfigSource);
+}
 // The `--dirty` stage's fixed key (stands in for a sha in stagePaths/StageRow) — never a real commit
 // hash (all-lowercase, 5 chars, shorter than a sha's 40), so it can't collide with `shortSha` of a real ref.
 export const DIRTY_STAGE_KEY = "dirty";

@@ -628,6 +628,37 @@ test("snap proves map selectors against the live accessible tree and falls back 
   expect(result.stdout).toContain("map-dom-fallbacks=0");
 });
 
+test("snap map walks its candidates in order: a lying first selector gives way to the semantic locator, then to the DOM path", () => {
+  // `aria-label=" Rename "` is the accessible name "Rename", but the attribute selector built from the trimmed label matches nothing.
+  // Two buttons named "Save" leave their semantic locator matching both, so only the DOM path is unique.
+  const page = fixture(
+    "map-candidates",
+    `<button aria-label=" Rename ">One</button><button aria-label=" Save ">Two</button><button aria-label="Save ">Three</button><button aria-label="Plain">Four</button>`,
+  );
+  const name = `${RUN_ID}_map_candidates`;
+  const result = runSnap(["--file", page, "--no-shot", "--map", "--json", "--no-failure-evidence", "--out", name]);
+
+  expect(result.status, result.stdout + result.stderr).toBe(0);
+  const capture = (manifest(name)["captures"] as Array<{ mapResult: Array<{ name: string; selector: string; source: string }> }>)[0];
+  const entries = capture?.mapResult ?? [];
+  expect(entries.find((entry) => entry.name === "Plain")).toMatchObject({ selector: '[aria-label="Plain"]:visible', source: "semantic" });
+  expect(entries.find((entry) => entry.name === "Rename")).toMatchObject({ selector: 'role=button[name="Rename"]', source: "semantic" });
+  expect(entries.filter((entry) => entry.name === "Save").map(({ selector, source }) => ({ selector, source }))).toEqual([
+    { selector: "body > button:nth-of-type(2)", source: "dom" },
+    { selector: "body > button:nth-of-type(3)", source: "dom" },
+  ]);
+  expect(result.stdout).toContain("map-dom-fallbacks=2");
+});
+
+test("snap map refuses a row when no candidate locator is both unique and usable", () => {
+  // A button inside a disabled fieldset reads as enabled to the page script and as disabled to the locator proof.
+  const page = fixture("map-no-candidate", "<fieldset disabled><button>Frozen</button></fieldset>");
+  const result = runSnap(["--file", page, "--no-shot", "--map", "--json", "--no-failure-evidence"]);
+
+  expect(result.status, result.stdout + result.stderr).not.toBe(0);
+  expect(result.stdout).toContain('map could not mint one unique visible locator for button "Frozen"');
+});
+
 test("snap evaluates bare arrows and already-invoked arrow IIFEs exactly once", () => {
   const page = fixture("eval-functions", '<main data-value="works">eval</main>');
   const result = runSnap([

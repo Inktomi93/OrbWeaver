@@ -90,17 +90,19 @@ test("shared-base mode never mutates an account", async () => {
   expect(mutations).toBe(0);
 });
 
-test("an isolated stage provisions both rated custom polarities and removes the exact ids", async () => {
+test("an isolated stage provisions both rated custom polarities and removes the exact ids, leaving a foreign theme", async () => {
+  const foreign: StoredTheme = { id: "theme_foreign_01", name: "Foreign", override: { background: "#123456" }, css: ".foreign {}", isSeed: false };
+  themes.set(foreign.id, foreign);
   const fixture = await provisionRatedStageThemes(baseUrl, true);
   expect(fixture).not.toBeNull();
   expect(fixture?.entries.map((entry) => [entry.polarity, entry.hasCustomCss])).toEqual([
     ["light", true],
     ["dark", true],
   ]);
-  expect(themes.size).toBe(2);
+  expect(themes.size).toBe(3);
 
   await fixture?.cleanup();
-  expect(themes.size).toBe(0);
+  expect([...themes.values()]).toEqual([foreign]);
   expect(mutations).toBe(4);
 });
 

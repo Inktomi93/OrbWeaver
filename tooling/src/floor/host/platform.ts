@@ -548,8 +548,11 @@ export interface GraphicalSessionDeps {
   readonly run?: (command: string, args: readonly string[], options: Pick<RunNicedSyncOptions, "timeout" | "maxBuffer">) => RunNicedSyncResult;
   readonly stat?: (path: string) => Pick<Stats, "uid" | "mode" | "isFile" | "isSocket">;
   readonly readable?: (path: string) => boolean;
+  /** Where the X11 sockets live; a test points it at a scratch folder to run the default `lstat` on real files. */
+  readonly socketDirectory?: string;
 }
 
+const X11_SOCKET_DIRECTORY = "/tmp/.X11-unix";
 const POSIX_PERMISSION_SPACE = 0o1000;
 const OWNER_PERMISSION_UNIT = 0o100;
 const OWNER_READ_PERMISSION = 0o400;
@@ -581,7 +584,7 @@ function ownGraphicalFiles(account: Pick<UserInfo<string>, "uid" | "homedir">, d
   try {
     const stat = deps.stat ?? ((path: string): Stats => lstatSync(path));
     const auth = stat(authority);
-    const socket = stat(`/tmp/.X11-unix/X${String(Number(match[1]))}`);
+    const socket = stat(`${deps.socketDirectory ?? X11_SOCKET_DIRECTORY}/X${String(Number(match[1]))}`);
     const permissions = auth.mode % POSIX_PERMISSION_SPACE;
     if (
       !auth.isFile() ||

@@ -92,6 +92,9 @@ test("a landing whose commit git refuses prints git's own message, and the files
   expect(outcome.refusals[0]).toContain("the landing commit failed");
   expect(outcome.refusals[0]).toContain("cannot lock ref");
   expect(git(root, "rev-parse", "HEAD")).toBe(head);
+  // The landing's deletion and the regenerated index are on disk for the by-hand commit, and git sees both as pending work.
+  expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(false);
+  expect(git(root, "diff", "--name-only").split("\n")).toEqual(["docs/work/0001-a.md", "docs/work/README.md"]);
 });
 
 // A landed id is a name forever: commit subjects (`land 1`), `Closes:` trailers and `landedCommit` all key

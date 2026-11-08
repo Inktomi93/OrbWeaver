@@ -6,7 +6,8 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { AppRouter } from "@orb/server/transport/trpc";
 import { createTRPCClient, httpLink } from "@trpc/client";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import type { Measure, ProbeStep, RoomRun } from "../contract/plan.ts";
+import type { Measure, ProbeStep, RoomRun, TurnStep } from "../contract/plan.ts";
+import { judgedReplies, plannedReplies } from "../contract/plan.ts";
 import type { CallUsage, CaseRun, OrbApi, RoomCaseResult, RoomResult } from "../contract/types.ts";
 import { CASE_PLANS, REPLY_MAX_TOKENS, ROOMS } from "../lib/fixture.ts";
 
@@ -60,9 +61,7 @@ function usageOf(message: MessageView): CallUsage {
 }
 
 function measuredCalls(replies: readonly MessageView[], measure: Measure): readonly CallUsage[] {
-  const last = replies.at(-1);
-  const byMeasure: Readonly<Record<Measure, readonly MessageView[]>> = { none: [], last: last === undefined ? [] : [last], all: replies };
-  return byMeasure[measure].map(usageOf);
+  return replies.slice(replies.length - judgedReplies(measure, replies.length)).map(usageOf);
 }
 
 async function lastReplyId(api: OrbApi, chatId: ChatId): Promise<MessageView["id"]> {
@@ -75,8 +74,6 @@ async function lastReplyId(api: OrbApi, chatId: ChatId): Promise<MessageView["id
 }
 
 const NO_RUN: CaseRun = { calls: [], replyCosts: [] };
-
-type TurnStep = Extract<ProbeStep, { kind: "send" | "continue" | "generate" }>;
 
 async function runTurn(api: OrbApi, chatId: ChatId, step: TurnStep): Promise<TurnOutcome> {
   const intent = { maxOutputTokens: REPLY_MAX_TOKENS };
@@ -106,7 +103,7 @@ async function runStep(api: OrbApi, chatId: ChatId, step: ProbeStep): Promise<Ca
   }
   const replies = outcome.messages.filter((m) => m.role === "assistant");
   // A generate only answers the prefix, so any reply count serves; a send or continue must match the plan.
-  const expected = step.kind === "send" ? (step.speakers ?? 1) : 1;
+  const expected = plannedReplies(step);
   if (step.kind === "generate" ? replies.length === 0 : replies.length !== expected) {
     throw new Error(`the ${step.kind} turn produced ${replies.length} replies; the plan needs ${step.kind === "generate" ? "one or more" : expected}`);
   }

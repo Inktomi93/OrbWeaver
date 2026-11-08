@@ -1986,8 +1986,11 @@ auditRuleTest(
       "SyntaxError: z\n  at b.js:3",
       "RangeError: w\n  at c.js:4", // over the cap
     ]);
-    expect(findings).toHaveLength(3);
-    expect(nonEmpty(findings).every((f) => f.severity === "P0" && f.rule === "script-error")).toBe(true);
+    expect(findings.map((finding) => [finding.rule, finding.severity, finding.value])).toEqual([
+      ["script-error", "P0", "TypeError: x is undefined"],
+      ["script-error", "P0", "ReferenceError: y"],
+      ["script-error", "P0", "SyntaxError: z"],
+    ]);
   },
 );
 

@@ -86,21 +86,21 @@ test("each file is asked in its home world alone and the joined answer equals th
   expect(homes.get(WORLD)).toEqual(new Set(["packages/a/src/shape.ts"]));
   expect(homes.get("packages/b/tsconfig.json")).toEqual(new Set(["packages/b/src/use.ts"]));
   expect(homes.get("tsconfig.json")).toEqual(new Set(["tests/use.test.ts"]));
-  const sitesPerKey = (index: ReadonlyMap<string, readonly { readonly file: string; readonly position: number }[]>, into: Map<string, Set<string>>): void => {
-    for (const [key, sites] of index) {
-      into.set(key, new Set([...(into.get(key) ?? []), ...sites.map(({ file, position }) => `${file}:${position}`)]));
-    }
-  };
+  const siteNames = (sites: readonly { readonly file: string; readonly position: number }[]): string[] =>
+    sites.map(({ file, position }) => `${file}:${position}`);
+  // Each world's whole answer, de-duplicated across worlds: the one site list the homed join must reproduce exactly.
   const union = new Map<string, Set<string>>();
   const facts: PropertyFacts[] = [];
   for (const config of worlds) {
     using world = NativeWorld.open(root, config);
-    sitesPerKey(propertyIndex(world), union);
+    for (const [key, sites] of propertyIndex(world)) {
+      union.set(key, new Set([...(union.get(key) ?? []), ...siteNames(sites)]));
+    }
     facts.push(propertyFacts(world, homes.get(config)));
   }
-  const homed = new Map<string, Set<string>>();
-  sitesPerKey(joinFacts(facts).index, homed);
-  expect(homed).toEqual(union);
+  // Compared as sorted lists, not sets, so a site credited twice or walked twice shows as a repeat.
+  const homed = new Map([...joinFacts(facts).index].map(([key, sites]) => [key, siteNames(sites).toSorted()]));
+  expect(homed).toEqual(new Map([...union].map(([key, sites]) => [key, [...sites].toSorted()])));
 });
 
 test("a site linked more than once lands in the index once", { timeout: 120_000 }, async ({ plantedTree }) => {

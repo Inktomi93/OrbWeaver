@@ -17,7 +17,7 @@ import { execGit, runGit } from "../../floor/git/git.ts";
 import { runNicedSync } from "../../floor/process/proc.ts";
 import type { StageAuthMode, StageDbProvenance, StagePaths, StageRow } from "../contract/stage.ts";
 import type { StageCloneOptions } from "../contract/stage-clone.ts";
-import { DIRTY_STAGE_KEY, ISOLATION_TRIPWIRE, shortSha } from "../lib/stage-plan.ts";
+import { DIRTY_STAGE_KEY, ISOLATION_TRIPWIRE, readsIsolationTarget, shortSha } from "../lib/stage-plan.ts";
 import { scrubStageClone, verifyStagePublicationBytes } from "./stage-clone-privacy.ts";
 import { addWorktree, removeWorktree, worktreeExists } from "./stage-git.ts";
 
@@ -27,7 +27,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
  *  worktree/install work, so a bad ref costs nothing and never boots a stage that proxies to the dev server. */
 function assertRefSupportsIsolation(root: string, sha: string): void {
   const res = runGit(root, ["show", `${sha}:packages/client/vite.config.ts`]);
-  if (res.status !== 0 || !res.stdout.includes(ISOLATION_TRIPWIRE)) {
+  if (res.status !== 0 || !readsIsolationTarget(res.stdout)) {
     throw new Error(
       `stage ref ${shortSha(sha)} predates snap --isolated support — its packages/client/vite.config.ts lacks ` +
         `the ${ISOLATION_TRIPWIRE} env hook, so vite would proxy /api to the DEV server (isolation broken). ` +
@@ -42,7 +42,7 @@ function assertRefSupportsIsolation(root: string, sha: string): void {
 function assertDirtyTreeSupportsIsolation(root: string): void {
   const p = join(root, "packages", "client", "vite.config.ts");
   const content = existsSync(p) ? readFileSync(p, "utf8") : "";
-  if (!content.includes(ISOLATION_TRIPWIRE)) {
+  if (!readsIsolationTarget(content)) {
     throw new Error(
       `the working tree's packages/client/vite.config.ts lacks the ${ISOLATION_TRIPWIRE} env hook, so vite ` +
         "would proxy /api to the DEV server (isolation broken). Update to a tree at or after the commit that " +

@@ -30,6 +30,7 @@ import {
   markerRootFromCommonDir,
   missingLauncherRefusal,
   orphanStageDirs,
+  readsIsolationTarget,
   SHORT_SHA_LEN,
   STAGE_INHERITED_ENV_KEYS,
   STAGE_LAUNCHERS,
@@ -470,7 +471,15 @@ test("the isolation tripwire is the exact env var vite.config reads for its prox
   // pre-support ref (or rejects a good one). Prove they still name the same knob.
   expect(ISOLATION_TRIPWIRE).toBe("VITE_API_TARGET");
   const viteConfig = readFileSync(join(import.meta.dirname, "..", "..", "..", "..", "packages", "client", "vite.config.ts"), "utf8");
-  expect(viteConfig).toContain(ISOLATION_TRIPWIRE);
+  expect(readsIsolationTarget(viteConfig)).toBe(true);
+});
+
+test("only a process.env read of the tripwire counts: a comment, or a longer variable name, does not", () => {
+  expect(readsIsolationTarget('const target = process.env["VITE_API_TARGET"] ?? "http://127.0.0.1:8788";')).toBe(true);
+  expect(readsIsolationTarget("const target = process.env.VITE_API_TARGET;")).toBe(true);
+  expect(readsIsolationTarget("// the VITE_API_TARGET env read below is the version tripwire\nconst target = 1;")).toBe(false);
+  expect(readsIsolationTarget('const target = process.env["VITE_API_TARGET_OTHER"];')).toBe(false);
+  expect(readsIsolationTarget("const target = process.env.VITE_API_TARGET_OTHER;")).toBe(false);
 });
 
 // ── the BAND CLAIM (#1186) ──────────────────────────────────────────────────────────────────────────

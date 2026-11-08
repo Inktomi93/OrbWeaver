@@ -86,9 +86,9 @@ describe("design-audit buried-raster", () => {
     expect(accounting.affected).toBe(0);
   });
 
-  test("a raster buried by an ANCESTOR's opacity FIRES — proves the walker's accumulated-opacity walk, not own-opacity-only", () => {
-    // The walker composites accumulatedOpacity(el) BEFORE this shape exists (samples-media.ts) — the
-    // fixture asserts the check trusts whatever effectiveOpacity it is handed, ancestor-derived or not.
+  test("a raster handed an effective opacity that is already a product of ancestor opacities FIRES — the check judges the number it is given", () => {
+    // The walker composites accumulatedOpacity(el) BEFORE this shape exists (samples-media.ts), so the walk
+    // itself is not run here: the fixture asserts the check trusts whatever effectiveOpacity it is handed.
     const finding = checkBuriedRaster(raster({ effectiveOpacity: 0.6 * 0.1 }));
     expect(finding?.rule).toBe("buried-raster");
   });
