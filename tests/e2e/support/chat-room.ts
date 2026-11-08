@@ -21,7 +21,7 @@
 //   • stream-open is observed on the wire (`stream-tap.ts`: the room's `chatOpened` frame); orb has no
 //     `chat-stream-state` testid.
 
-import { GAME_STRIP_LABEL, rowActionsName } from "@orb/client/lib";
+import { GAME_STRIP_LABEL, MESSAGE_TOOLS_LABEL, rowActionsName } from "@orb/client/lib";
 import { GROUP_OUTPUT_LABELS } from "@orb/contracts/chat";
 import { isPlainObject } from "@orb/kit/guards";
 import type { ChatId, MessageId } from "@orb/kit/ids";
@@ -363,7 +363,7 @@ export async function openChatOptions(page: Page): Promise<void> {
  *  Corrections / Regenerate / Simple send / Undo · Revert / images / plot steers, D111 §3). Its trigger is
  *  a plain composer-bar button, so a pointer click lands it (nothing overlays the composer row). */
 export async function openUtilityMenu(page: Page): Promise<void> {
-  const trigger = page.getByRole("button", { name: "Message tools" });
+  const trigger = page.getByRole("button", { name: MESSAGE_TOOLS_LABEL });
   await expect(trigger).toBeVisible({ timeout: WAIT_SURFACE_MS });
   await trigger.click();
 }

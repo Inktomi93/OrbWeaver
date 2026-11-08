@@ -1,5 +1,6 @@
 import { readFile, stat } from "node:fs/promises";
 import { extname } from "node:path";
+import { MESSAGE_TOOLS_LABEL } from "@orb/client/lib";
 import { ASSET_LIST_LIMIT_MAX, blobUrl } from "@orb/contracts/assets";
 import { characterHandleSchema } from "@orb/contracts/character";
 import type { ChatSummary, MessageView } from "@orb/contracts/chat";
@@ -864,7 +865,7 @@ async function sidecarColumnReady(column: Locator, edge: Locator): Promise<void>
 
 async function inspectSidecarSheet(flow: Journey, room: ChatSummary, restoreLabel: string): Promise<void> {
   await closeContextOverlay(flow, `sidecar-${room.id}-return-to-content`);
-  await flow.page.getByRole("button", { name: "Message tools", exact: true }).click();
+  await flow.page.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true }).click();
   const item = flow.page.getByRole("menuitem", { name: SIDECAR_PANELS_LABEL, exact: true });
   await expect(item).toBeVisible();
   const sheet = flow.page.getByRole("dialog", { name: SIDECAR_PANELS_LABEL, exact: true });

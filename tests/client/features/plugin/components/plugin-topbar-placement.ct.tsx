@@ -1,8 +1,10 @@
 // The top bar shows a plugin only where its guest placed a command: real guests through the production shell, one
 // icon button per placed command in host order, the row's overflow, the phone's You sheet, and the palette door
 // that keeps an unplaced command reachable.
+
 import { spawn } from "node:child_process";
 import { TRAIL_OVERFLOW_LABEL } from "@orb/client/components";
+import { MESSAGE_TOOLS_LABEL } from "@orb/client/lib";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_TOAST_COOLDOWN_SECONDS, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { MS_PER_SECOND } from "@orb/kit/time";
@@ -175,7 +177,7 @@ test("a command placed at composer-action keeps its top bar button, and only com
   await page.getByRole("button", { name: "Plugin actions", exact: true }).click();
   await expect(page.getByRole("menuitem", { name: new RegExp(PLUGIN_NAME, "u") })).toHaveCount(2);
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Message tools", exact: true }).click();
+  await page.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true }).click();
   await expect(page.getByRole("menuitem").first()).toBeVisible();
   await expect(page.getByRole("menuitem", { name: new RegExp(PLUGIN_NAME, "u") })).toHaveCount(0);
 });

@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { MESSAGE_TOOLS_LABEL } from "@orb/client/lib";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import {
   PLUGIN_FRAME_ROUTE,
@@ -396,7 +397,7 @@ test("Keepsake Snapshot stays reachable in its attributed media menu without gen
     ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "plugin.listCommands", "rpg.getGame", "rpg.listTurnToolCalls"]),
   });
   await mount<typeof PluginHideFocusStory>("tests/client/features/plugin/components/_hide-focus-stories/PluginHideFocusStory", { chatId: room.id });
-  await page.getByRole("button", { name: "Message tools", exact: true }).click();
+  await page.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true }).click();
   const snapshot = page.getByRole("menuitem", { name: `${camera.name} · Commands · Snapshot`, exact: true });
   await expect(snapshot).toBeVisible();
   await expect(snapshot).toBeEnabled();
