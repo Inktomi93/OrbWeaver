@@ -59,7 +59,7 @@ export function RpgRulesetControl({ chatId, config }: { readonly chatId: ChatId;
           {RPG_RULESET_CONSEQUENCE[current]}
         </Text>
       </Row>
-      <Text voice="gloss">Switching adds the new ruleset's attributes and trackers beside what this game already has — nothing you set up is removed.</Text>
+      <Text voice="gloss">Switching adds the new ruleset's attributes and trackers beside what this game already has. Nothing you set up is removed.</Text>
     </Stack>
   );
 }

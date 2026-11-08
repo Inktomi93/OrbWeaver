@@ -179,7 +179,7 @@ function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null 
   }
   return (
     <Text as="span" ink="muted" className="min-inline-0" wrap="word" voice="gloss" prose={true}>
-      mood — {mood}
+      mood: {mood}
     </Text>
   );
 }

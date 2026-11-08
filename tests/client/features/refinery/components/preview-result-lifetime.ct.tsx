@@ -92,7 +92,7 @@ test("schema preview retains settled expansion through rerenders and failures, t
   await corpusMedia();
   await mount<typeof SchemaPreviewStory>("tests/client/features/refinery/components/_payload-stories/SchemaPreviewStory", {});
   const { $schema: _dialect, ...draftSchema } = projectJsonSchema(refineryScorePayloadSchema);
-  await page.getByRole("textbox", { name: "Schema (JSON — the full vocabulary)", exact: true }).fill(JSON.stringify(draftSchema));
+  await page.getByRole("textbox", { name: "Schema (JSON: the full vocabulary)", exact: true }).fill(JSON.stringify(draftSchema));
   const mediaResponses = pictured.map(({ path }) => page.waitForResponse((response) => new URL(response.url()).pathname === path));
   await page.getByRole("button", { name: "Pick a card to test on", exact: true }).click();
   expect((await Promise.all(mediaResponses)).map((response) => response.status())).toEqual(pictured.map(() => 200));
@@ -155,7 +155,7 @@ test("schema preview retains settled expansion through rerenders and failures, t
   expect((await foreignPolicy).text()).toContain("Content Security Policy");
   await page.getByRole("option", { name: character.name, exact: true }).click();
   await page.getByRole("button", { name: "Test on this card", exact: true }).click();
-  const assay = page.getByRole("button", { name: "description — 7", exact: true });
+  const assay = page.getByRole("button", { name: "description (7)", exact: true });
   await assay.click();
   await expect(assay).toHaveAttribute("aria-expanded", "true");
   await expect(page.getByText("Recognizable voice", { exact: true })).toBeVisible();
@@ -184,7 +184,7 @@ test("schema preview retains settled expansion through rerenders and failures, t
   await expect(assay).toHaveAttribute("aria-expanded", "true");
   replies.set("refinery_schema_preview", JSON.stringify(second));
   replaced.release();
-  const nextAssay = page.getByRole("button", { name: "description — 8", exact: true });
+  const nextAssay = page.getByRole("button", { name: "description (8)", exact: true });
   await expect(nextAssay).toHaveAttribute("aria-expanded", "false");
   await expect(page.getByText("Recognizable voice", { exact: true })).toHaveCount(0);
   await nextAssay.scrollIntoViewIfNeeded();

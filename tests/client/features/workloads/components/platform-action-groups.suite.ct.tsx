@@ -284,14 +284,14 @@ for (const regime of REGIMES) {
       await routeOrbSocket(page, { awaitAttaches: 2 });
       await mount<typeof WorkloadActionGroupsStory>(STORY, { sectionId: "workloads-jobs", width: regime.width, appearance: regime.appearance });
       const deferred = page.locator('[data-slot="workload-row"]').filter({ has: page.getByText("Scheduled", { exact: true }) });
-      const terminal = page.locator('[data-slot="workload-row"]').filter({ has: page.getByRole("button", { name: /^Retry — /u }) });
-      const cancel = deferred.getByRole("button", { name: /^Cancel — /u });
-      const retry = terminal.getByRole("button", { name: /^Retry — /u });
+      const terminal = page.locator('[data-slot="workload-row"]').filter({ has: page.getByRole("button", { name: /^Retry: /u }) });
+      const cancel = deferred.getByRole("button", { name: /^Cancel: /u });
+      const retry = terminal.getByRole("button", { name: /^Retry: /u });
       await expect(cancel).toBeEnabled();
       await expect(deferred.getByText("Bulk", { exact: true })).toBeVisible();
       await expect(deferred.getByText("Waiting", { exact: true })).toBeVisible();
-      await expect(deferred.getByRole("button", { name: /^Retry — /u })).toHaveCount(0);
-      await expect(terminal.getByRole("button", { name: /^Cancel — /u })).toHaveCount(0);
+      await expect(deferred.getByRole("button", { name: /^Retry: /u })).toHaveCount(0);
+      await expect(terminal.getByRole("button", { name: /^Cancel: /u })).toHaveCount(0);
       await measureActions(cancel.locator(".."), [cancel], testInfo, "deferred-job-actions");
       await measureActions(retry.locator(".."), [retry], testInfo, "terminal-job-actions");
       // The header's run-a-job action shares one row with the filter tabs and may not leave the host at any regime.

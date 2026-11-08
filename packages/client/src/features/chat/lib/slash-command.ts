@@ -195,5 +195,5 @@ export function unknownCommandNotice(command: string): string {
 /** The refusal copy for a registered command whose mount has not published its runner yet (its fiber
  *  commits on the host's first paint). Refused with a reason, never silently posted. */
 export function commandNotReadyNotice(command: string): string {
-  return `/${command} isn't ready yet — try again in a moment.`;
+  return `/${command} isn't ready yet: try again in a moment.`;
 }

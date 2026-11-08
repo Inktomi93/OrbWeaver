@@ -182,7 +182,7 @@ function ResultsStatus({ count, label, nearestOnly }: { readonly count: number; 
     <Text as="span" className="sr-only" role="status">
       {/* A LISTENER GETS THE SAME CAVEAT THE READER GETS (P2-B). The banner below is visual; announcing
           "20 results" beside it would tell a screen-reader user the opposite of what the screen says. */}
-      {nearestOnly ? `${count} nearest ${noun} in ${label} — nothing matched strongly` : `${count} ${noun} in ${label}`}
+      {nearestOnly ? `${count} nearest ${noun} in ${label}: nothing matched strongly` : `${count} ${noun} in ${label}`}
     </Text>
   );
 }
@@ -195,7 +195,7 @@ function ResultsStatus({ count, label, nearestOnly }: { readonly count: number; 
 function NearestOnlyBanner({ best }: { readonly best: number }): ReactElement {
   return (
     <Text data-slot="search-nearest-only" voice="gloss">
-      Nothing matched strongly — these are the nearest, at {percent(best)} or less.
+      Nothing matched strongly: these are the nearest, at {percent(best)} or less.
     </Text>
   );
 }
@@ -295,7 +295,7 @@ function NoMatches({ label, query, lexical }: { readonly label: string; readonly
       <Text>{headline}</Text>
       <Text voice="gloss">
         {lexical
-          ? "Text searches card wording with prefix and fuzzy matching. Check the spelling, or try Memories or Scenes — those search by meaning."
+          ? "Text searches card wording with prefix and fuzzy matching. Check the spelling, or try Memories or Scenes. Those search by meaning."
           : "This target searches by meaning, not exact words. Try a fuller phrase, or another target: Text searches card wording."}
       </Text>
     </Stack>

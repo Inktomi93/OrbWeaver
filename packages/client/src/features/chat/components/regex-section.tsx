@@ -275,7 +275,7 @@ function RegexLeverStrip({
                 is not: this one is per-room ("— in this chat"), a row's is per-library ("— everywhere").
                 It CONTAINS the visible label, so voice control still works (WCAG 2.5.3). */}
             <Switch
-              aria-label={`${label} — in this chat`}
+              aria-label={`${label}: in this chat`}
               checked={tier.allowed}
               disabled={!enabled}
               onCheckedChange={(next): void => {

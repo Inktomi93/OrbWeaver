@@ -194,7 +194,7 @@ export function AdminOverrideResetRow({ sectionLabel, dirty, anyOverridden, savi
       </Row>
       {error === null || error === undefined ? null : (
         <Text role="alert" tone="destructive" voice="label">
-          Couldn't save — {errorMessage(error)}
+          Couldn't save: {errorMessage(error)}
         </Text>
       )}
     </Stack>

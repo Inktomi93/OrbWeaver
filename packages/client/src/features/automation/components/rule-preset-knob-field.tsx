@@ -197,7 +197,7 @@ function WorldInfoBookKnobField({ chatId, ...props }: KnobFieldProps): ReactElem
 function GlobalEntityRefUnavailable({ knob }: { readonly knob: RulePresetKnobView }): ReactElement {
   return (
     <KnobRow knob={knob} issue={null}>
-      <Text voice="gloss">Library-wide rules can't pick a world book here yet — add this rule inside a chat, where its books can be listed.</Text>
+      <Text voice="gloss">Library-wide rules can't pick a world book here yet. Add this rule inside a chat, where its books can be listed.</Text>
     </KnobRow>
   );
 }
@@ -289,7 +289,7 @@ function ChatWorldInfoBookBlockingLine({ knob, chatId }: KnobBlockingLineProps &
   const nothingToChoose = books.isSuccess && books.data.length === 0;
   return (
     <Text voice="gloss">
-      {nothingToChoose ? "Attach a world book under World books, higher up this tab — then this rule can be added." : knobBlockingLine(knob)}
+      {nothingToChoose ? "Attach a world book under World books, higher up this tab, then this rule can be added." : knobBlockingLine(knob)}
     </Text>
   );
 }

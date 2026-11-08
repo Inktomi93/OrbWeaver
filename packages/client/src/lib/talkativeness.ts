@@ -25,5 +25,5 @@ export function talkativenessReadout(weight: number): string {
 /** The chip's accessible name (WCAG 2.5.3 Label in Name: the visible chip reads "Talks 50%", so "talks 50%"
  *  is IN the name). The stable identity leads so a role+name lookup on the prefix survives every value change. */
 export function talkativenessAccessibleName(who: string, weight: number): string {
-  return `Talkativeness: ${who} — talks ${talkativenessReadout(weight)}`;
+  return `Talkativeness: ${who}: talks ${talkativenessReadout(weight)}`;
 }

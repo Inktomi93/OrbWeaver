@@ -27,11 +27,11 @@ function newRoomPersonaNotice(
     return null;
   }
   if (seeds.defaultPersonaId === null) {
-    return `No default set — you're playing as ${name}, your last persona.`;
+    return `No default set: you're playing as ${name}, your last persona.`;
   }
   const characters = chat.participants.filter((p) => p.kind === "character");
   const character = characters.length === 1 ? characters[0]?.displayName : undefined;
-  return character === undefined ? null : `You're playing as ${name} here — ${name} is connected to ${character}.`;
+  return character === undefined ? null : `You're playing as ${name} here: ${name} is connected to ${character}.`;
 }
 
 /** Raise {@link newRoomPersonaNotice} under the viewer's `persona.showNotifications`, from the cached settings. */

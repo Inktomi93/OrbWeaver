@@ -92,7 +92,7 @@ export function ImportPreviewSummary({ state, onRetry }: { readonly state: Impor
       return null;
     case "reading": {
       const { batch, progress } = state;
-      const upload = batch.total > 1 ? `Upload ${String(batch.index + 1)} of ${String(batch.total)} — ` : "";
+      const upload = batch.total > 1 ? `Upload ${String(batch.index + 1)} of ${String(batch.total)}: ` : "";
       return <Progress showValue={true} value={progress.pct} label={`${upload}Reading the folder. Nothing is imported yet.`} />;
     }
     case "failed":

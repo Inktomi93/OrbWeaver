@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { IMPERSONATE_STOP_LABEL } from "@orb/client/lib";
+import { IMPERSONATE_STOP_LABEL, MESSAGE_TOOLS_LABEL } from "@orb/client/lib";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { seedShellState } from "@orb/testkit/browser/spec";
@@ -66,7 +66,7 @@ for (const viewport of VIEWPORTS) {
       const upper = page.locator('[data-slot="composer-utilities"]');
       const lower = page.locator('[data-slot="composer-input"]');
       const input = lower.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
-      await expect(upper.getByRole("button", { name: "Message tools", exact: true })).toBeVisible();
+      await expect(upper.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true })).toBeVisible();
       const plugins = upper.getByRole("button", { name: "Plugin actions", exact: true });
       await expect(plugins).toBeVisible();
       await expect(lower.getByRole("button", { name: "Chat options", exact: true })).toBeVisible();
@@ -104,7 +104,7 @@ for (const viewport of VIEWPORTS) {
         }
         await page.keyboard.press("Escape");
         await expect(plugins).toBeFocused();
-        const tools = upper.getByRole("button", { name: "Message tools", exact: true });
+        const tools = upper.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true });
         await tools.press("Enter");
         await expect(page.getByRole("menuitem", { name: COMPOSER_CLEAR_INPUT_NAME, exact: true })).toBeVisible();
         await page.keyboard.press("Escape");

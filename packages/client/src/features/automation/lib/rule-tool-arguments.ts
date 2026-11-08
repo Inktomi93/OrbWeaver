@@ -32,13 +32,13 @@ export function ruleToolParameterGuidance(tool: AutomationRuleToolView): readonl
   return Object.entries(properties).map(([name, schema]) => {
     const mandatory = Array.isArray(required) && required.includes(name);
     if (schema === null || typeof schema !== "object" || Array.isArray(schema)) {
-      return `${name} — ${mandatory ? "required" : "optional"}`;
+      return `${name}: ${mandatory ? "required" : "optional"}`;
     }
     const type = schema["type"];
     const description = schema["description"];
     const allowed = schema["enum"];
     const typeLabel = parameterTypeLabel(type);
-    return `${name} — ${mandatory ? "required" : "optional"}, ${typeLabel}${typeof description === "string" ? `. ${description}` : ""}${Array.isArray(allowed) ? `. Allowed: ${allowed.map((value) => JSON.stringify(value)).join(", ")}` : ""}`;
+    return `${name}: ${mandatory ? "required" : "optional"}, ${typeLabel}${typeof description === "string" ? `. ${description}` : ""}${Array.isArray(allowed) ? `. Allowed: ${allowed.map((value) => JSON.stringify(value)).join(", ")}` : ""}`;
   });
 }
 

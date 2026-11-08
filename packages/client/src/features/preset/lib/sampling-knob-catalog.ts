@@ -45,7 +45,7 @@ export const SAMPLING_KNOB_CATALOG = {
     wire: DEFAULT_SAMPLER_KEYS.topP,
     field: "params.topP",
     label: "Top-P",
-    description: "Nucleus sampling — the cumulative-probability cutoff for candidate tokens.",
+    description: "Nucleus sampling: the cumulative-probability cutoff for candidate tokens.",
     step: 0.01,
   },
   topK: {
@@ -69,7 +69,7 @@ export const SAMPLING_KNOB_CATALOG = {
     wire: DEFAULT_SAMPLER_KEYS.topA,
     field: "params.topA",
     label: "Top-A",
-    description: "Drop tokens whose probability falls below `topA × (top token)²` — an adaptive tail cut.",
+    description: "Drop tokens whose probability falls below `topA × (top token)²`. An adaptive tail cut.",
     step: 0.01,
   },
   frequencyPenalty: {

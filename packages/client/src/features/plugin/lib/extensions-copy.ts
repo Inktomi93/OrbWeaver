@@ -38,7 +38,7 @@ import { PLUGINS_INSTALL_SUBCATEGORY, PLUGINS_INSTALLED_SUBCATEGORY } from "./pl
  *  rather than pointing at a pane the tile has no left rail for. */
 export const EXTENSIONS_PLACEHOLDER = {
   title: EXTENSIONS_SECTION_LABEL,
-  description: "Full-page surfaces the plugins you installed provide — browsers, dashboards, whatever they bring, drawn by the app.",
+  description: "Full-page surfaces the plugins you installed provide. Browsers, dashboards, whatever they bring, drawn by the app.",
 } as const;
 
 /** One reason's teaching empty: what is true, what to do about it, and WHERE that is done. */

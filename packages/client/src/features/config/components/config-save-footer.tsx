@@ -94,7 +94,7 @@ function ErroredArm({ sections, ...locate }: LocateArmProps): ReactElement {
   const count = sections === 1 ? "A section" : `${sections} sections`;
   return (
     <LocateRow role="alert" {...locate}>
-      <Text voice="label">{`${count} failed to save${locate.canJumpToSection(locate.sectionId) ? " —" : "."}`}</Text>
+      <Text voice="label">{`${count} failed to save${locate.canJumpToSection(locate.sectionId) ? ":" : "."}`}</Text>
     </LocateRow>
   );
 }
@@ -108,13 +108,13 @@ function ErroredArm({ sections, ...locate }: LocateArmProps): ReactElement {
  *  "Not saved" is the SAME two words the section-level status uses, so a reader meeting this at the pane
  *  footer and then at the section's own header is told one thing once. The count is what the aggregate adds. */
 function BlockedArm({ sections, ...locate }: LocateArmProps): ReactElement {
-  const count = sections === 1 ? "a section needs a fix" : `${sections} sections need a fix`;
+  const count = sections === 1 ? "A section needs a fix" : `${sections} sections need a fix`;
   return (
     <LocateRow role="status" {...locate}>
       <Text tone="destructive" voice="label">
         Not saved
       </Text>
-      <Text voice="label">{`— ${count}${locate.canJumpToSection(locate.sectionId) ? "" : "."}`}</Text>
+      <Text voice="label">{`${count}${locate.canJumpToSection(locate.sectionId) ? "" : "."}`}</Text>
     </LocateRow>
   );
 }
@@ -122,11 +122,11 @@ function BlockedArm({ sections, ...locate }: LocateArmProps): ReactElement {
 /** A VALID draft waiting on its section's own Save button. Nothing needs a fix, so the label is not
  *  destructive and the copy says whose move it is; the jump lands on the section holding the Save button. */
 function UnsavedArm({ sections, ...locate }: LocateArmProps): ReactElement {
-  const count = sections === 1 ? "a section has changes waiting for Save" : `${sections} sections have changes waiting for Save`;
+  const count = sections === 1 ? "A section has changes waiting for Save" : `${sections} sections have changes waiting for Save`;
   return (
     <LocateRow role="status" {...locate}>
       <Text voice="label">Not saved</Text>
-      <Text voice="label">{`— ${count}${locate.canJumpToSection(locate.sectionId) ? "" : "."}`}</Text>
+      <Text voice="label">{`${count}${locate.canJumpToSection(locate.sectionId) ? "" : "."}`}</Text>
     </LocateRow>
   );
 }
@@ -158,7 +158,7 @@ export function ConfigSaveFooter(): ReactElement | null {
         <Text tone="destructive" voice="label">
           Not saved
         </Text>
-        <Text voice="label">— your settings couldn't be read.</Text>
+        <Text voice="label">Your settings couldn't be read.</Text>
       </Row>
     );
   }

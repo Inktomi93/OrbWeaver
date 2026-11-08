@@ -304,7 +304,7 @@ test("seat knobs are per-seat: muting one member and re-weighting another persis
     expect(seatFor(persisted, bravoId)?.disabled).toBe(true);
     expect(seatFor(persisted, alphaId)?.talkativeness).toBe(alphaWeight);
     // The muted seat is legible as muted in the row's accessible NAME (member-rows.ts `rowAccessibleName`).
-    await expect(page.getByRole("button", { name: `${CHARACTERS[1].name} — character, muted` })).toBeVisible({ timeout: WAIT_UI_MS });
+    await expect(page.getByRole("button", { name: `${CHARACTERS[1].name}: character, muted` })).toBeVisible({ timeout: WAIT_UI_MS });
   } finally {
     await deleteChat(chat.id).catch(() => null);
     await characters.cleanup();

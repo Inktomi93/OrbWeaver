@@ -24,7 +24,7 @@ const TEACHING =
  *  (WCAG 2.5.3 — the reader says what is written); it mints no second door. The boundary sentence survives
  *  in both arms: it is what the pane teaches, and a filter does not make it less true. */
 const NO_MATCHES =
-  "No preset matches your search, so there is nothing to pick right now — Clear search brings your presets back. A preset shapes generation; it doesn't pick the model (that's Connections).";
+  "No preset matches your search, so there is nothing to pick right now. Clear search brings your presets back. A preset shapes generation; it doesn't pick the model (that's Connections).";
 
 /** The teaching welcome shown in Presets CONTENT when nothing is selected.
  *

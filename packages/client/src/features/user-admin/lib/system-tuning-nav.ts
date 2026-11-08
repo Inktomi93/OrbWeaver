@@ -39,7 +39,7 @@ export const SYSTEM_TUNING_SUBCATEGORY: ConfigSubcategory = {
       label: "Prompt-cache depth floor",
       keywords: ["cache", "depth", "breakpoint", "anthropic", "claude", "cost"],
       teach: {
-        summary: "The shallowest prompt depth a cache breakpoint may sit at \u2014 deeper floors trade cache hits for fewer billed cache writes.",
+        summary: "The shallowest prompt depth a cache breakpoint may sit at. Deeper floors trade cache hits for fewer billed cache writes.",
         affects: ["prompt-cache cost and hit rate on Anthropic connections"],
       },
     },

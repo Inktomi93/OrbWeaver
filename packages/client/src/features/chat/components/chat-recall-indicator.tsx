@@ -211,7 +211,7 @@ function LoadedRecallDetail({ chatId }: { readonly chatId: ChatId }): ReactEleme
   const { data } = useSuspenseQuery(trpc.chat.previewAssembly.queryOptions({ chatId, timeZone: viewerTimeZone() }));
   return (
     <Stack gap="row">
-      <Text voice="gloss">Detail below is what recall does with the room's CURRENT config — not a byte-exact replay of this turn.</Text>
+      <Text voice="gloss">Detail below is what recall does with the room's CURRENT config. Not a byte-exact replay of this turn.</Text>
       <MemoryRecallDetail recall={data.trace.memoryRecall} />
     </Stack>
   );

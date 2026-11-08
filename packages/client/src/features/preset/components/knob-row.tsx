@@ -62,7 +62,7 @@ function inheritedValueText(ghost: KnobGhost | null): string {
   if (ghost === null) {
     return "default (model decides)";
   }
-  return `${String(ghost.value)} — ${ghost.modelDecides ? "default (model decides)" : "default"}`;
+  return `${String(ghost.value)}: ${ghost.modelDecides ? "default (model decides)" : "default"}`;
 }
 
 export interface KnobRowProps {

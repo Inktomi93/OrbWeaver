@@ -114,7 +114,7 @@ export function useImportRegexMember(): (file: File) => void {
       .text()
       .then((fileText) => importScript.mutateAsync({ fileText }))
       .then(({ created }) => {
-        notify.success(created ? "Script imported." : "You already had that script — nothing new was added.");
+        notify.success(created ? "Script imported." : "You already had that script. Nothing new was added.");
       })
       .catch((error: unknown) => {
         notify.error(error instanceof Error ? error.message : "Couldn't import the script.");

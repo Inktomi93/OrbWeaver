@@ -44,15 +44,15 @@ export function userActionsName(handle: Handle): string {
 
 /** One user row's role Select. `Role — kes`. */
 export function userRoleFieldName(handle: Handle): string {
-  return `Role — ${handle}`;
+  return `Role: ${handle}`;
 }
 
 /** One user row's enabled Switch. `Enabled — kes`. */
 export function userEnabledFieldName(handle: Handle): string {
-  return `Enabled — ${handle}`;
+  return `Enabled: ${handle}`;
 }
 
 /** One row in the sessions dialog. The subject is the session's user agent, falling back to its id. */
 export function revokeSessionName(subject: string): string {
-  return `Revoke session — ${subject}`;
+  return `Revoke session: ${subject}`;
 }

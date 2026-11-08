@@ -45,7 +45,7 @@ export function ReadoutBindingChip({ binding }: { readonly binding: ReadoutBindi
         </Row>
         {/* The ✕ is a LABELLED control, not a decoration: its whole job is reversing a binding the user never
           asked for, so it says what it does (and why) to a reader who cannot see the glyph. */}
-        <Tip text="Dismiss — fall back to the chat-free token view">
+        <Tip text="Dismiss: fall back to the chat-free token view">
           <Button aria-label={`Dismiss the binding to ${binding.chatTitle}`} variant="ghost" onClick={binding.dismiss} square={true} type="button">
             <Icon icon={X} size="xs" />
           </Button>

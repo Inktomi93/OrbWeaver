@@ -36,7 +36,7 @@ function listIsScreenSnapshot(selection: SectionSelection): boolean {
  *  a feature from importing app-shell's copy, and `#state` is the tier BOTH sides can legally reach.
  *
  *  It opens with a space: it is APPENDED to a pane's own instruction, never printed alone. */
-export const LIST_OFF_SCREEN_HINT = " The list isn't on screen right now — Show list panel in the top bar brings it back.";
+export const LIST_OFF_SCREEN_HINT = " The list isn't on screen right now: Show list panel in the top bar brings it back.";
 
 /** Is `section` in the mobile LIST-AS-SCREEN arm — does it declare a list with nothing selected, and a LIST
  *  phone landing? The ONE home for that question (`useShellLayout`'s resolve and `useSectionListMode` below

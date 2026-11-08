@@ -65,7 +65,7 @@ const addCredentialOptions = (trpc: Trpc): ReturnType<Trpc["credentials"]["add"]
 export const useReplaceCredential = createEntityMutation<inferInput<Trpc["credentials"]["replace"]>, CredentialView>({
   options: (trpc) => ({ ...trpc.credentials.replace.mutationOptions(), gcTime: 0 }),
   invalidates: (trpc) => [trpc.credentials.list.pathFilter()],
-  errorToast: "Couldn't replace that key — check the value and try again.",
+  errorToast: "Couldn't replace that key. Check the value and try again.",
 });
 
 /** The add dialog's key mint. The dialog also states the failure inline; the toast is there if no surface is left to say it. */
@@ -125,7 +125,7 @@ export const useAdmitPrivateEndpoint = createEntityMutation<
 >({
   options: (trpc) => trpc.settings.updateAppSettings.mutationOptions(),
   invalidates: (trpc) => [trpc.settings.pathFilter()],
-  errorToast: "Couldn't admit that host — only the box owner can change the allowed endpoints.",
+  errorToast: "Couldn't admit that host. Only the box owner can change the allowed endpoints.",
 });
 
 /** The Utility role's preset choice (D299) — a `seeds` section patch; `null` is task defaults. */

@@ -114,7 +114,7 @@ function ActorTrackerMeter({
   // exists" as "it differs" would print `HP ceiling 20 — default: 20` under every such bar. The write-side rule is the invariant; this is the READ refusing to depend on it. A value equal to the
   // default IS the default, however it got stored.
   const override = value.max ?? null;
-  const overrideNote = override === null || def.max === null || override === def.max ? null : `${def.label} ceiling ${override} — default: ${def.max}`;
+  const overrideNote = override === null || def.max === null || override === def.max ? null : `${def.label} ceiling ${override}: default: ${def.max}`;
   // The transient drag-tell wins; then the override tell. The standing HINT moved to the label's hover
   // title (owner ruling 08-01) — echoed inline under every carrier's row it was a repeated line of noise;
   // the model still reads it in the reminder gloss (one hint, two audiences, different delivery).
@@ -137,10 +137,10 @@ function ActorTrackerMeter({
             maxEditTitle:
               def.max === null
                 ? `${def.label}'s ceiling for this character`
-                : `${def.label}'s ceiling for this character — the game's default is ${def.max}; type it back to follow the default again.`,
+                : `${def.label}'s ceiling for this character: the game's default is ${def.max}; type it back to follow the default again.`,
             onEditMax: (next: number): void => {
               const result = edit.onEditTrackerMax(def.key, next);
-              setNote(result === null ? null : `${def.label} ${reading} → ${result.draggedTo} — ceiling lowered`);
+              setNote(result === null ? null : `${def.label} ${reading} → ${result.draggedTo}: ceiling lowered`);
             },
           })}
       {...(effectiveNote === null ? {} : { note: effectiveNote })}

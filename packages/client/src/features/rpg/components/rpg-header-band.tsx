@@ -41,7 +41,7 @@ function RpgVeiledCue({ chatId }: { readonly chatId: ChatId }): ReactElement | n
     return null;
   }
   return (
-    <Tip text={`${count} veiled ${count === 1 ? "truth" : "truths"} in play — host only. Opens Status → Veiled.`}>
+    <Tip text={`${count} veiled ${count === 1 ? "truth" : "truths"} in play: host only. Opens Status → Veiled.`}>
       <InlineAction
         type="button"
         variant="ghost"

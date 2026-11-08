@@ -141,9 +141,7 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
     // No dead end: the empty chronicle still offers the host the first page.
     return (
       <Stack gap="section">
-        <Text>
-          Nothing chronicled yet — {state.isHost ? "the story writes it, or you can start the first page below." : "the story writes the first page."}
-        </Text>
+        <Text>Nothing chronicled yet: {state.isHost ? "the story writes it, or you can start the first page below." : "the story writes the first page."}</Text>
         {composer}
       </Stack>
     );
@@ -190,7 +188,7 @@ function JournalEntries({ state, cards }: { readonly state: RpgPanelState; reado
 function JournalCards({ cards, chatId }: { readonly cards: readonly ArchivedCard[]; readonly chatId: ChatId }): ReactElement {
   const [openKey, setOpenKey] = useState<string | null>(null);
   if (cards.length === 0) {
-    return <Text>No cards yet — the story crafts them.</Text>;
+    return <Text>No cards yet: the story crafts them.</Text>;
   }
   const newestFirst = cards.toSorted((a, b) => b.createdAt - a.createdAt);
   return (
@@ -259,7 +257,7 @@ function JournalMarks({ state }: { readonly state: RpgPanelState }): ReactElemen
       ) : null}
 
       {sorted.length === 0 ? (
-        <Text>No marks yet{state.isHost ? " — mark a moment to bookmark this point in the story." : "."}</Text>
+        <Text>No marks yet{state.isHost ? ". Mark a moment to bookmark this point in the story." : "."}</Text>
       ) : (
         <Stack gap="field">
           {sorted.map((mark) => (

@@ -10,8 +10,8 @@ import type { ConfigSaveFooterStory } from "./_config-save-footer-stories.tsx";
 const STORY = "tests/client/features/config/surfaces/_config-save-footer-stories/ConfigSaveFooterStory";
 const FOOTER = '[data-slot="config-save-footer"]';
 const SAVED = "Saved";
-const WAITING_FOR_SAVE = /Not saved\s*— a section has changes waiting for Save/u;
-const NEEDS_A_FIX = /Not saved\s*— a section needs a fix/u;
+const WAITING_FOR_SAVE = /Not saved\s*A section has changes waiting for Save/u;
+const NEEDS_A_FIX = /Not saved\s*A section needs a fix/u;
 const SERVED = [
   ...SECTION_PROCEDURES,
   "settings.getUserSettings",

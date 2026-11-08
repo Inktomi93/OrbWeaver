@@ -17,7 +17,7 @@ const LIVE = "The live keeper changed after this session began.";
 const REWRITE = "The rewrite preserves a quieter observatory keeper.";
 const NOTE = "Creator notes that must survive a discarded clear.";
 const GREETING = "Welcome to the observatory.";
-const RECONFIRM = "re-confirm which version wins — Keep uses the rewrite, Discard keeps the live text";
+const RECONFIRM = "re-confirm which version wins: Keep uses the rewrite, Discard keeps the live text";
 const DIVERGENCE_LABEL = "Changed since the session started";
 const REGIMES = [
   { name: "wide desktop", width: 960, viewport: { width: 1280, height: 900 }, coarse: false, appearance: DEFAULT_APPEARANCE_SETTINGS },
@@ -83,7 +83,7 @@ for (const regime of REGIMES) {
       const sessionStateGeometry = await actionGroupGeometry(masthead, [sessionState, ...(await sessionState.getByTestId(testId("refineryChip")).all())]);
       await test.info().attach("session-state-bounds", { body: JSON.stringify(sessionStateGeometry), contentType: "application/json" });
       expect(sessionStateGeometry.inlineOverflow).toBeLessThanOrEqual(1);
-      for (const label of ["Base — the session pin", "Live — changed under the session", "Rewrite — what Keep applies"]) {
+      for (const label of ["Base: the session pin", "Live: changed under the session", "Rewrite: what Keep applies"]) {
         await expect(review.getByText(label, { exact: true })).toBeVisible();
       }
       for (const text of [PIN, LIVE, REWRITE]) {
@@ -108,7 +108,7 @@ for (const regime of REGIMES) {
       await test.info().attach("queued-divergence-bounds", { body: JSON.stringify(queuedGeometry), contentType: "application/json" });
       expect(queuedGeometry.inlineOverflow).toBeLessThanOrEqual(1);
       await review.getByRole("button", { name: `Discard ${notesLabel}`, exact: true }).click();
-      await expect(review.getByText("A new greeting is added at the end — no existing greeting is touched.", { exact: true })).toBeVisible();
+      await expect(review.getByText("A new greeting is added at the end. No existing greeting is touched.", { exact: true })).toBeVisible();
       await review.getByRole("button", { name: `Discard ${greetingLabel}`, exact: true }).click();
       await expect.poll(async () => (await caller.refinery.getSession({ sessionId: session.id })).rewriteDecisions[run.id]).toEqual([true, false, false]);
       expect((await caller.character.get({ characterId: card.id })).description).toBe(LIVE);

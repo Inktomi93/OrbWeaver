@@ -80,7 +80,7 @@ const KNOBS: readonly KnobDescriptor[] = [
   {
     id: "promptCacheMinDepth",
     label: "Prompt-cache depth floor (0–20)",
-    hint: "How many of the newest exchanges stay OUT of the Anthropic prompt cache. 0 uses each turn's own computed minimum. A value deeper than a conversation disables caching for that chat entirely — raise it sparingly.",
+    hint: "How many of the newest exchanges stay OUT of the Anthropic prompt cache. 0 uses each turn's own computed minimum. A value deeper than a conversation disables caching for that chat entirely. Raise it sparingly.",
     step: 1,
     min: PROMPT_CACHE_MIN_DEPTH_FLOOR,
     max: PROMPT_CACHE_MIN_DEPTH_CEIL,
@@ -108,7 +108,7 @@ export function SystemTuningSection({ anchorId, sectionId }: { readonly anchorId
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={5} />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="system tuning — administrators only" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="system tuning: administrators only" onRetry={retry} />}
       reserveRows={firstBootRows}
       reserveKey="config.admin.systemTuning"
     >
@@ -195,7 +195,7 @@ function SystemTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
             tooltip cannot carry. */}
         <Text voice="gloss" prose={true} cap="prose">
           The prompt-cache depth floor only ever moves the cache breakpoint DEEPER. Each turn already computes the shallowest depth that is safe for it, and
-          keeps that when it is deeper than this number — so a smaller value here changes nothing, and a turn whose prompt is still shifting is never cached at
+          keeps that when it is deeper than this number, so a smaller value here changes nothing, and a turn whose prompt is still shifting is never cached at
           all. Raise it if you see cache writes on turns that should have been reads.
         </Text>
         <AdminOverrideResetRow

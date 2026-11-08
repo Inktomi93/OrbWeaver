@@ -314,7 +314,7 @@ function KeyField({
 }
 
 function unavailableKeyLabel(selected: CredentialView | null): string {
-  return selected === null ? "Unavailable saved key" : `${selected.label ?? UNNAMED_KEY_LABEL} — unavailable`;
+  return selected === null ? "Unavailable saved key" : `${selected.label ?? UNNAMED_KEY_LABEL}: unavailable`;
 }
 
 function keyLabel(provider: ProviderDef): string {

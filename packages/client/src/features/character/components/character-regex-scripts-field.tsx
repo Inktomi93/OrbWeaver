@@ -46,7 +46,7 @@ export function CharacterRegexScriptsField({ characterId }: { readonly character
     >
       <RegexScriptPicker
         scope={{ kind: "character", characterId }}
-        helperText="Picked from your script library — these run whenever this character is in the room."
+        helperText="Picked from your script library. These run whenever this character is in the room."
         onOpenLibrary={(): void => openConfigTo(REGEX_COLLECTION)}
       />
     </QueryBoundary>

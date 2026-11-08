@@ -114,7 +114,7 @@ export function SectionDrillIn({ form, presetId, section, index, onBack }: Secti
   return (
     // A region with a name, so the drill-in is reachable by landmark and announces what it edits (ARIA
     // rec 2). `aria-label` is the section's own name — one editor, one object.
-    <Stack aria-label={`${label} — section editor`} gap="section" role="region">
+    <Stack aria-label={`${label}: section editor`} gap="section" role="region">
       <Row align="center" gap="row" justify="between">
         <Button variant="ghost" onClick={onBack} ref={backRef} size="sm" type="button">
           <Icon icon={ArrowLeft} size="sm" />
@@ -251,12 +251,12 @@ function PlacementFields({ form, section, index, inChat, zones }: ZonedClusterPr
         <Field
           hint={
             zones.missingPivot
-              ? "There is no chat-history marker yet, so there is no conversation to splice into — add one on the rack."
+              ? "There is no chat-history marker yet, so there is no conversation to splice into. Add one on the rack."
               : // The option labels are bare names (F-26); THIS is where both arms are spelled out in full.
                 // The owner-ruled vocabulary line (08-03): BOTH namings stay, and this sentence is where the
                 // reader learns they are one axis — Relative/In-Chat is the PLACEMENT you pick here, setup/post
                 // is the WIRE zone the assembled payload records for the same choice.
-                "How this section is delivered. RELATIVE renders it into the system block, ordered among the other prompts. IN CHAT splices it into the conversation at a depth. Picking one MOVES the section across the chat-history pivot. These are the placement names for the wire zones the assembled prompt records — Relative is setup, In Chat is post."
+                "How this section is delivered. RELATIVE renders it into the system block, ordered among the other prompts. IN CHAT splices it into the conversation at a depth. Picking one MOVES the section across the chat-history pivot. These are the placement names for the wire zones the assembled prompt records. Relative is setup, In Chat is post."
           }
           label="Zone"
           name="section-zone"
@@ -340,7 +340,7 @@ function TriggerFields({ form, section, index }: SectionEditProps): ReactElement
         value={everyGeneration ? [] : [...trigger]}
       />
       <Text voice="gloss">
-        {everyGeneration ? "Nothing selected — this section fires on every generation." : "Only the selected generation types carry this section."}
+        {everyGeneration ? "Nothing selected: this section fires on every generation." : "Only the selected generation types carry this section."}
       </Text>
     </Stack>
   );

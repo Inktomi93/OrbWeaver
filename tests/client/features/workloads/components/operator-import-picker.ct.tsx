@@ -18,7 +18,7 @@ const SCHEDULE_STORY = "tests/client/features/workloads/components/_schedule-dia
 const OPERATOR_IMPORT = WORKLOAD_KIND_LABELS[OPERATOR_TREE_WORKLOAD_KIND];
 const ANY_MEMBER_JOB = WORKLOAD_KIND_LABELS["reconcile-stats"];
 const RELOAD_READS_NAME = "Reload reads";
-const RETRY_OPERATOR_IMPORT = `${DIALOG_VERBS.retry} — ${OPERATOR_IMPORT}`;
+const RETRY_OPERATOR_IMPORT = `${DIALOG_VERBS.retry}: ${OPERATOR_IMPORT}`;
 const STAGED_UPLOAD = { stagedDir: "tree-upload", stagedDigest: "0".repeat(64) };
 const LATER_MS = 3_600_000;
 

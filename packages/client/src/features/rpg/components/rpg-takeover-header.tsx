@@ -192,7 +192,7 @@ export function RpgTakeoverHeader({
               Read-only
             </Text>
           </Badge>
-          <HintTrigger className="" hint="This model can't update trackers — they still steer the story; edit them by hand." subject="Read-only trackers" />
+          <HintTrigger className="" hint="This model can't update trackers. They still steer the story; edit them by hand." subject="Read-only trackers" />
         </>
       ) : null}
     </>
@@ -224,7 +224,7 @@ export function RpgTakeoverHeader({
           {/* The absence, in the GLOSS voice — it explains, it is not a datum, and the compressed row is
               exactly where a 13px "No" was buying nothing (the four-voice grammar). */}
           <Text as="span" voice="gloss" truncate={true}>
-            No ambient set — the story fills it.
+            No ambient set: the story fills it.
           </Text>
           {/* Cues and satellites share one wrapping row BESIDE the stone: with nothing to read above them
               they fit in the stone's own height, which is what makes the band a single row. */}

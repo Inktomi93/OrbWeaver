@@ -41,5 +41,5 @@ export const usePreviewInvite = createEntityMutation<inferInput<Trpc["invites"][
 export const useRedeemInvite = createEntityMutation<inferInput<Trpc["invites"]["redeemInvite"]>, inferOutput<Trpc["invites"]["redeemInvite"]>>({
   options: (trpc) => trpc.invites.redeemInvite.mutationOptions(),
   invalidates: (trpc) => [trpc.chat.listChats.pathFilter()],
-  errorToast: "Couldn't join — the invite is invalid or expired.",
+  errorToast: "Couldn't join: the invite is invalid or expired.",
 });

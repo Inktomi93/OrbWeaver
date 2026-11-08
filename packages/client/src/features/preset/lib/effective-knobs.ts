@@ -123,10 +123,10 @@ export function clampGloss(effective: EffectiveKnobRow | undefined, bounds: { re
   }
   const at = effective.value;
   if (at === bounds.max) {
-    return `clamped to ${at} — this model's max`;
+    return `clamped to ${at}: this model's max`;
   }
   if (at === bounds.min) {
-    return `clamped to ${at} — this model's min`;
+    return `clamped to ${at}: this model's min`;
   }
   return `clamped to ${at}`;
 }
@@ -224,7 +224,7 @@ export function resolvedForLabel(model: string): string {
  *  off arm (nothing is fed; see `qualitySelectValue`'s header for why absence and not a fourth enum) — so
  *  the surface that reads the dial must SAY so rather than rendering the mapping row away. A hidden row is
  *  how "off" and "the read hasn't landed" became indistinguishable. */
-const QUALITY_OFF_GLOSS = "quality off — knobs are what you set";
+const QUALITY_OFF_GLOSS = "quality off: knobs are what you set";
 
 /** The QUALITY cluster's MAPPING DATUM (§4 cluster 1, the mock's `deep → effort high · temp 1.0`) — the
  *  server's projection of the dial's own table, formatted. Never a client re-mapping of quality→axes (the
@@ -267,7 +267,7 @@ function qualityOverrideGloss(profile: EffectiveProfileRow | undefined): string 
   if (overridden.length === 0) {
     return "explicit knobs below override this";
   }
-  return `${overridden.join(" · ")} set explicitly below — the dial no longer feeds ${overridden.length === 1 ? "it" : "them"}`;
+  return `${overridden.join(" · ")} set explicitly below: the dial no longer feeds ${overridden.length === 1 ? "it" : "them"}`;
 }
 
 /** The DECK's quality line — ONE line, the mock's own ("deep → effort high · temp 1.0 — explicit knobs
@@ -282,5 +282,5 @@ export function qualityDeckGloss(profile: EffectiveProfileRow | undefined, quali
   if (mapping === null) {
     return override;
   }
-  return override === null ? mapping : `${mapping} — ${override}`;
+  return override === null ? mapping : `${mapping}: ${override}`;
 }

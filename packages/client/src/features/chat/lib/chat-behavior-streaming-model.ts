@@ -47,7 +47,7 @@ export const CHAT_STREAMING_SUBCATEGORY: ConfigSubcategory = {
       keywords: ["smooth", "reveal", "pace", "fade", "typing"],
       teach: {
         summary: "Reveals replies at a steady pace instead of raw network chunks. The reveal speeds up automatically when the model gets ahead.",
-        affects: ["how streaming text paints — never what arrives"],
+        affects: ["how streaming text paints: never what arrives"],
         related: [{ group: "chat-behavior", sub: "streaming", setting: "smooth-stream-cps" }],
       },
     },

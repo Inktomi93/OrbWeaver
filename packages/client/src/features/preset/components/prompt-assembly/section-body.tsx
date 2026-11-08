@@ -40,7 +40,7 @@ type AssemblyForm = AppFormInstance<PresetEditorValues>;
 const BODY_ROWS = 8;
 /** A min-height floor — the Textarea's `field-sizing: content` otherwise collapses `rows` to ~2 lines. */
 /** The one ghost/reset sentence, shared by every authored body so the grammar reads identically. */
-const GHOST_PLACEHOLDER_HINT = "Leave it empty and the built-in default rides — clearing the field IS the reset.";
+const GHOST_PLACEHOLDER_HINT = "Leave it empty and the built-in default rides. Clearing the field IS the reset.";
 
 /** The editing handle every section surface takes: the form, the section and its position in the assembly. */
 export interface SectionEditProps {
@@ -191,7 +191,7 @@ function CarrierBody({
             <form.AppField name="formatStrings.wiFormat">
               {(field): ReactElement => (
                 <field.MacroField
-                  hint="A format string framing EACH world book entry — {{entry}} is the entry text, and it is shared by both World-info markers. Blank uses {{entry}} alone."
+                  hint="A format string framing EACH world book entry: {{entry}} is the entry text, and it is shared by both World-info markers. Blank uses {{entry}} alone."
                   label="Entry wrapper"
                   placeholder="{{entry}}"
                   rows={1}

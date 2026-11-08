@@ -389,7 +389,7 @@ function PersonRowConfirms({
         open={confirm === "leave"}
         onOpenChange={(next): void => setConfirm(next ? "leave" : null)}
         title={CHAT_LEAVE_CONFIRM_TITLE}
-        description={actions.leaveArchivesRoom === true ? "You're the host — leaving archives this chat for everyone." : CHAT_LEAVE_MEMBER_NOTE}
+        description={actions.leaveArchivesRoom === true ? "You're the host: leaving archives this chat for everyone." : CHAT_LEAVE_MEMBER_NOTE}
         confirmLabel="Leave"
         onConfirm={(): void => {
           actions.onLeave?.();

@@ -145,7 +145,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
   return (
     <Stack gap="block" padding="block">
       <Text cap="prose" voice="reading">
-        Generate an image into this chat. Every image is a real charge — and the modes that read the conversation spend a second, smaller call to build the
+        Generate an image into this chat. Every image is a real charge, and the modes that read the conversation spend a second, smaller call to build the
         prompt first.
       </Text>
       <RoomPicturesNote shared={room.shared} />
@@ -253,7 +253,7 @@ function GeneratingNotice({ pending }: { readonly pending: boolean }): ReactElem
     <Stack data-slot="imagine-generating" gap="tight">
       <PendingLine label="Generating the image" verb="Generating the image…" />
       <Text cap="prose" voice="reading">
-        Usually 5-60 seconds. You can close this — the image posts into the chat when it's ready.
+        Usually 5-60 seconds. You can close this. The image posts into the chat when it's ready.
       </Text>
     </Stack>
   ) : null;
@@ -287,7 +287,7 @@ function useImagineRoom(
  *  backend reported no usage — say that rather than print `$0.0000`, which would read as "free". */
 function readCostLine(receipt: ExtractedPromptResult | undefined): string {
   if (receipt === undefined) {
-    return "Spends a small text call now — then you can edit the prompt before paying for the image.";
+    return "Spends a small text call now, then you can edit the prompt before paying for the image.";
   }
   const source = receipt.source === "captioned" ? "Read the character's image" : "Read the chat";
   if (receipt.costUsd === null) {

@@ -113,7 +113,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
     // The server's own verdict, not a client-computed guess: `reconsentPending` is exactly the durable
     // flag the notice below renders from, so the toast and the notice can never disagree.
     if (updated.reconsentPending) {
-      notify.info(`${plugin.name} stayed off — this update asks for more than you've allowed. Check below.`);
+      notify.info(`${plugin.name} stayed off: this update asks for more than you've allowed. Check below.`);
       return;
     }
     notify.success(`${plugin.name} is now ${updated.version}.`);
@@ -278,7 +278,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
             "What ${name} is allowed to do" re-ordered them, so a voice-control user saying the words on
             the screen could not match the control. The plugin name still disambiguates — after the em
             dash, outside the visible phrase. */}
-                  <CollapsibleTrigger aria-label={`What it's allowed to do — ${plugin.name}`} size="control">
+                  <CollapsibleTrigger aria-label={`What it's allowed to do: ${plugin.name}`} size="control">
                     <Text voice="label">What it's allowed to do</Text>
                   </CollapsibleTrigger>
                   {/* The inset clears the checkbox's touch-target pseudo on the side it now docks (P2-11's rule, side
@@ -307,7 +307,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                         // cannot reach ANY of those hosts without the capability, so the sentence must not appear at all.
                         <PluginGrantList
                           roleScope={{ kind: "plugin", pluginId: plugin.id }}
-                          capabilitiesLabel={`What it's allowed to do — ${plugin.name}`}
+                          capabilitiesLabel={`What it's allowed to do: ${plugin.name}`}
                           declared={plugin.declaredCapabilities}
                           granted={plugin.grantedCapabilities}
                           netHosts={plugin.grantedCapabilities.includes("net.fetch") ? (plugin.netHosts ?? []) : []}
@@ -322,7 +322,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
             connections. A plugin that routes nothing through its grant has no row here at all. */}
               {grantTasks.length === 0 ? null : (
                 <Collapsible>
-                  <CollapsibleTrigger aria-label={`${PLUGIN_MODEL_HEADING} — ${plugin.name}`} size="control">
+                  <CollapsibleTrigger aria-label={`${PLUGIN_MODEL_HEADING}: ${plugin.name}`} size="control">
                     <Text voice="label">{PLUGIN_MODEL_HEADING}</Text>
                   </CollapsibleTrigger>
                   <CollapsiblePanel>

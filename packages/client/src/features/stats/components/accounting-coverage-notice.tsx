@@ -7,7 +7,7 @@ import type { ReactElement } from "react";
 export function AccountingCoverageNotice({ characterOnly = false }: { readonly characterOnly?: boolean }): ReactElement {
   return (
     <Stack gap="field" data-slot="accounting-coverage" role="note">
-      <Text voice="label">Partial accounting — not your provider bill</Text>
+      <Text voice="label">Partial accounting: not your provider bill</Text>
       <Text voice="quiet" cap="prose">
         Missing prices are omitted; some costs are estimates.
       </Text>

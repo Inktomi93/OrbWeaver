@@ -377,14 +377,14 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
                   )
                 }
               />
-              {people.length === 0 ? <Text>No one else is here yet — share an invite.</Text> : people.map(rowProps)}
+              {people.length === 0 ? <Text>No one else is here yet. Share an invite.</Text> : people.map(rowProps)}
             </Stack>
           ) : null}
 
           {showCharacters ? (
             <Stack gap="row" data-slot="members-characters" role="group" aria-labelledby={charactersLabelId}>
               <SectionHeader labelId={charactersLabelId} kicker="Characters" action={props.charactersAction} />
-              {characters.length === 0 ? <Text>No characters in this chat yet — add one.</Text> : characters.map(rowProps)}
+              {characters.length === 0 ? <Text>No characters in this chat yet. Add one.</Text> : characters.map(rowProps)}
             </Stack>
           ) : null}
         </Stack>

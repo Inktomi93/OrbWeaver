@@ -51,7 +51,7 @@ export function PluginDistributeSection({ anchorId }: { readonly anchorId: strin
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={3} />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="the distribution list — it's available to administrators only" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="the distribution list: it's available to administrators only" onRetry={retry} />}
       reserveKey="config.plugins.distribute"
     >
       <PluginDistributeBody anchorId={anchorId} />
@@ -122,8 +122,8 @@ function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): Reac
     <Section container={true} divider={true} heading={PLUGIN_DISTRIBUTE_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="row">
         <Text prose={true} voice="gloss">
-          Give a plugin to everyone on this server. Each account gets its own copy — switched off, allowed nothing — and the people who use it decide what it
-          may do. Turning a plugin on runs its code as that person, so nobody can do that step for them.
+          Give a plugin to everyone on this server. Each account gets its own copy (switched off, allowed nothing) and the people who use it decide what it may
+          do. Turning a plugin on runs its code as that person, so nobody can do that step for them.
         </Text>
 
         <FileDropzone
@@ -131,7 +131,7 @@ function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): Reac
           aria-label="Choose a plugin bundle to distribute"
           disabled={state.step === "reading" || distribute.isPending}
           hint="A .zip holding manifest.json and main.js"
-          instructions={state.step === "confirm" ? `${state.preview.manifest.name} — check what it asks for below` : "Drop a plugin bundle"}
+          instructions={state.step === "confirm" ? `${state.preview.manifest.name}: check what it asks for below` : "Drop a plugin bundle"}
           loading={state.step === "reading"}
           maxSizeBytes={PLUGIN_BUNDLE_MAX_BYTES}
           onFilesSelected={({ accepted }): void => {

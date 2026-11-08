@@ -40,7 +40,7 @@ export function VariableEditorDialog({ form, index, onClose }: VariableEditorDia
       }}
     >
       <form.AppField name={`variables[${index}].name`}>
-        {(field): ReactElement => <field.TextField label="Name" description="The macro key — used as {{name}} in your prompt." />}
+        {(field): ReactElement => <field.TextField label="Name" description="The macro key: used as {{name}} in your prompt." />}
       </form.AppField>
       <form.AppField name={`variables[${index}].question`}>
         {(field): ReactElement => <field.TextField label="Question" description="What the chat asks you at generation." />}

@@ -109,7 +109,7 @@ export function TrackerGrantsEditor({
     <Stack gap="field" data-slot="rpg-tracker-grants">
       <Kicker>Tracker access</Kicker>
       {actorDefs.length === 0 ? (
-        <RpgDoorwayLine>No character trackers yet — the host defines them in the Game tab, and grants or revokes them per character here.</RpgDoorwayLine>
+        <RpgDoorwayLine>No character trackers yet. The host defines them in the Game tab, and grants or revokes them per character here.</RpgDoorwayLine>
       ) : (
         <Stack gap="field">
           <Text as="span" voice="gloss" prose={true} cap="prose">

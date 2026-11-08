@@ -3,6 +3,7 @@
 // ability check, the Status meter, the character attribute cell and the Scene character card. Reads come from a
 // real corpus root.
 
+import { MESSAGE_TOOLS_LABEL } from "@orb/client/lib";
 import type { RpgStatProfile } from "@orb/contracts/rpg";
 import { RPG_PROFILE_D20, rpgAttributeModifier, rpgNpcSlug, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { ChatId, UserId } from "@orb/kit/ids";
@@ -109,7 +110,7 @@ test("the dice ability check for an unset inherited-name attribute is disabled a
   const room = await gameRoom(root);
   await routeTrpc(page, (await room.reads()).routes);
   await mount<typeof RpgDiceComposerStory>(DICE_STORY, { chatId: room.chatId });
-  await page.getByRole("button", { name: "Message tools", exact: true }).click();
+  await page.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true }).click();
   await page.getByRole("menuitem", { name: "Ability check", exact: true }).click();
   const unset = page.getByRole("menuitem", { name: LABEL, exact: false });
   await expect(unset).toHaveText(`${LABEL}Set your score in Status first.`);
@@ -122,7 +123,7 @@ test("a set inherited-name attribute offers its ability check with the profile's
   await room.setInheritedValues();
   await routeTrpc(page, (await room.reads()).routes);
   await mount<typeof RpgDiceComposerStory>(DICE_STORY, { chatId: room.chatId });
-  await page.getByRole("button", { name: "Message tools", exact: true }).click();
+  await page.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true }).click();
   await page.getByRole("menuitem", { name: "Ability check", exact: true }).click();
   const modifier = rpgAttributeModifier(room.profile, SCORE);
   await expect(page.getByRole("menuitem", { name: `${LABEL} (${modifier >= 0 ? "+" : ""}${modifier})`, exact: true })).toBeEnabled();

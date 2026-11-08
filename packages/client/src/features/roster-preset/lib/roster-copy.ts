@@ -114,14 +114,14 @@ function applySentence(args: {
     parts.push(result.skipped.length === 0 ? "everything is already here" : `${result.alreadyPresent.length} already here`);
   }
   if (result.skipped.length > 0) {
-    parts.push(`${characterCountPhrase(result.skipped.length)} skipped — a character was deleted`);
+    parts.push(`${characterCountPhrase(result.skipped.length)} skipped: a character was deleted`);
   }
   const rulesOn = result.rulesMinted.length + result.rulesAlreadyPresent.length;
   if (rulesOn > 0) {
     parts.push(`${rulesOn} rule${rulesOn === 1 ? "" : "s"} on`);
   }
   for (const skip of result.rulesSkipped) {
-    parts.push(`${ruleTitleOf(skip.rulePresetId)} skipped — ${skip.reason}`);
+    parts.push(`${ruleTitleOf(skip.rulePresetId)} skipped: ${skip.reason}`);
   }
   return `${rosterName}: ${parts.length === 0 ? "nothing to change" : parts.join(" · ")}`;
 }
@@ -166,7 +166,7 @@ export function rosterCountsSuffix(roster: Pick<RosterPresetSummary, "characterC
   if (roster.game !== null) {
     parts.push("starts a game");
   }
-  return ` — ${parts.join(", ")}`;
+  return `: ${parts.join(", ")}`;
 }
 
 /** The ruleset a campaign roster's game is born with, as one read-only line (an omitted ruleset is rpg's

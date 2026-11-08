@@ -93,7 +93,7 @@ export function HostConsoleScalars({
             <Kicker>Play style</Kicker>
             <form.AppField name="cyoa">
               {(field): ReactElement => (
-                <field.SwitchField label="Offer story choices" hint="Every reply ends with a clickable set of choices — pick one to play it as your turn." />
+                <field.SwitchField label="Offer story choices" hint="Every reply ends with a clickable set of choices. Pick one to play it as your turn." />
               )}
             </form.AppField>
             {/* The compose|send choice-click knob — a SEGMENTED toggle with its consequence line,
@@ -161,7 +161,7 @@ export function HostConsoleScalars({
               {(field): ReactElement => (
                 <field.SwitchField
                   label="Plot steering"
-                  hint="Adds a Plot submenu to the composer wand — one-shot story steers (twist, escalate, advance the act)."
+                  hint="Adds a Plot submenu to the composer wand: one-shot story steers (twist, escalate, advance the act)."
                 />
               )}
             </form.AppField>
@@ -198,8 +198,8 @@ export function HostConsoleScalars({
                             disabled={!htmlField.state.value}
                             hint={
                               htmlField.state.value
-                                ? "Asks for animation and scripting inside those cards. Off = the calmer static table — still cards, no moving parts."
-                                : "Needs immersive HTML cards on — there is no card ask to make interactive."
+                                ? "Asks for animation and scripting inside those cards. Off = the calmer static table. Still cards, no moving parts."
+                                : "Needs immersive HTML cards on. There is no card ask to make interactive."
                             }
                           />
                         )}
@@ -229,12 +229,12 @@ export function HostConsoleScalars({
 
                 {/* gap="row" — same fix-forward (measured clearance defect, Kicker included). */}
                 <Stack gap="row">
-                  <Kicker crown={true}>Hidden channels — host only</Kicker>
+                  <Kicker crown={true}>Hidden channels: host only</Kicker>
                   <form.AppField name="deception">
                     {(field): ReactElement => (
                       <field.SwitchField
                         label="Deception"
-                        hint="Teach the model the <lie> channel — characters can hold standing secrets (the Veiled ledger)."
+                        hint="Teach the model the <lie> channel. Characters can hold standing secrets (the Veiled ledger)."
                       />
                     )}
                   </form.AppField>
@@ -242,7 +242,7 @@ export function HostConsoleScalars({
                     {(field): ReactElement => (
                       <field.SwitchField
                         label="Events outside the party's view"
-                        hint="Teach the <ofilter> channel — the model can note events the party can't perceive."
+                        hint="Teach the <ofilter> channel. The model can note events the party can't perceive."
                       />
                     )}
                   </form.AppField>
@@ -267,7 +267,7 @@ export function HostConsoleScalars({
                     {(field): ReactElement => (
                       <field.NumberField
                         label="Recent beats in the reminder"
-                        description={`How many recent beats the game reminder re-states to the model each turn. 0 drops the block entirely. Nothing is deleted — the journal keeps the full record; this is only what rides the prompt. Default ${RPG_RECENT_BEATS_KEEP_DEFAULT}.`}
+                        description={`How many recent beats the game reminder re-states to the model each turn. 0 drops the block entirely. Nothing is deleted: the journal keeps the full record; this is only what rides the prompt. Default ${RPG_RECENT_BEATS_KEEP_DEFAULT}.`}
                         placeholder={`${RPG_RECENT_BEATS_KEEP_DEFAULT} (default)`}
                         min={0}
                       />
@@ -276,7 +276,7 @@ export function HostConsoleScalars({
                 </Stack>
 
                 <Stack gap="field">
-                  <Kicker>Steering note — never shown to members</Kicker>
+                  <Kicker>Steering note: never shown to members</Kicker>
                   <form.AppField name="steeringNote">
                     {(field): ReactElement => (
                       <field.TextareaField
@@ -323,7 +323,7 @@ export function HostConsoleScalars({
                       field.state.value === "folded" ? (
                         <Text voice="gloss">
                           Recommended with thinking turned OFF: the reply has to carry its own state calls, and a long reasoning pass tends to spend the turn
-                          thinking instead of recording. That switch lives in your preset — this console never changes generation settings for you.
+                          thinking instead of recording. That switch lives in your preset. This console never changes generation settings for you.
                         </Text>
                       ) : null
                     }
@@ -353,13 +353,13 @@ export function HostConsoleScalars({
                     {(modeField): ReactElement =>
                       modeField.state.value === "folded" ? (
                         <Text voice="gloss">
-                          Folded delivery has no separate reading pass — the state calls ride the turn the model is already writing, so it sees exactly that
+                          Folded delivery has no separate reading pass. The state calls ride the turn the model is already writing, so it sees exactly that
                           turn's own context. There is no window to size. The cadence below still applies.
                         </Text>
                       ) : (
                         <Text voice="gloss">
-                          How much of the story the state pass reads before it updates the panel. It rides the turn's own transcript — no extra reads — so the
-                          cost is prompt size, not model calls.
+                          How much of the story the state pass reads before it updates the panel. It rides the turn's own transcript, with no extra reads, so
+                          the cost is prompt size, not model calls.
                         </Text>
                       )
                     }
@@ -420,7 +420,7 @@ export function HostConsoleScalars({
                     {(field): ReactElement => (
                       <field.NumberField
                         label="Re-state everything every N beats"
-                        description={`Every Nth beat, the pass re-emits the whole scene and present characters instead of only what changed — so a long story's panel self-heals instead of drifting. 0 turns it off. That beat costs more; 1 would make every beat the expensive one. Range 0–${RPG_RECONCILE_EVERY_BEATS_MAX}, default ${RPG_RECONCILE_EVERY_BEATS_DEFAULT}.`}
+                        description={`Every Nth beat, the pass re-emits the whole scene and present characters instead of only what changed, so a long story's panel self-heals instead of drifting. 0 turns it off. That beat costs more; 1 would make every beat the expensive one. Range 0–${RPG_RECONCILE_EVERY_BEATS_MAX}, default ${RPG_RECONCILE_EVERY_BEATS_DEFAULT}.`}
                         placeholder={`${RPG_RECONCILE_EVERY_BEATS_DEFAULT} (default)`}
                         min={0}
                         max={RPG_RECONCILE_EVERY_BEATS_MAX}

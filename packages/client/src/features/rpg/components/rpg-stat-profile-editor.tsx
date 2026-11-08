@@ -72,7 +72,7 @@ function AttributeRow({
         <Badge size="sm">{attr.key}</Badge>
         <HintTrigger
           className=""
-          hint="the machine name the sheet stores this value under — minted once, kept through renames"
+          hint="the machine name the sheet stores this value under: minted once, kept through renames"
           subject={`${attr.label}'s key`}
         />
         <Tip text={`Remove ${attr.label} from the vocabulary`}>
@@ -85,7 +85,7 @@ function AttributeRow({
         ariaLabel={`${attr.label} hint`}
         hint={attr.hint}
         max={RPG_HINT_MAX}
-        placeholder="what this attribute means — the story reads this…"
+        placeholder="what this attribute means: the story reads this…"
         onEdit={(next): void => onCommit({ ...attr, hint: next })}
       />
     </DefRow>
@@ -156,7 +156,7 @@ export function RpgStatProfileEditor({ chatId, config }: { readonly chatId: Chat
     <Stack gap="field" data-slot="rpg-stat-profile">
       <Kicker>Stat profile</Kicker>
       {attrs.length === 0 ? (
-        <RpgDoorwayLine>No attributes yet — this game steers on prose. Name one below and every character sheet grows it.</RpgDoorwayLine>
+        <RpgDoorwayLine>No attributes yet: this game steers on prose. Name one below and every character sheet grows it.</RpgDoorwayLine>
       ) : null}
       {/* The ROW band takes its own Stack so `rows="control"` floors the attribute/add/range rows without
           inflating the kicker above them. */}
@@ -173,7 +173,7 @@ export function RpgStatProfileEditor({ chatId, config }: { readonly chatId: Chat
         <AddRow
           ariaLabel="New attribute name"
           placeholder="name it first (e.g. Grace)"
-          {...(atCap ? { refusal: `A profile carries at most ${RPG_PROFILE_MAX_ATTRIBUTES} attributes — remove one to add another.` } : {})}
+          {...(atCap ? { refusal: `A profile carries at most ${RPG_PROFILE_MAX_ATTRIBUTES} attributes: remove one to add another.` } : {})}
           actions={[
             {
               key: "attribute",

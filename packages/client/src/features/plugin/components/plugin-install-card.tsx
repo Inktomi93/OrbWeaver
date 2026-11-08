@@ -113,7 +113,7 @@ function sourceDropInstructions(state: InstallState, sourceKind: "file" | "folde
     return sourceKind === "file" ? `Reading ${state.sourceLabel}…` : `Reading folder ${state.sourceLabel}…`;
   }
   if (state.step === "confirm" && state.source.kind === sourceKind) {
-    return `${state.manifest.name} — read what it's asking for below`;
+    return `${state.manifest.name}: read what it's asking for below`;
   }
   return fallback;
 }

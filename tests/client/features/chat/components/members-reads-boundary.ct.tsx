@@ -73,8 +73,8 @@ test("a held member card read shows the loading skeleton, a failed one the error
     }),
   );
   await mount<typeof ChatRoomShellStory>(STORY, { chatId });
-  await page.getByRole("button", { name: /^Members — /u }).click();
-  await page.getByRole("button", { name: new RegExp(`^${characterName} — character`, "u") }).click();
+  await page.getByRole("button", { name: /^Members: /u }).click();
+  await page.getByRole("button", { name: new RegExp(`^${characterName}: character`, "u") }).click();
   await page.getByRole("menuitem", { name: "View character", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await hold.requested;
@@ -100,8 +100,8 @@ test("a card that left the room is the gone state, not the error block", async (
     serveCorpusProcedures(host, ["chat.getMemberCard"], () => trpcError({ code: "NOT_FOUND" })),
   );
   await mount<typeof ChatRoomShellStory>(STORY, { chatId });
-  await page.getByRole("button", { name: /^Members — /u }).click();
-  await page.getByRole("button", { name: new RegExp(`^${characterName} — character`, "u") }).click();
+  await page.getByRole("button", { name: /^Members: /u }).click();
+  await page.getByRole("button", { name: new RegExp(`^${characterName}: character`, "u") }).click();
   await page.getByRole("menuitem", { name: "View character", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText("This card isn't available", { exact: true })).toBeVisible();
@@ -128,7 +128,7 @@ test("a held outstanding-invites read shows the loading skeleton, a failed one t
     }),
   );
   await mount<typeof ChatRoomShellStory>(STORY, { chatId });
-  await page.getByRole("button", { name: /^Members — /u }).click();
+  await page.getByRole("button", { name: /^Members: /u }).click();
   await page.getByRole("button", { name: "Invite people", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await hold.requested;

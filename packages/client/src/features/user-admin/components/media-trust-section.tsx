@@ -58,7 +58,7 @@ export function MediaTrustSection({ anchorId, sectionId }: { readonly anchorId: 
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={4} />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="media & trust — administrators only" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="media & trust: administrators only" onRetry={retry} />}
       reserveRows={firstBootRows}
       reserveKey="config.admin.mediaTrust"
     >

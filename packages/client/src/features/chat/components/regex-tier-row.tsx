@@ -86,7 +86,7 @@ export function RegexTierRow({ chatId, row, alsoAt, scope, isHost, notYours, qua
       title: `Turned ${name} ${next ? "on" : "off"} everywhere`,
       description: next
         ? "It runs again in every chat, preset and character that attaches it."
-        : "It stops running in every chat, preset and character that attaches it — not just this room.",
+        : "It stops running in every chat, preset and character that attaches it. Not just this room.",
       action: {
         label: "Undo",
         onClick: (): void => {
@@ -106,7 +106,7 @@ export function RegexTierRow({ chatId, row, alsoAt, scope, isHost, notYours, qua
             // from the room and must be chosen, not stumbled into.
             actions: (
               <Row align="center" gap="tight">
-                {notYours ? null : <Switch aria-label={`${name} — everywhere`} checked={script.enabled} onCheckedChange={flip} tone="quiet" />}
+                {notYours ? null : <Switch aria-label={`${name}: everywhere`} checked={script.enabled} onCheckedChange={flip} tone="quiet" />}
                 {menu}
               </Row>
             ),
@@ -219,7 +219,7 @@ function RowActions({
     // thing this row genuinely cannot do, and the menu says which. `Open in library` is absent too: the
     // row is not in this viewer's library, so the drill-in would land on nothing.
     return (
-      <RowActionsMenu label={`More for ${name}: not yours — a previous host attached it, Detach from this chat`}>
+      <RowActionsMenu label={`More for ${name}: not yours: a previous host attached it, Detach from this chat`}>
         <MenuItem disabled={true}>A previous host attached this. Only its owner can switch it off.</MenuItem>
         <MenuItem
           onClick={(): void => {

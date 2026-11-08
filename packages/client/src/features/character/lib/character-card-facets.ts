@@ -53,7 +53,7 @@ const CHARACTER_CARD_FACET_ROWS: Readonly<Record<CharacterCardFacetId, Omit<Char
   description: {
     tier: "voice",
     label: "Description",
-    subtitle: "Who they are — the core of the card.",
+    subtitle: "Who they are: the core of the card.",
     glyph: BookOpen,
   },
   personality: {
@@ -77,7 +77,7 @@ const CHARACTER_CARD_FACET_ROWS: Readonly<Record<CharacterCardFacetId, Omit<Char
   creatorNotes: {
     tier: "extras",
     label: "Creator notes",
-    subtitle: "Notes for humans — never sent to the model.",
+    subtitle: "Notes for humans: never sent to the model.",
     glyph: Pencil,
   },
   systemPrompt: {

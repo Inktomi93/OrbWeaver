@@ -91,7 +91,7 @@ export function unusedTagsLabel(count: number): string {
 /** The "no colour at all" state, in words — ONE sentence. `null` is a real state, not a blank: a tag with
  *  no colour paints the theme default, and without words "unset" and "set to something this theme swallows"
  *  are the same silence. */
-const COLOR_UNSET_LABEL = "Not set — uses the theme default";
+const COLOR_UNSET_LABEL = "Not set: uses the theme default";
 
 /** What a colour slot HOLDS, in words — the EDITOR's readout, wired as each picker's `Field description` so
  *  the 32×32 swatch button (which has no text of its own) carries it as an accessible DESCRIPTION rather

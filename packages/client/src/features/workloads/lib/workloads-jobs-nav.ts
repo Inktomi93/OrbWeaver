@@ -27,8 +27,7 @@ export const WORKLOADS_JOBS_SUBCATEGORY: ConfigSubcategory = {
       label: "Run a job",
       keywords: ["start", "embed", "import", "backfill", "themes", "duplicates", "bulk"],
       teach: {
-        summary:
-          "Start a background job \u2014 embedding, import backfills, theme and duplicate analysis \u2014 and watch its progress, retry or cancel it here.",
+        summary: "Start a background job (embedding, import backfills, theme and duplicate analysis) and watch its progress, retry or cancel it here.",
         affects: ["your own background queue"],
       },
     },

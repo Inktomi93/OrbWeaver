@@ -145,7 +145,7 @@ test("native implicit caching explains provider ownership without invented contr
   const concurrency = page.locator('[data-fact="features.concurrency.summarize"]');
   await expect(concurrency.getByText(String(foldFeatures(builtinProvider("google")?.features).concurrency?.summarize), { exact: true })).toBeVisible();
   await concurrency.getByRole("button", { name: "Override utility calls at once", exact: true }).click();
-  const limit = concurrency.getByRole("textbox", { name: "utility calls at once — your value", exact: true });
+  const limit = concurrency.getByRole("textbox", { name: "utility calls at once: your value", exact: true });
   await limit.fill(String(SUMMARIZE_CONCURRENCY_MAX + 1));
   await expect(concurrency.getByRole("alert")).toHaveText(`The maximum is ${SUMMARIZE_CONCURRENCY_MAX}.`);
   await expect(concurrency.getByRole("button", { name: "Save your utility calls at once", exact: true })).toBeDisabled();

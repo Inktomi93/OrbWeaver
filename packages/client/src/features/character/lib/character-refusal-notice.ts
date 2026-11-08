@@ -86,5 +86,5 @@ export function characterBulkTagRefusal(verb: "tag" | "untag", data: CharacterBu
     const subject = data.failed.length === 1 ? "that character" : `${data.failed.length} characters`;
     return `Couldn't ${verbPhrase} ${subject}: ${reason}`;
   }
-  return `Could only ${verbPhrase} ${data.applied.length} of ${data.applied.length + data.failed.length} characters — ${reason}`;
+  return `Could only ${verbPhrase} ${data.applied.length} of ${data.applied.length + data.failed.length} characters: ${reason}`;
 }

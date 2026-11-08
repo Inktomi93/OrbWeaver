@@ -106,7 +106,7 @@ export function ShareCard(props: SeatingFacts): ReactElement {
         <QueryBoundary
           resetKeys={[]}
           fallback={<SkeletonRows count={4} />}
-          renderError={(_error, retry): ReactElement => <QueryErrorState label="sharing — the owner only" onRetry={retry} />}
+          renderError={(_error, retry): ReactElement => <QueryErrorState label="sharing: the owner only" onRetry={retry} />}
           reserveRows={firstBootRows}
           reserveKey="config.admin.multiUser.share"
         >

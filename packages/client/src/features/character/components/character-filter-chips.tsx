@@ -269,8 +269,8 @@ function VocabularyDisclosure({
   readonly onToggle: () => void;
 }): ReactElement {
   const closedLabel = hasTags ? CLOSED_DISCLOSURE_LABEL : CLOSED_DISCLOSURE_LABEL_NO_TAGS;
-  const openName = hasTags ? "Fewer filters — hide the tag vocabulary" : "Fewer filters — hide the filter options";
-  const closedName = noTagsYet ? `${closedLabel} — show more filters, no tags yet` : `${closedLabel} — show more filters`;
+  const openName = hasTags ? "Fewer filters: hide the tag vocabulary" : "Fewer filters: hide the filter options";
+  const closedName = noTagsYet ? `${closedLabel}: show more filters, no tags yet` : `${closedLabel}: show more filters`;
   return <RailAction accessibleName={open ? openName : closedName} expanded={open} label={open ? "Fewer filters" : closedLabel} onClick={onToggle} />;
 }
 

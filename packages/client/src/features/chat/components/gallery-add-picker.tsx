@@ -82,7 +82,7 @@ export function GalleryAddPicker({ open, onOpenChange, characterId, onUploadInst
         setFailure(
           stillOutstanding.length === assetIds.length
             ? "Couldn't add the selected images to the gallery."
-            : `Added ${String(assetIds.length - stillOutstanding.length)} of ${String(assetIds.length)} — the rest are still selected.`,
+            : `Added ${String(assetIds.length - stillOutstanding.length)} of ${String(assetIds.length)}: the rest are still selected.`,
         );
       }
       return stillOutstanding;

@@ -142,7 +142,7 @@ function passProse(pass: UnderstandingPassView): string {
 function MemoryOffNote(): ReactElement {
   return (
     <Row align="center" data-slot="understanding-pass-memory-off" gap="field">
-      <Text voice="gloss">Story themes need chat memory, which is off — this pass will read your cards only.</Text>
+      <Text voice="gloss">Story themes need chat memory, which is off. This pass will read your cards only.</Text>
       <Button variant="ghost" onClick={(): void => openConfigTo("chat-behavior", "memory")} size="sm">
         Turn on memory
       </Button>

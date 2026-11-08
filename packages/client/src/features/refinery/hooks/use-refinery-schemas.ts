@@ -104,18 +104,18 @@ export const useDeleteRefinerySchema = createEntityMutation<inferInput<Trpc["ref
 export const useGenerateRefinerySchema = createEntityMutation<inferInput<Trpc["refinery"]["generateSchema"]>, inferOutput<Trpc["refinery"]["generateSchema"]>>({
   options: (trpc) => trpc.refinery.generateSchema.mutationOptions(),
   invalidates: () => [],
-  errorToast: "The schema generator didn't answer — try again.",
+  errorToast: "The schema generator didn't answer. Try again.",
 });
 
 export const useRefineRefinerySchema = createEntityMutation<inferInput<Trpc["refinery"]["refineSchema"]>, inferOutput<Trpc["refinery"]["refineSchema"]>>({
   options: (trpc) => trpc.refinery.refineSchema.mutationOptions(),
   invalidates: () => [],
-  errorToast: "The schema refiner didn't answer — try again.",
+  errorToast: "The schema refiner didn't answer. Try again.",
 });
 
 /** The test drill — returns the typed-per-schema payload for preview rendering; writes nothing. */
 export const useTestRefinerySchema = createEntityMutation<inferInput<Trpc["refinery"]["testSchema"]>, inferOutput<Trpc["refinery"]["testSchema"]>>({
   options: (trpc) => trpc.refinery.testSchema.mutationOptions(),
   invalidates: () => [],
-  errorToast: "The test run didn't finish — try again or adjust the schema.",
+  errorToast: "The test run didn't finish. Try again or adjust the schema.",
 });

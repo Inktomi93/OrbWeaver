@@ -98,7 +98,7 @@ test("ordinary plugin panels share Context, collapse independently, and move ind
   await expect(page.locator('[data-slot="plugin-flank"]')).toHaveCount(0);
   await context.getByRole("textbox", { name: "First panel note", exact: true }).fill("Kept while folded");
   await page.screenshot({ path: "reports/plugin-context-wide.png" });
-  const first = context.getByRole("button", { name: "Context witness — First", exact: true });
+  const first = context.getByRole("button", { name: "Context witness: First", exact: true });
   await first.focus();
   await page.keyboard.press("Enter");
   await expect(first).toHaveAttribute("aria-expanded", "false");
@@ -128,7 +128,7 @@ test("ordinary plugin panels share Context, collapse independently, and move ind
   await expect(context.getByText("Second panel content", { exact: true })).toBeVisible();
   await expect(sidecar).toHaveCount(0);
   await context
-    .getByRole("group", { name: "Context witness — First", exact: true })
+    .getByRole("group", { name: "Context witness: First", exact: true })
     .getByRole("button", { name: `${CHAT_PANEL_HIDE_LABEL} Context witness`, exact: true })
     .click();
   await expect(context.getByText("First panel content", { exact: true })).toHaveCount(0);
@@ -154,7 +154,7 @@ test("keyboard placement hands focus to the return control and back to the resto
   await expect(restore).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(context.getByText("First panel content", { exact: true })).toBeVisible();
-  await expect(context.getByRole("button", { name: "Context witness — First", exact: true })).toBeFocused();
+  await expect(context.getByRole("button", { name: "Context witness: First", exact: true })).toBeFocused();
 });
 
 test("the plugin column's edge control keeps its screen position across a hide and a show", async ({ corpus, page, mount }) => {
@@ -236,7 +236,7 @@ test.describe("touch placement", () => {
     await expect(sheet).toHaveCount(0);
     await expect(context.getByText("First panel content", { exact: true })).toBeVisible();
     await expect(context.getByText("Second panel content", { exact: true })).toBeVisible();
-    await expect(context.getByRole("button", { name: "Context witness — First", exact: true })).toBeFocused();
+    await expect(context.getByRole("button", { name: "Context witness: First", exact: true })).toBeFocused();
   });
 
   test("the sidecar door in Message tools wears a different glyph than the Plugin actions button", async ({ corpus, page, mount }) => {

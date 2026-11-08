@@ -42,7 +42,7 @@ export function RoomActivityLog({ chatId }: RoomActivityLogProps): ReactElement 
   const { data: fires } = useSuspenseQuery(trpc.automation.listChatActivity.queryOptions({ chatId, limit: ROOM_ACTIVITY_LIMIT }));
 
   if (fires.length === 0) {
-    return <Text voice="gloss">Nothing yet — when a rule fires, posts a notice, runs a tool, or you confirm a card, it shows up here.</Text>;
+    return <Text voice="gloss">Nothing yet: when a rule fires, posts a notice, runs a tool, or you confirm a card, it shows up here.</Text>;
   }
 
   return (

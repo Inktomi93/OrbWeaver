@@ -327,7 +327,7 @@ test("the default shared corpus renders its native Ledger publication and captur
     pluginId: active.ids.pluginId,
     surfaceId: surface.id,
   });
-  const attribution = page.getByRole("group", { name: `${plugin.name} — ${surface.title}`, exact: true });
+  const attribution = page.getByRole("group", { name: `${plugin.name}: ${surface.title}`, exact: true });
   await expect(attribution.getByText("Initial ledger entry", { exact: true })).toBeVisible();
   await expect(page.getByText(plugin.name, { exact: true })).toBeVisible();
   await expect(page.getByText("Plugin", { exact: true })).toBeVisible();

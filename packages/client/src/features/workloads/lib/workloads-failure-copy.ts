@@ -16,7 +16,7 @@ const FAILURE_CLASSES: readonly FailureClass[] = [
   {
     // Listed first so it wins over any coincidental substring in a normal runtime error.
     match: ["a dependency did not succeed", "dependency_failed"],
-    friendly: "This job never ran — one of the jobs it depends on didn't succeed. Retry after its dependencies finish.",
+    friendly: "This job never ran. One of the jobs it depends on didn't succeed. Retry after its dependencies finish.",
   },
   {
     // An embed call's own label (`<provider> embed (<model>)`, `image-embed`) beside a server that did not answer. Listed
@@ -35,7 +35,7 @@ const FAILURE_CLASSES: readonly FailureClass[] = [
   },
   {
     match: ["timed out", "timeout", "deadline"],
-    friendly: "The job took too long and timed out. Retry — it resumes where it left off.",
+    friendly: "The job took too long and timed out. Retry: it resumes where it left off.",
   },
   {
     match: ["out of memory", "oom", "enospc", "no space"],

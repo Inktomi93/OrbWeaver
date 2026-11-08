@@ -64,7 +64,7 @@ export function TemplateDrillIn({ form, presetId, row, onBack }: TemplateDrillIn
   const backRef = useRef<HTMLButtonElement>(null);
   useFocusOnSwap(backRef);
   return (
-    <Stack aria-label={`${def.label} — template editor`} gap="section" role="region">
+    <Stack aria-label={`${def.label}: template editor`} gap="section" role="region">
       <Row align="center" gap="row">
         <Button variant="ghost" onClick={onBack} ref={backRef} size="sm" type="button">
           <Icon icon={ArrowLeft} size="sm" />
@@ -273,7 +273,7 @@ function ProseFooter({ footer, length }: { readonly footer: ProseFooterState; re
     <Row align="center" gap="field">
       {footer.over > 0 ? (
         <Badge tone="destructive" role="alert" size="sm">
-          {footer.over} characters over the {PROSE_MAX_CHARS} limit — trim it to save
+          {footer.over} characters over the {PROSE_MAX_CHARS} limit: trim it to save
         </Badge>
       ) : null}
       {footer.missing.map((token) => (
@@ -401,7 +401,7 @@ function TokenVocabulary({ form, row, capability }: CapabilityProps): ReactEleme
                 <Row align="center" gap="field">
                   <Icon icon={TriangleAlert} size="sm" tone="warning" />
                   <Text voice="label">
-                    No {GUIDED_INPUT_TOKEN} — what you type when you fire {def.label} will not land anywhere.
+                    No {GUIDED_INPUT_TOKEN}: what you type when you fire {def.label} will not land anywhere.
                   </Text>
                 </Row>
               </Card>

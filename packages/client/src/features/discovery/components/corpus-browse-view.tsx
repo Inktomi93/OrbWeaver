@@ -177,7 +177,7 @@ function BrowseRows({
     return distilled ? (
       <Stack align="center" padding="block" gap="field">
         <Icon icon={Library} size="lg" />
-        <Text>No characters match — loosen the filters.</Text>
+        <Text>No characters match: loosen the filters.</Text>
       </Stack>
     ) : (
       // The overview owns the run control; this door reaches it when the finder is the phone screen.
