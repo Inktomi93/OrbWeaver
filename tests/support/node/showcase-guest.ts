@@ -32,6 +32,8 @@ export function mainSourceOf(slug: string): Promise<string> {
     return new TextDecoder().decode(main);
   })();
   sources.set(slug, built);
+  // A failed build is forgotten, so the next case builds it again instead of meeting this failure.
+  void built.catch(() => sources.delete(slug));
   return built;
 }
 

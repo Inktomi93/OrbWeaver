@@ -14,7 +14,8 @@ import { castId } from "@orb/kit/ids";
 import { buildCardEmbedText, DEFAULT_CHARACTER_CARDS } from "@orb/server/domain/character";
 import { createSessionsRolePolicy } from "@orb/server/domain/sessions";
 import { createHostPrincipalResolver } from "@orb/server/entry/auth";
-import { createProcessSeams, createServices, NO_SHARE_RELAY, SessionsCrypto, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
+import { createServices, NO_SHARE_RELAY, SessionsCrypto, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
+import { createProcessSeams } from "@orb/server/entry/compose/process-seams";
 import { env } from "@orb/server/foundation/env";
 import { createAuditWiring } from "@orb/server/foundation/observability";
 

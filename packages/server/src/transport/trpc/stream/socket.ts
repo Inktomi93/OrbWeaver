@@ -56,7 +56,7 @@ import { roomSourceFor } from "./room-sources.ts";
 import type { SocketCell, SocketListener, SocketRegistry, SocketRoom } from "./socket-registry.ts";
 
 /** The one message an INTERNAL_SERVER_ERROR room frame ever carries. Mirrors the procedure path's
- *  `UNCLASSIFIED_FAULT_MESSAGE` (`trpc.ts`) in a different voice because a ROOM dying is a different event
+ *  `UNCLASSIFIED_FAULT_MESSAGE` (`fault-copy.ts`) in a different voice because a ROOM dying is a different event
  *  to a reader than a call failing. */
 const ROOM_FAULT_MESSAGE = "The room stopped unexpectedly.";
 

@@ -3,10 +3,12 @@
 import { authConfigSchema } from "@orb/contracts/auth-config";
 import { presetDetailSchema, presetIdInputSchema } from "@orb/contracts/preset";
 import { DEFAULT_UPLOAD_CAPS } from "@orb/contracts/uploads";
+import { presets } from "@orb/db";
 import { heldThenFailing, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
-import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { createCorpusHarness, refuseWrites } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
 import { ZodError } from "zod";
+import { UNCLASSIFIED_FAULT_MESSAGE } from "../../../packages/server/src/transport/trpc/fault-copy.ts";
 import { routeAuthConfig } from "../node/route-auth-config.ts";
 import { abortProcedure, isTrpcRequestFor, malformedOrForwardTrpcWire, readTrpcOutput, trpcEndSubscription, trpcError, trpcHold } from "../node/route-trpc.ts";
 
@@ -171,6 +173,52 @@ test("native output capture validates unbatched success and refuses server error
     await fetch(`/api/trpc/preset.get?input=${encodeURIComponent(JSON.stringify({ id }))}`);
   }, preset.id);
   await expect(readTrpcOutput(await malformed, "preset.get", presetDetailSchema)).rejects.toThrow(ZodError);
+});
+
+test("a served 500 carries production's unclassified-fault message, not the server's own error text", async ({ page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  const refusal = "corpus served fault refuses preset writes";
+  await using _fault = await refuseWrites(root.db, { table: presets, event: "INSERT", message: refusal });
+  // The control: the root itself fails this write with an unclassified 500 whose own text is not the wire's.
+  const raw = await caller.preset.create({ name: "Refused preset", kind: "generation" }).then(
+    () => null,
+    (error: unknown) => error,
+  );
+  expect(raw).toMatchObject({ code: "INTERNAL_SERVER_ERROR" });
+  expect(raw).not.toMatchObject({ message: UNCLASSIFIED_FAULT_MESSAGE });
+  await page.route(`${ORIGIN}/**`, (route) => route.fulfill({ contentType: "text/html", body: `<h1>${HEADING}</h1>` }));
+  await page.goto(ORIGIN);
+  await routeTrpc(page, serveCorpusProcedures(caller, ["preset.create"]));
+  const served = await page.evaluate(async () =>
+    (
+      await fetch("/api/trpc/preset.create", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ name: "Refused preset", kind: "generation" }),
+      })
+    ).json(),
+  );
+  expect(served).toMatchObject({ error: { message: UNCLASSIFIED_FAULT_MESSAGE, data: { code: "INTERNAL_SERVER_ERROR" } } });
+});
+
+test("a non-Error throw is served as production's unclassified-fault message", async ({ page }) => {
+  // A composed caller only ever rejects with a TRPCError, so this caller stands in. It throws the way a procedure that
+  // honours an aborted signal does when the abort reason is not an Error.
+  const aborted = AbortSignal.abort({ detail: "an abort reason that is not an Error" });
+  const caller = {
+    preset: {
+      get: (): Promise<void> =>
+        Promise.resolve().then(() => {
+          aborted.throwIfAborted();
+        }),
+    },
+  };
+  await page.route(`${ORIGIN}/**`, (route) => route.fulfill({ contentType: "text/html", body: `<h1>${HEADING}</h1>` }));
+  await page.goto(ORIGIN);
+  await routeTrpc(page, serveCorpusProcedures(caller, ["preset.get"]));
+  const served = await page.evaluate(async () => (await fetch(`/api/trpc/preset.get?input=${encodeURIComponent(JSON.stringify({ id: "unread" }))}`)).json());
+  expect(served).toMatchObject({ error: { message: UNCLASSIFIED_FAULT_MESSAGE, data: { code: "INTERNAL_SERVER_ERROR" } } });
 });
 
 test("abortProcedure refuses a procedure alone or batched, leaves others served, and its restore lifts the refusal", async ({ page }) => {

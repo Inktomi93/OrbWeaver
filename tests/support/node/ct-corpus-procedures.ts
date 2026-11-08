@@ -16,11 +16,11 @@ function failureCode(error: unknown): TrpcErrorCode {
 
 /** The refusal as the production error formatter puts it on the wire: its message, `data.reason` and `data.detail`.
  *  The router loads only when a served request fails, so this door stays free of the server graph at import. */
-async function servedFailure(error: unknown, path: string, input: unknown): Promise<TrpcErrorMarker> {
-  const code = failureCode(error);
-  if (!(error instanceof Error) || code === "INTERNAL_SERVER_ERROR") {
-    return trpcError({ code, message: String(error) });
-  }
+async function servedFailure(thrown: unknown, path: string, input: unknown): Promise<TrpcErrorMarker> {
+  // tRPC wraps a non-Error throw as an INTERNAL_SERVER_ERROR before its formatter runs, which then sends the
+  // unclassified-fault message in place of any text the throw held.
+  const error = thrown instanceof Error ? thrown : new Error("non-Error throw", { cause: thrown });
+  const code = thrown instanceof Error ? failureCode(thrown) : "INTERNAL_SERVER_ERROR";
   const { appRouter: router } = await import("@orb/server/transport/trpc");
   // The formatter reads the error and spreads the shape it is given; the HTTP status never reaches the marker.
   // errorNumber is exhaustive over the code union, so its number is one of the shape's JSON-RPC codes.
@@ -65,9 +65,10 @@ export function holdCorpusProcedure<const TPath extends TrpcProcedurePath>(calle
       if (sent === null) {
         throw new Error(`${path} was released before it was requested`);
       }
-      call(sent.input).then(
+      const { input } = sent;
+      call(input).then(
         (output) => hold.release(JSON.parse(JSON.stringify(output ?? null)) as Release),
-        (error: unknown) => hold.release(trpcError({ code: failureCode(error), message: String(error) }) as Release),
+        async (error: unknown) => hold.release((await servedFailure(error, path, input)) as Release),
       );
     },
   };

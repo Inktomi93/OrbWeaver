@@ -4,7 +4,7 @@ import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { CorpusChatLifecycleMember, CorpusNotificationInbox, CorpusPlayback, CorpusWire } from "./corpus-data.ts";
 import type { CorpusPlaybackView } from "./corpus-playback.ts";
-import { admitCorpusCapture } from "./corpus-playback.ts";
+import { admitCorpusCapture, freezeCorpusGraph } from "./corpus-playback.ts";
 import type { CorpusPluginStage } from "./corpus-plugin.ts";
 import type { CorpusPlaybackRead, CorpusPlaybackViewerRead, CorpusProcedurePath, CorpusRead, CorpusViewerRead } from "./corpus-read.ts";
 
@@ -203,7 +203,8 @@ export function admitCorpusPlayback(wire: CorpusWire): CorpusPlayback {
     chatLifecycleMember: member,
     ...data
   } = wire;
-  return {
+  // A worker shares one playback across every root it builds, so a write to it fails instead of reaching the next root.
+  return freezeCorpusGraph({
     ...data,
     reads: admitArrays(viewerUserId, reads),
     ...(plugins === undefined ? {} : { pluginLibrary: admitPlugins(plugins) }),
@@ -231,7 +232,7 @@ export function admitCorpusPlayback(wire: CorpusWire): CorpusPlayback {
     ...(regex === undefined ? {} : { regexLibrary: { ...regex, reads: admitReads(REGEX_PATHS, regex.viewerUserId, regex.reads) } }),
     ...(inbox === undefined ? {} : { notificationInbox: admitInbox(inbox) }),
     ...(member === undefined ? {} : { chatLifecycleMember: admitMemberMessages(member) }),
-  };
+  });
 }
 
 function admitFirstBoot(firstBoot: NonNullable<CorpusWire["firstBoot"]>): NonNullable<CorpusPlayback["firstBoot"]> {

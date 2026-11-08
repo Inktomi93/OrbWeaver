@@ -1,7 +1,7 @@
 import { chatListPageSchema } from "@orb/contracts/chat";
 import { AUTH_MODES } from "@orb/contracts/identity";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import { resolveBindPosture } from "@orb/server/foundation/env";
+import { resolveBindPosture } from "@orb/server/foundation/env/record";
 import { forEachNonEmpty } from "@orb/testkit/iso";
 import { z } from "zod";
 import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";

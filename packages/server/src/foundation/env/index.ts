@@ -16,7 +16,6 @@ import type { Env } from "./record/index.ts";
 import { isSecretEnvKey, parseEnv } from "./record/index.ts";
 
 export { resolveAllowedHosts } from "./allowed-hosts.ts";
-export { bindPostureWarnings, loopbackCompanion, resolveBindPosture } from "./bind.ts";
 export { diagnosticsPostureWarnings, resolveDiagnosticsPosture } from "./diagnostics.ts";
 export type { Env } from "./record/index.ts";
 export {

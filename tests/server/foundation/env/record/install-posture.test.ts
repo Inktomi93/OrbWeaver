@@ -1,8 +1,7 @@
 // @subject packages/server/src/foundation/env/record/index.ts
 // The install posture and the machine's name are parse inputs: the record, not the machine running the test, decides
 // the install kind, the fix a bind refusal names and whether the machine's name joins the Host allowlist.
-import { resolveBindPosture } from "@orb/server/foundation/env";
-import { allowedHostsInput, bindPostureInput, installKind } from "@orb/server/foundation/env/record";
+import { allowedHostsInput, bindPostureInput, installKind, resolveBindPosture } from "@orb/server/foundation/env/record";
 import { expect, test } from "@orb/testkit/node";
 import { createTestEnv } from "@orb/testkit/node/helpers";
 

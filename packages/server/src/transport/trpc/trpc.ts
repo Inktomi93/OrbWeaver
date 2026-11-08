@@ -14,6 +14,7 @@ import { requireAdmin } from "#domain/admin";
 import { getLog, securityEvent, setSpanAttrs, span } from "#foundation/observability";
 import type { Context } from "./context.ts";
 import { classifyDomainError, domainDetail, domainReason, providerFaultOf } from "./error-mapping.ts";
+import { UNCLASSIFIED_FAULT_MESSAGE } from "./fault-copy.ts";
 
 // SSE heartbeat (SSE-1 §8) — the deployment-wide subscription liveness policy, set once here because
 // `initTRPC.create` is the ONE home for it. tRPC ships ping DISABLED by default and no client inactivity
@@ -25,8 +26,9 @@ import { classifyDomainError, domainDetail, domainReason, providerFaultOf } from
 // the per-proc streams too, which is why it lands before any of them fold.
 const SSE_PING_MS = 15_000;
 
-/**
- * THE MESSAGE EVERY UNCLASSIFIED THROW GETS, in place of its own.
+/*
+ * THE MESSAGE EVERY UNCLASSIFIED THROW GETS, in place of its own: `UNCLASSIFIED_FAULT_MESSAGE`, which lives in the
+ * zero-import `./fault-copy.ts` so a test reads the words production sends.
  *
  * `getErrorShape` builds `shape.message` as `error.message`, and `TRPCError`'s constructor inherits the
  * CAUSE's message when no explicit one is given — so a throw nothing modelled put its raw text on the wire.
@@ -52,7 +54,6 @@ const SSE_PING_MS = 15_000;
  * belongs. Nothing is lost client-side either, for anything MODELLED: a classified error keeps its own
  * message and rides `data.reason`.
  */
-const UNCLASSIFIED_FAULT_MESSAGE = "The server hit an unexpected error. It was logged server-side.";
 
 // The error formatter rides the honest domain reason code on `data.reason` (a DomainOperationError's
 // `.code`, or `provider_<kind>` for a classified provider failure — see domainReason), and a coded refusal's

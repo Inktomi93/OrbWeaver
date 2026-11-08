@@ -14,7 +14,7 @@ import { createDb, runMigrations, users } from "@orb/db";
 import { sql } from "drizzle-orm";
 import { z } from "zod";
 import type { OwnedDb } from "./db.ts";
-import { freshCountedDb, freshDb, freshHeldDb, migrationsBeforeLatest, ownDb, SHIPPED_MIGRATIONS } from "./db.ts";
+import { __failNextSchemaGenerationForTest, freshCountedDb, freshDb, freshHeldDb, migrationsBeforeLatest, ownDb, SHIPPED_MIGRATIONS } from "./db.ts";
 import { makeUser } from "./factories/rows.ts";
 import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
@@ -64,6 +64,17 @@ test("a held database refuses a read after its scope exits, on the normal path a
   await expect(failingCase()).rejects.toThrow("the case failed");
   assert(thrown !== undefined);
   await expect(readUsers(thrown)).rejects.toMatchObject(CLOSED_CLIENT);
+});
+
+test("a failed schema generation is not kept, so the next database generates it again", async () => {
+  const planted = new Error("planted schema generation failure");
+  __failNextSchemaGenerationForTest(planted);
+  const failing = async (): Promise<void> => {
+    using _refused = await freshDb();
+  };
+  await expect(failing()).rejects.toBe(planted);
+  using next = await freshDb();
+  await expect(readUsers(next.db)).resolves.toEqual([]);
 });
 
 test("ownDb closes a createDb handle at scope exit", async () => {
@@ -291,6 +302,55 @@ function differences(left: readonly string[], right: readonly string[]): readonl
   return [...left.filter((line) => !inRight.has(line)).map((line) => `- ${line}`), ...right.filter((line) => !inLeft.has(line)).map((line) => `+ ${line}`)];
 }
 
+const SQL_QUOTES = new Set(["'", '"', "`"]);
+const NESTING: Readonly<Record<string, number>> = { "(": 1, ")": -1 };
+
+// The comma-separated clauses of one CREATE statement's outer parentheses, outside quotes and nested parentheses.
+function topLevelClauses(body: string): readonly string[] {
+  const clauses: string[] = [];
+  let depth = 0;
+  let quote: string | null = null;
+  let start = 0;
+  // Every character this scan acts on is ASCII, so a UTF-16 index walk splits nothing it reads.
+  for (let index = 0; index < body.length; index += 1) {
+    const char = body.charAt(index);
+    if (quote !== null) {
+      quote = char === quote ? null : quote;
+      continue;
+    }
+    if (SQL_QUOTES.has(char)) {
+      quote = char;
+      continue;
+    }
+    depth += NESTING[char] ?? 0;
+    if (char === "," && depth === 0) {
+      clauses.push(body.slice(start, index).trim());
+      start = index + 1;
+    }
+  }
+  return [...clauses, body.slice(start).trim()];
+}
+
+/** Every schema object's stored SQL, one line each, with a table's clauses sorted and its `CREATE TABLE <name>` head
+ *  dropped. An ADD COLUMN migration appends its column after the last one, where a push declares it in place, and a
+ *  rebuilt table's name comes back double-quoted where a push backticks it; neither is schema. The text carries the
+ *  CHECK constraints the pragma lines above cannot see. */
+async function schemaTexts(db: Db): Promise<readonly string[]> {
+  const objects = await db.all<{ readonly type: string; readonly name: string; readonly text: string | null }>(
+    sql`SELECT type, name, sql AS text FROM sqlite_master WHERE name NOT LIKE ${SQLITE_INTERNAL} AND name <> ${DRIZZLE_LEDGER} ORDER BY type, name`,
+  );
+  return objects.map(({ type, name, text }) => {
+    const statement = text ?? "";
+    const open = statement.indexOf("(");
+    const close = statement.lastIndexOf(")");
+    if (type !== "table" || open === -1 || close < open) {
+      return `${type} ${name}: ${statement}`;
+    }
+    const clauses = topLevelClauses(statement.slice(open + 1, close)).toSorted();
+    return `${type} ${name}: (${clauses.join(", ")})`;
+  });
+}
+
 async function schemaPair(): Promise<{ readonly pushed: Db; readonly migrated: Db } & AsyncDisposable> {
   const stack = new AsyncDisposableStack();
   try {
@@ -325,4 +385,21 @@ test("the parity comparison reports a planted extra column, extra index and miss
   await pair.pushed.run(sql`ALTER TABLE users DROP COLUMN planted_drift`);
   await pair.pushed.run(sql`DROP TABLE settings`);
   expect(differences(await schemaLines(pair.pushed), baseline)).toContainEqual("+ table settings on settings");
+});
+
+test("freshDb's pushed schema text equals the shipped chain's, clause order aside", async () => {
+  await using pair = await schemaPair();
+  const pushed = await schemaTexts(pair.pushed);
+  expect(pushed.length).toBeGreaterThan(50);
+  expect(differences(pushed, await schemaTexts(pair.migrated))).toEqual([]);
+});
+
+test("the text comparison still reports a planted column drift", async () => {
+  await using pair = await schemaPair();
+  const baseline = await schemaTexts(pair.migrated);
+  await pair.pushed.run(sql`ALTER TABLE users ADD COLUMN planted_drift text`);
+  expect(differences(await schemaTexts(pair.pushed), baseline)).toEqual([
+    expect.stringMatching(/^- table users: .*planted_drift text/u),
+    expect.stringMatching(/^\+ table users: /u),
+  ]);
 });

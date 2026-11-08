@@ -77,8 +77,9 @@ function readErrorCode(error: unknown): string {
     : "unclassified-error";
 }
 
-/** Native runners keep their real/effective UID. Inaccessible foreign users cannot be their children;
- *  ambiguous ownership under this UID must retain the clone, not become an empty marker selection. */
+/** Native runners keep their real/effective UID. Inaccessible foreign users cannot be their children; an unreadable
+ *  process under this UID refuses only when its lineage carries the marker or reaches the marker's owner, because
+ *  only then can it be this run's. */
 function completionFileReader(deps: ProcReads, owner: ProcessCompletionOwner | undefined, marker: string | undefined): (path: string) => string | null {
   const read = deps.readFile ?? ((path: string): string => readFileSync(path, "utf8"));
   return (path): string | null => {
@@ -119,8 +120,11 @@ function excludeInaccessibleProcess(
   if (foreignToBoth(ids, userId, effectiveId)) {
     return null;
   }
-  const lineage = environLineage(path, pid, read, marker);
-  if (lineage.excluded) {
+  // A process with no claim to this run's marker belongs to another run or another program, so the walk skips it.
+  // Without a marker and its owner nothing can judge ownership, so the walk refuses. The table's owner is the marker's
+  // minting process: run-marker-join's bound table refuses any other.
+  const lineage = environLineage(pid, read, marker, owner?.pid);
+  if (marker !== undefined && owner !== undefined && !lineage.marked) {
     return null;
   }
   // Refusal diagnostics contain only kernel identity fields and known errno names, never metadata bytes or error messages.
@@ -176,33 +180,63 @@ function peek(read: (path: string) => string | null, path: string): string | nul
   }
 }
 
-/** A process whose environ this user cannot read cannot carry our marker when its parent is alive, its parent's
- *  environ is readable and neither carries the marker: the marker is exported into the spawn environment, so a
- *  marked process descends from a marked one, and a process that rewrites its own environ (chromium) is stamped in
- *  argv. `label` names the process and its parent for the refusal. */
+/** A marked process descends from a marked one or from the owner that minted the marker, because the marker is
+ *  exported into the spawn environment, and a process that rewrites its own environ (chromium) is stamped in argv. So
+ *  a process whose metadata this user cannot read is this run's only when its own argv, or an ancestor's argv or
+ *  environ, carries the marker, or an ancestor is the owner. `label` names the process and its parent for the refusal. */
 function environLineage(
-  path: string,
   pid: string | undefined,
   read: (path: string) => string | null,
   marker: string | undefined,
-): { readonly excluded: boolean; readonly label: string } {
+  ownerPid: number | undefined,
+): { readonly marked: boolean; readonly label: string } {
   if (pid === undefined) {
-    return { excluded: false, label: "" };
+    return { marked: false, label: "" };
   }
   const status = peek(read, `${PROC}/${pid}/status`);
   const self = `process ${pid} (${commOf(status)})`;
+  const ownArgv = carries(peek(read, `${PROC}/${pid}/cmdline`), marker);
   const ppid = status === null ? null : parseProcStatusParent(status);
   if (ppid === null || ppid <= 0) {
-    return { excluded: false, label: `${self} parent unknown` };
+    return { marked: ownArgv, label: `${self} parent unknown` };
   }
   const alive = sampleCompletion(ppid, { readFile: read }).value.kind === "live";
   const parentEnviron = peek(read, `${PROC}/${ppid}/environ`);
-  const carriers = [parentEnviron, peek(read, `${PROC}/${ppid}/cmdline`), peek(read, `${PROC}/${pid}/cmdline`)];
-  const marked = marker !== undefined && carriers.some((text) => text?.includes(marker) === true);
+  const marked = ownArgv || ancestryCarries(ppid, read, marker, ownerPid);
   const parent = `parent ${String(ppid)} (${commOf(peek(read, `${PROC}/${String(ppid)}/status`))})`;
   const facts = [alive ? "alive" : "not alive", parentEnviron === null ? "environ unreadable" : "environ readable", marked ? "marked" : "unmarked"];
-  const label = `${self} ${parent} ${facts.join(", ")}`;
-  return { excluded: path.endsWith("/environ") && marker !== undefined && alive && parentEnviron !== null && !marked, label };
+  return { marked, label: `${self} ${parent} ${facts.join(", ")}` };
+}
+
+function carries(text: string | null, marker: string | undefined): boolean {
+  return marker !== undefined && text?.includes(marker) === true;
+}
+
+/** Walk up from `start` until an ancestor is the marker's owner or carries the marker, or its environ is readable, or it
+ *  is gone. The owner hands the marker to its children without holding it in its own environ, so it is checked by pid.
+ *  Pid 1 carries no run's marker; a pid seen twice ends a walk that pid reuse made circular. */
+function ancestryCarries(start: number, read: (path: string) => string | null, marker: string | undefined, ownerPid: number | undefined): boolean {
+  const seen = new Set<number>();
+  let pid: number | null = start;
+  while (pid !== null && pid > 1 && !seen.has(pid)) {
+    if (pid === ownerPid) {
+      return true;
+    }
+    seen.add(pid);
+    if (sampleCompletion(pid, { readFile: read }).value.kind !== "live") {
+      return false;
+    }
+    const environ = peek(read, `${PROC}/${String(pid)}/environ`);
+    if (carries(environ, marker) || carries(peek(read, `${PROC}/${String(pid)}/cmdline`), marker)) {
+      return true;
+    }
+    if (environ !== null) {
+      return false;
+    }
+    const status = peek(read, `${PROC}/${String(pid)}/status`);
+    pid = status === null ? null : parseProcStatusParent(status);
+  }
+  return false;
 }
 
 function completionStatus(pid: string | undefined, read: (path: string) => string | null): { text: string | null; read: string; gone: boolean } {

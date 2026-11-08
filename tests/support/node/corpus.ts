@@ -63,6 +63,7 @@ import type { seedUserCredentialRows as produceCredential } from "./factories/ro
 import type { seedRecallCorpusRows as produceRecallCorpus } from "./factories/rows/recall.ts";
 import type { seedStatsRows as produceSearchStats } from "./factories/rows/stats.ts";
 import type { AuthModeEnv, ServerHarnessOptions, ServerTestHarness } from "./server.ts";
+import { workerOnce } from "./worker-once.ts";
 
 const CORPUS_WIRE_FILE = "corpus.json";
 const CORPUS_REPLAY_FILE = "replay.json";
@@ -187,7 +188,7 @@ export type CorpusHarnessOptions = Omit<
 
 /** Resume a publication through the existing graph, joining it before closing and deleting its independent clone. */
 export async function createCorpusHarness(directory?: string, options: CorpusHarnessOptions = {}): Promise<CorpusServerHarness> {
-  const source = directory === undefined ? await committedCorpusTemplate() : loadCorpusFixture(directory);
+  const source = directory === undefined ? await committedTemplate.read() : loadCorpusFixture(directory);
   if (source.replay === undefined) {
     throw new Error("Corpus server continuation requires replay state; publish this fixture with the canonical producer");
   }
@@ -228,16 +229,14 @@ export async function createCorpusHarness(directory?: string, options: CorpusHar
 // The committed fixture does not change during a run, so each worker migrates, scrubs and verifies one clone of it,
 // and every default root copies that clone. A caller's directory may be a live root's clone, so it is never cached.
 // The run-owned temp root removes the template.
-let committedTemplate: Promise<CorpusFixture> | undefined;
+const committedTemplate = workerOnce(async (): Promise<CorpusFixture> => {
+  const parent = await mkdtemp(join(tmpdir(), "orb-corpus-template-"));
+  const { [Symbol.asyncDispose]: _owned, ...template } = await cloneCorpusFixture(loadCorpusFixture(), join(parent, "template"));
+  return template;
+});
 
-function committedCorpusTemplate(): Promise<CorpusFixture> {
-  committedTemplate ??= (async (): Promise<CorpusFixture> => {
-    const parent = await mkdtemp(join(tmpdir(), "orb-corpus-template-"));
-    const { [Symbol.asyncDispose]: _owned, ...template } = await cloneCorpusFixture(loadCorpusFixture(), join(parent, "template"));
-    return template;
-  })();
-  return committedTemplate;
-}
+/** Make the next committed template build reject with `error`, so a case can show the build after it runs again. */
+export const __failNextCorpusTemplateForTest = committedTemplate.__failNextForTest;
 
 /** An independent writable copy of a migrated, scrubbed clone; its parsed wire is the template's own. */
 async function copyCorpusTemplate(template: CorpusFixture, directory: string): Promise<PreparedCorpusFixture> {
