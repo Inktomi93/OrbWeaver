@@ -42,8 +42,9 @@
 // list (primitives.css has the steps). There the picker is a column that shares what the dialog leaves: the command box
 // and its list take the remainder down to one touch row, so the list is the only thing that scrolls and the pinned row
 // never lies over the search card. A wide short dialog keeps Blank chat, Start and the saved-roster door in the one pinned
-// row, so the rows get the room the door's own row took. A narrow one (`dialog-stacked`) keeps Start pinned, drops the
-// row's inset so a touch-sized Start clears the first row, and flows Blank chat and the roster door after it.
+// row, so the rows get the room the door's own row took. A narrow one (`dialog-stacked`) drops the row's inset, pins Blank chat with
+// Start wherever the dialog's height holds both over one whole row (`dialog-stacked-cramped` in primitives.css has the sums), and flows
+// the roster door after them. Where it cannot, Blank chat flows after Start too and the pinned row says so.
 // `dialog-tiny` unpins Start too, because under that step one control would cover the row, and the popup scrolls as one sheet.
 //
 // THE ACTION FOOTER ADAPTS TO ITS OWN BOX, NOT THE VIEWPORT (#439). At the mobile mount (a 366px dialog)
@@ -65,7 +66,7 @@
 import type { CharacterId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { Icon, MessagesSquare, Plus, Users } from "@orb/ui/icons";
+import { ChevronDown, Icon, MessagesSquare, Plus, Users } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
@@ -75,7 +76,7 @@ import { CharacterPicker } from "#components";
 import { PICKER_FIRST_OPEN_BOX, PICKER_FIRST_OPEN_BOX_WITH_DOOR, useStartChat, useTRPC } from "#data";
 import { BLANK_CHAT_NAME, TEMPORARY_CHAT_BADGE } from "#lib";
 import { clearNewChatIntent, closeModal, openModal, useNewChatIntent } from "#state";
-import { CHAT_SAVED_ROSTER_DOOR_NAME } from "../lib/chat-surface-names.ts";
+import { CHAT_MORE_BELOW_CUE, CHAT_SAVED_ROSTER_DOOR_NAME } from "../lib/chat-surface-names.ts";
 
 const SKELETON_ROW_COUNT = 6;
 
@@ -188,7 +189,7 @@ export function NewChatPicker(): ReactElement {
       {rosterDoor()}
     </Row>
   ) : null;
-  // Blank chat is a pinned action wherever the pinned row can hold it; a stacked dialog too small for two pinned buttons and a whole list row sets it below.
+  // Blank chat is a pinned action wherever the pinned row can hold it over a whole list row; elsewhere it sits below.
   const blankAction = ({ grow, hiddenAt, width }: Pick<ComponentProps<typeof Button>, "grow" | "hiddenAt" | "width">): ReactElement => (
     <Button grow={grow} hiddenAt={hiddenAt} width={width} disabled={isPending} variant="ghost" wrap={true} onClick={(): void => found([])}>
       <Icon hiddenAt="belowCq20" icon={Plus} size="sm" />
@@ -243,6 +244,13 @@ export function NewChatPicker(): ReactElement {
         <Text as="span" className="sr-only" role="status">
           {selectionStatusFor(selectedCount)}
         </Text>
+        {/* Blank chat's way in is the Tab after Start, so the cue is for the eye only. */}
+        <Row aria-hidden={true} align="center" floor="line" gap="field" hiddenAt="unlessDialogStackedCramped" justify="center">
+          <Icon icon={ChevronDown} size="sm" />
+          <Text ink="muted" voice="gloss">
+            {CHAT_MORE_BELOW_CUE}
+          </Text>
+        </Row>
         {/* The door is a direct child, so Start stays the actions' last button. */}
         {hasRosters ? rosterDoor({ hiddenAt: "unlessDialogLandscapeWide", push: "inlineStart" }) : null}
         {blankAction({ grow: "contentNarrow", hiddenAt: "dialogStackedCramped" })}
@@ -270,7 +278,8 @@ export function NewChatPicker(): ReactElement {
         </Button>
       </Row>
       {/* After the pinned row, so nothing passes under Start and a focused action is never hidden behind it. */}
-      <Stack hiddenAt={hasRosters ? "unlessDialogStacked" : "unlessDialogStackedCramped"} gap="field" padding="block">
+      {/* Only a stacked dialog shows it, and there the pinned row above has no inline inset either. */}
+      <Stack hiddenAt={hasRosters ? "unlessDialogStacked" : "unlessDialogStackedCramped"} gap="field" paddingBlock="block">
         <Stack hiddenAt="unlessDialogStackedCramped">{blankAction({ width: "full" })}</Stack>
         {hasRosters ? rosterDoor() : null}
       </Stack>

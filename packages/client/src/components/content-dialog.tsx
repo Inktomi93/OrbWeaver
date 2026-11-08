@@ -79,7 +79,13 @@ export function ContentDialog({
     <Dialog {...root}>
       <DialogPopup {...popupProps} size={size} anchor={anchor} spaced={true}>
         <DialogHeader wrap={true}>
-          <Row align="center" gap="row" className="min-inline-0" floor="title" grow={true}>
+          {/* Beside the close alone the title wraps by its words and keeps Close on its line until a word cannot fit; beside more actions it holds its floor. */}
+          <Row
+            align="center"
+            gap="row"
+            grow={true}
+            {...(headerActions === undefined ? { minWidth: "word" as const } : { className: "min-inline-0", floor: "title" as const })}
+          >
             {headerLeading}
             <DialogTitle {...titleProps} truncate={titleTruncate}>
               {title}

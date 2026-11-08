@@ -23,4 +23,6 @@ At 300% text on 390x844, 393x873 and 1280x800 at least one whole list row and Bl
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Fixed. One rule in `packages/ui/src/styles/primitives.css` (`dialog-stacked-cramped`) pins Blank chat with Start only where the dialog's height holds the header, the search strip, one whole row and the pinned row, per pointer and per line count (the cq-13-5, cq-14, cq-16 and cq-16-75 height steps, the cq-15 one-line width, the cq-7 width floor). Room is given back first: the dialog title wraps by its words beside Close (header 253px to 163px at 390x844 and 300%), the stacked pinned row drops its inline inset (Blank chat 162px to 144px), and a stacked popup's heading gap is the row step. `docs/law/ui-platform-rulings.md` §8.1 records the rule.
+
+`tests/client/features/app-shell/surfaces/new-chat-picker-skeleton.ct.tsx`, "at rest" cells at 390x844, 393x873 and 1280x800 at 300%, with and without rosters: each hit-tests the first row and Blank chat at three points. All six were red on the base source (row covered on the phones, Blank chat below the fold at 1280x800) and pass after. Every existing skeleton, short-landscape and keystroke cell passes.

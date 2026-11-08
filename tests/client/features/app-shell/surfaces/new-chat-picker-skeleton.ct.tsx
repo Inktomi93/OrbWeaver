@@ -4,6 +4,7 @@
 // roster list (the shell warms it at boot) and the declared box carries the row. A stacked or landscape dialog hides that row, and its declared box
 // drops it again. A landscape phone's picker takes whatever room the dialog leaves, and at enlarged text its list stays a window the dialog scrolls past
 // to Start rather than growing to the whole library.
+import { BLANK_CHAT_NAME } from "@orb/client/lib";
 import { seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, holdCorpusProcedure, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -21,24 +22,18 @@ const ACTIONS = '[data-slot="new-chat-actions"]';
 const DECLARED_BOX = `var(${TOKENS["height.picker-box"].cssVar})`;
 const DECLARED_BOX_WITH_DOOR = `calc(${DECLARED_BOX} + var(${TOKENS["height.picker-door-row"].cssVar}))`;
 const WARM_STORY = `${SHELL_STORIES}/AppShellWarmRostersNewChatStory`;
-
-const CELLS = [
-  { name: "desktop", width: 1440, height: 900, coarse: false, landscape: false },
-  { name: "coarse portrait", width: 390, height: 844, coarse: true, landscape: false },
-  { name: "coarse landscape", width: 844, height: 390, coarse: true, landscape: true },
-  { name: "coarse small landscape", width: 568, height: 320, coarse: true, landscape: true },
-] as const;
+const REST_FACTOR = 3;
 
 // Rosters are a library fact: a cell without them removes them, a cell with them opens warm. The stacked step (a dialog short and narrow in the container,
 // reached by 300% text on a phone or a desktop) hides the door row, so the declared box must not carry it there.
-const ARMS = [
+const PORTRAIT_CASES = [
   { rosters: false, factor: 1 },
   { rosters: true, factor: 1 },
   { rosters: true, factor: 3 },
 ] as const;
 
 // A landscape phone is the short regime at every text size, so each size is a cell there.
-const LANDSCAPE_ARMS = [
+const LANDSCAPE_CASES = [
   { rosters: false, factor: 1 },
   { rosters: true, factor: 1 },
   { rosters: false, factor: 2 },
@@ -47,8 +42,36 @@ const LANDSCAPE_ARMS = [
   { rosters: true, factor: 3 },
 ] as const;
 
+const CELLS = [
+  { name: "desktop", width: 1440, height: 900, coarse: false, cases: PORTRAIT_CASES },
+  { name: "coarse portrait", width: 390, height: 844, coarse: true, cases: PORTRAIT_CASES },
+  { name: "coarse landscape", width: 844, height: 390, coarse: true, cases: LANDSCAPE_CASES },
+  { name: "coarse small landscape", width: 568, height: 320, coarse: true, cases: LANDSCAPE_CASES },
+  // A short desktop window at enlarged text is a tiny dialog with a fine pointer and no landscape regime; a wide one keeps the door row in the box.
+  {
+    name: "short desktop",
+    width: 1440,
+    height: 560,
+    coarse: false,
+    cases: [
+      { rosters: false, factor: 3 },
+      { rosters: true, factor: 3 },
+    ],
+  },
+  {
+    name: "wide short desktop",
+    width: 1920,
+    height: 480,
+    coarse: false,
+    cases: [
+      { rosters: false, factor: 2 },
+      { rosters: true, factor: 2 },
+    ],
+  },
+] as const;
+
 for (const cell of CELLS) {
-  for (const { rosters, factor } of cell.landscape ? LANDSCAPE_ARMS : ARMS) {
+  for (const { rosters, factor } of cell.cases) {
     test.describe(`on a ${cell.name} screen at ${String(factor * 100)}% text, ${rosters ? "with" : "without"} saved rosters`, () => {
       test.use({ viewport: { width: cell.width, height: cell.height }, hasTouch: cell.coarse, isMobile: cell.coarse });
 
@@ -121,6 +144,59 @@ for (const cell of CELLS) {
         const startBox = await start.boundingBox();
         expect(startBox?.y ?? Number.NaN, "Start's top is on the screen").toBeGreaterThanOrEqual(0);
         expect((startBox?.y ?? Number.NaN) + (startBox?.height ?? Number.NaN), "Start's bottom is on the screen").toBeLessThanOrEqual(screenHeight);
+      });
+    });
+  }
+}
+
+// At 300% text on common phones and the common desktop, the dialog at rest shows a whole character row and Blank chat, and a press on either lands on
+// it: the pinned row never lies over the row it leaves room for.
+const REST_CELLS = [
+  { name: "390x844", width: 390, height: 844, coarse: true },
+  { name: "393x873", width: 393, height: 873, coarse: true },
+  { name: "1280x800", width: 1280, height: 800, coarse: false },
+] as const;
+
+/** Whether the control is on screen whole and every point down its middle hits it, so nothing lies over any part of it. */
+function pressableWhole(control: Element): boolean {
+  const box = control.getBoundingClientRect();
+  const onScreen = box.top >= 0 && box.bottom <= window.innerHeight;
+  return (
+    onScreen &&
+    [box.top + 1, box.top + box.height / 2, box.bottom - 1].every((y) => {
+      const hit = document.elementFromPoint(box.left + box.width / 2, y);
+      return hit !== null && control.contains(hit);
+    })
+  );
+}
+
+for (const cell of REST_CELLS) {
+  for (const rosters of [false, true]) {
+    test.describe(`at rest on a ${cell.name} screen at 300% text, ${rosters ? "with" : "without"} saved rosters`, () => {
+      test.use({ viewport: { width: cell.width, height: cell.height }, hasTouch: cell.coarse, isMobile: cell.coarse });
+
+      test("a whole row and Blank chat are both on screen and each takes its own press", async ({ corpus, mount, page }) => {
+        await using root = await createCorpusHarness();
+        const caller = await root.internalCallerFor(root.ownerId);
+        if (!rosters) {
+          for (const roster of await caller.rosterPreset.list()) {
+            await caller.rosterPreset.remove({ presetId: roster.id });
+          }
+        }
+        await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, SECTION_PROCEDURES) });
+        await seedShellState(page, { activeSection: "chats" });
+        if (rosters) {
+          await mount<typeof AppShellWarmRostersNewChatStory>(WARM_STORY);
+        } else {
+          await mount<typeof AppShellModalStory>(STORY, { modalId: "newChat" });
+        }
+        const dialog = page.getByRole("dialog");
+        await setRootFontScale(page, channelName("fontScale"), REST_FACTOR);
+        const row = dialog.getByRole("option").first();
+        await expect(row).toBeVisible();
+        const blank = dialog.getByRole("button", { name: BLANK_CHAT_NAME, exact: true });
+        await expect.poll(() => row.evaluate(pressableWhole), "the first row is whole and takes its own press").toBe(true);
+        await expect.poll(() => blank.evaluate(pressableWhole), "Blank chat is whole and takes its own press").toBe(true);
       });
     });
   }

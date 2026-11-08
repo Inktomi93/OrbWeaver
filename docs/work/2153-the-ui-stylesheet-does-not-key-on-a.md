@@ -23,4 +23,4 @@ No ui stylesheet selector names an attribute only the client writes, the picker 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Fixed. The `[data-reserve-key]` rule left `packages/ui/src/styles/primitives.css`; the `orb-reserve-picker-door-row` utility rides `Stack reserve="gives"`, so the ui package owns both sides. No ui stylesheet selector names `data-reserve-key` (`rg` over `packages/ui/src`). `tests/client/features/app-shell/surfaces/new-chat-picker-skeleton.ct.tsx` (the stacked 390x844 and 1440x900 cells at 300% with rosters) and `tests/client/components/skeleton-reservation.ct.tsx` pass.

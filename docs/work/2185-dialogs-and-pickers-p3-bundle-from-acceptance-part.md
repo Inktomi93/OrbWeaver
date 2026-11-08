@@ -23,4 +23,11 @@ Each finding is fixed with a capture, or answered with a cited reason in this it
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+New chat parts and the shared dialog owners, measured in a CT geometry probe (the lane report has the numbers):
+
+- Close wrap at 300% on a phone: fixed in `packages/client/src/components/content-dialog.tsx`. A title beside Close alone floors at its longest word, so Close keeps the title's line (390x844: Close at y37 beside a two-line title, header 163px, was 253px). A landscape header still truncates its title.
+- Inset box under glass: fixed. The New chat pinned row only blurs, as `DialogFooter` already did, and a command box in a dialog takes the popup's own glass (`packages/client/src/styles/globals.css`). Measured at 1440x900: popup `oklab(0.245 … / 0.7)`, pinned row `rgba(0, 0, 0, 0)` with `blur(14px)`, command root `rgba(0, 0, 0, 0)`.
+- Saved-roster door cut at 1440x900 and 300%: fixed by the stacked heading gap (the door now sits whole above the popup's foot).
+- Title truncating at 568x320 and 300%: ruled. `docs/law/ui-platform-rulings.md` §8.1: a landscape phone's dialog header holds one line and its title truncates, and the full text stays the dialog's name.
+- Desktop search input height: already fixed by the field-size input (2180). Measured 31px in its 32px strip at 1440x900 (the strip's hairline is the rest).
+- Left for the lane that owns each: the Add document Link field scroll (`packages/client/src/features/databank/components/add-document-body.tsx`, Databank) and the import preview action order (`packages/client/src/features/workloads/components/import-library-section.tsx`, not a shared dialog owner).

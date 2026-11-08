@@ -23,4 +23,8 @@ The loading box matches the loaded list in short desktop windows with and withou
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Fixed. The tiny-dialog rule in `packages/client/src/styles/globals.css` now replaces the picker-box token on a declared loading box instead of fixing its length, so the declared door row stays in it, and the list's bottom hairline is added only on a landscape phone, where the list has it. The picker reserve (`Stack reserve="gives"`) sizes the door row as it renders: no block inset in a short dialog, no row where it is hidden. `tests/client/features/app-shell/surfaces/new-chat-picker-skeleton.ct.tsx` gains 1440x560 at 300% and 1920x480 at 200%, each with and without rosters: red on the base source (2px, 2px, 2px and 62px), green after.
+
+The keystroke cells now assert the list stays a window (no taller than the screen). With the list bound planted out of globals.css the four landscape cells at 844x390 and 568x320 (200% and 300%) went red (2432px and 3648px lists) and every other cell stayed green.
+
+The header comment of `packages/client/src/features/chat/surfaces/new-chat-picker-surface.tsx` now states the room rule.

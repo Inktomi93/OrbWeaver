@@ -603,8 +603,8 @@ async function expectPressable(control: Locator): Promise<void> {
 }
 
 /** A short dialog's list stays a scroller, so the tail still loads by scroll, and is shorter than the body around it, so a
- *  swipe that ends on the list hands off to the body. Blank chat is pinned beside Start unless the dialog is too small for two pinned
- *  buttons and a whole row (a stacked dialog under 16rem tall or 6rem wide), where it sits below the footer. */
+ *  swipe that ends on the list hands off to the body. Blank chat is pinned with Start unless the dialog's height cannot hold both over a
+ *  whole row (`dialog-stacked-cramped` in primitives.css), where it sits below the footer. */
 async function expectFooterStep(dialog: Locator, short: boolean, blankPinned: boolean): Promise<void> {
   const footer = dialog.locator('[data-slot="new-chat-actions"]');
   await expect(footer).toHaveCSS("position", "sticky");
@@ -632,7 +632,7 @@ for (const [viewport, scale, short] of [...SHORT_CELLS.map((cell) => [...cell, t
 
     test("holds its footer step, the focused search and Start after a deep pick by real keys, then Tab reaches Blank chat", async ({ mount, page }) => {
       const dialog = await openNewChat(newChatMount(mount), page, scale.factor);
-      // The 360 phone is 15.9rem of dialog at 300%, a hair under the step where the pinned row seats both buttons.
+      // The 360 phone is 15.9rem of dialog at 300%, under the 16.75rem step where a narrow pinned row seats both buttons over a whole row.
       await expectFooterStep(dialog, short, !(viewport === PHONE_360 && scale === LAYOUT_300));
       const search = dialog.getByRole("combobox");
       await expect(search).toBeFocused();
