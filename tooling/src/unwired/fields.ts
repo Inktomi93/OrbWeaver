@@ -1,5 +1,6 @@
 // `pnpm unwired fields`: data properties of named object types and zod object schemas that production writes and
-// never reads, reads and never writes (an optional field always at its default), or never names at all.
+// never reads, reads and never writes (an optional field always at its default), or never names at all. A value sent
+// out of the process counts as read only where its receiver reads it; each reported row carries a proposed sort.
 import type { CallExpression, Identifier, Node, ObjectLiteralExpression, PropertyAssignment } from "@typescript/native/ast";
 import {
   isArrayLiteralExpression,
@@ -19,12 +20,16 @@ import {
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol } from "@typescript/native/sync";
+import type { SendDestination } from "./boundaries.ts";
 import type { Site, SyntaxRole } from "./classify.ts";
 import { isProductionFile, roleAt, Sources, siteKey } from "./classify.ts";
+import type { SortEvidence, Verdict } from "./field-sort.ts";
+import { FieldSort } from "./field-sort.ts";
 import { serviceReferences } from "./language-service.ts";
 import { constituents, declarationKeys, homeFiles, NativeWorld } from "./native.ts";
-import type { PropertyFacts, PropertyReferences } from "./occurrences.ts";
+import type { PropertyFacts, PropertyReferences, Send } from "./occurrences.ts";
 import { joinFacts, propertyFacts } from "./occurrences.ts";
+import { publishedAt, sdkSurface } from "./plugin-surface.ts";
 import type { ScanOptions } from "./scan.ts";
 import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
 import { typeMembers } from "./type-members.ts";
@@ -51,16 +56,51 @@ interface UnwiredField {
   readonly tests: number;
   /** Up to a few production sites that write or read it, `file:line`. */
   readonly sample: readonly string[];
+  /** Serializations that send its value out with no receiver the scan can follow, `destination file:line`. */
+  readonly sent: readonly string[];
+  readonly verdict: Verdict;
+  readonly evidence: SortEvidence;
+}
+
+/** A field no production code reads that a receiver outside the tree reads: the published plugin SDK. */
+interface ReceivedField {
+  readonly key: string;
+  readonly file: string;
+  readonly line: number;
+  readonly home: string;
+  readonly member: string;
+  readonly receiver: "plugin-sdk";
+  /** The SDK declaration that publishes it, `file:line`. */
+  readonly cite: string;
 }
 
 export interface FieldsReport {
   readonly scanned: number;
   readonly unwired: readonly UnwiredField[];
   readonly deliberate: readonly (UnwiredField & { readonly reason: string })[];
+  readonly received: readonly ReceivedField[];
+  /** How many reported fields each send destination covers. */
+  readonly sentBy: Readonly<Partial<Record<SendDestination, number>>>;
   /** Fields where engine two found a production site in a role engine one lacks, with those sites. Engine one links
    *  what find-references cannot follow, so engine two finding fewer sites is expected and contradicts nothing. */
   readonly disagreements: readonly { readonly key: string; readonly uses: readonly string[] }[];
+  readonly limits: readonly string[];
 }
+
+/** What the fields scan cannot see, printed with every run. */
+const FIELD_LIMITS: readonly string[] = [
+  "A computed key built from runtime strings types as string, so it reads or writes no named field.",
+  "A type-position read (Registry[K]) is no read; a registry entry needs a value read by name.",
+  "A read inside a string (a JSON scenario file, a SQL fragment, a plugin template) is invisible.",
+  "JSON.stringify reads every field only where its string is compared, hashed or used as a map key or a *key/*hash binding; elsewhere it is a send with a named destination, and a return or plain binding is 'unclassified'.",
+  "A send's receiver outside the tree (a provider body, an HTTP or wire reader, a log or file reader) is not followed: those rows sort as ask with the destination named.",
+  "c.json sends to the HTTP client; a client read counts only when it is typed by the same declaration.",
+  "A Drizzle write flows into the column of the same name; a column counts as read back by a select-row member or a table column read outside the table definition. Raw sql text that names a column is invisible.",
+  "A $inferSelect or $inferInsert row member has no declaration; it reads the column of the table whose column names are exactly the row's member names, so a narrowed or widened row type reads nothing.",
+  "A value spread or copied into an object that is then serialized is not followed to that serialization.",
+  "The plugin SDK surface is matched by home and member name against packages/plugin-sdk/*.d.ts; a renamed home is missed.",
+  "The sort matches reader history by member name, so a common name over-matches; a one-word lowercase member is promised only by a backticked Home.member.",
+];
 
 const SAMPLE = 3;
 const ZOD_OBJECTS: ReadonlySet<string> = new Set(["object", "strictObject", "looseObject"]);
@@ -334,6 +374,8 @@ interface Tally {
   readonly sites: Map<string, Site>;
   /** The sites that name the field and the writes carried into it. A link-borne write proves nothing about who fills its home. */
   readonly direct: Map<string, Site>;
+  /** Serializations that send the field out, by destination and site. */
+  readonly sends: Map<string, Send>;
 }
 
 interface Roles {
@@ -386,7 +428,7 @@ const namesOf = (field: FieldDeclaration): readonly Site[] => [field.site, ...fi
 function tallyWorld(tally: Map<string, Tally>, declared: Set<string>, world: NativeWorld): number {
   const fields = declarations(world);
   for (const field of fields) {
-    const entry = tally.get(field.key) ?? { field, keys: new Set(), sites: new Map(), direct: new Map() };
+    const entry = tally.get(field.key) ?? { field, keys: new Set(), sites: new Map(), direct: new Map(), sends: new Map() };
     for (const key of field.keys) {
       entry.keys.add(key);
     }
@@ -399,7 +441,7 @@ function tallyWorld(tally: Map<string, Tally>, declared: Set<string>, world: Nat
 }
 
 // A schema key names a field; it writes no value, and a flow out of its schema must not carry it as one.
-function tallySites(tally: ReadonlyMap<string, Tally>, declared: ReadonlySet<string>, { index, direct }: PropertyReferences): void {
+function tallySites(tally: ReadonlyMap<string, Tally>, declared: ReadonlySet<string>, { index, direct, sends }: PropertyReferences): void {
   const keep = (into: Map<string, Site>, sites: readonly Site[]): void => {
     for (const site of sites) {
       const key = siteKey(site);
@@ -411,7 +453,21 @@ function tallySites(tally: ReadonlyMap<string, Tally>, declared: ReadonlySet<str
   for (const entry of tally.values()) {
     keep(entry.sites, sitesOf(index, [...entry.keys], entry.field.site));
     keep(entry.direct, sitesOf(direct, [...entry.keys], entry.field.site));
+    // A test that serializes a value sends nothing out of the product.
+    for (const send of [...entry.keys].flatMap((key) => sends.get(key) ?? []).filter((sent) => isProductionFile(sent.site.file))) {
+      entry.sends.set(`${send.destination} ${siteKey(send.site)}`, send);
+    }
   }
+}
+
+function sentCounts(findings: readonly UnwiredField[]): FieldsReport["sentBy"] {
+  const counts: Partial<Record<SendDestination, number>> = {};
+  for (const finding of findings) {
+    for (const destination of new Set(finding.sent.map((sent) => sent.split(" ")[0] as SendDestination))) {
+      counts[destination] = (counts[destination] ?? 0) + 1;
+    }
+  }
+  return counts;
 }
 
 /** Run both engines over the worlds of `root` for dead data. */
@@ -428,28 +484,52 @@ export function scanFields(options: ScanOptions): FieldsReport {
     options.log(`${config}: ${tallyWorld(tally, declared, world)} fields`);
     facts.push(propertyFacts(world, homes.get(config)));
   }
-  tallySites(tally, declared, joinFacts(facts));
+  const references = joinFacts(facts);
+  tallySites(tally, declared, references);
   const rolled = [...tally.values()].map((entry) => ({ ...entry, roles: rolesOf(sources, entry.sites.values()) }));
   const writtenHomes = new Set(rolled.filter(({ direct }) => rolesOf(sources, direct.values()).write.length > 0).map(({ field }) => homeOf(field)));
-  const judged = rolled.flatMap(({ field, roles }) => {
+  const judged = rolled.flatMap(({ field, roles, sends }) => {
     const kind = kindOf(field, roles, writtenHomes.has(homeOf(field)));
-    return kind === "wired" ? [] : [{ field, roles, kind }];
+    return kind === "wired" ? [] : [{ field, roles, kind, sends: [...sends.values()] }];
   });
+  const reported = new Set(judged.map(({ field }) => field.key));
+  const wiredHomes = new Set(rolled.filter(({ field }) => !reported.has(field.key)).map(({ field }) => homeOf(field)));
   const asked = judged.flatMap(({ field }) => namesOf(field));
   const second = serviceReferences(options.root, [...worlds, ...testWorlds], asked, { log: options.log, crossCheck: options.crossCheck });
   const located = (site: Site): string => `${site.file}:${sources.line(site)}`;
+  const surface = sdkSurface(options.root);
+  const sorter = new FieldSort(options.root, sources, new Set(judged.map(({ field }) => field.member)));
   const findings: UnwiredField[] = [];
+  const received: ReceivedField[] = [];
   const disagreements: FieldsReport["disagreements"][number][] = [];
-  for (const { field, roles, kind } of judged) {
-    const audit = rolesOf(sources, mergedSites(namesOf(field), second));
+  for (const { field, roles, kind, sends } of judged) {
+    // A read that only copies a value into a stored column is a hand-off, which engine one followed to the column.
+    const audit = rolesOf(
+      sources,
+      mergedSites(namesOf(field), second).filter((reference) => !references.copied.has(siteKey(reference))),
+    );
     const lacking = [...(roles.read.length === 0 ? audit.read : []), ...(roles.write.length === 0 ? audit.write : [])];
     if (lacking.length > 0) {
       disagreements.push({ key: field.key, uses: lacking.map(located) });
       continue;
     }
-    const sample = [...roles.write, ...roles.read].slice(0, SAMPLE).map(located);
     const { key, site, line, home, member, origin } = field;
-    findings.push({ key, file: site.file, line, home, member, origin, kind, tests: Math.max(roles.tests, audit.tests), sample });
+    const cite = kind === "never-written" ? null : publishedAt(surface, { file: site.file, home, member });
+    if (cite !== null) {
+      received.push({ key, file: site.file, line, home, member, receiver: "plugin-sdk", cite });
+      continue;
+    }
+    const sample = [...roles.write, ...roles.read].slice(0, SAMPLE).map(located);
+    const sent = sends.map((send) => `${send.destination} ${located(send.site)}`);
+    const { verdict, evidence } = sorter.sort({ home, member, writes: roles.write, siblingsUsed: wiredHomes.has(homeOf(field)), sent });
+    findings.push({ key, file: site.file, line, home, member, origin, kind, tests: Math.max(roles.tests, audit.tests), sample, sent, verdict, evidence });
   }
-  return { scanned: tally.size, ...sortDeliberate(findings, options.deliberate), disagreements };
+  return {
+    scanned: tally.size,
+    ...sortDeliberate(findings, options.deliberate),
+    received,
+    sentBy: sentCounts(findings),
+    disagreements,
+    limits: FIELD_LIMITS,
+  };
 }

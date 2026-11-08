@@ -40,6 +40,8 @@ interface Report {
   readonly unwired: readonly Finding[];
   readonly deliberate: readonly Finding[];
   readonly disagreements: readonly (string | object)[];
+  /** What the scan cannot see, printed after its summary. */
+  readonly limits?: readonly string[];
 }
 
 /** A scan verb's report path, and its run with the counts its summary line adds to the shared ones. */
@@ -60,7 +62,14 @@ function scan<Found extends Report>(out: string, run: (options: ScanOptions) => 
 
 const SCANS: Readonly<Record<ScanVerb, Scan>> = {
   scan: scan("reports/unwired/unwired.json", scanUnwired, (report) => ` reachedByFlow=${report.reachedByFlow.length}`),
-  fields: scan("reports/unwired/fields.json", scanFields),
+  fields: scan(
+    "reports/unwired/fields.json",
+    scanFields,
+    (report) =>
+      ` received=${report.received.length} sent=${Object.entries(report.sentBy)
+        .map(([destination, count]) => `${destination}:${count}`)
+        .join(",")}`,
+  ),
   params: scan("reports/unwired/params.json", scanParams),
   unions: scan("reports/unwired/unions.json", scanUnions, (report) => ` enumerated=${report.enumerated.length}`),
   shapes: scan("reports/unwired/shapes.json", scanShapes),
@@ -211,5 +220,8 @@ export function runUnwired(argv: readonly string[]): number {
   log(
     `scanned=${report.scanned} unwired=${report.unwired.length} deliberate=${report.deliberate.length} disagreements=${report.disagreements.length}${counts} written to ${path}`,
   );
+  if (report.limits !== undefined) {
+    log(["limits: what this scan cannot see", ...report.limits.map((limit) => `- ${limit}`)].join("\n"));
+  }
   return EXIT.clean;
 }

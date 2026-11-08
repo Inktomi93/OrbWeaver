@@ -91,20 +91,35 @@ test("an as const writer object and a ReturnType hop both write what they hand o
   expect(found.toSorted()).toEqual(["Styled.gap never-written", "Styled.pad never-written"]);
 });
 
-test("a dotted-path read and a whole value sent by a route read the value's members", { timeout: 120_000 }, async ({ plantedTree }) => {
-  const found = await scanned(plantedTree, "reflective.ts", [
-    "interface Snapshot { readonly mode: string }",
-    "interface View { readonly status: string }",
-    "interface Passed { readonly unread: string }",
-    "const nestedValue = (value: unknown, path: string): unknown => (value as Record<string, unknown>)[path];",
-    "const log = (value: unknown): void => { void value; };",
-    "const c = { json: (value: unknown): unknown => value };",
-    'const snapshot: Snapshot = { mode: "m" };',
-    'const view: View = { status: "ok" };',
-    'const passed: Passed = { unread: "u" };',
-    'export const sample = nestedValue(snapshot, "mode");',
-    "export const sent = c.json(view);",
-    "log(passed);",
-  ]);
-  expect(found).toEqual(["Passed.unread never-read"]);
+test("a dotted-path read and a compared serialization read a value's members; a route or thrown serialization only sends them", { timeout: 120_000 }, async ({
+  plantedTree,
+}) => {
+  const root = await plantedTree({
+    [WORLD]: plantedTsconfig({ lib: LIB }),
+    "packages/a/src/reflective.ts": [
+      "interface Snapshot { readonly mode: string }",
+      "interface View { readonly status: string }",
+      "interface Passed { readonly unread: string }",
+      "interface Pair { readonly left: string }",
+      "interface Failed { readonly code: string }",
+      "const nestedValue = (value: unknown, path: string): unknown => (value as Record<string, unknown>)[path];",
+      "const log = (value: unknown): void => { void value; };",
+      "const c = { json: (value: unknown): unknown => value };",
+      'const snapshot: Snapshot = { mode: "m" };',
+      'const view: View = { status: "ok" };',
+      'const passed: Passed = { unread: "u" };',
+      'const pair: Pair = { left: "l" };',
+      'const failed: Failed = { code: "c" };',
+      'export const sample = nestedValue(snapshot, "mode");',
+      "export const sent = c.json(view);",
+      "export const same = JSON.stringify(pair) === JSON.stringify(pair);",
+      'export const fail = (): never => { throw new Error("failed " + JSON.stringify(failed)); };',
+      "log(passed);",
+    ].join("\n"),
+  });
+  const report = scanFields({ root, worlds: [WORLD], testWorlds: [], deliberate: [], log: () => undefined });
+  const found = report.unwired.map(
+    ({ home, member, kind, sent, verdict }) => `${home}.${member} ${kind} ${verdict} ${sent.map((send) => send.split(" ")[0]).join(",")}`,
+  );
+  expect(found.toSorted()).toEqual(["Failed.code never-read ask error", "Passed.unread never-read dead ", "View.status never-read ask http"]);
 });
