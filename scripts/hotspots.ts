@@ -25,7 +25,7 @@ const RECENT_DAYS = 30;
 const DAY_MS = 86_400_000;
 const FIX_SUBJECT = /^(fix|revert|hotfix)\b/iu;
 const SOURCE_FILE = /\.(ts|tsx|mts|css|sh|mjs)$/u;
-const COMPOSITION_FILE = /\/entry\/compose\//u;
+const COMPOSITION_DIR = "/entry/compose/";
 const PER_LINES = 100;
 // A density over a few lines ranks size, not defects.
 const MIN_DENSITY_LINES = 50;
@@ -206,7 +206,7 @@ function main(): void {
         row.path.startsWith(values.path) &&
         row.commits >= minimum &&
         row.size >= minimumLines &&
-        !(values.sort === "defect" && COMPOSITION_FILE.test(row.path)),
+        !(values.sort === "defect" && row.path.includes(COMPOSITION_DIR)),
     )
     .toSorted((a, b) => rank(b) - rank(a))
     .slice(0, Number(values.top));
