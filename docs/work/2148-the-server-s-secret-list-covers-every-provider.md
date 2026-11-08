@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-08
 priority: P2
 area: security
+lane: wt/agent-a868da7ba9eed6d7a
 ---
 
 # The server's secret list covers every provider and probe key
