@@ -398,10 +398,34 @@ function noRowCount(use: ClassUse, rows: readonly Hit[], into: Map<string, NoRow
   }
 }
 
-/** Every class-token, cluster and raw-container hit in the sources, and the class uses no row covers; clusters are counted across all of them. */
-export function classHits(sources: readonly Source[], context: ClassContext): { readonly hits: readonly Hit[]; readonly noRow: readonly NoRowUse[] } {
+/** A class on a client component whose `className` the forward reader cannot follow to any primitive, so no class on it is judged where it lands. */
+export interface UnfollowedUse {
+  readonly at: string;
+  readonly component: string;
+  readonly section: string;
+  readonly tokens: readonly string[];
+}
+
+function unfollowedOf(use: ClassUse, context: ClassContext): readonly UnfollowedUse[] {
+  const { elem, source } = use;
+  const wrapper = elem !== null && (elem.kind === "local" || elem.kind === "composite") && source.layer === "client";
+  if (!wrapper || use.tokens.length === 0 || context.forwards(source.path, elem).length > 0) {
+    return [];
+  }
+  return [{ at: `${source.path}:${use.line}`, component: elem.imported?.name ?? elem.tag, section: source.section, tokens: use.tokens }];
+}
+
+export interface ClassFindings {
+  readonly hits: readonly Hit[];
+  readonly noRow: readonly NoRowUse[];
+  readonly unfollowed: readonly UnfollowedUse[];
+}
+
+/** Every class-token, cluster and raw-container hit in the sources, the class uses no row covers, and the wrapper uses the reader cannot follow; clusters are counted across all of them. */
+export function classHits(sources: readonly Source[], context: ClassContext): ClassFindings {
   const hits: Hit[] = [];
   const noRow = new Map<string, NoRowUse>();
+  const unfollowed: UnfollowedUse[] = [];
   const uses: ClusterUse[] = [];
   const clustered = new Set<string>();
   for (const source of sources) {
@@ -410,6 +434,7 @@ export function classHits(sources: readonly Source[], context: ClassContext): { 
       const layout = rawLayoutHit(use);
       const rows = tokenHits(use, context);
       noRowCount(use, rows, noRow);
+      unfollowed.push(...unfollowedOf(use, context));
       hits.push(...rows, ...(layout === null ? [] : [layout]));
       // One string worn by several elements is one write: a repeat is the class set written again.
       const written = `${source.path}:${use.line}:${use.column}`;
@@ -420,5 +445,5 @@ export function classHits(sources: readonly Source[], context: ClassContext): { 
       }
     }
   }
-  return { hits: [...hits, ...clusterHits(uses)], noRow: [...noRow.values()] };
+  return { hits: [...hits, ...clusterHits(uses)], noRow: [...noRow.values()], unfollowed };
 }

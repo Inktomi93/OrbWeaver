@@ -3,7 +3,7 @@
 import type { ClassConstants, ComponentTables, Hit, Source, ValueTokens } from "../eslint/index.ts";
 import { byPlace, elementsOf, hitOf } from "../eslint/index.ts";
 import { classForwards } from "./class-forwards.ts";
-import type { NoRowUse } from "./hand-classes.ts";
+import type { ClassFindings } from "./hand-classes.ts";
 import { classHits } from "./hand-classes.ts";
 import { codeFindings, constantHits } from "./hand-code.ts";
 import { sheetHits } from "./hand-sheets.ts";
@@ -58,7 +58,7 @@ function sourceHits(source: Source, inputs: CensusInputs): { readonly hits: read
 }
 
 /** Every hit in the sources, sorted by place, and the class uses no hit covers, largest first. */
-export function buildHandRolling(inputs: CensusInputs): { readonly hits: readonly Hit[]; readonly noRow: readonly NoRowUse[] } {
+export function buildHandRolling(inputs: CensusInputs): ClassFindings {
   const authored = inputs.sources.filter((source) => !GENERATED_HEADER.test(source.text.slice(0, HEADER_BYTES)));
   const parts = authored.map((source) => sourceHits(source, inputs));
   const constants = parts.flatMap((part) => part.constants);
@@ -74,5 +74,6 @@ export function buildHandRolling(inputs: CensusInputs): { readonly hits: readonl
     noRow: classes.noRow.toSorted(
       (left, right) => right.uses - left.uses || left.component.localeCompare(right.component) || left.token.localeCompare(right.token),
     ),
+    unfollowed: classes.unfollowed,
   };
 }

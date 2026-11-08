@@ -577,8 +577,10 @@ test("a family only another door chooses is a row on any primitive of any door, 
   });
   const { hits, markdown } = census(root);
   expect(named(hits, "p-block")).toMatchObject({ verdict: "decide", owner: "no axis: p-block on text" });
-  expect(markdown).toContain("These rows do not cover 3 class uses on `@orb/ui` elements, 2 distinct classes");
+  expect(markdown).toContain("3 class uses on `@orb/ui` elements, of 2 distinct classes, earn no row");
   expect(markdown).toContain("The rule admits 3 uses. 0 uses are open");
+  // The admitted uses are listed under the rule row that admits them, so a clean open count still shows what it admitted.
+  expect(markdown).toMatch(/^\| `\^\(\?:min-inline-0[^\n]*\| 3 \| 2 \| Text 3 \|$/mu);
 });
 
 test("a class in a spread object is read on the element, and a guard around the object marks it conditional", ({ scratch }) => {
@@ -608,17 +610,21 @@ test("a class on a wrapper is judged on the primitive it lands on, through a loc
       'import { Far } from "./far.tsx";',
       'import { Near } from "./index.ts";',
       "const Pass = ({ gap, ...rest }) => <Row gap={gap} {...rest} />;",
-      'export const A = () => <><Pass className="justify-end" /><Far className="p-block" /><Near className="p-row" /></>;',
+      // Takes no className, so the class lands nowhere the reader can follow.
+      "const Drop = ({ gap }) => <Row gap={gap} />;",
+      'export const A = () => <><Pass className="justify-end" /><Far className="p-block" /><Near className="p-row" /><Drop className="items-start" /></>;',
     ].join("\n"),
     "components/far.tsx":
       'import { Row } from "@orb/ui/layout";\nimport { cn } from "#lib";\nexport function Far({ className }) {\n  return <Row className={cn("flex-wrap", className)} />;\n}',
     "components/index.ts": 'export { Near } from "./near.tsx";',
     "components/near.tsx": 'import { Stack } from "@orb/ui/layout";\nexport function Near({ className }) {\n  return <Stack className={className} />;\n}',
   });
-  const hits = census(root).hits;
+  const { hits, markdown } = census(root);
   expect(named(hits, "justify-end")).toMatchObject({ verdict: "decide", owner: "through pass: row.justify" });
   expect(named(hits, "p-block")?.owner).toBe("through far: no axis: p-block on row");
   expect(named(hits, "p-row")).toMatchObject({ verdict: "decide", owner: "through near: stack.padding" });
+  expect(markdown).toContain("1 class uses on client components land on no primitive");
+  expect(markdown).toMatch(/^\| Drop \| 1 \| packages\/client\/src\/features\/probe\/components\/uses\.tsx:\d+ \|$/mu);
 });
 
 test("a ramp of different values takes a new value as a new arm, not as an axis beside it", ({ scratch }) => {
@@ -893,6 +899,50 @@ test("constants repeat one concept across files; an equal animation duration is 
   // A 130ms number named TICK is not an animation, and a one-off retry has nothing to repeat; a rate is not a duration.
   expect([named(hits, "TICK_MS = 130ms")?.keep, named(hits, "RETRY_MS = 3000ms")?.keep]).toEqual(["single-constant", "single-constant"]);
   expect(nonEmpty(hits).some((hit) => hit.detail.startsWith("BACKLOG_PER_SEC"))).toBe(false);
+});
+
+test("a delay is read by its use and a value through a const or a template of known numbers, once each", ({ scratch }) => {
+  const root = plantDir(scratch, "built-values");
+  plant(root, {
+    "components/built.tsx": [
+      'import { Stack } from "@orb/ui/layout";',
+      "const RETRY = 450;",
+      "const SEARCH_DEBOUNCE_MS = 275;",
+      "const SIDE = 18;",
+      "const GAP = 9;",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: the planted source is itself a template literal.
+      "const WIDE = `${GAP * 4}px`;",
+      "export function A({ q, measured, run }: { q: string; measured: number; run: () => void }) {",
+      "  globalThis.setTimeout(run, RETRY);",
+      "  useDebouncedValue(q, 333);",
+      "  useDebouncedValue(q, SEARCH_DEBOUNCE_MS);",
+      "  useQuery(q, 999);",
+      "  return (",
+      "    <>",
+      "      <Tooltip fallbackDelay={600} />",
+      "      <List count={600} />",
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: the planted source is itself a template literal.
+      "      <Stack style={{ width: SIDE, padding: `${GAP}px`, inlineSize: `${measured}px` }} />",
+      "    </>",
+      "  );",
+      "}",
+    ].join("\n"),
+  });
+  const { hits } = census(root);
+  expect(
+    hits
+      .filter((hit) => hit.where === "timer" || hit.where === "prop")
+      .map((hit) => hit.detail)
+      .sort(compare),
+  ).toEqual(["fallbackDelay={600ms}", "setTimeout(…, RETRY = 450ms)", "useDebouncedValue(…, 333ms)"]);
+  // The unit-named const is the constant pass's row, not a second timer row.
+  expect(hits.filter((hit) => hit.detail.includes("SEARCH_DEBOUNCE_MS")).map((hit) => hit.where)).toEqual(["constant"]);
+  expect(brief(named(hits, "width: SIDE"))).toEqual(["inline-style", "token", "new token: length 18px"]);
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: the planted source is itself a template literal.
+  expect(brief(named(hits, "padding: `${GAP}px`"))).toEqual(["inline-style", "token", "new token: length 9px"]);
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: the planted source is itself a template literal.
+  expect(named(hits, "inlineSize: `${measured}px`")?.keep).toBe("runtime-value");
+  expect(named(hits, '"36px"')?.category).toBe("raw-value");
 });
 
 test("the report is sorted and grouped by owner with counts per category and per surface, deterministically, and skips generated files", ({ scratch }) => {

@@ -1,7 +1,7 @@
 // Area E: local maps of tone, label or size copied across files, found by their key set.
 import ts from "typescript";
 import type { Source } from "../eslint/index.ts";
-import { lineOf } from "../eslint/index.ts";
+import { lineOf, unwrap } from "../eslint/index.ts";
 
 interface MapCopy {
   readonly name: string;
@@ -44,7 +44,8 @@ function entriesOf(sf: ts.SourceFile, init: ts.ObjectLiteralExpression): Record<
 function mapDeclarations(sf: ts.SourceFile): readonly (readonly [ts.VariableDeclaration, string, ts.ObjectLiteralExpression])[] {
   return sf.statements.filter(ts.isVariableStatement).flatMap((statement) =>
     statement.declarationList.declarations.flatMap((declaration) => {
-      const init = declaration.initializer;
+      // A map is usually written `{ ... } as const` or `satisfies Record<Union, string>`; the wrapper is a type, not a different map.
+      const init = declaration.initializer === undefined ? undefined : unwrap(declaration.initializer);
       return ts.isIdentifier(declaration.name) && MAP_NAME.test(declaration.name.text) && init !== undefined && ts.isObjectLiteralExpression(init)
         ? [[declaration, declaration.name.text, init] as const]
         : [];
