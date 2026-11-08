@@ -22,7 +22,7 @@ import type { ReactElement } from "react";
 import type { ListPaneHeaderProps, OverflowMenuItem } from "#lib";
 import { LIST_PANE_TITLE_ID } from "#lib";
 import { CountText } from "./count-text.tsx";
-import { BAND_OVERFLOW_LABEL, FLOOR_AT_CONTENT, OverflowActions, OverflowMenuForms } from "./overflow-actions.tsx";
+import { BAND_OVERFLOW_LABEL, OverflowActions, OverflowMenuForms } from "./overflow-actions.tsx";
 import { Tip } from "./tip.tsx";
 
 /** The primary's icon form: the same command its menu form runs, named by its label. */
@@ -47,14 +47,12 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
       {/* `data-slot="list-pane-identity"` names this cluster for the shell: on a phone the ONE-SHELL rule
           sheds the unscoped title (below), and the shell then needs to know whether ANYTHING is left in the
           band before it keeps spending a 48px chrome row on it. See shell.css's mobile arm. */}
-      {/* An unscoped band clips its identity (a flex item with `overflow` has no content minimum), so when the actions
-          cannot fit beside the whole name and census even in their smallest form, the census gives and the name stays
-          whole. The fit still reads the identity's content width as its floor, so the actions fold first. */}
+      {/* An unscoped band clips its identity, so when the actions cannot fit beside the whole name even in their
+          smallest form, the census gives and the name stays whole. */}
       <Row
         align="center"
         className={accent === undefined ? "overflow-hidden" : undefined}
         data-slot="list-pane-identity"
-        {...(accent === undefined ? { [FLOOR_AT_CONTENT]: "" } : {})}
         gap="field"
         minWidth={accent === undefined ? undefined : "title"}
       >
@@ -104,9 +102,9 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
           {/* The title TEXT is what truncates, not the heading box — see the count's note. It restates the
               masthead voice because it is the element that carries it (the heading is the flex box), which
               is the same spelling the accent half beside it already uses. */}
-          {/* An unscoped title is a section's name and the identity row floors at its whole width with the census, so
-              the band's actions fold into their overflow before the name is cut: "Cha…" does not read as its pane.
-              A scoped title carries an entity's name, which is what gives, down to the title floor. */}
+          {/* An unscoped title is a section's name and never shrinks: "Cha…" does not read as its pane, so the census
+              beside it gives instead. A scoped title carries an entity's name, which is what gives, down to the title
+              floor. */}
           <Text as="span" className={accent === undefined ? "shrink-0" : undefined} truncate={true} voice="masthead">
             {accent === undefined ? title : `${title} · `}
             {/* The entity half is the same step; it carries the MUTED tone now that the name it qualifies

@@ -62,7 +62,8 @@ const CATEGORY_LABEL_SHARE = 0.35;
 
 /** The most of the container a middle-ellipsized category column may claim to keep its names apart. */
 const DISTINCT_LABEL_SHARE = 0.6;
-/** How far the column widens per attempt while two names still paint the same. */
+const MIDDLE_ELLIPSIS = "…";
+/** How far the column widens per attempt while a painted name still fits two items. */
 const DISTINCT_LABEL_STEP_PX = 8;
 
 /** The ramp stop `quiet` paints in — index 1 (`color.chart-2`, muted teal). Stop 0 IS `colors.series`, so
@@ -92,12 +93,26 @@ function categoryLabelBudgetPx(widthPx: number, theme: ChartColors): number {
   return Math.round(Math.max(widestChartLabelPx(["…"], theme) + 2 * theme.metrics.padding, widthPx * CATEGORY_LABEL_SHARE));
 }
 
+/** Whether a painted label could stand for `name`: the name whole, or the name with one stretch replaced by an ellipsis. */
+function standsFor(painted: string, name: string): boolean {
+  const [head = "", tail, ...extra] = painted.split(MIDDLE_ELLIPSIS);
+  if (tail === undefined) {
+    return painted === name;
+  }
+  return extra.length === 0 && head !== "" && name.startsWith(head) && name.endsWith(tail);
+}
+
 /** Names that share both ends paint alike once ellipsized in the middle, so the column widens, up to a share of the
- *  container, until every painted name differs. */
-function distinctMiddleBudgetPx(painted: readonly string[], basePx: number, widthPx: number, theme: ChartColors): number {
+ *  container, until no painted label fits two items. Past the cap the labels may still collide; the text equivalent
+ *  and the tooltip then carry every whole name. */
+function distinctMiddleBudgetPx(items: readonly BarListItem[], basePx: number, widthPx: number, theme: ChartColors): number {
   const ceilingPx = Math.max(basePx, Math.round(widthPx * DISTINCT_LABEL_SHARE));
   for (let budget = basePx; budget < ceilingPx; budget += DISTINCT_LABEL_STEP_PX) {
-    if (new Set(painted.map((name) => middleEllipsisLabel(name, budget, theme))).size === painted.length) {
+    const unambiguous = items.every((item) => {
+      const painted = middleEllipsisLabel(item.shortLabel ?? item.label, budget, theme);
+      return items.filter((other) => standsFor(painted, other.label) || (other.shortLabel !== undefined && standsFor(painted, other.shortLabel))).length === 1;
+    });
+    if (unambiguous) {
       return budget;
     }
   }
@@ -112,15 +127,7 @@ export function buildBarListOption(
 ): OrbChartOption {
   const valueLabels = items.map((item) => valueFormatter(item.value));
   const baseBudgetPx = categoryLabelBudgetPx(layout.widthPx, colors);
-  const labelBudgetPx =
-    layout.truncation === "middle"
-      ? distinctMiddleBudgetPx(
-          items.map((item) => item.shortLabel ?? item.label),
-          baseBudgetPx,
-          layout.widthPx,
-          colors,
-        )
-      : baseBudgetPx;
+  const labelBudgetPx = layout.truncation === "middle" ? distinctMiddleBudgetPx(items, baseBudgetPx, layout.widthPx, colors) : baseBudgetPx;
   return {
     grid: {
       left: colors.metrics.padding,

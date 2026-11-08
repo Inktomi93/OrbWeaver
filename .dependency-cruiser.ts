@@ -784,6 +784,9 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/chat/lib/message-row-variants.ts":
       "MESSAGE_ROW_SKINS: the styles that name their speaker and the skins that carry a header rule",
   },
+  "tests/client/features/chat/components/message-avatar-reach.ct.tsx": {
+    "packages/client/src/features/chat/lib/message-row-variants.ts": "MESSAGE_ROW_SKINS: the styles that paint an avatar, whose touch reach the suite holds",
+  },
   "tests/client/features/chat/components/_context-divider-stories.tsx": {
     "packages/client/src/features/chat/components/message-row-divider.tsx":
       "renderContextBoundaryDivider: the divider label's own composition, which only the message row renders and no door forwards",

@@ -159,7 +159,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           // `.shell-main` with card — this must not override that) and to the no-wallpaper arm (over art
           // the wallpaper IS the page and the reading plates carry the text).
           // A phone keeps the transcript and composer near the screen edge (owner ruling, as Moonlit Echoes pads its
-          // chat 8px): the room steps its side inset down to `tight`, the transcript adds the ring clearance.
+          // chat 8px): the room steps its side inset down to `tight`; the transcript and the composer add the avatar reach.
           className="overscroll-y-none"
           paddingBlockEnd="block"
           height="fill"

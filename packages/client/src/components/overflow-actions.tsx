@@ -197,20 +197,15 @@ function layoutParent(root: HTMLElement): HTMLElement | null {
   return parent;
 }
 
-/** A sibling that can clip below its content (a flex item with `overflow`, whose minimum computes to 0) marks itself with this
- *  attribute to be floored at its content anyway, so the actions fold before it is cut. */
-export const FLOOR_AT_CONTENT = "data-floor-at-content";
-
-/** The smallest an element can be: its computed `min-inline-size`, or its min-content when that is a keyword or the
- *  element asks to be floored at its content. */
+/** The smallest an element can be: its computed `min-inline-size`, or its min-content when that is a keyword. */
 function floorOf(element: HTMLElement, minimum: string): number {
   const length = Number.parseFloat(minimum);
-  if (!(Number.isNaN(length) || element.hasAttribute(FLOOR_AT_CONTENT))) {
+  if (!Number.isNaN(length)) {
     return length;
   }
   const { flex, inlineSize } = element.style;
   element.style.flex = "none";
-  element.style.inlineSize = element.hasAttribute(FLOOR_AT_CONTENT) ? "max-content" : "min-content";
+  element.style.inlineSize = "min-content";
   const width = element.getBoundingClientRect().width;
   element.style.flex = flex;
   element.style.inlineSize = inlineSize;

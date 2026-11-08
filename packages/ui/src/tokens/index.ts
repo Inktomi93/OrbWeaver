@@ -410,6 +410,7 @@ export const TOKENS = {
   "size.combobox-chip-lg": { cssVar: "--size-combobox-chip-lg", value: "calc(var(--size-control-lg) - 2 * var(--border-width-control) - 2 * var(--spacing-field))" },
   "size.switch-travel": { cssVar: "--size-switch-travel", value: "calc(var(--size-switch-track) - var(--size-switch-track-height))" },
   "spacing.glyph-bleed": { cssVar: "--spacing-glyph-bleed", value: "calc((var(--size-touch-target) - var(--size-glyph-xs)) / 2)" },
+  "spacing.avatar-reach": { cssVar: "--spacing-avatar-reach", value: "max(var(--spacing-field), calc((var(--size-touch-target) - var(--size-avatar-sm)) / 2))" },
   "size.name-row-min": { cssVar: "--size-name-row-min", value: "calc(var(--size-glyph-lg) - 2 * var(--spacing-row))" },
   "height.prose-cap": { cssVar: "--height-prose-cap", value: "60cqh" },
   "height.picker-art-landscape": { cssVar: "--height-picker-art-landscape", value: "calc(round(nearest, 100cqw * 9 / 16, 1px))" },

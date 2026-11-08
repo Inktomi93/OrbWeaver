@@ -8,6 +8,7 @@ export { copyActionName, hideActionName, removeActionName, revealActionName, sel
 export type { AmbientScope, BubbleScope, BubbleScopes, PickedFill, PickedFills, ProseInks } from "./ambient-scope.ts";
 export { AmbientScopeContext, PROSE_INK_FIELDS } from "./ambient-scope.ts";
 export { ANCHOR_GAP_INPUT, ANCHOR_GAP_TRIGGER } from "./anchor-gap.ts";
+export { AVATAR_REACH_GAP, AVATAR_REACH_PADDING } from "./avatar-reach.ts";
 export { CARD_CORNERS } from "./card-corners.ts";
 // `cn` + `tv` are ONE module because they must share ONE tailwind-merge config — see class-merge.ts
 // for the import-order race that shape kills.

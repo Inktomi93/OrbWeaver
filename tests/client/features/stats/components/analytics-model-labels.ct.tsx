@@ -43,6 +43,15 @@ const MODEL_SETS = [
       "anthropic/claude-3-7-sonnet-20250219",
     ],
   },
+  {
+    // Local vLLM paths: two sizes of one release and a newer release, all sharing a long mid-name and a quantisation tail.
+    name: "local builds of one model family",
+    ids: [
+      "/mnt/models/Llama-3.3-70B-Instruct-abliterated-W8A8-Dynamic-FP8-v2",
+      "/mnt/models/Llama-3.1-70B-Instruct-abliterated-W8A8-Dynamic-FP8-v2",
+      "/mnt/models/Llama-3.1-8B-Instruct-abliterated-W8A8-Dynamic-FP8-v2",
+    ],
+  },
 ] as const;
 
 const REGIMES = [

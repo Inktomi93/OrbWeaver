@@ -45,4 +45,9 @@ test("a goto to a section above a short tail keeps that section lit", async ({ m
   });
   await component.update({ height: contentHeight - SHORT_TAIL_PX - 1 });
   await expect(probe).toHaveText(target ?? "");
+  // The hold ends with the reader's own scroll: back at the top, the spy lights the first section again.
+  await scroller.evaluate((node) => {
+    node.scrollTop = 0;
+  });
+  await expect(probe).not.toHaveText(target ?? "");
 });

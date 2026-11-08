@@ -28,18 +28,18 @@ Ruling (owner direction, 2026-11-08): shift the chip and the composer's start ed
 
 Cause: a 44px reach centred on a 24px chip needs 10px of room each side. The chip sat 4px inside the transcript scroller's clip, so 6px of its reach was cut. The room's flank row and its wrapper also clip at the same edge (`overflow-x: clip`), so extending the scroller outward does not help; the rows have to move in.
 
-Insets measured at 390px (320 and desktop assert the same relations), before and after:
+Insets measured at 390px (320 and desktop assert the same relations), comfortable and compact density alike, before and after:
 
 | Edge | Before | After |
 | - | - | - |
 | scroller | 4 to 386 | 4 to 386 |
-| rows | 8 to 382 | 16 to 374 |
-| chip | 8 to 32 | 16 to 40 |
-| bubble column start | 38 | 52 |
-| composer track | 8 to 382 | 16 to 374 |
+| rows | 8 to 382 | 14 to 376 |
+| chip | 8 to 32 | 14 to 38 |
+| bubble column start | 38 | 48 |
+| composer track | 8 to 382 | 14 to 376 |
 
-The shift is one `block` step (8px each side beyond the old 8px), the smallest the spacing tokens allow: the exact need is 6px for the clip and 10px of gap, and no token sits between `row` and `block`. The chip to bubble gap at a narrow width goes from `field` (6px) to `block` (12px) so the reach does not cover the bubble; `block` joins the narrow gap steps in `packages/ui/src/layout/variants.ts`. That moves the narrow chat styles 8px off the Moonlit Echoes phone inset and the bubble 14px in from the chip; this needs a visual look from the ux-reviewer.
+The shift is the reach itself, a new token `--spacing-avatar-reach` (`(touch-target - avatar-sm) / 2`, floored at the field step for a fine pointer): 10px each side, not a density step, so compact density (where `block` is 8px) gets the same 10px. The earlier `block` step (12px comfortable, 8px compact) overshot comfortable by 2px and fell short in compact. The chip to bubble gap at a narrow width goes from `field` (6px) to the same reach, so the reach does not cover the bubble. Below the `cq-16` container step (a pane enlarged by text scale until a line holds a few words) the rows, the gap and the composer keep their old `tight` and `field` steps: at 200% text and 300% layout on the phone the extra inset split words and pushed Generate off its row (`platform-text-scale.suite.ct.tsx`, 120 passed, no threshold or measured table changed). The phone chat styles sit 6px further in than Moonlit Echoes' 8px; this needs a visual look from the ux-reviewer.
 
-Fix: `packages/ui/src/primitives/message-list/variants.ts` (`chipReach`), `message-list-surface.tsx`, `message-row-layout.tsx` (`gapNarrow="block"`), `room-composer-anchor.tsx` (`paddingInlineNarrow="block"`).
+Fix: token in `packages/ui/src/tokens/tokens.json`; `packages/ui/src/lib/avatar-reach.ts` (`AVATAR_REACH_PADDING`, `AVATAR_REACH_GAP`); `packages/ui/src/layout/variants.ts` and `message-list/variants.ts` (`avatarReach`); `message-list-surface.tsx`, `message-row-layout.tsx`, `room-composer-anchor.tsx` take it. `picture-button/variants.ts` raises the floor-reach chip (`z-raised`) so Echo's header chip keeps its reach above the card's art overlay.
 
-CT: `tests/client/features/chat/components/message-avatar-reach.ct.tsx`. At 320 and 390 it hit-tests the four edges of each avatar's reach inside the real transcript and samples the bubble's start and end edge points for coverage; it also asserts the composer track and the transcript rows share their start and end edges at 320 and 390 and nest at desktop. Red before the fix (the user avatar's start edge hit the scroller at 320 and 390; the edge-sharing cases pass before and after), green after, with `message-avatar-touch-floor.ct.tsx` passing.
+CT: `tests/client/features/chat/components/message-avatar-reach.ct.tsx`. At 320 and 390, in comfortable and compact density, for every chat style that paints an avatar (the stock document paints none), it hit-tests the four edges of each avatar's reach inside the real transcript and samples the bubble's start and end edge points for coverage when the chip stands outside the card (an avatar seated in its card, as in Whisper, Hush, Echo's header and Ripple's welded portrait, belongs to the card). It also asserts the composer track and the transcript rows share their start and end edges at 320, 390 and desktop in both densities. Red before the fix: with the reach token set to `block` the compact cells fail (compact flat start edge, 8px against the 10px need); Echo failed its bottom edge on main (a card overlay above the chip's reach) and is green after the raise. `message-avatar-touch-floor.ct.tsx` passes.

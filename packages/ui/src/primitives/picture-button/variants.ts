@@ -6,8 +6,8 @@ export const pictureButtonVariants = tv({
   base: "p-0",
   variants: {
     // A picture under the touch floor (a gutter chip) keeps its box and takes the pointer-conditional target on `::before`,
-    // layout-neutral, so the row it sits in does not grow.
-    reach: { floor: ["relative", TOUCH_TARGET_PSEUDO] },
+    // layout-neutral, so the row it sits in does not grow. It is raised so the reach stays above a positioned neighbour (a card's art overlay).
+    reach: { floor: ["relative", "z-(--z-raised)", TOUCH_TARGET_PSEUDO] },
     // Whether the shared recipe paints a style. Unpainted, the button draws nothing at any state: the art stays the
     // affordance and dims a step on hover instead of gaining a tint.
     painted: { true: "", false: "cursor-pointer bg-transparent text-current hover:opacity-hover" },

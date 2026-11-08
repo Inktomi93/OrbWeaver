@@ -457,10 +457,10 @@ function ChatThread({
           // pinned the sticky name band 12px below the visible top with a guillotined strip of prose
           // permanently above it (#204). The first/last rows still breathe off the topbar/composer edges.
           blockPaddingToken="block"
-          // The rows sit one `block` step in at a narrow width so a chip keeps its whole 44px touch reach inside the
+          // The rows sit the avatar reach in at a narrow width so a chip keeps its whole touch reach inside the
           // scroller's clip; the composer takes the same edge (`room-composer-anchor.tsx`).
           height="fill"
-          paddingInlineNarrow="chipReach"
+          paddingInlineNarrow="avatarReach"
         />
         <JumpToLatestPill count={jump.count} visible={jump.visible} onJump={jump.onJump} />
       </Stack>
