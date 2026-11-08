@@ -3,9 +3,10 @@
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import type { TrpcRecorder } from "@orb/testkit/ct";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { expect } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 
 type ServedPath = Parameters<typeof serveCorpusProcedures>[1][number];
 type Caller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>;
@@ -48,6 +49,16 @@ export const SHELL_STORIES = "tests/client/features/app-shell/surfaces/_app-shel
 export const JUMP_CHIP = /^Jump, the command menu \(/u;
 
 export const PHONE = { width: 390, height: 844 } as const;
+
+/**
+ * Which regime a dialog is in: a landscape phone's dialog rests its header against the top of the sheet and holds its title to one line; any other
+ * dialog, short or not, lets the header scroll and the title wrap. A test that needs a short screen to reach its controls asserts this too, so it
+ * fails when the regime is lost and not only when a control is.
+ */
+export async function expectLandscapeRegime(dialog: Locator, title: string, landscape: boolean): Promise<void> {
+  await expect(dialog.locator('[data-slot="dialog-header"]')).toHaveCSS("position", landscape ? "sticky" : "static");
+  await expect(dialog.getByRole("heading", { name: title, exact: true })).toHaveCSS("text-overflow", landscape ? "ellipsis" : "clip");
+}
 
 const TOUCH_DRAG_STEPS = 8;
 

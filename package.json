@@ -92,7 +92,6 @@
     "@orb/ui": "workspace:*",
     "@playwright/test": "catalog:",
     "@stryker-mutator/core": "catalog:",
-    "@stryker-mutator/typescript-checker": "catalog:",
     "@stryker-mutator/vitest-runner": "catalog:",
     "@tailwindcss/oxide": "catalog:",
     "@tanstack/eslint-plugin-query": "catalog:",
@@ -153,7 +152,7 @@
   "devEngines": {
     "runtime": {
       "name": "node",
-      "version": "26.10.0",
+      "version": "26.11.1",
       "onFail": "download"
     }
   },

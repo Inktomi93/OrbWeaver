@@ -7,6 +7,7 @@ import { createStrykerConfig, MUTATION_WORLD_ENV } from "@orb/tooling/floor/test
 import { vi } from "vitest";
 
 const ARID_PLUGIN = "./tooling/src/mutation-arid/index.ts";
+const CHECKER_PLUGIN = "./tooling/src/mutation-checker/index.ts";
 
 test("the config mutates nothing itself and removes its sandbox on every exit", () => {
   const config = createStrykerConfig();
@@ -20,7 +21,6 @@ test("the config mutates nothing itself and removes its sandbox on every exit", 
     dryRunMaxWorkers: readConcurrencyProfile().vitestMaxWorkers,
   });
   expect(config.ignoreStatic).toBe(false);
-  expect(config.checkers).toEqual(["typescript"]);
 });
 
 test("the checker's world comes from the run, so the root solution file is never its program", () => {
@@ -28,11 +28,14 @@ test("the checker's world comes from the run, so the root solution file is never
   expect(createStrykerConfig().tsconfigFile).toBe("packages/kit/tsconfig.json");
 });
 
-test("the plugin path Stryker imports exports the ignorer the config names", async ({ repoRoot }) => {
+test.for([
+  { path: ARID_PLUGIN, names: "ignorers" },
+  { path: CHECKER_PLUGIN, names: "checkers" },
+] as const)("the plugin path $path exports the $names the config names", async ({ path, names }, { repoRoot }) => {
   const config = createStrykerConfig();
-  expect(config.plugins).toContain(ARID_PLUGIN);
-  const plugin = (await import(pathToFileURL(join(repoRoot, ARID_PLUGIN)).href)) as { readonly strykerPlugins: readonly { readonly name: string }[] };
-  expect(plugin.strykerPlugins.map(({ name }) => name)).toEqual(config.ignorers);
+  expect(config.plugins).toContain(path);
+  const plugin = (await import(pathToFileURL(join(repoRoot, path)).href)) as { readonly strykerPlugins: readonly { readonly name: string }[] };
+  expect(plugin.strykerPlugins.map(({ name }) => name)).toEqual(config[names]);
 });
 
 test("each call owns its option branches, because Stryker mutates what it is handed", () => {

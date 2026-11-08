@@ -127,36 +127,37 @@ test("rapid chords share one pending frame, the listener never duplicates, and u
   await expect(page.getByRole("dialog", PALETTE)).toHaveCount(0);
   expect((await listeners()).active).toBe(baseline.active);
 
-  await page.evaluate(() => {
-    const callbacks = new Map<number, FrameRequestCallback>();
-    const probe = { pending: 0, canceled: 0, nextId: 1, requested: 0 };
+  // The frame stub goes in and both chords land inside one task. A frame another surface requests (a resize
+  // observer, a tooltip, a focus return) lands in a later task, so it cannot be counted as the shortcut's.
+  const burst = await page.evaluate(() => {
+    const probe = { canceled: new Array<number>(), nextId: 1, requested: new Array<number>() };
     Reflect.set(globalThis, "__commandFrameProbe", probe);
-    globalThis.requestAnimationFrame = (callback: FrameRequestCallback): number => {
+    globalThis.requestAnimationFrame = (): number => {
       const id = probe.nextId;
       probe.nextId += 1;
-      probe.requested += 1;
-      callbacks.set(id, callback);
-      probe.pending = callbacks.size;
+      probe.requested.push(id);
       return id;
     };
     globalThis.cancelAnimationFrame = (id: number): void => {
-      if (callbacks.delete(id)) {
-        probe.pending = callbacks.size;
-        probe.canceled += 1;
-      }
+      probe.canceled.push(id);
     };
+    const prevented = [{ metaKey: true }, { ctrlKey: true }].map((init) => {
+      const event = new KeyboardEvent("keydown", { bubbles: true, cancelable: true, key: "k", ...init });
+      document.dispatchEvent(event);
+      return event.defaultPrevented;
+    });
+    return { prevented, requested: [...probe.requested] };
   });
-  const frames = async (): Promise<{ canceled: number; pending: number; requested: number }> =>
+  const frames = async (): Promise<{ canceled: readonly number[]; requested: readonly number[] }> =>
     z
-      .object({ canceled: z.number(), pending: z.number(), requested: z.number() })
+      .object({ canceled: z.array(z.number()), requested: z.array(z.number()) })
       .parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__commandFrameProbe")));
-  expect(await dispatchCommandKey(page, { metaKey: true })).toBe(true);
-  expect(await dispatchCommandKey(page, { ctrlKey: true })).toBe(true);
-  expect(await frames()).toEqual({ canceled: 0, pending: 1, requested: 1 });
+  expect(burst.prevented).toEqual([true, true]);
+  expect(burst.requested).toHaveLength(1);
 
   const mounted = await listeners();
   await component.unmount();
-  expect(await frames()).toEqual({ canceled: 1, pending: 0, requested: 1 });
+  expect((await frames()).canceled).toContain(burst.requested[0]);
   const released = await listeners();
   expect(released.removes - mounted.removes).toBe(mounted.active - released.active);
   expect(await dispatchCommandKey(page, { metaKey: true })).toBe(false);

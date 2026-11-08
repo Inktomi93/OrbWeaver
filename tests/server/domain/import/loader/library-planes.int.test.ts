@@ -50,7 +50,10 @@ async function roomsOf(root: ServerTestHarness): Promise<readonly ChatId[]> {
   return (await caller.chat.listChats({ limit: 50 })).items.filter((item) => item.title === TITLE).map((item) => item.id);
 }
 
-test("a room's injections, tags and rpg campaign restore into a fresh box, re-anchored to the restored rows, and a second restore adds nothing", async () => {
+// Two seeded boxes, a library export and two restore workloads are the subject, so the case runs past the default budget under load.
+test("a room's injections, tags and rpg campaign restore into a fresh box, re-anchored to the restored rows, and a second restore adds nothing", {
+  tags: ["slow"],
+}, async () => {
   await using source = await signedInBox({ ids: createSeededIds(SOURCE_ID_CURSOR) });
   const owner = await source.principalFor(source.ownerId);
   await source.services.character.create({

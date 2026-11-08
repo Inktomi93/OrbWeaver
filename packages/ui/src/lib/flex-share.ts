@@ -6,6 +6,7 @@ export const GROW = {
   true: "flex-1",
   false: "",
   content: "flex-auto",
+  onLandscape: "dialog-short:glass-short:flex-auto",
   double: "flex-2",
   wide: "flex-1 @max-cq-28:flex-none",
   contentNarrow: "flex-auto @cq-28:flex-none",

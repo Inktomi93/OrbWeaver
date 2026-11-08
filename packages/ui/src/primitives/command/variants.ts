@@ -33,7 +33,7 @@ export const commandVariants = tv({
     // down to its search strip, and the dialog scrolls past that.
     root: `
       flex flex-col overflow-hidden rounded-card border border-border bg-popover text-popover-foreground tone-host-popover
-      dialog-short:flex-auto dialog-short:min-block-(--height-command-strip)
+      dialog-short:glass-short:flex-auto dialog-short:glass-short:min-block-(--height-command-strip)
       ${FOCUS_RING_WITHIN_INSET}
     `,
     // The coarse-pointer arm is the 44px tap floor (side-eye: the picker's input measured 43px on a
@@ -70,10 +70,11 @@ export const commandVariants = tv({
     // A palette that floats on its own (not inside a dialog that already lifts it) casts the overlay shadow.
     elevated: { true: { root: "shadow-overlay" } },
     // The palette takes its parent's whole block extent; in a short dialog it takes the room the dialog leaves, so its list is the box that scrolls.
-    fill: { true: { root: "block-full dialog-short:block-auto" } },
-    // The box is a picker window's frame and never outgrows it, so a footer inside takes room from the list; a short dialog lets it shrink with the dialog
-    // instead, down to its search strip and one touch row.
-    windowed: { true: { root: "max-block-(--height-picker-box) dialog-short:max-block-none dialog-short:min-block-(--height-picker-floor)" } },
+    fill: { true: { root: "block-full dialog-short:glass-short:block-auto" } },
+    // A dialog with room (over the cq-32 height step) holds the box a picker settles at, so its footer takes room from the list and the dialog does not
+    // jump on the first keystroke. Below that step, enlarged text, the footer is taller than the window it would take from, so it adds to the box.
+    // On a landscape phone the box shrinks with the dialog, down to its search strip and one touch row.
+    windowed: { true: { root: "dialog-short:glass-short:min-block-(--height-picker-floor) dialog-roomy:max-block-(--height-picker-box)" } },
     listSize: {
       content: { list: "" },
       // A stable compact viewport keeps filtering from moving its containing dialog without reserving
@@ -84,8 +85,8 @@ export const commandVariants = tv({
       compact: {
         list: `
           block-(--height-scroll-sm)
-          dialog-short:mx-(--border-width-rule) dialog-short:mbe-(--border-width-rule) dialog-short:flex-auto dialog-short:overscroll-auto dialog-short:p-0
-          dialog-short:block-auto
+          dialog-short:glass-short:mx-(--border-width-rule) dialog-short:glass-short:mbe-(--border-width-rule) dialog-short:glass-short:flex-auto
+          dialog-short:glass-short:overscroll-auto dialog-short:glass-short:p-0 dialog-short:glass-short:block-auto
           **:[[cmdk-list-sizer]]:block-full
         `,
       },
@@ -97,8 +98,9 @@ export const commandVariants = tv({
       pickerWindow: {
         list: `
           max-block-(--height-picker-window)
-          dialog-short:mx-(--border-width-rule) dialog-short:mbe-(--border-width-rule) dialog-short:flex-auto dialog-short:overflow-x-hidden
-          dialog-short:overscroll-auto dialog-short:p-0 dialog-short:max-block-none dialog-short:min-block-(--height-scroll-short)
+          dialog-short:overflow-x-hidden dialog-short:overscroll-auto dialog-short:p-0
+          dialog-short:glass-short:mx-(--border-width-rule) dialog-short:glass-short:mbe-(--border-width-rule) dialog-short:glass-short:flex-auto
+          dialog-short:glass-short:max-block-none dialog-short:glass-short:min-block-(--height-scroll-short)
           dialog-short:**:[[cmdk-group-heading]]:hidden
         `,
       },

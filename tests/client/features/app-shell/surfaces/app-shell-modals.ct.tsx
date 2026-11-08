@@ -14,7 +14,7 @@ import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { CHAT_SAVED_ROSTER_DOOR_NAME as SAVED_ROSTER_DOOR } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { AppShellModalStory, AppShellStory } from "./_app-shell-stories.tsx";
-import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
+import { expectLandscapeRegime, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const MODAL_STORY = `${SHELL_STORIES}/AppShellModalStory`;
@@ -363,6 +363,7 @@ test.describe("on the corpus owner's own settings", () => {
         const row = dialog.getByRole("option").first();
         await expect(row).toBeVisible();
         await expect(dialog.getByRole("combobox")).toBeFocused();
+        await expectLandscapeRegime(dialog, "New chat", true);
         await expect.poll(() => row.evaluate(firstRowAtOpen)).toEqual({ listScrollTop: 0, popupScrollTop: 0, wholeInList: true, footClear: true });
         // Every door is on screen at open, with no scroll: nothing hides under the footer or past the body's clip.
         const actions = dialog.locator('[data-slot="new-chat-actions"]');
@@ -388,6 +389,7 @@ test.describe("on the corpus owner's own settings", () => {
       const row = dialog.getByRole("option").first();
       await expect(row).toBeVisible();
       await expect(dialog.getByRole("combobox")).toBeFocused();
+      await expectLandscapeRegime(dialog, "New chat", true);
       await expect.poll(() => row.evaluate(firstRowAtOpen)).toEqual({ listScrollTop: 0, popupScrollTop: 0, wholeInList: true, footClear: true });
       await expect(dialog.getByRole("heading", { name: "New chat", exact: true })).toBeInViewport({ ratio: 1 });
     });

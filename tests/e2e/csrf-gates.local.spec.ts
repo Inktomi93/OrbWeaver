@@ -6,6 +6,7 @@ import { createTrpcClient as createProductionClient } from "@orb/client/data";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { TRPC_BATCH_MAX_ITEMS, TRPC_BATCH_MAX_URL_LENGTH } from "@orb/contracts/rpc";
+import { DATABANK_UPLOAD_ROUTE } from "@orb/contracts/uploads";
 import type { Handle, SocketId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
@@ -17,7 +18,7 @@ const CSRF = { [CSRF_HEADER]: "1" };
 /** Every CORS-simple byte ingest the guard fronts. */
 const INGEST_ROUTES = [
   "/api/assets/upload",
-  "/api/databank/upload",
+  DATABANK_UPLOAD_ROUTE,
   PORTABILITY_ROUTES.importCards,
   PORTABILITY_ROUTES.restoreCardLorebook,
   PORTABILITY_ROUTES.importChat,

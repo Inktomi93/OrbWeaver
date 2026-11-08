@@ -24,7 +24,8 @@ test("native image admission and funded output variants preserve short-edge skip
     images: [],
   });
   await using root = await createServerHarness({
-    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" },
+    // Each of the three sign-ins would seed that account's shipped library, which no assertion here reads.
+    env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny", ["SEED_CONTENT"]: "off" },
     providerFetch: wire.wrap(fallback.execute),
     secretBoxKey: SECRET_BOX_TEST_KEY,
   });

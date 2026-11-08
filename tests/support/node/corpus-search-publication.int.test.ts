@@ -141,6 +141,8 @@ test("settled search publication survives native authenticated clone reads and r
       reads,
       health: healthResponseSchema.parse(await (await root.http.request("/healthz")).json()),
     });
+    // The cookie sign-in starts the owner's detached user seed; the baseline reads the library it writes.
+    await root.settleBackground();
     const before = await captureCorpusSearchPublication(root, source);
     expect(before.reads.fields.output.hits.some((hit) => hit.characterId === added.id)).toBe(true);
     expect(before.reads.fields.output).not.toEqual(source.reads.fields);

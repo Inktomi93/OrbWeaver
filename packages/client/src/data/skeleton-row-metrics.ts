@@ -20,12 +20,10 @@ export function skeletonRowCountFor(boxHeight: number, fallback: number): number
   return Math.max(1, Math.round((boxHeight - 2 * pad + gap) / (rowHeight + gap)));
 }
 
-/** The box a searchable picker settles at when its library fills the `pickerWindow` list: the declared first-boot box for a picker that has not yet measured itself. */
-export function pickerWindowBox(): number {
-  // Without a document the generated base dimensions stand in: a full window, the search strip and the two edges.
-  const fullBox = LENGTH_BASE_PX["size.control-sm"] + LENGTH_BASE_PX["height.scroll-lg"] + 2 * LENGTH_BASE_PX["border-width.control"];
-  return resolveCssLength(TOKENS["height.picker-box"].cssVar, fullBox);
-}
+/** The CSS length of the box a searchable picker settles at on a device's first open, when its library fills its window. It excludes the saved-roster
+ *  door row a library with rosters adds: the rosters arrive in the same response as the library, so a device that has never opened the picker cannot
+ *  know the row is coming. Built from a token and resolved by the browser, so no render reads the document. */
+export const PICKER_FIRST_OPEN_BOX = `var(${TOKENS["height.picker-box"].cssVar})`;
 
 /** The box `rows` `SkeletonRows shape="line"` rows occupy: the exact inverse of {@link skeletonRowCountFor}.
  *  Uses the generated authored-root dimensions when live CSS is unavailable. */
