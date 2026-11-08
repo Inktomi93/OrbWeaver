@@ -5,7 +5,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useLayoutEffect, useRef } from "react";
 import { PanelEdgeControl } from "#components";
-import { publishInlineFlankFit } from "#lib";
+import { publishInlineFlankFit, SIDECAR_PANELS_NOUN } from "#lib";
 import type { FlankPresentation } from "../hooks/use-flank-presentation.ts";
 
 /** Publishes whether the transcript would still hold its reading floor with the plugin flank beside it: the room's
@@ -109,7 +109,7 @@ export function FlankEdge({
   }
   return (
     <Row placed="flushEnd" layer="raised">
-      <PanelEdgeControl controls={controls} edge="end" expanded={flank.expanded} noun="plugin panels" onToggle={flank.toggle} ref={controlRef} />
+      <PanelEdgeControl controls={controls} edge="end" expanded={flank.expanded} noun={SIDECAR_PANELS_NOUN} onToggle={flank.toggle} ref={controlRef} />
     </Row>
   );
 }

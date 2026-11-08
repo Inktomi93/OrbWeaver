@@ -52,12 +52,12 @@ import {
 } from "#client/features/chat/lib/message-action-names.ts";
 import { resolveIsGroupChat } from "#client/features/chat/lib/roster.ts";
 import { pluginCommandShownName, sharedPluginNames } from "#client/features/plugin/lib/plugin-command-copy.ts";
-import { PLUGIN_PANELS_SHEET_LABEL } from "#client/features/plugin/lib/plugin-copy.ts";
 import { CHAT_PLUGINS_OPEN_LABEL } from "#client/features/plugin/lib/plugin-panel-copy.ts";
 import { CHAT_TITLE_FIELD_NAME, RENAME_CHAT_NAME } from "#client/lib/chat-rename-names.ts";
 import { deriveChatTitle } from "#client/lib/chat-title.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
+import { SIDECAR_PANELS_LABEL, SIDECAR_PANELS_NOUN } from "#client/lib/flank-names.ts";
 import { renderMessageForDisplay } from "#client/lib/message-render.ts";
 import { CHAT_PLUGINS_TAB_LABEL } from "#client/lib/registry-contracts.ts";
 import { ROW_DELETE_NAME, ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
@@ -592,7 +592,7 @@ async function pluginContextReady(flow: Journey): Promise<void> {
 
 async function safePanelsDrill(flow: Journey, command: Locator, id: string): Promise<void> {
   const opensContext = await flow.page.getByRole("menu", { name: "Plugin actions", exact: true }).isVisible();
-  const sheet = flow.page.getByRole("dialog", { name: PLUGIN_PANELS_SHEET_LABEL, exact: true });
+  const sheet = flow.page.getByRole("dialog", { name: SIDECAR_PANELS_LABEL, exact: true });
   const scope = opensContext ? activeContext(flow) : sheet;
   await flow.action(id, {
     action: async () => {
@@ -812,7 +812,7 @@ async function sidecar(flow: Journey, room: ChatSummary): Promise<void> {
       await inspectSidecarColumn(flow, room);
     }
   } finally {
-    const sheet = flow.page.getByRole("dialog", { name: PLUGIN_PANELS_SHEET_LABEL, exact: true });
+    const sheet = flow.page.getByRole("dialog", { name: SIDECAR_PANELS_LABEL, exact: true });
     if (await sheet.isVisible()) {
       await sheet.getByRole("button", { name: DIALOG_VERBS.close, exact: true }).click();
     }
@@ -829,7 +829,7 @@ async function sidecar(flow: Journey, room: ChatSummary): Promise<void> {
 
 async function inspectSidecarColumn(flow: Journey, room: ChatSummary): Promise<void> {
   const column = flow.page.locator('[data-slot="chat-thread-flank"]');
-  const edge = flow.page.getByRole("button", { name: /^(?:Show|Hide) plugin panels$/u });
+  const edge = flow.page.getByRole("button", { name: new RegExp(`^(?:Show|Hide) ${SIDECAR_PANELS_NOUN}$`, "u") });
   await expect(edge).toHaveCount(1);
   await settledBox(edge);
   const initiallyOpen = (await edge.getAttribute("aria-expanded")) === "true";
@@ -865,9 +865,9 @@ async function sidecarColumnReady(column: Locator, edge: Locator): Promise<void>
 async function inspectSidecarSheet(flow: Journey, room: ChatSummary, restoreLabel: string): Promise<void> {
   await closeContextOverlay(flow, `sidecar-${room.id}-return-to-content`);
   await flow.page.getByRole("button", { name: "Message tools", exact: true }).click();
-  const item = flow.page.getByRole("menuitem", { name: PLUGIN_PANELS_SHEET_LABEL, exact: true });
+  const item = flow.page.getByRole("menuitem", { name: SIDECAR_PANELS_LABEL, exact: true });
   await expect(item).toBeVisible();
-  const sheet = flow.page.getByRole("dialog", { name: PLUGIN_PANELS_SHEET_LABEL, exact: true });
+  const sheet = flow.page.getByRole("dialog", { name: SIDECAR_PANELS_LABEL, exact: true });
   await flow.action(`sidecar-${room.id}-sheet-open`, {
     action: async () => {
       await item.click();

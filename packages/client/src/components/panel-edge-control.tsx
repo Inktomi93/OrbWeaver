@@ -11,7 +11,7 @@ import type { ReactElement, Ref } from "react";
 export interface PanelEdgeControlProps {
   /** Whether the panel is showing. */
   readonly expanded: boolean;
-  /** What the panel is, in the words of its verbs: "plugin panels" reads "Hide plugin panels". */
+  /** What the panel is, in the words of its verbs: "sidecar panels" reads "Hide sidecar panels". */
   readonly noun: string;
   /** Which edge of the screen the panel sits against. The glyph's bar is that edge: hide points into it, show out of it. */
   readonly edge: "start" | "end";

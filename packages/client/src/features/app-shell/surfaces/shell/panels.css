@@ -150,11 +150,11 @@
     padding-inline: var(--spacing-block);
     box-shadow: var(--shell-band-ember), var(--shell-band-rule);
   }
-  /* The identity shrinks first, down to the title floor; only then does the action row give up room, by moving
-   * actions into its menu. */
+  /* The action row gives up room first, by moving actions into its menu; the identity keeps its own floor: a scoped
+   * title's entity half yields down to the title floor (`ListPaneHeader`), an unscoped name never shrinks below its
+   * content. */
   .shell-panel-header [data-slot="list-pane-identity"] {
     flex: 1 10000 auto;
-    min-inline-size: var(--dimension-shell-title-floor);
   }
   .shell-panel-header [data-slot="list-pane-action"] {
     flex: 0 1 auto;

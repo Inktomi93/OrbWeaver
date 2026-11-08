@@ -20,6 +20,15 @@ export interface FlankPresentation {
   readonly occupiesRow: boolean;
 }
 
+/** What everything on the transcript's axis keeps clear on its inline end: the column and its gap while the column is in
+ *  the row, the edge control's corner while the column is parked or overlaid, and nothing without a panel host. */
+export function flankReservation(flank: FlankPresentation): "flank" | "clearance" | undefined {
+  if (!flank.panelMode) {
+    return undefined;
+  }
+  return flank.occupiesRow ? "flank" : "clearance";
+}
+
 /** Inline, the column is open unless the user collapsed it (the plugin host's setting, so it holds across rooms and
  *  reloads). Overlaid, it opens for the moment and closes on Escape, an outside press, or a change of regime; the
  *  room's column and edge control are what "inside" means for those exits. */

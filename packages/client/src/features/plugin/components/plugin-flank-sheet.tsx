@@ -9,10 +9,9 @@ import { Row, Stack } from "@orb/ui/layout";
 import { MenuItem, MenuSeparator } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef, useState } from "react";
-import { DIALOG_VERBS, publishFlankHost, setFlankSheetOpen, useFlankHost, useFlankSheetOpen } from "#lib";
+import { DIALOG_VERBS, publishFlankHost, SIDECAR_PANELS_LABEL, setFlankSheetOpen, useFlankHost, useFlankSheetOpen } from "#lib";
 import { usePluginFlankCollapsed } from "../hooks/use-plugin-chat-visibility.ts";
 import { useFlankInSheet, useVisibleAnchoredSurfaces } from "../hooks/use-visible-anchored-surfaces.ts";
-import { PLUGIN_PANELS_SHEET_LABEL } from "../lib/plugin-copy.ts";
 import { PluginAnchoredSurfaceList } from "./plugin-anchored-surfaces.tsx";
 
 /** The `chat-flank` anchor's body: the room's own column on a fine pointer, the sheet on a touch device. */
@@ -50,7 +49,7 @@ function FlankSheet({ children }: { readonly children: ReactNode }): ReactElemen
         <DrawerPopup>
           <Stack gap="block">
             <Row align="center" justify="between">
-              <DrawerTitle>{PLUGIN_PANELS_SHEET_LABEL}</DrawerTitle>
+              <DrawerTitle>{SIDECAR_PANELS_LABEL}</DrawerTitle>
               <DrawerClose
                 render={
                   <Button aria-label={DIALOG_VERBS.close} variant="ghost" square={true} type="button">
@@ -79,7 +78,7 @@ export function PluginPanelsMenuItem(): ReactElement | null {
     <>
       <MenuItem onClick={(): void => setFlankSheetOpen(true)}>
         <Icon icon={Blocks} size="sm" />
-        {PLUGIN_PANELS_SHEET_LABEL}
+        {SIDECAR_PANELS_LABEL}
       </MenuItem>
       <MenuSeparator />
     </>

@@ -366,6 +366,7 @@ export const TOKENS = {
   "aspect.portrait": { cssVar: "--aspect-portrait", value: "2 / 3" },
   "aspect.banner": { cssVar: "--aspect-banner", value: "3 / 1" },
   "dimension.panel": { cssVar: "--dimension-panel", value: "clamp(17rem, 24vw, 26rem)" },
+  "dimension.room-flank": { cssVar: "--dimension-room-flank", value: "calc(var(--width-sidebar-sm) + var(--spacing-block))" },
   "dimension.room-flank-fit": { cssVar: "--dimension-room-flank-fit", value: "calc(var(--dimension-content-reading-floor) + var(--width-sidebar-sm) + var(--spacing-block))" },
   "dimension.panel-context": { cssVar: "--dimension-panel-context", value: "clamp(17rem, 30vw, 30rem)" },
   "reading.measure": { cssVar: "--reading-measure", value: "75ch" },

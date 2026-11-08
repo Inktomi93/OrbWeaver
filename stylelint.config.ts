@@ -74,7 +74,9 @@ const SHELL_SLOTS = [
   "list-pane-back",
   // The room's carriers that the centred counter and the flank motion move with the content track.
   "chat-room-surface",
+  "chat-room-body",
   "chat-room-flank-row",
+  "chat-room-composer-region",
   // The LIST page's rows, which a short pane floors while the page scrolls around them.
   "library-list-scroll",
   "library-list-bounded",
