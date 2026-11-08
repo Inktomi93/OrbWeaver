@@ -46,10 +46,12 @@ export async function personaRoom(
     readonly model?: string;
     /** A local-auth root with the multi-user setting on, so the presence disclosure query answers. */
     readonly multiHuman?: boolean;
+    /** A counted database, for a test that proves how many reads a verb makes. */
+    readonly db?: NonNullable<ChatRootOptions["server"]>["db"];
   } = {},
 ): Promise<ChatRoot> {
   await using construction = new AsyncDisposableStack();
-  const { model = MODEL, multiHuman = false, ...roomOptions } = options;
+  const { model = MODEL, multiHuman = false, db, ...roomOptions } = options;
   const endpoint = builtinProvider("anthropic")?.baseUrl;
   if (endpoint === undefined) {
     throw new Error("the canonical Anthropic provider has no endpoint");
@@ -69,6 +71,7 @@ export async function personaRoom(
       memoryEnabled: false,
       server: {
         secretBoxKey: SECRET_BOX_TEST_KEY,
+        ...(db === undefined ? {} : { db }),
         ...(multiHuman ? { env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } } : {}),
         networkExecution: {
           resolver: (host): Promise<readonly string[]> =>

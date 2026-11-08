@@ -367,6 +367,7 @@
   --reading-measure: 75ch;
   --reading-measure-prose: 47ch;
   --reading-measure-min: 65ch;
+  --reading-measure-code: calc(75 * 0.6 * var(--text-code-field));
   --tracking-micro: 0.08em;
   --dimension-composer-field-min: 12ch;
   --dimension-shell-title-floor: 6ch;

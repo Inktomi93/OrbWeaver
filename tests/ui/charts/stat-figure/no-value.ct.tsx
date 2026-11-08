@@ -14,3 +14,9 @@ test("an empty figure prints the glyph under the empty-value name and a measured
   // The control: the measured figure is on screen and carries no such name.
   await expect(page.getByText("1,204", { exact: true })).toBeVisible();
 });
+
+test("a chart's text table says the empty value by its name", async ({ mount, page }) => {
+  await mount<typeof StatFigureNoValueStory>(STORY, {});
+  await expect(page.getByRole("cell", { name: NO_VALUE_NAME, exact: true })).toHaveCount(1);
+  await expect(page.getByRole("cell", { name: NO_VALUE, exact: true })).toHaveCount(0);
+});

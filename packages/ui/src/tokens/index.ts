@@ -376,6 +376,7 @@ export const TOKENS = {
   "reading.measure": { cssVar: "--reading-measure", value: "75ch" },
   "reading.measure-prose": { cssVar: "--reading-measure-prose", value: "47ch" },
   "reading.measure-min": { cssVar: "--reading-measure-min", value: "65ch" },
+  "reading.measure-code": { cssVar: "--reading-measure-code", value: "calc(75 * 0.6 * var(--text-code-field))" },
   "tracking.micro": { cssVar: "--tracking-micro", value: "0.08em" },
   "dimension.composer-field-min": { cssVar: "--dimension-composer-field-min", value: "12ch" },
   "height.picker-window": { cssVar: "--height-picker-window", value: "clamp(var(--height-scroll-short), calc(100dvh - var(--height-picker-chrome)), var(--height-scroll-lg))" },

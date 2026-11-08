@@ -82,10 +82,69 @@ function leadingComments(declaration: SgNode<TS>): readonly SgNode<TS>[] {
   return comments;
 }
 
+// Parents that make an identifier a binding, not a reference: a rewrite would replace the binding with an expression.
+const BINDING_PARENTS: ReadonlySet<string> = new Set([
+  "required_parameter",
+  "optional_parameter",
+  "function_declaration",
+  "function_expression",
+  "generator_function",
+  "generator_function_declaration",
+  "import_specifier",
+  "import_clause",
+  "namespace_import",
+  "export_specifier",
+  "catch_clause",
+  "array_pattern",
+  "rest_pattern",
+  "assignment_pattern",
+  "pair_pattern",
+  "enum_declaration",
+  "internal_module",
+  "labeled_statement",
+]);
+
+const NAME_OCCURRENCE_KINDS = ["identifier", "shorthand_property_identifier", "shorthand_property_identifier_pattern"] as const;
+
+/** Whether the name appears outside the declaration as something a plain rename cannot reach: a parameter, a destructured or shorthand
+ *  property, an import or export binding, a function name. The move skips such a file whole rather than guess which scope each use is in. */
+function isNameRebound(rootNode: SgNode<TS>, name: string, declaration: SgNode<TS>): boolean {
+  const inside = declaration.range();
+  return rootNode.findAll({ rule: { any: NAME_OCCURRENCE_KINDS.map((kind) => ({ kind, regex: `^${name}$` })) } }).some((occurrence) => {
+    const at = occurrence.range().start.index;
+    if (at >= inside.start.index && at < inside.end.index) {
+      return false;
+    }
+    const parent = occurrence.parent();
+    const arrowParameter = parent?.kind() === "arrow_function" && parent.field("parameter")?.range().start.index === at;
+    return occurrence.kind() !== "identifier" || arrowParameter || (parent !== null && BINDING_PARENTS.has(parent.kind()));
+  });
+}
+
 function importsBinding(statements: readonly SgNode<TS>[], binding: string): boolean {
   return statements.some((statement) =>
     statement.findAll({ rule: { kind: "import_specifier" } }).some((specifier) => specifier.field("name")?.text() === binding),
   );
+}
+
+/** The edit that imports each binding the file does not already have: after its last import, or above its first remaining statement when it has none. */
+function importEdit(rootNode: SgNode<TS>, needed: ReadonlyMap<string, ConstantMove>, removed: ReadonlySet<number>): Edit | undefined {
+  const statements = rootNode.findAll({ rule: { kind: "import_statement" } });
+  const lines = [...needed.values()]
+    .filter((entry) => !importsBinding(statements, entry.binding))
+    .map((entry) => `import { ${entry.binding} } from "${entry.from}";`);
+  if (lines.length === 0) {
+    return undefined;
+  }
+  const last = statements.at(-1);
+  if (last !== undefined) {
+    const at = last.range().end.index;
+    return { startPos: at, endPos: at, insertedText: lines.map((line) => `\n${line}`).join("") };
+  }
+  // A file with no import statement takes them above its first remaining statement, below any header comment.
+  const first = rootNode.children().find((child) => child.kind() !== "comment" && !removed.has(child.range().start.index));
+  const at = first?.range().start.index ?? 0;
+  return { startPos: at, endPos: at, insertedText: `${lines.join("\n")}\n\n` };
 }
 
 const codemod: Codemod<TS> = (root, options) => {
@@ -97,13 +156,15 @@ const codemod: Codemod<TS> = (root, options) => {
   const rootNode = root.root();
   const declarations = rootNode.findAll(TOP_LEVEL_CONST);
   const edits: Edit[] = [];
+  const removed = new Set<number>();
   const needed = new Map<string, ConstantMove>();
   for (const move of moves) {
     const declaration = declarationOf(rootNode, declarations, move.name);
-    if (declaration === undefined) {
+    if (declaration === undefined || isNameRebound(rootNode, move.name, declaration)) {
       continue;
     }
     const inside = declaration.range();
+    removed.add(inside.start.index);
     const first = leadingComments(declaration).at(-1) ?? declaration;
     edits.push({ startPos: first.range().start.index, endPos: inside.end.index, insertedText: "" });
     for (const reference of rootNode.findAll({ rule: { kind: "identifier", regex: `^${move.name}$` } })) {
@@ -117,14 +178,9 @@ const codemod: Codemod<TS> = (root, options) => {
   if (edits.length === 0) {
     return Promise.resolve(null);
   }
-  const statements = rootNode.findAll({ rule: { kind: "import_statement" } });
-  const last = statements.at(-1);
-  const missing = [...needed.values()].filter((entry) => !importsBinding(statements, entry.binding));
-  if (missing.length > 0 && last !== undefined) {
-    const at = last.range().end.index;
-    edits.push({ startPos: at, endPos: at, insertedText: missing.map((entry) => `\nimport { ${entry.binding} } from "${entry.from}";`).join("") });
-  }
-  return Promise.resolve(rootNode.commitEdits(edits));
+  const insert = importEdit(rootNode, needed, removed);
+  // First, so an insertion at the start of a deleted statement's neighbour is applied before the deletion that ends there.
+  return Promise.resolve(rootNode.commitEdits(insert === undefined ? edits : [insert, ...edits]));
 };
 
 export default codemod;

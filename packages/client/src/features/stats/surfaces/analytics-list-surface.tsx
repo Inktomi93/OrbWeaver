@@ -11,7 +11,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+import { shownValue, Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import { VirtualList } from "@orb/ui/virtual-list";
@@ -164,7 +164,7 @@ function LeaderboardBody({
             title={names[row.characterId] ?? row.name}
             trailing={
               <Text voice="datumMono" whitespace="nowrap">
-                {formatTokens(row.tokensOut, row.tokensOutProvenance)}
+                {shownValue(formatTokens(row.tokensOut, row.tokensOutProvenance))}
               </Text>
             }
           />

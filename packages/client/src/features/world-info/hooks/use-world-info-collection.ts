@@ -47,7 +47,13 @@ export function useWorldInfoInsights(): readonly CollectionInsight[] | undefined
       value: String(everywhere.length),
       ...(firstGlobal === undefined
         ? {}
-        : { open: { label: `Open ${firstGlobal.name}`, run: (): void => selectCollectionMember(WORLD_INFO_COLLECTION_ID, firstGlobal.id) } }),
+        : {
+            open: {
+              label: `Open ${firstGlobal.name}`,
+              memberId: firstGlobal.id,
+              run: (): void => selectCollectionMember(WORLD_INFO_COLLECTION_ID, firstGlobal.id),
+            },
+          }),
     },
     {
       id: "unattached",
@@ -55,7 +61,13 @@ export function useWorldInfoInsights(): readonly CollectionInsight[] | undefined
       value: `${String(unattached.length)} of ${String(rows.length)}`,
       ...(firstUnattached === undefined
         ? {}
-        : { open: { label: `Open ${firstUnattached.name}`, run: (): void => selectCollectionMember(WORLD_INFO_COLLECTION_ID, firstUnattached.id) } }),
+        : {
+            open: {
+              label: `Open ${firstUnattached.name}`,
+              memberId: firstUnattached.id,
+              run: (): void => selectCollectionMember(WORLD_INFO_COLLECTION_ID, firstUnattached.id),
+            },
+          }),
     },
   ];
 }

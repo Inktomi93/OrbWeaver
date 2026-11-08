@@ -359,3 +359,26 @@ for (const regime of REGIMES.slice(0, 2)) {
     }
   });
 }
+
+test.describe("two members that share a name", () => {
+  test.use({ viewport: { width: 1440, height: 900 }, hasTouch: false, isMobile: false });
+
+  test("each keeps its own door, because a door is one per member and not one per name", async ({ mount, page }) => {
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    const { appearance } = await prepare(caller, page, "regex", false);
+    // Each script is made a second after the last, so the disabled one is the first switched off and the enabled one the latest edit.
+    for (const enabled of [false, true]) {
+      root.clock.advance(1000);
+      await caller.regex.createScript({
+        input: createRegexScriptSchema.parse({ name: "", findRegex: "twin", replaceString: "", placement: ["AI_OUTPUT"], enabled }),
+      });
+    }
+    const unnamed = (await caller.regex.listScripts()).filter((script) => script.name === "");
+    expect(unnamed).toHaveLength(2);
+    await mount<typeof CollectionCompositionStory>(STORY, { group: "regex", width: 960, height: 900, appearance });
+    const insights = page.locator('[data-slot="config-content"] [data-slot="config-library-insights"]');
+    await expect(insights.getByRole("button", { name: /^Open Unnamed script: Switched off$/u })).toHaveCount(1);
+    await expect(insights.getByRole("button", { name: /^Open Unnamed script: Last edited$/u })).toHaveCount(1);
+  });
+});

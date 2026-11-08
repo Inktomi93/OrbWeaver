@@ -94,9 +94,9 @@ export interface CollectionInsight {
   /** The DOOR — present ONLY when this fact is about ONE member, and then it opens that member's editor
    *  (the owner calls its own `selectCollectionMember`; the host never learns which member it was).
    *  `label` is the control's whole accessible name, so it names what it opens rather than repeating the
-   *  fact. Two facts whose doors share a label open the same member, and the host draws that door once, on
-   *  the first of them. */
-  readonly open?: { readonly label: string; readonly run: () => void };
+   *  fact. `memberId` is the member the door opens: two facts about one member share it, and the host draws
+   *  that door once, on the first of them. Two members can share a name, so the label never tells them apart. */
+  readonly open?: { readonly label: string; readonly memberId: string; readonly run: () => void };
 }
 
 /** ONE library's member CENSUS as the host knows it — the number, or why there is no number (#1546).

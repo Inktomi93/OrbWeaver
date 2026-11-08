@@ -98,7 +98,7 @@ import type { RpgAssemblyContext } from "#domain/rpg";
 import type { SearchService } from "#domain/search";
 import { withRetrievalDegrade } from "#domain/search";
 import type { SessionsService } from "#domain/sessions";
-import { createTokenHasher, selectHandleById } from "#domain/sessions";
+import { createTokenHasher, selectHandleById, selectHandlesByIds } from "#domain/sessions";
 import type { SettingsService } from "#domain/settings";
 import { createResolveRetainedChatAccountingScope, createResolveRetainedChatRebase, createStatsBatchWiring } from "#domain/stats";
 import type { ResolvedToolSet, ToolUseService } from "#domain/tool-use";
@@ -487,6 +487,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
       { db },
       { loadUserHandle: (userId) => selectHandleById(db, userId), loadUserSettings: (userId) => input.settings.loadUserSettings(userId) },
     ),
+    loadUserHandles: (userIds) => selectHandlesByIds(db, userIds),
     resolveImageUrl: createResolveMediaRef({
       db,
       assets: input.assets,

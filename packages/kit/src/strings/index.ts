@@ -35,6 +35,11 @@ export const NO_VALUE = "—";
 /** What assistive technology says for {@link NO_VALUE}. */
 export const NO_VALUE_NAME = "No value";
 
+/** `text` for a sink that is read aloud rather than seen (an `aria-label`, a chart's text table): each {@link NO_VALUE} in it says its name. */
+export function spokenText(text: string): string {
+  return text.replaceAll(NO_VALUE, NO_VALUE_NAME);
+}
+
 // ── byte sizes ───────────────────────────────────────────────────────────────────────────────────────
 // The ONE human byte-size formatter. It had two byte-identical spellings (`@orb/ui/file-dropzone`'s cap
 // hint and `features/databank`'s row subtitle) before the per-chat document rack needed a third; a pure,

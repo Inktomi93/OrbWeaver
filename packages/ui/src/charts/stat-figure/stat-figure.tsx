@@ -1,7 +1,6 @@
 // A label over a big pre-formatted number.
-import { NO_VALUE } from "@orb/kit/strings";
 import type { ReactElement } from "react";
-import { NoValue } from "#primitives/text";
+import { shownValue } from "#primitives/text";
 import { statFigureVariants } from "./variants.ts";
 
 export interface StatFigureProps {
@@ -13,7 +12,7 @@ export interface StatFigureProps {
 
 export function StatFigure({ label, value }: StatFigureProps): ReactElement {
   const slots = statFigureVariants();
-  const shown = value === NO_VALUE ? <NoValue /> : value;
+  const shown = shownValue(value);
 
   return (
     <div className={slots.root()} data-slot="stat-figure">

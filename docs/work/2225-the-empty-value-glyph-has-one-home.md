@@ -30,4 +30,8 @@ Moved by codemod: the nine `UNSET_DATUM` readers through `move-import-names`, an
 
 `packages/client/src/features/rpg/lib/unset-datum.ts` is gone. Tests that read a placeholder import the constant. CT `tests/ui/charts/stat-figure/no-value.ct.tsx` fails without the mapping.
 
+Every accessible-name sink reads the name. The NPC mood button names itself `<name> mood: No value` when no mood is written (asserted in `tests/client/features/rpg/components/own-key-panels.ct.tsx`). `spokenText` in `@orb/kit/strings` says each glyph in a string by its name, and the chart text table builders apply it to every cell, so BarList, Histogram and Heatmap tables read `No value` (`tests/ui/charts/stat-figure/no-value.ct.tsx`). `shownValue` in `@orb/ui/text` renders a formatter's glyph as `NoValue`, and the stats list row, persona row and model rows use it for the nullable token, cost, time and throughput formatters. `StatFigure` reads the same helper.
+
+Left as text: the clock reading `21:—` in the RPG takeover header, which is one datum inside a joined line of visible text. The tracker rest buttons and meter datums show the glyph under an `aria-label` that names the control, and the swipe counters keep their separate spoken count.
+
 Kept as developer diagnostics: the lone dash in `trpc-devlog.ts` and `bus-devlog.ts`, which only reach the console.

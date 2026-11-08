@@ -11,7 +11,7 @@
 import { BarList } from "@orb/ui/bar-list";
 import { Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
-import { Text } from "@orb/ui/text";
+import { shownValue, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
@@ -68,7 +68,7 @@ function PersonasBody(): ReactElement {
                   subtitle={`${formatCompactNoun(persona.chatCount, "chat", "chats")} · ${formatCompactNoun(persona.messageCount, "message", "messages")}${persona.lastUsedAt === null ? "" : ` · last used ${timeLib.formatRelative(persona.lastUsedAt)}`}`}
                   actions={
                     <Text voice="datumMono" whitespace="nowrap">
-                      {formatTokens(persona.tokensOut, persona.tokensOutProvenance)}
+                      {shownValue(formatTokens(persona.tokensOut, persona.tokensOutProvenance))}
                     </Text>
                   }
                 />

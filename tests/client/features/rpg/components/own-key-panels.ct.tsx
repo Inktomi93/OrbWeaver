@@ -7,7 +7,7 @@ import { MESSAGE_TOOLS_LABEL } from "@orb/client/lib";
 import type { RpgStatProfile } from "@orb/contracts/rpg";
 import { RPG_PROFILE_D20, rpgAttributeModifier, rpgNpcSlug, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { ChatId, UserId } from "@orb/kit/ids";
-import { NO_VALUE } from "@orb/kit/strings";
+import { NO_VALUE, NO_VALUE_NAME } from "@orb/kit/strings";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/ct";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -163,6 +163,8 @@ test("the Scene character card reads an unset inherited-name tracker as unset, t
   const unset = await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId: room.chatId, tab: "rpg.scene" });
   await page.getByRole("button", { name: "Show known characters", exact: true }).click();
   await expect(npcValue).toHaveText(NO_VALUE);
+  // The mood slot beside it has no value either, and its accessible name says so in words.
+  await expect(page.getByRole("button", { name: `${NPC_NAME} mood: ${NO_VALUE_NAME}`, exact: true })).toBeVisible();
   await unset.unmount();
 
   await room.setInheritedValues();

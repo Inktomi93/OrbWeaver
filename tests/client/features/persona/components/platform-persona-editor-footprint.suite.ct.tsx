@@ -13,6 +13,9 @@ const STORY = "tests/client/features/persona/components/_persona-action-groups-s
 const DESCRIPTION = "A patient traveler records the people and places that {{user}} encounters, keeping their promises and the names of distant towns. ".repeat(
   5,
 );
+// The design law's reading band (UI-Architecture-and-Layout), and the widths at which the field reaches its cap.
+const READING_BAND = { min: 65, max: 75 } as const;
+const WIDE_LAYOUT_PX = 1280;
 const REGIMES = [
   { name: "wide default", width: 1280, viewport: { width: 1440, height: 1000 }, coarse: false, appearance: appearanceSettingsSchema.parse({}) },
   { name: "wide enlarged", width: 1600, viewport: { width: 1920, height: 1000 }, coarse: false, appearance: ENLARGED_APPEARANCE_SETTINGS },
@@ -68,8 +71,23 @@ for (const regime of REGIMES) {
       expect(Math.abs(counterBox.x + counterBox.width - controlBox.x - controlBox.width)).toBeLessThanOrEqual(1);
       expect(counterBox.y).toBeGreaterThanOrEqual(controlBox.y + controlBox.height);
       const macro = editor.locator('[data-slot="macro-textarea"]').filter({ has: textarea });
-      const measure = await resolvedLength(page, `var(${TOKENS["width.content-col"].cssVar})`, macro);
+      const measure = await resolvedLength(page, `var(${TOKENS["reading.measure-code"].cssVar})`, macro);
       expect(controlBox.width).toBeCloseTo(Math.min(fieldBox.width, measure), 0);
+      // The line a reader scans: the text area's content box counted in the field's own monospace characters.
+      const line = await textarea.evaluate((node) => {
+        const style = getComputedStyle(node);
+        const probe = document.createElement("div");
+        probe.style.cssText = `position:absolute;visibility:hidden;inline-size:1ch;font:${style.font}`;
+        node.parentElement?.append(probe);
+        const advance = probe.getBoundingClientRect().width;
+        probe.remove();
+        const content = node.clientWidth - Number.parseFloat(style.paddingInlineStart) - Number.parseFloat(style.paddingInlineEnd);
+        return { content, advance, characters: content / advance };
+      });
+      await info.attach("persona-description-measure", { body: JSON.stringify(line), contentType: "application/json" });
+      // Narrow layouts hold fewer characters than the band; only the wide ones reach the cap, and none may pass it.
+      expect(line.characters).toBeLessThanOrEqual(READING_BAND.max);
+      expect(line.characters).toBeGreaterThanOrEqual(regime.width >= WIDE_LAYOUT_PX ? READING_BAND.min : 0);
       const fonts = await Promise.all([label, counter, textarea].map((part) => part.evaluate((node) => getComputedStyle(node).fontFamily)));
       expect(fonts[1]).toBe(fonts[0]);
       expect(fonts[2]).not.toBe(fonts[0]);

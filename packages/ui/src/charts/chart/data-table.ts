@@ -9,6 +9,8 @@
 // stops matching the chart's own visible heading (WCAG 2.5.3 label-in-name — the rule `ListRow.fullTitle`
 // exists for) and makes a `getByRole` name data-dependent across every consumer. One home, one shape.
 
+import { spokenText } from "@orb/kit/strings";
+
 /** One row of a chart's text equivalent: the row header (a category/bucket) plus its formatted cells. */
 interface ChartDataRow {
   /** The row's identity, which for a chart IS ITS RANK — a library can hold two characters called
@@ -35,7 +37,7 @@ export function labelledValueTable(
 ): ChartDataTable {
   return {
     columns: [categoryColumn, valueColumn],
-    rows: rows.map((row, index) => ({ id: String(index), header: row.label, cells: [row.value] })),
+    rows: rows.map((row, index) => ({ id: String(index), header: row.label, cells: [spokenText(row.value)] })),
   };
 }
 
@@ -47,6 +49,6 @@ export function matrixTable(
 ): ChartDataTable {
   return {
     columns: [rowColumn, ...cols],
-    rows: rows.map((row, index) => ({ id: String(index), header: row.label, cells: [...row.values] })),
+    rows: rows.map((row, index) => ({ id: String(index), header: row.label, cells: row.values.map(spokenText) })),
   };
 }

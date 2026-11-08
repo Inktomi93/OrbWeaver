@@ -1,4 +1,4 @@
-import { MIN_HEIGHT, tv } from "#lib";
+import { CAP, MIN_HEIGHT, tv } from "#lib";
 
 // The macro-textarea skin. The textarea rides the shared textarea skin (composed via
 // `#primitives/textarea`, not reimplemented) with a monospace override so `{{macro}}` markers
@@ -12,9 +12,8 @@ import { MIN_HEIGHT, tv } from "#lib";
 // one styling hook.
 export const macroTextareaVariants = tv({
   slots: {
-    // The editor content column's cap, a length rather than `ch`: a `ch` resolves in the element's own face, so this
-    // field and its siblings would end on different edges.
-    root: "relative flex flex-col gap-field max-inline-(--width-content-col) min-inline-0",
+    // The code measure is a length, so the plain fields in the same column can end on this edge.
+    root: `relative flex flex-col gap-field ${CAP.code} min-inline-0`,
     // resize-y: a native bottom-drag handle — the field auto-grows with content (the shared
     // textarea skin's `field-sizing: content`) but a caller can still pull it taller by hand
     // (persona-panel redesign — a long description wants more room on demand).
