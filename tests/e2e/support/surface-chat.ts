@@ -346,11 +346,13 @@ async function emptySearch(flow: Journey): Promise<void> {
 
 async function messageLeafName(item: Locator): Promise<string> {
   const snapshot = await item.ariaSnapshot();
-  const label = /^- menuitem(?:checkbox|radio)? "([^"]+)"/u.exec(snapshot)?.at(1);
-  if (label === undefined) {
+  // A name holding ": " makes the YAML quote the whole node, `- 'menuitem "Imagine: modes"'`, with `'` doubled inside.
+  const match = /^- (?<quote>'?)menuitem(?:checkbox|radio)? "(?<name>[^"]+)"\k<quote>/u.exec(snapshot);
+  const name = match?.groups?.["name"];
+  if (name === undefined) {
     throw new Error(`The actual message leaf has no identifiable accessible name: ${snapshot}`);
   }
-  return label;
+  return match?.groups?.["quote"] === "'" ? name.replaceAll("''", "'") : name;
 }
 
 function disabledLeafItems(menu: Locator): Locator {

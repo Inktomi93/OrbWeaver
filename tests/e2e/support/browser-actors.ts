@@ -50,7 +50,7 @@ const COOKIE_ACTOR_HEADERS = { [CSRF_HEADER]: "1", forwarded: "for=192.0.2.1" } 
 const READY_TIMEOUT_MS = 30_000;
 /** What a refused browser-actor login says, so a spec that expects the refusal asserts the same words. */
 export const LOGIN_FAILED = "login failed";
-/** The chat header's roster entry, by its ACCESSIBLE NAME prefix (`Members — <count>`) — the count varies
+/** The chat header's roster entry, by its ACCESSIBLE NAME prefix (`Members: <count>`): the count varies
  *  with the room, so the prefix is the stable half. */
 const MEMBERS_ENTRY = `[aria-label^="${CHAT_MEMBERS_ENTRY_PREFIX}"]`;
 
@@ -118,7 +118,7 @@ export async function browserActorRequestHeaders(context: BrowserContext, baseUr
 }
 
 /** Open the chat whose list row carries `title` (the real Chats-list affordance), then its MEMBERS context
- *  tab through the chat header's roster entry (accessible name `Members — <n>`). The entry both selects the
+ *  tab through the chat header's roster entry (accessible name `Members: <n>`). The entry both selects the
  *  tab and docks the context panel (`setContextTab` + `setPanelMode("context", "docked")`, chat-header.tsx),
  *  which an undocked panel would not: it mounts at zero size. `title` must be unique on the shared DB. */
 export async function openMembersTab(page: Page, title: string): Promise<void> {
