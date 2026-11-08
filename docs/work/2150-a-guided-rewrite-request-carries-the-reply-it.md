@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-08
 priority: P2
 area: chat
+lane: wt/agent-ac472055b3b83042e
 ---
 
 # A guided rewrite request carries the reply it rewrites
