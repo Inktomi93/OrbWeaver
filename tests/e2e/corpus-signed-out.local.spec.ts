@@ -8,6 +8,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Browser, BrowserContext, Page, TestInfo } from "@playwright/test";
 import { devices } from "@playwright/test";
+import { ROUTE_PENDING_NAME } from "#client/routes/route-pending-names.ts";
 import type { ActorClient } from "./support/actors.ts";
 import { loginLocal } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
@@ -41,16 +42,34 @@ async function signedOutContext(browser: Browser, baseURL: string, info: TestInf
   return await browser.newContext({ ...devices[project.device], baseURL, locale: "en-US", timezoneId: "UTC", extraHTTPHeaders: { forwarded: "" } });
 }
 
-/** Holds every guard read short of the real server until `release`, then lets the held and later reads through. */
-async function holdAuthMe(page: Page): Promise<{ readonly reads: () => number; readonly release: () => void }> {
-  let reads = 0;
-  const released = Promise.withResolvers<void>();
+/** Holds each guard read short of the real server until the case releases it: `releaseNext` lets the oldest held read
+ *  through, `releaseAll` lets every held and later read through. */
+async function holdAuthMe(page: Page): Promise<{ readonly reads: () => number; readonly releaseNext: () => void; readonly releaseAll: () => void }> {
+  const held: PromiseWithResolvers<void>[] = [];
+  let released = 0;
+  let open = false;
   await page.route(AUTH_ME, async (route) => {
-    reads += 1;
-    await released.promise;
+    const hold = Promise.withResolvers<void>();
+    held.push(hold);
+    if (open) {
+      hold.resolve();
+    }
+    await hold.promise;
     await route.continue();
   });
-  return { reads: (): number => reads, release: released.resolve };
+  return {
+    reads: (): number => held.length,
+    releaseNext: (): void => {
+      held[released]?.resolve();
+      released += 1;
+    },
+    releaseAll: (): void => {
+      open = true;
+      for (const hold of held) {
+        hold.resolve();
+      }
+    },
+  };
 }
 
 /** A real signup invite to a fresh room the owner hosts; the room is deleted after `run`. */
@@ -136,12 +155,17 @@ test.describe("local corpus auth guard", () => {
           const before = await address(page);
           const guard = await holdAuthMe(page);
           await page.goto(`/?join=${token}`, { waitUntil: "commit" });
-          await expect.poll(guard.reads).toBeGreaterThanOrEqual(1);
           const join = page.getByRole("button", { name: "Create account and join", exact: true });
-          // The held read gates the form: this is the slow window the fallback once crashed in.
-          await expect(join).toBeHidden();
-          await expect(page.locator(APP_FAILURE)).toHaveCount(0);
-          guard.release();
+          const pending = page.getByRole("status", { name: ROUTE_PENDING_NAME, exact: true });
+          // Two slow windows: the landing's own guard read, then the sign-in page's after the redirect. In each the router
+          // paints its pending mark, the form stays out, and the crash fallback never shows.
+          for (const read of [1, 2]) {
+            await expect.poll(guard.reads).toBe(read);
+            await expect(pending).toBeVisible();
+            await expect(join).toBeHidden();
+            await expect(page.locator(APP_FAILURE)).toHaveCount(0);
+            guard.releaseNext();
+          }
 
           await expect(join).toBeVisible({ timeout: GUARD_READ_BUDGET_MS * 4 });
           await expect(page.locator(APP_FAILURE)).toHaveCount(0);
@@ -178,7 +202,7 @@ test.describe("local corpus auth guard", () => {
         history.back();
       });
       await expect.poll(guard.reads).toBeGreaterThanOrEqual(2);
-      guard.release();
+      guard.releaseAll();
       await expect(page.getByRole("heading", { name: "Sign in", exact: true })).toBeVisible({ timeout: GUARD_READ_BUDGET_MS * 8 });
       await expect(page.locator(APP_FAILURE)).toHaveCount(0);
       await expect.poll(async () => (await address(page)).href, { timeout: GUARD_READ_BUDGET_MS * 8 }).toBe("/login?second=1");
