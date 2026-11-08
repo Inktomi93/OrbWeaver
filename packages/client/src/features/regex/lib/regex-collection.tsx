@@ -20,6 +20,7 @@ import {
   useRegexMemberTitle,
 } from "../hooks/use-regex-collection.ts";
 import { RegexMemberSurface } from "../surfaces/regex-member-surface.tsx";
+import { REGEX_NEW_SCRIPT_NAME, REGEX_SCRIPT_NAME_FIELD_NAME } from "./regex-names.ts";
 
 export const regexCollection: CollectionContribution = {
   emptyText: "A script finds a pattern in text and replaces it, in messages or in the prompt.",
@@ -28,7 +29,11 @@ export const regexCollection: CollectionContribution = {
   // last touched — two questions a rules library answers and its LIST of rows cannot.
   insights: { useInsights: useRegexInsights },
   useMemberTitle: useRegexMemberTitle,
-  create: { label: "New script", useRun: useCreateRegexMember, askName: { fieldLabel: "Script name", maxLength: REGEX_SCRIPT_NAME_MAX } },
+  create: {
+    label: REGEX_NEW_SCRIPT_NAME,
+    useRun: useCreateRegexMember,
+    askName: { fieldLabel: REGEX_SCRIPT_NAME_FIELD_NAME, maxLength: REGEX_SCRIPT_NAME_MAX },
+  },
   // D121-D: the host renders this door; production LIFECYCLE_DOORS records regex's standalone import.
   importFile: { label: "Import a regex script", accept: "application/json", useRun: useImportRegexMember },
   bulkSelect: { label: "Select scripts", useMode: useRegexBulkMode },

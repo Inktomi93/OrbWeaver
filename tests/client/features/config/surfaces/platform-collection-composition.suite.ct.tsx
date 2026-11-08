@@ -11,6 +11,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { CONFIG_MORE_LIBRARY_ACTIONS_NAME } from "#client/features/config/lib/config-control-names.ts";
+import { REGEX_NEW_SCRIPT_NAME, REGEX_SCRIPT_NAME_FIELD_NAME } from "#client/features/regex/lib/regex-names.ts";
 import type { CollectionCompositionStory } from "./_collection-composition-stories.tsx";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -225,11 +226,11 @@ for (const regime of REGIMES) {
       await mount<typeof CollectionCompositionStory>(STORY, { group: "regex", width: regime.width, height: regime.viewport.height, appearance });
       const content = page.locator('[data-slot="config-content"]');
       await expectBoundedContent(content, regime.width);
-      const opener = content.getByRole("button", { name: "New script", exact: true });
+      const opener = content.getByRole("button", { name: REGEX_NEW_SCRIPT_NAME, exact: true });
       await opener.focus();
       await page.keyboard.press("Enter");
-      const form = content.getByRole("form", { name: "New script", exact: true });
-      const field = form.getByRole("textbox", { name: "Script name", exact: true });
+      const form = content.getByRole("form", { name: REGEX_NEW_SCRIPT_NAME, exact: true });
+      const field = form.getByRole("textbox", { name: REGEX_SCRIPT_NAME_FIELD_NAME, exact: true });
       const create = form.locator('button[type="submit"]');
       const cancel = form.getByRole("button", { name: "Cancel", exact: true });
       await expect(field).toBeFocused();
@@ -284,8 +285,8 @@ for (const regime of REGIMES) {
       await expect(content.getByRole("checkbox").first()).toBeVisible();
       await bulk.click();
       const before = await caller.regex.countScripts();
-      await content.getByRole("button", { name: "New script", exact: true }).click();
-      await expect(content.getByRole("textbox", { name: "Script name", exact: true })).toBeFocused();
+      await content.getByRole("button", { name: REGEX_NEW_SCRIPT_NAME, exact: true }).click();
+      await expect(content.getByRole("textbox", { name: REGEX_SCRIPT_NAME_FIELD_NAME, exact: true })).toBeFocused();
       await content.getByRole("button", { name: "Cancel", exact: true }).click();
       expect(await caller.regex.countScripts()).toBe(before);
       await content.getByRole("button", { name: CONFIG_MORE_LIBRARY_ACTIONS_NAME, exact: true }).click();

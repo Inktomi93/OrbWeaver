@@ -21,8 +21,9 @@ import { useDeferredValue, useRef, useState } from "react";
 import { LibraryRow, ListPage, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
-import { ESTIMATED_ROW_PX, testId, useFocusOnMount } from "#lib";
+import { CLEAR_SEARCH_NAME, ESTIMATED_ROW_PX, testId, useFocusOnMount } from "#lib";
 import { selectAnalyticsCharacterFromList, setAnalyticsSearchQuery, useAnalyticsSearchQuery, useSelectedAnalyticsCharacterId } from "#state";
+import { ANALYTICS_NO_ACTIVITY_TEXT } from "../lib/analytics-copy.ts";
 import { ANALYTICS_SEARCH_NAME } from "../lib/analytics-names.ts";
 import {
   ANALYTICS_DEFAULT_SORT,
@@ -124,12 +125,12 @@ function LeaderboardBody({
 }): ReactElement {
   if (page.rows.length === 0) {
     return trimmed === "" ? (
-      <Text voice="gloss">No characters have any rolled-up activity yet.</Text>
+      <Text voice="gloss">{ANALYTICS_NO_ACTIVITY_TEXT}</Text>
     ) : (
       <Stack gap="field" align="start">
         <Text voice="gloss">{`No character matches "${trimmed}".`}</Text>
         <Button variant="outline" size="sm" onClick={(): void => setAnalyticsSearchQuery("")}>
-          Clear search
+          {CLEAR_SEARCH_NAME}
         </Button>
       </Stack>
     );

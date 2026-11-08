@@ -8,7 +8,7 @@ import { enlargeUntilVisible, seedShellState, setRootFontScale } from "@orb/test
 import { channelName, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { DATABANK_MAINTENANCE_NAME } from "#client/features/databank/lib/databank-names.ts";
+import { DATABANK_ADD_DOCUMENT_TITLE, DATABANK_MAINTENANCE_NAME } from "#client/features/databank/lib/databank-names.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -140,10 +140,10 @@ test.describe("a list band on a phone", () => {
     await expect(trigger).toBeHidden();
     await enlargeUntilVisible(page, trigger, FONT_SCALE_PROPERTY, SCALES);
     await expect(page.locator(SHOWN_CONTROLS)).toHaveCount(1);
-    await expect(page.locator(SHOWN_CONTROLS)).toHaveAccessibleName("Add a document");
+    await expect(page.locator(SHOWN_CONTROLS)).toHaveAccessibleName(DATABANK_ADD_DOCUMENT_TITLE);
     for (const sweep of ["Rebuild all documents", "Re-read all documents"]) {
       await trigger.click();
-      await expect(page.getByRole("menuitem", { name: "Add a document", exact: true })).toHaveCount(0);
+      await expect(page.getByRole("menuitem", { name: DATABANK_ADD_DOCUMENT_TITLE, exact: true })).toHaveCount(0);
       await page.getByRole("menuitem", { name: DATABANK_MAINTENANCE_NAME, exact: true }).click();
       await page.getByRole("menuitem", { name: sweep, exact: true }).click();
       await expect(page.getByRole("alertdialog", { name: `${sweep}?`, exact: true })).toBeVisible();

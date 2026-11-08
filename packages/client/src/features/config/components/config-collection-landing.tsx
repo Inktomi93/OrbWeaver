@@ -68,7 +68,7 @@ import type { CollectionContribution, CollectionInsight } from "#lib";
 import { DIALOG_VERBS, useFocusOnSwap } from "#lib";
 import type { CollectionGroupDefinition } from "#state";
 import { selectCollectionMemberFromList, useCollectionSelection } from "#state";
-import { CONFIG_MORE_LIBRARY_ACTIONS_NAME } from "../lib/config-control-names.ts";
+import { CONFIG_MORE_LIBRARY_ACTIONS_NAME, collectionEmptyTitle, collectionFilterName } from "../lib/config-control-names.ts";
 import { ConfigPaneGlance } from "./config-pane-glance.tsx";
 
 export function ConfigCollectionLanding({ group }: { readonly group: CollectionGroupDefinition }): ReactNode {
@@ -108,7 +108,7 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
           description={collection.emptyText}
           measure="wide"
           // `p` NOT `h2`: the heading is already above in ConfigPaneGlance; a second h2 here invents structure.
-          title={`No ${group.label.toLowerCase()} yet`}
+          title={collectionEmptyTitle(group.label)}
           titleAs="p"
         />
       </Stack>
@@ -168,7 +168,7 @@ function CollectionControlRow({
         <Row align="center" className="min-inline-0" floor="field" grow={true} cap="fit">
           <Input
             ref={filterRef}
-            aria-label={`Filter ${label.toLowerCase()}`}
+            aria-label={collectionFilterName(label)}
             onValueChange={onFilterChange}
             placeholder={`Filter ${label.toLowerCase()}…`}
             value={filter}

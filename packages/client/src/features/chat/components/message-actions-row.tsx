@@ -42,7 +42,13 @@ import { selectChat, startEditingMessage } from "#state";
 import { useDeleteMutation, useForkMutation, useHideMutation, useRevertContinueMutation, useUndoContinueMutation } from "../hooks/use-message-mutations.ts";
 import { useReactionsEnabled, useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
 import { useReattributeTarget } from "../hooks/use-reattribute-target.ts";
-import { MESSAGE_VIEW_WIRE_TRACE_NAME } from "../lib/message-action-names.ts";
+import {
+  MESSAGE_COPY_NAME,
+  MESSAGE_REAPPLY_CONTINUATION_NAME,
+  MESSAGE_UNDO_CONTINUATION_NAME,
+  MESSAGE_VIEW_WIRE_TRACE_NAME,
+  messagePromptToggleName,
+} from "../lib/message-action-names.ts";
 import type { ActionsReveal } from "../lib/message-actions-reveal.ts";
 import { ACTIONS_REVEAL_POSTURE } from "../lib/message-actions-reveal.ts";
 import { GenerationCredit } from "./generation-credit.tsx";
@@ -280,7 +286,7 @@ export function MessageActionsRow({
             {editable ? (
               <MenuItem onClick={onToggleHidden}>
                 <Icon icon={excludedFromPrompt ? EyeOff : Eye} size="sm" />
-                {excludedFromPrompt ? "Unhide from AI" : "Hide from AI"}
+                {messagePromptToggleName(excludedFromPrompt)}
               </MenuItem>
             ) : null}
             {/* B6 — the COARSE door, and by the mirror-parity ruling it is present at EVERY pointer (a
@@ -298,7 +304,7 @@ export function MessageActionsRow({
             <ReattributeVoiceMenu message={message} seats={characterSeats} viewerIsHost={viewerIsHost} />
             <MenuItem onClick={(): void => copyWithNotice(content, MESSAGE_COPY_FALLBACK)}>
               <Icon icon={Copy} size="sm" />
-              Copy
+              {MESSAGE_COPY_NAME}
             </MenuItem>
             {/* The continue undo/redo pair (F2) — only on an assistant reply (the sole role that carries a
             continue snapshot), disabled-with-reason until a continue has run on the shown swipe. */}
@@ -307,7 +313,7 @@ export function MessageActionsRow({
                 detail={continueRestoreReason}
                 disabled={!hasContinuation}
                 icon={Undo2}
-                label="Undo last continuation"
+                label={MESSAGE_UNDO_CONTINUATION_NAME}
                 onClick={onUndoContinue}
               />
             ) : null}
@@ -316,7 +322,7 @@ export function MessageActionsRow({
                 detail={continueRestoreReason}
                 disabled={!hasContinuation}
                 icon={Redo2}
-                label="Re-apply continuation"
+                label={MESSAGE_REAPPLY_CONTINUATION_NAME}
                 onClick={onRevertContinue}
               />
             ) : null}

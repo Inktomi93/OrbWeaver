@@ -29,7 +29,7 @@ import type { RefineryContextState } from "#lib";
 import { DIALOG_VERBS, testId } from "#lib";
 import type { RefineryWorkbenchDoor } from "#state";
 import { useRestoreCharacterSnapshot, useSnapshotCharacterNow } from "../hooks/use-refinery-snapshots.ts";
-import { refineryCompareToggleName } from "../lib/refinery-names.ts";
+import { REFINERY_VERSION_DIFF_HEADING, REFINERY_VERSION_LOADING_TEXT, refineryCompareToggleName } from "../lib/refinery-names.ts";
 import { SETUP_SCHEMA_ROWS, schemaDoorActionOf } from "../lib/setup-door-names.ts";
 import { verdictToneOf, verdictWordOf } from "../lib/verdict.ts";
 import { RefineryChip } from "./refinery-chip.tsx";
@@ -369,9 +369,9 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
               </Row>
               {compareId === snapshot.id ? (
                 <Stack gap="tight">
-                  <Text voice="kicker">description: this version vs live</Text>
+                  <Text voice="kicker">{REFINERY_VERSION_DIFF_HEADING}</Text>
                   {comparing.data === undefined ? (
-                    <Text voice="gloss">Loading that version…</Text>
+                    <Text voice="gloss">{REFINERY_VERSION_LOADING_TEXT}</Text>
                   ) : (
                     <DiffView after={liveDescription} before={comparing.data.content.description ?? ""} mode="words" />
                   )}

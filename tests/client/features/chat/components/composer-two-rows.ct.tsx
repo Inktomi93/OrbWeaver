@@ -18,6 +18,7 @@ import type { Page } from "@playwright/test";
 import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-tab-labels.ts";
 import { CHAT_COMPOSER_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMPOSER_CLEAR_INPUT_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
+import { PLUGIN_ACTIONS_NAME, PLUGIN_COMMAND_ARGS_TITLE } from "#client/features/plugin/lib/plugin-command-copy.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -67,7 +68,7 @@ for (const viewport of VIEWPORTS) {
       const lower = page.locator('[data-slot="composer-input"]');
       const input = lower.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
       await expect(upper.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true })).toBeVisible();
-      const plugins = upper.getByRole("button", { name: "Plugin actions", exact: true });
+      const plugins = upper.getByRole("button", { name: PLUGIN_ACTIONS_NAME, exact: true });
       await expect(plugins).toBeVisible();
       await expect(lower.getByRole("button", { name: "Chat options", exact: true })).toBeVisible();
       await expect(lower.getByRole("button", { name: CHAT_SEND_NAME, exact: true })).toBeVisible();
@@ -345,10 +346,10 @@ test("the attributed plugin menu collects arguments, runs native commands and un
   const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
   const draft = "A rough observatory line.";
   await input.fill(draft);
-  const plugins = page.locator('[data-slot="composer-utilities"]').getByRole("button", { name: "Plugin actions", exact: true });
+  const plugins = page.locator('[data-slot="composer-utilities"]').getByRole("button", { name: PLUGIN_ACTIONS_NAME, exact: true });
   await plugins.click();
   await page.getByRole("menuitem", { name: "Composer witness · Commands · Add note", exact: true }).click();
-  const argumentsDialog = page.getByRole("dialog", { name: "Run command", exact: true });
+  const argumentsDialog = page.getByRole("dialog", { name: PLUGIN_COMMAND_ARGS_TITLE, exact: true });
   await expect(argumentsDialog).toBeVisible();
   expect(rpc.count("plugin.invokeUiCommand")).toBe(0);
   await argumentsDialog.getByRole("button", { name: "Run note", exact: true }).click();

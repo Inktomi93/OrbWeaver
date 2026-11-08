@@ -1,7 +1,7 @@
 import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { ADD_GREETING_NAME, greetingOrdinalLabel, REMOVE_GREETING_NAME } from "#client/features/character/lib/greeting-copy.ts";
+import { ADD_GREETING_NAME, GREETING_EDIT_NAME, greetingOrdinalLabel, REMOVE_GREETING_NAME } from "#client/features/character/lib/greeting-copy.ts";
 import type { CharacterExampleLifetimeStory } from "./_example-lifetime-stories.tsx";
 
 test("removing an alternate greeting returns focus to Add greeting", async ({ corpus, mount, page }) => {
@@ -32,7 +32,7 @@ test("removing an alternate greeting returns focus to Add greeting", async ({ co
   });
   const greeting = page.locator('[data-slot="character-greeting"]');
   await greeting.getByRole("button", { name: greetingOrdinalLabel(2), exact: true }).click();
-  await greeting.getByRole("button", { name: "Edit", exact: true }).click();
+  await greeting.getByRole("button", { name: GREETING_EDIT_NAME, exact: true }).click();
   await expect(greeting.getByRole("textbox", { name: greetingOrdinalLabel(2), exact: true })).toHaveValue("Alternate greeting");
   await greeting.getByRole("button", { name: REMOVE_GREETING_NAME, exact: true }).click();
   await expect(greeting.getByRole("button", { name: ADD_GREETING_NAME, exact: true })).toBeFocused();

@@ -7,6 +7,7 @@ import { createSeededIds, FIXTURE_ID_CURSOR } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { PRESET_SECTION_ACTIONS_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
+import { ROW_DUPLICATE_NAME } from "#client/lib/row-menu-names.ts";
 import type { PresetListLifetimeStory } from "./_list-lifetime-stories.tsx";
 
 test("an added section and its duplicate take their ids from the runtime's source", async ({ corpus, mount, page }) => {
@@ -40,7 +41,7 @@ test("an added section and its duplicate take their ids from the runtime's sourc
   await page.getByRole("button", { name: "Add", exact: true }).click();
   await page.getByRole("menuitem", { name: "Literal text", exact: true }).click();
   await page.getByRole("button", { name: PRESET_SECTION_ACTIONS_NAME, exact: true }).click();
-  await page.getByRole("menuitem", { name: "Duplicate", exact: true }).click();
+  await page.getByRole("menuitem", { name: ROW_DUPLICATE_NAME, exact: true }).click();
 
   const seeded = createSeededIds(FIXTURE_ID_CURSOR);
   const [added, duplicate] = [seeded.uuid(), seeded.uuid()];

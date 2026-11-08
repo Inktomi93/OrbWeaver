@@ -39,7 +39,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { MenuItem, MenuLinkItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
 import { RowActionsMenu, RowToggleAction } from "#components";
-import { chatWithActionName, rowActionSubject, rowActionsName } from "#lib";
+import { chatWithActionName, deleteConfirmTitle, rowActionSubject, rowActionsName } from "#lib";
 import type { CHARACTER_ACTION_SCOPE_IDS } from "../lib/character-actions.ts";
 import { CHARACTER_ACTIONS, characterActionItemsForScope, characterActionLabel } from "../lib/character-actions.ts";
 
@@ -286,7 +286,7 @@ function NormalRowActions({
         destructive={{
           separator: false,
           label: CHARACTER_ACTIONS.delete.label,
-          title: `Delete "${character.name}"?`,
+          title: deleteConfirmTitle(character.name),
           description: "This permanently deletes the character and everything attached to it. This can't be undone.",
           onConfirm: (): void => onDelete(character.id),
         }}

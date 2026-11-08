@@ -24,6 +24,7 @@ import { ENLARGED_APPEARANCE_SETTINGS, nonEmpty } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, servePhysicalPeer, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import type { Locator, Page, Request } from "@playwright/test";
+import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import {
   asImportPreview,
   IMPORT_CONFIRM_NAMES,
@@ -167,7 +168,7 @@ for (const { name, width, appearance } of WIDTHS) {
     await mount<typeof ImportPreviewStory>(STORY, { width, appearance });
 
     const chooserPromise = page.waitForEvent("filechooser");
-    await page.getByRole("button", { name: "Import a folder…", exact: true }).click();
+    await page.getByRole("button", { name: IMPORT_FOLDER_NAME, exact: true }).click();
     await (await chooserPromise).setFiles(folder);
 
     const preflight = page.getByRole("group", { name: /^Import \d+ files? from the folder you picked\?$/u });
@@ -221,7 +222,7 @@ test("cancelling while the folder is being read stops the dry run", async ({ mou
   await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
 
   const chooserPromise = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: "Import a folder…", exact: true }).click();
+  await page.getByRole("button", { name: IMPORT_FOLDER_NAME, exact: true }).click();
   await (await chooserPromise).setFiles(folder);
   await expect.poll(async () => (await caller.workloads.list({ kind: "import-st" })).map((row) => row.status)).toEqual(["queued"]);
 
@@ -250,7 +251,7 @@ async function openImport(page: Page, root: ServerTestHarness): Promise<Awaited<
 
 async function pickFolder(page: Page, folder: string): Promise<void> {
   const chooserPromise = page.waitForEvent("filechooser");
-  await page.getByRole("button", { name: "Import a folder…", exact: true }).click();
+  await page.getByRole("button", { name: IMPORT_FOLDER_NAME, exact: true }).click();
   await (await chooserPromise).setFiles(folder);
 }
 

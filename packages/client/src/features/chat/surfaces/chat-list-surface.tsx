@@ -58,7 +58,7 @@ import { useRef } from "react";
 import { ListPage } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useTRPC } from "#data";
-import { ESTIMATED_ROW_PX, SEARCH_DEBOUNCE_MS, useDebouncedValue, useFocusListArrival } from "#lib";
+import { ESTIMATED_ROW_PX, NO_MATCHES_TITLE, SEARCH_DEBOUNCE_MS, useDebouncedValue, useFocusListArrival } from "#lib";
 import type { ChatListCharacterFilter } from "#state";
 import {
   clearChatListCharacterFilter,
@@ -88,7 +88,7 @@ import {
   searchEmptyDescription,
 } from "../lib/chat-list-scope.ts";
 import { chatRowQualifiers } from "../lib/chat-summary-row.ts";
-import { CHAT_CLEAR_SEARCH_NAME, CHAT_LIST_NAME, CHAT_SEARCH_NAME } from "../lib/chat-surface-names.ts";
+import { CHAT_CLEAR_SEARCH_NAME, CHAT_LIST_EMPTY_TITLE, CHAT_LIST_NAME, CHAT_SEARCH_NAME } from "../lib/chat-surface-names.ts";
 
 /** The list row, derived off the wire (the `chat-list-row.tsx` / `chat-summary-row.ts` spelling) — the
  *  collection hook deliberately exports no second name for it. */
@@ -272,7 +272,7 @@ function ChatListBody({
         }
         description={emptyListDescription(characterFilter?.name ?? null, openChatJoinsList)}
         icon={<Icon icon={MessagesSquare} size="lg" />}
-        title={characterFilter === null ? "No chats yet" : "No matches"}
+        title={characterFilter === null ? CHAT_LIST_EMPTY_TITLE : NO_MATCHES_TITLE}
       />
     );
   }
@@ -341,7 +341,7 @@ function ChatRows({
         action={<FilterExits exits={exits} />}
         description={searchEmptyDescription(characterName, monthLabel, query)}
         icon={<Icon icon={MessagesSquare} size="lg" />}
-        title="No matches"
+        title={NO_MATCHES_TITLE}
       />
     );
   }

@@ -44,9 +44,13 @@ import type { CharacterHandle, ChatId, MessageId, UserConnectionId } from "@orb/
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CHAT_CORRECTION_INSTRUCTION_NAME, CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMPOSER_CORRECTIONS_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
-import { MESSAGE_ACTIONS_MENU_NAME } from "#client/features/chat/lib/message-action-names.ts";
+import {
+  MESSAGE_ACTIONS_MENU_NAME,
+  MESSAGE_REAPPLY_CONTINUATION_NAME,
+  MESSAGE_UNDO_CONTINUATION_NAME,
+} from "#client/features/chat/lib/message-action-names.ts";
 import { messageRow, openChatByTitle } from "./support/chat-room.ts";
 import { startTapeProvider } from "./support/tape-provider.ts";
 import { WAIT_UI_MS } from "./support/timeouts.ts";
@@ -220,7 +224,7 @@ test.describe("guided generations on recorded provider turns", () => {
       const corrections = page.getByRole("menuitem", { name: CORRECTIONS_ITEM });
       await expect(corrections).not.toHaveAttribute("aria-disabled", "true", { timeout: WAIT_UI_MS });
       await corrections.click();
-      await page.getByRole("textbox", { name: "Correction instruction" }).waitFor({ state: "visible" });
+      await page.getByRole("textbox", { name: CHAT_CORRECTION_INSTRUCTION_NAME }).waitFor({ state: "visible" });
       await page.getByRole("button", { name: "Rewrite" }).click();
 
       // SERVER TRUTH: the SAME slot grew to 2 variants, the new one is selected (idx 1), and the assistant
@@ -263,7 +267,7 @@ test.describe("guided generations on recorded provider turns", () => {
       const row = messageRow(page, tailId);
       await row.hover();
       await row.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME }).click();
-      const undoItem = page.getByRole("menuitem", { name: "Undo last continuation" });
+      const undoItem = page.getByRole("menuitem", { name: MESSAGE_UNDO_CONTINUATION_NAME });
       await expect(undoItem).toBeVisible({ timeout: WAIT_UI_MS });
       await expect(undoItem).toHaveAttribute("aria-disabled", "true");
       await expect(undoItem).toHaveAccessibleDescription(CONTINUE_UNLOCK_REASON);
@@ -284,13 +288,13 @@ test.describe("guided generations on recorded provider turns", () => {
       // UNDO via the ⋯ menu → server truth returns to the pre-continue content.
       await row.hover();
       await row.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME }).click();
-      await page.getByRole("menuitem", { name: "Undo last continuation" }).click();
+      await page.getByRole("menuitem", { name: MESSAGE_UNDO_CONTINUATION_NAME }).click();
       await expect.poll(async () => (await canonMessage(chat.id, tailId))?.content ?? "", { timeout: LIVE_TIMEOUT_MS }).toBe(preContinue);
 
       // REVERT via the ⋯ menu → the continued content returns (the snapshot is retained across an undo).
       await row.hover();
       await row.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME }).click();
-      await page.getByRole("menuitem", { name: "Re-apply continuation" }).click();
+      await page.getByRole("menuitem", { name: MESSAGE_REAPPLY_CONTINUATION_NAME }).click();
       await expect.poll(async () => (await canonMessage(chat.id, tailId))?.content ?? "", { timeout: LIVE_TIMEOUT_MS }).toBe(continued);
     } finally {
       await deleteChat(chat.id).catch(() => null);

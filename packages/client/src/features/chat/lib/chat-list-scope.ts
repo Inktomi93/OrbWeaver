@@ -3,7 +3,7 @@
 // Pure + structural, so it unit-tests without a data layer (the `recent-faces.ts` precedent).
 
 import type { CharacterId } from "@orb/kit/ids";
-import { timeLib } from "#lib";
+import { CLEAR_SEARCH_NAME, timeLib } from "#lib";
 
 const MONTH_VALUE_RE = /^(?<year>\d{4})-(?<month>0[1-9]|1[0-2])$/u;
 const MONTHS_PER_YEAR = 12;
@@ -136,7 +136,7 @@ export function activeFilterExits(args: {
   // spelling here is the app-wide empty-state literal ("Clear search" on characters, presets, databank, …).
   const exits: FilterExit[] = [];
   if (args.query !== "") {
-    exits.push({ key: "search", label: "Clear search", onClear: args.onClearSearch });
+    exits.push({ key: "search", label: CLEAR_SEARCH_NAME, onClear: args.onClearSearch });
   }
   if (args.beforeRecencyAt !== null) {
     exits.push({ key: "month", label: "Clear month", onClear: args.onClearMonth });

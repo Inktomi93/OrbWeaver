@@ -14,10 +14,11 @@
 import { Plus } from "@orb/ui/icons";
 import type { ModalDefinition } from "#state";
 import { AddDocumentBody } from "../components/add-document-body.tsx";
+import { DATABANK_ADD_DOCUMENT_TITLE } from "./databank-names.ts";
 
 export const addDocumentModal: ModalDefinition = {
   id: "addDocument",
-  title: "Add a document",
-  trigger: { placement: "surface", label: "Add a document", icon: Plus },
+  title: DATABANK_ADD_DOCUMENT_TITLE,
+  trigger: { placement: "surface", label: DATABANK_ADD_DOCUMENT_TITLE, icon: Plus },
   body: (): ReturnType<typeof AddDocumentBody> => <AddDocumentBody />,
 };

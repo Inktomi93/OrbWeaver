@@ -9,6 +9,7 @@ import { ArrowLeftFromLine, ArrowLeftToLine, ArrowRightFromLine, ArrowRightToLin
 import { Row } from "@orb/ui/layout";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, Ref } from "react";
+import { panelEdgeName } from "#lib";
 
 export interface PanelEdgeControlProps {
   /** Whether the panel is showing. */
@@ -35,7 +36,7 @@ const GLYPHS = {
 } as const;
 
 export function PanelEdgeControl({ expanded, noun, edge, mark, controls, onToggle, focusReturnMarker, ref }: PanelEdgeControlProps): ReactElement {
-  const label = `${expanded ? "Hide" : "Show"} ${noun}`;
+  const label = panelEdgeName(noun, expanded);
   const arrow = expanded ? GLYPHS[edge].hide : GLYPHS[edge].show;
   return (
     <Tooltip>

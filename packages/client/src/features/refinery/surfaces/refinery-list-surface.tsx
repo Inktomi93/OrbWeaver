@@ -38,7 +38,7 @@ import type { ReactElement, RefObject } from "react";
 import { useRef } from "react";
 import { LibraryListRows, LibraryRow, LibrarySurfaceShell, ListPage, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { timeLib, useFocusListArrival } from "#lib";
+import { CLEAR_SEARCH_NAME, timeLib, useFocusListArrival } from "#lib";
 import {
   refinerySectionSelection,
   requestRefineryLandingFocus,
@@ -51,7 +51,7 @@ import {
 import { RefineryChip } from "../components/refinery-chip.tsx";
 import { StartSessionDoor } from "../components/start-session-door.tsx";
 import { useDeleteRefinerySession } from "../hooks/use-refinery-mutations.ts";
-import { REFINERY_SEARCH_SESSIONS_NAME } from "../lib/refinery-names.ts";
+import { REFINERY_NO_SESSIONS_TITLE, REFINERY_SEARCH_SESSIONS_NAME } from "../lib/refinery-names.ts";
 import { matchesRefinerySearch, refinerySearchNeedle } from "../lib/refinery-search.ts";
 import { verdictToneOf, verdictWordOf } from "../lib/verdict.ts";
 
@@ -208,7 +208,7 @@ function RefineryList({
           action={
             sessions.data.length > 0 ? (
               <Button variant="outline" size="sm" type="button" onClick={onClearSearch}>
-                Clear search
+                {CLEAR_SEARCH_NAME}
               </Button>
             ) : (
               startDoor
@@ -223,7 +223,7 @@ function RefineryList({
                 "A session pins a card as it is right now, then scores, rewrites and re-checks it against that pinned version. Pick a character to start."
               : "No sessions match that search."
           }
-          title={sessions.data.length === 0 ? "No refinery sessions yet" : "Nothing matches"}
+          title={sessions.data.length === 0 ? REFINERY_NO_SESSIONS_TITLE : "Nothing matches"}
         />
       }
       isEmpty={rows.length === 0}

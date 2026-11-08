@@ -36,7 +36,7 @@ import type { ReactElement } from "react";
 import { LibraryRow } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC, useTRPCClient } from "#data";
 import type { CollectionListView } from "#lib";
-import { COLLECTION_LARGE_GROUP, downloadTextFile, ESTIMATED_ROW_PX, notify } from "#lib";
+import { COLLECTION_LARGE_GROUP, downloadTextFile, ESTIMATED_ROW_PX, notify, ROW_EXPORT_NAME } from "#lib";
 import { clearCollectionSelection } from "#state";
 import { useDuplicateWorldBook, useRemoveWorldBook } from "../hooks/use-world-info-mutations.ts";
 import { WORLD_BOOKS_LIST_NAME } from "../lib/world-books-list-name.ts";
@@ -179,7 +179,7 @@ function WorldInfoCollectionRow({ book, selected, onSelect, onDelete, onDuplicat
         menuItemsAfter: (
           <MenuItem onClick={(): void => onExport(book.id)}>
             <Icon icon={Download} size="sm" />
-            Export
+            {ROW_EXPORT_NAME}
           </MenuItem>
         ),
       }}

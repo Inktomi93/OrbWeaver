@@ -16,6 +16,7 @@ import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page, Response } from "@playwright/test";
 import { CHECK_FOR_UPDATES_LABEL } from "#client/features/plugin/lib/plugin-copy.ts";
 import { REGEX_REPLACE_WITH_NAME } from "#client/features/regex/lib/regex-names.ts";
+import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { openConfigGroup as openGroup } from "./support/config-flow.ts";
 import { expect, test } from "./support/corpus-test.ts";
@@ -47,7 +48,7 @@ async function toggleAndReload(page: Page, group: ConfigGroupId, label: string):
 
 async function chooseBackup(page: Page, path: string, folder: boolean): Promise<void> {
   if (folder) {
-    const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.getByRole("button", { name: "Import a folder…", exact: true }).click()]);
+    const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.getByRole("button", { name: IMPORT_FOLDER_NAME, exact: true }).click()]);
     await chooser.setFiles(path);
   } else {
     await page.getByLabel("Import a backup or card file", { exact: true }).setInputFiles(path);

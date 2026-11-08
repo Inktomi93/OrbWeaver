@@ -15,7 +15,7 @@ import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { AuthConfig } from "#data";
 import { clearJoinStash, peekJoinStash, useAuthConfig, useSignupInvitePreview } from "#data";
-import { inviteRoomSentence, testId, useFocusOnMount, useRouterUrlReplace, withoutUrlSearchParam } from "#lib";
+import { DIALOG_VERBS, inviteRoomSentence, testId, useFocusOnMount, useRouterUrlReplace, withoutUrlSearchParam } from "#lib";
 import { selectChat, setActiveSection } from "#state";
 import { InviteUnavailable } from "../components/invite-unavailable.tsx";
 import { LoginFirstRunForm } from "../components/login-first-run-form.tsx";
@@ -319,7 +319,7 @@ function LoginUnreachable({ onRetry }: { readonly onRetry: () => void }): ReactE
         The app couldn't load its sign-in configuration. Check the server is running, then retry.
       </Text>
       <Button variant="ghost" onClick={onRetry}>
-        Retry
+        {DIALOG_VERBS.retry}
       </Button>
     </Stack>
   );

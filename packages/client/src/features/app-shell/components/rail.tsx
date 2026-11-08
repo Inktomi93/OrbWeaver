@@ -24,6 +24,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import { WeaveGlyph } from "@orb/ui/web-weave";
 import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
+import { PRIMARY_NAV_NAME } from "#lib";
 import type { ChromeEntry, MobileCuration, ModalSlotId, SectionId } from "#state";
 import { closeModal, mobileBarCuration, SECTION_GROUPS, sheetOverflowChrome, useChromeRegistry, useModalRegistry, useOpenModal } from "#state";
 import { useRailSectionsFit } from "../hooks/use-rail-sections-fit.ts";
@@ -244,7 +245,7 @@ export function Rail({ activeSection, onSelectSection: navigate, onOpenModal, in
     navigate(id);
   };
   return (
-    <nav className="shell-rail" aria-label="Primary" data-tone={SHELL_ACCENT_TONE} inert={inert}>
+    <nav className="shell-rail" aria-label={PRIMARY_NAV_NAME} data-tone={SHELL_ACCENT_TONE} inert={inert}>
       {brandEntry === undefined ? (
         <div className="shell-rail-brand" aria-hidden="true">
           <WeaveGlyph size="lg" />

@@ -3,6 +3,7 @@ import { CtIsolation } from "@orb/testkit/browser";
 import { Menu, MenuCheckboxItem, MenuItem, MenuPopup, MenuTrigger } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { STORY_COMMANDS } from "./_described-menu-item-labels.ts";
 
 /** Production described commands with their native menu neighbors; no application services are involved. */
 export function DescribedMenuItemStory(): ReactElement {
@@ -14,9 +15,13 @@ export function DescribedMenuItemStory(): ReactElement {
         <Menu>
           <MenuTrigger>Document actions</MenuTrigger>
           <MenuPopup>
-            <DescribedMenuItem label="Archive" detail={undefined} onClick={(): void => setLastCommand("Archive")} />
-            <DescribedMenuItem label="Duplicate" detail="Create an independent copy." onClick={(): void => setLastCommand("Duplicate")} />
-            <DescribedMenuItem label="Export" detail="Choose a format before exporting." disabled={true} />
+            <DescribedMenuItem label={STORY_COMMANDS.archive} detail={undefined} onClick={(): void => setLastCommand(STORY_COMMANDS.archive)} />
+            <DescribedMenuItem
+              label={STORY_COMMANDS.duplicate}
+              detail="Create an independent copy."
+              onClick={(): void => setLastCommand(STORY_COMMANDS.duplicate)}
+            />
+            <DescribedMenuItem label={STORY_COMMANDS.export} detail="Choose a format before exporting." disabled={true} />
             <MenuCheckboxItem closeOnClick={false}>Keep open</MenuCheckboxItem>
           </MenuPopup>
         </Menu>

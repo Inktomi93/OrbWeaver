@@ -1,6 +1,7 @@
 /* eslint-disable orb/ct-responder-reads-input -- the subject is routeTrpc's own request recording and refusal, so its responders are declared failures with no server behind them */
 import { expect, test } from "@playwright/test";
 import type { RawTrpcObservationStory } from "../../client/compose/_mount-stories.tsx";
+import { absenceWindow } from "../node/absence-window.ts";
 import { routeOrbSocket } from "../node/route-orb-socket.ts";
 import { routeTrpc, trpcError } from "../node/route-trpc.ts";
 import { labelInNameFindings } from "./accessible-names.ts";
@@ -8,6 +9,9 @@ import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "./a
 import { lastInkColumn, readCanvasBandInk, solidColumns } from "./canvas-ink.ts";
 import { auditRenderedTextContrast } from "./pixel-contrast.ts";
 import { frameFingerprint, frameFingerprintPair } from "./weave-drive.ts";
+
+// Ample for a scripted socket body to reach the page once its handshake settles.
+const SOCKET_SERVE_WINDOW_MS = 500;
 
 test("socket frames wait for completed attaches", async ({ page }) => {
   await page.route("http://orb.test/**", (route) => route.fulfill({ contentType: "text/html", body: "<!doctype html><body></body>" }));
@@ -44,6 +48,45 @@ test("socket frames wait for completed attaches", async ({ page }) => {
   });
   expect(await stream).toContain('"type":"serverReady"');
   expect(recorder.connects()).toBe(1);
+});
+
+test("socket frames wait for the named room even after another room attached first", async ({ page }) => {
+  await page.route("http://orb.test/**", (route) => route.fulfill({ contentType: "text/html", body: "<!doctype html><body></body>" }));
+  await page.goto("http://orb.test/");
+  await page.route("**/api/trpc/**", (route) => route.fulfill({ contentType: "application/json", body: '{"result":{"data":null}}' }));
+  const recorder = await routeOrbSocket(page, { awaitRooms: [{ channel: "user" }] });
+  const connected = page.waitForRequest((request) => request.url().includes("stream.connect"));
+  let served = false;
+  const stream = page
+    .evaluate(async () => {
+      const response = await fetch("/api/trpc/stream.connect", { headers: { accept: "text/event-stream" } });
+      return await response.text();
+    })
+    .then((body) => {
+      served = true;
+      return body;
+    });
+  await connected;
+  // The always-on notifications room attaches before the scripted room, as it does in a mounted shell.
+  await page.evaluate(async () => {
+    await fetch("/api/trpc/stream.attach", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ref: { channel: "notifications" } }),
+    });
+  });
+  await absenceWindow(page, SOCKET_SERVE_WINDOW_MS);
+  expect(recorder.attachedChannels()).toEqual(["notifications"]);
+  expect(served).toBe(false);
+  await page.evaluate(async () => {
+    await fetch("/api/trpc/stream.attach", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ ref: { channel: "user" } }),
+    });
+  });
+  await recorder.served();
+  expect(await stream).toContain('"type":"serverReady"');
 });
 
 test("contrast identities are deterministic per page and clean up root text owners", async ({ page }) => {

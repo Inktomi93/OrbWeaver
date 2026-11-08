@@ -27,6 +27,7 @@ import { useUpdateRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
 import { useRulePresetCatalogue } from "../hooks/use-saved-rosters.ts";
 import { useStartRoster } from "../hooks/use-start-roster.ts";
 import { rosterRuleKnobGloss, rulesetLine } from "../lib/roster-copy.ts";
+import { ROSTER_NAME_FIELD_NAME } from "../lib/roster-names.ts";
 
 /** The stored seats, resent VERBATIM on a rename (the update verb is a full replace). The view's ids
  *  stay BRANDED end to end (`CharacterId`; the wire's `z.input` accepts them). */
@@ -158,7 +159,7 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
             (measured). A dead attribute is worse than none: it reads as the announced name to the next
             author. If these ever need the qualifier, it goes on the Field's own label, where it is both
             visible and announced. */}
-      <Field label="Name">
+      <Field label={ROSTER_NAME_FIELD_NAME}>
         <Input onChange={(e): void => setName(e.target.value)} value={name} />
       </Field>
       <Field label="Description">

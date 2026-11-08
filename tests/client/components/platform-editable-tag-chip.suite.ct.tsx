@@ -6,6 +6,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
+import { TAG_EDITOR_CLOSE_NAME } from "#client/components/shared-control-names.ts";
 import type { EditableTagChipStory } from "./_editable-tag-chip-stories.tsx";
 
 const STORY = "tests/client/components/_editable-tag-chip-stories/EditableTagChipStory";
@@ -72,7 +73,7 @@ for (const appearance of APPEARANCES) {
         await expect(edit).toBeFocused();
         await edit.tap();
         await expect(dialog.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
-        await dialog.getByRole("button", { name: "Close tag editor", exact: true }).tap();
+        await dialog.getByRole("button", { name: TAG_EDITOR_CLOSE_NAME, exact: true }).tap();
         await expect(dialog).toBeHidden();
         await expect(edit).toBeFocused();
       }

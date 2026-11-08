@@ -54,6 +54,19 @@ export {
   utilityReadsImages,
 } from "./connection-roles.ts";
 export { CONSOLE_STYLES } from "./console-styles.ts";
+export {
+  CONTEXT_SHEET_BACK_NAME,
+  contextPaneLabel,
+  DETAILS_PANEL_NOUN,
+  LIST_PANEL_NOUN,
+  listPaneLabel,
+  PANEL_CLOSE_FALLBACK_NAME,
+  panelCloseName,
+  panelEdgeName,
+  screenListDoorName,
+  screenOverviewDoorName,
+  sectionBackName,
+} from "./context-pane-names.ts";
 export { contextToggleLabel } from "./context-toggle-label.ts";
 export type {
   CharacterDetailContribution,
@@ -181,6 +194,7 @@ export { UI_GUEST_BOOT_WALL_MS, UI_GUEST_WALL_MS } from "./plugin-ui-guest-proto
 export {} from "./probe-mode.ts";
 export type { CatalogMacro, MacroCatalog, MacroPlane } from "./prompt-macros.ts";
 export { BUILTIN_MACRO_SUGGESTIONS, macroCatalog, macroSourceLabel, pluginMacroPlanes, presetNamesPlane } from "./prompt-macros.ts";
+export { PRIMARY_NAV_NAME, YOU_TAB_LABEL } from "./rail-names.ts";
 export {
   REGEX_PLACEMENT_GLYPHS,
   REGEX_PLACEMENT_ITEMS,
@@ -220,7 +234,7 @@ export { DEPLOYMENT_FLOOR, resolveRowRenderPolicy } from "./render-trust.ts";
 export { dataThemeOf, isSeedThemeName, resolveThemeScopeTokens, type SeedThemeName } from "./resolve-theme-scope-tokens.ts";
 export { RETRY_NAME } from "./retry-names.ts";
 export { ESTIMATED_ROW_PX } from "./row-estimates.ts";
-export { ROW_DELETE_NAME, ROW_RENAME_NAME } from "./row-menu-names.ts";
+export { deleteConfirmTitle, ROW_DELETE_NAME, ROW_DUPLICATE_NAME, ROW_EXPORT_NAME, ROW_RENAME_NAME } from "./row-menu-names.ts";
 export {
   chatWithActionName,
   duplicateActionName,
@@ -232,6 +246,7 @@ export {
 } from "./row-qualifiers.ts";
 export type { SafeErrorRingRead } from "./safe-error-ring.ts";
 export { installSafeErrorRing, safeErrorRing } from "./safe-error-ring.ts";
+export { CLEAR_SEARCH_NAME, NO_MATCHES_TITLE } from "./search-empty-names.ts";
 export { onSessionMessage, postSessionMessage, runSessionRecoverySingleFlight } from "./session-channel.ts";
 export type { SessionDocumentHost } from "./session-document-host.ts";
 export { bindSessionDocumentHost, leaseSessionDocumentHost, sessionDocument } from "./session-document-host.ts";

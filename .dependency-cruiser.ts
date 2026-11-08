@@ -125,6 +125,7 @@ const MOUNT_HELPER_FILES = {
     "the shell surfaces the ramp elevation fills, which the ramp badge story portals into and its spec reads",
   "^tests/client/features/app-shell/_surface-stories\\.tsx$": "the production shell story the ramp badge story wraps with its badges",
   "^tests/client/components/page-template-cases\\.ts$": "the seed and density matrix the page-template stories mount and their spec reads",
+  "^tests/client/components/_described-menu-item-labels\\.ts$": "the command labels the described-menu story authors and its spec presses",
   "^tests/client/features/auth/components/pending-join-fixtures\\.ts$": "the pending-join story's parsed fixtures",
   "^tests/ui/content/theme-scope/contrast-cases\\.ts$": "the tone-mark accents the tone-mark story renders and its spec judges",
   "^tests/ui/primitives/virtual-list/virtual-list-cases\\.ts$": "the long-list row count the virtual-list stories mount and their spec passes",
@@ -433,6 +434,22 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/chat/lib/composer-menu-names.ts": "COMPOSER_CLEAR_INPUT_NAME and its siblings: the composer menu item names",
   "packages/client/src/features/chat/lib/chat-options-names.ts": "CHAT_DELETE_NAME and its siblings: the room options menu item names",
   "packages/client/src/lib/context-toggle-label.ts": "contextToggleLabel: the detail toggle's name in both states",
+  "packages/client/src/lib/context-pane-names.ts":
+    "the side panes' names, edge controls and exits the shell prints, which the walk opens and dismisses a pane by",
+  "packages/client/src/lib/rail-names.ts": "PRIMARY_NAV_NAME and YOU_TAB_LABEL: the rail navigation's name and its You tab",
+  "packages/client/src/lib/row-menu-names.ts": "ROW_RENAME_NAME and its siblings: the library row menu items and the delete confirm title",
+  "packages/client/src/lib/search-empty-names.ts": "NO_MATCHES_TITLE and CLEAR_SEARCH_NAME: the words a searched-empty list prints",
+  "packages/client/src/features/imagery/lib/imagine-names.ts": "IMAGINE_MODE_NAME and IMAGINE_PROMPT_NAME: the imagine options' field names",
+  "packages/client/src/features/plugin/lib/plugin-command-copy.ts":
+    "PLUGIN_ACTIONS_NAME and its siblings: the composer's plugin command menu, argument dialog and undo names",
+  "packages/client/src/features/workloads/lib/import-library-names.ts": "IMPORT_FOLDER_NAME: the import section's folder door",
+  "packages/ui/src/primitives/selection-bar/selection-bar-names.ts": "SELECTION_CLEAR_NAME and selectionCountLabel: the selection bar's names",
+  "packages/ui/src/primitives/color-field/color-field-names.ts":
+    "COLOR_HEX_FIELD_NAME and colorPickerName: the colour field's hex box and picker names, which the Look walk records the popup by",
+  "packages/client/src/lib/clipboard-names.ts": "COPIED_TO_CLIPBOARD_NOTICE: the notice a copy raises, which the chat walk's copy step waits on",
+  "packages/client/src/features/character/lib/character-actions.ts":
+    "CHARACTER_ACTIONS: the character verb registry whose labels the row menu, context kebab and bulk bar print",
+  "packages/ui/src/primitives/toast/toast-names.ts": "TOAST_CLOSE_NAME and its siblings: the names a toast prints",
   "packages/client/src/lib/view-transition-names.ts": "SHELL_SWAP_DEADLINE_PROPERTY: the grid property a swap spec stretches to hold the old frame",
   "packages/client/src/forms/editor/autosave-status-names.ts": "AUTOSAVE_SAVED_TEXT and its siblings: the words the shared autosave readout prints",
   "packages/client/src/forms/entity-form-base.ts": "DEFAULT_DEBOUNCE_MS: the autosave debounce a held-window case waits past to see a second write",
@@ -451,7 +468,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/chat/lib/transcript-copy.ts":
     "CHAT_PRINT_COVERAGE and the history pager's status line: the transcript copy a print or pager case reads",
   "packages/client/src/features/chat/lib/chat-surface-names.ts":
-    "CHAT_CLEAR_SEARCH_NAME and its siblings: the chat list, composer, gallery picker and message confirm names",
+    "CHAT_CLEAR_SEARCH_NAME and its siblings: the chat list, composer, gallery, injection and members names",
   "packages/client/src/features/config/lib/config-control-names.ts": "CONFIG_THEME_NAME_FIELD_NAME and its siblings: the theme builder control names",
   "packages/client/src/features/world-info/lib/world-info-names.ts": "WORLD_INFO_NEW_BOOK_NAME and its siblings: the books library and entry editor names",
   "packages/client/src/features/regex/lib/regex-names.ts": "REGEX_FIND_PATTERN_NAME and its siblings: the regex editor, tester and pipeline names",
@@ -465,11 +482,11 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/plugin/lib/plugin-copy.ts":
     "approveLabel, CHAT_PANEL_HIDE_LABEL and CHAT_PANEL_UNDO_LABEL: production action names required by the no-copied-label contract",
   "packages/client/src/features/persona/lib/persona-copy.ts":
-    "PERSONA_NAME_REQUIRED, CLEAR_PIN_NAME and nowDefaultNotice: the blank-name error, the clear-pin action and the crown-moved notice the persona suites assert",
+    "PERSONA_NAME_REQUIRED, CLEAR_PIN_NAME, nowDefaultNotice and their siblings: the persona editor's field and footer names, its blank-name error, the clear-pin action and the crown-moved notice",
   "packages/client/src/features/plugin/lib/plugin-model-copy.ts":
     "PLUGIN_MODEL_HEADING: the production model disclosure name used by plugin presentation assertions",
   "packages/client/src/features/plugin/lib/plugin-panel-copy.ts":
-    "CHAT_PLUGINS_* and movePluginPanelLabel: production panel navigation, empty-state and placement action names",
+    "CHAT_PLUGINS_* and its siblings: panel navigation, empty-state, placement, dialog title and page kicker names",
   "packages/client/src/features/stats/lib/leaderboard-row-attr.ts":
     "LEADERBOARD_ROW_ATTR: the attribute a leaderboard row wears, which the corpus workbench e2e addresses rows by",
   "packages/client/src/features/tag/lib/tag-list-name.ts": "TAG_LIST_NAME and TAG_FILTER_NAME: the Labels finder's list and filter names",

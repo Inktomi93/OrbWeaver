@@ -15,7 +15,16 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { ConfirmDialog, LibraryRow, usePruneUnusedTags, useRemoveTag, useSetTagOrder } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { COLLECTION_LARGE_GROUP, ESTIMATED_ROW_PX, pruneConfirmLabel, sortTagsBy, tagUsageLabel, unusedTagsLabel, usageBreakdown } from "#lib";
+import {
+  COLLECTION_LARGE_GROUP,
+  deleteConfirmTitle,
+  ESTIMATED_ROW_PX,
+  pruneConfirmLabel,
+  sortTagsBy,
+  tagUsageLabel,
+  unusedTagsLabel,
+  usageBreakdown,
+} from "#lib";
 import { labelDeleted, setLabelFilter, setTagPruneConfirmOpen, useTagPruneConfirmOpen, useTagSortMode } from "#state";
 import { finderRoot, focusAfterConfirmCloses, focusFinderSearch, labelRowOpener, libraryOrFinder } from "../lib/labels-focus-targets.ts";
 import { TAG_LIST_NAME } from "../lib/tag-list-name.ts";
@@ -228,7 +237,7 @@ function useLabelDelete(
     dialog: (
       <ConfirmDialog
         key={decision?.revision ?? 0}
-        title={decision === null ? "Delete tag?" : `Delete "${decision.tag.name}"?`}
+        title={decision === null ? "Delete tag?" : deleteConfirmTitle(decision.tag.name)}
         description={
           decision === null
             ? "Deleting removes every attachment and cannot be undone."

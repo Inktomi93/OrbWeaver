@@ -76,8 +76,11 @@ export async function walkDisclosures(scope: Locator, path: string, hooks: Discl
   );
   await hooks.opened?.(scope, path);
   for (const trigger of opened.toReversed()) {
+    const body = await controlledPanel(trigger);
     await trigger.click();
     await expect(trigger).toHaveAttribute("aria-expanded", "false");
+    // A closing panel stays visible through its exit transition; the scope's next census must not count its controls.
+    await expect(body).toBeHidden();
   }
   await walkNativeDetails(scope, path, hooks);
 }

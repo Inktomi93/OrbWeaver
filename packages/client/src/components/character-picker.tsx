@@ -32,7 +32,7 @@ import type { ReactElement, ReactNode, Ref, UIEvent } from "react";
 import { useDeferredValue, useEffect, useImperativeHandle, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useTRPC } from "#data";
-import { SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
+import { CLEAR_SEARCH_NAME, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { QueryBoundary } from "./query-boundary.tsx";
 
 /** Rows per page. With a server predicate behind the box this is a page of the MATCHES, not a slice of the
@@ -237,7 +237,7 @@ function CharacterPickerBody({
                   }}
                   size="sm"
                 >
-                  Clear search
+                  {CLEAR_SEARCH_NAME}
                 </Button>
               )}
             </Row>

@@ -13,6 +13,7 @@ import type { PlacedCommand } from "../hooks/use-placed-commands.ts";
 import { placedItemGlyph, placedItemLabel, usePlacedCommands } from "../hooks/use-placed-commands.ts";
 import { useRunPluginCommand } from "../hooks/use-plugin-commands.ts";
 import { useHasChatPluginPanels } from "../hooks/use-visible-anchored-surfaces.ts";
+import { PLUGIN_ACTIONS_NAME } from "../lib/plugin-command-copy.ts";
 import { CHAT_PLUGINS_OPEN_LABEL } from "../lib/plugin-panel-copy.ts";
 
 interface PlacedCommandGroup {
@@ -49,7 +50,7 @@ export function PluginComposerActions({ chatId }: { readonly chatId: ChatId }): 
       <Menu>
         <MenuTrigger
           render={
-            <GlyphButton aria-label="Plugin actions" loading={isPending} variant="ghost" shape="pill" glyph="lg" type="button">
+            <GlyphButton aria-label={PLUGIN_ACTIONS_NAME} loading={isPending} variant="ghost" shape="pill" glyph="lg" type="button">
               <Icon icon={Blocks} size="sm" />
             </GlyphButton>
           }

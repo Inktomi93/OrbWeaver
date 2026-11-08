@@ -10,6 +10,8 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
+import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
+import { TOAST_CLOSE_NAME } from "#ui/primitives/toast/toast-names.ts";
 import type { AppShellModalStory, AppShellNoticeStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { namedGroupRoom, routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -238,7 +240,7 @@ test.describe("with an open sheet and keyboard", () => {
         return box.y + box.height;
       })
       .toBeLessThanOrEqual(visualBottom);
-    const close = notice.getByRole("button", { name: "Close notification", exact: true });
+    const close = notice.getByRole("button", { name: TOAST_CLOSE_NAME, exact: true });
     await close.scrollIntoViewIfNeeded();
     const closeBox = await settledBox(close);
     const overlayBox = await settledBox(overlay);
@@ -282,7 +284,7 @@ test("section navigation keeps the replacement header's panel controls available
   await seedShellState(page, { activeSection: "chats" });
   await mount<typeof AppShellStory>(STORY, {});
   const frame = page.locator(".shell-grid");
-  const rail = page.getByRole("navigation", { name: "Primary", exact: true });
+  const rail = page.getByRole("navigation", { name: PRIMARY_NAV_NAME, exact: true });
   for (const section of ["characters", "chats"] as const) {
     await rail.getByRole("button", { name: SECTION_LABELS[section], exact: true }).click();
     await expect(frame).toHaveAttribute("data-section", section);

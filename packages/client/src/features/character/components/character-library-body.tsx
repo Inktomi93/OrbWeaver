@@ -22,9 +22,10 @@ import { VirtualList } from "@orb/ui/virtual-list";
 import type { ReactElement, ReactNode } from "react";
 import type { CollectionSurface } from "#data";
 import { QueryErrorState, SkeletonRows } from "#data";
-import { ESTIMATED_ROW_PX } from "#lib";
+import { CLEAR_SEARCH_NAME, ESTIMATED_ROW_PX, NO_MATCHES_TITLE } from "#lib";
 import { clearCharacterFilters } from "#state";
 import { groupByTag } from "../lib/character-list-view.ts";
+import { CHARACTER_LIBRARY_EMPTY_TITLE } from "../lib/character-names.ts";
 import type { CharacterCardItem } from "./character-card.tsx";
 import { CharacterCategorizedList } from "./character-categorized-list.tsx";
 
@@ -98,7 +99,7 @@ export function CharacterLibraryBody({
           action={
             <Row wrap={true} cap="fit" gap="field">
               <Button variant="outline" onClick={onClearSearch} size="sm">
-                Clear search
+                {CLEAR_SEARCH_NAME}
               </Button>
               {filtersActive ? (
                 <Button variant="outline" onClick={clearCharacterFilters} size="sm">
@@ -109,7 +110,7 @@ export function CharacterLibraryBody({
           }
           description={filtersActive ? `No character matches "${query}" with the current filters.` : `No character matches "${query}".`}
           icon={<Icon icon={Search} size="lg" />}
-          title="No matches"
+          title={NO_MATCHES_TITLE}
         />
       );
     }
@@ -123,7 +124,7 @@ export function CharacterLibraryBody({
           }
           description="No character in your library matches the current filters."
           icon={<Icon icon={Users} size="lg" />}
-          title="No matches"
+          title={NO_MATCHES_TITLE}
         />
       );
     }
@@ -144,7 +145,7 @@ export function CharacterLibraryBody({
         action={null}
         description="Weave your first one to begin. Use New at the top of this pane."
         icon={<Icon icon={Users} size="lg" />}
-        title="No characters yet"
+        title={CHARACTER_LIBRARY_EMPTY_TITLE}
       />
     );
   }

@@ -33,6 +33,7 @@ import {
   URL_REFUSAL_CODES,
 } from "../lib/add-connection-form-model.ts";
 import { endpointAuthorityOf } from "../lib/connection-editor-model.ts";
+import { CONNECTION_PROVIDER_FIELD_NAME } from "../lib/connections-copy.ts";
 import { failedCatalogSource, modelCheckOf, modelListSource } from "../lib/model-picker-model.ts";
 import { AddConnectionFailure } from "./add-connection-failure.tsx";
 import type { HeldKey } from "./add-connection-provider-fields.tsx";
@@ -262,7 +263,9 @@ export function AddConnectionFormBody({
               },
             }}
           >
-            {(field): ReactElement => <field.SelectField label="Provider" items={pickerItems} placeholder="Pick a provider" disabled={held !== null} />}
+            {(field): ReactElement => (
+              <field.SelectField label={CONNECTION_PROVIDER_FIELD_NAME} items={pickerItems} placeholder="Pick a provider" disabled={held !== null} />
+            )}
           </form.AppField>
 
           <form.Subscribe selector={(state): AddConnectionFormValues => state.values}>

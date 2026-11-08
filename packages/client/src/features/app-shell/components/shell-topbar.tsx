@@ -11,7 +11,7 @@ import { Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode, Ref } from "react";
 import type { ScreenTitle } from "#lib";
-import { censusSuffix, cn } from "#lib";
+import { censusSuffix, cn, screenListDoorName, screenOverviewDoorName } from "#lib";
 import type { PanelMode } from "#state";
 
 /** The list pane's durable focus-return target after its sheet closes. */
@@ -115,7 +115,7 @@ function leadControl({ contentLabel, listDoorLabel, listMode, listAvailable, mob
   const screen = contentLabel ?? title;
   return (
     <TopbarIconButton
-      label={listCollapsed ? (listDoorLabel ?? `Show ${screen} list`) : `Show ${screen} overview`}
+      label={listCollapsed ? (listDoorLabel ?? screenListDoorName(screen)) : screenOverviewDoorName(screen)}
       icon={listCollapsed ? PanelLeftOpen : PanelLeftClose}
       expanded={!listCollapsed}
       focusReturnMarker={LIST_TOGGLE_MARKER}

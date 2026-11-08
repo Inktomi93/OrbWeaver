@@ -29,3 +29,20 @@ export const DATABANK_HIDE_SOURCE_NAME = "Hide source text";
 export function databankSourceToggleName(shown: boolean): string {
   return shown ? DATABANK_HIDE_SOURCE_NAME : DATABANK_VIEW_SOURCE_NAME;
 }
+
+/** The add dialog's title, and the list header menu item that opens it. */
+export const DATABANK_ADD_DOCUMENT_TITLE = "Add a document";
+
+/** The list header's add door and the add dialog's submit. */
+export const DATABANK_ADD_NAME = "Add";
+
+/** The add dialog's method choice group. */
+export const DATABANK_ADD_METHOD_NAME = "How to add the document";
+export const DATABANK_ADD_NAME_FIELD_NAME = "Name";
+export const DATABANK_ADD_TEXT_FIELD_NAME = "Text";
+
+/** The library list. */
+export const DATABANK_LIST_NAME = "Documents";
+
+/** The library and Home tile empty state before any document exists. */
+export const DATABANK_EMPTY_TITLE = "No documents yet";

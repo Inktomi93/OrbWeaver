@@ -16,6 +16,7 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, servePhysicalPeer } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page, TestInfo } from "@playwright/test";
+import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import { IMPORT_CONFIRM_NAMES } from "#client/features/workloads/lib/portability-model.ts";
 import type { WorkloadActionGroupsStory } from "./_action-groups-stories.tsx";
 
@@ -173,7 +174,7 @@ for (const regime of REGIMES) {
       await routeTrpc(page, serveCorpusProcedures(caller, ["settings.getUserSettings", "sessions.me"]));
       await mount<typeof WorkloadActionGroupsStory>(STORY, { sectionId: "backup-import", width: regime.width, appearance: regime.appearance });
       const chooserPromise = page.waitForEvent("filechooser");
-      const picker = page.getByRole("button", { name: "Import a folder…", exact: true });
+      const picker = page.getByRole("button", { name: IMPORT_FOLDER_NAME, exact: true });
       await picker.focus();
       await expect(picker).toBeFocused();
       await picker.click();

@@ -3,6 +3,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusReadResponder } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { makePluginRow } from "@orb/testkit/node/helpers";
+import { CONFIG_SEARCH_NAME } from "#client/features/config/lib/config-control-names.ts";
 import type { ConfigListStory } from "./_list-stories.tsx";
 
 const PLUGIN_SLUG = "zephyr-notes";
@@ -40,7 +41,7 @@ test.afterAll(async () => {
 });
 
 test("@in: offers the visible group names as completions", async ({ page }) => {
-  const search = page.getByRole("combobox", { name: "Search settings" });
+  const search = page.getByRole("combobox", { name: CONFIG_SEARCH_NAME });
   await search.fill("@in:appear");
   await expect(page.getByRole("option", { name: /@in:appearance/u })).toBeVisible();
   await page.getByRole("option", { name: /@in:appearance/u }).click();
@@ -48,13 +49,13 @@ test("@in: offers the visible group names as completions", async ({ page }) => {
 });
 
 test("@plugin: offers the installed plugin slugs as completions", async ({ page }) => {
-  const search = page.getByRole("combobox", { name: "Search settings" });
+  const search = page.getByRole("combobox", { name: CONFIG_SEARCH_NAME });
   await search.fill("@plugin:zeph");
   await expect(page.getByRole("option", { name: new RegExp(`@plugin:${PLUGIN_SLUG}`, "u") })).toBeVisible();
 });
 
 test("a search with no match is announced through a status live region", async ({ page }) => {
-  await page.getByRole("combobox", { name: "Search settings" }).fill("qqzzxxnomatch");
+  await page.getByRole("combobox", { name: CONFIG_SEARCH_NAME }).fill("qqzzxxnomatch");
   const status = page.getByRole("status").filter({ hasText: "qqzzxxnomatch" });
   await expect(status).toHaveCount(1);
 });
