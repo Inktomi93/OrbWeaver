@@ -444,7 +444,8 @@ const TEST_CONSTANT_HOMES = {
     "ROUTE_PENDING_NAME: the router's pending mark, which a slow-guard case reads to prove the window is open",
   "packages/client/src/components/shared-control-names.ts":
     "TAG_NAME_FIELD_NAME and its siblings: the names of controls a shared component mounts for several features",
-  "packages/client/src/features/chat/lib/transcript-copy.ts": "CHAT_PRINT_COVERAGE: the printed line for a partial transcript",
+  "packages/client/src/features/chat/lib/transcript-copy.ts":
+    "CHAT_PRINT_COVERAGE and the history pager's status line: the transcript copy a print or pager case reads",
   "packages/client/src/features/chat/lib/chat-surface-names.ts":
     "CHAT_CLEAR_SEARCH_NAME and its siblings: the chat list, composer, gallery picker and message confirm names",
   "packages/client/src/features/config/lib/config-control-names.ts": "CONFIG_THEME_NAME_FIELD_NAME and its siblings: the theme builder control names",

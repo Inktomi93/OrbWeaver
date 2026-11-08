@@ -20,7 +20,7 @@ import {
 } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { nonEmpty } from "@orb/testkit/iso";
-import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusHarness, createCorpusProviderExecution } from "@orb/testkit/node/composed";
+import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusHarness, createCorpusProviderExecution, seedTranscript } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import {
   CHAT_EARLIER_MESSAGES_NAME,
@@ -39,8 +39,6 @@ const EXTRA_ROWS = 115;
 // The transcript's own busy state: a loading Earlier messages carries `aria-busy` too.
 const TRANSCRIPT_BUSY = '[aria-busy]:not([data-slot="button"])';
 const ARRIVALS = 55;
-// Every arrival invalidates the room's reads, so the bridge only starts once that burst of refreshes has run out.
-const ARRIVALS_SETTLE_MS = 20_000;
 type Caller = Awaited<ReturnType<Awaited<ReturnType<typeof createCorpusHarness>>["internalCallerFor"]>>;
 
 type HistoryPage = Awaited<ReturnType<Caller["chat"]["listMessages"]>>;
@@ -67,26 +65,42 @@ async function commitArrivals(caller: Caller, chatId: ChatId): Promise<readonly 
   return messages;
 }
 
-async function prepareHistory(caller: Caller): Promise<HistoryFixture> {
-  const rooms = (await caller.chat.listChats({ limit: 2 })).items;
-  const room = rooms[0];
-  const other = rooms[1];
-  if (room === undefined || other === undefined) {
-    throw new Error("The corpus needs two rooms");
+/** The oldest row a room's history holds, read back page by page the way the pager walks it. */
+async function oldestOf(caller: Caller, chatId: ChatId): Promise<CanonMessage | undefined> {
+  let page = await caller.chat.listMessages({ chatId });
+  while (page.previousCursor !== null) {
+    page = await caller.chat.listMessages({ chatId, cursor: page.previousCursor });
   }
-  const original = (await caller.chat.listMessages({ chatId: room.id })).messages[0];
+  return page.messages[0];
+}
+
+async function prepareHistory(root: Root, caller: Caller): Promise<HistoryFixture> {
+  const [card] = (await caller.character.list({})).items;
+  if (card === undefined) {
+    throw new Error("The corpus needs a character to seat in the imported room");
+  }
+  // A long history is bulk data, so the native chat import writes it in one call; a commit per row is a verb run per row.
+  const imported = await seedTranscript(root, {
+    ownerId: root.ownerId,
+    characterHandles: [card.handle],
+    lines: Array.from({ length: EXTRA_ROWS }, (_, index) => ({
+      role: "user",
+      content: `History pagination witness ${index + 1}. The observatory lantern burns through the rain.`,
+    })),
+  });
+  const listed = (await caller.chat.listChats({})).items;
+  const room = listed.find((row) => row.id === imported.chatId);
+  const other = listed.find((row) => row.id !== imported.chatId);
+  if (room === undefined || other === undefined) {
+    throw new Error("The imported room and a corpus room must both list");
+  }
+  const rooms = [room, other];
+  const original = await oldestOf(caller, room.id);
   const otherTail = (await caller.chat.commitMessage({ chatId: other.id, content: "A short room keeps its own canon.", timeZone: UTC_TIME_ZONE })).messages.at(
     -1,
   );
   if (original === undefined || otherTail === undefined) {
     throw new Error("Both rooms need their persisted reading witnesses");
-  }
-  for (let index = 0; index < EXTRA_ROWS; index++) {
-    await caller.chat.commitMessage({
-      chatId: room.id,
-      content: `History pagination witness ${index + 1}. The observatory lantern burns through the rain.`,
-      timeZone: UTC_TIME_ZONE,
-    });
   }
   const tail = await caller.chat.listMessages({ chatId: room.id });
   const anchor = tail.messages[0];
@@ -162,7 +176,7 @@ async function serveLiveRoom({ root, caller, corpus, page, rooms, chatId, chatSt
   const stop = new AbortController();
   let started = false;
   await routeOrbSocket(page, {
-    awaitAttaches: 1,
+    awaitRooms: [{ channel: "chat", chatId }],
     frames: async (signal) => {
       started = true;
       const events = root.app.liveBuses.chat.subscribeChatEvents(chatId, AbortSignal.any([signal, stop.signal]));
@@ -254,7 +268,7 @@ for (const regime of [
     test("ordinary history reaches its original canon, preserves the prepend anchor and scopes pages to the room", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
-      const { rooms, room, other, original, otherTail, tail, anchor, loadedFirst, removed } = await prepareHistory(caller);
+      const { rooms, room, other, original, otherTail, tail, anchor, loadedFirst, removed } = await prepareHistory(root, caller);
       expect(nonEmpty(tail.messages).some((message) => message.id === original.id)).toBe(false);
       await caller.settings.updateUserSettingsSection({
         section: "appearance",
@@ -287,7 +301,7 @@ for (const regime of [
         }
       });
       await routeOrbSocket(page, {
-        awaitAttaches: 1,
+        awaitRooms: [{ channel: "chat", chatId: room.id }],
         frames: async (signal) => {
           started = true;
           const events = root.app.liveBuses.chat.subscribeChatEvents(room.id, AbortSignal.any([signal, stop.signal]));
@@ -408,10 +422,46 @@ for (const regime of [
       await expect(earlier).toBeDisabled();
       await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true })).toBeVisible();
     });
+    test("a burst of room events reads the loaded history once, as one invalidation does", async ({ corpus, mount, page }) => {
+      await using root = await historyRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { rooms, room, tail } = await prepareHistory(root, caller);
+      await using live = await serveLiveRoom({ root, caller, corpus, page, rooms, chatId: room.id, chatStyle: regime.chatStyle, intercept: () => undefined });
+      await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true, invalidator: true });
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      const earlier = list.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
+      await expect(earlier).toBeAttached();
+      const rows = await loadedRows(list);
+      await earlier.dispatchEvent("click");
+      await expect.poll(() => loadedRows(list)).not.toBe(rows);
+      const busy = page.getByRole("main", { name: "Chats content", exact: true }).locator(TRANSCRIPT_BUSY);
+      await expect(busy).toHaveAttribute("aria-busy", "false");
+      // The control: what one invalidation of the room's reads costs with these pages loaded.
+      const idle = live.reads();
+      await page.getByRole("button", { name: "Invalidate the room", exact: true }).dispatchEvent("click");
+      await expect.poll(() => live.reads()).toBeGreaterThan(idle);
+      await expect(busy).toHaveAttribute("aria-busy", "false");
+      const once = live.reads() - idle;
+      const before = live.reads();
+      // Edits move no row, so the burst owes no bridge read: everything it reads is refresh.
+      let revised = "";
+      let lastId = "";
+      for (const message of tail.messages) {
+        revised = `${message.content} Revised.`;
+        lastId = message.id;
+        await caller.chat.editMessage({ chatId: room.id, messageId: message.id, content: revised, timeZone: UTC_TIME_ZONE });
+      }
+      await live.settle();
+      await expect(list.locator(`[data-message-id="${lastId}"]`)).toContainText(revised);
+      await expect.poll(() => live.reads()).toBeGreaterThan(before);
+      await expect(busy).toHaveAttribute("aria-busy", "false");
+      await quietSpell(page);
+      expect(live.reads() - before).toBe(once);
+    });
     test("a failed refresh reports without moving or pinning, a press still pages, and recovery wastes no press", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
-      const { rooms, room } = await prepareHistory(caller);
+      const { rooms, room } = await prepareHistory(root, caller);
       let failing = false;
       await using live = await serveLiveRoom({
         root,
@@ -457,7 +507,7 @@ for (const regime of [
     test("a failed refresh leaves a reader at the tail on the tail", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
-      const { rooms, room, tail } = await prepareHistory(caller);
+      const { rooms, room, tail } = await prepareHistory(root, caller);
       await using live = await serveLiveRoom({
         root,
         caller,
@@ -488,7 +538,7 @@ for (const regime of [
     test("a failed refresh in a room with nothing older keeps its own way to retry", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
-      const { rooms, other } = await prepareHistory(caller);
+      const { rooms, other } = await prepareHistory(root, caller);
       let failing = true;
       await using live = await serveLiveRoom({
         root,
@@ -514,7 +564,7 @@ for (const regime of [
     test("a failed bridge reports its own kind, stops reading, and one retry with the server down is one announcement", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
-      const { rooms, room, tail } = await prepareHistory(caller);
+      const { rooms, room, tail } = await prepareHistory(root, caller);
       const floor = tail.messages[0]?.seq ?? 0;
       let bridgeDown = false;
       let allDown = false;
@@ -540,7 +590,7 @@ for (const regime of [
       await commitArrivals(caller, room.id);
       await live.settle();
       const alert = list.getByRole("alert");
-      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge, { timeout: ARRIVALS_SETTLE_MS });
+      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge);
       await expect(alert).not.toBeInViewport();
       const busy = page.getByRole("main", { name: "Chats content", exact: true }).locator(TRANSCRIPT_BUSY);
       await expect(busy).toHaveAttribute("aria-busy", "false");
@@ -570,7 +620,7 @@ for (const regime of [
     test("a press that fails through a failed bridge keeps its own failure in the reader's view", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
-      const { rooms, room, tail } = await prepareHistory(caller);
+      const { rooms, room, tail } = await prepareHistory(root, caller);
       let bridgeDown = false;
       let allDown = false;
       const forward = forwardFails(tail.messages[0]?.seq ?? 0, () => bridgeDown);
@@ -595,7 +645,7 @@ for (const regime of [
       await commitArrivals(caller, room.id);
       await live.settle();
       const alert = list.getByRole("alert");
-      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge, { timeout: ARRIVALS_SETTLE_MS });
+      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge);
       await list.evaluate((node) => {
         node.scrollTop = node.scrollHeight / 2;
       });
@@ -615,7 +665,7 @@ for (const regime of [
     test("a dismissed press leaves the failed bridge behind it showing", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
-      const { rooms, room, tail } = await prepareHistory(caller);
+      const { rooms, room, tail } = await prepareHistory(root, caller);
       let bridgeDown = false;
       let allDown = false;
       const forward = forwardFails(tail.messages[0]?.seq ?? 0, () => bridgeDown);
@@ -640,7 +690,7 @@ for (const regime of [
       await commitArrivals(caller, room.id);
       await live.settle();
       const alert = list.getByRole("alert");
-      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge, { timeout: ARRIVALS_SETTLE_MS });
+      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge);
       await list.evaluate((node) => {
         node.scrollTop = node.scrollHeight / 2;
       });
@@ -661,7 +711,7 @@ for (const regime of [
     test("a refresh that fails in a bridging room keeps reporting after the forward read could land, until it is repeated", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
-      const { rooms, room, tail } = await prepareHistory(caller);
+      const { rooms, room, tail } = await prepareHistory(root, caller);
       let bridgeDown = false;
       let refreshDown = false;
       const forward = forwardFails(tail.messages[0]?.seq ?? 0, () => bridgeDown);
@@ -686,7 +736,7 @@ for (const regime of [
       await commitArrivals(caller, room.id);
       await live.settle();
       const alert = list.getByRole("alert");
-      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge, { timeout: ARRIVALS_SETTLE_MS });
+      await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge);
       bridgeDown = false;
       refreshDown = true;
       const retry = list.getByRole("button", { name: CHAT_HISTORY_RETRY_NAME, exact: true });
@@ -701,7 +751,7 @@ for (const regime of [
     test("a failed press stays pinned through a later failed refresh", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
-      const { rooms, room } = await prepareHistory(caller);
+      const { rooms, room } = await prepareHistory(root, caller);
       await using live = await serveLiveRoom({
         root,
         caller,
@@ -736,7 +786,7 @@ for (const regime of [
     test("a dismissed press leaves the failed refresh behind it showing", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
-      const { rooms, room } = await prepareHistory(caller);
+      const { rooms, room } = await prepareHistory(root, caller);
       await using live = await serveLiveRoom({
         root,
         caller,
@@ -769,7 +819,7 @@ for (const regime of [
     test("a Try again from the keyboard that succeeds leaves focus on the pager", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
-      const { rooms, room } = await prepareHistory(caller);
+      const { rooms, room } = await prepareHistory(root, caller);
       let failing = true;
       await using live = await serveLiveRoom({
         root,
@@ -795,7 +845,7 @@ for (const regime of [
     test("a Try again that succeeds in a room with nothing older keeps a place for focus", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
-      const { rooms, other } = await prepareHistory(caller);
+      const { rooms, other } = await prepareHistory(root, caller);
       let failing = true;
       await using live = await serveLiveRoom({
         root,
@@ -820,7 +870,7 @@ for (const regime of [
     test("a reader at the top of a room with no pager stays there, and sees a failed refresh", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
-      const { rooms, other } = await prepareHistory(caller);
+      const { rooms, other } = await prepareHistory(root, caller);
       for (let index = 0; index < 20; index += 1) {
         await caller.chat.commitMessage({
           chatId: other.id,
@@ -854,7 +904,7 @@ for (const regime of [
     test("a press a room invalidation cancels still ends in the older rows", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
-      const { rooms, room, tail } = await prepareHistory(caller);
+      const { rooms, room, tail } = await prepareHistory(root, caller);
       const press = holdServed();
       await using held = new AsyncDisposableStack();
       held.defer(press.release);
@@ -890,7 +940,7 @@ for (const regime of [
     test("a press every read of which an invalidation cancels says so and pins its reason", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
-      const { rooms, room, tail } = await prepareHistory(caller);
+      const { rooms, room, tail } = await prepareHistory(root, caller);
       const reads = [holdServed(), holdServed(), holdServed()] as const;
       await using held = new AsyncDisposableStack();
       held.defer(() => {
@@ -935,7 +985,7 @@ for (const regime of [
     test("an anchored press every read of which an invalidation cancels says so", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
-      const { rooms, room, tail } = await prepareHistory(caller);
+      const { rooms, room, tail } = await prepareHistory(root, caller);
       const target = tail.messages[0];
       if (target === undefined) {
         throw new Error("The room's tail is empty");
@@ -977,7 +1027,7 @@ for (const regime of [
     test("a repeated press with the connection down is heard again, and the held read lands when it returns", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
-      const { rooms, room } = await prepareHistory(caller);
+      const { rooms, room } = await prepareHistory(root, caller);
       await using _live = await serveLiveRoom({ root, caller, corpus, page, rooms, chatId: room.id, chatStyle: regime.chatStyle, intercept: () => undefined });
       await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true });
       const list = page.locator('[data-slot="message-list-scroll"]');

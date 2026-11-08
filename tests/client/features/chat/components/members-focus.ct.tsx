@@ -64,7 +64,7 @@ test("removing a member closes the real confirm onto a surviving roster control"
     }
   });
   await routeOrbSocket(page, {
-    awaitAttaches: 1,
+    awaitRooms: [{ channel: "chat", chatId }],
     frames: async (signal) => {
       started = true;
       const events = root.app.liveBuses.chat.subscribeChatEvents(chatId, AbortSignal.any([signal, stop.signal]));
