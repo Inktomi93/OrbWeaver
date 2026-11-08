@@ -1,4 +1,7 @@
 // Search replay retains only private physical exchanges, never synthesized domain results or portable credentials.
+import type { CorpusWireSpend } from "./corpus-wire-spend.ts";
+import { refuseUnspentSteps } from "./corpus-wire-spend.ts";
+
 interface SearchExchange {
   readonly method: string;
   readonly url: string;
@@ -55,8 +58,15 @@ export function createCorpusSearchWire(execute: typeof fetch): SearchWire {
   };
 }
 
-/** Replay only captured raw requests; a changed or exhausted exchange refuses at the physical edge. */
-export function replayCorpusSearchWire(exchanges: readonly SearchExchange[]): { readonly execute: typeof fetch; readonly remaining: () => number } {
+interface SearchReplay {
+  readonly execute: typeof fetch;
+}
+
+/** Replay only captured raw requests; a changed or exhausted exchange refuses at the physical edge. An `every-step`
+ *  replay is owned with `using`, and refuses at disposal with a captured exchange unspent. */
+export function replayCorpusSearchWire(exchanges: readonly SearchExchange[], spend: "every-step"): SearchReplay & Disposable;
+export function replayCorpusSearchWire(exchanges: readonly SearchExchange[], spend: "as-needed"): SearchReplay;
+export function replayCorpusSearchWire(exchanges: readonly SearchExchange[], spend: CorpusWireSpend): SearchReplay & Disposable {
   const pending = [...exchanges];
   return {
     execute: async (input, init): Promise<Response> => {
@@ -72,6 +82,6 @@ export function replayCorpusSearchWire(exchanges: readonly SearchExchange[]): { 
       }
       return new Response(exchange.response, { status: exchange.status, headers: exchange.headers.map(([key, value]) => [key, value]) });
     },
-    remaining: (): number => pending.length,
+    [Symbol.dispose]: (): void => refuseUnspentSteps("search corpus replay", spend, pending.length),
   };
 }

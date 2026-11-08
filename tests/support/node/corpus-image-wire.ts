@@ -4,6 +4,8 @@ import { WELCOME_ASSISTANT_HANDLE } from "@orb/server/domain/character";
 import sharp from "sharp";
 import { z } from "zod";
 import { CORPUS_PROVIDER_ENDPOINT } from "./corpus-provider.ts";
+import type { CorpusWireSpend } from "./corpus-wire-spend.ts";
+import { refuseUnspentSteps } from "./corpus-wire-spend.ts";
 import { terminalSseLine } from "./provider-stream.ts";
 
 export const CORPUS_VARIANT_IMAGE_MODEL = "corpus-output-image-v1";
@@ -27,7 +29,6 @@ export interface CorpusImageWire {
   readonly posts: readonly string[];
   readonly images: readonly ImageRequest[];
   readonly captions: readonly { readonly authenticated: boolean; readonly body: string }[];
-  readonly remaining: () => number;
   readonly wrap: (execute: typeof fetch) => typeof fetch;
 }
 
@@ -80,8 +81,11 @@ function imageReply(bytes: Uint8Array | undefined, usage: string | undefined, n:
   });
 }
 
-/** Distinct valid vendor pixels avoid CAS aliasing unrelated generation provenance. */
-export async function createCorpusImageWire(): Promise<CorpusImageWire> {
+/** Distinct valid vendor pixels avoid CAS aliasing unrelated generation provenance. An `every-step` wire is owned with
+ *  `using`, and refuses at disposal with a scripted image unspent. */
+export async function createCorpusImageWire(spend: "every-step"): Promise<CorpusImageWire & Disposable>;
+export async function createCorpusImageWire(spend: "as-needed"): Promise<CorpusImageWire>;
+export async function createCorpusImageWire(spend: CorpusWireSpend): Promise<CorpusImageWire & Disposable> {
   const avatar = await readSeedAvatar(WELCOME_ASSISTANT_HANDLE);
   if (avatar === null) {
     throw new Error("bundled image variant pixels are missing");
@@ -108,7 +112,7 @@ export async function createCorpusImageWire(): Promise<CorpusImageWire> {
     posts,
     images,
     captions,
-    remaining: () => pixels.length - cursor,
+    [Symbol.dispose]: (): void => refuseUnspentSteps("image corpus wire", spend, pixels.length - cursor),
     wrap:
       (execute) =>
       async (input, init): Promise<Response> => {

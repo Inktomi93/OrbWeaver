@@ -3,6 +3,8 @@
 import { builtinProvider } from "@orb/contracts/inference";
 import { z } from "zod";
 import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
+import type { CorpusWireSpend } from "./corpus-wire-spend.ts";
+import { refuseUnspentSteps } from "./corpus-wire-spend.ts";
 import { terminalSseLine } from "./provider-stream.ts";
 import type { ServerHarnessOptions } from "./server.ts";
 
@@ -39,7 +41,6 @@ interface CorpusConnectionWire {
   readonly resolver: NonNullable<NonNullable<ServerHarnessOptions["networkExecution"]>["resolver"]>;
   readonly wrap: (execute: typeof fetch) => typeof fetch;
   readonly requests: readonly PhysicalRequest[];
-  readonly remaining: () => number;
   readonly models: (key: string, response?: string, status?: number) => void;
   readonly hostedCatalog: () => void;
   readonly credits: (response?: string, status?: number) => void;
@@ -95,8 +96,11 @@ function matchesPhysicalRequest(candidate: PhysicalRecipe, request: Request): bo
   return candidate.url === request.url && candidate.method === request.method && request.headers.get("authorization") === expected;
 }
 
-/** Match each admitted physical ask once; exhausted or unmatched connection recipes never fall through to a live dial. */
-export function createCorpusConnectionWire(): CorpusConnectionWire {
+/** Match each admitted physical ask once; exhausted or unmatched connection recipes never fall through to a live dial.
+ *  An `every-step` wire is owned with `using`, and refuses at disposal with an enqueued recipe unspent. */
+export function createCorpusConnectionWire(spend: "every-step"): CorpusConnectionWire & Disposable;
+export function createCorpusConnectionWire(spend: "as-needed"): CorpusConnectionWire;
+export function createCorpusConnectionWire(spend: CorpusWireSpend): CorpusConnectionWire & Disposable {
   const hosted = hostedBaseUrl();
   const pending: PhysicalRecipe[] = [];
   const requests: PhysicalRequest[] = [];
@@ -112,7 +116,7 @@ export function createCorpusConnectionWire(): CorpusConnectionWire {
       return Promise.resolve([PUBLIC_PEER_ADDRESS]);
     },
     requests,
-    remaining: (): number => pending.length,
+    [Symbol.dispose]: (): void => refuseUnspentSteps("connection corpus wire", spend, pending.length),
     models: (key, response, status): void =>
       enqueue({
         url: `${CORPUS_CONNECTION_ENDPOINT}/models`,

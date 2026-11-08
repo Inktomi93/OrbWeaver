@@ -26,6 +26,7 @@ export {
   listBackupFiles,
   localPath,
   optimizeDb,
+  pendingMigrations,
   preCloseHousekeeping,
   pruneDbBackups,
   runMigrations,

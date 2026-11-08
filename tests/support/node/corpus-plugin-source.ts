@@ -3,6 +3,8 @@
 import { pluginManifestSchema } from "@orb/contracts/plugin";
 import { PUBLIC_PEER_ADDRESS } from "../iso/network.ts";
 import { CORPUS_PLUGIN_MANIFEST } from "./corpus-plugin.ts";
+import type { CorpusWireSpend } from "./corpus-wire-spend.ts";
+import { refuseUnspentSteps } from "./corpus-wire-spend.ts";
 import { makePluginBundle } from "./factories/plugin.ts";
 import type { ServerHarnessOptions, ServerTestHarness } from "./server.ts";
 
@@ -11,7 +13,6 @@ type PluginCaller = Awaited<ReturnType<ServerTestHarness["internalCallerFor"]>>[
 export interface CorpusPluginDownloads {
   readonly networkExecution: NonNullable<ServerHarnessOptions["networkExecution"]>;
   readonly enqueue: (bytes: Uint8Array, status?: number) => void;
-  readonly remaining: () => number;
   readonly requested: readonly string[];
 }
 
@@ -27,8 +28,11 @@ export interface CorpusPluginSource {
 
 export const CORPUS_PLUGIN_SOURCE_URL = "https://plugins.example.test/ledger.zip";
 
-/** An exhausted download script refuses; it cannot fall through to a live network request. */
-export function createCorpusPluginDownloads(): CorpusPluginDownloads {
+/** An exhausted download script refuses; it cannot fall through to a live network request. An `every-step` script is
+ *  owned with `using`, and refuses at disposal with an enqueued download unspent. */
+export function createCorpusPluginDownloads(spend: "every-step"): CorpusPluginDownloads & Disposable;
+export function createCorpusPluginDownloads(spend: "as-needed"): CorpusPluginDownloads;
+export function createCorpusPluginDownloads(spend: CorpusWireSpend): CorpusPluginDownloads & Disposable {
   const pending: { readonly bytes: Uint8Array; readonly status: number }[] = [];
   const requested: string[] = [];
   const execute: typeof fetch = (input) => {
@@ -48,8 +52,8 @@ export function createCorpusPluginDownloads(): CorpusPluginDownloads {
     enqueue: (bytes: Uint8Array, status = 200): void => {
       pending.push({ bytes, status });
     },
-    remaining: (): number => pending.length,
     requested,
+    [Symbol.dispose]: (): void => refuseUnspentSteps("plugin download script", spend, pending.length),
   };
 }
 

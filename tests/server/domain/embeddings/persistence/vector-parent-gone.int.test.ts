@@ -1,16 +1,39 @@
 // A vector whose parent is deleted while its text is being embedded lands nowhere and fails nothing: an embed can
 // outlast the row it was asked for, and the write that follows must read that as the end of the work, not as a fault.
 // @subject packages/server/src/domain/embeddings/persistence/queries.ts
+// @subject packages/server/src/domain/embeddings/indexer/image.ts
 
 import { createCharacterSchema } from "@orb/contracts/character";
 import { EMBEDDING_FLOOR } from "@orb/contracts/inference";
-import { characterEmbeddings, characters, chatDigestSpeakers, chatDigests, chatSegments, chats, documentChunks, documents } from "@orb/db";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import {
+  assets,
+  characterEmbeddings,
+  characters,
+  chatDigestSpeakers,
+  chatDigests,
+  chatSegments,
+  chats,
+  documentChunks,
+  documents,
+  imageIndexSkips,
+} from "@orb/db";
+import type { AssetId, CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import { ID_PREFIX } from "@orb/kit/ids";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
-import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusProviderExecution, createServerHarness } from "@orb/testkit/node/composed";
+import {
+  CORPUS_EMBED_MODEL,
+  CORPUS_EMBEDDING_VECTOR,
+  CORPUS_STRUCTURED_REPLIES,
+  CORPUS_TEXT_MODEL,
+  createCorpusProviderExecution,
+  createServerHarness,
+  freshHeldDb,
+  makeAssetBytes,
+  seedCorpusConnections,
+} from "@orb/testkit/node/composed";
 import { eq, inArray } from "drizzle-orm";
 
 const ENDPOINT = "https://inference.test/v1";
@@ -242,4 +265,45 @@ test("a document chunk lands nothing once its document is gone", async () => {
   edge.whileEmbedding(async () => await root.db.delete(documents).where(eq(documents.id, document.id)));
   expect((await root.app.embeddings.store(chunk(1))).outcome).toBe("noop");
   expect(await rows()).toEqual([]);
+});
+
+// The indexer reads the bytes, then records the floor verdict. An asset deleted between the two leaves no parent row.
+test("an image below the floor whose asset is deleted before its skip verdict lands records nothing and settles quietly", async () => {
+  using held = await freshHeldDb();
+  const physical = createCorpusProviderExecution({
+    modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
+    embedding: CORPUS_EMBEDDING_VECTOR,
+    chatText: "",
+    structuredReplies: CORPUS_STRUCTURED_REPLIES,
+    images: [],
+  });
+  await using root = await createServerHarness({ db: held.db, providerFetch: physical.execute, startJobs: false, logLevel: "error" });
+  const owner = await root.principalFor(root.ownerId);
+  // Stored before any embedder exists, so no write-time indexing runs ahead of the case.
+  const [kept, gone] = await Promise.all(
+    [root.idSource.typeId(ID_PREFIX.asset), root.idSource.typeId(ID_PREFIX.asset)].map(
+      async (seed) => (await root.app.assets.store({ principal: owner, bytes: makeAssetBytes(seed), mime: "image/png", kind: "avatar" })).assetId,
+    ),
+  );
+  if (kept === undefined || gone === undefined) {
+    throw new Error("the case stores two avatars");
+  }
+  await root.settleBackground();
+  await seedCorpusConnections(root, owner);
+  const skipped = async (): Promise<readonly AssetId[]> =>
+    (await root.db.select({ assetId: imageIndexSkips.assetId }).from(imageIndexSkips)).map(({ assetId }) => assetId);
+
+  // Control: with its asset present the indexer records the floor verdict.
+  expect(await root.app.embeddings.indexAsset(kept)).toBeNull();
+  expect(await skipped()).toEqual([kept]);
+
+  const verdict = held.hold(/insert into "image_index_skips"/u);
+  const indexing = root.app.embeddings.indexAsset(gone);
+  await verdict.reached;
+  await root.db.delete(assets).where(eq(assets.id, gone));
+  verdict.release();
+
+  await expect(indexing).resolves.toBeNull();
+  expect(await skipped()).toEqual([kept]);
+  expect(root.observability.logLines(LOG_SCAN_LIMIT).filter((line) => line.includes("image_index_skips"))).toEqual([]);
 });

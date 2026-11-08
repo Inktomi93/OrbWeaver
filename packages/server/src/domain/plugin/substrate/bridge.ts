@@ -94,15 +94,10 @@ export function buildPluginBridge(ops: PluginHostOps, installerUserId: UserId, p
         if (visibility === null) {
           return [];
         }
-        // The §3.6 / D106 hidden-content verdict rides the SAME visibility answer as the D16 floor (chat DERIVES
-        // it via its ONE `viewerReadsHidden` home — the bridge never re-derives `role === "host"`). Threaded as a
-        // required param (like `floorSeq`) so the read site — not a post-filter — owns the predicate; a non-host
-        // member's snippet has hidden `<lie>`/`<ofilter>` spans stripped before the body crosses the realm boundary.
-        return await ops.chat.listMessages(chatId, {
-          ...(limit === undefined ? {} : { limit }),
-          floorSeq: visibility.historyFloorSeq,
-          readsHidden: visibility.readsHidden,
-        });
+        // The read takes the whole answer: its D16 floor and its §3.6 / D106 hidden-content verdict, which chat
+        // derives through its one `viewerReadsHidden` home. Only chat's resolver mints a `ViewerVisibility`, so a
+        // non-member branch has no value to pass and a defaulted floor does not compile.
+        return await ops.chat.listMessages(chatId, { ...(limit === undefined ? {} : { limit }), visibility });
       },
       // THE ROOM-STATE READ — the SAME viewer choke. A host-pumped continuation keeps its command's authority for
       // the continuation window, so admission alone would let it keep reading a room its installer has left. A
