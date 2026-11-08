@@ -116,6 +116,7 @@ export {
 } from "./embedder-rebuild.ts";
 export { AppErrorBoundary } from "./error-boundary.tsx";
 export { filteredCensus } from "./filtered-census.ts";
+export { SIDECAR_PANELS_LABEL, SIDECAR_PANELS_NOUN } from "./flank-names.ts";
 export { publishFlankHost, publishInlineFlankFit, setFlankSheetOpen, useFlankHost, useFlankSheetOpen, useInlineFlankFits } from "./flank-placement.ts";
 export { holdFlipInPhase } from "./flip-phase.ts";
 export { IMAGE_SIZE_LABELS, IMAGE_SIZE_MODE_DEFAULT } from "./image-size-copy.ts";

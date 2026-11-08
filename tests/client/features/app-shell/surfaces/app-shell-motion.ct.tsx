@@ -3,7 +3,7 @@
 // view transition. Every sampler records per animation frame, because the defects it judges are one frame wide.
 
 import { spawn } from "node:child_process";
-import { contextToggleLabel } from "@orb/client/lib";
+import { contextToggleLabel, SIDECAR_PANELS_NOUN } from "@orb/client/lib";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
 import { emulateMedia, releaseEmulatedMedia, resolvedLength, seedShellState, shellTracks } from "@orb/testkit/browser/spec";
@@ -791,7 +791,12 @@ test.describe("a row mounted mid flank door", () => {
     await expect(page.locator(DOOR_BOXES.row).first()).toBeVisible();
     await expect(page.getByText(FLANK_PANEL, { exact: true })).toBeVisible();
     await waitForShellIdle(page);
-    await using _clock = await holdDoorClock(page, "Hide plugin panels", '[data-slot="chat-room-flank-row"] [data-track="chat"]', "room-flank-centre-flip");
+    await using _clock = await holdDoorClock(
+      page,
+      `Hide ${SIDECAR_PANELS_NOUN}`,
+      '[data-slot="chat-room-flank-row"] [data-track="chat"]',
+      "room-flank-centre-flip",
+    );
     const read = await page.evaluate(async (maxFrames) => {
       const frame = (): Promise<number> => new Promise((resolve) => requestAnimationFrame(resolve));
       const scroller = document.querySelector('[data-slot="message-list-scroll"]');
@@ -1002,4 +1007,167 @@ test("at an overlay width a closing details sheet keeps its box below the topbar
   const tops = z.array(z.number()).parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__sheetTops")));
   expect(tops.length).toBeGreaterThan(3);
   expect(tops.filter((top) => top !== openTop)).toStrictEqual([]);
+});
+
+// The thread's rows and the composer sit on one axis whether the plugin column is in the row, parked or absent, and the
+// composer glides with the rows when the column joins or leaves.
+const ROOM_TRACKS = {
+  chat: '[data-slot="chat-room-flank-row"] [data-slot="message-row"]',
+  composer: '[data-slot="chat-room-composer-region"] [data-track="composer"]',
+} as const;
+const FLANK_ROOM = { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } } as const;
+const AXIS_SLACK = 1;
+// What each resting state of the column asks of the room: whether it is registered, and whether its edge control hid it.
+const COLUMN_STATES = { absent: { flank: false, hidden: false }, inline: { flank: true, hidden: false }, parked: { flank: true, hidden: true } } as const;
+
+interface TrackBox {
+  readonly left: number;
+  readonly width: number;
+}
+
+function readTracks(page: Page): Promise<Record<keyof typeof ROOM_TRACKS, TrackBox>> {
+  return page.evaluate((selectors) => {
+    const box = (selector: string): TrackBox => {
+      const element = Array.from(document.querySelectorAll(selector)).at(-1);
+      if (element === undefined) {
+        throw new Error(`The track ${selector} is absent`);
+      }
+      const { left, width } = element.getBoundingClientRect();
+      return { left, width };
+    };
+    return { chat: box(selectors.chat), composer: box(selectors.composer) };
+  }, ROOM_TRACKS);
+}
+
+const centreOf = (track: TrackBox): number => track.left + track.width / 2;
+
+type ColumnState = keyof typeof COLUMN_STATES;
+
+/** Serve the room at `width` with the column in `state`; the caller mounts it. */
+async function routeRoom(page: Page, corpus: CorpusPlayback, width: number, state: ColumnState): Promise<void> {
+  await page.setViewportSize({ width, height: 900 });
+  await seedShellState(page, FLANK_ROOM);
+  await routeMotion(page, corpus, {}, COLUMN_STATES[state].flank);
+}
+
+/** Where the mounted room's two tracks stand once the column is in `state` and the room is still. */
+async function restingTracks(page: Page, state: ColumnState): Promise<Record<keyof typeof ROOM_TRACKS, TrackBox>> {
+  await page.locator(ROOM_TRACKS.chat).last().waitFor();
+  if (COLUMN_STATES[state].hidden) {
+    await page.getByRole("button", { name: `Hide ${SIDECAR_PANELS_NOUN}`, exact: true }).click();
+    await page.getByRole("button", { name: `Show ${SIDECAR_PANELS_NOUN}`, exact: true }).waitFor();
+  }
+  await waitForShellIdle(page);
+  return readTracks(page);
+}
+
+const AxisFrames = z.array(z.object({ chat: z.number(), composer: z.number(), flipping: z.boolean() }));
+
+/** Press `leg` and read both tracks' centres on every frame after it, with the resting boxes either side. */
+async function toggleRecorded(
+  page: Page,
+  leg: string,
+): Promise<{
+  readonly before: Record<keyof typeof ROOM_TRACKS, TrackBox>;
+  readonly after: Record<keyof typeof ROOM_TRACKS, TrackBox>;
+  readonly frames: z.infer<typeof AxisFrames>;
+}> {
+  const before = await readTracks(page);
+  await page.evaluate(
+    ({ selectors, limit }) => {
+      const frames: { chat: number; composer: number; flipping: boolean }[] = [];
+      Reflect.set(globalThis, "__axisFrames", frames);
+      const centre = (selector: string): number => {
+        const box = Array.from(document.querySelectorAll(selector)).at(-1)?.getBoundingClientRect();
+        return box === undefined ? Number.NaN : box.left + box.width / 2;
+      };
+      const tick = (): void => {
+        frames.push({
+          chat: centre(selectors.chat),
+          composer: centre(selectors.composer),
+          flipping: document.querySelector('[data-slot="chat-room-flank-row"]')?.hasAttribute("data-flank-flip") === true,
+        });
+        if (frames.length < limit) {
+          requestAnimationFrame(tick);
+        }
+      };
+      requestAnimationFrame(tick);
+    },
+    { selectors: ROOM_TRACKS, limit: SAMPLE_FRAMES },
+  );
+  await page.getByRole("button", { name: leg, exact: true }).click();
+  await page.waitForFunction((limit) => {
+    const frames: unknown = Reflect.get(globalThis, "__axisFrames");
+    return Array.isArray(frames) && frames.length >= limit;
+  }, SAMPLE_FRAMES);
+  const frames = AxisFrames.parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__axisFrames")));
+  await waitForShellIdle(page);
+  return { before, after: await readTracks(page), frames };
+}
+
+/** Serve the room with the column in the row at 1440 under `motion`; the caller mounts it. */
+async function routeFlankRoom(page: Page, corpus: CorpusPlayback, motion: "no-preference" | "reduce"): Promise<void> {
+  await emulateMedia(page, { motion });
+  await routeRoom(page, corpus, 1440, "inline");
+}
+
+async function settleFlankRoom(page: Page): Promise<void> {
+  await page.getByText(FLANK_PANEL, { exact: true }).waitFor();
+  await waitForShellIdle(page);
+}
+
+/** How far the two tracks' middles stand apart. Their caps differ by design (the dial and the reading measure), so their edges meet only where both caps give way to the room. */
+function axisGap(tracks: Record<keyof typeof ROOM_TRACKS, TrackBox>): number {
+  return Math.abs(centreOf(tracks.chat) - centreOf(tracks.composer));
+}
+
+test.describe("the room's one axis", () => {
+  test("at 1280 and 1440 the rows and the composer share a middle with the column absent, in the row and parked", async ({ corpus, mount, page }) => {
+    for (const width of [1280, 1440]) {
+      for (const state of ["absent", "inline", "parked"] as const) {
+        await routeRoom(page, corpus, width, state);
+        await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+        expect(axisGap(await restingTracks(page, state)), `${String(width)} ${state}`).toBeLessThanOrEqual(AXIS_SLACK);
+        await page.reload();
+      }
+    }
+  });
+
+  test("the composer glides with the rows when the column leaves and joins, with no snap at either toggle", async ({ corpus, mount, page }) => {
+    await routeFlankRoom(page, corpus, "no-preference");
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+    await settleFlankRoom(page);
+    for (const leg of [`Hide ${SIDECAR_PANELS_NOUN}`, `Show ${SIDECAR_PANELS_NOUN}`]) {
+      const { before, after, frames } = await toggleRecorded(page, leg);
+      expect(axisGap(before), "before").toBeLessThanOrEqual(AXIS_SLACK);
+      expect(axisGap(after), "after").toBeLessThanOrEqual(AXIS_SLACK);
+      // Every painted frame, the glide's included, has the two tracks on one axis.
+      expect(frames.filter((frame) => Math.abs(frame.chat - frame.composer) > AXIS_SLACK)).toStrictEqual([]);
+      const travel = centreOf(after.composer) - centreOf(before.composer);
+      expect(Math.abs(travel), "the toggle moved nothing, so the read proves nothing").toBeGreaterThan(REAL_TRACK / 2);
+      expect(
+        frames.some((frame) => frame.flipping),
+        "no flip ran, so the read proves nothing",
+      ).toBe(true);
+      // No frame carries the composer the whole way: it starts where it stood and moves over the glide.
+      const widest = Math.max(...frames.slice(1).map((frame, index) => Math.abs(frame.composer - (frames[index]?.composer ?? Number.NaN))));
+      expect(widest).toBeLessThan(Math.abs(travel) * 0.75);
+    }
+  });
+
+  test("with motion off the composer and the rows still move together, and no flip runs", async ({ corpus, mount, page }) => {
+    await routeFlankRoom(page, corpus, "reduce");
+    await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId: roomId });
+    await settleFlankRoom(page);
+    for (const leg of [`Hide ${SIDECAR_PANELS_NOUN}`, `Show ${SIDECAR_PANELS_NOUN}`]) {
+      const { before, after, frames } = await toggleRecorded(page, leg);
+      expect(axisGap(before), "before").toBeLessThanOrEqual(AXIS_SLACK);
+      expect(axisGap(after), "after").toBeLessThanOrEqual(AXIS_SLACK);
+      expect(frames.filter((frame) => Math.abs(frame.chat - frame.composer) > AXIS_SLACK)).toStrictEqual([]);
+      expect(Math.abs(centreOf(after.composer) - centreOf(before.composer)), "the toggle moved nothing, so the read proves nothing").toBeGreaterThan(
+        REAL_TRACK / 2,
+      );
+      expect(frames.some((frame) => frame.flipping)).toBe(false);
+    }
+  });
 });

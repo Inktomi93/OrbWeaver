@@ -459,6 +459,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/stats/lib/analytics-copy.ts":
     "APPROX_DATES_MARK and APPROX_DATES_NOTE: the mark and note Insights prints for approximate message dates",
   "packages/client/src/lib/app-ready-attribute.ts": "APP_READY_ATTR: the readiness attribute the boot veil exits on",
+  "packages/client/src/lib/flank-names.ts":
+    "SIDECAR_PANELS_LABEL and SIDECAR_PANELS_NOUN: the names the sidecar column, its edge control and its sheet print, which the room journey locates them by",
   "packages/client/src/state/create-persisted-store.ts": "createPersistedStore: the persisted-store factory a type contract reads",
   "packages/client/src/state/durable-local-keys.ts":
     "APPEARANCE_BOOT_HINT_NAME and APPEARANCE_BOOT_HINT_VERSION: the key and version the boot hint persists under",

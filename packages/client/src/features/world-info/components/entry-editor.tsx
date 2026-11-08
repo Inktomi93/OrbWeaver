@@ -188,7 +188,7 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
         </form.AppField>
       </Row>
 
-      <Row gap="block" align="start">
+      <Row gap="block" align="start" wrap={true}>
         <form.AppField name="priority">
           {(field): ReactElement => <field.NumberField label="Priority" hint="Higher sorts first and injects earlier when the budget is tight." />}
         </form.AppField>

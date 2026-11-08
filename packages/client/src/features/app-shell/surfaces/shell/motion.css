@@ -125,11 +125,13 @@
   }
 
   /* The room's flank track: the same FLIP for the plugin column joining or leaving its row
-   * (`use-flank-track-flip.ts`). The thread resizes by the column, the row gap, less the corner reserved for the
-   * column's edge control; the centred rows take the same capped half, with `100cqi` as the thread's width. */
-  .shell-main [data-slot="chat-room-flank-row"] {
+   * (`use-flank-track-flip.ts`). The thread resizes by the column and its gap (`--dimension-room-flank`), less the
+   * corner reserved for the column's edge control; the composer region gives up the same room, so both tracks take
+   * the same shift. The body holds the direction and the distance because it is the one box over both: the row
+   * carries the stamp, and the thread and the composer are in different subtrees under the body. */
+  .shell-main [data-slot="chat-room-body"] {
     --flank-flip-dir: 0;
-    --flank-track-delta: calc(var(--width-sidebar-sm) + var(--spacing-block) - var(--size-control-clearance));
+    --flank-track-delta: calc(var(--dimension-room-flank) - var(--size-control-clearance));
     /* With A the thread after the toggle and B before it: ((A - min(A, W)) - (B - min(B, W))) / 2, A - B = dir * delta. */
     --flank-centre-flip-from: calc(
       (
@@ -141,15 +143,32 @@
       2
     );
   }
-  .shell-main [data-slot="chat-room-flank-row"]:is([data-flank-flip="in"], [data-flank-settle="in"]) {
+  .shell-main [data-slot="chat-room-body"]:has([data-slot="chat-room-flank-row"]:is([data-flank-flip="in"], [data-flank-settle="in"])) {
     --flank-flip-dir: 1;
   }
-  .shell-main [data-slot="chat-room-flank-row"]:is([data-flank-flip="out"], [data-flank-settle="out"]) {
+  .shell-main [data-slot="chat-room-body"]:has([data-slot="chat-room-flank-row"]:is([data-flank-flip="out"], [data-flank-settle="out"])) {
     --flank-flip-dir: -1;
+  }
+  /* The composer's own cap is its track; `100cqi` is the composer region's width after the toggle, as the thread's is for the rows. */
+  .shell-main [data-slot="chat-room-composer-region"] [data-track="composer"] {
+    --flank-composer-flip-from: calc(
+      (
+        var(--flank-flip-dir) *
+        var(--flank-track-delta) +
+        min(100cqi, var(--composer-track)) -
+        min(100cqi + var(--flank-flip-dir) * var(--flank-track-delta), var(--composer-track))
+      ) /
+      2
+    );
   }
   @keyframes room-flank-centre-flip {
     from {
       translate: var(--flank-centre-flip-from) 0;
+    }
+  }
+  @keyframes room-flank-composer-flip {
+    from {
+      translate: var(--flank-composer-flip-from) 0;
     }
   }
   .shell-main [data-slot="chat-room-flank-row"][data-flank-flip] [data-track="chat"] {
@@ -157,6 +176,18 @@
   }
   .shell-main [data-slot="chat-room-flank-row"][data-flank-settle] [data-track="chat"] {
     translate: var(--flank-centre-flip-from) 0;
+  }
+  .shell-main
+    [data-slot="chat-room-body"]:has([data-slot="chat-room-flank-row"][data-flank-flip])
+    [data-slot="chat-room-composer-region"]
+    [data-track="composer"] {
+    animation: room-flank-composer-flip var(--shell-motion) var(--shell-ease);
+  }
+  .shell-main
+    [data-slot="chat-room-body"]:has([data-slot="chat-room-flank-row"][data-flank-settle])
+    [data-slot="chat-room-composer-region"]
+    [data-track="composer"] {
+    translate: var(--flank-composer-flip-from) 0;
   }
 
   /* A surface with no skeleton declares its first read with `data-ready`: transparent until the read settles, then

@@ -1,4 +1,4 @@
-// The "Add document" dialog — all three ingestion paths in ONE FormDialog, with a local mode toggle
+// The "Add document" dialog — all three ingestion paths in ONE shell modal body, with a local mode toggle
 // (Upload · Paste · Link) swapping the body through a `Record<AddMode, ReactElement>` dispatch so a new mode
 // fails tsc (§5.5). Carried in SHAPE from `legacy-main:components/add-document-dialog.tsx`
 // ("the three-mode toggle + the conditional caption-language field is right"),
@@ -40,10 +40,11 @@ import { Textarea } from "@orb/ui/textarea";
 import { useToastManager } from "@orb/ui/toast";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
-import type { ReactElement } from "react";
-import { useId, useState } from "react";
+import type { ReactElement, ReactNode, Ref } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { CharacterPicker } from "#components";
 import { uploadDocument, useGatedQuery, useInvalidation, useTRPC, useUploadCaps } from "#data";
+import { focusFirstInvalidFieldIn } from "#forms/editor";
 import { DIALOG_VERBS, testId } from "#lib";
 import { closeModal, selectDocumentFromList, setActiveSection, useActiveChatId } from "#state";
 import { useCreateDocumentFromText, useScrapeWeb, useScrapeWiki, useScrapeYoutube } from "../hooks/use-databank-mutations.ts";
@@ -190,9 +191,7 @@ export function AddDocumentBody(): ReactElement {
             Each arm FILLS the reserved region (`flex-1`) and hangs its footer off the bottom (`mt-auto`),
             so the height is constant, the strip still holds one y, and the footer sits on the floor
             instead of floating above it. */}
-        <Stack minHeight="scrollLg" gap="block">
-          {bodies[mode]}
-        </Stack>
+        {bodies[mode]}
       </Stack>
     </Stack>
   );
@@ -207,6 +206,43 @@ type OnLanded = (landing: {
   readonly ingest: IngestOutcome;
   readonly warning?: "empty-extraction";
 }) => void;
+
+/** One arm's reserved region, spent by its footer's `push="blockEnd"`. An arm with a submit is a `<form>`: the
+ *  shell's modal slot is a flow dialog, which has no form of its own, so Enter submits only through the arm's.
+ *  A blocked submit button only looks disabled, so the arm's handler guards as well. */
+function ArmRegion({
+  children,
+  label,
+  onSubmit,
+  ref,
+}: {
+  readonly children: ReactNode;
+  readonly label?: string;
+  readonly onSubmit?: () => void;
+  readonly ref?: Ref<HTMLFormElement>;
+}): ReactElement {
+  const region = (
+    <Stack gap="block" minHeight="scrollLg">
+      {children}
+    </Stack>
+  );
+  if (onSubmit === undefined) {
+    return region;
+  }
+  return (
+    <form
+      aria-label={label}
+      noValidate={true}
+      onSubmit={(event): void => {
+        event.preventDefault();
+        onSubmit();
+      }}
+      ref={ref}
+    >
+      {region}
+    </form>
+  );
+}
 
 function UploadBody({ onLanded, destination }: { readonly onLanded: OnLanded; readonly destination: DocumentDestination | null }): ReactElement {
   const trpc = useTRPC();
@@ -247,8 +283,7 @@ function UploadBody({ onLanded, destination }: { readonly onLanded: OnLanded; re
   };
 
   return (
-    // `flex-1` + the footer's `mt-auto`: the arm spends the region's reserved height (N-2).
-    <Stack grow={true} gap="block">
+    <ArmRegion>
       <Field description={DOCUMENT_UPLOAD_FORMAT_HINT} error={error} label="File">
         {/* The cap is the DEPLOYMENT's, read live (§2.2) — the dropzone also prints it as its own hint. */}
         <FileDropzone
@@ -269,7 +304,7 @@ function UploadBody({ onLanded, destination }: { readonly onLanded: OnLanded; re
       <DialogFooter push="blockEnd">
         <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
       </DialogFooter>
-    </Stack>
+    </ArmRegion>
   );
 }
 
@@ -304,7 +339,7 @@ function PasteBody({ onLanded, destination }: { readonly onLanded: OnLanded; rea
   };
 
   return (
-    <Stack grow={true} gap="block">
+    <ArmRegion label={DATABANK_PASTE_TEXT_NAME} onSubmit={onSubmit}>
       <Field label="Name">
         <Input onValueChange={setName} placeholder="e.g. House Valeroth — bloodlines" value={name} />
       </Field>
@@ -313,11 +348,11 @@ function PasteBody({ onLanded, destination }: { readonly onLanded: OnLanded; rea
       </Field>
       <DialogFooter push="blockEnd">
         <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
-        <Button disabled={!canCreate} loading={create.isPending} onClick={onSubmit} type="button">
+        <Button disabled={!canCreate} loading={create.isPending} type="submit">
           Add
         </Button>
       </DialogFooter>
-    </Stack>
+    </ArmRegion>
   );
 }
 
@@ -371,9 +406,25 @@ function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; read
 
   const { form } = useScrapeForm({ entityId: "databank-scrape", serverValues: undefined, save });
   const failureId = useId();
+  const formRef = useRef<HTMLFormElement | null>(null);
+  // Counts the fetches that failed, so each one hands focus to the field the failure line describes.
+  const [failedFetches, setFailedFetches] = useState(0);
+  useEffect(() => {
+    if (failedFetches > 0) {
+      focusFirstInvalidFieldIn(formRef.current);
+    }
+  }, [failedFetches]);
+
+  const onSubmit = (): void => {
+    if (destination === null || pending || form.state.values.url.trim() === "") {
+      return;
+    }
+    // A rejected submit is a failed runner, which `runnerFailed` already prints.
+    form.handleSubmit().catch(() => setFailedFetches((count) => count + 1));
+  };
 
   return (
-    <Stack grow={true} gap="block">
+    <ArmRegion label={MODE_LABELS.link} onSubmit={onSubmit} ref={formRef}>
       <form.AppField name="source">{(field): ReactElement => <field.SelectField items={SCRAPER_OPTIONS} label="Source" />}</form.AppField>
       <form.Subscribe selector={(state): ScraperKind => state.values.source}>
         {(source): ReactElement => (
@@ -414,19 +465,12 @@ function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; read
         <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
         <form.Subscribe selector={(state): boolean => state.values.url.trim() === ""}>
           {(urlEmpty): ReactElement => (
-            <Button
-              data-testid={testId("databankScrapeSubmit")}
-              disabled={destination === null || urlEmpty || pending}
-              onClick={(): void => {
-                // A rejected submit is a failed runner, which `runnerFailed` already prints.
-                form.handleSubmit().catch(() => undefined);
-              }}
-            >
+            <Button data-testid={testId("databankScrapeSubmit")} disabled={destination === null || urlEmpty || pending} type="submit">
               {pending ? "Fetching…" : "Fetch and add"}
             </Button>
           )}
         </form.Subscribe>
       </DialogFooter>
-    </Stack>
+    </ArmRegion>
   );
 }

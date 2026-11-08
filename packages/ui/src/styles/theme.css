@@ -357,6 +357,7 @@
   --aspect-portrait: 2 / 3;
   --aspect-banner: 3 / 1;
   --dimension-panel: clamp(17rem, 24vw, 26rem);
+  --dimension-room-flank: calc(var(--width-sidebar-sm) + var(--spacing-block));
   --dimension-room-flank-fit: calc(var(--dimension-content-reading-floor) + var(--width-sidebar-sm) + var(--spacing-block));
   --dimension-panel-context: clamp(17rem, 30vw, 30rem);
   --reading-measure: 75ch;
@@ -912,6 +913,7 @@
 
 @layer ui {
   [data-density] {
+    --dimension-room-flank: calc(var(--width-sidebar-sm) + var(--spacing-block));
     --dimension-room-flank-fit: calc(var(--dimension-content-reading-floor) + var(--width-sidebar-sm) + var(--spacing-block));
     --size-control-clearance: calc(var(--size-control-sm) + var(--spacing-row));
     --size-combobox-chip-sm: calc(var(--size-control-sm) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
