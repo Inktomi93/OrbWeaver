@@ -35,7 +35,7 @@ export {
 export { CORPUS_STRUCTURED_REPLIES } from "./corpus-provider.ts";
 export { createTestEnv } from "./env.ts";
 export { makeRuleView } from "./factories/automation-view.ts";
-export { makeChatDetail, makeChatId, makeChatSummaryView, makeRedeemInviteResult } from "./factories/chat-view.ts";
+export { makeChatDetail, makeChatId, makeChatSummaryView, makeMessageView, makeRedeemInviteResult } from "./factories/chat-view.ts";
 export { makePluginRow, makePluginScriptedPage } from "./factories/plugin-view.ts";
 export { makePortableChat, makePortableGame, makePortableMessage, makePortableTurnSnapshot } from "./factories/portable-chat.ts";
 export { makePresetDetail, makePresetSummary } from "./factories/preset-view.ts";
