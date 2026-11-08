@@ -20,6 +20,7 @@ import {
 import type { HistoryFailure, HistoryFetchView } from "../lib/history-failures.ts";
 import { dismissHistoryFailure, noHistoryFailures, observeHistoryFetch, pressAsked, pressLost, shownHistoryFailure } from "../lib/history-failures.ts";
 import type { TranscriptEdges } from "../lib/move-neighbours.ts";
+import { CHAT_HISTORY_BEGINNING, CHAT_HISTORY_PAGER_HINT, chatHistoryLoadedLabel } from "../lib/transcript-copy.ts";
 
 type HistoryPage = inferOutput<Trpc["chat"]["listMessages"]>;
 type CanonPage = Pick<HistoryPage, "messages" | "identities">;
@@ -113,6 +114,7 @@ function HistoryPager({ available, hasEarlier, busy, failure, pinned, announceme
   if (!(available || failure !== null)) {
     return null;
   }
+  const status = `${hasEarlier ? CHAT_HISTORY_PAGER_HINT : CHAT_HISTORY_BEGINNING}${loaded === null ? "" : ` ${chatHistoryLoadedLabel(loaded)}`}`;
   return (
     // Only a reader who pressed is pinned: anyone else finds a failure here, at the pager's home, and hears it announced.
     <Stack hiddenAt="print" data-keep-in-view={pinned ? "" : undefined} plate={failure === null && hasEarlier ? "island" : "card"}>
@@ -145,8 +147,7 @@ function HistoryPager({ available, hasEarlier, busy, failure, pinned, announceme
         </Button>
         {/* The end of history is read on screen; the sr-only form is only the pager's description while older pages remain. */}
         <Text id={description} className={hasEarlier ? "sr-only" : undefined} role="status" voice={hasEarlier ? "gloss" : "label"}>
-          {hasEarlier ? "Load older conversation history without moving your reading position." : "Beginning of available history."}
-          {loaded === null ? "" : ` ${String(loaded)} messages loaded.`}
+          {status}
         </Text>
       </Row>
     </Stack>

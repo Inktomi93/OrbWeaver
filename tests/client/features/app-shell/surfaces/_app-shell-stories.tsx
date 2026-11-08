@@ -8,9 +8,12 @@ import { dockListPanel, openModal, openNewChatPicker, selectCharacter, selectCha
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { CtClientProviders } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
+import type { ThemeScopeTokens } from "@orb/ui/theme-scope";
+import { ThemeScope } from "@orb/ui/theme-scope";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useEffect } from "react";
+import { useEffect, useSyncExternalStore } from "react";
+import { createPortal } from "react-dom";
 
 /** The production shell and nothing else. */
 export function AppShellStory(): ReactElement {
@@ -131,6 +134,40 @@ export function AppShellModalStory({ modalId }: { readonly modalId: ModalSlotId 
     <CtClientProviders>
       <OpenModalOnMount modalId={modalId} />
       <AppShell />
+    </CtClientProviders>
+  );
+}
+
+/** Finds the shell's themed portal root once the shell has committed it. */
+function subscribeToDocument(changed: () => void): () => void {
+  const observer = new MutationObserver(changed);
+  observer.observe(document.body, { childList: true, subtree: true });
+  return (): void => observer.disconnect();
+}
+
+function usePortalRoot(): Element | null {
+  return useSyncExternalStore(
+    subscribeToDocument,
+    () => document.querySelector('[data-slot="portal-root"]'),
+    () => null,
+  );
+}
+
+/** The production shell with a modal open, and a ThemeScope of its own carried into the themed portal root beside it. */
+export function AppShellNestedScopeStory({ modalId, tokens }: { readonly modalId: ModalSlotId; readonly tokens: ThemeScopeTokens }): ReactElement {
+  const portalRoot = usePortalRoot();
+  return (
+    <CtClientProviders>
+      <OpenModalOnMount modalId={modalId} />
+      <AppShell />
+      {portalRoot === null
+        ? null
+        : createPortal(
+            <ThemeScope tokens={tokens}>
+              <div className="border border-border" />
+            </ThemeScope>,
+            portalRoot,
+          )}
     </CtClientProviders>
   );
 }

@@ -13,11 +13,12 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { CHAT_SAVED_ROSTER_DOOR_NAME as SAVED_ROSTER_DOOR } from "#client/features/chat/lib/chat-surface-names.ts";
-import type { AppShellModalStory, AppShellStory } from "./_app-shell-stories.tsx";
+import type { AppShellModalStory, AppShellNestedScopeStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { expectLandscapeRegime, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const MODAL_STORY = `${SHELL_STORIES}/AppShellModalStory`;
+const NESTED_SCOPE_STORY = `${SHELL_STORIES}/AppShellNestedScopeStory`;
 const POPUP = '[data-slot="dialog-popup"], [data-slot="drawer-popup"]';
 // Past Home: the Chats section, every modal body and the shell's theme reads.
 const SERVED = [
@@ -703,6 +704,36 @@ test("a seed theme keeps one border token across the root, the shell and the por
   await stampColorization(page, "true");
   await expect.poll(borders).not.toEqual(off);
   expect(new Set(await borders()).size).toBe(1);
+});
+
+// A palette of its own, unlike the shell's, so the nested scope's border differs from the shell's in both arms.
+const NESTED_PALETTE = { accent: "oklch(0.66 0.16 42)", background: "oklch(0.92 0.03 88)" };
+
+function paintedBorder(locator: Locator): Promise<string> {
+  return locator.evaluate((element) => getComputedStyle(element).borderTopColor);
+}
+
+test("a ThemeScope nested in the portal keeps its own border while colorization moves the shell's", async ({ corpus, mount, page }) => {
+  const { root } = await themedRoot(CUSTOM_DARK, { enableThemeColorization: false });
+  await using _root = root;
+  await routeShell(page, corpus, await root.internalCallerFor(root.ownerId), SERVED);
+  await mount<typeof AppShellNestedScopeStory>(NESTED_SCOPE_STORY, { modalId: "command", tokens: NESTED_PALETTE });
+  await expect(page.locator(POPUP)).toBeVisible();
+  const grid = page.locator(".shell-grid");
+  const portal = page.locator('[data-slot="portal-root"]');
+  const probe = page.locator('[data-slot="portal-root"] > [data-slot="theme-scope"] > div');
+  await expect(probe).toBeAttached();
+  await stampColorization(page, "false");
+  const own = await cssValue(probe, TOKENS["color.border"].cssVar);
+  const ownPaint = await paintedBorder(probe);
+  const shellOff = await cssValue(grid, TOKENS["color.border"].cssVar);
+  expect(own).not.toBe(shellOff);
+  await stampColorization(page, "true");
+  // The control: colorization reached the shell and the portal root above the nested scope.
+  await expect.poll(() => cssValue(grid, TOKENS["color.border"].cssVar)).not.toBe(shellOff);
+  expect(await cssValue(portal, TOKENS["color.border"].cssVar)).toBe(await cssValue(grid, TOKENS["color.border"].cssVar));
+  expect(await cssValue(probe, TOKENS["color.border"].cssVar)).toBe(own);
+  expect(await paintedBorder(probe)).toBe(ownPaint);
 });
 
 const SPACING_INTENTS = [

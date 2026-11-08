@@ -14,6 +14,7 @@ import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusHarness, creat
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { CHAT_EARLIER_MESSAGES_NAME, CHAT_HISTORY_DISMISS_NAME, CHAT_HISTORY_FAILURE_COPY } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CHAT_HISTORY_BEGINNING, CHAT_HISTORY_PAGER_HINT, chatHistoryLoadedLabel } from "#client/features/chat/lib/transcript-copy.ts";
 import type { AppShellRoomStory } from "./_app-shell-stories.tsx";
 import { PHONE, SHELL_STORIES, wallpaper } from "./app-shell-ct.ts";
 
@@ -740,6 +741,34 @@ for (const cell of [
       });
       expect(gap).toBeGreaterThan(0);
       await page.screenshot({ path: test.info().outputPath("end-of-history.png") });
+    });
+
+    test("says in its status line what a press does, how many rows each page has loaded, and where history begins", async ({ corpus, mount, page }) => {
+      await using root = await pagedRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { chatId } = await preparePagedRoom(caller, "document");
+      await serveRoom(page, corpus, caller);
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      const earlier = earlierIn(list);
+      await expect(earlier).toBeAttached();
+      const statement = page.locator(`[id="${(await earlier.getAttribute("aria-describedby")) ?? ""}"]`);
+      await expect(statement).toHaveRole("status");
+      await expect(earlier).toHaveAccessibleDescription(CHAT_HISTORY_PAGER_HINT);
+      let loaded = await loadedRows(list);
+      for (;;) {
+        const rows = loaded;
+        await earlier.dispatchEvent("click");
+        await expect.poll(() => loadedRows(list)).not.toBe(rows);
+        await expect(earlier).not.toHaveAttribute("aria-busy", "true");
+        loaded = await loadedRows(list);
+        if (await earlier.isDisabled()) {
+          break;
+        }
+        await expect(earlier).toHaveAccessibleDescription(`${CHAT_HISTORY_PAGER_HINT} ${chatHistoryLoadedLabel(Number(loaded))}`);
+      }
+      await expect(statement).toHaveText(`${CHAT_HISTORY_BEGINNING} ${chatHistoryLoadedLabel(Number(loaded))}`);
+      await expect(statement).toHaveRole("status");
     });
 
     test("that fails at the oldest row leaves the failure and Earlier messages on screen, and a second press recovers", async ({ corpus, mount, page }) => {
