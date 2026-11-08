@@ -276,8 +276,9 @@ const BOX_HIDDEN_AT = {
 } as const;
 
 // A wrapped child that queues behind its siblings until the container is wide enough to seat it beside them, where its
-// `floor="line"` basis gives way to its content's width.
-const ORDER = { lastUntilWide: "order-last @cq-40:order-0 @cq-40:basis-auto" } as const;
+// `floor="line"` basis gives way to its content's width. `lastWhenShort` is a column's secondary block on a short landscape
+// screen, where it gives its place above the rows to the rows.
+const ORDER = { lastUntilWide: "order-last @cq-40:order-0 @cq-40:basis-auto", lastWhenShort: "glass-short:order-last" } as const;
 
 // The `gutterCentred` tracks, shared by `Grid cols` and `Row tracks` (the annotation gutter beside a centred measure,
 // explained at the `Grid` member).

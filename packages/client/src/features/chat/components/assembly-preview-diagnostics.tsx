@@ -9,7 +9,7 @@
 // Host-only by inheritance: it renders data from the two `requireHost` reads the panel already made.
 
 import type { AssembleTrace, ShapeBreakpointDecision, ShapeFoldReason, ShapeRowSource, ShapeTrace, ShapeTraceRow } from "@orb/contracts/chat";
-import { groupThousands } from "@orb/kit/strings";
+import { groupThousands, NO_VALUE } from "@orb/kit/strings";
 import { Badge } from "@orb/ui/badge";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Row, Section, Stack } from "@orb/ui/layout";
@@ -338,5 +338,5 @@ function TraceLine({ label, value }: { readonly label: string; readonly value: R
 }
 
 function sectionList(sections: readonly string[]): string {
-  return sections.length === 0 ? "—" : sections.join(", ");
+  return sections.length === 0 ? NO_VALUE : sections.join(", ");
 }

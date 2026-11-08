@@ -15,7 +15,7 @@ import { Icon, Sparkles } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectOption } from "@orb/ui/select";
 import { Select } from "@orb/ui/select";
-import { Text } from "@orb/ui/text";
+import { NoValue, Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
@@ -261,7 +261,9 @@ function TagLine({ label, tags }: { readonly label: string; readonly tags: reado
     <Row align="center" gap="field" wrap={true}>
       <Text voice="kicker">{label}</Text>
       {tags.length === 0 ? (
-        <Text voice="gloss">—</Text>
+        <Text voice="gloss">
+          <NoValue />
+        </Text>
       ) : (
         tags.map((tag) => (
           <Badge key={tag} size="sm">

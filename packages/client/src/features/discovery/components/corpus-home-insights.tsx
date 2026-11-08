@@ -20,6 +20,7 @@ import { useState } from "react";
 import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { ESTIMATED_ROW_PX } from "#lib";
 import { selectCorpusArtifact, selectCorpusCharacter } from "#state";
 import { formatCount } from "../lib/corpus-analysis-state.ts";
 import { chartLabelWithDenominator, toBarItems, topRanked } from "../lib/corpus-charts.ts";
@@ -29,7 +30,7 @@ type UnusedCharacter = inferOutput<Trpc["discovery"]["unusedCharacters"]>[number
 type ModelRoute = inferOutput<Trpc["discovery"]["modelRouting"]>[number];
 
 const MONEY_PRECISION = 2;
-const ROW_ESTIMATE_PX = 52;
+
 /** How many never-played rows the page shows before "Show all". */
 const NEVER_PLAYED_HEAD = 8;
 /** The placeholder row count for a deferred below-fold section — the sibling charts' own number. */
@@ -216,7 +217,7 @@ function ModelEconomicsRead(): ReactElement | null {
         <VirtualList
           aria-label="Model routes"
           maxHeight="scrollLg"
-          estimateSize={(): number => ROW_ESTIMATE_PX}
+          estimateSize={(): number => ESTIMATED_ROW_PX.subtitled}
           getItemKey={(route): string => `${route.genre}|${route.model}|${route.provider ?? ""}`}
           items={routes}
           renderItem={(route): ReactElement => (

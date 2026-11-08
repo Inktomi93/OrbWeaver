@@ -7,12 +7,12 @@ import { MESSAGE_TOOLS_LABEL } from "@orb/client/lib";
 import type { RpgStatProfile } from "@orb/contracts/rpg";
 import { RPG_PROFILE_D20, rpgAttributeModifier, rpgNpcSlug, rpgTrackerDefSchema } from "@orb/contracts/rpg";
 import type { ChatId, UserId } from "@orb/kit/ids";
+import { NO_VALUE, NO_VALUE_NAME } from "@orb/kit/strings";
 import type { TrpcRoutes, TrpcWireOutput } from "@orb/testkit/ct";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
-import { UNSET_DATUM } from "#client/features/rpg/lib/unset-datum.ts";
 import type { RpgContextTabStory, RpgDiceComposerStory } from "./_own-key-panels-stories.tsx";
 
 const TAB_STORY = "tests/client/features/rpg/components/_own-key-panels-stories/RpgContextTabStory";
@@ -140,9 +140,9 @@ test("Status meters and the character takeover read an unset inherited-name key 
   let seats = participants(reads, root.ownerId);
   await routeTrpc(page, reads.routes);
   const unset = await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId: room.chatId, tab: "rpg.status" });
-  await expect(statusMeters).toHaveText(Array.from({ length: seats.count }, () => UNSET_DATUM));
+  await expect(statusMeters).toHaveText(Array.from({ length: seats.count }, () => NO_VALUE));
   await page.getByRole("button", { name: `Open ${seats.owner}`, exact: true }).click();
-  await expect(takeoverValues).toHaveText([UNSET_DATUM, UNSET_DATUM]);
+  await expect(takeoverValues).toHaveText([NO_VALUE, NO_VALUE]);
   await unset.unmount();
 
   await room.setInheritedValues();
@@ -162,7 +162,9 @@ test("the Scene character card reads an unset inherited-name tracker as unset, t
   await routeTrpc(page, (await room.reads()).routes);
   const unset = await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId: room.chatId, tab: "rpg.scene" });
   await page.getByRole("button", { name: "Show known characters", exact: true }).click();
-  await expect(npcValue).toHaveText(UNSET_DATUM);
+  await expect(npcValue).toHaveText(NO_VALUE);
+  // The mood slot beside it has no value either, and its accessible name says so in words.
+  await expect(page.getByRole("button", { name: `${NPC_NAME} mood: ${NO_VALUE_NAME}`, exact: true })).toBeVisible();
   await unset.unmount();
 
   await room.setInheritedValues();

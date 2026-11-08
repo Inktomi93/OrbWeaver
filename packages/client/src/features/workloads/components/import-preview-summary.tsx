@@ -9,8 +9,9 @@ import { Progress } from "@orb/ui/progress";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { RETRY_NAME } from "#lib";
 import type { ImportPreviewState } from "../hooks/use-library-import.ts";
-import { counted, IMPORT_PREVIEW_RETRY_NAME, KIND_NOUNS, previewKindLine } from "../lib/portability-model.ts";
+import { counted, KIND_NOUNS, previewKindLine } from "../lib/portability-model.ts";
 
 function namesLine(names: readonly string[], total: number): string {
   const unlisted = total - names.length;
@@ -103,7 +104,7 @@ export function ImportPreviewSummary({ state, onRetry }: { readonly state: Impor
           </Text>
           <Row justify="start">
             <Button variant="outline" onClick={onRetry}>
-              {IMPORT_PREVIEW_RETRY_NAME}
+              {RETRY_NAME}
             </Button>
           </Row>
         </Stack>

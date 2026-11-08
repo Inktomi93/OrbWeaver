@@ -4,6 +4,7 @@
 
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { createEntrySchema } from "@orb/contracts/world-info";
+import { LAYOUT_SUBPIXEL_PX } from "@orb/testkit/browser/spec";
 import { routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
@@ -14,8 +15,6 @@ const STORY = "tests/client/features/config/surfaces/_collection-composition-sto
 const BOOK = "Entry alignment book";
 const ENTRY = "Mage";
 const WIDTH = 300;
-// A sub-pixel layout tolerance, not a design value.
-const EDGE_TOLERANCE = 1;
 
 test.use({ viewport: { width: 1280, height: 900 }, hasTouch: false, isMobile: false });
 
@@ -54,5 +53,5 @@ test("a wrapped entry heading starts on the edge the editor's first field starts
   });
   const fieldBox = await firstField.boundingBox();
   await test.info().attach("entry-edges", { body: JSON.stringify({ glyphX, fieldX: fieldBox?.x }), contentType: "application/json" });
-  expect(Math.abs(glyphX - (fieldBox?.x ?? Number.NaN))).toBeLessThanOrEqual(EDGE_TOLERANCE);
+  expect(Math.abs(glyphX - (fieldBox?.x ?? Number.NaN))).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
 });

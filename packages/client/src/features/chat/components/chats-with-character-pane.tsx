@@ -31,7 +31,7 @@ import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import type { CharacterChatsProjectionView } from "#lib";
-import { CLEAR_SEARCH_NAME, NO_MATCHES_TITLE, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
+import { CLEAR_SEARCH_NAME, ESTIMATED_ROW_PX, NO_MATCHES_TITLE, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { resumeChat, useActiveChatId } from "#state";
 import { useChatListCollection } from "../hooks/use-chat-list-collection.ts";
 import { useChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
@@ -44,8 +44,7 @@ import { ChatListRow } from "./chat-list-row.tsx";
 type ChatListItem = inferOutput<Trpc["chat"]["listChats"]>["items"][number];
 
 const SKELETON_ROW_COUNT = 4;
-/** Row-height guess for the virtualizer; every row re-measures itself after mount. */
-const ESTIMATED_ROW_PX = 44;
+
 /** Above this many loaded rows the pane grows a search field. Below it, a search box would be chrome over a
  *  list you can already read (§3.5) — but once a search is RUNNING the field stays regardless of how far it
  *  narrows the list, or the control would vanish under the user mid-query. */
@@ -134,7 +133,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
             <VirtualList
               height="fill"
               endApproachRows={collection.listProps.endApproachRows}
-              estimateSize={(): number => ESTIMATED_ROW_PX}
+              estimateSize={(): number => ESTIMATED_ROW_PX.compact}
               gapToken="tight"
               getItemKey={(item): string => item.id}
               items={items}

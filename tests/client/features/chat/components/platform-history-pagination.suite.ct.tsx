@@ -1,5 +1,6 @@
 // Ordinary Chats pages real persisted canon without entering a Corpus source window.
 
+import { RETRY_NAME } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { StreamFrame } from "@orb/contracts/stream";
@@ -26,7 +27,6 @@ import {
   CHAT_EARLIER_MESSAGES_NAME,
   CHAT_HISTORY_DISMISS_NAME,
   CHAT_HISTORY_FAILURE_COPY,
-  CHAT_HISTORY_RETRY_NAME,
   CHAT_MESSAGE_INPUT_NAME,
   CHAT_WINDOW_PRESS_FAILURE,
 } from "#client/features/chat/lib/chat-surface-names.ts";
@@ -489,7 +489,7 @@ for (const regime of [
       await expect(alert).toBeAttached();
       await expect(alert).not.toBeInViewport();
       await expect.poll(async () => (await settledBox(reading)).y).toBe(y);
-      await expect(list.getByRole("button", { name: CHAT_HISTORY_RETRY_NAME, exact: true })).toBeAttached();
+      await expect(list.getByRole("button", { name: RETRY_NAME, exact: true })).toBeAttached();
       // The press asks for older rows even through a failed refresh, so what it reports is its own failure.
       const rows = await loadedRows(list);
       await earlier.dispatchEvent("click");
@@ -559,7 +559,7 @@ for (const regime of [
       await expect(alert).toBeAttached();
       await expect(list.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true })).toBeDisabled();
       failing = false;
-      await list.getByRole("button", { name: CHAT_HISTORY_RETRY_NAME, exact: true }).dispatchEvent("click");
+      await list.getByRole("button", { name: RETRY_NAME, exact: true }).dispatchEvent("click");
       await expect(alert).toHaveCount(0);
     });
     test("a failed bridge reports its own kind, stops reading, and one retry with the server down is one announcement", async ({ corpus, mount, page }) => {
@@ -602,7 +602,7 @@ for (const regime of [
       allDown = true;
       await recordAlerts(page);
       await alert.evaluate((node) => node.setAttribute("data-before-retry", ""));
-      const retry = list.getByRole("button", { name: CHAT_HISTORY_RETRY_NAME, exact: true });
+      const retry = list.getByRole("button", { name: RETRY_NAME, exact: true });
       await retry.dispatchEvent("click");
       // A fresh node is what makes a repeated failure speak; the same line must not flip through another kind on the way.
       await expect(list.locator('[role="alert"]:not([data-before-retry])')).toHaveCount(1);
@@ -703,7 +703,7 @@ for (const regime of [
       const reads = live.reads();
       await list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true }).click();
       await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge);
-      await expect(list.getByRole("button", { name: CHAT_HISTORY_RETRY_NAME, exact: true })).toBeAttached();
+      await expect(list.getByRole("button", { name: RETRY_NAME, exact: true })).toBeAttached();
       await expect(list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true })).toHaveCount(0);
       // The bridge is still failed, not due again: dismissing shows it and reads nothing.
       await quietSpell(page);
@@ -740,7 +740,7 @@ for (const regime of [
       await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.bridge);
       bridgeDown = false;
       refreshDown = true;
-      const retry = list.getByRole("button", { name: CHAT_HISTORY_RETRY_NAME, exact: true });
+      const retry = list.getByRole("button", { name: RETRY_NAME, exact: true });
       await retry.dispatchEvent("click");
       await quietSpell(page);
       await expect(alert).toHaveCount(1);
@@ -814,7 +814,7 @@ for (const regime of [
       await expect.poll(() => live.reads()).toBeGreaterThan(reads);
       await list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true }).click();
       await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.refresh);
-      await expect(list.getByRole("button", { name: CHAT_HISTORY_RETRY_NAME, exact: true })).toBeAttached();
+      await expect(list.getByRole("button", { name: RETRY_NAME, exact: true })).toBeAttached();
       await expect(list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true })).toHaveCount(0);
     });
     test("a Try again from the keyboard that succeeds leaves focus on the pager", async ({ corpus, mount, page }) => {
@@ -836,7 +836,7 @@ for (const regime of [
       const list = page.locator('[data-slot="message-list-scroll"]');
       await expect(list.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true })).toBeAttached();
       await live.settle();
-      const retry = list.getByRole("button", { name: CHAT_HISTORY_RETRY_NAME, exact: true });
+      const retry = list.getByRole("button", { name: RETRY_NAME, exact: true });
       await retry.focus();
       failing = false;
       await page.keyboard.press("Enter");
@@ -862,7 +862,7 @@ for (const regime of [
       await expect(page.locator('[data-slot="message-list-row"]').first()).toBeVisible();
       await live.settle();
       const list = page.locator('[data-slot="message-list-scroll"]');
-      await list.getByRole("button", { name: CHAT_HISTORY_RETRY_NAME, exact: true }).focus();
+      await list.getByRole("button", { name: RETRY_NAME, exact: true }).focus();
       failing = false;
       await page.keyboard.press("Enter");
       await expect(list.getByRole("alert")).toHaveCount(0);

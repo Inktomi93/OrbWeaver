@@ -1,0 +1,55 @@
+// @subject packages/client/src/features/chat/components/invite-dialog.tsx
+// An outstanding targeted invite names the handle it is for, in its row and in its Revoke control; a share link names none.
+import type { ChatId } from "@orb/kit/ids";
+import { seedShellState } from "@orb/testkit/browser/spec";
+import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { expect, test } from "@orb/testkit/ct-corpus";
+import { createCorpusHarness } from "@orb/testkit/node/composed";
+import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
+
+const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
+const READS = [
+  ...SECTION_PROCEDURES,
+  ...SHELL_MOUNT_PROCEDURES,
+  ...ROOM_PROCEDURES,
+  "notifications.presence",
+  "rpg.getGame",
+  "rpg.listTurnToolCalls",
+  "invites.listInvites",
+] as const;
+
+type Harness = Awaited<ReturnType<typeof createCorpusHarness>>;
+
+async function hostedRoom(root: Harness): Promise<ChatId> {
+  // The invite verbs exist only on a multi-human deployment; the caller is built after the setting lands.
+  await (await root.internalCallerFor(root.ownerId)).settings.updateAppSettings({ partial: { localMultiUser: true } });
+  const host = await root.internalCallerFor(root.ownerId);
+  for (const room of (await host.chat.listChats({ limit: 100 })).items) {
+    if ((await host.chat.getChat({ chatId: room.id })).viewerIsHost) {
+      return room.id;
+    }
+  }
+  throw new Error("The corpus has no hosted room");
+}
+
+test("the outstanding invite for a person names their handle and its Revoke control does too, while a share link names no one", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const chatId = await hostedRoom(root);
+  const host = await root.internalCallerFor(root.ownerId);
+  const guest = await root.principalFor((await root.actor()).id);
+  await host.invites.createInvite({ chatId, input: { invitedHandle: guest.handle } });
+  await host.invites.createInvite({ chatId, input: {} });
+  await seedShellState(page, { activeSection: "chats" });
+  await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
+  await routeTrpc(page, serveCorpusProcedures(host, READS));
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+  await page.getByRole("button", { name: /^Members: /u }).click();
+  await page.getByRole("button", { name: "Invite people", exact: true }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByText("Outstanding invites", { exact: true })).toBeVisible();
+  const handle = new RegExp(guest.handle, "u");
+  await expect(dialog.getByRole("button", { name: handle })).toHaveCount(1);
+  await expect(dialog.getByText(handle)).toHaveCount(1);
+  // The control: both invites are listed, so the share link's Revoke is on screen and carries no handle.
+  await expect(dialog.getByRole("button", { name: /^Revoke this/u })).toHaveCount(2);
+});

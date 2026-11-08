@@ -7,6 +7,9 @@ export const DATABANK_ADD_FIRST_DOCUMENT_NAME = "Add your first document";
 /** The Home tile's trailing door to the library. */
 export const DATABANK_ALL_DOCUMENTS_NAME = "All documents";
 
+/** The CONTENT pane's heading on the landing, empty bank or not. */
+export const DATABANK_LANDING_NAME = "Your databank";
+
 /** The library's search box. */
 export const DATABANK_SEARCH_NAME = "Search documents";
 

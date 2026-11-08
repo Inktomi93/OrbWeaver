@@ -210,6 +210,7 @@ function createCreateInvite(ctx: ChatContext, claimChat: ClaimChatOp): ChatServi
       remainingUses: maxUses, // uses = 0 at creation
       expiresAt,
       invitedUserId,
+      invitedHandle: input.invitedHandle ?? null,
       allowSignup,
       createdAt: at,
     };
@@ -368,6 +369,14 @@ function createListInvites(ctx: ChatContext): ChatService["listInvites"] {
   return async ({ principal, chatId }: ListInvitesParams): Promise<readonly InviteView[]> => {
     await requireHost(ctx, principal, chatId);
     const rows = await listInvitesForChat(ctx.db, chatId);
+    // One batched read for every targeted invite: the list names handles only, so the persona and avatar reads
+    // `resolveUserPublics` makes are not wanted here.
+    const handles = new Map(
+      (await ctx.loadUserHandles([...new Set(rows.flatMap((row) => (row.invitedUserId === null ? [] : [row.invitedUserId])))])).map((row) => [
+        row.id,
+        row.handle,
+      ]),
+    );
     return rows.map((row) => ({
       id: row.id,
       chatId: row.chatId,
@@ -376,6 +385,7 @@ function createListInvites(ctx: ChatContext): ChatService["listInvites"] {
       remainingUses: row.maxUses === null ? null : Math.max(0, row.maxUses - row.uses),
       expiresAt: row.expiresAt,
       invitedUserId: row.invitedUserId,
+      invitedHandle: row.invitedUserId === null ? null : (handles.get(row.invitedUserId) ?? null),
       allowSignup: row.allowSignup,
       createdAt: row.createdAt,
     }));

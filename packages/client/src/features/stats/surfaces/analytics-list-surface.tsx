@@ -11,7 +11,7 @@ import type { CharacterId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
-import { Text } from "@orb/ui/text";
+import { shownValue, Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
 import { VirtualList } from "@orb/ui/virtual-list";
@@ -21,7 +21,7 @@ import { useDeferredValue, useRef, useState } from "react";
 import { LibraryRow, ListPage, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
-import { CLEAR_SEARCH_NAME, testId, useFocusOnMount } from "#lib";
+import { CLEAR_SEARCH_NAME, ESTIMATED_ROW_PX, testId, useFocusOnMount } from "#lib";
 import { selectAnalyticsCharacterFromList, setAnalyticsSearchQuery, useAnalyticsSearchQuery, useSelectedAnalyticsCharacterId } from "#state";
 import { ANALYTICS_NO_ACTIVITY_TEXT } from "../lib/analytics-copy.ts";
 import { ANALYTICS_SEARCH_NAME } from "../lib/analytics-names.ts";
@@ -46,8 +46,6 @@ type LeaderboardPage = inferOutput<Trpc["stats"]["leaderboard"]>;
 type LeaderboardPageRow = LeaderboardPage["rows"][number];
 
 const SKELETON_ROW_COUNT = 6;
-/** The row's first-paint height guess (rank + title + subtitle + trailing tokens); rows re-measure after mount. */
-const ESTIMATED_ROW_PX = 64;
 
 export function AnalyticsListSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -146,7 +144,7 @@ function LeaderboardBody({
     <VirtualList
       aria-label="Character leaderboard"
       height="fill"
-      estimateSize={(): number => ESTIMATED_ROW_PX}
+      estimateSize={(): number => ESTIMATED_ROW_PX.ranked}
       fadeEdge={true}
       gapToken="row"
       getItemKey={(row): string => row.characterId}
@@ -167,7 +165,7 @@ function LeaderboardBody({
             title={names[row.characterId] ?? row.name}
             trailing={
               <Text voice="datumMono" whitespace="nowrap">
-                {formatTokens(row.tokensOut, row.tokensOutProvenance)}
+                {shownValue(formatTokens(row.tokensOut, row.tokensOutProvenance))}
               </Text>
             }
           />

@@ -9,7 +9,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { StatusChip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { timeLib } from "#lib";
+import { RETRY_NAME, timeLib } from "#lib";
 import { useIpCertificateForm } from "../hooks/use-ip-certificate-form.ts";
 import { useDisableIpCertificate, useEnableIpCertificate } from "../hooks/use-share-mutations.ts";
 import type { IpCertificateFormValues } from "../lib/share-model.ts";
@@ -133,6 +133,7 @@ function Offer({ initial }: { readonly initial: IpCertificateSetting | null }): 
   };
   const { form } = useIpCertificateForm({ entityId: `ip-certificate:${initial?.address ?? "new"}`, serverValues: initial ?? undefined, save });
   const refusal = ipCertificateRefusal(enable.error);
+  const submitLabel = initial === null ? "Get a certificate" : RETRY_NAME;
   return (
     <Stack gap="field" data-ip-certificate-offer={initial === null ? "new" : "retry"}>
       {initial === null ? (
@@ -175,7 +176,7 @@ function Offer({ initial }: { readonly initial: IpCertificateSetting | null }): 
             form.handleSubmit().catch(() => undefined);
           }}
         >
-          {initial === null ? "Get a certificate" : "Try again"}
+          {submitLabel}
         </Button>
       </Row>
     </Stack>

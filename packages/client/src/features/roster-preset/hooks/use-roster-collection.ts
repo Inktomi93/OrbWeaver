@@ -45,7 +45,9 @@ export function useRosterInsights(): readonly CollectionInsight[] | undefined {
       id: "with-rules",
       label: "With room rules",
       value: `${String(withRules.length)} of ${String(rows.length)}`,
-      ...(first === undefined ? {} : { open: { label: `Open ${first.name}`, run: (): void => selectCollectionMember(ROSTER_COLLECTION_ID, first.id) } }),
+      ...(first === undefined
+        ? {}
+        : { open: { label: `Open ${first.name}`, memberId: first.id, run: (): void => selectCollectionMember(ROSTER_COLLECTION_ID, first.id) } }),
     },
     ...(newest === undefined
       ? []
@@ -54,7 +56,7 @@ export function useRosterInsights(): readonly CollectionInsight[] | undefined {
             id: "last-saved",
             label: "Last saved",
             value: timeLib.formatRelative(newest.updatedAt),
-            open: { label: `Open ${newest.name}`, run: (): void => selectCollectionMember(ROSTER_COLLECTION_ID, newest.id) },
+            open: { label: `Open ${newest.name}`, memberId: newest.id, run: (): void => selectCollectionMember(ROSTER_COLLECTION_ID, newest.id) },
           },
         ]),
   ];

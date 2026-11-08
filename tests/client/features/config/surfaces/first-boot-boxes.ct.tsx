@@ -1,4 +1,5 @@
 import type { ConfigGroupId } from "@orb/client/state";
+import { LAYOUT_SUBPIXEL_PX } from "@orb/testkit/browser/spec";
 import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createFirstBootHarness } from "@orb/testkit/node/composed";
@@ -18,7 +19,6 @@ const PHONE_WIDTH = 390;
 const PHONE_HEIGHT = 844;
 // The declared box is a whole number of skeleton rows, so it can sit half a row off the settled stack.
 const ROW_ROUNDING = 0.5;
-const SUBPIXEL_PX = 1;
 
 // Group → the reserveKeys whose settled box is determined by structure.
 const FIRST_BOOT_GROUPS = ["workloads", "connections", "admin", "appearance"] as const satisfies readonly ConfigGroupId[];
@@ -235,7 +235,7 @@ for (const widthClass of WIDTH_CLASSES) {
         const declared = await declaredBoxes(page, keys);
         held.release();
         const settled = await settledBoxes(page, keys);
-        const tolerance = pitch * ROW_ROUNDING + SUBPIXEL_PX;
+        const tolerance = pitch * ROW_ROUNDING + LAYOUT_SUBPIXEL_PX;
         for (const key of keys) {
           expect(
             Math.abs((settled.get(key) ?? Number.NaN) - (declared.get(key) ?? Number.NaN)),

@@ -24,8 +24,8 @@
 //   · the DOUBLE HIGHLIGHT (item 18) — the floated cluster painted its own `bg-accent` panel on top of the
 //     row's hover tint. In flow it has no backdrop; the glyphs ride the row's own tint.
 //   · the BUILT-IN COLLISION (item 19) — the lock marker and the revealed toggle both wanted the row's
-//     trailing end and stacked on top of each other. The lock is now inline-LEFT of the name (item 17: it
-//     is a property of the NAME, per the list mock), and the trailing region holds controls only.
+//     trailing end and stacked on top of each other. The lock now leads the "Built-in default" scent line,
+//     and the trailing region holds controls only.
 // The cost is honest and was the mock's own call: the strip's width is spent on every row, always.
 //
 // STATE IS THE TOGGLE (O-1): pressed = a FILLED lucide dot (the seal's `fill` axis on the `Circle`
@@ -126,12 +126,9 @@ export function PresetLibraryRow({
       selected={selected}
       title={preset.name}
       subtitleStep="label"
-      // Item 17: the lock is a property of the NAME (the mock draws it inline-left of "Default"), not an
-      // action slot at the row's far end — where it collided with the revealed cluster (item 19). It costs
-      // the built-in row's title its shared x with the other rows; that is the mock's own drawing, and it
-      // supersedes side-eye P2-6's "no leading slot" for this one glyph (P2-6's harm was a VARIABLE-width
-      // status badge on many rows; this is a fixed glyph on exactly one).
-      {...(preset.isSystemDefault ? { leading: <Icon icon={Lock} size="sm" /> } : {})}
+      // The lock leads the "Built-in default" scent, not the name: a leading glyph would push this one row's
+      // name off the x the other rows' names share, and the far end belongs to the revealed cluster.
+      {...(preset.isSystemDefault ? { subtitleLead: <Icon icon={Lock} size="xs" /> } : {})}
       // The editor's notice explains an unreadable blob; the list says so first, so a re-imported twin
       // that landed beside it (ADR 0290) is not mistaken for the broken row.
       {...(preset.configUnreadable === null

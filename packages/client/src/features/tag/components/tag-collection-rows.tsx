@@ -15,12 +15,19 @@ import { useLayoutEffect, useRef, useState } from "react";
 import { ConfirmDialog, LibraryRow, usePruneUnusedTags, useRemoveTag, useSetTagOrder } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { COLLECTION_LARGE_GROUP, deleteConfirmTitle, pruneConfirmLabel, sortTagsBy, tagUsageLabel, unusedTagsLabel, usageBreakdown } from "#lib";
+import {
+  COLLECTION_LARGE_GROUP,
+  deleteConfirmTitle,
+  ESTIMATED_ROW_PX,
+  pruneConfirmLabel,
+  sortTagsBy,
+  tagUsageLabel,
+  unusedTagsLabel,
+  usageBreakdown,
+} from "#lib";
 import { labelDeleted, setLabelFilter, setTagPruneConfirmOpen, useTagPruneConfirmOpen, useTagSortMode } from "#state";
 import { finderRoot, focusAfterConfirmCloses, focusFinderSearch, labelRowOpener, libraryOrFinder } from "../lib/labels-focus-targets.ts";
 import { TAG_LIST_NAME } from "../lib/tag-list-name.ts";
-
-const ESTIMATED_ROW_PX = 52;
 
 interface TagRowsView {
   readonly selectedId: TagId | null;
@@ -77,7 +84,7 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
           aria-label={TAG_LIST_NAME}
           className="min-block-0"
           grow={true}
-          estimateSize={(): number => ESTIMATED_ROW_PX}
+          estimateSize={(): number => ESTIMATED_ROW_PX.subtitled}
           fadeEdge={true}
           gapToken="field"
           getItemKey={(tag): string => tag.id}
@@ -162,7 +169,7 @@ function LabelsPruneConfirm({
           <VirtualList
             aria-label="Tags to delete"
             height="scrollMd"
-            estimateSize={(): number => ESTIMATED_ROW_PX}
+            estimateSize={(): number => ESTIMATED_ROW_PX.subtitled}
             getItemKey={(tag): string => tag.id}
             items={unused}
             renderItem={(tag): ReactElement => <Text>{tag.name}</Text>}

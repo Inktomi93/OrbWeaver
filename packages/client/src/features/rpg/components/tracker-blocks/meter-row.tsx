@@ -1,6 +1,7 @@
 // RPG meters keep the value text as the datum and the rail decorative.
 // Unset readings and ceilings stay null rather than becoming invented zeroes.
 
+import { NO_VALUE } from "@orb/kit/strings";
 import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Row, Stack } from "@orb/ui/layout";
 import type { TrackColor } from "@orb/ui/meter";
@@ -8,7 +9,6 @@ import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { trackerFieldName } from "../../lib/tracker-names.ts";
-import { UNSET_DATUM } from "../../lib/unset-datum.ts";
 import { TrackerValue } from "./tracker-value.tsx";
 
 interface MeterRowProps {
@@ -83,7 +83,7 @@ function MaxCell({
       <TrackerValue
         ariaLabel={`${label} max`}
         display={max === null ? "" : String(max)}
-        placeholder={UNSET_DATUM}
+        placeholder={NO_VALUE}
         kind="numeric"
         {...(maxEditTitle === undefined ? {} : { editTitle: maxEditTitle })}
         onEdit={(next): void => {
@@ -130,7 +130,7 @@ function ValueCell({
         ariaLabel={`${name} value`}
         // Unset ⇒ an EMPTY field wearing the em-dash placeholder, never a `0` the host has to notice is fake.
         display={value === null ? "" : String(value)}
-        placeholder={UNSET_DATUM}
+        placeholder={NO_VALUE}
         kind="numeric"
         onEdit={(next): void => {
           const trimmed = next.trim();
@@ -186,7 +186,7 @@ function MeterLabel({
  *  spelling, so the read-only arm and the editable arm's placeholder cannot disagree about what "unset"
  *  looks like. */
 function meterDatum(value: number | null, max: number | null): string {
-  const head = value === null ? UNSET_DATUM : String(value);
+  const head = value === null ? NO_VALUE : String(value);
   return max === null ? head : `${head}/${max}`;
 }
 

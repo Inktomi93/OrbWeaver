@@ -6,7 +6,7 @@ import { spawn } from "node:child_process";
 import { contextToggleLabel, SIDECAR_PANELS_NOUN } from "@orb/client/lib";
 import type { AppearanceSettings } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
-import { emulateMedia, releaseEmulatedMedia, resolvedLength, seedShellState, shellTracks } from "@orb/testkit/browser/spec";
+import { emulateMedia, LAYOUT_SUBPIXEL_PX, releaseEmulatedMedia, resolvedLength, seedShellState, shellTracks } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
@@ -1017,7 +1017,7 @@ const ROOM_TRACKS = {
   composer: '[data-slot="chat-room-composer-region"] [data-track="composer"]',
 } as const;
 const FLANK_ROOM = { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } } as const;
-const AXIS_SLACK = 1;
+
 // What each resting state of the column asks of the room: whether it is registered, and whether its edge control hid it.
 const COLUMN_STATE_NAMES = ["absent", "inline", "parked"] as const;
 type ColumnState = (typeof COLUMN_STATE_NAMES)[number];
@@ -1219,7 +1219,7 @@ test.describe("the room's one axis", () => {
       test(`at ${String(width)} the rows and the composer share a middle with the column ${state}`, async ({ corpus, mount, page }) => {
         await routeRoom(page, corpus, width, state);
         await mountRoom(mount);
-        expect(axisGap(await restingTracks(page, state))).toBeLessThanOrEqual(AXIS_SLACK);
+        expect(axisGap(await restingTracks(page, state))).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
       });
     }
   }
@@ -1230,19 +1230,19 @@ test.describe("the room's one axis", () => {
     await settleFlankRoom(page);
     for (const leg of [`Hide ${SIDECAR_PANELS_NOUN}`, `Show ${SIDECAR_PANELS_NOUN}`]) {
       const { before, after, centres } = await toggleGlideSampled(page, leg);
-      expect(axisGap(before), "before").toBeLessThanOrEqual(AXIS_SLACK);
-      expect(axisGap(after), "after").toBeLessThanOrEqual(AXIS_SLACK);
+      expect(axisGap(before), "before").toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+      expect(axisGap(after), "after").toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
       // Every point of the glide has the two tracks on one axis.
-      expect(centres.filter((point) => Math.abs(point.chat - point.composer) > AXIS_SLACK)).toStrictEqual([]);
+      expect(centres.filter((point) => Math.abs(point.chat - point.composer) > LAYOUT_SUBPIXEL_PX)).toStrictEqual([]);
       const travel = centreOf(after.composer) - centreOf(before.composer);
       expect(Math.abs(travel), "the toggle moved nothing, so the read proves nothing").toBeGreaterThan(REAL_TRACK / 2);
       const [first, middle, last] = centres;
       // The composer starts where it stood, is still on its way at the middle of the glide, and ends where the room puts it.
       const travelled = (centre: number | undefined): number => Math.abs((centre ?? Number.NaN) - centreOf(before.composer));
-      expect(travelled(first?.composer), "the glide's first instant").toBeLessThanOrEqual(AXIS_SLACK);
-      expect(travelled(middle?.composer), "the glide's middle moved").toBeGreaterThan(AXIS_SLACK);
-      expect(travelled(middle?.composer), "the glide's middle has not arrived").toBeLessThan(Math.abs(travel) - AXIS_SLACK);
-      expect(Math.abs((last?.composer ?? Number.NaN) - centreOf(after.composer)), "the glide's last instant").toBeLessThanOrEqual(AXIS_SLACK);
+      expect(travelled(first?.composer), "the glide's first instant").toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+      expect(travelled(middle?.composer), "the glide's middle moved").toBeGreaterThan(LAYOUT_SUBPIXEL_PX);
+      expect(travelled(middle?.composer), "the glide's middle has not arrived").toBeLessThan(Math.abs(travel) - LAYOUT_SUBPIXEL_PX);
+      expect(Math.abs((last?.composer ?? Number.NaN) - centreOf(after.composer)), "the glide's last instant").toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
     }
   });
 
@@ -1252,9 +1252,9 @@ test.describe("the room's one axis", () => {
     await settleFlankRoom(page);
     for (const leg of [`Hide ${SIDECAR_PANELS_NOUN}`, `Show ${SIDECAR_PANELS_NOUN}`]) {
       const { before, after, frames } = await toggleRecorded(page, leg);
-      expect(axisGap(before), "before").toBeLessThanOrEqual(AXIS_SLACK);
-      expect(axisGap(after), "after").toBeLessThanOrEqual(AXIS_SLACK);
-      expect(frames.filter((frame) => Math.abs(frame.chat - frame.composer) > AXIS_SLACK)).toStrictEqual([]);
+      expect(axisGap(before), "before").toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+      expect(axisGap(after), "after").toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+      expect(frames.filter((frame) => Math.abs(frame.chat - frame.composer) > LAYOUT_SUBPIXEL_PX)).toStrictEqual([]);
       expect(Math.abs(centreOf(after.composer) - centreOf(before.composer)), "the toggle moved nothing, so the read proves nothing").toBeGreaterThan(
         REAL_TRACK / 2,
       );

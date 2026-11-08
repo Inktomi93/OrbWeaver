@@ -730,6 +730,8 @@ export const inviteViewSchema = z.strictObject({
   expiresAt: z.number().nullable(),
   /** The targeted user when created by handle; null for an open share-link. */
   invitedUserId: brandedId("UserId").nullable(),
+  /** The targeted user's account handle, so the host's row names who it is for; null for an open share-link. */
+  invitedHandle: brandedId("Handle").nullable(),
   /** D259 — the link may create an account for a signed-out visitor. */
   allowSignup: z.boolean(),
   createdAt: z.number(),

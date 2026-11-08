@@ -1,16 +1,18 @@
 // A label over a big pre-formatted number.
 import type { ReactElement } from "react";
+import { shownValue } from "#primitives/text";
 import { statFigureVariants } from "./variants.ts";
 
 export interface StatFigureProps {
   /** The metric name. */
   readonly label: string;
-  /** Pre-formatted big number (e.g. "1,204") — ui takes a string, no Intl logic in ui. */
+  /** Pre-formatted big number (e.g. "1,204") — ui takes a string, no Intl logic in ui. The empty-value glyph renders with its name. */
   readonly value: string;
 }
 
 export function StatFigure({ label, value }: StatFigureProps): ReactElement {
   const slots = statFigureVariants();
+  const shown = shownValue(value);
 
   return (
     <div className={slots.root()} data-slot="stat-figure">
@@ -19,7 +21,7 @@ export function StatFigure({ label, value }: StatFigureProps): ReactElement {
       </p>
       <div className={slots.valueRow()}>
         <span className={slots.value()} data-slot="stat-figure-value">
-          {value}
+          {shown}
         </span>
       </div>
     </div>

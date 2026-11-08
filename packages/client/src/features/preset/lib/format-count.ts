@@ -10,6 +10,7 @@
 // The locale is FIXED, deliberately: these are engineering magnitudes rendered beside mono `datum` text
 // that has to align down a column, and a locale that groups with `.` or spaces would break the alignment
 // the tabular figures exist to give.
+import { NO_VALUE } from "@orb/kit/strings";
 
 const COUNT_FORMAT = new Intl.NumberFormat("en-US");
 
@@ -26,7 +27,7 @@ export function formatEstimate(value: number): string {
 
 /** The CARRIER's cost cell — its substance is the conversation's or the world-info set's, so the preset
  *  cannot price it. An em dash, never `~0` (a zero with a bar under it is a lie with a number on it). */
-export const CARRIER_COST_GLYPH = "~—";
+export const CARRIER_COST_GLYPH = `~${NO_VALUE}`;
 
 /**
  * The SPOKEN form of a cost cell (side-eye F-27). The visible cell is a compressed mono glyph — `~30`,

@@ -334,6 +334,11 @@ function ImportOverflow({ door }: { readonly door: NonNullable<CollectionContrib
   );
 }
 
+/** A door draws once per member. Two facts about one member share its id, and the second would repeat the first door's text on the next line. */
+function isFirstDoorTo(insights: readonly CollectionInsight[], memberId: string, at: number): boolean {
+  return insights.findIndex((other) => other.open?.memberId === memberId) === at;
+}
+
 /** The library's own facts, in ONE grammar for every collection: the statement (`label` · `value`) and, when
  *  the fact is about a single member, the door that opens it.
  *
@@ -344,8 +349,8 @@ function ImportOverflow({ door }: { readonly door: NonNullable<CollectionContrib
  *  host never learns what a fact means; it draws `label · value · door` blind. */
 function CollectionInsightList({ insights }: { readonly insights: readonly CollectionInsight[] }): ReactElement {
   return (
-    <Stack data-slot="config-library-insights" gap="field">
-      {insights.map((insight) => (
+    <Stack data-slot="config-library-insights" gap="field" order="lastWhenShort">
+      {insights.map((insight, at) => (
         <Row align="center" className="min-inline-0" wrap={true} gap="field" key={insight.id}>
           <Row align="center" className="min-inline-0" wrap={true} cap="fit" gap="field">
             <Text as="span" voice="kicker">
@@ -353,7 +358,7 @@ function CollectionInsightList({ insights }: { readonly insights: readonly Colle
             </Text>
             <CountText>{insight.value}</CountText>
           </Row>
-          {insight.open === undefined ? null : (
+          {insight.open === undefined || !isFirstDoorTo(insights, insight.open.memberId, at) ? null : (
             <Button
               aria-label={`${insight.open.label}: ${insight.label}`}
               push="inlineEnd"

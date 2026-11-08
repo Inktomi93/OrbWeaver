@@ -644,6 +644,7 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly mintSyntheticGroupCharacter: MintSyntheticGroupCharacterOp;
   readonly findSyntheticGroupCharacter: FindSyntheticGroupCharacterOp;
   readonly resolveUserPublics: ResolveUserPublicsOp;
+  readonly loadUserHandles: LoadUserHandlesOp;
   readonly resolveAssetHash: ResolveAssetHashOp;
   readonly filterOwnedAssetIds: FilterOwnedAssetIdsOp;
   readonly filterOwnedImageAssetIds: FilterOwnedAssetIdsOp;

@@ -395,8 +395,14 @@ function usesLeft(invite: InviteView): string {
   return `${invite.remainingUses ?? 0} of ${invite.maxUses} ${invite.maxUses === 1 ? "use" : "uses"} left`;
 }
 
+// A targeted invite names who it is for, so two of them on one list are told apart.
+function inviteTarget(invite: InviteView): string {
+  return invite.invitedHandle === null ? "" : ` for ${invite.invitedHandle}`;
+}
+
 function InviteRow({ invite, onRevoke }: { readonly invite: InviteView; readonly onRevoke: (inviteId: ChatInviteId) => void }): ReactElement {
   const kind = inviteKind(invite);
+  const target = inviteTarget(invite);
   const uses = usesLeft(invite);
   const expiry = invite.expiresAt === null ? "never expires" : `expires ${timeLib.formatRelative(invite.expiresAt)}`;
   return (
@@ -408,7 +414,7 @@ function InviteRow({ invite, onRevoke }: { readonly invite: InviteView; readonly
       stackActionsAt="cq-24"
       actions={
         invite.status === "pending" ? (
-          <Button type="button" variant="ghost" size="sm" onClick={(): void => onRevoke(invite.id)} aria-label={`Revoke this ${kind.toLowerCase()}`}>
+          <Button type="button" variant="ghost" size="sm" onClick={(): void => onRevoke(invite.id)} aria-label={`Revoke this ${kind.toLowerCase()}${target}`}>
             Revoke
           </Button>
         ) : null
@@ -416,7 +422,7 @@ function InviteRow({ invite, onRevoke }: { readonly invite: InviteView; readonly
       leading={<StatusChip size="sm" status={invite.status} vocabulary={INVITE_STATUS} />}
       subtitle={`${uses} · ${expiry}`}
       subtitleWrap={true}
-      title={kind}
+      title={`${kind}${target}`}
     />
   );
 }

@@ -25,6 +25,21 @@
 // MORE than a word character at its boundary (markdown emphasis, `_`) adds those bytes at its own site.
 export const UNICODE_WORD_CHARS = "\\p{L}\\p{N}\\p{M}";
 
+// ── the empty value ──────────────────────────────────────────────────────────────────────────────────
+// THE ONE GLYPH for a value that is missing: an unrecorded amount, an unset datum, an absent rank. A figure that
+// was measured and came out zero is `0`, never this. A screen reader reads the bare dash as nothing or as a
+// punctuation name, so a surface that renders it as an element names it `NO_VALUE_NAME` (`NoValue` in `@orb/ui/text`).
+
+/** The glyph a missing value prints. */
+export const NO_VALUE = "—";
+/** What assistive technology says for {@link NO_VALUE}. */
+export const NO_VALUE_NAME = "No value";
+
+/** `text` for a sink that is read aloud rather than seen (an `aria-label`, a chart's text table): each {@link NO_VALUE} in it says its name. */
+export function spokenText(text: string): string {
+  return text.replaceAll(NO_VALUE, NO_VALUE_NAME);
+}
+
 // ── byte sizes ───────────────────────────────────────────────────────────────────────────────────────
 // The ONE human byte-size formatter. It had two byte-identical spellings (`@orb/ui/file-dropzone`'s cap
 // hint and `features/databank`'s row subtitle) before the per-chat document rack needed a third; a pure,
@@ -114,13 +129,12 @@ const USD_PRECISION = 2;
 /** Below this the two-decimal form is all zeros, so the sub-cent arm keeps four and real charges differ. */
 const SUB_CENT = 0.01;
 const SUB_CENT_PRECISION = 4;
-const UNRECORDED_AMOUNT = "—";
 
 /** A USD figure: `—` unrecorded · `$1.23` · `$0.0037` below a cent · `-$1.20` overspent. Throws
  *  `RangeError` on a non-finite amount, for the reason stated above {@link formatBytes}. */
 export function formatUsd(amount: number | null): string {
   if (amount === null) {
-    return UNRECORDED_AMOUNT;
+    return NO_VALUE;
   }
   assertDisplayableCount("formatUsd", amount, true);
   const sign = amount < 0 ? "-" : "";

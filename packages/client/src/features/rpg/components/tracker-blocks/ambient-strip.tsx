@@ -2,6 +2,7 @@
 // Clear is a nullable field write outside the vocabulary group, not a vocabulary member.
 
 import { RPG_WEATHER_TYPES, TIME_OF_DAY } from "@orb/contracts/rpg";
+import { NO_VALUE } from "@orb/kit/strings";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Icon, MapPin, X } from "@orb/ui/icons";
@@ -10,7 +11,6 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
-import { UNSET_DATUM } from "../../lib/unset-datum.ts";
 import { TrackerValue } from "./tracker-value.tsx";
 
 export interface AmbientStripProps {
@@ -68,7 +68,7 @@ function AmbientVocabPicker({
   const [open, setOpen] = useState(false);
   if (!open) {
     const empty = value === "";
-    const restText = empty ? UNSET_DATUM : value;
+    const restText = empty ? NO_VALUE : value;
     return (
       <InlineAction
         type="button"
@@ -210,7 +210,7 @@ function AmbientFieldControl({
     <TrackerValue
       ariaLabel={`${label} value`}
       display={value ?? ""}
-      placeholder={UNSET_DATUM}
+      placeholder={NO_VALUE}
       onEdit={(next): void => onEditField(fieldKey, next)}
       // Content-sized, capped: `width="auto"` hugs the value so a short one ("the ford") is a
       // compact input and pairs pack 2+ per row, and a long location stays inside the wrapping card.

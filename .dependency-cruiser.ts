@@ -426,7 +426,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/workloads/lib/workloads-model.ts":
     "WORKLOAD_KIND_LABELS, ASSET_KIND_ITEMS and toProgressView: the job and asset kind names the pickers print and the pure progress label rule",
   "packages/client/src/features/workloads/lib/portability-model.ts":
-    "IMPORT_CONFIRM_NAMES, IMPORT_PREVIEW_RETRY_NAME, IMPORT_NOTHING_FOUND_NOTE and summarizeCardImport: the import review's control names, its empty-folder note and the pure summary rule",
+    "IMPORT_CONFIRM_NAMES, IMPORT_NOTHING_FOUND_NOTE and summarizeCardImport: the import review's control names, its empty-folder note and the pure summary rule",
   "packages/client/src/features/databank/lib/scrape-form-model.ts": "SCRAPE_FAILURE: the one failure line the add-document form and its toast both say",
   "packages/client/src/data/import-tree-served.ts": "planServedTreeImport: the served-tree import planner",
   "packages/client/src/features/chat/lib/chat-context-tab-labels.ts":
@@ -472,18 +472,17 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/config/lib/config-control-names.ts": "CONFIG_THEME_NAME_FIELD_NAME and its siblings: the theme builder control names",
   "packages/client/src/features/world-info/lib/world-info-names.ts": "WORLD_INFO_NEW_BOOK_NAME and its siblings: the books library and entry editor names",
   "packages/client/src/features/regex/lib/regex-names.ts": "REGEX_FIND_PATTERN_NAME and its siblings: the regex editor, tester and pipeline names",
-  "packages/client/src/features/databank/lib/databank-names.ts": "DATABANK_SEARCH_NAME and its siblings: the library, Home tile and add dialog names",
+  "packages/client/src/features/databank/lib/databank-names.ts": "DATABANK_SEARCH_NAME and its siblings: the library, Home tile, add dialog and landing names",
   "packages/client/src/features/preset/lib/preset-names.ts": "PRESET_DELETE_SECTION_TITLE: the section delete confirmation's title",
   "packages/client/src/features/roster-preset/lib/roster-names.ts": "ROSTER_SAVED_NAME and ROSTER_ALL_NAME: the saved-rosters modal and Home tile names",
   "packages/client/src/features/discovery/lib/corpus-control-names.ts":
     "CORPUS_SEARCH_TARGET_NAME and CORPUS_DISTILLED_CATALOG_NAME: the Corpus list and browse names",
   "packages/client/src/features/refinery/lib/refinery-names.ts": "REFINERY_VERSIONS_NAME: the context pane's version history tab",
-  "packages/client/src/features/rpg/lib/unset-datum.ts": "UNSET_DATUM: the unset reading's text",
   "packages/client/src/features/plugin/lib/extensions-copy.ts": "EXTENSIONS_GONE_TITLE: the vanished page's title",
   "packages/client/src/features/plugin/lib/plugin-copy.ts":
     "approveLabel, CHAT_PANEL_HIDE_LABEL and CHAT_PANEL_UNDO_LABEL: production action names required by the no-copied-label contract",
   "packages/client/src/features/persona/lib/persona-copy.ts":
-    "PERSONA_NAME_REQUIRED and its siblings: the persona editor's field and footer names, its blank-name error and the crown-moved notice",
+    "PERSONA_NAME_REQUIRED, CLEAR_PIN_NAME, nowDefaultNotice and their siblings: the persona editor's field and footer names, its blank-name error, the clear-pin action and the crown-moved notice",
   "packages/client/src/features/plugin/lib/plugin-model-copy.ts":
     "PLUGIN_MODEL_HEADING: the production model disclosure name used by plugin presentation assertions",
   "packages/client/src/features/plugin/lib/plugin-panel-copy.ts":

@@ -20,13 +20,14 @@ export const WIDTH = {
   numberInline: "inline-(--width-number-inline)",
 } as const;
 
-/** The widest a box grows, by meaning: `fit` is the parent's own width (a wrapping row in a flex row never pushes the pane wider), `reading`, `prose` and `column` are the measures, and the rest are the named caps a surface sets once. A feature picks the meaning, never a width. */
+/** The widest a box grows, by meaning: `fit` is the parent's own width (a wrapping row in a flex row never pushes the pane wider), `reading`, `prose`, `code` and `column` are the measures, and the rest are the named caps a surface sets once. A feature picks the meaning, never a width. */
 export const CAP = {
   fit: "max-inline-full",
   fitNarrow: "@max-cq-20:max-inline-full",
   reading: "max-inline-(--reading-measure)",
   prose: "max-inline-(--reading-measure-prose)",
   readingMin: "max-inline-(--reading-measure-min)",
+  code: "max-inline-(--reading-measure-code)",
   column: "max-inline-(--width-content-col)",
   columnWide: "max-inline-(--width-content-col) @cq-64:max-inline-(--width-content-col-wide)",
   control: "max-inline-(--width-control-col)",
