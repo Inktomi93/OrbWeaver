@@ -1,0 +1,69 @@
+// `pnpm unwired removed-keys` fails a deletion branch while a removed contract key still has a sender in the client,
+// the plugins or e2e; a key another contract still declares is listed for a person, never failed on.
+import { writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { expect, test } from "@orb/testkit/tooling";
+import { execFixtureGit, FIXTURE_GIT_IDENTITY } from "@orb/tooling/floor/git/git-fixture";
+import { checkRemovedKeys } from "../../../tooling/src/unwired/removed-keys.ts";
+
+const CONTRACT = "packages/contracts/src/chat/send.ts";
+const BEFORE = ["export interface SendInput {", "  readonly chatId: string;", "  readonly guided?: string;", "  readonly limit?: number;", "}"].join("\n");
+const AFTER = ["export interface SendInput {", "  readonly chatId: string;", "}"].join("\n");
+// `limit` stays declared by another contract, so its hits may be that contract's.
+const OTHER = ["export interface ListInput {", "  readonly limit?: number;", "}"].join("\n");
+
+const commit = (repo: string, files: Readonly<Record<string, string>>, message: string): void => {
+  for (const [file, text] of Object.entries(files)) {
+    writeFileSync(join(repo, file), text);
+    execFixtureGit(repo, ["add", file]);
+  }
+  execFixtureGit(repo, ["commit", "-qm", message]);
+};
+
+async function deletionBranch(plantedTree: (tree: Record<string, string>) => Promise<string>, senders: Readonly<Record<string, string>>): Promise<string> {
+  const repo = await plantedTree({
+    [CONTRACT]: BEFORE,
+    "packages/contracts/src/list.ts": OTHER,
+    "packages/client/src/send.ts": "export const send = { chatId: 'c' };\n",
+    "packages/showcase-plugins/src/main.ts": "export const plugin = 1;\n",
+    "tests/e2e/send.spec.ts": "export const spec = 1;\n",
+  });
+  for (const args of [
+    ["init", "-q", "-b", "main"],
+    ["config", "user.email", FIXTURE_GIT_IDENTITY.email],
+    ["config", "user.name", FIXTURE_GIT_IDENTITY.name],
+    ["add", "-A"],
+    ["commit", "-qm", "base"],
+    ["switch", "-q", "-c", "deletion"],
+  ]) {
+    execFixtureGit(repo, args);
+  }
+  commit(repo, { [CONTRACT]: AFTER, ...senders }, "remove guided and limit");
+  return repo;
+}
+
+test("a removed key with a sender in the client, a showcase plugin or e2e fails the branch", { timeout: 60_000 }, async ({ plantedTree }) => {
+  const repo = await deletionBranch(plantedTree, {
+    "packages/client/src/send.ts": "export const send = { chatId: 'c', guided: 'g', limit: 3 };\n",
+    "packages/showcase-plugins/src/main.ts": "export const plugin = (input: { guided: string }) => input.guided;\n",
+    "tests/e2e/send.spec.ts": "export const spec = { guided: 'g' };\n",
+  });
+  const report = checkRemovedKeys(repo, "main", "HEAD");
+  expect(report.failed).toBe(true);
+  const guided = report.removed.find((entry) => entry.key === "guided");
+  expect(guided?.ambiguous).toBe(false);
+  expect(guided?.hits.map(({ receiver, at }) => `${receiver} ${at}`)).toEqual([
+    "client packages/client/src/send.ts:1",
+    "plugins packages/showcase-plugins/src/main.ts:1",
+    "e2e tests/e2e/send.spec.ts:1",
+  ]);
+  expect(report.removed.find((entry) => entry.key === "limit")?.ambiguous).toBe(true);
+  expect(report.scanned).toEqual({ client: 1, plugins: 1, e2e: 1 });
+});
+
+test("a branch whose removed keys have no sender, or only an ambiguous one, passes", { timeout: 60_000 }, async ({ plantedTree }) => {
+  const repo = await deletionBranch(plantedTree, { "packages/client/src/send.ts": "export const send = { chatId: 'c', limit: 3 };\n" });
+  const report = checkRemovedKeys(repo, "main", "HEAD");
+  expect(report.removed.map(({ key, ambiguous, hits }) => `${key} ${ambiguous} ${hits.length}`)).toEqual(["guided false 0", "limit true 1"]);
+  expect(report.failed).toBe(false);
+});
