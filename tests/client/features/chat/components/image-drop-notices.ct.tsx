@@ -49,11 +49,13 @@ test("a dropped image count and size each raise a notice in a shared room", asyn
     "stream.attach": ({ ref }) => (ref.channel === "chat" && ref.chatId === chatId ? null : trpcError({ code: "NOT_FOUND" })),
     "stream.detach": ({ ref }) => (ref.channel === "chat" && ref.chatId === chatId ? null : trpcError({ code: "NOT_FOUND" })),
   });
-  await routeOrbSocket(page, {
+  const socket = await routeOrbSocket(page, {
     awaitRooms: [{ channel: "chat", chatId }],
     frames: [warning(WARNING_CODE.imageCountDropped, FIRST_SEQ), warning(WARNING_CODE.imageSizeDropped, FIRST_SEQ + 1)],
   });
   await mount<typeof ChatRoomShellStory>(STORY, { chatId, socket: true });
+  // The notices' deadline starts once the frames are on the wire: the shell's boot and the room's attach are not the subject.
+  await socket.served();
   await expect(page.locator('[data-slot="toast-root"]')).toHaveCount(2);
   // Each code raises its own notice: the copy production maps that code to, so one notice standing in for both fails.
   for (const code of [WARNING_CODE.imageCountDropped, WARNING_CODE.imageSizeDropped]) {
