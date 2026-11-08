@@ -6,11 +6,12 @@ import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
+import { SESSION_SECRET_ENV } from "@orb/server/foundation/data-layout";
 import { expect, test } from "@orb/testkit/node";
 import { z } from "zod";
 
 const CHILD = fileURLToPath(new URL("../../../support/node/host-env-child.ts", import.meta.url));
-const SECRET = "SESSION_SECRET";
+const SECRET = SESSION_SECRET_ENV;
 const MARKER = "ORB_HOST_ENV_MARKER";
 const presenceSchema = z.strictObject({ secret: z.boolean(), marker: z.boolean() });
 const reportSchema = z.strictObject({ held: presenceSchema, edited: z.boolean(), markerAfterEdit: z.boolean(), afterScrub: presenceSchema });

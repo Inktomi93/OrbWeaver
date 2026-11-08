@@ -28,9 +28,11 @@ import type { Env, EnvKey, HostFacts } from "@orb/server/foundation/env/record";
 import { DEBUG_TOKEN_ENV, ENV_KEYS, LOCAL_INITIAL_PASSWORD_ENV, OPENROUTER_API_KEY_ENV } from "@orb/server/foundation/env/record";
 import {
   ASSETS_DIR_KEY,
+  CREDENTIALS_KEY_ENV,
   DATABASE_URL_KEY,
   IMPORT_STAGING_DIR_KEY,
   LOCAL_LIGHT_CACHE_DIR_KEY,
+  SESSION_SECRET_ENV,
   USER_RUNTIME_DIR_KEY,
 } from "../../../packages/server/src/foundation/data-layout/contract.ts";
 import { createTestEnv } from "./env.ts";
@@ -202,7 +204,7 @@ export const ENV_SEAMS = {
   ["FORWARD_AUTH_JWKS"]: RAW,
   ["FORWARD_AUTH_JWT_ISSUER"]: RAW,
   ["FORWARD_AUTH_JWT_AUDIENCE"]: RAW,
-  ["CREDENTIALS_KEY"]: deployOnly("boot-secret"),
+  [CREDENTIALS_KEY_ENV]: deployOnly("boot-secret"),
   [OIDC_ISSUER_KEY]: oidcKey(OIDC_ISSUER_KEY),
   [OIDC_CLIENT_ID_KEY]: oidcKey(OIDC_CLIENT_ID_KEY),
   [OIDC_CLIENT_SECRET_KEY]: oidcKey(OIDC_CLIENT_SECRET_KEY),
@@ -217,7 +219,7 @@ export const ENV_SEAMS = {
   ["OIDC_SIGNUP"]: oidcKey("OIDC_SIGNUP"),
   ["OIDC_REQUIRE_APPROVAL"]: oidcKey("OIDC_REQUIRE_APPROVAL"),
   ["OIDC_BACKCHANNEL_LOGOUT"]: oidcKey("OIDC_BACKCHANNEL_LOGOUT"),
-  ["SESSION_SECRET"]: deployOnly("boot-secret"),
+  [SESSION_SECRET_ENV]: deployOnly("boot-secret"),
   ["RATE_LIMIT_WINDOW_MS"]: RAW,
   ["RATE_LIMIT_AI_TURN"]: RAW,
   ["RATE_LIMIT_PUBLIC_IP"]: RAW,

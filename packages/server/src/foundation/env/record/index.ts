@@ -24,7 +24,7 @@ import { trimEndWhile } from "@orb/kit/strings";
 import { SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
 import { z } from "zod";
 import type { DataLayout } from "#foundation/data-layout";
-import { DATABASE_URL_KEY, DEFAULT_DATA_DIR, resolveDataLayout } from "#foundation/data-layout";
+import { DATABASE_URL_KEY, DEFAULT_DATA_DIR, resolveDataLayout, SESSION_SECRET_ENV } from "#foundation/data-layout";
 import { NODE_ENVIRONMENTS } from "#primitives/node-environment";
 import { allowedHostsEntryRefusal, machineHostnameFor } from "../allowed-hosts.ts";
 import { resolveBindPosture } from "../bind.ts";
@@ -476,7 +476,7 @@ const envObjectSchema = z.object({
   // HMAC-peppers the session tokenHash so a DB leak alone can't forge a session. Unset ⇒
   // `<DATA_DIR>/secrets/session_secret` is generated on first boot and reused (`infra/crypto/key.ts`); an
   // explicit value wins.
-  SESSION_SECRET: z.string().min(MIN_SESSION_SECRET_CHARS).optional(),
+  [SESSION_SECRET_ENV]: z.string().min(MIN_SESSION_SECRET_CHARS).optional(),
   // The session cookie's transport (Secure `__Host-` over https, the insecure name over plain http) is
   // decided per request by `infra/auth/transport.ts`; there is no knob. An old `SESSION_COOKIE_INSECURE` line
   // is an unknown key, which zod strips, so it is inert.

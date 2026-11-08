@@ -5,6 +5,7 @@ import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { expect, test } from "@orb/testkit/tooling";
+import { CREDENTIALS_KEY_ENV } from "../../../../packages/server/src/foundation/data-layout/contract.ts";
 import type { DevPinKey, LeaderRecord, PinSource } from "../../../../tooling/src/stack/index.ts";
 import {
   DEV_PIN_KEYS,
@@ -21,10 +22,9 @@ import {
 
 const NOW = 1_700_000_000_000;
 /** Every pin pinned but one; env names, so the record is built from pairs. */
-const SOURCES = Object.fromEntries(DEV_PIN_KEYS.map((key): readonly [DevPinKey, PinSource] => [key, key === "CREDENTIALS_KEY" ? "host" : "pinned"])) as Record<
-  DevPinKey,
-  PinSource
->;
+const SOURCES = Object.fromEntries(
+  DEV_PIN_KEYS.map((key): readonly [DevPinKey, PinSource] => [key, key === CREDENTIALS_KEY_ENV ? "host" : "pinned"]),
+) as Record<DevPinKey, PinSource>;
 const RECORD: LeaderRecord = {
   version: 2,
   pid: 4242,
