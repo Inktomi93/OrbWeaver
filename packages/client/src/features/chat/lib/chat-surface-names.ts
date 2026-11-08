@@ -56,6 +56,9 @@ export const CHAT_HISTORY_FAILURE_COPY = {
 } as const;
 export const CHAT_WINDOW_PRESS_FAILURE = "Couldn't load more messages.";
 export const CHAT_SAVED_ROSTER_DOOR_NAME = "Start from a saved roster";
+
+/** New chat's pinned cue where the dialog has no room to pin Blank chat with Start, so it sits after them. */
+export const CHAT_MORE_BELOW_CUE = "More below";
 export const CHAT_EXPORT_TRANSCRIPT_NAME = "Export transcript";
 export const CHAT_MESSAGE_INPUT_NAME = "Message";
 export const CHAT_COMPOSER_NAME = "Message composer";

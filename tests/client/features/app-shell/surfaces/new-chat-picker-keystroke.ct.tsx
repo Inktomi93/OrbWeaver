@@ -91,6 +91,8 @@ for (const cell of CELLS) {
         expect(after.list, `the list went ${String(before.list)}px to ${String(after.list)}px under rows of ${String(after.row)}px`).toBeGreaterThanOrEqual(
           after.row,
         );
+        // The list stays a window onto the matches: an unbounded list would run every match down the sheet and put Start past them.
+        expect(after.list, `the list is ${String(after.list)}px tall on a ${String(cell.height)}px screen`).toBeLessThanOrEqual(cell.height);
         if (!cell.holds) {
           return;
         }

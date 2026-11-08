@@ -97,4 +97,6 @@ export const MIN_WIDTH = {
   popupFloor: "min-inline-(--width-popup-floor)",
   composerField: "min-inline-(--dimension-composer-field-min)",
   title: "min-inline-(--width-title-floor)",
+  // The longest word: a flex line breaks before the box would split one. A landscape phone's dialog header holds one line, so there the box truncates.
+  word: "min-inline-min dialog-short:glass-short:min-inline-0",
 } as const;

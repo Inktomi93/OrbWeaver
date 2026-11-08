@@ -73,8 +73,9 @@
 
   /* New chat in a dialog this short: the popup scrolls as one sheet, because a separate body would be squeezed to nothing
    * under the heading. This is `dialog-tiny`'s step (packages/ui/src/styles/primitives.css). Nothing below the sheet bounds the
-   * picker any more, so its list is held to the picker's window, and the loading box to the box that holds (the floor, the strip's
-   * hairline and the list's bottom margin), or the list would run the whole library and put Start that far down the sheet. */
+   * picker any more, so its list is held to the picker's window, or the list would run the whole library and put Start that far down
+   * the sheet. A declared loading box spells the picker's box with its token, so the box that holds here (the floor, plus the list's
+   * bottom hairline on a landscape phone) replaces that token, and the door row the declared length carries stays in it. */
   @container dialog (height <= 14rem) {
     [data-slot="dialog-popup"]:has([data-slot="new-chat-actions"]) > :not([data-slot="dialog-header"]) {
       flex: none;
@@ -83,8 +84,12 @@
     [data-slot="dialog-popup"]:has([data-slot="new-chat-actions"]) [data-slot="command-list"] {
       max-block-size: var(--height-picker-window);
     }
-    [data-slot="dialog-popup"]:has([data-slot="new-chat-actions"]) [data-reserve-key] {
-      block-size: calc(var(--height-picker-floor) + var(--border-width-rule));
+    [data-slot="dialog-popup"]:has([data-slot="new-chat-actions"]) [data-reserve-key][data-tile-reserve-source="declared"] {
+      --height-picker-box: var(--height-picker-floor);
+      block-size: var(--stack-reserve);
+      @variant glass-short {
+        --height-picker-box: calc(var(--height-picker-floor) + var(--border-width-rule));
+      }
     }
   }
 
@@ -379,6 +384,7 @@
   [data-slot="dialog-popup"]::before,
   [data-slot="alert-dialog-popup"]::before,
   [data-slot="dialog-footer"],
+  [data-slot="new-chat-actions"],
   [data-slot="message-bubble"],
   [data-slot="empty-state-root"] {
     /* `1px` casts the unitless strength dial to a length; it is a unit, not a spacing value. */
@@ -472,9 +478,14 @@
           border-radius: inherit;
           backdrop-filter: var(--glass-filter);
         }
-        /* The footer only blurs: the popup paints the fill, and a second one reads as a slab. */
-        [data-slot="dialog-footer"] {
+        /* A pinned row only blurs: the popup paints the fill, and a second one reads as a slab. */
+        [data-slot="dialog-footer"],
+        [data-slot="new-chat-actions"] {
           backdrop-filter: var(--glass-filter);
+          background-color: transparent;
+        }
+        /* The search card keeps its border on the popup's own glass; its rows scroll inside it, so nothing passes under it. */
+        [data-slot="dialog-popup"] [data-slot="command-root"] {
           background-color: transparent;
         }
       }
@@ -624,7 +635,8 @@
     @variant appearance-blur-surfaces-modals {
       [data-slot="dialog-popup"]::before,
       [data-slot="alert-dialog-popup"]::before,
-      [data-slot="dialog-footer"] {
+      [data-slot="dialog-footer"],
+      [data-slot="new-chat-actions"] {
         backdrop-filter: none;
       }
     }

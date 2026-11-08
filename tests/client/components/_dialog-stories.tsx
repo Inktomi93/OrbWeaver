@@ -3,10 +3,10 @@ import { CtIsolation } from "@orb/testkit/browser";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 
-export function ViewerDialogStory(): ReactElement {
+export function ViewerDialogStory({ title = "Recorded content", titleTruncate }: { readonly title?: string; readonly titleTruncate?: boolean }): ReactElement {
   return (
     <CtIsolation subject="ViewerDialog" isolates="isolates dialog focus containment from authenticated feature data">
-      <ViewerDialog defaultOpen={true} title="Recorded content">
+      <ViewerDialog defaultOpen={true} title={title} {...(titleTruncate === undefined ? {} : { titleTruncate })}>
         <button type="button">Copy content</button>
       </ViewerDialog>
     </CtIsolation>
