@@ -16,7 +16,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { QueryBoundary, RowActionsMenu, SettingSwitchRow } from "#components";
+import { QueryBoundary, RowActionsMenu, SettingRowGroup, SettingSwitchRow, SettingTrackRow } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
@@ -66,11 +66,15 @@ function ShowInChatSwitch({ pluginId, pluginName }: { readonly pluginId: PluginI
     return null;
   }
   return (
-    <SettingSwitchRow
-      checked={!chatVisibility.isHidden(pluginId)}
-      label={showInChatLabel(pluginName)}
-      onChange={(shown): void => chatVisibility.setShown(pluginId, shown)}
-    />
+    <SettingRowGroup>
+      <SettingTrackRow>
+        <SettingSwitchRow
+          checked={!chatVisibility.isHidden(pluginId)}
+          label={showInChatLabel(pluginName)}
+          onChange={(shown): void => chatVisibility.setShown(pluginId, shown)}
+        />
+      </SettingTrackRow>
+    </SettingRowGroup>
   );
 }
 
