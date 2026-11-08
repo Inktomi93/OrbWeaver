@@ -7,7 +7,8 @@ import type { TrpcInput, TrpcProcedurePath, TrpcWireOutput } from "./route-trpc.
 import type { ServerProducerRoot } from "./server.ts";
 import { assertServerProducerRoot } from "./server.ts";
 
-/** Capture one real request as its selected viewer; this is fixture selection, not HTTP authentication. */
+/** Capture one real request as its selected viewer; this is fixture selection, not HTTP authentication. The root's
+ *  background work settles first, so a capture after an authed request never races the user seed it started. */
 export async function captureCorpusRead<Path extends TrpcProcedurePath>(
   root: ServerProducerRoot,
   viewerUserId: UserId,
@@ -16,6 +17,7 @@ export async function captureCorpusRead<Path extends TrpcProcedurePath>(
 ): Promise<CorpusPlaybackCapture<TrpcInput<Path>, TrpcWireOutput<Path>>> {
   assertServerProducerRoot(root);
   const capturedInput = lockCorpusInput(input);
+  await root.app.settleBackground();
   const caller = await root.internalCallerFor(viewerUserId);
   const output = await procedureAt(caller, path)(capturedInput);
   // The real router owns the result's schema; the network round-trip erases brands and absent output.
