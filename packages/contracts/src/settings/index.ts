@@ -1131,9 +1131,10 @@ export type ResolveSeededPlateOp = (principal: Principal, slug: string) => Promi
  *  a raw SillyTavern theme that carries no `name`. */
 export type ImportThemeOp = (ownerId: UserId, bytes: Uint8Array, fallbackName?: string) => Promise<SettingsImportOutcome>;
 
-/** Does the owner hold a theme {@link ImportThemeOp} would reuse for each theme in these bytes? A read: it writes
- *  nothing. A file that does not parse, or carries no theme, answers `false`. */
-export type HasOwnedTheme = (ownerId: UserId, bytes: Uint8Array, fallbackName?: string) => Promise<boolean>;
+/** For each file, in order, whether the owner holds a theme {@link ImportThemeOp} would reuse for each theme in it.
+ *  A read: it writes nothing, and it loads the owner's themes once for the whole list. A file that does not parse,
+ *  or carries no theme, answers `false`. */
+export type FindOwnedThemes = (ownerId: UserId, files: readonly Uint8Array[]) => Promise<readonly boolean[]>;
 
 /** The content hashes of the owner's background library, which a stored background image joins by its own hash. */
 export type OwnedBackgroundHashes = (ownerId: UserId) => Promise<ReadonlySet<string>>;

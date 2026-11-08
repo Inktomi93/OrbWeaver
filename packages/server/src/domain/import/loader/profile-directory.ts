@@ -24,7 +24,7 @@ import type { ProfileCollected, ProfileCollectRecords, ProfileDirImportDeps, Pro
 import type { ImportReport, ImportSkippedCard, ImportSkippedCardTag, ImportUnresolvedPinnedPersona, ImportWorldNote } from "../contract/results.ts";
 import { createImportService } from "../service.ts";
 import { buildImportContext } from "../substrate/build-context.ts";
-import { buildImportPreview, countImportKinds } from "../substrate/preview.ts";
+import { buildImportPreview, countImportKinds, refusedGroups } from "../substrate/preview.ts";
 import { collectBundlesFromDir } from "./collect.ts";
 import { findOwnership } from "./profile-ownership.ts";
 
@@ -204,8 +204,7 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
     r.unreadableGroups.length +
     r.missingGroupChats.length +
     r.skippedChats.length +
-    r.skippedCharacters.length +
-    r.orphanChatDirs.length;
+    r.skippedCharacters.length;
   return {
     bundles,
     personas,
@@ -227,9 +226,9 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
   };
 }
 
-/** scanned = every examined ST entity (each kind's count) plus the recorded skips. */
-function tallyScanned(found: ImportKindCounts, skipped: number): number {
-  return Object.values(found).reduce((sum, count) => sum + count, skipped);
+/** scanned = every examined ST entity (each kind's count) plus the recorded skips and the groups the run refuses. */
+function tallyScanned(found: ImportKindCounts, collected: ProfileCollected): number {
+  return Object.values(found).reduce((sum, count) => sum + count, collected.skipped + refusedGroups(collected).length);
 }
 
 /** Store one persona's avatar (maxBytes-capped) and pair it into the canonical persona-import input. */
@@ -780,7 +779,7 @@ function contextFor(deps: ProfileDirImportDeps, store: StoreAvatarAsset): Return
 export async function runProfileDirectory(deps: ProfileDirImportDeps): Promise<ImportReport> {
   const collected = await collectProfileRoot({ ...deps, fs: withProfileReadLimits(deps.fs) });
   const found = countImportKinds(collected);
-  const scanned = tallyScanned(found, collected.skipped);
+  const scanned = tallyScanned(found, collected);
 
   if (deps.dryRun) {
     const owned = await findOwnership(deps, collected);

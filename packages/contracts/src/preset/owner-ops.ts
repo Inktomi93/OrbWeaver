@@ -10,9 +10,9 @@ export type ExportPresets = (args: { readonly ownerId: UserId }) => Promise<Port
 /** Idempotent on (ownerId, name): merges an existing same-named preset in place, else creates fresh. */
 export type ImportPreset = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array }) => Promise<PresetImportOutcome>;
 
-/** Does the owner hold a preset {@link ImportPreset} would reuse for these bytes? A read: it writes nothing. An
- *  unreadable file answers `false`. */
-export type HasOwnedPreset = (args: { readonly ownerId: UserId; readonly bytes: Uint8Array }) => Promise<boolean>;
+/** For each file, in order, whether the owner holds a preset {@link ImportPreset} would reuse for it. A read: it
+ *  writes nothing, and it loads the owner's presets once for the whole list. An unreadable file answers `false`. */
+export type FindOwnedPresets = (args: { readonly ownerId: UserId; readonly files: readonly Uint8Array[] }) => Promise<readonly boolean[]>;
 
 /** Is `presetId` readable by `userId` (owned, or the shared system default)? */
 export type PresetReadable = (presetId: PresetId, userId: UserId) => Promise<boolean>;

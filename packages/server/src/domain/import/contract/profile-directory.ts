@@ -1,12 +1,12 @@
 import type { StoreAvatarAsset, StoredAsset, StoreParams } from "@orb/contracts/assets";
 import type { BulkImportChatsOp, FindImportedChatHashes } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
-import type { ImportFsPort, ImportPreviewKind, PersonaCollisionChoices } from "@orb/contracts/import";
+import type { ImportFsPort, PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BulkImportPersonas, FindOwnedPersonas } from "@orb/contracts/persona";
-import type { HasOwnedPreset, ImportPreset } from "@orb/contracts/preset";
+import type { FindOwnedPresets, ImportPreset } from "@orb/contracts/preset";
 import type { ImportCardScripts, ImportGlobalScripts, ImportPresetScripts } from "@orb/contracts/regex";
 import type {
-  HasOwnedTheme,
+  FindOwnedThemes,
   ImportedAppearance,
   ImportedAppearanceOutcome,
   ImportThemeOp,
@@ -14,11 +14,21 @@ import type {
   OwnedBackgroundHashes,
 } from "@orb/contracts/settings";
 import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
-import type { AttachOwnedBooksByName, HasOwnedBook, ImportStandaloneLorebook, ImportWorldInfoPort } from "@orb/contracts/world-info";
+import type { AttachOwnedBooksByName, FindOwnedBooks, ImportStandaloneLorebook, ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { ImportContextWiring } from "./build-context.ts";
-import type { CollectResult } from "./collection.ts";
+import type {
+  CollectedBackground,
+  CollectedCard,
+  CollectedChat,
+  CollectedGroup,
+  CollectedPersona,
+  CollectedPreset,
+  CollectedTheme,
+  CollectedWorld,
+  CollectResult,
+} from "./collection.ts";
 import type { ImportReport } from "./results.ts";
 import type { AdoptDefaultPersona } from "./service.ts";
 
@@ -35,16 +45,27 @@ type ImportBackgroundStore = (params: Pick<StoreParams, "principal" | "bytes" | 
 /** What the owner already holds, asked of each owning domain without writing. A dry run's preview names an item
  *  the owner has through these reads, one per kind a character's own lookups do not cover. */
 export interface ProfileOwnership {
-  readonly hasBook: HasOwnedBook;
-  readonly hasPreset: HasOwnedPreset;
-  readonly hasTheme: HasOwnedTheme;
+  readonly findBooks: FindOwnedBooks;
+  readonly findPresets: FindOwnedPresets;
+  readonly findThemes: FindOwnedThemes;
   readonly backgroundHashes: OwnedBackgroundHashes;
   readonly findPersonas: FindOwnedPersonas;
   readonly findChatHashes: FindImportedChatHashes;
 }
 
-/** The items of each kind the owner already holds, as the sources the preview names them by. */
-export type ImportOwnership = Readonly<Record<ImportPreviewKind, ReadonlySet<string>>>;
+/** The collected items of each kind the owner already holds. An item is the collected entry itself, never its
+ *  source string, so two profiles that share a path keep their own verdicts. */
+export interface ImportOwnership {
+  readonly characters: ReadonlySet<CollectedCard>;
+  readonly chats: ReadonlySet<CollectedChat>;
+  readonly personas: ReadonlySet<CollectedPersona>;
+  readonly worlds: ReadonlySet<CollectedWorld>;
+  readonly presets: ReadonlySet<CollectedPreset>;
+  readonly themes: ReadonlySet<CollectedTheme>;
+  readonly backgrounds: ReadonlySet<CollectedBackground>;
+  readonly groups: ReadonlySet<CollectedGroup>;
+  readonly orphans: ReadonlySet<CollectResult["orphanBundles"][number]>;
+}
 
 export interface ProfileDirImportDeps {
   /** The tree holding one subdir per ST user profile (the loader collects each subdir independently). */

@@ -3,7 +3,8 @@
 // a taken name reuses the row; different content lands under the next free name; no owned row is edited.
 // Security: css re-runs the same validateThemeCss guard as createTheme — a failing css degrades to null.
 
-import type { HasOwnedTheme, ImportedThemeLanding, ImportThemeOp, SettingsImportOutcome } from "@orb/contracts/settings";
+import { setImmediate as yieldToEventLoop } from "node:timers/promises";
+import type { FindOwnedThemes, ImportedThemeLanding, ImportThemeOp, SettingsImportOutcome } from "@orb/contracts/settings";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { validateThemeCss } from "@orb/kit/css-validate";
 import type { UserId } from "@orb/kit/ids";
@@ -103,14 +104,17 @@ export function createImportTheme(input: SettingsAssemblyContext): ImportThemeOp
 }
 
 /** The read-only twin of {@link createImportTheme}'s reuse test, for a preview that must not write. */
-export function createHasOwnedTheme(input: Pick<SettingsAssemblyContext, "db">): HasOwnedTheme {
+export function createFindOwnedThemes(input: Pick<SettingsAssemblyContext, "db">): FindOwnedThemes {
   const db = databaseForOwner(input.db);
-  return async (ownerId: UserId, bytes: Uint8Array, fallbackName?: string): Promise<boolean> => {
-    const parsed = parseThemeFile(bytes, fallbackName ?? UNNAMED_THEME);
-    if (!parsed.ok || parsed.value.themes.length === 0) {
-      return false;
-    }
+  return async (ownerId: UserId, files: readonly Uint8Array[]): Promise<readonly boolean[]> => {
     const owned = new Set((await listOwnedThemes(db, ownerId)).map((row) => themeContentKey({ override: row.override, css: row.css })));
-    return parsed.value.themes.every((theme) => owned.has(themeContentKey(withSafeCss(theme))));
+    const answers: boolean[] = [];
+    for (const bytes of files) {
+      const parsed = parseThemeFile(bytes, UNNAMED_THEME);
+      answers.push(parsed.ok && parsed.value.themes.length > 0 && parsed.value.themes.every((theme) => owned.has(themeContentKey(withSafeCss(theme)))));
+      // A folder can carry thousands of themes; reading them in one turn would hold the event loop.
+      await yieldToEventLoop();
+    }
+    return answers;
   };
 }

@@ -7,7 +7,7 @@ export type {
   CopyHandoffBooksArgs,
   CountHandoffBooks,
   ExportWorldBook,
-  HasOwnedBook,
+  FindOwnedBooks,
   HasPrimaryBook,
   ImportStandaloneLorebook,
   ImportWorldInfoPort,

@@ -35,7 +35,8 @@ import type {
 import type { ImportContext, ImportService } from "../contract/service.ts";
 import { requireProfile } from "../guard.ts";
 import { buildGroupChatInput, disambiguateChatTitles, unresolvedPinnedPersonas } from "../substrate/chat-input.ts";
-import { resolveMembers } from "../substrate/group.ts";
+import type { GroupRefusal } from "../substrate/group.ts";
+import { groupRefusal, resolveMembers } from "../substrate/group.ts";
 
 /** The room-behavior blob an imported ST group is born with. Only what ST actually states travels: its
  *  `generation_mode` (append ⇒ the whole cast in one narrated message) and `allow_self_responses`. Everything
@@ -125,13 +126,15 @@ function disabledSeatsOf(
   };
 }
 
-/** The precondition a group must meet to become a room: at least one seated member AND at least one readable
- *  transcript. Returns the refusal reason, or null when the group is importable. */
+const REFUSAL_REASONS: Readonly<Record<GroupRefusal, string>> = {
+  "no-member": "none of its member cards resolved to an imported or existing character",
+  "no-transcript": "the group claimed no readable transcript under `group chats/`",
+};
+
+/** The refusal reason for a group that cannot become a room, or null when it is importable. */
 function refusalFor(group: CollectedGroup, seatCount: number): string | null {
-  if (seatCount === 0) {
-    return "none of its member cards resolved to an imported or existing character";
-  }
-  return group.chats.length === 0 ? "the group claimed no readable transcript under `group chats/`" : null;
+  const refusal = groupRefusal(group, seatCount);
+  return refusal === null ? null : REFUSAL_REASONS[refusal];
 }
 
 /** ONE group's room(s), or the contained refusal. PER-GROUP ISOLATION lives here rather than in the wave loop:

@@ -1,14 +1,15 @@
 // The dry run's ownership read: which collected items of every kind the owner already holds. Every lookup asks
 // the owning domain's read-only twin of the write that would land the item, so a preview and a real run agree on
-// what "already yours" means. Nothing here writes.
+// what "already yours" means. Nothing here writes. A verdict belongs to the collected entry itself, never to its
+// source string, because two profiles of one folder can share a path.
 
 import { setImmediate as yieldToEventLoop } from "node:timers/promises";
 import type { CharacterId } from "@orb/kit/ids";
 import { sha256Hex } from "#primitives/content-hash";
-import type { CollectedChat } from "../contract/collection.ts";
+import type { CollectedCard, CollectedChat } from "../contract/collection.ts";
 import type { ImportOwnership, ProfileCollected, ProfileDirImportDeps } from "../contract/profile-directory.ts";
 import { findImportedCharacter, importFileHash } from "../substrate/card.ts";
-import { resolveMembers } from "../substrate/group.ts";
+import { partitionGroups, resolveMembers } from "../substrate/group.ts";
 import { orphanImportHash } from "../substrate/handle.ts";
 import { presetBytes, themeBytes } from "../substrate/landing-bytes.ts";
 
@@ -25,9 +26,9 @@ async function heldChats(deps: ProfileDirImportDeps, characterId: CharacterId | 
   return chats.filter((chat) => held.has(chat.importHash) || (chat.fileHash !== undefined && held.has(chat.fileHash)));
 }
 
-/** What the card pass learned: the sources the owner holds, and the row each equal card already landed as. */
+/** What the card pass learned: the cards the owner holds, and the row each equal card already landed as. */
 interface CardPass {
-  readonly characters: Set<string>;
+  readonly characters: Set<CollectedCard>;
   readonly identities: Map<string, CharacterId>;
   readonly heldChats: CollectedChat[];
 }
@@ -52,7 +53,7 @@ async function passCards(deps: ProfileDirImportDeps, collected: ProfileCollected
       pass.identities.set(bundle.filename, found.characterId);
     }
     if (found !== null || (await characterOps.findByHandle({ ownerId, handle: bundle.handle })) !== null) {
-      pass.characters.add(bundle.filename);
+      pass.characters.add(bundle);
     }
     pass.heldChats.push(...(await heldChats(deps, found?.characterId ?? null, bundle.chats)));
     // These reads resolve on microtasks, so a large folder would otherwise hold the event loop for the whole pass.
@@ -65,10 +66,10 @@ async function passCards(deps: ProfileDirImportDeps, collected: ProfileCollected
 async function passOrphans(
   deps: ProfileDirImportDeps,
   collected: ProfileCollected,
-): Promise<{ readonly orphans: Set<string>; readonly heldChats: CollectedChat[] }> {
+): Promise<{ readonly orphans: Set<ProfileCollected["orphanBundles"][number]>; readonly heldChats: CollectedChat[] }> {
   const ownerId = deps.principal.userId;
   const { characterOps } = deps.contextFor(deps.principal, deps.storeAvatar);
-  const orphans = new Set<string>();
+  const orphans = new Set<ProfileCollected["orphanBundles"][number]>();
   const held: CollectedChat[] = [];
   for (const orphan of collected.orphanBundles) {
     if (deps.signal.aborted) {
@@ -76,7 +77,7 @@ async function passOrphans(
     }
     const characterId = await characterOps.findByImportHash({ ownerId, importHash: orphanImportHash(orphan.handle) });
     if (characterId !== null) {
-      orphans.add(orphan.dirName);
+      orphans.add(orphan);
     }
     held.push(...(await heldChats(deps, characterId, orphan.chats)));
     await yieldToEventLoop();
@@ -96,93 +97,79 @@ function groupFounder(
   return founder === undefined ? null : (identities.get(founder.file) ?? null);
 }
 
-/** A group is held when every transcript it brings is: the write counts a room only when it adds one. */
+/** A group is held when every transcript it brings is: the write counts a room only when it adds one. A group the
+ *  run refuses is a skip in the preview, so it is never asked about. */
 async function passGroups(
   deps: ProfileDirImportDeps,
   collected: ProfileCollected,
   identities: ReadonlyMap<string, CharacterId>,
-): Promise<{ readonly groups: Set<string>; readonly heldChats: CollectedChat[] }> {
-  const groups = new Set<string>();
+): Promise<{ readonly groups: Set<ProfileCollected["groups"][number]>; readonly heldChats: CollectedChat[] }> {
+  const groups = new Set<ProfileCollected["groups"][number]>();
   const held: CollectedChat[] = [];
-  for (const group of collected.groups) {
+  const { importable } = partitionGroups(
+    collected.groups,
+    collected.bundles.map((bundle) => bundle.filename),
+  );
+  for (const group of importable) {
     if (deps.signal.aborted) {
       break;
     }
     const mine = await heldChats(deps, groupFounder(group, collected.bundles, identities), group.chats);
     held.push(...mine);
-    if (group.chats.length > 0 && mine.length === group.chats.length) {
-      groups.add(group.sourceFile);
+    if (mine.length === group.chats.length) {
+      groups.add(group);
     }
     await yieldToEventLoop();
   }
   return { groups, heldChats: held };
 }
 
-async function passPersonas(deps: ProfileDirImportDeps, collected: ProfileCollected): Promise<Set<string>> {
-  const held = await deps.ownership.findPersonas({
-    ownerId: deps.principal.userId,
-    personas: collected.personas.map(({ parsed, avatarBytes }) => ({
-      name: parsed.name,
-      description: parsed.description,
-      metadata: parsed.metadata ?? null,
-      artHash: avatarBytes === undefined ? null : sha256Hex(avatarBytes),
-    })),
-  });
-  return new Set(collected.personas.filter((_, i) => held[i] === true).map(({ parsed }) => parsed.avatarFile));
-}
-
-/** The sources of the items another domain reports the owner holds. */
-async function heldSources<Item>(
-  deps: ProfileDirImportDeps,
-  items: readonly Item[],
-  isHeld: (item: Item) => Promise<boolean>,
-  sourceOf: (item: Item) => string,
-): Promise<Set<string>> {
-  const held = new Set<string>();
+/** `build` for every item, one event-loop turn apart, so hashing a large folder never holds the loop. */
+async function buildYielding<Item, Built>(deps: ProfileDirImportDeps, items: readonly Item[], build: (item: Item) => Built): Promise<Built[]> {
+  const built: Built[] = [];
   for (const item of items) {
     if (deps.signal.aborted) {
       break;
     }
-    if (await isHeld(item)) {
-      held.add(sourceOf(item));
-    }
+    built.push(build(item));
+    await yieldToEventLoop();
   }
-  return held;
+  return built;
 }
 
-/** The planes whose items another domain keeps in the owner's library: books, presets, themes and backgrounds. */
+/** The items whose answer is `true`. An answer list shorter than the items (an aborted run) leaves the rest out. */
+function heldOf<Item>(items: readonly Item[], answers: readonly boolean[]): Set<Item> {
+  return new Set(items.filter((_, i) => answers[i] === true));
+}
+
+async function passPersonas(deps: ProfileDirImportDeps, collected: ProfileCollected): Promise<ImportOwnership["personas"]> {
+  const personas = await buildYielding(deps, collected.personas, ({ parsed, avatarBytes }) => ({
+    name: parsed.name,
+    description: parsed.description,
+    metadata: parsed.metadata ?? null,
+    artHash: avatarBytes === undefined ? null : sha256Hex(avatarBytes),
+  }));
+  return heldOf(collected.personas, await deps.ownership.findPersonas({ ownerId: deps.principal.userId, personas }));
+}
+
+/** The planes whose items another domain keeps in the owner's library: books, presets, themes and backgrounds. Each
+ *  owner reads its library once for the whole folder. */
 async function passLibrary(
   deps: ProfileDirImportDeps,
   collected: ProfileCollected,
 ): Promise<Pick<ImportOwnership, "worlds" | "presets" | "themes" | "backgrounds">> {
   const { ownership, principal } = deps;
   const ownerId = principal.userId;
-  const hashes = collected.backgrounds.length === 0 ? new Set<string>() : await ownership.backgroundHashes(ownerId);
+  const books = await ownership.findBooks({ ownerId, books: collected.worlds.map(({ book }) => book) });
+  const presetFiles = await buildYielding(deps, collected.presets, presetBytes);
+  const themeFiles = await buildYielding(deps, collected.themes, themeBytes);
+  const heldHashes = collected.backgrounds.length === 0 ? new Set<string>() : await ownership.backgroundHashes(ownerId);
+  const backgroundHeld = await buildYielding(deps, collected.backgrounds, ({ bytes }) => heldHashes.has(sha256Hex(bytes)));
   return {
-    worlds: await heldSources(
-      deps,
-      collected.worlds,
-      ({ book }) => ownership.hasBook({ ownerId, book }),
-      ({ book }) => book.name,
-    ),
-    presets: await heldSources(
-      deps,
-      collected.presets,
-      (preset) => ownership.hasPreset({ ownerId, bytes: presetBytes(preset) }),
-      (preset) => preset.sourceFile,
-    ),
-    themes: await heldSources(
-      deps,
-      collected.themes,
-      (theme) => ownership.hasTheme(ownerId, themeBytes(theme)),
-      (theme) => theme.sourceFile,
-    ),
-    backgrounds: await heldSources(
-      deps,
-      collected.backgrounds,
-      ({ bytes }) => Promise.resolve(hashes.has(sha256Hex(bytes))),
-      ({ filename }) => filename,
-    ),
+    worlds: heldOf(collected.worlds, books),
+    presets: heldOf(collected.presets, await ownership.findPresets({ ownerId, files: presetFiles })),
+    themes: heldOf(collected.themes, await ownership.findThemes(ownerId, themeFiles)),
+    backgrounds: heldOf(collected.backgrounds, backgroundHeld),
   };
 }
 
@@ -190,10 +177,9 @@ export async function findOwnership(deps: ProfileDirImportDeps, collected: Profi
   const cards = await passCards(deps, collected);
   const orphans = await passOrphans(deps, collected);
   const groups = await passGroups(deps, collected, cards.identities);
-  const chats = new Set([...cards.heldChats, ...orphans.heldChats, ...groups.heldChats].map((chat) => chat.sourceFile));
   return {
     characters: cards.characters,
-    chats,
+    chats: new Set([...cards.heldChats, ...orphans.heldChats, ...groups.heldChats]),
     personas: await passPersonas(deps, collected),
     ...(await passLibrary(deps, collected)),
     groups: groups.groups,

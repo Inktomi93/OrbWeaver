@@ -73,7 +73,7 @@ export async function post(
 ): Promise<Response> {
   const form = new FormData();
   for (const [path, bytes] of Object.entries(files)) {
-    const relPath = `${WRAPPER}/${path}`;
+    const relPath = path.startsWith("/") ? path.slice(1) : `${WRAPPER}/${path}`;
     form.append(TREE_FILE_FIELD, new File([typeof bytes === "string" ? ENCODER.encode(bytes) : new Uint8Array(bytes)], relPath), relPath);
   }
   for (const value of dryRunFields) {
@@ -214,5 +214,24 @@ export function bothKindFolders(root: ServerTestHarness): {
     fresh: fresh.files,
     both: { ...held.files, ...fresh.files, [ST_SETTINGS_FILE]: settings({ ["bob.png"]: "Bob", ["cat.png"]: "Cat" }) },
     names: { held: held.names, fresh: fresh.names },
+  };
+}
+
+/** Lay a folder's files under their own profile directory, beside any other profile of the same upload. */
+export function inProfile(profile: string, files: Files): Files {
+  return Object.fromEntries(Object.entries(files).map(([path, bytes]) => [`/${profile}/${path}`, bytes]));
+}
+
+/** Items that take the `held` folder's names with other content: a persona with a description, a world book with
+ *  other lore, a preset with other text, a theme with another surface and a background with other bytes. */
+export function namesakeFolder(root: ServerTestHarness): Files {
+  return {
+    [ST_SETTINGS_FILE]: JSON.stringify({
+      ["power_user"]: { personas: { "bob.png": "Bob" }, ["persona_descriptions"]: { "bob.png": { description: "Another Bob." } } },
+    }),
+    "worlds/Eldoria.json": JSON.stringify({ entries: { "0": { uid: 0, key: ["eldoria"], comment: "Eldoria", content: "A different forest.", order: 100 } } }),
+    "OpenAI Settings/Held.json": presetOf("You are someone else."),
+    "themes/Dusk.json": themeOf("Dusk", "rgba(90, 90, 20, 1)"),
+    "backgrounds/Dawn.png": new Uint8Array(makeAssetBytes(root.idSource.typeId(ID_PREFIX.asset))),
   };
 }

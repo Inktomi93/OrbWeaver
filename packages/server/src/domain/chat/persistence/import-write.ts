@@ -848,8 +848,6 @@ async function importOneChat(args: {
   }
 }
 
-/** Dup-skips by the scoped atomic import claim (healing the skipped room's persona attribution — see
- *  {@link healPersonaAttribution}), commits each fresh chat as ONE `db.batch`, then resolves branch parents. */
 /** The read-only twin of {@link createBulkImportChats}'s dedup gate, for a preview that must not write. */
 export function createFindImportedChatHashes(assembly: Pick<ChatImportAssemblyContext, "db">): FindImportedChatHashes {
   const db = databaseForOwner(assembly.db);
@@ -870,6 +868,8 @@ export function createFindImportedChatHashes(assembly: Pick<ChatImportAssemblyCo
   };
 }
 
+/** Dup-skips by the scoped atomic import claim (healing the skipped room's persona attribution — see
+ *  {@link healPersonaAttribution}), commits each fresh chat as ONE `db.batch`, then resolves branch parents. */
 export function createBulkImportChats(assembly: ChatImportAssemblyContext): BulkImportChatsOp {
   const ctx: ChatImportContext = {
     ...assembly,

@@ -3,10 +3,10 @@
 // @subject packages/server/src/domain/import/loader/profile-directory.ts
 // @subject packages/server/src/domain/import/substrate/preview.ts
 
-import { IMPORT_PREVIEW_KINDS } from "@orb/contracts/import";
+import { IMPORT_PREVIEW_KINDS, ST_SETTINGS_FILE } from "@orb/contracts/import";
 import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { admit, bothKindFolders, dryRun, finishRun, harness } from "./_st-tree-door.ts";
+import { admit, bothKindFolders, chatOf, dryRun, finishRun, harness, settings } from "./_st-tree-door.ts";
 
 test("a folder's preview totals equal the real import's counts, kind by kind", async () => {
   await using root = await harness();
@@ -23,14 +23,28 @@ test("a folder's preview totals equal the real import's counts, kind by kind", a
   }
 });
 
-test("a rerun over a library that already holds the folder counts the same folder", async () => {
+test("a library that already holds the folder reports the same counts the preview lists, with nothing new", async () => {
   await using root = await harness();
   const { both } = bothKindFolders(root);
   const first = await finishRun(root, await admit(root, both));
 
+  const preview = await dryRun(root, both);
   const again = await finishRun(root, await admit(root, both));
 
-  expect(present(first.found).characters).toBeGreaterThan(0);
-  expect(again.found).toEqual(first.found);
+  expect(first.changed).toBeGreaterThan(0);
   expect(again.changed).toBe(0);
+  for (const kind of IMPORT_PREVIEW_KINDS) {
+    expect(present(again.found)[kind]).toBe(preview.kinds[kind].total);
+  }
+});
+
+test("an orphan chat directory is examined once: its placeholder and its transcript are the two entities", async () => {
+  await using root = await harness();
+  const files = { [ST_SETTINGS_FILE]: settings({}), "chats/Wanderer/orphan.jsonl": chatOf("A lone transcript.") };
+
+  const imported = await finishRun(root, await admit(root, files));
+
+  expect(imported.found).toMatchObject({ orphans: 1, chats: 1 });
+  expect(imported.scanned).toBe(2);
+  expect(imported.changed).toBe(2);
 });

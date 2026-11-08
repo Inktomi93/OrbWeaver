@@ -13,7 +13,7 @@ export { ensureSystemDefaultPreset } from "./seed.ts";
 export { createPresetService } from "./service.ts";
 export { createLoadOptionalPreset } from "./substrate/optional-read.ts";
 export { createExportPresets } from "./verbs/export.ts";
-export { createHasOwnedPreset, createImportPresets } from "./verbs/import.ts";
+export { createFindOwnedPresets, createImportPresets } from "./verbs/import.ts";
 export { createReadOptionalPresetConfig } from "./verbs/optional-config.ts";
 export { createPresetReadable } from "./verbs/readable.ts";
 // The backward-bindings rule `PresetContext.resolvePresetUsage` runs; compose wires its three foreign inputs.

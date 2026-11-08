@@ -85,3 +85,32 @@ export function resolveMembers<Seat extends string>(
   }
   return { seated, skipped };
 }
+
+/** Why a group cannot become a room, or null when it can: it needs a seated member and a readable transcript. */
+export type GroupRefusal = "no-member" | "no-transcript";
+
+export function groupRefusal(group: CollectedGroup, seatCount: number): GroupRefusal | null {
+  if (seatCount === 0) {
+    return "no-member";
+  }
+  return group.chats.length === 0 ? "no-transcript" : null;
+}
+
+/** The groups a run can turn into rooms, and the ones it refuses, judged against the cards the folder carries. */
+export function partitionGroups(
+  groups: readonly CollectedGroup[],
+  cardFiles: readonly string[],
+): { readonly importable: CollectedGroup[]; readonly refused: { readonly group: CollectedGroup; readonly refusal: GroupRefusal }[] } {
+  const seats = new Map(cardFiles.map((file) => [file, file]));
+  const importable: CollectedGroup[] = [];
+  const refused: { group: CollectedGroup; refusal: GroupRefusal }[] = [];
+  for (const group of groups) {
+    const refusal = groupRefusal(group, resolveMembers(group, seats).seated.length);
+    if (refusal === null) {
+      importable.push(group);
+    } else {
+      refused.push({ group, refusal });
+    }
+  }
+  return { importable, refused };
+}
