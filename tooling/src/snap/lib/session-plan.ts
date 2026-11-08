@@ -117,6 +117,7 @@ export function resolveSessionLimits(input: {
  *  a persistent-profile LAUNCH property, and it says so once — in the arm — instead of here and there. */
 export const SESSION_ONLY_FLAGS: ReadonlySet<string> = new Set([
   "--base",
+  "--base-credentials-env",
   "--isolated",
   "--ref",
   "--dirty",
@@ -234,6 +235,7 @@ export function inheritSessionArgs(bootArgs: Args, call: Args, name: string, inh
     vnc: bootArgs.vnc,
     visitor: bootArgs.visitor,
     debugToken: bootArgs.debugToken,
+    baseCredentials: bootArgs.baseCredentials,
     failureEvidence: bootArgs.failureEvidence,
     strictConsole: bootArgs.strictConsole,
     checkpoint: bootArgs.checkpoint || call.checkpoint,

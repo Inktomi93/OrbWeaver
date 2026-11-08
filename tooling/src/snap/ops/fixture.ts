@@ -28,6 +28,7 @@ import { readMember } from "../../floor/instrument/member.ts";
 import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
 import { FIXTURE_CREDENTIALS } from "../../stack/index.ts";
 import type { AuthConfig, FixtureStatus, FixtureTarget, FixtureTargetOverride, PortOwnerAuthProbe } from "../contract/fixture.ts";
+import { diskSafeUrl } from "../lib/disk-safe-argv.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route>");
 
@@ -96,7 +97,7 @@ function authConfig(value: unknown): AuthConfig | null {
  *  fell through to `{ up: true }`. The union makes the third outcome unignorable at the call site. */
 export function portOwnerFromConfig(config: AuthConfig | null, serverUrl: string): PortOwnerAuthProbe {
   if (config?.mode === undefined) {
-    return { kind: "unreadable", reason: `${serverUrl}/api/auth/config names no auth mode` };
+    return { kind: "unreadable", reason: `${diskSafeUrl(serverUrl)}/api/auth/config names no auth mode` };
   }
   return config.mode === "local" ? { kind: "local" } : { kind: "not-local", mode: config.mode };
 }
@@ -123,16 +124,16 @@ export function fixtureVerdict(
   probes: { readonly healthz: boolean; readonly config: AuthConfig | null; readonly owner: () => PortOwnerAuthProbe },
 ): FixtureStatus {
   if (!probes.healthz) {
-    return { up: false, reason: `fixture server ${target.serverUrl} not answering` };
+    return { up: false, reason: `fixture server ${diskSafeUrl(target.serverUrl)} not answering` };
   }
   const config = probes.config;
   if (config === null) {
-    return { up: false, reason: `${target.serverUrl}/api/auth/config unreachable` };
+    return { up: false, reason: `${diskSafeUrl(target.serverUrl)}/api/auth/config unreachable` };
   }
   if (config.localEnabled !== true || config.multiHumanCapable !== true) {
     return {
       up: false,
-      reason: `${target.serverUrl}/api/auth/config reports localEnabled=${String(config.localEnabled)} multiHumanCapable=${String(config.multiHumanCapable)} (expected true/true — that origin is a SINGLE-USER stack, not the fixture)`,
+      reason: `${diskSafeUrl(target.serverUrl)}/api/auth/config reports localEnabled=${String(config.localEnabled)} multiHumanCapable=${String(config.multiHumanCapable)} (expected true/true — that origin is a SINGLE-USER stack, not the fixture)`,
     };
   }
   const owner = probes.owner();

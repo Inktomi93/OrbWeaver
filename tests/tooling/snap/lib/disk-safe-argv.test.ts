@@ -1,6 +1,6 @@
 // What a run file may hold of an argv: the shape of the call, never the text an operator handed it.
 import { expect, test } from "@orb/testkit/tooling";
-import { diskSafeArgv, diskSafeOp, diskSafeUrl } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
+import { diskSafeArgv, diskSafeOp, diskSafeUrl, URL_VALUE_FLAGS } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 
 test("a private flag keeps its selector or key and loses its value", () => {
@@ -55,6 +55,23 @@ test("a base URL loses its userinfo and its sensitive query values, and keeps th
   ]);
   const plain = ["--base", "http://127.0.0.1:5273", "--fixture-base", "http://localhost:5175/"];
   expect(diskSafeArgv(plain)).toEqual(plain);
+});
+
+test("a fragment token and a URL behind leading whitespace are masked as the parser reads them", () => {
+  expect(diskSafeUrl("http://h.test/#access_token=t0k&state=s")).toBe("http://h.test/#access_token=<private>&state=s");
+  expect(diskSafeUrl(" \thttp://u:pw@h.test/?token=t")).toBe(" \thttp://<private>@h.test/?token=<private>");
+  expect(diskSafeArgv(["--fixture-server", "http://u:pw@127.0.0.1:8790"])).toEqual(["--fixture-server", "http://<private>@127.0.0.1:8790"]);
+});
+
+test("a URL flag with userinfo is refused at parse without quoting it, and a credentials variable must be user:password", () => {
+  for (const flag of URL_VALUE_FLAGS) {
+    const errors = parseSnapArgs([flag, " http://u:hunter2@127.0.0.1:1/", "/"]).errors.join(" ");
+    expect(errors).toContain(`${flag} carries user:password credentials`);
+    expect(errors).not.toContain("hunter2");
+  }
+  // The positive control: the same URL without userinfo parses clean.
+  expect(parseSnapArgs(["--base", "http://127.0.0.1:1/?token=t", "/"]).errors).toEqual([]);
+  expect(parseSnapArgs(["--base-credentials-env", "L4_UNSET_CREDENTIALS", "/"]).errors.join(" ")).toContain("does not set");
 });
 
 test("a binding URL keeps a file path whole, an @ in a package directory included", () => {

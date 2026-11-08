@@ -28,7 +28,6 @@
     "./entry/boot": "./src/entry/boot/index.ts",
     "./entry/auth": "./src/entry/auth/index.ts",
     "./entry/compose": "./src/entry/compose/index.ts",
-    "./entry/shutdown-messages": "./src/entry/shutdown-messages.ts",
     "./foundation/data-layout": "./src/foundation/data-layout/index.ts",
     "./foundation/env": "./src/foundation/env/index.ts",
     "./foundation/env/record": "./src/foundation/env/record/index.ts",

@@ -8,8 +8,8 @@
 // The launcher is proven by argv/env snapshots + the pure decision logic; the dev supervisor's live cycle
 // runs on a private run dir in index.int.test.ts.
 import { readFileSync } from "node:fs";
-import { SHUTDOWN_MESSAGES } from "@orb/server/entry/shutdown-messages";
 import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
+import { SHUTDOWN_MESSAGES } from "@orb/server/infra/network";
 import { expect, test } from "@orb/testkit/tooling";
 import { SERVER_ENTRY_REL, SERVER_NODE_FLAGS } from "@orb/tooling/floor/process/server-entry";
 import type { ObservedInstance, ProdRecord } from "../../../tooling/src/stack/index.ts";
@@ -378,14 +378,14 @@ const logged = (message: string): string => `{"msg":${JSON.stringify(message)}}`
 
 test("the drain watch reads the server's own shutdown lines", () => {
   expect(classifyDrainTail(`boot: listening\n${logged(SHUTDOWN_MESSAGES.complete)}\n`)).toBe("complete");
-  expect(classifyDrainTail('{"msg":"shutdown: drain deadline hit — force-closing"}')).toBe("deadline-hit");
+  expect(classifyDrainTail(logged(SHUTDOWN_MESSAGES.drainDeadline))).toBe("deadline-hit");
   expect(classifyDrainTail(logged(SHUTDOWN_MESSAGES.draining))).toBe("pending");
 });
 
 // The stage lines share this classifier's `shutdown: ` prefix, so a stage worded "shutdown: complete db housekeeping"
 // would make `down` declare a clean shutdown while the process was still checkpointing.
 test("the stage breadcrumbs are progress, never a terminal verdict", () => {
-  const { complete, draining, ...stages } = SHUTDOWN_MESSAGES;
+  const { complete, draining, drainDeadline: _terminal, ...stages } = SHUTDOWN_MESSAGES;
   for (const line of Object.values(stages).map(logged)) {
     expect(classifyDrainTail(`${logged(draining)}\n${line}\n`), `${line} must not be read as a terminal outcome`).toBe("pending");
   }

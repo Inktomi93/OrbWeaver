@@ -5,7 +5,7 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
-import { SHUTDOWN_MESSAGES } from "@orb/server/entry/shutdown-messages";
+import { SHUTDOWN_MESSAGES } from "@orb/server/infra/network";
 import { expect, test } from "@orb/testkit/node";
 import { freeLoopbackPort } from "@orb/testkit/node/helpers";
 import { processEnvValue } from "@orb/tooling/floor/process/process-env";

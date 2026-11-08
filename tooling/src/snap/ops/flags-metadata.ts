@@ -72,6 +72,7 @@ const NON_ARM_FLAG_SUMMARIES: Readonly<Record<string, NonArmFlagMeta>> = {
   "--wait": { group: "Where", summary: "after app readiness, require this selector to become visible before anything else runs" },
   "--stream-settle": { group: "Reach", summary: "fixed post-drive settle for a streaming surface" },
   "--base": { group: "Where", summary: "an already-running origin (a private stack, a stage you booted)" },
+  "--base-credentials-env": { group: "Where", summary: "ENV_NAME holding user:password — answer a basic-auth base without credentials in argv" },
   "--debug-token": { group: "Where", summary: "seed orb:debug-token before navigation for token-gated development routes" },
   "--visitor": { group: "Where", summary: "send relay headers so a loopback stack serves a signed-out visitor, not its owner" },
   "--click": { group: "Reach", summary: "real Playwright click (actionability-checked); flakes on virtualized list rows" },

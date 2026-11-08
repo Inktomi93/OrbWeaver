@@ -87,6 +87,10 @@ export const FLAG_HANDLERS: Record<string, FlagHandler> = {
   "--debug-token": (a, rest) => {
     a.debugToken = privateText(rest.shift() ?? "");
   },
+  // The value is a variable NAME, so the credential is never an argument: not in argv, the process table or a log.
+  "--base-credentials-env": (a, rest) => {
+    a.baseCredentials = privateText(processEnvValue(rest.shift() ?? "") ?? "");
+  },
   "--click": (a, rest, page) => {
     pushStep(a, { kind: "click", selector: rest.shift() ?? "", page });
   },

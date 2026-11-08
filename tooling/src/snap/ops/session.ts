@@ -17,6 +17,7 @@ import { prepareDevToolsCascadeRuntime } from "../../floor/devtools/devtools-run
 import type { AppliedLoadEmulation, NetworkProfileName } from "../contract/load-emulation.ts";
 import type { FailureArtifacts } from "../contract/run.ts";
 import type { Args } from "../contract/types.ts";
+import { revealBasicCredentials } from "../lib/disk-safe-argv.ts";
 import { writeNetworkHar } from "../lib/network-har.ts";
 import { stopTraceToFile } from "../lib/private-values.ts";
 import { NETWORK_PROFILES, NO_CPU_THROTTLE } from "../lib/throttle.ts";
@@ -247,6 +248,7 @@ function buildLaunchOptions(opts: Args, profile: LaunchProfile): ProbeLaunchOpti
     ...scaleLaunchOverride(opts),
     trace: opts.failureEvidence,
     ...(opts.visitor ? { extraHTTPHeaders: VISITOR_RELAY_HEADERS } : {}),
+    ...(opts.baseCredentials === null ? {} : { httpCredentials: revealBasicCredentials(opts.baseCredentials) }),
     ...(persistent === null ? {} : { persistentProfileDir: persistent.profileDir, browserArgs: persistent.browserArgs }),
   };
 }

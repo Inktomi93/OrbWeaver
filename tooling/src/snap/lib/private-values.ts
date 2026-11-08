@@ -87,6 +87,21 @@ export function scrubPrivateText(text: string): DiskSafeText {
   return scrubbed as DiskSafeText;
 }
 
+/**
+ * Scrub a thrown error's message and stack in place, keeping its class, before a crash path prints it.
+ *
+ * @remarks A Playwright error quotes the URL or the text it was handed, so an uncaught one carries every value noted so far.
+ */
+export function scrubPrivateError(error: unknown): unknown {
+  if (error instanceof Error) {
+    error.message = scrubPrivateText(error.message);
+    if (error.stack !== undefined) {
+      error.stack = scrubPrivateText(error.stack);
+    }
+  }
+  return error;
+}
+
 // String values only: a key or a `true` that happens to equal a typed value stays, or the line stops being JSON.
 function scrubJsonValue(value: unknown): unknown {
   if (typeof value === "string") {

@@ -41,7 +41,7 @@ import { createAuditWiring, createDetachedSupervision, initTracing, wrapLibSqlCl
 import { versionIdentity } from "#foundation/version";
 import { createOwnerClaimCode, createPasswordHasher, oidcRedirectAllowlist } from "#infra/auth";
 import { bootSecretProvenance, keyfileReport, resolveCredentialsKey, resolveSessionSecret } from "#infra/crypto";
-import { drainHttpServer, installEgressFirewall, SHUTDOWN_DRAIN_MS, serveHttpServer, trustedProxiesOf } from "#infra/network";
+import { drainHttpServer, installEgressFirewall, SHUTDOWN_DRAIN_MS, SHUTDOWN_MESSAGES, serveHttpServer, trustedProxiesOf } from "#infra/network";
 import type { CloudflaredPin, RelayAssetFetch, SpawnRelay } from "#infra/relay";
 
 import { authConfigFromEnv, createHostPrincipalResolver } from "./auth/index.ts";
@@ -78,7 +78,6 @@ import {
 import { startPlannerMaintenance } from "./boot/planner-maintenance.ts";
 
 import { createConfiguredOidc, createHttpApp, createProcessSeams, createServices, createShareGraph, SessionsCrypto } from "./compose/index.ts";
-import { SHUTDOWN_MESSAGES } from "./shutdown-messages.ts";
 
 /** The worker resources shutdown owns: signal it first, then join the loop before touching the DB. */
 interface OwnedWorkloadsWorker {

@@ -23,6 +23,7 @@ export const REQUIRED_VALUE_FLAGS = new Set([
   "--wait",
   "--stream-settle",
   "--base",
+  "--base-credentials-env",
   "--debug-token",
   "--diagnostics",
   "--click",

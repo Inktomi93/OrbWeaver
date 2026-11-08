@@ -82,6 +82,9 @@ export interface Args extends StageArgs {
    *  Defaults to env DEBUG_TOKEN if set; `--debug-token …` overrides; empty skips the
    *  seed. The token never leaves the headless context. */
   debugToken: PrivateText;
+  /** `--base-credentials-env`: the `user:password` the browser answers a basic-auth challenge with, read from the
+   *  named environment variable. Null when not asked. URL userinfo is refused, so this is the only way in. */
+  baseCredentials: PrivateText | null;
   /** THE pre-capture drive queue: interaction steps (--click/--fill/--hover/--force-click/--dom-click/--key/
    *  --wait-for), dev-bridge navigations (--goto/--open-chat/--open-character/--context-tab) AND --eval
    *  expressions in ONE list, executed in TRUE argv order — anything written mid-chain runs mid-chain.

@@ -7,6 +7,7 @@ import type { ServerType } from "@hono/node-server";
 import { serve } from "@hono/node-server";
 import type { ScheduleOp } from "@orb/kit/time";
 import type { DrainLog, NativeHttpBindings } from "./contract/http-server.ts";
+import { SHUTDOWN_MESSAGES } from "./shutdown-messages.ts";
 
 // The installed adapter's lightweight Request has the platform prototype but not its private brand.
 // Materialize from public fields, not Request(input), and retain its one physical body without a tee.
@@ -186,7 +187,7 @@ export async function drainHttpServer(handle: ServerType, log: DrainLog, schedul
   });
   const outcome = await Promise.race([closed.then(() => "drained" as const), deadline]);
   if (outcome === "forced") {
-    log.warn({ drainMs }, "shutdown: drain deadline hit — force-closing remaining connections (long-lived streams do not end on their own)");
+    log.warn({ drainMs }, SHUTDOWN_MESSAGES.drainDeadline);
     closer?.closeAllConnections();
     await closed;
   }

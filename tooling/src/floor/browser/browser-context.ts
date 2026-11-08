@@ -91,6 +91,7 @@ async function openOwnedContext(args: BuildContextArgs): Promise<BrowserContext>
     ...(deviceDescriptor ?? {}),
     ...effectiveContextSize(opts, deviceDescriptor),
     ...(opts.deviceScaleFactor === undefined ? {} : { deviceScaleFactor: opts.deviceScaleFactor }),
+    ...(opts.httpCredentials === undefined ? {} : { httpCredentials: { ...opts.httpCredentials } }),
   };
   const context = persistentContext ?? (await browser.newContext(sizing));
   ownedContexts.push({ context });

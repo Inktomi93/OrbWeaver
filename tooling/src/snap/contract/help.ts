@@ -195,8 +195,9 @@ Developer harness inputs:
                           this browser as a signed-out visitor instead of its owner. Browser-lifetime.
   --fixture-server <origin>  developer fixture stack server origin (health + authentication; env fallback)
   --fixture-base <origin>    developer fixture stack Vite origin (browser navigation; env fallback)
-                          A --base or --fixture-base password, its basic-auth header and a token-named
-                          query value read as <private> in run files, session rows and printed evidence
+  --base-credentials-env <ENV_NAME>  answer a basic-auth challenge with the user:password that variable
+                          holds. --base, --fixture-base and --fixture-server refuse a URL with user:password
+                          in it; a token-named query or fragment value reads as <private> in run files
   pnpm snap --eval 'window.__orb?.capabilities()'      discover callable development capabilities
   pnpm snap --eval 'window.__orb?.rings()'             discover retained evidence rings
   pnpm snap --eval 'window.__orb?.nav.capabilities()'  discover SPA navigation targets and methods

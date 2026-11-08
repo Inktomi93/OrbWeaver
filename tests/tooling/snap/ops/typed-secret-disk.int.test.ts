@@ -8,6 +8,7 @@ import { join } from "node:path";
 import { pid } from "node:process";
 import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
+import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
 import { DEDICATED_BOX_ENV } from "@orb/tooling/floor/host/concurrency-profile";
 import { HOST_POOL_ROOT_ENV } from "@orb/tooling/floor/host/host-slots";
 import { unzipSync, zipSync } from "fflate";
@@ -393,12 +394,13 @@ test("a value read from the environment reaches the field and no argument or fil
 
 const BASE_USER = "canary";
 const BASE_PLANTS = { password: "plant-base-pass-6d1f", token: "plant-base-token-2b8e" } as const;
+const BASE_CREDENTIALS_ENV = "L4_BASE_CREDENTIALS";
 /** What the browser sends a basic-auth gate: the pair, base64, as the standard library spells it. */
 const BASE_AUTHORIZATION = `Basic ${Buffer.from(`${BASE_USER}:${BASE_PLANTS.password}`).toString("base64")}`;
 const BASE_SPELLINGS = [BASE_PLANTS.password, BASE_PLANTS.token, BASE_AUTHORIZATION.slice("Basic ".length)] as const;
 
-/** A loopback peer behind a basic-auth gate, the reason an operator writes credentials into `--base`. */
-async function gatedServer(): Promise<AsyncDisposable & { readonly base: string; readonly admitted: () => number }> {
+/** A loopback peer behind a basic-auth gate, the reason an operator hands snap credentials for a base. */
+async function gatedServer(): Promise<AsyncDisposable & { readonly origin: string; readonly admitted: () => number }> {
   let admitted = 0;
   const server = createServer((request, response) => {
     if (request.headers.authorization !== BASE_AUTHORIZATION) {
@@ -410,10 +412,19 @@ async function gatedServer(): Promise<AsyncDisposable & { readonly base: string;
   });
   await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
   return {
-    base: `http://${BASE_USER}:${BASE_PLANTS.password}@127.0.0.1:${String(listeningAddress(server).port)}/?token=${BASE_PLANTS.token}`,
+    origin: `http://127.0.0.1:${String(listeningAddress(server).port)}`,
     admitted: () => admitted,
     [Symbol.asyncDispose]: () => new Promise<void>((resolve) => server.close(() => resolve())),
   };
+}
+
+/** A loopback port nothing listens on: bound, read and released, so a navigation to it is refused. */
+async function deadOrigin(): Promise<string> {
+  const server = createServer();
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  const { port } = listeningAddress(server);
+  await new Promise<void>((resolve) => server.close(() => resolve()));
+  return `http://127.0.0.1:${String(port)}`;
 }
 
 /** Every file under `roots` holding a base credential, by name or by bytes, a zip read entry by entry. */
@@ -434,36 +445,91 @@ function baseDisclosures(roots: readonly string[]): readonly string[] {
   return found;
 }
 
-test("a credentialed --base opens its gate, and no file, log or line holds its password or token", async ({ runCli }) => {
+function linesHolding(run: { readonly stdout: string; readonly stderr: string }): readonly string[] {
+  return BASE_SPELLINGS.filter((spelling) => run.stdout.includes(spelling) || run.stderr.includes(spelling));
+}
+
+test.for(["--base", "--fixture-base", "--fixture-server"] as const)(
+  "%s refuses a URL that carries user:password, names the env flag, and echoes no part of it",
+  async (flag, { runCli }) => {
+    const run = await runCli("snap", [flag, `http://${BASE_USER}:${BASE_PLANTS.password}@127.0.0.1:1/?token=${BASE_PLANTS.token}`, "/", "--no-shot"], {
+      timeoutMs: CLI_BUDGET_MS,
+    });
+    expect(run.code).toBe(EXIT.misuse);
+    expect(run.stdout).toContain(`ARG ERROR    ${flag} carries user:password credentials`);
+    expect(run.stdout).toContain("--base-credentials-env");
+    expect(linesHolding(run)).toEqual([]);
+  },
+);
+
+test("credentials read from the environment open the gate, and no file, log or line holds them", async ({ runCli }) => {
   await using peer = await gatedServer();
-  const run = await runCli("snap", ["--base", peer.base, "/", "--requests", "--json", "--expect-text", ASSERT_FAILS, "--no-shot"], {
-    timeoutMs: CLI_BUDGET_MS,
-  });
+  const run = await runCli(
+    "snap",
+    [
+      "--base",
+      `${peer.origin}/?token=${BASE_PLANTS.token}`,
+      "--base-credentials-env",
+      BASE_CREDENTIALS_ENV,
+      "/",
+      "--requests",
+      "--json",
+      "--expect-text",
+      ASSERT_FAILS,
+      "--no-shot",
+    ],
+    { timeoutMs: CLI_BUDGET_MS, env: { [BASE_CREDENTIALS_ENV]: `${BASE_USER}:${BASE_PLANTS.password}` } },
+  );
   // The positive control: the browser presented the credentials and the gate let the page through.
   expect(peer.admitted()).toBeGreaterThan(0);
   expect(run.code).not.toBe(0);
-  expect(BASE_SPELLINGS.filter((spelling) => run.stdout.includes(spelling) || run.stderr.includes(spelling))).toEqual([]);
+  expect(linesHolding(run)).toEqual([]);
   const slot = slotOf(run.stdout);
   expect(baseDisclosures([slot])).toEqual([]);
   const index = JSON.parse(readFileSync(join(slot, "run.json"), "utf8")) as { readonly process: { readonly argv: readonly string[] } };
-  expect(index.process.argv).toEqual(expect.arrayContaining(["--base", expect.stringContaining(`${PRIVATE_MASK}@127.0.0.1`)]));
+  expect(index.process.argv).toEqual(expect.arrayContaining(["--base-credentials-env", BASE_CREDENTIALS_ENV, `${peer.origin}/?token=${PRIVATE_MASK}`]));
   expect(keptTrace(slot)).toContain(PRIVATE_MASK);
 });
 
-test("a session booted on a credentialed --base keeps its password and token out of its row, log and slots", async ({ runCli, scratch }) => {
+test("a token-bearing --base that cannot connect keeps the token out of the nav error and the manifest", async ({ runCli }) => {
+  const origin = await deadOrigin();
+  const run = await runCli("snap", ["--base", `${origin}/?token=${BASE_PLANTS.token}`, "/", "--json", "--no-shot"], { timeoutMs: CLI_BUDGET_MS });
+  expect(run.code).not.toBe(0);
+  // The positive control: the refused navigation is reported, with the URL it tried and the token masked.
+  expect(run.stdout).toContain("NAV ERROR");
+  expect(run.stdout).toContain(`token=${PRIVATE_MASK}`);
+  expect(linesHolding(run)).toEqual([]);
+  expect(baseDisclosures([slotOf(run.stdout)])).toEqual([]);
+});
+
+test("a session booted with environment credentials keeps them and its token out of its row, log and slots", async ({ runCli, scratch }) => {
   await using peer = await gatedServer();
   const home = join(scratch, "registry");
   mkdirSync(home);
-  const env = { [SESSION_HOME_KEY]: home, [HOST_POOL_ROOT_ENV]: join(scratch, "host-slots"), [DEDICATED_BOX_ENV]: "0" };
+  const env = {
+    [SESSION_HOME_KEY]: home,
+    [HOST_POOL_ROOT_ENV]: join(scratch, "host-slots"),
+    [DEDICATED_BOX_ENV]: "0",
+    [BASE_CREDENTIALS_ENV]: `${BASE_USER}:${BASE_PLANTS.password}`,
+  };
   const snap = (args: readonly string[]): ReturnType<typeof runCli> => runCli("snap", args, { env, timeoutMs: CLI_BUDGET_MS });
   const name = `gated-base-${pid}`;
   try {
-    const boot = await snap(["--session", name, "--base", peer.base, "/", "--no-shot"]);
+    const boot = await snap([
+      "--session",
+      name,
+      "--base",
+      `${peer.origin}/?token=${BASE_PLANTS.token}`,
+      "--base-credentials-env",
+      BASE_CREDENTIALS_ENV,
+      "/",
+      "--no-shot",
+    ]);
     expect(boot.code).toBe(0);
     expect(peer.admitted()).toBeGreaterThan(0);
     const status = await snap(["--session-status", name]);
-    expect(status.stdout).toContain(`${PRIVATE_MASK}@127.0.0.1`);
-    expect(BASE_SPELLINGS.filter((spelling) => boot.stdout.includes(spelling) || status.stdout.includes(spelling))).toEqual([]);
+    expect(status.stdout).toContain(`token=${PRIVATE_MASK}`);
+    expect([...linesHolding(boot), ...linesHolding(status)]).toEqual([]);
     expect(existsSync(join(home, `${name}.log`))).toBe(true);
     expect(baseDisclosures([home, slotOf(boot.stdout)])).toEqual([]);
   } finally {

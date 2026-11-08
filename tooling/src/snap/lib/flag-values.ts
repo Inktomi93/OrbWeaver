@@ -8,6 +8,7 @@
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { parseViewport, splitFirstEq, splitLastEq, splitSelectorEq } from "../../floor/instrument/argv.ts";
 import { processEnvValue } from "../../floor/process/process-env.ts";
+import { URL_VALUE_FLAGS, urlCarriesCredentials } from "./disk-safe-argv.ts";
 import { LIGHTHOUSE_DEVICE_SPELLINGS, LIGHTHOUSE_MODE_SPELLINGS, parseLighthouseDevice, parseLighthouseMode } from "./lighthouse-report.ts";
 import { CROP_RE } from "./out-names.ts";
 import { selectorRefusalForFlag } from "./selector-shape.ts";
@@ -103,6 +104,26 @@ function validateEvidenceFlagValue(flag: string, raw: string, errors: string[]):
   }
 }
 
+// The refusal quotes no part of the value: the value is the credential.
+function validateUrlFlagValue(flag: string, raw: string, errors: string[]): void {
+  if ((URL_VALUE_FLAGS as readonly string[]).includes(flag) && urlCarriesCredentials(raw)) {
+    errors.push(
+      `${flag} carries user:password credentials, which would sit in argv, the process table and every log that echoes the command. ` +
+        "Pass the URL without them, put user:password in an environment variable, and add --base-credentials-env <ENV_NAME>",
+    );
+  }
+}
+
+// Names only: the variable's value is what this flag exists to keep off the command line.
+function validateBaseCredentialsEnv(raw: string, errors: string[]): void {
+  const value = processEnvValue(raw);
+  if (value === undefined) {
+    errors.push(`--base-credentials-env names ${raw}, which this process's environment does not set`);
+  } else if (value.indexOf(":") < 1) {
+    errors.push(`--base-credentials-env names ${raw}, whose value is not user:password with a non-empty user`);
+  }
+}
+
 // Names only: the variable's value is what this flag exists to keep off the command line.
 function validateFillEnv(raw: string, errors: string[]): void {
   const split = splitSelectorEq(raw);
@@ -176,6 +197,10 @@ export function validateFlagValue(flag: string, raw: string, errors: string[]): 
     return;
   }
   validateNumericFlag(flag, raw, errors);
+  validateUrlFlagValue(flag, raw, errors);
+  if (flag === "--base-credentials-env") {
+    validateBaseCredentialsEnv(raw, errors);
+  }
   validateLoadFlagValue(flag, raw, errors);
   validateLighthouseFlagValue(flag, raw, errors);
   validateEvidenceFlagValue(flag, raw, errors);

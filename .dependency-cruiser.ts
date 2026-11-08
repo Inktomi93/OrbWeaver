@@ -526,6 +526,9 @@ const SERVER_TEST_REACHES = {
   "tests/server/entry/http/production-debug-posture.int.test.ts": {
     "foundation/env": "DEBUG_TOKEN_ENV: the secret env key the posture suite sets, which no testkit door names",
   },
+  "tests/server/entry/lifecycle.int.test.ts": {
+    "infra/network": "SHUTDOWN_MESSAGES: the stage lines a real shutdown logs, which the stack drain verdict reads too",
+  },
   "tests/server/entry/boot/identity-ownership.int.test.ts": {
     "foundation/data-layout": "SECRET_FILE_NAMES: the suite plants the boot secret files by their production names",
   },

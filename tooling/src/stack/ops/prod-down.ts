@@ -1,6 +1,7 @@
 // Production stop/status: POSIX drains after root SIGTERM; Windows force-stops the identity-qualified tree.
 // Stop may signal only a verified instance and removes its record only after complete tree termination.
 import { setTimeout as sleep } from "node:timers/promises";
+import { SHUTDOWN_MESSAGES } from "@orb/server/infra/network";
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ExitCode } from "../../floor/cli/exit-contract.ts";
@@ -66,7 +67,7 @@ export async function doDown(deps: DownDeps = {}): Promise<ExitCode> {
   if (outcome === "deadline-hit") {
     log("drain deadline hit — long-lived streams were force-closed (expected during a deploy; a client saw a truncated stream).");
   } else if (outcome === "complete") {
-    log("shutdown: complete");
+    log(SHUTDOWN_MESSAGES.complete);
   }
   if ((outcome === "pending" && tree.alive()) || !(await waitGone(tree, deps))) {
     logEscalation(tree.platform);
