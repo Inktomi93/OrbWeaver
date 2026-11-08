@@ -5,6 +5,7 @@
 
 import { setImmediate as yieldToEventLoop } from "node:timers/promises";
 import type { CharacterId } from "@orb/kit/ids";
+import { mapYielding } from "#primitives/abort";
 import { sha256Hex } from "#primitives/content-hash";
 import type { CollectedCard, CollectedChat } from "../contract/collection.ts";
 import type { ImportOwnership, ProfileCollected, ProfileDirImportDeps } from "../contract/profile-directory.ts";
@@ -124,26 +125,13 @@ async function passGroups(
   return { groups, heldChats: held };
 }
 
-/** `build` for every item, one event-loop turn apart, so hashing a large folder never holds the loop. */
-async function buildYielding<Item, Built>(deps: ProfileDirImportDeps, items: readonly Item[], build: (item: Item) => Built): Promise<Built[]> {
-  const built: Built[] = [];
-  for (const item of items) {
-    if (deps.signal.aborted) {
-      break;
-    }
-    built.push(build(item));
-    await yieldToEventLoop();
-  }
-  return built;
-}
-
 /** The items whose answer is `true`. An answer list shorter than the items (an aborted run) leaves the rest out. */
 function heldOf<Item>(items: readonly Item[], answers: readonly boolean[]): Set<Item> {
   return new Set(items.filter((_, i) => answers[i] === true));
 }
 
 async function passPersonas(deps: ProfileDirImportDeps, collected: ProfileCollected): Promise<ImportOwnership["personas"]> {
-  const personas = await buildYielding(deps, collected.personas, ({ parsed, avatarBytes }) => ({
+  const personas = await mapYielding(collected.personas, deps.signal, ({ parsed, avatarBytes }) => ({
     name: parsed.name,
     description: parsed.description,
     metadata: parsed.metadata ?? null,
@@ -160,15 +148,15 @@ async function passLibrary(
 ): Promise<Pick<ImportOwnership, "worlds" | "presets" | "themes" | "backgrounds">> {
   const { ownership, principal } = deps;
   const ownerId = principal.userId;
-  const books = await ownership.findBooks({ ownerId, books: collected.worlds.map(({ book }) => book) });
-  const presetFiles = await buildYielding(deps, collected.presets, presetBytes);
-  const themeFiles = await buildYielding(deps, collected.themes, themeBytes);
+  const books = await ownership.findBooks({ ownerId, books: collected.worlds.map(({ book }) => book), signal: deps.signal });
+  const presetFiles = await mapYielding(collected.presets, deps.signal, presetBytes);
+  const themeFiles = await mapYielding(collected.themes, deps.signal, themeBytes);
   const heldHashes = collected.backgrounds.length === 0 ? new Set<string>() : await ownership.backgroundHashes(ownerId);
-  const backgroundHeld = await buildYielding(deps, collected.backgrounds, ({ bytes }) => heldHashes.has(sha256Hex(bytes)));
+  const backgroundHeld = await mapYielding(collected.backgrounds, deps.signal, ({ bytes }) => heldHashes.has(sha256Hex(bytes)));
   return {
     worlds: heldOf(collected.worlds, books),
-    presets: heldOf(collected.presets, await ownership.findPresets({ ownerId, files: presetFiles })),
-    themes: heldOf(collected.themes, await ownership.findThemes(ownerId, themeFiles)),
+    presets: heldOf(collected.presets, await ownership.findPresets({ ownerId, files: presetFiles, signal: deps.signal })),
+    themes: heldOf(collected.themes, await ownership.findThemes(ownerId, themeFiles, deps.signal)),
     backgrounds: heldOf(collected.backgrounds, backgroundHeld),
   };
 }

@@ -1,5 +1,6 @@
 // World-info owner operations other domains inject; the world-info domain implements them and the composition root wires them.
 
+import type { Cancellation } from "@orb/kit/guards";
 import type { CharacterId, ChatId, UserId, WorldBookId } from "@orb/kit/ids";
 import type { PortableFile } from "#portability";
 import type { AttachedBookRef } from "../character/index.ts";
@@ -29,8 +30,13 @@ export type HasPrimaryBook = (args: { readonly ownerId: UserId; readonly charact
 export type ImportStandaloneLorebook = (args: { readonly ownerId: UserId; readonly book: BulkImportLorebookInput }) => Promise<BulkImportLorebookResult>;
 
 /** For each book, in order, whether the owner holds one {@link ImportStandaloneLorebook} would reuse for it. A read:
- *  it writes nothing, and it loads the owner's library once for the whole list. */
-export type FindOwnedBooks = (args: { readonly ownerId: UserId; readonly books: readonly BulkImportLorebookInput[] }) => Promise<readonly boolean[]>;
+ *  it writes nothing, and it loads the owner's library once for the whole list. Once `signal` aborts it stops and
+ *  returns the answers so far, which the aborted caller discards. */
+export type FindOwnedBooks = (args: {
+  readonly ownerId: UserId;
+  readonly books: readonly BulkImportLorebookInput[];
+  readonly signal: Cancellation;
+}) => Promise<readonly boolean[]>;
 
 /** Re-points the source character's attached books at the new character id (fresh character_books rows, role
  *  preserved). Reference-carry: the world_books themselves are never cloned; zero attachments is a no-op.

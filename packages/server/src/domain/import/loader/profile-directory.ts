@@ -226,7 +226,9 @@ async function collectProfileRoot(deps: ProfileDirImportDeps): Promise<ProfileCo
   };
 }
 
-/** scanned = every examined ST entity (each kind's count) plus the recorded skips and the groups the run refuses. */
+// scanned = every examined ST entity (each kind's count) plus the recorded skips. A refused group (no seat, or no
+// transcript) counts once, as the skip the preview lists. Its transcripts are not chats: no room lands for them, so
+// they stay out of `found.chats` and out of `scanned`.
 function tallyScanned(found: ImportKindCounts, collected: ProfileCollected): number {
   return Object.values(found).reduce((sum, count) => sum + count, collected.skipped + refusedGroups(collected).length);
 }

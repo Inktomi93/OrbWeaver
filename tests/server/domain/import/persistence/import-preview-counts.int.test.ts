@@ -6,7 +6,7 @@
 import { IMPORT_PREVIEW_KINDS, ST_SETTINGS_FILE } from "@orb/contracts/import";
 import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { admit, bothKindFolders, chatOf, dryRun, finishRun, harness, settings } from "./_st-tree-door.ts";
+import { admit, bothKindFolders, cardPng, chatOf, dryRun, finishRun, harness, settings } from "./_st-tree-door.ts";
 
 test("a folder's preview totals equal the real import's counts, kind by kind", async () => {
   await using root = await harness();
@@ -47,4 +47,27 @@ test("an orphan chat directory is examined once: its placeholder and its transcr
   expect(imported.found).toMatchObject({ orphans: 1, chats: 1 });
   expect(imported.scanned).toBe(2);
   expect(imported.changed).toBe(2);
+});
+
+test("a group the run refuses counts once in scanned, and its transcripts are not chats", async () => {
+  await using root = await harness();
+  const files = {
+    [ST_SETTINGS_FILE]: settings({}),
+    "characters/Aria.png": cardPng(root, "Aria"),
+    "chats/Aria/one.jsonl": chatOf("Aria greets you."),
+    // No member of this group is in the folder, so the run seats no room for its three transcripts.
+    "groups/ghosts.json": JSON.stringify({ name: "Ghosts", members: ["Ghost.png"], chats: ["a", "b", "c"] }),
+    "group chats/a.jsonl": chatOf("First."),
+    "group chats/b.jsonl": chatOf("Second."),
+    "group chats/c.jsonl": chatOf("Third."),
+  };
+
+  const preview = await dryRun(root, files);
+  const imported = await finishRun(root, await admit(root, files));
+
+  expect(imported.found).toMatchObject({ characters: 1, chats: 1, groups: 0 });
+  // One character, one chat, and the refused group as the one skip: never the group plus its three transcripts.
+  expect(imported.scanned).toBe(3);
+  expect(preview.skipped.items.map((item) => item.source)).toContain("groups/ghosts.json");
+  expect(preview.kinds.chats.total).toBe(imported.found?.chats);
 });

@@ -3,12 +3,13 @@
 // a taken name reuses the row; different content lands under the next free name; no owned row is edited.
 // Security: css re-runs the same validateThemeCss guard as createTheme — a failing css degrades to null.
 
-import { setImmediate as yieldToEventLoop } from "node:timers/promises";
 import type { FindOwnedThemes, ImportedThemeLanding, ImportThemeOp, SettingsImportOutcome } from "@orb/contracts/settings";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { validateThemeCss } from "@orb/kit/css-validate";
+import type { Cancellation } from "@orb/kit/guards";
 import type { UserId } from "@orb/kit/ids";
 import { nextFreeName } from "@orb/kit/strings";
+import { mapYielding } from "#primitives/abort";
 import { portableParseError } from "#primitives/serde/lib";
 import type { CanonicalTheme } from "#primitives/serde/theme";
 import { parseThemeFile, THEME_SCHEMA_KIND, themeContentKey } from "#primitives/serde/theme";
@@ -106,15 +107,11 @@ export function createImportTheme(input: SettingsAssemblyContext): ImportThemeOp
 /** The read-only twin of {@link createImportTheme}'s reuse test, for a preview that must not write. */
 export function createFindOwnedThemes(input: Pick<SettingsAssemblyContext, "db">): FindOwnedThemes {
   const db = databaseForOwner(input.db);
-  return async (ownerId: UserId, files: readonly Uint8Array[]): Promise<readonly boolean[]> => {
+  return async (ownerId: UserId, files: readonly Uint8Array[], signal: Cancellation): Promise<readonly boolean[]> => {
     const owned = new Set((await listOwnedThemes(db, ownerId)).map((row) => themeContentKey({ override: row.override, css: row.css })));
-    const answers: boolean[] = [];
-    for (const bytes of files) {
+    return await mapYielding(files, signal, (bytes) => {
       const parsed = parseThemeFile(bytes, UNNAMED_THEME);
-      answers.push(parsed.ok && parsed.value.themes.length > 0 && parsed.value.themes.every((theme) => owned.has(themeContentKey(withSafeCss(theme)))));
-      // A folder can carry thousands of themes; reading them in one turn would hold the event loop.
-      await yieldToEventLoop();
-    }
-    return answers;
+      return parsed.ok && parsed.value.themes.length > 0 && parsed.value.themes.every((theme) => owned.has(themeContentKey(withSafeCss(theme))));
+    });
   };
 }

@@ -10,6 +10,7 @@ import { VERSIONED_PARSE_FAILURES } from "#versioned-config";
 // `@orb/contracts/settings` — the two DB-backed config tiers: per-user `UserSettings` and admin-runtime
 // `AppSettings`, both built on `defineVersionedConfig`. The domain owns the verbs/resolver/serializers.
 
+import type { Cancellation } from "@orb/kit/guards";
 import { isPlainObject } from "@orb/kit/guards";
 import { SCROLL_MODES } from "@orb/kit/scroll-mode";
 import { z } from "zod";
@@ -1133,8 +1134,9 @@ export type ImportThemeOp = (ownerId: UserId, bytes: Uint8Array, fallbackName?: 
 
 /** For each file, in order, whether the owner holds a theme {@link ImportThemeOp} would reuse for each theme in it.
  *  A read: it writes nothing, and it loads the owner's themes once for the whole list. A file that does not parse,
- *  or carries no theme, answers `false`. */
-export type FindOwnedThemes = (ownerId: UserId, files: readonly Uint8Array[]) => Promise<readonly boolean[]>;
+ *  or carries no theme, answers `false`. Once `signal` aborts it stops and returns the answers so far, which the
+ *  aborted caller discards. */
+export type FindOwnedThemes = (ownerId: UserId, files: readonly Uint8Array[], signal: Cancellation) => Promise<readonly boolean[]>;
 
 /** The content hashes of the owner's background library, which a stored background image joins by its own hash. */
 export type OwnedBackgroundHashes = (ownerId: UserId) => Promise<ReadonlySet<string>>;
