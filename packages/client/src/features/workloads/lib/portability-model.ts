@@ -215,6 +215,14 @@ export function previewIsEmpty(preview: ImportPreview): boolean {
   return IMPORT_PREVIEW_KINDS.every((kind) => preview.kinds[kind].total === 0);
 }
 
+/** What an import DOES to a library that already has things in it — the sentence the reader needs BEFORE
+ *  the request, not in the report afterwards. One home: the preflight is the only place it is spoken. */
+export const IMPORT_CONSEQUENCE = [
+  "Importing ADDS to your library — nothing you already have is deleted. Settings in an Orbweaver backup merge into yours.",
+  "Anything already in your library — the same card, world book, theme or preset — is skipped, so running the same import twice is not a duplicate.",
+  "A world book, theme or preset that shares a name with a DIFFERENT one of yours is imported under a numbered name, and so is a persona restored from an Orbweaver backup. Two different cards that share a name stay two characters.",
+] as const;
+
 /** What the preflight says when the dry run found nothing a real run would write. */
 export const IMPORT_NOTHING_FOUND_NOTE = "Nothing to import was found in this folder.";
 

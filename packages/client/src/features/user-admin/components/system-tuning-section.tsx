@@ -135,7 +135,7 @@ function SystemTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
   });
   const dirty = dirtyKnobs.length > 0;
   const anyOverridden = KNOBS.some((knob) => knob.overridden(overrides));
-  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null));
+  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null, dirty));
 
   // Merge every dirty knob's sparse patch into ONE partial; nested setting groups retain untouched siblings.
   const onSave = (): void => {

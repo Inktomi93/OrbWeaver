@@ -45,6 +45,8 @@ export function ActiveChatOptionsMenu({ chatId }: { readonly chatId: ChatId }): 
       characters={characters}
       galleryCharacters={galleryCharacters}
       onGroupSettings={chat?.viewerIsHost === true && characters.length > 1 ? openGroupSettings : undefined}
+      // Only a read that says "member" narrows the menu; the host's is the room's default until it settles.
+      viewerIsHost={chat?.viewerIsHost !== false}
     />
   );
 }

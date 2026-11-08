@@ -11,18 +11,20 @@
 // the room did not have. The room has one from the creation click, so every item is simply available and the
 // #8 grey-out apparatus — the `committed` prop, the `draftKey` prop, the disabled Delete twin — is gone. The
 // owner's show-everything ruling is UNCHANGED and still binds: nothing here hides, it just no longer has a
-// phase to hide from. TWO EXCEPTIONS, both owner-ruled permission omits: a character's gallery row appears only
+// phase to hide from. THREE EXCEPTIONS, all permission omits: a character's gallery row appears only
 // for a character the viewer owns (a gallery add is owner-only, so a non-owner's row could only open a gallery
-// whose every add fails), and "Back to parent chat" appears only on a fork whose parent the viewer can open.
+// whose every add fails), "Back to parent chat" appears only on a fork whose parent the viewer can open, and a
+// member's menu offers Leave in place of Rename and Delete, which only the host may do.
 
 import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
-import { ArrowLeft, Icon, LayoutGrid, ListChecks, Menu as MenuIcon, MessagesSquare, Pencil, Settings, Swords, X } from "@orb/ui/icons";
+import { ArrowLeft, Icon, LayoutGrid, ListChecks, LogOut, Menu as MenuIcon, MessagesSquare, Pencil, Settings, Swords, X } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { MenuItem, MenuPopup, MenuSeparator, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
+import type { RowDestructiveAction } from "#components";
 import { RowActionsMenu } from "#components";
 import { useGatedQuery, useInvalidation, useStartChat, useTRPC } from "#data";
 import { ROW_RENAME_NAME } from "#lib";
@@ -38,7 +40,15 @@ import {
   selectChat,
 } from "#state";
 import { useDeleteChat, useSetGameEngaged, useStartGame, useUpdateChatTitle } from "../hooks/use-chat-row-mutations.ts";
-import { BACK_TO_PARENT_CHAT_LABEL, CHAT_DELETE_NAME, CHAT_SELECT_MESSAGES_NAME } from "../lib/chat-options-names.ts";
+import { useSelfLeave } from "../hooks/use-membership-mutations.ts";
+import {
+  BACK_TO_PARENT_CHAT_LABEL,
+  CHAT_DELETE_NAME,
+  CHAT_LEAVE_CONFIRM_TITLE,
+  CHAT_LEAVE_MEMBER_NOTE,
+  CHAT_LEAVE_NAME,
+  CHAT_SELECT_MESSAGES_NAME,
+} from "../lib/chat-options-names.ts";
 import { RenameChatDialog } from "./rename-chat-dialog.tsx";
 
 interface GameModeActions {
@@ -186,14 +196,17 @@ export interface ChatOptionsMenuProps {
   readonly galleryCharacters: readonly ChatOptionsCharacter[];
   /** Opens the existing room settings, only for the host of a group chat. */
   readonly onGroupSettings?: (() => void) | undefined;
+  /** `ChatDetail.viewerIsHost`. A member is offered Leave in place of Rename and Delete, which the server refuses them. */
+  readonly viewerIsHost: boolean;
 }
 
-export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, onGroupSettings }: ChatOptionsMenuProps): ReactElement {
+export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, onGroupSettings, viewerIsHost }: ChatOptionsMenuProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const gameModeActions = useGameModeActions(chatId);
   const updateTitle = useUpdateChatTitle({ trpc, invalidation });
   const deleteChat = useDeleteChat({ trpc, invalidation });
+  const selfLeave = useSelfLeave({ trpc, invalidation });
   // "New chat with the same characters" is a CREATION, and creation is one shared client seam (`#data`), never a
   // store write that hands a rowless room to the chat surface.
   const { startChat } = useStartChat();
@@ -217,6 +230,24 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
   const confirmDelete = (): void => {
     deleteChat.mutate({ chatId }, { onSuccess: goToLanding });
   };
+  // The confirm holds open while the leave runs and stays open with the reason if the server refuses it.
+  const confirmLeave = (): Promise<void> => selfLeave.mutateAsync({ chatId }).then(goToLanding);
+  const exit: RowDestructiveAction = viewerIsHost
+    ? {
+        label: CHAT_DELETE_NAME,
+        title: "Delete this chat?",
+        description: "This permanently deletes the chat and its messages for everyone. This can't be undone.",
+        confirmLabel: "Delete",
+        onConfirm: confirmDelete,
+      }
+    : {
+        label: CHAT_LEAVE_NAME,
+        icon: LogOut,
+        title: CHAT_LEAVE_CONFIRM_TITLE,
+        description: CHAT_LEAVE_MEMBER_NOTE,
+        confirmLabel: "Leave",
+        onConfirm: confirmLeave,
+      };
   return (
     <>
       <RowActionsMenu
@@ -230,14 +261,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
         // visible label — WCAG 2.5.3, so the words a voice-control user could see did not reach the room's
         // only game door. `tooltip` is a boolean now; the divergence is unrepresentable.
         tooltip={true}
-        destructive={{
-          label: CHAT_DELETE_NAME,
-          separator: false,
-          title: "Delete this chat?",
-          description: "This permanently deletes the chat and its messages for everyone. This can't be undone.",
-          confirmLabel: "Delete",
-          onConfirm: confirmDelete,
-        }}
+        destructive={{ ...exit, separator: false }}
       >
         <ParentChatItem chatId={chatId} />
         {characterIds.length > 0 ? (
@@ -296,7 +320,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
         </MenuItem>
 
         <MenuSeparator />
-        <TrailingItems onRename={openRename} />
+        <TrailingItems onRename={viewerIsHost ? openRename : undefined} />
       </RowActionsMenu>
 
       <RenameChatDialog open={renameOpen} onOpenChange={setRenameOpen} value={renameValue} onValueChange={setRenameValue} onSave={saveRename} />
@@ -309,13 +333,15 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
  *
  *  EXPORT IS DELIBERATELY ABSENT: transcript download homes on the chats-LIST row kebab, its ONE home
  *  (the ratified lifecycle placement — the room carries no import/export chrome). */
-function TrailingItems({ onRename }: { readonly onRename: () => void }): ReactElement {
+function TrailingItems({ onRename }: { readonly onRename: (() => void) | undefined }): ReactElement {
   return (
     <>
-      <MenuItem onClick={onRename}>
-        <Icon icon={Pencil} size="sm" />
-        {ROW_RENAME_NAME}
-      </MenuItem>
+      {onRename === undefined ? null : (
+        <MenuItem onClick={onRename}>
+          <Icon icon={Pencil} size="sm" />
+          {ROW_RENAME_NAME}
+        </MenuItem>
+      )}
       <MenuItem onClick={goToLanding}>
         <Icon icon={X} size="sm" />
         Close chat

@@ -154,7 +154,7 @@ function MemoryTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
   const patch = diffNumeric(effective, draft);
   const dirty = Object.keys(patch).length > 0;
   const anyDefaultsOverridden = anyFieldOverridden(stored);
-  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null));
+  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null, dirty));
 
   // memoryDefaults writes MERGE over the currently-stored overrides so untouched knobs survive; the enum +
   // boolean write immediately, the numeric knobs via Save. Reset clears the whole nested override.

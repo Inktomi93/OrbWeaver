@@ -5,14 +5,19 @@
 
 import type { SaveLifecycleState } from "#state";
 
-/** One AppSettings-section mutation's lifecycle as the settings save-status seam's three states (SET-SEAMS
+/** One AppSettings-section mutation's lifecycle as the settings save-status seam's states (SET-SEAMS
  *  §3). A section with its OWN save affordance still REPORTS, so the shell's aggregate footer and the nav
- *  marker see its failure — eight sections share this mapping, so it lives here rather than per-section. */
-export function saveStateOf(isPending: boolean, errored: boolean): SaveLifecycleState {
+ *  marker see its failure — eight sections share this mapping, so it lives here rather than per-section.
+ *  A section with an explicit Save passes `dirty`: its draft is a write held until the reader presses Save,
+ *  which the footer must not call Saved. */
+export function saveStateOf(isPending: boolean, errored: boolean, dirty = false): SaveLifecycleState {
   if (errored) {
     return "error";
   }
-  return isPending ? "saving" : "saved";
+  if (isPending) {
+    return "saving";
+  }
+  return dirty ? "blocked" : "saved";
 }
 
 /** Is this stored-override value actively set? `null`/`undefined` = the deployment floor governs; anything

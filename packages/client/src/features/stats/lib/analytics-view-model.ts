@@ -14,6 +14,7 @@
 import type { TokenProvenance } from "@orb/contracts/chat";
 import { combineTokenProvenance } from "@orb/contracts/chat";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
+import { modelDisplayName } from "@orb/kit/model-name";
 import type { TimeLib } from "@orb/kit/time";
 import { MS_PER_HOUR, MS_PER_MINUTE, MS_PER_SECOND } from "@orb/kit/time";
 import type { BarListItem } from "@orb/ui/bar-list";
@@ -309,9 +310,10 @@ export function disambiguatedNames(rows: readonly { readonly characterId: Charac
   return out;
 }
 
-/** Per-model rows → ranked generation-count bars. */
+/** Per-model rows → ranked generation-count bars. The axis paints the readable name, which drops the vendor
+ *  prefix every model of one provider shares; the whole id stays the tooltip and text-equivalent name. */
 export function byModelBarItems(rows: readonly { readonly model: string; readonly generations: number }[]): BarListItem[] {
-  return rows.map((row) => ({ id: row.model, label: row.model, value: row.generations }));
+  return rows.map((row) => ({ id: row.model, label: row.model, shortLabel: modelDisplayName(row.model), value: row.generations }));
 }
 
 /** Persona-usage rows → ranked message-count bars. */

@@ -76,10 +76,10 @@ function MediaTrustBody({ anchorId, sectionId }: { readonly anchorId: string; re
   const resolved = data.resolved;
   const overrides = data.overrides;
   const [maxImageDraft, setMaxImageDraft] = useState<string>(() => toMbDraft(resolved.maxImageBytes));
-  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null));
 
   const bytes = toBytes(maxImageDraft);
   const dirty = bytes !== null && bytes !== resolved.maxImageBytes;
+  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null, dirty));
   const forbidOverridden = isOverridden(overrides.forbidExternalMedia);
   const trustOverridden = isOverridden(overrides.trustHtml);
   const interactiveOverridden = isOverridden(overrides.allowInteractiveCards);

@@ -7,10 +7,10 @@ import { Chart } from "../chart/index.ts";
 import { useChartTheme } from "../chart/use-chart-theme.ts";
 import { useMeasuredWidthPx } from "../chart/use-measured-width.ts";
 import { LabeledChartFrame } from "../labeled-chart-frame/index.ts";
-import type { BarListIntent, BarListItem } from "./option.ts";
+import type { BarListIntent, BarListItem, BarListTruncation } from "./option.ts";
 import { buildBarListOption } from "./option.ts";
 
-export type { BarListIntent } from "./option.ts";
+export type { BarListIntent, BarListTruncation } from "./option.ts";
 
 export interface BarListProps {
   /** Pre-sorted rank order — index 0 renders as the TOP row. */
@@ -32,6 +32,11 @@ export interface BarListProps {
    * it ECharts auto-scales each chart to its own maximum and +10 draws the same length as −184.
    */
   readonly valueMax?: number | undefined;
+  /**
+   * Where a name that outgrows its column is cut. The tooltip and the text equivalent keep the whole name.
+   * @defaultValue "end"
+   */
+  readonly truncation?: BarListTruncation;
   readonly height?: number | "100%";
   readonly onChartReady?: ((instance: OrbEChartsInstance) => void) | undefined;
 }
@@ -49,6 +54,7 @@ export function BarList({
   valueFormatter = defaultValueFormatter,
   intent = "accent",
   valueMax,
+  truncation = "end",
   height,
   onChartReady,
 }: BarListProps): ReactElement {
@@ -75,7 +81,7 @@ export function BarList({
           height={height ?? items.length * (colors.metrics.lineHeight + 2 * colors.metrics.padding) + 2 * colors.metrics.padding}
           label={label}
           onChartReady={onChartReady}
-          option={buildBarListOption(items, valueFormatter, colors, { widthPx, intent, valueMax })}
+          option={buildBarListOption(items, valueFormatter, colors, { widthPx, intent, valueMax, truncation })}
         />
       )}
     </LabeledChartFrame>

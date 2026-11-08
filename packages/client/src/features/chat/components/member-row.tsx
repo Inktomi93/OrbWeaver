@@ -39,6 +39,7 @@ import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
 import { ConfirmDialog, SettingCheckboxRow } from "#components";
 import { rowActionsName } from "#lib";
+import { CHAT_LEAVE_CONFIRM_TITLE, CHAT_LEAVE_MEMBER_NOTE } from "../lib/chat-options-names.ts";
 import type { MEMBER_ROW_CONFIRMS, MemberCharacterRow, MemberPersonRow, MemberRowActions, MemberRowFocusProps } from "../lib/member-rows.ts";
 import { lastSeenPhrase, rowAccessibleName } from "../lib/member-rows.ts";
 import { buildMenuItems } from "./member-row-menu.tsx";
@@ -387,12 +388,8 @@ function PersonRowConfirms({
       <ConfirmDialog
         open={confirm === "leave"}
         onOpenChange={(next): void => setConfirm(next ? "leave" : null)}
-        title="Leave this chat?"
-        description={
-          actions.leaveArchivesRoom === true
-            ? "You're the host — leaving archives this chat for everyone."
-            : "You'll lose access until someone invites you again. Your messages stay."
-        }
+        title={CHAT_LEAVE_CONFIRM_TITLE}
+        description={actions.leaveArchivesRoom === true ? "You're the host — leaving archives this chat for everyone." : CHAT_LEAVE_MEMBER_NOTE}
         confirmLabel="Leave"
         onConfirm={(): void => {
           actions.onLeave?.();

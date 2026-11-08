@@ -114,13 +114,14 @@ export function ConfigSaveFooter(): ReactElement | null {
   if (aggregate === "blocked" && firstBlocked !== undefined) {
     // A HELD write, not a failed one (side-eye PROSE-LIMIT P2). In a hosted pane the reporting section renders
     // NO inline status, so this footer was the whole affordance — and it read "Saved · Synced across your
-    // devices." while a section's own field was refusing to save. Polite, not assertive: nothing broke, and
+    // devices." while a section's own field was refusing to save. A section with an explicit Save holds its
+    // draft the same way until the reader presses it. Polite, not assertive: nothing broke, and
     // the field carrying the REASON already announces itself. Locate, never retry (D41) — a retry on an
     // invalid form is a no-op wearing a button.
     //
     // "Not saved" is the SAME two words the section-level status uses, so a reader meeting this at the pane
     // footer and then at the section's own header is told one thing once. The count is what the aggregate adds.
-    const count = blockedIds.length === 1 ? "a section needs a fix" : `${blockedIds.length} sections need a fix`;
+    const count = blockedIds.length === 1 ? "a section has changes waiting" : `${blockedIds.length} sections have changes waiting`;
     return (
       <LocateRow role="status" sectionId={firstBlocked} {...locate}>
         <Text tone="destructive" voice="label">

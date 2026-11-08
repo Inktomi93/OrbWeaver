@@ -48,7 +48,7 @@ function PreviewReport({ preview }: { readonly preview: ImportPreview }): ReactE
         <>
           <Text voice="reading">{`${counted(skipped.total, ["item", "items"])} would be skipped:`}</Text>
           {groups.map(({ reason, sources }) => (
-            <Text key={reason} voice="gloss" wrap="anywhere">
+            <Text key={reason} voice="reading" wrap="anywhere">
               {sources.length === 1 ? reason : `${reason} (${String(sources.length)})`}
             </Text>
           ))}

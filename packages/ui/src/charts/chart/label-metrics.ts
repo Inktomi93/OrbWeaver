@@ -30,6 +30,30 @@ function measureChartLabelPx(text: string, theme: ChartColors): number {
   return Math.ceil(context.measureText(text).width);
 }
 
+/** `text` fitted to `budgetPx` by dropping its middle: both ends survive, joined by an ellipsis. */
+export function middleEllipsisLabel(text: string, budgetPx: number, theme: ChartColors): string {
+  if (measureChartLabelPx(text, theme) <= budgetPx) {
+    return text;
+  }
+  const chars = Array.from(text);
+  const fitted = (kept: number): string => {
+    const head = Math.ceil(kept / 2);
+    return `${chars.slice(0, head).join("")}…${chars.slice(chars.length - (kept - head)).join("")}`;
+  };
+  // Width grows with the kept count, so the widest candidate that fits is found by bisection.
+  let low = 0;
+  let high = chars.length - 1;
+  while (low < high) {
+    const mid = Math.ceil((low + high) / 2);
+    if (measureChartLabelPx(fitted(mid), theme) <= budgetPx) {
+      low = mid;
+    } else {
+      high = mid - 1;
+    }
+  }
+  return fitted(low);
+}
+
 /** The width of the WIDEST of several labels — the gutter a series of them needs. `0` for an empty list. */
 export function widestChartLabelPx(texts: readonly string[], theme: ChartColors): number {
   let widest = 0;

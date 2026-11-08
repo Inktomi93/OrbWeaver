@@ -81,7 +81,7 @@ function RateLimitsBody({ anchorId, sectionId }: { readonly anchorId: string; re
   const patch = diffRateLimits(baseline, draft);
   const dirty = Object.keys(patch).length > 0;
   const anyOverridden = FIELDS.some(({ key }) => isOverridden(stored?.[key]));
-  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null));
+  useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null, dirty));
 
   const onSave = (): void => {
     save.mutateAsync({ partial: { rateLimits: patch } }).catch(() => undefined); // sticky error slot below

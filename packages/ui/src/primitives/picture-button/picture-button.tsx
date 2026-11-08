@@ -10,10 +10,10 @@ import { pictureButtonVariants } from "./variants.ts";
  * style it draws nothing of its own; `ghost` takes the neutral ghost tint for a picture tile with a caption.
  */
 export type PictureButtonProps = Omit<ButtonCoreProps, "variant" | "tone" | "ink" | "focal"> &
-  Pick<VariantProps<typeof pictureButtonVariants>, "caption"> & {
+  Pick<VariantProps<typeof pictureButtonVariants>, "caption" | "reach"> & {
     readonly variant?: "ghost" | undefined;
   };
 
-export function PictureButton({ variant, caption, ...rest }: PictureButtonProps): ReactElement {
-  return <ButtonCore {...rest} variant={variant} box={variantProps(pictureButtonVariants, { painted: variant !== undefined, caption })} />;
+export function PictureButton({ variant, caption, reach, ...rest }: PictureButtonProps): ReactElement {
+  return <ButtonCore {...rest} variant={variant} box={variantProps(pictureButtonVariants, { painted: variant !== undefined, caption, reach })} />;
 }

@@ -69,7 +69,7 @@ function ModelsBody(): ReactElement {
       {drilled === null ? <OwnerLatency /> : null}
 
       <Section heading="Generations">
-        <BarList items={byModelBarItems(models)} label="Generations by model" valueFormatter={formatCompact} />
+        <BarList items={byModelBarItems(models)} label="Generations by model" truncation="middle" valueFormatter={formatCompact} />
       </Section>
 
       <Section heading="Breakdown">
