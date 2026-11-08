@@ -32,6 +32,17 @@ test("picture choices keep visible names, descriptions, one tab stop and a nativ
   await expect(group.getByRole("radio", { checked: true })).toHaveCount(1);
 });
 
+test("a cell's meta reads at the description's step, not the micro step", async ({ mount }) => {
+  const component = await mount<typeof PickerNativePartsStory>("tests/ui/primitives/radio-group/picker-native-parts-stories/PickerNativePartsStory", {
+    withMeta: true,
+  });
+  const meta = component.locator('[data-slot="picker-cell-meta"]');
+  const description = component.locator('[data-slot="picker-cell-description"]').first();
+  await expect(meta).toHaveText("current");
+  const size = (node: Element): number => Number.parseFloat(getComputedStyle(node).fontSize);
+  expect(await meta.evaluate(size)).toBe(await description.evaluate(size));
+});
+
 test("wrapped picker rows retain equal widths and equal-height peers despite mixed descriptions", async ({ mount }) => {
   const component = await mount<typeof PickerNativePartsStory>("tests/ui/primitives/radio-group/picker-native-parts-stories/PickerNativePartsStory");
   const group = component.getByRole("radiogroup", { name: "Sample picker", exact: true });

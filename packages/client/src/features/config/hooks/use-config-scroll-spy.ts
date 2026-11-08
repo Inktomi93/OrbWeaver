@@ -56,6 +56,10 @@ export function useConfigScrollSpy(activeGroup: ConfigGroupId | null): {
     }
     let ticking = false;
     let waited = false;
+    // A jump NAMED a section; it stays lit until the reader scrolls. A target near the end of a short tail cannot
+    // reach the pane's top, so the spy's at-bottom arm would otherwise relight the LAST section on the next
+    // resize or body change. Only a scroll the reader makes hands the highlight back.
+    let held = false;
     let tick = 0;
     // ONE PASS, TWO READINGS (#926 contract 4): the section crossing the spy line lights the LIST row, and
     // the rows intersecting the pane's box ARE the teacher's roster. Deriving them from a second observer
@@ -91,7 +95,8 @@ export function useConfigScrollSpy(activeGroup: ConfigGroupId | null): {
       // and `computeActiveSub`'s at-bottom arm then lights "Library". The LIST would lie about where the
       // click just took you. The roster has no such authority to overwrite: nothing else declares it, and
       // what it reports is a pure fact about the settled viewport.
-      computeActive(!waited);
+      held = held || waited;
+      computeActive(!held);
       waited = false;
     };
     const schedule = (): void => {
@@ -101,7 +106,12 @@ export function useConfigScrollSpy(activeGroup: ConfigGroupId | null): {
       ticking = true;
       tick = requestAnimationFrame(run);
     };
-    container.addEventListener("scroll", schedule, { passive: true });
+    const onScroll = (): void => {
+      // A scroll during a jump is the jump's own motion; the jump's tick above is what sets the hold.
+      held = held && suppressSpyRef.current;
+      schedule();
+    };
+    container.addEventListener("scroll", onScroll, { passive: true });
     // A SCROLL LISTENER ALONE IS BLIND TO THE TWO OTHER WAYS THE VISIBLE SET CHANGES (#926), and they need
     // DIFFERENT observers because they are different facts:
     //  · the pane RESIZES — the owner's ruling is explicit that the roster's COUNT tracks the viewport, and
@@ -133,7 +143,7 @@ export function useConfigScrollSpy(activeGroup: ConfigGroupId | null): {
       cancelAnimationFrame(tick);
       resize.disconnect();
       mutations.disconnect();
-      container.removeEventListener("scroll", schedule);
+      container.removeEventListener("scroll", onScroll);
     };
   }, [activeGroup, registry]);
 

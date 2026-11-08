@@ -24,4 +24,8 @@ Each finding is fixed with a capture, or answered with a cited reason in this it
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The design-audit confirmation is the next ux-reviewer pass.
+
+- P1 card switches and the duplicate On chip: the plugin card's Enabled switch moved out of the header cluster onto the settings track beside "Show ... panel in chat" (`plugin-row.tsx`), and the status badge no longer renders for the plain success state, which the switch already says. CT `show-in-chat-switch.ct.tsx` asserts one shared switch x and no "On" text. Not run against the old tree for the second test (the "Enabled" name did not exist there, so it fails by construction); the first test was red (656px against a 230px label) before the track change.
+- P2 sidecar header truncation: the plugin name in the collapsible panel header wraps instead of truncating (`plugin-surface-shell.tsx`, `wrap="word"`). CT `panel-header-name.ct.tsx`: red on main (name clipped), green after. The collapse, hide and move controls stay separate buttons; folding them into one menu is a design call and rewrites accessible names that `hide-focus.ct.tsx`, `context-panels.ct.tsx` and flank tests press by name. Default: keep.
+- P3 Card Atlas at rest: not changed. The pager and the empty line are authored in the plugin's UI spec (`packages/showcase-plugins/bundles/card-atlas/main.ts`, grid `empty` and the pager row), and the plugin vocabulary has no conditional visibility (comment above the pager row). Hiding them needs a vocabulary addition (conditional visibility or a bound `empty`), which is a plugin-contract change. Fork: default is to leave the spec and file the vocabulary item.

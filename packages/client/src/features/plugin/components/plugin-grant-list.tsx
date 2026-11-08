@@ -314,7 +314,7 @@ export function PluginGrantList({
   return (
     <Stack gap="block">
       {rows.length === 0 ? (
-        <Text prose={true} voice="gloss">
+        <Text cap="prose" prose={true} voice="gloss">
           This plugin asks for no permissions at all. It can run its own code and nothing else.
         </Text>
       ) : (
@@ -335,7 +335,7 @@ export function PluginGrantList({
       )}
 
       {unexplained > 0 ? (
-        <Text prose={true} role="alert" voice="gloss">
+        <Text cap="prose" prose={true} role="alert" voice="gloss">
           {unexplained === 1 ? "This plugin asks for 1 permission" : `This plugin asks for ${unexplained} permissions`} this version of Orbweaver doesn't
           recognise. Update Orbweaver before installing it.
         </Text>
@@ -351,7 +351,7 @@ export function PluginGrantList({
                 screen (10.5px, side-eye P2-5) — the endpoints below it shouted at 15px/regular-foreground
                 while the guarantee whispered. `prose` lifts it to the 13px step (still `gloss`'s muted ink,
                 still visually a caption, just no longer beneath its own claim's weight). */}
-            <Text prose={true} voice="gloss">
+            <Text cap="prose" prose={true} voice="gloss">
               These exact hostnames, and nothing else.
             </Text>
           </Stack>

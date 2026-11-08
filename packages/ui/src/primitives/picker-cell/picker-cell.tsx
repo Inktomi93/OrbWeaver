@@ -48,7 +48,7 @@ export function PickerCell({ art, label, description, meta, shape, labelId, desc
             {label}
           </Text>
           {meta === undefined ? null : (
-            <Text as="span" className={slots.meta()} data-slot="picker-cell-meta" voice="datum">
+            <Text as="span" className={slots.meta()} data-slot="picker-cell-meta" ink="muted" size="label">
               {meta}
             </Text>
           )}

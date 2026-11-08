@@ -161,7 +161,7 @@ function localPreviewState(result: PromiseSettledResult<PluginBundlePreview>, so
 function BuiltAgainstLine({ manifest }: { readonly manifest: PluginManifest }): ReactElement | null {
   const line = builtAgainstLine(manifest.builtAgainst ?? null);
   return line === null ? null : (
-    <Text prose={true} voice="gloss">
+    <Text cap="prose" prose={true} voice="gloss">
       {line}
     </Text>
   );
@@ -282,7 +282,7 @@ export function PluginInstallCard(): ReactElement {
       <Text as="span" className="sr-only" role="status">
         {state.step === "confirm" ? `${state.manifest.name} ${state.manifest.version} preview ready. Review what it's asking for below.` : ""}
       </Text>
-      <Text prose={true} voice="gloss">
+      <Text cap="prose" prose={true} voice="gloss">
         A plugin has a manifest and one script. Choose a .zip, a source folder, a bundle link, or a Git repository. It runs sandboxed and can only do what you
         allow here.
       </Text>
@@ -365,12 +365,12 @@ export function PluginInstallCard(): ReactElement {
             <Heading level={3}>
               Review {state.manifest.name} {state.manifest.version}
             </Heading>
-            <Text prose={true} voice="gloss">
+            <Text cap="prose" prose={true} voice="gloss">
               {state.manifest.description}
             </Text>
             <SourceIdentity source={state.source} />
             {state.manifest.author === undefined ? null : (
-              <Text prose={true} voice="gloss">
+              <Text cap="prose" prose={true} voice="gloss">
                 By {state.manifest.author}
               </Text>
             )}
@@ -382,7 +382,7 @@ export function PluginInstallCard(): ReactElement {
             // it off the ALREADY-RESIDENT `plugin.list` cache (no extra round trip) means a person never
             // fills out the whole consent form only to learn at the 409 that they already have this plugin.
             <Stack gap="field">
-              <Text prose={true} role="alert" voice="gloss">
+              <Text cap="prose" prose={true} role="alert" voice="gloss">
                 "{alreadyInstalled.name}" ({alreadyInstalled.slug}) is already installed. Open installed plugins to check for an update.
               </Text>
               <Button onClick={(): void => openConfigTo("plugins", "installed")} size="sm">
@@ -403,7 +403,7 @@ export function PluginInstallCard(): ReactElement {
           </Stack>
 
           <Stack gap="block">
-            <Text prose={true} voice="gloss">
+            <Text cap="prose" prose={true} voice="gloss">
               It will be installed turned off. Turn it on when you're ready.
             </Text>
             {/* The roll-up (side-eye P2-9): at a large ask this is the one line that survives the scroll

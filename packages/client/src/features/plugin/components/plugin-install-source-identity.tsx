@@ -7,7 +7,7 @@ import type { ReactElement } from "react";
 
 export function LocalSourceIdentity({ kind, name }: { readonly kind: "file" | "folder"; readonly name: string }): ReactElement {
   return (
-    <Text prose={true} voice="gloss">
+    <Text cap="prose" prose={true} voice="gloss">
       Source {kind === "file" ? "file" : "folder"}: {name}
     </Text>
   );
@@ -17,13 +17,13 @@ export function RemoteSourceIdentity({ kind, url, identity }: { readonly kind: "
   const identityLabel = kind === "git" ? "Reviewed commit" : "Reviewed SHA-256";
   return (
     <Stack gap="tight">
-      <Text prose={true} voice="gloss">
+      <Text cap="prose" prose={true} voice="gloss">
         {kind === "git" ? "Source repository" : "Source URL"}
       </Text>
       <Text className="min-inline-0" whitespace="preWrap" wrap="anywhere" selectAll={true} voice="datumMono">
         {url}
       </Text>
-      <Text prose={true} voice="gloss">
+      <Text cap="prose" prose={true} voice="gloss">
         {identityLabel}
       </Text>
       <Text className="min-inline-0" whitespace="preWrap" wrap="anywhere" selectAll={true} voice="datumMono">

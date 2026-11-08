@@ -121,7 +121,7 @@ function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): Reac
   return (
     <Section container={true} divider={true} heading={PLUGIN_DISTRIBUTE_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="row">
-        <Text prose={true} voice="gloss">
+        <Text cap="prose" prose={true} voice="gloss">
           Give a plugin to everyone on this server. Each account gets its own copy (switched off, allowed nothing) and the people who use it decide what it may
           do. Turning a plugin on runs its code as that person, so nobody can do that step for them.
         </Text>
@@ -155,7 +155,7 @@ function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): Reac
             <Text voice="promoted">
               {state.preview.manifest.name} {state.preview.manifest.version}
             </Text>
-            <Text prose={true} voice="gloss">
+            <Text cap="prose" prose={true} voice="gloss">
               {state.preview.manifest.description}
             </Text>
             <Text voice="label">What it will ask each person for</Text>
@@ -188,7 +188,7 @@ function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): Reac
         <Separator />
         <Text voice="label">Published to every account</Text>
         {published.length === 0 ? (
-          <Text prose={true} voice="gloss">
+          <Text cap="prose" prose={true} voice="gloss">
             Nothing is being given out. Anything you distribute here also lands for people who sign up later.
           </Text>
         ) : (

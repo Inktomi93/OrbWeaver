@@ -260,7 +260,9 @@ export function ImportLibrarySection(): ReactElement {
         >
           Import a folder…
         </FolderPicker>
-        <Text voice="gloss">An unzipped Orbweaver backup or a SillyTavern profile folder. Your API keys (secrets.json) never leave this browser.</Text>
+        <Text cap="prose" voice="gloss">
+          An unzipped Orbweaver backup or a SillyTavern profile folder. Your API keys (secrets.json) never leave this browser.
+        </Text>
       </Row>
       {staged === null ? null : (
         <ImportPreflight

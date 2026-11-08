@@ -35,3 +35,25 @@ test("the panel switch sits within one track gutter of its label's text", async 
   // Beside the label means closer than the label is long; the pinned-to-edge row sat two label-widths away.
   expect((box?.x ?? Number.POSITIVE_INFINITY) - text.right).toBeLessThan(text.width);
 });
+
+test("the card's two switches share one track and the header carries no second 'On'", async ({ mount, page }) => {
+  const plugin = makePluginRow({
+    slug: "pocket-arcade",
+    name: "Pocket Arcade",
+    status: "enabled",
+    declaredCapabilities: ["ui.surface"],
+    grantedCapabilities: ["ui.surface"],
+  });
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings"]),
+    "plugin.list": () => [plugin],
+    "plugin.listSurfaces": () => [{ pluginId: plugin.id, id: "arcade_flank", anchor: "chat-flank", title: "Arcade", tier: "static" }],
+  });
+  const component = await mount<typeof InstalledPluginsStory>(STORY, { width: 960 });
+  const enabled = await component.getByRole("switch", { name: "Enabled", exact: true }).boundingBox();
+  const shown = await component.getByRole("switch", { name: showInChatLabel(plugin.name), exact: true }).boundingBox();
+  expect(enabled?.x).toBe(shown?.x);
+  await expect(component.getByText("On", { exact: true })).toHaveCount(0);
+});
