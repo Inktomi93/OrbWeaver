@@ -92,7 +92,6 @@
     "@orb/ui": "workspace:*",
     "@playwright/test": "catalog:",
     "@stryker-mutator/core": "catalog:",
-    "@stryker-mutator/typescript-checker": "catalog:",
     "@stryker-mutator/vitest-runner": "catalog:",
     "@tailwindcss/oxide": "catalog:",
     "@tanstack/eslint-plugin-query": "catalog:",

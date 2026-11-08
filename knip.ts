@@ -54,7 +54,9 @@ export const config = {
       // workspace (tooling/src/dev/ops/dev.ts), which knip credits to that workspace, not to the root.
       // @anthropic-ai/sdk is never imported; it is the peer pin for @anthropic-ai/claude-agent-sdk (pnpm-workspace.yaml).
       // typeid-js is resolved through the root node_modules by fixtures that copy packages/kit/src/ids (testkit-enforcement nativeProgram).
-      ignoreDependencies: ["pino-pretty", "@anthropic-ai/sdk", "typeid-js"],
+      // knip's Stryker plugin reads every `checkers` name as an `@stryker-mutator/<name>-checker` package; the
+      // native checker is the in-repo plugin the config loads by path (tooling/src/mutation-checker/index.ts).
+      ignoreDependencies: ["pino-pretty", "@anthropic-ai/sdk", "typeid-js", "@stryker-mutator/native-checker"],
       // knip's Stryker plugin only globs js and json configs; naming the `.ts` config credits the runner and checker.
       stryker: { config: ["stryker.config.ts"] },
     },
