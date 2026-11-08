@@ -72,7 +72,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ComponentProps, ReactElement } from "react";
 import { useState } from "react";
 import { CharacterPicker } from "#components";
-import { pickerWindowBox, useStartChat, useTRPC } from "#data";
+import { PICKER_FIRST_OPEN_BOX, useStartChat, useTRPC } from "#data";
 import { BLANK_CHAT_NAME, TEMPORARY_CHAT_BADGE } from "#lib";
 import { clearNewChatIntent, closeModal, openModal, useNewChatIntent } from "#state";
 import { CHAT_SAVED_ROSTER_DOOR_NAME } from "../lib/chat-surface-names.ts";
@@ -117,8 +117,6 @@ export function NewChatPicker(): ReactElement {
   // Cleared by a real modal dismiss — never component cleanup, which React Strict Mode probes while this
   // modal remains logically open. Every opener also overwrites it before opening.
   const intent = useNewChatIntent();
-  // Resolved once per mount: the box moves with tokens, not with a render.
-  const [pickerBox] = useState(pickerWindowBox);
   const { startChat, isPending } = useStartChat();
   const trpc = useTRPC();
   // #26 — the "Start from a saved roster" door, shown only when the library HAS saved rosters (the program
@@ -166,8 +164,10 @@ export function NewChatPicker(): ReactElement {
   const shortStartLabel = shortStartLabelFor(selectedCount, isPending);
   // A hop to the saved-roster picker (the slot is the destination, no feature import). The intent is cleared like
   // any dismiss: a roster start carries its own creation parameters.
-  const rosterDoor = hasRosters ? (
+  const rosterDoor = ({ hiddenAt, push }: Pick<ComponentProps<typeof Button>, "hiddenAt" | "push"> = {}): ReactElement => (
     <Button
+      hiddenAt={hiddenAt}
+      push={push}
       variant="ghost"
       size="sm"
       wrap={true}
@@ -180,12 +180,12 @@ export function NewChatPicker(): ReactElement {
       <Icon icon={Users} size="sm" />
       {CHAT_SAVED_ROSTER_DOOR_NAME}
     </Button>
-  ) : null;
+  );
   // The door's own row sits inside the picker's boundary, so the box this device remembers for the picker includes it and the
   // skeleton holds that box. A short dialog seats the door in its pinned row instead, so this row's height goes to the list.
   const leadingDoor = hasRosters ? (
-    <Row hiddenAt="dialogShort" wrap={true} justify="end" padding="block">
-      {rosterDoor}
+    <Row hiddenAt="stackedOrDialogLandscape" paddingBlockShort="none" wrap={true} justify="end" padding="block">
+      {rosterDoor()}
     </Row>
   ) : null;
   const blankAction = ({ grow, hiddenAt, width }: Pick<ComponentProps<typeof Button>, "grow" | "hiddenAt" | "width">): ReactElement => (
@@ -196,7 +196,7 @@ export function NewChatPicker(): ReactElement {
   );
 
   return (
-    <Stack grow="content" minHeight="shrinks">
+    <Stack grow="onLandscape" minHeight="holdsPickerOnLandscape">
       {/* The temporary flag is a CREATION-ONLY parameter the user can't change later, so the picker states
           it up front rather than surprising them in the room (temp tile → this modal → a room born
           Temporary). */}
@@ -220,7 +220,7 @@ export function NewChatPicker(): ReactElement {
         onEscape={dismiss}
         onSelect={toggle}
         placeholder="Search characters…"
-        reserveBlock={pickerBox}
+        reserveBlock={PICKER_FIRST_OPEN_BOX}
         reserveKey="chat.newChatPicker"
         rowsHeading="Characters"
         skeletonCount={SKELETON_ROW_COUNT}
@@ -242,11 +242,8 @@ export function NewChatPicker(): ReactElement {
         <Text as="span" className="sr-only" role="status">
           {selectionStatusFor(selectedCount)}
         </Text>
-        {hasRosters ? (
-          <Row hiddenAt="unlessDialogShortWide" push="inlineStart">
-            {rosterDoor}
-          </Row>
-        ) : null}
+        {/* The door is a direct child, so Start stays the actions' last button. */}
+        {hasRosters ? rosterDoor({ hiddenAt: "unlessDialogLandscapeWide", push: "inlineStart" }) : null}
         {blankAction({ grow: "contentNarrow", hiddenAt: "dialogStacked" })}
         <Button
           grow="contentNarrow"
@@ -264,8 +261,8 @@ export function NewChatPicker(): ReactElement {
             <Row hiddenAt="cq-28">{compactStartLabel}</Row>
             <Row hiddenAt="belowCq28">
               {/* The short dialog's one pinned row also seats the roster door, so Start wears the count label there. */}
-              <Row hiddenAt="dialogShort">{startLabel}</Row>
-              <Row hiddenAt="unlessDialogShort">{compactStartLabel}</Row>
+              <Row hiddenAt="dialogLandscape">{startLabel}</Row>
+              <Row hiddenAt="unlessDialogLandscape">{compactStartLabel}</Row>
             </Row>
           </Row>
           <Row hiddenAt="unlessDialogStacked">{shortStartLabel}</Row>
@@ -274,7 +271,7 @@ export function NewChatPicker(): ReactElement {
       {/* After the pinned row, so nothing passes under Start and a focused action is never hidden behind it. */}
       <Stack hiddenAt="unlessDialogStacked" gap="field" padding="block">
         {blankAction({ width: "full" })}
-        {rosterDoor}
+        {rosterDoor()}
       </Stack>
     </Stack>
   );

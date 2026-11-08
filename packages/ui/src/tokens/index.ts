@@ -200,6 +200,7 @@ export const TOKENS = {
   "breakpoint.shell": { cssVar: "--breakpoint-shell", value: "48rem" },
   "breakpoint.shell-dock": { cssVar: "--breakpoint-shell-dock", value: "64rem" },
   "breakpoint.inline-narrow": { cssVar: "--breakpoint-inline-narrow", value: "30rem" },
+  "breakpoint.glass-short": { cssVar: "--breakpoint-glass-short", value: "27rem" },
   "dimension.rail": { cssVar: "--dimension-rail", value: "3.5rem" },
   "dimension.chrome-row": { cssVar: "--dimension-chrome-row", value: "3rem" },
   "dimension.panel-floor": { cssVar: "--dimension-panel-floor", value: "17rem" },
@@ -503,6 +504,7 @@ export const LENGTH_BASE_PX = {
   "breakpoint.shell": 768,
   "breakpoint.shell-dock": 1024,
   "breakpoint.inline-narrow": 480,
+  "breakpoint.glass-short": 432,
   "dimension.rail": 56,
   "dimension.chrome-row": 48,
   "dimension.panel-floor": 272,
@@ -610,6 +612,7 @@ export const MEDIA_QUERIES = {
   "shell-mobile": "(width <= 48rem)",
   "shell-narrow": "(width <= 64rem)",
   "inline-narrow": "(width <= 30rem)",
+  "glass-short": "(height <= 27rem)",
 } as const;
 
 /** The D336 tone tuple, in `[data-tone]` block order. */

@@ -949,6 +949,7 @@ export const OWNER_CSS_TOKEN_VARS = [
   "--border-width-hairline",
   "--border-width-heavy",
   "--border-width-rule",
+  "--breakpoint-glass-short",
   "--breakpoint-inline-narrow",
   "--breakpoint-shell",
   "--breakpoint-shell-dock",

@@ -77,8 +77,8 @@ export interface CharacterPickerProps {
    * through a shared composite. Each owner mints its own; omitted, the boundary reserves nothing, as before.
    */
   readonly reserveKey?: string | undefined;
-  /** The box the picker settles at, held open until this device has measured it. Needs a `reserveKey`. */
-  readonly reserveBlock?: number | undefined;
+  /** The box the picker settles at (px, or a CSS length), held open until this device has measured it. Needs a `reserveKey`. */
+  readonly reserveBlock?: number | string | undefined;
   /** A row above the picker, inside its boundary: the box the boundary remembers for this device includes it. */
   readonly leading?: ReactNode;
   /** Escape handler (modal consumers close on Esc). */
