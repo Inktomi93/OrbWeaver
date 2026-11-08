@@ -2,7 +2,7 @@
 // refuses allocation rather than permitting identifier reuse. Every reader names its repository root.
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join } from "node:path";
 import { REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { runGit } from "../../floor/git/git.ts";
@@ -274,12 +274,24 @@ export function stagedWorkDeletions(repoRoot = root): readonly string[] {
     .map((entry) => entry.path);
 }
 
+/** The path of git's index lock when another git process holds it, else null. Every index write fails while it
+ *  exists, so a writer that stages or commits asks first, before it touches the tree. */
+export function heldIndexLock(repoRoot = root): string | null {
+  const relative = git(repoRoot, ["rev-parse", "--git-path", "index.lock"])?.trim();
+  if (relative === undefined) {
+    return null;
+  }
+  const lock = isAbsolute(relative) ? relative : join(repoRoot, relative);
+  return existsSync(lock) ? lock : null;
+}
+
 /** True while a merge waits for its commit: git's `MERGE_HEAD` exists. */
 export function mergeInProgress(repoRoot = root): boolean {
   return git(repoRoot, ["rev-parse", "-q", "--verify", "MERGE_HEAD"]) !== null;
 }
 
-/** Commit the named paths ALONE, through plumbing, from a merge hook or by hand.
+/** Commit the named paths ALONE, through plumbing, from a merge hook or by hand. A failure leaves HEAD and the
+ *  checkout's index as they were.
  *
  *  Plumbing, never `git commit`: the post-merge hook fires while git's `MERGE_HEAD` still exists, and a
  *  porcelain pathspec commit there dies with `cannot do a partial commit during a merge` (a whole-index
@@ -329,7 +341,13 @@ export function commitPaths(paths: readonly string[], message: string, repoRoot 
     }
     // The checkout's own index follows for these paths, so `git status` reads clean for what just landed.
     const index = runGit(repoRoot, ["update-index", "--add", "--remove", "--", ...paths]);
-    return index.status === 0 ? { ok: true, sha } : gitFailure("update-index", index);
+    if (index.status === 0) {
+      return { ok: true, sha };
+    }
+    // An index that cannot follow would show the commit's own paths as staged reversals; moving HEAD back
+    // keeps the failure whole, so the caller can put its files back over an unchanged HEAD and index.
+    runGit(repoRoot, ["update-ref", "-m", "doc: undo a commit whose index update failed", "HEAD", head, sha]);
+    return gitFailure("update-index", index);
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

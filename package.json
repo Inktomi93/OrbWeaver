@@ -70,7 +70,8 @@
     "test:ct": "playwright test --config=playwright-ct.config.ts --project=chromium",
     "test:ct:webkit": "playwright test --config=playwright-ct.config.ts --project=webkit-iphone",
     "test:tools": "vitest run --config=vitest.config.ts --exclude=\"tests/!(tooling)/**\"",
-    "test:mutation": "node tooling/src/floor/process/niced-exec.ts node tooling/src/mutation-run/cli.ts"
+    "test:mutation": "node tooling/src/floor/process/niced-exec.ts node tooling/src/mutation-run/cli.ts",
+    "test-audit": "node tooling/src/test-audit/cli.ts"
   },
   "devDependencies": {
     "@anthropic-ai/sdk": "catalog:",
