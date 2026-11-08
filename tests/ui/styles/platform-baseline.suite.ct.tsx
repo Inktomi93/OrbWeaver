@@ -1,4 +1,4 @@
-// The base-layer element defaults of the platform baseline (docs/law/UI-Density-Law.md §8.4). Runs on Chromium and on the
+// The base-layer element defaults of the platform baseline (docs/law/ui-platform-rulings.md §8.4). Runs on Chromium and on the
 // opt-in webkit-iphone project.
 
 import { TOKENS } from "@orb/ui/tokens";
