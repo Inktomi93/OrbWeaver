@@ -31,7 +31,7 @@ import { readCheckpointStability, STABILITY_SETTLE_MS } from "./layout-stability
 import type { SerializedPerformanceEntry } from "./performance-entry.ts";
 import type { SurfaceCodeEditorStory, SurfaceDesignStory, SurfaceTouchTilingStory } from "./surface-design-fixtures.tsx";
 import type { SurfaceFrameworkStory } from "./surface-framework-fixtures.tsx";
-import type { SurfaceStabilityStory } from "./surface-stability-fixtures.tsx";
+import type { SurfaceStabilityShift, SurfaceStabilityStory } from "./surface-stability-fixtures.tsx";
 import { hitExtent, touchFloorPx } from "./touch-floor.ts";
 
 test.use({ reuseContext: false });
@@ -612,7 +612,7 @@ async function stabilityCheckpoint(
   page: Page,
   info: TestInfo,
   mount: PlaywrightTestArgs["mount"],
-  shift: "still" | "late-notice",
+  shift: SurfaceStabilityShift,
 ): Promise<{ readonly stability: CheckpointStability; readonly layoutShiftSupported: boolean }> {
   await page.addInitScript({ content: webVitalsInitScript(await webVitalsSource()) });
   await mount<typeof SurfaceStabilityStory>("tests/support/browser/surface-stability-fixtures/SurfaceStabilityStory", { shift });
@@ -653,6 +653,29 @@ test("post-ready witness movement fails a witness a late notice keeps moving, on
   expect(info.errors[0]?.message).toContain("moved after readiness");
   test.fail(true, "Witness movement inside the post-ready settle window must fail the native checkpoint");
 });
+
+// Each exemption has a control on both sides: movement under motion that moves no box still fails, while authored
+// geometry motion, a transition's last step and a container scroll do not.
+for (const control of [
+  { shift: "late-notice-under-fade", fails: true, movements: 1, scrolledFrames: 0 },
+  { shift: "transform-loop", fails: false, movements: 1, scrolledFrames: 0 },
+  { shift: "linear-transition", fails: false, movements: 1, scrolledFrames: 0 },
+  { shift: "container-scroll", fails: false, movements: 0, scrolledFrames: 1 },
+] as const satisfies readonly {
+  readonly shift: SurfaceStabilityShift;
+  readonly fails: boolean;
+  readonly movements: number;
+  readonly scrolledFrames: number;
+}[]) {
+  test(`post-ready witness movement exemption control: ${control.shift}`, async ({ mount, page }, info) => {
+    const { stability } = await stabilityCheckpoint(page, info, mount, control.shift);
+    expect(stability.movements.length).toBeGreaterThanOrEqual(control.movements);
+    expect(stability.scrolledFrames).toBeGreaterThanOrEqual(control.scrolledFrames);
+    expect(stability.unexpected > 0).toBe(control.fails);
+    expect(info.errors.map(({ message }) => message?.includes("moved after readiness"))).toEqual(control.fails ? [true] : []);
+    test.fail(control.fails, "Movement under an animation that moves no box must still fail the native checkpoint");
+  });
+}
 
 test("lifecycle drain waits for a real pending browser binding without claiming finalization", async ({ page }) => {
   let entered = false;

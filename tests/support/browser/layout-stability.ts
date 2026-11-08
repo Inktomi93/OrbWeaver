@@ -8,7 +8,11 @@ import { diagnosticTarget } from "./performance-entry.ts";
 export const STABILITY_SETTLE_MS = 1000;
 // Fractional layout snapping moves a box by less than a pixel without visible movement.
 const MOVEMENT_TOLERANCE_PX = 1;
+// Keyframe property names (camelCase) whose animation moves or resizes a box; opacity and colour never do.
+const GEOMETRY_PROPERTY =
+  "^(?:transform|translate|rotate|scale|offset[A-Z]\\w*|inset\\w*|top|right|bottom|left|(?:min|max)?(?:width|Width|height|Height|blockSize|BlockSize|inlineSize|InlineSize)|margin\\w*|padding\\w*|border\\w*Width|fontSize|lineHeight|gap|rowGap|columnGap|flex\\w*|grid\\w*)$";
 
+/** A box in the coordinate space of the document content: scroll ancestors' offsets are added back, so a scroll is not movement. */
 interface Box {
   readonly x: number;
   readonly y: number;
@@ -22,7 +26,10 @@ interface WitnessMovement {
   readonly at: number;
   readonly from: Box;
   readonly to: Box;
-  /** A running Web Animation or CSS transition targeted the witness or an ancestor: authored motion, not instability. */
+  /**
+   * A running effect on the witness or an ancestor animates a geometry property, in this frame or the one before it:
+   * authored motion, not instability. The frame before covers a transition's last step, which lands after it finished.
+   */
   readonly animated: boolean;
 }
 
@@ -31,6 +38,8 @@ interface WitnessSamples {
   readonly readyAt: number;
   readonly settledAt: number;
   readonly frames: number;
+  /** Frames in which a witness's scroll ancestors changed offset; their movement is removed from the boxes. */
+  readonly scrolledFrames: number;
   readonly witnesses: readonly { readonly target: string; readonly initial: Box }[];
   readonly movements: readonly WitnessMovement[];
   readonly incomplete: string | null;
@@ -45,7 +54,7 @@ export interface CheckpointStability extends WitnessSamples {
   readonly status: "measured" | "incomplete";
   readonly windowMs: number;
   readonly tolerancePx: number;
-  /** Movements with no running animation behind them; the checkpoint verdict. */
+  /** Movements with no geometry animation behind them; the checkpoint verdict. */
   readonly unexpected: number;
   /** The engine's own entries inside the same window, retained beside the engine-independent measure. */
   readonly nativeLayoutShift: NativeLayoutShift;
@@ -57,33 +66,64 @@ async function sampleWitnesses(page: Page, witnesses: readonly Locator[], window
   );
   try {
     return await page.evaluate(
-      async ({ named, settleMs, tolerance }) => {
+      async ({ named, settleMs, tolerance, geometrySource }) => {
         const readyAt = performance.now();
-        const boxOf = (node: Element): Box => {
-          const { x, y, width, height } = node.getBoundingClientRect();
-          return { x, y, width, height };
+        const geometry = new RegExp(geometrySource, "u");
+        const scrollOffset = (node: Element): { readonly x: number; readonly y: number } => {
+          let x = 0;
+          let y = 0;
+          for (let ancestor = node.parentElement; ancestor !== null; ancestor = ancestor.parentElement) {
+            x += ancestor.scrollLeft;
+            y += ancestor.scrollTop;
+          }
+          return { x, y };
         };
+        const boxOf = (node: Element, scroll: { readonly x: number; readonly y: number }): Box => {
+          const { x, y, width, height } = node.getBoundingClientRect();
+          return { x: x + scroll.x, y: y + scroll.y, width, height };
+        };
+        const scrollMoved = (from: { readonly x: number; readonly y: number }, to: { readonly x: number; readonly y: number }): boolean =>
+          from.x !== to.x || from.y !== to.y;
         const moved = (from: Box, to: Box): boolean => (["x", "y", "width", "height"] as const).some((edge) => Math.abs(to[edge] - from[edge]) > tolerance);
-        const animating = (node: Element): boolean =>
+        const movesBoxes = (effect: KeyframeEffect): boolean => effect.getKeyframes().some((frame) => Object.keys(frame).some((key) => geometry.test(key)));
+        const geometryAnimating = (node: Element): boolean =>
           document
             .getAnimations()
-            .some(({ playState, effect }) => playState === "running" && effect instanceof KeyframeEffect && effect.target?.contains(node) === true);
-        const subjects = named.map(({ node, target }) => ({ node, target, initial: boxOf(node), reference: boxOf(node) }));
+            .some(
+              ({ playState, effect }) =>
+                playState === "running" &&
+                effect instanceof KeyframeEffect &&
+                effect.pseudoElement === null &&
+                effect.target?.contains(node) === true &&
+                movesBoxes(effect),
+            );
+        const subjects = named.map(({ node, target }) => {
+          const scroll = scrollOffset(node);
+          return { node, target, scroll, initial: boxOf(node, scroll), reference: boxOf(node, scroll), animatedBefore: geometryAnimating(node) };
+        });
         const movements: WitnessMovement[] = [];
         let frames = 0;
+        let scrolledFrames = 0;
         let incomplete: string | null = null;
         const sample = (at: number): void => {
+          let scrolled = false;
           for (const subject of subjects) {
             if (!subject.node.isConnected) {
               incomplete = `${subject.target} left the document ${String(Math.round(at))}ms after readiness`;
               return;
             }
-            const to = boxOf(subject.node);
+            const scroll = scrollOffset(subject.node);
+            scrolled ||= scrollMoved(subject.scroll, scroll);
+            subject.scroll = scroll;
+            const to = boxOf(subject.node, scroll);
+            const animatedNow = geometryAnimating(subject.node);
             if (moved(subject.reference, to)) {
-              movements.push({ witness: subject.target, at, from: subject.reference, to, animated: animating(subject.node) });
+              movements.push({ witness: subject.target, at, from: subject.reference, to, animated: animatedNow || subject.animatedBefore });
               subject.reference = to;
             }
+            subject.animatedBefore = animatedNow;
           }
+          scrolledFrames += scrolled ? 1 : 0;
         };
         await new Promise<void>((resolve) => {
           const tick = (): void => {
@@ -103,12 +143,13 @@ async function sampleWitnesses(page: Page, witnesses: readonly Locator[], window
           readyAt,
           settledAt: performance.now(),
           frames,
+          scrolledFrames,
           witnesses: subjects.map(({ target, initial }) => ({ target, initial })),
           movements,
           incomplete,
         };
       },
-      { named: handles, settleMs: windowMs, tolerance: MOVEMENT_TOLERANCE_PX },
+      { named: handles, settleMs: windowMs, tolerance: MOVEMENT_TOLERANCE_PX, geometrySource: GEOMETRY_PROPERTY },
     );
   } finally {
     await Promise.all(handles.map(async ({ node }) => await node.dispose()));
