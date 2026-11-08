@@ -12,8 +12,8 @@ import {
 
 // The group is the field's box at the step's height; the steppers are the step's width and fill its height, and rings go
 // inset because a stepper sits flush against the group's edge. Inside the group's 1px edge a child is 2px short of the
-// step, which at the `sm` step under a finger is under the tap floor. So the transparent input spans the edge itself, and
-// a stepper, whose hover fill would cover the edge, carries the touch-target hit area across it instead. The group does
+// step, which at the `sm` step under a finger is under the tap floor. So the input and both steppers span the edge
+// themselves with a negative block margin, and the hover fill of a stepper paints over the edge it covers. The group does
 // not clip its children for that reason: the steppers and the stepper-less input round their own outer corners.
 
 export const numberFieldVariants = tv({
@@ -23,7 +23,10 @@ export const numberFieldVariants = tv({
     scrubCursor: "flex text-foreground",
     group: ["flex items-stretch rounded-control border border-input-border bg-field-fill inline-full", "data-invalid:border-destructive"],
     decrement: [
-      `group relative flex shrink-0 cursor-pointer items-center justify-center rounded-s-control border-e border-input-border text-foreground select-none ${TOUCH_TARGET_PSEUDO}
+      `
+        group relative -my-(--border-width-control) flex shrink-0 cursor-pointer items-center justify-center rounded-s-control border-e border-input-border
+        text-foreground select-none
+        ${TOUCH_TARGET_PSEUDO}
       `,
       `
         ${COLOR_MOTION}
@@ -42,7 +45,10 @@ export const numberFieldVariants = tv({
       "data-invalid:text-destructive",
     ],
     increment: [
-      `group relative flex shrink-0 cursor-pointer items-center justify-center rounded-e-control border-s border-input-border text-foreground select-none ${TOUCH_TARGET_PSEUDO}
+      `
+        group relative -my-(--border-width-control) flex shrink-0 cursor-pointer items-center justify-center rounded-e-control border-s border-input-border
+        text-foreground select-none
+        ${TOUCH_TARGET_PSEUDO}
       `,
       `
         ${COLOR_MOTION}

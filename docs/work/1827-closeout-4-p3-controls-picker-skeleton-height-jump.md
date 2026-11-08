@@ -23,4 +23,10 @@ The skeleton reserves the height of the loaded list, the switch sits beside its 
 
 ## Evidence
 
-Picker skeleton: tests/client/features/app-shell/surfaces/new-chat-picker-skeleton.ct.tsx holds the skeleton box, the loaded box and the dialog within 1px on a desktop, a coarse portrait and two landscape phones, with and without saved rosters, at 100% and 300% text (see 2062 for the first-open residue). Plugin panel switch and the omnibox floor: platform-plugin-presentation.suite.ct.tsx and corpus-search-controls.ct.tsx pass on this tip. Appearance stepper: tests/ui/primitives/number-field/inline-height.ct.tsx asserts the input and both steppers reach the touch-target token under a coarse pointer. The done line also needs the design audit to report none of the three, and the audit was not run in this lane (no snap stack): the item stays open for the acceptance pass.
+Picker skeleton: tests/client/features/app-shell/surfaces/new-chat-picker-skeleton.ct.tsx holds the skeleton box, the loaded box and the dialog within 1px (accepted in acceptance part 1; first-open residue is 2062).
+
+Stepper: inline-height.ct.tsx passed because its max(box, ::before) probe hid the 42px box inside the bordered group. tests/client/components/setting-number-stepper.ct.tsx mounts a NumberField in the production SettingRowGroup and SettingTrackRow at a coarse pointer and asserts each stepper's own box reaches the touch-target token. Red on the old tree (box 42px under the token), green after the steppers take the input's negative block margin in packages/ui/src/primitives/number-field/variants.ts.
+
+Plugin panel switch: tests/client/features/plugin/components/show-in-chat-switch.ct.tsx mounts the production installed-plugins section at 1440 and asserts the switch sits closer to its label text than the label is long. Red on the old tree (656px gap against a 230px label), green after plugin-row\.tsx renders ShowInChatSwitch through SettingRowGroup and SettingTrackRow. platform-plugin-presentation.suite.ct.tsx passes (11) on a quiet re-run; its first run under load 33 timed out four Atlas cases.
+
+The design audit confirmation (`row-void` and `tap-target` clear) is the next ux-reviewer pass.
