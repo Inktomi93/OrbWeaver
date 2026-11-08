@@ -5,7 +5,17 @@ import { THEME_FONT_ALLOWLIST } from "@orb/contracts/theme";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { actionGroupGeometry, seedShellState, settledBox } from "@orb/testkit/browser/spec";
 import type { TrpcRoutes } from "@orb/testkit/ct";
-import { createShellAmbientReads, holdServed, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import {
+  ALERTS_REGION_NAME,
+  createShellAmbientReads,
+  holdServed,
+  routeAuthConfig,
+  routeTrpc,
+  SECTION_LABELS,
+  SECTION_PROCEDURES,
+  serveCorpusProcedures,
+  trpcError,
+} from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -18,6 +28,10 @@ const CARD_NAME = "The northern observatory archivist with a long working name";
 const SNAPSHOT_LABEL = "Before the observatory expedition";
 const NO_SNAPSHOTS = "No snapshots yet. Take one to capture this character's current state.";
 const FONT = THEME_FONT_ALLOWLIST[0];
+const CHARACTERS = SECTION_LABELS.characters;
+// The context sheet closes by its section-named dismiss or by the details toggle, by pane mode.
+const CLOSE_DETAILS = new RegExp(`^(?:Close ${RegExp.escape(CHARACTERS)} details|${RegExp.escape(contextToggleLabel(false))})$`, "u");
+const SHOW_LIST = new RegExp(`^Show (?:list panel|${RegExp.escape(CHARACTERS)}(?: · .+)? list)$`, "u");
 const READ_PROCEDURES = [...SECTION_PROCEDURES, "tag.listTagFilterVocabulary"] as const;
 const REGIMES = [
   { name: "both docked desktop", viewport: { width: 1280, height: 720 }, coarse: false, landscape: false },
@@ -58,22 +72,22 @@ async function prepare(
 }
 
 async function selectCharacter(page: Page, name: string): Promise<void> {
-  const notification = page.getByRole("region", { name: "Alerts", exact: true }).getByRole("button", { name: "Close notification", exact: true });
+  const notification = page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByRole("button", { name: "Close notification", exact: true });
   if (await notification.isVisible()) {
     await notification.click();
     await notification.waitFor({ state: "hidden" });
   }
   const context = page.locator('.shell-panel[data-panel-side="context"]');
   if ((await context.getAttribute("data-panel-mode")) === "overlay") {
-    await page.getByRole("button", { name: /^(?:Close Characters details|Hide details)$/u }).click();
+    await page.getByRole("button", { name: CLOSE_DETAILS }).click();
   }
-  const back = page.getByRole("button", { name: "Back to Characters", exact: true });
+  const back = page.getByRole("button", { name: `Back to ${CHARACTERS}`, exact: true });
   if (await back.isVisible()) {
     await back.click();
   }
   const library = page.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true });
   const search = page.getByRole("textbox", { name: "Search characters", exact: true });
-  const showList = page.getByRole("button", { name: /^Show (?:list panel|Characters(?: · .+)? list)$/u });
+  const showList = page.getByRole("button", { name: SHOW_LIST });
   if ((await page.locator('.shell-panel[data-panel-side="list"]').getAttribute("data-panel-mode")) === "collapsed") {
     await showList.click();
   }
@@ -85,7 +99,7 @@ async function selectCharacter(page: Page, name: string): Promise<void> {
 
 async function expectFailedSheetExit(page: Page, context: Locator): Promise<void> {
   await expect(context).toHaveAttribute("data-panel-mode", "overlay");
-  await page.getByRole("button", { name: /^(?:Close Characters details|Hide details)$/u }).click();
+  await page.getByRole("button", { name: CLOSE_DETAILS }).click();
   await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
   await expect(page.getByRole("alert", { name: "Couldn't save the character.", exact: true })).toBeVisible();
   await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
@@ -365,7 +379,9 @@ for (const regime of REGIMES) {
         expect((await caller.character.get({ characterId: card.id })).themeOverride).toBeNull();
         await testInfo.attach("look-pending-save", { body: await page.screenshot(), contentType: "image/png" });
         pending.fail();
-        await expect(page.getByRole("region", { name: "Alerts", exact: true }).getByText("Couldn't save the character.", { exact: true })).toBeVisible();
+        await expect(
+          page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByText("Couldn't save the character.", { exact: true }),
+        ).toBeVisible();
         await expect(font).toHaveText(FONT);
         await testInfo.attach("look-failed-save-before-retry", { body: await page.screenshot(), contentType: "image/png" });
         await expect(status).toContainText(AUTOSAVE_SAVE_FAILED_TEXT);

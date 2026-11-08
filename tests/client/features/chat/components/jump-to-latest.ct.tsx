@@ -21,6 +21,16 @@ const ROWS = 14;
 const SCROLL_ROUNDING_PX = 1;
 const SETTLE_MARGIN_MS = 400;
 
+// The capability stays advertised and the event never arrives: a programmatic scroll can end at the tail without one.
+const withheldScrollend = (): void => {
+  const native = EventTarget.prototype.addEventListener;
+  EventTarget.prototype.addEventListener = function patched(this: EventTarget, type: string, ...rest: unknown[]): void {
+    if (type !== "scrollend") {
+      Reflect.apply(native, this, [type, ...rest]);
+    }
+  };
+};
+
 const withoutScrollend = (): void => {
   const native = EventTarget.prototype.addEventListener;
   EventTarget.prototype.addEventListener = function patched(this: EventTarget, type: string, ...rest: unknown[]): void {
@@ -35,17 +45,18 @@ const withoutScrollend = (): void => {
   Reflect.deleteProperty(Document.prototype, "onscrollend");
 };
 
-for (const [title, nativeScrollend] of [
-  ["a browser with scrollend", true],
-  ["a browser without scrollend", false],
+for (const [title, nativeScrollend, profile] of [
+  ["a browser with scrollend", true, undefined],
+  ["a browser without scrollend", false, withoutScrollend],
+  ["a browser that advertises scrollend and never dispatches it", true, withheldScrollend],
 ] as const) {
   test(`the pill counts a message that lands while the reader is away, and clears once the jump reaches the tail, in ${title}`, async ({
     corpus,
     mount,
     page,
   }) => {
-    if (!nativeScrollend) {
-      await page.addInitScript(withoutScrollend);
+    if (profile !== undefined) {
+      await page.addInitScript(profile);
     }
     const provider = createCorpusProviderExecution({
       modelIds: [CORPUS_EMBED_MODEL],

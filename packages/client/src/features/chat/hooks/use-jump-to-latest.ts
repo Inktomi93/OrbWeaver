@@ -1,5 +1,5 @@
 // The state behind the floating "jump to latest" pill. At-tail reads from the scroll node's real
-// geometry, sampled when the scroll ends (`scrollend`, or a debounced `scroll` where the browser lacks it), never the seal's follow-intent signal — intent desyncs from
+// geometry, sampled when the scroll ends (`scrollend`, or the quiet period after the last `scroll`), never the seal's follow-intent signal — intent desyncs from
 // position the instant virtual-core writes scrollTop during a re-measure. The unread count is latched
 // to its running max while away from the tail: canon and the live turn-phase flag commit in
 // separate renders, so the raw delta formula can dip through 0 mid-settle and self-hide over a
@@ -18,7 +18,7 @@ import { SCROLL_END_THRESHOLD_PX } from "@orb/ui/message-list";
 import type { RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 
-// Safari and iOS before 26.2 have no `scrollend`; a quiet period after the last `scroll` stands in for it.
+// The quiet period after the last `scroll` that samples at-tail where `scrollend` is missing (Safari and iOS before 26.2) or never arrives.
 const SETTLE_DEBOUNCE_MS = 90;
 
 export interface UseJumpToLatestArgs {
@@ -67,8 +67,12 @@ export function useJumpToLatest({ messages, live, pinActive, listHandleRef }: Us
     }
     scrollNodeRef.current = node;
     if (node !== null) {
-      const [type, listener] = "onscrollend" in node ? (["scrollend", sampleAtSettle] as const) : (["scroll", sampleAfterQuiet] as const);
-      node.addEventListener(type, listener, { passive: true });
+      // Both where `scrollend` exists: a programmatic scroll that ends at the tail can finish without dispatching
+      // it, and the quiet period after its last `scroll` is what clears the pill then.
+      if ("onscrollend" in node) {
+        node.addEventListener("scrollend", sampleAtSettle, { passive: true });
+      }
+      node.addEventListener("scroll", sampleAfterQuiet, { passive: true });
     }
   };
 
