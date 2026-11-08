@@ -150,10 +150,10 @@ function plantedBoxLoad(): BoxLoad | undefined {
   }
   if (boxLoadKnobError() !== null) {
     // NO THROW HERE, and that is a MEASURED constraint, not a softening (#1666). This reader runs inside
-    // the IMPORT GRAPH — `snap/lib/budgets.ts:19` derives a module-scope ceiling — so a throw fires before
-    // `runTool` installs its handlers and node's crash exit is 1, i.e. "violations found" (receipt: the
-    // red-first arm printed `expected exit 3 (misuse), got 1 (violations)` with a stack frame at
-    // budgets.ts:19). The refusal therefore lives at the DOORS, where it can be one honest line:
+    // the IMPORT GRAPH — `SNAP_CEILINGS_MS` in `snap/lib/budgets.ts` derives a module-scope ceiling — so a throw
+    // fires before `runTool` installs its handlers and node's crash exit is 1, i.e. "violations found" (receipt:
+    // the red-first arm printed `expected exit 3 (misuse), got 1 (violations)` with a stack frame in
+    // `SNAP_CEILINGS_MS`). The refusal therefore lives at the DOORS, where it can be one honest line:
     //   • every instrument CLI — `runTool` asks `boxLoadKnobError()` before `main` and exits 3;
     //   • every vitest worker — `tests/tooling/_load-budget.ts` asks at import and throws, which the
     //     runner reports as a failure naming the knob.
@@ -240,6 +240,17 @@ export function budget(baseMs: number, read: BoxLoadReader = readBoxLoad, cap = 
   const box = read();
   const scaled = Math.ceil(baseMs * boxFactor(box, cap));
   return Math.max(baseMs, Math.min(budgetCeilingMs(), scaled));
+}
+
+/**
+ * A module's ceilings: every base in `bases` through {@link budget}, against one box reading.
+ *
+ * @remarks One record per module, so no ceiling is a hand pair a later edit can leave unscaled.
+ */
+export function budgets<const K extends string>(bases: Readonly<Record<K, number>>, read: BoxLoadReader = readBoxLoad): Readonly<Record<K, number>> {
+  const box = read();
+  // `Object.fromEntries` widens its keys to string; the entries come from `bases` itself, so every key is present.
+  return Object.fromEntries(Object.entries<number>(bases).map(([name, base]) => [name, budget(base, () => box)])) as Record<K, number>;
 }
 
 /** The two RESULT pairs every load-aware line carries: `load=<la1>/<cores>` and `budget-factor=<f>`. A

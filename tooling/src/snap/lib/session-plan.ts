@@ -11,7 +11,7 @@
 // inheritance is trusted; inheritance never launders a misplaced flag into a valid-looking plan.
 import { basename, extname, join } from "node:path";
 import { routeSlug } from "../../floor/artifacts/artifact-naming.ts";
-import { budget } from "../../floor/host/load-budget.ts";
+import { budgets } from "../../floor/host/load-budget.ts";
 import { splitPageSuffix } from "../../floor/instrument/argv.ts";
 import type { SessionAccess, SessionCallTarget, SessionLimits, SessionRow, SessionSweepVerdict } from "../contract/session.ts";
 import type { Args } from "../contract/types.ts";
@@ -52,26 +52,24 @@ export function sessionLogPath(home: string, name: string): string {
 export const DEFAULT_SESSION_TTL_MIN = 30;
 export const DEFAULT_SESSION_CAP = 3;
 const MS_PER_MINUTE = 60_000;
-/** How long the client waits for a booting daemon to answer `ping`, on a QUIET box — the launcher's own
- *  readiness ceiling for a stage (which never cold-spawns engines — the stack tool's own readiness ceiling is
- *  sized for a cold fleet and does not apply here) plus a browser boot. The BASE the ceiling below
- *  derives from; phase 1b's policy (#1232) now owns the stretch this comment used to only promise. */
-const SESSION_BOOT_BASE_MS = 240_000;
-export const SESSION_BOOT_TIMEOUT_MS = budget(SESSION_BOOT_BASE_MS);
+/** The session ceilings, each `budget` over its quiet-box base. */
+export const SESSION_CEILINGS_MS = budgets({
+  /** How long the client waits for a booting daemon to answer `ping`: the launcher's own readiness ceiling for a
+   *  stage (which never cold-spawns engines — the stack tool's own readiness ceiling is sized for a cold fleet and
+   *  does not apply here) plus a browser boot. */
+  boot: 240_000,
+  /** THE MUTE CEILINGS (#1508): how long ONE socket exchange may say NOTHING before the client calls the daemon
+   *  wedged. They bound SILENCE, not work — every event the daemon sends restarts the clock — so neither is a
+   *  performance budget. A `ping` (and the admin `status` round trip) is a handshake: five quiet seconds means
+   *  nobody is listening, and the boot poll wants that answer fast so it can poll again. */
+  pingSilence: 5000,
+  /** A CALL is the daemon driving a browser, so its quiet stretches are legitimate and long; two minutes of total
+   *  silence is the point where it is wedged, not slow. */
+  callSilence: 120_000,
+});
 export const SESSION_READY_POLL_MS = 200;
 /** How long `--session-close`/`--session-sweep` wait for a signalled daemon to leave before SIGKILL. */
 export const SESSION_CLOSE_GRACE_MS = 10_000;
-/** THE MUTE CEILINGS (#1508): how long ONE socket exchange may say NOTHING before the client calls the
- *  daemon wedged. They bound SILENCE, not work — every event the daemon sends restarts the clock — so
- *  neither is a performance budget. A `ping` (and the admin `status` round trip) is a handshake: five
- *  quiet seconds means nobody is listening, and the boot poll wants that answer fast so it can poll
- *  again. A CALL is the daemon driving a browser, so its quiet stretches are legitimate and long; two
- *  minutes of total silence is the point where it is wedged, not slow. Both ride `budget()`, so a
- *  contended box stretches them instead of reading as a dead session. */
-const SESSION_PING_SILENCE_BASE_MS = 5000;
-export const SESSION_PING_SILENCE_MS = budget(SESSION_PING_SILENCE_BASE_MS);
-const SESSION_CALL_SILENCE_BASE_MS = 120_000;
-export const SESSION_CALL_SILENCE_MS = budget(SESSION_CALL_SILENCE_BASE_MS);
 
 /** Flag \> env \> default. A fractional TTL is legal (`ORB_SESSION_TTL_MIN=0.05` is a 3 s calibration
  *  drive); a non-positive or unparseable value is a REFUSAL, never a silent default — a session whose TTL

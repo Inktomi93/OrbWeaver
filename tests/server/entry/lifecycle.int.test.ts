@@ -5,10 +5,14 @@ import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
+import { SHUTDOWN_MESSAGES } from "@orb/server/entry/shutdown-messages";
 import { expect, test } from "@orb/testkit/node";
 import { freeLoopbackPort } from "@orb/testkit/node/helpers";
 import { processEnvValue } from "@orb/tooling/floor/process/process-env";
 import { onTestFinished } from "vitest";
+
+/** A message as the server's JSON log line spells it. */
+const logged = (message: string): string => `"msg":${JSON.stringify(message)}`;
 
 // A post-handler event-loop receipt observes delivery without replacing the product's signal handler.
 const SIGNAL_OBSERVER = `let received = 0;
@@ -99,18 +103,18 @@ test("concurrent shutdown signals join the held native HTTP drain", { tags: "slo
   for (const [index, receipt] of receipts.entries()) {
     child.kill("SIGTERM");
     expect(await Promise.race([receipt.promise.then(() => "held"), exited.then(() => "exited")]), `SIGTERM ${String(index + 1)}:\n${output}`).toBe("held");
-    expect(output, `SIGTERM ${String(index + 1)} must retain the active request`).not.toContain('"msg":"shutdown: http drained"');
+    expect(output, `SIGTERM ${String(index + 1)} must retain the active request`).not.toContain(logged(SHUTDOWN_MESSAGES.httpDrained));
   }
   expect(socketErrors).toEqual([]);
-  expect(output).toContain('"msg":"shutdown: draining"');
-  expect(output).not.toContain('"msg":"shutdown: complete"');
+  expect(output).toContain(logged(SHUTDOWN_MESSAGES.draining));
+  expect(output).not.toContain(logged(SHUTDOWN_MESSAGES.complete));
   socket.destroy();
   await closed;
   const exit = await exited;
   await processClosed;
   expect(exit, output).toEqual({ code: 0, signal: null });
   // The stage breadcrumbs `down` reads off the log: each one a real shutdown emits after the request is released.
-  for (const stage of ["http drained", "closing the service graph", "db housekeeping", "complete"]) {
-    expect(output).toContain(`"msg":"shutdown: ${stage}"`);
+  for (const stage of [SHUTDOWN_MESSAGES.httpDrained, SHUTDOWN_MESSAGES.closingServices, SHUTDOWN_MESSAGES.dbHousekeeping, SHUTDOWN_MESSAGES.complete]) {
+    expect(output).toContain(logged(stage));
   }
 });

@@ -2,7 +2,7 @@
 // A ceiling is a verdict input (an overrun is a finding), so a base is never widened to be safe.
 // The `*_SETTLE_MS` and `*_REVEAL_MS` values are sleeps the run always pays, so they are never scaled.
 import type { BoxLoadReader } from "../../floor/host/load-budget.ts";
-import { budget } from "../../floor/host/load-budget.ts";
+import { budgets } from "../../floor/host/load-budget.ts";
 import { processEnvValue } from "../../floor/process/process-env.ts";
 
 const STAGE_READY_BASE_MS = 60_000;
@@ -28,8 +28,7 @@ export type SnapCeilings = Readonly<Record<SnapCeilingName, number>>;
 
 /** Every base through `budget`, read against one box reading. */
 export function snapCeilings(read?: BoxLoadReader): SnapCeilings {
-  // `Object.fromEntries` widens its keys to string; the entries come from SNAP_BASES_MS itself, so every key is present.
-  return Object.fromEntries(Object.entries(SNAP_BASES_MS).map(([name, base]) => [name, budget(base, read)])) as Record<SnapCeilingName, number>;
+  return budgets(SNAP_BASES_MS, read);
 }
 
 /** The ceilings in force for this process, read once at module load (each snap run is a fresh process). */

@@ -26,7 +26,7 @@ import type { Page } from "@playwright/test";
 import type { SettingsShimEvidence } from "../../floor/appearance/appearance.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
-import { budget } from "../../floor/host/load-budget.ts";
+import { budgets } from "../../floor/host/load-budget.ts";
 import type { EvidenceGap } from "../../floor/verdict/evidence.ts";
 import { printEvidenceGaps } from "../../floor/verdict/evidence.ts";
 import type { ThemeStampExpectation, ThemeStampReceipt } from "../contract/theme-stamp.ts";
@@ -37,8 +37,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route> --theme <name>");
 const STAMP_ATTRIBUTE = "data-theme";
 /** Poll budget for the stamp. It follows the settings read the readiness flag already waited for, so this
  *  is a short tail, not a second boot wait — and it is a REFUSAL when it expires, never a shrug. */
-const STAMP_BASE_MS = 15_000;
-const STAMP_TIMEOUT_MS = budget(STAMP_BASE_MS);
+const CEILINGS_MS = budgets({ stampTimeout: 15_000 });
 const STAMP_POLL_MS = 100;
 
 /** PURE — the decision, so both arms are unit-provable without a browser. */
@@ -81,7 +80,7 @@ export function themeStampGap(expectation: { readonly stamp: string; readonly th
   return {
     evidence: `the ${STAMP_ATTRIBUTE} stamp for --theme ${expectation.themeName}`,
     detail:
-      `<html ${STAMP_ATTRIBUTE}> ${observed === null ? "was ABSENT" : `read ${JSON.stringify(observed)}`} after ${STAMP_TIMEOUT_MS}ms, but the run asked for ` +
+      `<html ${STAMP_ATTRIBUTE}> ${observed === null ? "was ABSENT" : `read ${JSON.stringify(observed)}`} after ${CEILINGS_MS.stampTimeout}ms, but the run asked for ` +
       `${JSON.stringify(expectation.stamp)} — everything this run would have sampled (pixels, contrast, evals) describes the DEFAULT palette, not the theme on the RESULT line (#1227). ` +
       "A chat room whose CARD carries its own theme legitimately has no html stamp (D71): take theme arms on a non-carried surface. The mechanism is tooling/src/floor/appearance/theme.ts.",
   };
@@ -109,7 +108,7 @@ export async function awaitThemeStamp(page: Page, evidence: SettingsShimEvidence
   if (expectation.kind === "ungated") {
     return { gap: null, polls: 0 };
   }
-  const deadline = Date.now() + STAMP_TIMEOUT_MS;
+  const deadline = Date.now() + CEILINGS_MS.stampTimeout;
   let observed: string | null = null;
   let polls = 0;
   while (Date.now() < deadline) {

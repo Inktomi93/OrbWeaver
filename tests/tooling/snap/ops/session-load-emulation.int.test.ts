@@ -4,9 +4,10 @@ import { expect, test } from "@orb/testkit/tooling";
 import { closeProbeSession } from "../../../../tooling/src/floor/browser/browser.ts";
 import { NETWORK_PROFILES, throttleResultValue } from "../../../../tooling/src/snap/lib/throttle.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
-import type { LoadEmulationTarget } from "../../../../tooling/src/snap/ops/session.ts";
 import { applyLoadEmulation, launchSnapSession, loadEmulationFor, openSnapMatrixContext } from "../../../../tooling/src/snap/ops/session.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+
+type LoadEmulationTarget<P> = Parameters<typeof applyLoadEmulation<P>>[0];
 
 const BROWSER_TIMEOUT_MS = scaledBudget(60_000);
 const CPU_THROTTLE_METHOD = "Emulation.setCPUThrottlingRate";

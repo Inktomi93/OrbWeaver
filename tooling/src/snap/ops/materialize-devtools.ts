@@ -21,7 +21,7 @@ import type {
   DevToolsLicenseManifest,
 } from "../../floor/devtools/devtools-assets.ts";
 import { parseDevToolsAssetPin } from "../../floor/devtools/devtools-assets.ts";
-import { budget } from "../../floor/host/load-budget.ts";
+import { budgets } from "../../floor/host/load-budget.ts";
 import { readMember } from "../../floor/instrument/member.ts";
 import { DEVTOOLS_LICENSE_SOURCES } from "../lib/devtools-license-sources.ts";
 import { literalModuleAssetPaths, pathForDevToolsRequest } from "../lib/devtools-module-assets.ts";
@@ -48,10 +48,7 @@ const RESOURCE_FETCH_RETRY_MS = 250;
 /** All THREE DevTools ceilings ride `budget()` (#1266, #1508): asset fetch, license-notice fetch and the
  *  frontend navigation are ceilings a healthy materialisation never reaches, so stretching them under load
  *  costs nothing, stops a contended box reading as a broken pin, and no fetch here can hang unbounded. */
-const RESOURCE_FETCH_BASE_MS = 30_000;
-const RESOURCE_FETCH_TIMEOUT_MS = budget(RESOURCE_FETCH_BASE_MS);
-const FRONTEND_NAV_BASE_MS = 30_000;
-const FRONTEND_NAV_TIMEOUT_MS = budget(FRONTEND_NAV_BASE_MS);
+const CEILINGS_MS = budgets({ resourceFetchTimeout: 30_000, frontendNavTimeout: 30_000 });
 const JAVASCRIPT_MIME_TYPES = new Set(["application/javascript", "text/javascript"]);
 
 interface CachedAsset {
@@ -76,7 +73,7 @@ async function fetchAsset(path: string): Promise<CachedAsset> {
   for (let attempt = 1; attempt <= RESOURCE_FETCH_ATTEMPTS; attempt += 1) {
     // each failed attempt is kept as lastError and the exhausted loop throws it with the asset path; a later successful attempt supersedes an earlier failure on purpose. Ends if exhaustion stops throwing lastError.
     try {
-      const response = await fetch(`${SOURCE_ORIGIN}${path}`, { redirect: "manual", signal: AbortSignal.timeout(RESOURCE_FETCH_TIMEOUT_MS) });
+      const response = await fetch(`${SOURCE_ORIGIN}${path}`, { redirect: "manual", signal: AbortSignal.timeout(CEILINGS_MS.resourceFetchTimeout) });
       if (response.status === HTTP_OK && !response.headers.has("location")) {
         const mimeType = (response.headers.get("content-type") ?? "application/octet-stream").split(";", 1)[0] ?? "application/octet-stream";
         return { body: Buffer.from(await response.arrayBuffer()), mimeType };
@@ -331,7 +328,7 @@ async function exerciseClosure(page: Page, pin: DevToolsAssetPin, frontendOrigin
   try {
     await frontend.goto(`${frontendOrigin}/serve_rev/@${pin.devtoolsFrontendRevision}/inspector.html?ws=127.0.0.1:${port}/devtools/page/${identity.id}`, {
       waitUntil: "domcontentloaded",
-      timeout: FRONTEND_NAV_TIMEOUT_MS,
+      timeout: CEILINGS_MS.frontendNavTimeout,
     });
     await frontend.waitForTimeout(FRONTEND_ATTACH_MS);
     // #1004 — this object IS the attach proof for the whole materialisation; a malformed one used to
@@ -351,7 +348,10 @@ function familyFor(relativePath: string): string {
   return match?.family ?? "devtools-frontend";
 }
 async function fetchNotice(revision: string, path: string): Promise<Buffer> {
-  const response = await fetch(`${GITILES}/+/${revision}/${path}?format=TEXT`, { redirect: "manual", signal: AbortSignal.timeout(RESOURCE_FETCH_TIMEOUT_MS) });
+  const response = await fetch(`${GITILES}/+/${revision}/${path}?format=TEXT`, {
+    redirect: "manual",
+    signal: AbortSignal.timeout(CEILINGS_MS.resourceFetchTimeout),
+  });
   if (response.status !== HTTP_OK || response.headers.has("location")) {
     throw new Error(`license fetch failed: ${path} (${response.status})`);
   }

@@ -7,7 +7,7 @@ import { print } from "@orb/tooling/floor/artifacts/artifacts";
 import type { Page } from "@playwright/test";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { AnimationRecord, MeasuredClick, MotionFlagRecord, MotionSnapshot } from "../contract/types.ts";
-import { STEP_TIMEOUT_MS } from "../lib/budgets.ts";
+import { MOTION_CEILINGS_MS } from "../lib/budgets.ts";
 import { animationRecords, bridgePresence, flagRecords, motionSnapshot } from "./page-validate.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --motion");
@@ -47,9 +47,9 @@ export async function prepareMeasuredClick(page: Page, selector: string | null):
   // a failed click preparation prints STEP FAILED and returns null; runAudit sets stepFailed when a selector was asked for and the click is null, and evaluateMotionAudit reads stepFailed into budgetsPass. Ends if stepFailed stops being read.
   try {
     const loc = page.locator(selector).first();
-    await loc.waitFor({ state: "visible", timeout: STEP_TIMEOUT_MS });
-    await loc.scrollIntoViewIfNeeded({ timeout: STEP_TIMEOUT_MS });
-    const box = await loc.boundingBox({ timeout: STEP_TIMEOUT_MS });
+    await loc.waitFor({ state: "visible", timeout: MOTION_CEILINGS_MS.step });
+    await loc.scrollIntoViewIfNeeded({ timeout: MOTION_CEILINGS_MS.step });
+    const box = await loc.boundingBox({ timeout: MOTION_CEILINGS_MS.step });
     if (box === null) {
       throw new Error("visible target has no bounding box");
     }

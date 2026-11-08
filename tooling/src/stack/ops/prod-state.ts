@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
-import { budget } from "@orb/tooling/floor/host/load-budget";
+import { budgets } from "@orb/tooling/floor/host/load-budget";
 import { print, REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { listeningPids, socketTableOrThrow } from "../../floor/host/platform.ts";
@@ -19,8 +19,7 @@ refuseDirectInvocation(import.meta.url, "pnpm stack <verb> prod");
 
 const DEFAULT_PORT = DEV_PORTS.server;
 // A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base.
-const PROBE_TIMEOUT_MS_BASE = 2000;
-const PROBE_TIMEOUT_MS = budget(PROBE_TIMEOUT_MS_BASE);
+const CEILINGS_MS = budgets({ probeTimeout: 2000 });
 export const POLL_INTERVAL_MS = 500;
 export const MS_PER_SECOND = 1000;
 
@@ -71,7 +70,7 @@ export function resolvePort(fileEnv: Readonly<Record<string, string | undefined>
 async function probeHealthz(port: number): Promise<{ healthy: boolean; harness: boolean | null }> {
   // healthy:false is data classifyInstance reads: nothing listening and unhealthy is absent (identity.ts:23), a live recorded pid that does not answer is ours-unhealthy (identity.ts:40), and status prints healthz unreachable (prod-down.ts:118). Ownership comes from pid identity, never from health. Ends if unhealthy can authorize ownership.
   try {
-    const res = await fetch(`http://127.0.0.1:${port}/healthz`, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
+    const res = await fetch(`http://127.0.0.1:${port}/healthz`, { signal: AbortSignal.timeout(CEILINGS_MS.probeTimeout) });
     if (!res.ok) {
       return { healthy: false, harness: null };
     }
@@ -100,7 +99,7 @@ function readDebugToken(): string | null {
 export async function probeDebugPosture(port: number): Promise<DebugPosture> {
   // an unanswered probe is the "unknown" posture: debugPostureText words it for the operator (verdicts.ts:231, printed at prod-down.ts:125 and prod-support.ts:100), and observe presents no token unless the posture is token or open (prod-state.ts:172). Ends if unknown can authorize control.
   try {
-    const res = await fetch(`http://127.0.0.1:${port}/api/_debug/info`, { signal: AbortSignal.timeout(PROBE_TIMEOUT_MS) });
+    const res = await fetch(`http://127.0.0.1:${port}/api/_debug/info`, { signal: AbortSignal.timeout(CEILINGS_MS.probeTimeout) });
     return classifyDebugPosture(res.status);
   } catch {
     return "unknown";
@@ -115,7 +114,7 @@ async function probeDebugPid(port: number): Promise<number | null> {
   }
   const res = await fetch(`http://127.0.0.1:${port}/api/_debug/info`, {
     headers: { "x-debug-token": token },
-    signal: AbortSignal.timeout(PROBE_TIMEOUT_MS),
+    signal: AbortSignal.timeout(CEILINGS_MS.probeTimeout),
   });
   if (!res.ok) {
     return null;

@@ -28,7 +28,7 @@ import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import { errorMessage } from "@orb/kit/error-message";
 import type { RequestTrace } from "@orb/server/foundation/observability";
-import { budget } from "@orb/tooling/floor/host/load-budget";
+import { budgets } from "@orb/tooling/floor/host/load-budget";
 import { print, REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
@@ -44,8 +44,7 @@ refuseDirectInvocation(import.meta.url, "pnpm trace:render | pnpm trace:tail | p
 
 // Cold compile of the server graph is bounded generously; a warm host is far under it.
 // A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base.
-const READY_TIMEOUT_MS_BASE = 120_000;
-const READY_TIMEOUT_MS = budget(READY_TIMEOUT_MS_BASE);
+const CEILINGS_MS = budgets({ readyTimeout: 120_000 });
 const POLL_MS = 200;
 const SETTLE_MS = 100;
 const TOKEN_BYTES = 16;
@@ -222,7 +221,7 @@ export async function fireOp(argv: readonly string[]): Promise<number> {
 
   const run = async (): Promise<number> => {
     const baseUrl = `http://127.0.0.1:${port}`;
-    await waitForReady(baseUrl, READY_TIMEOUT_MS);
+    await waitForReady(baseUrl, CEILINGS_MS.readyTimeout);
     const batch = await fireRequests(baseUrl, requests);
     // The processor seals a trace when the ROOT span ends (after the response is written) —
     // a brief settle guarantees it's in the ring before we pull it.

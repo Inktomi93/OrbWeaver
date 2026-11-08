@@ -381,8 +381,8 @@ interface LoadEmulationCdp {
   send(method: string, params: object): Promise<unknown>;
 }
 
-/** The contexts the load arm sends through; a {@link ProbeSession} satisfies it, and so does a recording stand-in. */
-export interface LoadEmulationTarget<P> {
+// The contexts the load arm sends through; a ProbeSession satisfies it, and so does a recording stand-in.
+interface LoadEmulationTarget<P> {
   readonly contexts: readonly {
     readonly context: { readonly pages: () => readonly P[]; readonly newCDPSession: (page: P) => Promise<LoadEmulationCdp> };
   }[];

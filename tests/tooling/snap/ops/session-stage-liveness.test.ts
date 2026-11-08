@@ -11,7 +11,7 @@ import { stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { SessionEvent, SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../../../../tooling/src/snap/contract/session.ts";
 import type { StageBoundIdentity, StageRow } from "../../../../tooling/src/snap/contract/stage.ts";
-import { diskSafeArgv } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
+import { diskSafeArgv, diskSafeUrl } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import { readSessionEvent } from "../../../../tooling/src/snap/lib/session-wire.ts";
 import { STAGE_ROOT_REL } from "../../../../tooling/src/snap/lib/stage-plan.ts";
 import { refuseDriftedStageCall } from "../../../../tooling/src/snap/ops/session-daemon-request.ts";
@@ -56,7 +56,7 @@ function sessionRow(bound: StageBoundIdentity | undefined): SessionRow {
     socket: "/tmp/p-drift.sock",
     cdpEndpoint: null,
     slotDir: "/tmp/slot",
-    binding: { kind: "stage", url: "http://localhost:5293" },
+    binding: { kind: "stage", url: diskSafeUrl("http://localhost:5293") },
     stage: { band: BAND, status: "live", detectedAt: null, op: null, ...(bound === undefined ? {} : { bound }) },
     environment: {
       viewport: { width: 1280, height: 720 },

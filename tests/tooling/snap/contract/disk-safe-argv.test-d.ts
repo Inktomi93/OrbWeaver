@@ -1,8 +1,8 @@
 // Raw arguments and raw page text cannot reach a writer: each names the branded projection. A private value is not a
 // string, so it cannot leave for a label or a template either. Each `@ts-expect-error` is a plant that must not compile.
 import { expectTypeOf } from "vitest";
-import type { DiskSafeArgv, DiskSafeOp, DiskSafeText, PrivateText } from "../../../../tooling/src/snap/contract/disk-safe-argv.ts";
-import type { SnapRunIndex } from "../../../../tooling/src/snap/contract/run-index.ts";
+import type { DiskSafeArgv, DiskSafeOp, DiskSafeText, DiskSafeUrl, PrivateText } from "../../../../tooling/src/snap/contract/disk-safe-argv.ts";
+import type { SnapRunIndex, SnapStageProvenance } from "../../../../tooling/src/snap/contract/run-index.ts";
 import type { SessionEvent, SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import type { Args, AssertionOutcome, CaptureOutcome, DriveFailure, EvalOutcome, Step } from "../../../../tooling/src/snap/contract/types.ts";
 import type { sessionBusyRefusal } from "../../../../tooling/src/snap/lib/session-refusals.ts";
@@ -19,6 +19,9 @@ expectTypeOf<SessionRow["inflightOp"]>().toEqualTypeOf<DiskSafeOp | null>();
 expectTypeOf<Parameters<typeof completeSnapRun>[2]>().toEqualTypeOf<DiskSafeArgv>();
 expectTypeOf<readonly string[]>().not.toExtend<DiskSafeArgv>();
 expectTypeOf<string>().not.toExtend<DiskSafeOp>();
+expectTypeOf<SessionRow["binding"]["url"]>().toEqualTypeOf<DiskSafeUrl>();
+expectTypeOf<NonNullable<SnapStageProvenance["binding"]>["url"]>().toEqualTypeOf<DiskSafeUrl>();
+expectTypeOf<string>().not.toExtend<DiskSafeUrl>();
 
 type Inflight = NonNullable<SessionDaemonState["inflight"]>;
 type FillStep = Extract<Step, { readonly kind: "fill" }>;

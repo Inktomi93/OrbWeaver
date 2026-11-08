@@ -18,6 +18,7 @@ import type { SnapAnalyzerProblem } from "../../contract/analyzer.ts";
 import type { ArmActionDisposition, ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmRunContext, ArmRunInstance } from "../../contract/arms.ts";
 import type { Args, SnapAction } from "../../contract/types.ts";
 import { interactionPerfFact } from "../../lib/interaction-perf-verdict.ts";
+import { scrubPrivateText } from "../../lib/private-values.ts";
 import { ratePostureDisposition, snapTimingPolicy } from "../../lib/rate-posture.ts";
 import { pushStep } from "../flags-support.ts";
 
@@ -186,7 +187,7 @@ async function collectPerfEvidence(
       continue;
     }
     for (const page of context.pages) {
-      const evidence = pageMeterEvidence(await page.evaluate((): unknown => Reflect.get(globalThis, "__perfMeter")), page.url());
+      const evidence = pageMeterEvidence(await page.evaluate((): unknown => Reflect.get(globalThis, "__perfMeter")), scrubPrivateText(page.url()));
       if (evidence.data !== null) {
         data.push(evidence.data);
       }

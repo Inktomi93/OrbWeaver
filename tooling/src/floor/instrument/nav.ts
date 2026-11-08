@@ -23,7 +23,7 @@ import { errorMessage } from "@orb/kit/error-message";
 import { parseGotoTarget, splitLastEq } from "@orb/tooling/floor/instrument/argv";
 import type { Page } from "@playwright/test";
 import { navResultShape } from "../browser/page-validate.ts";
-import { budget } from "../host/load-budget.ts";
+import { budgets } from "../host/load-budget.ts";
 
 /** The nav verbs a probe CLI offers, spelled as they appear on the command line (minus the `--`). */
 export const NAV_METHODS = ["goto", "open-chat", "open-character", "context-tab", "panel"] as const;
@@ -101,15 +101,14 @@ export function buildNavScript(method: NavMethod, target: string): string {
 export type NavOutcome = { readonly ok: true } | { readonly ok: false; readonly reason: string };
 
 // A CEILING, load-scaled through the one policy (#1232): the literal is the QUIET-BOX base.
-const READY_TIMEOUT_MS_BASE = 10_000;
-const READY_TIMEOUT_MS = budget(READY_TIMEOUT_MS_BASE);
+const CEILINGS_MS = budgets({ readyTimeout: 10_000 });
 
 /** Await app-readiness + the bridge, then run one nav action. Never throws: a thrown evaluate (no bridge,
  *  a navigation mid-call) comes back as `ok:false` with the message, because the caller's job is to COUNT
  *  and PRINT the failure, not to die on it. */
 export async function runNav(page: Page, method: NavMethod, target: string): Promise<NavOutcome> {
   try {
-    await page.locator("html[data-app-ready]").waitFor({ state: "attached", timeout: READY_TIMEOUT_MS });
+    await page.locator("html[data-app-ready]").waitFor({ state: "attached", timeout: CEILINGS_MS.readyTimeout });
     // the readiness ping is advisory and the bridge call below it is the check: a missing bridge or a navigation mid-call comes back from runNav as { ok: false, reason }, which motion-nav prints as NAV FAILED. Ends if the ping becomes the only readiness check.
     await page.evaluate("window.__orb && window.__orb.ready").catch(() => undefined);
     // #1004: the bridge's answer is VALIDATED at the seam, not asserted. An absent `ok` used to read as

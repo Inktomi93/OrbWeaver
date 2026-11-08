@@ -1,0 +1,10 @@
+{
+  "budget-pairs-to-record-edits": [
+    {
+      "cardinality": {
+        "shape": "one-pair"
+      },
+      "count": 1
+    }
+  ]
+}

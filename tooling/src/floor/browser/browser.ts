@@ -232,7 +232,7 @@ function markedBrowserArgs(args: readonly string[]): string[] {
 type PersistentLaunchOptions = NonNullable<Parameters<typeof chromium.launchPersistentContext>[1]>;
 
 /** What one owned probe launch hands Playwright: a plain browser, or a persistent profile with its context sizing. */
-export type OwnedLaunch =
+type OwnedLaunch =
   | { readonly kind: "browser"; readonly options: LaunchOptions }
   | { readonly kind: "persistent"; readonly profileDir: string; readonly options: PersistentLaunchOptions };
 

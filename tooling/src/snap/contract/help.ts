@@ -195,6 +195,8 @@ Developer harness inputs:
                           this browser as a signed-out visitor instead of its owner. Browser-lifetime.
   --fixture-server <origin>  developer fixture stack server origin (health + authentication; env fallback)
   --fixture-base <origin>    developer fixture stack Vite origin (browser navigation; env fallback)
+                          A --base or --fixture-base password, its basic-auth header and a token-named
+                          query value read as <private> in run files, session rows and printed evidence
   pnpm snap --eval 'window.__orb?.capabilities()'      discover callable development capabilities
   pnpm snap --eval 'window.__orb?.rings()'             discover retained evidence rings
   pnpm snap --eval 'window.__orb?.nav.capabilities()'  discover SPA navigation targets and methods

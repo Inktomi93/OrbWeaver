@@ -1,0 +1,10 @@
+{
+  "budget-pairs-to-record-skips": [
+    {
+      "cardinality": {
+        "reason": "not-module-scope"
+      },
+      "count": 1
+    }
+  ]
+}

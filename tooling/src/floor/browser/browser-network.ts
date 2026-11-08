@@ -2,7 +2,7 @@
 // disk boundary and redacts them before writing. This shares the diagnostic CDP session and page lifecycle.
 import type { CDPSession, Page } from "@playwright/test";
 import { exactScope } from "../artifacts/artifact-scope.ts";
-import { budget } from "../host/load-budget.ts";
+import { budgets } from "../host/load-budget.ts";
 import type { BrowserNetworkRecord, BrowserNetworkRequestExtra, BrowserNetworkResponseExtra, DiagnosticWindow } from "./browser-contract.ts";
 import { normalizeBrowserNetworkRequest, normalizeBrowserNetworkRequestExtra, normalizeBrowserNetworkResponseExtra } from "./browser-contract.ts";
 import type { BrowserEvidenceRetentionReceipt } from "./browser-evidence-ring.ts";
@@ -12,8 +12,7 @@ import { PendingNetworkExtras } from "./browser-network-extra.ts";
 import { normalizeBrowserNetworkResponse } from "./browser-network-normalize.ts";
 
 const MAX_BODY_BYTES = 1_048_576;
-const BODY_READ_TIMEOUT_BASE_MS = 5000;
-const BODY_READ_TIMEOUT_MS = budget(BODY_READ_TIMEOUT_BASE_MS);
+const CEILINGS_MS = budgets({ bodyReadTimeout: 5000 });
 export const BROWSER_NETWORK_COMPLETED_CAP = 8192;
 export const BROWSER_NETWORK_PENDING_EXTRA_CAP = 2048;
 const TEXT_MIME = /^text\/|json|javascript|xml|x-www-form-urlencoded|graphql/iu;
@@ -229,7 +228,7 @@ export async function wirePageNetwork(cdp: CDPSession, page: Page, identity: Net
     pending: new Set(),
     pendingRecords,
     closedRequestIds: new BoundedLatestMap<string, true>(limits.completed ?? BROWSER_NETWORK_COMPLETED_CAP),
-    bodyReadTimeoutMs: limits.bodyReadTimeoutMs ?? BODY_READ_TIMEOUT_MS,
+    bodyReadTimeoutMs: limits.bodyReadTimeoutMs ?? CEILINGS_MS.bodyReadTimeout,
   };
   cdp.on("Network.requestWillBeSent", (event) => {
     const prior = current(controller, event.requestId);

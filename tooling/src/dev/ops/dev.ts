@@ -15,7 +15,7 @@ import { buildShowcaseArtifacts, showcaseArtifactsAreCurrent } from "../../floor
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { warn } from "../../floor/cli/log.ts";
-import { budget } from "../../floor/host/load-budget.ts";
+import { budget, budgets } from "../../floor/host/load-budget.ts";
 import { httpOk } from "../../floor/http/http-probe.ts";
 import type { ChildExit, FullPriorityChild } from "../../floor/process/proc.ts";
 import { spawnFullPriorityChild } from "../../floor/process/proc.ts";
@@ -48,8 +48,7 @@ refuseDirectInvocation(import.meta.url, "pnpm dev");
 
 const PACKAGES_DIR = join(REPO_ROOT, "packages");
 // How long a stopped child may drain before SIGKILL; a quiet-box base, stretched under load.
-const STOP_GRACE_MS_BASE = 10_000;
-const STOP_GRACE_MS = budget(STOP_GRACE_MS_BASE);
+const CEILINGS_MS = budgets({ stopGrace: 10_000 });
 const PACKAGE_JSON = "package.json";
 const OTHER_CHILD = { server: "vite", vite: "server" } as const satisfies Record<DevChildName, DevChildName>;
 // A child's last words are a stack trace's tail or a one-line refusal; this much of its log holds either.
@@ -129,7 +128,7 @@ function armSupervision(): Supervision {
       for (const child of children) {
         child.kill("SIGKILL");
       }
-    }, STOP_GRACE_MS);
+    }, CEILINGS_MS.stopGrace);
   };
   const signalAll = (signal: NodeJS.Signals): void => {
     for (const child of children) {

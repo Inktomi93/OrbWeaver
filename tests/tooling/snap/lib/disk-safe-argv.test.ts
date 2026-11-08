@@ -1,6 +1,6 @@
 // What a run file may hold of an argv: the shape of the call, never the text an operator handed it.
 import { expect, test } from "@orb/testkit/tooling";
-import { diskSafeArgv, diskSafeOp } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
+import { diskSafeArgv, diskSafeOp, diskSafeUrl } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 
 test("a private flag keeps its selector or key and loses its value", () => {
@@ -44,6 +44,23 @@ test("a private flag with its value missing masks nothing past the end", () => {
 test("the projection is idempotent, so a stored argv reads back as it was written", () => {
   const once = diskSafeArgv(["--fill", "input=hunter2", "--debug-token", "tok", "/x"]);
   expect(diskSafeArgv(once)).toEqual(once);
+});
+
+test("a base URL loses its userinfo and its sensitive query values, and keeps the operator's spelling of the rest", () => {
+  expect(diskSafeArgv(["--base", "http://u:hunter2@127.0.0.1:5273?token=t0k&lang=en", "--fixture-base", "https://u%40x:p%3Aw@h.test/a?api_key=k#f"])).toEqual([
+    "--base",
+    "http://<private>@127.0.0.1:5273?token=<private>&lang=en",
+    "--fixture-base",
+    "https://<private>@h.test/a?api_key=<private>#f",
+  ]);
+  const plain = ["--base", "http://127.0.0.1:5273", "--fixture-base", "http://localhost:5175/"];
+  expect(diskSafeArgv(plain)).toEqual(plain);
+});
+
+test("a binding URL keeps a file path whole, an @ in a package directory included", () => {
+  expect(diskSafeUrl("/repo/node_modules/.pnpm/@scope+pkg/x.html")).toBe("/repo/node_modules/.pnpm/@scope+pkg/x.html");
+  const masked = diskSafeUrl("http://u:hunter2@h.test/?session=s3");
+  expect(diskSafeUrl(masked)).toBe(masked);
 });
 
 test("an op names a request by its masked arguments, or its kind when it carries none", () => {

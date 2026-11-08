@@ -1,0 +1,16 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/codemod/codemod/refs/heads/main/schemas/workflow.json
+version: "1"
+nodes:
+  - id: fold-budget-pairs
+    name: Fold hand-paired budget lines into one record per module
+    type: automatic
+    steps:
+      - name: Tooling modules
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "typescript"
+          # The callee is proved to be load-budget's `budget` by its import binding, which needs the file's bindings.
+          semantic_analysis: file
+          include: ["**/*.ts"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]

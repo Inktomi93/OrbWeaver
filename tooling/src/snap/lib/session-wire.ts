@@ -9,7 +9,7 @@ import type { DiskSafeOp } from "../contract/disk-safe-argv.ts";
 import { parseSnapRunResults, SNAP_RUN_RESULTS_VERSION } from "../contract/run-facts.ts";
 import type { SessionBinding, SessionEvent, SessionPageInfo, SessionRequest, SessionRow, SessionRunProvenance } from "../contract/session.ts";
 import { SESSION_PROTOCOL_VERSION, SESSION_REQUEST_KINDS } from "../contract/session.ts";
-import { diskSafeArgv, storedDiskSafeOp } from "./disk-safe-argv.ts";
+import { diskSafeArgv, diskSafeUrl, storedDiskSafeOp } from "./disk-safe-argv.ts";
 import { parseStageBoundIdentity } from "./stage-identity.ts";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -270,7 +270,7 @@ function sessionBinding(value: unknown): SessionBinding | null {
     return null;
   }
   const kind = value["kind"];
-  return (kind === "base" || kind === "file" || kind === "stage") && typeof value["url"] === "string" ? { kind, url: value["url"] } : null;
+  return (kind === "base" || kind === "file" || kind === "stage") && typeof value["url"] === "string" ? { kind, url: diskSafeUrl(value["url"]) } : null;
 }
 
 function sessionStageProvenance(value: unknown): NonNullable<SessionRunProvenance["stage"]> | null {

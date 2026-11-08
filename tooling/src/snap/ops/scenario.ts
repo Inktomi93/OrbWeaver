@@ -17,6 +17,7 @@ import type { SnapDetailedResult } from "../contract/run.ts";
 import type { ScenarioSpec } from "../contract/scenario.ts";
 import type { Args, CaptureOutcome, SessionCounts, ShotPlan } from "../contract/types.ts";
 import type { SnapFailureSummary } from "../contract/verdict.ts";
+import { diskSafeUrl } from "../lib/disk-safe-argv.ts";
 import { HTTP_URL_RE, shouldProduceShot } from "../lib/out-names.ts";
 import { ratePostureResultPairs, sampleSnapRatePosture } from "../lib/rate-posture.ts";
 import { checkpointCssFailed, scenarioValue } from "../lib/scenario-values.ts";
@@ -305,7 +306,7 @@ export async function runScenarioDetailed(opts: Args, host: ScenarioHost | null 
     printScenarioReports({ spec, session, checkpoints, outcomes, plans, evidenceRanges, failedRequests, viteChurn, navigationAborts });
     const manifestPath = await writeManifestIfRequested(opts, spec.name, {
       status: red ? "fail" : "pass",
-      target: { url: scenarioPath, name: spec.name },
+      target: { url: diskSafeUrl(scenarioPath), name: spec.name },
       environment: {
         viewport: first.viewport,
         device: first.device,

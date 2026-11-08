@@ -391,6 +391,88 @@ test("a value read from the environment reaches the field and no argument or fil
   expect(unset.stdout).toContain("--fill-env names L4_UNSET_VARIABLE");
 });
 
+const BASE_USER = "canary";
+const BASE_PLANTS = { password: "plant-base-pass-6d1f", token: "plant-base-token-2b8e" } as const;
+/** What the browser sends a basic-auth gate: the pair, base64, as the standard library spells it. */
+const BASE_AUTHORIZATION = `Basic ${Buffer.from(`${BASE_USER}:${BASE_PLANTS.password}`).toString("base64")}`;
+const BASE_SPELLINGS = [BASE_PLANTS.password, BASE_PLANTS.token, BASE_AUTHORIZATION.slice("Basic ".length)] as const;
+
+/** A loopback peer behind a basic-auth gate, the reason an operator writes credentials into `--base`. */
+async function gatedServer(): Promise<AsyncDisposable & { readonly base: string; readonly admitted: () => number }> {
+  let admitted = 0;
+  const server = createServer((request, response) => {
+    if (request.headers.authorization !== BASE_AUTHORIZATION) {
+      response.writeHead(401, { "www-authenticate": 'Basic realm="gate"' }).end();
+      return;
+    }
+    admitted += 1;
+    response.writeHead(200, { "content-type": "text/html" }).end(FIXTURE_HTML);
+  });
+  await new Promise<void>((resolve) => server.listen(0, "127.0.0.1", resolve));
+  return {
+    base: `http://${BASE_USER}:${BASE_PLANTS.password}@127.0.0.1:${String(listeningAddress(server).port)}/?token=${BASE_PLANTS.token}`,
+    admitted: () => admitted,
+    [Symbol.asyncDispose]: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  };
+}
+
+/** Every file under `roots` holding a base credential, by name or by bytes, a zip read entry by entry. */
+function baseDisclosures(roots: readonly string[]): readonly string[] {
+  const found: string[] = [];
+  const judge = (label: string, text: string): void => {
+    found.push(...BASE_SPELLINGS.filter((spelling) => text.includes(spelling)).map((spelling) => `${label} holds ${spelling}`));
+  };
+  for (const path of roots.flatMap(filesUnder)) {
+    const bytes = readFileSync(path);
+    judge(path, bytes.toString("latin1"));
+    if (path.endsWith(".zip")) {
+      for (const [entry, content] of Object.entries(unzipSync(bytes))) {
+        judge(`${path}!${entry}`, Buffer.from(content).toString("latin1"));
+      }
+    }
+  }
+  return found;
+}
+
+test("a credentialed --base opens its gate, and no file, log or line holds its password or token", async ({ runCli }) => {
+  await using peer = await gatedServer();
+  const run = await runCli("snap", ["--base", peer.base, "/", "--requests", "--json", "--expect-text", ASSERT_FAILS, "--no-shot"], {
+    timeoutMs: CLI_BUDGET_MS,
+  });
+  // The positive control: the browser presented the credentials and the gate let the page through.
+  expect(peer.admitted()).toBeGreaterThan(0);
+  expect(run.code).not.toBe(0);
+  expect(BASE_SPELLINGS.filter((spelling) => run.stdout.includes(spelling) || run.stderr.includes(spelling))).toEqual([]);
+  const slot = slotOf(run.stdout);
+  expect(baseDisclosures([slot])).toEqual([]);
+  const index = JSON.parse(readFileSync(join(slot, "run.json"), "utf8")) as { readonly process: { readonly argv: readonly string[] } };
+  expect(index.process.argv).toEqual(expect.arrayContaining(["--base", expect.stringContaining(`${PRIVATE_MASK}@127.0.0.1`)]));
+  expect(keptTrace(slot)).toContain(PRIVATE_MASK);
+});
+
+test("a session booted on a credentialed --base keeps its password and token out of its row, log and slots", async ({ runCli, scratch }) => {
+  await using peer = await gatedServer();
+  const home = join(scratch, "registry");
+  mkdirSync(home);
+  const env = { [SESSION_HOME_KEY]: home, [HOST_POOL_ROOT_ENV]: join(scratch, "host-slots"), [DEDICATED_BOX_ENV]: "0" };
+  const snap = (args: readonly string[]): ReturnType<typeof runCli> => runCli("snap", args, { env, timeoutMs: CLI_BUDGET_MS });
+  const name = `gated-base-${pid}`;
+  try {
+    const boot = await snap(["--session", name, "--base", peer.base, "/", "--no-shot"]);
+    expect(boot.code).toBe(0);
+    expect(peer.admitted()).toBeGreaterThan(0);
+    const status = await snap(["--session-status", name]);
+    expect(status.stdout).toContain(`${PRIVATE_MASK}@127.0.0.1`);
+    expect(BASE_SPELLINGS.filter((spelling) => boot.stdout.includes(spelling) || status.stdout.includes(spelling))).toEqual([]);
+    expect(existsSync(join(home, `${name}.log`))).toBe(true);
+    expect(baseDisclosures([home, slotOf(boot.stdout)])).toEqual([]);
+  } finally {
+    await snap(["--session-close", name]);
+    await snap(["--session-sweep"]);
+  }
+  expect(baseDisclosures([home])).toEqual([]);
+});
+
 test("a session keeps boot and call values out of its row, log, slots and export", async ({ runCli, scratch }) => {
   const fixture = join(scratch, "fixture.html");
   writeFileSync(fixture, FIXTURE_HTML);

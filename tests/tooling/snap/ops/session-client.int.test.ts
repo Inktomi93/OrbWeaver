@@ -1,7 +1,7 @@
 // THE MUTE-SOCKET PIN for the session client (#1508). `sessionRequest` settled only on the socket's own
 // `close`/`error` or a `done` event, so a daemon that ACCEPTED the connection and then wrote nothing held
 // its caller forever. `pingOk` awaits it UNWRAPPED inside `bootSession`'s poll, and the poll only rechecks
-// `SESSION_BOOT_TIMEOUT_MS` after that await returns — so the boot ceiling was unreachable by construction.
+// `SESSION_CEILINGS_MS.boot` after that await returns — so the boot ceiling was unreachable by construction.
 //
 // The fake daemon here is a plain unix socket server: no snap, no browser, no stage, no port.
 import { mkdtempSync, rmSync } from "node:fs";

@@ -7,7 +7,7 @@ import { stageBandPorts } from "../../../../tooling/src/floor/host/ports.ts";
 import type { SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../../../../tooling/src/snap/contract/session.ts";
 import type { StageSweepVerdict } from "../../../../tooling/src/snap/contract/stage.ts";
-import { diskSafeArgv } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
+import { diskSafeArgv, diskSafeUrl } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import { stageSweepVerdict } from "../../../../tooling/src/snap/lib/stage-bands.ts";
 import { sessionRegistryHome, writeRow as writeSessionRow } from "../../../../tooling/src/snap/ops/session-registry.ts";
 import { stageBandViews } from "../../../../tooling/src/snap/ops/stage-census.ts";
@@ -42,7 +42,7 @@ function sessionRow(daemonPid: number, stampedAt: string): SessionRow {
     socket: "/tmp/orb-sweep-child.sock",
     cdpEndpoint: null,
     slotDir: "/tmp/orb-sweep-child-slot",
-    binding: { kind: "stage", url: `http://localhost:${String(stageBandPorts(BAND).vite)}` },
+    binding: { kind: "stage", url: diskSafeUrl(`http://localhost:${String(stageBandPorts(BAND).vite)}`) },
     environment: {
       viewport: { width: 1280, height: 720 },
       device: null,

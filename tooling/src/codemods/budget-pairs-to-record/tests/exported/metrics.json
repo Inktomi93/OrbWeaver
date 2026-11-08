@@ -1,0 +1,10 @@
+{
+  "budget-pairs-to-record-skips": [
+    {
+      "cardinality": {
+        "reason": "exported-ceiling"
+      },
+      "count": 1
+    }
+  ]
+}

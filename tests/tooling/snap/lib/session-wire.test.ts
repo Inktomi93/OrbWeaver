@@ -6,7 +6,7 @@
 import { expect, test } from "@orb/testkit/tooling";
 import type { SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../../../../tooling/src/snap/contract/session.ts";
-import { diskSafeArgv, diskSafeOp } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
+import { diskSafeArgv, diskSafeOp, diskSafeUrl } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import { readSessionEvent, readSessionRequest, readSessionRow, resultPairsOf } from "../../../../tooling/src/snap/lib/session-wire.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
 import { sessionEnvironmentOf } from "../../../../tooling/src/snap/ops/session-daemon.ts";
@@ -25,7 +25,7 @@ function row(over: Partial<SessionRow> = {}): SessionRow {
     socket: `${HOME}/p-home-perf.sock`,
     cdpEndpoint: "http://127.0.0.1:40001",
     slotDir: `${LANE}/reports/runs/snap-session/agent-lane-4242-2026-09-02T18-00-00-000Z`,
-    binding: { kind: "base", url: "http://localhost:5173" },
+    binding: { kind: "base", url: diskSafeUrl("http://localhost:5173") },
     environment: {
       viewport: { width: 1280, height: 800 },
       device: null,

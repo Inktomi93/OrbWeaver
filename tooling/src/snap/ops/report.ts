@@ -11,6 +11,7 @@ import type { BrowserEnvironmentEvidence } from "../../floor/browser/browser-env
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ContrastOutcome } from "../contract/contrast.ts";
 import type { Args, AssertionOutcome, CaptureOutcome, EvalOutcome, EvidenceRange, ReportCtx, SessionCounts, WatchTick } from "../contract/types.ts";
+import { diskSafeUrl } from "../lib/disk-safe-argv.ts";
 import { printMapBlock } from "../lib/map-report.ts";
 import { scrubPrivateText } from "../lib/private-values.ts";
 import { shotScaleResultValue } from "../lib/shot-scale.ts";
@@ -172,7 +173,7 @@ function printSummary(session: SessionCounts, outcome: CaptureOutcome, opts: Arg
   } else if (opts.shotOf !== null) {
     shotDisplay = `${ctx.out}  (element: ${opts.shotOf})`;
   }
-  print(`URL          ${ctx.url}`);
+  print(`URL          ${diskSafeUrl(ctx.url)}`);
   print(`screenshot   ${shotDisplay}`);
   if (opts.colorScheme !== null) {
     print(`colorScheme  ${opts.colorScheme}`);

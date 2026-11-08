@@ -3,7 +3,7 @@ import { join } from "node:path";
 import { abandonedRuns } from "../../../../tooling/src/floor/artifacts/artifacts.ts";
 import type { SessionRow } from "../../../../tooling/src/snap/contract/session.ts";
 import { SESSION_PROTOCOL_VERSION } from "../../../../tooling/src/snap/contract/session.ts";
-import { diskSafeArgv } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
+import { diskSafeArgv, diskSafeUrl } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import { SESSION_INSTRUMENT, sessionRowPath, sessionSocketPath } from "../../../../tooling/src/snap/lib/session-plan.ts";
 import { reapSession, writeRow } from "../../../../tooling/src/snap/ops/session-registry.ts";
 import { expect, test } from "../../_windows-processes.ts";
@@ -18,7 +18,7 @@ function row(home: string, root: string, pid: number, slotDir: string): SessionR
     socket: sessionSocketPath(home, "owned-daemon"),
     cdpEndpoint: null,
     slotDir,
-    binding: { kind: "base", url: "http://127.0.0.1" },
+    binding: { kind: "base", url: diskSafeUrl("http://127.0.0.1") },
     environment: {
       viewport: { width: 1280, height: 720 },
       device: null,
