@@ -15,6 +15,7 @@ import type { StatusVocabulary } from "#components";
 import { ConfirmDialog, DestructiveAction, QueryBoundary, StatusChip, useFirstBootRows } from "#components";
 import type { AuthConfig } from "#data";
 import { QueryErrorState, SkeletonRows, useAuthConfig, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { RETRY_NAME } from "#lib";
 import { useRevokeUserSessions } from "../hooks/use-admin-mutations.ts";
 import { useStartSharing, useStopSharing } from "../hooks/use-share-mutations.ts";
 import type { SHARE_PHASES, ShareLinkMemory } from "../lib/share-model.ts";
@@ -233,7 +234,7 @@ function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: Seati
       <Row gap="field" align="center" wrap={true}>
         {view.phase === "stopped" ? (
           <Button ref={tryAgainRef} type="button" size="sm" loading={start.isPending} onClick={startSharing}>
-            Try again
+            {RETRY_NAME}
           </Button>
         ) : null}
         {view.phase === "off" ? null : (

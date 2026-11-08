@@ -20,7 +20,7 @@ import {
 export const comboboxVariants = tv({
   slots: {
     inputGroup: [
-      "relative flex flex-wrap items-center gap-field rounded-control border border-input-border bg-field-fill px-field inline-full min-inline-0",
+      "relative flex flex-wrap items-center gap-x-glyph-gap rounded-control border border-input-border bg-field-fill px-field inline-full min-inline-0",
       COLOR_MOTION,
       FOCUS_RING_WITHIN,
       "has-data-disabled:pointer-events-none has-data-disabled:opacity-disabled",
@@ -31,12 +31,14 @@ export const comboboxVariants = tv({
       FOCUS_RING,
       "data-disabled:opacity-disabled",
     ],
-    // The glyph stays its own size; the hit area rides `::before`, layout-neutral, one field step past the glyph on every
-    // side. That is the 24px floor at any pointer, and it ends at the chip's own edge, so it never reaches the next chip or
-    // the draft input: the pointer-conditional touch target would, since chips sit a field step apart.
+    // The box is the glyph step, so the hit area rides `::before`, layout-neutral, as far past it as the touch floor asks on
+    // every side (`glyph-bleed`: the touch-target less that step, halved, so it is pointer-conditional). The chip's end
+    // padding spends part of that reach, and the gaps hold the rest (`glyph-gap` between chips on a line, which keeps two
+    // glyph hit areas apart, and `combobox-wrap-*` between lines), so the hit area never reaches the next chip, the line
+    // below, or the draft input.
     chipRemove: [
-      "relative flex shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none",
-      "before:absolute before:-inset-field before:content-['']",
+      "relative flex shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none block-(--size-glyph-xs) inline-(--size-glyph-xs)",
+      "before:absolute before:-inset-glyph-bleed before:content-['']",
       // Offset-less ring — the ChipRemove sits INSIDE the chip; an offset ring would escape it.
       `${ACCENT_HOVER} ${FOCUS_RING_BARE}`,
       DISABLED_STATE_NATIVE,
@@ -66,11 +68,14 @@ export const comboboxVariants = tv({
     // A floor, not a height: the chips wrap onto further lines inside the one box, which grows with them. A chip is the
     // step's height less the border and the field's inline inset on both sides, so it sits as far from the top edge as
     // from the start edge; the chip step's field takes the tight inset, the widest that leaves a label-height chip.
+    //
+    // The gap between wrapped lines is the step's own (`combobox-wrap-*`): what the touch target leaves after a chip, so
+    // two lines sit one touch target apart and the remove hit areas of one never overlap the line beside it.
     size: {
-      chip: { inputGroup: [CONTROL_MIN_BLOCK.chip, "px-tight"], chip: "block-(--size-combobox-chip-chip)" },
-      sm: { inputGroup: CONTROL_MIN_BLOCK.sm, chip: "block-(--size-combobox-chip-sm)" },
-      md: { inputGroup: CONTROL_MIN_BLOCK.md, chip: "block-(--size-combobox-chip-md)" },
-      lg: { inputGroup: CONTROL_MIN_BLOCK.lg, chip: "block-(--size-combobox-chip-lg)" },
+      chip: { inputGroup: [CONTROL_MIN_BLOCK.chip, "gap-y-combobox-wrap-chip px-tight"], chip: "block-(--size-combobox-chip-chip)" },
+      sm: { inputGroup: [CONTROL_MIN_BLOCK.sm, "gap-y-combobox-wrap-sm"], chip: "block-(--size-combobox-chip-sm)" },
+      md: { inputGroup: [CONTROL_MIN_BLOCK.md, "gap-y-combobox-wrap-md"], chip: "block-(--size-combobox-chip-md)" },
+      lg: { inputGroup: [CONTROL_MIN_BLOCK.lg, "gap-y-combobox-wrap-lg"], chip: "block-(--size-combobox-chip-lg)" },
     },
   },
   defaultVariants: { size: "sm" },

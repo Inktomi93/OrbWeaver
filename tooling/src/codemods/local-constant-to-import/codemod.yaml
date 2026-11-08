@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "local-constant-to-import"
+version: "0.1.0"
+description: "Replace a file-local top-level constant with a binding from one shared home, in the files a plan lists: delete the declaration with the comment above it, rewrite each reference, import the binding once."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

@@ -11,6 +11,7 @@ import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { QUERY_WAITING_LINE, queryFailedLabel } from "#client/data/query-state-copy.ts";
 import { CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
+import { DATABANK_LANDING_NAME } from "#client/features/databank/lib/databank-names.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -253,7 +254,7 @@ const COLD_PANES = [
     label: SECTION_LABELS.databank,
     reads: ["databank.bankHealth"],
     failed: queryFailedLabel("your databank"),
-    landing: (pane: Locator): Locator => pane.getByText("Your databank", { exact: true }),
+    landing: (pane: Locator): Locator => pane.getByText(DATABANK_LANDING_NAME, { exact: true }),
   },
   {
     name: "Plugin pages",

@@ -16,6 +16,10 @@
 export const DATABANK_INGEST_GLOSS =
   "Upload a file, paste text, or pull in a page. Choose which chats it feeds. Relevant passages can reach those chats after indexing.";
 
+/** What an open document shows, said beside the LIST's own empty state: the LIST owns the one call to action, so this
+ *  names what the pane holds and does not tell the reader to add anything. */
+export const DATABANK_EMPTY_BANK_NOTE = "A document you add opens here, with its extracted text, indexing status, and where it is used.";
+
 /** CONTEXT with no document open. Names what the pane WILL show — never the word "Details" (the band
  *  already says that) and never a section-less "select something" (side-eye F-12).
  *

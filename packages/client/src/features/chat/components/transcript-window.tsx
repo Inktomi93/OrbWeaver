@@ -9,14 +9,9 @@ import type { ReactElement, ReactNode, RefCallback } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { Trpc } from "#data";
 import { pressForPage, QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useSuspenseQuery, useTRPC } from "#data";
+import { RETRY_NAME } from "#lib";
 import { clearChatMoment, setActiveSection, useChatMoment } from "#state";
-import {
-  CHAT_EARLIER_MESSAGES_NAME,
-  CHAT_HISTORY_DISMISS_NAME,
-  CHAT_HISTORY_FAILURE_COPY,
-  CHAT_HISTORY_RETRY_NAME,
-  CHAT_WINDOW_PRESS_FAILURE,
-} from "../lib/chat-surface-names.ts";
+import { CHAT_EARLIER_MESSAGES_NAME, CHAT_HISTORY_DISMISS_NAME, CHAT_HISTORY_FAILURE_COPY, CHAT_WINDOW_PRESS_FAILURE } from "../lib/chat-surface-names.ts";
 import type { HistoryFailure, HistoryFetchView } from "../lib/history-failures.ts";
 import { dismissHistoryFailure, noHistoryFailures, observeHistoryFetch, pressAsked, pressLost, shownHistoryFailure } from "../lib/history-failures.ts";
 import type { TranscriptEdges } from "../lib/move-neighbours.ts";
@@ -90,7 +85,7 @@ function HistoryFailureRow({
       </Text>
       {retriable ? (
         <Button ref={handFocusBack} focusRing="inset" loading={busy} size="sm" variant="ghost" onClick={onRetry}>
-          {CHAT_HISTORY_RETRY_NAME}
+          {RETRY_NAME}
         </Button>
       ) : null}
       {pinned ? (

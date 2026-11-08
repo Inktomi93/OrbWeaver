@@ -1,0 +1,5 @@
+{
+  "moves": [
+    { "name": "EPSILON", "expression": "LAYOUT_SUBPIXEL_PX", "binding": "LAYOUT_SUBPIXEL_PX", "from": "@orb/testkit/browser/spec", "files": ["listed.ts", "param.ts", "shorthand.ts"] }
+  ]
+}

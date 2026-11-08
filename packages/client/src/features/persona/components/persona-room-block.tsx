@@ -14,7 +14,7 @@ import { useId } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useReattributePersona, useSuspenseQuery, useTRPC } from "#data";
 import { deriveChatTitle, notify } from "#lib";
-import { personaWithPlayer, playerNameOf } from "../lib/persona-copy.ts";
+import { CLEAR_PIN_NAME, personaWithPlayer, playerNameOf } from "../lib/persona-copy.ts";
 
 type PersonaListItem = inferOutput<Trpc["persona"]["list"]>[number];
 type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
@@ -100,7 +100,13 @@ function ChatAnchorRow({ chat, personas, onCardPin }: PersonaRoomBlockProps): Re
           {anchorLine(chat, personas)}
         </Text>
       </Row>
-      {offersRepin ? (
+      {offersRepin && members.length === 0 ? (
+        // Nobody is left to pin, so the one thing the menu could do is the button itself.
+        <Button className="shrink-0" variant="ghost" size="sm" onClick={(): void => onCardPin(null)}>
+          {CLEAR_PIN_NAME}
+        </Button>
+      ) : null}
+      {offersRepin && members.length > 0 ? (
         <Menu>
           <MenuTrigger
             render={
@@ -110,18 +116,16 @@ function ChatAnchorRow({ chat, personas, onCardPin }: PersonaRoomBlockProps): Re
             }
           />
           <MenuPopup>
-            {members.length > 0 ? (
-              <MenuGroup>
-                <MenuGroupLabel>Members' personas</MenuGroupLabel>
-                {members.map((option) => (
-                  <MenuItem key={option.personaId} onClick={(): void => onCardPin({ id: option.personaId, name: option.label })}>
-                    {option.label}
-                  </MenuItem>
-                ))}
-              </MenuGroup>
-            ) : null}
-            {members.length > 0 ? <MenuSeparator /> : null}
-            <MenuItem onClick={(): void => onCardPin(null)}>Clear pin</MenuItem>
+            <MenuGroup>
+              <MenuGroupLabel>Members' personas</MenuGroupLabel>
+              {members.map((option) => (
+                <MenuItem key={option.personaId} onClick={(): void => onCardPin({ id: option.personaId, name: option.label })}>
+                  {option.label}
+                </MenuItem>
+              ))}
+            </MenuGroup>
+            <MenuSeparator />
+            <MenuItem onClick={(): void => onCardPin(null)}>{CLEAR_PIN_NAME}</MenuItem>
           </MenuPopup>
         </Menu>
       ) : null}

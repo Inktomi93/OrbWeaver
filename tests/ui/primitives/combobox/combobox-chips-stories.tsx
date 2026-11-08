@@ -55,3 +55,14 @@ export function ChipInsetStory(): ReactElement {
     </CtIsolation>
   );
 }
+
+/** Committed chips wrapping onto a second line in a narrow cell, so a remove target has a neighbour beside it and one below. */
+export function ChipRemoveTargetsStory(): ReactElement {
+  return (
+    <CtIsolation subject="Combobox" isolates="The chip remove hit areas against the next chip, the wrapped line and the draft input, free of feature layout.">
+      <div style={{ padding: "1rem", inlineSize: "17rem" }}>
+        <Combobox aria-label="Keywords" defaultValue={["ember", "cinder", "ash", "pewter", "umber", "ochre"]} />
+      </div>
+    </CtIsolation>
+  );
+}

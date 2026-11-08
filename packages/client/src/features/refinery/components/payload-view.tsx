@@ -12,13 +12,14 @@
 
 import { isPrimitive } from "@orb/kit/guards";
 import { readOwnKey } from "@orb/kit/objects";
+import { NO_VALUE } from "@orb/kit/strings";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Row, Stack } from "@orb/ui/layout";
 import { Meter } from "@orb/ui/meter";
 import { Separator } from "@orb/ui/separator";
 import { Skeleton } from "@orb/ui/skeleton";
-import { Heading, Text } from "@orb/ui/text";
+import { Heading, NoValue, Text } from "@orb/ui/text";
 import type { ComponentProps, ReactElement } from "react";
 import { Fragment, useState } from "react";
 import { testId } from "#lib";
@@ -58,7 +59,6 @@ type ChipEnumWidget = Extract<PlanField["widget"], { kind: "chip-enum" }>;
 type SectionWidget = Extract<PlanField["widget"], { kind: "section" }>;
 type UnionWidget = Extract<PlanField["widget"], { kind: "union" }>;
 
-const ABSENT_TEXT = "—";
 const NONE_LISTED = "none listed";
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -69,7 +69,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
  *  it, the plan routed them to sections/rows/lists). */
 function scalarText(value: unknown): string {
   if (value === undefined || value === null || value === "") {
-    return ABSENT_TEXT;
+    return NO_VALUE;
   }
   if (typeof value === "boolean") {
     return value ? "Yes" : "No";
@@ -180,13 +180,13 @@ function VerdictBanner({ field, payload, siblings }: { field: PlanField; payload
     >
       <Row align="center" gap="block" padding="block">
         <Stack gap="field">
-          <Heading level={3}>{value ?? ABSENT_TEXT}</Heading>
+          <Heading level={3}>{value ?? <NoValue />}</Heading>
           {prose !== undefined ? <Text prose={true}>{scalarText(readOwnKey(payload, prose.key))}</Text> : null}
         </Stack>
         {axis !== undefined && axisWidget !== undefined ? (
           <Row align="center" gap="field">
             <Stack align="center" gap="tight">
-              <Text voice="datum">{axisValue === null ? ABSENT_TEXT : `${axisValue}/${axisWidget.max}`}</Text>
+              <Text voice="datum">{axisValue === null ? <NoValue /> : `${axisValue}/${axisWidget.max}`}</Text>
               <Text voice="kicker">{axis.label}</Text>
             </Stack>
           </Row>
@@ -234,7 +234,7 @@ function HeroGauge({
       <Stack gap="field" padding="block">
         <Row align="baseline" gap="tight">
           <Text as="span" data-testid={testId("refineryHeroValue")} voice="hero">
-            {value === null ? ABSENT_TEXT : String(shown)}
+            {value === null ? <NoValue /> : String(shown)}
           </Text>
           <Text as="span" voice="gloss">
             /{widget.max}
@@ -299,7 +299,9 @@ function GaugeRow({ field, widget, value }: { field: PlanField; widget: GaugeWid
       {n === null ? (
         <Row align="center" gap="row">
           <Text voice="label">{field.label}</Text>
-          <Text voice="gloss">{ABSENT_TEXT}</Text>
+          <Text voice="gloss">
+            <NoValue />
+          </Text>
         </Row>
       ) : (
         <Meter dangerBelow={dangerBelowOf(widget)} kind="linear" label={field.label} max={widget.max} min={widget.min} showValue={true} value={n} />
@@ -322,7 +324,13 @@ function ChipRow({ field, widget, value }: { field: PlanField; widget: ChipEnumW
   return (
     <Row align="center" data-field={field.key} data-testid={testId("refineryField")} gap="row">
       <Text voice="label">{field.label}</Text>
-      {v === null ? <Text voice="gloss">{ABSENT_TEXT}</Text> : <RefineryChip tone={readOwnKey(widget.tones, v) ?? "neutral"}>{v}</RefineryChip>}
+      {v === null ? (
+        <Text voice="gloss">
+          <NoValue />
+        </Text>
+      ) : (
+        <RefineryChip tone={readOwnKey(widget.tones, v) ?? "neutral"}>{v}</RefineryChip>
+      )}
     </Row>
   );
 }
@@ -386,7 +394,13 @@ function SectionBlock({ field, widget, value }: { field: PlanField; widget: Sect
  *  discriminated at the parse seam — `armFits` never validates, only picks a dress). */
 function UnionBlock({ field, widget, value }: { field: PlanField; widget: UnionWidget; value: unknown }): ReactElement {
   const arm = widget.arms.find((a) => armFits(a, value)) ?? widget.arms[0];
-  return arm === undefined ? <Text voice="gloss">{ABSENT_TEXT}</Text> : <FieldBlock field={{ ...field, widget: arm }} value={value} />;
+  return arm === undefined ? (
+    <Text voice="gloss">
+      <NoValue />
+    </Text>
+  ) : (
+    <FieldBlock field={{ ...field, widget: arm }} value={value} />
+  );
 }
 
 /** The assay rows (§3.2's `array<object>` arm): a fixed per-schema row anatomy — header chips, the

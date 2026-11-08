@@ -39,7 +39,7 @@ import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import type { Trpc } from "#data";
 import { createCollectionSurface, QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { testId } from "#lib";
+import { ESTIMATED_ROW_PX, testId } from "#lib";
 import { selectCorpusArtifact } from "#state";
 import { characterFacetLine } from "../lib/character-facet.ts";
 import { CORPUS_DISTILLED_CATALOG_NAME } from "../lib/corpus-control-names.ts";
@@ -51,8 +51,6 @@ import { CorpusRunJobEmptyState } from "./corpus-run-job-empty-state.tsx";
 const ANY_VALUE = "";
 const SKELETON_ROW_COUNT = 5;
 const NO_CHOICE_NOTE = "A filter with nothing to choose fills in as your characters are sorted.";
-/** The row's first-paint height guess (avatar + title + subtitle); every row re-measures after mount. */
-const ESTIMATED_ROW_PX = 60;
 
 const SORT_ITEMS: SelectItems = [
   { value: ANY_VALUE, label: "Default" },
@@ -197,7 +195,7 @@ function BrowseRows({
         aria-label={CORPUS_DISTILLED_CATALOG_NAME}
         height="fill"
         endApproachRows={collection.listProps.endApproachRows}
-        estimateSize={(): number => ESTIMATED_ROW_PX}
+        estimateSize={(): number => ESTIMATED_ROW_PX.avatar}
         fadeEdge={true}
         gapToken="row"
         getItemKey={collection.listProps.getItemKey}

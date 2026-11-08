@@ -2,7 +2,7 @@
 import { CLOCK_MAX_VAR_KEY, CLOCK_VAR_KEY } from "@orb/contracts/automation";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
+import { LAYOUT_SUBPIXEL_PX, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -15,7 +15,6 @@ const ROOM_STORY = `${SHELL_STORIES}/AppShellRoomStory`;
 const ROW = '[data-slot="chat-room-flank-row"] [data-slot="message-row"]';
 const REGION = '[data-slot="chat-room-composer-region"]';
 const COMPOSER = `${REGION} [data-track="composer"]`;
-const SLACK = 1;
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
@@ -82,7 +81,7 @@ test.describe("beside a flank column sized by its content", () => {
     const rowMiddle = (row[0] + row[1]) / 2;
     const composerMiddle = (composer[0] + composer[1]) / 2;
 
-    expect(Math.abs(rowMiddle - composerMiddle)).toBeLessThanOrEqual(SLACK);
+    expect(Math.abs(rowMiddle - composerMiddle)).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
   });
 });
 
@@ -100,8 +99,8 @@ test.describe("on a phone", () => {
       await expect(page.locator(ROW).last()).toBeVisible();
       const { row, composer } = await edges(page);
 
-      expect(Math.abs(row[0] - composer[0])).toBeLessThanOrEqual(SLACK);
-      expect(Math.abs(row[1] - composer[1])).toBeLessThanOrEqual(SLACK);
+      expect(Math.abs(row[0] - composer[0])).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+      expect(Math.abs(row[1] - composer[1])).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
     });
 
     test(`at ${width} the composer's content keeps the place the card's full padding gave it`, async ({ corpus, mount, page }) => {

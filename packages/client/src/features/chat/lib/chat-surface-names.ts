@@ -48,7 +48,6 @@ export const CHAT_LIST_NAME = "Chats list";
 export const CHAT_SEARCH_NAME = "Search chats";
 export const CHAT_EARLIER_MESSAGES_NAME = "Earlier messages";
 export const CHAT_HISTORY_DISMISS_NAME = "Dismiss";
-export const CHAT_HISTORY_RETRY_NAME = "Try again";
 export const CHAT_HISTORY_FAILURE_COPY = {
   press: "Couldn't load earlier messages.",
   refresh: "Couldn't refresh the messages loaded here.",

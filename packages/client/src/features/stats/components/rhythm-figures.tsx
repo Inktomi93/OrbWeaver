@@ -1,6 +1,8 @@
 // The shared "Rhythm" stat trio (active days · longest streak · busiest day) rendered by BOTH the
 // analytics overview surface and the Time tab off the same viewer-local fold of `stats.timeseries` — ONE
 // home so the two can't drift.
+
+import { NO_VALUE } from "@orb/kit/strings";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { StatFigure } from "@orb/ui/stat-figure";
 import { Text } from "@orb/ui/text";
@@ -22,7 +24,7 @@ export function RhythmFigures({ rhythm }: { readonly rhythm: Rhythm }): ReactEle
               "Busiest day" — neither the unit (260 of what?) nor the day it happened, which is the one
               fact the label promises. The count is turns exchanged PLUS chats opened (`LocalDay.activity`);
               the gloss below names both the day and that definition. */}
-          <StatFigure label="Busiest day (activity)" value={busiest === null ? "—" : formatCompact(busiest.count)} />
+          <StatFigure label="Busiest day (activity)" value={busiest === null ? NO_VALUE : formatCompact(busiest.count)} />
         </Row>
         <Text voice="gloss">
           {busiest === null

@@ -29,7 +29,7 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import { useSubscription } from "@trpc/tanstack-react-query";
 import { useEffect } from "react";
 import type { NotifyNotice } from "#lib";
-import { notify } from "#lib";
+import { notify, RETRY_NAME } from "#lib";
 import { recoverIfUnauthorizedCode } from "../stale-session.ts";
 import { useTRPC, useTRPCClient } from "../trpc.ts";
 import { roomRegistry } from "./room-registry.ts";
@@ -80,7 +80,7 @@ const SOCKET_CAP_CODE = "TOO_MANY_REQUESTS";
 
 // A socket-cap refusal names browser tabs and offers the live subscription retry.
 function socketNotice(code: string | undefined, message: string, retry: () => void): NotifyNotice {
-  const action = { label: "Try again", onClick: retry };
+  const action = { label: RETRY_NAME, onClick: retry };
   if (code === SOCKET_CAP_CODE) {
     return {
       title: "Too many tabs are open",

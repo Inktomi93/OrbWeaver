@@ -50,7 +50,13 @@ export function useRegexInsights(): readonly CollectionInsight[] | undefined {
       value: `${String(off.length)} of ${String(rows.length)}`,
       ...(firstOff === undefined
         ? {}
-        : { open: { label: `Open ${regexScriptTitle(firstOff)}`, run: (): void => selectCollectionMember(REGEX_COLLECTION_ID, firstOff.id) } }),
+        : {
+            open: {
+              label: `Open ${regexScriptTitle(firstOff)}`,
+              memberId: firstOff.id,
+              run: (): void => selectCollectionMember(REGEX_COLLECTION_ID, firstOff.id),
+            },
+          }),
     },
     ...(newest === undefined
       ? []
@@ -59,7 +65,7 @@ export function useRegexInsights(): readonly CollectionInsight[] | undefined {
             id: "last-edited",
             label: "Last edited",
             value: timeLib.formatRelative(newest.updatedAt),
-            open: { label: `Open ${regexScriptTitle(newest)}`, run: (): void => selectCollectionMember(REGEX_COLLECTION_ID, newest.id) },
+            open: { label: `Open ${regexScriptTitle(newest)}`, memberId: newest.id, run: (): void => selectCollectionMember(REGEX_COLLECTION_ID, newest.id) },
           },
         ]),
   ];

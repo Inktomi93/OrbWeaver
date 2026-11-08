@@ -29,6 +29,7 @@
 import type { RpgActorView, RpgTrackerDef, RpgTrackerValue } from "@orb/contracts/rpg";
 import { meterDisplayNumber, RPG_TRACKER_VALUE_EMPTY, trackerCeiling } from "@orb/contracts/rpg";
 import { readOwnKey } from "@orb/kit/objects";
+import { NO_VALUE } from "@orb/kit/strings";
 import { Badge } from "@orb/ui/badge";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import { HintTrigger } from "@orb/ui/hint-trigger";
@@ -40,7 +41,6 @@ import { useState } from "react";
 import { Tip } from "#components";
 import { resolveConditionGlyph } from "../lib/glyphs.ts";
 import { resolveTrackerColor, trackColorProps } from "../lib/track-color.ts";
-import { UNSET_DATUM } from "../lib/unset-datum.ts";
 import { RpgFieldLock } from "./rpg-field-lock.tsx";
 import { MeterRow, TrackerValue, trackerActionName, trackerFieldName } from "./tracker-blocks/index.ts";
 
@@ -173,7 +173,7 @@ function ActorTrackerText({
       <TrackerValue
         ariaLabel={trackerFieldName(`${def.label} value`, subject)}
         display={display}
-        placeholder={UNSET_DATUM}
+        placeholder={NO_VALUE}
         {...(edit === undefined ? {} : { onEdit: (next: string): void => edit.onEditTrackerText(def.key, next) })}
         grow={true}
         textAlign="end"

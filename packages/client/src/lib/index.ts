@@ -232,6 +232,8 @@ export { RenderProfiler } from "./render-profiler.tsx";
 export type { RowRenderPolicy } from "./render-trust.ts";
 export { DEPLOYMENT_FLOOR, resolveRowRenderPolicy } from "./render-trust.ts";
 export { dataThemeOf, isSeedThemeName, resolveThemeScopeTokens, type SeedThemeName } from "./resolve-theme-scope-tokens.ts";
+export { RETRY_NAME } from "./retry-names.ts";
+export { ESTIMATED_ROW_PX } from "./row-estimates.ts";
 export { deleteConfirmTitle, ROW_DELETE_NAME, ROW_DUPLICATE_NAME, ROW_EXPORT_NAME, ROW_RENAME_NAME } from "./row-menu-names.ts";
 export {
   chatWithActionName,

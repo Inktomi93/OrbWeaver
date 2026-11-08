@@ -1,6 +1,6 @@
 // A box 24rem tall or less has one scroller: a picker's list takes what its dialog's chrome leaves and nothing nests inside it.
 // Layer: CT. Production entry: the AppShell opening the registered `newChat` and `command` modals over the corpus root's own reads.
-import { resolvedLength, seedShellState, setRootFontScale, settledBox } from "@orb/testkit/browser/spec";
+import { LAYOUT_SUBPIXEL_PX, resolvedLength, seedShellState, setRootFontScale, settledBox } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, holdCorpusProcedure, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -16,7 +16,7 @@ const ROW = "[cmdk-item]";
 const COMMAND_ROOT = '[data-slot="command-root"]';
 const ACTIONS = '[data-slot="new-chat-actions"]';
 const RESERVED = "[data-reserve-key]";
-const GEOMETRY_EPSILON = 1;
+
 const ENLARGED_TEXT = 3;
 /** Upload, Paste and Link. */
 const ADD_DOCUMENT_ARMS = 3;
@@ -41,7 +41,7 @@ async function scrollersOf(page: Page): Promise<readonly string[]> {
         [popup, ...popup.querySelectorAll("*")]
           .filter((element) => /auto|scroll/u.test(getComputedStyle(element).overflowY) && element.scrollHeight - element.clientHeight > epsilon)
           .map((element) => element.getAttribute("data-slot") ?? element.tagName.toLowerCase()),
-      GEOMETRY_EPSILON,
+      LAYOUT_SUBPIXEL_PX,
     );
 }
 
@@ -72,7 +72,7 @@ async function geometry(page: Page): Promise<PickerGeometry> {
         actionsTop: find(selectors.actions).getBoundingClientRect().top,
       };
     },
-    { list: LIST, row: ROW, command: COMMAND_ROOT, actions: ACTIONS, epsilon: GEOMETRY_EPSILON },
+    { list: LIST, row: ROW, command: COMMAND_ROOT, actions: ACTIONS, epsilon: LAYOUT_SUBPIXEL_PX },
   );
 }
 
@@ -92,10 +92,10 @@ test.describe("coarse landscape", () => {
     const found = await geometry(page);
     await test.info().attach("short-picker-geometry", { body: JSON.stringify(found), contentType: "application/json" });
     // The library is longer than the window, so the list has something to scroll: the absence below is not vacuous.
-    expect(found.list.scroll).toBeGreaterThan(found.list.client + GEOMETRY_EPSILON);
+    expect(found.list.scroll).toBeGreaterThan(found.list.client + LAYOUT_SUBPIXEL_PX);
     expect(found.scrollers).toEqual(["command-list"]);
     expect(found.wholeRows).toBeGreaterThanOrEqual(SEVERAL_ROWS);
-    expect(found.actionsTop).toBeGreaterThanOrEqual(found.commandBottom - GEOMETRY_EPSILON);
+    expect(found.actionsTop).toBeGreaterThanOrEqual(found.commandBottom - LAYOUT_SUBPIXEL_PX);
   });
 });
 
@@ -117,7 +117,7 @@ test.describe("coarse small landscape, stacked", () => {
     const doorBox = await door.boundingBox();
     const pinnedBox = await dialog.locator(ACTIONS).boundingBox();
     expect(doorBox?.y ?? Number.NEGATIVE_INFINITY).toBeGreaterThanOrEqual(
-      (pinnedBox?.y ?? Number.POSITIVE_INFINITY) + (pinnedBox?.height ?? 0) - GEOMETRY_EPSILON,
+      (pinnedBox?.y ?? Number.POSITIVE_INFINITY) + (pinnedBox?.height ?? 0) - LAYOUT_SUBPIXEL_PX,
     );
   });
 });
@@ -172,9 +172,9 @@ for (const regime of [
       await expectLandscapeRegime(dialog, "New chat", false);
       const found = await geometry(page);
       const window = await resolvedLength(page, `var(${TOKENS["height.picker-window"].cssVar})`, dialog);
-      expect(found.list.scroll).toBeGreaterThan(found.list.client + GEOMETRY_EPSILON);
+      expect(found.list.scroll).toBeGreaterThan(found.list.client + LAYOUT_SUBPIXEL_PX);
       expect(found.scrollers).toEqual(["command-list"]);
-      expect(Math.abs(found.list.client - window)).toBeLessThanOrEqual(GEOMETRY_EPSILON);
+      expect(Math.abs(found.list.client - window)).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
     });
   });
 }
@@ -232,7 +232,7 @@ for (const regime of [
       expect(
         Math.abs(loaded.height - skeleton.height),
         `the skeleton held ${String(skeleton.height)}px and the loaded picker ${String(loaded.height)}px`,
-      ).toBeLessThanOrEqual(GEOMETRY_EPSILON);
+      ).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
     });
   });
 }
@@ -266,9 +266,9 @@ test.describe("coarse landscape focus ring", () => {
       { ring, row: ROW, list: LIST },
     );
     expect(band.rows).toBeGreaterThan(0);
-    expect(band.leftIntrusion).toBeLessThanOrEqual(GEOMETRY_EPSILON);
-    expect(band.rightIntrusion).toBeLessThanOrEqual(GEOMETRY_EPSILON);
-    expect(band.bottomIntrusion).toBeLessThanOrEqual(GEOMETRY_EPSILON);
+    expect(band.leftIntrusion).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+    expect(band.rightIntrusion).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+    expect(band.bottomIntrusion).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
   });
 });
 

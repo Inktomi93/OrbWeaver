@@ -19,7 +19,7 @@ import type { CorpusPlayback } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { personaWithPlayer } from "#client/features/persona/lib/persona-copy.ts";
+import { CLEAR_PIN_NAME, personaWithPlayer } from "#client/features/persona/lib/persona-copy.ts";
 import type { PersonaRoomBlockStory } from "./_persona-room-block-stories.tsx";
 
 const STORY = "tests/client/features/persona/components/_persona-room-block-stories/PersonaRoomBlockStory";
@@ -115,4 +115,8 @@ test("a pin held after its player left still names that player", async ({ corpus
   const line = page.locator('[data-slot="persona-anchor-line"]');
   await expect(line).toHaveAttribute("data-anchor-state", "held");
   await expect(line).toContainText(expected);
+  // Nobody is left to pin, so the line offers the one thing it can do directly, not a menu holding only that.
+  await expect(line.getByRole("button", { name: "Re-pin…", exact: true })).toHaveCount(0);
+  await line.getByRole("button", { name: CLEAR_PIN_NAME, exact: true }).click();
+  await expect(line).toHaveAttribute("data-anchor-state", "none");
 });

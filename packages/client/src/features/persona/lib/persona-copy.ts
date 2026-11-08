@@ -3,6 +3,9 @@
 /** The name field's error while it is blank. */
 export const PERSONA_NAME_REQUIRED = "Name can't be empty.";
 
+/** The room block's action that removes the card's persona pin, as a button and as a menu item. */
+export const CLEAR_PIN_NAME = "Clear pin";
+
 /** The notice that the crown moved to this persona. */
 export function nowDefaultNotice(name: string): string {
   return `${name} is now your default.`;

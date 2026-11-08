@@ -1,11 +1,12 @@
 // Combobox turns typed text into chips: Enter and comma commit, a pasted list splits, duplicates and the cap are refused,
 // and each chip keeps one inset from the field edge on both axes at every control step.
+import { hitExtent, touchFloorPx } from "@orb/testkit/browser/spec";
 import type { ControlSize } from "@orb/ui/lib";
 import { CONTROL_SIZES } from "@orb/ui/lib";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import type { ChipInsetStory, FreeTextChipsStory, RerenderingParentStory } from "./combobox-chips-stories.tsx";
+import type { ChipInsetStory, ChipRemoveTargetsStory, FreeTextChipsStory, RerenderingParentStory } from "./combobox-chips-stories.tsx";
 
 const STORIES = "tests/ui/primitives/combobox/combobox-chips-stories";
 
@@ -116,6 +117,38 @@ for (const coarse of [false, true]) {
         expect.soft(Math.abs(block - inline), `${step}: block inset ${block}, inline inset ${inline}`).toBeLessThanOrEqual(1);
         expect.soft(field, `${step}: the field with chips`).toBe(token);
       }
+    });
+
+    test("each chip's remove target reaches the touch floor without covering the next chip, the line below or the draft input", async ({ mount, page }) => {
+      await mount<typeof ChipRemoveTargetsStory>(`${STORIES}/ChipRemoveTargetsStory`);
+      const floor = await touchFloorPx(page);
+      const removes = page.locator('[data-slot="combobox-chip-remove"]');
+      await expect(removes).toHaveCount(6);
+      for (const remove of await removes.all()) {
+        expect(await hitExtent(remove, "x")).toBeGreaterThanOrEqual(floor);
+        expect(await hitExtent(remove, "y")).toBeGreaterThanOrEqual(floor);
+      }
+      // A tap one pixel inside another chip, or inside the draft input, must land on that control: the control's own edge is where a
+      // neighbour's hit area would take it.
+      const stolen = await page.evaluate(() => {
+        const owners = '[data-slot="combobox-chip"], [data-slot="combobox-input"]';
+        return [...document.querySelectorAll(owners)].flatMap((box) => {
+          const rect = box.getBoundingClientRect();
+          const taps = [
+            [rect.left + 1, rect.top + rect.height / 2],
+            [rect.right - 1, rect.top + rect.height / 2],
+            [rect.left + rect.width / 2, rect.top + 1],
+            [rect.left + rect.width / 2, rect.bottom - 1],
+          ] as const;
+          return taps.flatMap(([x, y]) => {
+            const hit = document.elementFromPoint(x, y);
+            return hit?.closest(owners) === box
+              ? []
+              : [`${box.textContent || "input"} at ${String(Math.round(x))},${String(Math.round(y))}: ${hit?.getAttribute("data-slot")}`];
+          });
+        });
+      });
+      expect(stolen).toEqual([]);
     });
   });
 }

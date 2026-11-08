@@ -112,6 +112,8 @@ async function expectInsightComposition(content: Locator, keepInline: boolean): 
   const doorName = new RegExp(`^Open ${LONG_NAME}:`, "u");
   const door = insights.getByRole("button", { name: doorName }).first();
   await expect(door).toBeVisible();
+  // Facts about one member share one door: the same text on the next line is a repeat, not a second way in.
+  await expect(insights.getByRole("button", { name: doorName })).toHaveCount(1);
   const row = insights
     .locator(":scope > *")
     .filter({ has: content.page().getByRole("button", { name: doorName }) })
@@ -307,6 +309,38 @@ for (const regime of REGIMES) {
   });
 }
 
+const LANDING_ORDERS = [
+  { name: "short landscape", viewport: { width: 844, height: 390 }, touch: true, rowsFirst: true },
+  { name: "wide desktop", viewport: { width: 1440, height: 900 }, touch: false, rowsFirst: false },
+] as const;
+
+for (const order of LANDING_ORDERS) {
+  test.describe(`${order.name} landing order`, () => {
+    test.use({ viewport: order.viewport, hasTouch: order.touch, isMobile: order.touch });
+    for (const subject of SUBJECTS) {
+      test(`${subject} seats ${order.rowsFirst ? "its first row on screen ahead of" : "its facts above"} the rows`, async ({ mount, page }) => {
+        await using root = await createCorpusHarness();
+        const caller = await root.internalCallerFor(root.ownerId);
+        const { appearance } = await prepare(caller, page, subject, false);
+        await mount<typeof CollectionCompositionStory>(STORY, { group: subject, width: order.viewport.width, height: order.viewport.height, appearance });
+        const content = page.locator('[data-slot="config-content"]');
+        const row = content.locator('[data-slot="list-row-root"]').first();
+        const insights = content.locator('[data-slot="config-library-insights"]');
+        await expect(row).toBeVisible();
+        await expect(insights).toBeVisible();
+        const [rowBox, insightBox] = await Promise.all([row.boundingBox(), insights.boundingBox()]);
+        if (rowBox === null || insightBox === null) {
+          throw new Error("The landing's first row and its facts must have rendered boxes");
+        }
+        await test.info().attach("landing-order", { body: JSON.stringify({ rowBox, insightBox }), contentType: "application/json" });
+        // On a short screen the rows come first; otherwise the facts lead. Either way the first row is whole on screen.
+        expect(insightBox.y < rowBox.y).toBe(!order.rowsFirst);
+        expect(rowBox.y + rowBox.height).toBeLessThanOrEqual(order.viewport.height);
+      });
+    }
+  });
+}
+
 for (const regime of REGIMES.slice(0, 2)) {
   test.describe(`${regime.name} shared-host adoption`, () => {
     test.use({ viewport: regime.viewport, hasTouch: regime.touch, isMobile: regime.touch });
@@ -326,3 +360,26 @@ for (const regime of REGIMES.slice(0, 2)) {
     }
   });
 }
+
+test.describe("two members that share a name", () => {
+  test.use({ viewport: { width: 1440, height: 900 }, hasTouch: false, isMobile: false });
+
+  test("each keeps its own door, because a door is one per member and not one per name", async ({ mount, page }) => {
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    const { appearance } = await prepare(caller, page, "regex", false);
+    // Each script is made a second after the last, so the disabled one is the first switched off and the enabled one the latest edit.
+    for (const enabled of [false, true]) {
+      root.clock.advance(1000);
+      await caller.regex.createScript({
+        input: createRegexScriptSchema.parse({ name: "", findRegex: "twin", replaceString: "", placement: ["AI_OUTPUT"], enabled }),
+      });
+    }
+    const unnamed = (await caller.regex.listScripts()).filter((script) => script.name === "");
+    expect(unnamed).toHaveLength(2);
+    await mount<typeof CollectionCompositionStory>(STORY, { group: "regex", width: 960, height: 900, appearance });
+    const insights = page.locator('[data-slot="config-content"] [data-slot="config-library-insights"]');
+    await expect(insights.getByRole("button", { name: /^Open Unnamed script: Switched off$/u })).toHaveCount(1);
+    await expect(insights.getByRole("button", { name: /^Open Unnamed script: Last edited$/u })).toHaveCount(1);
+  });
+});

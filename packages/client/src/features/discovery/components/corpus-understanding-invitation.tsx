@@ -44,6 +44,7 @@ import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import { ModelRunConfirmDialog, useUtilityModel } from "#components";
+import { RETRY_NAME } from "#lib";
 import { openConfigTo } from "#state";
 import type { UnderstandingPassView } from "../hooks/use-understanding-pass.ts";
 import { RUN_PASS_LABEL, useUnderstandingPass, useUnderstandingPassTail } from "../hooks/use-understanding-pass.ts";
@@ -68,6 +69,7 @@ export function CorpusUnderstandingInvitation(): ReactElement {
   const pass = useUnderstandingPass();
   const utility = useUtilityModel();
   const utilityMissing = utility.kind === "unset" || utility.kind === "blocked";
+  const runLabel = pass.failure === null ? RUN_PASS_LABEL : RETRY_NAME;
   // The live tail for whichever run currently holds the floor; a null id detaches the room.
   useUnderstandingPassTail(pass.liveRunId, pass.onLiveProgress);
   return (
@@ -104,7 +106,7 @@ export function CorpusUnderstandingInvitation(): ReactElement {
                 onClick={pass.start}
               >
                 <Icon icon={Sparkles} size="sm" />
-                {pass.failure === null ? RUN_PASS_LABEL : "Try again"}
+                {runLabel}
               </Button>
             )}
             {/* The full runs console is still one click away — it just is not where the work starts any more. */}

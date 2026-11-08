@@ -152,7 +152,8 @@ function PersonaEditorBody({ session, persona, onDelete, nextDefaultName }: Pers
   };
 
   return (
-    <Stack cap="reading" gap="row">
+    // The macro field's own measure, so the plain fields end on the macro field's edge.
+    <Stack cap="code" gap="row">
       <Row gap="row" align="start" data-slot="persona-editor-identity">
         <AvatarTrigger persona={persona} />
         <Stack gap="row" className="min-inline-0" grow={true}>

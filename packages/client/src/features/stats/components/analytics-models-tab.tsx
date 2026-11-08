@@ -18,7 +18,7 @@ import { BarList } from "@orb/ui/bar-list";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { StatFigure } from "@orb/ui/stat-figure";
-import { Text } from "@orb/ui/text";
+import { shownValue, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
@@ -90,7 +90,7 @@ function ModelsBody(): ReactElement {
                     subtitle={`${model.provider ?? "unknown"} · ${formatCompactNoun(model.generations, "generation", "generations")} · ${model.charactersUsedWith === 1 ? "1 character" : `${model.charactersUsedWith} characters`}`}
                     actions={
                       <Text voice="datumMono" whitespace="nowrap">
-                        {formatTokens(model.tokensOut, model.tokensOutProvenance)} · {formatUsd(model.costUsd)}
+                        {shownValue(formatTokens(model.tokensOut, model.tokensOutProvenance))} · {shownValue(formatUsd(model.costUsd))}
                       </Text>
                     }
                   />
@@ -115,8 +115,8 @@ function ModelSpeed({ model }: { readonly model: ModelStatRow }): ReactElement {
   const throughput = throughputOrigin === "unrecorded" ? null : model.throughputTps;
   return (
     <Text voice="gloss">
-      {formatAccountingLabel("Time to first token", model.avgTtftMs)}: {formatMs(model.avgTtftMs)} avg, {formatMs(model.p90TtftMs)} p90 ·{" "}
-      {formatAccountingLabel("Throughput", throughput, throughputOrigin)}: {formatThroughput(throughput, throughputOrigin)}
+      {formatAccountingLabel("Time to first token", model.avgTtftMs)}: {shownValue(formatMs(model.avgTtftMs))} avg, {shownValue(formatMs(model.p90TtftMs))} p90
+      · {formatAccountingLabel("Throughput", throughput, throughputOrigin)}: {shownValue(formatThroughput(throughput, throughputOrigin))}
     </Text>
   );
 }

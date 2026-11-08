@@ -1,3 +1,4 @@
+import { LAYOUT_SUBPIXEL_PX } from "@orb/testkit/browser/spec";
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { MessageListHeldUnderPlateStory, MessageListPinnedFailureStory } from "./_pinned-failure-stories.tsx";
@@ -6,7 +7,7 @@ const STORY = "tests/ui/primitives/message-list/_pinned-failure-stories/MessageL
 const HELD_STORY = "tests/ui/primitives/message-list/_pinned-failure-stories/MessageListHeldUnderPlateStory";
 const ROW = '[data-slot="message-list-row"]';
 const PLATE = '[data-slot="message-list-leading-action"]';
-const EPSILON_PX = 1;
+
 const HELD_ROW = 20;
 // Near enough to mount the row; the park places it exactly off its own box.
 const ROW_ESTIMATE_PX = 120;
@@ -84,7 +85,7 @@ for (const { name, viewport, touch } of VIEWPORTS) {
         const index = Number(await focused.getAttribute("data-index"));
         await expect
           .poll(async () => await headBelowPlate(page, index), { message: `row ${String(index)} clears the plate` })
-          .toBeGreaterThanOrEqual(-EPSILON_PX);
+          .toBeGreaterThanOrEqual(-LAYOUT_SUBPIXEL_PX);
       }
     });
 
@@ -105,7 +106,7 @@ for (const { name, viewport, touch } of VIEWPORTS) {
         const index = Number(await focused.getAttribute("data-index"));
         await expect
           .poll(async () => await headBelowPlate(page, index), { message: `row ${String(index)} clears the plate` })
-          .toBeGreaterThanOrEqual(-EPSILON_PX);
+          .toBeGreaterThanOrEqual(-LAYOUT_SUBPIXEL_PX);
       }
     });
 
@@ -115,7 +116,7 @@ for (const { name, viewport, touch } of VIEWPORTS) {
       await expect(log.locator(ROW).first()).toBeVisible();
       await page.getByRole("button", { name: "Reveal row 12", exact: true }).click();
       await expect(log.locator(`${ROW}[data-index="12"]`)).toBeVisible();
-      await expect.poll(async () => await headBelowPlate(page, 12), { message: "row 12 clears the plate" }).toBeGreaterThanOrEqual(-EPSILON_PX);
+      await expect.poll(async () => await headBelowPlate(page, 12), { message: "row 12 clears the plate" }).toBeGreaterThanOrEqual(-LAYOUT_SUBPIXEL_PX);
     });
 
     test("a hold started by the plate arriving lands the reader's row below it", async ({ mount, page }) => {
@@ -124,8 +125,10 @@ for (const { name, viewport, touch } of VIEWPORTS) {
       await parkRowAt(log, HELD_ROW, 0);
       await page.getByRole("button", { name: "Fail the press", exact: true }).click();
       await expect(page.locator(`${PLATE} [data-keep-in-view]`)).toBeVisible();
-      await expect.poll(async () => await settledHead(page, HELD_ROW), { message: "the held row settles at the plate's edge" }).toBeLessThanOrEqual(EPSILON_PX);
-      expect(await settledHead(page, HELD_ROW)).toBeGreaterThanOrEqual(-EPSILON_PX);
+      await expect
+        .poll(async () => await settledHead(page, HELD_ROW), { message: "the held row settles at the plate's edge" })
+        .toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+      expect(await settledHead(page, HELD_ROW)).toBeGreaterThanOrEqual(-LAYOUT_SUBPIXEL_PX);
     });
 
     test("a hold under a standing plate keeps the row at the plate's edge, not the row beneath the plate", async ({ mount, page }) => {
@@ -133,8 +136,10 @@ for (const { name, viewport, touch } of VIEWPORTS) {
       const log = page.getByRole("log", { name: "Held under plate", exact: true });
       await parkRowAt(log, HELD_ROW, await log.evaluate((node, plate) => node.querySelector(plate)?.getBoundingClientRect().height ?? Number.NaN, PLATE));
       await page.getByRole("button", { name: "Enlarge the text", exact: true }).click();
-      await expect.poll(async () => await settledHead(page, HELD_ROW), { message: "the held row settles at the plate's edge" }).toBeLessThanOrEqual(EPSILON_PX);
-      expect(await settledHead(page, HELD_ROW)).toBeGreaterThanOrEqual(-EPSILON_PX);
+      await expect
+        .poll(async () => await settledHead(page, HELD_ROW), { message: "the held row settles at the plate's edge" })
+        .toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+      expect(await settledHead(page, HELD_ROW)).toBeGreaterThanOrEqual(-LAYOUT_SUBPIXEL_PX);
     });
   });
 }
