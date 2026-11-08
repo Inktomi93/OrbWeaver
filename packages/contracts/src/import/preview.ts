@@ -18,7 +18,8 @@ const importPreviewItemSchema = z.strictObject({
    *  uploads of a split folder is one item. */
   source: previewText,
   name: previewText,
-  /** A character the owner already has; a run imports nothing for it. Absent otherwise. */
+  /** Something the owner already has (a character, book, preset, chat and so on); a run adds nothing for it.
+   *  Absent otherwise. */
   inLibrary: z.literal(true).optional(),
   /** A persona whose avatar file is missing or unreadable: it imports, without art. Absent otherwise. */
   withoutArt: z.literal(true).optional(),
@@ -54,6 +55,21 @@ export const importPreviewSchema = z.strictObject({
   skipped: importPreviewSkippedSchema,
 });
 export type ImportPreview = z.infer<typeof importPreviewSchema>;
+
+/** How many items of each kind a folder holds. A dry run's preview lists and a real run's result both take their
+ *  numbers from the one count, so the two never disagree. */
+export const importKindCountsSchema = z.strictObject({
+  characters: z.number().int().nonnegative(),
+  chats: z.number().int().nonnegative(),
+  personas: z.number().int().nonnegative(),
+  worlds: z.number().int().nonnegative(),
+  presets: z.number().int().nonnegative(),
+  themes: z.number().int().nonnegative(),
+  backgrounds: z.number().int().nonnegative(),
+  groups: z.number().int().nonnegative(),
+  orphans: z.number().int().nonnegative(),
+}) satisfies z.ZodType<Readonly<Record<ImportPreviewKind, number>>>;
+export type ImportKindCounts = z.infer<typeof importKindCountsSchema>;
 
 function union<T>(lists: readonly { readonly total: number; readonly items: readonly T[] }[], identity: (item: T) => string): { total: number; items: T[] } {
   const seen = new Map<string, T>();

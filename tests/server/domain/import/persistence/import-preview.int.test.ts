@@ -161,8 +161,8 @@ test("a chat whose card rides in only one upload of a split folder counts once",
 
 test("two group files that share a name stay two when a split folder's previews merge", async () => {
   await using root = await harness();
-  const group = '{"name":"G","members":["Aria.png"]}';
-  const shared = { [ST_SETTINGS_FILE]: settings({}), "characters/Aria.png": cardPng(root, "Aria") };
+  const group = '{"name":"G","members":["Aria.png"],"chats":["room"]}';
+  const shared = { [ST_SETTINGS_FILE]: settings({}), "characters/Aria.png": cardPng(root, "Aria"), "group chats/room.jsonl": CHAT };
   const first = await dryRun(root, { ...shared, "groups/one.json": group });
   const second = await dryRun(root, { ...shared, "groups/two.json": group });
 

@@ -1,6 +1,6 @@
 // domain/import/contract/results — the verb result shapes.
 
-import type { CardLorebookRestoreResult, ImportPreview } from "@orb/contracts/import";
+import type { CardLorebookRestoreResult, ImportKindCounts, ImportPreview } from "@orb/contracts/import";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 
 export interface ImportedCharacterRef {
@@ -141,22 +141,6 @@ export interface ImportSkippedCardTag {
   readonly reason: string;
 }
 
-/** What a DRY RUN would attempt, per wave. A dry run performs zero writes, so every write-wave count in the
- *  report is zero BY CONSTRUCTION — which reads exactly like a profile that carries none of those planes.
- *  This census is the collect-time arithmetic that tells the two apart (#1469). Null on a real run. */
-export interface ImportDryRunCensus {
-  readonly characters: number;
-  readonly personas: number;
-  readonly chats: number;
-  readonly worlds: number;
-  readonly presets: number;
-  readonly themes: number;
-  readonly backgrounds: number;
-  readonly groups: number;
-  readonly groupChats: number;
-  readonly orphanChatDirs: number;
-}
-
 /** One imported ST preset's honest lossiness note: which orb preset it became and which ST fields did not
  *  travel (each with the reason). Present even when `fields` is empty — the operator learns the preset landed
  *  losslessly rather than being told nothing. */
@@ -258,10 +242,10 @@ export interface ImportReport {
   readonly scanned: number;
   readonly changed: number;
   /** True when the run WROTE NOTHING (`dryRun`). Every write-wave count below is then zero by construction,
-   *  which is why {@link dryRunWouldImport} carries what the run WOULD have attempted. */
+   *  which is why {@link found} says what the folder holds. */
   readonly dryRun: boolean;
-  /** The dry run's per-wave census, or null on a real run. */
-  readonly dryRunWouldImport: ImportDryRunCensus | null;
+  /** How many items of each kind the folder holds, on a dry run and a real run alike. */
+  readonly found: ImportKindCounts;
   /** The dry run's names per kind and its skips, or null on a real run. */
   readonly preview: ImportPreview | null;
   /** ST library tags that did not attach to their imported card (the attach is per-tag isolated). */

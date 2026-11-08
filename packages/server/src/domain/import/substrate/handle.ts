@@ -4,6 +4,7 @@
 import { characterHandleSchema } from "@orb/contracts/character";
 import type { CharacterHandle, CharacterId } from "@orb/kit/ids";
 import { slugifyHandle } from "@orb/kit/slug";
+import { sha256Hex } from "#primitives/content-hash";
 import type { CardIdentityHashes, RestoredSeat } from "../contract/identity.ts";
 
 /** A handle a file carried, or null when the value is not one the app could have minted.
@@ -39,4 +40,14 @@ export async function resolveSeat(
  *  slug of its name (a foreign card carries no handle). */
 export function requestedHandle(card: { readonly handle: CharacterHandle | null; readonly name: string }): CharacterHandle {
   return card.handle ?? characterHandleSchema.parse(slugifyHandle(card.name));
+}
+
+/** The synthetic-importHash namespace. Hashing a PREFIXED KEY (not file bytes) keeps the oracle's rows
+ *  disjoint from real card hashes by construction. */
+const ORPHAN_HASH_PREFIX = "orb-orphan-chat-dir:";
+
+/** The import identity of the placeholder character an orphan chat directory mints, so a rerun resolves the
+ *  same row and a preview can tell whether it already exists. */
+export function orphanImportHash(handle: CharacterHandle): string {
+  return sha256Hex(`${ORPHAN_HASH_PREFIX}${handle}`);
 }

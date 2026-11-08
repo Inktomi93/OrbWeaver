@@ -3,12 +3,13 @@
 // preset with equal content is reused; a different one under the same name keeps its row and the file lands
 // under the next free name. Never throws for a malformed file — returns { ok:false, error }.
 
-import type { ImportPreset, PresetImportOutcome } from "@orb/contracts/preset";
+import type { FindOwnedPresets, ImportPreset, PresetImportOutcome } from "@orb/contracts/preset";
 import { parsePresetFile, presetContentKey } from "@orb/contracts/preset";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import { nextFreeName } from "@orb/kit/strings";
 import { getLog } from "#foundation/observability";
+import { mapYielding } from "#primitives/abort";
 import type { PresetContext } from "../contract/service.ts";
 import { insertPreset, listOwned } from "../persistence/queries.ts";
 
@@ -26,6 +27,35 @@ function readJson(bytes: Uint8Array): { ok: true; value: unknown } | { ok: false
   }
 }
 
+type OwnedPreset = Awaited<ReturnType<typeof listOwned>>[number];
+
+/** The reuse test, keyed once over the owned rows: the owned row an incoming config equals, or undefined. The
+ *  stored blob is compared as stored, so a row this build cannot read never equals a readable file; the file
+ *  lands beside it and the unreadable row stays for the owner to delete. The first row wins on equal content. */
+function reusablePreset(owned: readonly OwnedPreset[]): (config: Parameters<typeof presetContentKey>[0]) => OwnedPreset | undefined {
+  const byKey = new Map<string, OwnedPreset>();
+  for (const row of owned) {
+    const key = presetContentKey(row.config);
+    if (!byKey.has(key)) {
+      byKey.set(key, row);
+    }
+  }
+  return (config) => byKey.get(presetContentKey(config));
+}
+
+/** The read-only twin of {@link createImportPresets}'s reuse test, for a preview that must not write. */
+export function createFindOwnedPresets(input: DbAssemblyInput<Pick<PresetContext, "db">>): FindOwnedPresets {
+  const db = databaseForOwner(input.db);
+  return async ({ ownerId, files, signal }): Promise<readonly boolean[]> => {
+    const reuse = reusablePreset(await listOwned(db, ownerId));
+    return await mapYielding(files, signal, (bytes) => {
+      const decoded = readJson(bytes);
+      const parsed = decoded.ok ? parsePresetFile(decoded.value) : null;
+      return parsed?.ok === true && reuse(parsed.config) !== undefined;
+    });
+  };
+}
+
 export function createImportPresets(input: DbAssemblyInput<PresetContext>): ImportPreset {
   const ctx: PresetContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, bytes }): Promise<PresetImportOutcome> => {
@@ -41,10 +71,7 @@ export function createImportPresets(input: DbAssemblyInput<PresetContext>): Impo
     const { config } = parsed;
     const at = ctx.now();
     const owned = await listOwned(ctx.db, ownerId);
-    // The stored blob is compared as stored: a row this build cannot read never equals a readable file, so
-    // the file lands beside it and the unreadable row stays for the owner to delete.
-    const key = presetContentKey(config);
-    const same = owned.find((row) => presetContentKey(row.config) === key);
+    const same = reusablePreset(owned)(config);
     if (same !== undefined) {
       getLog(input.logger).info({ userId: ownerId, presetId: same.id }, "preset: import reused an equal preset");
       return { ok: true, created: false, presetId: same.id, name: same.name, renamedFrom: null };

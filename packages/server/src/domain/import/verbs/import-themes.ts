@@ -13,11 +13,11 @@
 // N themes into one backup would collapse N outcomes into one bit and lose per-theme isolation: a single
 // theme the settings domain refused would take the other N-1 with it.
 
-import { buildThemeBackup } from "#primitives/serde/theme";
 import type { CollectedTheme } from "../contract/collection.ts";
 import type { ImportSkippedCard, ImportThemeNote, ImportThemesResult } from "../contract/results.ts";
 import type { ImportContext, ImportService } from "../contract/service.ts";
 import { requireProfile } from "../guard.ts";
+import { themeBytes } from "../substrate/landing-bytes.ts";
 
 /** One theme's lossiness note — emitted for EVERY imported theme, empty `fields` included, so the operator can
  *  tell "this palette landed whole" apart from "this palette was never looked at". */
@@ -46,7 +46,7 @@ export function createImportThemes(ctx: ImportContext): Pick<ImportService, "imp
     const skippedThemes: ImportSkippedCard[] = [];
     const notes: ImportThemeNote[] = [];
     for (const t of input.themes) {
-      const bytes = buildThemeBackup({ themes: [{ name: t.parsed.name, override: t.parsed.override, css: null }] });
+      const bytes = themeBytes(t);
       const outcome = await importTheme(ctx.ownerId, bytes);
       if (!outcome.ok) {
         skippedThemes.push({ file: t.sourceFile, reason: outcome.error });

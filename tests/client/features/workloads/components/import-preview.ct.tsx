@@ -405,3 +405,44 @@ test("Cancel while the folder's bytes are still going up ends the upload request
   await page.getByRole("group", { name: PREFLIGHT }).getByRole("button", { name: "Cancel", exact: true }).click();
   expect((await ended).failure()?.errorText).toMatch(/abort/iu);
 });
+
+test("a folder's persona the library already holds is counted as already there, beside a persona it lacks", async ({ mount, page, baseURL }, testInfo) => {
+  await using root = await createServerHarness(ROOT_OPTIONS);
+  const caller = await root.internalCallerFor(root.ownerId);
+  const folder = testInfo.outputPath("profile");
+  const heldDescription = "Already in your library.";
+  // A preset is a unit the planner sends on its own, so the folder has something to read beside the settings.
+  await mkdir(join(folder, "OpenAI Settings"), { recursive: true });
+  await writeFile(
+    join(folder, "OpenAI Settings", "Plain.json"),
+    JSON.stringify({
+      prompts: [{ identifier: "main", name: "Main", content: "You are plain.", role: "system" }],
+      ["prompt_order"]: [{ ["character_id"]: 100_001, order: [{ identifier: "main", enabled: true }] }],
+    }),
+  );
+  await writeFile(
+    join(folder, ST_SETTINGS_FILE),
+    JSON.stringify({
+      ["power_user"]: {
+        personas: { "held.png": "Held persona", "new.png": "New persona" },
+        ["persona_descriptions"]: { "held.png": { description: heldDescription } },
+      },
+    }),
+  );
+  await root.settleBackground();
+  await caller.persona.create({ input: createPersonaSchema.parse({ name: "Held persona", description: heldDescription }) });
+  await using _native = await routeNativeImport(page, root, baseURL);
+  await openImport(page, root);
+  await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
+
+  await pickFolder(page, folder);
+  const report = page.getByRole("group", { name: PREFLIGHT }).getByRole("group", { name: "What this import would bring", exact: true });
+  await expect(report).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
+
+  // The control: the wire carries the ownership the line reads, for a kind that is not a character.
+  const [preview] = nonEmpty((await caller.workloads.list({ kind: "import-st" })).flatMap((run) => asImportPreview(run.result) ?? []));
+  expect(preview.kinds.personas.items.filter((item) => item.inLibrary === true)).toHaveLength(1);
+  const lines = (await report.locator(":scope > *").allTextContents()).filter((text) => /^\d/u.test(text)).map(numbersIn);
+  const populated = IMPORT_PREVIEW_KINDS.filter((kind) => preview.kinds[kind].total > 0);
+  expect(lines).toEqual(populated.map((kind) => [preview.kinds[kind].total, ...notedCounts(preview.kinds[kind])]));
+});

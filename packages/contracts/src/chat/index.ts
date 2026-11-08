@@ -90,6 +90,7 @@ export type {
   BulkImportMessageInput,
   BulkImportSeatKnobs,
   BulkImportVariantInput,
+  FindImportedChatHashes,
   ImportedChatIdentity,
   ImportedChatRemap,
   PendingGenerationObservationInput,

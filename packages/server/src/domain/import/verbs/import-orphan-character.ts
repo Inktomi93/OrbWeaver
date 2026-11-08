@@ -9,17 +9,13 @@
 
 import { deriveCharacterHandle } from "@orb/contracts/character";
 import type { CharacterHandle } from "@orb/kit/ids";
-import { sha256Hex } from "#primitives/content-hash";
 import type { ImportOrphanCharacterInput } from "../contract/params.ts";
 import type { ImportOrphanCharacterResult } from "../contract/results.ts";
 import type { ImportContext, ImportService } from "../contract/service.ts";
+import { orphanImportHash } from "../substrate/handle.ts";
 
 /** ST's header sentinel for "no persona was resolved" — never a character name (§5.7's corpus census). */
 const ST_UNUSED_SENTINEL = "unused";
-
-/** The synthetic-importHash namespace. Hashing a PREFIXED KEY (not file bytes) keeps the oracle's rows
- *  disjoint from real card hashes by construction. */
-const ORPHAN_HASH_PREFIX = "orb-orphan-chat-dir:";
 
 /** The mint's display name — see the header's evidence rule. A header equal to the DIR NAME is excluded
  *  too: the serde substitutes `charDirName` for a sentinel/empty header (`serde/chat` — the "unused"
@@ -46,7 +42,7 @@ function orphanName(dirName: string, headerNames: readonly string[]): string {
 
 export function createImportOrphanCharacter(ctx: ImportContext): ImportService["importOrphanCharacter"] {
   return async ({ dirName, handle, headerNames }: ImportOrphanCharacterInput): Promise<ImportOrphanCharacterResult> => {
-    const importHash = sha256Hex(`${ORPHAN_HASH_PREFIX}${handle}`);
+    const importHash = orphanImportHash(handle);
     const name = orphanName(dirName, headerNames);
 
     const existing = await ctx.findByImportHash({ ownerId: ctx.ownerId, importHash });

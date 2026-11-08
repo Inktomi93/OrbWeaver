@@ -1,17 +1,34 @@
 import type { StoreAvatarAsset, StoredAsset, StoreParams } from "@orb/contracts/assets";
-import type { BulkImportChatsOp } from "@orb/contracts/chat";
+import type { BulkImportChatsOp, FindImportedChatHashes } from "@orb/contracts/chat";
 import type { Principal } from "@orb/contracts/identity";
 import type { ImportFsPort, PersonaCollisionChoices } from "@orb/contracts/import";
-import type { BulkImportPersonas } from "@orb/contracts/persona";
-import type { ImportPreset } from "@orb/contracts/preset";
+import type { BulkImportPersonas, FindOwnedPersonas } from "@orb/contracts/persona";
+import type { FindOwnedPresets, ImportPreset } from "@orb/contracts/preset";
 import type { ImportCardScripts, ImportGlobalScripts, ImportPresetScripts } from "@orb/contracts/regex";
-import type { ImportedAppearance, ImportedAppearanceOutcome, ImportThemeOp, NewBackgroundEntryId } from "@orb/contracts/settings";
+import type {
+  FindOwnedThemes,
+  ImportedAppearance,
+  ImportedAppearanceOutcome,
+  ImportThemeOp,
+  NewBackgroundEntryId,
+  OwnedBackgroundHashes,
+} from "@orb/contracts/settings";
 import type { AttachCardTagByNameOp } from "@orb/contracts/tag";
-import type { AttachOwnedBooksByName, ImportStandaloneLorebook, ImportWorldInfoPort } from "@orb/contracts/world-info";
+import type { AttachOwnedBooksByName, FindOwnedBooks, ImportStandaloneLorebook, ImportWorldInfoPort } from "@orb/contracts/world-info";
 import type { UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { ImportContextWiring } from "./build-context.ts";
-import type { CollectResult } from "./collection.ts";
+import type {
+  CollectedBackground,
+  CollectedCard,
+  CollectedChat,
+  CollectedGroup,
+  CollectedPersona,
+  CollectedPreset,
+  CollectedTheme,
+  CollectedWorld,
+  CollectResult,
+} from "./collection.ts";
 import type { ImportReport } from "./results.ts";
 import type { AdoptDefaultPersona } from "./service.ts";
 
@@ -24,6 +41,31 @@ type ApplyImportedAppearance = (ownerId: UserId, imported: ImportedAppearance) =
  *  bound TRUE at the composition root: a background's mime is only extension-derived here, so the bytes are
  *  verified against the claim before they enter the CAS. */
 type ImportBackgroundStore = (params: Pick<StoreParams, "principal" | "bytes" | "mime" | "maxBytes">) => Promise<Pick<StoredAsset, "assetId" | "hash">>;
+
+/** What the owner already holds, asked of each owning domain without writing. A dry run's preview names an item
+ *  the owner has through these reads, one per kind a character's own lookups do not cover. */
+export interface ProfileOwnership {
+  readonly findBooks: FindOwnedBooks;
+  readonly findPresets: FindOwnedPresets;
+  readonly findThemes: FindOwnedThemes;
+  readonly backgroundHashes: OwnedBackgroundHashes;
+  readonly findPersonas: FindOwnedPersonas;
+  readonly findChatHashes: FindImportedChatHashes;
+}
+
+/** The collected items of each kind the owner already holds. An item is the collected entry itself, never its
+ *  source string, so two profiles that share a path keep their own verdicts. */
+export interface ImportOwnership {
+  readonly characters: ReadonlySet<CollectedCard>;
+  readonly chats: ReadonlySet<CollectedChat>;
+  readonly personas: ReadonlySet<CollectedPersona>;
+  readonly worlds: ReadonlySet<CollectedWorld>;
+  readonly presets: ReadonlySet<CollectedPreset>;
+  readonly themes: ReadonlySet<CollectedTheme>;
+  readonly backgrounds: ReadonlySet<CollectedBackground>;
+  readonly groups: ReadonlySet<CollectedGroup>;
+  readonly orphans: ReadonlySet<CollectResult["orphanBundles"][number]>;
+}
 
 export interface ProfileDirImportDeps {
   /** The tree holding one subdir per ST user profile (the loader collects each subdir independently). */
@@ -67,6 +109,8 @@ export interface ProfileDirImportDeps {
   readonly applyImportedAppearance?: ApplyImportedAppearance;
   /** Mints a `BackgroundLibraryEntry`'s stable per-row id (crypto uuid in prod; deterministic in tests). */
   readonly newBackgroundEntryId?: NewBackgroundEntryId;
+  /** The read-only twins of the write ops above, so a dry run can say what the owner already has. */
+  readonly ownership: ProfileOwnership;
   readonly bulkImportChats: BulkImportChatsOp;
   readonly bulkImportPersonas: BulkImportPersonas;
   readonly enqueueImportIndex: (args: { readonly ownerId: UserId }) => Promise<void>;

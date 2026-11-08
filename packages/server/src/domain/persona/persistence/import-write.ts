@@ -8,7 +8,7 @@
 
 import type { PersonaCollisionChoice } from "@orb/contracts/import";
 import { personaCollisionChoiceFor } from "@orb/contracts/import";
-import type { BulkImportPersonaInput, BulkImportPersonas, BulkImportPersonasResult } from "@orb/contracts/persona";
+import type { BulkImportPersonaInput, BulkImportPersonas, BulkImportPersonasResult, FindOwnedPersonas } from "@orb/contracts/persona";
 import { personas } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt } from "@orb/db/query";
@@ -20,10 +20,23 @@ import { findDuplicatePersona, findNameCollision, foldPersonaName, mintPersonaNa
 import type { PersonaImportContext } from "../contract/import.ts";
 import { loadOwnedAssetHashes, loadOwnedPersonaCandidates } from "./queries.ts";
 
-/** One input as the identity the dedup compares: its art is the stored asset's own content hash. */
+/** The identity the dedup compares: its art is the stored asset's own content hash. */
+function identityFrom(pi: Pick<BulkImportPersonaInput, "name" | "description" | "metadata">, artHash: string | null): PersonaIdentity {
+  return { name: pi.name, title: null, description: pi.description, placement: personaPlacementOf(pi.metadata), artHash };
+}
+
 function identityOf(pi: BulkImportPersonaInput, artHashes: readonly { readonly id: AssetId; readonly hash: string }[]): PersonaIdentity {
   const artHash = pi.avatarAssetId === null ? null : artHashes.find((row) => row.id === pi.avatarAssetId)?.hash;
-  return { name: pi.name, title: null, description: pi.description, placement: personaPlacementOf(pi.metadata), artHash: artHash ?? null };
+  return identityFrom(pi, artHash ?? null);
+}
+
+/** The read-only twin of {@link createBulkImportPersonas}'s equal-content reuse, for a preview that must not write. */
+export function createFindOwnedPersonas(assembly: Pick<DbAssemblyInput<PersonaImportContext>, "db">): FindOwnedPersonas {
+  const db = databaseForOwner(assembly.db);
+  return async ({ ownerId, personas: input }): Promise<readonly boolean[]> => {
+    const candidates = await loadOwnedPersonaCandidates(db, ownerId);
+    return input.map((pi) => findDuplicatePersona(identityFrom(pi, pi.artHash), candidates) !== null);
+  };
 }
 
 /** The persona an input lands on without minting a row, or null to mint a copy. Equal content is always

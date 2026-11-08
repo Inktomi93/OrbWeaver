@@ -11,7 +11,7 @@ import type { Clock } from "@orb/kit/time";
 import type { AssetsAssemblyContext, AssetsService } from "#domain/assets";
 import { createBackgroundStore } from "#domain/assets";
 import type { CharacterService } from "#domain/character";
-import { createCompareAndSetImportedTokenUsage, createListImportedTokenUsageCandidates } from "#domain/chat";
+import { createCompareAndSetImportedTokenUsage, createFindImportedChatHashes, createListImportedTokenUsageCandidates } from "#domain/chat";
 import type { DatabankPortabilityAssemblyContext } from "#domain/databank";
 import type { ExportService } from "#domain/export";
 import type { ImageryPortabilityService } from "#domain/imagery";
@@ -27,15 +27,22 @@ import {
   runBundleImport,
 } from "#domain/import";
 import type { PersonaService } from "#domain/persona";
-import { createFindOwnedPersonaByName } from "#domain/persona";
+import { createFindOwnedPersonaByName, createFindOwnedPersonas } from "#domain/persona";
 import type { PresetAssemblyContext } from "#domain/preset";
-import { createImportPresets } from "#domain/preset";
+import { createFindOwnedPresets, createImportPresets } from "#domain/preset";
 import type { SettingsAssemblyContext } from "#domain/settings";
-import { createAdoptImportedDefaultPersona, createApplyImportedAppearance, createImportTheme } from "#domain/settings";
+import {
+  createAdoptImportedDefaultPersona,
+  createApplyImportedAppearance,
+  createFindOwnedThemes,
+  createImportTheme,
+  createOwnedBackgroundHashes,
+} from "#domain/settings";
 import { createStatsBatchWiring, reconcileStats } from "#domain/stats";
 import type { TagAssemblyContext, TagService } from "#domain/tag";
 import type { WorkloadService } from "#domain/workloads";
 import type { WorldInfoExportAssemblyContext } from "#domain/world-info";
+import { createFindOwnedBooks } from "#domain/world-info";
 import type { Logger } from "#foundation/observability";
 import { createOperatorImportPort, createStagedImportPort, extractZip, readStagedManifest, stageDirectory, writeImportReportFile } from "#infra/storage";
 import type { LiveBuses } from "#transport/trpc";
@@ -170,6 +177,14 @@ export function buildPortabilityRunner(deps: PortabilityRunnerComposeDeps): Port
           principal,
           ...profileImport,
           importStandaloneLorebook: deps.importStandaloneLorebook,
+          ownership: {
+            findBooks: createFindOwnedBooks({ db }),
+            findPresets: createFindOwnedPresets(deps.presetCtx),
+            findThemes: createFindOwnedThemes(deps.settingsCtx),
+            backgroundHashes: createOwnedBackgroundHashes(deps.settingsCtx),
+            findPersonas: createFindOwnedPersonas({ db }),
+            findChatHashes: createFindImportedChatHashes({ db }),
+          },
           importPresetScripts: deps.importPresetScripts,
           importGlobalScripts: deps.importGlobalScripts,
           attachBooksByName: deps.attachBooksByName,

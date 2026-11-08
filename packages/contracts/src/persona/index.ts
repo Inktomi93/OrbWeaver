@@ -5,6 +5,7 @@ export type {
   CapturePersonaRoomReachOp,
   CapturePersonaSeatsForDeleteOp,
   ExportPersonaOp,
+  FindOwnedPersonas,
   ImportPersonaOp,
   JoinerPersonaStatementParams,
   ListPersonasOp,

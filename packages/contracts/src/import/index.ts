@@ -22,8 +22,14 @@ export {
   personaCollisionChoicesSchema,
   personaCollisionReviewSchema,
 } from "./persona-collision.ts";
-export type { ImportPreview, ImportPreviewItem, ImportPreviewKind, ImportPreviewList, ImportPreviewSkip } from "./preview.ts";
-export { IMPORT_PREVIEW_KINDS, IMPORT_PREVIEW_LIST_MAX, IMPORT_PREVIEW_TEXT_MAX, importPreviewSchema, mergeImportPreviews } from "./preview.ts";
+export type { ImportKindCounts, ImportPreview, ImportPreviewItem, ImportPreviewKind, ImportPreviewList, ImportPreviewSkip } from "./preview.ts";
+export {
+  IMPORT_PREVIEW_KINDS,
+  IMPORT_PREVIEW_LIST_MAX,
+  IMPORT_PREVIEW_TEXT_MAX,
+  importPreviewSchema,
+  mergeImportPreviews,
+} from "./preview.ts";
 export type { ImportStarted } from "./started.ts";
 export { importStartedSchema } from "./started.ts";
 
