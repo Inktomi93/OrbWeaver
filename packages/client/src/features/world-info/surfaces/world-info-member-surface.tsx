@@ -31,9 +31,8 @@ import { clearCollectionSelection, clearWorldEntrySelection, selectWorldEntry, u
 import { BookDetailsDialog } from "../components/book-details-dialog.tsx";
 import { EntryEditor } from "../components/entry-editor.tsx";
 import { useApplyEntryOrder, useBackfillWorldTitles, useCreateWorldEntry, useUpdateWorldBook } from "../hooks/use-world-info-mutations.ts";
-import { WORLD_INFO_EDIT_DETAILS_NAME } from "../lib/world-info-names.ts";
+import { WORLD_INFO_EDIT_DETAILS_NAME, WORLD_INFO_NEW_ENTRY_NAME, WORLD_INFO_NO_ENTRIES_TITLE } from "../lib/world-info-names.ts";
 
-const NEW_ENTRY_TITLE = "New entry";
 const NEW_ENTRY_CONTENT = "New lore.";
 
 export function WorldInfoMemberSurface({ view }: { readonly view: CollectionMemberView }): ReactElement {
@@ -88,7 +87,10 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
   };
 
   const onCreate = (): void => {
-    create.mutate({ bookId, input: { title: NEW_ENTRY_TITLE, content: NEW_ENTRY_CONTENT } }, { onSuccess: (created): void => selectWorldEntry(created.id) });
+    create.mutate(
+      { bookId, input: { title: WORLD_INFO_NEW_ENTRY_NAME, content: NEW_ENTRY_CONTENT } },
+      { onSuccess: (created): void => selectWorldEntry(created.id) },
+    );
   };
 
   const onBackfill = (): void => {
@@ -144,7 +146,7 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
             ) : null}
             <Button disabled={create.isPending} onClick={onCreate} size="sm">
               <Icon icon={Plus} size="sm" />
-              New entry
+              {WORLD_INFO_NEW_ENTRY_NAME}
             </Button>
           </>
         }
@@ -163,12 +165,12 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
         <EmptyState
           action={
             <Button disabled={create.isPending} variant="outline" onClick={onCreate} size="sm">
-              New entry
+              {WORLD_INFO_NEW_ENTRY_NAME}
             </Button>
           }
           description="Add an entry: a piece of lore that fires into the prompt when its keywords come up."
           icon={<Icon icon={BookOpen} size="lg" />}
-          title="No entries yet"
+          title={WORLD_INFO_NO_ENTRIES_TITLE}
         />
       ) : (
         // handle mode: only the grip drags, so each row's own click (drill into the editor) stays live.

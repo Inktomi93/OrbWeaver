@@ -8,6 +8,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Browser, BrowserContext, Page, TestInfo } from "@playwright/test";
 import { devices } from "@playwright/test";
+import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import { ROUTE_PENDING_NAME } from "#client/routes/route-pending-names.ts";
 import type { ActorClient } from "./support/actors.ts";
 import { loginLocal } from "./support/actors.ts";
@@ -234,7 +235,7 @@ test.describe("local corpus auth guard", () => {
     test.skip(!isMobile, "The You sheet is the phone's account door");
     await page.goto("/");
     await waitForAppReady(page);
-    await page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: "You", exact: true }).click();
+    await page.getByRole("navigation", { name: PRIMARY_NAV_NAME }).getByRole("button", { name: "You", exact: true }).click();
     const sheet = page.getByRole("dialog");
     await expect(sheet.getByTestId(testId("accountSurface"))).toContainText(capturedOwner().handle);
     await expect(sheet.getByTestId(testId("accountLogout"))).toBeEnabled();

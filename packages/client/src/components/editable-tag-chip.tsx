@@ -12,6 +12,7 @@ import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data"
 import { CORPUS_MODE_LABELS } from "#lib";
 import { selectLabel, setActiveSection, setCorpusMode } from "#state";
 import { QueryBoundary } from "./query-boundary.tsx";
+import { editTagName, TAG_EDITOR_CLOSE_NAME } from "./shared-control-names.ts";
 import { TagEditorBody } from "./tag-editor-body.tsx";
 
 export function EditableTagChip({
@@ -34,7 +35,7 @@ export function EditableTagChip({
   const library = useQuery({ ...trpc.tag.listTagsWithUsage.queryOptions(), enabled: open });
   const row = library.data?.find((item) => item.id === tag.id);
   const name = row?.name ?? tag.name;
-  const editTitle = `Edit tag ${name}`;
+  const editTitle = editTagName(name);
   const changeOpen = (next: boolean): void => {
     if (next) {
       setNavigating(false);
@@ -88,7 +89,7 @@ export function EditableTagChip({
               render={
                 <Button
                   className="shrink-0"
-                  aria-label="Close tag editor"
+                  aria-label={TAG_EDITOR_CLOSE_NAME}
                   variant="ghost"
                   size="sm"
                   square={true}

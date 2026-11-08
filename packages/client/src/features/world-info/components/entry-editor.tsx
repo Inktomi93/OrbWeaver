@@ -36,12 +36,20 @@ import { DestructiveAction, EditorPage } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms/editor";
-import { MESSAGE_ROLE_ITEMS } from "#lib";
+import { deleteConfirmTitle, MESSAGE_ROLE_ITEMS } from "#lib";
 import { useRemoveWorldEntry, useUpdateWorldEntry } from "../hooks/use-world-info-mutations.ts";
 import { entryDraftStore } from "../lib/entry-draft-store.ts";
 import type { EntryFormValues } from "../lib/entry-editor-model.ts";
 import { entryFormFromEntity, entryUpdateInputFromForm, NEW_ENTRY_FORM } from "../lib/entry-editor-model.ts";
-import { WORLD_INFO_DEPTH_SWITCH_NAME } from "../lib/world-info-names.ts";
+import {
+  WORLD_INFO_DEPTH_SWITCH_NAME,
+  WORLD_INFO_ENTRY_CONTENT_NAME,
+  WORLD_INFO_ENTRY_DEPTH_NAME,
+  WORLD_INFO_ENTRY_NOTE_NAME,
+  WORLD_INFO_ENTRY_PLACEMENT_NAME,
+  WORLD_INFO_ENTRY_ROLE_NAME,
+  WORLD_INFO_ENTRY_TITLE_NAME,
+} from "../lib/world-info-names.ts";
 
 // The contract cap on `keys` (contracts/world-info KEYS_MAX) — the chip picker enforces it too.
 const KEYS_MAX = 500;
@@ -133,14 +141,18 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
 
       <form.AppField name="title">
         {(field): ReactElement => (
-          <field.TextField label="Title" hint="A short label for the entry list. Never injected into the prompt." placeholder="Entry title" />
+          <field.TextField
+            label={WORLD_INFO_ENTRY_TITLE_NAME}
+            hint="A short label for the entry list. Never injected into the prompt."
+            placeholder="Entry title"
+          />
         )}
       </form.AppField>
 
       <form.AppField name="content">
         {(field): ReactElement => (
           <field.TextareaField
-            label="Content"
+            label={WORLD_INFO_ENTRY_CONTENT_NAME}
             description="The lore text spliced into the prompt when this entry fires."
             placeholder="What the model should know…"
             rows={6}
@@ -151,7 +163,7 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
       <form.AppField name="description">
         {(field): ReactElement => (
           <field.TextareaField
-            label="Note"
+            label={WORLD_INFO_ENTRY_NOTE_NAME}
             description="A note for you. It shows in the list and is never sent to the model."
             placeholder="Optional"
             rows={2}
@@ -206,14 +218,16 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
         {(injectEnabled): ReactElement =>
           injectEnabled ? (
             <Row gap="field" align="start">
-              <form.AppField name="injectDepth">{(field): ReactElement => <field.NumberField label="Depth" min={0} />}</form.AppField>
-              <form.AppField name="injectRole">{(field): ReactElement => <field.SelectField label="Role" items={MESSAGE_ROLE_ITEMS} />}</form.AppField>
+              <form.AppField name="injectDepth">{(field): ReactElement => <field.NumberField label={WORLD_INFO_ENTRY_DEPTH_NAME} min={0} />}</form.AppField>
+              <form.AppField name="injectRole">
+                {(field): ReactElement => <field.SelectField label={WORLD_INFO_ENTRY_ROLE_NAME} items={MESSAGE_ROLE_ITEMS} />}
+              </form.AppField>
             </Row>
           ) : (
             <form.AppField name="position">
               {(field): ReactElement => (
                 <field.SelectField
-                  label="Placement"
+                  label={WORLD_INFO_ENTRY_PLACEMENT_NAME}
                   hint="Which system-half anchor an always-scope entry joins (needs the preset's WI markers)."
                   items={POSITION_ITEMS}
                 />
@@ -263,7 +277,7 @@ function InertActivationList({ metadata }: { readonly metadata: EntryView["metad
 function DeleteEntryAction({ title, onDelete }: { readonly title: string; readonly onDelete: () => void | Promise<void> }): ReactElement {
   return (
     <DestructiveAction
-      confirm={{ confirmLabel: "Delete", title: `Delete "${title}"?` }}
+      confirm={{ confirmLabel: "Delete", title: deleteConfirmTitle(title) }}
       onConfirm={onDelete}
       trigger={
         <Button variant="ghost" size="sm" aria-label={`Delete ${title}`}>

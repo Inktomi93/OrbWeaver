@@ -6,3 +6,6 @@ export const ROSTER_SAVED_NAME = "Saved rosters";
 
 /** The Home tile's trailing door to the saved-rosters modal. */
 export const ROSTER_ALL_NAME = "All rosters";
+
+/** The member editor's name field. */
+export const ROSTER_NAME_FIELD_NAME = "Name";

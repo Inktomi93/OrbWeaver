@@ -5,6 +5,7 @@ import { seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { CLEAR_SEARCH_NAME } from "#client/lib/search-empty-names.ts";
 import type { AppShellModalStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -86,7 +87,7 @@ for (const cell of CELLS) {
         };
         const before = await frame();
         await dialog.getByRole("combobox").fill(SEARCH_TERM);
-        await expect(dialog.getByRole("button", { name: "Clear search", exact: true })).toBeVisible();
+        await expect(dialog.getByRole("button", { name: CLEAR_SEARCH_NAME, exact: true })).toBeVisible();
         const after = await frame();
         expect(after.list, `the list went ${String(before.list)}px to ${String(after.list)}px under rows of ${String(after.row)}px`).toBeGreaterThanOrEqual(
           after.row,

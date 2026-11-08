@@ -41,8 +41,7 @@ Phase B runs beside steps 2 to 6 of `docs/plans/cross-surface-consistency/design
 ### Known state
 
 - `tests/e2e/support/surface-walker.ts` owns coverage bookkeeping and the generic walk. Every driver publishes through it. A skip names a reason from `SURFACE_SKIP_REASONS`; a skip without one fails the case.
-- Character navigation is deleted. Its outcome journeys still hand-type names; production copy modules for them are not built.
-- On a phone, the bottom navigation stays focusable under the full-screen context sheet; board it with the phase A findings.
+- Character navigation is deleted. The drivers read accessible names from the production copy modules the components print; Phase B step 2 lists the names still owed.
 
 ## Why
 
@@ -58,28 +57,17 @@ Phase B: the agreed surface, flow, device and pane coverage runs through one doc
 
 ## Surface status
 
-Source: synthetic `desktop-1440-all-panes-measurement` runs of the walker branch. The measurement pass proves reach and journey outcome, not evidence findings. A full evidence pass per surface is still owed.
+Source: the per-case synthetic runs on `desktop-1440-all-panes-measurement` listed under Phase B step 2, which are this table's current evidence. The last whole walk, `surface-k2Hed1` (56 of 56 on 268a06a5bc), predates step 2 and has not been rerun on it. The measurement pass proves reach and journey outcome, not evidence findings. A full evidence pass per surface, the layout-stability matrix and the other device and pane projects are still owed.
 
 ### Per surface
 
 | Surface | Driver file | Executes | Open work |
 | - | - | - | - |
-| Characters library, source-context, editor, relations, look, history, trust-actions | `surface-character.ts` | pass | names from production |
-| Characters greeting, history-recovery, look-recovery, commands, library-recovery | `surface-character.ts` | not re-run on the walker branch | re-run; names from production |
-| Chat polish, oracle, arcade | `surface-chat.ts` | pass with real journeys | none |
-| Chat generation and cancel | `surface-chat.ts` | pass | none |
-| Chat message operations | `surface-chat.ts` | pass | none |
-| Chat reading styles | `surface-chat.ts` | every style reached; whisper and ripple pass in the whole walk | the `reachMessage` progress poll fails in bubble, flat, document, hush and tide; echo fails on a `chat.listMessages` 404 for a deleted chat |
-| Chat list, Context, group, game, arrival, lifecycle commands, media | `surface-chat.ts` | not re-run on the walker branch | re-run; replace `inspectMenu` with the walker |
-| Config appearance, connections, personas, plugins | `surface-config.ts` | pass on `SurfaceWalk` | names from production |
-| Config about, admin, automation, backup, chat-behavior, regex, rosterPreset, workloads, worldInfo, map, recovery, settings | `surface-config.ts` | not re-run on `SurfaceWalk` | re-run; names from production |
+| Characters, every case | `surface-character.ts` | pass | the names listed as owed in Phase B step 2 |
+| Chat, every case | `surface-chat.ts` | pass | the names listed as owed in Phase B step 2; the game rail is stepped by `walkRailCells`, because `walkScope` does not step `aria-current` toolbar cells |
+| Config, every category | `surface-config.ts` | pass | the names listed as owed in Phase B step 2 |
+| Home, Corpus, Databank, Presets, Refinery and Extensions rails | `surface-sections.ts` | pass | the names listed as owed in Phase B step 2; `databank/maintenance` and `refinery/runs` are `excluded` on original rows |
 | Refinery execution | `surface-sections.ts` | pass | none |
-| Extensions rail | `surface-sections.ts` | pass | none |
-| Home rail | `surface-sections.ts` | reached | Databank tile document rows need a witness |
-| Corpus rail | `surface-sections.ts` | reached | semantic target queries unexercised |
-| Databank rail | `surface-sections.ts` | reached | none; `databank/maintenance` is `excluded` on original documents |
-| Presets rail | `surface-sections.ts` | timed out in the control census | census a re-rendering list through element handles, not `nth` locators; explain the `preset.get` 404 after deletion |
-| Refinery rail | `surface-sections.ts` | pass | none; `refinery/runs` is `excluded` on an original session |
 | Boot diagnostic, multi-human admission | spec | pass | none |
 
 World Info, Regex, Rosters, admin and plugin management are Config categories, not rails. Tags live in Characters. Insights live in Corpus modes.
@@ -95,8 +83,8 @@ World Info, Regex, Rosters, admin and plugin management are Config categories, n
 
 ### Detector questions
 
-- The CSS token hygiene scan reports CodeMirror `cm-*` tokens absent from the readable CSSOM in the theme builder. CodeMirror installs its styles at runtime, likely through adopted style sheets that the scan does not read. Prove with a control, then fix the scan narrowly.
-- On the phone, a full-screen context sheet covers the bottom navigation, which stays focusable and not inert. Touch findings now report these controls as occluded. Decide whether the background must be inert under that sheet.
+- Answered (c4b8723747): the CSS token hygiene scan reported CodeMirror `cm-*` tokens absent from the theme builder's CSSOM. The cause was the kit dead-CSS tokenizer, which read ASCII identifiers only, not adopted style sheets. The tokenizer accepts non-ASCII identifiers, and `cm-editor` is an exact marker.
+- Answered (item 1433, f2b75b836d): on the phone, the tab bar and the list are inert under the full-screen context sheet. `tests/client/features/app-shell/surfaces/platform-sheet-inert.suite.ct.tsx` proves it.
 
 ### Driver triage
 
@@ -179,10 +167,8 @@ Classes: (a) navigation the generic walker already covers: delete; (b) outcome a
 
 | Class | Function | Line | Lines | Call sites in file |
 | - | - | - | - | - |
-| a navigation | `menuTerminal` | 374 | 10 | 1 |
 | a navigation | `inspectImagineModes` | 426 | 22 | 1 |
 | a navigation | `composerCheckpoint` | 683 | 12 | 1 |
-| a navigation | `contextCells` | 809 | 28 | 2 |
 | a navigation | `sidecar` | 837 | 43 | 1 |
 | a navigation | `inspectSidecarColumn` | 880 | 28 | 1 |
 | a navigation | `sidecarColumnReady` | 908 | 7 | 2 |
@@ -229,10 +215,7 @@ Classes: (a) navigation the generic walker already covers: delete; (b) outcome a
 | c helper | `listMenu` | 249 | 10 | 1 |
 | c helper | `messageLeafName` | 289 | 9 | 1 |
 | c helper | `accountMessageLeaves` | 298 | 29 | 1 |
-| c helper | `inspectMenu` | 327 | 47 | 2 |
 | c helper | `disabledControl` | 384 | 4 | 2 |
-| c helper | `inspectTrigger` | 388 | 32 | 5 |
-| c helper | `dismissMenu` | 420 | 6 | 1 |
 | c helper | `safeDialogWitness` | 448 | 15 | 1 |
 | c helper | `safeDialogDrill` | 463 | 25 | 2 |
 | c helper | `safeSelectionDrill` | 488 | 16 | 1 |
@@ -243,7 +226,6 @@ Classes: (a) navigation the generic walker already covers: delete; (b) outcome a
 | c helper | `safeMenuDrills` | 602 | 40 | 1 |
 | c helper | `activeContext` | 695 | 4 | 11 |
 | c helper | `contextReady` | 699 | 7 | 4 |
-| c helper | `closeContextOverlay` | 706 | 18 | 10 |
 | c helper | `context* ` | 959 | 27 | 6 |
 | c helper | `wheel` | 1001 | 5 | 5 |
 | c helper | `scrollViewport` | 1006 | 15 | 5 |
@@ -366,7 +348,15 @@ Filled at landing: what ran and where its output is.
 
 - `tests/e2e/support/surface-character.ts`: 27 distinct Character names now import from `packages/client/src/features/character/lib/character-names.ts`, which the components read too (library, filter rail, create and import dialogs, editor form, actions menu, confirm titles, history, tags row, links tab). The count-built bulk titles use `characterBulkTagTitle` and `characterBulkDeleteTitle`. Reach entry in `.dependency-cruiser.ts`.
 - Cases: `Characters independent library` and `Characters independent trust-actions` on `desktop-1440-all-panes-measurement`, both exit 0, `completed=2 unexpected=0`.
-- Remaining in `surface-character.ts`: shared-grammar names (Cancel, Create, Done, Retry, Close, Name, Description, Restore, Accept, Discard, Edit, Studio, Back), names built by shared components (Make new, Expand to edit, Start from a theme…, From a URL…, Background image URL, Font, Corner radius, Hex, Add images, Your images, gallery title), `Select <name>` via `selectActionName`, and the per-facet strings. `surface-sections.ts`, `surface-config.ts` and `surface-chat.ts` untouched.
+- All four drivers now read their names from zero-import copy modules that the components print. New homes: `packages/client/src/lib/context-pane-names.ts` (pane names, edge controls, exits and the phone back), `search-empty-names.ts`, `rail-names.ts` and `clipboard-names.ts` beside it, `imagine-names.ts`, `import-library-names.ts`, and the `@orb/ui` selection-bar and color-field names. Each is a `TEST_CONSTANT_HOMES` entry in `.dependency-cruiser.ts`. The literal-to-binding codemod moved the literals in the drivers and in the CT and e2e specs that `orb/no-hand-copied-label` then flagged.
+- `tests/e2e/support/surface-chat.ts` walks menus with `walkMenuTrigger` and a per-message `menuLeaves` hook, and the Context pane with `walkScope`. The game rail is stepped by `walkRailCells`, because `walkScope` does not step `aria-current` toolbar cells.
+- The generic Context walk found a product defect: the Members toolbar's roving keys took Home, End and the arrows from an open row menu. `packages/client/src/features/chat/components/members-panel.tsx` now ignores keys from outside the toolbar's DOM. `tests/client/features/chat/components/members-focus.ct.tsx` is red at the End assertion without the change and green with it.
+- `tests/support/browser/disclosure-walk.ts` waits for each closed panel to hide, so a collapsing body's controls are not counted in the next census.
+- `returnHome` and the Refinery cleanup reach Home through the resolved shell: the rail or tab bar, else You, and the topbar back from a phone room screen. The blank Home door asserts an empty cast.
+- Cases: every case of the walk, one at a time on `desktop-1440-all-panes-measurement`, all pass with no unlisted skips, load 4 to 18 on 24 cores. `Rail independent home` also passes on `chromium-phone-portrait-measurement`.
+- Review follow-up: the codemod had matched labels by text alone, so five specs bound a same-text constant from a feature that does not print the label. Each now reads the home its component prints: the persona editor's Title, Duplicate, Export and Delete in `persona-copy.ts`, the plugin page kicker in `plugin-panel-copy.ts`, the injection Content field and the Members roster and entry names in `chat-surface-names.ts`, and the bulk bar's verbs from `CHARACTER_ACTIONS`. A sweep of every binding the codemod added checked each constant's production readers against the element its spec asserts; no other binding pointed at the wrong home.
+- `walkMenuTrigger` resolves false when it records a disabled skip, and the chat drills follow that record, so a busy composer's Impersonate and Response menus are skipped instead of timing out.
+- Owed names, with no production home yet or in a held file: the showcase guest strings (New game, the arrow pad, Retire this deck), the World Info entry delete, the preset prompt Add, Prompt and New, the New chat dialog, the roster delete confirm, the Character form Name, filter and tag disclosure names, and the row-pattern names in `surface-sections.ts` (Resume, Go to, Open, Start a chat with, Sort by, Move above or below, Keep, Run).
 
 ### Phase B step 1: the nine failures (lane cb-walk1401)
 

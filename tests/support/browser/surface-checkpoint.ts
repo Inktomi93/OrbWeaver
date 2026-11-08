@@ -21,7 +21,7 @@ export interface SurfaceActionGroup {
 }
 
 /** An enlarged-text profile: the root font size its document must resolve before its geometry is judged. */
-export interface SurfaceTextGeometry {
+interface SurfaceTextGeometry {
   readonly expectedRootFontPx: number;
 }
 

@@ -25,9 +25,9 @@ import { MenuItem, MenuLinkItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger 
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { RowActionsMenu } from "#components";
-import { ROW_RENAME_NAME } from "#lib";
+import { deleteConfirmTitle, ROW_RENAME_NAME } from "#lib";
 import type { ChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
-import { CHAT_EXPORT_TRANSCRIPT_NAME } from "../lib/chat-surface-names.ts";
+import { CHAT_EXPORT_TRANSCRIPT_NAME, chatArchiveToggleName, chatRowActionsName, chatStarToggleName } from "../lib/chat-surface-names.ts";
 import { RenameChatDialog } from "./rename-chat-dialog.tsx";
 
 /** The host-gated transcript download route (`GET /api/export/chat/:chatId`), one home for both formats. */
@@ -74,10 +74,10 @@ export function ChatListRowMenu({ actions, chatId, title, displayTitle, rowName,
   return (
     <>
       <RowActionsMenu
-        label={`Chat actions for ${rowName}`}
+        label={chatRowActionsName(rowName)}
         reveal={true}
         destructive={{
-          title: `Delete "${displayTitle}"?`,
+          title: deleteConfirmTitle(displayTitle),
           description: "This permanently deletes the chat and its messages for everyone. This can't be undone.",
           onConfirm: confirmDelete,
         }}
@@ -88,11 +88,11 @@ export function ChatListRowMenu({ actions, chatId, title, displayTitle, rowName,
         </MenuItem>
         <MenuItem onClick={(): void => actions.star({ chatId, starred: !starred })}>
           <Icon icon={Star} size="sm" />
-          {starred ? "Unstar" : "Star"}
+          {chatStarToggleName(starred)}
         </MenuItem>
         <MenuItem onClick={(): void => actions.archive({ chatId, archived: !archived })}>
           <Icon icon={Archive} size="sm" />
-          {archived ? "Unarchive" : "Archive"}
+          {chatArchiveToggleName(archived)}
         </MenuItem>
         <MenuSubmenuRoot>
           <MenuSubmenuTrigger>

@@ -17,6 +17,7 @@ import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page, Response } from "@playwright/test";
 import { relativePathOf } from "#client/data/import-tree.ts";
 import { planServedTreeImport } from "#client/data/import-tree-served.ts";
+import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
 import { openConfigGroup as openGroup } from "./support/config-flow.ts";
@@ -162,7 +163,7 @@ test("a SillyTavern library folder imports every handled plane for the owner", {
   page.on("response", recordResponse);
   try {
     await openGroup(page, "backup");
-    const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.getByRole("button", { name: "Import a folder…", exact: true }).click()]);
+    const [chooser] = await Promise.all([page.waitForEvent("filechooser"), page.getByRole("button", { name: IMPORT_FOLDER_NAME, exact: true }).click()]);
     await chooser.setFiles(root);
     const preflight = page.getByRole("group", { name: IMPORT_GROUP_NAME });
     await expect(preflight).toBeVisible({ timeout: settleMs });

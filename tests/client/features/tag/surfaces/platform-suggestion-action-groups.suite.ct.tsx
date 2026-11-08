@@ -83,7 +83,7 @@ for (const regime of REGIMES) {
           }
         });
         await routeOrbSocket(page, {
-          awaitAttaches: 1,
+          awaitRooms: [{ channel: "user" }],
           frames: async (signal) => {
             started = true;
             const events = root.app.liveBuses.user.subscribeUserEvents(root.ownerId, AbortSignal.any([signal, stop.signal]));

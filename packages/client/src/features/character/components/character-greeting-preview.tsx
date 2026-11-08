@@ -29,6 +29,8 @@ import type { CharacterCardFormValues } from "../lib/character-card-form-model.t
 import {
   ADD_GREETING_NAME,
   FIRST_GREETING_ALWAYS_SHOWN_NOTE,
+  GREETING_EDIT_NAME,
+  GREETING_STUDIO_NAME,
   GREETINGS_STRIP_LABEL,
   greetingOrdinalLabel,
   REMOVE_GREETING_NAME,
@@ -253,6 +255,7 @@ function GreetingActions({
 }): ReactElement {
   const [studioOpen, setStudioOpen] = useState(false);
   const addOpeningRef = useRef<HTMLButtonElement>(null);
+  const editLabel = editing ? DIALOG_VERBS.done : GREETING_EDIT_NAME;
   return (
     // The group-only toggle (or its Opening-1 absence note) rides its OWN row above the action cluster —
     // it's an ATTRIBUTE of the greeting, not an action. Keeping it out of the `justify-end` button Row is
@@ -301,11 +304,11 @@ function GreetingActions({
         </Button>
         <Toggle size="sm" pressed={editing} onPressedChange={onToggleEdit}>
           <Icon icon={Pencil} size="sm" />
-          {editing ? DIALOG_VERBS.done : "Edit"}
+          {editLabel}
         </Toggle>
         <Toggle size="sm" pressed={studioOpen} onPressedChange={setStudioOpen}>
           <Icon icon={WandSparkles} size="sm" />
-          Studio
+          {GREETING_STUDIO_NAME}
         </Toggle>
       </Row>
       {studioOpen ? (

@@ -37,7 +37,7 @@ import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { DismissDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { DIALOG_VERBS, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
+import { CLEAR_SEARCH_NAME, DIALOG_VERBS, NO_MATCHES_TITLE, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { useAttachDocumentToChat } from "../hooks/use-chat-document-mutations.ts";
 import { attachableDocuments } from "../lib/chat-documents-model.ts";
 
@@ -164,12 +164,12 @@ function PickerCandidates({
         <EmptyState
           action={
             <Button variant="outline" onClick={onClearSearch} size="sm">
-              Clear search
+              {CLEAR_SEARCH_NAME}
             </Button>
           }
           description={`No document you can add matches "${needle}".`}
           icon={<Icon icon={Search} size="lg" />}
-          title="No matches"
+          title={NO_MATCHES_TITLE}
         />
       );
     }

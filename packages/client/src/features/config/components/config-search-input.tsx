@@ -27,6 +27,7 @@ import { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfig
 import type { ConfigGroupDefinition, ConfigGroupRegistry, ConfigSearchRow } from "#state";
 import { openConfigTo, selectCollectionMember, setConfigSearchMatch, setConfigSearchQuery, useConfigSearchQuery } from "#state";
 import { useConfigModified } from "../hooks/use-modified-sections.ts";
+import { CONFIG_SEARCH_NAME, configSearchEmptyText } from "../lib/config-control-names.ts";
 import { CONFIG_MODIFIED_MARKER } from "../lib/config-copy.ts";
 import type { ConfigSearchEntry } from "../lib/config-search.ts";
 import {
@@ -210,11 +211,17 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
 
   return (
     <Stack aria-label="Settings search" className="min-inline-0" grow={true} role="search">
-      <Command label="Search settings" shouldFilter={false}>
+      <Command label={CONFIG_SEARCH_NAME} shouldFilter={false}>
         <Row align="center" gap="tight">
           <Stack className="min-inline-0" grow={true}>
             {/* The arrival focus lands on the active group's BAND, not on this box. */}
-            <CommandInput aria-label="Search settings" expanded={expanded} onValueChange={setConfigSearchQuery} placeholder="Search settings…" value={query} />
+            <CommandInput
+              aria-label={CONFIG_SEARCH_NAME}
+              expanded={expanded}
+              onValueChange={setConfigSearchQuery}
+              placeholder="Search settings…"
+              value={query}
+            />
           </Stack>
           {/* The FUNNEL — inserts `@` and the token menu opens, so the grammar teaches itself (§3.3). */}
           <Tip text="Add a search filter">
@@ -238,7 +245,9 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
                     `hits` alone shows the message over a results list that holds member rows. `role="status"` sits on the
                     message because cmdk pins its own wrapper to `presentation`. */}
                 <CommandEmpty>
-                  <Text role="status" voice="gloss">{`No settings match “${query.trim()}”.`}</Text>
+                  <Text role="status" voice="gloss">
+                    {configSearchEmptyText(query.trim())}
+                  </Text>
                 </CommandEmpty>
                 {/* EVERY MODIFIED HIT SAYS SO, in every query — not only under `@modified`, so the reader
                     hunting the setting they changed has something to steer by. The mark is the SAME verdict the filter

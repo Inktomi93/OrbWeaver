@@ -21,7 +21,7 @@ import { Tabs, TabsPanel } from "@orb/ui/tabs";
 import type { ReactElement, ReactNode, RefCallback } from "react";
 import { useEffect, useRef, useState } from "react";
 import type { ContextRegionView } from "#lib";
-import { GAME_STRIP_LABEL } from "#lib";
+import { GAME_STRIP_LABEL, PANEL_CLOSE_FALLBACK_NAME } from "#lib";
 import { cellDomId } from "../lib/context-cell-id.ts";
 import { ContextHeaderTabs, ContextRail } from "./context-rail.tsx";
 
@@ -111,7 +111,7 @@ export function ContextBracket({ view, headerRef, band, empty, railLabel, paneLa
         {hasDismiss ? (
           <Row className="shrink-0" paddingInlineEnd="field">
             <Button
-              aria-label={dismissLabel ?? "Close panel"}
+              aria-label={dismissLabel ?? PANEL_CLOSE_FALLBACK_NAME}
               data-slot="context-bracket-dismiss"
               variant="ghost"
               onClick={onDismiss}

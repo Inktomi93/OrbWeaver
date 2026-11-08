@@ -10,6 +10,7 @@ import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
+import { IMAGINE_PROMPT_NAME } from "#client/features/imagery/lib/imagine-names.ts";
 import type { ImagineOptionsStory } from "./_imagine-options-stories.tsx";
 
 const STORY = "tests/client/features/imagery/components/_imagine-options-stories/ImagineOptionsStory";
@@ -37,7 +38,7 @@ test("the options stay collapsed until asked for, and an untouched form sends on
   const chatId = typeIdSchema(ID_PREFIX.chat).parse(corpus.reads["chat.listChats"][0]?.output.items[0]?.id);
   const calls = await routeImagine(page);
   await mount<typeof ImagineOptionsStory>(STORY, { seed: { chatId, mode: "free", prompt: SEED_PROMPT } });
-  await expect(page.getByRole("textbox", { name: "Image prompt", exact: true })).toHaveValue(SEED_PROMPT);
+  await expect(page.getByRole("textbox", { name: IMAGINE_PROMPT_NAME, exact: true })).toHaveValue(SEED_PROMPT);
   await expect(page.getByRole("textbox", { name: "Negative prompt", exact: true })).toBeHidden();
   await page.getByRole("button", { name: "Generate", exact: true }).click();
   await expect.poll(() => calls.count("chat.generateImage")).toBe(1);

@@ -31,11 +31,12 @@ import { useState } from "react";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import type { CharacterChatsProjectionView } from "#lib";
-import { SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
+import { CLEAR_SEARCH_NAME, NO_MATCHES_TITLE, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { resumeChat, useActiveChatId } from "#state";
 import { useChatListCollection } from "../hooks/use-chat-list-collection.ts";
 import { useChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
 import { chatRowQualifiers } from "../lib/chat-summary-row.ts";
+import { CHAT_LIST_EMPTY_TITLE, chatsWithCharacterName } from "../lib/chat-surface-names.ts";
 import { ChatListRow } from "./chat-list-row.tsx";
 
 /** The list row, derived off the wire (the `chat-list-row.tsx` / `chat-summary-row.ts` spelling) — the
@@ -85,7 +86,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
         }
         description={`No chats with ${characterName} yet: start the first one.`}
         icon={<Icon icon={MessagesSquare} size="lg" />}
-        title="No chats yet"
+        title={CHAT_LIST_EMPTY_TITLE}
       />
     );
   }
@@ -117,17 +118,17 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
           <EmptyState
             action={
               <Button variant="outline" onClick={(): void => setQuery("")} size="sm">
-                Clear search
+                {CLEAR_SEARCH_NAME}
               </Button>
             }
             description={`No chat with ${characterName} matches "${settledQuery}".`}
             icon={<Icon icon={MessagesSquare} size="lg" />}
-            title="No matches"
+            title={NO_MATCHES_TITLE}
           />
         ) : (
           // The virtualizer's scroll element needs a BOUNDED height (`assertBoundedScrollHeight` throws at
           // mount otherwise) — `h-full` inside this `min-h-0 flex-1` column is where that bound comes from.
-          <Stack aria-label={`Chats with ${characterName}`} minHeight="shrinks" grow={true} role="list">
+          <Stack aria-label={chatsWithCharacterName(characterName)} minHeight="shrinks" grow={true} role="list">
             {/* Server order, verbatim (D4): the star is a MARKER, not a sort key — a projection ordered
               differently from the chats pane would read as a second, disagreeing list. */}
             <VirtualList

@@ -2,6 +2,7 @@
 // (playwright-ct.config.ts). Playwright's WebKit on Linux is not Safari and reports 0 for every safe-area inset,
 // so the paid-inset arm is proved on Chromium with an inset override and WebKit records what it reports.
 
+import { PRIMARY_NAV_NAME } from "../../../packages/client/src/lib/rail-names.ts";
 import { nonEmpty } from "../iso/non-empty.ts";
 import { channelName } from "../node/appearance-channel-name.ts";
 import { expect, test } from "../node/ct-corpus.ts";
@@ -55,7 +56,7 @@ for (const viewport of [PHONE_PORTRAIT, PHONE_LANDSCAPE]) {
   test(`the grid fills the dynamic viewport and the document neither scrolls nor chains at ${label}`, async ({ mount, page }) => {
     await page.setViewportSize(viewport);
     await mount<typeof ShellAmbientStory>(STORY, {});
-    await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: PRIMARY_NAV_NAME, exact: true })).toBeVisible();
     const frame = await page.locator(".shell-grid").evaluate((grid) => ({
       grid: grid.getBoundingClientRect().height,
       viewport: innerHeight,
@@ -75,7 +76,7 @@ for (const viewport of [PHONE_PORTRAIT, PHONE_LANDSCAPE]) {
         insets: { top: NOTCH_INSET, bottom: HOME_INDICATOR_INSET, left: sideInset, right: sideInset },
       });
       await mount<typeof ShellAmbientStory>(STORY, {});
-      await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeVisible();
+      await expect(page.getByRole("navigation", { name: PRIMARY_NAV_NAME, exact: true })).toBeVisible();
       const paid = await page.locator(".shell-grid").evaluate((element) => {
         const grid = getComputedStyle(element);
         return { top: grid.paddingTop, right: grid.paddingRight, left: grid.paddingLeft, overflowX: document.documentElement.scrollWidth - innerWidth };
@@ -97,7 +98,7 @@ for (const viewport of [PHONE_PORTRAIT, DESKTOP]) {
     await mount<typeof ShellAmbientStory>(STORY, {});
     // !important: the appearance writer owns the inline value and rewrites it after boot.
     await setRootFontScale(page, FONT_SCALE_PROPERTY, TEXT_SCALE_200);
-    await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeVisible();
+    await expect(page.getByRole("navigation", { name: PRIMARY_NAV_NAME, exact: true })).toBeVisible();
     const main = page.locator(".shell-main");
     const mainInline = await main.evaluate((element) => element.getBoundingClientRect().width);
     const fit = await page.locator("nav[aria-label=Primary]").evaluate((rail, mainWidth) => {
@@ -158,7 +159,7 @@ for (const [viewport, short] of [
 test("a printed page drops the chrome, stops clipping the grid and uses the light palette", async ({ mount, page }) => {
   await page.emulateMedia({ ...CLEAN_MEDIA, media: "print" });
   await mount<typeof ShellAmbientStory>(STORY, {});
-  await expect(page.getByRole("navigation", { name: "Primary", exact: true })).toBeHidden();
+  await expect(page.getByRole("navigation", { name: PRIMARY_NAV_NAME, exact: true })).toBeHidden();
   const printed = await page.locator(".shell-grid").evaluate((grid) => ({
     gridOverflow: getComputedStyle(grid).overflowY,
     gridDisplay: getComputedStyle(grid).display,
