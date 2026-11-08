@@ -1,5 +1,6 @@
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
+import { CodeEditor } from "@orb/ui/code-editor";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
@@ -74,6 +75,20 @@ export function SurfaceDesignStory({ width }: { readonly width: number }): React
             </Surface>
           </Stack>
         </Container>
+      </main>
+    </CtIsolation>
+  );
+}
+
+/** The production code editor mounts CodeMirror's runtime stylesheet, whose scope classes are not ASCII. */
+export function SurfaceCodeEditorStory(): ReactElement {
+  return (
+    <CtIsolation subject="Runtime editor stylesheet" isolates="CodeMirror's mounted style module needs no application services.">
+      <main>
+        <Stack padding="section">
+          <h1>Editor stylesheet control</h1>
+          <CodeEditor ariaLabel="Stylesheet control" value=".control { color: black; }" />
+        </Stack>
       </main>
     </CtIsolation>
   );

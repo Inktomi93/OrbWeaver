@@ -20,16 +20,20 @@
  */
 export const DEAD_CSS_MARKER_PREFIXES: readonly string[] = ["group/", "peer/", "lucide", "TanStack", "tsqd-"];
 
-/** Marker-only class tokens matched WHOLE (the bare `group`/`peer` forms plus third-party markers). */
-export const DEAD_CSS_MARKER_EXACT: readonly string[] = ["echarts-for-react", "group", "peer"];
+/**
+ * Marker-only class tokens matched WHOLE (the bare `group`/`peer` forms plus third-party markers). CodeMirror styles
+ * its root through a generated scope class, so no rule anywhere names `cm-editor`.
+ */
+export const DEAD_CSS_MARKER_EXACT: readonly string[] = ["cm-editor", "echarts-for-react", "group", "peer"];
 
 /**
- * A class selector's token, un-escaped: a literal dot then a run of escaped-char-or-ident-char. Exported
+ * A class selector's token, un-escaped: a literal dot then a run of escaped-char-or-ident-char. An ident char
+ * includes every non-ASCII code point, as CSS defines it; CodeMirror's style-mod scope classes are non-ASCII. Exported
  * as a regex SOURCE (not a `RegExp`) because the snap consumer must rebuild it inside the browser out of
  * a serialized string — `new RegExp(CLASS_SELECTOR_TOKEN_PATTERN, "g")` there is the same regex this
  * module compiles here, which is what makes the two scans provably agree.
  */
-export const CLASS_SELECTOR_TOKEN_PATTERN = "\\.((?:\\\\.|[A-Za-z0-9_-])+)";
+export const CLASS_SELECTOR_TOKEN_PATTERN = "\\.((?:\\\\.|[A-Za-z0-9_\\u0080-\\uFFFF-])+)";
 
 /** The un-escaper for a captured token (`\.` → `.`), same serialize-into-the-page reason as above. */
 export const CLASS_TOKEN_ESCAPE_PATTERN = "\\\\(.)";
