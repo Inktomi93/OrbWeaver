@@ -6,7 +6,7 @@ import { spawnSync } from "node:child_process";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
-import { SESSION_SECRET_ENV } from "@orb/server/foundation/env/record";
+import { SESSION_SECRET_ENV } from "@orb/server/foundation/data-layout";
 import { expect, test } from "@orb/testkit/node";
 import { z } from "zod";
 

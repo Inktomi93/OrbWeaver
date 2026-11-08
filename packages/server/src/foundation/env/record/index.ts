@@ -35,7 +35,6 @@ import { operatorJwksSchema } from "../operator-jwks.ts";
 import { trustedPrivateRangeRefusal, unreadableTrustedPrivateRanges } from "../private-ranges.ts";
 import { EnvRefusedError } from "../refusal/index.ts";
 
-export { SESSION_SECRET_ENV } from "#foundation/data-layout";
 export { publicAddresses, resolveAllowedHosts } from "../allowed-hosts.ts";
 export { loopbackOrigin } from "../bind.ts";
 export { fileReadCommand, settingInstruction } from "../container.ts";

@@ -548,6 +548,9 @@ const SERVER_TEST_REACHES = {
       "DATA_LAYOUT_DIRS, SECRET_FILE_NAMES and DATABASE_URL_KEY: the suite plants the session keyfile and the database key by their production names",
     "foundation/env": "APP_SECRET_ENV_KEYS: the boot scrub's own list, which the suite plants and then looks for in a child's env",
   },
+  "tests/server/foundation/env/host-env-allowlist.int.test.ts": {
+    "foundation/data-layout": "SESSION_SECRET_ENV: the suite plants the session secret in the host env by its production name",
+  },
   "tests/server/foundation/env/record/secret-file.int.test.ts": {
     "foundation/data-layout": "DATABASE_URL_KEY: the suite plants the database key by its production name",
   },
