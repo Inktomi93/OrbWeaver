@@ -11,7 +11,7 @@ import { createServerHarness } from "./server.ts";
 import { requireShowcaseManifest } from "./showcase-bundle.ts";
 
 test("native URL output suppliers bind consent to bytes and preserve leak-free update failures", async () => {
-  const downloads = createCorpusPluginDownloads();
+  using downloads = createCorpusPluginDownloads("every-step");
   await using root = await createServerHarness({ networkExecution: downloads.networkExecution });
   const result = await seedCorpusPluginSource(root, downloads);
   const pluginId = result.installed.id;
@@ -32,7 +32,6 @@ test("native URL output suppliers bind consent to bytes and preserve leak-free u
   const stranger = await root.actor();
   const foreign = await root.internalCallerFor(stranger.id);
   expect(await foreign.plugin.checkForUpdates()).toEqual([]);
-  expect(downloads.remaining()).toBe(0);
   expect(downloads.requested).toEqual(Array.from({ length: 7 }, () => CORPUS_PLUGIN_SOURCE_URL));
 });
 

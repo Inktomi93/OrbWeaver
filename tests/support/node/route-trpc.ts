@@ -214,7 +214,7 @@ export function defineTrpcRoutes<const TRoutes extends object>(routes: TRoutes &
 }
 
 /** tRPC code → JSONRPC number (`@trpc/server` rpc/codes.ts TRPC_ERROR_CODES_BY_KEY), exhaustive. */
-function errorNumber(code: TrpcErrorCode): number {
+export function errorNumber(code: TrpcErrorCode): number {
   switch (code) {
     case "PARSE_ERROR":
       return -32_700;

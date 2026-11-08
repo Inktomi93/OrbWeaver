@@ -13,6 +13,7 @@ export {
   thinkingBlock,
   toolUseBlock,
 } from "./anthropic-stream.ts";
+export { prepareBackupFolder } from "./backup-folder.ts";
 export { bootGrantFor } from "./boot-grant.ts";
 export { assertEventSequence } from "./chat/assertions.ts";
 export type { ChromiumIdentity } from "./chromium-processes.ts";
@@ -24,6 +25,14 @@ export {
   terminateChromiumIdentities,
   watchChromiumDescendants,
 } from "./chromium-processes.ts";
+export {
+  assertPrivateCorpusNetwork,
+  assertPrivateCorpusOutput,
+  assertPrivateCorpusOutputArguments,
+  isPrivateCorpusConfigArgument,
+  loadCorpusFixture,
+} from "./corpus.ts";
+export { CORPUS_STRUCTURED_REPLIES } from "./corpus-provider.ts";
 export { createTestEnv } from "./env.ts";
 export { makeRuleView } from "./factories/automation-view.ts";
 export { makeChatDetail, makeChatId, makeChatSummaryView, makeRedeemInviteResult } from "./factories/chat-view.ts";
@@ -47,6 +56,8 @@ export type { RecordedRequest } from "./openai-server.ts";
 export { openAiServer, recordRequest, SLEEP_PROBE_SUFFIX } from "./openai-server.ts";
 export type { TerminalFrameOptions } from "./provider-stream.ts";
 export { terminalSseLine } from "./provider-stream.ts";
+export type { ProviderTape, ProviderTapeStep } from "./provider-tape.ts";
+export { providerTapeLeaks, readProviderTape, scrubTapeFrame, writeProviderTape } from "./provider-tape.ts";
 export type { TrpcRequestFilter } from "./route-trpc.ts";
 export { abortProcedure, isTrpcRequestFor, matchesTrpcRequestInput, readTrpcOutput } from "./route-trpc.ts";
 export type { SdkPrivateDiagnosticInput, SdkPrivateDiagnosticResult, SdkScriptSpawn } from "./sdk-process.ts";

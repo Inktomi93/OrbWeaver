@@ -16,7 +16,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, useFirstBootBox } from "#components";
+import { QueryBoundary, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId } from "#lib";
 import { ADMIN_LINK_SSO_SUBCATEGORY } from "../lib/admin-link-sso-nav.ts";
@@ -24,14 +24,14 @@ import { AdminLinkSsoDialog } from "./admin-link-sso-dialog.tsx";
 
 /** The Link-SSO section body — mounted at the admin pane's sections anchor. */
 export function AdminLinkSsoSection({ anchorId }: { readonly anchorId: string }): ReactElement {
-  const firstBootBox = useFirstBootBox({ wide: 2, narrow: 2 });
+  const firstBootRows = useFirstBootRows({ wide: 2, narrow: 2 });
   return (
     // RESERVED (#1098) — an admin section that settles into the linkable-account list.
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="the admin panel — it's available to administrators only" onRetry={retry} />}
-      reserveBlock={firstBootBox}
+      reserveRows={firstBootRows}
       reserveKey="config.admin.linkSso"
     >
       <AdminLinkSsoBody anchorId={anchorId} />

@@ -5,7 +5,14 @@
 // error.
 
 import type { StartWorkloadInput, WorkloadEstimateScope, WorkloadKind, WorkloadLane, WorkloadMode, WorkloadParamsByKind } from "@orb/contracts/workloads";
-import { DEFAULT_ADMISSION_KEY, startWorkloadEnvelope, WORKLOAD_NOT_ADMISSIBLE, WORKLOAD_OWNER_ONLY_REFUSAL } from "@orb/contracts/workloads";
+import {
+  DEFAULT_ADMISSION_KEY,
+  startWorkloadEnvelope,
+  WORKLOAD_NOT_ADMISSIBLE,
+  WORKLOAD_OWNER_ONLY_REFUSAL,
+  WORKLOAD_RUN_ACCOUNT_NOT_OWNER,
+  WORKLOAD_RUN_ACCOUNT_REFUSAL,
+} from "@orb/contracts/workloads";
 import { DomainForbiddenError, DomainOperationError } from "@orb/kit/errors";
 import type { UserId } from "@orb/kit/ids";
 import type { WorkloadContributions } from "../contract/contribution.ts";
@@ -36,22 +43,38 @@ export function runAccount(row: { readonly mode: WorkloadMode; readonly ownerId:
   return row.mode === "bulk" ? row.funderUserId : row.ownerId;
 }
 
-/** Refuse a run its owning domain declares owner-only unless every account behind it is the box owner: the person asking,
- *  when one is, and the account the run answers to. Nothing here skips a `null` caller, so a schedule tick and a
- *  dispatched row are judged like a door, whatever build stored them. */
+/** Why a run its owning domain declares owner-only may not start, or `null` when every account behind it is the box
+ *  owner: the person asking, when one is, and the account the run answers to. Nothing here skips a `null` caller, so a
+ *  schedule tick and a dispatched row are judged like a door, whatever build stored them. A non-owner asking is refused
+ *  as such; an owner-asked or stored run whose account is not the box owner gets the coded refusal a client can name. */
+export async function runAuthorityRefusal<K extends WorkloadKind>(
+  deps: Pick<WorkloadRunnerDeps, "contributions" | "isBoxOwner">,
+  asker: RunAsker,
+  kind: K,
+  params: WorkloadParamsByKind[K],
+): Promise<DomainForbiddenError | DomainOperationError | null> {
+  if (deps.contributions[kind].ownerOnly?.(params) !== true) {
+    return null;
+  }
+  if (asker.caller !== null && !(await deps.isBoxOwner(asker.caller.userId))) {
+    return new DomainForbiddenError(WORKLOAD_OWNER_ONLY_REFUSAL);
+  }
+  if (asker.account === null || !(await deps.isBoxOwner(asker.account))) {
+    return new DomainOperationError(WORKLOAD_RUN_ACCOUNT_NOT_OWNER, WORKLOAD_RUN_ACCOUNT_REFUSAL);
+  }
+  return null;
+}
+
+/** Throw {@link runAuthorityRefusal}'s answer when there is one. */
 export async function assertRunAuthority<K extends WorkloadKind>(
   deps: Pick<WorkloadRunnerDeps, "contributions" | "isBoxOwner">,
   asker: RunAsker,
   kind: K,
   params: WorkloadParamsByKind[K],
 ): Promise<void> {
-  if (deps.contributions[kind].ownerOnly?.(params) !== true) {
-    return;
-  }
-  for (const account of new Set([asker.caller?.userId ?? asker.account, asker.account])) {
-    if (account === null || !(await deps.isBoxOwner(account))) {
-      throw new DomainForbiddenError(WORKLOAD_OWNER_ONLY_REFUSAL);
-    }
+  const refusal = await runAuthorityRefusal(deps, asker, kind, params);
+  if (refusal !== null) {
+    throw refusal;
   }
 }
 

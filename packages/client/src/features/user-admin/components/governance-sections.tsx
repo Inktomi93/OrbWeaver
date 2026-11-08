@@ -19,7 +19,7 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { QueryBoundary, SettingRowGroup, useFirstBootBox } from "#components";
+import { QueryBoundary, SettingRowGroup, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
@@ -41,14 +41,14 @@ function useIsBoxOwner(): boolean {
 
 /** Multi-user — the local-mode seating switch (owner-only) beside the login-page posture (admin-writable). */
 export function MultiUserSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
-  const firstBootBox = useFirstBootBox({ wide: 27, narrow: 25 });
+  const firstBootRows = useFirstBootRows({ wide: 27, narrow: 25 });
   return (
     // RESERVED (#1098) — the seating switch plus the login-page posture — a small but fixed knob stack.
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={4} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="multi-user — administrators only" onRetry={retry} />}
-      reserveBlock={firstBootBox}
+      reserveRows={firstBootRows}
       reserveKey="config.admin.multiUser"
     >
       <MultiUserBody anchorId={anchorId} sectionId={sectionId} />

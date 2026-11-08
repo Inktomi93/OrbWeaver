@@ -15,7 +15,7 @@ import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { importStartedSchema, ST_SETTINGS_FILE, STAGED_MANIFEST_FILE } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import type { WorkloadMode, wireStartWorkloadEnvelope } from "@orb/contracts/workloads";
-import { OPERATOR_TREE_WORKLOAD_KIND, WORKLOAD_OWNER_ONLY_REFUSAL } from "@orb/contracts/workloads";
+import { OPERATOR_TREE_WORKLOAD_KIND, WORKLOAD_RUN_ACCOUNT_NOT_OWNER, WORKLOAD_RUN_ACCOUNT_REFUSAL } from "@orb/contracts/workloads";
 import { workloadSchedules, workloads } from "@orb/db";
 import type { Handle, UserId, WorkloadId, WorkloadScheduleId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -295,6 +295,15 @@ test("at the tick a member's stored bare schedule enqueues nothing, and the owne
   await root.tickWorkloadSchedules?.();
 
   expect(await trpc.workloads.list()).toEqual([]);
+  // The holder sees why the schedule starts nothing; the owner's own schedule carries no refusal.
+  expect((await trpc.workloads.listSchedules()).map(({ id: scheduleId, refusal }) => ({ scheduleId, refusal }))).toEqual([
+    { scheduleId: held, refusal: WORKLOAD_RUN_ACCOUNT_NOT_OWNER },
+  ]);
+  const ownerView = await owner.workloads.listSchedules();
+  expect(ownerView.find((row) => row.id === held)?.refusal).toBe(WORKLOAD_RUN_ACCOUNT_NOT_OWNER);
+  expect(ownerView.filter((row) => row.id !== held).map((row) => ({ ownerId: row.ownerId, refused: "refusal" in row }))).toEqual([
+    { ownerId: root.ownerId, refused: false },
+  ]);
   expect((await trpc.workloads.listSchedules()).find((row) => row.id === held)?.nextRunAt).toBeGreaterThan(0);
   const fired = (await owner.workloads.list()).filter((row) => row.kind === OPERATOR_TREE_WORKLOAD_KIND);
   expect(fired.map((row) => row.ownerId)).toEqual([root.ownerId]);
@@ -323,7 +332,7 @@ test.for(MEMBER_HELD_ROWS)("$name fails at dispatch and reads nothing of the ope
   const funderUserId = { member: id, owner: root.ownerId, gone: null }[funder];
   await root.db.update(workloads).set({ ownerId: id, mode, funderUserId }).where(eq(workloads.id, held.id));
 
-  expect(await run(root, held.id)).toEqual({ status: "failed", error: WORKLOAD_OWNER_ONLY_REFUSAL });
+  expect(await run(root, held.id)).toEqual({ status: "failed", error: WORKLOAD_RUN_ACCOUNT_REFUSAL });
 
   expect(await ownedCharacters(root, id)).toEqual([]);
   expect(JSON.stringify(await tableContents(root))).not.toContain(SECRET);
@@ -343,9 +352,11 @@ test("the owner cannot store a run that would refuse: a member's schedule or bar
   await owner.workloads.cancel({ id: held.id });
   await root.db.update(workloads).set({ ownerId: id }).where(eq(workloads.id, held.id));
 
-  await expect(owner.workloads.updateSchedule({ id: schedule, input: OPERATOR_RUN })).toThrowTRPCError("FORBIDDEN");
-  await expect(owner.workloads.retry({ id: held.id })).toThrowTRPCError("FORBIDDEN");
-  await expect(owner.workloads.estimateRetryModelCalls({ id: held.id })).toThrowTRPCError("FORBIDDEN");
+  // The owner may ask; the run's account may not run, and the refusal is coded so the owner's toast can say so.
+  const accountRefusal = { code: "BAD_REQUEST", cause: expect.objectContaining({ code: WORKLOAD_RUN_ACCOUNT_NOT_OWNER }) };
+  await expect(owner.workloads.updateSchedule({ id: schedule, input: OPERATOR_RUN })).rejects.toMatchObject(accountRefusal);
+  await expect(owner.workloads.retry({ id: held.id })).rejects.toMatchObject(accountRefusal);
+  await expect(owner.workloads.estimateRetryModelCalls({ id: held.id })).rejects.toMatchObject(accountRefusal);
 
   expect(await owner.workloads.updateSchedule({ id: schedule, input: PLAIN_RUN })).toMatchObject({ kind: PLAIN_RUN.kind });
   const bulk = await owner.workloads.start({ input: OPERATOR_RUN, mode: "bulk", targetOwnerId: id });

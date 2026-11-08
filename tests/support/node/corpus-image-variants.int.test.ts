@@ -15,7 +15,7 @@ import { createServerHarness, SECRET_BOX_TEST_KEY } from "./server.ts";
 const OWNER_PASSWORD = "synthetic-image-variant-owner-password";
 
 test("native image admission and funded output variants preserve short-edge skips, unknown accounting, multipart edit and owner-only provenance", async () => {
-  const wire = await createCorpusImageWire();
+  using wire = await createCorpusImageWire("every-step");
   const fallback = createCorpusProviderExecution({
     modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -207,7 +207,6 @@ test("native image admission and funded output variants preserve short-edge skip
   expect(result.physical.captions).toHaveLength(3);
   expect(nonEmpty(result.physical.captions).every(({ authenticated }) => authenticated)).toBe(true);
   expect(nonEmpty(result.physical.images).every(({ authenticated }) => authenticated)).toBe(true);
-  expect(result.physical.remaining).toBe(0);
   expect(result.bindings.after.map(({ task, binding }) => [task, binding?.connectionId ?? null])).toEqual(
     result.bindings.before.map(({ task, binding }) => [task, binding?.connectionId ?? null]),
   );

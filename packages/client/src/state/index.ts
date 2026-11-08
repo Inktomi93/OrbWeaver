@@ -410,6 +410,6 @@ export { SlashCommandRegistryContext } from "./slash-command-registry-context.ts
 export { SlashCommandRegistryProvider } from "./slash-command-registry-provider.tsx";
 export { announceStatus, useStatusAnnouncement } from "./status-announcement-store.ts";
 export { pushFiredSteer, useRecentSteers } from "./steer-recovery-store.ts";
-export { forgetSurfaceBox, rememberSurfaceBox, useSurfaceBox } from "./surface-box-store.ts";
+export { forgetSurfaceBox, rememberSurfaceBox, useSurfaceBox, useSurfaceRows } from "./surface-box-store.ts";
 export { setLabelFilter, setTagPruneConfirmOpen, setTagSortMode, useLabelFilter, useTagPruneConfirmOpen, useTagSortMode } from "./tag-library-store.ts";
 export { clearWorldEntrySelection, selectWorldEntry, useSelectedWorldEntryId, worldEntrySelectionSeam } from "./world-entry-selection-store.ts";

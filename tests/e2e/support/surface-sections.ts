@@ -15,8 +15,14 @@ import { controlledPanel, usesProgrammaticScroll } from "@orb/testkit/browser/sp
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { SurfaceProviderEvidence } from "@orb/testkit/iso";
 import { nonEmpty, parseSurfaceProviderEvidence } from "@orb/testkit/iso";
-import { CORPUS_STRUCTURED_REPLIES } from "@orb/testkit/node/composed";
-import { attachNativeFile, isTrpcRequestFor, matchesTrpcRequestInput, readTrpcOutput, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
+import {
+  attachNativeFile,
+  CORPUS_STRUCTURED_REPLIES,
+  isTrpcRequestFor,
+  matchesTrpcRequestInput,
+  readTrpcOutput,
+  SURFACE_CHECKS,
+} from "@orb/testkit/node/helpers";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Locator, Request, Response } from "@playwright/test";
 import { expect } from "@playwright/test";
@@ -269,7 +275,7 @@ async function labelMenus(journey: Journey, scope: Locator, prefix: string): Pro
 }
 
 async function disposableLabelDelete(journey: Journey, scope: Locator, prefix: string): Promise<void> {
-  const tag = await journey.client.tag.createTag.mutate({ input: { name: `Surface menu ${crypto.randomUUID()}` } });
+  const tag = await journey.client.tag.createTag.mutate({ input: { name: `Surface menu ${journey.ids.uuid()}` } });
   expect(journey.run.subjects.tags.some(({ id }) => id === tag.id)).toBe(false);
   try {
     await scope.getByRole("textbox", { name: TAG_FILTER_NAME, exact: true }).fill(tag.name);
@@ -1492,7 +1498,7 @@ async function presetSectionCommands(run: PresetCommandRun): Promise<void> {
     await trigger.click();
     const drill = body.getByRole("region", { name: / — section editor$/u });
     await expect(drill).toHaveCount(1);
-    const uniqueName = `Surface section ${crypto.randomUUID()}`;
+    const uniqueName = `Surface section ${journey.ids.uuid()}`;
     await drill.getByRole("textbox", { name: "Name", exact: true }).fill(uniqueName);
     await expect
       .poll(async () => (await journey.client.preset.get.query({ id: presetId })).config.sections.find((candidate) => candidate.id === id)?.name)
@@ -2073,7 +2079,7 @@ export async function walkRefineryExecution(flow: SurfaceFlow): Promise<void> {
     const copy = await flow.client.character.duplicate.mutate({ characterId: originalId });
     characters.add(copy.id);
     expect(flow.run.subjects.characters.some(({ id }) => id === copy.id)).toBe(false);
-    const name = `Surface refinery ${crypto.randomUUID()}`;
+    const name = `Surface refinery ${flow.ids.uuid()}`;
     await flow.client.character.update.mutate({ characterId: copy.id, input: { name } });
     const before = await flow.client.character.get.query({ characterId: copy.id });
     const session = await flow.client.refinery.startSession.mutate({ characterId: copy.id, name });
@@ -2342,7 +2348,7 @@ async function disposableRefinery(journey: Journey): Promise<void> {
     observe(journey, "refinery/disposable-workbench", "unvisited", "No original owned character can anchor a separately labelled disposable session");
     return;
   }
-  const name = `Surface session ${crypto.randomUUID()}`;
+  const name = `Surface session ${journey.ids.uuid()}`;
   const session = await journey.client.refinery.startSession.mutate({ characterId: character.id, name });
   expect(journey.run.subjects.refinerySessions.some(({ id }) => id === session.id)).toBe(false);
   try {

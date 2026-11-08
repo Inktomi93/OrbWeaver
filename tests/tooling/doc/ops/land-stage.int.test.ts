@@ -2,7 +2,7 @@
 // checkout's real index and leaves every other path alone, so the caller's own `git commit` carries the
 // item deletion with its final files and the later `land --merged` finds the id already landed.
 
-import { existsSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { landMerged, landStaged, newItem } from "../../../../tooling/src/doc/index.ts";
@@ -117,6 +117,24 @@ test("a refused land --stage stages, deletes and writes nothing", TIMEOUT, async
   expect(existsSync(join(root, "docs/work/0002-b.md"))).toBe(true);
   expect(git(root, "rev-parse", "HEAD")).toBe(head);
   expect(git(root, "status", "--porcelain")).toBe("");
+});
+
+test("land --stage under a held index lock refuses before any write and leaves the files and index as they were", TIMEOUT, async ({ plantedTree }) => {
+  const root = await repoWithItems(plantedTree);
+  const indexLock = join(root, ".git", "index.lock");
+  writeFileSync(indexLock, "");
+  const locked = landStaged([1], root, TODAY);
+  expect(locked.written).toEqual([]);
+  expect(locked.staged).toBeUndefined();
+  expect(locked.refusals).toHaveLength(1);
+  expect(locked.refusals[0]).toContain("index.lock");
+  expect(readFileSync(join(root, "docs/work/0002-b.md"), "utf8")).toContain("blocked: on 1");
+  rmSync(indexLock);
+  expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(true);
+  expect(git(root, "status", "--porcelain")).toBe("");
+  // Positive control: with the lock gone the same landing stages, so the refusal above stood in front of a real write.
+  expect(landStaged([1], root, TODAY).refusals).toEqual([]);
+  expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(false);
 });
 
 test("a repeated land --stage before the commit says the landing is already staged and changes nothing", TIMEOUT, async ({ plantedTree }) => {

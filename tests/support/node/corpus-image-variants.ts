@@ -77,7 +77,7 @@ interface CorpusImageVariants {
   readonly afterRefusals: Effects;
   readonly rows: Cohort["generations"];
   readonly assetRows: readonly (typeof assets.$inferSelect)[];
-  readonly physical: { readonly images: CorpusImageWire["images"]; readonly captions: CorpusImageWire["captions"]; readonly remaining: number };
+  readonly physical: { readonly images: CorpusImageWire["images"]; readonly captions: CorpusImageWire["captions"] };
   readonly secrets: readonly string[];
 }
 
@@ -341,7 +341,7 @@ export async function seedCorpusImageVariants(root: ServerTestHarness, wire: Cor
       afterRefusals,
       rows: all.toSorted((left, right) => left.id.localeCompare(right.id)),
       assetRows,
-      physical: { images: [...wire.images], captions: [...wire.captions], remaining: wire.remaining() },
+      physical: { images: [...wire.images], captions: [...wire.captions] },
       secrets: [
         CORPUS_VARIANT_KEY,
         CORPUS_VARIANT_PASSWORD,

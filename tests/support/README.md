@@ -198,6 +198,7 @@ Two publishes from one tree are byte-identical: every producer draws ids from th
 | Tests outside the persistence tier read only through production read verbs; a case whose subject is storage lives in the persistence tier | The `orb/no-direct-row-reads` rule in [eslint.config.ts](../../eslint.config.ts) judges each query builder, raw read and `db.query` access; inside `tests/support` only the files in its `ROW_READ_HOMES` list may read |
 | No door seed or helper reads a row and hands it to a verb suite | Inside `tests/support` the `testkit-rows-closed-importers` rule in [dependency-cruiser](../../.dependency-cruiser.ts) admits only its `ROWS_IMPORTERS` list to the rows tier |
 | A helper under a `persistence/` directory serves only its own tier | The `testkit-persistence-helpers-own-tier` rule in [dependency-cruiser](../../.dependency-cruiser.ts) |
+| A file the Playwright runner loads never loads the server env module, so the operator `.env` stays out of the runner, its workers and its webServers | The `playwright-runner-no-env-loader` rule in [dependency-cruiser](../../.dependency-cruiser.ts) on each file's own imports, and [the runner collection case](../e2e/support/runner-env.int.test.ts) for the reach through doors |
 | Integration files share one module registry and never read the environment at import | `isolate: false` and the `setupFiles` warm on the integration project in [vitest.config.ts](../../vitest.config.ts); the harness seams in [node/server.ts](node/server.ts) |
 | A test never stubs or writes the process environment (`vi.stubEnv`, `process.env` writes); it uses a harness seam or the subject's own parameter | The `TEST_ENVIRONMENT_RESTRICTIONS` syntax rules in [eslint.config.ts](../../eslint.config.ts); `tests/tooling` is outside their configured scope |
 | A root's env knob is a key in its own parsed record, refused where production refuses it | `createServerHarness({ env })` and `createTestEnv` ([node/env.ts](node/env.ts)), both through the production `parseEnv` |
@@ -248,6 +249,7 @@ The row-write lint judges call sites, so a state the product can no longer produ
 | `plantLegacyZeroCanon` | imported canon numbered from seq 0 | launched databases held it until migration `0005_renumber-imported-canon` |
 | `plantLegacyCheckpoint` | a checkpoint pinned to a turn snapshot, or to a hand copy stamped at the tail | v0.1.0 to v0.2.0 shipped the first and v0.3.x the second; launched databases held both until migration `0006_bookmark-checkpoint-snapshots` |
 | `plantForeignRoomBackground`, `plantForeignCardBackground`, `plantForeignSettingsValue`, `plantForeignSettingsBytes` | a stored reference another build wrote | a database shared across versions holds kinds and encodings this build never writes |
+| `plantMemberOperatorSchedule`, `plantMemberOperatorRun` | a member who holds a bare `import-st` schedule or run, which reads the operator tree | builds before D340 stored them, and launched databases still hold them |
 
 ## What review must establish
 

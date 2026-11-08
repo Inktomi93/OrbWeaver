@@ -13,7 +13,7 @@ import { expect, test } from "./fixtures.ts";
 import { createServerHarness } from "./server.ts";
 
 test("default-grid canon produces real arc themes and selected reroll hotspots while valid GIF avatars acquire both geometry lenses and facets", async () => {
-  const swipes = createKnowledgeSwipeWire();
+  using swipes = createKnowledgeSwipeWire("every-step");
   const physical = createCorpusProviderExecution({
     modelIds: [CORPUS_EMBED_MODEL, CORPUS_TEXT_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -59,7 +59,6 @@ test("default-grid canon produces real arc themes and selected reroll hotspots w
   expect(result.selected.selectedVariantId).toBe(result.slot.selectedVariantId);
   expect(result.swipedOnce.messages.map((message) => message.id)).toEqual([result.slot.id]);
   expect(result.swipedTwice.messages.map((message) => message.id)).toEqual([result.slot.id]);
-  expect(swipes.remaining()).toBe(0);
   expect(swipes.requests).toHaveLength(3);
   expect(result.images.assets.map(({ width, height }) => ({ width, height }))).toEqual([...CORPUS_KNOWLEDGE_IMAGE_SIZES]);
   expect(nonEmpty(result.images.assets).every((asset) => asset.kind === "avatar" && asset.mime === "image/gif")).toBe(true);

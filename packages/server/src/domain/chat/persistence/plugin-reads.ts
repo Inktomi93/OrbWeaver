@@ -7,6 +7,7 @@ import { characters, chatParticipants, messages, messageVariants } from "@orb/db
 import { stripHiddenSpans } from "@orb/kit/content";
 import type { ChatId } from "@orb/kit/ids";
 import { and, desc, eq, gte, isNull } from "drizzle-orm";
+import { assertResolvedVisibility } from "../substrate/viewer-visibility-registry.ts";
 
 const PLUGIN_MESSAGE_DEFAULT_LIMIT = 20;
 const PLUGIN_MESSAGE_MAX_LIMIT = 50;
@@ -15,16 +16,16 @@ const PLUGIN_MESSAGE_MAX_LIMIT = 50;
  * Recent canon projected to the REDUCED plugin view: id/role/authorDisplayName/
  * characterId/seq/content only, oldest→newest, content capped — no economics/promptSnapshot.
  *
- * `opts.floorSeq` is the VIEWER's history floor: rows below it are pre-join for this human and are withheld
- * by the query itself. The caller must obtain it from chat's `resolveViewerVisibility` (a non-member never
- * reaches this function at all — the bridge short-circuits to `[]`).
- *
- * `opts.readsHidden` is the §3.6 / D106 hidden-content verdict from the SAME visibility resolve: `false` (a
- * member) STRIPS hidden-class spans (`<lie>`/`<ofilter>`) from each body BEFORE it crosses the realm boundary,
- * so an untrusted guest realm running as a non-host member never receives a GM-plane secret; `true` (the host
- * reveal plane) reads verbatim. Stripping here — not a post-filter — keeps the security predicate at the read.
+ * `opts.visibility` is the VIEWER's whole answer from chat's `resolveViewerVisibility`; only that resolver mints
+ * one, so a non-member never reaches this function. Its history floor withholds pre-join rows in the query itself.
+ * Its `readsHidden` verdict (§3.6 / D106) is `false` for a member, whose bodies lose hidden-class spans
+ * (`<lie>`/`<ofilter>`) BEFORE they cross the realm boundary, so an untrusted guest realm running as a non-host
+ * member never receives a GM-plane secret; the host reveal plane reads verbatim. Stripping here — not a
+ * post-filter — keeps the security predicate at the read.
  */
 export async function loadPluginMessages(db: Db, chatId: ChatId, opts: Parameters<PluginChatReads["listMessages"]>[1]): Promise<readonly PluginMessageView[]> {
+  assertResolvedVisibility(opts.visibility);
+  const { historyFloorSeq, readsHidden } = opts.visibility;
   const limit = Math.min(opts.limit ?? PLUGIN_MESSAGE_DEFAULT_LIMIT, PLUGIN_MESSAGE_MAX_LIMIT);
   const rows = await db
     .select({
@@ -38,14 +39,14 @@ export async function loadPluginMessages(db: Db, chatId: ChatId, opts: Parameter
     .from(messages)
     .innerJoin(messageVariants, eq(messageVariants.id, messages.selectedVariantId))
     .leftJoin(characters, eq(characters.id, messages.characterId))
-    .where(and(eq(messages.chatId, chatId), gte(messages.seq, opts.floorSeq)))
+    .where(and(eq(messages.chatId, chatId), gte(messages.seq, historyFloorSeq)))
     .orderBy(desc(messages.seq))
     .limit(limit);
   return rows
     .map((r) => {
       // §3.6 / D106: strip hidden-class spans for a member BEFORE the cap, so the truth never reaches the guest
       // realm (identity when nothing is hidden; the host reveal plane reads verbatim).
-      const body = opts.readsHidden ? r.content : stripHiddenSpans(r.content).content;
+      const body = readsHidden ? r.content : stripHiddenSpans(r.content).content;
       return {
         id: r.id,
         role: r.role,

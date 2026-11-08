@@ -20,9 +20,9 @@ const NO_SNAPSHOTS = "No snapshots yet. Take one to capture this character's cur
 const FONT = THEME_FONT_ALLOWLIST[0];
 const READ_PROCEDURES = [...SECTION_PROCEDURES, "tag.listTagFilterVocabulary"] as const;
 const REGIMES = [
-  { name: "both docked desktop", viewport: { width: 1280, height: 720 }, coarse: false },
-  { name: "coarse portrait sheet", viewport: { width: 390, height: 844 }, coarse: true },
-  { name: "coarse short landscape", viewport: { width: 844, height: 390 }, coarse: true },
+  { name: "both docked desktop", viewport: { width: 1280, height: 720 }, coarse: false, landscape: false },
+  { name: "coarse portrait sheet", viewport: { width: 390, height: 844 }, coarse: true, landscape: false },
+  { name: "coarse short landscape", viewport: { width: 844, height: 390 }, coarse: true, landscape: true },
 ] as const;
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -92,29 +92,36 @@ async function expectFailedSheetExit(page: Page, context: Locator): Promise<void
   await expect(context).toHaveAttribute("data-panel-mode", "overlay");
 }
 
-async function expectRetryContained(context: Locator, retry: Locator): Promise<void> {
+/** The box that holds a tab's body and scrolls it: the tab's own panel, or in a short landscape pane the pane body, which scrolls the whole sheet as one box. */
+const TAB_VIEWPORT = '[data-slot="tabs-panel"]';
+const SHEET_VIEWPORT = ".shell-panel-body";
+
+async function expectRetryContained(context: Locator, retry: Locator, landscape: boolean): Promise<void> {
   await retry.scrollIntoViewIfNeeded();
   await expect(retry).toBeVisible();
   const box = await settledBox(retry);
-  const geometry = await retry.evaluate((element, rect) => {
-    let overflow = Math.max(0, -rect.x, -rect.y, rect.x + rect.width - innerWidth, rect.y + rect.height - innerHeight);
-    let tabViewports = 0;
-    for (let host = element.parentElement; host !== null; host = host.parentElement) {
-      const style = getComputedStyle(host);
-      const clipX = /^(?:auto|scroll|hidden|clip)$/u.test(style.overflowX);
-      const clipY = /^(?:auto|scroll|hidden|clip)$/u.test(style.overflowY);
-      if (host.getAttribute("data-slot") === "tabs-panel" && clipY) {
-        tabViewports += 1;
+  const geometry = await retry.evaluate(
+    (element, { rect, viewport }) => {
+      let overflow = Math.max(0, -rect.x, -rect.y, rect.x + rect.width - innerWidth, rect.y + rect.height - innerHeight);
+      let tabViewports = 0;
+      for (let host = element.parentElement; host !== null; host = host.parentElement) {
+        const style = getComputedStyle(host);
+        const clipX = /^(?:auto|scroll|hidden|clip)$/u.test(style.overflowX);
+        const clipY = /^(?:auto|scroll|hidden|clip)$/u.test(style.overflowY);
+        if (host.matches(viewport) && clipY) {
+          tabViewports += 1;
+        }
+        const bounds = host.getBoundingClientRect();
+        const left = bounds.left + host.clientLeft;
+        const top = bounds.top + host.clientTop;
+        const inlineOverflow = clipX ? [left - rect.x, rect.x + rect.width - left - host.clientWidth] : [];
+        const blockOverflow = clipY ? [top - rect.y, rect.y + rect.height - top - host.clientHeight] : [];
+        overflow = Math.max(overflow, ...inlineOverflow, ...blockOverflow);
       }
-      const bounds = host.getBoundingClientRect();
-      const left = bounds.left + host.clientLeft;
-      const top = bounds.top + host.clientTop;
-      const inlineOverflow = clipX ? [left - rect.x, rect.x + rect.width - left - host.clientWidth] : [];
-      const blockOverflow = clipY ? [top - rect.y, rect.y + rect.height - top - host.clientHeight] : [];
-      overflow = Math.max(overflow, ...inlineOverflow, ...blockOverflow);
-    }
-    return { overflow, tabViewports };
-  }, box);
+      return { overflow, tabViewports };
+    },
+    { rect: box, viewport: landscape ? SHEET_VIEWPORT : TAB_VIEWPORT },
+  );
   expect(geometry.tabViewports).toBeGreaterThan(0);
   expect(geometry.overflow).toBeLessThanOrEqual(1);
   expect((await actionGroupGeometry(context, [retry])).inlineOverflow).toBeLessThanOrEqual(1);
@@ -321,7 +328,7 @@ for (const regime of REGIMES) {
       const context = page.locator('.shell-panel[data-panel-side="context"]');
       const retry = context.getByRole("button", { name: "Retry", exact: true });
       await expect(retry).toBeVisible();
-      await expectRetryContained(context, retry);
+      await expectRetryContained(context, retry, regime.landscape);
       await testInfo.attach("history-read-failure", { body: await page.screenshot(), contentType: "image/png" });
       await expect(context.getByText(NO_SNAPSHOTS, { exact: true })).toHaveCount(0);
       refuse = false;
@@ -368,7 +375,7 @@ for (const regime of REGIMES) {
         await expect(font).toHaveText(FONT);
         await expect(status).toContainText(AUTOSAVE_SAVE_FAILED_TEXT);
         const retry = status.getByRole("button", { name: "Retry", exact: true });
-        await expectRetryContained(context, retry);
+        await expectRetryContained(context, retry, regime.landscape);
         await testInfo.attach("look-local-recovery", { body: await page.screenshot(), contentType: "image/png" });
         intercept = false;
         await retry.focus();

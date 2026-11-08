@@ -12,6 +12,7 @@ import { embedPassResultSchema } from "../embeddings/index.ts";
 import { catalogRefreshResultSchema } from "../inference/catalog.ts";
 import { refineryScoreSweepResultSchema, refineScoreSweepWorkloadParams } from "../refinery/index.ts";
 import { reconcileStatsResultSchema } from "../stats/index.ts";
+import { WORKLOAD_RUN_ACCOUNT_NOT_OWNER } from "./admission.ts";
 import type { WorkloadKind, WorkloadMode, WorkloadStatus } from "./axes.ts";
 import { scheduleCadenceSchema, workloadKindSchema, workloadModeSchema, workloadStatusSchema } from "./axes.ts";
 import type { WorkloadLane, WorkloadProgress } from "./execution.ts";
@@ -288,6 +289,10 @@ export const workloadScheduleViewSchema = z.strictObject({
   createdAt: z.number(),
   updatedAt: z.number(),
 });
+
+/** `workloads.listSchedules`: a stored schedule and the refusal its tick meets, so the holder sees why it starts nothing.
+ *  Absent when the run may start; a schedule whose params no longer parse is judged by the tick, not here. */
+export const workloadScheduleListItemSchema = workloadScheduleViewSchema.extend({ refusal: z.literal(WORKLOAD_RUN_ACCOUNT_NOT_OWNER).optional() });
 
 /** `workloads.list`: the caller's run history. The limit is the ceiling at the trust boundary, never an unbounded fetch. */
 export const workloadListInputSchema = z

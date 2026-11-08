@@ -310,7 +310,7 @@ test("notification corpus preserves seven actual viewer and lifecycle snapshots 
 });
 
 test("portable member snapshots retain held, completed and cancelled native message pages separately", async () => {
-  const wire = createCorpusChatWire();
+  using wire = createCorpusChatWire("every-step");
   const physical = createCorpusProviderExecution({
     modelIds: [CORPUS_CHAT_MODEL, CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
     embedding: CORPUS_EMBEDDING_VECTOR,
@@ -369,7 +369,6 @@ test("portable member snapshots retain held, completed and cancelled native mess
   const secrets = [OWNER_PASSWORD, CORPUS_CHAT_REPLY, credential.row.ciphertext, credential.row.iv, credential.row.tag];
   expect(parseCorpusWire(serializeCorpusWire(base, secrets))).toEqual(base);
   expect(() => serializeCorpusWire(extended, secrets)).toThrow("Corpus publication contains private material");
-  expect(wire.remaining()).toBe(0);
 });
 
 test("native member publication capture excludes host-only content and below-floor history before fixture selection", async () => {

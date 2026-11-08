@@ -72,7 +72,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { ComponentProps, ReactElement } from "react";
 import { useState } from "react";
 import { CharacterPicker } from "#components";
-import { PICKER_FIRST_OPEN_BOX, useStartChat, useTRPC } from "#data";
+import { PICKER_FIRST_OPEN_BOX, PICKER_FIRST_OPEN_BOX_WITH_DOOR, useStartChat, useTRPC } from "#data";
 import { BLANK_CHAT_NAME, TEMPORARY_CHAT_BADGE } from "#lib";
 import { clearNewChatIntent, closeModal, openModal, useNewChatIntent } from "#state";
 import { CHAT_SAVED_ROSTER_DOOR_NAME } from "../lib/chat-surface-names.ts";
@@ -220,7 +220,7 @@ export function NewChatPicker(): ReactElement {
         onEscape={dismiss}
         onSelect={toggle}
         placeholder="Search characters…"
-        reserveBlock={PICKER_FIRST_OPEN_BOX}
+        reserveBlock={hasRosters ? PICKER_FIRST_OPEN_BOX_WITH_DOOR : PICKER_FIRST_OPEN_BOX}
         reserveKey="chat.newChatPicker"
         rowsHeading="Characters"
         skeletonCount={SKELETON_ROW_COUNT}
@@ -271,7 +271,7 @@ export function NewChatPicker(): ReactElement {
       {/* After the pinned row, so nothing passes under Start and a focused action is never hidden behind it. */}
       <Stack hiddenAt="unlessDialogStacked" gap="field" padding="block">
         {blankAction({ width: "full" })}
-        {rosterDoor()}
+        {hasRosters ? rosterDoor() : null}
       </Stack>
     </Stack>
   );

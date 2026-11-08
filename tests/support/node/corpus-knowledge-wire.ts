@@ -4,6 +4,8 @@ import { resolveProseText } from "@orb/contracts/prose";
 import { SUMMARIZE_TRANSCRIPT_MARKER } from "@orb/server/domain/chat";
 import { corpusKnowledgeText } from "./corpus-knowledge.ts";
 import type { CorpusProviderCompletion } from "./corpus-provider.ts";
+import type { CorpusWireSpend } from "./corpus-wire-spend.ts";
+import { refuseUnspentSteps } from "./corpus-wire-spend.ts";
 import { summaryReply } from "./factories/summary-reply.ts";
 
 export const CORPUS_KNOWLEDGE_SWIPE_CUE = "Show the knowledge corpus signal.";
@@ -30,16 +32,18 @@ export function corpusKnowledgeVariantsText(body: string): string {
 interface KnowledgeSwipeWire {
   readonly completion: (body: string) => CorpusProviderCompletion | undefined;
   readonly requests: readonly string[];
-  readonly remaining: () => number;
 }
 
-/** The actual generation request must spend one supplied take; summarization and structured traffic delegate. */
-export function createKnowledgeSwipeWire(): KnowledgeSwipeWire {
+/** The actual generation request must spend one supplied take; summarization and structured traffic delegate. An
+ *  `every-step` wire is owned with `using`. */
+export function createKnowledgeSwipeWire(spend: "every-step"): KnowledgeSwipeWire & Disposable;
+export function createKnowledgeSwipeWire(spend: "as-needed"): KnowledgeSwipeWire;
+export function createKnowledgeSwipeWire(spend: CorpusWireSpend): KnowledgeSwipeWire & Disposable {
   const requests: string[] = [];
   let cursor = 0;
   return {
     requests,
-    remaining: (): number => CORPUS_KNOWLEDGE_SWIPE_TAKES.length - cursor,
+    [Symbol.dispose]: (): void => refuseUnspentSteps("knowledge swipe wire", spend, CORPUS_KNOWLEDGE_SWIPE_TAKES.length - cursor),
     completion: (body): CorpusProviderCompletion | undefined => {
       if (
         !body.includes(CORPUS_KNOWLEDGE_SWIPE_CUE) ||

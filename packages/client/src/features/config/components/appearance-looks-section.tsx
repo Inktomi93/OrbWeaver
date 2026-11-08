@@ -46,7 +46,7 @@ import { RadioGroupPicker, RadioGroupPickerItem } from "@orb/ui/radio-group";
 import { ThemePreviewPane } from "@orb/ui/theme-swatch";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
-import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, Tip, useFirstBootBox } from "#components";
+import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, Tip, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { downloadTextFile, notify } from "#lib";
 import { useCreateTheme, useDuplicateTheme, useImportThemeFile, useRemoveTheme, useSelectTheme } from "../hooks/use-theme-mutations.ts";
@@ -108,14 +108,14 @@ function importedThemeMessage({
 const LOOKS_SKELETON_ROWS = 7;
 
 export function AppearanceLooksSection({ anchorId }: { readonly anchorId: string }): ReactElement {
-  const firstBootBox = useFirstBootBox({ wide: LOOKS_SKELETON_ROWS, narrow: 14 });
+  const firstBootRows = useFirstBootRows({ wide: LOOKS_SKELETON_ROWS, narrow: 14 });
   return (
     <Section divider={true} heading={APPEARANCE_LOOKS_SUBCATEGORY.label} id={anchorId}>
       <QueryBoundary
         resetKeys={[]}
         fallback={<SkeletonRows count={LOOKS_SKELETON_ROWS} shape="line" />}
         renderError={(_error, retry): ReactElement => <QueryErrorState label="your themes" onRetry={retry} />}
-        reserveBlock={firstBootBox}
+        reserveRows={firstBootRows}
         reserveKey="config.appearance.looks"
       >
         <LooksBody />

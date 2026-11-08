@@ -12,7 +12,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import type { StatusVocabulary } from "#components";
-import { ConfirmDialog, DestructiveAction, QueryBoundary, StatusChip, useFirstBootBox } from "#components";
+import { ConfirmDialog, DestructiveAction, QueryBoundary, StatusChip, useFirstBootRows } from "#components";
 import type { AuthConfig } from "#data";
 import { QueryErrorState, SkeletonRows, useAuthConfig, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { useRevokeUserSessions } from "../hooks/use-admin-mutations.ts";
@@ -98,7 +98,7 @@ function focusIsLost(): boolean {
 
 /** Owner-only: the caller omits it for anyone else. Its own boundary, so a failed read leaves the section standing. */
 export function ShareCard(props: SeatingFacts): ReactElement {
-  const firstBootBox = useFirstBootBox({ wide: 15, narrow: 13 });
+  const firstBootRows = useFirstBootRows({ wide: 15, narrow: 13 });
   return (
     <Card>
       <Section heading={SHARE_CARD_TITLE} level={4} aria-label={SHARE_CARD_TITLE}>
@@ -107,7 +107,7 @@ export function ShareCard(props: SeatingFacts): ReactElement {
           resetKeys={[]}
           fallback={<SkeletonRows count={4} />}
           renderError={(_error, retry): ReactElement => <QueryErrorState label="sharing — the owner only" onRetry={retry} />}
-          reserveBlock={firstBootBox}
+          reserveRows={firstBootRows}
           reserveKey="config.admin.multiUser.share"
         >
           <ShareCardBody {...props} />

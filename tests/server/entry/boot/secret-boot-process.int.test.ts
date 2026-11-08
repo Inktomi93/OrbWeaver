@@ -30,6 +30,20 @@ const UTF8_BOM = String.fromCodePoint(0xfe_ff);
 // A closed loopback port, so no case waits on a resolver or reaches a real host.
 const UNREACHABLE_HOST = "127.0.0.1:1";
 const CREDENTIALED_URL = `libsql://user:${DATABASE_CREDENTIAL}@${UNREACHABLE_HOST}`;
+// Provider credentials a launcher's environment or `.env` carries that the parse never reads. The last name is one no
+// code knows, so the scrub must hold by the name's shape, not by a list someone has to extend.
+const UNREAD_PROVIDER_CREDENTIALS = [
+  "ANTHROPIC_API_KEY",
+  "ANTHROPIC_AUTH_TOKEN",
+  "CLAUDE_CODE_OAUTH_TOKEN",
+  "ANTHROPIC_PROBE_KEY",
+  "OPENROUTER_PROBE_KEY",
+  "OPENAI_PROBE_KEY",
+  "GEMINI_PROBE_KEY",
+  "DEEPSEEK_PROBE_KEY",
+  "CLAUDE_SUB_PROBE_TOKEN",
+  "FUTURE_PROVIDER_API_KEY",
+];
 const TOKEN_URL = `libsql://${UNREACHABLE_HOST}?authToken=${DATABASE_CREDENTIAL}`;
 
 // On request, reports which variables a child started with no explicit env inherits from the running server.
@@ -89,7 +103,10 @@ async function localBootOverKeyfile(dataDir: string, keyfileBytes: string): Prom
   return { ...outcome, keyfileAfter: await readFile(keyfile, "utf8") };
 }
 
-test("a booted server starts its children without one app secret in their inherited env", { tags: "slow" }, async ({ importStagingDir }) => {
+test("a booted server starts its children without one app secret or provider credential in their inherited env", { tags: "slow" }, async ({
+  importStagingDir,
+}) => {
+  const planted = [...APP_SECRET_ENV_KEYS, ...UNREAD_PROVIDER_CREDENTIALS];
   const child = spawn(process.execPath, [`--import=data:text/javascript,${encodeURIComponent(CHILD_ENV_PROBE)}`, ENTRY], {
     env: {
       ...entryEnv(importStagingDir),
@@ -97,7 +114,7 @@ test("a booted server starts its children without one app secret in their inheri
       [AUTH_MODE_KEY]: "single-user",
       [INHERITED_CONTROL]: "1",
       // Hex of the key width: the one value every secret's schema accepts.
-      ...Object.fromEntries(APP_SECRET_ENV_KEYS.map((key) => [key, "ab".repeat(32)])),
+      ...Object.fromEntries(planted.map((key) => [key, "ab".repeat(32)])),
       [DATABASE_URL_KEY]: `file:${join(importStagingDir, "child-env.db")}`,
     },
     stdio: ["ignore", "pipe", "pipe", "ipc"],
@@ -126,7 +143,7 @@ test("a booted server starts its children without one app secret in their inheri
     .rest(z.unknown())
     .parse(await reported);
   expect(inherited).toContain(INHERITED_CONTROL);
-  expect(inherited.filter((key) => APP_SECRET_ENV_KEYS.some((secret) => secret === key))).toEqual([]);
+  expect(inherited.filter((key) => planted.includes(key))).toEqual([]);
   expect(inherited).not.toContain(DATABASE_URL_KEY);
 });
 

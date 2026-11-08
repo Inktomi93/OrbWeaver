@@ -35,15 +35,19 @@ import { createPersistedStore } from "./create-persisted-store.ts";
 
 /** Heights above this are a bug (a mis-measured detached node), not a surface — never reserve them. */
 const MAX_REMEMBERED_PX = 4000;
+/** A skeleton count above this is a mis-measured pitch, not a surface. */
+const MAX_REMEMBERED_ROWS = 200;
 /** Sub-pixel churn is not a new box; ignore writes inside this band so a re-measure isn't a storage write. */
 const WRITE_EPSILON_PX = 1;
 
 interface SurfaceBoxState {
   /** surface id → the last settled body height in CSS px. */
   readonly boxes: Readonly<Record<string, number>>;
+  /** surface id → the count of skeleton rows that filled that height when it was measured, so a boot refills the skeleton without reading the document. */
+  readonly rows: Readonly<Record<string, number>>;
 }
 
-const DEFAULT_STATE: SurfaceBoxState = { boxes: {} };
+const DEFAULT_STATE: SurfaceBoxState = { boxes: {}, rows: {} };
 
 const PERSIST_VERSION = 1;
 
@@ -60,17 +64,32 @@ function sanitizeBoxes(v: unknown): Record<string, number> {
   return out;
 }
 
+function sanitizeRows(v: unknown): Record<string, number> {
+  if (!isPlainObject(v)) {
+    return {};
+  }
+  const out: Record<string, number> = {};
+  for (const [id, count] of Object.entries(v)) {
+    if (typeof count === "number" && Number.isInteger(count) && count > 0 && count <= MAX_REMEMBERED_ROWS) {
+      out[id] = count;
+    }
+  }
+  return out;
+}
+
+// An entry written before rows were remembered has a box and no count; its skeleton stays as authored until the surface settles once more.
 function migrate(persisted: unknown): SurfaceBoxState {
   if (!isPlainObject(persisted)) {
     return DEFAULT_STATE;
   }
-  return { boxes: sanitizeBoxes((persisted as { boxes?: unknown }).boxes) };
+  const { boxes, rows } = persisted as { boxes?: unknown; rows?: unknown };
+  return { boxes: sanitizeBoxes(boxes), rows: sanitizeRows(rows) };
 }
 
 const useSurfaceBoxStore = createPersistedStore<SurfaceBoxState>("surface-box", (): SurfaceBoxState => DEFAULT_STATE, {
   version: PERSIST_VERSION,
   migrate,
-  partialize: (s): SurfaceBoxState => ({ boxes: s.boxes }),
+  partialize: (s): SurfaceBoxState => ({ boxes: s.boxes, rows: s.rows }),
 });
 
 /** The height to reserve for `surfaceId`'s loading state, or `null` when this device has never seen it
@@ -79,26 +98,31 @@ export function useSurfaceBox(surfaceId: string): number | null {
   return useSurfaceBoxStore((s) => s.boxes[surfaceId] ?? null);
 }
 
-/** Record a surface body's settled height. Out-of-range or unchanged measurements are dropped (no write). */
-export function rememberSurfaceBox(surfaceId: string, height: number): void {
+/** The skeleton row count that filled `surfaceId`'s remembered box, or `null` when this device never recorded one. */
+export function useSurfaceRows(surfaceId: string): number | null {
+  return useSurfaceBoxStore((s) => s.rows[surfaceId] ?? null);
+}
+
+/** Record a surface body's settled height and the skeleton rows that fill it. Out-of-range or unchanged measurements are dropped (no write). */
+export function rememberSurfaceBox(surfaceId: string, height: number, rows: number): void {
   if (!(Number.isFinite(height) && height > 0 && height <= MAX_REMEMBERED_PX)) {
     return;
   }
-  const { boxes } = useSurfaceBoxStore.getState();
+  const { boxes, rows: counts } = useSurfaceBoxStore.getState();
   const current = boxes[surfaceId];
-  if (current !== undefined && Math.abs(current - height) < WRITE_EPSILON_PX) {
+  if (current !== undefined && Math.abs(current - height) < WRITE_EPSILON_PX && counts[surfaceId] === rows) {
     return;
   }
-  useSurfaceBoxStore.setState({ boxes: { ...boxes, [surfaceId]: height } }, false, "surfaceBox/remember");
+  useSurfaceBoxStore.setState({ boxes: { ...boxes, [surfaceId]: height }, rows: { ...counts, [surfaceId]: rows } }, false, "surfaceBox/remember");
 }
 
 /** Drop a surface's remembered box — for a surface that settled to NOTHING (a tile whose `useVisible` resolved
  *  false). It never mounts, so it is never re-measured, and a stale box would reserve it on every boot. */
 export function forgetSurfaceBox(surfaceId: string): void {
-  const { boxes } = useSurfaceBoxStore.getState();
+  const { boxes, rows } = useSurfaceBoxStore.getState();
   if (!(surfaceId in boxes)) {
     return;
   }
-  const rest = Object.fromEntries(Object.entries(boxes).filter(([id]) => id !== surfaceId));
-  useSurfaceBoxStore.setState({ boxes: rest }, false, "surfaceBox/forget");
+  const without = (map: Readonly<Record<string, number>>): Record<string, number> => Object.fromEntries(Object.entries(map).filter(([id]) => id !== surfaceId));
+  useSurfaceBoxStore.setState({ boxes: without(boxes), rows: without(rows) }, false, "surfaceBox/forget");
 }

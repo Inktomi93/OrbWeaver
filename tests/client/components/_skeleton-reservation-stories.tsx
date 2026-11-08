@@ -1,19 +1,23 @@
-import { useFirstBootBox } from "@orb/client/components";
-import { SkeletonRows, skeletonRowCountFor } from "@orb/client/data";
+import { useFirstBootRows } from "@orb/client/components";
+import { SkeletonRows, skeletonLengthFor, skeletonRowCountFor } from "@orb/client/data";
 import { CtIsolation } from "@orb/testkit/browser";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 
 function Reservation({ rows }: { readonly rows: number }): ReactElement {
-  const box = useFirstBootBox({ wide: rows, narrow: rows });
+  const count = useFirstBootRows({ wide: rows, narrow: rows });
+  const box = useRef<HTMLDivElement>(null);
+  const [recovered, setRecovered] = useState("");
+  useLayoutEffect(() => {
+    setRecovered(String(skeletonRowCountFor(box.current?.getBoundingClientRect().height ?? 0, 1)));
+  }, []);
   return (
     <Stack>
-      <Text role="status" aria-label="Declared skeleton height">
-        {String(box)}
-      </Text>
+      <Stack reserve="exact" reserveBlock={skeletonLengthFor(count)} role="group" aria-label="Declared skeleton box" ref={box} />
       <Text role="status" aria-label="Recovered skeleton rows">
-        {String(skeletonRowCountFor(box ?? 0, 1))}
+        {recovered}
       </Text>
       <SkeletonRows count={rows} />
     </Stack>
@@ -22,7 +26,7 @@ function Reservation({ rows }: { readonly rows: number }): ReactElement {
 
 export function SkeletonReservationStory({ rows }: { readonly rows: number }): ReactElement {
   return (
-    <CtIsolation subject="Skeleton reservation" isolates="The reservation hook and SkeletonRows read live tokens without application requests.">
+    <CtIsolation subject="Skeleton reservation" isolates="The declared row length and SkeletonRows read live tokens without application requests.">
       <Reservation rows={rows} />
     </CtIsolation>
   );

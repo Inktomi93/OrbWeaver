@@ -19,8 +19,14 @@ export interface GitFailure {
   readonly reason: string;
 }
 
-/** How a commit ended: the new `HEAD`, or git's own words. */
-export type CommitOutcome = { readonly ok: true; readonly sha: string } | GitFailure;
+/** A commit that reached history but failed after it, and could not be undone because HEAD moved on. Its
+ *  paths must stay as written: HEAD holds them. */
+interface StrandedCommit extends GitFailure {
+  readonly stranded: { readonly sha: string; readonly head: string };
+}
+
+/** How a commit ended: the new `HEAD`, git's own words, or a commit stranded in history. */
+export type CommitOutcome = { readonly ok: true; readonly sha: string } | GitFailure | StrandedCommit;
 
 /** How staging paths in the checkout's real index ended. */
 export type StageOutcome = { readonly ok: true } | GitFailure;

@@ -33,7 +33,9 @@ import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import process from "node:process";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
-import { assertPrivateCorpusNetwork, assertPrivateCorpusOutput, assertPrivateCorpusOutputArguments, loadCorpusFixture } from "@orb/testkit/node/composed";
+import { isSecretEnvKey } from "@orb/server/foundation/env/record";
+// Never the composed door: importing it loads the operator `.env` into the runner, and every webServer inherits it.
+import { assertPrivateCorpusNetwork, assertPrivateCorpusOutput, assertPrivateCorpusOutputArguments, loadCorpusFixture } from "@orb/testkit/node/helpers";
 import { DEV_PORTS, E2E_PORT_OFFSET_ENV, ENGINE_PORTS, e2eRunPorts } from "@orb/tooling/floor/host/ports";
 import { exportProcessEnv } from "@orb/tooling/floor/process/process-env";
 import { TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
@@ -45,6 +47,7 @@ import { devTargetAllowed } from "./target-guard.ts";
 const RUN_TOKEN_ENV = "ORB_E2E_RUN_TOKEN";
 /** Only the runner creates disposal authority; workers inherit its native environment. */
 export const E2E_RUN_IS_OWNER = process.env["TEST_WORKER_INDEX"] === undefined;
+// Random by design: the token names this run's disposable state, so two runs on one box must never share it.
 const runToken = E2E_RUN_IS_OWNER ? `${String(process.pid)}-${randomUUID()}` : process.env[RUN_TOKEN_ENV];
 if (runToken === undefined || !/^[1-9]\d*-[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12}$/u.test(runToken)) {
   throw new Error("An E2E worker requires its runner's generated run token");
@@ -160,6 +163,18 @@ export const E2E_SSO_GROUPS = { member: "e2e-members", admin: "e2e-admins", owne
  * spelling it here keeps the row identical to what a user would type.
  */
 export const E2E_LOCAL_ENGINE_BASE_URL = `http://127.0.0.1:${String(ENGINE_PORTS.generate)}/v1`;
+
+/** `pnpm e2e:tapes:record` sets this: the tape peer (`support/tape-provider.ts`) forwards to the upstream and writes each tape. */
+export const E2E_TAPE_RECORDING = process.env["E2E_TAPE_RECORD"] === "1";
+/** The recording run's upstream key variable. The server reads no such name, so a recording seeds no credential. */
+export const E2E_TAPE_UPSTREAM_API_KEY_ENV = "E2E_TAPE_UPSTREAM_API_KEY";
+/** The upstream key a recording spends; only the recording run reads it, and no tape may hold it. */
+export const E2E_TAPE_RECORD_KEY = process.env[E2E_TAPE_UPSTREAM_API_KEY_ENV];
+/** The upstream a recording forwards to when set, so a recording can run against a loopback stub. */
+export const E2E_TAPE_UPSTREAM_URL = process.env["E2E_TAPE_UPSTREAM_URL"];
+/** Where a recording run writes its tapes. Gitignored, because the run's working-tree guard refuses a tracked write;
+ *  the record script copies the tapes into the committed tape directory after the run passes. */
+export const E2E_TAPE_RECORD_DIR = resolve(CHECKOUT_ROOT, "reports", "provider-tapes");
 
 /** The provider that row is authored under; its model list is read under the same id. */
 export const E2E_LOCAL_ENGINE_PROVIDER = "vllm";
@@ -494,6 +509,17 @@ export const OIDC_MODE: ModeProject = {
   },
   seedMultiUser: false,
 };
+
+/**
+ * The env Playwright starts `mode`'s webServer with. Playwright spawns it over the runner's whole `process.env`, so
+ * an entry set to `undefined` is the only way to keep a runner variable out: Node's spawn drops it. Every
+ * credential-shaped runner variable is unset this way, the recording key included, so a webServer never seeds or
+ * passes on a key the runner holds. A mode's own value wins.
+ */
+export function webServerProcessEnv(mode: ModeProject): Readonly<Record<string, string | undefined>> {
+  const unset = Object.fromEntries(Object.keys(process.env).flatMap((key) => (isSecretEnvKey(key) ? [[key, undefined] as const] : [])));
+  return { ...unset, ...mode.webServerEnv };
+}
 
 /** Every mode project the config builds a project + webServer for. */
 export const MODE_PROJECTS: readonly ModeProject[] =

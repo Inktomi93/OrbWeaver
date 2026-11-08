@@ -1,5 +1,6 @@
 // The production AppShell under the client providers. Section and panel state arrive the way a boot has them, from
 // storage the spec seeds before mount; a modal or a room opens through the store's own action.
+import { useTRPC } from "@orb/client/data";
 import { AppShell } from "@orb/client/features/app-shell";
 import { notify } from "@orb/client/lib";
 import type { ModalSlotId } from "@orb/client/state";
@@ -7,6 +8,7 @@ import { dockListPanel, openModal, openNewChatPicker, selectCharacter, selectCha
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { CtClientProviders } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
+import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
 
@@ -96,6 +98,28 @@ export function AppShellTemporaryNewChatStory(): ReactElement {
   return (
     <CtClientProviders>
       <OpenTemporaryNewChatOnMount />
+      <AppShell />
+    </CtClientProviders>
+  );
+}
+
+function OpenNewChatOnceRostersAreCached(): null {
+  const trpc = useTRPC();
+  const queryClient = useQueryClient();
+  useEffect(() => {
+    queryClient
+      .query(trpc.rosterPreset.list.queryOptions())
+      .then(() => openModal("newChat"))
+      .catch(() => undefined);
+  }, [queryClient, trpc]);
+  return null;
+}
+
+/** The production shell opening New chat on a device whose saved-roster list is already cached, as after a visit to the saved-roster picker. */
+export function AppShellWarmRostersNewChatStory(): ReactElement {
+  return (
+    <CtClientProviders>
+      <OpenNewChatOnceRostersAreCached />
       <AppShell />
     </CtClientProviders>
   );

@@ -12,7 +12,7 @@
 
 import { Row, Section, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
-import { QueryBoundary, SettingRowGroup, SettingTrackRow, useFirstBootBox } from "#components";
+import { QueryBoundary, SettingRowGroup, SettingTrackRow, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { SectionSaveStatus } from "#forms/editor";
@@ -35,14 +35,14 @@ import { WORKLOADS_TUNING_SUBCATEGORY } from "../lib/workloads-tuning-nav.ts";
 
 /** The Workloads analysis-tuning section body — mounted at the workloads pane's contributed-sections anchor. */
 export function WorkloadsTuningSection({ anchorId, sectionId }: { readonly anchorId: string; readonly sectionId: string }): ReactElement {
-  const firstBootBox = useFirstBootBox({ wide: 7, narrow: 8 });
+  const firstBootRows = useFirstBootRows({ wide: 7, narrow: 8 });
   return (
     // RESERVED (#1098) — a config section that settles into a knob stack.
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={3} />}
       renderError={(_error, retry): ReactElement => <QueryErrorState label="your analysis-tuning settings" onRetry={retry} />}
-      reserveBlock={firstBootBox}
+      reserveRows={firstBootRows}
       reserveKey="config.workloads.tuning"
     >
       <WorkloadsTuningFormBody anchorId={anchorId} sectionId={sectionId} />
