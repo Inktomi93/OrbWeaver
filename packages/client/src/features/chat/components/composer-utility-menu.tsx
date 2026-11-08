@@ -51,7 +51,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode } from "react";
 import { useId } from "react";
 import { DescribedMenuItem } from "#components";
-import { OFFER_CHOICES_ONE_SHOT, REGENERATE_PLAIN_HELPER, SWIPE_NEEDS_REPLY, testId } from "#lib";
+import { MESSAGE_TOOLS_LABEL, OFFER_CHOICES_ONE_SHOT, REGENERATE_PLAIN_HELPER, SWIPE_NEEDS_REPLY, testId } from "#lib";
 import { useRecentSteers } from "#state";
 import type { useComposerUtilities } from "../hooks/use-composer-utilities.ts";
 import type { UseGuidedActionsResult, useGuidedActions } from "../hooks/use-guided-actions.ts";
@@ -239,7 +239,7 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
                 // so it is the same DOM node and the same string — but an icon-only `@orb/ui` Button REQUIRES
                 // its name at the type level, and a name declared one component up is invisible to that check
                 // (and to a reader of this element).
-                <GlyphButton aria-label="Message tools" type="button" variant="ghost" glyph="lg" shape="pill" className="shrink-0">
+                <GlyphButton aria-label={MESSAGE_TOOLS_LABEL} type="button" variant="ghost" glyph="lg" shape="pill" className="shrink-0">
                   <Icon icon={WandSparkles} size="sm" />
                 </GlyphButton>
               }
@@ -249,7 +249,7 @@ function UtilityMenu(props: UtilityMenuProps): ReactElement {
         {/* THE POPUP SPEAKS THE NAME, VERBATIM. On an icon-only control the popup IS the visible label, so
             WCAG 2.5.3 (§13.10 N2) requires the words on screen to be in the name: one tooltip, no native
             `title`, and the "Message tools" string every CT and the e2e room helper address. */}
-        <TooltipPopup side="bottom">Message tools</TooltipPopup>
+        <TooltipPopup side="bottom">{MESSAGE_TOOLS_LABEL}</TooltipPopup>
       </Tooltip>
       {/* The menu opens upward from the composer, and Base UI's available height runs to the viewport's top edge, so a
           tall menu covered the room's topbar. `belowChrome` keeps it under the topbar; the menu scrolls inside. */}

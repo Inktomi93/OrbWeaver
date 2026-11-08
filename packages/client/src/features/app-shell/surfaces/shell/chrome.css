@@ -83,21 +83,37 @@
   .shell-topbar-identity[data-identity="narrow"] .shell-topbar-title {
     /* A column too narrow for the lead control, this floor and the menu trigger lets the floor shrink with it, so
      * nothing sits past the row's edge: both controls are one icon-button step, and the gaps and padding are the row's. */
-    min-inline-size: min(
-      var(--dimension-shell-title-floor),
-      max(
-        0px,
-        calc(
-          100cqi -
-          2 *
-          var(--size-control-md) -
-          3 *
-          var(--spacing-row) -
-          var(--shell-topbar-lane-start, var(--spacing-block)) -
-          var(--shell-topbar-lane-end, var(--spacing-block))
-        )
+    --shell-topbar-title-room: max(
+      0px,
+      calc(
+        100cqi -
+        2 *
+        var(--size-control-md) -
+        3 *
+        var(--spacing-row) -
+        var(--shell-topbar-lane-start, var(--spacing-block)) -
+        var(--shell-topbar-lane-end, var(--spacing-block))
       )
     );
+    min-inline-size: min(var(--dimension-shell-title-floor), var(--shell-topbar-title-room));
+  }
+  /* A title with a census keeps its name whole: the name is the title's floor, capped by the same room, and the census
+   * is what the row cuts first. The census holds no width of its own in the title's intrinsic size, so the lead's floor,
+   * which the trail's room is sized against, is the name alone and the trail folds before the name is cut. */
+  .shell-topbar-identity[data-identity="narrow"] .shell-topbar-title[data-census] {
+    display: flex;
+    min-inline-size: min-content;
+  }
+  .shell-topbar-title-name {
+    flex: none;
+    max-inline-size: var(--shell-topbar-title-room);
+  }
+  .shell-topbar-title-census {
+    flex: 1 1 0;
+    min-inline-size: 0;
+    contain: inline-size;
+    /* The separator leads the census, and the leading space has to survive as the gap after the name. */
+    white-space: pre;
   }
 
   /* The chat identity's shrink order: the title group owns the floor and clips its overflow, the room name yields

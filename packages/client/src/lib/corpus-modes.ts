@@ -3,6 +3,7 @@
 // imports stats or tag.
 
 import type { ReactNode } from "react";
+import type { ScreenTitle } from "./census-title.ts";
 import type { ListPaneHeaderView } from "./list-pane-header-view.ts";
 
 export const CORPUS_MODES = ["explore", "insights", "labels"] as const;
@@ -30,5 +31,5 @@ export interface CorpusModeContribution {
   readonly contextHeader: () => ReactNode;
   /** The phone title for this mode. The section calls every mode's hook on every render, so hook order never
    *  depends on the active mode; an inactive mode returns `null` and must fetch nothing. */
-  readonly useSelectionTitle: (active: boolean) => string | null;
+  readonly useSelectionTitle: (active: boolean) => ScreenTitle | null;
 }

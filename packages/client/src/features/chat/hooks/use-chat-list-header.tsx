@@ -45,6 +45,7 @@ const NEW_CHAT_LABEL = "New chat";
 export function useChatListHeader(): ListPaneHeaderView {
   const count = useChatCensus();
   const [importOpen, setImportOpen] = useState(false);
+  const newChat = { id: "chat-new", label: NEW_CHAT_LABEL, icon: Plus, onSelect: (): void => openNewChatPicker() };
 
   return {
     actions: [
@@ -72,7 +73,8 @@ export function useChatListHeader(): ListPaneHeaderView {
             New
           </Button>
         ),
-        menu: [{ id: "chat-new", label: NEW_CHAT_LABEL, icon: Plus, onSelect: (): void => openNewChatPicker() }],
+        menu: [newChat],
+        compact: newChat,
       },
     ],
     count: count ?? 0,

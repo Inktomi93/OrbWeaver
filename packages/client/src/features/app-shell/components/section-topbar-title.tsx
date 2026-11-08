@@ -5,17 +5,18 @@
 //
 // A component, not a hook call in `useShellLayout`: `useSelectionTitle` is a PER-SECTION hook, so the caller
 // must be KEYED on the active section — the `SectionContextHost` idiom. The value is handed back through a
-// render prop because the topbar wants a string (it truncates it, and it is the row's only name), and a
-// keyed component is the only place the hook may legally run.
+// render prop because the topbar lays the name out apart from its census (it keeps the name whole and cuts the
+// census first), and a keyed component is the only place the hook may legally run.
 
 import type { ReactElement, ReactNode } from "react";
+import type { ScreenTitle } from "#lib";
 import type { SectionDefinition } from "#state";
 
 export interface SectionTopbarTitleProps {
   readonly definition: SectionDefinition;
   /** The section label — what shows while nothing is open, or while the name has not landed. */
   readonly fallback: string;
-  readonly children: (title: string, listDoorLabel: string | null, contentLabel: string | null) => ReactNode;
+  readonly children: (title: ScreenTitle, listDoorLabel: string | null, contentLabel: string | null) => ReactNode;
 }
 
 export function SectionTopbarTitle({ definition, fallback, children }: SectionTopbarTitleProps): ReactNode {
@@ -23,7 +24,7 @@ export function SectionTopbarTitle({ definition, fallback, children }: SectionTo
   // `NO_SELECTION_TITLE`), and this component is keyed on the section id, so a section switch remounts
   // rather than swapping one hook for another under a live mount.
   const resolved = definition.useSelectionTitle();
-  const title = resolved ?? fallback;
+  const title = resolved ?? { name: fallback };
   return definition.listDoorLabel === undefined ? (
     children(title, null, null)
   ) : (
@@ -39,7 +40,7 @@ function SectionListDoorLabel({
   children,
 }: {
   readonly label: NonNullable<SectionDefinition["listDoorLabel"]>;
-  readonly title: string;
+  readonly title: ScreenTitle;
   readonly children: SectionTopbarTitleProps["children"];
 }): ReactElement {
   const resolved = label.useLabel();

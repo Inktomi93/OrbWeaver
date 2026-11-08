@@ -924,7 +924,9 @@ export const OWNER_CSS_SHELL_CLASSES = [
   "shell-topbar-rename",
   "shell-topbar-subtitle",
   "shell-topbar-title",
+  "shell-topbar-title-census",
   "shell-topbar-title-group",
+  "shell-topbar-title-name",
   "shell-topbar-trail",
 ] as const;
 
@@ -1078,6 +1080,7 @@ export const OWNER_CSS_TOKEN_VARS = [
   "--dimension-shell-notice-cap",
   "--dimension-shell-title-floor",
   "--dimension-shell-topbar-block",
+  "--dimension-shell-topbar-block-primary",
   "--ease-out-expo",
   "--ease-spinner",
   "--fade-edge-stop",

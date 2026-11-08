@@ -19,10 +19,23 @@ import { ChevronLeft, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import type { ListPaneHeaderProps } from "#lib";
+import type { ListPaneHeaderProps, OverflowMenuItem } from "#lib";
 import { LIST_PANE_TITLE_ID } from "#lib";
 import { CountText } from "./count-text.tsx";
 import { BAND_OVERFLOW_LABEL, OverflowActions, OverflowMenuForms } from "./overflow-actions.tsx";
+import { Tip } from "./tip.tsx";
+
+/** The primary's icon form: the same command its menu form runs, named by its label. */
+function CompactAction({ command }: { readonly command: OverflowMenuItem }): ReactElement {
+  const disabled = command.disabled === true;
+  return (
+    <Tip text={disabled ? undefined : command.label}>
+      <Button aria-label={command.label} disabled={disabled} onClick={command.onSelect} size="sm" square={true} type="button">
+        <Icon icon={command.icon} size="sm" />
+      </Button>
+    </Tip>
+  );
+}
 
 /** One LIST chrome-band: `[‹] Title · accent  count … action`. */
 export function ListPaneHeader({ title, accent, count, back, actions }: ListPaneHeaderProps): ReactElement {
@@ -127,9 +140,14 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
           exactly what it read before: one non-identity child iff the pane has a primary action. */}
       {actions === undefined || actions.length === 0 ? null : (
         <OverflowActions
-          actions={actions.map((action) => ({ id: action.id, inline: action.inline, menu: <OverflowMenuForms forms={action.menu} /> }))}
+          actions={actions.map((action) => ({
+            id: action.id,
+            inline: action.inline,
+            compact: action.compact === undefined ? undefined : <CompactAction command={action.compact} />,
+            menu: <OverflowMenuForms forms={action.menu} />,
+          }))}
           gap="field"
-          keeps="trailing"
+          keeps="primary"
           label={BAND_OVERFLOW_LABEL}
           slot="list-pane-action"
         />

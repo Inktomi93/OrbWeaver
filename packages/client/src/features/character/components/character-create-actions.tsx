@@ -1,20 +1,16 @@
-// The Characters LIST band's create cluster — the ratified band anatomy (the presets band's landed
-// precedent): exactly ONE primary (New) with Import beside it as a GHOST icon, a secondary entry into the
-// same "get a character" job. Replaces the former `+` split MENU, which buried both verbs one click deep
-// and homed import outside the band grammar.
+// The Characters create doors — the ratified band anatomy (the presets band's landed precedent): exactly ONE
+// primary (New) with Import beside it as a GHOST icon, a secondary entry into the same "get a character" job. Replaces
+// the former `+` split MENU, which buried both verbs one click deep and homed import outside the band grammar.
 //
-// Two exports, one per SURFACE that carries a door:
-//   • `CharacterCreateActions` — the BAND cluster (Import ghost + New primary), the band's tuning.
-//   • `CharacterLandingDoors`  — the CONTENT landing's pair (#864), spelled out, and rendered only in the
+// Three exports, one per door:
+//   • `CharacterImportDoor`   — Import, the ghost icon, with its dialog.
+//   • `CharacterNewDoor`      — New, with its dialog: the word in the band, the icon in the phone topbar.
+//   • `CharacterLandingDoors` — the CONTENT landing's pair (#864), spelled out, and rendered only in the
 //     arm where the band is off screen (see its own note for how that squares with Import's ONE home).
-// Both share the one `NewCharacterDialog` and the one `CharacterImportDialog`, so no two entry points can
-// mint differently.
-//
-// `CharacterCreateButton` USED TO BE A THIRD EXPORT — New alone, for the empty states, on the ruling that
-// "an empty pane may not dead-end". The ruling stands; its CONSUMER is gone. The Characters CONTENT pane at
-// rest is a landing now (#864) and carries `CharacterLandingDoors` in exactly the arm the hero's lone New
-// used to cover, so the bare button is file-local again — the band's own primary and nothing else. Left
-// EXPORTED it is an unused export (knip), which is a door nobody opens.
+// The band lists the two band doors as separate actions, and so does the phone's topbar trail, so each row folds Import
+// into its menu first and keeps New (`components/overflow-actions.tsx`). Each door answers `characterDoors` for the
+// menu command that stands in for it. All three share the one `NewCharacterDialog` and the one `CharacterImportDialog`,
+// so no two entry points can mint differently.
 
 import { slugifyHandle } from "@orb/kit/slug";
 import { Button } from "@orb/ui/button";
@@ -139,69 +135,11 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
   );
 }
 
-// ── THE BAND'S NARROW ARM (#1697, side-eye 2026-09-05) ───────────────────────────────────────────────
-// THE DEFECT. Docking the CONTEXT pane fires shell.css's #242 conditional squeeze and narrows the LIST
-// track 307 → 272px. The band is `space-between` with two flex children, and only ONE of them may shrink:
-// the identity cluster carries `min-w-0`, while the action cluster's two buttons hold their intrinsic
-// widths. So the section's own NAME was the first thing to give up width, and it gave it up in the state
-// the section exists for — measured on the tree, `[data-slot="list-pane-title"] span`:
-//
-//   pane 307 → band 306 · identity 159 · title lane 127 of 127 needed · import 32 · New 74   → `Characters`
-//   pane 272 → band 271 · identity 127 · title lane  95 of 127 needed · import 32 · New 74   → `Chara…`
-//
-// THE THRESHOLD IS DERIVED, NOT PICKED. The band spends `pane − 1 (border) − 24 (padding-inline) − 8 (band
-// gap) − 6 (action gap) − 32 (import) − 74 (labelled New) = pane − 145` on the identity cluster, and the
-// identity cluster needs `127 (the word "Characters" at the display step) + 8 (the row gap) + 24 (a bare
-// three-digit census) = 159`. So the labelled arm fits exactly while `pane >= 304` (19rem); the named pane
-// step above that is `container.cq-20`, so the arm swaps at 320px with a one-step margin.
-//
-// WIDTH-KEYED, NOT VIEWPORT-KEYED, AND CSS-ONLY. The question is "how wide is THIS PANE", which no viewport
-// media query can answer (the same 1440px desktop produces both widths) — and `.shell-panel` is already an
-// `inline-size` container, so the unnamed container variants below resolve against exactly the box whose
-// squeeze caused the defect. A JS branch would also be the wrong tier: chrome that responds to its own box
-// is a CSS decision here by the same reasoning `pager-chrome.ts` records for the swipe strip.
-//
-// A CONTAINER QUERY CONDITION CANNOT READ A CUSTOM PROPERTY (`var()` is invalid in `@container`), so this
-// threshold cannot ride the spacing tokens the band is built from — the derivation above is what keeps it
-// honest, exactly as the pager module's own thresholds do.
-//
-// WHY A DISPLAY PAIR RATHER THAN HIDING THE WORD. `sr-only`-ing the label inside one button would leave a
-// 16px glyph wearing a TEXT step's `px-block` padding: a 40px-wide box at a control-step height, which is
-// the #842 shape (an icon-only control 4px under the touch floor on its short side at a coarse pointer)
-// that the import ghost beside it already had to be rebuilt to escape. Two buttons gated by `display` give
-// the narrow arm a real `sm` SQUARE — 32px fine, 44px coarse — and put exactly one of the pair in
-// layout, and therefore in the a11y tree, at any given pane width.
-
-/** The LABELLED arm: stands down below the `cq-20` pane step. */
-
-/** The ICON-ONLY arm: exists only below it. Tailwind emits the pair as complementary range conditions
- *  (`width < 20rem` / `width >= 20rem`), so they can neither overlap nor leave a gap at the boundary. */
-
-/** The band's primary, alone — file-local (see the header for why it is no longer exported).
- *
- *  TWO ARMS, ONE DOOR: the same dialog state, the same verb, one of them in layout per pane width (see the
- *  block above). The narrow arm names itself `New character` because an icon-only `New` names nothing; the
- *  wide arm is named by the word it paints, and "New" is contained in "New character", so a voice-control
- *  user saying what they can see reaches the door in either arm (WCAG 2.5.3). */
-function CharacterCreateButton({ onOpen }: { readonly onOpen: () => void }): ReactElement {
-  return (
-    <>
-      <Button hiddenAt="belowCq20" onClick={onOpen} size="sm">
-        <Icon icon={Plus} size="sm" />
-        New
-      </Button>
-      <Button aria-label={CHARACTER_NEW_NAME} hiddenAt="cq-20" onClick={onOpen} size="sm" square={true} type="button">
-        <Icon icon={Plus} size="sm" />
-      </Button>
-    </>
-  );
-}
-
 /**
  * The LANDING's door pair — `New character` (primary) + `Import a card` (ghost), each with its LABEL
  * spelled out (#864).
  *
- * WHY IT IS NOT `CharacterCreateActions`: that cluster is the BAND's, and it is tuned for a band — `New`
+ * WHY IT IS NOT THE BAND'S DOORS (`CharacterNewDoor`, `CharacterImportDoor`): those are tuned for a band — `New`
  * alone (the band's own kicker supplies "characters"), Import as an icon-only ghost. The landing has no
  * kicker over it and no adjacent list, so both verbs have to say what they make.
  *
@@ -238,39 +176,59 @@ export function CharacterLandingDoors(): ReactElement {
   );
 }
 
-/** The band cluster: Import (ghost) + New (primary), each with its dialog. */
-export function CharacterCreateActions(): ReactElement {
-  const [importOpen, setImportOpen] = useState(false);
-  const [createOpen, setCreateOpen] = useState(false);
-  // A row that moved this cluster out of reach opens its dialogs through the overflow menu's request.
+/** Import, the band's secondary: a ghost icon, with its dialog. */
+export function CharacterImportDoor(): ReactElement {
+  const [open, setOpen] = useState(false);
   useOpenRequests(characterDoors, (door): void => {
     if (door === "import") {
-      setImportOpen(true);
-    } else {
-      setCreateOpen(true);
+      setOpen(true);
     }
   });
   return (
     <>
-      {/* ONE flex child, so the band's space-between keeps the cluster hard against the trailing edge. */}
-      <Row align="center" gap="field">
-        {/* An `sm` `square`, NOT a plain `sm` (side-eye 2026-08-30 rail-characters P2, #842). An icon-only `sm` button is a
-            control-HEIGHT box with `px-block` of width: 40×44 at a coarse pointer, i.e. 4px under the touch
-            floor on its short side, corroborated by a four-cardinal `elementFromPoint` losing the point at
-            ±21px horizontally and by `getComputedStyle(el,"::after").content === "none"` (a `sm` button
-            carries no hit-area pseudo — the 40px box IS the target). The `sm` square is the same control step as a
-            SQUARE (`size-control-sm p-0`), so it is 44×44 on coarse and 32×32 on fine, the height it
-            already had and the width it was missing. Not a `glyph-*` step: those are pointer-INDEPENDENT
-            display boxes that would have shrunk the visible target beside the `sm` New primary. */}
-        {/* THE SAME SECONDARY-ENTRY RULING AS `CharacterLandingDoors` (#1256) — the band's own icon-only
-            twin of the same Import door, beside the same `New` primary. */}
-        <Button aria-label={CHARACTER_IMPORT_NAME} variant="ghost" ink="muted" onClick={(): void => setImportOpen(true)} size="sm" square={true}>
-          <Icon icon={Upload} size="sm" />
+      {/* An `sm` `square`, NOT a plain `sm` (side-eye 2026-08-30 rail-characters P2, #842). An icon-only `sm` button is a
+          control-HEIGHT box with `px-block` of width: 40×44 at a coarse pointer, i.e. 4px under the touch
+          floor on its short side, corroborated by a four-cardinal `elementFromPoint` losing the point at
+          ±21px horizontally and by `getComputedStyle(el,"::after").content === "none"` (a `sm` button
+          carries no hit-area pseudo — the 40px box IS the target). The `sm` square is the same control step as a
+          SQUARE (`size-control-sm p-0`), so it is 44×44 on coarse and 32×32 on fine, the height it
+          already had and the width it was missing. Not a `glyph-*` step: those are pointer-INDEPENDENT
+          display boxes that would have shrunk the visible target beside the `sm` New primary. */}
+      {/* THE SAME SECONDARY-ENTRY RULING AS `CharacterLandingDoors` (#1256) — the band's own icon-only
+          twin of the same Import door, beside the same `New` primary. */}
+      <Button aria-label={CHARACTER_IMPORT_NAME} variant="ghost" ink="muted" onClick={(): void => setOpen(true)} size="sm" square={true}>
+        <Icon icon={Upload} size="sm" />
+      </Button>
+      <CharacterImportDialog onOpenChange={setOpen} open={open} />
+    </>
+  );
+}
+
+/** New, the primary, with its dialog. `iconOnly` is the phone topbar's form; the band shows the word, and the row swaps
+ *  in its own icon form when the word does not fit.
+ *
+ *  An icon-only `New` names nothing, so that form names itself `New character`; "New" is contained in it, so a
+ *  voice-control user saying what they can see reaches the door in either form (WCAG 2.5.3). */
+export function CharacterNewDoor({ iconOnly = false }: { readonly iconOnly?: boolean }): ReactElement {
+  const [open, setOpen] = useState(false);
+  useOpenRequests(characterDoors, (door): void => {
+    if (door === "create") {
+      setOpen(true);
+    }
+  });
+  return (
+    <>
+      {iconOnly ? (
+        <Button aria-label={CHARACTER_NEW_NAME} onClick={(): void => setOpen(true)} size="sm" square={true} type="button">
+          <Icon icon={Plus} size="sm" />
         </Button>
-        <CharacterCreateButton onOpen={(): void => setCreateOpen(true)} />
-      </Row>
-      <NewCharacterDialog onOpenChange={setCreateOpen} open={createOpen} />
-      <CharacterImportDialog onOpenChange={setImportOpen} open={importOpen} />
+      ) : (
+        <Button onClick={(): void => setOpen(true)} size="sm">
+          <Icon icon={Plus} size="sm" />
+          New
+        </Button>
+      )}
+      <NewCharacterDialog onOpenChange={setOpen} open={open} />
     </>
   );
 }

@@ -4,7 +4,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { Drawer, DrawerClose, DrawerPopup, DrawerTitle, DrawerVirtualKeyboardProvider } from "@orb/ui/drawer";
-import { Blocks, Icon, X } from "@orb/ui/icons";
+import { Icon, PanelBottomOpen, X } from "@orb/ui/icons";
 import { Row, Stack } from "@orb/ui/layout";
 import { MenuItem, MenuSeparator } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
@@ -77,7 +77,7 @@ export function PluginPanelsMenuItem(): ReactElement | null {
   return (
     <>
       <MenuItem onClick={(): void => setFlankSheetOpen(true)}>
-        <Icon icon={Blocks} size="sm" />
+        <Icon icon={PanelBottomOpen} size="sm" />
         {SIDECAR_PANELS_LABEL}
       </MenuItem>
       <MenuSeparator />

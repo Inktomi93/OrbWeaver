@@ -3,6 +3,13 @@
 /** A census as the list bands print it: a count, a filtered `n of m` string, or `undefined` while unread or failed. */
 type ScreenCensus = number | string | undefined;
 
+/** What the phone topbar calls a screen: its name, and the roster's census beside it while the screen is a roster. The
+ *  topbar keeps the name whole and cuts the census first. */
+export interface ScreenTitle {
+  readonly name: string;
+  readonly census?: ScreenCensus;
+}
+
 /**
  * The roster's screen name with its census, or `null` when the census says nothing about size.
  *
@@ -10,9 +17,14 @@ type ScreenCensus = number | string | undefined;
  * information), and an unread or failed census is not a size claim either. A filtered `0 of 5` is a real statement
  * about the filter and is printed.
  */
-export function censusTitle(label: string, census: ScreenCensus): string | null {
+export function censusTitle(label: string, census: ScreenCensus): ScreenTitle | null {
   if (census === undefined || census === 0) {
     return null;
   }
-  return `${label} · ${String(census)}`;
+  return { name: label, census };
+}
+
+/** The census as it follows the name on the screen: the topbar lays it out as its own part, so it can cut it alone. */
+export function censusSuffix(census: NonNullable<ScreenCensus>): string {
+  return ` · ${String(census)}`;
 }

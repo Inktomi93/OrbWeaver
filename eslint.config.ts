@@ -1176,6 +1176,15 @@ const PRE_POLYFILL_SOURCE = staticImportGraph(fileURLToPath(new URL("./packages/
 // Exact DOM-boundary calls; additional calls in these files remain findings.
 export const DOM_LOOKUP_HOMES = [
   {
+    file: "packages/client/src/components/overflow-actions.tsx",
+    function: "firstControlIn",
+    method: "querySelector",
+    receiver: "cell",
+    selector: "button, a[href]",
+    reason:
+      "A row action is whatever its caller placed in its cell, so a folded action's focus passes to the next shown action's control; the cell publishes no handle to it",
+  },
+  {
     file: "packages/client/src/components/setting-teach-row.tsx",
     function: "SettingRow/focusControl",
     method: "querySelector",

@@ -32,6 +32,10 @@
     .shell-topbar {
       block-size: var(--shell-topbar-block);
     }
+    /* A screen whose trail holds its primary reserves the second line at the wider step too (the wrap below). */
+    .shell-grid:has(.shell-topbar-trail[data-holds-primary]) {
+      --shell-topbar-block: var(--dimension-shell-topbar-block-primary);
+    }
     /* The keyboard leaves no line to spend on the name while the reader is writing. */
     :root[data-keyboard-up] .shell-grid {
       --shell-topbar-block: var(--dimension-chrome-row);
@@ -216,7 +220,10 @@
       display: none;
     }
     /* A phone this narrow at the enlarged root cannot seat a name between the row's two controls, and neither its tab bar
-     * nor a room names the screen, so the name takes the second line `--shell-topbar-block` reserves. */
+     * nor a room names the screen, so the name takes the second line `--shell-topbar-block` reserves. The line is the
+     * name's own, so its room is the whole row, not what two controls leave. A trail that holds its screen's primary
+     * (`data-holds-primary`) needs the line from a wider step: one row cannot seat the lead control, the widest section
+     * name, the primary and the menu trigger below it, and the primary stays inline rather than fold. */
     @container shell-main (inline-size <= 16rem) {
       .shell-topbar {
         flex-wrap: wrap;
@@ -233,6 +240,28 @@
         min-inline-size: 0;
       }
       .shell-topbar-identity[data-identity="narrow"] .shell-topbar-title {
+        --shell-topbar-title-room: 100%;
+        font-size: var(--text-title);
+        line-height: var(--leading-title);
+      }
+    }
+    @container shell-main (inline-size < 20rem) {
+      .shell-topbar:has(.shell-topbar-trail[data-holds-primary]) {
+        flex-wrap: wrap;
+        align-content: flex-start;
+        row-gap: 0;
+      }
+      .shell-topbar:has(.shell-topbar-trail[data-holds-primary]) .shell-topbar-lead {
+        display: contents;
+      }
+      .shell-topbar:has(.shell-topbar-trail[data-holds-primary]) .shell-topbar-identity[data-identity="narrow"] {
+        order: 1;
+        flex: none;
+        inline-size: 100%;
+        min-inline-size: 0;
+      }
+      .shell-topbar:has(.shell-topbar-trail[data-holds-primary]) .shell-topbar-identity[data-identity="narrow"] .shell-topbar-title {
+        --shell-topbar-title-room: 100%;
         font-size: var(--text-title);
         line-height: var(--leading-title);
       }

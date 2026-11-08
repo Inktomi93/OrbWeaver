@@ -62,7 +62,14 @@ interface SectionChromeEntry extends ChromeEntryAxes {
 export type ActionChromeEntry = ChromeEntryAxes &
   (
     | { readonly zone: RailZone; readonly mobile: MobileCuration; readonly behavior: ModalBehavior | WidgetBehavior }
-    | { readonly zone: Exclude<ChromeZone, RailZone>; readonly mobile?: MobileCuration; readonly behavior: ModalBehavior | TrailWidgetBehavior }
+    | {
+        readonly zone: Exclude<ChromeZone, RailZone>;
+        readonly mobile?: MobileCuration;
+        /** The entry is its screen's primary action: the trail keeps it inline while room allows, and a phone row too narrow
+         *  to seat it beside the name gives the name its own line instead of folding it. */
+        readonly primary?: boolean;
+        readonly behavior: ModalBehavior | TrailWidgetBehavior;
+      }
   );
 
 /** A shell chrome affordance as ONE definition: the presentation axes every source shares, plus where it

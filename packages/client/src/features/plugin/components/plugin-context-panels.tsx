@@ -7,9 +7,15 @@ import { QueryBoundary } from "#components";
 import { SkeletonRows, useSuspenseQueries, useTRPC } from "#data";
 import { openConfigTo } from "#state";
 import { takeMovedPanelFocus, usePluginChatPlacement, usePluginChatVisibility } from "../hooks/use-plugin-chat-visibility.ts";
-import { useVisibleAnchoredSurfaces } from "../hooks/use-visible-anchored-surfaces.ts";
+import { useFlankInSheet, useVisibleAnchoredSurfaces } from "../hooks/use-visible-anchored-surfaces.ts";
 import { showInChatLabel } from "../lib/plugin-copy.ts";
-import { CHAT_PLUGINS_EMPTY_DESCRIPTION, CHAT_PLUGINS_EMPTY_TITLE, CHAT_PLUGINS_MANAGE_LABEL, movePluginPanelLabel } from "../lib/plugin-panel-copy.ts";
+import {
+  CHAT_PLUGINS_EMPTY_DESCRIPTION,
+  CHAT_PLUGINS_EMPTY_DESCRIPTION_TOUCH,
+  CHAT_PLUGINS_EMPTY_TITLE,
+  CHAT_PLUGINS_MANAGE_LABEL,
+  movePluginPanelLabel,
+} from "../lib/plugin-panel-copy.ts";
 import { PluginAnchoredSurfaceList } from "./plugin-anchored-surfaces.tsx";
 
 /** Ordinary chat panels share Context; moved and hidden panels keep their return controls here. */
@@ -25,6 +31,7 @@ function ContextPanels({ chatId }: { readonly chatId: ChatId }): ReactElement {
   const trpc = useTRPC();
   const [{ data: surfaces }, { data: plugins }] = useSuspenseQueries({ queries: [trpc.plugin.listSurfaces.queryOptions(), trpc.plugin.list.queryOptions()] });
   const visible = useVisibleAnchoredSurfaces("chat-flank", chatId);
+  const touch = useFlankInSheet();
   const placement = usePluginChatPlacement();
   const visibility = usePluginChatVisibility();
   const panels = surfaces.filter((surface) => surface.anchor === "chat-flank");
@@ -69,7 +76,7 @@ function ContextPanels({ chatId }: { readonly chatId: ChatId }): ReactElement {
       {visible.length === 0 && moved.length === 0 && hidden.length === 0 ? (
         <EmptyState
           title={CHAT_PLUGINS_EMPTY_TITLE}
-          description={CHAT_PLUGINS_EMPTY_DESCRIPTION}
+          description={touch ? CHAT_PLUGINS_EMPTY_DESCRIPTION_TOUCH : CHAT_PLUGINS_EMPTY_DESCRIPTION}
           action={
             <Button variant="outline" onClick={(): void => openConfigTo("plugins")} size="sm">
               {CHAT_PLUGINS_MANAGE_LABEL}

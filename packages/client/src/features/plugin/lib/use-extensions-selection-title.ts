@@ -14,13 +14,14 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useTRPC } from "#data";
+import type { ScreenTitle } from "#lib";
 import { censusTitle } from "#lib";
 import { usePluginPageKey } from "#state";
 import { useExtensionsCensus } from "../hooks/use-extensions-census.ts";
 import { pluginReviewKey, usePluginPages } from "../hooks/use-plugin-pages.ts";
 import { EXTENSIONS_SECTION_LABEL } from "./extensions-section-label.ts";
 
-export function useExtensionsSelectionTitle(): string | null {
+export function useExtensionsSelectionTitle(): ScreenTitle | null {
   const trpc = useTRPC();
   const key = usePluginPageKey();
   const pages = usePluginPages();
@@ -31,7 +32,8 @@ export function useExtensionsSelectionTitle(): string | null {
   if (key !== null) {
     // An in-place review is named by the plugin under review.
     const reviewed = plugins?.find((plugin) => pluginReviewKey(plugin.id) === key);
-    return reviewed?.name ?? pages.find((page) => page.key === key)?.title ?? null;
+    const name = reviewed?.name ?? pages.find((page) => page.key === key)?.title;
+    return name === undefined ? null : { name };
   }
   return censusTitle(EXTENSIONS_SECTION_LABEL, census);
 }

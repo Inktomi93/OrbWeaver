@@ -15,7 +15,8 @@ export { setBootReadPending } from "./boot-reads.ts";
 export type { BugReportServerFacts, PublicBrowserFacts, PublicBugReport } from "./bug-report-public.ts";
 export { buildPublicBugReport, publicBugReportIssueUrl } from "./bug-report-public.ts";
 export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog.ts";
-export { censusTitle } from "./census-title.ts";
+export type { ScreenTitle } from "./census-title.ts";
+export { censusSuffix, censusTitle } from "./census-title.ts";
 export { BLANK_CHAT_NAME, NO_CHAT_SELECTED_TITLE, START_NEW_CHAT_NAME, START_TEMP_CHAT_NAME, TEMPORARY_CHAT_BADGE } from "./chat-launch-names.ts";
 export { CHAT_NAME_FIELD_NAME, CHAT_TITLE_FIELD_NAME, RENAME_CHAT_NAME, renameChatButtonName } from "./chat-rename-names.ts";
 export { authoredChatName, chatRoomTitle, deriveChatTitle } from "./chat-title.ts";
@@ -116,7 +117,7 @@ export {
 } from "./embedder-rebuild.ts";
 export { AppErrorBoundary } from "./error-boundary.tsx";
 export { filteredCensus } from "./filtered-census.ts";
-export { SIDECAR_PANELS_LABEL, SIDECAR_PANELS_NOUN } from "./flank-names.ts";
+export { MESSAGE_TOOLS_LABEL, SIDECAR_PANELS_LABEL, SIDECAR_PANELS_NOUN } from "./flank-names.ts";
 export { publishFlankHost, publishInlineFlankFit, setFlankSheetOpen, useFlankHost, useFlankSheetOpen, useInlineFlankFits } from "./flank-placement.ts";
 export { holdFlipInPhase } from "./flip-phase.ts";
 export { IMAGE_SIZE_LABELS, IMAGE_SIZE_MODE_DEFAULT } from "./image-size-copy.ts";
@@ -164,7 +165,7 @@ export { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "./message-role-labels.t
 export type { NotifyAction, NotifyNotice } from "./notify.ts";
 export { bindNotify, leaseNotify, notify } from "./notify.ts";
 export { createOpenRequestChannel, useOpenRequests } from "./open-request-channel.ts";
-export type { OverflowMenuForm } from "./overflow-menu-form.ts";
+export type { OverflowMenuForm, OverflowMenuItem } from "./overflow-menu-form.ts";
 export { perfMark, perfMeasure } from "./perf-marks.ts";
 export { pluginCommandAuditAttributes, pluginMenuAuditAttributes, pluginSurfaceAuditAttributes } from "./plugin-ui-audit-attributes.ts";
 // The Tier-C plugin guest's main-thread ↔ worker wire — a contract between two

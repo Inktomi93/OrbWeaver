@@ -28,9 +28,9 @@
 
 import type { ListPaneHeaderView } from "#lib";
 import { useMobileViewport } from "#state";
-import { CharacterCreateActions } from "../components/character-create-actions.tsx";
+import { CharacterImportDoor, CharacterNewDoor } from "../components/character-create-actions.tsx";
 import { useCharacterCensus } from "../hooks/use-character-census.ts";
-import { CHARACTER_DOOR_FORMS } from "../lib/character-door-forms.ts";
+import { CHARACTER_IMPORT_FORM, CHARACTER_NEW_FORM } from "../lib/character-door-forms.ts";
 import { CHARACTERS_SECTION_LABEL } from "../lib/characters-section-label.ts";
 
 export function useCharactersListHeader(): ListPaneHeaderView {
@@ -39,9 +39,10 @@ export function useCharactersListHeader(): ListPaneHeaderView {
   // ONE-NAME rule had already shed the title here; the `action` slot was the only thing left keeping a 48px
   // chrome row alive, and shell.css's "…AND THE BAND GOES WITH IT WHEN NOTHING IS LEFT" `:has()` chain sheds
   // the row the moment nothing but the identity cluster is in it. The cluster is not deleted — it MOVES to
-  // the phone's topbar trail as a section-scoped chrome entry (`lib/character-create-chrome.tsx`, which
+  // the phone's topbar trail as two section-scoped chrome entries (`lib/character-create-chrome.tsx`, which
   // states the whole ruling and the measurement it was bought with), so the same two doors are one tap away
-  // on the one row a phone always paints. The DESKTOP band is untouched.
+  // on the one row a phone always paints. The DESKTOP band keeps both doors, Import folding into the band's
+  // menu before New gives up its word.
   //
   // IT MUST BE AN OMITTED PROP, NEVER A HIDDEN ONE: a `display:none` action is still a child, and the shed
   // rule is `:has(> *:not([data-slot="list-pane-identity"]))` — CSS cannot un-see it.
@@ -49,6 +50,13 @@ export function useCharactersListHeader(): ListPaneHeaderView {
   return {
     ...(count === undefined ? {} : { count }),
     title: CHARACTERS_SECTION_LABEL,
-    ...(mobile ? {} : { actions: [{ id: "character-create", inline: <CharacterCreateActions />, menu: CHARACTER_DOOR_FORMS }] }),
+    ...(mobile
+      ? {}
+      : {
+          actions: [
+            { id: "character-import", inline: <CharacterImportDoor />, menu: [CHARACTER_IMPORT_FORM] },
+            { id: "character-create", inline: <CharacterNewDoor />, menu: [CHARACTER_NEW_FORM], compact: CHARACTER_NEW_FORM },
+          ],
+        }),
   };
 }

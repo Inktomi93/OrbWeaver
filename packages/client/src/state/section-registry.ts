@@ -7,7 +7,7 @@
 
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode } from "react";
-import type { ContextDefinition, ListPaneHeaderView } from "#lib";
+import type { ContextDefinition, ListPaneHeaderView, ScreenTitle } from "#lib";
 import type { PanelMode, PanelName, PhoneLanding } from "./panel-resolve.ts";
 import type { SectionId } from "./section-ids.ts";
 
@@ -133,7 +133,7 @@ interface SectionDefinitionBase {
    *  because the phone one-name rule sheds the list band (#1670). No-list sections explicitly use
    *  NO_SELECTION_TITLE; an optional field would require a conditional hook call.
    */
-  readonly useSelectionTitle: () => string | null;
+  readonly useSelectionTitle: () => ScreenTitle | null;
 }
 
 /** A rail section as ONE definition. `context` is the NON-generic `ContextDefinition` (§6b) — a `tabs`
