@@ -1,18 +1,23 @@
 import { expect, test } from "@orb/testkit/tooling";
 import type { CacheCase, CasePlan, ProbeStep } from "@orb/tooling/cache-check";
-import { CACHE_CASES, CASE_PLANS, ROOM_KINDS, ROOMS, roomRuns } from "@orb/tooling/cache-check";
+import { CACHE_CASES, CASE_PLANS, judgedReplies, plannedReplies, ROOM_KINDS, ROOMS, roomRuns } from "@orb/tooling/cache-check";
 
-// How many judged calls a step contributes, read the same way ops/drive.ts reads a step's replies.
+// How many judged calls a step contributes: the same reading ops/drive.ts applies to the replies a turn returns.
 function measuredCalls(step: ProbeStep): number {
   if (step.kind !== "send" && step.kind !== "continue" && step.kind !== "generate") {
     return 0;
   }
-  if (step.measure === "none") {
-    return 0;
-  }
-  const replies = step.kind === "send" ? (step.speakers ?? 1) : 1;
-  return step.measure === "last" ? 1 : replies;
+  return judgedReplies(step.measure, plannedReplies(step));
 }
+
+test.each([
+  ["none", 3, 0],
+  ["last", 3, 1],
+  ["last", 0, 0],
+  ["all", 3, 3],
+] as const)("measure %s over %i replies judges %i", (measure, replies, judgedCount) => {
+  expect(judgedReplies(measure, replies)).toBe(judgedCount);
+});
 
 const judged = (plan: CasePlan): number => plan.steps.reduce((sum, step) => sum + measuredCalls(step), 0);
 

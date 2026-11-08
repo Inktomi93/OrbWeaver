@@ -14,10 +14,13 @@ function script(body: string): string {
   return `import { runTool, UsageError } from ${JSON.stringify(RUN_TOOL_URL)};\n${body}\n`;
 }
 
-async function runScratch(plantedTree: (files: Record<string, string>) => Promise<string>, body: string): Promise<{ code: number | null; stderr: string }> {
+async function runScratch(
+  plantedTree: (files: Record<string, string>) => Promise<string>,
+  body: string,
+): Promise<{ code: number | null; stdout: string; stderr: string }> {
   const root = await plantedTree({ "main.ts": body });
   const res = await spawnNiced(process.execPath, [`${root}/main.ts`]);
-  return { code: res.code, stderr: res.stderr };
+  return { code: res.code, stdout: res.stdout, stderr: res.stderr };
 }
 
 test("CONTROL: a bare node crash exits 1 — indistinguishable from a violations verdict (the collision)", async ({ plantedTree }) => {
@@ -45,9 +48,17 @@ test("UsageError maps to misuse (3) with the message on stderr", async ({ plante
   expect(res.stderr).toContain("--frob requires a value");
 });
 
-test("a returned verdict passes through and the loop drains (no hard exit on the verdict path)", async ({ plantedTree }) => {
-  const res = await runScratch(plantedTree, script("await runTool(() => 1);"));
+test("a returned verdict passes through and a report far larger than a pipe buffer drains first (no hard exit on the verdict path)", async ({
+  plantedTree,
+}) => {
+  const Line = "report line\n";
+  const Lines = 40_000;
+  const res = await runScratch(
+    plantedTree,
+    script(`await runTool(() => { process.stdout.write(${JSON.stringify(Line)}.repeat(${String(Lines)})); return 1; });`),
+  );
   expect(res.code).toBe(EXIT.violations);
+  expect(res.stdout).toHaveLength(Line.length * Lines);
 });
 
 test("NEVER-DOWNGRADE: a violations verdict already set survives a late crash as toolError, not clean", async ({ plantedTree }) => {

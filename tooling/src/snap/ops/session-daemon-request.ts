@@ -11,6 +11,7 @@ import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { installOutputSink, warn } from "../../floor/cli/log.ts";
 import type { DiskSafeOp } from "../contract/disk-safe-argv.ts";
 import type { SessionEvent, SessionRequest, SessionRow, SessionRunProvenance } from "../contract/session.ts";
+import type { Args } from "../contract/types.ts";
 import { diskSafeOp } from "../lib/disk-safe-argv.ts";
 import { scrubPrivateText } from "../lib/private-values.ts";
 import { sessionCallTarget, sessionIdleMs } from "../lib/session-plan.ts";
@@ -125,6 +126,13 @@ export function pauseSessionTtl(state: SessionDaemonState): void {
   }
 }
 
+/** The quiet-box watchdog base for one serialized request: a navigating call owns the navigation budget, a live
+ *  call its own tape, the widest enabled arm outranks either, and an export (`null`) the bare call ceiling. */
+export function sessionCallBudget(call: Args | null): number {
+  const navigates = call !== null && (sessionCallTarget(call) !== "live" || call.matrix || call.scenario !== null);
+  return sessionCallWatchdogBaseMs(navigates, call === null ? null : armSessionCallBaseMs(call), call === null ? 0 : sessionTapeBaseMs(call.actions));
+}
+
 /** Run a serialized request (`call`/`export`) under the output sink. An ordinary failure leaves the
  * session reusable; a timed-out call that remains live after cancellation returns a terminal reason so
  * the request owner can answer its caller, then close the daemon without awaiting that work again. */
@@ -152,13 +160,7 @@ async function serveSerialized(state: SessionDaemonState, request: SessionReques
   // the catch prints SESSION CALL ERROR (session-daemon-request.ts:160) and sets exit = EXIT.toolError (:165), which the done event carries to the client (:176). Ends if the done event stops carrying exit.
   try {
     const call = request.kind === "call" ? parseSnapArgs([...request.argv], { sessionDevice: state.bootArgs.device }) : null;
-    const navigates = call !== null && (sessionCallTarget(call) !== "live" || call.matrix || call.scenario !== null);
-    exit = await runSessionCallWithinBudget(
-      state,
-      op,
-      run,
-      sessionCallWatchdogBaseMs(navigates, call === null ? null : armSessionCallBaseMs(call), call === null ? 0 : sessionTapeBaseMs(call.actions)),
-    );
+    exit = await runSessionCallWithinBudget(state, op, run, sessionCallBudget(call));
   } catch (error) {
     print(`SESSION CALL ERROR  ${state.name}: ${errorMessage(error)}`);
     if (isTerminalSessionCallError(error)) {

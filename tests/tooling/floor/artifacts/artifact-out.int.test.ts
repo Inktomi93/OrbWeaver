@@ -14,8 +14,8 @@
 // #1029 sibling file makes the same argument for the verdict instruments). The child drives the REAL seam —
 // `withInstrumentRun` + `artifactFile`, exactly what an instrument's cli.ts and ops do — against a PLANTED
 // root, so no case here touches the repo's own reports/ tree.
-import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlinkSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlinkSync, utimesSync, writeFileSync } from "node:fs";
+import { basename, dirname, join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/tooling";
 import { artifactFile, beginInstrumentRun, finishInstrumentRun } from "@orb/tooling/floor/artifacts/artifact-out";
@@ -103,26 +103,35 @@ test("the 10-run ring never deletes evidence a published pointer still names", {
   const artifacts = join(repoRoot, "tooling", "src", "floor", "artifacts", "artifact-out.ts");
   const { spawnNiced } = await import("@orb/tooling/floor/process/proc");
   const child = join(root, NAMED);
+  const runs = join(root, "reports", "runs", "snap");
   const keepers = ["se-chars-focusring", "m-touch-topbar", "tracker-kit-scene"];
   for (const name of keepers) {
     expect((await spawnNiced(process.execPath, [child, artifacts, root, name])).code).toBe(0);
   }
-  // Well past RETAINED_RUNS, every one re-aiming the SAME pointer — so each churn run un-references the
-  // one before it and IS the ring's proper business.
+  // The second `churn` run re-aims the pointer, so the first one's slot is named by nothing.
+  for (let i = 0; i < 2; i += 1) {
+    expect((await spawnNiced(process.execPath, [child, artifacts, root, "churn"])).code).toBe(0);
+  }
+  // RETENTION IS AGE-FIRST: a slot younger than the 24h floor is kept whether or not a pointer names it, so
+  // the slots made so far are aged past it. Only then does the pointer filter decide who goes.
+  const aged = readdirSync(runs);
+  const agedAt = new Date(Date.UTC(2026, 0, 1));
+  for (const slot of aged) {
+    utimesSync(join(runs, slot), agedAt, agedAt);
+  }
+  // Fresh churn runs past RETAINED_RUNS give the count cap deletions to do; each one un-references the one before it.
   for (let i = 0; i < 12; i += 1) {
     expect((await spawnNiced(process.execPath, [child, artifacts, root, "churn"])).code).toBe(0);
   }
 
-  for (const name of keepers) {
-    expect(readFileSync(join(root, "reports", "snaps", `${name}.png`), "utf8")).toBe(`pixels-${name}`);
-  }
-  // RETENTION IS AGE-FIRST SINCE #1341, so nothing here is pruned at all: every one of these slots was
-  // published inside the last minute, and a slot younger than the 24h floor is kept whether or not a
-  // pointer names it — that floor exists because the UNREFERENCED runs (`--no-shot`/`--eval`) were exactly
-  // the ones a review cited and the count-only ring deleted within minutes. The count cap still applies
-  // PAST the floor; that half is pinned in tests/tooling/floor/artifacts/artifacts.int.test.ts, where the fixture
-  // can age a slot.
-  expect(readdirSync(join(root, "reports", "runs", "snap"))).toHaveLength(keepers.length + 12);
+  const named = keepers.map((name) => {
+    const pointer = join(root, "reports", "snaps", `${name}.png`);
+    expect(readFileSync(pointer, "utf8")).toBe(`pixels-${name}`);
+    // `../runs/snap/<runId>/snaps/<name>.png`
+    return basename(dirname(dirname(readlinkSync(pointer))));
+  });
+  // Of the aged slots the three a pointer names stay, and the two nothing names go.
+  expect(readdirSync(runs).filter((slot) => aged.includes(slot))).toEqual(aged.filter((slot) => named.includes(slot)));
   expect(readFileSync(join(root, "reports", "snaps", "churn.png"), "utf8")).toBe("pixels-churn");
 });
 

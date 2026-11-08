@@ -5,13 +5,8 @@ import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import { STEP_BASE_MS } from "../../../../tooling/src/snap/lib/budgets.ts";
 import { diskSafeOp } from "../../../../tooling/src/snap/lib/disk-safe-argv.ts";
 import { parseSnapArgs } from "../../../../tooling/src/snap/ops/parse.ts";
-import {
-  isTerminalSessionCallError,
-  runSessionCallWithinBudget,
-  sessionCallWatchdogBaseMs,
-  sessionTapeBaseMs,
-} from "../../../../tooling/src/snap/ops/session-call-watchdog.ts";
-import { refuseTerminalSessionRequest } from "../../../../tooling/src/snap/ops/session-daemon-request.ts";
+import { isTerminalSessionCallError, runSessionCallWithinBudget, sessionCallWatchdogBaseMs } from "../../../../tooling/src/snap/ops/session-call-watchdog.ts";
+import { refuseTerminalSessionRequest, sessionCallBudget } from "../../../../tooling/src/snap/ops/session-daemon-request.ts";
 
 type WatchdogState = Parameters<typeof runSessionCallWithinBudget>[0];
 
@@ -145,10 +140,17 @@ test("a live call's watchdog grows with its own tape, so a multi-step phone driv
   const evalOnly = parseSnapArgs(["--eval", "()=>1"]);
   const drive = parseSnapArgs(["--tap", "#row", "--pause", "1200", "--tap", "#details", "--pause", "900", "--map", "--mobile"]);
   expect(drive.errors).toEqual([]);
-  const evalBase = sessionCallWatchdogBaseMs(false, null, sessionTapeBaseMs(evalOnly.actions));
-  const driveBase = sessionCallWatchdogBaseMs(false, null, sessionTapeBaseMs(drive.actions));
+  const evalBase = sessionCallBudget(evalOnly);
+  const driveBase = sessionCallBudget(drive);
   // A hung eval keeps the bare call ceiling: stopping it is the watchdog's job.
   expect(evalBase).toBe(sessionCallWatchdogBaseMs(false));
   // The drive owes each tap a full step timeout plus every pause it asked for, on top of that ceiling.
   expect(driveBase).toBeGreaterThan(evalBase + 2 * STEP_BASE_MS + 1200 + 900);
+});
+
+test("an export keeps the bare call ceiling and a call that navigates owns the navigation budget", () => {
+  expect(sessionCallBudget(null)).toBe(sessionCallWatchdogBaseMs(false));
+  const navigating = parseSnapArgs(["/config", "--eval", "()=>1"]);
+  expect(navigating.errors).toEqual([]);
+  expect(sessionCallBudget(navigating)).toBe(sessionCallWatchdogBaseMs(true));
 });

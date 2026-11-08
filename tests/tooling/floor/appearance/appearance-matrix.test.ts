@@ -30,7 +30,7 @@ test("Appearance reach reconciles mounted registry instances and actual samples"
   expect(appearanceReachReceipt(runtimeContract())).toEqual({ rows: 1, subjects: 1 });
 });
 
-test("Appearance reach refuses stale, unregistered, and same-count sample substitution plants", () => {
+test("Appearance reach refuses stale and unregistered messages and a row whose samples are short, undefined or omitted", () => {
   expect(() =>
     appearanceReachReceipt(runtimeContract({ messageRegistry: { mounted: 0, registered: 1, matched: 0, missingIds: [], staleIds: ["message-a"] } })),
   ).toThrow("stale=message-a");
@@ -42,6 +42,9 @@ test("Appearance reach refuses stale, unregistered, and same-count sample substi
     throw new Error("appearance reach fixture lost its subject row");
   }
   expect(() => appearanceReachReceipt(runtimeContract({ rows: [{ ...baseRow, samples: [] }] }))).toThrow("samples do not reconcile");
+  expect(() => appearanceReachReceipt(runtimeContract({ rows: [{ ...baseRow, samples: [undefined] }] }))).toThrow("samples do not reconcile");
+  const { samples: _omitted, ...rowWithoutSamples } = baseRow;
+  expect(() => appearanceReachReceipt(runtimeContract({ rows: [rowWithoutSamples] }))).toThrow("samples do not reconcile");
 });
 
 test("seeded background arm receives a real catalog id without promoting its dependency to an axis", ({ ids }) => {

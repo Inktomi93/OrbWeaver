@@ -283,12 +283,13 @@ test("--reports is navigable: every row says what it was for, and --last windows
     await runCli("snap", ["--file", file, "--eval", expr, ...QUIET], { timeoutMs: CLI_TIMEOUT_MS });
   }
 
-  const list = await runCli("snap", ["--reports", "--last", "3"], { timeoutMs: CLI_TIMEOUT_MS });
+  // Narrower than the three runs just made, so the window cuts the list on a clean checkout too.
+  const list = await runCli("snap", ["--reports", "--last", "2"], { timeoutMs: CLI_TIMEOUT_MS });
 
   await expect(list).toExitWith(EXIT.clean);
   // `RUN INDEX SKIPPED` is an accounting line, not a row — the window counts runs, live or pruned.
   const rows = list.stdout.split("\n").filter((line) => /^(?:RUN \S+ checkout=|PRUNED )/u.test(line));
-  expect(rows, list.stdout).toHaveLength(3);
+  expect(rows, list.stdout).toHaveLength(2);
   for (const row of rows.filter((line) => line.startsWith("RUN "))) {
     expect(row, "a run row maps back to the command that made it").toMatch(/ out=\S+ route=\S+ arms=\S+ /u);
   }

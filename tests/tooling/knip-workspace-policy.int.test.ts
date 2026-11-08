@@ -81,4 +81,6 @@ test("native Knip checks shipped and author-time symbols without baseline suppre
   const production = run({ production: true, strict: true }, ["--production", "--strict"]);
   expect(production.status, `${production.stdout}\n${production.stderr}`).toBe(1);
   expect(production.stdout).toContain("shippedTestOnly");
+  expect(production.stdout).not.toContain("buildOrphan");
+  expect(production.stdout).not.toContain("token-contract.ts");
 });

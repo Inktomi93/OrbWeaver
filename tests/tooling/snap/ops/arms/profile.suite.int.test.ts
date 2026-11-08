@@ -141,7 +141,10 @@ interface ProfileArtifact {
   readonly pages: readonly {
     readonly contextIndex: number;
     readonly pageIndex: number;
+    readonly windowId: string;
+    readonly renderers: readonly { readonly id: number }[];
     readonly commits: readonly {
+      readonly id: number;
       readonly updaters: readonly { readonly path: string | null }[];
       readonly fibers: readonly FiberArtifact[];
     }[];
@@ -441,6 +444,15 @@ test("a profiled Snap session opens a fresh call window without reinstalling the
     const second = await readArtifact(next.stdout);
     expect(second.summary.rendererCount).toBeGreaterThan(0);
     expect(second.summary.commitCount).toBeGreaterThan(0);
+    // A new window, holding none of the first call's commits, over the renderer the first call attached.
+    const firstWindows = first.pages.map((page) => page.windowId);
+    expect(second.pages.map((page) => page.windowId).filter((windowId) => firstWindows.includes(windowId))).toEqual([]);
+    const firstCommitIds = first.pages.flatMap((page) => page.commits.map((commit) => commit.id));
+    expect(second.pages.flatMap((page) => page.commits.map((commit) => commit.id)).filter((id) => firstCommitIds.includes(id))).toEqual([]);
+    expect(second.summary.rendererCount).toBe(first.summary.rendererCount);
+    expect(second.pages.map((page) => page.renderers.map((renderer) => renderer.id))).toEqual(
+      first.pages.map((page) => page.renderers.map((renderer) => renderer.id)),
+    );
     expect(
       second.pages.flatMap((page) => page.commits).some((commit) => commit.updaters.some((updater) => updater.path?.includes("HotComponent") === true)),
     ).toBe(true);

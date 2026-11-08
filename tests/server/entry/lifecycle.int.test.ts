@@ -109,5 +109,8 @@ test("concurrent shutdown signals join the held native HTTP drain", { tags: "slo
   const exit = await exited;
   await processClosed;
   expect(exit, output).toEqual({ code: 0, signal: null });
-  expect(output).toContain('"msg":"shutdown: complete"');
+  // The stage breadcrumbs `down` reads off the log: each one a real shutdown emits after the request is released.
+  for (const stage of ["http drained", "closing the service graph", "db housekeeping", "complete"]) {
+    expect(output).toContain(`"msg":"shutdown: ${stage}"`);
+  }
 });
