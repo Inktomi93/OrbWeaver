@@ -33,7 +33,7 @@ export const APPEARANCE_BACKGROUND_SUBCATEGORY: ConfigSubcategory = {
       label: "Fit",
       keywords: ["cover", "contain", "stretch"],
       teach: {
-        summary: "How the picked image maps onto the window — fill and crop, letterbox, actual size, or stretch.",
+        summary: "How the picked image maps onto the window: fill and crop, letterbox, actual size, or stretch.",
         affects: ["the background layer only"],
       },
     },
@@ -43,7 +43,7 @@ export const APPEARANCE_BACKGROUND_SUBCATEGORY: ConfigSubcategory = {
       label: "Scrim opacity",
       keywords: ["darken", "overlay"],
       teach: {
-        summary: "Darkens the image so text stays legible — never fully off.",
+        summary: "Darkens the image so text stays legible, never fully off.",
         affects: ["text contrast over the background image"],
       },
     },

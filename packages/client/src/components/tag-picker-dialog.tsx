@@ -197,7 +197,7 @@ function pickerState(libraryCount: number, candidateCount: number): PickerState 
 
 /** What the resting field says per state — a total Record (a fourth state is a tsc error). */
 const RESTING_COPY: Record<PickerState, string | null> = {
-  empty: "No tags yet — the name you type becomes your first one.",
+  empty: "No tags yet. The name you type becomes your first one.",
   exhausted: "Every tag you have is already attached. A new name creates a new tag.",
   // `ready` counts its candidates, so its sentence is built rather than stored.
   ready: null,

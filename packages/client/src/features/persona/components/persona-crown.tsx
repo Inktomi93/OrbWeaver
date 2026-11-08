@@ -33,7 +33,7 @@ export function PersonaCrown({ isDefault, subject, onSet, onClear, tabIndex }: P
           <TooltipTrigger
             render={
               <Button
-                aria-label={isDefault ? `${subject} is your default — press to clear` : `Make ${subject} your default`}
+                aria-label={isDefault ? `${subject} is your default. Press to clear` : `Make ${subject} your default`}
                 aria-pressed={isDefault}
                 data-slot="persona-crown"
                 variant="ghost"

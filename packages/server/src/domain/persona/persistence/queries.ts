@@ -13,6 +13,7 @@ import type { PersonaCandidate } from "#primitives/serde/persona";
 import { foldPersonaName, personaPlacementOf } from "#primitives/serde/persona";
 import { AssetNotFoundError, PersonaCharacterNotFoundError, PersonaNotFoundError } from "../contract/errors.ts";
 import { indexByDedupName } from "../substrate/dedup-name.ts";
+import { NEWEST_PERSONA_FIRST } from "./newest-persona.ts";
 
 const LIMIT_ONE = 1;
 
@@ -127,7 +128,7 @@ export async function listOwnedPersonasWithAvatar(db: Db, ownerId: UserId): Prom
     .from(personas)
     .leftJoin(assets, eq(personas.avatarAssetId, assets.id))
     .where(eq(personas.ownerId, ownerId))
-    .orderBy(desc(personas.createdAt));
+    .orderBy(...NEWEST_PERSONA_FIRST);
   return rows;
 }
 

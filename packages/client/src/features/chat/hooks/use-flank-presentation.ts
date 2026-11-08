@@ -21,7 +21,8 @@ export interface FlankPresentation {
 }
 
 /** What everything on the transcript's axis keeps clear on its inline end: the column and its gap while the column is in
- *  the row, the edge control's corner while the column is parked or overlaid, and nothing without a panel host. */
+ *  the row, the edge control's corner while the column is parked or overlaid. Without a panel host the column is as wide
+ *  as its contributors make it, so the room measures it (`use-flank-reserve.ts`). */
 export function flankReservation(flank: FlankPresentation): "flank" | "clearance" | undefined {
   if (!flank.panelMode) {
     return undefined;

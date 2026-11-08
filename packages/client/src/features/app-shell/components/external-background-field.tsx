@@ -64,7 +64,7 @@ export function ExternalBackgroundField({ onAdded }: ExternalBackgroundFieldProp
   return (
     <Field
       label="Add from a web address"
-      description="The image is fetched once and saved to your background library — the address itself is never used to paint."
+      description="The image is fetched once and saved to your background library. The address itself is never used to paint."
       error={error}
       name="backgroundExternalUrl"
     >

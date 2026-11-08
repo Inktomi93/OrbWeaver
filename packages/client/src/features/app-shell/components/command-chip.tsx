@@ -34,7 +34,7 @@ export function CommandChip({ modalId, label, icon }: CommandChipProps): ReactNo
               // The DURABLE focus return for this modal: ModalHost reads it when a keyboard-opened palette
               // captured nobody (modal-host.tsx).
               data-modal-trigger={modalId}
-              aria-label={`Jump — the command menu (${shortcut})`}
+              aria-label={`Jump, the command menu (${shortcut})`}
               onClick={(): void => openModal(modalId)}
             >
               <Icon icon={icon} size="sm" />

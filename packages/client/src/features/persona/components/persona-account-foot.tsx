@@ -53,7 +53,7 @@ export function PersonaAccountFoot(): ReactElement {
             // still work); a successful one navigates away and the reset is moot.
             signOut().catch((): void => {
               setSigningOut(false);
-              notify.error("Couldn't sign out — try again.");
+              notify.error("Couldn't sign out. Try again.");
             });
           }}
         >
@@ -61,7 +61,7 @@ export function PersonaAccountFoot(): ReactElement {
         </Button>
       ) : (
         <Text voice="gloss">
-          {mode === "single-user" ? "Single-user mode — no session to sign out of." : "Sign out at your identity provider / reverse proxy."}
+          {mode === "single-user" ? "Single-user mode: no session to sign out of." : "Sign out at your identity provider / reverse proxy."}
         </Text>
       )}
     </Stack>

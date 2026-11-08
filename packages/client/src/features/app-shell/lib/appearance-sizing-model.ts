@@ -32,7 +32,7 @@ export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
       label: "Text size",
       keywords: ["font", "scale", "zoom"],
       teach: {
-        summary: "A global multiplier for all text (1 = default) — the whole app scales together.",
+        summary: "A global multiplier for all text (1 = default). The whole app scales together.",
         affects: ["every piece of text in the app"],
         related: [{ group: "appearance", sub: "reading-typography", setting: "body-scale" }],
       },

@@ -22,7 +22,7 @@ export function AutosaveStatus({ state, onRetry, retryable = true }: AutosaveSta
   if (state === "restored") {
     return (
       <Row gap="field" align="center" data-slot="autosave-status" role="status" aria-live="polite">
-        <Text voice="gloss">{AUTOSAVE_RESTORED_LEAD} — not saved</Text>
+        <Text voice="gloss">{AUTOSAVE_RESTORED_LEAD}, not saved</Text>
         <Button type="button" variant="ghost" size="sm" onClick={onRetry}>
           {AUTOSAVE_RESUME_NAME}
         </Button>
@@ -37,7 +37,7 @@ export function AutosaveStatus({ state, onRetry, retryable = true }: AutosaveSta
         <Icon tone="destructive" icon={TriangleAlert} size="sm" />
         <Text tone="destructive" voice="reading">
           {AUTOSAVE_SAVE_FAILED_TEXT}
-          {retryable ? " —" : ""}
+          {retryable ? "." : ""}
         </Text>
         {retryable ? (
           <Button type="button" variant="ghost" size="sm" onClick={onRetry}>
@@ -55,7 +55,7 @@ export function AutosaveStatus({ state, onRetry, retryable = true }: AutosaveSta
     // `StoredConfigUnreadableNotice` carries the REASON and the repair doors. This line is the STATE.
     return (
       <Text tone="destructive" aria-live="polite" data-slot="autosave-status" role="status" voice="gloss">
-        Can't save — this couldn't be read
+        Can't save. This couldn't be read
       </Text>
     );
   }

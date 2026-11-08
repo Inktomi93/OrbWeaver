@@ -8,6 +8,9 @@ export const roomIslandVariants = tv({
     grow: GROW,
     // A bounded column surface passes its allocated height to shrinkable content.
     layout: { stack: "flex flex-col" },
+    // An island whose card the room steps in to the transcript's rows at a narrow width gives that step up from its own padding, so
+    // what it holds keeps its place.
+    paddingInlineNarrow: { inset: "@max-cq-28:px-(--size-room-island-inset-narrow)" },
     // A card that holds a text field is the field's edge, so it wears the form-control edge token at rest and the ring
     // colour on hover and focus: D159 solves the ring above the edge and at 3:1 on the card, so every state holds the
     // floor. Focus adds a ring and hover yields to it, so focus is the strongest state however the pointer sits.

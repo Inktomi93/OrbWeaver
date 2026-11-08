@@ -89,7 +89,7 @@ export function BackgroundUploadField({ currentHash, onUploaded }: BackgroundUpl
       setPreviewHash(stored.hash);
       setSuccess(true);
     } catch {
-      setUploadError("Upload failed — try again.");
+      setUploadError("Upload failed. Try again.");
     } finally {
       setLoading(false);
     }

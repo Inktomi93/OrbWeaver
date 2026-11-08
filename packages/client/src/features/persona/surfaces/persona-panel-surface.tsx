@@ -175,7 +175,7 @@ function PanelTrigger({ current }: { readonly current: PersonaListItem | null })
 
 function headGloss(state: PlayingPersonaState): string {
   if (state.chat !== null) {
-    return state.playing === null ? "No persona set — pick one below." : "Playing as";
+    return state.playing === null ? "No persona set. Pick one below." : "Playing as";
   }
   return state.newChat?.source === "default" ? "New chats start as (your default)" : "New chats start as (last played)";
 }
@@ -192,11 +192,11 @@ function WhoHead({ state }: { readonly state: PlayingPersonaState }): ReactEleme
           {current === null ? <Icon icon={CircleUser} size="md" /> : initialsFor(current.name)}
         </Avatar>
         <Stack className="min-inline-0" grow={true}>
-          <Text truncate={true} voice="label">
-            {current?.name ?? "No persona set"}
-          </Text>
           <Text truncate={true} voice="gloss">
             {headGloss(state)}
+          </Text>
+          <Text truncate={true} voice="label">
+            {current?.name ?? "No persona set"}
           </Text>
         </Stack>
       </Row>

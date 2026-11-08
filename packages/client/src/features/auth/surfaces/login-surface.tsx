@@ -197,7 +197,7 @@ function LoginBody({
         <Stack gap="block">
           <Heading level={1}>Authentication happens at your proxy</Heading>
           <Text ink="muted" voice="gloss" prose={true}>
-            This deployment uses forward-auth — the reverse proxy should authenticate you and inject identity headers before a request reaches the app. Seeing
+            This deployment uses forward-auth. The reverse proxy should authenticate you and inject identity headers before a request reaches the app. Seeing
             this page means it didn't: check the proxy configuration (authentik/Authelia/oauth2-proxy) and the FORWARD_AUTH_TRUSTED_PROXIES allowlist.
           </Text>
         </Stack>
@@ -207,7 +207,7 @@ function LoginBody({
         <Stack gap="block">
           <Heading level={1}>Single-user mode</Heading>
           <Text ink="muted" voice="gloss" prose={true}>
-            No login needed — you're already in.
+            No login needed. You're already in.
           </Text>
           <Button onClick={onDone}>Back to the app</Button>
         </Stack>

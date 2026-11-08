@@ -43,7 +43,7 @@ export const SURFACE_TEXTURE_ITEMS: readonly SelectOption[] = [
 const BLUR_SURFACE_LABELS: Record<AppearanceSettings["blurSurfaces"][number], string> = {
   panels: "Side panels",
   composer: "Composer",
-  messages: "Messages (reading surface — use sparingly)",
+  messages: "Messages (reading surface, use sparingly)",
   modals: "Dialogs",
 };
 export const BLUR_SURFACE_ITEMS: readonly SelectOption[] = BLUR_SURFACES.map((value) => ({

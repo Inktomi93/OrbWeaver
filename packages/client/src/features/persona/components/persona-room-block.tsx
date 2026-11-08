@@ -159,6 +159,7 @@ function ChatRestamp({ chat, personas }: { readonly chat: ChatDetail; readonly p
       <Button
         aria-describedby={scopeId}
         disabled={chat.viewerActivePersonaId === null || reattribute.isPending}
+        justify="start"
         variant="ghost"
         onClick={onReattribute}
         size="sm"
@@ -167,7 +168,7 @@ function ChatRestamp({ chat, personas }: { readonly chat: ChatDetail; readonly p
         Restamp my messages to this persona
       </Button>
       <Text as="span" data-slot="restamp-scope" id={scopeId} voice="gloss">
-        Restamps every one of your own lines in this chat to "{personaLabel(chat, personas, chat.viewerActivePersonaId)}" — however far back they go. What you
+        Restamps every one of your own lines in this chat to "{personaLabel(chat, personas, chat.viewerActivePersonaId)}", however far back they go. What you
         wrote is untouched; replies keep the names they were written with.
       </Text>
     </Stack>

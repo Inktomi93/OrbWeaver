@@ -33,6 +33,7 @@ import { Composer } from "../components/composer.tsx";
 import { MessageSelectionBar } from "../components/message-selection-bar.tsx";
 import { FlankColumn, FlankEdge, InlineFlankFitProbe } from "../components/room-flank.tsx";
 import { flankReservation, useFlankPresentation } from "../hooks/use-flank-presentation.ts";
+import { useFlankReserve } from "../hooks/use-flank-reserve.ts";
 import { useFlankTrackFlip } from "../hooks/use-flank-track-flip.ts";
 import { useRoomEndWhileWriting } from "../hooks/use-room-end-while-writing.ts";
 import { resolveRoomTheme } from "../lib/attribution.ts";
@@ -101,6 +102,10 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
   const flankId = useId();
   const flankRowRef = useRef<HTMLDivElement>(null);
   useFlankTrackFlip(flankRowRef, flank.occupiesRow, flank.panelMode);
+  const threadRef = useRef<HTMLDivElement>(null);
+  const composerRegionRef = useRef<HTMLDivElement>(null);
+  // The row and the region mount with the body, a render after the surface.
+  useFlankReserve(flankRowRef, threadRef, composerRegionRef, !flank.panelMode && bodyMounted);
   const flankContributions = resolveRoomAnchor(surfaceContributors, "thread-flank", roomState);
   const aboveComposerContributions = resolveRoomAnchor(surfaceContributors, "above-composer", roomState);
   const composerActionContributions = resolveRoomAnchor(surfaceContributors, "composer-action", roomState);
@@ -118,6 +123,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
       paddingInlineEnd={flank.occupiesRow ? undefined : "clearance"}
       grow={true}
       data-slot="chat-room-thread"
+      ref={threadRef}
     >
       <MessageThreadAnchor>
         {/* P5 CYOA (§5.3): the thread's choice buttons send through the room's own send capability —
@@ -264,7 +270,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
               content width against the left edge of the pane while the two things it sits between centre.
               The writing region also keeps clear what the thread's box gives up on its inline end (the plugin
               column in the row, or the edge control's corner), so the thread's rows and the composer centre on one axis. */}
-                <RoomComposerAnchor reservation={flankReservation(flank)}>
+                <RoomComposerAnchor regionRef={composerRegionRef} reservation={flankReservation(flank)}>
                   {aboveComposerContributions.length === 0 ? null : (
                     // `empty:hidden` is the SILENT-CONTRIBUTOR collapse: a
                     // contribution that is mounted but currently paints nothing (the control band with no live

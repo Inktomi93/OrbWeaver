@@ -116,7 +116,7 @@ function unrenderableMessage(draft: string): string {
   // that long stops being a message. The clamp itself caps a real colour at 64 characters, so nothing
   // legitimate is ever elided.
   const shown = value.length > REFUSED_ECHO_MAX ? `${value.slice(0, REFUSED_ECHO_MAX)}…` : value;
-  return `"${shown}" isn't a color the browser can render — use a hex, rgb(), hsl(), oklch(), or a CSS color name.`;
+  return `"${shown}" isn't a color the browser can render. Use a hex, rgb(), hsl(), oklch(), or a CSS color name.`;
 }
 
 /**

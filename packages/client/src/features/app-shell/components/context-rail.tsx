@@ -15,7 +15,7 @@
 
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { ChevronLeft, ChevronRight, Crown, Ellipsis, Icon, Lock } from "@orb/ui/icons";
+import { ChevronDown, ChevronLeft, ChevronRight, Crown, Icon, Lock } from "@orb/ui/icons";
 import { IndicatorDot } from "@orb/ui/indicator-dot";
 import { Corner, Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuTrigger } from "@orb/ui/menu";
@@ -253,7 +253,7 @@ export function ContextHeaderTabs({
                   square={true}
                   type="button"
                 >
-                  <Icon icon={Ellipsis} size="sm" />
+                  <Icon icon={ChevronDown} size="sm" />
                 </Button>
               }
             />
@@ -349,7 +349,7 @@ function ContextCell({
       // THE LOCK IS IN THE NAME: Base UI emits `aria-disabled="false"` on this cell (it is genuinely not
       // disabled), so a glyph-only lock would be one AT could not perceive. The visible
       // caption stays the prefix of the accessible name (WCAG 2.5.3 Label-in-Name).
-      aria-label={locked ? `${tab.label} — locked` : tab.label}
+      aria-label={locked ? `${tab.label}, locked` : tab.label}
       data-crown={tab.crown}
       // NO `min-w-0` HERE, EVER: with the spacing scale registered in tailwind-merge a call-site `min-w-0` wins
       // outright and deletes the touch floor the primitive's `min-w-touch-target` carries.

@@ -40,7 +40,7 @@ const ROW_COPY: {
   "handoff-nominated": () => "You've been nominated to host a chat",
   "handoff-accepted": (p) => `Your chat is now hosted by ${p.newHostHandle}`,
   "deferred-turn-dropped": (p) =>
-    p.reason === "consent" ? "An AI reply couldn't run — the host hasn't allowed it" : "An AI reply couldn't run — that chat is no longer available",
+    p.reason === "consent" ? "An AI reply couldn't run. The host hasn't allowed it" : "An AI reply couldn't run. That chat is no longer available",
   "automation-notice": (p) => `Automation notice: ${p.message}`,
   // The crash policy turns a plugin off after repeated failures; the payload carries the id only.
   "plugin-disabled": (_p, pluginName) => `${pluginName ?? "A plugin"} was turned off after it kept failing`,
@@ -254,7 +254,7 @@ export function InboxRow({ item, ref, onAccepted, onRequestHandoff, acceptedHand
         ) : null}
         {disabledPluginName === undefined ? null : (
           <Button
-            aria-label={`Open Plugins — ${disabledPluginName}`}
+            aria-label={`Open Plugins, ${disabledPluginName}`}
             type="button"
             disabled={isPending}
             variant="outline"

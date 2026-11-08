@@ -4,7 +4,9 @@
 // reports its state with `aria-expanded`, and carries a tooltip with the same words.
 
 import { Button } from "@orb/ui/button";
+import type { LucideIcon } from "@orb/ui/icons";
 import { ArrowLeftFromLine, ArrowLeftToLine, ArrowRightFromLine, ArrowRightToLine, Icon } from "@orb/ui/icons";
+import { Row } from "@orb/ui/layout";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, Ref } from "react";
 
@@ -15,6 +17,8 @@ export interface PanelEdgeControlProps {
   readonly noun: string;
   /** Which edge of the screen the panel sits against. The glyph's bar is that edge: hide points into it, show out of it. */
   readonly edge: "start" | "end";
+  /** What the panel holds, drawn beside the arrow so this control reads apart from another edge control on the same side. */
+  readonly mark?: LucideIcon;
   /** The panel element this control shows and hides. */
   readonly controls?: string;
   readonly onToggle: () => void;
@@ -30,8 +34,9 @@ const GLYPHS = {
   start: { hide: ArrowLeftToLine, show: ArrowRightFromLine },
 } as const;
 
-export function PanelEdgeControl({ expanded, noun, edge, controls, onToggle, focusReturnMarker, ref }: PanelEdgeControlProps): ReactElement {
+export function PanelEdgeControl({ expanded, noun, edge, mark, controls, onToggle, focusReturnMarker, ref }: PanelEdgeControlProps): ReactElement {
   const label = `${expanded ? "Hide" : "Show"} ${noun}`;
+  const arrow = expanded ? GLYPHS[edge].hide : GLYPHS[edge].show;
   return (
     <Tooltip>
       <TooltipTrigger
@@ -50,7 +55,14 @@ export function PanelEdgeControl({ expanded, noun, edge, controls, onToggle, foc
             square={true}
             type="button"
           >
-            <Icon icon={expanded ? GLYPHS[edge].hide : GLYPHS[edge].show} size="sm" />
+            {mark === undefined ? (
+              <Icon icon={arrow} size="sm" />
+            ) : (
+              <Row align="center" gap="tight">
+                <Icon icon={mark} size="xs" />
+                <Icon icon={arrow} size="xs" />
+              </Row>
+            )}
           </Button>
         }
       />

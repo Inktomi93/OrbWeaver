@@ -33,6 +33,7 @@ export function ComposerDropTarget({ dragActive, dropTargetProps, children }: Co
       grow="content"
       className="relative isolate min-block-0"
       layout="stack"
+      paddingInlineNarrow="inset"
       ownSlot="composer"
       {...dropTargetProps}
       data-drag-over={dragActive ? "" : undefined}

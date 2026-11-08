@@ -18,7 +18,7 @@ export interface SectionPlaceholderProps {
 
 export function SectionPlaceholder({
   title,
-  description = "This surface isn't wired yet — it lands with its feature.",
+  description = "This surface isn't wired yet. It lands with its feature.",
   weave = false,
 }: SectionPlaceholderProps): ReactElement {
   if (weave) {

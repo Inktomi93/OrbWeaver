@@ -148,7 +148,7 @@ export function ImmersiveCard({
         {origin === "lenient" ? (
           <span className={slots.origin()} data-slot="immersive-card-origin">
             auto
-            <span className={slots.originNote()}> — rendered from raw HTML in the message</span>
+            <span className={slots.originNote()}>, rendered from raw HTML in the message</span>
           </span>
         ) : null}
         {/* View-raw acts on the inline BODY, so it is inapplicable while the card is collapsed to its title

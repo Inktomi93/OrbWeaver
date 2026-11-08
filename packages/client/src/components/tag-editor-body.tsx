@@ -268,7 +268,7 @@ function TagBehaviorControls({ form }: { readonly form: AutosaveSession<TagEdito
       <form.AppField name="folderType">
         {(field): ReactElement => (
           <Field
-            description="In the library's grouped view, an Open folder starts expanded and a Plain tag starts collapsed behind its name and count. Closed folders (hidden until you enter them) aren't built yet — they behave like Plain."
+            description="In the library's grouped view, an Open folder starts expanded and a Plain tag starts collapsed behind its name and count. Closed folders (hidden until you enter them) aren't built yet. They behave like Plain."
             label="Folder type"
             name="tag-folder-type"
           >
