@@ -19,12 +19,17 @@ import { jsonValueSchema } from "@orb/kit/json";
 import { generateSQLiteDrizzleJson, generateSQLiteMigration } from "drizzle-kit/api";
 import { sql } from "drizzle-orm";
 
+// The diff depends only on the schema module, so a worker generates it once and every freshDb applies it.
+let liveSchemaStatements: Promise<string[]> | undefined;
+
+async function generateLiveSchema(): Promise<string[]> {
+  return await generateSQLiteMigration(await generateSQLiteDrizzleJson({}), await generateSQLiteDrizzleJson(schema));
+}
+
 /** Diff the live schema against empty and apply the CREATE statements (see the header). */
 async function pushLiveSchema(db: Db): Promise<void> {
-  const empty = await generateSQLiteDrizzleJson({});
-  const current = await generateSQLiteDrizzleJson(schema);
-  const statements = await generateSQLiteMigration(empty, current);
-  for (const statement of statements) {
+  liveSchemaStatements ??= generateLiveSchema();
+  for (const statement of await liveSchemaStatements) {
     await db.run(sql.raw(statement));
   }
 }

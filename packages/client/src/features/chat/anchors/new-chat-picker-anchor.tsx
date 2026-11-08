@@ -12,7 +12,7 @@ export interface NewChatPickerAnchorProps {
 /** Provide the container box the new-chat picker consumes. */
 export function NewChatPickerAnchor({ children }: NewChatPickerAnchorProps): ReactElement {
   return (
-    <Stack container={true} grow="content" minHeight="shrinks">
+    <Stack container={true} grow="onLandscape" minHeight="holdsPickerOnLandscape">
       {children}
     </Stack>
   );

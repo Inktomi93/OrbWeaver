@@ -33,8 +33,9 @@ import { createOwnedResponseBody } from "./response-body.ts";
 // non-safeFetch egress (provider calls, OIDC).
 //
 // DECLARED-INTENT AUTO-ALLOW, in TWO classes, both operator intent and neither ever attacker input:
-//   (1) the env belt — `EGRESS_ALLOWLIST` plus the OIDC issuer and `FORWARD_AUTH_JWKS` URL hosts, read from the options' env record once per
-//       egress (`shouldBlockEgress`). HOST-keyed, ANY PORT. Unchanged.
+//   (1) the env belt — `EGRESS_ALLOWLIST` plus the OIDC issuer and `FORWARD_AUTH_JWKS` URLs, read from the options' env record once per
+//       egress (`shouldBlockEgress`). HOST-keyed: a bare entry admits every port, a `host:port` entry only its port, and the
+//       two identity URLs only their own port, so naming a LAN identity provider never opens its other ports.
 //   (2) the deployment's private-endpoint allowlist (`publishPrivateEndpointAllowlist`, the second block
 //       further down — inference program F12). Hosts, CIDRs, and OPTIONALLY host:PORT.
 // Without one of them a bare private-range block SSRF-refuses the box's own loopback inference backend,
@@ -106,11 +107,19 @@ function literalHost(hostname: string): string | null {
   return parseIp(bare) === null ? null : bare;
 }
 
-function shouldBlockEgress(address: string, hostname: string, allowlist: ReadonlySet<string>, ranges: readonly string[]): boolean {
-  if (!isInRanges(address, ranges)) {
+/** The env belt: exact host keys a private address is admitted for. `null` admits every port; a set admits only its ports. */
+type EnvAllowlist = ReadonlyMap<string, ReadonlySet<number> | null>;
+
+function envBeltAdmits(allowlist: EnvAllowlist, hostname: string, port: number | null): boolean {
+  const ports = allowlist.get(unbracket(hostname).toLowerCase());
+  return ports === null || (ports !== undefined && port !== null && ports.has(port));
+}
+
+function shouldBlockEgress(address: string, target: Omit<ConnectJudgment, "declared">): boolean {
+  if (!isInRanges(address, target.ranges)) {
     return false;
   }
-  return !allowlist.has(hostname.toLowerCase());
+  return !envBeltAdmits(target.allowlist, target.hostname, target.port);
 }
 
 // ── THE PRIVATE-ENDPOINT ALLOWLIST — deployment-declared intent (inference program F12) ─────────────────
@@ -187,8 +196,8 @@ interface EgressContext {
   readonly firewall: boolean;
   /** The private set this egress refuses: the built-in ranges plus `TRUSTED_PRIVATE_RANGES`. */
   readonly privateRanges: readonly string[];
-  /** The env belt's declared hosts (`envEgressAllowlist`). */
-  readonly envAllowlist: ReadonlySet<string>;
+  /** The env belt's declared hosts and their ports (`envEgressAllowlist`). */
+  readonly envAllowlist: EnvAllowlist;
   privateEndpointAllowlist: PrivateEndpointAllowlist;
   firewallAgent: Agent | undefined;
   readonly firewallLookup: LookupFunction;
@@ -587,11 +596,12 @@ export function installEgressFirewall(options: ScopedEgressOptions): void {
     return;
   }
   const allowlist = replaceFirewallAgentFor(createEgressContext(options, true));
-  getLog(options.log).info({ allowlist: [...allowlist] }, "security: egress firewall installed (private egress blocked)");
+  const entries = [...allowlist].flatMap(([host, ports]) => (ports === null ? [host] : [...ports].map((port) => `${host}:${String(port)}`)));
+  getLog(options.log).info({ allowlist: entries }, "security: egress firewall installed (private egress blocked)");
 }
 
 // Replacing before teardown prevents the next request from bypassing the guard on an already-admitted socket.
-function replaceFirewallAgentFor(context: EgressContext): ReadonlySet<string> {
+function replaceFirewallAgentFor(context: EgressContext): EnvAllowlist {
   const previous = context.firewallAgent;
   const { connect, allowlist } = createFirewallConnectFor(context);
   context.firewallAgent = new Agent({ connect });
@@ -603,29 +613,55 @@ function replaceFirewallAgentFor(context: EgressContext): ReadonlySet<string> {
   return allowlist;
 }
 
-/** The env belt's host set: `EGRESS_ALLOWLIST` plus the OIDC issuer and `FORWARD_AUTH_JWKS` URL hosts. One read per
- *  egress for the connect gate and the write-time admission, so the two cannot disagree about a declared host. */
-function envEgressAllowlist(record: Pick<Env, "EGRESS_ALLOWLIST" | "FORWARD_AUTH_JWKS" | "OIDC_ISSUER">): ReadonlySet<string> {
-  const allowlist = new Set(
-    (record.EGRESS_ALLOWLIST ?? "")
-      .split(",")
-      .map((h) => h.trim().toLowerCase())
-      .filter((h) => h.length > 0),
-  );
-  // Always allow the OIDC issuer host (LAN/private IP) — otherwise enabling the firewall breaks oidc mode.
-  if (record.OIDC_ISSUER !== undefined) {
-    // a malformed OIDC_ISSUER URL is simply NOT added to the egress allowlist — the restrictive direction that never widens egress; env refinement already rejects a malformed issuer in oidc mode, so this only fires harmlessly in non-oidc mode. Ends if the allowlist ever becomes a denylist.
-    try {
-      allowlist.add(new URL(record.OIDC_ISSUER).hostname.toLowerCase());
-    } catch {
-      // malformed issuer — env refinement would have caught it in oidc mode
+/** The env belt: `EGRESS_ALLOWLIST` plus the OIDC issuer and `FORWARD_AUTH_JWKS` URLs. One read per egress for the
+ *  connect gate and the write-time admission, so the two cannot disagree about a declared host. */
+function envEgressAllowlist(record: Pick<Env, "EGRESS_ALLOWLIST" | "FORWARD_AUTH_JWKS" | "OIDC_ISSUER">): EnvAllowlist {
+  const allowlist = operatorEgressAllowlist(record.EGRESS_ALLOWLIST);
+  // SECURITY: an identity URL admits its own host at its own port only. A member's endpoint write is judged against
+  // this belt, so admitting the host at every port would hand any member every port on the identity provider's box.
+  for (const url of identityUrls(record)) {
+    const host = unbracket(url.hostname).toLowerCase();
+    const port = effectiveHttpPort(url.protocol, url.port);
+    const held = allowlist.get(host);
+    // An operator's bare entry for this host keeps every port; the identity URL never narrows it.
+    if (held !== null && port !== null) {
+      allowlist.set(host, new Set([...(held ?? []), port]));
     }
   }
-  // A self-hosted identity provider sits on the LAN, and the operator named this host, as with the OIDC issuer.
-  if (record.FORWARD_AUTH_JWKS?.kind === "url") {
-    allowlist.add(record.FORWARD_AUTH_JWKS.url.hostname.toLowerCase());
+  return allowlist;
+}
+
+/** `EGRESS_ALLOWLIST`: a bare host admits every port, `host:port` only that port. */
+function operatorEgressAllowlist(raw: string | undefined): Map<string, ReadonlySet<number> | null> {
+  const scoped = new Map<string, Set<number>>();
+  const bare = new Set<string>();
+  for (const entry of (raw ?? "").split(",")) {
+    // An unreadable port refuses the entry, as in the private-endpoint allowlist: it admits nothing.
+    const split = splitEntryPort(entry.trim().toLowerCase());
+    if (split === null || split.subject === "") {
+      continue;
+    }
+    if (split.port === null) {
+      bare.add(split.subject);
+    } else {
+      scoped.set(split.subject, (scoped.get(split.subject) ?? new Set()).add(split.port));
+    }
+  }
+  // The narrower spelling is the host's last word, the precedence the private-endpoint allowlist rules.
+  const allowlist = new Map<string, ReadonlySet<number> | null>(scoped);
+  for (const host of bare) {
+    if (!allowlist.has(host)) {
+      allowlist.set(host, null);
+    }
   }
   return allowlist;
+}
+
+// The identity provider URLs the server itself dials: OIDC discovery and the forward-header key set. A malformed
+// OIDC_ISSUER is left out, the direction that never widens egress; env refinement refuses one in oidc mode.
+function identityUrls(record: Pick<Env, "FORWARD_AUTH_JWKS" | "OIDC_ISSUER">): readonly URL[] {
+  const issuer = record.OIDC_ISSUER === undefined ? null : URL.parse(record.OIDC_ISSUER);
+  return [...(issuer === null ? [] : [issuer]), ...(record.FORWARD_AUTH_JWKS?.kind === "url" ? [record.FORWARD_AUTH_JWKS.url] : [])];
 }
 
 function createFirewallLookupFor(context: EgressContext, judgment: ConnectJudgment): LookupFunction {
@@ -659,7 +695,7 @@ function createFirewallLookupFor(context: EgressContext, judgment: ConnectJudgme
 }
 
 /** The global firewall's connect function, over the env belt and the published allowlist read live. */
-function createFirewallConnectFor(context: EgressContext): { readonly connect: buildConnector.connector; readonly allowlist: ReadonlySet<string> } {
+function createFirewallConnectFor(context: EgressContext): { readonly connect: buildConnector.connector; readonly allowlist: EnvAllowlist } {
   const ranges = context.privateRanges;
   const allowlist = context.envAllowlist;
 
@@ -690,7 +726,10 @@ function createFirewallConnectFor(context: EgressContext): { readonly connect: b
       return;
     }
     const literal = literalHost(options.hostname);
-    if (literal !== null && shouldBlockEgress(literal, options.hostname, allowlist, ranges)) {
+    if (
+      literal !== null &&
+      shouldBlockEgress(literal, { hostname: options.hostname, port: effectiveHttpPort(options.protocol, options.port), allowlist, ranges })
+    ) {
       securityEvent("egress_blocked", { hostname: options.hostname, address: literal }, "security: egress SSRF blocked (private literal address)", context.log);
       callback(new Error(`SSRF_BLOCKED: ${options.hostname} → ${literal}`), null);
       return;
@@ -704,7 +743,7 @@ interface ConnectJudgment {
   readonly hostname: string;
   readonly declared: boolean;
   readonly port: number | null;
-  readonly allowlist: ReadonlySet<string>;
+  readonly allowlist: EnvAllowlist;
   readonly ranges: readonly string[];
 }
 
@@ -712,7 +751,7 @@ function refusedResolvedEndpoint(context: EgressContext, address: string, judgme
   if (judgment.declared) {
     return isInRanges(address, NEVER_ADMISSIBLE_RANGES);
   }
-  if (!shouldBlockEgress(address, judgment.hostname, judgment.allowlist, judgment.ranges)) {
+  if (!shouldBlockEgress(address, judgment)) {
     return false;
   }
   const ports = context.privateEndpointAllowlist.hostPorts.get(unbracket(judgment.hostname).toLowerCase());
@@ -733,7 +772,7 @@ async function configuredEndpointPin(context: EgressContext, url: URL): Promise<
   const allowlist = context.envAllowlist;
   const ranges = context.privateRanges;
   const declared = admittedByAllowlistFor(context, host, port);
-  if (!declared && literal !== null && shouldBlockEgress(literal, host, allowlist, ranges)) {
+  if (!declared && literal !== null && shouldBlockEgress(literal, { hostname: host, port, allowlist, ranges })) {
     blockEgress(context.log, { reason: "private-address", host, detail: `host ${host} is a private endpoint this deployment does not admit` });
   }
   const addresses = literal === null ? await context.resolver(host) : [literal];

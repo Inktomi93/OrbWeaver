@@ -111,14 +111,13 @@ catalog:
   # jscpd: copy-paste detection (CI gate, threshold 5%) — config jscpd.json.
   jscpd: ^5.4.2
   # stryker: mutation testing for one lane's named files (`pnpm test:mutation <file...>`); D333 keeps it a tool, never a gate.
-  # All four move together, exact. patches/@stryker-mutator__core@<version>.patch is keyed to the version: it points
+  # The Stryker pins move together, exact. patches/@stryker-mutator__core@<version>.patch is keyed to the version: it points
   # workspace links at the instrumented sandbox copies and copies the store for permissioned children, and it fences the
   # node_modules walk off lane worktrees. A bump that misses it reads as a clean run over unmutated code, so it owes the
   # planted control in D333. The tests/tooling/stryker-sandbox-*.int.test.ts suites pin the installed patch.
-  # The checker runs its classic path on the TS6 `typescript` above, over one world's tsconfig chosen per run.
+  # The checker is tooling/src/mutation-checker on `@typescript/native`, over one world's tsconfig chosen per run.
   "@stryker-mutator/core": 10.1.1
   "@stryker-mutator/vitest-runner": 10.1.1
-  "@stryker-mutator/typescript-checker": 10.1.1
   "@stryker-mutator/api": 10.1.1
   # The parser Stryker's instrumenter pins, so the ARID test reads the AST the mutator sees. Moves with the pins above.
   "@babel/parser": 8.0.10
@@ -342,6 +341,10 @@ catalog:
   # babel for oxc, so the compiler runs as a @rolldown/plugin-babel preset that MUST precede react().
   babel-plugin-react-compiler: ^1.0.0
   "@rolldown/plugin-babel": ^0.2.4
+  # The plugin's `@babel/core` peer, declared so pnpm never floats it onto the 8.x line that Stryker brings: under
+  # Babel 8 the compiler skips every component with a destructured default parameter, silently.
+  # tests/client/react-compiler-contract.test.ts compiles such a component through the installed pair.
+  "@babel/core": ^7.29.0
   # --- client data/forms/state (the Phase-6 client-foundation wave — UI-Primitives-and-Reuse.md §13.1
   #     primitives; versions per the UI-Lib-* mines' verified baselines, caret-adopted) ---
   "@tanstack/react-query": ^5.104.5

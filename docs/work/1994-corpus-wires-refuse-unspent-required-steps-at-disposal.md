@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-11-07
+status: doing
+updated: 2026-11-08
 priority: P3
 area: testing
+lane: wt/agent-a05d401fe0a7ad9c7
 plan: test-foundation
 ---
 

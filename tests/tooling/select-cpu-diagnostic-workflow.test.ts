@@ -85,7 +85,7 @@ test("E2E startup dispatch is bounded, immutable and retains failed global setup
       expect(guard(upload?.if ?? "false", { cancelled: () => canceled, failure: () => failure })).toBe(!canceled);
     }
   }
-  expect(upload?.uses).toBe("actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a");
+  expect(upload?.uses).toBe("actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9");
   // biome-ignore lint/suspicious/noTemplateCurlyInString: The fixture asserts literal template-source bytes, not interpolation in this test.
   expect(upload?.with).toEqual({ name: "reports-e2e-startup-diagnostic-${{ matrix.project }}", path: "reports/\ntest-results/\n", "retention-days": 7 });
   expect(job.steps.some((step) => step.name?.includes("ORB_CI_QUALIFICATION_GENERATION") === true)).toBe(false);

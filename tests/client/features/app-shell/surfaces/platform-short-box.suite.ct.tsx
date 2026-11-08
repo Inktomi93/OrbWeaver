@@ -8,7 +8,7 @@ import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
 import { CHAT_SAVED_ROSTER_DOOR_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import type { AppShellModalStory } from "./_app-shell-stories.tsx";
-import { SHELL_STORIES } from "./app-shell-ct.ts";
+import { expectLandscapeRegime, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellModalStory`;
 const LIST = "[cmdk-list]";
@@ -17,6 +17,8 @@ const COMMAND_ROOT = '[data-slot="command-root"]';
 const ACTIONS = '[data-slot="new-chat-actions"]';
 const RESERVED = "[data-reserve-key]";
 const GEOMETRY_EPSILON = 1;
+/** Upload, Paste and Link. */
+const ADD_DOCUMENT_ARMS = 3;
 /** "Several": the window shows this many whole rows before the dialog asks anything of the reader. */
 const SEVERAL_ROWS = 3;
 
@@ -85,6 +87,7 @@ test.describe("coarse landscape", () => {
     const dialog = page.getByRole("dialog");
     await expect(dialog.locator(ROW).first()).toBeVisible();
     await expect(dialog.getByRole("button", { name: CHAT_SAVED_ROSTER_DOOR_NAME, exact: true }).first()).toBeAttached();
+    await expectLandscapeRegime(dialog, "New chat", true);
     const found = await geometry(page);
     await test.info().attach("short-picker-geometry", { body: JSON.stringify(found), contentType: "application/json" });
     // The library is longer than the window, so the list has something to scroll: the absence below is not vacuous.
@@ -106,6 +109,7 @@ test.describe("coarse small landscape, stacked", () => {
     await mount<typeof AppShellModalStory>(STORY, { modalId: "newChat" });
     const dialog = page.getByRole("dialog");
     await expect(dialog.locator(ROW).first()).toBeVisible();
+    await expectLandscapeRegime(dialog, "New chat", true);
     const door = dialog.getByRole("button", { name: CHAT_SAVED_ROSTER_DOOR_NAME, exact: true });
     await expect(door).toHaveCount(1);
     await expect(door).toBeVisible();
@@ -116,6 +120,37 @@ test.describe("coarse small landscape, stacked", () => {
     );
   });
 });
+
+for (const viewport of [
+  { width: 844, height: 390 },
+  { width: 568, height: 320 },
+] as const) {
+  test.describe(`Add document at ${String(viewport.width)}x${String(viewport.height)}`, () => {
+    test.use({ viewport, hasTouch: true, isMobile: true });
+
+    test("every arm is one scroller: its dialog body, with nothing nested inside", async ({ corpus, mount, page }) => {
+      await using root = await createCorpusHarness();
+      const caller = await root.internalCallerFor(root.ownerId);
+      await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, SECTION_PROCEDURES) });
+      await seedShellState(page, { activeSection: "chats" });
+      await mount<typeof AppShellModalStory>(STORY, { modalId: "addDocument" });
+      const dialog = page.getByRole("dialog");
+      await expect(dialog.locator("button[aria-pressed]").first()).toBeVisible();
+      // The mode strip is the row of pressable modes directly above the region the arms swap through.
+      const modes = await dialog.locator("button[aria-pressed]").evaluateAll((buttons) => {
+        const strip = buttons.at(-1)?.parentElement;
+        return buttons.filter((button) => button.parentElement === strip).map((button) => button.textContent);
+      });
+      expect(modes).toHaveLength(ADD_DOCUMENT_ARMS);
+      for (const label of modes) {
+        await dialog.getByRole("button", { name: label, exact: true }).click();
+        await expect(dialog.getByRole("button", { name: label, exact: true })).toHaveAttribute("aria-pressed", "true");
+        // A scroller counts only with something to scroll, so exactly one is the body doing its job and nothing nested in it.
+        expect(await scrollersOf(page)).toHaveLength(1);
+      }
+    });
+  });
+}
 
 for (const regime of [
   { name: "coarse portrait", viewport: { width: 390, height: 844 }, coarse: true },
@@ -132,6 +167,7 @@ for (const regime of [
       await mount<typeof AppShellModalStory>(STORY, { modalId: "newChat" });
       const dialog = page.getByRole("dialog");
       await expect(dialog.locator(ROW).first()).toBeVisible();
+      await expectLandscapeRegime(dialog, "New chat", false);
       const found = await geometry(page);
       const window = await resolvedLength(page, `var(${TOKENS["height.picker-window"].cssVar})`, dialog);
       expect(found.list.scroll).toBeGreaterThan(found.list.client + GEOMETRY_EPSILON);
