@@ -14,6 +14,7 @@ export interface SurfaceFlowInput {
   readonly info: TestInfo;
   readonly client: TrpcClient;
   readonly pass: SurfacePass;
+  readonly layoutStability: boolean;
   readonly requestedPanes: SurfacePaneRequest;
   readonly run: SurfaceRunConfig;
   readonly chatStyle: ThemeChatStyle;
@@ -64,7 +65,7 @@ export function createSurfaceFlow(input: SurfaceFlowInput): SurfaceFlow {
   return {
     ...input,
     checkpoint: async (request, groups = []): Promise<void> => {
-      await surfaceCheckpoint(input.info, request, groups, input.pass);
+      await surfaceCheckpoint(input.info, request, groups, { pass: input.pass, layoutStability: input.layoutStability });
       expect(await input.page.evaluate(() => "__orb" in globalThis), "The ready production client must not install the development agent bridge").toBe(false);
       await topology();
     },

@@ -1,11 +1,12 @@
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
-import type { Locator, TestInfo } from "@playwright/test";
+import type { Locator, TestInfo, TestStepInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { SurfacePass } from "../iso/surface-pass.ts";
 import { attachNativeFile } from "../node/native-attachments.ts";
 import type { SurfaceAuditRequest } from "../node/surface-audit.ts";
 import { accessibilityScan } from "./accessibility-scan.ts";
 import { actionGroupGeometry } from "./action-group-geometry.ts";
+import { readCheckpointStability } from "./layout-stability.ts";
 import { assertSurfaceReady, auditSurface } from "./settle-surface.ts";
 import { readSurfaceDesignAudit } from "./surface-design-audit.ts";
 import { publishSurfaceInventory } from "./surface-inventory.ts";
@@ -17,16 +18,25 @@ export interface SurfaceActionGroup {
   readonly actions: readonly Locator[];
 }
 
+export interface SurfaceCheckpointPosture {
+  readonly pass: SurfacePass;
+  /** Sample the witnesses across the post-ready settle window; only the layout-stability matrix pays its cost. */
+  readonly layoutStability: boolean;
+}
+
 /** Collect native evidence only after the checkpoint's declared subject has actually rendered. */
 export async function surfaceCheckpoint(
   info: TestInfo,
   request: SurfaceAuditRequest,
   groups: readonly SurfaceActionGroup[] = [],
-  pass: SurfacePass = "evidence",
+  { pass, layoutStability }: SurfaceCheckpointPosture = { pass: "evidence", layoutStability: false },
 ): Promise<void> {
   await test.step(`Checkpoint: ${request.name}`, async (step) => {
     const page = request.scope.page();
     await assertCheckpointReady(info, request);
+    if (layoutStability) {
+      await checkpointStability(info, step, request);
+    }
     const vitals = await readWebVitals(page, pass === "evidence");
     await attachNativeFile(info, step, `${request.name}-web-vitals`, { body: JSON.stringify(vitals, null, 2), contentType: "application/json" });
     step.annotations.push({
@@ -132,6 +142,26 @@ export async function surfaceCheckpoint(
       }
     });
   });
+}
+
+async function checkpointStability(info: TestInfo, step: TestStepInfo, request: SurfaceAuditRequest): Promise<void> {
+  const stability = await readCheckpointStability(request.witnesses);
+  await attachNativeFile(info, step, `${request.name}-layout-stability`, { body: JSON.stringify(stability, null, 2), contentType: "application/json" });
+  const native =
+    stability.nativeLayoutShift.status === "measured"
+      ? `native layout-shift entries=${String(stability.nativeLayoutShift.entries.length)}`
+      : `native layout-shift ${stability.nativeLayoutShift.status}`;
+  step.annotations.push({
+    type: "layout-stability",
+    description: `${stability.measure} (not CLS): ${stability.status}; window=${String(stability.windowMs)}ms; frames=${String(stability.frames)}; movements=${String(stability.movements.length)}; unexpected=${String(stability.unexpected)}; ${native}`,
+  });
+  expect.soft(stability.incomplete, `${request.name}: a witness left the document inside the post-ready settle window`).toBeNull();
+  expect
+    .soft(
+      stability.movements.filter(({ animated }) => !animated),
+      `${request.name}: checkpoint witnesses moved after readiness with no running animation; inspect the layout-stability attachment`,
+    )
+    .toEqual([]);
 }
 
 async function assertCheckpointReady(info: TestInfo, request: SurfaceAuditRequest): Promise<void> {

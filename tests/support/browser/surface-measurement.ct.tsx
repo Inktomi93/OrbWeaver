@@ -13,6 +13,7 @@ import {
   readSurfaceDesignAudit,
   readWebVitals,
   surfaceAction,
+  surfaceCheckpoint,
   touchTargetFindings,
   webVitalsInitScript,
 } from "@orb/testkit/browser/spec";
@@ -21,13 +22,16 @@ import { SURFACE_HTTP_ANNOTATION, SURFACE_PASSES } from "@orb/testkit/iso";
 import { webVitalsSource } from "@orb/testkit/node/helpers";
 import { readBrowserAcceleration } from "@orb/tooling/floor/browser/browser-acceleration";
 import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
-import type { TestInfo } from "@playwright/test";
+import type { Page, PlaywrightTestArgs, TestInfo } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { present } from "../iso/non-empty.ts";
+import { nonEmpty, present } from "../iso/non-empty.ts";
 import { attachNativeFile } from "../node/native-attachments.ts";
+import type { CheckpointStability } from "./layout-stability.ts";
+import { readCheckpointStability, STABILITY_SETTLE_MS } from "./layout-stability.ts";
 import type { SerializedPerformanceEntry } from "./performance-entry.ts";
-import type { SurfaceDesignStory, SurfaceTouchTilingStory } from "./surface-design-fixtures.tsx";
+import type { SurfaceCodeEditorStory, SurfaceDesignStory, SurfaceTouchTilingStory } from "./surface-design-fixtures.tsx";
 import type { SurfaceFrameworkStory } from "./surface-framework-fixtures.tsx";
+import type { SurfaceStabilityStory } from "./surface-stability-fixtures.tsx";
 import { hitExtent, touchFloorPx } from "./touch-floor.ts";
 
 test.use({ reuseContext: false });
@@ -40,6 +44,8 @@ const DOCUMENT =
 const HTTP_FAILURE_PATH = "/surface-http-failure";
 const HTTP_EXPECTED_PATH = "/surface-http-expected";
 const HTTP_CANCEL_PATH = "/surface-http-cancel";
+// style-mod prefixes every generated scope class with U+037C, so a scope class is never an ASCII identifier.
+const CODEMIRROR_SCOPE_MARK = "ͼ";
 
 const httpTest = test.extend<{ readonly httpOrigin: string }>({
   httpOrigin: async ({}, provide): Promise<void> => {
@@ -289,6 +295,40 @@ test("CSS token hygiene retains dead and empty findings, a healthy twin, and unr
   expect(incomplete.unreadable[0]?.href).toBe(stylesheet);
   expect(present(incomplete.unreadable[0]).error).not.toBe("");
   expect(incomplete.readableSheets).toBeLessThan(incomplete.sheets);
+});
+
+test("CSS token hygiene reads CodeMirror's mounted scope classes and still fails planted dead tokens", async ({ mount, page }, info) => {
+  const { scanDeadCss } = await import("@orb/tooling/snap");
+  await mount<typeof SurfaceCodeEditorStory>("tests/support/browser/surface-design-fixtures/SurfaceCodeEditorStory");
+  const editor = page.getByRole("textbox", { name: "Stylesheet control", exact: true });
+  await expect(editor).toBeVisible();
+  // The cause control: CodeMirror's rules sit in a readable document <style>, not in adopted sheets the scan skips.
+  const mounted = await page.evaluate((scopeMark) => {
+    const scoped = [...document.styleSheets].filter(
+      (sheet) =>
+        sheet.ownerNode instanceof HTMLStyleElement &&
+        [...sheet.cssRules].some((rule) => rule instanceof CSSStyleRule && rule.selectorText.includes(scopeMark)),
+    );
+    return { adopted: document.adoptedStyleSheets.length, scopedSheets: scoped.length };
+  }, CODEMIRROR_SCOPE_MARK);
+  expect(mounted).toEqual({ adopted: 0, scopedSheets: 1 });
+  const healthy = await scanDeadCss(page, false);
+  await attachNativeFile(info, info, "css-token-codemirror", { body: JSON.stringify({ mounted, healthy }, null, 2), contentType: "application/json" });
+  expect(healthy.unreadable).toEqual([]);
+  expect(healthy.dead).toEqual([]);
+  const definedScope = `${CODEMIRROR_SCOPE_MARK}live`;
+  const deadScope = `${CODEMIRROR_SCOPE_MARK}dead`;
+  await page.addStyleTag({ content: `.${definedScope} { color: black }` });
+  await page.locator(".cm-editor").evaluate((root, tokens) => root.classList.add(...tokens), [definedScope, deadScope, "never-defined"]);
+  const planted = await scanDeadCss(page, false);
+  await attachNativeFile(info, info, "css-token-codemirror-planted", { body: JSON.stringify(planted, null, 2), contentType: "application/json" });
+  expect(planted.dead).toHaveLength(2);
+  expect(planted.dead).toEqual(
+    expect.arrayContaining([
+      { token: deadScope, count: 1 },
+      { token: "never-defined", count: 1 },
+    ]),
+  );
 });
 
 test("production density variants conform to their own tokens and off-token overrides remain defects", async ({ mount, page }, info) => {
@@ -566,6 +606,52 @@ test("a browser without layout-shift support reports unsupported rather than zer
   const snapshot = await readWebVitals(page);
   test.skip(snapshot.supportedEntryTypes.includes("layout-shift"), "This browser version supports layout-shift; it cannot prove the unsupported branch");
   expect(snapshot.metrics.find(({ name }) => name === "CLS")).toEqual({ name: "CLS", status: "unsupported" });
+});
+
+async function stabilityCheckpoint(
+  page: Page,
+  info: TestInfo,
+  mount: PlaywrightTestArgs["mount"],
+  shift: "still" | "late-notice",
+): Promise<{ readonly stability: CheckpointStability; readonly layoutShiftSupported: boolean }> {
+  await page.addInitScript({ content: webVitalsInitScript(await webVitalsSource()) });
+  await mount<typeof SurfaceStabilityStory>("tests/support/browser/surface-stability-fixtures/SurfaceStabilityStory", { shift });
+  const witness = page.getByRole("button", { name: "Ready witness", exact: true });
+  const name = `stability-${shift}`;
+  await surfaceCheckpoint(info, { name, scope: page.getByRole("main"), state: "loaded", witnesses: [witness], checks: ["names"] }, [], {
+    pass: "measurement",
+    layoutStability: true,
+  });
+  expect(await nativeAttachmentText(info, `${name}-layout-stability`)).toContain('"measure": "post-ready-witness-movement"');
+  // A second window over the same story reads the record as values; the checkpoint above carried the native verdict.
+  const stability = await readCheckpointStability([witness]);
+  expect(stability).toMatchObject({ measure: "post-ready-witness-movement", status: "measured", incomplete: null, windowMs: STABILITY_SETTLE_MS });
+  expect(stability.settledAt - stability.readyAt).toBeGreaterThanOrEqual(STABILITY_SETTLE_MS);
+  expect(stability.frames).toBeGreaterThan(1);
+  return { stability, layoutShiftSupported: (await readWebVitals(page)).supportedEntryTypes.includes("layout-shift") };
+}
+
+test("post-ready witness movement passes a still witness and keeps native layout-shift support separate", async ({ mount, page }, info) => {
+  const { stability, layoutShiftSupported } = await stabilityCheckpoint(page, info, mount, "still");
+  expect(stability.movements).toEqual([]);
+  expect(stability.nativeLayoutShift).toEqual(
+    layoutShiftSupported ? { status: "measured", entries: [] } : { status: "unsupported", reason: expect.any(String) },
+  );
+  expect(info.errors).toEqual([]);
+});
+
+test("post-ready witness movement fails a witness a late notice keeps moving, on every engine", async ({ mount, page }, info) => {
+  const { stability, layoutShiftSupported } = await stabilityCheckpoint(page, info, mount, "late-notice");
+  expect(stability.unexpected).toBeGreaterThan(0);
+  expect(nonEmpty(stability.movements).every(({ at }) => at >= 0 && at <= stability.settledAt - stability.readyAt)).toBe(true);
+  expect(stability.nativeLayoutShift).toEqual(
+    layoutShiftSupported
+      ? { status: "measured", entries: expect.arrayContaining([expect.objectContaining({ kind: "layout-shift", hadRecentInput: false })]) }
+      : { status: "unsupported", reason: expect.any(String) },
+  );
+  expect(info.errors).toHaveLength(1);
+  expect(info.errors[0]?.message).toContain("moved after readiness");
+  test.fail(true, "Witness movement inside the post-ready settle window must fail the native checkpoint");
 });
 
 test("lifecycle drain waits for a real pending browser binding without claiming finalization", async ({ page }) => {

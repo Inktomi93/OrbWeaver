@@ -39,6 +39,7 @@ export const test = base.extend<SurfaceWalkOptions & SurfaceWalkFixtures, Surfac
     { scope: "worker" },
   ],
   surfacePass: [SURFACE_PASSES[0], { option: true }],
+  layoutStability: [false, { option: true }],
   requestedPanes: [{ kind: "desktop", panes: { list: true, context: true } }, { option: true }],
   chatStyle: [defaults.chatStyle, { option: true }],
   fontScale: [defaults.fontScale, { option: true }],
@@ -53,12 +54,12 @@ export const test = base.extend<SurfaceWalkOptions & SurfaceWalkFixtures, Surfac
     expect({ userId: viewer.userId, handle: viewer.handle }).toEqual(run.owner);
     await use(client);
   },
-  flow: async ({ page, client, requestedPanes, run, chatStyle, fontScale, surfacePass, runIds }, use, info) => {
-    await use(createSurfaceFlow({ page, client, requestedPanes, run, chatStyle, fontScale, info, pass: surfacePass, ids: runIds }));
+  flow: async ({ page, client, requestedPanes, run, chatStyle, fontScale, surfacePass, layoutStability, runIds }, use, info) => {
+    await use(createSurfaceFlow({ page, client, requestedPanes, run, chatStyle, fontScale, info, pass: surfacePass, layoutStability, ids: runIds }));
   },
-  context: async ({ context, run, surfacePass, trace, screenshot, video }, use, info) => {
+  context: async ({ context, run, surfacePass, layoutStability, trace, screenshot, video }, use, info) => {
     const posture = { pass: surfacePass, trace, screenshot, video };
-    await attachNativeFile(info, info, "artifact-posture", { body: JSON.stringify(posture, null, 2), contentType: "application/json" });
+    await attachNativeFile(info, info, "artifact-posture", { body: JSON.stringify({ ...posture, layoutStability }, null, 2), contentType: "application/json" });
     const artifacts = surfaceArtifactModes(posture);
     if (run.authentication.mode === "local") {
       const subject = run.authentication.subjects.find(({ viewer }) => viewer.userId === run.owner.userId);

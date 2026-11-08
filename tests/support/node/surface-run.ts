@@ -39,6 +39,8 @@ export const surfaceRunConfigSchema = z.object({
 /** Native configuration inputs remain Node-safe; browser drivers consume the same options. */
 export interface SurfaceWalkOptions {
   readonly surfacePass: SurfacePass;
+  /** The layout-stability matrix samples each checkpoint's witnesses across a post-ready settle window. */
+  readonly layoutStability: boolean;
   readonly requestedPanes: SurfacePaneRequest;
   readonly chatStyle: ThemeChatStyle;
   readonly fontScale: number;

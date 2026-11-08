@@ -64,6 +64,25 @@ const paneProjects = [
   ),
 ];
 
+// The layout-stability matrix: the same journeys on Chromium and WebKit, desktop and phone, in the measurement posture.
+const STABILITY_PANE_PROJECTS = new Set(["desktop-1440-all-panes", "chromium-phone-portrait", "webkit-phone-portrait"]);
+const stabilityProjects = [
+  ...paneProjects.filter(({ name }) => STABILITY_PANE_PROJECTS.has(name)),
+  {
+    name: "webkit-desktop-1440-all-panes",
+    use: {
+      ...devices["Desktop Safari"],
+      launchOptions: nativeBrowserLaunchOptions("webkit"),
+      viewport: { width: DESKTOP_WIDTHS.regular, height: 1000 },
+      requestedPanes: { kind: "desktop" as const, panes: { list: true, context: true } },
+    },
+  },
+];
+
+function excludedJourneys(project: { readonly name: string; readonly grepInvert?: RegExp }): RegExp {
+  return new RegExp([project.grepInvert?.source, SURFACE_BOOT_DIAGNOSTIC_TITLE].filter((source) => source !== undefined).join("|"));
+}
+
 export default defineConfig<SurfaceWalkOptions>({
   testDir: "tests/e2e",
   testMatch: ["**/corpus-surface-walk.spec.ts"],
@@ -114,12 +133,16 @@ export default defineConfig<SurfaceWalkOptions>({
       SURFACE_PASSES.map((surfacePass) => ({
         ...project,
         name: `${project.name}-${surfacePass}`,
-        grepInvert: new RegExp(
-          ["grepInvert" in project ? project.grepInvert.source : undefined, SURFACE_BOOT_DIAGNOSTIC_TITLE].filter((source) => source !== undefined).join("|"),
-        ),
-        use: { ...project.use, surfacePass, ...ARTIFACT_OPTIONS[surfacePass] },
+        grepInvert: excludedJourneys(project),
+        use: { ...project.use, surfacePass, layoutStability: false, ...ARTIFACT_OPTIONS[surfacePass] },
       })),
     ),
+    ...stabilityProjects.map((project) => ({
+      ...project,
+      name: `${project.name}-stability`,
+      grepInvert: excludedJourneys(project),
+      use: { ...project.use, surfacePass: "measurement" as const, layoutStability: true, ...ARTIFACT_OPTIONS.measurement },
+    })),
     {
       name: "chromium-boot-diagnostic",
       grep: new RegExp(SURFACE_BOOT_DIAGNOSTIC_TITLE),
