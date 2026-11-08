@@ -17,6 +17,7 @@ const LIST = '.shell-panel[data-panel-side="list"]';
 const CONTEXT = '.shell-panel[data-panel-side="context"]';
 const PHONE = { width: 390, height: 844 } as const;
 const NARROWEST = { width: 320, height: 800 } as const;
+const WARM_MARK = "warmEditorMark";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
@@ -176,7 +177,7 @@ test.describe("the You sheet", () => {
 test.describe("the You sheet on a short phone", () => {
   test.use({ hasTouch: true, viewport: { width: 360, height: 560 } });
 
-  test("rows below the fold are reachable by touch scrolling, and the last one closes the sheet", async ({ mount, page }) => {
+  test("rows below the fold are reachable by touch scrolling", async ({ mount, page }) => {
     await mount<typeof AppShellStory>(STORY, {});
     await youTab(page).click();
     const drawer = sheet(page);
@@ -340,12 +341,15 @@ test.describe("one shell at the narrowest phone", () => {
     await openFirstCharacter(page);
     const name = page.getByRole("main").getByRole("textbox", { name: "Name", exact: true });
     await expect(name).toBeVisible();
+    // An expando on the editor's own node: a remount builds a new node and the mark is gone.
+    await name.evaluate((node, mark) => Reflect.set(node, mark, true), WARM_MARK);
     const tabBar = page.locator(".shell-rail");
     await tabBar.getByRole("button", { name: SECTION_LABELS.home, exact: true }).click();
     await expect(name).toBeHidden();
     const characters = tabBar.getByRole("button", { name: SECTION_LABELS.characters, exact: true });
     await characters.click();
     await expect(name).toBeVisible();
+    expect(await name.evaluate((node, mark) => Reflect.get(node, mark) === true, WARM_MARK)).toBe(true);
     await expect(characters).toBeFocused();
   });
 });

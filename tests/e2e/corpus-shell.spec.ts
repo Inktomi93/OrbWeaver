@@ -471,12 +471,15 @@ test.describe("committed corpus shell", () => {
     await expect(rail(page)).toBeVisible();
     await expect(page.locator(".shell-topbar")).toBeVisible();
     await expect(page.getByRole("status", { name: "Loading", exact: true })).toHaveCount(0);
+    // The list region is the one that waits: it holds its pending status while the read is held.
+    await expect(listPanel(page).getByRole("status", { name: /^Loading/u })).toBeVisible();
     await held.release();
     const first = sessions[0];
     if (first === undefined) {
       throw new Error("Corpus has no refinery session");
     }
     await expect(listPanel(page).getByText(first.characterName, { exact: true }).first()).toBeVisible();
+    await expect(listPanel(page).getByRole("status", { name: /^Loading/u })).toHaveCount(0);
   });
 
   test("a desktop Settings roster stays docked beside CONTENT with no Back row", { tag: "@smoke" }, async ({ page, isMobile }) => {

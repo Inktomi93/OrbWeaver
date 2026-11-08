@@ -40,6 +40,9 @@ export const ASSET_UPLOAD_MAX_BYTES = ASSET_UPLOAD_MIB * BYTES_PER_MIB;
  *  also the store's `maxBytes` belt on the CAS write. */
 export const DATABANK_UPLOAD_MAX_BYTES = DATABANK_UPLOAD_MIB * BYTES_PER_MIB;
 
+/** The databank multipart upload route: the server registers it and the client posts the picked file to it. */
+export const DATABANK_UPLOAD_ROUTE = "/api/databank/upload";
+
 // ── The import family (a portability bundle / bare card → /api/import + the bundle runner) ─────────────
 /** The per-request cap for an import the server holds IN MEMORY (256 MiB): a bare card, a chat file, a
  *  card-lorebook restore. A larger body is refused before it is buffered. A backup ZIP is disk-staged and
