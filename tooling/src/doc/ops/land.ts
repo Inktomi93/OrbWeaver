@@ -4,17 +4,18 @@
 // holds what the file held — each item's title, evidence and What text. An item another item or a parked
 // plan waits on is released in the same landing: its `on <id>` blocker names a file that is about to be
 // gone. An item a doc still refers to refuses, so a landing never leaves a dead link.
-// All-or-nothing: any refusal writes, stages and commits nothing. A staging or commit step that fails after
-// the files are written leaves them written and says so, with the by-hand command.
-import { rmSync } from "node:fs";
+// All-or-nothing: any refusal writes, stages and commits nothing. A held index lock refuses before any write,
+// and a staging or commit step that fails after the write puts every written file back.
+import { existsSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { DocEdit, WorkItem } from "../contract/types.ts";
 import { DOC_TOOL_TREES, PARKED } from "../contract/vocab.ts";
 import { closesTrailer } from "../lib/drift.ts";
 import { sectionText, splitDocument, withFields } from "../lib/frontmatter-write.ts";
+import { isGeneratedPath } from "../lib/indexes.ts";
 import type { LandingRecord, StagedLanding } from "../lib/items.ts";
-import { commitRefusal, landingMessage, parseBlocker, stagedLanding } from "../lib/items.ts";
+import { landingMessage, parseBlocker, stagedLanding } from "../lib/items.ts";
 import { basenameOf, parseNumberedName } from "../lib/names.ts";
 import { loadPlans } from "./board.ts";
 import { introducedDocProblems } from "./check.ts";
@@ -26,7 +27,9 @@ import {
   commitOnMain,
   commitPaths,
   formattedDoc,
+  governedPaths,
   headCommit,
+  heldIndexLock,
   isMainBranch,
   landedCommit,
   mergedCommits,
@@ -48,10 +51,14 @@ export interface LandOutcome extends WriteOutcome {
   readonly staged?: StagedLanding;
 }
 
+/** Each path a landing may write, with its bytes before the write; null for a path that did not exist. */
+type PriorFiles = ReadonlyMap<string, string | null>;
+
 interface WrittenLanding {
   readonly outcome: LandOutcome;
   /** One record per item the landing deleted; empty when nothing was written. */
   readonly records: readonly LandingRecord[];
+  readonly prior: PriorFiles;
 }
 
 const SHORT_SHA = 12;
@@ -84,10 +91,45 @@ function record(item: WorkItem, evidence: string | null, repoRoot: string): Land
   return { id: item.id, title: item.title, what: sectionText(body, WHAT), evidence: item.state === "done" ? (item.evidence ?? evidence) : evidence };
 }
 
+/** The bytes of every path the landing can write: the item files, the released docs and the generated files.
+ *  A generated file the regeneration creates is absent here, so putting it back deletes it. */
+function priorFiles(paths: readonly string[], repoRoot: string): PriorFiles {
+  const candidates = [...paths, ...governedPaths(repoRoot).filter(isGeneratedPath)];
+  return new Map(candidates.map((path) => [path, readDoc(path, repoRoot).source] as const));
+}
+
+/** Put every path the landing wrote back to its bytes before the write. */
+function putBack(written: readonly string[], prior: PriorFiles, repoRoot: string): void {
+  for (const path of written) {
+    const source = prior.get(path) ?? null;
+    const abs = join(repoRoot, path);
+    if (source !== null) {
+      writeFileSync(abs, source);
+    } else if (existsSync(abs)) {
+      rmSync(abs);
+    }
+  }
+}
+
+/** The outcome of a landing whose stage or commit step failed after the write: nothing stays written. */
+function unwound(landing: WrittenLanding, repoRoot: string, refusal: string): LandOutcome {
+  putBack(landing.outcome.written, landing.prior, repoRoot);
+  return { written: [], refusals: [`${refusal}. Nothing changed: the item files and indexes are as they were`], skipped: [] };
+}
+
 /** The shared half of every landing: resolve the ids, refuse what must not land, then write the releases,
  *  delete the item files and regenerate the indexes. `evidence` is null when the caller stages and has no
- *  commit yet. Commits and stages nothing — that is the caller's step. */
+ *  commit yet. Commits and stages nothing — that is the caller's step; `prior` lets it put the files back. */
 function writeLanding(ids: readonly number[], evidence: string | null, repoRoot: string, date: string): WrittenLanding {
+  const nothing = new Map<string, string | null>();
+  const lock = heldIndexLock(repoRoot);
+  if (lock !== null) {
+    return {
+      outcome: { written: [], refusals: [`git's index is locked (${lock} exists) — another git process holds it; nothing was written`], skipped: [] },
+      records: [],
+      prior: nothing,
+    };
+  }
   const items = loadItems(repoRoot);
   const byId = new Map(items.map((item) => [item.id, item] as const));
   const stagedDeletions = stagedWorkDeletions(repoRoot);
@@ -112,17 +154,18 @@ function writeLanding(ids: readonly number[], evidence: string | null, repoRoot:
   const paths = targets.map((item) => item.path);
   refusals.push(...textCiters(paths, repoRoot));
   if (refusals.length > 0) {
-    return { outcome: { written: [], refusals, skipped: [] }, records: [] };
+    return { outcome: { written: [], refusals, skipped: [] }, records: [], prior: nothing };
   }
   if (targets.length === 0) {
-    return { outcome: { written: [], refusals: [], skipped }, records: [] };
+    return { outcome: { written: [], refusals: [], skipped }, records: [], prior: nothing };
   }
   const released = releases(new Set(targets.map((item) => item.id)), items, repoRoot, date);
   const problems = introducedDocProblems(released, repoRoot);
   if (problems.length > 0) {
-    return { outcome: { written: [], refusals: problems, skipped: [] }, records: [] };
+    return { outcome: { written: [], refusals: problems, skipped: [] }, records: [], prior: nothing };
   }
   const records = targets.map((item) => record(item, evidence, repoRoot));
+  const prior = priorFiles([...paths, ...released.map(({ doc }) => doc.path)], repoRoot);
   for (const { doc } of released) {
     writeDoc(doc.path, doc.source, repoRoot);
   }
@@ -130,7 +173,7 @@ function writeLanding(ids: readonly number[], evidence: string | null, repoRoot:
     rmSync(join(repoRoot, path));
   }
   const written = [...paths, ...released.map(({ doc }) => doc.path), ...regenerateIndexes(repoRoot)];
-  return { outcome: { written, refusals: [], skipped }, records };
+  return { outcome: { written, refusals: [], skipped }, records, prior };
 }
 
 /** Land items: prove the evidence is on `main`, delete the item files, release their dependents,
@@ -140,13 +183,22 @@ export function landItems(ids: readonly number[], evidence: string, repoRoot = r
   if (!commitOnMain(evidence, repoRoot)) {
     return { written: [], refusals: [`${evidence}: not a commit reachable from main — land names the merge or the landed commit itself`], skipped: [] };
   }
-  const { outcome, records } = writeLanding(ids, evidence, repoRoot, date);
-  if (records.length === 0) {
-    return outcome;
+  const landing = writeLanding(ids, evidence, repoRoot, date);
+  if (landing.records.length === 0) {
+    return landing.outcome;
   }
-  const message = landingMessage(records, TOOL_TRAILER);
-  const commit = commitPaths(outcome.written, message, repoRoot);
-  return commit.ok ? outcome : { ...outcome, refusals: [commitRefusal("landing", commit.reason, message)] };
+  const commit = commitPaths(landing.outcome.written, landingMessage(landing.records, TOOL_TRAILER), repoRoot);
+  if (commit.ok) {
+    return landing.outcome;
+  }
+  // HEAD holds the landing under someone else's commit: putting the files back would stage their re-add.
+  if ("stranded" in commit) {
+    return {
+      ...landing.outcome,
+      refusals: [`the landing commit failed after it reached history — ${commit.reason}. Read git log and git status before landing again`],
+    };
+  }
+  return unwound(landing, repoRoot, `the landing commit failed — ${commit.reason}`);
 }
 
 /** Land items without a commit: the same resolution, refusals, releases and deletions as {@link landItems},
@@ -155,16 +207,13 @@ export function landItems(ids: readonly number[], evidence: string, repoRoot = r
  *  final files, and `staged` holds the record and `Closes:` line for that commit's message. Works on any
  *  branch and during an in-progress merge. */
 export function landStaged(ids: readonly number[], repoRoot = root, date = today()): LandOutcome {
-  const { outcome, records } = writeLanding(ids, null, repoRoot, date);
-  if (records.length === 0) {
-    return outcome;
+  const landing = writeLanding(ids, null, repoRoot, date);
+  if (landing.records.length === 0) {
+    return landing.outcome;
   }
-  const staged = stagePaths(outcome.written, repoRoot);
-  if (!staged.ok) {
-    const byHand = `git update-index --add --remove -- ${outcome.written.join(" ")}`;
-    return { ...outcome, refusals: [`staging failed — ${staged.reason}. The files are written; stage them by hand with: ${byHand}`] };
-  }
-  return { ...outcome, staged: stagedLanding(records) };
+  // One update-index call: git writes the whole index or none of it, so a failure leaves the index as it was.
+  const staged = stagePaths(landing.outcome.written, repoRoot);
+  return staged.ok ? { ...landing.outcome, staged: stagedLanding(landing.records) } : unwound(landing, repoRoot, `staging failed — ${staged.reason}`);
 }
 
 /** The refusals for ids whose every closing commit's own tree lacks today's file for the id. */

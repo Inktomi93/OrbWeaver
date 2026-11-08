@@ -1,7 +1,7 @@
 // The landing door from inside git's own merge hook: `land --merged` runs while `MERGE_HEAD` still
 // exists, which is the state a porcelain pathspec commit refuses, and a refused landing names git's reason.
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { pathToFileURL } from "node:url";
@@ -79,22 +79,107 @@ test("land --merged commits from INSIDE a real post-merge hook, while git's MERG
   expect(git(root, "status", "--porcelain")).toBe("");
 });
 
-test("a landing whose commit git refuses prints git's own message, and the files stay written for the by-hand commit", { timeout: GIT_ARM_TIMEOUT_MS }, async ({
+/** The checkout as git sees it: HEAD, the staged and unstaged state, and the bytes of every work file. */
+function treeState(root: string): string {
+  const work = git(root, "ls-files", "--others", "--cached", "--", "docs/work/")
+    .split("\n")
+    .filter((path) => path !== "" && existsSync(join(root, path)))
+    .map((path) => `${path}\n${readFileSync(join(root, path), "utf8")}`);
+  return [git(root, "rev-parse", "HEAD"), git(root, "status", "--porcelain"), git(root, "diff", "--cached", "--name-status"), ...work].join("\n---\n");
+}
+
+test("a landing whose commit git refuses prints git's own message and puts every file back", { timeout: GIT_ARM_TIMEOUT_MS }, async ({ plantedTree }) => {
+  const root = await repoWithItem(plantedTree);
+  const head = git(root, "rev-parse", "HEAD");
+  const before = treeState(root);
+  // A stale ref lock is git's own refusal shape: the commit object is written, the ref update is not.
+  const refLock = join(root, ".git", "refs", "heads", "main.lock");
+  writeFileSync(refLock, "");
+  const outcome = landItems([1], head, root, TODAY);
+  expect(outcome.written).toEqual([]);
+  expect(outcome.refusals).toHaveLength(1);
+  expect(outcome.refusals[0]).toContain("the landing commit failed");
+  expect(outcome.refusals[0]).toContain("cannot lock ref");
+  expect(treeState(root)).toBe(before);
+  // Positive control: the same landing goes through once the lock is gone, so the refusal above reached the commit.
+  rmSync(refLock);
+  expect(landItems([1], head, root, TODAY).refusals).toEqual([]);
+  expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(false);
+});
+
+test("a landing refused for a doc that still cites the item changes nothing", { timeout: GIT_ARM_TIMEOUT_MS }, async ({ plantedTree }) => {
+  const root = await repoWithItem(plantedTree);
+  newItem(written({ title: "C", kind: "work", priority: null, area: null, plan: null, lane: null, content: { what: "After [A](0001-a.md)." } }), root, TODAY);
+  const head = commitAll(root, "chore(work): c");
+  const before = treeState(root);
+  const outcome = landItems([1], head, root, TODAY);
+  expect(outcome.written).toEqual([]);
+  expect(outcome.refusals).toEqual(["docs/work/0002-c.md: refers to docs/work/0001-a.md — remove the reference first"]);
+  expect(treeState(root)).toBe(before);
+});
+
+/** A `reference-transaction` hook that, once the landing's ref update commits, locks the index so the checkout's
+ *  index cannot follow, then lands a concurrent commit on HEAD before the landing can undo its own. */
+function plantConcurrentCommit(root: string, scratch: string): void {
+  const hooksDir = join(scratch, "race-hooks");
+  mkdirSync(hooksDir, { recursive: true });
+  const marker = join(scratch, "race-fired");
+  writeFileSync(
+    join(hooksDir, "reference-transaction"),
+    [
+      "#!/bin/sh",
+      `[ "$1" = committed ] || exit 0`,
+      `[ -e "${marker}" ] && exit 0`,
+      `touch "${marker}"`,
+      "read -r old new ref",
+      `touch "$(git rev-parse --git-path index.lock)"`,
+      `concurrent=$(git commit-tree "$new^{tree}" -p "$new" -m "feat(x): concurrent")`,
+      `git update-ref HEAD "$concurrent"`,
+      "",
+    ].join("\n"),
+    { mode: 0o755 },
+  );
+  git(root, "config", "--local", "core.hooksPath", hooksDir);
+}
+
+test("a landing whose undo loses a race to a concurrent commit says HEAD moved, names both commits, and leaves the files written", {
+  timeout: GIT_ARM_TIMEOUT_MS,
+}, async ({ plantedTree, scratch }) => {
+  const root = await repoWithItem(plantedTree);
+  const head = git(root, "rev-parse", "HEAD");
+  plantConcurrentCommit(root, scratch);
+  const outcome = landItems([1], head, root, TODAY);
+  rmSync(join(root, ".git", "index.lock"));
+  const concurrent = git(root, "rev-parse", "HEAD");
+  const landing = git(root, "rev-parse", "HEAD^");
+  expect(git(root, "log", "-1", "--format=%s", landing)).toBe("chore(work): land 1");
+  expect(git(root, "rev-parse", `${landing}^`)).toBe(head);
+  expect(outcome.refusals).toHaveLength(1);
+  expect(outcome.refusals[0]).toContain("HEAD moved");
+  expect(outcome.refusals[0]).toContain(landing);
+  expect(outcome.refusals[0]).toContain(concurrent);
+  expect(outcome.refusals[0]).not.toContain("Nothing changed");
+  // HEAD holds the landing, so its deletion stays on disk: putting the file back would read as a re-add.
+  expect(outcome.written).toContain("docs/work/0001-a.md");
+  expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(false);
+});
+
+test("a landing under a held index lock refuses before any write, and HEAD, index and files stay as they were", { timeout: GIT_ARM_TIMEOUT_MS }, async ({
   plantedTree,
 }) => {
   const root = await repoWithItem(plantedTree);
   const head = git(root, "rev-parse", "HEAD");
-  // A stale ref lock is git's own refusal shape: the commit object is written, the ref update is not.
-  writeFileSync(join(root, ".git", "refs", "heads", "main.lock"), "");
+  const before = treeState(root);
+  const indexLock = join(root, ".git", "index.lock");
+  writeFileSync(indexLock, "");
   const outcome = landItems([1], head, root, TODAY);
-  expect(outcome.written).toContain("docs/work/0001-a.md");
+  expect(outcome.written).toEqual([]);
   expect(outcome.refusals).toHaveLength(1);
-  expect(outcome.refusals[0]).toContain("the landing commit failed");
-  expect(outcome.refusals[0]).toContain("cannot lock ref");
-  expect(git(root, "rev-parse", "HEAD")).toBe(head);
-  // The landing's deletion and the regenerated index are on disk for the by-hand commit, and git sees both as pending work.
-  expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(false);
-  expect(git(root, "diff", "--name-only").split("\n")).toEqual(["docs/work/0001-a.md", "docs/work/README.md"]);
+  expect(outcome.refusals[0]).toContain("index.lock");
+  rmSync(indexLock);
+  expect(treeState(root)).toBe(before);
+  expect(landItems([1], head, root, TODAY).refusals).toEqual([]);
+  expect(git(root, "status", "--porcelain")).toBe("");
 });
 
 // A landed id is a name forever: commit subjects (`land 1`), `Closes:` trailers and `landedCommit` all key

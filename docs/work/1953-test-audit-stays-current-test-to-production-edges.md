@@ -24,4 +24,6 @@ Both queries work on current main, a changed production file marks its cases sta
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+The edge table and both queries are built; the model benchmark is not run. `pnpm test-audit build --audit=<index.sqlite>` reads the audit's current case records, keeps each `path:line` or `path:start-end` citation of a production file the record's revision holds, and fills a case with no citation from CodeGraph's direct callees of its test file. `pnpm test-audit proves <path>[:<line>]` and `pnpm test-audit touches <test-path>` answer the two directions, and each edge is judged at query time: stale when its test file changed since the record's revision, or when a `git diff -U0` hunk touches its production range. On current main, a one-line change inside a cited range of `packages/kit/src/binding/index.ts` turned exactly the case citing that range stale and left its sibling case current.
+
+`pnpm test-audit bench` measures the only reader that runs here: CodeGraph's direct callees name `8.6%` of the production files the trace cites, at `36.7%` precision. That makes CodeGraph a gap fill, not a stand-in for a reading. No Sonnet or Qwen reading ran: no local engine was up, a lane may not spawn a Sonnet reader, and OpenRouter credit is reserved. The benchmark still needs those readers scored with the same agreement measure.

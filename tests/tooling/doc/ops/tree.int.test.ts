@@ -67,6 +67,19 @@ test("a hook's exported GIT_DIR and GIT_INDEX_FILE never redirect the commit int
   expect(git(foreign, "status", "--porcelain"), "the foreign repository's index must not change").toBe("");
 });
 
+test("an index git cannot update after the ref moved puts HEAD back, so the failure leaves HEAD and index as they were", async ({ plantedTree }) => {
+  const root = await repo(plantedTree);
+  const head = git(root, "rev-parse", "HEAD");
+  writeFileSync(join(root, "README.md"), "# changed\n");
+  // The commit runs on a temporary index, so only its last step, the checkout's own index, meets this lock.
+  writeFileSync(join(root, ".git", "index.lock"), "");
+  const outcome = commitPaths(["README.md"], `chore(work): land\n\n${TRAILER}`, root);
+  expect(outcome.ok).toBe(false);
+  expect(!outcome.ok && outcome.reason).toContain("update-index failed");
+  expect(git(root, "rev-parse", "HEAD")).toBe(head);
+  expect(git(root, "status", "--porcelain")).toBe("M README.md");
+});
+
 test("a ref git cannot move answers with git's own words, and HEAD stays put", async ({ plantedTree }) => {
   const root = await repo(plantedTree);
   const head = git(root, "rev-parse", "HEAD");
