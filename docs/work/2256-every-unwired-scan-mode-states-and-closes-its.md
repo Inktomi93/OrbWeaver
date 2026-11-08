@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-After the fields boundary fix, check each pnpm unwired mode (fields, params, unions, shapes, ports) for the same class of blind spot: a planted use the mode cannot see, a cross-world or cross-boundary read, a re-export or wrapper, a dynamic key, a string-addressed lookup. Each mode gets planted-case fixtures for its reads and its true dead cases, and its output states what it cannot see, as the ui-facts report does.
+After the fields boundary fix, check each pnpm unwired mode (fields, params, unions, shapes, ports) for the same class of blind spot: a use the mode cannot see, a cross-world or cross-boundary read, a re-export or wrapper, a dynamic key, a string-addressed lookup. Each mode's output states what it cannot see, as the ui-facts report does.
 
 ## Why
 
@@ -19,7 +19,7 @@ One mode counting a wire send as dead was found by sampling; the other modes hav
 
 ## Done when
 
-Each mode has fixtures that plant every read shape it claims and a true dead case, a cross-check run against an independent method on main with the differences explained, and a printed limits section; any new detection lands with its fixture, and the regenerated tables are committed.
+Each mode is cross-checked on main against an independent method with a positive control, every difference explained, its output prints a limits section, any new detection lands with that cross-check recorded in Evidence, and the regenerated tables are committed. Fixtures only where a few fast in-process cases pin a shape the real tree lacks.
 
 ## Evidence
 
