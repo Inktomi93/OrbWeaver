@@ -109,7 +109,7 @@ function overriddenCapabilitySource(leaf: FactLeaf, baseline: Capability, values
   if (typeof values.declared === "number" && typeof values.folded === "number" && values.folded > values.declared) {
     return RAISED_OVERRIDE_SOURCE(formatLeaf(leaf, values.declared), grouped(values.folded), priorText);
   }
-  return `your override — it was ${priorText}`;
+  return `your override: it was ${priorText}`;
 }
 
 /** One stated leaf's row. A declared value is never a floor guess, so only an un-overridden row can read assumed. */

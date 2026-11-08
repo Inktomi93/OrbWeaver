@@ -1195,7 +1195,7 @@ async function presetDrills(journey: Journey, body: Locator, prefix: string): Pr
   for (let index = 0; index < count; index += 1) {
     const trigger = controls.nth(index);
     const id = `${prefix}/drill-${String(index)}`;
-    const drill = body.getByRole("region", { name: / — (?:section|template) editor$/u });
+    const drill = body.getByRole("region", { name: /: (?:section|template) editor$/u });
     await journey.action(id, {
       action: async () => {
         await trigger.click();
@@ -1513,7 +1513,7 @@ async function presetSectionCommands(run: PresetCommandRun): Promise<void> {
       },
       ready: async () => {
         await expect.poll(async () => (await journey.client.preset.get.query({ id: presetId })).config.sections.length).toBe(before.length + 1);
-        await ready(body.getByRole("region", { name: / — section editor$/u }));
+        await ready(body.getByRole("region", { name: /: section editor$/u }));
       },
     });
     const added = (await journey.client.preset.get.query({ id: presetId })).config.sections.filter(
@@ -1524,7 +1524,7 @@ async function presetSectionCommands(run: PresetCommandRun): Promise<void> {
     if (section === undefined) {
       throw new Error("Native Add left no new section identity");
     }
-    const drill = body.getByRole("region", { name: `${section.name} — section editor`, exact: true });
+    const drill = body.getByRole("region", { name: `${section.name}: section editor`, exact: true });
     await expect(drill).toBeVisible();
     if (section.type === "literal") {
       literalId = section.id;
@@ -1549,7 +1549,7 @@ async function presetSectionCommands(run: PresetCommandRun): Promise<void> {
     const trigger = body.getByRole("button", { name: `Edit ${section.name}`, exact: true });
     await expect(trigger).toHaveCount(1);
     await trigger.click();
-    const drill = body.getByRole("region", { name: / — section editor$/u });
+    const drill = body.getByRole("region", { name: /: section editor$/u });
     await expect(drill).toHaveCount(1);
     const uniqueName = `Surface section ${journey.ids.uuid()}`;
     await drill.getByRole("textbox", { name: PRESET_SECTION_NAME_FIELD_NAME, exact: true }).fill(uniqueName);
@@ -2336,7 +2336,7 @@ async function refineryCopy(
       expect(result.dropped).toEqual([]);
     },
     ready: async () => {
-      await expect(content(journey)).toContainText("The live card is untouched — no snapshot was needed, nothing existing was written.");
+      await expect(content(journey)).toContainText("The live card is untouched. No snapshot was needed, nothing existing was written.");
     },
   });
   const copied = custody.character;
@@ -2361,7 +2361,7 @@ async function refineryApply(journey: Journey, sessionId: RefinerySessionId, cha
       expect(result.dropped).toEqual([]);
     },
     ready: async () => {
-      await expect(content(journey)).toContainText("Saved a snapshot first — undo it from the character's History tab.");
+      await expect(content(journey)).toContainText("Saved a snapshot first. Undo it from the character's History tab.");
       await expect.poll(async () => (await journey.client.character.get.query({ characterId })).description).toBe(description);
     },
   });

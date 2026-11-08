@@ -107,7 +107,7 @@ function importedBookMessage({
     return WORLD_INFO_DUPLICATE_BOOK_NOTICE;
   }
   if (renamedFrom !== null) {
-    return `Imported as “${name ?? renamedFrom}” — you already have a different “${renamedFrom}”.`;
+    return `Imported as “${name ?? renamedFrom}”: you already have a different “${renamedFrom}”.`;
   }
   return "Book imported.";
 }

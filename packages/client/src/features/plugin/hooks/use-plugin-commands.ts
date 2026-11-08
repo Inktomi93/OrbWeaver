@@ -68,7 +68,7 @@ export function useSharedPluginNames(): ReadonlySet<string> {
 
 /** What a failed resolve tells the person. Written HERE, module-private, so the slash line and the palette say
  *  the same sentence — the runner below is the ONE place either surface can reach it. */
-const PLUGIN_COMMAND_UNKNOWN = "No plugin command by that name — open Jump to… to see what you have.";
+const PLUGIN_COMMAND_UNKNOWN = "No plugin command by that name. Open Jump to… to see what you have.";
 
 /** The ONE runner: resolve `(slug, name)` against the caller's own commands, invoke it, apply the host-mediated
  *  outcome. An unresolved pair is a house toast, never a silent no-op — a slash line that vanishes teaches a

@@ -10,7 +10,7 @@ import { createEntityMutation } from "#data";
 export const useStartWorkload = createEntityMutation<inferInput<Trpc["workloads"]["start"]>, unknown>({
   options: (trpc) => trpc.workloads.start.mutationOptions(),
   invalidates: (trpc) => [trpc.workloads.list.pathFilter()],
-  errorToast: "Couldn't start the workload — a run of that kind may already be active.",
+  errorToast: "Couldn't start the workload. A run of that kind may already be active.",
 });
 
 /** Request a stop on an active row (`queued`/`running` → `cancelling` → `cancelled`). */
@@ -24,7 +24,7 @@ export const useCancelWorkload = createEntityMutation<inferInput<Trpc["workloads
 export const useRetryWorkload = createEntityMutation<inferInput<Trpc["workloads"]["retry"]>, unknown>({
   options: (trpc) => trpc.workloads.retry.mutationOptions(),
   invalidates: (trpc) => [trpc.workloads.list.pathFilter()],
-  errorToast: "Couldn't retry the workload — a run of that kind may already be active.",
+  errorToast: "Couldn't retry the workload. A run of that kind may already be active.",
 });
 
 /** Create a recurring schedule. */

@@ -39,7 +39,7 @@ function RosterLibraryRow({
       actions={{
         name: roster.name,
         onDelete,
-        deleteDescription: "This removes the saved roster only — chats you started from it are untouched.",
+        deleteDescription: "This removes the saved roster only. Chats you started from it are untouched.",
       }}
       onSelect={onSelect}
       selected={selected}

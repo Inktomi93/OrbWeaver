@@ -70,7 +70,7 @@ function CreateUserFormBody({ viewerIsOwner, onDone }: { readonly viewerIsOwner:
         {(field): ReactElement => (
           <field.TextField
             label="Password"
-            description={`At least ${MIN_PASSWORD_LENGTH} characters. They can't change it themselves yet — you can reset it here any time.`}
+            description={`At least ${MIN_PASSWORD_LENGTH} characters. They can't change it themselves yet: you can reset it here any time.`}
             type="password"
             autoComplete="new-password"
           />
@@ -83,7 +83,7 @@ function CreateUserFormBody({ viewerIsOwner, onDone }: { readonly viewerIsOwner:
       ) : null}
       {createUser.error === null ? null : (
         <Text role="alert" tone="destructive" voice="label">
-          Couldn't create the user — that handle may already be taken.
+          Couldn't create the user. That handle may already be taken.
         </Text>
       )}
     </FormDialogPopup>

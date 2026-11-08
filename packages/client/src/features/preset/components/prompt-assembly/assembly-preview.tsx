@@ -50,7 +50,7 @@ export function AssemblyPreview({ preview, onSelectBlock }: AssemblyPreviewProps
       ))}
 
       {preview.setup.length === 0 && preview.post.length === 0 && preview.splices.length === 0 ? (
-        <Text voice="gloss">Nothing to preview yet — enable some sections in Compose.</Text>
+        <Text voice="gloss">Nothing to preview yet. Enable some sections in Compose.</Text>
       ) : null}
     </Stack>
   );
@@ -78,7 +78,7 @@ function ConversationBand({ preview, onSelect }: { readonly preview: AssembledPr
   if (preview.missingPivot) {
     return (
       <Text tone="warning" voice="gloss">
-        No chat history marker — the conversation has nowhere to splice in.
+        No chat history marker. The conversation has nowhere to splice in.
       </Text>
     );
   }

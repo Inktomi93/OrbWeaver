@@ -93,10 +93,10 @@ function importedThemeMessage({
   readonly renamedFrom: string | null;
 }): string {
   if (!created) {
-    return `“${name}” is already in your themes — nothing was added.`;
+    return `“${name}” is already in your themes: nothing was added.`;
   }
   if (renamedFrom !== null) {
-    return `Imported as “${name}” — you already have a different “${renamedFrom}”.`;
+    return `Imported as “${name}”: you already have a different “${renamedFrom}”.`;
   }
   return `Imported “${name}”.`;
 }

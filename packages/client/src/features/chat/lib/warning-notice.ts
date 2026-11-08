@@ -67,7 +67,7 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
     case "tools_unsupported":
       return { description: "This model doesn't support them, so the reply came back without any tool use.", title: "Tools were turned off for this reply" };
     case "memory_build_failed":
-      return { description: "Your reply is unaffected — only the long-term memory index missed this turn.", title: "Long-term memory couldn't update" };
+      return { description: "Your reply is unaffected. Only the long-term memory index missed this turn.", title: "Long-term memory couldn't update" };
     case "memory_rerank_unavailable":
       return { description: "Using vector recall for this turn instead. Your reply will continue.", title: "Memory reranking was unavailable" };
     // Names the REPAIR, not the internals: "index" and "vector space" are words no screen shows, and the two
@@ -86,7 +86,7 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
     case "image_size_dropped":
       return { description: "This connection chooses its own image size, so the requested size wasn't used.", title: "The image size was ignored" };
     case "compaction_failed":
-      return { description: "Your reply is unaffected — only the running summary missed this turn.", title: "The conversation summary couldn't update" };
+      return { description: "Your reply is unaffected. Only the running summary missed this turn.", title: "The conversation summary couldn't update" };
     case "context_trimmed_no_summary":
       return {
         description: "The conversation got too long to summarize, so the oldest messages were dropped from context to keep going.",
@@ -216,7 +216,7 @@ function settingsAdjustedNotice(warning: ChatSettingsAdjustedWarning): NotifyNot
       };
     case "reasoning_dropped_for_prefill":
       return {
-        description: "You gave the model text to continue, which it can't do while reasoning — so it continued your text instead.",
+        description: "You gave the model text to continue, which it can't do while reasoning, so it continued your text instead.",
         title: "Reasoning was skipped for this reply",
       };
     case "tool_choice_downgraded":
@@ -255,7 +255,7 @@ function settingsAdjustedNotice(warning: ChatSettingsAdjustedWarning): NotifyNot
 function samplingDropDescription(knob: AdjustedKnob | undefined): string {
   switch (knob) {
     case "thinkingBudgetTokens":
-      return "This model reasons by effort level and has no thinking-budget setting — set the effort dial instead.";
+      return "This model reasons by effort level and has no thinking-budget setting. Set the effort dial instead.";
     case "quality":
       return "That quality level isn't one this app knows, so your own settings were used instead.";
     case "replyMedia":
@@ -263,7 +263,7 @@ function samplingDropDescription(knob: AdjustedKnob | undefined): string {
     case "carryReasoning":
       // Two causes, one honest sentence: the model refuses replayed thinking, or thinking was off this turn.
       // Naming which would take a second structured field on the warning; "it wasn't used" is true of both.
-      return "This reply didn't get the model's earlier thinking back — either the model won't take it, or thinking was off.";
+      return "This reply didn't get the model's earlier thinking back. Either the model won't take it, or thinking was off.";
     case "parallelToolCalls":
       return "This connection's runtime has no parallel tool call setting, so it decided on its own how to call tools.";
     case "temperature":

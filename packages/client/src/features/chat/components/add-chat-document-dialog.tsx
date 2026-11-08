@@ -80,7 +80,7 @@ export function AddChatDocumentDialog({ chatId, open, onOpenChange, activeIds }:
     <DismissDialog
       closeButton={true}
       dismissLabel={DIALOG_VERBS.cancel}
-      description="Its indexed passages join what this chat can pull from — for everyone in the room. You can take it back out here at any time."
+      description="Its indexed passages join what this chat can pull from. For everyone in the room. You can take it back out here at any time."
       onOpenChange={(next): void => {
         if (next || !ownedRef.current) {
           onOpenChange(next);
@@ -180,7 +180,7 @@ function PickerCandidates({
         action={<DialogClose render={<Button variant="outline">{DIALOG_VERBS.close}</Button>} />}
         description={
           bankIsEmpty
-            ? "Add one in Databank — upload a file, paste text, or pull in a page — and it can feed this chat."
+            ? "Add one in Databank: upload a file, paste text, or pull in a page, and it can feed this chat."
             : "Every document you own already reaches this chat: through this room, a character in it, or your Everywhere switch."
         }
         icon={<Icon icon={FileText} size="lg" />}

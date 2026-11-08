@@ -29,12 +29,12 @@ export const DROP_REASON_COPY: Record<ApplyDropReason, DropReasonCopy> = {
   },
   not_selected: {
     chip: "Outside your scope",
-    why: "This session never put the field in scope — the model was never given it to rewrite, so an entry for it is invented.",
+    why: "This session never put the field in scope. The model was never given it to rewrite, so an entry for it is invented.",
     tone: "bad",
   },
   greeting_index_missing: {
     chip: "Malformed accept",
-    why: "A greetings accept arrived without its slot number — this looks like a bug; the run record has the details.",
+    why: "A greetings accept arrived without its slot number. This looks like a bug; the run record has the details.",
     tone: "bad",
   },
   greeting_index_invalid: {
@@ -44,17 +44,17 @@ export const DROP_REASON_COPY: Record<ApplyDropReason, DropReasonCopy> = {
   },
   greeting_index_forbidden: {
     chip: "Malformed accept",
-    why: "A slot number arrived on a non-greetings field — this looks like a bug; the run record has the details.",
+    why: "A slot number arrived on a non-greetings field. This looks like a bug; the run record has the details.",
     tone: "bad",
   },
   not_applicable: {
     chip: "No longer applicable",
-    why: "The card's depth note has been removed. The rewrite only carries the note's text — it cannot invent the depth/role directive.",
+    why: "The card's depth note has been removed. The rewrite only carries the note's text. It cannot invent the depth/role directive.",
     tone: "warn",
   },
   would_leave_no_greeting: {
     chip: "Last greeting",
-    why: "Clearing this slot would leave the card with no first message — the last surviving greeting refuses to be emptied away.",
+    why: "Clearing this slot would leave the card with no first message. The last surviving greeting refuses to be emptied away.",
     tone: "warn",
   },
   greeting_cap_reached: {
@@ -64,7 +64,7 @@ export const DROP_REASON_COPY: Record<ApplyDropReason, DropReasonCopy> = {
   },
   diverged_since_session: {
     chip: "Changed since the session started",
-    why: "The live card's text moved under this session. Re-open the block and confirm which version wins — nothing is overwritten blind.",
+    why: "The live card's text moved under this session. Re-open the block and confirm which version wins. Nothing is overwritten blind.",
     tone: "warn",
   },
 };

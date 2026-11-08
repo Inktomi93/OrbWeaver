@@ -296,7 +296,7 @@ async function openRoom(flow: Journey, room: ChatSummary, inspectList = false): 
     },
   });
   await flow.requestPanes();
-  if (flow.requestedPanes.kind === "desktop" && flow.requestedPanes.panes.context) {
+  if (flow.requestedPanes.kind === "desktop" && flow.requestedPanes.panes.context && (await flow.desktopShell())) {
     await contextReady(flow);
   }
   await checkpoint(flow, `chat-room-${room.id}`, flow.page.locator("body"), flow.page.getByRole("group", { name: CHAT_COMPOSER_NAME, exact: true }));
@@ -2205,7 +2205,7 @@ export async function walkChatArcade(input: SurfaceFlow): Promise<void> {
           .click();
         await pluginContextReady(flow);
         const frame = activeContext(flow).locator("iframe").filter({ visible: true });
-        const titles = [plugin.name, `${plugin.name} — ${surface.title}`].map((title) => `[title=${JSON.stringify(title)}]`);
+        const titles = [plugin.name, `${plugin.name}: ${surface.title}`].map((title) => `[title=${JSON.stringify(title)}]`);
         const arcade = frame.and(flow.page.locator(titles.join(", ")));
         await expect(arcade).toHaveCount(1);
         await expect(arcade).toBeVisible();
@@ -2314,7 +2314,7 @@ export async function walkChatOracle(input: SurfaceFlow): Promise<void> {
           },
           ready: async () => {
             await expect(dialog).toBeVisible();
-            await expect(dialog.getByRole("group", { name: `${plugin.name} — ${revealSurface.title}`, exact: true })).toBeVisible();
+            await expect(dialog.getByRole("group", { name: `${plugin.name}: ${revealSurface.title}`, exact: true })).toBeVisible();
             await expect
               .poll(async () => (await flow.client.plugin.getSurfaceState.query({ pluginId: plugin.id, surfaceId: revealSurface.id }))?.["seed"])
               .toEqual(expect.any(String));

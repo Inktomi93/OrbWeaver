@@ -132,7 +132,7 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
             onOpenChange={setReplaceOpen}
             size="sm"
             title={`Replace the ${subject} key`}
-            description={`Paste the new key. ${reuseSentence(usedBy)} — every one of them starts using it immediately, and the old key is overwritten.`}
+            description={`Paste the new key. ${reuseSentence(usedBy)}: every one of them starts using it immediately, and the old key is overwritten.`}
             submit={{ label: "Replace", onSubmit: submitReplacement, disabled: replacementKey.trim() === "", loading: replace.isPending }}
           >
             <Input aria-label={`New ${subject} key`} value={replacementKey} onValueChange={setReplacementKey} placeholder="Paste your key" type="password" />
@@ -147,7 +147,7 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
           />
           <ConfirmDialog
             confirmLabel="Revoke"
-            description={`Marks this key as revoked so no turn uses it — do this when you know it was rotated or leaked. ${reuseSentence(usedBy)}, and every one of them reads as unavailable until you clear the flag or replace the key.`}
+            description={`Marks this key as revoked so no turn uses it: do this when you know it was rotated or leaked. ${reuseSentence(usedBy)}, and every one of them reads as unavailable until you clear the flag or replace the key.`}
             onConfirm={(): void => markRevoked.mutate({ credentialId: credential.id })}
             onOpenChange={setRevokeOpen}
             open={revokeOpen}

@@ -70,15 +70,15 @@ export function ApplyOutcome({ applied, dropped, snapshotTaken, copyName, onEdit
           {zeroWrite ? (
             <Stack gap="tight">
               <Text voice="label">{copyName === undefined ? "The card was not touched." : "No copy was made."}</Text>
-              <Text voice="gloss">Nothing was written — a kept change failed a check, so none were applied. Each reason is below.</Text>
+              <Text voice="gloss">Nothing was written: a kept change failed a check, so none were applied. Each reason is below.</Text>
             </Stack>
           ) : (
             <Stack gap="tight">
               <Text voice="label">
                 {applied.length} field{applied.length === 1 ? "" : "s"} written{copyName === undefined ? "" : ` to the copy "${copyName}"`}.
               </Text>
-              {copyName !== undefined ? <Text voice="gloss">The live card is untouched — no snapshot was needed, nothing existing was written.</Text> : null}
-              {copyName === undefined && snapshotTaken ? <Text voice="gloss">Saved a snapshot first — undo it from the character's History tab.</Text> : null}
+              {copyName !== undefined ? <Text voice="gloss">The live card is untouched. No snapshot was needed, nothing existing was written.</Text> : null}
+              {copyName === undefined && snapshotTaken ? <Text voice="gloss">Saved a snapshot first. Undo it from the character's History tab.</Text> : null}
             </Stack>
           )}
         </Row>

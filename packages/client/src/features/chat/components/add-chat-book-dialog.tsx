@@ -78,7 +78,7 @@ export function AddChatBookDialog({ chatId, open, onOpenChange, attachedIds }: A
     <DismissDialog
       closeButton={true}
       dismissLabel={DIALOG_VERBS.cancel}
-      description="Its entries can fire in this room's prompts for everyone here — and an automation rule in this room can write new entries into it. Attaching is what grants that write reach; you can take it back out here at any time."
+      description="Its entries can fire in this room's prompts for everyone here, and an automation rule in this room can write new entries into it. Attaching is what grants that write reach; you can take it back out here at any time."
       onOpenChange={(next): void => {
         if (next || !ownedRef.current) {
           onOpenChange(next);
@@ -129,7 +129,7 @@ function PickerList({ attachedIds, failure, isOwned, onAttach }: PickerBodyProps
         action={<DialogClose render={<Button variant="outline">{DIALOG_VERBS.close}</Button>} />}
         description={
           books.length === 0
-            ? "Make one in World info — a book of entries that fire on the keywords you give them — and it can feed this chat."
+            ? "Make one in World info: a book of entries that fire on the keywords you give them, and it can feed this chat."
             : "Every world book you own is already attached to this chat."
         }
         icon={<Icon icon={BookOpen} size="lg" />}

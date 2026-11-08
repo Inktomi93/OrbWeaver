@@ -42,7 +42,7 @@ const RECENT_THREADS = 20;
 
 /** Read between a row's label and its badge in the accessible name; the badge is painted at the far edge, so the
  *  two would otherwise run together as one word. */
-const BADGE_SEPARATOR = " — ";
+const BADGE_SEPARATOR = ", ";
 
 /** A command's declared bucket, defaulted — the contribution's `group` is optional by design. */
 function groupOf(command: SlashCommandContribution): SlashCommandGroup {
@@ -246,7 +246,7 @@ function PaletteSourceGroup({ source, context, onRun }: PaletteSourceGroupProps)
           {row.badge === undefined ? null : (
             <>
               {/* The visible badge is pushed to the far edge, so its text runs straight into the label's in the
-                  accessible name; a hidden dash keeps the two as words. */}
+                  accessible name; a hidden separator keeps the two as words. */}
               <Text as="span" className="sr-only">
                 {BADGE_SEPARATOR}
               </Text>

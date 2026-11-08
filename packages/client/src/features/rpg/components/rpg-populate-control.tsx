@@ -63,7 +63,7 @@ export function RpgPopulateControl({ chatId, actor, canPopulate }: RpgPopulateCo
     try {
       const verdict = await populate.mutateAsync({ chatId, actorRef: actor.actorRef });
       if (verdict.ok && !verdict.populated) {
-        notify.info(`Nothing to fill — ${actor.name}'s card added nothing that isn't already set.`);
+        notify.info(`Nothing to fill: ${actor.name}'s card added nothing that isn't already set.`);
       }
     } catch {
       // The failed mutation's own error toast has already spoken.

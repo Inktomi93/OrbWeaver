@@ -121,6 +121,7 @@ export { INTERACTIVE_TEXT_FLOOR_PX, LEADING_FLOOR, LEADING_FLOOR_EPSILON, RAMP_F
 export { reachRows, surfaceStateRows } from "./lib/result-rows.ts";
 export { isAtOrAboveSeverity, isValidSeverity } from "./lib/severity.ts";
 export { buildSurfaceStateAccounting, surfaceStateAxisLabel } from "./lib/surface-state.ts";
+export { readCohortRenders } from "./ops/cohort-renders.ts";
 export { hoverPassLabel, resolveHoverStates } from "./ops/hover.ts";
 export { appFailureSurface, rawSamples, shellStateSnapshot } from "./ops/page-validate.ts";
 export { resolvePixelBackdrops } from "./ops/pixels.ts";

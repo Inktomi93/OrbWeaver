@@ -192,5 +192,5 @@ function emptyLine(scope: RegexTierKey, isHost: boolean): string {
   if (scope !== "chat") {
     return "Nothing from here.";
   }
-  return isHost ? "No scripts are attached to this chat yet." : "No scripts are attached to this chat — only the host can attach one.";
+  return isHost ? "No scripts are attached to this chat yet." : "No scripts are attached to this chat. Only the host can attach one.";
 }

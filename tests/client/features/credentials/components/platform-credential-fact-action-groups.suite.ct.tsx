@@ -123,7 +123,7 @@ for (const regime of REGIMES) {
       await expect(override).toBeVisible();
       expect((await actionGroupGeometry(row, [override])).inlineOverflow).toBeLessThanOrEqual(1);
       await override.click();
-      const field = row.getByRole("textbox", { name: "max output — your value", exact: true });
+      const field = row.getByRole("textbox", { name: "max output: your value", exact: true });
       const before = await field.inputValue();
       const save = row.getByRole("button", { name: "Save your max output", exact: true });
       const cancel = row.getByRole("button", { name: "Cancel", exact: true });

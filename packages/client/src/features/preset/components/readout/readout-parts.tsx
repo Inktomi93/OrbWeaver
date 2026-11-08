@@ -115,7 +115,7 @@ export function EffectiveProfile({
   return (
     <Section kicker="Effective generation">
       {rows.length === 0 && contextWindow === undefined ? (
-        <Text voice="gloss">This model resolves no generation knobs — it takes the prompt and nothing else.</Text>
+        <Text voice="gloss">This model resolves no generation knobs. It takes the prompt and nothing else.</Text>
       ) : (
         <Stack gap="tight">
           {/* DISPLAY names, never the schema key (side-eye F-13): the read is keyed by `maxOutputTokens`,
@@ -136,7 +136,7 @@ export function EffectiveProfile({
                view and appears nowhere in the UI, so naming it would send the reader to a place that does
                not exist on screen.
                `PARAMS_VIEW_LABEL` is the strip's own word, read from the view tuple. */
-            ` · ${String(effective.stale.length)} stored knob${effective.stale.length === 1 ? "" : "s"} this model ignores — clear them in ${PARAMS_VIEW_LABEL}`}
+            ` · ${String(effective.stale.length)} stored knob${effective.stale.length === 1 ? "" : "s"} this model ignores: clear them in ${PARAMS_VIEW_LABEL}`}
       </Text>
     </Section>
   );

@@ -8,7 +8,7 @@ import type { ReactElement } from "react";
 export function MaintenanceKindNote({ verb }: { readonly verb: "Runs" | "Recurs" }): ReactElement {
   return (
     <Text voice="label" ink="muted">
-      {verb} across every deployment (maintenance) — there's no per-user version.
+      {verb} across every deployment (maintenance). There's no per-user version.
     </Text>
   );
 }

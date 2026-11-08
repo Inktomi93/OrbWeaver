@@ -40,22 +40,22 @@ export const EXTRACTION_CONTEXT_LABEL: Readonly<Record<RpgExtractionContext, str
 /** The honest one-line consequence per delivery mode (the mock's fact — the same freshness posture the
  *  band cue renders), keyed over the closed mode axis. */
 export const EXTRACTION_CONSEQUENCE: Readonly<Record<RpgExtractionMode, string>> = {
-  folded: "the reply records its own state — ONE model call, fastest and cheapest (recommended)",
-  cheap: "a second pass records state with tools after the turn — two model calls; recommended for local models",
+  folded: "the reply records its own state: ONE model call, fastest and cheapest (recommended)",
+  cheap: "a second pass records state with tools after the turn: two model calls; recommended for local models",
 };
 
 /** The CYOA choice-click consequence per behavior (the P5 knob the Scene echo + transcript obey). */
 export const CHOICE_BEHAVIOR_CONSEQUENCE: Readonly<Record<RpgCyoaChoiceBehavior, string>> = {
-  compose: "a pick drops into the composer — edit before sending",
+  compose: "a pick drops into the composer: edit before sending",
   send: "a pick sends immediately as your turn",
 };
 
 /** The extraction-CONTEXT consequence per arm — how much of the turn's own story the state round reads
  *  as evidence. Keyed over the closed axis, so a new context arm cannot ship without its honest cost line. */
 export const EXTRACTION_CONTEXT_CONSEQUENCE: Readonly<Record<RpgExtractionContext, string>> = {
-  beat: "only the latest beat — the cheapest read, and the one most likely to miss what set the scene up",
-  window: "the recent arc, up to the budget below — relationships and quests evolve instead of resetting",
-  full: "the whole thread — the most inference, and the largest prompt every single beat",
+  beat: "only the latest beat: the cheapest read, and the one most likely to miss what set the scene up",
+  window: "the recent arc, up to the budget below: relationships and quests evolve instead of resetting",
+  full: "the whole thread: the most inference, and the largest prompt every single beat",
 };
 
 /** Which passes the state-capture knob governs: the folded reply records its own state and never reads it. */
@@ -73,6 +73,6 @@ export const STATE_CAPTURE_UNAVAILABLE = "This room's model can't give a structu
 
 /** The #9 date-mode consequence lines (the choice-behavior segmented-toggle precedent). */
 export const DATE_MODE_CONSEQUENCE: Readonly<Record<RpgDateMode, string>> = {
-  narrated: "The story narrates the date as free text — no day counter.",
+  narrated: "The story narrates the date as free text. No day counter.",
   structured: "A running day counter shows beside the time of day.",
 };

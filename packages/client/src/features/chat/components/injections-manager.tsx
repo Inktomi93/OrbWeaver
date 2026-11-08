@@ -196,7 +196,7 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete, rowFocus }: Inje
                           itself, so its position/role are already spelled by the fields below. */}
                       {values.content.trim() === "" ? (
                         <Badge tone="warning" size="sm">
-                          Not delivered — no content
+                          Not delivered: no content
                         </Badge>
                       ) : (
                         <Text voice="gloss" truncate={true}>

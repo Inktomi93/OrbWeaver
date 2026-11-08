@@ -8,4 +8,4 @@ export const COMPOSER_CORRECTIONS_NAME = "Corrections…";
 export const COMPOSER_CLEAR_INPUT_NAME = "Clear input";
 
 /** The Media group's door to the `/imagine` modal. */
-export const COMPOSER_IMAGINE_NAME = "Imagine — modes & preview…";
+export const COMPOSER_IMAGINE_NAME = "Imagine: modes & preview…";

@@ -30,7 +30,7 @@ export function snippetForDisplay(snippet: string): string {
 export function evidenceScent(matchCount: number, shown: number, rooms: number): string {
   const moments = `${matchCount} matching moment${matchCount === 1 ? "" : "s"}`;
   const inRooms = `${rooms} room${rooms === 1 ? "" : "s"}`;
-  return shown >= matchCount ? `${moments} in ${inRooms}` : `${moments} — showing ${shown} in ${inRooms}`;
+  return shown >= matchCount ? `${moments} in ${inRooms}` : `${moments}: showing ${shown} in ${inRooms}`;
 }
 
 /** The trailing ` (2)` an import writes when two rooms claim one name (`import/substrate/chat-input.ts`'s
@@ -47,7 +47,7 @@ const NUMBERED_ROOM = /\s\(\d+\)$/;
  * tooltip exists exactly where the confusion does.
  */
 export function roomNumberingHint(title: string): string | undefined {
-  return NUMBERED_ROOM.test(title) ? `${title} — rooms that share a name are numbered.` : undefined;
+  return NUMBERED_ROOM.test(title) ? `${title}: rooms that share a name are numbered.` : undefined;
 }
 
 /** Group repeated prose without dropping the identity or rank of any source occurrence. */

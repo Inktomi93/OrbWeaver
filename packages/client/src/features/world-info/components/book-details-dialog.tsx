@@ -66,7 +66,7 @@ export function BookDetailsDialog({ open, onOpenChange, currentName, currentDesc
           autoFocus={true}
         />
       </Field>
-      <Field label={WORLD_INFO_BOOK_DESCRIPTION_NAME} description="An optional note for the library — never injected.">
+      <Field label={WORLD_INFO_BOOK_DESCRIPTION_NAME} description="An optional note for the library. Never injected.">
         <Textarea value={description} onChange={(event): void => setDescription(event.target.value)} placeholder="Optional" rows={3} />
       </Field>
     </FormDialog>

@@ -239,7 +239,7 @@ function DeepNarrative({
           <Badge tone="warning" variant="solid" size="sm">
             Unstructured reply
           </Badge>
-          <Text voice="gloss">The model didn't return a comparison in the expected shape — this is its raw answer.</Text>
+          <Text voice="gloss">The model didn't return a comparison in the expected shape. This is its raw answer.</Text>
         </Row>
         <Text>{narrative.summary}</Text>
       </Stack>

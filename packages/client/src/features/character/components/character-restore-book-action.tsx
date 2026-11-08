@@ -30,7 +30,7 @@ export interface CharacterRestoreBookActionProps {
 /** The picked file's confirm copy — a function so the filename interpolates without a `useState` derived
  *  string the picked-file state itself already answers. */
 function confirmDescription(filename: string): string {
-  return `This replaces the character's current world book with the one embedded in "${filename}" — any edits you made to the current book since it was imported are lost.`;
+  return `This replaces the character's current world book with the one embedded in "${filename}": any edits you made to the current book since it was imported are lost.`;
 }
 
 export function CharacterRestoreBookAction({ canRestore }: CharacterRestoreBookActionProps): ReactElement | null {

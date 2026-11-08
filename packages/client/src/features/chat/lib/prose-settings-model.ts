@@ -86,7 +86,7 @@ export function validateProseLengths(values: Record<string, string>): { fields: 
     USER_PROSE_SLOT_IDS.flatMap((id) => {
       const name = proseFieldName(id);
       const over = proseOverBy(values[name] ?? "");
-      return over === 0 ? [] : [[name, `${String(over)} characters over the limit — trim it to save`]];
+      return over === 0 ? [] : [[name, `${String(over)} characters over the limit: trim it to save`]];
     }),
   );
   return Object.keys(fields).length === 0 ? undefined : { fields };

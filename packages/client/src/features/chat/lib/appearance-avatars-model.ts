@@ -43,7 +43,7 @@ export const APPEARANCE_AVATARS_SUBCATEGORY: ConfigSubcategory = {
       label: "Avatar aspect",
       options: AVATAR_ASPECT_ITEMS,
       teach: {
-        summary: "Portrait reserves a taller box — the immersive VN-style modes use it.",
+        summary: "Portrait reserves a taller box. The immersive VN-style modes use it.",
         affects: ["avatar boxes in every chat", "the immersive chat displays most of all"],
         related: [{ group: "appearance", sub: "message-style", setting: "chat-style" }],
       },

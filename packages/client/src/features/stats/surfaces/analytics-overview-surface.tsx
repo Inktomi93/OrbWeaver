@@ -120,7 +120,7 @@ function OverviewBody(): ReactElement {
   const momentumMax = Math.max(0, ...rising.map((row) => row.value), ...falling.map((row) => row.value));
   const momentumScale = momentumMax > 0 ? momentumMax : undefined;
   const topCharacterSubtitle =
-    listMode === "collapsed" ? "Your most-played character — Show list panel to drill into any character" : "Your most-played character";
+    listMode === "collapsed" ? "Your most-played character: Show list panel to drill into any character" : "Your most-played character";
 
   return (
     <Stack gap="section">
@@ -271,7 +271,7 @@ function RecomputeButton(): ReactElement {
     <Row align="center" gap="field">
       {isRecomputeAlreadyRunning(recompute.error) ? (
         <Text voice="gloss" role="status">
-          A recompute is already running — it'll finish on its own.
+          A recompute is already running. It'll finish on its own.
         </Text>
       ) : null}
       <Button variant="ghost" size="sm" disabled={recompute.isPending} onClick={(): void => recompute.mutate(undefined)}>

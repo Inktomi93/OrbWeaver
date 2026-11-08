@@ -196,7 +196,7 @@ function ChatPairRow({
       // screen reader that announces the button's content instead. An explicit `aria-label` replaces the
       // content-derived name and keeps everything that name carried — both titles and the score — plus the
       // one fact the row could not otherwise state.
-      aria-label={`${left} ↔ ${right}, ${percent(score)} similar — compare rooms`}
+      aria-label={`${left} ↔ ${right}, ${percent(score)} similar: compare rooms`}
       justify="between"
       variant="ghost"
       width="full"

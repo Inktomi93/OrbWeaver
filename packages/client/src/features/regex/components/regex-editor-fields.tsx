@@ -159,7 +159,7 @@ export function RegexEditorFields({ form, scriptId }: RegexEditorFieldsProps): R
             label={REGEX_FIND_PATTERN_NAME}
             labelFor={patternId}
             name={field.name}
-            description="A regular expression — bare (ooc:.*) or slash-delimited with flags (/ooc:.*/gi)."
+            description="A regular expression: bare (ooc:.*) or slash-delimited with flags (/ooc:.*/gi)."
           >
             <Suspense fallback={null}>
               <CodeEditor
@@ -183,7 +183,7 @@ export function RegexEditorFields({ form, scriptId }: RegexEditorFieldsProps): R
           <Field
             label="Trim out"
             name={field.name}
-            description="Text stripped from every match before it is spliced into the replacement — one per line. Leave empty to keep matches whole."
+            description="Text stripped from every match before it is spliced into the replacement. One per line. Leave empty to keep matches whole."
           >
             <Textarea
               rows={2}
@@ -212,7 +212,7 @@ export function RegexEditorFields({ form, scriptId }: RegexEditorFieldsProps): R
             // The F3 defect, stated (side-eye 2026-08-03 P2): every chip off is SAVEABLE — the schema stays
             // lenient because the card-boundary heal needs it — and the script then runs nowhere with
             // nothing on screen saying so. The row's scent says it too ("runs nowhere").
-            {...(field.state.value.length === 0 ? { error: "No stream selected — this script is saved, but nothing will ever run it." } : {})}
+            {...(field.state.value.length === 0 ? { error: "No stream selected: this script is saved, but nothing will ever run it." } : {})}
           />
         )}
       </form.AppField>

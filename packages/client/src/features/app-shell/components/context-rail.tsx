@@ -283,7 +283,7 @@ function ContextTab({ tab, isActive }: { readonly tab: ResolvedContextTab; reado
       id={cellDomId(tab.id)}
       // The lock is in the name (Base UI emits `aria-disabled="false"` here, so a glyph-only lock was
       // imperceptible to AT); the visible caption stays the prefix of the accessible name.
-      aria-label={locked ? `${tab.label} \u2014 locked` : tab.label}
+      aria-label={locked ? `${tab.label}, locked` : tab.label}
       data-crown={tab.crown}
       className="shrink-0"
     >

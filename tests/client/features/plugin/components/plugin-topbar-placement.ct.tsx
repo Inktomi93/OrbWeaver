@@ -1,8 +1,10 @@
 // The top bar shows a plugin only where its guest placed a command: real guests through the production shell, one
 // icon button per placed command in host order, the row's overflow, the phone's You sheet, and the palette door
 // that keeps an unplaced command reachable.
+
 import { spawn } from "node:child_process";
 import { TRAIL_OVERFLOW_LABEL } from "@orb/client/components";
+import { MESSAGE_TOOLS_LABEL } from "@orb/client/lib";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_TOAST_COOLDOWN_SECONDS, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { MS_PER_SECOND } from "@orb/kit/time";
@@ -13,7 +15,6 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { PLUGIN_ACTIONS_NAME } from "#client/features/plugin/lib/plugin-command-copy.ts";
-import { MESSAGE_TOOLS_LABEL } from "#client/lib/flank-names.ts";
 import type { PluginRoomShellStory } from "../_ct-stories.tsx";
 
 const STORY = "tests/client/features/plugin/_ct-stories/PluginRoomShellStory";

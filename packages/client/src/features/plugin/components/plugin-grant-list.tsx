@@ -315,7 +315,7 @@ export function PluginGrantList({
     <Stack gap="block">
       {rows.length === 0 ? (
         <Text prose={true} voice="gloss">
-          This plugin asks for no permissions at all — it can run its own code and nothing else.
+          This plugin asks for no permissions at all. It can run its own code and nothing else.
         </Text>
       ) : (
         // `role="group"` + `aria-label` gives the permission set an announced boundary (side-eye P3): the

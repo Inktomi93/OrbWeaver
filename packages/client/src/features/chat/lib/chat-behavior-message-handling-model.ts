@@ -70,7 +70,7 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
       label: "Auto-continue",
       keywords: ["continue", "length", "cap", "follow-up"],
       teach: {
-        summary: "When a reply stops at the length cap, fires follow-up continues automatically — as many as the round limit. Syncs across your devices.",
+        summary: "When a reply stops at the length cap, fires follow-up continues automatically. As many as the round limit. Syncs across your devices.",
         affects: ["every reply that stops at the length cap"],
         related: [{ group: "chat-behavior", sub: "message-handling", setting: "auto-continue-rounds" }],
       },
@@ -114,8 +114,8 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
       keywords: ["temporary", "temp", "ttl", "expire", "delete", "retention"],
       teach: {
         summary:
-          "A temporary chat is deleted this many hours after it was created — messages and all, whether or not you were still using it. Expired rooms are swept when you open Home.",
-        affects: ["temporary chats only — ordinary chats are never swept"],
+          "A temporary chat is deleted this many hours after it was created. Messages and all, whether or not you were still using it. Expired rooms are swept when you open Home.",
+        affects: ["temporary chats only: ordinary chats are never swept"],
       },
     },
     {
@@ -135,7 +135,7 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
       label: "Reactions in new chats",
       keywords: ["reactions", "emoji"],
       teach: {
-        summary: "New chats you host let members react to messages with emoji. Existing chats keep whatever they are set to — change one in its This chat tab.",
+        summary: "New chats you host let members react to messages with emoji. Existing chats keep whatever they are set to. Change one in its This chat tab.",
         affects: ["new chats you host"],
       },
     },
@@ -146,7 +146,7 @@ export const CHAT_MESSAGE_HANDLING_SUBCATEGORY: ConfigSubcategory = {
       keywords: ["reactions", "emoji", "character"],
       teach: {
         summary:
-          "New chats you host let the model drop an emoji reaction from a present character while it replies. Off by default — turning it on is the opt-in.",
+          "New chats you host let the model drop an emoji reaction from a present character while it replies. Off by default: turning it on is the opt-in.",
         affects: ["new chats you host"],
       },
     },

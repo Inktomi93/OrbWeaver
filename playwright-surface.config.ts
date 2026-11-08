@@ -79,6 +79,24 @@ const stabilityProjects = [
   },
 ];
 
+// The enlarged-text matrix: the browser's own default font size at 200% and 300%, phone and desktop, in the measurement posture.
+// Only Chromium exposes a text-size door (CDP Page.setFontSizes); WebKit has none, so it runs no enlarged-text project.
+const TEXT_SCALE_PANE_PROJECTS = new Set(["desktop-1440-all-panes", "chromium-phone-portrait"]);
+// WCAG 1.4.4 text resize, and the 300% layout case the platform text-scale suites also hold.
+const TEXT_RESIZE_SCALE = 2;
+const LAYOUT_TEXT_SCALE = 3;
+const PLATFORM_TEXT_SCALES = [TEXT_RESIZE_SCALE, LAYOUT_TEXT_SCALE] as const;
+const PERCENT = 100;
+const textScaleProjects = paneProjects
+  .filter(({ name }) => TEXT_SCALE_PANE_PROJECTS.has(name))
+  .flatMap((project) =>
+    PLATFORM_TEXT_SCALES.map((platformTextScale) => ({
+      ...project,
+      name: `${project.name}-text${String(platformTextScale * PERCENT)}`,
+      use: { ...project.use, platformTextScale },
+    })),
+  );
+
 function excludedJourneys(project: { readonly name: string; readonly grepInvert?: RegExp }): RegExp {
   return new RegExp([project.grepInvert?.source, SURFACE_BOOT_DIAGNOSTIC_TITLE].filter((source) => source !== undefined).join("|"));
 }
@@ -142,6 +160,11 @@ export default defineConfig<SurfaceWalkOptions>({
       name: `${project.name}-stability`,
       grepInvert: excludedJourneys(project),
       use: { ...project.use, surfacePass: "measurement" as const, layoutStability: true, ...ARTIFACT_OPTIONS.measurement },
+    })),
+    ...textScaleProjects.map((project) => ({
+      ...project,
+      grepInvert: excludedJourneys(project),
+      use: { ...project.use, surfacePass: "measurement" as const, layoutStability: false, ...ARTIFACT_OPTIONS.measurement },
     })),
     {
       name: "chromium-boot-diagnostic",

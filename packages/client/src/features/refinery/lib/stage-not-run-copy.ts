@@ -19,6 +19,6 @@ import type { RefineryStage } from "@orb/contracts/refinery";
 /** What a lane says while its stage has never settled — the stage's own next step, in the user's terms. */
 export const STAGE_NOT_RUN_COPY: Record<RefineryStage, string> = {
   score: "Run the score to get a per-field critique with a 1-10 and what to fix.",
-  rewrite: "Run the rewrite (or hand-edit) any time — with a score in hand it rewrites against that critique, without one it works from the card alone.",
-  analyze: "Analyze compares the latest rewrite against your original — run a rewrite first.",
+  rewrite: "Run the rewrite (or hand-edit) any time. With a score in hand it rewrites against that critique, without one it works from the card alone.",
+  analyze: "Analyze compares the latest rewrite against your original. Run a rewrite first.",
 };

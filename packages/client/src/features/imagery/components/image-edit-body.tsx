@@ -94,7 +94,7 @@ function ImageEdit({ subject }: { readonly subject: ImageSubject }): ReactElemen
         try {
           refs = await queryClient.query(trpc.assets.resolveBlobRefs.queryOptions({ assetIds: [first.assetId] }));
         } catch {
-          toast.add({ title: "Edited image saved", description: "Couldn't open it here — it's in your gallery." });
+          toast.add({ title: "Edited image saved", description: "Couldn't open it here. It's in your gallery." });
           return;
         }
         const ref = refs[0];

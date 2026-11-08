@@ -75,7 +75,7 @@ test("a held member card read shows the loading skeleton, a failed one the error
   );
   await mount<typeof ChatRoomShellStory>(STORY, { chatId });
   await page.getByRole("button", { name: CHAT_MEMBERS_ENTRY_PREFIX }).click();
-  await page.getByRole("button", { name: new RegExp(`^${characterName} — character`, "u") }).click();
+  await page.getByRole("button", { name: new RegExp(`^${characterName}: character`, "u") }).click();
   await page.getByRole("menuitem", { name: "View character", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await hold.requested;
@@ -102,7 +102,7 @@ test("a card that left the room is the gone state, not the error block", async (
   );
   await mount<typeof ChatRoomShellStory>(STORY, { chatId });
   await page.getByRole("button", { name: CHAT_MEMBERS_ENTRY_PREFIX }).click();
-  await page.getByRole("button", { name: new RegExp(`^${characterName} — character`, "u") }).click();
+  await page.getByRole("button", { name: new RegExp(`^${characterName}: character`, "u") }).click();
   await page.getByRole("menuitem", { name: "View character", exact: true }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByText("This card isn't available", { exact: true })).toBeVisible();

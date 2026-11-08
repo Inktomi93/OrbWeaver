@@ -39,7 +39,7 @@ function importNotice({ imported, failed }: CardImportResult): ImportNotice {
   }
   return {
     kind: "info",
-    message: `${imported.length} of ${imported.length + failed.length} imported — ${cardFailureMessage(firstFailure)}`,
+    message: `${imported.length} of ${imported.length + failed.length} imported: ${cardFailureMessage(firstFailure)}`,
   };
 }
 

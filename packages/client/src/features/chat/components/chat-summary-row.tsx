@@ -156,7 +156,7 @@ function rowMarkers({
           erased every trace from the list, and the only surviving evidence was a host-only tab inside a pane
           that ships closed. Same glyph at reduced emphasis, and it SAYS "paused" — the datum is text for a
           screen reader, and the two states are never one ambiguous mark. */}
-      {chat.gamePaused && !chat.isGame ? <Icon receded={true} ink="muted" icon={Swords} label="Game chat — paused" size="sm" /> : null}
+      {chat.gamePaused && !chat.isGame ? <Icon receded={true} ink="muted" icon={Swords} label="Game chat: paused" size="sm" /> : null}
       {/* COARSE KEEPS THE MARKER (side-eye 2026-08-07 finding 6): the star TOGGLE collapses into the kebab
           at a coarse pointer, so a marker that also hid at coarse would vanish while the control carrying
           the same datum was gone too — a starred chat with no star anywhere on the row. The swap is

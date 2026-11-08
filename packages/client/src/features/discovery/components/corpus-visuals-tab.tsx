@@ -152,7 +152,7 @@ function FacetExplorer({ facets }: { readonly facets: ImageFacets }): ReactEleme
         <Text voice="gloss">
           {facets.captioned === 0
             ? "No captioned avatars to explore yet."
-            : `${facets.captioned.toString()} avatars are captioned but not yet broken down — re-run the image index to read them.`}
+            : `${facets.captioned.toString()} avatars are captioned but not yet broken down: re-run the image index to read them.`}
         </Text>
       ) : (
         <Stack gap="block" data-testid={testId("corpusFacetDrill")}>

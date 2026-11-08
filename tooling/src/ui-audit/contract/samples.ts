@@ -108,7 +108,16 @@ export type {
 // ── The relational census (sibling cohorts) ──────────────────────────────────────────────────────────
 // Same split reason as the interactive family above, and the same import-beside-re-export rule:
 // `RawSamples` composes this name, so it is bound locally at the top of the file as well.
-export type { CohortAnatomyInput, EmptyStateInput, PaneInkInput, QuietStateInput, RowVoidInput, SelectionIdiomInput } from "./samples-layout.ts";
+export type {
+  CohortAnatomyInput,
+  CohortMemberRender,
+  CohortMemberState,
+  EmptyStateInput,
+  PaneInkInput,
+  QuietStateInput,
+  RowVoidInput,
+  SelectionIdiomInput,
+} from "./samples-layout.ts";
 
 // ── Heading order (impeccable `skipped-heading`; UIP §13.10 N7 is law here) ──
 export interface HeadingSample {

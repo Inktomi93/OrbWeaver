@@ -139,12 +139,12 @@ export function SceneNpcs({
 }): ReactElement {
   if (npcs.length === 0) {
     // The honest empty-npc doorway: the scene fills from the story; nothing to author by hand here.
-    return <RpgDoorwayLine>No NPCs on stage yet — the story brings them in.</RpgDoorwayLine>;
+    return <RpgDoorwayLine>No NPCs on stage yet. The story brings them in.</RpgDoorwayLine>;
   }
 
   return (
     <Stack gap="field">
-      <Kicker trailing={lockPin}>On stage — {npcs.length}</Kicker>
+      <Kicker trailing={lockPin}>On stage: {npcs.length}</Kicker>
       {npcs.map((actor) => (
         <SceneNpcCard key={actorKey(actor)} actor={actor} {...(edit === undefined ? {} : { edit })} />
       ))}
@@ -171,7 +171,7 @@ export function SceneKnownCharacters({ offstage, edit }: { readonly offstage: re
   return (
     <Stack gap="field" data-slot="rpg-known-characters">
       <Row gap="field" align="center" justify="between">
-        <Kicker>Known characters — {offstage.length}</Kicker>
+        <Kicker>Known characters: {offstage.length}</Kicker>
         <Tip text={open ? "Hide the characters who are not in this scene" : "Characters the story has met who are not in this scene"}>
           <Button
             variant="ghost"
@@ -281,7 +281,7 @@ function KnownCharacterDoorways({ actor, edit }: { readonly actor: RpgActorView;
           </Button>
         </Tip>
       ) : null}
-      <Tip text={`Forget ${actor.name} — removes their state from this game`}>
+      <Tip text={`Forget ${actor.name}: removes their state from this game`}>
         <Button ref={dismissRef} variant="ghost" size="sm" aria-label={`Dismiss ${actor.name}`} onClick={(): void => setPending("dismiss")}>
           <Icon icon={X} size="xs" />
           Dismiss

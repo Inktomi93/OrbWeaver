@@ -45,7 +45,7 @@ export function RuleFireLog({ ruleId, caps }: RuleFireLogProps): ReactElement {
   const { data: fires } = useSuspenseQuery(trpc.automation.listFires.queryOptions({ ruleId, limit: FIRE_LOG_LIMIT }));
 
   if (fires.length === 0) {
-    return <Text voice="gloss">No activity yet — this rule hasn't been triggered since it was added.</Text>;
+    return <Text voice="gloss">No activity yet: this rule hasn't been triggered since it was added.</Text>;
   }
 
   return (

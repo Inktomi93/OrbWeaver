@@ -50,7 +50,7 @@ const INLINE_DIFF_THRESHOLD = 200;
 /** The consent copy: destruction is STATED per field kind, never inferred from a blank side. */
 function clearNoteOf(field: RefinableField): string {
   if (field === "greetings") {
-    return "This greeting slot will be removed — later greetings shift up.";
+    return "This greeting slot will be removed. Later greetings shift up.";
   }
   if (field === "depthPrompt") {
     return "The depth note and its placement directive are removed.";
@@ -64,7 +64,7 @@ function blockOf(review: ReviewEntry): CompareBlock {
   if (isAppendedRewrite(entry)) {
     // The ADDED arm: `after` alone, so the primitive renders its Added state panel in the before slot
     // instead of a fabricated empty pane. Nothing can have diverged — the slot has no history to move.
-    return { label, after: entry.text, stateNote: "A new greeting is added at the end — no existing greeting is touched." };
+    return { label, after: entry.text, stateNote: "A new greeting is added at the end. No existing greeting is touched." };
   }
   if (isClearedRewrite(entry)) {
     return { label, before: live, stateNote: clearNoteOf(entry.field) };
@@ -82,12 +82,12 @@ function blockOf(review: ReviewEntry): CompareBlock {
               Changed since the session started
             </RefineryChip>
             <Text className="min-inline-0" cap="prose" floor="field" grow={true} voice="gloss">
-              re-confirm which version wins — Keep uses the rewrite, Discard keeps the live text
+              re-confirm which version wins: Keep uses the rewrite, Discard keeps the live text
             </Text>
           </Row>
-          <ConflictPane label="Base — the session pin" text={original} />
-          <ConflictPane label="Live — changed under the session" text={live} />
-          <ConflictPane label="Rewrite — what Keep applies" text={entry.text} />
+          <ConflictPane label="Base: the session pin" text={original} />
+          <ConflictPane label="Live: changed under the session" text={live} />
+          <ConflictPane label="Rewrite: what Keep applies" text={entry.text} />
         </Stack>
       ),
     };
@@ -188,7 +188,7 @@ function QueueRow({
           </Text>
           <Text as="span" className="sr-only">
             {" "}
-            — show this change
+            show this change
           </Text>
         </Button>
       )}
@@ -197,7 +197,7 @@ function QueueRow({
           Changed since the session started
         </RefineryChip>
       ) : null}
-      {state === "open" ? <RefineryChip tone="neutral">Open — deciding</RefineryChip> : null}
+      {state === "open" ? <RefineryChip tone="neutral">Open: deciding</RefineryChip> : null}
       {state === "kept" || state === "discarded" ? (
         <>
           <RefineryChip tone={state === "kept" ? "good" : "bad"}>{state === "kept" ? "Kept" : "Discarded"}</RefineryChip>
@@ -282,7 +282,7 @@ export function AcceptReview({ entries, decided, onDecide }: AcceptReviewProps):
       </Stack>
       {undecided > 0 ? (
         <Text data-testid={testId("refineryUndecidedNote")} voice="gloss">
-          {undecided} block{undecided === 1 ? " has" : "s have"} no verb pressed — undecided blocks are NOT applied. Decide them, or apply the {kept} kept and
+          {undecided} block{undecided === 1 ? " has" : "s have"} no verb pressed: undecided blocks are NOT applied. Decide them, or apply the {kept} kept and
           come back.
         </Text>
       ) : null}

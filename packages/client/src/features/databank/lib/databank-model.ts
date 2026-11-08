@@ -159,7 +159,7 @@ export function ingestStallHint(doc: Pick<DocumentView, "charCount" | "chunkCoun
   if (word === null || ingestPhase(doc, now) !== "stalled") {
     return null;
   }
-  return `Still ${word} — rebuilding the search index can restart a stuck job.`;
+  return `Still ${word}: rebuilding the search index can restart a stuck job.`;
 }
 
 /**
@@ -173,7 +173,7 @@ export function ingestStallHint(doc: Pick<DocumentView, "charCount" | "chunkCoun
  * two hints are mutually exclusive by construction rather than by a caller remembering to pick one.
  */
 export function ingestEmptyHint(doc: Pick<DocumentView, "charCount" | "chunkCount" | "embeddedCount">): string | null {
-  return countedIngestPhase(doc) === "empty" ? "No text could be extracted — re-upload a text PDF, or paste the text." : null;
+  return countedIngestPhase(doc) === "empty" ? "No text could be extracted: re-upload a text PDF, or paste the text." : null;
 }
 
 // The passage count as a ROW states it — ONE home, because the list row and the detail readout print the

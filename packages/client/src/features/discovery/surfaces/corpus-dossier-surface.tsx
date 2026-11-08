@@ -147,7 +147,7 @@ function DossierBody({ characterId, onBack }: { readonly characterId: CharacterI
                 the one paragraph on the surface that escaped the 65-75ch reading law — 78.6ch at
                 `max-width: none`, beside a pitch and a masthead headline that both carry the token. */}
             <Text cap="prose" voice="gloss">
-              Not scored yet — run the Refinery's library score sweep, or open a Refinery session on this card.
+              Not scored yet: run the Refinery's library score sweep, or open a Refinery session on this card.
             </Text>
             <Button variant="ghost" onClick={(): void => setActiveSection("refinery")} size="sm">
               Open the Refinery →
@@ -419,7 +419,7 @@ function answerState(data: Readonly<Pick<AskCardAnswer, "grounded" | "degraded">
   readonly gloss: string | null;
 } {
   if (data.degraded) {
-    return { key: "degraded", label: "Unstructured reply", tone: "warning", gloss: "The model didn't answer in the expected shape — this is its raw text." };
+    return { key: "degraded", label: "Unstructured reply", tone: "warning", gloss: "The model didn't answer in the expected shape. This is its raw text." };
   }
   if (data.grounded) {
     return { key: "grounded", label: "Grounded", tone: "success", gloss: null };

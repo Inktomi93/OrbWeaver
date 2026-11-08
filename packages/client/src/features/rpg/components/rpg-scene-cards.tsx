@@ -111,7 +111,7 @@ function ArchiveBody({ chatId }: Pick<RpgSceneCardsProps, "chatId">): ReactEleme
   const [openKey, setOpenKey] = useState<string | null>(null);
   const cards = collectArchivedCards(messages.messages, { participants: chat.participants, viewerUserId: chat.viewerUserId }).toReversed();
   if (cards.length === 0) {
-    return <RpgDoorwayLine>No cards yet — the story crafts them, and they land here.</RpgDoorwayLine>;
+    return <RpgDoorwayLine>No cards yet: the story crafts them, and they land here.</RpgDoorwayLine>;
   }
   return (
     <Stack gap="field">

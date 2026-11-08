@@ -80,9 +80,9 @@ const ROLE_ROWS: Record<RoutableTask, RoleRow> = {
   summarize: {
     task: "summarize",
     label: CONNECTION_ROLE_LABELS.summarize,
-    heading: "Utility model — summaries, structured extraction, captions",
+    heading: "Utility model: summaries, structured extraction, captions",
     description:
-      "Point this at a cheap model; it needs background work allowed. Several things use this slot — memory digests, summaries, extraction and image captions. While it is not set, memory digests are paused.",
+      "Point this at a cheap model; it needs background work allowed. Several things use this slot. Memory digests, summaries, extraction and image captions. While it is not set, memory digests are paused.",
     optional: false,
     requirements: [NEEDS_PROSE, NEEDS_STRUCTURED, NEEDS_CAPTION_INPUT],
   },
@@ -90,7 +90,7 @@ const ROLE_ROWS: Record<RoutableTask, RoleRow> = {
     task: "generateImage",
     label: CONNECTION_ROLE_LABELS.generateImage,
     heading: "Image generation",
-    description: "Renders pictures from prompts (the /imagine surface). Optional — leaving it unset means /imagine says so instead of failing.",
+    description: "Renders pictures from prompts (the /imagine surface). Optional: leaving it unset means /imagine says so instead of failing.",
     optional: true,
     requirements: [NEEDS_IMAGE_OUTPUT],
   },
@@ -180,7 +180,7 @@ export const SMART_POLICY_COST_SENTENCE =
 /** The inline refusal a Model-roles row shows BEFORE writing a binding (§5.3a — the slot is the first
  *  enforcement point): a background task on a row with `allowBackground` off. `null` = bindable. */
 export function bindRefusal(row: { readonly allowBackground: boolean }, task: RoutableTask): string | null {
-  return canFund(row, task) ? null : "This connection doesn't allow background work — turn it on to use it here.";
+  return canFund(row, task) ? null : "This connection doesn't allow background work. Turn it on to use it here.";
 }
 
 // ═══ THE PERSISTED-RESOLVE READOUT (§5.3a) ════════════════════════════════════════════════════════════

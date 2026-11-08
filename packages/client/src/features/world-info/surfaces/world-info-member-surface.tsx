@@ -168,7 +168,7 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
               {WORLD_INFO_NEW_ENTRY_NAME}
             </Button>
           }
-          description="Add an entry — a piece of lore that fires into the prompt when its keywords come up."
+          description="Add an entry: a piece of lore that fires into the prompt when its keywords come up."
           icon={<Icon icon={BookOpen} size="lg" />}
           title={WORLD_INFO_NO_ENTRIES_TITLE}
         />

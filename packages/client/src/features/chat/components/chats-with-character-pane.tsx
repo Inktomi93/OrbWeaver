@@ -84,7 +84,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
             New chat
           </Button>
         }
-        description={`No chats with ${characterName} yet — start the first one.`}
+        description={`No chats with ${characterName} yet: start the first one.`}
         icon={<Icon icon={MessagesSquare} size="lg" />}
         title={CHAT_LIST_EMPTY_TITLE}
       />

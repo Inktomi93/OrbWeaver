@@ -140,7 +140,7 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
     // with the ReConsentNotice the parent renders from the same flag.
     setVerdict({ kind: "idle" });
     if (updated.reconsentPending) {
-      notify.info(`${plugin.name} stayed off — this update asks for more than you've allowed. Check below.`);
+      notify.info(`${plugin.name} stayed off: this update asks for more than you've allowed. Check below.`);
       return;
     }
     notify.success(`${plugin.name} is now ${updated.version}.`);

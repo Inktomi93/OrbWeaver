@@ -22,7 +22,7 @@ export const appearanceGroup: ConfigGroupDefinition = {
   shelf: "user",
   label: "Appearance",
   icon: SunMoon,
-  description: "Your look — the applied theme — plus message style and the fine-tuning knobs on top of it.",
+  description: "Your look (the applied theme) plus message style and the fine-tuning knobs on top of it.",
   advancedFold: { label: "Customize this look", caption: () => <LooksFoldCaption /> },
   body: { kind: "sections" },
 };

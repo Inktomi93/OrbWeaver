@@ -139,7 +139,7 @@ export const useRunRefineryStage = createEntityMutation<inferInput<Trpc["refiner
   // round's working overlay (the preflight arithmetic). The verb emits in a `finally`, so the tick survives a
   // stage that stamped and then threw — the same totality `onSettled` used to give this hook.
   busDriven: true,
-  errorToast: codedRefusalAwareToast("That stage didn't finish — try again."),
+  errorToast: codedRefusalAwareToast("That stage didn't finish. Try again."),
 });
 
 /** The R2 write tier — one refinement round (refine-rewrite then analyze); consumed by the R3 surface. */
@@ -150,7 +150,7 @@ export const useIterateRefinery = createEntityMutation<inferInput<Trpc["refinery
   // tick per round from a `finally`, so when the analyze half throws the already-landed rewrite still
   // repaints the ledger (one tick per round, never one per stage — that would be the storm).
   busDriven: true,
-  errorToast: codedRefusalAwareToast("That refinement round didn't finish — try again."),
+  errorToast: codedRefusalAwareToast("That refinement round didn't finish. Try again."),
 });
 
 // ── the sharp end ───────────────────────────────────────────────────────────────────────────────────
@@ -172,7 +172,7 @@ type ApplyFieldsResult = inferOutput<Trpc["refinery"]["applyFields"]>;
  * reasons are structured data the outcome panel renders.
  */
 function applyRefusal(data: ApplyFieldsResult): string | null {
-  return data.applied.length === 0 && data.dropped.length > 0 ? "Nothing was applied — a kept change was refused. The reasons are listed below." : null;
+  return data.applied.length === 0 && data.dropped.length > 0 ? "Nothing was applied: a kept change was refused. The reasons are listed below." : null;
 }
 
 /** The accepted rewrite entries onto the LIVE card — the merge terminal act. */
@@ -192,7 +192,7 @@ type ApplyAsCopyResult = inferOutput<Trpc["refinery"]["applyAsCopy"]>;
 /** The zero-write branch-off (every accept dead on the belts ⇒ no copy minted) — the same errors-as-data
  *  refusal class as the apply arm. */
 function copyRefusal(data: ApplyAsCopyResult): string | null {
-  return data.character === null && data.dropped.length > 0 ? "No copy was made — a kept change was refused. The reasons are listed below." : null;
+  return data.character === null && data.dropped.length > 0 ? "No copy was made. A kept change was refused. The reasons are listed below." : null;
 }
 
 /** The BRANCH-OFF terminal act: the reviewed accepts land on a NEW character; the
@@ -220,5 +220,5 @@ export const useSubmitManualRewrite = createEntityMutation<
 >({
   options: (trpc) => trpc.refinery.submitManualRewrite.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't save the hand edit — check it stays inside the session's scope.",
+  errorToast: "Couldn't save the hand edit. Check it stays inside the session's scope.",
 });

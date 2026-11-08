@@ -61,7 +61,7 @@ export function PluginSurfaceShell({
   // arm; only the redundant echo goes. Same rule for the group's accessible name, which would otherwise
   // read the doubled pair aloud.
   const showTitle = title !== pluginName;
-  const regionName = showTitle ? `${pluginName} — ${title}` : pluginName;
+  const regionName = showTitle ? `${pluginName}: ${title}` : pluginName;
   // PAGE scale (U5, §9): the biggest impersonation canvas in the design gets the pinned attribution BAND above a
   // scrolling body. Checked first — a `page` surface is never also `inline`.
   if (scale === "page") {

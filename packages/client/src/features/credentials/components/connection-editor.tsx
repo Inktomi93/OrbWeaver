@@ -203,7 +203,7 @@ function AvailableConnectionEditorBody({
         <EditorTier defaultOpen={true} title="Essential">
           <Stack gap="row">
             <Field
-              description="Change it by adding another connection — a provider change would invalidate this row's key, URL and model at once."
+              description="Change it by adding another connection. A provider change would invalidate this row's key, URL and model at once."
               label={CONNECTION_PROVIDER_FIELD_NAME}
             >
               <Text data-slot="connection-editor-provider" voice="datum">
@@ -319,7 +319,7 @@ function AvailableConnectionEditorBody({
             <Stack gap="tight">
               <Text voice="label">What this server accepts</Text>
               <Text voice="gloss">
-                What we measured or were told about this model. It is a statement about the server, not a setting — changing a line here tells us what to
+                What we measured or were told about this model. It is a statement about the server, not a setting. Changing a line here tells us what to
                 believe, it does not change what the server does.
               </Text>
               <FactRowList

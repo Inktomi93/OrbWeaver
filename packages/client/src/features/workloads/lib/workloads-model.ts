@@ -95,8 +95,8 @@ export function workloadKindItems(viewerIsOwner: boolean): SelectItems {
 
 /** The `index` kind's source picker (text / image / all — what to reindex). */
 const INDEX_SOURCE_LABELS: Record<IndexSource, string> = {
-  text: "Text — characters + chat memory",
-  image: "Images — avatars",
+  text: "Text: characters + chat memory",
+  image: "Images: avatars",
   all: "Everything",
 };
 export const INDEX_SOURCE_ITEMS: SelectItems = INDEX_SOURCES.map((source) => ({
@@ -144,8 +144,8 @@ export const WORKLOAD_STATUS_BADGE: Record<WorkloadStatus, Pick<BadgeProps, "ton
 /** Lane → group heading (exhaustive over the WORKLOAD_LANES tuple — a new lane is a tsc error here). The
  *  lane is EXECUTION, not priority: two rows in different lanes run at the same time. */
 export const WORKLOAD_LANE_LABELS: Record<WorkloadLane, string> = {
-  interactive: "Interactive — jobs you're waiting on",
-  sweep: "Sweeps — bulk maintenance",
+  interactive: "Interactive: jobs you're waiting on",
+  sweep: "Sweeps: bulk maintenance",
 };
 
 /** Split rows into their execution lanes, in tuple order, dropping lanes with no rows. A SINGLE non-empty

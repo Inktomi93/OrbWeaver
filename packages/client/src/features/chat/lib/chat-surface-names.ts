@@ -107,7 +107,7 @@ export function reactionChoiceName(emoji: string): string {
 /** A message's reaction pill, which also names the line's author when the room has several. */
 export function reactionPillName(emoji: string, count: number, qualifier: string | null): string {
   const choice = qualifier === null ? reactionChoiceName(emoji) : `${reactionChoiceName(emoji)} to ${qualifier}'s line`;
-  return `${choice} — ${String(count)} so far`;
+  return `${choice}: ${String(count)} so far`;
 }
 
 /** The wire viewer's empty state for a reply that captured no prompt. */
@@ -142,7 +142,7 @@ export const CHAT_INJECTION_CONTENT_NAME = "Content";
 export const CHAT_MEMBERS_ROSTER_NAME = "Members and characters";
 
 /** The open room's Members entry: a fixed prefix, then the member count. */
-export const CHAT_MEMBERS_ENTRY_PREFIX = "Members — ";
+export const CHAT_MEMBERS_ENTRY_PREFIX = "Members: ";
 export function chatMembersEntryName(count: number): string {
   return `${CHAT_MEMBERS_ENTRY_PREFIX}${count}`;
 }

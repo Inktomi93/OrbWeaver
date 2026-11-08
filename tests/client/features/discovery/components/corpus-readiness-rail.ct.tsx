@@ -82,7 +82,7 @@ test("with memory on and a helper model ready, every row states its prerequisite
   const rail = await visibleRail(page);
   const rows = [
     ["Visual families", READINESS_PASSES.families],
-    ["Distilled — genre, tone, pitch", READINESS_PASSES.distilled],
+    ["Distilled: genre, tone, pitch", READINESS_PASSES.distilled],
     ["Story themes", READINESS_PASSES.storyThemes],
     ["Keywords", READINESS_PASSES.keywords],
     ["Near-duplicates", READINESS_PASSES.duplicates],
@@ -159,7 +159,7 @@ test("a queued run of a row's pass holds that row at running instead of offering
   await expect(line).toHaveAttribute("data-pass-action", "running");
   await expect(line).toContainText("Running");
   await expect(line.getByRole("button")).toHaveCount(0);
-  await expect(passLine(rail, "Distilled — genre, tone, pitch")).toHaveAttribute("data-pass-action", "run");
+  await expect(passLine(rail, "Distilled: genre, tone, pitch")).toHaveAttribute("data-pass-action", "run");
 });
 
 test("with memory off, the rows that read chat summaries say so and offer to turn memory on", async ({ mount, page }) => {
@@ -175,7 +175,7 @@ test("with memory off, the rows that read chat summaries say so and offer to tur
     await expect(line).toContainText(READINESS_PASSES.keywords.needs);
     await expect(line.getByRole("button", { name: "Turn on chat memory", exact: true })).toBeVisible();
   }
-  await expect(passLine(rail, "Distilled — genre, tone, pitch")).toHaveAttribute("data-pass-action", "run");
+  await expect(passLine(rail, "Distilled: genre, tone, pitch")).toHaveAttribute("data-pass-action", "run");
 });
 
 test("with no helper model, the passes that call one send the reader to Model roles instead of running", async ({ mount, page }) => {
@@ -185,7 +185,7 @@ test("with no helper model, the passes that call one send the reader to Model ro
   await serveOverview(page, owner);
   await mount<typeof CorpusCoverageStory>(STORY, {});
   const rail = await visibleRail(page);
-  for (const label of ["Distilled — genre, tone, pitch", "Story themes"]) {
+  for (const label of ["Distilled: genre, tone, pitch", "Story themes"]) {
     const line = passLine(rail, label);
     await expect(line).toHaveAttribute("data-pass-action", "pick-helper-model");
     await expect(line.getByRole("button", { name: "Open Model roles", exact: true })).toBeVisible();

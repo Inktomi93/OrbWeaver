@@ -34,9 +34,9 @@ export const CORPUS_TEXT_TARGET_ID = "fields" satisfies CorpusSearchTargetId;
  *  union keeps this exhaustive — a new target fails `tsc`. */
 export const CORPUS_TARGET_REST_HINTS: Record<CorpusSearchTargetId, string> = {
   characters: "Browse your characters, or type a name or theme to search.",
-  discover: "Search chat scenes across your library — type a line, moment, or vibe to find it.",
-  digests: "Search your saved memory digests — type what you're trying to recall.",
-  images: "Search your images by likeness and caption — type what an image shows. A hit opens its asset detail.",
+  discover: "Search chat scenes across your library. Type a line, moment, or vibe to find it.",
+  digests: "Search your saved memory digests. Type what you're trying to recall.",
+  images: "Search your images by likeness and caption. Type what an image shows. A hit opens its asset detail.",
   fields: "Find characters by name or keyword.",
 };
 

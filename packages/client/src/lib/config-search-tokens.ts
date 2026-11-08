@@ -19,7 +19,7 @@ export interface ConfigQueryToken {
 /** The whole token vocabulary, in menu order — the funnel and the `@` menu render exactly this list. */
 export const CONFIG_QUERY_TOKENS: readonly ConfigQueryToken[] = [
   { token: "@modified", hint: "only settings that differ from their default" },
-  { token: "@shelf:", hint: "one shelf — user, app, collections or plugins" },
+  { token: "@shelf:", hint: "one shelf: user, app, collections or plugins" },
   { token: "@in:", hint: "one group by its name, with hyphens for spaces (chat-behavior)" },
   { token: "@plugin:", hint: "one plugin's rows, by its name" },
 ];

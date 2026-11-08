@@ -113,18 +113,18 @@ function GameMacrosBody({
                 }
                 // An empty list must say what empty MEANS here ([[empty-states-are-load-bearing]]): the feature
                 // exists, this game just hasn't defined one — not "macros are unavailable".
-                emptyText="No game macros yet — the ones you add here live with this game and leave with it."
+                emptyText="No game macros yet. The ones you add here live with this game and leave with it."
                 // The SHADOW gloss rides the row it is about (a separate block would make the host match names by
                 // eye): the collision is stated as the consequence it is — the game def is what the turn
                 // resolves — never as a warning, because shadowing is a legitimate move.
                 getSubtitle={(macro): string =>
                   shadowed.has(macro.name)
-                    ? `Overrides preset — while this game runs, this definition is the one that resolves.${macro.description === "" ? "" : ` ${macro.description}`}`
+                    ? `Overrides preset, while this game runs, this definition is the one that resolves.${macro.description === "" ? "" : ` ${macro.description}`}`
                     : macro.description
                 }
                 getTitle={(macro): string => (macro.name === "" ? "Unnamed macro" : `{{${macro.name}}}`)}
                 heading="Game macros"
-                helperText="Template macros scoped to THIS game — usable anywhere macros resolve while it runs, and offered in Macro picks. Your preset's macros keep working alongside them."
+                helperText="Template macros scoped to THIS game. Usable anywhere macros resolve while it runs, and offered in Macro picks. Your preset's macros keep working alongside them."
                 items={values.userMacros}
                 getKey={(_macro, index): string | undefined => values.macroRowIds[index]?.id}
                 onAdd={onAdd}

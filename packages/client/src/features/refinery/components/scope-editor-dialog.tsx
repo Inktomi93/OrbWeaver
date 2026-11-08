@@ -89,7 +89,7 @@ function fieldGlossOf(depthless: boolean, text: string | null): string {
     return "no depth note on this card";
   }
   if (text === null || text.length === 0) {
-    return "empty — still scoreable";
+    return "empty: still scoreable";
   }
   return `${text.length} chars`;
 }
@@ -255,8 +255,8 @@ function ScopeEditorBody({ onOpenChange, card, selection, score, onSave }: Omit<
     >
       <Stack gap="row">
         <Text voice="gloss">
-          Only what you select is sent to the model — and only what you selected can ever be applied back. Widening the scope later re-runs the pipeline; it
-          does not retro-fit an old rewrite.
+          Only what you select is sent to the model, and only what you selected can ever be applied back. Widening the scope later re-runs the pipeline; it does
+          not retro-fit an old rewrite.
         </Text>
         {REFINABLE_FIELDS.map((field) => {
           const on = fields.includes(field);

@@ -90,17 +90,17 @@ export function AddDocumentBody(): ReactElement {
 
   const landed: OnLanded = ({ id, outcome, ingest, warning }): void => {
     if (outcome === "duplicate") {
-      toast.add({ title: "Already in your bank — destination added.", description: "Its other attachments are unchanged." });
+      toast.add({ title: "Already in your bank. Destination added.", description: "Its other attachments are unchanged." });
     } else if (ingest === "not-queued") {
       // The half-success, said plainly: the document IS saved (the old behaviour threw here and rendered
       // "Couldn't save the document." over a document that had in fact been saved), but nothing indexed it,
       // so it will not reach a chat until the user runs the repair the sentence names.
       toast.add({
         title: "Saved, but not indexed yet",
-        description: "The indexer wouldn't take the job. The document is safe — use Rebuild search index on it to try again.",
+        description: "The indexer wouldn't take the job. The document is safe. Use Rebuild search index on it to try again.",
       });
     } else if (warning === "empty-extraction") {
-      toast.add({ title: "Nothing to index in that file", description: "No text could be extracted — a scanned image PDF, most likely." });
+      toast.add({ title: "Nothing to index in that file", description: "No text could be extracted. A scanned image PDF, most likely." });
     }
     // The ceremony's END, wherever it was started: close the slot, then open what just landed in its own
     // section. A caller on HOME therefore finishes on the new document rather than back where it began
@@ -347,7 +347,7 @@ function PasteBody({ onLanded, destination }: { readonly onLanded: OnLanded; rea
   return (
     <ArmRegion label={DATABANK_PASTE_TEXT_NAME} onSubmit={onSubmit}>
       <Field label={DATABANK_ADD_NAME_FIELD_NAME}>
-        <Input onValueChange={setName} placeholder="e.g. House Valeroth — bloodlines" value={name} />
+        <Input onValueChange={setName} placeholder="e.g. House Valeroth: bloodlines" value={name} />
       </Field>
       <Field label={DATABANK_ADD_TEXT_FIELD_NAME}>
         <Textarea onChange={(event): void => setText(event.target.value)} placeholder="Paste or write the content to index…" rows={8} value={text} />

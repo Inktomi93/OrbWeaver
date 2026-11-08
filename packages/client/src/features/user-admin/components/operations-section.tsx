@@ -32,7 +32,7 @@ export function OperationsSection({ anchorId, sectionId }: { readonly anchorId: 
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={3} />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="operations — administrators only" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="operations: administrators only" onRetry={retry} />}
       reserveRows={firstBootRows}
       reserveKey="config.admin.operations"
     >
@@ -64,7 +64,7 @@ function OperationsBody({ anchorId, sectionId }: { readonly anchorId: string; re
     <Section container={true} divider={true} heading={OPERATIONS_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="field">
         <Text voice="gloss" prose={true} cap="prose">
-          Indexing and log level apply live — no restart needed.
+          Indexing and log level apply live. No restart needed.
         </Text>
         <SettingRowGroup>
           <AdminOverrideSwitch
@@ -77,7 +77,7 @@ function OperationsBody({ anchorId, sectionId }: { readonly anchorId: string; re
           />
           <AdminOverrideSelect
             label="Log level"
-            hint="Server log verbosity. Applied live — no restart needed."
+            hint="Server log verbosity. Applied live: no restart needed."
             value={resolved.logLevel}
             items={LOG_LEVEL_ITEMS}
             overridden={logLevelOverridden}

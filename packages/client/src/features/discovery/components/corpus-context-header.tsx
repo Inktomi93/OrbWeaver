@@ -45,7 +45,7 @@ export function CorpusContextHeader(): ReactElement {
           fallback={null}
           renderError={(_error, retry): ReactElement => (
             <Button variant="ghost" onClick={retry} size="sm" type="button">
-              Census unavailable — retry
+              Census unavailable: retry
             </Button>
           )}
         >

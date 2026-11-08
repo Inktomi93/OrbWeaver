@@ -434,7 +434,7 @@ function RowsBlock({ field, row, value }: { field: PlanField; row: RowPlan; valu
                   ))}
                   {scoreValue !== null && scoreWidget !== undefined ? (
                     <Text ink="inherit" as="span" voice="datum">
-                      — {scoreValue}
+                      ({scoreValue})
                     </Text>
                   ) : null}
                 </Row>

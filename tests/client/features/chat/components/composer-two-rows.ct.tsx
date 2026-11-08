@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { IMPERSONATE_STOP_LABEL } from "@orb/client/lib";
+import { IMPERSONATE_STOP_LABEL, MESSAGE_TOOLS_LABEL } from "@orb/client/lib";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { seedShellState } from "@orb/testkit/browser/spec";
@@ -19,7 +19,6 @@ import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-
 import { CHAT_COMPOSER_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMPOSER_CLEAR_INPUT_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
 import { PLUGIN_ACTIONS_NAME, PLUGIN_COMMAND_ARGS_TITLE } from "#client/features/plugin/lib/plugin-command-copy.ts";
-import { MESSAGE_TOOLS_LABEL } from "#client/lib/flank-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";

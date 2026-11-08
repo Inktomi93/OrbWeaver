@@ -64,7 +64,7 @@ function sectionLabels(section: PromptSection): { name: string; subtitle: string
     const copy = MARKER_COPY[section.marker];
     return {
       name: section.name.trim() === "" ? copy.label : section.name,
-      subtitle: isTemplatedMarker(section.marker) ? copy.subtitle : `carrier — ${copy.subtitle}`,
+      subtitle: isTemplatedMarker(section.marker) ? copy.subtitle : `carrier: ${copy.subtitle}`,
     };
   }
   return { name: section.name.trim() === "" ? "Literal text" : section.name, subtitle: "your own text" };
@@ -200,7 +200,7 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
       // lands on `fullTitle`, which shows in a tooltip on the title, is announced as the row's description
       // and explicitly never touches the accessible name (so the row still announces as "Main"). The row keeps ONE datum
       // on its line — the name — and the scent is a hover away, the §4.1 hint rule applied to a list row.
-      fullTitle={`${name} — ${subtitle}`}
+      fullTitle={`${name}: ${subtitle}`}
       title={name}
     />
   );

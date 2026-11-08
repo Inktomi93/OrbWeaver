@@ -42,10 +42,10 @@ const PANEL_MIN_HEIGHT_PX = 200;
 // whole job is to say which state each viewer sees — and the optional clause is spelled out rather than
 // wildcarded, so a fourth presence word would still red these.
 const PRESENCE = "(?:, online|, offline)?";
-const HOST_VIEWER_ROW = new RegExp(` — host, you${PRESENCE}$`, "u");
-const MEMBER_ROW = new RegExp(` — member${PRESENCE}$`, "u");
-const HOST_ROW = new RegExp(` — host${PRESENCE}$`, "u");
-const MEMBER_VIEWER_ROW = new RegExp(` — member, you${PRESENCE}$`, "u");
+const HOST_VIEWER_ROW = new RegExp(`: host, you${PRESENCE}$`, "u");
+const MEMBER_ROW = new RegExp(`: member${PRESENCE}$`, "u");
+const HOST_ROW = new RegExp(`: host${PRESENCE}$`, "u");
+const MEMBER_VIEWER_ROW = new RegExp(`: member, you${PRESENCE}$`, "u");
 
 /** Two cast members so the Members tab screenshots a room with a real CAST LIST rather than a single row.
  *  (The ≥2-character floor that used to gate the Cast section — and the whole tab — died with #162: any room
@@ -124,7 +124,7 @@ test("MEMBERS TAB: the same two-human room rendered as HOST and as MEMBER (host 
       await expect(memberPanel.getByRole("button", { name: MEMBER_VIEWER_ROW })).toBeVisible();
       for (const panel of [hostPanel, memberPanel]) {
         for (const card of CAST) {
-          await expect(panel.getByRole("button", { name: `${card.name} — character`, exact: true })).toBeVisible();
+          await expect(panel.getByRole("button", { name: `${card.name}: character`, exact: true })).toBeVisible();
         }
       }
 

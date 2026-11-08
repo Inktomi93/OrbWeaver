@@ -98,7 +98,7 @@ export function DeliveryCluster({
           )}
           <Grid cols="pair" gap="field">
             {role === null ? (
-              <Text voice="gloss">The transcript carries each message's own speaker — this section has no single role.</Text>
+              <Text voice="gloss">The transcript carries each message's own speaker. This section has no single role.</Text>
             ) : (
               <Field label={roleLabel} name="delivery-role">
                 <Select
@@ -137,7 +137,7 @@ export function DeliveryCluster({
       </Container>
       {tailPrefill ? (
         <Text voice="gloss">
-          Tail prefill — an assistant message at the very end that the model continues. It is a position, not a role; wires without prefill support get it
+          Tail prefill: an assistant message at the very end that the model continues. It is a position, not a role; wires without prefill support get it
           normalized into a plain message.
         </Text>
       ) : null}

@@ -96,7 +96,7 @@ function QuestObjectives({ quest, dim, edit }: { readonly quest: RpgQuestView; r
       {quest.objectives.map((o) => (
         <Row key={o.id} gap="field" align="center">
           {editable ? (
-            <Checkbox checked={o.completed} onCheckedChange={(next): void => edit.onToggleObjective(quest, o.id, next)} aria-label={`${o.text} — completed`} />
+            <Checkbox checked={o.completed} onCheckedChange={(next): void => edit.onToggleObjective(quest, o.id, next)} aria-label={`${o.text}: completed`} />
           ) : null}
           <Text as="span" voice="label" ink={o.completed ? "muted" : undefined} strike={o.completed} className="min-inline-0" grow={true}>
             {o.text}
@@ -214,10 +214,10 @@ function QuestCard({ quest, edit }: QuestCardProps): ReactElement {
 
         <QuestObjectives quest={quest} dim={dim} {...(edit === undefined ? {} : { edit })} />
 
-        {done ? <Text voice="gloss">wrapped — the story closed this one.</Text> : null}
+        {done ? <Text voice="gloss">wrapped: the story closed this one.</Text> : null}
         {failed ? (
           <Text tone="destructive" voice="gloss">
-            failed — the story closed this one.
+            failed: the story closed this one.
           </Text>
         ) : null}
       </Stack>
@@ -294,7 +294,7 @@ export function RpgQuestsTab({ state }: RpgQuestsTabProps): ReactElement {
     return (
       <Stack gap="section" data-slot="rpg-quests-tab">
         {rail}
-        <Text>No quests yet — {canEditShared ? "start one below." : "the story starts them."}</Text>
+        <Text>No quests yet: {canEditShared ? "start one below." : "the story starts them."}</Text>
         {canEditShared ? <NewQuest onCreate={onCreate} /> : null}
       </Stack>
     );
@@ -303,8 +303,8 @@ export function RpgQuestsTab({ state }: RpgQuestsTabProps): ReactElement {
   return (
     <Stack gap="section" data-slot="rpg-quests-tab">
       {rail}
-      <QuestSection heading={`Active — ${active.length}`} quests={active} {...(edit === undefined ? {} : { edit })} />
-      <QuestSection heading={`Done — ${settled.length}`} quests={settled} {...(edit === undefined ? {} : { edit })} />
+      <QuestSection heading={`Active: ${active.length}`} quests={active} {...(edit === undefined ? {} : { edit })} />
+      <QuestSection heading={`Done: ${settled.length}`} quests={settled} {...(edit === undefined ? {} : { edit })} />
       {canEditShared ? <NewQuest onCreate={onCreate} /> : null}
     </Stack>
   );

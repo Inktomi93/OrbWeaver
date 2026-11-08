@@ -3,7 +3,7 @@ import type { EvidenceGap } from "../../floor/verdict/evidence.ts";
 import type { AuditData } from "../../motion-audit/index.ts";
 
 /** One rAF reading of a snapshot's computed opacity, in ms since the transition's `ready`. */
-export interface CrossfadeSample {
+interface CrossfadeSample {
   readonly t: number;
   readonly opacity: number;
 }

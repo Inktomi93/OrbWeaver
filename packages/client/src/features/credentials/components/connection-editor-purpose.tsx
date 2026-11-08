@@ -33,7 +33,7 @@ export function KindVerdict({
     <Stack data-slot="connection-kind-verdict" gap="tight">
       <Row align="center" wrap={true} gap="field">
         <Text id={labelId} voice="label">
-          This looks like a {KIND_VERDICT_LABELS[kind]} model —
+          This looks like a {KIND_VERDICT_LABELS[kind]} model:
         </Text>
         <Select
           aria-label="Change what this model is for"
@@ -44,7 +44,7 @@ export function KindVerdict({
           value={declared?.kind ?? kind}
         />
       </Row>
-      <Text voice="gloss">From the model id and what the server reported. Change it if it's wrong — nothing else on this page depends on the guess.</Text>
+      <Text voice="gloss">From the model id and what the server reported. Change it if it's wrong. Nothing else on this page depends on the guess.</Text>
     </Stack>
   );
 }
@@ -84,7 +84,7 @@ export function CapabilityRail({ badges }: { readonly badges: readonly Capabilit
             variant={badge.ok ? "soft" : "outline"}
           >
             <Icon icon={badge.ok ? Check : X} size="sm" />
-            {badge.reason === null ? badge.label : `${badge.label} — ${badge.reason}`}
+            {badge.reason === null ? badge.label : `${badge.label}: ${badge.reason}`}
           </Badge>
         ))}
       </Row>

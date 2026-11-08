@@ -51,9 +51,9 @@ export function usePresetListHeader(): ListPaneHeaderView {
     }
     setImportOpen(false);
     if (outcome.created !== true) {
-      notify.success("That preset is already in your library — nothing was added.");
+      notify.success("That preset is already in your library. Nothing was added.");
     } else if (outcome.renamedFrom !== null && outcome.renamedFrom !== undefined) {
-      notify.success(`Imported as “${outcome.name ?? outcome.renamedFrom}” — you already have a different “${outcome.renamedFrom}”.`);
+      notify.success(`Imported as “${outcome.name ?? outcome.renamedFrom}”: you already have a different “${outcome.renamedFrom}”.`);
     } else {
       notify.success("Preset imported.");
     }

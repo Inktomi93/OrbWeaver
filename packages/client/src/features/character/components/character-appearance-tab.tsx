@@ -123,7 +123,7 @@ function BackgroundControl({ characterId, serverValue }: BackgroundControlProps)
         reserveKey="character.appearance.background"
         value={serverValue}
       />
-      <Text voice="gloss">Applies instantly — no save needed. Takes over the app background in a true-solo chat, below any chat-set background.</Text>
+      <Text voice="gloss">Applies instantly: no save needed. Takes over the app background in a true-solo chat, below any chat-set background.</Text>
     </Section>
   );
 }
@@ -226,7 +226,7 @@ function ThemeControlsBody({ characterName, session }: ThemeControlsBodyProps): 
         {/* The copy follows the READOUT (#841): a field's value text is `Inherit`, its hex, or `Custom` —
             never the raw `oklch(…)` triple it used to print. The promise this line makes is unchanged
             (you can tell set from inherited at a glance); what changed is that it is now legible. */}
-        Colours and styles apply to this character's messages instantly — no save needed. A field reading Inherit follows your global theme; every other field
+        Colours and styles apply to this character's messages instantly. No save needed. A field reading Inherit follows your global theme; every other field
         names its own value, so you can always tell which ones this card sets.
       </Text>
 

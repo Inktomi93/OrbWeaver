@@ -27,7 +27,7 @@ export const APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: ConfigSubcategory = {
       options: CHAT_STYLE_ITEMS,
       keywords: ["bubble", "flat", "document", "immersive", "echo", "whisper", "ripple"],
       teach: {
-        summary: "How every message in the transcript is shaped — bubbles, flat rows, document flow, or the immersive skins.",
+        summary: "How every message in the transcript is shaped. Bubbles, flat rows, document flow, or the immersive skins.",
         affects: ["the anatomy of every message row, in every chat"],
       },
     },
@@ -38,7 +38,7 @@ export const APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: ConfigSubcategory = {
       keywords: ["dialogue", "quotes", "speech"],
       teach: {
         summary:
-          "Tints “quoted speech” with the theme's dialogue color (SillyTavern-style) — a character's own theme wins. Off renders quotes in the body color.",
+          "Tints “quoted speech” with the theme's dialogue color (SillyTavern-style). A character's own theme wins. Off renders quotes in the body color.",
         affects: ["quoted dialogue in every message"],
       },
     },
@@ -48,7 +48,7 @@ export const APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: ConfigSubcategory = {
       label: "Auto-fix unfinished formatting",
       keywords: ["markdown", "italic", "bold", "asterisk"],
       teach: {
-        summary: "Closes a dangling *italic*/**bold** on settled messages (SillyTavern-style). Off keeps a lone asterisk — e.g. a censored word — literal.",
+        summary: "Closes a dangling *italic*/**bold** on settled messages (SillyTavern-style). Off keeps a lone asterisk (e.g. a censored word) literal.",
         affects: ["how settled messages render", "never the stored text itself"],
       },
     },

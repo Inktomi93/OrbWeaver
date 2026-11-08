@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import { MESSAGE_TOOLS_LABEL } from "@orb/client/lib";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import {
   PLUGIN_FRAME_ROUTE,
@@ -19,7 +20,6 @@ import type { Locator, Page } from "@playwright/test";
 import { strToU8 } from "fflate";
 import { pluginDetailsLabel } from "#client/features/plugin/lib/plugin-copy.ts";
 import { PLUGIN_MODEL_HEADING } from "#client/features/plugin/lib/plugin-model-copy.ts";
-import { MESSAGE_TOOLS_LABEL } from "#client/lib/flank-names.ts";
 import type { PluginPresentationPageStory } from "../_ct-stories.tsx";
 import type { PluginConsentLayoutStory } from "./_consent-layout-stories.tsx";
 import type { PluginHideFocusStory } from "./_hide-focus-stories.tsx";
@@ -281,8 +281,8 @@ for (const { width, touch, mobile } of [
         const details = row.getByRole("button", { name: pluginDetailsLabel(plugin.name), exact: true });
         await expect(details).toHaveAttribute("aria-expanded", "false");
         await details.click();
-        await row.getByRole("button", { name: `What it's allowed to do — ${plugin.name}`, exact: true }).click();
-        await expect(row.getByRole("group", { name: `What it's allowed to do — ${plugin.name}`, exact: true })).toBeVisible();
+        await row.getByRole("button", { name: `What it's allowed to do: ${plugin.name}`, exact: true }).click();
+        await expect(row.getByRole("group", { name: `What it's allowed to do: ${plugin.name}`, exact: true })).toBeVisible();
         const activity = row.getByRole("button", { name: `Recent activity for ${plugin.name}`, exact: true });
         await activity.click();
         await expect(activity.locator("..").getByRole("log", { name: "Log entries", exact: true })).toBeVisible();
@@ -291,13 +291,13 @@ for (const { width, touch, mobile } of [
         await expect(update).toHaveCount(plugin.updateSource === null ? 0 : 1);
       }
       const affinityRow = page.getByRole("group", { name: `${affinity.name} plugin`, exact: true });
-      await affinityRow.getByRole("button", { name: `${PLUGIN_MODEL_HEADING} — ${affinity.name}`, exact: true }).click();
+      await affinityRow.getByRole("button", { name: `${PLUGIN_MODEL_HEADING}: ${affinity.name}`, exact: true }).click();
       await expect(affinityRow.getByRole("combobox", { name: `Text requests model for ${affinity.name}`, exact: true })).toBeVisible();
-      for (const name of ["Research Familiar — Research destination", "Affinity Tracker — Affinity readings"]) {
+      for (const name of ["Research Familiar: Research destination", "Affinity Tracker: Affinity readings"]) {
         const surface = page.getByRole("group", { name, exact: true });
         await expect(surface).toBeVisible();
         expect(await surface.evaluate((element) => element.closest('[data-slot="card-root"]')?.getAttribute("aria-label"))).toMatch(/ plugin$/u);
-        await expect(surface.locator("..").getByText(name.split(" — ")[0] ?? "", { exact: true })).toBeVisible();
+        await expect(surface.locator("..").getByText(name.split(": ")[0] ?? "", { exact: true })).toBeVisible();
       }
       await page.screenshot({ path: test.info().outputPath("plugin-settings.png") });
     });
@@ -344,14 +344,14 @@ test("settings use the same attributed block for native scripted and frame regis
   let frameUrl: string | null = null;
   try {
     await expect(page.getByText("Native scripted settings", { exact: true })).toBeVisible();
-    const witness = page.locator('iframe[title="Settings tier witness — Frame preferences"]');
+    const witness = page.locator('iframe[title="Settings tier witness: Frame preferences"]');
     await witness.scrollIntoViewIfNeeded();
     frameUrl = await witness.getAttribute("src");
     await expect(
-      page.frameLocator('iframe[title="Settings tier witness — Frame preferences"]').getByText("Native frame settings", { exact: true }),
+      page.frameLocator('iframe[title="Settings tier witness: Frame preferences"]').getByText("Native frame settings", { exact: true }),
     ).toBeVisible();
     for (const title of ["Scripted preferences", "Frame preferences"]) {
-      const surface = page.getByRole("group", { name: `${plugin.name} — ${title}`, exact: true });
+      const surface = page.getByRole("group", { name: `${plugin.name}: ${title}`, exact: true });
       await expect(surface).toBeVisible();
       expect(await surface.evaluate((element) => element.closest('[data-slot="card-root"]')?.getAttribute("aria-label"))).toBe(`${plugin.name} plugin`);
     }
@@ -376,7 +376,7 @@ test("Keepsake Album names the live media placement and retains its chat-only sl
   expect(snapshot?.placements).toContainEqual(expect.objectContaining({ target: "composer-media", label: "Snapshot" }));
   await routePluginReads(page, caller);
   await mount<typeof PluginPresentationPageStory>(PAGE_STORY, { pluginId: camera.id, surfaceId: "album_page", width: 390 });
-  const album = page.getByRole("group", { name: "Keepsake Camera — The Album", exact: true });
+  const album = page.getByRole("group", { name: "Keepsake Camera: The Album", exact: true });
   await expect(album).toContainText("Message tools → Keepsake Camera → Snapshot");
   await expect(album).toContainText("/plugin keepsake-camera snapshot");
   await expect(album).toContainText("The album cannot take a picture outside a chat.");

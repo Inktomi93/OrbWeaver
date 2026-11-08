@@ -50,7 +50,7 @@ export function VariablesTab({ form }: { readonly form: AppForm }): ReactElement
           getSubtitle={(variable): string => variable.question}
           getTitle={(variable): string => (variable.name === "" ? "Unnamed variable" : variable.name)}
           heading="Variables"
-          helperText="Choice blocks the chat asks you to answer — each fills a matching macro in your prompt."
+          helperText="Choice blocks the chat asks you to answer. Each fills a matching macro in your prompt."
           items={values.variables}
           getKey={(_variable, index): string | undefined => values.variableRowIds[index]?.id}
           onAdd={onAdd}

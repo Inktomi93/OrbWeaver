@@ -232,8 +232,8 @@ function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): Reac
                 </ToggleGroup>
                 <Text voice="gloss">
                   {field.state.value === "narrator"
-                    ? "One message voices everyone — you can't swipe individuals."
-                    : "Each character replies in their own message — swipe them individually."}
+                    ? "One message voices everyone. You can't swipe individuals."
+                    : "Each character replies in their own message. Swipe them individually."}
                 </Text>
                 {/* Always mounted, so a screen reader is already watching the region when the heal fills it. */}
                 <Text data-slot="narrator-healed-smart" role="status" voice="gloss">
@@ -340,7 +340,7 @@ function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): Reac
                       {(field): ReactElement => (
                         <field.SwitchField
                           label={AUTO_MODE_LABEL}
-                          description="They keep the conversation going on their own — each auto-turn is a full generation you pay for."
+                          description="They keep the conversation going on their own. Each auto-turn is a full generation you pay for."
                         />
                       )}
                     </form.AppField>

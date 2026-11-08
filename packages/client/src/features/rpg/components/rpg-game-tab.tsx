@@ -71,8 +71,8 @@ const WRITE_LABEL: Readonly<Record<RpgTrackerDef["write"], string>> = {
 
 /** What each `write` axis means and what pressing the toggle does, as visible copy beside it. */
 const WRITE_GLOSS: Readonly<Record<RpgTrackerDef["write"], string>> = {
-  delta: "a resource the story spends and restores — press to make it an observation",
-  set: "a state the story observes — press to make it a spendable resource",
+  delta: "a resource the story spends and restores: press to make it an observation",
+  set: "a state the story observes: press to make it a spendable resource",
 };
 
 /** ONE tracker's def row — the whole axis set: shape · write · who carries it · the label · the meter
@@ -94,7 +94,7 @@ function TrackerRow({
   // BAND vocabulary + Eye glyph, never "pin" (an owner ruling): "pin" is the HAND-LOCK's word
   // (RpgFieldLock's "Pinned by hand"). Band = visibility, so it speaks visibility.
   const bandLabel = def.pinned ? `Remove ${def.label} from the band` : `Show ${def.label} as a band orb`;
-  const lockLabel = def.locked ? `Let the story write ${def.label} again` : `Lock ${def.label} — the story can no longer write it`;
+  const lockLabel = def.locked ? `Let the story write ${def.label} again` : `Lock ${def.label}: the story can no longer write it`;
   const removeLabel = `Remove ${def.label}`;
   const swatch = trackColorProps(resolveTrackerColor(def.color, index));
   return (
@@ -133,7 +133,7 @@ function TrackerRow({
               editValue={def.max === null ? "" : String(def.max)}
               kind="numeric"
               placeholder="none"
-              editTitle={`${def.label}'s DEFAULT ceiling — what a carrier gets unless that character overrides it on their card`}
+              editTitle={`${def.label}'s DEFAULT ceiling: what a carrier gets unless that character overrides it on their card`}
               onEdit={(next): void => {
                 const n = Number.parseInt(next, 10);
                 patch({ max: Number.isNaN(n) ? null : Math.max(1, n) });
@@ -166,7 +166,7 @@ function TrackerRow({
         <Badge size="sm">{def.shape}</Badge>
         <HintTrigger
           className=""
-          hint="the shape decides how it renders and how the story writes it — fixed when it was named"
+          hint="the shape decides how it renders and how the story writes it: fixed when it was named"
           subject={`${def.label}'s shape`}
         />
         {/* The write axis is a TOGGLE, not a badge: a resource you spend reads and writes differently from a
@@ -225,10 +225,10 @@ function TrackersEditor({ chatId, config }: { readonly chatId: ChatId; readonly 
     <Stack gap="field" data-slot="rpg-trackers-editor">
       <Kicker>Trackers</Kicker>
       <Text voice="gloss">
-        A tracker is one labelled value the story keeps — on the room's participants, on the scene's characters, or on the game itself. Defined once here; read
+        A tracker is one labelled value the story keeps. On the room's participants, on the scene's characters, or on the game itself. Defined once here; read
         and edited on the character. A meter's max here is the DEFAULT ceiling: an individual character can carry a different one on their card.
       </Text>
-      {defs.length === 0 ? <RpgDoorwayLine>No trackers yet — name one below and the story starts keeping it.</RpgDoorwayLine> : null}
+      {defs.length === 0 ? <RpgDoorwayLine>No trackers yet: name one below and the story starts keeping it.</RpgDoorwayLine> : null}
       {/* The ROW band takes its own Stack so `rows="control"` floors the tracker rows without inflating the kicker/gloss above them. */}
       <Stack gap="field" rows="control">
         {defs.map((def, i) => (
@@ -280,7 +280,7 @@ function RelationshipHintsEditor({ chatId, config }: { readonly chatId: ChatId; 
   return (
     <RpgHintMapEditor
       kicker="Custom relationship meanings"
-      emptyLine="No custom relationships yet — built-in kinds already have meanings."
+      emptyLine="No custom relationships yet: built-in kinds already have meanings."
       labelNoun="relationship label"
       addPlaceholder="custom label (e.g. debtor)"
       hints={config.relationshipHints}
@@ -296,7 +296,7 @@ function JournalTypeHintsEditor({ chatId, config }: { readonly chatId: ChatId; r
   return (
     <RpgHintMapEditor
       kicker="Custom journal types"
-      emptyLine="No custom journal types yet — built-in types already have meanings."
+      emptyLine="No custom journal types yet: built-in types already have meanings."
       labelNoun="journal type"
       addPlaceholder="custom type (e.g. omen)"
       hints={config.journalTypeHints}
@@ -348,7 +348,7 @@ function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
       // (it toasts an error, which this is not), and a real rebuild announces itself by repainting the panel —
       // so this arm is the only one with no signal of its own. The host paid for a model call; say what it found.
       if (verdict.ok && !verdict.rebuilt) {
-        notify.info("Nothing to rebuild — the tracked state already matches the story.");
+        notify.info("Nothing to rebuild: the tracked state already matches the story.");
       }
     } catch {
       // The failed mutation's own error toast has already spoken; the rest of the sequence is abandoned.
@@ -359,16 +359,16 @@ function ResyncControl({ chatId }: { readonly chatId: ChatId }): ReactElement {
     <Stack gap="field">
       <Kicker>Resync from story</Kicker>
       <Text voice="gloss">
-        Re-reads the recent story and rebuilds the tracked panel — the escape hatch when the state has drifted. Runs one model call (a few seconds); your
+        Re-reads the recent story and rebuilds the tracked panel. The escape hatch when the state has drifted. Runs one model call (a few seconds); your
         hand-locked fields are never overwritten.
       </Text>
       <SettingCheckboxRow
         label="Restamp my messages first"
-        description="Re-stamps every line you wrote in this chat to the persona you're playing now, then rebuilds — so the rebuilt state uses that name. Replies keep the names the story already wrote."
+        description="Re-stamps every line you wrote in this chat to the persona you're playing now, then rebuilds, so the rebuilt state uses that name. Replies keep the names the story already wrote."
         checked={restampFirst && canRestamp}
         onChange={setRestampFirst}
         disabled={!canRestamp || busy}
-        {...(canRestamp ? {} : { disabledReason: "Pick a persona for this chat first — there's nothing to re-stamp to." })}
+        {...(canRestamp ? {} : { disabledReason: "Pick a persona for this chat first. There's nothing to re-stamp to." })}
       />
       <Row gap="field">
         <Button
@@ -401,7 +401,7 @@ function HostConsole({ state }: { readonly state: RpgPanelState }): ReactElement
       <Row gap="field" align="center">
         <Icon icon={Crown} size="sm" ink="accolade" />
         <Text voice="kicker" ink="accolade">
-          Host console — host only
+          Host console: host only
         </Text>
       </Row>
       <RpgRulesetControl chatId={state.chatId} config={config} />

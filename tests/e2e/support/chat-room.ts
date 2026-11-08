@@ -21,7 +21,7 @@
 //   • stream-open is observed on the wire (`stream-tap.ts`: the room's `chatOpened` frame); orb has no
 //     `chat-stream-state` testid.
 
-import { GAME_STRIP_LABEL, rowActionsName } from "@orb/client/lib";
+import { GAME_STRIP_LABEL, MESSAGE_TOOLS_LABEL, rowActionsName } from "@orb/client/lib";
 import { GROUP_OUTPUT_LABELS } from "@orb/contracts/chat";
 import { isPlainObject } from "@orb/kit/guards";
 import type { ChatId, MessageId } from "@orb/kit/ids";
@@ -43,7 +43,6 @@ import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { CHAT_TITLE_FIELD_NAME } from "#client/lib/chat-rename-names.ts";
 import { CONTEXT_SHEET_BACK_NAME, LIST_PANEL_NOUN, panelEdgeName, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
-import { MESSAGE_TOOLS_LABEL } from "#client/lib/flank-names.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import { ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
 import { streamTapOf, waitForRoomOpened } from "./stream-tap.ts";

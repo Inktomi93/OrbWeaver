@@ -341,7 +341,7 @@ test.describe("the phone topbar at 320, coarse pointer", () => {
 
 const WIDE_TITLE = '.shell-topbar-identity[data-identity="wide"] .shell-topbar-title';
 const MEMBERS_PREFIX = CHAT_MEMBERS_ENTRY_PREFIX;
-const MEMORY_PREFIX = "Memory — ";
+const MEMORY_PREFIX = "Memory: ";
 const MEMBERS_CHIP = `[aria-label^="${MEMBERS_PREFIX}"]`;
 const MEMORY_CHIP = `[aria-label^="${MEMORY_PREFIX}"]`;
 const TRAIL_ENTRIES = [

@@ -52,7 +52,7 @@ export interface CharacterCategorizedListProps<T extends { readonly id: string }
 function GroupScopeNote({ loaded, total }: { readonly loaded: number; readonly total: number }): ReactElement {
   // Not `aria-hidden`: this IS the group's honesty, and unlike the flat list's foot line it does not sit
   // under a live region already speaking the same number.
-  return <Text voice="gloss">{`${String(loaded)} of ${String(total)} loaded — keep scrolling, or filter by this tag to see them all.`}</Text>;
+  return <Text voice="gloss">{`${String(loaded)} of ${String(total)} loaded: keep scrolling, or filter by this tag to see them all.`}</Text>;
 }
 
 /** Grouped collapsible rows + a "Load more" tail-fetch. */

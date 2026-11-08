@@ -23,7 +23,7 @@ export function CorpusResultsList({
   return (
     <Stack
       ref={ref}
-      aria-label={`Search results — ${label}`}
+      aria-label={`Search results: ${label}`}
       scroll="y"
       grow={true}
       data-testid={testId("corpusSearchResults")}

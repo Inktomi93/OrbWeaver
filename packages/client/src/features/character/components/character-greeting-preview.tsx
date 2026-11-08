@@ -321,7 +321,7 @@ function GreetingActions({
               label/muted pair: `prose` lifts gloss's micro step to `label` — the step this line already
               had — and relaxes the leading, which is the whole reason the modifier exists. */}
           <Text prose={true} voice="gloss">
-            Rewrite this greeting or make a new one — the result is saved to the character card.
+            Rewrite this greeting or make a new one. The result is saved to the character card.
           </Text>
           <GreetingStudio
             characterId={characterId}

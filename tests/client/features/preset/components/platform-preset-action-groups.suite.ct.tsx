@@ -45,7 +45,7 @@ for (const regime of REGIMES) {
       const props = { width: regime.width, appearance: regime.appearance, subject: "editor" as const, presetId: preset.id };
       const mounted = await mount<typeof PresetActionGroupsStory>(STORY, props);
       const rename = page.getByRole("button", { name: PRESET_RENAME_NAME, exact: true });
-      const activate = page.getByRole("button", { name: "Activate — use this preset for generation", exact: true });
+      const activate = page.getByRole("button", { name: "Activate: use this preset for generation", exact: true });
       const reset = page.getByRole("button", { name: "Reset to starter arrangement", exact: true });
       await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
       await rename.focus();

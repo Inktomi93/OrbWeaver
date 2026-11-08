@@ -37,7 +37,7 @@ function toRow(entry: ConfigSearchEntry): PaletteCommandRow {
   return {
     id: `config:${entry.id}`,
     label: entry.label,
-    describe: entry.kind === "group" ? entry.groupLabel : `${entry.groupLabel} — open this setting`,
+    describe: entry.kind === "group" ? entry.groupLabel : `${entry.groupLabel}: open this setting`,
     ...(entry.kind === "group" ? {} : { badge: entry.groupLabel }),
     keywords: [...entry.keywords],
     run: (): void => {

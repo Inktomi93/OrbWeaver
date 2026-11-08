@@ -26,5 +26,5 @@ export const REFINERY_NO_SESSIONS_TITLE = "No refinery sessions yet";
 export const REFINERY_SETUP_TAB_LABEL = "Setup";
 
 /** The versions tab's compare heading and its pending read. */
-export const REFINERY_VERSION_DIFF_HEADING = "description — this version vs live";
+export const REFINERY_VERSION_DIFF_HEADING = "description: this version vs live";
 export const REFINERY_VERSION_LOADING_TEXT = "Loading that version…";

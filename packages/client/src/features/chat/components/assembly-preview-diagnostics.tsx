@@ -145,7 +145,7 @@ const UNTITLED_ENTRY = "Untitled entry";
  *  the Trace section (keyword strings, not entry identity). Empty ⇒ a one-line explanation, never a blank. */
 function WorldInfoActivated({ activated }: { readonly activated: AssembleTrace["worldInfoActivated"] }): ReactElement {
   return (
-    <Section heading={<Kicker>{`World info — ${activated.length} activated`}</Kicker>}>
+    <Section heading={<Kicker>{`World info: ${activated.length} activated`}</Kicker>}>
       {activated.length === 0 ? (
         <Text>No world-info entries activated.</Text>
       ) : (
@@ -185,7 +185,7 @@ function ShapeTraceSummary({ trace }: { readonly trace: ShapeTrace }): ReactElem
             the bare `gloss` step sets them at 10.5px on tight leading — the wall that modifier exists for.
             First consumer in features/chat (side-eye 2026-08-06 P3). */}
         <Text prose={true} voice="gloss">
-          How the canon shaped into the next turn's wire history — row counts only, no content.
+          How the canon shaped into the next turn's wire history. Row counts only, no content.
         </Text>
         <TraceLine label="Stages (tail → inject → squash → name)" value={`${withTail} → ${injected} → ${squashed} → ${named}`} />
         <TraceLine label="Same-role merges" value={String(trace.squashMerges)} />
@@ -250,13 +250,13 @@ const ROW_SOURCE_GLOSS = "canon = a stored message · assembled = built for this
  */
 function WireRows({ rows }: { readonly rows: readonly ShapeTraceRow[] }): ReactElement {
   return (
-    <Section heading={<Kicker>{`Wire rows — ${rows.length} delivered`}</Kicker>}>
+    <Section heading={<Kicker>{`Wire rows: ${rows.length} delivered`}</Kicker>}>
       {rows.length === 0 ? (
         <Text>This turn delivers no history rows.</Text>
       ) : (
         <Stack gap="field">
           <Text prose={true} voice="gloss">
-            The order the model receives, before the context fit trims the oldest turns. Roles and speakers only — no content.
+            The order the model receives, before the context fit trims the oldest turns. Roles and speakers only. No content.
           </Text>
           <Text prose={true} voice="gloss">
             {ROW_SOURCE_GLOSS}

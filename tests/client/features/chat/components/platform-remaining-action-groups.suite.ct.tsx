@@ -272,7 +272,7 @@ for (const regime of REGIMES) {
         const row = rows.nth(index);
         const label = row.getByRole("button", { name: `Tracker ${index + 1} label`, exact: true });
         const band = row.getByRole("button", { name: `Show ${def.label} as a band orb`, exact: true });
-        const lock = row.getByRole("button", { name: `Lock ${def.label} — the story can no longer write it`, exact: true });
+        const lock = row.getByRole("button", { name: `Lock ${def.label}: the story can no longer write it`, exact: true });
         const remove = row.getByRole("button", { name: `Remove ${def.label}`, exact: true });
         const maximum = row.getByRole("button", { name: `${def.label} default max`, exact: true });
         await expect(label).toBeVisible();

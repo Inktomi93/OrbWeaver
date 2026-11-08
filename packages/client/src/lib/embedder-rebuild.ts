@@ -67,7 +67,7 @@ export function reindexConfirmDescription(preview: EmbedSpaceChangePreview | nul
     `This change deletes your search index (${parts.join(", ")}) and rebuilds it.`,
     ...pauseSentences(preview.stored),
     ...memory,
-    `Rebuilding ${groupThousands(preview.embedCalls)} items runs in the background — follow it under Settings → Jobs.`,
+    `Rebuilding ${groupThousands(preview.embedCalls)} items runs in the background: follow it under Settings → Jobs.`,
   ].join(" ");
 }
 
@@ -148,8 +148,8 @@ export function embedderCheckingText(embedder?: string): string {
 
 /** The vector role row's rebuild line while an embedder change re-indexes, and after one failed. */
 export const REBUILD_STATUS_COPY = {
-  running: "Re-indexing — search paused.",
-  failed: "Rebuild failed — search is paused until a retry finishes.",
+  running: "Re-indexing: search paused.",
+  failed: "Rebuild failed: search is paused until a retry finishes.",
 } as const;
 
 /** The control beside a rebuild line or a paused search that opens the rebuild's jobs. */

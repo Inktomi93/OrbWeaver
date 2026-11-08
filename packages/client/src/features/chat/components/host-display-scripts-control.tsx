@@ -34,7 +34,7 @@ export function HostDisplayScriptsControl({ chatId }: HostDisplayScriptsControlP
     // grammar, and Base UI mints the label/control id from field context (C21 / LANE NAVFORM).
     <SettingSwitchRow
       label="Show my display scripts to everyone"
-      description="Your display-only regex normally changes just your own view. Turn this on to apply it to the transcript for everyone in this room — their own display scripts still run on top. Never changes what's sent to the model or what anyone types."
+      description="Your display-only regex normally changes just your own view. Turn this on to apply it to the transcript for everyone in this room. Their own display scripts still run on top. Never changes what's sent to the model or what anyone types."
       checked={chat.hostDisplayScripts}
       onChange={(next): void => {
         setEnabled.mutate({ chatId, enabled: next });

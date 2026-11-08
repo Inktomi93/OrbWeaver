@@ -1,6 +1,7 @@
 // Which findings could become a lint rule, and which need a data or design decision first. Counts come from the run.
+
+import type { Cohort } from "../floor/verdict/cohort-compare.ts";
 import type { UiFacts } from "./analysis.ts";
-import type { Cohort } from "./compare.ts";
 import { KINDS } from "./sites.ts";
 
 export interface RuleCandidate {

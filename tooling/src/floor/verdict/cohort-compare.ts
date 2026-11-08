@@ -1,4 +1,5 @@
 // Cohort comparison: per column, the majority value and every member that differs from it, each with path:line.
+// ui-facts compares source cohorts with it, and the ui-audit engine compares rendered cohort members.
 export interface Cell {
   readonly value: string;
   readonly line: number;

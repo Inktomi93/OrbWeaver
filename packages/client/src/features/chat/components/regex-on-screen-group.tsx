@@ -95,7 +95,7 @@ function DisplayScriptRow({ isYours, script }: { readonly isYours: boolean; read
                 {/* The SAME "everywhere" name as a tier row's switch, because it is the same flag on the
                     same library row — a display script turned off here is off in every room. */}
                 <Switch
-                  aria-label={`${name} — everywhere`}
+                  aria-label={`${name}: everywhere`}
                   checked={script.enabled}
                   onCheckedChange={(next): void => {
                     setEnabled.mutate({ scriptId: script.id, input: { enabled: next } });
