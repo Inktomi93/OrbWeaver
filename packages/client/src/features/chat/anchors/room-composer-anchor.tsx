@@ -12,11 +12,16 @@ export interface RoomComposerAnchorProps {
   readonly children: ReactNode;
 }
 
-/** Provide the container box the composer region's tracks consume. */
+/**
+ * Provide the container box the composer region's tracks consume. At a narrow width the islands step in by the ring clearance the
+ * transcript's rows keep, so both edges meet the rows'; each island gives that step up from its own padding.
+ */
 export function RoomComposerAnchor({ reservation, regionRef, children }: RoomComposerAnchorProps): ReactElement {
   return (
-    <Stack container={true} data-slot="chat-room-composer-region" gap="field" paddingInlineEnd={reservation} ref={regionRef}>
-      {children}
+    <Stack container={true} data-slot="chat-room-composer-region" paddingInlineEnd={reservation} ref={regionRef}>
+      <Stack gap="field" paddingInlineNarrow="tight">
+        {children}
+      </Stack>
     </Stack>
   );
 }

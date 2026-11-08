@@ -398,6 +398,7 @@ export const TOKENS = {
   "size.switch-thumb": { cssVar: "--size-switch-thumb", value: "calc(var(--size-switch-track-height) - 2 * var(--border-width-control) - 2 * var(--size-switch-inset))" },
   "size.combobox-chip-chip": { cssVar: "--size-combobox-chip-chip", value: "calc(var(--size-touch-target) - 2 * var(--border-width-control) - 2 * var(--spacing-tight))" },
   "size.control-clearance": { cssVar: "--size-control-clearance", value: "calc(var(--size-control-sm) + var(--spacing-row))" },
+  "size.room-island-inset-narrow": { cssVar: "--size-room-island-inset-narrow", value: "calc(var(--spacing-field) - var(--spacing-tight))" },
   "size.combobox-chip-sm": { cssVar: "--size-combobox-chip-sm", value: "calc(var(--size-control-sm) - 2 * var(--border-width-control) - 2 * var(--spacing-field))" },
   "size.combobox-chip-md": { cssVar: "--size-combobox-chip-md", value: "calc(var(--size-control-md) - 2 * var(--border-width-control) - 2 * var(--spacing-field))" },
   "size.combobox-chip-lg": { cssVar: "--size-combobox-chip-lg", value: "calc(var(--size-control-lg) - 2 * var(--border-width-control) - 2 * var(--spacing-field))" },
