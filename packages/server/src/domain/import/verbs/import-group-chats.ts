@@ -35,6 +35,8 @@ import type {
 import type { ImportContext, ImportService } from "../contract/service.ts";
 import { requireProfile } from "../guard.ts";
 import { buildGroupChatInput, disambiguateChatTitles, unresolvedPinnedPersonas } from "../substrate/chat-input.ts";
+import type { GroupRefusal } from "../substrate/group.ts";
+import { groupRefusal, resolveMembers } from "../substrate/group.ts";
 
 /** The room-behavior blob an imported ST group is born with. Only what ST actually states travels: its
  *  `generation_mode` (append ⇒ the whole cast in one narrated message) and `allow_self_responses`. Everything
@@ -64,29 +66,6 @@ function metadataFor(group: CollectedGroup): ChatMetadata {
       allowSelfResponses,
     },
   };
-}
-
-/** Resolve one group's member FILENAMES against the run's card-filename → characterId map. Order is preserved
- *  (ST's own member order), and the FIRST resolved member becomes the room's primary — the character the write
- *  op scopes its dedup + branch resolution on. */
-function resolveMembers(
-  group: CollectedGroup,
-  byFilename: ReadonlyMap<string, CharacterId>,
-): { readonly seated: { readonly file: string; readonly characterId: CharacterId }[]; readonly skipped: ImportSkippedGroupMember[] } {
-  const seated: { file: string; characterId: CharacterId }[] = [];
-  const skipped: ImportSkippedGroupMember[] = [];
-  for (const file of group.parsed.memberFiles) {
-    const characterId = byFilename.get(file);
-    if (characterId === undefined) {
-      skipped.push({ group: group.parsed.name, member: file, reason: "no character with that card filename in the import set or the library" });
-      continue;
-    }
-    // ST allows a member listed twice; one seat per card (the write op would refuse a duplicate roster row).
-    if (!seated.some((s) => s.characterId === characterId)) {
-      seated.push({ file, characterId });
-    }
-  }
-  return { seated, skipped };
 }
 
 /** The roster-scoped display-name fallback map, with the AMBIGUOUS names withheld (#1469 item 5). A bare
@@ -147,13 +126,15 @@ function disabledSeatsOf(
   };
 }
 
-/** The precondition a group must meet to become a room: at least one seated member AND at least one readable
- *  transcript. Returns the refusal reason, or null when the group is importable. */
+const REFUSAL_REASONS: Readonly<Record<GroupRefusal, string>> = {
+  "no-member": "none of its member cards resolved to an imported or existing character",
+  "no-transcript": "the group claimed no readable transcript under `group chats/`",
+};
+
+/** The refusal reason for a group that cannot become a room, or null when it is importable. */
 function refusalFor(group: CollectedGroup, seatCount: number): string | null {
-  if (seatCount === 0) {
-    return "none of its member cards resolved to an imported or existing character";
-  }
-  return group.chats.length === 0 ? "the group claimed no readable transcript under `group chats/`" : null;
+  const refusal = groupRefusal(group, seatCount);
+  return refusal === null ? null : REFUSAL_REASONS[refusal];
 }
 
 /** ONE group's room(s), or the contained refusal. PER-GROUP ISOLATION lives here rather than in the wave loop:

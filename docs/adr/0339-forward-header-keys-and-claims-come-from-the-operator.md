@@ -12,7 +12,7 @@ The forward-header signed path skips the trusted-proxy peer gate, so whatever ve
 
 ## Decision
 
-The signed path trusts only the operator's env. `FORWARD_AUTH_JWKS`, an https URL or a JWKS literal, is the only key source. The server reads no key, key set or key URL from a request, and `ForwardJwtVerifyArgs` has no key field. With `FORWARD_AUTH_JWKS` set under `AUTH_MODE=forward-header` and `FORWARD_AUTH_VERIFY_JWT` on, `FORWARD_AUTH_JWT_ISSUER` and `FORWARD_AUTH_JWT_AUDIENCE` are required, and `refineEnv` in `packages/server/src/foundation/env/record/index.ts` refuses the boot without them. Every token must match both and carry an `exp` claim. `jwtVerifyOrNull` in `packages/server/src/infra/auth/jwks.ts` is the one verification site. The `FORWARD_AUTH_JWKS` URL host joins `envEgressAllowlist`, because the operator named it.
+The signed path trusts only the operator's env. `FORWARD_AUTH_JWKS`, an https URL or a JWKS literal, is the only key source. The server reads no key, key set or key URL from a request, and `ForwardJwtVerifyArgs` has no key field. With `FORWARD_AUTH_JWKS` set under `AUTH_MODE=forward-header` and `FORWARD_AUTH_VERIFY_JWT` on, `FORWARD_AUTH_JWT_ISSUER` and `FORWARD_AUTH_JWT_AUDIENCE` are required, and `refineEnv` in `packages/server/src/foundation/env/record/index.ts` refuses the boot without them. Every token must match both and carry an `exp` claim. `jwtVerifyOrNull` in `packages/server/src/infra/auth/jwks.ts` is the one verification site. The `FORWARD_AUTH_JWKS` URL's host joins `envEgressAllowlist` at that URL's port only, because the operator named that URL and no other port on its host.
 
 ## Consequences
 

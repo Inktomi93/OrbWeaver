@@ -117,7 +117,7 @@ function entryStmts(ctx: WorldInfoImportContext, worldBookId: WorldBookId, book:
 /** The incoming embedded book projected onto the dedup shape. `metadata` is SCHEMA-PARSED here so its
  *  canonical key matches the stored form (`entryStmts` stores `entryMetadataSchema.parse(raw)`); miss that
  *  and a re-encoded identical book fails to match. `keys` collapse is deferred to the pure normalizer. */
-function toDedupBook(book: BulkImportLorebookInput): DedupBook {
+export function toDedupBook(book: BulkImportLorebookInput): DedupBook {
   return {
     name: book.name,
     entries: book.entries.map(
@@ -140,7 +140,7 @@ function toDedupBook(book: BulkImportLorebookInput): DedupBook {
  *  foreign book is never a candidate — cross-tenant gate). Two reads (books, then their entries) grouped in
  *  memory; `world_entries` metadata is the stored schema-parsed blob, so it is comparable to `toDedupBook`'s
  *  parsed side without re-parsing. */
-async function loadOwnedBooksForDedup(db: Db, ownerId: UserId): Promise<DedupCandidateBook[]> {
+export async function loadOwnedBooksForDedup(db: Db, ownerId: UserId): Promise<DedupCandidateBook[]> {
   const books = await db.select({ id: worldBooks.id, name: worldBooks.name }).from(worldBooks).where(eq(worldBooks.ownerId, ownerId));
   if (books.length === 0) {
     return [];
@@ -220,7 +220,7 @@ export function createBulkImportLorebook(input: DbAssemblyInput<WorldInfoImportC
     // CENTRAL DEDUP: before minting, link to an existing content-equivalent book the owner already holds
     // ("one source of books"). The primary seat is free here (no existing primary above), so the match
     // attaches as `primary`; onConflictDoNothing keeps a re-link idempotent.
-    const duplicate = findDuplicateBook(toDedupBook(book), await loadOwnedBooksForDedup(db, ownerId));
+    const duplicate = await findOwnedEqualBook(db, ownerId, book);
     if (duplicate !== null) {
       await db.insert(characterBooks).values({ characterId, worldBookId: duplicate.id, role: "primary", createdAt: at }).onConflictDoNothing();
       return { worldBookId: duplicate.id, entryCount: book.entries.length, replaced: false, created: false, name: duplicate.name, renamedFrom: null };
@@ -339,13 +339,18 @@ export function createAttachOwnedBooksByName(input: DbAssemblyInput<WorldInfoImp
 // character attach, additively: equal content reuses the owned row (under the name it carries), different
 // content lands under the next free name, and no owned row is ever edited.
 
+/** The owned book an equal incoming one reuses, or null. The one test both the write and the preview's `createFindOwnedBooks` ask. */
+async function findOwnedEqualBook(db: Db, ownerId: UserId, book: BulkImportLorebookInput): Promise<DedupCandidateBook | null> {
+  return findDuplicateBook(toDedupBook(book), await loadOwnedBooksForDedup(db, ownerId));
+}
+
 export function createImportStandaloneLorebook(input: DbAssemblyInput<WorldInfoImportContext>): ImportStandaloneLorebook {
   const ctx: WorldInfoImportContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, book }): Promise<BulkImportLorebookResult> => {
     const { db } = ctx;
     const at = ctx.now();
 
-    const duplicate = findDuplicateBook(toDedupBook(book), await loadOwnedBooksForDedup(db, ownerId));
+    const duplicate = await findOwnedEqualBook(db, ownerId, book);
     if (duplicate !== null) {
       return { worldBookId: duplicate.id, entryCount: book.entries.length, replaced: false, created: false, name: duplicate.name, renamedFrom: null };
     }

@@ -302,6 +302,7 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
           ...mergedField(result.mergedKeys),
           ...(result.reportPath !== undefined ? { reportPath: result.reportPath } : {}),
           ...(dryRun ? {} : { memoryScope: result.memoryScope }),
+          found: result.found,
           ...previewField(result.preview),
         };
       },

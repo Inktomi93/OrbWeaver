@@ -1,6 +1,11 @@
 // Small structural type-guards shared across layers. Narrowing helpers that let callers drop
 // `as Record<string, unknown>` casts in favor of a real runtime check.
 
+/** What a read checks to stop early. An `AbortSignal` satisfies it; the isomorphic contracts have no DOM lib to name one. */
+export interface Cancellation {
+  readonly aborted: boolean;
+}
+
 export type PrimitiveValue = string | number | boolean | bigint | symbol | null | undefined;
 
 /** Primitive values have native text spellings without an object's default stringification. */

@@ -21,9 +21,22 @@ const LOW_CAP = 100_000;
 const HIGH_CAP = 200_000;
 const PAYLOAD_SIZE = 150_000;
 
+// The PNG header's width and height fields.
+const PNG_WIDTH_AT = 16;
+const PNG_HEIGHT_AT = 20;
+// Under the per-axis cap on both sides, over the pixel cap as a product.
+const OVER_PIXELS_SIDE = 8000;
+
 function oversizedDimensions(bytes: Uint8Array): Uint8Array {
   const oversized = Buffer.from(bytes);
-  oversized.writeUInt32BE(32_768, 16);
+  oversized.writeUInt32BE(32_768, PNG_WIDTH_AT);
+  return oversized;
+}
+
+function overPixels(bytes: Uint8Array): Uint8Array {
+  const oversized = Buffer.from(bytes);
+  oversized.writeUInt32BE(OVER_PIXELS_SIDE, PNG_WIDTH_AT);
+  oversized.writeUInt32BE(OVER_PIXELS_SIDE, PNG_HEIGHT_AT);
   return oversized;
 }
 
@@ -84,19 +97,27 @@ test("live download caps and raster dimensions refuse without changing the actua
   expect(Buffer.from(stored.bytes).equals(Buffer.from(payload))).toBe(true);
   const before = await root.db.select().from(assets).orderBy(assets.id);
   await root.services.settings.updateAppSettings({ principal, partial: { maxImageBytes: LOW_CAP } });
-  await expect(root.services.settings.addExternalBackground({ principal, url: PUBLIC_URL })).rejects.toMatchObject({
-    message: backgroundMaterializeMessage("too-large"),
-  });
-  for (const [bytes, reason] of [
-    [new TextEncoder().encode("<svg></svg>"), "not-image"],
-    [oversizedDimensions(raster), "too-large"],
+  // Each input settles to its refusal message, or `stored`, so one run names every cap a caller stops applying.
+  const outcomes: Record<string, string> = {};
+  for (const [name, bytes] of [
+    ["over the byte cap", payload],
+    ["not an image", new TextEncoder().encode("<svg></svg>")],
+    ["over the axis cap", oversizedDimensions(raster)],
+    ["over the pixel cap", overPixels(raster)],
   ] as const) {
     payload = bytes;
-    await expect(root.services.settings.addExternalBackground({ principal, url: PUBLIC_URL })).rejects.toMatchObject({
-      message: backgroundMaterializeMessage(reason),
-    });
-    expect(await root.db.select().from(assets).orderBy(assets.id)).toEqual(before);
+    outcomes[name] = await root.services.settings.addExternalBackground({ principal, url: PUBLIC_URL }).then(
+      () => "stored",
+      (err: unknown) => (err instanceof Error ? err.message : String(err)),
+    );
   }
+  expect(outcomes).toEqual({
+    "over the byte cap": backgroundMaterializeMessage("too-large"),
+    "not an image": backgroundMaterializeMessage("not-image"),
+    "over the axis cap": backgroundMaterializeMessage("too-large"),
+    "over the pixel cap": backgroundMaterializeMessage("too-large"),
+  });
+  expect(await root.db.select().from(assets).orderBy(assets.id)).toEqual(before);
 });
 
 test("native inline images read the live cap and refuse excessive dimensions while preserving prose and existing storage", async () => {
@@ -108,6 +129,7 @@ test("native inline images read the live cap and refuse excessive dimensions whi
     [nativeText(IMAGE_PROSE), image(padded, "image/svg+xml")],
     [nativeText(IMAGE_PROSE), image(padded)],
     [nativeText(IMAGE_PROSE), image(oversizedDimensions(raster))],
+    [nativeText(IMAGE_PROSE), image(overPixels(raster))],
   ]);
   const root = fixture.h.root;
   await root.services.settings.updateAppSettings({ principal: fixture.h.owner, partial: { maxImageBytes: HIGH_CAP } });
@@ -115,13 +137,17 @@ test("native inline images read the live cap and refuse excessive dimensions whi
   const before = await inlineImageRows(fixture.h).generated();
   expect(before).toMatchObject([{ ownerId: fixture.h.owner.userId, kind: "generated", size: PAYLOAD_SIZE, mime: MIME }]);
   await root.services.settings.updateAppSettings({ principal: fixture.h.owner, partial: { maxImageBytes: LOW_CAP } });
-  for (let remaining = 2; remaining > 0; remaining -= 1) {
+  // The turns spend the reply plan in order; each records whether its picture was stored, so one run names every cap.
+  const pictures: Record<string, number> = {};
+  for (const name of ["over the byte cap", "over the axis cap", "over the pixel cap"]) {
     expect((await fixture.turn()).messages).toMatchObject([{ content: IMAGE_PROSE }]);
-    expect(await inlineImageRows(fixture.h).generated()).toEqual(before);
+    pictures[name] = (await inlineImageRows(fixture.h).generated()).length - before.length;
   }
+  expect(pictures).toEqual({ "over the byte cap": 0, "over the axis cap": 0, "over the pixel cap": 0 });
+  expect(await inlineImageRows(fixture.h).generated()).toEqual(before);
   expect((await inlineImageRows(fixture.h).links()).map(({ assetId }) => assetId)).toEqual(before.map(({ id }) => id));
   expect((await inlineImageRows(fixture.h).events()).filter(({ payload }) => payload.type === "warning" && payload.code === "reply_image_failed")).toHaveLength(
-    2,
+    3,
   );
 });
 

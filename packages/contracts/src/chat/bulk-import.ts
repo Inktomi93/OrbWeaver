@@ -269,3 +269,12 @@ export type BulkImportChatsOp = (args: {
   readonly characterId: CharacterId;
   readonly chats: readonly BulkImportChatInput[];
 }) => Promise<BulkImportChatsResult>;
+
+/** Which of these import hashes one of the owner's characters already holds as imported rooms: the identity
+ *  {@link BulkImportChatsOp} skips a transcript by. A read: it writes nothing. A character that is not the
+ *  owner's holds none. */
+export type FindImportedChatHashes = (args: {
+  readonly ownerId: UserId;
+  readonly characterId: CharacterId;
+  readonly hashes: readonly string[];
+}) => Promise<ReadonlySet<string>>;

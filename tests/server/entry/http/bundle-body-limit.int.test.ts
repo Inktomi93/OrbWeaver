@@ -12,6 +12,40 @@ import { BUNDLE_ROUTE, bodyRequest, CSRF_HEADERS, observedBody, REQUEST_CHUNK_BY
 
 /** The extractor's rejection kind for bytes that are not a zip, as opposed to its `too-large` size refusal. */
 const MALFORMED_ARCHIVE = /zip rejected \(malformed\)/u;
+/** The extractor's rejection for an entry whose inflated bytes disagree with its record; it fires while extracting. */
+const INTEGRITY_REFUSAL = /zip rejected \(bomb\).*CRC-32/u;
+// The ZIP record layout (APPNOTE 4.3): the end record this build's writer emits has no comment.
+const EOCD_BYTES = 22;
+const EOCD_COUNT_AT = 10;
+const EOCD_CD_OFFSET_AT = 16;
+const CENTRAL_FIXED_BYTES = 46;
+const CENTRAL_CRC_AT = 16;
+const CENTRAL_NAME_LENGTH_AT = 28;
+const CENTRAL_EXTRA_LENGTH_AT = 30;
+const CENTRAL_COMMENT_LENGTH_AT = 32;
+
+const U32_RANGE = 2 ** 32;
+
+/** The archive with its last central record's CRC changed, so every earlier entry stages before extraction refuses. */
+function lastEntryCorrupted(archive: Uint8Array): Uint8Array {
+  const out = archive.slice();
+  const view = new DataView(out.buffer);
+  const eocd = out.length - EOCD_BYTES;
+  const count = view.getUint16(eocd + EOCD_COUNT_AT, true);
+  if (count < 2) {
+    throw new Error("the export holds fewer than two entries, so nothing would stage before the refusal");
+  }
+  let at = view.getUint32(eocd + EOCD_CD_OFFSET_AT, true);
+  for (let i = 0; i < count - 1; i += 1) {
+    at +=
+      CENTRAL_FIXED_BYTES +
+      view.getUint16(at + CENTRAL_NAME_LENGTH_AT, true) +
+      view.getUint16(at + CENTRAL_EXTRA_LENGTH_AT, true) +
+      view.getUint16(at + CENTRAL_COMMENT_LENGTH_AT, true);
+  }
+  view.setUint32(at + CENTRAL_CRC_AT, (view.getUint32(at + CENTRAL_CRC_AT, true) + 1) % U32_RANGE, true);
+  return out;
+}
 
 // Staging a body one byte past the 4 GiB bundle cap writes 4 GiB to disk before the refusal: that is the proven runtime.
 test("actual raw bundle overflow cancels its source and removes the partial staged file without a workload", { tags: ["slow"] }, async () => {
@@ -58,6 +92,34 @@ test("a backup over the in-memory import cap is staged whole and its import read
   await runAdmitted(workloadId, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
   const settled = await root.services.workloads.get({ id: workloadId, caller: principal });
   expect({ status: settled.status, error: settled.error }).toEqual({ status: "failed", error: expect.stringMatching(MALFORMED_ARCHIVE) });
+});
+
+test("a hostile archive refused mid-extraction leaves the uploader's staging folder empty", async () => {
+  await using root = await createServerHarness({
+    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
+    physicalPeer: () => "127.0.0.1",
+    startJobs: false,
+  });
+  const runAdmitted = root.runAdmittedWorkload;
+  if (runAdmitted === undefined) {
+    throw new Error("the harness owns its workload execution only with startJobs: false");
+  }
+  const principal = await root.principalFor(root.ownerId);
+  const download = await root.http.request(PORTABILITY_ROUTES.exportLibrary);
+  expect(download.status).toBe(200);
+  const body = lastEntryCorrupted(new Uint8Array(await download.arrayBuffer()));
+  const response = await root.http.request(BUNDLE_ROUTE, { method: "POST", headers: CSRF_HEADERS, body });
+  expect(response.status).toBe(202);
+  const { workloadId } = importStartedSchema.parse(await response.json());
+  const ownerStaging = root.stagedImportsOf(root.ownerId);
+  // Positive control: the route staged the upload, so an empty folder after the run is the cleanup's doing.
+  expect(await readdir(ownerStaging)).toHaveLength(1);
+
+  await runAdmitted(workloadId, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
+
+  const settled = await root.services.workloads.get({ id: workloadId, caller: principal });
+  expect({ status: settled.status, error: settled.error }).toEqual({ status: "failed", error: expect.stringMatching(INTEGRITY_REFUSAL) });
+  expect(await readdir(ownerStaging, { recursive: true })).toEqual([]);
 });
 
 test("a second upload by an owner whose first is still staging is refused before its body is read", async () => {

@@ -194,6 +194,12 @@ function bookContentKey(book: Pick<DedupBook, "entries">): string {
   return stableStringify({ entries: entryKeys });
 }
 
+/** A test for "an owned book has this content", with the library's keys built once. */
+export function bookContentHolder(candidates: readonly DedupCandidateBook[]): (incoming: Pick<DedupBook, "entries">) => boolean {
+  const held = new Set(candidates.map(bookContentKey));
+  return (incoming) => held.has(bookContentKey(incoming));
+}
+
 /** The owned library book the incoming book content-matches (its id and the name it carries), or null
  *  (mint a fresh book). */
 export function findDuplicateBook(incoming: Pick<DedupBook, "entries">, candidates: readonly DedupCandidateBook[]): DedupCandidateBook | null {
