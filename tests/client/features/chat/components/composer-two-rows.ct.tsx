@@ -3,7 +3,15 @@ import { IMPERSONATE_STOP_LABEL } from "@orb/client/lib";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { seedShellState } from "@orb/testkit/browser/spec";
-import { createShellAmbientReads, emulateSoftKeyboard, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import {
+  createShellAmbientReads,
+  emulateSoftKeyboard,
+  ROOM_PROCEDURES,
+  routeTrpc,
+  SECTION_PROCEDURES,
+  serveCorpusProcedures,
+  trpcError,
+} from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
@@ -215,6 +223,38 @@ for (const viewport of VIEWPORTS.slice(0, 2)) {
     });
   }
 }
+
+test("the guided Response icon fires chat.generate carrying the typed steer", async ({ corpus, mount, page }) => {
+  const steer = "Keep the observatory quiet.";
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearanceSettingsSchema.parse({}) });
+  const room = corpus.reads["chat.getChat"].find(
+    ({ output }) => output.participants.filter((participant) => participant.kind === "character").length <= 1,
+  )?.output;
+  const commands = corpus.pluginLibrary?.ownerActive.reads.commands.output;
+  if (room === undefined || commands === undefined) {
+    throw new Error("Composer case needs a solo room and plugin command publication");
+  }
+  const chatId = (await caller.chat.getChat({ chatId: room.id })).id;
+  await page.setViewportSize(VIEWPORTS[0]);
+  await seedShellState(page, { activeSection: "chats" });
+  // The responder answers only a steered response: a composer that drops the steer gets a failure, and the recorded
+  // request shows what the icon sent.
+  const rpc = await routeTrpc(page, {
+    ...createShellAmbientReads(corpus, root.ownerId),
+    ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, ...SETTINGS_READS, "rpg.getGame", "rpg.listTurnToolCalls"]),
+    "plugin.listCommands": () => commands,
+    "chat.generate": (request) => (request.guided?.action === "response" ? { messages: [], aborted: false } : trpcError()),
+  });
+  await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+  const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
+  await input.fill(steer);
+  await page.getByRole("button", { name: "Guided generate reply", exact: true }).press("Enter");
+  await expect.poll(() => rpc.count("chat.generate")).toBe(1);
+  expect(rpc.lastInput("chat.generate")).toMatchObject({ chatId, guided: { action: "response", input: steer } });
+  await expect(input).toHaveValue("");
+});
 
 async function expectGroupControls(page: Page, names: readonly string[], guided: boolean): Promise<void> {
   const upper = page.locator('[data-slot="composer-utilities"]');

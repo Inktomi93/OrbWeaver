@@ -3,6 +3,7 @@
 
 import { contextToggleLabel } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
+import { DATABANK_UPLOAD_ROUTE } from "@orb/contracts/uploads";
 import { dropOn, seedShellState, settledBox } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -13,6 +14,7 @@ import type { AppShellModalStory, AppShellNoticeStory, AppShellRoomStory, AppShe
 import { namedGroupRoom, routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
+const DROPPED_DOCUMENT = "notes.txt";
 // The Add document dialog's own reads, past Home's captures.
 // Three wrapped lines of detail, so a burst of three outgrows the overlay's cap.
 const LONG_DETAIL =
@@ -267,11 +269,11 @@ test("a file dropped on a real dropzone is the zone's to import, and raises no s
   await mount<typeof AppShellModalStory>(`${SHELL_STORIES}/AppShellModalStory`, { modalId: "addDocument" });
   const zone = page.getByRole("dialog").locator('[data-slot="file-dropzone"]');
   await expect(zone).toBeVisible();
-  const upload = page.waitForRequest(
-    (request) => request.method() === "POST" && new URL(request.url()).pathname.startsWith("/api/") && !request.url().includes("/api/trpc/"),
-  );
-  expect(await dropOn(zone, { file: "notes.txt", type: "text/plain" })).toBe(true);
-  await upload;
+  const upload = page.waitForRequest((sent) => sent.method() === "POST" && new URL(sent.url()).pathname === DATABANK_UPLOAD_ROUTE);
+  expect(await dropOn(zone, { file: DROPPED_DOCUMENT, type: "text/plain" })).toBe(true);
+  const request = await upload;
+  expect(request.headers()["content-type"]).toContain("multipart/form-data");
+  expect(request.postData()).toContain(`filename="${DROPPED_DOCUMENT}"`);
   await expect(page.locator('[data-slot="toast-root"]')).toHaveCount(0);
 });
 

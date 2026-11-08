@@ -1,8 +1,9 @@
 import { PROSE_SLOTS, USER_PROSE_SLOT_IDS } from "@orb/contracts/prose";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
-import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { absenceWindow, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { DEFAULT_DEBOUNCE_MS } from "#client/forms/entity-form-base.ts";
 import type { ProseActionGroupsStory } from "./_prose-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_prose-action-groups-stories/ProseActionGroupsStory";
@@ -13,6 +14,8 @@ if (SLOT_ID === undefined) {
 const SLOT = PROSE_SLOTS[SLOT_ID];
 const TEXT = "A host's own wording for this slot.";
 const WRITE = "settings.updateUserSettingsSection";
+// A second autosave would land one debounce after a second edit, so this holds past two of them.
+const LATE_WRITE_WINDOW_MS = DEFAULT_DEBOUNCE_MS * 3;
 
 test("Reset to built-in asks first: Cancel writes nothing, Reset writes the clear once", async ({ mount, page }) => {
   await using root = await createServerHarness({ startJobs: false });
@@ -38,4 +41,9 @@ test("Reset to built-in asks first: Cancel writes nothing, Reset writes the clea
   await confirm.getByRole("button", { name: "Reset to built-in", exact: true }).click();
   await expect.poll(() => calls.inputs(WRITE).length).toBe(1);
   expect(calls.lastInput(WRITE)).toMatchObject({ section: "prose", patch: { [SLOT_ID]: null } });
+  await absenceWindow(page, LATE_WRITE_WINDOW_MS);
+  expect(calls.inputs(WRITE)).toHaveLength(1);
+  const editor = card.getByRole("textbox", { name: SLOT.title, exact: true });
+  await expect(editor).toHaveValue("");
+  await expect(editor).toHaveAttribute("placeholder", SLOT.text);
 });

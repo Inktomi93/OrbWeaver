@@ -11,10 +11,17 @@ const STORY = "tests/client/features/app-shell/surfaces/_filter-recovery-stories
 const MEMBER = "Observatory recovery witness";
 const MISSING = "No matching copper expedition";
 const COLLECTIONS = [
-  { group: "regex", label: "Regex scripts", filter: "Filter regex scripts", create: "New script" },
-  { group: "worldInfo", label: "World Info", filter: "Filter world info", create: "New book" },
+  { group: "regex", label: "Regex scripts", filter: "Filter regex scripts", create: "New script", creates: "regex.createScript" },
+  { group: "worldInfo", label: "World Info", filter: "Filter world info", create: "New book", creates: "worldInfo.createBook" },
 ] as const;
-const PROCEDURES = [...SECTION_PROCEDURES, "worldInfo.listBooksWithUsage", "regex.listGlobal", "regex.createScript", "automation.listRulePresets"] as const;
+const PROCEDURES = [
+  ...SECTION_PROCEDURES,
+  "worldInfo.listBooksWithUsage",
+  "regex.listGlobal",
+  "regex.createScript",
+  "worldInfo.createBook",
+  "automation.listRulePresets",
+] as const;
 
 for (const regime of [
   { name: "desktop", viewport: { width: 1440, height: 900 }, touch: false },
@@ -53,7 +60,7 @@ for (const regime of [
         await expect(filter).toBeFocused();
         await expect(member).toBeVisible();
         await expect(content.getByRole("button", { name: collection.create, exact: true })).toBeVisible();
-        expect(calls.count("regex.createScript")).toBe(0);
+        expect(calls.count(collection.creates)).toBe(0);
         await page.screenshot({ path: test.info().outputPath(`${collection.group}-filter-recovery.png`) });
       });
     }

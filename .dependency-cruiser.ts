@@ -420,6 +420,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/lib/context-toggle-label.ts": "contextToggleLabel: the detail toggle's name in both states",
   "packages/client/src/lib/view-transition-names.ts": "SHELL_SWAP_DEADLINE_PROPERTY: the grid property a swap spec stretches to hold the old frame",
   "packages/client/src/forms/editor/autosave-status-names.ts": "AUTOSAVE_SAVED_TEXT and its siblings: the words the shared autosave readout prints",
+  "packages/client/src/forms/entity-form-base.ts": "DEFAULT_DEBOUNCE_MS: the autosave debounce a held-window case waits past to see a second write",
   "packages/client/src/features/character/lib/character-names.ts":
     "CHARACTER_SEARCH_NAME and its siblings: the accessible names the Characters library, editor and dialogs print",
   "packages/client/src/features/config/lib/config-copy.ts": "CONFIG_SECTION_LABEL: the settings section labels",

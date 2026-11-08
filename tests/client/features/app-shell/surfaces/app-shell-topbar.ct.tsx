@@ -46,16 +46,29 @@ function narrowTitleShare(width: number): number {
   return width * (width <= NARROWEST.width ? TITLE_SHARE_NARROWEST : TITLE_SHARE_PHONE);
 }
 
-/** A trail chip that sits in the row is a glyph at the touch floor inside the viewport; one the row moved is inert and out of flow. */
-async function expectSeatedGlyphOrMoved(chip: Locator, floor: number, width: number): Promise<void> {
-  const seated = (await chip.count()) > 0 && (await chip.evaluate((node) => node.closest("[inert]") === null));
-  if (!seated) {
-    return;
-  }
+async function expectSeatedGlyph(chip: Locator, floor: number, width: number): Promise<void> {
   const box = await chip.boundingBox();
   expect(Math.min(box?.width ?? 0, box?.height ?? 0)).toBeGreaterThanOrEqual(floor);
   expect((box?.x ?? 0) + (box?.width ?? 0)).toBeLessThanOrEqual(width);
   await expect(chip.locator(".shell-chat-chip-count")).toBeHidden();
+}
+
+async function expectMenuItem(page: Page, prefix: string): Promise<void> {
+  await page.locator(".shell-topbar-trail").getByRole("button", { name: TRAIL_OVERFLOW_LABEL, exact: true }).click();
+  await expect(page.getByRole("menuitem", { name: new RegExp(`^${prefix}`, "u") })).toBeVisible();
+  await page.keyboard.press("Escape");
+}
+
+/** A trail entry either sits in the row as a glyph at the touch floor inside the viewport, or the row moved it into the overflow menu, where its item is offered. */
+async function expectSeatedGlyphOrMenuItem(page: Page, entry: TrailEntry, floor: number, width: number): Promise<void> {
+  const chip = page.locator(`.shell-topbar-trail ${entry.chip}`);
+  const seated = (await chip.count()) > 0 && (await chip.evaluate((node) => node.closest("[inert]") === null));
+  await (seated ? expectSeatedGlyph(chip, floor, width) : expectMenuItem(page, entry.prefix));
+}
+
+interface TrailEntry {
+  readonly chip: string;
+  readonly prefix: string;
 }
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -320,8 +333,14 @@ test.describe("the phone topbar at 320, coarse pointer", () => {
 });
 
 const WIDE_TITLE = '.shell-topbar-identity[data-identity="wide"] .shell-topbar-title';
-const MEMBERS_CHIP = '[aria-label^="Members — "]';
-const MEMORY_CHIP = '[aria-label^="Memory — "]';
+const MEMBERS_PREFIX = "Members — ";
+const MEMORY_PREFIX = "Memory — ";
+const MEMBERS_CHIP = `[aria-label^="${MEMBERS_PREFIX}"]`;
+const MEMORY_CHIP = `[aria-label^="${MEMORY_PREFIX}"]`;
+const TRAIL_ENTRIES = [
+  { chip: MEMBERS_CHIP, prefix: MEMBERS_PREFIX },
+  { chip: MEMORY_CHIP, prefix: MEMORY_PREFIX },
+] as const;
 const CONTEXT = '.shell-panel[data-panel-side="context"]';
 const BOTH_DOCKED = { activeSection: "chats", panelOverrides: { chats: { list: "docked", context: "docked" } } } as const;
 const ROOM_MOUNTING = '[data-slot="chat-room-mounting"]';
@@ -718,8 +737,8 @@ test.describe("an open named group room on a phone, coarse pointer", () => {
       const titleBox = await title.boundingBox();
       expect(titleBox?.width ?? 0).toBeGreaterThanOrEqual(narrowTitleShare(width));
       // Each entry is a glyph chip in the trail inside the row, or it has moved into the "More top bar actions" menu.
-      for (const chip of [page.locator(`.shell-topbar-trail ${MEMBERS_CHIP}`), page.locator(`.shell-topbar-trail ${MEMORY_CHIP}`)]) {
-        await expectSeatedGlyphOrMoved(chip, floor, width);
+      for (const entry of TRAIL_ENTRIES) {
+        await expectSeatedGlyphOrMenuItem(page, entry, floor, width);
       }
       await expect(trail.getByRole("button", { name: "More top bar actions", exact: true }).or(trail.locator(MEMBERS_CHIP))).toBeVisible();
     });

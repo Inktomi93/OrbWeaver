@@ -18,9 +18,9 @@
 import type { DocumentDestination, UploadResult } from "@orb/contracts/databank";
 import { DOCUMENT_DESTINATION_FORM_FIELD, uploadResultSchema } from "@orb/contracts/databank";
 import { CSRF_HEADER } from "@orb/contracts/identity";
+import { DATABANK_UPLOAD_ROUTE } from "@orb/contracts/uploads";
 import { throwHttpError } from "./http-error.ts";
 
-const UPLOAD_URL = "/api/databank/upload";
 const UPLOAD_FIELD = "file";
 const NAME_FIELD = "name";
 
@@ -38,7 +38,7 @@ export async function uploadDocument(file: File, name?: string, destination?: Do
   if (name !== undefined && name.length > 0) {
     form.set(NAME_FIELD, name);
   }
-  const response = await fetch(UPLOAD_URL, {
+  const response = await fetch(DATABANK_UPLOAD_ROUTE, {
     method: "POST",
     body: form,
     headers: { [CSRF_HEADER]: "1" },
