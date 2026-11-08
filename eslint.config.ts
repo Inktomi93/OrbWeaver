@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { createRequire } from "node:module";
 import { relative } from "node:path";
+import { env } from "node:process";
 import { fileURLToPath } from "node:url";
 import { staticImportGraph, unsupportedAtFloor, withoutPolyfilled } from "@orb/tooling/browser-support";
 import {
@@ -51,6 +52,13 @@ const UI_STYLESHEET = fileURLToPath(new URL("./packages/ui/src/styles/globals.cs
 const CLIENT_STYLESHEET = fileURLToPath(new URL("./packages/client/src/styles/globals.css", import.meta.url));
 const SHELL_STYLESHEET = fileURLToPath(new URL("./packages/client/src/features/app-shell/surfaces/shell.css", import.meta.url));
 const THEME_STYLESHEET = fileURLToPath(new URL("./packages/ui/src/styles/theme.css", import.meta.url));
+// better-tailwindcss blocks on a worker thread per ESLint thread and gives up on a call after 30 s. The first
+// `enforce-canonical-classes` call per design system (one per entry point below) builds Tailwind's canonical-spelling tables
+// from the whole generated theme, which takes tens of seconds and several times that on a loaded box; every later call is
+// instant. The tables cannot be shared across threads or loaded earlier, so the bound is sized past the loaded cold build.
+// An exported SYNCKIT_TIMEOUT still wins.
+const TAILWIND_WORKER_TIMEOUT_MS = 300_000;
+env["SYNCKIT_TIMEOUT"] ??= String(TAILWIND_WORKER_TIMEOUT_MS);
 // The design system `feature-classname-layout-only` compiles tokens through: the stock theme plus the generated theme.
 const designSystem = await __unstable__loadDesignSystem(
   `${readFileSync(createRequire(import.meta.url).resolve("tailwindcss/theme.css"), "utf8")}\n${readFileSync(THEME_STYLESHEET, "utf8")}`,
