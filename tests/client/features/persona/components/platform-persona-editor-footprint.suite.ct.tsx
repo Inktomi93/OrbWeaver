@@ -6,6 +6,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import type { Locator } from "@playwright/test";
 import type { PersonaActionGroupsStory } from "./_persona-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/persona/components/_persona-action-groups-stories/PersonaActionGroupsStory";
@@ -25,7 +26,7 @@ for (const regime of REGIMES) {
   test.describe(regime.name, () => {
     test.use({ viewport: regime.viewport, hasTouch: regime.coarse, isMobile: regime.coarse });
 
-    test("the real persona macro counter ends at its code editor without narrowing the reading measure or changing chrome fonts", async ({
+    test("the real persona macro counter ends at its code editor without narrowing the editor column or changing chrome fonts", async ({
       mount,
       page,
     }, info) => {
@@ -67,11 +68,24 @@ for (const regime of REGIMES) {
       expect(Math.abs(counterBox.x + counterBox.width - controlBox.x - controlBox.width)).toBeLessThanOrEqual(1);
       expect(counterBox.y).toBeGreaterThanOrEqual(controlBox.y + controlBox.height);
       const macro = editor.locator('[data-slot="macro-textarea"]').filter({ has: textarea });
-      const measure = await resolvedLength(page, `var(${TOKENS["reading.measure"].cssVar})`, macro);
+      const measure = await resolvedLength(page, `var(${TOKENS["width.content-col"].cssVar})`, macro);
       expect(controlBox.width).toBeCloseTo(Math.min(fieldBox.width, measure), 0);
       const fonts = await Promise.all([label, counter, textarea].map((part) => part.evaluate((node) => getComputedStyle(node).fontFamily)));
       expect(fonts[1]).toBe(fonts[0]);
       expect(fonts[2]).not.toBe(fonts[0]);
+      // The editor's text fields share one right edge: Name and Title in the identity row, Description in the macro field.
+      const rightEdge = async (control: Locator): Promise<number> => {
+        const box = await control.boundingBox();
+        if (box === null) {
+          throw new Error("A persona editor field must have a rendered box");
+        }
+        return box.x + box.width;
+      };
+      const edges = await Promise.all(["Name", "Title", "Description"].map((name) => rightEdge(editor.getByRole("textbox", { name, exact: true }))));
+      await info.attach("persona-field-edges", { body: JSON.stringify(edges), contentType: "application/json" });
+      for (const edge of edges) {
+        expect(Math.abs(edge - (edges[0] ?? edge))).toBeLessThanOrEqual(1);
+      }
     });
   });
 }

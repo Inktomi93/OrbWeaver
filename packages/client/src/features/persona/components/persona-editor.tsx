@@ -143,7 +143,8 @@ function PersonaEditorBody({ session, persona, onDelete, nextDefaultName }: Pers
   };
 
   return (
-    <Stack cap="reading" gap="row">
+    // The editor content column: the cap the macro field and every other editor in the family keep, so the fields end on one edge.
+    <Stack cap="column" gap="row">
       <Row gap="row" align="start" data-slot="persona-editor-identity">
         <AvatarTrigger persona={persona} />
         <Stack gap="row" className="min-inline-0" grow={true}>

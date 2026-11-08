@@ -40,7 +40,7 @@ export { readSurfaceDesignAudit } from "./surface-design-audit.ts";
 export { publishSurfaceInventory } from "./surface-inventory.ts";
 export { markExpectedSurfaceHttpFailure, observeSurfaceSession } from "./surface-session.ts";
 export { surfaceTopology } from "./surface-topology.ts";
-export { touchTargetFindings } from "./touch-floor.ts";
+export { hitExtent, touchFloorPx, touchTargetFindings } from "./touch-floor.ts";
 export type {
   ActorRefInput,
   CompactionIntent,

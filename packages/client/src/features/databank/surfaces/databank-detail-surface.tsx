@@ -1,7 +1,7 @@
 // The Databank CONTENT pane — the open document's detail, or the teaching
 // welcome when nothing is selected (an empty CONTENT pane reads as unbuilt, so the empty state is required),
-// or — on an EMPTY bank — a landing that explains the Databank and points at the list's one Add door (the
-// pane mints no Add button of its own; `DatabankWelcome`'s note states the rule).
+// or — on an EMPTY bank — a heading and a note beside the LIST's own empty state (the pane mints no Add
+// button of its own; `welcomeCopy`'s note states the rule).
 //
 // `form` TIER (density §3.1 "entity editor"): identity header → Details group → Maintenance → Source text.
 //
@@ -24,7 +24,7 @@ import { EmptyState } from "@orb/ui/empty-state";
 import { FileText, Icon, Pencil, RefreshCw } from "@orb/ui/icons";
 import { Grid, Row, Section, Stack } from "@orb/ui/layout";
 import { ScrollArea } from "@orb/ui/scroll-area";
-import { Text } from "@orb/ui/text";
+import { Heading, Text } from "@orb/ui/text";
 import { useToastManager } from "@orb/ui/toast";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
@@ -35,6 +35,7 @@ import { renameActionName, timeLib, useFocusOnMount } from "#lib";
 import { LIST_OFF_SCREEN_HINT, useSectionListMode, useSelectedDocumentId } from "#state";
 import { DatabankRenameDialog } from "../components/databank-rename-dialog.tsx";
 import { useReindexDocuments, useRenameDocument } from "../hooks/use-databank-mutations.ts";
+import { DATABANK_EMPTY_BANK_NOTE, DATABANK_LANDING_TITLE } from "../lib/databank-copy.ts";
 import { characterCount, documentTypeLabel, ingestBadge, ingestEmptyHint, ingestStallHint, originLabel, passageTally } from "../lib/databank-model.ts";
 import { databankSourceToggleName } from "../lib/databank-names.ts";
 
@@ -81,41 +82,29 @@ export function DatabankDetailSurface(): ReactElement {
  *  phone, where the panes stack. */
 const PICK_A_DOCUMENT = "Pick a document from the list to see what was extracted, how much of it is indexed, and where it fires.";
 
-/** The empty bank's landing: what the Databank is, and the ONE Add it points at — no button of its own. */
-const EMPTY_BANK_DESCRIPTION = "Add a document from the library to see its extracted text, indexing status, and activation here.";
-/** …and with the LIST off screen, the shell control that brings the one Add back. */
+/** With the LIST off screen the empty bank has no other voice, so this pane is its one empty state and names the shell control that brings the one Add back. */
 const EMPTY_BANK_COLLAPSED =
   "Your databank holds reference documents, indexed so the relevant ones can be pulled into your chats. Show list panel in the top bar opens the library, where a document gets added.";
 
 /**
- * The no-selection arm — what this PANE will show once a document is open, and, on an EMPTY bank, what the
- * Databank is, pointing at the list's one Add door (never a second Add button).
+ * The no-selection arm — what this PANE will show once a document is open.
  *
- * THE POPULATED ARM NAMES THE DOOR TOO. "Pick a document from the list" presupposes a list on screen, which
- * is false in the same regimes the empty arm handles (narrow-desktop auto-collapse, a hand-collapsed pane) —
- * the Presets welcome's rule. Same signal, same conditional shape, same verbatim affordance name; the
- * instruction is unchanged for the reader who can see the list.
+ * A populated bank names the door too: "Pick a document from the list" presupposes a list on screen, which is
+ * false when the list auto-collapses or is hand-collapsed. Same signal and the same verbatim affordance name
+ * as the Presets welcome.
  *
- * THE EMPTY BANK EXPLAINS ITSELF AND POINTS, IT DOES NOT ACT. A blank CONTENT pane reads as unbuilt, but
- * "Pick a document from the list" names an act the reader cannot perform on an empty bank. So the pane says
- * what the Databank is and points at the list's one Add door — never a second Add button (the refused
- * two-Add-doors arm). With the LIST off screen it names the shell control that brings that door back.
+ * An EMPTY bank has one empty state, never two. With the LIST on screen it is the LIST's, which owns the Add
+ * door; this pane then draws a heading and a note, not an empty state. With the LIST off screen this pane is
+ * the only voice, so it is the empty state and names the control that brings the library back. Neither arm
+ * mints a second Add button.
  *
- * The census is `databank.bankHealth` — the SAME read the home tile's chips use, so "is the bank empty" has
- * one home and cannot disagree with the list pane's own `totalCount` for a reason this pane invented. While
- * it is in flight the pane renders nothing: a welcome shown and then withdrawn is a claim made and retracted,
- * and this read is warm on any path that has painted the home tile or the list band.
- *
- * IT DOES NOT PRINT THE SHARED GLOSS. `DATABANK_INGEST_GLOSS` has exactly one spelling, and on an empty bank
- * the LIST pane and this pane are both on screen, so printing it here too would say one thing twice in one
- * glance. The teaching sentence belongs to the surface that owns the FIRST step, which is the LIST's empty
- * state and the Add modal; this pane's job is to say what happens when you pick something.
- *
- * AND NO SECOND ADD DOOR, nor an invitation to add with no affordance beside it.
+ * The census is `databank.bankHealth`, the read the home tile's chips use, so "is the bank empty" has one home
+ * and cannot disagree with the list pane's own `totalCount`. While it is in flight the pane renders nothing: a
+ * welcome shown and then withdrawn is a claim made and retracted.
  */
 function welcomeCopy(total: number, listCollapsed: boolean): string {
   if (total === 0) {
-    return listCollapsed ? EMPTY_BANK_COLLAPSED : EMPTY_BANK_DESCRIPTION;
+    return EMPTY_BANK_COLLAPSED;
   }
   return listCollapsed ? `${PICK_A_DOCUMENT}${LIST_OFF_SCREEN_HINT}` : PICK_A_DOCUMENT;
 }
@@ -138,16 +127,27 @@ function DatabankWelcome(): ReactElement {
           paused={census.isPaused}
         />
       ) : null}
-      {census.data === undefined ? null : (
-        // action={null}: the Databank CONTENT landing. It explains the Databank (empty bank) or nudges a pick (populated bank) and points at the one Add door, which lives in the sibling list (the band's Add and the empty bank's own CTA); minting a second Add button here is the refused two-Add-doors arm. Ends if the library stops carrying a create door.
-        <EmptyState
-          action={null}
-          description={welcomeCopy(census.data.total, listMode === "collapsed")}
-          icon={<Icon icon={FileText} size="lg" />}
-          title="Your databank"
-        />
-      )}
+      {census.data === undefined ? null : <WelcomeBody listCollapsed={listMode === "collapsed"} total={census.data.total} />}
     </Stack>
+  );
+}
+
+function WelcomeBody({ total, listCollapsed }: { readonly total: number; readonly listCollapsed: boolean }): ReactElement {
+  if (total === 0 && !listCollapsed) {
+    return (
+      <Stack align="center" gap="field">
+        <Heading level={2} voice="focal">
+          {DATABANK_LANDING_TITLE}
+        </Heading>
+        <Text cap="prose" textAlign="center" voice="gloss">
+          {DATABANK_EMPTY_BANK_NOTE}
+        </Text>
+      </Stack>
+    );
+  }
+  return (
+    // action={null}: the Databank CONTENT landing. It nudges a pick (populated bank) or, with the list off screen, stands in for the list's empty state and points at the one Add door, which lives in the sibling list (the band's Add and the empty bank's own CTA); minting a second Add button here is the refused two-Add-doors arm. Ends if the library stops carrying a create door.
+    <EmptyState action={null} description={welcomeCopy(total, listCollapsed)} icon={<Icon icon={FileText} size="lg" />} title={DATABANK_LANDING_TITLE} />
   );
 }
 

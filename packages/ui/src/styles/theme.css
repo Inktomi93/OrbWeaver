@@ -389,6 +389,10 @@
   --size-combobox-chip-sm: calc(var(--size-control-sm) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
   --size-combobox-chip-md: calc(var(--size-control-md) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
   --size-combobox-chip-lg: calc(var(--size-control-lg) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
+  --spacing-combobox-wrap-chip: max(var(--spacing-field), calc(2 * var(--border-width-control) + 2 * var(--spacing-tight)));
+  --spacing-combobox-wrap-sm: max(var(--spacing-field), calc(var(--size-touch-target) - var(--size-control-sm) + 2 * var(--border-width-control) + 2 * var(--spacing-field)));
+  --spacing-combobox-wrap-md: max(var(--spacing-field), calc(var(--size-touch-target) - var(--size-control-md) + 2 * var(--border-width-control) + 2 * var(--spacing-field)));
+  --spacing-combobox-wrap-lg: max(var(--spacing-field), calc(var(--size-touch-target) - var(--size-control-lg) + 2 * var(--border-width-control) + 2 * var(--spacing-field)));
   --size-switch-travel: calc(var(--size-switch-track) - var(--size-switch-track-height));
   --spacing-glyph-bleed: calc((var(--size-touch-target) - var(--size-glyph-xs)) / 2);
   --size-name-row-min: calc(var(--size-glyph-lg) - 2 * var(--spacing-row));
@@ -929,6 +933,10 @@
     --size-combobox-chip-sm: calc(var(--size-control-sm) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
     --size-combobox-chip-md: calc(var(--size-control-md) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
     --size-combobox-chip-lg: calc(var(--size-control-lg) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
+    --spacing-combobox-wrap-chip: max(var(--spacing-field), calc(2 * var(--border-width-control) + 2 * var(--spacing-tight)));
+    --spacing-combobox-wrap-sm: max(var(--spacing-field), calc(var(--size-touch-target) - var(--size-control-sm) + 2 * var(--border-width-control) + 2 * var(--spacing-field)));
+    --spacing-combobox-wrap-md: max(var(--spacing-field), calc(var(--size-touch-target) - var(--size-control-md) + 2 * var(--border-width-control) + 2 * var(--spacing-field)));
+    --spacing-combobox-wrap-lg: max(var(--spacing-field), calc(var(--size-touch-target) - var(--size-control-lg) + 2 * var(--border-width-control) + 2 * var(--spacing-field)));
     --size-name-row-min: calc(var(--size-glyph-lg) - 2 * var(--spacing-row));
   }
 }

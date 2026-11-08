@@ -48,6 +48,7 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQueries, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import { LIST_OFF_SCREEN_HINT, selectCharacter, useSectionListMode } from "#state";
+import { chattedStamp } from "../lib/character-shelf-stamp.ts";
 import { CharacterLandingDoors } from "./character-create-actions.tsx";
 import type { ShelfFace } from "./character-shelf.tsx";
 import { CharacterShelf } from "./character-shelf.tsx";
@@ -91,14 +92,6 @@ function pitchOf(character: CharacterRow): string | null {
     .map((tag) => tag.name)
     .join(" · ");
   return tagLine === "" ? null : tagLine;
-}
-
-/** "chatted 3h ago · 4 chats". `formatRelativeAgo` is the SENTENCE form (a column stamp would be `2h`), and
- *  it is the form that freezes under `--probe` so a snapshot diff is not a clock diff. `chatCount` is never
- *  null (#865) — a join miss and a zero are the same fact — so the plural is the only branch. */
-function chattedStamp(lastChattedAt: number, chatCount: number): string {
-  const threads = chatCount === 1 ? "1 chat" : `${chatCount} chats`;
-  return `chatted ${timeLib.formatRelativeAgo(lastChattedAt)} · ${threads}`;
 }
 
 function faceOf(character: CharacterRow, stamp: string | null, caption: string | null): ShelfFace {

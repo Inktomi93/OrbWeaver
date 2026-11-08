@@ -111,6 +111,8 @@ async function expectInsightComposition(content: Locator, keepInline: boolean): 
   const doorName = new RegExp(`^Open ${LONG_NAME}:`, "u");
   const door = insights.getByRole("button", { name: doorName }).first();
   await expect(door).toBeVisible();
+  // Facts about one member share one door: the same text on the next line is a repeat, not a second way in.
+  await expect(insights.getByRole("button", { name: doorName })).toHaveCount(1);
   const row = insights
     .locator(":scope > *")
     .filter({ has: content.page().getByRole("button", { name: doorName }) })
@@ -303,6 +305,38 @@ for (const regime of REGIMES) {
       await expectMemberHeader(content);
       await expect(content.getByRole("heading", { name: LONG_NAME, exact: true })).toHaveCount(1);
     });
+  });
+}
+
+const LANDING_ORDERS = [
+  { name: "short landscape", viewport: { width: 844, height: 390 }, touch: true, rowsFirst: true },
+  { name: "wide desktop", viewport: { width: 1440, height: 900 }, touch: false, rowsFirst: false },
+] as const;
+
+for (const order of LANDING_ORDERS) {
+  test.describe(`${order.name} landing order`, () => {
+    test.use({ viewport: order.viewport, hasTouch: order.touch, isMobile: order.touch });
+    for (const subject of SUBJECTS) {
+      test(`${subject} seats ${order.rowsFirst ? "its first row on screen ahead of" : "its facts above"} the rows`, async ({ mount, page }) => {
+        await using root = await createCorpusHarness();
+        const caller = await root.internalCallerFor(root.ownerId);
+        const { appearance } = await prepare(caller, page, subject, false);
+        await mount<typeof CollectionCompositionStory>(STORY, { group: subject, width: order.viewport.width, height: order.viewport.height, appearance });
+        const content = page.locator('[data-slot="config-content"]');
+        const row = content.locator('[data-slot="list-row-root"]').first();
+        const insights = content.locator('[data-slot="config-library-insights"]');
+        await expect(row).toBeVisible();
+        await expect(insights).toBeVisible();
+        const [rowBox, insightBox] = await Promise.all([row.boundingBox(), insights.boundingBox()]);
+        if (rowBox === null || insightBox === null) {
+          throw new Error("The landing's first row and its facts must have rendered boxes");
+        }
+        await test.info().attach("landing-order", { body: JSON.stringify({ rowBox, insightBox }), contentType: "application/json" });
+        // On a short screen the rows come first; otherwise the facts lead. Either way the first row is whole on screen.
+        expect(insightBox.y < rowBox.y).toBe(!order.rowsFirst);
+        expect(rowBox.y + rowBox.height).toBeLessThanOrEqual(order.viewport.height);
+      });
+    }
   });
 }
 
