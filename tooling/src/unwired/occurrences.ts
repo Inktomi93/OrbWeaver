@@ -650,17 +650,52 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
       links.push({ from: declarationKeys(own), to: keys });
     }
   }
+  const sentReflections = kept.filter((reflection) => reflection.sent !== null);
+  const sentKeys = world.batch(sentReflections.map((reflection) => sentMembers(world, reflection.value)));
+  for (const [at, reflection] of sentReflections.entries()) {
+    sends.push({ site: reflection.site, destination: reflection.sent as SendDestination, keys: sentKeys[at] ?? [] });
+  }
   for (const [at, reflection] of kept.entries()) {
     const { reads: symbols, links: spread, flows: carried } = reads[at] ?? { reads: [], links: [], flows: [] };
     if (reflection.sent === null) {
       credits.push({ site: reflection.site, keys: keysOf(symbols) });
-    } else {
-      sends.push({ site: reflection.site, destination: reflection.sent, keys: keysOf(symbols) });
     }
     links.push(...spread);
     flows.push(...carried);
   }
   return { credits, links, flows, written, sends, copied: new Set(stored.copied.keys()) };
+}
+
+// A serialization sends nested members too: a response's `messages[].content` leaves with the response. Deep enough
+// for a view holding a list of rows that hold one nested object.
+const SEND_DEPTH = 4;
+
+// The object types a value of `type` holds: itself or an array's element, each union member once.
+function* heldObjects(checker: Checker, type: Type): APIRequestGenerator<readonly Type[]> {
+  const plain = yield* checker.getNonNullableType.gen(type);
+  const element = (yield* checker.isArrayType.gen(plain)) && plain.isTypeReference() ? (yield* checker.getTypeArguments.gen(plain))[0] : undefined;
+  return (yield* constituents(element ?? plain)).filter((member) => hasFlag(member.flags, TypeFlags.Object) || hasFlag(member.flags, TypeFlags.Intersection));
+}
+
+// The declaration keys of every in-tree member a serialized value carries, through nested objects and array elements.
+function* sentMembers(world: NativeWorld, value: Node): APIRequestGenerator<readonly string[]> {
+  const { checker } = world;
+  const keys: string[] = [];
+  const seen = new Set<number>();
+  let pending: readonly Type[] = [yield* checker.getTypeAtLocation.gen(value)];
+  for (let depth = 0; depth < SEND_DEPTH && pending.length > 0; depth++) {
+    const held = (yield* all(...pending.map((type) => heldObjects(checker, type)))).flat();
+    const objects = held.filter((type) => !seen.has(type.id));
+    for (const type of objects) {
+      seen.add(type.id);
+    }
+    const properties = (yield* all(...objects.map((type) => checker.getPropertiesOfType.gen(type))))
+      .flat()
+      .filter((property) => property.declarations.some((handle) => world.fileOf(handle) !== null));
+    keys.push(...properties.flatMap((property) => declarationKeys(property)));
+    pending = properties.length === 0 ? [] : yield* checker.getTypeOfSymbol.gen(properties);
+  }
+  return keys;
 }
 
 interface StoreFacts {

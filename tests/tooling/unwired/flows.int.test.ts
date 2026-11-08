@@ -98,7 +98,8 @@ test("a dotted-path read and a compared serialization read a value's members; a 
     [WORLD]: plantedTsconfig({ lib: LIB }),
     "packages/a/src/reflective.ts": [
       "interface Snapshot { readonly mode: string }",
-      "interface View { readonly status: string }",
+      "interface Detail { readonly note: string }",
+      "interface View { readonly status: string; readonly details: readonly Detail[] }",
       "interface Passed { readonly unread: string }",
       "interface Pair { readonly left: string }",
       "interface Failed { readonly code: string }",
@@ -106,7 +107,7 @@ test("a dotted-path read and a compared serialization read a value's members; a 
       "const log = (value: unknown): void => { void value; };",
       "const c = { json: (value: unknown): unknown => value };",
       'const snapshot: Snapshot = { mode: "m" };',
-      'const view: View = { status: "ok" };',
+      'const view: View = { status: "ok", details: [{ note: "n" }] };',
       'const passed: Passed = { unread: "u" };',
       'const pair: Pair = { left: "l" };',
       'const failed: Failed = { code: "c" };',
@@ -121,5 +122,11 @@ test("a dotted-path read and a compared serialization read a value's members; a 
   const found = report.unwired.map(
     ({ home, member, kind, sent, verdict }) => `${home}.${member} ${kind} ${verdict} ${sent.map((send) => send.split(" ")[0]).join(",")}`,
   );
-  expect(found.toSorted()).toEqual(["Failed.code never-read ask error", "Passed.unread never-read dead ", "View.status never-read ask http"]);
+  expect(found.toSorted()).toEqual([
+    "Detail.note never-read ask http",
+    "Failed.code never-read ask error",
+    "Passed.unread never-read dead ",
+    "View.details never-read ask http",
+    "View.status never-read ask http",
+  ]);
 });
