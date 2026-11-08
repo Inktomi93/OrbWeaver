@@ -54,6 +54,16 @@ Every mode stack, the OIDC issuer and the fixture provider bind fixed base ports
 for example `10` or `20`) to shift all of them together; `modes.ts` reads it into `E2E_RUN_PORTS`, which specs use
 instead of the registry's base rows. An offset that would land on a reserved row or a stage band is refused.
 
+## Provider tapes
+
+A spec that needs model turns plays a recorded provider tape instead of a live engine. `tape-provider.ts` serves the tape on loopback, and `pinChatToTape` (`trpc.ts`) binds `chat` to it through a custom endpoint connection. It never binds `summarize`: background summarize work runs on its own clock and would send requests no journey step names. The tapes live in `tests/support/node/provider-tapes/`.
+
+1. Name every request the journey sends, in order, as the steps passed to `startTapeProvider`. A post-commit round counts: on a loopback endpoint the RPG loop falls back to a state round after the turn.
+2. Re-record after a journey changes its requests: run `OPENROUTER_API_KEY=<key> pnpm e2e:tapes:record`. The recording forwards each request to OpenRouter with a lowered output ceiling, scrubs ids, cost and routing fields, and writes the tape under the gitignored `reports/provider-tapes/`. The script copies the tapes into `tests/support/node/provider-tapes/` only when every journey passed.
+3. Commit the changed tapes. `tests/support/node/provider-tapes.int.test.ts` refuses a tape that does not parse, holds a key-shaped string or names a non-loopback host.
+
+A replay refuses a request beyond the tape and a request whose tool set differs from the recorded one, and disposal fails on an unplayed step.
+
 ## Artifacts
 
 `reports/e2e-results/` (trace/screenshot on failure) is WIPED by the next run. Read a failing run's

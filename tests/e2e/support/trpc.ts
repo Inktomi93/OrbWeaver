@@ -13,6 +13,7 @@ import type {
   DistributiveOmit,
   GroupConfigInput,
   GuidedSteerInput,
+  NewConnection,
   ProcedureAt,
   RpgConfigPatch,
   TrpcInput,
@@ -295,6 +296,34 @@ export async function pinChatToLocalEngine(): Promise<{ readonly connectionId: U
   const prior = await getChatBinding();
   await setChatBinding((await localEngineConnection()).id);
   return prior;
+}
+
+/** The recorded upstream calls tools, so a tape connection says so the way a user would: a declared capability. */
+const TAPE_DECLARED_CAPABILITY = { generation: { tools: { parallel: true } } } as const satisfies NewConnection["declared"];
+const TAPE_CONNECTION_LABEL = "e2e provider tape";
+// The provider a tape connection is authored under; wire captures are filed under the same id.
+const TAPE_PROVIDER_ID = "custom-openai";
+
+/** Bind `chat` to a tape peer (`tape-provider.ts`) through a custom endpoint connection. The returned restore
+ *  re-points the role and removes the row; it runs in the spec's finally.
+ *  @remarks Only `chat`: background summarize work (the avatar indexer) runs on its own clock, so a tape bound
+ *  to it would see requests no journey step sends. */
+export async function pinChatToTape(peer: { readonly baseUrl: string; readonly model: string }): Promise<() => Promise<void>> {
+  const prior = await getChatBinding();
+  const connection = await trpc.connection.create.mutate({
+    label: TAPE_CONNECTION_LABEL,
+    providerId: TAPE_PROVIDER_ID,
+    credentialId: null,
+    baseUrl: peer.baseUrl,
+    model: peer.model,
+    declared: TAPE_DECLARED_CAPABILITY,
+    allowBackground: true,
+  });
+  await setChatBinding(connection.id);
+  return async (): Promise<void> => {
+    await setChatBinding(prior === null ? null : prior.connectionId);
+    await trpc.connection.remove.mutate({ connectionId: connection.id });
+  };
 }
 
 /** Why the local engine cannot serve a live arm, or null when it can. Dials production's `connection.probe`, so no

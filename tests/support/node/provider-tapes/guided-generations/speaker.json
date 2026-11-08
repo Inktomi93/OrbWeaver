@@ -1,0 +1,28 @@
+{
+  "model": "anthropic/claude-sonnet-5",
+  "steps": [
+    {
+      "step": "speaker-response",
+      "tools": [],
+      "frames": [
+        "{\"id\":\"tape\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"anthropic/claude-sonnet-5\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"Hey there,\"},\"finish_reason\":null}]}",
+        "{\"id\":\"tape\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"anthropic/claude-sonnet-5\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\" Traveler — good\"},\"finish_reason\":null}]}",
+        "{\"id\":\"tape\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"anthropic/claude-sonnet-5\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\" to see\"},\"finish_reason\":null}]}",
+        "{\"id\":\"tape\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"anthropic/claude-sonnet-5\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\" you. I\"},\"finish_reason\":null}]}",
+        "{\"id\":\"tape\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"anthropic/claude-sonnet-5\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"'m B\"},\"finish_reason\":null}]}",
+        "{\"id\":\"tape\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"anthropic/claude-sonnet-5\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"ravo, half\"},\"finish_reason\":null}]}",
+        "{\"id\":\"tape\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"anthropic/claude-sonnet-5\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\" of this\"},\"finish_reason\":null}]}",
+        "{\"id\":\"tape\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"anthropic/claude-sonnet-5\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\" little\"},\"finish_reason\":null}]}",
+        "{\"id\":\"tape\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"anthropic/claude-sonnet-5\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\" duo.\"},\"finish_reason\":null}]}",
+        "{\"id\":\"tape\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"anthropic/claude-sonnet-5\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\" Al\"},\"finish_reason\":null}]}",
+        "{\"id\":\"tape\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"anthropic/claude-sonnet-5\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"pha's around\"},\"finish_reason\":null}]}",
+        "{\"id\":\"tape\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"anthropic/claude-sonnet-5\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\" here som\"},\"finish_reason\":null}]}",
+        "{\"id\":\"tape\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"anthropic/claude-sonnet-5\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"ewhere too.\"},\"finish_reason\":null}]}",
+        "{\"id\":\"tape\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"anthropic/claude-sonnet-5\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\" What brings you our\"},\"finish_reason\":null}]}",
+        "{\"id\":\"tape\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"anthropic/claude-sonnet-5\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\" way today?\"},\"finish_reason\":null}]}",
+        "{\"id\":\"tape\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"anthropic/claude-sonnet-5\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\"},\"finish_reason\":\"stop\"}]}",
+        "{\"id\":\"tape\",\"object\":\"chat.completion.chunk\",\"created\":0,\"model\":\"anthropic/claude-sonnet-5\",\"choices\":[{\"index\":0,\"delta\":{\"role\":\"assistant\",\"content\":\"\"},\"finish_reason\":\"stop\"}],\"usage\":{\"prompt_tokens\":252,\"completion_tokens\":53,\"total_tokens\":305}}"
+      ]
+    }
+  ]
+}

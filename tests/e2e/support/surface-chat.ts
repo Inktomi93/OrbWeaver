@@ -1466,7 +1466,7 @@ async function commandExports(flow: Journey, room: ChatSummary): Promise<void> {
         await leaf.click();
         const download = await pending;
         expect(await download.failure()).toBeNull();
-        const path = flow.info.outputPath(`${crypto.randomUUID()}${extname(download.suggestedFilename())}`);
+        const path = flow.info.outputPath(`${flow.ids.uuid()}${extname(download.suggestedFilename())}`);
         await download.saveAs(path);
         expect((await stat(path)).size).toBeGreaterThan(0);
         await flow.info.attach(`disposable-${download.suggestedFilename()}`, { path });
@@ -1520,7 +1520,7 @@ async function commandEdit(flow: Journey, room: ChatSummary): Promise<void> {
 /** Execute lifecycle commands against an explicitly disposable production-created room, never an original reading subject. */
 export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
   const flow: Journey = createSurfaceWalk(input, [{ id: "chat-commands", kind: "chat-journey" }]);
-  const title = `Surface commands ${crypto.randomUUID()}`;
+  const title = `Surface commands ${flow.ids.uuid()}`;
   let createdId: ChatId | undefined;
   try {
     const { chat } = await flow.client.chat.startChat.mutate({ characterIds: [], opening: "none", title });
@@ -1727,14 +1727,14 @@ async function messageOperationDone(flow: Journey, message: MessageView, label: 
 async function messageSavedReply(flow: Journey): Promise<void> {
   const character = await flow.client.character.create.mutate({
     input: {
-      handle: characterHandleSchema.parse(`surface-message-${crypto.randomUUID()}`),
+      handle: characterHandleSchema.parse(`surface-message-${flow.ids.uuid()}`),
       name: "Disposable saved reply character",
       description: "Disposable greeting recovery witness.",
       greetings: [{ text: "Disposable first card greeting." }, { text: "Disposable second card greeting." }],
     },
   });
   try {
-    const title = `Surface saved replies ${crypto.randomUUID()}`;
+    const title = `Surface saved replies ${flow.ids.uuid()}`;
     const { chat } = await flow.client.chat.startChat.mutate({ characterIds: [character.id], opening: "first-message", title });
     try {
       await flow.client.chat.updateTitle.mutate({ chatId: chat.id, title });
@@ -2081,7 +2081,7 @@ async function disposableRoom(
   run: (room: ChatSummary, messages: readonly MessageView[]) => Promise<void>,
 ): Promise<void> {
   const { name, content, attachments } = request;
-  const title = `Surface walk ${name} ${crypto.randomUUID()}`;
+  const title = `Surface walk ${name} ${flow.ids.uuid()}`;
   const { chat } = await flow.client.chat.startChat.mutate({ characterIds: [], opening: "none", title });
   expect(flow.run.subjects.chats.some(({ id }) => id === chat.id)).toBe(false);
   try {
@@ -2124,7 +2124,7 @@ export async function walkChatGeneration(input: SurfaceFlow): Promise<void> {
       const textbox = composer.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
       const stop = composer.getByRole("button", { name: CHAT_STOP_NAME, exact: true });
       const ghost = flow.page.locator('[data-slot="ghost-message-row"]');
-      const prompt = `Complete the disposable native witness ${crypto.randomUUID()}.`;
+      const prompt = `Complete the disposable native witness ${flow.ids.uuid()}.`;
       await textbox.fill(prompt);
       await flow.action("generation/send-completion", {
         action: async () => {
@@ -2540,7 +2540,7 @@ export async function walkChatArrival(input: SurfaceFlow): Promise<void> {
               },
             });
             await checkpoint(flow, "chat-arrival-first-read", flow.page.locator("body"), messageRow(flow.page, first.id));
-            const arrival = `A second durable, generation-free arrival ${crypto.randomUUID()}`;
+            const arrival = `A second durable, generation-free arrival ${flow.ids.uuid()}`;
             await flow.action("chat-arrival-committed-bus-event", {
               action: async () => {
                 await flow.client.chat.commitMessage.mutate({ chatId: room.id, content: arrival, timeZone: UTC_TIME_ZONE });
