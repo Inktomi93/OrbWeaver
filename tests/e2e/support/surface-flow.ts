@@ -67,7 +67,14 @@ export function createSurfaceFlow(input: SurfaceFlowInput): SurfaceFlow {
   const topology = async (): Promise<void> => {
     await surfaceTopology(input.info, { page: input.page, requested: input.requestedPanes });
   };
-  const desktopShell = async (): Promise<boolean> => await input.page.evaluate((query) => matchMedia(query).matches, MEDIA_QUERIES["shell-desktop"]);
+  const desktopShell = async (): Promise<boolean> => {
+    const desktop = await input.page.evaluate((query) => matchMedia(query).matches, MEDIA_QUERIES["shell-desktop"]);
+    // Only enlarged text may move a desktop viewport onto the mobile shell; at default text that is a shell regression.
+    if (!desktop && input.requestedPanes.kind === "desktop" && input.textProfile === null) {
+      throw new Error("A desktop project at the browser's default text size resolved the mobile shell");
+    }
+    return desktop;
+  };
   const textGeometry = input.textProfile === null ? null : { expectedRootFontPx: input.textProfile.standardFontPx * input.fontScale };
   return {
     ...input,

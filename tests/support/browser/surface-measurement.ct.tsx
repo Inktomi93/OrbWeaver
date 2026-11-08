@@ -384,20 +384,32 @@ async function smallControlRenders(page: Page, info: TestInfo, name: string): Pr
   return cohort;
 }
 
-test("rendered cohort fingerprints agree on an identical cohort and flag the member that paints differently", async ({ mount, page }, info) => {
-  await mount<typeof SurfaceDesignStory>("tests/support/browser/surface-design-fixtures/SurfaceDesignStory", { width: 640 });
-  const target = page.getByRole("button", { name: SMALL_CONTROLS[2], exact: true });
-  await expect(target).toBeVisible();
-  const healthy = await smallControlRenders(page, info, "cohort-renders-healthy");
-  expect(healthy.members.map(({ fingerprint }) => fingerprint.status)).toEqual(["measured", "measured", "measured"]);
-  expect(healthy.verdict).toBe("uniform");
-  await target.evaluate((element, primary) => {
-    element.style.setProperty("background-color", `var(${primary})`);
-  }, TOKENS["color.primary"].cssVar);
-  const planted = await smallControlRenders(page, info, "cohort-renders-planted");
-  expect(planted.verdict).toBe("divergent");
-  expect(planted.comparisons.flatMap(({ outliers }) => outliers).map(({ at }) => at)).toEqual([expect.stringContaining(SMALL_CONTROLS[2])]);
-});
+// Each plant paints one sibling differently at the contrast a real token gives; the subtle ones sit a few levels off the page.
+const COHORT_PLANTS = [
+  { name: "a primary fill", property: "background-color", value: `var(${TOKENS["color.primary"].cssVar})` },
+  { name: "a one-pixel border", property: "border", value: `1px solid var(${TOKENS["color.border"].cssVar})` },
+  { name: "a card fill among transparent siblings", property: "background-color", value: `var(${TOKENS["color.card"].cssVar})` },
+] as const;
+
+for (const plant of COHORT_PLANTS) {
+  test(`rendered cohort fingerprints agree on an identical cohort and flag the member with ${plant.name}`, async ({ mount, page }, info) => {
+    await mount<typeof SurfaceDesignStory>("tests/support/browser/surface-design-fixtures/SurfaceDesignStory", { width: 640 });
+    const target = page.getByRole("button", { name: SMALL_CONTROLS[2], exact: true });
+    await expect(target).toBeVisible();
+    const healthy = await smallControlRenders(page, info, "cohort-renders-healthy");
+    expect(healthy.members.map(({ fingerprint }) => fingerprint.status)).toEqual(["measured", "measured", "measured"]);
+    expect(healthy.verdict).toBe("uniform");
+    await target.evaluate((element, { property, value }) => {
+      element.style.setProperty(property, value);
+    }, plant);
+    const planted = await smallControlRenders(page, info, "cohort-renders-planted");
+    expect(planted.verdict).toBe("divergent");
+    // Both bands may name the member; every outlier must be the planted one.
+    expect([...new Set(planted.comparisons.flatMap(({ outliers }) => outliers.map(({ at }) => at.slice(0, at.lastIndexOf(":")))))]).toEqual([
+      expect.stringContaining(SMALL_CONTROLS[2]),
+    ]);
+  });
+}
 
 test("members that paint no edge of their own match over a backdrop that changes between them", async ({ mount, page }, info) => {
   await mount<typeof SurfaceDesignStory>("tests/support/browser/surface-design-fixtures/SurfaceDesignStory", { width: 640 });
@@ -441,7 +453,7 @@ test("a member whose subtree carries the selection skin is left out instead of r
   expect(cohort.verdict).toBe("uniform");
 });
 
-test("a member whose perimeter ring is not one colour stays incomplete rather than matching its cohort", async ({ mount, page }, info) => {
+test("a member whose edge band is not one colour stays incomplete rather than matching its cohort", async ({ mount, page }, info) => {
   await mount<typeof SurfaceDesignStory>("tests/support/browser/surface-design-fixtures/SurfaceDesignStory", { width: 640 });
   const target = page.getByRole("button", { name: SMALL_CONTROLS[2], exact: true });
   await target.evaluate(
@@ -453,7 +465,7 @@ test("a member whose perimeter ring is not one colour stays incomplete rather th
   const cohort = await smallControlRenders(page, info, "cohort-renders-unresolved");
   const member = cohort.members.find(({ selector }) => selector.includes(SMALL_CONTROLS[2]));
   expect(member?.fingerprint).toEqual({ status: "incomplete", reason: expect.stringContaining("not one colour") });
-  expect(cohort.comparisons.find(({ column }) => column === "ring")?.total).toBe(SMALL_CONTROLS.length - 1);
+  expect(cohort.comparisons.find(({ column }) => column === "edge")?.total).toBe(SMALL_CONTROLS.length - 1);
 });
 
 test("the browser text size reaches the mounted document and its media-query rem", async ({ mount, page, browserName }) => {

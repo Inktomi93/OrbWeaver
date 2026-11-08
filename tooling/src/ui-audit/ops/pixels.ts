@@ -137,7 +137,7 @@ async function revealArtUnderSubject(
 }
 
 /** ONE viewport screenshot decoded to raw pixels, or the reason there are none. */
-export async function viewportPixels(page: Page): Promise<(PixelRaw & { data: Buffer }) | { error: string }> {
+export async function viewportPixels(page: Pick<Page, "screenshot">): Promise<(PixelRaw & { data: Buffer }) | { error: string }> {
   try {
     const shot: Buffer = await page.screenshot({ animations: "disabled", scale: "css" });
     const { data, info } = await sharp(shot).raw().toBuffer({ resolveWithObject: true });

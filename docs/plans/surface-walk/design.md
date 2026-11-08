@@ -68,7 +68,12 @@ Compare cross-section controls only when their semantic role, declared density a
 Run the existing public design-audit engine last in evidence checkpoints.
 Compare governed tier and variant values against their browser-resolved tokens, not another section's screenshot.
 Keep sibling geometry cohorts within one containing parent and the same authored component, variant, density and tier claims.
-Retain each cohort member's box and a perimeter-ring pixel fingerprint, and compare resting members with the comparison ui-facts uses for source cohorts. The ring leaves out the rounded corners. A ring that matches the one-pixel band outside the box reads as the parent's backdrop, so transparent members over chat art still match. Fail a cohort whose majority has outliers. Record these members as incomplete, not as a match: a member in another interaction state, or with a selected or current descendant; a member outside the viewport; a member whose ring or surrounding band is not one colour.
+Retain each cohort member's box and two pixel fingerprints: its outermost one-pixel edge band and the fill band just inside it. Read both bands on the pixel-snapped box, leaving out the rounded corners. An edge within two levels per channel of the band outside the box reads as the parent's backdrop, so transparent members over chat art still match. A fill within two levels of the edge reads as the edge. Group the remaining colours per cohort within the same two levels, and compare resting members on both bands with the comparison ui-facts uses for source cohorts. Fail a cohort whose majority has outliers in either band. Record these members as incomplete, not as a match:
+
+- a member in another interaction state, or with a selected or current descendant;
+- a member outside the viewport;
+- a member with a band that is not one colour.
+
 Retain original samples, findings, population accounting and incomplete-evidence details in native files and step parameters.
 Resolve pending backdrops through the public pixel pass before judging samples. Retain original samples, resolved samples and sampling refusals.
 Keep unresolved populations incomplete rather than presenting them as product defects or clean results.
@@ -284,9 +289,10 @@ Snap's Lighthouse audit and its `--cascade` winning-rule analysis do not run beh
 
 Both attach a second client to the run's own Chromium through a debugging endpoint that Chrome publishes in its profile's `DevToolsActivePort` file (`tooling/src/floor/browser/debugging-endpoint.ts`). That launch shape is the only one Snap supports; Snap does not reserve fixed debugging ports (`tooling/src/snap/ops/session.ts`, `debuggingPortFor`).
 
-The walk's browser cannot publish that endpoint through supported APIs:
+The walk cannot locate such an endpoint for its own browser through supported APIs:
 
 - Playwright Test launches the worker browser with `browserType.launch()`. The installed Playwright creates that profile itself, in a random temporary directory named `playwright_chromiumdev_profile-*`.
+- A `--remote-debugging-port=0` argument makes Chrome write `DevToolsActivePort` into that random profile, and no supported API names the profile directory.
 - The same launch refuses a `--user-data-dir` argument and a `--remote-debugging-pipe` override.
 - The installed Lighthouse audits only a Puppeteer page: its `startTimespan` declaration takes `LH.Puppeteer.Page`. Puppeteer connects through a browser endpoint or a whole-browser transport. Playwright's `CDPSession.send(method, params)` carries no target session id, so it cannot serve as that transport.
 - A Lighthouse timespan starts its own protocol trace inside the action window. The measurement pass refuses audits there.

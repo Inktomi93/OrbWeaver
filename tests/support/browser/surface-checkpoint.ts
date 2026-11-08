@@ -198,7 +198,7 @@ async function checkpointTextGeometry(
   expect.soft(findings, `${request.name}: enlarged-text geometry findings; inspect the text-geometry attachment`).toEqual([]);
 }
 
-// The rendered cohort layer: every member's box and ring fingerprint is retained; only a divergent cohort fails.
+// The rendered cohort layer: every member's box and band fingerprints are retained; only a divergent cohort fails.
 async function cohortRenders(
   info: TestInfo,
   step: TestStepInfo,
@@ -207,10 +207,11 @@ async function cohortRenders(
   const renders = await readSurfaceCohortRenders(page, samples);
   await attachNativeFile(info, step, `${name}-cohort-renders`, { body: JSON.stringify(renders, null, 2), contentType: "application/json" });
   const count = (verdict: string): number => renders.cohorts.filter((cohort) => cohort.verdict === verdict).length;
-  const incomplete = renders.cohorts.reduce((sum, cohort) => sum + cohort.members.filter(({ fingerprint }) => fingerprint.status === "incomplete").length, 0);
+  const members = renders.cohorts.flatMap((cohort) => cohort.members);
+  const incomplete = members.filter(({ fingerprint }) => fingerprint.status === "incomplete").length;
   step.annotations.push({
     type: "cohort-renders",
-    description: `Census cohorts with member boxes and perimeter-ring fingerprints; cohorts=${String(renders.cohorts.length)}; divergent=${String(count("divergent"))}; uniform=${String(count("uniform"))}; no-verdict=${String(count("no-verdict"))}; incomplete members=${String(incomplete)}${renders.error === null ? "" : `; screenshot error=${renders.error}`}`,
+    description: `Census cohorts with member boxes and edge and fill band fingerprints; cohorts=${String(renders.cohorts.length)}; divergent=${String(count("divergent"))}; uniform=${String(count("uniform"))}; no-verdict=${String(count("no-verdict"))}; measured members=${String(members.length - incomplete)}; incomplete members=${String(incomplete)}${renders.error === null ? "" : `; census or screenshot error=${renders.error}`}`,
   });
   for (const cohort of renders.cohorts.filter(({ verdict }) => verdict === "divergent")) {
     const outliers = cohort.comparisons.flatMap((comparison) => comparison.outliers);
