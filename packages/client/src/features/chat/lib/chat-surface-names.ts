@@ -79,7 +79,7 @@ export function chatRowActionsName(rowName: string): string {
 export const CHAT_STAR_NAME = "Star";
 export const CHAT_UNSTAR_NAME = "Unstar";
 export const CHAT_ARCHIVE_NAME = "Archive";
-export const CHAT_UNARCHIVE_NAME = "Unarchive";
+const CHAT_UNARCHIVE_NAME = "Unarchive";
 
 /** The row menu's star toggle for the room's current state. */
 export function chatStarToggleName(starred: boolean): string {

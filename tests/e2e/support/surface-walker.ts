@@ -190,7 +190,7 @@ export async function reveal(walk: SurfaceWalk, side: "list" | "context"): Promi
   return true;
 }
 
-export function disclosureHooks(walk: SurfaceWalk): DisclosureWalkHooks {
+function disclosureHooks(walk: SurfaceWalk): DisclosureWalkHooks {
   return {
     limit: MAX_DISCLOSURES,
     depthLimit: MAX_DEPTH,
