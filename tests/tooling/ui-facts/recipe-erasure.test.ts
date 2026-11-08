@@ -35,10 +35,11 @@ const TOGGLE = "primitives/toggle/variants#toggleVariants";
 const WEAVE_GLYPH = "art/web-weave/variants#weaveGlyphVariants";
 
 /**
- * The prop types refuse both at once: `ButtonBox`, `ButtonStretch`, `TextCue`, `TextCap`, `PictureReach`, or the arm is `Omit`ted from the named component.
+ * The prop types refuse both at once: `ButtonBox`, `ButtonStretch`, `TextCue`, `TextCap`, `PictureReach`, `CardReservation`, or the arm is `Omit`ted from the named component.
  * `ToneInkSelection` pairs `tone` with `ink` only as `ink="toneForeground"`, the tone's own ink on the fill it names.
  */
 const CLOSED_BY_TYPE: Readonly<Record<string, readonly string[]>> = {
+  "cap > artDecoration": [CARD],
   "clamp > lines": [TEXT],
   "minHeight > size+stacked": [BUTTON],
   "minHeight > size+wrap": [BUTTON],
@@ -75,26 +76,6 @@ type ArmsByTable = Readonly<Record<string, readonly string[]>>;
 
 /** An inset an axis spends on purpose: a bleed, an indent or an art reservation is the box's whole statement of that edge. */
 const INSET_SPENT: Readonly<Record<string, ArmsByTable>> = {
-  "cap > artDecoration": {
-    [CARD]: [
-      "available",
-      "avatarHero",
-      "column",
-      "columnWide",
-      "control",
-      "controlMd",
-      "fit",
-      "pane",
-      "paneSm",
-      "paneXs",
-      "prose",
-      "reading",
-      "readingMin",
-      "shell",
-      "sidebar",
-      "surface",
-    ],
-  },
   "indent > artDecoration": { [STACK]: ["true"] },
   "indent > reach": { [ROW]: ["true"], [STACK]: ["true"] },
   "paddingInline > reach": {

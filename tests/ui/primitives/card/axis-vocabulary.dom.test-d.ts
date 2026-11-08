@@ -32,6 +32,14 @@ test("the old tone values and axes do not compile", () => {
   expectTypeOf<Parameters<typeof Card>[0]>().not.toHaveProperty("shadow");
 });
 
+test("an art reservation and a cap are never named together", () => {
+  // @ts-expect-error the reservation sets the box's max inline size, which a cap would override
+  createElement(Card, { cap: "reading", artDecoration: "portraitStart" }, "x");
+  createElement(Card, { cap: "reading" }, "x");
+  createElement(Card, { artDecoration: "portraitStart" }, "x");
+  expectTypeOf<Parameters<typeof Card>[0]>().toHaveProperty("artDecoration");
+});
+
 test("every tone works with every style", () => {
   createElement(Card, {}, "the neutral surface");
   createElement(Card, { tone: "warning", variant: "soft" }, "x");
