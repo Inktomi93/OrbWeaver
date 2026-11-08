@@ -10,6 +10,7 @@ export async function captureCorpusShellAmbient(root: ServerTestHarness): Promis
     recentChats: shellAmbientInput.recentChats(),
     quickPicks: shellAmbientInput.quickPicks(),
     rosterPreview: shellAmbientInput.rosterPreview(),
+    rosterLibrary: shellAmbientInput.rosterLibrary(),
     recentDocuments: shellAmbientInput.recentDocuments(),
     inbox: shellAmbientInput.inbox(),
   };
@@ -26,6 +27,7 @@ export async function captureCorpusShellAmbient(root: ServerTestHarness): Promis
       recentChats,
       quickPicks: { input: inputs.quickPicks, output: await caller.character.list(inputs.quickPicks) },
       rosterPreview: { input: inputs.rosterPreview, output: await caller.rosterPreset.list(inputs.rosterPreview) },
+      rosterLibrary: { input: inputs.rosterLibrary, output: await caller.rosterPreset.list(inputs.rosterLibrary) },
       recentDocuments: { input: inputs.recentDocuments, output: await caller.databank.list(inputs.recentDocuments) },
       inbox: { input: inputs.inbox, output: await caller.notifications.list(inputs.inbox) },
       reaped: { input: undefined, output: await caller.chat.reapTemporaryChats() },

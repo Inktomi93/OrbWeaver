@@ -5663,6 +5663,248 @@
           "hasGroupConfig": false
         }
       ],
+      "rosterLibrary": [
+        {
+          "id": "roster_preset_0000000000000000000000012w",
+          "name": "Assistant & Sabine",
+          "description": "A smaller two-seat pairing.",
+          "anchorPersonaId": null,
+          "game": null,
+          "members": [
+            {
+              "characterId": "character_00000000000000000000000035",
+              "position": 0,
+              "talkativeness": null,
+              "disabled": false,
+              "name": "Charlotte",
+              "avatarHash": "4204316e1c6d4d846f60a8784f9c54f4c9faf8d35257af89686f6284f7e328fa"
+            },
+            {
+              "characterId": "character_0000000000000000000000007g",
+              "position": 1,
+              "talkativeness": null,
+              "disabled": false,
+              "name": "Sabine Veyra",
+              "avatarHash": "4cad41410b4f371cfec28f8cc7e4a0198dbf0a27336fc56d56e11440a7fe54a6"
+            }
+          ],
+          "rules": [],
+          "updatedAt": 1750000000000,
+          "characterCount": 2,
+          "hasGroupConfig": false
+        },
+        {
+          "id": "roster_preset_0000000000000000000000016z",
+          "name": "Corpus library roster",
+          "description": "",
+          "anchorPersonaId": "persona_0000000000000000000000016v",
+          "game": null,
+          "members": [
+            {
+              "characterId": "character_0000000000000000000000014c",
+              "position": 0,
+              "talkativeness": null,
+              "disabled": false,
+              "name": "The ledger archivist",
+              "avatarHash": null
+            }
+          ],
+          "rules": [],
+          "updatedAt": 1750000000000,
+          "characterCount": 1,
+          "hasGroupConfig": false
+        },
+        {
+          "id": "roster_preset_000000000000000000000000bz",
+          "name": "Midnight Run",
+          "description": "Two night owls, one convenience store, and a cursed apartment.",
+          "anchorPersonaId": null,
+          "game": null,
+          "members": [
+            {
+              "characterId": "character_0000000000000000000000004w",
+              "position": 0,
+              "talkativeness": null,
+              "disabled": false,
+              "name": "Niko",
+              "avatarHash": "3d9644b4c03dd495584a44a37875fda3fc0949c1d3eb1a180bce6f3e253e518d"
+            },
+            {
+              "characterId": "character_0000000000000000000000009a",
+              "position": 1,
+              "talkativeness": null,
+              "disabled": false,
+              "name": "Kohaku",
+              "avatarHash": "7981639888cf4d33840d90e5293a50d192c0146e8e404cbf88a615d2fa08e08a"
+            }
+          ],
+          "rules": [],
+          "updatedAt": 1750000000000,
+          "characterCount": 2,
+          "hasGroupConfig": false
+        },
+        {
+          "id": "roster_preset_000000000000000000000005nf",
+          "name": "Native library party",
+          "description": "",
+          "anchorPersonaId": "persona_0000000000000000000000014j",
+          "game": null,
+          "members": [
+            {
+              "characterId": "character_000000000000000000000005n4",
+              "position": 0,
+              "talkativeness": 0.25,
+              "disabled": true,
+              "name": "Native roster witness",
+              "avatarHash": null
+            },
+            {
+              "characterId": "character_0000000000000000000000014c",
+              "position": 1,
+              "talkativeness": 0.75,
+              "disabled": false,
+              "name": "The ledger archivist",
+              "avatarHash": null
+            }
+          ],
+          "rules": [{ "rulePresetId": "openerChips", "knobs": { "labels": ["Continue.", "Time skip — later that day.", "New scene."] } }],
+          "updatedAt": 1750003791001,
+          "characterCount": 2,
+          "hasGroupConfig": true
+        },
+        {
+          "id": "roster_preset_0000000000000000000000012t",
+          "name": "Refinery crew",
+          "description": "The refinery crew, ready to seat as a group.",
+          "anchorPersonaId": null,
+          "game": null,
+          "members": [
+            {
+              "characterId": "character_0000000000000000000000007g",
+              "position": 0,
+              "talkativeness": null,
+              "disabled": false,
+              "name": "Sabine Veyra",
+              "avatarHash": "4cad41410b4f371cfec28f8cc7e4a0198dbf0a27336fc56d56e11440a7fe54a6"
+            },
+            {
+              "characterId": "character_000000000000000000000000a6",
+              "position": 1,
+              "talkativeness": null,
+              "disabled": false,
+              "name": "Calamity, Doomblade of the Ninth Epoch",
+              "avatarHash": "cc8cac65e3a91c934e51150fa31053f9bb6f9a48510725da3c2cda6ea931ba75"
+            },
+            {
+              "characterId": "character_0000000000000000000000006j",
+              "position": 2,
+              "talkativeness": null,
+              "disabled": false,
+              "name": "Morgatha, the Undying Dark",
+              "avatarHash": "3d8fe8670f99b01c9f427c369bf97aba7fbb0350310b457ea34642947c5c38c6"
+            }
+          ],
+          "rules": [],
+          "updatedAt": 1750000000000,
+          "characterCount": 3,
+          "hasGroupConfig": false
+        },
+        {
+          "id": "roster_preset_000000000000000000000000c1",
+          "name": "Second Opinion",
+          "description": "Charlotte drafts it, JFC tears it down.",
+          "anchorPersonaId": null,
+          "game": null,
+          "members": [
+            {
+              "characterId": "character_00000000000000000000000035",
+              "position": 0,
+              "talkativeness": null,
+              "disabled": false,
+              "name": "Charlotte",
+              "avatarHash": "4204316e1c6d4d846f60a8784f9c54f4c9faf8d35257af89686f6284f7e328fa"
+            },
+            {
+              "characterId": "character_00000000000000000000000040",
+              "position": 1,
+              "talkativeness": null,
+              "disabled": false,
+              "name": "JFC",
+              "avatarHash": "a90d64fd073ac2a6b85238fcd54319c2ea31d640bfdd1b2cbde197508d16214a"
+            }
+          ],
+          "rules": [],
+          "updatedAt": 1750000000000,
+          "characterCount": 2,
+          "hasGroupConfig": false
+        },
+        {
+          "id": "roster_preset_000000000000000000000000c3",
+          "name": "Storm the Spire",
+          "description": "An RPG campaign: you and a sellsword knight take the contract on the Ashen Spire, and its undying queen is expecting you.",
+          "anchorPersonaId": null,
+          "game": {},
+          "members": [
+            {
+              "characterId": "character_0000000000000000000000007g",
+              "position": 0,
+              "talkativeness": null,
+              "disabled": false,
+              "name": "Sabine Veyra",
+              "avatarHash": "4cad41410b4f371cfec28f8cc7e4a0198dbf0a27336fc56d56e11440a7fe54a6"
+            },
+            {
+              "characterId": "character_0000000000000000000000006j",
+              "position": 1,
+              "talkativeness": null,
+              "disabled": false,
+              "name": "Morgatha, the Undying Dark",
+              "avatarHash": "3d8fe8670f99b01c9f427c369bf97aba7fbb0350310b457ea34642947c5c38c6"
+            }
+          ],
+          "rules": [],
+          "updatedAt": 1750000000000,
+          "characterCount": 2,
+          "hasGroupConfig": false
+        },
+        {
+          "id": "roster_preset_000000000000000000000000bx",
+          "name": "The Ashen Spire",
+          "description": "A dark lady, the knight she hired, and a sword with opinions.",
+          "anchorPersonaId": null,
+          "game": null,
+          "members": [
+            {
+              "characterId": "character_0000000000000000000000006j",
+              "position": 0,
+              "talkativeness": null,
+              "disabled": false,
+              "name": "Morgatha, the Undying Dark",
+              "avatarHash": "3d8fe8670f99b01c9f427c369bf97aba7fbb0350310b457ea34642947c5c38c6"
+            },
+            {
+              "characterId": "character_0000000000000000000000007g",
+              "position": 1,
+              "talkativeness": null,
+              "disabled": false,
+              "name": "Sabine Veyra",
+              "avatarHash": "4cad41410b4f371cfec28f8cc7e4a0198dbf0a27336fc56d56e11440a7fe54a6"
+            },
+            {
+              "characterId": "character_000000000000000000000000a6",
+              "position": 2,
+              "talkativeness": null,
+              "disabled": false,
+              "name": "Calamity, Doomblade of the Ninth Epoch",
+              "avatarHash": "cc8cac65e3a91c934e51150fa31053f9bb6f9a48510725da3c2cda6ea931ba75"
+            }
+          ],
+          "rules": [],
+          "updatedAt": 1750000000000,
+          "characterCount": 3,
+          "hasGroupConfig": false
+        }
+      ],
       "recentDocuments": {
         "items": [
           {
