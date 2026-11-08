@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-08
 priority: P2
 area: tests
+lane: wt/agent-a081e2b19fc567c08
 plan: test-foundation
 ---
 
