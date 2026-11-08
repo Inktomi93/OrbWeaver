@@ -63,7 +63,7 @@ test("a plugin turn card names its installer apart from its title and opens to t
     "stream.attach": automationRoom,
     "stream.detach": automationRoom,
   });
-  await routeOrbSocket(page, { awaitAttaches: 1, frames: [{ channel: "automation", chatId: h.chatId, event: card }] });
+  await routeOrbSocket(page, { awaitRooms: [{ channel: "automation", chatId: h.chatId }], frames: [{ channel: "automation", chatId: h.chatId, event: card }] });
   // The card's expiry is stamped on the root's frozen clock; the page reads the same instant, or the mount's own
   // expiry timer retires the card as soon as it paints.
   await page.clock.setFixedTime(h.root.clock.now());

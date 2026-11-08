@@ -18,9 +18,9 @@ const EDGE_COLUMN = "edge";
 const FILL_COLUMN = "fill";
 const BAND_COLUMNS = [EDGE_COLUMN, FILL_COLUMN] as const;
 /** The edge value of a member whose outer pixel shows its parent's backdrop. */
-export const BACKDROP_PAINT = "backdrop";
+const BACKDROP_PAINT = "backdrop";
 /** The fill value of a member whose inner band repeats its edge colour. */
-export const EDGE_PAINT = "edge";
+const EDGE_PAINT = "edge";
 // Two colours count as one when every channel is within this many levels. The closest seed-theme surface tokens sit about
 // five levels apart, and whole pixels inside the box carry no anti-aliasing, so identical members read identical values.
 const SAME_COLOUR_LEVELS = 2;
@@ -29,11 +29,11 @@ const HEX_DIGITS = 2;
 // An edge band and a fill band each need a pixel on both sides, plus one pixel between them.
 const MIN_BANDED_PX = 5;
 
-export type CohortMemberFingerprint =
+type CohortMemberFingerprint =
   | { readonly status: "measured"; readonly edge: string; readonly fill: string }
   | { readonly status: "incomplete"; readonly reason: string };
 
-export interface CohortRenderMember extends CohortMemberRender {
+interface CohortRenderMember extends CohortMemberRender {
   readonly fingerprint: CohortMemberFingerprint;
 }
 
