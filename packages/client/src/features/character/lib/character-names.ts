@@ -86,3 +86,15 @@ export const CHARACTER_ADD_TAG_NAME = "Add tag";
 
 /** The facet editor's toggle that opens the full editor. */
 export const CHARACTER_EXPAND_TO_EDIT_NAME = "Expand to edit";
+
+/** The facet editor's return to the facet list. */
+export const CHARACTER_FACET_BACK_NAME = "Back";
+
+/** The look tab's door to seeding fields from a theme. */
+export const CHARACTER_START_FROM_THEME_NAME = "Start from a theme…";
+
+/** The history tab's empty state. */
+export const CHARACTER_NO_SNAPSHOTS_TEXT = "No snapshots yet. Take one to capture this character's current state.";
+
+/** The library's empty state before any card exists. */
+export const CHARACTER_LIBRARY_EMPTY_TITLE = "No characters yet";

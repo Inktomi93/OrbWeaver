@@ -45,7 +45,7 @@ import { useRef, useState } from "react";
 import { LibraryListRows, LibrarySurfaceShell, ListPage, useRowDeleteFocus } from "#components";
 import type { Trpc } from "#data";
 import { createCollectionSurface, QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { SEARCH_DEBOUNCE_MS, timeLib, useDebouncedValue, useFocusListArrival } from "#lib";
+import { CLEAR_SEARCH_NAME, NO_MATCHES_TITLE, SEARCH_DEBOUNCE_MS, timeLib, useDebouncedValue, useFocusListArrival } from "#lib";
 import {
   clearDatabankPhaseFilter,
   clearDocumentSelection,
@@ -68,7 +68,7 @@ import {
 } from "../hooks/use-databank-mutations.ts";
 import { DATABANK_INGEST_GLOSS } from "../lib/databank-copy.ts";
 import { ingestBadge, ingestPollInterval } from "../lib/databank-model.ts";
-import { DATABANK_SEARCH_NAME } from "../lib/databank-names.ts";
+import { DATABANK_ADD_DOCUMENT_TITLE, DATABANK_EMPTY_TITLE, DATABANK_LIST_NAME, DATABANK_SEARCH_NAME } from "../lib/databank-names.ts";
 
 const SKELETON_ROW_COUNT = 6;
 /** Initial row-height guess; `<VirtualList>` re-measures every row after mount. A two-line entity row. */
@@ -246,7 +246,7 @@ function DatabankList({ query, phaseFilter, onClearSearch, listRootRef }: Databa
             as you scroll, the DOM stays bounded however deep the bank goes, and the button is gone rather
             than sitting under a virtualized viewport it could no longer be part of. */}
         <VirtualList
-          aria-label="Documents"
+          aria-label={DATABANK_LIST_NAME}
           height="fill"
           endApproachRows={collection.listProps.endApproachRows}
           estimateSize={(): number => ESTIMATED_ROW_PX}
@@ -327,7 +327,7 @@ function DatabankEmpty({ needle, phaseFilter, onClearSearch }: DatabankEmptyProp
   }
   const add = (
     <Button variant={needle === "" ? "outline" : "ghost"} onClick={(): void => openModal("addDocument")} size="sm">
-      Add a document
+      {DATABANK_ADD_DOCUMENT_TITLE}
     </Button>
   );
   return (
@@ -338,7 +338,7 @@ function DatabankEmpty({ needle, phaseFilter, onClearSearch }: DatabankEmptyProp
         ) : (
           <Row align="center" gap="field" justify="center">
             <Button variant="outline" onClick={onClearSearch} size="sm">
-              Clear search
+              {CLEAR_SEARCH_NAME}
             </Button>
             {add}
           </Row>
@@ -346,7 +346,7 @@ function DatabankEmpty({ needle, phaseFilter, onClearSearch }: DatabankEmptyProp
       }
       description={needle === "" ? DATABANK_INGEST_GLOSS : "No document matches your search."}
       icon={<Icon icon={needle === "" ? FileText : Search} size="lg" />}
-      title={needle === "" ? "No documents yet" : "No matches"}
+      title={needle === "" ? DATABANK_EMPTY_TITLE : NO_MATCHES_TITLE}
     />
   );
 }

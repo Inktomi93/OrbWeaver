@@ -14,7 +14,9 @@ import type { Locator, Page } from "@playwright/test";
 import { z } from "zod";
 import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
+import { CONTEXT_SHEET_BACK_NAME } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
+import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import { ROUTE_PENDING_NAME } from "#client/routes/route-pending-names.ts";
 import type { AppearanceBootHintState } from "#client/state/appearance-boot-hint.ts";
 import {
@@ -148,7 +150,7 @@ async function htmlBeforeMount(page: Page): Promise<ReadonlyMap<string, string |
 }
 
 function rail(page: Page): Locator {
-  return page.getByRole("navigation", { name: "Primary" });
+  return page.getByRole("navigation", { name: PRIMARY_NAV_NAME });
 }
 
 function listPanel(page: Page): Locator {
@@ -364,7 +366,7 @@ test.describe("committed corpus shell", () => {
     await page.goto("/");
     await chats.requested;
     // The shell is mounted and asking; the gate must still be shut while Home's own read is out.
-    await expect(page.getByRole("navigation", { name: "Primary" })).toBeAttached();
+    await expect(page.getByRole("navigation", { name: PRIMARY_NAV_NAME })).toBeAttached();
     await expect(page.locator("html")).not.toHaveAttribute(APP_READY_ATTR);
     // The client batches Home's first reads into one request, and one HTTP response cannot answer part of a batch, so
     // the hold delays the chat read's whole batch. The gate's rule is "no read in flight", which every read in that
@@ -597,7 +599,7 @@ test.describe("committed corpus shell on a phone", () => {
     await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
     await expect(context).toHaveAttribute("data-panel-mode", "overlay");
     // With the sheet open the chevron only closes it, and says so.
-    await page.getByRole("button", { name: "Close details", exact: true }).click();
+    await page.getByRole("button", { name: CONTEXT_SHEET_BACK_NAME, exact: true }).click();
     await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
     await expect(grid).toHaveAttribute("data-room-screen", "true");
 

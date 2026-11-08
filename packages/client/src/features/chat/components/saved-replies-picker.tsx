@@ -15,7 +15,7 @@ import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
 import { useSelectVariantMutation } from "../hooks/use-select-variant.ts";
 import { useVariantHistory } from "../hooks/use-variant-history.ts";
-import { CHAT_SAVED_REPLIES_DOOR_NAME, CHAT_SAVED_REPLIES_NAME, CHAT_SAVED_REPLY_NAME } from "../lib/chat-surface-names.ts";
+import { CHAT_SAVED_REPLIES_DOOR_NAME, CHAT_SAVED_REPLIES_NAME, CHAT_SAVED_REPLY_NAME, savedReplyOptionName } from "../lib/chat-surface-names.ts";
 
 interface SavedRepliesSelectProps {
   readonly variants: readonly MessageVariantSummary[];
@@ -34,7 +34,7 @@ function SavedRepliesSelect({ variants, selectedVariantId, pending, onSelect }: 
         value={selectedVariantId}
         items={variants.map(({ idx, variantId }) => ({
           value: variantId,
-          label: `Reply ${String(idx + 1)}${variantId === selectedVariantId ? " (current)" : ""}`,
+          label: savedReplyOptionName(idx + 1, variantId === selectedVariantId),
         }))}
         disabled={pending}
         {...(pending ? { "aria-describedby": statusId } : {})}

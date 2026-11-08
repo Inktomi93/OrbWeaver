@@ -29,6 +29,7 @@ import type { ReactElement } from "react";
 import { Tip } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { useReactionsForVariant, useViewerSeatId } from "../hooks/use-message-reactions.ts";
+import { reactionPillName } from "../lib/chat-surface-names.ts";
 import { useToggleReactionMutation } from "../lib/reaction-mutations.ts";
 
 /** How many chips the row prints before the tail count. Six is what a 320px row holds beside the message
@@ -68,11 +69,7 @@ function ReactionPill({ group, viewerReacted, onToggle }: ReactionPillProps): Re
   return (
     <Tip text={group.segmentSnippet ?? undefined}>
       <Toggle
-        aria-label={
-          qualifier === null
-            ? `React with ${group.emoji}: ${String(count)} so far`
-            : `React with ${group.emoji} to ${qualifier}'s line: ${String(count)} so far`
-        }
+        aria-label={reactionPillName(group.emoji, count, qualifier)}
         data-slot="message-reaction-pill"
         variant="outline"
         onPressedChange={(): void => onToggle(group)}

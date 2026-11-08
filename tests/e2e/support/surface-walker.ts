@@ -10,6 +10,7 @@ import { HIDDEN_AT } from "@orb/ui/lib";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { CONTEXT_SHEET_BACK_NAME, contextPaneLabel, PANEL_CLOSE_FALLBACK_NAME, panelCloseName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import type { SurfaceFlow } from "./surface-flow.ts";
 
@@ -130,11 +131,30 @@ export async function checkpointState(
   recordSubject(walk, { id, kind: "checkpoint" }, { disposition: "observed", reason: `The declared ${state.state} subject witnesses rendered` });
 }
 
+/** A stand-in for a value the walk does not know, passed to a production name builder. */
+export const NAME_HOLE = "\0";
+
+/** Match a production name built with {@link NAME_HOLE} in place of each unknown value. */
+export function namePattern(...names: readonly string[]): RegExp {
+  const alternatives = names.map((name) =>
+    name
+      .split(NAME_HOLE)
+      .map((part) => RegExp.escape(part))
+      .join(".+"),
+  );
+  return new RegExp(`^(?:${alternatives.join("|")})$`, "u");
+}
+
+// The sheet's own dismiss names its section, which a walk does not track.
+function contextExitName(): RegExp {
+  return namePattern(panelCloseName(contextPaneLabel(NAME_HOLE)), CONTEXT_SHEET_BACK_NAME, PANEL_CLOSE_FALLBACK_NAME, contextToggleLabel(false));
+}
+
 /** Close an overlaid Context, the sheet a phone or narrow shell lays over the content. */
 export async function dismissContext(walk: SurfaceFlow): Promise<void> {
   const region = pane(walk, "context");
   if ((await region.getAttribute("data-panel-mode")) === "overlay") {
-    await walk.page.getByRole("button", { name: /^(?:Close (?:.+ details|details|panel)|Hide details)$/u }).click();
+    await walk.page.getByRole("button", { name: contextExitName() }).click();
   }
   await expect(region).not.toHaveAttribute("data-panel-mode", "overlay");
 }
@@ -170,7 +190,7 @@ export async function reveal(walk: SurfaceWalk, side: "list" | "context"): Promi
   return true;
 }
 
-export function disclosureHooks(walk: SurfaceWalk): DisclosureWalkHooks {
+function disclosureHooks(walk: SurfaceWalk): DisclosureWalkHooks {
   return {
     limit: MAX_DISCLOSURES,
     depthLimit: MAX_DEPTH,
@@ -293,7 +313,7 @@ async function walkMenuBody(walk: SurfaceWalk, menu: Locator, prefix: string, de
     await child.press("Escape");
     await expect(trigger).toBeFocused();
   }
-  const leaves = (await menu.locator('[role^="menuitem"]:not([aria-haspopup]):not([aria-disabled="true"])').allTextContents()).map((label) => label.trim());
+  const leaves = (await menuLeafItems(menu).allTextContents()).map((label) => label.trim());
   // One row per leaf, so the walk report lists each command the walk read and did not run; a hook may settle them later.
   for (const [index, leaf] of leaves.entries()) {
     recordSubject(
@@ -303,6 +323,11 @@ async function walkMenuBody(walk: SurfaceWalk, menu: Locator, prefix: string, de
     );
   }
   await walk.hooks.menuLeaves?.(menu, prefix, leaves);
+}
+
+/** The enabled leaves of one menu, in the order whose index names each `<prefix>/leaf-<i>` row a hook settles. */
+export function menuLeafItems(menu: Locator): Locator {
+  return menu.locator('[role^="menuitem"]:not([aria-haspopup]):not([aria-disabled="true"])');
 }
 
 async function walkMenuTerminal(walk: SurfaceWalk, menu: Locator, items: Locator, prefix: string): Promise<void> {
@@ -315,11 +340,13 @@ async function walkMenuTerminal(walk: SurfaceWalk, menu: Locator, items: Locator
   await checkpoint(walk, `${prefix}/terminal`, menu, items.last());
 }
 
-/** Open one menu trigger, read its tree and restore the focus it took. */
-export async function walkMenuTrigger(walk: SurfaceWalk, trigger: Locator, id: string): Promise<void> {
+/** Open one menu trigger, read its tree and restore the focus it took. Resolves false when the walk recorded
+ *  the trigger as a disabled skip, so a caller drilling the same menu follows that record instead of reading
+ *  the trigger again after the room has moved on. */
+export async function walkMenuTrigger(walk: SurfaceWalk, trigger: Locator, id: string): Promise<boolean> {
   if (await trigger.isDisabled()) {
     skip(walk, id, "disabled", "Actual menu trigger is disabled");
-    return;
+    return false;
   }
   await walk.action(id, {
     action: async () => {
@@ -337,11 +364,12 @@ export async function walkMenuTrigger(walk: SurfaceWalk, trigger: Locator, id: s
   const radios = await menu.getByRole("menuitemradio").allTextContents();
   if (await overflowsContextTabs(walk, radios)) {
     await walkOverflowTabs(walk, { trigger, menu, id, names: radios.map((name) => name.trim()) });
-    return;
+    return true;
   }
   await menu.press("Escape");
   await expect(menu).toBeHidden();
   await expect(trigger).toBeFocused();
+  return true;
 }
 
 async function overflowsContextTabs(walk: SurfaceWalk, radios: readonly string[]): Promise<boolean> {

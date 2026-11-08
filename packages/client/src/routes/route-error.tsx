@@ -2,7 +2,7 @@ import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, TriangleAlert } from "@orb/ui/icons";
 import type { ReactElement } from "react";
-import { AppFailureSurface } from "#lib";
+import { AppFailureSurface, DIALOG_VERBS } from "#lib";
 
 /** A route whose load failed (a lazy chunk that would not fetch, a guard that threw): the failure with a retry,
  *  never the pending mark. `onRetry` owns re-running whatever failed. */
@@ -13,7 +13,7 @@ export function RouteError({ onRetry }: { readonly onRetry: () => void }): React
         icon={<Icon icon={TriangleAlert} size="lg" />}
         title="Couldn't load this page"
         description="Part of the app failed to load. Retrying usually fixes it."
-        action={<Button onClick={onRetry}>Retry</Button>}
+        action={<Button onClick={onRetry}>{DIALOG_VERBS.retry}</Button>}
       />
     </AppFailureSurface>
   );

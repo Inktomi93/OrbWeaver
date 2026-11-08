@@ -2,7 +2,7 @@
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { DATABANK_PASTE_TEXT_NAME } from "#client/features/databank/lib/databank-names.ts";
+import { DATABANK_ADD_TEXT_FIELD_NAME, DATABANK_PASTE_TEXT_NAME } from "#client/features/databank/lib/databank-names.ts";
 import type { AddDocumentStory } from "./_add-document-stories.tsx";
 
 const STORY = "tests/client/features/databank/components/_add-document-stories/AddDocumentStory";
@@ -16,7 +16,7 @@ test("Enter in the paste arm's name field adds the document", async ({ mount, pa
   await routeTrpc(page, serveCorpusProcedures(caller, ["databank.createFromText"]));
   await mount<typeof AddDocumentStory>(STORY, {});
   await page.getByRole("button", { name: DATABANK_PASTE_TEXT_NAME, exact: true }).click();
-  await page.getByRole("textbox", { name: "Text", exact: true }).fill("The bloodlines of the house.");
+  await page.getByRole("textbox", { name: DATABANK_ADD_TEXT_FIELD_NAME, exact: true }).fill("The bloodlines of the house.");
   const name = page.getByRole("textbox", { name: "Name", exact: true });
   await name.fill(DOCUMENT_NAME);
   await name.press("Enter");
@@ -31,7 +31,7 @@ test("clicking Add in the paste arm adds the document", async ({ mount, page }) 
   await mount<typeof AddDocumentStory>(STORY, {});
   await page.getByRole("button", { name: DATABANK_PASTE_TEXT_NAME, exact: true }).click();
   await page.getByRole("textbox", { name: "Name", exact: true }).fill(DOCUMENT_NAME);
-  await page.getByRole("textbox", { name: "Text", exact: true }).fill("The bloodlines of the house.");
+  await page.getByRole("textbox", { name: DATABANK_ADD_TEXT_FIELD_NAME, exact: true }).fill("The bloodlines of the house.");
   await page.getByRole("button", { name: "Add", exact: true }).click();
 
   await expect.poll(async () => (await caller.databank.list({})).items.map((item) => item.name)).toContain(DOCUMENT_NAME);

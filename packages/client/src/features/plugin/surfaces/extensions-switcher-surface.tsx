@@ -26,12 +26,12 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { LibrarySurfaceShell, ListPage } from "#components";
 import { SkeletonRows } from "#data";
-import { testId, useFocusOnMount } from "#lib";
+import { CLEAR_SEARCH_NAME, testId, useFocusOnMount } from "#lib";
 import { openConfigTo, selectPluginPageFromList, setExtensionsSearchQuery, useExtensionsSearchQuery, usePluginPageKey } from "#state";
 import { ExtensionsAwaitingRows } from "../components/extensions-awaiting-consent.tsx";
 import { useExtensionsEmpty } from "../hooks/use-extensions-empty.ts";
 import { useExtensionsRoster } from "../hooks/use-extensions-roster.ts";
-import { EXTENSIONS_EMPTY_COPY } from "../lib/extensions-copy.ts";
+import { EXTENSIONS_EMPTY_COPY, EXTENSIONS_SEARCH_NAME } from "../lib/extensions-copy.ts";
 import { EXTENSIONS_SECTION_LABEL } from "../lib/extensions-section-label.ts";
 
 /** The rows, or the teaching empty. Split from the shell so the boundary wraps a component that reads. */
@@ -66,7 +66,7 @@ function ExtensionsPageList(): ReactElement {
       <EmptyState
         action={
           <Button variant="outline" onClick={(): void => setExtensionsSearchQuery("")} size="sm">
-            Clear search
+            {CLEAR_SEARCH_NAME}
           </Button>
         }
         description="Try a page title or plugin name."
@@ -115,7 +115,7 @@ export function ExtensionsSwitcherSurface(): ReactElement {
       data-testid={testId("extensionsSwitcher")}
       label={EXTENSIONS_SECTION_LABEL}
       ref={surfaceRef}
-      search={<Input aria-label="Search plugin pages" onValueChange={setExtensionsSearchQuery} placeholder="Search plugin pages…" value={search} />}
+      search={<Input aria-label={EXTENSIONS_SEARCH_NAME} onValueChange={setExtensionsSearchQuery} placeholder="Search plugin pages…" value={search} />}
     >
       <LibrarySurfaceShell errorLabel="your plugin pages" loadingLabel="Loading plugin pages…" resetKeys={[]}>
         <ExtensionsPageList />

@@ -56,6 +56,7 @@ import {
   notify,
   REGEX_PLACEMENT_GLYPHS,
   REGEX_PLACEMENT_LABELS,
+  ROW_EXPORT_NAME,
   regexPlacementStages,
   regexRowScent,
   regexScriptTitle,
@@ -271,7 +272,7 @@ function RegexCollectionRow({ script, selected, bulkActive, qualifier, onSelect,
         menuItemsAfter: (
           <MenuItem onClick={(): void => onExport(script.id)}>
             <Icon icon={Download} size="sm" />
-            Export
+            {ROW_EXPORT_NAME}
           </MenuItem>
         ),
       }}

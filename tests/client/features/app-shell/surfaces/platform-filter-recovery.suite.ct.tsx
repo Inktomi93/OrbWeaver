@@ -4,14 +4,16 @@ import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProc
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
-import { REFINERY_SEARCH_SESSIONS_NAME } from "#client/features/refinery/lib/refinery-names.ts";
+import { REFINERY_NO_SESSIONS_TITLE, REFINERY_SEARCH_SESSIONS_NAME } from "#client/features/refinery/lib/refinery-names.ts";
+import { REGEX_NEW_SCRIPT_NAME, REGEX_SCRIPT_NAME_FIELD_NAME } from "#client/features/regex/lib/regex-names.ts";
+import { CLEAR_SEARCH_NAME } from "#client/lib/search-empty-names.ts";
 import type { FilterRecoveryShellStory } from "./_filter-recovery-stories.tsx";
 
 const STORY = "tests/client/features/app-shell/surfaces/_filter-recovery-stories/FilterRecoveryShellStory";
 const MEMBER = "Observatory recovery witness";
 const MISSING = "No matching copper expedition";
 const COLLECTIONS = [
-  { group: "regex", label: "Regex scripts", filter: "Filter regex scripts", create: "New script", creates: "regex.createScript" },
+  { group: "regex", label: "Regex scripts", filter: "Filter regex scripts", create: REGEX_NEW_SCRIPT_NAME, creates: "regex.createScript" },
   { group: "worldInfo", label: "World Info", filter: "Filter world info", create: "New book", creates: "worldInfo.createBook" },
 ] as const;
 const PROCEDURES = [
@@ -77,9 +79,9 @@ for (const regime of [
       await mount<typeof FilterRecoveryShellStory>(STORY, { group: "regex" });
       const content = page.locator('[data-slot="config-content"]');
       await expect(content.getByText("No regex scripts yet", { exact: true })).toBeVisible();
-      await press(content.getByRole("button", { name: "New script", exact: true }));
-      const form = content.getByRole("form", { name: "New script", exact: true });
-      const name = form.getByRole("textbox", { name: "Script name", exact: true });
+      await press(content.getByRole("button", { name: REGEX_NEW_SCRIPT_NAME, exact: true }));
+      const form = content.getByRole("form", { name: REGEX_NEW_SCRIPT_NAME, exact: true });
+      const name = form.getByRole("textbox", { name: REGEX_SCRIPT_NAME_FIELD_NAME, exact: true });
       await expect(name).toBeFocused();
       await expect(form.locator('button[type="submit"]')).toBeDisabled();
       await press(form.getByRole("button", { name: "Cancel", exact: true }));
@@ -103,7 +105,7 @@ for (const regime of [
       await expect(list.getByRole("button", { name: character.name, exact: true })).toBeVisible();
       await search.fill(MISSING);
       await expect(list.getByText("No sessions match that search.", { exact: true })).toBeVisible();
-      const clear = list.getByRole("button", { name: "Clear search", exact: true });
+      const clear = list.getByRole("button", { name: CLEAR_SEARCH_NAME, exact: true });
       await expect(clear).toBeVisible();
       await press(clear);
       await expect(search).toHaveValue("");
@@ -125,12 +127,12 @@ for (const regime of [
       await seedShellState(page, { activeSection: "refinery", panelOverrides: { refinery: { list: "docked", context: "collapsed" } } });
       await mount<typeof FilterRecoveryShellStory>(STORY, {});
       const list = page.locator('aside[data-panel-side="list"]');
-      await expect(list.getByText("No refinery sessions yet", { exact: true })).toBeVisible();
+      await expect(list.getByText(REFINERY_NO_SESSIONS_TITLE, { exact: true })).toBeVisible();
       await press(list.getByRole("button", { name: "Pick a character", exact: true }));
       const picker = page.getByRole("combobox", { name: "Start a refinery session", exact: true });
       await expect(picker).toHaveCount(1);
       await expect(picker).toBeFocused();
-      await expect(list.getByRole("button", { name: "Clear search", exact: true })).toHaveCount(0);
+      await expect(list.getByRole("button", { name: CLEAR_SEARCH_NAME, exact: true })).toHaveCount(0);
       expect(calls.count("refinery.startSession")).toBe(0);
       expect(await caller.refinery.listSessions()).toEqual([]);
     });

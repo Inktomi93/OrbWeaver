@@ -71,6 +71,7 @@ import { Text } from "@orb/ui/text";
 import type { KeyboardEvent, ReactElement, RefObject } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { testId } from "#lib";
+import { CHAT_MEMBERS_ROSTER_NAME } from "../lib/chat-surface-names.ts";
 import type { MemberCharacterRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows.ts";
 import { MemberRow } from "./member-row.tsx";
 
@@ -258,6 +259,11 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
   // Capture-phase: the row body is a MenuTrigger whose own keydown opens the menu on ArrowDown/ArrowUp;
   // roving navigation must claim those keys first via capture + stopPropagation.
   const handleKeyDownCapture = (event: KeyboardEvent<HTMLDivElement>): void => {
+    // A row's menu and dialogs portal out of the toolbar, but React still routes their keys through it; their own
+    // navigation owns those keys.
+    if (!(event.target instanceof Node && event.currentTarget.contains(event.target))) {
+      return;
+    }
     // ArrowLeft/Right FIRST (#208): it is the only claimant of those keys here, and answering it before the
     // vertical/typeahead arms keeps each key's owner obvious. Capture-phase for the same reason the vertical
     // arm is — the row body is a MenuTrigger with its own key handling.
@@ -352,7 +358,7 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
             roving tabindex below has always BEHAVED as; until today it said nothing, so the arrow keys that
             are the only route to the Character rows were undiscoverable by AT and by sighted keyboard users
             alike. The name is the one word the tab that owns this pane does not already say. */}
-        <Stack gap="section" role="toolbar" aria-orientation="vertical" aria-label="Members and characters" onKeyDownCapture={handleKeyDownCapture}>
+        <Stack gap="section" role="toolbar" aria-orientation="vertical" aria-label={CHAT_MEMBERS_ROSTER_NAME} onKeyDownCapture={handleKeyDownCapture}>
           {showPeople ? (
             // The section is a GROUP named by its OWN visible kicker (`aria-labelledby`, never a second
             // copy of the word) — "People" and "Characters" are the list's structure, not decoration.

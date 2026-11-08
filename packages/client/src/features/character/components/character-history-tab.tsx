@@ -15,7 +15,7 @@ import { DestructiveAction, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS, timeLib } from "#lib";
 import { useRestoreCharacter, useSnapshotCharacter } from "../hooks/use-character-context-mutations.ts";
-import { CHARACTER_RESTORE_SNAPSHOT_TITLE, CHARACTER_SNAPSHOT_NOW_NAME } from "../lib/character-names.ts";
+import { CHARACTER_NO_SNAPSHOTS_TEXT, CHARACTER_RESTORE_SNAPSHOT_TITLE, CHARACTER_SNAPSHOT_NOW_NAME } from "../lib/character-names.ts";
 
 export interface CharacterHistoryTabProps {
   readonly characterId: CharacterId;
@@ -78,7 +78,7 @@ function HistoryTabBody({ characterId }: CharacterHistoryTabProps): ReactElement
       </Button>
 
       {rows.length === 0 ? (
-        <Text voice="gloss">No snapshots yet. Take one to capture this character's current state.</Text>
+        <Text voice="gloss">{CHARACTER_NO_SNAPSHOTS_TEXT}</Text>
       ) : (
         <Stack gap="row">
           {rows.map((row) => (

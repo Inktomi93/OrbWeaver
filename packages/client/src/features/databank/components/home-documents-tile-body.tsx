@@ -46,7 +46,7 @@ import { timeLib } from "#lib";
 import { openModal, selectDocumentFromList, setActiveSection, setDatabankPhaseFilter } from "#state";
 import { DATABANK_INGEST_GLOSS } from "../lib/databank-copy.ts";
 import { bankHealth, bankHealthLine, documentSubtitle, ingestBadge, ingestPollInterval, showsPhaseChip } from "../lib/databank-model.ts";
-import { DATABANK_ADD_FIRST_DOCUMENT_NAME, DATABANK_ALL_DOCUMENTS_NAME, DATABANK_RECENT_DOCUMENTS_NAME } from "../lib/databank-names.ts";
+import { DATABANK_ADD_FIRST_DOCUMENT_NAME, DATABANK_ALL_DOCUMENTS_NAME, DATABANK_EMPTY_TITLE, DATABANK_RECENT_DOCUMENTS_NAME } from "../lib/databank-names.ts";
 
 /** Opening a document from home is a CROSS-SECTION navigation: write databank's own selection, then move
  *  the rail (the `#state` module actions — the sanctioned channel; home never wires this). */
@@ -96,7 +96,7 @@ export function HomeDocumentsTileBody(): ReactElement {
       // edge shared with the four document rows it replaces. The COPY is unchanged; only the register is.
       // (The gloss ran SECOND when that ruling landed; #499 moved it last — see the note on the Row.)
       <Stack align="start" gap="field">
-        <Text voice="label">No documents yet</Text>
+        <Text voice="label">{DATABANK_EMPTY_TITLE}</Text>
         {/* THE DOORS COME BEFORE THE TEACHING LINE (#499, the residual half of side-eye rail-home P2-1).
             Measured at 1280×800 on the shipped registry: both CTAs ended 51px past the fold, and #455's
             roadmap fold could not reach them — at a narrow pane the shelf's foot subgrid is ONE track, so

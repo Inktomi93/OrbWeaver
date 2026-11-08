@@ -1,11 +1,11 @@
 schema_version: "1.0"
 name: "literal-to-binding"
 version: "0.1.0"
-description: "Rewrite exact string literals to a production binding in the files a plan lists, importing the binding once."
+description: "Rewrite exact string literals and JSX text to a production binding in the files a plan lists, importing the binding once."
 author: "Orbweaver"
 license: "MIT"
 targets:
-  languages: ["typescript"]
+  languages: ["typescript", "tsx"]
 capabilities: []
 workflows:
   - name: main

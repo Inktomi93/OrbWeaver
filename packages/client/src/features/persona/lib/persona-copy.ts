@@ -23,3 +23,17 @@ export function playerNameOf(player: { readonly displayName: string; readonly ha
 export function personaWithPlayer(persona: string, player: string): string {
   return persona === player ? persona : `${persona} (${player})`;
 }
+
+/** The persona editor's identity fields. */
+export const PERSONA_NAME_FIELD_NAME = "Name";
+export const PERSONA_DESCRIPTION_FIELD_NAME = "Description";
+/** The persona editor's picker subtitle field. */
+export const PERSONA_TITLE_FIELD_NAME = "Title";
+
+/** The persona editor footer's verbs. Delete also names the confirm's button. */
+export const PERSONA_DUPLICATE_NAME = "Duplicate";
+export const PERSONA_EXPORT_NAME = "Export";
+export const PERSONA_DELETE_NAME = "Delete";
+
+/** The editor's provenance line on a persona converted from a character. */
+export const PERSONA_FROM_CARD_NAME = "From a character card";

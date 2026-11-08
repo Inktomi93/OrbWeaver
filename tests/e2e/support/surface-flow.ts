@@ -8,6 +8,7 @@ import type { SurfaceRunConfig } from "@orb/testkit/node/helpers";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Page, TestInfo } from "@playwright/test";
 import { expect } from "@playwright/test";
+import { DETAILS_PANEL_NOUN, LIST_PANEL_NOUN, panelEdgeName } from "#client/lib/context-pane-names.ts";
 import type { TrpcClient } from "./trpc-client.ts";
 
 export interface SurfaceFlowInput {
@@ -50,9 +51,8 @@ async function requestPanel(page: Page, side: PanelName, wantedOpen: boolean): P
   if (open === wantedOpen) {
     return;
   }
-  const action = wantedOpen ? "Show" : "Hide";
-  const object = side === "list" ? "list panel" : "details";
-  await page.getByRole("button", { name: `${action} ${object}`, exact: true }).click();
+  const noun = side === "list" ? LIST_PANEL_NOUN : DETAILS_PANEL_NOUN;
+  await page.getByRole("button", { name: panelEdgeName(noun, !wantedOpen), exact: true }).click();
   await expect(panel).not.toHaveAttribute("data-panel-mode", mode);
 }
 

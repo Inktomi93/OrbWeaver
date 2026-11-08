@@ -6,6 +6,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { TAG_EDITOR_CLOSE_NAME } from "#client/components/shared-control-names.ts";
 import type { TagEditorChipStory } from "./_tag-editor-stories.tsx";
 
 const STORY = "tests/client/components/_tag-editor-stories/TagEditorChipStory";
@@ -114,7 +115,7 @@ for (const viewport of [
       release.resolve();
       await expect(page.getByRole("status").filter({ hasText: /^Saved$/u })).toBeVisible();
       await expect(name).toHaveValue(canonical);
-      await page.getByRole("button", { name: "Close tag editor", exact: true }).click();
+      await page.getByRole("button", { name: TAG_EDITOR_CLOSE_NAME, exact: true }).click();
       await component.unmount();
       expect(recorder.inputs("tag.updateTag")).toHaveLength(1);
       expect((await caller.tag.listTagsWithUsage()).find((row) => row.id === tag.id)?.name).toBe(canonical);
@@ -192,7 +193,7 @@ for (const viewport of [
       await page.getByRole("textbox", { name: "Name", exact: true }).fill("Flushed draft");
       await expect(page.getByRole("alert").filter({ hasText: "Save failed" })).toBeVisible();
       failing = false;
-      await page.getByRole("button", { name: "Close tag editor", exact: true }).click();
+      await page.getByRole("button", { name: TAG_EDITOR_CLOSE_NAME, exact: true }).click();
       await expect.poll(async () => (await caller.tag.listTagsWithUsage()).find((row) => row.id === tag.id)?.name).toBe("Flushed draft");
     });
 
@@ -224,7 +225,7 @@ for (const viewport of [
       await merging.requested;
       await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
       failing = false;
-      await page.getByRole("button", { name: "Close tag editor", exact: true }).click();
+      await page.getByRole("button", { name: TAG_EDITOR_CLOSE_NAME, exact: true }).click();
       await expect(page.getByRole("textbox", { name: "Name", exact: true })).toHaveCount(0);
       merging.fail();
       await expect.poll(async () => (await caller.tag.listTagsWithUsage()).find((row) => row.id === tag.id)?.name).toBe("Surviving dismissed draft");

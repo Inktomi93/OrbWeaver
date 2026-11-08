@@ -1,11 +1,10 @@
 // Deleting the crowned persona names, before the confirm, the persona the crown moves to.
 
-import { ROW_DELETE_NAME } from "@orb/client/lib";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { deleteMovesDefaultNote } from "#client/features/persona/lib/persona-copy.ts";
+import { deleteMovesDefaultNote, PERSONA_DELETE_NAME } from "#client/features/persona/lib/persona-copy.ts";
 import type { PersonaActionGroupsStory } from "./_persona-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/persona/components/_persona-action-groups-stories/PersonaActionGroupsStory";
@@ -32,7 +31,7 @@ test("the crowned persona's delete confirm names the last-played persona the cro
   await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
   await mount<typeof PersonaActionGroupsStory>(STORY, { width: 1280, appearance: appearanceSettingsSchema.parse({}) });
   await page.getByRole("button", { name: `Show details for ${doomed.name}`, exact: true }).click();
-  await page.locator('[data-slot="persona-editor-footer"]').getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
+  await page.locator('[data-slot="persona-editor-footer"]').getByRole("button", { name: PERSONA_DELETE_NAME, exact: true }).click();
 
   await expect(page.getByRole("alertdialog", { name: "Delete this persona?", exact: true })).toContainText(deleteMovesDefaultNote(lastPlayed.name));
 });
@@ -47,11 +46,11 @@ test("with the crowned persona also last played, the confirm names the persona t
   await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
   await mount<typeof PersonaActionGroupsStory>(STORY, { width: 1280, appearance: appearanceSettingsSchema.parse({}) });
   await page.getByRole("button", { name: `Show details for ${doomed.name}`, exact: true }).click();
-  await page.locator('[data-slot="persona-editor-footer"]').getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
+  await page.locator('[data-slot="persona-editor-footer"]').getByRole("button", { name: PERSONA_DELETE_NAME, exact: true }).click();
   const confirm = page.getByRole("alertdialog", { name: "Delete this persona?", exact: true });
   await expect(confirm).toContainText("Your default moves to");
   const promised = await confirm.textContent();
-  await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
+  await confirm.getByRole("button", { name: PERSONA_DELETE_NAME, exact: true }).click();
 
   await expect
     .poll(async () => {
@@ -71,7 +70,7 @@ test("a persona that is not the default says nothing about the crown", async ({ 
   await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
   await mount<typeof PersonaActionGroupsStory>(STORY, { width: 1280, appearance: appearanceSettingsSchema.parse({}) });
   await page.getByRole("button", { name: `Show details for ${other.name}`, exact: true }).click();
-  await page.locator('[data-slot="persona-editor-footer"]').getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
+  await page.locator('[data-slot="persona-editor-footer"]').getByRole("button", { name: PERSONA_DELETE_NAME, exact: true }).click();
 
   const confirm = page.getByRole("alertdialog", { name: "Delete this persona?", exact: true });
   await expect(confirm).toBeVisible();

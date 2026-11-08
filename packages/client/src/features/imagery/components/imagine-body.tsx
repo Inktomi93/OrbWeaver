@@ -47,6 +47,7 @@ import type { ImagineSeed } from "#state";
 import { closeModal, useImagineSeed } from "#state";
 import { useExtractPrompt, useGeneratePicture } from "../hooks/use-imagery-mutations.ts";
 import { formatCost } from "../lib/format-cost.ts";
+import { IMAGINE_MODE_NAME, IMAGINE_PROMPT_NAME } from "../lib/imagine-names.ts";
 import { ImagineOptions } from "./imagine-options.tsx";
 
 // free-first: the prompt-verbatim mode, then the four extraction modes (derived from the contract tuple —
@@ -151,7 +152,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
       <RoomPicturesNote shared={room.shared} />
       <Stack gap="field">
         <Text as="span" id={modeLabelId} voice="label">
-          Mode
+          {IMAGINE_MODE_NAME}
         </Text>
         {/* Pressable modes (the add-document precedent), not a tablist — each just re-targets the same prompt.
             A `group` with the label as its name, so the tree reads one named cluster instead of five loose
@@ -180,7 +181,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
           Prompt
         </Text>
         <Textarea
-          aria-label="Image prompt"
+          aria-label={IMAGINE_PROMPT_NAME}
           maxRows={PROMPT_MAX_ROWS}
           onValueChange={(value): void => setPrompt(value)}
           placeholder={isExtraction ? "Read the chat to fill this, or type your own." : "Describe the image to generate…"}

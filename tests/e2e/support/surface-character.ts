@@ -11,9 +11,19 @@ import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { SurfaceCoverageInventory } from "@orb/testkit/iso";
 import { nonEmpty, parseSurfaceProviderEvidence } from "@orb/testkit/iso";
 import { abortProcedure, attachNativeFile, isTrpcRequestFor, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
+import { selectActionName } from "@orb/ui/lib";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { BACKGROUND_FROM_URL_NAME, BACKGROUND_URL_FIELD_NAME, CORNER_RADIUS_NAME, TAG_NAME_FIELD_NAME } from "#client/components/shared-control-names.ts";
+import {
+  BACKGROUND_FROM_URL_NAME,
+  BACKGROUND_URL_FIELD_NAME,
+  CORNER_RADIUS_NAME,
+  createTagName,
+  editTagName,
+  FONT_FIELD_NAME,
+  TAG_EDITOR_CLOSE_NAME,
+  TAG_NAME_FIELD_NAME,
+} from "#client/components/shared-control-names.ts";
 import { CHARACTER_ACTION_SCOPE_IDS, CHARACTER_ACTIONS } from "#client/features/character/lib/character-actions.ts";
 import { CHARACTER_CARD_FACETS } from "#client/features/character/lib/character-card-facets.ts";
 import { characterCardFormFromDetail, characterUpdateDiff } from "#client/features/character/lib/character-card-form-model.ts";
@@ -26,15 +36,18 @@ import {
   CHARACTER_DUPLICATE_TITLE,
   CHARACTER_EDITOR_NAME,
   CHARACTER_EXPAND_TO_EDIT_NAME,
+  CHARACTER_FACET_BACK_NAME,
   CHARACTER_FEWER_TAGS_NAME,
   CHARACTER_FILTER_TAGS_NAME,
   CHARACTER_FILTERS_NAME,
   CHARACTER_GROUP_BY_TAG_NAME,
   CHARACTER_IMPORT_NAME,
+  CHARACTER_LIBRARY_EMPTY_TITLE,
   CHARACTER_LIBRARY_NAME,
   CHARACTER_LINK_BOOK_NAME,
   CHARACTER_NAME_FIELD_NAME,
   CHARACTER_NEW_NAME,
+  CHARACTER_NO_SNAPSHOTS_TEXT,
   CHARACTER_RESTORE_SNAPSHOT_TITLE,
   CHARACTER_SEARCH_NAME,
   CHARACTER_SELECT_MULTIPLE_NAME,
@@ -42,22 +55,49 @@ import {
   CHARACTER_SHOW_FAVORITES_NAME,
   CHARACTER_SNAPSHOT_NOW_NAME,
   CHARACTER_SORT_NAME,
+  CHARACTER_START_FROM_THEME_NAME,
   CHARACTER_TAG_DIALOG_TITLE,
   CHARACTER_TAG_VOCABULARY_NAME,
   characterBulkDeleteTitle,
   characterBulkTagTitle,
 } from "#client/features/character/lib/character-names.ts";
 import { CHARACTERS_SECTION_LABEL } from "#client/features/character/lib/characters-section-label.ts";
-import { greetingOrdinalLabel } from "#client/features/character/lib/greeting-copy.ts";
-import { CHAT_GALLERY_IMAGES_NAME, CHAT_GALLERY_UPLOAD_INSTEAD_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { GREETING_EDIT_NAME, GREETING_MAKE_NEW_NAME, GREETING_STUDIO_NAME, greetingOrdinalLabel } from "#client/features/character/lib/greeting-copy.ts";
+import {
+  CHAT_GALLERY_ADD_NAME,
+  CHAT_GALLERY_ADD_PICKER_TITLE,
+  CHAT_GALLERY_EMPTY_TITLE,
+  CHAT_GALLERY_IMAGES_NAME,
+  CHAT_GALLERY_UPLOAD_INSTEAD_NAME,
+  characterGalleryName,
+  chatsWithCharacterName,
+} from "#client/features/chat/lib/chat-surface-names.ts";
+import { PERSONA_DESCRIPTION_FIELD_NAME, PERSONA_FROM_CARD_NAME, PERSONA_NAME_FIELD_NAME } from "#client/features/persona/lib/persona-copy.ts";
 import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
+import { censusSuffix } from "#client/lib/census-title.ts";
+import { LIST_PANEL_NOUN, listPaneLabel, panelCloseName, panelEdgeName, screenListDoorName, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
+import { PRIMARY_NAV_NAME, YOU_TAB_LABEL } from "#client/lib/rail-names.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
+import { CLEAR_SEARCH_NAME } from "#client/lib/search-empty-names.ts";
+import { COLOR_HEX_FIELD_NAME, colorPickerName } from "../../../packages/ui/src/primitives/color-field/color-field-names.ts";
 import { charactersRailButton, waitForAppReady } from "./chat-room.ts";
 import type { SurfaceFlow } from "./surface-flow.ts";
 import type { SurfaceWalk } from "./surface-walker.ts";
-import { checkpoint, checkpointState, createSurfaceWalk, dismissContext, expectSubject, observe, publishWalk, walkDoor, walkScope } from "./surface-walker.ts";
+import {
+  checkpoint,
+  checkpointState,
+  createSurfaceWalk,
+  dismissContext,
+  expectSubject,
+  NAME_HOLE,
+  namePattern,
+  observe,
+  publishWalk,
+  walkDoor,
+  walkScope,
+} from "./surface-walker.ts";
 import type { HeldTrpcProcedure } from "./trpc.ts";
 import { holdTrpcProcedure } from "./trpc.ts";
 
@@ -133,8 +173,14 @@ async function openList(flow: CharacterFlow): Promise<Locator> {
   const { page } = flow;
   await dismissContext(flow);
   const search = page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true });
-  const back = page.getByRole("button", { name: "Back to Characters", exact: true });
-  const show = page.getByRole("button", { name: new RegExp(`^Show (?:list panel|${RegExp.escape(SECTION_LABELS.characters)}(?: · .+)? list)$`, "u") });
+  const back = page.getByRole("button", { name: sectionBackName(SECTION_LABELS.characters), exact: true });
+  const show = page.getByRole("button", {
+    name: namePattern(
+      panelEdgeName(LIST_PANEL_NOUN, false),
+      screenListDoorName(SECTION_LABELS.characters),
+      screenListDoorName(`${SECTION_LABELS.characters}${censusSuffix(NAME_HOLE)}`),
+    ),
+  });
   await expect.poll(async () => (await search.isVisible()) || (await back.isVisible()) || (await show.isVisible())).toBe(true);
   if (await back.isVisible()) {
     await back.click();
@@ -157,7 +203,13 @@ async function openCard(flow: CharacterFlow, name: string, rowName = name): Prom
   await dismissContext(flow);
   if ((await list.getAttribute("data-panel-mode")) === "overlay") {
     await flow.page
-      .getByRole("button", { name: new RegExp(`^(?:Close ${RegExp.escape(SECTION_LABELS.characters)}(?: · .+)? list|Hide list panel)$`, "u") })
+      .getByRole("button", {
+        name: namePattern(
+          panelCloseName(listPaneLabel(SECTION_LABELS.characters)),
+          panelCloseName(listPaneLabel(`${SECTION_LABELS.characters}${censusSuffix(NAME_HOLE)}`)),
+          panelEdgeName(LIST_PANEL_NOUN, true),
+        ),
+      })
       .click();
   }
   await expect(list).not.toHaveAttribute("data-panel-mode", "overlay");
@@ -230,7 +282,7 @@ async function listJourney(flow: CharacterFlow, originalName: string, rowName: s
     await fewerFilters.click();
   }
   await search.fill(`No matching surface subject ${flow.info.project.name} ${flow.pass}`);
-  const clear = list.getByRole("button", { name: "Clear search", exact: true });
+  const clear = list.getByRole("button", { name: CLEAR_SEARCH_NAME, exact: true });
   await checkpointState(flow, "filtered-empty", list, { witnesses: [clear], state: "empty" });
   await flow.action("characters-recover-search", {
     action: async (): Promise<void> => {
@@ -357,17 +409,16 @@ async function editorWalk(flow: CharacterFlow, form: Locator, characterId: Chara
   if (tag !== undefined) {
     await walkDoor(flow, {
       id: "tag-editor-readonly",
-      trigger: tags.getByRole("button", { name: `Edit tag ${tag.name}`, exact: true }),
-      body: flow.page.getByRole("dialog", { name: `Edit tag ${tag.name}`, exact: true }),
-      exit: dialog.getByRole("button", { name: "Close tag editor", exact: true }),
+      trigger: tags.getByRole("button", { name: editTagName(tag.name), exact: true }),
+      body: flow.page.getByRole("dialog", { name: editTagName(tag.name), exact: true }),
+      exit: dialog.getByRole("button", { name: TAG_EDITOR_CLOSE_NAME, exact: true }),
     });
   }
   const greeting = form.locator('[data-slot="character-greeting"]');
-  // eslint-disable-next-line orb/no-hand-copied-label -- The greeting Studio control is not the preset template-group label.
-  const studio = greeting.getByRole("button", { name: "Studio", exact: true });
+  const studio = greeting.getByRole("button", { name: GREETING_STUDIO_NAME, exact: true });
   await walkDoor(flow, {
     id: "greeting-edit",
-    trigger: greeting.getByRole("button", { name: "Edit", exact: true }),
+    trigger: greeting.getByRole("button", { name: GREETING_EDIT_NAME, exact: true }),
     body: greeting.getByRole("textbox", { name: greetingOrdinalLabel(1), exact: true }),
     exit: greeting.getByRole("button", { name: DIALOG_VERBS.done, exact: true }),
   });
@@ -383,7 +434,7 @@ async function editorWalk(flow: CharacterFlow, form: Locator, characterId: Chara
     const opener = form.getByRole("button", { name: facet.label, exact: true });
     await opener.click();
     await dismissContext(flow);
-    const back = form.getByRole("button", { name: "Back", exact: true });
+    const back = form.getByRole("button", { name: CHARACTER_FACET_BACK_NAME, exact: true });
     await expect(back).toBeVisible();
     if (facet.id === "exampleMessages") {
       await form.getByRole("button", { name: CHARACTER_EXPAND_TO_EDIT_NAME, exact: true }).click();
@@ -419,7 +470,7 @@ async function rowAndBulkJourney(flow: CharacterFlow, name: string): Promise<voi
   await flow.page.keyboard.press("Escape");
   const select = list.getByRole("button", { name: CHARACTER_SELECT_MULTIPLE_NAME, exact: true });
   await select.click();
-  await list.getByRole("checkbox", { name: `Select ${name}`, exact: true }).check();
+  await list.getByRole("checkbox", { name: selectActionName(name), exact: true }).check();
   const tag = list.getByRole("button", { name: CHARACTER_ACTIONS.tag.label, exact: true });
   await record(flow, "bulk-selected", list, [tag, list.getByRole("button", { name: CHARACTER_ACTIONS.delete.label, exact: true })]);
   await tag.click();
@@ -430,8 +481,7 @@ async function rowAndBulkJourney(flow: CharacterFlow, name: string): Promise<voi
 }
 
 async function toggleGreetingStudio(greeting: Locator): Promise<void> {
-  // eslint-disable-next-line orb/no-hand-copied-label -- The greeting Studio control is not the preset template-group label.
-  await greeting.getByRole("button", { name: "Studio", exact: true }).click();
+  await greeting.getByRole("button", { name: GREETING_STUDIO_NAME, exact: true }).click();
 }
 
 async function greetingGenerationJourney(flow: CharacterFlow, form: Locator, characterId: CharacterId, originalId: CharacterId): Promise<void> {
@@ -467,7 +517,7 @@ async function greetingGenerationJourney(flow: CharacterFlow, form: Locator, cha
     await flow.client.connection.setBinding.mutate({ task: "summarize", connectionId });
     await dismissContext(flow);
     await toggleGreetingStudio(greeting);
-    const generate = greeting.getByRole("button", { name: "Make new", exact: true });
+    const generate = greeting.getByRole("button", { name: GREETING_MAKE_NEW_NAME, exact: true });
     const makePreview = async (name: string): Promise<void> => {
       const cursor = Math.max(
         0,
@@ -531,14 +581,14 @@ async function greetingGenerationJourney(flow: CharacterFlow, form: Locator, cha
 
 async function lookJourney(flow: CharacterFlow, characterId: CharacterId): Promise<void> {
   const look = await contextTab(flow, "Look");
-  const font = look.getByRole("combobox", { name: "Font", exact: true });
+  const font = look.getByRole("combobox", { name: FONT_FIELD_NAME, exact: true });
   await expect(font).toBeVisible();
   const colours = await look.locator('[data-slot="color-field-trigger"]').all();
   for (const [index, colour] of colours.entries()) {
     await colour.scrollIntoViewIfNeeded();
     await colour.click();
-    const popup = flow.page.getByRole("dialog", { name: / color picker$/u });
-    await record(flow, `look-colour-${index + 1}`, popup, [popup.getByRole("textbox", { name: "Hex", exact: true })]);
+    const popup = flow.page.getByRole("dialog", { name: namePattern(colorPickerName(NAME_HOLE)) });
+    await record(flow, `look-colour-${index + 1}`, popup, [popup.getByRole("textbox", { name: COLOR_HEX_FIELD_NAME, exact: true })]);
     await flow.page.keyboard.press("Escape");
     await expect(popup).toBeHidden();
   }
@@ -548,7 +598,7 @@ async function lookJourney(flow: CharacterFlow, characterId: CharacterId): Promi
   await font.click();
   await flow.page.getByRole("option", { name: nextFont, exact: true }).click();
   await expect.poll(async () => (await flow.client.character.get.query({ characterId })).themeOverride?.font).toBe(nextFont);
-  const theme = look.getByRole("button", { name: "Start from a theme…", exact: true });
+  const theme = look.getByRole("button", { name: CHARACTER_START_FROM_THEME_NAME, exact: true });
   await theme.scrollIntoViewIfNeeded();
   const catalog = await flow.client.settings.listThemes.query(undefined);
   await expect.poll(async () => theme.isEnabled()).toBe(catalog.length > 0);
@@ -608,7 +658,7 @@ async function historyJourney(flow: CharacterFlow, characterId: CharacterId): Pr
 async function snapshotJourney(flow: CharacterFlow, characterId: CharacterId, history: Locator): Promise<void> {
   const snapshot = history.getByRole("button", { name: CHARACTER_SNAPSHOT_NOW_NAME, exact: true });
   await checkpointState(flow, "history-empty", history, {
-    witnesses: [snapshot, history.getByText("No snapshots yet. Take one to capture this character's current state.", { exact: true })],
+    witnesses: [snapshot, history.getByText(CHARACTER_NO_SNAPSHOTS_TEXT, { exact: true })],
     state: "empty",
   });
   await flow.action("characters-take-snapshot", {
@@ -648,7 +698,7 @@ async function lookFailureJourney(flow: CharacterFlow, characterId: CharacterId)
   const look = await contextTab(flow, "Look");
   const before = await flow.client.character.get.query({ characterId });
   const next = alternateFont(before.themeOverride?.font);
-  const font = look.getByRole("combobox", { name: "Font", exact: true });
+  const font = look.getByRole("combobox", { name: FONT_FIELD_NAME, exact: true });
   const lift = await abortProcedure(flow.page, "character.update");
   const status = look.locator('[data-slot="autosave-status"]');
   try {
@@ -694,12 +744,15 @@ async function actionsJourney(flow: CharacterFlow, characterId: CharacterId): Pr
   await dialogCancel(flow, flow.page.getByRole("alertdialog", { name: CHARACTER_DELETE_TITLE, exact: true }), "delete-confirm");
   await button.click();
   await flow.page.getByRole("menuitem", { name: CHARACTER_ACTIONS.openGallery.label, exact: true }).click();
-  const gallery = flow.page.getByRole("dialog", { name: `${detail.name}'s gallery`, exact: true });
-  const addImages = gallery.getByRole("button", { name: "Add images", exact: true });
-  await checkpointState(flow, "gallery-copy-empty", gallery, { state: "empty", witnesses: [gallery.getByText("No images yet", { exact: true }), addImages] });
+  const gallery = flow.page.getByRole("dialog", { name: characterGalleryName(detail.name), exact: true });
+  const addImages = gallery.getByRole("button", { name: CHAT_GALLERY_ADD_NAME, exact: true });
+  await checkpointState(flow, "gallery-copy-empty", gallery, {
+    state: "empty",
+    witnesses: [gallery.getByText(CHAT_GALLERY_EMPTY_TITLE, { exact: true }), addImages],
+  });
   await addImages.click();
   const candidates = await flow.client.assets.listOwned.query({ limit: 1, galleryCandidatesFor: characterId });
-  const picker = flow.page.getByRole("dialog", { name: "Add images to the gallery", exact: true });
+  const picker = flow.page.getByRole("dialog", { name: CHAT_GALLERY_ADD_PICKER_TITLE, exact: true });
   if (candidates.length === 0) {
     await checkpointState(flow, "gallery-candidates-empty", picker, {
       state: "empty",
@@ -724,7 +777,7 @@ async function originalContextJourney(flow: CharacterFlow, characterId: Characte
   await contextWalk(flow, "original");
   const actualChats = await flow.client.chat.listChats.query({ characterId });
   const chats = await contextTab(flow, "Chats");
-  await expect(chats.getByRole("list", { name: `Chats with ${detail.name}`, exact: true })).toHaveCount(actualChats.totalCount > 0 ? 1 : 0);
+  await expect(chats.getByRole("list", { name: chatsWithCharacterName(detail.name), exact: true })).toHaveCount(actualChats.totalCount > 0 ? 1 : 0);
   const snapshots = await flow.client.character.listSnapshots.query({ characterId });
   const history = await contextTab(flow, "History");
   await expect(history.getByRole("button", { name: DIALOG_VERBS.restore, exact: true })).toHaveCount(snapshots.length);
@@ -748,7 +801,7 @@ async function recoveryJourney(flow: CharacterFlow, name: string): Promise<void>
   }
   const retry = flow.page.locator(LIST).getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
   await retry.click();
-  const clear = flow.page.locator(LIST).getByRole("button", { name: "Clear search", exact: true });
+  const clear = flow.page.locator(LIST).getByRole("button", { name: CLEAR_SEARCH_NAME, exact: true });
   await checkpointState(flow, "library-retried-empty", flow.page.locator(LIST), { witnesses: [clear], state: "empty" });
   await clear.click();
 }
@@ -770,7 +823,10 @@ async function sourceCharacter(flow: CharacterFlow): Promise<SourceCharacter> {
   if (original === undefined) {
     const list = await openList(flow);
     if (sourcePage.totalCount === 0) {
-      await checkpointState(flow, "genuine-empty-source-library", list, { witnesses: [list.getByText("No characters yet", { exact: true })], state: "empty" });
+      await checkpointState(flow, "genuine-empty-source-library", list, {
+        witnesses: [list.getByText(CHARACTER_LIBRARY_EMPTY_TITLE, { exact: true })],
+        state: "empty",
+      });
     }
     throw new Error("The source dataset has no Character subject; no synthetic owner subject was invented");
   }
@@ -901,7 +957,7 @@ async function selectCommandCards(flow: CharacterFlow, search: string, names: re
     await select.click();
   }
   for (const name of names) {
-    await list.getByRole("checkbox", { name: `Select ${name}`, exact: true }).check();
+    await list.getByRole("checkbox", { name: selectActionName(name), exact: true }).check();
   }
   return list;
 }
@@ -921,7 +977,7 @@ async function tagCommandCharacters(
   await list.getByRole("button", { name: CHARACTER_ACTIONS.tag.label, exact: true }).click();
   const dialog = flow.page.getByRole("dialog", { name: characterBulkTagTitle(cards.length), exact: true });
   await dialog.getByRole("combobox", { name: TAG_NAME_FIELD_NAME, exact: true }).fill(tagName);
-  const submit = dialog.getByRole("button", { name: `Create "${tagName}"`, exact: true });
+  const submit = dialog.getByRole("button", { name: createTagName(tagName), exact: true });
   await record(flow, "commands-bulk-tag-create", dialog, [submit]);
   await flow.action("characters-commands-bulk-tag", {
     action: async (): Promise<void> => {
@@ -941,7 +997,7 @@ async function tagCommandCharacters(
   subjects.tags.add(tag.id);
   await list.getByRole("button", { name: CHARACTER_SELECT_MULTIPLE_NAME, exact: true }).click();
   const form = await openCard(flow, copy.name);
-  const chip = form.getByRole("button", { name: `Edit tag ${tagName}`, exact: true });
+  const chip = form.getByRole("button", { name: editTagName(tagName), exact: true });
   await chip.scrollIntoViewIfNeeded();
   await record(flow, "commands-accepted-native-tag", form, [chip]);
   completedCommand(flow, "tag", `Native bulk tag creation attached ${tag.id} to ${cards.map(({ id }) => id).join(", ")}; the accepted card chip is rendered.`);
@@ -1012,7 +1068,7 @@ async function archiveCommandCharacters(flow: CharacterFlow, parent: SourceChara
     ready: async (): Promise<void> => {
       for (const card of [parent, copy]) {
         await expect.poll(async () => (await flow.client.character.get.query({ characterId: card.id })).archived).toBe(true);
-        await expect(list.getByRole("checkbox", { name: `Select ${card.name}`, exact: true })).toHaveCount(0);
+        await expect(list.getByRole("checkbox", { name: selectActionName(card.name), exact: true })).toHaveCount(0);
       }
     },
   });
@@ -1069,15 +1125,17 @@ async function convertCommandCharacter(flow: CharacterFlow, card: SourceCharacte
   await personaRow.scrollIntoViewIfNeeded();
   await personaRow.click();
   const editor = content.getByRole("group", { name: `Edit ${persona.name}`, exact: true });
-  await expect(editor.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(persona.name);
-  await expect(editor.getByRole("textbox", { name: "Description", exact: true })).toHaveValue("A disposable native command witness for {{user}} and {{char}}.");
-  await record(flow, "commands-converted-persona-destination", editor, [editor.getByText("From a character card", { exact: true })]);
+  await expect(editor.getByRole("textbox", { name: PERSONA_NAME_FIELD_NAME, exact: true })).toHaveValue(persona.name);
+  await expect(editor.getByRole("textbox", { name: PERSONA_DESCRIPTION_FIELD_NAME, exact: true })).toHaveValue(
+    "A disposable native command witness for {{user}} and {{char}}.",
+  );
+  await record(flow, "commands-converted-persona-destination", editor, [editor.getByText(PERSONA_FROM_CARD_NAME, { exact: true })]);
   completedCommand(
     flow,
     "convertToPersona",
     `Native conversion minted ${persona.id} from ${card.id}; separate documented follow-up navigation rendered its persona editor and provenance.`,
   );
-  const back = flow.page.getByRole("button", { name: "Back to Settings", exact: true });
+  const back = flow.page.getByRole("button", { name: sectionBackName(SECTION_LABELS.settings), exact: true });
   if (await back.isVisible()) {
     await back.click();
   }
@@ -1085,7 +1143,7 @@ async function convertCommandCharacter(flow: CharacterFlow, card: SourceCharacte
   if (await characters.isVisible()) {
     await characters.click();
   } else {
-    await flow.page.getByRole("navigation", { name: "Primary", exact: true }).getByRole("button", { name: "You", exact: true }).click();
+    await flow.page.getByRole("navigation", { name: PRIMARY_NAV_NAME, exact: true }).getByRole("button", { name: YOU_TAB_LABEL, exact: true }).click();
     const sheet = flow.page.getByRole("dialog");
     await sheet.getByRole("button", { name: CHARACTERS_SECTION_LABEL, exact: true }).click();
   }
@@ -1121,7 +1179,7 @@ async function deleteCommandCharacters(flow: CharacterFlow, parent: SourceCharac
     ready: async (): Promise<void> => {
       await expect(bulk).toBeHidden();
       await expect.poll(async () => (await flow.client.character.list.query({ search: parent.name })).items.some(({ id }) => id === parent.id)).toBe(false);
-      await expect(list.getByRole("checkbox", { name: `Select ${parent.name}`, exact: true })).toHaveCount(0);
+      await expect(list.getByRole("checkbox", { name: selectActionName(parent.name), exact: true })).toHaveCount(0);
     },
   });
   subjects.nativeDeleted.add(parent.id);

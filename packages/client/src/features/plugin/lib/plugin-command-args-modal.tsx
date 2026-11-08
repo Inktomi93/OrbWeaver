@@ -11,10 +11,11 @@ import type { ReactElement } from "react";
 import type { ModalDefinition } from "#state";
 import { clearPluginCommandArgs } from "#state";
 import { PluginCommandArgsBody } from "../components/plugin-command-args-body.tsx";
+import { PLUGIN_COMMAND_ARGS_TITLE } from "./plugin-command-copy.ts";
 
 export const pluginCommandArgsModal: ModalDefinition = {
   id: "pluginCommandArgs",
-  title: "Run command",
+  title: PLUGIN_COMMAND_ARGS_TITLE,
   size: "sm",
   trigger: { placement: "surface", label: "Command arguments", icon: Blocks },
   onClose: clearPluginCommandArgs,

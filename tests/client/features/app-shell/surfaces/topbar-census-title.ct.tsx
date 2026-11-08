@@ -8,6 +8,7 @@ import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { makePluginRow } from "@orb/testkit/node/helpers";
 import type { Page } from "@playwright/test";
+import { EXTENSIONS_SEARCH_NAME } from "#client/features/plugin/lib/extensions-copy.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -59,7 +60,7 @@ for (const width of PHONE_WIDTHS) {
     await page.setViewportSize({ width, height: 844 });
     await routePluginPages(page, corpus);
     await mount<typeof AppShellStory>(STORY, {});
-    await page.getByLabel("Search plugin pages").fill(NOTHING_MATCHES);
+    await page.getByLabel(EXTENSIONS_SEARCH_NAME).fill(NOTHING_MATCHES);
     const title = page.locator(TITLE);
     const name = title.locator(".shell-topbar-title-name");
     const census = title.locator(".shell-topbar-title-census");

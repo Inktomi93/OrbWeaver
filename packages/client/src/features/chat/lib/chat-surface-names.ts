@@ -67,3 +67,82 @@ export const CHAT_STOP_NAME = "Stop generating";
 export function chatStopTooltip(stopping: boolean): string {
   return stopping ? "Stopping generation" : CHAT_STOP_NAME;
 }
+
+/** The chat list's empty state before any room exists. */
+export const CHAT_LIST_EMPTY_TITLE = "No chats yet";
+
+/** A chat row's actions trigger, named for the row's disambiguated subject. */
+export function chatRowActionsName(rowName: string): string {
+  return `Chat actions for ${rowName}`;
+}
+
+export const CHAT_STAR_NAME = "Star";
+export const CHAT_UNSTAR_NAME = "Unstar";
+export const CHAT_ARCHIVE_NAME = "Archive";
+const CHAT_UNARCHIVE_NAME = "Unarchive";
+
+/** The row menu's star toggle for the room's current state. */
+export function chatStarToggleName(starred: boolean): string {
+  return starred ? CHAT_UNSTAR_NAME : CHAT_STAR_NAME;
+}
+
+/** The row menu's archive toggle for the room's current state. */
+export function chatArchiveToggleName(archived: boolean): string {
+  return archived ? CHAT_UNARCHIVE_NAME : CHAT_ARCHIVE_NAME;
+}
+
+/** The corrections dialog's instruction field. */
+export const CHAT_CORRECTION_INSTRUCTION_NAME = "Correction instruction";
+
+/** One stored variant in the saved-replies picker, by its one-based ordinal. */
+export function savedReplyOptionName(ordinal: number, current: boolean): string {
+  return `Reply ${String(ordinal)}${current ? " (current)" : ""}`;
+}
+
+/** The reaction picker's choice for one emoji. */
+export function reactionChoiceName(emoji: string): string {
+  return `React with ${emoji}`;
+}
+
+/** A message's reaction pill, which also names the line's author when the room has several. */
+export function reactionPillName(emoji: string, count: number, qualifier: string | null): string {
+  const choice = qualifier === null ? reactionChoiceName(emoji) : `${reactionChoiceName(emoji)} to ${qualifier}'s line`;
+  return `${choice}: ${String(count)} so far`;
+}
+
+/** The wire viewer's empty state for a reply that captured no prompt. */
+export const WIRE_NO_PROMPT_TITLE = "No prompt was captured for this reply";
+export const WIRE_STATIC_PREFIX_HEADING = "Static prefix";
+export const WIRE_AUTHORED_TEXT_HEADING = "Authored text, before transforms";
+
+/** The character gallery's empty state and its add door. */
+export const CHAT_GALLERY_EMPTY_TITLE = "No images yet";
+export const CHAT_GALLERY_ADD_NAME = "Add images";
+
+/** The gallery add-picker's title. */
+export const CHAT_GALLERY_ADD_PICKER_TITLE = "Add images to the gallery";
+
+/** The character gallery dialog, named for its character. */
+export function characterGalleryName(characterName: string): string {
+  return `${characterName}'s gallery`;
+}
+
+/** The chats-with-character pane's list, named for its character. */
+export function chatsWithCharacterName(characterName: string): string {
+  return `Chats with ${characterName}`;
+}
+
+/** The Home quick-picks tile's door to the character library. */
+export const CHAT_ALL_CHARACTERS_NAME = "All characters";
+
+/** A chat injection row's text field. */
+export const CHAT_INJECTION_CONTENT_NAME = "Content";
+
+/** The members panel's roster toolbar. */
+export const CHAT_MEMBERS_ROSTER_NAME = "Members and characters";
+
+/** The open room's Members entry: a fixed prefix, then the member count. */
+export const CHAT_MEMBERS_ENTRY_PREFIX = "Members: ";
+export function chatMembersEntryName(count: number): string {
+  return `${CHAT_MEMBERS_ENTRY_PREFIX}${count}`;
+}

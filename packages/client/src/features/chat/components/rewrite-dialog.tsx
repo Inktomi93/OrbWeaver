@@ -25,6 +25,7 @@ import { Switch } from "@orb/ui/switch";
 import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
 import { FormDialog } from "#components";
+import { CHAT_CORRECTION_INSTRUCTION_NAME } from "../lib/chat-surface-names.ts";
 
 export interface RewriteDialogProps {
   readonly open: boolean;
@@ -59,7 +60,7 @@ export function RewriteDialog({ open, onOpenChange, instruction, onInstructionCh
             named nothing and repeated the label it lost to. MEASURED per family; the computed name is unchanged
             (role+name still finds "Correction instruction"). The Switch below is
             the same accname story with a DIFFERENT verdict — see its own note. */}
-        <Field label="Correction instruction">
+        <Field label={CHAT_CORRECTION_INSTRUCTION_NAME}>
           <Textarea
             rows={3}
             value={instruction}

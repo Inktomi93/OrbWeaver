@@ -3,6 +3,7 @@
 
 import type { ClipboardOutcome } from "@orb/ui/lib";
 import { writeClipboardText } from "@orb/ui/lib";
+import { COPIED_TO_CLIPBOARD_NOTICE } from "./clipboard-names.ts";
 import { notify } from "./notify.ts";
 
 const COPY_FAILED = "Couldn't copy";
@@ -17,7 +18,7 @@ const FAILURE_REASON: Record<Exclude<ClipboardOutcome, "copied">, string> = {
 export function copyWithNotice(text: string, fallback: string): void {
   writeClipboardText(text, (outcome) => {
     if (outcome === "copied") {
-      notify.success("Copied to clipboard.");
+      notify.success(COPIED_TO_CLIPBOARD_NOTICE);
       return;
     }
     notify.error({ title: COPY_FAILED, description: `${FAILURE_REASON[outcome]} ${fallback}` });

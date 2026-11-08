@@ -10,6 +10,7 @@ import type { ConfigGroupDefinition, ConfigSearchRow } from "#state";
 import { worldInfoCollection } from "./world-info-collection.tsx";
 
 import { WORLD_INFO_COLLECTION_ID } from "./world-info-model.ts";
+import { WORLD_INFO_GROUP_LABEL } from "./world-info-names.ts";
 
 /** The books as SEARCH rows (§3.3) — the list's own cache-first read; non-suspense on purpose. */
 function useWorldInfoSearchRows(): readonly ConfigSearchRow[] {
@@ -21,7 +22,7 @@ function useWorldInfoSearchRows(): readonly ConfigSearchRow[] {
 export const worldInfoGroup: ConfigGroupDefinition = {
   id: WORLD_INFO_COLLECTION_ID,
   shelf: "collections",
-  label: "World Info",
+  label: WORLD_INFO_GROUP_LABEL,
   icon: BookOpen,
   order: 30,
   // #104 item 3 (em-dash diet): "and" is what the sentence means, so it says it.

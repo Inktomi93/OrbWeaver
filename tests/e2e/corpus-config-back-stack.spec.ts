@@ -1,5 +1,6 @@
 // The phone's Settings back stack on the committed corpus: each Back pops exactly one rung, entry to member to group to the list.
 import type { WorldBookId } from "@orb/kit/ids";
+import { WORLD_INFO_NEW_ENTRY_NAME } from "#client/features/world-info/lib/world-info-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
@@ -45,7 +46,7 @@ test.describe("committed corpus settings back stack", () => {
     await page.getByRole("button", { name: book.name, exact: true }).click();
     await expect(page.locator(BOOK_EDITOR)).toBeVisible();
     await expect(page.getByRole("heading", { name: book.name })).toHaveCount(1);
-    await expect(page.locator(MEMBER_VERBS).getByRole("button", { name: "New entry" })).toBeVisible();
+    await expect(page.locator(MEMBER_VERBS).getByRole("button", { name: WORLD_INFO_NEW_ENTRY_NAME })).toBeVisible();
 
     // Rung 3: a book drills again into an entry. The row's drag handle also carries the name, so go by text.
     await page.getByText(entry.title, { exact: true }).click();

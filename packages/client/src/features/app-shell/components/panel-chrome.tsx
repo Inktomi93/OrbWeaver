@@ -28,7 +28,7 @@ import { Button } from "@orb/ui/button";
 import { Icon, X } from "@orb/ui/icons";
 import type { ReactElement, ReactNode, Ref } from "react";
 import { startTransition, useEffect, useState } from "react";
-import { LIST_PANE_TITLE_ID } from "#lib";
+import { LIST_PANE_TITLE_ID, PANEL_CLOSE_FALLBACK_NAME, panelCloseName } from "#lib";
 import type { PanelMode, PanelName } from "#state";
 import { SHELL_ACCENT_TONE } from "../lib/shell-accent.ts";
 
@@ -154,7 +154,7 @@ export function PanelChrome({
           <>
             <div className="shell-panel-header-group">{header}</div>
             <Button
-              aria-label={label === undefined ? "Close panel" : `Close ${label}`}
+              aria-label={label === undefined ? PANEL_CLOSE_FALLBACK_NAME : panelCloseName(label)}
               data-slot="panel-overlay-close"
               variant="ghost"
               onClick={onDismiss}

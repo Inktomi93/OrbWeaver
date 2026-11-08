@@ -31,10 +31,19 @@ import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
-import { CHAT_COMPOSER_NAME, CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_SEARCH_NAME, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import {
+  CHAT_COMPOSER_NAME,
+  CHAT_LIST_EMPTY_TITLE,
+  CHAT_LIST_NAME,
+  CHAT_MESSAGE_INPUT_NAME,
+  CHAT_SEARCH_NAME,
+  CHAT_SEND_NAME,
+} from "#client/features/chat/lib/chat-surface-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { CHAT_TITLE_FIELD_NAME } from "#client/lib/chat-rename-names.ts";
+import { CONTEXT_SHEET_BACK_NAME, LIST_PANEL_NOUN, panelEdgeName, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
+import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import { ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
 import { streamTapOf, waitForRoomOpened } from "./stream-tap.ts";
 import { WAIT_LIVE_TURN_MS, WAIT_SETTLE_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS } from "./timeouts.ts";
@@ -107,7 +116,7 @@ export async function waitForStreamOpen(page: Page, chatId: ChatId, since: numbe
  *  role+name lookup is a strict-mode violation on any DB whose landing shows the tiles — it went red the day
  *  the e2e stack stopped inheriting the dev DB's data. `exact` also keeps "Collapse Characters panel" out. */
 export function charactersRailButton(page: Page): Locator {
-  return page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: SECTION_LABELS.characters, exact: true });
+  return page.getByRole("navigation", { name: PRIMARY_NAV_NAME }).getByRole("button", { name: SECTION_LABELS.characters, exact: true });
 }
 
 /** The RAIL's "Chats" nav button, scoped to the Primary navigation. Scoping is load-bearing the same way
@@ -115,7 +124,7 @@ export function charactersRailButton(page: Page): Locator {
  *  with the same accessible name, so an unscoped role+name lookup is a strict-mode violation on the home
  *  surface. `exact` keeps "Collapse Chats panel" and the like out. */
 function chatsRailButton(page: Page): Locator {
-  return page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: SECTION_LABELS.chats, exact: true });
+  return page.getByRole("navigation", { name: PRIMARY_NAV_NAME }).getByRole("button", { name: SECTION_LABELS.chats, exact: true });
 }
 
 /** Land on the Chats SECTION and wait for its list to settle. The `aria-label="Chats list"` list surface
@@ -135,11 +144,11 @@ export async function gotoChatsList(page: Page): Promise<void> {
 /** Reach the Chats list through the current document's actual rail and panel controls. */
 export async function openChatsList(page: Page): Promise<void> {
   const chatsRail = chatsRailButton(page);
-  const closeDetails = page.getByRole("button", { name: "Close details", exact: true });
-  const backToChats = page.getByRole("button", { name: "Back to Chats", exact: true });
-  const showList = page.getByRole("button", { name: "Show list panel", exact: true });
+  const closeDetails = page.getByRole("button", { name: CONTEXT_SHEET_BACK_NAME, exact: true });
+  const backToChats = page.getByRole("button", { name: sectionBackName(SECTION_LABELS.chats), exact: true });
+  const showList = page.getByRole("button", { name: panelEdgeName(LIST_PANEL_NOUN, false), exact: true });
   const chatsList = page.getByRole("list", { name: CHAT_LIST_NAME });
-  const emptyState = page.getByText("No chats yet");
+  const emptyState = page.getByText(CHAT_LIST_EMPTY_TITLE);
   if (await closeDetails.isVisible()) {
     await closeDetails.click();
   }
@@ -415,7 +424,7 @@ export async function openChatByTitle(page: Page, title: string): Promise<void> 
   await gotoChatsList(page);
   const search = page.getByRole("textbox", { name: CHAT_SEARCH_NAME, exact: true });
   if (!(await search.isVisible())) {
-    await page.getByRole("button", { name: "Back to Chats", exact: true }).click();
+    await page.getByRole("button", { name: sectionBackName(SECTION_LABELS.chats), exact: true }).click();
   }
   await search.fill(title);
   const row = page.getByRole("list", { name: CHAT_LIST_NAME }).getByRole("button", { name: title }).first();

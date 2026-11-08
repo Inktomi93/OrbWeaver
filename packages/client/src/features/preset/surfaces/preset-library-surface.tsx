@@ -28,7 +28,7 @@ import type { ReactElement, RefObject } from "react";
 import { useDeferredValue, useRef } from "react";
 import { LibraryListRows, LibrarySurfaceShell, ListPage, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQueries, useTRPC, useTRPCClient } from "#data";
-import { downloadJson, notify, rowQualifiers, slugifyFilename, timeLib, useFocusListArrival } from "#lib";
+import { CLEAR_SEARCH_NAME, downloadJson, NO_MATCHES_TITLE, notify, rowQualifiers, slugifyFilename, timeLib, useFocusListArrival } from "#lib";
 import { getSelectedPresetId, presetSectionSelection, selectPreset, setPresetSearchQuery, usePresetSearchQuery, useSelectedPresetId } from "#state";
 import { PresetLibraryRow } from "../components/preset-library-row.tsx";
 import { useCreatePreset, useRemovePreset, useSetDefaultPreset } from "../hooks/use-preset-mutations.ts";
@@ -209,7 +209,7 @@ function PresetList({
             ) : (
               <Row align="center" wrap={true} gap="field" justify="center">
                 <Button variant="outline" onClick={(): void => setPresetSearchQuery("")} size="sm">
-                  Clear search
+                  {CLEAR_SEARCH_NAME}
                 </Button>
                 <Button disabled={create.isPending} variant="ghost" onClick={onCreate} size="sm">
                   New preset
@@ -219,7 +219,7 @@ function PresetList({
           }
           description={needle === "" ? "Create a preset to tune sampling, reasoning, and the prompt structure." : "No preset matches your search."}
           icon={<Icon icon={needle === "" ? SlidersHorizontal : Search} size="lg" />}
-          title={needle === "" ? "No presets yet" : "No matches"}
+          title={needle === "" ? "No presets yet" : NO_MATCHES_TITLE}
         />
       }
       isEmpty={filtered.length === 0}
