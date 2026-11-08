@@ -41,8 +41,31 @@ function isHeld(node: TSESTree.Node): boolean {
   );
 }
 
-/** Whether the expression holds only one act's entries: a bracket helper's result, `slice(mark)`, a whole view of one,
- *  or a `const` bound from one. */
+// The `const` initialiser behind an identifier, if it has one.
+function initOf(sourceCode: Source, identifier: TSESTree.Identifier): TSESTree.Expression | undefined {
+  const declarator = constInitOf(sourceCode, identifier)?.node;
+  return declarator?.type === AST_NODE_TYPES.VariableDeclarator && declarator.init !== null ? declarator.init : undefined;
+}
+
+// A bracket helper's own result, through `await` and `const` bindings. Its fields are the act's entries.
+function isActResult(sourceCode: Source, node: TSESTree.Node, seen: Set<TSESTree.Node>): boolean {
+  const value = unwrapped(node);
+  if (seen.has(value)) {
+    return false;
+  }
+  seen.add(value);
+  if (value.type === AST_NODE_TYPES.AwaitExpression) {
+    return isActResult(sourceCode, value.argument, seen);
+  }
+  if (value.type === AST_NODE_TYPES.Identifier) {
+    const init = initOf(sourceCode, value);
+    return init !== undefined && isActResult(sourceCode, init, seen);
+  }
+  return value.type === AST_NODE_TYPES.CallExpression && value.callee.type === AST_NODE_TYPES.Identifier && ACT_BRACKETS.has(value.callee.name);
+}
+
+/** Whether the expression holds only one act's entries: a field of a bracket helper's result, `slice(mark)` with the
+ *  mark a binding, a whole view of one, or a `const` bound from one. A literal or computed slice start is no mark. */
 function isBracketed(sourceCode: Source, node: TSESTree.Node, seen: Set<TSESTree.Node>): boolean {
   const value = unwrapped(node);
   if (seen.has(value)) {
@@ -51,25 +74,22 @@ function isBracketed(sourceCode: Source, node: TSESTree.Node, seen: Set<TSESTree
   seen.add(value);
   switch (value.type) {
     case AST_NODE_TYPES.Identifier: {
-      const declarator = constInitOf(sourceCode, value)?.node;
-      return declarator?.type === AST_NODE_TYPES.VariableDeclarator && declarator.init !== null && isBracketed(sourceCode, declarator.init, seen);
+      const init = initOf(sourceCode, value);
+      return init !== undefined && isBracketed(sourceCode, init, seen);
     }
     case AST_NODE_TYPES.AwaitExpression:
-      return isBracketed(sourceCode, value.argument, seen);
+      return isActResult(sourceCode, value, new Set());
     case AST_NODE_TYPES.MemberExpression:
-      return isBracketed(sourceCode, value.object, seen);
+      return isActResult(sourceCode, value.object, new Set());
     case AST_NODE_TYPES.CallExpression: {
       const callee = unwrapped(value.callee);
-      if (callee.type === AST_NODE_TYPES.Identifier) {
-        return ACT_BRACKETS.has(callee.name);
-      }
       if (callee.type !== AST_NODE_TYPES.MemberExpression) {
-        return false;
+        return isActResult(sourceCode, value, new Set());
       }
       const name = staticName(callee) ?? "";
       const [first] = value.arguments;
       return (
-        (name === "slice" && value.arguments.length === 1 && first !== undefined && !isNegative(first)) ||
+        (name === "slice" && value.arguments.length === 1 && first?.type === AST_NODE_TYPES.Identifier) ||
         (WHOLE_VIEWS.has(name) && isBracketed(sourceCode, callee.object, seen))
       );
     }
