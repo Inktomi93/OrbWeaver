@@ -44,7 +44,7 @@ export function createShellAmbientReads(corpus: CorpusPlayback, viewerUserId: Us
     "chat.getChat": createCorpusReadResponder("chat.getChat", viewerUserId, recentRooms),
     "chat.reapTemporaryChats": createCorpusReadResponder("chat.reapTemporaryChats", viewerUserId, [shell.reaped]),
     "character.list": createCorpusReadResponder("character.list", viewerUserId, [shell.quickPicks]),
-    "rosterPreset.list": createCorpusReadResponder("rosterPreset.list", viewerUserId, [shell.rosterPreview]),
+    "rosterPreset.list": createCorpusReadResponder("rosterPreset.list", viewerUserId, [shell.rosterPreview, shell.rosterLibrary]),
     "rosterPreset.count": createCorpusReadResponder("rosterPreset.count", viewerUserId, reads["rosterPreset.count"]),
     "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", viewerUserId, reads["settings.getUserSettings"]),
     "databank.list": createCorpusReadResponder("databank.list", viewerUserId, [shell.recentDocuments]),

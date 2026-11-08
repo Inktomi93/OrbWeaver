@@ -72,6 +72,7 @@ const SHELL_PATHS = {
   recentChats: "chat.listChats",
   quickPicks: "character.list",
   rosterPreview: "rosterPreset.list",
+  rosterLibrary: "rosterPreset.list",
   recentDocuments: "databank.list",
   inbox: "notifications.list",
   reaped: "chat.reapTemporaryChats",

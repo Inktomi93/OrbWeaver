@@ -1,4 +1,5 @@
-// The reads the app shell issues on mount carry the page sizes its Home tiles ask for, so each capture keeps that exact request.
+// The reads the app shell issues on mount carry the page sizes its Home tiles ask for, so each capture keeps that exact request. The roster library is the
+// one unpaged read: the shell warms it at boot for the New chat picker, which reads the whole list.
 import { HOME_QUICK_PICKS_LIMIT, listCharactersResultSchema } from "@orb/contracts/character";
 import { chatDetailSchema, chatListPageSchema, HOME_RECENT_CHATS_LIMIT, reapResultSchema } from "@orb/contracts/chat";
 import { HOME_RECENT_DOCUMENTS_LIMIT, listDocumentsResultSchema } from "@orb/contracts/databank";
@@ -15,6 +16,7 @@ export const shellAmbientSchema = z
       recentChats: chatListPageSchema,
       quickPicks: listCharactersResultSchema,
       rosterPreview: rosterPresetSummarySchema.array(),
+      rosterLibrary: rosterPresetSummarySchema.array(),
       recentDocuments: listDocumentsResultSchema,
       inbox: listInboxResultSchema,
       reaped: reapResultSchema,
@@ -32,6 +34,7 @@ export interface CorpusShellAmbient extends Omit<z.output<typeof shellAmbientSch
     readonly recentChats: CorpusRead<"chat.listChats">;
     readonly quickPicks: CorpusRead<"character.list">;
     readonly rosterPreview: CorpusRead<"rosterPreset.list">;
+    readonly rosterLibrary: CorpusRead<"rosterPreset.list">;
     readonly recentDocuments: CorpusRead<"databank.list">;
     readonly inbox: CorpusRead<"notifications.list">;
     readonly reaped: CorpusRead<"chat.reapTemporaryChats">;
@@ -44,6 +47,7 @@ export const shellAmbientInput = {
   recentChats: (): CorpusRead<"chat.listChats">["input"] => ({ limit: HOME_RECENT_CHATS_LIMIT }),
   quickPicks: (): CorpusRead<"character.list">["input"] => ({ limit: HOME_QUICK_PICKS_LIMIT }),
   rosterPreview: (): CorpusRead<"rosterPreset.list">["input"] => ({ limit: HOME_ROSTER_PREVIEW_LIMIT }),
+  rosterLibrary: (): CorpusRead<"rosterPreset.list">["input"] => undefined,
   recentDocuments: (): CorpusRead<"databank.list">["input"] => ({ limit: HOME_RECENT_DOCUMENTS_LIMIT }),
   inbox: (): CorpusRead<"notifications.list">["input"] => ({}),
   room: ({ id }: Pick<z.output<typeof chatDetailSchema>, "id">): CorpusRead<"chat.getChat">["input"] => ({ chatId: id }),
@@ -67,6 +71,7 @@ export function hydrateShellAmbient(section: z.output<typeof shellAmbientSchema>
       recentChats: { input: shellAmbientInput.recentChats(), output: reads.recentChats },
       quickPicks: { input: shellAmbientInput.quickPicks(), output: reads.quickPicks },
       rosterPreview: { input: shellAmbientInput.rosterPreview(), output: reads.rosterPreview },
+      rosterLibrary: { input: shellAmbientInput.rosterLibrary(), output: reads.rosterLibrary },
       recentDocuments: { input: shellAmbientInput.recentDocuments(), output: reads.recentDocuments },
       inbox: { input: shellAmbientInput.inbox(), output: reads.inbox },
       reaped: { input: undefined, output: reads.reaped },
