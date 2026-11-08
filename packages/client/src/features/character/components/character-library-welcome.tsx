@@ -48,6 +48,7 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQueries, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import { LIST_OFF_SCREEN_HINT, selectCharacter, useSectionListMode } from "#state";
+import { CHARACTER_RECENT_SHELF_NAME } from "../lib/character-names.ts";
 import { chattedStamp } from "../lib/character-shelf-stamp.ts";
 import { CharacterLandingDoors } from "./character-create-actions.tsx";
 import type { ShelfFace } from "./character-shelf.tsx";
@@ -315,7 +316,7 @@ function ResumeArm({
     <LandingFrame doors={doorsFor(listOffScreen)} gloss={listOffScreen ? LEAD_GLOSS_COLLAPSED : LEAD_GLOSS_DOCKED} title="Pick up where you left off">
       <Stack gap="section">
         {recentFaces.length === 0 ? null : (
-          <CharacterShelf door="resume" faces={recentFaces} label="Recently chatted" legend="sorted by last chat" onOpen={selectCharacter} />
+          <CharacterShelf door="resume" faces={recentFaces} label={CHARACTER_RECENT_SHELF_NAME} legend="sorted by last chat" onOpen={selectCharacter} />
         )}
         {starredFaces.length === 0 ? null : (
           <CharacterShelf door="open" faces={starredFaces} label={`Starred · ${String(starredCount)}`} legend={null} onOpen={selectCharacter} />

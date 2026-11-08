@@ -24,7 +24,12 @@ import type { CHARACTER_CARD_FACET_IDS } from "../lib/character-card-facets.ts";
 import { facetById } from "../lib/character-card-facets.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
 import { isDepthPromptPrefill } from "../lib/character-card-form-model.ts";
-import { CHARACTER_EXPAND_TO_EDIT_NAME, CHARACTER_FACET_BACK_NAME } from "../lib/character-names.ts";
+import {
+  CHARACTER_CREATOR_NOTES_FACET_NAME,
+  CHARACTER_DESCRIPTION_FACET_NAME,
+  CHARACTER_EXPAND_TO_EDIT_NAME,
+  CHARACTER_FACET_BACK_NAME,
+} from "../lib/character-names.ts";
 import { parseExampleBlocks } from "../lib/example-messages.ts";
 import type { CharacterProvenanceSectionProps } from "./character-provenance-section.tsx";
 import { CharacterProvenanceSection } from "./character-provenance-section.tsx";
@@ -102,7 +107,7 @@ const FACET_BODY_RENDERERS: Record<CharacterFacetId, (props: FacetBodyProps) => 
       suggestions={suggestions}
       form={form}
       name="description"
-      label="Description"
+      label={CHARACTER_DESCRIPTION_FACET_NAME}
       hint="Who they are: the core of the card. Use {{char}}/{{user}} to self-reference."
       spoilerBlur={spoilerBlur}
       rows={16}
@@ -136,7 +141,7 @@ const FACET_BODY_RENDERERS: Record<CharacterFacetId, (props: FacetBodyProps) => 
   // Creator notes render only in the member card viewer, which registers no user macros: builtins are all that resolve.
   creatorNotes: ({ form }) => (
     <form.AppField name="creatorNotes">
-      {(field): ReactElement => <field.MacroField label="Creator notes" suggestions={BUILTIN_MACRO_SUGGESTIONS} rows={8} />}
+      {(field): ReactElement => <field.MacroField label={CHARACTER_CREATOR_NOTES_FACET_NAME} suggestions={BUILTIN_MACRO_SUGGESTIONS} rows={8} />}
     </form.AppField>
   ),
   systemPrompt: ({ form, suggestions }) => (

@@ -41,6 +41,7 @@ import {
   CHARACTER_FILTER_TAGS_NAME,
   CHARACTER_FILTERS_NAME,
   CHARACTER_GROUP_BY_TAG_NAME,
+  CHARACTER_HERO_NAME_FIELD_NAME,
   CHARACTER_IMPORT_NAME,
   CHARACTER_LIBRARY_EMPTY_TITLE,
   CHARACTER_LIBRARY_NAME,
@@ -198,7 +199,7 @@ async function openCard(flow: CharacterFlow, name: string, rowName = name): Prom
   const row = list.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true }).getByRole("button", { name: rowName, exact: true });
   await row.click();
   const form = flow.page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true });
-  await expect(form.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
+  await expect(form.getByRole("textbox", { name: CHARACTER_HERO_NAME_FIELD_NAME, exact: true })).toHaveValue(name);
   await flow.requestPanes();
   await dismissContext(flow);
   if ((await list.getAttribute("data-panel-mode")) === "overlay") {
@@ -323,9 +324,9 @@ async function createRefusalJourney(flow: CharacterFlow): Promise<void> {
       },
       ready: async (): Promise<void> => {
         await expect(create).toBeHidden();
-        await expect(page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true }).getByRole("textbox", { name: "Name", exact: true })).toHaveValue(
-          name,
-        );
+        await expect(
+          page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true }).getByRole("textbox", { name: CHARACTER_HERO_NAME_FIELD_NAME, exact: true }),
+        ).toHaveValue(name);
       },
     });
     const persisted = (await client.character.list.query({ search: name })).items.filter((row) => row.name === name && !before.has(row.id));
@@ -896,8 +897,8 @@ async function createCommandCharacter(flow: CharacterFlow, name: string, subject
   }
   subjects.characters.add(created.id);
   const form = flow.page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true });
-  await expect(form.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
-  await record(flow, "commands-native-created", form, [form.getByRole("textbox", { name: "Name", exact: true })]);
+  await expect(form.getByRole("textbox", { name: CHARACTER_HERO_NAME_FIELD_NAME, exact: true })).toHaveValue(name);
+  await record(flow, "commands-native-created", form, [form.getByRole("textbox", { name: CHARACTER_HERO_NAME_FIELD_NAME, exact: true })]);
   return created;
 }
 
@@ -929,7 +930,7 @@ async function duplicateCommandCharacter(flow: CharacterFlow, parent: SourceChar
   await dismissContext(flow);
   await flow.action("characters-commands-copy-identity-save", {
     action: async (): Promise<void> => {
-      await form.getByRole("textbox", { name: "Name", exact: true }).fill(name);
+      await form.getByRole("textbox", { name: CHARACTER_HERO_NAME_FIELD_NAME, exact: true }).fill(name);
     },
     ready: async (): Promise<void> => {
       await expect.poll(async () => (await flow.client.character.get.query({ characterId: copy.id })).name).toBe(name);
@@ -940,7 +941,7 @@ async function duplicateCommandCharacter(flow: CharacterFlow, parent: SourceChar
   await flow.page.reload();
   await waitForAppReady(flow.page);
   const persisted = await openCard(flow, name);
-  await record(flow, "commands-copy-identity-reloaded", persisted, [persisted.getByRole("textbox", { name: "Name", exact: true })]);
+  await record(flow, "commands-copy-identity-reloaded", persisted, [persisted.getByRole("textbox", { name: CHARACTER_HERO_NAME_FIELD_NAME, exact: true })]);
   completedCommand(
     flow,
     "duplicate",
@@ -1325,7 +1326,7 @@ export async function walkCharacterArea(input: SurfaceFlow, area: CharacterWalkA
       await createRefusalJourney(flow);
     } else if (area === "source-context") {
       const form = await openCard(flow, original.name, rowName);
-      await record(flow, "original-source-editor", form, [form.getByRole("textbox", { name: "Name", exact: true })]);
+      await record(flow, "original-source-editor", form, [form.getByRole("textbox", { name: CHARACTER_HERO_NAME_FIELD_NAME, exact: true })]);
       await originalContextJourney(flow, original.id);
     } else if (area === "commands") {
       await commandsJourney(flow);

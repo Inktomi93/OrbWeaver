@@ -45,6 +45,7 @@ import type { Trpc } from "#data";
 import { seedPresetId, useGatedQuery, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { rowActionsName, trpcErrorCode } from "#lib";
 import { useDetachDocumentFromChat, useSetChatDocumentVisibility } from "../hooks/use-chat-document-mutations.ts";
+import { CHAT_ADD_FROM_BANK_NAME } from "../lib/chat-attach-names.ts";
 import { isDetachableFromChat, nextHiddenSet, placesDatabankSlot, sourceChips } from "../lib/chat-documents-model.ts";
 import { AddChatDocumentDialog } from "./add-chat-document-dialog.tsx";
 
@@ -239,7 +240,7 @@ export function ChatDocumentsSection({ chatId, isHost }: ChatDocumentsSectionPro
       {isHost ? (
         <>
           <Button variant="outline" onClick={(): void => setPickerOpen(true)} size="sm" type="button">
-            Add from your bank
+            {CHAT_ADD_FROM_BANK_NAME}
           </Button>
           <AddChatDocumentDialog activeIds={rows.map((row) => row.id)} chatId={chatId} onOpenChange={setPickerOpen} open={pickerOpen} />
         </>

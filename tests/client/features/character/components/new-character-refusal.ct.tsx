@@ -18,6 +18,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { CHARACTER_DESCRIPTION_FIELD_NAME, CHARACTER_NAME_FIELD_NAME, CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
 import { characterRefusalCopy } from "#client/features/character/lib/character-refusal-notice.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const READ_PROCEDURES = [...SECTION_PROCEDURES, "tag.listTagFilterVocabulary"] as const;
@@ -73,7 +74,7 @@ test("a name refusal that lands after Cancel is still said, by the toast", async
   await mount<typeof ShellAmbientStory>(STORY, {});
   await submitTakenName(page, held);
 
-  await page.getByRole("dialog").getByRole("button", { name: "Cancel", exact: true }).click();
+  await page.getByRole("dialog").getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   held.land();
   await expect(refusalToast(page)).toBeVisible();

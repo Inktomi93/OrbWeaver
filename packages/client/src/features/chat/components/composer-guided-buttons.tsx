@@ -36,6 +36,13 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement } from "react";
 import { useId } from "react";
 import { IMPERSONATE_STOP_LABEL, RESPONSE_SPEAKER_CUE, STEER_CUE_IMPERSONATE, STEER_CUE_RESPONSE, testId } from "#lib";
+import {
+  COMPOSER_DRAFT_LINE_NAME,
+  COMPOSER_GENERATE_REPLY_NAME,
+  COMPOSER_LET_ROOM_PICK_NAME,
+  guidedControlName,
+  IMPERSONATE_PERSON_LABELS,
+} from "../lib/composer-menu-names.ts";
 import type { filterCharacters } from "../lib/roster.ts";
 
 /** A guided control's glyph. A glyph whose closed paths are its silhouette fills solid when the control
@@ -193,11 +200,7 @@ export function ImpersonateStopButton({ onStop }: { readonly onStop: () => void 
   );
 }
 
-const PERSON_LABEL: Record<GuidedImpersonatePerson, string> = { first: "1st person", second: "2nd person", third: "3rd person" };
-
-function resolveGuidedName(base: string, hasText: boolean): string {
-  return hasText ? `Guided ${base.toLowerCase()}` : base;
-}
+const PERSON_LABEL: Record<GuidedImpersonatePerson, string> = IMPERSONATE_PERSON_LABELS;
 
 /** The three persons Draft your line writes in, as menu items: the row button's menu and the Message tools submenu share them. */
 export function ImpersonatePersonItems({ onPick }: { readonly onPick: (person: GuidedImpersonatePerson) => void }): ReactElement {
@@ -226,8 +229,8 @@ export function ImpersonateGuidedButton({
   readonly refusalStatedBy: string | undefined;
 }): ReactElement {
   const detail = resolveGuidedDetail({ disabled, hasText, steerCue: STEER_CUE_IMPERSONATE, reason });
-  const title = joinTitle("Draft your line", detail);
-  const name = resolveGuidedName("Draft your line", hasText);
+  const title = joinTitle(COMPOSER_DRAFT_LINE_NAME, detail);
+  const name = guidedControlName(COMPOSER_DRAFT_LINE_NAME, hasText);
   const description = useControlDescription(detail, refusalStatedBy);
   return (
     <Menu>
@@ -285,13 +288,13 @@ export function ResponseGuidedButton({
   readonly disabledReason: string | undefined;
   readonly refusalStatedBy: string | undefined;
 }): ReactElement {
-  const label = "Generate reply";
+  const label = COMPOSER_GENERATE_REPLY_NAME;
   // The submenu arm is the same size-gate the retired speak-as dropdown carried (D16 roster-of-1): a solo room
   // has no "which character" choice, so the trigger fires Auto directly and its tooltip stays the plain label.
   const multiCharacter = characters.length > 1;
   const detail = responseDetail(hasText, disabledReason, multiCharacter);
   const title = joinTitle(label, detail);
-  const name = resolveGuidedName(label, hasText);
+  const name = guidedControlName(label, hasText);
   const description = useControlDescription(detail, refusalStatedBy);
   if (!multiCharacter) {
     // `describesTrigger={false}` — see GuidedIconButton above: the tooltip string leads with the control's
@@ -358,7 +361,7 @@ export function ResponseGuidedButton({
         <ControlDetail description={description} />
       </Tooltip>
       <MenuPopup>
-        <MenuItem onClick={(): void => onFire(null)}>Let the room pick</MenuItem>
+        <MenuItem onClick={(): void => onFire(null)}>{COMPOSER_LET_ROOM_PICK_NAME}</MenuItem>
         {characters.map((member) => (
           <MenuItem key={member.characterId} onClick={(): void => onFire(member.characterId)}>
             <Icon icon={Drama} size="sm" />

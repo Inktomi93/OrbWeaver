@@ -6,7 +6,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, createFirstBootHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
-import { CHARACTER_EDITOR_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_EDITOR_NAME, CHARACTER_HERO_NAME_FIELD_NAME, CHARACTER_RECENT_SHELF_NAME } from "#client/features/character/lib/character-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const AUTHORED_NAME = "The observatory archivist";
@@ -26,7 +26,7 @@ async function expectLibraryOutline(page: Page, title: string, hasRecent: boolea
   await expect(mainHeading).toBeVisible();
   await expect(content.getByRole("heading", { level: 1 })).toHaveCount(1);
   await expect(mainHeading).toHaveCSS("font-size", `${await resolvedLength(page, `var(${TOKENS["text.title"].cssVar})`)}px`);
-  await expect(content.getByRole("heading", { name: "Recently chatted", level: 2, exact: true })).toHaveCount(Number(hasRecent));
+  await expect(content.getByRole("heading", { name: CHARACTER_RECENT_SHELF_NAME, level: 2, exact: true })).toHaveCount(Number(hasRecent));
   for (const shelf of await content.getByRole("heading", { level: 2 }).all()) {
     await expect(shelf).toHaveCSS("font-size", `${await resolvedLength(page, `var(${TOKENS["text.micro"].cssVar})`)}px`);
     await expect(shelf).toHaveCSS("text-transform", "uppercase");
@@ -37,9 +37,9 @@ async function expectLibraryOutline(page: Page, title: string, hasRecent: boolea
 async function expectAuthoredCharacterDoor(page: Page, coarse: boolean): Promise<void> {
   const library = page.getByRole("list", { name: coarse ? "Just added" : "Character library", exact: true });
   await library.getByRole("button", { name: coarse ? new RegExp(`^${AUTHORED_NAME}, added `, "u") : AUTHORED_NAME, exact: !coarse }).click();
-  await expect(page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true }).getByRole("textbox", { name: "Name", exact: true })).toHaveValue(
-    AUTHORED_NAME,
-  );
+  await expect(
+    page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true }).getByRole("textbox", { name: CHARACTER_HERO_NAME_FIELD_NAME, exact: true }),
+  ).toHaveValue(AUTHORED_NAME);
 }
 
 for (const regime of REGIMES) {

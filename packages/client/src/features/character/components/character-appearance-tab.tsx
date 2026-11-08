@@ -42,7 +42,7 @@ import { notify, THEME_RADIUS_LABELS } from "#lib";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { CharacterThemeForm } from "../hooks/use-character-theme-form.ts";
 import { usePromoteTheme } from "../hooks/use-promote-theme.ts";
-import { CHARACTER_START_FROM_THEME_NAME } from "../lib/character-names.ts";
+import { CHARACTER_RESET_LOOK_CONFIRM_NAME, CHARACTER_RESET_LOOK_NAME, CHARACTER_START_FROM_THEME_NAME } from "../lib/character-names.ts";
 import type { CharacterThemeFormValues } from "../lib/character-theme-form-model.ts";
 import {
   characterThemeFormFromOverride,
@@ -206,14 +206,14 @@ function ThemeControlsBody({ characterName, session }: ThemeControlsBodyProps): 
                 <SaveAsThemeButton characterName={characterName} override={override} />
                 <DestructiveAction
                   confirm={{
-                    confirmLabel: "Reset all",
+                    confirmLabel: CHARACTER_RESET_LOOK_CONFIRM_NAME,
                     description: "Every colour and style this character sets goes back to Inherit, so it follows your global theme.",
                     title: "Reset this character's look to Inherit?",
                   }}
                   onConfirm={resetToGlobal}
                   trigger={
                     <Button variant="ghost" disabled={override === null}>
-                      Reset all to Inherit
+                      {CHARACTER_RESET_LOOK_NAME}
                     </Button>
                   }
                 />

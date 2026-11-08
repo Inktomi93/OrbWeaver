@@ -19,6 +19,7 @@ import { useInvalidation, useTRPC } from "#data";
 import type { ContributorRegistry, ToolRenderer } from "#lib";
 import { MessageToolsRendererRegistryContext } from "#state";
 import { useEditToolCall } from "../hooks/use-message-mutations.ts";
+import { MESSAGE_DELETE_TOOL_CALL_NAME, MESSAGE_DELETE_TOOL_CALL_TITLE } from "../lib/message-action-names.ts";
 
 export interface MessageToolCallsProps {
   readonly message?: MessageView;
@@ -49,13 +50,13 @@ function ToolCallControls({ message, record }: { readonly message: MessageView; 
       </Button>
       <DestructiveAction
         confirm={{
-          title: "Delete this tool call?",
+          title: MESSAGE_DELETE_TOOL_CALL_TITLE,
           description: "The prose stays. This removes the card and its future prompt replay, not the tool's effects.",
           confirmLabel: "Delete",
         }}
         trigger={
           <Button variant="ghost" size="sm">
-            Delete tool call
+            {MESSAGE_DELETE_TOOL_CALL_NAME}
           </Button>
         }
         onConfirm={async (): Promise<void> => {

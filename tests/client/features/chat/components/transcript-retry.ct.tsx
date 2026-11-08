@@ -3,6 +3,7 @@
 import { routeAuthConfig, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { TideMediaLifetimeStory } from "./_media-lifetime-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_media-lifetime-stories/TideMediaLifetimeStory";
@@ -41,7 +42,7 @@ test("a transcript that settles after Retry keeps a bounded scroller", async ({ 
   await expect(error).toBeVisible();
 
   failing = false;
-  await error.getByRole("button", { name: "Retry", exact: true }).click();
+  await error.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   const scroller = page.locator('[data-slot="message-list-scroll"]');
   await expect(scroller).toBeVisible();
 

@@ -21,6 +21,7 @@ import {
   MESSAGE_REASONING_NAME,
   MESSAGE_REASONING_SAVE_NAME,
 } from "#client/features/chat/lib/message-action-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { RoomTranscriptStory } from "./_message-reasoning-and-move-stories.tsx";
 
 // The production transcript surface over the real composed server and the corpus's own rooms.
@@ -331,7 +332,7 @@ test("reasoning Edit saves, Escape cancels, and Clear confirms before it removes
 
   const confirm = page.getByRole("alertdialog", { name: MESSAGE_REASONING_CLEAR_TITLE, exact: true });
   await clear.click();
-  await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+  await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
   await expect(confirm).toBeHidden();
   expect(await stored()).toBe("Rewritten by the host.");
   await clear.click();

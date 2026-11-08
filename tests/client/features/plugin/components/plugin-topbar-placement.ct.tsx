@@ -14,6 +14,7 @@ import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
 import { PLUGIN_ACTIONS_NAME } from "#client/features/plugin/lib/plugin-command-copy.ts";
 import type { PluginRoomShellStory } from "../_ct-stories.tsx";
 
@@ -88,7 +89,7 @@ async function openRoom(
 }
 
 async function runFromPalette(page: Page, name: string): Promise<void> {
-  const palette = page.getByRole("dialog", { name: "Jump to…" });
+  const palette = page.getByRole("dialog", { name: COMMAND_MODAL_TITLE });
   await palette.getByRole("combobox").fill(name);
   await palette.getByRole("option", { name: new RegExp(`^Run ${name}`, "u") }).click();
   await expect(reached(page, name)).toBeVisible();
@@ -197,6 +198,6 @@ test("a phone keeps the top bar row clear: placed commands are You sheet rows an
   await page.getByRole("button", { name: attributed("Draw"), exact: true }).click();
   await expect(reached(page, DRAW.name)).toBeVisible();
   root.clock.advance(PLUGIN_TOAST_COOLDOWN_SECONDS * MS_PER_SECOND);
-  await page.getByRole("button", { name: "Jump to…", exact: true }).click();
+  await page.getByRole("button", { name: COMMAND_MODAL_TITLE, exact: true }).click();
   await runFromPalette(page, UNPLACED.name);
 });

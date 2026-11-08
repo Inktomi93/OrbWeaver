@@ -7,6 +7,9 @@ import { heldThenFailing, holdServed, routeTrpc, serveCorpusProcedures } from "@
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createSeededIds } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { queryFailedLabel } from "#client/data/query-state-copy.ts";
+import { VARIANT_WIRE_GONE_TITLE, VARIANT_WIRE_READ } from "#client/features/chat/lib/message-action-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ChatListFacesStripStory, VariantWireViewerStory } from "./_chat-reads-boundary-stories.tsx";
 
 const STORIES = "tests/client/features/chat/components/_chat-reads-boundary-stories";
@@ -33,10 +36,10 @@ test("a held wire read shows the loading skeleton, a failed one the error block,
   await read.hold.requested;
   await expect(dialog.locator('[aria-busy="true"]')).toBeVisible();
   read.hold.fail();
-  await expect(dialog.getByText("Couldn't load the wire record.", { exact: true })).toBeVisible();
+  await expect(dialog.getByText(queryFailedLabel(VARIANT_WIRE_READ), { exact: true })).toBeVisible();
   read.recover();
-  await dialog.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(dialog.getByText("This reply is gone", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
+  await expect(dialog.getByText(VARIANT_WIRE_GONE_TITLE, { exact: true })).toBeVisible();
 });
 
 test("a held recent-chats read shows the strip's reserved skeleton, a failed one the error block, and Retry shows the strip", async ({ mount, page }) => {
@@ -50,7 +53,7 @@ test("a held recent-chats read shows the strip's reserved skeleton, a failed one
   read.hold.fail();
   await expect(page.getByText("Couldn't load your recent characters.", { exact: true })).toBeVisible();
   read.recover();
-  await page.getByRole("button", { name: "Retry", exact: true }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(page.getByText("Couldn't load your recent characters.", { exact: true })).toHaveCount(0);
   await expect(page.locator("[data-face-pending]")).toHaveCount(0);
 });

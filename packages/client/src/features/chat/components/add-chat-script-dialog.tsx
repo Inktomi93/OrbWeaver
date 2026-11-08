@@ -31,6 +31,7 @@ import { DismissDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS, regexScriptScent, regexScriptTitle, timeLib } from "#lib";
 import { useAttachScriptToChat } from "../hooks/use-chat-regex-mutations.ts";
+import { CHAT_ATTACH_SCRIPTS_COMMIT_NAME, CHAT_ATTACH_SCRIPTS_FAILURE, chatAttachItemName } from "../lib/chat-attach-names.ts";
 
 /** The candidate list's shape-matched loading skeleton (house loading law — never a spinner/text void). */
 const PICKER_SKELETON_ROWS = 3;
@@ -127,7 +128,7 @@ function ScriptPicker({ attachedIds, chatId, onClose, ownedRef }: PickerBodyProp
       setPicked([]);
       onClose();
     } catch {
-      setFailure("Couldn't attach those scripts to this chat.");
+      setFailure(CHAT_ATTACH_SCRIPTS_FAILURE);
     } finally {
       ownedRef.current = false;
     }
@@ -158,7 +159,7 @@ function ScriptPicker({ attachedIds, chatId, onClose, ownedRef }: PickerBodyProp
               // allowed to live in this primitive.
               actions={
                 <Checkbox
-                  aria-label={already ? `${name}: already attached to this chat` : `Attach ${name} to this chat`}
+                  aria-label={already ? `${name}: already attached to this chat` : chatAttachItemName(name)}
                   checked={already || picked.includes(script.id)}
                   disabled={already}
                   onCheckedChange={(next): void => {
@@ -182,7 +183,7 @@ function ScriptPicker({ attachedIds, chatId, onClose, ownedRef }: PickerBodyProp
       <DialogFooter>
         <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
         <Button disabled={picked.length === 0 || attach.isPending} onClick={(): void => void commit().catch(globalThis.reportError)} type="button">
-          Attach to this chat
+          {CHAT_ATTACH_SCRIPTS_COMMIT_NAME}
         </Button>
       </DialogFooter>
     </Stack>

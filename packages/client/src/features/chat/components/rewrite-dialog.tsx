@@ -26,6 +26,7 @@ import { Textarea } from "@orb/ui/textarea";
 import type { ReactElement } from "react";
 import { FormDialog } from "#components";
 import { CHAT_CORRECTION_INSTRUCTION_NAME } from "../lib/chat-surface-names.ts";
+import { COMPOSER_REWRITE_SUBMIT_NAME } from "../lib/composer-menu-names.ts";
 
 export interface RewriteDialogProps {
   readonly open: boolean;
@@ -52,7 +53,7 @@ export function RewriteDialog({ open, onOpenChange, instruction, onInstructionCh
       title="Rewrite the reply"
       description="Describe the correction, and pick any styles to guide it. The reply is rewritten as a new variant."
       size="sm"
-      submit={{ label: "Rewrite", onSubmit: onApply, disabled: !canApply }}
+      submit={{ label: COMPOSER_REWRITE_SUBMIT_NAME, onSubmit: onApply, disabled: !canApply }}
     >
       <Stack gap="block">
         {/* No `aria-label` (#1621, the Textarea family): this box is its Field's sole `Field.Control`, so Base

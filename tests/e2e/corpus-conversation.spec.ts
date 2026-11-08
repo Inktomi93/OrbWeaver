@@ -4,6 +4,7 @@ import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { CorpusWire } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
 import { CHAT_CANCEL_EDIT_NAME, CHAT_SAVE_EDIT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { COMMAND_MODAL_TITLE, COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
 import { MESSAGE_EDIT_NAME, VARIANT_GENERATE_NAME, VARIANT_NEXT_NAME, VARIANT_PREV_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { configureCustomProvider, ownerActor } from "./support/actors.ts";
 import { messageRow, openChatByTitle, openChatOptions, sendHeldTurn, waitForAppReady } from "./support/chat-room.ts";
@@ -29,8 +30,8 @@ function corpus(): CorpusWire {
 
 async function jumpTo(page: Page, name: string): Promise<void> {
   await page.keyboard.press("ControlOrMeta+k");
-  const palette = page.getByRole("dialog", { name: "Jump to…", exact: true });
-  await palette.getByRole("combobox", { name: "Command palette", exact: true }).fill(name);
+  const palette = page.getByRole("dialog", { name: COMMAND_MODAL_TITLE, exact: true });
+  await palette.getByRole("combobox", { name: COMMAND_PALETTE_NAME, exact: true }).fill(name);
   await palette.getByRole("option", { name, exact: true }).click();
   await expect(palette).toBeHidden();
 }

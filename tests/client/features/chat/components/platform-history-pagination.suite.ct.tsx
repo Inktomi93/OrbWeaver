@@ -30,6 +30,7 @@ import {
   CHAT_MESSAGE_INPUT_NAME,
   CHAT_WINDOW_PRESS_FAILURE,
 } from "#client/features/chat/lib/chat-surface-names.ts";
+import { jumpToLatestName } from "#client/features/chat/lib/transcript-copy.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -360,7 +361,7 @@ for (const regime of [
       await refresh.requested;
       await expect(canonical).toContainText("Edited oldest history witness");
       await expect(deleted).toHaveCount(0);
-      const jump = page.getByRole("button", { name: `Jump to latest, ${ARRIVALS} new messages`, exact: true });
+      const jump = page.getByRole("button", { name: jumpToLatestName(ARRIVALS), exact: true });
       await expect(jump).toBeVisible();
       await expect
         .poll(async () => {

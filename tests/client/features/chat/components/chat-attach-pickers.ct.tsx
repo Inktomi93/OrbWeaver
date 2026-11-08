@@ -7,6 +7,21 @@ import { absenceWindow, holdServed, routeAuthConfig, routeTrpc, serveCorpusProce
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { queryFailedLabel } from "#client/data/query-state-copy.ts";
+import {
+  CHAT_ADD_FROM_BANK_NAME,
+  CHAT_ATTACH_BOOK_FAILURE,
+  CHAT_ATTACH_BOOK_NAME,
+  CHAT_ATTACH_SCRIPT_NAME,
+  CHAT_ATTACH_SCRIPTS_COMMIT_NAME,
+  CHAT_ATTACH_SCRIPTS_FAILURE,
+  CHAT_BANK_EMPTY_TITLE,
+  CHAT_BOOK_PICKER_EMPTY_TITLE,
+  CHAT_BOOK_PICKER_READ,
+  CHAT_DOCUMENT_PICKER_READ,
+  CHAT_DOCUMENT_SEARCH_NAME,
+} from "#client/features/chat/lib/chat-attach-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ChatContextTabStory } from "./_chat-forks-stories.tsx";
 
 // A dialog that does close has finished its exit transition inside this span.
@@ -62,13 +77,13 @@ test("a failed world-book read in the attach picker offers a Retry and does not 
   await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
 
   await page.getByRole("button", { name: /^World books/u }).click();
-  await page.getByRole("button", { name: "Attach a world book", exact: true }).click();
+  await page.getByRole("button", { name: CHAT_ATTACH_BOOK_NAME, exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByText("Couldn't load your world books.", { exact: true })).toBeVisible();
-  await expect(dialog.getByText("You have no world books yet", { exact: true })).toHaveCount(0);
+  await expect(dialog.getByText(queryFailedLabel(CHAT_BOOK_PICKER_READ), { exact: true })).toBeVisible();
+  await expect(dialog.getByText(CHAT_BOOK_PICKER_EMPTY_TITLE, { exact: true })).toHaveCount(0);
   failing = false;
-  await dialog.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(dialog.getByText("Couldn't load your world books.", { exact: true })).toHaveCount(0);
+  await dialog.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
+  await expect(dialog.getByText(queryFailedLabel(CHAT_BOOK_PICKER_READ), { exact: true })).toHaveCount(0);
 });
 
 test("a failed bank read in the add-document picker offers a Retry and does not claim the bank is empty", async ({ mount, page, corpusMedia }) => {
@@ -85,14 +100,14 @@ test("a failed bank read in the add-document picker offers a Retry and does not 
   await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
 
   await page.getByRole("button", { name: /^Documents/u }).click();
-  await page.getByRole("button", { name: "Add from your bank", exact: true }).click();
+  await page.getByRole("button", { name: CHAT_ADD_FROM_BANK_NAME, exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByText("Couldn't load your documents.", { exact: true })).toBeVisible();
-  await expect(dialog.getByText("Your bank is empty", { exact: true })).toHaveCount(0);
-  await expect(dialog.getByRole("textbox", { name: "Search your documents", exact: true })).toBeVisible();
+  await expect(dialog.getByText(queryFailedLabel(CHAT_DOCUMENT_PICKER_READ), { exact: true })).toBeVisible();
+  await expect(dialog.getByText(CHAT_BANK_EMPTY_TITLE, { exact: true })).toHaveCount(0);
+  await expect(dialog.getByRole("textbox", { name: CHAT_DOCUMENT_SEARCH_NAME, exact: true })).toBeVisible();
   failing = false;
-  await dialog.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(dialog.getByText("Couldn't load your documents.", { exact: true })).toHaveCount(0);
+  await dialog.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
+  await expect(dialog.getByText(queryFailedLabel(CHAT_DOCUMENT_PICKER_READ), { exact: true })).toHaveCount(0);
 });
 
 test("a refused attach is said in the picker", async ({ mount, page, corpusMedia }) => {
@@ -107,10 +122,10 @@ test("a refused attach is said in the picker", async ({ mount, page, corpusMedia
   await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
 
   await page.getByRole("button", { name: /^World books/u }).click();
-  await page.getByRole("button", { name: "Attach a world book", exact: true }).click();
+  await page.getByRole("button", { name: CHAT_ATTACH_BOOK_NAME, exact: true }).click();
   await page.getByRole("button", { name: `Attach ${book.name} to this chat`, exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByText("Couldn't attach the world book to this chat.", { exact: true })).toBeVisible();
+  await expect(dialog.getByText(CHAT_ATTACH_BOOK_FAILURE, { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: `Attach ${book.name} to this chat`, exact: true })).toBeEnabled();
 });
 
@@ -129,15 +144,15 @@ test("a script attach in flight keeps the picker open, so its failure is said in
   await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
 
   await page.getByRole("button", { name: /^Regex/u }).click();
-  await page.getByRole("button", { name: "Attach a script", exact: true }).click();
+  await page.getByRole("button", { name: CHAT_ATTACH_SCRIPT_NAME, exact: true }).click();
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("checkbox", { name: `Attach ${script.name} to this chat`, exact: true }).click();
-  await dialog.getByRole("button", { name: "Attach to this chat", exact: true }).click();
+  await dialog.getByRole("button", { name: CHAT_ATTACH_SCRIPTS_COMMIT_NAME, exact: true }).click();
   await hold.requested;
-  await dialog.getByRole("button", { name: "Cancel", exact: true }).click();
+  await dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
   // Let a dialog that does close finish its exit transition before asserting that this one stayed.
   await absenceWindow(page, DIALOG_EXIT_WINDOW_MS);
   await expect(dialog).toBeVisible();
   hold.fail();
-  await expect(dialog.getByText("Couldn't attach those scripts to this chat.", { exact: true })).toBeVisible();
+  await expect(dialog.getByText(CHAT_ATTACH_SCRIPTS_FAILURE, { exact: true })).toBeVisible();
 });

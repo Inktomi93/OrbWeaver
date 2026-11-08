@@ -33,6 +33,7 @@ import type { SectionId } from "#state";
 import { CommandPaletteSourceRegistryContext, closeModal, resumeChat, setActiveSection, useActiveChatId } from "#state";
 import { useSlashCommands } from "../hooks/use-slash-commands.tsx";
 import { chatSummaryRowView } from "../lib/chat-summary-row.ts";
+import { COMMAND_PALETTE_NAME } from "../lib/command-palette-names.ts";
 
 type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>["items"][number];
 
@@ -103,7 +104,7 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
       {slash.mounts}
       {/* One ranking across every group: a row whose label or keyword equals or starts with the query outranks
           any fuzzy hit, whichever source declared it. */}
-      <Command elevated={true} fill={true} filter={declaredTermFirstFilter} label="Command palette" onEscape={closeModal}>
+      <Command elevated={true} fill={true} filter={declaredTermFirstFilter} label={COMMAND_PALETTE_NAME} onEscape={closeModal}>
         <CommandInput aria-label="Search commands" placeholder="Jump to a thread, section, or action…" ref={searchRef} />
         <CommandList listSize="compact">
           <CommandEmpty>No matches.</CommandEmpty>

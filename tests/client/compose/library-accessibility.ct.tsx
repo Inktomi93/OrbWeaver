@@ -8,7 +8,7 @@ import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createFirstBootHarness, seedCorpusConnections } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { CHARACTER_EDITOR_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_EDITOR_NAME, CHARACTER_RECENT_SHELF_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_COMPOSER_NAME, CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
@@ -147,7 +147,7 @@ for (const scenario of CAPTION_CASES) {
     await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "docked", context: "collapsed" } } });
     await mount<typeof ShellAmbientStory>(STORY, {});
     const face = page
-      .getByRole("list", { name: "Recently chatted", exact: true })
+      .getByRole("list", { name: CHARACTER_RECENT_SHELF_NAME, exact: true })
       .getByRole("button", { name: new RegExp(RegExp.escape(character.name), "u") });
     const stamp = await face.locator('[data-voice="datumMono"]').textContent();
     await expect(face).toHaveAccessibleName(`Resume the chat with ${character.name}, ${stamp}`);

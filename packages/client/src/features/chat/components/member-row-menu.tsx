@@ -13,6 +13,7 @@ import { MenuItem, MenuSeparator } from "@orb/ui/menu";
 import type { ReactNode } from "react";
 import { CHAT_LEAVE_NAME } from "../lib/chat-options-names.ts";
 import type { MEMBER_ROW_CONFIRMS, MemberCharacterRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows.ts";
+import { MEMBER_KICK_NAME, MEMBER_TALKATIVENESS_NAME, MEMBER_VIEW_CHARACTER_NAME } from "../lib/members-names.ts";
 
 /** Which of a person row's dialogs is open — DERIVED from the one homed tuple, never re-spelled (a fourth
  *  arm must break every consumer at compile time). Local per file: an exported client alias would have to
@@ -46,7 +47,7 @@ function characterMenuItems(row: MemberCharacterRow, actions: MemberRowActions, 
     items.push(
       <MenuItem key="talk" onClick={openWeight}>
         <Icon icon={Volume2} size="sm" />
-        Talkativeness…
+        {MEMBER_TALKATIVENESS_NAME}
       </MenuItem>,
     );
   }
@@ -62,7 +63,7 @@ function characterMenuItems(row: MemberCharacterRow, actions: MemberRowActions, 
     items.push(
       <MenuItem key="view" onClick={(): void => actions.onViewCharacter?.(row.characterId)}>
         <Icon icon={CircleUser} size="sm" />
-        View character
+        {MEMBER_VIEW_CHARACTER_NAME}
       </MenuItem>,
     );
   }
@@ -127,7 +128,7 @@ function personMenuItems(row: MemberPersonRow, actions: MemberRowActions, setCon
     items.push(
       <MenuItem key="kick" onClick={(): void => setConfirm("kick")}>
         <Icon icon={UserX} size="sm" />
-        Kick…
+        {MEMBER_KICK_NAME}
       </MenuItem>,
     );
   }

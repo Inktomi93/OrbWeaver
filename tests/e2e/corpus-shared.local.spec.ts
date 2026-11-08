@@ -7,6 +7,7 @@ import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { devices } from "@playwright/test";
 import { z } from "zod";
+import { CHAT_INVITE_PEOPLE_NAME } from "#client/features/chat/lib/members-names.ts";
 import { loginLocal } from "./support/actors.ts";
 import { openChatByTitle, waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
@@ -66,8 +67,8 @@ test("a second corpus human opens shared history without gaining host or admin c
     const memberEntry = memberPage.getByRole("button", { name: /^Members /u });
     await hostEntry.click();
     await memberEntry.click();
-    await expect(page.getByRole("button", { name: "Invite people", exact: true })).toBeVisible();
-    await expect(memberPage.getByRole("button", { name: "Invite people", exact: true })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: CHAT_INVITE_PEOPLE_NAME, exact: true })).toBeVisible();
+    await expect(memberPage.getByRole("button", { name: CHAT_INVITE_PEOPLE_NAME, exact: true })).toHaveCount(0);
     await memberPage.goto("/config");
     await waitForAppReady(memberPage);
     await expect(memberPage.locator('button[data-config-group="about"]')).toBeVisible();

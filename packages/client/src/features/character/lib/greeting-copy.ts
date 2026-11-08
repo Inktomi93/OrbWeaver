@@ -21,3 +21,6 @@ export const GREETING_EDIT_NAME = "Edit";
 
 /** The studio's generate verb. */
 export const GREETING_MAKE_NEW_NAME = "Make new";
+
+/** The studio's rewrite verb. */
+export const GREETING_REWRITE_NAME = "Rewrite";

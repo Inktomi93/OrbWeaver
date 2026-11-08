@@ -25,6 +25,7 @@ import { notifyNewRoomPersona, useInvalidation, useTRPC } from "#data";
 import { DEAD_INVITE_SENTENCE, DIALOG_VERBS, inviteRoomSentence, testId } from "#lib";
 import { selectChat, setActiveSection } from "#state";
 import { usePreviewInvite, useRedeemInvite } from "../hooks/use-invite-mutations.ts";
+import { JOIN_CHAT_NAME, JOIN_CHECKING_TEXT, JOIN_NOT_NOW_NAME } from "../lib/members-names.ts";
 
 type Preview = inferOutput<Trpc["invites"]["previewInvite"]>;
 
@@ -86,13 +87,18 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
     );
   };
 
+  const commitName = redeem.isPending ? "Joining…" : JOIN_CHAT_NAME;
   return (
     <FlowDialog
-      dismiss={{ at: "footer", label: state.kind === "ready" ? "Not now" : DIALOG_VERBS.close, ...(state.kind === "invalid" ? { control: primaryRef } : {}) }}
+      dismiss={{
+        at: "footer",
+        label: state.kind === "ready" ? JOIN_NOT_NOW_NAME : DIALOG_VERBS.close,
+        ...(state.kind === "invalid" ? { control: primaryRef } : {}),
+      }}
       footer={
         state.kind === "ready" ? (
           <Button disabled={redeem.isPending} onClick={join} data-testid={testId("joinInviteConfirm")} ref={primaryRef}>
-            {redeem.isPending ? "Joining…" : "Join chat"}
+            {commitName}
           </Button>
         ) : undefined
       }
@@ -116,7 +122,7 @@ export function JoinInviteDialog({ token, onDone }: JoinInviteDialogProps): Reac
         },
       }}
     >
-      {state.kind === "loading" ? <Text voice="quiet">Checking the invite…</Text> : null}
+      {state.kind === "loading" ? <Text voice="quiet">{JOIN_CHECKING_TEXT}</Text> : null}
       {state.kind === "invalid" ? <DialogDescription>{DEAD_INVITE_SENTENCE}</DialogDescription> : null}
       {state.kind === "ready" ? (
         <>

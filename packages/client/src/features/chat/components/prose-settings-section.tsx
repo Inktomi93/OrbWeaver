@@ -32,6 +32,7 @@ import { CAPPED_FIELD_MAX_ROWS } from "#forms";
 import type { AutosaveSession } from "#forms/editor";
 import { CappedFieldCounter, createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
 import { useUpdateProse } from "../hooks/use-chat-settings-mutations.ts";
+import { PROSE_KEEP_MINE_NAME, PROSE_RESET_NAME, PROSE_USE_NEW_WORDING_NAME } from "../lib/chat-settings-names.ts";
 import {
   keepProsePatch,
   PROSE_SETTINGS_SUBCATEGORY,
@@ -241,14 +242,14 @@ function ProseCardFooter({ footer, length, onUseDefault, onKeepMine }: ProseCard
         {footer.isDefault ? null : (
           <DestructiveAction
             confirm={{
-              confirmLabel: "Reset to built-in",
+              confirmLabel: PROSE_RESET_NAME,
               description: "Your wording for this slot is replaced by the built-in text.",
               title: "Reset to the built-in wording?",
             }}
             onConfirm={onUseDefault}
             trigger={
               <Button variant="ghost" size="sm">
-                Reset to built-in
+                {PROSE_RESET_NAME}
               </Button>
             }
           />
@@ -270,10 +271,10 @@ function ProseCardFooter({ footer, length, onUseDefault, onKeepMine }: ProseCard
             The built-in wording was updated
           </Badge>
           <Button variant="ghost" size="sm" wrap={true} onClick={onUseDefault}>
-            Use the new wording
+            {PROSE_USE_NEW_WORDING_NAME}
           </Button>
           <Button variant="ghost" size="sm" wrap={true} onClick={onKeepMine}>
-            Keep mine
+            {PROSE_KEEP_MINE_NAME}
           </Button>
         </Row>
       ) : null}

@@ -43,7 +43,7 @@ import {
 import { revealCharacterChats, useStartChatWithCharacter } from "../lib/character-chat-intents.ts";
 import { characterDraftStore } from "../lib/character-draft-store.ts";
 import { clearCharacterForm, publishCharacterForm } from "../lib/character-editor-bridge.ts";
-import { CHARACTER_EDITOR_NAME } from "../lib/character-names.ts";
+import { CHARACTER_EDITOR_NAME, CHARACTER_SAVE_FAILURE } from "../lib/character-names.ts";
 
 // The character-card session boundary (D78 L2). Module-scope so both the boundary and its keyed Session
 // have stable identities; the boundary owns the entity key, so a character switch remounts the form
@@ -261,7 +261,7 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
         onSubmit={(event): void => {
           event.preventDefault();
           event.stopPropagation();
-          form.handleSubmit().catch(() => notify.error("Couldn't save the character."));
+          form.handleSubmit().catch(() => notify.error(CHARACTER_SAVE_FAILURE));
         }}
       >
         <Stack gap="section" centred={true} width="full" cap="pane" paddingBlock="section">

@@ -30,7 +30,9 @@ import { HOST_BAND, openContextSections, SECTION_LABELS } from "@orb/testkit/ct"
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
+import { CHARACTER_SEARCH_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
+import { CHAT_GROUP_BEHAVIOR_NAME } from "#client/features/chat/lib/chat-settings-names.ts";
 import {
   CHAT_COMPOSER_NAME,
   CHAT_LIST_EMPTY_TITLE,
@@ -43,6 +45,7 @@ import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { CHAT_TITLE_FIELD_NAME } from "#client/lib/chat-rename-names.ts";
 import { CONTEXT_SHEET_BACK_NAME, LIST_PANEL_NOUN, panelEdgeName, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import { ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
 import { streamTapOf, waitForRoomOpened } from "./stream-tap.ts";
@@ -190,7 +193,7 @@ export async function openCharacterRoom(page: Page, name: string): Promise<ChatI
   await page.goto("/");
   await waitForAppReady(page);
   await charactersRailButton(page).click();
-  await page.getByRole("textbox", { name: "Search characters", exact: true }).fill(name);
+  await page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true }).fill(name);
   const cta = page.getByRole("button", { name: `Chat with ${name}`, exact: true });
   const row = page.locator('[data-slot="list-row-root"]').filter({ has: cta });
   await expect(row).toBeVisible({ timeout: WAIT_SETTLE_MS });
@@ -386,7 +389,7 @@ export async function renameOpenChat(page: Page, title: string): Promise<void> {
   await expect(input).toBeVisible();
   await input.fill(title);
   const resp = page.waitForResponse((r) => r.url().includes("/api/trpc/chat.updateTitle") && r.status() < 500);
-  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.save }).click();
   await resp;
 }
 
@@ -403,7 +406,7 @@ export async function renameFirstChatViaRowKebab(page: Page, title: string): Pro
   await expect(input).toBeVisible();
   await input.fill(title);
   const resp = page.waitForResponse((r) => r.url().includes("/api/trpc/chat.updateTitle") && r.status() < 500);
-  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByRole("button", { name: DIALOG_VERBS.save }).click();
   await resp;
 }
 
@@ -480,8 +483,8 @@ export async function openContextTab(page: Page, label: string): Promise<void> {
  *  `element(s) not found` in four specs (#1851); the walker itself is the CT side's, shared. */
 export async function openGroupBehaviorSection(page: Page): Promise<void> {
   await openContextTab(page, "This chat");
-  await openContextSections(page, HOST_BAND, "Group behavior");
-  await expect(page.getByRole("heading", { name: "Group behavior" })).toBeVisible({ timeout: WAIT_SURFACE_MS });
+  await openContextSections(page, HOST_BAND, CHAT_GROUP_BEHAVIOR_NAME);
+  await expect(page.getByRole("heading", { name: CHAT_GROUP_BEHAVIOR_NAME })).toBeVisible({ timeout: WAIT_SURFACE_MS });
   // The section body suspends on `chat.getGroupConfig` behind a skeleton, so the HEADING lands before any
   // control exists. Gate on the reply-mode toggle — the first control of the resolved form — or a caller
   // acting immediately races the skeleton.

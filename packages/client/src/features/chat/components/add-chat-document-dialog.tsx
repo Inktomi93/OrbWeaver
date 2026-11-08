@@ -39,6 +39,7 @@ import { DismissDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { CLEAR_SEARCH_NAME, DIALOG_VERBS, NO_MATCHES_TITLE, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { useAttachDocumentToChat } from "../hooks/use-chat-document-mutations.ts";
+import { CHAT_BANK_EMPTY_TITLE, CHAT_DOCUMENT_PICKER_READ, CHAT_DOCUMENT_SEARCH_NAME } from "../lib/chat-attach-names.ts";
 import { attachableDocuments } from "../lib/chat-documents-model.ts";
 
 /** The candidate list's shape-matched loading skeleton (house loading law — never a spinner/text void). */
@@ -114,13 +115,13 @@ function PickerBody({
     <Stack gap="row">
       {/* The box stays mounted through every body state — including "No matches", whose only way out is to
           edit or clear the term that produced it. */}
-      <Input aria-label="Search your documents" onValueChange={setQuery} placeholder="Search your documents…" value={query} />
+      <Input aria-label={CHAT_DOCUMENT_SEARCH_NAME} onValueChange={setQuery} placeholder="Search your documents…" value={query} />
       {/* Keyed by the term, so a failed read for one term does not stay on screen for the next. */}
       <QueryBoundary
         resetKeys={[needle]}
         fallback={<SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" />}
         key={needle}
-        renderError={(_error, retry): ReactElement => <QueryErrorState label="your documents" onRetry={retry} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label={CHAT_DOCUMENT_PICKER_READ} onRetry={retry} />}
       >
         <PickerCandidates
           activeIds={activeIds}
@@ -184,7 +185,7 @@ function PickerCandidates({
             : "Every document you own already reaches this chat: through this room, a character in it, or your Everywhere switch."
         }
         icon={<Icon icon={FileText} size="lg" />}
-        title={bankIsEmpty ? "Your bank is empty" : "Nothing left to add"}
+        title={bankIsEmpty ? CHAT_BANK_EMPTY_TITLE : "Nothing left to add"}
       />
     );
   }

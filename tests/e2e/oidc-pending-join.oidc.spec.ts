@@ -2,6 +2,7 @@
 // leaving it retires the invite and drops only the pendingJoin param. The issuer and code grant are real.
 import { randomBytes } from "node:crypto";
 import { expect, test } from "@playwright/test";
+import { PENDING_JOIN_NOT_NOW_NAME } from "#client/features/auth/lib/pending-join-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { E2E_SSO_GROUPS, OIDC_CLIENT, oidcIssuerTls } from "./support/modes.ts";
 import type { OidcIssuer } from "./support/oidc-issuer.ts";
@@ -13,7 +14,6 @@ const JOINER_SUFFIX_BYTES = 4;
 // The extra query bytes and hash the dismissal must keep, around two pendingJoin params it must drop.
 const NOISY_PENDING_LANDING = "/login?space=%20&pendingJoin=1&plus=+&pendingJoin=1#turn-4";
 const NOISY_AFTER_LEAVING = "/login?space=%20&plus=+#turn-4";
-const NOT_NOW = "Not now";
 const CONTINUE_WITH_IDP = `Continue with ${OIDC_CLIENT.providerName}`;
 
 // A loopback request with no relay tell resolves as the box owner; the empty `forwarded` header makes this
@@ -58,12 +58,12 @@ test("leaving an OIDC pending join retires its invite and preserves other query 
     await page.getByRole("button", { name: CONTINUE_WITH_IDP, exact: true }).click();
     // JIT is closed, so the callback holds the new identity as a pending join instead of refusing it.
     await expect(page).toHaveURL(/\/login\?pendingJoin=1$/u, { timeout: WAIT_SETTLE_MS });
-    await expect(page.getByRole("button", { name: NOT_NOW, exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: PENDING_JOIN_NOT_NOW_NAME, exact: true })).toBeVisible();
     expect(await page.evaluate((token) => Object.values(sessionStorage).includes(token), invite.token)).toBe(true);
 
     await page.goto(NOISY_PENDING_LANDING);
     const historyLength = await page.evaluate(() => history.length);
-    await page.getByRole("button", { name: NOT_NOW, exact: true }).click();
+    await page.getByRole("button", { name: PENDING_JOIN_NOT_NOW_NAME, exact: true }).click();
     await expect(page.getByRole("button", { name: CONTINUE_WITH_IDP, exact: true })).toBeVisible();
     expect(await page.evaluate((token) => Object.values(sessionStorage).includes(token), invite.token)).toBe(false);
     await expect

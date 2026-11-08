@@ -469,6 +469,16 @@ const TEST_CONSTANT_HOMES = {
     "CHAT_PRINT_COVERAGE and the history pager's status line: the transcript copy a print or pager case reads",
   "packages/client/src/features/chat/lib/chat-surface-names.ts":
     "CHAT_CLEAR_SEARCH_NAME and its siblings: the chat list, composer, gallery, injection and members names",
+  "packages/client/src/features/chat/lib/chat-attach-names.ts":
+    "CHAT_ATTACH_BOOK_NAME and its siblings: the This-chat tab's attach doors, pickers, empty states and refusals",
+  "packages/client/src/features/chat/lib/chat-settings-names.ts":
+    "CHAT_ADD_INJECTION_NAME and its siblings: the This-chat tab's injection, override, prose and group form names",
+  "packages/client/src/features/chat/lib/members-names.ts":
+    "CHAT_INVITE_PEOPLE_NAME and its siblings: the Members panel, row menu, card viewer and join dialog names",
+  "packages/client/src/features/auth/lib/pending-join-names.ts": "PENDING_JOIN_NOT_NOW_NAME: the sign-in page's pending-join dismiss",
+  "packages/client/src/features/chat/lib/command-palette-names.ts": "COMMAND_MODAL_TITLE and COMMAND_PALETTE_NAME: the command modal's title and input",
+  "packages/client/src/features/chat/lib/message-action-names.ts":
+    "MESSAGE_EDIT_NAME and its siblings: the transcript row's action, tool call and wire viewer names",
   "packages/client/src/features/config/lib/config-control-names.ts": "CONFIG_THEME_NAME_FIELD_NAME and its siblings: the theme builder control names",
   "packages/client/src/features/world-info/lib/world-info-names.ts": "WORLD_INFO_NEW_BOOK_NAME and its siblings: the books library and entry editor names",
   "packages/client/src/features/regex/lib/regex-names.ts": "REGEX_FIND_PATTERN_NAME and its siblings: the regex editor, tester and pipeline names",

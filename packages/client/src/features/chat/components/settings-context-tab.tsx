@@ -53,6 +53,7 @@ import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useTRPC } from "#data";
 import type { ChatSettingsSectionContribution, ChatSettingsSectionState, ContributorRegistry } from "#lib";
 import { CHAT_CONTEXT_SECTION_IDS } from "../lib/chat-context-section-ids.ts";
+import { CHAT_GROUP_BEHAVIOR_NAME } from "../lib/chat-settings-names.ts";
 import { ChatBooksSection } from "./chat-books-section.tsx";
 import { DisclosureSection } from "./chat-context-disclosure-section.tsx";
 import { ChatDocumentsSection } from "./chat-documents-section.tsx";
@@ -356,7 +357,7 @@ function HostControls({
             <ChatBackgroundSection chatId={chatId} background={background} />
           </DisclosureSection>
           {showGroup ? (
-            <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker="Group behavior" sectionId={CHAT_CONTEXT_SECTION_IDS.groupBehavior}>
+            <DisclosureSection defaultOpen={OPEN_BY_DEFAULT} kicker={CHAT_GROUP_BEHAVIOR_NAME} sectionId={CHAT_CONTEXT_SECTION_IDS.groupBehavior}>
               <QueryBoundary
                 resetKeys={[chatId]}
                 // Shape-matched skeleton for the Group-behavior form's initially-visible rows (the reply-mode

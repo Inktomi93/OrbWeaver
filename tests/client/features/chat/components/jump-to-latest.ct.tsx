@@ -14,6 +14,7 @@ import {
 } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusHarness, createCorpusProviderExecution } from "@orb/testkit/node/composed";
+import { jumpToLatestName } from "#client/features/chat/lib/transcript-copy.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -190,11 +191,11 @@ for (const [title, nativeScrollend, profile, quiet] of [
     if (committed === undefined) {
       throw new Error("The native commit returned no message");
     }
-    await expect(page.getByRole("button", { name: "Jump to latest, 1 new message", exact: true })).toBeVisible();
+    await expect(page.getByRole("button", { name: jumpToLatestName(1), exact: true })).toBeVisible();
     if (quiet === "jump") {
       await page.evaluate((flag) => Reflect.set(globalThis, flag, true), WITHHOLD_FLAG);
     }
-    await page.getByRole("button", { name: "Jump to latest, 1 new message", exact: true }).click();
+    await page.getByRole("button", { name: jumpToLatestName(1), exact: true }).click();
     await expect.poll(distanceFromTail).toBeLessThanOrEqual(SCROLL_ROUNDING_PX);
     await expect(page.locator(`[data-message-id="${committed.id}"]`)).toBeVisible();
     await expect(pill).toHaveCount(0);

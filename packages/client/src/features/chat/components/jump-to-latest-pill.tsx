@@ -11,6 +11,7 @@ import { ChevronDown, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import { jumpToLatestCountLabel, jumpToLatestName } from "../lib/transcript-copy.ts";
 
 export interface JumpToLatestPillProps {
   readonly count: number;
@@ -24,7 +25,6 @@ export function JumpToLatestPill({ count, visible, onJump }: JumpToLatestPillPro
   if (count > 0 && count !== held) {
     setHeld(count);
   }
-  const label = held === 1 ? "1 new message" : `${held} new messages`;
 
   return (
     <Row justify="center" aria-hidden={visible ? undefined : true} placed="footBand" passThrough={true} layer="overlay" data-slot="jump-to-latest">
@@ -36,12 +36,12 @@ export function JumpToLatestPill({ count, visible, onJump }: JumpToLatestPillPro
           size="sm"
           wrap={true}
           onClick={onJump}
-          aria-label={`Jump to latest, ${label}`}
+          aria-label={jumpToLatestName(held)}
           tabIndex={visible ? 0 : -1}
           shape="pill"
         >
           <Icon icon={ChevronDown} size="sm" />
-          {label}
+          {jumpToLatestCountLabel(held)}
         </Button>
       </FloatingChip>
     </Row>

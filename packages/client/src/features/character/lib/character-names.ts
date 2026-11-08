@@ -98,3 +98,45 @@ export const CHARACTER_NO_SNAPSHOTS_TEXT = "No snapshots yet. Take one to captur
 
 /** The library's empty state before any card exists. */
 export const CHARACTER_LIBRARY_EMPTY_TITLE = "No characters yet";
+
+/** The landing's ghost door to the import dialog. */
+export const CHARACTER_IMPORT_CARD_NAME = "Import a card";
+
+/** The hero band's name field in the editor. */
+export const CHARACTER_HERO_NAME_FIELD_NAME = "Name";
+
+/** The Description facet's field. */
+export const CHARACTER_DESCRIPTION_FACET_NAME = "Description";
+
+/** The Creator notes facet's field. */
+export const CHARACTER_CREATOR_NOTES_FACET_NAME = "Creator notes";
+
+/** The failure an editor save raises, from the form submit and the save mutation alike. */
+export const CHARACTER_SAVE_FAILURE = "Couldn't save the character.";
+
+/** The context pane's world books and personas tab. */
+export const CHARACTER_LINKS_TAB_LABEL = "Links";
+
+/** The context pane's snapshot log tab. */
+export const CHARACTER_HISTORY_TAB_LABEL = "History";
+
+/** The Links tab's empty book list. */
+export const CHARACTER_NO_BOOKS_LINKED_TEXT = "No world books linked.";
+
+/** The Links tab's empty persona list. */
+export const CHARACTER_NO_PERSONAS_CONNECTED_TEXT = "No personas connected.";
+
+/** The overview's last-spoke reading when no thread exists: a time fact with no answer, not an empty slot. */
+export const CHARACTER_NEVER_SPOKE_TEXT = "Never";
+
+/** The Look tab's door that clears every override. */
+export const CHARACTER_RESET_LOOK_NAME = "Reset all to Inherit";
+
+/** The commit of that reset's confirm. */
+export const CHARACTER_RESET_LOOK_CONFIRM_NAME = "Reset all";
+
+/** The library's door out of an empty filtered view. */
+export const CHARACTER_CLEAR_FILTERS_NAME = "Clear filters";
+
+/** The library landing's shelf of characters chatted with most recently. */
+export const CHARACTER_RECENT_SHELF_NAME = "Recently chatted";

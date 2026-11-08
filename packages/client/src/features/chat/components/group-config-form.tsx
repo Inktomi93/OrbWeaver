@@ -4,7 +4,7 @@
 // setDraftGroupConfig directly. Output is the DU discriminator — a mode switch re-derives the coupled
 // speakerTags default so the legible default follows the mode.
 
-import type { GroupConfig, GroupPolicy, MemberCardVisibility } from "@orb/contracts/chat";
+import type { GroupConfig, GroupPolicy } from "@orb/contracts/chat";
 import {
   DEFAULT_GROUP_CONFIG,
   GROUP_OUTPUT_LABELS,
@@ -29,8 +29,22 @@ import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { createAutosaveEntityForm } from "#forms/editor";
 import { SMART_POLICY_COST_SENTENCE } from "#lib";
 import { useSetGroupConfig } from "../hooks/use-context-panel-mutations.ts";
+import {
+  GROUP_OUTPUT_FIELD_NAME,
+  GROUP_OWN_CARD_ONLY_NAME,
+  GROUP_POLICY_FIELD_NAME,
+  GROUP_SPEAKER_TAGS_NAME,
+  GROUP_VISIBILITY_FIELD_NAME,
+} from "../lib/chat-settings-names.ts";
 import type { GroupConfigFormValues } from "../lib/group-config-model.ts";
-import { defaultSpeakerTags, fromGroupConfigForm, GROUP_ADVANCED_LABEL, GROUP_CONFIG_ENTITY_PREFIX, toGroupConfigForm } from "../lib/group-config-model.ts";
+import {
+  defaultSpeakerTags,
+  fromGroupConfigForm,
+  GROUP_ADVANCED_LABEL,
+  GROUP_CONFIG_ENTITY_PREFIX,
+  GROUP_VISIBILITY_LABELS,
+  toGroupConfigForm,
+} from "../lib/group-config-model.ts";
 
 type GroupOutput = GroupConfig["output"];
 
@@ -145,15 +159,9 @@ const GROUP_NUDGE_HELP: Record<GroupOutput, string> = {
   "per-speaker": "When several characters reply, tells each one to write only as themselves.",
 };
 
-const VISIBILITY_LABELS: Record<MemberCardVisibility, string> = {
-  "name-avatar": "Name + avatar only",
-  sheet: "Character sheet",
-  "sheet+lore": "Sheet + lore",
-  full: "Full card",
-};
 const VISIBILITY_ITEMS: SelectItems = MEMBER_CARD_VISIBILITY_LEVELS.map((value) => ({
   value,
-  label: VISIBILITY_LABELS[value],
+  label: GROUP_VISIBILITY_LABELS[value],
 }));
 
 const MAX_TURNS_MIN = 1;
@@ -206,7 +214,7 @@ function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): Reac
           <form.AppField name="output">
             {(field): ReactElement => (
               <Stack gap="field">
-                <Text voice="label">How the characters reply</Text>
+                <Text voice="label">{GROUP_OUTPUT_FIELD_NAME}</Text>
                 <ToggleGroup
                   value={[field.state.value]}
                   onValueChange={(value): void => {
@@ -225,7 +233,7 @@ function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): Reac
                       noteHeal(heals);
                     }
                   }}
-                  aria-label="How the characters reply"
+                  aria-label={GROUP_OUTPUT_FIELD_NAME}
                 >
                   <Toggle value="per-speaker">{GROUP_OUTPUT_LABELS["per-speaker"]}</Toggle>
                   <Toggle value="narrator">{GROUP_OUTPUT_LABELS.narrator}</Toggle>
@@ -250,7 +258,7 @@ function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): Reac
                   {(field): ReactElement => (
                     // Only the narrator round reads speakerTags; in a per-speaker room the switch would be a
                     // no-op, so it stays visible, disabled, and explained by its description.
-                    <field.SwitchField label="Label each speaker" description={SPEAKER_TAGS_HELP[output]} disabled={output === "per-speaker"} />
+                    <field.SwitchField label={GROUP_SPEAKER_TAGS_NAME} description={SPEAKER_TAGS_HELP[output]} disabled={output === "per-speaker"} />
                   )}
                 </form.AppField>
                 <form.AppField name="groupNudge">
@@ -275,7 +283,7 @@ function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): Reac
                                 {(field): ReactElement => (
                                   <Stack gap="field">
                                     <field.SelectField
-                                      label="Who speaks each round"
+                                      label={GROUP_POLICY_FIELD_NAME}
                                       items={policyItemsFor(output)}
                                       description={policyHelp(field.state.value, output, utility, usesUtility)}
                                     />
@@ -316,7 +324,7 @@ function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): Reac
                         <form.AppField name="scopedCards">
                           {(field): ReactElement => (
                             <field.SwitchField
-                              label="Each character sees only their own card"
+                              label={GROUP_OWN_CARD_ONLY_NAME}
                               description="Each reply is written from that character's card alone, and with memory on they recall only what happened while they were in the room. Off, every reply sees every card."
                             />
                           )}
@@ -328,7 +336,7 @@ function GroupConfigForm({ entityId, config, save }: GroupConfigFormProps): Reac
                   <form.AppField name="memberCardVisibility">
                     {(field): ReactElement => (
                       <field.SelectField
-                        label="How much of each member the others see"
+                        label={GROUP_VISIBILITY_FIELD_NAME}
                         items={VISIBILITY_ITEMS}
                         description="What the other people in this room can open on each character's card. You always see the whole card."
                       />

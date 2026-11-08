@@ -126,3 +126,15 @@ export const MESSAGE_REAPPLY_CONTINUATION_NAME = "Re-apply continuation";
 export function variantCountName(current: number | null, total: number): string {
   return current === null ? `Edited reply, ${String(total)} alternates` : `Reply ${String(current)} of ${String(total)}`;
 }
+
+/** A tool call card's delete trigger. */
+export const MESSAGE_DELETE_TOOL_CALL_NAME = "Delete tool call";
+
+/** The tool call delete confirm's title. */
+export const MESSAGE_DELETE_TOOL_CALL_TITLE = "Delete this tool call?";
+
+/** The wire viewer's gone state: the message was deleted. */
+export const VARIANT_WIRE_GONE_TITLE = "This reply is gone";
+
+/** What the wire viewer reads, as its failed-read sentence names it. */
+export const VARIANT_WIRE_READ = "the wire record";

@@ -17,6 +17,7 @@ import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page, Response } from "@playwright/test";
 import { relativePathOf } from "#client/data/import-tree.ts";
 import { planServedTreeImport } from "#client/data/import-tree-served.ts";
+import { CHARACTER_SEARCH_NAME } from "#client/features/character/lib/character-names.ts";
 import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
@@ -120,7 +121,7 @@ async function expectRenderedInLibrary(page: Page, name: string): Promise<void> 
   await page.goto("/characters");
   await waitForAppReady(page);
   const back = page.getByRole("button", { name: "Back to Characters", exact: true });
-  const search = page.getByRole("textbox", { name: "Search characters", exact: true });
+  const search = page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true });
   await expect(search.or(back).first()).toBeVisible();
   if (await back.isVisible()) {
     await back.click();

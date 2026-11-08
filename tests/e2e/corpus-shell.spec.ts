@@ -12,6 +12,7 @@ import { pickKeys } from "@orb/kit/objects";
 import { channelName, SECTION_LABELS } from "@orb/testkit/ct";
 import type { Locator, Page } from "@playwright/test";
 import { z } from "zod";
+import { CHARACTER_HERO_NAME_FIELD_NAME, CHARACTER_SEARCH_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { APP_READY_ATTR } from "#client/lib/app-ready-attribute.ts";
 import { CONTEXT_SHEET_BACK_NAME } from "#client/lib/context-pane-names.ts";
@@ -210,8 +211,6 @@ async function partialCharacterSearch(host: ActorClient): Promise<string> {
   return term;
 }
 
-const CHARACTER_SEARCH = "Search characters";
-
 const CENSUS_CASES: readonly CensusCase[] = [
   { section: SECTION_LABELS.chats, label: SECTION_LABELS.chats, census: async (host) => countCensus(await host.trpc.chat.countChats.query({})) },
   {
@@ -222,7 +221,7 @@ const CENSUS_CASES: readonly CensusCase[] = [
   {
     section: SECTION_LABELS.characters,
     label: SECTION_LABELS.characters,
-    search: { box: CHARACTER_SEARCH, term: partialCharacterSearch },
+    search: { box: CHARACTER_SEARCH_NAME, term: partialCharacterSearch },
     census: async (host) => {
       const search = await partialCharacterSearch(host);
       const shown = await host.trpc.character.count.query({ archived: false, search });
@@ -529,7 +528,7 @@ test.describe("committed corpus shell on a phone", () => {
 
     await bar.getByRole("button", { name: SECTION_LABELS.characters, exact: true }).click();
     await expect(bar.getByRole("button", { name: SECTION_LABELS.characters, exact: true })).toHaveAttribute("aria-current", "page");
-    await expect(page.getByRole("textbox", { name: "Search characters", exact: true })).toBeVisible();
+    await expect(page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true })).toBeVisible();
     await expect(page.getByRole("main", { name: "Home content" })).toBeHidden();
   });
 
@@ -671,7 +670,7 @@ test.describe("committed corpus shell on a phone", () => {
     await row.focus();
     await row.press("Enter");
     const main = page.getByRole("main", { name: "Characters content", exact: true });
-    await expect(main.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(character.name);
+    await expect(main.getByRole("textbox", { name: CHARACTER_HERO_NAME_FIELD_NAME, exact: true })).toHaveValue(character.name);
     await expect.poll(() => focusOnContentAnchor(main)).toBe(true);
     await page.keyboard.press("Tab");
     await expect.poll(() => main.evaluate((node) => node.querySelector("form")?.contains(document.activeElement) ?? false)).toBe(true);
@@ -686,10 +685,10 @@ test.describe("committed corpus shell on a phone", () => {
     try {
       await openHome(page);
       await reachOnPhone(page, SECTION_LABELS.characters);
-      await page.getByRole("textbox", { name: "Search characters", exact: true }).fill("Shell Probe");
+      await page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true }).fill("Shell Probe");
       await libraryRow(page, PROBE_NAMES[0]).click();
       const main = page.getByRole("main", { name: "Characters content", exact: true });
-      const name = main.getByRole("textbox", { name: "Name", exact: true });
+      const name = main.getByRole("textbox", { name: CHARACTER_HERO_NAME_FIELD_NAME, exact: true });
       await expect(name).toHaveValue(PROBE_NAMES[0]);
       // Hold the autosave, so what the field shows after the round trip can only be the retained draft.
       const update = await holdTrpcProcedure(page, "character.update");

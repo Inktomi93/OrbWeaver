@@ -34,7 +34,15 @@ import { castId } from "@orb/kit/ids";
 import { HOST_BAND, openContextSections } from "@orb/testkit/ct";
 import { expect, test } from "@playwright/test";
 import { CHAT_CONTEXT_TAB_LABELS, CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
-import { GROUP_ADVANCED_LABEL } from "#client/features/chat/lib/group-config-model.ts";
+import {
+  CHAT_GROUP_BEHAVIOR_NAME,
+  GROUP_OWN_CARD_ONLY_NAME,
+  GROUP_POLICY_FIELD_NAME,
+  GROUP_SPEAKER_TAGS_NAME,
+  GROUP_VISIBILITY_FIELD_NAME,
+} from "#client/features/chat/lib/chat-settings-names.ts";
+import { GROUP_ADVANCED_LABEL, GROUP_VISIBILITY_LABELS } from "#client/features/chat/lib/group-config-model.ts";
+import { MEMBER_TALKATIVENESS_NAME } from "#client/features/chat/lib/members-names.ts";
 import {
   characterChipNames,
   characterChips,
@@ -119,7 +127,7 @@ test("a solo room converts to a group: the character bar and Group-behavior sect
     // room alike — a negative that could not fail. With the band open the claim is about `showGroup`, which
     // is what this line was always meant to pin.
     await openContextSections(page, HOST_BAND);
-    await expect(page.getByRole("heading", { name: "Group behavior" })).toHaveCount(0);
+    await expect(page.getByRole("heading", { name: CHAT_GROUP_BEHAVIOR_NAME })).toHaveCount(0);
 
     // The conversion itself — the server-side seat insert; the open room must learn about it off the
     // chat bus (`chatUpdated` → getChat refetch), with NO reload.
@@ -186,12 +194,12 @@ test("group config round-trips through the Group-behavior section: output / spea
     // `output` is the union DISCRIMINATOR — flipping it re-derives the coupled speakerTags default
     // (narrator ⇒ true), so the speakerTags flip comes AFTER, and lands on `false`.
     await page.getByRole("button", { name: GROUP_OUTPUT_LABELS.narrator, exact: true }).click();
-    await page.getByRole("switch", { name: "Label each speaker" }).click();
+    await page.getByRole("switch", { name: GROUP_SPEAKER_TAGS_NAME }).click();
     await page.getByRole("button", { name: GROUP_ADVANCED_LABEL, exact: true }).click();
-    await page.getByRole("combobox", { name: "Who speaks each round" }).click();
+    await page.getByRole("combobox", { name: GROUP_POLICY_FIELD_NAME }).click();
     await page.getByRole("option", { name: GROUP_POLICY_LABELS.pooled, exact: true }).click();
-    await page.getByRole("combobox", { name: "How much of each member the others see" }).click();
-    await page.getByRole("option", { name: "Full card", exact: true }).click();
+    await page.getByRole("combobox", { name: GROUP_VISIBILITY_FIELD_NAME }).click();
+    await page.getByRole("option", { name: GROUP_VISIBILITY_LABELS.full, exact: true }).click();
 
     // THE ANTI-LYING-SETTING ASSERTION: every flip must have reached `chats.metadata.group`. The form
     // autosaves on a debounce, so poll the SERVER read rather than racing the write.
@@ -215,7 +223,7 @@ test("group config round-trips through the Group-behavior section: output / spea
     await openDetailPanel(page);
     await openGroupBehaviorSection(page);
     await expect(page.getByRole("button", { name: GROUP_OUTPUT_LABELS.narrator, exact: true })).toHaveAttribute("aria-pressed", "true");
-    await expect(page.getByRole("switch", { name: "Label each speaker" })).toHaveAttribute("aria-checked", "false");
+    await expect(page.getByRole("switch", { name: GROUP_SPEAKER_TAGS_NAME })).toHaveAttribute("aria-checked", "false");
   } finally {
     await deleteChat(chat.id).catch(() => null);
     await characters.cleanup();
@@ -235,7 +243,7 @@ test("per-speaker card scope persists: scoping each character to their own card 
     // `cardScope` is per-speaker-ONLY, so its control exists only on that arm (the default) — under
     // Advanced, beside the policy select.
     await page.getByRole("button", { name: GROUP_ADVANCED_LABEL, exact: true }).click();
-    await page.getByRole("switch", { name: "Each character sees only their own card" }).click();
+    await page.getByRole("switch", { name: GROUP_OWN_CARD_ONLY_NAME }).click();
 
     await expect.poll(() => cardScope(chat.id), { timeout: WAIT_ROUND_TRIP_MS }).toBe("scoped");
 
@@ -244,7 +252,7 @@ test("per-speaker card scope persists: scoping each character to their own card 
     await openDetailPanel(page);
     await openGroupBehaviorSection(page);
     await page.getByRole("button", { name: GROUP_ADVANCED_LABEL, exact: true }).click();
-    await expect(page.getByRole("switch", { name: "Each character sees only their own card" })).toHaveAttribute("aria-checked", "true");
+    await expect(page.getByRole("switch", { name: GROUP_OWN_CARD_ONLY_NAME })).toHaveAttribute("aria-checked", "true");
   } finally {
     await deleteChat(chat.id).catch(() => null);
     await characters.cleanup();
@@ -271,13 +279,13 @@ test("seat knobs are per-seat: muting one member and re-weighting another persis
     // Base UI keeps a CLOSING popup mounted (and in the a11y tree) through its exit animation, so opening
     // the next row's menu back-to-back leaves BRAVO's dying menu and ALPHA's live one both matchable — a
     // strict-mode collision, not an app defect. Gate on the first menu actually being gone.
-    await expect(page.getByRole("menuitem", { name: "Talkativeness…" })).toHaveCount(0);
+    await expect(page.getByRole("menuitem", { name: MEMBER_TALKATIVENESS_NAME })).toHaveCount(0);
 
     // Re-weight ALPHA through the anchored talkativeness slider. Base UI commits a KEYBOARD adjustment via
     // `onValueCommitted`, one step per ArrowLeft (step 0.05) — `Home`/`End` do NOT move the underlying
     // range input in this build, verified live, so the arrow is the honest gesture.
     await openMemberRowMenu(page, CHARACTERS[0].name);
-    await page.getByRole("menuitem", { name: "Talkativeness…" }).click();
+    await page.getByRole("menuitem", { name: MEMBER_TALKATIVENESS_NAME }).click();
     const slider = page.getByRole("slider", { name: `Talkativeness: ${CHARACTERS[0].name}` });
     await expect(slider).toBeVisible({ timeout: WAIT_UI_MS });
     await slider.press("ArrowLeft");

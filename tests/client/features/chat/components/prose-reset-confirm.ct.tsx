@@ -3,7 +3,9 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { absenceWindow, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { PROSE_RESET_NAME } from "#client/features/chat/lib/chat-settings-names.ts";
 import { DEFAULT_DEBOUNCE_MS } from "#client/forms/entity-form-base.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ProseActionGroupsStory } from "./_prose-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_prose-action-groups-stories/ProseActionGroupsStory";
@@ -29,16 +31,16 @@ test("Reset to built-in asks first: Cancel writes nothing, Reset writes the clea
   const card = page.getByRole("group", { name: SLOT.title, exact: true });
   await expect(card.getByRole("textbox", { name: SLOT.title, exact: true })).toHaveValue(TEXT);
 
-  await card.getByRole("button", { name: "Reset to built-in", exact: true }).click();
+  await card.getByRole("button", { name: PROSE_RESET_NAME, exact: true }).click();
   const confirm = page.getByRole("alertdialog");
   await expect(confirm).toBeVisible();
-  await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+  await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
   await expect(confirm).toHaveCount(0);
   expect(calls.inputs(WRITE)).toEqual([]);
   await expect(card.getByRole("textbox", { name: SLOT.title, exact: true })).toHaveValue(TEXT);
 
-  await card.getByRole("button", { name: "Reset to built-in", exact: true }).click();
-  await confirm.getByRole("button", { name: "Reset to built-in", exact: true }).click();
+  await card.getByRole("button", { name: PROSE_RESET_NAME, exact: true }).click();
+  await confirm.getByRole("button", { name: PROSE_RESET_NAME, exact: true }).click();
   await expect.poll(() => calls.inputs(WRITE).length).toBe(1);
   expect(calls.lastInput(WRITE)).toMatchObject({ section: "prose", patch: { [SLOT_ID]: null } });
   await absenceWindow(page, LATE_WRITE_WINDOW_MS);

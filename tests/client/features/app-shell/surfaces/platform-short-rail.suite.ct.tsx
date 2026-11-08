@@ -7,6 +7,7 @@ import { nonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page, TestInfo } from "@playwright/test";
+import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import type { SectionShellStory } from "../_surface-stories.tsx";
 
@@ -248,7 +249,7 @@ for (const viewport of LANDSCAPE_PHONES) {
       // Both directions: the last section first, then each one above it, then the first section again.
       for (const label of [...labels.toReversed(), ...labels.slice(0, 1)]) {
         await page.keyboard.press("Control+KeyK");
-        const palette = page.getByRole("dialog", { name: "Jump to…", exact: true });
+        const palette = page.getByRole("dialog", { name: COMMAND_MODAL_TITLE, exact: true });
         await palette.getByRole("combobox").fill(label);
         await palette.getByRole("option", { name: label, exact: true }).click();
         await expect(current).toHaveAccessibleName(label);

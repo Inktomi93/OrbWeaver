@@ -16,12 +16,13 @@
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
+import { CHAT_ATTACH_BOOK_FAILURE } from "../lib/chat-attach-names.ts";
 
 /** `worldInfo.attachToChat` / `detachFromChat` — the book and the room. Host-gated INSIDE the verb. */
 export const useAttachBookToChat = createEntityMutation<inferInput<Trpc["worldInfo"]["attachToChat"]>, unknown>({
   options: (trpc) => trpc.worldInfo.attachToChat.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't attach the world book to this chat.",
+  errorToast: CHAT_ATTACH_BOOK_FAILURE,
 });
 
 export const useDetachBookFromChat = createEntityMutation<inferInput<Trpc["worldInfo"]["detachFromChat"]>, unknown>({

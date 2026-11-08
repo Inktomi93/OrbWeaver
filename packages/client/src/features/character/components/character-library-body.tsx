@@ -25,7 +25,7 @@ import { QueryErrorState, SkeletonRows } from "#data";
 import { CLEAR_SEARCH_NAME, ESTIMATED_ROW_PX, NO_MATCHES_TITLE } from "#lib";
 import { clearCharacterFilters } from "#state";
 import { groupByTag } from "../lib/character-list-view.ts";
-import { CHARACTER_LIBRARY_EMPTY_TITLE } from "../lib/character-names.ts";
+import { CHARACTER_CLEAR_FILTERS_NAME, CHARACTER_LIBRARY_EMPTY_TITLE } from "../lib/character-names.ts";
 import type { CharacterCardItem } from "./character-card.tsx";
 import { CharacterCategorizedList } from "./character-categorized-list.tsx";
 
@@ -103,7 +103,7 @@ export function CharacterLibraryBody({
               </Button>
               {filtersActive ? (
                 <Button variant="outline" onClick={clearCharacterFilters} size="sm">
-                  Clear filters
+                  {CHARACTER_CLEAR_FILTERS_NAME}
                 </Button>
               ) : null}
             </Row>
@@ -119,7 +119,7 @@ export function CharacterLibraryBody({
         <EmptyState
           action={
             <Button variant="outline" onClick={clearCharacterFilters} size="sm">
-              Clear filters
+              {CHARACTER_CLEAR_FILTERS_NAME}
             </Button>
           }
           description="No character in your library matches the current filters."

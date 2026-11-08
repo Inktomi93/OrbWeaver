@@ -44,8 +44,9 @@ import { useRef, useState } from "react";
 import { DestructiveAction, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { createAutosaveEntityForm } from "#forms/editor";
-import { MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "#lib";
+import { DIALOG_VERBS, MESSAGE_ROLE_ITEMS, MESSAGE_ROLE_LABELS } from "#lib";
 import { useDeleteChatInjection, useSetChatInjection } from "../hooks/use-context-panel-mutations.ts";
+import { CHAT_ADD_INJECTION_NAME, CHAT_REMOVE_INJECTION_NAME, CHAT_REMOVE_INJECTION_TITLE } from "../lib/chat-settings-names.ts";
 import { CHAT_INJECTION_CONTENT_NAME } from "../lib/chat-surface-names.ts";
 import type { InjectionFormValues } from "../lib/injection-row-model.ts";
 import { DEFAULT_INJECTION_FORM, fromInjectionForm, toInjectionForm } from "../lib/injection-row-model.ts";
@@ -140,7 +141,7 @@ function InjectionsList({ rows, isHost, onAdd, onSave, onDelete }: InjectionsLis
 
       {isHost ? (
         <Button ref={addRef} variant="outline" size="sm" onClick={onAdd}>
-          Add injection
+          {CHAT_ADD_INJECTION_NAME}
         </Button>
       ) : null}
     </Stack>
@@ -260,12 +261,16 @@ function InjectionRow({ row, ordinal, isHost, onSave, onDelete, rowFocus }: Inje
                 {isHost ? (
                   <Row align="center" gap="field">
                     <DestructiveAction
-                      confirm={{ confirmLabel: "Remove", description: "Its text leaves this chat. This can't be undone.", title: "Remove this injection?" }}
+                      confirm={{
+                        confirmLabel: DIALOG_VERBS.remove,
+                        description: "Its text leaves this chat. This can't be undone.",
+                        title: CHAT_REMOVE_INJECTION_TITLE,
+                      }}
                       finalFocus={removal.deleteFinalFocus}
                       onConfirm={removal.onDelete}
                       trigger={
-                        <Button variant="ghost" size="sm" aria-label="Remove injection">
-                          Remove
+                        <Button variant="ghost" size="sm" aria-label={CHAT_REMOVE_INJECTION_NAME}>
+                          {DIALOG_VERBS.remove}
                         </Button>
                       }
                     />

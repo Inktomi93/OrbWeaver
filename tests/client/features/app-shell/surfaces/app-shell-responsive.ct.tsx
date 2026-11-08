@@ -9,6 +9,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { LENGTH_BASE_PX, MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
+import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeRoom, SHELL_STORIES, touchDrag } from "./app-shell-ct.ts";
 
@@ -70,8 +71,8 @@ test.describe("the You sheet", () => {
     await expect(youTab(page)).toBeFocused();
 
     await youTab(page).click();
-    await sheet(page).getByRole("button", { name: "Jump to…", exact: true }).click();
-    const palette = page.getByRole("dialog", { name: "Jump to…", exact: true });
+    await sheet(page).getByRole("button", { name: COMMAND_MODAL_TITLE, exact: true }).click();
+    const palette = page.getByRole("dialog", { name: COMMAND_MODAL_TITLE, exact: true });
     const search = palette.getByRole("combobox");
     await expect(search).toBeFocused();
     await page.keyboard.type("r");
