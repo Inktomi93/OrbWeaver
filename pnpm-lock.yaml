@@ -281,9 +281,6 @@ catalogs:
     '@stryker-mutator/core':
       specifier: 10.1.1
       version: 10.1.1
-    '@stryker-mutator/typescript-checker':
-      specifier: 10.1.1
-      version: 10.1.1
     '@stryker-mutator/vitest-runner':
       specifier: 10.1.1
       version: 10.1.1
@@ -681,9 +678,6 @@ importers:
       '@stryker-mutator/core':
         specifier: 'catalog:'
         version: 10.1.1(patch_hash=3f7182259fde7ed8f04f7b2769a8a5e86a19319ebc0becadc80444db99ae34b6)(@types/node@26.6.5)
-      '@stryker-mutator/typescript-checker':
-        specifier: 'catalog:'
-        version: 10.1.1(@stryker-mutator/core@10.1.1(patch_hash=3f7182259fde7ed8f04f7b2769a8a5e86a19319ebc0becadc80444db99ae34b6)(@types/node@26.6.5))(@typescript/typescript6@6.0.2)
       '@stryker-mutator/vitest-runner':
         specifier: 'catalog:'
         version: 10.1.1(patch_hash=7591edd5f8bdc288117849b0442f7f640e528309ed2859fb23a2a15252978f00)(@stryker-mutator/core@10.1.1(patch_hash=3f7182259fde7ed8f04f7b2769a8a5e86a19319ebc0becadc80444db99ae34b6)(@types/node@26.6.5))(vitest@5.0.5)
@@ -4220,13 +4214,6 @@ packages:
   '@stryker-mutator/instrumenter@10.1.1':
     resolution: {integrity: sha512-Vyude2i8LhDciLV1q6J55KtdA7gZpRuMfZcBcmWV6hLHAvWocoPKnCKc5BlZt1mwGWkX3Olc0457I7Ue6F1WEg==}
     engines: {node: '>=22.0.0'}
-
-  '@stryker-mutator/typescript-checker@10.1.1':
-    resolution: {integrity: sha512-Tgsqu+bYPS10jzvRHKXdLTuGEyma1sjJ8lKqqtU+sylqbpYznz41YiBflQaE61UEeutXAIbENrb06GkImWOJ0A==}
-    engines: {node: '>=22.0.0'}
-    peerDependencies:
-      '@stryker-mutator/core': 10.1.1
-      typescript: '>=3.6'
 
   '@stryker-mutator/util@10.1.1':
     resolution: {integrity: sha512-Z0zDzsmhoSykE1gT3DvD1knFxySgNMfBlpSSs1j87kWvjEMfeMqfLOk0bqEPRg/rTFIUNSEXLZapxePUhZmfZA==}
@@ -11360,14 +11347,6 @@ snapshots:
       semver: 7.8.5
       tslib: 2.8.1
       weapon-regex: 2.0.6
-
-  '@stryker-mutator/typescript-checker@10.1.1(@stryker-mutator/core@10.1.1(patch_hash=3f7182259fde7ed8f04f7b2769a8a5e86a19319ebc0becadc80444db99ae34b6)(@types/node@26.6.5))(@typescript/typescript6@6.0.2)':
-    dependencies:
-      '@stryker-mutator/api': 10.1.1
-      '@stryker-mutator/core': 10.1.1(patch_hash=3f7182259fde7ed8f04f7b2769a8a5e86a19319ebc0becadc80444db99ae34b6)(@types/node@26.6.5)
-      '@stryker-mutator/util': 10.1.1
-      semver: 7.8.5
-      typescript: '@typescript/typescript6@6.0.2'
 
   '@stryker-mutator/util@10.1.1': {}
 

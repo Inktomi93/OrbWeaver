@@ -50,9 +50,9 @@ export function createStrykerConfig(): PartialStrykerOptions {
     // `forks`, not the runner's `threads` default: the server graph loads native bindings, and the base config's pool.
     // The other runners idle through the dry run, so it takes the suite's own worker cap; a mutant run stays on one worker.
     vitest: { configFile: "vitest.stryker.config.ts", pool: "forks", dryRunMaxWorkers: readConcurrencyProfile().vitestMaxWorkers },
-    plugins: ["@stryker-mutator/vitest-runner", "@stryker-mutator/typescript-checker", "./tooling/src/mutation-arid/index.ts"],
+    plugins: ["@stryker-mutator/vitest-runner", "./tooling/src/mutation-checker/index.ts", "./tooling/src/mutation-arid/index.ts"],
     ignorers: ["arid"],
-    checkers: ["typescript"],
+    checkers: ["native"],
     mutate: [],
     tempDirName: STRYKER_TEMP_DIR,
     // The sandbox holds a copy of the dependency store, so a failed run must not leave it behind.
@@ -66,7 +66,7 @@ export function createStrykerConfig(): PartialStrykerOptions {
     dryRunTimeoutMinutes: readStageBudgets().vitestHardCeilingMs / MS_PER_MINUTE,
     // Module-level tables and schemas hold real logic here, and a run names few files, so the reloads are affordable.
     ignoreStatic: false,
-    // Stryker gives half of this to checkers, each holding a whole world's program: two on the client world reach the 16 GB bar.
+    // Stryker gives half of this to checkers, each holding a whole world's program in its own TypeScript process.
     concurrency: Math.ceil(readConcurrencyProfile().vitestMaxWorkers / CHECKER_SHARE),
     timeoutMS: 10_000,
     thresholds: { high: 80, low: 60, break: null },
