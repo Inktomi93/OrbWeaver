@@ -12,6 +12,8 @@ import { openChatByTitle, waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { BROWSER_PROJECTS, CORPUS_LOCAL_PASSWORDS, SELECTED_LOCAL_CORPUS_FIXTURE } from "./support/modes.ts";
 
+test.skip(SELECTED_LOCAL_CORPUS_FIXTURE === undefined, "Requires the committed local corpus");
+
 test("a second corpus human opens shared history without gaining host or admin controls", { tag: "@smoke" }, async ({ page, browser, baseURL }, info) => {
   const wire = SELECTED_LOCAL_CORPUS_FIXTURE?.wire;
   const human = wire?.memberIdentities?.sharedMember.viewer;

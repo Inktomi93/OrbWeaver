@@ -36,7 +36,7 @@ import { trustedPrivateRangeRefusal, unreadableTrustedPrivateRanges } from "../p
 import { EnvRefusedError } from "../refusal/index.ts";
 
 export { publicAddresses, resolveAllowedHosts } from "../allowed-hosts.ts";
-export { loopbackOrigin } from "../bind.ts";
+export { bindPostureWarnings, loopbackCompanion, loopbackOrigin, resolveBindPosture } from "../bind.ts";
 export { fileReadCommand, settingInstruction } from "../container.ts";
 export type {
   AllowedHostsInput,
@@ -770,7 +770,8 @@ export const DEBUG_TOKEN_ENV = "DEBUG_TOKEN";
 export const LOCAL_INITIAL_PASSWORD_ENV = "LOCAL_INITIAL_PASSWORD";
 
 // A credential-shaped name: every provider key (`*_API_KEY`), the probe `*_PROBE_KEY` and `*_PROBE_TOKEN` families, and
-// the app's own secrets. The shape is the rule, so a launcher or `.env` key that no code reads is still covered.
+// the app's own secrets. The shape is the rule, so a launcher or `.env` key that no code reads is still covered. It
+// also drops a non-secret name of that shape with no notice, so a variable a child must read takes another suffix.
 const SECRET_ENV_KEY_SHAPE = /(?:_SECRET|_KEY|_TOKEN|_PASSWORD)$/iu;
 
 /** Whether `key` names a secret no child process may inherit: a credential-shaped name, or the database URL, which

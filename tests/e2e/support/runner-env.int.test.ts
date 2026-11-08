@@ -1,11 +1,11 @@
-// The Playwright runner's environment and import graph, observed through the real config and Playwright's own
-// webServer spawn: a recording key never reaches a stack, and collecting the specs never loads the server env module.
+// The Playwright runners' environment and import graph, observed through the real configs and Playwright's own
+// webServer spawn: a recording key never reaches a stack, and neither runner takes a value from an operator `.env`.
 import { writeFile } from "node:fs/promises";
 import { createRequire } from "node:module";
 import { join } from "node:path";
 import process from "node:process";
 import { fileURLToPath } from "node:url";
-import { AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { OPENROUTER_API_KEY_ENV } from "@orb/server/foundation/env/record";
 import { expect, test } from "@orb/testkit/node";
 import { budget } from "@orb/tooling/floor/host/load-budget";
@@ -24,8 +24,11 @@ const CASE = { tags: ["slow"], timeout: EXECUTION_MS * 2 } satisfies TestOptions
 // Every planted value carries this marker, so a probe reports which names hold one without printing a value.
 const CANARY = "orb-runner-env-canary";
 const CONTROL = "ORB_RUNNER_ENV_CONTROL";
-// An AUTH_MODE the env schema refuses: any load of the server env module in a process holding it throws at load.
-const REFUSED_AUTH_MODE = "orb-runner-env-refused";
+// The key the planted operator `.env` sets; the env module puts it into any process that loads it from that directory.
+const DOTENV_KEY = "ORB_RUNNER_ENV_DOTENV";
+// The env module reads this file name from its working directory.
+const DOTENV_FILE = ".env";
+const RUNNER_CONFIGS = ["playwright.config.ts", "playwright-ct.config.ts"] as const;
 
 // The webServer command is replaced with this probe; Playwright still merges and spawns the config's env itself.
 const WEB_SERVER_PROBE = `import { createServer } from "node:http";
@@ -65,6 +68,26 @@ for (const server of config.webServer) {
 process.stdout.write(JSON.stringify({ runner: held(process.env), servers }));
 `;
 
+// Prints which variables hold the marker in the runner process once collection has loaded every spec.
+const HELD_REPORTER = `const marker = ${JSON.stringify(CANARY)};
+export default class {
+  printsToStdio() { return true; }
+  onEnd() { process.stdout.write(JSON.stringify(Object.keys(process.env).filter((key) => process.env[key]?.includes(marker)).sort())); }
+}
+`;
+
+// `--list` never loads global setup or the config's reporters, so this loads each one the config names, without running it.
+const SETUP_PROBE = `import { dirname, resolve } from "node:path";
+const [, configFile, marker] = process.argv;
+const { default: config } = await import(configFile);
+const local = (entry) => (entry.startsWith(".") ? resolve(dirname(configFile), entry) : null);
+for (const entry of [config.globalSetup ?? []].flat()) await import(local(entry));
+for (const [name] of config.reporter ?? []) if (local(name) !== null) await import(local(name));
+process.stdout.write(JSON.stringify(Object.keys(process.env).filter((key) => process.env[key]?.includes(marker)).sort()));
+`;
+
+const heldSchema = z.array(z.string());
+
 const probeReportSchema = z.object({
   runner: z.array(z.string()),
   servers: z.array(z.object({ mode: z.string(), held: z.array(z.string()) })),
@@ -76,12 +99,12 @@ interface RunResult {
   readonly transcript: string;
 }
 
-async function runNode(args: readonly string[], env: NodeJS.ProcessEnv): Promise<RunResult> {
+async function runNode(args: readonly string[], env: NodeJS.ProcessEnv, cwd = process.cwd()): Promise<RunResult> {
   const lease = mintRunMarker();
   let stdout = "";
   try {
     const result = await spawnNicedTranscript(process.execPath, args, {
-      cwd: process.cwd(),
+      cwd,
       env: inheritedProcessEnv({ ...env, ...runLeaseEnv(lease) }),
       timeoutMs: EXECUTION_MS,
       teardown: runMarkerTranscriptTeardown(lease),
@@ -116,16 +139,25 @@ test("a recording runner's credentials reach no webServer, while its other varia
   expect(report.servers.filter(({ held }) => held.join() !== CONTROL)).toEqual([]);
 });
 
-test("collecting every e2e spec never loads the server env module into the runner", CASE, async () => {
-  const refused = { [AUTH_MODE_KEY]: REFUSED_AUTH_MODE };
-  // The control: under this env, a process that loads the module refuses at load and names the key.
-  const control = await runNode([`--import=${ENV_LOADER}`, "-e", ""], refused);
-  expect(control.code, control.transcript).not.toBe(0);
-  expect(control.transcript).toContain(AUTH_MODE_KEY);
+test.for(RUNNER_CONFIGS)("%s takes no value from an operator .env in its runner, global setup or reporters", CASE, async (config, { importStagingDir }) => {
+  // The runner starts in a directory whose `.env` holds the canary, as an operator's checkout does, and the suite's
+  // own file switch is cleared so a load of the env module reads that file.
+  await writeFile(join(importStagingDir, DOTENV_FILE), `${DOTENV_KEY}=${CANARY}-dotenv\n`);
+  const reporterFile = join(importStagingDir, "held-reporter.mjs");
+  await writeFile(reporterFile, HELD_REPORTER);
+  const env = { [ENV_NO_FILE_KEY]: undefined };
+  const configFile = join(process.cwd(), config);
 
-  const collection = await runNode([PLAYWRIGHT_CLI, "test", "-c", "playwright.config.ts", "--list", "--reporter=json"], refused);
+  // The control: a process that loads the env module from this directory holds the canary.
+  const control = await runNode([`--import=${ENV_LOADER}`, "--input-type=module", "-e", SETUP_PROBE, "--", configFile, CANARY], env, importStagingDir);
+  expect(control.code, control.transcript).toBe(0);
+  expect(heldSchema.parse(JSON.parse(control.stdout))).toEqual([DOTENV_KEY]);
+
+  const collection = await runNode([PLAYWRIGHT_CLI, "test", "-c", configFile, "--list", `--reporter=${reporterFile}`], env, importStagingDir);
   expect(collection.code, collection.transcript).toBe(0);
-  const report = z.object({ errors: z.array(z.unknown()), suites: z.array(z.unknown()) }).parse(JSON.parse(collection.stdout));
-  expect(report.errors).toEqual([]);
-  expect(report.suites.length).toBeGreaterThan(0);
+  expect(heldSchema.parse(JSON.parse(collection.stdout))).toEqual([]);
+
+  const setup = await runNode(["--input-type=module", "-e", SETUP_PROBE, "--", configFile, CANARY], env, importStagingDir);
+  expect(setup.code, setup.transcript).toBe(0);
+  expect(heldSchema.parse(JSON.parse(setup.stdout))).toEqual([]);
 });

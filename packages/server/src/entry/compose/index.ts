@@ -4,7 +4,6 @@
 export { createHttpApp } from "../http/app.ts";
 export { createConfiguredOidc } from "../http/oidc.ts";
 
-export { createProcessSeams } from "./process-seams.ts";
 export type { ServicesDeps, ServicesResult } from "./services.ts";
 export { createServices, NO_SHARE_RELAY, UNSUPERVISED_RESTART } from "./services.ts";
 export { SessionsCrypto } from "./sessions-crypto.ts";

@@ -6,7 +6,7 @@ import { PRESENCE_READ_MAX_USER_IDS } from "@orb/contracts/notifications";
 import type { LogLevel } from "@orb/contracts/settings";
 import type { ExternalId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
-import { installKind } from "@orb/server/foundation/env";
+import { installKind } from "@orb/server/foundation/env/record";
 import { captureAccountViews } from "./corpus-auth.ts";
 import { captureNotificationViews } from "./factories/notification.ts";
 import { expect, test } from "./fixtures.ts";

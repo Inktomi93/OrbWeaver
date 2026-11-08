@@ -25,8 +25,13 @@ function freezeGraph(value: unknown): void {
 
 /** Bind the exact request before its operation can await and a caller can mutate its input. */
 export function lockCorpusInput<Input>(input: Input): Input {
-  freezeGraph(input);
-  return input;
+  return freezeCorpusGraph(input);
+}
+
+/** Freeze `value` and everything it reaches, so a write anywhere in it throws. */
+export function freezeCorpusGraph<Value>(value: Value): Value {
+  freezeGraph(value);
+  return value;
 }
 
 class PlaybackCapture<Input, Output> {

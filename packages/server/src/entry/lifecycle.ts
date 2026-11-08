@@ -25,17 +25,14 @@ import type { CertificateBootOutcome, ShareBootOutcome, ShareGraph } from "#doma
 import { OWNER_CLAIM_URL_FILE_NAME } from "#foundation/data-layout";
 import {
   bindPostureInput,
-  bindPostureWarnings,
   diagnosticsPostureInput,
   diagnosticsPostureWarnings,
   env,
   launchedBySupervisor,
-  loopbackCompanion,
   ownerFallbackPeerInput,
-  resolveBindPosture,
   resolveDiagnosticsPosture,
 } from "#foundation/env";
-import { ownerFallbackPeerWarnings, resolveOwnerFallbackPeers } from "#foundation/env/record";
+import { bindPostureWarnings, loopbackCompanion, ownerFallbackPeerWarnings, resolveBindPosture, resolveOwnerFallbackPeers } from "#foundation/env/record";
 import type { Logger } from "#foundation/observability";
 import { createAuditWiring, createDetachedSupervision, initTracing, wrapLibSqlClient } from "#foundation/observability";
 import { versionIdentity } from "#foundation/version";
@@ -77,7 +74,8 @@ import {
 } from "./boot/index.ts";
 import { startPlannerMaintenance } from "./boot/planner-maintenance.ts";
 
-import { createConfiguredOidc, createHttpApp, createProcessSeams, createServices, createShareGraph, SessionsCrypto } from "./compose/index.ts";
+import { createConfiguredOidc, createHttpApp, createServices, createShareGraph, SessionsCrypto } from "./compose/index.ts";
+import { createProcessSeams } from "./compose/process-seams.ts";
 
 /** The worker resources shutdown owns: signal it first, then join the loop before touching the DB. */
 interface OwnedWorkloadsWorker {

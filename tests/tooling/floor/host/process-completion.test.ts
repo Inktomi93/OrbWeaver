@@ -195,25 +195,31 @@ test.skipIf(process.platform !== "linux")("completion refusals retain sanitized 
   expect(unclassified).toContain('"metadataRead":"unclassified-error"');
 });
 
-test.skipIf(process.platform !== "linux")("an unreadable-environ process is skipped only when its parent is alive, readable and unmarked", () => {
+test.skipIf(process.platform !== "linux")("an unreadable-environ process refuses only when its own argv or an ancestor carries the marker", () => {
   const userId = process.getuid?.();
   const marker = "4242-1700000000000-abcd1234";
   const stat = (birth: string): string => `1 (x) S ${Array.from({ length: 18 }, () => "0").join(" ")} ${birth} 0`;
   const denied = (): never => {
     throw Object.assign(new Error("denied"), { code: "EACCES" });
   };
+  const own = { cmdline: "zygote\0" };
   const parent = { stat: stat("10") as string | null, environ: "A=b\0", cmdline: "ssh\0host", deny: false };
+  const grandparent = { environ: "A=b\0", cmdline: "launcher\0" };
   const files = (path: string): string | null => {
     const table: Record<string, () => string | null> = {
       [`/proc/${process.pid}/stat`]: () => stat("20"),
       "/proc/42/stat": () => stat("30"),
       "/proc/42/status": () => `Name:\tzygote\nUid:\t${userId}\t${userId}\t${userId}\t${userId}\nPPid:\t7\n`,
-      "/proc/42/cmdline": () => "zygote\0",
+      "/proc/42/cmdline": () => own.cmdline,
       "/proc/42/environ": denied,
       "/proc/7/stat": () => parent.stat,
-      "/proc/7/status": () => (parent.stat === null ? null : "Name:\tchrome\nPPid:\t1\n"),
+      "/proc/7/status": () => (parent.stat === null ? null : "Name:\tchrome\nPPid:\t5\n"),
       "/proc/7/environ": () => (parent.deny ? denied() : parent.environ),
       "/proc/7/cmdline": () => parent.cmdline,
+      "/proc/5/stat": () => stat("5"),
+      "/proc/5/status": () => "Name:\tlauncher\nPPid:\t1\n",
+      "/proc/5/environ": () => grandparent.environ,
+      "/proc/5/cmdline": () => grandparent.cmdline,
     };
     return table[path]?.() ?? null;
   };
@@ -225,12 +231,12 @@ test.skipIf(process.platform !== "linux")("an unreadable-environ process is skip
       readFile: files,
       ...(withMarker ? { marker } : {}),
     });
+  const skipped = [{ pid: 42, ppid: 7, cmdline: "zygote", environ: null, cpuMs: 0 }];
 
-  expect(read()).toEqual([{ pid: 42, ppid: 7, cmdline: "zygote", environ: null, cpuMs: 0 }]);
-
-  parent.deny = true;
-  expect(read).toThrow("process 42 (zygote) parent 7 (chrome)");
-  parent.deny = false;
+  expect(read()).toEqual(skipped);
+  own.cmdline = `zygote\0--orb-run-marker=${marker}`;
+  expect(read).toThrow("process 42 (zygote) parent 7 (chrome) alive, environ readable, marked");
+  own.cmdline = "zygote\0";
   parent.environ = `ORB_RUN_MARKER=${marker}\0`;
   expect(read).toThrow("parent 7 (chrome)");
   parent.environ = "";
@@ -238,8 +244,21 @@ test.skipIf(process.platform !== "linux")("an unreadable-environ process is skip
   expect(read).toThrow("parent 7 (chrome)");
   parent.cmdline = "ssh";
   parent.environ = "A=b\0";
+
+  // An unreadable parent sends the walk on to the grandparent, whose readable environ decides.
+  parent.deny = true;
+  expect(read()).toEqual(skipped);
+  grandparent.environ = `ORB_RUN_MARKER=${marker}\0`;
+  expect(read).toThrow("process 42 (zygote) parent 7 (chrome) alive, environ unreadable, marked");
+  grandparent.environ = "A=b\0";
+  grandparent.cmdline = `launcher\0--orb-run-marker=${marker}`;
+  expect(read).toThrow("parent 7 (chrome) alive, environ unreadable, marked");
+  grandparent.cmdline = "launcher\0";
+  parent.deny = false;
+
+  // A parent that is gone carries no marker, so its unreadable child is skipped.
   parent.stat = null;
-  expect(read).toThrow("process 42 (zygote) parent 7 (?)");
+  expect(read()).toEqual(skipped);
   parent.stat = stat("10");
   expect(() => read(false)).toThrow("process 42 (zygote) parent 7 (chrome)");
 });

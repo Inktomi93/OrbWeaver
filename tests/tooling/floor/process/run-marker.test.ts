@@ -12,6 +12,8 @@
 // grace, then KILL), and which foreign runs are fair game (only those whose OWNER PID is gone).
 import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
+import process from "node:process";
+import { createInterface } from "node:readline";
 import { expect, test } from "@orb/testkit/tooling";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import { completionProcesses, processCompletion } from "@orb/tooling/floor/host/platform";
@@ -529,6 +531,52 @@ test("a TIMED-OUT stage child leaves NO detached grandchild alive", { timeout: b
     await joinRunMarkerSweep(marker);
   }
 });
+
+// A same-user process pair this user cannot read: PR_SET_DUMPABLE 0 makes the kernel refuse both environs, and the
+// fork keeps the flag. The parent prints the child's pid once both exist; neither carries a run marker.
+const UNREADABLE_PAIR = `import ctypes, os, signal, sys
+PR_SET_DUMPABLE = 4
+if ctypes.CDLL(None, use_errno=True).prctl(PR_SET_DUMPABLE, 0, 0, 0, 0) != 0:
+    sys.exit(ctypes.get_errno())
+child = os.fork()
+if child == 0:
+    signal.pause()
+    os._exit(0)
+print(child, flush=True)
+signal.pause()
+`;
+
+test.skipIf(process.platform !== "linux")(
+  "a sweep skips another program's unreadable processes and still reaps its own",
+  { timeout: budget(PROBE_BUDGET_BASE_MS) },
+  async () => {
+    const marker = mintRunMarker();
+    const planted = spawnFullPriorityChild("python3", ["-c", UNREADABLE_PAIR], { env: inheritedProcessEnv(), detached: true, stdio: "pipe-stdout" });
+    const owned = spawnFullPriorityChild("sleep", ["600"], { env: inheritedProcessEnv(runMarkerEnv(marker)), stdio: "ignore" });
+    // Joined from the spawn on, because the sweep ends `owned` before the cleanup below asks for its exit.
+    const exits = [planted.wait(), owned.wait()];
+    try {
+      if (planted.stdout === null) {
+        throw new Error("the planted pair has no stdout pipe");
+      }
+      let unreadable = Number.NaN;
+      for await (const line of createInterface({ input: planted.stdout })) {
+        unreadable = Number(line);
+        break;
+      }
+      // The control: the planted child really is unreadable to this user, so the sweep below meets one.
+      expect(() => readFileSync(`/proc/${String(unreadable)}/environ`)).toThrow(/EACCES/u);
+      const sweep = await joinRunMarkerSweep(marker);
+      expect(sweep.terminated).toEqual([owned.pid]);
+      expect(pidIsAlive(owned.pid ?? null)).toBe(false);
+      expect(pidIsAlive(unreadable)).toBe(true);
+    } finally {
+      planted.killGroup("SIGKILL");
+      owned.kill("SIGKILL");
+      await Promise.all(exits);
+    }
+  },
+);
 
 function pidIsAlive(pid: number | null): boolean {
   if (pid === null) {

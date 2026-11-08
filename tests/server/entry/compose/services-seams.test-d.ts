@@ -1,6 +1,7 @@
 // @subject packages/server/src/entry/compose/services.ts
 import { createIdSource } from "@orb/kit/ids";
-import type { createProcessSeams, ServicesDeps } from "@orb/server/entry/compose";
+import type { ServicesDeps } from "@orb/server/entry/compose";
+import type { createProcessSeams } from "@orb/server/entry/compose/process-seams";
 import { createTestEnv } from "@orb/testkit/node/helpers";
 import { expectTypeOf, test } from "vitest";
 

@@ -286,6 +286,8 @@ const PLAYWRIGHT_RUNNER_FILES = [
 const E2E_VITEST_SUITES = `(?:${TEST_KIND_DEFINITIONS.filter(({ family }) => family !== "e2e")
   .map(({ suffix }) => suffix.replaceAll(".", "\\."))
   .join("|")})$`;
+// Child processes the env suites spawn to load the server env module itself, each in a process of its own.
+const TESTKIT_ENV_LOADER_CHILDREN = ["^tests/support/node/host-env-child\\.ts$", "^tests/support/node/env-file-child\\.ts$"];
 // The rows door and the tier behind it.
 const ROWS_TIER = "^tests/support/node/factories/rows(\\.ts$|/)";
 // The only testkit files that may import ROWS_TIER; each line says why its rows cannot come from a verb.
@@ -346,6 +348,7 @@ const SERVER_DOORS = [`${SRV}[^/]+/[^/]+/index\\.ts$`, ...exportedDoors("server"
 const TEST_CONSTANT_HOMES = {
   "packages/client/src/data/query-state-copy.ts": "QUERY_WAITING_LINE and queryFailedLabel: the words of a read with no data",
   "packages/server/src/domain/character/contract/errors.ts": "CharacterNotFoundError: the refusal class greeting suites assert",
+  "packages/server/src/transport/trpc/fault-copy.ts": "UNCLASSIFIED_FAULT_MESSAGE: the words the error formatter sends for every unclassified throw",
   "packages/server/src/domain/imagery/substrate/size.ts": "SIZE_PRESETS: the dimensions a size preset puts on the provider request",
   "packages/server/src/domain/chat/contract/errors.ts": "CHAT_OP_CODES and ChatNotFoundError: the refusal codes and class chat suites assert",
   "packages/server/src/domain/admin/contract/errors.ts": "ADMIN_OP_CODES: the refusal codes admin and sessions suites assert",
@@ -1125,10 +1128,18 @@ const TEST_WORLDS = [
   {
     name: "playwright-runner-no-env-loader",
     comment:
-      "The server env module loads the operator `.env` into the process that imports it, and the composed door loads that module. A runner-side file that reaches either puts the operator's secrets into the runner, its workers and every webServer started after it. Import Node helpers through @orb/testkit/node/helpers. This rule reads each file's own imports: a reachable rule would follow the helpers door's lazy imports of the server graph, so tests/e2e/support/runner-env.int.test.ts holds the transitive reach by collecting every spec under an env the module refuses.",
+      "The server env module loads the operator `.env` into the process that imports it, and the composed door loads that module. A runner-side file that reaches either puts the operator's secrets into the runner, its workers and every webServer started after it. Import Node helpers through @orb/testkit/node/helpers. This rule reads each file's own imports: a reachable rule would follow the helpers door's lazy imports of the server graph, so tests/e2e/support/runner-env.int.test.ts holds the transitive reach by collecting every spec under a canary `.env`.",
     severity: "error",
     from: { path: PLAYWRIGHT_RUNNER_FILES, pathNot: E2E_VITEST_SUITES },
     to: { path: ["^tests/support/node/composed\\.ts$", `${SRV}foundation/env/index\\.ts$`], dependencyTypesNot: ["type-only", "type-import"] },
+  },
+  {
+    name: "testkit-no-env-loader",
+    comment:
+      "The server env module loads the operator `.env` into every process that imports it, and the process seams import it, so testkit reaches the parsed record (foundation/env/record) instead. The two children exist to load that module in a process of their own. This rule reads each file's own imports: a reachable rule would follow the lazy loaders in the tooling doors, so tests/e2e/support/runner-env.int.test.ts holds the transitive reach by collecting both runners under a canary `.env`.",
+    severity: "error",
+    from: { path: "^tests/support/", pathNot: TESTKIT_ENV_LOADER_CHILDREN },
+    to: { path: [`${SRV}foundation/env/index\\.ts$`, `${SRV}entry/compose/process-seams\\.ts$`], dependencyTypesNot: ["type-only", "type-import"] },
   },
   {
     name: "testkit-rows-persistence-only",

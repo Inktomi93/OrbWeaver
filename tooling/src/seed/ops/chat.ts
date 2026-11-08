@@ -35,7 +35,8 @@ import {
   seedThemes,
   seedUserContent,
 } from "@orb/server/entry/boot";
-import { createProcessSeams, createServices, NO_SHARE_RELAY, SessionsCrypto, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
+import { createServices, NO_SHARE_RELAY, SessionsCrypto, UNSUPERVISED_RESTART } from "@orb/server/entry/compose";
+import { createProcessSeams } from "@orb/server/entry/compose/process-seams";
 import { env } from "@orb/server/foundation/env";
 import { createAuditWiring } from "@orb/server/foundation/observability";
 import { and, desc, eq } from "drizzle-orm";

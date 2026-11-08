@@ -4,7 +4,7 @@
 import type { AddressInfo } from "node:net";
 import { errorMessage } from "@orb/kit/error-message";
 import type { createHttpApp } from "@orb/server/entry/compose";
-import { loopbackCompanion } from "@orb/server/foundation/env";
+import { loopbackCompanion } from "@orb/server/foundation/env/record";
 import type { NativeHttpBindings } from "@orb/server/infra/network";
 import { createOwnedResponseBody, drainHttpServer, joinNativeHttpRequest, serveHttpServer } from "@orb/server/infra/network";
 import { createTestLogger } from "./test-logger.ts";
