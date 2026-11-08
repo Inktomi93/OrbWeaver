@@ -222,7 +222,7 @@ function ArmRegion({
   readonly ref?: Ref<HTMLFormElement>;
 }): ReactElement {
   const region = (
-    <Stack gap="block" minHeight="scrollLg">
+    <Stack data-slot="add-document-arm" gap="block" minHeight="scrollLg">
       {children}
     </Stack>
   );

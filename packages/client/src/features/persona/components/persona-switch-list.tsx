@@ -154,8 +154,9 @@ function SwitchRow({
       minHeight="controlMd"
       className={ROW_BOX}
       data-selected={isPlaying ? "" : undefined}
+      data-switch-row=""
       gap="row"
-      padding="field"
+      paddingInline="field"
     >
       {room === null ? null : <SwitchButton isPlaying={isPlaying} onSwitch={(): void => room.onSwitch(persona)} subject={subject} tabIndex={tabIndex} />}
       {/* Ornament over the stretched button (`relative` paints it above the button's hover fill). */}

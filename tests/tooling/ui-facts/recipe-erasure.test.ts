@@ -101,10 +101,10 @@ const INSET_SPENT: Readonly<Record<string, ArmsByTable>> = {
     [ROW]: ["block", "field", "gutter", "row", "section", "tight"],
     [STACK]: ["block", "field", "gutter", "row", "section", "tight"],
   },
-  "paddingInlineEnd > artDecoration": { [STACK]: ["block", "clearance", "field", "gutter", "row", "section", "tight"] },
+  "paddingInlineEnd > artDecoration": { [STACK]: ["block", "clearance", "field", "flank", "gutter", "row", "section", "tight"] },
   "paddingInlineEnd > reach": {
-    [ROW]: ["block", "clearance", "field", "gutter", "row", "section", "tight"],
-    [STACK]: ["block", "clearance", "field", "gutter", "row", "section", "tight"],
+    [ROW]: ["block", "clearance", "field", "flank", "gutter", "row", "section", "tight"],
+    [STACK]: ["block", "clearance", "field", "flank", "gutter", "row", "section", "tight"],
   },
   "paddingInlineEndNarrow > reach": { [ROW]: ["block", "row", "tight"] },
   "paddingInlineNarrow > reach": { [ROW]: ["block", "row"] },

@@ -61,7 +61,7 @@ export function PersonaAccountFoot(): ReactElement {
         </Button>
       ) : (
         <Text voice="gloss">
-          {mode === "single-user" ? "Single-user mode — no session to sign out of." : "Sign out at your identity provider / reverse proxy."}
+          {mode === "single-user" ? "Single-user mode: no session to sign out of." : "Sign out at your identity provider / reverse proxy."}
         </Text>
       )}
     </Stack>

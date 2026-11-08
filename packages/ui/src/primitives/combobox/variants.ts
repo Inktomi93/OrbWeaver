@@ -12,6 +12,7 @@ import {
   OVERLAY_ARROW,
   OVERLAY_MOTION,
   POPUP_SURFACE,
+  TOUCH_TARGET_PSEUDO,
   tv,
 } from "#lib";
 
@@ -31,14 +32,19 @@ export const comboboxVariants = tv({
       FOCUS_RING,
       "data-disabled:opacity-disabled",
     ],
+    // The glyph stays its own size; the pointer-conditional hit area rides `::before`, layout-neutral, so a fine
+    // pointer keeps its 24px floor without the chip growing.
     chipRemove: [
-      "flex shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none",
+      "relative flex shrink-0 items-center justify-center rounded-full text-muted-foreground outline-none",
+      TOUCH_TARGET_PSEUDO,
       // Offset-less ring — the ChipRemove sits INSIDE the chip; an offset ring would escape it.
       `${ACCENT_HOVER} ${FOCUS_RING_BARE}`,
       DISABLED_STATE_NATIVE,
     ],
+    // `self-stretch` fills the line the wrapped box stretches to, so the draft input's hit area is the field's own
+    // height rather than its text-height box.
     input: [
-      "flex-1 bg-transparent px-field text-field leading-field text-foreground outline-none min-inline-(--width-title-floor)",
+      "flex-1 self-stretch bg-transparent px-field text-field leading-field text-foreground outline-none min-inline-(--width-title-floor)",
       "placeholder:text-muted-foreground",
     ],
     positioner: "z-(--z-popover) outline-none",

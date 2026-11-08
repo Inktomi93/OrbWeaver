@@ -3,28 +3,62 @@
 // `() => ReactNode`. User-facing words only: "the card's {{user}}", "who you're playing", "the persona pin",
 // "the crown", "the host".
 
-import { Stack } from "@orb/ui/layout";
+import type { LucideIcon } from "@orb/ui/icons";
+import { Check, Crown, Icon, Link2, Pin } from "@orb/ui/icons";
+import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { Fragment } from "react";
 
-function learnBody(title: string, lines: readonly string[]): ReactElement {
+/** A plain line, or an element that carries its own key (a mark line, or a paragraph with an inline mark). */
+type LearnLine = string | ReactElement;
+
+function learnBody(title: string, lines: readonly LearnLine[]): ReactElement {
   return (
     <Stack gap="field">
       <Text voice="label">{title}</Text>
-      {lines.map((line) => (
-        <Text key={line}>{line}</Text>
-      ))}
+      {lines.map((line) => (typeof line === "string" ? <Text key={line}>{line}</Text> : line))}
     </Stack>
+  );
+}
+
+/** A mark as the switcher draws it: the same icon in the same ink, never an emoji. */
+function mark(icon: LucideIcon, tone?: "primary"): ReactElement {
+  const glyph = <Icon icon={icon} size="sm" />;
+  return tone === undefined ? (
+    <Text as="span" className="relative shrink-0" ink="muted">
+      {glyph}
+    </Text>
+  ) : (
+    <Text as="span" className="relative shrink-0" tone={tone}>
+      {glyph}
+    </Text>
+  );
+}
+
+function markLine(key: string, icon: LucideIcon, text: string, tone?: "primary"): ReactElement {
+  return (
+    <Row align="start" gap="field" key={key}>
+      {mark(icon, tone)}
+      <Text>{text}</Text>
+    </Row>
+  );
+}
+
+// A paragraph with the switcher's own icon set inline where the words name it.
+function sentence(key: string, ...parts: readonly (string | LucideIcon)[]): ReactElement {
+  return (
+    <Text key={key}>{parts.map((part, index) => (typeof part === "string" ? part : <Fragment key={`${key}-${String(index)}`}>{mark(part)}</Fragment>))}</Text>
   );
 }
 
 export function renderMarksLearn(): ReactElement {
   return learnBody("The four marks", [
     "In the persona switcher, a row can carry up to four marks.",
-    "✓ Who you're playing in this chat. You change it by clicking the row.",
-    "📌 Who the card's {{user}} is in this chat: the persona pin. The chat's host changes it.",
-    "👑 Your default, the one new chats start you as. Click the crown to set or clear it.",
-    "🔗 Connected to this chat's character. Shown only; connect under the character's Links tab or in the persona's editor.",
+    markLine("playing", Check, "Who you're playing in this chat. You change it by clicking the row."),
+    markLine("pin", Pin, "Who the card's {{user}} is in this chat: the persona pin. The chat's host changes it.", "primary"),
+    markLine("crown", Crown, "Your default, the one new chats start you as. Click the crown to set or clear it.", "primary"),
+    markLine("connected", Link2, "Connected to this chat's character. Shown only; connect under the character's Links tab or in the persona's editor."),
     "Settings is where personas are made and edited. The switcher is where you play.",
   ]);
 }
@@ -45,7 +79,7 @@ export function renderStartOrderLearn(): ReactElement {
     "4. The persona you last played: whoever you most recently switched to, in any chat. It only decides anything when you have no crown.",
     "Every chat remembers its own persona after that. Switching in one chat changes that chat only.",
     'SillyTavern runs the same order: chat lock, connected, default, then whoever you last picked. The one difference: there, a mid-chat switch is forgotten when you reopen the chat unless you lock it; here, every chat keeps its persona, as if SillyTavern\'s "auto-lock" were always on.',
-    "When a new chat starts you as someone other than your default, a notice says who and why. Notices are a switch under Personas → Notifications.",
+    "When a new chat starts you as someone other than your default, a notice says who and why. Notices are a switch under Personas → Persona notifications.",
   ]);
 }
 
@@ -53,7 +87,14 @@ export function renderPinLearn(): ReactElement {
   return learnBody("Why the pin exists", [
     'You start a chat as John. The card says "{{user}} is my brother". Halfway through you switch to Sarah for a scene. Without the pin, the character now thinks Sarah is his brother. With it, "my brother" stays John.',
     "Card text (description, personality, scenario, greeting, examples, the card's own lore) reads {{user}} as the pinned persona. Preset text and your own lines read it as whoever you're playing now.",
-    "A new chat pins whoever it started you as. The host sets the pin in every chat, including a chat that's just you and your characters: click 📌 on another of your personas to make the card mean them, click the pressed 📌 to clear it. Cleared, the card follows the host's persona.",
+    sentence(
+      "pin-host",
+      "A new chat pins whoever it started you as. The host sets the pin in every chat, including a chat that's just you and your characters: click ",
+      Pin,
+      " on another of your personas to make the card mean them, click the pressed ",
+      Pin,
+      " to clear it. Cleared, the card follows the host's persona.",
+    ),
     "In a shared room the host can pin any present player's persona from the switcher's room section, and the card means that person for everyone. Other players see the pin and can't change it.",
     "If the pinned player leaves, the pin holds: the card keeps meaning them, so the story doesn't change who it's about. The room section says so and offers the host Re-pin.",
     "The pin is not the crown. The crown decides who new chats start you as; the pin decides who one chat's card means.",
@@ -63,7 +104,12 @@ export function renderPinLearn(): ReactElement {
 export function renderConnectionsLearn(): ReactElement {
   return learnBody("Connections", [
     "A connection is a standing preference: \"with this character, I'm usually this persona.\" It only acts when a chat is born, and only for a chat with that one character. Group chats don't use connections yet.",
-    "In the switcher, 🔗 marks a persona connected to the open chat's character. It's a mark, not a button: connect or disconnect in the editor or on the character's Links tab.",
+    sentence(
+      "connected-mark",
+      "In the switcher, ",
+      Link2,
+      " marks a persona connected to the open chat's character. It's a mark, not a button: connect or disconnect in the editor or on the character's Links tab.",
+    ),
     'SillyTavern calls this "lock to character". It also offers a per-character ask when several personas are connected; here the tie goes to your default.',
   ]);
 }

@@ -10,7 +10,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { CHARACTER_EDITOR_NAME, CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_ACTIONS_MENU_NAME, CHARACTER_EDITOR_NAME, CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
 import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
@@ -476,4 +476,28 @@ test("Look's Reset all to Inherit asks first: Cancel writes nothing, Reset write
   await expect(font).toHaveText("Inherit");
   await expect.poll(() => calls.inputs("character.update").length).toBe(1);
   expect((await caller.character.get({ characterId: card.id })).themeOverride).toBeNull();
+});
+
+test.describe("the phone character sheet's header", () => {
+  test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+
+  test("its two menu doors, the tab chooser and the character actions, wear different marks", async ({ page, corpus, mount }) => {
+    await using root = await createCorpusHarness(undefined, { startJobs: false });
+    const { reads } = await prepare(root, page, corpus);
+    await routeTrpc(page, reads);
+    await mount<typeof ShellAmbientStory>(STORY, {});
+    await openCharacterContext(page, "Overview");
+    const header = page.locator('.shell-panel[data-panel-side="context"] [data-slot="context-bracket-header"]');
+    const mark = (name: string): Promise<string[]> =>
+      header
+        .getByRole("button", { name, exact: true })
+        .locator("svg")
+        .evaluateAll((svgs) => svgs.map((svg) => Array.from(svg.classList).find((token) => token.startsWith("lucide-")) ?? ""));
+    const tabs = await mark("All Character tabs");
+    const actions = await mark(CHARACTER_ACTIONS_MENU_NAME);
+
+    expect(tabs.length).toBeGreaterThan(0);
+    expect(actions.length).toBeGreaterThan(0);
+    expect(tabs).not.toStrictEqual(actions);
+  });
 });

@@ -28,7 +28,7 @@ function leaf(setting: string): ConfigSettingRef {
 
 export const PERSONA_NOTIFICATIONS_SUBCATEGORY: ConfigSubcategory = {
   id: "notifications",
-  label: "Notifications",
+  label: "Persona notifications",
   teach: {
     summary:
       "Whether the app confirms persona changes with a notice when you switch who you play as or a restamp lands, and when a new chat starts you as someone other than your default.",

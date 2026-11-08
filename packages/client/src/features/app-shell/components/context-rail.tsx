@@ -15,7 +15,7 @@
 
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
-import { ChevronLeft, ChevronRight, Crown, Ellipsis, Icon, Lock } from "@orb/ui/icons";
+import { ChevronDown, ChevronLeft, ChevronRight, Crown, Icon, Lock } from "@orb/ui/icons";
 import { IndicatorDot } from "@orb/ui/indicator-dot";
 import { Corner, Row, Stack } from "@orb/ui/layout";
 import { Menu, MenuPopup, MenuRadioGroup, MenuRadioItem, MenuTrigger } from "@orb/ui/menu";
@@ -253,7 +253,7 @@ export function ContextHeaderTabs({
                   square={true}
                   type="button"
                 >
-                  <Icon icon={Ellipsis} size="sm" />
+                  <Icon icon={ChevronDown} size="sm" />
                 </Button>
               }
             />

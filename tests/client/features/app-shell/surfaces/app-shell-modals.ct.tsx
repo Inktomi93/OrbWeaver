@@ -290,7 +290,8 @@ test.describe("on the corpus owner's own settings", () => {
           .last()
           .evaluate((button) => {
             const strip = button.parentElement;
-            const region = strip?.nextElementSibling;
+            // The arm's own region carries the floor; a submit arm wraps it in a form, so it is found by its slot, not by its place.
+            const region = button.closest('[role="dialog"]')?.querySelector('[data-slot="add-document-arm"]');
             const footer = region?.querySelector('[data-slot="dialog-footer"]');
             const regionBox = region?.getBoundingClientRect();
             const floor = region === null || region === undefined ? 0 : Number.parseFloat(getComputedStyle(region).minHeight);
