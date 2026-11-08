@@ -1,10 +1,10 @@
 ---
 kind: bug
 status: doing
-updated: 2026-11-07
+updated: 2026-11-08
 priority: P3
 area: ui
-lane: wt/agent-afb5bff2b14113d1d
+lane: wt/agent-ab8f7f48d0abd71fe
 plan: cross-surface-consistency
 ---
 
