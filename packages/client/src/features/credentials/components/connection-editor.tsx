@@ -30,6 +30,7 @@ import {
 } from "../lib/connection-editor-model.ts";
 
 import { withDeclaredOverride, withoutDeclaredOverride } from "../lib/connection-fact-model.ts";
+import { CONNECTION_PROVIDER_FIELD_NAME } from "../lib/connections-copy.ts";
 import { promptCacheChangedCount, showsPromptCache } from "../lib/prompt-cache-model.ts";
 import { ClaudeSubscriptionNotice } from "./claude-subscription-notice.tsx";
 import { ConnectionAccount } from "./connection-account.tsx";
@@ -203,7 +204,7 @@ function AvailableConnectionEditorBody({
           <Stack gap="row">
             <Field
               description="Change it by adding another connection — a provider change would invalidate this row's key, URL and model at once."
-              label="Provider"
+              label={CONNECTION_PROVIDER_FIELD_NAME}
             >
               <Text data-slot="connection-editor-provider" voice="datum">
                 {providerLabel}

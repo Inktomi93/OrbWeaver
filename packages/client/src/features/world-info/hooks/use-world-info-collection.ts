@@ -8,6 +8,7 @@ import type { CollectionCount, CollectionInsight } from "#lib";
 import { notify } from "#lib";
 import { selectCollectionMember } from "#state";
 import { WORLD_INFO_COLLECTION_ID } from "../lib/world-info-model.ts";
+import { WORLD_INFO_DUPLICATE_BOOK_NOTICE } from "../lib/world-info-names.ts";
 import { useCreateWorldBook, useImportWorldBookFile } from "./use-world-info-mutations.ts";
 
 /** The group band's live census — a NON-suspending read sharing the rows' cache. A FAILED read says so
@@ -103,7 +104,7 @@ function importedBookMessage({
   readonly renamedFrom: string | null;
 }): string {
   if (!created) {
-    return "That book is already in your library — nothing was added.";
+    return WORLD_INFO_DUPLICATE_BOOK_NOTICE;
   }
   if (renamedFrom !== null) {
     return `Imported as “${name ?? renamedFrom}” — you already have a different “${renamedFrom}”.`;

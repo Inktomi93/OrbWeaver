@@ -121,3 +121,6 @@ export const EXTENSIONS_NO_SELECTION_BODY = "Choose a page on the left to open i
 /** The CONTENT pane's DANGLING state — the selected page's plugin was disabled or removed while it was open. */
 export const EXTENSIONS_GONE_TITLE = "That page is no longer available";
 export const EXTENSIONS_GONE_BODY = "Its plugin was disabled or removed. Pick another page, or turn it back on in Plugins.";
+
+/** The Extensions list's search box. */
+export const EXTENSIONS_SEARCH_NAME = "Search plugin pages";

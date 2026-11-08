@@ -14,7 +14,7 @@ import { peekQueryData, useInvalidation, useTRPC } from "#data";
 import { notify } from "#lib";
 import type { ComposerDraftSnapshot } from "#state";
 import { activeChatId, openPluginCommandArgs, readComposerDraftSnapshot, replaceComposerDraft, useActiveChatId, useComposerDraftRevision } from "#state";
-import { sharedPluginNames } from "../lib/plugin-command-copy.ts";
+import { pluginUndoName, sharedPluginNames } from "../lib/plugin-command-copy.ts";
 import { useInvokeUiCommand } from "../lib/plugin-mutations.ts";
 import { applyPluginUiOutcome } from "../lib/plugin-ui-outcome.ts";
 
@@ -183,5 +183,5 @@ export function useRunPluginCommand(chatId: ChatId | null, allowComposerDraft = 
           setReplacement(null);
         }
       : null;
-  return { isPending: runner.isPending, run, undo, undoLabel: `Undo ${replacement?.label ?? "draft replacement"}` };
+  return { isPending: runner.isPending, run, undo, undoLabel: pluginUndoName(replacement?.label ?? "draft replacement") };
 }

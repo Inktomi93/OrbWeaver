@@ -17,7 +17,7 @@ import type { ListRowProps } from "@orb/ui/list-row";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
-import { duplicateActionName, rowActionSubject, rowActionsName } from "#lib";
+import { deleteConfirmTitle, duplicateActionName, ROW_DUPLICATE_NAME, rowActionSubject, rowActionsName } from "#lib";
 import type { ConfirmDialogProps } from "./confirm-dialog.tsx";
 import type { RowDestructiveAction } from "./row-actions-menu.tsx";
 import { RowActionsMenu } from "./row-actions-menu.tsx";
@@ -312,7 +312,7 @@ function LibraryRowMenu({
         : {
             destructive: {
               separator: false,
-              title: `Delete "${name}"?`,
+              title: deleteConfirmTitle(name),
               description: deleteDescription,
               onConfirm: remove,
               ...(deleteFinalFocus === undefined ? {} : { finalFocus: deleteFinalFocus }),
@@ -329,7 +329,7 @@ function LibraryRowMenu({
       {onDuplicate === undefined ? null : (
         <MenuItem onClick={onDuplicate}>
           <Icon icon={Copy} size="sm" />
-          Duplicate
+          {ROW_DUPLICATE_NAME}
         </MenuItem>
       )}
       {menuItemsAfter}

@@ -63,7 +63,7 @@ import { useRef, useState } from "react";
 import { DescribedMenuItem, QueryBoundary, RowActionsMenu } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
+import { deleteConfirmTitle, notify } from "#lib";
 import { useMobileViewport } from "#state";
 import {
   armLabel,
@@ -306,7 +306,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
               <RowActionsMenu
                 label={`More actions for ${rule.name}`}
                 destructive={{
-                  title: `Delete "${rule.name}"?`,
+                  title: deleteConfirmTitle(rule.name),
                   description: "This removes the rule and its activity. It can't be undone, but you can add the rule again.",
                   confirmLabel: "Delete rule",
                   onConfirm: (): void => deleteRule.mutate({ ruleId: rule.id, chatId }),

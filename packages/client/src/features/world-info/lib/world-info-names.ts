@@ -14,3 +14,26 @@ export const WORLD_INFO_IMPORT_BOOK_NAME = "Import a world-info book";
 export const WORLD_INFO_DEPTH_SWITCH_NAME = "Inject at a depth in history";
 export const WORLD_INFO_BOOK_DETAILS_NAME = "Book details";
 export const WORLD_INFO_EDIT_DETAILS_NAME = "Edit details";
+
+/** The World Info collection's group label on the Settings map. */
+export const WORLD_INFO_GROUP_LABEL = "World Info";
+
+/** The entry editor's fields. */
+export const WORLD_INFO_ENTRY_TITLE_NAME = "Title";
+export const WORLD_INFO_ENTRY_CONTENT_NAME = "Content";
+export const WORLD_INFO_ENTRY_NOTE_NAME = "Note";
+export const WORLD_INFO_ENTRY_DEPTH_NAME = "Depth";
+export const WORLD_INFO_ENTRY_ROLE_NAME = "Role";
+export const WORLD_INFO_ENTRY_PLACEMENT_NAME = "Placement";
+
+/** The book details dialog's description field. */
+export const WORLD_INFO_BOOK_DESCRIPTION_NAME = "Description";
+
+/** The book editor's create-entry verb, which is also the new entry's starting title. */
+export const WORLD_INFO_NEW_ENTRY_NAME = "New entry";
+
+/** The book editor's empty state. */
+export const WORLD_INFO_NO_ENTRIES_TITLE = "No entries yet";
+
+/** The notice an import of a book already in the library raises. */
+export const WORLD_INFO_DUPLICATE_BOOK_NOTICE = "That book is already in your library — nothing was added.";

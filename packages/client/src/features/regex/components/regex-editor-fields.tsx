@@ -30,7 +30,7 @@ import type { ChangeEvent, ReactElement } from "react";
 import { lazy, Suspense, useId } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import { REGEX_PLACEMENT_ITEMS } from "#lib";
-import { REGEX_FIND_PATTERN_NAME, REGEX_REPLACE_WITH_NAME } from "../lib/regex-names.ts";
+import { REGEX_FIND_PATTERN_NAME, REGEX_NAME_FIELD_NAME, REGEX_REPLACE_WITH_NAME } from "../lib/regex-names.ts";
 import { RegexPipelinePanel } from "./regex-pipeline-panel.tsx";
 import { RegexTestPanel } from "./regex-test-panel.tsx";
 
@@ -140,7 +140,7 @@ export function RegexEditorFields({ form, scriptId }: RegexEditorFieldsProps): R
   const patternId = useId();
   return (
     <Stack gap="block">
-      <form.AppField name="name">{(field): ReactElement => <field.TextField label="Name" />}</form.AppField>
+      <form.AppField name="name">{(field): ReactElement => <field.TextField label={REGEX_NAME_FIELD_NAME} />}</form.AppField>
 
       {/* THE PATTERN FIELD SAYS WHAT A PATTERN LOOKS LIKE (side-eye X-12): every other field on this
           editor carried a description and this one — the only field whose syntax the user can get

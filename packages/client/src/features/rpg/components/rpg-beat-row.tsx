@@ -23,7 +23,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useEffect, useId, useRef, useState } from "react";
 import { DestructiveAction, Tip } from "#components";
 import type { EditSession } from "#lib";
-import { resolveCommit } from "#lib";
+import { deleteConfirmTitle, resolveCommit } from "#lib";
 import { journalRowLabel } from "../lib/journal-labels.ts";
 import { BeatLine, TrackerValue } from "./tracker-blocks/index.ts";
 
@@ -90,7 +90,7 @@ export function BeatRow({ beat, edit }: BeatRowProps): ReactElement {
       trailing={
         <DestructiveAction
           confirm={{
-            title: `Delete "${beat.title}"?`,
+            title: deleteConfirmTitle(beat.title),
             description: "The entry leaves the chronicle for good. Nothing else in the game state changes.",
             confirmLabel: "Delete",
           }}

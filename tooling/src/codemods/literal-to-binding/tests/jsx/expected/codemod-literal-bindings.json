@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "literal": "No matches", "expression": "NO_MATCHES_TITLE", "binding": "NO_MATCHES_TITLE", "from": "#lib", "files": ["b.tsx"] },
+    { "literal": "Clear search", "expression": "CLEAR_SEARCH_NAME", "binding": "CLEAR_SEARCH_NAME", "from": "#lib", "files": ["b.tsx"] }
+  ]
+}

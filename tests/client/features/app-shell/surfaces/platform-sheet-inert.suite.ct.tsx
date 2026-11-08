@@ -5,6 +5,7 @@ import { seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -44,7 +45,7 @@ for (const regime of REGIMES) {
     }) => {
       await seedShellState(page, { activeSection: "chats" });
       await mount<typeof AppShellStory>(STORY, {});
-      const bar = page.getByRole("navigation", { name: "Primary", exact: true });
+      const bar = page.getByRole("navigation", { name: PRIMARY_NAV_NAME, exact: true });
       const list = page.locator(LIST);
       const context = page.locator(CONTEXT);
       await expect(list).toHaveAttribute("data-panel-mode", "docked");

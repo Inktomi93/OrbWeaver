@@ -52,7 +52,7 @@ import type { ReactElement } from "react";
 import type { RowDeleteFocus } from "#components";
 import { LibraryRow, RowToggleAction } from "#components";
 import type { Trpc } from "#data";
-import { PRESET_UNREADABLE_ROW_MARKER, timeLib, unreadableConfigCause } from "#lib";
+import { PRESET_UNREADABLE_ROW_MARKER, ROW_EXPORT_NAME, timeLib, unreadableConfigCause } from "#lib";
 import { presetRowSubtitle } from "../lib/preset-row-view.ts";
 
 /** How many §12.2 cluster slots THIS list reserves on every row — the state dot + the kebab, which is now
@@ -217,7 +217,7 @@ export function PresetLibraryRow({
               menuItemsAfter: (
                 <MenuItem onClick={(): void => onExport(preset.id)}>
                   <Icon icon={Download} size="sm" />
-                  Export
+                  {ROW_EXPORT_NAME}
                 </MenuItem>
               ),
               deleteDescription: active

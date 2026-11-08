@@ -40,6 +40,7 @@ import { Toggle } from "@orb/ui/toggle";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { PickerDialog, Tip } from "#components";
+import { reactionChoiceName } from "../lib/chat-surface-names.ts";
 
 /** The picked segment target: a span index + that span's speaker (the CLAIM the server re-validates). */
 interface ReactionSegmentTarget {
@@ -157,7 +158,7 @@ export function ReactionPicker({
       <Row align="center" wrap={true} gap="field">
         {REACTION_EMOJIS.map((emoji) => (
           <Toggle
-            aria-label={`React with ${emoji}`}
+            aria-label={reactionChoiceName(emoji)}
             variant="outline"
             key={emoji}
             onPressedChange={(): void => {

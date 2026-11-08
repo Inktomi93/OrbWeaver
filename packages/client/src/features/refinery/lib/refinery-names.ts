@@ -18,3 +18,13 @@ export const REFINERY_HIDE_COMPARE_NAME = "Hide compare";
 export function refineryCompareToggleName(comparing: boolean): string {
   return comparing ? REFINERY_HIDE_COMPARE_NAME : REFINERY_COMPARE_NAME;
 }
+
+/** The sessions list's empty state before any session exists. */
+export const REFINERY_NO_SESSIONS_TITLE = "No refinery sessions yet";
+
+/** The Context pane's setup tab. */
+export const REFINERY_SETUP_TAB_LABEL = "Setup";
+
+/** The versions tab's compare heading and its pending read. */
+export const REFINERY_VERSION_DIFF_HEADING = "description — this version vs live";
+export const REFINERY_VERSION_LOADING_TEXT = "Loading that version…";

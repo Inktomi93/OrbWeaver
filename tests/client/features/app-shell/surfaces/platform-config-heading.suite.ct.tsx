@@ -5,6 +5,7 @@ import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProc
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
+import { REGEX_NEW_SCRIPT_NAME } from "#client/features/regex/lib/regex-names.ts";
 import type { ConfigHeadingShellStory } from "./_config-heading-stories.tsx";
 
 const STORY = "tests/client/features/app-shell/surfaces/_config-heading-stories/ConfigHeadingShellStory";
@@ -77,5 +78,5 @@ async function expectRegexTasks(content: Locator, _phone: boolean): Promise<void
   await expect(scripts.getByRole("listitem").first()).toBeVisible();
   await expect(content.getByRole("textbox", { name: "Filter regex scripts", exact: true })).toBeVisible();
   await expect(content.getByText(/Find\/replace that runs on input/u)).toBeVisible();
-  await expect(content.getByRole("button", { name: "New script", exact: true })).toBeVisible();
+  await expect(content.getByRole("button", { name: REGEX_NEW_SCRIPT_NAME, exact: true })).toBeVisible();
 }

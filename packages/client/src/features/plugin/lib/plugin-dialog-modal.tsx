@@ -15,10 +15,11 @@ import type { ReactElement } from "react";
 import type { ModalDefinition } from "#state";
 import { clearPluginDialog } from "#state";
 import { PluginDialogBody } from "../components/plugin-dialog-body.tsx";
+import { PLUGIN_DIALOG_TITLE } from "./plugin-panel-copy.ts";
 
 export const pluginDialogModal: ModalDefinition = {
   id: "pluginDialog",
-  title: "Plugin",
+  title: PLUGIN_DIALOG_TITLE,
   size: "md",
   trigger: { placement: "surface", label: "Plugin dialog", icon: Blocks },
   onClose: clearPluginDialog,

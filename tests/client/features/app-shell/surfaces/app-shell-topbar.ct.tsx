@@ -23,6 +23,7 @@ import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { commandShortcutLabel } from "#client/features/app-shell/lib/command-shortcut-label.ts";
 import { CHARACTER_IMPORT_NAME, CHARACTER_LIBRARY_NAME, CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
+import { EXTENSIONS_SEARCH_NAME } from "#client/features/plugin/lib/extensions-copy.ts";
 import { renameChatButtonIdentity } from "#client/lib/chat-rename-names.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { AppShellTrailProjectionStory } from "./_trail-projection-stories.tsx";
@@ -171,7 +172,7 @@ test.describe("on a phone", () => {
     await mount<typeof AppShellStory>(STORY, {});
     const title = page.locator(NARROW_TITLE);
     await expect(title).toHaveText(`${SECTION_LABELS.extensions}${censusSuffix(3)}`);
-    await page.getByLabel("Search plugin pages").fill("no page has this name");
+    await page.getByLabel(EXTENSIONS_SEARCH_NAME).fill("no page has this name");
     await expect(title).toHaveText(`${SECTION_LABELS.extensions}${censusSuffix("0 of 3")}`);
   });
 

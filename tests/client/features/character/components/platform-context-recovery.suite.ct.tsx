@@ -20,13 +20,20 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
-import { CHARACTER_ACTIONS_MENU_NAME, CHARACTER_EDITOR_NAME, CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
+import { FONT_FIELD_NAME } from "#client/components/shared-control-names.ts";
+import {
+  CHARACTER_ACTIONS_MENU_NAME,
+  CHARACTER_EDITOR_NAME,
+  CHARACTER_LIBRARY_NAME,
+  CHARACTER_NO_SNAPSHOTS_TEXT,
+} from "#client/features/character/lib/character-names.ts";
 import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
+import { TOAST_CLOSE_NAME } from "#ui/primitives/toast/toast-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const CARD_NAME = "The northern observatory archivist with a long working name";
 const SNAPSHOT_LABEL = "Before the observatory expedition";
-const NO_SNAPSHOTS = "No snapshots yet. Take one to capture this character's current state.";
+const NO_SNAPSHOTS = CHARACTER_NO_SNAPSHOTS_TEXT;
 const FONT = THEME_FONT_ALLOWLIST[0];
 const CHARACTERS = SECTION_LABELS.characters;
 // The context sheet closes by its section-named dismiss or by the details toggle, by pane mode.
@@ -72,7 +79,7 @@ async function prepare(
 }
 
 async function selectCharacter(page: Page, name: string): Promise<void> {
-  const notification = page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByRole("button", { name: "Close notification", exact: true });
+  const notification = page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByRole("button", { name: TOAST_CLOSE_NAME, exact: true });
   if (await notification.isVisible()) {
     await notification.click();
     await notification.waitFor({ state: "hidden" });
@@ -276,7 +283,7 @@ test("Look isolates a failed character's draft on selection without leaking it i
   await mount<typeof ShellAmbientStory>(STORY, {});
   await openCharacterContext(page, "Look");
   const context = page.locator('.shell-panel[data-panel-side="context"]');
-  const font = context.getByRole("combobox", { name: "Font", exact: true });
+  const font = context.getByRole("combobox", { name: FONT_FIELD_NAME, exact: true });
   const status = context.locator('[data-slot="autosave-status"]');
   await font.click();
   await page.getByRole("option", { name: FONT, exact: true }).click();
@@ -368,7 +375,7 @@ for (const regime of REGIMES) {
         await mount<typeof ShellAmbientStory>(STORY, {});
         await openCharacterContext(page, "Look");
         const context = page.locator('.shell-panel[data-panel-side="context"]');
-        const font = context.getByRole("combobox", { name: "Font", exact: true });
+        const font = context.getByRole("combobox", { name: FONT_FIELD_NAME, exact: true });
         const status = context.locator('[data-slot="autosave-status"]');
         await expect(font).toHaveText("Inherit");
         await font.click();
@@ -483,7 +490,7 @@ test("Look's Reset all to Inherit asks first: Cancel writes nothing, Reset write
   await mount<typeof ShellAmbientStory>(STORY, {});
   await openCharacterContext(page, "Look");
   const context = page.locator('.shell-panel[data-panel-side="context"]');
-  const font = context.getByRole("combobox", { name: "Font", exact: true });
+  const font = context.getByRole("combobox", { name: FONT_FIELD_NAME, exact: true });
   await expect(font).toHaveText(FONT);
 
   await context.getByRole("button", { name: "Reset all to Inherit", exact: true }).click();

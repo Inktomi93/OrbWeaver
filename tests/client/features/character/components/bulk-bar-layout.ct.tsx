@@ -7,6 +7,8 @@ import { routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES,
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
+import { CHAT_ARCHIVE_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { SELECTION_CLEAR_NAME } from "#ui/primitives/selection-bar/selection-bar-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const SELECTED = 2;
@@ -65,10 +67,10 @@ for (const regime of REGIMES) {
       await expect(count).toHaveText(`${String(SELECTED)} selected`);
       const verbs = [
         bar.getByRole("button", { name: "Tag", exact: true }),
-        bar.getByRole("button", { name: "Archive", exact: true }),
+        bar.getByRole("button", { name: CHAT_ARCHIVE_NAME, exact: true }),
         bar.getByRole("button", { name: ROW_DELETE_NAME, exact: true }),
       ];
-      const parts = [count, ...verbs, bar.getByRole("button", { name: "Clear selection", exact: true })];
+      const parts = [count, ...verbs, bar.getByRole("button", { name: SELECTION_CLEAR_NAME, exact: true })];
       for (const part of parts) {
         await expect(part).toBeVisible();
         expect(await isHitTestable(part)).toBe(true);

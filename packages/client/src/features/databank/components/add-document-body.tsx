@@ -51,7 +51,13 @@ import { useCreateDocumentFromText, useScrapeWeb, useScrapeWiki, useScrapeYoutub
 import { useScrapeForm } from "../hooks/use-scrape-form.ts";
 import { DATABANK_INGEST_GLOSS } from "../lib/databank-copy.ts";
 import { DOCUMENT_UPLOAD_FORMAT_HINT } from "../lib/databank-model.ts";
-import { DATABANK_PASTE_TEXT_NAME } from "../lib/databank-names.ts";
+import {
+  DATABANK_ADD_METHOD_NAME,
+  DATABANK_ADD_NAME,
+  DATABANK_ADD_NAME_FIELD_NAME,
+  DATABANK_ADD_TEXT_FIELD_NAME,
+  DATABANK_PASTE_TEXT_NAME,
+} from "../lib/databank-names.ts";
 import type { ScrapeFormValues } from "../lib/scrape-form-model.ts";
 import { DEFAULT_CAPTION_LANG, SCRAPE_FAILURE, SCRAPER_OPTIONS } from "../lib/scrape-form-model.ts";
 
@@ -163,7 +169,7 @@ export function AddDocumentBody(): ReactElement {
         {/* Three pressable modes, not a tablist: each swaps the body in place with no panel to own or
             label, and `aria-pressed` is the honest name for "this is the one you are on". */}
         <ToggleGroup
-          aria-label="How to add the document"
+          aria-label={DATABANK_ADD_METHOD_NAME}
           onValueChange={(next): void => {
             const picked = ADD_MODES.find((id) => id === next[0]);
             if (picked !== undefined) {
@@ -340,16 +346,16 @@ function PasteBody({ onLanded, destination }: { readonly onLanded: OnLanded; rea
 
   return (
     <ArmRegion label={DATABANK_PASTE_TEXT_NAME} onSubmit={onSubmit}>
-      <Field label="Name">
+      <Field label={DATABANK_ADD_NAME_FIELD_NAME}>
         <Input onValueChange={setName} placeholder="e.g. House Valeroth — bloodlines" value={name} />
       </Field>
-      <Field label="Text">
+      <Field label={DATABANK_ADD_TEXT_FIELD_NAME}>
         <Textarea onChange={(event): void => setText(event.target.value)} placeholder="Paste or write the content to index…" rows={8} value={text} />
       </Field>
       <DialogFooter push="blockEnd">
         <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.cancel}</Button>} />
         <Button disabled={!canCreate} loading={create.isPending} type="submit">
-          Add
+          {DATABANK_ADD_NAME}
         </Button>
       </DialogFooter>
     </ArmRegion>

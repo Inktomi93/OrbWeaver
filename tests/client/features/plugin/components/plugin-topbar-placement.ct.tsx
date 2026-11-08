@@ -12,6 +12,8 @@ import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { PLUGIN_ACTIONS_NAME } from "#client/features/plugin/lib/plugin-command-copy.ts";
+import { MESSAGE_TOOLS_LABEL } from "#client/lib/flank-names.ts";
 import type { PluginRoomShellStory } from "../_ct-stories.tsx";
 
 const STORY = "tests/client/features/plugin/_ct-stories/PluginRoomShellStory";
@@ -172,10 +174,10 @@ test("a command placed at composer-action keeps its top bar button, and only com
   await openRoom({ root, corpus, page, show }, [both, twin], DESKTOP);
   await expect(pluginControls(trailOf(page))).toHaveCount(1);
   await expect(pluginControls(trailOf(page))).toHaveAccessibleName(attributed("Both"));
-  await page.getByRole("button", { name: "Plugin actions", exact: true }).click();
+  await page.getByRole("button", { name: PLUGIN_ACTIONS_NAME, exact: true }).click();
   await expect(page.getByRole("menuitem", { name: new RegExp(PLUGIN_NAME, "u") })).toHaveCount(2);
   await page.keyboard.press("Escape");
-  await page.getByRole("button", { name: "Message tools", exact: true }).click();
+  await page.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true }).click();
   await expect(page.getByRole("menuitem").first()).toBeVisible();
   await expect(page.getByRole("menuitem", { name: new RegExp(PLUGIN_NAME, "u") })).toHaveCount(0);
 });

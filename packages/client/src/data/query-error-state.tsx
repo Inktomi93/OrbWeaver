@@ -8,6 +8,7 @@ import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ComponentProps, ReactElement, ReactNode } from "react";
+import { DIALOG_VERBS } from "#lib";
 import { QUERY_WAITING_LINE, queryFailedLabel } from "./query-state-copy.ts";
 
 export interface QueryErrorStateProps {
@@ -38,7 +39,7 @@ export function QueryErrorState({ label, onRetry, renderRetry, plate }: QueryErr
       </Text>
       {renderRetry?.(onRetry) ?? (
         <Button variant="ghost" onClick={onRetry}>
-          Retry
+          {DIALOG_VERBS.retry}
         </Button>
       )}
     </Stack>

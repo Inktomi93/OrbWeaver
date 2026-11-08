@@ -258,6 +258,11 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
   // Capture-phase: the row body is a MenuTrigger whose own keydown opens the menu on ArrowDown/ArrowUp;
   // roving navigation must claim those keys first via capture + stopPropagation.
   const handleKeyDownCapture = (event: KeyboardEvent<HTMLDivElement>): void => {
+    // A row's menu and dialogs portal out of the toolbar, but React still routes their keys through it; their own
+    // navigation owns those keys.
+    if (!(event.target instanceof Node && event.currentTarget.contains(event.target))) {
+      return;
+    }
     // ArrowLeft/Right FIRST (#208): it is the only claimant of those keys here, and answering it before the
     // vertical/typeahead arms keeps each key's owner obvious. Capture-phase for the same reason the vertical
     // arm is — the row body is a MenuTrigger with its own key handling.

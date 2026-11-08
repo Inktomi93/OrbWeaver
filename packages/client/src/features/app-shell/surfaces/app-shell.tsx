@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { preload } from "react-dom";
 import { ListPaneHeaderHost } from "#components";
 import { useWarmSavedRosters } from "#data";
-import { resolveThemeScopeTokens } from "#lib";
+import { CONTEXT_SHEET_BACK_NAME, contextPaneLabel, listPaneLabel, panelCloseName, resolveThemeScopeTokens, sectionBackName } from "#lib";
 import type { PanelMode, PanelName, SectionId } from "#state";
 import {
   clearShellContentFocus,
@@ -120,7 +120,7 @@ function ContextPaneBody({
         definition={definition}
         headerRef={layout.contextMode === "collapsed" ? undefined : headerRef}
         {...(sheetDismisses(layout, layout.contextMode)
-          ? { dismissLabel: `Close ${layout.activeSectionLabel} details`, onDismiss: (): void => layout.collapsePanel("context") }
+          ? { dismissLabel: panelCloseName(contextPaneLabel(layout.activeSectionLabel)), onDismiss: (): void => layout.collapsePanel("context") }
           : {})}
       />
     </RegionAnchor>
@@ -370,7 +370,7 @@ export function AppShell(): ReactElement {
               <PanelChrome
                 headerRef={noticeHeaderRef}
                 panel="list"
-                label={`${layout.activeSectionLabel} list`}
+                label={listPaneLabel(layout.activeSectionLabel)}
                 available={layout.listAvailable}
                 header={activeDef.useListHeader === undefined ? null : <ListPaneHeaderHost key={layout.activeSection} useView={activeDef.useListHeader} />}
                 mode={layout.listMode}
@@ -404,7 +404,9 @@ export function AppShell(): ReactElement {
                       onToggleList={(): void => layout.togglePanel("list")}
                       // The section resolves mode vocabulary without teaching the shell its feature state.
                       onBack={layout.backToList}
-                      backLabel={layout.backClosesSheet ? "Close details" : `Back to ${layout.backTargetLabel ?? contentLabel ?? layout.activeSectionLabel}`}
+                      backLabel={
+                        layout.backClosesSheet ? CONTEXT_SHEET_BACK_NAME : sectionBackName(layout.backTargetLabel ?? contentLabel ?? layout.activeSectionLabel)
+                      }
                     />
                   )}
                 </SectionTopbarTitle>
@@ -439,7 +441,7 @@ export function AppShell(): ReactElement {
               <PanelChrome
                 headerRef={noticeHeaderRef}
                 panel="context"
-                label={`${layout.activeSectionLabel} details`}
+                label={contextPaneLabel(layout.activeSectionLabel)}
                 available={layout.contextAvailable}
                 header={contextPane.header}
                 mode={layout.contextMode}

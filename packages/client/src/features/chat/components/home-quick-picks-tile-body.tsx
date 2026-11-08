@@ -21,6 +21,7 @@ import type { FocusEvent, ReactElement, RefObject } from "react";
 import { useId, useLayoutEffect, useRef, useState } from "react";
 import { useStartChat, useSuspenseQuery, useTRPC } from "#data";
 import { resumeChat, setActiveSection } from "#state";
+import { CHAT_ALL_CHARACTERS_NAME } from "../lib/chat-surface-names.ts";
 
 const TRACK_SEPARATOR = /\s+/u;
 
@@ -231,7 +232,7 @@ export function HomeQuickPicksTileBody({ gridRef }: { readonly gridRef?: RefObje
       <PictureButton caption="centre" className="snap-start" variant="ghost" onClick={(): void => setActiveSection("characters")}>
         <Icon icon={Users} size="lg" />
         <Text as="span" voice="promoted">
-          All characters
+          {CHAT_ALL_CHARACTERS_NAME}
         </Text>
       </PictureButton>
     </Grid>

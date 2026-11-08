@@ -3,14 +3,14 @@ import { extname } from "node:path";
 import { ASSET_LIST_LIMIT_MAX, blobUrl } from "@orb/contracts/assets";
 import { characterHandleSchema } from "@orb/contracts/character";
 import type { ChatSummary, MessageView } from "@orb/contracts/chat";
-import { CHAT_LIST_MAX_LIMIT, CHAT_MESSAGE_LIST_MAX_LIMIT, forkResultSchema, listMessagesInputSchema } from "@orb/contracts/chat";
+import { CHAT_LIST_MAX_LIMIT, CHAT_MESSAGE_LIST_MAX_LIMIT, forkResultSchema, listMessagesInputSchema, REACTION_EMOJIS } from "@orb/contracts/chat";
 import type { PluginCommandView, PluginView } from "@orb/contracts/plugin";
 import { streamAttachInputSchema } from "@orb/contracts/stream";
 import type { AssetId, CharacterId, ChatId, PersonaId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
-import { controlledPanel, settledBox, usesProgrammaticScroll, walkDisclosures } from "@orb/testkit/browser/spec";
+import { controlledPanel, settledBox, usesProgrammaticScroll } from "@orb/testkit/browser/spec";
 import type { SurfaceWitnessDisposition } from "@orb/testkit/iso";
 import { nonEmpty, parseSurfaceProviderEvidence } from "@orb/testkit/iso";
 import { attachNativeFile, isTrpcRequestFor, matchesTrpcRequestInput, readTrpcOutput, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
@@ -20,13 +20,16 @@ import { expect, test } from "@playwright/test";
 import { CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
 import { CHAT_DELETE_NAME, CHAT_SELECT_MESSAGES_NAME } from "#client/features/chat/lib/chat-options-names.ts";
 import {
+  CHAT_ARCHIVE_NAME,
   CHAT_CANCEL_EDIT_NAME,
   CHAT_CLEAR_SEARCH_NAME,
   CHAT_COMPOSER_NAME,
   CHAT_CONTINUE_REPLY_NAME,
+  CHAT_CORRECTION_INSTRUCTION_NAME,
   CHAT_DELETE_MESSAGE_TITLE,
   CHAT_EARLIER_MESSAGES_NAME,
   CHAT_EXPORT_TRANSCRIPT_NAME,
+  CHAT_LIST_EMPTY_TITLE,
   CHAT_LIST_NAME,
   CHAT_MESSAGE_INPUT_NAME,
   CHAT_NEXT_GREETING_NAME,
@@ -38,33 +41,74 @@ import {
   CHAT_SAVED_REPLY_NAME,
   CHAT_SEARCH_NAME,
   CHAT_SEND_NAME,
+  CHAT_STAR_NAME,
   CHAT_STOP_NAME,
   CHAT_STOPPING_NAME,
+  CHAT_UNSTAR_NAME,
+  chatRowActionsName,
+  reactionChoiceName,
+  reactionPillName,
+  savedReplyOptionName,
+  WIRE_AUTHORED_TEXT_HEADING,
+  WIRE_NO_PROMPT_TITLE,
+  WIRE_STATIC_PREFIX_HEADING,
 } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMPOSER_CLEAR_INPUT_NAME, COMPOSER_CORRECTIONS_NAME, COMPOSER_IMAGINE_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
 import {
   MESSAGE_ACTIONS_MENU_NAME,
+  MESSAGE_COPY_NAME,
   MESSAGE_EDIT_NAME,
   MESSAGE_FORK_NAME,
+  MESSAGE_HIDE_FROM_AI_NAME,
   MESSAGE_REACTION_ADD_NAME,
+  MESSAGE_REAPPLY_CONTINUATION_NAME,
   MESSAGE_REATTRIBUTE_NAME,
+  MESSAGE_UNDO_CONTINUATION_NAME,
+  MESSAGE_UNHIDE_FROM_AI_NAME,
   MESSAGE_VIEW_WIRE_TRACE_NAME,
 } from "#client/features/chat/lib/message-action-names.ts";
 import { resolveIsGroupChat } from "#client/features/chat/lib/roster.ts";
-import { pluginCommandShownName, sharedPluginNames } from "#client/features/plugin/lib/plugin-command-copy.ts";
-import { CHAT_PLUGINS_OPEN_LABEL } from "#client/features/plugin/lib/plugin-panel-copy.ts";
+import { IMAGINE_MODE_NAME, IMAGINE_PROMPT_NAME } from "#client/features/imagery/lib/imagine-names.ts";
+import {
+  humanizeId,
+  PLUGIN_ACTIONS_NAME,
+  PLUGIN_COMMAND_ARGS_TITLE,
+  pluginCommandActionLabel,
+  pluginCommandShownName,
+  pluginUndoName,
+  sharedPluginNames,
+} from "#client/features/plugin/lib/plugin-command-copy.ts";
+import { CHAT_PLUGINS_OPEN_LABEL, movePluginPanelLabel, PLUGIN_DIALOG_TITLE } from "#client/features/plugin/lib/plugin-panel-copy.ts";
 import { CHAT_TITLE_FIELD_NAME, RENAME_CHAT_NAME } from "#client/lib/chat-rename-names.ts";
 import { deriveChatTitle } from "#client/lib/chat-title.ts";
-import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
+import { COPIED_TO_CLIPBOARD_NOTICE } from "#client/lib/clipboard-names.ts";
+import { LIST_PANEL_NOUN, panelEdgeName } from "#client/lib/context-pane-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
-import { SIDECAR_PANELS_LABEL, SIDECAR_PANELS_NOUN } from "#client/lib/flank-names.ts";
+import { MESSAGE_TOOLS_LABEL, SIDECAR_PANELS_LABEL, SIDECAR_PANELS_NOUN } from "#client/lib/flank-names.ts";
 import { renderMessageForDisplay } from "#client/lib/message-render.ts";
 import { CHAT_PLUGINS_TAB_LABEL } from "#client/lib/registry-contracts.ts";
-import { ROW_DELETE_NAME, ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
+import { deleteConfirmTitle, ROW_DELETE_NAME, ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
+import { NO_MATCHES_TITLE } from "#client/lib/search-empty-names.ts";
+import { SELECTION_CLEAR_NAME, selectionCountLabel } from "../../../packages/ui/src/primitives/selection-bar/selection-bar-names.ts";
+import { TOAST_CLOSE_NAME } from "../../../packages/ui/src/primitives/toast/toast-names.ts";
 import { gotoChatsList, messageRow, openChatsList, openDetailPanel, waitForAppReady } from "./chat-room.ts";
 import type { SurfaceFlow } from "./surface-flow.ts";
 import type { SurfaceWalk } from "./surface-walker.ts";
-import { checkpoint, createSurfaceWalk, disclosureHooks, expectSubject, observe, publishWalk, skip } from "./surface-walker.ts";
+import {
+  checkpoint,
+  createSurfaceWalk,
+  dismissContext,
+  expectSubject,
+  menuLeafItems,
+  NAME_HOLE,
+  namePattern,
+  observe,
+  pane,
+  publishWalk,
+  skip,
+  walkMenuTrigger,
+  walkScope,
+} from "./surface-walker.ts";
 import { holdTrpcProcedure } from "./trpc.ts";
 
 // The showcase plugins the walks drive; `satisfies` makes a renamed or retired slug a `tsc` error here.
@@ -73,7 +117,6 @@ const ORACLE_SLUG = "oracle-deck" satisfies ShowcaseSlug;
 const POLISH_SLUG = "draft-polish" satisfies ShowcaseSlug;
 const DRAFT = "A direction retained while inspecting the room controls.";
 const EMPTY_SEARCH = "surface-walk-no-chat-with-this-name-7f4a6d";
-const MENU_DEPTH_LIMIT = 8;
 const WHEEL_STEP_RATIO = 0.65;
 const SCROLL_EPSILON = 2;
 const MAX_READING_POSITION_STEPS = 10_000;
@@ -169,7 +212,7 @@ async function roomRow(flow: Journey, room: ChatSummary): Promise<Locator> {
   await flow.action(`chat-search-${room.id}`, {
     action: async () => {
       await flow.page.getByRole("textbox", { name: CHAT_SEARCH_NAME, exact: true }).fill(EMPTY_SEARCH);
-      await expect(flow.page.getByText("No matches", { exact: true })).toBeVisible();
+      await expect(flow.page.getByText(NO_MATCHES_TITLE, { exact: true })).toBeVisible();
       await flow.page.getByRole("textbox", { name: CHAT_SEARCH_NAME, exact: true }).fill(search);
     },
     ready: async () => {
@@ -193,7 +236,7 @@ async function roomRow(flow: Journey, room: ChatSummary): Promise<Locator> {
   await expect(virtualRow).toBeVisible();
   const loaded = Number(await virtualRow.getAttribute("aria-setsize"));
   expect(loaded).toBeLessThanOrEqual(matches.length);
-  await expect(virtualRow.getByRole("button", { name: /^Chat actions for /u })).toHaveCount(room.viewerRole === "host" ? 1 : 0);
+  await expect(virtualRow.getByRole("button", { name: namePattern(chatRowActionsName(NAME_HOLE)) })).toHaveCount(room.viewerRole === "host" ? 1 : 0);
   await expect(virtualRow.getByRole("button", { name: label, exact: true })).toHaveCount(1);
   await attachNativeFile(flow.info, flow.info, `chat-${room.id}-native-row-identity`, {
     body: JSON.stringify({
@@ -221,7 +264,7 @@ async function enterChatsList(flow: Journey): Promise<void> {
 async function openRoom(flow: Journey, room: ChatSummary, inspectList = false): Promise<void> {
   await enterChatsList(flow);
   await flow.requestPanes();
-  const showList = flow.page.getByRole("button", { name: "Show list panel", exact: true });
+  const showList = flow.page.getByRole("button", { name: panelEdgeName(LIST_PANEL_NOUN, false), exact: true });
   if (await showList.isVisible()) {
     await showList.click();
     observe(
@@ -261,23 +304,24 @@ async function openRoom(flow: Journey, room: ChatSummary, inspectList = false): 
 
 async function listMenu(flow: Journey, room: ChatSummary, root: Locator): Promise<void> {
   await root.hover();
-  const menu = root.getByRole("button", { name: /^Chat actions for /u });
+  const menu = root.getByRole("button", { name: namePattern(chatRowActionsName(NAME_HOLE)) });
   if ((await menu.count()) === 0) {
     observe(flow, `chat-list-${room.id}-menu`, "not-applicable", "This actual library subject has no host lifecycle menu");
     return;
   }
-  await inspectTrigger(flow, menu, `chat-list-${room.id}-menu`);
+  await walkMenuTrigger(flow, menu, `chat-list-${room.id}-menu`);
+  await safeMenuDrills(flow, menu, `chat-list-${room.id}-menu`);
 }
 
 async function emptySearch(flow: Journey): Promise<void> {
   await enterChatsList(flow);
   await flow.requestPanes();
-  const showList = flow.page.getByRole("button", { name: "Show list panel", exact: true });
+  const showList = flow.page.getByRole("button", { name: panelEdgeName(LIST_PANEL_NOUN, false), exact: true });
   if (await showList.isVisible()) {
     await showList.click();
   }
   const search = flow.page.getByRole("textbox", { name: CHAT_SEARCH_NAME, exact: true });
-  const empty = flow.page.locator('[data-slot="empty-state-root"]').filter({ has: flow.page.getByText("No matches", { exact: true }) });
+  const empty = flow.page.locator('[data-slot="empty-state-root"]').filter({ has: flow.page.getByText(NO_MATCHES_TITLE, { exact: true }) });
   await flow.action("chat-empty-search", {
     action: async () => {
       await search.fill(EMPTY_SEARCH);
@@ -308,21 +352,16 @@ async function messageLeafName(item: Locator): Promise<string> {
   return label;
 }
 
-function menuLeaves(menu: Locator): Locator {
-  return menu.getByRole("menuitem").or(menu.getByRole("menuitemcheckbox")).or(menu.getByRole("menuitemradio"));
+function disabledLeafItems(menu: Locator): Locator {
+  return menu.locator('[role^="menuitem"]:not([aria-haspopup])[aria-disabled="true"], [role^="menuitem"]:not([aria-haspopup])[disabled]');
 }
 
-async function accountMessageLeaves(flow: Journey, menu: Locator, name: string, message: MessageView): Promise<void> {
+// Settles the walker's leaf rows of a message menu against this case's operation proofs; a leaf without one stays skipped.
+async function accountMessageLeaves(flow: Journey, menu: Locator, prefix: string, message: MessageView): Promise<void> {
   const chat = await flow.client.chat.getChat.query({ chatId: message.chatId });
-  for (const item of await menuLeaves(menu).all()) {
+  for (const [index, item] of (await menuLeafItems(menu).all()).entries()) {
     const label = await messageLeafName(item);
-    const id = `${name}/leaf/${label}`;
-    expectSubject(flow, id, "message-menu-leaf");
-    if (await item.isDisabled()) {
-      await disabledControl(item);
-      observe(flow, id, "not-applicable", `Actual ${message.role} leaf disabled; accessible name and visible reason retained in native menu snapshot`);
-      continue;
-    }
+    const id = `${prefix}/leaf-${String(index)}`;
     const proof = flow.messageOperations?.find(
       (candidate) =>
         candidate.label === label &&
@@ -335,120 +374,36 @@ async function accountMessageLeaves(flow: Journey, menu: Locator, name: string, 
         flow,
         id,
         "not-activated",
-        `Enabled ${message.role} leaf has no same-case operation proof for this role and authority; original ${message.id} remains untouched`,
+        `Enabled ${message.role} leaf ${label} has no same-case operation proof for this role and authority; original ${message.id} remains untouched`,
       );
     } else {
       observe(
         flow,
         id,
         "observed",
-        `Original ${message.id} observed only; same-case ${proof.message.role} operation on disposable ${proof.message.chatId}/${proof.message.id}: ${proof.detail}`,
+        `${label}: original ${message.id} observed only; same-case ${proof.message.role} operation on disposable ${proof.message.chatId}/${proof.message.id}: ${proof.detail}`,
       );
     }
   }
+  for (const item of await disabledLeafItems(menu).all()) {
+    const id = `${prefix}/disabled/${await messageLeafName(item)}`;
+    expectSubject(flow, id, "message-menu-leaf");
+    await disabledControl(item);
+    observe(flow, id, "not-applicable", `Actual ${message.role} leaf disabled; accessible name and visible reason retained in native menu snapshot`);
+  }
 }
 
-async function inspectMenu(
-  flow: Journey,
-  menu: Locator,
-  name: string,
-  options: { readonly depth: number; readonly message?: MessageView | undefined },
-): Promise<void> {
-  const { depth, message } = options;
-  await expect(menu).toBeVisible();
-  const items = menuLeaves(menu);
-  await expect(items.first()).toBeVisible();
-  await attachNativeFile(flow.info, flow.info, `${name}-items`, { body: await menu.ariaSnapshot(), contentType: "text/plain" });
-  const enabled = menu.locator('[role^="menuitem"]:not([aria-disabled="true"]):not([disabled])');
-  await menuTerminal(flow, menu, enabled, name);
-  const submenus = menu.locator('[role="menuitem"][aria-haspopup="menu"]:not([aria-disabled="true"]):not([disabled])');
-  const count = await submenus.count();
-  if (depth >= MENU_DEPTH_LIMIT) {
-    observe(flow, `${name}-submenus`, "unvisited", `${String(count)} nested menus beyond the explicit traversal safety bound`);
-    return;
-  }
-  for (let index = 0; index < count; index += 1) {
-    const trigger = submenus.nth(index);
-    await flow.action(`${name}-submenu-${String(index)}`, {
-      action: async () => {
-        await trigger.focus();
-        await trigger.press("ArrowRight");
-      },
-      ready: async () => {
-        await expect(trigger).toHaveAttribute("aria-expanded", "true");
-      },
-    });
-    const child = flow.page.getByRole("menu").last();
-    await inspectMenu(flow, child, `${name}-${String(index)}`, { depth: depth + 1, message });
-    await child.press("Escape");
-    await expect(trigger).toBeFocused();
-  }
-  if (message !== undefined) {
-    await accountMessageLeaves(flow, menu, name, message);
-    return;
-  }
-  skip(
-    flow,
-    `${name}-activation`,
-    "not-activated",
-    "Leaf commands inspected and terminal focus proved; activation may generate, mutate canon, export private data, or invoke an owner plugin",
-  );
-}
-
-async function menuTerminal(flow: Journey, menu: Locator, enabled: Locator, name: string): Promise<void> {
-  if ((await enabled.count()) === 0) {
-    observe(flow, `${name}-terminal`, "not-applicable", "Every actual menu item is disabled; no enabled terminal focus target");
-    return;
-  }
-  await menu.press("End");
-  await expect(enabled.last()).toBeFocused();
-  await checkpoint(flow, `${name}-terminal`, menu, enabled.last());
+/** The walk of one message's menu: the same inventory, with its leaves settled against the message operation proofs. */
+function messageMenuWalk(flow: Journey, message: MessageView): Journey {
+  return { ...flow, hooks: { menuLeaves: async (menu, prefix): Promise<void> => await accountMessageLeaves(flow, menu, prefix, message) } };
 }
 
 async function disabledControl(control: Locator): Promise<void> {
   await expect(control).toBeDisabled();
 }
 
-async function inspectTrigger(
-  flow: Journey,
-  trigger: Locator,
-  name: string,
-  options: { readonly drill?: boolean; readonly message?: MessageView } = {},
-): Promise<void> {
-  const { drill = true, message } = options;
-  if (await trigger.isDisabled()) {
-    await disabledControl(trigger);
-    observe(flow, name, "not-applicable", "Actual control is disabled; retained with its description in the composer checkpoint");
-    return;
-  }
-  await flow.action(`${name}-open`, {
-    action: async () => {
-      await trigger.click();
-    },
-    ready: async () => {
-      await expect(trigger).toHaveAttribute("aria-expanded", "true");
-      await expect(flow.page.getByRole("menu")).toHaveCount(1);
-    },
-  });
-  const menu = flow.page.getByRole("menu");
-  await inspectMenu(flow, menu, name, { depth: 0, message });
-  await menu.press("Escape");
-  await expect(menu).toBeHidden();
-  await expect(trigger).toBeFocused();
-  observe(flow, name, "visited", "Native menu traversal, terminal item focus, dismissal and trigger focus restoration completed");
-  if (drill) {
-    await safeMenuDrills(flow, trigger, name);
-  }
-}
-
-async function dismissMenu(menu: Locator, trigger: Locator): Promise<void> {
-  await menu.press("Escape");
-  await expect(menu).toBeHidden();
-  await expect(trigger).toBeFocused();
-}
-
 async function inspectImagineModes(flow: Journey, dialog: Locator, id: string): Promise<void> {
-  const modes = dialog.getByRole("group", { name: "Mode", exact: true }).getByRole("button");
+  const modes = dialog.getByRole("group", { name: IMAGINE_MODE_NAME, exact: true }).getByRole("button");
   await expect(modes.first()).toBeVisible();
   for (const [index, mode] of (await modes.all()).entries()) {
     await flow.action(`${id}-mode-${String(index)}`, {
@@ -490,11 +445,15 @@ function safeDialogWitness(dialog: Locator, label: string): Locator {
     case ROW_RENAME_NAME:
       return dialog.getByRole("textbox", { name: CHAT_TITLE_FIELD_NAME, exact: true });
     case COMPOSER_CORRECTIONS_NAME:
-      return dialog.getByRole("textbox", { name: "Correction instruction", exact: true });
+      return dialog.getByRole("textbox", { name: CHAT_CORRECTION_INSTRUCTION_NAME, exact: true });
     case COMPOSER_IMAGINE_NAME:
-      return dialog.getByRole("textbox", { name: "Image prompt", exact: true });
+      return dialog.getByRole("textbox", { name: IMAGINE_PROMPT_NAME, exact: true });
     case MESSAGE_VIEW_WIRE_TRACE_NAME:
-      return dialog.getByText(/No prompt was captured|Static prefix|Authored text/u).first();
+      return dialog
+        .getByText(WIRE_NO_PROMPT_TITLE, { exact: true })
+        .or(dialog.getByText(WIRE_STATIC_PREFIX_HEADING, { exact: true }))
+        .or(dialog.getByText(WIRE_AUTHORED_TEXT_HEADING, { exact: true }))
+        .first();
     default:
       return dialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true });
   }
@@ -533,11 +492,11 @@ async function safeSelectionDrill(flow: Journey, command: Locator, id: string): 
     },
     ready: async () => {
       await expect(bar).toBeVisible();
-      await expect(bar.getByText("0 selected", { exact: true })).toBeVisible();
+      await expect(bar.getByText(selectionCountLabel(0), { exact: true })).toBeVisible();
     },
   });
   await checkpoint(flow, id, bar, bar);
-  await bar.getByRole("button", { name: "Clear selection", exact: true }).click();
+  await bar.getByRole("button", { name: SELECTION_CLEAR_NAME, exact: true }).click();
   await expect(bar).toBeHidden();
 }
 
@@ -591,7 +550,7 @@ async function pluginContextReady(flow: Journey): Promise<void> {
 }
 
 async function safePanelsDrill(flow: Journey, command: Locator, id: string): Promise<void> {
-  const opensContext = await flow.page.getByRole("menu", { name: "Plugin actions", exact: true }).isVisible();
+  const opensContext = await flow.page.getByRole("menu", { name: PLUGIN_ACTIONS_NAME, exact: true }).isVisible();
   const sheet = flow.page.getByRole("dialog", { name: SIDECAR_PANELS_LABEL, exact: true });
   const scope = opensContext ? activeContext(flow) : sheet;
   await flow.action(id, {
@@ -613,7 +572,7 @@ async function safePanelsDrill(flow: Journey, command: Locator, id: string): Pro
   }
   await expect(sheet).toBeHidden();
   await flow.requestPanes();
-  await closeContextOverlay(flow, `${id}-return-to-content`);
+  await dismissContext(flow);
 }
 
 async function runSafeCommand(
@@ -650,7 +609,9 @@ async function safeMenuDrills(flow: Journey, trigger: Locator, name: string): Pr
       available.push(label);
     }
   }
-  await dismissMenu(menu, trigger);
+  await menu.press("Escape");
+  await expect(menu).toBeHidden();
+  await expect(trigger).toBeFocused();
   for (const label of available) {
     await trigger.click();
     await expect(menu).toBeVisible();
@@ -692,7 +653,8 @@ async function composerMenus(flow: Journey, room: ChatSummary): Promise<void> {
         expectSubject(flow, `composer-${room.id}-${phase}-menu-${String(index)}`, "menu");
       }
       for (let index = 0; index < count; index += 1) {
-        await inspectTrigger(flow, triggers.nth(index), `composer-${room.id}-${phase}-menu-${String(index)}`);
+        await walkMenuTrigger(flow, triggers.nth(index), `composer-${room.id}-${phase}-menu-${String(index)}`);
+        await safeMenuDrills(flow, triggers.nth(index), `composer-${room.id}-${phase}-menu-${String(index)}`);
       }
       await expect(input).toHaveValue(value);
     }
@@ -731,61 +693,35 @@ async function contextReady(flow: Journey): Promise<void> {
   await expect(activeContext(flow).locator('[data-slot="skeleton"]:visible')).toHaveCount(0);
 }
 
-async function closeContextOverlay(flow: Journey, name: string): Promise<void> {
-  const panel = flow.page.locator('.shell-panel[data-panel-side="context"]');
-  if ((await panel.getAttribute("data-panel-mode")) !== "overlay") {
-    return;
-  }
-  const close = flow.page
-    .getByRole("button", { name: "Close details", exact: true })
-    .or(flow.page.getByRole("button", { name: contextToggleLabel(false), exact: true }));
-  await flow.action(name, {
-    action: async () => {
-      await close.click();
-    },
-    ready: async () => {
-      await expect(panel).toHaveAttribute("data-panel-mode", "collapsed");
-      await expect(flow.page.locator(".shell-content")).toHaveJSProperty("inert", false);
-    },
-  });
-  await flow.topology();
-}
-
-async function contextCells(flow: Journey, cells: Locator, name: string): Promise<void> {
-  const count = await cells.count();
-  for (let index = 0; index < count; index += 1) {
-    expectSubject(flow, `${name}-${String(index)}`, "context-cell");
-  }
-  for (let index = 0; index < count; index += 1) {
-    const cell = cells.nth(index);
+// The game rail is a toolbar of aria-current cells, which the generic walk does not step; each cell's body is walked.
+async function walkRailCells(flow: Journey, prefix: string): Promise<void> {
+  const cells = await pane(flow, "context").locator('[data-slot="context-rail"]').getByRole("button").all();
+  for (const [index, cell] of cells.entries()) {
+    const id = `${prefix}-${String(index)}`;
     if (await cell.isDisabled()) {
-      observe(flow, `${name}-${String(index)}`, "not-applicable", "Production contribution is disabled");
+      skip(flow, id, "disabled", "Production rail cell is disabled; no body acceptance claimed");
       continue;
     }
-    await flow.action(`${name}-${String(index)}`, {
+    await flow.action(id, {
       action: async () => {
         await cell.click();
       },
       ready: async () => {
         await contextReady(flow);
-        const selected = (await cell.getAttribute("role")) === "tab" ? "aria-selected" : "aria-current";
-        await expect(cell).toHaveAttribute(selected, "true");
+        await expect(cell).toHaveAttribute("aria-current", "true");
       },
     });
-    const region = activeContext(flow);
-    await checkpoint(flow, `${name}-${String(index)}`, region, region);
-    await walkDisclosures(region, `${name}-${String(index)}`, disclosureHooks(flow));
+    await walkScope(flow, activeContext(flow), id);
   }
-  observe(
-    flow,
-    name,
-    count === 0 ? "not-applicable" : "observed",
-    `${String(count)} actual visible navigation cells; omitted capabilities are not synthesized`,
-  );
+}
+
+// The placement action's words before the panel it names, for each destination.
+function placementPrefix(toSidecar: boolean): string {
+  return movePluginPanelLabel(NAME_HOLE, NAME_HOLE, toSidecar).split(NAME_HOLE).at(0) ?? "";
 }
 
 async function sidecar(flow: Journey, room: ChatSummary): Promise<void> {
-  const move = activeContext(flow).getByRole("button", { name: /^Move to sidecar:/u });
+  const move = activeContext(flow).getByRole("button", { name: namePattern(movePluginPanelLabel(NAME_HOLE, NAME_HOLE, true)) });
   if ((await move.count()) === 0) {
     observe(flow, `sidecar-${room.id}`, "not-applicable", "No rendered enabled plugin chat panel offers a sidecar placement");
     return;
@@ -794,7 +730,7 @@ async function sidecar(flow: Journey, room: ChatSummary): Promise<void> {
   if (label === null) {
     throw new Error("The plugin placement control has no accessible label");
   }
-  const restoreLabel = label.replace("Move to sidecar:", "Move to Context:");
+  const restoreLabel = label.replace(placementPrefix(true), placementPrefix(false));
   const restore = activeContext(flow).getByRole("button", { name: restoreLabel, exact: true });
   await flow.action(`sidecar-${room.id}-opt-in`, {
     action: async () => {
@@ -863,8 +799,8 @@ async function sidecarColumnReady(column: Locator, edge: Locator): Promise<void>
 }
 
 async function inspectSidecarSheet(flow: Journey, room: ChatSummary, restoreLabel: string): Promise<void> {
-  await closeContextOverlay(flow, `sidecar-${room.id}-return-to-content`);
-  await flow.page.getByRole("button", { name: "Message tools", exact: true }).click();
+  await dismissContext(flow);
+  await flow.page.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true }).click();
   const item = flow.page.getByRole("menuitem", { name: SIDECAR_PANELS_LABEL, exact: true });
   await expect(item).toBeVisible();
   const sheet = flow.page.getByRole("dialog", { name: SIDECAR_PANELS_LABEL, exact: true });
@@ -908,16 +844,8 @@ async function inspectPlugins(flow: Journey, plugins: Locator, room: ChatSummary
 
 async function context(flow: Journey, room: ChatSummary): Promise<void> {
   await openDetailPanel(flow.page);
-  const headerMenus = flow.page.locator('[data-slot="context-bracket-header"] button[aria-haspopup="menu"]');
-  const menuCount = await headerMenus.count();
-  for (let index = 0; index < menuCount; index += 1) {
-    expectSubject(flow, `context-${room.id}-header-menu-${String(index)}`, "menu");
-  }
-  for (let index = 0; index < menuCount; index += 1) {
-    await inspectTrigger(flow, headerMenus.nth(index), `context-${room.id}-header-menu-${String(index)}`);
-  }
-  await contextCells(flow, flow.page.getByRole("tablist", { name: CHAT_CONTEXT_TABLIST_NAME, exact: true }).getByRole("tab"), `context-${room.id}-tabs`);
-  await contextCells(flow, flow.page.locator('[data-slot="context-rail"]').getByRole("button"), `context-${room.id}-game`);
+  await walkScope(flow, pane(flow, "context"), `context-${room.id}`);
+  await walkRailCells(flow, `context-${room.id}-game`);
   const plugins = flow.page
     .getByRole("tablist", { name: CHAT_CONTEXT_TABLIST_NAME, exact: true })
     .getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true });
@@ -1169,7 +1097,7 @@ async function readingChrome(flow: Journey, row: Locator, viewport: Locator, sub
   const position = await viewport.evaluate((element) => element.scrollTop);
   try {
     await row.hover();
-    await inspectTrigger(flow, menu, `reading-${name}-actions`, { drill: false, message });
+    await walkMenuTrigger(messageMenuWalk(flow, message), menu, `reading-${name}-actions`);
   } finally {
     await scrollViewport(flow, viewport, position - (await viewport.evaluate((element) => element.scrollTop)));
     await expect.poll(async () => Math.abs((await viewport.evaluate((element) => element.scrollTop)) - position)).toBeLessThanOrEqual(SCROLL_EPSILON);
@@ -1184,7 +1112,8 @@ async function independentMessageMenu(flow: Journey, message: MessageView): Prom
     observe(flow, `message-${message.id}-independent-menu`, "not-applicable", "This actual committed tail has no message menu");
     return;
   }
-  await inspectTrigger(flow, trigger, `message-${message.id}-independent-menu`, { message });
+  await walkMenuTrigger(messageMenuWalk(flow, message), trigger, `message-${message.id}-independent-menu`);
+  await safeMenuDrills(flow, trigger, `message-${message.id}-independent-menu`);
 }
 
 async function readingPosition(viewport: Locator, row: Locator, edge: number, position: "start" | "tail"): Promise<void> {
@@ -1246,7 +1175,7 @@ async function missingLibrarySubject(flow: Journey, population: number): Promise
     return;
   }
   await enterChatsList(flow);
-  const empty = flow.page.locator('[data-slot="empty-state-root"]').filter({ has: flow.page.getByText("No chats yet", { exact: true }) });
+  const empty = flow.page.locator('[data-slot="empty-state-root"]').filter({ has: flow.page.getByText(CHAT_LIST_EMPTY_TITLE, { exact: true }) });
   await expect(empty).toBeVisible();
   await flow.checkpoint({ name: "chat-empty-library", scope: empty, state: "empty", witnesses: [empty], checks: SURFACE_CHECKS });
   observe(flow, "chat-room-controls", "not-applicable", "The original account has no readable library room; no synthetic owner data was added");
@@ -1407,13 +1336,13 @@ async function commandRoom(flow: Journey, chatId: ChatId, search: string): Promi
 async function chatRowMenu(flow: Journey, room: ChatSummary): Promise<Locator> {
   await enterChatsList(flow);
   await flow.requestPanes();
-  const show = flow.page.getByRole("button", { name: "Show list panel", exact: true });
+  const show = flow.page.getByRole("button", { name: panelEdgeName(LIST_PANEL_NOUN, false), exact: true });
   if (await show.isVisible()) {
     await show.click();
   }
   const row = await roomRow(flow, room);
   await row.hover();
-  const trigger = row.getByRole("button", { name: /^Chat actions for /u });
+  const trigger = row.getByRole("button", { name: namePattern(chatRowActionsName(NAME_HOLE)) });
   await trigger.focus();
   await trigger.press("Enter");
   await expect(trigger).toHaveAttribute("aria-expanded", "true");
@@ -1556,8 +1485,8 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
     });
     observe(flow, "commands/lifecycle/Rename", "visited", "Native rename Save persisted and repainted the disposable subject");
     for (const [label, starred] of [
-      ["Star", true],
-      ["Unstar", false],
+      [CHAT_STAR_NAME, true],
+      [CHAT_UNSTAR_NAME, false],
     ] as const) {
       room = await commandRoom(flow, chat.id, title);
       const starMenu = await chatRowMenu(flow, room);
@@ -1574,8 +1503,8 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
             .locator('[data-slot="virtual-list-row"]')
             .filter({ has: flow.page.getByRole("button", { name: renamed, exact: true }) });
           await row.hover();
-          await row.getByRole("button", { name: /^Chat actions for /u }).click();
-          await expect(flow.page.getByRole("menu").getByRole("menuitem", { name: starred ? "Unstar" : "Star", exact: true })).toBeVisible();
+          await row.getByRole("button", { name: namePattern(chatRowActionsName(NAME_HOLE)) }).click();
+          await expect(flow.page.getByRole("menu").getByRole("menuitem", { name: starred ? CHAT_UNSTAR_NAME : CHAT_STAR_NAME, exact: true })).toBeVisible();
           await flow.page.getByRole("menu").press("Escape");
         },
       });
@@ -1587,7 +1516,7 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
     menu = await chatRowMenu(flow, await commandRoom(flow, chat.id, title));
     await flow.action("commands/archive", {
       action: async () => {
-        await menu.getByRole("menuitem", { name: "Archive", exact: true }).click();
+        await menu.getByRole("menuitem", { name: CHAT_ARCHIVE_NAME, exact: true }).click();
       },
       ready: async () => {
         await expect.poll(async () => (await commandRoom(flow, chat.id, title)).archived).toBe(true);
@@ -1598,7 +1527,7 @@ export async function walkChatCommands(input: SurfaceFlow): Promise<void> {
     await flow.client.chat.archive.mutate({ chatId: chat.id, archived: false });
     menu = await chatRowMenu(flow, await commandRoom(flow, chat.id, title));
     await menu.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
-    const confirm = flow.page.getByRole("alertdialog", { name: `Delete "${renamed}"?`, exact: true });
+    const confirm = flow.page.getByRole("alertdialog", { name: deleteConfirmTitle(renamed), exact: true });
     await expect(confirm).toBeVisible();
     await flow.action("commands/delete-confirm", {
       action: async () => {
@@ -1744,7 +1673,7 @@ async function messageSavedReply(flow: Journey): Promise<void> {
         throw new Error("The production card opening has no committed greeting");
       }
       await openRoom(flow, room);
-      await closeContextOverlay(flow, "message-operations-greeting");
+      await dismissContext(flow);
       let menu = await messageOperationMenu(flow, message);
       await expect(menu.getByRole("menuitem", { name: CHAT_SAVED_REPLIES_DOOR_NAME, exact: true })).toHaveCount(0);
       await menu.getByRole("menuitem", { name: MESSAGE_EDIT_NAME, exact: true }).click();
@@ -1774,7 +1703,7 @@ async function messageSavedReply(flow: Journey): Promise<void> {
       await menu.getByRole("menuitem", { name: CHAT_SAVED_REPLIES_DOOR_NAME, exact: true }).click();
       const dialog = flow.page.getByRole("dialog", { name: CHAT_SAVED_REPLIES_NAME, exact: true });
       await dialog.getByRole("combobox", { name: CHAT_SAVED_REPLY_NAME, exact: true }).click();
-      await flow.page.getByRole("option", { name: `Reply ${String(stored.idx + 1)}`, exact: true }).click();
+      await flow.page.getByRole("option", { name: savedReplyOptionName(stored.idx + 1, false), exact: true }).click();
       await expect(dialog).toBeHidden();
       await expect.poll(async () => (await readCanon(flow, chat.id)).find(({ id }) => id === message.id)?.selectedVariantId).toBe(saved.selectedVariantId);
       await expect(row).toContainText(custom);
@@ -1838,8 +1767,8 @@ async function messageFork(flow: Journey, message: MessageView, forks: ChatId[])
 
 async function messageVisibilityAndReaction(flow: Journey, message: MessageView): Promise<void> {
   for (const [label, hidden] of [
-    ["Hide from AI", true],
-    ["Unhide from AI", false],
+    [MESSAGE_HIDE_FROM_AI_NAME, true],
+    [MESSAGE_UNHIDE_FROM_AI_NAME, false],
   ] as const) {
     const menu = await messageOperationMenu(flow, message);
     await flow.action(`message-operations/${label}`, {
@@ -1850,7 +1779,7 @@ async function messageVisibilityAndReaction(flow: Journey, message: MessageView)
         await expect(menu).toBeHidden();
         await expect.poll(async () => (await readCanon(flow, message.chatId)).find(({ id }) => id === message.id)?.excludedFromPrompt).toBe(hidden);
         const inverse = await messageOperationMenu(flow, message);
-        await expect(inverse.getByRole("menuitem", { name: hidden ? "Unhide from AI" : "Hide from AI", exact: true })).toBeVisible();
+        await expect(inverse.getByRole("menuitem", { name: hidden ? MESSAGE_UNHIDE_FROM_AI_NAME : MESSAGE_HIDE_FROM_AI_NAME, exact: true })).toBeVisible();
         await inverse.press("Escape");
       },
     });
@@ -1865,15 +1794,13 @@ async function messageVisibilityAndReaction(flow: Journey, message: MessageView)
   }
   await reaction.click();
   const picker = flow.page.getByRole("dialog", { name: MESSAGE_REACTION_ADD_NAME, exact: true });
-  const choice = picker.getByRole("button", { name: /^React with /u }).first();
+  const emoji = REACTION_EMOJIS[0];
+  const name = reactionChoiceName(emoji);
+  const choice = picker.getByRole("button", { name, exact: true });
   await expect(choice).toBeVisible();
-  const name = await choice.getAttribute("aria-label");
-  if (name === null) {
-    throw new Error("The actual emoji choice has no native name");
-  }
   await choice.click();
   await expect(picker).toBeHidden();
-  const pill = messageRow(flow.page, message.id).getByRole("button", { name: `${name} — 1 so far`, exact: true });
+  const pill = messageRow(flow.page, message.id).getByRole("button", { name: reactionPillName(emoji, 1, null), exact: true });
   await expect(pill).toHaveAttribute("aria-pressed", "true");
   await checkpoint(flow, "message-operations/reaction-added", messageRow(flow.page, message.id), pill);
   menu = await messageOperationMenu(flow, message);
@@ -1899,18 +1826,18 @@ async function messageCopyAndDelete(flow: Journey, message: MessageView): Promis
   if (chromium) {
     await flow.page.context().grantPermissions(["clipboard-read", "clipboard-write"]);
   }
-  const previousCopy = flow.page.locator('[data-slot="toast-root"]').filter({ has: flow.page.getByText("Copied to clipboard.", { exact: true }) });
+  const previousCopy = flow.page.locator('[data-slot="toast-root"]').filter({ has: flow.page.getByText(COPIED_TO_CLIPBOARD_NOTICE, { exact: true }) });
   for (const notification of await previousCopy.all()) {
-    await notification.getByRole("button", { name: "Close notification", exact: true }).click();
+    await notification.getByRole("button", { name: TOAST_CLOSE_NAME, exact: true }).click();
   }
   await expect(previousCopy).toHaveCount(0);
   let menu = await messageOperationMenu(flow, message);
-  await menu.getByRole("menuitem", { name: "Copy", exact: true }).click();
-  await expect(flow.page.getByText("Copied to clipboard.", { exact: true })).toBeVisible();
+  await menu.getByRole("menuitem", { name: MESSAGE_COPY_NAME, exact: true }).click();
+  await expect(flow.page.getByText(COPIED_TO_CLIPBOARD_NOTICE, { exact: true })).toBeVisible();
   if (chromium) {
     await expectClipboardContent(flow, message.content);
   }
-  await messageOperationDone(flow, message, "Copy", "Native clipboard write completed with the production success acknowledgement");
+  await messageOperationDone(flow, message, MESSAGE_COPY_NAME, "Native clipboard write completed with the production success acknowledgement");
   menu = await messageOperationMenu(flow, message);
   await menu.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).click();
   const confirm = flow.page.getByRole("alertdialog", { name: CHAT_DELETE_MESSAGE_TITLE, exact: true });
@@ -1959,12 +1886,12 @@ async function runChatMessageOperations(input: SurfaceFlow): Promise<MessageOper
       await flow.client.persona.setActivePersona.mutate({ chatId: room.id, personaId: null });
       expect((await flow.client.chat.getChat.query({ chatId: room.id })).viewerActivePersonaId).toBeNull();
       await openRoom(flow, room);
-      await closeContextOverlay(flow, "message-operations-content");
+      await dismissContext(flow);
       let menu = await messageOperationMenu(flow, user);
       await expect(menu.getByRole("menuitem", { name: MESSAGE_REATTRIBUTE_NAME, exact: true })).toBeDisabled();
       await menu.press("Escape");
       await flow.client.persona.setActivePersona.mutate({ chatId: room.id, personaId: persona.id });
-      await closeContextOverlay(flow, "message-operations-persona");
+      await dismissContext(flow);
       menu = await messageOperationMenu(flow, user);
       await menu.getByRole("menuitem", { name: MESSAGE_REATTRIBUTE_NAME, exact: true }).click();
       const confirm = flow.page.getByRole("alertdialog", { name: CHAT_REATTRIBUTE_CONFIRM_TITLE, exact: true });
@@ -1983,7 +1910,7 @@ async function runChatMessageOperations(input: SurfaceFlow): Promise<MessageOper
       await messageVisibilityAndReaction(flow, editedUser);
       await messageFork(flow, editedUser, forks);
       await openRoom(flow, room);
-      await closeContextOverlay(flow, "message-operations-generation");
+      await dismissContext(flow);
       const composer = flow.page.getByRole("group", { name: CHAT_COMPOSER_NAME, exact: true });
       await composer.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true }).fill("Produce a disposable assistant operation witness.");
       await composer.getByRole("button", { name: CHAT_SEND_NAME, exact: true }).click();
@@ -1996,7 +1923,7 @@ async function runChatMessageOperations(input: SurfaceFlow): Promise<MessageOper
       await expect(paragraphs.first()).toContainText(/\S/u);
       const originalParagraphs = await paragraphs.allTextContents();
       menu = await messageOperationMenu(flow, assistant);
-      for (const label of ["Undo last continuation", "Re-apply continuation"]) {
+      for (const label of [MESSAGE_UNDO_CONTINUATION_NAME, MESSAGE_REAPPLY_CONTINUATION_NAME]) {
         await expect(menu.getByRole("menuitem", { name: label, exact: true })).toBeDisabled();
       }
       observe(
@@ -2008,13 +1935,13 @@ async function runChatMessageOperations(input: SurfaceFlow): Promise<MessageOper
       await menu.press("Escape");
       menu = await messageOperationMenu(flow, assistant);
       await safeDialogDrill(flow, menu.getByRole("menuitem", { name: MESSAGE_VIEW_WIRE_TRACE_NAME, exact: true }), {
-        label: "View wire trace…",
+        label: MESSAGE_VIEW_WIRE_TRACE_NAME,
         id: "message-operations/wire-trace",
       });
       await messageOperationDone(
         flow,
         assistant,
-        "View wire trace…",
+        MESSAGE_VIEW_WIRE_TRACE_NAME,
         "Native host-only wire viewer opened the actual generated variant record and rendered its loaded body",
       );
       await composer.getByRole("button", { name: CHAT_CONTINUE_REPLY_NAME, exact: true }).click();
@@ -2027,8 +1954,8 @@ async function runChatMessageOperations(input: SurfaceFlow): Promise<MessageOper
       await expect.poll(async () => await paragraphs.allTextContents()).not.toEqual(originalParagraphs);
       const continuedParagraphs = await paragraphs.allTextContents();
       for (const [label, content, rendered] of [
-        ["Undo last continuation", assistant.content, originalParagraphs],
-        ["Re-apply continuation", continued.content, continuedParagraphs],
+        [MESSAGE_UNDO_CONTINUATION_NAME, assistant.content, originalParagraphs],
+        [MESSAGE_REAPPLY_CONTINUATION_NAME, continued.content, continuedParagraphs],
       ] as const) {
         menu = await messageOperationMenu(flow, continued);
         await menu.getByRole("menuitem", { name: label, exact: true }).click();
@@ -2045,7 +1972,7 @@ async function runChatMessageOperations(input: SurfaceFlow): Promise<MessageOper
       await messageVisibilityAndReaction(flow, editedAssistant);
       await messageFork(flow, editedAssistant, forks);
       await openRoom(flow, room);
-      await closeContextOverlay(flow, "message-operations-delete-assistant");
+      await dismissContext(flow);
       await messageCopyAndDelete(flow, editedAssistant);
       await messageCopyAndDelete(flow, editedUser);
     });
@@ -2119,7 +2046,7 @@ export async function walkChatGeneration(input: SurfaceFlow): Promise<void> {
     await flow.client.connection.setBinding.mutate({ task: "chat", connectionId: flow.run.generation.connection.id });
     await disposableRoom(flow, { name: "generation", content: "A disposable native Send and Stop witness.", attachments: [] }, async (room) => {
       await openRoom(flow, room);
-      await closeContextOverlay(flow, "generation-content");
+      await dismissContext(flow);
       const composer = flow.page.getByRole("group", { name: CHAT_COMPOSER_NAME, exact: true });
       const textbox = composer.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
       const stop = composer.getByRole("button", { name: CHAT_STOP_NAME, exact: true });
@@ -2324,7 +2251,7 @@ async function runPlacedCommand(flow: Journey, command: PluginCommandView): Prom
     throw new Error("The maintained command has no actual composer placement");
   }
   const shownName = pluginCommandShownName(command.pluginName, command.slug, sharedPluginNames(await flow.client.plugin.listCommands.query()));
-  const trigger = flow.page.getByRole("button", { name: "Plugin actions", exact: true });
+  const trigger = flow.page.getByRole("button", { name: PLUGIN_ACTIONS_NAME, exact: true });
   await trigger.click();
   const menu = await controlledPanel(trigger);
   const item = menu.getByRole("menuitem", {
@@ -2350,8 +2277,8 @@ export async function walkChatOracle(input: SurfaceFlow): Promise<void> {
       }
       await disposableRoom(flow, { name: "oracle", content: "A disposable room for maintained local plugin commands.", attachments: [] }, async (room) => {
         await openRoom(flow, room);
-        await closeContextOverlay(flow, "oracle-content");
-        const dialog = flow.page.getByRole("dialog", { name: "Plugin", exact: true });
+        await dismissContext(flow);
+        const dialog = flow.page.getByRole("dialog", { name: PLUGIN_DIALOG_TITLE, exact: true });
         await runPlacedCommand(flow, reveal);
         await expect(dialog.getByRole("button", { name: "Retire this deck", exact: true })).toBeVisible();
         await dialog.getByRole("button", { name: "Retire this deck", exact: true }).click();
@@ -2362,11 +2289,15 @@ export async function walkChatOracle(input: SurfaceFlow): Promise<void> {
         await dialog.getByRole("button", { name: DIALOG_VERBS.close, exact: true }).click();
         await expect(dialog).toBeHidden();
         await runPlacedCommand(flow, draw);
-        const args = flow.page.getByRole("dialog", { name: "Run command", exact: true });
-        await args.getByRole("textbox", { name: "Count", exact: true }).fill("1");
+        const args = flow.page.getByRole("dialog", { name: PLUGIN_COMMAND_ARGS_TITLE, exact: true });
+        const count = draw.args.at(0);
+        if (count === undefined) {
+          throw new Error("The maintained Draw command declares no count argument");
+        }
+        await args.getByRole("textbox", { name: humanizeId(count.name), exact: true }).fill("1");
         await flow.action("oracle/draw-command", {
           action: async () => {
-            await args.getByRole("button", { name: "Run draw", exact: true }).click();
+            await args.getByRole("button", { name: pluginCommandActionLabel(draw.name), exact: true }).click();
           },
           ready: async () => {
             await expect(args).toBeHidden();
@@ -2432,7 +2363,7 @@ export async function walkChatPolish(input: SurfaceFlow): Promise<void> {
       }
       await disposableRoom(flow, { name: "polish", content: "A disposable unsent draft replacement witness.", attachments: [] }, async (room) => {
         await openRoom(flow, room);
-        await closeContextOverlay(flow, "polish-content");
+        await dismissContext(flow);
         const before = await readCanon(flow, room.id);
         const textbox = flow.page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
         const draft = "A  draft ... with `code  ...` kept intact.";
@@ -2446,12 +2377,12 @@ export async function walkChatPolish(input: SurfaceFlow): Promise<void> {
           },
         });
         await checkpoint(flow, "polish-visible-replacement", flow.page.getByRole("group", { name: CHAT_COMPOSER_NAME, exact: true }), textbox);
-        const trigger = flow.page.getByRole("button", { name: "Plugin actions", exact: true });
+        const trigger = flow.page.getByRole("button", { name: PLUGIN_ACTIONS_NAME, exact: true });
         await trigger.click();
         const menu = await controlledPanel(trigger);
         await flow.action("polish/undo", {
           action: async () => {
-            await menu.getByRole("menuitem", { name: /^Undo /u }).click();
+            await menu.getByRole("menuitem", { name: namePattern(pluginUndoName(NAME_HOLE)) }).click();
           },
           ready: async () => {
             await expect(textbox).toHaveValue(draft);
@@ -2475,7 +2406,7 @@ export async function walkChatPolish(input: SurfaceFlow): Promise<void> {
 async function selectHeldRoom(flow: Journey, room: ChatSummary, beforeSelect?: () => void): Promise<void> {
   await enterChatsList(flow);
   await flow.requestPanes();
-  const show = flow.page.getByRole("button", { name: "Show list panel", exact: true });
+  const show = flow.page.getByRole("button", { name: panelEdgeName(LIST_PANEL_NOUN, false), exact: true });
   if (await show.isVisible()) {
     await show.click();
   }

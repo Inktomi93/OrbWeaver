@@ -28,7 +28,7 @@ import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import type { CommandPaletteSource, SlashCommandContext, SlashCommandContribution, SlashCommandGroup, SlashCommandUnavailableFor } from "#lib";
-import { SLASH_COMMAND_GROUP_LABELS, SLASH_COMMAND_GROUPS, useFocusOnMount, useFocusOnSwap } from "#lib";
+import { DIALOG_VERBS, SLASH_COMMAND_GROUP_LABELS, SLASH_COMMAND_GROUPS, useFocusOnMount, useFocusOnSwap } from "#lib";
 import type { SectionId } from "#state";
 import { CommandPaletteSourceRegistryContext, closeModal, resumeChat, setActiveSection, useActiveChatId } from "#state";
 import { useSlashCommands } from "../hooks/use-slash-commands.tsx";
@@ -117,7 +117,7 @@ export function CommandPaletteSurface({ goToSections }: CommandPaletteSurfacePro
                 onRetry={retry}
                 renderRetry={(onRetry): ReactElement => (
                   <CommandAuxiliaryButton variant="ghost" onClick={onRetry}>
-                    Retry
+                    {DIALOG_VERBS.retry}
                   </CommandAuxiliaryButton>
                 )}
               />

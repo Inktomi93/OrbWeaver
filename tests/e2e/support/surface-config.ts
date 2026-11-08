@@ -14,28 +14,54 @@ import {
   CONFIG_CUSTOM_CSS_NAME,
   CONFIG_IMPORT_THEME_FILE_NAME,
   CONFIG_MORE_LIBRARY_ACTIONS_NAME,
+  CONFIG_SEARCH_NAME,
   CONFIG_THEME_NAME_FIELD_NAME,
+  CONFIG_THEME_PREVIEW_NAME,
+  collectionEmptyTitle,
+  collectionFilterName,
+  configSearchEmptyText,
+  newThemeName,
 } from "#client/features/config/lib/config-control-names.ts";
 import { CONFIG_SECTION_LABEL } from "#client/features/config/lib/config-copy.ts";
+import { CONNECTION_PROVIDER_FIELD_NAME } from "#client/features/credentials/lib/connections-copy.ts";
+import { PERSONA_NAME_FIELD_NAME } from "#client/features/persona/lib/persona-copy.ts";
 import {
   REGEX_FIND_PATTERN_NAME,
+  REGEX_NAME_FIELD_NAME,
+  REGEX_NEW_SCRIPT_NAME,
   REGEX_REPLACE_WITH_NAME,
+  REGEX_RESULT_NAME,
   REGEX_SAMPLE_TEXT_NAME,
+  REGEX_SCRIPT_NAME_FIELD_NAME,
   REGEX_TEXT_AFTER_STREAM_NAME,
   REGEX_TEXT_GOING_IN_NAME,
 } from "#client/features/regex/lib/regex-names.ts";
+import { ROSTER_NAME_FIELD_NAME } from "#client/features/roster-preset/lib/roster-names.ts";
+import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import {
+  WORLD_INFO_BOOK_DESCRIPTION_NAME,
   WORLD_INFO_BOOK_DETAILS_NAME,
   WORLD_INFO_BOOK_NAME_FIELD_NAME,
   WORLD_INFO_DEPTH_SWITCH_NAME,
+  WORLD_INFO_DUPLICATE_BOOK_NOTICE,
   WORLD_INFO_EDIT_DETAILS_NAME,
+  WORLD_INFO_ENTRY_CONTENT_NAME,
+  WORLD_INFO_ENTRY_DEPTH_NAME,
+  WORLD_INFO_ENTRY_NOTE_NAME,
+  WORLD_INFO_ENTRY_PLACEMENT_NAME,
+  WORLD_INFO_ENTRY_ROLE_NAME,
+  WORLD_INFO_ENTRY_TITLE_NAME,
+  WORLD_INFO_GROUP_LABEL,
   WORLD_INFO_IMPORT_BOOK_NAME,
   WORLD_INFO_NEW_BOOK_NAME,
+  WORLD_INFO_NEW_ENTRY_NAME,
+  WORLD_INFO_NO_ENTRIES_TITLE,
 } from "#client/features/world-info/lib/world-info-names.ts";
+import { contextPaneLabel, LIST_PANEL_NOUN, panelCloseName, panelEdgeName, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { ADD_CONNECTION_PATH } from "#client/lib/injection-copy.ts";
-import { ROW_DELETE_NAME } from "#client/lib/row-menu-names.ts";
+import { ROW_DELETE_NAME, ROW_EXPORT_NAME } from "#client/lib/row-menu-names.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
 import type { ConfigGroupId } from "#client/state/config-group-ids.ts";
 import { CONFIG_GROUP_IDS } from "#client/state/config-group-ids.ts";
@@ -47,6 +73,8 @@ import {
   controlIdentity,
   createSurfaceWalk,
   expectSubject,
+  NAME_HOLE,
+  namePattern,
   observe,
   publishWalk,
   recordAs,
@@ -86,7 +114,10 @@ async function checkpoint(walk: SurfaceWalk, name: string, scope: Locator, witne
 async function closeContext(flow: SurfaceFlow): Promise<void> {
   const context = flow.page.locator(CONTEXT);
   if ((await context.getAttribute("data-panel-mode")) === "overlay") {
-    await flow.page.getByRole("button", { name: new RegExp(`^(?:Close ${CONFIG_SECTION_LABEL} details|Hide details)$`, "u") }).click();
+    await flow.page
+      .getByRole("button", { name: panelCloseName(contextPaneLabel(CONFIG_SECTION_LABEL)), exact: true })
+      .or(flow.page.getByRole("button", { name: contextToggleLabel(false), exact: true }))
+      .click();
   }
 }
 
@@ -94,11 +125,11 @@ async function map(flow: SurfaceFlow): Promise<Locator> {
   await closeContext(flow);
   const list = flow.page.locator(LIST);
   const panel = flow.page.locator('.shell-panel[data-panel-side="list"]');
-  const back = flow.page.getByRole("button", { name: `Back to ${CONFIG_SECTION_LABEL}`, exact: true });
+  const back = flow.page.getByRole("button", { name: sectionBackName(CONFIG_SECTION_LABEL), exact: true });
   while ((await panel.getAttribute("data-panel-mode")) === "collapsed" && (await back.isVisible())) {
     await back.click();
   }
-  const show = flow.page.getByRole("button", { name: "Show list panel", exact: true });
+  const show = flow.page.getByRole("button", { name: panelEdgeName(LIST_PANEL_NOUN, false), exact: true });
   if ((await panel.getAttribute("data-panel-mode")) === "collapsed") {
     await show.click();
   }
@@ -137,7 +168,7 @@ async function category(flow: SurfaceFlow, id: ConfigGroupId): Promise<Locator> 
 
 async function folderChooser(flow: SurfaceWalk, name: string, element: Locator, trigger: Locator): Promise<void> {
   const key = await controlIdentity(element);
-  await expect(trigger).toHaveAccessibleName("Import a folder…");
+  await expect(trigger).toHaveAccessibleName(IMPORT_FOLDER_NAME);
   const chooser = flow.page.waitForEvent("filechooser");
   await trigger.click();
   const input = (await chooser).element();
@@ -172,7 +203,7 @@ async function themeBuilder(flow: SurfaceWalk): Promise<string> {
   await category(flow, "appearance");
   const content = flow.page.locator(CONTENT);
   const before = (await flow.client.settings.listThemes.query()).map(({ id }) => id);
-  await content.getByRole("button", { name: /^New theme(?: from .+)?…$/u }).click();
+  await content.getByRole("button", { name: namePattern(newThemeName(undefined), newThemeName(NAME_HOLE)) }).click();
   const title = content.getByRole("textbox", { name: CONFIG_THEME_NAME_FIELD_NAME, exact: true });
   await expect(title).toBeVisible();
   const editor = title.locator("xpath=ancestor::section[1]");
@@ -181,8 +212,7 @@ async function themeBuilder(flow: SurfaceWalk): Promise<string> {
   await checkpoint(flow, "theme-unminted-editor", editor, title);
   await content.getByRole("button", { name: CONFIG_ADVANCED_THEME_TOOLS_NAME, exact: true }).click();
   await expect(content.getByRole("heading", { name: CONFIG_CUSTOM_CSS_NAME, exact: true })).toBeVisible();
-  // eslint-disable-next-line orb/no-hand-copied-label -- This is the theme's scoped live preview heading, not Chat's Preview context tab.
-  await expect(content.getByRole("heading", { name: "Preview", exact: true })).toBeVisible();
+  await expect(content.getByRole("heading", { name: CONFIG_THEME_PREVIEW_NAME, exact: true })).toBeVisible();
   // The walk opens each color picker as a dialog door and dismisses it, so nothing mints the theme.
   await walkScope(flow, editor, "config/theme-builder");
   await content.getByRole("button", { name: CONFIG_BACK_TO_LOOKS_NAME, exact: true }).click();
@@ -196,7 +226,7 @@ async function connectionAuthoring(flow: SurfaceWalk): Promise<void> {
   const content = flow.page.locator(CONTENT);
   await content.getByRole("button", { name: ADD_CONNECTION_PATH.leaf, exact: true }).click();
   const dialog = flow.page.getByRole("dialog");
-  const provider = dialog.getByRole("combobox", { name: "Provider", exact: true });
+  const provider = dialog.getByRole("combobox", { name: CONNECTION_PROVIDER_FIELD_NAME, exact: true });
   await expect(provider).toBeVisible();
   await checkpoint(flow, "add-connection-empty-draft", dialog, provider);
   await provider.click();
@@ -238,7 +268,7 @@ async function personas(flow: SurfaceWalk): Promise<void> {
     await expand.click();
   }
   const editor = content.getByRole("group").filter({ has: flow.page.locator('[data-slot="persona-editor-identity"]') });
-  await expect(editor.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(original.name);
+  await expect(editor.getByRole("textbox", { name: PERSONA_NAME_FIELD_NAME, exact: true })).toHaveValue(original.name);
   await walkScope(flow, editor, "config/persona-original-editor");
   await teacher(flow, "persona-original");
   note(
@@ -544,19 +574,19 @@ async function regex(flow: SurfaceWalk): Promise<void> {
   try {
     await category(flow, "regex");
     const content = flow.page.locator(CONTENT);
-    await content.getByRole("button", { name: "New script", exact: true }).click();
-    const create = content.getByRole("form", { name: "New script", exact: true });
-    await create.getByRole("textbox", { name: "Script name", exact: true }).fill(name);
+    await content.getByRole("button", { name: REGEX_NEW_SCRIPT_NAME, exact: true }).click();
+    const create = content.getByRole("form", { name: REGEX_NEW_SCRIPT_NAME, exact: true });
+    await create.getByRole("textbox", { name: REGEX_SCRIPT_NAME_FIELD_NAME, exact: true }).fill(name);
     await create.getByRole("button", { name: DIALOG_VERBS.create, exact: true }).click();
     const editor = content.locator('[data-slot="regex-member-editor"]');
-    await expect(editor.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
+    await expect(editor.getByRole("textbox", { name: REGEX_NAME_FIELD_NAME, exact: true })).toHaveValue(name);
     await editor.getByRole("textbox", { name: REGEX_FIND_PATTERN_NAME, exact: true }).fill("/surface/g");
     await editor.getByRole("textbox", { name: REGEX_REPLACE_WITH_NAME, exact: true }).fill("walk");
     await expect
       .poll(async () => (await flow.client.regex.listScripts.query()).find((script) => script.name === name))
       .toMatchObject({ findRegex: "/surface/g", replaceString: "walk" });
     await editor.getByRole("textbox", { name: REGEX_SAMPLE_TEXT_NAME, exact: true }).fill("surface surface");
-    await expect(editor.getByRole("textbox", { name: "Result", exact: true })).toHaveValue("walk walk");
+    await expect(editor.getByRole("textbox", { name: REGEX_RESULT_NAME, exact: true })).toHaveValue("walk walk");
     await editor.getByRole("textbox", { name: REGEX_TEXT_GOING_IN_NAME, exact: true }).fill("surface surface");
     await expect(editor.getByRole("textbox", { name: REGEX_TEXT_AFTER_STREAM_NAME, exact: true })).toBeVisible();
     await walkScope(flow, content, "config/regex-editor-and-real-testers");
@@ -590,7 +620,7 @@ async function rosterJourney(flow: SurfaceWalk): Promise<void> {
   await content.locator('[data-slot="collection-control-row"]').getByRole("textbox").fill(original.name);
   await content.getByRole("button", { name: original.name, exact: true }).click();
   const editor = content.locator('[data-slot="roster-member-editor"]');
-  await expect(editor.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(original.name);
+  await expect(editor.getByRole("textbox", { name: ROSTER_NAME_FIELD_NAME, exact: true })).toHaveValue(original.name);
   await walkScope(flow, content, "config/roster-original-member-seats-rules");
   await teacher(flow, "roster-original-teaching");
   note(
@@ -609,14 +639,14 @@ async function rosterJourney(flow: SurfaceWalk): Promise<void> {
 
 async function originalEntry(flow: SurfaceWalk, editor: Locator, title: string): Promise<void> {
   await editor.getByText(title, { exact: true }).click();
-  await expect(editor.getByRole("textbox", { name: "Title", exact: true })).toHaveValue(title);
+  await expect(editor.getByRole("textbox", { name: WORLD_INFO_ENTRY_TITLE_NAME, exact: true })).toHaveValue(title);
   await walkScope(flow, flow.page.locator(CONTENT), "config/world-info-original-entry");
 }
 
 async function openBook(flow: SurfaceWalk, name: string): Promise<Locator> {
   await category(flow, "worldInfo");
   const content = flow.page.locator(CONTENT);
-  await content.getByRole("textbox", { name: "Filter world info", exact: true }).fill(name);
+  await content.getByRole("textbox", { name: collectionFilterName(WORLD_INFO_GROUP_LABEL), exact: true }).fill(name);
   await content.getByRole("button", { name, exact: true }).click();
   const editor = content.locator(EDITOR);
   await expect(editor.getByRole("heading", { name, exact: true })).toBeVisible();
@@ -655,11 +685,11 @@ async function worldInfo(flow: SurfaceWalk): Promise<void> {
     await create.getByRole("button", { name: DIALOG_VERBS.create, exact: true }).click();
     const editor = content.locator(EDITOR);
     await expect(editor.getByRole("heading", { name, exact: true })).toBeVisible();
-    await expect(editor.getByText("No entries yet", { exact: true })).toBeVisible();
+    await expect(editor.getByText(WORLD_INFO_NO_ENTRIES_TITLE, { exact: true })).toBeVisible();
     await flow.checkpoint({
       name: "config-world-info-empty-book",
       scope: editor,
-      witnesses: [editor.getByText("No entries yet", { exact: true })],
+      witnesses: [editor.getByText(WORLD_INFO_NO_ENTRIES_TITLE, { exact: true })],
       state: "empty",
       checks: SURFACE_CHECKS,
     });
@@ -667,17 +697,16 @@ async function worldInfo(flow: SurfaceWalk): Promise<void> {
     await verbs.getByRole("button", { name: WORLD_INFO_EDIT_DETAILS_NAME, exact: true }).click();
     const details = flow.page.getByRole("dialog", { name: WORLD_INFO_BOOK_DETAILS_NAME, exact: true });
     const description = "Disposable native surface-walk book";
-    await details.getByRole("textbox", { name: "Description", exact: true }).fill(description);
+    await details.getByRole("textbox", { name: WORLD_INFO_BOOK_DESCRIPTION_NAME, exact: true }).fill(description);
     await checkpoint(flow, "world-info-details", details);
     await details.getByRole("button", { name: DIALOG_VERBS.save, exact: true }).click();
     await expect(editor.getByText(description, { exact: true })).toBeVisible();
-    await verbs.getByRole("button", { name: "New entry", exact: true }).click();
-    const title = editor.getByRole("textbox", { name: "Title", exact: true });
+    await verbs.getByRole("button", { name: WORLD_INFO_NEW_ENTRY_NAME, exact: true }).click();
+    const title = editor.getByRole("textbox", { name: WORLD_INFO_ENTRY_TITLE_NAME, exact: true });
     const entryName = `${name} entry`;
     await title.fill(entryName);
-    await editor.getByRole("textbox", { name: "Content", exact: true }).fill("Disposable lore, never attached to an original subject.");
-    // eslint-disable-next-line orb/no-hand-copied-label -- This is World Info's entry memo, not the RPG journal type.
-    await editor.getByRole("textbox", { name: "Note", exact: true }).fill("Native entry autosave readback");
+    await editor.getByRole("textbox", { name: WORLD_INFO_ENTRY_CONTENT_NAME, exact: true }).fill("Disposable lore, never attached to an original subject.");
+    await editor.getByRole("textbox", { name: WORLD_INFO_ENTRY_NOTE_NAME, exact: true }).fill("Native entry autosave readback");
     const book = (await flow.client.worldInfo.listBooks.query()).find((candidate) => candidate.name === name);
     if (book === undefined) {
       throw new Error("The UI-created world book was not persisted");
@@ -691,26 +720,26 @@ async function worldInfo(flow: SurfaceWalk): Promise<void> {
       });
     const injection = editor.getByRole("switch", { name: WORLD_INFO_DEPTH_SWITCH_NAME, exact: true });
     await injection.click();
-    await expect(editor.getByRole("textbox", { name: "Depth", exact: true })).toBeVisible();
-    await expect(editor.getByRole("combobox", { name: "Role", exact: true })).toBeVisible();
+    await expect(editor.getByRole("textbox", { name: WORLD_INFO_ENTRY_DEPTH_NAME, exact: true })).toBeVisible();
+    await expect(editor.getByRole("combobox", { name: WORLD_INFO_ENTRY_ROLE_NAME, exact: true })).toBeVisible();
     await walkScope(flow, content, "config/world-info-disposable-entry-injection");
     await injection.click();
-    await expect(editor.getByRole("combobox", { name: "Placement", exact: true })).toBeVisible();
+    await expect(editor.getByRole("combobox", { name: WORLD_INFO_ENTRY_PLACEMENT_NAME, exact: true })).toBeVisible();
     await walkScope(flow, content, "config/world-info-disposable-entry-placement");
     await editor.getByRole("button", { name: `Delete ${entryName}`, exact: true }).click();
     const confirmation = flow.page.getByRole("alertdialog");
     await checkpoint(flow, "world-info-delete-entry-confirmation", confirmation);
     await confirmation.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
-    await expect(editor.getByText("No entries yet", { exact: true })).toBeVisible();
+    await expect(editor.getByText(WORLD_INFO_NO_ENTRIES_TITLE, { exact: true })).toBeVisible();
     await expect.poll(async () => (await flow.client.worldInfo.listEntries.query({ bookId: book.id })).length).toBe(0);
     await category(flow, "worldInfo");
-    await content.getByRole("textbox", { name: "Filter world info", exact: true }).fill(name);
+    await content.getByRole("textbox", { name: collectionFilterName(WORLD_INFO_GROUP_LABEL), exact: true }).fill(name);
     const actions = content.getByRole("button", { name: rowActionsName(name), exact: true });
     await actions.focus();
     await actions.press("Enter");
     const menu = flow.page.getByRole("menu");
     const download = flow.page.waitForEvent("download");
-    await menu.getByRole("menuitem", { name: "Export", exact: true }).click();
+    await menu.getByRole("menuitem", { name: ROW_EXPORT_NAME, exact: true }).click();
     const exported = await download;
     const path = join(flow.run.runRoot, `world-info-${flow.pass}-${basename(exported.suggestedFilename())}`);
     await exported.saveAs(path);
@@ -722,9 +751,7 @@ async function worldInfo(flow: SurfaceWalk): Promise<void> {
     await flow.page.getByRole("menuitem", { name: WORLD_INFO_IMPORT_BOOK_NAME, exact: true }).click();
     await (await chooser).setFiles(path);
     await expect(
-      flow.page
-        .getByRole("region", { name: ALERTS_REGION_NAME, exact: true })
-        .getByText("That book is already in your library — nothing was added.", { exact: true }),
+      flow.page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByText(WORLD_INFO_DUPLICATE_BOOK_NOTICE, { exact: true }),
     ).toBeVisible();
     await expect.poll(async () => (await flow.client.worldInfo.listBooks.query()).filter((candidate) => candidate.name === name).length).toBe(1);
     note(
@@ -790,7 +817,9 @@ async function worldInfoRecovery(flow: SurfaceWalk): Promise<void> {
     await retry.press("Enter");
     const count = await flow.client.worldInfo.countBooks.query();
     const witness =
-      count === 0 ? content.getByText("No world info yet", { exact: true }) : content.getByRole("textbox", { name: "Filter world info", exact: true });
+      count === 0
+        ? content.getByText(collectionEmptyTitle(WORLD_INFO_GROUP_LABEL), { exact: true })
+        : content.getByRole("textbox", { name: collectionFilterName(WORLD_INFO_GROUP_LABEL), exact: true });
     await flow.checkpoint({
       name: "config-world-info-read-recovered",
       scope: content,
@@ -843,11 +872,11 @@ export async function walkConfigMap(flow: SurfaceFlow): Promise<void> {
     for (const id of CONFIG_GROUP_IDS) {
       note(walk, { id: `map: ${id}`, kind: "control" }, "observed", "The registered category renders its band on the map");
     }
-    await checkpoint(walk, "map", list, list.getByRole("combobox", { name: "Search settings", exact: true }));
-    const search = list.getByRole("combobox", { name: "Search settings", exact: true });
+    await checkpoint(walk, "map", list, list.getByRole("combobox", { name: CONFIG_SEARCH_NAME, exact: true }));
+    const search = list.getByRole("combobox", { name: CONFIG_SEARCH_NAME, exact: true });
     const miss = "surface-walk-no-matching-setting";
     await search.fill(miss);
-    const empty = list.getByRole("status").filter({ hasText: `No settings match “${miss}”.` });
+    const empty = list.getByRole("status").filter({ hasText: configSearchEmptyText(miss) });
     await expect(empty).toBeVisible();
     await walk.checkpoint({ name: "config-search-empty", scope: list, witnesses: [empty], state: "empty", checks: SURFACE_CHECKS });
     await search.fill("");

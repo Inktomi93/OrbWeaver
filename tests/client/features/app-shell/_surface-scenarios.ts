@@ -4,7 +4,8 @@ import type { SurfaceAuditRequest } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
 import { CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
-import { DATABANK_RECENT_DOCUMENTS_NAME } from "#client/features/databank/lib/databank-names.ts";
+import { DATABANK_ADD_METHOD_NAME, DATABANK_LIST_NAME, DATABANK_RECENT_DOCUMENTS_NAME } from "#client/features/databank/lib/databank-names.ts";
+import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 
 type Witnesses = SurfaceAuditRequest["witnesses"];
 type Scenario = Omit<Exclude<SurfaceAuditRequest, { readonly state: "error" }>, "checks" | "requireBothFormKeys">;
@@ -45,7 +46,7 @@ const SECTION_WITNESSES = {
     page.locator(".shell-content").getByRole("heading", { name: /plugins? (?:is|are) waiting for your OK$/ }),
     page.locator(".shell-content").getByRole("button").first(),
   ],
-  databank: (page): Witnesses => [page.getByRole("list", { name: "Documents", exact: true }).getByRole("listitem").first()],
+  databank: (page): Witnesses => [page.getByRole("list", { name: DATABANK_LIST_NAME, exact: true }).getByRole("listitem").first()],
   presets: (page): Witnesses => [page.getByRole("radiogroup", { name: "Active preset for generation", exact: true }).getByRole("radio").first()],
   refinery: (page): Witnesses => [
     page.getByRole("combobox", { name: "Start a refinery session", exact: true }),
@@ -63,7 +64,7 @@ const GROUP_WITNESSES = {
   ],
   backup: (page): Witnesses => [
     page.getByRole("group", { name: "Include", exact: true }).getByRole("checkbox").first(),
-    page.getByRole("button", { name: "Import a folder…", exact: true }),
+    page.getByRole("button", { name: IMPORT_FOLDER_NAME, exact: true }),
   ],
   connections: (page): Witnesses => [
     page.locator('[data-slot="config-content"]').getByRole("switch").first(),
@@ -114,7 +115,7 @@ const MODAL_SCENARIOS = {
   addDocument: (page): ModalScenario => ({
     state: "loaded",
     witnesses: [
-      page.getByRole("dialog").getByRole("group", { name: "How to add the document", exact: true }),
+      page.getByRole("dialog").getByRole("group", { name: DATABANK_ADD_METHOD_NAME, exact: true }),
       page.getByRole("dialog").getByRole("group", { name: "Use this document in", exact: true }),
     ],
   }),

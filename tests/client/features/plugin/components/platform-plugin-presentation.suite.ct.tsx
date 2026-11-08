@@ -19,6 +19,7 @@ import type { Locator, Page } from "@playwright/test";
 import { strToU8 } from "fflate";
 import { pluginDetailsLabel } from "#client/features/plugin/lib/plugin-copy.ts";
 import { PLUGIN_MODEL_HEADING } from "#client/features/plugin/lib/plugin-model-copy.ts";
+import { MESSAGE_TOOLS_LABEL } from "#client/lib/flank-names.ts";
 import type { PluginPresentationPageStory } from "../_ct-stories.tsx";
 import type { PluginConsentLayoutStory } from "./_consent-layout-stories.tsx";
 import type { PluginHideFocusStory } from "./_hide-focus-stories.tsx";
@@ -396,7 +397,7 @@ test("Keepsake Snapshot stays reachable in its attributed media menu without gen
     ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...ROOM_PROCEDURES, "plugin.listCommands", "rpg.getGame", "rpg.listTurnToolCalls"]),
   });
   await mount<typeof PluginHideFocusStory>("tests/client/features/plugin/components/_hide-focus-stories/PluginHideFocusStory", { chatId: room.id });
-  await page.getByRole("button", { name: "Message tools", exact: true }).click();
+  await page.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true }).click();
   const snapshot = page.getByRole("menuitem", { name: `${camera.name} · Commands · Snapshot`, exact: true });
   await expect(snapshot).toBeVisible();
   await expect(snapshot).toBeEnabled();

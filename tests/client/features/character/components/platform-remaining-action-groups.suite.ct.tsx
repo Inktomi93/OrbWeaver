@@ -20,6 +20,8 @@ import {
   CHARACTER_NAME_FIELD_NAME,
   CHARACTER_NEW_NAME,
 } from "#client/features/character/lib/character-names.ts";
+import { GREETING_MAKE_NEW_NAME } from "#client/features/character/lib/greeting-copy.ts";
+import { CLEAR_SEARCH_NAME, NO_MATCHES_TITLE } from "#client/lib/search-empty-names.ts";
 import type { CharacterRemainingActionsStory } from "./_remaining-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/character/components/_remaining-action-groups-stories/CharacterRemainingActionsStory";
@@ -92,8 +94,8 @@ for (const regime of REGIMES) {
       await routeTrpc(page, serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "character.list", "tag.listTagFilterVocabulary"]));
       await corpusMedia();
       await mount<typeof CharacterRemainingActionsStory>(STORY, { characterId: card.id, plane: "library", width: regime.width, appearance: regime.appearance });
-      const empty = page.locator('[data-slot="empty-state-root"]').filter({ has: page.getByText("No matches", { exact: true }) });
-      const search = empty.getByRole("button", { name: "Clear search", exact: true });
+      const empty = page.locator('[data-slot="empty-state-root"]').filter({ has: page.getByText(NO_MATCHES_TITLE, { exact: true }) });
+      const search = empty.getByRole("button", { name: CLEAR_SEARCH_NAME, exact: true });
       const filters = empty.getByRole("button", { name: "Clear filters", exact: true });
       await expectContained(search.locator(".."), [search, filters]);
       await search.focus();
@@ -151,7 +153,7 @@ for (const regime of REGIMES) {
       await mount<typeof CharacterRemainingActionsStory>(STORY, { characterId: card.id, plane: "editor", width: regime.width, appearance: regime.appearance });
       // eslint-disable-next-line orb/no-hand-copied-label -- CharacterGreetingPreview labels this control directly; TEMPLATE_KIND_LABEL.studio names a different preset group.
       await page.getByRole("button", { name: "Studio", exact: true }).click();
-      const makeNew = page.getByRole("button", { name: "Make new", exact: true });
+      const makeNew = page.getByRole("button", { name: GREETING_MAKE_NEW_NAME, exact: true });
       const rewrite = page.getByRole("button", { name: "Rewrite", exact: true });
       await expectContained(makeNew.locator(".."), [makeNew, rewrite]);
       await makeNew.focus();

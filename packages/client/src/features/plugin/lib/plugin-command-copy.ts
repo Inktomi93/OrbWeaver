@@ -21,6 +21,17 @@ export function pluginCommandActionLabel(label: string): string {
   return `Run ${label}`;
 }
 
+/** The composer's plugin command menu trigger. */
+export const PLUGIN_ACTIONS_NAME = "Plugin actions";
+
+/** The argument dialog's title. */
+export const PLUGIN_COMMAND_ARGS_TITLE = "Run command";
+
+/** The composer menu's undo of the last draft replacement. */
+export function pluginUndoName(replacement: string): string {
+  return `Undo ${replacement}`;
+}
+
 /** The display names two or more installs share: the only names that need their slug to be told apart. */
 export function sharedPluginNames(plugins: readonly { readonly pluginId: PluginId; readonly pluginName: string }[]): ReadonlySet<string> {
   const idsByName = new Map<string, Set<PluginId>>();

@@ -22,7 +22,7 @@ import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
 import { DIALOG_VERBS } from "#lib";
 import { useAddToGallery, useGalleryCandidates } from "../hooks/use-character-gallery.ts";
 import { useGalleryFocus } from "../hooks/use-gallery-focus.ts";
-import { CHAT_GALLERY_IMAGES_NAME, CHAT_GALLERY_UPLOAD_INSTEAD_NAME } from "../lib/chat-surface-names.ts";
+import { CHAT_GALLERY_ADD_PICKER_TITLE, CHAT_GALLERY_IMAGES_NAME, CHAT_GALLERY_UPLOAD_INSTEAD_NAME } from "../lib/chat-surface-names.ts";
 import { ownedImageName } from "../lib/gallery-image-name.ts";
 import { galleryThumbUrl } from "../lib/gallery-thumb.ts";
 import { GalleryLoadMore } from "./gallery-load-more.tsx";
@@ -94,7 +94,7 @@ export function GalleryAddPicker({ open, onOpenChange, characterId, onUploadInst
 
   return (
     <PickerDialog
-      title="Add images to the gallery"
+      title={CHAT_GALLERY_ADD_PICKER_TITLE}
       bodyContainer={true}
       size="lg"
       open={open}

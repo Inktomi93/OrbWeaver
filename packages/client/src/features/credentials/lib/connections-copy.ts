@@ -2,3 +2,6 @@
 
 /** The button that opens the add-connection dialog. */
 export const ADD_CONNECTION_NAME = "Add connection";
+
+/** The connection forms' provider select. */
+export const CONNECTION_PROVIDER_FIELD_NAME = "Provider";

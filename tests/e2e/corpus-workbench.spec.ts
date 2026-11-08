@@ -8,6 +8,7 @@ import { CORPUS_MODE_NAME } from "#client/features/discovery/lib/corpus-control-
 import { LEADERBOARD_ROW_ATTR } from "#client/features/stats/lib/leaderboard-row-attr.ts";
 import { TAG_FILTER_NAME, TAG_MORE_ACTIONS_NAME, TAG_PRUNE_NAME } from "#client/features/tag/lib/tag-list-name.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
+import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import { ROW_DELETE_NAME } from "#client/lib/row-menu-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
@@ -38,7 +39,7 @@ test.describe("committed corpus workbench", () => {
     }
     await page.goto("/");
     await waitForAppReady(page);
-    await page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: SECTION_LABELS.corpus, exact: true }).click();
+    await page.getByRole("navigation", { name: PRIMARY_NAV_NAME }).getByRole("button", { name: SECTION_LABELS.corpus, exact: true }).click();
     const list = page.locator(CORPUS_LIST);
     await list.getByRole("radio", { name: CORPUS_MODE_LABELS.insights }).click();
     const search = list.getByRole("textbox", { name: "Search characters", exact: true });
@@ -92,7 +93,7 @@ test.describe("committed corpus workbench", () => {
     test.skip(isMobile, "The desktop rail and docked panes");
     await page.goto("/");
     await waitForAppReady(page);
-    const rail = page.getByRole("navigation", { name: "Primary" });
+    const rail = page.getByRole("navigation", { name: PRIMARY_NAV_NAME });
     await expect(rail.getByRole("button", { name: "Analytics" })).toHaveCount(0);
     await rail.getByRole("button", { name: SECTION_LABELS.corpus, exact: true }).click();
 
@@ -124,7 +125,7 @@ test.describe("committed corpus workbench", () => {
     test.skip(isMobile, "The desktop mode switch beside CONTENT");
     await page.goto("/");
     await waitForAppReady(page);
-    await page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: SECTION_LABELS.corpus, exact: true }).click();
+    await page.getByRole("navigation", { name: PRIMARY_NAV_NAME }).getByRole("button", { name: SECTION_LABELS.corpus, exact: true }).click();
     const insights = page.locator(CORPUS_LIST).getByRole("radio", { name: CORPUS_MODE_LABELS.insights });
     await insights.focus();
     await page.keyboard.press("Enter");
@@ -140,7 +141,7 @@ test.describe("committed corpus workbench", () => {
     const board = await ownerActor(baseURL ?? "").trpc.stats.leaderboard.query({});
     await page.goto("/");
     await waitForAppReady(page);
-    await expect(page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name: SECTION_LABELS.corpus, exact: true })).toHaveCount(0);
+    await expect(page.getByRole("navigation", { name: PRIMARY_NAV_NAME }).getByRole("button", { name: SECTION_LABELS.corpus, exact: true })).toHaveCount(0);
     await openCorpusOnPhone(page);
 
     const list = page.locator(CORPUS_LIST);

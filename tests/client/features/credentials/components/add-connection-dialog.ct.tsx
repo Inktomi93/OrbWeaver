@@ -7,6 +7,7 @@ import { createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { CONNECTION_PROVIDER_FIELD_NAME } from "#client/features/credentials/lib/connections-copy.ts";
 import type { ConnectionsListStory } from "./_connections-list-stories.tsx";
 
 const STORY = "tests/client/features/credentials/components/_connections-list-stories/ConnectionsListStory";
@@ -60,7 +61,7 @@ async function scenario(): Promise<{
 async function pickDeviceProvider(page: Page, label: string): Promise<Locator> {
   await page.getByRole("button", ADD).click();
   const dialog = page.getByRole("dialog");
-  await dialog.getByRole("combobox", { name: "Provider", exact: true }).click();
+  await dialog.getByRole("combobox", { name: CONNECTION_PROVIDER_FIELD_NAME, exact: true }).click();
   await page.getByRole("option", { name: label }).first().click();
   return dialog;
 }

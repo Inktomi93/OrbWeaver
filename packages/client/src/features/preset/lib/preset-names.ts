@@ -11,3 +11,6 @@ export const PRESET_RENAME_NAME = "Rename preset";
 export const PRESET_SECTIONS_NAME = "Preset sections";
 export const PRESET_IMPORT_TITLE = "Import a preset";
 export const PRESET_IMPORT_NAME = "Import preset";
+
+/** The section drill-in's name field. */
+export const PRESET_SECTION_NAME_FIELD_NAME = "Name";

@@ -7,6 +7,7 @@ import { nonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page, TestInfo } from "@playwright/test";
+import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import type { SectionShellStory } from "../_surface-stories.tsx";
 
 const STORY = "tests/client/features/app-shell/_surface-stories/SectionShellStory";
@@ -35,7 +36,7 @@ for (const regime of REGIMES) {
         await seedShellState(page, { activeSection: "home" });
         await mount<typeof SectionShellStory>(STORY, { section: "home" });
         const grid = page.locator(".shell-grid");
-        const rail = page.getByRole("navigation", { name: "Primary", exact: true });
+        const rail = page.getByRole("navigation", { name: PRIMARY_NAV_NAME, exact: true });
         const home = rail.getByRole("button", { name: SECTION_LABELS.home, exact: true });
         await expect(grid).toHaveAttribute("data-section", "home");
         await expect
@@ -81,7 +82,7 @@ test.describe("coarse landscape rail fade", () => {
     });
     await seedShellState(page, { activeSection: "home" });
     await mount<typeof SectionShellStory>(STORY, { section: "home" });
-    const sections = page.getByRole("navigation", { name: "Primary", exact: true }).locator(".shell-rail-sections");
+    const sections = page.getByRole("navigation", { name: PRIMARY_NAV_NAME, exact: true }).locator(".shell-rail-sections");
     const edges = async (): Promise<{ top: boolean; bottom: boolean }> =>
       await sections.evaluate((node) => ({ top: node.hasAttribute("data-fade-top"), bottom: node.hasAttribute("data-fade-bottom") }));
     await sections.evaluate((node) => {
@@ -180,7 +181,7 @@ for (const viewport of LANDSCAPE_PHONES) {
       await using root = await createCorpusHarness();
       await serveShell(page, corpus, root, "home");
       await mount<typeof SectionShellStory>(STORY, { section: "home" });
-      const sections = page.getByRole("navigation", { name: "Primary", exact: true }).locator(SCROLL_SECTIONS);
+      const sections = page.getByRole("navigation", { name: PRIMARY_NAV_NAME, exact: true }).locator(SCROLL_SECTIONS);
       await expect.poll(async () => (await sections.evaluate(railEdge)).overflow).toBeGreaterThan(0);
       expect(await sections.evaluate((node) => node.scrollTop)).toBe(0);
       await expect
@@ -197,7 +198,7 @@ for (const viewport of LANDSCAPE_PHONES) {
       await using root = await createCorpusHarness();
       await serveShell(page, corpus, root, "home");
       await mount<typeof SectionShellStory>(STORY, { section: "home" });
-      const sections = page.getByRole("navigation", { name: "Primary", exact: true }).locator(SCROLL_SECTIONS);
+      const sections = page.getByRole("navigation", { name: PRIMARY_NAV_NAME, exact: true }).locator(SCROLL_SECTIONS);
       const fitsRoom = async (): Promise<boolean> => {
         const fit = await sections.evaluate(railFit);
         return (
@@ -221,7 +222,7 @@ for (const viewport of LANDSCAPE_PHONES) {
       await using root = await createCorpusHarness();
       await serveShell(page, corpus, root, "home");
       await mount<typeof SectionShellStory>(STORY, { section: "home" });
-      const sections = page.getByRole("navigation", { name: "Primary", exact: true }).locator(SCROLL_SECTIONS);
+      const sections = page.getByRole("navigation", { name: PRIMARY_NAV_NAME, exact: true }).locator(SCROLL_SECTIONS);
       await expect(sections).toHaveAttribute("data-fade-bottom", "");
       // The fit writes the cap from its own observer, so the fade hook does not watch the box: only the fit's direct sync clears it.
       await page.setViewportSize({ width: viewport.width, height: GROWN_WINDOW_PX });
@@ -236,7 +237,7 @@ for (const viewport of LANDSCAPE_PHONES) {
       await using root = await createCorpusHarness();
       await serveShell(page, corpus, root, "databank");
       await mount<typeof SectionShellStory>(STORY, { section: "databank" });
-      const rail = page.getByRole("navigation", { name: "Primary", exact: true });
+      const rail = page.getByRole("navigation", { name: PRIMARY_NAV_NAME, exact: true });
       const sections = rail.locator(SCROLL_SECTIONS);
       const current = sections.locator('[aria-current="page"]');
       const inView = async (): Promise<boolean> => {
@@ -285,7 +286,7 @@ for (const viewport of LOOP_ERROR_SIZES) {
       await using root = await createCorpusHarness();
       await serveShell(page, corpus, root, "home");
       await mount<typeof SectionShellStory>(STORY, { section: "home" });
-      const sections = page.getByRole("navigation", { name: "Primary", exact: true }).locator(SCROLL_SECTIONS);
+      const sections = page.getByRole("navigation", { name: PRIMARY_NAV_NAME, exact: true }).locator(SCROLL_SECTIONS);
       await expect.poll(async () => (await sections.evaluate(railFit)).cap).not.toBeNull();
       await expect(sections).toHaveAttribute("data-fade-bottom", "");
       await page.evaluate(() => new Promise<void>((done) => requestAnimationFrame(() => requestAnimationFrame(() => done()))));

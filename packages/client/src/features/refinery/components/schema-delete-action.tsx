@@ -3,7 +3,7 @@ import { Button } from "@orb/ui/button";
 import type { ReactElement } from "react";
 import { DestructiveAction } from "#components";
 import { useInvalidation, useTRPC } from "#data";
-import { notify } from "#lib";
+import { deleteConfirmTitle, notify } from "#lib";
 import { useDeleteRefinerySchema } from "../hooks/use-refinery-schemas.ts";
 
 interface DeletableSchema {
@@ -30,7 +30,7 @@ export function DeleteSchemaAction({ schema, onDeleted }: { readonly schema: Del
 
   return (
     <DestructiveAction
-      confirm={{ confirmLabel: "Delete", description: deleteBody(schema.name), title: `Delete "${schema.name}"?` }}
+      confirm={{ confirmLabel: "Delete", description: deleteBody(schema.name), title: deleteConfirmTitle(schema.name) }}
       forceRender={true}
       onConfirm={deleteSchema}
       trigger={

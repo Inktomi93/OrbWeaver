@@ -30,7 +30,7 @@ import { ASSISTANT_PREFILL_WARNING, downloadTextFile, MESSAGE_ROLE_ITEMS, notify
 import { takePersonaEditorFocus, usePersonaEditorFocusRequest } from "#state";
 import { PersonaForm } from "../hooks/use-persona-form.ts";
 import { useDuplicatePersona, useUpdatePersona } from "../hooks/use-persona-mutations.ts";
-import { deleteMovesDefaultNote } from "../lib/persona-copy.ts";
+import { deleteMovesDefaultNote, PERSONA_DESCRIPTION_FIELD_NAME, PERSONA_FROM_CARD_NAME, PERSONA_NAME_FIELD_NAME } from "../lib/persona-copy.ts";
 import type { PersonaFormValues } from "../lib/persona-editor-model.ts";
 import { isPrefillCombo, personaFormFromEntity, personaInputFromForm } from "../lib/persona-editor-model.ts";
 import { PersonaConnectedCharacters } from "./persona-connected-characters.tsx";
@@ -148,7 +148,7 @@ function PersonaEditorBody({ session, persona, onDelete, nextDefaultName }: Pers
         <AvatarTrigger persona={persona} />
         <Stack gap="row" className="min-inline-0" grow={true}>
           <form.AppField name="name">
-            {(field): ReactElement => <field.TextField label="Name" hint="Characters call you this. It can't be empty." />}
+            {(field): ReactElement => <field.TextField label={PERSONA_NAME_FIELD_NAME} hint="Characters call you this. It can't be empty." />}
           </form.AppField>
           <form.AppField name="title">
             {(field): ReactElement => (
@@ -163,7 +163,7 @@ function PersonaEditorBody({ session, persona, onDelete, nextDefaultName }: Pers
         <form.AppField name="description">
           {(field): ReactElement => (
             <field.MacroField
-              label="Description"
+              label={PERSONA_DESCRIPTION_FIELD_NAME}
               hint="How this persona is described to the model. Use {{user}}/{{persona}} to self-reference."
               suggestions={macroSuggestions}
               rows={6}
@@ -301,7 +301,7 @@ function ProvenanceChip({ metadata }: { readonly metadata: PersonaMetadata | nul
   return (
     <Row gap="field" align="center">
       <Badge tone="info" variant="solid">
-        From a character card
+        {PERSONA_FROM_CARD_NAME}
       </Badge>
       {metadata.swapMacros === true ? (
         <Text voice="gloss">

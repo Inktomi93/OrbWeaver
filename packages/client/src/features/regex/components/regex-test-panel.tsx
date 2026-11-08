@@ -23,7 +23,7 @@ import { Text } from "@orb/ui/text";
 import { Textarea } from "@orb/ui/textarea";
 import type { ChangeEvent, ReactElement } from "react";
 import { useState } from "react";
-import { REGEX_SAMPLE_TEXT_NAME } from "../lib/regex-names.ts";
+import { REGEX_RESULT_NAME, REGEX_SAMPLE_TEXT_NAME } from "../lib/regex-names.ts";
 import type { RegexPreview } from "../lib/regex-preview.ts";
 import { previewRegexScript, REGEX_PREVIEW_CHAR, REGEX_PREVIEW_DEFAULT_SAMPLE, REGEX_PREVIEW_MAX_INPUT, REGEX_PREVIEW_USER } from "../lib/regex-preview.ts";
 
@@ -102,7 +102,7 @@ export function RegexTestPanel({ script }: RegexTestPanelProps): ReactElement {
         <Field
           description={preview.error === null ? previewStatus(preview, sample) : null}
           error={preview.error === null ? null : `This pattern can't run: ${preview.error}`}
-          label="Result"
+          label={REGEX_RESULT_NAME}
           // The result is a READING, not an input — but it stays a textarea so long output scrolls and can
           // be selected/copied, which is what a user does with it next.
         >

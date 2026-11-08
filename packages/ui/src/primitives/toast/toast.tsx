@@ -2,7 +2,7 @@ import type { ToastPortalProps as BasePortalProps, ToastProviderProps as BasePro
 import { Toast as BaseToast } from "@base-ui/react/toast";
 import type { ReactElement } from "react";
 import { Check, CircleAlert, Icon, TriangleAlert, X } from "#primitives/icons";
-import { ALERTS_REGION_NAME } from "./toast-names.ts";
+import { ALERTS_REGION_NAME, TOAST_CLOSE_NAME } from "./toast-names.ts";
 import { TOAST_ACTION_TONE, toastVariants } from "./variants.ts";
 
 const slots = toastVariants();
@@ -107,7 +107,7 @@ function ToastItems({ swipeDirection = TOP_ANCHORED_SWIPE }: ToastItemsProps): R
           {/* Same override, same reason (`ToastClose.mjs`: `aria-hidden: !expanded && !hasFocus`) — the only
               dismiss affordance was outside the accessibility tree until it already had focus, so a screen
               reader user could never find it. The `aria-label` below is the name it then reports. */}
-          <BaseToast.Close aria-hidden={false} aria-label="Close notification" className={slots.close()}>
+          <BaseToast.Close aria-hidden={false} aria-label={TOAST_CLOSE_NAME} className={slots.close()}>
             <Icon icon={X} size="xs" />
           </BaseToast.Close>
         </BaseToast.Root>

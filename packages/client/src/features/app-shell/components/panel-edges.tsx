@@ -4,12 +4,13 @@
 
 import type { ReactElement } from "react";
 import { PanelEdgeControl } from "#components";
+import { DETAILS_PANEL_NOUN, LIST_PANEL_NOUN } from "#lib";
 import type { PanelMode, PanelName } from "#state";
 import { CONTEXT_TOGGLE_MARKER, LIST_TOGGLE_MARKER } from "./shell-topbar.tsx";
 
 const EDGES = {
-  list: { edge: "start", noun: "list panel", marker: LIST_TOGGLE_MARKER },
-  context: { edge: "end", noun: "details", marker: CONTEXT_TOGGLE_MARKER },
+  list: { edge: "start", noun: LIST_PANEL_NOUN, marker: LIST_TOGGLE_MARKER },
+  context: { edge: "end", noun: DETAILS_PANEL_NOUN, marker: CONTEXT_TOGGLE_MARKER },
 } as const satisfies Record<PanelName, { readonly edge: "start" | "end"; readonly noun: string; readonly marker: string }>;
 
 export interface PanelEdgeProps {

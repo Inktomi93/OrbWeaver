@@ -25,6 +25,7 @@ import { GalleryLoadMore } from "../components/gallery-load-more.tsx";
 import { GalleryUploadZone } from "../components/gallery-upload-zone.tsx";
 import { useGalleryCollection, useRemoveFromGallery } from "../hooks/use-character-gallery.ts";
 import { useGalleryFocus } from "../hooks/use-gallery-focus.ts";
+import { CHAT_GALLERY_ADD_NAME, CHAT_GALLERY_EMPTY_TITLE, characterGalleryName } from "../lib/chat-surface-names.ts";
 import { galleryImageName } from "../lib/gallery-image-name.ts";
 import { galleryThumbUrl } from "../lib/gallery-thumb.ts";
 
@@ -98,12 +99,12 @@ function GalleryGridBody(props: GalleryGridBodyProps): ReactElement {
     return (
       <EmptyState
         icon={<Icon icon={Images} size="lg" />}
-        title="No images yet"
+        title={CHAT_GALLERY_EMPTY_TITLE}
         description={`Upload images above, or add ones you already have to ${characterName}'s gallery.`}
         action={
           <Button onClick={onAddClick}>
             <Icon icon={ImagePlus} size="sm" />
-            Add images
+            {CHAT_GALLERY_ADD_NAME}
           </Button>
         }
       />
@@ -144,7 +145,7 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
 
   const items = gallery.items;
   const gridItems = items.map(toGalleryGridItem);
-  const galleryLabel = `${characterName}'s gallery`;
+  const galleryLabel = characterGalleryName(characterName);
   // Settled on nothing: the Order strip and the header's add yield to the empty state's one action.
   const galleryEmpty = !gallery.isPending && gallery.error === null && items.length === 0;
   const gridRef = useRef<MediaGridHandle>(null);
@@ -195,7 +196,7 @@ export function CharacterGalleryDialog({ open, onOpenChange, characterId, charac
           galleryEmpty && scope === "everywhere" ? null : (
             <Button variant="outline" size="sm" onClick={(): void => setPickerOpen(true)}>
               <Icon icon={ImagePlus} size="sm" />
-              Add images
+              {CHAT_GALLERY_ADD_NAME}
             </Button>
           )
         }

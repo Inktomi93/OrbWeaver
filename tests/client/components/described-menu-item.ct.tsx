@@ -1,6 +1,7 @@
 import { accessibilityScan } from "@orb/testkit/browser/spec";
 import { attachNativeFile } from "@orb/testkit/node/helpers";
 import { expect, test } from "@playwright/test";
+import { STORY_COMMANDS } from "./_described-menu-item-labels.ts";
 import type { DescribedMenuItemStory, MenuNameDetectorControlsStory } from "./_described-menu-item-stories.tsx";
 
 const STORY = "tests/client/components/_described-menu-item-stories/DescribedMenuItemStory";
@@ -28,9 +29,9 @@ test("described commands retain exact action names, readable descriptions and un
   });
   await mount<typeof DescribedMenuItemStory>(STORY);
   await page.getByRole("button", { name: "Document actions", exact: true }).click();
-  await expect(page.getByRole("menuitem", { name: "Archive", exact: true })).toBeVisible();
-  const duplicate = page.getByRole("menuitem", { name: "Duplicate", exact: true });
-  const unavailable = page.getByRole("menuitem", { name: "Export", exact: true });
+  await expect(page.getByRole("menuitem", { name: STORY_COMMANDS.archive, exact: true })).toBeVisible();
+  const duplicate = page.getByRole("menuitem", { name: STORY_COMMANDS.duplicate, exact: true });
+  const unavailable = page.getByRole("menuitem", { name: STORY_COMMANDS.export, exact: true });
   await expect(duplicate).toHaveAccessibleDescription("Create an independent copy.");
   await expect(unavailable).toBeDisabled();
   await expect(unavailable).toHaveAccessibleDescription("Choose a format before exporting.");
@@ -47,14 +48,14 @@ test("the native menu keeps typeahead, keyboard activation, checkbox state and d
   await page.keyboard.press("ArrowDown");
   const menu = page.getByRole("menu");
   await expect(menu).toBeVisible();
-  await expect(page.getByRole("menuitem", { name: "Archive", exact: true })).toBeFocused();
+  await expect(page.getByRole("menuitem", { name: STORY_COMMANDS.archive, exact: true })).toBeFocused();
   await page.keyboard.press("d");
-  const duplicate = page.getByRole("menuitem", { name: "Duplicate", exact: true });
+  const duplicate = page.getByRole("menuitem", { name: STORY_COMMANDS.duplicate, exact: true });
   await expect(duplicate).toBeFocused();
   await expect(duplicate).toHaveAttribute("data-highlighted", "");
   await attachNativeFile(testInfo, testInfo, "described-command-focused.png", { body: await page.screenshot(), contentType: "image/png" });
   await page.keyboard.press("Enter");
-  await expect(page.getByRole("status", { name: "Last command", exact: true })).toHaveText("Duplicate");
+  await expect(page.getByRole("status", { name: "Last command", exact: true })).toHaveText(STORY_COMMANDS.duplicate);
   await expect(menu).toBeHidden();
   await expect(trigger).toBeFocused();
 
@@ -68,10 +69,10 @@ test("the native menu keeps typeahead, keyboard activation, checkbox state and d
   await expect(trigger).toBeFocused();
 
   await trigger.click();
-  await page.getByRole("menuitem", { name: "Archive", exact: true }).click();
-  await expect(page.getByRole("status", { name: "Last command", exact: true })).toHaveText("Archive");
+  await page.getByRole("menuitem", { name: STORY_COMMANDS.archive, exact: true }).click();
+  await expect(page.getByRole("status", { name: "Last command", exact: true })).toHaveText(STORY_COMMANDS.archive);
   await trigger.click();
   await page.getByText("Create an independent copy.", { exact: true }).click();
-  await expect(page.getByRole("status", { name: "Last command", exact: true })).toHaveText("Duplicate");
+  await expect(page.getByRole("status", { name: "Last command", exact: true })).toHaveText(STORY_COMMANDS.duplicate);
   await expect(menu).toBeHidden();
 });

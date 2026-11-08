@@ -8,6 +8,7 @@ import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SE
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { PLUGIN_ACTIONS_NAME } from "#client/features/plugin/lib/plugin-command-copy.ts";
 import { CHAT_PANEL_HIDE_LABEL, showInChatLabel } from "#client/features/plugin/lib/plugin-copy.ts";
 import {
   CHAT_PLUGINS_EMPTY_TITLE,
@@ -15,6 +16,7 @@ import {
   CHAT_PLUGINS_OPEN_LABEL,
   movePluginPanelLabel,
 } from "#client/features/plugin/lib/plugin-panel-copy.ts";
+import { TOAST_CLOSE_NAME } from "#ui/primitives/toast/toast-names.ts";
 import type { PluginHideFocusStory } from "./_hide-focus-stories.tsx";
 
 // The edge control names the column with the house verbs, in whichever state it is in.
@@ -89,7 +91,7 @@ test("ordinary plugin panels share Context, collapse independently, and move ind
     throw new Error("The panel fixture did not install its guest");
   }
   await mount<typeof PluginHideFocusStory>("tests/client/features/plugin/components/_hide-focus-stories/PluginHideFocusStory", { chatId: room.id });
-  await page.getByRole("button", { name: "Plugin actions", exact: true }).click();
+  await page.getByRole("button", { name: PLUGIN_ACTIONS_NAME, exact: true }).click();
   await page.getByRole("menuitem", { name: CHAT_PLUGINS_OPEN_LABEL, exact: true }).click();
   await expect(page.getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true })).toHaveAttribute("aria-selected", "true");
   const context = page.getByRole("region", { name: CHAT_PLUGINS_TAB_LABEL, exact: true });
@@ -132,7 +134,7 @@ test("ordinary plugin panels share Context, collapse independently, and move ind
     .getByRole("button", { name: `${CHAT_PANEL_HIDE_LABEL} Context witness`, exact: true })
     .click();
   await expect(context.getByText("First panel content", { exact: true })).toHaveCount(0);
-  await page.getByRole("button", { name: "Close notification", exact: true }).click();
+  await page.getByRole("button", { name: TOAST_CLOSE_NAME, exact: true }).click();
   await context.getByRole("button", { name: showInChatLabel("Context witness"), exact: true }).click();
   await expect(context.getByText("First panel content", { exact: true })).toBeVisible();
   await expect(context.getByText("Second panel content", { exact: true })).toBeVisible();
@@ -252,7 +254,7 @@ test.describe("touch placement", () => {
     await page.getByRole("button", { name: `Close ${SECTION_LABELS.chats} details`, exact: true }).click();
     const glyphs = (locator: Locator): Promise<string[]> =>
       locator.locator("svg").evaluateAll((svgs) => svgs.map((svg) => Array.from(svg.classList).find((token) => token.startsWith("lucide-")) ?? ""));
-    const actions = await glyphs(page.getByRole("button", { name: "Plugin actions", exact: true }));
+    const actions = await glyphs(page.getByRole("button", { name: PLUGIN_ACTIONS_NAME, exact: true }));
     await page.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true }).click();
     const door = page.getByRole("menuitem", { name: SIDECAR_PANELS_LABEL, exact: true });
     await expect(door).toBeVisible();

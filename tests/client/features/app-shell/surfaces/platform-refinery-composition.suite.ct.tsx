@@ -10,7 +10,12 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
-import { REFINERY_EDIT_SCOPE_NAME, REFINERY_SESSION_STATE_NAME, REFINERY_VERSIONS_NAME } from "#client/features/refinery/lib/refinery-names.ts";
+import {
+  REFINERY_EDIT_SCOPE_NAME,
+  REFINERY_SESSION_STATE_NAME,
+  REFINERY_SETUP_TAB_LABEL,
+  REFINERY_VERSIONS_NAME,
+} from "#client/features/refinery/lib/refinery-names.ts";
 import type { RefineryCompositionShellStory } from "./_refinery-composition-stories.tsx";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -205,7 +210,7 @@ for (const regime of REGIMES) {
       await expect(page.getByTestId(testId("refineryMasthead"))).toBeVisible();
       await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
       const context = page.locator(CONTEXT);
-      await context.getByRole("tab", { name: "Setup", exact: true }).click();
+      await context.getByRole("tab", { name: REFINERY_SETUP_TAB_LABEL, exact: true }).click();
       const view = context.getByRole("button", { name: "View Original card", exact: true });
       await expect(view).toBeVisible();
       await view.focus();

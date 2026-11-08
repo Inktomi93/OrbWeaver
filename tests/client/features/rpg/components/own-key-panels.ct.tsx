@@ -12,6 +12,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
 import { UNSET_DATUM } from "#client/features/rpg/lib/unset-datum.ts";
+import { MESSAGE_TOOLS_LABEL } from "#client/lib/flank-names.ts";
 import type { RpgContextTabStory, RpgDiceComposerStory } from "./_own-key-panels-stories.tsx";
 
 const TAB_STORY = "tests/client/features/rpg/components/_own-key-panels-stories/RpgContextTabStory";
@@ -109,7 +110,7 @@ test("the dice ability check for an unset inherited-name attribute is disabled a
   const room = await gameRoom(root);
   await routeTrpc(page, (await room.reads()).routes);
   await mount<typeof RpgDiceComposerStory>(DICE_STORY, { chatId: room.chatId });
-  await page.getByRole("button", { name: "Message tools", exact: true }).click();
+  await page.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true }).click();
   await page.getByRole("menuitem", { name: "Ability check", exact: true }).click();
   const unset = page.getByRole("menuitem", { name: LABEL, exact: false });
   await expect(unset).toHaveText(`${LABEL}Set your score in Status first.`);
@@ -122,7 +123,7 @@ test("a set inherited-name attribute offers its ability check with the profile's
   await room.setInheritedValues();
   await routeTrpc(page, (await room.reads()).routes);
   await mount<typeof RpgDiceComposerStory>(DICE_STORY, { chatId: room.chatId });
-  await page.getByRole("button", { name: "Message tools", exact: true }).click();
+  await page.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true }).click();
   await page.getByRole("menuitem", { name: "Ability check", exact: true }).click();
   const modifier = rpgAttributeModifier(room.profile, SCORE);
   await expect(page.getByRole("menuitem", { name: `${LABEL} (${modifier >= 0 ? "+" : ""}${modifier})`, exact: true })).toBeEnabled();

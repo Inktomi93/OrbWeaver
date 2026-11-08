@@ -30,7 +30,7 @@ import type { ReactElement } from "react";
 // biome's resolver mis-enumerates react's conditional-CJS export map and misses lazy/Suspense
 // specifically (main.tsx precedent); tsc resolves them and the client typechecks clean.
 import { lazy, Suspense, useEffect, useState } from "react";
-import { CORNER_RADIUS_NAME } from "#components";
+import { CORNER_RADIUS_NAME, FONT_FIELD_NAME } from "#components";
 import type { AppFormInstance, AutosaveSession } from "#forms/editor";
 import { AutosaveStatus, createAutosaveEntityForm } from "#forms/editor";
 // The THEME-shaped appearance table. It used to ride the settings feature's own
@@ -39,7 +39,12 @@ import { AutosaveStatus, createAutosaveEntityForm } from "#forms/editor";
 import { DENSITY_ITEMS, THEME_RADIUS_LABELS } from "#lib";
 import type { ThemeAutosaveDeps } from "../hooks/use-theme-autosave.ts";
 import { useThemeAutosave } from "../hooks/use-theme-autosave.ts";
-import { CONFIG_ADVANCED_THEME_TOOLS_NAME, CONFIG_CUSTOM_CSS_NAME, CONFIG_THEME_NAME_FIELD_NAME } from "../lib/config-control-names.ts";
+import {
+  CONFIG_ADVANCED_THEME_TOOLS_NAME,
+  CONFIG_CUSTOM_CSS_NAME,
+  CONFIG_THEME_NAME_FIELD_NAME,
+  CONFIG_THEME_PREVIEW_NAME,
+} from "../lib/config-control-names.ts";
 import { contrastRatio } from "../lib/theme-contrast.ts";
 import type { ThemeFormValues } from "../lib/theme-editor-model.ts";
 import { DEFAULT_THEME_FORM, themeFormFromEntity, themeOverrideFromForm } from "../lib/theme-editor-model.ts";
@@ -146,7 +151,7 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
         </Section>
 
         <Section heading="Type & shape">
-          <boundForm.AppField name="font">{(field): ReactElement => <field.SelectField label="Font" items={FONT_ITEMS} />}</boundForm.AppField>
+          <boundForm.AppField name="font">{(field): ReactElement => <field.SelectField label={FONT_FIELD_NAME} items={FONT_ITEMS} />}</boundForm.AppField>
           <boundForm.AppField name="radius">
             {(field): ReactElement => <field.SelectField label={CORNER_RADIUS_NAME} items={RADIUS_ITEMS} />}
           </boundForm.AppField>
@@ -167,7 +172,7 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
             <ThemeableVarsReference />
           </Section>
 
-          <Section heading="Preview">
+          <Section heading={CONFIG_THEME_PREVIEW_NAME}>
             <boundForm.Subscribe selector={(state): ThemeFormValues => state.values}>
               {(values): ReactElement => <ThemePreview values={values} />}
             </boundForm.Subscribe>

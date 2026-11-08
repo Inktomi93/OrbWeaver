@@ -13,7 +13,7 @@ import { useState } from "react";
 import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
-import { SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
+import { CLEAR_SEARCH_NAME, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { useAttachWorldBookGlobal, useDetachWorldBookGlobal } from "../hooks/use-world-info-mutations.ts";
 import { CharacterAttachRow, PersonaAttachRow } from "./attachment-rows.tsx";
 
@@ -164,7 +164,7 @@ function CharacterMatches({
         <Text voice="gloss">{`No character matches "${needle}".`}</Text>
         <Row>
           <Button variant="outline" onClick={onClearSearch} size="sm">
-            Clear search
+            {CLEAR_SEARCH_NAME}
           </Button>
         </Row>
       </Stack>

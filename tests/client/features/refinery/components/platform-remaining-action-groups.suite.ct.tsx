@@ -7,7 +7,12 @@ import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
-import { REFINERY_COMPARE_NAME, REFINERY_EDIT_SCOPE_NAME, REFINERY_HIDE_COMPARE_NAME } from "#client/features/refinery/lib/refinery-names.ts";
+import {
+  REFINERY_COMPARE_NAME,
+  REFINERY_EDIT_SCOPE_NAME,
+  REFINERY_HIDE_COMPARE_NAME,
+  REFINERY_VERSION_DIFF_HEADING,
+} from "#client/features/refinery/lib/refinery-names.ts";
 import type { RefineryRemainingActionsStory } from "./_remaining-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/refinery/components/_remaining-action-groups-stories/RefineryRemainingActionsStory";
@@ -108,7 +113,7 @@ for (const regime of REGIMES) {
       await page.keyboard.press("Enter");
       const hide = page.getByRole("button", { name: REFINERY_HIDE_COMPARE_NAME, exact: true });
       await expect(hide).toBeFocused();
-      await expect(page.getByText("description — this version vs live", { exact: true })).toBeVisible();
+      await expect(page.getByText(REFINERY_VERSION_DIFF_HEADING, { exact: true })).toBeVisible();
       await expectContained(hide.locator(".."), [hide, restore]);
       await page.keyboard.press("Tab");
       await expect(restore).toBeFocused();

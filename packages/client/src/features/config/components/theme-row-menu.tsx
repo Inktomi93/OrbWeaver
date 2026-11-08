@@ -23,7 +23,7 @@ import { MenuItem } from "@orb/ui/menu";
 import type { ReactElement } from "react";
 import type { RowDestructiveAction } from "#components";
 import { RowActionsMenu } from "#components";
-import { DIALOG_VERBS } from "#lib";
+import { DIALOG_VERBS, ROW_DUPLICATE_NAME, ROW_EXPORT_NAME } from "#lib";
 import { themeActionsName } from "../lib/theme-row-names.ts";
 
 export interface ThemeRowMenuProps {
@@ -54,11 +54,11 @@ export function ThemeRowMenu({ theme, onApply, onEdit, onDuplicate, onExport, on
       )}
       <MenuItem onClick={onDuplicate}>
         <Icon icon={Copy} size="sm" />
-        Duplicate
+        {ROW_DUPLICATE_NAME}
       </MenuItem>
       <MenuItem onClick={onExport}>
         <Icon icon={Download} size="sm" />
-        Export
+        {ROW_EXPORT_NAME}
       </MenuItem>
     </>
   );

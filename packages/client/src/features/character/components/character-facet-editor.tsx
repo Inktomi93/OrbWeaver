@@ -24,7 +24,7 @@ import type { CHARACTER_CARD_FACET_IDS } from "../lib/character-card-facets.ts";
 import { facetById } from "../lib/character-card-facets.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
 import { isDepthPromptPrefill } from "../lib/character-card-form-model.ts";
-import { CHARACTER_EXPAND_TO_EDIT_NAME } from "../lib/character-names.ts";
+import { CHARACTER_EXPAND_TO_EDIT_NAME, CHARACTER_FACET_BACK_NAME } from "../lib/character-names.ts";
 import { parseExampleBlocks } from "../lib/example-messages.ts";
 import type { CharacterProvenanceSectionProps } from "./character-provenance-section.tsx";
 import { CharacterProvenanceSection } from "./character-provenance-section.tsx";
@@ -61,7 +61,7 @@ export function CharacterFacetEditor({ form, characterId, facetId, trusted, allo
       <Row gap="row" align="center">
         <Button ref={backRef} variant="ghost" size="sm" onClick={onBack}>
           <Icon icon={ChevronLeft} size="sm" />
-          Back
+          {CHARACTER_FACET_BACK_NAME}
         </Button>
       </Row>
 

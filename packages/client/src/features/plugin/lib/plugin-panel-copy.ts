@@ -9,6 +9,9 @@ export const CHAT_PLUGINS_MANAGE_LABEL = "Manage plugins";
 /** The Plugin actions menu's door to Context's Plugins tab, named by its destination. */
 export const CHAT_PLUGINS_OPEN_LABEL = `Open ${CHAT_PLUGINS_TAB_LABEL} tab`;
 
+/** The plugin dialog's title before any guest content names it. */
+export const PLUGIN_DIALOG_TITLE = "Plugin";
+
 /** The placement action stays distinct when one plugin registers several panels. */
 export function movePluginPanelLabel(pluginName: string, title: string, sidecar: boolean): string {
   const name = pluginName === title ? pluginName : `${pluginName} — ${title}`;

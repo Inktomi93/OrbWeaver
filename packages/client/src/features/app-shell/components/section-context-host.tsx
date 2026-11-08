@@ -17,6 +17,7 @@ import type { ReactElement, ReactNode, RefCallback } from "react";
 import { QueryBoundary } from "#components";
 import { SkeletonRows } from "#data";
 import type { ResolvedContextTabs } from "#lib";
+import { contextPaneLabel } from "#lib";
 import type { SectionDefinition } from "#state";
 import { ContextTabsPanel } from "./context-tabs-panel.tsx";
 import { SectionPlaceholder } from "./section-placeholder.tsx";
@@ -102,7 +103,7 @@ function TabsContextHost({
         // that is about the section itself (Corpus, Analytics); a section about ONE artifact overrides it
         // at the mint (`railLabel: "Chat"`).
         railFallback={definition.rail.label}
-        paneLabel={`${definition.rail.label} details`}
+        paneLabel={contextPaneLabel(definition.rail.label)}
         {...(dismissLabel === undefined ? {} : { dismissLabel })}
         {...(onDismiss === undefined ? {} : { onDismiss })}
       />
