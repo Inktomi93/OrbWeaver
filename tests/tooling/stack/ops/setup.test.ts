@@ -9,6 +9,7 @@ import { parseEnv } from "node:util";
 import { AUTH_FALLBACK_KEY, AUTH_FALLBACK_TRUSTED_PEERS_KEY } from "@orb/contracts/identity";
 import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
+import { resolveBindPosture } from "@orb/server/foundation/env/record";
 import { expect, test } from "@orb/testkit/tooling";
 import { afterEach, vi } from "vitest";
 import type { SetupMachine } from "../../../../tooling/src/stack/index.ts";
@@ -133,7 +134,7 @@ test("each answer boots under the server's own env schema and binds where the an
     expect(server.env.AUTH_MODE).toBe(row.mode);
     expect(server.env.PORT).toBe(row.port);
     // "me and friends" must be reachable from the LAN under `pnpm start`, and "just me" must not.
-    expect(server.resolveBindPosture(server.bindPostureInput(server.env)).publicBind).toBe(row.publicBind);
+    expect(resolveBindPosture(server.bindPostureInput(server.env)).publicBind).toBe(row.publicBind);
     expect(server.resolveAllowedHosts(server.allowedHostsInput(server.env))).toEqual(expect.arrayContaining([...row.hosts]));
   }
 });

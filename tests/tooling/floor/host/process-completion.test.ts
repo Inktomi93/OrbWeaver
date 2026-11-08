@@ -203,17 +203,20 @@ test.skipIf(process.platform !== "linux")("an unreadable-environ process refuses
     throw Object.assign(new Error("denied"), { code: "EACCES" });
   };
   const own = { cmdline: "zygote\0" };
-  const parent = { stat: stat("10") as string | null, environ: "A=b\0", cmdline: "ssh\0host", deny: false };
+  const parent = { stat: stat("10") as string | null, environ: "A=b\0", cmdline: "ssh\0host", deny: false, ppid: 5 };
   const grandparent = { environ: "A=b\0", cmdline: "launcher\0" };
   const files = (path: string): string | null => {
     const table: Record<string, () => string | null> = {
       [`/proc/${process.pid}/stat`]: () => stat("20"),
+      [`/proc/${process.pid}/status`]: () => "Name:\tvitest\nPPid:\t1\n",
+      [`/proc/${process.pid}/environ`]: () => "A=b\0",
+      [`/proc/${process.pid}/cmdline`]: () => "node\0",
       "/proc/42/stat": () => stat("30"),
       "/proc/42/status": () => `Name:\tzygote\nUid:\t${userId}\t${userId}\t${userId}\t${userId}\nPPid:\t7\n`,
       "/proc/42/cmdline": () => own.cmdline,
       "/proc/42/environ": denied,
       "/proc/7/stat": () => parent.stat,
-      "/proc/7/status": () => (parent.stat === null ? null : "Name:\tchrome\nPPid:\t5\n"),
+      "/proc/7/status": () => (parent.stat === null ? null : `Name:\tchrome\nPPid:\t${String(parent.ppid)}\n`),
       "/proc/7/environ": () => (parent.deny ? denied() : parent.environ),
       "/proc/7/cmdline": () => parent.cmdline,
       "/proc/5/stat": () => stat("5"),
@@ -254,6 +257,10 @@ test.skipIf(process.platform !== "linux")("an unreadable-environ process refuses
   grandparent.cmdline = `launcher\0--orb-run-marker=${marker}`;
   expect(read).toThrow("parent 7 (chrome) alive, environ unreadable, marked");
   grandparent.cmdline = "launcher\0";
+  // The owner minted the marker and holds none in its own readable environ; reaching it still marks the lineage.
+  parent.ppid = process.pid;
+  expect(read).toThrow("parent 7 (chrome) alive, environ unreadable, marked");
+  parent.ppid = 5;
   parent.deny = false;
 
   // A parent that is gone carries no marker, so its unreadable child is skipped.

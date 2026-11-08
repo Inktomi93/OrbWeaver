@@ -78,7 +78,8 @@ function readErrorCode(error: unknown): string {
 }
 
 /** Native runners keep their real/effective UID. Inaccessible foreign users cannot be their children; an unreadable
- *  process under this UID refuses only when its lineage carries the marker, because only then can it be this run's. */
+ *  process under this UID refuses only when its lineage carries the marker or reaches the marker's owner, because
+ *  only then can it be this run's. */
 function completionFileReader(deps: ProcReads, owner: ProcessCompletionOwner | undefined, marker: string | undefined): (path: string) => string | null {
   const read = deps.readFile ?? ((path: string): string => readFileSync(path, "utf8"));
   return (path): string | null => {
@@ -120,9 +121,10 @@ function excludeInaccessibleProcess(
     return null;
   }
   // A process with no claim to this run's marker belongs to another run or another program, so the walk skips it.
-  // Without a marker nothing can judge ownership, so the walk refuses.
-  const lineage = environLineage(pid, read, marker);
-  if (marker !== undefined && !lineage.marked) {
+  // Without a marker and its owner nothing can judge ownership, so the walk refuses. The table's owner is the marker's
+  // minting process: run-marker-join's bound table refuses any other.
+  const lineage = environLineage(pid, read, marker, owner?.pid);
+  if (marker !== undefined && owner !== undefined && !lineage.marked) {
     return null;
   }
   // Refusal diagnostics contain only kernel identity fields and known errno names, never metadata bytes or error messages.
@@ -178,14 +180,15 @@ function peek(read: (path: string) => string | null, path: string): string | nul
   }
 }
 
-/** A marked process descends from a marked one, because the marker is exported into the spawn environment, and a
- *  process that rewrites its own environ (chromium) is stamped in argv. So a process whose metadata this user cannot
- *  read is this run's only when its own argv, or an ancestor's argv or environ, carries the marker. `label` names the
- *  process and its parent for the refusal. */
+/** A marked process descends from a marked one or from the owner that minted the marker, because the marker is
+ *  exported into the spawn environment, and a process that rewrites its own environ (chromium) is stamped in argv. So
+ *  a process whose metadata this user cannot read is this run's only when its own argv, or an ancestor's argv or
+ *  environ, carries the marker, or an ancestor is the owner. `label` names the process and its parent for the refusal. */
 function environLineage(
   pid: string | undefined,
   read: (path: string) => string | null,
   marker: string | undefined,
+  ownerPid: number | undefined,
 ): { readonly marked: boolean; readonly label: string } {
   if (pid === undefined) {
     return { marked: false, label: "" };
@@ -199,7 +202,7 @@ function environLineage(
   }
   const alive = sampleCompletion(ppid, { readFile: read }).value.kind === "live";
   const parentEnviron = peek(read, `${PROC}/${ppid}/environ`);
-  const marked = ownArgv || ancestryCarries(ppid, read, marker);
+  const marked = ownArgv || ancestryCarries(ppid, read, marker, ownerPid);
   const parent = `parent ${String(ppid)} (${commOf(peek(read, `${PROC}/${String(ppid)}/status`))})`;
   const facts = [alive ? "alive" : "not alive", parentEnviron === null ? "environ unreadable" : "environ readable", marked ? "marked" : "unmarked"];
   return { marked, label: `${self} ${parent} ${facts.join(", ")}` };
@@ -209,12 +212,16 @@ function carries(text: string | null, marker: string | undefined): boolean {
   return marker !== undefined && text?.includes(marker) === true;
 }
 
-/** Walk up from `start` until an ancestor carries the marker, or its environ is readable, or it is gone. Pid 1 carries
- *  no run's marker; a pid seen twice ends a walk that pid reuse made circular. */
-function ancestryCarries(start: number, read: (path: string) => string | null, marker: string | undefined): boolean {
+/** Walk up from `start` until an ancestor is the marker's owner or carries the marker, or its environ is readable, or it
+ *  is gone. The owner hands the marker to its children without holding it in its own environ, so it is checked by pid.
+ *  Pid 1 carries no run's marker; a pid seen twice ends a walk that pid reuse made circular. */
+function ancestryCarries(start: number, read: (path: string) => string | null, marker: string | undefined, ownerPid: number | undefined): boolean {
   const seen = new Set<number>();
   let pid: number | null = start;
   while (pid !== null && pid > 1 && !seen.has(pid)) {
+    if (pid === ownerPid) {
+      return true;
+    }
     seen.add(pid);
     if (sampleCompletion(pid, { readFile: read }).value.kind !== "live") {
       return false;
