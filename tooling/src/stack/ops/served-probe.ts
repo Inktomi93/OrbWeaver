@@ -24,7 +24,7 @@ import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { ExitCode } from "../../floor/cli/exit-contract.ts";
 import { EXIT } from "../../floor/cli/exit-contract.ts";
 import { DEV_PORTS } from "../../floor/host/ports.ts";
-import type { ServedVerdict } from "../contract/types.ts";
+import type { ServedState, ServedVerdict } from "../contract/types.ts";
 import { newestSourceEntries } from "../lib/source-scan.ts";
 import { viteUrl } from "../lib/stack-plan.ts";
 import { classifyServedTransform } from "../lib/verdicts.ts";
@@ -89,6 +89,14 @@ export async function probeServedTransform(
   return last;
 }
 
+/** One exit per served state, total over the union so a new state fails `tsc` until it is mapped. */
+const SERVED_EXIT: Readonly<Record<ServedState, ExitCode>> = {
+  fresh: EXIT.clean,
+  stale: EXIT.violations,
+  unreachable: EXIT.toolError,
+  unverifiable: EXIT.toolError,
+};
+
 /** The `served-probe` verb a staged tree's caller runs by name. Prints ONE machine line
  *  (`SERVED state=… file=…`) followed by the human reason, and answers with the exit contract: a STALE
  *  transform is a violation (exit 1) so the caller can degrade its own verdict; an unreachable/unverifiable
@@ -97,8 +105,5 @@ export async function runServedProbe(roots?: readonly string[], vitePort?: numbe
   const verdict = await probeServedTransform(roots, vitePort);
   print(`SERVED state=${verdict.state} file=${verdict.file ?? "none"}`);
   print(verdict.message);
-  if (verdict.state === "fresh") {
-    return EXIT.clean;
-  }
-  return verdict.state === "stale" ? EXIT.violations : EXIT.toolError;
+  return SERVED_EXIT[verdict.state];
 }
