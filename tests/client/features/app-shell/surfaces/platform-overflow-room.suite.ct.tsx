@@ -44,10 +44,12 @@ test.afterAll(async () => {
 
 const ownerCaller = (): ReturnType<Root["internalCallerFor"]> => root.internalCallerFor(root.ownerId);
 
-function boxOf(locator: Locator): Promise<{ readonly left: number; readonly right: number; readonly width: number }> {
+function boxOf(
+  locator: Locator,
+): Promise<{ readonly left: number; readonly right: number; readonly top: number; readonly bottom: number; readonly width: number }> {
   return locator.evaluate((element) => {
     const box = element.getBoundingClientRect();
-    return { left: box.left, right: box.right, width: box.width };
+    return { left: box.left, right: box.right, top: box.top, bottom: box.bottom, width: box.width };
   });
 }
 
@@ -68,6 +70,7 @@ async function triggersAgainst(
 }
 
 const SCALES = [5, 6, 7, 8] as const;
+const POPOVER_SCALES = [1.5, 2, 2.5, 3] as const;
 
 test.describe("on a phone", () => {
   test.use({ viewport: PHONE, hasTouch: true, isMobile: true });
@@ -179,6 +182,36 @@ test.describe("on a desktop", () => {
         return gaps.length > 1 && Math.max(...gaps) - Math.min(...gaps) <= SUBPIXEL;
       })
       .toBe(true);
+  });
+
+  test("the Notifications popover, opened from the trail's menu, opens whole on the screen from a folded bell and Escape returns focus to the trigger", async ({
+    mount,
+    page,
+  }) => {
+    await seedShellState(page, { activeSection: "chats" });
+    await mount<typeof AppShellStory>(STORY, {});
+    const trigger = page.locator(TRAIL).locator(TRIGGER);
+    // The smallest step that folds the bell.
+    await enlargeUntilVisible(page, trigger, FONT_SCALE_PROPERTY, POPOVER_SCALES);
+    // By keyboard, as a screen-reader user opens it: the item that held focus is gone when the popover closes.
+    await trigger.focus();
+    await page.keyboard.press("Enter");
+    const item = page.getByRole("menuitem", { name: "Notifications", exact: true });
+    await item.focus();
+    await page.keyboard.press("Enter");
+    const popup = page.locator('[data-slot="popover-popup"]');
+    await expect(popup).toBeVisible();
+    // The bell's own control is folded, inert and out of the row, which is the popover's anchor; the popup still opens
+    // whole on the screen instead of off its edge.
+    const opened = await boxOf(popup);
+    expect([
+      opened.top >= -SUBPIXEL,
+      opened.left >= -SUBPIXEL,
+      opened.right <= DESKTOP.width + SUBPIXEL,
+      opened.bottom <= DESKTOP.height + SUBPIXEL,
+    ]).toStrictEqual([true, true, true, true]);
+    await page.keyboard.press("Escape");
+    await expect(trigger).toBeFocused();
   });
 
   for (const entry of [

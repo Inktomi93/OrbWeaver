@@ -7,7 +7,7 @@ type ScreenCensus = number | string | undefined;
  *  topbar keeps the name whole and cuts the census first. */
 export interface ScreenTitle {
   readonly name: string;
-  readonly census?: number | string;
+  readonly census?: ScreenCensus;
 }
 
 /**
@@ -25,11 +25,6 @@ export function censusTitle(label: string, census: ScreenCensus): ScreenTitle | 
 }
 
 /** The census as it follows the name on the screen: the topbar lays it out as its own part, so it can cut it alone. */
-export function censusSuffix(census: number | string): string {
+export function censusSuffix(census: NonNullable<ScreenCensus>): string {
   return ` · ${String(census)}`;
-}
-
-/** The screen title as one line of text, the way the topbar reads it. */
-export function screenTitleText({ name, census }: ScreenTitle): string {
-  return census === undefined ? name : `${name}${censusSuffix(census)}`;
 }

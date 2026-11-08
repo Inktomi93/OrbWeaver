@@ -2,7 +2,7 @@
 // row's geometry at the narrowest width, the Characters band's doors moving to the trail while the list is the screen,
 // and an open room's identity: its participants, its name, its chips and the context pane's header on the same horizon.
 import { TRAIL_OVERFLOW_LABEL } from "@orb/client/components";
-import { CHAT_NAME_FIELD_NAME, censusTitle, chatRoomTitle, contextToggleLabel, RENAME_CHAT_NAME, screenTitleText } from "@orb/client/lib";
+import { CHAT_NAME_FIELD_NAME, censusSuffix, chatRoomTitle, contextToggleLabel, RENAME_CHAT_NAME } from "@orb/client/lib";
 import type { ChatId } from "@orb/kit/ids";
 import { pixel, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import type { TrpcWireOutput } from "@orb/testkit/ct";
@@ -123,7 +123,7 @@ test.describe("on a phone", () => {
     const label = (await page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.characters, exact: true }).getAttribute("aria-label")) ?? "";
     const title = page.locator(NARROW_TITLE);
     // The roster arm first, so the census is proven present before the open is asked to remove it.
-    await expect(title).toHaveText(screenTitleText(censusTitle(label, census) ?? { name: label }));
+    await expect(title).toHaveText(`${label}${censusSuffix(census)}`);
     const first = library(page).getByRole("button").first();
     const name = ((await first.locator('[data-slot="list-row-title"]').textContent()) ?? "").trim();
     await first.click();
@@ -157,7 +157,7 @@ test.describe("on a phone", () => {
   test("the Plugin pages screen name carries the registered page count beside the section noun", async ({ corpus, mount, page }) => {
     await routePluginPages(page, corpus, 2);
     await mount<typeof AppShellStory>(STORY, {});
-    await expect(page.locator(NARROW_TITLE)).toHaveText(screenTitleText(censusTitle(SECTION_LABELS.extensions, 2) ?? { name: SECTION_LABELS.extensions }));
+    await expect(page.locator(NARROW_TITLE)).toHaveText(`${SECTION_LABELS.extensions}${censusSuffix(2)}`);
   });
 
   test("with no plugin page registered the screen name is the bare section noun", async ({ corpus, mount, page }) => {
@@ -170,9 +170,9 @@ test.describe("on a phone", () => {
     await routePluginPages(page, corpus, 3);
     await mount<typeof AppShellStory>(STORY, {});
     const title = page.locator(NARROW_TITLE);
-    await expect(title).toHaveText(screenTitleText(censusTitle(SECTION_LABELS.extensions, 3) ?? { name: SECTION_LABELS.extensions }));
+    await expect(title).toHaveText(`${SECTION_LABELS.extensions}${censusSuffix(3)}`);
     await page.getByLabel("Search plugin pages").fill("no page has this name");
-    await expect(title).toHaveText(screenTitleText(censusTitle(SECTION_LABELS.extensions, "0 of 3") ?? { name: SECTION_LABELS.extensions }));
+    await expect(title).toHaveText(`${SECTION_LABELS.extensions}${censusSuffix("0 of 3")}`);
   });
 
   for (const width of PHONE_WIDTHS) {

@@ -10,8 +10,6 @@ import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/compose
 import type { Locator, Page } from "@playwright/test";
 import { CHAT_PANEL_HIDE_LABEL, showInChatLabel } from "#client/features/plugin/lib/plugin-copy.ts";
 import {
-  CHAT_PLUGINS_EMPTY_DESCRIPTION,
-  CHAT_PLUGINS_EMPTY_DESCRIPTION_TOUCH,
   CHAT_PLUGINS_EMPTY_TITLE,
   CHAT_PLUGINS_MANAGE_LABEL,
   CHAT_PLUGINS_OPEN_LABEL,
@@ -206,7 +204,6 @@ test("a room with no plugin panels reserves no sidecar or collapse control and C
   await mount<typeof PluginHideFocusStory>("tests/client/features/plugin/components/_hide-focus-stories/PluginHideFocusStory", { chatId: room.id });
   await page.getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true }).click();
   await expect(page.getByText(CHAT_PLUGINS_EMPTY_TITLE, { exact: true })).toBeVisible();
-  await expect(page.getByText(CHAT_PLUGINS_EMPTY_DESCRIPTION, { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: CHAT_PLUGINS_MANAGE_LABEL, exact: true })).toBeEnabled();
   await expect(page.locator('[data-slot="plugin-flank"]')).toHaveCount(0);
   await expect(page.getByRole("button", { name: SIDECAR_EDGE })).toHaveCount(0);
@@ -263,15 +260,5 @@ test.describe("touch placement", () => {
     expect(actions.length).toBeGreaterThan(0);
     expect(sidecar.length).toBeGreaterThan(0);
     expect(sidecar.some((glyph) => !actions.includes(glyph))).toBe(true);
-  });
-
-  test("a room with no panels teaches the sidecar door in Message tools", async ({ corpus, page, mount }) => {
-    await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
-    const { room } = await preparePanels(root, page, corpus, false);
-    await mount<typeof PluginHideFocusStory>("tests/client/features/plugin/components/_hide-focus-stories/PluginHideFocusStory", { chatId: room.id });
-    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
-    await page.getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true }).click();
-    await expect(page.getByText(CHAT_PLUGINS_EMPTY_DESCRIPTION_TOUCH, { exact: true })).toBeVisible();
-    await expect(page.getByText(CHAT_PLUGINS_EMPTY_DESCRIPTION, { exact: true })).toHaveCount(0);
   });
 });

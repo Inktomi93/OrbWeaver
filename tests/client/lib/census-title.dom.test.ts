@@ -1,4 +1,4 @@
-import { censusTitle, screenTitleText } from "@orb/client/lib";
+import { censusTitle } from "@orb/client/lib";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/node";
 
@@ -14,9 +14,4 @@ test("a populated census rides the screen name, counted or formatted, filtered i
 test("a zero or unread census says nothing about size", () => {
   expect(censusTitle(LABEL, 0)).toBeNull();
   expect(censusTitle(LABEL, undefined)).toBeNull();
-});
-
-test("the screen title reads as its name, then the census when it has one", () => {
-  expect(screenTitleText({ name: LABEL })).toBe(LABEL);
-  expect(screenTitleText({ name: LABEL, census: "2 of 330" })).toBe(`${LABEL} · 2 of 330`);
 });
