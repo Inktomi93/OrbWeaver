@@ -21,7 +21,7 @@ import { useDeferredValue, useRef, useState } from "react";
 import { LibraryRow, ListPage, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
-import { CLEAR_SEARCH_NAME, ESTIMATED_ROW_PX, testId, useFocusOnMount } from "#lib";
+import { CLEAR_SEARCH_NAME, ESTIMATED_ROW_PX, testId, useFocusListArrival } from "#lib";
 import { selectAnalyticsCharacterFromList, setAnalyticsSearchQuery, useAnalyticsSearchQuery, useSelectedAnalyticsCharacterId } from "#state";
 import { ANALYTICS_NO_ACTIVITY_TEXT } from "../lib/analytics-copy.ts";
 import { ANALYTICS_SEARCH_NAME } from "../lib/analytics-names.ts";
@@ -49,7 +49,7 @@ const SKELETON_ROW_COUNT = 6;
 
 export function AnalyticsListSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
+  useFocusListArrival(surfaceRef);
   const [sort, setSort] = useState<SortId>(ANALYTICS_DEFAULT_SORT);
   const search = useAnalyticsSearchQuery();
 
@@ -75,6 +75,7 @@ export function AnalyticsListSurface(): ReactElement {
       ref={surfaceRef}
       // The search is the reach past the page cap; the sort orders the page that comes back.
       search={<Input aria-label={ANALYTICS_SEARCH_NAME} onValueChange={setAnalyticsSearchQuery} placeholder={ANALYTICS_SEARCH_NAME} value={search} />}
+      skipTo="Skip to characters"
     >
       <LeaderboardRows sort={sort} search={search} />
     </ListPage>

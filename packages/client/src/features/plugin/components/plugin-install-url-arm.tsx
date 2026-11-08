@@ -7,9 +7,8 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
+import { URL_FETCH_FAILED } from "../lib/plugin-copy.ts";
 import { usePreviewPluginFromUrl } from "../lib/plugin-mutations.ts";
-
-const URL_FETCH_FAILED = "Couldn't fetch a plugin from that URL. It may be unreachable, refused, or not a plugin bundle.";
 
 interface PluginInstallUrlArmProps {
   readonly disabled: boolean;

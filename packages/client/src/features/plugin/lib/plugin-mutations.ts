@@ -17,6 +17,8 @@
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
+import { URL_FETCH_FAILED } from "./plugin-copy.ts";
+import { PLUGIN_MODEL_SAVE_FAILED } from "./plugin-model-copy.ts";
 
 /** The `plugin.list` read every write reconciles — tRPC-inferred, so the optimistic patch below stays
  *  honest against the wire shape. */
@@ -72,14 +74,15 @@ export const useInstallPlugin = createEntityMutation<inferInput<Trpc["plugin"]["
  *  shows can be built from a URL the client never fetched itself and bound to the later install. Reconciles
  *  NOTHING (`invalidates: () => []`): it is a read-only probe that persists no row, exactly like `runSnippet`.
  *
- *  NO `errorToast`, DELIBERATELY — the URL arm must NOT forward the server's reason. `previewFromUrl` throws two
+ *  A FIXED `errorToast`, DELIBERATELY — the URL arm must NOT forward the server's reason. `previewFromUrl` throws two
  *  distinct shapes: `PluginBundleFetchError` (unreachable / refused / SSRF-blocked / non-2xx) and
  *  `ManifestInvalidError` (fetched, but not a plugin). Surfacing which one fired would turn "did the fetch
- *  reach?" into an SSRF ORACLE — so the install card catches the rejection and renders ONE fixed, leak-free
- *  line for every failure, never `error.message` (`plugin-install-card.tsx`). */
+ *  reach?" into an SSRF ORACLE — so the toast and the install card's inline line say ONE fixed, leak-free
+ *  sentence for every failure, never `error.message` (`plugin-install-card.tsx`). */
 export const usePreviewPluginFromUrl = createEntityMutation<inferInput<Trpc["plugin"]["previewFromUrl"]>, inferOutput<Trpc["plugin"]["previewFromUrl"]>>({
   options: (trpc) => trpc.plugin.previewFromUrl.mutationOptions(),
   invalidates: () => [],
+  errorToast: URL_FETCH_FAILED,
 });
 
 /** Install a plugin from a URL with a CONFIRMED grant subset and the preview's exact-byte identity (U8,
@@ -282,13 +285,13 @@ export const useInvokeUiAction = createEntityMutation<inferInput<Trpc["plugin"][
  *  server half that throws. The third strike also deregisters contributed providers, so connection reads
  *  share the lifecycle invalidation rather than keeping the last enabled registry in cache.
  *
- *  NO ERROR TOAST, and that is the §4.9 posture rather than an omission: a crashed surface renders NOTHING, and
- *  the person's answer to "why is my widget gone" is the Plugins pane's log, not a toast interrupting whatever
- *  they were actually doing. It invalidates `list` because the third strike flips the row to `errored` — the
- *  pane has to stop saying the plugin is enabled. */
+ *  It invalidates `list` because the third strike flips the row to `errored` — the pane has to stop saying the
+ *  plugin is enabled. */
 export const useReportUiCrash = createEntityMutation<inferInput<Trpc["plugin"]["reportUiCrash"]>, inferOutput<Trpc["plugin"]["reportUiCrash"]>>({
   options: (trpc) => trpc.plugin.reportUiCrash.mutationOptions(),
   invalidates: (trpc) => [trpc.plugin.list.queryFilter(), ...pluginContributionCatalogReads(trpc), ...providerDependentConnectionReads(trpc)],
+  // Silent, the §4.9 posture: a crash report is no person's act, and the Plugins pane's log answers "why is my widget gone".
+  errorToast: false,
 });
 
 /** Run one registered plugin COMMAND — the `/plugin <slug> <name> …` dispatch and the
@@ -313,9 +316,10 @@ export const useRunSnippet = createEntityMutation<inferInput<Trpc["plugin"]["run
 });
 
 /** Point one of a plugin's grant tasks at one of the installer's own connections, or clear it. The binding
- *  read is per actor, so only this plugin's `listBindings` reconciles. NO `errorToast`: the pane renders the
- *  refusal inline beside the picker it belongs to. */
+ *  read is per actor, so only this plugin's `listBindings` reconciles. The pane also renders the refusal inline
+ *  beside the picker it belongs to. */
 export const useSetPluginGrantBinding = createEntityMutation<inferInput<Trpc["connection"]["setBinding"]>, inferOutput<Trpc["connection"]["setBinding"]>>({
   options: (trpc) => trpc.connection.setBinding.mutationOptions(),
   invalidates: (trpc, vars) => [trpc.connection.listBindings.queryFilter(vars.actor === undefined ? {} : { actor: vars.actor })],
+  errorToast: PLUGIN_MODEL_SAVE_FAILED,
 });

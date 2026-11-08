@@ -4,11 +4,13 @@
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
+import { GIT_FETCH_FAILED } from "./plugin-copy.ts";
 import { providerDependentConnectionReads } from "./plugin-mutations.ts";
 
 export const usePreviewPluginFromGit = createEntityMutation<inferInput<Trpc["plugin"]["previewFromGit"]>, inferOutput<Trpc["plugin"]["previewFromGit"]>>({
   options: (trpc) => trpc.plugin.previewFromGit.mutationOptions(),
   invalidates: () => [],
+  errorToast: GIT_FETCH_FAILED,
 });
 
 export const useInstallPluginFromGit = createEntityMutation<inferInput<Trpc["plugin"]["installFromGit"]>, inferOutput<Trpc["plugin"]["installFromGit"]>>({

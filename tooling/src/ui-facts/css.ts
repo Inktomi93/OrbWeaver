@@ -9,7 +9,10 @@ const TOKEN_FILES = new Set([
   "packages/ui/src/styles/fonts.css",
   "packages/client/src/styles/appearance-channel.gen.css",
 ]);
-const OWNER_LAYER = /^packages\/(?:ui\/src\/(?:styles|markdown)|client\/src\/styles)\//u;
+// The shell index and its region files are the one feature-tier CSS home (client-architecture-lockdown.md §4.2); the
+// hand-rolling census judges each value in them against the shell's structural literals (§4.4).
+const OWNER_LAYER =
+  /^packages\/(?:ui\/src\/(?:styles|markdown)\/|client\/src\/styles\/|client\/src\/features\/app-shell\/surfaces\/(?:shell\.css$|shell\/[\w-]+\.css$))/u;
 
 const DETAIL_MAX = 100;
 const COLOR = /#[0-9a-f]{3,8}\b|\b(?:rgb|rgba|hsl|hsla|oklch|oklab|lab|lch)\(/iu;

@@ -54,10 +54,26 @@ export function hasAny(facts: FileFacts, ...tags: readonly string[]): boolean {
   return tags.some((tag) => facts.tags.has(tag));
 }
 
-/** Button-like elements whose literal text is one of the words. */
+// `packages/client/src/lib/dialog-verbs.ts` spells each verb as its key with a capital first letter.
+function dialogVerbOf(element: ts.JsxElement | ts.JsxSelfClosingElement): string | null {
+  const [only, ...rest] = ts.isJsxElement(element) ? element.children.filter((child) => !(ts.isJsxText(child) && child.containsOnlyTriviaWhiteSpaces)) : [];
+  const read = only !== undefined && rest.length === 0 && ts.isJsxExpression(only) ? only.expression : undefined;
+  if (read === undefined || !ts.isPropertyAccessExpression(read) || !ts.isIdentifier(read.expression) || read.expression.text !== "DIALOG_VERBS") {
+    return null;
+  }
+  const key = read.name.text;
+  return `${key.charAt(0).toUpperCase()}${key.slice(1)}`;
+}
+
+/** Button-like elements whose text is one of the words, written literally or as the shared `DIALOG_VERBS` member. */
 export function buttonWithText(facts: FileFacts, words: ReadonlySet<string>): boolean {
   const sf = facts.source.sf;
-  return sf !== null && facts.elems.some((elem) => /^(?:Button|GlyphButton|InlineAction)$/u.test(elem.tag) && words.has(childrenText(elem.element) ?? ""));
+  return (
+    sf !== null &&
+    facts.elems.some(
+      (elem) => /^(?:Button|GlyphButton|InlineAction)$/u.test(elem.tag) && words.has(childrenText(elem.element) ?? dialogVerbOf(elem.element) ?? ""),
+    )
+  );
 }
 
 /** An ancestor of the element is one of the tags. */

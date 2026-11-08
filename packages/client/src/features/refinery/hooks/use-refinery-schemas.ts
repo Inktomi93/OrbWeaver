@@ -43,11 +43,12 @@ const draftSchema = z.record(z.string(), z.unknown());
 /** How long a draft must stay unchanged before its plan is asked. */
 const SCHEMA_PLAN_SETTLE_MS = 400;
 
-/** The plan ask is a POST because a draft can outgrow a URL; it writes nothing, so it moves no read. Its failure is
- *  the plan line's own "couldn't check" state, not a toast. */
+/** The plan ask is a POST because a draft can outgrow a URL; it writes nothing, so it moves no read. */
 const useAskSchemaPlan = createEntityMutation<inferInput<Trpc["refinery"]["schemaPlan"]>, SchemaPlan>({
   options: (trpc) => trpc.refinery.schemaPlan.mutationOptions(),
   invalidates: () => [],
+  // Silent: the draft's settle fires this ask, no press does, and its failure is the plan line's own "couldn't check" state.
+  errorToast: false,
 });
 
 /** The plan line's state: not yet answered, the server's answer (`null` for a draft the save belt refuses), or no

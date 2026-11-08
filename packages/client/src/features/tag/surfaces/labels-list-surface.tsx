@@ -37,6 +37,7 @@ export function LabelsListSurface(): ReactElement {
       }
       ref={surfaceRef}
       search={<Input aria-label={TAG_FILTER_NAME} onValueChange={setLabelFilter} placeholder={`${TAG_FILTER_NAME}…`} value={filter} />}
+      skipTo="Skip to labels"
       searchAside={
         <>
           <LabelsSortSelect />

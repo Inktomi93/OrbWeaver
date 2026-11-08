@@ -32,4 +32,5 @@ export const useUpdateSizing = createEntityMutation<SectionPatchVars<"appearance
 export const useAddExternalBackground = createEntityMutation<inferInput<Trpc["settings"]["addExternalBackground"]>, BackgroundLibraryEntry>({
   options: (trpc) => trpc.settings.addExternalBackground.mutationOptions(),
   invalidates: () => [],
+  errorToast: "Couldn't add that background.",
 });

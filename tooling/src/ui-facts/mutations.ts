@@ -4,7 +4,10 @@ import type { Source } from "../eslint/index.ts";
 import { lineOf, visit } from "../eslint/index.ts";
 import type { Cohort, Member } from "../floor/verdict/cohort-compare.ts";
 
-const FACTORIES = new Set(["createEntityMutation", "useMutation"]);
+const OWNER = "createEntityMutation";
+const FACTORIES = new Set([OWNER, "useMutation"]);
+const FRESHNESS_XOR =
+  "freshness is a typed XOR: `busDriven` when a verb's bus event covers the read, else `invalidates` (client-architecture-state-and-gates.md §10a; packages/client/src/data/create-entity-mutation.ts `FreshnessSource`)";
 const HOOK_HOME = /\/hooks\/|-mutations?\.tsx?$|\/data\//u;
 
 function propertyKind(options: ts.ObjectLiteralExpression, name: string): string {
@@ -14,6 +17,9 @@ function propertyKind(options: ts.ObjectLiteralExpression, name: string): string
   }
   if (ts.isStringLiteral(property.initializer) || ts.isNoSubstitutionTemplateLiteral(property.initializer)) {
     return "string";
+  }
+  if (property.initializer.kind === ts.SyntaxKind.FalseKeyword) {
+    return "declared silent";
   }
   return ts.isArrowFunction(property.initializer) || ts.isFunctionExpression(property.initializer) ? "function" : "expression";
 }
@@ -49,7 +55,8 @@ export function buildMutationCohort(sources: readonly Source[]): Cohort {
   const members: Member[] = [];
   for (const source of sources) {
     const sf = source.sf;
-    if (sf === null || source.layer !== "client") {
+    // The factory's own file wraps the one `useMutation` every member goes through, so it owns the cohort.
+    if (sf === null || source.layer !== "client" || sf.statements.some((statement) => ts.isFunctionDeclaration(statement) && statement.name?.text === OWNER)) {
       continue;
     }
     visit(sf, (node) => {
@@ -62,7 +69,17 @@ export function buildMutationCohort(sources: readonly Source[]): Cohort {
     name: "mutation",
     what: "mutation factories: defining file, freshness mechanism, error toast, factory",
     columns: ["home", "freshness", "errorToast", "factory"],
-    defects: { home: ["component or surface file"] },
+    defects: { home: ["component or surface file"], errorToast: ["none"] },
+    kept: {
+      freshness: { invalidates: FRESHNESS_XOR, busDriven: FRESHNESS_XOR },
+      errorToast: {
+        expression: "a toast may be a named copy constant (packages/client/src/data/create-entity-mutation.ts, `errorToast`)",
+        function:
+          "a function form may return null for an error a consumer or the bus states itself (packages/client/src/data/create-entity-mutation.ts, `errorToast`)",
+        "declared silent":
+          "`errorToast: false` is the one silence, for a mutation no person started or whose toast would state a falsehood (packages/client/src/data/create-entity-mutation.ts, `errorToast`)",
+      },
+    },
     members,
   };
 }

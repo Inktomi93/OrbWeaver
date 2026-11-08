@@ -8,10 +8,12 @@ import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
 /** Restart has no row to invalidate. The confirmation owns definitive refusal, and the control owns
- *  response-loss uncertainty; an error toast would falsely claim the restart was not admitted. */
+ *  response-loss uncertainty. */
 export const useRestartServer = createEntityMutation<inferInput<Trpc["admin"]["restart"]>, inferOutput<Trpc["admin"]["restart"]>>({
   options: (trpc) => trpc.admin.restart.mutationOptions({ retry: false }),
   invalidates: () => [],
+  // Silent: a lost response may still be a restart in progress, so a toast would falsely claim it was not admitted.
+  errorToast: false,
 });
 
 /** Mint a loginable local human (handle + password + role). Invalidates the user table. */

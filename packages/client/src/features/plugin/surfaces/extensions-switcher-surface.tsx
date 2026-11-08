@@ -26,7 +26,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import { LibrarySurfaceShell, ListPage } from "#components";
 import { SkeletonRows } from "#data";
-import { CLEAR_SEARCH_NAME, testId, useFocusOnMount } from "#lib";
+import { CLEAR_SEARCH_NAME, testId, useFocusListArrival } from "#lib";
 import { openConfigTo, selectPluginPageFromList, setExtensionsSearchQuery, useExtensionsSearchQuery, usePluginPageKey } from "#state";
 import { ExtensionsAwaitingRows } from "../components/extensions-awaiting-consent.tsx";
 import { useExtensionsEmpty } from "../hooks/use-extensions-empty.ts";
@@ -107,7 +107,7 @@ function ExtensionsPageList(): ReactElement {
 export function ExtensionsSwitcherSurface(): ReactElement {
   const search = useExtensionsSearchQuery();
   const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
+  useFocusListArrival(surfaceRef);
   return (
     // The arrival target names the pane it moved focus into. A child row's name cannot name this node for
     // assistive technology; the Presets list uses the same named-region convention for the same hook.
@@ -116,6 +116,7 @@ export function ExtensionsSwitcherSurface(): ReactElement {
       label={EXTENSIONS_SECTION_LABEL}
       ref={surfaceRef}
       search={<Input aria-label={EXTENSIONS_SEARCH_NAME} onValueChange={setExtensionsSearchQuery} placeholder="Search plugin pages…" value={search} />}
+      skipTo="Skip to plugin pages"
     >
       <LibrarySurfaceShell errorLabel="your plugin pages" loadingLabel="Loading plugin pages…" resetKeys={[]}>
         <ExtensionsPageList />

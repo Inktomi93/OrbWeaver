@@ -76,6 +76,7 @@ export function useInbox(): InboxRead {
 export const useMarkAllNotificationsRead = createEntityMutation<inferInput<Trpc["notifications"]["markAllRead"]>, unknown>({
   options: (trpc) => trpc.notifications.markAllRead.mutationOptions(),
   invalidates: (trpc) => [trpc.notifications.list.pathFilter()],
+  errorToast: "Couldn't mark your notifications read.",
 });
 
 export const useDismissNotification = createEntityMutation<inferInput<Trpc["notifications"]["dismiss"]>, unknown>({

@@ -1,7 +1,9 @@
 // The composition cohorts (area C): which template, row composite, dialog anatomy, dismiss path and confirm each section uses.
 
+import { posix } from "node:path";
+import ts from "typescript";
 import type { Elem, FileFacts } from "../eslint/index.ts";
-import { attrString, buttonWithText, childrenText, DESTRUCTIVE_EXEMPT, firstLine, hasAny, insideTag } from "../eslint/index.ts";
+import { attrString, buttonWithText, childrenText, componentsIn, DESTRUCTIVE_EXEMPT, firstLine, hasAny, insideTag, visit } from "../eslint/index.ts";
 import type { Cell, Cohort, Member } from "../floor/verdict/cohort-compare.ts";
 import { NOT_APPLICABLE } from "../floor/verdict/cohort-compare.ts";
 
@@ -12,9 +14,12 @@ function member(facts: FileFacts, label: string, cells: Record<string, Cell>): M
   return { path: facts.source.path, section: facts.source.section, label, cells };
 }
 
+// The arrival-focus hooks of `packages/client/src/lib/use-focus-on-mount.ts`, the LIST pane's band-first one first.
+const FOCUS_HOOKS = ["useFocusListArrival", "useFocusOnMount", "useFocusOnSwap"] as const;
+
 function focusAndEmpty(facts: FileFacts): Record<string, Cell> {
   return {
-    focus: cell(facts.calls.has("useFocusOnMount") ? "useFocusOnMount" : "none", 1),
+    focus: cell(FOCUS_HOOKS.filter((hook) => facts.calls.has(hook)).join("+") || "none", 1),
     empty: cell(facts.tags.has("EmptyState") ? "EmptyState" : "none", firstLine(facts, "EmptyState")),
   };
 }
@@ -55,6 +60,51 @@ function resolveUp(dir: string, specifier: string): readonly string[] {
   return [`${parts.join("/")}.tsx`];
 }
 
+const SLOT_HOPS = 3;
+const LIBRARY_SHELL = "LibrarySurfaceShell";
+
+/** The file a relative import names; this tree writes the extension in every specifier. */
+const importedFile = (path: string, specifier: string): string => posix.normalize(posix.join(posix.dirname(path), specifier));
+
+/** The `surfaces/` files a component tree reaches from its elements, through anchors and wrappers up to the hop limit. */
+function surfacesReached(facts: FileFacts, elems: readonly Elem[], byPath: ReadonlyMap<string, FileFacts>, hops: number): readonly string[] {
+  return elems.flatMap((elem) => {
+    const specifier = facts.relativeImports.get(elem.tag);
+    const target = specifier === undefined ? undefined : byPath.get(importedFile(facts.source.path, specifier));
+    if (target === undefined) {
+      return [];
+    }
+    if (target.source.path.includes("/surfaces/")) {
+      return [target.source.path];
+    }
+    // Only the mounted component's own body: a file can hold the LIST and the CONTENT component side by side.
+    const body = target.source.sf === null ? undefined : componentsIn(target.source.sf).find(([name]) => name === elem.tag)?.[1];
+    const inBody = body === undefined ? [] : target.elems.filter((inner) => inner.opening.pos >= body.pos && inner.opening.end <= body.end);
+    return hops >= SLOT_HOPS ? [] : surfacesReached(target, inBody, byPath, hops + 1);
+  });
+}
+
+/** LIST panes are the surfaces a section, a Corpus mode or another definition mounts in its `list` slot, not a file name. */
+function listSlotSurfaces(feature: readonly FileFacts[], byPath: ReadonlyMap<string, FileFacts>): ReadonlySet<string> {
+  const found = new Set<string>();
+  for (const facts of feature) {
+    const sf = facts.source.sf;
+    if (sf === null || !facts.source.path.includes("/lib/")) {
+      continue;
+    }
+    visit(sf, (node) => {
+      if (!(ts.isPropertyAssignment(node) && node.name.getText() === "list")) {
+        return;
+      }
+      const inSlot = facts.elems.filter((elem) => elem.opening.pos >= node.initializer.pos && elem.opening.end <= node.initializer.end);
+      for (const path of surfacesReached(facts, inSlot, byPath, 0)) {
+        found.add(path);
+      }
+    });
+  }
+  return found;
+}
+
 function listPane(facts: FileFacts, byPath: ReadonlyMap<string, FileFacts>): Member {
   const listPage = facts.elems.find((elem) => elem.tag === "ListPage");
   let template = "hand-built";
@@ -65,7 +115,7 @@ function listPane(facts: FileFacts, byPath: ReadonlyMap<string, FileFacts>): Mem
   }
   return member(facts, "surface", {
     template: cell(template, firstLine(facts, "ListPage", "LibraryListFrame", "LibraryListLayout")),
-    shell: cell(facts.tags.has("LibrarySurfaceShell") ? "LibrarySurfaceShell" : "none", firstLine(facts, "LibrarySurfaceShell")),
+    shell: cell(facts.tags.has(LIBRARY_SHELL) ? LIBRARY_SHELL : "none", firstLine(facts, LIBRARY_SHELL)),
     rows: rowComposite(facts, byPath),
     skipTo: cell(listPage === undefined ? NOT_APPLICABLE : yesNo(listPage.attrs.has("skipTo")), listPage?.line ?? 1),
     ...focusAndEmpty(facts),
@@ -191,18 +241,45 @@ function destructiveMembers(facts: FileFacts): readonly Member[] {
 
 // ── detail headers, context tabs, editors, row menus ────────────────────────────────────────────
 
+const HEADER_TEMPLATES = new Set(["DetailHeader", "MemberDrillHeader"]);
+const HEADER_SPLIT =
+  "one family in two templates: `DetailHeader` is a subject's identity row and `MemberDrillHeader` the drilled collection member's, with its Back on the row (packages/client/src/components/detail-header.tsx and member-drill-header.tsx headers)";
+
+/** `deferToShell` as written: its default, a literal, or a value the caller computes. */
+function deferOf(elem: Elem): string {
+  const attr = elem.attrs.get("deferToShell");
+  if (attr === undefined) {
+    return "default";
+  }
+  const value = attr.initializer;
+  const literal =
+    value === undefined
+      ? "true"
+      : value
+          .getText()
+          .replace(/^\{|\}$/gu, "")
+          .trim();
+  return literal === "true" || literal === "false" ? literal : "runtime";
+}
+
 function headerMembers(facts: FileFacts): readonly Member[] {
+  // A template's own file draws the row it owns, so it is the owner, not a member.
+  const sf = facts.source.sf;
+  if (sf !== null && componentsIn(sf).some(([name]) => HEADER_TEMPLATES.has(name))) {
+    return [];
+  }
   const out: Member[] = [];
   for (const elem of facts.elems) {
-    const isTemplate = elem.tag === "DetailHeader" || elem.tag === "MemberDrillHeader";
+    const isTemplate = HEADER_TEMPLATES.has(elem.tag);
     if (!(isTemplate || elem.attrs.has("data-shell-identity"))) {
       continue;
     }
+    const detail = elem.tag === "DetailHeader";
     out.push(
       member(facts, elem.tag, {
         header: cell(isTemplate ? elem.tag : "hand-built data-shell-identity", elem.line),
-        deferToShell: cell(isTemplate ? yesNo(elem.attrs.has("deferToShell")) : NOT_APPLICABLE, elem.line),
-        step: cell(elem.tag === "DetailHeader" ? (attrString(elem.attrs.get("step")) ?? "title") : NOT_APPLICABLE, elem.line),
+        deferToShell: cell(detail ? deferOf(elem) : NOT_APPLICABLE, elem.line),
+        step: cell(detail ? (attrString(elem.attrs.get("step")) ?? "title") : NOT_APPLICABLE, elem.line),
       }),
     );
   }
@@ -259,7 +336,8 @@ export function buildCohorts(all: readonly FileFacts[]): readonly Cohort[] {
   const client = all.filter((facts) => facts.source.layer === "client");
   const byPath = new Map(client.map((facts) => [facts.source.path, facts]));
   const feature = client.filter(inFeature);
-  const lists = feature.filter((facts) => /\/surfaces\/[^/]*(?:list|library)-surface\.tsx$/u.test(facts.source.path));
+  const slotted = listSlotSurfaces(feature, byPath);
+  const lists = feature.filter((facts) => slotted.has(facts.source.path));
   const context = feature.filter((facts) => /(?:^|\/)(?:[a-z-]*context-tabs|[a-z-]*-context-body)\.tsx$/u.test(facts.source.path));
   const editors = client.filter((facts) => facts.tags.has("EditorPage") || /(?:^|\/)[a-z-]*editor[a-z-]*\.tsx$/u.test(facts.source.path));
   return [
@@ -268,12 +346,38 @@ export function buildCohorts(all: readonly FileFacts[]): readonly Cohort[] {
       what: "LIST surfaces: template, shell, row composite, skipTo, focus hook, empty state",
       columns: ["template", "shell", "rows", "skipTo", "focus", "empty"],
       defects: { rows: ["raw ListRow"] },
+      kept: {
+        shell: {
+          [LIBRARY_SHELL]:
+            "a small bounded list read whole in one useSuspenseQuery uses LibrarySurfaceShell in a ListPage; paginated implies the collection factory (client-architecture-state-and-gates.md §14, Browse)",
+        },
+      },
+      keptSites: {
+        focus: {
+          "packages/client/src/features/discovery/surfaces/corpus-list-surface.tsx":
+            "arrival lands on the omnibox, because the search is the surface (corpus-list-surface.tsx `CorpusListSurface` focus ruling)",
+          "packages/client/src/features/config/surfaces/config-list-surface.tsx":
+            "arrival lands on the active group's band, the map that owns the section's arrival (config-list-surface.tsx focus ruling)",
+          "packages/client/src/features/tag/surfaces/labels-list-surface.tsx":
+            "the Labels finder owns phone arrival and the visible library owns desktop arrival (labels-list-surface.tsx header)",
+        },
+      },
       members: lists.map((facts) => listPane(facts, byPath)),
     },
     {
       name: "detail-header",
       what: "detail headers: component, deferToShell, step",
       columns: ["header", "deferToShell", "step"],
+      kept: {
+        header: Object.fromEntries([...HEADER_TEMPLATES].map((tag) => [tag, HEADER_SPLIT])),
+        deferToShell: {
+          runtime:
+            "an unnamed session defers its card identity to the shell's narrow title (packages/client/src/features/refinery/components/session-masthead.tsx header)",
+        },
+        step: {
+          masthead: "`masthead` is a workbench's one opening statement, at the display step (packages/client/src/components/detail-header.tsx `NAME_VOICE`)",
+        },
+      },
       members: client.flatMap(headerMembers),
     },
     {
