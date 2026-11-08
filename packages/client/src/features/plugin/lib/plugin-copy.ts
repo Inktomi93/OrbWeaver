@@ -429,6 +429,12 @@ export function chatPanelHiddenTitle(pluginName: string): string {
 export const CHAT_PANEL_HIDDEN_HINT = "Turn it back on from its row in Settings, Plugins.";
 export const CHAT_PANEL_UNDO_LABEL = "Undo";
 export const CHAT_PANEL_HIDE_LABEL = "Hide";
+/** The plugin's enable switch names the plugin and follows its state, so it says what pressing does ("Turn X off"). A
+ *  static name told a screen reader, and a driving instrument that toggled a live plugin off, that an enabled plugin was off. */
+export function enablePluginLabel(pluginName: string, enabled: boolean): string {
+  return enabled ? `Turn ${pluginName} off` : `Turn ${pluginName} on`;
+}
+
 /** The Plugins pane's switch for one plugin's chat panels, named for the plugin so a list of them reads as a list. */
 export function showInChatLabel(pluginName: string): string {
   return `Show the ${pluginName} panel in chat`;

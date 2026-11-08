@@ -25,6 +25,7 @@ import type { PluginBundlePreview } from "../lib/plugin-bundle.ts";
 import { PluginBundlePreviewError, readPluginBundle, toBundleBase64 } from "../lib/plugin-bundle.ts";
 import {
   builtAgainstLine,
+  enablePluginLabel,
   PLUGIN_DETAILS_LABEL,
   PLUGIN_ERROR_COPY_SUBJECT,
   PLUGIN_ERROR_SENTENCE,
@@ -214,7 +215,12 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
             panels, which show by default and are hidden from the panel itself. */}
         <SettingRowGroup>
           <SettingTrackRow>
-            <SettingSwitchRow checked={plugin.status === "enabled"} disabled={setEnabled.isPending} label="Enabled" onChange={onEnabledChange} />
+            <SettingSwitchRow
+              checked={plugin.status === "enabled"}
+              disabled={setEnabled.isPending}
+              label={enablePluginLabel(plugin.name, plugin.status === "enabled")}
+              onChange={onEnabledChange}
+            />
           </SettingTrackRow>
           <ShowInChatSwitch pluginId={plugin.id} pluginName={plugin.name} />
         </SettingRowGroup>
