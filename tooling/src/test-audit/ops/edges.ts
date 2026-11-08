@@ -1,10 +1,11 @@
 // The edge table: built from the audit's case records and CodeGraph, stored in its own SQLite file, and
 // judged against the working tree at query time, so a stored edge never claims to be current.
-import { mkdirSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { dirname } from "node:path";
 import type { SQLOutputValue } from "node:sqlite";
 import { DatabaseSync } from "node:sqlite";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import { UsageError } from "../../floor/cli/run-tool.ts";
 import { execGit } from "../../floor/git/git.ts";
 import type { ChangedLines, Edge, EdgeSource, JudgedEdge, ProductionRef } from "../contract/types.ts";
 import { EDGE_SOURCES } from "../contract/types.ts";
@@ -21,7 +22,20 @@ const TEST_ROOT = "tests/";
 const CODEGRAPH_EDGE_KINDS = ["calls", "instantiates", "references"] as const;
 const CODEGRAPH_TARGET_KINDS = ["function", "method", "class", "constant", "variable"] as const;
 
+/** What each missing input needs, named so a query run before `build` says the step it skipped. */
+const MISSING_EDGES = "no edge table here — build it first: pnpm test-audit build --audit=<index.sqlite>";
+const MISSING_AUDIT = "no audit index here — --audit takes the audit's index.sqlite";
+const MISSING_CODEGRAPH = "no CodeGraph database here — index the checkout with CodeGraph, or pass --codegraph=<db>";
+
 type Row = Record<string, SQLOutputValue>;
+
+/** Open an input read-only. A path that holds nothing is misuse, so it refuses by name instead of dying in SQLite. */
+function openRead(path: string, missing: string): DatabaseSync {
+  if (!existsSync(path)) {
+    throw new UsageError(`${path}: ${missing}`);
+  }
+  return new DatabaseSync(path, { readOnly: true });
+}
 
 function text(row: Row, key: string): string {
   const value = row[key];
@@ -63,7 +77,7 @@ interface AuditCase {
 }
 
 function readCases(auditPath: string): readonly AuditCase[] {
-  using audit = new DatabaseSync(auditPath, { readOnly: true });
+  using audit = openRead(auditPath, MISSING_AUDIT);
   return audit
     .prepare("SELECT record_id, test_path, case_name, effective_revision, production_trace FROM cases WHERE currency = ? ORDER BY record_id")
     .all(CURRENT)
@@ -135,7 +149,7 @@ export function buildEdges(inputs: BuildInputs): BuildSummary {
     trees.set(revision, paths);
     return paths;
   };
-  using codegraph = new DatabaseSync(inputs.codegraphPath, { readOnly: true });
+  using codegraph = openRead(inputs.codegraphPath, MISSING_CODEGRAPH);
   const reached = new Map<string, readonly ProductionRef[]>();
   const edges: Edge[] = [];
   let droppedRefs = 0;
@@ -186,7 +200,7 @@ function toEdge(row: Row): Edge {
 }
 
 function readEdges(edgesPath: string, where: string, value: string): readonly Edge[] {
-  using table = new DatabaseSync(edgesPath, { readOnly: true });
+  using table = openRead(edgesPath, MISSING_EDGES);
   return table.prepare(`SELECT * FROM edges WHERE ${where} = ? ORDER BY test_path, record_id, production_path, start_line`).all(value).map(toEdge);
 }
 
@@ -239,7 +253,7 @@ export interface ReaderAgreement {
 /** CodeGraph's agreement with the audit, per test file and production file: how far its callees stand in for
  *  the auditor's trace where both exist. */
 export function codegraphAgreement(edgesPath: string, codegraphPath: string): ReaderAgreement {
-  using table = new DatabaseSync(edgesPath, { readOnly: true });
+  using table = openRead(edgesPath, MISSING_EDGES);
   const cited = new Map<string, Set<string>>();
   for (const row of table.prepare("SELECT DISTINCT test_path, production_path FROM edges WHERE source = ?").all("trace")) {
     const testPath = text(row, "test_path");
@@ -247,7 +261,7 @@ export function codegraphAgreement(edgesPath: string, codegraphPath: string): Re
     files.add(text(row, "production_path"));
     cited.set(testPath, files);
   }
-  using codegraph = new DatabaseSync(codegraphPath, { readOnly: true });
+  using codegraph = openRead(codegraphPath, MISSING_CODEGRAPH);
   let shared = 0;
   let citedTotal = 0;
   let namedTotal = 0;

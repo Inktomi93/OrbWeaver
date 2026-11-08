@@ -4,6 +4,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { expect, test } from "@orb/testkit/tooling";
+import { UsageError } from "../../../../tooling/src/floor/cli/run-tool.ts";
 import { configureFixtureGitIdentity, execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { buildEdges, codegraphAgreement, provesFile, touchedBy } from "../../../../tooling/src/test-audit/index.ts";
 
@@ -94,6 +95,35 @@ test("the edge table answers both directions and marks a case stale when its pro
     ["A2", ["production"]],
   ]);
   expect(stale(touchedBy(root, inputs.outPath, B_TEST))).toEqual([["B1", ["test"]]]);
+});
+
+test("a query run before build is misuse that names the build step, and each missing input is named", async ({ plantedTree, scratch }) => {
+  const { root, revision } = await plantedRepo(plantedTree);
+  const inputs = {
+    repoRoot: root,
+    auditPath: join(scratch, "audit.sqlite"),
+    codegraphPath: join(scratch, "codegraph.db"),
+    outPath: join(scratch, "edges.sqlite"),
+  };
+  const queries: readonly (() => unknown)[] = [
+    (): unknown => provesFile(root, inputs.outPath, A, null),
+    (): unknown => touchedBy(root, inputs.outPath, A_TEST),
+    (): unknown => codegraphAgreement(inputs.outPath, inputs.codegraphPath),
+  ];
+  for (const query of queries) {
+    expect(query).toThrow(UsageError);
+    expect(query).toThrow(/pnpm test-audit build --audit=/u);
+  }
+  // No audit index and no CodeGraph database are named by their own flags, not by a SQLite stack.
+  expect(() => buildEdges(inputs)).toThrow(/--audit takes/u);
+  plantAudit(inputs.auditPath, revision);
+  expect(() => buildEdges(inputs)).toThrow(/--codegraph=/u);
+  // Control: with every input present the same queries answer, so the refusals above came from the missing files.
+  plantCodegraph(inputs.codegraphPath);
+  buildEdges(inputs);
+  for (const query of queries) {
+    expect(query).not.toThrow();
+  }
 });
 
 test("CodeGraph's agreement with the trace is counted per test file and production file", async ({ plantedTree, scratch }) => {

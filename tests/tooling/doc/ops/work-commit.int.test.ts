@@ -1,7 +1,7 @@
 // `set --commit` and `item --commit`: the verb's written paths plus every other uncommitted change under
 // docs/work/ go into one commit, and nothing outside docs/work/ rides along.
 
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import {
@@ -22,6 +22,8 @@ import { TOOL_TRAILER } from "../../../../tooling/src/doc/ops/tree.ts";
 import { EXIT } from "../../../../tooling/src/floor/cli/exit-contract.ts";
 import { configureFixtureGitIdentity, execFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { checkoutState } from "../_checkout-state.ts";
+import { plantConcurrentCommit } from "../_concurrent-commit.ts";
 import { WRITTEN_CONTENT, written } from "../_written-item.ts";
 
 const TODAY = "2026-09-23";
@@ -118,18 +120,68 @@ test("a refused set --commit commits nothing, and without --commit nothing is co
   expect(git(root, "status", "--porcelain")).toContain("M docs/work/0001-a.md");
 });
 
-test("a set --commit whose commit git refuses reports the written files and git's own reason", TIMEOUT, async ({ plantedTree }) => {
+test("a set --commit whose commit git refuses puts every file back and reports git's own reason", TIMEOUT, async ({ plantedTree }) => {
   const root = await repoWithItems(plantedTree);
-  const head = git(root, "rev-parse", "HEAD");
+  const before = checkoutState(root);
   // A stale ref lock is git's own refusal shape: the commit object is written, the ref update is not.
-  writeFileSync(join(root, ".git", "refs", "heads", "main.lock"), "");
+  const refLock = join(root, ".git", "refs", "heads", "main.lock");
+  writeFileSync(refLock, "");
   const outcome = runWrite(true, root, () => setItems([1], { state: "doing", lane: "a" }, root, TODAY));
-  expect(outcome.written).toContain("docs/work/0001-a.md");
+  expect(outcome.written).toEqual([]);
   expect(outcome.refusals).toHaveLength(1);
   expect(outcome.refusals[0]).toContain("cannot lock ref");
   expect(outcome.committed).toBeUndefined();
-  expect(git(root, "rev-parse", "HEAD")).toBe(head);
+  rmSync(refLock);
+  expect(checkoutState(root)).toBe(before);
+  // Positive control: the same write commits once the lock is gone, so the refusal above stood after a real write.
+  const again = runWrite(true, root, () => setItems([1], { state: "doing", lane: "a" }, root, TODAY));
+  expect(again.refusals).toEqual([]);
+  expect(again.committed).toBe(git(root, "rev-parse", "HEAD"));
 });
+
+test("a retitling set --commit whose commit git refuses puts back the renamed file and the references it rewrote", TIMEOUT, async ({ plantedTree }) => {
+  const root = await repoWithItems(plantedTree);
+  writeFileSync(join(root, "notes.ts"), "// see docs/work/0001-a.md\n");
+  writeFileSync(join(root, "docs/work/0002-b.md"), `${readFileSync(join(root, "docs/work/0002-b.md"), "utf8")}\nAfter [A](0001-a.md).\n`);
+  commitAll(root, "chore: a code file and an item that cite item 1");
+  const before = checkoutState(root);
+  const refLock = join(root, ".git", "refs", "heads", "main.lock");
+  writeFileSync(refLock, "");
+  const outcome = runWrite(true, root, () => setItems([1], { title: "Renamed" }, root, TODAY));
+  expect(outcome.written).toEqual([]);
+  expect(outcome.refusals).toHaveLength(1);
+  rmSync(refLock);
+  expect(checkoutState(root)).toBe(before);
+  // Positive control: unlocked, the retitle renames the file and rewrites both citers in one commit.
+  const again = runWrite(true, root, () => setItems([1], { title: "Renamed" }, root, TODAY));
+  expect(again.refusals).toEqual([]);
+  expect(committedNames(root)).toEqual(expect.arrayContaining(["docs/work/0001-renamed.md", "notes.ts", "docs/work/0002-b.md"]));
+  expect(git(root, "ls-tree", "--name-only", "HEAD", "docs/work/0001-a.md")).toBe("");
+  expect(git(root, "show", "HEAD:notes.ts")).toContain("0001-renamed.md");
+});
+
+test(
+  "a set --commit whose commit reached history before HEAD moved on leaves the files written and names both commits",
+  TIMEOUT,
+  async ({ plantedTree, scratch }) => {
+    const root = await repoWithItems(plantedTree);
+    const head = git(root, "rev-parse", "HEAD");
+    plantConcurrentCommit(root, scratch);
+    const outcome = runWrite(true, root, () => setItems([1], { state: "doing", lane: "a" }, root, TODAY));
+    rmSync(join(root, ".git", "index.lock"));
+    const concurrent = git(root, "rev-parse", "HEAD");
+    const ours = git(root, "rev-parse", "HEAD^");
+    expect(git(root, "rev-parse", `${ours}^`)).toBe(head);
+    expect(git(root, "log", "-1", "--format=%s", ours)).toBe("chore(work): update 1");
+    expect(outcome.committed).toBeUndefined();
+    expect(outcome.refusals).toHaveLength(1);
+    expect(outcome.refusals[0]).toContain(ours);
+    expect(outcome.refusals[0]).toContain(concurrent);
+    // HEAD holds the files, so putting them back would read as a revert.
+    expect(outcome.written).toContain("docs/work/0001-a.md");
+    expect(readFileSync(join(root, "docs/work/0001-a.md"), "utf8")).toContain("status: doing");
+  },
+);
 
 test("the work commit's header is capped at the commit-message limit however many ids it names", () => {
   const ids = Array.from({ length: 120 }, (_, index) => index + 1);

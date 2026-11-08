@@ -12,6 +12,8 @@ import { commitPaths } from "../../../../tooling/src/doc/ops/tree.ts";
 import { REPO_ROOT } from "../../../../tooling/src/floor/artifacts/artifacts.ts";
 import { configureFixtureGitIdentity, execFixtureGit, runFixtureGit } from "../../../../tooling/src/floor/git/git-fixture.ts";
 import { scaledBudget } from "../../_load-budget.ts";
+import { checkoutState, fileTimes, pinFileTimes } from "../_checkout-state.ts";
+import { plantConcurrentCommit } from "../_concurrent-commit.ts";
 import { written } from "../_written-item.ts";
 
 const TODAY = "2026-09-23";
@@ -79,19 +81,10 @@ test("land --merged commits from INSIDE a real post-merge hook, while git's MERG
   expect(git(root, "status", "--porcelain")).toBe("");
 });
 
-/** The checkout as git sees it: HEAD, the staged and unstaged state, and the bytes of every work file. */
-function treeState(root: string): string {
-  const work = git(root, "ls-files", "--others", "--cached", "--", "docs/work/")
-    .split("\n")
-    .filter((path) => path !== "" && existsSync(join(root, path)))
-    .map((path) => `${path}\n${readFileSync(join(root, path), "utf8")}`);
-  return [git(root, "rev-parse", "HEAD"), git(root, "status", "--porcelain"), git(root, "diff", "--cached", "--name-status"), ...work].join("\n---\n");
-}
-
 test("a landing whose commit git refuses prints git's own message and puts every file back", { timeout: GIT_ARM_TIMEOUT_MS }, async ({ plantedTree }) => {
   const root = await repoWithItem(plantedTree);
   const head = git(root, "rev-parse", "HEAD");
-  const before = treeState(root);
+  const before = checkoutState(root);
   // A stale ref lock is git's own refusal shape: the commit object is written, the ref update is not.
   const refLock = join(root, ".git", "refs", "heads", "main.lock");
   writeFileSync(refLock, "");
@@ -100,7 +93,7 @@ test("a landing whose commit git refuses prints git's own message and puts every
   expect(outcome.refusals).toHaveLength(1);
   expect(outcome.refusals[0]).toContain("the landing commit failed");
   expect(outcome.refusals[0]).toContain("cannot lock ref");
-  expect(treeState(root)).toBe(before);
+  expect(checkoutState(root)).toBe(before);
   // Positive control: the same landing goes through once the lock is gone, so the refusal above reached the commit.
   rmSync(refLock);
   expect(landItems([1], head, root, TODAY).refusals).toEqual([]);
@@ -111,36 +104,12 @@ test("a landing refused for a doc that still cites the item changes nothing", { 
   const root = await repoWithItem(plantedTree);
   newItem(written({ title: "C", kind: "work", priority: null, area: null, plan: null, lane: null, content: { what: "After [A](0001-a.md)." } }), root, TODAY);
   const head = commitAll(root, "chore(work): c");
-  const before = treeState(root);
+  const before = checkoutState(root);
   const outcome = landItems([1], head, root, TODAY);
   expect(outcome.written).toEqual([]);
   expect(outcome.refusals).toEqual(["docs/work/0002-c.md: refers to docs/work/0001-a.md — remove the reference first"]);
-  expect(treeState(root)).toBe(before);
+  expect(checkoutState(root)).toBe(before);
 });
-
-/** A `reference-transaction` hook that, once the landing's ref update commits, locks the index so the checkout's
- *  index cannot follow, then lands a concurrent commit on HEAD before the landing can undo its own. */
-function plantConcurrentCommit(root: string, scratch: string): void {
-  const hooksDir = join(scratch, "race-hooks");
-  mkdirSync(hooksDir, { recursive: true });
-  const marker = join(scratch, "race-fired");
-  writeFileSync(
-    join(hooksDir, "reference-transaction"),
-    [
-      "#!/bin/sh",
-      `[ "$1" = committed ] || exit 0`,
-      `[ -e "${marker}" ] && exit 0`,
-      `touch "${marker}"`,
-      "read -r old new ref",
-      `touch "$(git rev-parse --git-path index.lock)"`,
-      `concurrent=$(git commit-tree "$new^{tree}" -p "$new" -m "feat(x): concurrent")`,
-      `git update-ref HEAD "$concurrent"`,
-      "",
-    ].join("\n"),
-    { mode: 0o755 },
-  );
-  git(root, "config", "--local", "core.hooksPath", hooksDir);
-}
 
 test("a landing whose undo loses a race to a concurrent commit says HEAD moved, names both commits, and leaves the files written", {
   timeout: GIT_ARM_TIMEOUT_MS,
@@ -169,15 +138,19 @@ test("a landing under a held index lock refuses before any write, and HEAD, inde
 }) => {
   const root = await repoWithItem(plantedTree);
   const head = git(root, "rev-parse", "HEAD");
-  const before = treeState(root);
+  const before = checkoutState(root);
+  pinFileTimes(root);
+  const pinned = fileTimes(root);
   const indexLock = join(root, ".git", "index.lock");
   writeFileSync(indexLock, "");
   const outcome = landItems([1], head, root, TODAY);
   expect(outcome.written).toEqual([]);
   expect(outcome.refusals).toHaveLength(1);
   expect(outcome.refusals[0]).toContain("index.lock");
+  // A write that was put back would match `before` too; only a file never written keeps its time.
+  expect(fileTimes(root)).toBe(pinned);
   rmSync(indexLock);
-  expect(treeState(root)).toBe(before);
+  expect(checkoutState(root)).toBe(before);
   expect(landItems([1], head, root, TODAY).refusals).toEqual([]);
   expect(git(root, "status", "--porcelain")).toBe("");
 });

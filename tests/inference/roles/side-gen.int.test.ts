@@ -9,7 +9,7 @@ import { isPlainObject } from "@orb/kit/guards";
 import type { UserId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { projectJsonSchema } from "@orb/kit/json-schema";
-import { createControlledTimers, createFrozenClock, nonEmpty } from "@orb/testkit/iso";
+import { createControlledTimers, createFrozenClock, finiteReplies, nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import type { RecordedRequest } from "@orb/testkit/node/helpers";
@@ -647,16 +647,30 @@ test("(10) items sharing a static system prompt on an OpenRouter Claude route ea
   }
 });
 
-function ollamaServer(recorded: RecordedRequest[]): typeof fetch {
+/** One scripted turn on Ollama's chat path, in the order the runtime asks: the prompt-render probe, or a generation. */
+type OllamaTurn = "render" | { readonly content: string };
+
+interface OllamaServer extends Disposable {
+  readonly execute: typeof fetch;
+}
+
+/** Answer exactly `turns` chat calls in order, and each metadata read once. A call out of order or past the end throws,
+ *  and a turn or read never asked for fails disposal. Declare it with `using` before the root that spends it. */
+function ollamaServer(recorded: RecordedRequest[], turns: readonly OllamaTurn[]): OllamaServer {
+  using construction = new DisposableStack();
+  const nextTurn = construction.use(finiteReplies("ollama", turns)).take;
   const reads = new Map<string, JsonValue>([
     ["/v1/models", { data: [{ id: "qwen2.5:0.5b" }] }],
     ["/api/version", { version: "0.15.5" }],
     ["/api/ps", { models: [] }],
     ["/api/show", { parameters: "", capabilities: ["completion"], ["model_info"]: { "general.architecture": "qwen2", "qwen2.context_length": 32_768 } }],
   ]);
-  let render = true;
-  let reply = true;
-  return async (input, init): Promise<Response> => {
+  construction.defer(() => {
+    if (reads.size > 0) {
+      throw new Error(`the ollama script left ${[...reads.keys()].join(", ")} unread`);
+    }
+  });
+  const execute: typeof fetch = async (input, init): Promise<Response> => {
     const request = new Request(input, init);
     const path = new URL(request.url).pathname;
     const read = reads.get(path);
@@ -667,29 +681,32 @@ function ollamaServer(recorded: RecordedRequest[]): typeof fetch {
     if (path !== "/api/chat") {
       throw new Error(`the physical Ollama script has no reply for ${path}`);
     }
+    const turn = nextTurn();
     const captured = await recordRequest(request);
     const { body } = captured;
-    if (body["_debug_render_only"] === true && render) {
-      render = false;
+    const renderOnly = body["_debug_render_only"] === true;
+    if (turn === "render" || renderOnly) {
+      if (turn !== "render" || !renderOnly) {
+        throw new Error("the physical Ollama script's next turn does not match the chat call: a render probe and a generation are scripted apart");
+      }
       return Response.json({ ["_debug_info"]: { ["rendered_template"]: "a closed prompt" } });
     }
-    if (!reply || body["_debug_render_only"] === true) {
-      throw new Error("the physical Ollama generation or render recipe was exhausted");
-    }
-    reply = false;
     recorded.push(captured);
     const done = { model: "m", message: { role: "assistant", content: "" }, done: true, ["done_reason"]: "stop", ["prompt_eval_count"]: 10, ["eval_count"]: 3 };
     if (body["stream"] === true) {
-      const lines = [{ model: "m", message: { role: "assistant", content: "a summary" }, done: false }, done].map((line) => JSON.stringify(line)).join("\n");
+      const lines = [{ model: "m", message: { role: "assistant", content: turn.content }, done: false }, done].map((line) => JSON.stringify(line)).join("\n");
       return Promise.resolve(new Response(`${lines}\n`, { status: 200, headers: { "content-type": "application/x-ndjson" } }));
     }
-    return Promise.resolve(Response.json({ ...done, message: { role: "assistant", content: "a summary" } }));
+    return Promise.resolve(Response.json({ ...done, message: { role: "assistant", content: turn.content } }));
   };
+  const lifetime = construction.move();
+  return { execute, [Symbol.dispose]: () => lifetime.dispose() };
 }
 
 test("(11) a Utility preset's Max context 16384 on an unpinned Ollama native row sends num_ctx 16384", async () => {
   const recorded: RecordedRequest[] = [];
-  await using root = await createRuntimeRoot({ providerFetch: ollamaServer(recorded) });
+  using server = ollamaServer(recorded, ["render", { content: "a summary" }]);
+  await using root = await createRuntimeRoot({ providerFetch: server.execute });
   const executor = root.app.runtime.executor;
   const principal = await root.principalFor(root.ownerId);
   const row = await root.services.connection.create({

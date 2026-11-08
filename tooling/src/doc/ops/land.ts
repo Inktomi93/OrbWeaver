@@ -6,7 +6,7 @@
 // gone. An item a doc still refers to refuses, so a landing never leaves a dead link.
 // All-or-nothing: any refusal writes, stages and commits nothing. A held index lock refuses before any write,
 // and a staging or commit step that fails after the write puts every written file back.
-import { existsSync, rmSync, writeFileSync } from "node:fs";
+import { rmSync } from "node:fs";
 import { join } from "node:path";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import type { DocEdit, WorkItem } from "../contract/types.ts";
@@ -23,6 +23,7 @@ import { regenerateIndexes } from "./indexes.ts";
 import type { WriteOutcome } from "./items.ts";
 import { loadItems } from "./items.ts";
 import { textCiters } from "./remove.ts";
+import type { PriorFiles } from "./tree.ts";
 import {
   commitOnMain,
   commitPaths,
@@ -33,6 +34,7 @@ import {
   isMainBranch,
   landedCommit,
   mergedCommits,
+  putBack,
   readDoc,
   root,
   stagedWorkDeletions,
@@ -50,9 +52,6 @@ export interface LandOutcome extends WriteOutcome {
   /** Set by a successful `--stage`: the record and `Closes:` line for the caller's commit message. */
   readonly staged?: StagedLanding;
 }
-
-/** Each path a landing may write, with its bytes before the write; null for a path that did not exist. */
-type PriorFiles = ReadonlyMap<string, string | null>;
 
 interface WrittenLanding {
   readonly outcome: LandOutcome;
@@ -96,19 +95,6 @@ function record(item: WorkItem, evidence: string | null, repoRoot: string): Land
 function priorFiles(paths: readonly string[], repoRoot: string): PriorFiles {
   const candidates = [...paths, ...governedPaths(repoRoot).filter(isGeneratedPath)];
   return new Map(candidates.map((path) => [path, readDoc(path, repoRoot).source] as const));
-}
-
-/** Put every path the landing wrote back to its bytes before the write. */
-function putBack(written: readonly string[], prior: PriorFiles, repoRoot: string): void {
-  for (const path of written) {
-    const source = prior.get(path) ?? null;
-    const abs = join(repoRoot, path);
-    if (source !== null) {
-      writeFileSync(abs, source);
-    } else if (existsSync(abs)) {
-      rmSync(abs);
-    }
-  }
 }
 
 /** The outcome of a landing whose stage or commit step failed after the write: nothing stays written. */

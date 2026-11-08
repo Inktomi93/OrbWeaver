@@ -17,6 +17,26 @@ test("a trace yields each production citation once, a bare path as the whole fil
   expect(productionRefs("AF3-B032-F091 full activation290 actual durable bundle")).toEqual([]);
 });
 
+const EN_DASH = String.fromCodePoint(0x20_13);
+
+test("a citation keeps every line it names: a comma list, and a range written with an en dash", () => {
+  const trace = [
+    "packages/kit/src/a.ts:12, 15 two single lines; packages/kit/src/b.ts:7-9, 20-24 a range and a range after it.",
+    `packages/kit/src/c.ts:30${EN_DASH}33 an en-dash range; packages/kit/src/d.ts:5, 8${EN_DASH}9 and a list that ends on one.`,
+  ].join("\n");
+  expect(productionRefs(trace)).toEqual([
+    { path: "packages/kit/src/a.ts", startLine: 12, endLine: 12 },
+    { path: "packages/kit/src/a.ts", startLine: 15, endLine: 15 },
+    { path: "packages/kit/src/b.ts", startLine: 7, endLine: 9 },
+    { path: "packages/kit/src/b.ts", startLine: 20, endLine: 24 },
+    { path: "packages/kit/src/c.ts", startLine: 30, endLine: 33 },
+    { path: "packages/kit/src/d.ts", startLine: 5, endLine: 5 },
+    { path: "packages/kit/src/d.ts", startLine: 8, endLine: 9 },
+  ]);
+  // Control: prose after the comma is not a line, so the citation stops at the one it names.
+  expect(productionRefs("packages/kit/src/a.ts:12, then the second branch")).toEqual([{ path: "packages/kit/src/a.ts", startLine: 12, endLine: 12 }]);
+});
+
 const DIFF = [
   "diff --git a/src/a.ts b/src/a.ts",
   "index 1111111..2222222 100644",

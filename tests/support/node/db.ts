@@ -84,7 +84,7 @@ export async function migrationsBeforeLatest(): Promise<AsyncDisposable & { read
 /** A database with exactly one owner: disposing it closes the connection. Declare it with `using` before the graph
  *  that borrows `db`, so the graph closes first. */
 export interface OwnedDb extends Disposable {
-  // Spelled through `closeDb` on purpose: a member typed `Db` by name hides `Disposable` from Biome's inference, and useDisposables goes silent on every acquisition.
+  // Spelled through `closeDb`'s parameter because Biome cannot resolve that spelling: typed `Db`, the member reaches libsql's `InArgs` union and useDisposables goes silent on every acquisition.
   readonly db: Parameters<typeof closeDb>[0];
 }
 
