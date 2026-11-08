@@ -273,6 +273,16 @@ export function createInvalidation(deps: { readonly queryClient: QueryClient; re
     });
   };
   const invalidateChatWave = (filters: readonly InvalidateQueryFilters[]): void => {
+    // Only the refetch waits for the wave. A read in flight now predates this event; left running, it would
+    // land over the carrier before the wave refetches. Reverting restores the carrier, the last manual write.
+    // An initial read has no carrier to protect and its loader shares its promise, so it keeps running.
+    for (const filter of filters) {
+      for (const query of deps.queryClient.getQueryCache().findAll(filter)) {
+        if (query.state.data !== undefined && query.state.fetchStatus !== "idle") {
+          query.cancel({ revert: true }).catch(surfaceDeferredFailure);
+        }
+      }
+    }
     const pending = chatWaves.get(deps.queryClient);
     if (pending !== undefined) {
       pending.push(...filters);

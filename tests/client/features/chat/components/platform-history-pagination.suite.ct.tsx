@@ -80,11 +80,12 @@ async function prepareHistory(root: Root, caller: Caller): Promise<HistoryFixtur
     throw new Error("The corpus needs a character to seat in the imported room");
   }
   // A long history is bulk data, so the native chat import writes it in one call; a commit per row is a verb run per row.
+  // The seated card opens and answers, as in a played room, so every page mixes speakers and roles.
   const imported = await seedTranscript(root, {
     ownerId: root.ownerId,
     characterHandles: [card.handle],
     lines: Array.from({ length: EXTRA_ROWS }, (_, index) => ({
-      role: "user",
+      ...(index % 2 === 0 ? { role: "assistant", speakerHandle: card.handle } : { role: "user" }),
       content: `History pagination witness ${index + 1}. The observatory lantern burns through the rain.`,
     })),
   });
