@@ -27,8 +27,8 @@ function plantAudit(path: string, revision: string): void {
   insert.run("H1", revision, "historical", A_TEST, "a superseded record", `${B}:1`);
 }
 
-/** The CodeGraph tables the gap fill reads. b.test.ts calls into production, into a test helper, and names a type;
- *  a.test.ts calls one file its trace cites and one it does not. */
+/** The CodeGraph tables the gap fill reads. `B_TEST` calls into production, into a test helper, and names a type;
+ *  `A_TEST` calls one file its trace cites and one it does not. */
 function plantCodegraph(path: string): void {
   using codegraph = new DatabaseSync(path);
   codegraph.exec("CREATE TABLE nodes (id, kind, file_path, start_line, end_line); CREATE TABLE edges (source, target, kind)");
@@ -107,6 +107,6 @@ test("CodeGraph's agreement with the trace is counted per test file and producti
   plantAudit(inputs.auditPath, revision);
   plantCodegraph(inputs.codegraphPath);
   buildEdges(inputs);
-  // a.test.ts is the one file with trace edges: CodeGraph names a.ts, which the trace cites, and b.ts, which it does not.
+  // `A_TEST` is the one file with trace edges: CodeGraph names `A`, which the trace cites, and `B`, which it does not.
   expect(codegraphAgreement(inputs.outPath, inputs.codegraphPath)).toEqual({ reader: "codegraph", testFiles: 1, recall: 1, precision: 0.5 });
 });

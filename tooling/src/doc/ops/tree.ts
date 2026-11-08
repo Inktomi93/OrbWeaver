@@ -291,7 +291,7 @@ export function mergeInProgress(repoRoot = root): boolean {
 }
 
 /** Commit the named paths ALONE, through plumbing, from a merge hook or by hand. A failure leaves HEAD and the
- *  checkout's index as they were.
+ *  checkout's index as they were, unless another commit moved HEAD past this one before it could be undone.
  *
  *  Plumbing, never `git commit`: the post-merge hook fires while git's `MERGE_HEAD` still exists, and a
  *  porcelain pathspec commit there dies with `cannot do a partial commit during a merge` (a whole-index
@@ -346,8 +346,18 @@ export function commitPaths(paths: readonly string[], message: string, repoRoot 
     }
     // An index that cannot follow would show the commit's own paths as staged reversals; moving HEAD back
     // keeps the failure whole, so the caller can put its files back over an unchanged HEAD and index.
-    runGit(repoRoot, ["update-ref", "-m", "doc: undo a commit whose index update failed", "HEAD", head, sha]);
-    return gitFailure("update-index", index);
+    const failure = gitFailure("update-index", index);
+    const undo = runGit(repoRoot, ["update-ref", "-m", "doc: undo a commit whose index update failed", "HEAD", head, sha]);
+    if (undo.status === 0) {
+      return failure;
+    }
+    // The compare-and-swap refused: another commit moved HEAD on top of this one, which stays in history.
+    const now = git(repoRoot, ["rev-parse", "HEAD"])?.trim() ?? "an unreadable HEAD";
+    return {
+      ...failure,
+      reason: `${failure.reason}. HEAD moved from ${sha} to ${now} before the commit could be undone, so ${sha} stays in history and its files stay as written`,
+      stranded: { sha, head: now },
+    };
   } finally {
     rmSync(scratch, { recursive: true, force: true });
   }

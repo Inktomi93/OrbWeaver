@@ -188,7 +188,17 @@ export function landItems(ids: readonly number[], evidence: string, repoRoot = r
     return landing.outcome;
   }
   const commit = commitPaths(landing.outcome.written, landingMessage(landing.records, TOOL_TRAILER), repoRoot);
-  return commit.ok ? landing.outcome : unwound(landing, repoRoot, `the landing commit failed — ${commit.reason}`);
+  if (commit.ok) {
+    return landing.outcome;
+  }
+  // HEAD holds the landing under someone else's commit: putting the files back would stage their re-add.
+  if ("stranded" in commit) {
+    return {
+      ...landing.outcome,
+      refusals: [`the landing commit failed after it reached history — ${commit.reason}. Read git log and git status before landing again`],
+    };
+  }
+  return unwound(landing, repoRoot, `the landing commit failed — ${commit.reason}`);
 }
 
 /** Land items without a commit: the same resolution, refusals, releases and deletions as {@link landItems},

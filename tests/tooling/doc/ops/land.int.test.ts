@@ -118,6 +118,52 @@ test("a landing refused for a doc that still cites the item changes nothing", { 
   expect(treeState(root)).toBe(before);
 });
 
+/** A `reference-transaction` hook that, once the landing's ref update commits, locks the index so the checkout's
+ *  index cannot follow, then lands a concurrent commit on HEAD before the landing can undo its own. */
+function plantConcurrentCommit(root: string, scratch: string): void {
+  const hooksDir = join(scratch, "race-hooks");
+  mkdirSync(hooksDir, { recursive: true });
+  const marker = join(scratch, "race-fired");
+  writeFileSync(
+    join(hooksDir, "reference-transaction"),
+    [
+      "#!/bin/sh",
+      `[ "$1" = committed ] || exit 0`,
+      `[ -e "${marker}" ] && exit 0`,
+      `touch "${marker}"`,
+      "read -r old new ref",
+      `touch "$(git rev-parse --git-path index.lock)"`,
+      `concurrent=$(git commit-tree "$new^{tree}" -p "$new" -m "feat(x): concurrent")`,
+      `git update-ref HEAD "$concurrent"`,
+      "",
+    ].join("\n"),
+    { mode: 0o755 },
+  );
+  git(root, "config", "--local", "core.hooksPath", hooksDir);
+}
+
+test("a landing whose undo loses a race to a concurrent commit says HEAD moved, names both commits, and leaves the files written", {
+  timeout: GIT_ARM_TIMEOUT_MS,
+}, async ({ plantedTree, scratch }) => {
+  const root = await repoWithItem(plantedTree);
+  const head = git(root, "rev-parse", "HEAD");
+  plantConcurrentCommit(root, scratch);
+  const outcome = landItems([1], head, root, TODAY);
+  rmSync(join(root, ".git", "index.lock"));
+  const concurrent = git(root, "rev-parse", "HEAD");
+  const landing = git(root, "rev-parse", "HEAD^");
+  expect(git(root, "log", "-1", "--format=%s", landing)).toBe("chore(work): land 1");
+  expect(git(root, "rev-parse", `${landing}^`)).toBe(head);
+  expect(outcome.refusals).toHaveLength(1);
+  expect(outcome.refusals[0]).toContain("HEAD moved");
+  expect(outcome.refusals[0]).toContain(landing);
+  expect(outcome.refusals[0]).toContain(concurrent);
+  expect(outcome.refusals[0]).not.toContain("Nothing changed");
+  // HEAD holds the landing, so its deletion stays on disk: putting the file back would read as a re-add.
+  expect(outcome.written).toContain("docs/work/0001-a.md");
+  expect(existsSync(join(root, "docs/work/0001-a.md"))).toBe(false);
+});
+
 test("a landing under a held index lock refuses before any write, and HEAD, index and files stay as they were", { timeout: GIT_ARM_TIMEOUT_MS }, async ({
   plantedTree,
 }) => {
