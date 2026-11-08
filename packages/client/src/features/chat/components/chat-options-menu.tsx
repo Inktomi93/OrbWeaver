@@ -119,14 +119,16 @@ function GameMenuSection({ chatId, actions }: { readonly chatId: ChatId; readonl
   const { pending, start, setMode } = actions;
   const labelId = useId();
   const descriptionId = useId();
-  // OPTIONAL-CHAINED throughout: the CT harness resolves UNLISTED procs to `{data:null}` by design (an
+  // The chained access stays: the CT harness resolves UNLISTED procs to `{data:null}` by design (an
   // incidental read must never crash a surface) — a bare `.viewerIsHost` deref here blanked the menu.
   const detail = detailQuery.data;
-  if (detail?.viewerIsHost === false) {
-    return null; // PERMISSION-omit: only the host flips game mode (the server verbs re-gate).
+  if (detail?.viewerIsHost !== true) {
+    // PERMISSION-omit: only the host flips game mode (the server verbs re-gate). A read that is loading or
+    // failed has not named the role, so it offers nothing, the same as Rename, Delete and Leave.
+    return null;
   }
 
-  const pointer = detail?.rpg ?? null;
+  const pointer = detail.rpg ?? null;
   const engaged = isRpgEngaged(pointer);
 
   if (!engaged) {

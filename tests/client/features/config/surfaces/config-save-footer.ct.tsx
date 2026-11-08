@@ -64,6 +64,32 @@ test("an admin draft Save cannot send needs a fix, not Saved", async ({ mount, p
   await expect(page.getByRole("button", { name: "Save", exact: true, disabled: false })).toHaveCount(0);
 });
 
+// An emptied box is no number: it must read as needing a fix and offer no Save, not become 0 or the field's minimum.
+const NUMERIC_ADMIN_FIELDS = [
+  { section: "system tuning", name: /^Prompt-cache depth floor/u },
+  { section: "memory tuning", name: /^Block size/u },
+  { section: "rate limits", name: /^Anonymous requests \/ min \/ IP/u },
+] as const;
+
+for (const { section, name } of NUMERIC_ADMIN_FIELDS) {
+  test(`a blank ${section} field reads as needing a fix and cannot be saved`, async ({ mount, page }) => {
+    await using root = await createServerHarness({ startJobs: false });
+    const caller = await root.internalCallerFor(root.ownerId);
+    await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
+    await routeTrpc(page, serveCorpusProcedures(caller, SERVED));
+    await mount<typeof ConfigSaveFooterStory>(STORY, { group: "admin" });
+    const footer = page.locator(FOOTER);
+    const field = page.getByRole("textbox", { name });
+    await expect(field).toBeVisible();
+    await expect(footer).toHaveText(SAVED);
+
+    await field.fill("");
+    await expect(footer).toContainText(NEEDS_A_FIX);
+    await expect(footer).not.toContainText("waiting for Save");
+    await expect(page.getByRole("button", { name: "Save", exact: true, disabled: false })).toHaveCount(0);
+  });
+}
+
 // An autosave form whose field is refused reports `blocked` through the seam hook, and its hosted section draws no
 // status of its own, so the footer is the only readout. No hosted pane can reach that state through the server today
 // (the one hosted validator, the prose cap, never sees over-cap text because the stored blob heals it on read), so the

@@ -3,6 +3,7 @@
 // server refuses a member the first two.
 
 import { ROW_RENAME_NAME } from "@orb/client/lib";
+import { GAME_MODE_ON_LABEL } from "@orb/client/state";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import {
@@ -67,7 +68,7 @@ async function routeSharedRoomAs(
 }
 
 /** Open Chat options and read which of the role-gated actions it offers. */
-async function openRoleGatedActions(page: Page): Promise<{ readonly host: number; readonly leave: number }> {
+async function openRoleGatedActions(page: Page): Promise<{ readonly host: number; readonly leave: number; readonly game: number }> {
   await page.getByRole("button", { name: CHAT_OPTIONS_NAME, exact: true }).click();
   // Positive control: the menu is open and holds the actions every role shares.
   await expect(page.getByRole("menuitem", { name: CHAT_SELECT_MESSAGES_NAME, exact: true })).toBeVisible();
@@ -76,6 +77,7 @@ async function openRoleGatedActions(page: Page): Promise<{ readonly host: number
       (await page.getByRole("menuitem", { name: ROW_RENAME_NAME, exact: true }).count()) +
       (await page.getByRole("menuitem", { name: CHAT_DELETE_NAME, exact: true }).count()),
     leave: await page.getByRole("menuitem", { name: CHAT_LEAVE_NAME, exact: true }).count(),
+    game: await page.getByRole("menuitem", { name: GAME_MODE_ON_LABEL, exact: true }).count(),
   };
 }
 
@@ -92,6 +94,7 @@ for (const role of ROLES) {
       await expect(page.getByRole("menuitem", { name, exact: true })).toHaveCount(role === "host" ? 1 : 0);
     }
     await expect(page.getByRole("menuitem", { name: CHAT_LEAVE_NAME, exact: true })).toHaveCount(role === "host" ? 0 : 1);
+    await expect(page.getByRole("menuitem", { name: GAME_MODE_ON_LABEL, exact: true })).toHaveCount(role === "host" ? 1 : 0);
   });
 }
 
@@ -101,9 +104,10 @@ test("while the room read is still out, Chat options offers no role-gated action
   const { chatId } = await routeSharedRoomAs({ root, page, corpus }, "member", () => pending);
   await mount<typeof ChatRoomShellStory>(STORY, { chatId });
   await pending.requested;
-  expect(await openRoleGatedActions(page)).toEqual({ host: 0, leave: 0 });
+  expect(await openRoleGatedActions(page)).toEqual({ host: 0, leave: 0, game: 0 });
   pending.release();
   await expect(page.getByRole("menuitem", { name: CHAT_LEAVE_NAME, exact: true })).toHaveCount(1);
+  await expect(page.getByRole("menuitem", { name: GAME_MODE_ON_LABEL, exact: true })).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: ROW_RENAME_NAME, exact: true })).toHaveCount(0);
   await expect(page.getByRole("menuitem", { name: CHAT_DELETE_NAME, exact: true })).toHaveCount(0);
 });
@@ -112,7 +116,7 @@ test("when the room read fails, Chat options offers no role-gated action", async
   await using root = await createCorpusHarness();
   const { chatId } = await routeSharedRoomAs({ root, page, corpus }, "member", () => trpcError());
   await mount<typeof ChatRoomShellStory>(STORY, { chatId });
-  expect(await openRoleGatedActions(page)).toEqual({ host: 0, leave: 0 });
+  expect(await openRoleGatedActions(page)).toEqual({ host: 0, leave: 0, game: 0 });
 });
 
 test("a member who confirms Leave chat from Chat options is out of the room", async ({ corpus, mount, page }) => {

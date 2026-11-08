@@ -16,7 +16,7 @@ import { QueryBoundary, SettingRowGroup, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { saveStateOf, useReportSaveStatus } from "#forms";
 import { useUpdateAppOverrides } from "../hooks/use-admin-mutations.ts";
-import { envFloor, isOverridden } from "../lib/app-override-model.ts";
+import { draftNumber, envFloor, isOverridden } from "../lib/app-override-model.ts";
 import { SYSTEM_TUNING_SUBCATEGORY } from "../lib/system-tuning-nav.ts";
 import { AdminOverrideField, AdminOverrideResetRow } from "./admin-override-field.tsx";
 
@@ -130,19 +130,19 @@ function SystemTuningBody({ anchorId, sectionId }: { readonly anchorId: string; 
   // A knob is dirty when its finite draft differs from the effective baseline. A blank/non-finite draft is
   // never dirty (Save stays disabled), so a wipe-triggering value never reaches the write path.
   const dirtyKnobs = KNOBS.filter((knob) => {
-    const n = Number(draft[knob.id]);
+    const n = draftNumber(draft[knob.id] ?? "");
     return Number.isFinite(n) && n !== knob.read(resolved);
   });
   const dirty = dirtyKnobs.length > 0;
   const anyOverridden = KNOBS.some((knob) => knob.overridden(overrides));
-  const invalid = KNOBS.some((knob) => !Number.isFinite(Number(draft[knob.id])));
+  const invalid = KNOBS.some((knob) => !Number.isFinite(draftNumber(draft[knob.id] ?? "")));
   useReportSaveStatus(sectionId, saveStateOf(save.isPending, save.error !== null, { dirty, invalid }));
 
   // Merge every dirty knob's sparse patch into ONE partial; nested setting groups retain untouched siblings.
   const onSave = (): void => {
     const partial: AppSettings = {};
     for (const knob of dirtyKnobs) {
-      Object.assign(partial, deepMergePatch(partial, knob.patch(Number(draft[knob.id]))));
+      Object.assign(partial, deepMergePatch(partial, knob.patch(draftNumber(draft[knob.id] ?? ""))));
     }
     save.mutateAsync({ partial }).catch(() => undefined);
   };

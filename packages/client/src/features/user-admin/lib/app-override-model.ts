@@ -3,6 +3,12 @@
 // floor-vs-override display + delta-save logic is identical across them; this is its one home (lib, no JSX
 // — a component module can't co-export a non-component, useComponentExportOnlyModules).
 
+/** A numeric draft as a number. A blank field is `NaN`, never the `0` that `Number("")` yields: the knob's
+ *  clamp and finite checks then refuse it instead of sending 0 or the schema minimum for an empty box. */
+export function draftNumber(text: string): number {
+  return text.trim() === "" ? Number.NaN : Number(text);
+}
+
 /** Is this stored-override value actively set? `null`/`undefined` = the deployment floor governs; anything
  *  else (INCLUDING `0` / `false`) = an active override. The nullish check is load-bearing — a falsy check
  *  would wrongly read `maxTier: 0` / `keywordMatch: false` as "not overridden". */
