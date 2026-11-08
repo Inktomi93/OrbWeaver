@@ -1,10 +1,11 @@
 import type { PanelName } from "@orb/client/state";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
-import type { SurfaceActionGroup, SurfaceActionWindow, SurfacePaneRequest } from "@orb/testkit/browser/spec";
+import type { PlatformTextSize, SurfaceActionGroup, SurfaceActionWindow, SurfacePaneRequest } from "@orb/testkit/browser/spec";
 import { surfaceAction, surfaceCheckpoint, surfaceTopology } from "@orb/testkit/browser/spec";
 import type { SurfaceAuditRequest } from "@orb/testkit/ct";
 import type { SeededIds, SurfacePass } from "@orb/testkit/iso";
 import type { SurfaceRunConfig } from "@orb/testkit/node/helpers";
+import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Page, TestInfo } from "@playwright/test";
 import { expect } from "@playwright/test";
 import type { TrpcClient } from "./trpc-client.ts";
@@ -19,6 +20,8 @@ export interface SurfaceFlowInput {
   readonly run: SurfaceRunConfig;
   readonly chatStyle: ThemeChatStyle;
   readonly fontScale: number;
+  /** The browser text-size profile the page took before navigation, or null at the browser default. */
+  readonly textProfile: PlatformTextSize | null;
   /** The run's id source; every name a journey mints draws from it. */
   readonly ids: SeededIds;
 }
@@ -28,6 +31,8 @@ export interface SurfaceFlow extends SurfaceFlowInput {
   readonly action: (name: string, operation: { readonly action: () => Promise<void>; readonly ready: () => Promise<void> }) => Promise<SurfaceActionWindow>;
   readonly requestPanes: () => Promise<void>;
   readonly topology: () => Promise<void>;
+  /** Whether the production shell resolved its desktop regime; enlarged text can resolve a desktop viewport to the mobile shell. */
+  readonly desktopShell: () => Promise<boolean>;
 }
 
 async function requestPanel(page: Page, side: PanelName, wantedOpen: boolean): Promise<void> {
@@ -62,16 +67,20 @@ export function createSurfaceFlow(input: SurfaceFlowInput): SurfaceFlow {
   const topology = async (): Promise<void> => {
     await surfaceTopology(input.info, { page: input.page, requested: input.requestedPanes });
   };
+  const desktopShell = async (): Promise<boolean> => await input.page.evaluate((query) => matchMedia(query).matches, MEDIA_QUERIES["shell-desktop"]);
+  const textGeometry = input.textProfile === null ? null : { expectedRootFontPx: input.textProfile.standardFontPx * input.fontScale };
   return {
     ...input,
+    desktopShell,
     checkpoint: async (request, groups = []): Promise<void> => {
-      await surfaceCheckpoint(input.info, request, groups, { pass: input.pass, layoutStability: input.layoutStability });
+      await surfaceCheckpoint(input.info, request, groups, { pass: input.pass, layoutStability: input.layoutStability, textGeometry });
       expect(await input.page.evaluate(() => "__orb" in globalThis), "The ready production client must not install the development agent bridge").toBe(false);
       await topology();
     },
     action: async (name, operation): Promise<SurfaceActionWindow> => await surfaceAction(input.info, { name, page: input.page, ...operation }),
     requestPanes: async (): Promise<void> => {
-      if (input.requestedPanes.kind === "desktop") {
+      // Desktop docking is not forced onto the mobile shell; the topology attachment records the resolved regime.
+      if (input.requestedPanes.kind === "desktop" && (await desktopShell())) {
         await requestDesktopPanes(input.page, input.requestedPanes);
       }
       await topology();

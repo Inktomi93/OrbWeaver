@@ -1,5 +1,5 @@
 import type { EvidenceGap } from "@orb/tooling/floor/verdict/evidence";
-import type { collectAudit as collectAuditSamples, PixelPass, RawSamples } from "@orb/tooling/ui-audit";
+import type { collectAudit as collectAuditSamples, PixelPass, RawSamples, readCohortRenders } from "@orb/tooling/ui-audit";
 import type { Page } from "@playwright/test";
 
 /** Read the maintained design engine's static census and resolve pending backdrops with its native pixel pass. */
@@ -35,4 +35,10 @@ export async function readSurfaceDesignAudit(page: Page): Promise<{
     populationEvidenceGap(audit.populationAccounting),
   ].filter((gap) => gap !== null);
   return { samples, pixels, audit, gaps };
+}
+
+/** Fingerprint each census cohort's members where the census read them, and compare them within their cohort. */
+export async function readSurfaceCohortRenders(page: Page, samples: RawSamples): Promise<Awaited<ReturnType<typeof readCohortRenders>>> {
+  const { readCohortRenders: read } = await import("@orb/tooling/ui-audit");
+  return await read(page, samples);
 }

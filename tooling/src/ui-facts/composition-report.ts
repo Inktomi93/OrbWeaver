@@ -1,8 +1,8 @@
 // The composition section of the report: skeleton families, section structure, read, feedback and form shape, and variant use.
 import type { AxisUse } from "../eslint/index.ts";
 import { totalUses } from "../eslint/index.ts";
+import type { Cohort, Member } from "../floor/verdict/cohort-compare.ts";
 import type { UiFacts } from "./analysis.ts";
-import type { Cohort, Member } from "./compare.ts";
 import { table } from "./markdown.ts";
 import type { SkeletonCohort } from "./skeleton.ts";
 

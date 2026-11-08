@@ -80,6 +80,25 @@ export function SurfaceDesignStory({ width }: { readonly width: number }): React
   );
 }
 
+// Narrower than the control's label at enlarged text, so a clipping box cuts the control off.
+const CLIPPING_BOX_PX = 160;
+
+/** A control in a fixed-pixel clipping box, or in a box that lets it reflow, for the enlarged-text geometry probes. */
+export function SurfaceTextGeometryStory({ clipped }: { readonly clipped: boolean }): ReactElement {
+  return (
+    <CtIsolation subject="Enlarged-text geometry" isolates="A fixed-pixel clipping box and one production button need no application services.">
+      <main>
+        <Stack padding="section">
+          <h1>Text geometry control</h1>
+          <div style={clipped ? { inlineSize: CLIPPING_BOX_PX, overflow: "hidden", whiteSpace: "nowrap" } : {}}>
+            <Button variant="outline">Continue to the next step</Button>
+          </div>
+        </Stack>
+      </main>
+    </CtIsolation>
+  );
+}
+
 /** The production code editor mounts CodeMirror's runtime stylesheet, whose scope classes are not ASCII. */
 export function SurfaceCodeEditorStory(): ReactElement {
   return (

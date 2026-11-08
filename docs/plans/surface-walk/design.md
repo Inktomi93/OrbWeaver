@@ -59,6 +59,8 @@ Record requested pane preferences and actual resolved topology, including effect
 
 Exercise explicit defaults and relevant enlarged-text profiles. Expand chat mode coverage without multiplying unrelated settings journeys across chat styles.
 
+The `-text200` and `-text300` projects set the browser's default font size to 200% and 300% before the first navigation. The appearance setting stays at its default, because its range stops at `FONT_SCALE.max`. Each checkpoint asserts the resulting root font size and records the enlarged-text geometry findings of its scope. Media-query `rem` follows the browser size, so the 1440 desktop resolves the mobile shell at 200%. The topology attachment records that resolved regime, and the flow does not force desktop docking onto it. WebKit has no enlarged-text project: it exposes no browser text-size setting to the runner.
+
 Record visited, failed, skipped and unvisited states. Hidden retained content is not visited coverage.
 
 Compare cross-section controls only when their semantic role, declared density and resolved container width match. Derive containment and scroll ownership assertions from production layout contracts. This consistency coverage is not yet qualified across the matrix.
@@ -66,6 +68,7 @@ Compare cross-section controls only when their semantic role, declared density a
 Run the existing public design-audit engine last in evidence checkpoints.
 Compare governed tier and variant values against their browser-resolved tokens, not another section's screenshot.
 Keep sibling geometry cohorts within one containing parent and the same authored component, variant, density and tier claims.
+Retain each cohort member's box and a perimeter-ring pixel fingerprint, and compare resting members with the comparison ui-facts uses for source cohorts. Fail a cohort whose majority has outliers. Record a member in another interaction state, outside the viewport, or with a ring that is not one colour as incomplete, not as a match.
 Retain original samples, findings, population accounting and incomplete-evidence details in native files and step parameters.
 Resolve pending backdrops through the public pixel pass before judging samples. Retain original samples, resolved samples and sampling refusals.
 Keep unresolved populations incomplete rather than presenting them as product defects or clean results.
@@ -265,14 +268,31 @@ The fixture sets production-derived display preferences before browser navigatio
 | Design audit | Preserve original samples, the public pixel pass, findings and incomplete populations. Restore scroll positions, exact inline-style attributes, temporary probes and observers on failure. |
 | Request evidence | Reuse the public request ring only in evidence passes. Retain bounded status, timing and size metadata with query-free addresses; retain no headers or bodies. |
 | Layout stability | The `-stability` projects run the measurement pass on Chromium and WebKit, desktop and phone. Each checkpoint samples its witnesses' boxes per frame across a settle window after `readyAt`, with scroll ancestors' offsets removed, so a scroll is not movement. It fails on movement unless an effect on the witness or an ancestor animates a geometry property in that frame or the frame before. Native layout-shift entries in that window stay separate evidence, `unsupported` on WebKit; the measure is not CLS. |
+| Enlarged text | The `-text200` and `-text300` projects run the measurement pass on Chromium desktop and phone with the browser's default font size enlarged through CDP `Page.setFontSizes`. Each checkpoint asserts its root font size and runs the shared enlarged-text geometry probes over its scope. |
 | Boot diagnostic | A separate Chromium project uses the public boot-trace engine and official insight summary. It does not run inside measurement journeys. |
-| Diagnostic limits | Forced-hover design passes are not run. Boot summaries omit complete culprit frames and dependency graphs. Lighthouse snapshot, cascade and CPU sampling are not wired. |
+| Diagnostic limits | Forced-hover design passes are not run. Boot summaries omit complete culprit frames and dependency graphs. CPU sampling is not wired. Lighthouse and the cascade analysis are excluded; see "Excluded diagnostics". |
 | Screenshots | Primary captures show the visible viewport at CSS scale without masks, injected styles or animation suppression. Nested scroll checkpoints are separate; no offscreen coverage is claimed. Native failure screenshots and trace artifacts retain their recorder's native scale; on scaled phone profiles they are device pixels, because the installed Playwright `screenshot` option accepts only `fullPage` and `omitBackground`, not `scale`. The public pixel pass retains its own animation-disabled viewport screenshot. |
 | Reports | Native list, JSON, blob, HTML and traces. The primary Markdown entry routes public native errors, steps and original attachments; no additional finding model or GitHub upload. |
 | Deadlines | Native global timeout owns the execution budget. The outer process allows only a separate report/teardown reserve and retains its complete transcript. |
 | Graphics | Shared native launch profile; record the actual browser's acceleration evidence independently from host timing capability. |
 | Portability | Functional runs target Linux, macOS, and Windows. Hardware discovery may remain unavailable without failing a functional journey. |
 | Private directories | POSIX ownership/mode checks and Windows per-user-profile custody have different guarantees; record the effective assumption. |
+
+## Excluded diagnostics
+
+Snap's Lighthouse audit and its `--cascade` winning-rule analysis do not run behind the surface command. Use `pnpm snap <route> --lighthouse <desktop|mobile>` or `--cascade` on the surface instead.
+
+Both attach a second client to the run's own Chromium through a debugging endpoint that Chrome publishes in its profile's `DevToolsActivePort` file (`tooling/src/floor/browser/debugging-endpoint.ts`). That launch shape is the only one Snap supports; Snap does not reserve fixed debugging ports (`tooling/src/snap/ops/session.ts`, `debuggingPortFor`).
+
+The walk's browser cannot publish that endpoint through supported APIs:
+
+- Playwright Test launches the worker browser with `browserType.launch()`. The installed Playwright creates that profile itself, in a random temporary directory named `playwright_chromiumdev_profile-*`.
+- The same launch refuses a `--user-data-dir` argument and a `--remote-debugging-pipe` override.
+- The installed Lighthouse audits only a Puppeteer page: its `startTimespan` declaration takes `LH.Puppeteer.Page`. Puppeteer connects through a browser endpoint or a whole-browser transport. Playwright's `CDPSession.send(method, params)` carries no target session id, so it cannot serve as that transport.
+- A Lighthouse timespan starts its own protocol trace inside the action window. The measurement pass refuses audits there.
+- The cascade analysis also reads the development merge handle `__orb.css`, which the production build does not install. It answers only explicit selector and property questions, and the walk does not ask any.
+
+Replacing the fixture's launch with a persistent profile would give up Playwright Test's native browser lifecycle.
 
 ## Vendor options
 

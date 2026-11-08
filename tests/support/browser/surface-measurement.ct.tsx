@@ -10,8 +10,10 @@ import {
   installWebVitals,
   markExpectedSurfaceHttpFailure,
   observeSurfaceSession,
+  readSurfaceCohortRenders,
   readSurfaceDesignAudit,
   readWebVitals,
+  setPlatformTextSize,
   surfaceAction,
   surfaceCheckpoint,
   touchTargetFindings,
@@ -29,7 +31,7 @@ import { attachNativeFile } from "../node/native-attachments.ts";
 import type { CheckpointStability } from "./layout-stability.ts";
 import { readCheckpointStability, STABILITY_SETTLE_MS } from "./layout-stability.ts";
 import type { SerializedPerformanceEntry } from "./performance-entry.ts";
-import type { SurfaceCodeEditorStory, SurfaceDesignStory, SurfaceTouchTilingStory } from "./surface-design-fixtures.tsx";
+import type { SurfaceCodeEditorStory, SurfaceDesignStory, SurfaceTextGeometryStory, SurfaceTouchTilingStory } from "./surface-design-fixtures.tsx";
 import type { SurfaceFrameworkStory } from "./surface-framework-fixtures.tsx";
 import type { SurfaceStabilityShift, SurfaceStabilityStory } from "./surface-stability-fixtures.tsx";
 import { hitExtent, touchFloorPx } from "./touch-floor.ts";
@@ -362,6 +364,97 @@ test("cohort geometry compares the same declared variant rather than every butto
   expect(broken.audit.findings.some(({ rule, selector }) => rule === "cohort-anatomy" && selector.includes("Small control three"))).toBe(true);
 });
 
+// WCAG 1.4.4 text resize: the browser's default font size doubled.
+const ENLARGED_TEXT_SCALE = 2;
+
+type CohortRender = Awaited<ReturnType<typeof readSurfaceCohortRenders>>["cohorts"][number];
+
+const SMALL_CONTROLS = ["Small control one", "Small control two", "Small control three"] as const;
+
+async function smallControlRenders(page: Page, info: TestInfo, name: string): Promise<CohortRender> {
+  // A fingerprint reads one viewport screenshot, so the row must be on screen on the short phone viewport too.
+  await page.getByRole("button", { name: SMALL_CONTROLS[2], exact: true }).scrollIntoViewIfNeeded();
+  const design = await readSurfaceDesignAudit(page);
+  const renders = await readSurfaceCohortRenders(page, design.samples);
+  await attachNativeFile(info, info, name, { body: JSON.stringify(renders, null, 2), contentType: "application/json" });
+  const cohort = renders.cohorts.find(({ members }) => SMALL_CONTROLS.every((label) => members.some(({ selector }) => selector.includes(label))));
+  if (cohort === undefined) {
+    throw new Error("The census formed no cohort of the three small controls");
+  }
+  return cohort;
+}
+
+test("rendered cohort fingerprints agree on an identical cohort and flag the member that paints differently", async ({ mount, page }, info) => {
+  await mount<typeof SurfaceDesignStory>("tests/support/browser/surface-design-fixtures/SurfaceDesignStory", { width: 640 });
+  const target = page.getByRole("button", { name: SMALL_CONTROLS[2], exact: true });
+  await expect(target).toBeVisible();
+  const healthy = await smallControlRenders(page, info, "cohort-renders-healthy");
+  expect(healthy.members.map(({ fingerprint }) => fingerprint.status)).toEqual(["measured", "measured", "measured"]);
+  expect(healthy.verdict).toBe("uniform");
+  await target.evaluate((element, primary) => {
+    element.style.setProperty("background-color", `var(${primary})`);
+  }, TOKENS["color.primary"].cssVar);
+  const planted = await smallControlRenders(page, info, "cohort-renders-planted");
+  expect(planted.verdict).toBe("divergent");
+  expect(planted.comparisons.flatMap(({ outliers }) => outliers).map(({ at }) => at)).toEqual([expect.stringContaining(SMALL_CONTROLS[2])]);
+});
+
+test("a member whose perimeter ring is not one colour stays incomplete rather than matching its cohort", async ({ mount, page }, info) => {
+  await mount<typeof SurfaceDesignStory>("tests/support/browser/surface-design-fixtures/SurfaceDesignStory", { width: 640 });
+  const target = page.getByRole("button", { name: SMALL_CONTROLS[2], exact: true });
+  await target.evaluate(
+    (element, [from, to]) => {
+      element.style.setProperty("background-image", `linear-gradient(to right, var(${from}), var(${to}))`);
+    },
+    [TOKENS["color.background"].cssVar, TOKENS["color.foreground"].cssVar] as const,
+  );
+  const cohort = await smallControlRenders(page, info, "cohort-renders-unresolved");
+  const member = cohort.members.find(({ selector }) => selector.includes(SMALL_CONTROLS[2]));
+  expect(member?.fingerprint).toEqual({ status: "incomplete", reason: expect.stringContaining("not one colour") });
+  expect(cohort.comparisons.find(({ column }) => column === "ring")?.total).toBe(SMALL_CONTROLS.length - 1);
+});
+
+test("the browser text size reaches the mounted document and its media-query rem", async ({ mount, page, browserName }) => {
+  test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+  const desktop = MEDIA_QUERIES["shell-desktop"];
+  // The production query reads `(width > <n>rem)`; its breakpoint is the number after the comparison.
+  const breakpointRem = Number.parseFloat(desktop.slice(desktop.indexOf(">") + 1));
+  expect(breakpointRem).toBeGreaterThan(0);
+  const width = page.viewportSize()?.width ?? 0;
+  // The project viewport is a desktop shell at the default size and below the breakpoint at 200%.
+  expect(await page.evaluate((query) => matchMedia(query).matches, desktop)).toBe(true);
+  const profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+  expect(width / profile.defaultFontPx).toBeGreaterThan(breakpointRem);
+  expect(width / profile.standardFontPx).toBeLessThan(breakpointRem);
+  await mount<typeof SurfaceTextGeometryStory>("tests/support/browser/surface-design-fixtures/SurfaceTextGeometryStory", { clipped: false });
+  await expect(page.getByRole("button", { name: "Continue to the next step", exact: true })).toBeVisible();
+  expect(profile.standardFontPx).toBe(profile.defaultFontPx * ENLARGED_TEXT_SCALE);
+  expect(await page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize))).toBe(profile.standardFontPx);
+  expect(await page.evaluate((query) => matchMedia(query).matches, desktop)).toBe(false);
+});
+
+for (const clipped of [false, true]) {
+  test(`enlarged-text geometry ${clipped ? "fails a control a fixed box clips" : "passes a control that reflows"} at 200% browser text`, async ({
+    mount,
+    page,
+    browserName,
+  }, info) => {
+    test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+    const profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+    await mount<typeof SurfaceTextGeometryStory>("tests/support/browser/surface-design-fixtures/SurfaceTextGeometryStory", { clipped });
+    const witness = page.getByRole("button", { name: "Continue to the next step", exact: true });
+    const name = `text-geometry-${clipped ? "clipped" : "reflowed"}`;
+    await surfaceCheckpoint(info, { name, scope: page.getByRole("main"), state: "loaded", witnesses: [witness], checks: ["names"] }, [], {
+      pass: "measurement",
+      layoutStability: false,
+      textGeometry: { expectedRootFontPx: profile.standardFontPx },
+    });
+    expect(await nativeAttachmentText(info, `${name}-text-geometry`)).toContain(`"rootFontPx": ${String(profile.standardFontPx)}`);
+    expect(info.errors.map(({ message }) => message?.includes("enlarged-text geometry findings"))).toEqual(clipped ? [true] : []);
+    test.fail(clipped, "A control a fixed-pixel box clips at enlarged text must fail the native checkpoint");
+  });
+}
+
 test("the design walk restores real nested scroll positions after a native reveal throws", async ({ mount, page }) => {
   await mount<typeof SurfaceDesignStory>("tests/support/browser/surface-design-fixtures/SurfaceDesignStory", { width: 640 });
   const viewport = page.locator('[data-slot="scroll-area-viewport"][aria-label="Design scroll control"]');
@@ -621,6 +714,7 @@ async function stabilityCheckpoint(
   await surfaceCheckpoint(info, { name, scope: page.getByRole("main"), state: "loaded", witnesses: [witness], checks: ["names"] }, [], {
     pass: "measurement",
     layoutStability: true,
+    textGeometry: null,
   });
   expect(await nativeAttachmentText(info, `${name}-layout-stability`)).toContain('"measure": "post-ready-witness-movement"');
   // A second window over the same story reads the record as values; the checkpoint above carried the native verdict.

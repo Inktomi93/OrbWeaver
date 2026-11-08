@@ -74,6 +74,19 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
     return parts.join("|");
   }
 
+  // A member showing an interaction or selection state paints that state, not the cohort's resting anatomy.
+  function memberRenderState(el) {
+    if (el.getAttribute("aria-selected") === "true" || el.hasAttribute("data-selected")) return "selected";
+    var current = el.getAttribute("aria-current");
+    if (current !== null && current !== "false") return "current";
+    if (el.getAttribute("aria-pressed") === "true" || el.getAttribute("aria-checked") === "true") return "pressed";
+    if (el.getAttribute("aria-expanded") === "true" || el.hasAttribute("data-popup-open")) return "open";
+    if (el.matches(":disabled") || el.getAttribute("aria-disabled") === "true") return "disabled";
+    if (el.matches(":focus-within")) return "focused";
+    if (el.matches(":hover")) return "hovered";
+    return "rest";
+  }
+
   // A cohort is scoped to ONE parent: same-slot elements in two different lists are two populations and
   // may legitimately differ. Keyed on the parent element itself, so no selector round-trip is needed.
   var cohortsByParent = new Map();
@@ -129,6 +142,7 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
     var cdisplay = getComputedStyle(cel).display;
     members.push({
       el: cel,
+      rect: crect,
       height: Math.round(crect.height),
       content: Math.round(tallestChild),
       animating: canim,
@@ -215,6 +229,9 @@ export const WALKER_CENSUS_COHORT = `  // ── sibling cohort anatomy ──�
         outlierSelector: outlier === null ? describe(parentEl) : describe(outlier.el),
         distinctHeights: distinct.length,
         animating: animating,
+        memberRenders: members.map(function (m) {
+          return { selector: describe(m.el), x: m.rect.x, y: m.rect.y, width: m.rect.width, height: m.rect.height, state: memberRenderState(m.el) };
+        }),
       });
       relationalAccounting["cohort-anatomy"].judged += 1;
     });
