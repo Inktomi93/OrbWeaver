@@ -147,6 +147,7 @@ const REFINES: Readonly<Record<string, ArmsByTable>> = {
   "layout > width": { [INPUT]: ["field", "inline"] },
   "lines > whitespace": { [TEXT]: ["2"] },
   "pinned > layer": { [ROW]: ["header", "headerOutside"] },
+  "pinned > paddingBlockShort": { [ROW]: ["dialogFooter"] },
   "prose > artScale": { [TEXT]: ["true"] },
   "prose > solidLine": { [TEXT]: ["true"] },
   "rail > nested": { [CARD]: ["primary"] },
