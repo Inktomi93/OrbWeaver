@@ -3,15 +3,27 @@ import { CHARACTER_HANDLE_CONFLICT_OP_CODE } from "@orb/contracts/character";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
-import { createShellAmbientReads, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError, trpcHold } from "@orb/testkit/ct";
+import {
+  createShellAmbientReads,
+  noticeToast,
+  routeAuthConfig,
+  routeTrpc,
+  SECTION_PROCEDURES,
+  serveCorpusProcedures,
+  trpcError,
+  trpcHold,
+} from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { CHARACTER_DESCRIPTION_FIELD_NAME, CHARACTER_NAME_FIELD_NAME, CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
+import { characterRefusalCopy } from "#client/features/character/lib/character-refusal-notice.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const READ_PROCEDURES = [...SECTION_PROCEDURES, "tag.listTagFilterVocabulary"] as const;
 const TAKEN = "Held name";
+// What the client holds once the wire answers the held create with the coded reason.
+const HANDLE_CONFLICT = { data: { reason: CHARACTER_HANDLE_CONFLICT_OP_CODE } } as const;
 
 type Corpus = Parameters<typeof createShellAmbientReads>[0];
 type Harness = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -37,6 +49,15 @@ async function heldHandleRefusal(root: Harness, page: Page, corpus: Corpus): Pro
   return { requested: hold.requested, land: (): void => hold.release(trpcError({ code: "CONFLICT", reason: CHARACTER_HANDLE_CONFLICT_OP_CODE })) };
 }
 
+/** The toast the coded refusal raises: the copy production maps that reason to, not any alert. */
+function refusalToast(page: Page): Locator {
+  const copy = characterRefusalCopy(HANDLE_CONFLICT);
+  if (copy === null) {
+    throw new Error("characterRefusalCopy has no copy for the handle conflict");
+  }
+  return noticeToast(page, { title: copy });
+}
+
 async function submitTakenName(page: Page, held: HeldRefusal): Promise<void> {
   await page.getByRole("button", { name: CHARACTER_NEW_NAME, exact: true }).first().click();
   const dialog = page.getByRole("dialog");
@@ -55,7 +76,7 @@ test("a name refusal that lands after Cancel is still said, by the toast", async
   await page.getByRole("dialog").getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page.getByRole("dialog")).toHaveCount(0);
   held.land();
-  await expect(page.getByRole("region", { name: "Alerts", exact: true }).getByRole("alert").first()).toBeVisible();
+  await expect(refusalToast(page)).toBeVisible();
 });
 
 test("a name refusal that lands after the name was edited is still said, by the toast", async ({ corpus, mount, page }) => {
@@ -68,7 +89,7 @@ test("a name refusal that lands after the name was edited is still said, by the 
   await name.fill(`${TAKEN} two`);
   await expect(name).toHaveValue(`${TAKEN} two`);
   held.land();
-  await expect(page.getByRole("region", { name: "Alerts", exact: true }).getByRole("alert").first()).toBeVisible();
+  await expect(refusalToast(page)).toBeVisible();
   await expect(page.getByRole("dialog").getByRole("alert")).toHaveCount(0);
 });
 

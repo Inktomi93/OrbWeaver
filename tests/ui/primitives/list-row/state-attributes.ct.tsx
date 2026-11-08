@@ -37,6 +37,10 @@ test("selected, expanded and disabled rows read their state from the attributes"
   expect(disabled.opacity).not.toBe(plain.opacity);
   await expect(row("Disabled")).toHaveAttribute("aria-disabled", "true");
   await expect(row("Disabled")).toHaveAttribute("tabindex", "-1");
-  await row("Disabled").dispatchEvent("click");
-  await expect(component.locator('[data-slot="clicks"]')).toHaveText("0");
+
+  // The enabled row's handler fires on a real click, so a count of zero would mean the handler is dead, not that a row is disabled.
+  const clicks = component.locator('[data-slot="clicks"]');
+  await expect(clicks).toHaveText("0");
+  await row("Plain").click();
+  await expect(clicks).toHaveText("1");
 });

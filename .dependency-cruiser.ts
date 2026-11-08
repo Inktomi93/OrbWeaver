@@ -422,6 +422,10 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/forms/editor/autosave-status-names.ts": "AUTOSAVE_SAVED_TEXT and its siblings: the words the shared autosave readout prints",
   "packages/client/src/features/character/lib/character-names.ts":
     "CHARACTER_SEARCH_NAME and its siblings: the accessible names the Characters library, editor and dialogs print",
+  "packages/client/src/features/character/lib/character-refusal-notice.ts":
+    "characterRefusalCopy: the copy a coded character refusal raises, which a notice case reads its expected toast from",
+  "packages/client/src/features/chat/lib/warning-notice.ts":
+    "warningNotice: the notice each chat warning code raises, which a notice case reads its expected toast from",
   "packages/client/src/features/config/lib/config-copy.ts": "CONFIG_SECTION_LABEL: the settings section labels",
   "packages/client/src/lib/dialog-verbs.ts": "DIALOG_VERBS: the exit and commit words every dialog prints, which the surface walk drivers locate controls by",
   "packages/client/src/components/shared-control-names.ts":
