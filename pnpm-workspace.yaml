@@ -341,6 +341,10 @@ catalog:
   # babel for oxc, so the compiler runs as a @rolldown/plugin-babel preset that MUST precede react().
   babel-plugin-react-compiler: ^1.0.0
   "@rolldown/plugin-babel": ^0.2.4
+  # The plugin's `@babel/core` peer, declared so pnpm never floats it onto the 8.x line that Stryker brings: under
+  # Babel 8 the compiler skips every component with a destructured default parameter, silently.
+  # tests/client/react-compiler-contract.test.ts compiles such a component through the installed pair.
+  "@babel/core": ^7.29.0
   # --- client data/forms/state (the Phase-6 client-foundation wave — UI-Primitives-and-Reuse.md §13.1
   #     primitives; versions per the UI-Lib-* mines' verified baselines, caret-adopted) ---
   "@tanstack/react-query": ^5.104.5
