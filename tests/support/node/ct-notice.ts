@@ -2,9 +2,7 @@
 // "some alert": any toast satisfies a first-alert read, including the generic failure the specific refusal replaced.
 
 import type { Locator, Page } from "@playwright/test";
-
-// The viewport's accessible name, set by the toast outlet in `@orb/ui`.
-const ALERTS_REGION_NAME = "Alerts";
+import { ALERTS_REGION_NAME } from "../../../packages/ui/src/primitives/toast/toast-names.ts";
 
 /** What a toast says: the shape of `NotifyNotice` the client raises, minus the action. */
 interface NoticeCopy {

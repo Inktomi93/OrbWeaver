@@ -7,9 +7,9 @@ import { expect, test } from "@orb/testkit/node";
 import { TOKENS } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
 import { serializeOpaqueOklch, toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
+import { HEARTH_ACCENT } from "./tone-scope-misses.ts";
 
 const SWEEP_TIMEOUT_MS = 180_000;
-const HEARTH_ACCENT = TOKENS["color.primary"].value;
 const PANEL_INKS = [
   ["card", "color.card-foreground"],
   ["popover", "color.popover-foreground"],

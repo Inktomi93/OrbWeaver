@@ -10,6 +10,7 @@ import {
 } from "@orb/client/lib";
 import type { CharacterHandle } from "@orb/kit/ids";
 import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { Page, Response } from "@playwright/test";
 import { z } from "zod";
 import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
@@ -26,7 +27,7 @@ const PROBE_NAME = "Home Launch Probe";
 const PROBE_GREETING = "The night market hums.";
 
 // The phone's bottom bar carries only the curated sections, so it reaches Home and Chats through the command palette.
-async function goToSection(page: Page, isMobile: boolean, name: "Home" | "Chats"): Promise<void> {
+async function goToSection(page: Page, isMobile: boolean, name: typeof SECTION_LABELS.home | typeof SECTION_LABELS.chats): Promise<void> {
   if (!isMobile) {
     await page.getByRole("navigation", { name: "Primary" }).getByRole("button", { name, exact: true }).click();
     return;
@@ -72,7 +73,7 @@ test.describe("committed corpus room launches", () => {
     // A phone opens Chats on its list screen; the content pane that carries this state is not a screen there.
     test.skip(isMobile, "The phone's Chats section opens on its list screen");
     await openHome(page);
-    await goToSection(page, isMobile, "Chats");
+    await goToSection(page, isMobile, SECTION_LABELS.chats);
     await expect(page.getByText(NO_CHAT_SELECTED_TITLE, { exact: true })).toBeVisible();
     await expect(page.getByRole("button", { name: START_NEW_CHAT_NAME, exact: true })).toBeVisible();
     await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toHaveCount(0);
@@ -132,9 +133,9 @@ test.describe("committed corpus room launches", () => {
       await composer.pressSequentially(UNSENT_LINE);
       await expect(composer).toHaveValue(UNSENT_LINE);
 
-      await goToSection(page, isMobile, "Home");
+      await goToSection(page, isMobile, SECTION_LABELS.home);
       await expect(page.locator('[data-home-tile="chat.tempChat"]')).toBeVisible();
-      await goToSection(page, isMobile, "Chats");
+      await goToSection(page, isMobile, SECTION_LABELS.chats);
 
       await expect(page.getByText(NO_CHAT_SELECTED_TITLE, { exact: true })).toHaveCount(0);
       await expect(composer).toHaveValue(UNSENT_LINE);

@@ -5,7 +5,7 @@ import { contextToggleLabel } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { DATABANK_UPLOAD_ROUTE } from "@orb/contracts/uploads";
 import { dropOn, seedShellState, settledBox } from "@orb/testkit/browser/spec";
-import { SECTION_LABELS } from "@orb/testkit/ct";
+import { ALERTS_REGION_NAME, SECTION_LABELS } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
@@ -229,7 +229,7 @@ test.describe("with an open sheet and keyboard", () => {
       viewport.dispatchEvent(new Event("resize"));
     });
     await expect(page.locator("html")).toHaveAttribute("data-keyboard-up", "");
-    const overlay = page.getByRole("region", { name: "Alerts", exact: true });
+    const overlay = page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true });
     const visualBottom = await page.evaluate(() => globalThis.visualViewport?.height ?? 0);
     expect(visualBottom).toBeGreaterThan(0);
     await expect

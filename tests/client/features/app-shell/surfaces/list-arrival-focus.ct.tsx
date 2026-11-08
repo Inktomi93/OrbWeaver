@@ -115,7 +115,7 @@ for (const section of SECTIONS) {
     await seedShellState(page, { activeSection: "home" });
     await mount<typeof AppShellStory>(STORY, {});
     const rail = page.locator(".shell-rail");
-    for (const label of [section.label, "Home", section.label]) {
+    for (const label of [section.label, SECTION_LABELS.home, section.label]) {
       const entry = rail.getByRole("button", { name: label, exact: true });
       await entry.focus();
       await entry.press("Enter");

@@ -38,9 +38,14 @@ test("selected, expanded and disabled rows read their state from the attributes"
   await expect(row("Disabled")).toHaveAttribute("aria-disabled", "true");
   await expect(row("Disabled")).toHaveAttribute("tabindex", "-1");
 
-  // The enabled row's handler fires on a real click, so a count of zero would mean the handler is dead, not that a row is disabled.
+  // The enabled row's handler fires on a real click, so a count of zero on the disabled row means it withheld the click, not that
+  // handlers are dead. Playwright treats `aria-disabled` as not actionable, so the click is dispatched as an event.
   const clicks = component.locator('[data-slot="clicks"]');
+  const disabledClicks = component.locator('[data-slot="disabled-clicks"]');
   await expect(clicks).toHaveText("0");
+  await expect(disabledClicks).toHaveText("0");
+  await row("Disabled").dispatchEvent("click");
   await row("Plain").click();
   await expect(clicks).toHaveText("1");
+  await expect(disabledClicks).toHaveText("0");
 });

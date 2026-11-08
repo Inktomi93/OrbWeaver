@@ -1,5 +1,6 @@
 // Corpus characters, native chat actions and durable identity; only physical provider bytes are scripted.
 import { blobUrl } from "@orb/contracts/assets";
+import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { CorpusWire } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
 import { CHAT_CANCEL_EDIT_NAME, CHAT_SAVE_EDIT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
@@ -37,7 +38,7 @@ async function jumpTo(page: Page, name: string): Promise<void> {
 async function openPersonas(page: Page, isMobile: boolean): Promise<void> {
   if (isMobile) {
     // Home preserves the active room; Back to Chats would instead clear its persona context.
-    await jumpTo(page, "Home");
+    await jumpTo(page, SECTION_LABELS.home);
     await page.getByRole("button", { name: "You", exact: true }).click();
   } else {
     await page.getByRole("button", { name: /^(?:Playing as .+|Account & personas)$/u }).click();

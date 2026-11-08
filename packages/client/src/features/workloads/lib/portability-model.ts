@@ -4,7 +4,7 @@
 
 import type { ImportWindow } from "@orb/contracts/chat";
 import { importWindowSchema, mergeImportWindows } from "@orb/contracts/chat";
-import type { CardImportResult, ImportPreview } from "@orb/contracts/import";
+import type { CardImportResult, ImportPreview, ImportPreviewKind, ImportPreviewList } from "@orb/contracts/import";
 import { IMPORT_PREVIEW_KINDS, importPreviewSchema } from "@orb/contracts/import";
 import type { PortableKind } from "@orb/contracts/portability";
 import { PORTABILITY_ROUTES, PORTABLE_KINDS } from "@orb/contracts/portability";
@@ -217,3 +217,28 @@ export function previewIsEmpty(preview: ImportPreview): boolean {
 
 /** What the preflight says when the dry run found nothing a real run would write. */
 export const IMPORT_NOTHING_FOUND_NOTE = "Nothing to import was found in this folder.";
+
+/** The noun a kind prints beside its count, singular then plural. */
+export const KIND_NOUNS: Readonly<Record<ImportPreviewKind, readonly [one: string, many: string]>> = {
+  characters: ["character", "characters"],
+  chats: ["chat", "chats"],
+  personas: ["persona", "personas"],
+  worlds: ["world book", "world books"],
+  presets: ["preset", "presets"],
+  themes: ["theme", "themes"],
+  backgrounds: ["background", "backgrounds"],
+  groups: ["group", "groups"],
+  orphans: ["character made from chats with no card", "characters made from chats with no card"],
+};
+
+export function counted(count: number, [one, many]: readonly [string, string]): string {
+  return `${String(count)} ${count === 1 ? one : many}`;
+}
+
+/** One kind's summary line: its total, then the items already in the library and the personas that import without art. */
+export function previewKindLine(kind: ImportPreviewKind, list: ImportPreviewList): string {
+  const owned = list.items.filter((item) => item.inLibrary === true).length;
+  const bare = list.items.filter((item) => item.withoutArt === true).length;
+  const notes = [...(owned === 0 ? [] : [`${String(owned)} already in your library`]), ...(bare === 0 ? [] : [`${String(bare)} will import without art`])];
+  return [counted(list.total, KIND_NOUNS[kind]), ...notes].join(", ");
+}

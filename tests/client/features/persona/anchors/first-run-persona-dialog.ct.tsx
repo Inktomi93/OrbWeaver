@@ -1,6 +1,6 @@
 // A viewer who cannot speak yet meets a forced persona ask: no dismissal, and one way out once a name exists.
 import { testId } from "@orb/client/lib";
-import { routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
+import { ALERTS_REGION_NAME, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { FirstRunPersonaDialogStory } from "./_first-run-persona-stories.tsx";
@@ -51,6 +51,6 @@ test("a refused create is said by the ask's own sentence", async ({ corpus, moun
   await gate.getByRole("textbox", { name: "Name", exact: true }).fill("Sarah");
   await page.getByTestId(testId("firstRunPersonaCreate")).click();
 
-  const alerts = page.getByRole("region", { name: "Alerts", exact: true });
+  const alerts = page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true });
   await expect(alerts.getByText("Couldn't create your persona. Try again.", { exact: true })).toBeVisible();
 });

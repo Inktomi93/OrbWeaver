@@ -1,7 +1,7 @@
 import type { StreamFrame } from "@orb/contracts/stream";
 import { normalizeTagName } from "@orb/kit/tag";
 import type { TrpcRoutes } from "@orb/testkit/ct";
-import { holdServed, routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError, trpcHold } from "@orb/testkit/ct";
+import { ALERTS_REGION_NAME, holdServed, routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError, trpcHold } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -24,7 +24,7 @@ async function expectMerged(page: Page, confirm: Locator, release: () => void): 
 }
 
 async function expectFailedMerge(page: Page, confirm: Locator, resumeWrites: () => void): Promise<void> {
-  await expect(page.getByRole("region", { name: "Alerts", exact: true }).getByText("Couldn't merge the tags.", { exact: true })).toBeVisible();
+  await expect(page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByText("Couldn't merge the tags.", { exact: true })).toBeVisible();
   await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
   await expect(page.getByRole("textbox", { name: "Name", exact: true })).toHaveValue("Failed source draft");
   resumeWrites();

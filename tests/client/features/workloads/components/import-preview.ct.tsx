@@ -2,7 +2,7 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
-import type { ImportPreviewList } from "@orb/contracts/import";
+import type { ImportPreview } from "@orb/contracts/import";
 import { IMPORT_PREVIEW_KINDS, importStartedSchema, ST_SETTINGS_FILE, TREE_DRY_RUN_FIELD, TREE_DRY_RUN_VALUE, TREE_FILE_FIELD } from "@orb/contracts/import";
 import { createPersonaSchema } from "@orb/contracts/persona";
 
@@ -21,6 +21,7 @@ import {
   IMPORT_CONFIRM_NAMES,
   IMPORT_NOTHING_FOUND_NOTE,
   IMPORT_PREVIEW_RETRY_NAME,
+  previewKindLine,
 } from "#client/features/workloads/lib/portability-model.ts";
 import type { ImportPreviewStory } from "./_import-preview-stories.tsx";
 
@@ -33,24 +34,27 @@ const ROOT_OPTIONS = {
   startJobs: false,
 } as const;
 const OWNED_PERSONA = "Mara";
+// A persona the folder carries exactly as the library holds it: the summary counts it as already there.
+const HELD_PERSONA = "Held persona";
+const HELD_DESCRIPTION = "Already in your library.";
 const WIDTHS = [
   { name: "wide", width: 960, appearance: appearanceSettingsSchema.parse({}) },
   { name: "narrow enlarged", width: 300, appearance: ENLARGED_APPEARANCE_SETTINGS },
 ] as const;
 
-/** The whole numbers a summary line prints, in order: its count, then the notes after it. */
+/** The whole numbers a summary line prints, in order. */
 function numbersIn(text: string): readonly number[] {
   return (text.match(/\d+/gu) ?? []).map(Number);
 }
 
-/** The counts a kind's line adds after its total: items already in the library, then items that import without art. */
-function notedCounts(list: ImportPreviewList): readonly number[] {
-  return [list.items.filter((item) => item.inLibrary === true).length, list.items.filter((item) => item.withoutArt === true).length].filter(
-    (count) => count > 0,
-  );
+/** The folder must stage both note kinds the summary adds after a count, or a dropped note could not fail a case. */
+function expectNoteItemsStaged(preview: ImportPreview): void {
+  const items = IMPORT_PREVIEW_KINDS.flatMap((kind) => preview.kinds[kind].items);
+  expect(items.filter((item) => item.inLibrary === true).length).toBeGreaterThan(0);
+  expect(items.filter((item) => item.withoutArt === true).length).toBeGreaterThan(0);
 }
 
-/** A real exported card plus settings: one persona colliding with an owned one, and a card that cannot be read. */
+/** A real exported card plus settings: one persona colliding with an owned one, one the library already holds, and a card that cannot be read. */
 async function stageFolder(root: ServerTestHarness, folder: string): Promise<void> {
   const caller = await root.internalCallerFor(root.ownerId);
   const card = await caller.character.create({
@@ -60,6 +64,7 @@ async function stageFolder(root: ServerTestHarness, folder: string): Promise<voi
   expect(exported.status).toBe(200);
   await caller.character.remove({ characterId: card.id });
   await caller.persona.create({ input: createPersonaSchema.parse({ name: OWNED_PERSONA, description: "Your own description." }) });
+  await caller.persona.create({ input: createPersonaSchema.parse({ name: HELD_PERSONA, description: HELD_DESCRIPTION }) });
   await mkdir(join(folder, "characters"), { recursive: true });
   await writeFile(join(folder, "characters", "preview-card.png"), Buffer.from(await exported.arrayBuffer()));
   await writeFile(join(folder, "characters", "broken.png"), "not a card");
@@ -67,8 +72,8 @@ async function stageFolder(root: ServerTestHarness, folder: string): Promise<voi
     join(folder, ST_SETTINGS_FILE),
     JSON.stringify({
       ["power_user"]: {
-        personas: { "mara.png": OWNED_PERSONA },
-        ["persona_descriptions"]: { "mara.png": { description: "A different description." } },
+        personas: { "mara.png": OWNED_PERSONA, "held.png": HELD_PERSONA },
+        ["persona_descriptions"]: { "mara.png": { description: "A different description." }, "held.png": { description: HELD_DESCRIPTION } },
       },
     }),
   );
@@ -171,8 +176,10 @@ for (const { name, width, appearance } of WIDTHS) {
     const [preview] = nonEmpty((await caller.workloads.list({ kind: "import-st" })).flatMap((run) => asImportPreview(run.result) ?? []));
     const populated = IMPORT_PREVIEW_KINDS.filter((kind) => preview.kinds[kind].total > 0);
     expect(preview.skipped.total).toBeGreaterThan(0);
-    const lines = (await report.locator(":scope > *").allTextContents()).filter((text) => /^\d/u.test(text)).map(numbersIn);
-    expect(lines).toEqual([...populated.map((kind) => [preview.kinds[kind].total, ...notedCounts(preview.kinds[kind])]), [preview.skipped.total]]);
+    expectNoteItemsStaged(preview);
+    const lines = (await report.locator(":scope > *").allTextContents()).filter((text) => /^\d/u.test(text));
+    expect(lines.slice(0, populated.length)).toEqual(populated.map((kind) => previewKindLine(kind, preview.kinds[kind])));
+    expect(lines.slice(populated.length).map(numbersIn)).toEqual([[preview.skipped.total]]);
     for (const reason of new Set(preview.skipped.items.map((skip) => skip.reason))) {
       await expect(report).toContainText(reason);
     }
@@ -410,7 +417,6 @@ test("a folder's persona the library already holds is counted as already there, 
   await using root = await createServerHarness(ROOT_OPTIONS);
   const caller = await root.internalCallerFor(root.ownerId);
   const folder = testInfo.outputPath("profile");
-  const heldDescription = "Already in your library.";
   // A preset is a unit the planner sends on its own, so the folder has something to read beside the settings.
   await mkdir(join(folder, "OpenAI Settings"), { recursive: true });
   await writeFile(
@@ -424,13 +430,13 @@ test("a folder's persona the library already holds is counted as already there, 
     join(folder, ST_SETTINGS_FILE),
     JSON.stringify({
       ["power_user"]: {
-        personas: { "held.png": "Held persona", "new.png": "New persona" },
-        ["persona_descriptions"]: { "held.png": { description: heldDescription } },
+        personas: { "held.png": HELD_PERSONA, "new.png": "New persona" },
+        ["persona_descriptions"]: { "held.png": { description: HELD_DESCRIPTION } },
       },
     }),
   );
   await root.settleBackground();
-  await caller.persona.create({ input: createPersonaSchema.parse({ name: "Held persona", description: heldDescription }) });
+  await caller.persona.create({ input: createPersonaSchema.parse({ name: HELD_PERSONA, description: HELD_DESCRIPTION }) });
   await using _native = await routeNativeImport(page, root, baseURL);
   await openImport(page, root);
   await mount<typeof ImportPreviewStory>(STORY, { width: WIDTHS[0].width, appearance: WIDTHS[0].appearance });
@@ -442,7 +448,8 @@ test("a folder's persona the library already holds is counted as already there, 
   // The control: the wire carries the ownership the line reads, for a kind that is not a character.
   const [preview] = nonEmpty((await caller.workloads.list({ kind: "import-st" })).flatMap((run) => asImportPreview(run.result) ?? []));
   expect(preview.kinds.personas.items.filter((item) => item.inLibrary === true)).toHaveLength(1);
-  const lines = (await report.locator(":scope > *").allTextContents()).filter((text) => /^\d/u.test(text)).map(numbersIn);
+  expectNoteItemsStaged(preview);
+  const lines = (await report.locator(":scope > *").allTextContents()).filter((text) => /^\d/u.test(text));
   const populated = IMPORT_PREVIEW_KINDS.filter((kind) => preview.kinds[kind].total > 0);
-  expect(lines).toEqual(populated.map((kind) => [preview.kinds[kind].total, ...notedCounts(preview.kinds[kind])]));
+  expect(lines).toEqual(populated.map((kind) => previewKindLine(kind, preview.kinds[kind])));
 });

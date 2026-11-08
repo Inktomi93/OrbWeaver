@@ -1,5 +1,5 @@
 // No failure is silent: an older write that fails after a newer one, or after the error was cleared, still toasts.
-import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { ALERTS_REGION_NAME, holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { SupersededWritesStory } from "./_superseded-writes-stories.tsx";
@@ -22,7 +22,7 @@ test("a write that fails after a newer write succeeded is still said", async ({ 
   await page.getByRole("button", { name: "Write second", exact: true }).click();
   await expect(page.getByRole("status", { name: "Second write", exact: true })).toHaveText("Saved");
   hold.fail();
-  await expect(page.getByRole("region", { name: "Alerts", exact: true }).getByRole("alert", { name: SAVE_FAILED, exact: true })).toHaveCount(1);
+  await expect(page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByRole("alert", { name: SAVE_FAILED, exact: true })).toHaveCount(1);
 });
 
 test("a write whose error was cleared before it failed is still said", async ({ mount, page }) => {
@@ -39,5 +39,5 @@ test("a write whose error was cleared before it failed is still said", async ({ 
   await hold.requested;
   await page.getByRole("button", { name: "Clear error", exact: true }).click();
   hold.fail();
-  await expect(page.getByRole("region", { name: "Alerts", exact: true }).getByRole("alert", { name: SAVE_FAILED, exact: true })).toHaveCount(1);
+  await expect(page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByRole("alert", { name: SAVE_FAILED, exact: true })).toHaveCount(1);
 });

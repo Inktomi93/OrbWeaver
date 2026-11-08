@@ -6,30 +6,18 @@ import { ACCEPTED_BASES } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { TOKEN_POLARITY_ARMS, TOKENS } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
-import { serializeOpaqueOklch, toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
+import { serializeOpaqueOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import { THEME_SCOPE_EMIT_VARS, THEME_SCOPE_STATIC_SEED_VARS } from "../../../../packages/ui/src/content/theme-scope/emit-vars.ts";
-import { MID_GREY } from "./contrast-cases.ts";
+import { LIGHT_MID_TONE, MID_GREY, STRONG_ACCENT } from "./contrast-cases.ts";
+import { HEARTH_ACCENT, parsed } from "./tone-scope-misses.ts";
 
 const SWEEP_TIMEOUT_MS = 180_000;
-const HEARTH_ACCENT = TOKENS["color.primary"].value;
 const EDGE = TOKENS["color.input-border"].cssVar;
-/** An accent that clears the card as authored, so the ring is not pulled down to the 3:1 floor the edge also holds. */
-const STRONG_ACCENT = "oklch(0.2 0.1 260)";
-/** A light-polarity page near the crossover, whose nearest edge on the panels alone sits on the light side, on top of the near-white field fill. */
-const LIGHT_MID_TONE = "oklch(0.6599 0.14 30)";
 
 interface Pixel {
   readonly r: number;
   readonly g: number;
   readonly b: number;
-}
-
-function parsed(color: string): Oklch {
-  const value = toOklch(color);
-  if (value === null) {
-    throw new Error(`${color} does not parse`);
-  }
-  return value;
 }
 
 /** An emitted `oklch(from <origin> <l> 0 h / <alpha>)` as the achromatic pixel it paints and its alpha. */

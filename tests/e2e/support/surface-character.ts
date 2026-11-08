@@ -7,6 +7,7 @@ import { isPng, readCardChunk } from "@orb/kit/png-card-chunk";
 import type { DistributiveOmit } from "@orb/testkit/browser/spec";
 import { controlledPanel, markExpectedSurfaceHttpFailure } from "@orb/testkit/browser/spec";
 import type { SurfaceAuditRequest } from "@orb/testkit/ct";
+import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { SurfaceCoverageInventory } from "@orb/testkit/iso";
 import { parseSurfaceProviderEvidence } from "@orb/testkit/iso";
 import { abortProcedure, attachNativeFile, isTrpcRequestFor, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
@@ -133,7 +134,7 @@ async function openList(flow: CharacterFlow): Promise<Locator> {
   await dismissContext(flow);
   const search = page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true });
   const back = page.getByRole("button", { name: "Back to Characters", exact: true });
-  const show = page.getByRole("button", { name: /^Show (?:list panel|Characters(?: · .+)? list)$/u });
+  const show = page.getByRole("button", { name: new RegExp(`^Show (?:list panel|${RegExp.escape(SECTION_LABELS.characters)}(?: · .+)? list)$`, "u") });
   await expect.poll(async () => (await search.isVisible()) || (await back.isVisible()) || (await show.isVisible())).toBe(true);
   if (await back.isVisible()) {
     await back.click();
@@ -155,7 +156,9 @@ async function openCard(flow: CharacterFlow, name: string, rowName = name): Prom
   await flow.requestPanes();
   await dismissContext(flow);
   if ((await list.getAttribute("data-panel-mode")) === "overlay") {
-    await flow.page.getByRole("button", { name: /^(?:Close Characters(?: · .+)? list|Hide list panel)$/u }).click();
+    await flow.page
+      .getByRole("button", { name: new RegExp(`^(?:Close ${RegExp.escape(SECTION_LABELS.characters)}(?: · .+)? list|Hide list panel)$`, "u") })
+      .click();
   }
   await expect(list).not.toHaveAttribute("data-panel-mode", "overlay");
   return form;

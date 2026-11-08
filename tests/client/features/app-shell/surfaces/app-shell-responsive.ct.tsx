@@ -267,7 +267,9 @@ test.describe("one shell at the narrowest phone", () => {
     await expect(page.getByRole("main")).toHaveCount(1);
     await expect(page.getByRole("main")).toHaveClass(/shell-content/u);
     // One door back while pushed: the list toggle gives way to it.
-    await expect(page.getByRole("button", { name: /^(?:Show|Hide) list panel|Show Characters (?:list|overview)$/u })).toHaveCount(0);
+    await expect(
+      page.getByRole("button", { name: new RegExp(`^(?:Show|Hide) list panel|Show ${RegExp.escape(SECTION_LABELS.characters)} (?:list|overview)$`, "u") }),
+    ).toHaveCount(0);
   });
 
   test("on a phone the tab bar follows the content in DOM order", async ({ mount, page }) => {

@@ -3,25 +3,16 @@ import { expect, test } from "@orb/testkit/node";
 import type { ToneMixKnob } from "@orb/ui/tokens";
 import { SEED_THEME_VALUE_SETS, TOKENS, TONE_MIX_DEFAULTS, TONE_MIX_KNOBS, TONE_ROLE_RECIPES, TONES, toneKnobVar, toneLiteralVar } from "@orb/ui/tokens";
 import { clampThemeTokens } from "../../../../packages/ui/src/content/theme-scope/clamp.ts";
-import type { ParsedOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import { toOklch } from "../../../../packages/ui/src/content/theme-scope/color-parse.ts";
 import { carriedPaletteOf } from "../../../../packages/ui/src/content/theme-scope/derive-vars.ts";
 import { carriedToneScheme, carriedToneSources, solveCarriedToneMix } from "../../../../packages/ui/src/content/theme-scope/tone-knobs.ts";
+import { HEARTH_ACCENT, parsed } from "./tone-scope-misses.ts";
 
 const DARK_BASE = "oklch(0.158 0.006 60)";
 const MID_BASE = "oklch(0.5 0.01 60)";
 const KNOB_VARS = new Map<string, ToneMixKnob>(TONE_MIX_KNOBS.map((knob) => [TOKENS[`tone-mix.${knob}`].cssVar, knob] as const));
-const HEARTH_ACCENT = TOKENS["color.primary"].value;
 const LITERAL_ROLES = carriedLiteralRoles(TONE_ROLE_RECIPES, TONE_MIX_DEFAULTS);
 const LITERAL_VARS: readonly string[] = TONES.flatMap((tone) => (tone === "neutral" ? [] : LITERAL_ROLES.map((role) => toneLiteralVar(tone, role))));
-
-function parsed(color: string): ParsedOklch {
-  const value = toOklch(color);
-  if (value === null) {
-    throw new Error(`${color} does not parse`);
-  }
-  return value;
-}
 
 function emittedKnobs(vars: Readonly<Record<string, string>>): Readonly<Record<string, number>> {
   return Object.fromEntries(

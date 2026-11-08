@@ -50,7 +50,7 @@ test("a dropped image count and size each raise a notice in a shared room", asyn
     "stream.detach": ({ ref }) => (ref.channel === "chat" && ref.chatId === chatId ? null : trpcError({ code: "NOT_FOUND" })),
   });
   await routeOrbSocket(page, {
-    awaitAttaches: 1,
+    awaitRooms: [{ channel: "chat", chatId }],
     frames: [warning(WARNING_CODE.imageCountDropped, FIRST_SEQ), warning(WARNING_CODE.imageSizeDropped, FIRST_SEQ + 1)],
   });
   await mount<typeof ChatRoomShellStory>(STORY, { chatId, socket: true });

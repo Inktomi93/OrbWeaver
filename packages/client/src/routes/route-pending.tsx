@@ -9,11 +9,12 @@
 import { Stack } from "@orb/ui/layout";
 import { WeaveGlyph } from "@orb/ui/web-weave";
 import type { ReactElement } from "react";
+import { ROUTE_PENDING_NAME } from "./route-pending-names.ts";
 
 /** Full-viewport brand loading mark — shown while a route's `beforeLoad` auth gate resolves. */
 export function RoutePending(): ReactElement {
   return (
-    <Stack ground="background" align="center" justify="center" minHeight="viewport" role="status" aria-label="Loading">
+    <Stack ground="background" align="center" justify="center" minHeight="viewport" role="status" aria-label={ROUTE_PENDING_NAME}>
       <WeaveGlyph size="display" anim={true} />
     </Stack>
   );

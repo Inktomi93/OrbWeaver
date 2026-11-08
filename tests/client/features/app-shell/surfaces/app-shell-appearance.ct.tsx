@@ -16,6 +16,7 @@ import type { CorpusPlayback } from "@orb/testkit/iso";
 import { captureCookieAuth, createCorpusHarness } from "@orb/testkit/node/composed";
 import { SEED_THEME_VALUE_SETS, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { ROUTE_PENDING_NAME } from "#client/routes/route-pending-names.ts";
 import type { AppShellModalStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { ShellToPendingStory } from "./_shell-handover-stories.tsx";
 import { PHONE, SHELL_STORIES, wallpaper } from "./app-shell-ct.ts";
@@ -416,7 +417,7 @@ function breatheTokenMs(page: Page): Promise<number> {
 async function handOver(page: Page, reducedMotion: AppearanceSettings["reducedMotion"]): Promise<Locator> {
   await expect(page.locator("html")).toHaveAttribute(REDUCED_MOTION_ATTR, reducedMotion);
   await page.getByRole("button", { name: "Hand over", exact: true }).click();
-  const splash = page.getByRole("status", { name: "Loading", exact: true });
+  const splash = page.getByRole("status", { name: ROUTE_PENDING_NAME, exact: true });
   await expect(splash).toBeVisible();
   return splash;
 }

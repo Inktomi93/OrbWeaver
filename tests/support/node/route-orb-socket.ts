@@ -77,6 +77,12 @@ export interface RouteOrbSocketOptions {
   readonly frames?: readonly ScriptedFrame[] | ((signal: AbortSignal) => Promise<readonly ScriptedFrame[]>);
   /** Serve the body only once this many attach requests have finished with successful HTTP responses (the handshake). @defaultValue 0 */
   readonly awaitAttaches?: number;
+  /**
+   * Serve the body only once each of these rooms has finished a successful attach. A count cannot say which room the
+   * attaches were for: the always-on `notifications` room attaches first, so `awaitAttaches: 1` is met before a chat room
+   * has joined, and frames scripted for that room reach a registry that drops them.
+   */
+  readonly awaitRooms?: readonly StreamRoomRef[];
   /** Emit the terminal `return` frame so the EventSource closes cleanly. @defaultValue true */
   readonly closeStream?: boolean;
   /**
@@ -134,6 +140,7 @@ function isOrbSocketRequest(request: { url: () => string }): boolean {
 export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {}): Promise<OrbSocketRecorder> {
   const frames = opts.frames ?? [];
   const awaitAttaches = opts.awaitAttaches ?? 0;
+  const awaitedRooms = (opts.awaitRooms ?? []).map(roomKey);
   const closeStream = opts.closeStream ?? true;
   const dropConnectionCount = opts.dropConnectionCount ?? Number(opts.dropFirstConnection ?? false);
   const serverInstanceIds = opts.serverInstanceIds ?? [DEFAULT_SERVER_INSTANCE_ID];
@@ -141,8 +148,9 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
   const detached: AttachRequest[] = [];
   let connects = 0;
   let completedAttaches = 0;
+  const admittedRooms = new Set<string>();
   const handshake = Promise.withResolvers<boolean>();
-  const pendingAttaches = new Map<Request, number>();
+  const pendingAttaches = new Map<Request, readonly StreamRoomRef[]>();
   let settled = false;
   const settleHandshake = (success: boolean): void => {
     if (settled) {
@@ -164,8 +172,8 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
     }
   };
   const requestFinished = (request: Request): void => {
-    const count = pendingAttaches.get(request);
-    if (count === undefined) {
+    const refs = pendingAttaches.get(request);
+    if (refs === undefined) {
       return;
     }
     pendingAttaches.delete(request);
@@ -175,8 +183,11 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
           settleHandshake(false);
           return;
         }
-        completedAttaches += count;
-        if (completedAttaches >= awaitAttaches) {
+        completedAttaches += refs.length;
+        for (const ref of refs) {
+          admittedRooms.add(roomKey(ref));
+        }
+        if (completedAttaches >= awaitAttaches && awaitedRooms.every((key) => admittedRooms.has(key))) {
           settleHandshake(true);
         }
       },
@@ -185,7 +196,7 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
       },
     );
   };
-  if (awaitAttaches > 0) {
+  if (awaitAttaches > 0 || awaitedRooms.length > 0) {
     page.on("requestfinished", requestFinished);
     page.on("requestfailed", requestFailed);
     page.once("close", closeHandshake);
@@ -256,7 +267,10 @@ export async function routeOrbSocket(page: Page, opts: RouteOrbSocketOptions = {
     attached.push(...requestAttaches);
     detached.push(...decodeStreamAttaches(req, url, "detach"));
     if (!settled && requestAttaches.length > 0) {
-      pendingAttaches.set(req, requestAttaches.length);
+      pendingAttaches.set(
+        req,
+        requestAttaches.map(({ ref }) => ref),
+      );
     }
     await route.fallback();
   });
