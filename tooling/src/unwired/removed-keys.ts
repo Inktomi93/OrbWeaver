@@ -20,6 +20,10 @@ const KEY_LINE = /^\s*(?:readonly\s+)?["']?([A-Za-z_$][\w$]*)["']?\??\s*:/u;
 const COMMENT_LINE = /^\s*(?:\/\/|\/?\*)/u;
 const NOT_KEYS: ReadonlySet<string> = new Set(["case", "default"]);
 const HIT_LINE = /^([^:]+):(\d+):(.*)$/u;
+// A one- or two-letter key (`a`, `id`) is a word on every page, so its hits say nothing about one procedure.
+const DISTINCT_KEY_LENGTH = 3;
+// A short key's word match spans the whole client.
+const GREP_BUFFER = 268_435_456;
 
 /** One key the branch removes, the receivers that still name it, and whether the contracts still declare the name. */
 interface RemovedKey {
@@ -62,9 +66,9 @@ function removedKeys(root: string, base: string, head: string): readonly string[
 
 // `git grep` exits 1 on no match, which is an answer here, not a failure.
 function grep(root: string, head: string, args: readonly string[], paths: readonly string[]): readonly string[] {
-  const result = runGit(root, ["grep", "-n", ...args, head, "--", ...paths]);
+  const result = runGit(root, ["grep", "-n", ...args, head, "--", ...paths], { maxBuffer: GREP_BUFFER });
   if (result.status !== 0 && result.status !== 1) {
-    throw new Error(`git grep failed: ${result.stderr.trim()}`);
+    throw new Error(`git grep ${args.join(" ")} failed (${result.errorCode ?? `exit ${String(result.status)}`}): ${result.stderr.trim()}`);
   }
   return result.stdout.split("\n").filter((line) => line !== "");
 }
@@ -89,7 +93,7 @@ export function checkRemovedKeys(root: string, base: string, head: string): Remo
         return COMMENT_LINE.test(text) ? [] : [{ receiver, at: `${file}:${number}`, text: text.trim() }];
       }),
     );
-    return { key, ambiguous: stillDeclared(root, head, key), hits };
+    return { key, ambiguous: key.length < DISTINCT_KEY_LENGTH || stillDeclared(root, head, key), hits };
   });
   return { base, head, scanned, removed, failed: removed.some((entry) => !entry.ambiguous && entry.hits.length > 0) };
 }

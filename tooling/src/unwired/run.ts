@@ -30,6 +30,7 @@ const USAGE = `usage: pnpm unwired [${SCAN_VERBS.slice(1).join("|")}] [--root=<d
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
 const DEFAULT_BASE = "main";
 const DEFAULT_HEAD = "HEAD";
+const AMBIGUOUS_SAMPLE = 5;
 
 interface Finding {
   readonly kind: string;
@@ -128,8 +129,12 @@ function parseArgs(argv: readonly string[]): Args {
 function runRemovedKeys(args: Args): number {
   const report = checkRemovedKeys(args.root, args.base, args.head);
   for (const { key, ambiguous, hits } of report.removed) {
-    for (const hit of hits) {
+    // An ambiguous key is a lead for a person, so a short sample stands for its hits.
+    for (const hit of ambiguous ? hits.slice(0, AMBIGUOUS_SAMPLE) : hits) {
       process.stdout.write(`${ambiguous ? "ambiguous" : "live"}\t${key}\t${hit.receiver}\t${hit.at}\t${hit.text}\n`);
+    }
+    if (ambiguous && hits.length > AMBIGUOUS_SAMPLE) {
+      process.stdout.write(`ambiguous\t${key}\t${hits.length - AMBIGUOUS_SAMPLE} more hits\n`);
     }
   }
   const scanned = Object.entries(report.scanned)
