@@ -1,10 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-06
+updated: 2026-11-08
 priority: P3
 area: testing
-plan: cross-surface-consistency
+plan: type-law
 ---
 
 # The ui-facts feedback scanner follows a failure through a local callback

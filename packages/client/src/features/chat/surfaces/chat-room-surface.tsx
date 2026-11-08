@@ -25,13 +25,14 @@ import type { ChatRoomSurfaceState, ChatSurfaceAnchor, ChatSurfaceContribution, 
 import { deriveChatTitle, useFocusOnMount } from "#lib";
 import type { ActiveChatHandle } from "#state";
 import { MessageThreadAnchor } from "../anchors/message-thread-anchor.tsx";
+import { RoomComposerAnchor } from "../anchors/room-composer-anchor.tsx";
 import { RoomFlankAnchor } from "../anchors/room-flank-anchor.tsx";
 import { ChatCharacterBar } from "../components/chat-character-bar.tsx";
 import { ChoiceSendProvider } from "../components/choice-send-provider.tsx";
 import { Composer } from "../components/composer.tsx";
 import { MessageSelectionBar } from "../components/message-selection-bar.tsx";
 import { FlankColumn, FlankEdge, InlineFlankFitProbe } from "../components/room-flank.tsx";
-import { useFlankPresentation } from "../hooks/use-flank-presentation.ts";
+import { flankReservation, useFlankPresentation } from "../hooks/use-flank-presentation.ts";
 import { useFlankTrackFlip } from "../hooks/use-flank-track-flip.ts";
 import { useRoomEndWhileWriting } from "../hooks/use-room-end-while-writing.ts";
 import { resolveRoomTheme } from "../lib/attribution.ts";
@@ -260,30 +261,34 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
                 <MessageSelectionBar chatId={chatId} />
                 {/* THE ROOM'S ONE TRACK (#213): a band between the transcript and the composer is part of the same
               vertical stack, so it takes the same centred box — otherwise a contribution renders at its own
-              content width against the left edge of the pane while the two things it sits between centre. */}
-                {aboveComposerContributions.length === 0 ? null : (
-                  // `empty:hidden` is the SILENT-CONTRIBUTOR collapse: a
-                  // contribution that is mounted but currently paints nothing (the control band with no live
-                  // control — its source fibers render null) leaves this wrapper with zero child NODES, and an
-                  // empty flex child still costs the column one `gap="field"` step between the transcript and the
-                  // composer. `:empty` takes it out of layout entirely, so "mounted but silent" and "not mounted"
-                  // read identically. It cannot hide a live contribution: any rendered node makes the wrapper
-                  // non-empty.
-                  <Track of={Stack} track="composer" gap="row" hiddenAt="empty" data-slot="chat-above-composer">
-                    {aboveComposerContributions.map((c) => (
-                      <Fragment key={c.id}>{c.node}</Fragment>
-                    ))}
-                  </Track>
-                )}
-                {/* The writing region the short room holds at its end while focus is in it. */}
-                <Stack ref={composerRef}>
-                  <ComposerSlot
-                    chatId={chatId}
-                    actionContributions={composerActionContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
-                    roomContributions={composerRoomContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
-                    mediaContributions={composerMediaContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
-                  />
-                </Stack>
+              content width against the left edge of the pane while the two things it sits between centre.
+              The writing region also keeps clear what the thread's box gives up on its inline end (the plugin
+              column in the row, or the edge control's corner), so the thread's rows and the composer centre on one axis. */}
+                <RoomComposerAnchor reservation={flankReservation(flank)}>
+                  {aboveComposerContributions.length === 0 ? null : (
+                    // `empty:hidden` is the SILENT-CONTRIBUTOR collapse: a
+                    // contribution that is mounted but currently paints nothing (the control band with no live
+                    // control — its source fibers render null) leaves this wrapper with zero child NODES, and an
+                    // empty flex child still costs the column one `gap="field"` step between the transcript and the
+                    // composer. `:empty` takes it out of layout entirely, so "mounted but silent" and "not mounted"
+                    // read identically. It cannot hide a live contribution: any rendered node makes the wrapper
+                    // non-empty.
+                    <Track of={Stack} track="composer" gap="row" hiddenAt="empty" data-slot="chat-above-composer">
+                      {aboveComposerContributions.map((c) => (
+                        <Fragment key={c.id}>{c.node}</Fragment>
+                      ))}
+                    </Track>
+                  )}
+                  {/* The writing region the short room holds at its end while focus is in it. */}
+                  <Stack ref={composerRef}>
+                    <ComposerSlot
+                      chatId={chatId}
+                      actionContributions={composerActionContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
+                      roomContributions={composerRoomContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
+                      mediaContributions={composerMediaContributions.map((c) => <Fragment key={c.id}>{c.node}</Fragment>)}
+                    />
+                  </Stack>
+                </RoomComposerAnchor>
               </>
             ) : (
               <RoomTranscriptSkeleton />

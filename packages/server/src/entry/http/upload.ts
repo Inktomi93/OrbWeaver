@@ -18,7 +18,7 @@ import { cardLorebookRestoreResultSchema } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import type { ImportCardScripts } from "@orb/contracts/regex";
 import type { ImportTagPort } from "@orb/contracts/tag";
-import { ASSET_UPLOAD_MAX_BYTES, DATABANK_UPLOAD_MAX_BYTES, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
+import { ASSET_UPLOAD_MAX_BYTES, DATABANK_UPLOAD_MAX_BYTES, DATABANK_UPLOAD_ROUTE, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import type { ImportWorldInfoPort } from "@orb/contracts/world-info";
 import { DomainOperationError } from "@orb/kit/errors";
 import { getHTTPStatusCodeFromError } from "@trpc/server/http";
@@ -47,9 +47,6 @@ const UNSUPPORTED_MEDIA_TYPE = 415;
 const ASSET_TOO_LARGE = "asset_too_large";
 const FALLBACK_MIME = "application/octet-stream";
 const ASSET_UPLOAD_ROUTE = "/api/assets/upload";
-// The #1598 RESTORE door: an ordinary re-upload through PORTABILITY_ROUTES.importCards now KEEPS an edited primary book, so
-// "put the card's own lorebook back" is this separate, explicitly-asked-for route.
-const DATABANK_UPLOAD_ROUTE = "/api/databank/upload";
 const UPLOAD_FIELD = "file";
 const KIND_FIELD = "kind";
 const NAME_FIELD = "name";

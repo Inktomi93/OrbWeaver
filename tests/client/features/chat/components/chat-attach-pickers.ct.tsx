@@ -74,11 +74,12 @@ test("a failed world-book read in the attach picker offers a Retry and does not 
 test("a failed bank read in the add-document picker offers a Retry and does not claim the bank is empty", async ({ mount, page, corpusMedia }) => {
   await using root = await createCorpusHarness();
   const { chatId, host } = await hostRoom(root);
+  let failing = true;
   await openTab(
     root,
     page,
     host,
-    serveCorpusProcedures(host, ["databank.list"], () => trpcError()),
+    serveCorpusProcedures(host, ["databank.list"], () => (failing ? trpcError() : undefined)),
   );
   await corpusMedia();
   await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
@@ -89,6 +90,9 @@ test("a failed bank read in the add-document picker offers a Retry and does not 
   await expect(dialog.getByText("Couldn't load your documents.", { exact: true })).toBeVisible();
   await expect(dialog.getByText("Your bank is empty", { exact: true })).toHaveCount(0);
   await expect(dialog.getByRole("textbox", { name: "Search your documents", exact: true })).toBeVisible();
+  failing = false;
+  await dialog.getByRole("button", { name: "Retry", exact: true }).click();
+  await expect(dialog.getByText("Couldn't load your documents.", { exact: true })).toHaveCount(0);
 });
 
 test("a refused attach is said in the picker", async ({ mount, page, corpusMedia }) => {

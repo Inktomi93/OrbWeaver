@@ -4,6 +4,7 @@
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { ChatId, MessageId, ThemeId } from "@orb/kit/ids";
+import { createTimeLib, UTC_TIME_ZONE } from "@orb/kit/time";
 import { beginReading, resolvedLength, scrollIntoReadingMessage as scrollIntoMessage, seedShellState, tokenColor } from "@orb/testkit/browser/spec";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
@@ -654,13 +655,32 @@ for (const viewport of READING_VIEWPORTS) {
   });
 }
 
+/** The slots the name row holds, in order: an edited row that grew revision chrome differs from an unedited twin here. */
+function headerSlots(row: Locator): Promise<readonly (string | null)[]> {
+  return row.locator('[data-slot="message-name-row"] [data-slot]').evaluateAll((nodes) => nodes.map((node) => node.getAttribute("data-slot")));
+}
+
 test("edited messages keep their creation timestamp without revision chrome", async ({ corpus, mount, page }) => {
   const caller = await root.internalCallerFor(root.ownerId);
-  const reply = (await caller.chat.listMessages({ chatId: roomId, limit: TAIL_MESSAGES })).messages.find((message) => message.id === longReplyId);
-  expect(reply?.editedAt).toEqual(expect.any(Number));
+  const { messages } = await caller.chat.listMessages({ chatId: roomId, limit: TAIL_MESSAGES });
+  const reply = messages.find((message) => message.id === longReplyId);
+  const twin = messages.findLast((message) => message.role === "assistant" && message.id !== longReplyId);
+  if (reply === undefined || twin === undefined) {
+    throw new Error("The reading room lost its edited reply or its unedited twin");
+  }
+  const { editedAt } = reply;
+  if (editedAt === null) {
+    throw new Error("The reading room's long reply was never edited");
+  }
+  expect(twin.editedAt).toBeNull();
+  const time = createTimeLib({ timeZone: UTC_TIME_ZONE });
+  // The edit lands on another minute than the creation, so a stamp read from the edit shows.
+  expect(time.formatTime(editedAt)).not.toBe(time.formatTime(reply.createdAt));
   await openRoom(page, corpus, "flat", false);
   await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
-  const row = page.locator(`${ROW}[data-message-id="${longReplyId}"]`);
-  await expect(row.locator('[data-slot="message-metadata-timestamp"]')).toBeVisible();
-  await expect(row.locator('[data-slot="message-metadata-edited"]')).toHaveCount(0);
+  const edited = page.locator(`${ROW}[data-message-id="${reply.id}"]`);
+  const unedited = page.locator(`${ROW}[data-message-id="${twin.id}"]`);
+  await expect(unedited.locator('[data-slot="message-metadata-timestamp"]')).toHaveText(time.formatTime(twin.createdAt));
+  await expect(edited.locator('[data-slot="message-metadata-timestamp"]')).toHaveText(time.formatTime(reply.createdAt));
+  expect(await headerSlots(edited)).toEqual(nonEmpty(await headerSlots(unedited)));
 });

@@ -40,6 +40,10 @@ test("controls opt out of double-tap zoom, and a utility class still wins over t
 });
 
 test("a link underline sits off the baseline", async ({ page }) => {
-  const offset = await page.getByRole("link", { name: "Read the release notes", exact: true }).evaluate((el) => getComputedStyle(el).textUnderlineOffset);
-  expect(offset).not.toBe("auto");
+  const read = await page.getByRole("link", { name: "Read the release notes", exact: true }).evaluate((el) => {
+    const style = getComputedStyle(el);
+    return { offset: Number.parseFloat(style.textUnderlineOffset), fontSize: Number.parseFloat(style.fontSize) };
+  });
+  // `auto` parses to NaN and a zero offset sits on the baseline; only a positive distance, scaled to the type, is off it.
+  expect(read.offset / read.fontSize).toBeGreaterThan(0);
 });

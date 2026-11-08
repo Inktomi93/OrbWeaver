@@ -4,7 +4,7 @@
 import { CADENCE_INTERVAL_MS } from "@orb/contracts/workloads";
 import type { UserId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
-import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { absenceWindow, holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
@@ -13,6 +13,8 @@ import type { CorpusCoverageStory } from "../surfaces/_coverage-stories.tsx";
 
 const STORY = "tests/client/features/discovery/surfaces/_coverage-stories/CorpusCoverageStory";
 const MEMBER_HANDLE = "companion";
+// A start the Cancel wrongly fired reaches the queue within one round trip; this holds well past it.
+const ENQUEUE_WINDOW_MS = 500;
 
 test.use({ hasTouch: false, isMobile: false });
 
@@ -215,6 +217,8 @@ test("a paid door reads busy and cannot be pressed again while its spend is bein
   await using root = await createCorpusHarness();
   const owner = await root.internalCallerFor(root.ownerId);
   const counting = holdServed();
+  const queuedRuns = async (): Promise<ReadonlySet<string>> => new Set((await owner.workloads.list({})).map((run) => run.id));
+  const before = await queuedRuns();
   // Only the spend count is held; the overview's own reads must answer for the rail to mount.
   await serveOverview(page, owner, (request) => (typeof request === "object" && "mode" in request ? counting : undefined));
   await mount<typeof CorpusCoverageStory>(STORY, {});
@@ -233,4 +237,6 @@ test("a paid door reads busy and cannot be pressed again while its spend is bein
   await dialog.getByRole("button", { name: "Cancel" }).click();
   await expect(door).not.toHaveAttribute("aria-busy", "true");
   await expect(door).toBeEnabled();
+  await absenceWindow(page, ENQUEUE_WINDOW_MS);
+  expect(await queuedRuns()).toEqual(before);
 });

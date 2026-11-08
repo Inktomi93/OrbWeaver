@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { CHAT_PLUGINS_TAB_LABEL, contextToggleLabel } from "@orb/client/lib";
+import { CHAT_PLUGINS_TAB_LABEL, contextToggleLabel, SIDECAR_PANELS_LABEL, SIDECAR_PANELS_NOUN } from "@orb/client/lib";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { seedShellState } from "@orb/testkit/browser/spec";
@@ -8,7 +8,7 @@ import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_LABELS, SE
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { CHAT_PANEL_HIDE_LABEL, PLUGIN_PANELS_SHEET_LABEL, showInChatLabel } from "#client/features/plugin/lib/plugin-copy.ts";
+import { CHAT_PANEL_HIDE_LABEL, showInChatLabel } from "#client/features/plugin/lib/plugin-copy.ts";
 import {
   CHAT_PLUGINS_EMPTY_TITLE,
   CHAT_PLUGINS_MANAGE_LABEL,
@@ -16,6 +16,9 @@ import {
   movePluginPanelLabel,
 } from "#client/features/plugin/lib/plugin-panel-copy.ts";
 import type { PluginHideFocusStory } from "./_hide-focus-stories.tsx";
+
+// The edge control names the column with the house verbs, in whichever state it is in.
+const SIDECAR_EDGE = new RegExp(`^(?:Show|Hide) ${SIDECAR_PANELS_NOUN}$`, "u");
 
 test.use({ viewport: { width: 1600, height: 1000 } });
 
@@ -161,7 +164,7 @@ test("the plugin column's edge control keeps its screen position across a hide a
   await page.getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true }).click();
   const context = page.getByRole("region", { name: CHAT_PLUGINS_TAB_LABEL, exact: true });
   await context.getByRole("button", { name: movePluginPanelLabel("Context witness", "First", true), exact: true }).click();
-  const edge = page.getByRole("button", { name: /^(?:Show|Hide) plugin panels$/u });
+  const edge = page.getByRole("button", { name: SIDECAR_EDGE });
   await expect(edge).toHaveCount(1);
   await expect(edge).toHaveAttribute("aria-expanded", "true");
   const open = await edge.boundingBox();
@@ -183,7 +186,7 @@ test("a room with no plugin panels reserves no sidecar or collapse control and C
   await expect(page.getByText(CHAT_PLUGINS_EMPTY_TITLE, { exact: true })).toBeVisible();
   await expect(page.getByRole("button", { name: CHAT_PLUGINS_MANAGE_LABEL, exact: true })).toBeEnabled();
   await expect(page.locator('[data-slot="plugin-flank"]')).toHaveCount(0);
-  await expect(page.getByRole("button", { name: /^(?:Show|Hide) plugin panels$/u })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: SIDECAR_EDGE })).toHaveCount(0);
   expect(routes.count("plugin.getSurfaceState")).toBe(0);
 });
 
@@ -204,8 +207,8 @@ test.describe("touch placement", () => {
     await expect(context.getByRole("button", { name: movePluginPanelLabel("Context witness", "First", false), exact: true })).toBeVisible();
     await page.getByRole("button", { name: `Close ${SECTION_LABELS.chats} details`, exact: true }).click();
     await page.getByRole("button", { name: "Message tools", exact: true }).click();
-    await page.getByRole("menuitem", { name: PLUGIN_PANELS_SHEET_LABEL, exact: true }).click();
-    const sheet = page.getByRole("dialog", { name: PLUGIN_PANELS_SHEET_LABEL, exact: true });
+    await page.getByRole("menuitem", { name: SIDECAR_PANELS_LABEL, exact: true }).click();
+    const sheet = page.getByRole("dialog", { name: SIDECAR_PANELS_LABEL, exact: true });
     await expect(sheet.getByText("First panel content", { exact: true })).toBeVisible();
     await expect(sheet.getByText("Second panel content", { exact: true })).toHaveCount(0);
     await expect(page.getByText("First panel content", { exact: true })).toHaveCount(1);

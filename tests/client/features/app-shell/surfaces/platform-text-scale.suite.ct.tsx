@@ -978,6 +978,14 @@ function printedRowTops(list: Element): { readonly tops: readonly number[]; read
   };
 }
 
+// The document and body backgrounds a printed page lands on: white paper, whatever the screen theme.
+const PAPER_GROUND = ["rgb(255, 255, 255)", "rgb(255, 255, 255)"];
+
+/** The ground the page paints behind its rows: the document's and the body's backgrounds. */
+function documentGround(page: Page): Promise<readonly string[]> {
+  return page.evaluate(() => [document.documentElement, document.body].map((node) => getComputedStyle(node).backgroundColor));
+}
+
 // virtual-core's default `isScrollingResetDelay`: until this long after the last scroll event the list counts as
 // scrolling and does not measure a row as it mounts, so a reader who printed sooner than this would not reach the defect.
 const VIRTUAL_CORE_SCROLLING_RESET_MS = 150;
@@ -1048,7 +1056,11 @@ test.describe("printing a room", () => {
     const behindDialog = await list.evaluate(printedRowTops);
     expect(behindDialog.tops).toEqual(behindDialog.tops.toSorted((a, b) => a - b));
     expect(new Set(behindDialog.tops).size).toBe(behindDialog.tops.length);
+    const screenGround = await documentGround(page);
     await page.emulateMedia({ media: "print", reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none", contrast: "no-preference" });
+    // A dark theme's ground does not print: the page lands on white paper, with the black ink read below.
+    expect(await documentGround(page)).toEqual(PAPER_GROUND);
+    expect(screenGround).not.toEqual(PAPER_GROUND);
     const paper = await list.evaluate((node) => ({ left: node.getBoundingClientRect().left, right: node.getBoundingClientRect().right, sheet: innerWidth }));
     expect(paper.left).toBeLessThanOrEqual(SUBPIXEL);
     expect(paper.right).toBeLessThanOrEqual(paper.sheet + SUBPIXEL);

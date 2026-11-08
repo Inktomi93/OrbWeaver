@@ -420,8 +420,13 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/lib/context-toggle-label.ts": "contextToggleLabel: the detail toggle's name in both states",
   "packages/client/src/lib/view-transition-names.ts": "SHELL_SWAP_DEADLINE_PROPERTY: the grid property a swap spec stretches to hold the old frame",
   "packages/client/src/forms/editor/autosave-status-names.ts": "AUTOSAVE_SAVED_TEXT and its siblings: the words the shared autosave readout prints",
+  "packages/client/src/forms/entity-form-base.ts": "DEFAULT_DEBOUNCE_MS: the autosave debounce a held-window case waits past to see a second write",
   "packages/client/src/features/character/lib/character-names.ts":
     "CHARACTER_SEARCH_NAME and its siblings: the accessible names the Characters library, editor and dialogs print",
+  "packages/client/src/features/character/lib/character-refusal-notice.ts":
+    "characterRefusalCopy: the copy a coded character refusal raises, which a notice case reads its expected toast from",
+  "packages/client/src/features/chat/lib/warning-notice.ts":
+    "warningNotice: the notice each chat warning code raises, which a notice case reads its expected toast from",
   "packages/client/src/features/config/lib/config-copy.ts": "CONFIG_SECTION_LABEL: the settings section labels",
   "packages/client/src/lib/dialog-verbs.ts": "DIALOG_VERBS: the exit and commit words every dialog prints, which the surface walk drivers locate controls by",
   "packages/client/src/components/shared-control-names.ts":
@@ -455,6 +460,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/stats/lib/analytics-copy.ts":
     "APPROX_DATES_MARK and APPROX_DATES_NOTE: the mark and note Insights prints for approximate message dates",
   "packages/client/src/lib/app-ready-attribute.ts": "APP_READY_ATTR: the readiness attribute the boot veil exits on",
+  "packages/client/src/lib/flank-names.ts":
+    "SIDECAR_PANELS_LABEL and SIDECAR_PANELS_NOUN: the names the sidecar column, its edge control and its sheet print, which the room journey locates them by",
   "packages/client/src/state/create-persisted-store.ts": "createPersistedStore: the persisted-store factory a type contract reads",
   "packages/client/src/state/durable-local-keys.ts":
     "APPEARANCE_BOOT_HINT_NAME and APPEARANCE_BOOT_HINT_VERSION: the key and version the boot hint persists under",

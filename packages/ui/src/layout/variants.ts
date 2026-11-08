@@ -111,6 +111,8 @@ const PADDING_INLINE_END = {
   tight: "pe-tight",
   field: "pe-field",
   clearance: "pe-(--size-control-clearance)",
+  // The room the room's plugin column takes beside the transcript, kept clear by what shares the transcript's axis.
+  flank: "pe-(--dimension-room-flank)",
   row: "pe-row",
   block: "pe-block",
   section: "pe-section",

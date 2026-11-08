@@ -443,7 +443,7 @@ test.describe("across the width regimes", () => {
     await seedShellState(page, { activeSection: "chats" });
   });
 
-  test("a docked-default list docks wide, closes into the narrow regime and stays a closed sheet on a phone, never writing its override", async ({
+  test("a docked-default list docks wide, closes into the narrow regime and is the roster screen on a phone, never writing its override", async ({
     mount,
     page,
   }) => {
@@ -457,6 +457,11 @@ test.describe("across the width regimes", () => {
     await expect(list).toHaveAttribute("data-panel-mode", "collapsed");
     await expect(page.locator(".shell-scrim")).toHaveAttribute("data-visible", "false");
     expect(await persistedOverrides(page)).toEqual(before);
+    // On a phone nothing is selected, so the roster is the screen: it renders docked without a stored choice.
+    await page.setViewportSize(PHONE);
+    await expect(list).toHaveAttribute("data-panel-mode", "docked");
+    await expect(page.locator(".shell-content")).toHaveAttribute("inert", "");
+    expect(await persistedOverrides(page)).toEqual(before);
     await page.setViewportSize(WIDE);
     await expect(list).toHaveAttribute("data-panel-mode", "docked");
     expect(await persistedOverrides(page)).toEqual(before);
@@ -464,8 +469,19 @@ test.describe("across the width regimes", () => {
 
   test("the context regime follows the rendered geometry, re-reads on font load, and releases its observer on unmount", async ({ mount, page }) => {
     await page.addInitScript(() => {
-      const counts = { observe: 0, disconnect: 0 };
+      const counts = { observe: 0, disconnect: 0, fontAdd: 0, fontRemove: 0 };
       Reflect.set(globalThis, "__primacyObserver", counts);
+      const fonts = document.fonts;
+      const addFontListener = fonts.addEventListener.bind(fonts);
+      const removeFontListener = fonts.removeEventListener.bind(fonts);
+      fonts.addEventListener = function addProbe(type: string, ...rest: unknown[]): void {
+        counts.fontAdd += type === "loadingdone" ? 1 : 0;
+        Reflect.apply(addFontListener, fonts, [type, ...rest]);
+      };
+      fonts.removeEventListener = function removeProbe(type: string, ...rest: unknown[]): void {
+        counts.fontRemove += type === "loadingdone" ? 1 : 0;
+        Reflect.apply(removeFontListener, fonts, [type, ...rest]);
+      };
       const watched = new WeakSet<ResizeObserver>();
       const observe = ResizeObserver.prototype.observe;
       const disconnect = ResizeObserver.prototype.disconnect;
@@ -487,8 +503,10 @@ test.describe("across the width regimes", () => {
     await seedShellState(page, { activeSection: "presets" });
     const component = await mount<typeof AppShellStory>(STORY, {});
     const context = page.locator(CONTEXT);
-    const counts = async (): Promise<{ observe: number; disconnect: number }> =>
-      z.object({ observe: z.number(), disconnect: z.number() }).parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__primacyObserver")));
+    const counts = async (): Promise<{ observe: number; disconnect: number; fontAdd: number; fontRemove: number }> =>
+      z
+        .object({ observe: z.number(), disconnect: z.number(), fontAdd: z.number(), fontRemove: z.number() })
+        .parse(await page.evaluate((): unknown => Reflect.get(globalThis, "__primacyObserver")));
     await expect(context).toHaveAttribute("data-panel-mode", "docked");
     await forceConstrained(page);
     await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
@@ -508,13 +526,23 @@ test.describe("across the width regimes", () => {
       document.documentElement.style.fontSize = "";
     });
     await expect(context).toHaveAttribute("data-panel-mode", "docked");
-    const live = async (): Promise<number> => {
-      const { observe, disconnect } = await counts();
-      return observe - disconnect;
+    // Font load: the sentinel reports a deficit its rendered box does not have, and nothing resizes it, so only the
+    // font-load re-read can move the answer, in both directions.
+    const sentinel = page.locator(".shell-content-primacy-sentinel");
+    const fontsLoaded = (): Promise<boolean> => page.evaluate(() => document.fonts.dispatchEvent(new Event("loadingdone")));
+    await sentinel.evaluate((node) => Reflect.set(node, "getBoundingClientRect", () => new DOMRect(0, 0, 1, 1)));
+    expect(await fontsLoaded()).toBe(true);
+    await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
+    await sentinel.evaluate((node) => Reflect.deleteProperty(node, "getBoundingClientRect"));
+    expect(await fontsLoaded()).toBe(true);
+    await expect(context).toHaveAttribute("data-panel-mode", "docked");
+    const live = async (): Promise<{ observers: number; fontListeners: number }> => {
+      const { observe, disconnect, fontAdd, fontRemove } = await counts();
+      return { observers: observe - disconnect, fontListeners: fontAdd - fontRemove };
     };
-    expect(await live()).toBe(1);
+    expect(await live()).toEqual({ observers: 1, fontListeners: 1 });
     await component.unmount();
-    expect(await live()).toBe(0);
+    expect(await live()).toEqual({ observers: 0, fontListeners: 0 });
   });
 
   for (const profile of ["defaults", "reading"] as const) {

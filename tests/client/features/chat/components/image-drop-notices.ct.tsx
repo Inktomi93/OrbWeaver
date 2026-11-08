@@ -8,6 +8,7 @@ import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import {
   createShellAmbientReads,
+  noticeToast,
   ROOM_PROCEDURES,
   routeAuthConfig,
   routeOrbSocket,
@@ -18,6 +19,7 @@ import {
 } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { warningNotice } from "#client/features/chat/lib/warning-notice.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -52,8 +54,9 @@ test("a dropped image count and size each raise a notice in a shared room", asyn
     frames: [warning(WARNING_CODE.imageCountDropped, FIRST_SEQ), warning(WARNING_CODE.imageSizeDropped, FIRST_SEQ + 1)],
   });
   await mount<typeof ChatRoomShellStory>(STORY, { chatId, socket: true });
-  const notices = page.locator('[data-slot="toast-root"]');
-  await expect(notices).toHaveCount(2);
-  const [first, second] = await notices.allTextContents();
-  expect(first).not.toBe(second);
+  await expect(page.locator('[data-slot="toast-root"]')).toHaveCount(2);
+  // Each code raises its own notice: the copy production maps that code to, so one notice standing in for both fails.
+  for (const code of [WARNING_CODE.imageCountDropped, WARNING_CODE.imageSizeDropped]) {
+    await expect(noticeToast(page, warningNotice({ code }))).toBeVisible();
+  }
 });

@@ -2,7 +2,8 @@ import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
-import { importStartedSchema, ST_SETTINGS_FILE, TREE_DRY_RUN_FIELD, TREE_DRY_RUN_VALUE, TREE_FILE_FIELD } from "@orb/contracts/import";
+import type { ImportPreviewList } from "@orb/contracts/import";
+import { IMPORT_PREVIEW_KINDS, importStartedSchema, ST_SETTINGS_FILE, TREE_DRY_RUN_FIELD, TREE_DRY_RUN_VALUE, TREE_FILE_FIELD } from "@orb/contracts/import";
 import { createPersonaSchema } from "@orb/contracts/persona";
 
 import { exportCharacterPath, PORTABILITY_ROUTES } from "@orb/contracts/portability";
@@ -11,11 +12,16 @@ import type { StreamFrame } from "@orb/contracts/stream";
 import { actionGroupGeometry } from "@orb/testkit/browser/spec";
 import { routeAuthConfig, routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
+import { ENLARGED_APPEARANCE_SETTINGS, nonEmpty } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, servePhysicalPeer, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import type { Page, Request } from "@playwright/test";
-import { IMPORT_CONFIRM_NAMES, IMPORT_NOTHING_FOUND_NOTE, IMPORT_PREVIEW_RETRY_NAME } from "#client/features/workloads/lib/portability-model.ts";
+import {
+  asImportPreview,
+  IMPORT_CONFIRM_NAMES,
+  IMPORT_NOTHING_FOUND_NOTE,
+  IMPORT_PREVIEW_RETRY_NAME,
+} from "#client/features/workloads/lib/portability-model.ts";
 import type { ImportPreviewStory } from "./_import-preview-stories.tsx";
 
 // The preview over the real composed server: a picked SillyTavern folder really uploads as a dry run, the workload
@@ -31,6 +37,18 @@ const WIDTHS = [
   { name: "wide", width: 960, appearance: appearanceSettingsSchema.parse({}) },
   { name: "narrow enlarged", width: 300, appearance: ENLARGED_APPEARANCE_SETTINGS },
 ] as const;
+
+/** The whole numbers a summary line prints, in order: its count, then the notes after it. */
+function numbersIn(text: string): readonly number[] {
+  return (text.match(/\d+/gu) ?? []).map(Number);
+}
+
+/** The counts a kind's line adds after its total: items already in the library, then items that import without art. */
+function notedCounts(list: ImportPreviewList): readonly number[] {
+  return [list.items.filter((item) => item.inLibrary === true).length, list.items.filter((item) => item.withoutArt === true).length].filter(
+    (count) => count > 0,
+  );
+}
 
 /** A real exported card plus settings: one persona colliding with an owned one, and a card that cannot be read. */
 async function stageFolder(root: ServerTestHarness, folder: string): Promise<void> {
@@ -147,6 +165,17 @@ for (const { name, width, appearance } of WIDTHS) {
     await expect(report.getByText("Preview card", { exact: false })).toBeHidden();
     await expect(confirm).toBeEnabled();
     await expect(preflight.getByRole("radiogroup")).toHaveCount(1);
+
+    // The summary's lines, read against the dry run's own result: one count line per populated kind, the skip total
+    // after them, the colliding persona's note, and every skip reason.
+    const [preview] = nonEmpty((await caller.workloads.list({ kind: "import-st" })).flatMap((run) => asImportPreview(run.result) ?? []));
+    const populated = IMPORT_PREVIEW_KINDS.filter((kind) => preview.kinds[kind].total > 0);
+    expect(preview.skipped.total).toBeGreaterThan(0);
+    const lines = (await report.locator(":scope > *").allTextContents()).filter((text) => /^\d/u.test(text)).map(numbersIn);
+    expect(lines).toEqual([...populated.map((kind) => [preview.kinds[kind].total, ...notedCounts(preview.kinds[kind])]), [preview.skipped.total]]);
+    for (const reason of new Set(preview.skipped.items.map((skip) => skip.reason))) {
+      await expect(report).toContainText(reason);
+    }
 
     await report.getByRole("button", { name: "Show names" }).click();
     await expect(report.getByRole("button", { name: "Hide names" })).toBeVisible();

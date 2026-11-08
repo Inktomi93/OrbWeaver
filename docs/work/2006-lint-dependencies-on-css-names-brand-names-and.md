@@ -1,10 +1,10 @@
 ---
 kind: tooling
 status: open
-updated: 2026-11-07
+updated: 2026-11-08
 priority: P3
 area: tooling
-plan: cross-surface-consistency
+plan: type-law
 ---
 
 # Lint dependencies on css-names, brand-names and unwired answer to D333

@@ -13,6 +13,16 @@ const SAME_ORIGIN_URL = "/__sandbox-frame-same-origin";
 const BARRIER_URL = "/__sandbox-frame-barrier";
 const FRAME_SRC = "frame-src";
 
+/** A card that refreshes itself to `target` with no script involved. */
+function metaRefreshCard(target: string): string {
+  return `<meta http-equiv="refresh" content="0;url=${target}"><p>refreshing</p>`;
+}
+
+/** The refresh the case names is in the bytes the browser was served, so a refusal is about the refresh and not a card the route rewrote. */
+function expectRefreshServed(served: ServedFrame, target: string): void {
+  expect(served.body).toContain(`http-equiv="refresh" content="0;url=${target}"`);
+}
+
 async function settle(page: Page): Promise<void> {
   await page.evaluate(
     async () =>
@@ -86,6 +96,18 @@ test("control: under the served app policy a same-origin self-navigation still l
   expect(hits.some((url) => url.includes(SAME_ORIGIN_URL))).toBe(true);
 });
 
+for (const [posture, characterId] of [
+  ["static", null],
+  ["interactive", undefined],
+] as const) {
+  test(`control: under the served app policy a same-origin meta refresh lands in a ${posture} card`, async ({ room, page }) => {
+    const served = await room.serve(metaRefreshCard(SAME_ORIGIN_URL), characterId);
+    expectRefreshServed(served, SAME_ORIGIN_URL);
+    const hits = await openProbe(page, served, await room.appPolicy());
+    await expect.poll(() => hits.some((url) => url.includes(SAME_ORIGIN_URL))).toBe(true);
+  });
+}
+
 test("a card link navigating the frame off-origin is blocked by the served app policy", async ({ room, page }) => {
   const hits = await openProbe(page, await room.serve(`<a href="${EXTERNAL_URL}">go</a>`, null), await room.appPolicy());
   const link = page.frameLocator("#card").getByRole("link", { name: "go" });
@@ -116,7 +138,8 @@ test("a card form submission is blocked even when the embedder's frame-src is op
 });
 
 test("a card meta refresh off-origin is blocked, with no script involved", async ({ room, page }) => {
-  const served = await room.serve(`<meta http-equiv="refresh" content="0;url=${EXTERNAL_URL}"><p>refreshing</p>`, null);
+  const served = await room.serve(metaRefreshCard(EXTERNAL_URL), null);
+  expectRefreshServed(served, EXTERNAL_URL);
   const hits = await openProbe(page, served, await room.appPolicy());
   await expect(page.locator("#card")).toBeVisible();
   await settleNavigation(page);
@@ -155,8 +178,9 @@ test("an interactive card's script-driven self navigation off-origin is refused 
 });
 
 test("an interactive card's meta refresh is refused exactly as under the static posture", async ({ room, page }) => {
-  const served = await room.serve(`<meta http-equiv="refresh" content="0;url=${EXTERNAL_URL}"><p>refreshing</p>`);
+  const served = await room.serve(metaRefreshCard(EXTERNAL_URL));
   expect(served.granted.interactive).toBe(true);
+  expectRefreshServed(served, EXTERNAL_URL);
   const hits = await openProbe(page, served, await room.appPolicy());
   await expect(page.locator("#card")).toBeVisible();
   await settleNavigation(page);
