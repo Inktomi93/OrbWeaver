@@ -57,7 +57,15 @@ export { openAiServer, recordRequest, SLEEP_PROBE_SUFFIX } from "./openai-server
 export type { TerminalFrameOptions } from "./provider-stream.ts";
 export { terminalSseLine } from "./provider-stream.ts";
 export type { ProviderTape, ProviderTapeStep } from "./provider-tape.ts";
-export { providerTapeLeaks, readProviderTape, scrubTapeFrame, writeProviderTape } from "./provider-tape.ts";
+export {
+  PROVIDER_TAPE_DIR,
+  PROVIDER_TAPE_RECORD_DIR,
+  PROVIDER_TAPE_RECORD_ENV,
+  providerTapeLeaks,
+  readProviderTape,
+  scrubTapeFrame,
+  writeProviderTape,
+} from "./provider-tape.ts";
 export type { TrpcRequestFilter } from "./route-trpc.ts";
 export { abortProcedure, isTrpcRequestFor, matchesTrpcRequestInput, readTrpcOutput } from "./route-trpc.ts";
 export type { SdkPrivateDiagnosticInput, SdkPrivateDiagnosticResult, SdkScriptSpawn } from "./sdk-process.ts";

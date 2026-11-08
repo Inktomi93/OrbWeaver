@@ -2294,8 +2294,8 @@ async function closeSlotOnThrow<T>(
 }
 
 /** `swipe` — reroll an assistant slot: regenerate from the context before the slot and append the result as
- *  a new selected variant. `regenerate` is swipe on the last assistant message. A non-assistant / missing
- *  target is NOT_FOUND. */
+ *  a new selected variant. A guided rewrite also reads the slot's selected reply. `regenerate` is swipe on the
+ *  last assistant message. A non-assistant / missing target is NOT_FOUND. */
 function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
   return async ({ principal, chatId, messageId, intent, guided, timeZone }: SwipeParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
@@ -2347,7 +2347,8 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
       respondsToLatestUserTurn,
       ...prepMacroFields(macroRegistry, userMacroDraws),
       speakerCharacterId: target.characterId,
-      persist: { mode: "append-variant", targetMessageId: messageId },
+      // A rewrite revises the reply it replaces, so the model reads that reply; a plain reroll must not see it.
+      persist: { mode: "append-variant", targetMessageId: messageId, readsTarget: guided?.action === "rewrite" },
       ...(shape !== undefined ? { shape } : {}),
     });
   };

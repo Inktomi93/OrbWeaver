@@ -161,7 +161,7 @@ test.describe("guided generations on recorded provider turns", () => {
     await using binding = new AsyncDisposableStack();
     binding.defer(await pinChatToTape(tape));
     const charId = await mintFreshCharacter(SOLO.handle, SOLO.name, SOLO.greeting);
-    const title = `e2e-guided-steer-${Date.now()}`;
+    const title = "e2e-guided-steer";
     const chat = await startGroupChat({ characterIds: [charId], title });
     try {
       // PRE-TURN, SERVER TRUTH: the steer text lands in the assembled prompt AND the trace flags it; a
@@ -197,7 +197,7 @@ test.describe("guided generations on recorded provider turns", () => {
     await using binding = new AsyncDisposableStack();
     binding.defer(await pinChatToTape(tape));
     const charId = await mintFreshCharacter(SOLO.handle, SOLO.name, SOLO.greeting);
-    const title = `e2e-guided-rewrite-${Date.now()}`;
+    const title = "e2e-guided-rewrite";
     const chat = await startGroupChat({ characterIds: [charId], title });
     try {
       await openChatByTitle(page, title);
@@ -252,7 +252,7 @@ test.describe("guided generations on recorded provider turns", () => {
     await using binding = new AsyncDisposableStack();
     binding.defer(await pinChatToTape(tape));
     const charId = await mintFreshCharacter(SOLO.handle, SOLO.name, SOLO.greeting);
-    const title = `e2e-guided-continue-${Date.now()}`;
+    const title = "e2e-guided-continue";
     const chat = await startGroupChat({ characterIds: [charId], title });
     try {
       await openChatByTitle(page, title);
@@ -309,7 +309,7 @@ test.describe("guided generations on recorded provider turns", () => {
     binding.defer(await pinChatToTape(tape));
     const alphaId = await mintFreshCharacter(DUO[0].handle, DUO[0].name, DUO[0].greeting);
     const bravoId = await mintFreshCharacter(DUO[1].handle, DUO[1].name, DUO[1].greeting);
-    const title = `e2e-guided-speaker-${Date.now()}`;
+    const title = "e2e-guided-speaker";
     const chat = await startGroupChat({ characterIds: [alphaId, bravoId], title });
     try {
       // Sanity: the room really has both seats server-side (so the Response icon is above the roster-of-2
@@ -357,7 +357,7 @@ test("live smoke: a guided response commits on the local engine", { tag: "@live"
     const unavailable = await probeLocalChatBackend();
     test.skip(unavailable !== null, unavailable ?? "local chat backend available");
     const charId = await mintFreshCharacter(SOLO.handle, SOLO.name, SOLO.greeting);
-    const title = `e2e-guided-live-${Date.now()}`;
+    const title = "e2e-guided-live";
     const chat = await startGroupChat({ characterIds: [charId], title });
     try {
       await openChatByTitle(page, title);

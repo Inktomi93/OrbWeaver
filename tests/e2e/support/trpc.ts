@@ -198,7 +198,7 @@ export function removeCharacter(characterId: CharacterId): Promise<unknown> {
 // derived from the router; the `/api/_debug/*` reads are parsed with their `@orb/contracts/debug` schemas. ──
 
 /** Read the captured provider wire bodies for a chat (host-gated /api/_debug/wire/captures — presents the
- *  operator token, see `debugHeaders`). Newest-first. Enabled with no capture throws; see `wireCaptureRead`. */
+ *  operator token, see `debugHeaders`). Oldest first. Enabled with no capture throws; see `wireCaptureRead`. */
 export async function fetchWireCaptures(chatId: ChatId, backend?: string): Promise<WireCaptureRead> {
   const query = new URLSearchParams({ chatId, ...(backend !== undefined ? { backend } : {}) });
   const res = await fetch(`${BASE_URL}/api/_debug/wire/captures?${query.toString()}`, { headers: debugHeaders() });

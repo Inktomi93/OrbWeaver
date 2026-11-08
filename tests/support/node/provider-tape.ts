@@ -7,6 +7,10 @@ import { z } from "zod";
 
 /** The directory the committed tapes live in; a tape's name is its path below it, without `.json`. */
 export const PROVIDER_TAPE_DIR = join(import.meta.dirname, "provider-tapes");
+/** Where a recording run writes its tapes. Gitignored, because the e2e working-tree guard refuses a tracked write. */
+export const PROVIDER_TAPE_RECORD_DIR = join(import.meta.dirname, "..", "..", "..", "reports", "provider-tapes");
+/** The variable that turns an e2e run into a recording; the record script sets it to `1`. */
+export const PROVIDER_TAPE_RECORD_ENV = "E2E_TAPE_RECORD";
 
 const tapeStepSchema = z.strictObject({
   /** The journey step that sends this request. */

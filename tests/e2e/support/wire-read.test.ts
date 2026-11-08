@@ -19,7 +19,7 @@ test("an enabled read with no capture fails naming the chat and the provider", (
   expect(() => wireCaptureRead({ enabled: true, count: 0, captures: [] }, chatId)).toThrow("any provider");
 });
 
-test("an enabled match keeps the captures newest-first for the caller's assertions", ({ ids }) => {
-  const captures = [capture("newest"), capture("older")];
-  expect(wireCaptureRead({ enabled: true, count: 2, captures }, ids.typeId(ID_PREFIX.chat), "vllm")).toEqual({ enabled: true, captures });
+test("an enabled match hands the caller the turn's own request first, ahead of a later round", ({ ids }) => {
+  const read = wireCaptureRead({ enabled: true, count: 2, captures: [capture("state-round"), capture("turn")] }, ids.typeId(ID_PREFIX.chat), "vllm");
+  expect(read).toMatchObject({ enabled: true, captures: [{ model: "turn" }, { model: "state-round" }] });
 });
