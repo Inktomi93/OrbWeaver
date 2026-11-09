@@ -58,8 +58,8 @@ test("a wrapper answers for the axes it hands on inside a carrying prop, and for
   const wrap = ["py-tight", "wrap-anywhere", "whitespace-normal", "block-auto", "max-inline-full"];
   expect(ownerOf("button", "Button", "p-0", square)).toEqual({ axis: "button.square", prop: "square", arm: "true" });
   expect(ownerOf("button", "Button", "block-auto", wrap)).toEqual({ axis: "button.wrap", prop: "wrap", arm: "true" });
-  expect(ownerOf("button", "Button", "block-(--size-control-sm)", [])).toEqual({ axis: "button.size", prop: "size", arm: "sm" });
-  expect(ownerOf("button", "Button", "block-(--size-touch-target)", [])).toEqual({ axis: "button.size", prop: "size", arm: "chip" });
+  expect(ownerOf("button", "Button", "px-section", [])).toEqual({ axis: "button.size", prop: "size", arm: "lg" });
+  expect(ownerOf("button", "Button", "min-block-(--size-control-sm)", [])).toEqual({ axis: "button.minHeight", prop: "minHeight", arm: "control" });
   expect(ownerOf("button", "Button", "shadow-cta", [])).toBeNull();
 });
 
@@ -122,7 +122,7 @@ test("an axis with an arm outside the family does not choose it, so a class of o
 
 test("the real layout tables own justify on Row and truncate on Text", () => {
   const ownerOf = classOwners(REPO_ROOT);
-  expect(ownerOf("layout", "Row", "justify-end", [])).toEqual({ axis: "row.justify", prop: "justify", arm: "end" });
+  expect(ownerOf("layout", "Row", "justify-end-safe", [])).toEqual({ axis: "row.justify", prop: "justify", arm: "end" });
   expect(ownerOf("text", "Text", "truncate", [])).toEqual({ axis: "text.truncate", prop: "truncate", arm: "true" });
   expect(ownerOf("layout", "Row", "min-inline-0", [])).toBeNull();
 });

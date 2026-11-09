@@ -25,9 +25,9 @@ const planAt = (...columns: readonly number[]): MigrationPlan => ({
     source: "@orb/ui/layout",
     name: "Row",
     attribute: "className",
-    token: "justify-end",
+    token: "justify-between",
     prop: "justify",
-    value: "end",
+    value: "between",
   })),
 });
 
@@ -37,25 +37,25 @@ const check = (plan: MigrationPlan, before: string, after: string): Promise<read
 const columnOf = (line: string, text: string): number => line.indexOf(text);
 
 test("a move the real recipe renders the same passes, through a literal, a joined const and a reflow", async () => {
-  const before = `${ROW}const a = <Row gap="field" className="justify-end flex-wrap" />;\n`;
-  const after = `${ROW}const a = (\n  <Row gap="field" className="flex-wrap" justify="end" />\n);\n`;
-  await expect(check(planAt(columnOf(before.split("\n")[1] ?? "", '"justify-end')), before, after)).resolves.toEqual([]);
+  const before = `${ROW}const a = <Row gap="field" className="justify-between flex-wrap" />;\n`;
+  const after = `${ROW}const a = (\n  <Row gap="field" className="flex-wrap" justify="between" />\n);\n`;
+  await expect(check(planAt(columnOf(before.split("\n")[1] ?? "", '"justify-between')), before, after)).resolves.toEqual([]);
 });
 
 test("a second element on the line, rewritten without a plan row, fails", async () => {
-  const line = '<div><Row className="justify-end" /><Row className="justify-center justify-end" /></div>';
+  const line = '<div><Row className="justify-between" /><Row className="justify-start justify-between" /></div>';
   const before = `${ROW}${line};\n`;
-  const after = `${ROW}<div><Row justify="end" /><Row className="justify-center" justify="end" /></div>;\n`;
-  await expect(check(planAt(columnOf(line, '"justify-end')), before, after)).resolves.toEqual([`${PATH}:2 Row: the plan does not list this element`]);
-  // With a row for it, the real recipe still catches it: `justify-center` won over nothing before and evicts the arm now.
-  const [failure] = await check(planAt(columnOf(line, '"justify-end'), columnOf(line, '"justify-center')), before, after);
+  const after = `${ROW}<div><Row justify="between" /><Row className="justify-start" justify="between" /></div>;\n`;
+  await expect(check(planAt(columnOf(line, '"justify-between')), before, after)).resolves.toEqual([`${PATH}:2 Row: the plan does not list this element`]);
+  // With a row for it, the real recipe still catches it: `justify-start` won over nothing before and evicts the arm now.
+  const [failure] = await check(planAt(columnOf(line, '"justify-between'), columnOf(line, '"justify-start')), before, after);
   expect(failure).toContain('wrote "');
-  expect(failure).toContain("justify-center");
+  expect(failure).toContain("justify-start");
 });
 
 test("a class expression the check cannot read fails, whatever the plan said", async () => {
-  const before = `${ROW}<Row className={cn(edgeClass(), "justify-end")} />;\n`;
-  const after = `${ROW}<Row className={cn(edgeClass())} justify="end" />;\n`;
+  const before = `${ROW}<Row className={cn(edgeClass(), "justify-between")} />;\n`;
+  const after = `${ROW}<Row className={cn(edgeClass())} justify="between" />;\n`;
   await expect(check(planAt(0, 30), before, after)).resolves.toEqual([`${PATH}:2 Row: edgeClass() cannot be evaluated`]);
 });
 
@@ -67,10 +67,10 @@ test("an arm that writes more than the reader saw fails on the real recipe", asy
 });
 
 test("a non-literal prop runs every arm, and past the bound the check refuses instead of enumerating", async () => {
-  const line = '<Row gap={gap} className="justify-end" />';
+  const line = '<Row gap={gap} className="justify-between" />';
   const before = `${ROW}${line};\n`;
-  const plan = planAt(columnOf(line, '"justify-end'));
-  await expect(check(plan, before, `${ROW}<Row gap={gap} justify="end" />;\n`)).resolves.toEqual([]);
+  const plan = planAt(columnOf(line, '"justify-between'));
+  await expect(check(plan, before, `${ROW}<Row gap={gap} justify="between" />;\n`)).resolves.toEqual([]);
   const wide = '<Stack padding={a} reach={b} paddingInlineStart={c} paddingInlineEnd={d} className="px-section" />';
   const [failure] = await check(
     planAt(columnOf(wide, '"px-section')),
@@ -162,8 +162,8 @@ test("a compound joining an open prop to the changed one renders that prop, thou
 });
 
 test("a change outside the planned elements fails", async () => {
-  const line = '<Row className="justify-end" />';
+  const line = '<Row className="justify-between" />';
   const before = `${ROW}${line};\n`;
-  const after = `${ROW}<Row justify="end" />;\nconst extra = 2;\n`;
-  await expect(check(planAt(columnOf(line, '"justify-end')), before, after)).resolves.toEqual([`${PATH}: text outside the planned elements changed`]);
+  const after = `${ROW}<Row justify="between" />;\nconst extra = 2;\n`;
+  await expect(check(planAt(columnOf(line, '"justify-between')), before, after)).resolves.toEqual([`${PATH}: text outside the planned elements changed`]);
 });

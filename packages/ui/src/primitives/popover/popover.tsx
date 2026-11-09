@@ -33,6 +33,10 @@ const DEFAULT_SIDE_OFFSET = ANCHOR_GAP_TRIGGER;
 // inline style is the one honest, gate-clean spelling, same as `select.tsx`.
 const STABLE_WIDTH_STYLE: CSSProperties = { width: "min(var(--available-width), var(--container-cq-24))" };
 
+// Every popup is capped at 24rem and at the room the Positioner leaves: a rem cap alone outgrows a phone at enlarged text,
+// and `body` then clips the fields on its right. The same two-var `min()` as above, so the same inline spelling.
+const CAPPED_WIDTH_STYLE: CSSProperties = { maxInlineSize: "min(var(--available-width), var(--container-cq-24))" };
+
 /**
  * WHICH POPOVERS TAKE `modal`, AND WHY — the one home for that call (#2444, side-eye 2026-09-19).
  *
@@ -98,8 +102,11 @@ export function PopoverPopup(props: PopoverPopupProps): ReactElement {
     ...rest
   } = props;
   const portalContainer = usePortalContainer();
-  const popupStyle: BasePopupProps["style"] =
-    width === "stable" ? (state): CSSProperties => ({ ...(typeof style === "function" ? style(state) : style), ...STABLE_WIDTH_STYLE }) : style;
+  const popupStyle: BasePopupProps["style"] = (state): CSSProperties => ({
+    ...CAPPED_WIDTH_STYLE,
+    ...(typeof style === "function" ? style(state) : style),
+    ...(width === "stable" ? STABLE_WIDTH_STYLE : undefined),
+  });
   return (
     <BasePopover.Portal container={container ?? portalContainer}>
       {backdrop ? <BasePopover.Backdrop className={slots.backdrop()} data-slot="popover-backdrop" /> : null}

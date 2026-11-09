@@ -155,6 +155,7 @@ const REFINES: Readonly<Record<string, ArmsByTable>> = {
   "size > glyph": { [GLYPH_BUTTON]: ["chip", "lg", "md", "sm"] },
   "size > inset": { [BUTTON]: ["chip", "lg", "md", "sm"] },
   "size > layout": { [INPUT]: ["chip", "lg", "md", "sm"] },
+  "size > minHeight": { [BUTTON]: ["chip", "lg", "md", "sm"] },
   "size > prose": { [TEXT]: ["body", "headline", "label", "title"] },
   "size > solidLine": { [TEXT]: ["body", "headline", "label", "title"] },
   "size > square": { [BUTTON]: ["chip", "lg", "md", "sm"] },

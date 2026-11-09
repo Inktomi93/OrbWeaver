@@ -1151,6 +1151,8 @@ for (const [viewport, scale] of QUALIFIED.emptyStateActions) {
             return within !== null && box !== null && box.x >= within.x - SUBPIXEL && box.x + box.width <= within.x + within.width + SUBPIXEL;
           })
           .toBe(true);
+        // A label breaks between its words: a word is never cut to fit a pane that has room for it whole.
+        expect((await action.evaluate(splitWords)).split).toEqual([]);
         // The welcome alone: the narrow phone's topbar at 300% is a separate, qualified-out cell of this suite.
         await expect.poll(() => findings(pane.locator('[data-slot="empty-state-root"]'))).toEqual([]);
         expect(await documentOverflow(page)).toBeLessThanOrEqual(0);

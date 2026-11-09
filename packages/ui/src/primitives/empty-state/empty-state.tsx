@@ -1,6 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
 import { ACCENT_AURA_PIGMENT } from "#lib";
-import { ButtonWrapContext } from "#primitives/button";
 import { emptyStateVariants } from "./variants.ts";
 
 export interface EmptyStateProps {
@@ -79,7 +78,7 @@ export function EmptyState({
       )}
       {action === undefined || action === null ? null : (
         <div className={slots.action()} data-slot="empty-state-action">
-          <ButtonWrapContext value={true}>{action}</ButtonWrapContext>
+          {action}
         </div>
       )}
     </div>

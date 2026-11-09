@@ -54,7 +54,7 @@ export const dialogVariants = tv({
     // surrounds that region, so `sticky bottom-0` lands the buttons exactly one popup inset above the popup edge.
     // A tiny dialog (enlarged text on a landscape phone) stacks its actions to a height that can exceed the body, so the row
     // scrolls with the sheet there instead of covering every field.
-    footer: "sticky inset-be-0 z-(--z-raised) flex shrink-0 flex-wrap items-center justify-end gap-field bg-popover pbs-field dialog-tiny:static",
+    footer: "sticky inset-be-0 z-(--z-raised) flex shrink-0 flex-wrap items-center justify-end-safe gap-field bg-popover pbs-field dialog-tiny:static",
   },
   variants: {
     spaced: { true: { popup: "gap-block" } },
@@ -63,8 +63,9 @@ export const dialogVariants = tv({
     clearsClose: { true: { title: "pe-(--size-control-md) wrap-break-word @max-cq-20:pe-0 @max-cq-20:pbs-(--size-control-md)" }, false: {} },
     // A heading that takes programmatic arrival focus and no key: a ring would read as a field to type in.
     focusTarget: { true: { title: "outline-none" }, false: {} },
-    // A title that must hold one line beside the dialog's actions.
-    truncate: { true: { title: "truncate" }, false: {} },
+    // A title that must hold one line beside the dialog's actions. `truncate` clips its overflow, which drops the title's
+    // minimum block size to zero, so a body taller than the dialog would squeeze the title below its own line.
+    truncate: { true: { title: "truncate min-block-min" }, false: {} },
     // A header that stays in view while the body scrolls under it (a drawer's title and close), on the card fill so
     // scrolled rows do not show through. A sticky box rests against the scroller's content edge, not its padding edge,
     // so the header grows upward by the drawer's own inset (`p-section`) and rests against the true top: rows never
