@@ -24,13 +24,14 @@ import type { SendDestination } from "./boundaries.ts";
 import type { Site, SyntaxRole } from "./classify.ts";
 import { isProductionFile, roleAt, Sources, siteKey } from "./classify.ts";
 import type { SortEvidence, SortedField, Verdict } from "./field-sort.ts";
-import { FieldSort } from "./field-sort.ts";
+import { FieldSort, homeAliases, homeNames } from "./field-sort.ts";
 import { serviceReferences } from "./language-service.ts";
 import type { LiteralEvidence, LiteralStage } from "./literal-hits.ts";
 import { literalStage } from "./literal-hits.ts";
 import { constituents, declarationKeys, homeFiles, NativeWorld } from "./native.ts";
 import type { PropertyFacts, PropertyReferences, Send } from "./occurrences.ts";
 import { joinFacts, propertyFacts } from "./occurrences.ts";
+import type { SdkSurface } from "./plugin-surface.ts";
 import { publishedAt, sdkSurface } from "./plugin-surface.ts";
 import type { ScanOptions } from "./scan.ts";
 import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
@@ -66,17 +67,23 @@ interface UnwiredField {
   readonly literal: LiteralEvidence | null;
 }
 
-/** A field no production code reads that a receiver outside the tree reads: the published plugin SDK. */
+const RECEIVERS = ["plugin-sdk", "provider"] as const;
+/** `plugin-sdk`: the published SDK declares it for guests. `provider`: it rides a provider request body and a doc names it. */
+type Receiver = (typeof RECEIVERS)[number];
+
+/** A field no production code reads that a receiver outside the tree reads. */
 interface ReceivedField {
   readonly key: string;
   readonly file: string;
   readonly line: number;
   readonly home: string;
   readonly member: string;
-  readonly receiver: "plugin-sdk";
-  /** The SDK declaration that publishes it, `file:line`. */
+  readonly receiver: Receiver;
+  /** The SDK declaration that publishes it, or the doc line that names the provider field, `file:line`. */
   readonly cite: string;
 }
+
+const PROVIDER: SendDestination = "provider";
 
 export interface FieldsReport {
   readonly scanned: number;
@@ -99,15 +106,17 @@ const FIELD_LIMITS: readonly string[] = [
   "A type-position read (Registry[K]) is no read; a registry entry needs a value read by name.",
   "A read inside a string (a JSON scenario file, a SQL fragment, a plugin template) is invisible.",
   "JSON.stringify reads every field only where its string is compared, hashed or used as a map key or a *key/*hash binding; elsewhere it is a send with a named destination, and a return or plain binding is 'unclassified'.",
-  "A send's receiver outside the tree (a provider body, an HTTP or wire reader, a log or file reader) is not followed: those rows sort as ask with the destination named.",
+  "A send's receiver outside the tree (an HTTP or wire reader, a log or file reader) is not followed: those rows sort as ask with the destination named.",
+  'A value put in an open slot (unknown, or an index signature such as JSONObject or Record<string, unknown>) inside packages/inference/src/backends/ is a provider send with its nested members; it counts as received only where a law, ADR or README line backticks the member as a promise or beside its home or a sibling member. An open slot anywhere else, and an element-access write such as options["k"] = v, is not followed.',
+  "nestedValue(value, path) reads every nested member of its value to depth 4, whatever its path names.",
   "c.json sends to the HTTP client; a client read counts only when it is typed by the same declaration.",
   "A Drizzle write flows into the column of the same name; a column counts as read back by a select-row member or a table column read outside the table definition. Raw sql text that names a column is invisible.",
   "A $inferSelect or $inferInsert row member has no declaration; it reads the column of the table whose column names are exactly the row's member names, so a narrowed or widened row type reads nothing.",
   "A value spread or copied into an object that is then serialized is not followed to that serialization.",
-  "The plugin SDK surface is matched by home and member name against packages/plugin-sdk/*.d.ts; a renamed home is missed.",
+  "The plugin SDK surface is matched by home and member name against packages/plugin-sdk/*.d.ts, or by slot path (Home.member, Home.fn() return, Home.fn(n) parameter) where the SDK spells a contract type inline; a renamed home or a slot under another path is missed.",
   "Reader history counts any removed read of a member name one scanned home declares; for a shared name, only a removed read in a file whose parent version names the home, its schema or type twin, or an alias the current tree gives either; a read through an inferred type in a file that never names the home is missed, and a home renamed since is matched only under its current names.",
-  "The literal stage matches a dead row's member name as a whole word in every tracked file and cannot tell two fields of one name apart: any code, string, data-key, other-file or test type hit outside the declaration line moves the row to ask, including the row's own writes. Comment, TSDoc, doc and data-value hits are stale mentions and keep it dead. Gitignored and generated-but-untracked files are not searched.",
-  "A promise is a backticked Home.member under any of the home's names, a distinctive bare member that one scanned home declares, a settings field itself, or a field a flow from a settings field fills; a settings field of the same name that no flow connects sorts the row as ask.",
+  "The literal stage matches a dead row's member name as a whole word in every tracked file and cannot tell two fields of one name apart: any code, string, data-key, other-file or test type hit outside the row's own known sites (its declarations and every production site the scan recorded, by exact offset) moves the row to ask. Comment, TSDoc, doc and data-value hits are stale mentions and keep it dead. A never-written row lists its write-position hits as candidate writers. Gitignored and generated-but-untracked files are not searched.",
+  "A promise is a backticked Home.member under any of the home's names, a distinctive bare member that one scanned home declares (a schema and its type twin or alias count as one home), a settings field itself, or a field a flow from a settings field fills; a settings field of the same name that no flow connects sorts the row as ask.",
 ];
 
 const SAMPLE = 3;
@@ -516,22 +525,95 @@ function settingPromises(rolled: readonly Tally[], carriesInto: ReadonlyMap<stri
   return { fed, named };
 }
 
+// One concept per home: a schema and its type twin, or a home and an alias the tree gives it, are one home even in two
+// files. Unrelated homes of one name in two files stay apart. Each home maps to the first home of its concept.
+function conceptsOf(fields: readonly FieldDeclaration[], aliases: ReadonlyMap<string, ReadonlySet<string>>): ReadonlyMap<string, string> {
+  const byHome = new Map<string, string[]>();
+  for (const field of fields) {
+    const list = byHome.get(field.home) ?? [];
+    list.push(homeOf(field));
+    byHome.set(field.home, list);
+  }
+  const root = new Map<string, string>();
+  const find = (home: string): string => {
+    const up = root.get(home) ?? home;
+    return up === home ? home : find(up);
+  };
+  for (const field of fields) {
+    const [head, ...rest] = field.home.split(".");
+    const twins = homeNames(field.home, aliases)
+      .filter((name) => name !== head)
+      .flatMap((name) => byHome.get([name, ...rest].join(".")) ?? []);
+    for (const twin of twins) {
+      const [a, b] = [find(homeOf(field)), find(twin)].sort();
+      if (a !== undefined && b !== undefined && a !== b) {
+        root.set(b, a);
+      }
+    }
+  }
+  return new Map(fields.map((field) => [homeOf(field), find(homeOf(field))]));
+}
+
 // What the sort's promise test needs about a field from the whole scan: whether one home alone declares its member
-// name, the setting that feeds it, and a same-named setting no flow connects.
+// name, the other members of its home, the setting that feeds it, and a same-named setting no flow connects.
 function promiseFacts(
   rolled: readonly Tally[],
   carriesInto: ReadonlyMap<string, ReadonlySet<string>>,
-): (field: FieldDeclaration) => Pick<SortedField, "onlyHome" | "setting" | "namedSetting"> {
+  aliases: ReadonlyMap<string, ReadonlySet<string>>,
+): (field: FieldDeclaration) => Pick<SortedField, "onlyHome" | "setting" | "namedSetting"> & { readonly siblings: readonly string[] } {
+  const concepts = conceptsOf(
+    rolled.map(({ field }) => field),
+    aliases,
+  );
+  const conceptOf = (field: FieldDeclaration): string => concepts.get(homeOf(field)) ?? homeOf(field);
   const homes = new Map<string, Set<string>>();
+  const members = new Map<string, Set<string>>();
   for (const { field } of rolled) {
-    homes.set(field.member, (homes.get(field.member) ?? new Set()).add(homeOf(field)));
+    homes.set(field.member, (homes.get(field.member) ?? new Set()).add(conceptOf(field)));
+    members.set(conceptOf(field), (members.get(conceptOf(field)) ?? new Set()).add(field.member));
   }
   const { fed, named } = settingPromises(rolled, carriesInto);
-  return ({ key, member }) => ({
-    onlyHome: homes.get(member)?.size === 1,
-    setting: fed.get(key) ?? null,
-    namedSetting: named.get(member) ?? null,
+  return (field) => ({
+    onlyHome: homes.get(field.member)?.size === 1,
+    siblings: [...(members.get(conceptOf(field)) ?? [])].filter((member) => member !== field.member),
+    setting: fed.get(field.key) ?? null,
+    namedSetting: named.get(field.member) ?? null,
   });
+}
+
+// A reported row before the literal stage, with what the stage needs about it.
+type Finding = Omit<UnwiredField, "literal"> & { readonly known: readonly string[]; readonly neverWritten: boolean };
+
+const offsetOf = (site: Site): string => `${site.file}:${String(site.position)}`;
+
+// The receiver outside the tree that reads a field: the SDK publishing it, or a provider body a doc names it in.
+function receiverOf(
+  { surface, sorter }: { readonly surface: SdkSurface; readonly sorter: FieldSort },
+  row: { readonly field: FieldDeclaration; readonly kind: FieldKind; readonly sends: readonly Send[] },
+  promised: ReturnType<ReturnType<typeof promiseFacts>>,
+): Pick<ReceivedField, "receiver" | "cite"> | null {
+  const { field, kind, sends } = row;
+  const { key, site, home, member } = field;
+  const cite = kind === "never-written" ? null : publishedAt(surface, { file: site.file, home, member });
+  if (cite !== null) {
+    return { receiver: "plugin-sdk", cite };
+  }
+  const provider = sends.some((send) => send.destination === PROVIDER) ? sorter.providerCite({ key, home, member, ...promised }) : null;
+  return provider === null ? null : { receiver: "provider", cite: provider };
+}
+
+// The literal stage over the reported rows, with its search inputs dropped from the report.
+function staging(
+  root: string,
+  sources: Sources,
+  findings: readonly Finding[],
+  control: FieldDeclaration | undefined,
+): { readonly rows: readonly UnwiredField[]; readonly stage: LiteralStage | null } {
+  const staged =
+    control === undefined
+      ? { rows: findings.map((finding) => ({ ...finding, literal: null })), stage: null }
+      : literalStage(root, sources, findings, { key: control.key, member: control.member, known: namesOf(control).map(offsetOf) });
+  return { rows: staged.rows.map(({ known: _known, neverWritten: _neverWritten, ...row }) => row), stage: staged.stage };
 }
 
 /** Run both engines over the worlds of `root` for dead data. */
@@ -562,13 +644,15 @@ export function scanFields(options: ScanOptions): FieldsReport {
   const second = serviceReferences(options.root, [...worlds, ...testWorlds], asked, { log: options.log, crossCheck: options.crossCheck });
   const located = (site: Site): string => `${site.file}:${sources.line(site)}`;
   const surface = sdkSurface(options.root);
-  const promiseOf = promiseFacts(rolled, references.carriesInto);
+  const aliases = homeAliases(options.root);
+  const promiseOf = promiseFacts(rolled, references.carriesInto, aliases);
   const sorter = new FieldSort(
     options.root,
     sources,
     judged.map(({ field }) => ({ key: field.key, home: field.home, member: field.member, onlyHome: promiseOf(field).onlyHome })),
+    aliases,
   );
-  const findings: Omit<UnwiredField, "literal">[] = [];
+  const findings: Finding[] = [];
   const received: ReceivedField[] = [];
   const disagreements: FieldsReport["disagreements"][number][] = [];
   for (const { field, roles, kind, sends } of judged) {
@@ -583,32 +667,38 @@ export function scanFields(options: ScanOptions): FieldsReport {
       continue;
     }
     const { key, site, line, home, member, origin } = field;
-    const cite = kind === "never-written" ? null : publishedAt(surface, { file: site.file, home, member });
-    if (cite !== null) {
-      received.push({ key, file: site.file, line, home, member, receiver: "plugin-sdk", cite });
+    const promised = promiseOf(field);
+    const receivedAt = receiverOf({ surface, sorter }, { field, kind, sends }, promised);
+    if (receivedAt !== null) {
+      received.push({ key, file: site.file, line, home, member, ...receivedAt });
       continue;
     }
     const sample = [...roles.write, ...roles.read].slice(0, SAMPLE).map(located);
     const sent = sends.map((send) => `${send.destination} ${located(send.site)}`);
-    const { verdict, evidence } = sorter.sort({
+    const { verdict, evidence } = sorter.sort({ key, home, member, writes: roles.write, siblingsUsed: wiredHomes.has(homeOf(field)), sent, ...promised });
+    const tests = Math.max(roles.tests, audit.tests);
+    const known = [...namesOf(field), ...roles.read, ...roles.write].map(offsetOf);
+    findings.push({
       key,
+      file: site.file,
+      line,
       home,
       member,
-      writes: roles.write,
-      siblingsUsed: wiredHomes.has(homeOf(field)),
+      origin,
+      kind,
+      tests,
+      sample,
       sent,
-      ...promiseOf(field),
+      verdict,
+      evidence,
+      known,
+      neverWritten: kind === "never-written",
     });
-    findings.push({ key, file: site.file, line, home, member, origin, kind, tests: Math.max(roles.tests, audit.tests), sample, sent, verdict, evidence });
   }
   const control = rolled
-    .map(({ field }) => field)
-    .filter((field) => !reported.has(field.key) && isProduction(field.site.file))
-    .sort((a, b) => a.key.localeCompare(b.key))[0];
-  const staged =
-    control === undefined
-      ? { rows: findings.map((finding) => ({ ...finding, literal: null })), stage: null }
-      : literalStage(options.root, sources, findings, { key: control.key, member: control.member, at: `${control.site.file}:${String(control.line)}` });
+    .filter(({ field }) => !reported.has(field.key) && isProduction(field.site.file))
+    .sort((a, b) => a.field.key.localeCompare(b.field.key))[0]?.field;
+  const staged = staging(options.root, sources, findings, control);
   return {
     scanned: tally.size,
     ...sortDeliberate(staged.rows, options.deliberate),

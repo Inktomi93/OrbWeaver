@@ -12,8 +12,8 @@ import { typeNameOf } from "./plugin-surface.ts";
 
 const VERDICTS = ["dead", "forgotten", "ask"] as const;
 /** `dead`: no promise and no outside receiver. `forgotten`: a promise and a hand-written value or used siblings, and no
- *  reader ever: an unfinished feature. `ask`: a removed reader, an outside receiver, or a settings key of the same name
- *  no flow connects, which a person must judge. */
+ *  reader ever: an unfinished feature. `ask`: an outside receiver, a promise with a removed reader, or a settings key of
+ *  the same name no flow connects, which a person must judge. */
 export type Verdict = (typeof VERDICTS)[number];
 
 /** The four tests behind a verdict. */
@@ -68,8 +68,8 @@ interface Removal {
 
 const blobId = ({ commit, file }: Removal): string => `${commit}^:${file}`;
 
-// Every name the tree gives another name: each alias recorded under both of its names.
-function homeAliases(root: string): ReadonlyMap<string, ReadonlySet<string>> {
+/** Every name the tree gives another name: each alias recorded under both of its names. */
+export function homeAliases(root: string): ReadonlyMap<string, ReadonlySet<string>> {
   const aliases = new Map<string, Set<string>>();
   const pair = (a: string, b: string): void => {
     if (HOME_NAME.test(a) && HOME_NAME.test(b)) {
@@ -91,7 +91,7 @@ function homeAliases(root: string): ReadonlyMap<string, ReadonlySet<string>> {
 }
 
 /** The names a home is spelled by in source: its own, its schema or type twin, and the aliases the tree gives either. */
-function homeNames(home: string, aliases: ReadonlyMap<string, ReadonlySet<string>>): readonly string[] {
+export function homeNames(home: string, aliases: ReadonlyMap<string, ReadonlySet<string>>): readonly string[] {
   const [head = ""] = home.split(".");
   const twin = head.endsWith(SCHEMA) ? typeNameOf(head) : `${head.charAt(0).toLowerCase()}${head.slice(1)}${SCHEMA}`;
   return [...new Set([head, twin, ...(aliases.get(head) ?? []), ...(aliases.get(twin) ?? [])])];
@@ -197,25 +197,45 @@ function readerHistory(root: string, fields: readonly Owned[], aliases: Readonly
 // A one-word lowercase name (`host`, `at`) names many things in prose, so only `Home.member` promises it.
 const isDistinctive = (member: string): boolean => /[A-Z_]/u.test(member);
 
-/** Where each backticked token in a doc or README is first written: whole, as its last two parts, and its last part. */
-function docPromises(root: string): ReadonlyMap<string, string> {
-  const found = new Map<string, string>();
+/** One doc line and the last part of each token it backticks. */
+interface DocLine {
+  readonly at: string;
+  readonly tokens: ReadonlySet<string>;
+}
+
+interface DocTokens {
+  /** Where each backticked token is first written: whole, as its last two parts, and its last part. */
+  readonly first: ReadonlyMap<string, string>;
+  /** Each last part to every line that backticks it, in file and line order. */
+  readonly lines: ReadonlyMap<string, readonly DocLine[]>;
+}
+
+function docTokens(root: string): DocTokens {
+  const first = new Map<string, string>();
+  const lines = new Map<string, DocLine[]>();
   const note = (name: string, at: string): void => {
-    if (!found.has(name)) {
-      found.set(name, at);
+    if (!first.has(name)) {
+      first.set(name, at);
     }
   };
   for (const file of globSync([...PROMISE_DOCS], { cwd: root, exclude: (path) => path.includes("node_modules") }).sort()) {
-    for (const [at, line] of readFileSync(join(root, file), "utf8").split("\n").entries()) {
-      for (const [, token = ""] of line.matchAll(BACKTICKED)) {
+    for (const [index, text] of readFileSync(join(root, file), "utf8").split("\n").entries()) {
+      const at = `${file}:${String(index + 1)}`;
+      const tokens = new Set<string>();
+      for (const [, token = ""] of text.matchAll(BACKTICKED)) {
         const parts = token.split(".");
-        note(token, `${file}:${String(at + 1)}`);
-        note(parts.slice(-2).join("."), `${file}:${String(at + 1)}`);
-        note(parts.at(-1) ?? "", `${file}:${String(at + 1)}`);
+        const last = parts.at(-1) ?? "";
+        note(token, at);
+        note(parts.slice(-2).join("."), at);
+        note(last, at);
+        tokens.add(last);
+      }
+      for (const token of tokens) {
+        lines.set(token, [...(lines.get(token) ?? []), { at, tokens }]);
       }
     }
   }
-  return found;
+  return { first, lines };
 }
 
 const isLiteralValue = (node: ts.Node): boolean =>
@@ -259,17 +279,28 @@ export class FieldSort {
   readonly #aliases: ReadonlyMap<string, ReadonlySet<string>>;
   readonly #history: ReadonlyMap<string, string>;
   readonly #promises: ReadonlyMap<string, string>;
+  readonly #lines: ReadonlyMap<string, readonly DocLine[]>;
   readonly #sources: Sources;
 
-  constructor(root: string, sources: Sources, fields: readonly Owned[]) {
-    this.#aliases = homeAliases(root);
+  constructor(root: string, sources: Sources, fields: readonly Owned[], aliases: ReadonlyMap<string, ReadonlySet<string>>) {
+    this.#aliases = aliases;
     this.#history = readerHistory(root, fields, this.#aliases);
-    this.#promises = docPromises(root);
+    const { first, lines } = docTokens(root);
+    this.#promises = first;
+    this.#lines = lines;
     this.#sources = sources;
   }
 
+  /** The doc line that names a field a provider receives: a promise of the field, or a line that backticks the member
+   *  beside its home or a sibling member, so a common word such as `type` is cited only where its home is meant. */
+  providerCite(field: Owned & { readonly siblings: readonly string[] }): string | null {
+    const near = new Set([...homeNames(field.home, this.#aliases), ...field.siblings]);
+    const beside = (this.#lines.get(field.member) ?? []).find((line) => [...line.tokens].some((token) => token !== field.member && near.has(token)));
+    return this.#docPromise(field) ?? beside?.at ?? null;
+  }
+
   // A backticked `Home.member` under any name of the home, or the bare member when it is distinctive and one home declares it.
-  #docPromise(field: SortedField): string | null {
+  #docPromise(field: Owned): string | null {
     const last = field.home.split(".").at(-1) ?? "";
     const qualified = [field.home, last, ...homeNames(field.home, this.#aliases)].map((name) => `${name}.${field.member}`);
     const named = qualified.map((token) => this.#promises.get(token)).find((at) => at !== undefined);

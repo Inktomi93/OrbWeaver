@@ -50,6 +50,10 @@ interface LiteralHit {
   readonly at: string;
   readonly kind: HitKind;
   readonly test: boolean;
+  /** The parsed file's offset of the hit, `file:offset`, or null in a file the parser does not read. */
+  readonly offset: string | null;
+  /** A code hit that writes a key: an object literal key or shorthand, a JSX attribute, an assignment's target member. */
+  readonly write: boolean;
 }
 
 const PARSED = new Set([".ts", ".tsx", ".mts", ".cts", ".js", ".jsx", ".mjs", ".cjs"]);
@@ -97,15 +101,31 @@ function commentKind(source: ts.SourceFile, position: number, leaf: ts.Node): Hi
   return text.startsWith("/**", range.pos) ? "tsdoc" : "comment";
 }
 
-function parsedKind(source: ts.SourceFile, position: number): HitKind {
+// A name that gives a key its value: an object literal key or shorthand, a JSX attribute, or `x.name = …`.
+function writesKey(leaf: ts.Node): boolean {
+  const { parent } = leaf;
+  if ((ts.isPropertyAssignment(parent) || ts.isShorthandPropertyAssignment(parent) || ts.isJsxAttribute(parent)) && parent.name === leaf) {
+    return true;
+  }
+  const assigned = parent.parent;
+  return (
+    ts.isPropertyAccessExpression(parent) &&
+    parent.name === leaf &&
+    ts.isBinaryExpression(assigned) &&
+    assigned.left === parent &&
+    assigned.operatorToken.kind === ts.SyntaxKind.EqualsToken
+  );
+}
+
+function parsedKind(source: ts.SourceFile, position: number): { readonly kind: HitKind; readonly write: boolean } {
   const leaf = leafAt(source, position);
   if (position < leaf.getStart(source)) {
-    return commentKind(source, position, leaf);
+    return { kind: commentKind(source, position, leaf), write: false };
   }
   if (STRING_KINDS.has(leaf.kind)) {
-    return "string";
+    return { kind: "string", write: writesKey(leaf) };
   }
-  return isTypePosition(leaf) ? "type" : "code";
+  return isTypePosition(leaf) ? { kind: "type", write: false } : { kind: "code", write: writesKey(leaf) };
 }
 
 // A JSON or YAML key is the word followed by its colon, quoted or not.
@@ -151,7 +171,7 @@ function literalHits(root: string, sources: Sources, names: readonly string[]): 
   const seen = new Set<string>();
   for (const grepped of gitGrep(root, null, ["-I", "-w", "-F", ...wanted.flatMap((name) => ["-e", name])])) {
     for (const [name, hit] of lineHits(sources, grepped, words)) {
-      const key = `${name} ${hit.at} ${hit.kind}`;
+      const key = `${name} ${hit.offset ?? hit.at} ${hit.kind}`;
       if (!seen.has(key)) {
         seen.add(key);
         hits.get(name)?.push(hit);
@@ -168,16 +188,16 @@ function lineHits(sources: Sources, { file, line, text }: GrepLine, words: RegEx
   const lineStart = source === null ? 0 : source.getPositionOfLineAndCharacter(line - 1, 0);
   const at = `${file}:${String(line)}`;
   const test = TEST_FILE.test(file);
-  const kindAt = (index: number, name: string): HitKind => {
+  const hitAt = (index: number, name: string): LiteralHit => {
     if (source !== null) {
-      return parsedKind(source, lineStart + index);
+      return { at, test, offset: `${file}:${String(lineStart + index)}`, ...parsedKind(source, lineStart + index) };
     }
     if (type === "json") {
-      return dataKind(text, index, name);
+      return { at, test, offset: null, kind: dataKind(text, index, name), write: false };
     }
-    return type === "doc" ? "doc" : "other";
+    return { at, test, offset: null, kind: type === "doc" ? "doc" : "other", write: false };
   };
-  return [...text.matchAll(words)].map((match) => [match[0], { at, kind: kindAt(match.index, match[0]), test }] as const);
+  return [...text.matchAll(words)].map((match) => [match[0], hitAt(match.index, match[0])] as const);
 }
 
 const SAVING: ReadonlySet<HitKind> = new Set<HitKind>(["code", "string", "json-key", "other"]);
@@ -191,12 +211,16 @@ const KEPT_HITS = 25;
 
 /** One row's literal evidence. A dead row's hits that save nothing are stale mentions its deletion removes or repoints. */
 export interface LiteralEvidence {
-  /** `0 literal hits over N files` for a row with none. */
+  /** `0 literal hits over N files` for a row with none; a never-written row with no saving hit adds `no writer`. */
   readonly note: string | null;
   /** Some hit can be a real read, so the row moved from dead to ask. */
   readonly saved: boolean;
   readonly counts: Readonly<Partial<Record<HitKind, number>>>;
   readonly hits: readonly { readonly at: string; readonly kind: HitKind; readonly scope: "test" | "product" }[];
+  /** For a never-written row, the hits that write a key of its name: the writers a person checks. */
+  readonly writers: readonly string[];
+  /** Hits at the row's own known sites, left out: its declarations and the sites the scan already recorded. */
+  readonly own: number;
 }
 
 /** What the stage did over one run. */
@@ -211,13 +235,42 @@ export interface LiteralStage {
   readonly movedBy: Readonly<Partial<Record<HitKind, number>>>;
   /** Rows that stay dead with stale mentions to clean up. */
   readonly staleOnly: number;
+  /** Hits left out across every searched row because they sit at the row's own known sites. */
+  readonly ownHits: number;
+  /** Never-written rows the stage searched, by where they ended. */
+  readonly neverWritten: { readonly ask: number; readonly dead: number };
 }
 
 interface StageRow {
-  readonly file: string;
-  readonly line: number;
   readonly member: string;
   readonly verdict: Verdict;
+  /** `file:offset` of the row's declarations and of every site the scan recorded for it, which are no new evidence. */
+  readonly known: readonly string[];
+  /** The question is a writer rather than a reader. */
+  readonly neverWritten: boolean;
+}
+
+// One row's hits outside its known sites, and how many sat at them.
+function searched(search: LiteralSearch, member: string, known: ReadonlySet<string>): { readonly hits: readonly LiteralHit[]; readonly own: number } {
+  const all = search.hits.get(member) ?? [];
+  const hits = all.filter((hit) => hit.offset === null || !known.has(hit.offset));
+  return { hits, own: all.length - hits.length };
+}
+
+function evidenceOf(row: StageRow, hits: readonly LiteralHit[], own: number, files: number): LiteralEvidence {
+  const saving = hits.filter(savesRow);
+  const empty = hits.length === 0 ? `0 literal hits over ${String(files)} files` : null;
+  const unwritten = row.neverWritten && saving.length === 0 ? `no writer and 0 saving literal hits over ${String(files)} files` : null;
+  return {
+    note: unwritten ?? empty,
+    saved: saving.length > 0,
+    counts: countKinds(hits),
+    hits: [...saving, ...hits.filter((hit) => !savesRow(hit))]
+      .slice(0, KEPT_HITS)
+      .map(({ at, kind, test }) => ({ at, kind, scope: test ? "test" : "product" })),
+    writers: row.neverWritten ? hits.filter((hit) => hit.write).map((hit) => hit.at) : [],
+    own,
+  };
 }
 
 function countKinds(hits: readonly LiteralHit[]): Partial<Record<HitKind, number>> {
@@ -228,49 +281,43 @@ function countKinds(hits: readonly LiteralHit[]): Partial<Record<HitKind, number
   return counts;
 }
 
-/** Search every dead row's member name over the tracked tree and move a row with a hit that can be a read to ask. The
- *  declaration line itself is no hit. Null stage for a root with no git index, which leaves every row as it was. */
+/** Search every dead row's member name over the tracked tree and move a row with a hit that can be a read to ask. A
+ *  row's own known sites are no hit: the stage looks for what the scan missed. Null stage for a root with no git index,
+ *  which leaves every row as it was. */
 export function literalStage<Row extends StageRow>(
   root: string,
   sources: Sources,
   rows: readonly Row[],
-  control: { readonly key: string; readonly member: string; readonly at: string },
+  control: { readonly key: string; readonly member: string; readonly known: readonly string[] },
 ): { readonly rows: readonly (Row & { readonly literal: LiteralEvidence | null })[]; readonly stage: LiteralStage | null } {
   const dead = rows.filter((row) => row.verdict === DEAD);
   const search = literalHits(root, sources, [control.member, ...dead.map((row) => row.member)]);
   if (search === null) {
     return { rows: rows.map((row) => ({ ...row, literal: null })), stage: null };
   }
-  const outside = (name: string, at: string): readonly LiteralHit[] => (search.hits.get(name) ?? []).filter((hit) => hit.at !== at);
-  const controlHits = outside(control.member, control.at).filter(savesRow).length;
+  const controlHits = searched(search, control.member, new Set(control.known)).hits.filter(savesRow).length;
   if (controlHits === 0) {
     throw new Error(`literal stage: the wired control ${control.key} has no hit outside its declaration, so the search is broken`);
   }
   const movedBy: Partial<Record<HitKind, number>> = {};
   let staleOnly = 0;
+  let ownHits = 0;
   const staged = rows.map((row) => {
     if (row.verdict !== DEAD) {
       return { ...row, literal: null };
     }
-    const hits = outside(row.member, `${row.file}:${String(row.line)}`);
-    const saving = hits.filter(savesRow);
-    for (const kind of new Set(saving.map((hit) => hit.kind))) {
+    const { hits, own } = searched(search, row.member, new Set(row.known));
+    ownHits += own;
+    const literal = evidenceOf(row, hits, own, search.files);
+    for (const kind of new Set(hits.filter(savesRow).map((hit) => hit.kind))) {
       movedBy[kind] = (movedBy[kind] ?? 0) + 1;
     }
-    if (saving.length === 0 && hits.length > 0) {
+    if (!literal.saved && hits.length > 0) {
       staleOnly++;
     }
-    const literal: LiteralEvidence = {
-      note: hits.length === 0 ? `0 literal hits over ${String(search.files)} files` : null,
-      saved: saving.length > 0,
-      counts: countKinds(hits),
-      hits: [...saving, ...hits.filter((hit) => !savesRow(hit))]
-        .slice(0, KEPT_HITS)
-        .map(({ at, kind, test }) => ({ at, kind, scope: test ? "test" : "product" })),
-    };
     return { ...row, verdict: literal.saved ? ASK : row.verdict, literal };
   });
-  const deadAfter = staged.filter((row) => row.verdict === DEAD).length;
+  const unwritten = staged.filter((row) => row.neverWritten && row.literal !== null);
   return {
     rows: staged,
     stage: {
@@ -278,9 +325,11 @@ export function literalStage<Row extends StageRow>(
       ignored: search.ignored,
       control: { key: control.key, hits: controlHits },
       deadBefore: dead.length,
-      deadAfter,
+      deadAfter: staged.filter((row) => row.verdict === DEAD).length,
       movedBy,
       staleOnly,
+      ownHits,
+      neverWritten: { ask: unwritten.filter((row) => row.verdict === ASK).length, dead: unwritten.filter((row) => row.verdict === DEAD).length },
     },
   };
 }

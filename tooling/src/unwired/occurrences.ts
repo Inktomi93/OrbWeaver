@@ -57,7 +57,7 @@ import {
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
 import { all, TypeFlags } from "@typescript/native/sync";
 import type { SendDestination, StoreWrite } from "./boundaries.ts";
-import { copiedReads, serializedBy, storeWritesAt, tableDefinition } from "./boundaries.ts";
+import { copiedReads, PROVIDER_BODIES, serializedBy, storeWritesAt, tableDefinition } from "./boundaries.ts";
 import type { Site } from "./classify.ts";
 import { siteKey } from "./classify.ts";
 import type { Flow } from "./handoffs.ts";
@@ -187,10 +187,14 @@ interface Reflection {
   readonly value: Node;
   readonly key: Node | null;
   readonly sent: SendDestination | null;
+  /** The reflection reads nested members too, as deep as a send carries them. */
+  readonly nested?: true;
 }
 
 // Calls that read every property of their arguments by reflection, by the callee's text.
-const REFLECTIVE_CALLS: ReadonlySet<string> = new Set(["Object.entries", "Object.values", "Object.keys", "Object.assign", "structuredClone", "nestedValue"]);
+const REFLECTIVE_CALLS: ReadonlySet<string> = new Set(["Object.entries", "Object.values", "Object.keys", "Object.assign", "structuredClone"]);
+// A dotted-path read, `nestedValue(value, "a.b")`: its path is a wide string, so it may reach any nested member of its value.
+const NESTED_READS: ReadonlySet<string> = new Set(["nestedValue"]);
 const SERIALIZE = "JSON.stringify";
 // A Hono response: the value goes to whoever made the request, so only that reader's names count.
 const RESPONSE = "c.json";
@@ -206,6 +210,9 @@ function callReflections(node: CallExpression): readonly Reflection[] {
   if (callee === SERIALIZE) {
     const serialized = serializedBy(node);
     return node.arguments.slice(0, 1).map((value) => ({ value, key: null, sent: serialized.whole ? null : serialized.destination }));
+  }
+  if (NESTED_READS.has(callee)) {
+    return node.arguments.slice(0, 1).map((value) => ({ value, key: null, sent: null, nested: true }));
   }
   return REFLECTIVE_CALLS.has(callee) ? node.arguments.map((value) => ({ value, key: null, sent: null })) : [];
 }
@@ -603,14 +610,20 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
   });
   const { checker } = world;
   const found = world.batch(
-    lookups.map(function* (lookup): APIRequestGenerator<{ readonly symbols: (NativeSymbol | undefined)[]; readonly own: NativeSymbol | undefined }> {
+    lookups.map(function* (lookup): APIRequestGenerator<{
+      readonly symbols: (NativeSymbol | undefined)[];
+      readonly own: NativeSymbol | undefined;
+      readonly open: boolean;
+    }> {
       if (lookup.by === "symbol") {
-        return { symbols: [yield* checker.getSymbolAtLocation.gen(lookup.node)], own: undefined };
+        return { symbols: [yield* checker.getSymbolAtLocation.gen(lookup.node)], own: undefined, open: false };
       }
       const type = lookup.by === "contextual" ? yield* checker.getContextualType.gen(lookup.node) : yield* checker.getTypeAtLocation.gen(lookup.node);
       const symbols = type === undefined ? [] : yield* propertiesNamed(checker, type, lookup.name);
       const own = lookup.by === "contextual" && lookup.literalKey !== null ? yield* checker.getSymbolAtLocation.gen(lookup.literalKey) : undefined;
-      return { symbols, own };
+      const unnamed = lookup.by === "contextual" && lookup.literalKey !== null && symbols.every((symbol) => symbol === undefined);
+      const open = unnamed && type !== undefined && lookup.site.file.startsWith(PROVIDER_BODIES) && (yield* isOpenType(checker, type));
+      return { symbols, own, open };
     }),
   );
   const literals = storedLiterals(stores);
@@ -653,10 +666,15 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
     }
   }
   const sentReflections = kept.filter((reflection) => reflection.sent !== null);
-  const sentKeys = world.batch(sentReflections.map((reflection) => sentMembers(world, reflection.value)));
+  const sentKeys = world.batch(sentReflections.map((reflection) => heldMembers(world, reflection.value)));
   for (const [at, reflection] of sentReflections.entries()) {
     sends.push({ site: reflection.site, destination: reflection.sent as SendDestination, keys: sentKeys[at] ?? [] });
   }
+  const openKeys = lookups.flatMap((lookup, at) =>
+    found[at]?.open === true && lookup.by === "contextual" && lookup.literalKey !== null ? [lookup.literalKey] : [],
+  );
+  sends.push(...providerSends(world, openKeys, kept));
+  credits.push(...nestedReads(world, kept));
   for (const [at, reflection] of kept.entries()) {
     const { reads: symbols, links: spread, flows: carried } = reads[at] ?? { reads: [], links: [], flows: [] };
     if (reflection.sent === null) {
@@ -679,8 +697,49 @@ function* heldObjects(checker: Checker, type: Type): APIRequestGenerator<readonl
   return (yield* constituents(element ?? plain)).filter((member) => hasFlag(member.flags, TypeFlags.Object) || hasFlag(member.flags, TypeFlags.Intersection));
 }
 
-// The declaration keys of every in-tree member a serialized value carries, through nested objects and array elements.
-function* sentMembers(world: NativeWorld, value: Node): APIRequestGenerator<readonly string[]> {
+// A slot no member names a key in: `unknown`, or a type with an index signature such as `JSONObject` or `Record<string, unknown>`.
+function* isOpenType(checker: Checker, type: Type): APIRequestGenerator<boolean> {
+  if (hasFlag(type.flags, TypeFlags.Unknown)) {
+    return true;
+  }
+  const members = yield* constituents(type);
+  const infos = yield* all(...members.map((member) => checker.getIndexInfosOfType.gen(member)));
+  return infos.some((list) => list.length > 0);
+}
+
+// The value an object literal key or shorthand puts in its slot.
+function valueOfKey(key: Node): Node {
+  const { parent } = key;
+  return isPropertyAssignment(parent) ? parent.initializer : key;
+}
+
+// A value put in a provider body slot no member names leaves with its nested members: an open key's value, and a
+// spread into a literal whose type is open.
+function providerSends(world: NativeWorld, openKeys: readonly Node[], kept: readonly (Reflection & { readonly site: Site })[]): PropertyFacts["sends"] {
+  const { checker } = world;
+  const spreads = kept.filter(
+    (reflection) => reflection.sent === null && spreadTarget(reflection.value) !== null && reflection.site.file.startsWith(PROVIDER_BODIES),
+  );
+  const open = world.batch(
+    spreads.map(function* (reflection): APIRequestGenerator<boolean> {
+      const target = yield* checker.getContextualType.gen(spreadTarget(reflection.value) as Expression);
+      return target !== undefined && (yield* isOpenType(checker, target));
+    }),
+  );
+  const values = [...openKeys.map(valueOfKey), ...spreads.filter((_, at) => open[at] === true).map((reflection) => reflection.value)];
+  const keys = world.batch(values.map((value) => heldMembers(world, value)));
+  return values.map((value, at) => ({ site: world.siteOf(value), destination: "provider" as const, keys: keys[at] ?? [] }));
+}
+
+// A dotted-path read may reach any nested member of its value, so it reads them all.
+function nestedReads(world: NativeWorld, kept: readonly (Reflection & { readonly site: Site })[]): PropertyFacts["credits"] {
+  const nested = kept.filter((reflection) => reflection.nested === true);
+  const keys = world.batch(nested.map((reflection) => heldMembers(world, reflection.value)));
+  return nested.map((reflection, at) => ({ site: reflection.site, keys: keys[at] ?? [] }));
+}
+
+// The declaration keys of every in-tree member a value carries, through nested objects and array elements.
+function* heldMembers(world: NativeWorld, value: Node): APIRequestGenerator<readonly string[]> {
   const { checker } = world;
   const keys: string[] = [];
   const seen = new Set<number>();

@@ -23,11 +23,14 @@ import {
   SyntaxKind,
 } from "@typescript/native/ast";
 
-const SEND_DESTINATIONS = ["wire", "http", "log", "file", "error", "stored", "column", "unclassified"] as const;
+const SEND_DESTINATIONS = ["wire", "http", "log", "file", "error", "stored", "column", "provider", "unclassified"] as const;
 /** Where a serialized value goes. `wire`: a request body or a message to another realm. `http`: a server response.
  *  `stored`: a SQL parameter, so the column's reader parses it. `column`: a Drizzle write; on a reported field no query reads the column back.
- *  `unclassified`: a return or a binding the scan cannot follow. */
+ *  `provider`: a provider request body slot whose type names no member. `unclassified`: a return or a binding the scan cannot follow. */
 export type SendDestination = (typeof SEND_DESTINATIONS)[number];
+
+/** The provider backends build every provider request body, so a value put in an open slot there leaves for the provider. */
+export const PROVIDER_BODIES = "packages/inference/src/backends/";
 
 /** What a serialization does with its value: consumed whole in the process, or sent to a destination. */
 export type Serialized = { readonly whole: true } | { readonly whole: false; readonly destination: SendDestination };
