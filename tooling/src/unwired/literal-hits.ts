@@ -77,12 +77,11 @@ const wordsOf = (names: readonly string[]): RegExp => new RegExp(String.raw`(?<!
 const isTypePosition = (node: ts.Node): boolean =>
   ts.findAncestor(node, (up) => ts.isTypeNode(up) || ts.isInterfaceDeclaration(up) || ts.isTypeAliasDeclaration(up) || ts.isHeritageClause(up)) !== undefined;
 
-// The innermost node or token whose full span holds `position`; a position before its start sits in its leading trivia.
-// Tokens count: a comment before a closing brace or inside a JSX `{/* … */}` is the trivia of that token, not of a node.
+// The innermost node or token whose span holds `position`; JSDoc is comment text, never a leaf.
 function leafAt(source: ts.SourceFile, position: number): ts.Node {
   let found: ts.Node = source;
   for (let children = source.getChildren(source); ; ) {
-    const holder = children.find((child) => position >= child.getFullStart() && position < child.getEnd());
+    const holder = children.find((child) => !ts.isJSDoc(child) && position >= child.getFullStart() && position < child.getEnd());
     if (holder === undefined) {
       break;
     }
@@ -92,15 +91,54 @@ function leafAt(source: ts.SourceFile, position: number): ts.Node {
   return found === source ? source.endOfFileToken : found;
 }
 
-function commentKind(source: ts.SourceFile, position: number, leaf: ts.Node): HitKind {
-  const text = source.getFullText();
-  const ranges = [...(ts.getLeadingCommentRanges(text, leaf.getFullStart()) ?? []), ...(ts.getTrailingCommentRanges(text, leaf.getEnd()) ?? [])];
-  const range = ranges.find((candidate) => position >= candidate.pos && position < candidate.end);
-  if (range === undefined) {
-    // Text the parser holds in no token, such as JSX whitespace or a shebang, reads as code to stay on the saving side.
-    return "code";
+interface CommentRange {
+  readonly pos: number;
+  readonly end: number;
+}
+
+const commentRanges = new WeakMap<ts.SourceFile, readonly CommentRange[]>();
+
+// Every comment in a file: the leading and trailing trivia of each token, and a JSX `{/* … */}` container, whose text
+// the parser reads as the body of an empty expression rather than as trivia.
+function commentsOf(source: ts.SourceFile): readonly CommentRange[] {
+  const cached = commentRanges.get(source);
+  if (cached !== undefined) {
+    return cached;
   }
-  return text.startsWith("/**", range.pos) ? "tsdoc" : "comment";
+  const text = source.getFullText();
+  const ranges: CommentRange[] = [];
+  const add = (pos: number, end: number): void => {
+    ranges.push({ pos, end });
+  };
+  const visit = (node: ts.Node): void => {
+    if (ts.isJsxExpression(node) && node.expression === undefined) {
+      const open = node.getStart(source) + 1;
+      const inner = text.slice(open, node.getEnd() - 1);
+      const start = inner.search(/\S/u);
+      if (inner.startsWith("/*", start)) {
+        add(open + start, node.getEnd() - 1);
+      }
+    }
+    const children = node.getChildren(source).filter((child) => !ts.isJSDoc(child));
+    if (children.length === 0) {
+      ts.forEachLeadingCommentRange(text, node.getFullStart(), add);
+      ts.forEachTrailingCommentRange(text, node.getEnd(), add);
+    }
+    for (const child of children) {
+      visit(child);
+    }
+  };
+  visit(source);
+  commentRanges.set(source, ranges);
+  return ranges;
+}
+
+function commentAt(source: ts.SourceFile, position: number): HitKind | null {
+  const range = commentsOf(source).find((candidate) => position >= candidate.pos && position < candidate.end);
+  if (range === undefined) {
+    return null;
+  }
+  return source.getFullText().startsWith("/**", range.pos) ? "tsdoc" : "comment";
 }
 
 // A name that gives a key its value: an object literal key or shorthand, a JSX attribute, or `x.name = …`.
@@ -120,9 +158,14 @@ function writesKey(leaf: ts.Node): boolean {
 }
 
 function parsedKind(source: ts.SourceFile, position: number): { readonly kind: HitKind; readonly write: boolean } {
+  const comment = commentAt(source, position);
+  if (comment !== null) {
+    return { kind: comment, write: false };
+  }
   const leaf = leafAt(source, position);
   if (position < leaf.getStart(source)) {
-    return { kind: commentKind(source, position, leaf), write: false };
+    // Text the parser holds in no token and no comment, such as JSX whitespace or a shebang, stays on the saving side.
+    return { kind: "code", write: false };
   }
   if (STRING_KINDS.has(leaf.kind)) {
     return { kind: "string", write: writesKey(leaf) };

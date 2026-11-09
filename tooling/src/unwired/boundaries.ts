@@ -23,13 +23,14 @@ import {
   SyntaxKind,
 } from "@typescript/native/ast";
 
-const SEND_DESTINATIONS = ["wire", "http", "log", "file", "error", "stored", "column", "provider", "unclassified"] as const;
+const SEND_DESTINATIONS = ["wire", "http", "log", "file", "error", "stored", "column", "provider", "dependency", "unclassified"] as const;
 /** Where a serialized value goes. `wire`: a request body or a message to another realm. `http`: a server response.
  *  `stored`: a SQL parameter, so the column's reader parses it. `column`: a Drizzle write; on a reported field no query reads the column back.
- *  `provider`: a provider request body slot whose type names no member. `unclassified`: a return or a binding the scan cannot follow. */
+ *  `provider`: a provider request the backends make. `dependency`: a library outside the tree, named as the receiver.
+ *  `unclassified`: a return or a binding the scan cannot follow. */
 export type SendDestination = (typeof SEND_DESTINATIONS)[number];
 
-/** The provider backends build every provider request body, so a value put in an open slot there leaves for the provider. */
+/** The provider backends make every provider request, so only a value there can reach one. */
 export const PROVIDER_BODIES = "packages/inference/src/backends/";
 
 /** What a serialization does with its value: consumed whole in the process, or sent to a destination. */
@@ -83,13 +84,15 @@ function receiverName(call: CallExpression): string | null {
   return isPropertyAccessExpression(target) ? target.name.text : null;
 }
 
-// The node a serialization's string reaches: through parentheses, assertions, template text and string concatenation.
+// The node a serialization's string reaches: through parentheses, assertions, template text, string concatenation and
+// an array of parts, as `new Blob([JSON.stringify(value)])` takes them.
 function consumerOf(start: Node): { readonly node: Node; readonly parent: Node } {
   let node = start;
   for (;;) {
     const { parent } = node;
     const concatenated = isBinaryExpression(parent) && parent.operatorToken.kind === SyntaxKind.PlusToken;
     if (
+      isArrayLiteralExpression(parent) ||
       isParenthesizedExpression(parent) ||
       isAsExpression(parent) ||
       isNonNullExpression(parent) ||

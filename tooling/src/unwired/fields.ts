@@ -59,7 +59,8 @@ interface UnwiredField {
   readonly tests: number;
   /** Up to a few production sites that write or read it, `file:line`. */
   readonly sample: readonly string[];
-  /** Serializations that send its value out with no receiver the scan can follow, `destination file:line`. */
+  /** Serializations and open slots that send its value out with no receiver the scan can follow, `destination file:line`,
+   *  then the library, logger or call that takes it when the scan can name one. */
   readonly sent: readonly string[];
   readonly verdict: Verdict;
   readonly evidence: SortEvidence;
@@ -107,7 +108,10 @@ const FIELD_LIMITS: readonly string[] = [
   "A read inside a string (a JSON scenario file, a SQL fragment, a plugin template) is invisible.",
   "JSON.stringify reads every field only where its string is compared, hashed or used as a map key or a *key/*hash binding; elsewhere it is a send with a named destination, and a return or plain binding is 'unclassified'.",
   "A send's receiver outside the tree (an HTTP or wire reader, a log or file reader) is not followed: those rows sort as ask with the destination named.",
-  'A value put in an open slot (unknown, or an index signature such as JSONObject or Record<string, unknown>) inside packages/inference/src/backends/ is a provider send with its nested members; it counts as received only where a law, ADR or README line backticks the member as a promise or beside its home or a sibling member. A typed value handed there (an argument, a return, a key value, an annotated initializer or an `as` assertion) into a string-index slot sends the members the slot does not name; a member the slot names flows into that member and gets no send of its own, so a parsed key whose slot member is sent stays unreferenced. An open slot anywhere else, and an element-access write such as options["k"] = v, is not followed.',
+  "A typed value handed into an open slot (unknown, object, a type parameter bounded by one, or an index signature such as JSONObject or Record<string, unknown>) sends the members the slot does not name, with their nested members; an open literal key's value and a spread into an open literal send all of theirs. The scan follows the value up through literals and wrappers to the call it is an argument of: JSON.stringify gives its destination, an in-tree callee with a body is followed through that parameter's uses (three helpers deep), a library callee is a dependency send naming the package (an AI SDK package is provider, a logger is log), and a bodyless callee is log when its name, its receiver or its receiver's type names a logger. A value returned or bound is not followed, and an element-access write such as options[\"k\"] = v is not seen.",
+  "Inside packages/inference/src/backends/ a value with no other destination is a provider send only when it reaches a request: the arguments of an AI SDK doStream, doGenerate or doEmbed call and a fetch body, chased back through bindings, a parameter to its callers' arguments, a callee to its returns and a function value to its results. A parsed response reaches none of them unless it is put into a later request. A provider send counts as received only where a law, ADR or README line backticks the member as a promise or beside its home or a sibling member; a member a string-index slot names flows into that member and gets no send of its own, so a parsed key whose slot member is sent stays unreferenced.",
+  'An as assertion of a parameter whose type a library declares sends the asserted type\'s members to that library, which hands the object in and reads it back. An interface inside declare module "pkg" sends its members to pkg at type level. A dependency send is always ask, never received.',
+  'A literal-key element read with no declaration, row["k"], reads the members named k at any depth of every typed value handed in the same file into a string-indexed slot of the receiver\'s type; it cannot tell two values handed into one such type apart.',
   "nestedValue(value, path) reads every nested member of its value to depth 4, whatever its path names.",
   "c.json sends to the HTTP client; a client read counts only when it is typed by the same declaration.",
   "A Drizzle write flows into the column of the same name; a column counts as read back by a select-row member or a table column read outside the table definition. Raw sql text that names a column is invisible.",
@@ -472,7 +476,7 @@ function tallySites(tally: ReadonlyMap<string, Tally>, declared: ReadonlySet<str
     keep(entry.direct, sitesOf(direct, [...entry.keys], entry.field.site));
     // A test that serializes a value sends nothing out of the product.
     for (const send of [...entry.keys].flatMap((key) => sends.get(key) ?? []).filter((sent) => isProductionFile(sent.site.file))) {
-      entry.sends.set(`${send.destination} ${siteKey(send.site)}`, send);
+      entry.sends.set(`${send.destination} ${siteKey(send.site)} ${send.receiver ?? ""}`, send);
     }
   }
 }
@@ -678,7 +682,7 @@ export function scanFields(options: ScanOptions): FieldsReport {
       continue;
     }
     const sample = [...roles.write, ...roles.read].slice(0, SAMPLE).map(located);
-    const sent = sends.map((send) => `${send.destination} ${located(send.site)}`);
+    const sent = sends.map((send) => [send.destination, located(send.site), ...(send.receiver === null ? [] : [send.receiver])].join(" "));
     const { verdict, evidence } = sorter.sort({ key, home, member, writes: roles.write, siblingsUsed: wiredHomes.has(homeOf(field)), sent, ...promised });
     const tests = Math.max(roles.tests, audit.tests);
     const known = [...namesOf(field), ...roles.read, ...roles.write].map(offsetOf);
