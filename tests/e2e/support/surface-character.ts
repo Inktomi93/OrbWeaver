@@ -16,6 +16,7 @@ import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import {
   BACKGROUND_FROM_URL_NAME,
+  BACKGROUND_GRID_NAME,
   BACKGROUND_URL_FIELD_NAME,
   CORNER_RADIUS_NAME,
   createTagName,
@@ -609,7 +610,7 @@ async function lookJourney(flow: CharacterFlow, characterId: CharacterId): Promi
     await record(flow, "look-theme-catalog", menu, [menu.getByRole("menuitem", { name: first.name, exact: true })]);
     await flow.page.keyboard.press("Escape");
   }
-  const background = look.getByRole("grid", { name: "Background", exact: true });
+  const background = look.getByRole("grid", { name: BACKGROUND_GRID_NAME, exact: true });
   await background.scrollIntoViewIfNeeded();
   await record(flow, "look-background", look, [background]);
   await look.getByRole("button", { name: BACKGROUND_FROM_URL_NAME, exact: true }).click();
