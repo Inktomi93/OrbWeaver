@@ -532,34 +532,22 @@ test("enlarged-text geometry still names a visible button a fixed box clips, and
   ]);
 });
 
-test("enlarged-text geometry fails a named pair of visible controls that overlap", async ({ mount, page, browserName }) => {
-  test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
-  await using _textSize = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
-  await mount<typeof SurfaceTextOverlapStory>("tests/support/browser/surface-design-fixtures/SurfaceTextOverlapStory", { named: true });
-  await expect(page.getByRole("button", { name: "Over control", exact: true })).toBeVisible();
-  expect(await enlargedTextFindings(page.getByRole("main"))).toEqual(['"Under control" overlaps "Over control"']);
-});
+// Each naming the overlap story offers, and the finding the probe must name it by: a pair with no name carries its boxes.
+const OVERLAP_CASES = [
+  { naming: "content", finding: /^button "Under control" \[.*\] overlaps button "Over control" \[.*\]$/u },
+  { naming: "placeholder", finding: /^input "Search" \[.*\] overlaps input "Filter" \[.*\]$/u },
+  { naming: "none", finding: /^input "" \[\d+,\d+ \d+x\d+\] overlaps input "" \[\d+,\d+ \d+x\d+\]$/u },
+] as const;
 
-test("enlarged-text geometry records an overlap with no name on either control as incomplete, not as a finding", async ({ mount, page, browserName }, info) => {
-  test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
-  await using profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
-  await page.addInitScript({ content: webVitalsInitScript(await webVitalsSource()) });
-  await mount<typeof SurfaceTextOverlapStory>("tests/support/browser/surface-design-fixtures/SurfaceTextOverlapStory", { named: false });
-  const fields = page.getByRole("textbox");
-  await expect(fields).toHaveCount(2);
-  const name = "text-geometry-unnamed-overlap";
-  await surfaceCheckpoint(info, { name, scope: page.getByRole("main"), state: "loaded", witnesses: [fields.first()], checks: ["names"] }, [], {
-    pass: "measurement",
-    layoutStability: false,
-    textGeometry: { expectedRootFontPx: profile.standardFontPx },
+for (const { naming, finding } of OVERLAP_CASES) {
+  test(`enlarged-text geometry fails a visible pair that overlaps, named by ${naming}`, async ({ mount, page, browserName }) => {
+    test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+    await using _textSize = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+    await mount<typeof SurfaceTextOverlapStory>("tests/support/browser/surface-design-fixtures/SurfaceTextOverlapStory", { naming });
+    await expect(page.getByRole(naming === "content" ? "button" : "textbox")).toHaveCount(2);
+    expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([expect.stringMatching(finding)]);
   });
-  const verdict: unknown = JSON.parse(await nativeAttachmentText(info, `${name}-text-geometry`));
-  expect(verdict).toMatchObject({
-    findings: [],
-    incomplete: [expect.stringMatching(/^input "" \[.*\] overlaps input "" \[.*\]: neither control has a name$/u)],
-  });
-  expect(info.errors).toEqual([]);
-});
+}
 
 test("the design walk restores real nested scroll positions after a native reveal throws", async ({ mount, page }) => {
   await mount<typeof SurfaceDesignStory>("tests/support/browser/surface-design-fixtures/SurfaceDesignStory", { width: 640 });

@@ -106,8 +106,12 @@ export function SurfaceTextGeometryStory({ clipped }: { readonly clipped: boolea
   );
 }
 
-/** Two visible controls laid over each other: buttons with names, or text fields with none. */
-export function SurfaceTextOverlapStory({ named }: { readonly named: boolean }): ReactElement {
+// How the overlapping pair is named: buttons by their content, text fields by placeholder only, or text fields with no name.
+const OVERLAP_NAMINGS = ["content", "placeholder", "none"] as const;
+type OverlapNaming = (typeof OVERLAP_NAMINGS)[number];
+
+/** Two visible controls laid over each other, named by {@link OverlapNaming}. */
+export function SurfaceTextOverlapStory({ naming }: { readonly naming: OverlapNaming }): ReactElement {
   // The second control rises a quarter control height onto the first's bottom edge: an edge overlap leaves both
   // centres uncovered, so only the overlap probe sees it and the centre hit test stays clean.
   const over = { marginBlockStart: `calc(-0.25 * var(${TOKENS["size.control-md"].cssVar}))` };
@@ -116,7 +120,7 @@ export function SurfaceTextOverlapStory({ named }: { readonly named: boolean }):
       <main>
         <Stack padding="section">
           <h1>Overlap control</h1>
-          {named ? (
+          {naming === "content" ? (
             <>
               <Button variant="outline">Under control</Button>
               <Button variant="outline" style={over}>
@@ -125,8 +129,8 @@ export function SurfaceTextOverlapStory({ named }: { readonly named: boolean }):
             </>
           ) : (
             <>
-              <Input name="underControl" />
-              <Input name="overControl" style={over} />
+              <Input name="underControl" {...(naming === "placeholder" ? { placeholder: "Search" } : {})} />
+              <Input name="overControl" style={over} {...(naming === "placeholder" ? { placeholder: "Filter" } : {})} />
             </>
           )}
         </Stack>

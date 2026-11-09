@@ -9,17 +9,9 @@ const REACHABLE =
 // The character band's chip row scrolls by ruling: it keeps each chip whole rather than wrap into a ragged void.
 const SIDEWAYS_STRIPS = 'input, textarea, [role="tablist"], [role="toolbar"], [data-slot="character-context-band"] > * > *';
 
-/** An enlarged-text verdict over one scope. */
-export interface EnlargedTextGeometry {
-  readonly findings: readonly string[];
-  /** What the probes saw but could not judge, each with its reason: neither a finding nor a clean result. */
-  readonly incomplete: readonly string[];
-}
-
 interface ControlGeometry {
   readonly clipped: string[];
   readonly overlaps: string[];
-  readonly unnamedOverlaps: string[];
 }
 
 /**
@@ -36,7 +28,8 @@ function controlGeometry(subject: Element, { reachable, subpixel }: { readonly r
     element instanceof HTMLButtonElement
       ? [...(element.labels ?? [])]
       : [];
-  // The name sources the page states outright, in accessible-name order; this is not an accessible-name engine.
+  // The name sources the page states outright, in accessible-name order (text content only names a control that
+  // takes its name from content, and an input has none); this is not an accessible-name engine.
   const nameOf = (element: Element): string => {
     const labelledBy = (element.getAttribute("aria-labelledby") ?? "")
       .split(/\s+/u)
@@ -49,6 +42,8 @@ function controlGeometry(subject: Element, { reachable, subpixel }: { readonly r
         .map(({ textContent }) => textContent)
         .join(" "),
       element.textContent,
+      element.getAttribute("title") ?? "",
+      element.getAttribute("placeholder") ?? "",
     ];
     return (sources.map((source) => source.trim()).find((source) => source !== "") ?? "").slice(0, 40);
   };
@@ -179,7 +174,6 @@ function controlGeometry(subject: Element, { reachable, subpixel }: { readonly r
       !element.matches('input[type="file"]'),
   );
   const overlaps: string[] = [];
-  const unnamedOverlaps: string[] = [];
   painted.forEach((element, index) => {
     for (const other of painted.slice(index + 1)) {
       const [a, b] = [element.getBoundingClientRect(), other.getBoundingClientRect()];
@@ -189,16 +183,11 @@ function controlGeometry(subject: Element, { reachable, subpixel }: { readonly r
       if (!overlap || pinned(element) || pinned(other) || scrollerOf(element) !== scrollerOf(other)) {
         continue;
       }
-      const [name, otherName] = [nameOf(element), nameOf(other)];
-      // An overlap with no name on either side has nothing to attribute it to; it stays unjudged rather than counted.
-      if (name === "" && otherName === "") {
-        unnamedOverlaps.push(`${label(element)} ${boxText(a)} overlaps ${label(other)} ${boxText(b)}: neither control has a name`);
-      } else {
-        overlaps.push(`"${name}" overlaps "${otherName}"`);
-      }
+      // The boxes attribute a pair whose controls carry no name.
+      overlaps.push(`${label(element)} ${boxText(a)} overlaps ${label(other)} ${boxText(b)}`);
     }
   });
-  return { clipped, overlaps, unnamedOverlaps };
+  return { clipped, overlaps };
 }
 
 /** Text cut with no ellipsis to say so: a single line past its box, or lines past a box that does not scroll. */
@@ -250,17 +239,11 @@ function collapsedScrollers(subject: Element, { subpixel }: { readonly subpixel:
     );
 }
 
-/** The enlarged-text geometry of `scope`: its findings, and the cases its probes left unjudged. */
-export async function enlargedTextGeometry(scope: Locator): Promise<EnlargedTextGeometry> {
+/** Every enlarged-text geometry finding inside `scope`; an empty list is a clean scope. */
+export async function enlargedTextFindings(scope: Locator): Promise<string[]> {
   const controls = await scope.evaluate(controlGeometry, { reachable: REACHABLE, subpixel: LAYOUT_SUBPIXEL_PX });
   const text = await scope.evaluate(cutOffText, { subpixel: LAYOUT_SUBPIXEL_PX });
   const columns = await scope.evaluate(sidewaysColumns, { strips: SIDEWAYS_STRIPS, subpixel: LAYOUT_SUBPIXEL_PX });
   const collapsed = await scope.evaluate(collapsedScrollers, { subpixel: LAYOUT_SUBPIXEL_PX });
-  return { findings: [...controls.clipped, ...controls.overlaps, ...text, ...columns, ...collapsed], incomplete: controls.unnamedOverlaps };
-}
-
-/** Every enlarged-text finding inside `scope`, then every case left unjudged; an empty list is a scope judged clean. */
-export async function enlargedTextFindings(scope: Locator): Promise<string[]> {
-  const { findings, incomplete } = await enlargedTextGeometry(scope);
-  return [...findings, ...incomplete];
+  return [...controls.clipped, ...controls.overlaps, ...text, ...columns, ...collapsed];
 }

@@ -7,7 +7,7 @@ import { attachNativeFile } from "../node/native-attachments.ts";
 import type { SurfaceAuditRequest } from "../node/surface-audit.ts";
 import { accessibilityScan } from "./accessibility-scan.ts";
 import { actionGroupGeometry } from "./action-group-geometry.ts";
-import { enlargedTextGeometry } from "./enlarged-text-geometry.ts";
+import { enlargedTextFindings } from "./enlarged-text-geometry.ts";
 import { readCheckpointStability } from "./layout-stability.ts";
 import { assertSurfaceReady, auditSurface } from "./settle-surface.ts";
 import { readSurfaceCohortRenders, readSurfaceDesignAudit } from "./surface-design-audit.ts";
@@ -186,14 +186,14 @@ async function checkpointTextGeometry(
     );
   const swapAtReadiness = await swapRunning();
   await expect.poll(swapRunning, { message: `${request.name}: the content swap's view transition must end before its hit tests are read` }).toBe(false);
-  const { findings, incomplete } = await enlargedTextGeometry(request.scope);
+  const findings = await enlargedTextFindings(request.scope);
   await attachNativeFile(info, step, `${request.name}-text-geometry`, {
-    body: JSON.stringify({ rootFontPx, shellRegime, swapAtReadiness, viewport: page.viewportSize(), findings, incomplete }, null, 2),
+    body: JSON.stringify({ rootFontPx, shellRegime, swapAtReadiness, viewport: page.viewportSize(), findings }, null, 2),
     contentType: "application/json",
   });
   step.annotations.push({
     type: "text-geometry",
-    description: `Enlarged-text geometry over the checkpoint scope; root font=${String(rootFontPx)}px; shell regime=${shellRegime}; findings=${String(findings.length)}; incomplete=${String(incomplete.length)}`,
+    description: `Enlarged-text geometry over the checkpoint scope; root font=${String(rootFontPx)}px; shell regime=${shellRegime}; findings=${String(findings.length)}`,
   });
   expect.soft(findings, `${request.name}: enlarged-text geometry findings; inspect the text-geometry attachment`).toEqual([]);
 }
