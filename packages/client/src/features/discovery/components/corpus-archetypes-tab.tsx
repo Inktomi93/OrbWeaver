@@ -214,7 +214,9 @@ function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; reado
   const facets = [cluster.genre, cluster.tone, ...(cluster.extra ?? [])].filter((v) => v !== null && v !== "");
   const analysis = "analysedMembers" in cluster.destination.cluster ? corpusFamilyAnalysisLabel(cluster.destination.cluster) : null;
   return (
-    <Stack gap="field">
+    // The card is a named group: one character sits in several clusters, so the member doors alone repeat across
+    // the tab. The cluster's disambiguated name is the scope that tells them apart.
+    <Stack gap="field" role="group" aria-label={name}>
       <Row align="center" gap="field" justify="between">
         {/* The DISAMBIGUATED name (B6) — the card and its bar are one cluster and must answer to one name. */}
         <Button variant="ghost" size="sm" onClick={(): void => selectCorpusArtifact({ ...cluster.destination, title: name })}>

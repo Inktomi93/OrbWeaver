@@ -26,8 +26,9 @@ interface TrackerValueOwnProps {
   readonly kind?: "text" | "numeric";
   /** Accessible name for the value (rest button + edit field — the tracker's label, "Vitality value"). */
   readonly ariaLabel: string;
-  /** Accessible name for the at-rest button when it must include the displayed datum. The edit field keeps
-   *  `ariaLabel`, so automation has a stable field name after opening the value. */
+  /** The at-rest button's whole accessible name, for a caller that words it itself. Absent, the name is `ariaLabel`
+   *  and the text the button shows. The edit field keeps `ariaLabel`, so automation has a stable field name after
+   *  opening the value. */
   readonly restAriaLabel?: string;
   /** The control's voice; a stat tile promotes its value while ordinary fields use the label step. */
   readonly voice?: TrackerVoice;
@@ -61,6 +62,18 @@ interface TrackerValueOwnProps {
 /** The at-rest/read-only display's colour: a tone by meaning (a warning value) or a named ink (muted for a secondary
  *  value), the voice's own ink by default. */
 type TrackerValueProps = TrackerValueOwnProps & ToneInkSelection;
+
+/** What the rest button shows: the datum, or the placeholder on an empty value. */
+function restTextOf(display: string, placeholder: string | undefined): string {
+  return display === "" ? (placeholder ?? NO_VALUE) : display;
+}
+
+/** The rest button's name: the field's label, then the text the button shows (the datum, or the placeholder of an
+ *  empty value), so the visible words are in the name (WCAG 2.5.3). A caller that words the name itself passes
+ *  `restAriaLabel`; the edit field keeps the bare label. */
+function restNameOf(ariaLabel: string, restAriaLabel: string | undefined, display: string, placeholder: string | undefined): string {
+  return restAriaLabel ?? `${ariaLabel}: ${restTextOf(display, placeholder)}`;
+}
 
 /** The REST state of an editable value — a real button CARRYING the datum text (see the header). Split out
  *  of `TrackerValue` so the editor arm's commit ruling is the only thing that file-reads as branching. */
@@ -98,7 +111,7 @@ function TrackerValueRest({
   readonly buttonRef: Ref<HTMLButtonElement>;
 }): ReactElement {
   const empty = display === "";
-  const restText = empty ? (placeholder ?? NO_VALUE) : display;
+  const restText = restTextOf(display, placeholder);
   const restPaint: ToneInkSelection = ink === undefined ? { tone } : { ink };
   return (
     <Tip text={editTitle}>
@@ -236,7 +249,7 @@ export function TrackerValue({
   if (session === null) {
     return (
       <TrackerValueRest
-        ariaLabel={restAriaLabel ?? ariaLabel}
+        ariaLabel={restNameOf(ariaLabel, restAriaLabel, display, placeholder)}
         grow={grow}
         textAlign={textAlign}
         width={width}

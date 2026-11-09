@@ -131,10 +131,14 @@ export function PluginSurfaceShell({
                 <Text voice="label" wrap="word">
                   {pluginName}
                 </Text>
+                {/* A text node between flex items paints nothing; it keeps name and title apart in the DOM text, which is how axe reads the visible label. */}
                 {showTitle ? (
-                  <Text truncate={true} voice="gloss">
-                    {title}
-                  </Text>
+                  <>
+                    {" "}
+                    <Text truncate={true} voice="gloss">
+                      {title}
+                    </Text>
+                  </>
                 ) : null}
               </Stack>
             </CollapsibleTrigger>

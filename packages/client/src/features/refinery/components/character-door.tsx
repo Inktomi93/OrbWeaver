@@ -45,7 +45,7 @@ export function CharacterDoor({ placeholder, label, chosenName, disabled = false
           </Button>
         }
       />
-      <PopoverPopup>
+      <PopoverPopup aria-label={label}>
         <CharacterPicker
           autoFocusSearch={true}
           emptyText="No characters match."

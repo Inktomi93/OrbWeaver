@@ -61,7 +61,7 @@ function NpcRelationship({ name, relationship, onEditRelationshipKind, relations
             </InlineAction>
           }
         />
-        <PopoverPopup>
+        <PopoverPopup aria-label={`${name} relationship kind`}>
           <Stack gap="field" role="group" aria-label={`${name} relationship kind`}>
             {RPG_RELATIONSHIP_KINDS.map((option) => (
               <Button

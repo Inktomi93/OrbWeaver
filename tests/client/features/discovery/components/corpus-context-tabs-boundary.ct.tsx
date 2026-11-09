@@ -149,3 +149,38 @@ test("changing a nearest-pairs knob keeps the settled pairs on screen while the 
   hold.release();
   await expect(context.locator('[aria-busy="true"]')).toHaveCount(0);
 });
+
+test("a room pair's button name contains the relation badge it shows", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  await routeTrpc(
+    page,
+    serveCorpusProcedures(caller, [...SERVED, ...SIMILARITY_READS, "discovery.catalog", "discovery.visualArchetypes", "discovery.similarityGraph"]),
+  );
+  await seedShellState(page, { activeSection: "corpus" });
+  await mount<typeof ShellAmbientStory>(STORY, {});
+  const context = await openContextTab(page, "Similarity");
+  await expect(context.getByRole("combobox", { name: "Min similarity" })).toBeVisible();
+  const forked = context.getByRole("button", { name: /compare rooms/u }).filter({ has: page.getByText("forked", { exact: true }) });
+  await expect(forked.first()).toBeVisible();
+  await expect(forked.first()).toHaveAccessibleName(/, forked, /u);
+});
+
+test("each archetype card is a group named for its archetype, so a character in several archetypes has one door under each name", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  await routeTrpc(page, serveCorpusProcedures(caller, [...SERVED, "discovery.catalog", "discovery.visualArchetypes"]));
+  await seedShellState(page, { activeSection: "corpus" });
+  await mount<typeof ShellAmbientStory>(STORY, {});
+  const context = await openContextTab(page, "Archetypes");
+  await expect(context.getByRole("combobox", { name: "Clusters" })).toBeVisible();
+  // A card's first door opens the archetype and carries its name, so the card's group is named by it.
+  const cards = await context
+    .getByRole("group")
+    .evaluateAll((groups) => groups.map((group) => ({ label: group.getAttribute("aria-label"), opens: group.querySelector("button")?.textContent ?? null })));
+  expect(cards.length).toBeGreaterThan(1);
+  for (const card of cards) {
+    expect(card.label).toBe(card.opens);
+  }
+  expect(new Set(cards.map((card) => card.label)).size).toBe(cards.length);
+});

@@ -93,7 +93,8 @@ export function TalkativenessPopover({
             <Text as="span" voice="label">
               {talkativenessReadout(weight)}
             </Text>
-            <Stack ref={initialFocusRef} tabIndex={-1} grow={true} focusTarget={true}>
+            {/* The popup's first focus lands here, so it is a named group: a bare focused div announces nothing. */}
+            <Stack ref={initialFocusRef} tabIndex={-1} role="group" aria-label={talkativenessControlName(row.displayName)} grow={true} focusTarget={true}>
               <Slider
                 value={weight}
                 min={0}

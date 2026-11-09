@@ -440,7 +440,14 @@ function GroupBody({ group }: { readonly group: ConfigGroupDefinition }): ReactN
               <Text as="span" id={foldLabelId} voice="interactiveKicker">
                 {fold.label}
               </Text>
-              {fold.caption === undefined ? null : <span id={foldCaptionId}>{fold.caption()}</span>}
+              {/* The space is a text node between flex items: it paints nothing, and keeps the two ids' words apart in the
+                  DOM text, which is how axe reads the visible label (WCAG 2.5.3). */}
+              {fold.caption === undefined ? null : (
+                <>
+                  {" "}
+                  <span id={foldCaptionId}>{fold.caption()}</span>
+                </>
+              )}
             </Row>
           </CollapsibleTrigger>
           <CollapsiblePanel instant={foldOpen.instant}>

@@ -144,9 +144,10 @@ function RulePresetList({ presets, onPick }: RulePresetListProps): ReactElement 
   return (
     <Stack gap="block">
       {presets.map((preset) => (
+        // No `aria-label`: the sentence sits inside the button, so the name is the button's own content (title,
+        // summary, price) and always contains the words on screen (WCAG 2.5.3).
         <Button
           key={preset.id}
-          aria-label={preset.title}
           variant="ghost"
           // `wrap` is the arm for exactly this: a CHOICE affordance carrying a sentence — the label wraps
           // and the height follows the wrapped text, floored at the `sm` control height (the tap floor).

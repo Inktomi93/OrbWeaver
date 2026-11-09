@@ -13,6 +13,9 @@ import { Popover, PopoverPopup, PopoverTrigger } from "@orb/ui/popover";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 
+/** The popup's name, and the kicker line that opens its body. */
+const COMPACT_SUMMARY_NAME = "Compaction summary";
+
 /** The peek trigger + popup: "View" opens a scrollable readout of the compaction summary. */
 export function CompactSummaryPeek({ summary }: { readonly summary: string }): ReactElement {
   return (
@@ -36,10 +39,10 @@ export function CompactSummaryPeek({ summary }: { readonly summary: string }): R
           `ch` on a WRAPPER resolves in the wrapper's font rather than the copy's — the #213/#1130 failure the
           prose token's contract names. The summary Text below takes `--reading-measure-prose` and the popup
           shrink-wraps to it. */}
-      <PopoverPopup side="top" align="center">
+      <PopoverPopup aria-label={COMPACT_SUMMARY_NAME} side="top" align="center">
         <Stack gap="field" scroll="y" maxHeight="scrollLg">
           <Text as="span" voice="kicker">
-            Compaction summary
+            {COMPACT_SUMMARY_NAME}
           </Text>
           {/* The summary is CONTENT — the prose default (§2.3 keeps `body` for content copy), spelled by
               omission rather than by an internal `size` axis. */}

@@ -3,7 +3,7 @@
 import { spawn } from "node:child_process";
 import { CHAT_PLUGINS_TAB_LABEL } from "@orb/client/lib";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
-import { seedShellState } from "@orb/testkit/browser/spec";
+import { accessibilityScan, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
@@ -58,4 +58,8 @@ test("a long plugin name is not clipped in its panel header", async ({ corpus, p
   await expect(name).toBeVisible();
   const clipped = await name.evaluate((node) => node.scrollWidth > node.clientWidth);
   expect(clipped).toBe(false);
+  // The header's name is `<plugin>: <title>`; axe reads the visible name and title as two words, not one welded token.
+  const result = await accessibilityScan(page);
+  const mismatched = result.violations.find(({ id }) => id === "label-content-name-mismatch")?.nodes ?? [];
+  expect(mismatched.filter(({ html }) => html.includes('data-slot="collapsible-trigger"'))).toEqual([]);
 });

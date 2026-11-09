@@ -50,6 +50,20 @@ export const MESSAGE_VIEW_WIRE_TRACE_NAME = "View wire trace…";
 export const MESSAGE_REACTION_ADD_NAME = "Add a reaction";
 
 /**
+ * The transcript article's name: the speaker and the row's own number (`#3`, the `message-readout` label), `Aria · #3`.
+ *
+ * The article is the scope every control in a row sits under ("Edit message" under `Aria · #3`). A speaker's name alone
+ * gave every message they wrote the same scope, so a transcript of eight replies offered eight identical "Edit message"
+ * buttons to a name-driven walk. A row with no number (a draft greeting) keeps the speaker alone; there is only one.
+ */
+export function messageArticleName(speaker: string | null, position: number | undefined): string | undefined {
+  if (position === undefined) {
+    return speaker ?? undefined;
+  }
+  return speaker === null ? `Message #${String(position)}` : `${speaker} · #${String(position)}`;
+}
+
+/**
  * The row's overflow menu trigger.
  *
  * DELIBERATELY DISTINCT from the composer's own utility menu (`composer-utility-menu.tsx`, "Message tools"):

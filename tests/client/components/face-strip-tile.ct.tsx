@@ -17,6 +17,14 @@ test("a face's avatar initials stay out of the visible label axe compares with t
   await expect(face).toHaveText("");
 });
 
+test("the popup the overflow tile opens is a dialog with the overflow label as its name", async ({ mount, page }) => {
+  const component = await mount<typeof FaceStripTileStory>(STORY, { caption: false });
+  await component.locator("[data-face-overflow]").click();
+  await expect(page.getByRole("dialog", { name: "Choose another face", exact: true })).toBeVisible();
+  const result = await accessibilityScan(page);
+  expect(result.violations.find(({ id }) => id === "aria-dialog-name")?.nodes).toBeUndefined();
+});
+
 for (const caption of [true, false]) {
   test(`${caption ? "a captioned" : "an uncaptioned"} strip seats its overflow tile level with its faces`, async ({ mount }) => {
     const component = await mount<typeof FaceStripTileStory>(STORY, { caption });

@@ -134,8 +134,8 @@ test("Status meters and the character takeover read an unset inherited-name key 
   const room = await gameRoom(root);
   // Every participant's meter on Status carries its name; the one-carrier takeover names its attribute cell and
   // meter bare, in that order.
-  const statusMeters = page.getByRole("button", { name: new RegExp(` ${LABEL} value$`, "u") });
-  const takeoverValues = page.getByRole("button", { name: `${LABEL} value`, exact: true });
+  const statusMeters = page.getByRole("button", { name: new RegExp(` ${LABEL} value: `, "u") });
+  const takeoverValues = page.getByRole("button", { name: new RegExp(`^${LABEL} value: `, "u") });
   let reads = await room.reads();
   let seats = participants(reads, root.ownerId);
   await routeTrpc(page, reads.routes);
@@ -158,7 +158,7 @@ test("Status meters and the character takeover read an unset inherited-name key 
 test("the Scene character card reads an unset inherited-name tracker as unset, then its own value", async ({ mount, page }) => {
   await using root = await createCorpusHarness();
   const room = await gameRoom(root);
-  const npcValue = page.getByRole("button", { name: `${NPC_NAME} ${LABEL} value`, exact: true });
+  const npcValue = page.getByRole("button", { name: new RegExp(`^${NPC_NAME} ${LABEL} value: `, "u") });
   await routeTrpc(page, (await room.reads()).routes);
   const unset = await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId: room.chatId, tab: "rpg.scene" });
   await page.getByRole("button", { name: "Show known characters", exact: true }).click();
@@ -197,7 +197,8 @@ test("label and promoted tracker voices keep the editor step and row height", as
   await routeTrpc(page, reads.routes);
   await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId: room.chatId, tab: "rpg.status" });
   const ordinaryName = `${owner} ${LABEL} value`;
-  const ordinary = page.getByRole("button", { name: ordinaryName, exact: true });
+  // The rest button's name is the field's name, then what the button shows.
+  const ordinary = page.getByRole("button", { name: `${ordinaryName}: ` });
   await expect(ordinary).toHaveText(String(TRACKER_VALUE));
   const ordinaryCell = page
     .locator('[data-slot="meter-row"]')
@@ -207,7 +208,7 @@ test("label and promoted tracker voices keep the editor step and row height", as
   await page.getByRole("button", { name: `Open ${owner}`, exact: true }).click();
   const promotedName = `${LABEL} value`;
   const promotedCell = page.locator('[data-slot="stat-cell"]').filter({ has: page.getByText(LABEL, { exact: true }) });
-  const promoted = promotedCell.getByRole("button", { name: promotedName, exact: true });
+  const promoted = promotedCell.getByRole("button", { name: `${promotedName}: ` });
   await expectStableValueEdit(promoted, promotedCell, promotedName, SCORE);
 });
 
@@ -222,7 +223,7 @@ test("an attribute tile takes numbers only, steps by one on the arrow keys and s
   await page.getByRole("button", { name: `Open ${owner}`, exact: true }).click();
   const name = `${LABEL} value`;
   const cell = page.locator('[data-slot="stat-cell"]').filter({ has: page.getByText(LABEL, { exact: true }) });
-  await cell.getByRole("button", { name, exact: true }).click();
+  await cell.getByRole("button", { name: `${name}: ` }).click();
   const field = cell.getByRole("textbox", { name, exact: true });
   await expect(field).toHaveValue(String(SCORE));
   await field.press("ArrowUp");
@@ -247,7 +248,7 @@ test("Status seats a text tracker's value at the end of the room its row leaves,
   await caller.rpg.updateConfig({ chatId: room.chatId, patch: { trackers: [...config.trackers, mood] } });
   await routeTrpc(page, (await room.reads()).routes);
   await mount<typeof RpgContextTabStory>(TAB_STORY, { chatId: room.chatId, tab: "rpg.status" });
-  const value = page.getByRole("button", { name: new RegExp(` ${TEXT_TRACKER} value$`, "u") }).first();
+  const value = page.getByRole("button", { name: new RegExp(` ${TEXT_TRACKER} value: `, "u") }).first();
   const label = page.getByText(TEXT_TRACKER, { exact: true }).first();
   await expect(value).toBeVisible();
   const placed = await value.evaluate((element) => {

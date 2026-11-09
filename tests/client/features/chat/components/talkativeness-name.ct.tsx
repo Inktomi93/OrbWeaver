@@ -2,7 +2,7 @@
 // The chip reads "Talks 50%" and its name contains that text; the popover it opens is a named dialog.
 import { talkativenessAccessibleName, talkativenessControlName } from "@orb/client/lib";
 import { ID_PREFIX } from "@orb/kit/ids";
-import { accessibilityScan } from "@orb/testkit/browser/spec";
+import { accessibilityScan, readSurfaceDesignAudit } from "@orb/testkit/browser/spec";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { expect, test } from "@playwright/test";
 import type { TalkativenessNameStory } from "./_talkativeness-name-stories.tsx";
@@ -46,4 +46,6 @@ test("the popover the chip opens is a dialog with a name", async ({ mount, page 
   const result = await accessibilityScan(page);
   expect(result.violations.find(({ id }) => id === "aria-dialog-name")?.nodes).toBeUndefined();
   await expect(page.getByRole("dialog", { name: talkativenessControlName(NAME), exact: true })).toBeVisible();
+  const audited = await readSurfaceDesignAudit(page);
+  expect(audited.audit.findings.filter(({ rule }) => rule === "aria-name")).toEqual([]);
 });

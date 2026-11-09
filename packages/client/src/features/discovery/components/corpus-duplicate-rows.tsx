@@ -195,8 +195,8 @@ function ChatPairRow({
       // `title={`Opens ${left}`}`, which is a hover affordance: invisible to touch, to keyboard, and to a
       // screen reader that announces the button's content instead. An explicit `aria-label` replaces the
       // content-derived name and keeps everything that name carried — both titles and the score — plus the
-      // one fact the row could not otherwise state.
-      aria-label={`${left} ↔ ${right}, ${percent(score)} similar: compare rooms`}
+      // one fact the row could not otherwise state. The badge ("forked") is visible text, so it is in the name too.
+      aria-label={`${left} ↔ ${right}, ${badge === undefined ? "" : `${badge}, `}${percent(score)} similar: compare rooms`}
       justify="between"
       variant="ghost"
       width="full"
