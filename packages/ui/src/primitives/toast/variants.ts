@@ -5,8 +5,8 @@ export const toastVariants = tv({
   slots: {
     // The stack receives input; the padded viewport owns scrolling and clears each card's outline.
     viewport: `
-      pointer-events-none fixed inset-e-0 inset-bs-(--dimension-chrome-row) z-(--z-toast) flex flex-col overflow-y-auto overscroll-contain p-section inline-full
-      max-block-(--dimension-shell-notice-cap) max-inline-cq-24
+      @container/toast pointer-events-none fixed inset-e-0 inset-bs-(--dimension-chrome-row) z-(--z-toast) flex flex-col overflow-y-auto overscroll-contain
+      p-section inline-full max-block-(--dimension-shell-notice-cap) max-inline-cq-24
     `,
     stack: "pointer-events-none flex shrink-0 flex-col gap-row has-data-[slot=toast-root]:pointer-events-auto",
     root: [
@@ -60,7 +60,9 @@ export const toastVariants = tv({
     // sits only `p-block` in. The shortfall is `field + control-sm − block`; reserving a full `control-sm`
     // covers it and leaves exactly `field` of breathing room — in BOTH pointer regimes, because `field`,
     // `block` and `control-sm` all shift together. Stated in tokens so it can never drift from the button.
-    content: "flex flex-1 flex-col gap-field pe-(--size-control-sm) min-inline-0",
+    // Under `@cq-16` of the viewport's own width (an enlarged root on a phone) the close button's side reservation would leave the
+    // title a sliver, so the reservation moves above the copy and the title takes the card's full width.
+    content: "flex flex-1 flex-col gap-field pe-(--size-control-sm) min-inline-0 @max-cq-16/toast:pe-0 @max-cq-16/toast:pbs-(--size-control-sm)",
     title: "text-label leading-label font-semibold",
     description: CAPTION,
     close: `

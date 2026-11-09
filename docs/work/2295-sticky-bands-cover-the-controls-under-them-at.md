@@ -24,4 +24,4 @@ Add tag, the greeting Studio toggle and the Presets hint triggers are clickable 
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Part, in 44a69762a1: SaveBar unpins when usePinnedBarCap says it would fill the pane; CT the character editor's Add tag stays pressable under its save bar at 200% and 300% (red at 300% on main). Still open: the greeting Studio toggle and the Presets tab strip over the hint trigger at 200%.

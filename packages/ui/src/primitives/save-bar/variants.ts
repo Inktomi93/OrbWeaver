@@ -10,7 +10,7 @@ export const saveBarVariants = tv({
   slots: {
     // `flex-wrap` + `@container/save-bar` are what make the `meta` slot's narrow arm possible: the DIAGNOSTIC
     // drops to a line of its own below the identity instead of eating it (see the `meta` slot).
-    root: "@container/save-bar sticky z-(--z-raised) flex flex-wrap items-center justify-between gap-row border-border bg-card px-block py-row tone-host-card",
+    root: "@container/save-bar z-(--z-raised) flex flex-wrap items-center justify-between gap-row border-border bg-card px-block py-row tone-host-card",
     // `grow`: the identity CLAIMS the free width rather than merely being allowed to shrink into it. Below `@cq-15` it
     // takes a whole line, so the status wraps under it instead of the kind label running over the status.
     // Under `@cq-15` the identity may wrap: the name takes whole lines and the kind label drops under it, so enlarged text
@@ -34,12 +34,18 @@ export const saveBarVariants = tv({
     actions: "flex shrink-0 items-center gap-row",
   },
   variants: {
+    // A bar that fills its pane unpins (`usePinnedBarCap`): it flows with the content and the controls under it are reachable.
+    pinned: {
+      true: { root: "sticky" },
+      false: { root: "relative" },
+    },
     sticky: {
       footer: { root: "inset-be-0 border-bs" },
       header: { root: "inset-bs-0 border-be" },
     },
   },
   defaultVariants: {
+    pinned: true,
     sticky: "footer",
   },
 });

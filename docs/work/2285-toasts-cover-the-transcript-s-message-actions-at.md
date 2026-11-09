@@ -24,4 +24,4 @@ The toast viewport leaves message actions pressable, or the walk shows that it d
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Ruling (claude-b under delegation): an open toast is transient chrome with its own close and timeout, so the enlarged-text probe treats an open toast like pinned chrome rather than a cover of the controls under it; moving the stack cannot help because no transcript zone is free of message actions. Remaining work: the probe applies the ruling with a planted toast case.

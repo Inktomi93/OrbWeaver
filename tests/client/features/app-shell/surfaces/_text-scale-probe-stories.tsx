@@ -1,7 +1,7 @@
 // Planted layouts for the text-scale probe: a clipped control, one its own strip reaches, a column that stopped reflowing and a stacked pair.
 import { CtIsolation } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
-import { Stack } from "@orb/ui/layout";
+import { Grid, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 
 export function PlantedControlsStory(): ReactElement {
@@ -16,6 +16,10 @@ export function PlantedControlsStory(): ReactElement {
       <Stack className="overflow-x-auto inline-(--size-touch-target)" data-planted="sideways">
         <Button className="shrink-0 min-inline-(--width-popup-floor)">Sideways</Button>
       </Stack>
+      <Grid className="inline-(--size-touch-target)" cols="cellSwipe" data-planted="declared">
+        <Button>Declared</Button>
+        <Button>Strip</Button>
+      </Grid>
       <Stack data-planted="stacked">
         <Button>Under</Button>
         <Button className="-mbs-(--size-control-md)">Over</Button>

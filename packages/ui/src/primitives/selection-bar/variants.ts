@@ -21,6 +21,9 @@ export const selectionBarVariants = tv({
   // looks for it. The count is `flex-none` rather than `flex-1` because the actions now carry the growth
   // (`justify-end` holds them against the dismiss instead of drifting into the middle).
   //
+  // `min-inline-fit` bounds that minimum by the bar's own width: a group that is wider than the bar (enlarged text) wraps among
+  // its own items on a line of its own, where its nowrap width would push the last verb past the pane's edge.
+  //
   // THE ACTION CLUSTER NEVER SHRINKS BELOW ITS WIDEST ITEM, AND THE ROOT WRAPS AROUND IT. A caller that hands the
   // cluster one nowrap group (the characters bar's three verbs) makes the cluster's minimum the whole group, so
   // when count + group + dismiss do not fit one line the group moves below the count TOGETHER, with the dismiss
@@ -29,6 +32,10 @@ export const selectionBarVariants = tv({
   slots: {
     root: "sticky inset-x-0 inset-be-0 z-(--z-raised) flex flex-wrap items-center gap-row border-bs border-border bg-background px-row py-field",
     count: "flex-none text-body leading-body whitespace-nowrap text-muted-foreground",
-    actions: "flex flex-1 flex-wrap items-center justify-end gap-field",
+    actions: "flex flex-1 flex-wrap items-center justify-end gap-field min-inline-fit",
+  },
+  // A bar that would fill its pane (`usePinnedBarCap`) holds to a share of it and scrolls the rest inside, so the rows under it stay reachable.
+  variants: {
+    capped: { true: { root: "overflow-y-auto overscroll-contain" } },
   },
 });

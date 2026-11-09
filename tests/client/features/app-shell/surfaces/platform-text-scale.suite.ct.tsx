@@ -1309,5 +1309,8 @@ test("the probe fails a clipped control, a column that scrolls sideways and an o
   expect(clipped[0]).toContain("clipped on x");
   expect(await findings(page.locator('[data-planted="scrolled"]'))).toEqual([]);
   expect(await findings(page.locator('[data-planted="sideways"]'))).toEqual([expect.stringContaining("scrolls sideways")]);
+  // The same overflow, declared by the strip's own variant, is a designed strip and not a finding.
+  expect(await page.locator('[data-planted="declared"]').evaluate((strip) => strip.scrollWidth - strip.clientWidth)).toBeGreaterThan(SUBPIXEL);
+  expect(await findings(page.locator('[data-planted="declared"]'))).toEqual([]);
   expect(await findings(page.locator('[data-planted="stacked"]'))).toContainEqual(expect.stringContaining("overlaps"));
 });
