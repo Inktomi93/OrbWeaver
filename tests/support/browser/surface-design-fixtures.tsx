@@ -108,8 +108,9 @@ export function SurfaceTextGeometryStory({ clipped }: { readonly clipped: boolea
 
 /** Two visible controls laid over each other: buttons with names, or text fields with none. */
 export function SurfaceTextOverlapStory({ named }: { readonly named: boolean }): ReactElement {
-  // The second control rises by one control height onto the first.
-  const over = { marginBlockStart: `calc(-1 * var(${TOKENS["size.control-md"].cssVar}))` };
+  // The second control rises a quarter control height onto the first's bottom edge: an edge overlap leaves both
+  // centres uncovered, so only the overlap probe sees it and the centre hit test stays clean.
+  const over = { marginBlockStart: `calc(-0.25 * var(${TOKENS["size.control-md"].cssVar}))` };
   return (
     <CtIsolation subject="Enlarged-text overlap" isolates="Two production controls laid over each other need no application services.">
       <main>
