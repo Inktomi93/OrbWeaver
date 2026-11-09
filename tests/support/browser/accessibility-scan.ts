@@ -20,7 +20,7 @@ const FOCUS_GUARD_REASON = "Base UI focus guard: aria-hidden and tabbable by des
 const POPUP_COVER_REASON = "Covered by the content of an open menu or select popup, which is meant to lie over the page.";
 
 /** One node the scan moved from `violations` to `incomplete`, and why. The vendor result keeps it as a violation. */
-export interface AxeReclassification {
+interface AxeReclassification {
   readonly ruleId: string;
   readonly target: AxeNode["target"];
   readonly html: string;
