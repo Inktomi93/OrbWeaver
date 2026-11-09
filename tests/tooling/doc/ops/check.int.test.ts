@@ -1,8 +1,10 @@
 // The docs half of `pnpm check:agents` on planted trees: the structural rules, the writing rules and
 // the reference check compose into one list; the clean tree passes; the real repository is clean.
 
+import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import { execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
+import { configureFixtureGitIdentity, execFixtureGit } from "@orb/tooling/floor/git/git-fixture";
 import { docFileCount, docLayerProblems, newAdr, newItem, newItemsFrom, newPlan } from "../../../../tooling/src/doc/index.ts";
 import { WRITTEN_CONTENT, written } from "../_written-item.ts";
 
@@ -37,8 +39,6 @@ test("a writing-rule finding, a dead path and a structural finding all reach the
   const root = await plantedTree({ "docs/Mission.md": MISSION, "docs/notes.md": "# stray\n" });
   execFixtureGit(root, ["init", "-q"]);
   newAdr({ slug: "one", title: "One" }, root, TODAY);
-  const { writeFileSync } = await import("node:fs");
-  const { join } = await import("node:path");
   writeFileSync(
     join(root, "docs/adr/0001-one.md"),
     "---\nkind: adr\nstatus: active\nupdated: 2026-09-23\n---\n\n# One\n\nRuled on 2026-09-01; see `tooling/src/gone.ts` and [x](../../missing.md).\n\n## Context\n\n## Decision\n\n## Consequences\n",
@@ -60,8 +60,6 @@ test("a document's failed Git query propagates as a tool error, not a missing-pa
 test("a relative code-span path resolves against its own file: a missing target reds with file and line, a live one passes", async ({ plantedTree }) => {
   const root = await plantedTree({ "docs/Mission.md": MISSION, "docs/law/live.md": "---\nkind: law\nstatus: active\nupdated: 2026-09-23\n---\n\n# Live\n" });
   newAdr({ slug: "one", title: "One" }, root, TODAY);
-  const { writeFileSync } = await import("node:fs");
-  const { join } = await import("node:path");
   writeFileSync(
     join(root, "docs/adr/0001-one.md"),
     "---\nkind: adr\nstatus: active\nupdated: 2026-09-23\n---\n\n# One\n\nSee `../law/live.md`.\nSee `../law/x.md:4`.\n\n## Context\n\n## Decision\n\n## Alternatives rejected\n\n## Consequences\n",
@@ -72,13 +70,37 @@ test("a relative code-span path resolves against its own file: a missing target 
 test("the walk sees a nested item folder and a non-markdown file under a governed tree (F12)", async ({ plantedTree }) => {
   const root = await plantedTree({ "docs/Mission.md": MISSION, "docs/adr/notes.txt": "stray\n" });
   newItem(written({ title: "T", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY);
-  const { mkdirSync, renameSync } = await import("node:fs");
-  const { join } = await import("node:path");
   mkdirSync(join(root, "docs/work/sub"));
   renameSync(join(root, "docs/work/0001-t.md"), join(root, "docs/work/sub/0001-t.md"));
   const problems = docLayerProblems(root);
   expect(problems).toContain("docs/adr/notes.txt: only markdown lives under a governed tree — move or delete it");
   expect(problems).toContain("docs/work/sub/0001-t.md: docs/work/ is flat — an item is docs/work/NNNN-<slug>.md");
+});
+
+test("an id a landed item carried reds a later item that takes it, while a retitle inside one commit stays one item", async ({ plantedTree }) => {
+  const root = await plantedTree({ "docs/Mission.md": MISSION });
+  const commit = (message: string): void => {
+    execFixtureGit(root, ["add", "-A"]);
+    execFixtureGit(root, ["commit", "--quiet", "-m", message]);
+  };
+  const reuseFindings = (path: string): readonly string[] => docLayerProblems(root).filter((line) => line.startsWith(`${path}: `));
+  execFixtureGit(root, ["init", "--quiet"]);
+  configureFixtureGitIdentity(root);
+  const [first] = newItem(written({ title: "First", kind: "work", priority: null, area: null, plan: null, lane: null }), root, TODAY).written;
+  expect(first).toBe("docs/work/0001-first.md");
+  commit("mint");
+  execFixtureGit(root, ["mv", "docs/work/0001-first.md", "docs/work/0001-retitled.md"]);
+  commit("retitle");
+  expect(reuseFindings("docs/work/0001-retitled.md")).toEqual([]);
+
+  const source = readFileSync(join(root, "docs/work/0001-retitled.md"), "utf8");
+  execFixtureGit(root, ["rm", "--quiet", "docs/work/0001-retitled.md"]);
+  commit("land");
+  writeFileSync(join(root, "docs/work/0001-other.md"), source);
+  commit("reuse");
+  expect(reuseFindings("docs/work/0001-other.md")).toEqual([
+    "docs/work/0001-other.md: its id was also held by docs/work/0001-first.md, docs/work/0001-retitled.md — renumber this one with git mv and pnpm doc index",
+  ]);
 });
 
 test("the real repository's governed docs are clean", ({ repoRoot }) => {

@@ -11,7 +11,7 @@ import { glossaryWords, proseFindings } from "../../floor/prose/prose-rules.ts";
 import type { DocEdit, GovernedDoc } from "../contract/types.ts";
 import { allItems } from "../lib/generated.ts";
 import { docProblems } from "../lib/rules.ts";
-import { commitOnMain, readDoc, readDocTree, root } from "./tree.ts";
+import { commitOnMain, historicForeignHolders, readDoc, readDocTree, root } from "./tree.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm check:agents");
 
@@ -27,7 +27,7 @@ function textProblems(docs: readonly GovernedDoc[], repoRoot: string): readonly 
 /** Every finding over the governed docs tree, as operator-readable lines. Empty = clean. */
 export function docLayerProblems(repoRoot = root): readonly string[] {
   const tree = readDocTree(repoRoot);
-  return [...docProblems(tree), ...textProblems(tree.docs, repoRoot)];
+  return [...docProblems(tree, historicForeignHolders(repoRoot)), ...textProblems(tree.docs, repoRoot)];
 }
 
 /** The findings the check would report on `pending` once written (and `removed` once gone): the tree

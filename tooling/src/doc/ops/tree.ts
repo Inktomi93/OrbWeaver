@@ -7,12 +7,14 @@ import { REPO_ROOT } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
 import { runGit } from "../../floor/git/git.ts";
 import { readGitPathHistory } from "../../floor/git/git-history.ts";
+import type { GitPathHistory } from "../../floor/git/git-history-contract.ts";
 import type { RunNicedSyncResult } from "../../floor/process/proc.ts";
 import { runNicedSync } from "../../floor/process/proc.ts";
 import { inheritedProcessEnv } from "../../floor/process/process-env.ts";
 import type { CommitOutcome, DocsRootEntry, DocTree, GitFailure, GovernedDoc, StageOutcome } from "../contract/types.ts";
 import { DOC_TOOL_TREE_PREFIXES, DOC_TOOL_TREES } from "../contract/vocab.ts";
 import { allItems } from "../lib/generated.ts";
+import { foreignHolders } from "../lib/id-holders.ts";
 import { isGeneratedPath } from "../lib/indexes.ts";
 import { isCommitId } from "../lib/items.ts";
 import { basenameOf, padId, parseNumberedName } from "../lib/names.ts";
@@ -379,21 +381,38 @@ export function commitPaths(paths: readonly string[], message: string, repoRoot 
   }
 }
 
+/** What git added and deleted under `prefix`, merge commits included, on every ref or on HEAD's ancestry;
+ *  empty outside a repository. Unavailable history throws, because a mint that cannot see it could reuse an id. */
+function treeHistory(prefix: string, kind: "all-refs" | "head", repoRoot: string): GitPathHistory {
+  const history = readGitPathHistory(repoRoot, { kind, path: prefix });
+  if (history.status === "missing") {
+    return { head: null, foundation: null, initialPaths: [], addedPaths: [], deletedPaths: [], changeSets: [] };
+  }
+  if (history.status !== "ready") {
+    throw new Error(history.reason);
+  }
+  return history.value;
+}
+
+/** For each numbered file name HEAD's ancestry recorded under the ADR and work trees, the files of the other
+ *  items that held its id (`foreignHolders`). HEAD only: an unmerged branch's id is that branch's to renumber
+ *  at its merge, not a finding on every other checkout. One history read per tree, so only the whole-tree
+ *  check asks. */
+export function historicForeignHolders(repoRoot = root): ReadonlyMap<string, readonly string[]> {
+  return new Map(
+    (["adr", "work"] as const).flatMap((tree) => [...foreignHolders(treeHistory(DOC_TOOL_TREES[tree], "head", repoRoot).changeSets, DOC_TOOL_TREES[tree])]),
+  );
+}
+
 /** The highest id any file under a numbered tree ever carried, on any branch: every path git added or
  *  deleted there. A landed or removed id is a name forever (commit subjects, `Closes:` trailers and
  *  `landedCommit` key on it), so a mint counts history, not only the files on disk. Zero outside a
  *  repository, where the files alone decide. */
 export function highestHistoricId(tree: "adr" | "work", repoRoot = root): number {
   const prefix = DOC_TOOL_TREES[tree];
-  const history = readGitPathHistory(repoRoot, { kind: "all-refs", path: prefix });
-  if (history.status === "missing") {
-    return 0;
-  }
-  if (history.status !== "ready") {
-    throw new Error(history.reason);
-  }
+  const history = treeHistory(prefix, "all-refs", repoRoot);
   let highest = 0;
-  for (const line of [...history.value.addedPaths, ...history.value.deletedPaths]) {
+  for (const line of [...history.addedPaths, ...history.deletedPaths]) {
     if (!line.startsWith(prefix)) {
       continue;
     }

@@ -28,6 +28,27 @@ test("all-ref filename history retains side-branch names and NUL-delimited unusu
   });
 });
 
+test("a head read holds what HEAD's ancestry changed, while an all-refs read also holds an unmerged branch", ({ scratch }) => {
+  execFixtureGit(scratch, ["init", "--quiet"]);
+  configureFixtureGitIdentity(scratch);
+  expect(readGitPathHistory(scratch, { kind: "head", path: "docs/work/" })).toMatchObject({ status: "ready", value: { changeSets: [] } });
+  commit(scratch);
+  const original = execFixtureGit(scratch, ["branch", "--show-current"]).trim();
+  mkdirSync(join(scratch, "docs/work"), { recursive: true });
+  writeFileSync(join(scratch, "docs/work/0001-merged.md"), "fixture");
+  commit(scratch);
+  execFixtureGit(scratch, ["checkout", "--quiet", "-b", "unmerged"]);
+  writeFileSync(join(scratch, "docs/work/0002-unmerged.md"), "fixture");
+  commit(scratch);
+  execFixtureGit(scratch, ["checkout", "--quiet", original]);
+  expect(readGitPathHistory(scratch, { kind: "head", path: "docs/work/" })).toMatchObject({
+    value: { addedPaths: ["docs/work/0001-merged.md"], changeSets: [{ added: ["docs/work/0001-merged.md"], deleted: [] }] },
+  });
+  expect(readGitPathHistory(scratch, { kind: "all-refs", path: "docs/work/" })).toMatchObject({
+    value: { addedPaths: ["docs/work/0001-merged.md", "docs/work/0002-unmerged.md"] },
+  });
+});
+
 test("an empty native history is ready data, but a missing repository is missing", ({ scratch }) => {
   expect(readGitPathHistory(scratch, { kind: "all-refs", path: "docs/work" })).toMatchObject({ status: "missing" });
   execFixtureGit(scratch, ["init", "--quiet"]);
