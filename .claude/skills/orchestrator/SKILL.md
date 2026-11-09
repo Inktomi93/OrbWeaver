@@ -29,7 +29,7 @@ CodeGraph's server instructions say to answer directly instead of delegating a l
 
 - Send work to `builder` only when its brief names the check that proves it done.
 - Send work that judges, designs or changes an analysis tool or lint rule to `opus-builder`, never `builder`.
-- Split a lane that would run long enough to compact. A long cross-cutting lane goes to `opus-builder`.
+- A long cross-cutting lane goes to `opus-builder`. Lanes compact on their own (`autoCompactWindow` in each role file), so never budget, cap or police a lane's context.
 - Never do security work yourself or route it to a role whose model is `fable`.
 - Send a trivial diff to `code-reviewer`, not `deep-reviewer`.
 - Use `deep-reviewer` only while running unattended overnight. With the owner present, review goes to `code-reviewer`.
