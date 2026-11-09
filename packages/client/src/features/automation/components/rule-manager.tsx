@@ -11,6 +11,7 @@ import type { Trpc } from "#data";
 import { useIds, useInvalidation, useTRPC } from "#data";
 import type { RuleCreation } from "#state";
 import { activeDurableLocalUserId, beginRuleCreation, forgetRuleCreation, pruneCompletedRuleCreations, ruleDraftOwnerCurrent, useRuleCreations } from "#state";
+import { RULE_WRITE_OWN_NAME } from "../lib/rule-copy.ts";
 import { ruleEditorDrafts } from "../lib/rule-editor-drafts.ts";
 import { useReorderRules } from "../lib/rule-mutations.ts";
 import { RuleDraftRow } from "./rule-draft-row.tsx";
@@ -69,18 +70,21 @@ export function RuleManager({ chatId, rules }: { readonly chatId: ChatId | null;
 
   return (
     <Stack gap="section">
-      <SortableList
-        items={rules}
-        getItemKey={(rule): string => rule.id}
-        itemLabel={(rule): string => rule.name}
-        handle={true}
-        disabled={reorder.isPending}
-        aria-label="Rule order"
-        onReorder={(ids): void => reorder.mutate({ chatId, orderedIds: ids.flatMap((id) => rules.filter((rule) => rule.id === id).map((rule) => rule.id)) })}
-        renderItem={(rule): ReactElement | null => (
-          <RuleRow chatId={chatId} rule={rule} {...(ready ? { onEdit: (trigger: HTMLButtonElement): void => openRule(rule, trigger) } : {})} />
-        )}
-      />
+      {/* An empty list still takes a gap in this stack, which doubled the space above the doors. */}
+      {rules.length === 0 ? null : (
+        <SortableList
+          items={rules}
+          getItemKey={(rule): string => rule.id}
+          itemLabel={(rule): string => rule.name}
+          handle={true}
+          disabled={reorder.isPending}
+          aria-label="Rule order"
+          onReorder={(ids): void => reorder.mutate({ chatId, orderedIds: ids.flatMap((id) => rules.filter((rule) => rule.id === id).map((rule) => rule.id)) })}
+          renderItem={(rule): ReactElement | null => (
+            <RuleRow chatId={chatId} rule={rule} {...(ready ? { onEdit: (trigger: HTMLButtonElement): void => openRule(rule, trigger) } : {})} />
+          )}
+        />
+      )}
       {editing === null || owner === null ? null : (
         <RuleEditor
           key={`${owner}:${editing.identity}`}
@@ -127,7 +131,7 @@ export function RuleManager({ chatId, rules }: { readonly chatId: ChatId | null;
             }}
           >
             <Icon icon={Plus} size="sm" />
-            Write your own
+            {RULE_WRITE_OWN_NAME}
           </Button>
           <RulePresetPicker chatId={chatId} />
         </Row>

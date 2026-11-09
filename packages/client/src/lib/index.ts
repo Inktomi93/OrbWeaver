@@ -173,7 +173,15 @@ export {
   sendUnavailableReason,
 } from "./injection-copy.ts";
 export { DEAD_INVITE_SENTENCE, inviteRoomSentence } from "./invite-copy.ts";
-export { ITEM_ENABLED_SETTING, itemSwitchName } from "./item-switch-names.ts";
+export {
+  ITEM_ATTACH_SETTING,
+  ITEM_ENABLED_SETTING,
+  itemSwitchName,
+  PROMPT_CACHE_AUTOMATIC_SETTING,
+  PROMPT_CACHE_DISABLE_IMPLICIT_SETTING,
+  PROMPT_CACHE_REQUEST_SETTING,
+  PROMPT_CACHE_SYSTEM_SETTING,
+} from "./item-switch-names.ts";
 export type { ListPaneHeaderProps, ListPaneHeaderView } from "./list-pane-header-view.ts";
 export { LIST_PANE_TITLE_ID } from "./list-pane-title-id.ts";
 export {} from "./log-clock.ts";

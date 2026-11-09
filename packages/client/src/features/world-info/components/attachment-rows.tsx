@@ -16,6 +16,7 @@ import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import type { ReactElement } from "react";
 import { useInvalidation, useTRPC } from "#data";
+import { ITEM_ATTACH_SETTING, itemSwitchName } from "#lib";
 import {
   useAttachWorldBookToCharacter,
   useAttachWorldBookToPersona,
@@ -62,7 +63,7 @@ export function CharacterAttachRow({ bookId, characterId, characterName, role, q
               />
             ) : null}
             <Switch
-              aria-label={`Attach to ${characterName}`}
+              aria-label={itemSwitchName(ITEM_ATTACH_SETTING, characterName)}
               checked={attached}
               disabled={controlsDisabled}
               onCheckedChange={(on): void => {
@@ -105,7 +106,7 @@ export function PersonaAttachRow({ bookId, personaId, personaName, attached, que
       actions={
         attachmentKnown ? (
           <Switch
-            aria-label={`Attach to ${personaName}`}
+            aria-label={itemSwitchName(ITEM_ATTACH_SETTING, personaName)}
             checked={attached}
             disabled={controlsDisabled}
             onCheckedChange={(on): void => {

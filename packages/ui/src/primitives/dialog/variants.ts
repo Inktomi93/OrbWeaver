@@ -43,7 +43,8 @@ export const dialogVariants = tv({
       flex shrink-0 items-center justify-between gap-row border-be border-border pbe-field
       dialog-short:glass-short:flex-nowrap dialog-short:glass-short:bg-popover dialog-short:glass-short:pbs-row
       dialog-short:glass-short:not-inline-narrow:sticky dialog-short:glass-short:not-inline-narrow:inset-bs-0
-      dialog-short:glass-short:not-inline-narrow:z-(--z-raised)
+      dialog-short:glass-short:not-inline-narrow:z-(--z-raised) dialog-short:glass-short:not-inline-narrow:-mx-row
+      dialog-short:glass-short:not-inline-narrow:px-row
       dialog-tiny:glass-short:pbs-0 dialog-tiny:glass-short:pbe-0
     `,
     // A landscape phone's dialog title truncates to one line; its full text stays the dialog's accessible name.

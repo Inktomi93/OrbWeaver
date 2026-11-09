@@ -140,10 +140,10 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                 allowed") wraps onto its own line instead of overflowing the min-w-0 column and painting
                 UNDER the shrink-0 controls cluster — the exact ~390px collision side-eye 2026-08-29 P2-1
                 photographed (Badge is whitespace-nowrap by design; the row must be the thing that bends);
-              · below @cq-28 the controls cluster drops onto its own line under the identity block, so the
-                toggle/Update/⋯ never compete with the badge for one cramped line at all. */}
+              · the cluster holds only the overflow menu, so it stays beside the name at every width; a
+                cluster dropped to its own line sat a whole text block away from the name it acts on. */}
         <Stack paddingBlockEnd="block" divider="bottom" gap="tight">
-          <Row align="start" gap="block" justify="between" stackBelow="cq-28" alignBelow="stretch-cq-28">
+          <Row align="start" gap="block" justify="between">
             <Stack className="min-inline-0" grow={true} gap="tight">
               <Row align="center" wrap={true} gap="field">
                 <Text voice="promoted">{plugin.name}</Text>

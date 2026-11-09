@@ -11,7 +11,7 @@ import type { Page } from "@playwright/test";
 export const TAIL_MESSAGES = 6;
 export const READING_ROLES = ["user", "assistant"] as const;
 const LONG_REPLY_PARAGRAPHS = 40;
-const GAME_PROCEDURES = ["rpg.getGame", "rpg.listTurnToolCalls"] as const;
+const GAME_PROCEDURES = ["rpg.getGame", "rpg.getTrackerView", "rpg.revealHidden", "rpg.listTurnToolCalls"] as const;
 const FILLER = "The lamp burned low while the rain kept time on the shutters.";
 
 export interface ReadingRoom {

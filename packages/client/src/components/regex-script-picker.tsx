@@ -28,7 +28,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import { COLLECTION_LARGE_GROUP, regexScriptScent, regexScriptTitle, timeLib } from "#lib";
+import { COLLECTION_LARGE_GROUP, ITEM_ATTACH_SETTING, itemSwitchName, regexScriptScent, regexScriptTitle, timeLib } from "#lib";
 import { useAttachCharacter, useAttachChat, useAttachPreset, useDetachCharacter, useDetachChat, useDetachPreset } from "./regex-mutations.ts";
 import { RegexScopeOrder } from "./regex-scope-order.tsx";
 import { scopeOrderShowsGrips } from "./regex-scope-order-model.ts";
@@ -265,7 +265,7 @@ function PickerRow({
           `justify-between` child — a bare sibling would push the name to the row's centre. */}
       {/* THE INERT ARM (side-eye 2026-08-22 P2-2). A row that is ATTACHED but disabled in the library will
           not run, and the surface said so nowhere: the scent's bare `off ·` sat ~500px from an ON switch
-          named `Attach <name>`, two state words about two different facts with neither labelled. So the
+          named `Attach: <name>`, two state words about two different facts with neither labelled. So the
           fact is now a NAMED badge (below) and the identity cluster goes visibly inert on the one
           combination where the row is claimed and still dead. Only the identity dims — the switch keeps
           full weight, because it is still live and it is the control that got you here. */}
@@ -288,7 +288,7 @@ function PickerRow({
         </Stack>
       </Row>
       <Switch
-        aria-label={`Attach ${name}`}
+        aria-label={itemSwitchName(ITEM_ATTACH_SETTING, name)}
         checked={attached}
         onCheckedChange={(next): void => {
           // `toggle` returns the `mutateAsync` promise of one of the six `createEntityMutation` hooks at the end of this file, each with failure-copy `errorToast` that the MutationCache toasts. Ends if any of those hooks loses its errorToast.

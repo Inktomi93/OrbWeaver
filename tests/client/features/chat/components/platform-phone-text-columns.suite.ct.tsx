@@ -52,7 +52,14 @@ const MOONLIT_PORTRAIT: Record<ThemeChatStyle, Reference> = {
       AVATAR_CHIP,
       ROW_INSET,
       CHIP_GAP,
-      { px: -2.5, why: "the 56px gutter less the chip overstates Moonlit's side room by 2.5px against the measured column (carried from the prior record)" },
+      {
+        px: -6,
+        why: "the 56px gutter less the chip leaves no gap, where the row keeps the 6px base gap between chip and column (the reach takes it to 10px, CHIP_GAP)",
+      },
+      {
+        px: 3.5,
+        why: "the flat bubble pads 24px before and 12px after the prose (36px) where Moonlit's text sits 39.5px short of its column (374 less the 56px gutter less 278.5)",
+      },
     ],
   },
   bubble: {

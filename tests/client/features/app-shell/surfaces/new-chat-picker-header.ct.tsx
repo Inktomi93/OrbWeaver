@@ -40,3 +40,27 @@ for (const cell of CELLS) {
     });
   });
 }
+
+test.describe("New chat on a 844x390 coarse landscape phone at 300%", () => {
+  test.use({ viewport: { width: 844, height: 390 }, hasTouch: true, isMobile: true });
+
+  test("paints its sticky header's ground to the popup's edges, not inside its inset", async ({ corpus, mount, page }) => {
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, SECTION_PROCEDURES) });
+    await seedShellState(page, { activeSection: "chats" });
+    await mount<typeof AppShellModalStory>(STORY, { modalId: "newChat" });
+    const dialog = page.getByRole("dialog");
+    await setRootFontScale(page, channelName("fontScale"), 3);
+    await expect(dialog.getByRole("option").first()).toBeVisible();
+    const header = dialog.locator('[data-slot="dialog-header"]');
+    await expect(header).toHaveCSS("position", "sticky");
+    await expect
+      .poll(async () => {
+        const popup = await dialog.evaluate((node) => ({ left: node.getBoundingClientRect().left + node.clientLeft, width: node.clientWidth }));
+        const ground = await header.evaluate((node) => ({ left: node.getBoundingClientRect().left, width: node.getBoundingClientRect().width }));
+        return { left: ground.left - popup.left, width: ground.width - popup.width };
+      })
+      .toEqual({ left: 0, width: 0 });
+  });
+});

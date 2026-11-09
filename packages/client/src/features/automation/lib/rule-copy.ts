@@ -197,6 +197,9 @@ export function ruleBindingTasks(actions: readonly { readonly type: AutomationAc
 // for THAT — the offer, not the ruling. It is shown only on a rule that can raise one at all (a SPEND arm),
 // because a switch that provably changes nothing is worse than no switch.
 
+/** The rule list's door to a rule written from nothing, beside the preset picker. */
+export const RULE_WRITE_OWN_NAME = "Write your own";
+
 /** The VISIBLE label beside the switch. The accessible name is built to CONTAIN this string verbatim
  *  (WCAG 2.5.3 label-in-name) — see {@link suggestOnRefusalAccessibleName}. */
 export const SUGGEST_ON_REFUSAL_LABEL = "Offer to run it when rate-capped";
