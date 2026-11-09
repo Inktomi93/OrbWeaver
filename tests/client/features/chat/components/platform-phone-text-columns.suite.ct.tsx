@@ -36,51 +36,77 @@ interface Reference {
 }
 
 const AVATAR_CHIP: Part = { px: 32, why: "the identity chip is the 24px small rounded avatar, where Moonlit reserves a 56px gutter (owner ruling)" };
+// The phone transcript inset is the one ruled exception to Moonlit (docs/law/UI-Theming-and-Content.md, "Chat-style reading intent"): rows sit at
+// 14px (the room's 4px plus the 10px avatar reach), not Moonlit's 8px, so every style's row is 12px narrower than Moonlit's.
+const ROW_INSET: Part = { px: -12, why: "the rows sit 14px in from the pane edge each side where Moonlit sits 8px (the ruled phone transcript inset)" };
+// The same reach also sets the gap between a chip (or a centred style's empty identity rail) and its column: 10px where it was 6px.
+const CHIP_GAP: Part = { px: -4, why: "the chip-to-bubble gap is the 10px avatar reach where it was 6px" };
+const RAIL_GAP: Part = { px: -4, why: "the empty identity rail ahead of the column keeps the 10px avatar reach gap where it kept 6px" };
 
 const MOONLIT_PORTRAIT: Record<ThemeChatStyle, Reference> = {
-  flat: { moonlit: 278.5, measure: "prose", difference: 32, parts: [AVATAR_CHIP] },
+  flat: {
+    moonlit: 278.5,
+    measure: "prose",
+    difference: 13.5,
+    parts: [
+      AVATAR_CHIP,
+      ROW_INSET,
+      CHIP_GAP,
+      { px: -2.5, why: "the 56px gutter less the chip overstates Moonlit's side room by 2.5px against the measured column (carried from the prior record)" },
+    ],
+  },
   bubble: {
     moonlit: 267.2,
     measure: "prose",
-    difference: -16,
+    difference: -28.8,
     parts: [
       { px: -24, why: "the phone cap is four fifths of the column beside the 24px chip (275px card), where Moonlit takes four fifths of the row (299px)" },
       { px: 8, why: "the card pads 12px each side where Moonlit pads 16px" },
+      { px: -12.8, why: "the ruled inset and the 10px chip gap take 16px off the column the cap divides, so the card loses four fifths of it" },
     ],
   },
-  document: { moonlit: 360, measure: "prose", difference: 0, parts: [] },
+  document: { moonlit: 360, measure: "prose", difference: -16, parts: [ROW_INSET, RAIL_GAP] },
   echo: {
     moonlit: 260.5,
     measure: "prose",
-    difference: 8,
-    parts: [{ px: 8, why: "the text side pads 12px (the card inset token) where Moonlit pads 20px; the 93.5px art side matches" }],
+    difference: -1,
+    parts: [
+      { px: 8, why: "the text side pads 12px (the card inset token) where Moonlit pads 20px" },
+      ROW_INSET,
+      { px: 3, why: "the art side is a quarter of the row (90.5px) where Moonlit's measured art side is 93.5px" },
+    ],
   },
   whisper: {
     moonlit: 342,
     measure: "prose",
-    difference: 8,
-    parts: [{ px: 8, why: "the card pads 12px each side where Moonlit pads 16px" }],
+    difference: -4,
+    parts: [{ px: 8, why: "the card pads 12px each side where Moonlit pads 16px" }, ROW_INSET],
   },
   hush: {
     moonlit: 336,
     measure: "prose",
-    difference: 8,
+    difference: -8,
     parts: [
       { px: 14.4, why: "the card pads 12px each side where Moonlit pads 19.2px" },
-      { px: -6.4, why: "the transcript column is 368px where Moonlit's card is 374.4px" },
+      { px: -6.4, why: "at Moonlit's 8px inset the transcript column is 368px where Moonlit's card is 374.4px" },
+      ROW_INSET,
+      RAIL_GAP,
     ],
   },
   ripple: {
     moonlit: 244.5,
     measure: "prose",
-    difference: 5.5,
-    parts: [{ px: 5.5, why: "the prose pads 12px each side of its stack (24px) where Moonlit's measured insets beside the 100px portrait total 29.5px" }],
+    difference: -6.5,
+    parts: [
+      { px: 5.5, why: "the prose pads 12px each side of its stack (24px) where Moonlit's measured insets beside the 100px portrait total 29.5px" },
+      ROW_INSET,
+    ],
   },
   tide: {
     moonlit: 336.6,
     measure: "column",
-    difference: 0,
-    parts: [],
+    difference: -10.8,
+    parts: [{ px: -10.8, why: "the phone cap is nine tenths of the row, and the ruled inset leaves the row 12px narrower than Moonlit's" }],
   },
 };
 
