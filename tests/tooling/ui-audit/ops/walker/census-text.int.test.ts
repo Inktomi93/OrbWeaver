@@ -596,6 +596,17 @@ auditRuleTest(
 );
 
 auditRuleTest(
+  [{ rule: "line-length", kind: "fires", reason: "a one-line clamp with no overflow clip paints every line, so its measure is still judged" }],
+  "an unclipped one-line clamp still fails line-length",
+  async ({ runCli, scratch }) => {
+    const body = `<p data-voice="gloss" style="${FACET_ROW_STYLE};display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1">${FACET_BODY}</p>`;
+    const report = await auditFixture(scratch, runCli, "facet-preview-clamp-unclipped", body);
+    expect(report.findings.filter(({ rule }) => rule === "line-length")).toHaveLength(1);
+    expect(report.populationAccounting?.["line-length"]).toMatchObject({ judged: 1, affected: 1, excluded: {} });
+  },
+);
+
+auditRuleTest(
   [{ rule: "line-length", kind: "fires", reason: "the same body allowed to wrap in the same box is prose past the measure" }],
   "the same preview body wrapping in the same box still fails line-length",
   async ({ runCli, scratch }) => {

@@ -10,6 +10,7 @@ import { forEachNonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
+import { CHAT_SELECT_MESSAGES_NAME } from "#client/features/chat/lib/chat-options-names.ts";
 import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
@@ -149,7 +150,7 @@ function controlsBeneath(element: Element, reach: number): readonly string[] {
   const stacks = ticks.flatMap((dx) => ticks.map((dy) => element.ownerDocument.elementsFromPoint(left + dx, top + dy)));
   const controls = stacks
     .filter(([topmost]) => topmost !== undefined && element.contains(topmost))
-    .flatMap((stack) => stack.filter((candidate) => candidate.matches('button, a[href], [role="button"], [role="menuitem"], input')))
+    .flatMap((stack) => stack.filter((candidate) => candidate.matches('button, a[href], [role="button"], [role="menuitem"], [role="checkbox"], input')))
     .filter((control) => !(control.contains(element) || element.contains(control)));
   // Only a failing probe has anything to list, so each entry carries both boxes and the failure names the cell without a rerun.
   const span = (target: Element): string => {
@@ -264,6 +265,74 @@ forEachNonEmpty(
     }
   },
 );
+
+// Selection mode puts a "Select message" checkbox in every row's stack, directly above the next row's chip: its touch square and the
+// chip's reach must not overlap. A fine pointer reveals a row's controls only on hover, so that cell hovers the row before it probes.
+const SELECTION_CELLS = [
+  { name: "320", viewport: { width: 320, height: 700 }, coarse: true, factor: 1 },
+  { name: "320 at 125%", viewport: { width: 320, height: 700 }, coarse: true, factor: 1.25 },
+  { name: "390", viewport: { width: 390, height: 844 }, coarse: true, factor: 1 },
+  { name: "1280 fine", viewport: { width: 1280, height: 800 }, coarse: false, factor: 1 },
+] as const;
+
+forEachNonEmpty(
+  THEME_CHAT_STYLES.filter((style) => MESSAGE_ROW_SKINS[style].avatarTreatment("character") !== "none"),
+  "chat styles that paint an avatar in selection mode",
+  (chatStyle) => {
+    for (const density of THEME_DENSITIES) {
+      for (const cell of SELECTION_CELLS) {
+        test.describe(`${cell.name} ${density} ${chatStyle} avatar reach in selection mode`, () => {
+          test.use({ hasTouch: cell.coarse, isMobile: cell.coarse, viewport: cell.viewport });
+
+          test("the avatar's reach and the Select message checkbox's touch square do not overlap", async ({ corpus, corpusMedia, mount, page }) => {
+            await using root = await createCorpusHarness();
+            const { chatId, messageIds } = await prepareRoom({ corpus, corpusMedia, page }, root, { chatStyle, density });
+            await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+            await setRootFontScale(page, channelName("fontScale"), cell.factor);
+            await page.getByRole("button", { name: "Chat options", exact: true }).click();
+            await page.getByRole("menuitem", { name: CHAT_SELECT_MESSAGES_NAME, exact: true }).click();
+            await expect(page.getByRole("checkbox", { name: "Select message" }).first()).toBeVisible();
+            for (const role of ROLES) {
+              const opener = await openerOf(page, messageIds.get(role));
+              if (!cell.coarse) {
+                await page.locator(`${ROW}[data-message-id="${messageIds.get(role) ?? ""}"]`).hover();
+              }
+              const reach = await opener.evaluate(reachSizeOf);
+              await expect.poll(() => opener.evaluate(controlsBeneath, reach), { message: `${role} avatar reach: controls beneath it` }).toEqual([]);
+            }
+          });
+        });
+      }
+    }
+  },
+);
+
+// The header's gap that keeps the chip's reach clear of the glyph controls is a block-axis step: at a phone width and enlarged text the
+// whisper header still fits its chip, name and actions on one line.
+test.describe("390 compact whisper at 125% text avatar header", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+
+  test("the chip, the name and the actions share one line", async ({ corpus, corpusMedia, mount, page }) => {
+    await using root = await createCorpusHarness();
+    const { chatId, messageIds } = await prepareRoom({ corpus, corpusMedia, page }, root, { chatStyle: "whisper", density: "compact" });
+    await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+    await setRootFontScale(page, channelName("fontScale"), 1.25);
+    const opener = await openerOf(page, messageIds.get("assistant"));
+    const header = page.locator(`${ROW}[data-message-id="${messageIds.get("assistant") ?? ""}"] [data-slot="message-name-row"]`).first();
+    await expect(opener).toBeVisible();
+    await expect
+      .poll(() =>
+        header.evaluate((node) => {
+          const centres = [...node.children]
+            .map((child) => child.getBoundingClientRect())
+            .filter((rect) => rect.height > 0)
+            .map((rect) => rect.top + rect.height / 2);
+          return Math.max(...centres) - Math.min(...centres);
+        }),
+      )
+      .toBeLessThan(2);
+  });
+});
 
 /** A message's avatar opener, scrolled into view. */
 async function openerOf(page: Page, messageId: MessageId | undefined): Promise<Locator> {
