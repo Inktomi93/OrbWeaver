@@ -35,7 +35,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { FormDialogPopup, FormDialogRoot } from "#components";
+import { FormDialogPopup, FormDialogRoot, SettingRowGroup, SettingTrackRow } from "#components";
 import { DIALOG_VERBS } from "#lib";
 import { scopeChipLabelOf, slotLabelOf } from "../lib/render-plan.ts";
 
@@ -100,7 +100,13 @@ function fieldGlossOf(depthless: boolean, text: string | null): string {
  *  target far under the touch floor. Wrapping in a label fixes both at once: the association gives the
  *  name, and the whole row becomes the target. `Field` is the primitive that owns this pairing — it
  *  renders the real label element and wires the control's id, which a hand-rolled `<label>` in a
- *  feature could not do without reaching for a raw intrinsic. */
+ *  feature could not do without reaching for a raw intrinsic.
+ *
+ *  It is a TRACK row rather than a bare `Field`. The horizontal arm's default alignment docks the control
+ *  column at the row's right edge and right-aligns what is inside it, so every checkbox started where the
+ *  length of its OWN gloss put it — the boxes of one checklist wander across the dialog, and each row
+ *  re-teaches the traverse from its name to its box. On the shared tracks every box starts at one x, a
+ *  short step from the name it belongs to. */
 function ScopeCheckRow({
   checked,
   disabled = false,
@@ -117,12 +123,14 @@ function ScopeCheckRow({
   onToggle: () => void;
 }): ReactElement {
   return (
-    <Field label={name} orientation="horizontal">
-      <Row align="center" gap="row">
-        <Checkbox checked={checked} disabled={disabled} indeterminate={indeterminate} onCheckedChange={onToggle} />
-        <Text voice="gloss">{gloss}</Text>
-      </Row>
-    </Field>
+    <SettingTrackRow>
+      <Field label={name} orientation="horizontal">
+        <Row align="center" gap="row">
+          <Checkbox checked={checked} disabled={disabled} indeterminate={indeterminate} onCheckedChange={onToggle} />
+          <Text voice="gloss">{gloss}</Text>
+        </Row>
+      </Field>
+    </SettingTrackRow>
   );
 }
 
@@ -140,8 +148,10 @@ function GreetingsScopeRow({
   onToggleGreeting: (index: number) => void;
 }): ReactElement {
   const selectedCount = greetingIndexes?.length ?? card.greetings.length;
+  // A Fragment, not a Stack: every scope row is ONE grid item of the shared tracks (see ScopeCheckRow), so
+  // the slots sit in the same tracks as their parent rather than in a nested box that breaks the chain.
   return (
-    <Stack gap="tight">
+    <>
       <ScopeCheckRow
         checked={on}
         gloss={card.greetings.length === 0 ? "no greetings" : `${on ? selectedCount : 0} of ${card.greetings.length} slots selected`}
@@ -166,7 +176,7 @@ function GreetingsScopeRow({
             );
           })
         : null}
-    </Stack>
+    </>
   );
 }
 
@@ -258,33 +268,38 @@ function ScopeEditorBody({ onOpenChange, card, selection, score, onSave }: Omit<
           Only what you select is sent to the model, and only what you selected can ever be applied back. Widening the scope later re-runs the pipeline; it does
           not retro-fit an old rewrite.
         </Text>
-        {REFINABLE_FIELDS.map((field) => {
-          const on = fields.includes(field);
-          if (field === "greetings") {
+        {/* One track pair for the whole checklist: every name starts at the dialog's content edge and every
+            box at the shared control track, so the list reads as one column of decisions rather than nine
+            rows each aligned to itself. */}
+        <SettingRowGroup>
+          {REFINABLE_FIELDS.map((field) => {
+            const on = fields.includes(field);
+            if (field === "greetings") {
+              return (
+                <GreetingsScopeRow
+                  card={card}
+                  greetingIndexes={greetingIndexes}
+                  key={field}
+                  on={on}
+                  onToggleField={(): void => toggleField(field)}
+                  onToggleGreeting={toggleGreeting}
+                />
+              );
+            }
+            const text = fieldTextOf(card, field);
+            const depthless = field === "depthPrompt" && card.depthPrompt === null;
             return (
-              <GreetingsScopeRow
-                card={card}
-                greetingIndexes={greetingIndexes}
+              <ScopeCheckRow
+                checked={on && !depthless}
+                disabled={depthless}
+                gloss={fieldGlossOf(depthless, text)}
                 key={field}
-                on={on}
-                onToggleField={(): void => toggleField(field)}
-                onToggleGreeting={toggleGreeting}
+                name={scopeChipLabelOf(field, undefined)}
+                onToggle={(): void => toggleField(field)}
               />
             );
-          }
-          const text = fieldTextOf(card, field);
-          const depthless = field === "depthPrompt" && card.depthPrompt === null;
-          return (
-            <ScopeCheckRow
-              checked={on && !depthless}
-              disabled={depthless}
-              gloss={fieldGlossOf(depthless, text)}
-              key={field}
-              name={scopeChipLabelOf(field, undefined)}
-              onToggle={(): void => toggleField(field)}
-            />
-          );
-        })}
+          })}
+        </SettingRowGroup>
       </Stack>
     </FormDialogPopup>
   );

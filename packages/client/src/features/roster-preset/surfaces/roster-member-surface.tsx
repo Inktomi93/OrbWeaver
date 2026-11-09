@@ -18,7 +18,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { EditorPage, MemberDrillHeader, SettingSwitchRow } from "#components";
+import { EditorPage, MemberDrillHeader, SettingRowGroup, SettingSwitchRow, SettingTrackRow } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { CollectionMemberView } from "#lib";
 import { DIALOG_VERBS, talkativenessReadout, useFocusOnMount } from "#lib";
@@ -181,13 +181,21 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
             real <h3> under it (side-eye P2-5: the editor's only heading was the roster name, so heading
             navigation gave a screen-reader user one stop in a two-section surface, while the sibling
             "This chat" pane names every section at level 3). */}
-      <SettingSwitchRow
-        checked={roster.game !== null}
-        disabled={busy}
-        {...(roster.game === null ? {} : { description: rulesetLine(roster.game) })}
-        label="RPG campaign"
-        onChange={onCampaignChange}
-      />
+      {/* The one label-left / control-right row on the page, so it takes the shared tracks like every other
+          settings row: the bare horizontal Field docks the switch at the column's right edge — 430px of a
+          720px row measured on the desktop-1440 walk — and that traverse is re-learned whenever the pane is
+          a different width. */}
+      <SettingRowGroup>
+        <SettingTrackRow>
+          <SettingSwitchRow
+            checked={roster.game !== null}
+            disabled={busy}
+            {...(roster.game === null ? {} : { description: rulesetLine(roster.game) })}
+            label="RPG campaign"
+            onChange={onCampaignChange}
+          />
+        </SettingTrackRow>
+      </SettingRowGroup>
       <Section kicker="Characters">
         {roster.members.map((member) => (
           <Row align="center" gap="field" key={member.characterId}>
