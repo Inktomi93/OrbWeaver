@@ -56,6 +56,10 @@ updates:
       - dependency-name: "@vitest/eslint-plugin"
       - dependency-name: colorjs.io
       - dependency-name: eslint-plugin-better-tailwindcss
+      - dependency-name: echarts
+      - dependency-name: echarts-for-react
+      - dependency-name: "@stryker-mutator/core"
+      - dependency-name: "@stryker-mutator/vitest-runner"
     commit-message:
       prefix: chore
       include: scope
@@ -88,6 +92,10 @@ updates:
       - dependency-name: "@vitest/eslint-plugin"
       - dependency-name: colorjs.io
       - dependency-name: eslint-plugin-better-tailwindcss
+      - dependency-name: echarts
+      - dependency-name: echarts-for-react
+      - dependency-name: "@stryker-mutator/core"
+      - dependency-name: "@stryker-mutator/vitest-runner"
     commit-message:
       prefix: fix
       include: scope
