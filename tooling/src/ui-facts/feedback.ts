@@ -115,11 +115,70 @@ function isStateMark(node: ts.Node): boolean {
 /** A setter says a failure only when its name does: `setOpen(false)` or `setPending(false)` in a catch says nothing about what failed. */
 const FAILURE_SETTER = /^set\w*(?:Error|Failure|Failed|Message|Refusal|Notice|Problem)$/u;
 
+/** The props whose awaited handler's rejection the receiving component renders: `ConfirmDialog`, `DestructiveAction` and a
+ *  row menu's `destructive` action state a rejected `onConfirm` in the dialog's alert line. */
+const REJECTION_RENDERING_PROPS = new Set(["onConfirm"]);
+
+function propName(node: ts.Node): string | null {
+  if (ts.isJsxAttribute(node) || ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) {
+    return node.name.getText();
+  }
+  return null;
+}
+
+/** The value sits directly in a rejection-rendering prop: `onConfirm={value}` or `{ onConfirm: value }`. */
+function inRejectionProp(value: ts.Node): boolean {
+  const holder = ts.isJsxExpression(value.parent) ? value.parent.parent : value.parent;
+  const name = propName(holder);
+  return name !== null && REJECTION_RENDERING_PROPS.has(name);
+}
+
+function functionName(fn: ts.Node): string | null {
+  if (ts.isFunctionDeclaration(fn)) {
+    return fn.name?.text ?? null;
+  }
+  return ts.isVariableDeclaration(fn.parent) && ts.isIdentifier(fn.parent.name) ? fn.parent.name.text : null;
+}
+
+/** An expression-bodied arrow whose body calls `name`, so it returns that call's promise: `() => remove(id)`. */
+function forwards(value: ts.Node, name: string): boolean {
+  return ts.isArrowFunction(value) && ts.isCallExpression(value.body) && ts.isIdentifier(value.body.expression) && value.body.expression.text === name;
+}
+
+/** The function's rejection reaches a component that renders it: the function is handed to a rejection-rendering prop
+ *  itself, by name, by its shorthand, or through an arrow that returns its call. */
+function reachesRejectionSurface(fn: ts.Node): boolean {
+  if (inRejectionProp(fn)) {
+    return true;
+  }
+  const name = functionName(fn);
+  if (name === null) {
+    return false;
+  }
+  // The name is looked up in the scope that declares it, so a same-named handler in another component does not count.
+  return anyNode(enclosingFunction(fn), (node) => {
+    if (ts.isShorthandPropertyAssignment(node)) {
+      return node.name.text === name && REJECTION_RENDERING_PROPS.has(name);
+    }
+    return ((ts.isIdentifier(node) && node.text === name) || forwards(node, name)) && node !== fn && inRejectionProp(node);
+  });
+}
+
 /** The consumer says the failure itself: a call that sets failure state or toasts, or a rethrow that hands the
- *  rejection to the control that awaited it (a confirm dialog states a rejected confirm in its own alert). */
+ *  rejection to a component that renders it. A rethrow into a plain click handler renders nothing. */
 function isFailureStatement(node: ts.Node): boolean {
   if (ts.isThrowStatement(node)) {
-    return true;
+    let fn = enclosingFunction(node);
+    // A `.catch(...)` callback's rethrow rejects the chain, so the function that returns the chain is the one handed on.
+    while (
+      !ts.isSourceFile(fn) &&
+      ts.isCallExpression(fn.parent) &&
+      ts.isPropertyAccessExpression(fn.parent.expression) &&
+      fn.parent.expression.name.text === "catch"
+    ) {
+      fn = enclosingFunction(fn.parent);
+    }
+    return reachesRejectionSurface(fn);
   }
   if (!ts.isCallExpression(node)) {
     return false;

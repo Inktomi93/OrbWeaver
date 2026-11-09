@@ -260,7 +260,9 @@ test("a failed-state mark, a toast that stands down and a catch that sets local 
   ]);
 });
 
-test("a background mutation reads as its log, and an inline-class mutation is inline only where its consumer says the failure", ({ scratch }) => {
+test("a background mutation reads as its log, and an inline-class mutation is inline only where its consumer says the failure or rethrows into a confirm", ({
+  scratch,
+}) => {
   const root = plantDir(scratch, "feedback-classes");
   plant(root, {
     "hooks/use-classes.ts": [
@@ -268,9 +270,11 @@ test("a background mutation reads as its log, and an inline-class mutation is in
       'export const useAsk = createEntityMutation<A, B>({ failureShownInline: "the plan line", busDriven: true });',
       'export const useConfirm = createEntityMutation<A, B>({ failureShownInline: "the confirm alert", busDriven: true });',
       'export const useMute = createEntityMutation<A, B>({ failureShownInline: "a line nobody renders", busDriven: true });',
+      'export const useClick = createEntityMutation<A, B>({ failureShownInline: "a rethrow nobody renders", busDriven: true });',
+      'export const useChain = createEntityMutation<A, B>({ failureShownInline: "the row menu confirm alert", busDriven: true });',
     ].join("\n"),
     "components/classes.tsx": [
-      'import { useAsk, useConfirm, useMute, useSweep } from "../hooks/use-classes.ts";',
+      'import { useAsk, useChain, useClick, useConfirm, useMute, useSweep } from "../hooks/use-classes.ts";',
       "export const Sweep = (d) => {",
       "  const sweep = useSweep(d);",
       "  return null;",
@@ -282,11 +286,21 @@ test("a background mutation reads as its log, and an inline-class mutation is in
       "export const Confirm = (d) => {",
       "  const confirm = useConfirm(d);",
       '  const run = async () => { try { await confirm.mutateAsync({}); } catch (error) { setPhase("idle"); throw error; } };',
-      "  return null;",
+      "  return <DestructiveAction onConfirm={() => run(1)} />;",
       "};",
       "export const Mute = (d) => {",
       "  const mute = useMute(d);",
       "  return null;",
+      "};",
+      "export const Click = (d) => {",
+      "  const click = useClick(d);",
+      '  const run = async () => { try { await click.mutateAsync({}); } catch (error) { setPhase("idle"); throw error; } };',
+      "  return <button onClick={run} />;",
+      "};",
+      "export const Chain = (d) => {",
+      "  const chain = useChain(d);",
+      "  const remove = () => chain.mutateAsync({}).catch((error) => { throw error; });",
+      "  return <RowActionsMenu destructive={{ onConfirm: remove }} />;",
       "};",
     ].join("\n"),
   });
@@ -297,9 +311,11 @@ test("a background mutation reads as its log, and an inline-class mutation is in
     ["useAsk", "inline"],
     ["useConfirm", "inline"],
     ["useMute", "none"],
+    ["useClick", "none"],
+    ["useChain", "inline"],
   ]);
   const mutations = facts.cohorts.find((entry) => entry.name === "mutation")?.members ?? [];
-  expect(mutations.map((member) => member.cells["failure"]?.value)).toEqual(["background", "inline", "inline", "inline"]);
+  expect(mutations.map((member) => member.cells["failure"]?.value)).toEqual(["background", "inline", "inline", "inline", "inline", "inline"]);
 });
 
 test("a toast that only takes null as an argument still toasts, a setter that is not a failure says nothing, and a form submit's catch is the failure surface", ({
