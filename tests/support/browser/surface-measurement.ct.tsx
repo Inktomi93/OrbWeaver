@@ -7,6 +7,7 @@ import {
   accessibilityScan,
   assertSurfaceReady,
   drainWebVitals,
+  enlargedTextFindings,
   installWebVitals,
   markExpectedSurfaceHttpFailure,
   observeSurfaceSession,
@@ -31,7 +32,13 @@ import { attachNativeFile } from "../node/native-attachments.ts";
 import type { CheckpointStability } from "./layout-stability.ts";
 import { readCheckpointStability, STABILITY_SETTLE_MS } from "./layout-stability.ts";
 import type { SerializedPerformanceEntry } from "./performance-entry.ts";
-import type { SurfaceCodeEditorStory, SurfaceDesignStory, SurfaceTextGeometryStory, SurfaceTouchTilingStory } from "./surface-design-fixtures.tsx";
+import type {
+  SurfaceCodeEditorStory,
+  SurfaceDesignStory,
+  SurfaceTextGeometryStory,
+  SurfaceTextOverlapStory,
+  SurfaceTouchTilingStory,
+} from "./surface-design-fixtures.tsx";
 import type { SurfaceFrameworkStory } from "./surface-framework-fixtures.tsx";
 import type { SurfaceStabilityShift, SurfaceStabilityStory } from "./surface-stability-fixtures.tsx";
 import { hitExtent, touchFloorPx } from "./touch-floor.ts";
@@ -509,6 +516,50 @@ for (const clipped of [false, true]) {
     test.fail(clipped, "A control a fixed-pixel box clips at enlarged text must fail the native checkpoint");
   });
 }
+
+test("enlarged-text geometry still names a visible button a fixed box clips, and not a slider's visually hidden input", async ({
+  mount,
+  page,
+  browserName,
+}) => {
+  test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+  await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+  await mount<typeof SurfaceTextGeometryStory>("tests/support/browser/surface-design-fixtures/SurfaceTextGeometryStory", { clipped: true });
+  // The hidden range input is attached and reachable; only its paint keeps it out of the verdict.
+  await expect(page.getByRole("slider", { name: "Reflowing group slider", exact: true })).toBeAttached();
+  expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([
+    expect.stringMatching(/^button "Continue to the next step" \[.*\] clipped on x by div/u),
+  ]);
+});
+
+test("enlarged-text geometry fails a named pair of visible controls that overlap", async ({ mount, page, browserName }) => {
+  test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+  await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+  await mount<typeof SurfaceTextOverlapStory>("tests/support/browser/surface-design-fixtures/SurfaceTextOverlapStory", { named: true });
+  await expect(page.getByRole("button", { name: "Over control", exact: true })).toBeVisible();
+  expect(await enlargedTextFindings(page.getByRole("main"))).toEqual(['"Under control" overlaps "Over control"']);
+});
+
+test("enlarged-text geometry records an overlap with no name on either control as incomplete, not as a finding", async ({ mount, page, browserName }, info) => {
+  test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+  const profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+  await page.addInitScript({ content: webVitalsInitScript(await webVitalsSource()) });
+  await mount<typeof SurfaceTextOverlapStory>("tests/support/browser/surface-design-fixtures/SurfaceTextOverlapStory", { named: false });
+  const fields = page.getByRole("textbox");
+  await expect(fields).toHaveCount(2);
+  const name = "text-geometry-unnamed-overlap";
+  await surfaceCheckpoint(info, { name, scope: page.getByRole("main"), state: "loaded", witnesses: [fields.first()], checks: ["names"] }, [], {
+    pass: "measurement",
+    layoutStability: false,
+    textGeometry: { expectedRootFontPx: profile.standardFontPx },
+  });
+  const verdict: unknown = JSON.parse(await nativeAttachmentText(info, `${name}-text-geometry`));
+  expect(verdict).toMatchObject({
+    findings: [],
+    incomplete: [expect.stringMatching(/^input "" \[.*\] overlaps input "" \[.*\]: neither control has a name$/u)],
+  });
+  expect(info.errors).toEqual([]);
+});
 
 test("the design walk restores real nested scroll positions after a native reveal throws", async ({ mount, page }) => {
   await mount<typeof SurfaceDesignStory>("tests/support/browser/surface-design-fixtures/SurfaceDesignStory", { width: 640 });

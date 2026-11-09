@@ -9,13 +9,68 @@ const REACHABLE =
 // The character band's chip row scrolls by ruling: it keeps each chip whole rather than wrap into a ragged void.
 const SIDEWAYS_STRIPS = 'input, textarea, [role="tablist"], [role="toolbar"], [data-slot="character-context-band"] > * > *';
 
+/** An enlarged-text verdict over one scope. */
+export interface EnlargedTextGeometry {
+  readonly findings: readonly string[];
+  /** What the probes saw but could not judge, each with its reason: neither a finding nor a clean result. */
+  readonly incomplete: readonly string[];
+}
+
+interface ControlGeometry {
+  readonly clipped: string[];
+  readonly overlaps: string[];
+  readonly unnamedOverlaps: string[];
+}
+
 /**
- * Reachable controls that a user could not press: painted past the viewport or past a clipping ancestor on either axis (a scroller
- * keeps its children reachable on its own axis), or covered at their centre by something that is not the control.
+ * Two probes over the reachable controls that paint. Clipped: a control painted past the viewport or past a clipping
+ * ancestor on either axis (a scroller keeps its children reachable on its own axis), or covered at its centre by
+ * something that is not the control. Overlapping: pairs inside one scroller, which a centre hit test misses when one
+ * lies over a neighbour's edge.
  */
-function clippedControls(subject: Element, { reachable, subpixel }: { readonly reachable: string; readonly subpixel: number }): string[] {
-  const label = (element: Element): string =>
-    `${element.tagName.toLowerCase()} "${(element.getAttribute("aria-label") ?? element.textContent).trim().slice(0, 40)}"`;
+function controlGeometry(subject: Element, { reachable, subpixel }: { readonly reachable: string; readonly subpixel: number }): ControlGeometry {
+  const labelsOf = (element: Element): HTMLLabelElement[] =>
+    element instanceof HTMLInputElement ||
+    element instanceof HTMLSelectElement ||
+    element instanceof HTMLTextAreaElement ||
+    element instanceof HTMLButtonElement
+      ? [...(element.labels ?? [])]
+      : [];
+  // The name sources the page states outright, in accessible-name order; this is not an accessible-name engine.
+  const nameOf = (element: Element): string => {
+    const labelledBy = (element.getAttribute("aria-labelledby") ?? "")
+      .split(/\s+/u)
+      .map((id) => (id === "" ? "" : (document.getElementById(id)?.textContent ?? "")))
+      .join(" ");
+    const sources = [
+      labelledBy,
+      element.getAttribute("aria-label") ?? "",
+      labelsOf(element)
+        .map(({ textContent }) => textContent)
+        .join(" "),
+      element.textContent,
+    ];
+    return (sources.map((source) => source.trim()).find((source) => source !== "") ?? "").slice(0, 40);
+  };
+  const label = (element: Element): string => `${element.tagName.toLowerCase()} "${nameOf(element)}"`;
+  const boxText = (box: DOMRect): string =>
+    `[${String(Math.round(box.left))},${String(Math.round(box.top))} ${String(Math.round(box.width))}x${String(Math.round(box.height))}]`;
+  // A box with no area paints nothing, and neither does one its own clip-path insets away whatever its size: the
+  // visually hidden pattern, which parks a range input over the whole viewport.
+  const paints = (element: Element): boolean => {
+    const box = element.getBoundingClientRect();
+    if (box.width <= subpixel || box.height <= subpixel) {
+      return false;
+    }
+    const inset = /^inset\((?<values>[^)]*?)(?: round [^)]*)?\)$/u.exec(getComputedStyle(element).clipPath)?.groups?.["values"];
+    if (inset === undefined) {
+      return true;
+    }
+    const [top = "0", right = top, bottom = top, left = right] = inset.split(" ");
+    const px = (value: string, extent: number): number => (value.endsWith("%") ? (Number.parseFloat(value) / 100) * extent : Number.parseFloat(value));
+    return px(top, box.height) + px(bottom, box.height) < box.height && px(left, box.width) + px(right, box.width) < box.width;
+  };
+
   const spans = (
     box: DOMRect,
     bounds: DOMRect | { readonly left: number; readonly right: number; readonly top: number; readonly bottom: number },
@@ -70,7 +125,7 @@ function clippedControls(subject: Element, { reachable, subpixel }: { readonly r
   };
   const verdict = (element: Element): string | null => {
     const box = element.getBoundingClientRect();
-    const at = `[${String(Math.round(box.left))},${String(Math.round(box.top))} ${String(Math.round(box.width))}x${String(Math.round(box.height))}]`;
+    const at = boxText(box);
     const clipped = clipAxis(element, box);
     if (clipped !== null) {
       return `${label(element)} ${at} ${clipped}`;
@@ -89,17 +144,61 @@ function clippedControls(subject: Element, { reachable, subpixel }: { readonly r
       ? null
       : `${label(element)} ${at} is covered at its centre by ${label(cover)} ${cover.className}`;
   };
-  return [...subject.querySelectorAll(reachable)]
-    .filter(
-      (element) =>
-        element.checkVisibility({ visibilityProperty: true }) &&
-        element.closest("[inert]") === null &&
-        // A disabled control takes no press, and its words still have to fit on screen.
-        (getComputedStyle(element).pointerEvents !== "none" || element.matches(Disabled)) &&
-        element.getBoundingClientRect().width > subpixel,
-    )
+  const paintedControls = (keep: (element: Element) => boolean): Element[] =>
+    [...subject.querySelectorAll(reachable)].filter(
+      (element) => element.checkVisibility({ visibilityProperty: true }) && element.closest("[inert]") === null && keep(element) && paints(element),
+    );
+  const clipped = paintedControls(
+    // A disabled control takes no press, and its words still have to fit on screen.
+    (element) => getComputedStyle(element).pointerEvents !== "none" || element.matches(Disabled),
+  )
     .map(verdict)
     .filter((found): found is string => found !== null);
+
+  const scrollerOf = (element: Element): Element | null => {
+    for (let up = element.parentElement; up !== null; up = up.parentElement) {
+      if (/auto|scroll/u.test(getComputedStyle(up).overflowY)) {
+        return up;
+      }
+    }
+    return null;
+  };
+  // A pinned footer lies over the rows scrolling under it by design.
+  const pinned = (element: Element): boolean => {
+    for (let up: Element | null = element; up !== null; up = up.parentElement) {
+      if (getComputedStyle(up).position === "sticky") {
+        return true;
+      }
+    }
+    return false;
+  };
+  const painted = paintedControls(
+    (element) =>
+      getComputedStyle(element).pointerEvents !== "none" &&
+      // A dropzone's file input is a transparent sheet over its own zone, and it passes under a dialog's pinned footer.
+      !element.matches('input[type="file"]'),
+  );
+  const overlaps: string[] = [];
+  const unnamedOverlaps: string[] = [];
+  painted.forEach((element, index) => {
+    for (const other of painted.slice(index + 1)) {
+      const [a, b] = [element.getBoundingClientRect(), other.getBoundingClientRect()];
+      const inline = Math.min(a.right, b.right) - Math.max(a.left, b.left);
+      const block = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
+      const overlap = inline > subpixel && block > subpixel && !element.contains(other) && !other.contains(element);
+      if (!overlap || pinned(element) || pinned(other) || scrollerOf(element) !== scrollerOf(other)) {
+        continue;
+      }
+      const [name, otherName] = [nameOf(element), nameOf(other)];
+      // An overlap with no name on either side has nothing to attribute it to; it stays unjudged rather than counted.
+      if (name === "" && otherName === "") {
+        unnamedOverlaps.push(`${label(element)} ${boxText(a)} overlaps ${label(other)} ${boxText(b)}: neither control has a name`);
+      } else {
+        overlaps.push(`"${name}" overlaps "${otherName}"`);
+      }
+    }
+  });
+  return { clipped, overlaps, unnamedOverlaps };
 }
 
 /** Text cut with no ellipsis to say so: a single line past its box, or lines past a box that does not scroll. */
@@ -119,46 +218,6 @@ function cutOffText(subject: Element, { subpixel }: { readonly subpixel: number 
         paintsText(element) && element.getBoundingClientRect().width > subpixel && element.checkVisibility({ visibilityProperty: true }) && cuts(element),
     )
     .map((element) => `${element.tagName.toLowerCase()} "${element.textContent.trim().slice(0, 40)}"`);
-}
-
-/** Pairs of controls overlapping inside one scroller: a centre hit test misses one that lies over a neighbour's edge. */
-function overlappingControls(subject: Element, { reachable, subpixel }: { readonly reachable: string; readonly subpixel: number }): string[] {
-  const name = (element: Element): string => (element.getAttribute("aria-label") ?? element.textContent).trim().slice(0, 40);
-  const scrollerOf = (element: Element): Element | null => {
-    for (let up = element.parentElement; up !== null; up = up.parentElement) {
-      if (/auto|scroll/u.test(getComputedStyle(up).overflowY)) {
-        return up;
-      }
-    }
-    return null;
-  };
-  const painted = [...subject.querySelectorAll(reachable)].filter(
-    (element) =>
-      element.checkVisibility({ visibilityProperty: true }) &&
-      element.closest("[inert]") === null &&
-      getComputedStyle(element).pointerEvents !== "none" &&
-      // A dropzone's file input is a transparent sheet over its own zone, and it passes under a dialog's pinned footer.
-      !element.matches('input[type="file"]') &&
-      element.getBoundingClientRect().width > subpixel,
-  );
-  // A pinned footer lies over the rows scrolling under it by design.
-  const pinned = (element: Element): boolean => {
-    for (let up: Element | null = element; up !== null; up = up.parentElement) {
-      if (getComputedStyle(up).position === "sticky") {
-        return true;
-      }
-    }
-    return false;
-  };
-  return painted.flatMap((element, index) =>
-    painted.slice(index + 1).flatMap((other) => {
-      const [a, b] = [element.getBoundingClientRect(), other.getBoundingClientRect()];
-      const inline = Math.min(a.right, b.right) - Math.max(a.left, b.left);
-      const block = Math.min(a.bottom, b.bottom) - Math.max(a.top, b.top);
-      const overlap = inline > subpixel && block > subpixel && !element.contains(other) && !other.contains(element);
-      return overlap && !pinned(element) && !pinned(other) && scrollerOf(element) === scrollerOf(other) ? [`"${name(element)}" overlaps "${name(other)}"`] : [];
-    }),
-  );
 }
 
 /** A column that scrolls sideways has stopped reflowing; a strip of tabs or chips is built to scroll that way. */
@@ -191,12 +250,17 @@ function collapsedScrollers(subject: Element, { subpixel }: { readonly subpixel:
     );
 }
 
-/** Every enlarged-text geometry finding inside `scope`; an empty list is a clean scope. */
-export async function enlargedTextFindings(scope: Locator): Promise<string[]> {
-  const controls = await scope.evaluate(clippedControls, { reachable: REACHABLE, subpixel: LAYOUT_SUBPIXEL_PX });
-  const overlaps = await scope.evaluate(overlappingControls, { reachable: REACHABLE, subpixel: LAYOUT_SUBPIXEL_PX });
+/** The enlarged-text geometry of `scope`: its findings, and the cases its probes left unjudged. */
+export async function enlargedTextGeometry(scope: Locator): Promise<EnlargedTextGeometry> {
+  const controls = await scope.evaluate(controlGeometry, { reachable: REACHABLE, subpixel: LAYOUT_SUBPIXEL_PX });
   const text = await scope.evaluate(cutOffText, { subpixel: LAYOUT_SUBPIXEL_PX });
   const columns = await scope.evaluate(sidewaysColumns, { strips: SIDEWAYS_STRIPS, subpixel: LAYOUT_SUBPIXEL_PX });
   const collapsed = await scope.evaluate(collapsedScrollers, { subpixel: LAYOUT_SUBPIXEL_PX });
-  return [...controls, ...overlaps, ...text, ...columns, ...collapsed];
+  return { findings: [...controls.clipped, ...controls.overlaps, ...text, ...columns, ...collapsed], incomplete: controls.unnamedOverlaps };
+}
+
+/** Every enlarged-text finding inside `scope`, then every case left unjudged; an empty list is a scope judged clean. */
+export async function enlargedTextFindings(scope: Locator): Promise<string[]> {
+  const { findings, incomplete } = await enlargedTextGeometry(scope);
+  return [...findings, ...incomplete];
 }
