@@ -116,7 +116,7 @@ export function extensionsWaitingGroupLabel(count: number): string {
  *  empty above: "pick one" and "there are none" are different facts and collapsing them is the generic-filler
  *  defect the house sweeps for. */
 export const EXTENSIONS_NO_SELECTION_TITLE = "Pick a plugin page";
-export const EXTENSIONS_NO_SELECTION_BODY = "Choose a page on the left to open it here.";
+export const EXTENSIONS_NO_SELECTION_BODY = "Choose a page from the list to open it here.";
 
 /** The CONTENT pane's DANGLING state — the selected page's plugin was disabled or removed while it was open. */
 export const EXTENSIONS_GONE_TITLE = "That page is no longer available";

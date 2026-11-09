@@ -11,3 +11,6 @@ export const CORPUS_SEARCH_NAME = "Search your corpus";
 
 /** What a meaning-search target prints when it answers nothing. */
 export const CORPUS_NO_RESULT_TEXT = "No result in this preview.";
+
+/** The door to the overview where a library is sorted, on every pane that waits on it. */
+export const CORPUS_SORTING_DOOR_NAME = "Go to sorting";

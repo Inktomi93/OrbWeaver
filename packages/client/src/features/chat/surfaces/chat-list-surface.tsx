@@ -87,7 +87,7 @@ import {
   monthExclusiveUpperBound,
   searchEmptyDescription,
 } from "../lib/chat-list-scope.ts";
-import { chatRowQualifiers } from "../lib/chat-summary-row.ts";
+import { chatRowQualifiers, chatTitleQualifiers } from "../lib/chat-summary-row.ts";
 import { CHAT_CLEAR_SEARCH_NAME, CHAT_LIST_EMPTY_TITLE, CHAT_LIST_NAME, CHAT_SEARCH_NAME } from "../lib/chat-surface-names.ts";
 
 /** The list row, derived off the wire (the `chat-list-row.tsx` / `chat-summary-row.ts` spelling) — the
@@ -348,6 +348,7 @@ function ChatRows({
   // The action-name disambiguators, resolved across the WHOLE rendered list (side-eye P2c): rows that share
   // a title AND a shown stamp escalate to a longer one, so no two rows announce the same action name.
   const qualifiers = chatRowQualifiers(items);
+  const titleQualifiers = chatTitleQualifiers(items);
   const renderRow = (chat: ChatListItem, index: number): ReactNode => (
     <ChatListRow
       actions={actions}
@@ -357,6 +358,7 @@ function ChatRows({
       portraits={chat.participantPortraits}
       qualifier={qualifiers[index]}
       selected={chat.id === activeChatId}
+      titleQualifier={titleQualifiers[index]}
     />
   );
   return (

@@ -13,7 +13,7 @@ import { selectLabelFromList, setLabelFilter, setTagPruneConfirmOpen, useLabelFi
 import { TagCollectionRows } from "../components/tag-collection-rows.tsx";
 import { useTagSortControl } from "../hooks/use-tag-library.ts";
 import { LABELS_FINDER_SLOT } from "../lib/labels-focus-targets.ts";
-import { TAG_FILTER_NAME, TAG_MORE_ACTIONS_NAME, TAG_PRUNE_NAME } from "../lib/tag-list-name.ts";
+import { TAG_FILTER_NAME, TAG_MORE_ACTIONS_NAME, TAG_PRUNE_NAME, TAG_SKIP_NAME } from "../lib/tag-list-name.ts";
 
 export function LabelsListSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -27,7 +27,7 @@ export function LabelsListSurface(): ReactElement {
       data-slot={LABELS_FINDER_SLOT}
       ref={surfaceRef}
       search={<Input aria-label={TAG_FILTER_NAME} onValueChange={setLabelFilter} placeholder={`${TAG_FILTER_NAME}…`} value={filter} />}
-      skipTo="Skip to labels"
+      skipTo={TAG_SKIP_NAME}
       searchAside={
         <>
           <LabelsSortSelect />

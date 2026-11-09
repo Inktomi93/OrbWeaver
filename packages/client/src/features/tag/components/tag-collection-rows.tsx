@@ -297,6 +297,7 @@ function TagCollectionRow({
       onSelect={onSelect}
       selected={selected}
       subtitle={tagUsageLabel(tag)}
+      subtitleStep="label"
       title={tag.name}
     />
   );

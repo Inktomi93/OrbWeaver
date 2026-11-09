@@ -42,7 +42,7 @@ import { createCollectionSurface, QueryErrorState, SkeletonRows, useTRPC } from 
 import { ESTIMATED_ROW_PX, testId } from "#lib";
 import { selectCorpusArtifact } from "#state";
 import { characterFacetLine } from "../lib/character-facet.ts";
-import { CORPUS_DISTILLED_CATALOG_NAME } from "../lib/corpus-control-names.ts";
+import { CORPUS_DISTILLED_CATALOG_NAME, CORPUS_SORTING_DOOR_NAME } from "../lib/corpus-control-names.ts";
 import { openCorpusOverview } from "../lib/corpus-overview-door.ts";
 import { CharacterAvatar } from "./character-avatar.tsx";
 import { ParamSelect } from "./corpus-controls.tsx";
@@ -182,7 +182,7 @@ function BrowseRows({
       <Stack gap="field" align="center">
         <CorpusRunJobEmptyState title="No characters sorted yet" description="Sort your characters to build this catalog." offerDoor={false} />
         <Button variant="outline" size="sm" onClick={openCorpusOverview}>
-          Go to sorting
+          {CORPUS_SORTING_DOOR_NAME}
         </Button>
       </Stack>
     );

@@ -128,6 +128,16 @@ test("each placed command is one attributed icon button in host order, with its 
   await expect(buttons.nth(0)).toBeFocused();
 });
 
+test("a placed command that declares no glyph wears the command mark, not the Plugin actions trigger's own", async ({ corpus, mount, page }) => {
+  await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
+  const show = (chatId: ChatId): Promise<unknown> => mount<typeof PluginRoomShellStory>(STORY, { chatId });
+  await openRoom({ root, corpus, page, show }, [{ name: "plain", placements: [{ target: "topbar", label: "Plain" }] }], DESKTOP);
+  const button = pluginControls(trailOf(page));
+  await expect(button).toHaveCount(1);
+  await expect(button.locator("svg.lucide-command")).toHaveCount(1);
+  await expect(button.locator("svg.lucide-blocks")).toHaveCount(0);
+});
+
 test("placed commands that do not fit overflow before any house control and run from the row's menu", async ({ corpus, mount, page }) => {
   await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
   const show = (chatId: ChatId): Promise<unknown> => mount<typeof PluginRoomShellStory>(STORY, { chatId });

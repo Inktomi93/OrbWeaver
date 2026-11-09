@@ -12,5 +12,9 @@ export const PRESET_SECTIONS_NAME = "Preset sections";
 export const PRESET_IMPORT_TITLE = "Import a preset";
 export const PRESET_IMPORT_NAME = "Import preset";
 
+/** The label every door that creates a blank preset wears, and the name the new row takes. */
+export const NEW_PRESET_NAME = "New preset";
+export const NEW_PRESET_KIND = "generation";
+
 /** The section drill-in's name field. */
 export const PRESET_SECTION_NAME_FIELD_NAME = "Name";

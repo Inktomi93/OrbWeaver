@@ -59,6 +59,15 @@ export function chatRowQualifiers(chats: readonly ChatSummaryItem[]): readonly s
   );
 }
 
+/** The qualifier a row's NAME carries, only where another row on the same list shares its title. A row with a title of its
+ *  own keeps the bare title, so a list of distinct rooms reads exactly as it did. The qualifier is `chatRowQualifiers`'
+ *  own, so the name matches what the row's actions announce. */
+export function chatTitleQualifiers(chats: readonly ChatSummaryItem[]): readonly (string | undefined)[] {
+  const titles = chats.map((chat) => deriveChatTitle(chat.title, chat.participantNames));
+  const qualifiers = chatRowQualifiers(chats);
+  return titles.map((title, index) => (titles.filter((other) => other === title).length > 1 ? qualifiers[index] : undefined));
+}
+
 /** Title fallback · subtitle · last-activity epoch for one chat summary. The subtitle is the SCENT line when
  *  the server resolved one (`lastMessagePreview` — the newest message this caller may see, already stripped +
  *  flattened + WORD-BOUNDARY capped server-side): a chat with history says what was last said, which is what

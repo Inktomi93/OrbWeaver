@@ -31,10 +31,6 @@ export const emptyStateVariants = tv({
   variants: {
     // Centres in a column only while it fits: `justify-center` on a column it overflows pushes its top out of reach.
     push: { blockCentre: { root: PUSH.blockCentre } },
-    titleStep: {
-      default: {},
-      focal: { title: "font-semibold" },
-    },
     // THE READING MEASURE (side-eye 2026-08-22 P3-1). `default` (24rem ≈ 42.5ch) is the right measure for a
     // teaching line in a LIST pane or a ribbon — short, centered, two or three lines. It is the WRONG one for
     // a section's focal CONTENT welcome, where the same copy runs to four ragged centered lines at half the
@@ -45,5 +41,5 @@ export const emptyStateVariants = tv({
       wide: { description: "max-inline-cq-32" },
     },
   },
-  defaultVariants: { titleStep: "default", measure: "default" },
+  defaultVariants: { measure: "default" },
 });
