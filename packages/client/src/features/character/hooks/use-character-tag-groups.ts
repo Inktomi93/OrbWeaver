@@ -14,7 +14,8 @@
 // prior arm refused a census over.
 
 import type { ListCharacterTagGroupsResult } from "@orb/contracts/character";
-import { useGatedQuery, useTRPC } from "#data";
+import { useQuery } from "@tanstack/react-query";
+import { useTRPC } from "#data";
 import { useLibraryScope } from "./use-library-scope.ts";
 
 /** The census, or `null` while the read is in flight / has failed — which the fold renders as "the library's
@@ -23,6 +24,6 @@ import { useLibraryScope } from "./use-library-scope.ts";
 export function useCharacterTagGroups(enabled: boolean): ListCharacterTagGroupsResult | null {
   const trpc = useTRPC();
   const scope = useLibraryScope();
-  const { data } = useGatedQuery(enabled ? scope.args : null, (args) => trpc.character.listTagGroups.queryOptions(args));
+  const { data } = useQuery({ ...trpc.character.listTagGroups.queryOptions(scope.args), enabled });
   return data ?? null;
 }

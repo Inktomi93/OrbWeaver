@@ -814,6 +814,9 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/chat/lib/message-action-names.ts":
       "MESSAGE_ACTIONS_MENU_NAME and MESSAGE_DUPLICATE_NAME: the row menu trigger and the duplicate item the suite addresses",
   },
+  "tests/client/features/chat/components/saved-replies-retry.ct.tsx": {
+    "packages/client/src/features/chat/lib/message-action-names.ts": "MESSAGE_ACTIONS_MENU_NAME: the row menu trigger that opens the saved-replies door",
+  },
   "tests/client/features/chat/components/_chat-forks-stories.tsx": {
     "packages/client/src/features/chat/components/settings-context-tab.tsx":
       "CommittedSettingsTab: the This-chat tab body, which only the chats section renders and no door forwards",

@@ -41,7 +41,7 @@ updated: 2026-11-02
 | a create, update or delete | `createEntityMutation` | Raw `useMutation` with cache surgery |
 | a destructive confirm | `#components` `DestructiveAction`, or a controlled `ConfirmDialog` when another surface opens it | Raw `@orb/ui/alert-dialog` in a feature |
 | a multi-field or saved form | `createAutosaveEntityForm` or `createSavedEntityForm` as appropriate | Hand-wired controlled form state |
-| a suspending read | `useGatedQuery` or `useSuspenseQuery` inside `QueryBoundary`, with `QueryErrorState` (§11) | A bare `useQuery` state ladder or spinner |
+| a suspending read | `useSuspenseQuery` inside `QueryBoundary`, with `QueryErrorState` (§11) | A bare `useQuery` or `useGatedQuery` state ladder or spinner |
 | another feature's server entity | `trpc.*` query options (§12) | Importing the feature or copying its data into a store |
 | active chat, section or selection | A `state/` commons hook | A query for client-side state |
 | cross-section navigation | An action from `#state` (`client-architecture-state-and-gates.md` §12 row 1) | Prop-drilling or importing the target feature |
