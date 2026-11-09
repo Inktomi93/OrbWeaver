@@ -33,6 +33,14 @@ const DEFAULT_BASE = "main";
 const DEFAULT_HEAD = "HEAD";
 const AMBIGUOUS_SAMPLE = 5;
 
+/** What the ports census cannot see, written into its report and printed with every run. */
+const PORT_LIMITS: readonly string[] = [
+  "A value is followed only through a member, a forwarding lambda, a spread and a destructured member; a port member fed through a let hop is invisible, as the orb/derived-port-member rule's limit test holds.",
+  "Two shapes are one concept only through a flow, a type reference or an alias; a look-alike with no flow is a review target until the distinct-lookalikes list judges it.",
+  "A whole restated type with no port member is the shapes scan's row, not a ports target.",
+  "A port reached only through a string-addressed registry, a JSON or scenario file, or from outside the tree is not a flow.",
+];
+
 interface Finding {
   readonly kind: string;
   readonly file: string;
@@ -225,6 +233,10 @@ const log = (line: string): void => {
   process.stderr.write(`${line}\n`);
 };
 
+const logLimits = (limits: readonly string[]): void => {
+  log(["limits: what this scan cannot see", ...limits.map((limit) => `- ${limit}`)].join("\n"));
+};
+
 export function runUnwired(argv: readonly string[]): number {
   const args = parseArgs(argv);
   if (args.verb === "removed-keys") {
@@ -236,7 +248,13 @@ export function runUnwired(argv: readonly string[]): number {
       (target) => (args.leg === null || target.leg === args.leg) && (args.cluster === null || target.clusterGroup === args.cluster),
     );
     const groups = (args.cluster === null ? CLUSTER_GROUPS : [args.cluster]).map((group) => summarizeGroup(group, targets));
-    const path = write(args.root, args.out ?? DEFAULT_PORTS_OUT, { worlds: census.worlds, groups, clusters: summarizeClusters(targets), targets });
+    const path = write(args.root, args.out ?? DEFAULT_PORTS_OUT, {
+      worlds: census.worlds,
+      groups,
+      clusters: summarizeClusters(targets),
+      targets,
+      limits: PORT_LIMITS,
+    });
     const counts = new Map<string, number>();
     for (const target of targets) {
       const key = `${target.clusterGroup} ${target.kind}`;
@@ -247,6 +265,7 @@ export function runUnwired(argv: readonly string[]): number {
     }
     const open = targets.filter((target) => !INFORMATIONAL_KINDS.has(target.kind)).length;
     log(`targets=${open} informational=${targets.length - open} written to ${path}`);
+    logLimits(PORT_LIMITS);
     return EXIT.clean;
   }
   const chosen = SCANS[args.verb];
@@ -265,7 +284,7 @@ export function runUnwired(argv: readonly string[]): number {
     `scanned=${report.scanned} unwired=${report.unwired.length} deliberate=${report.deliberate.length} disagreements=${report.disagreements.length}${counts} written to ${path}`,
   );
   if (report.limits !== undefined) {
-    log(["limits: what this scan cannot see", ...report.limits.map((limit) => `- ${limit}`)].join("\n"));
+    logLimits(report.limits);
   }
   return EXIT.clean;
 }

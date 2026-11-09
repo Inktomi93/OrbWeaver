@@ -67,7 +67,18 @@ export interface UnionsReport {
   readonly deliberate: readonly (UnwiredUnionMember & { readonly reason: string })[];
   /** Members engine one found unbuilt that engine two finds built, or whose tuple engine two finds enumerated. */
   readonly disagreements: readonly string[];
+  readonly limits: readonly string[];
 }
+
+/** What the unions scan cannot see, printed with every run. */
+const UNION_LIMITS: readonly string[] = [
+  "A tuple with any element that is not a string literal (a constant, a spread, a template) is skipped whole, so none of its members is judged.",
+  'A literal builds a member only in a slot spelled from the tuple. A slot that re-spells the member as its own literal type (a discriminated union arm `kind: "x"`, a hand-written union, or the union a tuple `satisfies` when no tuple spells it) builds nothing, so a member production builds only there reports unbuilt.',
+  "Two tuples with the same members in different files are separate vocabularies; a member built into one's slots does not build the other's.",
+  "A member built only from a computed string (a template, a concatenation, a lookup by string key), from a JSON or scenario file, or outside the tree (a plugin guest, the model) is not built; a tuple production parses outside input into sorts as parsed instead.",
+  "A tuple reached through a re-export or a wrapper keeps its references; a reference that hands the tuple on (a spread, a map, an index) enumerates it, and an enumerated tuple is listed, never judged.",
+  "Only package worlds are scanned; a test literal never builds a member.",
+];
 
 interface Member {
   readonly text: string;
@@ -398,5 +409,6 @@ export function scanUnions(options: ScanOptions): UnionsReport {
     subsets: Object.fromEntries([...subsets].sort(([a], [b]) => a.localeCompare(b))),
     ...sortDeliberate(findings, options.deliberate),
     disagreements,
+    limits: UNION_LIMITS,
   };
 }

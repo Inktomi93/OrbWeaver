@@ -77,16 +77,18 @@ const wordsOf = (names: readonly string[]): RegExp => new RegExp(String.raw`(?<!
 const isTypePosition = (node: ts.Node): boolean =>
   ts.findAncestor(node, (up) => ts.isTypeNode(up) || ts.isInterfaceDeclaration(up) || ts.isTypeAliasDeclaration(up) || ts.isHeritageClause(up)) !== undefined;
 
-// The innermost node whose full span holds `position`; a position before its start sits in its leading trivia.
+// The innermost node or token whose full span holds `position`; a position before its start sits in its leading trivia.
+// Tokens count: a comment before a closing brace or inside a JSX `{/* … */}` is the trivia of that token, not of a node.
 function leafAt(source: ts.SourceFile, position: number): ts.Node {
   let found: ts.Node = source;
-  const visit = (node: ts.Node): void => {
-    if (position >= node.getFullStart() && position < node.getEnd()) {
-      found = node;
-      ts.forEachChild(node, visit);
+  for (let children = source.getChildren(source); ; ) {
+    const holder = children.find((child) => position >= child.getFullStart() && position < child.getEnd());
+    if (holder === undefined) {
+      break;
     }
-  };
-  ts.forEachChild(source, visit);
+    found = holder;
+    children = holder.getChildren(source);
+  }
   return found === source ? source.endOfFileToken : found;
 }
 
