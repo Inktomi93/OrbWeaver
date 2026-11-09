@@ -1,5 +1,6 @@
 // The production bundle on a browser that lacks every builtin the polyfill entry installs (Temporal, RegExp.escape, Error.isError):
 // Home and a chat render with no page error. The stack serves the built client, so this runs the shipped chunk order, not the dev server's.
+import type { BrowserType, LaunchOptions } from "@playwright/test";
 import { chromium, expect, test, webkit } from "@playwright/test";
 import { POLYFILLED_BUILTINS } from "../../packages/client/browser-targets.ts";
 import { openOrCreateChat, waitForAppReady } from "./support/chat-room.ts";
@@ -10,13 +11,16 @@ const ENGINE_NOTICE = 'Viewport argument key "interactive-widget"';
 // Runs before any page script, like a browser that never shipped them.
 const STRIP = POLYFILLED_BUILTINS.map((name) => `delete globalThis.${name};`).join(" ");
 
-for (const [name, type] of [
-  ["chromium", chromium],
-  ["webkit", webkit],
-] as const) {
+// A direct launch inherits the project's launch options, whose args are the Chromium switches the config builds; WebKit exits on them.
+const BROWSERS: readonly (readonly [string, BrowserType, LaunchOptions])[] = [
+  ["chromium", chromium, {}],
+  ["webkit", webkit, { args: [] }],
+];
+
+for (const [name, type, launchOptions] of BROWSERS) {
   test(`${name} without the polyfilled builtins renders Home and a chat`, async ({ baseURL }) => {
     test.setTimeout(WAIT_SETTLE_MS * 4);
-    const browser = await type.launch();
+    const browser = await type.launch(launchOptions);
     try {
       const context = await browser.newContext(baseURL === undefined ? {} : { baseURL });
       await context.addInitScript(STRIP);

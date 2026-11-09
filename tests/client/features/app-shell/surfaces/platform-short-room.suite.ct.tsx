@@ -4,7 +4,7 @@
 
 import { testId } from "@orb/client/lib";
 import type { ChatId } from "@orb/kit/ids";
-import { resolvedLength, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
+import { resolvedLength, seedShellState, setRootFontScale, usesProgrammaticScroll } from "@orb/testkit/browser/spec";
 import { channelName, emulateSoftKeyboard, ROOM_PROCEDURES, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { forEachNonEmpty } from "@orb/testkit/iso";
@@ -186,11 +186,20 @@ function aboveKeyboard(control: Element, subpixel: number): boolean {
   return box.top >= top - subpixel && box.bottom <= top + (visualViewport?.height ?? innerHeight) + subpixel;
 }
 
-/** One wheel step over the transcript's centre, a box height down (1) or up (-1): CT's raw wheel, with no hover first. */
+/**
+ * One wheel step over the transcript's centre, a box height down (1) or up (-1): CT's raw wheel, with no hover first.
+ * Mobile WebKit cannot deliver a wheel, so there the same distance is a CSSOM scroll: geometry proof, not wheel proof.
+ */
 async function wheelOver(list: Locator, direction: 1 | -1): Promise<void> {
   const box = await list.boundingBox();
   if (box === null) {
     throw new Error("The transcript has no box");
+  }
+  if (usesProgrammaticScroll(list.page(), test.info())) {
+    await test.step("Programmatic positioning: mobile WebKit; not wheel evidence", async () => {
+      await list.evaluate((node, distance) => node.scrollBy({ top: distance, behavior: "instant" }), direction * box.height);
+    });
+    return;
   }
   await list.page().mouse.move(box.x + box.width / 2, box.y + box.height / 2);
   await list.page().mouse.wheel(0, direction * box.height);

@@ -65,8 +65,8 @@ for (const regime of [
       const overflow = context.locator(OVERFLOW_TRIGGER);
       const hide = page.getByRole("button", { name: contextToggleLabel(false), exact: true });
       await expect(overflow).toBeVisible();
-      // A key press first: only keyboard focus draws the ring.
-      await page.keyboard.press("Shift");
+      // A key press first: only keyboard focus draws the ring. WebKit does not count a bare modifier as keyboard input; Tab is one both engines count.
+      await page.keyboard.press("Tab");
       await overflow.focus();
       // The pane clips at its top edge, so a ring that draws outside the trigger loses a side; every layer must be inset.
       const own = await ringLayers(overflow);
