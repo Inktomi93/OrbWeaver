@@ -114,7 +114,7 @@ export function useCreateRegexMember(): (name?: string, onCreated?: () => void, 
 export function useImportRegexMember(): (file: File) => void {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const importScript = useImportRegexScriptFile({ trpc, invalidation });
+  const importScript = useImportRegexScriptFile({ trpc, invalidation, failureShownInline: "the script library's own import error toast" });
   return (file: File): void => {
     void file
       .text()

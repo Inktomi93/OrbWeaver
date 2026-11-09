@@ -31,7 +31,7 @@ export function PluginInstallUrlArm({
 }: PluginInstallUrlArmProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const preview = usePreviewPluginFromUrl({ trpc, invalidation });
+  const preview = usePreviewPluginFromUrl({ trpc, invalidation, failureShownInline: "the install card's rejected step" });
   const [url, setUrl] = useState("");
   const trimmedUrl = url.trim();
 

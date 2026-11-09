@@ -30,7 +30,7 @@ export function AdminLinkSsoDialog(props: AdminUserDialogProps): ReactElement {
 function LinkSsoBody({ handle, userId, onDone }: { readonly handle: string; readonly userId: UserId; readonly onDone: () => void }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const link = useLinkSsoIdentity({ trpc, invalidation });
+  const link = useLinkSsoIdentity({ trpc, invalidation, failureShownInline: "the link-SSO dialog's alert line" });
   const [subject, setSubject] = useState("");
   const trimmed = subject.trim();
 
@@ -38,8 +38,8 @@ function LinkSsoBody({ handle, userId, onDone }: { readonly handle: string; read
     if (trimmed.length === 0) {
       return;
     }
-    // The failure is rendered by the `link.error !== null` line in this component and also toasted by
-    // useLinkSsoIdentity's `errorToast`; the dialog stays open. Ends if either stops.
+    // The failure is rendered by the `link.error !== null` line in this component, which its hook call declares, and
+    // the dialog stays open. Ends if the line stops rendering it.
     try {
       await link.mutateAsync({ userId, externalId: externalIdSchema.parse(trimmed) });
     } catch {

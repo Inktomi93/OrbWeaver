@@ -93,7 +93,7 @@ function ReattributeConfirmDialog({
 }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const reattribute = useReattributePersona({ trpc, invalidation });
+  const reattribute = useReattributePersona({ trpc, invalidation, failureShownInline: "the restamp confirm's alert line" });
   const name = usePersonaName(message.chatId, personaId);
   return (
     <ConfirmDialog

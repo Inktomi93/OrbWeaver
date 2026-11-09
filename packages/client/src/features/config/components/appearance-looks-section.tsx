@@ -133,7 +133,7 @@ function LooksBody(): ReactElement {
 
   const selectTheme = useSelectTheme({ trpc, invalidation });
   const createTheme = useCreateTheme({ trpc, invalidation });
-  const importTheme = useImportThemeFile({ trpc, invalidation });
+  const importTheme = useImportThemeFile({ trpc, invalidation, failureShownInline: "the looks section's own import error toast" });
   const duplicateTheme = useDuplicateTheme({ trpc, invalidation });
   const removeTheme = useRemoveTheme({ trpc, invalidation });
   const [editing, setEditing] = useState<EditorSession | null>(null);

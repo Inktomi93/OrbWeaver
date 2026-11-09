@@ -30,7 +30,7 @@ export function AdminResetPasswordDialog(props: AdminUserDialogProps): ReactElem
 function ResetPasswordBody({ handle, userId, onDone }: { readonly handle: string; readonly userId: UserId; readonly onDone: () => void }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const resetPassword = useResetPassword({ trpc, invalidation });
+  const resetPassword = useResetPassword({ trpc, invalidation, failureShownInline: "the reset-password dialog's alert line" });
   const [password, setPassword] = useState("");
   const [showTooShort, setShowTooShort] = useState(false);
 
@@ -42,7 +42,7 @@ function ResetPasswordBody({ handle, userId, onDone }: { readonly handle: string
     try {
       await resetPassword.mutateAsync({ userId, password });
     } catch {
-      // The sticky mutation error renders below (plus the factory's errorToast) — stay open.
+      // The sticky mutation error renders below — stay open.
       return;
     }
     notify.success("Password reset: their sessions were revoked.");

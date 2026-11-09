@@ -2,7 +2,7 @@
 // A zero-import leaf: the mutation factory logs the line, the bug-report ring records which job it was, and a spec's node side
 // reads the line it waits for.
 
-export const BACKGROUND_JOBS = ["huskReap", "tempChatSweep", "uiCrashReport"] as const;
+const BACKGROUND_JOBS = ["huskReap", "tempChatSweep", "uiCrashReport"] as const;
 export type BackgroundJob = (typeof BACKGROUND_JOBS)[number];
 
 export const BACKGROUND_JOB_LOGS = {

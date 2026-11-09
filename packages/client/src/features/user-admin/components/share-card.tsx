@@ -127,7 +127,7 @@ function ShareCardBody({ localMultiUser, discreetLogin, onEnableSeating }: Seati
   });
   const authConfig = useAuthConfig().data;
   const start = useStartSharing({ trpc, invalidation });
-  const stop = useStopSharing({ trpc, invalidation });
+  const stop = useStopSharing({ trpc, invalidation, failureShownInline: "the stop-sharing confirm's alert line" });
 
   const [memory, setMemory] = useState<ShareLinkMemory>(EMPTY_SHARE_LINK_MEMORY);
   const nextMemory = rememberShareLink(memory, status.relay);
@@ -378,7 +378,7 @@ function SignEveryoneOut(): ReactElement {
   const invalidation = useInvalidation();
   const describedId = useId();
   const { data: users } = useSuspenseQuery(trpc.admin.listUsers.queryOptions());
-  const revoke = useRevokeUserSessions({ trpc, invalidation });
+  const revoke = useRevokeUserSessions({ trpc, invalidation, failureShownInline: "the revoke-sessions confirm's alert line" });
   const members = users.filter((user) => user.role !== "owner");
   const nobody = members.length === 0;
   return (

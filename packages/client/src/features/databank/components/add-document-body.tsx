@@ -368,10 +368,10 @@ function PasteBody({ onLanded, destination }: { readonly onLanded: OnLanded; rea
 function LinkBody({ onLanded, destination }: { readonly onLanded: OnLanded; readonly destination: DocumentDestination | null }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  // The failure is told by the form's own line below and, beside it, by the mutation's toast: both open with SCRAPE_FAILURE.
-  const scrapeWeb = useScrapeWeb({ trpc, invalidation });
-  const scrapeYoutube = useScrapeYoutube({ trpc, invalidation });
-  const scrapeWiki = useScrapeWiki({ trpc, invalidation });
+  // The form's own line below tells a failure while this body is mounted; one that lands after the person left it is toasted.
+  const scrapeWeb = useScrapeWeb({ trpc, invalidation, failureShownInline: "the add-document form's fetch failure line" });
+  const scrapeYoutube = useScrapeYoutube({ trpc, invalidation, failureShownInline: "the add-document form's fetch failure line" });
+  const scrapeWiki = useScrapeWiki({ trpc, invalidation, failureShownInline: "the add-document form's fetch failure line" });
 
   const pending = scrapeWeb.isPending || scrapeYoutube.isPending || scrapeWiki.isPending;
   // THE FAILURE BELONGS TO A SOURCE, NOT TO THE DIALOG (#1502). A flat OR over all three runners made one

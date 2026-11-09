@@ -18,6 +18,9 @@ interface AppMeta {
    *  which the chat bus surfaces its own honest notice for — see `isSilencedTurnAbort`); a returned string
    *  still toasts. */
   readonly errorToast?: string | ((error: unknown) => string | null);
+  /** The consumer that states this failure inline is still mounted, so its line says it and the toast is skipped
+   *  (client-architecture-state-and-gates.md §11). */
+  readonly shownInline?: () => boolean;
   /** A background job's failure: its line is logged with `console.error` and never toasted
    *  (client-architecture-state-and-gates.md §11). The dev console-error ring keeps the text; the bug-report ring records
    *  only the job name. */
@@ -45,7 +48,7 @@ function toastFromMeta(meta: AppMeta | undefined, error: unknown): void {
     console.error(BACKGROUND_JOB_LOGS[meta.backgroundJob], error);
     return;
   }
-  if (meta?.errorToast === undefined) {
+  if (meta?.errorToast === undefined || meta.shownInline?.() === true) {
     return;
   }
   const message = typeof meta.errorToast === "function" ? meta.errorToast(error) : meta.errorToast;

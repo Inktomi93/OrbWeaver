@@ -89,11 +89,11 @@ The stack, outermost-in:
 4. **`QueryErrorState`** (`packages/client/src/data/query-error-state.tsx`) — the one read-error block (muted label + Retry wired to the handshake's `retry`).
 5. **Toasts** — mutation failures surface via `meta.errorToast` → the global `MutationCache.onError` → `notify`. One error slot per mutation: `useMutation` lives only in `createEntityMutation` (`orb/mutation-only-in-factory`), which returns the one sticky `error`. Every mutation hook names one failure class, and `FailureFeedback` in `packages/client/src/data/create-entity-mutation.ts` makes the choice required:
 
-   - `errorToast` for an action the person took. A consumer keeps its inline text. A failure may show a toast and inline text together while the inline text can be off screen.
+   - `errorToast` for an action the person took. A consumer that states the failure on screen declares `failureShownInline: <its line>` at its hook call while the line can show. The toast skips a failure only while that consumer is mounted, still declares the line and has not cleared the attempt. A confirm that closes before its settle rejects toasts the rejection itself.
    - `backgroundFailure` for housekeeping the person did not start. It names a job in `BACKGROUND_JOBS` (`packages/client/src/lib/background-jobs.ts`), logs that job's line with `console.error` and shows no toast. The bug-report ring records the job name and no message text.
-   - `failureShownInline` for a surface that is on screen while it fails and states the failure inline. No toast repeats that line.
+   - `failureShownInline` on the hook for a surface that is on screen while it fails and states the failure inline, where silence after it closes is correct. No toast repeats that line.
 
-   A failure never shows neither, and never both while the inline line is visible. A persistent mark that reads `error` carries state only and no message text.
+   A failure never shows neither, and never both while the inline line is visible. The feedback cohort of `pnpm ui-facts` (`tooling/src/ui-facts/feedback.ts`) reports either case as a defect. A persistent mark that reads `error` carries state only and no message text.
 
 **The three-states law:** every surface ships all three designed states — empty teaches (an `EmptyState`
 with an action — a required prop), loading is a shape-matched skeleton (never a centered

@@ -318,6 +318,60 @@ test("a background mutation reads as its log, and an inline-class mutation is in
   expect(mutations.map((member) => member.cells["failure"]?.value)).toEqual(["background", "inline", "inline", "inline", "inline", "inline"]);
 });
 
+test("a toast-class consumer that states the failure is a defect unless its call declares the line, and a confirm that awaits the settle states it", ({
+  scratch,
+}) => {
+  const root = plantDir(scratch, "feedback-per-call");
+  plant(root, {
+    "hooks/use-save.ts": 'export const useSave = createEntityMutation<A, B>({ errorToast: "Save failed.", busDriven: true });',
+    "components/save.tsx": [
+      'import { useSave } from "../hooks/use-save.ts";',
+      "export const Declared = (d) => {",
+      '  const save = useSave({ ...d, failureShownInline: "the save line" });',
+      "  return save.error === null ? null : <p>failed</p>;",
+      "};",
+      "export const DeclaredSilent = (d) => {",
+      '  const save = useSave({ ...d, failureShownInline: "a line nobody renders" });',
+      "  return null;",
+      "};",
+      "export const Both = (d) => {",
+      "  const save = useSave(d);",
+      "  return save.error === null ? null : <p>failed</p>;",
+      "};",
+      "export const Confirm = (d) => {",
+      '  const save = useSave({ ...d, failureShownInline: "the confirm alert" });',
+      "  const onConfirm = async () => { await save.mutateAsync({}); close(); };",
+      "  return <ConfirmDialog onConfirm={onConfirm} />;",
+      "};",
+      "export const ConfirmUndeclared = (d) => {",
+      "  const save = useSave(d);",
+      "  return <DestructiveAction onConfirm={() => save.mutateAsync({}).then(() => undefined)} />;",
+      "};",
+      "export const Tidy = (d) => {",
+      "  const save = useSave(d);",
+      "  const run = () => save.mutate({}, { onError: (error) => { if (gone(error)) { retire(); } } });",
+      "  return null;",
+      "};",
+      "export const MutateInTry = (d) => {",
+      "  const save = useSave(d);",
+      '  const run = () => { try { save.mutate({}); } catch { notify.error("no"); } };',
+      "  return null;",
+      "};",
+    ].join("\n"),
+  });
+  const feedback = analyse(root, [], null).cohorts.find((entry) => entry.name === "feedback");
+  expect(feedback?.members.map((member) => [member.cells["failure"]?.line, member.cells["failure"]?.value])).toEqual([
+    [3, "inline"],
+    [7, "none"],
+    [11, "toast+inline"],
+    [15, "inline"],
+    [20, "toast+inline"],
+    [24, "toast"],
+    [29, "toast"],
+  ]);
+  expect(feedback?.defects).toEqual({ failure: ["none", "toast+inline"] });
+});
+
 test("a toast that only takes null as an argument still toasts, a setter that is not a failure says nothing, and a form submit's catch is the failure surface", ({
   scratch,
 }) => {

@@ -115,7 +115,7 @@ export interface MessageReasoningProps {
 export function MessageReasoning({ message, displayText, showIcon, canEdit }: MessageReasoningProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const clear = useClearReasoningMutation({ trpc, invalidation });
+  const clear = useClearReasoningMutation({ trpc, invalidation, failureShownInline: "the clear-reasoning confirm's alert line" });
   const editing = useIsEditingReasoning(message.id);
   const [confirmOpen, setConfirmOpen] = useState(false);
 

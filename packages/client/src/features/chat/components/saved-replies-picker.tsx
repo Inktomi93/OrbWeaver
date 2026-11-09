@@ -83,7 +83,7 @@ export function SavedRepliesItem({
 function SavedRepliesBody({ message, onOpenChange }: Pick<SavedRepliesPickerProps, "message" | "onOpenChange">): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const selectVariant = useSelectVariantMutation({ trpc, invalidation });
+  const selectVariant = useSelectVariantMutation({ trpc, invalidation, failureShownInline: "the saved-replies picker's alert line" });
   const { data: listed } = useSuspenseQuery(trpc.chat.listMessageVariants.queryOptions({ chatId: message.chatId, messageId: message.id }));
   const history = variantHistoryOf(message, listed);
   return (

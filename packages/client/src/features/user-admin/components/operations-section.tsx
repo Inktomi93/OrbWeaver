@@ -47,7 +47,7 @@ function OperationsBody({ anchorId, sectionId }: { readonly anchorId: string; re
   const [{ data }, { data: viewer }] = useSuspenseQueries({
     queries: [trpc.settings.getAppSettingsWithOverrides.queryOptions(), trpc.sessions.me.queryOptions()],
   });
-  const save = useUpdateAppOverrides({ trpc, invalidation });
+  const save = useUpdateAppOverrides({ trpc, invalidation, failureShownInline: "the admin section's save error line" });
 
   const resolved = data.resolved;
   const overrides = data.overrides;

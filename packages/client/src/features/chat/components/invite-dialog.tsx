@@ -93,7 +93,7 @@ function useSignupOffered(): boolean {
 function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; readonly onOpenSharing: () => void }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const createInvite = useCreateInvite({ trpc, invalidation });
+  const createInvite = useCreateInvite({ trpc, invalidation, failureShownInline: "the invite dialog's own error toast" });
   const signupOffered = useSignupOffered();
   const [mintedLink, setMintedLink] = useState<string | null>(null);
   const [handleError, setHandleError] = useState<string | null>(null);
