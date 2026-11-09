@@ -10,9 +10,9 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusReadResponder, createCorpusViewerReadResponder } from "@orb/testkit/iso";
 import { makePluginRow, makePluginScriptedPage } from "@orb/testkit/node/helpers";
 import type { Page } from "@playwright/test";
-import { BACKGROUND_FAILURE_LOGS } from "#client/data/background-failure-logs.ts";
 import { EXTENSIONS_GONE_TITLE } from "#client/features/plugin/lib/extensions-copy.ts";
 import { PLUGIN_SURFACE_KICKER } from "#client/features/plugin/lib/plugin-panel-copy.ts";
+import { BACKGROUND_JOB_LOGS } from "#client/lib/background-jobs.ts";
 import type { PluginProtocolStory } from "./_ct-stories.tsx";
 
 /** The server refuses a plugin the owner does not have, so a request for any other id is a defect, not an answer. */
@@ -312,7 +312,7 @@ test("a crash report that fails writes its log and raises no toast, because the 
   );
   const toastMounts = await watchToastMounts(page);
   const logged = page.waitForEvent("console", {
-    predicate: (message) => message.type() === "error" && message.text().includes(BACKGROUND_FAILURE_LOGS.uiCrashReport),
+    predicate: (message) => message.type() === "error" && message.text().includes(BACKGROUND_JOB_LOGS.uiCrashReport),
   });
   await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", {
     pluginId: plugin.id,

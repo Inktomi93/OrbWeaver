@@ -18,7 +18,6 @@
 import type { inferInput } from "@trpc/tanstack-react-query";
 import { useEffect } from "react";
 import { subscribeHuskAbandoned } from "#state";
-import { BACKGROUND_FAILURE_LOGS } from "./background-failure-logs.ts";
 import { createEntityMutation } from "./create-entity-mutation.ts";
 import type { Trpc } from "./trpc.ts";
 import { useTRPC } from "./trpc.ts";
@@ -28,7 +27,7 @@ import { useInvalidation } from "./use-invalidation.ts";
 const useReapHuskMutation = createEntityMutation<inferInput<Trpc["chat"]["reapHusk"]>, unknown>({
   options: (trpc) => trpc.chat.reapHusk.mutationOptions(),
   busDriven: true,
-  backgroundFailure: BACKGROUND_FAILURE_LOGS.huskReap,
+  backgroundFailure: "huskReap",
 });
 
 /** Mount once at the app root: fires `chat.reapHusk` when a created-but-unused room is navigated away from. */

@@ -22,6 +22,7 @@ import type {
   UseMutationOptions,
 } from "@tanstack/react-query";
 import { hashKey, useMutation } from "@tanstack/react-query";
+import type { BackgroundJob } from "#lib";
 import { notify } from "#lib";
 import type { Invalidation } from "./invalidation.ts";
 import type { Trpc } from "./trpc.ts";
@@ -137,10 +138,10 @@ type FailureFeedback =
       readonly failureShownInline?: never;
     }
   | {
-      /** The log line for a failure of work the person did not start. MutationCache.onError writes it with
-       *  `console.error`, which the bug-report ring (`safe-error-ring.ts`) and the dev console-error ring capture.
-       *  No toast fires. */
-      readonly backgroundFailure: string;
+      /** The background job whose failure this is, for work the person did not start. MutationCache.onError logs
+       *  its line with `console.error`: the dev console-error ring keeps the text, and the bug-report ring
+       *  (`safe-error-ring.ts`) records only the job name. No toast fires. */
+      readonly backgroundFailure: BackgroundJob;
       readonly errorToast?: never;
       readonly failureShownInline?: never;
     }
@@ -158,7 +159,7 @@ function failureMeta(config: FailureFeedback): MutationMeta {
   if (config.errorToast !== undefined) {
     return { errorToast: config.errorToast };
   }
-  return config.backgroundFailure === undefined ? {} : { failureLog: config.backgroundFailure };
+  return config.backgroundFailure === undefined ? {} : { backgroundJob: config.backgroundFailure };
 }
 
 /** A `busDriven` mutation reconciles via the bus, not itself — its settle invalidates nothing. */
@@ -169,7 +170,7 @@ export type EntityMutateAsync<TVars, TData> = (vars: TVars) => Promise<TData>;
 
 export interface EntityMutationResult<TVars, TData> {
   /** `options` forwards react-query's per-call `MutateOptions` — the callbacks run IN ADDITION to the
-   *  factory's baked cache recipe + the global error toast (e.g. a call-site `onError` for the guided
+   *  factory's baked cache recipe and its failure class (e.g. a call-site `onError` for the guided
    *  input-restore, F3). */
   readonly mutate: UseMutateFunction<TData, DefaultError, TVars>;
   readonly mutateAsync: EntityMutateAsync<TVars, TData>;

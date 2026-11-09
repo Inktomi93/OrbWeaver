@@ -4,7 +4,7 @@ import { watchToastMounts } from "@orb/testkit/browser/spec";
 import { noticeToast, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { BACKGROUND_FAILURE_LOGS } from "#client/data/background-failure-logs.ts";
+import { BACKGROUND_JOB_LOGS } from "#client/lib/background-jobs.ts";
 import type { TempChatTileStory } from "./_temp-chat-sweep-stories.tsx";
 
 const STORY = "tests/client/features/chat/lib/_temp-chat-sweep-stories/TempChatTileStory";
@@ -21,7 +21,7 @@ test("a temp-chat sweep that fails writes its log and raises no toast", async ({
   });
   const toastMounts = await watchToastMounts(page);
   const logged = page.waitForEvent("console", {
-    predicate: (message) => message.type() === "error" && message.text().includes(BACKGROUND_FAILURE_LOGS.tempChatSweep),
+    predicate: (message) => message.type() === "error" && message.text().includes(BACKGROUND_JOB_LOGS.tempChatSweep),
   });
   await mount<typeof TempChatTileStory>(STORY, { controlNotice: CONTROL_NOTICE });
 

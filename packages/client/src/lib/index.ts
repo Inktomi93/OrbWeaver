@@ -11,6 +11,8 @@ export {
   clearAppearanceChannel,
   writeAppearanceChannel,
 } from "./appearance-carrier-manifest.ts";
+export type { BackgroundJob } from "./background-jobs.ts";
+export { BACKGROUND_JOB_LOGS } from "./background-jobs.ts";
 export { setBootReadPending } from "./boot-reads.ts";
 export type { BugReportServerFacts, PublicBrowserFacts, PublicBugReport } from "./bug-report-public.ts";
 export { buildPublicBugReport, publicBugReportIssueUrl } from "./bug-report-public.ts";

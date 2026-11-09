@@ -175,7 +175,8 @@ function browserLine(browser: PublicBugReportBundle["browser"]): string {
 
 function browserErrorLine(record: SafeErrorRecord): string {
   const where = record.frames[0] === undefined ? "" : ` at ${record.frames[0]}`;
-  return `  - ${timeOfDay(record.at)} ${record.source} ${record.errorType ?? "non-Error value"}${where}`;
+  const job = record.job === null ? "" : ` from background job ${record.job}`;
+  return `  - ${timeOfDay(record.at)} ${record.source}${job} ${record.errorType ?? "non-Error value"}${where}`;
 }
 
 function serverErrorLine(record: BugReportServerError): string {

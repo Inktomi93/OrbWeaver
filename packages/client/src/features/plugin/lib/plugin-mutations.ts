@@ -16,7 +16,7 @@
 
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { BACKGROUND_FAILURE_LOGS, createEntityMutation } from "#data";
+import { createEntityMutation } from "#data";
 import { URL_FETCH_FAILED } from "./plugin-copy.ts";
 import { PLUGIN_MODEL_SAVE_FAILED } from "./plugin-model-copy.ts";
 
@@ -290,7 +290,7 @@ export const useInvokeUiAction = createEntityMutation<inferInput<Trpc["plugin"][
 export const useReportUiCrash = createEntityMutation<inferInput<Trpc["plugin"]["reportUiCrash"]>, inferOutput<Trpc["plugin"]["reportUiCrash"]>>({
   options: (trpc) => trpc.plugin.reportUiCrash.mutationOptions(),
   invalidates: (trpc) => [trpc.plugin.list.queryFilter(), ...pluginContributionCatalogReads(trpc), ...providerDependentConnectionReads(trpc)],
-  backgroundFailure: BACKGROUND_FAILURE_LOGS.uiCrashReport,
+  backgroundFailure: "uiCrashReport",
 });
 
 /** Run one registered plugin COMMAND — the `/plugin <slug> <name> …` dispatch and the
