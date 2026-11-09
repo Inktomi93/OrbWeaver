@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-09
 priority: P3
 area: client
-plan: surface-walk
+plan: cross-surface-consistency
 ---
 
 # Evidence walk: glow-shadow on the rails and Characters, Chat, Config

@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-09
 priority: P3
 area: ui
-plan: surface-walk
+plan: cross-surface-consistency
 ---
 
 # Toasts cover the transcript's message actions at enlarged text

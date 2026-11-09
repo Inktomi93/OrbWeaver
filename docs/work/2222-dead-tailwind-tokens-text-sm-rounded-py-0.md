@@ -1,10 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-08
+updated: 2026-11-09
 priority: P3
 area: client
-plan: surface-walk
+plan: cross-surface-consistency
 ---
 
 # Dead Tailwind tokens text-sm, rounded, py-0.5 and px-1.5 on a walked surface

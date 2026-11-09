@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-09
 priority: P2
 area: chat
-plan: surface-walk
+plan: cross-surface-consistency
 ---
 
 # The document reading style's message prose covers More message actions at 200% text on the phone

@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-07
+updated: 2026-11-09
 priority: P3
 area: ui
+plan: cross-surface-consistency
 ---
 
 # Quiet the connection editor's Purpose section

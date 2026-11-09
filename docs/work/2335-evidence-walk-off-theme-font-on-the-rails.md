@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-09
 priority: P3
 area: client
-plan: surface-walk
+plan: cross-surface-consistency
 ---
 
 # Evidence walk: off-theme-font on the rails and Characters, Config

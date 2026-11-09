@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-09
 priority: P2
 area: ui
-plan: surface-walk
+plan: cross-surface-consistency
 ---
 
 # A contained inner list fills its outer scroller at enlarged text, so the wheel cannot scroll the outer region

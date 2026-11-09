@@ -30,6 +30,7 @@ Judge a surface only after every planned change to it has landed. Steps 2 to 6 r
 | 6a | The type-law composites that change judged surfaces, because acceptance scores them | 1769, 1775, 1776, 1777 |
 | 7 | Comparative acceptance | The composition acceptance across families passed; [1397](../../work/1397-complete-characters-and-chat-comparative-acceptance.md); the persona and plugin reviews 0908 and 0909 run inside them |
 | 7a | Open findings and small builds in a family land, or close with the capture that shows them gone, before acceptance scores that family | 0910, 0621, 0927, 0341 |
+| 7b | Product defects the automated walkthrough finds on judged surfaces (enlarged-text geometry, design-audit and accessibility rules) are this plan's work; the walkthrough plan keeps only its instrument | the walk-found items in this plan's task list |
 | 8 | Integrated verification | [1396](../../work/1396-complete-integrated-consistency-verification.md) |
 
 ## Page templates

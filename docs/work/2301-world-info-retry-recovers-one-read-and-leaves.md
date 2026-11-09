@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-09
 priority: P2
 area: client
-plan: surface-walk
+plan: cross-surface-consistency
 ---
 
 # World Info Retry recovers one read and leaves a second failure behind on the phone shell

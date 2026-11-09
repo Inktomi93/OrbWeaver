@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-09
 priority: P3
 area: client
-plan: surface-walk
+plan: cross-surface-consistency
 ---
 
 # Evidence walk: truncated-to-nothing on the rails and Characters

@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-09
 priority: P3
 area: ui
-plan: surface-walk
+plan: cross-surface-consistency
 ---
 
 # Decide whether the regex editor wraps lines at enlarged text

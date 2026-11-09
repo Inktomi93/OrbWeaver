@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-08
+updated: 2026-11-09
 priority: P3
 area: client
+plan: cross-surface-consistency
 ---
 
 # The context pane says no chat open while a room is open

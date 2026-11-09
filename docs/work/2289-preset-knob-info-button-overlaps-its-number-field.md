@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-09
 priority: P3
 area: client
-plan: surface-walk
+plan: cross-surface-consistency
 ---
 
 # Preset knob info button overlaps its number field at phone 200% text

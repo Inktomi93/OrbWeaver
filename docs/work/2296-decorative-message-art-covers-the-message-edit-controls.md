@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-09
 priority: P2
 area: chat
-plan: surface-walk
+plan: cross-surface-consistency
 ---
 
 # Decorative message art covers the message edit controls at enlarged text on the phone

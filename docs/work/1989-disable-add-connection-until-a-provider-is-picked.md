@@ -1,9 +1,10 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-07
+updated: 2026-11-09
 priority: P3
 area: connection
+plan: cross-surface-consistency
 ---
 
 # Disable Add connection until a provider is picked

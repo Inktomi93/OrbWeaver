@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-09
 priority: P3
 area: client
-plan: surface-walk
+plan: cross-surface-consistency
 ---
 
 # Home quick picks scroll sideways at 200% text

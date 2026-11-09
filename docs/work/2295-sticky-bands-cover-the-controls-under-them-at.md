@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-09
 priority: P2
 area: client
-plan: surface-walk
+plan: cross-surface-consistency
 ---
 
 # Sticky bands cover the controls under them at enlarged text on the phone

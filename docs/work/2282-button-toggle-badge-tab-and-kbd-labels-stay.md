@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-09
 priority: P2
 area: ui
-plan: surface-walk
+plan: cross-surface-consistency
 ---
 
 # Button, Toggle, Badge, Tab and Kbd labels stay on one line and outgrow a phone column at enlarged text

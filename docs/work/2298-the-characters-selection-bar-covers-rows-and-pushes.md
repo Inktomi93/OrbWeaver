@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-09
 priority: P2
 area: client
-plan: surface-walk
+plan: cross-surface-consistency
 ---
 
 # The Characters selection bar covers rows and pushes its own Delete off the screen at 300% text

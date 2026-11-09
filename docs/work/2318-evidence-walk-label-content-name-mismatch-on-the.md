@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-09
 priority: P2
 area: client
-plan: surface-walk
+plan: cross-surface-consistency
 ---
 
 # Evidence walk: label-content-name-mismatch on the rails and Characters, Chat, Config

@@ -1,9 +1,10 @@
 ---
 kind: work
 status: open
-updated: 2026-11-07
+updated: 2026-11-09
 priority: P2
 area: ui
+plan: cross-surface-consistency
 ---
 
 # Give Home one primary start action

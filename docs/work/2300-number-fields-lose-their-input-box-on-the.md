@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-09
 priority: P2
 area: ui
-plan: surface-walk
+plan: cross-surface-consistency
 ---
 
 # Number fields lose their input box on the phone at enlarged text

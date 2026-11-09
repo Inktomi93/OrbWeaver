@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-09
 priority: P2
 area: client
-plan: surface-walk
+plan: cross-surface-consistency
 ---
 
 # Corpus catalog list collapses to zero height on a phone at enlarged text

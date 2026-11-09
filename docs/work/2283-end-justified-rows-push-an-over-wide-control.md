@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-09
 priority: P2
 area: ui
-plan: surface-walk
+plan: cross-surface-consistency
 ---
 
 # End-justified rows push an over-wide control past the start of its scroller at enlarged text

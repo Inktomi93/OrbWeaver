@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-09
 priority: P3
 area: ui
-plan: surface-walk
+plan: cross-surface-consistency
 ---
 
 # The copy confirmation toast renders with no box at 300% text on the phone
