@@ -49,4 +49,4 @@ Source: `reports/ux-reviewer/2026-11-08-acceptance-4-final-B.md`. Each finding w
 | 2271 SET-3 automation switch off track | ANSWERED | `rule-editor-settings.tsx` uses `SettingSwitchRow`; measured 720px editor: switch right edge 731, equal to the Rule name field's right edge 731 |
 | 2271 NC-3, NC-4, SET-2, SET-4, TAG-1, CTX-1 | NOT DONE | Not re-derived; no CT written. TAG-1 was called an audit false positive in 62fa71a34b. CTX-1 needs a phone Context sheet mount |
 
-Part A still open: NC-3, NC-4, SET-2, SET-4, TAG-1, CTX-1. Code review: reports/code-reviewer/2026-11-09-cb-p3ab.md, C2 and C3 confirmed.
+Part A still open: NC-3, NC-4, SET-2, SET-4, TAG-1, CTX-1. Code review: the cb-p3ab code review report under reports/code-reviewer, C2 and C3 confirmed.
