@@ -19,7 +19,7 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { DetailHeader, QueryBoundary } from "#components";
+import { MemberDrillHeader, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { CORPUS_MODE_LABELS, testId, timeLib, useFocusOnMount } from "#lib";
 import { useMobileViewport } from "#state";
@@ -110,15 +110,10 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
 
   return (
     <Stack gap="section">
-      {/* The phone's topbar already carries the one Back (the Labels and Explore drill posture). */}
-      {phone ? null : (
-        <Button variant="ghost" size="sm" onClick={onBack} self="start">
-          <Icon icon={ArrowLeft} size="sm" />
-          {`Back to ${CORPUS_MODE_LABELS.insights}`}
-        </Button>
-      )}
-
-      <DetailHeader title={stats.name}>
+      {/* The drill row Labels and the config collections draw: Back inline with the name. The phone's topbar carries
+          the one Back, and the row stands down there. */}
+      <MemberDrillHeader back={{ label: `Back to ${CORPUS_MODE_LABELS.insights}`, onClick: onBack }} title={stats.name} />
+      <Stack gap="tight">
         <Text voice="gloss" role="note">
           This character · Aggregate only
         </Text>
@@ -129,7 +124,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
             <HintTrigger className="" hint={timeLib.formatDateTime(stats.lastActivityAt)} subject="the last activity time" />
           </Row>
         )}
-      </DetailHeader>
+      </Stack>
 
       <Text voice="gloss" role="note">
         {IMPORTED_ACTIVITY_NOTE}

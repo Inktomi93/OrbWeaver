@@ -163,13 +163,15 @@ function LeaderboardBody({
           <LibraryRow
             data-testid={testId("analyticsLeaderboardRow")}
             leading={
-              <Text voice="datum" ink="muted">
+              // A fixed track, so a two-digit rank leaves the names where a one-digit rank put them.
+              <Text voice="datum" ink="muted" width="control" textAlign="center">
                 {index + 1}
               </Text>
             }
             onSelect={(): void => selectAnalyticsCharacterFromList(row.characterId)}
             selected={selectedId === row.characterId}
             subtitle={`${formatCompactNoun(row.assistantTurns, "reply", "replies")} · ${formatDurationMs(row.totalGenTimeMs)}`}
+            subtitleStep="label"
             title={names[row.characterId] ?? row.name}
             trailing={
               <Text voice="datumMono" whitespace="nowrap">
