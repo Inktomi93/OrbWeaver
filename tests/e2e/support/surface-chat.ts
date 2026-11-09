@@ -913,6 +913,16 @@ async function scrollViewport(flow: Journey, viewport: Locator, delta: number): 
   }
   await viewport.hover();
   await flow.page.mouse.wheel(0, delta);
+  // The wheel resolves before its smooth scroll ends, and that animation overrides any position set meanwhile.
+  let previous = Number.NaN;
+  await expect
+    .poll(async () => {
+      const position = await viewport.evaluate((node) => node.scrollTop);
+      const settled = position === previous;
+      previous = position;
+      return settled;
+    })
+    .toBe(true);
 }
 
 async function mountedMessageSignature(viewport: Locator): Promise<string> {
