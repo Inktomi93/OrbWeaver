@@ -8,16 +8,18 @@ import type { SurfaceCoverageInventory, SurfaceSkipReason, SurfaceWitnessDisposi
 import { attachNativeFile, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
 import { HIDDEN_AT } from "@orb/ui/lib";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { CONTEXT_SHEET_BACK_NAME, contextPaneLabel, PANEL_CLOSE_FALLBACK_NAME, panelCloseName } from "#client/lib/context-pane-names.ts";
+import { CONTEXT_SHEET_BACK_NAME, contextPaneLabel, PANEL_CLOSE_FALLBACK_NAME, panelCloseName, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
+import { TRAIL_OVERFLOW_LABEL } from "#client/lib/overflow-names.ts";
 import type { SurfaceFlow } from "./surface-flow.ts";
 
 const MAX_DEPTH = 8;
 const MAX_DISCLOSURES = 100;
 const MAX_DIALOG_DEPTH = 2;
-const MAX_SCROLL_REGIONS = 32;
+// Config chat-behavior at enlarged text overflows one template textarea per prompt field, past 32 regions.
+const MAX_SCROLL_REGIONS = 48;
 const SCROLL_TOLERANCE = 2;
 const MAX_SCROLL_ADVANCES = 64;
 const MENU_LEAF_KIND = "menu-leaf";
@@ -145,18 +147,81 @@ export function namePattern(...names: readonly string[]): RegExp {
   return new RegExp(`^(?:${alternatives.join("|")})$`, "u");
 }
 
-// The sheet's own dismiss names its section, which a walk does not track.
-function contextExitName(): RegExp {
-  return namePattern(panelCloseName(contextPaneLabel(NAME_HOLE)), CONTEXT_SHEET_BACK_NAME, PANEL_CLOSE_FALLBACK_NAME, contextToggleLabel(false));
-}
-
 /** Close an overlaid Context, the sheet a phone or narrow shell lays over the content. */
 export async function dismissContext(walk: SurfaceFlow): Promise<void> {
   const region = pane(walk, "context");
   if ((await region.getAttribute("data-panel-mode")) === "overlay") {
-    await walk.page.getByRole("button", { name: contextExitName() }).click();
+    // A phone sheet carries its own dismiss beside the topbar's back, so both name it; the sheet's own one is pressed.
+    // Its name carries the section, which a walk does not track. A desktop sheet is closed from its edge control.
+    const own = region.getByRole("button", { name: namePattern(panelCloseName(contextPaneLabel(NAME_HOLE)), PANEL_CLOSE_FALLBACK_NAME) });
+    const exit = (await own.count()) > 0 ? own : walk.page.getByRole("button", { name: namePattern(CONTEXT_SHEET_BACK_NAME, contextToggleLabel(false)) });
+    await exit.click();
   }
   await expect(region).not.toHaveAttribute("data-panel-mode", "overlay");
+}
+
+/** An action of an overflow row: its inline control, and the More trigger whose menu holds it under `name` once the row runs out of room. */
+export interface OverflowedAction {
+  readonly inline: Locator;
+  readonly overflow: Locator;
+  readonly name: string;
+}
+
+/** Press an overflow row's action where the row seats it: inline while it fits, else through its row's More menu. */
+export async function pressOverflowed(page: Page, { inline, overflow, name }: OverflowedAction): Promise<void> {
+  await expect(inline.or(overflow).first()).toBeVisible();
+  if (await inline.isVisible()) {
+    await inline.click();
+    return;
+  }
+  await overflow.click();
+  await page.getByRole("menu").getByRole("menuitem", { name, exact: true }).click();
+}
+
+/** Open a collapsed Context through the shell's door: the desktop edge control, or the phone topbar's toggle wherever its trail seats it. */
+export async function openContext(walk: SurfaceFlow): Promise<void> {
+  if ((await pane(walk, "context").getAttribute("data-panel-mode")) !== "collapsed") {
+    return;
+  }
+  const name = contextToggleLabel(true);
+  await pressOverflowed(walk.page, {
+    inline: walk.page.getByRole("button", { name, exact: true }),
+    overflow: walk.page.getByRole("button", { name: TRAIL_OVERFLOW_LABEL, exact: true }),
+    name,
+  });
+  // A sheet slides in; a press on its controls before it settles can land on a box that is still moving.
+  const region = pane(walk, "context");
+  await expect(region).not.toHaveAttribute("data-panel-mode", "collapsed");
+  await expect.poll(async () => await region.evaluate((node) => node.getAnimations().length)).toBe(0);
+}
+
+/** Open a menu an overflow row holds: its inline trigger while it fits, else its submenu inside the row's More menu. */
+export async function openOverflowedMenu(page: Page, { inline, overflow, name }: OverflowedAction): Promise<Locator> {
+  await expect(inline.or(overflow).first()).toBeVisible();
+  if (await inline.isVisible()) {
+    await inline.click();
+    return page.getByRole("menu");
+  }
+  await overflow.click();
+  const submenu = page.getByRole("menu").getByRole("menuitem", { name, exact: true });
+  await submenu.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(submenu).toHaveAttribute("aria-expanded", "true");
+  return page.getByRole("menu").last();
+}
+
+/** Close every open menu level, innermost first. */
+export async function closeMenus(page: Page): Promise<void> {
+  const menus = page.getByRole("menu");
+  for (let level = await menus.count(); level > 0; level -= 1) {
+    await page.keyboard.press("Escape");
+  }
+  await expect(menus).toHaveCount(0);
+}
+
+/** An `inert` control is out of reach here: its row moved it into an overflow menu, or an open sheet covers it. */
+export async function isInert(control: Locator): Promise<boolean> {
+  return await control.evaluate((node) => node.closest("[inert]") !== null);
 }
 
 export async function switchListScreen(walk: SurfaceWalk): Promise<void> {
@@ -164,6 +229,21 @@ export async function switchListScreen(walk: SurfaceWalk): Promise<void> {
   await expect(control).toHaveCount(1);
   await expect(control).toHaveAccessibleName(/\S/u);
   await control.click();
+}
+
+// A drill puts Back on the lead. A mode that lands on its content (D271) then shows the list door there, so the walk
+// presses the lead a second time.
+async function openListScreen(walk: SurfaceWalk, region: Locator): Promise<void> {
+  const back = walk.page.locator(".shell-topbar-lead").getByRole("button", { name: namePattern(sectionBackName(NAME_HOLE)) });
+  const drilled = (await back.count()) > 0;
+  await switchListScreen(walk);
+  await expect(back).toHaveCount(0);
+  if (drilled && (await region.getAttribute("data-panel-mode")) === "collapsed") {
+    await switchListScreen(walk);
+  }
+  // The list screen slides in; a geometry read before it settles reports its rows clipped off the left edge.
+  await expect(region).not.toHaveAttribute("data-panel-mode", "collapsed");
+  await expect.poll(async () => await region.evaluate((node) => node.getAnimations().length)).toBe(0);
 }
 
 /** Bring a side pane up through the shell's own door; false means this section declares no such pane. */
@@ -179,9 +259,9 @@ export async function reveal(walk: SurfaceWalk, side: "list" | "context"): Promi
   }
   if ((await region.getAttribute("data-panel-mode")) === "collapsed") {
     if (side === "list") {
-      await switchListScreen(walk);
+      await openListScreen(walk, region);
     } else {
-      await walk.page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
+      await openContext(walk);
     }
     observe(walk, `extra-pane/${side}`, "visited", "Explicit navigation/inspection pane state in addition to the requested composition captured at rail entry");
   }
@@ -335,7 +415,8 @@ async function walkMenuTerminal(walk: SurfaceWalk, menu: Locator, items: Locator
     skip(walk, `${prefix}/terminal`, "disabled", "All actual items are disabled");
     return;
   }
-  await menu.press("End");
+  // The key goes where the open left focus, as a keyboard user's does; `menu.press` would move focus to the popup first.
+  await menu.page().keyboard.press("End");
   await expect(items.last()).toHaveAttribute("data-highlighted", "");
   await checkpoint(walk, `${prefix}/terminal`, menu, items.last());
 }
@@ -496,7 +577,8 @@ async function walkDialogs(walk: SurfaceWalk, scope: Locator, prefix: string, de
   }
   const body = walk.page.getByRole("dialog").or(walk.page.getByRole("alertdialog")).last();
   for (const [index, trigger] of triggers.entries()) {
-    await walkDoor(walk, { id: `${prefix}/dialog-${String(index)}`, trigger, body }, depth);
+    const id = `${prefix}/dialog-${String(index)}`;
+    await walkDoor(walk, { id, trigger, body }, depth);
   }
 }
 
@@ -615,7 +697,8 @@ function readControls(nodes: readonly Element[], input: CensusInput, targetOf: (
     return {
       target: identity(node),
       unavailable: pointerArm(node) ?? transport(node),
-      visible: box.width > 0 && box.height > 0 && node.checkVisibility({ visibilityProperty: true }),
+      // Inert content cannot be reached, whatever made it inert, so it is not witnessed here.
+      visible: box.width > 0 && box.height > 0 && node.checkVisibility({ visibilityProperty: true }) && node.closest("[inert]") === null,
       label: `${node.getAttribute("role") ?? node.tagName.toLowerCase()} ${JSON.stringify(node.getAttribute("aria-label") ?? node.textContent.trim())}`,
     };
   });
@@ -719,9 +802,17 @@ async function walkScrollWindows(walk: SurfaceWalk, scope: Locator, prefix: stri
   observe(
     walk,
     `${prefix}/scroll-regions`,
-    regions.length > MAX_SCROLL_REGIONS ? "unvisited" : "visited",
-    `${String(regions.length)} native overflowing regions; beginning/interior/tail windows, not a claim of every virtualized row`,
+    "visited",
+    `${String(Math.min(regions.length, MAX_SCROLL_REGIONS))} native overflowing regions; beginning/interior/tail windows, not a claim of every virtualized row`,
   );
+  if (regions.length > MAX_SCROLL_REGIONS) {
+    observe(
+      walk,
+      `${prefix}/scroll-regions-beyond-bound`,
+      "unvisited",
+      `${String(regions.length - MAX_SCROLL_REGIONS)} native overflowing regions beyond the traversal bound`,
+    );
+  }
 }
 
 async function walkScrollWindow(
@@ -744,13 +835,14 @@ async function walkScrollWindow(
     }
     await walk.action(id, {
       action: async () => {
-        await viewport.hover();
         for (let step = 0; step < MAX_SCROLL_ADVANCES; step += 1) {
-          const state = await scrollGeometry(viewport, axis);
+          // A region still laying out (a header collapsing, a page arriving) moves its range after one read.
+          const state = await settledScrollGeometry(viewport, axis);
           if (interiorInapplicable(state, ratio) || windowReached(state, ratio)) {
             break;
           }
           const delta = state.maximum * ratio - state.position;
+          await aimWheel(walk, viewport, axis);
           deliveries.push(await nativeWheel(walk, viewport, axis, delta));
         }
       },
@@ -813,6 +905,140 @@ async function walkScrollWindow(
     return;
   }
   await checkpoint(walk, id, viewport);
+}
+
+interface WheelAim {
+  readonly point: { readonly x: number; readonly y: number } | null;
+  readonly reason: string | null;
+}
+
+interface AimInput {
+  readonly horizontal: boolean;
+  readonly steps: number;
+}
+
+const WHEEL_BOXES = ["none", "chains", "contained"] as const;
+type WheelBox = (typeof WHEEL_BOXES)[number];
+
+interface PortRect {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+// Runs in the page: the region's port clipped by every clipping ancestor and the viewport, or the clip that emptied it.
+function visiblePort(node: Element): { readonly port: PortRect | null; readonly emptiedBy: string } {
+  const box = node.getBoundingClientRect();
+  const port = { left: Math.max(box.left, 0), right: Math.min(box.right, innerWidth), top: Math.max(box.top, 0), bottom: Math.min(box.bottom, innerHeight) };
+  const empty = (): boolean => port.right - port.left < 1 || port.bottom - port.top < 1;
+  const rect = (r: PortRect): string =>
+    `x ${String(Math.round(r.left))}-${String(Math.round(r.right))}, y ${String(Math.round(r.top))}-${String(Math.round(r.bottom))}`;
+  if (empty()) {
+    return { port: null, emptiedBy: `region box ${rect(box)} against viewport ${String(innerWidth)}x${String(innerHeight)}` };
+  }
+  for (let ancestor = node.parentElement; ancestor !== null; ancestor = ancestor.parentElement) {
+    const style = getComputedStyle(ancestor);
+    if (style.overflowX !== "visible" || style.overflowY !== "visible") {
+      const clip = ancestor.getBoundingClientRect();
+      port.left = Math.max(port.left, clip.left);
+      port.right = Math.min(port.right, clip.right);
+      port.top = Math.max(port.top, clip.top);
+      port.bottom = Math.min(port.bottom, clip.bottom);
+      if (empty()) {
+        const slot = String(ancestor.getAttribute("data-slot"));
+        return { port: null, emptiedBy: `region box ${rect(box)} clipped away by ${ancestor.tagName}[data-slot=${slot}] at ${rect(clip)}` };
+      }
+    }
+  }
+  return { port, emptiedBy: "" };
+}
+
+// Runs in the page. A box keeps the wheel when its overscroll setting stops the chain; a scrollable one without that
+// setting takes the wheel until its edge and then hands it on.
+function wheelBox(element: Element, horizontal: boolean): WheelBox {
+  const style = getComputedStyle(element);
+  if (!/auto|scroll/u.test(horizontal ? style.overflowX : style.overflowY)) {
+    return "none";
+  }
+  if ((horizontal ? style.overscrollBehaviorX : style.overscrollBehaviorY) !== "auto") {
+    return "contained";
+  }
+  const scrollable = horizontal ? element.scrollWidth > element.clientWidth + 1 : element.scrollHeight > element.clientHeight + 1;
+  return scrollable ? "chains" : "none";
+}
+
+// Runs in the page: what a wheel at `hit` meets before `node`, with the first box that keeps it.
+function wheelPath(node: Element, hit: Element, horizontal: boolean): { readonly kind: "own" | "chains" | "contained"; readonly box: string } {
+  let kind: "own" | "chains" = "own";
+  for (let cursor: Element | null = hit; cursor !== null && cursor !== node; cursor = cursor.parentElement) {
+    const found = wheelBox(cursor, horizontal);
+    if (found === "contained") {
+      return { kind: found, box: `${cursor.tagName}[data-slot=${String(cursor.getAttribute("data-slot"))}]` };
+    }
+    kind = found === "chains" ? found : kind;
+  }
+  return { kind, box: "" };
+}
+
+// Runs in the page: sample the port centre-out and keep the best point, or say why there is none.
+function wheelAim(node: Element, input: AimInput): WheelAim {
+  const { port, emptiedBy } = visiblePort(node);
+  if (port === null) {
+    return { point: null, reason: `no part of the region lies inside the viewport and its clipping ancestors: ${emptiedBy}` };
+  }
+  const centre = { x: (port.left + port.right) / 2, y: (port.top + port.bottom) / 2 };
+  const points = Array.from({ length: input.steps * input.steps }, (_, index) => ({
+    x: port.left + ((port.right - port.left) * ((index % input.steps) + 0.5)) / input.steps,
+    y: port.top + ((port.bottom - port.top) * (Math.floor(index / input.steps) + 0.5)) / input.steps,
+  })).sort((a, b) => Math.hypot(a.x - centre.x, a.y - centre.y) - Math.hypot(b.x - centre.x, b.y - centre.y));
+  const reads = points.map((point) => {
+    const hit = document.elementFromPoint(point.x, point.y);
+    return { point, path: hit === null || !node.contains(hit) ? null : wheelPath(node, hit, input.horizontal) };
+  });
+  const chosen = reads.find(({ path }) => path?.kind === "own") ?? reads.find(({ path }) => path?.kind === "chains");
+  if (chosen !== undefined) {
+    return { point: chosen.point, reason: null };
+  }
+  const outside = reads.filter(({ path }) => path === null).length;
+  const keepers = [...new Set(reads.flatMap(({ path }) => (path === null ? [] : [path.box])))];
+  return {
+    point: null,
+    reason: `of ${String(reads.length)} sampled visible points, ${String(outside)} hit another element and ${String(reads.length - outside)} sit over a nested scroller whose overscroll keeps the wheel (${keepers.join(", ")})`,
+  };
+}
+
+// The page functions are module functions, which a serialized page function cannot close over.
+const AIM_WHEEL = `(node, input) => {
+  ${visiblePort.toString()}
+  ${wheelBox.toString()}
+  ${wheelPath.toString()}
+  return (${wheelAim.toString()})(node, input);
+}`;
+
+const AIM_STEPS = 8;
+
+/**
+ * Put the pointer where a wheel scrolls `viewport`: inside its visible port, over no nested scroller if such a point
+ * exists, else over nested scrollers that hand the wheel on at their edge. Grown text can fill a region with an inner
+ * list whose overscroll containment keeps every wheel, so the centre is not the region's own point. Throws when every
+ * visible point of the region sits under another element or over a containing scroller: the wheel cannot scroll it.
+ */
+export async function aimWheel(walk: SurfaceFlow, viewport: Locator, axis: string): Promise<void> {
+  if (usesProgrammaticScroll(walk.page, walk.info)) {
+    return;
+  }
+  // A nested region can sit scrolled out of its ancestors' ports; a user scrolls those first, as Playwright does here.
+  await viewport.scrollIntoViewIfNeeded();
+  const input: AimInput = { horizontal: axis === "x", steps: AIM_STEPS };
+  // A string page function is evaluated, never called, so the aim calls the evaluated handle itself.
+  const read = await walk.page.evaluateHandle<(node: Element, aim: AimInput) => WheelAim>(AIM_WHEEL);
+  const aim = await viewport.evaluate((node, handles) => handles.read(node, handles.input), { read, input });
+  await read.dispose();
+  if (aim.point === null) {
+    throw new Error(`A wheel cannot reach this scroll region: ${aim.reason}`);
+  }
+  await walk.page.mouse.move(aim.point.x, aim.point.y);
 }
 
 export async function nativeWheel(
@@ -884,6 +1110,25 @@ async function scrollGeometry(viewport: Locator, axis: string): Promise<ScrollGe
       port: { start: measurement.start, end: measurement.start + measurement.extent },
     };
   }, axis === "x");
+}
+
+// Two equal reads in a row, so a range still settling is not judged on its first frame.
+async function settledScrollGeometry(viewport: Locator, axis: string): Promise<ScrollGeometry> {
+  let previous = "";
+  let state: ScrollGeometry | undefined;
+  await expect
+    .poll(async () => {
+      state = await scrollGeometry(viewport, axis);
+      const signature = JSON.stringify(state);
+      const settled = signature === previous;
+      previous = signature;
+      return settled;
+    })
+    .toBe(true);
+  if (state === undefined) {
+    throw new Error("The scroll geometry poll returned without a read");
+  }
+  return state;
 }
 
 function windowReached(state: ScrollGeometry, ratio: number): boolean {

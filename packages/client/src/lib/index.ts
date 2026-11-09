@@ -182,6 +182,7 @@ export type { NotifyAction, NotifyNotice } from "./notify.ts";
 export { bindNotify, leaseNotify, notify } from "./notify.ts";
 export { createOpenRequestChannel, useOpenRequests } from "./open-request-channel.ts";
 export type { OverflowMenuForm, OverflowMenuItem } from "./overflow-menu-form.ts";
+export { BAND_OVERFLOW_LABEL, TRAIL_OVERFLOW_LABEL } from "./overflow-names.ts";
 export { perfMark, perfMeasure } from "./perf-marks.ts";
 export { pluginCommandAuditAttributes, pluginMenuAuditAttributes, pluginSurfaceAuditAttributes } from "./plugin-ui-audit-attributes.ts";
 // The Tier-C plugin guest's main-thread ↔ worker wire — a contract between two

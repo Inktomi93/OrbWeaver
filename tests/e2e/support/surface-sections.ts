@@ -113,6 +113,7 @@ import { deriveChatTitle } from "#client/lib/chat-title.ts";
 import { sectionBackName } from "#client/lib/context-pane-names.ts";
 import { CORPUS_MODE_LABELS, CORPUS_MODES } from "#client/lib/corpus-modes.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
+import { BAND_OVERFLOW_LABEL } from "#client/lib/overflow-names.ts";
 import { PRIMARY_NAV_NAME, YOU_TAB_LABEL } from "#client/lib/rail-names.ts";
 import { deleteConfirmTitle, ROW_DELETE_NAME, ROW_DUPLICATE_NAME, ROW_EXPORT_NAME, ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
@@ -123,7 +124,9 @@ import { messageRow, waitForAppReady } from "./chat-room.ts";
 import type { SurfaceFlow } from "./surface-flow.ts";
 import type { SurfaceWalk } from "./surface-walker.ts";
 import {
+  aimWheel,
   checkpoint,
+  closeMenus,
   content,
   createSurfaceWalk,
   dismissContext,
@@ -132,6 +135,7 @@ import {
   namePattern,
   nativeWheel,
   observe,
+  openOverflowedMenu,
   pane,
   publishWalk,
   ready,
@@ -354,7 +358,7 @@ async function loadNativePages(
     const before = loaded;
     await journey.action(`${id}/page-after-${String(before)}`, {
       action: async () => {
-        await list.hover();
+        await aimWheel(journey, list, "y");
         await nativeWheel(journey, list, "y", await list.evaluate((node) => node.scrollHeight));
       },
       ready: async () => {
@@ -1106,6 +1110,8 @@ async function corpus(journey: Journey): Promise<void> {
     if (mode === "explore") {
       await loadCorpusCatalog(journey);
     }
+    // The phone shell lands Insights on its dashboard (D271), so its finder sits behind the topbar list door.
+    await reveal(journey, "list");
     await walkScope(journey, pane(journey, "list"), `corpus/${mode}/finder`);
     await context(journey, `corpus/${mode}/whole`);
     await corpusMember(journey, mode);
@@ -1738,8 +1744,14 @@ async function importDisposablePreset(
   return await journey.client.preset.get.query({ id: imported.id });
 }
 
+// The band keeps its primary: when the word does not fit, the icon form shows, named for the command its menu runs.
+function databankAddDoor(journey: Journey): Locator {
+  const list = pane(journey, "list");
+  return list.getByRole("button", { name: DATABANK_ADD_NAME, exact: true }).or(list.getByRole("button", { name: DATABANK_ADD_DOCUMENT_TITLE, exact: true }));
+}
+
 async function databankAdd(journey: Journey): Promise<void> {
-  const add = pane(journey, "list").getByRole("button", { name: DATABANK_ADD_NAME, exact: true });
+  const add = databankAddDoor(journey);
   const dialog = journey.page.getByRole("dialog", { name: DATABANK_ADD_DOCUMENT_TITLE, exact: true });
   await journey.action("databank/add-open", {
     action: async () => {
@@ -1757,24 +1769,31 @@ async function databankAdd(journey: Journey): Promise<void> {
 
 async function databankLibrary(journey: Journey): Promise<void> {
   const back = journey.page.getByRole("button", { name: sectionBackName(DATABANK_SECTION_LABEL), exact: true });
+  const search = pane(journey, "list").getByRole("textbox", { name: DATABANK_SEARCH_NAME, exact: true });
   if (await back.isVisible()) {
     await back.click();
   }
+  // Revealing before the back press settles reads the old collapsed state and presses the lead button a second time.
+  await expect(back).toBeHidden();
   await reveal(journey, "list");
-  await expect(pane(journey, "list").getByRole("textbox", { name: DATABANK_SEARCH_NAME, exact: true })).toBeVisible();
+  await expect(search).toBeVisible();
 }
 
 async function databankMaintenance(journey: Journey, empty: boolean): Promise<void> {
   await databankLibrary(journey);
-  const trigger = pane(journey, "list").getByRole("button", { name: DATABANK_MAINTENANCE_NAME, exact: true });
+  // A band out of room moves maintenance into its More menu as a submenu of the same name.
+  const maintenance = {
+    inline: pane(journey, "list").getByRole("button", { name: DATABANK_MAINTENANCE_NAME, exact: true }),
+    overflow: pane(journey, "list").getByRole("button", { name: BAND_OVERFLOW_LABEL, exact: true }),
+    name: DATABANK_MAINTENANCE_NAME,
+  };
   for (const name of ["Rebuild all documents", "Re-read all documents"]) {
-    await trigger.click();
-    const menu = journey.page.getByRole("menu");
+    const menu = await openOverflowedMenu(journey.page, maintenance);
     const item = menu.getByRole("menuitem", { name, exact: true });
     await expect(item).toBeEnabled({ enabled: !empty });
     if (empty) {
       await checkpoint(journey, `databank/library/maintenance/${name}/empty`, menu);
-      await menu.press("Escape");
+      await closeMenus(journey.page);
     } else {
       await databankMaintenanceConfirmation(journey, item, name);
     }
@@ -1803,7 +1822,7 @@ async function databankDisposable(journey: Journey): Promise<void> {
   const text = `Disposable local surface journey source: ${journey.info.project.name}. This document is created by Paste text and removed after persistence checks.`;
   const editor = journey.page.locator('[data-slot="databank-detail-editor"]');
   await databankLibrary(journey);
-  await pane(journey, "list").getByRole("button", { name: DATABANK_ADD_NAME, exact: true }).click();
+  await databankAddDoor(journey).click();
   const add = journey.page.getByRole("dialog", { name: DATABANK_ADD_DOCUMENT_TITLE, exact: true });
   await add.getByRole("button", { name: DATABANK_PASTE_TEXT_NAME, exact: true }).click();
   await add.getByRole("textbox", { name: DATABANK_ADD_NAME_FIELD_NAME, exact: true }).fill(name);
@@ -2379,6 +2398,7 @@ async function refineryVersionRestore(journey: Journey, sessionId: RefinerySessi
   await reveal(journey, "context");
   const tab = pane(journey, "context").getByRole("tab", { name: REFINERY_VERSIONS_NAME, exact: true });
   await tab.click();
+  await expect(tab).toHaveAttribute("aria-selected", "true");
   const versions = await controlledPanel(tab);
   await versions.getByRole("button", { name: REFINERY_COMPARE_NAME, exact: true }).click();
   await expect(versions.getByText(REFINERY_VERSION_DIFF_HEADING, { exact: true })).toBeVisible();

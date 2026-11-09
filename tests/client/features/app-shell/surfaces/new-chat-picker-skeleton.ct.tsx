@@ -5,7 +5,8 @@
 // drops it again. A landscape phone's picker takes whatever room the dialog leaves, and at enlarged text its list stays a window the dialog scrolls past
 // to Start rather than growing to the whole library.
 import { BLANK_CHAT_NAME } from "@orb/client/lib";
-import { LAYOUT_SUBPIXEL_PX, pressableWhole, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
+import { createCharacterSchema } from "@orb/contracts/character";
+import { LAYOUT_SUBPIXEL_PX, pressableWhole, resolvedLength, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, holdCorpusProcedure, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -19,6 +20,10 @@ const RESERVED = "[data-reserve-key]";
 const COMMAND_ROOT = '[data-slot="command-root"]';
 const LIST = "[cmdk-list]";
 const ACTIONS = '[data-slot="new-chat-actions"]';
+const SEARCH_FIELD = '[data-slot="command-input-wrapper"]';
+// The picker pages a hundred characters at a time; the corpus library plus this many is past one page.
+const PAST_ONE_PAGE = 101;
+const SHOWING_LINE = /^Showing \d+ of \d+$/u;
 const DECLARED_BOX = `var(${TOKENS["height.picker-box"].cssVar})`;
 const DECLARED_BOX_WITH_DOOR = `calc(${DECLARED_BOX} + var(${TOKENS["height.picker-door-row"].cssVar}))`;
 const WARM_STORY = `${SHELL_STORIES}/AppShellWarmRostersNewChatStory`;
@@ -187,4 +192,42 @@ for (const cell of REST_CELLS) {
       });
     });
   }
+}
+
+// The library is longer than a page, so the picker's footer ("Showing 100 of N") sits inside the box beside the search field and the list. The footer
+// takes its room from the list, never from the field: a fine pointer keeps the field the height every other search field has.
+const FINE_POINTER_CELLS = [
+  { width: 1280, height: 800 },
+  { width: 1440, height: 900 },
+] as const;
+
+for (const cell of FINE_POINTER_CELLS) {
+  test.describe(`on a ${String(cell.width)}x${String(cell.height)} screen with a fine pointer`, () => {
+    test.use({ viewport: { width: cell.width, height: cell.height } });
+
+    test("the search field keeps its control height beside the list's showing line", async ({ corpus, mount, page }) => {
+      await using root = await createCorpusHarness();
+      const caller = await root.internalCallerFor(root.ownerId);
+      // More characters than one page of the picker holds, so its footer reports how many of the library it shows.
+      for (let index = 0; index < PAST_ONE_PAGE; index += 1) {
+        await caller.character.create({
+          input: createCharacterSchema.parse({
+            handle: `picker-page-${String(index)}`,
+            name: `Picker page witness ${String(index)}`,
+            description: "A page filler.",
+          }),
+        });
+      }
+      await routeTrpc(page, { ...createShellAmbientReads(corpus, root.ownerId), ...serveCorpusProcedures(caller, SECTION_PROCEDURES) });
+      await seedShellState(page, { activeSection: "chats" });
+      await mount<typeof AppShellModalStory>(STORY, { modalId: "newChat" });
+      const dialog = page.getByRole("dialog");
+      await expect(dialog.getByRole("option").first()).toBeVisible();
+      // The positive control: the footer is in the box, so the field has a neighbour to lose room to.
+      await expect(dialog.locator(COMMAND_ROOT).getByText(SHOWING_LINE)).toBeVisible();
+      const control = await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`, dialog);
+      const field = dialog.locator(SEARCH_FIELD);
+      await expect.poll(async () => (await field.boundingBox())?.height ?? Number.NaN).toBeCloseTo(control, 0);
+    });
+  });
 }

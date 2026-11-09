@@ -1,8 +1,7 @@
 // The shell's topbar on the production registry: the narrow screen name a phone reads, the ⌘K chip's name, the phone
 // row's geometry at the narrowest width, the Characters band's doors moving to the trail while the list is the screen,
 // and an open room's identity: its participants, its name, its chips and the context pane's header on the same horizon.
-import { TRAIL_OVERFLOW_LABEL } from "@orb/client/components";
-import { CHAT_NAME_FIELD_NAME, censusSuffix, chatRoomTitle, contextToggleLabel, RENAME_CHAT_NAME } from "@orb/client/lib";
+import { CHAT_NAME_FIELD_NAME, censusSuffix, chatRoomTitle, contextToggleLabel, RENAME_CHAT_NAME, TRAIL_OVERFLOW_LABEL } from "@orb/client/lib";
 import type { ChatId } from "@orb/kit/ids";
 import { pixel, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import type { TrpcWireOutput } from "@orb/testkit/ct";
@@ -747,7 +746,7 @@ test.describe("an open named group room on a phone, coarse pointer", () => {
       for (const entry of TRAIL_ENTRIES) {
         await expectSeatedGlyphOrMenuItem(page, entry, floor, width);
       }
-      await expect(trail.getByRole("button", { name: "More top bar actions", exact: true }).or(trail.locator(MEMBERS_CHIP))).toBeVisible();
+      await expect(trail.getByRole("button", { name: TRAIL_OVERFLOW_LABEL, exact: true }).or(trail.locator(MEMBERS_CHIP))).toBeVisible();
     });
   }
 

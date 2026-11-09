@@ -3,8 +3,7 @@
 // that keeps an unplaced command reachable.
 
 import { spawn } from "node:child_process";
-import { TRAIL_OVERFLOW_LABEL } from "@orb/client/components";
-import { MESSAGE_TOOLS_LABEL } from "@orb/client/lib";
+import { MESSAGE_TOOLS_LABEL, TRAIL_OVERFLOW_LABEL } from "@orb/client/lib";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, PLUGIN_TOAST_COOLDOWN_SECONDS, pluginManifestSchema } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
 import { MS_PER_SECOND } from "@orb/kit/time";

@@ -12,6 +12,8 @@ import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const BAND = '.shell-panel[data-panel-side="list"] .shell-panel-header';
 const TRIGGER = '[data-slot="overflow-actions-trigger"]';
+// On a phone the shell sheds the band's title, so the screen's name and census ride the topbar.
+const PHONE_TITLE = '.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title';
 // A search that matches nothing turns the band's census into "0 of N", the widest figure the band prints.
 const NOTHING_MATCHES = "no item has this name";
 // The band's shown actions: each is a cell of the action row, and a folded cell is marked out of the row.
@@ -112,3 +114,122 @@ for (const collection of UNFOLDED) {
     await expect(band.locator(TRIGGER)).toHaveCount(0);
   });
 }
+
+/** How a census paints in the box that holds it: all of it, none of it, or a fragment that reads as another number. */
+const CENSUS_PAINTS = ["whole", "gone", "partial"] as const;
+type CensusPaint = (typeof CENSUS_PAINTS)[number];
+const WHOLE_OR_GONE = /^(whole|gone)$/u;
+// A box edge sits on a fractional pixel after a layout step, so an edge within this distance counts as on the other box's edge.
+const EDGE_TOLERANCE_PX = 0.5;
+
+interface Extent {
+  readonly left: number;
+  readonly right: number;
+  readonly top: number;
+  readonly bottom: number;
+}
+
+interface PaintedText {
+  readonly visible: boolean;
+  /** What can paint: the holder's box cut by every clipping box between the text and the holder. */
+  readonly clip: Extent;
+  /** The text's own line boxes. */
+  readonly glyphs: readonly Extent[];
+}
+
+async function readPaintedText(census: Locator, holderSelector: string): Promise<PaintedText> {
+  // The room settles over a frame or two after the census, the text size or the pane width changes, so the read follows two frames.
+  await census.page().evaluate(() => new Promise<void>((resolve) => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  return census.evaluate((element, selector): PaintedText => {
+    const holder = element.closest(selector);
+    if (holder === null) {
+      throw new Error(`The census has no ${selector} around it`);
+    }
+    // A DOMRect keeps its edges on its prototype, so each box crosses the wire as a plain extent.
+    const extentOf = ({ left, right, top, bottom }: DOMRect): Extent => ({ left, right, top, bottom });
+    let clip = extentOf(holder.getBoundingClientRect());
+    for (let box: Element | null = element; box !== null && box !== holder.parentElement; box = box.parentElement) {
+      const { overflowX, overflowY } = getComputedStyle(box);
+      const rect = box.getBoundingClientRect();
+      if (overflowX !== "visible" || overflowY !== "visible") {
+        clip = {
+          left: Math.max(clip.left, rect.left),
+          right: Math.min(clip.right, rect.right),
+          top: Math.max(clip.top, rect.top),
+          bottom: Math.min(clip.bottom, rect.bottom),
+        };
+      }
+    }
+    const glyphs: Extent[] = [];
+    for (const walker = document.createTreeWalker(element, NodeFilter.SHOW_TEXT); walker.nextNode(); ) {
+      const range = document.createRange();
+      range.selectNodeContents(walker.currentNode);
+      glyphs.push(...[...range.getClientRects()].filter((rect) => rect.width > 0 && rect.height > 0).map(extentOf));
+    }
+    return { visible: element.checkVisibility({ checkOpacity: true, checkVisibilityCSS: true }), clip, glyphs };
+  }, holderSelector);
+}
+
+/** A line's glyph box runs past its element's box above and below, so the block axis asks only which line the glyphs sit on. */
+function onLine(glyph: Extent, clip: Extent): boolean {
+  const middle = (glyph.top + glyph.bottom) / 2;
+  return middle >= clip.top && middle <= clip.bottom;
+}
+
+function classifyPaint({ visible, clip, glyphs }: PaintedText): CensusPaint {
+  const apart = (glyph: Extent): boolean =>
+    !onLine(glyph, clip) || glyph.right <= clip.left + EDGE_TOLERANCE_PX || glyph.left >= clip.right - EDGE_TOLERANCE_PX;
+  const inside = (glyph: Extent): boolean =>
+    onLine(glyph, clip) && glyph.left >= clip.left - EDGE_TOLERANCE_PX && glyph.right <= clip.right + EDGE_TOLERANCE_PX;
+  if (!visible || (glyphs.length > 0 && glyphs.every(apart))) {
+    return "gone";
+  }
+  return glyphs.length > 0 && glyphs.every(inside) ? "whole" : "partial";
+}
+
+async function paintOf(census: Locator, holderSelector: string): Promise<CensusPaint> {
+  return classifyPaint(await readPaintedText(census, holderSelector));
+}
+
+for (const collection of [...FOLDING, ...UNFOLDED]) {
+  test(`the ${collection.id} band prints its census whole or not at all, and its value stays in the heading's name, with Context docked`, async ({
+    mount,
+    page,
+  }) => {
+    await seedShellState(page, { activeSection: collection.id, panelOverrides: { [collection.id]: { list: "docked", context: "docked" } } });
+    await mount<typeof AppShellStory>(STORY, {});
+    const title = page.locator(BAND).getByRole("heading", { level: 2 });
+    const census = page.locator(BAND).locator('[data-slot="list-pane-census"]');
+    await expect(title).toContainText(collection.label);
+    // The positive control: the census is in the band, whatever the room does with it.
+    await expect(census).toHaveText(/\d/u);
+    await expect(title).toHaveAccessibleName(new RegExp(`${collection.label}.*${(await census.textContent()) ?? ""}`, "u"));
+    expect(await paintOf(census, '[data-slot="list-pane-title"]')).toMatch(WHOLE_OR_GONE);
+    // The widest census the band prints.
+    await page.locator('[data-slot="list-search"] input').first().fill(NOTHING_MATCHES);
+    await expect(census).toContainText(" of ");
+    await expect(title).toHaveAccessibleName(new RegExp(`${collection.label}.*${(await census.textContent()) ?? ""}`, "u"));
+    expect(await paintOf(census, '[data-slot="list-pane-title"]')).toMatch(WHOLE_OR_GONE);
+  });
+}
+
+test.describe("on the narrowest phone", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 320, height: 800 } });
+
+  for (const collection of [...FOLDING, ...UNFOLDED]) {
+    test(`the ${collection.id} screen name prints its census whole or not at all, and its value stays in the name`, async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: collection.id });
+      await mount<typeof AppShellStory>(STORY, {});
+      const title = page.locator(PHONE_TITLE);
+      const census = title.locator(".shell-topbar-title-census");
+      await expect(title.locator(".shell-topbar-title-name")).toHaveText(collection.label);
+      await expect(census).toHaveText(/\d/u);
+      await expect(title).toContainText((await census.textContent()) ?? "");
+      expect(await paintOf(census, ".shell-topbar-title")).toMatch(WHOLE_OR_GONE);
+      await page.locator('[data-slot="list-search"] input').first().fill(NOTHING_MATCHES);
+      await expect(census).toContainText(" of ");
+      await expect(title).toContainText((await census.textContent()) ?? "");
+      expect(await paintOf(census, ".shell-topbar-title")).toMatch(WHOLE_OR_GONE);
+    });
+  }
+});

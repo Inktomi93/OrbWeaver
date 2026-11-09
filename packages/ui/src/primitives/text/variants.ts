@@ -271,6 +271,9 @@ export const textVariants = tv({
     hiddenAt: HIDDEN_AT,
     srOnlyAt: SR_ONLY_AT,
     receded: { true: RECEDED, false: "" },
+    // The run keeps its box, its place in the layout and its place in the accessible name, and paints nothing: a figure the room can seat only
+    // cut, which reads as another number.
+    unpainted: { true: "opacity-0", false: "" },
     // A named ink (D336), declared after the voice so it wins the colour merge; `inherit` is the ink of text inside a
     // filled control, which owns its ink even when the child supplies a voice.
     ink: INKS,
@@ -287,5 +290,6 @@ export const textVariants = tv({
     selectAll: false,
     pulse: false,
     receded: false,
+    unpainted: false,
   },
 });

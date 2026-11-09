@@ -26,10 +26,6 @@ import type { ReactElement, ReactNode, RefObject } from "react";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { OverflowMenuForm } from "#lib";
 
-/** The topbar trail's trigger name; the list band's is {@link BAND_OVERFLOW_LABEL}, so a rotor tells two rows apart. */
-export const TRAIL_OVERFLOW_LABEL = "More top bar actions";
-export const BAND_OVERFLOW_LABEL = "More list actions";
-
 /** One action in the row: its inline control and the menu node (`MenuItem`s) that stands in for it. */
 export interface OverflowAction {
   readonly id: string;

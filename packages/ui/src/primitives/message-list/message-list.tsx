@@ -116,6 +116,8 @@ export interface MessageListProps<T> extends VariantProps<typeof messageListVari
   /**
    * A control below `leading` (a history pager) that scrolls the same way but stays reachable from any row: it pins over
    * the rows, at its own size, while it holds keyboard focus or contains a `data-keep-in-view` element, and the rows stay put.
+   * It is a flex column no taller than the port: a child that scrolls (`overflow-y: auto`) keeps the controls it holds in reach
+   * when the action is taller than the port.
    */
   readonly leadingAction?: ReactNode;
   /** Caller-owned sizing/skin for the scroll container — the bounded height comes from here. */
@@ -691,8 +693,10 @@ export function MessageList<T>({
         // A sibling of the chrome, never inside it: a sticky box cannot leave its parent, and the chrome ends with the oldest row.
         <div
           ref={setLeadingActionNode}
-          className={cn("inline-fit max-inline-full print:hidden", LEADING_ACTION_PIN)}
+          className={cn("flex flex-col inline-fit max-inline-full print:hidden", LEADING_ACTION_PIN)}
           data-slot={MESSAGE_LIST_LEADING_ACTION_SLOT}
+          // No taller than the port it pins in, so what a tall action holds stays reachable: its content scrolls inside it.
+          style={scrollportHeightPx > 0 ? { maxBlockSize: scrollportHeightPx } : undefined}
         >
           {leadingAction}
         </div>
