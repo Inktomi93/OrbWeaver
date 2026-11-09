@@ -1,3 +1,4 @@
+import { ITEM_ATTACH_SETTING, itemSwitchName } from "@orb/client/lib";
 import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { worldEntryIdInputSchema } from "@orb/contracts/world-info";
 import { resolvedLength } from "@orb/testkit/browser/spec";
@@ -48,11 +49,34 @@ for (const attached of [true, false]) {
     expect(personas.length).toBeGreaterThan(targets.personaIds.length);
     await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
     const component = await mount<typeof WorldInfoMemberStory>(STORY, { bookId, context: true });
-    await expect(component.getByRole("switch", { name: `Attach to ${personas[0]?.name}`, exact: true })).toBeVisible();
+    await expect(component.getByRole("switch", { name: itemSwitchName(ITEM_ATTACH_SETTING, personas[0]?.name ?? ""), exact: true })).toBeVisible();
     await expect(component.getByRole("heading", { name: `Attached by personas · ${targets.personaIds.length}`, exact: true })).toBeVisible();
     await expect(component.getByRole("switch")).toHaveCount(personas.length + 1);
   });
 }
+
+test("two personas in opposite states are found by their stable names, and a flip writes to its own persona", async ({ corpus, root, mount, page }) => {
+  const world = corpus.worldInfoLibrary;
+  if (world === undefined) {
+    throw new Error("World Info cases require the corpus library");
+  }
+  const caller = await root.internalCallerFor(root.ownerId);
+  const bookId = world.ids.libraryBookId;
+  const [attached, held] = await caller.persona.list();
+  if (attached === undefined || held === undefined) {
+    throw new Error("The corpus needs two personas to compare");
+  }
+  await caller.worldInfo.attachToPersona({ bookId, personaId: attached.id });
+  await caller.worldInfo.detachFromPersona({ bookId, personaId: held.id });
+  const trpc = await routeTrpc(page, serveCorpusProcedures(caller, [...PROCEDURES, "worldInfo.attachToPersona"]));
+  const component = await mount<typeof WorldInfoMemberStory>(STORY, { bookId, context: true });
+  const attachedSwitch = component.getByRole("switch", { name: itemSwitchName(ITEM_ATTACH_SETTING, attached.name), exact: true });
+  const heldSwitch = component.getByRole("switch", { name: itemSwitchName(ITEM_ATTACH_SETTING, held.name), exact: true });
+  await expect(attachedSwitch).toHaveAttribute("aria-checked", "true");
+  await expect(heldSwitch).toHaveAttribute("aria-checked", "false");
+  await heldSwitch.click();
+  await expect.poll(() => trpc.lastInput("worldInfo.attachToPersona")).toMatchObject({ bookId, personaId: held.id });
+});
 
 for (const device of [
   { name: "desktop", touch: false, viewports: [{ width: 1600, height: 1000 }] },

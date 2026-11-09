@@ -15,6 +15,13 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useId, useState } from "react";
 import type { AutosaveSession } from "#forms/editor";
+import {
+  itemSwitchName,
+  PROMPT_CACHE_AUTOMATIC_SETTING,
+  PROMPT_CACHE_DISABLE_IMPLICIT_SETTING,
+  PROMPT_CACHE_REQUEST_SETTING,
+  PROMPT_CACHE_SYSTEM_SETTING,
+} from "#lib";
 import { PromptCacheAutosaveForm } from "../hooks/use-prompt-cache-form.ts";
 import {
   PROMPT_CACHE_DEPTH_BOUNDS,
@@ -110,13 +117,13 @@ function PrefixControls(props: ControlProps): ReactElement {
         return (
           <Stack gap="row">
             <SettingLine
-              label="Request prefix caching"
+              label={PROMPT_CACHE_REQUEST_SETTING}
               gloss="Request caching for reusable prompt prefixes. Provider-specific read, write and storage pricing applies. Turning this request off does not disable provider-managed implicit caching."
             >
               <form.Field name="enabled">
                 {(field): ReactElement => (
                   <Switch
-                    aria-label={`Request prefix caching on ${connectionLabel}`}
+                    aria-label={itemSwitchName(PROMPT_CACHE_REQUEST_SETTING, connectionLabel)}
                     checked={field.state.value}
                     disabled={busy}
                     onCheckedChange={(on): void => field.handleChange(on)}
@@ -126,13 +133,13 @@ function PrefixControls(props: ControlProps): ReactElement {
             </SettingLine>
             {generation?.turns?.requestAutomaticPromptCache === true ? (
               <SettingLine
-                label="Automatic prefix placement"
+                label={PROMPT_CACHE_AUTOMATIC_SETTING}
                 gloss="Opt in to request-wide automatic placement. This replaces manual system/history markers and can incur cache-write charges."
               >
                 <form.Field name="requestAutomatic">
                   {(field): ReactElement => (
                     <Switch
-                      aria-label={`Automatic prefix placement on ${connectionLabel}`}
+                      aria-label={itemSwitchName(PROMPT_CACHE_AUTOMATIC_SETTING, connectionLabel)}
                       checked={field.state.value === true}
                       disabled={busy || off}
                       onCheckedChange={(on): void => field.handleChange(on)}
@@ -159,11 +166,11 @@ function ManualMarkers({ session: { form }, connectionLabel, busy, fixedTtl, dis
       : "Mark a stable-only system prompt. A dynamic system tail prevents a separate marker; history entries still include the whole system prompt.";
   return (
     <Stack gap="row">
-      <SettingLine label="Cache the system prompt" gloss={disabled ? "Enable manual prefix placement to choose this." : systemGloss}>
+      <SettingLine label={PROMPT_CACHE_SYSTEM_SETTING} gloss={disabled ? "Enable manual prefix placement to choose this." : systemGloss}>
         <form.Field name="cacheSystem">
           {(field): ReactElement => (
             <Switch
-              aria-label={`Cache the system prompt on ${connectionLabel}`}
+              aria-label={itemSwitchName(PROMPT_CACHE_SYSTEM_SETTING, connectionLabel)}
               checked={field.state.value}
               disabled={busy || disabled}
               onCheckedChange={(on): void => field.handleChange(on)}
@@ -275,13 +282,13 @@ function ProviderControls({ session: { form }, generation, connectionLabel, busy
     <Stack gap="row">
       {generation?.turns?.disablesImplicitPromptCache === true ? (
         <SettingLine
-          label="Disable implicit breakpoints"
+          label={PROMPT_CACHE_DISABLE_IMPLICIT_SETTING}
           gloss="Request explicit-only prefix caching. On supported models, no markers means no prompt cache writes or reuse. Configured request-body overrides remain authoritative; full-response replay is separate."
         >
           <form.Field name="disableImplicit">
             {(field): ReactElement => (
               <Switch
-                aria-label={`Disable implicit breakpoints on ${connectionLabel}`}
+                aria-label={itemSwitchName(PROMPT_CACHE_DISABLE_IMPLICIT_SETTING, connectionLabel)}
                 checked={field.state.value === true}
                 disabled={busy}
                 onCheckedChange={(on): void => field.handleChange(on)}

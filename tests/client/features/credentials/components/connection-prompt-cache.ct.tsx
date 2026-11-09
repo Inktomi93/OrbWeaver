@@ -1,3 +1,4 @@
+import { itemSwitchName, PROMPT_CACHE_AUTOMATIC_SETTING, PROMPT_CACHE_DISABLE_IMPLICIT_SETTING, PROMPT_CACHE_SYSTEM_SETTING } from "@orb/client/lib";
 import type { PromptCacheSettings, ProviderId } from "@orb/contracts/inference";
 import { builtinProvider, effectivePromptCache, foldFeatures, providerIdSchema, SUMMARIZE_CONCURRENCY_MAX } from "@orb/contracts/inference";
 import { expectCacheProse } from "@orb/testkit/browser/spec";
@@ -7,6 +8,9 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import type { ConnectionPromptCacheStory } from "./_prompt-cache-stories.tsx";
+
+/** The connection label the cache tier names its switches after. */
+const ROUTE_LABEL = "Caching route";
 
 /** A real root holding the saved connection; it lives until the test disposes the capture. */
 interface CacheCapture extends AsyncDisposable {
@@ -82,7 +86,7 @@ async function captureCacheRoute(providerId: ProviderId, model: string, replay =
   const connection = await caller.connection.create({
     providerId,
     credentialId: credential.id,
-    label: "Caching route",
+    label: ROUTE_LABEL,
     baseUrl: null,
     model,
     ...(replay ? { transport: { headers: { "X-OpenRouter-Cache": "true" } } } : {}),
@@ -171,7 +175,7 @@ test("modern prefix caching retains provider minimum prose and saves the implici
   const tier = await openCacheTier(page);
   await expect(tier.getByRole("radio")).toHaveCount(0);
   await expect(tier.getByText(/at least 30 minutes/u)).toBeVisible();
-  const disable = tier.getByRole("switch", { name: "Disable implicit breakpoints on Caching route", exact: true });
+  const disable = tier.getByRole("switch", { name: itemSwitchName(PROMPT_CACHE_DISABLE_IMPLICIT_SETTING, ROUTE_LABEL), exact: true });
   await expect(disable).toBeEnabled();
   await disable.click();
   await expect(disable).toBeChecked();
@@ -185,11 +189,15 @@ test("automatic placement disables manual markers but leaves applicable retentio
     width: 870,
   });
   const tier = await openCacheTier(page);
-  const system = tier.getByRole("switch", { name: "Cache the system prompt on Caching route", exact: true });
+  const system = tier.getByRole("switch", { name: itemSwitchName(PROMPT_CACHE_SYSTEM_SETTING, ROUTE_LABEL), exact: true });
   const depth = tier.getByRole("textbox", { name: "History cache depth", exact: true });
   await expect(system).toBeEnabled();
   await expect(depth).toBeEnabled();
-  await tier.getByRole("switch", { name: "Automatic prefix placement on Caching route", exact: true }).click();
+  const automatic = tier.getByRole("switch", { name: itemSwitchName(PROMPT_CACHE_AUTOMATIC_SETTING, ROUTE_LABEL), exact: true });
+  await expect(automatic).toHaveAttribute("aria-checked", "false");
+  await expect(system).toHaveAttribute("aria-checked", "true");
+  await automatic.click();
+  await expect(automatic).toHaveAttribute("aria-checked", "true");
   await expect(system).toBeDisabled();
   await expect(depth).toBeDisabled();
   await expect(tier.getByRole("radio").first()).toBeEnabled();

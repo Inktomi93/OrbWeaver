@@ -7,7 +7,7 @@
 //   • THE RANK IS THE SERVER'S (`runsAt`). An off row shows `—` and never a numeral — a rank on a row that
 //     does not run is the exact lie the section exists to remove (§3 (c)).
 //   • THE SWITCH IS THE LIBRARY'S `enabled`, i.e. OFF EVERYWHERE, and its accessible name says so
-//     (`<name> — everywhere`) beside a tier switch whose name says `— in this chat`. Two switches, two
+//     (`regexScriptEverywhereSwitchName`) beside a tier switch named by `regexTierAllowedSwitchName`. Two switches, two
 //     scopes, on one screen: the names are what keep them apart for a screen reader, and the toast is what
 //     keeps them apart for everyone else.
 //   • THE TOAST IS RAISED WHEN THE FLIP REACHES BEYOND THIS ROOM, which is every tier except a chat-tier row

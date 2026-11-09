@@ -85,3 +85,25 @@ test("two plugins' panel switches are found by their stable names, and a flip mo
   await expect(hidesSwitch).toHaveAttribute("aria-checked", "false");
   await expect(staysSwitch).toHaveAttribute("aria-checked", "true");
 });
+
+test("a phone-width plugin card keeps its overflow menu on the name's line", async ({ mount, page }) => {
+  const plugin = makePluginRow({ slug: "pocket-arcade", name: "Pocket Arcade", status: "enabled" });
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings"]),
+    "plugin.list": () => [plugin],
+    "plugin.listSurfaces": () => [],
+  });
+  const component = await mount<typeof InstalledPluginsStory>(STORY, { width: 350 });
+  const card = component.getByRole("group").first();
+  const menu = card.getByRole("button").first();
+  await expect(menu).toBeVisible();
+  const name = await card.getByText(plugin.name, { exact: true }).boundingBox();
+  const box = await menu.boundingBox();
+  if (name === null || box === null) {
+    throw new Error("The card's name and menu must both lay out");
+  }
+  // The menu overlaps the name's own line; a dropped cluster sat under the version line, a whole text block below.
+  expect(box.y).toBeLessThan(name.y + name.height);
+});
