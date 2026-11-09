@@ -153,5 +153,7 @@ test("the selected corpus clone serves the captured room identity, content and v
   await page.goto("/chats");
   // The corpus room can be outside the virtualized viewport; search through the real server-backed control.
   await page.getByRole("textbox", { name: CHAT_SEARCH_NAME, exact: true }).fill(title);
-  await expect(page.getByRole("list", { name: CHAT_LIST_NAME, exact: true }).getByRole("button", { name: title, exact: true }).first()).toBeVisible();
+  // Rooms that share a title carry a " · <qualifier>" suffix in their row name (2175), so the row is matched by its title prefix.
+  const row = new RegExp(`^${RegExp.escape(title)}(?: · |$)`, "u");
+  await expect(page.getByRole("list", { name: CHAT_LIST_NAME, exact: true }).getByRole("button", { name: row }).first()).toBeVisible();
 });
