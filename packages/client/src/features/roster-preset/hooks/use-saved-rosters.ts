@@ -10,10 +10,10 @@ import type { RulePresetId, RulePresetKnobValueInputs, RulePresetView } from "@o
 import { rulePresetKnobBagToInputs } from "@orb/contracts/automation";
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import type { RpgGameTemplate } from "@orb/contracts/rpg";
-import { skipToken, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
+import { useGatedQuery, useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
 import { useActiveChatId } from "#state";
 
 type ChatDetail = inferOutput<Trpc["chat"]["getChat"]>;
@@ -117,8 +117,8 @@ export interface RosterRuleCapture {
 export function useRosterRuleCapture(active: ActiveRosterChat | null): RosterRuleCapture {
   const trpc = useTRPC();
   const hostChatId = active?.isHost === true ? active.chatId : null;
-  // `skipToken` keeps the key unbuilt for a non-host / no-room mount (the use-readout-binding gate idiom).
-  const rulesQuery = useQuery(trpc.automation.listRules.queryOptions(hostChatId === null ? skipToken : { chatId: hostChatId }));
+  // The gate keeps the key unbuilt for a non-host / no-room mount.
+  const rulesQuery = useGatedQuery(hostChatId, (chatId) => trpc.automation.listRules.queryOptions({ chatId }));
   const retry = (): void => {
     rulesQuery.refetch().catch(() => undefined); // the query's own error state carries the failure
   };
@@ -143,7 +143,7 @@ type RoomGameCapture =
 export function useRoomGameCapture(active: ActiveRosterChat | null): RoomGameCapture {
   const trpc = useTRPC();
   const gameChatId = active?.isHost === true && active.detail.rpg !== null ? active.chatId : null;
-  const gameQuery = useQuery(trpc.rpg.getGame.queryOptions(gameChatId === null ? skipToken : { chatId: gameChatId }));
+  const gameQuery = useGatedQuery(gameChatId, (chatId) => trpc.rpg.getGame.queryOptions({ chatId }));
   if (gameChatId === null) {
     return { status: "none" };
   }

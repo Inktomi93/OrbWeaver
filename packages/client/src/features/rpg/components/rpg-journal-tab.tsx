@@ -38,11 +38,10 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { Toggle } from "@orb/ui/toggle";
 import { ToggleGroup } from "@orb/ui/toggle-group";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { DestructiveAction, QueryBoundary } from "#components";
-import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useSuspenseQueries, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS, timeLib } from "#lib";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useAddJournalEntry, useCreateCheckpoint, useDeleteJournalEntry, useEditJournalEntry, useRestoreCheckpoint } from "../hooks/use-rpg-mutations.ts";
@@ -317,8 +316,9 @@ const NO_CARDS: readonly ArchivedCard[] = [];
  *  both reads settle, so the entries and the host's composer never wait on, or blank for, the transcript. */
 function ChronicleWithSettledCards({ state, cardsEnabled }: { readonly state: RpgPanelState; readonly cardsEnabled: boolean }): ReactElement {
   const trpc = useTRPC();
-  const messages = useQuery({ ...trpc.chat.listMessages.queryOptions({ chatId: state.chatId }), enabled: cardsEnabled });
-  const chat = useQuery({ ...trpc.chat.getChat.queryOptions({ chatId: state.chatId }), enabled: cardsEnabled });
+  const cardsChatId = cardsEnabled ? state.chatId : null;
+  const messages = useGatedQuery(cardsChatId, (chatId) => trpc.chat.listMessages.queryOptions({ chatId }));
+  const chat = useGatedQuery(cardsChatId, (chatId) => trpc.chat.getChat.queryOptions({ chatId }));
   const cards =
     messages.data === undefined || chat.data === undefined
       ? NO_CARDS

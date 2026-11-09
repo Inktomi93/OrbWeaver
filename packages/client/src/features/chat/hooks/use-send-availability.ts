@@ -16,8 +16,7 @@
 
 import type { SendAvailability, UnavailableCause } from "@orb/contracts/inference";
 import type { ChatId } from "@orb/kit/ids";
-import { skipToken, useQuery } from "@tanstack/react-query";
-import { useSendAvailabilityRead, useTRPC } from "#data";
+import { useGatedQuery, useSendAvailabilityRead, useTRPC } from "#data";
 import { sendUnavailableReason } from "#lib";
 import { sendRefusalKey } from "../lib/next-turn-line.ts";
 import { useCreditConnections } from "./use-credit-connections.ts";
@@ -37,11 +36,11 @@ export type SendRefusal =
 export function useSendAvailability(chatId: ChatId | null): SendGate {
   const trpc = useTRPC();
   const { data, isError } = useSendAvailabilityRead(chatId);
-  // Pin the verdict to its contract type — the `skipToken`+spread `useQuery` inference can degrade `data` to
+  // Pin the verdict to its contract type — the gated read's inference can degrade `data` to
   // `any` in some type-graph states (a real strict-boolean-expressions fragility), so annotate deterministically.
   const verdict: SendAvailability | null | undefined = data;
   // The reason names the fix the next-turn line's door opens, so it reads the same room and connection list.
-  const chat = useQuery(trpc.chat.getChat.queryOptions(chatId === null ? skipToken : { chatId }));
+  const chat = useGatedQuery(chatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
   const viewerIsHost = chat.data?.viewerIsHost ?? undefined;
   const connections = useCreditConnections();
   // No verdict yet ⇒ never refuse — the gate blocks ONLY on a resolved `available:false`. `!verdict` catches

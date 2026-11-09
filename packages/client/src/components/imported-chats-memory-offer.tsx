@@ -6,10 +6,9 @@ import type { ImportWindow } from "@orb/contracts/chat";
 import { Button } from "@orb/ui/button";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { useInvalidation, useTRPC } from "#data";
+import { useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { testId } from "#lib";
 import { isAlreadyRunning, useStartImportedChatsMemory } from "./imported-chats-memory-offer-mutations.ts";
 import { ModelRunConfirmDialog } from "./model-run-confirm-dialog.tsx";
@@ -37,7 +36,7 @@ export function ImportedChatsMemoryOffer({ scope, onStarted, nested }: ImportedC
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   // Read only once an import wrote chats: a host that mounts this before any import asks nothing.
-  const settings = useQuery({ ...trpc.settings.getUserSettings.queryOptions(), enabled: scope !== null });
+  const settings = useGatedQuery(scope, () => trpc.settings.getUserSettings.queryOptions());
   const start = useStartImportedChatsMemory({ trpc, invalidation });
   const paidRun = useModelRunConfirm();
   // Keyed by scope: a new import's scope is a new offer, never the last one's status.

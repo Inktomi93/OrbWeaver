@@ -32,10 +32,9 @@ import { PLUGIN_ANCHOR_PRIMARY_ALLOWED, PLUGIN_SPEC_MAX_DEPTH, pluginSurfaceSpec
 import type { AssetId, ChatId, PluginId } from "@orb/kit/ids";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
-import { useInvalidation, useTRPC } from "#data";
+import { useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { CONSOLE_STYLES } from "#lib";
 import { useInvokeUiAction } from "../lib/plugin-mutations.ts";
 import { collectDefaults, collectImageAssetIds, specNamesBundleAsset } from "../lib/plugin-surface-bindings.ts";
@@ -177,14 +176,12 @@ function PluginSurfaceForm({ pluginId, surfaceId, spec, anchor, chatId, sink, st
   // The published-plane state read. It fires ONLY for a surface that has NEITHER its own binding root (a
   // tool-card, U3 — `boundState`) NOR a client-side guest (Tier C, U4 — `sink`): a scripted surface's state is
   // supplied by its guest mount (including a tool card's per-call record), so for both the server read must not
-  // fire at all — not merely be ignored. `enabled` disables it (keeping the Tier-C ZERO-NETWORK claim honest),
-  // and `chatId` (row 777) scopes a room-anchored read. (The hook is unconditional; only `enabled` moves.)
+  // fire at all — not merely be ignored. the gate builds no key for them (keeping the Tier-C ZERO-NETWORK claim honest),
+  // and `chatId` (row 777) scopes a room-anchored read. (The hook is unconditional; only its input moves.)
   // It reads ABOVE the image sweep because the sweep now takes the state (#774 ARM C): a bound grid's covers
   // and a bound image's asset live in state, and ids the sweep never saw would never paint.
-  const { data: publishedState } = useQuery({
-    ...trpc.plugin.getSurfaceState.queryOptions({ pluginId, surfaceId, ...(chatId === undefined ? {} : { chatId }) }),
-    enabled: sink === undefined && boundState === undefined,
-  });
+  const stateInput = sink === undefined && boundState === undefined ? { pluginId, surfaceId, ...(chatId === undefined ? {} : { chatId }) } : null;
+  const { data: publishedState } = useGatedQuery(stateInput, (input) => trpc.plugin.getSurfaceState.queryOptions(input));
   const state = boundState ?? publishedState;
   // The SAME effective state the render ctx binds against — one derivation, so the sweep and the renderer can
   // never disagree about which state a binding resolves in.
@@ -193,11 +190,11 @@ function PluginSurfaceForm({ pluginId, surfaceId, spec, anchor, chatId, sink, st
   // path (a surface that ships no bundle art pays for no query). It is a NAME lookup and nothing more: the
   // ids it returns still ride the owner-scoped `resolveBlobRefs` below, so this adds no reach.
   const wantsBundleAssets = specNamesBundleAsset(spec);
-  const { data: bundleAssetRows } = useQuery({ ...trpc.plugin.listBundleAssets.queryOptions({ pluginId }), enabled: wantsBundleAssets });
+  const { data: bundleAssetRows } = useGatedQuery(wantsBundleAssets ? pluginId : null, (id) => trpc.plugin.listBundleAssets.queryOptions({ pluginId: id }));
   const bundleAssets = new Map((bundleAssetRows ?? []).map((row) => [row.path, row.assetId] as const));
   const imageIds: AssetId[] = [];
   collectImageAssetIds(spec, effectiveState, bundleAssets, imageIds);
-  const { data: refs } = useQuery({ ...trpc.assets.resolveBlobRefs.queryOptions({ assetIds: imageIds }), enabled: imageIds.length > 0 });
+  const { data: refs } = useGatedQuery(imageIds.length === 0 ? null : imageIds, (ids) => trpc.assets.resolveBlobRefs.queryOptions({ assetIds: ids }));
   // Keyed by BOTH spellings a node can name (#820): the resolved `asset_…` id, and — for every bundle path
   // that mapped to a resolved id — the path itself. The leaves look their cover up by whichever key their
   // node carries, so no renderer below this line has to know the bundle arm exists. A path whose id did not

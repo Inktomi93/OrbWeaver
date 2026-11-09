@@ -1025,6 +1025,30 @@ for (const regime of [
       }
       await expect(page.getByRole("alert")).toHaveText(CHAT_WINDOW_PRESS_FAILURE);
     });
+    test("a window whose target is gone keeps its paging toolbar while the latest page loads", async ({ corpus, mount, page }) => {
+      await using root = await historyRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { rooms, room, removed } = await prepareHistory(root, caller);
+      await caller.chat.deleteMessages({ chatId: room.id, messageIds: [removed.id] });
+      const latest = holdServed();
+      await using held = new AsyncDisposableStack();
+      held.defer(() => latest.release());
+      await using _live = await serveLiveRoom({
+        root,
+        caller,
+        corpus,
+        page,
+        rooms,
+        chatId: room.id,
+        chatStyle: regime.chatStyle,
+        intercept: ({ chatId }) => (chatId === room.id ? latest : undefined),
+      });
+      await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true, moment: { kind: "message", messageId: removed.id } });
+      await latest.requested;
+      await expect(page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true })).toBeVisible();
+      latest.release();
+      await expect(page.locator('[data-slot="message-row"]').first()).toBeVisible();
+    });
     test("a repeated press with the connection down is heard again, and the held read lands when it returns", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);

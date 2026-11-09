@@ -10,12 +10,12 @@ import { Button } from "@orb/ui/button";
 import { IndicatorDot } from "@orb/ui/indicator-dot";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQueryClient } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, Ref } from "react";
 import { useRef, useState } from "react";
 import type { Trpc } from "#data";
-import { notifyNewRoomPersona, useInvalidation, useTRPC } from "#data";
+import { notifyNewRoomPersona, useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { DIALOG_VERBS, timeLib } from "#lib";
 import { useDismissNotification } from "../hooks/use-inbox.ts";
 import { useAcceptInvite, useDeclineInvite } from "../hooks/use-invite-actions.ts";
@@ -26,8 +26,9 @@ type InboxItem = inferOutput<Trpc["notifications"]["list"]>["items"][number];
  *  read from the owner's plugin list, and only for the row that needs one. */
 function useDisabledPluginName(payload: NotificationEvent): string | undefined {
   const trpc = useTRPC();
-  const { data: plugins } = useQuery({ ...trpc.plugin.list.queryOptions(), enabled: payload.type === "plugin-disabled" });
-  return payload.type === "plugin-disabled" ? plugins?.find((plugin) => plugin.id === payload.pluginId)?.name : undefined;
+  const pluginId = payload.type === "plugin-disabled" ? payload.pluginId : null;
+  const { data: plugins } = useGatedQuery(pluginId, () => trpc.plugin.list.queryOptions());
+  return pluginId === null ? undefined : plugins?.find((plugin) => plugin.id === pluginId)?.name;
 }
 
 /** The per-reason row copy — a mapped Record so a new NotificationEvent member fails tsc until it says

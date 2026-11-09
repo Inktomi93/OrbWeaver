@@ -10,11 +10,11 @@ import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ComponentProps, ReactElement } from "react";
 import { useId } from "react";
-import { PickerDialog } from "#components";
-import { QueryErrorState, SkeletonRows, useInvalidation, useTRPC } from "#data";
+import { PickerDialog, QueryBoundary } from "#components";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
 import { useSelectVariantMutation } from "../hooks/use-select-variant.ts";
-import { useVariantHistory } from "../hooks/use-variant-history.ts";
+import { variantHistoryOf } from "../hooks/use-variant-history.ts";
 import { CHAT_SAVED_REPLIES_DOOR_NAME, CHAT_SAVED_REPLIES_NAME, CHAT_SAVED_REPLY_NAME, savedReplyOptionName } from "../lib/chat-surface-names.ts";
 
 interface SavedRepliesSelectProps {
@@ -84,13 +84,8 @@ function SavedRepliesBody({ message, onOpenChange }: Pick<SavedRepliesPickerProp
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const selectVariant = useSelectVariantMutation({ trpc, invalidation });
-  const history = useVariantHistory(message);
-  if (history.isError) {
-    return <QueryErrorState label="saved replies" onRetry={history.retry} />;
-  }
-  if (history.isPending) {
-    return <SkeletonRows count={2} />;
-  }
+  const { data: listed } = useSuspenseQuery(trpc.chat.listMessageVariants.queryOptions({ chatId: message.chatId, messageId: message.id }));
+  const history = variantHistoryOf(message, listed);
   return (
     <>
       <SavedRepliesSelect
@@ -112,7 +107,13 @@ function SavedRepliesBody({ message, onOpenChange }: Pick<SavedRepliesPickerProp
 export function SavedRepliesPicker({ message, onOpenChange, finalFocus }: SavedRepliesPickerProps): ReactElement {
   return (
     <PickerDialog title={CHAT_SAVED_REPLIES_NAME} open={true} onOpenChange={onOpenChange} size="sm" popupProps={{ finalFocus }}>
-      <SavedRepliesBody message={message} onOpenChange={onOpenChange} />
+      <QueryBoundary
+        resetKeys={[message.id]}
+        fallback={<SkeletonRows count={2} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="saved replies" onRetry={retry} />}
+      >
+        <SavedRepliesBody message={message} onOpenChange={onOpenChange} />
+      </QueryBoundary>
     </PickerDialog>
   );
 }

@@ -15,9 +15,8 @@
 // target". It lives in a hook rather than a store because it is one panel's view state with one reader.
 
 import type { ChatId } from "@orb/kit/ids";
-import { skipToken, useQuery } from "@tanstack/react-query";
 import { useState } from "react";
-import { useTRPC } from "#data";
+import { useGatedQuery, useTRPC } from "#data";
 import { useActiveChatId } from "#state";
 
 /** The binding as the readout reads it: what it COULD bind to, what it IS bound to, and the one control's
@@ -46,9 +45,9 @@ export function useReadoutBinding(): ReadoutBinding {
   // `listChats` array for the active chat's title — which a keyset page can no longer promise contains it,
   // and which pulled the caller's entire membership list to read one string. The room the readout binds to
   // is by definition OPEN, so `getChat` is the warm cache entry the chat surface already holds, and it is
-  // exact rather than best-effort. `skipToken` keeps the key unbuilt when nothing is bound (the house gate —
-  // `use-send-availability.ts`), so an unbound readout fires no request at all.
-  const chat = useQuery(trpc.chat.getChat.queryOptions(targetChatId === null ? skipToken : { chatId: targetChatId }));
+  // exact rather than best-effort. `useGatedQuery` keeps the key unbuilt when nothing is bound, so an unbound
+  // readout fires no request at all.
+  const chat = useGatedQuery(targetChatId, (id) => trpc.chat.getChat.queryOptions({ chatId: id }));
   const title = chat.data?.title;
   return {
     targetChatId,

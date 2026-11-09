@@ -7,6 +7,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode, RefCallback } from "react";
 import { useEffect, useId, useRef, useState } from "react";
+import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { pressForPage, QueryErrorState, SkeletonRows, useSuspenseInfiniteQuery, useSuspenseQuery, useTRPC } from "#data";
 import { RETRY_NAME } from "#lib";
@@ -282,20 +283,23 @@ function AnchoredThread({
       .catch(globalThis.reportError);
   };
   const initial = pages.data.pages.find((page) => page.anchorMessageId !== null) ?? pages.data.pages[0];
-  const fallback = useQuery(trpc.chat.listMessages.queryOptions({ chatId: props.chatId }, { enabled: initial?.anchorMessageId === null }));
   if (initial === undefined) {
     throw new Error("An anchored transcript needs its initial page");
   }
-  if (initial.anchorMessageId === null && fallback.isPending) {
-    return <SkeletonRows count={3} />;
-  }
-  if (initial.anchorMessageId === null && fallback.isError) {
-    return <QueryErrorState label="the conversation" onRetry={fallback.refetch} />;
-  }
-  const messagesPage =
-    initial.anchorMessageId === null && fallback.data !== undefined
-      ? fallback.data
-      : {
+  // A target the window could not anchor falls back to the latest page of the ordinary read, under its own boundary so
+  // the toolbar, the way back to Corpus, stays in reach while that page loads or fails.
+  const transcript =
+    initial.anchorMessageId === null ? (
+      <QueryBoundary
+        resetKeys={[props.chatId]}
+        fallback={<SkeletonRows count={3} />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="the conversation" onRetry={retry} />}
+      >
+        <LatestPageFallback chatId={props.chatId} render={(page, edges): ReactElement => props.render(page, initial, edges, null)} />
+      </QueryBoundary>
+    ) : (
+      props.render(
+        {
           messages: [
             ...new Map(pages.data.pages.flatMap((page): Readonly<CanonPage["messages"]> => page.messages).map((message) => [message.id, message])).values(),
           ].toSorted((a, b) => a.seq - b.seq),
@@ -304,12 +308,12 @@ function AnchoredThread({
               pages.data.pages.flatMap((page): CanonPage["identities"] => page.identities).map((identity) => [identityKey(identity), identity]),
             ).values(),
           ],
-        };
-  // The no-anchor fallback is the latest page of the ordinary read, so its edges are that page's own cursor.
-  const edges: TranscriptEdges =
-    initial.anchorMessageId === null && fallback.data !== undefined
-      ? { earlier: fallback.data.previousCursor !== null, later: false, settling: false }
-      : { earlier: pages.hasPreviousPage, later: pages.hasNextPage, settling: false };
+        },
+        initial,
+        { earlier: pages.hasPreviousPage, later: pages.hasNextPage, settling: false },
+        null,
+      )
+    );
   return (
     // The source window's toolbar stays above the transcript: it is the way back to Corpus, and the window opens on the
     // anchor, not on its first row, so toolbar chrome scrolled with the rows would be out of sight at arrival.
@@ -349,7 +353,20 @@ function AnchoredThread({
           {CHAT_WINDOW_PRESS_FAILURE}
         </Text>
       ) : null}
-      {props.render(messagesPage, initial, edges, null)}
+      {transcript}
     </Stack>
   );
+}
+
+/** The ordinary read's latest page; its edges are that page's own cursor. */
+function LatestPageFallback({
+  chatId,
+  render,
+}: {
+  readonly chatId: ChatId;
+  readonly render: (page: CanonPage, edges: TranscriptEdges) => ReactElement;
+}): ReactElement {
+  const trpc = useTRPC();
+  const { data: page } = useSuspenseQuery(trpc.chat.listMessages.queryOptions({ chatId }));
+  return render(page, { earlier: page.previousCursor !== null, later: false, settling: false });
 }

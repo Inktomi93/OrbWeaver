@@ -30,10 +30,11 @@
 // annotation lands. That is the flank law's posture (content first, decoration when ready) and it is also the
 // failure posture — a refused, slow, or errored round-trip leaves the row reading exactly as it would have.
 
-import { skipToken, useQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "./trpc.ts";
 import { useTRPC } from "./trpc.ts";
+import { useGatedQuery } from "./use-gated-query.ts";
 
 export type PluginDisplayRow = Pick<inferInput<Trpc["plugin"]["transformForDisplay"]>, "chatId" | "messageId">;
 
@@ -48,14 +49,14 @@ export function usePluginDisplayText(text: string, row: PluginDisplayRow | undef
   // read that answers with something other than the contract (a stubbed CT route, a transport hiccup) by
   // going silent rather than by throwing inside a transcript render.
   const hasTransforms = Array.isArray(registered) && registered.length > 0;
-  // A chat-less row or an empty transform registry carries no entity identity. `skipToken` keeps the real
-  // key unbuilt; there is no empty ChatId/MessageId value for an `enabled` guard to accidentally release.
-  const { data } = useQuery({
-    ...trpc.plugin.transformForDisplay.queryOptions(hasTransforms && row !== undefined ? { chatId: row.chatId, messageId: row.messageId, text } : skipToken),
-    // A failed round-trip degrades this row to its own text — never into the transcript's error boundary. It
-    // is the same silence a skipped transform produces, which is the point: a display transform is decoration.
-    throwOnError: false,
+  // A chat-less row or an empty transform registry carries no entity identity, so the gate builds no key;
+  // there is no empty ChatId/MessageId value for an `enabled` guard to accidentally release.
+  // A failed round-trip degrades this row to its own text, never into the transcript's error boundary (the
+  // query client's `throwOnError: false`). It is the same silence a skipped transform produces: a display
+  // transform is decoration, so it is not retried either.
+  const { data } = useGatedQuery(hasTransforms ? row : undefined, (gated) => ({
+    ...trpc.plugin.transformForDisplay.queryOptions({ chatId: gated.chatId, messageId: gated.messageId, text }),
     retry: false,
-  });
+  }));
   return data?.text ?? text;
 }
