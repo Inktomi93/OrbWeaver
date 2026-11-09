@@ -12,7 +12,9 @@ import { ScrollArea } from "@orb/ui/scroll-area";
 import { Slider } from "@orb/ui/slider";
 import { ThemePreviewPane } from "@orb/ui/theme-swatch";
 import { TOKENS } from "@orb/ui/tokens";
+import { WeaveVeil } from "@orb/ui/web-weave";
 import type { ReactElement } from "react";
+import { useEffect, useState } from "react";
 import { CtIsolation } from "./ct-isolated-subject.tsx";
 
 /** Exercise the production density map and its sanctioned variant overrides under real containment. */
@@ -200,6 +202,29 @@ export function SurfaceCodeEditorStory(): ReactElement {
           <CodeEditor ariaLabel="Stylesheet control" value=".control { color: black; }" />
         </Stack>
       </main>
+    </CtIsolation>
+  );
+}
+
+// How long the boot veil holds over the control before it dissolves.
+const VEIL_HOLD_MS = 800;
+
+/** A control under a cover: the production boot veil that dissolves after a beat, or a plain panel that stays. */
+export function SurfaceVeilCoverStory({ cover }: { readonly cover: "veil" | "panel" }): ReactElement {
+  const [veilOpen, setVeilOpen] = useState(true);
+  useEffect(() => {
+    const timer = setTimeout(() => setVeilOpen(false), VEIL_HOLD_MS);
+    return (): void => clearTimeout(timer);
+  }, []);
+  return (
+    <CtIsolation subject="Enlarged-text cover" isolates="A production control under a leaving veil or a standing panel needs no application services.">
+      <main>
+        <Stack padding="section">
+          <h1>Cover control</h1>
+          <Button variant="outline">Retry</Button>
+        </Stack>
+      </main>
+      {cover === "veil" ? <WeaveVeil open={veilOpen} label="Loading" /> : <div style={{ position: "fixed", inset: 0 }} />}
     </CtIsolation>
   );
 }

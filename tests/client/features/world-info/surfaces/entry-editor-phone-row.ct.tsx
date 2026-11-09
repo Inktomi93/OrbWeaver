@@ -107,16 +107,23 @@ for (const width of PHONE_WIDTHS) {
         throw new Error("The Role control must have visible geometry");
       }
       expect(roleBox.x + roleBox.width).toBeLessThanOrEqual(editor.x + editor.width + EDGE_SLACK);
-      // Nothing else in the editor runs past its edge: the row wraps its two fields instead of scrolling sideways. A stepped number field's own
-      // width at 300% on a phone is the primitive's, so its parts are not counted here.
+      // Nothing in the editor, the stepped Depth field included, runs past its edge: the row wraps its fields and the field stacks its steppers
+      // under the input instead of scrolling sideways.
       const past = await component.evaluate(
         (host, { right, slack }) =>
           Array.from(host.querySelectorAll("*"))
-            .filter((element) => element.getBoundingClientRect().right > right + slack && element.closest('[data-slot="number-field-root"]') === null)
+            .filter((element) => element.getBoundingClientRect().right > right + slack)
             .map((element) => `${element.tagName.toLowerCase()}[${element.getAttribute("data-slot") ?? ""}] ${element.textContent.slice(0, 24)}`),
         { right: editor.x + editor.width, slack: EDGE_SLACK },
       );
       expect(past).toEqual([]);
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+      // Both steppers stay on the field, whole and pressable: a tap on each moves the value a step.
+      const start = Number(await depth.inputValue());
+      await component.getByRole("button", { name: `Increase ${WORLD_INFO_ENTRY_DEPTH_NAME}`, exact: true }).click();
+      await expect(depth).toHaveValue(String(start + 1));
+      await component.getByRole("button", { name: `Decrease ${WORLD_INFO_ENTRY_DEPTH_NAME}`, exact: true }).click();
+      await expect(depth).toHaveValue(String(start));
     });
   }
 }
