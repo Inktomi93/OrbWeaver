@@ -1,6 +1,6 @@
 // `pnpm unwired shapes` reports a shape restated in a second file, a synonym alias, a re-export of a re-export and a
-// renamed re-export. Different members, a derived Pick, a type indexed out of another, same names with different types
-// and props that match only by their library base are controls.
+// renamed re-export. Different members, a derived Pick, a type indexed out of another, a result computed from another
+// type's member, same names with different types and props that match only by their library base are controls.
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
 import { scanShapes } from "../../../tooling/src/unwired/index.ts";
 import { LIB, WORLD } from "./_planted.ts";
@@ -34,6 +34,9 @@ const TREE = {
   ),
   "packages/a/src/dialog.ts": "export interface DialogTitleProps extends DialogTitleBase {\n  className?: string;\n}",
   "packages/a/src/popover.ts": "export interface PopoverTitleProps extends PopoverTitleBase {\n  className?: string;\n}",
+  // A result type computed through another named type's member is derived from that type, not a second home.
+  "packages/a/src/service.ts": "export interface Service {\n  bounds(): Promise<{ id: string; name: string }>;\n}",
+  "packages/a/src/bounds.ts": 'import type { Service } from "./service.ts";\nexport type Bounds = Awaited<ReturnType<Service["bounds"]>>;',
   "packages/a/src/index.ts": 'export { User } from "./user.ts";',
   "packages/a/src/door.ts": 'export { User } from "./index.ts";\nexport { User as Member } from "./user.ts";',
 };

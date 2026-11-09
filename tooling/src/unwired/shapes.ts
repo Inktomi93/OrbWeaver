@@ -81,10 +81,18 @@ function formOf(node: Named): Form {
     return "literal";
   }
   const { type } = node;
+  if (isTypeReferenceNode(type) && type.typeArguments === undefined) {
+    return "synonym";
+  }
+  return computedForm(type);
+}
+
+// `typeof value` and an operator over it read a value's own shape; `(typeof value)["key"]` does too, while
+// `Router["listRules"][number]` and `Awaited<ReturnType<Service["bounds"]>>` read another named type's.
+function computedForm(type: Node): Form {
   if (isTypeQueryNode(type)) {
     return "inferred";
   }
-  // `(typeof value)["key"]` reads a value's own shape; `Router["listRules"][number]` reads another named type's.
   if (isIndexedAccessTypeNode(type)) {
     let object = type.objectType;
     while (isIndexedAccessTypeNode(object)) {
@@ -92,13 +100,13 @@ function formOf(node: Named): Form {
     }
     return isTypeQueryNode(object) ? "inferred" : "derived";
   }
-  if (!isTypeReferenceNode(type)) {
+  if (!(isTypeReferenceNode(type) && INFERRED.has(type.typeName.getText()))) {
     return "derived";
   }
-  if (type.typeArguments === undefined) {
-    return "synonym";
-  }
-  return INFERRED.has(type.typeName.getText()) ? "inferred" : "derived";
+  const [operand] = type.typeArguments ?? [];
+  return operand !== undefined && (isIndexedAccessTypeNode(operand) || (isTypeReferenceNode(operand) && INFERRED.has(operand.typeName.getText())))
+    ? computedForm(operand)
+    : "inferred";
 }
 
 interface Declared {
