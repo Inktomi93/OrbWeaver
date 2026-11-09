@@ -50,7 +50,7 @@ export const CHAT_EARLIER_MESSAGES_NAME = "Earlier messages";
 export const CHAT_HISTORY_DISMISS_NAME = "Dismiss";
 export const CHAT_HISTORY_FAILURE_COPY = {
   press: "Couldn't load earlier messages.",
-  refresh: "Couldn't refresh the messages loaded here.",
+  refresh: "Couldn't refresh these messages.",
   bridge: "Couldn't load the messages between here and the latest.",
   offline: "You're offline. History will load when you're back.",
 } as const;
