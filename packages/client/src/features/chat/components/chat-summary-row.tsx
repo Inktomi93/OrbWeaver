@@ -58,6 +58,9 @@ interface ChatSummaryRowProps {
    *  list where the rooms are a surface's content rather than a directory of it (home's also-open block).
    *  Every dense pane leaves it at the tier default. @defaultValue "default" */
   readonly titleStep?: "default" | "promoted";
+  /** Set by a list whose rooms share this row's title (`chatTitleQualifiers`): it joins the row's name and takes the stamp's place on
+   *  the row, so two rooms called "Hikari" are two names. Omitted for a room with a title of its own. */
+  readonly titleQualifier?: string | undefined;
 }
 
 /** The number of leading slots a multi-seat room spends: 3 real faces + the "+N" chip (D3/§3.6). */
@@ -181,6 +184,7 @@ export function ChatSummaryRow({
   actionName,
   hoverGroup = false,
   titleStep = "default",
+  titleQualifier,
 }: ChatSummaryRowProps): ReactElement {
   const { title, subtitle, when } = chatSummaryRowView(chat);
   const { marked, bodyRef } = useReturnedRow(chat.id);
@@ -200,7 +204,7 @@ export function ChatSummaryRow({
       // (`2h`/`3w`, not "2 hours ago"): in a list this is a column the eye scans, and the long form ate ~7
       // characters of the title's width on every row (side-eye P1-2a).
       actionsFloat={true}
-      meta={timeLib.formatRelativeCompact(when)}
+      {...(titleQualifier === undefined ? { meta: timeLib.formatRelativeCompact(when) } : { titleQualifier })}
       {...(markers === undefined ? {} : { markers })}
       {...(hasControls
         ? {

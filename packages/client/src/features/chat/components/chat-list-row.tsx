@@ -30,6 +30,8 @@ export interface ChatListRowProps {
    *  the row shows, escalated where it collided. Omitted falls back to this row's own stamp, which is right
    *  for a one-off row and wrong for a list (side-eye P2c). */
   readonly qualifier?: string | undefined;
+  /** The row's NAME qualifier (`chatTitleQualifiers`): set only where another row on the list shares this row's title. */
+  readonly titleQualifier?: string | undefined;
   readonly actions: ChatListRowActions;
 }
 
@@ -41,7 +43,7 @@ export interface ChatListRowProps {
  *  has to land ahead of the click. */
 const HOVER_INTENT_DELAY_MS = 120;
 
-export function ChatListRow({ actions, chat, selected, onSelect, onDeletedChat, portraits, qualifier }: ChatListRowProps): ReactElement {
+export function ChatListRow({ actions, chat, selected, onSelect, onDeletedChat, portraits, qualifier, titleQualifier }: ChatListRowProps): ReactElement {
   // THE ROW WARMS THE ROOM IT OPENS (#1180, the chats-list twin of #1126/H13). `ChatCharacterBar` reads
   // `chat.getChat` non-suspending, so on a cold click it renders `null`, then appears once the roster
   // lands and pushes the transcript down by its own 40px plus the room stack's 12px gap — measured on
@@ -102,6 +104,7 @@ export function ChatListRow({ actions, chat, selected, onSelect, onDeletedChat, 
         chat={chat}
         onToggleStar={chat.viewerRole === "host" ? (next): void => actions.star({ chatId: chat.id, starred: next }) : undefined}
         portraits={portraits}
+        titleQualifier={titleQualifier}
         // `group` roots the row so the kebab's + the star's hover/focus-within reveal fires on row hover
         // (the character-card precedent); the reveal lives on RowActionsMenu's `reveal` / HOVER_REVEAL.hover.
         hoverGroup={true}

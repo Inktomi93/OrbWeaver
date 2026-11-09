@@ -144,7 +144,7 @@ export function makeChatsSection({ contextTabs, contextRegions, surfaces, toolRe
     useSelectionTitle: useChatsSelectionTitle,
     content: () => <ChatContent surfaceContributors={surfaces} toolRenderers={toolRenderers} />,
     // Topbar identity: the open room's roster header, resolved from #state/#data inside the body.
-    header: () => <ChatsTopbarHeader />,
+    header: (sectionName) => <ChatsTopbarHeader sectionName={sectionName} />,
     topbarMark: () => <ChatsTopbarMark />,
     context: defineContextTabs<CommittedChatContext>({
       useContextState: useChatContextState,

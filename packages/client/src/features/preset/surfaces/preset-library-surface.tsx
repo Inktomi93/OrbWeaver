@@ -33,10 +33,8 @@ import { getSelectedPresetId, presetSectionSelection, selectPreset, setPresetSea
 import { PresetLibraryRow } from "../components/preset-library-row.tsx";
 import { useCreatePreset, useRemovePreset, useSetDefaultPreset } from "../hooks/use-preset-mutations.ts";
 import { notifyActivePreset } from "../lib/active-preset-notice.ts";
+import { NEW_PRESET_KIND, NEW_PRESET_NAME } from "../lib/preset-names.ts";
 import { filterPresetsByName, presetSearchNeedle } from "../lib/preset-search.ts";
-
-const NEW_PRESET_NAME = "New preset";
-const NEW_PRESET_KIND = "generation";
 
 export interface PresetLibrarySurfaceProps {
   /** Defaults to the bare `selectPreset` writer; the route injects a wrapper that also closes the mobile sheet. */

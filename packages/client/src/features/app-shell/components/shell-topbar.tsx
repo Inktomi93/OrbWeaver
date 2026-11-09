@@ -21,8 +21,8 @@ export const CONTEXT_TOGGLE_MARKER = "shell-context-toggle";
 export interface ShellTopbarProps {
   readonly ref?: Ref<HTMLElement>;
   readonly title: string;
-  /** Per-section header node the route may supply (defaults to just the title). */
-  readonly header?: ReactNode;
+  /** Per-section wide identity (defaults to just the title); it receives the title node the shell prints while the list pane is hidden. */
+  readonly header?: ((sectionName: ReactNode) => ReactNode) | undefined;
   /** A mark beside the identity at every width, so a fact the wide header states (a temporary room) survives the phone's narrow identity. */
   readonly mark?: ReactNode;
   /** The registry-derived `topbar.trail` zone render (⌘K + chrome widgets): the measured overflow row, which
@@ -157,10 +157,8 @@ function ScreenName({ title }: { readonly title: ScreenTitle }): ReactElement {
  *  pane is hidden. Both identity arms are always in the DOM; `shell.css`'s `@container shell-main` query
  *  shows exactly one — the row's width is a container question, not a viewport prop (§4b axis 1). */
 function wideIdentity({ title, header, listMode }: ShellTopbarProps): ReactNode {
-  if (header !== undefined && header !== null) {
-    return header;
-  }
-  return listMode === "collapsed" ? <TopbarTitle>{title}</TopbarTitle> : null;
+  const sectionName = listMode === "collapsed" ? <TopbarTitle>{title}</TopbarTitle> : null;
+  return header === undefined ? sectionName : header(sectionName);
 }
 
 export function ShellTopbar({ ref, ...props }: ShellTopbarProps): ReactElement {

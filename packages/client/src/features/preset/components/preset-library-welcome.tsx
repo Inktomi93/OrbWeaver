@@ -2,13 +2,16 @@
 // §4.3 rule 1 no-dead-ends — the empty state teaches + offers the next step). Rendered when no preset is
 // open. A containment CONSUMER (§2.1) — no outer container of its own.
 
+import { Button } from "@orb/ui/button";
 import { EmptyState } from "@orb/ui/empty-state";
-import { Icon, SlidersHorizontal } from "@orb/ui/icons";
+import { Icon, Plus, SlidersHorizontal } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useTRPC } from "#data";
-import { LIST_OFF_SCREEN_HINT, usePresetSearchQuery, useSectionListMode } from "#state";
+import { LIST_OFF_SCREEN_HINT, selectPresetFromList, usePresetSearchQuery, useSectionListMode } from "#state";
+import { useNewPreset } from "../hooks/use-new-preset.ts";
+import { NEW_PRESET_NAME } from "../lib/preset-names.ts";
 import { filterPresetsByName, presetSearchNeedle } from "../lib/preset-search.ts";
 
 /** What this pane teaches whatever the panes are doing — the instruction, and the boundary with Connections
@@ -68,13 +71,15 @@ const NO_MATCHES =
  *     42.5ch, half the §2 65–75ch band. `measure="wide"` is 32rem ≈ 60ch.
  *  3. THE BLOCK IS CENTERED IN THE PANE, not top-anchored — the chats landing's own idiom
  *     (`chat-landing-surface.tsx`: `h-full … justify-center`). Measured before: 219px of content
- *     top-anchored in a 752px pane, i.e. 71% void that grows with the pane. What this pane does NOT do is
- *     fill that space with recent presets or its own create door: the rows would be the LIST pane repeated
- *     row-for-row (the doubling P2-7 files one tab over) and the create verbs have ONE home in the list band
- *     (`preset-list-header.tsx`). Centering is the fix for an unbalanced pane; a second copy of another pane
- *     is not. */
+ *     top-anchored in a 752px pane, i.e. 71% void that grows with the pane. It does not repeat the
+ *     library's rows: those would be the LIST pane row-for-row.
+ *
+ *  ONE EMPTY-STATE VOICE ACROSS THE LIBRARY PANES. Chats, Databank and Plugin pages teach at the shared
+ *  title step and end on a primary door; Presets does the same, so its title takes the default step and
+ *  its door is New preset, the verb the list band also offers. */
 export function PresetLibraryWelcome(): ReactElement {
   const listMode = useSectionListMode("presets");
+  const creating = useNewPreset(selectPresetFromList);
   const trpc = useTRPC();
   // The SAME cache the list pane and the band's census read (a non-suspending `useQuery` — this pane must
   // not suspend on a fact that only changes its wording), through the SAME predicate (`filterPresetsByName`),
@@ -92,16 +97,19 @@ export function PresetLibraryWelcome(): ReactElement {
     // outgoing view for it, and shell/motion.css fades the pane in if it settles later.
     <Stack align="center" height="fill" scroll="y" data-ready={isLoading ? "false" : "true"}>
       {/* `my-auto` centres only while the block fits: `justify-center` on a column the block overflows pushed its top above the pane, over the topbar. */}
-      {/* action={null}: the Presets CONTENT teaching state — a "pick a preset on the left, or create one" nudge shown alongside the library list, which itself carries the create CTA. The next step lives in the sibling list, so this state legitimately has no action of its own. Ends if the preset library list stops carrying its create CTA. */}
       <EmptyState
-        action={null}
+        action={
+          <Button disabled={creating.pending} onClick={creating.create}>
+            <Icon icon={Plus} size="sm" />
+            {NEW_PRESET_NAME}
+          </Button>
+        }
         push="blockCentre"
         description={listMode === "collapsed" ? `${teaching}${LIST_OFF_SCREEN_HINT}` : teaching}
         icon={<Icon icon={SlidersHorizontal} size="lg" />}
         measure="wide"
         title="Tune how the model generates"
         titleAs="h2"
-        titleStep="focal"
       />
     </Stack>
   );

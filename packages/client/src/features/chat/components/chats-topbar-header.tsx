@@ -11,7 +11,7 @@
 import type { ChatId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { useQuery } from "@tanstack/react-query";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useTRPC } from "#data";
 import { TEMPORARY_CHAT_BADGE } from "#lib";
 import { useActiveChatId } from "#state";
@@ -26,9 +26,10 @@ function useIsTemporaryChat(chatId: ChatId): boolean {
   return chat?.temporary === true;
 }
 
-export function ChatsTopbarHeader(): ReactElement | null {
+/** The open room's roster header; with no room open it prints the shell's name for the section, so Chats with its list hidden is still named. */
+export function ChatsTopbarHeader({ sectionName }: { readonly sectionName: ReactNode }): ReactNode {
   const activeChatId = useActiveChatId();
-  return activeChatId === null ? null : <ChatHeaderSurface chatId={activeChatId} />;
+  return activeChatId === null ? sectionName : <ChatHeaderSurface chatId={activeChatId} />;
 }
 
 /** The room's TEMPORARY badge, outside the wide header so a phone's narrow identity (which drops that header) still shows it. */

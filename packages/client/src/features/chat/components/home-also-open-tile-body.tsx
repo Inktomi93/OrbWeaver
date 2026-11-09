@@ -26,6 +26,7 @@ import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useSuspenseQuery, useTRPC } from "#data";
 import { resumeChat } from "#state";
+import { chatTitleQualifiers } from "../lib/chat-summary-row.ts";
 import { splitHearth } from "../lib/home-hearth.ts";
 import { ChatSummaryRow } from "./chat-summary-row.tsx";
 
@@ -39,6 +40,8 @@ export function HomeAlsoOpenTileBody(): ReactElement {
   const trpc = useTRPC();
   const { data: page } = useSuspenseQuery(trpc.chat.listChats.queryOptions({ limit: HOME_RECENT_CHATS_LIMIT }));
   const alsoOpen = splitHearth(page.items).rest;
+  // Rooms can share a title; the ones that do carry their stamp in the name so each row is its own name.
+  const titleQualifiers = chatTitleQualifiers(alsoOpen);
 
   return (
     // `role="list"` needs `listitem` CHILDREN or the rows are generic to AT and the list announces empty —
@@ -58,6 +61,7 @@ export function HomeAlsoOpenTileBody(): ReactElement {
             chat={chat}
             onSelect={openRecent}
             portraits={chat.participantPortraits}
+            titleQualifier={titleQualifiers[index]}
             // The ramp's `title` step, which had no other call site on this surface (F8): these rows ARE
             // home's content, not a directory of it, and the mock assigns them 16px.
             titleStep="promoted"

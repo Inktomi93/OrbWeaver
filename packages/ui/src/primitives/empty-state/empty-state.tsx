@@ -10,8 +10,6 @@ export interface EmptyStateProps {
   title: ReactNode;
   /** Centres in a column only while it fits. */
   push?: "blockCentre";
-  /** Promotes a teaching statement one ratified step when it is the surface's focal message. */
-  titleStep?: "default" | "focal";
   /**
    * The title's ELEMENT (side-eye 2026-08-22 P3-1 / ARIA rec 3). `p` is right for a state inside a pane
    * that already has a heading above it — a second `h2` there would invent structure. `h2` is for the state
@@ -37,7 +35,6 @@ export function EmptyState({
   decoration,
   icon,
   title,
-  titleStep = "default",
   titleAs = "p",
   measure = "default",
   description,
@@ -45,7 +42,7 @@ export function EmptyState({
   className,
   push,
 }: EmptyStateProps): ReactElement {
-  const slots = emptyStateVariants({ titleStep, measure, push });
+  const slots = emptyStateVariants({ measure, push });
   let head: ReactElement | null = null;
   if (decoration !== undefined) {
     head = (
@@ -66,11 +63,11 @@ export function EmptyState({
       {/* Two spellings of ONE title, never a dynamic tag: the element is a11y STRUCTURE (see `titleAs`), and
           a computed `as` would let a caller mint any tag it liked. */}
       {titleAs === "h2" ? (
-        <h2 className={slots.title()} data-slot="empty-state-title" data-title-step={titleStep === "focal" ? "focal" : undefined}>
+        <h2 className={slots.title()} data-slot="empty-state-title">
           {title}
         </h2>
       ) : (
-        <p className={slots.title()} data-slot="empty-state-title" data-title-step={titleStep === "focal" ? "focal" : undefined}>
+        <p className={slots.title()} data-slot="empty-state-title">
           {title}
         </p>
       )}
