@@ -210,17 +210,20 @@ function GreetingBody({
     <form.Subscribe selector={(s): string => s.values.greetings[index]?.text ?? ""}>
       {(active): ReactElement => (
         <ThemeScope tokens={cardTheme}>
-          <MessageBubble ownSlot="character-greeting-bubble" messageRole="assistant">
-            <Spoiler gap="row" concealed={spoilerBlur}>
-              {active.trim() === "" ? (
-                <Text voice="quiet">No first message yet.</Text>
-              ) : (
-                <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>
-                  {active}
-                </Markdown>
-              )}
-            </Spoiler>
-          </MessageBubble>
+          {/* The editor's column stays wide for its controls; the greeting is prose and reads at the prose measure. */}
+          <Stack cap="prose">
+            <MessageBubble ownSlot="character-greeting-bubble" messageRole="assistant">
+              <Spoiler gap="row" concealed={spoilerBlur}>
+                {active.trim() === "" ? (
+                  <Text voice="quiet">No first message yet.</Text>
+                ) : (
+                  <Markdown trust={trusted ? "trusted" : "untrusted"} mode="static" colorQuotes={colorQuotes} allowExternalMedia={allowExternalMedia}>
+                    {active}
+                  </Markdown>
+                )}
+              </Spoiler>
+            </MessageBubble>
+          </Stack>
         </ThemeScope>
       )}
     </form.Subscribe>

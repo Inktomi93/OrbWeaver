@@ -322,6 +322,13 @@
       position: static;
     }
   }
+  /* The history plate pins at the port's top while it holds focus or a failure, and lays over the rows there. A name row
+   * pinned under it would stack a second header beside it, so the name rows ride in flow until the plate leaves. Sticky and
+   * static boxes take the same place in flow, so the rows and the reading row do not move. */
+  [data-slot="message-list-scroll"]:has([data-slot="message-list-leading-action"] :is(:focus-visible, [data-keep-in-view]))
+    [data-slot="message-name-row"][data-sticky] {
+    position: static;
+  }
   /* A column this narrow at the enlarged root reads a few characters a line, so the card gives back its share and inset.
    * The inset it gives back includes the art pane's, so the foot and pinned header reach only the card's own inset. */
   @container shell-main (inline-size < 20rem) {

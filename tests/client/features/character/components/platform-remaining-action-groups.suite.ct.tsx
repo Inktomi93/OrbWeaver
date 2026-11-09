@@ -55,6 +55,40 @@ function characterInput(): ReturnType<typeof createCharacterSchema.parse> {
   });
 }
 
+// The editor's column stays wide for its controls; its greeting preview is prose and reads at the prose measure.
+test.describe("the editor's greeting preview in a wide column", () => {
+  const regime = REGIMES[0];
+  test.use({ viewport: regime.viewport });
+
+  test("reads at the prose measure, not the column's width", async ({ mount, page, corpusMedia }) => {
+    await using root = await createCorpusHarness(undefined, { startJobs: false });
+    const caller = await root.internalCallerFor(root.ownerId);
+    const card = await caller.character.create({ input: characterInput() });
+    await routeTrpc(
+      page,
+      serveCorpusProcedures(caller, [
+        "sessions.me",
+        "settings.getUserSettings",
+        "character.get",
+        "character.list",
+        "preset.get",
+        "plugin.listMacros",
+        "chat.listChats",
+        "regex.listForCharacter",
+        "tag.listPendingSuggestions",
+      ]),
+    );
+    await corpusMedia();
+    await mount<typeof CharacterRemainingActionsStory>(STORY, { characterId: card.id, plane: "editor", width: regime.width, appearance: regime.appearance });
+    const bubble = page.locator('[data-slot="character-greeting-bubble"]');
+    await expect(bubble.getByText(ORIGINAL_OPENING, { exact: true })).toBeVisible();
+    const measure = await resolvedLength(page, `var(${TOKENS["reading.measure-prose"].cssVar})`, bubble);
+    // The control: the editor's form is wider than the measure, so a cap is what holds the bubble.
+    expect(await bubble.evaluate((node) => node.closest("form")?.getBoundingClientRect().width ?? 0)).toBeGreaterThan(measure);
+    expect((await bubble.boundingBox())?.width ?? Number.POSITIVE_INFINITY).toBeLessThanOrEqual(measure + 1);
+  });
+});
+
 for (const regime of REGIMES) {
   test.describe(regime.name, () => {
     test.use({ viewport: regime.viewport, isMobile: regime.coarse, hasTouch: regime.coarse });
