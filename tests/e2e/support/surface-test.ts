@@ -54,7 +54,7 @@ export const test = base.extend<SurfaceWalkOptions & SurfaceWalkFixtures, Surfac
       await use(null);
       return;
     }
-    const profile = await setPlatformTextSize(page, platformTextScale);
+    await using profile = await setPlatformTextSize(page, platformTextScale);
     await attachNativeFile(info, info, "text-profile", {
       body: JSON.stringify(
         { ...profile, door: "Chrome DevTools Protocol Page.setFontSizes: the browser's default font size, set before the first navigation" },

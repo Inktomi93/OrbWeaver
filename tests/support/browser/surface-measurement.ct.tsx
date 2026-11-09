@@ -477,7 +477,7 @@ test("the browser text size reaches the mounted document and its media-query rem
   const width = page.viewportSize()?.width ?? 0;
   // The project viewport is a desktop shell at the default size and below the breakpoint at 200%.
   expect(await page.evaluate((query) => matchMedia(query).matches, desktop)).toBe(true);
-  const profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+  await using profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
   expect(width / profile.defaultFontPx).toBeGreaterThan(breakpointRem);
   expect(width / profile.standardFontPx).toBeLessThan(breakpointRem);
   await mount<typeof SurfaceTextGeometryStory>("tests/support/browser/surface-design-fixtures/SurfaceTextGeometryStory", { clipped: false });
@@ -494,7 +494,7 @@ for (const clipped of [false, true]) {
     browserName,
   }, info) => {
     test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
-    const profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+    await using profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
     await page.addInitScript({ content: webVitalsInitScript(await webVitalsSource()) });
     await mount<typeof SurfaceTextGeometryStory>("tests/support/browser/surface-design-fixtures/SurfaceTextGeometryStory", { clipped });
     const witness = page.getByRole("button", { name: "Continue to the next step", exact: true });
