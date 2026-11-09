@@ -218,8 +218,10 @@ function ClusterCard({ cluster, name }: { readonly cluster: ArchetypeCard; reado
     // the tab. The cluster's disambiguated name is the scope that tells them apart.
     <Stack gap="field" role="group" aria-label={name}>
       <Row align="center" gap="field" justify="between">
-        {/* The DISAMBIGUATED name (B6) — the card and its bar are one cluster and must answer to one name. */}
-        <Button variant="ghost" size="sm" onClick={(): void => selectCorpusArtifact({ ...cluster.destination, title: name })}>
+        {/* The DISAMBIGUATED name (B6) — the card and its bar are one cluster and must answer to one name.
+            MULTILINE: a model-authored name outgrows this row, and a nowrap door sets the card's width, so the
+            members count beside it paints outside the CONTEXT pane's clip. */}
+        <Button wrap={true} variant="ghost" size="sm" onClick={(): void => selectCorpusArtifact({ ...cluster.destination, title: name })}>
           {name}
         </Button>
         <Text voice="gloss">
