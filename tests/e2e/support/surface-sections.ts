@@ -113,6 +113,7 @@ import { deriveChatTitle } from "#client/lib/chat-title.ts";
 import { sectionBackName } from "#client/lib/context-pane-names.ts";
 import { CORPUS_MODE_LABELS, CORPUS_MODES } from "#client/lib/corpus-modes.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
+import { BAND_OVERFLOW_LABEL } from "#client/lib/overflow-names.ts";
 import { PRIMARY_NAV_NAME, YOU_TAB_LABEL } from "#client/lib/rail-names.ts";
 import { deleteConfirmTitle, ROW_DELETE_NAME, ROW_DUPLICATE_NAME, ROW_EXPORT_NAME, ROW_RENAME_NAME } from "#client/lib/row-menu-names.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
@@ -125,6 +126,7 @@ import type { SurfaceWalk } from "./surface-walker.ts";
 import {
   aimWheel,
   checkpoint,
+  closeMenus,
   content,
   createSurfaceWalk,
   dismissContext,
@@ -133,6 +135,7 @@ import {
   namePattern,
   nativeWheel,
   observe,
+  openOverflowedMenu,
   pane,
   publishWalk,
   ready,
@@ -1773,15 +1776,19 @@ async function databankLibrary(journey: Journey): Promise<void> {
 
 async function databankMaintenance(journey: Journey, empty: boolean): Promise<void> {
   await databankLibrary(journey);
-  const trigger = pane(journey, "list").getByRole("button", { name: DATABANK_MAINTENANCE_NAME, exact: true });
+  // A band out of room moves maintenance into its More menu as a submenu of the same name.
+  const maintenance = {
+    inline: pane(journey, "list").getByRole("button", { name: DATABANK_MAINTENANCE_NAME, exact: true }),
+    overflow: pane(journey, "list").getByRole("button", { name: BAND_OVERFLOW_LABEL, exact: true }),
+    name: DATABANK_MAINTENANCE_NAME,
+  };
   for (const name of ["Rebuild all documents", "Re-read all documents"]) {
-    await trigger.click();
-    const menu = journey.page.getByRole("menu");
+    const menu = await openOverflowedMenu(journey.page, maintenance);
     const item = menu.getByRole("menuitem", { name, exact: true });
     await expect(item).toBeEnabled({ enabled: !empty });
     if (empty) {
       await checkpoint(journey, `databank/library/maintenance/${name}/empty`, menu);
-      await menu.press("Escape");
+      await closeMenus(journey.page);
     } else {
       await databankMaintenanceConfirmation(journey, item, name);
     }
@@ -2386,6 +2393,7 @@ async function refineryVersionRestore(journey: Journey, sessionId: RefinerySessi
   await reveal(journey, "context");
   const tab = pane(journey, "context").getByRole("tab", { name: REFINERY_VERSIONS_NAME, exact: true });
   await tab.click();
+  await expect(tab).toHaveAttribute("aria-selected", "true");
   const versions = await controlledPanel(tab);
   await versions.getByRole("button", { name: REFINERY_COMPARE_NAME, exact: true }).click();
   await expect(versions.getByText(REFINERY_VERSION_DIFF_HEADING, { exact: true })).toBeVisible();

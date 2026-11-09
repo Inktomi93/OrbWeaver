@@ -188,6 +188,34 @@ export async function openContext(walk: SurfaceFlow): Promise<void> {
     overflow: walk.page.getByRole("button", { name: TRAIL_OVERFLOW_LABEL, exact: true }),
     name,
   });
+  // A sheet slides in; a press on its controls before it settles can land on a box that is still moving.
+  const region = pane(walk, "context");
+  await expect(region).not.toHaveAttribute("data-panel-mode", "collapsed");
+  await expect.poll(async () => await region.evaluate((node) => node.getAnimations().length)).toBe(0);
+}
+
+/** Open a menu an overflow row holds: its inline trigger while it fits, else its submenu inside the row's More menu. */
+export async function openOverflowedMenu(page: Page, { inline, overflow, name }: OverflowedAction): Promise<Locator> {
+  await expect(inline.or(overflow).first()).toBeVisible();
+  if (await inline.isVisible()) {
+    await inline.click();
+    return page.getByRole("menu");
+  }
+  await overflow.click();
+  const submenu = page.getByRole("menu").getByRole("menuitem", { name, exact: true });
+  await submenu.focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(submenu).toHaveAttribute("aria-expanded", "true");
+  return page.getByRole("menu").last();
+}
+
+/** Close every open menu level, innermost first. */
+export async function closeMenus(page: Page): Promise<void> {
+  const menus = page.getByRole("menu");
+  for (let level = await menus.count(); level > 0; level -= 1) {
+    await page.keyboard.press("Escape");
+  }
+  await expect(menus).toHaveCount(0);
 }
 
 /** An `inert` control is out of reach here: its row moved it into an overflow menu, or an open sheet covers it. */
@@ -375,7 +403,8 @@ async function walkMenuTerminal(walk: SurfaceWalk, menu: Locator, items: Locator
     skip(walk, `${prefix}/terminal`, "disabled", "All actual items are disabled");
     return;
   }
-  await menu.press("End");
+  // The key goes where the open left focus, as a keyboard user's does; `menu.press` would move focus to the popup first.
+  await menu.page().keyboard.press("End");
   await expect(items.last()).toHaveAttribute("data-highlighted", "");
   await checkpoint(walk, `${prefix}/terminal`, menu, items.last());
 }
@@ -866,61 +895,117 @@ async function walkScrollWindow(
   await checkpoint(walk, id, viewport);
 }
 
+interface WheelAim {
+  readonly point: { readonly x: number; readonly y: number } | null;
+  readonly reason: string | null;
+}
+
+interface AimInput {
+  readonly horizontal: boolean;
+  readonly steps: number;
+}
+
+const WHEEL_BOXES = ["none", "chains", "contained"] as const;
+type WheelBox = (typeof WHEEL_BOXES)[number];
+
+// Runs in the page: the region's port clipped by every clipping ancestor and the viewport, or null when none is left.
+function visiblePort(node: Element): { left: number; right: number; top: number; bottom: number } | null {
+  const box = node.getBoundingClientRect();
+  const port = { left: Math.max(box.left, 0), right: Math.min(box.right, innerWidth), top: Math.max(box.top, 0), bottom: Math.min(box.bottom, innerHeight) };
+  for (let ancestor = node.parentElement; ancestor !== null; ancestor = ancestor.parentElement) {
+    const style = getComputedStyle(ancestor);
+    if (style.overflowX !== "visible" || style.overflowY !== "visible") {
+      const clip = ancestor.getBoundingClientRect();
+      port.left = Math.max(port.left, clip.left);
+      port.right = Math.min(port.right, clip.right);
+      port.top = Math.max(port.top, clip.top);
+      port.bottom = Math.min(port.bottom, clip.bottom);
+    }
+  }
+  return port.right - port.left < 1 || port.bottom - port.top < 1 ? null : port;
+}
+
+// Runs in the page. A box keeps the wheel when its overscroll setting stops the chain; a scrollable one without that
+// setting takes the wheel until its edge and then hands it on.
+function wheelBox(element: Element, horizontal: boolean): WheelBox {
+  const style = getComputedStyle(element);
+  if (!/auto|scroll/u.test(horizontal ? style.overflowX : style.overflowY)) {
+    return "none";
+  }
+  if ((horizontal ? style.overscrollBehaviorX : style.overscrollBehaviorY) !== "auto") {
+    return "contained";
+  }
+  const scrollable = horizontal ? element.scrollWidth > element.clientWidth + 1 : element.scrollHeight > element.clientHeight + 1;
+  return scrollable ? "chains" : "none";
+}
+
+// Runs in the page: what a wheel at `hit` meets before `node`, with the first box that keeps it.
+function wheelPath(node: Element, hit: Element, horizontal: boolean): { readonly kind: "own" | "chains" | "contained"; readonly box: string } {
+  let kind: "own" | "chains" = "own";
+  for (let cursor: Element | null = hit; cursor !== null && cursor !== node; cursor = cursor.parentElement) {
+    const found = wheelBox(cursor, horizontal);
+    if (found === "contained") {
+      return { kind: found, box: `${cursor.tagName}[data-slot=${String(cursor.getAttribute("data-slot"))}]` };
+    }
+    kind = found === "chains" ? found : kind;
+  }
+  return { kind, box: "" };
+}
+
+// Runs in the page: sample the port centre-out and keep the best point, or say why there is none.
+function wheelAim(node: Element, input: AimInput): WheelAim {
+  const port = visiblePort(node);
+  if (port === null) {
+    return { point: null, reason: "no part of the region lies inside the viewport and its clipping ancestors" };
+  }
+  const centre = { x: (port.left + port.right) / 2, y: (port.top + port.bottom) / 2 };
+  const points = Array.from({ length: input.steps * input.steps }, (_, index) => ({
+    x: port.left + ((port.right - port.left) * ((index % input.steps) + 0.5)) / input.steps,
+    y: port.top + ((port.bottom - port.top) * (Math.floor(index / input.steps) + 0.5)) / input.steps,
+  })).sort((a, b) => Math.hypot(a.x - centre.x, a.y - centre.y) - Math.hypot(b.x - centre.x, b.y - centre.y));
+  const reads = points.map((point) => {
+    const hit = document.elementFromPoint(point.x, point.y);
+    return { point, path: hit === null || !node.contains(hit) ? null : wheelPath(node, hit, input.horizontal) };
+  });
+  const chosen = reads.find(({ path }) => path?.kind === "own") ?? reads.find(({ path }) => path?.kind === "chains");
+  if (chosen !== undefined) {
+    return { point: chosen.point, reason: null };
+  }
+  const outside = reads.filter(({ path }) => path === null).length;
+  const keepers = [...new Set(reads.flatMap(({ path }) => (path === null ? [] : [path.box])))];
+  return {
+    point: null,
+    reason: `of ${String(reads.length)} sampled visible points, ${String(outside)} hit another element and ${String(reads.length - outside)} sit over a nested scroller whose overscroll keeps the wheel (${keepers.join(", ")})`,
+  };
+}
+
+// The page functions are module functions, which a serialized page function cannot close over.
+const AIM_WHEEL = `(node, input) => {
+  ${visiblePort.toString()}
+  ${wheelBox.toString()}
+  ${wheelPath.toString()}
+  return (${wheelAim.toString()})(node, input);
+}`;
+
+const AIM_STEPS = 8;
+
 /**
- * Put the pointer where a wheel scrolls `viewport` itself: inside its visible port and over no nested scroller that
- * takes the wheel first. Grown text can fill a region's centre with an inner list whose overscroll containment stops
- * the wheel there, so the centre is not the region's own point. Throws when no visible point of the region is one.
+ * Put the pointer where a wheel scrolls `viewport`: inside its visible port, over no nested scroller if such a point
+ * exists, else over nested scrollers that hand the wheel on at their edge. Grown text can fill a region with an inner
+ * list whose overscroll containment keeps every wheel, so the centre is not the region's own point. Throws when every
+ * visible point of the region sits under another element or over a containing scroller: the wheel cannot scroll it.
  */
 export async function aimWheel(walk: SurfaceFlow, viewport: Locator, axis: string): Promise<void> {
   if (usesProgrammaticScroll(walk.page, walk.info)) {
     return;
   }
-  const aim = await viewport.evaluate((node, horizontal) => {
-    const box = node.getBoundingClientRect();
-    const left = Math.max(box.left, 0);
-    const right = Math.min(box.right, innerWidth);
-    const top = Math.max(box.top, 0);
-    const bottom = Math.min(box.bottom, innerHeight);
-    if (right - left < 1 || bottom - top < 1) {
-      return { point: null, reason: "no part of the region lies inside the viewport" };
-    }
-    // A nested box takes the wheel when it can scroll on the axis, or when its overscroll setting stops the chain.
-    const takesWheel = (element: Element): boolean => {
-      const style = getComputedStyle(element);
-      if (!/auto|scroll/u.test(horizontal ? style.overflowX : style.overflowY)) {
-        return false;
-      }
-      const scrollable = horizontal ? element.scrollWidth > element.clientWidth + 1 : element.scrollHeight > element.clientHeight + 1;
-      return scrollable || (horizontal ? style.overscrollBehaviorX : style.overscrollBehaviorY) !== "auto";
-    };
-    const steps = 8;
-    const points = Array.from({ length: steps * steps }, (_, index) => ({
-      x: left + ((right - left) * ((index % steps) + 0.5)) / steps,
-      y: top + ((bottom - top) * (Math.floor(index / steps) + 0.5)) / steps,
-    }));
-    const centre = { x: (left + right) / 2, y: (top + bottom) / 2 };
-    points.sort((a, b) => Math.hypot(a.x - centre.x, a.y - centre.y) - Math.hypot(b.x - centre.x, b.y - centre.y));
-    const nearestTaker = (hit: Element): Element | null => {
-      let cursor: Element | null = hit;
-      while (cursor !== null && cursor !== node && !takesWheel(cursor)) {
-        cursor = cursor.parentElement;
-      }
-      return cursor;
-    };
-    let covered = 0;
-    for (const point of points) {
-      const hit = document.elementFromPoint(point.x, point.y);
-      if (hit === null || !node.contains(hit)) {
-        covered += 1;
-      } else if (nearestTaker(hit) === node) {
-        return { point, reason: null };
-      }
-    }
-    return {
-      point: null,
-      reason: `of ${String(points.length)} sampled visible points, ${String(covered)} hit another element and the rest sit over a nested scroller that takes the wheel`,
-    };
-  }, axis === "x");
+  // A nested region can sit scrolled out of its ancestors' ports; a user scrolls those first, as Playwright does here.
+  await viewport.scrollIntoViewIfNeeded();
+  const input: AimInput = { horizontal: axis === "x", steps: AIM_STEPS };
+  // A string page function is evaluated, never called, so the aim calls the evaluated handle itself.
+  const read = await walk.page.evaluateHandle<(node: Element, aim: AimInput) => WheelAim>(AIM_WHEEL);
+  const aim = await viewport.evaluate((node, handles) => handles.read(node, handles.input), { read, input });
+  await read.dispose();
   if (aim.point === null) {
     throw new Error(`A wheel cannot reach this scroll region: ${aim.reason}`);
   }
