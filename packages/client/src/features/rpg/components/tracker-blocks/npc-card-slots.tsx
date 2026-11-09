@@ -153,12 +153,13 @@ interface NpcMoodProps {
 function NpcMood({ name, mood, onEditMood }: NpcMoodProps): ReactElement | null {
   const moodLabel = mood?.trim() ?? "";
   if (onEditMood !== undefined) {
-    // flex-1 (basis-0) + min-w-0: the mood is model-authored free text with no length contract — it takes
-    // only the LEFTOVER header width and wraps inside it. A shrinkable auto-basis box instead put the
-    // name+badge half under shrink pressure, collapsing the pill under the mood label (owner scene-jank
-    // screenshot, 08-01). justify-end keeps the slot hugging the card's right edge like the mock.
+    // The mood is model-authored free text with no length contract. The header row wraps, so a mood wider than the
+    // leftover header width takes a line of its own, where it wraps inside the card, instead of pressing the
+    // name+badge half (owner scene-jank screenshot, 08-01) or collapsing to nothing beside it. It takes its content
+    // width first (`grow="content"`), because a zero-basis box beside a wide name is squeezed to no width at all, and
+    // justify-end keeps the slot hugging the card's right edge like the mock.
     return (
-      <Row gap="field" align="baseline" className="min-inline-0" grow={true} justify="end">
+      <Row gap="field" align="baseline" className="min-inline-0" grow="content" justify="end">
         <Text as="span" ink="muted" className="shrink-0" voice="gloss">
           mood
         </Text>
@@ -249,7 +250,7 @@ export function NpcCard({
   return (
     <Card>
       <Stack gap="block" data-slot="npc-card">
-        <Row justify="between" align="baseline" gap="block">
+        <Row justify="between" align="baseline" gap="block" wrap={true}>
           <Row gap="field" align="center" className="min-inline-0">
             {emoji === undefined || emoji === "" ? null : (
               <Text as="span" aria-hidden={true} className="shrink-0" voice="label">

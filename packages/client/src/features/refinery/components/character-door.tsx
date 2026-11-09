@@ -48,6 +48,7 @@ export function CharacterDoor({ placeholder, label, chosenName, disabled = false
       <PopoverPopup aria-label={label}>
         <CharacterPicker
           autoFocusSearch={true}
+          inPopover={true}
           emptyText="No characters match."
           label={label}
           onEscape={(): void => setOpen(false)}
