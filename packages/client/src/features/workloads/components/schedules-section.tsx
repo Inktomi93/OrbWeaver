@@ -34,7 +34,7 @@ import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useSuspe
 import { testId, timeLib } from "#lib";
 import { useDeleteSchedule, useSetScheduleEnabled } from "../hooks/use-workload-mutations.ts";
 import { WORKLOAD_KIND_LABELS } from "../lib/workloads-model.ts";
-import { SCHEDULE_CADENCE_LABELS } from "../lib/workloads-schedule-model.ts";
+import { SCHEDULE_CADENCE_LABELS, scheduleEnabledSwitchName } from "../lib/workloads-schedule-model.ts";
 import { WORKLOADS_SCHEDULES_SUBCATEGORY } from "../lib/workloads-schedules-nav.ts";
 import { CreateScheduleDialog, EditScheduleDialog } from "./create-schedule-dialog.tsx";
 
@@ -173,7 +173,7 @@ function ScheduleRow({
       actions={
         <Row align="center" gap="row" wrap={true} cap="fit">
           {schedule.mode === "bulk" ? <Badge>Bulk</Badge> : null}
-          <Switch aria-label={`Enable ${kindLabel} schedule`} checked={schedule.enabled} onCheckedChange={onToggle} />
+          <Switch aria-label={scheduleEnabledSwitchName(schedule.kind)} checked={schedule.enabled} onCheckedChange={onToggle} />
           <Button variant="outline" size="sm" aria-label={`Edit ${kindLabel} schedule`} onClick={onEdit}>
             Edit
           </Button>

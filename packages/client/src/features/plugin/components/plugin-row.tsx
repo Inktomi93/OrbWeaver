@@ -31,7 +31,7 @@ import {
   PLUGIN_ERROR_SENTENCE,
   pluginDetailsLabel,
   REMOVE_PLUGIN_DESCRIPTION,
-  showInChatLabel,
+  showInChatSwitchName,
   statusCopy,
 } from "../lib/plugin-copy.ts";
 import { PLUGIN_MODEL_HEADING } from "../lib/plugin-model-copy.ts";
@@ -69,7 +69,7 @@ function ShowInChatSwitch({ pluginId, pluginName }: { readonly pluginId: PluginI
     <SettingTrackRow>
       <SettingSwitchRow
         checked={!chatVisibility.isHidden(pluginId)}
-        label={showInChatLabel(pluginName)}
+        label={showInChatSwitchName(pluginName)}
         onChange={(shown): void => chatVisibility.setShown(pluginId, shown)}
       />
     </SettingTrackRow>

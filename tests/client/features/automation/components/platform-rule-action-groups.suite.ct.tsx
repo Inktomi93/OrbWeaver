@@ -10,6 +10,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import { ruleEnabledSwitchName } from "#client/features/automation/lib/rule-copy.ts";
 import type { ChatRulesStory, RuleActionGroupsStory } from "./_rule-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/automation/components/_rule-action-groups-stories/RuleActionGroupsStory";
@@ -61,7 +62,7 @@ for (const regime of REGIMES) {
       await expect(nameText).toBeVisible();
       await expect.poll(() => nameText.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
       const nameBox = await nameText.boundingBox();
-      const enableBox = await page.getByRole("switch", { name: `Enable ${name}`, exact: true }).boundingBox();
+      const enableBox = await page.getByRole("switch", { name: ruleEnabledSwitchName(name), exact: true }).boundingBox();
       if (nameBox === null || enableBox === null) {
         throw new Error("The closed rule must retain its visible identity and enable switch");
       }

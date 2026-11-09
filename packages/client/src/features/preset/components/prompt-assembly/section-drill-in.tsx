@@ -60,6 +60,7 @@ import {
   isStructuralSection,
   isTemplatedMarkerSection,
   OVERRIDABLE_MARKERS,
+  sectionEnabledSwitchName,
   sectionGlyphIcon,
   supportsArrangement,
   ZONE_ITEMS,
@@ -128,7 +129,7 @@ export function SectionDrillIn({ form, presetId, section, index, onBack }: Secti
           <Icon icon={sectionGlyphIcon(section)} size="sm" />
           <Text voice="label">{label}</Text>
           <Row grow={true} />
-          {pivot ? null : <EnableEcho form={form} index={index} label={label} />}
+          {pivot ? null : <EnableEcho form={form} index={index} section={section} />}
         </Row>
         <Text voice="gloss">{oneLiner}</Text>
       </Stack>
@@ -187,11 +188,11 @@ export function SectionDrillIn({ form, presetId, section, index, onBack }: Secti
 /** The drilled-in enable echo (§16 row 18) — the SAME `sections[i].enabled` path the rack row's Switch
  *  binds, rendered here because the primary home is off-screen while you edit. Amber-ON like the row it
  *  echoes: an echo that paints a different state grammar from its primary home is a second reading. */
-function EnableEcho({ form, index, label }: { readonly form: AssemblyForm; readonly index: number; readonly label: string }): ReactElement {
+function EnableEcho({ form, index, section }: { readonly form: AssemblyForm; readonly index: number; readonly section: PromptSection }): ReactElement {
   return (
     <form.AppField name={`sections[${index}].enabled`}>
       {(field): ReactElement => (
-        <Switch aria-label={`${label} enabled`} checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} />
+        <Switch aria-label={sectionEnabledSwitchName(section)} checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} />
       )}
     </form.AppField>
   );

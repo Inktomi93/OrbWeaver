@@ -27,7 +27,7 @@ import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import { useFocusOnSwap } from "#lib";
-import { isTemplatedMarker, sectionGlyphIcon, sectionKind, triggersPillLabel } from "#src/features/preset/lib/assembly-model.ts";
+import { isTemplatedMarker, sectionEnabledSwitchName, sectionGlyphIcon, sectionKind, triggersPillLabel } from "#src/features/preset/lib/assembly-model.ts";
 import { CARRIER_COST_GLYPH, formatEstimate, spokenEstimate } from "#src/features/preset/lib/format-count.ts";
 import type { PresetEditorValues } from "../../lib/preset-editor-values.ts";
 import { estimateSectionTokens } from "./estimate-tokens.ts";
@@ -156,7 +156,7 @@ export function SectionRow({ form, section, index, zone, selected, onSelect, onD
               the state signal it was rationing it for. */}
           <form.AppField name={`sections[${index}].enabled`}>
             {(field): ReactElement => (
-              <Switch aria-label={`${name} enabled`} checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} />
+              <Switch aria-label={sectionEnabledSwitchName(section)} checked={field.state.value} onCheckedChange={(next): void => field.handleChange(next)} />
             )}
           </form.AppField>
           <Button aria-label={`Edit ${name}`} variant="ghost" onClick={(): void => onDrill(section.id)} ref={chevronRef} square={true} type="button">

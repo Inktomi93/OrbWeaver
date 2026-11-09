@@ -7,7 +7,9 @@ export const pictureButtonVariants = tv({
   variants: {
     // A picture under the touch floor (a gutter chip) keeps its box and takes the pointer-conditional target on `::before`,
     // layout-neutral, so the row it sits in does not grow. It is raised so the reach stays above a positioned neighbour (a card's art overlay).
-    reach: { floor: ["relative", "z-(--z-raised)", TOUCH_TARGET_PSEUDO] },
+    // Below the `cq-16` container step the pseudo is dropped and the picture is the target (`avatar-reach.ts`): the touch token
+    // scales with the text, so its square would outgrow the row's small inset and gap and overlay the scroller's clip and the bubble.
+    reach: { floor: ["relative", "z-(--z-raised)", TOUCH_TARGET_PSEUDO, "@max-cq-16:before:hidden"] },
     // Whether the shared recipe paints a style. Unpainted, the button draws nothing at any state: the art stays the
     // affordance and dims a step on hover instead of gaining a tint.
     painted: { true: "", false: "cursor-pointer bg-transparent text-current hover:opacity-hover" },

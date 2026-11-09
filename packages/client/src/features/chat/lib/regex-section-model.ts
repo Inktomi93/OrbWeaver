@@ -26,6 +26,7 @@
 import type { RegexTierGroupView, RegexTierKey, RegexTierRowView } from "@orb/contracts/chat";
 import { parseCharacterRegexTierKey } from "@orb/contracts/chat";
 import type { CharacterId, RegexScriptId } from "@orb/kit/ids";
+import { itemSwitchName } from "#lib";
 
 /** WHERE each script draws — scriptId → the tier key whose group renders its row. The map is built once per
  *  read and consulted by every group, so the dedup decision is made in ONE pass over the whole listing
@@ -130,6 +131,17 @@ export function regexTierLever(scope: RegexTierKey, labels: ReadonlyMap<RegexTie
     default:
       return characterLabel(scope, labels);
   }
+}
+
+/** A script row's enable switch, in a tier group and in the On screen roster. It is the library row's own flag, so it
+ *  reaches every room: `Everywhere: <script>`. */
+export function regexScriptEverywhereSwitchName(scriptName: string): string {
+  return itemSwitchName("Everywhere", scriptName);
+}
+
+/** A tier's lever in the strip, whether the tier runs in this room: `In this chat: <tier>`. */
+export function regexTierAllowedSwitchName(tierLabel: string): string {
+  return itemSwitchName("In this chat", tierLabel);
 }
 
 /** The GROUP kicker — the same tier said as a provenance heading (§3's run-order groups). */

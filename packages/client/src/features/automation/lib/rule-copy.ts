@@ -29,7 +29,7 @@ import {
   SPEND_ARM_TYPES,
 } from "@orb/contracts/automation";
 import type { RoutableTask } from "@orb/contracts/inference";
-import { timeLib } from "#lib";
+import { ITEM_ENABLED_SETTING, itemSwitchName, timeLib } from "#lib";
 import type { FireOutcomeView } from "./fire-outcome.ts";
 
 export type { FireOutcomeView } from "./fire-outcome.ts";
@@ -209,7 +209,12 @@ export const SUGGEST_ON_REFUSAL_HELP =
  *  — appended AFTER the visible label so the visible text is contained exactly, which is what 2.5.3 asks
  *  and what a voice-control user speaks. */
 export function suggestOnRefusalAccessibleName(ruleName: string): string {
-  return `${SUGGEST_ON_REFUSAL_LABEL}: ${ruleName}`;
+  return itemSwitchName(SUGGEST_ON_REFUSAL_LABEL, ruleName);
+}
+
+/** A rule row's enable switch: `Enabled: <rule>`, one stable name per rule with `aria-checked` carrying the state. */
+export function ruleEnabledSwitchName(ruleName: string): string {
+  return itemSwitchName(ITEM_ENABLED_SETTING, ruleName);
 }
 
 /** The rule row's SECOND line: what this rule does, in the words the rule itself carries. A minted rule

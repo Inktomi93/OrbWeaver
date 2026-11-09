@@ -41,6 +41,7 @@ import { useInvalidation, useTRPC } from "#data";
 import { notify, REGEX_PLACEMENT_GLYPHS, REGEX_PLACEMENT_LABELS, regexPlacementStages, regexScriptTitle, rowActionSubject } from "#lib";
 import { openConfigTo, selectCollectionMember } from "#state";
 import { useDetachScriptFromChat, useSetRegexScriptEnabled } from "../hooks/use-chat-regex-mutations.ts";
+import { regexScriptEverywhereSwitchName } from "../lib/regex-section-model.ts";
 
 /** The config group the script library lives in — the `⋯ → Open in library` destination. */
 const REGEX_COLLECTION = "regex";
@@ -103,7 +104,7 @@ export function RegexTierRow({ chatId, row, alsoAt, scope, isHost, notYours, qua
             // from the room and must be chosen, not stumbled into.
             actions: (
               <Row align="center" gap="tight">
-                {notYours ? null : <Switch aria-label={`${name}: everywhere`} checked={script.enabled} onCheckedChange={flip} tone="quiet" />}
+                {notYours ? null : <Switch aria-label={regexScriptEverywhereSwitchName(name)} checked={script.enabled} onCheckedChange={flip} tone="quiet" />}
                 {menu}
               </Row>
             ),
