@@ -57,6 +57,7 @@ export function StartSessionDoor({
       <PopoverPopup aria-label={START_SESSION_LABEL}>
         <CharacterPicker
           autoFocusSearch={true}
+          inPopover={true}
           emptyText="No characters match."
           label={START_SESSION_LABEL}
           onEscape={(): void => setPickerOpen(false)}

@@ -63,6 +63,10 @@ export const MAX_HEIGHT = {
   scrollMdWide: "max-block-(--height-scroll-md) @cq-28:max-block-(--height-scroll-lg)",
   paneSm: "max-block-(--container-cq-24)",
   available: "max-block-(--available-height)",
+  // The large scroll step for a list inside an anchored popup (only a popup publishes `--available-height`): never more than the room the anchor
+  // leaves less one touch row, so the popup's own scroll keeps a strip a wheel can reach past the list.
+  scrollLgBelowAnchor:
+    "max-block-[calc(min(var(--height-scroll-lg),max(var(--height-scroll-short),calc(var(--available-height)-var(--height-scroll-short)))))]",
   // On a phone-width pane the box takes at most half of it, so the column it sits above stays in sight.
   halfNarrow: "@max-cq-32:max-block-1/2",
 } as const;

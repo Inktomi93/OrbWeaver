@@ -25,3 +25,5 @@ After Retry no query-error remains in the config content at 200% and 300% on chr
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Diagnosis (cb-w1d): in all four text walks the Retry button is covered by the boot veil (weave-veil) at the probe, on desktop too, so the finding reads probe timing rather than a text-scale defect. Remaining: the probe waits for the veil to leave, or reads it as transient chrome, and the walk rechecks Retry.

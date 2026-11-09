@@ -20,6 +20,7 @@ import type { AppShellCharacterStory, AppShellRoomStory } from "./_app-shell-sto
 import { namedGroupRoom, routeRoom, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const PHONE = { width: 390, height: 844 } as const;
+const NARROW_PHONE = { width: 320 } as const;
 const SCALES = [2, 3] as const;
 // The share of the phone's width a notice's words need to read as a line of text rather than a column of letters.
 const TOAST_COPY_SHARE = 0.4;
@@ -121,27 +122,32 @@ test.describe("on a phone", () => {
     });
 
     for (const chatStyle of THEME_CHAT_STYLES) {
-      test(`the ${chatStyle} style leaves a message's actions and Save edit pressable at ${String(factor * 100)}% text`, async ({ mount, page }) => {
-        // The ripple phone portrait is rem-sized (100px, 200px at 200%) in a card that does not grow, and covers the editor's buttons. A cap as a share of
-        // the card needs a container-relative token: a percentage on the Avatar resolves against its shrink-to-fit button and narrows its reach square.
-        test.fixme(chatStyle === "ripple", "2296: the ripple portrait covers Cancel edit and Save edit at enlarged text");
-        const { chatId, messageIds } = await pictureRoom(chatStyle);
-        await seedShellState(page, { activeSection: "chats" });
-        await mount<typeof AppShellRoomStory>(`${SHELL_STORIES}/AppShellRoomStory`, { chatId });
-        await expect(page.locator('[data-slot="composer"]')).toBeVisible();
-        await scaleRoot(page, factor);
-        for (const role of ROLES) {
-          const row = page.locator(`${MESSAGE_ROW}[data-message-id="${messageIds.get(role) ?? ""}"]`);
-          await row.evaluate((node) => node.scrollIntoView({ block: "center" }));
-          // A row's actions reveal on focus into the row at a touch pointer, so the press is judged once they show.
-          const actions = row.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME, exact: true });
-          await actions.focus();
-          await expectPressable(actions);
-          await row.getByRole("button", { name: MESSAGE_EDIT_NAME, exact: true }).click();
-          await expectPressable(row.getByRole("button", { name: CHAT_SAVE_EDIT_NAME, exact: true }));
-          await row.getByRole("button", { name: CHAT_CANCEL_EDIT_NAME, exact: true }).click();
-        }
-      });
+      // The ripple portrait is a share of the card, so its two phone widths are both measured.
+      const widths = chatStyle === "ripple" ? [NARROW_PHONE.width, PHONE.width] : [PHONE.width];
+      for (const width of widths) {
+        test(`the ${chatStyle} style leaves a message's actions and Save edit pressable at ${String(factor * 100)}% text on a ${String(width)} wide phone`, async ({
+          mount,
+          page,
+        }) => {
+          await page.setViewportSize({ width, height: PHONE.height });
+          const { chatId, messageIds } = await pictureRoom(chatStyle);
+          await seedShellState(page, { activeSection: "chats" });
+          await mount<typeof AppShellRoomStory>(`${SHELL_STORIES}/AppShellRoomStory`, { chatId });
+          await expect(page.locator('[data-slot="composer"]')).toBeVisible();
+          await scaleRoot(page, factor);
+          for (const role of ROLES) {
+            const row = page.locator(`${MESSAGE_ROW}[data-message-id="${messageIds.get(role) ?? ""}"]`);
+            await row.evaluate((node) => node.scrollIntoView({ block: "center" }));
+            // A row's actions reveal on focus into the row at a touch pointer, so the press is judged once they show.
+            const actions = row.getByRole("button", { name: MESSAGE_ACTIONS_MENU_NAME, exact: true });
+            await actions.focus();
+            await expectPressable(actions);
+            await row.getByRole("button", { name: MESSAGE_EDIT_NAME, exact: true }).click();
+            await expectPressable(row.getByRole("button", { name: CHAT_SAVE_EDIT_NAME, exact: true }));
+            await row.getByRole("button", { name: CHAT_CANCEL_EDIT_NAME, exact: true }).click();
+          }
+        });
+      }
     }
   }
 

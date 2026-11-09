@@ -38,7 +38,7 @@ export const numberFieldVariants = tv({
       "data-readonly:cursor-default",
     ],
     input: [
-      "-my-(--border-width-control) bg-transparent text-foreground tabular-nums inline-full min-inline-0",
+      "-my-(--border-width-control) bg-transparent text-foreground tabular-nums inline-full min-inline-(--size-control-md)",
       "placeholder:text-muted-foreground",
       `outline-none ${FOCUS_RING_INSET}`,
       DISABLED_STATE,

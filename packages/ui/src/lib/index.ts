@@ -70,7 +70,20 @@ export { SELECTION_CONTROL, TOUCH_TARGET_PSEUDO, TOUCH_TARGET_PSEUDO_STRETCH } f
 export { SELECTION_RAIL, SELECTION_RAIL_TONE } from "./selection-rail.ts";
 export { SELECTION_RING_CHECKED, SELECTION_RING_SELECTED } from "./selection-ring.ts";
 export { sinHash } from "./sin-hash.ts";
-export { CAPTION, FIELD_LABEL, FIELD_ROW, FIELD_STACK, FILL_PARENT, INLINE_FIELD_ROW, ROW_STRIP, SCROLLER, SCROLLER_Y, TITLE_STEP } from "./slots.ts";
+export {
+  CAPTION,
+  FIELD_LABEL,
+  FIELD_ROW,
+  FIELD_STACK,
+  FILL_PARENT,
+  INLINE_FIELD_ROW,
+  ROW_STRIP,
+  SCROLLER,
+  SCROLLER_CHAINED,
+  SCROLLER_Y,
+  SCROLLER_Y_CHAINED,
+  TITLE_STEP,
+} from "./slots.ts";
 export { ARRIVAL, COLOR_MOTION, OPEN_TURN, PULSE } from "./state-motion.ts";
 export { TEXT_ALIGN } from "./text-align.ts";
 export { INKS, TONE_ARMS, TONE_TEXT, type ToneInkSelection } from "./tone-ink.ts";

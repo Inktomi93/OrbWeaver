@@ -99,7 +99,7 @@ export function ControlAxesStory(): ReactElement {
         <Button data-probe="button-whitespace" whitespace="normal">
           {LONG_LABEL}
         </Button>
-        <Button data-probe="button-nowrap">{LONG_LABEL}</Button>
+        <Button data-probe="button-default">{LONG_LABEL}</Button>
         <Badge data-probe="badge-whitespace" whitespace="normal">
           {LONG_LABEL}
         </Badge>
