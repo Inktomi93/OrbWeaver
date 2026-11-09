@@ -6,6 +6,7 @@ import type { WebVitalsEmission } from "@orb/testkit/browser/spec";
 import {
   accessibilityScan,
   assertSurfaceReady,
+  controlledPanel,
   drainWebVitals,
   enlargedTextFindings,
   installWebVitals,
@@ -35,6 +36,8 @@ import type { SerializedPerformanceEntry } from "./performance-entry.ts";
 import type {
   SurfaceCodeEditorStory,
   SurfaceDesignStory,
+  SurfaceTextContainedOverlayStory,
+  SurfaceTextDisclosureStory,
   SurfaceTextGeometryStory,
   SurfaceTextOverlapStory,
   SurfaceTouchTilingStory,
@@ -517,6 +520,66 @@ for (const clipped of [false, true]) {
   });
 }
 
+// Frames a held view transition's update callback waits before it lets the swap go on.
+const HELD_SWAP_FRAMES = 10;
+
+test("enlarged-text geometry waits out a view transition whose update has not let its animations start", async ({ mount, page, browserName }, info) => {
+  test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+  await using profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+  await page.addInitScript({ content: webVitalsInitScript(await webVitalsSource()) });
+  await mount<typeof SurfaceTextGeometryStory>("tests/support/browser/surface-design-fixtures/SurfaceTextGeometryStory", { clipped: false });
+  const witness = page.getByRole("button", { name: "Continue to the next step", exact: true });
+  await expect(witness).toBeVisible();
+  // A content swap whose update waits on its destination holds the transition before any of its animations exist;
+  // the document root takes every hit test in that window.
+  const held = await page.evaluate((frames) => {
+    document.startViewTransition(
+      () =>
+        new Promise<void>((resolve) => {
+          let left = frames;
+          const tick = (): void => {
+            left -= 1;
+            if (left === 0) {
+              resolve();
+            } else {
+              requestAnimationFrame(tick);
+            }
+          };
+          requestAnimationFrame(tick);
+        }),
+    );
+    return document.getAnimations().length === 0 && document.documentElement.matches(":active-view-transition");
+  }, HELD_SWAP_FRAMES);
+  expect(held).toBe(true);
+  const name = "text-geometry-held-swap";
+  await surfaceCheckpoint(info, { name, scope: page.getByRole("main"), state: "loaded", witnesses: [witness], checks: ["names"] }, [], {
+    pass: "measurement",
+    layoutStability: false,
+    textGeometry: { expectedRootFontPx: profile.standardFontPx },
+  });
+  expect(await nativeAttachmentText(info, `${name}-text-geometry`)).toContain('"swapAtReadiness": true');
+  expect(info.errors).toEqual([]);
+});
+
+test("enlarged-text geometry judges a disclosure's controls once its panel has grown to rest", async ({ mount, page, browserName }, info) => {
+  test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+  await using profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+  await page.addInitScript({ content: webVitalsInitScript(await webVitalsSource()) });
+  await mount<typeof SurfaceTextDisclosureStory>("tests/support/browser/surface-design-fixtures/SurfaceTextDisclosureStory", {});
+  const trigger = page.getByRole("button", { name: "Disclosure options", exact: true });
+  await trigger.click();
+  const witness = page.getByRole("button", { name: "Last disclosed control", exact: true });
+  await expect(witness).toBeVisible();
+  const name = "text-geometry-opening-disclosure";
+  await surfaceCheckpoint(info, { name, scope: await controlledPanel(trigger), state: "loaded", witnesses: [witness], checks: ["names"] }, [], {
+    pass: "measurement",
+    layoutStability: false,
+    textGeometry: { expectedRootFontPx: profile.standardFontPx },
+  });
+  expect(await nativeAttachmentText(info, `${name}-text-geometry`)).toContain('"settlingAtReadiness": true');
+  expect(info.errors).toEqual([]);
+});
+
 test("enlarged-text geometry still names a visible button a fixed box clips, and not a slider's visually hidden input", async ({
   mount,
   page,
@@ -548,6 +611,16 @@ for (const { naming, finding } of OVERLAP_CASES) {
     expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([expect.stringMatching(finding)]);
   });
 }
+
+test("enlarged-text geometry fails a control laid wholly inside a sibling it does not nest in", async ({ mount, page, browserName }) => {
+  test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+  await using _textSize = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+  await mount<typeof SurfaceTextContainedOverlayStory>("tests/support/browser/surface-design-fixtures/SurfaceTextContainedOverlayStory", {});
+  await expect(page.getByRole("button", { name: "Corner control", exact: true })).toBeVisible();
+  expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([
+    expect.stringMatching(/^button "Covered row" \[.*\] overlaps button "Corner control" \[.*\]$/u),
+  ]);
+});
 
 test("the design walk restores real nested scroll positions after a native reveal throws", async ({ mount, page }) => {
   await mount<typeof SurfaceDesignStory>("tests/support/browser/surface-design-fixtures/SurfaceDesignStory", { width: 640 });

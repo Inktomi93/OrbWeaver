@@ -1,6 +1,7 @@
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { CodeEditor } from "@orb/ui/code-editor";
+import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
@@ -106,6 +107,29 @@ export function SurfaceTextGeometryStory({ clipped }: { readonly clipped: boolea
   );
 }
 
+/** A closed production disclosure whose panel holds stacked controls: opening it grows the clipping panel to rest. */
+export function SurfaceTextDisclosureStory(): ReactElement {
+  return (
+    <CtIsolation subject="Enlarged-text disclosure" isolates="One production collapsible and its controls need no application services.">
+      <main>
+        <Stack padding="section">
+          <h1>Disclosure control</h1>
+          <Collapsible>
+            <CollapsibleTrigger>Disclosure options</CollapsibleTrigger>
+            <CollapsiblePanel>
+              <Stack gap="row">
+                <Button variant="outline">First disclosed control</Button>
+                <Button variant="outline">Second disclosed control</Button>
+                <Button variant="outline">Last disclosed control</Button>
+              </Stack>
+            </CollapsiblePanel>
+          </Collapsible>
+        </Stack>
+      </main>
+    </CtIsolation>
+  );
+}
+
 // How the overlapping pair is named: buttons by their content, text fields by placeholder only, or text fields with no name.
 const OVERLAP_NAMINGS = ["content", "placeholder", "none"] as const;
 type OverlapNaming = (typeof OVERLAP_NAMINGS)[number];
@@ -133,6 +157,33 @@ export function SurfaceTextOverlapStory({ naming }: { readonly naming: OverlapNa
               <Input name="overControl" style={over} {...(naming === "placeholder" ? { placeholder: "Filter" } : {})} />
             </>
           )}
+        </Stack>
+      </main>
+    </CtIsolation>
+  );
+}
+
+/** A control laid wholly inside another's corner as its sibling, not its child: the tree declares no nesting. */
+export function SurfaceTextContainedOverlayStory(): ReactElement {
+  const control = `var(${TOKENS["size.control-md"].cssVar})`;
+  return (
+    <CtIsolation subject="Enlarged-text contained overlay" isolates="Two production controls, one over the other's corner, need no application services.">
+      <main>
+        <Stack padding="section">
+          <h1>Contained overlay control</h1>
+          <Stack style={{ position: "relative" }}>
+            <Button variant="outline" style={{ blockSize: `calc(3 * ${control})` }}>
+              Covered row
+            </Button>
+            <GlyphButton
+              aria-label="Corner control"
+              glyph="sm"
+              variant="ghost"
+              style={{ position: "absolute", insetBlockStart: `calc(0.25 * ${control})`, insetInlineEnd: `calc(0.25 * ${control})` }}
+            >
+              <Icon icon={Plus} size="sm" />
+            </GlyphButton>
+          </Stack>
         </Stack>
       </main>
     </CtIsolation>
