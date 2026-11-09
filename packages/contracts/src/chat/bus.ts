@@ -12,6 +12,7 @@
 import type { CharacterId, ChatId, ChatTurnId, MessageId, MessageVariantId, PersonaId, WorldEntryId } from "@orb/kit/ids";
 import type { ChatApi, EffortLevel, ProviderId } from "#inference";
 import type { WiBusEvent } from "#world-info";
+import { WARNING_CODE } from "../inference/warnings.ts";
 import type { AdjustedKnob } from "./adjusted-knobs.ts";
 
 import type { ChatReasoningPart, MessageView, ReasoningPartMeta, ToolCallId } from "./messages.ts";
@@ -197,54 +198,30 @@ export const SETTINGS_ADJUSTED_CODE = "settings_adjusted";
 export const CHAT_WARNING_CODES = [...PLAIN_CHAT_WARNING_CODES, SETTINGS_ADJUSTED_CODE] as const;
 export type ChatWarningCode = (typeof CHAT_WARNING_CODES)[number];
 
-/** WHICH provider degradation a `settings_adjusted` warning reports — the chat-side vocabulary for the
- *  resolve/wire drop classes the infra runners raise (`WARNING_CODE` in `packages/contracts/src/inference/warnings.ts`).
- *  Spelled IDENTICALLY to that object's degradation members so the domain map is a MATCH, never a
- *  re-spell — the `custom_parameters_ignored` precedent. It is a SEPARATE tuple by necessity and by design:
- *  `contracts` sits below `server`, so it cannot import infra's vocabulary, and chat must stay free to
- *  classify a drop differently from the runner that raised it. One home; the union derives from it. */
+// The provider ran the turn in a compatibility mode: it substituted its own value where this model spells a setting
+// differently, or accepted a deprecated spelling. The setting did apply, just not as asked, so it is not a drop.
+const PROVIDER_COMPATIBILITY_MODE = "provider_compatibility_mode";
+
+/** WHICH provider degradation a `settings_adjusted` warning reports. The drop classes are the infra runners' own
+ *  {@link WARNING_CODE} members, read from that one home so the domain map in `toChatWarning` is a match and a rename
+ *  carries through. Chat still classifies a drop itself: the SDK's own gate re-voices as the funnel's class, and the
+ *  compatibility kind is chat's own sentence for the SDK's compatibility code. */
 export const PROVIDER_ADJUSTMENT_KINDS = [
-  // A sampling/quality knob was not sent: the resolved model exposes no range for it, does not support it,
-  // or (for `thinkingBudgetTokens`) reasons by effort level and has no budget field. `knob` names which.
-  "sampling_knob_dropped",
-  // Two knobs the model rejects TOGETHER (`capability.sampling.exclusive`); the funnel kept the first-listed
-  // and dropped the other. `knob` names the dropped one.
-  "sampling_knob_conflict",
-  // The requested reasoning effort is not one the model lists — it chose its own.
-  "effort_dropped",
-  // A thinking-budget request hit an ADAPTIVE-reasoning model, which budgets itself (an explicit budget 400s it).
-  "adaptive_budget_dropped",
-  // The requested reasoning-display mode is not one the model offers.
-  "display_dropped",
-  // The requested verbosity level is not one the model offers.
-  "verbosity_dropped",
-  // The per-turn system half was asked to ride the mid-conversation hook channel on a model that does not
-  // honor one, so it was folded into the system block instead.
-  "dynamic_context_demoted",
-  // Reasoning is MANDATORY on this model, so an off/absent effort was clamped UP. `appliedEffort` is what ran.
-  "reasoning_mandatory_clamp",
-  // A budget-mode reasoning budget was clamped DOWN to leave the visible reply headroom under the output
-  // cap. `appliedBudget` is the budget that ran.
-  "reasoning_budget_clamped",
-  // A history tool-result carried `isError`, which this wire cannot express — the model reads a failed tool
-  // result as an ordinary one.
-  "tool_result_error_dropped",
-  // The turn carried a content prefill AND asked for thinking — mutually exclusive on this wire, so the
-  // prefill won and the thinking kwargs were dropped.
-  "reasoning_dropped_for_prefill",
-  // A FORCED tool choice went out as `auto`: this model rejects forced tool use outright, so the tools were
-  // offered and the model decided whether to call one.
-  "tool_choice_downgraded",
-  // The reasoning carry was asked for the whole conversation and ran only inside this turn's tool loop: the model
-  // binds its thinking to the conversation so far, and this connection cannot keep an earlier edit from failing
-  // the reply.
-  "carry_reasoning_downgraded",
-  "cache_control_adjusted",
-  // The provider ran the turn in a COMPATIBILITY mode: it substituted its own value where this model spells
-  // a setting differently (a default thinking budget, an output cap guessed for a model it does not know) or
-  // accepted a deprecated spelling. Distinct from the drop classes above because the setting DID apply —
-  // just not as asked — so "wasn't used" would be the wrong sentence.
-  "provider_compatibility_mode",
+  WARNING_CODE.samplingKnobDropped,
+  WARNING_CODE.samplingKnobConflict,
+  WARNING_CODE.effortDropped,
+  WARNING_CODE.adaptiveBudgetDropped,
+  WARNING_CODE.displayDropped,
+  WARNING_CODE.verbosityDropped,
+  WARNING_CODE.dynamicContextDemoted,
+  WARNING_CODE.reasoningMandatoryClamp,
+  WARNING_CODE.reasoningBudgetClamped,
+  WARNING_CODE.toolResultErrorDropped,
+  WARNING_CODE.reasoningDroppedForPrefill,
+  WARNING_CODE.toolChoiceDowngraded,
+  WARNING_CODE.carryReasoningDowngraded,
+  WARNING_CODE.cacheControlAdjusted,
+  PROVIDER_COMPATIBILITY_MODE,
 ] as const;
 type ProviderAdjustmentKind = (typeof PROVIDER_ADJUSTMENT_KINDS)[number];
 
