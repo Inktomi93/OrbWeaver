@@ -106,6 +106,11 @@ const QUALIFIED = {
     [NARROW, LAYOUT_300],
   ],
   presetsWelcome: EVERY_CELL,
+  // The 320 phone is where these labels outgrow the pane at 300%; the 390 phone is the control beside it.
+  emptyStateActions: [
+    [PHONE, LAYOUT_300],
+    [NARROW, LAYOUT_300],
+  ],
   importDialog: EVERY_CELL,
   characterEditor: EVERY_CELL,
   saveBarName: [
@@ -1118,6 +1123,40 @@ for (const [viewport, scale] of QUALIFIED.presetsWelcome) {
       expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
     });
   });
+}
+
+// A section's no-selection welcome whose EmptyState offers a Button. The action wraps without a prop at the call site.
+const EMPTY_STATE_ACTION_SURFACES = [
+  { surface: "Chats landing", section: "chats" },
+  { surface: "Extensions page picker", section: "extensions" },
+] as const;
+
+for (const [viewport, scale] of QUALIFIED.emptyStateActions) {
+  for (const { surface, section } of EMPTY_STATE_ACTION_SURFACES) {
+    test.describe(`${surface} action at ${scale.name} on the ${viewport.name}`, () => {
+      test.use({ viewport: viewport.size, hasTouch: viewport.touch, isMobile: viewport.touch });
+
+      test("stays inside the content pane", async ({ mount, page }) => {
+        await seedShellState(page, { activeSection: section });
+        await mount<typeof AppShellStory>(STORY, {});
+        // A phone lands on the roster; the topbar door swaps it for the section's no-selection content.
+        await page.getByRole("button", { name: /^Show .+ overview$/u }).click();
+        const pane = page.locator(".shell-content");
+        const action = pane.locator('[data-slot="empty-state-action"] [data-slot="button"]');
+        await expect(action).toBeVisible();
+        await scaleRoot(page, scale.factor);
+        await expect
+          .poll(async () => {
+            const [within, box] = await Promise.all([pane.boundingBox(), action.boundingBox()]);
+            return within !== null && box !== null && box.x >= within.x - SUBPIXEL && box.x + box.width <= within.x + within.width + SUBPIXEL;
+          })
+          .toBe(true);
+        // The welcome alone: the narrow phone's topbar at 300% is a separate, qualified-out cell of this suite.
+        await expect.poll(() => findings(pane.locator('[data-slot="empty-state-root"]'))).toEqual([]);
+        expect(await documentOverflow(page)).toBeLessThanOrEqual(0);
+      });
+    });
+  }
 }
 
 for (const [viewport, scale] of QUALIFIED.importDialog) {

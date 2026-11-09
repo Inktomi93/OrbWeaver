@@ -33,8 +33,7 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { useDeleteSchedule, useSetScheduleEnabled } from "../hooks/use-workload-mutations.ts";
-import { WORKLOAD_KIND_LABELS } from "../lib/workloads-model.ts";
-import { SCHEDULE_CADENCE_LABELS, scheduleEnabledSwitchName } from "../lib/workloads-schedule-model.ts";
+import { scheduleDeleteName, scheduleEditName, scheduleEnabledSwitchName, scheduleName } from "../lib/workloads-schedule-model.ts";
 import { WORKLOADS_SCHEDULES_SUBCATEGORY } from "../lib/workloads-schedules-nav.ts";
 import { CreateScheduleDialog, EditScheduleDialog } from "./create-schedule-dialog.tsx";
 
@@ -137,7 +136,7 @@ function SchedulesBody({ anchorId }: { readonly anchorId: string }): ReactElemen
   );
 }
 
-/** One schedule row — kind label · cadence + next-run subtitle, a Bulk badge, an enable Switch + Edit + Delete. */
+/** One schedule row — a title naming kind, cadence and (on another user's row) owner, a next-run subtitle, a Bulk badge, an enable Switch + Edit + Delete. */
 function ScheduleRow({
   schedule,
   ownerHandle,
@@ -151,40 +150,37 @@ function ScheduleRow({
   readonly onEdit: () => void;
   readonly onDelete: () => void;
 }): ReactElement {
-  const kindLabel = WORKLOAD_KIND_LABELS[schedule.kind];
-  const cadence = SCHEDULE_CADENCE_LABELS[schedule.cadence];
+  const identity = { kind: schedule.kind, cadence: schedule.cadence, ownerHandle };
+  const name = scheduleName(identity);
   // ONE CADENCE VOCABULARY (side-eye 2026-08-08 P3). `formatRelative` flips to an absolute date past its
   // horizon, so two adjacent rows read "Next in 6d" and "Next Sep 7, 2026" — the same field in two
   // languages, and the reader has to work out that they are the same kind of fact. The absolute stamp is the
   // arm that is TOTAL: a schedule's next run is a wall-clock appointment at any distance, where "in 8 months"
   // is not a thing anyone can act on.
   const nextRun = schedule.enabled ? `Next ${timeLib.formatDateTime(schedule.nextRunAt)}` : "Paused";
-  // A schedule its tick refuses starts nothing, so the row names the refusal where the next run would read.
-  const subtitleParts = [`${cadence} · ${schedule.refusal === undefined ? nextRun : WORKLOAD_RUN_ACCOUNT_REFUSAL}`];
-  if (ownerHandle !== null) {
-    subtitleParts.push(`for ${ownerHandle}`);
-  }
+  // A schedule its tick refuses starts nothing, so the row names the refusal where the next run would read. The title
+  // already states the cadence and the owner.
   return (
     <ListRow
-      title={kindLabel}
-      subtitle={subtitleParts.join(" · ")}
+      title={name}
+      subtitle={schedule.refusal === undefined ? nextRun : WORKLOAD_RUN_ACCOUNT_REFUSAL}
       subtitleWrap={schedule.refusal !== undefined}
       stackActions={true}
       actions={
         <Row align="center" gap="row" wrap={true} cap="fit">
           {schedule.mode === "bulk" ? <Badge>Bulk</Badge> : null}
-          <Switch aria-label={scheduleEnabledSwitchName(schedule.kind)} checked={schedule.enabled} onCheckedChange={onToggle} />
-          <Button variant="outline" size="sm" aria-label={`Edit ${kindLabel} schedule`} onClick={onEdit}>
+          <Switch aria-label={scheduleEnabledSwitchName(identity)} checked={schedule.enabled} onCheckedChange={onToggle} />
+          <Button variant="outline" size="sm" aria-label={scheduleEditName(identity)} onClick={onEdit}>
             Edit
           </Button>
           {/* Qualified like its Switch/Edit siblings (WCAG 2.4.6 / 4.1.2, side-eye 2026-08-08 P1-3): a list
               of rows whose only DESTRUCTIVE control announces the bare name "Delete" gives a screen-reader
               user N identical buttons and no way to tell which row they are about to destroy. */}
           <DestructiveAction
-            confirm={{ confirmLabel: "Delete schedule", description: "The schedule is removed and stops running.", title: `Delete the ${kindLabel} schedule?` }}
+            confirm={{ confirmLabel: "Delete schedule", description: "The schedule is removed and stops running.", title: `Delete ${name}?` }}
             onConfirm={onDelete}
             trigger={
-              <Button variant="ghost" size="sm" aria-label={`Delete ${kindLabel} schedule`}>
+              <Button variant="ghost" size="sm" aria-label={scheduleDeleteName(identity)}>
                 Delete
               </Button>
             }

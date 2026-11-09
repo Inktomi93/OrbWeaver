@@ -2,7 +2,12 @@ import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import type { ScheduleIdentity } from "#client/features/workloads/lib/workloads-schedule-model.ts";
+import { scheduleDeleteName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import type { ScheduleDialogDismissalStory } from "./_schedule-dialog-dismissal-stories.tsx";
+
+/** The schedule this case adds; the corpus may hold another of its kind, so the first match is the one asked about. */
+const ADDED = { kind: "reconcile-stats", cadence: "daily", ownerHandle: null } as const satisfies ScheduleIdentity;
 
 const STORY = "tests/client/features/workloads/components/_schedule-dialog-dismissal-stories/ScheduleDialogDismissalStory";
 const READS = ["sessions.me", "workloads.listSchedules", "admin.listUsers", "settings.getUserSettings", "connection.listBindings", "connection.list"] as const;
@@ -12,12 +17,12 @@ test("Delete schedule asks first: Cancel keeps the schedule, Delete removes it o
   const caller = await root.internalCallerFor(root.ownerId);
   await caller.settings.updateUserSettingsSection({ section: "appearance", patch: DEFAULT_APPEARANCE_SETTINGS });
   await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
-  await caller.workloads.createSchedule({ input: { kind: "reconcile-stats", params: {} }, mode: "singular", cadence: "daily", enabled: false });
+  await caller.workloads.createSchedule({ input: { kind: ADDED.kind, params: {} }, mode: "singular", cadence: ADDED.cadence, enabled: false });
   await routeTrpc(page, serveCorpusProcedures(caller, [...READS, "workloads.deleteSchedule"]));
   await mount<typeof ScheduleDialogDismissalStory>(STORY, { width: 900 });
 
   const before = (await caller.workloads.listSchedules({})).length;
-  const remove = page.getByRole("button", { name: /^Delete .* schedule$/u }).first();
+  const remove = page.getByRole("button", { name: scheduleDeleteName(ADDED), exact: true }).first();
   await remove.click();
   const confirm = page.getByRole("alertdialog");
   await expect(confirm).toBeVisible();

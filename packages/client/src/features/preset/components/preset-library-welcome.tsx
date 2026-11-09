@@ -99,7 +99,7 @@ export function PresetLibraryWelcome(): ReactElement {
       {/* `my-auto` centres only while the block fits: `justify-center` on a column the block overflows pushed its top above the pane, over the topbar. */}
       <EmptyState
         action={
-          <Button disabled={creating.pending} onClick={creating.create} wrap={true}>
+          <Button disabled={creating.pending} onClick={creating.create}>
             <Icon icon={Plus} size="sm" />
             {NEW_PRESET_NAME}
           </Button>
