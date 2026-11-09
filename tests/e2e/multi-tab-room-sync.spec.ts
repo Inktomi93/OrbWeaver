@@ -22,6 +22,7 @@ import type { CharacterHandle, CharacterId, ChatId } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-tab-labels.ts";
 import { CHAT_ADD_CHARACTER_NAME, CHAT_ADD_CHARACTER_PLACEHOLDER } from "#client/features/chat/lib/members-names.ts";
 import {
   assistantRows,
@@ -103,7 +104,7 @@ test("a roster change in tab A reaches tab B's open room live (seat added, then 
     // the human acts in the tab they are looking at; tab B's passivity is the property under test.
     await tabA.bringToFront();
     await openDetailPanel(tabA);
-    await openContextTab(tabA, "Members");
+    await openContextTab(tabA, CHAT_CONTEXT_TAB_LABELS.members);
     await tabA.getByRole("button", { name: CHAT_ADD_CHARACTER_NAME, exact: true }).click();
     await tabA.getByRole("option", { name: CHARACTERS[2].name, exact: true }).click();
     await expect.poll(async () => (await characterChipNames(tabA)).length, { timeout: WAIT_SURFACE_MS }).toBe(3);
@@ -117,7 +118,7 @@ test("a roster change in tab A reaches tab B's open room live (seat added, then 
 
     // …and the symmetric drop fans the same way (the seat leaves B's room with no reload).
     await openDetailPanel(tabA);
-    await openContextTab(tabA, "Members");
+    await openContextTab(tabA, CHAT_CONTEXT_TAB_LABELS.members);
     await openMemberRowMenu(tabA, CHARACTERS[2].name);
     await tabA.getByRole("menuitem", { name: `Remove ${CHARACTERS[2].name} from chat` }).click();
 

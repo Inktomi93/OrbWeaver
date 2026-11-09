@@ -7,6 +7,7 @@ import type { CharacterId, PersonaId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { devices } from "@playwright/test";
 import { z } from "zod";
+import { CHAT_MEMBERS_ENTRY_PREFIX } from "#client/features/chat/lib/chat-surface-names.ts";
 import { CHAT_INVITE_PEOPLE_NAME } from "#client/features/chat/lib/members-names.ts";
 import { loginLocal } from "./support/actors.ts";
 import { openChatByTitle, waitForAppReady } from "./support/chat-room.ts";
@@ -14,6 +15,9 @@ import { expect, test } from "./support/corpus-test.ts";
 import { BROWSER_PROJECTS, CORPUS_LOCAL_PASSWORDS, SELECTED_LOCAL_CORPUS_FIXTURE } from "./support/modes.ts";
 
 test.skip(SELECTED_LOCAL_CORPUS_FIXTURE === undefined, "Requires the committed local corpus");
+
+// The entry names the member count after its prefix; each viewer may count a different roster.
+const MEMBERS_ENTRY = new RegExp(`^${RegExp.escape(CHAT_MEMBERS_ENTRY_PREFIX)}`, "u");
 
 test("a second corpus human opens shared history without gaining host or admin controls", { tag: "@smoke" }, async ({ page, browser, baseURL }, info) => {
   const wire = SELECTED_LOCAL_CORPUS_FIXTURE?.wire;
@@ -63,8 +67,8 @@ test("a second corpus human opens shared history without gaining host or admin c
     await openChatByTitle(page, room.title);
     await openChatByTitle(memberPage, room.title);
     await expect(memberPage.locator(`[data-message-id="${last.id}"]`)).toContainText(rendered);
-    const hostEntry = page.getByRole("button", { name: /^Members /u });
-    const memberEntry = memberPage.getByRole("button", { name: /^Members /u });
+    const hostEntry = page.getByRole("button", { name: MEMBERS_ENTRY });
+    const memberEntry = memberPage.getByRole("button", { name: MEMBERS_ENTRY });
     await hostEntry.click();
     await memberEntry.click();
     await expect(page.getByRole("button", { name: CHAT_INVITE_PEOPLE_NAME, exact: true })).toBeVisible();

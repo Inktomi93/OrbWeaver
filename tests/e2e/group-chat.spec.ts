@@ -158,7 +158,7 @@ test("removing a character through the Members row menu drops the seat server-si
   try {
     await openChatByTitle(page, title);
     await openDetailPanel(page);
-    await openContextTab(page, "Members");
+    await openContextTab(page, CHAT_CONTEXT_TAB_LABELS.members);
 
     // The newly-wired `removeCharacterFromChat`, driven through its ONE user-facing affordance.
     await openMemberRowMenu(page, CHARACTERS[1].name);
@@ -271,7 +271,7 @@ test("seat knobs are per-seat: muting one member and re-weighting another persis
 
     await openChatByTitle(page, title);
     await openDetailPanel(page);
-    await openContextTab(page, "Members");
+    await openContextTab(page, CHAT_CONTEXT_TAB_LABELS.members);
 
     // Mute BRAVO through the row menu (the canonical action home).
     await openMemberRowMenu(page, CHARACTERS[1].name);
@@ -306,7 +306,7 @@ test("seat knobs are per-seat: muting one member and re-weighting another persis
     await page.reload();
     await openChatByTitle(page, title);
     await openDetailPanel(page);
-    await openContextTab(page, "Members");
+    await openContextTab(page, CHAT_CONTEXT_TAB_LABELS.members);
     await expect(page.getByRole("button", { name: rowActionsName(CHARACTERS[1].name), exact: true })).toBeVisible({ timeout: WAIT_SURFACE_MS });
     const persisted = (await getChatDetail(chat.id)).participants;
     expect(seatFor(persisted, bravoId)?.disabled).toBe(true);
