@@ -4,7 +4,7 @@ status: doing
 updated: 2026-11-09
 priority: P2
 area: chat
-lane: wt/agent-a2c682ad8003e0eaf
+lane: wt/agent-aeeecdd1ff632fbb2
 plan: cross-surface-consistency
 ---
 
