@@ -32,6 +32,7 @@ import { useEnterMotion } from "../hooks/use-enter-motion.ts";
 import { resolveRowAttribution, speakerThemesByName } from "../lib/attribution.ts";
 import { avatarTreatmentFor } from "../lib/avatar-treatment.ts";
 import type { GreetingBinding } from "../lib/greeting-window.ts";
+import { messageArticleName } from "../lib/message-action-names.ts";
 import { resolveMessageRenderContext } from "../lib/message-render-context.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 import type { MoveNeighbours } from "../lib/move-neighbours.ts";
@@ -379,7 +380,7 @@ export function MessageRow({
         arrival={arrival}
         selecting={selecting}
         role="article"
-        aria-label={attribution.name ?? undefined}
+        aria-label={messageArticleName(attribution.name, message.position)}
         data-message-id={message.id}
         data-slot="message-row"
         data-role={role}

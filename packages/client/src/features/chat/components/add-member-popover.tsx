@@ -45,7 +45,7 @@ function AddMemberShell({
           </Button>
         }
       />
-      <PopoverPopup>
+      <PopoverPopup aria-label={CHAT_ADD_CHARACTER_NAME}>
         <CharacterPicker
           autoFocusSearch={true}
           emptyText="No other characters to add."

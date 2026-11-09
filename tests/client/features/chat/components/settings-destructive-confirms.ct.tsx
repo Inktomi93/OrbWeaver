@@ -1,5 +1,6 @@
 // An autosaved press has no way back, so the This-chat tab asks before authored text leaves, over the real composed server.
 import type { ChatId } from "@orb/kit/ids";
+import { accessibilityScan } from "@orb/testkit/browser/spec";
 import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -70,6 +71,17 @@ test("Remove injection asks first: Cancel keeps the row, and the verb deletes it
   await expect.poll(async () => (await host.chat.listChatInjections({ chatId })).length).toBe(before);
   // The removed row took its trigger with it; focus stays in the list rather than falling to the page.
   await expect(page.locator(":focus")).toHaveCount(1);
+});
+
+test("an override row's name contains its label and its state word", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const { chatId } = await hostedRoom(root, page);
+  await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
+  const row = page.getByRole("button", { name: overrideRowName(CHAT_OVERRIDE_SCENARIO_LABEL, false), exact: true });
+  await expect(row).toBeVisible();
+  const result = await accessibilityScan(page);
+  const mismatched = result.violations.find(({ id }) => id === "label-content-name-mismatch")?.nodes ?? [];
+  expect(mismatched.filter(({ html }) => html.includes('data-slot="collapsible-trigger"'))).toEqual([]);
 });
 
 test("a set override asks before Clear wipes it, and focus lands on the emptied field", async ({ mount, page }) => {

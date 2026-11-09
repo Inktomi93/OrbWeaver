@@ -24,4 +24,4 @@ Each names finding is fixed at the control's owner or answered with a cited reas
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Part, in e8919ddda5: the message-action duplicates were per-speaker article scope, so each message article is named Speaker · #N, clearing about 2100 findings including Select message; archetype duplicates and the room-pair badge fixed. Still open: chat-list, Explore and Similarity rows with identical titles; Refinery Runs View and Use for apply; preset-editor Actions; world-info New entry and wire-trace Copy log.

@@ -451,6 +451,20 @@ test("a message hidden from the model recedes to the receded step", async ({ cor
   expect(opacity).toBe(Number.parseFloat(TOKENS["opacity.receded"].value) / 100);
 });
 
+test("each transcript article has its own name, so a speaker's messages do not share one scope for their controls", async ({ corpus, mount, page }) => {
+  await openRoom(page, corpus, "bubble", false);
+  await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());
+  await expect(page.locator(ROW).first()).toBeVisible();
+  const names = await page.locator(`${ROW}[role="article"]`).evaluateAll((rows) => rows.map((row) => row.getAttribute("aria-label") ?? ""));
+  // The speaker alone repeats down the transcript; that is what the number is for.
+  const speakers = names.map((name) => name.split(" · ")[0]);
+  expect(new Set(speakers).size).toBeLessThan(names.length);
+  expect(new Set(names).size).toBe(names.length);
+  for (const name of names) {
+    await expect(page.getByRole("article", { name, exact: true })).toHaveCount(1);
+  }
+});
+
 test("editing a row retains the owning content column footprint", async ({ corpus, mount, page }) => {
   await openRoom(page, corpus, "flat", false);
   await mount<typeof ChatRoomShellStory>(ROOM_STORY, roomStoryProps());

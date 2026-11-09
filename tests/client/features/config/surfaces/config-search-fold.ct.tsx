@@ -1,3 +1,4 @@
+import { accessibilityScan } from "@orb/testkit/browser/spec";
 import { holdServed, routeTrpc, serveCorpusProcedures, trpcHold } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusReadResponder } from "@orb/testkit/iso";
@@ -86,4 +87,14 @@ test("a search hit on a section inside a closed fold opens the fold", async ({ c
     .first()
     .click();
   await expect(fold).toHaveAttribute("aria-expanded", "true");
+});
+
+test("the fold's name contains the label and the caption it shows", async ({ corpus, corpusViewer, mount, page }) => {
+  await routeConfig(page, corpus, corpusViewer);
+  await mount<typeof ConfigPanesStory>(PANES_STORY, { showList: true, initialGroup: "appearance" });
+  const fold = page.getByRole("button", { name: /Customize this look/u });
+  await expect(fold).toBeVisible();
+  const result = await accessibilityScan(page);
+  const mismatched = result.violations.find(({ id }) => id === "label-content-name-mismatch")?.nodes ?? [];
+  expect(mismatched.filter(({ html }) => html.includes('data-slot="collapsible-trigger"'))).toEqual([]);
 });

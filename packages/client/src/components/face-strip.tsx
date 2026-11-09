@@ -449,7 +449,9 @@ export function FaceStrip<Id extends string = string>({
                 </PictureButton>
               }
             />
-            <PopoverPopup>{overflow.render({ close: (): void => setPickerOpen(false), shownIds: shown.map((item) => item.id) })}</PopoverPopup>
+            <PopoverPopup aria-label={overflow.label}>
+              {overflow.render({ close: (): void => setPickerOpen(false), shownIds: shown.map((item) => item.id) })}
+            </PopoverPopup>
           </Popover>
         </li>
       ) : null}

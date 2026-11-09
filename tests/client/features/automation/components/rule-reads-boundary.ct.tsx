@@ -179,7 +179,7 @@ test("a held room world book read shows the loading skeleton in the preset knob,
   });
   await mount<typeof ChatRulesStory>(CHAT_STORY, { chatId, appearance: appearanceSettingsSchema.parse({}) });
   await page.getByRole("button", { name: "Add a rule", exact: true }).click();
-  await page.getByRole("button", { name: "Auto-add lore entries", exact: true }).click();
+  await page.getByRole("button", { name: "Auto-add lore entries" }).click();
   const popover = page.getByRole("dialog");
   await read.hold.requested;
   await expect(popover.locator('[aria-busy="true"]')).toBeVisible();

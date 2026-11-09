@@ -72,7 +72,7 @@ function ItemGlyph({ item, onPickIcon }: { readonly item: RpgInventoryItem; read
           </InlineAction>
         }
       />
-      <PopoverPopup>
+      <PopoverPopup aria-label={`Pick an icon for ${item.name}`}>
         <ItemIconPicker itemName={item.name} onPick={onPickIcon} />
       </PopoverPopup>
     </Popover>
@@ -188,7 +188,7 @@ function PackCell({ item, edit }: { readonly item: RpgInventoryItem; readonly ed
           </Card>
         }
       />
-      <PopoverPopup>
+      <PopoverPopup aria-label={`Edit ${item.name}`}>
         <PackTileEditor item={item} edit={edit} />
       </PopoverPopup>
     </Popover>
