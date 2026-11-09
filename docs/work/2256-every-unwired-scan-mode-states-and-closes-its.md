@@ -12,7 +12,7 @@ plan: unwired-code
 
 ## What
 
-After the fields boundary fix, check each pnpm unwired mode (fields, params, unions, shapes, ports) for the same class of blind spot: a use the mode cannot see, a cross-world or cross-boundary read, a re-export or wrapper, a dynamic key, a string-addressed lookup. Each mode's output states what it cannot see, as the ui-facts report does.
+After the fields receiver fix, check each pnpm unwired mode (fields, params, unions, shapes, ports) and pnpm brand-flow, which runs on unwired's worlds and helpers, for the same class of blind spot: a use the mode cannot see, a cross-world or cross-boundary read, a re-export or wrapper, a dynamic key, a string-addressed lookup. Each mode's output states what it cannot see, as the ui-facts report does.
 
 ## Why
 
