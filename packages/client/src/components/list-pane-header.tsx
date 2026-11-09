@@ -20,9 +20,9 @@ import { Row } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { ListPaneHeaderProps, OverflowMenuItem } from "#lib";
-import { LIST_PANE_TITLE_ID } from "#lib";
+import { BAND_OVERFLOW_LABEL, LIST_PANE_TITLE_ID } from "#lib";
 import { CountText } from "./count-text.tsx";
-import { BAND_OVERFLOW_LABEL, OverflowActions, OverflowMenuForms } from "./overflow-actions.tsx";
+import { OverflowActions, OverflowMenuForms } from "./overflow-actions.tsx";
 import { Tip } from "./tip.tsx";
 
 /** The primary's icon form: the same command its menu form runs, named by its label. */

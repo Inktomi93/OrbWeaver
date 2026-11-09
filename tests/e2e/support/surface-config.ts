@@ -76,6 +76,7 @@ import {
   NAME_HOLE,
   namePattern,
   observe,
+  openContext,
   publishWalk,
   recordAs,
   skip,
@@ -341,9 +342,7 @@ async function disclosures(flow: SurfaceWalk, name: string, scope: Locator): Pro
 
 async function teacher(flow: SurfaceWalk, name: string): Promise<void> {
   const context = flow.page.locator(CONTEXT);
-  if ((await context.getAttribute("data-panel-mode")) === "collapsed") {
-    await flow.page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
-  }
+  await openContext(flow);
   await expect(context.locator('[data-slot="teacher-about"], [data-slot="teacher-roster"], [role="tab"]').first()).toBeVisible();
   // The walk steps the teacher's tabs itself; a single About body renders without a tab strip.
   await walkScope(flow, context, `config/${name}/teacher`);
