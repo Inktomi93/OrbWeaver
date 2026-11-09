@@ -131,7 +131,9 @@ test("rapid chords share one pending frame, the listener never duplicates, and u
   // The frame stub goes in and both chords land inside one task. A frame another surface requests (a resize
   // observer, a tooltip, a focus return) lands in a later task, so it cannot be counted as the shortcut's.
   const burst = await page.evaluate(() => {
-    const probe = { canceled: [] as number[], nextId: 1, requested: [] as number[] };
+    const canceled: number[] = [];
+    const requested: number[] = [];
+    const probe = { canceled, nextId: 1, requested };
     Reflect.set(globalThis, "__commandFrameProbe", probe);
     globalThis.requestAnimationFrame = (): number => {
       const id = probe.nextId;
