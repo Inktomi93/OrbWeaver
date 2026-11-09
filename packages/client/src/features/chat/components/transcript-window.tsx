@@ -80,7 +80,7 @@ function HistoryFailureRow({
 }): ReactElement {
   const retriable = failure === "bridge" || failure === "refresh";
   return (
-    <Row align="center">
+    <Row align="center" wrap={true}>
       <Text key={announcement} inset="block" tone="destructive" role="alert" voice="label">
         {CHAT_HISTORY_FAILURE_COPY[failure]}
       </Text>
@@ -113,7 +113,8 @@ function HistoryPager({ available, hasEarlier, busy, failure, pinned, announceme
   const status = `${hasEarlier ? CHAT_HISTORY_PAGER_HINT : CHAT_HISTORY_BEGINNING}${loaded === null ? "" : ` ${chatHistoryLoadedLabel(loaded)}`}`;
   return (
     // Only a reader who pressed is pinned: anyone else finds a failure here, at the pager's home, and hears it announced.
-    <Stack hiddenAt="print" data-keep-in-view={pinned ? "" : undefined} plate={failure === null && hasEarlier ? "island" : "card"}>
+    // The plate is the list's pinned action, which is no taller than the port: where enlarged text makes the plate taller, it scrolls.
+    <Stack hiddenAt="print" data-keep-in-view={pinned ? "" : undefined} plate={failure === null && hasEarlier ? "island" : "card"} scroll="y">
       {failure === null ? null : (
         <HistoryFailureRow
           announcement={announcement}

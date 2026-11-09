@@ -6,7 +6,15 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { expectPinnedFailure, PLATFORM_TEXT_SCALES, seedShellState, setPlatformTextSize, settledBox, settledReadingRow } from "@orb/testkit/browser/spec";
+import {
+  expectPinnedFailure,
+  PLATFORM_TEXT_SCALES,
+  pressableWhole,
+  seedShellState,
+  setPlatformTextSize,
+  settledBox,
+  settledReadingRow,
+} from "@orb/testkit/browser/spec";
 import {
   absenceWindow,
   createShellAmbientReads,
@@ -41,6 +49,8 @@ const EXTRA_ROWS = 115;
 // The transcript's own busy state: a loading Earlier messages carries `aria-busy` too.
 const TRANSCRIPT_BUSY = '[aria-busy]:not([data-slot="button"])';
 const ARRIVALS = 55;
+// The top of the platform text steps, the one the phone's room is shortest at.
+const PHONE_TOP_TEXT_SCALE = PLATFORM_TEXT_SCALES[2];
 type Caller = Awaited<ReturnType<Awaited<ReturnType<typeof createCorpusHarness>>["internalCallerFor"]>>;
 
 type HistoryPage = Awaited<ReturnType<Caller["chat"]["listMessages"]>>;
@@ -1253,3 +1263,54 @@ for (const regime of [
     });
   });
 }
+
+// At the top text step the phone's room leaves a port shorter than the failure line wrapped across the screen, so the plate's actions are the
+// thing that must stay on it: a failure the reader cannot dismiss is a trap.
+test.describe("a phone at 300% text", () => {
+  test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+  test("the pinned failure plate fits the port and its actions take a press", async ({ corpus, mount, page, browserName }) => {
+    test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+    await using _textSize = await setPlatformTextSize(page, PHONE_TOP_TEXT_SCALE);
+    await using root = await historyRoot();
+    const caller = await root.internalCallerFor(root.ownerId);
+    const { rooms, room } = await prepareHistory(root, caller);
+    let failing = false;
+    await using live = await serveLiveRoom({
+      root,
+      caller,
+      corpus,
+      page,
+      rooms,
+      chatId: room.id,
+      chatStyle: "document",
+      intercept: ({ cursor }) => (failing && cursor !== undefined ? trpcError({ code: "BAD_REQUEST" }) : undefined),
+    });
+    await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true });
+    const list = page.locator('[data-slot="message-list-scroll"]');
+    const earlier = list.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
+    await expect(earlier).toBeAttached();
+    await list.evaluate((node) => {
+      node.scrollTop = node.scrollHeight / 2;
+    });
+    await settledReadingRow(list);
+    failing = true;
+    await live.settle();
+    await expect(list.getByRole("alert")).toHaveText(CHAT_HISTORY_FAILURE_COPY.refresh);
+    await page.context().setOffline(true);
+    await earlier.dispatchEvent("click");
+    await expect(list.getByRole("alert")).toHaveText(CHAT_HISTORY_FAILURE_COPY.offline);
+    await expectPinnedFailure(list);
+    const plate = await settledBox(list.locator('[data-slot="message-list-leading-action"]'));
+    const port = await settledBox(list);
+    expect(plate.height, "the plate is no taller than the port it pins in").toBeLessThanOrEqual(port.height);
+    const dismiss = list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true });
+    // A plate taller than the port scrolls inside it, so each action is one scroll of the plate away, and then whole and pressable.
+    await earlier.scrollIntoViewIfNeeded();
+    await expect.poll(() => pressableWhole(earlier), "Earlier messages is whole and takes its own press").toBe(true);
+    await dismiss.scrollIntoViewIfNeeded();
+    await expect.poll(() => pressableWhole(dismiss), "Dismiss is whole and takes its own press").toBe(true);
+    await dismiss.click();
+    await expect(list.getByRole("alert")).toHaveText(CHAT_HISTORY_FAILURE_COPY.refresh);
+  });
+});
