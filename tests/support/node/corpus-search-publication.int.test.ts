@@ -42,6 +42,7 @@ import {
 import { captureCorpusSearchPublication, seedCorpusSearch, settleCorpusSearchImages } from "./corpus-search.ts";
 import { createCorpusSearchWire, replayCorpusSearchWire } from "./corpus-search-wire.ts";
 import { captureCookieAuth, captureCorpusReads, seedCorpusLibraries } from "./corpus-seed.ts";
+import { settleActiveWorkloads, settleDocumentIntake } from "./corpus-workloads.ts";
 import { ownDb, ownFileDb, SHIPPED_MIGRATIONS } from "./db.ts";
 import { seedUserConnectionRows } from "./factories/rows/connection.ts";
 import { seedUserCredentialRows } from "./factories/rows/credentials.ts";
@@ -124,12 +125,15 @@ test("settled search publication survives native authenticated clone reads and r
         description: "A later producer changes the lexical population.",
       }),
     });
+    // The card's autoindex sweep settles before the document admits its interactive ingest.
+    await settleActiveWorkloads(root);
     const addedDocument = await caller.databank.createFromText({
       name: "Settled search source",
       text: "A later native document records the orbital ledger.",
     });
     const ingested = await root.app.databankIngest.ingestDocument({ documentId: addedDocument.document.id, signal: new AbortController().signal });
     expect(ingested.chunksUpserted).toBeGreaterThan(0);
+    await settleDocumentIntake(root, caller, [addedDocument.document.id]);
     const authentication = await captureCookieAuth(root, actors.owner, "private-source-search-password");
     const reads = await captureCorpusReads(root, {
       soloChatId: libraries.room.chat.id,

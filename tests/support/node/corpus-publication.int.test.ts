@@ -138,7 +138,7 @@ test("portable stats publish final native owner reads with exact request recipes
   await caller.settings.updateUserSettingsSection({ section: "seeds", patch: { currentPersonaId: library.persona.id, defaultPersonaId: library.persona.id } });
   const before = await publication(root);
   expect(Object.hasOwn(before.reads, "stats.overview")).toBe(true);
-  expect(before.reads["stats.overview"][0]?.output).toBeNull();
+  expect(before.reads["stats.overview"][0]?.output).toMatchObject({ chats: 0, userTurns: 0, assistantTurns: 0 });
   const turn = await root.services.chat.send({ principal: actors.owner, chatId: library.room.chat.id, content: "Preserve the portable stats witness." });
   expect(turn.aborted).toBe(false);
   expect(turn.messages.map((message) => message.role)).toEqual(["user", "assistant"]);

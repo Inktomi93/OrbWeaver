@@ -2,6 +2,8 @@
 import { addAbortListener } from "node:events";
 import { setImmediate } from "node:timers/promises";
 import type { WorkloadEvent } from "@orb/contracts/workloads";
+import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
+import type { DocumentId } from "@orb/kit/ids";
 import { getLog } from "@orb/server/foundation/observability";
 import type { ServerTestHarness } from "./server.ts";
 
@@ -90,10 +92,51 @@ function assertSelectedWorkloadsSucceeded(requested: number, jobs: CorpusWorkloa
   }
 }
 
+async function activeWorkloads(root: Pick<ServerTestHarness, "services">): Promise<CorpusWorkloadRows> {
+  return (await Promise.all(ACTIVE_WORKLOAD_STATUSES.map((status) => root.services.workloads.list({ caller: null, status })))).flat();
+}
+
+// One advance wakes every lane loop, so active rows in two lanes run together and draw seeded ids in an order the
+// I/O timing picks; a corpus publish is then not byte-identical. Each producer settles one lane before admitting the other.
+async function assertOneActiveLane(root: Pick<ServerTestHarness, "services">): Promise<void> {
+  const lanes = Map.groupBy(await activeWorkloads(root), (row) => row.lane);
+  if (lanes.size > 1) {
+    const kinds = Object.fromEntries([...lanes].map(([lane, rows]) => [lane, rows.map((row) => `${row.kind} ${row.id} ${row.status}`)]));
+    throw new Error(`Corpus workloads would run lanes together, so their seeded ids would follow timing: ${JSON.stringify(kinds)}`);
+  }
+}
+
+/** Settle the ingest each created document admitted, so no ingest is left to share a later settle with sweep work. */
+export async function settleDocumentIntake(
+  root: Parameters<typeof settleCorpusWorkloads>[0],
+  caller: Pick<CorpusCaller, "workloads">,
+  documentIds: readonly DocumentId[],
+): Promise<CorpusWorkloadRows> {
+  const intake = (await caller.workloads.list()).filter(
+    (job) => !job.poison && job.kind === "databank-ingest" && job.status === "queued" && documentIds.includes(job.params.documentId),
+  );
+  if (intake.length !== documentIds.length) {
+    throw new Error("native document intake has no unique admitted queue receipt");
+  }
+  return await settleCorpusWorkloads(root, caller, intake);
+}
+
+/**
+ * Settle every active row, whoever owns it, detached admissions included: the boot catalog refresh and earlier writes'
+ * sweeps finish before a producer admits work on another lane. With nothing active it advances no clock.
+ */
+export async function settleActiveWorkloads(root: Parameters<typeof settleCorpusWorkloads>[0]): Promise<void> {
+  await root.settleBackground();
+  const active = await activeWorkloads(root);
+  if (active.length > 0) {
+    await settleCorpusWorkloads(root, { workloads: { get: ({ id }) => root.services.workloads.get({ caller: null, id }) } }, active);
+  }
+}
+
 /** Settle the actual admitted IDs; failed or cancelled jobs never become successful corpus data. */
 export async function settleCorpusWorkloads(
-  root: Pick<ServerTestHarness, "app" | "logger" | "timers" | "settleBackground" | "runAdmittedWorkload" | "workloadExecutionSignal">,
-  caller: Pick<CorpusCaller, "workloads">,
+  root: Pick<ServerTestHarness, "app" | "logger" | "timers" | "settleBackground" | "runAdmittedWorkload" | "workloadExecutionSignal" | "services">,
+  caller: { readonly workloads: Pick<CorpusCaller["workloads"], "get"> },
   started: readonly Awaited<ReturnType<CorpusCaller["workloads"]["start"]>>[],
 ): Promise<CorpusWorkloadRows> {
   const deadline = root.workloadExecutionSignal ?? AbortSignal.timeout(RECALL_WAIT_TIMEOUT_MS);
@@ -127,6 +170,7 @@ export async function settleCorpusWorkloads(
     phase = WORKLOAD_SETTLEMENT_PHASES[2];
     for (;;) {
       deadline.throwIfAborted();
+      await assertOneActiveLane(root);
       root.timers.advance(RECALL_WORKER_ADVANCE_MS);
       // Fired native sleeps register their finite worker steps before this continuation joins them.
       await Promise.resolve();

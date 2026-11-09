@@ -13,7 +13,7 @@ import { seedCorpusAccount } from "./corpus-auth.ts";
 import type { seedCorpusKnowledgeImages } from "./corpus-knowledge-images.ts";
 import type { TrpcCapture } from "./corpus-read.ts";
 import type { SeededCorpusLibraries } from "./corpus-seed.ts";
-import { settleCorpusWorkloads } from "./corpus-workloads.ts";
+import { settleActiveWorkloads, settleCorpusWorkloads, settleDocumentIntake } from "./corpus-workloads.ts";
 import { captureChatMemoryRows, seedEmbeddingGenerationRows } from "./factories/rows/embedding-generation.ts";
 import type { SeededRecallCorpusRows } from "./factories/rows/recall.ts";
 import type { TrpcInput, TrpcProcedurePath, TrpcWireOutput } from "./route-trpc.ts";
@@ -246,6 +246,8 @@ export async function seedCorpusSearch(root: ServerTestHarness, sources: Sources
   const caller = await root.internalCallerFor(root.ownerId);
   const other = await root.internalCallerFor(sources.actors.secondUserId);
   const lexical = await lexicalLifecycle(root, caller, other);
+  // The lexical card writes admit an autoindex sweep, which settles before the foreign intake admits interactive work.
+  await settleActiveWorkloads(root);
   const foreignDocument = await other.databank.createFromText({
     name: "Foreign search witness",
     text: "The private copper witness records a separate owner's ledger.",
@@ -254,6 +256,7 @@ export async function seedCorpusSearch(root: ServerTestHarness, sources: Sources
   if (ingested.failed.length > 0 || ingested.chunksUpserted === 0) {
     throw new Error("native foreign search exclusion produced no ingested document");
   }
+  await settleDocumentIntake(root, other, [foreignDocument.document.id]);
   await other.settings.updateUserSettingsSection({ section: "memory", patch: { enabled: true } });
   const foreignChatId = await seedRecallRoom(other);
   for (let scene = 0; scene <= DEFAULT_MEMORY_DEFAULTS.blockSize + DEFAULT_MEMORY_DEFAULTS.verbatimWindow; scene += 1) {

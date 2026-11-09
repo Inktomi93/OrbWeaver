@@ -179,7 +179,7 @@ A case that measures first-boot geometry (a reserved box, an empty library) read
 
 Do not spread a capture to change a request, output or viewer. A copy remains inspectable/serializable raw data, but cannot answer playback, even behind a cast. For a new finite request, `captureCorpusRead(root, viewerUserId, path, input)` through `@orb/testkit/node/composed` executes the actual root operation and admits its result. For changing application state or arbitrary pagination, use `serveCorpusProcedures`. Raw hydrators remain available inside testkit for malformed/forward-wire and publication tests; they do not mint playback.
 
-Two publishes from one tree are byte-identical: every producer draws ids from the injected id source in a fixed order. `node/corpus-fixture-schema.test.ts` parses the committed fixture against the current published-corpus schema with the Node tests and names each missing or extra field.
+Two publishes from one tree are byte-identical: every producer draws ids from the injected id source in a fixed order. One clock advance wakes every workload lane, so a producer settles the work it admitted on one lane before it admits work on another. `settleCorpusWorkloads` refuses to advance while two lanes hold active rows. A producer also settles a turn's detached background work before its next write. `node/corpus-fixture-schema.test.ts` parses the committed fixture against the current published-corpus schema with the Node tests and names each missing or extra field.
 
 ## What is enforced
 

@@ -65,6 +65,8 @@ export async function seedRecallCorpus(root: ServerHarness, options: SeedRecallC
   if (historyTurn.aborted || historyTurn.messages.length === 0) {
     throw new Error("synthetic recall corpus produced no completed history turn");
   }
+  // The turn's detached memory build would otherwise draw seeded ids beside the next writes, in an order the I/O timing picks.
+  await root.settleBackground();
   for (let seq = 0; seq < 16; seq += 1) {
     await caller.chat.commitMessage({
       chatId,
