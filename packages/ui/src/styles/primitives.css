@@ -317,6 +317,13 @@
   [data-slot="message-list-scroll"][data-fade-bottom] {
     --fade-bottom-stop: min(var(--fade-edge-stop), var(--spacing-block));
   }
+  /* The pinned leading action never anchors the scroll position. A browser that picks it as the anchor reads its pin as a move
+   * on every scroll write and chases it, marching the reader to the tail; the list holds the reader's row itself. */
+  @supports (overflow-anchor: none) {
+    [data-slot="message-list-leading-action"] {
+      overflow-anchor: none;
+    }
+  }
   /* The scroll fades: an edge dissolves only while content is scrolled past it (the consumer toggles the
    * `data-fade-*` attributes), and the ramp bottoms out at a floor rather than zero, so the item straddling a
    * scrolled edge still carries ink while a mask keeps it hit-testable. The floor is derived, not picked: a
