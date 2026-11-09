@@ -437,6 +437,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/lib/context-pane-names.ts":
     "the side panes' names, edge controls and exits the shell prints, which the walk opens and dismisses a pane by",
   "packages/client/src/lib/rail-names.ts": "PRIMARY_NAV_NAME and YOU_TAB_LABEL: the rail navigation's name and its You tab",
+  "packages/client/src/lib/overflow-names.ts":
+    "TRAIL_OVERFLOW_LABEL and BAND_OVERFLOW_LABEL: the More triggers an action folds into when its row runs out of room, which the walk presses it through",
   "packages/client/src/lib/row-menu-names.ts": "ROW_RENAME_NAME and its siblings: the library row menu items and the delete confirm title",
   "packages/client/src/lib/search-empty-names.ts": "NO_MATCHES_TITLE and CLEAR_SEARCH_NAME: the words a searched-empty list prints",
   "packages/client/src/features/imagery/lib/imagine-names.ts": "IMAGINE_MODE_NAME and IMAGINE_PROMPT_NAME: the imagine options' field names",

@@ -76,8 +76,8 @@ import { PERSONA_DESCRIPTION_FIELD_NAME, PERSONA_FROM_CARD_NAME, PERSONA_NAME_FI
 import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import { censusSuffix } from "#client/lib/census-title.ts";
 import { LIST_PANEL_NOUN, listPaneLabel, panelCloseName, panelEdgeName, screenListDoorName, sectionBackName } from "#client/lib/context-pane-names.ts";
-import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
+import { TRAIL_OVERFLOW_LABEL } from "#client/lib/overflow-names.ts";
 import { PRIMARY_NAV_NAME, YOU_TAB_LABEL } from "#client/lib/rail-names.ts";
 import { rowActionsName } from "#client/lib/row-qualifiers.ts";
 import { CLEAR_SEARCH_NAME } from "#client/lib/search-empty-names.ts";
@@ -94,6 +94,8 @@ import {
   NAME_HOLE,
   namePattern,
   observe,
+  openContext,
+  pressOverflowed,
   publishWalk,
   walkDoor,
   walkScope,
@@ -219,9 +221,7 @@ async function openCard(flow: CharacterFlow, name: string, rowName = name): Prom
 async function contextTab(flow: CharacterFlow, name: string): Promise<Locator> {
   const { page } = flow;
   const context = page.locator(CONTEXT);
-  if ((await context.getAttribute("data-panel-mode")) === "collapsed") {
-    await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
-  }
+  await openContext(flow);
   expectSubject(flow, name, "tab");
   // eslint-disable-next-line orb/no-hand-copied-label -- The Character context tablist is not RPG's NPC journal type label.
   const tab = context.getByRole("tablist", { name: TABLIST_NAME, exact: true }).getByRole("tab", { name, exact: true });
@@ -875,7 +875,12 @@ async function characterCommandMenu(flow: CharacterFlow): Promise<Locator> {
 
 async function createCommandCharacter(flow: CharacterFlow, name: string, subjects: CommandSubjects): Promise<SourceCharacter> {
   await openList(flow);
-  await flow.page.getByRole("button", { name: /^(?:New|New character)$/u }).click();
+  // A phone trail folds New into its More menu once grown text leaves no room for it.
+  await pressOverflowed(flow.page, {
+    inline: flow.page.getByRole("button", { name: /^(?:New|New character)$/u }),
+    overflow: flow.page.getByRole("button", { name: TRAIL_OVERFLOW_LABEL, exact: true }),
+    name: CHARACTER_NEW_NAME,
+  });
   const dialog = flow.page.getByRole("dialog", { name: CHARACTER_NEW_NAME, exact: true });
   await dialog.getByRole("textbox", { name: CHARACTER_NAME_FIELD_NAME, exact: true }).fill(name);
   await dialog

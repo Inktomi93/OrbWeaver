@@ -11,8 +11,9 @@
 
 import type { ReactElement, ReactNode } from "react";
 import type { OverflowAction } from "#components";
-import { OverflowActions, OverflowMenuForms, TRAIL_OVERFLOW_LABEL } from "#components";
+import { OverflowActions, OverflowMenuForms } from "#components";
 import type { OverflowMenuForm } from "#lib";
+import { TRAIL_OVERFLOW_LABEL } from "#lib";
 import type { ActionChromeEntry, ChromeEntry } from "#state";
 import { openModal, useChromeRegistry } from "#state";
 import { CommandChip } from "./command-chip.tsx";

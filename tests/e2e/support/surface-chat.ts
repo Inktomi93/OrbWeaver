@@ -91,7 +91,7 @@ import { deleteConfirmTitle, ROW_DELETE_NAME, ROW_RENAME_NAME } from "#client/li
 import { NO_MATCHES_TITLE } from "#client/lib/search-empty-names.ts";
 import { SELECTION_CLEAR_NAME, selectionCountLabel } from "../../../packages/ui/src/primitives/selection-bar/selection-bar-names.ts";
 import { TOAST_CLOSE_NAME } from "../../../packages/ui/src/primitives/toast/toast-names.ts";
-import { gotoChatsList, messageRow, openChatsList, openDetailPanel, waitForAppReady } from "./chat-room.ts";
+import { gotoChatsList, messageRow, openChatsList, waitForAppReady } from "./chat-room.ts";
 import type { SurfaceFlow } from "./surface-flow.ts";
 import type { SurfaceWalk } from "./surface-walker.ts";
 import {
@@ -99,11 +99,14 @@ import {
   createSurfaceWalk,
   dismissContext,
   expectSubject,
+  isInert,
   menuLeafItems,
   NAME_HOLE,
   namePattern,
   observe,
+  openContext,
   pane,
+  pressOverflowed,
   publishWalk,
   skip,
   walkMenuTrigger,
@@ -650,15 +653,20 @@ async function composerMenus(flow: Journey, room: ChatSummary): Promise<void> {
       });
       await composerCheckpoint(flow, composer, input, `composer-${room.id}-${phase}`);
       await attachNativeFile(flow.info, flow.info, `composer-${room.id}-${phase}-controls`, { body: await composer.ariaSnapshot(), contentType: "text/plain" });
-      const triggers = composer.locator('button[aria-haspopup="menu"]');
-      const count = await triggers.count();
-      for (let index = 0; index < count; index += 1) {
+      const triggers = await composer.locator('button[aria-haspopup="menu"]').all();
+      for (const index of triggers.keys()) {
         expectSubject(flow, `composer-${room.id}-${phase}-menu-${String(index)}`, "menu");
       }
-      for (let index = 0; index < count; index += 1) {
+      for (const [index, trigger] of triggers.entries()) {
+        const id = `composer-${room.id}-${phase}-menu-${String(index)}`;
+        // A narrow row moves Draft your line into Message tools and leaves its own door mounted but inert.
+        if (await isInert(trigger)) {
+          skip(flow, id, "hidden-here", "Inert in this layout; the Message tools menu holds this door's submenu in its place");
+          continue;
+        }
         // Impersonate and Response are disabled while the composer is busy; the walk already recorded that skip.
-        if (await walkMenuTrigger(flow, triggers.nth(index), `composer-${room.id}-${phase}-menu-${String(index)}`)) {
-          await safeMenuDrills(flow, triggers.nth(index), `composer-${room.id}-${phase}-menu-${String(index)}`);
+        if (await walkMenuTrigger(flow, trigger, id)) {
+          await safeMenuDrills(flow, trigger, id);
         }
       }
       await expect(input).toHaveValue(value);
@@ -685,6 +693,12 @@ async function composerCheckpoint(flow: Journey, composer: Locator, input: Locat
     "observed",
     `${String(groups.length)} actual tool/generation/send groups with action-group geometry; no paid generation invoked`,
   );
+}
+
+// The Chat tablist is the bracket's one strip in a plain and a game room alike, so it means the pane is open.
+async function openChatContext(flow: Journey): Promise<void> {
+  await openContext(flow);
+  await expect(flow.page.getByRole("tablist", { name: CHAT_CONTEXT_TABLIST_NAME, exact: true }).first()).toBeVisible();
 }
 
 function activeContext(flow: Journey): Locator {
@@ -757,7 +771,7 @@ async function sidecar(flow: Journey, room: ChatSummary): Promise<void> {
     if (await sheet.isVisible()) {
       await sheet.getByRole("button", { name: DIALOG_VERBS.close, exact: true }).click();
     }
-    await openDetailPanel(flow.page);
+    await openChatContext(flow);
     await flow.page
       .getByRole("tablist", { name: CHAT_CONTEXT_TABLIST_NAME, exact: true })
       .getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true })
@@ -821,7 +835,7 @@ async function inspectSidecarSheet(flow: Journey, room: ChatSummary, restoreLabe
   await checkpoint(flow, `sidecar-${room.id}-sheet`, sheet, sheet.getByRole("button", { name: restoreLabel, exact: true }));
   await sheet.getByRole("button", { name: DIALOG_VERBS.close, exact: true }).click();
   await expect(sheet).toBeHidden();
-  await openDetailPanel(flow.page);
+  await openChatContext(flow);
   await flow.page
     .getByRole("tablist", { name: CHAT_CONTEXT_TABLIST_NAME, exact: true })
     .getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true })
@@ -848,7 +862,7 @@ async function inspectPlugins(flow: Journey, plugins: Locator, room: ChatSummary
 }
 
 async function context(flow: Journey, room: ChatSummary): Promise<void> {
-  await openDetailPanel(flow.page);
+  await openChatContext(flow);
   await walkScope(flow, pane(flow, "context"), `context-${room.id}`);
   await walkRailCells(flow, `context-${room.id}-game`);
   const plugins = flow.page
@@ -1950,7 +1964,12 @@ async function runChatMessageOperations(input: SurfaceFlow): Promise<MessageOper
         MESSAGE_VIEW_WIRE_TRACE_NAME,
         "Native host-only wire viewer opened the actual generated variant record and rendered its loaded body",
       );
-      await composer.getByRole("button", { name: CHAT_CONTINUE_REPLY_NAME, exact: true }).click();
+      // A narrow utilities row hands Continue the reply to the Message tools menu.
+      await pressOverflowed(flow.page, {
+        inline: composer.getByRole("button", { name: CHAT_CONTINUE_REPLY_NAME, exact: true }),
+        overflow: composer.getByRole("button", { name: MESSAGE_TOOLS_LABEL, exact: true }),
+        name: CHAT_CONTINUE_REPLY_NAME,
+      });
       await expect.poll(async () => (await readCanon(flow, room.id)).find(({ id }) => id === assistant.id)?.hasContinuation).toBe(true);
       const continued = (await readCanon(flow, room.id)).find(({ id }) => id === assistant.id);
       if (continued === undefined) {
@@ -2200,7 +2219,7 @@ export async function walkChatArcade(input: SurfaceFlow): Promise<void> {
       }
       await disposableRoom(flow, { name: "arcade", content: "A disposable room for the maintained guest frame.", attachments: [] }, async (room) => {
         await openRoom(flow, room);
-        await openDetailPanel(flow.page);
+        await openChatContext(flow);
         await flow.page
           .getByRole("tablist", { name: CHAT_CONTEXT_TABLIST_NAME, exact: true })
           .getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true })

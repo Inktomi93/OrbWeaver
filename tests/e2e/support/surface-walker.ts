@@ -8,10 +8,11 @@ import type { SurfaceCoverageInventory, SurfaceSkipReason, SurfaceWitnessDisposi
 import { attachNativeFile, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
 import { HIDDEN_AT } from "@orb/ui/lib";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { CONTEXT_SHEET_BACK_NAME, contextPaneLabel, PANEL_CLOSE_FALLBACK_NAME, panelCloseName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
+import { TRAIL_OVERFLOW_LABEL } from "#client/lib/overflow-names.ts";
 import type { SurfaceFlow } from "./surface-flow.ts";
 
 const MAX_DEPTH = 8;
@@ -145,18 +146,53 @@ export function namePattern(...names: readonly string[]): RegExp {
   return new RegExp(`^(?:${alternatives.join("|")})$`, "u");
 }
 
-// The sheet's own dismiss names its section, which a walk does not track.
-function contextExitName(): RegExp {
-  return namePattern(panelCloseName(contextPaneLabel(NAME_HOLE)), CONTEXT_SHEET_BACK_NAME, PANEL_CLOSE_FALLBACK_NAME, contextToggleLabel(false));
-}
-
 /** Close an overlaid Context, the sheet a phone or narrow shell lays over the content. */
 export async function dismissContext(walk: SurfaceFlow): Promise<void> {
   const region = pane(walk, "context");
   if ((await region.getAttribute("data-panel-mode")) === "overlay") {
-    await walk.page.getByRole("button", { name: contextExitName() }).click();
+    // A phone sheet carries its own dismiss beside the topbar's back, so both name it; the sheet's own one is pressed.
+    // Its name carries the section, which a walk does not track. A desktop sheet is closed from its edge control.
+    const own = region.getByRole("button", { name: namePattern(panelCloseName(contextPaneLabel(NAME_HOLE)), PANEL_CLOSE_FALLBACK_NAME) });
+    const exit = (await own.count()) > 0 ? own : walk.page.getByRole("button", { name: namePattern(CONTEXT_SHEET_BACK_NAME, contextToggleLabel(false)) });
+    await exit.click();
   }
   await expect(region).not.toHaveAttribute("data-panel-mode", "overlay");
+}
+
+/** An action of an overflow row: its inline control, and the More trigger whose menu holds it under `name` once the row runs out of room. */
+export interface OverflowedAction {
+  readonly inline: Locator;
+  readonly overflow: Locator;
+  readonly name: string;
+}
+
+/** Press an overflow row's action where the row seats it: inline while it fits, else through its row's More menu. */
+export async function pressOverflowed(page: Page, { inline, overflow, name }: OverflowedAction): Promise<void> {
+  await expect(inline.or(overflow).first()).toBeVisible();
+  if (await inline.isVisible()) {
+    await inline.click();
+    return;
+  }
+  await overflow.click();
+  await page.getByRole("menu").getByRole("menuitem", { name, exact: true }).click();
+}
+
+/** Open a collapsed Context through the shell's door: the desktop edge control, or the phone topbar's toggle wherever its trail seats it. */
+export async function openContext(walk: SurfaceFlow): Promise<void> {
+  if ((await pane(walk, "context").getAttribute("data-panel-mode")) !== "collapsed") {
+    return;
+  }
+  const name = contextToggleLabel(true);
+  await pressOverflowed(walk.page, {
+    inline: walk.page.getByRole("button", { name, exact: true }),
+    overflow: walk.page.getByRole("button", { name: TRAIL_OVERFLOW_LABEL, exact: true }),
+    name,
+  });
+}
+
+/** An `inert` control is out of reach here: its row moved it into an overflow menu, or an open sheet covers it. */
+export async function isInert(control: Locator): Promise<boolean> {
+  return await control.evaluate((node) => node.closest("[inert]") !== null);
 }
 
 export async function switchListScreen(walk: SurfaceWalk): Promise<void> {
@@ -181,7 +217,7 @@ export async function reveal(walk: SurfaceWalk, side: "list" | "context"): Promi
     if (side === "list") {
       await switchListScreen(walk);
     } else {
-      await walk.page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
+      await openContext(walk);
     }
     observe(walk, `extra-pane/${side}`, "visited", "Explicit navigation/inspection pane state in addition to the requested composition captured at rail entry");
   }
@@ -273,6 +309,10 @@ async function walkSelects(walk: SurfaceWalk, scope: Locator, prefix: string): P
   }
   for (const [index, select] of selects.entries()) {
     const id = `${prefix}/select-${String(index)}`;
+    if (await isInert(select)) {
+      skip(walk, id, "hidden-here", "Inert in this layout; its row's overflow menu or the covering sheet stands in");
+      continue;
+    }
     if (await select.isDisabled()) {
       skip(walk, id, "disabled", "Actual select is disabled");
       continue;
@@ -428,6 +468,10 @@ async function walkMenus(walk: SurfaceWalk, scope: Locator, prefix: string): Pro
   let rowSampled = false;
   for (const [index, trigger] of triggers.entries()) {
     const id = `${prefix}/menu-${String(index)}`;
+    if (await isInert(trigger)) {
+      skip(walk, id, "hidden-here", `Inert in this layout; its row's overflow menu or the covering sheet stands in: ${await trigger.ariaSnapshot()}`);
+      continue;
+    }
     // Every row of a list repeats one menu; the first stands for its siblings.
     const inRow = await trigger.evaluate((node, selector) => node.closest(selector) !== null, ROW);
     if (inRow && rowSampled) {
@@ -496,7 +540,12 @@ async function walkDialogs(walk: SurfaceWalk, scope: Locator, prefix: string, de
   }
   const body = walk.page.getByRole("dialog").or(walk.page.getByRole("alertdialog")).last();
   for (const [index, trigger] of triggers.entries()) {
-    await walkDoor(walk, { id: `${prefix}/dialog-${String(index)}`, trigger, body }, depth);
+    const id = `${prefix}/dialog-${String(index)}`;
+    if (await isInert(trigger)) {
+      skip(walk, id, "hidden-here", "Inert in this layout; its row's overflow menu or the covering sheet stands in");
+      continue;
+    }
+    await walkDoor(walk, { id, trigger, body }, depth);
   }
 }
 
@@ -615,7 +664,8 @@ function readControls(nodes: readonly Element[], input: CensusInput, targetOf: (
     return {
       target: identity(node),
       unavailable: pointerArm(node) ?? transport(node),
-      visible: box.width > 0 && box.height > 0 && node.checkVisibility({ visibilityProperty: true }),
+      // An inert control has moved into its row's overflow menu or sits under a sheet; it is not witnessed here.
+      visible: box.width > 0 && box.height > 0 && node.checkVisibility({ visibilityProperty: true }) && node.closest("[inert]") === null,
       label: `${node.getAttribute("role") ?? node.tagName.toLowerCase()} ${JSON.stringify(node.getAttribute("aria-label") ?? node.textContent.trim())}`,
     };
   });
@@ -744,13 +794,14 @@ async function walkScrollWindow(
     }
     await walk.action(id, {
       action: async () => {
-        await viewport.hover();
         for (let step = 0; step < MAX_SCROLL_ADVANCES; step += 1) {
-          const state = await scrollGeometry(viewport, axis);
+          // A region still laying out (a header collapsing, a page arriving) moves its range after one read.
+          const state = await settledScrollGeometry(viewport, axis);
           if (interiorInapplicable(state, ratio) || windowReached(state, ratio)) {
             break;
           }
           const delta = state.maximum * ratio - state.position;
+          await aimWheel(walk, viewport, axis);
           deliveries.push(await nativeWheel(walk, viewport, axis, delta));
         }
       },
@@ -813,6 +864,67 @@ async function walkScrollWindow(
     return;
   }
   await checkpoint(walk, id, viewport);
+}
+
+/**
+ * Put the pointer where a wheel scrolls `viewport` itself: inside its visible port and over no nested scroller that
+ * takes the wheel first. Grown text can fill a region's centre with an inner list whose overscroll containment stops
+ * the wheel there, so the centre is not the region's own point. Throws when no visible point of the region is one.
+ */
+export async function aimWheel(walk: SurfaceFlow, viewport: Locator, axis: string): Promise<void> {
+  if (usesProgrammaticScroll(walk.page, walk.info)) {
+    return;
+  }
+  const aim = await viewport.evaluate((node, horizontal) => {
+    const box = node.getBoundingClientRect();
+    const left = Math.max(box.left, 0);
+    const right = Math.min(box.right, innerWidth);
+    const top = Math.max(box.top, 0);
+    const bottom = Math.min(box.bottom, innerHeight);
+    if (right - left < 1 || bottom - top < 1) {
+      return { point: null, reason: "no part of the region lies inside the viewport" };
+    }
+    // A nested box takes the wheel when it can scroll on the axis, or when its overscroll setting stops the chain.
+    const takesWheel = (element: Element): boolean => {
+      const style = getComputedStyle(element);
+      if (!/auto|scroll/u.test(horizontal ? style.overflowX : style.overflowY)) {
+        return false;
+      }
+      const scrollable = horizontal ? element.scrollWidth > element.clientWidth + 1 : element.scrollHeight > element.clientHeight + 1;
+      return scrollable || (horizontal ? style.overscrollBehaviorX : style.overscrollBehaviorY) !== "auto";
+    };
+    const steps = 8;
+    const points = Array.from({ length: steps * steps }, (_, index) => ({
+      x: left + ((right - left) * ((index % steps) + 0.5)) / steps,
+      y: top + ((bottom - top) * (Math.floor(index / steps) + 0.5)) / steps,
+    }));
+    const centre = { x: (left + right) / 2, y: (top + bottom) / 2 };
+    points.sort((a, b) => Math.hypot(a.x - centre.x, a.y - centre.y) - Math.hypot(b.x - centre.x, b.y - centre.y));
+    const nearestTaker = (hit: Element): Element | null => {
+      let cursor: Element | null = hit;
+      while (cursor !== null && cursor !== node && !takesWheel(cursor)) {
+        cursor = cursor.parentElement;
+      }
+      return cursor;
+    };
+    let covered = 0;
+    for (const point of points) {
+      const hit = document.elementFromPoint(point.x, point.y);
+      if (hit === null || !node.contains(hit)) {
+        covered += 1;
+      } else if (nearestTaker(hit) === node) {
+        return { point, reason: null };
+      }
+    }
+    return {
+      point: null,
+      reason: `of ${String(points.length)} sampled visible points, ${String(covered)} hit another element and the rest sit over a nested scroller that takes the wheel`,
+    };
+  }, axis === "x");
+  if (aim.point === null) {
+    throw new Error(`A wheel cannot reach this scroll region: ${aim.reason}`);
+  }
+  await walk.page.mouse.move(aim.point.x, aim.point.y);
 }
 
 export async function nativeWheel(
@@ -884,6 +996,25 @@ async function scrollGeometry(viewport: Locator, axis: string): Promise<ScrollGe
       port: { start: measurement.start, end: measurement.start + measurement.extent },
     };
   }, axis === "x");
+}
+
+// Two equal reads in a row, so a range still settling is not judged on its first frame.
+async function settledScrollGeometry(viewport: Locator, axis: string): Promise<ScrollGeometry> {
+  let previous = "";
+  let state: ScrollGeometry | undefined;
+  await expect
+    .poll(async () => {
+      state = await scrollGeometry(viewport, axis);
+      const signature = JSON.stringify(state);
+      const settled = signature === previous;
+      previous = signature;
+      return settled;
+    })
+    .toBe(true);
+  if (state === undefined) {
+    throw new Error("The scroll geometry poll returned without a read");
+  }
+  return state;
 }
 
 function windowReached(state: ScrollGeometry, ratio: number): boolean {

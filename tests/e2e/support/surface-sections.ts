@@ -123,6 +123,7 @@ import { messageRow, waitForAppReady } from "./chat-room.ts";
 import type { SurfaceFlow } from "./surface-flow.ts";
 import type { SurfaceWalk } from "./surface-walker.ts";
 import {
+  aimWheel,
   checkpoint,
   content,
   createSurfaceWalk,
@@ -354,7 +355,7 @@ async function loadNativePages(
     const before = loaded;
     await journey.action(`${id}/page-after-${String(before)}`, {
       action: async () => {
-        await list.hover();
+        await aimWheel(journey, list, "y");
         await nativeWheel(journey, list, "y", await list.evaluate((node) => node.scrollHeight));
       },
       ready: async () => {
@@ -1738,8 +1739,14 @@ async function importDisposablePreset(
   return await journey.client.preset.get.query({ id: imported.id });
 }
 
+// The band keeps its primary: when the word does not fit, the icon form shows, named for the command its menu runs.
+function databankAddDoor(journey: Journey): Locator {
+  const list = pane(journey, "list");
+  return list.getByRole("button", { name: DATABANK_ADD_NAME, exact: true }).or(list.getByRole("button", { name: DATABANK_ADD_DOCUMENT_TITLE, exact: true }));
+}
+
 async function databankAdd(journey: Journey): Promise<void> {
-  const add = pane(journey, "list").getByRole("button", { name: DATABANK_ADD_NAME, exact: true });
+  const add = databankAddDoor(journey);
   const dialog = journey.page.getByRole("dialog", { name: DATABANK_ADD_DOCUMENT_TITLE, exact: true });
   await journey.action("databank/add-open", {
     action: async () => {
@@ -1803,7 +1810,7 @@ async function databankDisposable(journey: Journey): Promise<void> {
   const text = `Disposable local surface journey source: ${journey.info.project.name}. This document is created by Paste text and removed after persistence checks.`;
   const editor = journey.page.locator('[data-slot="databank-detail-editor"]');
   await databankLibrary(journey);
-  await pane(journey, "list").getByRole("button", { name: DATABANK_ADD_NAME, exact: true }).click();
+  await databankAddDoor(journey).click();
   const add = journey.page.getByRole("dialog", { name: DATABANK_ADD_DOCUMENT_TITLE, exact: true });
   await add.getByRole("button", { name: DATABANK_PASTE_TEXT_NAME, exact: true }).click();
   await add.getByRole("textbox", { name: DATABANK_ADD_NAME_FIELD_NAME, exact: true }).fill(name);
