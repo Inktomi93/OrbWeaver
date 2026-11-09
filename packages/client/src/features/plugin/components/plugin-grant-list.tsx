@@ -107,10 +107,9 @@ import { Checkbox } from "@orb/ui/checkbox";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { useTRPC } from "#data";
+import { useGatedQuery, useTRPC } from "#data";
 import { CAPABILITY_COPY_ROWS, capabilityCopy, HOSTS_COLLAPSE_AT, hostsDisclosureLabel, NO_IMAGE_MODEL_NOTE, SPEND_ROLE_TASKS } from "../lib/plugin-copy.ts";
 
 /** Whose model roles a spend permission is judged against: an installed plugin's own fold, or the installer's. */
@@ -166,8 +165,9 @@ function unexplainedCount(declared: readonly PluginCapability[]): number {
 function useUnsetSpendRoles(declared: readonly PluginCapability[], scope: PluginGrantRoleScope | undefined): ReadonlySet<PluginCapability> {
   const trpc = useTRPC();
   const roleCapabilities = declared.filter((capability): capability is keyof typeof SPEND_ROLE_TASKS => capability in SPEND_ROLE_TASKS);
-  const input = scope?.kind === "plugin" ? { actor: { kind: "plugin-grant" as const, pluginId: scope.pluginId } } : undefined;
-  const { data: bindings } = useQuery({ ...trpc.connection.listBindings.queryOptions(input), enabled: scope !== undefined && roleCapabilities.length > 0 });
+  const { data: bindings } = useGatedQuery(roleCapabilities.length > 0 ? scope : undefined, (gated) =>
+    trpc.connection.listBindings.queryOptions(gated.kind === "plugin" ? { actor: { kind: "plugin-grant" as const, pluginId: gated.pluginId } } : undefined),
+  );
   if (!Array.isArray(bindings)) {
     return new Set<PluginCapability>();
   }

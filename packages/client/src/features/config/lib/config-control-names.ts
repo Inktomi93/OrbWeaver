@@ -4,6 +4,9 @@
 /** The theme editor's name field. */
 export const CONFIG_THEME_NAME_FIELD_NAME = "Theme name";
 
+/** The theme editor's base surface colour field. */
+export const CONFIG_THEME_BACKGROUND_FIELD_NAME = "Background";
+
 /** The theme editor's custom stylesheet section. */
 export const CONFIG_CUSTOM_CSS_NAME = "Custom CSS";
 

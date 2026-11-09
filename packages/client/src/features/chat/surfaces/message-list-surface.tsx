@@ -27,7 +27,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { QueryBoundary } from "#components";
 import type { ChatBusDeps, Trpc } from "#data";
-import { QueryErrorState, SkeletonRows, useChatBus, useDisplayScripts, usePrefetchDisplayScripts, useSuspenseQuery, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useChatBus, useDisplayScripts, useGatedQuery, usePrefetchDisplayScripts, useSuspenseQuery, useTRPC } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { RenderProfiler, resolveRowRenderPolicy, useFocusOnMount } from "#lib";
 import { isLiveTurnPhase, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
@@ -216,7 +216,7 @@ function ChatThread({
   // wrap stays off (literal text, today's behavior — never a blocking read for a non-game render path).
   // #40 — a DISENGAGED game (pointer engaged:false) reads like a non-game chat (one predicate home).
   const isGame = isRpgEngaged(chatDetail.rpg ?? null);
-  const gameQuery = useQuery({ ...trpc.rpg.getGame.queryOptions({ chatId }), enabled: isGame });
+  const gameQuery = useGatedQuery(isGame ? chatId : null, (id) => trpc.rpg.getGame.queryOptions({ chatId: id }));
   const lenientHtmlCards = isGame && gameQuery.data?.publicConfig.immersiveHtml === true;
   const messageAppearance = useMessageAppearance();
   const displayScripts = useDisplayScripts(chatId);

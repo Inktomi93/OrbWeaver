@@ -1,6 +1,6 @@
 // Shared owner-scoped census for the Characters band and phone title; no enriched page read.
 import { useQuery } from "@tanstack/react-query";
-import { useTRPC } from "#data";
+import { useGatedQuery, useTRPC } from "#data";
 import { filteredCensus } from "#lib";
 import { useLibraryScope } from "./use-library-scope.ts";
 
@@ -22,11 +22,8 @@ export function useCharacterCensus(): number | string | undefined {
   // rule and the baseline cannot drift from the rows.
   const archivedAxis = scope.args.archived === undefined ? {} : { archived: scope.args.archived };
   const { data: all } = useQuery(trpc.character.count.queryOptions({ ...archivedAxis }));
-  const { data: scoped } = useQuery({
-    ...trpc.character.count.queryOptions({ ...scope.args }),
-    // An unnarrowed pane asks nothing extra: the scoped query IS the unscoped one, already in cache above.
-    enabled: scope.narrowed,
-  });
+  // An unnarrowed pane asks nothing extra: the scoped query IS the unscoped one, already in cache above.
+  const { data: scoped } = useGatedQuery(scope.narrowed ? scope.args : null, (args) => trpc.character.count.queryOptions({ ...args }));
 
   const total = all;
   if (!scope.narrowed || total === undefined) {

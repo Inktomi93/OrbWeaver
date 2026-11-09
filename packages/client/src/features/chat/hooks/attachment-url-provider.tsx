@@ -5,14 +5,13 @@
 // member's attachment (#67 co-participant render): the server gate is STRUCTURAL (`message_assets` reference
 // in this chat + owner present + caller present), so a non-participant still resolves nothing. Reuses the
 // SAME `blobUrl` seam every avatar/gallery `<img src>` already builds — no second URL builder. A row with no
-// image refs issues NO query (`enabled` gate).
+// image refs issues NO query (`useGatedQuery`).
 
 import { blobUrl } from "@orb/contracts/assets";
 import { assetIdsInContent } from "@orb/kit/content";
 import type { AssetId, ChatId } from "@orb/kit/ids";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement, ReactNode } from "react";
-import { useTRPC } from "#data";
+import { useGatedQuery, useTRPC } from "#data";
 import type { ResolvedAttachment } from "./attachment-url-context.tsx";
 import { AttachmentUrlContext } from "./attachment-url-context.tsx";
 
@@ -29,10 +28,7 @@ export interface AttachmentUrlProviderProps {
 export function AttachmentUrlProvider({ chatId, content, children }: AttachmentUrlProviderProps): ReactElement {
   const trpc = useTRPC();
   const assetIds = assetIdsInContent(content);
-  const query = useQuery({
-    ...trpc.assets.resolveChatBlobRefs.queryOptions({ chatId, assetIds }),
-    enabled: assetIds.length > 0,
-  });
+  const query = useGatedQuery(assetIds.length === 0 ? null : assetIds, (ids) => trpc.assets.resolveChatBlobRefs.queryOptions({ chatId, assetIds: ids }));
   const map: ReadonlyMap<AssetId, ResolvedAttachment> = new Map(
     (query.data ?? []).map(
       (ref) =>

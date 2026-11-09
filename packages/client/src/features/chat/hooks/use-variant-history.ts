@@ -20,9 +20,6 @@ export interface VariantHistory {
    *  a genuinely out-of-range idx). */
   readonly get: (idx: number) => MessageVariantId | undefined;
   readonly variants: readonly MessageVariantSummary[];
-  readonly isPending: boolean;
-  readonly isError: boolean;
-  readonly retry: () => void;
 }
 
 /** The gate key — present only when the slot has more than one variant (a step target could exist). */
@@ -34,26 +31,28 @@ interface GateKey {
 /** Resolves the full `idx -> variantId` map for ONE message slot, gated on `variantCount > 1`. */
 export function useVariantHistory(message: MessageView): VariantHistory {
   const trpc = useTRPC();
-  const { chatId, id: messageId, variantCount, selectedVariantIdx, selectedVariantId } = message;
+  const { chatId, id: messageId, variantCount } = message;
 
   const gateKey: GateKey | undefined = variantCount > 1 ? { chatId, messageId } : undefined;
   const query = useGatedQuery(gateKey, ({ chatId: gChatId, messageId: gMessageId }: GateKey) =>
     trpc.chat.listMessageVariants.queryOptions({ chatId: gChatId, messageId: gMessageId }),
   );
+  return variantHistoryOf(message, query.data);
+}
 
-  const byIdx = new Map<number, MessageVariantId>((query.data ?? []).map((v) => [v.idx, v.variantId] as const));
+/** The `idx -> variantId` map over a slot's listed siblings, folding in the slot's own selection. */
+export function variantHistoryOf(
+  message: Pick<MessageView, "selectedVariantIdx" | "selectedVariantId">,
+  listed: readonly MessageVariantSummary[] | undefined,
+): VariantHistory {
+  const byIdx = new Map<number, MessageVariantId>((listed ?? []).map((v) => [v.idx, v.variantId] as const));
   // The current selection is always known immediately (the `MessageView` prop itself), even before the
   // fetch resolves or while gated off — no one-frame gap where the shown idx looks "unseen".
-  if (!byIdx.has(selectedVariantIdx)) {
-    byIdx.set(selectedVariantIdx, selectedVariantId);
+  if (!byIdx.has(message.selectedVariantIdx)) {
+    byIdx.set(message.selectedVariantIdx, message.selectedVariantId);
   }
   return {
     get: (idx): MessageVariantId | undefined => byIdx.get(idx),
     variants: [...byIdx].map(([idx, variantId]) => ({ idx, variantId })).sort((left, right) => left.idx - right.idx),
-    isPending: query.isPending,
-    isError: query.isError,
-    retry: (): void => {
-      void query.refetch().catch(globalThis.reportError);
-    },
   };
 }

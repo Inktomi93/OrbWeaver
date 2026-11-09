@@ -42,6 +42,7 @@ import { useThemeAutosave } from "../hooks/use-theme-autosave.ts";
 import {
   CONFIG_ADVANCED_THEME_TOOLS_NAME,
   CONFIG_CUSTOM_CSS_NAME,
+  CONFIG_THEME_BACKGROUND_FIELD_NAME,
   CONFIG_THEME_NAME_FIELD_NAME,
   CONFIG_THEME_PREVIEW_NAME,
 } from "../lib/config-control-names.ts";
@@ -120,7 +121,10 @@ function ThemeEditorBody({ theme, session, mintedName, isUnmintedDraft }: ThemeE
         <Section heading="Surface">
           <boundForm.AppField name="background">
             {(field): ReactElement => (
-              <field.ColorField label="Background" description="The base surface: the sidebar/panel/card ramp and all text colors derive from this." />
+              <field.ColorField
+                label={CONFIG_THEME_BACKGROUND_FIELD_NAME}
+                description="The base surface: the sidebar/panel/card ramp and all text colors derive from this."
+              />
             )}
           </boundForm.AppField>
           <boundForm.AppField name="accent">{(field): ReactElement => <field.ColorField label="Accent" />}</boundForm.AppField>
