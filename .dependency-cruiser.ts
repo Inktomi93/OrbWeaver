@@ -810,6 +810,10 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/chat/components/chat-header-title.tsx":
       "ChatHeaderTitle: the topbar's rename button, which only the chat header renders and no door forwards",
   },
+  "tests/client/features/chat/components/_member-card-viewer-stories.tsx": {
+    "packages/client/src/features/chat/components/member-card-viewer.tsx":
+      "MemberCardViewer: the Members tab's card dialog, which only the committed-members tab renders and no door forwards",
+  },
   "tests/client/features/character/components/_shelf-face-name-stories.tsx": {
     "packages/client/src/features/character/components/character-shelf.tsx":
       "CharacterShelf and ShelfFace: the landing's face buttons, which only the library landing renders and no door forwards",

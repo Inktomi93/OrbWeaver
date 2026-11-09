@@ -457,6 +457,7 @@
     --height-command-strip: calc(var(--size-control-sm) + 2 * var(--border-width-control));
     --height-picker-door-row: calc(var(--size-control-sm) + 2 * var(--spacing-block));
     --height-dialog-gutter: min(var(--spacing-gutter), 5dvh);
+    --width-dialog-gutter: round(down, min(var(--spacing-gutter), 5dvw), 1px);
     --dimension-shell-topbar-block: calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-16) + var(--dimension-device-pixel) - 100dvw) * 1000), var(--dimension-chrome-row) / 2));
     --dimension-shell-topbar-block-primary: calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-20) - 100dvw) * 1000), var(--dimension-chrome-row) / 2));
     --immersive-whisper-banner-inline-cap: calc(var(--immersive-whisper-banner-cap) * var(--aspect-banner));

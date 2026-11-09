@@ -24,8 +24,6 @@ Each finding is fixed with a capture, or answered with a cited reason in this it
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
-
 ### Part B (lane wt/agent-a18d3a4c83c54f7cb)
 
 Source: `reports/ux-reviewer/2026-11-08-acceptance-4-final-B.md`. Each finding was re-derived on main before the fix.
@@ -38,3 +36,17 @@ Source: `reports/ux-reviewer/2026-11-08-acceptance-4-final-B.md`. Each finding w
 | B6: the pinned history plate stacks on the sticky name row | Fixed. While the plate is pinned, the name rows stop pinning (`packages/client/src/styles/globals.css`); sticky and static take the same place in flow, so the reading row is unchanged. | `tests/client/features/app-shell/surfaces/platform-history-pager.suite.ct.tsx` at 390x844 and 1280x800: red on main (3 sticky name rows under the plate), green after. |
 | B7: the phone anchored toolbar sits at x4 with a jargon gloss | Fixed. The toolbar and gloss take the rows' `avatarReach` inset, the composer's edge; the gloss is plain words in `CHAT_WINDOW_PAGING_HINT`. | `tests/client/features/chat/components/platform-history-pagination.suite.ct.tsx` "a window whose target is gone says so on screen" at 390x844 and 1280x900: red on main at 390, the toolbar box at x4 against the composer and the new line at x14; green after, with the line above the scroller. |
 | B8: a deleted target is screen-reader only | Fixed. A deleted or unavailable target shows the outcome line on screen under the toolbar; the `role=status` announcement stays. The copy has one home, `CORPUS_SOURCE_OUTCOME_COPY`. | Same CT: red on main at both widths (the line is not found); green after. |
+
+### Lane cb-p3a (wt/agent-a29d5d507070ebb1d, 65e971cee7)
+
+| ID | Result | Proof |
+| - | - | - |
+| 2271 NC-1, SKIP-1, SKIP-2, ED-1, SET-1 | ANSWERED | 62fa71a34b with CTs new-chat-picker-blank, config-skip-link, greeting-focus, settings-intro-voice |
+| 2271 DLG-1 member card title | FIXED | `tests/client/features/chat/components/member-card-viewer.ct.tsx`: red on main (scrollWidth over clientWidth by 337, Close on its own line), green after. The viewer drops `titleTruncate`, so the title wraps by words |
+| 2271 BAND-2 | ANSWERED | Same as T3 |
+| 2271 INS-1 | ANSWERED | 5f0fc91d59 |
+| 2271 INS-2 intro measure | FIXED (the uncapped Insights character notes; the overview's already carry the cap) | `platform-insights-identity.suite.ct.tsx`: every leaf note reads at the prose measure; red on main (1050 against 330 at 1440), green after |
+| 2271 SET-3 automation switch off track | ANSWERED | `rule-editor-settings.tsx` uses `SettingSwitchRow`; measured 720px editor: switch right edge 731, equal to the Rule name field's right edge 731 |
+| 2271 NC-3, NC-4, SET-2, SET-4, TAG-1, CTX-1 | NOT DONE | Not re-derived; no CT written. TAG-1 was called an audit false positive in 62fa71a34b. CTX-1 needs a phone Context sheet mount |
+
+Part A still open: NC-3, NC-4, SET-2, SET-4, TAG-1, CTX-1. Code review: reports/code-reviewer/2026-11-09-cb-p3ab.md, C2 and C3 confirmed.

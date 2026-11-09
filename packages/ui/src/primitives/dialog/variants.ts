@@ -9,9 +9,9 @@ import { MODAL_SURFACE, OVERLAY_MOTION, POPUP_DESCRIPTION, PUSH, SCRIM, TITLE_ST
 // `overflow-y-auto overscroll-contain` (matching drawer-content) so tall content — a FormDialog whose
 // body outgrows the viewport — actually scrolls to its submit button instead of overflowing off-screen.
 // The gutter is a rem token, so enlarged text grows it with the type; at a narrow width it steps down to the field inset so
-// a phone keeps a readable dialog width at 300%. Its block axis is capped at a twentieth of the screen, so enlarged text does not
-// spend the screen's height on margin.
-const VIEWPORT_GUTTER = "px-gutter py-(--height-dialog-gutter) inline-narrow:p-field";
+// a phone keeps a readable dialog width at 300%. Both axes are capped at a twentieth of the screen, so enlarged text does not
+// spend the screen's room on margin.
+const VIEWPORT_GUTTER = "px-(--width-dialog-gutter) py-(--height-dialog-gutter) inline-narrow:p-field";
 
 export const dialogVariants = tv({
   slots: {
