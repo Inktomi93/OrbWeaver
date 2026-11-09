@@ -3,6 +3,11 @@
 // inset and gap are under the reach. Below `cq-16` (a pane enlarged by text scale until a line holds a few words) the avatar keeps
 // a 44px physical floor, `size.touch-target-physical`, which does not scale with the text: the touch token does scale, and a square
 // sized on it would outgrow the small inset and gap and cover the clip and the bubble. The enlarged `size.avatar-sm` leaves that
-// floor less to reach past the chip, so the inset is `spacing.avatar-reach-physical` there, and the text keeps the rest of the room.
+// floor less to reach past the chip, so the inset is `spacing.avatar-reach-physical` there and the gap is `spacing.avatar-gap-physical`
+// (the field step, grown to that overhang), and the text keeps the rest of the room.
 export const AVATAR_REACH_PADDING = "@max-cq-16:px-avatar-reach-physical @cq-16:@max-cq-28:px-avatar-reach pointer-coarse:@cq-28:px-avatar-reach";
-export const AVATAR_REACH_GAP = "@max-cq-16:gap-field @cq-16:@max-cq-28:gap-avatar-reach pointer-coarse:@cq-28:gap-avatar-reach";
+export const AVATAR_REACH_GAP = "@max-cq-16:gap-avatar-gap-physical @cq-16:@max-cq-28:gap-avatar-reach pointer-coarse:@cq-28:gap-avatar-reach";
+// The gap between a chip seated in a message header and the header's glyph controls: the chip's reach past its box and the glyph's own hit
+// area past its box, so neither touch square wins a tap from the other. It steps like the gutter gap above.
+export const AVATAR_HEADER_GAP =
+  "@max-cq-16:gap-avatar-header-gap-physical @cq-16:@max-cq-28:gap-avatar-header-gap pointer-coarse:@cq-28:gap-avatar-header-gap";

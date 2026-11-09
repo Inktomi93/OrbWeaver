@@ -166,6 +166,7 @@ export function renderRowNameRow(args: {
           : null
       }
       actions={args.actions}
+      chipped={args.chip !== null}
       stickyAttribution={args.stickyAttribution}
       actionsReveal={args.actionsReveal}
       edges={args.edges}
@@ -214,6 +215,7 @@ export function renderGhostNameRow(args: {
       <NameRowFrame
         identity={null}
         actions={null}
+        chipped={false}
         stickyAttribution={false}
         actionsReveal="expanded"
         edges={args.edges}
@@ -238,6 +240,7 @@ export function renderGhostNameRow(args: {
         </Row>
       }
       actions={args.actionsFootprint}
+      chipped={args.chip !== null}
       stickyAttribution={args.stickyAttribution}
       actionsReveal="expanded"
       edges={args.edges}

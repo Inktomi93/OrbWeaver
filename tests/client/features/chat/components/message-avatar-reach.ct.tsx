@@ -134,6 +134,31 @@ function probeReach(element: Element, reach: number): { readonly hits: readonly 
       };
 }
 
+/** The other controls whose hit area the opener's reach square wins from them: every point of the square, sampled every two
+ *  pixels, where the opener is topmost and a control of the row lies beneath it. A neighbour's own touch pseudo counts as its
+ *  hit area, not only its box, so this reads the browser's hit test rather than comparing boxes. */
+function controlsBeneath(element: Element, reach: number): readonly string[] {
+  // A picture with no reach pseudo (ripple's welded portrait) wins nothing from its neighbours: its own box is its hit area.
+  if (getComputedStyle(element, "::before").content === "none") {
+    return [];
+  }
+  const box = element.getBoundingClientRect();
+  const left = box.left + box.width / 2 - reach / 2;
+  const top = box.top + box.height / 2 - reach / 2;
+  const ticks = Array.from({ length: Math.floor(reach / 2) }, (_, index) => 1 + 2 * index);
+  const stacks = ticks.flatMap((dx) => ticks.map((dy) => element.ownerDocument.elementsFromPoint(left + dx, top + dy)));
+  const controls = stacks
+    .filter(([topmost]) => topmost !== undefined && element.contains(topmost))
+    .flatMap((stack) => stack.filter((candidate) => candidate.matches('button, a[href], [role="button"], [role="menuitem"], input')))
+    .filter((control) => !(control.contains(element) || element.contains(control)));
+  // Only a failing probe has anything to list, so each entry carries both boxes and the failure names the cell without a rerun.
+  const span = (target: Element): string => {
+    const rect = target.getBoundingClientRect();
+    return `${rect.left}..${rect.right} x ${rect.top}..${rect.bottom}`;
+  };
+  return [...new Set(controls.map((control) => `${control.getAttribute("aria-label") ?? control.tagName} ${span(control)} under chip ${span(element)}`))];
+}
+
 for (const density of THEME_DENSITIES) {
   for (const regime of REGIMES) {
     test.describe(`${regime.name} ${density}`, () => {
@@ -175,6 +200,7 @@ forEachNonEmpty(
               await expect
                 .poll(() => opener.evaluate(probeReach, floor), { message: `${role} avatar reach (edges start, end, top, bottom; bubble points covered)` })
                 .toEqual({ hits: [true, true, true, true], covered: [] });
+              await expect.poll(() => opener.evaluate(controlsBeneath, floor), { message: `${role} avatar reach: controls beneath it` }).toEqual([]);
             }
           });
         });
@@ -183,36 +209,59 @@ forEachNonEmpty(
   },
 );
 
-// The narrowest phone at 125% text: the pane is under the `cq-16` step, where the text keeps the room and the avatar keeps
-// the 44px physical floor, which does not grow with the text (the `avatar-reach.ts` header).
-const ENLARGED = { name: "320", viewport: { width: 320, height: 700 }, factor: 1.25 } as const;
+// A pane enlarged by text scale: from the `cq-16` step down the avatar keeps the 44px physical floor, which does not grow with the
+// text (the `avatar-reach.ts` header). The sweep crosses that step at both phone widths, in every chip style and density: the reach
+// is the opener's own pseudo square, it holds the floor, it is hit whole inside the scroller, and it covers neither a bubble point
+// nor any other control of the row (the header's edit and actions controls).
+const ENLARGED_WIDTHS = [
+  { name: "320", viewport: { width: 320, height: 700 } },
+  { name: "390", viewport: { width: 390, height: 844 } },
+] as const;
+const ENLARGED_FACTORS = [1.1, 1.15, 1.2, 1.25] as const;
+
+/** The square an opener lays over its row: its `::before` hit area when it has one, else the picture itself. */
+function reachSizeOf(element: Element): number {
+  const pseudo = Number.parseFloat(getComputedStyle(element, "::before").width);
+  return Number.isFinite(pseudo) ? pseudo : element.getBoundingClientRect().width;
+}
 
 forEachNonEmpty(
   THEME_CHAT_STYLES.filter((style) => MESSAGE_ROW_SKINS[style].avatarTreatment("character") !== "none"),
   "chat styles that paint an avatar at enlarged text",
   (chatStyle) => {
-    test.describe(`${ENLARGED.name} 125% text ${chatStyle} avatar reach`, () => {
-      test.use({ hasTouch: true, isMobile: true, viewport: ENLARGED.viewport });
+    for (const density of THEME_DENSITIES) {
+      for (const width of ENLARGED_WIDTHS) {
+        for (const factor of ENLARGED_FACTORS) {
+          test.describe(`${width.name} ${String(Math.round(factor * 100))}% text ${density} ${chatStyle} avatar reach`, () => {
+            test.use({ hasTouch: true, isMobile: true, viewport: width.viewport });
 
-      test("each avatar's reach holds the physical 44px floor, hit whole inside the scroller and covering no bubble point", async ({
-        corpus,
-        corpusMedia,
-        mount,
-        page,
-      }) => {
-        await using root = await createCorpusHarness();
-        const { chatId, messageIds } = await prepareRoom({ corpus, corpusMedia, page }, root, { chatStyle, density: "comfortable" });
-        await mount<typeof ChatRoomShellStory>(STORY, { chatId });
-        await setRootFontScale(page, channelName("fontScale"), ENLARGED.factor);
-        for (const role of ROLES) {
-          const opener = await openerOf(page, messageIds.get(role));
-          const floor = await resolvedLength(page, `var(${TOKENS["size.touch-target-physical"].cssVar})`, opener);
-          await expect
-            .poll(() => opener.evaluate(probeReach, floor), { message: `${role} avatar physical reach (edges start, end, top, bottom; bubble points covered)` })
-            .toEqual({ hits: [true, true, true, true], covered: [] });
+            test("each avatar's reach holds the physical 44px floor, hit whole inside the scroller, covering no bubble point and no other control", async ({
+              corpus,
+              corpusMedia,
+              mount,
+              page,
+            }) => {
+              await using root = await createCorpusHarness();
+              const { chatId, messageIds } = await prepareRoom({ corpus, corpusMedia, page }, root, { chatStyle, density });
+              await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+              await setRootFontScale(page, channelName("fontScale"), factor);
+              const physical = await resolvedLength(page, `var(${TOKENS["size.touch-target-physical"].cssVar})`);
+              for (const role of ROLES) {
+                const opener = await openerOf(page, messageIds.get(role));
+                await expect.poll(() => opener.evaluate(reachSizeOf), { message: `${role} avatar reach square` }).toBeGreaterThanOrEqual(physical);
+                const reach = await opener.evaluate(reachSizeOf);
+                await expect
+                  .poll(() => opener.evaluate(probeReach, reach), {
+                    message: `${role} avatar physical reach (edges start, end, top, bottom; bubble points covered)`,
+                  })
+                  .toEqual({ hits: [true, true, true, true], covered: [] });
+                await expect.poll(() => opener.evaluate(controlsBeneath, reach), { message: `${role} avatar reach: controls beneath it` }).toEqual([]);
+              }
+            });
+          });
         }
-      });
-    });
+      }
+    }
   },
 );
 

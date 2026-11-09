@@ -54,6 +54,8 @@ function frameInset(edges: HeaderEdges, pinned: boolean): FrameInset {
 export interface NameRowFrameProps {
   readonly identity: ReactNode;
   readonly actions: ReactNode;
+  /** The identity carries the skin's avatar chip: the gap to the actions then holds the chip's touch square and the glyphs' clear of each other. */
+  readonly chipped: boolean;
   readonly stickyAttribution: boolean;
   readonly actionsReveal: ActionsReveal;
   /** The skin's header placement and the row's own surface its pinned bar paints (`RowSkin`). */
@@ -70,6 +72,7 @@ export interface NameRowFrameProps {
 export function NameRowFrame({
   identity,
   actions,
+  chipped,
   stickyAttribution,
   actionsReveal,
   edges,
@@ -99,6 +102,7 @@ export function NameRowFrame({
       inset={inset}
       reachTrain={pinned && pinnedHeader.reach === "train"}
       chip={!shape.identity}
+      chipped={chipped}
       overlay={overlay}
       overlayReveal={shape.ownLine ? undefined : ACTIONS_REVEAL_POSTURE[actionsReveal]}
       reserve={!outside && shape.ownLine}
@@ -160,11 +164,17 @@ interface FrameRowProps {
   readonly inset: FrameInset;
   readonly reachTrain: boolean;
   readonly chip: boolean;
+  readonly chipped: boolean;
   readonly overlay: "band" | "glyph" | undefined;
   readonly overlayReveal: (typeof ACTIONS_REVEAL_POSTURE)[ActionsReveal];
   readonly reserve: boolean;
   readonly rule: boolean;
   readonly children: ReactNode;
+}
+
+/** A header that seats the chip keeps the chip's touch square and the glyph controls' clear of each other. */
+function chipGap(chipped: boolean): "avatarHeader" | undefined {
+  return chipped ? "avatarHeader" : undefined;
 }
 
 function stickyPin(outside: boolean, inside: boolean): "headerOutside" | "header" | undefined {
@@ -189,6 +199,7 @@ function FrameRow({
   inset,
   reachTrain,
   chip,
+  chipped,
   overlay,
   overlayReveal,
   reserve,
@@ -201,6 +212,7 @@ function FrameRow({
       justify={chip ? "end" : "between"}
       align="center"
       gap="field"
+      gapNarrow={chipGap(chipped)}
       divider={rule ? "bottom" : undefined}
       data-slot="message-name-row"
       data-placement={placement}
