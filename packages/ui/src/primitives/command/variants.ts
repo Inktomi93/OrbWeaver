@@ -40,7 +40,9 @@ export const commandVariants = tv({
     // phone). `control-sm` already varies by pointer (2.75rem coarse / 2rem fine, theme.css) but only
     // via the `pointer: fine` media query, not Tailwind's `pointer-coarse:` variant — spelling the
     // floor here keeps the tap target explicit rather than relying on that CSS-var-only coincidence.
-    inputWrapper: `${ROW_STRIP} border-be border-border px-row block-(--size-control-sm) pointer-coarse:block-(--size-touch-target)`,
+    // `shrink-0`: the root is a column capped at a box that counts the list's window but not the footer a picker adds, so the footer's
+    // room comes out of the list; the field is a control, and a control keeps its height.
+    inputWrapper: `${ROW_STRIP} shrink-0 border-be border-border px-row block-(--size-control-sm) pointer-coarse:block-(--size-touch-target)`,
     input: `
       flex-1 bg-transparent text-field leading-field text-foreground outline-none block-full inline-full min-inline-0
       placeholder:text-muted-foreground
