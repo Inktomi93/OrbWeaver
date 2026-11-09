@@ -31,7 +31,7 @@ import type { ScanOptions } from "./scan.ts";
 import { scanWorlds, sitesOf, sortDeliberate } from "./scan.ts";
 import { nativeOracle, serviceOracle } from "./union-oracles.ts";
 import type { Origins } from "./union-origins.ts";
-import { isNamedConstant, settled, slotOrigins } from "./union-origins.ts";
+import { isNamedConstant, satisfiedOrigins, settled, slotOrigins } from "./union-origins.ts";
 import { isProduction } from "./worlds.ts";
 
 const UNION_KINDS = ["unbuilt", "parsed"] as const;
@@ -61,11 +61,24 @@ export interface UnionsReport {
   readonly scanned: number;
   /** Tuples production enumerates, so no member is judged. */
   readonly enumerated: readonly string[];
+  /** Each tuple written `as const satisfies readonly P[]` with the tuples `P` derives from; its members are judged as theirs. */
+  readonly subsets: Readonly<Record<string, readonly string[]>>;
   readonly unwired: readonly UnwiredUnionMember[];
   readonly deliberate: readonly (UnwiredUnionMember & { readonly reason: string })[];
   /** Members engine one found unbuilt that engine two finds built, or whose tuple engine two finds enumerated. */
   readonly disagreements: readonly string[];
+  readonly limits: readonly string[];
 }
+
+/** What the unions scan cannot see, printed with every run. */
+const UNION_LIMITS: readonly string[] = [
+  "A tuple with any element that is not a string literal (a constant, a spread, a template) is skipped whole, so none of its members is judged.",
+  'A literal builds a member only in a slot spelled from the tuple. A slot that re-spells the member as its own literal type (a discriminated union arm `kind: "x"`, a hand-written union, or the union a tuple `satisfies` when no tuple spells it) builds nothing, so a member production builds only there reports unbuilt.',
+  "Two tuples with the same members in different files are separate vocabularies; a member built into one's slots does not build the other's.",
+  "A member built only from a computed string (a template, a concatenation, a lookup by string key), from a JSON or scenario file, or outside the tree (a plugin guest, the model) is not built; a tuple production parses outside input into sorts as parsed instead.",
+  "A tuple reached through a re-export or a wrapper keeps its references; a reference that hands the tuple on (a spread, a map, an index) enumerates it, and an enumerated tuple is listed, never judged.",
+  "Only package worlds are scanned; a test literal never builds a member.",
+];
 
 interface Member {
   readonly text: string;
@@ -107,10 +120,12 @@ function builtInto(constructions: Iterable<Construction>): Built {
   return built;
 }
 
-// A slot whose declaration cannot be read may be any tuple's, so it rules none out.
-const belongsTo = (origins: Origins, tuple: Tuple): boolean => origins === null || origins.has(tuple.key);
+// A slot whose declaration cannot be read may be any tuple's, so it rules none out. `lineage` is a tuple and the
+// tuples it is a subset of: a member built into the parent's vocabulary is the subset's member built.
+const belongsTo = (origins: Origins, lineage: readonly string[]): boolean => origins === null || lineage.some((key) => origins.has(key));
 
-const buildsMember = (built: Built, tuple: Tuple, text: string): boolean => (built.get(text) ?? []).some((origins) => belongsTo(origins, tuple));
+const buildsMember = (built: Built, lineage: readonly string[], text: string): boolean =>
+  (built.get(text) ?? []).some((origins) => belongsTo(origins, lineage));
 
 const lineOf = (node: Node): number => node.getSourceFile().getLineAndCharacterOfPosition(node.getStart(node.getSourceFile())).line + 1;
 
@@ -298,12 +313,12 @@ function builtByService(world: ServiceWorld, sources: Sources, texts: ReadonlySe
 }
 
 interface FirstPass {
-  readonly tuples: ReadonlyMap<string, { readonly tuple: Tuple; readonly references: ReadonlyMap<string, Site> }>;
+  readonly tuples: ReadonlyMap<string, { readonly tuple: Tuple; readonly references: ReadonlyMap<string, Site>; readonly satisfied: ReadonlySet<string> }>;
   readonly literals: readonly LiteralSite[];
 }
 
 function engineOne(options: ScanOptions, worlds: readonly string[], sources: Sources): FirstPass {
-  const found = new Map<string, { readonly tuple: Tuple; readonly references: Map<string, Site> }>();
+  const found = new Map<string, { readonly tuple: Tuple; readonly references: Map<string, Site>; readonly satisfied: ReadonlySet<string> }>();
   const literals = new Map<string, LiteralSite>();
   const homes = homeFiles(worlds, NativeWorld.fileLists(options.root, worlds));
   for (const config of worlds) {
@@ -314,8 +329,10 @@ function engineOne(options: ScanOptions, worlds: readonly string[], sources: Sou
       literals.set(siteKey(literal.site), seen?.holds === true ? seen : literal);
     }
     const index = valueIndex(world, homes.get(config));
-    for (const tuple of local) {
-      const entry = found.get(tuple.key) ?? { tuple, references: new Map<string, Site>() };
+    const oracle = nativeOracle(world);
+    const satisfied = world.batch(local.map((tuple) => satisfiedOrigins(oracle, sources, tuple.site)));
+    for (const [at, tuple] of local.entries()) {
+      const entry = found.get(tuple.key) ?? { tuple, references: new Map<string, Site>(), satisfied: satisfied[at] ?? new Set<string>() };
       for (const site of sitesOf(index, tuple.keys, tuple.site)) {
         entry.references.set(siteKey(site), site);
       }
@@ -326,16 +343,36 @@ function engineOne(options: ScanOptions, worlds: readonly string[], sources: Sou
   return { tuples: found, literals: [...literals.values()] };
 }
 
+// Each tuple's parents: the tuples its `satisfies` spelling reaches that hold every one of its members. The member test
+// is what makes a reached tuple a parent, since a `keyof` or an indexed access reaches tuples of another vocabulary.
+function subsetLineages(first: FirstPass): ReadonlyMap<string, readonly string[]> {
+  const texts = new Map([...first.tuples].map(([key, { tuple }]) => [key, new Set(tuple.members.map((member) => member.text))]));
+  const lineages = new Map<string, readonly string[]>();
+  for (const [key, { tuple, satisfied }] of first.tuples) {
+    const parents = [...satisfied].filter((parent) => parent !== key && tuple.members.every((member) => texts.get(parent)?.has(member.text) === true));
+    if (parents.length > 0) {
+      lineages.set(key, parents.sort());
+    }
+  }
+  return lineages;
+}
+
 /** Run both engines over the package worlds of `root` for string-union members nothing builds. */
 export function scanUnions(options: ScanOptions): UnionsReport {
   const { worlds } = scanWorlds(options);
   const sources = new Sources(options.root);
   const first = engineOne(options, worlds, sources);
   const entries = [...first.tuples.values()];
-  const enumerated = entries.filter(({ references }) => enumerates(sources, references.values())).map(({ tuple }) => tuple.key);
+  const subsets = subsetLineages(first);
+  const lineage = (tuple: Tuple): readonly string[] => [tuple.key, ...(subsets.get(tuple.key) ?? [])];
+  const ownEnumerated = new Set(entries.filter(({ references }) => enumerates(sources, references.values())).map(({ tuple }) => tuple.key));
+  // A subset of an enumerated tuple holds members production may build by enumerating the parent.
+  const enumerated = entries.filter(({ tuple }) => lineage(tuple).some((key) => ownEnumerated.has(key))).map(({ tuple }) => tuple.key);
   const judged = entries.map(({ tuple }) => tuple).filter((tuple) => !enumerated.includes(tuple.key));
   const built = builtInto(first.literals.filter((site) => site.role === "construct" && site.holds));
-  const candidates = judged.flatMap((tuple) => tuple.members.filter((member) => !buildsMember(built, tuple, member.text)).map((member) => ({ tuple, member })));
+  const candidates = judged.flatMap((tuple) =>
+    tuple.members.filter((member) => !buildsMember(built, lineage(tuple), member.text)).map((member) => ({ tuple, member })),
+  );
   const own = new Set(entries.flatMap(({ tuple }) => tuple.members.map((member) => siteKey(member.site))));
   const texts = new Set(candidates.map(({ member }) => member.text));
   const builtTwo = builtInto(worlds.flatMap((config) => builtByService(ServiceWorld.open(options.root, config), sources, texts, own)));
@@ -348,15 +385,15 @@ export function scanUnions(options: ScanOptions): UnionsReport {
   for (const { tuple, member } of candidates) {
     const key = `${tuple.key}.${member.text}`;
     const two = referencesTwo.get(siteKey(tuple.site)) ?? [];
-    if (buildsMember(builtTwo, tuple, member.text) || enumerates(sources, two) || parses(sources, two) !== parsed.has(tuple.key)) {
+    if (buildsMember(builtTwo, lineage(tuple), member.text) || enumerates(sources, two) || parses(sources, two) !== parsed.has(tuple.key)) {
       disagreements.push(key);
       continue;
     }
-    const sites = first.literals.filter((site) => site.text === member.text && site.holds && belongsTo(site.origins, tuple));
+    const sites = first.literals.filter((site) => site.text === member.text && site.holds && belongsTo(site.origins, lineage(tuple)));
     const of = (role: LiteralSite["role"]): readonly string[] => sites.filter((site) => site.role === role).map((site) => located(site.site));
     findings.push({
       key,
-      kind: parsed.has(tuple.key) ? "parsed" : "unbuilt",
+      kind: lineage(tuple).some((home) => parsed.has(home)) ? "parsed" : "unbuilt",
       file: tuple.site.file,
       line: member.line,
       home: tuple.name,
@@ -366,5 +403,12 @@ export function scanUnions(options: ScanOptions): UnionsReport {
       keys: of("record-key"),
     });
   }
-  return { scanned: entries.length, enumerated, ...sortDeliberate(findings, options.deliberate), disagreements };
+  return {
+    scanned: entries.length,
+    enumerated,
+    subsets: Object.fromEntries([...subsets].sort(([a], [b]) => a.localeCompare(b))),
+    ...sortDeliberate(findings, options.deliberate),
+    disagreements,
+    limits: UNION_LIMITS,
+  };
 }

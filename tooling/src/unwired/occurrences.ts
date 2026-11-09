@@ -2,6 +2,7 @@
 // checker passes. An object literal key or shorthand binding resolves through its contextual or pattern type; a spread,
 // computed key or reflective call reads by type; links join what no name does (`satisfies`, `Owner["m"]`, overloads).
 import type {
+  CallExpression,
   ClassDeclaration,
   ClassExpression,
   Expression,
@@ -16,6 +17,7 @@ import type {
   TypeNode,
 } from "@typescript/native/ast";
 import {
+  isAsExpression,
   isBinaryExpression,
   isBindingElement,
   isCallExpression,
@@ -49,16 +51,19 @@ import {
   isShorthandPropertyAssignment,
   isSpreadAssignment,
   isStringLiteral,
+  isTypeAssertion,
   isTypeQueryNode,
   isTypeReferenceNode,
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
-import { all, TypeFlags } from "@typescript/native/sync";
+import { all, IndexKind, TypeFlags } from "@typescript/native/sync";
+import type { SendDestination, StoreWrite } from "./boundaries.ts";
+import { copiedReads, PROVIDER_BODIES, serializedBy, storeWritesAt, tableDefinition } from "./boundaries.ts";
 import type { Site } from "./classify.ts";
 import { siteKey } from "./classify.ts";
 import type { Flow } from "./handoffs.ts";
-import { handoffFlows } from "./handoffs.ts";
+import { handedAt, handoffFlows } from "./handoffs.ts";
 import type { NativeWorld } from "./native.ts";
 import { constituents, declarationKeys, hasFlag, propertiesNamed } from "./native.ts";
 
@@ -179,41 +184,52 @@ function lookupsOf(world: NativeWorld, node: PropertyName): readonly Lookup[] {
 }
 
 // The value whose properties a spread, a computed key, a `for…in` or a reflective call reads, and the key's expression
-// for a computed element access.
+// for a computed element access. `sent` names where a serialization sends the value instead of reading it.
 interface Reflection {
   readonly value: Node;
   readonly key: Node | null;
+  readonly sent: SendDestination | null;
+  /** The reflection reads nested members too, as deep as a send carries them. */
+  readonly nested?: true;
 }
 
 // Calls that read every property of their arguments by reflection, by the callee's text.
-const REFLECTIVE_CALLS: ReadonlySet<string> = new Set([
-  "Object.entries",
-  "Object.values",
-  "Object.keys",
-  "Object.assign",
-  "JSON.stringify",
-  "structuredClone",
-  "nestedValue",
-  "c.json",
-]);
+const REFLECTIVE_CALLS: ReadonlySet<string> = new Set(["Object.entries", "Object.values", "Object.keys", "Object.assign", "structuredClone"]);
+// A dotted-path read, `nestedValue(value, "a.b")`: its path is a wide string, so it may reach any nested member of its value.
+const NESTED_READS: ReadonlySet<string> = new Set(["nestedValue"]);
+const SERIALIZE = "JSON.stringify";
+// A Hono response: the value goes to whoever made the request, so only that reader's names count.
+const RESPONSE = "c.json";
 
 // A literal key names one property, which a name already reports; any other key expression reads by its type.
 const isLiteralKey = (node: Node): boolean => isStringLiteral(node) || isNoSubstitutionTemplateLiteral(node) || isNumericLiteral(node);
 
+function callReflections(node: CallExpression): readonly Reflection[] {
+  const callee = node.expression.getText();
+  if (callee === RESPONSE) {
+    return node.arguments.slice(0, 1).map((value) => ({ value, key: null, sent: "http" }));
+  }
+  if (callee === SERIALIZE) {
+    const serialized = serializedBy(node);
+    return node.arguments.slice(0, 1).map((value) => ({ value, key: null, sent: serialized.whole ? null : serialized.destination }));
+  }
+  if (NESTED_READS.has(callee)) {
+    return node.arguments.slice(0, 1).map((value) => ({ value, key: null, sent: null, nested: true }));
+  }
+  return REFLECTIVE_CALLS.has(callee) ? node.arguments.map((value) => ({ value, key: null, sent: null })) : [];
+}
+
 function reflectionsAt(node: Node): readonly Reflection[] {
   if (isSpreadAssignment(node) || isJsxSpreadAttribute(node)) {
-    return [{ value: node.expression, key: null }];
+    return [{ value: node.expression, key: null, sent: null }];
   }
   if (isElementAccessExpression(node) && !isLiteralKey(node.argumentExpression)) {
-    return [{ value: node.expression, key: node.argumentExpression }];
+    return [{ value: node.expression, key: node.argumentExpression, sent: null }];
   }
   if (isForInStatement(node)) {
-    return [{ value: node.expression, key: null }];
+    return [{ value: node.expression, key: null, sent: null }];
   }
-  if (isCallExpression(node) && REFLECTIVE_CALLS.has(node.expression.getText())) {
-    return node.arguments.map((value) => ({ value, key: null }));
-  }
-  return [];
+  return isCallExpression(node) ? callReflections(node) : [];
 }
 
 // The names a computed key can take, or null when it is a wide string and may name any property. A key typed by a
@@ -388,11 +404,23 @@ function* redeclarations(checker: Checker, declaration: InterfaceDeclaration): A
   );
 }
 
+/** A serialization that sends a declaration's value out of the process, and where. */
+export interface Send {
+  readonly site: Site;
+  readonly destination: SendDestination;
+}
+
 /** A world's property sites: `index` joins every link and flow. `direct` holds the sites that name each declaration and
- *  the writes a value carried in: a link says who uses a member, a flow says a value really arrived. */
+ *  the writes a value carried in: a link says who uses a member, a flow says a value really arrived. `sends` holds,
+ *  per declaration, the serializations that send it without a read. */
 export interface PropertyReferences {
   readonly index: ReferenceIndex;
   readonly direct: ReferenceIndex;
+  readonly sends: ReadonlyMap<string, readonly Send[]>;
+  /** The {@link siteKey} of every read that only copies a value into a stored column, which no audit may count as a read. */
+  readonly copied: ReadonlySet<string>;
+  /** Each declaration key's flows: the keys its value is carried into. */
+  readonly carriesInto: ReadonlyMap<string, ReadonlySet<string>>;
 }
 
 /** What a world's files say before any join: each site with the declarations it resolves to, in walk order. */
@@ -402,6 +430,137 @@ export interface PropertyFacts {
   readonly flows: readonly Flow[];
   /** The {@link siteKey} of every written name. */
   readonly written: ReadonlySet<string>;
+  readonly sends: readonly (Send & { readonly keys: readonly string[] })[];
+  readonly copied: ReadonlySet<string>;
+}
+
+// What a Drizzle write stores: a column key credited with each literal key that writes it, the flows from the stored
+// value's members into the columns, and the copied reads that hand a value to a column.
+interface Stored {
+  readonly credits: readonly { readonly site: Site; readonly keys: readonly string[] }[];
+  readonly flows: readonly Flow[];
+  readonly copied: readonly { readonly site: Site; readonly column: readonly string[] }[];
+}
+
+function* columnKeys(checker: Checker, table: Type, name: string): APIRequestGenerator<readonly string[]> {
+  const column = yield* checker.getPropertyOfType.gen(table, name);
+  return column === undefined ? [] : declarationKeys(column);
+}
+
+// A stored value's members flow into the same-named columns, an array's through its element type.
+function* memberFlows(checker: Checker, table: Type, value: Node): APIRequestGenerator<readonly Flow[]> {
+  const type = yield* checker.getNonNullableType.gen(yield* checker.getTypeAtLocation.gen(value));
+  const element = (yield* checker.isArrayType.gen(type)) && type.isTypeReference() ? (yield* checker.getTypeArguments.gen(type))[0] : undefined;
+  const members = yield* constituents(element ?? type);
+  const properties = (yield* all(...members.map((member) => checker.getPropertiesOfType.gen(member)))).flat();
+  const sinks = yield* all(...properties.map((property) => columnKeys(checker, table, property.name)));
+  return properties.flatMap((property, at) => {
+    const sink = sinks[at] ?? [];
+    return sink.length === 0 ? [] : [{ source: declarationKeys(property), sink }];
+  });
+}
+
+function* storedBy(world: NativeWorld, { table, value }: StoreWrite): APIRequestGenerator<Stored> {
+  const { checker } = world;
+  const tableType = yield* checker.getTypeAtLocation.gen(table);
+  if (!isObjectLiteralExpression(value)) {
+    return { credits: [], flows: yield* memberFlows(checker, tableType, value), copied: [] };
+  }
+  const credits: Stored["credits"][number][] = [];
+  const flows: Flow[] = [];
+  const copied: Stored["copied"][number][] = [];
+  for (const property of value.properties) {
+    if (isSpreadAssignment(property)) {
+      flows.push(...(yield* memberFlows(checker, tableType, property.expression)));
+      continue;
+    }
+    const { name } = property as { readonly name?: Node };
+    if (name === undefined || !isPropertyName(name)) {
+      continue;
+    }
+    const column = yield* columnKeys(checker, tableType, name.text);
+    credits.push({ site: world.siteOf(name), keys: column });
+    const reads = isPropertyAssignment(property) ? copiedReads(property.initializer) : [];
+    copied.push(...reads.map((read) => ({ site: world.siteOf(read), column })));
+  }
+  return { credits, flows, copied };
+}
+
+// A literal handed to a Drizzle write: its spreads flow into columns rather than being read by the library.
+function storedLiterals(stores: readonly StoreWrite[]): ReadonlySet<Node> {
+  return new Set(stores.flatMap(({ value }) => (isObjectLiteralExpression(value) ? [value] : [])));
+}
+
+const within = (site: Site, spans: readonly { readonly file: string; readonly start: number; readonly end: number }[]): boolean =>
+  spans.some((span) => span.file === site.file && site.position >= span.start && site.position < span.end);
+
+const DB_SCHEMA = "packages/db/src/schema/";
+
+// Each table's column keys by name, keyed by the table's sorted column names.
+type TablesBySignature = ReadonlyMap<string, ReadonlyMap<string, readonly string[]>>;
+
+const signatureOf = (names: Iterable<string>): string => [...names].toSorted().join(",");
+
+// A row typed `typeof table.$inferSelect` or `$inferInsert` has members no declaration backs, so its reads resolve to
+// nothing. Its member names are exactly its table's column names, which is how such a read finds its column.
+function tablesOf(world: NativeWorld): TablesBySignature {
+  const schemas = new Set(world.files.map((file) => world.siteOf(file).file).filter((file) => file.startsWith(DB_SCHEMA)));
+  const tables: (readonly PropertyName[])[] = [];
+  walk(world, schemas, (node) => {
+    const definition = tableDefinition(node);
+    if (definition !== null) {
+      tables.push(definition.columns.properties.flatMap((column) => (isPropertyAssignment(column) && isPropertyName(column.name) ? [column.name] : [])));
+    }
+  });
+  const names = tables.flat();
+  const keyed = new Map(world.symbolsAt(names).map((symbol, at) => [names[at], keysOf([symbol])] as const));
+  // Two tables with the same column names cannot be told apart by a row type, so such a read reads both.
+  const bySignature = new Map<string, Map<string, readonly string[]>>();
+  for (const columns of tables) {
+    const signature = signatureOf(columns.map((name) => name.text));
+    const merged = bySignature.get(signature) ?? new Map<string, readonly string[]>();
+    for (const name of columns) {
+      merged.set(name.text, [...(merged.get(name.text) ?? []), ...(keyed.get(name) ?? [])]);
+    }
+    bySignature.set(signature, merged);
+  }
+  return bySignature;
+}
+
+// The expression whose type holds the member a lookup with no declaration names.
+function receiverOf(lookup: Lookup): Node | null {
+  if (lookup.by === "type") {
+    return lookup.node;
+  }
+  const { parent } = lookup.node;
+  if (isPropertyAccessExpression(parent) || isElementAccessExpression(parent)) {
+    return parent.expression;
+  }
+  return isBindingElement(parent) ? parent.parent : null;
+}
+
+function* rowColumn(checker: Checker, tables: TablesBySignature, receiver: Node, name: string): APIRequestGenerator<readonly string[]> {
+  const type = yield* checker.getNonNullableType.gen(yield* checker.getTypeAtLocation.gen(receiver));
+  const members = yield* constituents(type);
+  const named = yield* all(...members.map((member) => checker.getPropertiesOfType.gen(member)));
+  return named.flatMap((properties) => tables.get(signatureOf(properties.map((property) => property.name)))?.get(name) ?? []);
+}
+
+/** The column each declaration-less lookup reads through a Drizzle row type, by lookup position. */
+function rowColumnReads(
+  world: NativeWorld,
+  lookups: readonly Lookup[],
+  resolved: readonly (readonly string[])[],
+  unresolved: readonly boolean[],
+): ReadonlyMap<number, readonly string[]> {
+  const tables = tablesOf(world);
+  const asked = lookups.flatMap((lookup, at) => {
+    const receiver = unresolved[at] === true && (resolved[at] ?? []).length === 0 ? receiverOf(lookup) : null;
+    const name = lookup.by === "symbol" ? (lookup.node as PropertyName).text : lookup.name;
+    return receiver === null ? [] : [{ at, receiver, name }];
+  });
+  const columns = world.batch(asked.map(({ receiver, name }) => rowColumn(world.checker, tables, receiver, name)));
+  return new Map(asked.flatMap(({ at }, index) => ((columns[index] ?? []).length === 0 ? [] : [[at, columns[index] ?? []] as const])));
 }
 
 /** Every property site of a world resolved to the property declarations it means. A spread, computed key, `for…in`
@@ -418,6 +577,9 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
   const indexed: { readonly member: Node; readonly owner: Node; readonly name: string }[] = [];
   const implementations: Signature[] = [];
   const written = new Set<string>();
+  const stores: StoreWrite[] = [];
+  const definitions: { readonly file: string; readonly start: number; readonly end: number }[] = [];
+  const columnNames: Node[] = [];
   const lookUp = (node: PropertyName): void => {
     const named = lookupsOf(world, node);
     lookups.push(...named);
@@ -428,6 +590,13 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
   walk(world, home, (node) => {
     if (isPropertyName(node)) {
       lookUp(node);
+    }
+    stores.push(...storeWritesAt(node));
+    const definition = tableDefinition(node);
+    if (definition !== null) {
+      const { file } = world.siteOf(definition.call);
+      definitions.push({ file, start: definition.call.pos, end: definition.call.end });
+      columnNames.push(...definition.columns.properties.flatMap((column) => (isPropertyAssignment(column) ? [column.name] : [])));
     }
     reflections.push(...reflectionsAt(node).map((reflection) => ({ ...reflection, site: world.siteOf(reflection.value) })));
     const member = indexedMember(node);
@@ -443,17 +612,26 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
   });
   const { checker } = world;
   const found = world.batch(
-    lookups.map(function* (lookup): APIRequestGenerator<{ readonly symbols: (NativeSymbol | undefined)[]; readonly own: NativeSymbol | undefined }> {
+    lookups.map(function* (lookup): APIRequestGenerator<{
+      readonly symbols: (NativeSymbol | undefined)[];
+      readonly own: NativeSymbol | undefined;
+      readonly open: boolean;
+    }> {
       if (lookup.by === "symbol") {
-        return { symbols: [yield* checker.getSymbolAtLocation.gen(lookup.node)], own: undefined };
+        return { symbols: [yield* checker.getSymbolAtLocation.gen(lookup.node)], own: undefined, open: false };
       }
       const type = lookup.by === "contextual" ? yield* checker.getContextualType.gen(lookup.node) : yield* checker.getTypeAtLocation.gen(lookup.node);
       const symbols = type === undefined ? [] : yield* propertiesNamed(checker, type, lookup.name);
       const own = lookup.by === "contextual" && lookup.literalKey !== null ? yield* checker.getSymbolAtLocation.gen(lookup.literalKey) : undefined;
-      return { symbols, own };
+      const unnamed = lookup.by === "contextual" && lookup.literalKey !== null && symbols.every((symbol) => symbol === undefined);
+      const open = unnamed && type !== undefined && lookup.site.file.startsWith(PROVIDER_BODIES) && (yield* isOpenType(checker, type));
+      return { symbols, own, open };
     }),
   );
-  const reads = reflectedOnce(world, reflections);
+  const literals = storedLiterals(stores);
+  const kept = reflections.filter((reflection) => !(isSpreadAssignment(reflection.value.parent) && literals.has(reflection.value.parent.parent)));
+  const reads = reflectedOnce(world, kept);
+  const stored = storeFacts(world, stores, definitions, columnNames);
   const derived = world.batch(
     indexed.map(function* ({ member, owner, name }): APIRequestGenerator<Link> {
       const from = yield* checker.getSymbolAtLocation.gen(member);
@@ -463,25 +641,225 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
   );
   const overloaded = world.batch(implementations.flatMap(overloadPairs).map((pair) => overloadLinks(checker, pair)));
   const redeclared = world.batch(extending.map((declaration) => redeclarations(checker, declaration)));
-  const credits: { readonly site: Site; readonly keys: readonly string[] }[] = [];
+  const credits: { readonly site: Site; readonly keys: readonly string[] }[] = [...stored.credits];
   const links: Link[] = [...derived, ...overloaded.flat(), ...redeclared.flat()];
-  const flows: Flow[] = [...handoffFlows(world, home)];
+  const flows: Flow[] = [...handoffFlows(world, home), ...stored.flows];
+  const sends: PropertyFacts["sends"][number][] = [...stored.sends];
+  const rows = rowColumnReads(
+    world,
+    lookups,
+    found.map(({ symbols }) => keysOf(symbols)),
+    found.map(({ symbols }) => symbols.some((symbol) => symbol !== undefined && symbol.declarations.length === 0)),
+  );
   for (const [at, lookup] of lookups.entries()) {
     const { symbols, own } = found[at] ?? { symbols: [], own: undefined };
-    credits.push({ site: lookup.site, keys: keysOf(symbols) });
+    const keys = rows.get(at) ?? keysOf(symbols);
+    const column = stored.copied.get(siteKey(lookup.site));
+    if (column !== undefined) {
+      flows.push({ source: keys, sink: column });
+      sends.push({ site: lookup.site, destination: "column", keys });
+    } else if (!stored.defines(lookup.site, keys)) {
+      credits.push({ site: lookup.site, keys });
+    }
     if (own !== undefined) {
       // An uncontextual literal's key is its own declaration, and the write a later hand-off carries on.
       credits.push({ site: lookup.site, keys: declarationKeys(own) });
-      links.push({ from: declarationKeys(own), to: keysOf(symbols) });
+      links.push({ from: declarationKeys(own), to: keys });
     }
   }
-  for (const [at, reflection] of reflections.entries()) {
+  const sentReflections = kept.filter((reflection) => reflection.sent !== null);
+  const sentKeys = world.batch(sentReflections.map((reflection) => heldMembers(world, reflection.value)));
+  for (const [at, reflection] of sentReflections.entries()) {
+    sends.push({ site: reflection.site, destination: reflection.sent as SendDestination, keys: sentKeys[at] ?? [] });
+  }
+  const openKeys = lookups.flatMap((lookup, at) =>
+    found[at]?.open === true && lookup.by === "contextual" && lookup.literalKey !== null ? [lookup.literalKey] : [],
+  );
+  sends.push(...providerSends(world, openKeys, kept), ...indexHandoffSends(world, home));
+  credits.push(...nestedReads(world, kept));
+  for (const [at, reflection] of kept.entries()) {
     const { reads: symbols, links: spread, flows: carried } = reads[at] ?? { reads: [], links: [], flows: [] };
-    credits.push({ site: reflection.site, keys: keysOf(symbols) });
+    if (reflection.sent === null) {
+      credits.push({ site: reflection.site, keys: keysOf(symbols) });
+    }
     links.push(...spread);
     flows.push(...carried);
   }
-  return { credits, links, flows, written };
+  return { credits, links, flows, written, sends, copied: new Set(stored.copied.keys()) };
+}
+
+// A serialization sends nested members too: a response's `messages[].content` leaves with the response. Deep enough
+// for a view holding a list of rows that hold one nested object.
+const SEND_DEPTH = 4;
+
+// The object types a value of `type` holds: itself or an array's element, each union member once.
+function* heldObjects(checker: Checker, type: Type): APIRequestGenerator<readonly Type[]> {
+  const plain = yield* checker.getNonNullableType.gen(type);
+  const element = (yield* checker.isArrayType.gen(plain)) && plain.isTypeReference() ? (yield* checker.getTypeArguments.gen(plain))[0] : undefined;
+  return (yield* constituents(element ?? plain)).filter((member) => hasFlag(member.flags, TypeFlags.Object) || hasFlag(member.flags, TypeFlags.Intersection));
+}
+
+// A slot no member names a key in: `unknown`, or a type with an index signature such as `JSONObject` or `Record<string, unknown>`.
+function* isOpenType(checker: Checker, type: Type): APIRequestGenerator<boolean> {
+  if (hasFlag(type.flags, TypeFlags.Unknown)) {
+    return true;
+  }
+  const members = yield* constituents(type);
+  const infos = yield* all(...members.map((member) => checker.getIndexInfosOfType.gen(member)));
+  return infos.some((list) => list.length > 0);
+}
+
+// The value an object literal key or shorthand puts in its slot.
+function valueOfKey(key: Node): Node {
+  const { parent } = key;
+  return isPropertyAssignment(parent) ? parent.initializer : key;
+}
+
+// A value put in a provider body slot no member names leaves with its nested members: an open key's value, and a
+// spread into a literal whose type is open.
+function providerSends(world: NativeWorld, openKeys: readonly Node[], kept: readonly (Reflection & { readonly site: Site })[]): PropertyFacts["sends"] {
+  const { checker } = world;
+  const spreads = kept.filter(
+    (reflection) => reflection.sent === null && spreadTarget(reflection.value) !== null && reflection.site.file.startsWith(PROVIDER_BODIES),
+  );
+  const open = world.batch(
+    spreads.map(function* (reflection): APIRequestGenerator<boolean> {
+      const target = yield* checker.getContextualType.gen(spreadTarget(reflection.value) as Expression);
+      return target !== undefined && (yield* isOpenType(checker, target));
+    }),
+  );
+  const values = [...openKeys.map(valueOfKey), ...spreads.filter((_, at) => open[at] === true).map((reflection) => reflection.value)];
+  const keys = world.batch(values.map((value) => heldMembers(world, value)));
+  return values.map((value, at) => ({ site: world.siteOf(value), destination: "provider" as const, keys: keys[at] ?? [] }));
+}
+
+// The object types of a slot that take any string key, a nullable slot's and an array slot's element included. A
+// number index alone is an array's, so an array slot is open only through its element.
+function* stringIndexed(checker: Checker, slot: Type): APIRequestGenerator<readonly Type[]> {
+  const objects = yield* heldObjects(checker, slot);
+  const indexes = yield* all(...objects.map((type) => checker.getIndexInfoOfType.gen(type, IndexKind.String)));
+  return objects.filter((_, at) => indexes[at] !== undefined);
+}
+
+// The in-tree members a value hands to a string-indexed slot that the slot names no member for, with their nested members.
+function* unnamedMembers(world: NativeWorld, value: Node): APIRequestGenerator<readonly string[]> {
+  const { checker } = world;
+  const slot = yield* checker.getContextualType.gen(value as Expression);
+  const open = slot === undefined ? [] : yield* stringIndexed(checker, slot);
+  if (open.length === 0) {
+    return [];
+  }
+  const sources = yield* heldObjects(checker, yield* checker.getTypeAtLocation.gen(value));
+  const properties = (yield* all(...sources.map((type) => checker.getPropertiesOfType.gen(type))))
+    .flat()
+    .filter((property) => property.declarations.some((handle) => world.fileOf(handle) !== null));
+  const named = yield* all(...properties.map((property) => all(...open.map((type) => checker.getPropertyOfType.gen(type, property.name)))));
+  const unnamed = properties.filter((_, at) => (named[at] ?? []).every((member) => member === undefined));
+  if (unnamed.length === 0) {
+    return [];
+  }
+  const nested = yield* heldMembersOf(world, yield* checker.getTypeOfSymbol.gen(unnamed), SEND_DEPTH - 1);
+  return [...unnamed.flatMap((property) => declarationKeys(property)), ...nested];
+}
+
+// A typed value handed into a provider body's string index leaves with the members the slot does not name: a parsed
+// routing block returned as `OpenRouterRouting`, or parsed plugin entries asserted to `JSONObject`. A literal's own
+// keys are open keys already, and a named member keeps its flow into the slot's member.
+function indexHandoffSends(world: NativeWorld, home: ReadonlySet<string>): PropertyFacts["sends"] {
+  const handed: Node[] = [];
+  walk(world, new Set([...home].filter((file) => file.startsWith(PROVIDER_BODIES))), (node) => {
+    const values = isAsExpression(node) || isTypeAssertion(node) ? [node.expression] : handedAt(node);
+    handed.push(...values.filter((value) => !isObjectLiteralExpression(value)));
+  });
+  const keys = world.batch(handed.map((value) => unnamedMembers(world, value)));
+  return handed.flatMap((value, at) => {
+    const sent = keys[at] ?? [];
+    return sent.length === 0 ? [] : [{ site: world.siteOf(value), destination: "provider" as const, keys: sent }];
+  });
+}
+
+// A dotted-path read may reach any nested member of its value, so it reads them all.
+function nestedReads(world: NativeWorld, kept: readonly (Reflection & { readonly site: Site })[]): PropertyFacts["credits"] {
+  const nested = kept.filter((reflection) => reflection.nested === true);
+  const keys = world.batch(nested.map((reflection) => heldMembers(world, reflection.value)));
+  return nested.map((reflection, at) => ({ site: reflection.site, keys: keys[at] ?? [] }));
+}
+
+// The declaration keys of every in-tree member a value carries, through nested objects and array elements.
+function* heldMembers(world: NativeWorld, value: Node): APIRequestGenerator<readonly string[]> {
+  return yield* heldMembersOf(world, [yield* world.checker.getTypeAtLocation.gen(value)], SEND_DEPTH);
+}
+
+function* heldMembersOf(world: NativeWorld, types: readonly Type[], levels: number): APIRequestGenerator<readonly string[]> {
+  const { checker } = world;
+  const keys: string[] = [];
+  const seen = new Set<number>();
+  let pending = types;
+  for (let depth = 0; depth < levels && pending.length > 0; depth++) {
+    const held = (yield* all(...pending.map((type) => heldObjects(checker, type)))).flat();
+    const objects = held.filter((type) => !seen.has(type.id));
+    for (const type of objects) {
+      seen.add(type.id);
+    }
+    const properties = (yield* all(...objects.map((type) => checker.getPropertiesOfType.gen(type))))
+      .flat()
+      .filter((property) => property.declarations.some((handle) => world.fileOf(handle) !== null));
+    keys.push(...properties.flatMap((property) => declarationKeys(property)));
+    pending = properties.length === 0 ? [] : yield* checker.getTypeOfSymbol.gen(properties);
+  }
+  return keys;
+}
+
+interface StoreFacts {
+  readonly credits: readonly { readonly site: Site; readonly keys: readonly string[] }[];
+  readonly flows: readonly Flow[];
+  /** The column each copied read hands its value to, by {@link siteKey}. */
+  readonly copied: ReadonlyMap<string, readonly string[]>;
+  /** Whether a read is a column named inside a table definition: an index or a foreign key, no stored value read back. */
+  readonly defines: (site: Site, keys: readonly string[]) => boolean;
+  /** Each stored value's members, sent to their columns at the write. */
+  readonly sends: PropertyFacts["sends"];
+}
+
+function storeFacts(
+  world: NativeWorld,
+  stores: readonly StoreWrite[],
+  definitions: readonly { readonly file: string; readonly start: number; readonly end: number }[],
+  columnNames: readonly Node[],
+): StoreFacts {
+  const stored = world.batch(stores.map((store) => storedBy(world, store)));
+  const columns = new Set(world.symbolsAt(columnNames).flatMap((symbol) => (symbol === undefined ? [] : declarationKeys(symbol))));
+  return {
+    credits: stored.flatMap((store) => store.credits),
+    flows: stored.flatMap((store) => store.flows),
+    copied: new Map(stored.flatMap((store) => store.copied.map(({ site, column }) => [siteKey(site), column] as const))),
+    defines: (site, keys) => keys.length > 0 && keys.every((key) => columns.has(key)) && within(site, definitions),
+    sends: stored.flatMap((store, at) => {
+      const site = world.siteOf((stores[at] as StoreWrite).value);
+      return store.flows.map(({ source }) => ({ site, destination: "column" as const, keys: source }));
+    }),
+  };
+}
+
+// Each declaration's sends. A literal's own key a serialization sends also sends the member its contextual type gives
+// it, as a read through the link would read it.
+function sendsOf(facts: readonly PropertyFacts[], links: readonly Link[]): ReadonlyMap<string, readonly Send[]> {
+  const sends = new Map<string, Send[]>();
+  const add = (key: string, sent: readonly Send[]): void => {
+    sends.set(key, [...(sends.get(key) ?? []), ...sent]);
+  };
+  for (const { site, destination, keys } of facts.flatMap((part) => part.sends)) {
+    for (const key of keys) {
+      add(key, [{ site, destination }]);
+    }
+  }
+  for (const { from, to } of links) {
+    const carried = from.flatMap((key) => sends.get(key) ?? []);
+    for (const key of carried.length === 0 ? [] : to.filter((candidate) => !from.includes(candidate))) {
+      add(key, carried);
+    }
+  }
+  return sends;
 }
 
 /** The indexes the facts of several file sets make together, every link and flow joined once over all of them. */
@@ -497,6 +875,7 @@ export function joinFacts(facts: readonly PropertyFacts[]): PropertyReferences {
     }
   }
   const links = facts.flatMap((part) => part.links);
+  const sends = sendsOf(facts, links);
   const { down, up } = flowEdges(facts.flatMap((part) => part.flows));
   const isWrite = (site: Site): boolean => written.has(siteKey(site));
   const isOther = (site: Site): boolean => !isWrite(site);
@@ -504,6 +883,9 @@ export function joinFacts(facts: readonly PropertyFacts[]): PropertyReferences {
   return {
     index: withCarried(withCarried(joined, carriedAlong(joined, down, isWrite)), carriedAlong(joined, up, isOther)),
     direct: withCarried(index, carriedAlong(index, down, isWrite)),
+    sends,
+    copied: new Set(facts.flatMap((part) => [...part.copied])),
+    carriesInto: down,
   };
 }
 
