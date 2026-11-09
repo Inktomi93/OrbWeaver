@@ -24,4 +24,4 @@ The label-content-name-mismatch finding is gone from these surfaces' evidence ch
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Partial, in 9d02fc25cb: Avatar initials paint from data-initials through a pseudo-element, so a control wrapping an avatar no longer carries the initials in its visible label (face-strip-tile.ct.tsx, red on main); Band spaces its label, census and marks (band-name.ct.tsx, red on main); the Talkativeness chip spaces its level (talkativeness-name.ct.tsx, red on main). ListRow and the menu-item subtitle rows stay as they are: owner ruling #512 (packages/ui/src/primitives/list-row/list-row\.tsx header) names a row by its title and gives the subtitle as its description, accepting this axe rule on every subtitled row, and the surface-walk plan's vendor options keep a vendor violation visible where it conflicts with a production naming policy, so the audit does not reclassify those nodes. Still open: tracker value Status line, automation switch rows with their description inside the button, collapsible-trigger, card-root Resume Image variant.

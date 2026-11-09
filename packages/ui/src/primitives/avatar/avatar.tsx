@@ -46,6 +46,7 @@ export function Avatar(props: AvatarProps): ReactElement {
   } = props;
   const slots = avatarVariants({ size, shape, aspect, ring, cardCorners, placed, fade, width, passThrough });
   const seed = hueSeed ?? alt;
+  const initials = typeof children === "string" ? children : undefined;
   return (
     // STAMP SITE (#1097): the ROOT. `size` is the only stamped axis this recipe declares and the root is
     // the box it sizes — the element a contrast/geometry census targets; image and fallback are its fill.
@@ -74,17 +75,21 @@ export function Avatar(props: AvatarProps): ReactElement {
         />
       )}
       {/* Decorative visual stand-in for a missing image — aria-hidden so its letters never leak into an accessible name.
-          `data-hue` is the bucket as a DOM datum (what a CT/snap asserts on); the fill is the generated `avatar`
-          pigment the root's `data-pigment` scopes, so it resolves against the ThemeScope in effect HERE (hue.ts header). */}
+          Initials are painted from `data-initials` by a pseudo-element, not as a text node: axe's label-in-name rule
+          reads visible text without honouring aria-hidden, so a text node would put "TL" into the visible label of every
+          control that wraps an avatar. `data-hue` is the bucket as a DOM datum (what a CT/snap asserts on); the fill is the
+          generated `avatar` pigment the root's `data-pigment` scopes, so it resolves against the ThemeScope in effect HERE
+          (hue.ts header). */}
       <BaseAvatar.Fallback
         className={slots.fallback()}
         data-slot="avatar-fallback"
         data-hue={avatarFallbackHue(seed)}
+        data-initials={initials}
         delay={fallbackDelay}
         aria-hidden={true}
         style={{ backgroundColor: avatarFallbackHueColor(seed) }}
       >
-        {children}
+        {initials === undefined ? children : null}
       </BaseAvatar.Fallback>
     </BaseAvatar.Root>
   );

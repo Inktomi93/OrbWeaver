@@ -1,9 +1,21 @@
 // @subject packages/client/src/components/face-strip.tsx
 // The overflow tile is one more cell of the row: it starts and ends where the faces beside it do.
+import { accessibilityScan } from "@orb/testkit/browser/spec";
 import { expect, test } from "@playwright/test";
-import type { FaceStripTileStory } from "./_face-strip-stories.tsx";
+import type { FaceStripInitialsStory, FaceStripTileStory } from "./_face-strip-stories.tsx";
 
 const STORY = "tests/client/components/_face-strip-stories/FaceStripTileStory";
+const INITIALS_STORY = "tests/client/components/_face-strip-stories/FaceStripInitialsStory";
+const LABEL_MISMATCH = "label-content-name-mismatch";
+
+test("a face's avatar initials stay out of the visible label axe compares with the face's name", async ({ mount, page }) => {
+  const component = await mount<typeof FaceStripInitialsStory>(INITIALS_STORY);
+  const face = component.getByRole("button", { name: "Open Ada Lovelace", exact: true });
+  await expect(face).toBeVisible();
+  const result = await accessibilityScan(page);
+  expect(result.violations.find(({ id }) => id === LABEL_MISMATCH)?.nodes).toBeUndefined();
+  await expect(face).toHaveText("");
+});
 
 for (const caption of [true, false]) {
   test(`${caption ? "a captioned" : "an uncaptioned"} strip seats its overflow tile level with its faces`, async ({ mount }) => {

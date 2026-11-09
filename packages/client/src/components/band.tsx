@@ -191,12 +191,18 @@ export function Band({ label, chevron, icon, count, censusAlign = "trailing", ma
       <Text ink="inherit" as="span" truncate={true} data-slot="band-label" voice="label">
         {label}
       </Text>
+      {/* The spaces are text nodes between flex items, so they paint nothing. They keep the label, census and marks
+          apart in the DOM text, which is how axe reads the visible label (WCAG 2.5.3): without them it reads
+          "Regex scripts6" against the name "Regex scripts 6". */}
       {count === undefined ? null : (
-        <CountText push={censusAlign === "trailing" ? "inlineEnd" : undefined} data-slot="band-census">
-          {count}
-        </CountText>
+        <>
+          {" "}
+          <CountText push={censusAlign === "trailing" ? "inlineEnd" : undefined} data-slot="band-census">
+            {count}
+          </CountText>
+        </>
       )}
-      {marks}
+      {marks === undefined ? null : <> {marks}</>}
     </BandButton>
   );
 }

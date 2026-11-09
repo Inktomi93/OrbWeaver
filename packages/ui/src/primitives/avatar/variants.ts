@@ -15,7 +15,10 @@ export const avatarVariants = tv({
     // per seed, which is a relative-color expression rather than a class — `avatar.tsx` sets it as the one
     // inline `backgroundColor` (see `hue.ts` for why a token/utility cannot carry it). The INK stays the
     // theme's own `primary-foreground`, so the pairing the palette already AA-sweeps is the one in use.
-    fallback: "flex items-center justify-center bg-primary text-label leading-label font-medium text-primary-foreground uppercase block-full inline-full",
+    fallback: `
+      flex items-center justify-center bg-primary text-label leading-label font-medium text-primary-foreground uppercase block-full inline-full
+      before:content-[attr(data-initials)]
+    `,
   },
   variants: {
     size: {
