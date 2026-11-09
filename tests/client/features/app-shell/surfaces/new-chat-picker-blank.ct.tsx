@@ -33,6 +33,8 @@ const BELOW_CELLS = [
   { name: "360x800 phone at 300%", width: 360, height: 800, touch: true, factor: 3 },
   { name: "360x720 phone at 300%", width: 360, height: 720, touch: true, factor: 3 },
   { name: "320x844 phone at 300%", width: 320, height: 844, touch: true, factor: 3 },
+  // The actions row starts below the dialog's foot here, so the cue has to sit on the edge itself.
+  { name: "320x700 phone at 300%", width: 320, height: 700, touch: true, factor: 3 },
 ] as const;
 
 // A landscape phone at 300% is a tiny dialog: the whole sheet scrolls and Start is unpinned (ui-platform-rulings §8.1), so Blank chat sits right after it.
@@ -63,11 +65,11 @@ for (const cell of PINNED_CELLS) {
       await using root = await createCorpusHarness();
       await serveShell(root, corpus, page);
       await mount<typeof AppShellModalStory>(`${SHELL_STORIES}/AppShellModalStory`, { modalId: "newChat" });
-      const actions = (await expectWholeFirstRow(page, cell.factor)).locator(ACTIONS);
-      const blank = actions.getByRole("button", { name: BLANK_CHAT_NAME, exact: true });
+      const dialog = await expectWholeFirstRow(page, cell.factor);
+      const blank = dialog.locator(ACTIONS).getByRole("button", { name: BLANK_CHAT_NAME, exact: true });
       await expect(blank).toBeInViewport({ ratio: 1 });
       await expect.poll(() => pressableWhole(blank)).toBe(true);
-      await expect(actions.getByText(CHAT_MORE_BELOW_CUE, { exact: true })).toBeHidden();
+      await expect(dialog.getByText(CHAT_MORE_BELOW_CUE, { exact: true })).toBeHidden();
     });
   });
 }
@@ -81,9 +83,8 @@ for (const cell of BELOW_CELLS) {
       await serveShell(root, corpus, page);
       await mount<typeof AppShellModalStory>(`${SHELL_STORIES}/AppShellModalStory`, { modalId: "newChat" });
       const dialog = await expectWholeFirstRow(page, cell.factor);
-      const actions = dialog.locator(ACTIONS);
-      await expect(actions.getByText(CHAT_MORE_BELOW_CUE, { exact: true })).toBeInViewport({ ratio: 1 });
-      await expect(actions.getByRole("button", { name: BLANK_CHAT_NAME, exact: true })).toBeHidden();
+      await expect(dialog.getByText(CHAT_MORE_BELOW_CUE, { exact: true })).toBeInViewport({ ratio: 1 });
+      await expect(dialog.locator(ACTIONS).getByRole("button", { name: BLANK_CHAT_NAME, exact: true })).toBeHidden();
       const blank = dialog.getByRole("button", { name: BLANK_CHAT_NAME, exact: true });
       await blank.scrollIntoViewIfNeeded();
       await expect.poll(() => pressableWhole(blank)).toBe(true);

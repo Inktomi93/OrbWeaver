@@ -360,7 +360,11 @@ function GreetingAttributeRow({
     // alternates group-chats-only." — a second clause with no subject and no referent a reader could act on.
     // The fact it is trying to state is that THIS row has no toggle because the first opening is not
     // optional, and that the toggle lives on the alternates.
-    return <Text voice="gloss">{FIRST_GREETING_ALWAYS_SHOWN_NOTE}</Text>;
+    return (
+      <Text voice="gloss" prose={true} cap="prose">
+        {FIRST_GREETING_ALWAYS_SHOWN_NOTE}
+      </Text>
+    );
   }
   return null;
 }
