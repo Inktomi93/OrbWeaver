@@ -338,12 +338,15 @@ const wireCall = (call: Invocation): readonly Destination[] => {
 };
 
 // A library slot typed `unknown` takes the value opaquely: a schema parse hands it back typed, React compares a
-// dependency list by identity. Only a slot that takes keys (an index signature, `object`) reads members.
+// dependency list by identity. Only a slot that takes keys (an index signature, `object`) reads members. An optional
+// parameter's slot carries `undefined` (`deps?: DependencyList`), which the check strips first.
 function* isOpaqueSlot(world: NativeWorld, argument: Node | undefined): APIRequestGenerator<boolean> {
-  const slot = argument === undefined ? undefined : yield* world.checker.getContextualType.gen(argument as Expression);
-  if (slot === undefined) {
+  const contextual = argument === undefined ? undefined : yield* world.checker.getContextualType.gen(argument as Expression);
+  if (contextual === undefined || hasFlag(contextual.flags, TypeFlags.Unknown)) {
     return true;
   }
+  // Only a union is stripped: the non-nullable form of `unknown` is `{}`, which would read as a keyed slot.
+  const slot = hasFlag(contextual.flags, TypeFlags.Union) ? yield* world.checker.getNonNullableType.gen(contextual) : contextual;
   const element = (yield* world.checker.isArrayType.gen(slot)) && slot.isTypeReference() ? (yield* world.checker.getTypeArguments.gen(slot))[0] : undefined;
   return hasFlag((element ?? slot).flags, TypeFlags.Unknown);
 }

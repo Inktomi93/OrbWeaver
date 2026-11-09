@@ -72,7 +72,13 @@ const STRING_KINDS: ReadonlySet<ts.SyntaxKind> = new Set([
 ]);
 
 const escaped = (name: string): string => name.replaceAll(/\$/gu, String.raw`\$`);
-const wordsOf = (names: readonly string[]): RegExp => new RegExp(String.raw`(?<![\w$])(?:${names.map(escaped).join("|")})(?![\w$])`, "gu");
+// ASCII, spelled out: git's PCRE reads a Greek or accented letter as a word character, JavaScript's `\w` does not.
+const WORD_CHAR = "[A-Za-z0-9_$]";
+// One pattern for both passes: git grep finds the lines and the JavaScript pass finds each hit on them, so the two
+// agree on every boundary. `git grep -w -F` with many names rescans each candidate and is far slower than one PCRE
+// alternation on a large tree.
+const wordPattern = (names: readonly string[]): string => `(?<!${WORD_CHAR})(?:${names.map(escaped).join("|")})(?!${WORD_CHAR})`;
+const wordsOf = (names: readonly string[]): RegExp => new RegExp(wordPattern(names), "gu");
 
 const isTypePosition = (node: ts.Node): boolean =>
   ts.findAncestor(node, (up) => ts.isTypeNode(up) || ts.isInterfaceDeclaration(up) || ts.isTypeAliasDeclaration(up) || ts.isHeritageClause(up)) !== undefined;
@@ -91,54 +97,28 @@ function leafAt(source: ts.SourceFile, position: number): ts.Node {
   return found === source ? source.endOfFileToken : found;
 }
 
-interface CommentRange {
-  readonly pos: number;
-  readonly end: number;
-}
-
-const commentRanges = new WeakMap<ts.SourceFile, readonly CommentRange[]>();
-
-// Every comment in a file: the leading and trailing trivia of each token, and a JSX `{/* … */}` container, whose text
-// the parser reads as the body of an empty expression rather than as trivia.
-function commentsOf(source: ts.SourceFile): readonly CommentRange[] {
-  const cached = commentRanges.get(source);
-  if (cached !== undefined) {
-    return cached;
-  }
+// The comment holding `position`, read from the trivia before the leaf whose full span holds it: the previous token's
+// trailing comments and the leaf's leading ones both start at the leaf's full start. A JSX `{/* … */}` container is
+// read from its text, since the parser holds its body as an empty expression rather than as trivia.
+function commentAt(source: ts.SourceFile, leaf: ts.Node, position: number): HitKind | null {
   const text = source.getFullText();
-  const ranges: CommentRange[] = [];
-  const add = (pos: number, end: number): void => {
-    ranges.push({ pos, end });
-  };
-  const visit = (node: ts.Node): void => {
-    if (ts.isJsxExpression(node) && node.expression === undefined) {
-      const open = node.getStart(source) + 1;
-      const inner = text.slice(open, node.getEnd() - 1);
-      const start = inner.search(/\S/u);
-      if (inner.startsWith("/*", start)) {
-        add(open + start, node.getEnd() - 1);
-      }
+  const kindAt = (pos: number): HitKind => (text.startsWith("/**", pos) ? "tsdoc" : "comment");
+  const empty = ts.findAncestor(leaf, (node) => ts.isJsxExpression(node) && node.expression === undefined);
+  if (empty !== undefined) {
+    const open = empty.getStart(source) + 1;
+    const inner = text.slice(open, empty.getEnd() - 1);
+    const start = inner.search(/\S/u);
+    if (inner.startsWith("/*", start) && position >= open + start && position < empty.getEnd() - 1) {
+      return "comment";
     }
-    const children = node.getChildren(source).filter((child) => !ts.isJSDoc(child));
-    if (children.length === 0) {
-      ts.forEachLeadingCommentRange(text, node.getFullStart(), add);
-      ts.forEachTrailingCommentRange(text, node.getEnd(), add);
-    }
-    for (const child of children) {
-      visit(child);
-    }
-  };
-  visit(source);
-  commentRanges.set(source, ranges);
-  return ranges;
-}
-
-function commentAt(source: ts.SourceFile, position: number): HitKind | null {
-  const range = commentsOf(source).find((candidate) => position >= candidate.pos && position < candidate.end);
-  if (range === undefined) {
+  }
+  if (position >= leaf.getStart(source)) {
     return null;
   }
-  return source.getFullText().startsWith("/**", range.pos) ? "tsdoc" : "comment";
+  const at = leaf.getFullStart();
+  const ranges = [...(ts.getTrailingCommentRanges(text, at) ?? []), ...(ts.getLeadingCommentRanges(text, at) ?? [])];
+  const range = ranges.find((candidate) => position >= candidate.pos && position < candidate.end);
+  return range === undefined ? null : kindAt(range.pos);
 }
 
 // A name that gives a key its value: an object literal key or shorthand, a JSX attribute, or `x.name = …`.
@@ -158,11 +138,11 @@ function writesKey(leaf: ts.Node): boolean {
 }
 
 function parsedKind(source: ts.SourceFile, position: number): { readonly kind: HitKind; readonly write: boolean } {
-  const comment = commentAt(source, position);
+  const leaf = leafAt(source, position);
+  const comment = commentAt(source, leaf, position);
   if (comment !== null) {
     return { kind: comment, write: false };
   }
-  const leaf = leafAt(source, position);
   if (position < leaf.getStart(source)) {
     // Text the parser holds in no token and no comment, such as JSX whitespace or a shebang, stays on the saving side.
     return { kind: "code", write: false };
@@ -214,7 +194,7 @@ function literalHits(root: string, sources: Sources, names: readonly string[]): 
   }
   const words = wordsOf(wanted);
   const seen = new Set<string>();
-  for (const grepped of gitGrep(root, null, ["-I", "-w", "-F", ...wanted.flatMap((name) => ["-e", name])])) {
+  for (const grepped of gitGrep(root, null, ["-I", "-P", "-e", wordPattern(wanted)])) {
     for (const [name, hit] of lineHits(sources, grepped, words)) {
       const key = `${name} ${hit.offset ?? hit.at} ${hit.kind}`;
       if (!seen.has(key)) {
