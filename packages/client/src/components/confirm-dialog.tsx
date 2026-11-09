@@ -111,7 +111,8 @@ function isSettle(value: void | Promise<void>): value is Promise<void> {
 }
 
 /** Where the confirm stands when its settle rejects. */
-type ConfirmPresence = "open" | "closed" | "gone";
+const CONFIRM_PRESENCES = ["open", "closed", "gone"] as const;
+type ConfirmPresence = (typeof CONFIRM_PRESENCES)[number];
 
 /** The confirm's failure sentence, in the dialog's alert line or, once the dialog has closed, in a toast. */
 function confirmFailureSentence(reason: string): string {
