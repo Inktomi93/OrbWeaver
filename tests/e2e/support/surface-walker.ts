@@ -416,6 +416,10 @@ async function walkMenuTerminal(walk: SurfaceWalk, menu: Locator, items: Locator
     return;
   }
   // The key goes where the open left focus, as a keyboard user's does; `menu.press` would move focus to the popup first.
+  await expect.poll(async () => await menu.evaluate((node) => node.contains(document.activeElement)), "focus sits in the open menu").toBe(true);
+  // An earlier wheel leaves the pointer resting on the page. When End scrolls a clamped menu, Chromium replays a hover
+  // under that resting pointer, and the hovered row takes the highlight; a keyboard user's pointer is not on the menu.
+  await menu.page().mouse.move(0, 0);
   await menu.page().keyboard.press("End");
   await expect(items.last()).toHaveAttribute("data-highlighted", "");
   await checkpoint(walk, `${prefix}/terminal`, menu, items.last());

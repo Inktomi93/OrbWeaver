@@ -2653,9 +2653,15 @@ export async function walkChatMedia(input: SurfaceFlow): Promise<void> {
         await expect(row.locator(`img[src=${JSON.stringify(path)}]`)).toHaveCount(1);
         await expect(flow.page.locator(`img[src=${JSON.stringify(path)}]`), "Only the declared inline subject may consume this held URL").toHaveCount(1);
         await scrollViewport(flow, port, -(await port.evaluate((node) => node.clientHeight)) - 2 * SCROLL_EPSILON);
-        await image.scrollIntoViewIfNeeded();
-        await expect(image).toBeInViewport();
-        await anchor.scrollIntoViewIfNeeded();
+        // At enlarged text the reserved frame and its anchor paragraph can each fill most of the port, so the walk puts
+        // the edge between them mid-port, where both stay in view for the shift reading.
+        await port.evaluate(
+          (scroller, target) => {
+            const box = scroller.getBoundingClientRect();
+            scroller.scrollTop += target.getBoundingClientRect().top - (box.top + box.height / 2);
+          },
+          await anchor.elementHandle(),
+        );
         await expect(anchor).toBeInViewport();
         await expect(image).toBeInViewport();
         await expect.poll(() => requested).toBe(true);
@@ -2722,8 +2728,10 @@ export async function walkChatMedia(input: SurfaceFlow): Promise<void> {
           flow.info.annotations.push({ type: "media-evidence-unavailable", description: String(error) });
         }
         release.resolve();
-        await flow.page.unroute(match, handler);
+        // A held handler continues its route after the release; unrouting first leaves it continuing a route Playwright
+        // already handed on, and that rejection tears the page down before this room is deleted.
         await Promise.all(joined);
+        await flow.page.unroute(match, handler);
         flow.page.off("response", onResponse);
       }
     });
