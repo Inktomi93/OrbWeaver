@@ -142,10 +142,13 @@ export const WORKLOAD_STATUS_BADGE: Record<WorkloadStatus, Pick<BadgeProps, "ton
 };
 
 /** Lane → group heading (exhaustive over the WORKLOAD_LANES tuple — a new lane is a tsc error here). The
- *  lane is EXECUTION, not priority: two rows in different lanes run at the same time. */
-export const WORKLOAD_LANE_LABELS: Record<WorkloadLane, string> = {
-  interactive: "Interactive: jobs you're waiting on",
-  sweep: "Sweeps: bulk maintenance",
+ *  lane is EXECUTION, not priority: two rows in different lanes run at the same time.
+ *
+ *  TWO PARTS, because the micro-caps voice is a label voice: the NAME is short and rides `kicker`, what the
+ *  lane is FOR is a clause and rides `gloss` in sentence case. One caps string made a sentence shout. */
+export const WORKLOAD_LANE_LABELS: Record<WorkloadLane, { readonly name: string; readonly purpose: string }> = {
+  interactive: { name: "Interactive", purpose: "Jobs you're waiting on" },
+  sweep: { name: "Sweeps", purpose: "Bulk maintenance" },
 };
 
 /** Split rows into their execution lanes, in tuple order, dropping lanes with no rows. A SINGLE non-empty
