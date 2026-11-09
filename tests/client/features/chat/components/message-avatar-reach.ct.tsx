@@ -183,10 +183,9 @@ forEachNonEmpty(
   },
 );
 
-// The narrowest phone at 125% text: the pane is under the `cq-16` step, where the text keeps the room and the chip keeps
-// the enlarged `size.avatar-sm` with no 44px reach (the `avatar-reach.ts` header). WCAG 2.5.8's 24px minimum target is what holds.
+// The narrowest phone at 125% text: the pane is under the `cq-16` step, where the text keeps the room and the avatar keeps
+// the 44px physical floor, which does not grow with the text (the `avatar-reach.ts` header).
 const ENLARGED = { name: "320", viewport: { width: 320, height: 700 }, factor: 1.25 } as const;
-const MINIMUM_TARGET_PX = 24;
 
 forEachNonEmpty(
   THEME_CHAT_STYLES.filter((style) => MESSAGE_ROW_SKINS[style].avatarTreatment("character") !== "none"),
@@ -195,18 +194,21 @@ forEachNonEmpty(
     test.describe(`${ENLARGED.name} 125% text ${chatStyle} avatar reach`, () => {
       test.use({ hasTouch: true, isMobile: true, viewport: ENLARGED.viewport });
 
-      test("each avatar is a target past the 24px minimum, hit whole inside the scroller", async ({ corpus, corpusMedia, mount, page }) => {
+      test("each avatar's reach holds the physical 44px floor, hit whole inside the scroller and covering no bubble point", async ({
+        corpus,
+        corpusMedia,
+        mount,
+        page,
+      }) => {
         await using root = await createCorpusHarness();
         const { chatId, messageIds } = await prepareRoom({ corpus, corpusMedia, page }, root, { chatStyle, density: "comfortable" });
         await mount<typeof ChatRoomShellStory>(STORY, { chatId });
         await setRootFontScale(page, channelName("fontScale"), ENLARGED.factor);
         for (const role of ROLES) {
           const opener = await openerOf(page, messageIds.get(role));
+          const floor = await resolvedLength(page, `var(${TOKENS["size.touch-target-physical"].cssVar})`, opener);
           await expect
-            .poll(async () => (await opener.boundingBox())?.width ?? 0, { message: `${role} avatar width` })
-            .toBeGreaterThanOrEqual(MINIMUM_TARGET_PX);
-          await expect
-            .poll(() => opener.evaluate(probeReach, MINIMUM_TARGET_PX), { message: `${role} avatar minimum target` })
+            .poll(() => opener.evaluate(probeReach, floor), { message: `${role} avatar physical reach (edges start, end, top, bottom; bubble points covered)` })
             .toEqual({ hits: [true, true, true, true], covered: [] });
         }
       });
