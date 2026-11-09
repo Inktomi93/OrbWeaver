@@ -3,6 +3,7 @@ import { holdServed, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/te
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { present } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { PRESET_RESET_ARRANGEMENT_NAME, PRESET_RESET_ARRANGEMENT_TITLE } from "#client/features/preset/lib/preset-names.ts";
 import { AUTOSAVE_RESUME_NAME, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import type { PresetListLifetimeStory } from "./_list-lifetime-stories.tsx";
 
@@ -271,8 +272,8 @@ test("pending writes cannot replace newer edits, and explicit reset admits a new
   await expect(label).toHaveValue("Newer");
   await expect(label).toBeFocused();
   await dialog.getByRole("button", { name: "Done", exact: true }).click();
-  await page.getByRole("button", { name: "Reset to starter arrangement", exact: true }).click();
-  await page.getByRole("alertdialog", { name: "Reset to the starter arrangement?", exact: true }).getByRole("button", { name: "Reset", exact: true }).click();
+  await page.getByRole("button", { name: PRESET_RESET_ARRANGEMENT_NAME, exact: true }).click();
+  await page.getByRole("alertdialog", { name: PRESET_RESET_ARRANGEMENT_TITLE, exact: true }).getByRole("button", { name: "Reset", exact: true }).click();
   await expect(page.getByRole("button", { name: "queued_variable", exact: true })).toHaveCount(0);
   await page.getByRole("button", { name: "Add variable", exact: true }).click();
   await dialog.getByRole("textbox", { name: "Question", exact: true }).fill("New owner after reset");

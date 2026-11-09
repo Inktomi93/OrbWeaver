@@ -4,7 +4,17 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { PRESET_NAME_FIELD_NAME, PRESET_RENAME_NAME } from "#client/features/preset/lib/preset-names.ts";
+import {
+  PRESET_ACTIVATE_NAME,
+  PRESET_ACTIVE_RADIOGROUP_NAME,
+  PRESET_NAME_FIELD_NAME,
+  PRESET_NEW_NAME,
+  PRESET_RENAME_NAME,
+  PRESET_RESET_ARRANGEMENT_NAME,
+  PRESET_RESET_ARRANGEMENT_TITLE,
+  PRESET_SEARCH_NAME,
+} from "#client/features/preset/lib/preset-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { CLEAR_SEARCH_NAME } from "#client/lib/search-empty-names.ts";
 import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.tsx";
 
@@ -45,8 +55,8 @@ for (const regime of REGIMES) {
       const props = { width: regime.width, appearance: regime.appearance, subject: "editor" as const, presetId: preset.id };
       const mounted = await mount<typeof PresetActionGroupsStory>(STORY, props);
       const rename = page.getByRole("button", { name: PRESET_RENAME_NAME, exact: true });
-      const activate = page.getByRole("button", { name: "Activate: use this preset for generation", exact: true });
-      const reset = page.getByRole("button", { name: "Reset to starter arrangement", exact: true });
+      const activate = page.getByRole("button", { name: PRESET_ACTIVATE_NAME, exact: true });
+      const reset = page.getByRole("button", { name: PRESET_RESET_ARRANGEMENT_NAME, exact: true });
       await expect(page.getByRole("heading", { name, exact: true })).toBeVisible();
       await rename.focus();
       await page.keyboard.press("Tab");
@@ -61,15 +71,15 @@ for (const regime of REGIMES) {
       const renameDialog = page.getByRole("dialog", { name: PRESET_RENAME_NAME, exact: true });
       await expect(renameDialog.getByRole("textbox", { name: PRESET_NAME_FIELD_NAME, exact: true })).toHaveValue(name);
       await expect(renameDialog.getByRole("textbox", { name: PRESET_NAME_FIELD_NAME, exact: true })).toBeFocused();
-      await renameDialog.getByRole("button", { name: "Cancel", exact: true }).focus();
+      await renameDialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).focus();
       await page.keyboard.press("Enter");
       await expect(renameDialog).toBeHidden();
       await expect(rename).toBeFocused();
       await reset.focus();
       await page.keyboard.press("Enter");
-      const confirm = page.getByRole("alertdialog", { name: "Reset to the starter arrangement?", exact: true });
+      const confirm = page.getByRole("alertdialog", { name: PRESET_RESET_ARRANGEMENT_TITLE, exact: true });
       await expect(confirm).toBeVisible();
-      await confirm.getByRole("button", { name: "Cancel", exact: true }).focus();
+      await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).focus();
       await page.keyboard.press("Enter");
       await expect(confirm).toBeHidden();
       await expect(reset).toBeFocused();
@@ -96,10 +106,10 @@ for (const regime of REGIMES) {
       expect(before.length).toBeGreaterThan(0);
       const calls = await routeTrpc(page, serveCorpusProcedures(caller, READS));
       await mount<typeof PresetActionGroupsStory>(STORY, { width: regime.width, appearance: regime.appearance, subject: "list" });
-      const search = page.getByRole("textbox", { name: "Search presets", exact: true });
+      const search = page.getByRole("textbox", { name: PRESET_SEARCH_NAME, exact: true });
       await search.fill("No matching layout qualification preset");
       const clear = page.getByRole("button", { name: CLEAR_SEARCH_NAME, exact: true });
-      const create = page.getByRole("button", { name: "New preset", exact: true });
+      const create = page.getByRole("button", { name: PRESET_NEW_NAME, exact: true });
       await clear.focus();
       await page.keyboard.press("Tab");
       await expect(create).toBeFocused();
@@ -109,7 +119,7 @@ for (const regime of REGIMES) {
       await clear.focus();
       await page.keyboard.press("Enter");
       await expect(search).toHaveValue("");
-      await expect(page.getByRole("radiogroup", { name: "Active preset for generation", exact: true })).toBeVisible();
+      await expect(page.getByRole("radiogroup", { name: PRESET_ACTIVE_RADIOGROUP_NAME, exact: true })).toBeVisible();
       expect(calls.count("preset.create")).toBe(0);
       expect(await caller.preset.list()).toEqual(before);
       await search.fill("No matching layout qualification preset");

@@ -33,6 +33,7 @@ import { getSelectedPresetId, presetSectionSelection, selectPreset, setPresetSea
 import { PresetLibraryRow } from "../components/preset-library-row.tsx";
 import { useCreatePreset, useRemovePreset, useSetDefaultPreset } from "../hooks/use-preset-mutations.ts";
 import { notifyActivePreset } from "../lib/active-preset-notice.ts";
+import { PRESET_ACTIVE_RADIOGROUP_NAME, PRESET_NEW_NAME, PRESET_SEARCH_NAME } from "../lib/preset-names.ts";
 import { filterPresetsByName, presetSearchNeedle } from "../lib/preset-search.ts";
 
 const NEW_PRESET_NAME = "New preset";
@@ -60,7 +61,7 @@ export function PresetLibrarySurface({ onSelectPreset }: PresetLibrarySurfacePro
     <ListPage
       label="Presets list"
       ref={surfaceRef}
-      search={<Input aria-label="Search presets" onValueChange={setPresetSearchQuery} placeholder="Search presets…" value={query} />}
+      search={<Input aria-label={PRESET_SEARCH_NAME} onValueChange={setPresetSearchQuery} placeholder="Search presets…" value={query} />}
       skipTo="Skip to presets"
     >
       {/* The reservation's measuring Stack is auto-height, so the `scroll` body above the boundary is the pane's
@@ -205,7 +206,7 @@ function PresetList({
             // second door, because "nothing matched" is also the moment you decide to make the thing.
             needle === "" ? (
               <Button disabled={create.isPending} variant="outline" onClick={onCreate} size="sm">
-                New preset
+                {PRESET_NEW_NAME}
               </Button>
             ) : (
               <Row align="center" wrap={true} gap="field" justify="center">
@@ -213,7 +214,7 @@ function PresetList({
                   {CLEAR_SEARCH_NAME}
                 </Button>
                 <Button disabled={create.isPending} variant="ghost" onClick={onCreate} size="sm">
-                  New preset
+                  {PRESET_NEW_NAME}
                 </Button>
               </Row>
             )
@@ -225,7 +226,7 @@ function PresetList({
       }
       isEmpty={filtered.length === 0}
       // The rows' activate toggles are `role="radio"` (side-eye F-19) — this is the group that owns them.
-      rowsRadiogroupLabel="Active preset for generation"
+      rowsRadiogroupLabel={PRESET_ACTIVE_RADIOGROUP_NAME}
       // The `ListPage` body owns this pane's scroll box, because the boundary sits between it and these rows.
       scroll={false}
     >
