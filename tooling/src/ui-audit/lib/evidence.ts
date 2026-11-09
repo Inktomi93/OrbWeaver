@@ -135,7 +135,7 @@ export function censusTotal(samples: RawSamples): number {
  *
  *  Five walker censuses carried a silent representative bound (`shadowGlows` 200, `accentBorders` 200,
  *  `radialGlows` 100, `motionStatics` 100, `bgPatterns` 50) and four more carried one whose families are
- *  rung-1 WALKER-PROVEN (`overflows` 100, `repeatedTexts` 40, `clippedOverflows` 40, `edgeFlushCards` 20 —
+ *  WALKER-PROVEN (`overflows` 100, `repeatedTexts` 40, `clippedOverflows` 40, `edgeFlushCards` 20 —
  *  lib/collect.ts's rung table). The bound was applied BEFORE anything downstream could see it, so a page
  *  past the bound published a truncated `candidates=` that read complete AND, for the WALKER-PROVEN four,
  *  simply LOST the findings past the bound: the walker returns only findings there, so the 41st clipped

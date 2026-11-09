@@ -317,6 +317,16 @@ const PERCENT = 100;
 export function checkObscuredTarget(input: ObscuredTargetInput): Finding {
   const covered = `${Math.round(input.coveredRatio * PERCENT)}%`;
   const what = input.text === "" ? "this element" : `"${input.text}"`;
+  if (input.probe === "ink-end") {
+    return {
+      rule: "obscured-target",
+      severity: "P1",
+      selector: input.selector,
+      value: `${covered} of its glyphs covered, ${input.overlapPx}px overlap → under ${input.hitSelector}`,
+      message: `${what} runs under ${input.hitSelector}: ${input.overlapPx}px of its painted glyphs sit beneath that control, so the covered text cannot be read and the line misstates what it says. Cut the text before the control (truncate the run, or measure it against the kept action), never paint it underneath`,
+      origin: "orbweaver",
+    };
+  }
   return {
     rule: "obscured-target",
     severity: input.interactive ? "P0" : "P1",

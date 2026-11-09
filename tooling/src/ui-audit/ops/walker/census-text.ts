@@ -15,6 +15,7 @@
 import { TOKENS } from "@orb/ui/tokens";
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 import { INACTIVE_KIND_EXPR } from "../../../floor/instrument/wcag.ts";
+import { WALKER_PROVEN_RULES } from "../../contract/samples-populations.ts";
 import { TRANSCRIPT_SURFACE_SELECTOR_JS } from "../../lib/checks-typography.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
@@ -36,6 +37,25 @@ export const WALKER_CENSUS_TEXT = `
       if (maskImage !== "none") return true;
     }
     return false;
+  }
+  // THE WALKER-PROVEN DENOMINATORS. Eight rules return only their findings, so a silent one needs the census
+  // that looked to say how many subjects it saw. Each census tallies its own row here as it judges or
+  // excludes; returns.ts folds the rows into relationalAccounting, which is declared after these segments.
+  var walkerProvenCensus = {};
+  var WALKER_PROVEN_RULES = ${JSON.stringify(WALKER_PROVEN_RULES)};
+  for (var wpr = 0; wpr < WALKER_PROVEN_RULES.length; wpr += 1) {
+    walkerProvenCensus[WALKER_PROVEN_RULES[wpr]] = { candidates: 0, judged: 0, withheld: {}, excluded: {} };
+  }
+  // disposition is "judged", or { kind: "withheld" | "excluded", reason } — the house polarity.
+  function walkerProvenTally(rule, disposition) {
+    var row = walkerProvenCensus[rule];
+    row.candidates += 1;
+    if (disposition === "judged") {
+      row.judged += 1;
+      return;
+    }
+    var bucket = row[disposition.kind];
+    bucket[disposition.reason] = (bucket[disposition.reason] || 0) + 1;
   }
   var texts = [];
   var textStyles = [];
@@ -145,6 +165,41 @@ export const WALKER_CENSUS_TEXT = `
     var slackY = elementRect.height - (bottom - top);
     if (slackX < INK_BOX_MIN_SLACK_PX && slackY < INK_BOX_MIN_SLACK_PX) return null;
     return { x: left, y: top, width: right - left, height: bottom - top };
+  };
+
+  // A RUN SET ON ONE LINE AND CUT THERE has no line return, so the measure rule has nothing to judge. Each
+  // half is measured, never inferred from a class: the computed style must forbid a second line (no-wrap
+  // with this element's own inline clip, or a one-line clamp), the style must actually CUT something (a
+  // styled line that fits is an ordinary long line and stays judged), and the element must paint exactly
+  // one line box. A clamp lays out its hidden lines, so painted boxes are only those inside the element's rect.
+  var lineRange = document.createRange();
+  var lineBoxCount = function (element, elementRect) {
+    lineRange.selectNodeContents(element);
+    var boxes = [].slice.call(lineRange.getClientRects()).filter(function (box) {
+      if (box.width <= 0 || box.height <= 0) return false;
+      return elementRect === null || (box.bottom > elementRect.top + 0.5 && box.top < elementRect.bottom - 0.5);
+    });
+    boxes.sort(function (a, b) { return a.top - b.top; });
+    var lines = 0;
+    var lineBottom = -Infinity;
+    for (var lb = 0; lb < boxes.length; lb += 1) {
+      if (boxes[lb].top >= lineBottom - 0.5) {
+        lines += 1;
+        lineBottom = boxes[lb].bottom;
+      } else {
+        lineBottom = Math.max(lineBottom, boxes[lb].bottom);
+      }
+    }
+    return lines;
+  };
+  var singleLineTruncated = function (element, elementStyle, elementRect) {
+    var noWrap = elementStyle.whiteSpace === "nowrap" || elementStyle.whiteSpace === "pre" || elementStyle.textWrapMode === "nowrap";
+    var clipsInline = elementStyle.overflowX === "hidden" || elementStyle.overflowX === "clip";
+    var clampedToOne = elementStyle.webkitLineClamp === "1" || elementStyle.lineClamp === "1";
+    var cutInline = noWrap && clipsInline && element.scrollWidth > element.clientWidth;
+    var cutByClamp = clampedToOne && lineBoxCount(element, null) > 1;
+    if (!cutInline && !cutByClamp) return false;
+    return lineBoxCount(element, elementRect) === 1;
   };
 
   var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
@@ -258,6 +313,7 @@ export const WALKER_CENSUS_TEXT = `
       // own unit; every other reading surface takes the prose measure. Interpolated from the ONE home in
       // lib/checks-typography.ts, never re-spelled here.
       readingSurface: !!el.closest(${TRANSCRIPT_SURFACE_SELECTOR_JS}),
+      singleLineTruncated: singleLineTruncated(el, style, rect),
       isProseTag: QUALITY_TEXT_TAGS[tag] === 1,
       isHeading: HEADING_TAGS[tag] === 1,
       interactive: interactivePrimary,
@@ -343,12 +399,21 @@ export const WALKER_CENSUS_TEXT = `
   for (var i = 0; i < imgEls.length; i += 1) {
     var img = imgEls[i];
     if (isDevChrome(img)) continue;
-    if (!img.closest("[aria-hidden='true']")) {
+    if (img.closest("[aria-hidden='true']")) {
+      walkerProvenTally("broken-image", { kind: "excluded", reason: "decorative" });
+    } else {
       var srcAttr = img.getAttribute("src");
       if (srcAttr === null || srcAttr.trim() === "") {
+        walkerProvenTally("broken-image", "judged");
         brokenImages.push({ selector: describe(img), reason: "empty-src" });
-      } else if (img.complete && img.naturalWidth === 0) {
-        brokenImages.push({ selector: describe(img), reason: "failed-load" });
+      } else if (img.complete) {
+        walkerProvenTally("broken-image", "judged");
+        if (img.naturalWidth === 0) brokenImages.push({ selector: describe(img), reason: "failed-load" });
+      } else if (img.loading === "lazy" && !inVisualViewport(img.getBoundingClientRect())) {
+        // The browser deferred the request by design; nothing is painted yet, so there is nothing broken to see.
+        walkerProvenTally("broken-image", { kind: "excluded", reason: "lazyDeferred" });
+      } else {
+        walkerProvenTally("broken-image", { kind: "withheld", reason: "imageNotLoaded" });
       }
     }
     if (!isVisible(img) || !img.complete || img.naturalWidth === 0) continue;

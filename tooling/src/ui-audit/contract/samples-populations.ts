@@ -60,6 +60,23 @@ interface RelationalPopulationAccountingInput {
   readonly "truncated-to-nothing"?: RelationalCensusAccountingInput;
 }
 
+/** The rules whose walker returns only findings. Their rows are the census's own count of what it looked at,
+ *  so a silent rule reads judged or no-candidate. Absent in sample sets that predate the rows, where the rule
+ *  publishes no row rather than a restated finding count. */
+export const WALKER_PROVEN_RULES = [
+  "animated-img-hover",
+  "broken-image",
+  "clipped-overflow",
+  "edge-flush-cards",
+  "gradient-text",
+  "nested-card",
+  "repeated-container-text",
+  "text-overflow",
+] as const;
+export type WalkerProvenRule = (typeof WALKER_PROVEN_RULES)[number];
+
+type WalkerProvenAccountingInput = { readonly [Rule in WalkerProvenRule]?: RelationalCensusAccountingInput };
+
 /** One (element, property) comparison against `packages/ui/src/styles/tiers.css`'s density tier map —
  *  the SANCTIONED custom-property value paired with the PAINTED computed-style value the walker actually
  *  read (ops/walker/census-tier.ts). `sanctionedValue`/`paintedValue` are already unit-normalized (rem
@@ -101,7 +118,7 @@ export interface RelationalSamples {
    *  for the same reason. */
   readonly promotedLayerOffsets?: readonly PromotedLayerOffsetInput[];
   readonly quietStates?: readonly QuietStateInput[];
-  readonly relationalAccounting?: RelationalPopulationAccountingInput;
+  readonly relationalAccounting?: RelationalPopulationAccountingInput & WalkerProvenAccountingInput;
   readonly rowVoids?: readonly RowVoidInput[];
   readonly selectionIdioms?: readonly SelectionIdiomInput[];
   /** Density-tier resolution comparisons (ops/walker/census-tier.ts). Optional: absent from the fixture

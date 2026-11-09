@@ -286,6 +286,9 @@ export interface ObscuredTargetInput {
   readonly coveredRatio: number;
   /** Does the loser offer an action itself (a control) or is it informative text (a badge/label)? */
   readonly interactive: boolean;
+  /** Where the compositor disagreed: the loser's own centre, or one inline end of a text loser's painted
+   *  glyphs under a local control. Optional: absent in sample sets that predate the ink-end probe. */
+  readonly probe?: "centre" | "ink-end";
   readonly text: string;
 }
 

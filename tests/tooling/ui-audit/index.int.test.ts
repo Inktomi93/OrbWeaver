@@ -398,14 +398,14 @@ const AVATAR_SEAT =
 test("a real panel nested in a panel still REDs — the exclusion did not eat the rule", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "nested-panel.html"), panelInPanel(REAL_NESTED_PANEL));
   const res = await runCli("snap", ["--file", join(scratch, "nested-panel.html"), "--fail-on", "P3", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(res.stdout).toContain("nested-card");
+  expect(findingRows(res.stdout, "nested-card").length).toBeGreaterThan(0);
   await expect(res).toExitWith(1);
 });
 
 test("a rounded-rect avatar seat inside a panel is NOT a nested card", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "avatar-seat.html"), panelInPanel(AVATAR_SEAT));
   const res = await runCli("snap", ["--file", join(scratch, "avatar-seat.html"), "--fail-on", "P3", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(res.stdout).not.toContain("nested-card");
+  expect(findingRows(res.stdout, "nested-card")).toEqual([]);
   // ZERO HYGIENE: the absence is only a verdict when the walk censused nodes at all.
   const census = CENSUS_RE.exec(res.stdout)?.[1];
   expect(Number(census)).toBeGreaterThan(0);
@@ -439,7 +439,7 @@ const PANEL_WITH_AN_ACTION =
 test("a borderless panel whose class merely contains the card WORD is not a nested card", { timeout: scaledBudget(20_000) }, async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "card-word.html"), panelInPanel(CARD_WORD_BORDERLESS_PANEL));
   const res = await runCli("snap", ["--file", join(scratch, "card-word.html"), "--fail-on", "P3", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(res.stdout).not.toContain("nested-card");
+  expect(findingRows(res.stdout, "nested-card")).toEqual([]);
   const census = CENSUS_RE.exec(res.stdout)?.[1];
   expect(Number(census)).toBeGreaterThan(0);
 });
@@ -447,14 +447,14 @@ test("a borderless panel whose class merely contains the card WORD is not a nest
 test("a MEASURED border still REDs when the class carries the card word — the name arm went, the box stayed", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "card-word-bordered.html"), panelInPanel(CARD_WORD_BORDERED_PANEL));
   const res = await runCli("snap", ["--file", join(scratch, "card-word-bordered.html"), "--fail-on", "P3", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(res.stdout).toContain("nested-card");
+  expect(findingRows(res.stdout, "nested-card").length).toBeGreaterThan(0);
   await expect(res).toExitWith(1);
 });
 
 test("a shell whose only child is a control is not a nested card", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "control-shell.html"), panelInPanel(CONTROL_SHELL));
   const res = await runCli("snap", ["--file", join(scratch, "control-shell.html"), "--fail-on", "P3", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(res.stdout).not.toContain("nested-card");
+  expect(findingRows(res.stdout, "nested-card")).toEqual([]);
   const census = CENSUS_RE.exec(res.stdout)?.[1];
   expect(Number(census)).toBeGreaterThan(0);
 });
@@ -462,7 +462,7 @@ test("a shell whose only child is a control is not a nested card", async ({ runC
 test("a panel that merely CONTAINS a control is still judged — the wrapper arm stayed bounded", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "panel-with-action.html"), panelInPanel(PANEL_WITH_AN_ACTION));
   const res = await runCli("snap", ["--file", join(scratch, "panel-with-action.html"), "--fail-on", "P3", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(res.stdout).toContain("nested-card");
+  expect(findingRows(res.stdout, "nested-card").length).toBeGreaterThan(0);
   await expect(res).toExitWith(1);
 });
 
@@ -491,7 +491,7 @@ const CARD_IN_A_PANE =
 test("a one-side-border shell pane is NOT the outer card of a nesting pair", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "pane-divider.html"), shellPane(PANE_DIVIDER_BOX, CARD_IN_A_PANE));
   const res = await runCli("snap", ["--file", join(scratch, "pane-divider.html"), "--fail-on", "P3", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(res.stdout).not.toContain("nested-card");
+  expect(findingRows(res.stdout, "nested-card")).toEqual([]);
   // ZERO HYGIENE: the absence is only a verdict when the walk censused nodes at all.
   const census = CENSUS_RE.exec(res.stdout)?.[1];
   expect(Number(census)).toBeGreaterThan(0);
@@ -500,7 +500,7 @@ test("a one-side-border shell pane is NOT the outer card of a nesting pair", asy
 test("the same pane with a SECOND border side is a box again — the pair still REDs", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "pane-two-sided.html"), shellPane(PANE_TWO_SIDED_BOX, CARD_IN_A_PANE));
   const res = await runCli("snap", ["--file", join(scratch, "pane-two-sided.html"), "--fail-on", "P3", ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(res.stdout).toContain("nested-card");
+  expect(findingRows(res.stdout, "nested-card").length).toBeGreaterThan(0);
   await expect(res).toExitWith(1);
 });
 
@@ -1186,7 +1186,7 @@ test("a label collapsed to 0px is a truncated-to-nothing finding — the text is
   // THE BLIND SPOT, PINNED: text-overflow's block arm needs clientWidth > 0 and its inline arm needs a
   // painted rect, so the total collapse falls between them. If this ever starts firing, the two families
   // have merged and one of them is now double-reporting.
-  expect(res.stdout, "text-overflow structurally cannot see a zero-width box — that is why this family exists").not.toContain("text-overflow");
+  expect(findingRows(res.stdout, "text-overflow"), "text-overflow structurally cannot see a zero-width box — that is why this family exists").toEqual([]);
   await expect(res).toExitWith(1);
 });
 
@@ -1241,25 +1241,43 @@ auditRuleTest(
       rule: "broken-image",
       kind: "silent",
       reason: "a loaded image with natural dimensions is a real healthy neighbour",
-      disposition: { kind: "no-population" },
+      disposition: { kind: "judged" },
     },
     {
       rule: "repeated-container-text",
       kind: "silent",
       reason: "two repeated labels remain below the three-place defect floor",
-      disposition: { kind: "no-population" },
+      disposition: { kind: "judged" },
     },
-    { rule: "clipped-overflow", kind: "silent", reason: "a padded in-flow control remains inside its clipping box", disposition: { kind: "no-population" } },
-    { rule: "edge-flush-cards", kind: "silent", reason: "a card with real inset gutters is not flush to its scroller", disposition: { kind: "no-population" } },
+    { rule: "clipped-overflow", kind: "silent", reason: "a padded in-flow control remains inside its clipping box", disposition: { kind: "judged" } },
+    { rule: "edge-flush-cards", kind: "silent", reason: "a card with real inset gutters is not flush to its scroller", disposition: { kind: "judged" } },
   ],
   "healthy quality candidates stay silent at their nearest legal boundaries",
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "healthy-quality.html"), healthyQualityNeighboursPage());
     const res = await runCli("snap", ["--file", join(scratch, "healthy-quality.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
     for (const rule of ["broken-image", "repeated-container-text", "clipped-overflow", "edge-flush-cards"]) {
-      expect(res.stdout, `${rule} must stay silent on its real healthy candidate`).not.toContain(rule);
+      expect(findingRows(res.stdout, rule), `${rule} must stay silent on its real healthy candidate`).toEqual([]);
     }
     return readAuditReport(res.stdout);
+  },
+);
+
+// A walker-proven rule's silence names its denominator: solid text was looked at and passes, while a page with
+// no image and no card offers those rules nothing.
+auditRuleTest(
+  [
+    { rule: "gradient-text", kind: "silent", reason: "solid-coloured text is censused and is not gradient-clipped", disposition: { kind: "judged" } },
+    { rule: "broken-image", kind: "silent", reason: "a page with no image offers the rule nothing to look at", disposition: { kind: "no-candidate" } },
+    { rule: "nested-card", kind: "silent", reason: "a page with no card offers the rule nothing to look at", disposition: { kind: "no-candidate" } },
+  ],
+  "a silent walker-proven rule reads judged or no-candidate from its own row",
+  async ({ runCli, scratch }) => {
+    await writeFile(join(scratch, "walker-proven-rows.html"), page("color:#111;background:#fff"));
+    const res = await runCli("snap", ["--file", join(scratch, "walker-proven-rows.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
+    const report = await readAuditReport(res.stdout);
+    expect(report.populationAccounting?.["gradient-text"]).toMatchObject({ affected: 0, withheld: {} });
+    return report;
   },
 );
 
@@ -1394,18 +1412,18 @@ auditRuleTest(
 test("a clipped label with NO ellipsis and no full-value affordance is still a text-overflow finding", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "bare-clip.html"), truncatedLabelPage("none"));
   const res = await runCli("snap", ["--file", join(scratch, "bare-clip.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(res.stdout).toContain("text-overflow");
+  expect(findingRows(res.stdout, "text-overflow").length).toBeGreaterThan(0);
   expect(res.stdout, "the finding must carry the measured spill, or it cannot be acted on").toMatch(/(?<!\d)\d+px spill/u);
   await expect(res).toExitWith(1);
 });
 
 auditRuleTest(
-  [{ rule: "text-overflow", kind: "silent", reason: "the same clipped label paints an ellipsis affordance", disposition: { kind: "no-population" } }],
+  [{ rule: "text-overflow", kind: "silent", reason: "the same clipped label paints an ellipsis affordance", disposition: { kind: "judged" } }],
   "the SAME label truncated with an ellipsis mints nothing — the shipped idiom is not a defect",
   async ({ runCli, scratch }) => {
     await writeFile(join(scratch, "ellipsis.html"), truncatedLabelPage("ellipsis"));
     const res = await runCli("snap", ["--file", join(scratch, "ellipsis.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
-    expect(res.stdout, "text-overflow:ellipsis is the affordance the rule's own message asks for").not.toContain("text-overflow");
+    expect(findingRows(res.stdout, "text-overflow"), "text-overflow:ellipsis is the affordance the rule's own message asks for").toEqual([]);
     expect(res.stdout).toContain("p1=0");
     // ZERO HYGIENE (#409): the silence is only a verdict when the walk censused nodes at all.
     expect(Number(CENSUS_RE.exec(res.stdout)?.[1])).toBeGreaterThan(0);
@@ -1416,7 +1434,7 @@ auditRuleTest(
 test("a bare clip carrying the full value in a title mints nothing either — the value is one hover away", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "titled.html"), truncatedLabelPage("title"));
   const res = await runCli("snap", ["--file", join(scratch, "titled.html"), ...AUDIT], { timeoutMs: CLI_TIMEOUT_MS });
-  expect(res.stdout).not.toContain("text-overflow");
+  expect(findingRows(res.stdout, "text-overflow")).toEqual([]);
   expect(Number(CENSUS_RE.exec(res.stdout)?.[1])).toBeGreaterThan(0);
 });
 

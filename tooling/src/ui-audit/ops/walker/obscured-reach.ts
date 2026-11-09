@@ -137,6 +137,88 @@ export const WALKER_OBSCURED_REACH = `
     answer.hit = askHit;
     return answer;
   }
+  // The centre's winner as a collision, or null when the disagreement is not one this rule judges.
+  function centreCollision(el, hit, rect) {
+    if (isDevChrome(hit)) return null;
+    // Ancestor/descendant paint is not a collision — a parent owning the point is the composite case
+    // ownsPoint already adjudicates, and a child owning it is the element working normally.
+    if (hit.contains(el) || el.contains(hit)) return null;
+    if (localCommonAncestor(el, hit) === null) return null;
+    // Cross-layer: a dialog, scrim, popover or sticky bar covering what is under it. Deliberate, and the
+    // reason this rule cannot be geometry-only.
+    if (paintLayerOf(el) !== paintLayerOf(hit)) return null;
+    var hitRect = hit.getBoundingClientRect();
+    var overlapW = Math.min(rect.right, hitRect.right) - Math.max(rect.left, hitRect.left);
+    var overlapH = Math.min(rect.bottom, hitRect.bottom) - Math.max(rect.top, hitRect.top);
+    // The winner does not even intersect this box: the disagreement is a transform/paint-order question,
+    // not two things sharing pixels. Out of this rule's scope, and saying so beats guessing.
+    if (overlapW <= 0 || overlapH <= 0) return null;
+    var covered = (overlapW * overlapH) / (rect.width * rect.height);
+    if (covered < OBSCURED_MIN_COVERED) return null;
+    if (Math.max(overlapW, overlapH) < OBSCURED_MIN_OVERLAP_PX) return null;
+    return { hit: hit, overlapPx: overlapW, covered: covered };
+  }
+  // THE INK-END PROBE: a census painted under the button beside its title keeps the title's centre, so the
+  // centre probe calls it clean. A READ subject is also asked at both inline ends of its own glyphs, and
+  // only a local, same-layer CONTROL winning there is a collision: text under a control cannot be read.
+  // The ink is clipped first, because a glyph its clipper cut is not painted under anything.
+  var OBSCURED_INK_INSET_PX = 1;
+  var obscuredInkRange = document.createRange();
+  function ownInkRect(el) {
+    var left = Infinity;
+    var top = Infinity;
+    var right = -Infinity;
+    var bottom = -Infinity;
+    for (var ik = 0; ik < el.childNodes.length; ik += 1) {
+      var inkNode = el.childNodes[ik];
+      if (inkNode.nodeType !== 3 || inkNode.textContent.trim().length === 0) continue;
+      obscuredInkRange.selectNodeContents(inkNode);
+      var inkBox = obscuredInkRange.getBoundingClientRect();
+      if (inkBox.width <= 0 || inkBox.height <= 0) continue;
+      left = Math.min(left, inkBox.left);
+      top = Math.min(top, inkBox.top);
+      right = Math.max(right, inkBox.right);
+      bottom = Math.max(bottom, inkBox.bottom);
+    }
+    return left === Infinity ? null : { left: left, top: top, right: right, bottom: bottom, width: right - left, height: bottom - top };
+  }
+  function inkEndCollision(el) {
+    var ink = ownInkRect(el);
+    if (ink === null) return null;
+    // intersectClippers and clipsPaint are census-occlusion.ts's; function declarations that read no var
+    // constant, so hoisting makes them callable from this earlier segment.
+    var painted = intersectClippers(el, ink);
+    if (clipsPaint(getComputedStyle(el))) {
+      var ownBox = el.getBoundingClientRect();
+      var ownLeft = ownBox.left + el.clientLeft;
+      var ownTop = ownBox.top + el.clientTop;
+      painted = {
+        left: Math.max(painted.left, ownLeft),
+        top: Math.max(painted.top, ownTop),
+        right: Math.min(painted.right, ownLeft + el.clientWidth),
+        bottom: Math.min(painted.bottom, ownTop + el.clientHeight),
+      };
+      painted.width = painted.right - painted.left;
+      painted.height = painted.bottom - painted.top;
+    }
+    if (painted.width < OBSCURED_MIN_OVERLAP_PX || painted.height <= 2) return null;
+    var probeY = painted.top + painted.height / 2;
+    var probeXs = [painted.left + OBSCURED_INK_INSET_PX, painted.right - OBSCURED_INK_INSET_PX];
+    for (var px = 0; px < probeXs.length; px += 1) {
+      if (!pointInFrame(probeXs[px], probeY) || ownsPoint(el, probeXs[px], probeY)) continue;
+      var inkHit = document.elementFromPoint(probeXs[px], probeY);
+      if (inkHit === null || isDevChrome(inkHit)) continue;
+      var control = inkHit.closest(INTERACTIVE_SELECTOR);
+      if (control === null || control.contains(el) || el.contains(control)) continue;
+      if (localCommonAncestor(el, control) === null || paintLayerOf(el) !== paintLayerOf(control)) continue;
+      var controlRect = control.getBoundingClientRect();
+      var inkOverlapW = Math.min(painted.right, controlRect.right) - Math.max(painted.left, controlRect.left);
+      var inkOverlapH = Math.min(painted.bottom, controlRect.bottom) - Math.max(painted.top, controlRect.top);
+      if (inkOverlapW < OBSCURED_MIN_OVERLAP_PX || inkOverlapH <= 0) continue;
+      return { hit: control, overlapPx: inkOverlapW, covered: (inkOverlapW * inkOverlapH) / (painted.width * painted.height) };
+    }
+    return null;
+  }
   for (var ob = 0; ob < allEls.length; ob += 1) {
     var obel = allEls[ob];
     if (isDevChrome(obel) || obel.closest("[aria-hidden='true']") || isVisuallyHidden(obel)) continue;
@@ -176,35 +258,25 @@ export const WALKER_OBSCURED_REACH = `
       });
       continue;
     }
-    if (obAsk.reason === "owned") continue;
-    var obHit = obAsk.hit;
-    if (isDevChrome(obHit)) continue;
-    // Ancestor/descendant paint is not a collision — a parent owning the point is the composite case
-    // ownsPoint already adjudicates, and a child owning it is the element working normally.
-    if (obHit.contains(obel) || obel.contains(obHit)) continue;
-    if (localCommonAncestor(obel, obHit) === null) continue;
-    // Cross-layer: a dialog, scrim, popover or sticky bar covering what is under it. Deliberate, and the
-    // reason this rule cannot be geometry-only.
-    if (paintLayerOf(obel) !== paintLayerOf(obHit)) continue;
-    var obHitRect = obHit.getBoundingClientRect();
-    var obOverlapW = Math.min(obRect.right, obHitRect.right) - Math.max(obRect.left, obHitRect.left);
-    var obOverlapH = Math.min(obRect.bottom, obHitRect.bottom) - Math.max(obRect.top, obHitRect.top);
-    // The winner does not even intersect this box: the disagreement is a transform/paint-order question,
-    // not two things sharing pixels. Out of this rule's scope, and saying so beats guessing.
-    if (obOverlapW <= 0 || obOverlapH <= 0) continue;
-    var obCovered = (obOverlapW * obOverlapH) / (obRect.width * obRect.height);
-    if (obCovered < OBSCURED_MIN_COVERED) continue;
-    if (Math.max(obOverlapW, obOverlapH) < OBSCURED_MIN_OVERLAP_PX) continue;
+    var obCollision = obAsk.reason === "owned" ? null : centreCollision(obel, obAsk.hit, obRect);
+    var obProbe = "centre";
+    // Text partly under a control keeps its centre, so the READ subject also asks where its glyphs end.
+    if (obCollision === null && !obInteractive) {
+      obCollision = inkEndCollision(obel);
+      obProbe = "ink-end";
+    }
+    if (obCollision === null) continue;
     obscuredTargets.push({
       authoredTarget: authoredTargetClaim(obel),
       authoredHome: authoredTargetHome(obel),
       selector: describe(obel),
-      hitAuthoredTarget: authoredTargetClaim(obHit),
-      hitAuthoredHome: authoredTargetHome(obHit),
-      hitSelector: describe(obHit),
-      overlapPx: Math.round(obOverlapW),
-      coveredRatio: Math.round(obCovered * 100) / 100,
+      hitAuthoredTarget: authoredTargetClaim(obCollision.hit),
+      hitAuthoredHome: authoredTargetHome(obCollision.hit),
+      hitSelector: describe(obCollision.hit),
+      overlapPx: Math.round(obCollision.overlapPx),
+      coveredRatio: Math.round(obCollision.covered * 100) / 100,
       interactive: obInteractive,
+      probe: obProbe,
       text: obText.slice(0, 40),
     });
   }

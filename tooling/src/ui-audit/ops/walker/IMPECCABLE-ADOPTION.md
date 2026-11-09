@@ -85,7 +85,7 @@ upstream, diff the exported mechanisms, not just the id registry.
 The method column is the rule's population-collection strategy. The one home for the assignment and
 its reason is the table in `tooling/src/ui-audit/lib/collect.ts`'s header, pinned by
 `tests/tooling/ui-audit/lib/collect-families.test.ts`; that table wins on any conflict here. Methods:
-1 no population row (a page singleton, or a walker-proven carrier where the finding is the census) · 2
+1 no population row (a page singleton or a sequence verdict) · 2
 a full census with candidates/judged/withheld/excluded · 3 a walker relational census plus a
 representative cap · 4 grouped by authored decision · X a bespoke accounting function named in
 `collect.ts`.
@@ -100,9 +100,9 @@ representative cap · 4 grouped by authored decision · X a bespoke accounting f
 | `radial-spotlight-glow` | `radial-spotlight-glow` | P3 | 2 | translucent spotlight, few low-alpha stops, chromatic, large surface; sanctioned carriers exempt |
 | `icon-tile-stack` | `icon-tile-stack` | P3 | 2 | a decorated tile containing a smaller icon, stacked above a heading |
 | `extreme-negative-tracking` | `crushed-tracking` | P3 | 2 | letter-spacing at or below −0.045em on 20 or more characters |
-| `broken-image` | `broken-image` | P1 | 1 | an `<img>` with an empty/missing src, or a naturalWidth of 0 |
+| `broken-image` | `broken-image` | P1 | 2 | an `<img>` with an empty/missing src, or a naturalWidth of 0 |
 | `script-error` | `script-error` | P0 | X | the probe session's page-error capture |
-| `edge-flush-cards` | `edge-flush-cards` | P3 | 1 | an at-rest horizontal scroller with a card flush one edge, gutter the other |
+| `edge-flush-cards` | `edge-flush-cards` | P3 | 2 | an at-rest horizontal scroller with a card flush one edge, gutter the other |
 | `gray-on-color` | `gray-on-color` | P2 | X | achromatic mid-luminance text over a chromatic backdrop |
 | `layout-transition` | `layout-transition` | P3 | 2 | computed transition on width/height/padding/margin with nonzero duration; exempt accordion/collapsible panel slots |
 | `line-length` | `line-length` | P3 | 2 | a prose element wider than the reading measure, by in-page glyph-advance measurement |
@@ -113,9 +113,9 @@ representative cap · 4 grouped by authored decision · X a bespoke accounting f
 | `undersized-ui-text` | `undersized-ui-text` | P2 | 4 | an interactive control's primary label below the control-label floor |
 | `all-caps-body` | `all-caps-body` | P3 | 2 | uppercase on 30 or more characters of non-heading text |
 | `wide-tracking` | `wide-tracking` | P3 | 2 | letter-spacing over 0.05em on 20 or more characters of non-uppercase text |
-| `text-overflow` | `text-overflow` | P1 | 1 | direct text spilling past its box, or an inline element spilling past its block container |
-| `repeated-container-text` | `repeated-container-text` | P3 | 1 | the same short literal at 3 or more structurally distinct positions in one container |
-| `clipped-overflow-container` | `clipped-overflow` | P2 | 1 | an overflow-clip container clipping a non-decorative positioned descendant that escapes or declares escape geometry |
+| `text-overflow` | `text-overflow` | P1 | 2 | direct text spilling past its box, or an inline element spilling past its block container |
+| `repeated-container-text` | `repeated-container-text` | P3 | 2 | the same short literal at 3 or more structurally distinct positions in one container |
+| `clipped-overflow-container` | `clipped-overflow` | P2 | 2 | an overflow-clip container clipping a non-decorative positioned descendant that escapes or declares escape geometry |
 | `design-system-font` | `off-theme-font` | P2 | X | a page font census against the token font stacks |
 | `repeating-stripes-gradient` | `stripe-background` | P3 | 2 | a repeating linear gradient used as surface decoration |
 | `codex-grid-background` | `grid-line-background` | P3 | 2 | two-axis gradient layers tiled by a fixed-pixel background-size cell |

@@ -44,7 +44,7 @@ import {
   checkZIndex,
 } from "./checks-structure.ts";
 import { checkTextStyle, classifyTextStyle, TEXT_STYLE_RULE_IDS } from "./checks-typography.ts";
-import { authoredDecisionKey, capExceeded, emptyFamilyResult, runArray, runNullable, totalJudge } from "./collect-family-runner.ts";
+import { authoredDecisionKey, capExceeded, emptyFamilyResult, runArray, runNullable, totalJudge, walkerProvenFindings } from "./collect-family-runner.ts";
 import { accountedFindings, cappedRelationalFindings, decisionPopulationFindings, nullableFindings, partitionedFindings } from "./population-strategies.ts";
 
 export function a11yFindings(samples: RawSamples): FamilyCheckResult {
@@ -177,13 +177,19 @@ export function mediaFindings(samples: RawSamples): FamilyCheckResult {
   const distorted = partitionedFindings("distorted-image", samples.images, classifyImageDistortion);
   // Accounting-only (#1079): canvas ink is EXCLUDED, never a silent zero (census-collision.ts's count).
   const canvasInk = accountedFindings<never>("canvas-ink", [], () => null, { census: samples.relationalAccounting?.["canvas-ink"], samplesAreJudged: false });
+  const brokenImages = walkerProvenFindings("broken-image", samples.brokenImages, checkBrokenImage, { samples });
   runArray(state, () => distorted.findings);
-  runArray(state, () => samples.brokenImages.map(checkBrokenImage));
+  runArray(state, () => brokenImages.findings);
   runArray(state, () => buriedRasters.findings);
   runArray(state, () => canvasInk.findings);
   return {
     ...state,
-    populationAccounting: { "buried-raster": buriedRasters.accounting, "canvas-ink": canvasInk.accounting, "distorted-image": distorted.accounting },
+    populationAccounting: {
+      ...brokenImages.accounting,
+      "buried-raster": buriedRasters.accounting,
+      "canvas-ink": canvasInk.accounting,
+      "distorted-image": distorted.accounting,
+    },
   };
 }
 
@@ -276,11 +282,15 @@ export function qualityFindings(samples: RawSamples): FamilyCheckResult {
     census: samples.relationalAccounting?.["tier-drift"],
     samplesAreJudged: true,
   });
+  const textOverflows = walkerProvenFindings("text-overflow", samples.overflows, checkTextOverflow, { samples, capFamily: "overflows" });
+  const repeatedTexts = walkerProvenFindings("repeated-container-text", samples.repeatedTexts, checkRepeatedText, { samples, capFamily: "repeatedTexts" });
+  const clippedOverflows = walkerProvenFindings("clipped-overflow", samples.clippedOverflows, checkClippedOverflow, { samples, capFamily: "clippedOverflows" });
+  const edgeFlushCards = walkerProvenFindings("edge-flush-cards", samples.edgeFlushCards, checkEdgeFlush, { samples, capFamily: "edgeFlushCards" });
   runArray(state, () => duplicateDoors.findings);
-  runArray(state, () => samples.overflows.map(checkTextOverflow));
-  runArray(state, () => samples.repeatedTexts.map(checkRepeatedText));
-  runArray(state, () => samples.clippedOverflows.map(checkClippedOverflow));
-  runArray(state, () => samples.edgeFlushCards.map(checkEdgeFlush));
+  runArray(state, () => textOverflows.findings);
+  runArray(state, () => repeatedTexts.findings);
+  runArray(state, () => clippedOverflows.findings);
+  runArray(state, () => edgeFlushCards.findings);
   runArray(state, () => emptyStates.findings);
   // The #816 collision family: text erased to zero width. Legacy sample bundles may omit its walker
   // census; the collector still publishes a derived zero row so reports never confuse absence with an
@@ -305,6 +315,10 @@ export function qualityFindings(samples: RawSamples): FamilyCheckResult {
   return {
     ...state,
     populationAccounting: {
+      ...textOverflows.accounting,
+      ...repeatedTexts.accounting,
+      ...clippedOverflows.accounting,
+      ...edgeFlushCards.accounting,
       "double-empty-state": emptyStates.accounting,
       "off-grid-transform": restTransforms.accounting,
       "promoted-layer-offset": promotedLayers.accounting,
@@ -321,9 +335,12 @@ export function structureFindings(samples: RawSamples): FamilyCheckResult {
   const state = emptyFamilyResult();
   const zIndexes = totalJudge("z-index-escalation", samples.zIndexes, checkZIndex);
   runArray(state, () => zIndexes.findings);
-  runArray(state, () => nullableFindings(samples.nestedCards, checkNestedCard));
-  runArray(state, () => nullableFindings(samples.gradientTexts, checkGradientText));
-  runArray(state, () => nullableFindings(samples.animatedImgHovers, checkAnimatedImgHover));
+  const nestedCards = walkerProvenFindings("nested-card", samples.nestedCards, checkNestedCard, { samples });
+  const gradientTexts = walkerProvenFindings("gradient-text", samples.gradientTexts, checkGradientText, { samples });
+  const animatedImgHovers = walkerProvenFindings("animated-img-hover", samples.animatedImgHovers, checkAnimatedImgHover, { samples });
+  runArray(state, () => nestedCards.findings);
+  runArray(state, () => gradientTexts.findings);
+  runArray(state, () => animatedImgHovers.findings);
   const cohortAnatomy = cappedRelationalFindings(
     "cohort-anatomy",
     samples.cohortAnatomies ?? [],
@@ -343,6 +360,9 @@ export function structureFindings(samples: RawSamples): FamilyCheckResult {
   return {
     ...state,
     populationAccounting: {
+      ...nestedCards.accounting,
+      ...gradientTexts.accounting,
+      ...animatedImgHovers.accounting,
       "cohort-anatomy": cohortAnatomy.accounting,
       "pane-ink": paneInk.accounting,
       "row-void": rowVoid.accounting,
