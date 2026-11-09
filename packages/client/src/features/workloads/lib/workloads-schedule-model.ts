@@ -25,14 +25,6 @@ export function resolveScheduleMode(kind: string, bulk: boolean, viewerIsOwner: 
   return "singular";
 }
 
-/**
- * A schedule row's enable switch: `Enabled: <kind label>`, with `aria-checked` carrying the state. Two schedules of one kind share
- * this name, as their Edit and Delete do: nothing makes a kind unique per owner or cadence (item 2346).
- */
-export function scheduleEnabledSwitchName(kind: WorkloadKind): string {
-  return itemSwitchName(ITEM_ENABLED_SETTING, WORKLOAD_KIND_LABELS[kind]);
-}
-
 /** Cadence → human label (exhaustive — a new cadence fails `tsc` until it gets a label). */
 export const SCHEDULE_CADENCE_LABELS: Record<ScheduleCadence, string> = {
   hourly: "Every hour",
@@ -40,6 +32,36 @@ export const SCHEDULE_CADENCE_LABELS: Record<ScheduleCadence, string> = {
   weekly: "Every week",
   monthly: "Every month",
 };
+
+/** What names one schedule row: its kind and cadence, plus the owner's handle on a row that is not the viewer's. */
+export interface ScheduleIdentity {
+  readonly kind: WorkloadKind;
+  readonly cadence: ScheduleCadence;
+  readonly ownerHandle: string | null;
+}
+
+/**
+ * The one name of a schedule row, read by its title, switch, Edit and Delete. A kind can recur at several cadences, and an
+ * admin sees other users' rows, so kind alone names two rows alike. Two rows of one kind, cadence and owner still share it:
+ * nothing else on the row tells them apart.
+ */
+export function scheduleName({ kind, cadence, ownerHandle }: ScheduleIdentity): string {
+  const name = `${WORKLOAD_KIND_LABELS[kind]} · ${SCHEDULE_CADENCE_LABELS[cadence]}`;
+  return ownerHandle === null ? name : `${name} · for ${ownerHandle}`;
+}
+
+/** A schedule row's enable switch: `Enabled: <schedule>`, with `aria-checked` carrying the state. */
+export function scheduleEnabledSwitchName(schedule: ScheduleIdentity): string {
+  return itemSwitchName(ITEM_ENABLED_SETTING, scheduleName(schedule));
+}
+
+export function scheduleEditName(schedule: ScheduleIdentity): string {
+  return `Edit schedule: ${scheduleName(schedule)}`;
+}
+
+export function scheduleDeleteName(schedule: ScheduleIdentity): string {
+  return `Delete schedule: ${scheduleName(schedule)}`;
+}
 
 /** The cadence picker items (in the contract's tuple order). */
 export const SCHEDULE_CADENCE_ITEMS: readonly { value: string; label: string }[] = SCHEDULE_CADENCES.map((cadence) => ({

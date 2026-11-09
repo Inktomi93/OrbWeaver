@@ -1,5 +1,7 @@
 import type { ReactElement } from "react";
+import { use } from "react";
 import type { ControlSize } from "#lib";
+import { ButtonWrapContext } from "./button-wrap.ts";
 import type { ButtonCoreProps, ButtonPaint, ButtonStretch } from "./core.tsx";
 import { ButtonCore } from "./core.tsx";
 
@@ -37,5 +39,7 @@ type ButtonBox =
 export type ButtonProps = (NamedButtonProps | TextButtonProps) & ButtonPaint & ButtonBox & ButtonStretch;
 
 export function Button({ variant = "solid", size = "md", square, wrap, stacked, ...rest }: ButtonProps): ReactElement {
-  return <ButtonCore {...rest} variant={variant} scale={{ size, square, wrap, stacked }} />;
+  const hostWraps = use(ButtonWrapContext);
+  const wraps = wrap ?? (hostWraps && square !== true && stacked !== true ? true : undefined);
+  return <ButtonCore {...rest} variant={variant} scale={{ size, square, wrap: wraps, stacked }} />;
 }

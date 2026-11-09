@@ -18,6 +18,8 @@ import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page, TestInfo } from "@playwright/test";
 import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import { IMPORT_CONFIRM_NAMES } from "#client/features/workloads/lib/portability-model.ts";
+import type { ScheduleIdentity } from "#client/features/workloads/lib/workloads-schedule-model.ts";
+import { scheduleDeleteName, scheduleEditName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import type { WorkloadActionGroupsStory } from "./_action-groups-stories.tsx";
 
 const STORY = "tests/client/features/workloads/components/_action-groups-stories/WorkloadActionGroupsStory";
@@ -26,6 +28,8 @@ const ROOT_OPTIONS = {
   physicalPeer: () => "127.0.0.1",
   startJobs: false,
 } as const;
+/** A singular and a bulk schedule of one kind and cadence: the row controls' geometry, not their names, is the subject. */
+const SINGULAR_AND_BULK_SCHEDULE = { kind: "import-token-usage-backfill", cadence: "daily", ownerHandle: null } as const satisfies ScheduleIdentity;
 const nameMaximum = createPersonaSchema.shape.name.maxLength;
 if (nameMaximum === null) {
   throw new Error("The collision case requires a bounded persona name");
@@ -218,7 +222,12 @@ for (const regime of REGIMES) {
       await using root = await createServerHarness(ROOT_OPTIONS);
       const caller = await root.internalCallerFor(root.ownerId);
       for (const mode of ["singular", "bulk"] as const) {
-        await caller.workloads.createSchedule({ input: { kind: "import-token-usage-backfill", params: {} }, mode, cadence: "daily", enabled: false });
+        await caller.workloads.createSchedule({
+          input: { kind: SINGULAR_AND_BULK_SCHEDULE.kind, params: {} },
+          mode,
+          cadence: SINGULAR_AND_BULK_SCHEDULE.cadence,
+          enabled: false,
+        });
       }
       const before = await caller.workloads.listSchedules({});
       await routeTrpc(
@@ -238,8 +247,9 @@ for (const regime of REGIMES) {
       await expect(rows).toHaveCount(2);
       for (const row of await rows.all()) {
         const toggle = row.getByRole("switch");
-        const edit = row.getByRole("button", { name: /^Edit .+ schedule$/u });
-        const remove = row.getByRole("button", { name: /^Delete .+ schedule$/u });
+        // Both rows share one kind, cadence and owner, so they share one name; the row scopes each lookup.
+        const edit = row.getByRole("button", { name: scheduleEditName(SINGULAR_AND_BULK_SCHEDULE), exact: true });
+        const remove = row.getByRole("button", { name: scheduleDeleteName(SINGULAR_AND_BULK_SCHEDULE), exact: true });
         await measureActions(edit.locator(".."), [edit, remove], testInfo, "schedule-row-actions");
         expect(
           (await actionGroupGeometry(page.getByRole("group", { name: "Workload action host", exact: true }), [toggle])).inlineOverflow,

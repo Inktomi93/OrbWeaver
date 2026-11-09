@@ -6,6 +6,7 @@ import { WORKLOAD_RUN_ACCOUNT_REFUSAL } from "@orb/contracts/workloads";
 import { noticeToast, routeOrbSocket, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, plantMemberOperatorRun, plantMemberOperatorSchedule } from "@orb/testkit/node/composed";
+import { scheduleEditName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import type { WorkloadActionGroupsStory } from "./_action-groups-stories.tsx";
 import type { ScheduleDialogDismissalStory } from "./_schedule-dialog-dismissal-stories.tsx";
 
@@ -42,7 +43,12 @@ test("a member's stored operator-tree schedule names the refusal on its row", as
   await routeTrpc(page, serveCorpusProcedures(caller, SCHEDULE_READS));
   await mount<typeof ScheduleDialogDismissalStory>(SCHEDULES_STORY, { width: 900 });
 
-  await expect(page.getByRole("button", { name: /^Edit .* schedule$/u })).toHaveCount(1);
+  const [schedule, ...others] = await caller.workloads.listSchedules({});
+  if (schedule === undefined) {
+    throw new Error("The member must hold the planted schedule");
+  }
+  expect(others).toEqual([]);
+  await expect(page.getByRole("button", { name: scheduleEditName({ ...schedule, ownerHandle: null }), exact: true })).toHaveCount(1);
   await expect(page.getByText(WORKLOAD_RUN_ACCOUNT_REFUSAL, { exact: false })).toBeVisible();
 });
 

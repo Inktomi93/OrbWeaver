@@ -3,9 +3,11 @@ import { DEFAULT_APPEARANCE_SETTINGS } from "@orb/contracts/settings";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import { SCHEDULE_CADENCE_LABELS } from "#client/features/workloads/lib/workloads-schedule-model.ts";
+import type { ScheduleIdentity } from "#client/features/workloads/lib/workloads-schedule-model.ts";
+import { SCHEDULE_CADENCE_LABELS, scheduleEditName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import type { ScheduleDialogDismissalStory } from "./_schedule-dialog-dismissal-stories.tsx";
 
+const CREATED_SCHEDULE = { kind: "reconcile-stats", cadence: "daily", ownerHandle: null } as const satisfies ScheduleIdentity;
 const STORY = "tests/client/features/workloads/components/_schedule-dialog-dismissal-stories/ScheduleDialogDismissalStory";
 const VIEWPORTS = [
   { label: "desktop", width: 1440, height: 900, hasTouch: false },
@@ -23,9 +25,9 @@ for (const viewport of VIEWPORTS) {
       await caller.settings.updateUserSettingsSection({ section: "appearance", patch: DEFAULT_APPEARANCE_SETTINGS });
       await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
       const created = await caller.workloads.createSchedule({
-        input: { kind: "reconcile-stats", params: {} },
+        input: { kind: CREATED_SCHEDULE.kind, params: {} },
         mode: "singular",
-        cadence: "daily",
+        cadence: CREATED_SCHEDULE.cadence,
         enabled: false,
       });
       const schedulesBefore = await caller.workloads.listSchedules({});
@@ -66,7 +68,7 @@ for (const viewport of VIEWPORTS) {
 
       const createdRow = page.locator('[data-slot="list-row-root"]').filter({ hasText: SCHEDULE_CADENCE_LABELS.daily });
       await expect(createdRow).toHaveCount(1);
-      const editTrigger = createdRow.getByRole("button", { name: /Edit .* schedule/u });
+      const editTrigger = createdRow.getByRole("button", { name: scheduleEditName(CREATED_SCHEDULE), exact: true });
       await editTrigger.click();
       const editDialog = page.getByTestId(testId("editScheduleDialog"));
       await expectPairedScheduleActions(editDialog, "Save schedule");
