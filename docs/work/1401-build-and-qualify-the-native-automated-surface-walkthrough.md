@@ -1,10 +1,10 @@
 ---
 kind: work
 status: doing
-updated: 2026-11-08
+updated: 2026-11-09
 priority: P1
 area: testing
-lane: wt/agent-a32c8e6928ae4d0d9
+lane: wt/agent-a8f3043bb3b74c9fd
 plan: surface-walk
 ---
 

@@ -1,7 +1,7 @@
 ---
 kind: bug
 status: open
-updated: 2026-11-08
+updated: 2026-11-09
 priority: P3
 area: client
 plan: surface-walk
@@ -11,7 +11,7 @@ plan: surface-walk
 
 ## What
 
-On the desktop-1440-all-panes-text200 Home walk, the quick-picks grid scrolls horizontally instead of reflowing.
+On the enlarged-text Home walks at phone 200% and 300% and desktop 200%, the quick-picks grid scrolls sideways instead of reflowing. The grid is the cellSwipe variant at packages/ui/src/layout/variants.ts:692, a snap strip with overflow-x-auto by design. It carries no role or attribute the geometry probe reads, so a designed strip and a column that stopped reflowing look the same.
 
 ## Why
 
@@ -19,7 +19,7 @@ Content that needs sideways scrolling at 200% text fails the reflow expectation 
 
 ## Done when
 
-The quick-picks grid reflows at 200% and 300% text with no horizontal scroll, or a cited design ruling exempts it, with the text projects' geometry finding gone.
+A ruling on whether the grid is a declared sideways strip, then either the grid reflows at 200% and 300% text with no horizontal scroll, or the strip declares itself through an attribute the probe reads. Either way the home-requested-pane-composition, home-tile and home-whole checkpoints show no enlarged-text geometry finding at 200% and 300%.
 
 ## Evidence
 
