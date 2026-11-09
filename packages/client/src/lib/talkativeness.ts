@@ -22,6 +22,11 @@ export function talkativenessReadout(weight: number): string {
   return `${talkativenessPercent(weight)} chance to reply unprompted`;
 }
 
+/** The name of the popover the chip opens and of the slider inside it: the chip's stable prefix, without the live level. */
+export function talkativenessControlName(who: string): string {
+  return `Talkativeness: ${who}`;
+}
+
 /** The chip's accessible name (WCAG 2.5.3 Label in Name: the visible chip reads "Talks 50%", so "talks 50%"
  *  is IN the name). The stable identity leads so a role+name lookup on the prefix survives every value change. */
 export function talkativenessAccessibleName(who: string, weight: number): string {

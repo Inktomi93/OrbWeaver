@@ -25,6 +25,26 @@ export function FaceStripTileStory({ caption }: { readonly caption: boolean }): 
   );
 }
 
+/** Two-word names, so each face draws a two-letter fallback. */
+export function FaceStripInitialsStory(): ReactElement {
+  return (
+    <CtIsolation subject="FaceStrip" isolates="The faces' fallback initials against their names need no application data.">
+      <div style={{ width: 240 }}>
+        <FaceStrip
+          items={[
+            { id: "ada", name: "Ada Lovelace", avatarHash: null },
+            { id: "bo", name: "Bo Peep", avatarHash: null },
+          ]}
+          selectedId={null}
+          onSelect={(): void => undefined}
+          caption={false}
+          label="Faces"
+        />
+      </div>
+    </CtIsolation>
+  );
+}
+
 export function FaceStripRefsStory(): ReactElement {
   const [narrow, setNarrow] = useState(false);
   const [selected, setSelected] = useState<string | null>(null);

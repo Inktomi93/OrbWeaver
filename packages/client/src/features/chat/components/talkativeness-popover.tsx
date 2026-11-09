@@ -12,7 +12,7 @@ import { Slider } from "@orb/ui/slider";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, RefObject } from "react";
 import { useRef, useState } from "react";
-import { talkativenessAccessibleName, talkativenessPercent, talkativenessReadout } from "#lib";
+import { talkativenessAccessibleName, talkativenessControlName, talkativenessPercent, talkativenessReadout } from "#lib";
 import type { MemberCharacterRow } from "../lib/member-rows.ts";
 
 // The percent, its rounding and the spelled-out accessible name live in ONE home, `#lib`'s
@@ -68,6 +68,8 @@ export function TalkativenessPopover({
             <Text ink="inherit" as="span" voice="label">
               Talks
             </Text>
+            {/* A text node between the two flex items paints nothing; it keeps "Talks" and the level apart in the DOM text axe
+                compares with the name ("talks50%" is not "talks 50%"). */}{" "}
             <Text ink="inherit" as="span" voice="datum">
               {talkativenessPercent(weight)}
             </Text>
@@ -75,6 +77,7 @@ export function TalkativenessPopover({
         }
       />
       <PopoverPopup
+        aria-label={talkativenessControlName(row.displayName)}
         side="bottom"
         align="end"
         initialFocus={initialFocusRef}
@@ -96,7 +99,7 @@ export function TalkativenessPopover({
                 min={0}
                 max={1}
                 step={0.05}
-                thumbLabels={[`Talkativeness: ${row.displayName}`]}
+                thumbLabels={[talkativenessControlName(row.displayName)]}
                 onValueChange={(value): void => setDragValue(firstThumb(value))}
                 onValueCommitted={(value): void => {
                   setDragValue(null);
