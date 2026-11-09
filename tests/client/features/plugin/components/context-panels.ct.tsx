@@ -1,5 +1,12 @@
 import { spawn } from "node:child_process";
-import { CHAT_PLUGINS_TAB_LABEL, contextToggleLabel, MESSAGE_TOOLS_LABEL, SIDECAR_PANELS_LABEL, SIDECAR_PANELS_NOUN } from "@orb/client/lib";
+import {
+  CHAT_PLUGINS_TAB_LABEL,
+  contextToggleLabel,
+  DETAILS_PANEL_NOUN,
+  MESSAGE_TOOLS_LABEL,
+  SIDECAR_PANELS_LABEL,
+  SIDECAR_PANELS_NOUN,
+} from "@orb/client/lib";
 import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { seedShellState } from "@orb/testkit/browser/spec";
@@ -21,6 +28,7 @@ import type { PluginHideFocusStory } from "./_hide-focus-stories.tsx";
 
 // The edge control names the column with the house verbs, in whichever state it is in.
 const SIDECAR_EDGE = new RegExp(`^(?:Show|Hide) ${SIDECAR_PANELS_NOUN}$`, "u");
+const DETAILS_EDGE = new RegExp(`^(?:Show|Hide) ${DETAILS_PANEL_NOUN}$`, "u");
 
 test.use({ viewport: { width: 1600, height: 1000 } });
 
@@ -187,13 +195,14 @@ test("the plugin column's edge control draws a different icon set than the detai
   await page.getByRole("tab", { name: CHAT_PLUGINS_TAB_LABEL, exact: true }).click();
   const context = page.getByRole("region", { name: CHAT_PLUGINS_TAB_LABEL, exact: true });
   await context.getByRole("button", { name: movePluginPanelLabel("Context witness", "First", true), exact: true }).click();
-  const icons = (name: RegExp): Promise<string[]> =>
-    page
-      .getByRole("button", { name })
-      .locator("svg")
-      .evaluateAll((svgs) => svgs.map((svg) => Array.from(svg.classList).find((token) => token.startsWith("lucide-")) ?? ""));
+  // The column's edge control mounts after the move settles, and `evaluateAll` does not wait for it.
+  const icons = async (name: RegExp): Promise<string[]> => {
+    const edge = page.getByRole("button", { name });
+    await expect(edge).toHaveCount(1);
+    return edge.locator("svg").evaluateAll((svgs) => svgs.map((svg) => Array.from(svg.classList).find((token) => token.startsWith("lucide-")) ?? ""));
+  };
   const column = await icons(SIDECAR_EDGE);
-  const details = await icons(/^(?:Show|Hide) details$/u);
+  const details = await icons(DETAILS_EDGE);
 
   expect(column.length).toBeGreaterThan(0);
   expect(details.length).toBeGreaterThan(0);

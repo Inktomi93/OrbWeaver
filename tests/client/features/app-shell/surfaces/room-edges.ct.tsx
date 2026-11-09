@@ -103,13 +103,18 @@ test.describe("on a phone", () => {
       expect(Math.abs(row[1] - composer[1])).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
     });
 
-    test(`at ${width} the composer's content keeps the place the card's full padding gave it`, async ({ corpus, mount, page }) => {
+    test(`at ${width} the composer's content sits a border and the island's narrow padding in from the card, which steps in by the avatar reach`, async ({
+      corpus,
+      mount,
+      page,
+    }) => {
       await page.setViewportSize({ width, height: 800 });
       const chatId = await serveRoom(page, corpus);
       await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
       await expect(page.locator(COMPOSER).last()).toBeVisible();
-      const field = await resolvedLength(page, `var(${TOKENS["spacing.field"].cssVar})`);
-      // The card steps in from the region's start at a narrow width, yet its content stays a border and the full field padding in from it.
+      const reach = await resolvedLength(page, `var(${TOKENS["spacing.avatar-reach"].cssVar})`);
+      const narrowPadding = await resolvedLength(page, `var(${TOKENS["size.room-island-inset-narrow"].cssVar})`);
+      // The card steps in from the region's start at a narrow width by the avatar reach the rows keep, and its content stays a border and the island's narrow padding in from the card.
       const inset = await page.evaluate(
         ([composer, region]) => {
           const card = Array.from(document.querySelectorAll(composer)).at(-1);
@@ -126,7 +131,7 @@ test.describe("on a phone", () => {
         [COMPOSER, REGION] as const,
       );
 
-      expect(inset.content).toBeCloseTo(inset.border + field, 0);
+      expect(inset.content).toBeCloseTo(reach + inset.border + narrowPadding, 0);
     });
   }
 });
