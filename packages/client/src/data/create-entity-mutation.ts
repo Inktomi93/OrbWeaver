@@ -265,9 +265,10 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
       inline.current.declared = failureShownInline;
     });
     useEffect(() => {
-      inline.current.mounted = true;
+      const watch = inline.current;
+      watch.mounted = true;
       return (): void => {
-        inline.current.mounted = false;
+        watch.mounted = false;
       };
     }, []);
     const shownInline = (): boolean => inline.current.mounted && inline.current.declared !== undefined && !inline.current.cleared;

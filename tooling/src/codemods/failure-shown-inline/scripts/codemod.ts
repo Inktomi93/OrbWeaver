@@ -55,13 +55,13 @@ function firstObjectArgument(call: SgNode<TS>): SgNode<TS> | null {
 function hasKey(object: SgNode<TS>, key: string): boolean {
   return object
     .children()
-    .some((child) => (child.is("pair") && child.field("key")?.text() === key) || (child.is("shorthand_property_identifier") && child.text() === key));
+    .some((child) => (child.is("pair") && child.field("key").text() === key) || (child.is("shorthand_property_identifier") && child.text() === key));
 }
 
 /** The factory's `errorToast` pair becomes `failureShownInline`, naming the surface. */
 function factoryEdit(call: SgNode<TS>, surface: string): Edit | null {
   const config = firstObjectArgument(call);
-  const toast = config?.children().find((child) => child.is("pair") && child.field("key")?.text() === TOAST_KEY);
+  const toast = config?.children().find((child) => child.is("pair") && child.field("key").text() === TOAST_KEY);
   return toast === undefined ? null : toast.replace(`${INLINE_KEY}: ${JSON.stringify(surface)}`);
 }
 
@@ -77,7 +77,7 @@ function callEdit(call: SgNode<TS>, surface: string): Edit | null {
 
 function declaredName(call: SgNode<TS>): string | null {
   const declarator = call.parent();
-  return declarator?.is("variable_declarator") === true ? (declarator.field("name")?.text() ?? null) : null;
+  return declarator?.is("variable_declarator") === true ? declarator.field("name").text() : null;
 }
 
 /** The edit one call needs, with its kind for the run's count: a mapped factory or a mapped consumer call. */
