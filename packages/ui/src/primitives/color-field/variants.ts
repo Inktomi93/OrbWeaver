@@ -23,8 +23,11 @@ export const colorFieldVariants = tv({
     swatch:
       "shrink-0 rounded-control border border-input-border bg-field-fill data-unset:border-dashed data-unset:border-muted-foreground data-unset:bg-transparent",
     hexText: CAPTION,
+    // THE CONTROL EDGES WEAR THE D159 TOKEN, BOTH OF THEM: the trigger and the native swatch inside the popup
+    // are identified by their border and nothing else, so it holds WCAG 1.4.11's 3:1 (`--color-input-border`,
+    // ~5.6:1 on a popover) while the decorative `--color-border` hairline sits at 1.25:1 there.
     swatchTrigger: [
-      "inline-flex shrink-0 items-center justify-center rounded-control border border-border p-0",
+      "inline-flex shrink-0 items-center justify-center rounded-control border border-input-border p-0",
       COLOR_MOTION,
       "outline-none",
       FOCUS_RING,
@@ -47,7 +50,10 @@ export const colorFieldVariants = tv({
     // `ring-offset-background` would paint a page-toned band around the swatch on a popover-toned surface.
     // The ring (a box-shadow) is safe here rather than FOCUS_RING_OUTLINE: this slot paints no shadow of its
     // own, so nothing else owns the composite. MEASURED under a real Tab in the color-field CT.
-    nativeColorInput: `cursor-pointer rounded-control border border-border p-0 outline-none block-(--size-control-md) inline-full disabled:cursor-not-allowed ${FOCUS_RING_ON_POPOVER}
+    nativeColorInput: `
+      cursor-pointer rounded-control border border-input-border p-0 outline-none block-(--size-control-md) inline-full
+      disabled:cursor-not-allowed
+      ${FOCUS_RING_ON_POPOVER}
     `,
     hexField: "inline-full",
     // The per-field clear affordance. Left-aligned under the hex field so it
