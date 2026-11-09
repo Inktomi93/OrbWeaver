@@ -33,6 +33,7 @@ import type { ReactElement, ReactNode } from "react";
 import { EditableTagChip, QueryBoundary, ViewerDialog } from "#components";
 import { QueryErrorState, retryUnlessBadRequest, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId, trpcErrorCode, viewerTimeZone } from "#lib";
+import { MEMBER_CARD_GONE_TITLE, MEMBER_CARD_READ } from "../lib/members-names.ts";
 
 export interface MemberCardViewerProps {
   readonly chatId: ChatId;
@@ -89,11 +90,11 @@ export function MemberCardViewer({ chatId, characterId, open, onOpenChange }: Me
             <EmptyState
               action={null}
               icon={<Icon icon={EyeOff} size="lg" />}
-              title="This card isn't available"
+              title={MEMBER_CARD_GONE_TITLE}
               description="This character has left the chat, or you no longer have access to it."
             />
           ) : (
-            <QueryErrorState label="this character card" onRetry={retry} />
+            <QueryErrorState label={MEMBER_CARD_READ} onRetry={retry} />
           )
         }
       >

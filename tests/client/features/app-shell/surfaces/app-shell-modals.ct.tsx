@@ -13,6 +13,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { CHAT_SAVED_ROSTER_DOOR_NAME as SAVED_ROSTER_DOOR } from "#client/features/chat/lib/chat-surface-names.ts";
+import { COMMAND_MODAL_TITLE, COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
 import type { AppShellModalStory, AppShellNestedScopeStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { expectLandscapeRegime, routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -428,7 +429,7 @@ test.describe("on the corpus owner's own settings", () => {
         await setRootFontScale(page, channelName("fontScale"), cell.factor);
         await expect.poll(() => page.evaluate(rootFontPx)).toBe(BROWSER_DEFAULT_FONT_PX * cell.factor);
         await page.keyboard.press("Control+k");
-        await expect(page.getByRole("combobox", { name: "Command palette", exact: true })).toBeFocused();
+        await expect(page.getByRole("combobox", { name: COMMAND_PALETTE_NAME, exact: true })).toBeFocused();
         await page.keyboard.type("New chat");
         await page.keyboard.press("Enter");
         const dialog = page.getByRole("dialog");
@@ -454,7 +455,7 @@ test.describe("on the corpus owner's own settings", () => {
         const search = dialog.getByRole("combobox");
         await expect(search).toBeFocused();
         await expect(dialog.getByRole("option").first()).toBeAttached();
-        await expectTitleCloseAndFieldOnScreen(dialog, "Jump to…");
+        await expectTitleCloseAndFieldOnScreen(dialog, COMMAND_MODAL_TITLE);
         // The command box carries the focus ring, so a box that stands whole in the dialog draws the whole ring.
         await expect(dialog.locator('[data-slot="command-root"]')).toBeInViewport({ ratio: FIELD_IN_VIEW_RATIO });
         await expect.poll(() => search.evaluate(takesPressAtCentre)).toBe(true);
@@ -480,7 +481,7 @@ test.describe("on the corpus owner's own settings", () => {
     test(`the palette's title wraps outside a short dialog at ${String(viewport.width)}x${String(viewport.height)}`, async ({ mount, page }) => {
       await page.setViewportSize(viewport);
       await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId: "command" });
-      const heading = page.getByRole("dialog").getByRole("heading", { name: "Jump to…", exact: true });
+      const heading = page.getByRole("dialog").getByRole("heading", { name: COMMAND_MODAL_TITLE, exact: true });
       await expect(heading).toBeVisible();
       await expect(heading).toHaveCSS("white-space", "normal");
       await expect(heading).toHaveCSS("text-overflow", "clip");

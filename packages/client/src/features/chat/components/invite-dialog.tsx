@@ -40,6 +40,7 @@ import { useInviteForm } from "../hooks/use-invite-form.ts";
 import { useCreateInvite, useRevokeInvite } from "../hooks/use-invite-mutations.ts";
 import type { InviteFormValues } from "../lib/invite-form-model.ts";
 import { asksSignup, inviteExpiryItems, inviteJoinLink, signupBounds, signupBoundsNotice, toCreateInviteInput } from "../lib/invite-form-model.ts";
+import { INVITE_OUTSTANDING_HEADING, INVITE_OUTSTANDING_READ } from "../lib/members-names.ts";
 
 type InviteView = inferOutput<Trpc["invites"]["listInvites"]>[number];
 
@@ -341,7 +342,7 @@ function OutstandingInvites({ chatId }: { readonly chatId: ChatId }): ReactEleme
     <QueryBoundary
       resetKeys={[chatId]}
       fallback={<SkeletonRows count={OUTSTANDING_SKELETON_ROWS} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="the outstanding invites" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={INVITE_OUTSTANDING_READ} onRetry={retry} />}
     >
       <OutstandingInvitesList chatId={chatId} />
     </QueryBoundary>
@@ -362,7 +363,7 @@ function OutstandingInvitesList({ chatId }: { readonly chatId: ChatId }): ReactE
   return (
     <Stack gap="row" data-testid={testId("inviteOutstandingList")}>
       <Text as="span" voice="kicker">
-        Outstanding invites
+        {INVITE_OUTSTANDING_HEADING}
       </Text>
       {invites.map((invite) => (
         <InviteRow key={invite.id} invite={invite} onRevoke={(inviteId): void => revoke.mutate({ chatId, inviteId })} />

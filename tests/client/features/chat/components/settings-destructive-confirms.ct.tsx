@@ -4,7 +4,15 @@ import { routeAuthConfig, routeTrpc, serveCorpusProcedures } from "@orb/testkit/
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import {
+  CHAT_ADD_INJECTION_NAME,
+  CHAT_OVERRIDE_SCENARIO_LABEL,
+  CHAT_REMOVE_INJECTION_NAME,
+  CHAT_REMOVE_INJECTION_TITLE,
+  overrideRowName,
+} from "#client/features/chat/lib/chat-settings-names.ts";
 import { OVERRIDE_CLEAR_VERB } from "#client/features/chat/lib/chat-surface-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ChatContextTabStory } from "./_chat-forks-stories.tsx";
 
 const TAB_STORY = "tests/client/features/chat/components/_chat-forks-stories/ChatContextTabStory";
@@ -46,18 +54,18 @@ test("Remove injection asks first: Cancel keeps the row, and the verb deletes it
   const before = (await host.chat.listChatInjections({ chatId })).length;
   await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
   await page.getByRole("button", { name: /^Injections/u }).click();
-  await page.getByRole("button", { name: "Add injection", exact: true }).click();
+  await page.getByRole("button", { name: CHAT_ADD_INJECTION_NAME, exact: true }).click();
   await expect.poll(async () => (await host.chat.listChatInjections({ chatId })).length).toBe(before + 1);
 
-  const remove = page.getByRole("button", { name: "Remove injection", exact: true }).last();
-  const confirm = page.getByRole("alertdialog", { name: "Remove this injection?", exact: true });
+  const remove = page.getByRole("button", { name: CHAT_REMOVE_INJECTION_NAME, exact: true }).last();
+  const confirm = page.getByRole("alertdialog", { name: CHAT_REMOVE_INJECTION_TITLE, exact: true });
   await remove.click();
-  await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+  await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
   await expect(confirm).toHaveCount(0);
   expect(await host.chat.listChatInjections({ chatId })).toHaveLength(before + 1);
 
   await remove.click();
-  await confirm.getByRole("button", { name: "Remove", exact: true }).click();
+  await confirm.getByRole("button", { name: DIALOG_VERBS.remove, exact: true }).click();
   await expect(confirm).toHaveCount(0);
   await expect.poll(async () => (await host.chat.listChatInjections({ chatId })).length).toBe(before);
   // The removed row took its trigger with it; focus stays in the list rather than falling to the page.
@@ -68,15 +76,15 @@ test("a set override asks before Clear wipes it, and focus lands on the emptied 
   await using root = await createCorpusHarness();
   const { chatId } = await hostedRoom(root, page);
   await mount<typeof ChatContextTabStory>(TAB_STORY, { chatId });
-  await page.getByRole("button", { name: "Scenario, inheriting", exact: true }).click();
-  const scenario = page.getByRole("textbox", { name: "Scenario", exact: true });
+  await page.getByRole("button", { name: overrideRowName(CHAT_OVERRIDE_SCENARIO_LABEL, false), exact: true }).click();
+  const scenario = page.getByRole("textbox", { name: CHAT_OVERRIDE_SCENARIO_LABEL, exact: true });
   const clear = page.getByRole("button", { name: OVERRIDE_CLEAR_VERB, exact: true });
   await expect(clear).toBeDisabled();
 
   await scenario.fill("A storm over the harbour");
-  const confirm = page.getByRole("alertdialog", { name: `${OVERRIDE_CLEAR_VERB} Scenario?`, exact: true });
+  const confirm = page.getByRole("alertdialog", { name: `${OVERRIDE_CLEAR_VERB} ${CHAT_OVERRIDE_SCENARIO_LABEL}?`, exact: true });
   await clear.click();
-  await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+  await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
   await expect(confirm).toHaveCount(0);
   await expect(scenario).toHaveValue("A storm over the harbour");
   await expect(clear).toBeFocused();

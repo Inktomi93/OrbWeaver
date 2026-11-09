@@ -13,7 +13,9 @@ import { castId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { SECTION_LABELS } from "@orb/testkit/ct";
 import type { Page, Response } from "@playwright/test";
 import { z } from "zod";
+import { CHARACTER_SEARCH_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { COMMAND_MODAL_TITLE, COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { assistantRows, charactersRailButton, waitForAppReady } from "./support/chat-room.ts";
@@ -40,8 +42,8 @@ async function goToSection(page: Page, isMobile: boolean, name: typeof SECTION_L
     }
   });
   await page.keyboard.press("ControlOrMeta+k");
-  const palette = page.getByRole("dialog", { name: "Jump to…", exact: true });
-  await palette.getByRole("combobox", { name: "Command palette", exact: true }).fill(name);
+  const palette = page.getByRole("dialog", { name: COMMAND_MODAL_TITLE, exact: true });
+  await palette.getByRole("combobox", { name: COMMAND_PALETTE_NAME, exact: true }).fill(name);
   await palette.getByRole("option", { name, exact: true }).click();
   await expect(palette).toBeHidden();
 }
@@ -91,7 +93,7 @@ test.describe("committed corpus room launches", () => {
     try {
       await openHome(page);
       await charactersRailButton(page).click();
-      await page.getByRole("textbox", { name: "Search characters", exact: true }).fill(PROBE_NAME);
+      await page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true }).fill(PROBE_NAME);
       const cta = page.getByRole("button", { name: chatWithActionName(PROBE_NAME), exact: true });
       await expect(cta).toBeVisible();
       await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME })).toHaveCount(0);

@@ -10,6 +10,7 @@ export const DIALOG_VERBS = {
   create: "Create",
   discard: "Discard",
   done: "Done",
+  remove: "Remove",
   restore: "Restore",
   retry: "Retry",
   save: "Save",

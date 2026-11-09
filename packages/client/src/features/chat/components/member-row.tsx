@@ -38,7 +38,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useId, useRef, useState } from "react";
 import { ConfirmDialog, SettingCheckboxRow } from "#components";
-import { rowActionsName } from "#lib";
+import { DIALOG_VERBS, rowActionsName } from "#lib";
 import { CHAT_LEAVE_CONFIRM_TITLE, CHAT_LEAVE_MEMBER_NOTE } from "../lib/chat-options-names.ts";
 import type { MEMBER_ROW_CONFIRMS, MemberCharacterRow, MemberPersonRow, MemberRowActions, MemberRowFocusProps } from "../lib/member-rows.ts";
 import { lastSeenPhrase, rowAccessibleName } from "../lib/member-rows.ts";
@@ -377,7 +377,7 @@ function PersonRowConfirms({
         onOpenChange={(next): void => setConfirm(next ? "kick" : null)}
         title={`Remove ${row.displayName}?`}
         description="They lose access to this chat. Their messages stay in the transcript."
-        confirmLabel="Remove"
+        confirmLabel={DIALOG_VERBS.remove}
         finalFocus={removalFinalFocus}
         onConfirm={(): void => {
           actions.onRequestRemovalFocus?.(row.key);

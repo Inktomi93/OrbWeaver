@@ -15,6 +15,7 @@ import { confirmPendingJoin, usePendingJoinPreview } from "#data";
 import { focusFirstInvalidFieldIn } from "#forms/editor";
 import { DEAD_INVITE_SENTENCE, inviteRoomSentence, testId } from "#lib";
 import { joinerPersonaOf } from "../lib/joiner-persona.ts";
+import { PENDING_JOIN_NOT_NOW_NAME } from "../lib/pending-join-names.ts";
 import { InviteUnavailable } from "./invite-unavailable.tsx";
 import { JoinerPersonaFields } from "./joiner-persona-fields.tsx";
 
@@ -142,7 +143,7 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
             {state.kind === "confirming" ? "Joining…" : "Create account and join"}
           </Button>
           <Button variant="ghost" onClick={onDismiss} data-testid={testId("pendingJoinDismiss")}>
-            Not now
+            {PENDING_JOIN_NOT_NOW_NAME}
           </Button>
         </Row>
       </Stack>

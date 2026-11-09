@@ -51,6 +51,7 @@ import { QueryBoundary, ViewerDialog } from "#components";
 import { QueryErrorState, retryUnlessBadRequest, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
 import { testId, trpcErrorCode } from "#lib";
 import { WIRE_AUTHORED_TEXT_HEADING, WIRE_NO_PROMPT_TITLE, WIRE_STATIC_PREFIX_HEADING } from "../lib/chat-surface-names.ts";
+import { VARIANT_WIRE_GONE_TITLE, VARIANT_WIRE_READ } from "../lib/message-action-names.ts";
 
 export interface VariantWireViewerProps {
   readonly chatId: ChatId;
@@ -225,11 +226,11 @@ export function VariantWireViewer({ chatId, variantId, open, onOpenChange }: Var
               <EmptyState
                 action={null}
                 icon={<Icon icon={ScrollText} size="lg" />}
-                title="This reply is gone"
+                title={VARIANT_WIRE_GONE_TITLE}
                 description="The message was deleted, so there's no wire record left to read."
               />
             ) : (
-              <QueryErrorState label="the wire record" onRetry={retry} />
+              <QueryErrorState label={VARIANT_WIRE_READ} onRetry={retry} />
             )
           }
         >

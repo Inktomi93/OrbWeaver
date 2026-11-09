@@ -37,6 +37,7 @@ import { toggleSpoilerBlur, useSpoilerBlur } from "#state";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
 import type { CharacterCardFormValues } from "../lib/character-card-form-model.ts";
+import { CHARACTER_HERO_NAME_FIELD_NAME } from "../lib/character-names.ts";
 import { CharacterGreetingPreview } from "./character-greeting-preview.tsx";
 import { CharacterTagSuggestions } from "./character-tag-suggestions.tsx";
 import { CharacterTagsRow } from "./character-tags-row.tsx";
@@ -101,7 +102,7 @@ export function CharacterHeroBand({
         <Stack className="min-inline-0" grow={true} gap="field">
           <Row align="center" gap="row" wrap={true}>
             <Stack className="min-inline-0" grow={true} gap="field">
-              <form.AppField name="name">{(field): ReactElement => <field.TextField label="Name" />}</form.AppField>
+              <form.AppField name="name">{(field): ReactElement => <field.TextField label={CHARACTER_HERO_NAME_FIELD_NAME} />}</form.AppField>
               <Text voice="datumMono" className={HERO_ECHO_CLASS} truncate={true}>
                 @{detail.handle}
               </Text>

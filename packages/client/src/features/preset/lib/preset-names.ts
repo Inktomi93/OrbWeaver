@@ -12,6 +12,21 @@ export const PRESET_SECTIONS_NAME = "Preset sections";
 export const PRESET_IMPORT_TITLE = "Import a preset";
 export const PRESET_IMPORT_NAME = "Import preset";
 
+/** The editor header's activate command; the list's radiogroup names the same pick differently. */
+export const PRESET_ACTIVATE_NAME = "Activate: use this preset for generation";
+
+/** The editor header's reset door, its name and tooltip alike. */
+export const PRESET_RESET_ARRANGEMENT_NAME = "Reset to starter arrangement";
+
+/** The reset door's confirm. */
+export const PRESET_RESET_ARRANGEMENT_TITLE = "Reset to the starter arrangement?";
+
+/** The library pane's search field. */
+export const PRESET_SEARCH_NAME = "Search presets";
+
+/** The library rows' radiogroup: which preset generation uses. */
+export const PRESET_ACTIVE_RADIOGROUP_NAME = "Active preset for generation";
+
 /** The label every door that creates a blank preset wears, and the name the new row takes. */
 export const NEW_PRESET_NAME = "New preset";
 export const NEW_PRESET_KIND = "generation";

@@ -39,6 +39,7 @@ import type { Trpc } from "#data";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { rowActionsName } from "#lib";
 import { useDetachBookFromChat } from "../hooks/use-chat-book-mutations.ts";
+import { CHAT_ATTACH_BOOK_NAME } from "../lib/chat-attach-names.ts";
 import { inheritedBookLabel } from "../lib/chat-books-model.ts";
 import { AddChatBookDialog } from "./add-chat-book-dialog.tsx";
 
@@ -107,7 +108,7 @@ export function ChatBooksSection({ chatId, isHost }: ChatBooksSectionProps): Rea
       {isHost ? (
         <>
           <Button variant="outline" onClick={(): void => setPickerOpen(true)} size="sm" type="button">
-            Attach a world book
+            {CHAT_ATTACH_BOOK_NAME}
           </Button>
           <AddChatBookDialog attachedIds={attached.map((book) => book.id)} chatId={chatId} onOpenChange={setPickerOpen} open={pickerOpen} />
         </>

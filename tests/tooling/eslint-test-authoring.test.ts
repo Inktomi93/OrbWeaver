@@ -117,6 +117,49 @@ test.for([
   ["a name no module exports", `await page.getByRole("button", { name: "A sentence only this spec spells" }).click();`, SPEC, 0, ""],
   ["a pattern name", `await page.getByRole("button", { name: /View raw source/u }).click();`, SPEC, 0, ""],
   ["a text locator", `await page.getByText("View raw source", { exact: true }).click();`, SPEC, 1, "control-labels.ts"],
+  [
+    "a conditional's literal arm",
+    `await page.getByRole("button", { name: open ? IMMERSIVE_CARD_LABELS.rawSource : "View raw source" }).click();`,
+    SPEC,
+    1,
+    "control-labels.ts",
+  ],
+  ["a fallback's literal arm", `await page.getByRole("button", { name: label ?? "View raw source" }).click();`, SPEC, 1, "control-labels.ts"],
+  [
+    "a conditional with both arms bound",
+    "await page.getByRole('button', { name: open ? IMMERSIVE_CARD_LABELS.rawSource : IMMERSIVE_CARD_LABELS.fullscreen }).click();",
+    SPEC,
+    0,
+    "",
+  ],
+  [
+    "a helper's name parameter, called before its declaration",
+    `await openTab(page, "View raw source");\nasync function openTab(page, tabName: string) { await page.getByRole("tab", { name: tabName }).click(); }`,
+    SPEC,
+    1,
+    "control-labels.ts",
+  ],
+  [
+    "an arrow helper's name parameter",
+    `const pick = async (page, name = "") => page.getByText(name).click();\nawait pick(page, "View raw source");`,
+    SPEC,
+    1,
+    "control-labels.ts",
+  ],
+  [
+    "a helper's shorthand name option",
+    `async function openTab(page, name: string) { await page.getByRole("tab", { name, exact: true }).click(); }\nawait openTab(page, "View raw source");`,
+    SPEC,
+    1,
+    "control-labels.ts",
+  ],
+  [
+    "a helper parameter that never names a locator",
+    `async function type(page, text: string) { await page.getByRole("textbox").fill(text); }\nawait type(page, "View raw source");`,
+    SPEC,
+    0,
+    "",
+  ],
 ] as const)("hand-copied label: %s", CONFIG_LOAD_TIMEOUT, async ([, source, path, count, owner], { repoRoot }) => {
   const found = await findings(repoRoot, LABEL, source, path);
   expect(found).toHaveLength(count);

@@ -13,6 +13,8 @@ import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, TestInfo } from "@playwright/test";
 import { CHAT_GALLERY_ADD_NAME, CHAT_GALLERY_ADD_PICKER_TITLE, CHAT_GALLERY_EMPTY_TITLE } from "#client/features/chat/lib/chat-surface-names.ts";
+import { MESSAGE_DELETE_TOOL_CALL_NAME, MESSAGE_DELETE_TOOL_CALL_TITLE, toolCallVisibilityName } from "#client/features/chat/lib/message-action-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { GalleryActionsStory, GameTrackerActionsStory, ToolActionsStory } from "./_remaining-action-groups-stories.tsx";
 
 const STORIES = "tests/client/features/chat/components/_remaining-action-groups-stories";
@@ -141,7 +143,7 @@ for (const regime of REGIMES) {
         await page.keyboard.press("Enter");
         const gallery = page.getByRole("dialog", { name: `${card.name}'s gallery`, exact: true });
         const add = gallery.getByRole("button", { name: CHAT_GALLERY_ADD_NAME, exact: true });
-        const close = gallery.getByRole("button", { name: "Close", exact: true });
+        const close = gallery.getByRole("button", { name: DIALOG_VERBS.close, exact: true });
         await expect(add).toBeEnabled();
         await expect(gallery.getByText(CHAT_GALLERY_EMPTY_TITLE, { exact: true })).toHaveCount(populated ? 0 : 1);
         await measure(gallery, [add, close], testInfo, "gallery-actions");
@@ -163,7 +165,7 @@ for (const regime of REGIMES) {
         await page.keyboard.press("Enter");
         const picker = page.getByRole("dialog", { name: CHAT_GALLERY_ADD_PICKER_TITLE, exact: true });
         await expect(picker).toBeVisible();
-        await picker.getByRole("button", { name: "Cancel", exact: true }).click();
+        await picker.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
         await expect(picker).toBeHidden();
         await expect(add).toBeFocused();
         await close.focus();
@@ -214,11 +216,11 @@ for (const regime of REGIMES) {
         });
         const row = page.locator(`[data-message-id="${message.id}"]`);
         const group = row.getByRole("group", { name: record.displayName ?? record.name, exact: true }).first();
-        const visibility = group.getByRole("button", { name: hidden ? "Show to AI" : "Hide from AI", exact: true });
-        const remove = group.getByRole("button", { name: "Delete tool call", exact: true });
+        const visibility = group.getByRole("button", { name: toolCallVisibilityName(hidden), exact: true });
+        const remove = group.getByRole("button", { name: MESSAGE_DELETE_TOOL_CALL_NAME, exact: true });
         await visibility.focus();
         await expect(visibility).toBeFocused();
-        await expect(group.getByRole("button", { name: hidden ? "Hide from AI" : "Show to AI", exact: true })).toHaveCount(0);
+        await expect(group.getByRole("button", { name: toolCallVisibilityName(!hidden), exact: true })).toHaveCount(0);
         await measure(visibility.locator(".."), [visibility, remove], testInfo, "tool-action-cluster");
         await measure(page.getByRole("group", { name: "Tool action host", exact: true }), [visibility, remove], testInfo, "tool-action-host");
         const floor = await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`, visibility);
@@ -230,8 +232,8 @@ for (const regime of REGIMES) {
         await page.keyboard.press("Tab");
         await expect(remove).toBeFocused();
         await page.keyboard.press("Enter");
-        const confirm = page.getByRole("alertdialog", { name: "Delete this tool call?", exact: true });
-        await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+        const confirm = page.getByRole("alertdialog", { name: MESSAGE_DELETE_TOOL_CALL_TITLE, exact: true });
+        await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
         await expect(confirm).toBeHidden();
         await expect(remove).toBeFocused();
         expect(await caller.chat.listMessages({ chatId: message.chatId })).toEqual(before);

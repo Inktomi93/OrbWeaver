@@ -34,6 +34,7 @@ import type { Locator, Page } from "@playwright/test";
 import { commandShortcutLabel } from "#client/features/app-shell/lib/command-shortcut-label.ts";
 import { CHARACTER_IMPORT_NAME, CHARACTER_LIBRARY_NAME, CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_MEMBERS_ENTRY_PREFIX } from "#client/features/chat/lib/chat-surface-names.ts";
+import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
 import { EXTENSIONS_NO_SELECTION_BODY, EXTENSIONS_SEARCH_NAME } from "#client/features/plugin/lib/extensions-copy.ts";
 import { NEW_PRESET_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { renameChatButtonIdentity } from "#client/lib/chat-rename-names.ts";
@@ -336,7 +337,7 @@ test.describe("the phone topbar at 320, coarse pointer", () => {
     await expect(page.locator(".shell-rail")).toBeVisible();
     await expect(page.getByRole("button", { name: JUMP_CHIP })).toHaveCount(0);
     await page.locator(".shell-rail").getByRole("button", { name: "You", exact: true }).click();
-    await expect(page.locator('[data-slot="drawer-popup"]').getByRole("button", { name: "Jump to…", exact: true })).toBeVisible();
+    await expect(page.locator('[data-slot="drawer-popup"]').getByRole("button", { name: COMMAND_MODAL_TITLE, exact: true })).toBeVisible();
   });
 
   test("the roster frame names the section and the pushed frame names the member", async ({ mount, page }) => {

@@ -14,6 +14,7 @@ import type { ReactElement } from "react";
 import { CharacterPicker } from "#components";
 import { useInvalidation, useTRPC } from "#data";
 import { useAddCharacterToChat } from "../hooks/use-roster-mutations.ts";
+import { CHAT_ADD_CHARACTER_NAME, CHAT_ADD_CHARACTER_PLACEHOLDER } from "../lib/members-names.ts";
 
 function AddMemberShell({
   existingCharacterIds,
@@ -40,7 +41,7 @@ function AddMemberShell({
         render={
           <Button variant="ghost" size="sm" wrap={true}>
             <Icon icon={UserPlus} size="sm" />
-            Add a character
+            {CHAT_ADD_CHARACTER_NAME}
           </Button>
         }
       />
@@ -49,9 +50,9 @@ function AddMemberShell({
           autoFocusSearch={true}
           emptyText="No other characters to add."
           excludeIds={existingCharacterIds}
-          label="Add a character"
+          label={CHAT_ADD_CHARACTER_NAME}
           onSelect={onAdd}
-          placeholder="Search characters…"
+          placeholder={CHAT_ADD_CHARACTER_PLACEHOLDER}
           reserveKey="chat.addMemberPicker"
         />
       </PopoverPopup>

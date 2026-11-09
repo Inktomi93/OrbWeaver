@@ -24,10 +24,21 @@ import { FONT_FIELD_NAME } from "#client/components/shared-control-names.ts";
 import {
   CHARACTER_ACTIONS_MENU_NAME,
   CHARACTER_EDITOR_NAME,
+  CHARACTER_HERO_NAME_FIELD_NAME,
+  CHARACTER_HISTORY_TAB_LABEL,
   CHARACTER_LIBRARY_NAME,
+  CHARACTER_LINKS_TAB_LABEL,
+  CHARACTER_NEVER_SPOKE_TEXT,
+  CHARACTER_NO_BOOKS_LINKED_TEXT,
+  CHARACTER_NO_PERSONAS_CONNECTED_TEXT,
   CHARACTER_NO_SNAPSHOTS_TEXT,
+  CHARACTER_RESET_LOOK_CONFIRM_NAME,
+  CHARACTER_RESET_LOOK_NAME,
+  CHARACTER_SAVE_FAILURE,
+  CHARACTER_SEARCH_NAME,
 } from "#client/features/character/lib/character-names.ts";
 import { AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { TOAST_CLOSE_NAME } from "#ui/primitives/toast/toast-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
@@ -93,7 +104,7 @@ async function selectCharacter(page: Page, name: string): Promise<void> {
     await back.click();
   }
   const library = page.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true });
-  const search = page.getByRole("textbox", { name: "Search characters", exact: true });
+  const search = page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true });
   const showList = page.getByRole("button", { name: SHOW_LIST });
   if ((await page.locator('.shell-panel[data-panel-side="list"]').getAttribute("data-panel-mode")) === "collapsed") {
     await showList.click();
@@ -101,14 +112,16 @@ async function selectCharacter(page: Page, name: string): Promise<void> {
   await expect(search).toBeVisible();
   await search.fill(name);
   await library.getByRole("button", { name, exact: true }).click();
-  await expect(page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true }).getByRole("textbox", { name: "Name", exact: true })).toHaveValue(name);
+  await expect(
+    page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true }).getByRole("textbox", { name: CHARACTER_HERO_NAME_FIELD_NAME, exact: true }),
+  ).toHaveValue(name);
 }
 
 async function expectFailedSheetExit(page: Page, context: Locator): Promise<void> {
   await expect(context).toHaveAttribute("data-panel-mode", "overlay");
   await page.getByRole("button", { name: CLOSE_DETAILS }).click();
   await expect(context).toHaveAttribute("data-panel-mode", "collapsed");
-  await expect(page.getByRole("alert", { name: "Couldn't save the character.", exact: true })).toBeVisible();
+  await expect(page.getByRole("alert", { name: CHARACTER_SAVE_FAILURE, exact: true })).toBeVisible();
   await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
   await expect(context).toHaveAttribute("data-panel-mode", "overlay");
 }
@@ -148,7 +161,10 @@ async function expectRetryContained(context: Locator, retry: Locator, landscape:
   expect((await actionGroupGeometry(context, [retry])).inlineOverflow).toBeLessThanOrEqual(1);
 }
 
-async function openCharacterContext(page: Page, tabName: "History" | "Links" | "Look" | "Overview"): Promise<void> {
+async function openCharacterContext(
+  page: Page,
+  tabName: typeof CHARACTER_HISTORY_TAB_LABEL | typeof CHARACTER_LINKS_TAB_LABEL | "Look" | "Overview",
+): Promise<void> {
   await selectCharacter(page, CARD_NAME);
   if ((await page.locator('.shell-panel[data-panel-side="context"]').getAttribute("data-panel-mode")) === "collapsed") {
     await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
@@ -166,10 +182,10 @@ test("History's loaded control displays a snapshot from the actual caller", asyn
   await caller.character.snapshot({ characterId: card.id, label: SNAPSHOT_LABEL });
   await routeTrpc(page, { ...reads, ...serveCorpusProcedures(caller, ["character.listSnapshots"]) });
   await mount<typeof ShellAmbientStory>(STORY, {});
-  await openCharacterContext(page, "History");
+  await openCharacterContext(page, CHARACTER_HISTORY_TAB_LABEL);
   const context = page.locator('.shell-panel[data-panel-side="context"]');
   await expect(context.getByText(SNAPSHOT_LABEL, { exact: true })).toBeVisible();
-  await expect(context.getByRole("button", { name: "Restore", exact: true })).toBeVisible();
+  await expect(context.getByRole("button", { name: DIALOG_VERBS.restore, exact: true })).toBeVisible();
   await expect(context.getByText(NO_SNAPSHOTS, { exact: true })).toHaveCount(0);
 });
 
@@ -194,20 +210,20 @@ test("History resets a failed read when selecting another character and retries 
     ),
   });
   await mount<typeof ShellAmbientStory>(STORY, {});
-  await openCharacterContext(page, "History");
+  await openCharacterContext(page, CHARACTER_HISTORY_TAB_LABEL);
   const context = page.locator('.shell-panel[data-panel-side="context"]');
-  await expect(context.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+  await expect(context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toBeVisible();
   await selectCharacter(page, other.name);
   if ((await page.locator('.shell-panel[data-panel-side="context"]').getAttribute("data-panel-mode")) === "collapsed") {
     await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
   }
   await expect(context.getByText(otherLabel, { exact: true })).toBeVisible();
-  await expect(context.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
+  await expect(context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toHaveCount(0);
   await selectCharacter(page, CARD_NAME);
   if ((await page.locator('.shell-panel[data-panel-side="context"]').getAttribute("data-panel-mode")) === "collapsed") {
     await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();
   }
-  const retry = context.getByRole("button", { name: "Retry", exact: true });
+  const retry = context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
   await expect(retry).toBeVisible();
   refuse = false;
   await retry.focus();
@@ -227,15 +243,15 @@ test("Links does not claim nothing is linked while its real reads are held", asy
   });
   try {
     await mount<typeof ShellAmbientStory>(STORY, {});
-    await openCharacterContext(page, "Links");
+    await openCharacterContext(page, CHARACTER_LINKS_TAB_LABEL);
     await pending.requested;
     const context = page.locator('.shell-panel[data-panel-side="context"]');
-    await expect(context.getByRole("tab", { name: "Links", exact: true })).toHaveAttribute("aria-selected", "true");
-    await expect(context.getByText("No world books linked.", { exact: true })).toHaveCount(0);
-    await expect(context.getByText("No personas connected.", { exact: true })).toHaveCount(0);
+    await expect(context.getByRole("tab", { name: CHARACTER_LINKS_TAB_LABEL, exact: true })).toHaveAttribute("aria-selected", "true");
+    await expect(context.getByText(CHARACTER_NO_BOOKS_LINKED_TEXT, { exact: true })).toHaveCount(0);
+    await expect(context.getByText(CHARACTER_NO_PERSONAS_CONNECTED_TEXT, { exact: true })).toHaveCount(0);
     pending.release();
-    await expect(context.getByText("No world books linked.", { exact: true })).toBeVisible();
-    await expect(context.getByText("No personas connected.", { exact: true })).toBeVisible();
+    await expect(context.getByText(CHARACTER_NO_BOOKS_LINKED_TEXT, { exact: true })).toBeVisible();
+    await expect(context.getByText(CHARACTER_NO_PERSONAS_CONNECTED_TEXT, { exact: true })).toBeVisible();
   } finally {
     pending.release();
   }
@@ -251,11 +267,11 @@ test("Overview does not claim you never spoke while its newest-thread read is he
     await openCharacterContext(page, "Overview");
     await pending.requested;
     const context = page.locator('.shell-panel[data-panel-side="context"]');
-    await expect(context.getByText("Never", { exact: true })).toHaveCount(0);
+    await expect(context.getByText(CHARACTER_NEVER_SPOKE_TEXT, { exact: true })).toHaveCount(0);
     await expect(context.locator('[data-slot="character-context-band-tokens"]')).toBeVisible();
     await expect(context.locator('[data-slot="character-context-band-chats"]')).toHaveCount(0);
     pending.release();
-    await expect(context.getByText("Never", { exact: true })).toBeVisible();
+    await expect(context.getByText(CHARACTER_NEVER_SPOKE_TEXT, { exact: true })).toBeVisible();
     await expect(context.locator('[data-slot="character-context-band-chats"]')).toHaveText("0 chats");
   } finally {
     pending.release();
@@ -314,11 +330,11 @@ for (const regime of REGIMES) {
       await routeTrpc(page, { ...reads, ...serveCorpusProcedures(caller, ["character.listSnapshots"], () => pending) });
       try {
         await mount<typeof ShellAmbientStory>(STORY, {});
-        await openCharacterContext(page, "History");
+        await openCharacterContext(page, CHARACTER_HISTORY_TAB_LABEL);
         await pending.requested;
         const context = page.locator('.shell-panel[data-panel-side="context"]');
-        await expect(context.getByRole("tab", { name: "History", exact: true })).toHaveAttribute("aria-selected", "true");
-        await expect(context.getByRole("region", { name: "History", exact: true }).locator('[aria-busy="true"]')).toBeVisible();
+        await expect(context.getByRole("tab", { name: CHARACTER_HISTORY_TAB_LABEL, exact: true })).toHaveAttribute("aria-selected", "true");
+        await expect(context.getByRole("region", { name: CHARACTER_HISTORY_TAB_LABEL, exact: true }).locator('[aria-busy="true"]')).toBeVisible();
         await testInfo.attach("history-held-read", { body: await page.screenshot(), contentType: "image/png" });
         await expect(context.getByText(NO_SNAPSHOTS, { exact: true })).toHaveCount(0);
         pending.release();
@@ -344,10 +360,10 @@ for (const regime of REGIMES) {
         }),
       });
       await mount<typeof ShellAmbientStory>(STORY, {});
-      await openCharacterContext(page, "History");
+      await openCharacterContext(page, CHARACTER_HISTORY_TAB_LABEL);
       await failed.promise;
       const context = page.locator('.shell-panel[data-panel-side="context"]');
-      const retry = context.getByRole("button", { name: "Retry", exact: true });
+      const retry = context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
       await expect(retry).toBeVisible();
       await expectRetryContained(context, retry, regime.landscape);
       await testInfo.attach("history-read-failure", { body: await page.screenshot(), contentType: "image/png" });
@@ -357,7 +373,7 @@ for (const regime of REGIMES) {
       await expect(retry).toBeFocused();
       await page.keyboard.press("Enter");
       await expect(context.getByText(SNAPSHOT_LABEL, { exact: true })).toBeVisible();
-      await expect(context.getByRole("button", { name: "Restore", exact: true })).toBeVisible();
+      await expect(context.getByRole("button", { name: DIALOG_VERBS.restore, exact: true })).toBeVisible();
       expect((await caller.character.listSnapshots({ characterId: card.id })).map((snapshot) => snapshot.label)).toEqual([SNAPSHOT_LABEL]);
     });
 
@@ -386,9 +402,7 @@ for (const regime of REGIMES) {
         expect((await caller.character.get({ characterId: card.id })).themeOverride).toBeNull();
         await testInfo.attach("look-pending-save", { body: await page.screenshot(), contentType: "image/png" });
         pending.fail();
-        await expect(
-          page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByText("Couldn't save the character.", { exact: true }),
-        ).toBeVisible();
+        await expect(page.getByRole("region", { name: ALERTS_REGION_NAME, exact: true }).getByText(CHARACTER_SAVE_FAILURE, { exact: true })).toBeVisible();
         await expect(font).toHaveText(FONT);
         await testInfo.attach("look-failed-save-before-retry", { body: await page.screenshot(), contentType: "image/png" });
         await expect(status).toContainText(AUTOSAVE_SAVE_FAILED_TEXT);
@@ -397,7 +411,7 @@ for (const regime of REGIMES) {
         }
         await expect(font).toHaveText(FONT);
         await expect(status).toContainText(AUTOSAVE_SAVE_FAILED_TEXT);
-        const retry = status.getByRole("button", { name: "Retry", exact: true });
+        const retry = status.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
         await expectRetryContained(context, retry, regime.landscape);
         await testInfo.attach("look-local-recovery", { body: await page.screenshot(), contentType: "image/png" });
         intercept = false;
@@ -449,13 +463,13 @@ test("Links: a failed read for one character does not stick on the next", async 
     ),
   });
   await mount<typeof ShellAmbientStory>(STORY, {});
-  await openCharacterContext(page, "Links");
+  await openCharacterContext(page, CHARACTER_LINKS_TAB_LABEL);
   const context = page.locator('.shell-panel[data-panel-side="context"]');
-  await expect(context.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+  await expect(context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toBeVisible();
   await selectCharacter(page, other);
-  await showContextTab(page, "Links");
-  await expect(context.getByText("No world books linked.", { exact: true })).toBeVisible();
-  await expect(context.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
+  await showContextTab(page, CHARACTER_LINKS_TAB_LABEL);
+  await expect(context.getByText(CHARACTER_NO_BOOKS_LINKED_TEXT, { exact: true })).toBeVisible();
+  await expect(context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toHaveCount(0);
 });
 
 test("Overview: a failed read for one character does not stick on the next", async ({ page, corpus, mount }) => {
@@ -471,14 +485,14 @@ test("Overview: a failed read for one character does not stick on the next", asy
   await mount<typeof ShellAmbientStory>(STORY, {});
   await openCharacterContext(page, "Overview");
   const context = page.locator('.shell-panel[data-panel-side="context"]');
-  await expect(context.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+  await expect(context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toBeVisible();
   await expect(context.locator('[data-slot="character-context-band-tokens"]')).toBeVisible();
   await expect(context.locator('[data-slot="character-context-band-chats"]')).toHaveCount(0);
   await selectCharacter(page, other);
   await showContextTab(page, "Overview");
   await expect(context.locator('[data-slot="character-context-band-chats"]')).toHaveText("0 chats");
-  await expect(context.getByText("Never", { exact: true })).toBeVisible();
-  await expect(context.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
+  await expect(context.getByText(CHARACTER_NEVER_SPOKE_TEXT, { exact: true })).toBeVisible();
+  await expect(context.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toHaveCount(0);
 });
 
 test("Look's Reset all to Inherit asks first: Cancel writes nothing, Reset writes once", async ({ page, corpus, mount }) => {
@@ -493,16 +507,16 @@ test("Look's Reset all to Inherit asks first: Cancel writes nothing, Reset write
   const font = context.getByRole("combobox", { name: FONT_FIELD_NAME, exact: true });
   await expect(font).toHaveText(FONT);
 
-  await context.getByRole("button", { name: "Reset all to Inherit", exact: true }).click();
+  await context.getByRole("button", { name: CHARACTER_RESET_LOOK_NAME, exact: true }).click();
   const confirm = page.getByRole("alertdialog");
   await expect(confirm).toBeVisible();
-  await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+  await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
   await expect(confirm).toHaveCount(0);
   expect(calls.inputs("character.update")).toEqual([]);
   await expect(font).toHaveText(FONT);
 
-  await context.getByRole("button", { name: "Reset all to Inherit", exact: true }).click();
-  await confirm.getByRole("button", { name: "Reset all", exact: true }).click();
+  await context.getByRole("button", { name: CHARACTER_RESET_LOOK_NAME, exact: true }).click();
+  await confirm.getByRole("button", { name: CHARACTER_RESET_LOOK_CONFIRM_NAME, exact: true }).click();
   await expect(font).toHaveText("Inherit");
   await expect.poll(() => calls.inputs("character.update").length).toBe(1);
   expect((await caller.character.get({ characterId: card.id })).themeOverride).toBeNull();

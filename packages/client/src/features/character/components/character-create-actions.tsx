@@ -27,7 +27,13 @@ import { DIALOG_VERBS, useOpenRequests } from "#lib";
 import { selectCharacter } from "#state";
 import { useCreateCharacter } from "../hooks/use-character-mutations.ts";
 import { characterDoors } from "../lib/character-door-requests.ts";
-import { CHARACTER_DESCRIPTION_FIELD_NAME, CHARACTER_IMPORT_NAME, CHARACTER_NAME_FIELD_NAME, CHARACTER_NEW_NAME } from "../lib/character-names.ts";
+import {
+  CHARACTER_DESCRIPTION_FIELD_NAME,
+  CHARACTER_IMPORT_CARD_NAME,
+  CHARACTER_IMPORT_NAME,
+  CHARACTER_NAME_FIELD_NAME,
+  CHARACTER_NEW_NAME,
+} from "../lib/character-names.ts";
 import { CHARACTER_CREATE_FAILED, characterMutationToast, characterRefusalCopy } from "../lib/character-refusal-notice.ts";
 import { CharacterImportDialog } from "./character-import-dialog.tsx";
 
@@ -169,7 +175,7 @@ export function CharacterLandingDoors(): ReactElement {
           the primary beside it. The primitive keeps inheriting; this composite states its own ink. */}
       <Button variant="ghost" ink="muted" onClick={(): void => setImportOpen(true)} size="sm">
         <Icon icon={Upload} size="sm" />
-        Import a card
+        {CHARACTER_IMPORT_CARD_NAME}
       </Button>
       <NewCharacterDialog onOpenChange={setCreateOpen} open={createOpen} />
       <CharacterImportDialog onOpenChange={setImportOpen} open={importOpen} />

@@ -73,6 +73,7 @@ import { useEffect, useId, useRef, useState } from "react";
 import { testId } from "#lib";
 import { CHAT_MEMBERS_ROSTER_NAME } from "../lib/chat-surface-names.ts";
 import type { MemberCharacterRow, MemberPersonRow, MemberRowActions } from "../lib/member-rows.ts";
+import { CHAT_INVITE_PEOPLE_NAME } from "../lib/members-names.ts";
 import { MemberRow } from "./member-row.tsx";
 
 export interface MembersPanelProps extends MemberRowActions {
@@ -378,7 +379,7 @@ export function MembersPanel(props: MembersPanelProps): ReactElement {
                       data-testid={testId("invitePeopleButton")}
                     >
                       <Icon icon={UserPlus} size="sm" />
-                      Invite people
+                      {CHAT_INVITE_PEOPLE_NAME}
                     </Button>
                   )
                 }

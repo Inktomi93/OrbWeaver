@@ -5,6 +5,7 @@ import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -111,7 +112,7 @@ function registerCase(style: "echo" | "whisper" | "ripple", width: number): void
       await opener.focus();
       await opener.press("Enter");
       const dialog = page.getByRole("dialog");
-      await expect(dialog.getByRole("button", { name: "Close", exact: true })).toBeFocused();
+      await expect(dialog.getByRole("button", { name: DIALOG_VERBS.close, exact: true })).toBeFocused();
       await expect.poll(() => dialog.getByRole("img").evaluate((element: HTMLImageElement) => element.complete && element.naturalWidth > 0)).toBe(true);
       await page.keyboard.press("Escape");
       await expect(dialog).toHaveCount(0);
@@ -119,7 +120,7 @@ function registerCase(style: "echo" | "whisper" | "ripple", width: number): void
       const art = style === "ripple" ? opener : row.locator(style === "echo" ? '[data-slot="message-echo-art"]' : '[data-slot="message-band"]');
       await tapVisibleArt(art, style === "ripple" ? opener : row.locator('button[aria-hidden="true"]'));
       await expect(dialog).toBeVisible();
-      await dialog.getByRole("button", { name: "Close", exact: true }).click();
+      await dialog.getByRole("button", { name: DIALOG_VERBS.close, exact: true }).click();
       await expect(dialog).toHaveCount(0);
       await expect(opener).toBeFocused();
       await expect(opener).not.toHaveAttribute("aria-hidden", "true");

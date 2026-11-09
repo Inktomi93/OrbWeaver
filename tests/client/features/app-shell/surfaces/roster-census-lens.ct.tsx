@@ -8,11 +8,11 @@ import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProc
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { DATABANK_SEARCH_NAME } from "#client/features/databank/lib/databank-names.ts";
+import { PRESET_SEARCH_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { REFINERY_SEARCH_SESSIONS_NAME } from "#client/features/refinery/lib/refinery-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const READS = [...SECTION_PROCEDURES, "databank.bankHealth", "databank.listGlobal", "databank.listAttachments", "databank.get"] as const;
-const PRESET_SEARCH_NAME = "Search presets";
 const DOCUMENTS = ["Lantern notes", "Harbour notes", "Orchard notes"] as const;
 
 test.use({ hasTouch: false, isMobile: false, viewport: { width: 1440, height: 900 } });

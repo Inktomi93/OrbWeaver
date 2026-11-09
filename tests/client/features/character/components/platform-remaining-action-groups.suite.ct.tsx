@@ -15,12 +15,16 @@ import {
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import {
+  CHARACTER_CLEAR_FILTERS_NAME,
+  CHARACTER_IMPORT_CARD_NAME,
   CHARACTER_IMPORT_NAME,
   CHARACTER_LIBRARY_NAME,
   CHARACTER_NAME_FIELD_NAME,
   CHARACTER_NEW_NAME,
+  CHARACTER_SEARCH_NAME,
 } from "#client/features/character/lib/character-names.ts";
-import { GREETING_MAKE_NEW_NAME } from "#client/features/character/lib/greeting-copy.ts";
+import { GREETING_MAKE_NEW_NAME, GREETING_REWRITE_NAME, GREETING_STUDIO_NAME } from "#client/features/character/lib/greeting-copy.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { CLEAR_SEARCH_NAME, NO_MATCHES_TITLE } from "#client/lib/search-empty-names.ts";
 import type { CharacterRemainingActionsStory } from "./_remaining-action-groups-stories.tsx";
 
@@ -101,13 +105,13 @@ for (const regime of REGIMES) {
       await corpusMedia();
       await mount<typeof CharacterRemainingActionsStory>(STORY, { characterId: card.id, plane: "landing", width: regime.width, appearance: regime.appearance });
       const create = page.getByRole("button", { name: CHARACTER_NEW_NAME, exact: true });
-      const importCard = page.getByRole("button", { name: "Import a card", exact: true });
+      const importCard = page.getByRole("button", { name: CHARACTER_IMPORT_CARD_NAME, exact: true });
       await expectContained(create.locator(".."), [create, importCard]);
       await create.focus();
       await page.keyboard.press("Enter");
       const createDialog = page.getByRole("dialog", { name: CHARACTER_NEW_NAME, exact: true });
       await expect(createDialog.getByRole("textbox", { name: CHARACTER_NAME_FIELD_NAME, exact: true })).toBeVisible();
-      await createDialog.getByRole("button", { name: "Cancel", exact: true }).click();
+      await createDialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
       await expect(createDialog).toBeHidden();
       await expect(create).toBeFocused();
       await page.keyboard.press("Tab");
@@ -115,7 +119,7 @@ for (const regime of REGIMES) {
       await page.keyboard.press("Enter");
       const importDialog = page.getByRole("dialog", { name: CHARACTER_IMPORT_NAME, exact: true });
       await expect(importDialog).toBeVisible();
-      await importDialog.getByRole("button", { name: "Cancel", exact: true }).click();
+      await importDialog.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
       await expect(importDialog).toBeHidden();
       await expect(importCard).toBeFocused();
     });
@@ -130,7 +134,7 @@ for (const regime of REGIMES) {
       await mount<typeof CharacterRemainingActionsStory>(STORY, { characterId: card.id, plane: "library", width: regime.width, appearance: regime.appearance });
       const empty = page.locator('[data-slot="empty-state-root"]').filter({ has: page.getByText(NO_MATCHES_TITLE, { exact: true }) });
       const search = empty.getByRole("button", { name: CLEAR_SEARCH_NAME, exact: true });
-      const filters = empty.getByRole("button", { name: "Clear filters", exact: true });
+      const filters = empty.getByRole("button", { name: CHARACTER_CLEAR_FILTERS_NAME, exact: true });
       await expectContained(search.locator(".."), [search, filters]);
       await search.focus();
       await page.keyboard.press("Tab");
@@ -140,7 +144,7 @@ for (const regime of REGIMES) {
       await expect(search).toBeVisible();
       await search.focus();
       await page.keyboard.press("Enter");
-      await expect(page.getByRole("textbox", { name: "Search characters", exact: true })).toHaveValue("");
+      await expect(page.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true })).toHaveValue("");
       const recovered = await caller.character.list({ archived: false, limit: 1, sort: "recent" });
       const first = recovered.items[0];
       if (first === undefined) {
@@ -185,10 +189,9 @@ for (const regime of REGIMES) {
       });
       await corpusMedia();
       await mount<typeof CharacterRemainingActionsStory>(STORY, { characterId: card.id, plane: "editor", width: regime.width, appearance: regime.appearance });
-      // eslint-disable-next-line orb/no-hand-copied-label -- CharacterGreetingPreview labels this control directly; TEMPLATE_KIND_LABEL.studio names a different preset group.
-      await page.getByRole("button", { name: "Studio", exact: true }).click();
+      await page.getByRole("button", { name: GREETING_STUDIO_NAME, exact: true }).click();
       const makeNew = page.getByRole("button", { name: GREETING_MAKE_NEW_NAME, exact: true });
-      const rewrite = page.getByRole("button", { name: "Rewrite", exact: true });
+      const rewrite = page.getByRole("button", { name: GREETING_REWRITE_NAME, exact: true });
       await expectContained(makeNew.locator(".."), [makeNew, rewrite]);
       await makeNew.focus();
       await page.keyboard.press("Tab");
@@ -204,8 +207,8 @@ for (const regime of REGIMES) {
       }
       const preview = page.locator('[data-slot="greeting-studio-preview"]');
       await expect(preview.getByText(GENERATED_OPENING, { exact: true })).toBeVisible();
-      const discard = preview.getByRole("button", { name: "Discard", exact: true });
-      const accept = preview.getByRole("button", { name: "Accept", exact: true });
+      const discard = preview.getByRole("button", { name: DIALOG_VERBS.discard, exact: true });
+      const accept = preview.getByRole("button", { name: DIALOG_VERBS.accept, exact: true });
       await expectContained(discard.locator(".."), [discard, accept]);
       await discard.focus();
       await page.keyboard.press("Tab");

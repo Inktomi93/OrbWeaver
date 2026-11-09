@@ -4,6 +4,7 @@ import { holdServed } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { nonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { PRESET_ACTIVE_RADIOGROUP_NAME, PRESET_SEARCH_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { routeSurfaceReads } from "./_surface-harness.ts";
 import { modalScenario, sectionScenario } from "./_surface-scenarios.ts";
 import type { ModalShellStory, SectionShellStory } from "./_surface-stories.tsx";
@@ -23,7 +24,7 @@ test("a quiet held subject cannot complete the census, and the loaded subject ex
     return report;
   });
   try {
-    await settledBox(page.getByRole("textbox", { name: "Search presets", exact: true }));
+    await settledBox(page.getByRole("textbox", { name: PRESET_SEARCH_NAME, exact: true }));
     expect(accepted).toBe(false);
   } finally {
     held.release();
@@ -45,7 +46,7 @@ test("a quiet held subject cannot complete the census, and the loaded subject ex
   });
   const defective = await auditSurface({ ...sectionScenario(page, "presets"), checks: ["names"] });
   expect(defective.names.some((finding) => finding.rule === "nameless-control")).toBe(true);
-  await page.getByRole("radiogroup", { name: "Active preset for generation", exact: true }).evaluate((node) => node.remove());
+  await page.getByRole("radiogroup", { name: PRESET_ACTIVE_RADIOGROUP_NAME, exact: true }).evaluate((node) => node.remove());
   await expect(auditSurface({ ...sectionScenario(page, "presets"), checks: ["names"] })).rejects.toThrow("required loaded content must render");
 });
 

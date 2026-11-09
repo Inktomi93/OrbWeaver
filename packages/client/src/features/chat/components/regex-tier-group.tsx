@@ -36,6 +36,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { RegexScopeOrder } from "#components";
 import { regexScriptTitle, rowQualifiers, timeLib } from "#lib";
+import { CHAT_ATTACH_SCRIPT_NAME } from "../lib/chat-attach-names.ts";
 import { regexRowAlsoAt, regexTierInForceCount, regexTierKicker, regexTierProvenance } from "../lib/regex-section-model.ts";
 import { AddChatScriptDialog } from "./add-chat-script-dialog.tsx";
 import { RegexTierRow } from "./regex-tier-row.tsx";
@@ -108,7 +109,7 @@ export function RegexTierGroup({ chatId, isHost, tier, rows, tiers, labels, owne
         <>
           <Button self="start" variant="outline" onClick={(): void => setPickerOpen(true)} size="sm" type="button">
             <Icon icon={Plus} size="sm" />
-            Attach a script
+            {CHAT_ATTACH_SCRIPT_NAME}
           </Button>
           <AddChatScriptDialog attachedIds={tier.rows.map((row) => row.script.id)} chatId={chatId} onOpenChange={setPickerOpen} open={pickerOpen} />
         </>

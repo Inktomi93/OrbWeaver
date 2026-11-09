@@ -22,3 +22,13 @@ export const CORPUS_SOURCE_OUTCOME_COPY = {
 export function chatHistoryLoadedLabel(count: number): string {
   return `${String(count)} messages loaded.`;
 }
+
+/** The jump pill's visible count of the replies that arrived below the reading position. */
+export function jumpToLatestCountLabel(held: number): string {
+  return held === 1 ? "1 new message" : `${String(held)} new messages`;
+}
+
+/** The jump pill's accessible name. */
+export function jumpToLatestName(held: number): string {
+  return `Jump to latest, ${jumpToLatestCountLabel(held)}`;
+}

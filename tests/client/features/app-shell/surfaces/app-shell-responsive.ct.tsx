@@ -8,7 +8,8 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { LENGTH_BASE_PX, MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
-import { CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_HERO_NAME_FIELD_NAME, CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
+import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeRoom, SHELL_STORIES, touchDrag } from "./app-shell-ct.ts";
 
@@ -70,8 +71,8 @@ test.describe("the You sheet", () => {
     await expect(youTab(page)).toBeFocused();
 
     await youTab(page).click();
-    await sheet(page).getByRole("button", { name: "Jump to…", exact: true }).click();
-    const palette = page.getByRole("dialog", { name: "Jump to…", exact: true });
+    await sheet(page).getByRole("button", { name: COMMAND_MODAL_TITLE, exact: true }).click();
+    const palette = page.getByRole("dialog", { name: COMMAND_MODAL_TITLE, exact: true });
     const search = palette.getByRole("combobox");
     await expect(search).toBeFocused();
     await page.keyboard.type("r");
@@ -341,7 +342,7 @@ test.describe("one shell at the narrowest phone", () => {
     await seedShellState(page, { activeSection: "characters" });
     await mount<typeof AppShellStory>(STORY, {});
     await openFirstCharacter(page);
-    const name = page.getByRole("main").getByRole("textbox", { name: "Name", exact: true });
+    const name = page.getByRole("main").getByRole("textbox", { name: CHARACTER_HERO_NAME_FIELD_NAME, exact: true });
     await expect(name).toBeVisible();
     // An expando on the editor's own node: a remount builds a new node and the mark is gone.
     await name.evaluate((node, mark) => Reflect.set(node, mark, true), WARM_MARK);

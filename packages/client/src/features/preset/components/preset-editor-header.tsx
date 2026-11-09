@@ -26,12 +26,10 @@ import type { ComponentProps, ReactElement } from "react";
 import { useRef, useState } from "react";
 import { ConfirmDialog, DetailHeader, EditorPage, Tip } from "#components";
 import { AutosaveStatus } from "#forms/editor";
-import { PRESET_SECTIONS_NAME } from "../lib/preset-names.ts";
+import { PRESET_ACTIVATE_NAME, PRESET_RESET_ARRANGEMENT_NAME, PRESET_RESET_ARRANGEMENT_TITLE, PRESET_SECTIONS_NAME } from "../lib/preset-names.ts";
 import { PRESET_EDITOR_VIEWS } from "../lib/preset-nav.ts";
 import { PresetRenameDialog } from "./preset-rename-dialog.tsx";
 
-/** ONE string for the reset door's accessible name AND its hover tooltip (the O-3 icon-door anatomy). */
-const RESET_LABEL = "Reset to starter arrangement";
 /** …and one for the rename door beside the name (same anatomy — see the door's own note). */
 const RENAME_LABEL = "Rename preset";
 
@@ -135,7 +133,7 @@ export function PresetEditorHeader({
                     // THE NAME LEADS WITH THE VISIBLE WORD (WCAG 2.5.3 label-in-name): a control reading
                     // "Activate" whose name lacks that word is unaddressable by speech. Visible word first, then the editor-voice gloss that keeps it distinct
                     // from the list's radio.
-                    <Button aria-label="Activate: use this preset for generation" variant="ghost" onClick={onActivate} size="sm" type="button">
+                    <Button aria-label={PRESET_ACTIVATE_NAME} variant="ghost" onClick={onActivate} size="sm" type="button">
                       <Icon icon={Zap} size="sm" />
                       Activate
                     </Button>
@@ -164,8 +162,8 @@ export function PresetEditorHeader({
                       native `title` from ONE string, so the tooltip and the accessible name cannot drift. If a
                       second header command ever lands, the kebab comes back with two items in it. */}
                   {isSystemDefault ? null : (
-                    <Tip text={RESET_LABEL}>
-                      <Button aria-label={RESET_LABEL} variant="ghost" onClick={(): void => setResetOpen(true)} square={true} type="button">
+                    <Tip text={PRESET_RESET_ARRANGEMENT_NAME}>
+                      <Button aria-label={PRESET_RESET_ARRANGEMENT_NAME} variant="ghost" onClick={(): void => setResetOpen(true)} square={true} type="button">
                         <Icon icon={RotateCcw} size="sm" />
                       </Button>
                     </Tip>
@@ -206,7 +204,7 @@ export function PresetEditorHeader({
       <ConfirmDialog
         open={resetOpen}
         onOpenChange={setResetOpen}
-        title="Reset to the starter arrangement?"
+        title={PRESET_RESET_ARRANGEMENT_TITLE}
         description="This replaces the preset's sampling, reasoning, prompt structure, and every other setting with the starter defaults. This can't be undone."
         confirmLabel="Reset"
         onConfirm={onConfirmReset}

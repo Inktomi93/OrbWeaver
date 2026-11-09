@@ -6,7 +6,15 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
-import { PRESET_EDITOR_NAME, PRESET_RENAME_NAME, PRESET_SECTIONS_NAME } from "#client/features/preset/lib/preset-names.ts";
+import {
+  PRESET_ACTIVATE_NAME,
+  PRESET_EDITOR_NAME,
+  PRESET_RENAME_NAME,
+  PRESET_RESET_ARRANGEMENT_NAME,
+  PRESET_RESET_ARRANGEMENT_TITLE,
+  PRESET_SECTIONS_NAME,
+} from "#client/features/preset/lib/preset-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { PresetActionGroupsStory } from "./_preset-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/preset/components/_preset-action-groups-stories/PresetActionGroupsStory";
@@ -65,8 +73,8 @@ for (const regime of REGIMES) {
       // The heading stays in the outline; the identity that has to fit the row is its painted twin.
       const paintedName = editor.getByText(preset.name, { exact: true }).and(editor.locator('[aria-hidden="true"]'));
       const rename = editor.getByRole("button", { name: PRESET_RENAME_NAME, exact: true });
-      const activate = editor.getByRole("button", { name: "Activate: use this preset for generation", exact: true });
-      const reset = editor.getByRole("button", { name: "Reset to starter arrangement", exact: true });
+      const activate = editor.getByRole("button", { name: PRESET_ACTIVATE_NAME, exact: true });
+      const reset = editor.getByRole("button", { name: PRESET_RESET_ARRANGEMENT_NAME, exact: true });
       const status = editor.locator('[data-slot="autosave-status"]');
       await expect(title).toBeVisible();
       await expect(status).toHaveText("Saved");
@@ -143,16 +151,16 @@ test.describe("coarse narrow save failure", () => {
     }
     await expect(status).toHaveAttribute("role", "alert");
     await expect(status).toContainText("Save failed");
-    const retry = status.getByRole("button", { name: "Retry", exact: true });
-    const reset = editor.getByRole("button", { name: "Reset to starter arrangement", exact: true });
+    const retry = status.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
+    const reset = editor.getByRole("button", { name: PRESET_RESET_ARRANGEMENT_NAME, exact: true });
     const geometry = await actionGroupGeometry(editor, [retry, reset]);
     await info.attach("preset-failed-save-fit", { body: JSON.stringify(geometry), contentType: "application/json" });
     expect(geometry.inlineOverflow).toBeLessThanOrEqual(1);
     await reset.focus();
     await page.keyboard.press("Enter");
-    const confirm = page.getByRole("alertdialog", { name: "Reset to the starter arrangement?", exact: true });
+    const confirm = page.getByRole("alertdialog", { name: PRESET_RESET_ARRANGEMENT_TITLE, exact: true });
     await expect(confirm).toBeVisible();
-    await confirm.getByRole("button", { name: "Cancel", exact: true }).focus();
+    await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).focus();
     await page.keyboard.press("Enter");
     await expect(confirm).toBeHidden();
     await expect(reset).toBeFocused();

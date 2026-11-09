@@ -19,7 +19,7 @@ import { useId, useLayoutEffect, useRef, useState } from "react";
 import { useColorQuotedSpeech, useInvalidation, useTRPC } from "#data";
 import { DIALOG_VERBS, viewerTimeZone } from "#lib";
 import { useGenerateGreetingMutation, useRewriteGreetingMutation } from "../hooks/use-character-mutations.ts";
-import { GREETING_MAKE_NEW_NAME } from "../lib/greeting-copy.ts";
+import { GREETING_MAKE_NEW_NAME, GREETING_REWRITE_NAME } from "../lib/greeting-copy.ts";
 
 export interface GreetingStudioProps {
   readonly characterId: CharacterId;
@@ -168,7 +168,7 @@ export function GreetingStudio({ characterId, baseGreeting, onAccept, trusted = 
         </Button>
         <Button ref={rewriteRef} size="sm" disabled={isPending || !canRewrite} onClick={onRewrite}>
           <Icon icon={WandSparkles} size="sm" />
-          Rewrite
+          {GREETING_REWRITE_NAME}
         </Button>
       </Row>
     </Stack>

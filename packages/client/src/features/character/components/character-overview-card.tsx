@@ -45,6 +45,7 @@ import { useId } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, useSuspenseQueries, useTRPC } from "#data";
 import { deriveChatTitle, timeLib } from "#lib";
+import { CHARACTER_NEVER_SPOKE_TEXT } from "../lib/character-names.ts";
 
 const REFINERY_SCORE_DECIMALS = 2;
 
@@ -53,9 +54,6 @@ const NEWEST_THREAD_ONLY = 1;
 
 /** How many names a link row spells out before it summarizes the rest. */
 const NAME_GLOSS_LIMIT = 4;
-
-/** A time fact with no answer is NEVER, which is a different claim from an empty slot (`EMPTY_VALUE`). */
-const NEVER = "Never";
 
 export interface CharacterOverviewCardProps {
   readonly characterId: CharacterId;
@@ -131,7 +129,7 @@ function OverviewBody({ characterId }: CharacterOverviewCardProps): ReactElement
             falls back to her name here exactly as it does in the topbar and the band. */}
         <OverviewRow
           label="Last chat"
-          value={lastMessageAt === null ? NEVER : timeLib.formatRelative(lastMessageAt)}
+          value={lastMessageAt === null ? CHARACTER_NEVER_SPOKE_TEXT : timeLib.formatRelative(lastMessageAt)}
           {...(newest === undefined ? {} : { gloss: deriveChatTitle(newest.title, [data.name]) })}
           mono={false}
         />

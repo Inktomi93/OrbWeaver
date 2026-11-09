@@ -6,12 +6,13 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import { z } from "zod";
+import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
 import type { AppShellModalStory, AppShellStory } from "./_app-shell-stories.tsx";
 import { JUMP_CHIP, PHONE, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
 const MODAL_STORY = `${SHELL_STORIES}/AppShellModalStory`;
-const PALETTE = { name: "Jump to…", exact: true } as const;
+const PALETTE = { name: COMMAND_MODAL_TITLE, exact: true } as const;
 
 // The palette's recents, the New chat picker, the You sheet and the Plugin pages section read past Home's captures.
 const SERVED = [
@@ -236,7 +237,7 @@ test("the palette's focused combobox exposes its roving selection, opened from t
   await page.setViewportSize(PHONE);
   await mount<typeof AppShellStory>(STORY, {});
   await page.getByRole("button", { name: "You", exact: true }).click();
-  await page.getByRole("button", { name: "Jump to…", exact: true }).click();
+  await page.getByRole("button", { name: COMMAND_MODAL_TITLE, exact: true }).click();
   const palette = page.getByRole("dialog", PALETTE);
   const search = palette.getByRole("combobox");
   await search.fill("refinery");

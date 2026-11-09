@@ -16,7 +16,12 @@ import {
   useDetachBookFromCharacter,
   useDisconnectPersonaFromCharacter,
 } from "../hooks/use-character-context-mutations.ts";
-import { CHARACTER_CONNECT_PERSONA_NAME, CHARACTER_LINK_BOOK_NAME } from "../lib/character-names.ts";
+import {
+  CHARACTER_CONNECT_PERSONA_NAME,
+  CHARACTER_LINK_BOOK_NAME,
+  CHARACTER_NO_BOOKS_LINKED_TEXT,
+  CHARACTER_NO_PERSONAS_CONNECTED_TEXT,
+} from "../lib/character-names.ts";
 
 export interface CharacterRelationsTabProps {
   readonly characterId: CharacterId;
@@ -83,7 +88,7 @@ function LinkedBooksSection({ characterId }: CharacterRelationsTabProps): ReactE
       addTitle="Link a world book"
       addTriggerLabel={CHARACTER_LINK_BOOK_NAME}
       available={available}
-      emptyLabel="No world books linked."
+      emptyLabel={CHARACTER_NO_BOOKS_LINKED_TEXT}
       heading="Linked world books"
       items={items}
       onAdd={(item): void => attach.mutate({ characterId, bookId: item.id, role: "auxiliary" })}
@@ -119,7 +124,7 @@ function ConnectedPersonasSection({ characterId }: CharacterRelationsTabProps): 
       addTitle={CHARACTER_CONNECT_PERSONA_NAME}
       addTriggerLabel={CHARACTER_CONNECT_PERSONA_NAME}
       available={available}
-      emptyLabel="No personas connected."
+      emptyLabel={CHARACTER_NO_PERSONAS_CONNECTED_TEXT}
       heading="Connected personas"
       items={items}
       onAdd={(item): void => connect.mutate({ characterId, personaId: item.id })}

@@ -4,7 +4,9 @@ import type { SurfaceAuditRequest } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
 import { CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_LIST_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { COMMAND_PALETTE_NAME } from "#client/features/chat/lib/command-palette-names.ts";
 import { DATABANK_ADD_METHOD_NAME, DATABANK_LIST_NAME, DATABANK_RECENT_DOCUMENTS_NAME } from "#client/features/databank/lib/databank-names.ts";
+import { PRESET_ACTIVE_RADIOGROUP_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 
 type Witnesses = SurfaceAuditRequest["witnesses"];
@@ -47,7 +49,7 @@ const SECTION_WITNESSES = {
     page.locator(".shell-content").getByRole("button").first(),
   ],
   databank: (page): Witnesses => [page.getByRole("list", { name: DATABANK_LIST_NAME, exact: true }).getByRole("listitem").first()],
-  presets: (page): Witnesses => [page.getByRole("radiogroup", { name: "Active preset for generation", exact: true }).getByRole("radio").first()],
+  presets: (page): Witnesses => [page.getByRole("radiogroup", { name: PRESET_ACTIVE_RADIOGROUP_NAME, exact: true }).getByRole("radio").first()],
   refinery: (page): Witnesses => [
     page.getByRole("combobox", { name: "Start a refinery session", exact: true }),
     page.locator(".shell-content").getByRole("option").first(),
@@ -97,7 +99,7 @@ const MODAL_SCENARIOS = {
   command: (page): ModalScenario => ({
     state: "loaded",
     witnesses: [
-      page.getByRole("dialog").getByRole("combobox", { name: "Command palette", exact: true }),
+      page.getByRole("dialog").getByRole("combobox", { name: COMMAND_PALETTE_NAME, exact: true }),
       page.getByRole("dialog").getByRole("group", { name: "Recent threads", exact: true }).getByRole("option").first(),
     ],
   }),

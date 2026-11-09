@@ -10,6 +10,7 @@ import { createSeededIds } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { TAG_NAME_FIELD_NAME } from "#client/components/shared-control-names.ts";
 import { CHARACTER_ADD_TAG_NAME } from "#client/features/character/lib/character-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { CharacterTagsRowStory } from "./_tag-row-stories.tsx";
 
 const ROW_STORY = "tests/client/features/character/components/_tag-row-stories/CharacterTagsRowStory";
@@ -38,7 +39,7 @@ test("the tag picker field stays typeable in one dialog while the library is hel
   await expect(dialog.getByText("Couldn't load your tags.", { exact: true })).toBeVisible();
   await expect(field).toHaveValue("Pic");
   read.recover();
-  await dialog.getByRole("button", { name: "Retry", exact: true }).click();
+  await dialog.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
   await expect(dialog.getByText("Couldn't load your tags.", { exact: true })).toHaveCount(0);
   await expect(field).toHaveValue("Pic");
   await expect(dialog.getByRole("button", { name: 'Create "Pic"', exact: true })).toBeVisible();

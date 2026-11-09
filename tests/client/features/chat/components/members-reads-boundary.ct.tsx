@@ -18,7 +18,17 @@ import {
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { queryFailedLabel } from "#client/data/query-state-copy.ts";
 import { CHAT_MEMBERS_ENTRY_PREFIX } from "#client/features/chat/lib/chat-surface-names.ts";
+import {
+  CHAT_INVITE_PEOPLE_NAME,
+  INVITE_OUTSTANDING_HEADING,
+  INVITE_OUTSTANDING_READ,
+  MEMBER_CARD_GONE_TITLE,
+  MEMBER_CARD_READ,
+  MEMBER_VIEW_CHARACTER_NAME,
+} from "#client/features/chat/lib/members-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const MEMBERS_ENTRY = new RegExp(`^${RegExp.escape(CHAT_MEMBERS_ENTRY_PREFIX)}`, "u");
@@ -78,16 +88,16 @@ test("a held member card read shows the loading skeleton, a failed one the error
   await mount<typeof ChatRoomShellStory>(STORY, { chatId });
   await page.getByRole("button", { name: MEMBERS_ENTRY }).click();
   await page.getByRole("button", { name: new RegExp(`^${characterName}: character`, "u") }).click();
-  await page.getByRole("menuitem", { name: "View character", exact: true }).click();
+  await page.getByRole("menuitem", { name: MEMBER_VIEW_CHARACTER_NAME, exact: true }).click();
   const dialog = page.getByRole("dialog");
   await hold.requested;
   await expect(dialog.locator('[aria-busy="true"]')).toBeVisible();
   const shell = await dialog.elementHandle();
   hold.fail();
-  await expect(dialog.getByText("Couldn't load this character card.", { exact: true })).toBeVisible();
+  await expect(dialog.getByText(queryFailedLabel(MEMBER_CARD_READ), { exact: true })).toBeVisible();
   failing = false;
-  await dialog.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(dialog.getByText("Couldn't load this character card.", { exact: true })).toHaveCount(0);
+  await dialog.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
+  await expect(dialog.getByText(queryFailedLabel(MEMBER_CARD_READ), { exact: true })).toHaveCount(0);
   await expect(dialog.getByRole("heading", { name: characterName, exact: true })).toBeVisible();
   // The dialog shell is the same node from the held read to the settled card: it never remounts, so its open animation never replays.
   expect(await shell.evaluate((node) => node.isConnected)).toBe(true);
@@ -105,10 +115,10 @@ test("a card that left the room is the gone state, not the error block", async (
   await mount<typeof ChatRoomShellStory>(STORY, { chatId });
   await page.getByRole("button", { name: MEMBERS_ENTRY }).click();
   await page.getByRole("button", { name: new RegExp(`^${characterName}: character`, "u") }).click();
-  await page.getByRole("menuitem", { name: "View character", exact: true }).click();
+  await page.getByRole("menuitem", { name: MEMBER_VIEW_CHARACTER_NAME, exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByText("This card isn't available", { exact: true })).toBeVisible();
-  await expect(dialog.getByRole("button", { name: "Retry", exact: true })).toHaveCount(0);
+  await expect(dialog.getByText(MEMBER_CARD_GONE_TITLE, { exact: true })).toBeVisible();
+  await expect(dialog.getByRole("button", { name: DIALOG_VERBS.retry, exact: true })).toHaveCount(0);
 });
 
 test("a held outstanding-invites read shows the loading skeleton, a failed one the error block, and Retry shows the list", async ({ mount, page }) => {
@@ -132,13 +142,13 @@ test("a held outstanding-invites read shows the loading skeleton, a failed one t
   );
   await mount<typeof ChatRoomShellStory>(STORY, { chatId });
   await page.getByRole("button", { name: MEMBERS_ENTRY }).click();
-  await page.getByRole("button", { name: "Invite people", exact: true }).click();
+  await page.getByRole("button", { name: CHAT_INVITE_PEOPLE_NAME, exact: true }).click();
   const dialog = page.getByRole("dialog");
   await hold.requested;
   await expect(dialog.locator('[aria-busy="true"]')).toBeVisible();
   hold.fail();
-  await expect(dialog.getByText("Couldn't load the outstanding invites.", { exact: true })).toBeVisible();
+  await expect(dialog.getByText(queryFailedLabel(INVITE_OUTSTANDING_READ), { exact: true })).toBeVisible();
   failing = false;
-  await dialog.getByRole("button", { name: "Retry", exact: true }).click();
-  await expect(dialog.getByText("Outstanding invites", { exact: true })).toBeVisible();
+  await dialog.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
+  await expect(dialog.getByText(INVITE_OUTSTANDING_HEADING, { exact: true })).toBeVisible();
 });

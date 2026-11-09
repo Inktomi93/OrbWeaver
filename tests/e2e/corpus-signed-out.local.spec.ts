@@ -8,6 +8,7 @@ import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
 import type { Browser, BrowserContext, Page, TestInfo } from "@playwright/test";
 import { devices } from "@playwright/test";
+import { JOIN_CHAT_NAME } from "#client/features/chat/lib/members-names.ts";
 import { PRIMARY_NAV_NAME } from "#client/lib/rail-names.ts";
 import { ROUTE_PENDING_NAME } from "#client/routes/route-pending-names.ts";
 import type { ActorClient } from "./support/actors.ts";
@@ -222,7 +223,7 @@ test.describe("local corpus auth guard", () => {
       await page.goto(`/?space=%20&join=${token}&plus=+&join=second&tag=first&tag=second&%6aoin=third#turn-4`);
       const dialog = page.getByTestId(testId("joinInviteDialog"));
       await expect(dialog).toBeVisible({ timeout: WAIT_SETTLE_MS });
-      await expect(dialog.getByRole("button", { name: "Join chat", exact: true })).toBeVisible();
+      await expect(dialog.getByRole("button", { name: JOIN_CHAT_NAME, exact: true })).toBeVisible();
       await expect.poll(() => address(page)).toEqual({ href: "/?space=%20&plus=+&tag=first&tag=second#turn-4", length: before.length + 1 });
       // A reload replays nothing: the token was spent when the dialog took it.
       await page.reload();

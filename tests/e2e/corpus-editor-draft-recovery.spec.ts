@@ -4,7 +4,12 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { slugifyHandle } from "@orb/kit/slug";
 import { abortProcedure } from "@orb/testkit/node/helpers";
 import type { Locator, Page } from "@playwright/test";
-import { CHARACTER_EDITOR_NAME, CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
+import {
+  CHARACTER_EDITOR_NAME,
+  CHARACTER_HERO_NAME_FIELD_NAME,
+  CHARACTER_LIBRARY_NAME,
+  CHARACTER_SEARCH_NAME,
+} from "#client/features/character/lib/character-names.ts";
 import { AUTOSAVE_RESUME_NAME, AUTOSAVE_SAVE_FAILED_TEXT, AUTOSAVE_SAVED_TEXT } from "#client/forms/editor/autosave-status-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { charactersRailButton, waitForAppReady } from "./support/chat-room.ts";
@@ -15,10 +20,10 @@ import { SELECTED_CORPUS_FIXTURE } from "./support/modes.ts";
 async function openCharacter(page: Page, name: string, shown = name): Promise<Locator> {
   await charactersRailButton(page).click();
   const list = page.locator('.shell-panel[data-panel-side="list"]');
-  await list.getByRole("textbox", { name: "Search characters", exact: true }).fill(name);
+  await list.getByRole("textbox", { name: CHARACTER_SEARCH_NAME, exact: true }).fill(name);
   await list.getByRole("list", { name: CHARACTER_LIBRARY_NAME, exact: true }).getByRole("button", { name, exact: true }).click();
   const form = page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true });
-  await expect(form.getByRole("textbox", { name: "Name", exact: true })).toHaveValue(shown);
+  await expect(form.getByRole("textbox", { name: CHARACTER_HERO_NAME_FIELD_NAME, exact: true })).toHaveValue(shown);
   return form;
 }
 
@@ -42,7 +47,7 @@ test.describe("committed corpus editor drafts", () => {
       await page.goto("/");
       await waitForAppReady(page);
       const form = await openCharacter(page, name);
-      await form.getByRole("textbox", { name: "Name", exact: true }).fill(edited);
+      await form.getByRole("textbox", { name: CHARACTER_HERO_NAME_FIELD_NAME, exact: true }).fill(edited);
       await expect(form.locator('[data-slot="autosave-status"]')).toContainText(AUTOSAVE_SAVE_FAILED_TEXT);
       expect((await host.trpc.character.get.query({ characterId: character.id })).name).toBe(name);
 

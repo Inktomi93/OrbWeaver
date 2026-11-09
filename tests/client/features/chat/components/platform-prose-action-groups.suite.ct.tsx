@@ -6,6 +6,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import { PROSE_KEEP_MINE_NAME, PROSE_USE_NEW_WORDING_NAME } from "#client/features/chat/lib/chat-settings-names.ts";
 import type { ProseActionGroupsStory } from "./_prose-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_prose-action-groups-stories/ProseActionGroupsStory";
@@ -29,7 +30,7 @@ for (const regime of REGIMES) {
     for (const action of ["keep", "clear"] as const) {
       const expectedText = action === "keep" ? TEXT : "";
       const expectedOverride = action === "keep" ? { text: TEXT, baseVersion: SLOT.version } : undefined;
-      const actionName = action === "keep" ? "Keep mine" : "Use the new wording";
+      const actionName = action === "keep" ? PROSE_KEEP_MINE_NAME : PROSE_USE_NEW_WORDING_NAME;
       test(`stale prose actions remain contained and ${action} preserves its command`, async ({ mount, page }, testInfo) => {
         await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
         await using root = await createServerHarness({ startJobs: false });
@@ -40,8 +41,8 @@ for (const regime of REGIMES) {
         const calls = await routeTrpc(page, serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "settings.updateUserSettingsSection"]));
         await mount<typeof ProseActionGroupsStory>(STORY, { width: regime.width, appearance: regime.appearance });
         const card = page.getByRole("group", { name: SLOT.title, exact: true });
-        const useNew = card.getByRole("button", { name: "Use the new wording", exact: true });
-        const keep = card.getByRole("button", { name: "Keep mine", exact: true });
+        const useNew = card.getByRole("button", { name: PROSE_USE_NEW_WORDING_NAME, exact: true });
+        const keep = card.getByRole("button", { name: PROSE_KEEP_MINE_NAME, exact: true });
         await useNew.focus();
         await page.keyboard.press("Tab");
         await expect(keep).toBeFocused();

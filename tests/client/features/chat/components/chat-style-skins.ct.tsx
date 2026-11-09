@@ -14,6 +14,7 @@ import type { Locator, Page } from "@playwright/test";
 import { MESSAGE_EDIT_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import type { RowSkin } from "#client/features/chat/lib/message-row-variants.ts";
 import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { viewImageActionName } from "#client/lib/row-qualifiers.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 import type { ReadingRoom } from "./chat-style-reading.fixtures.ts";
@@ -493,7 +494,7 @@ test("the gallery popup ref keeps a real portrait visible when the viewport shri
   await opener.click();
   const dialog = page.getByRole("dialog");
   const image = dialog.getByRole("img");
-  await expect(dialog.getByRole("button", { name: "Close", exact: true })).toBeFocused();
+  await expect(dialog.getByRole("button", { name: DIALOG_VERBS.close, exact: true })).toBeFocused();
   await expect(image).toBeVisible();
   await expect.poll(() => image.evaluate((node: HTMLImageElement) => node.complete && node.naturalWidth > 0)).toBe(true);
   const smallViewport = { ...VIEWPORT, height: 480 };
@@ -504,7 +505,7 @@ test("the gallery popup ref keeps a real portrait visible when the viewport shri
       return box !== null && box.y >= 0 && box.y + box.height <= smallViewport.height;
     })
     .toBe(true);
-  await dialog.getByRole("button", { name: "Close", exact: true }).click();
+  await dialog.getByRole("button", { name: DIALOG_VERBS.close, exact: true }).click();
   await expect(dialog).toHaveCount(0);
   await expect(opener).toBeFocused();
 });

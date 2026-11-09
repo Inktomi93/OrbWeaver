@@ -16,8 +16,18 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, makePluginBundle } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { CHAT_CONTEXT_TAB_LABELS } from "#client/features/chat/lib/chat-context-tab-labels.ts";
+import { GROUP_OUTPUT_FIELD_NAME } from "#client/features/chat/lib/chat-settings-names.ts";
 import { CHAT_COMPOSER_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
-import { COMPOSER_CLEAR_INPUT_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
+import {
+  COMPOSER_CLEAR_INPUT_NAME,
+  COMPOSER_DRAFT_LINE_NAME,
+  COMPOSER_GENERATE_REPLY_NAME,
+  COMPOSER_LET_ROOM_PICK_NAME,
+  COMPOSER_THEM_GROUP_NAME,
+  COMPOSER_YOU_GROUP_NAME,
+  guidedControlName,
+  IMPERSONATE_PERSON_LABELS,
+} from "#client/features/chat/lib/composer-menu-names.ts";
 import { PLUGIN_ACTIONS_NAME, PLUGIN_COMMAND_ARGS_TITLE } from "#client/features/plugin/lib/plugin-command-copy.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
@@ -75,8 +85,8 @@ for (const viewport of VIEWPORTS) {
       await expect(input).toHaveValue("");
       await expect(input).toHaveAttribute("autocorrect", "off");
       await expect(input).toHaveAttribute("autocapitalize", "off");
-      await expect(upper.getByRole("group", { name: "Your message", exact: true })).toBeVisible();
-      await expect(upper.getByRole("group", { name: "Their reply", exact: true })).toBeVisible();
+      await expect(upper.getByRole("group", { name: COMPOSER_YOU_GROUP_NAME, exact: true })).toBeVisible();
+      await expect(upper.getByRole("group", { name: COMPOSER_THEM_GROUP_NAME, exact: true })).toBeVisible();
 
       for (const draft of ["", "Keep the observatory quiet."]) {
         await input.fill(draft);
@@ -251,7 +261,7 @@ test("the guided Response icon fires chat.generate carrying the typed steer", as
   await mount<typeof ChatRoomShellStory>(STORY, { chatId });
   const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
   await input.fill(steer);
-  await page.getByRole("button", { name: "Guided generate reply", exact: true }).press("Enter");
+  await page.getByRole("button", { name: guidedControlName(COMPOSER_GENERATE_REPLY_NAME, true), exact: true }).press("Enter");
   await expect.poll(() => rpc.count("chat.generate")).toBe(1);
   expect(rpc.lastInput("chat.generate")).toMatchObject({ chatId, guided: { action: "response", input: steer } });
   await expect(input).toHaveValue("");
@@ -260,9 +270,9 @@ test("the guided Response icon fires chat.generate carrying the typed steer", as
 async function expectGroupControls(page: Page, names: readonly string[], guided: boolean): Promise<void> {
   const upper = page.locator('[data-slot="composer-utilities"]');
   const lower = page.locator('[data-slot="composer-input"]');
-  await upper.getByRole("button", { name: guided ? "Guided generate reply" : "Generate reply", exact: true }).press("Enter");
+  await upper.getByRole("button", { name: guidedControlName(COMPOSER_GENERATE_REPLY_NAME, guided), exact: true }).press("Enter");
   const speakers = page.getByRole("menu");
-  await expect(speakers.getByRole("menuitem", { name: "Let the room pick", exact: true })).toBeVisible();
+  await expect(speakers.getByRole("menuitem", { name: COMPOSER_LET_ROOM_PICK_NAME, exact: true })).toBeVisible();
   for (const name of names) {
     await expect(speakers.getByRole("menuitem", { name, exact: true })).toBeVisible();
   }
@@ -270,16 +280,16 @@ async function expectGroupControls(page: Page, names: readonly string[], guided:
   await lower.getByRole("button", { name: "Chat options", exact: true }).press("Enter");
   await page.getByRole("menuitem", { name: "Chat settings", exact: true }).click();
   await expect(page.getByRole("tab", { name: CHAT_CONTEXT_TAB_LABELS.settings, exact: true })).toHaveAttribute("aria-selected", "true");
-  await expect(page.getByRole("group", { name: "How the characters reply", exact: true })).toBeVisible();
+  await expect(page.getByRole("group", { name: GROUP_OUTPUT_FIELD_NAME, exact: true })).toBeVisible();
   await page.keyboard.press("Escape");
 }
 
 async function expectDraftingFits(page: Page, requested: Promise<void>): Promise<void> {
   const input = page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true });
-  await page.getByRole("button", { name: "Guided draft your line", exact: true }).press("Enter");
-  await page.getByRole("menuitem", { name: "1st person", exact: true }).click();
+  await page.getByRole("button", { name: guidedControlName(COMPOSER_DRAFT_LINE_NAME, true), exact: true }).press("Enter");
+  await page.getByRole("menuitem", { name: IMPERSONATE_PERSON_LABELS.first, exact: true }).click();
   await requested;
-  const stop = page.getByRole("group", { name: "Your message", exact: true }).getByRole("button", { name: IMPERSONATE_STOP_LABEL, exact: true });
+  const stop = page.getByRole("group", { name: COMPOSER_YOU_GROUP_NAME, exact: true }).getByRole("button", { name: IMPERSONATE_STOP_LABEL, exact: true });
   await expect(stop).toBeVisible();
   await expectRowsFit(page);
   await stop.tap();
@@ -289,7 +299,7 @@ async function expectDraftingFits(page: Page, requested: Promise<void>): Promise
 
 async function expectRefusalFits(page: Page, viewportHeight: number): Promise<void> {
   await expect(page.locator('[data-slot="composer-next-turn"]')).toBeVisible();
-  await expect(page.getByRole("button", { name: "Guided generate reply", exact: true })).toBeDisabled();
+  await expect(page.getByRole("button", { name: guidedControlName(COMPOSER_GENERATE_REPLY_NAME, true), exact: true })).toBeDisabled();
   await expect(page.getByRole("button", { name: CHAT_SEND_NAME, exact: true })).toBeDisabled();
   await expectRowsFit(page);
   const bounds = await page.getByRole("group", { name: CHAT_COMPOSER_NAME, exact: true }).boundingBox();

@@ -17,7 +17,9 @@
 import { openContextSections } from "@orb/testkit/ct";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import { CHAT_ADD_INJECTION_NAME, CHAT_REMOVE_INJECTION_NAME } from "#client/features/chat/lib/chat-settings-names.ts";
 import { CHAT_INJECTION_CONTENT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import { openContextTab, openDetailPanel, openOrCreateChat, reopenFirstChat, waitForAppReady } from "./support/chat-room.ts";
 import { CASE_TWO_LIVE_TURNS_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 
@@ -35,7 +37,7 @@ async function openInjectionsTab(page: Page): Promise<void> {
   await openDetailPanel(page);
   await openContextTab(page, "This chat");
   await openContextSections(page, "Injections");
-  await expect(page.getByRole("button", { name: "Add injection" })).toBeVisible({
+  await expect(page.getByRole("button", { name: CHAT_ADD_INJECTION_NAME })).toBeVisible({
     timeout: WAIT_UI_MS,
   });
 }
@@ -88,7 +90,7 @@ test("injection: add → reload persists; remove → reload gone", async ({ page
 
   // ── Add: "Add injection" persists a blank row immediately; a new Content textarea appears. ──
   const addResp = page.waitForResponse((r) => r.url().includes("/api/trpc/chat.setChatInjection") && r.status() < 500);
-  await page.getByRole("button", { name: "Add injection" }).click();
+  await page.getByRole("button", { name: CHAT_ADD_INJECTION_NAME }).click();
   await addResp;
 
   // Type the marker into the new (last) Content field and blur to trigger the autosave write.
@@ -116,8 +118,8 @@ test("injection: add → reload persists; remove → reload gone", async ({ page
   const markerIndex = values.indexOf(marker);
   expect(markerIndex).toBeGreaterThanOrEqual(0);
   const delResp = page.waitForResponse((r) => r.url().includes("/api/trpc/chat.deleteChatInjection") && r.status() < 500);
-  await page.getByRole("button", { name: "Remove injection" }).nth(markerIndex).click();
-  await page.getByRole("alertdialog").getByRole("button", { name: "Remove", exact: true }).click();
+  await page.getByRole("button", { name: CHAT_REMOVE_INJECTION_NAME }).nth(markerIndex).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: DIALOG_VERBS.remove, exact: true }).click();
   await delResp;
 
   // ── Reload — still gone (re-open the chat from the list first). ──

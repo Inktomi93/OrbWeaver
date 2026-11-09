@@ -45,12 +45,13 @@ import { castId } from "@orb/kit/ids";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { CHAT_CORRECTION_INSTRUCTION_NAME, CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
-import { COMPOSER_CORRECTIONS_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
+import { COMPOSER_CORRECTIONS_NAME, COMPOSER_LET_ROOM_PICK_NAME, COMPOSER_REWRITE_SUBMIT_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
 import {
   MESSAGE_ACTIONS_MENU_NAME,
   MESSAGE_REAPPLY_CONTINUATION_NAME,
   MESSAGE_UNDO_CONTINUATION_NAME,
 } from "#client/features/chat/lib/message-action-names.ts";
+import { MESSAGE_TOOLS_LABEL } from "#client/lib/flank-names.ts";
 import { messageRow, openChatByTitle } from "./support/chat-room.ts";
 import { startTapeProvider } from "./support/tape-provider.ts";
 import { WAIT_UI_MS } from "./support/timeouts.ts";
@@ -105,7 +106,7 @@ const GUIDED_RESPONSE = "Guided generate reply";
 const GUIDED_CONTINUE = "Continue the reply with this direction";
 
 /** The ✨ utility menu and the Rewrite modal's door inside it (both moved off the top row). */
-const UTILITY_MENU = "Message tools";
+const UTILITY_MENU = MESSAGE_TOOLS_LABEL;
 const CORRECTIONS_ITEM = COMPOSER_CORRECTIONS_NAME;
 
 function composer(page: Page): ReturnType<Page["getByRole"]> {
@@ -225,7 +226,7 @@ test.describe("guided generations on recorded provider turns", () => {
       await expect(corrections).not.toHaveAttribute("aria-disabled", "true", { timeout: WAIT_UI_MS });
       await corrections.click();
       await page.getByRole("textbox", { name: CHAT_CORRECTION_INSTRUCTION_NAME }).waitFor({ state: "visible" });
-      await page.getByRole("button", { name: "Rewrite" }).click();
+      await page.getByRole("button", { name: COMPOSER_REWRITE_SUBMIT_NAME }).click();
 
       // SERVER TRUTH: the SAME slot grew to 2 variants, the new one is selected (idx 1), and the assistant
       // ROW count did not change (a variant is not a new row).
@@ -326,7 +327,7 @@ test.describe("guided generations on recorded provider turns", () => {
       // plus one item per member. One click opens it, one click picks BRAVO — the old hover-into-a-submenu
       // step is gone with the wand.
       await (await armedIcon(page, GUIDED_RESPONSE)).click();
-      await expect(page.getByRole("menuitem", { name: "Let the room pick" })).toBeVisible({ timeout: WAIT_UI_MS });
+      await expect(page.getByRole("menuitem", { name: COMPOSER_LET_ROOM_PICK_NAME })).toBeVisible({ timeout: WAIT_UI_MS });
       await page.getByRole("menuitem", { name: DUO[1].name }).click();
 
       // SERVER TRUTH: exactly one assistant row committed and it is authored by the CHOSEN speaker (bravo),

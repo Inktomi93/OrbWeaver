@@ -17,6 +17,7 @@ import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page, PlaywrightTestArgs } from "@playwright/test";
 import { CHARACTER_EDITOR_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_EARLIER_MESSAGES_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CHAT_ADD_CHARACTER_NAME } from "#client/features/chat/lib/members-names.ts";
 import { CHAT_PRINT_COVERAGE } from "#client/features/chat/lib/transcript-copy.ts";
 import type { AppShellCharacterStory, AppShellModalStory, AppShellRoomStory, AppShellStory, AppShellTemporaryNewChatStory } from "./_app-shell-stories.tsx";
 import type { PlantedControlsStory } from "./_text-scale-probe-stories.tsx";
@@ -370,7 +371,7 @@ for (const [viewport, scale] of QUALIFIED.gameRoomMembers) {
       await openContextPanel(page);
       const panel = page.locator(".shell-panel[data-panel-side='context']");
       await panel.getByRole("tab", { name: /^Members/u }).click();
-      const door = panel.getByRole("button", { name: "Add a character", exact: true });
+      const door = panel.getByRole("button", { name: CHAT_ADD_CHARACTER_NAME, exact: true });
       await door.scrollIntoViewIfNeeded();
       await expect(door).toBeInViewport({ ratio: 0.5 });
       await expect.poll(() => door.evaluate(coverOf)).toBeNull();

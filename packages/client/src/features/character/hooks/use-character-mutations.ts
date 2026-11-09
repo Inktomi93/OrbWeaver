@@ -2,6 +2,7 @@ import type { ThemeBackground } from "@orb/contracts/theme";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { SectionPatchVars, Trpc } from "#data";
 import { createEntityMutation } from "#data";
+import { CHARACTER_SAVE_FAILURE } from "../lib/character-names.ts";
 import { CHARACTER_CREATE_FAILED, characterBulkTagRefusal, characterMutationToast } from "../lib/character-refusal-notice.ts";
 
 // The character CRUD mutations used by the LIST (mirrors use-persona-mutations.ts) — the ONE mutation
@@ -60,7 +61,7 @@ export const useUpdateCharacter = createEntityMutation<inferInput<Trpc["characte
   },
   busDriven: true,
   // A RENAME raises the same typed `handle_conflict` as create (#542) — same mapper, same one-home copy.
-  errorToast: (error) => characterMutationToast(error, "Couldn't save the character."),
+  errorToast: (error) => characterMutationToast(error, CHARACTER_SAVE_FAILURE),
 });
 
 /** §4.6 bulk: archive/unarchive many. `busDriven` — `charactersChanged` covers `character.list`. */

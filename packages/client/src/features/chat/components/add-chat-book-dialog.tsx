@@ -37,6 +37,7 @@ import { DismissDialog, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { DIALOG_VERBS } from "#lib";
 import { useAttachBookToChat } from "../hooks/use-chat-book-mutations.ts";
+import { CHAT_ATTACH_BOOK_FAILURE, CHAT_BOOK_PICKER_EMPTY_TITLE, CHAT_BOOK_PICKER_READ, chatAttachItemName } from "../lib/chat-attach-names.ts";
 import { attachableBooks } from "../lib/chat-books-model.ts";
 
 /** The candidate list's shape-matched loading skeleton (house loading law — never a spinner/text void). */
@@ -68,7 +69,7 @@ export function AddChatBookDialog({ chatId, open, onOpenChange, attachedIds }: A
       await attach.mutateAsync({ chatId, bookId });
       onOpenChange(false);
     } catch {
-      setFailure("Couldn't attach the world book to this chat.");
+      setFailure(CHAT_ATTACH_BOOK_FAILURE);
     } finally {
       ownedRef.current = false;
     }
@@ -107,7 +108,7 @@ function PickerBody(props: PickerBodyProps): ReactElement {
     <QueryBoundary
       resetKeys={[]}
       fallback={<SkeletonRows count={PICKER_SKELETON_ROWS} shape="line" />}
-      renderError={(_error, retry): ReactElement => <QueryErrorState label="your world books" onRetry={retry} />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label={CHAT_BOOK_PICKER_READ} onRetry={retry} />}
     >
       <PickerList {...props} />
     </QueryBoundary>
@@ -133,7 +134,7 @@ function PickerList({ attachedIds, failure, isOwned, onAttach }: PickerBodyProps
             : "Every world book you own is already attached to this chat."
         }
         icon={<Icon icon={BookOpen} size="lg" />}
-        title={books.length === 0 ? "You have no world books yet" : "Nothing left to attach"}
+        title={books.length === 0 ? CHAT_BOOK_PICKER_EMPTY_TITLE : "Nothing left to attach"}
       />
     );
   }
@@ -144,7 +145,7 @@ function PickerList({ attachedIds, failure, isOwned, onAttach }: PickerBodyProps
         <ListRow
           actions={
             <Button
-              aria-label={`Attach ${book.name} to this chat`}
+              aria-label={chatAttachItemName(book.name)}
               disabled={isOwned}
               variant="outline"
               onClick={(): void => void onAttach(book.id).catch(globalThis.reportError)}

@@ -5,6 +5,8 @@ import { seedShellState } from "@orb/testkit/browser/spec";
 import { ROOM_PROCEDURES, routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { CHAT_MEMBERS_ENTRY_PREFIX } from "#client/features/chat/lib/chat-surface-names.ts";
+import { CHAT_INVITE_PEOPLE_NAME, INVITE_OUTSTANDING_HEADING } from "#client/features/chat/lib/members-names.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -43,10 +45,10 @@ test("the outstanding invite for a person names their handle and its Revoke cont
   await routeAuthConfig(page, await (await root.http.request("/api/auth/config")).text());
   await routeTrpc(page, serveCorpusProcedures(host, READS));
   await mount<typeof ChatRoomShellStory>(STORY, { chatId });
-  await page.getByRole("button", { name: /^Members: /u }).click();
-  await page.getByRole("button", { name: "Invite people", exact: true }).click();
+  await page.getByRole("button", { name: new RegExp(`^${RegExp.escape(CHAT_MEMBERS_ENTRY_PREFIX)}`, "u") }).click();
+  await page.getByRole("button", { name: CHAT_INVITE_PEOPLE_NAME, exact: true }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByText("Outstanding invites", { exact: true })).toBeVisible();
+  await expect(dialog.getByText(INVITE_OUTSTANDING_HEADING, { exact: true })).toBeVisible();
   const handle = new RegExp(guest.handle, "u");
   await expect(dialog.getByRole("button", { name: handle })).toHaveCount(1);
   await expect(dialog.getByText(handle)).toHaveCount(1);

@@ -57,6 +57,7 @@ import type { ReplyRowOverflowLevel } from "../hooks/use-reply-row-overflow.ts";
 import { useReplyRowOverflow } from "../hooks/use-reply-row-overflow.ts";
 import type { SendRefusal } from "../hooks/use-send-availability.ts";
 import { CHAT_CONTINUE_REPLY_NAME } from "../lib/chat-surface-names.ts";
+import { COMPOSER_THEM_GROUP_NAME, COMPOSER_YOU_GROUP_NAME } from "../lib/composer-menu-names.ts";
 import { filterCharacters } from "../lib/roster.ts";
 import { GuidedIconButton, ImpersonateGuidedButton, ImpersonateStopButton, ResponseGuidedButton } from "./composer-guided-buttons.tsx";
 import type { ComposerImageControls } from "./composer-media-group.tsx";
@@ -215,7 +216,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
         </Row>
         <Row align="center" gap="glyph" className="shrink-0" ref={seatReplies}>
           <Row
-            aria-label="Your message"
+            aria-label={COMPOSER_YOU_GROUP_NAME}
             className="shrink-0"
             data-slot="composer-you-actions"
             inert={level === 2}
@@ -235,7 +236,7 @@ export function ComposerGuidedCluster(props: ComposerGuidedClusterProps): ReactE
             />
             {guided.stopImpersonation === null ? null : <ImpersonateStopButton onStop={guided.stopImpersonation} />}
           </Row>
-          <Row aria-label="Their reply" className="shrink-0 min-inline-0" data-slot="composer-them-actions" gap="glyph" role="group">
+          <Row aria-label={COMPOSER_THEM_GROUP_NAME} className="shrink-0 min-inline-0" data-slot="composer-them-actions" gap="glyph" role="group">
             <Row className="shrink-0" inert={level > 0} outOfFlow={level > 0} ref={seatSwipe}>
               <GuidedIconButton
                 icon={{ glyph: RotateCcw, fills: false }}

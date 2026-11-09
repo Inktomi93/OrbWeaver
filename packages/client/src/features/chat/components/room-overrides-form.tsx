@@ -38,6 +38,7 @@ import { useRef, useState } from "react";
 import { DestructiveAction, useRowDeleteFocus } from "#components";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm } from "#forms/editor";
+import { CHAT_OVERRIDE_SCENARIO_LABEL, overrideRowName, overrideStateWord } from "../lib/chat-settings-names.ts";
 import { OVERRIDE_CLEAR_VERB } from "../lib/chat-surface-names.ts";
 import type { RoomOverridesFormValues } from "../lib/room-overrides-form-model.ts";
 import { EMPTY_ROOM_OVERRIDES_FORM, fromRoomOverridesForm, toRoomOverridesForm } from "../lib/room-overrides-form-model.ts";
@@ -87,10 +88,10 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, clear
             same reason; growing the floor on the VARIANT rather than with a call-site height is what keeps
             it pointer-conditional (a fine pointer's 32px is under the shipped 40px, so the desktop box is
             unchanged) and inside the `ui-size-via-variant` seal. */}
-        <CollapsibleTrigger inset="block" width="full" size="control" aria-label={`${label}, ${isSet ? "overridden" : "inheriting"}`}>
+        <CollapsibleTrigger inset="block" width="full" size="control" aria-label={overrideRowName(label, isSet)}>
           <Row align="center" gap="field" justify="between" grow={true}>
             <Text voice="label">{label}</Text>
-            <Text voice="gloss">{isSet ? "overridden" : "inheriting"}</Text>
+            <Text voice="gloss">{overrideStateWord(isSet)}</Text>
           </Row>
         </CollapsibleTrigger>
         {isSet && !open ? (
@@ -224,7 +225,7 @@ export function RoomOverridesForm({ entityId, roomOverrides, isHost, save }: Roo
 
           <OverrideRow form={form} name="mainPrompt" label="Main prompt" rows={4} disabled={!isHost} />
           <OverrideRow form={form} name="postHistory" label="Post-history" rows={3} disabled={!isHost} />
-          <OverrideRow form={form} name="scenario" label="Scenario" rows={3} disabled={!isHost} />
+          <OverrideRow form={form} name="scenario" label={CHAT_OVERRIDE_SCENARIO_LABEL} rows={3} disabled={!isHost} />
         </Stack>
       )}
     </RoomOverridesFormBoundary>
