@@ -2289,11 +2289,10 @@ function toChatWarning(warning: ResolvedWarning): ChatWarning {
     case "tool_choice_downgraded":
     case "carry_reasoning_downgraded":
     case "cache_control_adjusted":
-      // `adjustment: code` IS the MATCH: the infra spellings above and `PROVIDER_ADJUSTMENT_KINDS` are separate
-      // tuples (contracts sits below server and cannot import infra), so a rename on either side fails `tsc`
-      // right here. The three detail fields ride straight through — the resolver is the only layer that knows
-      // them, and re-deriving them in the domain would be inventing a fact. `undefined` is the honest absent
-      // (optional on both sides; JSON drops it on the durable log).
+      // `adjustment: code` IS the MATCH: `PROVIDER_ADJUSTMENT_KINDS` is built from these `WARNING_CODE` members,
+      // so a code dropped from that tuple fails `tsc` right here. The three detail fields ride straight through —
+      // the resolver is the only layer that knows them, and re-deriving them in the domain would be inventing a
+      // fact. `undefined` is the honest absent (optional on both sides; JSON drops it on the durable log).
       return { adjustment: code, appliedEffort: warning.appliedEffort, appliedBudget: warning.appliedBudget, code: "settings_adjusted", knob: warning.knob };
     // The SDK's own second gate (#A3), setting half: the provider refused a knob AFTER our funnel resolved
     // it. The ONE pair of arms where the two spellings deliberately differ — the infra code records WHO
