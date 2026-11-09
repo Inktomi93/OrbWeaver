@@ -17,3 +17,12 @@ test("each icon-only control opens its tooltip on hover and keeps its accessible
     await expect(popup).toBeHidden();
   }
 });
+
+test("the collapse button keeps its square box under the trigger's own block floor", async ({ mount, page }) => {
+  await mount<typeof ImmersiveCardChromeStory>("tests/ui/content/immersive-card/_card-stories/ImmersiveCardChromeStory", {});
+  const box = await page.getByRole("button", { name: IMMERSIVE_CARD_LABELS.collapse, exact: true }).boundingBox();
+  if (box === null) {
+    throw new Error("The collapse button must have visible geometry");
+  }
+  expect(box.height).toBe(box.width);
+});

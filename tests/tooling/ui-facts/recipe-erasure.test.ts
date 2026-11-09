@@ -49,11 +49,13 @@ const CLOSED_BY_TYPE: Readonly<Record<string, readonly string[]>> = {
   "square > stacked": [BUTTON],
   "square > stretch": [BUTTON],
   "stacked > glyph": [GLYPH_BUTTON],
+  "stacked > size+square": [BUTTON],
   "tone > ink": [ICON, SPINNER, TEXT, WEAVE_GLYPH],
   "width > glyph": [GLYPH_BUTTON],
   "width > hoverCue": [TEXT],
   "width > size+square": [BUTTON],
   "wrap > glyph": [GLYPH_BUTTON],
+  "wrap > size+square": [BUTTON],
   "wrap > stacked": [BUTTON],
 };
 
