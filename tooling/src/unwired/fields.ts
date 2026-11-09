@@ -26,6 +26,8 @@ import { isProductionFile, roleAt, Sources, siteKey } from "./classify.ts";
 import type { SortEvidence, SortedField, Verdict } from "./field-sort.ts";
 import { FieldSort } from "./field-sort.ts";
 import { serviceReferences } from "./language-service.ts";
+import type { LiteralEvidence, LiteralStage } from "./literal-hits.ts";
+import { literalStage } from "./literal-hits.ts";
 import { constituents, declarationKeys, homeFiles, NativeWorld } from "./native.ts";
 import type { PropertyFacts, PropertyReferences, Send } from "./occurrences.ts";
 import { joinFacts, propertyFacts } from "./occurrences.ts";
@@ -60,6 +62,8 @@ interface UnwiredField {
   readonly sent: readonly string[];
   readonly verdict: Verdict;
   readonly evidence: SortEvidence;
+  /** The literal search of a row the sort called dead; null for a row it sorted otherwise. */
+  readonly literal: LiteralEvidence | null;
 }
 
 /** A field no production code reads that a receiver outside the tree reads: the published plugin SDK. */
@@ -84,6 +88,8 @@ export interface FieldsReport {
   /** Fields where engine two found a production site in a role engine one lacks, with those sites. Engine one links
    *  what find-references cannot follow, so engine two finding fewer sites is expected and contradicts nothing. */
   readonly disagreements: readonly { readonly key: string; readonly uses: readonly string[] }[];
+  /** The literal search over every dead row, or null for a root with no git index. */
+  readonly literalStage: LiteralStage | null;
   readonly limits: readonly string[];
 }
 
@@ -100,6 +106,7 @@ const FIELD_LIMITS: readonly string[] = [
   "A value spread or copied into an object that is then serialized is not followed to that serialization.",
   "The plugin SDK surface is matched by home and member name against packages/plugin-sdk/*.d.ts; a renamed home is missed.",
   "Reader history counts any removed read of a member name one scanned home declares; for a shared name, only a removed read in a file whose parent version names the home, its schema or type twin, or an alias the current tree gives either; a read through an inferred type in a file that never names the home is missed, and a home renamed since is matched only under its current names.",
+  "The literal stage matches a dead row's member name as a whole word in every tracked file and cannot tell two fields of one name apart: any code, string, data-key, other-file or test type hit outside the declaration line moves the row to ask, including the row's own writes. Comment, TSDoc, doc and data-value hits are stale mentions and keep it dead. Gitignored and generated-but-untracked files are not searched.",
   "A promise is a backticked Home.member under any of the home's names, a distinctive bare member that one scanned home declares, a settings field itself, or a field a flow from a settings field fills; a settings field of the same name that no flow connects sorts the row as ask.",
 ];
 
@@ -561,7 +568,7 @@ export function scanFields(options: ScanOptions): FieldsReport {
     sources,
     judged.map(({ field }) => ({ key: field.key, home: field.home, member: field.member, onlyHome: promiseOf(field).onlyHome })),
   );
-  const findings: UnwiredField[] = [];
+  const findings: Omit<UnwiredField, "literal">[] = [];
   const received: ReceivedField[] = [];
   const disagreements: FieldsReport["disagreements"][number][] = [];
   for (const { field, roles, kind, sends } of judged) {
@@ -594,12 +601,21 @@ export function scanFields(options: ScanOptions): FieldsReport {
     });
     findings.push({ key, file: site.file, line, home, member, origin, kind, tests: Math.max(roles.tests, audit.tests), sample, sent, verdict, evidence });
   }
+  const control = rolled
+    .map(({ field }) => field)
+    .filter((field) => !reported.has(field.key) && isProduction(field.site.file))
+    .sort((a, b) => a.key.localeCompare(b.key))[0];
+  const staged =
+    control === undefined
+      ? { rows: findings.map((finding) => ({ ...finding, literal: null })), stage: null }
+      : literalStage(options.root, sources, findings, { key: control.key, member: control.member, at: `${control.site.file}:${String(control.line)}` });
   return {
     scanned: tally.size,
-    ...sortDeliberate(findings, options.deliberate),
+    ...sortDeliberate(staged.rows, options.deliberate),
     received,
-    sentBy: sentCounts(findings),
+    sentBy: sentCounts(staged.rows),
     disagreements,
+    literalStage: staged.stage,
     limits: FIELD_LIMITS,
   };
 }

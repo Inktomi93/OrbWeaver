@@ -8,6 +8,7 @@ import { EXIT } from "../floor/cli/exit-contract.ts";
 import { UsageError } from "../floor/cli/run-tool.ts";
 import { DELIBERATE } from "./deliberate.ts";
 import { scanFields } from "./fields.ts";
+import type { LiteralStage } from "./literal-hits.ts";
 import { scanParams } from "./params.ts";
 import { portCensus } from "./port-census.ts";
 import type { ClusterGroup, Leg, PortTarget, TargetKind } from "./port-targets.ts";
@@ -65,6 +66,16 @@ function scan<Found extends Report>(out: string, run: (options: ScanOptions) => 
   };
 }
 
+function literalLine(stage: LiteralStage | null): string {
+  if (stage === null) {
+    return "literal stage: no git index at the root, so no row was searched";
+  }
+  const moved = Object.entries(stage.movedBy)
+    .map(([kind, count]) => `${kind}:${String(count)}`)
+    .join(",");
+  return `literal stage: files=${String(stage.files)} ignored=${String(stage.ignored)} control=${stage.control.key}:${String(stage.control.hits)} dead ${String(stage.deadBefore)} -> ${String(stage.deadAfter)} moved=${moved} staleOnly=${String(stage.staleOnly)}`;
+}
+
 const SCANS: Readonly<Record<ScanVerb, Scan>> = {
   scan: scan("reports/unwired/unwired.json", scanUnwired, (report) => ` reachedByFlow=${report.reachedByFlow.length}`),
   fields: scan(
@@ -73,7 +84,7 @@ const SCANS: Readonly<Record<ScanVerb, Scan>> = {
     (report) =>
       ` received=${report.received.length} sent=${Object.entries(report.sentBy)
         .map(([destination, count]) => `${destination}:${count}`)
-        .join(",")}`,
+        .join(",")}\n${literalLine(report.literalStage)}`,
   ),
   params: scan("reports/unwired/params.json", scanParams),
   unions: scan("reports/unwired/unions.json", scanUnions, (report) => ` enumerated=${report.enumerated.length}`),
