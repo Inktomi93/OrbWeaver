@@ -8,14 +8,21 @@ import { effortLevelSchema } from "./capability/generation.ts";
  *  NAMED client home (§5.3a): the ambient capability panel, the aggregated per-turn notice, the Extras row,
  *  the connection badge, or the room. */
 export const WARNING_CODE = {
+  // A sampling/quality knob was not sent: the resolved model exposes no range for it, does not support it, or (for
+  // `thinkingBudgetTokens`) reasons by effort level and has no budget field. `knob` names which.
   samplingKnobDropped: "sampling_knob_dropped",
   // Two knobs the model rejects TOGETHER (`capability.sampling.exclusive`, current Claude on the direct wire:
   // temperature + top_p); the funnel keeps the first-listed and drops the other, loudly.
   samplingKnobConflict: "sampling_knob_conflict",
+  // The requested reasoning effort is not one the model lists, so it chose its own.
   effortDropped: "effort_dropped",
+  // A thinking-budget request hit an adaptive-reasoning model, which budgets itself (an explicit budget 400s it).
   adaptiveBudgetDropped: "adaptive_budget_dropped",
+  // The requested reasoning-display mode, or verbosity level, is not one the model offers.
   displayDropped: "display_dropped",
   verbosityDropped: "verbosity_dropped",
+  // The per-turn system half was asked to ride the mid-conversation hook channel on a model that does not honor one,
+  // so it was folded into the system block instead.
   dynamicContextDemoted: "dynamic_context_demoted",
   imageEditDropped: "image_edit_dropped",
   // The image wire has no channel for the knob: it returned fewer pictures, or its own shape, than asked.

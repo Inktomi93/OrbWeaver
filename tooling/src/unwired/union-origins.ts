@@ -412,6 +412,23 @@ function* declaredAt(oracle: SlotOracle, sources: Sources, node: ts.Node, role: 
   }
 }
 
+/** The tuples the type a tuple declared at `name` satisfies is spelled from, so `["a"] as const satisfies readonly P[]`
+ *  reaches the tuples `P` derives from and theirs in turn. Empty for a tuple with no `satisfies`, or one that cannot be
+ *  read to the end. Spelled from is not subset of: a `keyof` or an indexed access reaches tuples it never holds. */
+export function* satisfiedOrigins(oracle: SlotOracle, sources: Sources, name: Site): APIRequestGenerator<ReadonlySet<string>> {
+  const declaration = declarationAt(sources, name);
+  const spellings: ts.TypeNode[] = [];
+  let node = declaration !== null && ts.isVariableDeclaration(declaration) ? declaration.initializer : undefined;
+  while (node !== undefined && (ts.isSatisfiesExpression(node) || ts.isParenthesizedExpression(node) || ts.isAsExpression(node))) {
+    if (ts.isSatisfiesExpression(node)) {
+      spellings.push(node.type);
+    }
+    node = node.expression;
+  }
+  const origins = spellings.length === 0 ? null : yield* originsOf(oracle, sources, spellings);
+  return origins ?? new Set();
+}
+
 /** The tuples the slot of the literal or key at `site` derives from. */
 export function* slotOrigins(oracle: SlotOracle, sources: Sources, site: Site, role: LiteralRole | "record-key"): APIRequestGenerator<Origins> {
   const node = nameAt(sources.get(site.file), site.position);
