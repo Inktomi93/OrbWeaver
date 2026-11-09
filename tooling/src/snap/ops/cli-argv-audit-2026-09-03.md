@@ -168,6 +168,7 @@ The normal roster was derived from `tooling/src/snap/ops/parse.ts`, `flags-class
 | `--as` | `V,L` fixture name | boot; fixture/context target | outer | pairs with fixture URLs | owned | KEEP |
 | `--atlas` | `B` | look; with `--map`, print the whole SPA destination atlas | checkpoint/arm | child of `--map`; the default is the one-line summary (#1372) | owned | KEEP |
 | `--base` | `V,L` URL | boot; app base URL | outer | mutually exclusive environment slot with isolated target selection | owned | KEEP |
+| `--base-credentials-env` | `V,L` ENV_NAME | boot modifier; answers the `--base` origin's basic-auth challenge, and no other origin's, with the `user:password` the variable holds | outer | child of `--base`; keeps credentials out of argv (a URL with `user:password` is refused) | owned | KEEP |
 | `--baseline` | `B` | capture modifier; save shot as baseline | checkpoint | different operation from `--diff` | owned | KEEP |
 | `--boot-trace` | `B` | capture; browser boot trace arm | checkpoint/arm | not CPU/perf profile | owned | KEEP |
 | `--cascade` | `V,R,@N` selector/property query | analyzer; CSS cascade arm | outer/session boot | debugging-SDK launch property | owned | KEEP |

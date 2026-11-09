@@ -11,7 +11,6 @@ import { existsSync, mkdirSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
-import { nonEmpty } from "@orb/testkit/iso";
 import type { CliResult } from "@orb/testkit/tooling";
 import { expect, test } from "@orb/testkit/tooling";
 import { pidAlive } from "@orb/tooling/floor/artifacts/run-retention";
@@ -164,7 +163,8 @@ test("T4 — killing one half of a real daemon-bound stage makes death sticky, s
     await expect(swept).toExitWith(EXIT.clean);
     expect(swept.stdout).toContain(`band ${ownedBand}`);
     expect(swept.stdout).toMatch(/reaped a stranded stage|reconciled a dangling row/u);
-    expect(nonEmpty(readBands(stageHome)).some((row) => row.band === ownedBand)).toBe(false);
+    // The table is shared, so on a quiet box the swept band was its only row: absence is the claim, an empty table proves it.
+    expect(readBands(stageHome).map((row) => row.band)).not.toContain(ownedBand);
     expect(pidAlive(deadSession.daemonPid), "sweeping the dead stage must not close the otherwise-live session").toBe(true);
 
     // The sweep's own record is what makes the claim ATTRIBUTABLE: it prints one `band N: …` line per
