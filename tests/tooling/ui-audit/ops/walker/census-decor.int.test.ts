@@ -38,7 +38,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "a real `role=menu` popup surface painted inside a card is a floating layer, not a card-in-card — the exemption survives the rewrite, now keyed on the ARIA role the app actually publishes",
-      disposition: { kind: "no-population" },
+      disposition: { kind: "excluded", reason: "cardContext" },
     },
   ],
   "the popup exemption follows the ARIA role, not a word inside a Tailwind class string",
@@ -147,7 +147,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "a static image with no hover/group-hover transform anywhere in its wrapper chain is the negative control — the widened wrapper walk must not blanket-flag every image",
-      disposition: { kind: "no-population" },
+      disposition: { kind: "judged" },
     },
   ],
   "a static image with no hover transform in its wrapper chain is not flagged",

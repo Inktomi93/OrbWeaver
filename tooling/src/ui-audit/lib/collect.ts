@@ -25,18 +25,19 @@
 // RUNG 1 · nullableFindings / a bare map — no population row is published, and that is the honest shape:
 //   landmark-missing          page singleton: one boolean about the document, no denominator exists
 //   skipped-heading           a SEQUENCE verdict over adjacent heading pairs — no per-candidate disposition
-//   broken-image              WALKER-PROVEN: only proven-broken images are returned; the check is TOTAL
-//   text-overflow             WALKER-PROVEN: every truncation carrying an affordance was excluded upstream (#825)
-//   repeated-container-text   WALKER-PROVEN: the walker counted the repeats; every sample is a finding
-//   clipped-overflow          WALKER-PROVEN: the walker measured the spill; every sample is a finding
-//   edge-flush-cards          WALKER-PROVEN: the walker measured the gutter asymmetry
-//   nested-card               WALKER-PROVEN: only the innermost nested cards are returned
-//   gradient-text             WALKER-PROVEN: `hasGradientText` is the walker's own verdict, restated
-//   animated-img-hover        WALKER-PROVEN: `hasHoverAnimation` is the walker's own verdict, restated
-//   For the eight WALKER-PROVEN rows: candidates == judged == affected, so a Node-side row would restate
-//   the finding count. Their real denominators live UPSTREAM and belong to a walker census
-//   (`relationalAccounting`, the walker-filtered trap) — a change to ops/walker/census-*.ts, never a rung
-//   bolted on here, which would report a complete-looking census the walker had already narrowed.
+//
+// RUNG 2a, WALKER-PROVEN · walkerProvenFindings — the walker returns only findings, so its census tallies
+// what it looked at (`walkerProvenCensus`, ops/walker/census-text.ts) and that row is the denominator. A
+// walker cap moves dropped findings from judged to withheld(capExceeded); a sample set without the row
+// publishes none, because a row derived here would restate the finding count:
+//   broken-image              excluded(decorative, lazyDeferred) · withheld(imageNotLoaded)
+//   text-overflow             excluded(scrollManaged) · withheld(transformedGeometry); an affordance is a judged pass
+//   repeated-container-text   subject = one literal text in one container · withheld(containerPastScanBound)
+//   clipped-overflow          subject = one clipping container · excluded(clippingViewport)
+//   edge-flush-cards          subject = one visible horizontal scroller · excluded(scrolledFromRest)
+//   nested-card               subject = one visible card · excluded(cardContext); only the innermost is filed
+//   gradient-text             subject = one text element; `hasGradientText` is the walker's verdict
+//   animated-img-hover        subjects = images and state rules that transform · withheld(unparseableSelector)
 //
 // RUNG 2a · accountedFindings — a FULL census whose checker owes every sample a verdict:
 //   quiet-state               walker cohort census; samplesAreJudged
@@ -83,7 +84,8 @@
 //   grid-line-background      excluded(otherPatternKind)
 //   layout-transition         excluded(otherMotionKind, panelExempt) — the motion-law §3.7 carve-out, counted
 //   bounce-easing             excluded(otherMotionKind)
-//   line-length               excluded(notProseTag, noRenderedBox, noTypeSize) · withheld(chAdvanceUnmeasured, #464)
+//   line-length               excluded(notProseTag, chromeVoice, singleLineTruncation, noRenderedBox, noTypeSize) ·
+//                             withheld(chAdvanceUnmeasured, glyphAdvanceUnmeasured, #464)
 //   tight-leading             excluded(heading, normalKeywordLeading, noTypeSize)
 //   justified-text            excluded(noOwnText)
 //   all-caps-body             excluded(heading)

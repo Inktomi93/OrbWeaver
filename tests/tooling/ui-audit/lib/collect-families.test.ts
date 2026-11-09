@@ -395,3 +395,26 @@ test("every registered rule appears exactly once in collect.ts's rung assignment
   }
   expect({ missing, duplicated }).toEqual({ missing: [], duplicated: [] });
 });
+
+// ── walker-proven rows ───────────────────────────────────────────────────────
+const SPILL = { selector: "p.spill", spillPx: 40, mode: "block" } as const;
+
+test("a walker-proven row moves the findings a walker cap dropped from judged to capExceeded", () => {
+  const rows = rowsFor({
+    overflows: [SPILL],
+    censusCaps: { overflows: { cap: 1, dropped: 2 } },
+    relationalAccounting: {
+      "cohort-anatomy": { candidates: 0, judged: 0, withheld: {}, excluded: {} },
+      "pane-ink": { candidates: 0, judged: 0, withheld: {}, excluded: {} },
+      "row-void": { candidates: 0, judged: 0, withheld: {}, excluded: {} },
+      "text-overflow": { candidates: 6, judged: 5, withheld: {}, excluded: { scrollManaged: 1 } },
+    },
+  });
+  expect(rows["text-overflow"]).toMatchObject({ candidates: 6, judged: 3, affected: 1, withheld: { capExceeded: 2 }, excluded: { scrollManaged: 1 } });
+});
+
+test("a sample set without the walker's row publishes no walker-proven row", () => {
+  const rows = rowsFor({ overflows: [SPILL] });
+  expect(rows["text-overflow"]).toBeUndefined();
+  expect(collectAudit({ ...EMPTY_SAMPLES, overflows: [SPILL] }).findings.filter(({ rule }) => rule === "text-overflow")).toHaveLength(1);
+});

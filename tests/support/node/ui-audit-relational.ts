@@ -55,7 +55,8 @@ export function findingSelectors(stdout: string, rule: string): readonly string[
   const rows: string[] = [];
   for (const line of stdout.split(/\r?\n/u)) {
     const fields = line.trim().split(/\s+/u);
-    if (fields[1] === rule && (fields[0] ?? "").startsWith("P") && fields[2] !== undefined) {
+    // A severity column, never the `POPULATION <rule>` row that also leads with a P.
+    if (fields[1] === rule && /^P[0-3]$/u.test(fields[0] ?? "") && fields[2] !== undefined) {
       rows.push(fields[2]);
     }
   }
