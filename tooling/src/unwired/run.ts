@@ -1,5 +1,6 @@
 // The `pnpm unwired` verbs. `ports` writes the restated-port targets the derive codemod reads; the bare verb and the
-// dead-inside-live verbs run both engines over every world and each write one report under reports/unwired/.
+// dead-inside-live verbs run both engines over every world and each write one report under reports/unwired/;
+// `removed-keys` reads git only and exits 1 while a deletion branch's removed contract key keeps a sender.
 import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
@@ -11,6 +12,7 @@ import { scanParams } from "./params.ts";
 import { portCensus } from "./port-census.ts";
 import type { ClusterGroup, Leg, PortTarget, TargetKind } from "./port-targets.ts";
 import { CLUSTER_GROUPS, INFORMATIONAL_KINDS, LEGS } from "./port-targets.ts";
+import { checkRemovedKeys } from "./removed-keys.ts";
 import type { ScanOptions } from "./scan.ts";
 import { scanUnwired } from "./scan.ts";
 import { scanShapes } from "./shapes.ts";
@@ -20,12 +22,15 @@ import { TEST_WORLDS } from "./worlds.ts";
 const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes"] as const;
 /** `scan`, the bare verb, is the member scan. */
 type ScanVerb = (typeof SCAN_VERBS)[number];
-const VERBS = [...SCAN_VERBS, "ports"] as const;
+const VERBS = [...SCAN_VERBS, "ports", "removed-keys"] as const;
 type Verb = (typeof VERBS)[number];
 
 const CROSS_CHECK_FLAG = "--cross-check";
-const USAGE = `usage: pnpm unwired [${SCAN_VERBS.slice(1).join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>]`;
+const USAGE = `usage: pnpm unwired [${SCAN_VERBS.slice(1).join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>]`;
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
+const DEFAULT_BASE = "main";
+const DEFAULT_HEAD = "HEAD";
+const AMBIGUOUS_SAMPLE = 5;
 
 interface Finding {
   readonly kind: string;
@@ -40,6 +45,8 @@ interface Report {
   readonly unwired: readonly Finding[];
   readonly deliberate: readonly Finding[];
   readonly disagreements: readonly (string | object)[];
+  /** What the scan cannot see, printed after its summary. */
+  readonly limits?: readonly string[];
 }
 
 /** A scan verb's report path, and its run with the counts its summary line adds to the shared ones. */
@@ -60,7 +67,14 @@ function scan<Found extends Report>(out: string, run: (options: ScanOptions) => 
 
 const SCANS: Readonly<Record<ScanVerb, Scan>> = {
   scan: scan("reports/unwired/unwired.json", scanUnwired, (report) => ` reachedByFlow=${report.reachedByFlow.length}`),
-  fields: scan("reports/unwired/fields.json", scanFields),
+  fields: scan(
+    "reports/unwired/fields.json",
+    scanFields,
+    (report) =>
+      ` received=${report.received.length} sent=${Object.entries(report.sentBy)
+        .map(([destination, count]) => `${destination}:${count}`)
+        .join(",")}`,
+  ),
   params: scan("reports/unwired/params.json", scanParams),
   unions: scan("reports/unwired/unions.json", scanUnions, (report) => ` enumerated=${report.enumerated.length}`),
   shapes: scan("reports/unwired/shapes.json", scanShapes),
@@ -74,6 +88,9 @@ interface Args {
   readonly cluster: ClusterGroup | null;
   /** Engine two asks the TypeScript 6 language service instead of TypeScript 7.1. */
   readonly crossCheck: boolean;
+  /** The revisions `removed-keys` compares: the branch's head against its merge base with `base`. */
+  readonly base: string;
+  readonly head: string;
 }
 
 function oneOf<T extends string>(flag: string, value: string | null, allowed: readonly T[]): T | null {
@@ -91,7 +108,7 @@ function parseArgs(argv: readonly string[]): Args {
   const flags = new Map<string, string>();
   const rest = (named === undefined ? argv : argv.slice(1)).filter((arg) => arg !== CROSS_CHECK_FLAG);
   for (const arg of rest) {
-    const match = /^--(root|out|leg|cluster)=(.+)$/u.exec(arg);
+    const match = /^--(root|out|leg|cluster|base|head)=(.+)$/u.exec(arg);
     if (match === null) {
       throw new UsageError(`${arg}: unknown argument\n${USAGE}`);
     }
@@ -104,7 +121,29 @@ function parseArgs(argv: readonly string[]): Args {
     leg: oneOf("leg", flags.get("leg") ?? null, LEGS),
     cluster: oneOf("cluster", flags.get("cluster") ?? null, CLUSTER_GROUPS),
     crossCheck: argv.includes(CROSS_CHECK_FLAG),
+    base: flags.get("base") ?? DEFAULT_BASE,
+    head: flags.get("head") ?? DEFAULT_HEAD,
   };
+}
+
+function runRemovedKeys(args: Args): number {
+  const report = checkRemovedKeys(args.root, args.base, args.head);
+  for (const { key, ambiguous, hits } of report.removed) {
+    // An ambiguous key is a lead for a person, so a short sample stands for its hits.
+    for (const hit of ambiguous ? hits.slice(0, AMBIGUOUS_SAMPLE) : hits) {
+      process.stdout.write(`${ambiguous ? "ambiguous" : "live"}\t${key}\t${hit.receiver}\t${hit.at}\t${hit.text}\n`);
+    }
+    if (ambiguous && hits.length > AMBIGUOUS_SAMPLE) {
+      process.stdout.write(`ambiguous\t${key}\t${hits.length - AMBIGUOUS_SAMPLE} more hits\n`);
+    }
+  }
+  const scanned = Object.entries(report.scanned)
+    .map(([receiver, files]) => `${receiver}:${files}`)
+    .join(",");
+  log(
+    `${report.base}...${report.head}: removed=${report.removed.length} scanned=${scanned} ${report.failed ? "FAILED: a removed key still has a live sender" : "no live sender"}`,
+  );
+  return report.failed ? EXIT.violations : EXIT.clean;
 }
 
 // The kinds whose data lands in packages/contracts, in the area of the concept's owner.
@@ -177,6 +216,9 @@ const log = (line: string): void => {
 
 export function runUnwired(argv: readonly string[]): number {
   const args = parseArgs(argv);
+  if (args.verb === "removed-keys") {
+    return runRemovedKeys(args);
+  }
   if (args.verb === "ports") {
     const census = portCensus(args.root, log);
     const targets = census.targets.filter(
@@ -211,5 +253,8 @@ export function runUnwired(argv: readonly string[]): number {
   log(
     `scanned=${report.scanned} unwired=${report.unwired.length} deliberate=${report.deliberate.length} disagreements=${report.disagreements.length}${counts} written to ${path}`,
   );
+  if (report.limits !== undefined) {
+    log(["limits: what this scan cannot see", ...report.limits.map((limit) => `- ${limit}`)].join("\n"));
+  }
   return EXIT.clean;
 }

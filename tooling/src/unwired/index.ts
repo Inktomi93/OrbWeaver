@@ -1,6 +1,6 @@
 // The unwired scans and the restated-port matcher: `pnpm unwired` reports members no production code reaches, its
 // `fields`, `params`, `unions` and `shapes` verbs what is dead inside live code, and `ports` the port members that
-// hand-restate another member. Never in CI, never a gate.
+// hand-restate another member, and `removed-keys` the removed contract keys a sender still names. Never in CI, never a gate.
 
 export { Sources } from "./classify.ts";
 export { scanFields } from "./fields.ts";
