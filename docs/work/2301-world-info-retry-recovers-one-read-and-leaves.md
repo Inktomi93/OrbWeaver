@@ -4,7 +4,7 @@ status: doing
 updated: 2026-11-09
 priority: P2
 area: client
-lane: wt/agent-aeeecdd1ff632fbb2
+lane: wt/agent-a88fe4fa1ec4fa014
 plan: cross-surface-consistency
 ---
 
