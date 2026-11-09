@@ -41,10 +41,10 @@ test("Button textAlign sets the label's end and inset takes the field step", asy
   expect(await computedStyle(probe("button-plain"), "padding-inline-start")).not.toBe(step);
 });
 
-test("whitespace lets a Button and a Badge wrap inside a host the nowrap base outgrows", async ({ mount }) => {
+test("a Button wraps inside a host narrower than its label, and whitespace lets a Badge wrap past its nowrap base", async ({ mount }) => {
   const probe = probeOf(await mount<typeof ControlAxesStory>(STORY));
   const host = (await boxOf(probe("narrow-host"))).width;
-  expect((await boxOf(probe("button-nowrap"))).width).toBeGreaterThan(host);
+  expect((await boxOf(probe("button-default"))).width).toBeLessThanOrEqual(host);
   expect((await boxOf(probe("button-whitespace"))).width).toBeLessThanOrEqual(host);
   expect((await boxOf(probe("badge-nowrap"))).width).toBeGreaterThan(host);
   expect((await boxOf(probe("badge-whitespace"))).width).toBeLessThanOrEqual(host);

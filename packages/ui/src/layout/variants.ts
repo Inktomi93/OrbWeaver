@@ -177,10 +177,12 @@ const ALIGN = {
   baseline: "items-baseline",
 } as const;
 
+// `center` and `end` are the safe forms: a line whose content outgrows it falls back to the start, because overflow past the
+// start edge is out of every scroller's reach.
 const JUSTIFY = {
   start: "justify-start",
-  center: "justify-center",
-  end: "justify-end",
+  center: "justify-center-safe",
+  end: "justify-end-safe",
   between: "justify-between",
 } as const;
 

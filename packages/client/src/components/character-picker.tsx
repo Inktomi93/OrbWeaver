@@ -216,7 +216,7 @@ function CharacterPickerBody({
             <Text as="span" voice="gloss">
               {excludedLoadedCount === 0 ? `Showing ${candidates.length} of ${totalCount}` : characterCountLabel(candidates.length)}
             </Text>
-            <Row className="min-inline-0" grow={true} gap="field" justify="end">
+            <Row grow="content" gap="field" justify="end">
               {query.isFetchNextPageError ? (
                 <>
                   <Text role="alert" voice="gloss">

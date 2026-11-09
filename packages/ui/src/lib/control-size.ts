@@ -34,6 +34,16 @@ export const CONTROL_INLINE = {
   lg: "inline-(--size-control-lg)",
 } as const satisfies Record<ControlSize, string>;
 
+/** The height of a control that carries a label: the step is a floor, so a label that outgrows its column breaks between its
+ *  words and the box grows with the lines. `block-fit` (not `auto`) keeps a flex or grid parent from stretching the box, and
+ *  the tight inset keeps one line inside every step at a fine pointer. */
+const LABEL_BOX = {
+  chip: `${CONTROL_MIN_BLOCK.chip} block-fit py-tight whitespace-normal`,
+  sm: `${CONTROL_MIN_BLOCK.sm} block-fit py-tight whitespace-normal`,
+  md: `${CONTROL_MIN_BLOCK.md} block-fit py-tight whitespace-normal`,
+  lg: `${CONTROL_MIN_BLOCK.lg} block-fit py-tight whitespace-normal`,
+} as const satisfies Record<ControlSize, string>;
+
 /** THE FILTER-CHIP BOX — the wrapping-rail cell.
  *
  *  A pill is "one of many small things to skim", a control is "something you operate" (UI-Density-Law §2.1), so the
@@ -45,12 +55,12 @@ export const CONTROL_INLINE = {
  *  carrier every wrapping chip needs) renders that span's own weight regardless of the box's, and the only way to
  *  overrule it from a feature is a `font-*` className. The register separation is carried by the ink, the edge and the
  *  radius instead, which are box properties the pressable primitives own. */
-const CHIP_BOX = `${CONTROL_BLOCK.chip} gap-tight px-row text-label leading-label`;
+const CHIP_BOX = `${LABEL_BOX.chip} gap-tight px-row text-label leading-label`;
 
-/** A pressable control's box per step: height, inline padding and type step (D336). Button and Toggle take it whole. */
+/** A pressable control's box per step: the height floor, inline padding, type step and word-wrapping label (D336). Button and Toggle take it whole. */
 export const CONTROL_SIZE = {
   chip: CHIP_BOX,
-  sm: `${CONTROL_BLOCK.sm} px-block text-label leading-label`,
-  md: `${CONTROL_BLOCK.md} px-block text-body leading-body`,
-  lg: `${CONTROL_BLOCK.lg} px-section text-body leading-body`,
+  sm: `${LABEL_BOX.sm} px-block text-label leading-label`,
+  md: `${LABEL_BOX.md} px-block text-body leading-body`,
+  lg: `${LABEL_BOX.lg} px-section text-body leading-body`,
 } as const satisfies Record<ControlSize, string>;
