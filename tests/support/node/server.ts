@@ -7,6 +7,7 @@ import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { execPath } from "node:process";
+import { setTimeout as delay } from "node:timers/promises";
 import type { AuthMode, UserRole } from "@orb/contracts/identity";
 import { AUTH_MODE_KEY } from "@orb/contracts/identity";
 import type { Db } from "@orb/db";
@@ -77,6 +78,9 @@ export interface ServerHarnessOptions extends EnvSeamOptions, Partial<Pick<Servi
   readonly physicalPeer?: Parameters<typeof createHttpApp>[0]["physicalPeer"];
   readonly ownerId?: UserId;
   readonly providerFetch?: typeof fetch;
+  /** Real-time milliseconds every {@link ServerTestHarness.internalCallerFor} call waits before it runs, so detached work
+   *  runs ahead of a producer's next write; the corpus determinism test sets it to expose a producer that skips a settle. */
+  readonly callerStallMs?: number;
   readonly sdkQuery?: AgentSdkQuery;
   readonly sdkSpawn?: AgentSdkSpawn;
   readonly sdkNative?: AgentSdkNativeOptions;
@@ -143,6 +147,25 @@ interface UnclaimedActorSpec extends Pick<ActorSpec, "handle" | "enabled" | "ext
 
 /** A tRPC caller bound to a user's row-derived Principal; `signal` ends the subscriptions it opens. */
 type InternalCallerFor = (userId: UserId | null, signal?: AbortSignal) => Promise<ReturnType<typeof createCaller>>;
+
+// The tRPC caller is a recursive callable proxy, so each path segment stays both readable and callable; every procedure
+// is async, so delaying the call keeps its contract. Methods run against their own owner, never the wrapper.
+function stallCaller<T extends object>(target: T, stallMs: number, owner?: object): T {
+  return new Proxy(target, {
+    get(object, key) {
+      const value: unknown = Reflect.get(object, key);
+      return value !== null && (typeof value === "object" || typeof value === "function") ? stallCaller(value, stallMs, object) : value;
+    },
+    async apply(procedure, _receiver, args: unknown[]) {
+      if (typeof procedure !== "function") {
+        throw new TypeError("a stalled caller path is not callable");
+      }
+      await delay(stallMs);
+      const result: unknown = await Reflect.apply(procedure, owner, args);
+      return result;
+    },
+  });
+}
 
 class ComposedServerRoot {
   readonly #app: ServicesResult;
@@ -756,8 +779,8 @@ export async function createServerHarness(
   // biome-ignore lint/nursery/useDisposables: httpLifetime owns this resource through closeHarnessGraph's share-first teardown; local disposal would close the returned harness.
   const http = createOwnedHttpRequests(httpApp, timers.timeout, bind.host);
   httpLifetime = http;
-  const internalCallerFor: InternalCallerFor = async (userId, signal) =>
-    createCaller(
+  const internalCallerFor: InternalCallerFor = async (userId, signal) => {
+    const caller = createCaller(
       app.trpcContext({
         auth: userId === null ? null : await principalFor(userId),
         sessionId: null,
@@ -766,6 +789,8 @@ export async function createServerHarness(
       }),
       signal === undefined ? undefined : { signal },
     );
+    return options.callerStallMs === undefined ? caller : stallCaller(caller, options.callerStallMs);
+  };
   const actor = actorFor({ app, idSource }, ownerId, principalFor);
   const workloadDriver = workloadsFor(app, workloadExecution, manualWorkloadAbort.signal, options.startJobs);
   const lifetime = construction.move();

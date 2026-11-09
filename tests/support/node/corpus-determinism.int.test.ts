@@ -1,24 +1,56 @@
 // @subject tests/support/node/corpus.ts
-// Two publishes from one tree must be byte-identical: every id comes from the injected source in a fixed order.
+// Publishes from one tree must be byte-identical: every id comes from the injected source in a fixed order, whatever
+// the provider latency or the pauses between a producer's calls. A producer that skips a settle splits a perturbed publish.
 import { mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
+import { setTimeout as delay } from "node:timers/promises";
 import { createCorpusCapsule, publishCorpusFixture } from "./corpus.ts";
 import { createCorpusRecipe } from "./corpus-recipe.ts";
 import { expect, test } from "./fixtures.ts";
 
-const PUBLISH_BUDGET_MS = 300_000;
+const PUBLISH_BUDGET_MS = 900_000;
+// The settle loop's own deadline is real time; delayed providers and stalled calls need more than its default.
+const PERTURBED_SETTLE_MS = 600_000;
+const EMBEDDING_LATENCY_MS = 40;
+const PROVIDER_LATENCY_MS = 15;
+const CALLER_STALL_MS = 25;
+const EMBEDDINGS_PATH = "/embeddings";
 const DATABASE_SUFFIX = ".db";
 const SQLITE_HEADER_BYTES = 100;
 const PAGE_SIZE_OFFSET = 16;
 const REPORTED_PAGES = 8;
 const REPORTED_ROW_CHARS = 400;
 
-async function publishOnce(parent: string, name: string): Promise<string> {
+// Latency slows detached work behind the producer; a stall lets detached work run ahead of the producer's next write.
+const VARIANTS = ["plain", "latency", "stall"] as const;
+type Variant = (typeof VARIANTS)[number];
+
+type CorpusOptions = Awaited<ReturnType<typeof createCorpusRecipe>>["options"];
+
+function perturbed(options: CorpusOptions, variant: Variant): CorpusOptions {
+  switch (variant) {
+    case "plain":
+      return options;
+    case "latency": {
+      const inner = options.server.providerFetch ?? fetch;
+      const providerFetch: typeof fetch = async (input, init) => {
+        const url = input instanceof Request ? input.url : String(input);
+        await delay(new URL(url).pathname.endsWith(EMBEDDINGS_PATH) ? EMBEDDING_LATENCY_MS : PROVIDER_LATENCY_MS);
+        return await inner(input, init);
+      };
+      return { ...options, server: { ...options.server, providerFetch, workloadExecutionSignal: AbortSignal.timeout(PERTURBED_SETTLE_MS) } };
+    }
+    case "stall":
+      return { ...options, server: { ...options.server, callerStallMs: CALLER_STALL_MS, workloadExecutionSignal: AbortSignal.timeout(PERTURBED_SETTLE_MS) } };
+  }
+}
+
+async function publishOnce(parent: string, name: string, variant: Variant): Promise<string> {
   await using ownership = new AsyncDisposableStack();
   const scratch = await mkdtemp(join(parent, `${name}-scratch-`));
-  const { options } = await createCorpusRecipe(scratch);
+  const options = perturbed((await createCorpusRecipe(scratch)).options, variant);
   const capsule = ownership.use(await createCorpusCapsule({ ...options, directory: join(scratch, "source") }));
   const published = join(parent, name);
   await publishCorpusFixture(capsule, published);
@@ -126,20 +158,36 @@ function databaseDifference(firstPath: string, secondPath: string, firstBytes: B
   }
 }
 
-test("two corpus publishes from one tree are byte-identical", { tags: ["slow"], timeout: PUBLISH_BUDGET_MS }, async () => {
+// Paths only one publication holds, then each shared file whose bytes differ, with its table and row difference.
+async function publicationDifference(firstRoot: string, secondRoot: string): Promise<string[]> {
+  const first = await filesUnder(firstRoot);
+  const second = await filesUnder(secondRoot);
+  const onlyFirst = [...first.keys()].filter((path) => !second.has(path)).map((path) => `only first: ${path}`);
+  const onlySecond = [...second.keys()].filter((path) => !first.has(path)).map((path) => `only second: ${path}`);
+  const differing = [...first].flatMap(([path, bytes]) => {
+    const other = second.get(path);
+    if (other === undefined || bytes.equals(other)) {
+      return [];
+    }
+    return [path.endsWith(DATABASE_SUFFIX) ? `${path}\n${databaseDifference(join(firstRoot, path), join(secondRoot, path), bytes, other)}` : path];
+  });
+  return [...onlyFirst, ...onlySecond, ...differing].toSorted();
+}
+
+test("corpus publishes from one tree are byte-identical, plain, under provider latency and with stalled calls", {
+  tags: ["slow"],
+  timeout: PUBLISH_BUDGET_MS,
+}, async () => {
   const parent = await mkdtemp(join(tmpdir(), "orb-corpus-determinism-"));
   await using ownership = new AsyncDisposableStack();
   ownership.defer(() => rm(parent, { recursive: true, force: true }));
-  const firstRoot = await publishOnce(parent, "first");
-  const secondRoot = await publishOnce(parent, "second");
-  const first = await filesUnder(firstRoot);
-  const second = await filesUnder(secondRoot);
-  expect([...second.keys()].sort()).toEqual([...first.keys()].sort());
-  const differing = [...first].filter(([path, bytes]) => !bytes.equals(second.get(path) ?? Buffer.alloc(0)));
-  const report = differing.map(([path, bytes]) =>
-    path.endsWith(DATABASE_SUFFIX)
-      ? `${path}\n${databaseDifference(join(firstRoot, path), join(secondRoot, path), bytes, second.get(path) ?? Buffer.alloc(0))}`
-      : path,
-  );
-  expect(report).toEqual([]);
+  const baseline = await publishOnce(parent, "baseline", "plain");
+  const report: Partial<Record<Variant, string[]>> = {};
+  for (const variant of VARIANTS) {
+    const difference = await publicationDifference(baseline, await publishOnce(parent, variant, variant));
+    if (difference.length > 0) {
+      report[variant] = difference;
+    }
+  }
+  expect(report).toEqual({});
 });

@@ -61,6 +61,8 @@ export async function seedCorpusKnowledgeImages(root: ServerTestHarness): Promis
       .gif()
       .toBuffer();
     const stored = await root.app.assets.store({ principal, bytes, kind: "avatar", mime: "image/gif", enforceMagic: true });
+    // The stored asset fires `asset.created` automation detached; it settles before the card draws its ids.
+    await root.settleBackground();
     const card = await caller.character.create({
       input: createCharacterSchema.parse({
         handle: `knowledge-image-${index}`,

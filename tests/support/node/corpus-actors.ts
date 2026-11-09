@@ -78,6 +78,7 @@ export async function seedRecallCorpus(root: ServerHarness, options: SeedRecallC
   if (first.aborted || first.messages.length === 0) {
     throw new Error("synthetic recall corpus produced no completed first turn");
   }
+  await root.settleBackground();
   const started = [
     await caller.workloads.start({ input: { kind: "index", params: { source: "text" } }, mode: "singular" }),
     await caller.workloads.start({ input: { kind: "memory-backfill", params: {} }, mode: "singular" }),
