@@ -10,7 +10,7 @@ import { HIDDEN_AT } from "@orb/ui/lib";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import { CONTEXT_SHEET_BACK_NAME, contextPaneLabel, PANEL_CLOSE_FALLBACK_NAME, panelCloseName } from "#client/lib/context-pane-names.ts";
+import { CONTEXT_SHEET_BACK_NAME, contextPaneLabel, PANEL_CLOSE_FALLBACK_NAME, panelCloseName, sectionBackName } from "#client/lib/context-pane-names.ts";
 import { contextToggleLabel } from "#client/lib/context-toggle-label.ts";
 import { TRAIL_OVERFLOW_LABEL } from "#client/lib/overflow-names.ts";
 import type { SurfaceFlow } from "./surface-flow.ts";
@@ -18,7 +18,8 @@ import type { SurfaceFlow } from "./surface-flow.ts";
 const MAX_DEPTH = 8;
 const MAX_DISCLOSURES = 100;
 const MAX_DIALOG_DEPTH = 2;
-const MAX_SCROLL_REGIONS = 32;
+// Config chat-behavior at enlarged text overflows one template textarea per prompt field, past 32 regions.
+const MAX_SCROLL_REGIONS = 48;
 const SCROLL_TOLERANCE = 2;
 const MAX_SCROLL_ADVANCES = 64;
 const MENU_LEAF_KIND = "menu-leaf";
@@ -230,6 +231,21 @@ export async function switchListScreen(walk: SurfaceWalk): Promise<void> {
   await control.click();
 }
 
+// A drill puts Back on the lead. A mode that lands on its content (D271) then shows the list door there, so the walk
+// presses the lead a second time.
+async function openListScreen(walk: SurfaceWalk, region: Locator): Promise<void> {
+  const back = walk.page.locator(".shell-topbar-lead").getByRole("button", { name: namePattern(sectionBackName(NAME_HOLE)) });
+  const drilled = (await back.count()) > 0;
+  await switchListScreen(walk);
+  await expect(back).toHaveCount(0);
+  if (drilled && (await region.getAttribute("data-panel-mode")) === "collapsed") {
+    await switchListScreen(walk);
+  }
+  // The list screen slides in; a geometry read before it settles reports its rows clipped off the left edge.
+  await expect(region).not.toHaveAttribute("data-panel-mode", "collapsed");
+  await expect.poll(async () => await region.evaluate((node) => node.getAnimations().length)).toBe(0);
+}
+
 /** Bring a side pane up through the shell's own door; false means this section declares no such pane. */
 export async function reveal(walk: SurfaceWalk, side: "list" | "context"): Promise<boolean> {
   const region = pane(walk, side);
@@ -243,7 +259,7 @@ export async function reveal(walk: SurfaceWalk, side: "list" | "context"): Promi
   }
   if ((await region.getAttribute("data-panel-mode")) === "collapsed") {
     if (side === "list") {
-      await switchListScreen(walk);
+      await openListScreen(walk, region);
     } else {
       await openContext(walk);
     }
@@ -337,10 +353,6 @@ async function walkSelects(walk: SurfaceWalk, scope: Locator, prefix: string): P
   }
   for (const [index, select] of selects.entries()) {
     const id = `${prefix}/select-${String(index)}`;
-    if (await isInert(select)) {
-      skip(walk, id, "hidden-here", "Inert in this layout; its row's overflow menu or the covering sheet stands in");
-      continue;
-    }
     if (await select.isDisabled()) {
       skip(walk, id, "disabled", "Actual select is disabled");
       continue;
@@ -497,10 +509,6 @@ async function walkMenus(walk: SurfaceWalk, scope: Locator, prefix: string): Pro
   let rowSampled = false;
   for (const [index, trigger] of triggers.entries()) {
     const id = `${prefix}/menu-${String(index)}`;
-    if (await isInert(trigger)) {
-      skip(walk, id, "hidden-here", `Inert in this layout; its row's overflow menu or the covering sheet stands in: ${await trigger.ariaSnapshot()}`);
-      continue;
-    }
     // Every row of a list repeats one menu; the first stands for its siblings.
     const inRow = await trigger.evaluate((node, selector) => node.closest(selector) !== null, ROW);
     if (inRow && rowSampled) {
@@ -570,10 +578,6 @@ async function walkDialogs(walk: SurfaceWalk, scope: Locator, prefix: string, de
   const body = walk.page.getByRole("dialog").or(walk.page.getByRole("alertdialog")).last();
   for (const [index, trigger] of triggers.entries()) {
     const id = `${prefix}/dialog-${String(index)}`;
-    if (await isInert(trigger)) {
-      skip(walk, id, "hidden-here", "Inert in this layout; its row's overflow menu or the covering sheet stands in");
-      continue;
-    }
     await walkDoor(walk, { id, trigger, body }, depth);
   }
 }
@@ -693,7 +697,7 @@ function readControls(nodes: readonly Element[], input: CensusInput, targetOf: (
     return {
       target: identity(node),
       unavailable: pointerArm(node) ?? transport(node),
-      // An inert control has moved into its row's overflow menu or sits under a sheet; it is not witnessed here.
+      // Inert content cannot be reached, whatever made it inert, so it is not witnessed here.
       visible: box.width > 0 && box.height > 0 && node.checkVisibility({ visibilityProperty: true }) && node.closest("[inert]") === null,
       label: `${node.getAttribute("role") ?? node.tagName.toLowerCase()} ${JSON.stringify(node.getAttribute("aria-label") ?? node.textContent.trim())}`,
     };
@@ -802,10 +806,10 @@ async function walkScrollWindows(walk: SurfaceWalk, scope: Locator, prefix: stri
     `${String(Math.min(regions.length, MAX_SCROLL_REGIONS))} native overflowing regions; beginning/interior/tail windows, not a claim of every virtualized row`,
   );
   if (regions.length > MAX_SCROLL_REGIONS) {
-    skip(
+    observe(
       walk,
       `${prefix}/scroll-regions-beyond-bound`,
-      "traversal-bound",
+      "unvisited",
       `${String(regions.length - MAX_SCROLL_REGIONS)} native overflowing regions beyond the traversal bound`,
     );
   }
