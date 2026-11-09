@@ -524,3 +524,57 @@ auditRuleTest(
     return report;
   },
 );
+
+// ── line-length: a run cut to one line has no line return ─────────────────────
+// The Characters facet row's filled preview: a gloss-voiced span inside the row button, cut to one line and
+// aria-hidden, echoing a long field body. The two controls keep the voice, the size and the box and change
+// only whether the run may wrap.
+const FACET_BODY = "She keeps the lighthouse at the end of the causeway and answers every knock with a question. ".repeat(6).trim();
+const FACET_ROW_STYLE = "display:block;width:620px;font-size:13px;line-height:1.5;color:#ffffff";
+
+auditRuleTest(
+  [
+    {
+      rule: "line-length",
+      kind: "silent",
+      reason: "a run its computed style holds to one cut line paints one line box, so no line return exists to lose",
+      disposition: { kind: "excluded", reason: "singleLineTruncation" },
+    },
+  ],
+  "a facet preview truncated to one line is excluded from line-length",
+  async ({ runCli, scratch }) => {
+    const body = `<button type="button" style="display:block;background:#000;border:0;padding:4px"><span aria-hidden="true" data-voice="gloss" style="${FACET_ROW_STYLE};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${FACET_BODY}</span></button>`;
+    const report = await auditFixture(scratch, runCli, "facet-preview-truncated", body);
+    expect(report.populationAccounting?.["line-length"]).toMatchObject({ judged: 0, excluded: { singleLineTruncation: 1 } });
+    return report;
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "line-length",
+      kind: "silent",
+      reason: "a one-line clamp leaves one painted line box even though the hidden lines are laid out",
+      disposition: { kind: "excluded", reason: "singleLineTruncation" },
+    },
+  ],
+  "a run clamped to one line is excluded from line-length",
+  async ({ runCli, scratch }) => {
+    const body = `<p data-voice="gloss" style="${FACET_ROW_STYLE};overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1">${FACET_BODY}</p>`;
+    const report = await auditFixture(scratch, runCli, "facet-preview-clamped", body);
+    expect(report.populationAccounting?.["line-length"]).toMatchObject({ judged: 0, excluded: { singleLineTruncation: 1 } });
+    return report;
+  },
+);
+
+auditRuleTest(
+  [{ rule: "line-length", kind: "fires", reason: "the same body allowed to wrap in the same box is prose past the measure" }],
+  "the same preview body wrapping in the same box still fails line-length",
+  async ({ runCli, scratch }) => {
+    const body = `<p data-voice="gloss" style="${FACET_ROW_STYLE};overflow:hidden">${FACET_BODY}</p>`;
+    const report = await auditFixture(scratch, runCli, "facet-preview-wrapping", body);
+    expect(report.findings.filter(({ rule }) => rule === "line-length")).toHaveLength(1);
+    expect(report.populationAccounting?.["line-length"]).toMatchObject({ judged: 1, affected: 1, excluded: {} });
+  },
+);

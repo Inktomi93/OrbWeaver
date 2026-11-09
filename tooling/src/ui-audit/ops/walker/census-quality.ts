@@ -2,7 +2,7 @@
 // text, clipped overflow, edge-flush scroller cards.
 // THE CLIP CENSUS HAS TWO ARMS, not the "positioned children" this line claimed until 2026-09-06 (#1807
 // docs pass): a POSITIONED arm and a deliberately narrower IN-FLOW arm that judges only children which
-// ARE or CONTAIN a control — in-flow TEXT spilling a clip is `text-overflow`'s finding, not this one's.
+// ARE a control — in-flow TEXT spilling a clip is `text-overflow`'s finding, not this one's.
 // The paint fence that decides which children either arm may see is hoisted above the split (#1783); the
 // reasoning lives beside `clippedOverflows` below.
 // One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the
@@ -38,8 +38,8 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
   // Every bound below is a REPRESENTATIVE bound the scan runs past (#1038): \`capPush\` (core.ts) keeps
   // scanning and tallies what it dropped, so a surface with more spills than the bound is a NO VERDICT
   // naming the family (lib/evidence.ts \`censusCapGap\`) rather than a clean read of its first N. These
-  // four families are rung-1 WALKER-PROVEN (lib/collect.ts's rung table): every returned sample IS a
-  // finding, so a silent bound did not merely shrink a denominator — it DELETED findings.
+  // four families are WALKER-PROVEN (lib/collect.ts's rung table): every returned sample IS a finding, so
+  // a dropped row is a judged finding nobody can read, and it is withheld as capExceeded.
   var overflows = [];
   var OVERFLOW_CAP = 100;
   // ── the TRUNCATION AFFORDANCE test (#825) ────────────────────────────────
@@ -104,14 +104,18 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
     // clientWidth 24 against a nowrap scrollWidth 70 on the shell skip link read as a 46px spill. Nothing
     // spills — nothing is painted. The revealed (not-sr-only) arm has no clip and is still judged.
     if (isVisuallyHidden(ovel)) continue;
-    if (isScrollRegion(ovStyle)) continue;
-    var scrollAnc = false;
-    for (var oap = ovel.parentElement; oap; oap = oap.parentElement) {
-      if (isScrollRegion(getComputedStyle(oap))) { scrollAnc = true; break; }
+    var scrollAnc = isScrollRegion(ovStyle);
+    for (var oap = ovel.parentElement; oap && !scrollAnc; oap = oap.parentElement) {
+      if (isScrollRegion(getComputedStyle(oap))) scrollAnc = true;
     }
-    if (scrollAnc) continue;
+    // Text inside a scroller is offered by scrolling, never spilled.
+    if (scrollAnc) {
+      walkerProvenTally("text-overflow", { kind: "excluded", reason: "scrollManaged" });
+      continue;
+    }
     var delta = ovel.scrollWidth - ovel.clientWidth;
     if (ovel.clientWidth > 0 && delta >= 16) {
+      walkerProvenTally("text-overflow", "judged");
       if (!truncationAffordance(ovel)) {
         capPush("overflows", overflows, OVERFLOW_CAP, { selector: describe(ovel), spillPx: Math.round(delta), mode: "block" });
       }
@@ -120,19 +124,29 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
     if (ovel.clientWidth === 0 && ovRect.width > 0) {
       var container = ovel.parentElement;
       while (container && container.clientWidth === 0) container = container.parentElement;
-      if (!container) continue;
+      if (!container) {
+        walkerProvenTally("text-overflow", "judged");
+        continue;
+      }
       var transformed = false;
       for (var tpp = ovel; tpp && tpp !== container.parentElement; tpp = tpp.parentElement) {
         var tv = getComputedStyle(tpp).transform;
         if (tv && tv !== "none") { transformed = true; break; }
       }
-      if (transformed) continue;
+      // A transform moves the run's rect away from its container's box, so the spill cannot be read.
+      if (transformed) {
+        walkerProvenTally("text-overflow", { kind: "withheld", reason: "transformedGeometry" });
+        continue;
+      }
+      walkerProvenTally("text-overflow", "judged");
       var cRect = container.getBoundingClientRect();
       var spill = ovRect.right - (cRect.left + container.clientLeft + container.clientWidth);
       if (spill >= 16 && !truncationAffordance(ovel)) {
         capPush("overflows", overflows, OVERFLOW_CAP, { selector: describe(ovel), spillPx: Math.round(spill), mode: "inline" });
       }
+      continue;
     }
+    walkerProvenTally("text-overflow", "judged");
   }
 
   // ── repeated literal text inside one decorated container (impeccable
@@ -165,7 +179,11 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
     var rcont = repeatContainers[rci];
     if (!isVisible(rcont)) continue;
     var rdesc = rcont.querySelectorAll("*");
-    if (rdesc.length > 250) continue;
+    // The scan bound leaves this container's text unread, so its groups have no verdict.
+    if (rdesc.length > 250) {
+      walkerProvenTally("repeated-container-text", { kind: "withheld", reason: "containerPastScanBound" });
+      continue;
+    }
     var groups = {};
     for (var rd = 0; rd < rdesc.length; rd += 1) {
       var del = rdesc[rd];
@@ -188,7 +206,9 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
       if (!groups[dtext]) groups[dtext] = [];
       groups[dtext].push(sig.join(">"));
     }
+    // The subject is one literal text inside one container: each group is judged against the repeat floor.
     for (var gt in groups) {
+      walkerProvenTally("repeated-container-text", "judged");
       var sigs = groups[gt];
       if (sigs.length < 3) continue;
       var distinct = new Set(sigs).size;
@@ -213,7 +233,7 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
   // exact surface #439 lived on.
   //
   // The IN-FLOW arm is deliberately narrower than the POSITIONED one: it judges only children that ARE
-  // or CONTAIN a control. In-flow TEXT spilling out of a clip is the text-overflow rule's finding, and
+  // a control. In-flow TEXT spilling out of a clip is the text-overflow rule's finding, and
   // widening this one to text would re-report every deliberate truncation.
   var clippedOverflows = [];
   var CLIPPED_OVERFLOW_CAP = 40;
@@ -264,7 +284,11 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
     if (isVisuallyHidden(coel)) continue;
     var coIdent = ((coel.getAttribute("data-slot") || "") + " " + (coel.getAttribute("id") || "")).toLowerCase();
     var coRoleDesc = (coel.getAttribute("aria-roledescription") || "").toLowerCase();
-    if (VIEWPORT_IDENT_RE.test(coIdent) || /\\b(carousel|slider)\\b/.test(coRoleDesc)) continue;
+    if (VIEWPORT_IDENT_RE.test(coIdent) || /\\b(carousel|slider)\\b/.test(coRoleDesc)) {
+      walkerProvenTally("clipped-overflow", { kind: "excluded", reason: "clippingViewport" });
+      continue;
+    }
+    walkerProvenTally("clipped-overflow", "judged");
     var coBox = clipBoxOf(coel);
     var coChildren = coel.querySelectorAll("*");
     var coTag = coel.tagName.toLowerCase();
@@ -316,9 +340,11 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
       if (isVisuallyHidden(cchild)) continue;
       // Computed visibility inherits, so this reads a hidden subtree too: a parked panel keeps its box and paints nothing.
       if (ccStyle.visibility === "hidden" || ccStyle.visibility === "collapse") continue;
-      // The IN-FLOW arm's extra fences: it must paint (an unpainted box cuts nothing), and it must be or
-      // carry a CONTROL — in-flow text spill is text-overflow's.
-      if (!ccPositioned && !(ccControl && isVisible(cchild))) continue;
+      // The IN-FLOW arm's extra fences: it must paint (an unpainted box cuts nothing), and it must BE a
+      // control — in-flow text spill is text-overflow's. A wrapper that only contains controls is not the
+      // subject: a full-bleed body wrapper escapes the clip while its controls sit inside it, and each
+      // contained control is a child of this same walk and is judged by its own rect.
+      if (!ccPositioned && !(cchild.matches(CHILD_SUBSTANTIVE_SEL) && isVisible(cchild))) continue;
       var ccRect = cchild.getBoundingClientRect();
       var ccSide = null;
       var ccSpill = CLIP_SPILL_TOLERANCE;
@@ -358,8 +384,14 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
     var scroller = allEls[ef];
     var efStyle = getComputedStyle(scroller);
     if (!(/(auto|scroll)/.test(efStyle.overflowX || "") || /(auto|scroll)/.test(efStyle.overflow || ""))) continue;
+    if (!isVisible(scroller)) continue;
+    // The rule reads the rest position; a scroller the page has already scrolled is not at rest.
+    if (scroller.scrollLeft > 4) {
+      walkerProvenTally("edge-flush-cards", { kind: "excluded", reason: "scrolledFromRest" });
+      continue;
+    }
+    walkerProvenTally("edge-flush-cards", "judged");
     if (scroller.scrollWidth <= scroller.clientWidth + 8) continue;
-    if (scroller.scrollLeft > 4) continue;
     var scRect = scroller.getBoundingClientRect();
     if (scRect.width < 120 || scRect.height < 60) continue;
     var contentLeft = scRect.left + scroller.clientLeft;

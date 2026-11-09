@@ -155,7 +155,7 @@ function lineMeasure(input: TextStyleInput): LineMeasure | null {
 }
 
 function checkLineLength(input: TextStyleInput): Finding | null {
-  if (!isProse(input) || input.totalTextLen <= LINE_LENGTH_TEXT_MIN || input.rectWidth <= 0 || input.fontSizePx <= 0) {
+  if (!isProse(input) || input.singleLineTruncated === true || input.totalTextLen <= LINE_LENGTH_TEXT_MIN || input.rectWidth <= 0 || input.fontSizePx <= 0) {
     return null;
   }
   const measure = lineMeasure(input);
@@ -322,6 +322,9 @@ const TEXT_STYLE_EXCLUSIONS: Readonly<Record<TextStyleRuleId, (input: TextStyleI
       // this rule cannot claim. Collapsing them printed `notProseTag=55` — a number that says nothing
       // about whether the census is right or the surface is unlabelled.
       return (input.ownVoice ?? "") === "" ? "notProseTag" : "chromeVoice";
+    }
+    if (input.singleLineTruncated === true) {
+      return "singleLineTruncation";
     }
     return input.rectWidth <= 0 ? "noRenderedBox" : noTypeSize(input);
   },

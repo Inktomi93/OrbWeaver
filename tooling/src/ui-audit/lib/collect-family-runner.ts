@@ -5,10 +5,11 @@
 // authored-identity grouping key. The families stay next door; this is the vocabulary they share, so a
 // change to how a family ACCUMULATES lands in one file instead of eight.
 
-import type { Finding } from "../contract/findings.ts";
+import type { Finding, RulePopulationAccounting } from "../contract/findings.ts";
+import { WITHHELD_REASONS } from "../contract/findings.ts";
 import type { RawSamples } from "../contract/samples.ts";
-import type { CensusCapFamily } from "../contract/samples-populations.ts";
-import { accountedFindings } from "./population-strategies.ts";
+import type { CensusCapFamily, WalkerProvenRule } from "../contract/samples-populations.ts";
+import { accountedFindings, nullableFindings } from "./population-strategies.ts";
 
 interface MutableFamilyCheckResult {
   readonly findings: Finding[];
@@ -46,6 +47,27 @@ export function totalJudge<T>(
  *  default is written, so no family checker re-spells it. */
 export function capExceeded(samples: RawSamples, family: CensusCapFamily): number {
   return samples.censusCaps[family]?.dropped ?? 0;
+}
+
+/** The walker-proven door. The walker returns only findings, so its own census row is the denominator; a
+ *  sample set without the row publishes none, because a row derived here would restate the finding count.
+ *  A walker cap dropped judged findings it could not carry out, so they move from judged to withheld. */
+export function walkerProvenFindings<T>(
+  rule: WalkerProvenRule,
+  items: readonly T[],
+  check: (item: T) => Finding | null,
+  walk: { readonly samples: RawSamples; readonly capFamily?: CensusCapFamily },
+): { readonly findings: readonly Finding[]; readonly accounting: Partial<Record<WalkerProvenRule, RulePopulationAccounting>> } {
+  const { samples, capFamily } = walk;
+  const census = samples.relationalAccounting?.[rule];
+  if (census === undefined) {
+    return { findings: nullableFindings(items, check), accounting: {} };
+  }
+  const dropped = capFamily === undefined ? 0 : capExceeded(samples, capFamily);
+  const carried =
+    dropped === 0 ? census : { ...census, judged: census.judged - dropped, withheld: { ...census.withheld, [WITHHELD_REASONS.censusCapExceeded]: dropped } };
+  const result = accountedFindings(rule, items, check, { census: carried, samplesAreJudged: false });
+  return { findings: result.findings, accounting: { [rule]: result.accounting } };
 }
 
 /** The rung-4 grouping key every authored-identity family in `collect-families.ts` uses: the authored target paired

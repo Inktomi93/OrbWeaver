@@ -55,6 +55,10 @@ export interface TextStyleInput {
    *  rather than against the 65-75 law-character band (#1145). Optional: absent reads as ordinary prose,
    *  i.e. the STRICTER arm — a missing fact never buys a wider ceiling. */
   readonly readingSurface?: boolean;
+  /** The run is set on one line and cut there: its computed style forbids a second line (no-wrap with this
+   *  element's own inline clip, or a one-line clamp) and it paints exactly one line box. A line with no
+   *  return has no measure to judge. Optional: absent in older sample sets, where it reads as wrapping. */
+  readonly singleLineTruncated?: boolean;
   /** p/li/td/th/dd/blockquote/figcaption — the prose tags line-length judges. */
   readonly isProseTag: boolean;
   readonly isHeading: boolean;

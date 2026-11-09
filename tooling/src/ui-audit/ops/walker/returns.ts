@@ -23,6 +23,7 @@ export const WALKER_RETURNS = `  var pendingWalkMutations = walkObserver.takeRec
   for (var ss = 0; ss < settledSubjects.length; ss += 1) {
     if (!finalSubjectSet.has(settledSubjects[ss])) detachedSubjects += 1;
   }
+  for (var wpRule in walkerProvenCensus) relationalAccounting[wpRule] = walkerProvenCensus[wpRule];
   var subjectAccounting = {
     observed: preWalkSettlement.count,
     settled: settledSubjects.length,

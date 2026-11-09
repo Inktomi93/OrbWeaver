@@ -22,8 +22,10 @@
 // declines to answer at this coordinate", and the sub-pixel boundary is the whole mechanism.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { RelationalPopulationReport } from "@orb/testkit/node";
 import { AUDIT_ARGV, configureRelationalCliBudget, expectPopulation, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
-import { expect, test } from "@orb/testkit/tooling";
+import type { ToolFixtures } from "@orb/testkit/tooling";
+import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
@@ -196,3 +198,66 @@ test("obscured census keeps a null compositor answer withheld after the centre i
   expect(report.obscuredUnaskable).toEqual([expect.objectContaining({ selector: expect.stringContaining("data-slot=null-hit"), reason: "hit-test-null" })]);
   expect(report.populationAccounting?.["obscured-target"]).toMatchObject({ candidates: 1, judged: 0, withheld: { unaskable: 1 } });
 });
+
+// ── THE INK-END PROBE: text whose end runs under a sibling control ─────────────
+// The Characters list band at 1280: the title and its census sit in one run, and the inline New character
+// button paints over the last digits while the title keeps its own centre. The three bands change only
+// the button's inline start and whether the title cuts its own run.
+const listBand = (
+  titleStyle: string,
+  buttonMargin: string,
+): string => `<div data-slot="list-band" style="display:flex;align-items:center;width:360px;height:32px;background:#000">
+  <span data-slot="band-title" style="flex:none;font-size:16px;white-space:nowrap;color:#fff;${titleStyle}">Characters 326</span>
+  <button data-slot="band-new" type="button" style="flex:none;margin-left:${buttonMargin};height:28px;padding:0 8px;background:#333;color:#fff;border:0">New character</button>
+</div>`;
+
+async function auditBand(scratch: string, runCli: ToolFixtures["runCli"], name: string, body: string): Promise<RelationalPopulationReport> {
+  await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
+  const result = await runCli("snap", ["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  return await readAuditReport(result.stdout);
+}
+
+auditRuleTest(
+  [{ rule: "obscured-target", kind: "fires", reason: "the census digits are painted under the inline button while the title keeps its centre" }],
+  "a title whose census runs under the inline button fails obscured-target",
+  async ({ runCli, scratch }) => {
+    const report = await auditBand(scratch, runCli, "band-census-under-button", listBand("", "-24px"));
+    expect(report.findings.filter(({ rule }) => rule === "obscured-target")).toEqual([
+      expect.objectContaining({ selector: expect.stringContaining("band-title"), value: expect.stringContaining("band-new") }),
+    ]);
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "obscured-target",
+      kind: "silent",
+      reason: "the same band with the button clear of the title has nothing under a control",
+      disposition: { kind: "judged" },
+    },
+  ],
+  "a title clear of the inline button is judged clean",
+  async ({ runCli, scratch }) => {
+    const report = await auditBand(scratch, runCli, "band-census-clear", listBand("", "8px"));
+    expect(report.populationAccounting?.["obscured-target"]).toMatchObject({ affected: 0, withheld: { unaskable: 0 } });
+    return report;
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "obscured-target",
+      kind: "silent",
+      reason: "a title cut by its own clip paints no glyph past the clip, so the button beside the clip covers nothing",
+      disposition: { kind: "judged" },
+    },
+  ],
+  "a title truncated before the inline button is judged clean",
+  async ({ runCli, scratch }) => {
+    const report = await auditBand(scratch, runCli, "band-census-cut", listBand("width:80px;overflow:hidden", "0px"));
+    expect(report.populationAccounting?.["obscured-target"]).toMatchObject({ affected: 0, withheld: { unaskable: 0 } });
+    return report;
+  },
+);

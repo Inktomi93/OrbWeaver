@@ -150,7 +150,13 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
   var outerEls = [];
   for (var c = 0; c < allEls.length; c += 1) {
     var cel = allEls[c];
-    if (!isVisible(cel) || !isCardLike(cel) || isExcludedCardContext(cel)) continue;
+    if (!isVisible(cel) || !isCardLike(cel)) continue;
+    if (isExcludedCardContext(cel)) {
+      walkerProvenTally("nested-card", { kind: "excluded", reason: "cardContext" });
+      continue;
+    }
+    // Every visible card is judged: a nested one is a finding unless a card nested inside it is reported instead.
+    walkerProvenTally("nested-card", "judged");
     cardEls.push(cel);
     if (hasEnclosingBox(cel)) outerEls.push(cel);
   }
@@ -179,6 +185,7 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
   var gradientTexts = [];
   for (var g = 0; g < textEls.length; g += 1) {
     var gel = textEls[g];
+    walkerProvenTally("gradient-text", "judged");
     var gs = getComputedStyle(gel);
     var clip = gs.webkitBackgroundClip || gs.backgroundClip;
     var gbg = gs.backgroundImage;
@@ -207,6 +214,7 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
   var animatedImgHovers = [];
   for (var h = 0; h < imgEls.length; h += 1) {
     var himg = imgEls[h];
+    walkerProvenTally("animated-img-hover", "judged");
     var hoverAnimated = false;
     for (var hanc = himg, hlevels = 0; hanc && hlevels <= IMG_HOVER_WRAPPER_DEPTH && !hoverAnimated; hanc = hanc.parentElement, hlevels += 1) {
       var hcls = typeof hanc.className === "string" ? hanc.className.split(/\\s+/) : [];
@@ -240,8 +248,11 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
             if (matched[mi].tagName === "IMG" || matched[mi].querySelector("img") !== null) matchesImg = true;
           }
         } catch (e3) {
-          continue; // unparseable selector text (an unescaped Tailwind variant colon, etc.)
+          // Unparseable selector text (an unescaped Tailwind variant colon, etc.): the rule cannot ask the DOM.
+          walkerProvenTally("animated-img-hover", { kind: "withheld", reason: "unparseableSelector" });
+          continue;
         }
+        walkerProvenTally("animated-img-hover", "judged");
         if (matchesImg) {
           animatedImgHovers.push({ selector: rule.selectorText, hasHoverAnimation: true });
         }

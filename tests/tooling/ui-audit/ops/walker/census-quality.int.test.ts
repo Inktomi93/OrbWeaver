@@ -83,7 +83,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "a `data-slot=scroll-area-viewport` container IS the app's authored clipping viewport (packages/ui/src/primitives/scroll-area), where clipping is the point — and the old class-only test could not see that slot at all",
-      disposition: { kind: "no-population" },
+      disposition: { kind: "excluded", reason: "clippingViewport" },
     },
   ],
   "the clip exemption follows the authored data-slot, not a word inside a Tailwind class string",
@@ -107,7 +107,7 @@ auditRuleTest(
       kind: "silent",
       reason:
         "a Base UI Slider's real <input type=range> is `visuallyHidden` at position:fixed sized 100%/100% — a viewport-sized rect that paints ZERO pixels, so its 'spill' past any clipping container is arithmetic about a box nobody can see. The rule's POSITIONED arm never called isVisuallyHidden (the in-flow arm always did), which minted a P2 for every Slider inside a clipping container app-wide (#1770 measured 'clips Temperature right by 383px' on Presets → Default)",
-      disposition: { kind: "no-population" },
+      disposition: { kind: "judged" },
     },
     {
       rule: "clipped-overflow",
@@ -137,7 +137,7 @@ auditRuleTest(
       rule: "clipped-overflow",
       kind: "silent",
       reason: "a panel parked past the clip with visibility:hidden keeps its box and paints nothing, so no one sees a cut",
-      disposition: { kind: "no-population" },
+      disposition: { kind: "judged" },
     },
     {
       rule: "clipped-overflow",
@@ -153,5 +153,41 @@ auditRuleTest(
 
     expect(findingSelectors(stdout, "clipped-overflow")).toEqual(["#clip-shown"]);
     return readAuditReport(stdout);
+  },
+);
+
+// ── A wrapper is not the control it holds ────────────────────────────────────────────────────
+// The New chat popup at 300% on a phone: its body wrapper bleeds past the popup's padding box on both sides
+// with negative margins, while the controls inside it sit within the clip. The two popups differ only in
+// where the wrapper's own padding puts its control.
+const bleedPopup = (id: string, wrapperPadding: string): string =>
+  `<div id="${id}" style="overflow:hidden;width:354px;padding:16px;background:#222"><div style="margin:0 -39px;padding:0 ${wrapperPadding}"><button id="${id}-action" style="display:block;width:120px;height:32px">Start</button></div></div>`;
+
+auditRuleTest(
+  [
+    {
+      rule: "clipped-overflow",
+      kind: "silent",
+      reason: "a full-bleed wrapper escapes the clip but cuts nothing: the control it holds sits inside the popup's padding box",
+      disposition: { kind: "judged" },
+    },
+  ],
+  "a full-bleed body wrapper whose control is inside the clip passes clipped-overflow",
+  async ({ runCli, scratch }) => {
+    const stdout = await auditStdout(scratch, runCli, "clip-full-bleed", bleedPopup("bleed-uncut", "58px"));
+    expect(findingSelectors(stdout, "clipped-overflow")).toEqual([]);
+    return readAuditReport(stdout);
+  },
+);
+
+auditRuleTest(
+  [{ rule: "clipped-overflow", kind: "fires", reason: "the same wrapper with no inner padding puts its control past the clip, and the control itself is cut" }],
+  "a wrapper that cuts the control it holds still fails, naming the control",
+  async ({ runCli, scratch }) => {
+    const stdout = await auditStdout(scratch, runCli, "clip-full-bleed-cut", bleedPopup("bleed-cut", "0px"));
+    const report = await readAuditReport(stdout);
+    expect(report.findings.filter(({ rule }) => rule === "clipped-overflow")).toEqual([
+      expect.objectContaining({ selector: "#bleed-cut", value: expect.stringContaining("#bleed-cut-action") }),
+    ]);
   },
 );
