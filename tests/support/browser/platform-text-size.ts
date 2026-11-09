@@ -2,6 +2,9 @@
 // settings. The page's `rem`, and the rem inside a media query, follow it; the app's own font-scale setting multiplies it.
 import type { Page } from "@playwright/test";
 
+/** The text sizes a platform case runs at: the engine default, and the two enlarged steps a reader with low vision sets. */
+export const PLATFORM_TEXT_SCALES = [1, 2, 3] as const;
+
 export interface PlatformTextSize {
   readonly scale: number;
   /** The engine's default font size before the profile, read on the page's current document. */

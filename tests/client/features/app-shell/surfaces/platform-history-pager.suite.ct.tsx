@@ -7,7 +7,7 @@ import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { seedShellState, settledBox, settledReadingRow } from "@orb/testkit/browser/spec";
+import { expectPinnedFailure, PLATFORM_TEXT_SCALES, seedShellState, setPlatformTextSize, settledBox, settledReadingRow } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusHarness, createCorpusProviderExecution } from "@orb/testkit/node/composed";
@@ -150,6 +150,17 @@ async function focusFromMidway(list: Locator): Promise<void> {
   await expect(earlierIn(list)).toBeInViewport({ ratio: 1 });
 }
 
+/** How far below the port's top the leading action's bottom edge sits; negative while it is scrolled out of view above. */
+function plateEdgeIn(list: Locator): Promise<number> {
+  return list.evaluate((node) => {
+    const plate = node.querySelector('[data-slot="message-list-leading-action"]');
+    if (plate === null) {
+      throw new Error("the transcript has no leading action");
+    }
+    return Math.round(plate.getBoundingClientRect().bottom - node.getBoundingClientRect().top);
+  });
+}
+
 /** The rows the list knows of, from any mounted row. */
 function loadedRows(list: Locator): Promise<string | null> {
   return list.locator('[data-slot="message-list-row"]').first().getAttribute("aria-setsize");
@@ -261,36 +272,47 @@ for (const cell of [
   test.describe(`a history page at ${String(cell.viewport.width)}x${String(cell.viewport.height)}`, () => {
     test.use({ viewport: cell.viewport, hasTouch: cell.coarse, isMobile: cell.coarse });
 
-    for (const landing of [50, 56, 120, 300]) {
-      test(`that fails after one jump to ${String(landing)}px holds the reader's row, and so does the retry that lands`, async ({ corpus, mount, page }) => {
-        await using root = await pagedRoot();
-        const caller = await root.internalCallerFor(root.ownerId);
-        const { chatId } = await preparePagedRoom(caller, "document");
-        let failing = true;
-        await serveRoom(page, corpus, caller, ({ cursor }) => (failing && cursor !== undefined ? trpcError({ code: "BAD_REQUEST" }) : undefined));
-        await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
-        const list = page.locator('[data-slot="message-list-scroll"]');
-        await expect(earlierIn(list)).toBeAttached();
-        await list.evaluate((node, top) => {
-          node.scrollTop = top;
-        }, landing);
-        // The row itself, not the topmost: a landed page can put a new row in the gap above it.
-        const reading = list.locator(`[data-slot="message-row"][data-message-id="${(await settledReadingRow(list)).id ?? ""}"]`);
-        const { y } = await settledBox(reading);
-        await earlierIn(list).dispatchEvent("click");
-        await expect(list.getByRole("alert")).toBeInViewport({ ratio: 1 });
-        // The pinned failure covers the top of the port, so the reader's point in the row moves down by exactly the plate.
-        const plate = await settledBox(list.locator('[data-slot="message-list-leading-action"]'));
-        await expect.poll(async () => (await settledBox(reading)).y).toBe(y + Math.round(plate.height));
-        const held = await settledBox(reading);
-        expect(held.y + held.height).toBeGreaterThan(plate.y + plate.height);
-        failing = false;
-        const rows = await loadedRows(list);
-        await earlierIn(list).dispatchEvent("click");
-        await expect.poll(() => loadedRows(list)).not.toBe(rows);
-        await expect(list.getByRole("alert")).toHaveCount(0);
-        await expect.poll(async () => (await settledBox(reading)).y).toBe(y);
-      });
+    for (const textScale of PLATFORM_TEXT_SCALES) {
+      for (const landing of [50, 56, 120, 300]) {
+        test(`that fails after one jump to ${String(landing)}px at ${String(textScale)}x text holds the reader's row, and so does the retry that lands`, async ({
+          corpus,
+          mount,
+          page,
+          browserName,
+        }) => {
+          test.skip(textScale !== 1 && browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+          if (textScale !== 1) {
+            await setPlatformTextSize(page, textScale);
+          }
+          await using root = await pagedRoot();
+          const caller = await root.internalCallerFor(root.ownerId);
+          const { chatId } = await preparePagedRoom(caller, "document");
+          let failing = true;
+          await serveRoom(page, corpus, caller, ({ cursor }) => (failing && cursor !== undefined ? trpcError({ code: "BAD_REQUEST" }) : undefined));
+          await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+          const list = page.locator('[data-slot="message-list-scroll"]');
+          await expect(earlierIn(list)).toBeAttached();
+          await list.evaluate((node, top) => {
+            node.scrollTop = top;
+          }, landing);
+          // The row itself, not the topmost: a landed page can put a new row in the gap above it.
+          const reading = list.locator(`[data-slot="message-row"][data-message-id="${(await settledReadingRow(list)).id ?? ""}"]`);
+          const { y } = await settledBox(reading);
+          const edge = await plateEdgeIn(list);
+          await earlierIn(list).dispatchEvent("click");
+          await expectPinnedFailure(list);
+          // A plate in view keeps the row below its edge as it grows; one that pins from out of view lays over the rows (`reading-row.ts`).
+          await expect.poll(async () => (await settledBox(reading)).y - (edge > 0 ? (await plateEdgeIn(list)) - edge : 0)).toBe(y);
+          const held = (await settledBox(reading)).y;
+          failing = false;
+          const rows = await loadedRows(list);
+          await earlierIn(list).dispatchEvent("click");
+          await expect.poll(() => loadedRows(list)).not.toBe(rows);
+          await expect(list.getByRole("alert")).toHaveCount(0);
+          // The plate lifts off as the page lands, and moves nothing.
+          await expect.poll(async () => (await settledBox(reading)).y).toBe(held);
+        });
+      }
     }
 
     for (const outcome of PRESS_OUTCOMES) {

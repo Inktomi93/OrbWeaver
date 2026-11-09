@@ -436,8 +436,11 @@ export function MessageList<T>({
   // The leading chrome's measure calls this; it reads the current items and virtualizer, so it is rebound every commit.
   const keyAt = (index: number): RowKey => getItemKey(itemAt(index), index);
   const liveRowsRef = useRef<LiveRows>({ count: items.length, keyAt });
+  // The reader's edge: the bottom of the leading action wherever it is on screen, pinned or riding in flow (`reading-row.ts`).
+  const plateEdgeOf = (el: HTMLElement): number =>
+    leadingActionNode === null ? 0 : Math.max(0, Math.round(leadingActionNode.getBoundingClientRect().bottom - el.getBoundingClientRect().top));
   const readReadingRow = (el: HTMLElement): void => {
-    const row = readingRowOf(el, liveRowsRef.current, pinPxRef.current);
+    const row = readingRowOf(el, liveRowsRef.current, plateEdgeOf(el));
     readingRowRef.current = row;
     // `pin-prompt` never follows, so only the position says that reader is at the end.
     if ((tailFollowActive && stickToBottomRef.current) || reachedEnd(el)) {
@@ -454,8 +457,9 @@ export function MessageList<T>({
       const el = scrollRef.current;
       const row = readingRowRef.current;
       // A reader at the top of the list, or in its chrome as it stood before this change, stays there: chrome that grows
-      // pushes the rows down and stays on screen.
-      if (el === null || row === null || stickToBottomRef.current || el.scrollTop <= leadingPxRef.current) {
+      // pushes the rows down and stays on screen. A plate in view is the exception: it can pin as it grows, and the row
+      // read below it keeps its place below its edge (`reading-row.ts`).
+      if (el === null || row === null || stickToBottomRef.current || (el.scrollTop <= leadingPxRef.current && row.edgePx === 0)) {
         return;
       }
       cancelHoldRef.current();
@@ -464,7 +468,7 @@ export function MessageList<T>({
         scroller: el,
         row,
         rows: liveRowsRef,
-        coveredPx: pinPxRef,
+        plateEdgePx: (): number => plateEdgeOf(el),
         reveal: (index): void => virtualizer.scrollToIndex(index, { align: "start", behavior: "auto" }),
         // The reader's hand, a move from outside, or a jump that made the list follow its tail again ends the hold.
         yieldTo: (): boolean => userOwnsAxis() || stickToBottomRef.current || movedByOutsider(el),
