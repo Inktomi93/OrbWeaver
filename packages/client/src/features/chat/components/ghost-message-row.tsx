@@ -395,7 +395,7 @@ export function GhostMessageRow({
       {/* The root, body and column are the settled row's own (`message-row-layout.tsx`) — the ghost is the one row
           that MUST be laid out identically to what it becomes (#1728 arm B), phone-width gutter step included. The
           live turn is always the assistant side, which never mirrors. */}
-      <MessageRowBody skin={skin}>
+      <MessageRowBody skin={skin} gutterChip={leadingAvatar !== null}>
         {leadingAvatar}
         {/* The skin's own column width rides the ghost too — a live turn that reflows at commit is a
             visible jump (the reading-measure suite pins the two columns equal). */}

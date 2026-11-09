@@ -47,14 +47,16 @@ export function MessageRowRoot({
 
 /** The row body (#1728 arm B): a flex line for an `anchored` skin, the three `gutterCentred` rails for a centred one.
  *  Tracks on the same element rather than a swapped one, because swapping the element at a width step would remount
- *  the row and drop mid-edit state. */
-export function MessageRowBody({ skin, ...props }: RowBoxProps & { readonly skin: RowSkin }): ReactElement {
+ *  the row and drop mid-edit state. `gutterChip` is whether a chip stands in the gutter beside the column: only then
+ *  does the phone gap hold the chip's touch reach. A row with no gutter chip (document, a hush chip in its header,
+ *  avatars off) leaves its empty rail no gap, which would take reading width for nothing. */
+export function MessageRowBody({ skin, gutterChip, ...props }: RowBoxProps & { readonly skin: RowSkin; readonly gutterChip: boolean }): ReactElement {
   return (
     <Row
       {...props}
       align="start"
       gap="row"
-      gapNarrow="avatarReach"
+      gapNarrow={gutterChip ? "avatarReach" : "none"}
       cap="fit"
       width="full"
       data-slot="message-row-body"

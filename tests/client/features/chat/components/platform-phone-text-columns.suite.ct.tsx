@@ -39,9 +39,8 @@ const AVATAR_CHIP: Part = { px: 32, why: "the identity chip is the 24px small ro
 // The phone transcript inset is the one ruled exception to Moonlit (docs/law/UI-Theming-and-Content.md, "Chat-style reading intent"): rows sit at
 // 14px (the room's 4px plus the 10px avatar reach), not Moonlit's 8px, so every style's row is 12px narrower than Moonlit's.
 const ROW_INSET: Part = { px: -12, why: "the rows sit 14px in from the pane edge each side where Moonlit sits 8px (the ruled phone transcript inset)" };
-// The same reach also sets the gap between a chip (or a centred style's empty identity rail) and its column: 10px where it was 6px.
+// The same reach also sets the gap between a chip and its column: 10px where it was 6px. A style with no chip in the gutter (document, hush) has no such gap.
 const CHIP_GAP: Part = { px: -4, why: "the chip-to-bubble gap is the 10px avatar reach where it was 6px" };
-const RAIL_GAP: Part = { px: -4, why: "the empty identity rail ahead of the column keeps the 10px avatar reach gap where it kept 6px" };
 
 const MOONLIT_PORTRAIT: Record<ThemeChatStyle, Reference> = {
   flat: {
@@ -65,7 +64,18 @@ const MOONLIT_PORTRAIT: Record<ThemeChatStyle, Reference> = {
       { px: -12.8, why: "the ruled inset and the 10px chip gap take 16px off the column the cap divides, so the card loses four fifths of it" },
     ],
   },
-  document: { moonlit: 360, measure: "prose", difference: -16, parts: [ROW_INSET, RAIL_GAP] },
+  document: {
+    moonlit: 360,
+    measure: "prose",
+    difference: -6,
+    parts: [
+      {
+        px: 6,
+        why: "Moonlit's text is 360px of its 374px row, where the page's text is 354px of the 362px row at the ruled inset (8px in from the row, not 14px)",
+      },
+      ROW_INSET,
+    ],
+  },
   echo: {
     moonlit: 260.5,
     measure: "prose",
@@ -85,12 +95,11 @@ const MOONLIT_PORTRAIT: Record<ThemeChatStyle, Reference> = {
   hush: {
     moonlit: 336,
     measure: "prose",
-    difference: -8,
+    difference: 2,
     parts: [
       { px: 14.4, why: "the card pads 12px each side where Moonlit pads 19.2px" },
-      { px: -6.4, why: "at Moonlit's 8px inset the transcript column is 368px where Moonlit's card is 374.4px" },
+      { px: -0.4, why: "at Moonlit's 8px inset the transcript column is 374px, with no chip gap beside it, where Moonlit's card is 374.4px" },
       ROW_INSET,
-      RAIL_GAP,
     ],
   },
   ripple: {

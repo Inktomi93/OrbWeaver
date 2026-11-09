@@ -392,7 +392,7 @@ export function MessageRow({
             the same in-flow two-track gutter: arm B applies where a margin exists, and where the track IS
             the viewport it cannot, which is a fact of the ruling's input rather than a deviation from it.
             The avatar stays a SIBLING of the column in both arms — §B.1 intact, placement only. */}
-        <MessageRowBody skin={skin}>
+        <MessageRowBody skin={skin} gutterChip={slots.leading !== null || slots.trailing !== null}>
           {slots.leading}
           {/* #245 — THE ROW HOLDS ITS OWN BOX OPEN WHILE IT IS EDITED. The column is content-sized (the
               row body shrink-wraps inside the track), and its max-content is usually the NAME ROW — whose

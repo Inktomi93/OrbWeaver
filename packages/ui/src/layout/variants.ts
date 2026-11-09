@@ -1,6 +1,7 @@
 // Layout recipes define spacing intent; features consume the variants. Line-local exceptions license custom tracks.
 import {
   ARRIVAL,
+  AVATAR_HEADER_GAP,
   AVATAR_REACH_GAP,
   AVATAR_REACH_PADDING,
   CAP,
@@ -135,13 +136,15 @@ const PADDING_INLINE_END_NARROW = {
   block: "@max-cq-28:pe-block",
 } as const;
 // The gap a box gives up below the same step, as `paddingInlineNarrow` gives up its inset. It only steps down to none, a small atom or a
-// related-control gap, so the larger steps are no member, except `avatarReach`: a transcript chip needs a touch reach clear of its bubble.
+// related-control gap, so the larger steps are no member, except `avatarReach`: a transcript chip needs a touch reach clear of its bubble,
+// and `avatarHeader`: a chip seated in a message header needs it clear of the header's glyph controls too.
 const GAP_NARROW = {
   none: "@max-cq-28:gap-0",
   tight: "@max-cq-28:gap-tight",
   field: "@max-cq-28:gap-field",
   row: "@max-cq-28:gap-row",
   avatarReach: AVATAR_REACH_GAP,
+  avatarHeader: AVATAR_HEADER_GAP,
 } as const;
 // A nested level: what hangs under a parent row or beside a leading rule, one `block` step in, because a nested group is a block of its
 // parent (UI-Density-Law.md §2.2). One step at every level, so a feature never picks an indent.
