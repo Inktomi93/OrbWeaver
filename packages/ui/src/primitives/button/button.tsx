@@ -38,8 +38,9 @@ type ButtonBox =
  */
 export type ButtonProps = (NamedButtonProps | TextButtonProps) & ButtonPaint & ButtonBox & ButtonStretch;
 
-export function Button({ variant = "solid", size = "md", square, wrap, stacked, ...rest }: ButtonProps): ReactElement {
+export function Button({ variant = "solid", size = "md", square, wrap: stated, stacked, ...rest }: ButtonProps): ReactElement {
   const hostWraps = use(ButtonWrapContext);
-  const wraps = wrap ?? (hostWraps && square !== true && stacked !== true ? true : undefined);
-  return <ButtonCore {...rest} variant={variant} scale={{ size, square, wrap: wraps, stacked }} />;
+  // The scale keeps the `wrap` key whole, so the class-owner census maps it onto the button.wrap axis.
+  const wrap = stated ?? (hostWraps && square !== true && stacked !== true ? true : undefined);
+  return <ButtonCore {...rest} variant={variant} scale={{ size, square, wrap, stacked }} />;
 }
