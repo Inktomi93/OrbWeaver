@@ -99,7 +99,9 @@ export function CharacterCategorizedList<T extends { readonly id: string }>({
           <CollapsiblePanel>
             <Stack aria-label={group.tag === null ? "Uncategorized" : group.tag.name} gap="row" role="list">
               {group.items.map((item) => (
-                <Row key={item.id}>{renderRow(item)}</Row>
+                <Row key={item.id} role="listitem">
+                  {renderRow(item)}
+                </Row>
               ))}
             </Stack>
             {/* A bucket the census names whose members are all still beyond the loaded window is a REAL

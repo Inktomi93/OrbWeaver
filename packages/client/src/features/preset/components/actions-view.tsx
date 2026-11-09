@@ -56,6 +56,7 @@ import {
   isCustomized,
   TEMPLATE_KIND_LABEL,
   templateGroups,
+  templateKindQualifier,
   templateRowById,
   templateStoredText,
 } from "../lib/template-rows.ts";
@@ -166,7 +167,7 @@ export function ActionsView({ form, presetId, onSelectSection }: ActionsViewProp
         {/* HUMAN group labels (side-eye F-30 / ARIA rec 10): the kicker rendered the registry's raw enum
             member (`steer`, `voice`, `studio`), which is a code identifier standing in for a heading. */}
         {groups.map((group) => (
-          <Section key={group.kind} kicker={TEMPLATE_KIND_LABEL[group.kind]}>
+          <Section aria-label={TEMPLATE_KIND_LABEL[group.kind]} key={group.kind} kicker={TEMPLATE_KIND_LABEL[group.kind]}>
             {/* The chevron ends its row and the editor's scroller clips past it: the end inset leaves its focus ring the room to paint. */}
             <Stack paddingInlineEnd="field" gap="tight">
               {group.rows.map((row) => (
@@ -299,6 +300,7 @@ function TemplateListRow({
   readonly restoreFocus: boolean;
 }): ReactElement {
   const { def, factoryDefault } = row;
+  const kindQualifier = templateKindQualifier(def);
   const chevronRef = useRef<HTMLButtonElement>(null);
   useFocusOnSwap(chevronRef, restoreFocus);
   return (
@@ -323,7 +325,7 @@ function TemplateListRow({
                   </Badge>
                 ) : null}
                 <Button
-                  aria-label={`Edit ${def.label}`}
+                  aria-label={kindQualifier === undefined ? `Edit ${def.label}` : `Edit ${def.label} · ${kindQualifier}`}
                   variant="ghost"
                   onClick={(): void => onDrill(def.id)}
                   onFocus={restoreFocus ? onRestoreFocus : undefined}
@@ -358,6 +360,7 @@ function TemplateListRow({
             // clamp to two lines, raised leading. Titles fit — the name column is untouched.
             subtitleWrap={true}
             title={def.label}
+            {...(kindQualifier === undefined ? {} : { titleQualifier: kindQualifier })}
           />
         );
       }}

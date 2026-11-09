@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from "react";
 import { preload } from "react-dom";
 import { ListPaneHeaderHost } from "#components";
 import { useWarmSavedRosters } from "#data";
-import { CONTEXT_SHEET_BACK_NAME, contextPaneLabel, listPaneLabel, panelCloseName, resolveThemeScopeTokens, sectionBackName } from "#lib";
+import { CONTEXT_SHEET_BACK_NAME, contextPaneLabel, listPaneLabel, POPUP_LAYER_NAME, panelCloseName, resolveThemeScopeTokens, sectionBackName } from "#lib";
 import type { PanelMode, PanelName, SectionId } from "#state";
 import {
   clearShellContentFocus,
@@ -186,7 +186,7 @@ export function AppShell(): ReactElement {
   // dark, then swaps. The derivation itself lives in the hook, its one home.
   const { theme, dataTheme } = useSelectedTheme();
   // Overlays portal to a themed root inside <ThemeScope> instead of <body>, so every float inherits the active theme's tokens.
-  const portalRootRef = useRef<HTMLDivElement>(null);
+  const portalRootRef = useRef<HTMLElement>(null);
   useAppearanceRootEffects(appearance, dataTheme);
   // A seed theme paints from its generated [data-theme] block (keyed by `dataTheme` above), NOT its stored
   // override — see resolve-theme-scope-tokens for the shadowing bug this prevents.
@@ -469,8 +469,9 @@ export function AppShell(): ReactElement {
 
               <ModalHost openModal={layout.openModalId} container={portalRootRef} onClose={closeModal} />
             </div>
-            {/* Themed portal root for every overlay — sibling of .shell-grid but inside <ThemeScope>. */}
-            <div ref={portalRootRef} className="shell-portal-root" data-slot="portal-root" />
+            {/* Themed portal root for every overlay — sibling of .shell-grid but inside <ThemeScope>. A region landmark, because
+              a menu or select popup portaled here is page content outside the grid's landmarks. */}
+            <section ref={portalRootRef} className="shell-portal-root" data-slot="portal-root" aria-label={POPUP_LAYER_NAME} />
           </PortalContainerContext>
         </ThemeScope>
       </ThemeFallbackReporters>

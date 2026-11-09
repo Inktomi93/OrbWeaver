@@ -32,6 +32,11 @@ export const WORLD_INFO_BOOK_DESCRIPTION_NAME = "Description";
 /** The book editor's create-entry verb, which is also the new entry's starting title. */
 export const WORLD_INFO_NEW_ENTRY_NAME = "New entry";
 
+/** The empty book's own door to its first entry; the book's header verb keeps the bare name. */
+export function worldInfoNewEntryInName(bookName: string): string {
+  return `${WORLD_INFO_NEW_ENTRY_NAME} in ${bookName}`;
+}
+
 /** The book editor's empty state. */
 export const WORLD_INFO_NO_ENTRIES_TITLE = "No entries yet";
 

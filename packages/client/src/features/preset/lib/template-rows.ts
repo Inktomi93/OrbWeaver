@@ -68,6 +68,15 @@ export const TEMPLATE_KIND_LABEL: Record<TemplateKind, string> = {
   extract: "State tracking",
 };
 
+const SHARED_TEMPLATE_LABELS: ReadonlySet<string> = new Set(
+  [...Map.groupBy(TEMPLATE_DEFS, ({ label }) => label)].filter(([, defs]) => defs.length > 1).map(([label]) => label),
+);
+
+/** The group a template's name must carry, only where another template shares its label: its row and Edit door read alike page-wide otherwise. */
+export function templateKindQualifier(def: TemplateDef): string | undefined {
+  return SHARED_TEMPLATE_LABELS.has(def.label) ? TEMPLATE_KIND_LABEL[def.kind] : undefined;
+}
+
 // The BAND label over one sub-cluster (the Actions-tab IA §2.1) — keyed by the contracts union, so a new
 //  cluster id fails `tsc` HERE until labeled: the `TEMPLATE_KIND_LABEL` registration shape, one level down.
 //  Kicker-voiced copy a person reads (the bands are the map; the rows inside no longer re-say these nouns —

@@ -1,3 +1,4 @@
+import { accessibilityScan } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures, trpcHold } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusReadResponder } from "@orb/testkit/iso";
@@ -54,8 +55,10 @@ test("@plugin: offers the installed plugin slugs as completions", async ({ page 
   await expect(page.getByRole("option", { name: new RegExp(`@plugin:${PLUGIN_SLUG}`, "u") })).toBeVisible();
 });
 
-test("a search with no match is announced through a status live region", async ({ page }) => {
+test("a search with no match is announced through a status live region beside the suggestions listbox", async ({ page }) => {
   await page.getByRole("combobox", { name: CONFIG_SEARCH_NAME }).fill("qqzzxxnomatch");
   const status = page.getByRole("status").filter({ hasText: "qqzzxxnomatch" });
   await expect(status).toHaveCount(1);
+  const { violations } = await accessibilityScan(page);
+  expect(violations.filter(({ id }) => id === "aria-required-children")).toEqual([]);
 });

@@ -31,7 +31,7 @@ import { clearCollectionSelection, clearWorldEntrySelection, selectWorldEntry, u
 import { BookDetailsDialog } from "../components/book-details-dialog.tsx";
 import { EntryEditor } from "../components/entry-editor.tsx";
 import { useApplyEntryOrder, useBackfillWorldTitles, useCreateWorldEntry, useUpdateWorldBook } from "../hooks/use-world-info-mutations.ts";
-import { WORLD_INFO_EDIT_DETAILS_NAME, WORLD_INFO_NEW_ENTRY_NAME, WORLD_INFO_NO_ENTRIES_TITLE } from "../lib/world-info-names.ts";
+import { WORLD_INFO_EDIT_DETAILS_NAME, WORLD_INFO_NEW_ENTRY_NAME, WORLD_INFO_NO_ENTRIES_TITLE, worldInfoNewEntryInName } from "../lib/world-info-names.ts";
 
 const NEW_ENTRY_CONTENT = "New lore.";
 
@@ -164,7 +164,7 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
       {entries.length === 0 ? (
         <EmptyState
           action={
-            <Button disabled={create.isPending} variant="outline" onClick={onCreate} size="sm">
+            <Button aria-label={worldInfoNewEntryInName(book.name)} disabled={create.isPending} variant="outline" onClick={onCreate} size="sm">
               {WORLD_INFO_NEW_ENTRY_NAME}
             </Button>
           }

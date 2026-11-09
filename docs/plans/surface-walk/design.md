@@ -311,7 +311,8 @@ Linked specifications, the complete vendor websites, every rule implementation, 
 | Axe rule profile | Keep default enabled document/frame rules and explicitly enable `target-size`, which the installed vendor disables by default. |
 | Axe house target floor | Retain the separate production-token coarse-pointer hit collector; WCAG target size and the house target floor differ. |
 | Axe selection | No excludes, disabled rules, severity filtering, or reduced result groups. |
-| Axe output | Preserve violations, incomplete, passes, inapplicable, full nodes, checks, targets, environment, and options. |
+| Axe output | Preserve violations, incomplete, passes, inapplicable, full nodes, checks, targets, environment, and options. The `-axe` attachment is the vendor result unchanged. |
+| Axe judgement | A node the scan does not count against the page (a Base UI focus guard, a control an open menu or select popup covers) stays a violation in `-axe`. The `-axe-reclassified` attachment lists each such node with its rule and reason, and the checkpoint gate reads the result without them. |
 | Accessibility conflicts | Keep vendor violations visible when they conflict with a production naming policy. Native semantic assertions alone do not establish that policy's accessibility. |
 | Axe frames | Keep vendor partial-run aggregation, preload, selectors, and default frame timeouts. Preserve frame failures. |
 | Axe experiments | Keep disabled experimental rules separate from the primary standards profile. Enable a named experiment only for a concrete question. |

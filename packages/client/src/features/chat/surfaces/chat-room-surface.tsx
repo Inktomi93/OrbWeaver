@@ -175,7 +175,7 @@ export function ChatRoomSurface({ handle, busDeps, surfaceContributors, toolRend
           tabIndex={-1}
         >
           {/* The painted identity is a rename action and yields to separate narrow chrome; the room owns a stable heading. */}
-          <Heading level={1} id={headingId} className="sr-only">
+          <Heading level={2} id={headingId} className="sr-only">
             {roomLabel}
           </Heading>
           {/* The character strip is presence-at-a-glance for the room's roster — size-gated inside. */}

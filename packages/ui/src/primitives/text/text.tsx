@@ -108,6 +108,8 @@ export function Text({
     <Component
       data-slot="text"
       data-voice={voice}
+      // A box that scrolls is a tab stop, or a keyboard cannot reach what it clips; the caller names it (`role="region"` + `aria-label`).
+      tabIndex={scroll === undefined ? undefined : 0}
       {...rest}
       {...variantProps(
         textVariants,

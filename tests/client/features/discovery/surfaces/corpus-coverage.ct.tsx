@@ -44,7 +44,5 @@ test("the grouped-character headline states visual-family coverage rather than t
     },
   });
   const component = await mount<typeof CorpusCoverageStory>("tests/client/features/discovery/surfaces/_coverage-stories/CorpusCoverageStory", {});
-  const headline = component.getByRole("heading", { level: 1 });
-  await expect(headline).toContainText("grouped into");
-  await expect(headline).toContainText(/(?:1|One) character, grouped into/iu);
+  await expect(component.getByRole("heading", { level: 2, name: /(?:1|One) character, grouped into/iu })).toHaveCount(1);
 });

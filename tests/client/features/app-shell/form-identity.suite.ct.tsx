@@ -63,12 +63,13 @@ test("the loaded preset detail identifies and labels every form field", async ({
   const caller = await root.internalCallerFor(root.ownerId);
   const preset = await caller.preset.get({ id: presetId });
   await mount<typeof PresetDetailShellStory>(`${STORIES}/PresetDetailShellStory`, { presetId });
-  await expect(page.getByRole("heading", { name: preset.name, exact: true })).toBeVisible();
+  const editorHeading = page.getByRole("heading", { level: 2, name: preset.name, exact: true });
+  await expect(editorHeading).toBeVisible();
   const report = await auditSurface({
     name: "loaded preset detail",
     scope: page.locator("body"),
     state: "loaded",
-    witnesses: [page.getByRole("heading", { name: preset.name, exact: true }), page.getByRole("button", { name: PRESET_RENAME_NAME, exact: true })],
+    witnesses: [editorHeading, page.getByRole("button", { name: PRESET_RENAME_NAME, exact: true })],
     checks: ["forms"],
   });
   expect(formatFormIdentityFindings(report.forms)).toBe("");

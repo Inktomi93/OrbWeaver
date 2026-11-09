@@ -26,7 +26,7 @@ import { ContextTabBody, DestructiveAction, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { RefineryContextState } from "#lib";
-import { DIALOG_VERBS, testId } from "#lib";
+import { DIALOG_VERBS, groupOrdinalQualifiers, testId } from "#lib";
 import type { RefineryWorkbenchDoor } from "#state";
 import { useRestoreCharacterSnapshot, useSnapshotCharacterNow } from "../hooks/use-refinery-snapshots.ts";
 import { REFINERY_VERSION_DIFF_HEADING, REFINERY_VERSION_LOADING_TEXT, refineryCompareToggleName } from "../lib/refinery-names.ts";
@@ -82,14 +82,21 @@ export interface RunsTabProps {
   readonly onGoToScore: () => void;
 }
 
+/** A run's own words: its stage and round. The ledger does not make them unique, so a twin carries a `qualifier`. */
+function runWordsOf(run: RunView): string {
+  return `${STAGE_WORD[run.stage]} round ${run.iteration}`;
+}
+
 function RunRow({
   run,
+  qualifier,
   viewed,
   armed,
   onView,
   onArmRewrite,
 }: {
   run: RunView;
+  qualifier: string | undefined;
   viewed: boolean;
   armed: boolean;
   onView: (run: RunView) => void;
@@ -97,6 +104,7 @@ function RunRow({
 }): ReactElement {
   const verdict = verdictOf(run);
   const modelTitle = economicsModelTitle(run);
+  const runLabel = qualifier === undefined ? runWordsOf(run) : `${runWordsOf(run)} ${qualifier}`;
   return (
     <Card elevated={viewed}>
       <Stack gap="tight" padding="row">
@@ -118,11 +126,16 @@ function RunRow({
           </Text>
         ) : null}
         <Row wrap={true} gap="field">
-          <Button variant="ghost" onClick={(): void => onView(run)} size="sm">
+          <Button aria-label={`View ${runLabel}`} variant="ghost" onClick={(): void => onView(run)} size="sm">
             View
           </Button>
           {run.stage === "rewrite" ? (
-            <Button variant="ghost" onClick={(): void => onArmRewrite(armed ? null : run.id)} size="sm">
+            <Button
+              aria-label={`${armed ? "Use latest instead" : "Use for apply"}: ${runLabel}`}
+              variant="ghost"
+              onClick={(): void => onArmRewrite(armed ? null : run.id)}
+              size="sm"
+            >
               {armed ? "Use latest instead" : "Use for apply"}
             </Button>
           ) : null}
@@ -147,12 +160,22 @@ export function RunsTab({ runs, viewedRunId, onView, armedRewriteId, onArmRewrit
       />
     );
   }
+  // Two runs of one stage can share a round (a second rewrite before iterating); the ledger's own order, oldest first, tells them apart.
+  const qualifiers = groupOrdinalQualifiers(runs.map(runWordsOf));
   // Newest first — the ledger reads backward from "now" (the mock's ordering).
-  const newestFirst = [...runs].reverse();
+  const newestFirst = runs.map((run, index) => ({ run, qualifier: qualifiers[index] })).reverse();
   return (
     <ContextTabBody data-testid={testId("refineryRunsTab")} kind="rows">
-      {newestFirst.map((run) => (
-        <RunRow armed={run.id === armedRewriteId} key={run.id} onArmRewrite={onArmRewrite} onView={onView} run={run} viewed={run.id === viewedRunId} />
+      {newestFirst.map(({ run, qualifier }) => (
+        <RunRow
+          armed={run.id === armedRewriteId}
+          key={run.id}
+          onArmRewrite={onArmRewrite}
+          onView={onView}
+          qualifier={qualifier}
+          run={run}
+          viewed={run.id === viewedRunId}
+        />
       ))}
     </ContextTabBody>
   );

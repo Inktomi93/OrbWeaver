@@ -7,7 +7,7 @@
 import { Button } from "@orb/ui/button";
 import type { LucideIcon } from "@orb/ui/icons";
 import { ChevronLeft, Icon, PanelLeftClose, PanelLeftOpen } from "@orb/ui/icons";
-import { Text } from "@orb/ui/text";
+import { Heading, Text } from "@orb/ui/text";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "@orb/ui/tooltip";
 import type { ReactElement, ReactNode, Ref } from "react";
 import type { ScreenTitle } from "#lib";
@@ -164,6 +164,11 @@ function wideIdentity({ title, header, listMode }: ShellTopbarProps): ReactNode 
 export function ShellTopbar({ ref, ...props }: ShellTopbarProps): ReactElement {
   return (
     <header className="shell-topbar" ref={ref}>
+      {/* THE SCREEN'S ONE h1. The painted identity below is two width arms and a section's own header cluster, only one of
+          which is exposed and none of which is a heading, so the page-level heading is stated once here at every width. */}
+      <Heading className="sr-only" level={1}>
+        {(props.screenTitle ?? { name: props.title }).name}
+      </Heading>
       <div className="shell-topbar-lead">
         {leadControl(props)}
         <div className="shell-topbar-identity" data-identity="wide">

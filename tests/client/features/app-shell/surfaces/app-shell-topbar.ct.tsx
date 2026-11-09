@@ -413,11 +413,11 @@ function clientWidth(locator: Locator): Promise<number> {
 
 async function expectPrimaryRoomHeading(page: Page, title: string): Promise<void> {
   const main = page.getByRole("main", { name: "Chats content", exact: true });
-  await expect(main.getByRole("heading", { level: 1 })).toHaveCount(1);
-  await expect(main.getByRole("heading", { level: 1, name: title, exact: true })).toBeVisible();
+  await expect(main.getByRole("heading", { level: 1 })).toHaveCount(0);
+  await expect(main.getByRole("heading", { level: 2, name: title, exact: true })).toBeVisible();
   const surface = main.locator('[data-slot="chat-room-surface"]');
   await expect(surface).toHaveAccessibleName(title);
-  await expect(surface.getByRole("heading", { level: 1, name: title, exact: true })).toHaveCount(1);
+  await expect(surface.getByRole("heading", { level: 2, name: title, exact: true })).toHaveCount(1);
 }
 
 /** The docked list over a settled room, and the title of a second room to switch to. */

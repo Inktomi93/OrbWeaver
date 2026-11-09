@@ -78,6 +78,8 @@ export interface LogViewerProps extends VariantProps<typeof logViewerBoxVariants
   readonly lines: readonly LogLine[];
   /** Cap the rendered window to the most recent N lines — a display cap; the caller owns the full log. */
   readonly maxLines?: number;
+  /** What the copy control copies: its name is `Copy <what>`, so two logs on one surface name their own. @defaultValue "log" */
+  readonly what?: string;
   readonly className?: string;
 }
 
@@ -87,7 +89,7 @@ export interface LogViewerProps extends VariantProps<typeof logViewerBoxVariants
  * glyph+intent-token pair per line (never color alone). Virtualizes above `VIRTUALIZE_THRESHOLD`
  * lines via `message-list`, which then requires a bounded height on `className` (e.g. `h-(--height-scroll-md)`).
  */
-export function LogViewer({ lines, maxLines, maxHeight, className }: LogViewerProps): ReactElement {
+export function LogViewer({ lines, maxLines, maxHeight, what = "log", className }: LogViewerProps): ReactElement {
   const scrollRef = useRef<HTMLDivElement | null>(null);
   // Updated only from a real scroll event, never from the autoscroll effect — reflects "was the
   // reader at the bottom before this append". Starts true: an empty/short log begins pinned.
@@ -162,7 +164,7 @@ export function LogViewer({ lines, maxLines, maxHeight, className }: LogViewerPr
       className={cn(slots.root(), logViewerBoxVariants({ maxHeight, className }))}
       data-slot="log-viewer-root"
       text={visible.map(textOf).join("\n")}
-      what="log"
+      what={what}
     >
       <div className={slots.toolbar()} data-slot="log-viewer-toolbar">
         {/* Status first: the toolbar is end-aligned, so its text grows leftward and the button never moves. */}

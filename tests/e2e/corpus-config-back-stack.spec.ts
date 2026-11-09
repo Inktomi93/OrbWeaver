@@ -45,13 +45,13 @@ test.describe("committed corpus settings back stack", () => {
     await page.getByRole("textbox", { name: "Filter world info", exact: true }).fill(book.name);
     await page.getByRole("button", { name: book.name, exact: true }).click();
     await expect(page.locator(BOOK_EDITOR)).toBeVisible();
-    await expect(page.getByRole("heading", { name: book.name })).toHaveCount(1);
+    await expect(page.getByRole("main").getByRole("heading", { name: book.name })).toHaveCount(1);
     await expect(page.locator(MEMBER_VERBS).getByRole("button", { name: WORLD_INFO_NEW_ENTRY_NAME })).toBeVisible();
 
     // Rung 3: a book drills again into an entry. The row's drag handle also carries the name, so go by text.
     await page.getByText(entry.title, { exact: true }).click();
     await expect(page.getByRole("button", { name: `Delete ${entry.title}` })).toBeVisible();
-    await expect(page.getByRole("heading", { name: entry.title })).toHaveCount(1);
+    await expect(page.getByRole("main").getByRole("heading", { name: entry.title })).toHaveCount(1);
 
     // Back pops the entry only; the book is still open behind it.
     await page.getByRole("button", { name: SHELL_BACK }).click();

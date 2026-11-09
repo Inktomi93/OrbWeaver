@@ -65,6 +65,7 @@ export {
   LIST_PANEL_NOUN,
   listPaneLabel,
   PANEL_CLOSE_FALLBACK_NAME,
+  POPUP_LAYER_NAME,
   panelCloseName,
   panelEdgeName,
   screenListDoorName,
@@ -251,7 +252,10 @@ export { ESTIMATED_ROW_PX } from "./row-estimates.ts";
 export { deleteConfirmTitle, ROW_DELETE_NAME, ROW_DUPLICATE_NAME, ROW_EXPORT_NAME, ROW_RENAME_NAME } from "./row-menu-names.ts";
 export {
   chatWithActionName,
+  collidingNameQualifiers,
   duplicateActionName,
+  groupOrdinalQualifiers,
+  positionQualifier,
   renameActionName,
   rowActionSubject,
   rowActionsName,

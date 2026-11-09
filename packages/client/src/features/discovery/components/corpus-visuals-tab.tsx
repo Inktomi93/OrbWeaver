@@ -101,15 +101,16 @@ function PortraitFit({ report }: { readonly report: PortraitReport }): ReactElem
           <Text voice="kicker">Worst-matched art</Text>
           <Stack gap="row" role="list">
             {report.characters.slice(0, WORST_LIMIT).map((character) => (
-              <ListRow
-                key={character.characterId}
-                clickable={true}
-                onClick={(): void => selectCorpusCharacter(character.characterId)}
-                leading={<CharacterAvatar id={character.characterId} name={character.name} hash={character.avatarHash} />}
-                title={character.name}
-                subtitle={[character.artStyle, character.rating].filter((v) => v !== null && v !== "").join(" · ")}
-                actions={<Badge size="sm">{matchWord(character.alignment)}</Badge>}
-              />
+              <Stack key={character.characterId} role="listitem">
+                <ListRow
+                  clickable={true}
+                  onClick={(): void => selectCorpusCharacter(character.characterId)}
+                  leading={<CharacterAvatar id={character.characterId} name={character.name} hash={character.avatarHash} />}
+                  title={character.name}
+                  subtitle={[character.artStyle, character.rating].filter((v) => v !== null && v !== "").join(" · ")}
+                  actions={<Badge size="sm">{matchWord(character.alignment)}</Badge>}
+                />
+              </Stack>
             ))}
           </Stack>
         </Stack>
@@ -201,14 +202,15 @@ function FacetMembers({ facet, value }: { readonly facet: FacetKey; readonly val
   return (
     <Stack gap="row" role="list">
       {members.map((member) => (
-        <ListRow
-          key={member.characterId}
-          clickable={true}
-          onClick={(): void => selectCorpusCharacter(member.characterId)}
-          leading={<CharacterAvatar id={member.characterId} name={member.name} hash={member.avatarHash} />}
-          title={member.name}
-          subtitle={member.caption ?? ""}
-        />
+        <Stack key={member.characterId} role="listitem">
+          <ListRow
+            clickable={true}
+            onClick={(): void => selectCorpusCharacter(member.characterId)}
+            leading={<CharacterAvatar id={member.characterId} name={member.name} hash={member.avatarHash} />}
+            title={member.name}
+            subtitle={member.caption ?? ""}
+          />
+        </Stack>
       ))}
     </Stack>
   );

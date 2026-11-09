@@ -368,7 +368,7 @@ function LandingFrame({
             Container-queried, so it answers to the PANE (a three-pane desktop is as narrow as a phone). */}
       <Row align="start" gap="section" justify="between" stackBelow="cq-28">
         <Stack className="min-inline-0" grow={true} gap="tight">
-          <Heading level={1} voice="promoted">
+          <Heading level={2} voice="promoted">
             {title}
           </Heading>
           {/* The measure rides the PARAGRAPH, not its box: a `ch` resolves against the element's OWN

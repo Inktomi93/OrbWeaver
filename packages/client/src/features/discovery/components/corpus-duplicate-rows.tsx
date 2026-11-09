@@ -8,6 +8,7 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
+import { groupOrdinalQualifiers } from "#lib";
 import { selectCorpusArtifact, selectCorpusCharacter } from "#state";
 import type { ArtCliqueMember } from "../lib/corpus-duplicate-groups.ts";
 import { groupIdenticalArt } from "../lib/corpus-duplicate-groups.ts";
@@ -89,6 +90,10 @@ export function CorpusDuplicateArt({ pairs }: { readonly pairs: readonly ImageDu
 
 export function CorpusDuplicateChats({ pairs }: { readonly pairs: readonly DuplicateChatPair[] }): ReactElement {
   const shown = pairs.slice(0, FINDING_CAP);
+  // Pairs of rooms that share titles read alike in every word; the pair's place among the pairs that read the same tells them apart.
+  const pairQualifiers = groupOrdinalQualifiers(
+    shown.map((pair) => `${pair.titleA ?? "Untitled"} ↔ ${pair.titleB ?? "Untitled"} ${pair.relation} ${percent(pair.similarity)}`),
+  );
   return (
     <Section heading="Duplicate chats">
       {pairs.length === 0 ? (
@@ -102,9 +107,10 @@ export function CorpusDuplicateChats({ pairs }: { readonly pairs: readonly Dupli
               where a screen-reader user meets it. */}
           <Muted>Open a pair to read its relation and visit either room.</Muted>
           <CapNote noun="pairs" shown={shown.length} total={pairs.length} />
-          {shown.map((pair) => (
+          {shown.map((pair, index) => (
             <ChatPairRow
               badge={pair.relation}
+              position={pairQualifiers[index]}
               chatId={pair.chatIdA}
               otherChatId={pair.chatIdB}
               key={pair.id}
@@ -181,9 +187,12 @@ function ChatPairRow({
   right,
   score,
   badge,
+  position,
 }: {
   readonly chatId: ChatId;
   readonly otherChatId: ChatId;
+  /** Set where another pair reads the same: its place in the list, the last word of the name. */
+  readonly position: string | undefined;
   readonly left: string;
   readonly right: string;
   readonly score: number;
@@ -196,7 +205,7 @@ function ChatPairRow({
       // screen reader that announces the button's content instead. An explicit `aria-label` replaces the
       // content-derived name and keeps everything that name carried — both titles and the score — plus the
       // one fact the row could not otherwise state. The badge ("forked") is visible text, so it is in the name too.
-      aria-label={`${left} ↔ ${right}, ${badge === undefined ? "" : `${badge}, `}${percent(score)} similar: compare rooms`}
+      aria-label={`${left} ↔ ${right}, ${badge === undefined ? "" : `${badge}, `}${percent(score)} similar: compare rooms${position === undefined ? "" : ` · ${position}`}`}
       justify="between"
       variant="ghost"
       width="full"

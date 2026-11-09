@@ -2,7 +2,7 @@
 
 export { touchGesture } from "@orb/tooling/floor/browser/touch-gesture";
 export type { SurfacePaneRequest } from "../node/surface-audit.ts";
-export { accessibilityScan } from "./accessibility-scan.ts";
+export { accessibilityEvidence, accessibilityScan } from "./accessibility-scan.ts";
 export { formatFindings, unnamedLandmarkElementFindings } from "./accessible-names.ts";
 export { actionGroupGeometry } from "./action-group-geometry.ts";
 export type { LayoutBox } from "./box-of.ts";

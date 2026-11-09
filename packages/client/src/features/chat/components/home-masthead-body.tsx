@@ -78,7 +78,7 @@ function mastheadLine(args: { readonly totalCount: number; readonly viewerLastTu
 export function HomeMastheadSkeleton(): ReactElement {
   return (
     <Stack aria-busy={true} className="relative" gap="tight">
-      <Heading aria-hidden={true} className="invisible" level={1} voice="masthead">
+      <Heading aria-hidden={true} className="invisible" level={2} voice="masthead">
         {mastheadTitle(0, false)}
       </Heading>
       <Skeleton placed="fill" />
@@ -93,7 +93,7 @@ export function HomeMastheadBody(): ReactElement {
   const line = mastheadLine({ totalCount: page.totalCount, viewerLastTurnAt: page.viewerLastTurnAt });
   return (
     <Stack gap="tight">
-      <Heading level={1} voice="masthead">
+      <Heading level={2} voice="masthead">
         {mastheadTitle(page.totalCount, firstRun)}
       </Heading>
       {/* IT NAMES THE INSTANT, NOT THE ROOM (rail sweep P2-6, 2026-08-17). This line read "You left off 2w

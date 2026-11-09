@@ -7,6 +7,9 @@ export const PANEL_CLOSE_FALLBACK_NAME = "Close panel";
 /** The phone topbar's back control while it closes the Context sheet. */
 export const CONTEXT_SHEET_BACK_NAME = "Close details";
 
+/** The landmark every floating menu, select and popover mounts inside, so none of them sits outside every landmark. */
+export const POPUP_LAYER_NAME = "Popups";
+
 /** The Context pane's own name for `section`. */
 export function contextPaneLabel(section: string): string {
   return `${section} details`;

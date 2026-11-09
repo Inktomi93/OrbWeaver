@@ -82,14 +82,14 @@ for (const regime of REGIMES) {
       await using root = await createServerHarness({ startJobs: false });
       const { session } = await seedSession(root, page);
       await mount<typeof RefineryRemainingActionsStory>(STORY, { sessionId: session.id, plane: "runs", width: regime.width, appearance: regime.appearance });
-      const view = page.getByRole("button", { name: "View", exact: true });
-      const useForApply = page.getByRole("button", { name: "Use for apply", exact: true });
+      const view = page.getByRole("button", { name: /^View /u });
+      const useForApply = page.getByRole("button", { name: /^Use for apply: /u });
       await expectContained(view.locator(".."), [view, useForApply]);
       await view.focus();
       await page.keyboard.press("Tab");
       await expect(useForApply).toBeFocused();
       await page.keyboard.press("Enter");
-      const latest = page.getByRole("button", { name: "Use latest instead", exact: true });
+      const latest = page.getByRole("button", { name: /^Use latest instead: /u });
       await expect(latest).toBeFocused();
       await expectContained(view.locator(".."), [view, latest]);
       await page.keyboard.press("Enter");
@@ -144,3 +144,24 @@ for (const regime of REGIMES) {
     });
   });
 }
+
+test("two runs of one stage in one round carry distinct names, oldest first", async ({ mount, page }) => {
+  await using root = await createServerHarness({ startJobs: false });
+  const { session, caller } = await seedSession(root, page);
+  await caller.refinery.submitManualRewrite({ sessionId: session.id, fields: [{ field: "description", text: "A second rewrite in the same round." }] });
+  await mount<typeof RefineryRemainingActionsStory>(STORY, {
+    sessionId: session.id,
+    plane: "runs",
+    width: 960,
+    appearance: appearanceSettingsSchema.parse({}),
+  });
+  const names = (pattern: RegExp): Promise<(string | null)[]> =>
+    page.getByRole("button", { name: pattern }).evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label")));
+  await expect(page.getByRole("button", { name: /^View /u })).toHaveCount(2);
+  const views = await names(/^View /u);
+  const applies = await names(/^Use for apply: /u);
+  expect(new Set(views).size).toBe(2);
+  expect(new Set(applies).size).toBe(2);
+  // The ledger lists newest first; the qualifier counts from the oldest, so a later run never renames an earlier one.
+  expect(views).toEqual([expect.stringMatching(/ #2$/u), expect.stringMatching(/ #1$/u)]);
+});
