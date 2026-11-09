@@ -246,8 +246,16 @@ export function NestedSeedStory({ background }: { readonly background: string })
   );
 }
 
+// The override axes a scope carries but paints no colour with: `font` and `radius` are exactly the emitted
+// vars `THEME_SCOPE_NON_PALETTE_VARS` names, and `density` is a `data-*` attribute, never a colour.
+const NON_PALETTE_TOKEN_FIELDS = ["font", "radius", "density"] as const satisfies readonly (keyof ThemeScopeTokens)[];
+
+// The rest of the override shape is palette: every one of these has its own colour var in
+// `THEME_OVERRIDE_COLOR_VARS`. Adding a field to the schema lands it here, so the helper below must cover it.
+type PaletteTokenField = Exclude<keyof ThemeScopeTokens, (typeof NON_PALETTE_TOKEN_FIELDS)[number]>;
+
 /** Every field a carried scope can paint, so the scope emits its whole palette surface over `background`. */
-function fullPaletteTokens(background: string): ThemeScopeTokens {
+function fullPaletteTokens(background: string): Required<Pick<ThemeScopeTokens, PaletteTokenField>> {
   return {
     background,
     accent: "oklch(0.62 0.2 300)",
