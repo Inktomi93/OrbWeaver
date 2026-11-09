@@ -42,7 +42,7 @@ import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import type { Trpc } from "#data";
 import { useInvalidation, useTRPC } from "#data";
-import { ROOM_PICTURES_NOTE, useElapsedSeconds, viewerTimeZone } from "#lib";
+import { IMAGE_MODE_LABELS, ROOM_PICTURES_NOTE, useElapsedSeconds, viewerTimeZone } from "#lib";
 import type { ImagineSeed } from "#state";
 import { closeModal, useImagineSeed } from "#state";
 import { useExtractPrompt, useGeneratePicture } from "../hooks/use-imagery-mutations.ts";
@@ -54,13 +54,6 @@ import { ImagineOptions } from "./imagine-options.tsx";
 // never a re-spelled member list). The multimodal caption modes are a Phase-7 avatar concern, not /imagine.
 const IMAGINE_MODES = ["free", ...EXTRACTION_MODES] as const;
 type ImagineMode = (typeof IMAGINE_MODES)[number];
-const MODE_LABELS: Record<ImagineMode, string> = {
-  free: "Free prompt",
-  character: "Character",
-  face: "Face",
-  scenario: "Scene",
-  background: "Background",
-};
 
 const PROMPT_ROWS = 3;
 const PROMPT_MAX_ROWS = 8;
@@ -171,7 +164,7 @@ function ImagineForm({ seed }: { readonly seed: ImagineSeed }): ReactElement {
         >
           {IMAGINE_MODES.map((id) => (
             <Toggle variant="outline" key={id} size="sm" value={id}>
-              {MODE_LABELS[id]}
+              {IMAGE_MODE_LABELS[id]}
             </Toggle>
           ))}
         </ToggleGroup>

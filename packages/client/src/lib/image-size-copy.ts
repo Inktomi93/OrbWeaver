@@ -1,7 +1,18 @@
-// The words for an image's size, in one home: the /imagine modal and the rule editor name the same three shapes and
-// the same "no size sent" choice, and spelled them two ways.
+// The words for an image's size and mode, in one home: the /imagine modal, the rule editor and the provenance strip name
+// the same shapes and modes, and spelled them apart.
 
-import type { SizePresetName } from "@orb/contracts/imagery";
+import type { PromptTemplateMode, SizePresetName } from "@orb/contracts/imagery";
+
+/** The word for each image mode; total, so a new mode fails `tsc` here. */
+export const IMAGE_MODE_LABELS: Readonly<Record<PromptTemplateMode, string>> = {
+  free: "Free prompt",
+  character: "Character",
+  face: "Face",
+  scenario: "Scene",
+  background: "Background",
+  ["character_multimodal"]: "Character from avatar",
+  ["face_multimodal"]: "Face from avatar",
+};
 
 export const IMAGE_SIZE_LABELS: Record<SizePresetName, string> = {
   square: "Square",

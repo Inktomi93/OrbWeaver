@@ -99,7 +99,7 @@ export { classesIn, classesWhen, guardsIn, opaqueIn } from "./ui-classes/class-e
 export type { ClassConstants, TokenFact } from "./ui-classes/classes.ts";
 export { ALPHA_UTILITY, attributeClasses, baseOf, classifyToken, classStringsOf, referencedClassConstants } from "./ui-classes/classes.ts";
 export type { FileFacts } from "./ui-classes/file-facts.ts";
-export { buttonWithText, factsOf, firstLine, hasAny, insideTag } from "./ui-classes/file-facts.ts";
+export { buttonWithText, dialogVerbOf, factsOf, firstLine, hasAny, insideTag } from "./ui-classes/file-facts.ts";
 export type { Wearer } from "./ui-classes/hand-arms.ts";
 export { attributeValue, coveredJudgement, elementRefOf, kebab, ownerRow, wearerOf, writingAxis } from "./ui-classes/hand-arms.ts";
 export type { Category, ElementRef, Hit, Judgement, KeepCode, Place, Verdict } from "./ui-classes/hand-model.ts";

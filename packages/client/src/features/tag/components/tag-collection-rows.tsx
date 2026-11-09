@@ -4,7 +4,8 @@ import type { TagId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
 import { ColorSwatch } from "@orb/ui/color-field";
-import { Icon, Trash } from "@orb/ui/icons";
+import { EmptyState } from "@orb/ui/empty-state";
+import { Icon, Search, Tag, Trash } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
 import { SortableList } from "@orb/ui/sortable";
@@ -19,6 +20,8 @@ import {
   COLLECTION_LARGE_GROUP,
   deleteConfirmTitle,
   ESTIMATED_ROW_PX,
+  LABELS_NONE,
+  NO_MATCHES_TITLE,
   pruneConfirmLabel,
   sortTagsBy,
   tagUsageLabel,
@@ -63,21 +66,27 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
   return (
     <Stack minHeight="shrinks" grow={true} gap="tight">
       {filterMiss ? (
-        <Stack align="start" gap="field">
-          <Text role="status" voice="gloss">
-            No tags match that filter.
-          </Text>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={(): void => {
-              setLabelFilter("");
-              focusFinderSearch();
-            }}
-          >
-            Clear filter
-          </Button>
-        </Stack>
+        <EmptyState
+          action={
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={(): void => {
+                setLabelFilter("");
+                focusFinderSearch();
+              }}
+            >
+              Clear filter
+            </Button>
+          }
+          description="No tags match that filter."
+          icon={<Icon icon={Search} size="lg" />}
+          title={NO_MATCHES_TITLE}
+        />
+      ) : null}
+      {empty && !filterMiss ? (
+        // No action: the finder's band carries the one New tag, and one verb on one screen is the ruled count.
+        <EmptyState action={null} icon={<Icon icon={Tag} size="lg" />} title={LABELS_NONE} />
       ) : null}
       {empty || !windowed ? null : (
         <VirtualList

@@ -1,4 +1,3 @@
-import type { PromptTemplateMode } from "@orb/contracts/imagery";
 import { MAX_IMAGE_COUNT, MIN_IMAGE_COUNT, MULTIMODAL_MODES, PROMPT_TEMPLATE_MODES, reusePolicySchema, SIZE_PRESET_NAMES } from "@orb/contracts/imagery";
 import type { ChatId } from "@orb/kit/ids";
 import { Button } from "@orb/ui/button";
@@ -7,21 +6,11 @@ import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import type { AutosaveSession } from "#forms/editor";
-import { IMAGE_SIZE_LABELS, IMAGE_SIZE_MODE_DEFAULT } from "#lib";
+import { IMAGE_MODE_LABELS, IMAGE_SIZE_LABELS, IMAGE_SIZE_MODE_DEFAULT } from "#lib";
 import { useRemovalFocus } from "../hooks/use-removal-focus.ts";
 import type { RuleEditorValues } from "../lib/contract/rule-editor.ts";
 import { RuleCharacterField } from "./rule-character-field.tsx";
 import { RuleOptionalField } from "./rule-optional-field.tsx";
-
-const IMAGE_MODE_LABELS = {
-  free: "Custom prompt",
-  character: "Character",
-  face: "Face",
-  scenario: "Scene",
-  background: "Background",
-  ["character_multimodal"]: "Character from avatar",
-  ["face_multimodal"]: "Face from avatar",
-} satisfies Record<PromptTemplateMode, string>;
 
 /** Every canonical image argument remains independently editable, including absent optional fields. */
 export function RuleImageFields({

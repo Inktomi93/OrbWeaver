@@ -7,6 +7,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
+import { GIT_FETCH_FAILED } from "../lib/plugin-copy.ts";
 import { usePreviewPluginFromGit } from "../lib/plugin-distribution-mutations.ts";
 
 interface PluginInstallGitArmProps {
@@ -18,8 +19,6 @@ interface PluginInstallGitArmProps {
   readonly onPreviewStarted: (url: string) => number;
   readonly onPreviewed: (epoch: number, manifest: PluginManifest, url: string, sourceCommit: string) => void;
 }
-
-const GIT_FETCH_FAILED = "Couldn't read a plugin from that repository. It may be unreachable, refused, or not a plugin.";
 
 export function PluginInstallGitArm({
   disabled,

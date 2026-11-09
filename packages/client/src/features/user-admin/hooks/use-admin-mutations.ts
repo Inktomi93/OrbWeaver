@@ -3,15 +3,21 @@
 // process restart reconciles no cached row and instead awaits a new live process identity.
 
 import type { EffectiveAppConfig } from "@orb/contracts/settings";
+import { isTRPCClientError } from "@trpc/client";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
 
+const RESTART_REFUSED = "The server refused the restart.";
+
 /** Restart has no row to invalidate. The confirmation owns definitive refusal, and the control owns
- *  response-loss uncertainty; an error toast would falsely claim the restart was not admitted. */
+ *  response-loss uncertainty. */
 export const useRestartServer = createEntityMutation<inferInput<Trpc["admin"]["restart"]>, inferOutput<Trpc["admin"]["restart"]>>({
   options: (trpc) => trpc.admin.restart.mutationOptions({ retry: false }),
   invalidates: () => [],
+  // Only a server answer is a refusal. A lost response may be a restart in progress, and the control's own line says
+  // so ("The restart response was lost"), so that arm has no toast to add.
+  errorToast: (error) => (isTRPCClientError(error) && error.shape !== undefined ? RESTART_REFUSED : null),
 });
 
 /** Mint a loginable local human (handle + password + role). Invalidates the user table. */

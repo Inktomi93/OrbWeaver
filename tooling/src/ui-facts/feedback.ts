@@ -193,7 +193,10 @@ function failureOf(factoryToast: boolean, inline: boolean): string {
   if (factoryToast) {
     return "toast";
   }
-  return inline ? "inline" : "none";
+  if (inline) {
+    return "inline";
+  }
+  return "none";
 }
 
 function memberOf(source: Source, sf: ts.SourceFile, call: ts.CallExpression, factory: FactoryToast): Member {
@@ -234,8 +237,18 @@ export function buildFeedbackCohort(sources: readonly Source[]): { readonly coho
     cohort: {
       name: "feedback",
       what: "entity-mutation consumers: success (toast, callback, none) and failure surface (factory toast, inline, both, none)",
-      columns: ["success", "failure"],
-      defects: { failure: ["toast+inline"] },
+      // No law rules how a success is told, so success is a spread to read, not a convention to deviate from.
+      columns: ["failure"],
+      info: ["success"],
+      // A failure may show a toast and inline text together, never neither (client-architecture-state-and-gates.md §11).
+      defects: { failure: ["none"] },
+      kept: {
+        failure: {
+          "toast+inline": "a failure may show a toast and inline text together (client-architecture-state-and-gates.md §11, Toasts)",
+          inline:
+            "a toast whose function form answers null for an error the consumer says in place; a consumer keeps its inline text (client-architecture-state-and-gates.md §11, Toasts)",
+        },
+      },
       basis: { success: "heuristic", failure: "heuristic" },
       members,
     },

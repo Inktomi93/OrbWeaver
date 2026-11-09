@@ -21,12 +21,11 @@ import { EmptyState } from "@orb/ui/empty-state";
 import { Blocks, Icon } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Stack } from "@orb/ui/layout";
-import { ListRow } from "@orb/ui/list-row";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { LibrarySurfaceShell, ListPage } from "#components";
+import { LibraryRow, LibrarySurfaceShell, ListPage } from "#components";
 import { SkeletonRows } from "#data";
-import { CLEAR_SEARCH_NAME, testId, useFocusOnMount } from "#lib";
+import { CLEAR_SEARCH_NAME, testId, useFocusListArrival } from "#lib";
 import { openConfigTo, selectPluginPageFromList, setExtensionsSearchQuery, useExtensionsSearchQuery, usePluginPageKey } from "#state";
 import { ExtensionsAwaitingRows } from "../components/extensions-awaiting-consent.tsx";
 import { useExtensionsEmpty } from "../hooks/use-extensions-empty.ts";
@@ -80,14 +79,12 @@ function ExtensionsPageList(): ReactElement {
       {matching.length === 0 ? null : (
         <Stack gap="tight">
           {matching.map((page) => (
-            <ListRow
-              clickable={true}
+            <LibraryRow
               key={page.key}
               leading={<Icon icon={Blocks} size="sm" />}
-              onClick={(): void => selectPluginPageFromList(page.key)}
-              data-selected={page.key === active ? "" : undefined}
+              onSelect={(): void => selectPluginPageFromList(page.key)}
+              selected={page.key === active}
               title={page.title}
-              titleQualifierFace="body"
               // Two plugins may legitimately register a page with the same title ("Browse"). The plugin name
               // is the disambiguator, and `titleQualifier` both renders it after the title and carries it into
               // the accessible name, so it is not repeated as a subtitle. A page titled exactly like its plugin
@@ -107,7 +104,7 @@ function ExtensionsPageList(): ReactElement {
 export function ExtensionsSwitcherSurface(): ReactElement {
   const search = useExtensionsSearchQuery();
   const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusOnMount(surfaceRef);
+  useFocusListArrival(surfaceRef);
   return (
     // The arrival target names the pane it moved focus into. A child row's name cannot name this node for
     // assistive technology; the Presets list uses the same named-region convention for the same hook.
@@ -116,6 +113,7 @@ export function ExtensionsSwitcherSurface(): ReactElement {
       label={EXTENSIONS_SECTION_LABEL}
       ref={surfaceRef}
       search={<Input aria-label={EXTENSIONS_SEARCH_NAME} onValueChange={setExtensionsSearchQuery} placeholder="Search plugin pages…" value={search} />}
+      skipTo="Skip to plugin pages"
     >
       <LibrarySurfaceShell errorLabel="your plugin pages" loadingLabel="Loading plugin pages…" resetKeys={[]}>
         <ExtensionsPageList />

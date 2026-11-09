@@ -11,6 +11,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
+import { IMAGE_MODE_LABELS } from "#lib";
 // One cost voice for the whole feature (#623) — the imagine modal's read receipt writes a spend the same way.
 import { formatCost } from "../lib/format-cost.ts";
 
@@ -44,7 +45,7 @@ function LoadedProvenance({ assetId }: { readonly assetId: AssetId }): ReactElem
       </Text>
       <Row wrap={true} gap="tight">
         <Badge size="sm">{data.model}</Badge>
-        <Badge size="sm">{data.mode}</Badge>
+        <Badge size="sm">{IMAGE_MODE_LABELS[data.mode]}</Badge>
         {data.edited ? <Badge size="sm">Edited</Badge> : null}
         {data.costUsd === null ? null : <Badge size="sm">{formatCost(data.costUsd)}</Badge>}
       </Row>

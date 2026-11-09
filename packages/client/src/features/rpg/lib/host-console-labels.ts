@@ -2,7 +2,14 @@
 // per closed contracts tuple, so a new member fails tsc here instead of rendering its raw value. Lives in lib/
 // because a component module may export components only.
 
-import type { RpgCyoaChoiceBehavior, RpgDateMode, RpgExtractionContext, RpgExtractionMode, RpgStateCaptureVehicle } from "@orb/contracts/rpg";
+import type { RpgCyoaChoiceBehavior, RpgDateMode, RpgExtractionContext, RpgExtractionMode, RpgStateCaptureVehicle, RpgTrackerShape } from "@orb/contracts/rpg";
+
+/** The word a tracker definition's shape chip shows. */
+export const TRACKER_SHAPE_LABEL: Readonly<Record<RpgTrackerShape, string>> = {
+  meter: "Meter",
+  text: "Text",
+  list: "List",
+};
 
 /** Choice click behavior toggle words. */
 export const CHOICE_BEHAVIOR_LABEL: Readonly<Record<RpgCyoaChoiceBehavior, string>> = {
