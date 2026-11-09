@@ -290,8 +290,7 @@ export const useInvokeUiAction = createEntityMutation<inferInput<Trpc["plugin"][
 export const useReportUiCrash = createEntityMutation<inferInput<Trpc["plugin"]["reportUiCrash"]>, inferOutput<Trpc["plugin"]["reportUiCrash"]>>({
   options: (trpc) => trpc.plugin.reportUiCrash.mutationOptions(),
   invalidates: (trpc) => [trpc.plugin.list.queryFilter(), ...pluginContributionCatalogReads(trpc), ...providerDependentConnectionReads(trpc)],
-  // Silent, the §4.9 posture: a crash report is no person's act, and the Plugins pane's log answers "why is my widget gone".
-  errorToast: false,
+  errorToast: "Couldn't record a plugin page's crash. The page may keep failing until the plugin is switched off.",
 });
 
 /** Run one registered plugin COMMAND — the `/plugin <slug> <name> …` dispatch and the

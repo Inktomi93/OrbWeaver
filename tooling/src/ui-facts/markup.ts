@@ -90,6 +90,26 @@ function textareaSites(source: Source, elem: Elem): readonly Site[] {
     : [];
 }
 
+// A runtime value is the `style` prop's one legal use on any element but a raw one (client-architecture-lockdown.md §0
+// item 2), and on a component that is no `@orb/ui` part the prop may not be CSS at all. A static value is a site anywhere.
+function stylePropertySite(source: Source, sf: ts.SourceFile, elem: Elem, property: ts.ObjectLiteralElementLike): Site | null {
+  const runtimeIsSite = elem.kind === "raw";
+  if (!ts.isPropertyAssignment(property)) {
+    return runtimeIsSite ? siteOn(source, elem, { line: lineOf(sf, property), kind: "inline-style-runtime", detail: "style spread" }) : null;
+  }
+  const key = property.name.getText(sf);
+  const isLiteral =
+    ts.isStringLiteral(property.initializer) || ts.isNumericLiteral(property.initializer) || ts.isNoSubstitutionTemplateLiteral(property.initializer);
+  if (/^["']?--/u.test(key) || !(isLiteral || runtimeIsSite)) {
+    return null;
+  }
+  return siteOn(source, elem, {
+    line: lineOf(sf, property),
+    kind: isLiteral ? "inline-style-static" : "inline-style-runtime",
+    detail: `${key}: ${property.initializer.getText(sf)}`,
+  });
+}
+
 function styleSites(source: Source, sf: ts.SourceFile, elem: Elem): readonly Site[] {
   const initializer = elem.attrs.get("style")?.initializer;
   if (initializer === undefined || !ts.isJsxExpression(initializer) || initializer.expression === undefined) {
@@ -97,29 +117,9 @@ function styleSites(source: Source, sf: ts.SourceFile, elem: Elem): readonly Sit
   }
   const expression = initializer.expression;
   if (!ts.isObjectLiteralExpression(expression)) {
-    return [siteOn(source, elem, { line: elem.line, kind: "inline-style-runtime", detail: "style={…}" })];
+    return elem.kind === "raw" ? [siteOn(source, elem, { line: elem.line, kind: "inline-style-runtime", detail: "style={…}" })] : [];
   }
-  const out: Site[] = [];
-  for (const property of expression.properties) {
-    if (!ts.isPropertyAssignment(property)) {
-      out.push(siteOn(source, elem, { line: lineOf(sf, property), kind: "inline-style-runtime", detail: "style spread" }));
-      continue;
-    }
-    const key = property.name.getText(sf);
-    const isLiteral =
-      ts.isStringLiteral(property.initializer) || ts.isNumericLiteral(property.initializer) || ts.isNoSubstitutionTemplateLiteral(property.initializer);
-    if (key.startsWith("--") || key.startsWith('"--') || key.startsWith("'--")) {
-      continue;
-    }
-    out.push(
-      siteOn(source, elem, {
-        line: lineOf(sf, property),
-        kind: isLiteral ? "inline-style-static" : "inline-style-runtime",
-        detail: `${key}: ${property.initializer.getText(sf)}`,
-      }),
-    );
-  }
-  return out;
+  return expression.properties.flatMap((property) => stylePropertySite(source, sf, elem, property) ?? []);
 }
 
 function classSites(source: Source, sf: ts.SourceFile, referenced: ClassConstants): readonly Site[] {

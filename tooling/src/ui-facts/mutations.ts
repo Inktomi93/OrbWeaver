@@ -18,9 +18,6 @@ function propertyKind(options: ts.ObjectLiteralExpression, name: string): string
   if (ts.isStringLiteral(property.initializer) || ts.isNoSubstitutionTemplateLiteral(property.initializer)) {
     return "string";
   }
-  if (property.initializer.kind === ts.SyntaxKind.FalseKeyword) {
-    return "declared silent";
-  }
   return ts.isArrowFunction(property.initializer) || ts.isFunctionExpression(property.initializer) ? "function" : "expression";
 }
 
@@ -73,11 +70,9 @@ export function buildMutationCohort(sources: readonly Source[]): Cohort {
     kept: {
       freshness: { invalidates: FRESHNESS_XOR, busDriven: FRESHNESS_XOR },
       errorToast: {
-        expression: "a toast may be a named copy constant (packages/client/src/data/create-entity-mutation.ts, `errorToast`)",
+        expression: "every mutation hook keeps its errorToast, and a named copy constant is one (client-architecture-state-and-gates.md §11, Toasts)",
         function:
-          "a function form may return null for an error a consumer or the bus states itself (packages/client/src/data/create-entity-mutation.ts, `errorToast`)",
-        "declared silent":
-          "`errorToast: false` is the one silence, for a mutation no person started or whose toast would state a falsehood (packages/client/src/data/create-entity-mutation.ts, `errorToast`)",
+          "every mutation hook keeps its errorToast; a function form answers null only for an error a consumer says itself, never neither (client-architecture-state-and-gates.md §11, Toasts)",
       },
     },
     members,

@@ -11,7 +11,7 @@ const EXPLICIT_FORM =
   "an explicit-submit form creates something or takes input that must not save half-typed; entity editors autosave (UI-Primitives-and-Reuse.md §13.4)";
 const CANCEL_RULING = "FormDialog and FormDialogPopup own Cancel and the submit (client-architecture-lockdown.md §3); Cancel abandons unsubmitted input";
 const SAVE_BAR_RULING =
-  "the character editor's sticky identity bar carries the autosave status, with no Save or Discard (D66; character-editor-surface.tsx header)";
+  "entity editors autosave (UI-Primitives-and-Reuse.md §13.4), and the character editor's sticky identity bar carries that status with no Save or Discard (character-editor-surface.tsx header)";
 const BLOCKED_PROVIDER = "packages/client/src/features/credentials/components/add-connection-provider-fields.tsx";
 const BLOCKED_PROVIDER_RULING =
   "the Close is on the notice that replaces the form when key storage blocks the provider, so no input exists to abandon (add-connection-form-body.tsx footer ruling)";

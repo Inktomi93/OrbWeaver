@@ -4,41 +4,6 @@
       "kind": "raw-button",
       "at": "packages/client/src/features/app-shell/surfaces/app-shell.tsx",
       "ruling": "docs/law/client-architecture-lockdown.md §4.4: the shell scrim is shell-region paint, a full-bleed dimmer the stylesheet positions and fades; it is a pointer-only dismiss surface (the keyboard closes a sheet with Escape), so a Button's focus ring, hit area and label ink would be wrong on it"
-    },
-    {
-      "kind": "inline-style-runtime",
-      "at": "packages/client/src/components/overflow-actions.tsx",
-      "ruling": "docs/law/client-architecture-lockdown.md §0 item 2: the trail's flex basis and its gap compensation are measured from the rendered row at runtime"
-    },
-    {
-      "kind": "inline-style-runtime",
-      "at": "packages/client/src/features/chat/components/appearance-chat-style-cards.tsx",
-      "ruling": "docs/law/client-architecture-lockdown.md §0 item 2 governs CSS style props only: `style` on `StylePreview` and `ChatStyleDiagram` is a ChatStyle id, not CSS"
-    },
-    {
-      "kind": "inline-style-runtime",
-      "at": "packages/client/src/features/chat/components/art-slot.tsx",
-      "ruling": "docs/law/client-architecture-lockdown.md §0 item 2: the band fill is the colour the room's art data carries, read at runtime"
-    },
-    {
-      "kind": "inline-style-runtime",
-      "at": "packages/client/src/features/chat/components/chat-summary-row.tsx",
-      "ruling": "docs/law/client-architecture-lockdown.md §0 item 2: the avatar column's reserve is computed from the room's portrait count at runtime, stamped on the box that holds the stack as packages/ui/src/primitives/avatar-stack/geometry.ts `avatarStackInlineSize` directs"
-    },
-    {
-      "kind": "inline-style-runtime",
-      "at": "packages/client/src/features/chat/components/gallery-lightbox.tsx",
-      "ruling": "docs/law/client-architecture-lockdown.md §0 item 2: the frame's aspect ratio and width come from the open image and the measured dialog at runtime"
-    },
-    {
-      "kind": "inline-style-runtime",
-      "at": "packages/client/src/features/chat/components/message-row.tsx",
-      "ruling": "docs/law/client-architecture-lockdown.md §0 item 2: the edited row holds the inline and block size it measured before the edit began"
-    },
-    {
-      "kind": "inline-style-runtime",
-      "at": "packages/client/src/features/roster-preset/components/home-rosters-tile-body.tsx",
-      "ruling": "docs/law/client-architecture-lockdown.md §0 item 2: the avatar column's reserve is computed from the roster's member count at runtime, stamped on the box that holds the stack as packages/ui/src/primitives/avatar-stack/geometry.ts `avatarStackInlineSize` directs"
     }
   ]
 }

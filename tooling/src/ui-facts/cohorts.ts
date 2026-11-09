@@ -29,7 +29,7 @@ function focusAndEmpty(facts: FileFacts, byPath: ReadonlyMap<string, FileFacts>)
   let empty = "none";
   if (facts.tags.has(EMPTY_STATE)) {
     empty = EMPTY_STATE;
-  } else if (rendersTag({ facts, elems: facts.elems }, EMPTY_STATE, byPath, 0)) {
+  } else if (renderedTag({ facts, elems: facts.elems }, EMPTY_STATE, byPath, 0) !== null) {
     empty = EMPTY_IN_CHILD;
   }
   const own = FOCUS_HOOKS.filter((hook) => facts.calls.has(hook)).join("+");
@@ -163,15 +163,24 @@ function surfacesReached(facts: FileFacts, elems: readonly Elem[], byPath: Reado
   });
 }
 
-/** Whether the tree renders the tag, itself or in a component it mounts, up to the hop limit. */
-function rendersTag(tree: Rendered, tag: string, byPath: ReadonlyMap<string, FileFacts>, hops: number): boolean {
-  if (tree.elems.some((elem) => elem.tag === tag)) {
-    return true;
+/** The first element with the tag the tree renders, itself or in a component it mounts, up to the hop limit. */
+function renderedTag(tree: Rendered, tag: string, byPath: ReadonlyMap<string, FileFacts>, hops: number): Elem | null {
+  const own = tree.elems.find((elem) => elem.tag === tag);
+  if (own !== undefined || hops >= SLOT_HOPS) {
+    return own ?? null;
   }
-  return hops < SLOT_HOPS && mounted(tree.facts, tree.elems, byPath).some((next) => rendersTag(next, tag, byPath, hops + 1));
+  for (const next of mounted(tree.facts, tree.elems, byPath)) {
+    const found = renderedTag(next, tag, byPath, hops + 1);
+    if (found !== null) {
+      return found;
+    }
+  }
+  return null;
 }
 
-/** LIST panes are the surfaces a section, a Corpus mode or another definition mounts in its `list` slot, not a file name. */
+/** LIST panes are the surfaces a section, a Corpus mode or another definition mounts in its `list` slot, not a file name.
+ *  So the chat transcript, `message-list-surface.tsx`, is no member: it is the room's CONTENT, on the `@orb/ui/message-list`
+ *  primitive (UI-Architecture-and-Layout.md §0.5, the primitive index, and §4.2, the region map). */
 function listSlotSurfaces(feature: readonly FileFacts[], byPath: ReadonlyMap<string, FileFacts>): ReadonlySet<string> {
   const found = new Set<string>();
   for (const facts of feature) {
@@ -403,15 +412,13 @@ const EDITOR_TEMPLATE: ReadonlySet<string> = new Set(["EditorPage"]);
 const handSpelledColumn = (facts: FileFacts): boolean => facts.source.text.includes("mx-auto") && facts.source.text.includes("max-inline-(--width-content-col");
 
 function editor(facts: FileFacts, byPath: ReadonlyMap<string, FileFacts>): Member {
-  const page = facts.elems.find((elem) => elem.tag === "EditorPage");
-  const handColumn = handSpelledColumn(facts);
+  // The template is the surface's whether it renders the page itself or through the body it mounts.
+  const page = renderedTag({ facts, elems: facts.elems }, "EditorPage", byPath, 0);
   let template = "none";
-  if (page !== undefined) {
+  if (page !== null) {
     template = `EditorPage kind=${attrString(page.attrs.get("kind")) ?? "form"}`;
-  } else if (handColumn) {
+  } else if (handSpelledColumn(facts)) {
     template = "hand-spelled column";
-  } else if (rendersTag({ facts, elems: facts.elems }, "EditorPage", byPath, 0)) {
-    template = "EditorPage in a mounted component";
   }
   let submit = "none";
   if (hasAny(facts, SAVE_BAR)) {
@@ -542,23 +549,20 @@ export function buildCohorts(all: readonly FileFacts[]): readonly Cohort[] {
     {
       name: "editor",
       what: "editors: page template, save path, focus hook, empty state",
-      columns: ["template", "save", "focus", "empty"],
+      columns: ["template", "save", "focus"],
+      // An editor edits one subject, so its empty arm is the subject gone; whether it draws one is a spread.
+      info: ["empty"],
       defects: { template: ["hand-spelled column"] },
       kept: {
         template: {
           "EditorPage kind=instrument":
             "a control-track instrument holds the narrow cap through its `instrument` kind (packages/client/src/components/editor-page.tsx)",
-          "EditorPage in a mounted component": "the surface mounts the body that renders the template",
         },
         save: {
           [SAVE_BAR]:
-            "the character editor's sticky identity bar carries the autosave status; it saves as you type, with no Save or Discard (D66; character-editor-surface.tsx header)",
+            "entity editors autosave (UI-Primitives-and-Reuse.md §13.4), and the character editor's sticky identity bar carries that status with no Save or Discard (character-editor-surface.tsx header)",
         },
         focus: { [FOCUS_IN_CHILD]: "the editor body the surface mounts takes arrival focus (tag-member-surface.tsx focus ruling)" },
-        empty: {
-          [EMPTY_STATE]:
-            "a member surface draws its deleted-member arm as a designed empty state (packages/client/src/components/member-drill-header.tsx `title`)",
-        },
       },
       members: editors.map((facts) => editor(facts, byPath)),
     },

@@ -11,6 +11,7 @@
 // never an error toast.
 
 import type { RefinerySchemaStage } from "@orb/contracts/refinery";
+import { REFINERY_SCHEMA_PLAN_UNCHECKED_LINE } from "@orb/contracts/refinery";
 import type { RefinerySessionId } from "@orb/kit/ids";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
@@ -47,8 +48,8 @@ const SCHEMA_PLAN_SETTLE_MS = 400;
 const useAskSchemaPlan = createEntityMutation<inferInput<Trpc["refinery"]["schemaPlan"]>, SchemaPlan>({
   options: (trpc) => trpc.refinery.schemaPlan.mutationOptions(),
   invalidates: () => [],
-  // Silent: the draft's settle fires this ask, no press does, and its failure is the plan line's own "couldn't check" state.
-  errorToast: false,
+  // The plan line also says it, in its own "couldn't check" state; §11 allows both.
+  errorToast: REFINERY_SCHEMA_PLAN_UNCHECKED_LINE,
 });
 
 /** The plan line's state: not yet answered, the server's answer (`null` for a draft the save belt refuses), or no

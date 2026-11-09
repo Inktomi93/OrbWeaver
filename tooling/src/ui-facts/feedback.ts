@@ -6,7 +6,6 @@ import type { Cohort, Member } from "../floor/verdict/cohort-compare.ts";
 import { anyNode, enclosingFunction, hasProperty, resultBinding } from "./syntax.ts";
 
 const FACTORY = "createEntityMutation";
-const DECLARED_SILENT = "declared silent";
 const ERROR_READS = new Set(["error", "isError", "retry", "clearError"]);
 const SUCCESS_READS = new Set(["onSuccess", "isSuccess"]);
 
@@ -26,20 +25,17 @@ const STATE_MARK_CALLS = new Set(["saveStateOf", "useReportSaveStatus"]);
 interface FactoryToast {
   readonly toasts: boolean;
   readonly suppresses: boolean;
-  /** `errorToast: false`: the factory's one declared silence. */
-  readonly silent: boolean;
 }
 
 function toastOf(options: ts.Expression | undefined): FactoryToast {
   if (options === undefined || !ts.isObjectLiteralExpression(options)) {
-    return { toasts: false, suppresses: false, silent: false };
+    return { toasts: false, suppresses: false };
   }
   const property = options.properties.find((entry) => ts.isPropertyAssignment(entry) && entry.name.getText() === "errorToast");
   if (property === undefined || !ts.isPropertyAssignment(property)) {
-    return { toasts: hasProperty(options, "errorToast"), suppresses: false, silent: false };
+    return { toasts: hasProperty(options, "errorToast"), suppresses: false };
   }
-  const silent = property.initializer.kind === ts.SyntaxKind.FalseKeyword;
-  return { toasts: !silent, suppresses: returnsNull(property.initializer), silent };
+  return { toasts: true, suppresses: returnsNull(property.initializer) };
 }
 
 /** A returned leaf is the `null` literal. A call that merely takes `null` as an argument answers unknown, so it does not count. */
@@ -190,7 +186,7 @@ function readsFrom(call: ts.CallExpression, names: ReadonlySet<string>): { reado
   return { errorRead, successRead };
 }
 
-function failureOf(factoryToast: boolean, inline: boolean, silent: boolean): string {
+function failureOf(factoryToast: boolean, inline: boolean): string {
   if (factoryToast && inline) {
     return "toast+inline";
   }
@@ -200,7 +196,7 @@ function failureOf(factoryToast: boolean, inline: boolean, silent: boolean): str
   if (inline) {
     return "inline";
   }
-  return silent ? DECLARED_SILENT : "none";
+  return "none";
 }
 
 function memberOf(source: Source, sf: ts.SourceFile, call: ts.CallExpression, factory: FactoryToast): Member {
@@ -219,7 +215,7 @@ function memberOf(source: Source, sf: ts.SourceFile, call: ts.CallExpression, fa
     label: call.expression.getText(sf),
     cells: {
       success: { value: success, line },
-      failure: { value: failureOf(factory.toasts && !inlineFlag, (inlineFlag || errorRead) && !factory.suppresses, factory.silent), line },
+      failure: { value: failureOf(factory.toasts && !inlineFlag, (inlineFlag || errorRead) && !factory.suppresses), line },
     },
   };
 }
@@ -231,7 +227,7 @@ export function buildFeedbackCohort(sources: readonly Source[]): { readonly coho
     const out: Member[] = [];
     visit(source.sf, (node) => {
       if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && defs.has(node.expression.text)) {
-        out.push(memberOf(source, source.sf, node, defs.get(node.expression.text) ?? { toasts: false, suppresses: false, silent: false }));
+        out.push(memberOf(source, source.sf, node, defs.get(node.expression.text) ?? { toasts: false, suppresses: false }));
       }
     });
     return out;
@@ -249,9 +245,8 @@ export function buildFeedbackCohort(sources: readonly Source[]): { readonly coho
       kept: {
         failure: {
           "toast+inline": "a failure may show a toast and inline text together (client-architecture-state-and-gates.md §11, Toasts)",
-          [DECLARED_SILENT]:
-            "`errorToast: false` is the factory's one silence, for a mutation no person started or whose toast would state a falsehood (packages/client/src/data/create-entity-mutation.ts, `errorToast`)",
-          inline: "a declared-silent factory whose consumer still says the failure in place (packages/client/src/data/create-entity-mutation.ts, `errorToast`)",
+          inline:
+            "a toast whose function form answers null for an error the consumer says in place; a consumer keeps its inline text (client-architecture-state-and-gates.md §11, Toasts)",
         },
       },
       basis: { success: "heuristic", failure: "heuristic" },

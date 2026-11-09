@@ -121,14 +121,18 @@ interface Collected {
 
 // How an expression gets the words it shows, worst first. A `bare` read shows whatever the value is: a raw wire value when
 // that value is an enum, a word when the caller already mapped it. Syntax cannot tell the two apart, so `bare` is a candidate.
-const WIRE_RANK = ["bare", "call", "template", "lookup", "count", "word", "user value", "literal", "other"] as const;
+const UNJUDGED_COUNT = "unjudged: named a count";
+const UNJUDGED_WORD = "unjudged: named a word";
+const UNJUDGED_USER = "unjudged: named a user value";
+const WIRE_RANK = ["bare", "call", "template", "lookup", UNJUDGED_COUNT, UNJUDGED_WORD, UNJUDGED_USER, "literal", "other"] as const;
 
-// What a bare read's own name says it holds, the last segment of `a.b.name`. A number is a count, a name built for display
-// is a mapped word, and a name or token the user wrote is their data; every other bare read stays the candidate.
+// What a bare read's own name, the last segment of `a.b.name`, suggests it holds. The name is no proof, so such a read is
+// listed as unjudged rather than cleared: a raw enum read named `key` or `label` still paints a wire word. A numeric
+// field sorts with the counts and never as a word; every other bare read stays the candidate.
 const BARE_BY_NAME: readonly (readonly [RegExp, string])[] = [
-  [/^(?:count|length|depth|iteration|kept|discarded|behind|total)$/u, "count"],
-  [/(?:^(?:label|word|badge|chip|text|over)$|Label$|Word$|_(?:BADGE|NAME|MARKER|LABEL|WORD)$)/u, "word"],
-  [/^(?:name|tag|token|key|model|themeName)$/u, "user value"],
+  [/^(?:count|length|depth|iteration|kept|discarded|behind|total|over)$/u, UNJUDGED_COUNT],
+  [/(?:^(?:label|word|badge|chip|text)$|Label$|Word$|_(?:BADGE|NAME|MARKER|LABEL|WORD)$)/u, UNJUDGED_WORD],
+  [/^(?:name|tag|token|key|model|themeName)$/u, UNJUDGED_USER],
 ];
 
 function bareRead(node: ts.Identifier | ts.PropertyAccessExpression): string {
@@ -256,7 +260,7 @@ const KIND_WHAT: Readonly<Record<string, string>> = {
   "placeholder-search": "search placeholders",
   "button-label": "button labels, dialog confirm, cancel and dismiss labels",
   "dialog-title": "dialog titles",
-  chip: "chip and badge words written in place; wire is how a shown expression gets its words (bare is a candidate raw wire value)",
+  chip: "chip and badge words written in place; wire is how a shown expression gets its words (bare is a candidate raw wire value; an unjudged read is one whose name alone suggests a count, a word or the user's own value)",
   "word-map": "values of the WORD, LABEL and COPY maps",
 };
 
