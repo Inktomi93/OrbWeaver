@@ -281,9 +281,7 @@ for (const cell of [
           browserName,
         }) => {
           test.skip(textScale !== 1 && browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
-          if (textScale !== 1) {
-            await setPlatformTextSize(page, textScale);
-          }
+          await using _textSize = textScale === 1 ? null : await setPlatformTextSize(page, textScale);
           await using root = await pagedRoot();
           const caller = await root.internalCallerFor(root.ownerId);
           const { chatId } = await preparePagedRoom(caller, "document");

@@ -22,6 +22,7 @@ import {
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { nonEmpty } from "@orb/testkit/iso";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusHarness, createCorpusProviderExecution, seedTranscript } from "@orb/testkit/node/composed";
+import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import {
   CHAT_EARLIER_MESSAGES_NAME,
@@ -274,11 +275,16 @@ function lineCount(node: Locator): Promise<number> {
   });
 }
 
-/** Sets the browser's text size before the first navigation, when the case enlarges it. */
-async function enlargeText(page: Page, textScale: number): Promise<void> {
-  if (textScale !== 1) {
-    await setPlatformTextSize(page, textScale);
-  }
+type Shell = "desktop" | "mobile";
+
+// Enlarged browser text moves the desktop shell's breakpoint past a 1280 viewport, so those cells measure the mobile shell.
+function shellAt({ coarse }: { readonly coarse: boolean }, textScale: number): Shell {
+  return !coarse && textScale === 1 ? "desktop" : "mobile";
+}
+
+/** Assert that the mounted page lays out the shell a cell is named for. */
+async function expectShell(page: Page, shell: Shell): Promise<void> {
+  expect(await page.evaluate((query) => matchMedia(query).matches, MEDIA_QUERIES["shell-desktop"])).toBe(shell === "desktop");
 }
 
 function loadedRows(list: Locator): Promise<string | null> {
@@ -485,14 +491,14 @@ for (const regime of [
       expect(live.reads() - before).toBe(once);
     });
     for (const textScale of PLATFORM_TEXT_SCALES) {
-      test(`a failed refresh at ${String(textScale)}x text reports without moving or pinning, a press still pages, and recovery wastes no press`, async ({
+      test(`a failed refresh at ${String(textScale)}x text in the ${shellAt(regime, textScale)} shell reports without moving or pinning, a press still pages, and recovery wastes no press`, async ({
         corpus,
         mount,
         page,
         browserName,
       }) => {
         test.skip(textScale !== 1 && browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
-        await enlargeText(page, textScale);
+        await using _textSize = textScale === 1 ? null : await setPlatformTextSize(page, textScale);
         await using root = await historyRoot();
         const caller = await root.internalCallerFor(root.ownerId);
         const { rooms, room } = await prepareHistory(root, caller);
@@ -508,6 +514,7 @@ for (const regime of [
           intercept: ({ cursor }) => (failing && cursor !== undefined ? trpcError({ code: "BAD_REQUEST" }) : undefined),
         });
         await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true });
+        await expectShell(page, shellAt(regime, textScale));
         const list = page.locator('[data-slot="message-list-scroll"]');
         const earlier = list.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
         await expect(earlier).toBeAttached();
@@ -543,14 +550,14 @@ for (const regime of [
         await expect.poll(() => live.reads()).toBeGreaterThan(reads + 1);
         await page.screenshot({ path: test.info().outputPath("recovered-refresh.png") });
       });
-      test(`a press offline through a failed refresh at ${String(textScale)}x text pins the longer offline line without moving the reader`, async ({
+      test(`a press offline through a failed refresh at ${String(textScale)}x text in the ${shellAt(regime, textScale)} shell pins the longer offline line without moving the reader`, async ({
         corpus,
         mount,
         page,
         browserName,
       }) => {
         test.skip(textScale !== 1 && browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
-        await enlargeText(page, textScale);
+        await using _textSize = textScale === 1 ? null : await setPlatformTextSize(page, textScale);
         await using root = await historyRoot();
         const caller = await root.internalCallerFor(root.ownerId);
         const { rooms, room } = await prepareHistory(root, caller);
@@ -566,6 +573,7 @@ for (const regime of [
           intercept: ({ cursor }) => (failing && cursor !== undefined ? trpcError({ code: "BAD_REQUEST" }) : undefined),
         });
         await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true });
+        await expectShell(page, shellAt(regime, textScale));
         const list = page.locator('[data-slot="message-list-scroll"]');
         const earlier = list.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
         await expect(earlier).toBeAttached();
