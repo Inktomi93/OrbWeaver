@@ -6,8 +6,9 @@ import type { Locator } from "@playwright/test";
 export const LAYOUT_SUBPIXEL_PX = 1;
 const REACHABLE =
   'button, a[href], input, textarea, select, [role="button"], [role="tab"], [role="menuitem"], [role="switch"], [role="checkbox"], [role="radio"], [role="combobox"], [role="textbox"]';
-// The character band's chip row scrolls by ruling: it keeps each chip whole rather than wrap into a ragged void.
-const SIDEWAYS_STRIPS = 'input, textarea, [role="tablist"], [role="toolbar"], [data-slot="character-context-band"] > * > *';
+// The character band's chip row scrolls by ruling: it keeps each chip whole rather than wrap into a ragged void. A strip built to scroll sideways
+// declares it with the attribute.
+const SIDEWAYS_STRIPS = 'input, textarea, [role="tablist"], [role="toolbar"], [data-slot="character-context-band"] > * > *, [data-sideways-strip]';
 
 interface ControlGeometry {
   readonly clipped: string[];

@@ -21,5 +21,10 @@ export interface GridProps extends ComponentProps<"div">, VariantProps<typeof gr
  * code (structural layout goes through the layout kit; the track template lives in variants.ts).
  */
 export function Grid({ className, gap, gapInline, gapBlock, scrollInset, cols, align, cap, width, paddingInline, reach, ...props }: GridProps): ReactElement {
-  return <div {...props} className={gridVariants({ gap, gapInline, gapBlock, scrollInset, cols, align, cap, width, paddingInline, reach, className })} />;
+  // `cellSwipe` is a designed strip: it scrolls and snaps sideways by intent, and says so.
+  // The enlarged-text probe (`tests/support/browser/enlarged-text-geometry.ts`) reads this attribute; its planted strip case pins the pair.
+  const strip = cols === "cellSwipe" ? { "data-sideways-strip": "" } : undefined;
+  return (
+    <div {...props} {...strip} className={gridVariants({ gap, gapInline, gapBlock, scrollInset, cols, align, cap, width, paddingInline, reach, className })} />
+  );
 }

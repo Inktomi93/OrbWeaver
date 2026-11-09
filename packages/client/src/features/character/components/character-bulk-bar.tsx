@@ -81,9 +81,9 @@ export function CharacterBulkBar({ ids, selectedCount, onClear, onRemoveSubmitte
       {/* `size="sm"` (the SelectionBar usage default) so count + the three actions + clear fit a narrow LIST
           panel without clipping the trailing Delete (the ~337px panel regression). */}
       <SelectionBar count={selectedCount} onClear={onClear}>
-        {/* ONE UNIT: a nowrap Row cannot shrink below its three verbs, so when they do not fit beside the count the
-            bar wraps the whole group below it instead of stranding Delete alone. */}
-        <Row gap="field">
+        {/* ONE UNIT: the group cannot shrink below its three verbs, so when they do not fit beside the count the
+            bar wraps the whole group below it instead of stranding Delete alone. Wider than the bar itself, the verbs wrap among themselves. */}
+        <Row gap="field" wrap={true}>
           {characterActionsForScope("bulk").map((action) => (
             // Bulk archive never toggles (it always archives), so the label is the verb's one name — never
             // `characterActionLabel`'s toggled face. Delete is the destructive solid so the irreversible
