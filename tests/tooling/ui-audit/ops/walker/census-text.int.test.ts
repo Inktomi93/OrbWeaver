@@ -568,6 +568,33 @@ auditRuleTest(
   },
 );
 
+// A styled line that fits has nothing cut, so it is an ordinary long line: the first 120 characters, now in a box wide
+// enough to hold them on one line.
+const FITTING_BODY = FACET_BODY.slice(0, 120);
+const FITTING_ROW_STYLE = FACET_ROW_STYLE.replace("width:620px", "width:1200px");
+
+auditRuleTest(
+  [{ rule: "line-length", kind: "fires", reason: "a nowrap, clipped, ellipsised line that fits cuts nothing, so its measure is still judged" }],
+  "a long nowrap line that fits its box still fails line-length",
+  async ({ runCli, scratch }) => {
+    const body = `<span data-voice="gloss" style="${FITTING_ROW_STYLE};overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${FITTING_BODY}</span>`;
+    const report = await auditFixture(scratch, runCli, "facet-preview-fitting", body);
+    expect(report.findings.filter(({ rule }) => rule === "line-length")).toHaveLength(1);
+    expect(report.populationAccounting?.["line-length"]).toMatchObject({ judged: 1, affected: 1, excluded: {} });
+  },
+);
+
+auditRuleTest(
+  [{ rule: "line-length", kind: "fires", reason: "a one-line clamp over a body that already fits on one line hides nothing, so its measure is still judged" }],
+  "a long line under a one-line clamp that fits still fails line-length",
+  async ({ runCli, scratch }) => {
+    const body = `<p data-voice="gloss" style="${FITTING_ROW_STYLE};overflow:hidden;display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:1">${FITTING_BODY}</p>`;
+    const report = await auditFixture(scratch, runCli, "facet-preview-clamp-fitting", body);
+    expect(report.findings.filter(({ rule }) => rule === "line-length")).toHaveLength(1);
+    expect(report.populationAccounting?.["line-length"]).toMatchObject({ judged: 1, affected: 1, excluded: {} });
+  },
+);
+
 auditRuleTest(
   [{ rule: "line-length", kind: "fires", reason: "the same body allowed to wrap in the same box is prose past the measure" }],
   "the same preview body wrapping in the same box still fails line-length",

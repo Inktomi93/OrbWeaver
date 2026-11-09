@@ -167,15 +167,17 @@ export const WALKER_CENSUS_TEXT = `
     return { x: left, y: top, width: right - left, height: bottom - top };
   };
 
-  // A RUN SET ON ONE LINE AND CUT THERE has no line return, so the measure rule has nothing to judge. Both
-  // halves are measured, never inferred from a class: the computed style must forbid a second line (no-wrap
-  // with this element's own inline clip, or a one-line clamp), and the element must paint exactly one line
-  // box. A clamp lays out its hidden lines, so only boxes inside the element's own rect count.
+  // A RUN SET ON ONE LINE AND CUT THERE has no line return, so the measure rule has nothing to judge. Each
+  // half is measured, never inferred from a class: the computed style must forbid a second line (no-wrap
+  // with this element's own inline clip, or a one-line clamp), the style must actually CUT something (a
+  // styled line that fits is an ordinary long line and stays judged), and the element must paint exactly
+  // one line box. A clamp lays out its hidden lines, so painted boxes are only those inside the element's rect.
   var lineRange = document.createRange();
-  var paintedLineBoxes = function (element, elementRect) {
+  var lineBoxCount = function (element, elementRect) {
     lineRange.selectNodeContents(element);
     var boxes = [].slice.call(lineRange.getClientRects()).filter(function (box) {
-      return box.width > 0 && box.height > 0 && box.bottom > elementRect.top + 0.5 && box.top < elementRect.bottom - 0.5;
+      if (box.width <= 0 || box.height <= 0) return false;
+      return elementRect === null || (box.bottom > elementRect.top + 0.5 && box.top < elementRect.bottom - 0.5);
     });
     boxes.sort(function (a, b) { return a.top - b.top; });
     var lines = 0;
@@ -194,8 +196,10 @@ export const WALKER_CENSUS_TEXT = `
     var noWrap = elementStyle.whiteSpace === "nowrap" || elementStyle.whiteSpace === "pre" || elementStyle.textWrapMode === "nowrap";
     var clipsInline = elementStyle.overflowX === "hidden" || elementStyle.overflowX === "clip";
     var clampedToOne = elementStyle.webkitLineClamp === "1" || elementStyle.lineClamp === "1";
-    if (!(noWrap && clipsInline) && !clampedToOne) return false;
-    return paintedLineBoxes(element, elementRect) === 1;
+    var cutInline = noWrap && clipsInline && element.scrollWidth > element.clientWidth;
+    var cutByClamp = clampedToOne && lineBoxCount(element, null) > 1;
+    if (!cutInline && !cutByClamp) return false;
+    return lineBoxCount(element, elementRect) === 1;
   };
 
   var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
