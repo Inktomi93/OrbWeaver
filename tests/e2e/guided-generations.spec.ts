@@ -51,6 +51,7 @@ import {
   MESSAGE_REAPPLY_CONTINUATION_NAME,
   MESSAGE_UNDO_CONTINUATION_NAME,
 } from "#client/features/chat/lib/message-action-names.ts";
+import { MESSAGE_TOOLS_LABEL } from "#client/lib/flank-names.ts";
 import { messageRow, openChatByTitle } from "./support/chat-room.ts";
 import { startTapeProvider } from "./support/tape-provider.ts";
 import { WAIT_UI_MS } from "./support/timeouts.ts";
@@ -105,7 +106,7 @@ const GUIDED_RESPONSE = "Guided generate reply";
 const GUIDED_CONTINUE = "Continue the reply with this direction";
 
 /** The ✨ utility menu and the Rewrite modal's door inside it (both moved off the top row). */
-const UTILITY_MENU = "Message tools";
+const UTILITY_MENU = MESSAGE_TOOLS_LABEL;
 const CORRECTIONS_ITEM = COMPOSER_CORRECTIONS_NAME;
 
 function composer(page: Page): ReturnType<Page["getByRole"]> {

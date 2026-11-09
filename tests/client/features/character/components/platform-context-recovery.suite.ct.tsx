@@ -161,7 +161,10 @@ async function expectRetryContained(context: Locator, retry: Locator, landscape:
   expect((await actionGroupGeometry(context, [retry])).inlineOverflow).toBeLessThanOrEqual(1);
 }
 
-async function openCharacterContext(page: Page, tabName: "History" | "Links" | "Look" | "Overview"): Promise<void> {
+async function openCharacterContext(
+  page: Page,
+  tabName: typeof CHARACTER_HISTORY_TAB_LABEL | typeof CHARACTER_LINKS_TAB_LABEL | "Look" | "Overview",
+): Promise<void> {
   await selectCharacter(page, CARD_NAME);
   if ((await page.locator('.shell-panel[data-panel-side="context"]').getAttribute("data-panel-mode")) === "collapsed") {
     await page.getByRole("button", { name: contextToggleLabel(true), exact: true }).click();

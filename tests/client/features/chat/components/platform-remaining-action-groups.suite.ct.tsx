@@ -13,7 +13,7 @@ import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, TestInfo } from "@playwright/test";
 import { CHAT_GALLERY_ADD_NAME, CHAT_GALLERY_ADD_PICKER_TITLE, CHAT_GALLERY_EMPTY_TITLE } from "#client/features/chat/lib/chat-surface-names.ts";
-import { MESSAGE_DELETE_TOOL_CALL_NAME, MESSAGE_DELETE_TOOL_CALL_TITLE } from "#client/features/chat/lib/message-action-names.ts";
+import { MESSAGE_DELETE_TOOL_CALL_NAME, MESSAGE_DELETE_TOOL_CALL_TITLE, toolCallVisibilityName } from "#client/features/chat/lib/message-action-names.ts";
 import { DIALOG_VERBS } from "#client/lib/dialog-verbs.ts";
 import type { GalleryActionsStory, GameTrackerActionsStory, ToolActionsStory } from "./_remaining-action-groups-stories.tsx";
 
@@ -216,11 +216,11 @@ for (const regime of REGIMES) {
         });
         const row = page.locator(`[data-message-id="${message.id}"]`);
         const group = row.getByRole("group", { name: record.displayName ?? record.name, exact: true }).first();
-        const visibility = group.getByRole("button", { name: hidden ? "Show to AI" : "Hide from AI", exact: true });
+        const visibility = group.getByRole("button", { name: toolCallVisibilityName(hidden), exact: true });
         const remove = group.getByRole("button", { name: MESSAGE_DELETE_TOOL_CALL_NAME, exact: true });
         await visibility.focus();
         await expect(visibility).toBeFocused();
-        await expect(group.getByRole("button", { name: hidden ? "Hide from AI" : "Show to AI", exact: true })).toHaveCount(0);
+        await expect(group.getByRole("button", { name: toolCallVisibilityName(!hidden), exact: true })).toHaveCount(0);
         await measure(visibility.locator(".."), [visibility, remove], testInfo, "tool-action-cluster");
         await measure(page.getByRole("group", { name: "Tool action host", exact: true }), [visibility, remove], testInfo, "tool-action-host");
         const floor = await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`, visibility);

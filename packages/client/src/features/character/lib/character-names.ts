@@ -114,11 +114,17 @@ export const CHARACTER_CREATOR_NOTES_FACET_NAME = "Creator notes";
 /** The failure an editor save raises, from the form submit and the save mutation alike. */
 export const CHARACTER_SAVE_FAILURE = "Couldn't save the character.";
 
+/** The context pane's tab of chats the character is in. */
+export const CHARACTER_CHATS_TAB_LABEL = "Chats";
+
 /** The context pane's world books and personas tab. */
 export const CHARACTER_LINKS_TAB_LABEL = "Links";
 
 /** The context pane's snapshot log tab. */
 export const CHARACTER_HISTORY_TAB_LABEL = "History";
+
+/** The library welcome's shelf of the newest characters. */
+export const CHARACTER_JUST_ADDED_SHELF_NAME = "Just added";
 
 /** The Links tab's empty book list. */
 export const CHARACTER_NO_BOOKS_LINKED_TEXT = "No world books linked.";

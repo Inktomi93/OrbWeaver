@@ -2,9 +2,9 @@ import { globSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
-import { AST_NODE_TYPES } from "@typescript-eslint/utils";
+import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import ts from "typescript";
-import { staticTextValue } from "./static-values.ts";
+import { staticTextValue, unwrapTsValue } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 
 // Production modules whose exported strings are names a user can read: a spec locates a control by the exported value.
@@ -271,6 +271,103 @@ function locatedName(call: TSESTree.CallExpression): TSESTree.Node | undefined {
   return callee.property.name === "getByRole" ? nameOption(call.arguments[1]) : undefined;
 }
 
+/** The nodes a located name can evaluate to: each arm of a conditional or a `||`/`??` fallback, judged on its own. */
+function nameArms(node: TSESTree.Node): TSESTree.Node[] {
+  const expression = unwrapTsValue(node);
+  if (expression.type === AST_NODE_TYPES.ConditionalExpression) {
+    return [...nameArms(expression.consequent), ...nameArms(expression.alternate)];
+  }
+  if (expression.type === AST_NODE_TYPES.LogicalExpression && expression.operator !== "&&") {
+    return [...nameArms(expression.left), ...nameArms(expression.right)];
+  }
+  return [expression];
+}
+
+function variableOf(context: OrbRuleContext, identifier: TSESTree.Identifier): TSESLint.Scope.Variable | undefined {
+  for (let scope: TSESLint.Scope.Scope | null = context.sourceCode.getScope(identifier); scope !== null; scope = scope.upper) {
+    const variable = scope.set.get(identifier.name);
+    if (variable !== undefined) {
+      return variable;
+    }
+  }
+  return undefined;
+}
+
+type FunctionNode = TSESTree.FunctionDeclaration | TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression;
+
+/** The identifier a helper is called by: a function declaration's name, or the const an arrow or function expression initializes. */
+function helperName(fn: FunctionNode): TSESTree.Identifier | undefined {
+  if (fn.type === AST_NODE_TYPES.FunctionDeclaration) {
+    return fn.id ?? undefined;
+  }
+  const { parent } = fn;
+  return parent.type === AST_NODE_TYPES.VariableDeclarator && parent.id.type === AST_NODE_TYPES.Identifier ? parent.id : undefined;
+}
+
+function paramIdentifier(param: TSESTree.Parameter): TSESTree.Node {
+  if (param.type === AST_NODE_TYPES.AssignmentPattern) {
+    return param.left;
+  }
+  return param.type === AST_NODE_TYPES.TSParameterProperty ? param.parameter : param;
+}
+
+/** When a located name is a helper's own parameter, the helper's variable and that parameter's position. */
+function nameParameter(context: OrbRuleContext, arm: TSESTree.Node): readonly [TSESLint.Scope.Variable, number] | undefined {
+  const variable = arm.type === AST_NODE_TYPES.Identifier ? variableOf(context, arm) : undefined;
+  const definition = variable?.defs.length === 1 ? variable.defs[0] : undefined;
+  if (definition?.type !== TSESLint.Scope.DefinitionType.Parameter) {
+    return undefined;
+  }
+  const fn = definition.node as FunctionNode;
+  const name = helperName(fn);
+  const helper = name === undefined ? undefined : variableOf(context, name);
+  const index = fn.params.findIndex((param) => paramIdentifier(param) === definition.name);
+  return helper === undefined || index === -1 ? undefined : [helper, index];
+}
+
+/**
+ * The same-file helpers that pass a parameter straight into a locator's name: that argument is a located name at each
+ * call. Calls are judged once the file is read, because a hoisted helper can be declared after its callers.
+ */
+function helperNameTracker(context: OrbRuleContext, judgeName: (name: TSESTree.Node) => void): HelperNameTracker {
+  const nameParameters = new Map<TSESLint.Scope.Variable, Set<number>>();
+  const calls: TSESTree.CallExpression[] = [];
+  const namedArguments = (call: TSESTree.CallExpression): TSESTree.Node[] => {
+    const helper = call.callee.type === AST_NODE_TYPES.Identifier ? variableOf(context, call.callee) : undefined;
+    const indexes = helper === undefined ? undefined : nameParameters.get(helper);
+    return [...(indexes ?? [])].flatMap((index) => {
+      const argument = call.arguments[index];
+      return argument === undefined || argument.type === AST_NODE_TYPES.SpreadElement ? [] : [argument];
+    });
+  };
+  return {
+    located(name: TSESTree.Node): void {
+      for (const arm of nameArms(name)) {
+        const parameter = nameParameter(context, arm);
+        if (parameter !== undefined) {
+          nameParameters.set(parameter[0], (nameParameters.get(parameter[0]) ?? new Set()).add(parameter[1]));
+        }
+      }
+    },
+    called(call: TSESTree.CallExpression): void {
+      calls.push(call);
+    },
+    finish(): void {
+      for (const argument of calls.flatMap(namedArguments)) {
+        judgeName(argument);
+      }
+    },
+  };
+}
+
+interface HelperNameTracker {
+  /** Records a helper whose parameter this located name is. */
+  readonly located: (name: TSESTree.Node) => void;
+  readonly called: (call: TSESTree.CallExpression) => void;
+  /** Judges each recorded call's name arguments. */
+  readonly finish: () => void;
+}
+
 const VALUE_KINDS: ReadonlySet<ExtendedKind | undefined> = new Set<ExtendedKind>(["code", "route", "env"]);
 
 // A route is matched whole, or as the head of a longer path: a query, or the id after a `:param` segment.
@@ -370,14 +467,29 @@ export function handCopiedLabelRule(labels: ReadonlyMap<string, ExportedLabel>, 
         const extendedOwner = all ? extended.get(value) : undefined;
         return labels.get(value) ?? (VALUE_KINDS.has(extendedOwner?.kind) ? undefined : extendedOwner);
       };
+      const judgeName = (name: TSESTree.Node): void => {
+        for (const arm of nameArms(name)) {
+          const value = staticTextValue(context, arm);
+          const owner = typeof value === "string" ? locatorOwner(value) : undefined;
+          if (typeof value === "string" && owner !== undefined) {
+            report(arm, value, owner);
+          }
+        }
+      };
+      const helpers = helperNameTracker(context, judgeName);
       return {
         "CallExpression[callee.type='MemberExpression']"(call: TSESTree.CallExpression): void {
           const name = locatedName(call);
-          const value = name === undefined ? undefined : staticTextValue(context, name);
-          const owner = typeof value === "string" ? locatorOwner(value) : undefined;
-          if (name !== undefined && typeof value === "string" && owner !== undefined) {
-            report(name, value, owner);
+          if (name !== undefined) {
+            judgeName(name);
+            helpers.located(name);
           }
+        },
+        "CallExpression[callee.type='Identifier']"(call: TSESTree.CallExpression): void {
+          helpers.called(call);
+        },
+        "Program:exit"(): void {
+          helpers.finish();
         },
         "Literal:exit"(node: TSESTree.Literal): void {
           if (all && typeof node.value === "string") {

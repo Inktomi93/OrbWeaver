@@ -31,7 +31,7 @@ import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { CHARACTER_SEARCH_NAME } from "#client/features/character/lib/character-names.ts";
-import { CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
+import { CHAT_CONTEXT_TAB_LABELS, CHAT_CONTEXT_TABLIST_NAME } from "#client/features/chat/lib/chat-context-tab-labels.ts";
 import { CHAT_GROUP_BEHAVIOR_NAME } from "#client/features/chat/lib/chat-settings-names.ts";
 import {
   CHAT_COMPOSER_NAME,
@@ -482,7 +482,7 @@ export async function openContextTab(page: Page, label: string): Promise<void> {
  *  open, so ONE press reaches it. Skipping that walk is what made this helper's heading gate fail with
  *  `element(s) not found` in four specs (#1851); the walker itself is the CT side's, shared. */
 export async function openGroupBehaviorSection(page: Page): Promise<void> {
-  await openContextTab(page, "This chat");
+  await openContextTab(page, CHAT_CONTEXT_TAB_LABELS.settings);
   await openContextSections(page, HOST_BAND, CHAT_GROUP_BEHAVIOR_NAME);
   await expect(page.getByRole("heading", { name: CHAT_GROUP_BEHAVIOR_NAME })).toBeVisible({ timeout: WAIT_SURFACE_MS });
   // The section body suspends on `chat.getGroupConfig` behind a skeleton, so the HEADING lands before any

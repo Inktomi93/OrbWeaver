@@ -41,7 +41,7 @@ import { useCharacterContextResetKeys, useCharacterContextState } from "../hooks
 import { useCharactersListHeader } from "../hooks/use-characters-list-header.tsx";
 import { CharacterLibrarySurface } from "../surfaces/character-library-surface.tsx";
 import { CHARACTER_CHATS_TAB_ID } from "./character-chat-intents.ts";
-import { CHARACTER_HISTORY_TAB_LABEL, CHARACTER_LINKS_TAB_LABEL } from "./character-names.ts";
+import { CHARACTER_CHATS_TAB_LABEL, CHARACTER_HISTORY_TAB_LABEL, CHARACTER_LINKS_TAB_LABEL } from "./character-names.ts";
 import { useCharactersSelectionTitle } from "./character-selection-title.ts";
 import { CHARACTERS_SECTION_LABEL } from "./characters-section-label.ts";
 
@@ -102,7 +102,7 @@ export function makeCharactersSection(
         },
         {
           id: CHARACTER_CHATS_TAB_ID,
-          label: "Chats",
+          label: CHARACTER_CHATS_TAB_LABEL,
           icon: MessagesSquare,
           body: (s) => <CharacterChatsProjectionShell characterId={s.characterId} chatsProjection={chatsProjection} />,
         },

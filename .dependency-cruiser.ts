@@ -477,7 +477,6 @@ const TEST_CONSTANT_HOMES = {
     "CHAT_ADD_INJECTION_NAME and its siblings: the This-chat tab's injection, override, prose and group form names",
   "packages/client/src/features/chat/lib/members-names.ts":
     "CHAT_INVITE_PEOPLE_NAME and its siblings: the Members panel, row menu, card viewer and join dialog names",
-  "packages/client/src/features/auth/lib/pending-join-names.ts": "PENDING_JOIN_NOT_NOW_NAME: the sign-in page's pending-join dismiss",
   "packages/client/src/features/chat/lib/command-palette-names.ts": "COMMAND_MODAL_TITLE and COMMAND_PALETTE_NAME: the command modal's title and input",
   "packages/client/src/features/chat/lib/message-action-names.ts":
     "MESSAGE_EDIT_NAME and its siblings: the transcript row's action, tool call and wire viewer names",

@@ -31,6 +31,7 @@ import { characterCardFormFromDetail, characterUpdateDiff } from "#client/featur
 import {
   CHARACTER_ACTIONS_MENU_NAME,
   CHARACTER_ADD_TAG_NAME,
+  CHARACTER_CHATS_TAB_LABEL,
   CHARACTER_CONNECT_PERSONA_NAME,
   CHARACTER_DELETE_TITLE,
   CHARACTER_DESCRIPTION_FIELD_NAME,
@@ -43,10 +44,12 @@ import {
   CHARACTER_FILTERS_NAME,
   CHARACTER_GROUP_BY_TAG_NAME,
   CHARACTER_HERO_NAME_FIELD_NAME,
+  CHARACTER_HISTORY_TAB_LABEL,
   CHARACTER_IMPORT_NAME,
   CHARACTER_LIBRARY_EMPTY_TITLE,
   CHARACTER_LIBRARY_NAME,
   CHARACTER_LINK_BOOK_NAME,
+  CHARACTER_LINKS_TAB_LABEL,
   CHARACTER_NAME_FIELD_NAME,
   CHARACTER_NEW_NAME,
   CHARACTER_NO_SNAPSHOTS_TEXT,
@@ -377,7 +380,7 @@ async function libraryWalk(flow: CharacterFlow): Promise<void> {
 
 /** Everything the Context pane holds, tab by tab; the Links pickers open from plain buttons. */
 async function contextWalk(flow: CharacterFlow, subject: string): Promise<void> {
-  const links = await contextTab(flow, "Links");
+  const links = await contextTab(flow, CHARACTER_LINKS_TAB_LABEL);
   const dialog = flow.page.getByRole("dialog");
   const done = dialog.getByRole("button", { name: DIALOG_VERBS.done, exact: true });
   await walkDoor(flow, {
@@ -635,7 +638,7 @@ async function historyJourney(flow: CharacterFlow, characterId: CharacterId): Pr
   let history: Locator;
   expectSubject(flow, "history-held-read", "pending");
   try {
-    history = await contextTab(flow, "History");
+    history = await contextTab(flow, CHARACTER_HISTORY_TAB_LABEL);
     await held.requested;
     await test.step("Characters History held-read diagnostic", async (): Promise<void> => {
       await expect.poll(async () => history.locator('[data-slot="skeleton"]').count()).toBeGreaterThan(0);
@@ -685,7 +688,7 @@ async function historyFailureJourney(flow: CharacterFlow, name: string): Promise
     await waitForAppReady(flow.page);
     await charactersRailButton(flow.page).click();
     await openCard(flow, name);
-    history = await contextTab(flow, "History");
+    history = await contextTab(flow, CHARACTER_HISTORY_TAB_LABEL);
     const retry = history.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
     await retry.scrollIntoViewIfNeeded();
     await checkpointState(flow, "history-transport-error", history, { witnesses: [retry], state: "error" });
@@ -778,10 +781,10 @@ async function originalContextJourney(flow: CharacterFlow, characterId: Characte
   const detail = await flow.client.character.get.query({ characterId });
   await contextWalk(flow, "original");
   const actualChats = await flow.client.chat.listChats.query({ characterId });
-  const chats = await contextTab(flow, "Chats");
+  const chats = await contextTab(flow, CHARACTER_CHATS_TAB_LABEL);
   await expect(chats.getByRole("list", { name: chatsWithCharacterName(detail.name), exact: true })).toHaveCount(actualChats.totalCount > 0 ? 1 : 0);
   const snapshots = await flow.client.character.listSnapshots.query({ characterId });
-  const history = await contextTab(flow, "History");
+  const history = await contextTab(flow, CHARACTER_HISTORY_TAB_LABEL);
   await expect(history.getByRole("button", { name: DIALOG_VERBS.restore, exact: true })).toHaveCount(snapshots.length);
   await attachNativeFile(flow.info, flow.info, "characters-original-context-population", {
     body: JSON.stringify({ characterId, chats: actualChats.totalCount, snapshots: snapshots.length, tags: detail.tags.length, mutation: "none" }),

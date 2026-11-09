@@ -270,7 +270,7 @@ test("the guided Response icon fires chat.generate carrying the typed steer", as
 async function expectGroupControls(page: Page, names: readonly string[], guided: boolean): Promise<void> {
   const upper = page.locator('[data-slot="composer-utilities"]');
   const lower = page.locator('[data-slot="composer-input"]');
-  await upper.getByRole("button", { name: guided ? guidedControlName(COMPOSER_GENERATE_REPLY_NAME, true) : "Generate reply", exact: true }).press("Enter");
+  await upper.getByRole("button", { name: guidedControlName(COMPOSER_GENERATE_REPLY_NAME, guided), exact: true }).press("Enter");
   const speakers = page.getByRole("menu");
   await expect(speakers.getByRole("menuitem", { name: COMPOSER_LET_ROOM_PICK_NAME, exact: true })).toBeVisible();
   for (const name of names) {

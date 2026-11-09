@@ -48,7 +48,7 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQueries, useTRPC } from "#data";
 import { timeLib } from "#lib";
 import { LIST_OFF_SCREEN_HINT, selectCharacter, useSectionListMode } from "#state";
-import { CHARACTER_RECENT_SHELF_NAME } from "../lib/character-names.ts";
+import { CHARACTER_JUST_ADDED_SHELF_NAME, CHARACTER_RECENT_SHELF_NAME } from "../lib/character-names.ts";
 import { chattedStamp } from "../lib/character-shelf-stamp.ts";
 import { CharacterLandingDoors } from "./character-create-actions.tsx";
 import type { ShelfFace } from "./character-shelf.tsx";
@@ -278,7 +278,7 @@ function FreshInstallArm({ listOffScreen, newest }: { readonly listOffScreen: bo
   const shippedLabel = newest.totalCount <= newest.items.length ? `Shipped with Orbweaver · ${String(shippedFaces.length)}` : "Shipped with Orbweaver";
   let shelf = shippedFaces.length === 0 ? null : { faces: shippedFaces, label: shippedLabel };
   if (shelf === null && listOffScreen) {
-    shelf = { faces: justAddedFacesOf(newest.items), label: "Just added" };
+    shelf = { faces: justAddedFacesOf(newest.items), label: CHARACTER_JUST_ADDED_SHELF_NAME };
   }
   return (
     <LandingFrame doors={doorsFor(listOffScreen)} gloss={listOffScreen ? FRESH_GLOSS_COLLAPSED : FRESH_GLOSS_DOCKED} title="Meet your characters">
@@ -326,7 +326,7 @@ function ResumeArm({
             competing with the pane beside it; collapsed, the list is gone and this is the only way to reach
             them. */}
         {listOffScreen && justAddedFaces.length > 0 ? (
-          <CharacterShelf door="open" faces={justAddedFaces} label="Just added" legend={null} onOpen={selectCharacter} />
+          <CharacterShelf door="open" faces={justAddedFaces} label={CHARACTER_JUST_ADDED_SHELF_NAME} legend={null} onOpen={selectCharacter} />
         ) : null}
         {addedThisWeek.length === 0 ? null : (
           // THE RULE SPANS THE PANE, THE LINE DOES NOT: the foot's border is the shelves' bottom edge, so it

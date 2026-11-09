@@ -19,7 +19,7 @@ import { useInvalidation, useTRPC } from "#data";
 import type { ContributorRegistry, ToolRenderer } from "#lib";
 import { MessageToolsRendererRegistryContext } from "#state";
 import { useEditToolCall } from "../hooks/use-message-mutations.ts";
-import { MESSAGE_DELETE_TOOL_CALL_NAME, MESSAGE_DELETE_TOOL_CALL_TITLE } from "../lib/message-action-names.ts";
+import { MESSAGE_DELETE_TOOL_CALL_NAME, MESSAGE_DELETE_TOOL_CALL_TITLE, toolCallVisibilityName } from "../lib/message-action-names.ts";
 
 export interface MessageToolCallsProps {
   readonly message?: MessageView;
@@ -46,7 +46,7 @@ function ToolCallControls({ message, record }: { readonly message: MessageView; 
   return (
     <Row gap="field" inertUntilHover={true} wrap={true}>
       <Button variant="ghost" size="sm" loading={edit.isPending} onClick={(): void => edit.mutate({ ...variables, action: hidden ? "show" : "hide" })}>
-        {hidden ? "Show to AI" : "Hide from AI"}
+        {toolCallVisibilityName(hidden)}
       </Button>
       <DestructiveAction
         confirm={{
