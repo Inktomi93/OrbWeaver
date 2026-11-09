@@ -75,6 +75,8 @@ export const MIN_HEIGHT = {
   shrinks: "min-block-0",
   shrinksOnLandscape: "dialog-short:glass-short:min-block-0",
   holdsPickerOnLandscape: "dialog-short:glass-short:min-block-(--height-picker-floor)",
+  // A truncating box has no automatic minimum, so a scrolling column squeezes its line to nothing; this holds the line.
+  holdsLineOnLandscape: "dialog-short:glass-short:min-block-min",
   viewport: "min-block-dvh",
   full: "min-block-full",
   control: "min-block-(--size-control-sm)",

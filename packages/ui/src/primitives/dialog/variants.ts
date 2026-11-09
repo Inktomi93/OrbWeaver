@@ -1,4 +1,4 @@
-import { MODAL_SURFACE, OVERLAY_MOTION, POPUP_DESCRIPTION, PUSH, SCRIM, TITLE_STEP, tv, WRAP } from "#lib";
+import { MIN_HEIGHT, MODAL_SURFACE, OVERLAY_MOTION, POPUP_DESCRIPTION, PUSH, SCRIM, TITLE_STEP, tv, WRAP } from "#lib";
 
 // Wide data pickers use a field inset to retain narrow-screen reading width; lg keeps its usual modal gutter.
 // Backdrop is the theme-aware `--scrim` token (never `bg-black/50`); the stack sits at `--z-modal`.
@@ -48,11 +48,13 @@ export const dialogVariants = tv({
       dialog-tiny:glass-short:pbs-0 dialog-tiny:glass-short:pbe-0
     `,
     // A landscape phone's dialog title truncates to one line; its full text stays the dialog's accessible name.
-    title: `${TITLE_STEP} dialog-short:glass-short:truncate`,
+    title: `${TITLE_STEP} dialog-short:glass-short:truncate ${MIN_HEIGHT.holdsLineOnLandscape}`,
     description: POPUP_DESCRIPTION,
     // The action row: the LAST child of a DialogBody, never of the popup itself. The popup's padding
     // surrounds that region, so `sticky bottom-0` lands the buttons exactly one popup inset above the popup edge.
-    footer: "sticky inset-be-0 z-(--z-raised) flex shrink-0 flex-wrap items-center justify-end gap-field bg-popover pbs-field",
+    // A tiny dialog (enlarged text on a landscape phone) stacks its actions to a height that can exceed the body, so the row
+    // scrolls with the sheet there instead of covering every field.
+    footer: "sticky inset-be-0 z-(--z-raised) flex shrink-0 flex-wrap items-center justify-end gap-field bg-popover pbs-field dialog-tiny:static",
   },
   variants: {
     spaced: { true: { popup: "gap-block" } },

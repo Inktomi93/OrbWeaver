@@ -48,3 +48,28 @@ test("a short phone at enlarged text holds the dialog's capped gutter, so the co
   expect(inset.inline).toBe(capped);
   expect(inset.block).toBe(await resolvedLength(page, `var(${TOKENS["height.dialog-gutter"].cssVar})`, viewport));
 });
+
+for (const viewport of [
+  { width: 390, height: 844 },
+  { width: 320, height: 568 },
+]) {
+  test(`at enlarged text a ${viewport.width}px phone's confirmation fits the screen and both actions stay on it`, async ({ mount, page, browserName }) => {
+    test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+    await page.setViewportSize(viewport);
+    await using _textSize = await setPlatformTextSize(page, 3);
+    await mount<typeof AlertDialogNativePartsStory>("tests/ui/primitives/alert-dialog/_native-parts-stories/AlertDialogNativePartsStory");
+    await page.getByRole("button", { name: "Delete remotely", exact: true }).click();
+    const dialog = page.getByRole("alertdialog", { name: "Delete draft?", exact: true });
+    await expect(dialog).toBeVisible();
+    const onScreen = (node: Element): boolean =>
+      node.getBoundingClientRect().left >= 0 && node.getBoundingClientRect().right <= innerWidth && node.scrollWidth <= node.clientWidth + 1;
+    for (const part of [
+      dialog,
+      dialog.getByRole("button", { name: "Cancel", exact: true }),
+      dialog.getByRole("button", { name: "Confirm deletion", exact: true }),
+    ]) {
+      await expect.poll(async () => await part.evaluate(onScreen)).toBe(true);
+    }
+    expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true);
+  });
+}
