@@ -20,7 +20,7 @@ import { CHAT_EARLIER_MESSAGES_NAME, CHAT_MESSAGE_INPUT_NAME, CHAT_SEND_NAME } f
 import { CHAT_ADD_CHARACTER_NAME } from "#client/features/chat/lib/members-names.ts";
 import { CHAT_PRINT_COVERAGE } from "#client/features/chat/lib/transcript-copy.ts";
 import type { AppShellCharacterStory, AppShellModalStory, AppShellRoomStory, AppShellStory, AppShellTemporaryNewChatStory } from "./_app-shell-stories.tsx";
-import type { PlantedControlsStory } from "./_text-scale-probe-stories.tsx";
+import type { PlantedControlsStory, PlantedCoverStory } from "./_text-scale-probe-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
@@ -1313,4 +1313,26 @@ test("the probe fails a clipped control, a column that scrolls sideways and an o
   expect(await page.locator('[data-planted="declared"]').evaluate((strip) => strip.scrollWidth - strip.clientWidth)).toBeGreaterThan(SUBPIXEL);
   expect(await findings(page.locator('[data-planted="declared"]'))).toEqual([]);
   expect(await findings(page.locator('[data-planted="stacked"]'))).toContainEqual(expect.stringContaining("overlaps"));
+});
+
+test("the probe passes a control an open toast lies over and fails one a plain box covers", async ({ mount, page }) => {
+  await mount<typeof PlantedCoverStory>(`${PROBE_STORIES}/PlantedCoverStory`, {});
+  const notice = page.locator('[data-slot="toast-root"]').first();
+  await expect(notice).toBeVisible();
+  const control = page.locator('[data-planted="under-toast"]');
+  // The notice really lies over the control: a press on it lands on the toast.
+  await expect
+    .poll(async () =>
+      control.evaluate((button) =>
+        document
+          .elementsFromPoint(
+            button.getBoundingClientRect().x + button.getBoundingClientRect().width / 2,
+            button.getBoundingClientRect().y + button.getBoundingClientRect().height / 2,
+          )
+          .some((hit) => hit.closest('[data-slot="toast-root"]') !== null),
+      ),
+    )
+    .toBe(true);
+  expect(await findings(page.locator("body"))).not.toContainEqual(expect.stringContaining("Under the notice"));
+  expect(await findings(page.locator("body"))).toContainEqual(expect.stringContaining("Under the box"));
 });
