@@ -36,11 +36,11 @@ import { Switch } from "@orb/ui/switch";
 import { Heading, Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import { QueryBoundary, RowActionsMenu, useFirstBootRows, useReindexConfirm, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
-import { connectionSummary } from "#lib";
+import { allowBackgroundSwitchName, connectionSummary } from "#lib";
 import { clearConnectionEditorRequest, configSettingControlId, useRequestedConnectionEditor } from "#state";
 import { useRemoveConnection, useUseForEverything } from "../hooks/use-connections-mutations.ts";
 import { CONNECTION_FORM_COPY } from "../lib/add-connection-form-model.ts";
@@ -285,7 +285,9 @@ function ConnectionRow({
   // The Model-roles REPAIR switch is the opposite case and spells its subject visibly: it sits in a role
   // row and writes a DIFFERENT row's flag, so there is no context to inherit.
   const switchLabel = CONNECTION_FORM_COPY.backgroundLabel;
-  const switchName = providerUnavailable ? `${switchLabel} unavailable on ${name} because its provider is unavailable` : `${switchLabel} on ${name}`;
+  const switchName = allowBackgroundSwitchName(connection);
+  // The name stays the item's; the visible badge says why the switch is disabled.
+  const unavailableId = useId();
 
   return (
     <Stack gap="tight">
@@ -326,6 +328,7 @@ function ConnectionRow({
             <Row gap="field" align="center">
               <Switch
                 aria-label={switchName}
+                aria-describedby={providerUnavailable ? unavailableId : undefined}
                 checked={connection.allowBackground}
                 disabled={providerUnavailable || update.isPending}
                 onCheckedChange={(checked): void => update.mutate({ connectionId: connection.id, patch: { allowBackground: checked } })}
@@ -379,7 +382,7 @@ function ConnectionRow({
           </>
         }
       />
-      <ConnectionBadges connection={connection} providerUnavailable={providerUnavailable} />
+      <ConnectionBadges connection={connection} providerUnavailable={providerUnavailable} unavailableId={unavailableId} />
       {reindex.dialog}
       {provider === null || addModel === null ? null : (
         <AddModelOnKeyDialog
@@ -402,14 +405,16 @@ function ConnectionRow({
 function ConnectionBadges({
   connection,
   providerUnavailable,
+  unavailableId,
 }: {
   readonly connection: ConnectionListItem;
   readonly providerUnavailable: boolean;
+  readonly unavailableId: string;
 }): ReactElement {
   return (
     <Row gap="field" align="center" wrap={true}>
       {providerUnavailable ? (
-        <Badge tone="warning" size="sm">
+        <Badge id={unavailableId} tone="warning" size="sm">
           Provider unavailable
         </Badge>
       ) : null}

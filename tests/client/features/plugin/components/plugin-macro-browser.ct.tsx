@@ -76,9 +76,12 @@ test("a plugin turned off in its card leaves the browser, and turned back on ret
   await expect(macroName).toBeVisible();
 
   const card = page.getByRole("group", { name: `${PLUGIN_NAME} plugin`, exact: true });
-  await card.getByRole("switch", { name: enablePluginLabel(PLUGIN_NAME, true), exact: true }).click();
+  const enabled = card.getByRole("switch", { name: enablePluginLabel(PLUGIN_NAME), exact: true });
+  await expect(enabled).toHaveAttribute("aria-checked", "true");
+  await enabled.click();
   await expect(macroName).toHaveCount(0);
+  await expect(enabled).toHaveAttribute("aria-checked", "false");
 
-  await card.getByRole("switch", { name: enablePluginLabel(PLUGIN_NAME, false), exact: true }).click();
+  await enabled.click();
   await expect(macroName).toBeVisible();
 });

@@ -218,7 +218,7 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
             <SettingSwitchRow
               checked={plugin.status === "enabled"}
               disabled={setEnabled.isPending}
-              label={enablePluginLabel(plugin.name, plugin.status === "enabled")}
+              label={enablePluginLabel(plugin.name)}
               onChange={onEnabledChange}
             />
           </SettingTrackRow>

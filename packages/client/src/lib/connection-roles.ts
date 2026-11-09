@@ -8,6 +8,7 @@ import { DEFAULT_MEMORY_DEFAULTS } from "@orb/contracts/settings";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { stripLabelSuffix } from "@orb/kit/strings";
+import { itemSwitchName } from "./item-switch-names.ts";
 
 export const CONNECTION_ROLE_LABELS: Record<RoutableTask, string> = {
   chat: "Chat",
@@ -132,6 +133,14 @@ export const ROLE_ROWS_ORDERED: readonly RoleRow[] = ROLE_RENDER_ORDER.map((task
 export function connectionSummary(row: { readonly label: string; readonly model: string }): string {
   const name = row.model.slice(row.model.lastIndexOf("/") + 1);
   return labelNamesModel(row.label, row.model) ? row.label : `${row.label}${CONNECTION_LABEL_SEPARATOR}${name}`;
+}
+
+/** The connection setting that lets unattended work run on a row. */
+export const ALLOW_BACKGROUND_SETTING = "Allow background work";
+
+/** Every switch that writes a row's `allowBackground` — its list row, its editor, the Model-roles repair — reads this one name. */
+export function allowBackgroundSwitchName(row: { readonly label: string; readonly model: string }): string {
+  return itemSwitchName(ALLOW_BACKGROUND_SETTING, connectionSummary(row));
 }
 
 // A retained label must name the complete current model, not its provider or a partial model name.

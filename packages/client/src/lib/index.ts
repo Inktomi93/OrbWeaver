@@ -34,6 +34,8 @@ export { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfig
 export type { RoleConnectionFacts, RoleRequirementVerdict, RoleRow } from "./connection-roles.ts";
 export {
   ADD_CONNECTION_DOOR,
+  ALLOW_BACKGROUND_SETTING,
+  allowBackgroundSwitchName,
   backgroundRepairs,
   bindRefusal,
   CHAT_ROLE_DOOR,
@@ -169,6 +171,7 @@ export {
   sendUnavailableReason,
 } from "./injection-copy.ts";
 export { DEAD_INVITE_SENTENCE, inviteRoomSentence } from "./invite-copy.ts";
+export { ITEM_ENABLED_SETTING, itemSwitchName } from "./item-switch-names.ts";
 export type { ListPaneHeaderProps, ListPaneHeaderView } from "./list-pane-header-view.ts";
 export { LIST_PANE_TITLE_ID } from "./list-pane-title-id.ts";
 export {} from "./log-clock.ts";
