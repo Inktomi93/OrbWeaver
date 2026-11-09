@@ -12,6 +12,7 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { CHARACTER_ACTIONS } from "#client/features/character/lib/character-actions.ts";
 import { CHARACTER_ADD_TAG_NAME } from "#client/features/character/lib/character-names.ts";
+import { GREETING_STUDIO_NAME } from "#client/features/character/lib/greeting-copy.ts";
 import { CHAT_CANCEL_EDIT_NAME, CHAT_SAVE_EDIT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { MESSAGE_ACTIONS_MENU_NAME, MESSAGE_EDIT_NAME } from "#client/features/chat/lib/message-action-names.ts";
 import { CORPUS_DISTILLED_CATALOG_NAME } from "#client/features/discovery/lib/corpus-control-names.ts";
@@ -109,6 +110,18 @@ test.describe("on a phone", () => {
       await expect(page.locator('[data-slot="save-bar-root"]')).toBeVisible();
       await scaleRoot(page, factor);
       await expectPressable(page.locator('[data-slot="character-tags"]').getByRole("button", { name: CHARACTER_ADD_TAG_NAME, exact: true }));
+    });
+
+    test(`the character editor's greeting Studio toggle stays pressable at ${String(factor * 100)}% text`, async ({ mount, page }) => {
+      await seedShellState(page, { activeSection: "characters" });
+      const [character] = (await (await ownerCaller()).character.list({})).items;
+      if (character === undefined) {
+        throw new Error("The corpus has no character");
+      }
+      await mount<typeof AppShellCharacterStory>(`${SHELL_STORIES}/AppShellCharacterStory`, { characterId: character.id });
+      await expect(page.locator('[data-slot="save-bar-root"]')).toBeVisible();
+      await scaleRoot(page, factor);
+      await expectPressable(page.locator('[data-slot="character-greeting-actions"]').getByRole("button", { name: GREETING_STUDIO_NAME, exact: true }));
     });
 
     test(`the Corpus catalog keeps its rows when the pane chrome grows at ${String(factor * 100)}% text`, async ({ mount, page }) => {

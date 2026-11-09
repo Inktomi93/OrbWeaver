@@ -10,6 +10,9 @@ const REACHABLE =
 // declares it with the attribute.
 // An open toast is transient chrome with its own close and timeout, so it lies over the controls beneath it the way pinned chrome does.
 const TRANSIENT_CHROME = '[data-slot="toast-root"]';
+// The boot veil lies over everything while it holds and dissolves after the app is ready, so a probe that runs under it reads the veil as every
+// control's cover. Its layout is not the resting one; the probes wait for it to leave.
+const BOOT_VEIL = '[data-slot="weave-veil"]';
 const SIDEWAYS_STRIPS = 'input, textarea, [role="tablist"], [role="toolbar"], [data-slot="character-context-band"] > * > *, [data-sideways-strip]';
 
 interface ControlGeometry {
@@ -247,6 +250,7 @@ function collapsedScrollers(subject: Element, { subpixel }: { readonly subpixel:
 
 /** Every enlarged-text geometry finding inside `scope`; an empty list is a clean scope. */
 export async function enlargedTextFindings(scope: Locator): Promise<string[]> {
+  await scope.page().locator(BOOT_VEIL).waitFor({ state: "detached" });
   const controls = await scope.evaluate(controlGeometry, { reachable: REACHABLE, subpixel: LAYOUT_SUBPIXEL_PX, transient: TRANSIENT_CHROME });
   const text = await scope.evaluate(cutOffText, { subpixel: LAYOUT_SUBPIXEL_PX });
   const columns = await scope.evaluate(sidewaysColumns, { strips: SIDEWAYS_STRIPS, subpixel: LAYOUT_SUBPIXEL_PX });

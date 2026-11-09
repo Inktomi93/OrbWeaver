@@ -1,7 +1,9 @@
+import type { ControlSize } from "#lib";
 import {
   COLOR_MOTION,
   CONTROL_BLOCK,
   CONTROL_INLINE,
+  CONTROL_SIZES,
   DISABLED_STATE,
   DISABLED_STATE_NATIVE,
   FIELD_STACK,
@@ -15,6 +17,17 @@ import {
 // step, which at the `sm` step under a finger is under the tap floor. So the input and both steppers span the edge
 // themselves with a negative block margin, and the hover fill of a stepper paints over the edge it covers. The group does
 // not clip its children for that reason: the steppers and the stepper-less input round their own outer corners.
+
+// Below the cq-12 step the stepped field's three parts do not fit one line (a phone column at 300% text is under 8rem), so
+// the steppers take a line of their own under the input: a two-track grid with the input spanning both, each part a full
+// step tall and no longer pulled over the group's edge. Each class is a whole literal so Tailwind's scanner sees it.
+const STACKED_ROW = {
+  chip: "@max-cq-12:block-(--size-touch-target)",
+  sm: "@max-cq-12:block-(--size-control-sm)",
+  md: "@max-cq-12:block-(--size-control-md)",
+  lg: "@max-cq-12:block-(--size-control-lg)",
+} as const satisfies Record<ControlSize, string>;
+const STACKED_STEPPER = "@max-cq-12:my-0 @max-cq-12:inline-auto @max-cq-12:border-bs";
 
 export const numberFieldVariants = tv({
   slots: {
@@ -79,11 +92,24 @@ export const numberFieldVariants = tv({
     // right-aligned so a column of knob values reads down one number edge, at the `code` type step because a slider's
     // number twin is a datum, not prose.
     layout: {
-      field: { root: "inline-full", input: "text-center text-field leading-field" },
+      field: {
+        root: "inline-full",
+        group: "@max-cq-12:grid @max-cq-12:grid-cols-2 @max-cq-12:block-auto",
+        decrement: `${STACKED_STEPPER} @max-cq-12:rounded-ss-none`,
+        input: "text-center text-field leading-field @max-cq-12:order-first @max-cq-12:col-span-2 @max-cq-12:my-0 @max-cq-12:rounded-t-control",
+        increment: `${STACKED_STEPPER} @max-cq-12:rounded-se-none`,
+      },
       inline: { root: "inline-(--width-number-inline)", input: "rounded-control px-field text-end font-mono text-code-field leading-code-field" },
       // The stepper-less click-to-edit twin of a promoted stat tile's value: centered, at the title step the rest datum wears.
       tile: { root: "inline-full", group: "block-auto min-block-0", input: "my-0 rounded-control px-field text-center text-title leading-title" },
     },
   },
+  compoundVariants: CONTROL_SIZES.map((size) => ({
+    size,
+    layout: "field" as const,
+    decrement: STACKED_ROW[size],
+    input: STACKED_ROW[size],
+    increment: STACKED_ROW[size],
+  })),
   defaultVariants: { size: "sm", layout: "field" },
 });
