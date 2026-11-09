@@ -217,7 +217,7 @@ export interface LiteralEvidence {
   readonly saved: boolean;
   readonly counts: Readonly<Partial<Record<HitKind, number>>>;
   readonly hits: readonly { readonly at: string; readonly kind: HitKind; readonly scope: "test" | "product" }[];
-  /** For a never-written row, the hits that write a key of its name: the writers a person checks. */
+  /** For a never-written row, up to {@link KEPT_HITS} hits that write a key of its name: the writers a person checks. */
   readonly writers: readonly string[];
   /** Hits at the row's own known sites, left out: its declarations and the sites the scan already recorded. */
   readonly own: number;
@@ -268,7 +268,12 @@ function evidenceOf(row: StageRow, hits: readonly LiteralHit[], own: number, fil
     hits: [...saving, ...hits.filter((hit) => !savesRow(hit))]
       .slice(0, KEPT_HITS)
       .map(({ at, kind, test }) => ({ at, kind, scope: test ? "test" : "product" })),
-    writers: row.neverWritten ? hits.filter((hit) => hit.write).map((hit) => hit.at) : [],
+    writers: row.neverWritten
+      ? hits
+          .filter((hit) => hit.write)
+          .slice(0, KEPT_HITS)
+          .map((hit) => hit.at)
+      : [],
     own,
   };
 }

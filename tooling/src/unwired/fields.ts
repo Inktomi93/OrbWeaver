@@ -594,7 +594,11 @@ function receiverOf(
 ): Pick<ReceivedField, "receiver" | "cite"> | null {
   const { field, kind, sends } = row;
   const { key, site, home, member } = field;
-  const cite = kind === "never-written" ? null : publishedAt(surface, { file: site.file, home, member });
+  // A never-written field's question is its writer, which no outside reader answers.
+  if (kind === "never-written") {
+    return null;
+  }
+  const cite = publishedAt(surface, { file: site.file, home, member });
   if (cite !== null) {
     return { receiver: "plugin-sdk", cite };
   }
