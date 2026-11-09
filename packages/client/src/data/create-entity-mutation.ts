@@ -8,13 +8,14 @@
 // error slot per mutation with explicit clearError(). Callback property order is
 // onMutate → onError → onSuccess → onSettled (type-inference-sensitive).
 //
-// THREE outcome classes, not two (EDITSNAP-OK): resolved-and-committed · threw (`errorToast`) · RESOLVED AND
+// THREE outcome classes, not two (EDITSNAP-OK): resolved-and-committed · threw (`FailureFeedback`) · RESOLVED AND
 // REFUSED (`refusal`). The third is the one that goes silently wrong — see the `refusal` doc below.
 
 import type {
   DefaultError,
   InvalidateQueryFilters,
   MutationFunctionContext,
+  MutationMeta,
   QueryClient,
   QueryKey,
   UseMutateFunction,
@@ -77,12 +78,6 @@ interface EntityMutationBase<TVars, TData, TRead> {
         readonly allowed: (vars: TVars) => boolean;
         readonly update: (old: TRead | undefined, data: TData, vars: TVars) => TRead | undefined;
       };
-  /** The global-toast message on failure (rides mutation `meta` → MutationCache.onError). Required because
-   *  every mutation hook keeps its toast (client-architecture-state-and-gates.md §11): a consumer's inline
-   *  text adds to it, never replaces it. A function form may return `null` to suppress the toast for a
-   *  specific error that another surface already tells (e.g. a stale turn abort the bus surfaces its own notice
-   *  for — see `isSilencedTurnAbort`). */
-  readonly errorToast: string | ((error: unknown) => string | null);
   /**
    * ERRORS-AS-DATA — the THIRD outcome class, beside "resolved" and "threw" (EDITSNAP-OK).
    *
@@ -127,7 +122,44 @@ type FreshnessSource<TVars, TData> =
       readonly invalidates: (trpc: Trpc, vars: TVars, data: TData | undefined) => readonly InvalidateQueryFilters[];
     };
 
-export type EntityMutationConfig<TVars, TData, TRead = unknown> = EntityMutationBase<TVars, TData, TRead> & FreshnessSource<TVars, TData>;
+/**
+ * The failure surface — a compile-time XOR over the three classes of client-architecture-state-and-gates.md §11:
+ * a toast for an action the person took, a log for background housekeeping they did not start, or the inline
+ * line of a surface that is on screen while it fails. A site names exactly one, so none can omit feedback.
+ */
+type FailureFeedback =
+  | {
+      /** The global-toast message on failure (rides mutation `meta` → MutationCache.onError). A consumer's inline
+       *  text may add to it. A function form may return `null` for a specific error another surface already tells
+       *  (e.g. a stale turn abort the bus surfaces its own notice for — see `isSilencedTurnAbort`). */
+      readonly errorToast: string | ((error: unknown) => string | null);
+      readonly backgroundFailure?: never;
+      readonly failureShownInline?: never;
+    }
+  | {
+      /** The log line for a failure of work the person did not start. MutationCache.onError writes it with
+       *  `console.error`, which the bug-report ring (`safe-error-ring.ts`) and the dev console-error ring capture.
+       *  No toast fires. */
+      readonly backgroundFailure: string;
+      readonly errorToast?: never;
+      readonly failureShownInline?: never;
+    }
+  | {
+      /** Names the on-screen surface whose inline line states this failure, so no toast repeats it. Every consumer
+       *  reads the mutation's error or its rejection. */
+      readonly failureShownInline: string;
+      readonly errorToast?: never;
+      readonly backgroundFailure?: never;
+    };
+
+export type EntityMutationConfig<TVars, TData, TRead = unknown> = EntityMutationBase<TVars, TData, TRead> & FreshnessSource<TVars, TData> & FailureFeedback;
+
+function failureMeta(config: FailureFeedback): MutationMeta {
+  if (config.errorToast !== undefined) {
+    return { errorToast: config.errorToast };
+  }
+  return config.backgroundFailure === undefined ? {} : { failureLog: config.backgroundFailure };
+}
 
 /** A `busDriven` mutation reconciles via the bus, not itself — its settle invalidates nothing. */
 const NO_INVALIDATION = (): readonly InvalidateQueryFilters[] => [];
@@ -189,8 +221,8 @@ function releaseOptimisticOwner(queryClient: QueryClient, owner: OptimisticOwner
 }
 
 /** Build the mutation hook once at module scope; features call the returned hook. Deps (trpc +
- *  invalidation) arrive per-call so the factory itself stays import-pure. The global `errorToast` always fires; a
- *  caller that also renders the failure in its own surface keeps that text beside it. */
+ *  invalidation) arrive per-call so the factory itself stays import-pure. The config's failure class picks the one
+ *  failure surface: the global toast, the background log, or the consumer's inline line. */
 export function createEntityMutation<TVars, TData, TRead = unknown>(
   config: EntityMutationConfig<TVars, TData, TRead>,
 ): (deps: { trpc: Trpc; invalidation: Invalidation }) => EntityMutationResult<TVars, TData> {
@@ -221,7 +253,7 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
 
     const mutation = useMutation<TData, DefaultError, TVars, OptimisticContext<TRead>>({
       ...config.options(trpc),
-      meta: { errorToast: config.errorToast },
+      meta: failureMeta(config),
       onMutate: async (vars, context): Promise<OptimisticContext<TRead>> => {
         if (config.optimistic === undefined) {
           return { snapshot: undefined, readKey: null, owner: null };

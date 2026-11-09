@@ -260,6 +260,48 @@ test("a failed-state mark, a toast that stands down and a catch that sets local 
   ]);
 });
 
+test("a background mutation reads as its log, and an inline-class mutation is inline only where its consumer says the failure", ({ scratch }) => {
+  const root = plantDir(scratch, "feedback-classes");
+  plant(root, {
+    "hooks/use-classes.ts": [
+      'export const useSweep = createEntityMutation<A, B>({ backgroundFailure: "The sweep failed.", busDriven: true });',
+      'export const useAsk = createEntityMutation<A, B>({ failureShownInline: "the plan line", busDriven: true });',
+      'export const useConfirm = createEntityMutation<A, B>({ failureShownInline: "the confirm alert", busDriven: true });',
+      'export const useMute = createEntityMutation<A, B>({ failureShownInline: "a line nobody renders", busDriven: true });',
+    ].join("\n"),
+    "components/classes.tsx": [
+      'import { useAsk, useConfirm, useMute, useSweep } from "../hooks/use-classes.ts";',
+      "export const Sweep = (d) => {",
+      "  const sweep = useSweep(d);",
+      "  return null;",
+      "};",
+      "export const Ask = (d) => {",
+      "  const ask = useAsk(d);",
+      "  return ask.error === null ? null : <p>failed</p>;",
+      "};",
+      "export const Confirm = (d) => {",
+      "  const confirm = useConfirm(d);",
+      '  const run = async () => { try { await confirm.mutateAsync({}); } catch (error) { setPhase("idle"); throw error; } };',
+      "  return null;",
+      "};",
+      "export const Mute = (d) => {",
+      "  const mute = useMute(d);",
+      "  return null;",
+      "};",
+    ].join("\n"),
+  });
+  const facts = analyse(root, [], null);
+  const feedback = facts.cohorts.find((entry) => entry.name === "feedback")?.members ?? [];
+  expect(feedback.map((member) => [member.label, member.cells["failure"]?.value])).toEqual([
+    ["useSweep", "log"],
+    ["useAsk", "inline"],
+    ["useConfirm", "inline"],
+    ["useMute", "none"],
+  ]);
+  const mutations = facts.cohorts.find((entry) => entry.name === "mutation")?.members ?? [];
+  expect(mutations.map((member) => member.cells["failure"]?.value)).toEqual(["background", "inline", "inline", "inline"]);
+});
+
 test("a toast that only takes null as an argument still toasts, a setter that is not a failure says nothing, and a form submit's catch is the failure surface", ({
   scratch,
 }) => {

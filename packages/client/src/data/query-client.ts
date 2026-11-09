@@ -1,7 +1,7 @@
 // The pinned QueryClient. The SSE bus drives freshness; these knobs make that model correct: staleTime
 // Infinity (never 'static', which would silently ignore invalidateQueries), refetchOnReconnect true
 // (the SSE-gap catch-up), refetchOnWindowFocus false (the bus owns liveness), mutations retry 0.
-// Global error surfacing lives here: QueryCache/MutationCache onError read meta.errorToast, and every
+// Global error surfacing lives here: QueryCache/MutationCache onError read meta.errorToast or meta.failureLog, and every
 // settled error also passes the stale-session belt (#23b) — a mid-session UNAUTHORIZED re-auths instead of
 // silently rendering the per-user empty.
 
@@ -17,6 +17,9 @@ interface AppMeta {
    *  which the chat bus surfaces its own honest notice for — see `isSilencedTurnAbort`); a returned string
    *  still toasts. */
   readonly errorToast?: string | ((error: unknown) => string | null);
+  /** A background failure's log line: written with `console.error`, which the bug-report ring captures, and never
+   *  toasted (client-architecture-state-and-gates.md §11). */
+  readonly failureLog?: string;
 }
 
 declare module "@tanstack/react-query" {
@@ -36,6 +39,10 @@ export function retryUnlessBadRequest(failureCount: number, error: unknown): boo
 }
 
 function toastFromMeta(meta: AppMeta | undefined, error: unknown): void {
+  if (meta?.failureLog !== undefined) {
+    console.error(meta.failureLog, error);
+    return;
+  }
   if (meta?.errorToast === undefined) {
     return;
   }

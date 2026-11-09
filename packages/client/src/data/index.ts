@@ -24,6 +24,7 @@ export {
   useRenderPolicyFloor,
   useUploadCaps,
 } from "./auth-config.ts";
+export { BACKGROUND_FAILURE_LOGS } from "./background-failure-logs.ts";
 export type { ChatBusDeps } from "./bus/apply-chat-bus-event.ts";
 export { markTurnStopping, recoverTurnAfterStopFailure, useChatBusDeps } from "./bus/chat-bus-writes.ts";
 export { RECOVERY_RETRY_BACKOFF_MS } from "./bus/recovery-retry.ts";

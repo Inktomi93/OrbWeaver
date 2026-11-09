@@ -21,21 +21,32 @@ const clientSources = (sources: readonly Source[]): readonly (Source & { readonl
 /** The calls whose arguments carry a failed-state mark: the mark is state only and never message text. */
 const STATE_MARK_CALLS = new Set(["saveStateOf", "useReportSaveStatus"]);
 
-/** Does the factory toast, and does a function-form toast ever answer `null` (a failure its consumer says itself)? */
+/** The factory's failure class (client-architecture-state-and-gates.md §11) and whether a function-form toast ever
+ *  answers `null` (a failure its consumer says itself). */
 interface FactoryToast {
   readonly toasts: boolean;
   readonly suppresses: boolean;
+  readonly background: boolean;
+  readonly inline: boolean;
 }
+
+const NO_FEEDBACK: FactoryToast = { toasts: false, suppresses: false, background: false, inline: false };
 
 function toastOf(options: ts.Expression | undefined): FactoryToast {
   if (options === undefined || !ts.isObjectLiteralExpression(options)) {
-    return { toasts: false, suppresses: false };
+    return NO_FEEDBACK;
+  }
+  if (hasProperty(options, "backgroundFailure")) {
+    return { ...NO_FEEDBACK, background: true };
+  }
+  if (hasProperty(options, "failureShownInline")) {
+    return { ...NO_FEEDBACK, inline: true };
   }
   const property = options.properties.find((entry) => ts.isPropertyAssignment(entry) && entry.name.getText() === "errorToast");
   if (property === undefined || !ts.isPropertyAssignment(property)) {
-    return { toasts: hasProperty(options, "errorToast"), suppresses: false };
+    return { ...NO_FEEDBACK, toasts: hasProperty(options, "errorToast") };
   }
-  return { toasts: true, suppresses: returnsNull(property.initializer) };
+  return { ...NO_FEEDBACK, toasts: true, suppresses: returnsNull(property.initializer) };
 }
 
 /** A returned leaf is the `null` literal. A call that merely takes `null` as an argument answers unknown, so it does not count. */
@@ -104,8 +115,12 @@ function isStateMark(node: ts.Node): boolean {
 /** A setter says a failure only when its name does: `setOpen(false)` or `setPending(false)` in a catch says nothing about what failed. */
 const FAILURE_SETTER = /^set\w*(?:Error|Failure|Failed|Message|Refusal|Notice|Problem)$/u;
 
-/** The consumer says the failure itself: a call that sets failure state or toasts. */
+/** The consumer says the failure itself: a call that sets failure state or toasts, or a rethrow that hands the
+ *  rejection to the control that awaited it (a confirm dialog states a rejected confirm in its own alert). */
 function isFailureStatement(node: ts.Node): boolean {
+  if (ts.isThrowStatement(node)) {
+    return true;
+  }
   if (!ts.isCallExpression(node)) {
     return false;
   }
@@ -186,7 +201,12 @@ function readsFrom(call: ts.CallExpression, names: ReadonlySet<string>): { reado
   return { errorRead, successRead };
 }
 
-function failureOf(factoryToast: boolean, inline: boolean): string {
+function failureOf(factory: FactoryToast, consumerSays: boolean): string {
+  if (factory.background) {
+    return "log";
+  }
+  const factoryToast = factory.toasts;
+  const inline = consumerSays && !factory.suppresses;
   if (factoryToast && inline) {
     return "toast+inline";
   }
@@ -200,7 +220,6 @@ function failureOf(factoryToast: boolean, inline: boolean): string {
 }
 
 function memberOf(source: Source, sf: ts.SourceFile, call: ts.CallExpression, factory: FactoryToast): Member {
-  const inlineFlag = hasProperty(call.arguments[0], "failureShownInline");
   const { errorRead, successRead } = readsFrom(call, ERROR_READS);
   let success = "none";
   if (sf.text.includes("useToastManager(")) {
@@ -215,7 +234,7 @@ function memberOf(source: Source, sf: ts.SourceFile, call: ts.CallExpression, fa
     label: call.expression.getText(sf),
     cells: {
       success: { value: success, line },
-      failure: { value: failureOf(factory.toasts && !inlineFlag, (inlineFlag || errorRead) && !factory.suppresses), line },
+      failure: { value: failureOf(factory, errorRead), line },
     },
   };
 }
@@ -227,7 +246,7 @@ export function buildFeedbackCohort(sources: readonly Source[]): { readonly coho
     const out: Member[] = [];
     visit(source.sf, (node) => {
       if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && defs.has(node.expression.text)) {
-        out.push(memberOf(source, source.sf, node, defs.get(node.expression.text) ?? { toasts: false, suppresses: false }));
+        out.push(memberOf(source, source.sf, node, defs.get(node.expression.text) ?? NO_FEEDBACK));
       }
     });
     return out;
@@ -236,17 +255,19 @@ export function buildFeedbackCohort(sources: readonly Source[]): { readonly coho
     scan: { factories: defs.size, consumers: members.length, files: files.length },
     cohort: {
       name: "feedback",
-      what: "entity-mutation consumers: success (toast, callback, none) and failure surface (factory toast, inline, both, none)",
+      what: "entity-mutation consumers: success (toast, callback, none) and failure surface (factory toast, inline, both, background log, none)",
       // No law rules how a success is told, so success is a spread to read, not a convention to deviate from.
       columns: ["failure"],
       info: ["success"],
-      // A failure may show a toast and inline text together, never neither (client-architecture-state-and-gates.md §11).
+      // A failure never shows neither (client-architecture-state-and-gates.md §11), so an inline-class consumer that reads no error is a defect.
       defects: { failure: ["none"] },
       kept: {
         failure: {
-          "toast+inline": "a failure may show a toast and inline text together (client-architecture-state-and-gates.md §11, Toasts)",
+          "toast+inline":
+            "a failure may show a toast and inline text together while the inline line can be off screen (client-architecture-state-and-gates.md §11, Toasts)",
           inline:
-            "a toast whose function form answers null for an error the consumer says in place; a consumer keeps its inline text (client-architecture-state-and-gates.md §11, Toasts)",
+            "a surface on screen while it fails states the failure inline and no toast repeats it, or a function-form toast answers null for an error the consumer says in place (client-architecture-state-and-gates.md §11, Toasts)",
+          log: "background housekeeping the person did not start logs its failure and shows no toast (client-architecture-state-and-gates.md §11, Toasts)",
         },
       },
       basis: { success: "heuristic", failure: "heuristic" },

@@ -31,6 +31,21 @@ function freshness(options: ts.ObjectLiteralExpression | null): string {
   return propertyKind(options, "invalidates") === "none" ? "neither" : "invalidates";
 }
 
+// The factory's failure class (client-architecture-state-and-gates.md §11): a toast's form, the background log, or the inline line.
+function failure(options: ts.ObjectLiteralExpression | null): string {
+  if (options === null) {
+    return "n/a";
+  }
+  if (propertyKind(options, "backgroundFailure") !== "none") {
+    return "background";
+  }
+  if (propertyKind(options, "failureShownInline") !== "none") {
+    return "inline";
+  }
+  const toast = propertyKind(options, "errorToast");
+  return toast === "none" ? "none" : `toast ${toast}`;
+}
+
 function mutationMember(source: Source, sf: ts.SourceFile, call: ts.CallExpression, factory: string): Member {
   const first = call.arguments[0];
   const options = first !== undefined && ts.isObjectLiteralExpression(first) ? first : null;
@@ -42,7 +57,7 @@ function mutationMember(source: Source, sf: ts.SourceFile, call: ts.CallExpressi
     cells: {
       home: { value: HOOK_HOME.test(source.path) ? "hooks file" : "component or surface file", line },
       freshness: { value: freshness(options), line },
-      errorToast: { value: options === null ? "n/a" : propertyKind(options, "errorToast"), line },
+      failure: { value: failure(options), line },
       factory: { value: factory, line },
     },
   };
@@ -64,15 +79,18 @@ export function buildMutationCohort(sources: readonly Source[]): Cohort {
   }
   return {
     name: "mutation",
-    what: "mutation factories: defining file, freshness mechanism, error toast, factory",
-    columns: ["home", "freshness", "errorToast", "factory"],
-    defects: { home: ["component or surface file"], errorToast: ["none"] },
+    what: "mutation factories: defining file, freshness mechanism, failure class, factory",
+    columns: ["home", "freshness", "failure", "factory"],
+    defects: { home: ["component or surface file"], failure: ["none"] },
     kept: {
       freshness: { invalidates: FRESHNESS_XOR, busDriven: FRESHNESS_XOR },
-      errorToast: {
-        expression: "every mutation hook keeps its errorToast, and a named copy constant is one (client-architecture-state-and-gates.md §11, Toasts)",
-        function:
-          "every mutation hook keeps its errorToast; a function form answers null only for an error a consumer says itself, never neither (client-architecture-state-and-gates.md §11, Toasts)",
+      failure: {
+        "toast expression":
+          "an action the person took toasts its failure, and a named copy constant is one (client-architecture-state-and-gates.md §11, Toasts)",
+        "toast function":
+          "an action the person took toasts its failure; a function form answers null only for an error another surface says itself (client-architecture-state-and-gates.md §11, Toasts)",
+        background: "background housekeeping the person did not start logs its failure and shows no toast (client-architecture-state-and-gates.md §11, Toasts)",
+        inline: "a surface on screen while it fails states the failure inline, and no toast repeats it (client-architecture-state-and-gates.md §11, Toasts)",
       },
     },
     members,

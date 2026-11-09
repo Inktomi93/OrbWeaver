@@ -1,6 +1,6 @@
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { EntityMutateAsync, Trpc } from "#data";
-import { createEntityMutation, useInvalidation, useTRPC } from "#data";
+import { BACKGROUND_FAILURE_LOGS, createEntityMutation, useInvalidation, useTRPC } from "#data";
 
 // The chat-list row write verbs (the per-row kebab: rename/star/archive/delete). All four are host-only
 // server-side; ChatSummary's viewerRole hides them from non-host rows. All four are busDriven —
@@ -105,5 +105,5 @@ export const useReapTemporaryChats = createEntityMutation<void, { readonly reape
   options: (trpc: Trpc) => trpc.chat.reapTemporaryChats.mutationOptions(),
   invalidates: (trpc: Trpc, _vars, data: { readonly reaped: number } | undefined) =>
     data !== undefined && data.reaped === 0 ? [] : [trpc.chat.listChats.pathFilter()],
-  errorToast: "Couldn't clear your expired temporary chats. They are cleared the next time Home opens.",
+  backgroundFailure: BACKGROUND_FAILURE_LOGS.tempChatSweep,
 });

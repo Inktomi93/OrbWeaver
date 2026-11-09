@@ -1,15 +1,15 @@
 import type { UiGuestInbound, UiGuestOutbound, UiGuestReadyMessage, UiGuestSettledMessage, UiGuestUnavailableMessage } from "@orb/client/lib";
 import { PLUGIN_LOG_CHARS_MAX, PLUGIN_LOG_LEVELS, PLUGIN_LOG_LINES_MAX, PLUGIN_UI_ROUTE } from "@orb/contracts/plugin";
 import type { PluginId } from "@orb/kit/ids";
-
 import { brandedId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
-import { routeTrpc, trpcError } from "@orb/testkit/ct";
+import { absenceWindow, routeTrpc, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusReadResponder, createCorpusViewerReadResponder } from "@orb/testkit/iso";
 import { makePluginRow, makePluginScriptedPage } from "@orb/testkit/node/helpers";
 import type { Page } from "@playwright/test";
+import { BACKGROUND_FAILURE_LOGS } from "#client/data/background-failure-logs.ts";
 import { EXTENSIONS_GONE_TITLE } from "#client/features/plugin/lib/extensions-copy.ts";
 import { PLUGIN_SURFACE_KICKER } from "#client/features/plugin/lib/plugin-panel-copy.ts";
 import type { PluginProtocolStory } from "./_ct-stories.tsx";
@@ -25,6 +25,10 @@ const BOOT_LOG_MESSAGE = "Native browser boot";
 const EVENT_FAILURE_MESSAGE = "Native event refusal";
 const RELAY_FAILURE_MESSAGE = "Native relay refusal";
 const BOOT_FAILURE_MESSAGE = "Native boot refusal";
+const CRASH_REPORT_FAILURE_MESSAGE = "Native crash report refusal";
+const TOAST_WINDOW_MS = 300;
+// Counted by slot, not role: a modal marks the toaster aria-hidden, so a role query would miss a toast behind it.
+const TOAST_ROOT = '[data-slot="toast-root"]';
 const UI_SOURCE = `const ui = orb.ui(1);
 ui.log.info(${JSON.stringify(BOOT_LOG_MESSAGE)});
 const render = (value) => ui.render("protocol", { kind: "stack", children: [
@@ -292,6 +296,30 @@ test("a native guest boot failure publishes ready:false and reports the original
   await component.unmount();
   await Promise.all(retired);
   expect(page.workers()).toHaveLength(0);
+});
+
+test("a crash report that fails writes its log and raises no toast, because the person did not start it", async ({ corpus, corpusViewer, mount, page }) => {
+  const plugin = makePluginRow();
+  const trpc = await routeTrpc(page, {
+    "settings.getUserSettings": createCorpusReadResponder("settings.getUserSettings", corpusViewer.userId, corpus.reads["settings.getUserSettings"]),
+    "sessions.me": createCorpusReadResponder("sessions.me", corpusViewer.userId, corpus.reads["sessions.me"]),
+    "plugin.list": () => [plugin],
+    "plugin.listSurfaces": () => [makePluginScriptedPage(plugin.id)],
+    "plugin.getSurfaceState": knownPlugin(plugin.id, null),
+    "plugin.reportUiCrash": (input) => (input.reason.includes(BOOT_FAILURE_MESSAGE) ? trpcError({ message: CRASH_REPORT_FAILURE_MESSAGE }) : undefined),
+  });
+  await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) =>
+    route.fulfill({ contentType: "application/octet-stream", body: `throw new TypeError(${JSON.stringify(BOOT_FAILURE_MESSAGE)});` }),
+  );
+  const logged = page.waitForEvent("console", {
+    predicate: (message) => message.type() === "error" && message.text().includes(BACKGROUND_FAILURE_LOGS.uiCrashReport),
+  });
+  await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
+  await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
+  await logged;
+  expect(trpc.count("plugin.reportUiCrash")).toBe(1);
+  await absenceWindow(page, TOAST_WINDOW_MS);
+  await expect(page.locator(TOAST_ROOT)).toHaveCount(0);
 });
 
 test("the default shared corpus renders its native Ledger publication and captured disable through Extensions", async ({
