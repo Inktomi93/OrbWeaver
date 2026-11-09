@@ -437,7 +437,13 @@ export function enablePluginLabel(pluginName: string): string {
   return itemSwitchName(ITEM_ENABLED_SETTING, pluginName);
 }
 
-/** The Plugins pane's switch for one plugin's chat panels, named for the plugin so a list of them reads as a list. */
+/** The Plugins pane's switch for one plugin's chat panels: `Show in chat: <plugin>`, one stable name per plugin so a list
+ *  of them reads as a list, with `aria-checked` carrying the state. */
+export function showInChatSwitchName(pluginName: string): string {
+  return itemSwitchName("Show in chat", pluginName);
+}
+
+/** The Hidden-from-chat button that brings one plugin's panels back: an action, so it keeps its action phrasing. */
 export function showInChatLabel(pluginName: string): string {
   return `Show the ${pluginName} panel in chat`;
 }

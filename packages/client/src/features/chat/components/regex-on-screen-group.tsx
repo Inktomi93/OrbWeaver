@@ -36,6 +36,7 @@ import { DISPLAY_PLACEMENT, useDisplayScripts, useInvalidation, useSuspenseQuery
 import { regexScriptTitle } from "#lib";
 import { openConfigTo, selectCollectionMember } from "#state";
 import { useSetRegexScriptEnabled } from "../hooks/use-chat-regex-mutations.ts";
+import { regexScriptEverywhereSwitchName } from "../lib/regex-section-model.ts";
 import { HostDisplayScriptsControl } from "./host-display-scripts-control.tsx";
 
 /** The config group the script library lives in — the `⋯ → Open in library` destination (#1725). */
@@ -95,7 +96,7 @@ function DisplayScriptRow({ isYours, script }: { readonly isYours: boolean; read
                 {/* The SAME "everywhere" name as a tier row's switch, because it is the same flag on the
                     same library row — a display script turned off here is off in every room. */}
                 <Switch
-                  aria-label={`${name}: everywhere`}
+                  aria-label={regexScriptEverywhereSwitchName(name)}
                   checked={script.enabled}
                   onCheckedChange={(next): void => {
                     setEnabled.mutate({ scriptId: script.id, input: { enabled: next } });

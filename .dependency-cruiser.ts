@@ -491,7 +491,12 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/refinery/lib/refinery-names.ts": "REFINERY_VERSIONS_NAME: the context pane's version history tab",
   "packages/client/src/features/plugin/lib/extensions-copy.ts": "EXTENSIONS_GONE_TITLE: the vanished page's title",
   "packages/client/src/features/plugin/lib/plugin-copy.ts":
-    "approveLabel, enablePluginLabel, CHAT_PANEL_HIDE_LABEL and CHAT_PANEL_UNDO_LABEL: production action and switch names required by the no-copied-label contract",
+    "approveLabel, enablePluginLabel, showInChatSwitchName, CHAT_PANEL_HIDE_LABEL and CHAT_PANEL_UNDO_LABEL: production action and switch names required by the no-copied-label contract",
+  "packages/client/src/features/automation/lib/rule-copy.ts": "ruleEnabledSwitchName: the per-rule enable switch name",
+  "packages/client/src/features/workloads/lib/workloads-schedule-model.ts": "scheduleEnabledSwitchName: the per-schedule enable switch name",
+  "packages/client/src/features/preset/lib/assembly-model.ts": "sectionEnabledSwitchName: the per-section enable switch name on a rack row and in its drill-in",
+  "packages/client/src/features/chat/lib/regex-section-model.ts":
+    "regexScriptEverywhereSwitchName and regexTierAllowedSwitchName: the regex script and tier switch names",
   "packages/client/src/features/user-admin/lib/admin-model.ts": "userEnabledFieldName: the per-account enabled switch name",
   "packages/client/src/lib/background-jobs.ts": "BACKGROUND_JOB_LOGS: the log line a background job writes in place of a toast",
   "packages/client/src/features/persona/lib/persona-copy.ts":

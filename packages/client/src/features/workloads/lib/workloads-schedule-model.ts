@@ -3,10 +3,11 @@
 // and edit dialogs (one value shape).
 
 import { ASSET_KINDS } from "@orb/contracts/assets";
-import type { ScheduleCadence, WorkloadMode } from "@orb/contracts/workloads";
+import type { ScheduleCadence, WorkloadKind, WorkloadMode } from "@orb/contracts/workloads";
 import { SCHEDULE_CADENCES, WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
+import { ITEM_ENABLED_SETTING, itemSwitchName } from "#lib";
 import type { WorkloadRunValues } from "./workloads-model.ts";
-import { isMaintenanceWorkloadKind, isRunnableWorkloadKind, RUNNABLE_WORKLOAD_KINDS } from "./workloads-model.ts";
+import { isMaintenanceWorkloadKind, isRunnableWorkloadKind, RUNNABLE_WORKLOAD_KINDS, WORKLOAD_KIND_LABELS } from "./workloads-model.ts";
 
 /** Whether a kind may be scheduled to recur in bulk. A schedule carries no `targetOwnerId`, so a bulk create-kind (bulkRequiresTarget) is not bulk-schedulable. */
 export function workloadKindBulkSchedulable(kind: string): boolean {
@@ -22,6 +23,11 @@ export function resolveScheduleMode(kind: string, bulk: boolean, viewerIsOwner: 
     return "bulk";
   }
   return "singular";
+}
+
+/** A schedule row's enable switch: `Enabled: <kind label>`, one stable name per schedule with `aria-checked` carrying the state. */
+export function scheduleEnabledSwitchName(kind: WorkloadKind): string {
+  return itemSwitchName(ITEM_ENABLED_SETTING, WORKLOAD_KIND_LABELS[kind]);
 }
 
 /** Cadence → human label (exhaustive — a new cadence fails `tsc` until it gets a label). */

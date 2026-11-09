@@ -69,6 +69,7 @@ import {
   armLabel,
   hasSpendArm,
   ruleBindingTasks,
+  ruleEnabledSwitchName,
   ruleGloss,
   runOutcomeNotice,
   SUGGEST_ON_REFUSAL_HELP,
@@ -281,7 +282,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
               that stays on the closed face — on/off is the question a host scanning a rule list is asking,
               and it is neither destructive nor spending. */}
           <Switch
-            aria-label={unreadable ? ruleUnreadableEnableRefusal(rule.name) : `Enable ${rule.name}`}
+            aria-label={unreadable ? ruleUnreadableEnableRefusal(rule.name) : ruleEnabledSwitchName(rule.name)}
             checked={rule.enabled}
             className="shrink-0"
             disabled={setEnabled.isPending}

@@ -3,8 +3,8 @@
 // density, and the composer keeps the start edge the transcript rows take, at the narrowest phone, a phone and a desktop.
 import { THEME_CHAT_STYLES, THEME_DENSITIES } from "@orb/contracts/theme";
 import type { ChatId, MessageId } from "@orb/kit/ids";
-import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
-import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import { resolvedLength, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
+import { channelName, createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { forEachNonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -180,6 +180,37 @@ forEachNonEmpty(
         });
       }
     }
+  },
+);
+
+// The narrowest phone at 125% text: the pane is under the `cq-16` step, where the text keeps the room and the chip keeps
+// the enlarged `size.avatar-sm` with no 44px reach (the `avatar-reach.ts` header). WCAG 2.5.8's 24px minimum target is what holds.
+const ENLARGED = { name: "320", viewport: { width: 320, height: 700 }, factor: 1.25 } as const;
+const MINIMUM_TARGET_PX = 24;
+
+forEachNonEmpty(
+  THEME_CHAT_STYLES.filter((style) => MESSAGE_ROW_SKINS[style].avatarTreatment("character") !== "none"),
+  "chat styles that paint an avatar at enlarged text",
+  (chatStyle) => {
+    test.describe(`${ENLARGED.name} 125% text ${chatStyle} avatar reach`, () => {
+      test.use({ hasTouch: true, isMobile: true, viewport: ENLARGED.viewport });
+
+      test("each avatar is a target past the 24px minimum, hit whole inside the scroller", async ({ corpus, corpusMedia, mount, page }) => {
+        await using root = await createCorpusHarness();
+        const { chatId, messageIds } = await prepareRoom({ corpus, corpusMedia, page }, root, { chatStyle, density: "comfortable" });
+        await mount<typeof ChatRoomShellStory>(STORY, { chatId });
+        await setRootFontScale(page, channelName("fontScale"), ENLARGED.factor);
+        for (const role of ROLES) {
+          const opener = await openerOf(page, messageIds.get(role));
+          await expect
+            .poll(async () => (await opener.boundingBox())?.width ?? 0, { message: `${role} avatar width` })
+            .toBeGreaterThanOrEqual(MINIMUM_TARGET_PX);
+          await expect
+            .poll(() => opener.evaluate(probeReach, MINIMUM_TARGET_PX), { message: `${role} avatar minimum target` })
+            .toEqual({ hits: [true, true, true, true], covered: [] });
+        }
+      });
+    });
   },
 );
 

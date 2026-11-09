@@ -7,6 +7,7 @@ import { DEFAULT_MARKER_TEMPLATES, GENERATION_TYPES, MARKER_TYPES } from "@orb/c
 import type { LucideIcon } from "@orb/ui/icons";
 import { Pencil } from "@orb/ui/icons";
 import type { SelectOption } from "@orb/ui/select";
+import { ITEM_ENABLED_SETTING, itemSwitchName } from "#lib";
 import { MARKER_COPY } from "../components/prompt-assembly/marker-copy.ts";
 
 /** The three section kinds the rack + inspector branch on (derived from a section, never stamped). */
@@ -73,6 +74,12 @@ export function headerCopy(section: PromptSection): { readonly label: string; re
     return { label: named === "" ? copy.label : named, oneLiner: copy.oneLiner };
   }
   return { label: named === "" ? "Literal text" : named, oneLiner: "Your own text, sent exactly as written." };
+}
+
+/** A section's enable switch, on its rack row and in its drill-in: `Enabled: <section>`, one stable name per section
+ *  with `aria-checked` carrying the state. */
+export function sectionEnabledSwitchName(section: PromptSection): string {
+  return itemSwitchName(ITEM_ENABLED_SETTING, headerCopy(section).label);
 }
 
 /** The two markers whose card/room override is user-facing — the drill-in always surfaces their
