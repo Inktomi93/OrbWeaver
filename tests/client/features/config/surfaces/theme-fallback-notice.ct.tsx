@@ -3,6 +3,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { TONE_FALLBACK_SCOPE } from "@orb/testkit/iso";
 import { createFirstBootHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { CONFIG_THEME_BACKGROUND_FIELD_NAME } from "#client/features/config/lib/config-control-names.ts";
 import type { FirstBootStory } from "./_first-boot-stories.tsx";
 
 // The theme editor names the contrast bound its theme's own colours made the app relax, reached the way an author edits
@@ -49,14 +50,14 @@ async function pickColor(page: Page, field: string, value: string): Promise<void
 const notice = (page: Page): Locator => page.locator('[data-slot="theme-fallback-notice"]');
 
 test("a theme whose accent shares no ink with its solid steps names the relaxed bound, and a fix clears it", async ({ page }) => {
-  await expect(page.getByRole("button", { name: "Background", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: CONFIG_THEME_BACKGROUND_FIELD_NAME, exact: true })).toBeVisible();
   // A live region announces only what is added after it mounts, so the empty region is already there.
   await expect(notice(page)).toHaveAttribute("role", "status");
   await expect(notice(page).locator("[data-fallback]")).toHaveCount(0);
-  await pickColor(page, "Background", TONE_FALLBACK_SCOPE.toneBackground);
+  await pickColor(page, CONFIG_THEME_BACKGROUND_FIELD_NAME, TONE_FALLBACK_SCOPE.toneBackground);
   await pickColor(page, "Accent", TONE_FALLBACK_SCOPE.toneAccent);
   await expect(notice(page).locator('[data-fallback="tone"]')).toHaveCount(1);
-  await pickColor(page, "Background", "oklch(0.98 0.004 75)");
+  await pickColor(page, CONFIG_THEME_BACKGROUND_FIELD_NAME, "oklch(0.98 0.004 75)");
   await expect(notice(page).locator("[data-fallback]")).toHaveCount(0);
   await expect(notice(page)).toHaveAttribute("role", "status");
 });

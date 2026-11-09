@@ -1,8 +1,6 @@
-// The reader's row across a change in the leading chrome's height. When a caller's regime flips (a text-size change,
-// a rotation) the chrome above the rows changes height, `scrollMargin` follows it, and every row re-measures in the same
-// pass; virtual-core keeps the row through either change alone but not through both, so the row read before the change
-// is put back at the reader's top edge each frame until the rows stop moving. That edge is the port's top, or the bottom
-// of a plate pinned over it: a row under the plate is not one the reader can see.
+// The reader's row, held through a leading-chrome change that re-measures every row. A row read below a plate's edge follows
+// that edge while the plate stays in view, as it grows or reflows. Otherwise the row stays where it was read: a plate that
+// pins from out of view, or leaves, lays over the rows or lifts off them and moves nothing, whatever its height did.
 
 import type { RefObject } from "react";
 import type { RowKey } from "./row-roving.ts";
@@ -13,6 +11,8 @@ export interface ReadingRow {
   readonly key: RowKey;
   readonly index: number;
   readonly into: number;
+  /** How far below the port's top the reader's edge stood: the bottom of the plate in view, or 0 with none in view. */
+  readonly edgePx: number;
 }
 
 // Rows re-measure over a few frames as their text reflows; this many still frames in a row means they are done.
@@ -24,9 +24,9 @@ function mountedRows(scroller: HTMLElement): readonly HTMLElement[] {
   return [...scroller.querySelectorAll<HTMLElement>(`[data-slot="${MESSAGE_LIST_ROW_SLOT}"]`)];
 }
 
-/** The row at the reader's top edge, `coveredPx` below the port's, or null when no row is on screen or the rows are a commit behind the items or the scroll. */
-export function readingRowOf(scroller: HTMLElement, { count, keyAt }: LiveRows, coveredPx: number): ReadingRow | null {
-  const edge = scroller.getBoundingClientRect().top + coveredPx;
+/** The row at the reader's top edge, `edgePx` below the port's, or null when no row is on screen or the rows are a commit behind the items or the scroll. */
+export function readingRowOf(scroller: HTMLElement, { count, keyAt }: LiveRows, edgePx: number): ReadingRow | null {
+  const edge = scroller.getBoundingClientRect().top + edgePx;
   const rows = mountedRows(scroller);
   let found: { readonly row: HTMLElement; readonly box: DOMRect } | null = null;
   for (const row of rows) {
@@ -47,7 +47,7 @@ export function readingRowOf(scroller: HTMLElement, { count, keyAt }: LiveRows, 
   if (found.box.top > edge && index > 0 && !rows.some((row) => Number(row.dataset["index"]) === index - 1)) {
     return null;
   }
-  return { key: keyAt(index), index, into: Math.min(1, (edge - found.box.top) / found.box.height) };
+  return { key: keyAt(index), index, into: Math.min(1, (edge - found.box.top) / found.box.height), edgePx };
 }
 
 /** The list's rows as of its last commit. */
@@ -61,8 +61,8 @@ interface HoldOptions {
   readonly row: ReadingRow;
   /** Read on every frame: a prepend can land during a hold, or in the commit that starts one. */
   readonly rows: RefObject<LiveRows>;
-  /** How far a pinned plate covers the top of the port; read on every frame, because the plate can arrive during a hold. */
-  readonly coveredPx: RefObject<number>;
+  /** The bottom of the plate in view below the port's top, or 0; read on every frame, because the plate can grow during a hold. */
+  readonly plateEdgePx: () => number;
   /** Brings an unmounted row into the window; the next frame finishes the placement. */
   readonly reveal: (index: number) => void;
   /** True once the reader's own hand, or anything else outside the list, has the axis: they win. */
@@ -84,8 +84,13 @@ export function rowIndexNow(row: ReadingRow, { count, keyAt }: LiveRows): number
   return -1;
 }
 
-/** Holds `row` at the scroller's top edge until the rows settle; returns a cancel. */
-export function holdReadingRow({ scroller, row, rows, coveredPx, reveal, yieldTo, onWrite, onDone }: HoldOptions): () => void {
+// The plate's edge while `row` was read under a plate that is still in view; otherwise the edge it was read at.
+function heldEdgePx(row: ReadingRow, platePx: number): number {
+  return row.edgePx > 0 && platePx > 0 ? platePx : row.edgePx;
+}
+
+/** Holds `row` at the reader's edge until the rows settle; returns a cancel. */
+export function holdReadingRow({ scroller, row, rows, plateEdgePx, reveal, yieldTo, onWrite, onDone }: HoldOptions): () => void {
   let frame = 0;
   let still = 0;
   let handle = 0;
@@ -101,7 +106,7 @@ export function holdReadingRow({ scroller, row, rows, coveredPx, reveal, yieldTo
       still = 0;
     } else {
       const box = target.getBoundingClientRect();
-      const drift = box.top + row.into * box.height - scroller.getBoundingClientRect().top - coveredPx.current;
+      const drift = box.top + row.into * box.height - scroller.getBoundingClientRect().top - heldEdgePx(row, plateEdgePx());
       if (Math.abs(drift) >= 1) {
         scroller.scrollTop += drift;
         onWrite();

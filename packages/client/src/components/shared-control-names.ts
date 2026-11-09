@@ -7,6 +7,9 @@ export const TAG_NAME_FIELD_NAME = "Tag name";
 /** The background picker's door to the URL entry. */
 export const BACKGROUND_FROM_URL_NAME = "From a URL…";
 
+/** The background picker's tile grid, mounted by the character look tab and the chat room overrides. */
+export const BACKGROUND_GRID_NAME = "Background";
+
 /** The background picker's URL entry field. */
 export const BACKGROUND_URL_FIELD_NAME = "Background image URL";
 
