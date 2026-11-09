@@ -23,4 +23,4 @@ The pane-ink finding is gone from these surfaces' evidence checkpoints, fixed at
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Triage (local lane cb-q2): real. On 19 Config group landings (about, personas, world info) the content ends at about a third of a 952px content pane (pane-ink floor 0.45, tooling/src/ui-audit/lib/checks-structure.ts:177-200). The rule's own header names the fix a design decision; shrinking the region breaks the content surface's scroll geometry (config-content-surface.tsx). Needs a rendered look before a fix: the landing either earns the height or the pane sheds it.
