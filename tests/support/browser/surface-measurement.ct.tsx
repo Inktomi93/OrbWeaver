@@ -484,7 +484,7 @@ test("the browser text size reaches the mounted document and its media-query rem
   const width = page.viewportSize()?.width ?? 0;
   // The project viewport is a desktop shell at the default size and below the breakpoint at 200%.
   expect(await page.evaluate((query) => matchMedia(query).matches, desktop)).toBe(true);
-  const profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+  await using profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
   expect(width / profile.defaultFontPx).toBeGreaterThan(breakpointRem);
   expect(width / profile.standardFontPx).toBeLessThan(breakpointRem);
   await mount<typeof SurfaceTextGeometryStory>("tests/support/browser/surface-design-fixtures/SurfaceTextGeometryStory", { clipped: false });
@@ -501,7 +501,7 @@ for (const clipped of [false, true]) {
     browserName,
   }, info) => {
     test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
-    const profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+    await using profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
     await page.addInitScript({ content: webVitalsInitScript(await webVitalsSource()) });
     await mount<typeof SurfaceTextGeometryStory>("tests/support/browser/surface-design-fixtures/SurfaceTextGeometryStory", { clipped });
     const witness = page.getByRole("button", { name: "Continue to the next step", exact: true });
@@ -523,7 +523,7 @@ test("enlarged-text geometry still names a visible button a fixed box clips, and
   browserName,
 }) => {
   test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
-  await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+  await using _textSize = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
   await mount<typeof SurfaceTextGeometryStory>("tests/support/browser/surface-design-fixtures/SurfaceTextGeometryStory", { clipped: true });
   // The hidden range input is attached and reachable; only its paint keeps it out of the verdict.
   await expect(page.getByRole("slider", { name: "Reflowing group slider", exact: true })).toBeAttached();
@@ -534,7 +534,7 @@ test("enlarged-text geometry still names a visible button a fixed box clips, and
 
 test("enlarged-text geometry fails a named pair of visible controls that overlap", async ({ mount, page, browserName }) => {
   test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
-  await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+  await using _textSize = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
   await mount<typeof SurfaceTextOverlapStory>("tests/support/browser/surface-design-fixtures/SurfaceTextOverlapStory", { named: true });
   await expect(page.getByRole("button", { name: "Over control", exact: true })).toBeVisible();
   expect(await enlargedTextFindings(page.getByRole("main"))).toEqual(['"Under control" overlaps "Over control"']);
@@ -542,7 +542,7 @@ test("enlarged-text geometry fails a named pair of visible controls that overlap
 
 test("enlarged-text geometry records an overlap with no name on either control as incomplete, not as a finding", async ({ mount, page, browserName }, info) => {
   test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
-  const profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+  await using profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
   await page.addInitScript({ content: webVitalsInitScript(await webVitalsSource()) });
   await mount<typeof SurfaceTextOverlapStory>("tests/support/browser/surface-design-fixtures/SurfaceTextOverlapStory", { named: false });
   const fields = page.getByRole("textbox");

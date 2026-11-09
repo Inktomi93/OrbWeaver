@@ -5,6 +5,7 @@ import type { Rgb } from "@orb/kit/theme-derivation";
 import type { Locator, Page } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { z } from "zod";
+import { LAYOUT_SUBPIXEL_PX } from "./enlarged-text-geometry.ts";
 
 interface ShortcutInit {
   readonly altKey?: boolean;
@@ -41,6 +42,20 @@ export async function settledBox(locator: Locator): Promise<{ x: number; y: numb
     previous = current;
   }
   throw new Error(`the box never settled: last ${JSON.stringify(previous)}`);
+}
+
+/**
+ * Assert that a transcript's history failure is pinned in `list`'s port with its line inside the port: whole where the plate
+ * fits, else from the port's top. At the largest text sizes a phone's port is shorter than the plate.
+ */
+export async function expectPinnedFailure(list: Locator): Promise<void> {
+  const plateNode = list.locator('[data-slot="message-list-leading-action"]');
+  await expect(plateNode).toHaveCSS("position", "sticky");
+  const line = await settledBox(list.getByRole("alert"));
+  const port = await settledBox(list);
+  expect(line.y).toBeGreaterThanOrEqual(port.y - LAYOUT_SUBPIXEL_PX);
+  const fits = (await settledBox(plateNode)).height <= port.height;
+  expect(line.y + (fits ? line.height : 0)).toBeLessThanOrEqual(port.y + port.height + LAYOUT_SUBPIXEL_PX);
 }
 
 /** The message at a transcript's top edge once two reads a painted frame apart agree, read from the row boxes, so it says
