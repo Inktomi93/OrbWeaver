@@ -290,7 +290,7 @@ export const useInvokeUiAction = createEntityMutation<inferInput<Trpc["plugin"][
 export const useReportUiCrash = createEntityMutation<inferInput<Trpc["plugin"]["reportUiCrash"]>, inferOutput<Trpc["plugin"]["reportUiCrash"]>>({
   options: (trpc) => trpc.plugin.reportUiCrash.mutationOptions(),
   invalidates: (trpc) => [trpc.plugin.list.queryFilter(), ...pluginContributionCatalogReads(trpc), ...providerDependentConnectionReads(trpc)],
-  errorToast: "Couldn't record a plugin page's crash. The page may keep failing until the plugin is switched off.",
+  backgroundFailure: "uiCrashReport",
 });
 
 /** Run one registered plugin COMMAND — the `/plugin <slug> <name> …` dispatch and the

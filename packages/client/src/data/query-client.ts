@@ -1,13 +1,14 @@
 // The pinned QueryClient. The SSE bus drives freshness; these knobs make that model correct: staleTime
 // Infinity (never 'static', which would silently ignore invalidateQueries), refetchOnReconnect true
 // (the SSE-gap catch-up), refetchOnWindowFocus false (the bus owns liveness), mutations retry 0.
-// Global error surfacing lives here: QueryCache/MutationCache onError read meta.errorToast, and every
+// Global error surfacing lives here: QueryCache/MutationCache onError read meta.errorToast or meta.backgroundJob, and every
 // settled error also passes the stale-session belt (#23b) — a mid-session UNAUTHORIZED re-auths instead of
 // silently rendering the per-user empty.
 
 import type { Query } from "@tanstack/react-query";
 import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
-import { notify, trpcErrorCode } from "#lib";
+import type { BackgroundJob } from "#lib";
+import { BACKGROUND_JOB_LOGS, notify, trpcErrorCode } from "#lib";
 import { recoverIfStaleSession } from "./stale-session.ts";
 
 // Per-query/mutation meta — the sanctioned v5 carrier for global-handler config.
@@ -17,6 +18,13 @@ interface AppMeta {
    *  which the chat bus surfaces its own honest notice for — see `isSilencedTurnAbort`); a returned string
    *  still toasts. */
   readonly errorToast?: string | ((error: unknown) => string | null);
+  /** The consumer that states this failure inline is still mounted, so its line says it and the toast is skipped
+   *  (client-architecture-state-and-gates.md §11). */
+  readonly shownInline?: () => boolean;
+  /** A background job's failure: its line is logged with `console.error` and never toasted
+   *  (client-architecture-state-and-gates.md §11). The dev console-error ring keeps the text; the bug-report ring records
+   *  only the job name. */
+  readonly backgroundJob?: BackgroundJob;
 }
 
 declare module "@tanstack/react-query" {
@@ -36,7 +44,11 @@ export function retryUnlessBadRequest(failureCount: number, error: unknown): boo
 }
 
 function toastFromMeta(meta: AppMeta | undefined, error: unknown): void {
-  if (meta?.errorToast === undefined) {
+  if (meta?.backgroundJob !== undefined) {
+    console.error(BACKGROUND_JOB_LOGS[meta.backgroundJob], error);
+    return;
+  }
+  if (meta?.errorToast === undefined || meta.shownInline?.() === true) {
     return;
   }
   const message = typeof meta.errorToast === "function" ? meta.errorToast(error) : meta.errorToast;

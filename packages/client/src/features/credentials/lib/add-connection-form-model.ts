@@ -4,7 +4,7 @@ import type { ProviderAuth, ProviderDef, Wire } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES, LOCAL_LIGHT_SEED_ROWS, providerDisplayLabel } from "@orb/contracts/inference";
 import { isLoopbackHost } from "@orb/kit/allowed-hosts";
 import type { UserCredentialId } from "@orb/kit/ids";
-import { ADD_CONNECTION_PATH } from "#lib";
+import { ADD_CONNECTION_PATH, ALLOW_BACKGROUND_SETTING } from "#lib";
 import { clauseOf, MODEL_REQUIRED_MESSAGE } from "./model-picker-model.ts";
 
 /** A selected credential disappeared or was revoked while authoring. */
@@ -172,7 +172,7 @@ export function validateAddConnection(value: AddConnectionFormValues): { fields:
  *  fields and the same switch the same way. */
 export const CONNECTION_FORM_COPY = {
   labelHint: "Optional. Defaults to “provider · model”.",
-  backgroundLabel: "Allow background work",
+  backgroundLabel: ALLOW_BACKGROUND_SETTING,
   backgroundDescription: "Let summaries, captions and memory digests run on this connection unattended.",
   submit: ADD_CONNECTION_PATH.leaf,
   submitFailed: "Couldn't submit the connection.",

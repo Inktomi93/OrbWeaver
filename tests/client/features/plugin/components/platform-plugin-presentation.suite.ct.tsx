@@ -18,7 +18,7 @@ import { captureCookieAuth, createCorpusHarness, makePluginBundle, requireShowca
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { strToU8 } from "fflate";
-import { pluginDetailsLabel } from "#client/features/plugin/lib/plugin-copy.ts";
+import { enablePluginLabel, pluginDetailsLabel } from "#client/features/plugin/lib/plugin-copy.ts";
 import { PLUGIN_MODEL_HEADING } from "#client/features/plugin/lib/plugin-model-copy.ts";
 import type { PluginPresentationPageStory } from "../_ct-stories.tsx";
 import type { PluginConsentLayoutStory } from "./_consent-layout-stories.tsx";
@@ -277,7 +277,7 @@ for (const { width, touch, mobile } of [
       await mount<typeof PluginConsentLayoutStory>(SETTINGS_STORY, { width });
       for (const plugin of [research, affinity]) {
         const row = page.getByRole("group", { name: `${plugin.name} plugin`, exact: true });
-        await expect(row.getByRole("switch", { name: `Turn ${plugin.name} off`, exact: true })).toBeVisible();
+        await expect(row.getByRole("switch", { name: enablePluginLabel(plugin.name), exact: true })).toHaveAttribute("aria-checked", "true");
         const details = row.getByRole("button", { name: pluginDetailsLabel(plugin.name), exact: true });
         await expect(details).toHaveAttribute("aria-expanded", "false");
         await details.click();

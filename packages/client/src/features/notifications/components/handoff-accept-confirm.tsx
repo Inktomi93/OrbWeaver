@@ -76,7 +76,7 @@ export interface HandoffAcceptConfirmProps {
 export function HandoffAcceptConfirm({ chatId, notificationId, offer, onClose, onAccepted }: HandoffAcceptConfirmProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const acceptHandoff = useAcceptHostHandoff({ trpc, invalidation });
+  const acceptHandoff = useAcceptHostHandoff({ trpc, invalidation, failureShownInline: "the handoff confirm's alert line" });
   const dismiss = useDismissNotification({ trpc, invalidation });
   const lines = offerLines(offer);
 

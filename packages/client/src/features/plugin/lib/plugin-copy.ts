@@ -38,6 +38,7 @@
 
 import type { RoutableTask } from "@orb/contracts/inference";
 import type { PluginBuiltAgainst, PluginCapability, PluginStatus } from "@orb/contracts/plugin";
+import { ITEM_ENABLED_SETTING, itemSwitchName } from "#lib";
 
 /** One capability as the consent screen speaks it. */
 export interface CapabilityCopy {
@@ -429,10 +430,11 @@ export function chatPanelHiddenTitle(pluginName: string): string {
 export const CHAT_PANEL_HIDDEN_HINT = "Turn it back on from its row in Settings, Plugins.";
 export const CHAT_PANEL_UNDO_LABEL = "Undo";
 export const CHAT_PANEL_HIDE_LABEL = "Hide";
-/** The plugin's enable switch names the plugin and follows its state, so it says what pressing does ("Turn X off"). A
- *  static name told a screen reader, and a driving instrument that toggled a live plugin off, that an enabled plugin was off. */
-export function enablePluginLabel(pluginName: string, enabled: boolean): string {
-  return enabled ? `Turn ${pluginName} off` : `Turn ${pluginName} on`;
+/** The plugin's enable switch: one stable name for the plugin, `Enabled: <plugin>`, with `aria-checked` carrying the state.
+ *  A static ACTION name ("Turn X on") told a screen reader, and a driving instrument that toggled a live plugin off, that
+ *  an enabled plugin was off. A stable ITEM name states no state, so it cannot contradict `aria-checked`. */
+export function enablePluginLabel(pluginName: string): string {
+  return itemSwitchName(ITEM_ENABLED_SETTING, pluginName);
 }
 
 /** The Plugins pane's switch for one plugin's chat panels, named for the plugin so a list of them reads as a list. */

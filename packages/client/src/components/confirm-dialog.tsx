@@ -18,8 +18,8 @@ import { Button } from "@orb/ui/button";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode, RefObject } from "react";
-import { useState } from "react";
-import { DIALOG_VERBS } from "#lib";
+import { useEffect, useRef, useState } from "react";
+import { DIALOG_VERBS, notify } from "#lib";
 
 /** A confirm's close target. A ref lands on that element's first tabbable control. A function runs at close
  *  and returns `false` once it has placed focus itself, which is how a programmatic stop (tabindex -1) with
@@ -110,6 +110,14 @@ function isSettle(value: void | Promise<void>): value is Promise<void> {
   return typeof (value as { then?: unknown } | undefined)?.then === "function";
 }
 
+/** Where the confirm stands when its settle rejects. */
+type ConfirmPresence = "open" | "closed" | "gone";
+
+/** The confirm's failure sentence, in the dialog's alert line or, once the dialog has closed, in a toast. */
+function confirmFailureSentence(reason: string): string {
+  return `That didn't go through: ${reason}`;
+}
+
 // The one confirm anatomy, so the two public entries below cannot drift.
 function ConfirmSurface({
   title,
@@ -134,6 +142,17 @@ function ConfirmSurface({
   const [failure, setFailure] = useState<string | null>(null);
   const [settling, setSettling] = useState(false);
   const isOpen = open ?? selfOpen;
+  // Read when the settle rejects, which can be after Cancel or Escape closed the dialog, or after it unmounted.
+  const shown = useRef<ConfirmPresence>("closed");
+  useEffect(() => {
+    shown.current = isOpen ? "open" : "closed";
+  }, [isOpen]);
+  useEffect(
+    () => (): void => {
+      shown.current = "gone";
+    },
+    [],
+  );
 
   const moveOpen = (next: boolean): void => {
     if (open === undefined) {
@@ -162,7 +181,14 @@ function ConfirmSurface({
       .catch((error: unknown): void => {
         // The fallback string is FAILURE-VALUED in its own words, and both arms are: the ownership gate
         // reads the argument, and "no reason" alone would not say that anything failed.
-        setFailure(error instanceof Error && error.message !== "" ? error.message : "the request failed and gave no reason.");
+        const reason = error instanceof Error && error.message !== "" ? error.message : "the request failed and gave no reason.";
+        // A closed dialog has no line to say it on, so it toasts. An unmounted one stays quiet: the consumer's mutation
+        // declared this line with `failureShownInline`, and it toasts the failure once its consumer is gone too.
+        if (shown.current === "open") {
+          setFailure(reason);
+        } else if (shown.current === "closed") {
+          notify.error(confirmFailureSentence(reason));
+        }
       })
       .finally((): void => setSettling(false));
   };
@@ -180,7 +206,7 @@ function ConfirmSurface({
               retry, which is why nothing here is a second control. */}
           {failure === null ? null : (
             <Text data-slot="confirm-dialog-failure" role="alert" tone="destructive">
-              {`That didn't go through: ${failure}`}
+              {confirmFailureSentence(failure)}
             </Text>
           )}
           <AlertDialogActions>

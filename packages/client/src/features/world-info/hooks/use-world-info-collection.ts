@@ -132,7 +132,7 @@ function importedBookMessage({
 export function useImportWorldInfoMember(): (file: File) => void {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const importBook = useImportWorldBookFile({ trpc, invalidation });
+  const importBook = useImportWorldBookFile({ trpc, invalidation, failureShownInline: "the book library's own import error toast" });
   return (file: File): void => {
     void file
       .text()

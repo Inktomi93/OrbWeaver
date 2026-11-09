@@ -72,7 +72,7 @@ interface TaskRowProps {
 function TaskRow({ pluginId, pluginName, task, view, connections }: TaskRowProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const setBinding = useSetPluginGrantBinding({ trpc, invalidation });
+  const setBinding = useSetPluginGrantBinding({ trpc, invalidation, failureShownInline: "the plugin model binding's refusal line" });
   const [attempted, setAttempted] = useState<string | null>(null);
 
   const compatible = connections.filter((connection) => connection.tasks.includes(task satisfies RoutableTask));

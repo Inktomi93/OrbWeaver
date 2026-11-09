@@ -143,7 +143,7 @@ function RefineryList({
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const sessions = useSuspenseQuery(trpc.refinery.listSessions.queryOptions());
-  const remove = useDeleteRefinerySession({ trpc, invalidation });
+  const remove = useDeleteRefinerySession({ trpc, invalidation, failureShownInline: "the delete-session confirm's alert line" });
   const selectedId = useSelectedRefinerySessionId();
   const isMobile = useMobileViewport();
   // The SAME condition the header's `+` reads (#307): with nothing selected on a desktop, CONTENT mounts

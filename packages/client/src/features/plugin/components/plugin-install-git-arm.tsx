@@ -31,7 +31,7 @@ export function PluginInstallGitArm({
 }: PluginInstallGitArmProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const preview = usePreviewPluginFromGit({ trpc, invalidation });
+  const preview = usePreviewPluginFromGit({ trpc, invalidation, failureShownInline: "the install card's rejected step" });
   const [url, setUrl] = useState("");
   const trimmedUrl = url.trim();
 

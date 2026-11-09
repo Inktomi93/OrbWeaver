@@ -51,7 +51,7 @@ export function ConnectionEditorHeader({ label, onDone }: { readonly label: stri
 
 /** Keeps removal available when the saved connection's provider is absent from the caller's registry. */
 export function ConnectionEditorUnavailable({ connection, onDone, onRemoved, finalFocus, trpc, invalidation }: ConnectionEditorUnavailableProps): ReactElement {
-  const remove = useRemoveConnection({ trpc, invalidation });
+  const remove = useRemoveConnection({ trpc, invalidation, failureShownInline: "the remove-connection confirm's alert line" });
   const removed = useRef(false);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const reason = isPluginProviderId(connection.providerId)

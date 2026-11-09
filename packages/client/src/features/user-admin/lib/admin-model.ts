@@ -3,6 +3,7 @@
 
 import type { Handle, UserId } from "@orb/kit/ids";
 import type { SelectItems } from "@orb/ui/select/items";
+import { ITEM_ENABLED_SETTING, itemSwitchName } from "#lib";
 
 /** The props of an admin dialog that acts on one account (link SSO, reset password, sessions). */
 export interface AdminUserDialogProps {
@@ -47,9 +48,9 @@ export function userRoleFieldName(handle: Handle): string {
   return `Role: ${handle}`;
 }
 
-/** One user row's enabled Switch. `Enabled — kes`. */
+/** One user row's enabled Switch: the item-switch grammar over the handle. */
 export function userEnabledFieldName(handle: Handle): string {
-  return `Enabled: ${handle}`;
+  return itemSwitchName(ITEM_ENABLED_SETTING, handle);
 }
 
 /** One row in the sessions dialog. The subject is the session's user agent, falling back to its id. */

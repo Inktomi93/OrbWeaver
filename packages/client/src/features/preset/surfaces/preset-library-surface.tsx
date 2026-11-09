@@ -105,7 +105,7 @@ function PresetList({
   const selectedId = useSelectedPresetId();
 
   const create = useCreatePreset({ trpc, invalidation });
-  const remove = useRemovePreset({ trpc, invalidation });
+  const remove = useRemovePreset({ trpc, invalidation, failureShownInline: "the delete-preset confirm's alert line" });
   const setDefault = useSetDefaultPreset({ trpc, invalidation });
 
   const activeId = settings.config.seeds.defaultPresetId;

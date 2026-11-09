@@ -16,7 +16,7 @@ import { useRef, useState } from "react";
 import { QueryBoundary, useEmbedRefusalToastAfterUnmount, useReindexConfirm, useUpdateConnection } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery } from "#data";
-import { embedRefusalOf, embedRefusalText } from "#lib";
+import { ALLOW_BACKGROUND_SETTING, allowBackgroundSwitchName, embedRefusalOf, embedRefusalText } from "#lib";
 import { isClaudeSubscription } from "../lib/add-connection-form-model.ts";
 import { capabilityFactRows, VECTOR_WIDTH_FACT_PATH } from "../lib/connection-capability-fact-model.ts";
 import {
@@ -267,14 +267,14 @@ function AvailableConnectionEditorBody({
             <PurposeNotes notes={purposeNotes(capabilityView.capability, provider.auth === "endpoint")} />
             <Row align="start" gap="field" justify="between">
               <Stack className="min-inline-0" grow="fill" gap="tight">
-                <Text voice="label">Allow background work</Text>
+                <Text voice="label">{ALLOW_BACKGROUND_SETTING}</Text>
                 <Text voice="gloss">
                   Summaries, extraction, captions, embeddings and reranking run unattended on this connection. Leave it off for anything you pay per call, or
                   for a subscription you'd rather spend on chat.
                 </Text>
               </Stack>
               <Switch
-                aria-label={`Allow background work on ${connection.label}`}
+                aria-label={allowBackgroundSwitchName(connection)}
                 checked={connection.allowBackground}
                 className="shrink-0"
                 disabled={busy}

@@ -21,21 +21,32 @@ const clientSources = (sources: readonly Source[]): readonly (Source & { readonl
 /** The calls whose arguments carry a failed-state mark: the mark is state only and never message text. */
 const STATE_MARK_CALLS = new Set(["saveStateOf", "useReportSaveStatus"]);
 
-/** Does the factory toast, and does a function-form toast ever answer `null` (a failure its consumer says itself)? */
+/** The factory's failure class (client-architecture-state-and-gates.md §11) and whether a function-form toast ever
+ *  answers `null` (a failure its consumer says itself). */
 interface FactoryToast {
   readonly toasts: boolean;
   readonly suppresses: boolean;
+  readonly background: boolean;
+  readonly inline: boolean;
 }
+
+const NO_FEEDBACK: FactoryToast = { toasts: false, suppresses: false, background: false, inline: false };
 
 function toastOf(options: ts.Expression | undefined): FactoryToast {
   if (options === undefined || !ts.isObjectLiteralExpression(options)) {
-    return { toasts: false, suppresses: false };
+    return NO_FEEDBACK;
+  }
+  if (hasProperty(options, "backgroundFailure")) {
+    return { ...NO_FEEDBACK, background: true };
+  }
+  if (hasProperty(options, "failureShownInline")) {
+    return { ...NO_FEEDBACK, inline: true };
   }
   const property = options.properties.find((entry) => ts.isPropertyAssignment(entry) && entry.name.getText() === "errorToast");
   if (property === undefined || !ts.isPropertyAssignment(property)) {
-    return { toasts: hasProperty(options, "errorToast"), suppresses: false };
+    return { ...NO_FEEDBACK, toasts: hasProperty(options, "errorToast") };
   }
-  return { toasts: true, suppresses: returnsNull(property.initializer) };
+  return { ...NO_FEEDBACK, toasts: true, suppresses: returnsNull(property.initializer) };
 }
 
 /** A returned leaf is the `null` literal. A call that merely takes `null` as an argument answers unknown, so it does not count. */
@@ -103,20 +114,179 @@ function isStateMark(node: ts.Node): boolean {
 
 /** A setter says a failure only when its name does: `setOpen(false)` or `setPending(false)` in a catch says nothing about what failed. */
 const FAILURE_SETTER = /^set\w*(?:Error|Failure|Failed|Message|Refusal|Notice|Problem)$/u;
+/** A callback prop that hands the failure to the parent surface that renders it: `onPreviewFailed(epoch, message)`. */
+const FAILURE_CALLBACK = /^on\w*(?:Error|Failure|Failed|Refusal|Refused)$/u;
 
-/** The consumer says the failure itself: a call that sets failure state or toasts. */
+/** The props whose awaited handler's rejection the receiving component renders: `ConfirmDialog`, `DestructiveAction` and a
+ *  row menu's `destructive` action state a rejected `onConfirm` in the dialog's alert line, and a row's `onDelete` is typed
+ *  as that `onConfirm` (`LibraryRowActions`, `ThemeRowMenu`) or forwarded to it. A handler that awaits or returns nothing
+ *  hands no rejection on, so a plain `onDelete` callback never reads as one. */
+const REJECTION_RENDERING_PROPS = new Set(["onConfirm", "onDelete"]);
+
+/** `useRowDeleteFocus().delete(key, run)` wraps `run` into the row's `onDelete`, so its second argument is a rejection position. */
+const ROW_DELETE_RUN = { method: "delete", argument: 1 } as const;
+
+function isRowDeleteRun(value: ts.Node): boolean {
+  const call = value.parent;
+  return (
+    ts.isCallExpression(call) &&
+    ts.isPropertyAccessExpression(call.expression) &&
+    call.expression.name.text === ROW_DELETE_RUN.method &&
+    call.arguments[ROW_DELETE_RUN.argument] === value
+  );
+}
+
+function propName(node: ts.Node): string | null {
+  if (ts.isJsxAttribute(node) || ts.isPropertyAssignment(node) || ts.isShorthandPropertyAssignment(node)) {
+    return node.name.getText();
+  }
+  return null;
+}
+
+/** The value sits directly in a rejection-rendering prop: `onConfirm={value}` or `{ onConfirm: value }`. */
+function inRejectionProp(value: ts.Node): boolean {
+  if (isRowDeleteRun(value)) {
+    return true;
+  }
+  const holder = ts.isJsxExpression(value.parent) ? value.parent.parent : value.parent;
+  const name = propName(holder);
+  return name !== null && REJECTION_RENDERING_PROPS.has(name);
+}
+
+function functionName(fn: ts.Node): string | null {
+  if (ts.isFunctionDeclaration(fn)) {
+    return fn.name?.text ?? null;
+  }
+  return ts.isVariableDeclaration(fn.parent) && ts.isIdentifier(fn.parent.name) ? fn.parent.name.text : null;
+}
+
+/** An expression-bodied arrow whose body calls `name`, so it returns that call's promise: `() => remove(id)`. */
+function forwards(value: ts.Node, name: string): boolean {
+  return ts.isArrowFunction(value) && ts.isCallExpression(value.body) && ts.isIdentifier(value.body.expression) && value.body.expression.text === name;
+}
+
+/** The function's rejection reaches a component that renders it: the function is handed to a rejection-rendering prop
+ *  itself, by name, by its shorthand, or through an arrow that returns its call. */
+function reachesRejectionSurface(fn: ts.Node): boolean {
+  if (inRejectionProp(fn)) {
+    return true;
+  }
+  const name = functionName(fn);
+  if (name === null) {
+    return false;
+  }
+  // The name is looked up in the scope that declares it, so a same-named handler in another component does not count.
+  return anyNode(enclosingFunction(fn), (node) => {
+    if (ts.isShorthandPropertyAssignment(node)) {
+      return node.name.text === name && REJECTION_RENDERING_PROPS.has(name);
+    }
+    return ((ts.isIdentifier(node) && node.text === name) || forwards(node, name)) && node !== fn && inRejectionProp(node);
+  });
+}
+
+/** The consumer says the failure itself: a call that sets failure state or toasts, or a rethrow that hands the
+ *  rejection to a component that renders it. A rethrow into a plain click handler renders nothing. */
 function isFailureStatement(node: ts.Node): boolean {
+  if (ts.isThrowStatement(node)) {
+    let fn = enclosingFunction(node);
+    // A `.catch(...)` callback's rethrow rejects the chain, so the function that returns the chain is the one handed on.
+    while (
+      !ts.isSourceFile(fn) &&
+      ts.isCallExpression(fn.parent) &&
+      ts.isPropertyAccessExpression(fn.parent.expression) &&
+      fn.parent.expression.name.text === "catch"
+    ) {
+      fn = enclosingFunction(fn.parent);
+    }
+    return reachesRejectionSurface(fn);
+  }
   if (!ts.isCallExpression(node)) {
     return false;
   }
   const callee = node.expression;
   if (ts.isIdentifier(callee)) {
-    return FAILURE_SETTER.test(callee.text);
+    return FAILURE_SETTER.test(callee.text) || FAILURE_CALLBACK.test(callee.text);
   }
   return ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) && callee.expression.text === "notify" && callee.name.text === "error";
 }
 
 const MUTATE_CALLS = new Set(["mutate", "mutateAsync"]);
+
+/** The call is `handle.mutateAsync(...)` or a destructured `mutateAsync(...)` of this mutation. */
+function isOwnMutateAsync(node: ts.Node, handles: ReadonlySet<string>): node is ts.CallExpression {
+  if (!ts.isCallExpression(node)) {
+    return false;
+  }
+  const callee = node.expression;
+  if (ts.isPropertyAccessExpression(callee)) {
+    return callee.name.text === "mutateAsync" && ts.isIdentifier(callee.expression) && handles.has(callee.expression.text);
+  }
+  return ts.isIdentifier(callee) && callee.text === "mutateAsync" && handles.has(callee.text);
+}
+
+const PASSING_LINKS = new Set(["then", "finally"]);
+
+/** The outermost expression that still rejects when the settle does: a one-handler `.then` or a `.finally` chained on it,
+ *  a `.map` callback that returns it, or a `Promise.all` over it. A `.catch` or a two-handler `.then` ends the chain. */
+function rejectingChain(call: ts.Expression): ts.Expression {
+  let at: ts.Expression = call;
+  for (;;) {
+    const parent = at.parent;
+    const link = ts.isPropertyAccessExpression(parent) && parent.expression === at ? parent.parent : undefined;
+    if (
+      link !== undefined &&
+      ts.isCallExpression(link) &&
+      ts.isPropertyAccessExpression(parent) &&
+      PASSING_LINKS.has(parent.name.text) &&
+      link.arguments.length <= 1
+    ) {
+      at = link;
+    } else if (ts.isArrowFunction(parent) && parent.body === at && isCallTo(parent.parent, "map")) {
+      at = parent.parent as ts.CallExpression;
+    } else if (isCallTo(parent, "all") && (parent as ts.CallExpression).arguments.includes(at)) {
+      at = parent as ts.CallExpression;
+    } else {
+      return at;
+    }
+  }
+}
+
+function isCallTo(node: ts.Node, method: string): boolean {
+  return ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === method;
+}
+
+/** The settle's rejection leaves the function: awaited or returned outside any `try`, so the function rejects with it. */
+function rejectsOutward(call: ts.CallExpression, fn: ts.Node): boolean {
+  const chain = rejectingChain(call);
+  const carrier = chain.parent;
+  if (!(ts.isAwaitExpression(carrier) || ts.isReturnStatement(carrier) || (ts.isArrowFunction(carrier) && carrier.body === chain))) {
+    return false;
+  }
+  for (let at: ts.Node = chain; at !== fn; at = at.parent) {
+    if (ts.isTryStatement(at.parent) && at.parent.tryBlock === at) {
+      return false;
+    }
+  }
+  return true;
+}
+
+/** The mutation's rejection reaches a component that renders it: a confirm awaits a handler that awaits or returns the settle. */
+function rejectsIntoSurface(root: ts.Node, handles: ReadonlySet<string>): boolean {
+  return anyNode(root, (node) => {
+    if (!isOwnMutateAsync(node, handles)) {
+      return false;
+    }
+    const fn = enclosingFunction(rejectingChain(node));
+    return !ts.isSourceFile(fn) && rejectsOutward(node, fn) && reachesRejectionSurface(fn);
+  });
+}
+
+const FAILED_STATES = new Set(["failed", "error", "rejected"]);
+
+/** A discriminated state set to its failed arm, `{ state: "failed" }`, which the surface that reads the state renders. */
+function isFailedState(node: ts.Node): boolean {
+  return ts.isPropertyAssignment(node) && ts.isStringLiteral(node.initializer) && FAILED_STATES.has(node.initializer.text);
+}
 
 /** The node names this mutation's result: the bound handle, or a destructured `mutate`/`mutateAsync`. */
 function mentionsMutation(root: ts.Node, handles: ReadonlySet<string>): boolean {
@@ -137,28 +307,38 @@ function callsMutation(root: ts.Node, handles: ReadonlySet<string>): boolean {
   });
 }
 
-function isSubmit(receiver: ts.Expression): boolean {
+function isSubmit(receiver: ts.Node): boolean {
   return ts.isCallExpression(receiver) && ts.isPropertyAccessExpression(receiver.expression) && receiver.expression.name.text === "handleSubmit";
 }
 
-/** Where the mutation promise rejects: a `try/catch` around its call or a `.catch(...)` chained on it, saying the failure. */
+/** Where the mutation promise rejects: a `try/catch` around its call or a `.catch(...)` chained on it, saying the failure.
+ *  Only `mutateAsync` rejects; `mutate` never throws, so a catch around it says nothing about this mutation. */
 function catchSaysFailure(root: ts.Node, handles: ReadonlySet<string>): boolean {
+  // A form submit rethrows the save's failure, so `form.handleSubmit()` is where the mutation's failure lands, provided
+  // this function calls the mutation at all (a submit whose save is another mutation's says nothing about this one).
+  const rejectsHere = (node: ts.Node): boolean =>
+    anyNode(node, (inner) => isOwnMutateAsync(inner, handles) || (isSubmit(inner) && callsMutation(root, handles)));
   return anyNode(root, (node) => {
     if (ts.isCatchClause(node)) {
       const attempt = node.parent;
-      return ts.isTryStatement(attempt) && mentionsMutation(attempt.tryBlock, handles) && anyNode(node.block, isFailureStatement);
+      return ts.isTryStatement(attempt) && rejectsHere(attempt.tryBlock) && anyNode(node.block, isFailureStatement);
     }
     const isPromiseCatch = ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === "catch";
-    // A form submit rethrows the save's failure, so `form.handleSubmit().catch(...)` is where the mutation's failure lands,
-    // provided this function calls the mutation at all (a submit whose save is another mutation's says nothing about this one).
-    const reachesMutation = (receiver: ts.Expression): boolean => mentionsMutation(receiver, handles) || (isSubmit(receiver) && callsMutation(root, handles));
+    const reachesMutation = (receiver: ts.Expression): boolean => rejectsHere(receiver);
     return isPromiseCatch && reachesMutation(node.expression.expression) && node.arguments.some((argument) => anyNode(argument, isFailureStatement));
   });
 }
 
-/** A per-call `onError` handler on this mutation's own `mutate` call. */
+/** A per-call `onError` handler on this mutation's own `mutate` call that states the failure. A handler that only tidies
+ *  up (retires a card whose ask is gone) leaves the toast as the one surface. */
 function isOwnOnError(node: ts.Node, handles: ReadonlySet<string>): boolean {
-  if (!(ts.isPropertyAssignment(node) && node.name.getText() === "onError")) {
+  if (
+    !(
+      ts.isPropertyAssignment(node) &&
+      node.name.getText() === "onError" &&
+      anyNode(node.initializer, (inner) => isFailureStatement(inner) || isFailedState(inner))
+    )
+  ) {
     return false;
   }
   for (let at: ts.Node = node.parent; !ts.isSourceFile(at); at = at.parent) {
@@ -173,7 +353,7 @@ function readsFrom(call: ts.CallExpression, names: ReadonlySet<string>): { reado
   const binding = resultBinding(call);
   const scope = enclosingFunction(call);
   const handles = new Set([...(binding.name === null ? [] : [binding.name]), ...binding.destructured.filter((name) => MUTATE_CALLS.has(name))]);
-  let errorRead = binding.destructured.some((name) => names.has(name)) || catchSaysFailure(scope, handles);
+  let errorRead = binding.destructured.some((name) => names.has(name)) || catchSaysFailure(scope, handles) || rejectsIntoSurface(scope, handles);
   let successRead = false;
   visit(scope, (node) => {
     if (binding.name !== null && ts.isPropertyAccessExpression(node) && ts.isIdentifier(node.expression) && node.expression.text === binding.name) {
@@ -186,7 +366,17 @@ function readsFrom(call: ts.CallExpression, names: ReadonlySet<string>): { reado
   return { errorRead, successRead };
 }
 
-function failureOf(factoryToast: boolean, inline: boolean): string {
+/** The failure surface one consumer shows. A toast-class consumer that declares `failureShownInline` at its hook call
+ *  skips the toast, so it shows only what it says itself. */
+function failureOf(factory: FactoryToast, consumerSays: boolean, declaresInline: boolean): string {
+  if (factory.background) {
+    return "log";
+  }
+  if (factory.toasts && declaresInline) {
+    return consumerSays ? "inline" : "none";
+  }
+  const factoryToast = factory.toasts;
+  const inline = consumerSays && !factory.suppresses;
   if (factoryToast && inline) {
     return "toast+inline";
   }
@@ -200,7 +390,6 @@ function failureOf(factoryToast: boolean, inline: boolean): string {
 }
 
 function memberOf(source: Source, sf: ts.SourceFile, call: ts.CallExpression, factory: FactoryToast): Member {
-  const inlineFlag = hasProperty(call.arguments[0], "failureShownInline");
   const { errorRead, successRead } = readsFrom(call, ERROR_READS);
   let success = "none";
   if (sf.text.includes("useToastManager(")) {
@@ -215,7 +404,7 @@ function memberOf(source: Source, sf: ts.SourceFile, call: ts.CallExpression, fa
     label: call.expression.getText(sf),
     cells: {
       success: { value: success, line },
-      failure: { value: failureOf(factory.toasts && !inlineFlag, (inlineFlag || errorRead) && !factory.suppresses), line },
+      failure: { value: failureOf(factory, errorRead, hasProperty(call.arguments[0], "failureShownInline")), line },
     },
   };
 }
@@ -227,7 +416,7 @@ export function buildFeedbackCohort(sources: readonly Source[]): { readonly coho
     const out: Member[] = [];
     visit(source.sf, (node) => {
       if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && defs.has(node.expression.text)) {
-        out.push(memberOf(source, source.sf, node, defs.get(node.expression.text) ?? { toasts: false, suppresses: false }));
+        out.push(memberOf(source, source.sf, node, defs.get(node.expression.text) ?? NO_FEEDBACK));
       }
     });
     return out;
@@ -236,17 +425,18 @@ export function buildFeedbackCohort(sources: readonly Source[]): { readonly coho
     scan: { factories: defs.size, consumers: members.length, files: files.length },
     cohort: {
       name: "feedback",
-      what: "entity-mutation consumers: success (toast, callback, none) and failure surface (factory toast, inline, both, none)",
+      what: "entity-mutation consumers: success (toast, callback, none) and failure surface (factory toast, inline, both, background log, none)",
       // No law rules how a success is told, so success is a spread to read, not a convention to deviate from.
       columns: ["failure"],
       info: ["success"],
-      // A failure may show a toast and inline text together, never neither (client-architecture-state-and-gates.md §11).
-      defects: { failure: ["none"] },
+      // A failure never shows neither and never both (client-architecture-state-and-gates.md §11): an inline consumer that reads no
+      // error, and a toast-class consumer that states the failure without declaring `failureShownInline`, are defects.
+      defects: { failure: ["none", "toast+inline"] },
       kept: {
         failure: {
-          "toast+inline": "a failure may show a toast and inline text together (client-architecture-state-and-gates.md §11, Toasts)",
           inline:
-            "a toast whose function form answers null for an error the consumer says in place; a consumer keeps its inline text (client-architecture-state-and-gates.md §11, Toasts)",
+            "a surface on screen while it fails states the failure inline and no toast repeats it, or a function-form toast answers null for an error the consumer says in place (client-architecture-state-and-gates.md §11, Toasts)",
+          log: "background housekeeping the person did not start logs its failure and shows no toast (client-architecture-state-and-gates.md §11, Toasts)",
         },
       },
       basis: { success: "heuristic", failure: "heuristic" },

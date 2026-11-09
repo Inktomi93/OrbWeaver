@@ -60,8 +60,8 @@ export function ChatRecallIndicator(props: ChatRecallIndicatorProps): ReactEleme
 function HostRecallIndicator(props: ChatRecallIndicatorProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const setEnabled = useSetMemoryEnabled({ trpc, invalidation });
-  const startBackfill = useStartMemoryBackfill({ trpc, invalidation });
+  const setEnabled = useSetMemoryEnabled({ trpc, invalidation, failureShownInline: "the turn-on-memory confirm's alert line" });
+  const startBackfill = useStartMemoryBackfill({ trpc, invalidation, failureShownInline: "the turn-on-memory confirm's alert line" });
   const [confirmingOn, setConfirmingOn] = useState(false);
   const { data: settings } = useQuery(trpc.settings.getUserSettings.queryOptions());
   return (

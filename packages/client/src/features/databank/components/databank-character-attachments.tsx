@@ -30,8 +30,8 @@ export function CharacterAttachments({
 }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const attach = useAttachDocumentToCharacter({ trpc, invalidation });
-  const detach = useDetachDocumentFromCharacter({ trpc, invalidation });
+  const attach = useAttachDocumentToCharacter({ trpc, invalidation, failureShownInline: "the character attachments' retry line" });
+  const detach = useDetachDocumentFromCharacter({ trpc, invalidation, failureShownInline: "the character attachments' retry line" });
   const [pickerOpen, setPickerOpen] = useState(false);
   const [pickedName, setPickedName] = useState<string | null>(null);
   const detaching = characters.find((character) => character.id === detach.pendingVariables?.characterId);

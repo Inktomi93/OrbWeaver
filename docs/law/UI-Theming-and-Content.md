@@ -49,6 +49,8 @@ Every user-supplied rendering input is exactly one trust level, and that determi
 | Tide | Role-mirrored paragraph pills share an identity header outside the train. |
 
 Preserve these treatments across portrait, landscape and desktop layouts. Respect the viewer's identity-art toggle and supported avatar choices.
+The styles follow the Moonlit Echoes reference theme, phone layout included. A change from it needs an owner ruling.
+The phone transcript inset is the one ruled exception: rows and composer sit at 14px, not Moonlit's 8px, so each avatar keeps its 44px touch target clear of the scroller clip. `packages/ui/src/lib/avatar-reach.ts` owns the inset.
 Styles that name a speaker keep both speakers' identity and action header sticky within the message. The pinned header uses an opaque reading background without a fade over prose.
 Document keeps a quiet trailing actions chip at rest. While pinned, its identity-free actions frame paints an opaque band across the reading width.
 Whisper's art feather stays inside its banner. Its height budget limits width through the source image's aspect ratio, preserving the crop.
