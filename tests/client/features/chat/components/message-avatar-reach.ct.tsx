@@ -9,7 +9,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { forEachNonEmpty } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import { MESSAGE_ROW_SKINS } from "#client/features/chat/lib/message-row-variants.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
@@ -23,6 +23,8 @@ const PHONES = [
 ] as const;
 const DESKTOP = { name: "desktop", viewport: { width: 1280, height: 800 }, coarse: false } as const;
 const REGIMES = [...PHONES, DESKTOP] as const;
+// The touch cells the whole reach holds in: the phones, and a landscape phone, whose pane is past the narrow step.
+const REACH_CELLS = [...PHONES, { name: "844x390", viewport: { width: 844, height: 390 } }] as const;
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
@@ -158,7 +160,7 @@ forEachNonEmpty(
   "chat styles that paint an avatar",
   (chatStyle) => {
     for (const density of THEME_DENSITIES) {
-      for (const regime of PHONES) {
+      for (const regime of REACH_CELLS) {
         test.describe(`${regime.name} ${density} ${chatStyle} avatar reach`, () => {
           test.use({ hasTouch: true, isMobile: true, viewport: regime.viewport });
 
@@ -167,10 +169,7 @@ forEachNonEmpty(
             const { chatId, messageIds } = await prepareRoom({ corpus, corpusMedia, page }, root, { chatStyle, density });
             await mount<typeof ChatRoomShellStory>(STORY, { chatId });
             for (const role of ROLES) {
-              const row = page.locator(`${ROW}[data-message-id="${messageIds.get(role)}"]`);
-              await row.scrollIntoViewIfNeeded();
-              const opener = row.getByRole("button", { name: IMAGE_ACTION });
-              await expect(opener).toHaveCount(1);
+              const opener = await openerOf(page, messageIds.get(role));
               const floor = await resolvedLength(page, `var(${TOKENS["size.touch-target"].cssVar})`, opener);
               // The row has just scrolled into view; a hit read mid-scroll is not a settled position, so the probe polls.
               await expect
@@ -183,3 +182,13 @@ forEachNonEmpty(
     }
   },
 );
+
+/** A message's avatar opener, scrolled into view. */
+async function openerOf(page: Page, messageId: MessageId | undefined): Promise<Locator> {
+  const row = page.locator(`${ROW}[data-message-id="${messageId ?? ""}"]`);
+  // Centred in the port: a reach clipped at the port's block edge by the scroll position is not the row's layout.
+  await row.evaluate((node) => node.scrollIntoView({ block: "center" }));
+  const opener = row.getByRole("button", { name: IMAGE_ACTION });
+  await expect(opener).toHaveCount(1);
+  return opener;
+}

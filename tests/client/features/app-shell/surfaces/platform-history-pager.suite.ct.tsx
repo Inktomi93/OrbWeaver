@@ -927,3 +927,56 @@ for (const cell of [
     });
   });
 }
+
+/** How the transcript's sticky name rows are placed, and how many of them pin at the port's top right now. */
+function nameRowPins(list: Element): { readonly sticky: number; readonly pinned: number } {
+  const rows = [...list.querySelectorAll('[data-slot="message-name-row"][data-sticky]')];
+  return {
+    sticky: rows.filter((row) => getComputedStyle(row).position === "sticky").length,
+    pinned: rows.filter((row) => row.hasAttribute("data-pinned")).length,
+  };
+}
+
+/** Parks the reader inside the tallest reply on screen, where its name row pins. */
+function intoTallestReply(list: Element): void {
+  const tallest = [...list.querySelectorAll('[data-slot="message-row"]')].toSorted(
+    (a, b) => b.getBoundingClientRect().height - a.getBoundingClientRect().height,
+  )[0];
+  if (tallest === undefined) {
+    throw new Error("The room painted no message");
+  }
+  const box = tallest.getBoundingClientRect();
+  list.scrollTop += box.top + box.height / 2 - list.getBoundingClientRect().top;
+}
+
+for (const cell of [
+  { viewport: PHONE, coarse: true },
+  { viewport: DESKTOP, coarse: false },
+]) {
+  test.describe(`a pinned history plate at ${String(cell.viewport.width)}x${String(cell.viewport.height)}`, () => {
+    test.use({ viewport: cell.viewport, hasTouch: cell.coarse, isMobile: cell.coarse });
+
+    test("is the one thing pinned at the port's top: the name rows under it stop pinning until it leaves", async ({ corpus, mount, page }) => {
+      await using root = await pagedRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { chatId } = await preparePagedRoom(caller, "flat");
+      await seedVariedRows(caller, chatId);
+      await serveRoom(page, corpus, caller, ({ cursor }) => (cursor === undefined ? undefined : trpcError({ code: "BAD_REQUEST" })));
+      await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+      const list = page.locator('[data-slot="message-list-scroll"]');
+      await expect(earlierIn(list)).toBeAttached();
+      await list.evaluate(intoTallestReply);
+      // The control: inside a tall reply its name row pins, so the room has a header to stack.
+      await expect.poll(() => list.evaluate(nameRowPins)).toMatchObject({ pinned: 1 });
+      expect((await list.evaluate(nameRowPins)).sticky).toBeGreaterThan(0);
+      await earlierIn(list).dispatchEvent("click");
+      await expectPinnedFailure(list);
+      await expect.poll(() => list.evaluate(nameRowPins).then((pins) => pins.sticky)).toBe(0);
+      const dismiss = list.getByRole("button", { name: CHAT_HISTORY_DISMISS_NAME, exact: true });
+      await (cell.coarse ? dismiss.tap() : dismiss.click());
+      await expect(list.getByRole("alert")).toHaveCount(0);
+      await earlierIn(list).blur();
+      await expect.poll(() => list.evaluate(nameRowPins).then((pins) => pins.sticky)).toBeGreaterThan(0);
+    });
+  });
+}
