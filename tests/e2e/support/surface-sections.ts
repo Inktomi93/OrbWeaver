@@ -1110,6 +1110,8 @@ async function corpus(journey: Journey): Promise<void> {
     if (mode === "explore") {
       await loadCorpusCatalog(journey);
     }
+    // The phone shell lands Insights on its dashboard (D271), so its finder sits behind the topbar list door.
+    await reveal(journey, "list");
     await walkScope(journey, pane(journey, "list"), `corpus/${mode}/finder`);
     await context(journey, `corpus/${mode}/whole`);
     await corpusMember(journey, mode);
