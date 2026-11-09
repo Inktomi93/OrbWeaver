@@ -1,6 +1,6 @@
 import { QueryBoundary } from "@orb/client/components";
 import { chatTempChatTile } from "@orb/client/features/chat";
-import { CtClientProviders } from "@orb/testkit/browser";
+import { CtClientProviders, CtNoticeControl } from "@orb/testkit/browser";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useRef } from "react";
 
@@ -11,13 +11,14 @@ function TempChatBody({ gridRef }: { readonly gridRef: RefObject<HTMLDivElement 
 }
 
 /** The production Home temp-chat tile, which sweeps expired temporary chats once it mounts. */
-export function TempChatTileStory(): ReactElement {
+export function TempChatTileStory({ controlNotice }: { readonly controlNotice: string }): ReactElement {
   const gridRef = useRef<HTMLDivElement>(null);
   return (
     <CtClientProviders>
       <QueryBoundary resetKeys={[]} fallback={chatTempChatTile.skeleton?.()}>
         <TempChatBody gridRef={gridRef} />
       </QueryBoundary>
+      <CtNoticeControl notice={controlNotice} />
     </CtClientProviders>
   );
 }

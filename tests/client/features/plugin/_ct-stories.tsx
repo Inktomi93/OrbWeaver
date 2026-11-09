@@ -2,7 +2,7 @@ import { QueryBoundary } from "@orb/client/components";
 import { SkeletonRows } from "@orb/client/data";
 import { pluginPageKey, selectPluginPageFromList, useSectionRegistry } from "@orb/client/state";
 import type { ChatId, PluginId } from "@orb/kit/ids";
-import { CtClientProviders, CtShellRoom } from "@orb/testkit/browser";
+import { CtClientProviders, CtNoticeControl, CtShellRoom } from "@orb/testkit/browser";
 import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useEffect } from "react";
@@ -37,14 +37,17 @@ export function PluginProtocolStory({
   pluginId,
   surfaceId = "protocol",
   runtimeEpoch = 0,
+  controlNotice,
 }: {
   readonly pluginId: PluginId;
   readonly surfaceId?: string;
   readonly runtimeEpoch?: number;
+  readonly controlNotice?: string;
 }): ReactElement {
   return (
     <CtClientProviders key={runtimeEpoch}>
       <NativePluginPage pluginId={pluginId} surfaceId={surfaceId} />
+      {controlNotice === undefined ? null : <CtNoticeControl notice={controlNotice} />}
     </CtClientProviders>
   );
 }

@@ -4,7 +4,8 @@ import type { PluginId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
-import { absenceWindow, routeTrpc, trpcError } from "@orb/testkit/ct";
+import { watchToastMounts } from "@orb/testkit/browser/spec";
+import { noticeToast, routeTrpc, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusReadResponder, createCorpusViewerReadResponder } from "@orb/testkit/iso";
 import { makePluginRow, makePluginScriptedPage } from "@orb/testkit/node/helpers";
@@ -26,9 +27,7 @@ const EVENT_FAILURE_MESSAGE = "Native event refusal";
 const RELAY_FAILURE_MESSAGE = "Native relay refusal";
 const BOOT_FAILURE_MESSAGE = "Native boot refusal";
 const CRASH_REPORT_FAILURE_MESSAGE = "Native crash report refusal";
-const TOAST_WINDOW_MS = 300;
-// Counted by slot, not role: a modal marks the toaster aria-hidden, so a role query would miss a toast behind it.
-const TOAST_ROOT = '[data-slot="toast-root"]';
+const CONTROL_NOTICE = "Control notice";
 const UI_SOURCE = `const ui = orb.ui(1);
 ui.log.info(${JSON.stringify(BOOT_LOG_MESSAGE)});
 const render = (value) => ui.render("protocol", { kind: "stack", children: [
@@ -311,15 +310,20 @@ test("a crash report that fails writes its log and raises no toast, because the 
   await page.route(`${PLUGIN_UI_ROUTE}/${plugin.id}`, (route) =>
     route.fulfill({ contentType: "application/octet-stream", body: `throw new TypeError(${JSON.stringify(BOOT_FAILURE_MESSAGE)});` }),
   );
+  const toastMounts = await watchToastMounts(page);
   const logged = page.waitForEvent("console", {
     predicate: (message) => message.type() === "error" && message.text().includes(BACKGROUND_FAILURE_LOGS.uiCrashReport),
   });
-  await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", { pluginId: plugin.id });
+  await mount<typeof PluginProtocolStory>("tests/client/features/plugin/_ct-stories/PluginProtocolStory", {
+    pluginId: plugin.id,
+    controlNotice: CONTROL_NOTICE,
+  });
   await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
   await logged;
   expect(trpc.count("plugin.reportUiCrash")).toBe(1);
-  await absenceWindow(page, TOAST_WINDOW_MS);
-  await expect(page.locator(TOAST_ROOT)).toHaveCount(0);
+  await page.getByRole("button", { name: CONTROL_NOTICE, exact: true }).click();
+  await expect(noticeToast(page, { title: CONTROL_NOTICE })).toBeVisible();
+  expect(await toastMounts()).toBe(1);
 });
 
 test("the default shared corpus renders its native Ledger publication and captured disable through Extensions", async ({
