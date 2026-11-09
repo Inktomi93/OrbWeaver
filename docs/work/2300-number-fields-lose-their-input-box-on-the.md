@@ -24,4 +24,4 @@ Depth and Rows per page are visible and editable at 200% and 300% on chromium-ph
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Part, in 9ae6688618 (awaiting merge): the NumberField input keeps one control width beside its steppers, where it collapsed to 11px at 200% and 0px at 300%. Ruling (claude-b under delegation): the two-field row reflows by letting its call-site Row wrap (the Depth and Role row in entry-editor.tsx), because the field itself is sound and hiding steppers costs touch users their buttons. Remaining: that Row wraps, with a CT at the phone width.

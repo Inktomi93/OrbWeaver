@@ -24,4 +24,4 @@ Each named region scrolls with the wheel at 300% text from some visible point, a
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Ruling (claude-b under delegation): the three full-pane inner lists take overscroll-auto, so a wheel at a list's end chains to the outer region, and the Add a character popover's list is capped at the available height less one touch row, so the outer region always shows a strip the wheel can reach. Remaining: build both with CTs or a walk proof.
