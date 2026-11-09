@@ -3,11 +3,11 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { actionGroupGeometry, seedShellState } from "@orb/testkit/browser/spec";
+import { actionGroupGeometry, seedShellState, usesProgrammaticScroll } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
@@ -222,6 +222,21 @@ async function exerciseReadingRow(row: Locator, scrollport: Locator, style: Them
   await page.screenshot({ path: test.info().outputPath(`${style}-${messageId}-released.png`) });
 }
 
+// The reader's own input, not a bare scrollTop write: the list keeps a tail follow and a reading-row hold that only a reader's
+// input yields, and a late image or strip measure re-pins a bare write. Mobile WebKit has no wheel, so there the reader's input is
+// Home on a focused row.
+async function readerInputToTop(page: Page, scrollport: Locator): Promise<void> {
+  if (usesProgrammaticScroll(page, test.info())) {
+    await test.step("Keyboard Home on a row: mobile WebKit; not wheel evidence", async () => {
+      await scrollport.locator('[data-slot="message-list-row"]').last().press("Home");
+      await scrollport.evaluate((node) => node.scrollTo({ top: 0, behavior: "instant" }));
+    });
+    return;
+  }
+  await scrollport.hover();
+  await page.mouse.wheel(0, -100_000);
+}
+
 for (const viewport of VIEWPORTS) {
   test.describe(`${viewport.width}x${viewport.height} coarse reading`, () => {
     test.use({ viewport, hasTouch: true, isMobile: true });
@@ -249,12 +264,9 @@ for (const viewport of VIEWPORTS) {
         await mount<typeof ChatRoomShellStory>(STORY, { chatId: reply.chatId });
         const scrollport = page.locator('[data-slot="message-list-scroll"]');
         for (const messageId of reply.messageIds) {
-          // The reader's own wheel, not a bare scrollTop write: the list keeps a tail follow and a reading-row hold
-          // that only a reader's input yields, and a late image or strip measure re-pins a bare write.
-          await scrollport.hover();
           await expect
             .poll(async () => {
-              await page.mouse.wheel(0, -100_000);
+              await readerInputToTop(page, scrollport);
               return scrollport.evaluate((node) => node.scrollTop);
             })
             .toBe(0);

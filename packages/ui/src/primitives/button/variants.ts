@@ -30,6 +30,7 @@ import {
   TONE_ARMS,
   TONE_OUTLINE,
   TONE_TINT_HOVER,
+  TONE_TINT_PRESS,
   TOUCH_FLOOR_AT_COARSE,
   tv,
   WIDTH,
@@ -69,8 +70,8 @@ export const buttonVariants = tv({
       ],
       // The resting hairline: a secondary action, or a filter chip in a wrapping rail, where the drawn edge is what
       // makes the pill radius read at all.
-      outline: `${TONE_OUTLINE} ${TONE_TINT_HOVER}`,
-      ghost: `text-tone-text ${TONE_TINT_HOVER}`,
+      outline: `${TONE_OUTLINE} ${TONE_TINT_HOVER} ${TONE_TINT_PRESS}`,
+      ghost: `text-tone-text ${TONE_TINT_HOVER} ${TONE_TINT_PRESS}`,
       // An ACTION SPELLED AS A LINK: an underlined run inside prose or a gloss line that
       // does something in place. Navigation is an anchor, not this. No fill at any state, because a link-shaped
       // control that grows a box on hover is a button pretending; the hover is the ink, the press the scale.

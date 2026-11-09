@@ -8,3 +8,6 @@ export const TONE_OUTLINE = "bg-transparent border border-tone-edge text-tone-te
 
 /** The tint a fill-less tone control takes under the pointer. */
 export const TONE_TINT_HOVER = "hover:bg-tone-tint-active hover:text-tone-text-on-tint";
+
+/** The same tint while pressed, so a touch screen, which has no hover, still acknowledges the press where the control's own scale does not. */
+export const TONE_TINT_PRESS = "active:bg-tone-tint-active active:text-tone-text-on-tint";
