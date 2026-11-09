@@ -267,7 +267,7 @@ function ContributorRow({ part }: { readonly part: AssemblyBudgetPart }): ReactE
 function GameStateExcerpt({ text }: { readonly text: string }): ReactElement {
   return (
     <Card>
-      <Text voice="code" scroll="y" maxHeight="scrollSm" flow="block" whitespace="preWrap">
+      <Text aria-label={SOURCE_LABEL["game-state"]} voice="code" role="region" scroll="y" maxHeight="scrollSm" flow="block" whitespace="preWrap">
         {text}
       </Text>
     </Card>

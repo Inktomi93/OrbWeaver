@@ -166,7 +166,7 @@ export function ActionsView({ form, presetId, onSelectSection }: ActionsViewProp
         {/* HUMAN group labels (side-eye F-30 / ARIA rec 10): the kicker rendered the registry's raw enum
             member (`steer`, `voice`, `studio`), which is a code identifier standing in for a heading. */}
         {groups.map((group) => (
-          <Section key={group.kind} kicker={TEMPLATE_KIND_LABEL[group.kind]}>
+          <Section aria-label={TEMPLATE_KIND_LABEL[group.kind]} key={group.kind} kicker={TEMPLATE_KIND_LABEL[group.kind]}>
             {/* The chevron ends its row and the editor's scroller clips past it: the end inset leaves its focus ring the room to paint. */}
             <Stack paddingInlineEnd="field" gap="tight">
               {group.rows.map((row) => (

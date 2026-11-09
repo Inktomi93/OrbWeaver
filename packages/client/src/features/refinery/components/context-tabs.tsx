@@ -97,6 +97,8 @@ function RunRow({
 }): ReactElement {
   const verdict = verdictOf(run);
   const modelTitle = economicsModelTitle(run);
+  // The row's own words: its stage and round, which no two runs in the ledger share.
+  const runLabel = `${STAGE_WORD[run.stage]} round ${run.iteration}`;
   return (
     <Card elevated={viewed}>
       <Stack gap="tight" padding="row">
@@ -118,11 +120,16 @@ function RunRow({
           </Text>
         ) : null}
         <Row wrap={true} gap="field">
-          <Button variant="ghost" onClick={(): void => onView(run)} size="sm">
+          <Button aria-label={`View ${runLabel}`} variant="ghost" onClick={(): void => onView(run)} size="sm">
             View
           </Button>
           {run.stage === "rewrite" ? (
-            <Button variant="ghost" onClick={(): void => onArmRewrite(armed ? null : run.id)} size="sm">
+            <Button
+              aria-label={`${armed ? "Use latest instead" : "Use for apply"}: ${runLabel}`}
+              variant="ghost"
+              onClick={(): void => onArmRewrite(armed ? null : run.id)}
+              size="sm"
+            >
               {armed ? "Use latest instead" : "Use for apply"}
             </Button>
           ) : null}

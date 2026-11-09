@@ -20,7 +20,7 @@ test("an empty Home shows one empty state and a masthead greeting with no second
   await seedShellState(page, { activeSection: "home" });
   await mount<typeof SectionShellStory>(STORY, { section: "home" });
   const masthead = page.locator('[data-home-tile="chat.masthead"]');
-  await expect(masthead.getByRole("heading", { level: 1 })).toBeVisible();
+  await expect(masthead.getByRole("heading", { level: 2 })).toBeVisible();
   await expect(
     page.locator('[data-home-tile="chat.recents"] [data-slot="empty-state-root"], [data-home-tile="chat.masthead"] [data-slot="empty-state-root"]'),
   ).toHaveCount(1);

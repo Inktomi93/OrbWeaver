@@ -14,7 +14,9 @@ export function CorpusArtifactFrame({ title, children }: { readonly title: strin
       <Button ref={backRef} self="start" variant="ghost" size="sm" onClick={clearCorpusSelection}>
         Back to Explore
       </Button>
-      <Heading level={1}>{title}</Heading>
+      <Heading level={2} voice="focal">
+        {title}
+      </Heading>
       {children}
     </Stack>
   );

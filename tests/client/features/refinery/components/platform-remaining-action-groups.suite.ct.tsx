@@ -82,14 +82,14 @@ for (const regime of REGIMES) {
       await using root = await createServerHarness({ startJobs: false });
       const { session } = await seedSession(root, page);
       await mount<typeof RefineryRemainingActionsStory>(STORY, { sessionId: session.id, plane: "runs", width: regime.width, appearance: regime.appearance });
-      const view = page.getByRole("button", { name: "View", exact: true });
-      const useForApply = page.getByRole("button", { name: "Use for apply", exact: true });
+      const view = page.getByRole("button", { name: /^View /u });
+      const useForApply = page.getByRole("button", { name: /^Use for apply: /u });
       await expectContained(view.locator(".."), [view, useForApply]);
       await view.focus();
       await page.keyboard.press("Tab");
       await expect(useForApply).toBeFocused();
       await page.keyboard.press("Enter");
-      const latest = page.getByRole("button", { name: "Use latest instead", exact: true });
+      const latest = page.getByRole("button", { name: /^Use latest instead: /u });
       await expect(latest).toBeFocused();
       await expectContained(view.locator(".."), [view, latest]);
       await page.keyboard.press("Enter");

@@ -28,12 +28,13 @@ const REGIMES = [
 
 async function expectLibraryOutline(page: Page, title: string, hasRecent: boolean): Promise<void> {
   const content = page.getByRole("main", { name: "Characters content", exact: true });
-  const mainHeading = content.getByRole("heading", { name: title, level: 1, exact: true });
+  // The shell's topbar owns the screen's one h1; the landing's own title is the first heading under it.
+  const mainHeading = content.getByRole("heading", { name: title, level: 2, exact: true });
   await expect(mainHeading).toBeVisible();
-  await expect(content.getByRole("heading", { level: 1 })).toHaveCount(1);
+  await expect(content.getByRole("heading", { level: 1 })).toHaveCount(0);
   await expect(mainHeading).toHaveCSS("font-size", `${await resolvedLength(page, `var(${TOKENS["text.title"].cssVar})`)}px`);
   await expect(content.getByRole("heading", { name: CHARACTER_RECENT_SHELF_NAME, level: 2, exact: true })).toHaveCount(Number(hasRecent));
-  for (const shelf of await content.getByRole("heading", { level: 2 }).all()) {
+  for (const shelf of await content.getByRole("heading", { level: 2 }).filter({ hasNotText: title }).all()) {
     await expect(shelf).toHaveCSS("font-size", `${await resolvedLength(page, `var(${TOKENS["text.micro"].cssVar})`)}px`);
     await expect(shelf).toHaveCSS("text-transform", "uppercase");
   }

@@ -39,7 +39,7 @@ import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import type { Trpc } from "#data";
 import { createCollectionSurface, QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { ESTIMATED_ROW_PX, testId } from "#lib";
+import { collidingNameQualifiers, ESTIMATED_ROW_PX, positionQualifier, testId } from "#lib";
 import { selectCorpusArtifact } from "#state";
 import { characterFacetLine } from "../lib/character-facet.ts";
 import { CORPUS_DISTILLED_CATALOG_NAME, CORPUS_SORTING_DOOR_NAME } from "../lib/corpus-control-names.ts";
@@ -187,6 +187,11 @@ function BrowseRows({
       </Stack>
     );
   }
+  // Two characters can share a name; the row prints no stamp, so the list's own running position tells them apart.
+  const titleQualifiers = collidingNameQualifiers(
+    collection.items.map((row) => row.name),
+    collection.items.map((_row, index) => positionQualifier(index + 1)),
+  );
   return (
     // The bounded height is this Stack's — `VirtualList` throws at mount on an unbounded scroll element,
     // which is the primitive refusing to be a list that silently renders everything.
@@ -201,13 +206,13 @@ function BrowseRows({
         getItemKey={collection.listProps.getItemKey}
         items={collection.items}
         onEndApproach={collection.listProps.onEndApproach}
-        renderItem={(row): ReactElement => <BrowseCharacterRow row={row} />}
+        renderItem={(row, index): ReactElement => <BrowseCharacterRow row={row} titleQualifier={titleQualifiers[index]} />}
       />
     </Stack>
   );
 }
 
-function BrowseCharacterRow({ row }: { readonly row: BrowseRow }): ReactElement {
+function BrowseCharacterRow({ row, titleQualifier }: { readonly row: BrowseRow; readonly titleQualifier: string | undefined }): ReactElement {
   const facet = characterFacetLine(row.genre, row.tone, row.setting);
   const subtitle = row.elevatorPitch ?? (facet === "" ? "Not distilled" : facet);
   return (
@@ -216,6 +221,7 @@ function BrowseCharacterRow({ row }: { readonly row: BrowseRow }): ReactElement 
       onClick={(): void => selectCorpusArtifact({ kind: "distill", characterId: row.characterId })}
       leading={<CharacterAvatar id={row.characterId} name={row.name} hash={row.avatarHash} />}
       title={row.name}
+      {...(titleQualifier === undefined ? {} : { titleQualifier })}
       subtitle={subtitle}
       subtitleStep="label"
     />

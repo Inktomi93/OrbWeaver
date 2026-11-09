@@ -78,7 +78,7 @@ export function HintTrigger({ hint, subject, className, size = "inline", onClick
     ) : (
       <InlineAction
         aria-label={ariaLabel}
-        className={cn(slots.trigger(), className) ?? ""}
+        className={cn(slots.trigger(), slots.inlineBox(), className) ?? ""}
         data-slot="hint-trigger"
         variant="ghost"
         {...(onClick === undefined ? {} : { onClick })}

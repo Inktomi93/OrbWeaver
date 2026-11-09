@@ -5,7 +5,7 @@
 // components/chat-summary-row.tsx (biome forbids a component + a plain export in one module).
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
-import { authoredChatName, deriveChatTitle, rowQualifiers, timeLib } from "#lib";
+import { authoredChatName, collidingNameQualifiers, deriveChatTitle, rowQualifiers, timeLib } from "#lib";
 
 type ChatSummaryItem = inferOutput<Trpc["chat"]["listChats"]>["items"][number];
 
@@ -63,9 +63,10 @@ export function chatRowQualifiers(chats: readonly ChatSummaryItem[]): readonly s
  *  own keeps the bare title, so a list of distinct rooms reads exactly as it did. The qualifier is `chatRowQualifiers`'
  *  own, so the name matches what the row's actions announce. */
 export function chatTitleQualifiers(chats: readonly ChatSummaryItem[]): readonly (string | undefined)[] {
-  const titles = chats.map((chat) => deriveChatTitle(chat.title, chat.participantNames));
-  const qualifiers = chatRowQualifiers(chats);
-  return titles.map((title, index) => (titles.filter((other) => other === title).length > 1 ? qualifiers[index] : undefined));
+  return collidingNameQualifiers(
+    chats.map((chat) => deriveChatTitle(chat.title, chat.participantNames)),
+    chatRowQualifiers(chats),
+  );
 }
 
 /** Title fallback · subtitle · last-activity epoch for one chat summary. The subtitle is the SCENT line when

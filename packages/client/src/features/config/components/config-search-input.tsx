@@ -236,39 +236,43 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
           </Tip>
         </Row>
         {expanded ? (
-          <CommandList maxHeight="paneSm">
-            {tokens !== null && partial !== null ? (
-              <TokenMenu partial={partial} query={query} tokens={tokens} />
-            ) : (
-              <>
-                {/* The group rows register from their own fibers, so only cmdk knows whether ANY row rendered: gating on
-                    `hits` alone shows the message over a results list that holds member rows. `role="status"` sits on the
-                    message because cmdk pins its own wrapper to `presentation`. */}
-                <CommandEmpty>
-                  <Text role="status" voice="gloss">
-                    {configSearchEmptyText(query.trim())}
-                  </Text>
-                </CommandEmpty>
-                {/* EVERY MODIFIED HIT SAYS SO, in every query — not only under `@modified`, so the reader
+          <>
+            <CommandList maxHeight="paneSm">
+              {tokens !== null && partial !== null ? (
+                <TokenMenu partial={partial} query={query} tokens={tokens} />
+              ) : (
+                <>
+                  {/* EVERY MODIFIED HIT SAYS SO, in every query — not only under `@modified`, so the reader
                     hunting the setting they changed has something to steer by. The mark is the SAME verdict the filter
                     applies, read at the row's own grain. */}
-                {hits.map((entry) => (
-                  <CommandRow
-                    key={entry.id}
-                    onSelect={(): void => selectEntry(entry)}
-                    value={entry.id}
-                    {...(entry.kind === "group" ? {} : { context: entry.groupLabel })}
-                    {...(isConfigEntryModified(entry, modified) ? { mark: CONFIG_MODIFIED_MARKER } : {})}
-                  >
-                    <HighlightedText ranges={findHighlightRanges(entry.label, terms)} text={entry.label} />
-                  </CommandRow>
-                ))}
-                {rowGroups.map((group) => (
-                  <GroupSearchRows group={group} key={group.id} parsed={parsed} terms={terms} />
-                ))}
-              </>
+                  {hits.map((entry) => (
+                    <CommandRow
+                      key={entry.id}
+                      onSelect={(): void => selectEntry(entry)}
+                      value={entry.id}
+                      {...(entry.kind === "group" ? {} : { context: entry.groupLabel })}
+                      {...(isConfigEntryModified(entry, modified) ? { mark: CONFIG_MODIFIED_MARKER } : {})}
+                    >
+                      <HighlightedText ranges={findHighlightRanges(entry.label, terms)} text={entry.label} />
+                    </CommandRow>
+                  ))}
+                  {rowGroups.map((group) => (
+                    <GroupSearchRows group={group} key={group.id} parsed={parsed} terms={terms} />
+                  ))}
+                </>
+              )}
+            </CommandList>
+            {tokens !== null && partial !== null ? null : (
+              // The group rows register from their own fibers, so only cmdk knows whether ANY row rendered: gating on `hits` alone
+              // shows the message over a results list that holds member rows. It sits beside the listbox, not in it: a status is
+              // not an allowed child of a listbox, and cmdk pins its own wrapper to `presentation`.
+              <CommandEmpty>
+                <Text role="status" voice="gloss">
+                  {configSearchEmptyText(query.trim())}
+                </Text>
+              </CommandEmpty>
             )}
-          </CommandList>
+          </>
         ) : null}
       </Command>
     </Stack>

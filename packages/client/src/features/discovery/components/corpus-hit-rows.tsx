@@ -103,7 +103,18 @@ export function DiscoverHitRow({ hit, rank }: { readonly hit: DiscoverHit; reado
   );
 }
 
-export function DigestHitRow({ hit, rank, grouped = false }: { readonly hit: DigestHit; readonly rank: number; readonly grouped?: boolean }): ReactElement {
+export function DigestHitRow({
+  hit,
+  rank,
+  grouped = false,
+  titleQualifier,
+}: {
+  readonly hit: DigestHit;
+  readonly rank: number;
+  readonly grouped?: boolean;
+  /** Set where another memory in the list shares this row's title: the position joins the name and takes the printed rank's place. */
+  readonly titleQualifier: string | undefined;
+}): ReactElement {
   const selected = useSelectedCorpusDestination();
   return (
     <ListRow
@@ -112,9 +123,9 @@ export function DigestHitRow({ hit, rank, grouped = false }: { readonly hit: Dig
       onClick={(): void => selectCorpusArtifact({ kind: "digest", hit, rank })}
       leading={<Icon icon={MessagesSquare} size="sm" />}
       title={chatSubtitle(hit.chatTitle, hit.scopedCharacterName)}
+      {...(titleQualifier === undefined ? { meta: rank.toString() } : { titleQualifier })}
       subtitle={grouped ? (hit.scopedCharacterName ?? "Generated memory summary") : snippetForDisplay(hit.text)}
       subtitleWrap={true}
-      meta={rank.toString()}
     />
   );
 }

@@ -128,3 +128,16 @@ export function rowQualifiers(rows: readonly RowQualifierRow[], stamp: (at: numb
   }
   return resolved;
 }
+
+/**
+ * The qualifier a row's NAME carries, only where another row on the same list shares its name. A row with a name of
+ * its own keeps it bare, so a list of distinct rows reads exactly as it did. `qualifiers[i]` belongs to `names[i]`.
+ */
+export function collidingNameQualifiers(names: readonly string[], qualifiers: readonly string[]): readonly (string | undefined)[] {
+  return names.map((name, index) => (names.filter((other) => other === name).length > 1 ? qualifiers[index] : undefined));
+}
+
+/** A list's own running position, `#3`: the qualifier for rows that print their rank or order and carry no stamp. */
+export function positionQualifier(position: number): string {
+  return `#${String(position)}`;
+}
