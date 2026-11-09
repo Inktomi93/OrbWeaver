@@ -17,6 +17,7 @@ import type {
   TypeNode,
 } from "@typescript/native/ast";
 import {
+  isAsExpression,
   isBinaryExpression,
   isBindingElement,
   isCallExpression,
@@ -50,18 +51,19 @@ import {
   isShorthandPropertyAssignment,
   isSpreadAssignment,
   isStringLiteral,
+  isTypeAssertion,
   isTypeQueryNode,
   isTypeReferenceNode,
   SyntaxKind,
 } from "@typescript/native/ast";
 import type { APIRequestGenerator, Checker, Symbol as NativeSymbol, Type } from "@typescript/native/sync";
-import { all, TypeFlags } from "@typescript/native/sync";
+import { all, IndexKind, TypeFlags } from "@typescript/native/sync";
 import type { SendDestination, StoreWrite } from "./boundaries.ts";
 import { copiedReads, PROVIDER_BODIES, serializedBy, storeWritesAt, tableDefinition } from "./boundaries.ts";
 import type { Site } from "./classify.ts";
 import { siteKey } from "./classify.ts";
 import type { Flow } from "./handoffs.ts";
-import { handoffFlows } from "./handoffs.ts";
+import { handedAt, handoffFlows } from "./handoffs.ts";
 import type { NativeWorld } from "./native.ts";
 import { constituents, declarationKeys, hasFlag, propertiesNamed } from "./native.ts";
 
@@ -673,7 +675,7 @@ export function propertyFacts(world: NativeWorld, home: ReadonlySet<string> = ev
   const openKeys = lookups.flatMap((lookup, at) =>
     found[at]?.open === true && lookup.by === "contextual" && lookup.literalKey !== null ? [lookup.literalKey] : [],
   );
-  sends.push(...providerSends(world, openKeys, kept));
+  sends.push(...providerSends(world, openKeys, kept), ...indexHandoffSends(world, home));
   credits.push(...nestedReads(world, kept));
   for (const [at, reflection] of kept.entries()) {
     const { reads: symbols, links: spread, flows: carried } = reads[at] ?? { reads: [], links: [], flows: [] };
@@ -731,6 +733,51 @@ function providerSends(world: NativeWorld, openKeys: readonly Node[], kept: read
   return values.map((value, at) => ({ site: world.siteOf(value), destination: "provider" as const, keys: keys[at] ?? [] }));
 }
 
+// The object types of a slot that take any string key, a nullable slot's and an array slot's element included. A
+// number index alone is an array's, so an array slot is open only through its element.
+function* stringIndexed(checker: Checker, slot: Type): APIRequestGenerator<readonly Type[]> {
+  const objects = yield* heldObjects(checker, slot);
+  const indexes = yield* all(...objects.map((type) => checker.getIndexInfoOfType.gen(type, IndexKind.String)));
+  return objects.filter((_, at) => indexes[at] !== undefined);
+}
+
+// The in-tree members a value hands to a string-indexed slot that the slot names no member for, with their nested members.
+function* unnamedMembers(world: NativeWorld, value: Node): APIRequestGenerator<readonly string[]> {
+  const { checker } = world;
+  const slot = yield* checker.getContextualType.gen(value as Expression);
+  const open = slot === undefined ? [] : yield* stringIndexed(checker, slot);
+  if (open.length === 0) {
+    return [];
+  }
+  const sources = yield* heldObjects(checker, yield* checker.getTypeAtLocation.gen(value));
+  const properties = (yield* all(...sources.map((type) => checker.getPropertiesOfType.gen(type))))
+    .flat()
+    .filter((property) => property.declarations.some((handle) => world.fileOf(handle) !== null));
+  const named = yield* all(...properties.map((property) => all(...open.map((type) => checker.getPropertyOfType.gen(type, property.name)))));
+  const unnamed = properties.filter((_, at) => (named[at] ?? []).every((member) => member === undefined));
+  if (unnamed.length === 0) {
+    return [];
+  }
+  const nested = yield* heldMembersOf(world, yield* checker.getTypeOfSymbol.gen(unnamed), SEND_DEPTH - 1);
+  return [...unnamed.flatMap((property) => declarationKeys(property)), ...nested];
+}
+
+// A typed value handed into a provider body's string index leaves with the members the slot does not name: a parsed
+// routing block returned as `OpenRouterRouting`, or parsed plugin entries asserted to `JSONObject`. A literal's own
+// keys are open keys already, and a named member keeps its flow into the slot's member.
+function indexHandoffSends(world: NativeWorld, home: ReadonlySet<string>): PropertyFacts["sends"] {
+  const handed: Node[] = [];
+  walk(world, new Set([...home].filter((file) => file.startsWith(PROVIDER_BODIES))), (node) => {
+    const values = isAsExpression(node) || isTypeAssertion(node) ? [node.expression] : handedAt(node);
+    handed.push(...values.filter((value) => !isObjectLiteralExpression(value)));
+  });
+  const keys = world.batch(handed.map((value) => unnamedMembers(world, value)));
+  return handed.flatMap((value, at) => {
+    const sent = keys[at] ?? [];
+    return sent.length === 0 ? [] : [{ site: world.siteOf(value), destination: "provider" as const, keys: sent }];
+  });
+}
+
 // A dotted-path read may reach any nested member of its value, so it reads them all.
 function nestedReads(world: NativeWorld, kept: readonly (Reflection & { readonly site: Site })[]): PropertyFacts["credits"] {
   const nested = kept.filter((reflection) => reflection.nested === true);
@@ -740,11 +787,15 @@ function nestedReads(world: NativeWorld, kept: readonly (Reflection & { readonly
 
 // The declaration keys of every in-tree member a value carries, through nested objects and array elements.
 function* heldMembers(world: NativeWorld, value: Node): APIRequestGenerator<readonly string[]> {
+  return yield* heldMembersOf(world, [yield* world.checker.getTypeAtLocation.gen(value)], SEND_DEPTH);
+}
+
+function* heldMembersOf(world: NativeWorld, types: readonly Type[], levels: number): APIRequestGenerator<readonly string[]> {
   const { checker } = world;
   const keys: string[] = [];
   const seen = new Set<number>();
-  let pending: readonly Type[] = [yield* checker.getTypeAtLocation.gen(value)];
-  for (let depth = 0; depth < SEND_DEPTH && pending.length > 0; depth++) {
+  let pending = types;
+  for (let depth = 0; depth < levels && pending.length > 0; depth++) {
     const held = (yield* all(...pending.map((type) => heldObjects(checker, type)))).flat();
     const objects = held.filter((type) => !seen.has(type.id));
     for (const type of objects) {

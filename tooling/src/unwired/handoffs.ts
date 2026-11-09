@@ -65,8 +65,9 @@ function givenAt(node: Node): Node | undefined {
   return isShorthandPropertyAssignment(node) ? node.name : undefined;
 }
 
-// The expressions a node hands to a typed slot.
-function handedAt(node: Node): readonly Node[] {
+/** The expressions a node hands to a typed slot: call and `new` arguments, array elements, a returned or JSX value, an
+ *  arrow's body, an annotated initializer and a key's value. */
+export function handedAt(node: Node): readonly Node[] {
   if (isCallExpression(node) || isNewExpression(node)) {
     return withoutSpreads(node.arguments ?? []);
   }
