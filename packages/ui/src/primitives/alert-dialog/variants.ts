@@ -11,10 +11,12 @@ import { MODAL_SURFACE, OVERLAY_MOTION, POPUP_DESCRIPTION, SCRIM, TITLE_STEP, tv
 export const alertDialogVariants = tv({
   slots: {
     backdrop: SCRIM("modal"),
-    viewport: "fixed inset-0 z-(--z-modal) grid place-items-center overflow-y-auto overscroll-contain px-(--width-dialog-gutter) py-(--height-dialog-gutter)",
+    viewport: `
+      fixed inset-0 z-(--z-modal) grid grid-cols-1 place-items-center overflow-y-auto overscroll-contain px-(--width-dialog-gutter) py-(--height-dialog-gutter)
+    `,
     popup: `${MODAL_SURFACE} max-inline-cq-24 ${OVERLAY_MOTION.modalPopup}`,
     title: TITLE_STEP,
     description: POPUP_DESCRIPTION,
-    actions: "mbs-section flex items-center justify-end gap-row",
+    actions: "mbs-section flex flex-wrap items-center justify-end gap-row",
   },
 });

@@ -5,6 +5,26 @@ import { Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 
+/** The production form dialog open from the start with a title, a description and enough fields to scroll a short screen, the shape of a create form. */
+export function FormDialogCreateStory(): ReactElement {
+  const [open, setOpen] = useState(true);
+  return (
+    <CtIsolation subject="FormDialog" isolates="isolates the form frame's title, fields and footer from authenticated mutations">
+      <FormDialog
+        description="Runs the chosen job on the cadence below."
+        onOpenChange={setOpen}
+        open={open}
+        submit={{ label: "Create schedule", onSubmit: (): void => setOpen(false) }}
+        title="Create a schedule"
+      >
+        {["Kind", "Cadence", "Owner", "Window", "Retries", "Notes"].map((name) => (
+          <input aria-label={name} key={name} />
+        ))}
+      </FormDialog>
+    </CtIsolation>
+  );
+}
+
 /** The production dialog with its corner close, open from the start. */
 export function FormDialogCloseStory(): ReactElement {
   const [open, setOpen] = useState(true);
