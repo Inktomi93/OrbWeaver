@@ -104,6 +104,8 @@ export async function seedOidcCorpus(root: UnclaimedServerTestHarness, issuer: A
   if (!ownerMe.authenticated || ownerMe.role !== "owner" || ownerId === undefined) {
     throw new Error("actual native OIDC boot claim produced no admitted owner");
   }
+  // The owner's sign-in starts its detached user seed, which settles before the owner's first writes draw ids.
+  await root.settleBackground();
   const owner = await root.internalCallerFor(ownerId);
   const room = await owner.chat.startChat({ characterIds: [], opening: "none" });
   const invite = await owner.invites.createInvite({

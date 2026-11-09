@@ -16,6 +16,7 @@ import type { CorpusPlayback, CorpusWire } from "../iso/corpus.ts";
 import { corpusReadInput } from "../iso/corpus.ts";
 import { bootGrantFor } from "./boot-grant.ts";
 import { captureCorpusRead } from "./corpus-capture.ts";
+import { settleActiveWorkloads, settleDocumentIntake } from "./corpus-workloads.ts";
 import { makeAssetBytes } from "./factories/asset.ts";
 import type { AutomationRuleRow } from "./factories/automation.ts";
 import {
@@ -151,6 +152,7 @@ export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCo
   await seedGlobalBookRows(root, { principal, bookId: book.id });
   await seedPersonaBookRows(root, { principal, personaId: persona.id, bookId: book.id });
   const world = await captureWorldBookRows(root.db, book.id);
+  await settleActiveWorkloads(root);
   const document = await seedDocumentRows(root, {
     principal,
     name: "Orbital ledger source",
@@ -165,6 +167,7 @@ export async function seedCorpusLibraries(root: ServerHarness): Promise<SeededCo
     chat: await seedChatDocumentRows(root, { principal, chatId: room.chat.id, documentId: document.id }),
     global: await seedGlobalDocumentRows(root, { principal, documentId: document.id }),
   };
+  await settleDocumentIntake(root, caller, [document.id]);
   const createdTag = await seedCreatedTagRows(root, {
     principal,
     input: createTagSchema.parse({ name: "Orbital ledger", source: "auto" }),
@@ -453,6 +456,7 @@ export async function seedSyntheticCorpus(root: ServerHarness, options: SeedSynt
     }),
   );
   const { seedDemoContent } = await loadDemoSeed();
+  await settleActiveWorkloads(root);
   const seed = await seedDemoContent({
     ...(options.secondUserId === undefined ? {} : { secondUserId: options.secondUserId }),
     built: root.app,
@@ -478,6 +482,8 @@ export async function seedSyntheticCorpus(root: ServerHarness, options: SeedSynt
   if (seed.ingest.failed.length > 0) {
     throw new Error("synthetic corpus document ingestion failed", { cause: seed.ingest.failed });
   }
+  // The demo ingests inline, and its upload still admitted the queued ingest.
+  await settleDocumentIntake(root, await root.internalCallerFor(root.ownerId), [seed.document.document.id]);
   await root.settleBackground();
   const soloMessages = await captureTurnRows(root.db, seed.soloTurn);
   const groupMessages = await captureTurnRows(root.db, seed.groupTurn);

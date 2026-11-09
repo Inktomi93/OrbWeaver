@@ -3,7 +3,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import type { UserId } from "@orb/kit/ids";
 import { seedCorpusConnections } from "./corpus-actors.ts";
 import { seedCorpusAccount } from "./corpus-auth.ts";
-import { settleCorpusWorkloads } from "./corpus-workloads.ts";
+import { settleActiveWorkloads, settleCorpusWorkloads, settleDocumentIntake } from "./corpus-workloads.ts";
 import type { CapturedDatabankViews, SeededCreatedDocument } from "./factories/databank.ts";
 import { captureDatabankViews } from "./factories/databank.ts";
 import { seedCreatedDocumentRows } from "./factories/rows/databank.ts";
@@ -47,6 +47,7 @@ export async function seedCorpusDatabank(root: ServerTestHarness): Promise<Corpu
   const invite = await root.services.chat.createInvite({ principal, chatId: room.chat.id, input: { invitedHandle: member.handle } });
   await root.services.chat.acceptInvite({ principal: member, inviteId: invite.invite.id });
   const text = "The orbital ledger records café witnesses 🪐.";
+  await settleActiveWorkloads(root);
   const created = await seedCreatedDocumentRows(root, {
     kind: "createFromText",
     userId: root.ownerId,
@@ -75,6 +76,9 @@ export async function seedCorpusDatabank(root: ServerTestHarness): Promise<Corpu
   });
   await caller.chat.setChatDocumentVisibility({ chatId: room.chat.id, visibility: { hidden: [hidden.row.id] } });
   const renamed = await caller.databank.rename({ id: created.row.id, name: "Renamed consented ledger" });
+  // The queued ingests settle on their lane before the reindex admits sweep work.
+  await settleDocumentIntake(root, caller, [created.row.id, hidden.row.id]);
+  await settleDocumentIntake(root, memberCaller, [memberGlobal.row.id, memberPrivate.row.id]);
   const reindex = await caller.databank.reindex({ scope: { kind: "document", documentId: created.row.id } });
   const admitted = (await caller.workloads.list()).filter((job) => job.id === reindex.workloadId);
   if (admitted.length !== 1) {

@@ -27,9 +27,10 @@ import { seedChatInviteRows, seedInvitedChatParticipantRows } from "./rows.ts";
 test("world-info creation and first edits persist one injected clock rather than reversing a database wall-clock stamp", async () => {
   const clock = createFrozenClock(1_100_000_000_123);
   await using root = await createServerHarness({ clock });
+  // The library producer settles workloads after its world book is written, which advances the clock.
+  const bornAt = clock.now();
   const library = await seedCorpusLibraries(root);
   const principal = await root.principalFor(root.ownerId);
-  const bornAt = clock.now();
   expect([
     [library.world.book.createdAt, library.world.book.updatedAt],
     ...library.world.entries.map((created) => [created.createdAt, created.updatedAt]),

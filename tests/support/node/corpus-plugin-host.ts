@@ -204,10 +204,14 @@ h.ui.registerCommand({name:"emit",describe:"Publish installer-scoped private dat
       timeZone: UTC_TIME_ZONE,
     });
   }
-  const jobs = (await caller.workloads.list()).filter((job) => job.kind === "databank-ingest" && job.status !== "succeeded");
+  // The guest's ingests settle on their lane before the sweep jobs start beside them.
+  await settleCorpusWorkloads(
+    root,
+    caller,
+    (await caller.workloads.list()).filter((job) => job.kind === "databank-ingest" && job.status !== "succeeded"),
+  );
   await caller.settings.updateUserSettingsSection({ section: "memory", patch: { enabled: true } });
   await settleCorpusWorkloads(root, caller, [
-    ...jobs,
     await caller.workloads.start({ input: { kind: "index", params: { source: "all" } }, mode: "singular" }),
     await caller.workloads.start({ input: { kind: "memory-backfill", params: {} }, mode: "singular" }),
     await caller.workloads.start({ input: { kind: "databank-reindex", params: { scope: { kind: "owner" }, mode: "chunk-embed" } }, mode: "singular" }),
