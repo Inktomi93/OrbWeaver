@@ -309,8 +309,18 @@ function itemProblems(items: readonly WorkItem[], tree: DocTree): readonly strin
   return problems;
 }
 
-/** Every structural finding over the governed tree. Empty = clean. */
-export function docProblems(tree: DocTree): readonly string[] {
+/** A numbered file whose id another item also held in history: the old item's `Closes:` trailers and
+ *  `landedCommit` now name this one. */
+function reusedIdProblems(tree: DocTree, foreign: ReadonlyMap<string, readonly string[]>): readonly string[] {
+  return tree.docs.flatMap((doc) => {
+    const others = foreign.get(doc.path);
+    return others === undefined ? [] : [`${doc.path}: its id was also held by ${others.join(", ")} — renumber this one with git mv and pnpm doc index`];
+  });
+}
+
+/** Every structural finding over the governed tree. Empty = clean. `foreign` is the history fact
+ *  (`foreignHolders`); a caller that has not read history passes none, and the reuse rule stays silent. */
+export function docProblems(tree: DocTree, foreign: ReadonlyMap<string, readonly string[]> = new Map()): readonly string[] {
   const expected = expectedGeneratedFiles(tree.docs);
   const perDoc = tree.docs.flatMap((doc) => {
     const kinds = kindsFor(doc.path);
@@ -333,5 +343,6 @@ export function docProblems(tree: DocTree): readonly string[] {
     ...planRankProblems(tree),
     ...adrIdProblems(tree),
     ...itemProblems(items, tree),
+    ...reusedIdProblems(tree, foreign),
   ];
 }
