@@ -180,17 +180,18 @@ test.describe("on a wide desktop, the edge controls in the page", () => {
     expect(await page.evaluate(() => document.activeElement?.closest('.shell-panel[data-panel-side="list"]') !== null)).toBe(true);
   });
 
-  test("the count beside a list title keeps its width and the title is what gives", async ({ mount, page }) => {
+  // Item 2230's ruling: an unscoped band keeps its name whole and its census is what gives.
+  test("an unscoped list title keeps its name whole and the census beside it is what gives", async ({ mount, page }) => {
     await mount<typeof AppShellStory>(STORY, {});
     const title = page.locator('[data-slot="list-pane-title"]');
     await expect(title).toBeVisible();
     const parts = await title.evaluate((heading) => {
       const [name, count] = [...heading.children].map((child) => getComputedStyle(child));
-      return { nameOverflow: name?.textOverflow, nameShrink: name?.flexShrink, countShrink: count?.flexShrink };
+      return { nameShrink: name?.flexShrink, countOverflow: count?.textOverflow, countShrink: count?.flexShrink };
     });
-    expect(parts.countShrink).toBe("0");
-    expect(parts.nameOverflow).toBe("ellipsis");
-    expect(parts.nameShrink).not.toBe("0");
+    expect(parts.nameShrink).toBe("0");
+    expect(parts.countOverflow).toBe("ellipsis");
+    expect(parts.countShrink).not.toBe("0");
   });
 });
 
