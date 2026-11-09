@@ -34,7 +34,7 @@ import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data"
 import { DIALOG_VERBS } from "#lib";
 import { openConfigTo } from "#state";
 import { QueryBoundary } from "./query-boundary.tsx";
-import { BACKGROUND_FROM_URL_NAME, BACKGROUND_URL_FIELD_NAME } from "./shared-control-names.ts";
+import { BACKGROUND_FROM_URL_NAME, BACKGROUND_GRID_NAME, BACKGROUND_URL_FIELD_NAME } from "./shared-control-names.ts";
 
 /** The all-blank "no background" source — every non-active field heals to "" (the `themeBackgroundSchema`
  *  fault-isolation defaults), so a pick always rewrites the WHOLE object rather than leaking a stale
@@ -157,7 +157,7 @@ function BackgroundTileGrid({ current, onPick }: BackgroundTileGridProps): React
 
   return (
     <MediaGrid
-      ariaLabel="Background"
+      ariaLabel={BACKGROUND_GRID_NAME}
       width="full"
       maxHeight="scrollMd"
       items={tiles}
