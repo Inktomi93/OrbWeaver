@@ -101,7 +101,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
             )
           }
         />
-        <Text voice="gloss" role="note">
+        <Text voice="gloss" role="note" prose={true} cap="prose">
           {IMPORTED_ACTIVITY_NOTE}
         </Text>
       </Stack>
@@ -126,7 +126,7 @@ function CharacterBody({ characterId, onBack }: { readonly characterId: Characte
         )}
       </Stack>
 
-      <Text voice="gloss" role="note">
+      <Text voice="gloss" role="note" prose={true} cap="prose">
         {IMPORTED_ACTIVITY_NOTE}
       </Text>
       <AccountingCoverageNotice characterOnly={true} />

@@ -387,6 +387,7 @@ export const TOKENS = {
   "height.command-strip": { cssVar: "--height-command-strip", value: "calc(var(--size-control-sm) + 2 * var(--border-width-control))" },
   "height.picker-door-row": { cssVar: "--height-picker-door-row", value: "calc(var(--size-control-sm) + 2 * var(--spacing-block))" },
   "height.dialog-gutter": { cssVar: "--height-dialog-gutter", value: "min(var(--spacing-gutter), 5dvh)" },
+  "width.dialog-gutter": { cssVar: "--width-dialog-gutter", value: "round(down, min(var(--spacing-gutter), 5dvw), 1px)" },
   "dimension.shell-topbar-block": { cssVar: "--dimension-shell-topbar-block", value: "calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-16) + var(--dimension-device-pixel) - 100dvw) * 1000), var(--dimension-chrome-row) / 2))" },
   "dimension.shell-topbar-block-primary": { cssVar: "--dimension-shell-topbar-block-primary", value: "calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-20) - 100dvw) * 1000), var(--dimension-chrome-row) / 2))" },
   "dimension.shell-title-floor": { cssVar: "--dimension-shell-title-floor", value: "6ch" },

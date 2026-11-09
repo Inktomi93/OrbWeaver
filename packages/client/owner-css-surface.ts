@@ -1313,6 +1313,7 @@ export const OWNER_CSS_TOKEN_VARS = [
   "--width-content-col",
   "--width-content-col-wide",
   "--width-control-col",
+  "--width-dialog-gutter",
   "--width-dialog-lg",
   "--width-dialog-md",
   "--width-dialog-sm",

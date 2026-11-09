@@ -1,10 +1,11 @@
 import { testId } from "@orb/client/lib";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
-import { seedShellState } from "@orb/testkit/browser/spec";
+import { resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { InsightsIdentityShellStory } from "./_insights-identity-stories.tsx";
 
 const STORY = "tests/client/features/app-shell/surfaces/_insights-identity-stories/InsightsIdentityShellStory";
@@ -44,6 +45,20 @@ for (const regime of REGIMES) {
       expect(painted).toBe(!regime.coarse);
       const topbar = page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title');
       await expect(topbar).toHaveText(stats.name);
+      // The pane's notes are prose: each reads at the prose measure, however wide the pane is.
+      const notes = pane.locator('[role="note"]:not(:has(*))');
+      await expect(notes.first()).toBeVisible();
+      for (const note of await notes.all()) {
+        // The measure is in `ch`, so it resolves in each note's own font.
+        const measure = await resolvedLength(page, `var(${TOKENS["reading.measure-prose"].cssVar})`, note);
+        // The painted line, not the box: a block note's box spans the pane whatever its text does.
+        const widest = await note.evaluate((node) => {
+          const range = document.createRange();
+          range.selectNodeContents(node);
+          return Math.max(0, ...[...range.getClientRects()].map((rect) => rect.width));
+        });
+        expect(widest).toBeLessThanOrEqual(measure + 1);
+      }
       await page.screenshot({ path: test.info().outputPath("insights-character-identity.png") });
     });
   });
