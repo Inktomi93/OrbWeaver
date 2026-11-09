@@ -19,7 +19,9 @@ export function SkipToFirstRow({
   readonly children: ReactNode;
 }): ReactElement {
   return (
+    // `shrink-0`: in a pane that is itself the scroll box the link is a flex item, and an overfull pane shrinks it under its control step.
     <Button
+      className="shrink-0"
       hiddenAt="focusInFlow"
       variant="outline"
       onClick={(): void => containerRef.current?.querySelector<HTMLElement>(FIRST_ROW)?.focus()}

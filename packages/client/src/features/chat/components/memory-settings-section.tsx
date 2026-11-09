@@ -45,8 +45,8 @@ function MemorySettingsBody({ anchorId, sectionId }: { readonly anchorId: string
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getUserSettings.queryOptions());
-  const setEnabled = useSetMemoryEnabled({ trpc, invalidation });
-  const startBackfill = useStartMemoryBackfill({ trpc, invalidation });
+  const setEnabled = useSetMemoryEnabled({ trpc, invalidation, failureShownInline: "the turn-on-memory confirm's alert line" });
+  const startBackfill = useStartMemoryBackfill({ trpc, invalidation, failureShownInline: "the turn-on-memory confirm's alert line" });
   const [confirmingOn, setConfirmingOn] = useState(false);
   useReportSaveStatus(sectionId, saveStateOf(setEnabled.isPending, setEnabled.error !== null));
   const enabled = data.config.memory.enabled;

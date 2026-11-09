@@ -188,7 +188,7 @@ function DatabankList({ query, phaseFilter, onClearSearch, listRootRef }: Databa
   const { data: globalIds } = useSuspenseQuery(trpc.databank.listGlobal.queryOptions());
 
   const rename = useRenameDocument({ trpc, invalidation });
-  const remove = useRemoveDocument({ trpc, invalidation });
+  const remove = useRemoveDocument({ trpc, invalidation, failureShownInline: "the delete-document confirm's alert line" });
   const reindex = useReindexDocuments({ trpc, invalidation });
   const attachGlobal = useAttachDocumentGlobal({ trpc, invalidation });
   const detachGlobal = useDetachDocumentGlobal({ trpc, invalidation });

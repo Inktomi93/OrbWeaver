@@ -5,10 +5,11 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import {
+  NEW_PRESET_KIND,
+  NEW_PRESET_NAME,
   PRESET_ACTIVATE_NAME,
   PRESET_ACTIVE_RADIOGROUP_NAME,
   PRESET_NAME_FIELD_NAME,
-  PRESET_NEW_NAME,
   PRESET_RENAME_NAME,
   PRESET_RESET_ARRANGEMENT_NAME,
   PRESET_RESET_ARRANGEMENT_TITLE,
@@ -109,7 +110,7 @@ for (const regime of REGIMES) {
       const search = page.getByRole("textbox", { name: PRESET_SEARCH_NAME, exact: true });
       await search.fill("No matching layout qualification preset");
       const clear = page.getByRole("button", { name: CLEAR_SEARCH_NAME, exact: true });
-      const create = page.getByRole("button", { name: PRESET_NEW_NAME, exact: true });
+      const create = page.getByRole("button", { name: NEW_PRESET_NAME, exact: true });
       await clear.focus();
       await page.keyboard.press("Tab");
       await expect(create).toBeFocused();
@@ -126,7 +127,7 @@ for (const regime of REGIMES) {
       await create.focus();
       await page.keyboard.press("Enter");
       await expect.poll(async () => (await caller.preset.list()).length).toBe(before.length + 1);
-      expect(calls.lastInput("preset.create")).toEqual({ name: "New preset", kind: "generation" });
+      expect(calls.lastInput("preset.create")).toEqual({ name: NEW_PRESET_NAME, kind: NEW_PRESET_KIND });
     });
   });
 }

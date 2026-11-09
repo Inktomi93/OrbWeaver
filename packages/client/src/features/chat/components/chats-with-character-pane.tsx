@@ -35,7 +35,7 @@ import { CLEAR_SEARCH_NAME, ESTIMATED_ROW_PX, NO_MATCHES_TITLE, SEARCH_DEBOUNCE_
 import { resumeChat, useActiveChatId } from "#state";
 import { useChatListCollection } from "../hooks/use-chat-list-collection.ts";
 import { useChatListRowActions } from "../hooks/use-chat-row-mutations.ts";
-import { chatRowQualifiers } from "../lib/chat-summary-row.ts";
+import { chatRowQualifiers, chatTitleQualifiers } from "../lib/chat-summary-row.ts";
 import { CHAT_LIST_EMPTY_TITLE, chatsWithCharacterName } from "../lib/chat-surface-names.ts";
 import { ChatListRow } from "./chat-list-row.tsx";
 
@@ -94,6 +94,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
   // This pane is THE collision case (side-eye P2c): every row can be titled "Aveline", and the newest few
   // share a stamp — so the disambiguator is resolved across the list, not per row.
   const qualifiers = chatRowQualifiers(items);
+  const titleQualifiers = chatTitleQualifiers(items);
   const renderRow = (chat: ChatListItem, index: number): ReactNode => (
     <ChatListRow
       actions={actions}
@@ -102,6 +103,7 @@ export function ChatsWithCharacterPane({ characterId, characterName, onNewChat }
       portraits={chat.participantPortraits}
       qualifier={qualifiers[index]}
       selected={chat.id === activeChatId}
+      titleQualifier={titleQualifiers[index]}
     />
   );
 

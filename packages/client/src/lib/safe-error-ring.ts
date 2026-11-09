@@ -2,6 +2,9 @@
 // that cannot carry chat text or credentials. It never keeps a message, an argument, a host or a query. The dev
 // `console-error-ring.ts` keeps full text and ships in no production chunk; this one ships.
 
+import type { BackgroundJob } from "./background-jobs.ts";
+import { backgroundJobOfLog } from "./background-jobs.ts";
+
 /** The browser surfaces a record can come from. */
 const SAFE_ERROR_SOURCES = ["console", "uncaught", "rejection"] as const;
 type SafeErrorSource = (typeof SAFE_ERROR_SOURCES)[number];
@@ -16,6 +19,9 @@ export interface SafeErrorRecord {
   readonly errorType: string | null;
   readonly frames: readonly string[];
   readonly section: string | null;
+  /** The background job whose failure line this console record logged, or `null`. Only an exact job line maps, so the
+   *  name is a closed vocabulary and never message text. */
+  readonly job: BackgroundJob | null;
 }
 
 /** The ring's read: records oldest-first, plus how many the cap evicted since the page loaded. */
@@ -116,6 +122,7 @@ function recordSafeError(source: SafeErrorSource, values: readonly unknown[]): v
     errorType: error !== undefined && ERROR_TYPE_RE.test(error.name) ? error.name : null,
     frames: error?.stack === undefined ? [] : safeStackFrames(error.stack, context.origin),
     section: sectionOfPathname(context.pathname),
+    job: source === "console" ? backgroundJobOfLog(values[0]) : null,
   });
   if (ring.length > RING_CAP) {
     ring.shift();

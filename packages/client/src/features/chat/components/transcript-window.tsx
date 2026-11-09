@@ -16,7 +16,13 @@ import { CHAT_EARLIER_MESSAGES_NAME, CHAT_HISTORY_DISMISS_NAME, CHAT_HISTORY_FAI
 import type { HistoryFailure, HistoryFetchView } from "../lib/history-failures.ts";
 import { dismissHistoryFailure, noHistoryFailures, observeHistoryFetch, pressAsked, pressLost, shownHistoryFailure } from "../lib/history-failures.ts";
 import type { TranscriptEdges } from "../lib/move-neighbours.ts";
-import { CHAT_HISTORY_BEGINNING, CHAT_HISTORY_PAGER_HINT, chatHistoryLoadedLabel } from "../lib/transcript-copy.ts";
+import {
+  CHAT_HISTORY_BEGINNING,
+  CHAT_HISTORY_PAGER_HINT,
+  CHAT_WINDOW_PAGING_HINT,
+  CORPUS_SOURCE_OUTCOME_COPY,
+  chatHistoryLoadedLabel,
+} from "../lib/transcript-copy.ts";
 
 type HistoryPage = inferOutput<Trpc["chat"]["listMessages"]>;
 type CanonPage = Pick<HistoryPage, "messages" | "identities">;
@@ -319,35 +325,45 @@ function AnchoredThread({
     // The source window's toolbar stays above the transcript: it is the way back to Corpus, and the window opens on the
     // anchor, not on its first row, so toolbar chrome scrolled with the rows would be out of sight at arrival.
     <Stack minHeight="shrinks" height="fill" gap="field">
-      <Row hiddenAt="print" wrap={true} gap="field">
-        <Button
-          aria-describedby={pagingDescription}
-          variant="ghost"
-          size="sm"
-          disabled={!pages.hasPreviousPage || pages.isFetchingPreviousPage}
-          onClick={(): void => press("previous")}
-        >
-          {EARLIER_MESSAGES_LABEL}
-        </Button>
-        <Button
-          aria-describedby={pagingDescription}
-          variant="ghost"
-          size="sm"
-          disabled={!pages.hasNextPage || pages.isFetchingNextPage}
-          onClick={(): void => press("next")}
-        >
-          Later messages
-        </Button>
-        <Button variant="ghost" size="sm" onClick={clearChatMoment}>
-          Latest messages
-        </Button>
-        <Button variant="ghost" size="sm" onClick={(): void => setActiveSection("corpus")}>
-          Back to Corpus
-        </Button>
-      </Row>
-      <Text hiddenAt="print" id={pagingDescription} voice="gloss">
-        Paging covers visible room history. A direction is unavailable at its history boundary or while loading.
-      </Text>
+      {/* The rows' inset, which the composer also takes, so a phone's room reads as one column. */}
+      <Stack hiddenAt="print" gap="field" paddingInlineNarrow="avatarReach">
+        <Row wrap={true} gap="field">
+          <Button
+            aria-describedby={pagingDescription}
+            variant="ghost"
+            size="sm"
+            disabled={!pages.hasPreviousPage || pages.isFetchingPreviousPage}
+            onClick={(): void => press("previous")}
+          >
+            {EARLIER_MESSAGES_LABEL}
+          </Button>
+          <Button
+            aria-describedby={pagingDescription}
+            variant="ghost"
+            size="sm"
+            disabled={!pages.hasNextPage || pages.isFetchingNextPage}
+            onClick={(): void => press("next")}
+          >
+            Later messages
+          </Button>
+          <Button variant="ghost" size="sm" onClick={clearChatMoment}>
+            Latest messages
+          </Button>
+          <Button variant="ghost" size="sm" onClick={(): void => setActiveSection("corpus")}>
+            Back to Corpus
+          </Button>
+        </Row>
+        <Text id={pagingDescription} voice="gloss">
+          {CHAT_WINDOW_PAGING_HINT}
+        </Text>
+        {/* A sighted reader whose source is gone lands on the latest page, so the line says why on screen too. The room's
+            status already announces it, so this copy stays out of the accessibility tree. */}
+        {initial.outcome === "deleted" || initial.outcome === "unavailable" ? (
+          <Text aria-hidden={true} voice="gloss" data-slot="corpus-source-outcome">
+            {CORPUS_SOURCE_OUTCOME_COPY[initial.outcome]}
+          </Text>
+        ) : null}
+      </Stack>
       {pages.isError ? <QueryErrorState label="the transcript window" onRetry={pages.refetch} /> : null}
       {pressLostHere && !pages.isError ? (
         <Text hiddenAt="print" role="alert" tone="destructive" voice="label">

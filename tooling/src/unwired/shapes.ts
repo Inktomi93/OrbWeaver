@@ -49,7 +49,18 @@ export interface ShapesReport {
   readonly deliberate: readonly (UnwiredShape & { readonly reason: string })[];
   /** Findings engine one made that engine two's checker does not reproduce. */
   readonly disagreements: readonly string[];
+  readonly limits: readonly string[];
 }
+
+/** What the shapes scan cannot see, printed with every run. */
+const SHAPE_LIMITS: readonly string[] = [
+  "Two homes are compared only inside one package world: a client type and a server type of the same shape are never paired, and test worlds are not scanned.",
+  "A generic type, a callable type and a type with fewer than two in-tree members hold no home, so their restatements are not reported.",
+  "A declaration whose text after its own name names the other type counts as derived from it, so a restatement that also mentions its twin by name is missed.",
+  "A computed form (Pick, Omit, an indexed access, a mapped or conditional type) is derived, never a second home, even where it re-spells the same members.",
+  "A re-export chain starts at an export specifier: an `export *` declaration names none, so a chain whose outer hop is `export *` is not reported, and a library's own re-exports are not chains.",
+  "A shape read only inside a string (a JSON scenario, a template) or reached through a string-addressed registry is outside this scan: it compares declarations, not uses.",
+];
 
 // Below two members a matching shape is a coincidence, `{ id }` across a dozen verbs.
 const MIN_MEMBERS = 2;
@@ -70,10 +81,18 @@ function formOf(node: Named): Form {
     return "literal";
   }
   const { type } = node;
+  if (isTypeReferenceNode(type) && type.typeArguments === undefined) {
+    return "synonym";
+  }
+  return computedForm(type);
+}
+
+// `typeof value` and an operator over it read a value's own shape; `(typeof value)["key"]` does too, while
+// `Router["listRules"][number]` and `Awaited<ReturnType<Service["bounds"]>>` read another named type's.
+function computedForm(type: Node): Form {
   if (isTypeQueryNode(type)) {
     return "inferred";
   }
-  // `(typeof value)["key"]` reads a value's own shape; `Router["listRules"][number]` reads another named type's.
   if (isIndexedAccessTypeNode(type)) {
     let object = type.objectType;
     while (isIndexedAccessTypeNode(object)) {
@@ -81,13 +100,13 @@ function formOf(node: Named): Form {
     }
     return isTypeQueryNode(object) ? "inferred" : "derived";
   }
-  if (!isTypeReferenceNode(type)) {
+  if (!(isTypeReferenceNode(type) && INFERRED.has(type.typeName.getText()))) {
     return "derived";
   }
-  if (type.typeArguments === undefined) {
-    return "synonym";
-  }
-  return INFERRED.has(type.typeName.getText()) ? "inferred" : "derived";
+  const [operand] = type.typeArguments ?? [];
+  return operand !== undefined && (isIndexedAccessTypeNode(operand) || (isTypeReferenceNode(operand) && INFERRED.has(operand.typeName.getText())))
+    ? computedForm(operand)
+    : "inferred";
 }
 
 interface Declared {
@@ -146,9 +165,11 @@ interface Pair {
 }
 
 const nameOf = (node: Named): string => node.name.text;
+// A declaration's text after its own name, so a twin of the same name in another file is not read as naming it.
+const bodyOf = (node: Named): string => node.getText().slice(node.name.end - node.getStart(node.getSourceFile()));
 // One declaration naming the other derives from it, not a second home.
 const linked = (a: Declared, b: Declared): boolean =>
-  new RegExp(`\\b${nameOf(b.node)}\\b`, "u").test(a.node.getText()) || new RegExp(`\\b${nameOf(a.node)}\\b`, "u").test(b.node.getText());
+  new RegExp(`\\b${nameOf(b.node)}\\b`, "u").test(bodyOf(a.node)) || new RegExp(`\\b${nameOf(a.node)}\\b`, "u").test(bodyOf(b.node));
 
 function restated(world: NativeWorld, types: readonly Declared[]): readonly Pair[] {
   const homes = types.filter((type) => type.form === "literal" || type.form === "inferred");
@@ -373,5 +394,5 @@ export function scanShapes(options: ScanOptions): ShapesReport {
     }
     options.log(`${config}: engine two checked ${checks.length} findings`);
   }
-  return { scanned, ...sortDeliberate(findings, options.deliberate), disagreements };
+  return { scanned, ...sortDeliberate(findings, options.deliberate), disagreements, limits: SHAPE_LIMITS };
 }

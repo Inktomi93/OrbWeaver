@@ -40,6 +40,9 @@ const CHARACTER_HANDLE_RESERVED_COPY = "That name is reserved for group rooms. P
 
 const CHARACTER_STALE_BASIS_COPY = "This character changed elsewhere while that was being prepared. Reload it and try again.";
 
+/** The create fallback for a failure that is not a coded refusal: the toast says it, and so does the New-character dialog. */
+export const CHARACTER_CREATE_FAILED = "Couldn't create the character.";
+
 /**
  * The toast a `character.create` / `character.update` failure should show. Coded refusals get copy that
  * names what is wrong and what to do; anything else falls through to the caller's verb-specific fallback, so

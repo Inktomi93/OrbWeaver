@@ -40,7 +40,7 @@ Each scan ships fixtures for a found case and a false-positive control. Each del
 
 ## Deleted keys
 
-A deleted tRPC input key strips silently under `z.object`. A sweep of every landed deletion found no live sender of a deleted key. The sweep and its method are in the Evidence of [1711](../../work/1711-a-deletion-branch-fails-when-a-removed-contract.md), which automates the check.
+A deleted tRPC input key strips silently under `z.object`. A sweep of every landed deletion found no live sender of a deleted key. `pnpm unwired` removed-keys now fails a deletion branch when a removed contract key still has literal hits in the client, plugins or e2e.
 
 ## Engine disagreements
 

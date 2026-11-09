@@ -39,7 +39,7 @@ import {
   CHAT_MESSAGE_INPUT_NAME,
   CHAT_WINDOW_PRESS_FAILURE,
 } from "#client/features/chat/lib/chat-surface-names.ts";
-import { jumpToLatestName } from "#client/features/chat/lib/transcript-copy.ts";
+import { CORPUS_SOURCE_OUTCOME_COPY, jumpToLatestName } from "#client/features/chat/lib/transcript-copy.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
 const STORY = "tests/client/features/chat/components/_chat-room-shell-stories/ChatRoomShellStory";
@@ -1178,6 +1178,33 @@ for (const regime of [
       await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
       await expect(page.locator('[data-slot="message-row"]').first()).toBeVisible();
       await expect(page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true })).toBeVisible();
+    });
+    test("a window whose target is gone says so on screen, and its toolbar and that line take the room's start edge", async ({ corpus, mount, page }) => {
+      await using root = await historyRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { rooms, room, removed } = await prepareHistory(root, caller);
+      await caller.chat.deleteMessages({ chatId: room.id, messageIds: [removed.id] });
+      await using _live = await serveLiveRoom({ root, caller, corpus, page, rooms, chatId: room.id, chatStyle: regime.chatStyle, intercept: () => undefined });
+      await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true, moment: { kind: "message", messageId: removed.id } });
+      await expect(page.locator('[data-slot="message-row"]').first()).toBeVisible();
+      const outcome = page.locator('[data-slot="corpus-source-outcome"]');
+      await expect(outcome).toHaveText(CORPUS_SOURCE_OUTCOME_COPY.deleted);
+      await expect(outcome).toBeInViewport({ ratio: 1 });
+      const earlier = page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
+      const start = async (locator: Locator): Promise<number> => (await settledBox(locator)).x;
+      // A phone's room is one column: the toolbar, the line and the composer share the start edge the rows take.
+      const composer = page.locator('[data-track="composer"]').last();
+      const edges = {
+        toolbar: await start(earlier),
+        line: await start(outcome),
+        composer: await start(composer),
+      };
+      // The line is chrome above the transcript, never painted under its rows.
+      const [line, scroller] = await Promise.all([settledBox(outcome), settledBox(page.locator('[data-slot="message-list-scroll"]'))]);
+      expect(line.y + line.height).toBeLessThanOrEqual(scroller.y + 0.5);
+      expect(edges.line).toBeCloseTo(edges.toolbar, 0);
+      // A desktop centres the composer on the chat track, so only a phone's toolbar owes the composer's edge.
+      expect(edges.toolbar).toBeCloseTo(regime.coarse ? edges.composer : edges.toolbar, 0);
     });
     test("a repeated press with the connection down is heard again, and the held read lands when it returns", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();

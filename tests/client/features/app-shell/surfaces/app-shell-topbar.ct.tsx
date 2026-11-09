@@ -1,7 +1,18 @@
 // The shell's topbar on the production registry: the narrow screen name a phone reads, the ⌘K chip's name, the phone
 // row's geometry at the narrowest width, the Characters band's doors moving to the trail while the list is the screen,
 // and an open room's identity: its participants, its name, its chips and the context pane's header on the same horizon.
-import { CHAT_NAME_FIELD_NAME, censusSuffix, chatRoomTitle, contextToggleLabel, RENAME_CHAT_NAME, TRAIL_OVERFLOW_LABEL } from "@orb/client/lib";
+import {
+  CHAT_NAME_FIELD_NAME,
+  censusSuffix,
+  chatRoomTitle,
+  contextToggleLabel,
+  LIST_PANEL_NOUN,
+  panelEdgeName,
+  RENAME_CHAT_NAME,
+  TRAIL_OVERFLOW_LABEL,
+  testId,
+} from "@orb/client/lib";
+import { LIST_OFF_SCREEN_HINT } from "@orb/client/state";
 import type { ChatId } from "@orb/kit/ids";
 import { pixel, resolvedLength, seedShellState } from "@orb/testkit/browser/spec";
 import type { TrpcWireOutput } from "@orb/testkit/ct";
@@ -24,7 +35,8 @@ import { commandShortcutLabel } from "#client/features/app-shell/lib/command-sho
 import { CHARACTER_IMPORT_NAME, CHARACTER_LIBRARY_NAME, CHARACTER_NEW_NAME } from "#client/features/character/lib/character-names.ts";
 import { CHAT_MEMBERS_ENTRY_PREFIX } from "#client/features/chat/lib/chat-surface-names.ts";
 import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
-import { EXTENSIONS_SEARCH_NAME } from "#client/features/plugin/lib/extensions-copy.ts";
+import { EXTENSIONS_NO_SELECTION_BODY, EXTENSIONS_SEARCH_NAME } from "#client/features/plugin/lib/extensions-copy.ts";
+import { NEW_PRESET_NAME } from "#client/features/preset/lib/preset-names.ts";
 import { renameChatButtonIdentity } from "#client/lib/chat-rename-names.ts";
 import type { AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
 import type { AppShellTrailProjectionStory } from "./_trail-projection-stories.tsx";
@@ -32,6 +44,7 @@ import { JUMP_CHIP, namedGroupRoom, routeRoom, routeShell, SHELL_STORIES } from 
 import { STORY_TRAIL_WIDGET } from "./trail-projection.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
+const SHOW_LIST_PANEL_NAME = panelEdgeName(LIST_PANEL_NOUN, false);
 const ROOM_STORY = `${SHELL_STORIES}/AppShellRoomStory`;
 const LIST = '.shell-panel[data-panel-side="list"]';
 const NARROW_TITLE = '.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title';
@@ -112,6 +125,27 @@ function touchTarget(page: Page): Promise<number> {
   }, TOKENS["size.touch-target"].cssVar);
 }
 
+/** The Extensions section with `pages` registered plugin pages, served through the production shell. */
+async function routePluginPages(page: Page, corpus: CorpusPlayback, pages: number): Promise<void> {
+  const caller = await root.internalCallerFor(root.ownerId);
+  const viewer = await caller.sessions.me();
+  const plugin = makePluginRow({ slug: "oracle-deck", name: "Oracle Deck" });
+  const surfaces: TrpcWireOutput<"plugin.listSurfaces"> = Array.from({ length: pages }, (_unused, index) => ({
+    pluginId: plugin.id,
+    id: `deck_page_${String(index)}`,
+    anchor: "page",
+    title: `Deck ${String(index)}`,
+    tier: "static",
+  }));
+  await routeTrpc(page, {
+    ...createShellAmbientReads(corpus, viewer.userId),
+    ...serveCorpusProcedures(caller, SECTION_PROCEDURES),
+    "plugin.list": () => [plugin],
+    "plugin.listSurfaces": () => surfaces,
+  });
+  await seedShellState(page, { activeSection: "extensions" });
+}
+
 test.describe("on a phone", () => {
   test.use({ hasTouch: true, viewport: { width: 390, height: 844 } });
 
@@ -134,27 +168,6 @@ test.describe("on a phone", () => {
     held.release();
     await expect(title).toHaveText(name);
   });
-
-  /** The Extensions section on a phone with `pages` registered plugin pages, served through the production shell. */
-  async function routePluginPages(page: Page, corpus: CorpusPlayback, pages: number): Promise<void> {
-    const caller = await root.internalCallerFor(root.ownerId);
-    const viewer = await caller.sessions.me();
-    const plugin = makePluginRow({ slug: "oracle-deck", name: "Oracle Deck" });
-    const surfaces: TrpcWireOutput<"plugin.listSurfaces"> = Array.from({ length: pages }, (_unused, index) => ({
-      pluginId: plugin.id,
-      id: `deck_page_${String(index)}`,
-      anchor: "page",
-      title: `Deck ${String(index)}`,
-      tier: "static",
-    }));
-    await routeTrpc(page, {
-      ...createShellAmbientReads(corpus, viewer.userId),
-      ...serveCorpusProcedures(caller, SECTION_PROCEDURES),
-      "plugin.list": () => [plugin],
-      "plugin.listSurfaces": () => surfaces,
-    });
-    await seedShellState(page, { activeSection: "extensions" });
-  }
 
   test("the Plugin pages screen name carries the registered page count beside the section noun", async ({ corpus, mount, page }) => {
     await routePluginPages(page, corpus, 2);
@@ -339,6 +352,7 @@ test.describe("the phone topbar at 320, coarse pointer", () => {
   });
 });
 
+const WIDE_IDENTITY = '.shell-topbar-identity[data-identity="wide"]';
 const WIDE_TITLE = '.shell-topbar-identity[data-identity="wide"] .shell-topbar-title';
 const MEMBERS_PREFIX = CHAT_MEMBERS_ENTRY_PREFIX;
 const MEMORY_PREFIX = "Memory: ";
@@ -825,5 +839,45 @@ test.describe("the trail is a lens over the chrome registry", () => {
     await expect
       .poll(() => trail.locator("button").evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label") ?? "")))
       .toStrictEqual([STORY_TRAIL_WIDGET, expect.stringMatching(JUMP_CHIP)]);
+  });
+});
+
+test.describe("a library section with its list pane hidden or docked at 1280", () => {
+  test.beforeEach(async ({ corpus, page }) => {
+    await page.setViewportSize({ width: 1280, height: 900 });
+    await routeSections(page, corpus);
+  });
+
+  test("Chats with no room open names itself in the topbar while its list is hidden, and leaves the name to the list band while it is docked", async ({
+    mount,
+    page,
+  }) => {
+    await seedShellState(page, { activeSection: "chats", panelOverrides: { chats: { list: "collapsed", context: "collapsed" } } });
+    await mount<typeof AppShellStory>(STORY, {});
+    const identity = page.locator(WIDE_IDENTITY);
+    await expect(identity).toHaveText(SECTION_LABELS.chats);
+    await page.getByRole("button", { name: SHOW_LIST_PANEL_NAME, exact: true }).click();
+    await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
+    await expect(identity).toHaveText("");
+  });
+
+  test("Plugin pages with nothing picked names no side, and names the way back to the list only while the list is hidden", async ({ corpus, mount, page }) => {
+    await routePluginPages(page, corpus, 2);
+    await seedShellState(page, { activeSection: "extensions", panelOverrides: { extensions: { list: "collapsed", context: "collapsed" } } });
+    await mount<typeof AppShellStory>(STORY, {});
+    const description = page.getByTestId(testId("extensionsContent")).locator('[data-slot="empty-state-description"]');
+    await expect(description).toHaveText(`${EXTENSIONS_NO_SELECTION_BODY}${LIST_OFF_SCREEN_HINT}`);
+    await page.getByRole("button", { name: SHOW_LIST_PANEL_NAME, exact: true }).click();
+    await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
+    await expect(description).toHaveText(EXTENSIONS_NO_SELECTION_BODY);
+  });
+
+  test("the Presets landing teaches at the shared empty-state step and ends on the New preset door", async ({ mount, page }) => {
+    await seedShellState(page, { activeSection: "presets", panelOverrides: { presets: { list: "docked", context: "collapsed" } } });
+    await mount<typeof AppShellStory>(STORY, {});
+    const content = page.getByRole("main", { name: "Presets content", exact: true });
+    await expect(content.getByRole("button", { name: NEW_PRESET_NAME, exact: true })).toBeVisible();
+    const titleSize = await content.locator('[data-slot="empty-state-title"]').evaluate((title) => Number.parseFloat(getComputedStyle(title).fontSize));
+    expect(titleSize).toBeLessThan(await resolvedLength(page, `var(${TOKENS["text.display"].cssVar})`));
   });
 });

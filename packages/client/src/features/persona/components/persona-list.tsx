@@ -43,8 +43,8 @@ export function PersonaList(): ReactElement {
   const seeds = settings.config.seeds;
   const crown = useDefaultPersona(settings.config.persona.showNotifications);
   const create = useCreatePersona({ trpc, invalidation });
-  const remove = useRemovePersona({ trpc, invalidation });
-  const importPersona = useImportPersonaFile({ trpc, invalidation });
+  const remove = useRemovePersona({ trpc, invalidation, failureShownInline: "the delete-persona confirm's alert line" });
+  const importPersona = useImportPersonaFile({ trpc, invalidation, failureShownInline: "the persona list's own import error toast" });
 
   const expandedId = usePersonaEditorId();
   const setExpandedId = selectPersonaEditor;

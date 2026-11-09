@@ -43,7 +43,8 @@ export function CorpusWorkspaceContent({ modes }: { readonly modes: CorpusModes 
     // and its state when the LIST opens or closes.
     <Stack minHeight="shrinks" height="fill" data-corpus-mode={mode} data-slot="corpus-workspace-content">
       {listOffScreen ? (
-        <Stack padding="block">
+        // Block padding only: the pane's own inset already sets the switch's inline edges, the same ones it has heading the list.
+        <Stack paddingBlock="block">
           <CorpusModeSwitch />
         </Stack>
       ) : null}

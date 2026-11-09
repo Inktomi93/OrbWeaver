@@ -491,7 +491,9 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/refinery/lib/refinery-names.ts": "REFINERY_VERSIONS_NAME: the context pane's version history tab",
   "packages/client/src/features/plugin/lib/extensions-copy.ts": "EXTENSIONS_GONE_TITLE: the vanished page's title",
   "packages/client/src/features/plugin/lib/plugin-copy.ts":
-    "approveLabel, CHAT_PANEL_HIDE_LABEL and CHAT_PANEL_UNDO_LABEL: production action names required by the no-copied-label contract",
+    "approveLabel, enablePluginLabel, CHAT_PANEL_HIDE_LABEL and CHAT_PANEL_UNDO_LABEL: production action and switch names required by the no-copied-label contract",
+  "packages/client/src/features/user-admin/lib/admin-model.ts": "userEnabledFieldName: the per-account enabled switch name",
+  "packages/client/src/lib/background-jobs.ts": "BACKGROUND_JOB_LOGS: the log line a background job writes in place of a toast",
   "packages/client/src/features/persona/lib/persona-copy.ts":
     "PERSONA_NAME_REQUIRED, CLEAR_PIN_NAME, nowDefaultNotice and their siblings: the persona editor's field and footer names, its blank-name error, the clear-pin action and the crown-moved notice",
   "packages/client/src/features/plugin/lib/plugin-model-copy.ts":

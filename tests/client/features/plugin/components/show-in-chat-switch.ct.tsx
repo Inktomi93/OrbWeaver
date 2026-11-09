@@ -51,7 +51,7 @@ test("each card's enable and panel switches share one track and are named for th
   const component = await mount<typeof InstalledPluginsStory>(STORY, { width: 960 });
   for (const plugin of plugins) {
     // Strict locators: two switches sharing a name make these throw instead of picking one.
-    const enabled = await component.getByRole("switch", { name: enablePluginLabel(plugin.name, true), exact: true }).boundingBox();
+    const enabled = await component.getByRole("switch", { name: enablePluginLabel(plugin.name), exact: true }).boundingBox();
     const shown = await component.getByRole("switch", { name: showInChatLabel(plugin.name), exact: true }).boundingBox();
     expect(enabled?.x).toBe(shown?.x);
   }

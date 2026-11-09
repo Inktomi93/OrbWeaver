@@ -120,11 +120,7 @@ function ImportPreflight({
         <ImportPreviewSummary state={preview} onRetry={onRetryPreview} />
         <PersonaCollisionReview collisions={collisions} choices={choices} onChoose={onChoose} onChooseAll={onChooseAll} />
         <Stack gap="tight">
-          {[...IMPORT_CONSEQUENCE, ...(collisions.length > 0 ? [PERSONA_QUESTION_NOTE] : [])].map((line) => (
-            <Text key={line} cap="prose" voice="reading">
-              {line}
-            </Text>
-          ))}
+          {/* This folder's own facts (what stays on disk) lead; the policy that holds for every import follows. */}
           {plan === null
             ? null
             : planNotes(plan).map((line) => (
@@ -132,6 +128,11 @@ function ImportPreflight({
                   {line}
                 </Text>
               ))}
+          {[...IMPORT_CONSEQUENCE, ...(collisions.length > 0 ? [PERSONA_QUESTION_NOTE] : [])].map((line) => (
+            <Text key={line} cap="prose" voice="reading">
+              {line}
+            </Text>
+          ))}
         </Stack>
         {nothingNote === null ? null : (
           <Text id={NOTHING_TO_SEND_ID} cap="prose" voice="reading">
@@ -261,7 +262,7 @@ export function ImportLibrarySection(): ReactElement {
         >
           {IMPORT_FOLDER_NAME}
         </FolderPicker>
-        <Text cap="prose" voice="gloss">
+        <Text cap="prose" prose={true} voice="gloss">
           An unzipped Orbweaver backup or a SillyTavern profile folder. Your API keys (secrets.json) never leave this browser.
         </Text>
       </Row>

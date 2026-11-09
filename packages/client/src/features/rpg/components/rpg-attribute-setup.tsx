@@ -25,7 +25,7 @@ export function RpgAttributeSetup({
   const generationReasonId = useId();
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const rollDice = useRollDice({ trpc, invalidation });
+  const rollDice = useRollDice({ trpc, invalidation, failureShownInline: "the attribute setup's own error toast" });
   const [busy, setBusy] = useState(false);
   const [manual, setManual] = useState(false);
   const canGenerate = canGenerateD20Attributes(profile);

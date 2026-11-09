@@ -35,7 +35,7 @@ const TOGGLE = "primitives/toggle/variants#toggleVariants";
 const WEAVE_GLYPH = "art/web-weave/variants#weaveGlyphVariants";
 
 /**
- * The prop types refuse both at once: `ButtonBox`, `ButtonStretch`, `TextCue`, `TextCap`, `PictureReach`, `CardReservation`, or the arm is `Omit`ted from the named component.
+ * The prop types refuse both at once: `ButtonBox`, `ButtonStretch`, `TextCue`, `TextCap`, `TextPaint`, `PictureReach`, `CardReservation`, or the arm is `Omit`ted from the named component.
  * `ToneInkSelection` pairs `tone` with `ink` only as `ink="toneForeground"`, the tone's own ink on the fill it names.
  */
 const CLOSED_BY_TYPE: Readonly<Record<string, readonly string[]>> = {
@@ -44,6 +44,7 @@ const CLOSED_BY_TYPE: Readonly<Record<string, readonly string[]>> = {
   "minHeight > size+stacked": [BUTTON],
   "minHeight > size+wrap": [BUTTON],
   "placed > reach": [PICTURE_BUTTON],
+  "receded > unpainted": [TEXT],
   "square > grow": [BUTTON],
   "square > stacked": [BUTTON],
   "square > stretch": [BUTTON],

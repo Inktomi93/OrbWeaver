@@ -34,24 +34,25 @@ import {
   CHARACTER_NAME_FIELD_NAME,
   CHARACTER_NEW_NAME,
 } from "../lib/character-names.ts";
-import { characterRefusalCopy } from "../lib/character-refusal-notice.ts";
+import { CHARACTER_CREATE_FAILED, characterMutationToast, characterRefusalCopy } from "../lib/character-refusal-notice.ts";
 import { CharacterImportDialog } from "./character-import-dialog.tsx";
 
 /** The minimal create: name + one-line description, handle auto-derived from the name. */
 function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; readonly onOpenChange: (open: boolean) => void }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  // A coded refusal also has a line here while the dialog shows it; the toast speaks every failure.
-  const create = useCreateCharacter({ trpc, invalidation });
+  // Every failure has a line here while the dialog is open, so the toast speaks only once the dialog is gone.
+  const create = useCreateCharacter({ trpc, invalidation, failureShownInline: open ? "the create-character refusal line" : undefined });
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   /** The refusal line's own id — what `aria-errormessage` on the Name field points at (#548). */
   const refusalId = useId();
   const incomplete = name.trim() === "" || description.trim() === "";
-  // The typed, user-fixable refusal for the last attempt (#542) — `null` for a fault, which the toast owns
-  // alone. `clearError` on the name edit is what makes it a live claim: the sticky error slot would
-  // otherwise keep accusing a name the user has already changed.
+  // The typed, user-fixable refusal for the last attempt (#542) — `null` for a fault, which the line states in the
+  // fallback's words without blaming the name. `clearError` on the name edit is what makes it a live claim: the
+  // sticky error slot would otherwise keep accusing a name the user has already changed.
   const refusal = characterRefusalCopy(create.error);
+  const failure = create.error === null ? null : characterMutationToast(create.error, CHARACTER_CREATE_FAILED);
   const onNameChange = (next: string): void => {
     setName(next);
     create.clearError();
@@ -113,9 +114,9 @@ function NewCharacterDialog({ open, onOpenChange }: { readonly open: boolean; re
         {/* THE LINE SITS UNDER THE FIELD IT IS ABOUT (#548). It used to render below BOTH controls, where
             its only tie to the Name box was the sentence's own wording — for a sighted reader "at the
             control" (the #542 note's own WCAG 3.3.1 cite) means adjacent, not somewhere in the dialog. */}
-        {refusal === null ? null : (
+        {failure === null ? null : (
           <Text tone="destructive" id={refusalId} role="alert" voice="label">
-            {refusal}
+            {failure}
           </Text>
         )}
         <Text as="span" ink="muted" voice="label">

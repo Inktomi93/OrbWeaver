@@ -8,19 +8,22 @@
 // error slot per mutation with explicit clearError(). Callback property order is
 // onMutate → onError → onSuccess → onSettled (type-inference-sensitive).
 //
-// THREE outcome classes, not two (EDITSNAP-OK): resolved-and-committed · threw (`errorToast`) · RESOLVED AND
+// THREE outcome classes, not two (EDITSNAP-OK): resolved-and-committed · threw (`FailureFeedback`) · RESOLVED AND
 // REFUSED (`refusal`). The third is the one that goes silently wrong — see the `refusal` doc below.
 
 import type {
   DefaultError,
   InvalidateQueryFilters,
   MutationFunctionContext,
+  MutationMeta,
   QueryClient,
   QueryKey,
   UseMutateFunction,
   UseMutationOptions,
 } from "@tanstack/react-query";
 import { hashKey, useMutation } from "@tanstack/react-query";
+import { useEffect, useRef } from "react";
+import type { BackgroundJob } from "#lib";
 import { notify } from "#lib";
 import type { Invalidation } from "./invalidation.ts";
 import type { Trpc } from "./trpc.ts";
@@ -77,12 +80,6 @@ interface EntityMutationBase<TVars, TData, TRead> {
         readonly allowed: (vars: TVars) => boolean;
         readonly update: (old: TRead | undefined, data: TData, vars: TVars) => TRead | undefined;
       };
-  /** The global-toast message on failure (rides mutation `meta` → MutationCache.onError). Required because
-   *  every mutation hook keeps its toast (client-architecture-state-and-gates.md §11): a consumer's inline
-   *  text adds to it, never replaces it. A function form may return `null` to suppress the toast for a
-   *  specific error that another surface already tells (e.g. a stale turn abort the bus surfaces its own notice
-   *  for — see `isSilencedTurnAbort`). */
-  readonly errorToast: string | ((error: unknown) => string | null);
   /**
    * ERRORS-AS-DATA — the THIRD outcome class, beside "resolved" and "threw" (EDITSNAP-OK).
    *
@@ -127,7 +124,68 @@ type FreshnessSource<TVars, TData> =
       readonly invalidates: (trpc: Trpc, vars: TVars, data: TData | undefined) => readonly InvalidateQueryFilters[];
     };
 
-export type EntityMutationConfig<TVars, TData, TRead = unknown> = EntityMutationBase<TVars, TData, TRead> & FreshnessSource<TVars, TData>;
+/**
+ * The failure surface — a compile-time XOR over the three classes of client-architecture-state-and-gates.md §11:
+ * a toast for an action the person took, a log for background housekeeping they did not start, or the inline
+ * line of a surface that is on screen while it fails. A site names exactly one, so none can omit feedback.
+ */
+interface ToastFeedback {
+  /** The global-toast message on failure (rides mutation `meta` → MutationCache.onError). A consumer that states the
+   *  failure inline declares {@link InlineFailureDeps.failureShownInline} at its hook call instead. A function form may
+   *  return `null` for a specific error another surface already tells (e.g. a stale turn abort the bus surfaces its own
+   *  notice for — see `isSilencedTurnAbort`). */
+  readonly errorToast: string | ((error: unknown) => string | null);
+  readonly backgroundFailure?: never;
+  readonly failureShownInline?: never;
+}
+
+type FailureFeedback =
+  | ToastFeedback
+  | {
+      /** The background job whose failure this is, for work the person did not start. MutationCache.onError logs
+       *  its line with `console.error`: the dev console-error ring keeps the text, and the bug-report ring
+       *  (`safe-error-ring.ts`) records only the job name. No toast fires. */
+      readonly backgroundFailure: BackgroundJob;
+      readonly errorToast?: never;
+      readonly failureShownInline?: never;
+    }
+  | {
+      /** Names the on-screen surface whose inline line states this failure, so no toast repeats it. Every consumer
+       *  reads the mutation's error or its rejection. */
+      readonly failureShownInline: string;
+      readonly errorToast?: never;
+      readonly backgroundFailure?: never;
+    };
+
+export type EntityMutationConfig<TVars, TData, TRead = unknown> = EntityMutationBase<TVars, TData, TRead> & FreshnessSource<TVars, TData> & FailureFeedback;
+
+/** What every mutation hook takes at its call. */
+interface MutationDeps {
+  readonly trpc: Trpc;
+  readonly invalidation: Invalidation;
+}
+
+/** A toast-class hook's call: a consumer whose on-screen line states the failure names that line, and passes it only
+ *  while the line can show (a closed dialog passes nothing). The toast skips a failure the line will say: the consumer is
+ *  mounted, still declares the line, and has not cleared the attempt. Other consumers of the same hook keep the toast
+ *  (client-architecture-state-and-gates.md §11). */
+export interface InlineFailureDeps extends MutationDeps {
+  readonly failureShownInline?: string | undefined;
+}
+
+/** What the toast reads when a failure lands, which can be after the consumer closed, cleared or unmounted. */
+interface InlineWatch {
+  mounted: boolean;
+  declared: string | undefined;
+  cleared: boolean;
+}
+
+function failureMeta(config: FailureFeedback, shownInline: () => boolean): MutationMeta {
+  if (config.errorToast !== undefined) {
+    return { errorToast: config.errorToast, shownInline };
+  }
+  return config.backgroundFailure === undefined ? {} : { backgroundJob: config.backgroundFailure };
+}
 
 /** A `busDriven` mutation reconciles via the bus, not itself — its settle invalidates nothing. */
 const NO_INVALIDATION = (): readonly InvalidateQueryFilters[] => [];
@@ -137,7 +195,7 @@ export type EntityMutateAsync<TVars, TData> = (vars: TVars) => Promise<TData>;
 
 export interface EntityMutationResult<TVars, TData> {
   /** `options` forwards react-query's per-call `MutateOptions` — the callbacks run IN ADDITION to the
-   *  factory's baked cache recipe + the global error toast (e.g. a call-site `onError` for the guided
+   *  factory's baked cache recipe and its failure class (e.g. a call-site `onError` for the guided
    *  input-restore, F3). */
   readonly mutate: UseMutateFunction<TData, DefaultError, TVars>;
   readonly mutateAsync: EntityMutateAsync<TVars, TData>;
@@ -189,13 +247,31 @@ function releaseOptimisticOwner(queryClient: QueryClient, owner: OptimisticOwner
 }
 
 /** Build the mutation hook once at module scope; features call the returned hook. Deps (trpc +
- *  invalidation) arrive per-call so the factory itself stays import-pure. The global `errorToast` always fires; a
- *  caller that also renders the failure in its own surface keeps that text beside it. */
+ *  invalidation) arrive per-call so the factory itself stays import-pure. The config's failure class picks the one
+ *  failure surface: the global toast, the background log, or the consumer's inline line. */
+export function createEntityMutation<TVars, TData, TRead = unknown>(
+  config: EntityMutationBase<TVars, TData, TRead> & FreshnessSource<TVars, TData> & ToastFeedback,
+): (deps: InlineFailureDeps) => EntityMutationResult<TVars, TData>;
 export function createEntityMutation<TVars, TData, TRead = unknown>(
   config: EntityMutationConfig<TVars, TData, TRead>,
-): (deps: { trpc: Trpc; invalidation: Invalidation }) => EntityMutationResult<TVars, TData> {
+): (deps: MutationDeps) => EntityMutationResult<TVars, TData>;
+export function createEntityMutation<TVars, TData, TRead = unknown>(
+  config: EntityMutationConfig<TVars, TData, TRead>,
+): (deps: InlineFailureDeps) => EntityMutationResult<TVars, TData> {
   // biome-ignore lint/correctness/noComponentHookFactories: the D54 §13.1 editor-factory pattern — factories run at MODULE scope (const useDeleteCharacter = createEntityMutation(...)), so the returned hook has a stable identity (see forms/editor/create-saved-entity-form.ts).
-  return function useEntityMutation({ trpc, invalidation }): EntityMutationResult<TVars, TData> {
+  return function useEntityMutation({ trpc, invalidation, failureShownInline }): EntityMutationResult<TVars, TData> {
+    const inline = useRef<InlineWatch>({ mounted: false, declared: undefined, cleared: false });
+    useEffect(() => {
+      inline.current.declared = failureShownInline;
+    });
+    useEffect(() => {
+      inline.current.mounted = true;
+      return (): void => {
+        inline.current.mounted = false;
+      };
+    }, []);
+    const shownInline = (): boolean => inline.current.mounted && inline.current.declared !== undefined && !inline.current.cleared;
+
     async function echoResponse(data: TData, vars: TVars, client: QueryClient): Promise<void> {
       const echo = config.echo;
       if (echo === undefined) {
@@ -221,8 +297,9 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
 
     const mutation = useMutation<TData, DefaultError, TVars, OptimisticContext<TRead>>({
       ...config.options(trpc),
-      meta: { errorToast: config.errorToast },
+      meta: failureMeta(config, shownInline),
       onMutate: async (vars, context): Promise<OptimisticContext<TRead>> => {
+        inline.current.cleared = false;
         if (config.optimistic === undefined) {
           return { snapshot: undefined, readKey: null, owner: null };
         }
@@ -290,7 +367,11 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
       isPending: mutation.isPending,
       pendingVariables: mutation.isPending ? mutation.variables : undefined,
       error: mutation.error,
-      clearError: mutation.reset,
+      clearError: (): void => {
+        // A cleared attempt no longer reaches the consumer's line, so its late failure toasts.
+        inline.current.cleared = true;
+        mutation.reset();
+      },
       retry: (): void => {
         if (mutation.isError && mutation.variables !== undefined) {
           mutation.mutate(mutation.variables);

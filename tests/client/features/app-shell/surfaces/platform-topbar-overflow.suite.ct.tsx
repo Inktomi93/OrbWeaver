@@ -9,7 +9,7 @@ import { channelName, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { DATABANK_ADD_DOCUMENT_TITLE, DATABANK_MAINTENANCE_NAME } from "#client/features/databank/lib/databank-names.ts";
-import { PRESET_IMPORT_TITLE, PRESET_NEW_NAME } from "#client/features/preset/lib/preset-names.ts";
+import { NEW_PRESET_NAME, PRESET_IMPORT_TITLE } from "#client/features/preset/lib/preset-names.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -100,7 +100,7 @@ test.describe("a list band on a phone", () => {
   for (const band of [
     { section: "chats", primary: "New chat", secondary: "Import a chat transcript", surface: "Import chats", from: 3 },
     // Import is the first action, so the case enlarges past the step where New alone has moved.
-    { section: "presets", primary: PRESET_NEW_NAME, secondary: PRESET_IMPORT_TITLE, surface: PRESET_IMPORT_TITLE, from: 5 },
+    { section: "presets", primary: NEW_PRESET_NAME, secondary: PRESET_IMPORT_TITLE, surface: PRESET_IMPORT_TITLE, from: 5 },
   ] as const) {
     test(`the ${band.section} band moves its secondary action into its menu as it narrows, keeps its primary inline, and the entry opens the same surface`, async ({
       mount,

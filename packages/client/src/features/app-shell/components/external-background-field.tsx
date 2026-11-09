@@ -9,7 +9,7 @@
 //
 // A refusal is the verb's OWN leak-free copy (`backgroundMaterializeMessage` — unreachable / not-an-image /
 // too-large, never echoing the address), so it is surfaced INLINE in the Field's error slot rather than
-// flattened into a generic toast (the upload twin's posture); the mutation therefore carries no `errorToast`.
+// flattened into a generic toast (the upload twin's posture); the call therefore declares `failureShownInline`.
 
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
 import { Button } from "@orb/ui/button";
@@ -40,7 +40,7 @@ export interface ExternalBackgroundFieldProps {
 export function ExternalBackgroundField({ onAdded }: ExternalBackgroundFieldProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const add = useAddExternalBackground({ trpc, invalidation });
+  const add = useAddExternalBackground({ trpc, invalidation, failureShownInline: "the background field's refusal line" });
   const [url, setUrl] = useState("");
   const trimmed = url.trim();
 

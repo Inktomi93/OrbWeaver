@@ -84,7 +84,7 @@ function PluginDistributeBody({ anchorId }: { readonly anchorId: string }): Reac
   const { data: published } = useSuspenseQuery(trpc.plugin.listDistributed.queryOptions());
   const invalidation = useInvalidation();
   const distribute = useDistributePlugin({ trpc, invalidation });
-  const withdraw = useWithdrawPlugin({ trpc, invalidation });
+  const withdraw = useWithdrawPlugin({ trpc, invalidation, failureShownInline: "the withdraw confirm's alert line" });
   const [state, setState] = useState<PublishState>({ step: "pick" });
 
   const onFile = (file: File): void => {

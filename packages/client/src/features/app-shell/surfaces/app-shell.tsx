@@ -394,7 +394,7 @@ export function AppShell(): ReactElement {
                       listDoorLabel={listDoorLabel}
                       contentLabel={contentLabel}
                       title={layout.activeSectionLabel}
-                      header={activeDef.header?.()}
+                      header={activeDef.header}
                       mark={activeDef.topbarMark?.()}
                       trail={<TopbarTrailChrome mobile={layout.mobileViewport} />}
                       listAvailable={layout.listAvailable}

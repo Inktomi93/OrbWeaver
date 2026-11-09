@@ -18,6 +18,7 @@ import type { CorpusDestination } from "#lib";
 import { selectCorpusArtifact, selectCorpusCharacter } from "#state";
 import { corpusFamilyAnalysisLabel, resolveCorpusArchetypeNames } from "../lib/corpus-archetype-presentation.ts";
 import { toBarItems } from "../lib/corpus-charts.ts";
+import { CORPUS_SORTING_DOOR_NAME } from "../lib/corpus-control-names.ts";
 import { toFaceItems } from "../lib/corpus-faces.ts";
 import { openCorpusOverview } from "../lib/corpus-overview-door.ts";
 import { facetLabel } from "../lib/corpus-vocabulary.ts";
@@ -79,10 +80,10 @@ function ArchetypesBody(): ReactElement {
     return (
       <Stack className="relative" minHeight="shrinks" gap="section" data-slot="archetypes-not-run">
         <Text prose={true} cap="prose" voice="gloss">
-          Archetypes need your characters sorted first. Start that in Explore.
+          Archetypes need your characters sorted first.
         </Text>
         <Button variant="ghost" size="sm" onClick={openCorpusOverview}>
-          Show Explore overview
+          {CORPUS_SORTING_DOOR_NAME}
         </Button>
       </Stack>
     );

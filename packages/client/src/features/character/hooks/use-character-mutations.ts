@@ -3,7 +3,7 @@ import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { SectionPatchVars, Trpc } from "#data";
 import { createEntityMutation } from "#data";
 import { CHARACTER_SAVE_FAILURE } from "../lib/character-names.ts";
-import { characterBulkTagRefusal, characterMutationToast } from "../lib/character-refusal-notice.ts";
+import { CHARACTER_CREATE_FAILED, characterBulkTagRefusal, characterMutationToast } from "../lib/character-refusal-notice.ts";
 
 // The character CRUD mutations used by the LIST (mirrors use-persona-mutations.ts) — the ONE mutation
 // factory (`createEntityMutation`) instanced per verb. Every character verb emits `charactersChanged` on
@@ -25,7 +25,7 @@ type CharacterDetail = inferOutput<Trpc["character"]["update"]>;
 export const useCreateCharacter = createEntityMutation<inferInput<Trpc["character"]["create"]>, inferOutput<Trpc["character"]["create"]>>({
   options: (trpc) => trpc.character.create.mutationOptions(),
   busDriven: true,
-  errorToast: (error) => characterMutationToast(error, "Couldn't create the character."),
+  errorToast: (error) => characterMutationToast(error, CHARACTER_CREATE_FAILED),
 });
 
 /** Immediate-commit identity patch (§2/§4.4): the row's star chip fires `{ characterId, starred }`; the

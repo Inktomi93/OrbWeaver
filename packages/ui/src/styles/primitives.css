@@ -222,12 +222,6 @@
     background: radial-gradient(closest-side at 50% 50%, var(--pigment-accent-aura-empty-state), transparent);
   }
 
-  /* A `focal` empty-state title holds the display step at every width: in the `ui` layer it beats the slot's own
-   * container step-down, and a focal statement that shrinks with its column is not one. */
-  [data-slot="empty-state-title"][data-title-step="focal"] {
-    font-size: var(--text-display);
-    line-height: var(--leading-display);
-  }
   /* The primary CTA wears the gradient ring at the recipe's default weight. Chrome only, never message prose.
    * A selected media cell does not wear it: a selected cell is `SELECTION_RING_SELECTED` and nothing else
    * (packages/ui/src/lib/selection-ring.ts); a call-to-action is not a selection state. */

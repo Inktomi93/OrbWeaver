@@ -11,6 +11,8 @@ export {
   clearAppearanceChannel,
   writeAppearanceChannel,
 } from "./appearance-carrier-manifest.ts";
+export type { BackgroundJob } from "./background-jobs.ts";
+export { BACKGROUND_JOB_LOGS } from "./background-jobs.ts";
 export { setBootReadPending } from "./boot-reads.ts";
 export type { BugReportServerFacts, PublicBrowserFacts, PublicBugReport } from "./bug-report-public.ts";
 export { buildPublicBugReport, publicBugReportIssueUrl } from "./bug-report-public.ts";
@@ -34,6 +36,8 @@ export { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfig
 export type { RoleConnectionFacts, RoleRequirementVerdict, RoleRow } from "./connection-roles.ts";
 export {
   ADD_CONNECTION_DOOR,
+  ALLOW_BACKGROUND_SETTING,
+  allowBackgroundSwitchName,
   backgroundRepairs,
   bindRefusal,
   CHAT_ROLE_DOOR,
@@ -169,6 +173,7 @@ export {
   sendUnavailableReason,
 } from "./injection-copy.ts";
 export { DEAD_INVITE_SENTENCE, inviteRoomSentence } from "./invite-copy.ts";
+export { ITEM_ENABLED_SETTING, itemSwitchName } from "./item-switch-names.ts";
 export type { ListPaneHeaderProps, ListPaneHeaderView } from "./list-pane-header-view.ts";
 export { LIST_PANE_TITLE_ID } from "./list-pane-title-id.ts";
 export {} from "./log-clock.ts";

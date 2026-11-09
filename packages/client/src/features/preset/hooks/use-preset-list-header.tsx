@@ -18,11 +18,9 @@ import { selectPresetFromList } from "#state";
 import { PresetImportDialog } from "../components/preset-import-dialog.tsx";
 import { usePresetCensus } from "../hooks/use-preset-census.ts";
 import { useCreatePreset, useImportPresetFile } from "../hooks/use-preset-mutations.ts";
-import { PRESET_IMPORT_TITLE, PRESET_NEW_NAME } from "../lib/preset-names.ts";
+import { NEW_PRESET_KIND, NEW_PRESET_NAME, PRESET_IMPORT_TITLE } from "../lib/preset-names.ts";
 import { PRESETS_SECTION_LABEL } from "../lib/presets-section-label.ts";
 
-const NEW_PRESET_NAME = "New preset";
-const NEW_PRESET_KIND = "generation";
 /** ONE string for the import door's accessible name AND its hover tooltip (O-3). */
 const IMPORT_LABEL = PRESET_IMPORT_TITLE;
 
@@ -59,7 +57,7 @@ export function usePresetListHeader(): ListPaneHeaderView {
     return null;
   };
 
-  const newPreset = { id: "preset-new", label: PRESET_NEW_NAME, icon: Plus, onSelect: onCreate, disabled: create.isPending };
+  const newPreset = { id: "preset-new", label: NEW_PRESET_NAME, icon: Plus, onSelect: onCreate, disabled: create.isPending };
 
   return {
     actions: [

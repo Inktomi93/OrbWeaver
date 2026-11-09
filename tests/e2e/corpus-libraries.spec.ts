@@ -1,6 +1,6 @@
 // Collection edits retain native grammar, relationships and persistence across a browser reload.
 
-import { COLLECTION_LARGE_GROUP, connectionSummary } from "@orb/client/lib";
+import { COLLECTION_LARGE_GROUP, connectionSummary, ITEM_ENABLED_SETTING, itemSwitchName } from "@orb/client/lib";
 import type { CorpusWire } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
 import { REGEX_REPLACE_WITH_NAME } from "#client/features/regex/lib/regex-names.ts";
@@ -157,14 +157,16 @@ test.describe("committed corpus collection settings", () => {
     }
     await openConfigGroup(page, "plugins");
     const enabled = before.status === "enabled";
-    await page.getByRole("switch", { name: `Turn ${before.name} ${enabled ? "off" : "on"}`, exact: true }).click();
+    const pluginSwitch = page.getByRole("switch", { name: itemSwitchName(ITEM_ENABLED_SETTING, before.name), exact: true });
+    await expect(pluginSwitch).toHaveAttribute("aria-checked", String(enabled));
+    await pluginSwitch.click();
     await expect
       .poll(async () => (await host.trpc.plugin.list.query(undefined)).find((plugin) => plugin.id === id)?.status)
       .toBe(enabled ? "disabled" : "enabled");
     await page.reload();
     await openConfigGroup(page, "plugins");
-    const restore = page.getByRole("switch", { name: `Turn ${before.name} ${enabled ? "on" : "off"}`, exact: true });
-    await expect(restore).toBeVisible();
+    const restore = page.getByRole("switch", { name: itemSwitchName(ITEM_ENABLED_SETTING, before.name), exact: true });
+    await expect(restore).toHaveAttribute("aria-checked", String(!enabled));
     await restore.click();
     await expect.poll(async () => (await host.trpc.plugin.list.query(undefined)).find((plugin) => plugin.id === id)?.status).toBe(before.status);
   });

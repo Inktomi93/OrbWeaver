@@ -210,7 +210,7 @@ export function ChatOptionsMenu({ chatId, title, characters, galleryCharacters, 
   const gameModeActions = useGameModeActions(chatId);
   const updateTitle = useUpdateChatTitle({ trpc, invalidation });
   const deleteChat = useDeleteChat({ trpc, invalidation });
-  const selfLeave = useSelfLeave({ trpc, invalidation });
+  const selfLeave = useSelfLeave({ trpc, invalidation, failureShownInline: "the leave-chat confirm's alert line" });
   // "New chat with the same characters" is a CREATION, and creation is one shared client seam (`#data`), never a
   // store write that hands a rowless room to the chat surface.
   const { startChat } = useStartChat();

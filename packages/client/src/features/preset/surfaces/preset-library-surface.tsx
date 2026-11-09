@@ -33,11 +33,8 @@ import { getSelectedPresetId, presetSectionSelection, selectPreset, setPresetSea
 import { PresetLibraryRow } from "../components/preset-library-row.tsx";
 import { useCreatePreset, useRemovePreset, useSetDefaultPreset } from "../hooks/use-preset-mutations.ts";
 import { notifyActivePreset } from "../lib/active-preset-notice.ts";
-import { PRESET_ACTIVE_RADIOGROUP_NAME, PRESET_NEW_NAME, PRESET_SEARCH_NAME } from "../lib/preset-names.ts";
+import { NEW_PRESET_KIND, NEW_PRESET_NAME, PRESET_ACTIVE_RADIOGROUP_NAME, PRESET_SEARCH_NAME } from "../lib/preset-names.ts";
 import { filterPresetsByName, presetSearchNeedle } from "../lib/preset-search.ts";
-
-const NEW_PRESET_NAME = "New preset";
-const NEW_PRESET_KIND = "generation";
 
 export interface PresetLibrarySurfaceProps {
   /** Defaults to the bare `selectPreset` writer; the route injects a wrapper that also closes the mobile sheet. */
@@ -108,7 +105,7 @@ function PresetList({
   const selectedId = useSelectedPresetId();
 
   const create = useCreatePreset({ trpc, invalidation });
-  const remove = useRemovePreset({ trpc, invalidation });
+  const remove = useRemovePreset({ trpc, invalidation, failureShownInline: "the delete-preset confirm's alert line" });
   const setDefault = useSetDefaultPreset({ trpc, invalidation });
 
   const activeId = settings.config.seeds.defaultPresetId;
@@ -206,7 +203,7 @@ function PresetList({
             // second door, because "nothing matched" is also the moment you decide to make the thing.
             needle === "" ? (
               <Button disabled={create.isPending} variant="outline" onClick={onCreate} size="sm">
-                {PRESET_NEW_NAME}
+                {NEW_PRESET_NAME}
               </Button>
             ) : (
               <Row align="center" wrap={true} gap="field" justify="center">
@@ -214,7 +211,7 @@ function PresetList({
                   {CLEAR_SEARCH_NAME}
                 </Button>
                 <Button disabled={create.isPending} variant="ghost" onClick={onCreate} size="sm">
-                  {PRESET_NEW_NAME}
+                  {NEW_PRESET_NAME}
                 </Button>
               </Row>
             )

@@ -34,3 +34,5 @@ Qualify automatic active-tab reveal in Presets and retain the Insights presentat
 The active plan owns the coverage matrix. The private promise audit maps original transcript commitments to this item and its linked work.
 
 Read `reports/surface-consistency-private/promise-and-recovery-audit.md` and the comparison index in `reports/side-eye/2026-10-26-cross-surface-consistency-comparison.md`.
+
+Acceptance passes on the owner-data clone: `reports/ux-reviewer/2026-11-08-acceptance-1-settings-dialogs-authoring.md`, `-acceptance-2-library-corpus-plugins-chat.md`, `-acceptance-3-recheck.md`, `-acceptance-4-final-A.md` and `-acceptance-4-final-B.md`. Part 4 accepted settings, collection authoring, Corpus (Insights), plugin UI and Chat. Library navigation and dialogs failed only on BAND-1 and NC-2, fixed in 80ef736885 (2267, 2268) with CTs that fail on the prior source. Closing needs one rendered confirmation of the Characters band at 1280 docked and 320, and the New chat search field on a fine pointer at 1280 and 1440. Remaining P3s are in 2234 and 2271.

@@ -12,6 +12,7 @@ import type { PluginMacroBrowserStory } from "./_plugin-macro-browser-stories.ts
 
 const STORY = "tests/client/features/plugin/components/_plugin-macro-browser-stories/PluginMacroBrowserStory";
 const PLUGIN_NAME = "Omen Deck";
+const LEDGER_NAME = "Ledger";
 const PROCEDURES = [
   "sessions.me",
   "settings.getUserSettings",
@@ -76,9 +77,36 @@ test("a plugin turned off in its card leaves the browser, and turned back on ret
   await expect(macroName).toBeVisible();
 
   const card = page.getByRole("group", { name: `${PLUGIN_NAME} plugin`, exact: true });
-  await card.getByRole("switch", { name: enablePluginLabel(PLUGIN_NAME, true), exact: true }).click();
+  const enabled = card.getByRole("switch", { name: enablePluginLabel(PLUGIN_NAME), exact: true });
+  await expect(enabled).toHaveAttribute("aria-checked", "true");
+  await enabled.click();
   await expect(macroName).toHaveCount(0);
+  await expect(enabled).toHaveAttribute("aria-checked", "false");
 
-  await card.getByRole("switch", { name: enablePluginLabel(PLUGIN_NAME, false), exact: true }).click();
+  await enabled.click();
   await expect(macroName).toBeVisible();
+});
+
+test("two plugins in opposite states keep one switch name each, and only the flipped one changes aria-checked", async ({ mount, page }) => {
+  await using root = await createCorpusHarness(undefined, { pluginSpawn: spawn });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const principal = await root.principalFor(root.ownerId);
+  await installMacroGuest(root, principal, { slug: "omen-deck", name: PLUGIN_NAME }, [{ name: "omen", description: "Draws an omen." }]);
+  const ledgerId = await installMacroGuest(root, principal, { slug: "ledger", name: LEDGER_NAME }, [{ name: "tally", description: "Counts coins." }]);
+  await caller.plugin.setEnabled({ pluginId: ledgerId, enabled: false });
+  await routeTrpc(page, serveCorpusProcedures(caller, PROCEDURES));
+
+  await mount<typeof PluginMacroBrowserStory>(STORY);
+  const omen = page
+    .getByRole("group", { name: `${PLUGIN_NAME} plugin`, exact: true })
+    .getByRole("switch", { name: enablePluginLabel(PLUGIN_NAME), exact: true });
+  const ledger = page
+    .getByRole("group", { name: `${LEDGER_NAME} plugin`, exact: true })
+    .getByRole("switch", { name: enablePluginLabel(LEDGER_NAME), exact: true });
+  await expect(omen).toHaveAttribute("aria-checked", "true");
+  await expect(ledger).toHaveAttribute("aria-checked", "false");
+
+  await ledger.click();
+  await expect(ledger).toHaveAttribute("aria-checked", "true");
+  await expect(omen).toHaveAttribute("aria-checked", "true");
 });

@@ -178,17 +178,32 @@ async function checkpointTextGeometry(
   // A profile the document did not take measures default text; that is no enlarged-text verdict at all.
   expect(rootFontPx, `${request.name}: the enlarged-text profile must reach the checkpoint's document`).toBe(expectedRootFontPx);
   const shellRegime = await page.evaluate((desktop) => (matchMedia(desktop).matches ? "desktop" : "mobile"), MEDIA_QUERIES["shell-desktop"]);
-  // While a content swap's view transition runs, its pseudo-element overlay takes every hit test in the captured pane,
-  // so a centre probe reads the document root as the cover. Probe once the swap's own animations have ended.
-  const swapRunning = async (): Promise<boolean> =>
-    await page.evaluate(() =>
-      document.getAnimations().some(({ effect }) => effect instanceof KeyframeEffect && effect.pseudoElement?.startsWith("::view-transition") === true),
-    );
+  // While a content swap's view transition is active the document root takes every hit test in the captured pane, so a
+  // centre probe reads it as the cover. That starts at capture, before the swap's update lets any animation exist, so
+  // probe once the transition itself has ended, not its animations.
+  const swapRunning = async (): Promise<boolean> => await page.evaluate(() => document.documentElement.matches(":active-view-transition"));
   const swapAtReadiness = await swapRunning();
   await expect.poll(swapRunning, { message: `${request.name}: the content swap's view transition must end before its hit tests are read` }).toBe(false);
+  // A disclosure that just opened still grows its clipping panel, so its rows read clipped until the height settles.
+  // Judge the resting layout: wait out every finite animation on the scope, inside it or around it. A looping one
+  // (a spinner, a skeleton pulse) never ends and moves no box the probes judge.
+  const settling = async (): Promise<boolean> =>
+    await request.scope.evaluate((subject) =>
+      document.getAnimations().some(({ effect, playState }) => {
+        const target = effect instanceof KeyframeEffect ? effect.target : null;
+        return (
+          playState === "running" &&
+          target !== null &&
+          (subject.contains(target) || target.contains(subject)) &&
+          Number.isFinite(effect?.getComputedTiming().endTime ?? Number.POSITIVE_INFINITY)
+        );
+      }),
+    );
+  const settlingAtReadiness = await settling();
+  await expect.poll(settling, { message: `${request.name}: the scope's finite animations must end before its geometry is read` }).toBe(false);
   const findings = await enlargedTextFindings(request.scope);
   await attachNativeFile(info, step, `${request.name}-text-geometry`, {
-    body: JSON.stringify({ rootFontPx, shellRegime, swapAtReadiness, viewport: page.viewportSize(), findings }, null, 2),
+    body: JSON.stringify({ rootFontPx, shellRegime, swapAtReadiness, settlingAtReadiness, viewport: page.viewportSize(), findings }, null, 2),
     contentType: "application/json",
   });
   step.annotations.push({

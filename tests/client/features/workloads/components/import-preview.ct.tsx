@@ -17,12 +17,13 @@ import { createPersonaSchema } from "@orb/contracts/persona";
 import { exportCharacterPath, PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { StreamFrame } from "@orb/contracts/stream";
-import { actionGroupGeometry } from "@orb/testkit/browser/spec";
+import { actionGroupGeometry, resolvedLength } from "@orb/testkit/browser/spec";
 import { routeAuthConfig, routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS, nonEmpty } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, servePhysicalPeer, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page, Request } from "@playwright/test";
 import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import {
@@ -488,4 +489,15 @@ test("the folder's skip reasons and left-out files read at least as large as the
   expect(reason).toBeGreaterThanOrEqual(policy);
   expect(leftOnDisk).toBeGreaterThanOrEqual(policy);
   expect(question).toBeGreaterThanOrEqual(policy);
+
+  // The folder's own facts come before the policy that holds for every import, and the disclosed names read at the label step, not the micro gloss.
+  const policyBox = await preflight.getByText(IMPORT_CONSEQUENCE[0], { exact: true }).boundingBox();
+  const leftOnDiskBox = await preflight
+    .getByText(/will stay on your disk/u)
+    .first()
+    .boundingBox();
+  expect(leftOnDiskBox?.y).toBeLessThan(policyBox?.y ?? Number.NEGATIVE_INFINITY);
+  await report.getByRole("button", { name: "Show names" }).click();
+  const name = await fontSize(report.getByText("Preview card", { exact: false }));
+  expect(name).toBe(await resolvedLength(page, `var(${TOKENS["text.label"].cssVar})`, report));
 });

@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "failure-shown-inline"
+version: "0.1.0"
+description: "Move a mutation factory's errorToast, or one consumer's hook call, to failureShownInline by a map read from the target directory."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

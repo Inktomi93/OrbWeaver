@@ -20,7 +20,7 @@ function deleteBody(name: string): string {
 export function DeleteSchemaAction({ schema, onDeleted }: { readonly schema: DeletableSchema; readonly onDeleted: () => void }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const remove = useDeleteRefinerySchema({ trpc, invalidation });
+  const remove = useDeleteRefinerySchema({ trpc, invalidation, failureShownInline: "the delete-schema confirm's alert line" });
 
   const deleteSchema = (): Promise<void> =>
     remove.mutateAsync({ schemaId: schema.id }).then((): void => {

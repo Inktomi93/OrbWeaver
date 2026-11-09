@@ -136,7 +136,7 @@ function LabelsPruneConfirm({
   readonly tags: readonly TagWithUsage[];
   readonly deps: { readonly trpc: Trpc; readonly invalidation: Invalidation };
 }): ReactElement {
-  const prune = usePruneUnusedTags(deps);
+  const prune = usePruneUnusedTags({ ...deps, failureShownInline: "the prune-tags confirm's alert line" });
   const pruneOpen = useTagPruneConfirmOpen();
   const [pruneDecision, setPruneDecision] = useState({ open: pruneOpen, completed: false, revision: 0 });
   if (pruneDecision.open !== pruneOpen) {
@@ -208,7 +208,7 @@ function useLabelDelete(
   readonly requestDelete: (tag: TagWithUsage) => void;
   readonly dialog: ReactElement;
 } {
-  const remove = useRemoveTag(deps);
+  const remove = useRemoveTag({ ...deps, failureShownInline: "the delete-tag confirm's alert line" });
   const [decision, setDecision] = useState<{
     readonly revision: number;
     readonly tag: TagWithUsage;
@@ -297,6 +297,7 @@ function TagCollectionRow({
       onSelect={onSelect}
       selected={selected}
       subtitle={tagUsageLabel(tag)}
+      subtitleStep="label"
       title={tag.name}
     />
   );

@@ -230,6 +230,24 @@ export function NewChatPicker(): ReactElement {
       {/* Below the picker's own scrolling list, so a pick made deep in the list still has Start in view. The row pins to the
           foot of the scrolling modal body except where pinning would cover the list (`PINNED.dialogFooter`). Its ground is the
           modal surface, or the glass's blur in an appearance with glass (globals.css), so the text of a row scrolled under it never reads through. */}
+      {/* Blank chat's way in is the Tab after Start, so the cue is for the eye only. It pins on its own: the actions row below
+          flows past the fold in a cramped dialog, and a cue seated in it is out of sight with the row. */}
+      <Row
+        aria-hidden={true}
+        align="center"
+        data-slot="new-chat-more-below"
+        floor="line"
+        gap="field"
+        ground="popover"
+        hiddenAt="unlessDialogStackedCramped"
+        justify="center"
+        pinned="dialogCue"
+      >
+        <Icon icon={ChevronDown} size="sm" />
+        <Text ink="muted" voice="gloss">
+          {CHAT_MORE_BELOW_CUE}
+        </Text>
+      </Row>
       <Row
         align="center"
         wrap={true}
@@ -244,13 +262,6 @@ export function NewChatPicker(): ReactElement {
         <Text as="span" className="sr-only" role="status">
           {selectionStatusFor(selectedCount)}
         </Text>
-        {/* Blank chat's way in is the Tab after Start, so the cue is for the eye only. */}
-        <Row aria-hidden={true} align="center" floor="line" gap="field" hiddenAt="unlessDialogStackedCramped" justify="center">
-          <Icon icon={ChevronDown} size="sm" />
-          <Text ink="muted" voice="gloss">
-            {CHAT_MORE_BELOW_CUE}
-          </Text>
-        </Row>
         {/* The door is a direct child, so Start stays the actions' last button. */}
         {hasRosters ? rosterDoor({ hiddenAt: "unlessDialogLandscapeWide", push: "inlineStart" }) : null}
         {blankAction({ grow: "contentNarrow", hiddenAt: "dialogStackedCramped" })}

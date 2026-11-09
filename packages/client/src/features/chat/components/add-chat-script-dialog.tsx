@@ -90,7 +90,7 @@ function PickerBody(props: PickerBodyProps): ReactElement {
 function ScriptPicker({ attachedIds, chatId, onClose, ownedRef }: PickerBodyProps): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const attach = useAttachScriptToChat({ trpc, invalidation });
+  const attach = useAttachScriptToChat({ trpc, invalidation, failureShownInline: "the add-script dialog's alert line" });
   const { data: scripts } = useSuspenseQuery(trpc.regex.listScripts.queryOptions());
   const [filter, setFilter] = useState("");
   const [picked, setPicked] = useState<readonly RegexScriptId[]>([]);

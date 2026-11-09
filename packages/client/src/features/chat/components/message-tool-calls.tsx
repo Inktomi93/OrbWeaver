@@ -33,7 +33,7 @@ export interface MessageToolCallsProps {
 function ToolCallControls({ message, record }: { readonly message: MessageView; readonly record: ToolCallRecord }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
-  const edit = useEditToolCall({ trpc, invalidation });
+  const edit = useEditToolCall({ trpc, invalidation, failureShownInline: "the delete-tool-call confirm's alert line" });
   const variables = {
     chatId: message.chatId,
     messageId: message.id,

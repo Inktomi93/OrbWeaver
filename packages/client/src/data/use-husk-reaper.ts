@@ -7,8 +7,8 @@
 // IT IS BEST-EFFORT AND IT IS NOT A GUARANTEE. The belt is the 24h TTL sweep. This arm exists only to keep
 // the common case tidy (most husks die within seconds of abandonment), and it obeys three rules:
 //   · it NEVER blocks navigation — the store has already moved on by the time the listener runs;
-//   · it NEVER throws into navigation — the promise is swallowed. A failed reap still says so through the
-//     mutation's toast (client-architecture-state-and-gates.md §11: every mutation hook keeps its toast);
+//   · it NEVER throws into navigation — the promise is swallowed. A failed reap is background housekeeping the
+//     person did not start, so it logs and never toasts (client-architecture-state-and-gates.md §11);
 //   · it NEVER asserts husk-ness — `reapHusk` re-checks `started_at IS NULL` server-side and no-ops
 //     otherwise, so a wrong guess costs one cheap round-trip and changes nothing.
 //
@@ -27,7 +27,7 @@ import { useInvalidation } from "./use-invalidation.ts";
 const useReapHuskMutation = createEntityMutation<inferInput<Trpc["chat"]["reapHusk"]>, unknown>({
   options: (trpc) => trpc.chat.reapHusk.mutationOptions(),
   busDriven: true,
-  errorToast: "Couldn't remove the unused chat you left. It is cleared within a day.",
+  backgroundFailure: "huskReap",
 });
 
 /** Mount once at the app root: fires `chat.reapHusk` when a created-but-unused room is navigated away from. */

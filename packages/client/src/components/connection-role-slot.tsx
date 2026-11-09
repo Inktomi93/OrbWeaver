@@ -19,6 +19,7 @@ import { useRef, useState } from "react";
 import type { Invalidation, Trpc } from "#data";
 import type { RoleConnectionFacts, RoleRequirementVerdict, RoleRow } from "#lib";
 import {
+  allowBackgroundSwitchName,
   backgroundRepairs,
   bindRefusal,
   connectionHost,
@@ -383,7 +384,7 @@ function BackgroundRepair({
   readonly pending: boolean;
   readonly onAllow: () => void;
 }): ReactElement {
-  const label = `Allow background work on ${connectionSummary(connection)}`;
+  const label = allowBackgroundSwitchName(connection);
   return (
     <Stack gap="tight">
       <Text voice="gloss">{connectionSummary(connection)} doesn&apos;t allow background work. Turn it on to use it here.</Text>

@@ -35,7 +35,7 @@ import { QueryBoundary } from "#components";
 import { QueryErrorState, QueryUnavailableState, SkeletonRows, useTRPC } from "#data";
 import { testId, useFocusOnMount } from "#lib";
 import type { PluginPageKey } from "#state";
-import { openConfigTo, pluginPageKey, selectPluginPageFromList, usePluginPageKey } from "#state";
+import { LIST_OFF_SCREEN_HINT, openConfigTo, pluginPageKey, selectPluginPageFromList, usePluginPageKey, useSectionListMode } from "#state";
 import { ExtensionsPaneAnchor } from "../anchors/extensions-pane-anchor.tsx";
 import { PluginFrame } from "../components/plugin-frame.tsx";
 import { PluginRow } from "../components/plugin-row.tsx";
@@ -157,7 +157,15 @@ function NoSelection({ empty }: { readonly empty: ExtensionsEmptyView }): ReactE
         {EXTENSIONS_OPEN_PLUGINS_ACTION}
       </Button>
     );
-  return <CentredEmpty action={action} description={EXTENSIONS_NO_SELECTION_BODY} title={EXTENSIONS_NO_SELECTION_TITLE} />;
+  // The list is a docked column, a slide-over or collapsed, so the pick instruction names no side and a hidden list names its door back.
+  const listOffScreen = useSectionListMode("extensions") === "collapsed";
+  return (
+    <CentredEmpty
+      action={action}
+      description={listOffScreen ? `${EXTENSIONS_NO_SELECTION_BODY}${LIST_OFF_SCREEN_HINT}` : EXTENSIONS_NO_SELECTION_BODY}
+      title={EXTENSIONS_NO_SELECTION_TITLE}
+    />
+  );
 }
 
 function PageBody({ page }: { readonly page: PluginPageView }): ReactElement | null {

@@ -144,7 +144,9 @@ export type SectionDefinition = SectionDefinitionBase &
   (
     | ({
         readonly content: () => ReactNode;
-        readonly header?: () => ReactNode;
+        /** The wide topbar identity. It receives the shell's name for the section, which is null while the list pane names it, so a header with
+         *  nothing to show returns it and the section never goes unnamed with its list hidden. */
+        readonly header?: (sectionName: ReactNode) => ReactNode;
         /** A mark that stands beside the topbar identity at every width, where `header` (the wide identity) is hidden on a phone. */
         readonly topbarMark?: () => ReactNode;
         readonly context: ContextDefinition;

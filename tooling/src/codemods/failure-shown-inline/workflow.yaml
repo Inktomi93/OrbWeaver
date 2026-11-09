@@ -1,0 +1,28 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/codemod/codemod/refs/heads/main/schemas/workflow.json
+version: "1"
+params:
+  schema:
+    map:
+      name: "Map file"
+      description: "Path, relative to the target directory, of the JSON { factories, calls } map from hook names and consumer calls to surface names"
+      type: string
+      default: "codemod-failure-map.json"
+nodes:
+  - id: failure-shown-inline
+    name: Move failure classes to failureShownInline by map
+    type: automatic
+    steps:
+      - name: TypeScript files
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "typescript"
+          include: ["**/*.ts"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]
+      - name: TSX files
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          base_path: "."
+          language: "tsx"
+          include: ["**/*.tsx"]
+          exclude: ["**/node_modules/**", "**/codemods/*/tests*/**"]

@@ -2,7 +2,7 @@
 
 import type { PluginCommandPlacementTarget, PluginCommandView } from "@orb/contracts/plugin";
 import type { LucideIcon } from "@orb/ui/icons";
-import { Blocks } from "@orb/ui/icons";
+import { Command } from "@orb/ui/icons";
 import { pluginCommandShownName } from "../lib/plugin-command-copy.ts";
 import { PLUGIN_ICON_GLYPHS } from "../lib/plugin-icon-glyphs.ts";
 import { usePluginCommands, useSharedPluginNames } from "./use-plugin-commands.ts";
@@ -19,8 +19,10 @@ export function placedItemLabel(item: PlacedCommand): string {
   return `${item.shownName} · ${item.command.group ?? "Commands"} · ${item.label}`;
 }
 
+// A command that declares no glyph wears the command mark, never `Blocks`: that is the Plugin actions trigger's own glyph, so an item wearing it
+// reads as the menu's own button.
 export function placedItemGlyph(item: PlacedCommand): LucideIcon {
-  return item.icon === undefined ? Blocks : PLUGIN_ICON_GLYPHS[item.icon];
+  return item.icon === undefined ? Command : PLUGIN_ICON_GLYPHS[item.icon];
 }
 
 // Host order: the shown attribution (name, then slug), then group, then the label shown at THIS target. The

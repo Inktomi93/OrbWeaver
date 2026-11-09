@@ -7,6 +7,17 @@ export const CHAT_HISTORY_PAGER_HINT = "Load older conversation history without 
 /** The pager's status line once no older page remains. */
 export const CHAT_HISTORY_BEGINNING = "Beginning of available history.";
 
+/** The anchored window's paging description: why Earlier or Later can be unavailable. */
+export const CHAT_WINDOW_PAGING_HINT = "Earlier and Later stop at either end of the conversation, and while a page loads.";
+
+/** What a room opened from a Corpus source says about the moment it was asked for, by the source's outcome. */
+export const CORPUS_SOURCE_OUTCOME_COPY = {
+  resolved: "Opened the exact source moment.",
+  moved: "The source changed. Opened its surviving source anchor or visible original range.",
+  deleted: "The source moment was deleted. Opened the room without an exact jump.",
+  unavailable: "The source anchor is unavailable. Opened the room without an exact jump.",
+} as const;
+
 /** The status line's count of the rows paged in so far. */
 export function chatHistoryLoadedLabel(count: number): string {
   return `${String(count)} messages loaded.`;

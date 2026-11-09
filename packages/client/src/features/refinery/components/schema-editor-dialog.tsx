@@ -294,8 +294,10 @@ export function SchemaEditorDialog({ open, onOpenChange, stage, editing, onSaved
   const deps = { trpc, invalidation };
   const generate = useGenerateRefinerySchema(deps);
   const refine = useRefineRefinerySchema(deps);
-  const create = useCreateRefinerySchema(deps);
-  const update = useUpdateRefinerySchema(deps);
+  // The refusal note states a save's failure while the dialog is open; a save that fails after it closed toasts.
+  const refusalNote = open ? "the schema editor's refusal note" : undefined;
+  const create = useCreateRefinerySchema({ ...deps, failureShownInline: refusalNote });
+  const update = useUpdateRefinerySchema({ ...deps, failureShownInline: refusalNote });
 
   const schema = parseDraft(schemaText);
   // The live preview: the SAME plan derivation every run renders through, over an EMPTY payload (the

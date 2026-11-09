@@ -1,0 +1,16 @@
+{
+  "failure-shown-inline": [
+    {
+      "cardinality": {
+        "kind": "call"
+      },
+      "count": 1
+    },
+    {
+      "cardinality": {
+        "kind": "factory"
+      },
+      "count": 1
+    }
+  ]
+}

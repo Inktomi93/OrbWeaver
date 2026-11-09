@@ -42,7 +42,7 @@ export function SettingsUnreadableGate({ children }: { readonly children: ReactN
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data: settings } = useQuery(trpc.settings.getUserSettings.queryOptions());
-  const reset = useResetUserConfig({ trpc, invalidation });
+  const reset = useResetUserConfig({ trpc, invalidation, failureShownInline: "the reset-settings confirm's alert line" });
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const failure = settings?.configUnreadable ?? null;

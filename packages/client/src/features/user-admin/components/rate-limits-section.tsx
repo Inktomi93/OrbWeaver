@@ -72,7 +72,7 @@ function RateLimitsBody({ anchorId, sectionId }: { readonly anchorId: string; re
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const { data } = useSuspenseQuery(trpc.settings.getAppSettingsWithOverrides.queryOptions());
-  const save = useUpdateAppOverrides({ trpc, invalidation });
+  const save = useUpdateAppOverrides({ trpc, invalidation, failureShownInline: "the admin section's save error line" });
 
   const baseline = data.resolved.rateLimits;
   const stored = data.overrides.rateLimits ?? null;

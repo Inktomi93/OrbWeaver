@@ -24,11 +24,12 @@ export const PRESET_RESET_ARRANGEMENT_TITLE = "Reset to the starter arrangement?
 /** The library pane's search field. */
 export const PRESET_SEARCH_NAME = "Search presets";
 
-/** The library's create control, in the empty state and the band's menu. */
-export const PRESET_NEW_NAME = "New preset";
-
 /** The library rows' radiogroup: which preset generation uses. */
 export const PRESET_ACTIVE_RADIOGROUP_NAME = "Active preset for generation";
+
+/** The label every door that creates a blank preset wears, and the name the new row takes. */
+export const NEW_PRESET_NAME = "New preset";
+export const NEW_PRESET_KIND = "generation";
 
 /** The section drill-in's name field. */
 export const PRESET_SECTION_NAME_FIELD_NAME = "Name";

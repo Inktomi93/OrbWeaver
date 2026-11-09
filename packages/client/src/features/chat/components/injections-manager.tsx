@@ -348,7 +348,7 @@ export function InjectionsManager({ chatId, isHost }: InjectionsManagerProps): R
   const invalidation = useInvalidation();
   const addInjection = useSetChatInjection({ trpc, invalidation });
   const setInjection = useSetChatInjection({ trpc, invalidation });
-  const deleteInjection = useDeleteChatInjection({ trpc, invalidation });
+  const deleteInjection = useDeleteChatInjection({ trpc, invalidation, failureShownInline: "the delete-injection confirm's alert line" });
   const { data: injections } = useSuspenseQuery(trpc.chat.listChatInjections.queryOptions({ chatId }));
   const rows: InjectionListRow[] = injections.map((injection) => ({
     key: injection.id,
