@@ -734,6 +734,10 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/character/components/character-tags-row.tsx":
       "CharacterTagsRow: the editor's tag row, which no door forwards and only the hero band renders",
   },
+  "tests/client/features/discovery/surfaces/_duplicate-chats-stories.tsx": {
+    "packages/client/src/features/discovery/components/corpus-duplicate-rows.tsx":
+      "CorpusDuplicateChats: the Similarity tab's room-pair list, which only the tab renders and no door forwards; the case deletes a pair it does not read",
+  },
   "tests/client/features/refinery/components/_versions-stories.tsx": {
     "packages/client/src/features/refinery/components/context-tabs.tsx":
       "VersionsTab: the refinery Versions tab, which only the section's tab body renders and no door forwards",

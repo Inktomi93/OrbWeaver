@@ -137,7 +137,21 @@ export function collidingNameQualifiers(names: readonly string[], qualifiers: re
   return names.map((name, index) => (names.filter((other) => other === name).length > 1 ? qualifiers[index] : undefined));
 }
 
-/** A list's own running position, `#3`: the qualifier for rows that print their rank or order and carry no stamp. */
+/** A list's own running position, `#3`: the qualifier for rows that print their rank, so the name follows what the row shows. */
 export function positionQualifier(position: number): string {
   return `#${String(position)}`;
+}
+
+/**
+ * `#1`, `#2` for rows that share a name, numbered within that group in list order; a row with a name of its own gets none. For a
+ * list that prints no rank: a row is renamed only when a twin of its own name comes or goes, never when an unrelated row does.
+ */
+export function groupOrdinalQualifiers(names: readonly string[]): readonly (string | undefined)[] {
+  const totals = Map.groupBy(names, (name) => name);
+  const seen = new Map<string, number>();
+  return names.map((name) => {
+    const ordinal = (seen.get(name) ?? 0) + 1;
+    seen.set(name, ordinal);
+    return (totals.get(name)?.length ?? 0) < 2 ? undefined : positionQualifier(ordinal);
+  });
 }

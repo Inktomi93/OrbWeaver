@@ -254,6 +254,7 @@ export {
   chatWithActionName,
   collidingNameQualifiers,
   duplicateActionName,
+  groupOrdinalQualifiers,
   positionQualifier,
   renameActionName,
   rowActionSubject,

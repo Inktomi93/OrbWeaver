@@ -26,6 +26,7 @@ type UnifiedResult = inferOutput<Trpc["search"]["search"]>;
 type UnifiedOver = Extract<ReturnType<typeof resolveSearchTarget>, { kind: "unified" }>["over"];
 
 const SKELETON_ROW_COUNT = 5;
+const UNCREDITED_PASSAGES_LABEL = "Transcript passages without character credit";
 
 export interface CorpusSearchResultsProps {
   readonly query: string;
@@ -336,22 +337,25 @@ function ResultBranch({ data }: { readonly data: UnifiedResult }): ReactElement 
           <DiscoverHitRow hit={hit} key={hit.characterId} rank={index + 1} />
         ))}
         {data.standaloneSegments.length > 0 ? (
-          <Text role="listitem" voice="gloss">
-            Transcript passages without character credit
-          </Text>
-        ) : null}
-        {data.standaloneSegments.map((segment, index) => (
-          <Stack key={segment.source.rowId} role="listitem">
-            <ListRow
-              clickable={true}
-              onClick={(): void => openChatMoment(segment.chatId, { kind: "source", source: segment.source })}
-              title={segment.chatTitle ?? "Untitled chat"}
-              {...(segmentQualifiers[index] === undefined ? { meta: String(index + 1) } : { titleQualifier: segmentQualifiers[index] })}
-              subtitle={snippetForDisplay(segment.snippet)}
-              subtitleWrap={true}
-            />
+          // The caption names a list of its own, so it is not counted as one of the results above it.
+          <Stack gap="row" role="listitem">
+            <Text voice="gloss">{UNCREDITED_PASSAGES_LABEL}</Text>
+            <Stack aria-label={UNCREDITED_PASSAGES_LABEL} gap="row" role="list">
+              {data.standaloneSegments.map((segment, index) => (
+                <Stack key={segment.source.rowId} role="listitem">
+                  <ListRow
+                    clickable={true}
+                    onClick={(): void => openChatMoment(segment.chatId, { kind: "source", source: segment.source })}
+                    title={segment.chatTitle ?? "Untitled chat"}
+                    {...(segmentQualifiers[index] === undefined ? { meta: String(index + 1) } : { titleQualifier: segmentQualifiers[index] })}
+                    subtitle={snippetForDisplay(segment.snippet)}
+                    subtitleWrap={true}
+                  />
+                </Stack>
+              ))}
+            </Stack>
           </Stack>
-        ))}
+        ) : null}
       </>
     );
   }

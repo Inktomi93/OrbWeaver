@@ -39,7 +39,7 @@ import type { ReactElement } from "react";
 import { useId, useState } from "react";
 import type { Trpc } from "#data";
 import { createCollectionSurface, QueryErrorState, SkeletonRows, useTRPC } from "#data";
-import { collidingNameQualifiers, ESTIMATED_ROW_PX, positionQualifier, testId } from "#lib";
+import { ESTIMATED_ROW_PX, groupOrdinalQualifiers, testId } from "#lib";
 import { selectCorpusArtifact } from "#state";
 import { characterFacetLine } from "../lib/character-facet.ts";
 import { CORPUS_DISTILLED_CATALOG_NAME, CORPUS_SORTING_DOOR_NAME } from "../lib/corpus-control-names.ts";
@@ -187,11 +187,8 @@ function BrowseRows({
       </Stack>
     );
   }
-  // Two characters can share a name; the row prints no stamp, so the list's own running position tells them apart.
-  const titleQualifiers = collidingNameQualifiers(
-    collection.items.map((row) => row.name),
-    collection.items.map((_row, index) => positionQualifier(index + 1)),
-  );
+  // Two characters can share a name; the row prints no stamp, so its place among the characters of that name tells them apart.
+  const titleQualifiers = groupOrdinalQualifiers(collection.items.map((row) => row.name));
   return (
     // The bounded height is this Stack's — `VirtualList` throws at mount on an unbounded scroll element,
     // which is the primitive refusing to be a list that silently renders everything.

@@ -8,7 +8,7 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import type { Trpc } from "#data";
-import { collidingNameQualifiers, positionQualifier } from "#lib";
+import { groupOrdinalQualifiers } from "#lib";
 import { selectCorpusArtifact, selectCorpusCharacter } from "#state";
 import type { ArtCliqueMember } from "../lib/corpus-duplicate-groups.ts";
 import { groupIdenticalArt } from "../lib/corpus-duplicate-groups.ts";
@@ -90,10 +90,9 @@ export function CorpusDuplicateArt({ pairs }: { readonly pairs: readonly ImageDu
 
 export function CorpusDuplicateChats({ pairs }: { readonly pairs: readonly DuplicateChatPair[] }): ReactElement {
   const shown = pairs.slice(0, FINDING_CAP);
-  // Pairs of rooms that share titles read alike in every word; the pair's position in the list tells them apart.
-  const pairQualifiers = collidingNameQualifiers(
+  // Pairs of rooms that share titles read alike in every word; the pair's place among the pairs that read the same tells them apart.
+  const pairQualifiers = groupOrdinalQualifiers(
     shown.map((pair) => `${pair.titleA ?? "Untitled"} ↔ ${pair.titleB ?? "Untitled"} ${pair.relation} ${percent(pair.similarity)}`),
-    shown.map((_pair, index) => positionQualifier(index + 1)),
   );
   return (
     <Section heading="Duplicate chats">

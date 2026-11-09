@@ -144,3 +144,24 @@ for (const regime of REGIMES) {
     });
   });
 }
+
+test("two runs of one stage in one round carry distinct names, oldest first", async ({ mount, page }) => {
+  await using root = await createServerHarness({ startJobs: false });
+  const { session, caller } = await seedSession(root, page);
+  await caller.refinery.submitManualRewrite({ sessionId: session.id, fields: [{ field: "description", text: "A second rewrite in the same round." }] });
+  await mount<typeof RefineryRemainingActionsStory>(STORY, {
+    sessionId: session.id,
+    plane: "runs",
+    width: 960,
+    appearance: appearanceSettingsSchema.parse({}),
+  });
+  const names = (pattern: RegExp): Promise<(string | null)[]> =>
+    page.getByRole("button", { name: pattern }).evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label")));
+  await expect(page.getByRole("button", { name: /^View /u })).toHaveCount(2);
+  const views = await names(/^View /u);
+  const applies = await names(/^Use for apply: /u);
+  expect(new Set(views).size).toBe(2);
+  expect(new Set(applies).size).toBe(2);
+  // The ledger lists newest first; the qualifier counts from the oldest, so a later run never renames an earlier one.
+  expect(views).toEqual([expect.stringMatching(/ #2$/u), expect.stringMatching(/ #1$/u)]);
+});
