@@ -4,11 +4,17 @@ import { cn, variantAttrs } from "#lib";
 import { cardVariants } from "./variants.ts";
 
 /** The card's own axes, shared by both element arms below. */
-type CardOwnProps = VariantProps<typeof cardVariants> & {
-  /** A Card that is also a named owner-CSS hook (`owner-css-surface.ts`) keeps that slot instead of `card-root`, and so
-   *  stays out of the tier map: its radius and inset are the variant's own at every tier. */
-  readonly ownSlot?: string;
-};
+type CardOwnProps = Omit<VariantProps<typeof cardVariants>, "cap" | "artDecoration"> &
+  CardReservation & {
+    /** A Card that is also a named owner-CSS hook (`owner-css-surface.ts`) keeps that slot instead of `card-root`, and so
+     *  stays out of the tier map: its radius and inset are the variant's own at every tier. */
+    readonly ownSlot?: string;
+  };
+
+/** An art reservation sets the box's own max inline size, which a `cap` would override, so the two are never named together. */
+type CardReservation =
+  | { readonly cap?: VariantProps<typeof cardVariants>["cap"]; readonly artDecoration?: undefined }
+  | { readonly cap?: undefined; readonly artDecoration: NonNullable<VariantProps<typeof cardVariants>["artDecoration"]> };
 
 /**
  * A card is a `div` unless the caller says otherwise. `as="button"` is the NATIVE arm — for the case where

@@ -26,10 +26,6 @@ import type { ReactElement, ReactNode, RefObject } from "react";
 import { Fragment, useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { OverflowMenuForm } from "#lib";
 
-/** The topbar trail's trigger name; the list band's is {@link BAND_OVERFLOW_LABEL}, so a rotor tells two rows apart. */
-export const TRAIL_OVERFLOW_LABEL = "More top bar actions";
-export const BAND_OVERFLOW_LABEL = "More list actions";
-
 /** One action in the row: its inline control and the menu node (`MenuItem`s) that stands in for it. */
 export interface OverflowAction {
   readonly id: string;
@@ -340,8 +336,12 @@ export function OverflowActions({ actions, label, topbarTrail = false, gap = "ro
     const observer = new ResizeObserver(measure);
     observer.observe(root);
     const parent = layoutParent(root);
+    // A sibling's floor is its content (a census growing from "326" to "0 of 326"), and a clipped sibling's box does
+    // not change when its content does, so the parent's resize alone never re-reads it.
+    const siblingContent = new MutationObserver(measure);
     if (parent !== null) {
       observer.observe(parent);
+      siblingContent.observe(parent, { characterData: true, childList: true, subtree: true });
     }
     for (const element of items.current.values()) {
       observer.observe(element);
@@ -350,7 +350,10 @@ export function OverflowActions({ actions, label, topbarTrail = false, gap = "ro
       observer.observe(triggerRef.current);
     }
     measure();
-    return (): void => observer.disconnect();
+    return (): void => {
+      observer.disconnect();
+      siblingContent.disconnect();
+    };
   }, [idKey, primaryKey, compactId, triggerWidth, keeps]);
 
   // Focus on a form that just left the row moves to the next control the row shows, or to the trigger, instead of

@@ -33,6 +33,20 @@ async function headBelowPlate(page: Page, index: number): Promise<number> {
   );
 }
 
+/** How far below the port's top edge a row's head sits. */
+async function headBelowPort(log: Locator, index: number): Promise<number> {
+  return await log.evaluate(
+    (node, [row, at]) => {
+      const head = node.querySelector(`${row}[data-index="${at}"]`)?.getBoundingClientRect().top;
+      if (head === undefined) {
+        throw new Error(`row ${at} is not mounted`);
+      }
+      return head - node.getBoundingClientRect().top;
+    },
+    [ROW, String(index)] as const,
+  );
+}
+
 /** Scrolls until row `index` starts `offsetPx` below the port's top, and waits for the list to read it there. */
 async function parkRowAt(log: Locator, index: number, offsetPx: number): Promise<void> {
   await expect(log.locator(ROW).first()).toBeVisible();
@@ -119,12 +133,28 @@ for (const { name, viewport, touch } of VIEWPORTS) {
       await expect.poll(async () => await headBelowPlate(page, 12), { message: "row 12 clears the plate" }).toBeGreaterThanOrEqual(-LAYOUT_SUBPIXEL_PX);
     });
 
-    test("a hold started by the plate arriving lands the reader's row below it", async ({ mount, page }) => {
+    // The edge a hold keeps is the one the row was read at: `reading-row.ts` holds the ruling.
+    test("a plate that pins from out of view lays over the reader's row and moves nothing, though its arrival starts a hold", async ({ mount, page }) => {
       await mount<typeof MessageListHeldUnderPlateStory>(HELD_STORY);
       const log = page.getByRole("log", { name: "Held under plate", exact: true });
       await parkRowAt(log, HELD_ROW, 0);
+      const parked = await headBelowPort(log, HELD_ROW);
       await page.getByRole("button", { name: "Fail the press", exact: true }).click();
       await expect(page.locator(`${PLATE} [data-keep-in-view]`)).toBeVisible();
+      await settledHead(page, HELD_ROW);
+      expect(Math.abs((await headBelowPort(log, HELD_ROW)) - parked)).toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);
+      // The plate is over the row: the arrival had a cover to land the row below, and did not.
+      expect(await headBelowPlate(page, HELD_ROW)).toBeLessThan(-LAYOUT_SUBPIXEL_PX);
+    });
+
+    test("a failure that arrives in a standing plate keeps the reader's row at the plate's growing edge", async ({ mount, page }) => {
+      await mount<typeof MessageListHeldUnderPlateStory>(HELD_STORY, { standing: true });
+      const log = page.getByRole("log", { name: "Held under plate", exact: true });
+      await parkRowAt(log, HELD_ROW, await log.evaluate((node, plate) => node.querySelector(plate)?.getBoundingClientRect().height ?? Number.NaN, PLATE));
+      const standing = page.locator(PLATE);
+      const standingPx = (await standing.boundingBox())?.height ?? Number.NaN;
+      await page.getByRole("button", { name: "Add a failure to the plate", exact: true }).click();
+      await expect.poll(async () => (await standing.boundingBox())?.height ?? Number.NaN).toBeGreaterThan(standingPx);
       await expect
         .poll(async () => await settledHead(page, HELD_ROW), { message: "the held row settles at the plate's edge" })
         .toBeLessThanOrEqual(LAYOUT_SUBPIXEL_PX);

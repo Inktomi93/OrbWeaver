@@ -1,12 +1,12 @@
 // Ordinary Chats pages real persisted canon without entering a Corpus source window.
 
-import { RETRY_NAME } from "@orb/client/lib";
+import { DIALOG_VERBS, RETRY_NAME } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { StreamFrame } from "@orb/contracts/stream";
 import type { ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { seedShellState, settledBox, settledReadingRow } from "@orb/testkit/browser/spec";
+import { expectPinnedFailure, PLATFORM_TEXT_SCALES, seedShellState, setPlatformTextSize, settledBox, settledReadingRow } from "@orb/testkit/browser/spec";
 import {
   absenceWindow,
   createShellAmbientReads,
@@ -22,6 +22,7 @@ import {
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { nonEmpty } from "@orb/testkit/iso";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusHarness, createCorpusProviderExecution, seedTranscript } from "@orb/testkit/node/composed";
+import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import {
   CHAT_EARLIER_MESSAGES_NAME,
@@ -257,6 +258,36 @@ function forwardFails(floor: number, down: () => boolean): NonNullable<ListMessa
   return ({ cursor }) => (down() && cursor?.kind === "after" && cursor.seq >= floor ? trpcError({ code: "BAD_REQUEST" }) : undefined);
 }
 
+/** How many lines `node`'s text lays out on, read from the text's own line boxes. */
+function lineCount(node: Locator): Promise<number> {
+  return node.evaluate(async (element) => {
+    // A fallback face sets a different measure; the line count is the loaded face's.
+    await document.fonts.ready;
+    const tops = new Set<number>();
+    const texts = document.createTreeWalker(element, NodeFilter.SHOW_TEXT);
+    for (let text = texts.nextNode(); text !== null; text = texts.nextNode()) {
+      const range = document.createRange();
+      range.selectNodeContents(text);
+      for (const box of range.getClientRects()) {
+        tops.add(Math.round(box.top));
+      }
+    }
+    return tops.size;
+  });
+}
+
+type Shell = "desktop" | "mobile";
+
+// Enlarged browser text moves the desktop shell's breakpoint past a 1280 viewport, so those cells measure the mobile shell.
+function shellAt({ coarse }: { readonly coarse: boolean }, textScale: number): Shell {
+  return !coarse && textScale === 1 ? "desktop" : "mobile";
+}
+
+/** Assert that the mounted page lays out the shell a cell is named for. */
+async function expectShell(page: Page, shell: Shell): Promise<void> {
+  expect(await page.evaluate((query) => matchMedia(query).matches, MEDIA_QUERIES["shell-desktop"])).toBe(shell === "desktop");
+}
+
 function loadedRows(list: Locator): Promise<string | null> {
   return list.locator('[data-slot="message-list-row"]').first().getAttribute("aria-setsize");
 }
@@ -460,52 +491,116 @@ for (const regime of [
       await quietSpell(page);
       expect(live.reads() - before).toBe(once);
     });
-    test("a failed refresh reports without moving or pinning, a press still pages, and recovery wastes no press", async ({ corpus, mount, page }) => {
-      await using root = await historyRoot();
-      const caller = await root.internalCallerFor(root.ownerId);
-      const { rooms, room } = await prepareHistory(root, caller);
-      let failing = false;
-      await using live = await serveLiveRoom({
-        root,
-        caller,
+    for (const textScale of PLATFORM_TEXT_SCALES) {
+      test(`a failed refresh at ${String(textScale)}x text in the ${shellAt(regime, textScale)} shell reports without moving or pinning, a press still pages, and recovery wastes no press`, async ({
         corpus,
+        mount,
         page,
-        rooms,
-        chatId: room.id,
-        chatStyle: regime.chatStyle,
-        intercept: ({ cursor }) => (failing && cursor !== undefined ? trpcError({ code: "BAD_REQUEST" }) : undefined),
+        browserName,
+      }) => {
+        test.skip(textScale !== 1 && browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+        await using _textSize = textScale === 1 ? null : await setPlatformTextSize(page, textScale);
+        await using root = await historyRoot();
+        const caller = await root.internalCallerFor(root.ownerId);
+        const { rooms, room } = await prepareHistory(root, caller);
+        let failing = false;
+        await using live = await serveLiveRoom({
+          root,
+          caller,
+          corpus,
+          page,
+          rooms,
+          chatId: room.id,
+          chatStyle: regime.chatStyle,
+          intercept: ({ cursor }) => (failing && cursor !== undefined ? trpcError({ code: "BAD_REQUEST" }) : undefined),
+        });
+        await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true });
+        await expectShell(page, shellAt(regime, textScale));
+        const list = page.locator('[data-slot="message-list-scroll"]');
+        const earlier = list.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
+        await expect(earlier).toBeAttached();
+        await list.evaluate((node) => {
+          node.scrollTop = node.scrollHeight / 2;
+        });
+        const reading = list.locator(`[data-slot="message-row"][data-message-id="${(await settledReadingRow(list)).id ?? ""}"]`);
+        const { y } = await settledBox(reading);
+        failing = true;
+        await live.settle();
+        const alert = list.getByRole("alert");
+        await expect(alert).toBeAttached();
+        await expect(alert).not.toBeInViewport();
+        await expect.poll(async () => (await settledBox(reading)).y).toBe(y);
+        await expect(list.getByRole("button", { name: RETRY_NAME, exact: true })).toBeAttached();
+        // Enlarged text wraps the refresh line beside Try again on the phone, so the press changes the chrome's height as it pins.
+        const lines = await lineCount(alert);
+        test.info().annotations.push({ type: "refresh-lines", description: String(lines) });
+        expect(lines).toBeGreaterThanOrEqual(regime.coarse && textScale !== 1 ? 2 : 1);
+        // The press asks for older rows even through a failed refresh, so what it reports is its own failure.
+        const rows = await loadedRows(list);
+        await earlier.dispatchEvent("click");
+        await expectPinnedFailure(list);
+        // The plate pins from out of view, so it lays over the rows (`reading-row.ts`).
+        await expect.poll(async () => (await settledBox(reading)).y).toBe(y);
+        failing = false;
+        const reads = live.reads();
+        await earlier.dispatchEvent("click");
+        await expect.poll(() => loadedRows(list)).not.toBe(rows);
+        await expect(alert).toHaveCount(0);
+        await expect.poll(async () => (await settledBox(reading)).y).toBe(y);
+        // The landed page and then the refresh the outage cost: the loaded pages are read again.
+        await expect.poll(() => live.reads()).toBeGreaterThan(reads + 1);
+        await page.screenshot({ path: test.info().outputPath("recovered-refresh.png") });
       });
-      await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true });
-      const list = page.locator('[data-slot="message-list-scroll"]');
-      const earlier = list.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
-      await expect(earlier).toBeAttached();
-      await list.evaluate((node) => {
-        node.scrollTop = node.scrollHeight / 2;
+      test(`a press offline through a failed refresh at ${String(textScale)}x text in the ${shellAt(regime, textScale)} shell pins the longer offline line without moving the reader`, async ({
+        corpus,
+        mount,
+        page,
+        browserName,
+      }) => {
+        test.skip(textScale !== 1 && browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+        await using _textSize = textScale === 1 ? null : await setPlatformTextSize(page, textScale);
+        await using root = await historyRoot();
+        const caller = await root.internalCallerFor(root.ownerId);
+        const { rooms, room } = await prepareHistory(root, caller);
+        let failing = false;
+        await using live = await serveLiveRoom({
+          root,
+          caller,
+          corpus,
+          page,
+          rooms,
+          chatId: room.id,
+          chatStyle: regime.chatStyle,
+          intercept: ({ cursor }) => (failing && cursor !== undefined ? trpcError({ code: "BAD_REQUEST" }) : undefined),
+        });
+        await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true });
+        await expectShell(page, shellAt(regime, textScale));
+        const list = page.locator('[data-slot="message-list-scroll"]');
+        const earlier = list.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
+        await expect(earlier).toBeAttached();
+        await list.evaluate((node) => {
+          node.scrollTop = node.scrollHeight / 2;
+        });
+        const reading = list.locator(`[data-slot="message-row"][data-message-id="${(await settledReadingRow(list)).id ?? ""}"]`);
+        const { y } = await settledBox(reading);
+        failing = true;
+        await live.settle();
+        const alert = list.getByRole("alert");
+        await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.refresh);
+        await expect.poll(async () => (await settledBox(reading)).y).toBe(y);
+        const rows = await loadedRows(list);
+        await page.context().setOffline(true);
+        await earlier.dispatchEvent("click");
+        await expect(alert).toHaveText(CHAT_HISTORY_FAILURE_COPY.offline);
+        await expectPinnedFailure(list);
+        // The plate pins from out of view, so it lays over the rows whatever the longer line does to its height (`reading-row.ts`).
+        await expect.poll(async () => (await settledBox(reading)).y).toBe(y);
+        failing = false;
+        await page.context().setOffline(false);
+        await expect.poll(() => loadedRows(list)).not.toBe(rows);
+        await expect.poll(async () => (await settledBox(reading)).y).toBe(y);
       });
-      const reading = list.locator(`[data-slot="message-row"][data-message-id="${(await settledReadingRow(list)).id ?? ""}"]`);
-      const { y } = await settledBox(reading);
-      failing = true;
-      await live.settle();
-      const alert = list.getByRole("alert");
-      await expect(alert).toBeAttached();
-      await expect(alert).not.toBeInViewport();
-      await expect.poll(async () => (await settledBox(reading)).y).toBe(y);
-      await expect(list.getByRole("button", { name: RETRY_NAME, exact: true })).toBeAttached();
-      // The press asks for older rows even through a failed refresh, so what it reports is its own failure.
-      const rows = await loadedRows(list);
-      await earlier.dispatchEvent("click");
-      await expect(alert).toBeInViewport({ ratio: 1 });
-      await expect.poll(async () => (await settledBox(reading)).y).toBe(y);
-      failing = false;
-      const reads = live.reads();
-      await earlier.dispatchEvent("click");
-      await expect.poll(() => loadedRows(list)).not.toBe(rows);
-      await expect(alert).toHaveCount(0);
-      await expect.poll(async () => (await settledBox(reading)).y).toBe(y);
-      // The landed page and then the refresh the outage cost: the loaded pages are read again.
-      await expect.poll(() => live.reads()).toBeGreaterThan(reads + 1);
-      await page.screenshot({ path: test.info().outputPath("recovered-refresh.png") });
-    });
+    }
     test("a failed refresh leaves a reader at the tail on the tail", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
@@ -1025,6 +1120,54 @@ for (const regime of [
         await invalidate.dispatchEvent("click");
       }
       await expect(page.getByRole("alert")).toHaveText(CHAT_WINDOW_PRESS_FAILURE);
+    });
+    test("a window whose target is gone keeps its paging toolbar while the latest page loads", async ({ corpus, mount, page }) => {
+      await using root = await historyRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { rooms, room, removed } = await prepareHistory(root, caller);
+      await caller.chat.deleteMessages({ chatId: room.id, messageIds: [removed.id] });
+      const latest = holdServed();
+      await using held = new AsyncDisposableStack();
+      held.defer(() => latest.release());
+      await using _live = await serveLiveRoom({
+        root,
+        caller,
+        corpus,
+        page,
+        rooms,
+        chatId: room.id,
+        chatStyle: regime.chatStyle,
+        intercept: ({ chatId }) => (chatId === room.id ? latest : undefined),
+      });
+      await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true, moment: { kind: "message", messageId: removed.id } });
+      await latest.requested;
+      await expect(page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true })).toBeVisible();
+      latest.release();
+      await expect(page.locator('[data-slot="message-row"]').first()).toBeVisible();
+    });
+    test("a window whose target is gone keeps its toolbar when the latest page fails, and Retry recovers", async ({ corpus, mount, page }) => {
+      await using root = await historyRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { rooms, room, removed } = await prepareHistory(root, caller);
+      await caller.chat.deleteMessages({ chatId: room.id, messageIds: [removed.id] });
+      let failing = true;
+      await using _live = await serveLiveRoom({
+        root,
+        caller,
+        corpus,
+        page,
+        rooms,
+        chatId: room.id,
+        chatStyle: regime.chatStyle,
+        intercept: ({ chatId, cursor }) => (failing && chatId === room.id && cursor === undefined ? trpcError({ code: "BAD_REQUEST" }) : undefined),
+      });
+      await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true, moment: { kind: "message", messageId: removed.id } });
+      await expect(page.locator('[data-slot="query-error"]')).toBeVisible();
+      await expect(page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true })).toBeVisible();
+      failing = false;
+      await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
+      await expect(page.locator('[data-slot="message-row"]').first()).toBeVisible();
+      await expect(page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true })).toBeVisible();
     });
     test("a repeated press with the connection down is heard again, and the held read lands when it returns", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();

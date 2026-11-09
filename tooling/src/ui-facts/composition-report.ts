@@ -15,7 +15,7 @@ const COMPOSITION_CANNOT_SEE: readonly string[] = [
   "Skeletons read one file at a time: a local component or a hook-returned element is an `L`, so a surface that moves its body into another file looks shallow.",
   "A skeleton keeps both arms of a conditional and every map body once; it does not say which arm renders.",
   "Section boundary ownership is the tag present in the section's surface files, not a proof the boundary wraps that read.",
-  "A ladder is any useQuery whose result is read through isPending, isLoading, isError or status in the same function; whether that read suspends needs types. A useQuery inside useQueries, or aliased, is not seen.",
+  "A ladder is any useQuery whose result is read through isPending, isLoading, isError or status in the same function; whether that read suspends needs types. An aliased or namespace import of the query hooks is followed, and a useQueries result is read through its array elements, a callback on it and its combine. A hook that wraps useQuery is read as that hook, not as a useQuery.",
   "An `enabled` flag is reported whatever its expression; it does not check that the gate is a null test that skipToken would replace.",
   "Success feedback is file-level: a toast manager anywhere in the file counts for every mutation in it. A success message built in a shared helper is invisible.",
   "Inline failure is a read of error, isError, retry or clearError on the hook result; an error shown through a prop passed from a parent is invisible.",
@@ -98,7 +98,7 @@ function readLines(facts: UiFacts, inScope: (section: string) => boolean): strin
   return [
     "### Read shape",
     "",
-    `Scanned ${reads.files} client files: ${reads.counts.useQuery} useQuery, ${reads.counts.useQueries} useQueries, ${reads.counts.useGatedQuery} useGatedQuery, ${reads.counts.useSuspenseQuery} useSuspenseQuery. Only useQuery is classified.`,
+    `Scanned ${reads.files} client files: ${reads.counts.useQuery} useQuery, ${reads.counts.useQueries} useQueries, ${reads.counts.useGatedQuery} useGatedQuery, ${reads.counts.useDecisionQuery} useDecisionQuery, ${reads.counts.useSuspenseQuery} useSuspenseQuery. Every read but useSuspenseQuery is classified; a suspending read has no state to ladder on.`,
     "",
     ...table(["shape", "calls"], tally(members, "shape")),
     ...table(

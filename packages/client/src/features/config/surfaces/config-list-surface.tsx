@@ -101,7 +101,14 @@ export function ConfigListSurface({ groups, preserveContentFocus }: ConfigListSu
   return (
     // The arrival target says where you landed: `role="region"` makes the name computable, and the name is the
     // pane's contents, not its section, because the LIST band already says "Settings".
-    <ListPage body="pane" data-slot="config-list" label="Settings groups" ref={surfaceRef} search={<ConfigSearchInput groups={groups} />}>
+    <ListPage
+      body="pane"
+      data-slot="config-list"
+      label="Settings groups"
+      ref={surfaceRef}
+      search={<ConfigSearchInput groups={groups} />}
+      skipTo="Skip to settings"
+    >
       <Stack gap="section">
         {/* The phone's only teaching frame: mobile viewport and no selection only. */}
         <ConfigMobileTeaching groups={groups} />

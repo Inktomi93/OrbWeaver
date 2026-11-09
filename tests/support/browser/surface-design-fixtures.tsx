@@ -8,6 +8,7 @@ import { Container, Row, Stack, Surface } from "@orb/ui/layout";
 import { MessageBubble } from "@orb/ui/message-bubble";
 import { RoomIsland } from "@orb/ui/room-island";
 import { ScrollArea } from "@orb/ui/scroll-area";
+import { Slider } from "@orb/ui/slider";
 import { ThemePreviewPane } from "@orb/ui/theme-swatch";
 import { TOKENS } from "@orb/ui/tokens";
 import type { ReactElement } from "react";
@@ -83,16 +84,55 @@ export function SurfaceDesignStory({ width }: { readonly width: number }): React
 // Narrower than the control's label at enlarged text, so a clipping box cuts the control off.
 const CLIPPING_BOX_PX = 160;
 
-/** A control in a fixed-pixel clipping box, or in a box that lets it reflow, for the enlarged-text geometry probes. */
+/**
+ * A control in a fixed-pixel clipping box, or in a box that lets it reflow, for the enlarged-text geometry probes. Beside
+ * it a production slider sits in a padded scroller: its visually hidden range input paints nothing, so it is never judged.
+ */
 export function SurfaceTextGeometryStory({ clipped }: { readonly clipped: boolean }): ReactElement {
   return (
-    <CtIsolation subject="Enlarged-text geometry" isolates="A fixed-pixel clipping box and one production button need no application services.">
+    <CtIsolation subject="Enlarged-text geometry" isolates="A fixed-pixel clipping box and production controls need no application services.">
       <main>
         <Stack padding="section">
           <h1>Text geometry control</h1>
           <div style={clipped ? { inlineSize: CLIPPING_BOX_PX, overflow: "hidden", whiteSpace: "nowrap" } : {}}>
             <Button variant="outline">Continue to the next step</Button>
           </div>
+          <Stack scroll="y" padding="section">
+            <Slider label="Reflowing group slider" defaultValue={50} />
+          </Stack>
+        </Stack>
+      </main>
+    </CtIsolation>
+  );
+}
+
+// How the overlapping pair is named: buttons by their content, text fields by placeholder only, or text fields with no name.
+const OVERLAP_NAMINGS = ["content", "placeholder", "none"] as const;
+type OverlapNaming = (typeof OVERLAP_NAMINGS)[number];
+
+/** Two visible controls laid over each other, named by {@link OverlapNaming}. */
+export function SurfaceTextOverlapStory({ naming }: { readonly naming: OverlapNaming }): ReactElement {
+  // The second control rises a quarter control height onto the first's bottom edge: an edge overlap leaves both
+  // centres uncovered, so only the overlap probe sees it and the centre hit test stays clean.
+  const over = { marginBlockStart: `calc(-0.25 * var(${TOKENS["size.control-md"].cssVar}))` };
+  return (
+    <CtIsolation subject="Enlarged-text overlap" isolates="Two production controls laid over each other need no application services.">
+      <main>
+        <Stack padding="section">
+          <h1>Overlap control</h1>
+          {naming === "content" ? (
+            <>
+              <Button variant="outline">Under control</Button>
+              <Button variant="outline" style={over}>
+                Over control
+              </Button>
+            </>
+          ) : (
+            <>
+              <Input name="underControl" {...(naming === "placeholder" ? { placeholder: "Search" } : {})} />
+              <Input name="overControl" style={over} {...(naming === "placeholder" ? { placeholder: "Filter" } : {})} />
+            </>
+          )}
         </Stack>
       </main>
     </CtIsolation>

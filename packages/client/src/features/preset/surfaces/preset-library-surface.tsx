@@ -61,6 +61,7 @@ export function PresetLibrarySurface({ onSelectPreset }: PresetLibrarySurfacePro
       label="Presets list"
       ref={surfaceRef}
       search={<Input aria-label="Search presets" onValueChange={setPresetSearchQuery} placeholder="Search presets…" value={query} />}
+      skipTo="Skip to presets"
     >
       {/* The reservation's measuring Stack is auto-height, so the `scroll` body above the boundary is the pane's
           scroll box. The key is minted here, not in the shared shell: one literal there would be one box for

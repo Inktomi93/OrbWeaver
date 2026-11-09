@@ -27,7 +27,7 @@ import type { ReactElement, ReactNode } from "react";
 import { useEffect, useRef } from "react";
 import { QueryBoundary } from "#components";
 import type { ChatBusDeps, Trpc } from "#data";
-import { QueryErrorState, SkeletonRows, useChatBus, useDisplayScripts, usePrefetchDisplayScripts, useSuspenseQuery, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useChatBus, useDisplayScripts, useGatedQuery, usePrefetchDisplayScripts, useSuspenseQuery, useTRPC } from "#data";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
 import { RenderProfiler, resolveRowRenderPolicy, useFocusOnMount } from "#lib";
 import { isLiveTurnPhase, useTurnPhase, useTurnSpeakerCharacterId } from "#state";
@@ -216,7 +216,7 @@ function ChatThread({
   // wrap stays off (literal text, today's behavior — never a blocking read for a non-game render path).
   // #40 — a DISENGAGED game (pointer engaged:false) reads like a non-game chat (one predicate home).
   const isGame = isRpgEngaged(chatDetail.rpg ?? null);
-  const gameQuery = useQuery({ ...trpc.rpg.getGame.queryOptions({ chatId }), enabled: isGame });
+  const gameQuery = useGatedQuery(isGame ? chatId : null, (id) => trpc.rpg.getGame.queryOptions({ chatId: id }));
   const lenientHtmlCards = isGame && gameQuery.data?.publicConfig.immersiveHtml === true;
   const messageAppearance = useMessageAppearance();
   const displayScripts = useDisplayScripts(chatId);
@@ -457,10 +457,10 @@ function ChatThread({
           // pinned the sticky name band 12px below the visible top with a guillotined strip of prose
           // permanently above it (#204). The first/last rows still breathe off the topbar/composer edges.
           blockPaddingToken="block"
-          // Narrow tracks keep exactly the row focus ring's clearance (2px outline + 2px offset) and no more:
-          // the phone's transcript margin is the room's own inset (owner ruling, about 24px of text margin).
+          // The rows sit the avatar reach in at a narrow width so a chip keeps its whole touch reach inside the
+          // scroller's clip; the composer takes the same edge (`room-composer-anchor.tsx`).
           height="fill"
-          paddingInlineNarrow="tight"
+          paddingInlineNarrow="avatarReach"
         />
         <JumpToLatestPill count={jump.count} visible={jump.visible} onJump={jump.onJump} />
       </Stack>

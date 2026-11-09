@@ -1,6 +1,6 @@
 // The whole read: sources in, one facts object out. Read-only; nothing here writes.
 
-import type { Hit, Source } from "../eslint/index.ts";
+import type { ComponentTables, Hit, Source } from "../eslint/index.ts";
 import { componentTables, declaredVariants, factsOf, lengthTokensOf, loadSources, loadValueTokens, referencedClassConstants } from "../eslint/index.ts";
 import type { Cohort, Comparison } from "../floor/verdict/cohort-compare.ts";
 import { compareCohort } from "../floor/verdict/cohort-compare.ts";
@@ -16,7 +16,7 @@ import type { DuplicateGroup } from "./duplicates.ts";
 import { findDuplicateMaps } from "./duplicates.ts";
 import type { ExceptionEntry } from "./exceptions.ts";
 import { isExcepted } from "./exceptions.ts";
-import type { NoRowUse } from "./hand-classes.ts";
+import type { NoRowUse, UnfollowedUse } from "./hand-classes.ts";
 import { buildHandRolling } from "./hand-rolling.ts";
 import { scanMarkup } from "./markup.ts";
 import { buildMutationCohort } from "./mutations.ts";
@@ -50,6 +50,10 @@ export interface UiFacts {
   readonly handRolling: readonly Hit[];
   /** Class uses on `@orb/ui` elements in the client that no hit covers, by class and component. */
   readonly noRow: readonly NoRowUse[];
+  /** Classes on client wrappers whose `className` the forward reader cannot follow to a primitive. */
+  readonly unfollowed: readonly UnfollowedUse[];
+  /** `door/component.axis:arm` for each `tv()` arm whose classes are built by an expression the reader cannot open. */
+  readonly unreadArms: readonly string[];
   /** Rows of the token scope table that no token in the theme matches. */
   readonly staleScopes: readonly string[];
   readonly sections: readonly string[];
@@ -81,6 +85,22 @@ function clusterFilesOf(sites: readonly Site[]): ReadonlyMap<string, ReadonlySet
   return map;
 }
 
+function unreadArmsOf(tables: ComponentTables): readonly string[] {
+  const found = new Set<string>();
+  for (const [door, components] of tables) {
+    for (const [component, recipe] of components) {
+      for (const [axis, arms] of recipe.declared) {
+        for (const [arm, written] of arms) {
+          if (written.unread) {
+            found.add(`${door}/${component}.${axis}:${arm}`);
+          }
+        }
+      }
+    }
+  }
+  return [...found].sort();
+}
+
 export function analyse(root: string, exceptions: readonly ExceptionEntry[], selection: readonly string[] | null): UiFacts {
   const sources = loadSources(root);
   const sections = [...new Set(sources.map((source) => source.section))].sort();
@@ -98,7 +118,8 @@ export function analyse(root: string, exceptions: readonly ExceptionEntry[], sel
   const sites = live.map((site) => (classifiable(site) ? classifySite(site, context) : site));
   const declared = declaredVariants(root, sources);
   const { cohorts: compositionCohorts, composition } = analyseComposition(sources, files, declared);
-  const census = buildHandRolling({ sources, sites: live, tokens, components: componentTables(root, sources), referenced });
+  const components = componentTables(root, sources);
+  const census = buildHandRolling({ sources, sites: live, tokens, components, referenced });
   const cohorts = [...buildCohorts(files), ...buildCopyCohorts(files), buildMutationCohort(sources), ...compositionCohorts];
   return {
     scanned: countFiles(sources, selection),
@@ -113,6 +134,8 @@ export function analyse(root: string, exceptions: readonly ExceptionEntry[], sel
     composition,
     handRolling: census.hits,
     noRow: census.noRow,
+    unfollowed: census.unfollowed,
+    unreadArms: unreadArmsOf(components),
     staleScopes: tokens.staleScopes,
     sections,
   };

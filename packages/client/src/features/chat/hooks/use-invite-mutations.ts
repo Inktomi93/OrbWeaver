@@ -7,8 +7,8 @@
 //   • createInvite — persists an invite row + (targeted) fans the invitee's durable notification;
 //     the HOST-side read it changes is the invite dialog's outstanding list (`invites.listInvites`) —
 //     no bus event covers it (invites aren't room-public), so it is this mutation's own key. The
-//     result's `token` returns ONCE — the caller builds the /join link. NO errorToast: the invite
-//     dialog surfaces failures inline per mode (the coded target-unknown refusal is field-level copy).
+//     result's `token` returns ONCE — the caller builds the /join link. The invite dialog also surfaces
+//     failures inline per mode (the coded target-unknown refusal is field-level copy).
 //   • previewInvite — semantically a READ riding a mutation (the token-in-URL security shape,
 //     transport header); invalidates nothing.
 //   • redeemInvite — inserts the caller as a participant and emits `chatUpdated` on a chat bus the
@@ -20,10 +20,12 @@
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc } from "#data";
 import { createEntityMutation } from "#data";
+import { DEAD_INVITE_SENTENCE } from "#lib";
 
 export const useCreateInvite = createEntityMutation<inferInput<Trpc["invites"]["createInvite"]>, inferOutput<Trpc["invites"]["createInvite"]>>({
   options: (trpc) => trpc.invites.createInvite.mutationOptions(),
   invalidates: (trpc) => [trpc.invites.listInvites.pathFilter()],
+  errorToast: "Couldn't create the invite link.",
 });
 
 export const useRevokeInvite = createEntityMutation<inferInput<Trpc["invites"]["revokeInvite"]>, unknown>({
@@ -35,7 +37,8 @@ export const useRevokeInvite = createEntityMutation<inferInput<Trpc["invites"]["
 export const usePreviewInvite = createEntityMutation<inferInput<Trpc["invites"]["previewInvite"]>, inferOutput<Trpc["invites"]["previewInvite"]>>({
   options: (trpc) => trpc.invites.previewInvite.mutationOptions(),
   invalidates: () => [],
-  // No errorToast: the join dialog renders the leak-free "invalid or expired" state inline.
+  // The same leak-free sentence the join dialog renders inline, so a toast says nothing the dialog withholds.
+  errorToast: DEAD_INVITE_SENTENCE,
 });
 
 export const useRedeemInvite = createEntityMutation<inferInput<Trpc["invites"]["redeemInvite"]>, inferOutput<Trpc["invites"]["redeemInvite"]>>({

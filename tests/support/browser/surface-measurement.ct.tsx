@@ -7,6 +7,7 @@ import {
   accessibilityScan,
   assertSurfaceReady,
   drainWebVitals,
+  enlargedTextFindings,
   installWebVitals,
   markExpectedSurfaceHttpFailure,
   observeSurfaceSession,
@@ -31,7 +32,13 @@ import { attachNativeFile } from "../node/native-attachments.ts";
 import type { CheckpointStability } from "./layout-stability.ts";
 import { readCheckpointStability, STABILITY_SETTLE_MS } from "./layout-stability.ts";
 import type { SerializedPerformanceEntry } from "./performance-entry.ts";
-import type { SurfaceCodeEditorStory, SurfaceDesignStory, SurfaceTextGeometryStory, SurfaceTouchTilingStory } from "./surface-design-fixtures.tsx";
+import type {
+  SurfaceCodeEditorStory,
+  SurfaceDesignStory,
+  SurfaceTextGeometryStory,
+  SurfaceTextOverlapStory,
+  SurfaceTouchTilingStory,
+} from "./surface-design-fixtures.tsx";
 import type { SurfaceFrameworkStory } from "./surface-framework-fixtures.tsx";
 import type { SurfaceStabilityShift, SurfaceStabilityStory } from "./surface-stability-fixtures.tsx";
 import { hitExtent, touchFloorPx } from "./touch-floor.ts";
@@ -477,7 +484,7 @@ test("the browser text size reaches the mounted document and its media-query rem
   const width = page.viewportSize()?.width ?? 0;
   // The project viewport is a desktop shell at the default size and below the breakpoint at 200%.
   expect(await page.evaluate((query) => matchMedia(query).matches, desktop)).toBe(true);
-  const profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+  await using profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
   expect(width / profile.defaultFontPx).toBeGreaterThan(breakpointRem);
   expect(width / profile.standardFontPx).toBeLessThan(breakpointRem);
   await mount<typeof SurfaceTextGeometryStory>("tests/support/browser/surface-design-fixtures/SurfaceTextGeometryStory", { clipped: false });
@@ -494,7 +501,7 @@ for (const clipped of [false, true]) {
     browserName,
   }, info) => {
     test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
-    const profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+    await using profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
     await page.addInitScript({ content: webVitalsInitScript(await webVitalsSource()) });
     await mount<typeof SurfaceTextGeometryStory>("tests/support/browser/surface-design-fixtures/SurfaceTextGeometryStory", { clipped });
     const witness = page.getByRole("button", { name: "Continue to the next step", exact: true });
@@ -507,6 +514,38 @@ for (const clipped of [false, true]) {
     expect(await nativeAttachmentText(info, `${name}-text-geometry`)).toContain(`"rootFontPx": ${String(profile.standardFontPx)}`);
     expect(info.errors.map(({ message }) => message?.includes("enlarged-text geometry findings"))).toEqual(clipped ? [true] : []);
     test.fail(clipped, "A control a fixed-pixel box clips at enlarged text must fail the native checkpoint");
+  });
+}
+
+test("enlarged-text geometry still names a visible button a fixed box clips, and not a slider's visually hidden input", async ({
+  mount,
+  page,
+  browserName,
+}) => {
+  test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+  await using _textSize = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+  await mount<typeof SurfaceTextGeometryStory>("tests/support/browser/surface-design-fixtures/SurfaceTextGeometryStory", { clipped: true });
+  // The hidden range input is attached and reachable; only its paint keeps it out of the verdict.
+  await expect(page.getByRole("slider", { name: "Reflowing group slider", exact: true })).toBeAttached();
+  expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([
+    expect.stringMatching(/^button "Continue to the next step" \[.*\] clipped on x by div/u),
+  ]);
+});
+
+// Each naming the overlap story offers, and the finding the probe must name it by: a pair with no name carries its boxes.
+const OVERLAP_CASES = [
+  { naming: "content", finding: /^button "Under control" \[.*\] overlaps button "Over control" \[.*\]$/u },
+  { naming: "placeholder", finding: /^input "Search" \[.*\] overlaps input "Filter" \[.*\]$/u },
+  { naming: "none", finding: /^input "" \[\d+,\d+ \d+x\d+\] overlaps input "" \[\d+,\d+ \d+x\d+\]$/u },
+] as const;
+
+for (const { naming, finding } of OVERLAP_CASES) {
+  test(`enlarged-text geometry fails a visible pair that overlaps, named by ${naming}`, async ({ mount, page, browserName }) => {
+    test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+    await using _textSize = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+    await mount<typeof SurfaceTextOverlapStory>("tests/support/browser/surface-design-fixtures/SurfaceTextOverlapStory", { naming });
+    await expect(page.getByRole(naming === "content" ? "button" : "textbox")).toHaveCount(2);
+    expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([expect.stringMatching(finding)]);
   });
 }
 

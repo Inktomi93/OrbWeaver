@@ -30,11 +30,34 @@ const MODEL_SETS = [
     name: "ids that share a readable name",
     ids: ["anthropic/claude-sonnet-4-5", "claude-sonnet-4-5", "Qwen/Qwen3-30B-A3B-W8A8-Dynamic", "/mnt/models/Qwen3-30B-A3B-W8A8-Static"],
   },
+  {
+    // Preview builds and dated releases from two vendors, the shape that collided at 320 px.
+    name: "preview builds of two providers",
+    ids: [
+      "google/gemini-2.5-pro-preview-05-06",
+      "google/gemini-2.5-pro-preview-06-05",
+      "google/gemini-2.5-flash-preview-05-20",
+      "anthropic/claude-sonnet-4-20250514",
+      "anthropic/claude-opus-4-20250514",
+      "anthropic/claude-opus-4-1-20250805",
+      "anthropic/claude-3-7-sonnet-20250219",
+    ],
+  },
+  {
+    // Local vLLM paths: two sizes of one release and a newer release, all sharing a long mid-name and a quantisation tail.
+    name: "local builds of one model family",
+    ids: [
+      "/mnt/models/Llama-3.3-70B-Instruct-abliterated-W8A8-Dynamic-FP8-v2",
+      "/mnt/models/Llama-3.1-70B-Instruct-abliterated-W8A8-Dynamic-FP8-v2",
+      "/mnt/models/Llama-3.1-8B-Instruct-abliterated-W8A8-Dynamic-FP8-v2",
+    ],
+  },
 ] as const;
 
 const REGIMES = [
   { name: "desktop", viewport: { width: 1440, height: 900 }, width: 440, mobile: false },
   { name: "phone", viewport: { width: 390, height: 844 }, width: 390, mobile: true },
+  { name: "narrowest phone", viewport: { width: 320, height: 700 }, width: 320, mobile: true },
 ] as const;
 
 declare global {

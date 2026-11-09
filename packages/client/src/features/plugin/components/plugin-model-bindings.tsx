@@ -98,11 +98,11 @@ function TaskRow({ pluginId, pluginName, task, view, connections }: TaskRowProps
         placeholder={PLUGIN_MODEL_UNSET}
         value={persisted}
       />
-      <Text prose={true} voice="gloss">
+      <Text cap="prose" prose={true} voice="gloss">
         {compatible.length === 0 && persisted === UNSET_VALUE ? PLUGIN_MODEL_NONE_COMPATIBLE : readoutOf(view, connections)}
       </Text>
       {setBinding.error === null ? null : (
-        <Text tone="destructive" prose={true} role="alert">
+        <Text tone="destructive" cap="prose" prose={true} role="alert">
           {pluginModelRefusal(setBinding.error, attempted)}
         </Text>
       )}

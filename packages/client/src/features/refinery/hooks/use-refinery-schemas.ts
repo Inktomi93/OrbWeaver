@@ -11,6 +11,7 @@
 // never an error toast.
 
 import type { RefinerySchemaStage } from "@orb/contracts/refinery";
+import { REFINERY_SCHEMA_PLAN_UNCHECKED_LINE } from "@orb/contracts/refinery";
 import type { RefinerySessionId } from "@orb/kit/ids";
 import type { UseQueryResult } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
@@ -43,11 +44,12 @@ const draftSchema = z.record(z.string(), z.unknown());
 /** How long a draft must stay unchanged before its plan is asked. */
 const SCHEMA_PLAN_SETTLE_MS = 400;
 
-/** The plan ask is a POST because a draft can outgrow a URL; it writes nothing, so it moves no read. Its failure is
- *  the plan line's own "couldn't check" state, not a toast. */
+/** The plan ask is a POST because a draft can outgrow a URL; it writes nothing, so it moves no read. */
 const useAskSchemaPlan = createEntityMutation<inferInput<Trpc["refinery"]["schemaPlan"]>, SchemaPlan>({
   options: (trpc) => trpc.refinery.schemaPlan.mutationOptions(),
   invalidates: () => [],
+  // The plan line also says it, in its own "couldn't check" state; §11 allows both.
+  errorToast: REFINERY_SCHEMA_PLAN_UNCHECKED_LINE,
 });
 
 /** The plan line's state: not yet answered, the server's answer (`null` for a draft the save belt refuses), or no

@@ -49,6 +49,8 @@ export const OWNER_CSS_RENAMES: readonly OwnerCssRename[] = [
   { kind: "slot", name: "persona-row-name", to: null, see: "list-row-title" },
   { kind: "slot", name: "chat-style-stripe", to: "chat-style-tick" },
   { kind: "slot", name: "labels-control-row", to: null, see: "list-search" },
+  // The empty library's line moved from the finder band into the rows, drawn by the shared empty state.
+  { kind: "slot", name: "labels-finder-empty", to: null, see: "empty-state-root" },
   { kind: "slot", name: "stat-figure-delta", to: null },
   { kind: "slot", name: "stat-figure-sparkline", to: null },
   { kind: "slot", name: "compare-block-accept", to: null },
@@ -60,6 +62,8 @@ export const OWNER_CSS_RENAMES: readonly OwnerCssRename[] = [
   { kind: "token", name: "--breakpoint-shell-short", to: null },
   { kind: "token", name: "--stroke-width-icon-hairline", to: null },
   { kind: "token", name: "--height-picker-art-square", to: null },
+  // A container query cannot read a variable, so the step was only ever a value; its one query now reads `--container-cq-7`.
+  { kind: "token", name: "--container-cq-6", to: null, see: "--container-cq-7" },
   { kind: "token", name: "--border-width-accent", to: "--border-width-rule" },
   // Tailwind read both once, at build time, so an override never moved a border; the weight they pointed at is the knob.
   { kind: "token", name: "--default-border-width", to: "--border-width-default" },

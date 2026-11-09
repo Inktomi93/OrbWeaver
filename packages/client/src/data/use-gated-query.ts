@@ -9,7 +9,7 @@ import { skipToken, useQuery } from "@tanstack/react-query";
 
 type GatedOptions<TQueryData, TSelected, TError, TKey extends QueryKey> = Pick<
   UseQueryOptions<TQueryData, TError, TSelected, TKey>,
-  "queryKey" | "queryFn" | "staleTime" | "gcTime" | "meta" | "select" | "placeholderData"
+  "queryKey" | "queryFn" | "staleTime" | "gcTime" | "meta" | "select" | "placeholderData" | "refetchInterval" | "retry"
 >;
 
 /** The stable "disabled" key — one constant so gated-off queries share a single inert cache slot. */

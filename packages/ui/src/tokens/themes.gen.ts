@@ -4,6 +4,9 @@
 /** The seed palette names, in file order: the tuple that owns the keys of `SEED_THEME_VALUE_SETS`. */
 export const SEED_THEME_NAMES = ["light", "mocha"] as const;
 
+/** The props that put a box under the base palette's restated block, for a box nested in another palette's scope. */
+export const BASE_PALETTE_STAMP = { "data-palette": "base" } as const;
+
 /** The seed [data-theme] value-sets, GENERATED from src/tokens/themes/*.json — the same palettes theme.css emits as `[data-theme=…]` blocks, exposed to TS (e.g. the theme picker) so a seed palette has ONE source. */
 export const SEED_THEME_VALUE_SETS = {
   "light": {

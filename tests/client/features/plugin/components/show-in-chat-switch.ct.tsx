@@ -5,7 +5,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { makePluginRow } from "@orb/testkit/node/helpers";
-import { showInChatLabel } from "#client/features/plugin/lib/plugin-copy.ts";
+import { enablePluginLabel, showInChatLabel } from "#client/features/plugin/lib/plugin-copy.ts";
 import type { InstalledPluginsStory } from "./_show-in-chat-stories.tsx";
 
 const STORY = "tests/client/features/plugin/components/_show-in-chat-stories/InstalledPluginsStory";
@@ -34,4 +34,26 @@ test("the panel switch sits within one track gutter of its label's text", async 
   });
   // Beside the label means closer than the label is long; the pinned-to-edge row sat two label-widths away.
   expect((box?.x ?? Number.POSITIVE_INFINITY) - text.right).toBeLessThan(text.width);
+});
+
+test("each card's enable and panel switches share one track and are named for their own plugin", async ({ mount, page }) => {
+  const make = (slug: string, name: string): ReturnType<typeof makePluginRow> =>
+    makePluginRow({ slug, name, status: "enabled", declaredCapabilities: ["ui.surface"], grantedCapabilities: ["ui.surface"] });
+  const plugins = [make("pocket-arcade", "Pocket Arcade"), make("story-clocks", "Story Clocks")];
+  await using root = await createCorpusHarness();
+  const caller = await root.internalCallerFor(root.ownerId);
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings"]),
+    "plugin.list": () => plugins,
+    "plugin.listSurfaces": () =>
+      plugins.map((plugin) => ({ pluginId: plugin.id, id: `${plugin.slug}_flank`, anchor: "chat-flank" as const, title: "Panel", tier: "static" as const })),
+  });
+  const component = await mount<typeof InstalledPluginsStory>(STORY, { width: 960 });
+  for (const plugin of plugins) {
+    // Strict locators: two switches sharing a name make these throw instead of picking one.
+    const enabled = await component.getByRole("switch", { name: enablePluginLabel(plugin.name, true), exact: true }).boundingBox();
+    const shown = await component.getByRole("switch", { name: showInChatLabel(plugin.name), exact: true }).boundingBox();
+    expect(enabled?.x).toBe(shown?.x);
+  }
+  await expect(component.getByText("On", { exact: true })).toHaveCount(0);
 });

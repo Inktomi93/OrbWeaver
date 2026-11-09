@@ -107,10 +107,9 @@ import { Checkbox } from "@orb/ui/checkbox";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { useTRPC } from "#data";
+import { useGatedQuery, useTRPC } from "#data";
 import { CAPABILITY_COPY_ROWS, capabilityCopy, HOSTS_COLLAPSE_AT, hostsDisclosureLabel, NO_IMAGE_MODEL_NOTE, SPEND_ROLE_TASKS } from "../lib/plugin-copy.ts";
 
 /** Whose model roles a spend permission is judged against: an installed plugin's own fold, or the installer's. */
@@ -166,8 +165,9 @@ function unexplainedCount(declared: readonly PluginCapability[]): number {
 function useUnsetSpendRoles(declared: readonly PluginCapability[], scope: PluginGrantRoleScope | undefined): ReadonlySet<PluginCapability> {
   const trpc = useTRPC();
   const roleCapabilities = declared.filter((capability): capability is keyof typeof SPEND_ROLE_TASKS => capability in SPEND_ROLE_TASKS);
-  const input = scope?.kind === "plugin" ? { actor: { kind: "plugin-grant" as const, pluginId: scope.pluginId } } : undefined;
-  const { data: bindings } = useQuery({ ...trpc.connection.listBindings.queryOptions(input), enabled: scope !== undefined && roleCapabilities.length > 0 });
+  const { data: bindings } = useGatedQuery(roleCapabilities.length > 0 ? scope : undefined, (gated) =>
+    trpc.connection.listBindings.queryOptions(gated.kind === "plugin" ? { actor: { kind: "plugin-grant" as const, pluginId: gated.pluginId } } : undefined),
+  );
   if (!Array.isArray(bindings)) {
     return new Set<PluginCapability>();
   }
@@ -314,7 +314,7 @@ export function PluginGrantList({
   return (
     <Stack gap="block">
       {rows.length === 0 ? (
-        <Text prose={true} voice="gloss">
+        <Text cap="prose" prose={true} voice="gloss">
           This plugin asks for no permissions at all. It can run its own code and nothing else.
         </Text>
       ) : (
@@ -335,7 +335,7 @@ export function PluginGrantList({
       )}
 
       {unexplained > 0 ? (
-        <Text prose={true} role="alert" voice="gloss">
+        <Text cap="prose" prose={true} role="alert" voice="gloss">
           {unexplained === 1 ? "This plugin asks for 1 permission" : `This plugin asks for ${unexplained} permissions`} this version of Orbweaver doesn't
           recognise. Update Orbweaver before installing it.
         </Text>
@@ -351,7 +351,7 @@ export function PluginGrantList({
                 screen (10.5px, side-eye P2-5) — the endpoints below it shouted at 15px/regular-foreground
                 while the guarantee whispered. `prose` lifts it to the 13px step (still `gloss`'s muted ink,
                 still visually a caption, just no longer beneath its own claim's weight). */}
-            <Text prose={true} voice="gloss">
+            <Text cap="prose" prose={true} voice="gloss">
               These exact hostnames, and nothing else.
             </Text>
           </Stack>

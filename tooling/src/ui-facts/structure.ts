@@ -60,7 +60,11 @@ export function buildStructureCohort(all: readonly FileFacts[]): Cohort {
   return {
     name: "section-structure",
     what: "feature sections: list, detail, context tabs, empty, loading and error states, and the boundary over list and detail reads",
-    columns: ["list", "detail", "contextTabs", "empty", "loading", "error", "listBoundary", "detailBoundary"],
+    // A spread, no convention. Which panes a section has is its definition's choice (client-architecture-lockdown.md §6a).
+    // A feature folder is no surface: its reads may sit in a host's boundary, and a singleton read has no empty arm, so
+    // the three states and the boundary are judged per surface (list-pane, editor, context-tab) and per read (read-shape).
+    columns: [],
+    info: ["list", "detail", "contextTabs", "empty", "loading", "error", "listBoundary", "detailBoundary"],
     basis: {
       list: "measured",
       detail: "measured",

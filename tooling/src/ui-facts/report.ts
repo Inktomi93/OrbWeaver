@@ -252,15 +252,27 @@ function outlierBlock(scope: Scope, entry: Comparison, full: boolean): string[] 
             defects.map((outlier) => [outlier.at, outlier.label, outlier.value]),
           ),
         ];
+  const keptBlock =
+    entry.kept.length === 0
+      ? []
+      : [
+          `${entry.cohort} / ${entry.column}: ${entry.kept.reduce((sum, kept) => sum + kept.count, 0)} member(s) kept by a ruling`,
+          "",
+          ...table(
+            ["value", "at", "members", "ruling"],
+            entry.kept.map((kept) => [kept.value, kept.at ?? "every member holding it", kept.count, kept.reason]),
+          ),
+        ];
   const shown = entry.outliers.filter(
     (outlier) => scope.inScope(outlier.section) && !defects.some((defect) => defect.at === outlier.at && defect.value === outlier.value),
   );
   if (shown.length === 0) {
-    return defectBlock;
+    return [...defectBlock, ...keptBlock];
   }
   const rows = (full ? shown.slice(0, FULL_RUN_OUTLIER_CAP) : shown).map((outlier) => [outlier.at, outlier.label, outlier.value]);
   return [
     ...defectBlock,
+    ...keptBlock,
     `${entry.cohort} / ${entry.column}: ${shown.length} outlier(s) from "${entry.majority}"`,
     "",
     ...table(["at", "member", "value"], rows),

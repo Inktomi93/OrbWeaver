@@ -1,6 +1,8 @@
 // Layout recipes define spacing intent; features consume the variants. Line-local exceptions license custom tracks.
 import {
   ARRIVAL,
+  AVATAR_REACH_GAP,
+  AVATAR_REACH_PADDING,
   CAP,
   CAPTION,
   CARD_CORNERS,
@@ -124,6 +126,7 @@ const PADDING_INLINE_NARROW = {
   tight: "@max-cq-28:px-tight",
   row: "@max-cq-28:px-row",
   block: "@max-cq-28:px-block",
+  avatarReach: AVATAR_REACH_PADDING,
 } as const;
 // The same, on the inline-end edge alone: a box whose start edge holds what sits beside it keeps that inset at every width.
 const PADDING_INLINE_END_NARROW = {
@@ -132,12 +135,13 @@ const PADDING_INLINE_END_NARROW = {
   block: "@max-cq-28:pe-block",
 } as const;
 // The gap a box gives up below the same step, as `paddingInlineNarrow` gives up its inset. It only steps down to none, a small atom or a
-// related-control gap, so the larger steps are no member.
+// related-control gap, so the larger steps are no member, except `avatarReach`: a transcript chip needs a touch reach clear of its bubble.
 const GAP_NARROW = {
   none: "@max-cq-28:gap-0",
   tight: "@max-cq-28:gap-tight",
   field: "@max-cq-28:gap-field",
   row: "@max-cq-28:gap-row",
+  avatarReach: AVATAR_REACH_GAP,
 } as const;
 // A nested level: what hangs under a parent row or beside a leading rule, one `block` step in, because a nested group is a block of its
 // parent (UI-Density-Law.md §2.2). One step at every level, so a feature never picks an indent.
@@ -312,8 +316,9 @@ export const stackVariants = tv({
     // `page` is the grid a pinned band stays pinned in.
     readingFlow: { weld: "flex-row", page: "grid" },
     // A loading box that holds the length its caller writes to `--stack-reserve`. `gives` is a picker's: on a landscape phone the box it stands in for
-    // takes the room its dialog leaves, so the skeleton asks for no length of its own and its rows fill and shrink to the same remainder.
-    reserve: { exact: "block-(--stack-reserve)", gives: "block-(--stack-reserve) dialog-short:glass-short:block-auto" },
+    // takes the room its dialog leaves, so the skeleton asks for no length of its own and its rows fill and shrink to the same remainder; where the
+    // picker's door row changes its height or leaves its box, a length that names that row follows it.
+    reserve: { exact: "block-(--stack-reserve)", gives: "orb-reserve-picker-door-row block-(--stack-reserve) dialog-short:glass-short:block-auto" },
     // THE ROW-PITCH FLOOR (#884 C3 — #850's class: rows of floorless inline-edit affordances stacked at a
     // sub-floor pitch, so a Button's hit pseudo overflows onto the NEIGHBOUR ROW'S TEXT and loses
     // hit-testing to it; 28 P1 tap-targets on one rpg tab). `control` floors every DIRECT child at the

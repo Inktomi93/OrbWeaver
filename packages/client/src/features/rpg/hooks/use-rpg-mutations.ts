@@ -391,4 +391,5 @@ type RollDiceOutcome = inferOutput<Trpc["rpg"]["rollDice"]>;
 export const useRollDice = createEntityMutation<inferInput<Trpc["rpg"]["rollDice"]>, RollDiceOutcome>({
   options: (trpc) => trpc.rpg.rollDice.mutationOptions(),
   invalidates: () => [],
+  errorToast: "Couldn't roll the dice.",
 });

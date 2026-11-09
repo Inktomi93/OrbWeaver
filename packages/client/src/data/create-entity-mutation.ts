@@ -77,10 +77,12 @@ interface EntityMutationBase<TVars, TData, TRead> {
         readonly allowed: (vars: TVars) => boolean;
         readonly update: (old: TRead | undefined, data: TData, vars: TVars) => TRead | undefined;
       };
-  /** Optional global-toast message on failure (rides mutation `meta` → MutationCache.onError). A function
-   *  form may return `null` to suppress the toast for a specific error (e.g. a stale turn abort the bus
-   *  surfaces its own notice for — see `isSilencedTurnAbort`). */
-  readonly errorToast?: string | ((error: unknown) => string | null);
+  /** The global-toast message on failure (rides mutation `meta` → MutationCache.onError). Required because
+   *  every mutation hook keeps its toast (client-architecture-state-and-gates.md §11): a consumer's inline
+   *  text adds to it, never replaces it. A function form may return `null` to suppress the toast for a
+   *  specific error that another surface already tells (e.g. a stale turn abort the bus surfaces its own notice
+   *  for — see `isSilencedTurnAbort`). */
+  readonly errorToast: string | ((error: unknown) => string | null);
   /**
    * ERRORS-AS-DATA — the THIRD outcome class, beside "resolved" and "threw" (EDITSNAP-OK).
    *
@@ -219,7 +221,7 @@ export function createEntityMutation<TVars, TData, TRead = unknown>(
 
     const mutation = useMutation<TData, DefaultError, TVars, OptimisticContext<TRead>>({
       ...config.options(trpc),
-      ...(config.errorToast === undefined ? {} : { meta: { errorToast: config.errorToast } }),
+      meta: { errorToast: config.errorToast },
       onMutate: async (vars, context): Promise<OptimisticContext<TRead>> => {
         if (config.optimistic === undefined) {
           return { snapshot: undefined, readKey: null, owner: null };

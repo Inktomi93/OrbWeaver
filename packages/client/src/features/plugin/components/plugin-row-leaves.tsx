@@ -181,12 +181,12 @@ export function UpdateCheckRow({ plugin }: { readonly plugin: PluginView }): Rea
         </Button>
       ) : null}
       {verdict.kind === "up-to-date" ? (
-        <Text prose={true} voice="gloss">
+        <Text cap="prose" prose={true} voice="gloss">
           {UPDATE_UP_TO_DATE_LINE}
         </Text>
       ) : null}
       {verdict.kind === "unreachable" ? (
-        <Text prose={true} voice="gloss">
+        <Text cap="prose" prose={true} voice="gloss">
           {UPDATE_UNREACHABLE_LINE}
         </Text>
       ) : null}

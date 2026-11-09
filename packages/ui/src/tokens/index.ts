@@ -275,12 +275,14 @@ export const TOKENS = {
   "leading.label-relaxed": { cssVar: "--leading-label-relaxed", value: "round(up, 1.25rem, 1px)" },
   "leading.code-field": { cssVar: "--leading-code-field", value: "round(up, max(1.5rem, 24px), 1px)" },
   "leading.micro": { cssVar: "--leading-micro", value: "round(up, 0.8125rem, 1px)" },
-  "container.cq-6": { cssVar: "--container-cq-6", value: "6rem" },
+  "container.cq-7": { cssVar: "--container-cq-7", value: "7rem" },
   "container.cq-8": { cssVar: "--container-cq-8", value: "8rem" },
   "container.cq-12": { cssVar: "--container-cq-12", value: "12rem" },
+  "container.cq-13-5": { cssVar: "--container-cq-13-5", value: "13.5rem" },
   "container.cq-14": { cssVar: "--container-cq-14", value: "14rem" },
   "container.cq-15": { cssVar: "--container-cq-15", value: "15rem" },
   "container.cq-16": { cssVar: "--container-cq-16", value: "16rem" },
+  "container.cq-16-75": { cssVar: "--container-cq-16-75", value: "16.75rem" },
   "container.cq-20": { cssVar: "--container-cq-20", value: "20rem" },
   "container.cq-24": { cssVar: "--container-cq-24", value: "24rem" },
   "container.cq-26": { cssVar: "--container-cq-26", value: "26rem" },
@@ -415,6 +417,7 @@ export const TOKENS = {
   "spacing.combobox-wrap-lg": { cssVar: "--spacing-combobox-wrap-lg", value: "max(var(--spacing-field), calc(var(--size-touch-target) - var(--size-control-lg) + 2 * var(--border-width-control) + 2 * var(--spacing-field)))" },
   "size.switch-travel": { cssVar: "--size-switch-travel", value: "calc(var(--size-switch-track) - var(--size-switch-track-height))" },
   "spacing.glyph-bleed": { cssVar: "--spacing-glyph-bleed", value: "calc((var(--size-touch-target) - var(--size-glyph-xs)) / 2)" },
+  "spacing.avatar-reach": { cssVar: "--spacing-avatar-reach", value: "max(var(--spacing-field), calc((var(--size-touch-target) - var(--size-avatar-sm)) / 2))" },
   "size.name-row-min": { cssVar: "--size-name-row-min", value: "calc(var(--size-glyph-lg) - 2 * var(--spacing-row))" },
   "height.prose-cap": { cssVar: "--height-prose-cap", value: "60cqh" },
   "height.picker-art-landscape": { cssVar: "--height-picker-art-landscape", value: "calc(round(nearest, 100cqw * 9 / 16, 1px))" },
@@ -563,12 +566,14 @@ export const LENGTH_BASE_PX = {
   "leading.label-relaxed": 20,
   "leading.code-field": 24,
   "leading.micro": 13,
-  "container.cq-6": 96,
+  "container.cq-7": 112,
   "container.cq-8": 128,
   "container.cq-12": 192,
+  "container.cq-13-5": 216,
   "container.cq-14": 224,
   "container.cq-15": 240,
   "container.cq-16": 256,
+  "container.cq-16-75": 268,
   "container.cq-20": 320,
   "container.cq-24": 384,
   "container.cq-26": 416,
@@ -689,4 +694,4 @@ export function cssVar(path: TokenPath): string {
 }
 
 /** The seed [data-theme] value-sets — their own generated module (see tokens.build.ts), re-exported here so `@orb/ui/tokens` stays the ONE import for every token surface. */
-export { SEED_THEME_NAMES, SEED_THEME_VALUE_SETS } from "./themes.gen.ts";
+export { BASE_PALETTE_STAMP, SEED_THEME_NAMES, SEED_THEME_VALUE_SETS } from "./themes.gen.ts";

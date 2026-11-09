@@ -2,6 +2,7 @@
 import ts from "typescript";
 import type { Hit, Judgement, Lit, Place, Source, ValueTokens } from "../eslint/index.ts";
 import { conditionStringLits, hitOf, judgeLit, keepJudgement, lineOf, lit, QUERY_PROPERTY, tokensHolding, unwrap, valueStringLits } from "../eslint/index.ts";
+import { numberOf, staticTemplate } from "./syntax.ts";
 
 const MAX_STRING = 120;
 const REM_PX = 16;
@@ -11,7 +12,10 @@ const MIN_REPEAT_FILES = 2;
 // A class attribute and a style prop are read by their own passes; a module specifier is not a value.
 const CLASS_OR_STYLE_ATTRIBUTE = /^(?:className|style|[a-z][A-Za-z]*ClassName)$/u;
 const UNIT_WORDS: Readonly<Record<string, "ms" | "s" | "px" | "rem">> = { ms: "ms", sec: "s", seconds: "s", px: "px", rem: "rem" };
+// A timer is read as a bare call or as a member (`globalThis.setTimeout`); a timing hook is named for what it waits on.
 const TIMER_CALLEES: ReadonlySet<string> = new Set(["setTimeout", "setInterval", "debounce", "throttle"]);
+const TIMING_HOOK = /^use(?:[A-Z]\w*?)?(?:Debounced?|Throttled?|Interval|Timeout|Delay(?:ed)?)(?:[A-Z]\w*)?$/u;
+const DELAY_WORDS: ReadonlySet<string> = new Set(["delay", "duration", "timeout", "interval"]);
 const SENTINEL_WORDS: ReadonlySet<string> = new Set(["sentinel", "sentinels"]);
 // A constant named for the browser's own control (`FALLBACK_NATIVE_HEX`) holds what that control's value grammar takes.
 const NATIVE_WORDS: ReadonlySet<string> = new Set(["native"]);
@@ -25,7 +29,9 @@ export interface Constant {
   readonly unit: "ms" | "s" | "px" | "rem";
   readonly found: Lit;
   readonly place: Place;
-  readonly where: "constant" | "timer";
+  /** The timer or hook a delay is handed to; null for a declared constant or a prop. */
+  readonly callee: string | null;
+  readonly where: "constant" | "timer" | "prop";
 }
 
 interface Reader {
@@ -35,8 +41,13 @@ interface Reader {
 
 const placeOf = ({ source, sf }: Reader, node: ts.Node): Place => ({ path: source.path, line: lineOf(sf, node), section: source.section, layer: source.layer });
 
-function stringNodes(sf: ts.SourceFile): readonly ts.StringLiteralLike[] {
-  const out: ts.StringLiteralLike[] = [];
+interface StringNode {
+  readonly node: ts.Node;
+  readonly text: string;
+}
+
+function stringNodes(sf: ts.SourceFile): readonly StringNode[] {
+  const out: StringNode[] = [];
   const read = (node: ts.Node): void => {
     const skipped =
       ts.isImportDeclaration(node) ||
@@ -48,7 +59,12 @@ function stringNodes(sf: ts.SourceFile): readonly ts.StringLiteralLike[] {
       return;
     }
     if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
-      out.push(node);
+      out.push({ node, text: node.text });
+    }
+    const built = ts.isTemplateExpression(node) ? staticTemplate(node) : null;
+    if (built !== null) {
+      out.push({ node, text: built });
+      return;
     }
     ts.forEachChild(node, read);
   };
@@ -80,8 +96,8 @@ function declaredKeep(node: ts.Node): "sentinel" | "dom-api-literal" | null {
 }
 
 function stringHits(reader: Reader, tokens: ValueTokens): readonly Hit[] {
-  return stringNodes(reader.sf).flatMap((node) => {
-    const text = node.text.trim();
+  return stringNodes(reader.sf).flatMap(({ node, text: written }) => {
+    const text = written.trim();
     const condition = text.startsWith("(");
     return stringLits(text).map((found) => {
       const kept = declaredKeep(node);
@@ -90,35 +106,6 @@ function stringHits(reader: Reader, tokens: ValueTokens): readonly Hit[] {
       return hitOf(placeOf(reader, node), { category, where: condition ? "query" : "string", detail: `"${text}"` }, judgement);
     });
   });
-}
-
-type Arithmetic = (left: number, right: number) => number;
-
-const ARITHMETIC: ReadonlyMap<ts.SyntaxKind, Arithmetic> = new Map<ts.SyntaxKind, Arithmetic>([
-  [ts.SyntaxKind.AsteriskToken, (left: number, right: number): number => left * right],
-  [ts.SyntaxKind.PlusToken, (left: number, right: number): number => left + right],
-  [ts.SyntaxKind.MinusToken, (left: number, right: number): number => left - right],
-  [ts.SyntaxKind.SlashToken, (left: number, right: number): number => left / right],
-]);
-
-function numberOf(expression: ts.Expression): number | null {
-  const node = unwrap(expression);
-  if (ts.isNumericLiteral(node)) {
-    return Number(node.text);
-  }
-  if (ts.isPrefixUnaryExpression(node) && node.operator === ts.SyntaxKind.MinusToken) {
-    const inner = numberOf(node.operand);
-    return inner === null ? null : -inner;
-  }
-  if (!ts.isBinaryExpression(node)) {
-    return null;
-  }
-  const left = numberOf(node.left);
-  const right = numberOf(node.right);
-  if (left === null || right === null) {
-    return null;
-  }
-  return ARITHMETIC.get(node.operatorToken.kind)?.(left, right) ?? null;
 }
 
 /** Words of an identifier, lower-cased: `SEARCH_DEBOUNCE_MS` and `searchDebounceMs` both read search, debounce, ms. */
@@ -136,25 +123,73 @@ function constantLit(unit: Constant["unit"], amount: number): Lit {
   return lit("length", `${amount * (unit === "rem" ? REM_PX : 1)}px`);
 }
 
-function constantOf(reader: Reader, name: string, expression: ts.Expression, node: ts.Node): Constant | null {
-  const words = wordsOf(name);
-  const unit = UNIT_WORDS[words.at(-1) ?? ""];
-  const amount = numberOf(expression);
+function unitOf(words: readonly string[]): Constant["unit"] | undefined {
   // `PER_SEC` names a rate, not a duration.
-  if (unit === undefined || amount === null || amount <= 0 || words.at(-2) === "per") {
-    return null;
-  }
-  return { name, words, word: words.at(-2) ?? name, unit, found: constantLit(unit, amount), place: placeOf(reader, node), where: "constant" };
+  return words.at(-2) === "per" ? undefined : UNIT_WORDS[words.at(-1) ?? ""];
 }
 
-function timerOf(reader: Reader, call: ts.CallExpression): Constant | null {
-  const callee = ts.isIdentifier(call.expression) ? call.expression.text : null;
-  const delay = call.arguments[1];
-  const amount = callee === null || delay === undefined || !TIMER_CALLEES.has(callee) ? null : numberOf(delay);
-  return callee === null || amount === null || amount <= 0
-    ? null
-    : { name: callee, words: [callee], word: callee, unit: "ms", found: constantLit("ms", amount), place: placeOf(reader, call), where: "timer" };
+function constantOf(reader: Reader, name: string, expression: ts.Expression, node: ts.Node): Constant | null {
+  const words = wordsOf(name);
+  const unit = unitOf(words);
+  const amount = numberOf(expression);
+  if (unit === undefined || amount === null || amount <= 0) {
+    return null;
+  }
+  return { name, callee: null, words, word: words.at(-2) ?? name, unit, found: constantLit(unit, amount), place: placeOf(reader, node), where: "constant" };
 }
+
+/** The number a delay or measure argument writes, and the const it reads it through; a unit-named const is the constant pass's, so it is null here. */
+function delayOf(expression: ts.Expression): { readonly amount: number; readonly via: string | null } | null {
+  const node = unwrap(expression);
+  const via = ts.isIdentifier(node) ? node.text : null;
+  if (via !== null && unitOf(wordsOf(via)) !== undefined) {
+    return null;
+  }
+  const amount = numberOf(node, true);
+  return amount === null || amount <= 0 ? null : { amount, via };
+}
+
+/** A delay a timer or a timing hook takes as its second argument: a literal, or a same-file const named without a unit word. */
+function timerOf(reader: Reader, call: ts.CallExpression): Constant | null {
+  const callee = calleeName(call.expression);
+  const delay = call.arguments[1];
+  const found = callee === null || delay === undefined || !(TIMER_CALLEES.has(callee) || TIMING_HOOK.test(callee)) ? null : delayOf(delay);
+  if (callee === null || found === null) {
+    return null;
+  }
+  const name = found.via ?? callee;
+  const words = wordsOf(name);
+  return { name, callee, words, word: words.at(-1) ?? name, unit: "ms", found: constantLit("ms", found.amount), place: placeOf(reader, call), where: "timer" };
+}
+
+/** A number on a JSX prop whose name ends in a unit word or a timing word: `fallbackDelay={300}`, `thumbPx={24}`. */
+function propOf(reader: Reader, attribute: ts.JsxAttribute): Constant | null {
+  const init = attribute.initializer;
+  const name = attribute.name.getText(reader.sf);
+  const words = wordsOf(name);
+  const unit = unitOf(words) ?? (DELAY_WORDS.has(words.at(-1) ?? "") ? "ms" : undefined);
+  const found = unit === undefined || init === undefined || !ts.isJsxExpression(init) || init.expression === undefined ? null : delayOf(init.expression);
+  if (unit === undefined || found === null) {
+    return null;
+  }
+  return {
+    name,
+    callee: null,
+    words,
+    word: words.at(-2) ?? name,
+    unit,
+    found: constantLit(unit, found.amount),
+    place: placeOf(reader, attribute),
+    where: "prop",
+  };
+}
+
+const calleeName = (callee: ts.Expression): string | null => {
+  if (ts.isIdentifier(callee)) {
+    return callee.text;
+  }
+  return ts.isPropertyAccessExpression(callee) ? callee.name.text : null;
+};
 
 function declaredConstant(reader: Reader, node: ts.Node): Constant | null {
   if (ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer !== undefined) {
@@ -162,6 +197,9 @@ function declaredConstant(reader: Reader, node: ts.Node): Constant | null {
   }
   if (ts.isPropertyAssignment(node) && (ts.isIdentifier(node.name) || ts.isStringLiteral(node.name))) {
     return constantOf(reader, node.name.text, node.initializer, node);
+  }
+  if (ts.isJsxAttribute(node)) {
+    return propOf(reader, node);
   }
   return ts.isCallExpression(node) ? timerOf(reader, node) : null;
 }
@@ -245,6 +283,16 @@ function constantJudgement(
   return { category: "raw-value", judgement: keepJudgement("single-constant", `${constant.name} = ${constant.found.canon}`) };
 }
 
+function constantDetail({ name, callee, found, where }: Constant): string {
+  if (where === "prop") {
+    return `${name}={${found.canon}}`;
+  }
+  if (callee === null) {
+    return `${name} = ${found.canon}`;
+  }
+  return `${callee}(…, ${name === callee ? "" : `${name} = `}${found.canon})`;
+}
+
 /** A timing constant that equals a motion token, a value several constants repeat, or neither. */
 export function constantHits(constants: readonly Constant[], tokens: ValueTokens): readonly Hit[] {
   const groups = new Map<string, Constant[]>();
@@ -253,7 +301,7 @@ export function constantHits(constants: readonly Constant[], tokens: ValueTokens
   }
   return constants.map((constant) => {
     const { judgement, category } = constantJudgement(constant, groups.get(groupKey(constant)) ?? [], tokens);
-    const detail = constant.where === "timer" ? `${constant.name}(…, ${constant.found.canon})` : `${constant.name} = ${constant.found.canon}`;
+    const detail = constantDetail(constant);
     return hitOf(constant.place, { category, where: constant.where, detail }, judgement);
   });
 }

@@ -50,12 +50,15 @@ export const CHAT_EARLIER_MESSAGES_NAME = "Earlier messages";
 export const CHAT_HISTORY_DISMISS_NAME = "Dismiss";
 export const CHAT_HISTORY_FAILURE_COPY = {
   press: "Couldn't load earlier messages.",
-  refresh: "Couldn't refresh the messages loaded here.",
+  refresh: "Couldn't refresh these messages.",
   bridge: "Couldn't load the messages between here and the latest.",
   offline: "You're offline. History will load when you're back.",
 } as const;
 export const CHAT_WINDOW_PRESS_FAILURE = "Couldn't load more messages.";
 export const CHAT_SAVED_ROSTER_DOOR_NAME = "Start from a saved roster";
+
+/** New chat's pinned cue where the dialog has no room to pin Blank chat with Start, so it sits after them. */
+export const CHAT_MORE_BELOW_CUE = "More below";
 export const CHAT_EXPORT_TRANSCRIPT_NAME = "Export transcript";
 export const CHAT_MESSAGE_INPUT_NAME = "Message";
 export const CHAT_COMPOSER_NAME = "Message composer";

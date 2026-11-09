@@ -52,7 +52,7 @@ function AdminLinkSsoBody({ anchorId }: { readonly anchorId: string }): ReactEle
   return (
     <Section container={true} divider={true} heading={ADMIN_LINK_SSO_SUBCATEGORY.label} id={anchorId}>
       <Stack gap="row" data-testid={testId("adminLinkSsoSection")}>
-        <Text voice="label" ink="muted">
+        <Text cap="prose" voice="label" ink="muted">
           Link a local account to its stable SSO subject so a switch to single sign-on migrates it in place. Otherwise a user whose IdP username differs from
           their handle gets a brand-new account and loses their data. Only unlinked, non-owner accounts appear here.
         </Text>

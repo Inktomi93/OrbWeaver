@@ -2,13 +2,15 @@
 // it reaches across each kind of thing. The finder lists the tags; this pane states what no row can.
 
 import { Button } from "@orb/ui/button";
+import { EmptyState } from "@orb/ui/empty-state";
+import { Icon, Tag } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import { CountText } from "#components";
-import { CORPUS_MODE_LABELS, LABELS_BLURB, LABELS_EMPTY, useFocusOnMount, useFocusOnSwap } from "#lib";
+import { CORPUS_MODE_LABELS, LABELS_BLURB, LABELS_EMPTY, LABELS_NONE, useFocusOnMount, useFocusOnSwap } from "#lib";
 import { useMobileViewport, useSectionListMode } from "#state";
 import { LabelsSuggestions } from "../components/labels-suggestions.tsx";
 import type { TagLibraryFact } from "../hooks/use-tag-library.ts";
@@ -45,11 +47,7 @@ function LibraryBody({ summary }: { readonly summary: ReturnType<typeof useTagLi
   // An empty library TEACHES here and offers no second create verb: the finder's band carries the one
   // `New tag`, and one verb on one screen is the ruled count.
   if (summary.count === 0) {
-    return (
-      <Text prose={true} voice="gloss">
-        {LABELS_EMPTY}
-      </Text>
-    );
+    return <EmptyState action={null} description={LABELS_EMPTY} icon={<Icon icon={Tag} size="lg" />} title={LABELS_NONE} />;
   }
   return (
     <Section heading="Library">

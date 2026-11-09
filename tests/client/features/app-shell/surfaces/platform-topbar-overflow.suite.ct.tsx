@@ -3,7 +3,7 @@
 // the menu trigger. The topbar trail and each list band declare a menu form per action; each form opens the surface its inline
 // control opens.
 
-import { TRAIL_OVERFLOW_LABEL } from "@orb/client/components";
+import { TRAIL_OVERFLOW_LABEL } from "@orb/client/lib";
 import { enlargeUntilVisible, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";

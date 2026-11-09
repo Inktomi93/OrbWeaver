@@ -22,7 +22,7 @@ updated: 2026-10-16
 
 - **`createEntityMutation`** — bakes the canonical 4-phase optimistic flow: `onMutate` = `cancelQueries` → snapshot → `setQueryData` patch → return rollback; `onError` restores; `onSettled` invalidates **via the central seam**. Uses the `context.client` arg (provider-clean). A lightweight variables-render mode for append-only creates. **Resets the v5 sticky error on next `mutate`.** Returns ONE error slot per mutation (`{ error, clear() }`), never multiplexed.
 - **`createCollectionSurface`** — one machine for every browse view. Feature supplies the (infinite) query + row renderer + filter config + bulk actions. Bakes `useInfiniteQuery` (never `maxPages`: `orb/windowed-infinite-query` refuses it, because a page window evicts the head of a list being scrolled) + `placeholderData: keepPreviousData` gated on `isPlaceholderData`, the virtual-list seal, the selection store, empty/loading/error, and the tail-fetch guard **off the virtualizer's own range** — no `react-intersection-observer`.
-- **`useGatedQuery` / `skipToken`** — a null id yields `skipToken` (never builds the key); kills the `castId("")` sentinel (ESLint `orb/no-fake-disabled-id`).
+- **`useGatedQuery` / `skipToken`** — a null id yields `skipToken` (never builds the key); kills the `castId("")` sentinel (ESLint `orb/no-fake-disabled-id`). It returns a `UseQueryResult` and never suspends, so a `QueryBoundary` above it catches nothing.
 - **`<QueryBoundary>`** — the `QueryErrorResetBoundary` → `ErrorBoundary onReset` handshake (a retry that actually refetches) + `useSuspenseQuery`/`useSuspenseQueries` (non-null data, Compiler-clean; queries-plural for parallel) + `useTransition` around pane switches (pairs with `<Activity>`). Every error boundary (this one, `MarkdownErrorBoundary`, sandbox-frame failures) attaches `captureOwnerStack()` in a DEV-only `onError` — owner-stack attribution for throws from deep inside sealed satellites; no-op in prod.
 - **`createSavedEntityForm` / `createAutosaveEntityForm`** — the editor factories (§13.4 for the six-obligation contract + the surface map).
 - **`@orb/ui/virtual-list` (generic) + `@orb/ui/message-list` (chat)** — BUILT (§11.3).
@@ -37,7 +37,7 @@ updated: 2026-10-16
 | a browse/list/grid of entities | `createCollectionSurface` | a hand-wired query+list+filter |
 | an entity edit/create form (≥3 fields) | a **form factory** (§13.4) | a hand-rolled `useAppForm` |
 | a create/update/delete action | `createEntityMutation` | inline `useMutation` + `setQueryData` |
-| a read that shows loading/error | `useGatedQuery` in `<QueryBoundary>` | bare `useQuery` + `isPending` ladders |
+| a read that shows loading/error | `useSuspenseQuery` in `<QueryBoundary>` | a bare `useQuery` or `useGatedQuery` + `isPending` ladder |
 | a conditional/disabled query | `useGatedQuery` (`skipToken`) | `castId("")` + `enabled` |
 | a search/filter box over a big collection | `useDeferredValue(query, { initialValue })` feeding the list | a debounce hack · filtering inside a transition |
 | a virtualized list | `@orb/ui/virtual-list` | raw `useVirtualizer` |
