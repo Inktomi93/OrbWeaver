@@ -134,7 +134,7 @@ function TopbarTitle({ shellLine = false, children }: { readonly shellLine?: boo
 }
 
 /** The NARROW identity's screen name. A census sits beside the name as its own part: the name is the title's floor, so the
- *  trail folds before the name is cut, and the census is what the row cuts first. */
+ *  trail folds before the name is cut, and the census is what the row drops first, whole (`chrome.css`). */
 function ScreenName({ title }: { readonly title: ScreenTitle }): ReactElement {
   if (title.census === undefined) {
     return <TopbarTitle shellLine={true}>{title.name}</TopbarTitle>;
@@ -144,8 +144,10 @@ function ScreenName({ title }: { readonly title: ScreenTitle }): ReactElement {
       <Text as="span" className="shell-topbar-title-name" truncate={true} voice="masthead">
         {title.name}
       </Text>
-      <Text as="span" className="shell-topbar-title-census" truncate={true} voice="masthead">
-        {censusSuffix(title.census)}
+      <Text as="span" className="shell-topbar-title-census" voice="masthead">
+        <Text as="span" voice="masthead">
+          {censusSuffix(title.census)}
+        </Text>
       </Text>
     </Text>
   );

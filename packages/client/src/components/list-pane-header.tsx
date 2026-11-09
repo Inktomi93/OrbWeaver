@@ -18,7 +18,8 @@ import { Button } from "@orb/ui/button";
 import { ChevronLeft, Icon } from "@orb/ui/icons";
 import { Row } from "@orb/ui/layout";
 import { Heading, Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
 import type { ListPaneHeaderProps, OverflowMenuItem } from "#lib";
 import { BAND_OVERFLOW_LABEL, LIST_PANE_TITLE_ID } from "#lib";
 import { CountText } from "./count-text.tsx";
@@ -34,6 +35,38 @@ function CompactAction({ command }: { readonly command: OverflowMenuItem }): Rea
         <Icon icon={command.icon} size="sm" />
       </Button>
     </Tip>
+  );
+}
+
+/**
+ * An unscoped band's census. Its box is the room the band leaves the figure, and the figure is cut when that is less than the text:
+ * a cut figure reads as another number, so the band hides it whole. The text stays in the DOM, so the heading's name still carries it.
+ * The box keeps its width while the figure is hidden, so the read cannot flip back and forth.
+ */
+function CutCensus({ children }: { readonly children: ReactNode }): ReactElement {
+  const ref = useRef<HTMLParagraphElement>(null);
+  const [cut, setCut] = useState(false);
+  // The box changes size when the room does, and the text changes with no change to the box when the census does.
+  useLayoutEffect(() => {
+    const census = ref.current;
+    if (census === null) {
+      return (): void => undefined;
+    }
+    const read = (): void => setCut(census.scrollWidth > census.clientWidth);
+    read();
+    const resized = new ResizeObserver(read);
+    const retyped = new MutationObserver(read);
+    resized.observe(census);
+    retyped.observe(census, { characterData: true, childList: true, subtree: true });
+    return (): void => {
+      resized.disconnect();
+      retyped.disconnect();
+    };
+  }, []);
+  return (
+    <Text as="span" data-slot="list-pane-census" ink="muted" voice="label" numeric={true} truncate={true} unpainted={cut} ref={ref}>
+      {children}
+    </Text>
   );
 }
 
@@ -119,13 +152,9 @@ export function ListPaneHeader({ title, accent, count, back, actions }: ListPane
           {/* THE COUNT RIDES `label`, NOT `micro` (#1136): beside a 24px name a 10.5px datum is not quiet, it is
               unreadable; the step is a legibility call. It wears the title's family (an unlabelled mono figure
               beside a sans name reads as a stray datum) with tabular figures so it does not jitter. A scoped band's
-              census stays whole, because its entity name is what gives. An unscoped band's census gives, ellipsized,
-              and its whole text stays in the DOM for assistive tech. */}
-          {hasCensus && accent === undefined ? (
-            <Text as="span" data-slot="list-pane-census" ink="muted" voice="label" numeric={true} truncate={true}>
-              {count}
-            </Text>
-          ) : null}
+              census stays whole, because its entity name is what gives. An unscoped band's census gives its room, and
+              is not painted at all when it would be cut. */}
+          {hasCensus && accent === undefined ? <CutCensus>{count}</CutCensus> : null}
           {hasCensus && accent !== undefined ? <CountText>{count}</CountText> : null}
         </Heading>
       </Row>
