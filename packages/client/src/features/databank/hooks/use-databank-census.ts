@@ -13,7 +13,7 @@ import type { UseQueryResult } from "@tanstack/react-query";
 import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { Trpc, TrpcReadError } from "#data";
-import { useTRPC } from "#data";
+import { useGatedQuery, useTRPC } from "#data";
 import { filteredCensus, SEARCH_DEBOUNCE_MS, useDebouncedValue } from "#lib";
 import { useDatabankPhaseFilter, useDatabankSearchQuery } from "#state";
 
@@ -40,12 +40,12 @@ export function useDatabankListCensus(): number | string | undefined {
   const search = useDebouncedValue(useDatabankSearchQuery().trim(), SEARCH_DEBOUNCE_MS);
   const phase = useDatabankPhaseFilter();
   const narrowed = search !== "" || phase !== null;
-  const { data: shown } = useQuery({
-    ...trpc.databank.list.queryOptions({ limit: 1, ...(search === "" ? {} : { search }), ...(phase === null ? {} : { phase }) }),
-    // An unnarrowed pane asks nothing extra: the bank total above is the count.
-    enabled: narrowed,
-    select: (page) => page.totalCount,
-  });
+  // An unnarrowed pane asks nothing extra: the bank total above is the count.
+  const shownArgs = { limit: 1, ...(search === "" ? {} : { search }), ...(phase === null ? {} : { phase }) };
+  const { data: shown } = useGatedQuery(narrowed ? shownArgs : null, (args) => ({
+    ...trpc.databank.list.queryOptions(args),
+    select: (page: inferOutput<Trpc["databank"]["list"]>): number => page.totalCount,
+  }));
   if (!narrowed || total === undefined || shown === undefined) {
     return total;
   }

@@ -18,10 +18,9 @@ import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
-import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useId } from "react";
-import { useInvalidation, useTRPC } from "#data";
+import { useGatedQuery, useInvalidation, useTRPC } from "#data";
 import { viewerTimeZone } from "#lib";
 import { isLiveTurnPhase, requestComposerFocus, setComposerDraft, useTurnPhase } from "#state";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
@@ -64,7 +63,7 @@ export function RpgChoiceEcho({ state }: RpgChoiceEchoProps): ReactElement | nul
   const sendChoice = useSendChoice({ trpc, invalidation });
   const busy = isLiveTurnPhase(useTurnPhase(chatId)) || sendChoice.isPending;
   const reasonId = useId();
-  const messagesQuery = useQuery({ ...trpc.chat.listMessages.queryOptions({ chatId }), enabled });
+  const messagesQuery = useGatedQuery(enabled ? chatId : null, (id) => trpc.chat.listMessages.queryOptions({ chatId: id }));
   if (!enabled) {
     return null;
   }

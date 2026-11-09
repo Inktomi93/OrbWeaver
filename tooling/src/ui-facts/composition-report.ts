@@ -98,7 +98,7 @@ function readLines(facts: UiFacts, inScope: (section: string) => boolean): strin
   return [
     "### Read shape",
     "",
-    `Scanned ${reads.files} client files: ${reads.counts.useQuery} useQuery, ${reads.counts.useQueries} useQueries, ${reads.counts.useGatedQuery} useGatedQuery, ${reads.counts.useSuspenseQuery} useSuspenseQuery. useQuery and useQueries are classified; the suspending reads have no state to ladder on.`,
+    `Scanned ${reads.files} client files: ${reads.counts.useQuery} useQuery, ${reads.counts.useQueries} useQueries, ${reads.counts.useGatedQuery} useGatedQuery, ${reads.counts.useDecisionQuery} useDecisionQuery, ${reads.counts.useSuspenseQuery} useSuspenseQuery. Every read but useSuspenseQuery is classified; a suspending read has no state to ladder on.`,
     "",
     ...table(["shape", "calls"], tally(members, "shape")),
     ...table(

@@ -1,6 +1,6 @@
 // Ordinary Chats pages real persisted canon without entering a Corpus source window.
 
-import { RETRY_NAME } from "@orb/client/lib";
+import { DIALOG_VERBS, RETRY_NAME } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { StreamFrame } from "@orb/contracts/stream";
@@ -1024,6 +1024,54 @@ for (const regime of [
         await invalidate.dispatchEvent("click");
       }
       await expect(page.getByRole("alert")).toHaveText(CHAT_WINDOW_PRESS_FAILURE);
+    });
+    test("a window whose target is gone keeps its paging toolbar while the latest page loads", async ({ corpus, mount, page }) => {
+      await using root = await historyRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { rooms, room, removed } = await prepareHistory(root, caller);
+      await caller.chat.deleteMessages({ chatId: room.id, messageIds: [removed.id] });
+      const latest = holdServed();
+      await using held = new AsyncDisposableStack();
+      held.defer(() => latest.release());
+      await using _live = await serveLiveRoom({
+        root,
+        caller,
+        corpus,
+        page,
+        rooms,
+        chatId: room.id,
+        chatStyle: regime.chatStyle,
+        intercept: ({ chatId }) => (chatId === room.id ? latest : undefined),
+      });
+      await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true, moment: { kind: "message", messageId: removed.id } });
+      await latest.requested;
+      await expect(page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true })).toBeVisible();
+      latest.release();
+      await expect(page.locator('[data-slot="message-row"]').first()).toBeVisible();
+    });
+    test("a window whose target is gone keeps its toolbar when the latest page fails, and Retry recovers", async ({ corpus, mount, page }) => {
+      await using root = await historyRoot();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const { rooms, room, removed } = await prepareHistory(root, caller);
+      await caller.chat.deleteMessages({ chatId: room.id, messageIds: [removed.id] });
+      let failing = true;
+      await using _live = await serveLiveRoom({
+        root,
+        caller,
+        corpus,
+        page,
+        rooms,
+        chatId: room.id,
+        chatStyle: regime.chatStyle,
+        intercept: ({ chatId, cursor }) => (failing && chatId === room.id && cursor === undefined ? trpcError({ code: "BAD_REQUEST" }) : undefined),
+      });
+      await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true, moment: { kind: "message", messageId: removed.id } });
+      await expect(page.locator('[data-slot="query-error"]')).toBeVisible();
+      await expect(page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true })).toBeVisible();
+      failing = false;
+      await page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true }).click();
+      await expect(page.locator('[data-slot="message-row"]').first()).toBeVisible();
+      await expect(page.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true })).toBeVisible();
     });
     test("a repeated press with the connection down is heard again, and the held read lands when it returns", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
