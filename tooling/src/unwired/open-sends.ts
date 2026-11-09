@@ -74,8 +74,11 @@ const WIRE_CALLS: ReadonlySet<string> = new Set(["send", "postMessage", "enqueue
 const REQUEST_METHODS: ReadonlySet<string> = new Set(["doStream", "doGenerate", "doEmbed"]);
 const NODE_MODULES = "/node_modules/";
 const TYPES_SCOPE = "@types/";
-// Libraries that are the compiler's own lib files rather than a receiver.
-const COMPILER_PACKAGES: ReadonlySet<string> = new Set(["typescript", "@typescript/native"]);
+// The compiler's own lib files, which the native compiler ships under its platform package.
+const COMPILER_PACKAGE = "typescript";
+const COMPILER_SCOPE = "@typescript/";
+// A Drizzle write is a column write, which counts only where a query reads the column back.
+const COLUMN_PACKAGE = "drizzle-orm";
 
 const isAiSdk = (pkg: string): boolean => pkg === "ai" || pkg.startsWith("@ai-sdk/");
 
@@ -87,7 +90,7 @@ function packageOf(path: string): string | null {
   }
   const parts = path.slice(at + NODE_MODULES.length).split("/");
   const name = parts[0]?.startsWith("@") === true ? `${parts[0]}/${parts[1] ?? ""}` : (parts[0] ?? "");
-  if (COMPILER_PACKAGES.has(name)) {
+  if (name === COMPILER_PACKAGE || name.startsWith(COMPILER_SCOPE)) {
     return null;
   }
   return name.startsWith(TYPES_SCOPE) ? name.slice(TYPES_SCOPE.length) : name;
@@ -334,14 +337,28 @@ const wireCall = (call: Invocation): readonly Destination[] => {
   return text !== null && WIRE_CALLS.has(text) ? [{ destination: "wire", receiver: text }] : [];
 };
 
-// A library callee: the AI SDK makes provider requests, a logger logs, any other library is a dependency.
-function* libraryDestination(world: NativeWorld, call: Invocation, path: string): APIRequestGenerator<readonly Destination[]> {
+// A library slot typed `unknown` takes the value opaquely: a schema parse hands it back typed, React compares a
+// dependency list by identity. Only a slot that takes keys (an index signature, `object`) reads members.
+function* isOpaqueSlot(world: NativeWorld, argument: Node | undefined): APIRequestGenerator<boolean> {
+  const slot = argument === undefined ? undefined : yield* world.checker.getContextualType.gen(argument as Expression);
+  if (slot === undefined) {
+    return true;
+  }
+  const element = (yield* world.checker.isArrayType.gen(slot)) && slot.isTypeReference() ? (yield* world.checker.getTypeArguments.gen(slot))[0] : undefined;
+  return hasFlag((element ?? slot).flags, TypeFlags.Unknown);
+}
+
+// A library callee: the AI SDK makes provider requests, a logger logs, any other library that reads keys is a dependency.
+function* libraryDestination(world: NativeWorld, call: Invocation, index: number, path: string): APIRequestGenerator<readonly Destination[]> {
   const pkg = packageOf(path);
   if (pkg === null) {
     return wireCall(call);
   }
   if (isAiSdk(pkg)) {
     return [{ destination: "provider", receiver: pkg }];
+  }
+  if (pkg === COLUMN_PACKAGE || (yield* isOpaqueSlot(world, (call.arguments ?? [])[index]))) {
+    return [];
   }
   return [{ destination: (yield* isLogCall(world, call)) ? "log" : "dependency", receiver: pkg }];
 }
@@ -358,7 +375,7 @@ function* callDestinations(world: NativeWorld, call: Invocation, index: number, 
   const inTree = declarations.find((handle) => world.fileOf(handle) !== null);
   const outside = declarations.find((handle) => world.fileOf(handle) === null);
   if (inTree === undefined && outside !== undefined) {
-    return yield* libraryDestination(world, call, outside.path);
+    return yield* libraryDestination(world, call, index, outside.path);
   }
   const declaration = inTree === undefined ? undefined : yield* resolved(inTree);
   const fn = declaration === undefined ? null : functionOf(declaration);
@@ -553,6 +570,29 @@ function markReached(marking: Marking, node: Node): void {
   });
 }
 
+// The values written into a binding's keys after it is made, `out[key] = value` or `out.key = value`, in its scope.
+function keyedWrites(declaration: Node & { readonly name: Node }): readonly Node[] {
+  const { name } = declaration;
+  if (!isIdentifier(name)) {
+    return [];
+  }
+  let scope: Node = declaration.parent;
+  while (!(isBlock(scope) || scope.kind === SyntaxKind.SourceFile)) {
+    scope = scope.parent;
+  }
+  const found: Node[] = [];
+  const visit = (node: Node): void => {
+    const target = isBinaryExpression(node) && node.operatorToken.kind === SyntaxKind.EqualsToken ? node.left : undefined;
+    const holder = target !== undefined && (isElementAccessExpression(target) || isPropertyAccessExpression(target)) ? target.expression : undefined;
+    if (holder !== undefined && isIdentifier(holder) && holder.text === name.text && isBinaryExpression(node)) {
+      found.push(node.right);
+    }
+    node.forEachChild(visit);
+  };
+  scope.forEachChild(visit);
+  return found;
+}
+
 // The expressions that give a declaration its value.
 function feeding(world: NativeWorld, declaration: Node, calls: Calls): readonly Node[] {
   const fn = functionOf(declaration);
@@ -560,7 +600,7 @@ function feeding(world: NativeWorld, declaration: Node, calls: Calls): readonly 
     return calls.readers.has(nodeKey(world, fn)) ? [] : returnsOf(fn);
   }
   if (isVariableDeclaration(declaration)) {
-    return declaration.initializer === undefined ? [] : [declaration.initializer];
+    return [...(declaration.initializer === undefined ? [] : [declaration.initializer]), ...keyedWrites(declaration)];
   }
   if (isBindingElement(declaration)) {
     let holder: Node = declaration.parent;
@@ -583,7 +623,8 @@ function feeding(world: NativeWorld, declaration: Node, calls: Calls): readonly 
 // --- Assertions and module augmentations --------------------------------------------------------------------
 
 // `tree as MarkdownNode` on a parameter a library typed: the library hands the object in and reads it back, so the
-// asserted type's in-tree members are that library's.
+// asserted type's in-tree members are that library's. On a returned closure's `unknown` parameter the receiver is the
+// unseen caller of the factory.
 function* assertedSend(world: NativeWorld, assertion: Node & { readonly expression: Expression }): APIRequestGenerator<OpenSend | null> {
   const { checker } = world;
   const operand = assertion.expression;
@@ -594,14 +635,40 @@ function* assertedSend(world: NativeWorld, assertion: Node & { readonly expressi
   if (symbol?.valueDeclaration?.kind !== SyntaxKind.Parameter) {
     return null;
   }
-  const typed = yield* (yield* checker.getTypeAtLocation.gen(operand)).getSymbol.gen();
+  const operandType = yield* checker.getTypeAtLocation.gen(operand);
+  const typed = yield* operandType.getSymbol.gen();
   const declarations = typed?.declarations ?? [];
   const pkg = declarations.length > 0 && declarations.every((handle) => world.fileOf(handle) === null) ? packageOf(declarations[0]?.path ?? "") : null;
-  if (pkg === null) {
+  const caller = pkg === null && hasFlag(operandType.flags, TypeFlags.Unknown) ? yield* unseenCaller(world, symbol.valueDeclaration) : null;
+  if (pkg === null && caller === null) {
     return null;
   }
   const keys = (yield* heldNamed(world, [yield* checker.getTypeAtLocation.gen(assertion)], SEND_DEPTH)).flatMap((property) => declarationKeys(property));
-  return keys.length === 0 ? null : { site: world.siteOf(assertion), destination: "dependency", receiver: pkg, keys };
+  if (keys.length === 0) {
+    return null;
+  }
+  const site = world.siteOf(assertion);
+  return pkg === null ? { site, destination: "unclassified", receiver: caller, keys } : { site, destination: "dependency", receiver: pkg, keys };
+}
+
+// The function a returned closure comes from, when the closure's `unknown` parameter is the one asserted: whoever calls
+// the closure (a remark plugin's transformer, called by unified) hands the object in, and the scan cannot follow it.
+function* unseenCaller(world: NativeWorld, handle: NodeHandle): APIRequestGenerator<string | null> {
+  const parameter = world.fileOf(handle) === null ? undefined : yield* resolved(handle);
+  const closure = parameter?.parent;
+  const returned =
+    closure !== undefined &&
+    (isArrowFunction(closure) || isFunctionExpression(closure)) &&
+    (isReturnStatement(closure.parent) || (isArrowFunction(closure.parent) && closure.parent.body === closure));
+  if (!returned) {
+    return null;
+  }
+  let factory: Node = closure.parent;
+  while (!((isFunctionDeclaration(factory) || isVariableDeclaration(factory)) && factory.name !== undefined) && factory.kind !== SyntaxKind.SourceFile) {
+    factory = factory.parent;
+  }
+  const named = factory as Node & { readonly name?: Node };
+  return named.name !== undefined && isIdentifier(named.name) ? `caller of ${named.name.text}` : "caller of a returned closure";
 }
 
 // An interface inside `declare module "pkg"` is that library's: it reads every member at type level.
