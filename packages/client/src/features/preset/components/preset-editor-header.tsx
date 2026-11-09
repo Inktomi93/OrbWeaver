@@ -20,6 +20,7 @@ import { Button } from "@orb/ui/button";
 // `Download` is GONE with the header Export door (O-16★ — one home, the list-row kebab); `Container` is lane B's shared content-column ruling.
 import { Icon, Pencil, RotateCcw, Zap } from "@orb/ui/icons";
 import { Container, Row, Stack } from "@orb/ui/layout";
+import { usePinnedBarCap } from "@orb/ui/lib";
 import { useScrollFadeX } from "@orb/ui/scroll-area";
 import { TabsIndicator, TabsList, TabsTab } from "@orb/ui/tabs";
 import type { ComponentProps, ReactElement } from "react";
@@ -66,6 +67,10 @@ export function PresetEditorHeader({
   // edge cue honest about which edge is currently hiding a view.
   const stripRef = useRef<HTMLDivElement>(null);
   useScrollFadeX(stripRef);
+  // Enlarged text grows the band with its copy while the pane does not: a band that would fill the pane stops pinning, so the controls
+  // under it can scroll clear.
+  const bandRef = useRef<HTMLDivElement>(null);
+  const pinned = usePinnedBarCap(bandRef) === null;
 
   const [resetOpen, setResetOpen] = useState(false);
   const [renameOpen, setRenameOpen] = useState(false);
@@ -83,7 +88,7 @@ export function PresetEditorHeader({
           The Params deck carries a THIRD, deeper column — its own instrument cap (`params-deck.tsx`) — so an
           offset between this header and the deck shows on Params and on no other tab. A CT pins the header
           to the panel column; the deck's cap is argued at its own site. */}
-      <Stack gap="block" placed="pinned" paddingBlock="block" ground="card" layer="raised">
+      <Stack gap="block" placed={pinned ? "pinned" : undefined} paddingBlock="block" ground="card" layer="raised" ref={bandRef}>
         <Container width="full">
           <EditorPage gap="block">
             <DetailHeader

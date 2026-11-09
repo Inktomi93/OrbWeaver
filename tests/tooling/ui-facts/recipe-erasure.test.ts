@@ -49,11 +49,13 @@ const CLOSED_BY_TYPE: Readonly<Record<string, readonly string[]>> = {
   "square > stacked": [BUTTON],
   "square > stretch": [BUTTON],
   "stacked > glyph": [GLYPH_BUTTON],
+  "stacked > size+square": [BUTTON],
   "tone > ink": [ICON, SPINNER, TEXT, WEAVE_GLYPH],
   "width > glyph": [GLYPH_BUTTON],
   "width > hoverCue": [TEXT],
   "width > size+square": [BUTTON],
   "wrap > glyph": [GLYPH_BUTTON],
+  "wrap > size+square": [BUTTON],
   "wrap > stacked": [BUTTON],
 };
 
@@ -155,6 +157,7 @@ const REFINES: Readonly<Record<string, ArmsByTable>> = {
   "size > glyph": { [GLYPH_BUTTON]: ["chip", "lg", "md", "sm"] },
   "size > inset": { [BUTTON]: ["chip", "lg", "md", "sm"] },
   "size > layout": { [INPUT]: ["chip", "lg", "md", "sm"] },
+  "size > minHeight": { [BUTTON]: ["chip", "lg", "md", "sm"] },
   "size > prose": { [TEXT]: ["body", "headline", "label", "title"] },
   "size > solidLine": { [TEXT]: ["body", "headline", "label", "title"] },
   "size > square": { [BUTTON]: ["chip", "lg", "md", "sm"] },

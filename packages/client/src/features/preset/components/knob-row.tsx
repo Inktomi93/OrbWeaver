@@ -300,7 +300,7 @@ function KnobLabel({ label, hint }: { readonly label: string; readonly hint: str
     // wherever the names fit it and grows past it where they do not. The name accordingly does NOT truncate
     // — a content-sized track has nothing to truncate against, and the clipping this fixes ("Max output
     // tokens", "Max context tokens", at every width) was the box, never the string.
-    <Row align="center" className="min-inline-0" gap="field" justify="between">
+    <Row align="center" gap="field" justify="between">
       <Text as="span" voice="label">
         {label}
       </Text>

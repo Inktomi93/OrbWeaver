@@ -48,6 +48,7 @@ function AddMemberShell({
       <PopoverPopup aria-label={CHAT_ADD_CHARACTER_NAME}>
         <CharacterPicker
           autoFocusSearch={true}
+          inPopover={true}
           emptyText="No other characters to add."
           excludeIds={existingCharacterIds}
           label={CHAT_ADD_CHARACTER_NAME}

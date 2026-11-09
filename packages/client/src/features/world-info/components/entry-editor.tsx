@@ -120,11 +120,11 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
 
   return (
     <EditorPage gap="block">
-      <Row gap="field" align="center" justify="between">
+      <Row gap="field" align="center" justify="between" wrap={true}>
         {/* Converted #582 (the #573 near-kicker ruling: "takes semibold and becomes one"): a caps-micro
             group name, byte-identical to `kicker` once the weight axis is corrected regular→semibold. */}
         <Text voice="kicker">Entry</Text>
-        <Row gap="field" align="center">
+        <Row gap="field" align="center" wrap={true}>
           {/* Autosave everywhere (§7): the live status stands where Save used to. */}
           <AutosaveStatus state={session.status} onRetry={session.retrySave} />
           <DeleteEntryAction
@@ -189,7 +189,7 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
         )}
       </form.Subscribe>
 
-      <Row gap="block" align="start">
+      <Row gap="block" align="start" wrap={true}>
         <form.AppField name="enabled">
           {(field): ReactElement => <field.SwitchField label="Enabled" hint="A disabled entry never fires, even when its keywords match." />}
         </form.AppField>
@@ -217,7 +217,7 @@ function EntryEditorBody({ entry, session, onDeleted }: EntryEditorBodyProps): R
       <form.Subscribe selector={(state): boolean => state.values.injectEnabled}>
         {(injectEnabled): ReactElement =>
           injectEnabled ? (
-            <Row gap="field" align="start">
+            <Row gap="field" align="start" wrap={true}>
               <form.AppField name="injectDepth">{(field): ReactElement => <field.NumberField label={WORLD_INFO_ENTRY_DEPTH_NAME} min={0} />}</form.AppField>
               <form.AppField name="injectRole">
                 {(field): ReactElement => <field.SelectField label={WORLD_INFO_ENTRY_ROLE_NAME} items={MESSAGE_ROLE_ITEMS} />}

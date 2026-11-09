@@ -26,7 +26,7 @@ export const emptyStateVariants = tv({
     // through the registered custom scale reliably, so the pair would resolve by stylesheet order); one
     // home, one class, no merge to lose.
     description: "text-body leading-body text-muted-foreground @max-cq-24:text-label @max-cq-24:leading-label",
-    action: "pbs-row @max-cq-24:pbs-field",
+    action: "pbs-row wrap-break-word @max-cq-24:pbs-field",
   },
   variants: {
     // Centres in a column only while it fits: `justify-center` on a column it overflows pushes its top out of reach.

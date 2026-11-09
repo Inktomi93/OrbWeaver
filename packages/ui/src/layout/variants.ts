@@ -33,6 +33,7 @@ import {
   SCROLL_FADE_X_CLASS,
   SCROLL_FADE_Y_CLASS,
   SCROLLER_Y,
+  SCROLLER_Y_CHAINED,
   SELF,
   SR_ONLY_AT,
   TEXT_ALIGN,
@@ -177,10 +178,12 @@ const ALIGN = {
   baseline: "items-baseline",
 } as const;
 
+// `center` and `end` are the safe forms: a line whose content outgrows it falls back to the start, because overflow past the
+// start edge is out of every scroller's reach.
 const JUSTIFY = {
   start: "justify-start",
-  center: "justify-center",
-  end: "justify-end",
+  center: "justify-center-safe",
+  end: "justify-end-safe",
   between: "justify-between",
 } as const;
 
@@ -271,7 +274,8 @@ const SCROLL_FADE = { x: SCROLL_FADE_X_CLASS, y: SCROLL_FADE_Y_CLASS } as const;
 
 // A box that scrolls on the block axis inside a bounded parent. It needs no `min-block-0`: a scroll container's automatic
 // minimum size is already 0, so as a flex or grid item it shrinks to its track instead of growing to its content.
-const SCROLL = { y: SCROLLER_Y } as const;
+// `list` is a library's rows: they may fill the whole port of the pane around them, so a wheel at their end continues in the pane.
+const SCROLL = { y: SCROLLER_Y, list: SCROLLER_Y_CHAINED } as const;
 
 // `dialog-stacked` is two conditions, so it has no negation to hide under: these arms restore the display, and only a flex box can name them.
 // `unlessDialogLandscape` is a landscape phone's dialog.

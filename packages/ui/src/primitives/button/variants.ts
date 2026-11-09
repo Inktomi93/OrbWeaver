@@ -2,6 +2,7 @@ import type { ClassValue, VariantProps } from "tailwind-variants";
 import {
   CAP,
   CARD_CORNERS,
+  CONTROL_BLOCK,
   CONTROL_INLINE,
   CONTROL_INSET,
   CONTROL_MIN_BLOCK,
@@ -87,7 +88,7 @@ export const buttonVariants = tv({
     // square that shrinks in a crowded row is no longer its step's box, and at a coarse pointer it falls under the tap
     // floor. The width per step is a compound below.
     square: { true: "shrink-0 p-0", false: "" },
-    // MULTILINE: a choice carrying a model-authored sentence. The label wraps over the base's nowrap and the height
+    // MULTILINE: a choice carrying a model-authored sentence. The label breaks anywhere, so a long word stays in its box, and the height
     // follows the wrapped text, floored at the step's height (a compound below) so it never drops under the tap floor.
     // The tight inset keeps one line inside every step's height at a fine pointer, so a one-line wrap sits level with
     // its row; a larger inset outgrows the `chip` and `md` steps by a pixel or two.
@@ -108,7 +109,7 @@ export const buttonVariants = tv({
     grow: GROW,
     floor: FLOOR,
     textAlign: TEXT_ALIGN,
-    // A label that wraps at spaces inside the nowrap base, on a box that keeps its own height: an inline action over a line of prose.
+    // A label that wraps at spaces, for a base that does not (an inline action over a line of prose). A sized Button already wraps between words.
     whitespace: { normal: "whitespace-normal" },
     push: PUSH,
     self: SELF,
@@ -176,12 +177,13 @@ export const buttonVariants = tv({
     // Scrollport-bound controls keep the ring inside their box instead of clipping an outer moat.
     focusRing: { surface: "", sidebar: FOCUS_RING_ON_SIDEBAR, inset: [FOCUS_RING_NONE, FOCUS_RING_INSET] },
   },
-  // A square's width is the scale step's own height, and a wrapping or stacked box floors at it.
+  // A square is the scale step's own box on both axes, so a floor that reaches it from outside cannot shrink it: it has no label to wrap. A wrapping
+  // or stacked box floors at the step.
   compoundVariants: [
-    { size: "chip", square: true, class: CONTROL_INLINE.chip },
-    { size: "sm", square: true, class: CONTROL_INLINE.sm },
-    { size: "md", square: true, class: CONTROL_INLINE.md },
-    { size: "lg", square: true, class: CONTROL_INLINE.lg },
+    { size: "chip", square: true, class: `${CONTROL_INLINE.chip} ${CONTROL_BLOCK.chip}` },
+    { size: "sm", square: true, class: `${CONTROL_INLINE.sm} ${CONTROL_BLOCK.sm}` },
+    { size: "md", square: true, class: `${CONTROL_INLINE.md} ${CONTROL_BLOCK.md}` },
+    { size: "lg", square: true, class: `${CONTROL_INLINE.lg} ${CONTROL_BLOCK.lg}` },
     { size: "chip", wrap: true, class: CONTROL_MIN_BLOCK.chip },
     { size: "sm", wrap: true, class: CONTROL_MIN_BLOCK.sm },
     { size: "md", wrap: true, class: CONTROL_MIN_BLOCK.md },

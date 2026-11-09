@@ -68,6 +68,8 @@ export interface CharacterPickerProps {
   readonly rowsHeading?: string;
   /** The list's box, from `CommandList`'s `listSize`; omitted, the list caps at the `scrollLg` step. `pickerWindow` also lets the picker share the room a short dialog leaves. */
   readonly listSize?: "grow" | "pickerWindow";
+  /** The picker sits in an anchored popup: its list stops short of the popup's room by one touch row, so a wheel at the list's end carries the popup on to its footer. */
+  readonly inPopover?: boolean;
   /** Skeleton row count for the loading fallback. @defaultValue 5 */
   readonly skeletonCount?: number;
   /**
@@ -111,6 +113,10 @@ export function CharacterPicker(props: CharacterPickerProps): ReactElement {
   );
 }
 
+function listCapOf(inPopover: boolean): "scrollLg" | "scrollLgBelowAnchor" {
+  return inPopover ? "scrollLgBelowAnchor" : "scrollLg";
+}
+
 function characterCountLabel(count: number): string {
   return count === 1 ? "1 character" : `${count} characters`;
 }
@@ -124,6 +130,7 @@ function CharacterPickerBody({
   isSelected,
   rowsHeading,
   listSize,
+  inPopover = false,
   leading,
   onEscape,
   autoFocusSearch = false,
@@ -198,7 +205,7 @@ function CharacterPickerBody({
       {leading}
       <Command className="min-block-0" label={label} windowed={listSize === "pickerWindow"} {...(onEscape === undefined ? {} : { onEscape })}>
         <CommandInput aria-label={placeholder} onValueChange={setTerm} placeholder={placeholder} ref={searchRef} value={term} />
-        <CommandList {...(listSize === undefined ? ({ maxHeight: "scrollLg" } as const) : { listSize })} onScroll={onScroll} ref={listRef}>
+        <CommandList {...(listSize === undefined ? ({ maxHeight: listCapOf(inPopover) } as const) : { listSize })} onScroll={onScroll} ref={listRef}>
           <CommandEmpty>{emptyText}</CommandEmpty>
           {rowsHeading === undefined ? rows : <CommandGroup heading={rowsHeading}>{rows}</CommandGroup>}
         </CommandList>
@@ -216,7 +223,7 @@ function CharacterPickerBody({
             <Text as="span" voice="gloss">
               {excludedLoadedCount === 0 ? `Showing ${candidates.length} of ${totalCount}` : characterCountLabel(candidates.length)}
             </Text>
-            <Row className="min-inline-0" grow={true} gap="field" justify="end">
+            <Row grow="content" gap="field" justify="end">
               {query.isFetchNextPageError ? (
                 <>
                   <Text role="alert" voice="gloss">

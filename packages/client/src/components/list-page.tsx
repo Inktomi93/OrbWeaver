@@ -10,11 +10,12 @@ import { SkipToFirstRow } from "./skip-to-first-row.tsx";
 
 /** The one element a LIST pane scrolls in: the `ListPage` body, or the rows under a `bounded` body. */
 export function ListScrollBox({ gap, ...props }: Omit<ComponentProps<"div">, "className"> & { readonly gap?: StackProps["gap"] }): ReactElement {
-  return <Stack {...props} gap={gap} scroll="y" grow={true} data-slot="library-list-scroll" />;
+  return <Stack {...props} gap={gap} scroll="list" grow={true} data-slot="library-list-scroll" />;
 }
 
 /** `scroll`: the body is the scroll box. `bounded`: the body is a bounded column whose rows or VirtualList scroll
- *  themselves. `pane`: the whole pane scrolls with its chrome. */
+ *  themselves, held to one row of window so enlarged chrome scrolls the pane instead of squeezing the rows out.
+ *  `pane`: the whole pane scrolls with its chrome. */
 const LIST_PAGE_BODIES = ["scroll", "bounded", "pane"] as const;
 
 export interface ListPageProps {
@@ -63,7 +64,7 @@ export function ListPage({
         minHeight="shrinks"
         height="fill"
         focusTarget={true}
-        scroll={body === "pane" ? "y" : undefined}
+        scroll={body === "scroll" ? undefined : "y"}
         gap="row"
         onKeyDown={onKeyDown}
         ref={ref}
@@ -86,7 +87,7 @@ export function ListPage({
         {body === "pane" ? children : null}
         {body === "scroll" ? <ListScrollBox>{children}</ListScrollBox> : null}
         {body === "bounded" ? (
-          <Stack minHeight="shrinks" grow={true} data-slot="library-list-bounded">
+          <Stack minHeight="scrollShort" grow={true} data-slot="library-list-bounded">
             {children}
           </Stack>
         ) : null}

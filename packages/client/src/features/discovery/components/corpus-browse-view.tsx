@@ -195,7 +195,7 @@ function BrowseRows({
   return (
     // The bounded height is this Stack's — `VirtualList` throws at mount on an unbounded scroll element,
     // which is the primitive refusing to be a list that silently renders everything.
-    <Stack minHeight="shrinks" grow={true}>
+    <Stack minHeight="scrollShort" grow={true}>
       <VirtualList
         aria-label={CORPUS_DISTILLED_CATALOG_NAME}
         height="fill"

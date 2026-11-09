@@ -4,7 +4,7 @@ status: doing
 updated: 2026-11-09
 priority: P2
 area: client
-lane: wt/agent-aeeecdd1ff632fbb2
+lane: wt/agent-a88fe4fa1ec4fa014
 plan: cross-surface-consistency
 ---
 
@@ -25,3 +25,5 @@ After Retry no query-error remains in the config content at 200% and 300% on chr
 ## Evidence
 
 Filled at landing: what ran and where its output is.
+
+Diagnosis (cb-w1d): in all four text walks the Retry button is covered by the boot veil (weave-veil) at the probe, on desktop too, so the finding reads probe timing rather than a text-scale defect. Remaining: the probe waits for the veil to leave, or reads it as transient chrome, and the walk rechecks Retry.

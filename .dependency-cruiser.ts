@@ -824,6 +824,14 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/chat/components/member-card-viewer.tsx":
       "MemberCardViewer: the Members tab's card dialog, which only the committed-members tab renders and no door forwards",
   },
+  "tests/client/features/chat/components/_add-member-popover-stories.tsx": {
+    "packages/client/src/features/chat/components/add-member-popover.tsx":
+      "AddMemberPopover: the Members tab's Add a character door, which only the roster tab renders and no door forwards",
+  },
+  "tests/client/features/rpg/components/_npc-card-stories.tsx": {
+    "packages/client/src/features/rpg/components/tracker-blocks/npc-card-slots.tsx":
+      "NpcCard: the present-character card, which only the scene panel's cast list renders and no door forwards",
+  },
   "tests/client/features/character/components/_shelf-face-name-stories.tsx": {
     "packages/client/src/features/character/components/character-shelf.tsx":
       "CharacterShelf and ShelfFace: the landing's face buttons, which only the library landing renders and no door forwards",

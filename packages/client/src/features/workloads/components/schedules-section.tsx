@@ -33,7 +33,8 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { useDeleteSchedule, useSetScheduleEnabled } from "../hooks/use-workload-mutations.ts";
-import { scheduleDeleteName, scheduleEditName, scheduleEnabledSwitchName, scheduleName } from "../lib/workloads-schedule-model.ts";
+import { WORKLOAD_KIND_LABELS } from "../lib/workloads-model.ts";
+import { scheduleDeleteName, scheduleEditName, scheduleEnabledSwitchName, scheduleName, scheduleQualifier } from "../lib/workloads-schedule-model.ts";
 import { WORKLOADS_SCHEDULES_SUBCATEGORY } from "../lib/workloads-schedules-nav.ts";
 import { CreateScheduleDialog, EditScheduleDialog } from "./create-schedule-dialog.tsx";
 
@@ -162,7 +163,8 @@ function ScheduleRow({
   // already states the cadence and the owner.
   return (
     <ListRow
-      title={name}
+      title={WORKLOAD_KIND_LABELS[schedule.kind]}
+      titleQualifier={scheduleQualifier(identity)}
       subtitle={schedule.refusal === undefined ? nextRun : WORKLOAD_RUN_ACCOUNT_REFUSAL}
       subtitleWrap={schedule.refusal !== undefined}
       stackActions={true}

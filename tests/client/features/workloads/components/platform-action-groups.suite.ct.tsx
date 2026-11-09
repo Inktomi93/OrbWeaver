@@ -19,7 +19,7 @@ import type { Locator, Page, TestInfo } from "@playwright/test";
 import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import { IMPORT_CONFIRM_NAMES } from "#client/features/workloads/lib/portability-model.ts";
 import type { ScheduleIdentity } from "#client/features/workloads/lib/workloads-schedule-model.ts";
-import { scheduleDeleteName, scheduleEditName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
+import { SCHEDULE_CADENCE_LABELS, scheduleDeleteName, scheduleEditName } from "#client/features/workloads/lib/workloads-schedule-model.ts";
 import type { WorkloadActionGroupsStory } from "./_action-groups-stories.tsx";
 
 const STORY = "tests/client/features/workloads/components/_action-groups-stories/WorkloadActionGroupsStory";
@@ -324,3 +324,42 @@ for (const regime of REGIMES) {
     });
   });
 }
+
+test.describe("narrow phone at enlarged text", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 320, height: 568 } });
+
+  test("two schedules of one kind read apart: each row's cadence shows whole beside the shared kind", async ({ mount, page }) => {
+    await using root = await createServerHarness(ROOT_OPTIONS);
+    const caller = await root.internalCallerFor(root.ownerId);
+    const cadences = ["daily", "weekly"] as const;
+    for (const cadence of cadences) {
+      await caller.workloads.createSchedule({ input: { kind: SINGULAR_AND_BULK_SCHEDULE.kind, params: {} }, mode: "singular", cadence, enabled: false });
+    }
+    await routeTrpc(
+      page,
+      serveCorpusProcedures(caller, [
+        "settings.getUserSettings",
+        "sessions.me",
+        "workloads.listSchedules",
+        "admin.listUsers",
+        "connection.listBindings",
+        "connection.list",
+      ]),
+    );
+    await mount<typeof WorkloadActionGroupsStory>(STORY, { sectionId: "workloads-schedules", width: 320, appearance: ENLARGED_APPEARANCE_SETTINGS });
+    const rows = page.locator('[data-slot="list-row-root"]');
+    await expect(rows).toHaveCount(cadences.length);
+    const qualifiers = rows.locator('[data-slot="list-row-title-qualifier"]');
+    await expect(qualifiers).toHaveCount(cadences.length);
+    expect((await qualifiers.allTextContents()).map((text) => text.replace(" · ", "")).sort()).toEqual(
+      cadences.map((cadence) => SCHEDULE_CADENCE_LABELS[cadence]).sort(),
+    );
+    for (const label of await qualifiers.all()) {
+      // Whole: a label cut by an ellipsis has more text than its box shows.
+      expect(await label.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);
+      expect(
+        await label.evaluate((node) => node.getBoundingClientRect().right - (node.closest('[data-slot="list-row-root"]')?.getBoundingClientRect().right ?? 0)),
+      ).toBeLessThanOrEqual(1);
+    }
+  });
+});

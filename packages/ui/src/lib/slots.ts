@@ -25,6 +25,12 @@ export const SCROLLER = "overflow-auto overscroll-contain relative";
 /** {@link SCROLLER} on the block axis only: a list or a pane that scrolls inside a bounded parent. */
 export const SCROLLER_Y = "overflow-y-auto overscroll-contain relative";
 
+/** {@link SCROLLER} for a list that may fill the whole port of the region around it: a wheel at the list's end continues in that region, so what lies past the list stays reachable. */
+export const SCROLLER_CHAINED = "overflow-auto overscroll-auto relative";
+
+/** {@link SCROLLER_CHAINED} on the block axis only. */
+export const SCROLLER_Y_CHAINED = "overflow-y-auto overscroll-auto relative";
+
 /** A box that takes the whole block extent of a flex or block parent and may shrink below its content. */
 export const FILL_PARENT = "block-full flex-1 min-block-0";
 

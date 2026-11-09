@@ -210,7 +210,13 @@ function LaneGroups({
     <Stack gap="block">
       {groups.map((group) => (
         <Stack key={group.lane} gap="row" data-slot="workload-lane-group">
-          {showHeadings ? <Text voice="kicker">{WORKLOAD_LANE_LABELS[group.lane]}</Text> : null}
+          {showHeadings ? (
+            <Stack gap="tight">
+              <Text voice="kicker">{WORKLOAD_LANE_LABELS[group.lane].name}</Text>
+              {/* The clause that says what the lane runs: sentence case, the same muted ink behind its name. */}
+              <Text voice="gloss">{WORKLOAD_LANE_LABELS[group.lane].purpose}</Text>
+            </Stack>
+          ) : null}
           {group.rows.map((workload) => (
             <WorkloadRow
               key={workload.id}
