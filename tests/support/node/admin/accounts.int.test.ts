@@ -2,6 +2,8 @@
 // The statement hold rides `createDb`'s `LibSqlWrap`, the seam production's OTel client wrapper uses on the same
 // handle; no module is replaced. It parks the user seed an authed request starts, at its first ledger read.
 
+import { userSeedLedger } from "@orb/db";
+import { getTableName } from "drizzle-orm";
 import { createDbStatementHold, freshDb } from "../db.ts";
 import { expect, test } from "../fixtures.ts";
 import { createServerHarness } from "../server.ts";
@@ -10,7 +12,7 @@ import { readAccounts } from "./accounts.ts";
 // A single-user box admits its owner from a loopback peer, so the request below is authenticated and starts the seed.
 const LOOPBACK_PEER = "127.0.0.1";
 const AUTH_ME_ROUTE = "/api/auth/me";
-const SEED_LEDGER_READ = /user_seed_ledger/u;
+const SEED_LEDGER_READ = new RegExp(getTableName(userSeedLedger), "u");
 
 test("readAccounts answers only after the seed an authed request started has settled", async () => {
   const statements = createDbStatementHold();
