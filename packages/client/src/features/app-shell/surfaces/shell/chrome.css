@@ -108,10 +108,21 @@
     flex: none;
     max-inline-size: var(--shell-topbar-title-room);
   }
+  /* The census is whole or not shown. Its box takes the room the name leaves; its text is one unbreakable block behind a break
+   * opportunity, so a block that does not fit wraps to a second line the box's one-line cap clips, and the row never paints a
+   * digit or a lone separator. The text stays in the DOM, so the title's name still carries it. */
   .shell-topbar-title-census {
     flex: 1 1 0;
     min-inline-size: 0;
     contain: inline-size;
+    overflow: hidden;
+    max-block-size: 1lh;
+  }
+  .shell-topbar-title-census::before {
+    content: "\200b";
+  }
+  .shell-topbar-title-census > * {
+    display: inline-block;
     /* The separator leads the census, and the leading space has to survive as the gap after the name. */
     white-space: pre;
   }
