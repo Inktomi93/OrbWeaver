@@ -25,7 +25,7 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
 import { FormDialog } from "#components";
-import { PRESET_IMPORT_NAME } from "../lib/preset-names.ts";
+import { PRESET_IMPORT_NAME, PRESET_IMPORT_TITLE } from "../lib/preset-names.ts";
 
 /** The `.json` extension, stripped off the picked filename to seed the preset name (ST arm only — an
  *  orb.preset file carries its own name, and that name IS the merge key). */
@@ -185,7 +185,7 @@ export function PresetImportDialog({ open, onOpenChange, onImportSt, onImportOrb
       }}
       open={open}
       submit={{ label: PRESET_IMPORT_NAME, disabled: parsed === null || busy, onSubmit: onConfirm }}
-      title="Import a preset"
+      title={PRESET_IMPORT_TITLE}
     >
       <Stack gap="block">
         {/* NO `hint` (side-eye F-10): "orbweaver preset exports and SillyTavern Chat Completion presets"
