@@ -1767,11 +1767,14 @@ async function databankAdd(journey: Journey): Promise<void> {
 
 async function databankLibrary(journey: Journey): Promise<void> {
   const back = journey.page.getByRole("button", { name: sectionBackName(DATABANK_SECTION_LABEL), exact: true });
+  const search = pane(journey, "list").getByRole("textbox", { name: DATABANK_SEARCH_NAME, exact: true });
   if (await back.isVisible()) {
     await back.click();
   }
+  // Revealing before the back press settles reads the old collapsed state and presses the lead button a second time.
+  await expect(back).toBeHidden();
   await reveal(journey, "list");
-  await expect(pane(journey, "list").getByRole("textbox", { name: DATABANK_SEARCH_NAME, exact: true })).toBeVisible();
+  await expect(search).toBeVisible();
 }
 
 async function databankMaintenance(journey: Journey, empty: boolean): Promise<void> {

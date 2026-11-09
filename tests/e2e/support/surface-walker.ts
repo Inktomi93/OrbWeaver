@@ -798,9 +798,17 @@ async function walkScrollWindows(walk: SurfaceWalk, scope: Locator, prefix: stri
   observe(
     walk,
     `${prefix}/scroll-regions`,
-    regions.length > MAX_SCROLL_REGIONS ? "unvisited" : "visited",
-    `${String(regions.length)} native overflowing regions; beginning/interior/tail windows, not a claim of every virtualized row`,
+    "visited",
+    `${String(Math.min(regions.length, MAX_SCROLL_REGIONS))} native overflowing regions; beginning/interior/tail windows, not a claim of every virtualized row`,
   );
+  if (regions.length > MAX_SCROLL_REGIONS) {
+    skip(
+      walk,
+      `${prefix}/scroll-regions-beyond-bound`,
+      "traversal-bound",
+      `${String(regions.length - MAX_SCROLL_REGIONS)} native overflowing regions beyond the traversal bound`,
+    );
+  }
 }
 
 async function walkScrollWindow(
@@ -908,10 +916,23 @@ interface AimInput {
 const WHEEL_BOXES = ["none", "chains", "contained"] as const;
 type WheelBox = (typeof WHEEL_BOXES)[number];
 
-// Runs in the page: the region's port clipped by every clipping ancestor and the viewport, or null when none is left.
-function visiblePort(node: Element): { left: number; right: number; top: number; bottom: number } | null {
+interface PortRect {
+  left: number;
+  right: number;
+  top: number;
+  bottom: number;
+}
+
+// Runs in the page: the region's port clipped by every clipping ancestor and the viewport, or the clip that emptied it.
+function visiblePort(node: Element): { readonly port: PortRect | null; readonly emptiedBy: string } {
   const box = node.getBoundingClientRect();
   const port = { left: Math.max(box.left, 0), right: Math.min(box.right, innerWidth), top: Math.max(box.top, 0), bottom: Math.min(box.bottom, innerHeight) };
+  const empty = (): boolean => port.right - port.left < 1 || port.bottom - port.top < 1;
+  const rect = (r: PortRect): string =>
+    `x ${String(Math.round(r.left))}-${String(Math.round(r.right))}, y ${String(Math.round(r.top))}-${String(Math.round(r.bottom))}`;
+  if (empty()) {
+    return { port: null, emptiedBy: `region box ${rect(box)} against viewport ${String(innerWidth)}x${String(innerHeight)}` };
+  }
   for (let ancestor = node.parentElement; ancestor !== null; ancestor = ancestor.parentElement) {
     const style = getComputedStyle(ancestor);
     if (style.overflowX !== "visible" || style.overflowY !== "visible") {
@@ -920,9 +941,13 @@ function visiblePort(node: Element): { left: number; right: number; top: number;
       port.right = Math.min(port.right, clip.right);
       port.top = Math.max(port.top, clip.top);
       port.bottom = Math.min(port.bottom, clip.bottom);
+      if (empty()) {
+        const slot = String(ancestor.getAttribute("data-slot"));
+        return { port: null, emptiedBy: `region box ${rect(box)} clipped away by ${ancestor.tagName}[data-slot=${slot}] at ${rect(clip)}` };
+      }
     }
   }
-  return port.right - port.left < 1 || port.bottom - port.top < 1 ? null : port;
+  return { port, emptiedBy: "" };
 }
 
 // Runs in the page. A box keeps the wheel when its overscroll setting stops the chain; a scrollable one without that
@@ -954,9 +979,9 @@ function wheelPath(node: Element, hit: Element, horizontal: boolean): { readonly
 
 // Runs in the page: sample the port centre-out and keep the best point, or say why there is none.
 function wheelAim(node: Element, input: AimInput): WheelAim {
-  const port = visiblePort(node);
+  const { port, emptiedBy } = visiblePort(node);
   if (port === null) {
-    return { point: null, reason: "no part of the region lies inside the viewport and its clipping ancestors" };
+    return { point: null, reason: `no part of the region lies inside the viewport and its clipping ancestors: ${emptiedBy}` };
   }
   const centre = { x: (port.left + port.right) / 2, y: (port.top + port.bottom) / 2 };
   const points = Array.from({ length: input.steps * input.steps }, (_, index) => ({
