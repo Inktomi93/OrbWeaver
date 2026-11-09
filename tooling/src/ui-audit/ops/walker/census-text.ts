@@ -197,7 +197,9 @@ export const WALKER_CENSUS_TEXT = `
     var clipsInline = elementStyle.overflowX === "hidden" || elementStyle.overflowX === "clip";
     var clampedToOne = elementStyle.webkitLineClamp === "1" || elementStyle.lineClamp === "1";
     var cutInline = noWrap && clipsInline && element.scrollWidth > element.clientWidth;
-    var cutByClamp = clampedToOne && lineBoxCount(element, null) > 1;
+    // A clamp hides its extra lines only under a block clip; without one every line paints.
+    var clipsBlock = elementStyle.overflowY === "hidden" || elementStyle.overflowY === "clip";
+    var cutByClamp = clampedToOne && clipsBlock && lineBoxCount(element, null) > 1;
     if (!cutInline && !cutByClamp) return false;
     return lineBoxCount(element, elementRect) === 1;
   };

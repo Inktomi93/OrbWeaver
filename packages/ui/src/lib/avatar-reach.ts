@@ -7,7 +7,8 @@
 // (the field step, grown to that overhang), and the text keeps the rest of the room.
 export const AVATAR_REACH_PADDING = "@max-cq-16:px-avatar-reach-physical @cq-16:@max-cq-28:px-avatar-reach pointer-coarse:@cq-28:px-avatar-reach";
 export const AVATAR_REACH_GAP = "@max-cq-16:gap-avatar-gap-physical @cq-16:@max-cq-28:gap-avatar-reach pointer-coarse:@cq-28:gap-avatar-reach";
-// The gap between a chip seated in a message header and the header's glyph controls: the chip's reach past its box and the glyph's own hit
-// area past its box, so neither touch square wins a tap from the other. It steps like the gutter gap above.
+// The row gap between a chip seated in a message header and the header's glyph controls when the header wraps: the chip's reach past its box
+// and the glyph's own hit area past its box, so neither touch square wins a tap from the other. Block axis only: inline, the speaker's name
+// sits between them and a wider column gap would only wrap the header. It steps like the gutter gap above.
 export const AVATAR_HEADER_GAP =
-  "@max-cq-16:gap-avatar-header-gap-physical @cq-16:@max-cq-28:gap-avatar-header-gap pointer-coarse:@cq-28:gap-avatar-header-gap";
+  "@max-cq-16:gap-y-avatar-header-gap-physical @cq-16:@max-cq-28:gap-y-avatar-header-gap pointer-coarse:@cq-28:gap-y-avatar-header-gap";

@@ -11,7 +11,7 @@ import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { CharacterId, PersonaId, UserId } from "@orb/kit/ids";
 import type { RowCharacterName, RowPersonaName } from "@orb/kit/macro";
 import { Checkbox } from "@orb/ui/checkbox";
-import { Stack } from "@orb/ui/layout";
+import { Row, Stack } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { Fragment, useEffect, useRef, useState } from "react";
 import type { ChatSurfaceContribution, ContributorRegistry, ToolRenderer } from "#lib";
@@ -377,6 +377,7 @@ export function MessageRow({
         messageRole={role}
         hoverGroup={true}
         arrival={arrival}
+        selecting={selecting}
         role="article"
         aria-label={attribution.name ?? undefined}
         data-message-id={message.id}
@@ -384,7 +385,12 @@ export function MessageRow({
         data-role={role}
         data-kind={attribution.kind}
       >
-        {selecting ? <Checkbox aria-label="Select message" checked={selected} onCheckedChange={(): void => toggleMessageSelected(message.id)} /> : null}
+        {/* The checkbox's touch square lives inside its own layout box, so it cannot reach into the next row's avatar reach. */}
+        {selecting ? (
+          <Row align="center" touchFloor="block">
+            <Checkbox aria-label="Select message" checked={selected} onCheckedChange={(): void => toggleMessageSelected(message.id)} />
+          </Row>
+        ) : null}
         {/* #1728 arm B — flex for `anchored`, a three-rail GRID for `gutterCentred`, whose rails centre the
             READING COLUMN on its own: with the chip inside the centred unit the prose measured 285px from a
             1280px row's left and 245px from its right, and snapped to 265/265 the moment avatars were

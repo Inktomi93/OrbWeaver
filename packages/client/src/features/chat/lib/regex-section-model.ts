@@ -133,15 +133,18 @@ export function regexTierLever(scope: RegexTierKey, labels: ReadonlyMap<RegexTie
   }
 }
 
+const REGEX_SCRIPT_ENABLED_SETTING = "Enabled everywhere";
+const REGEX_TIER_ALLOW_SETTING = "Allow scripts from";
+
 /** A script row's enable switch, in a tier group and in the On screen roster. It is the library row's own flag, so it
- *  reaches every room: `Everywhere: <script>`. */
+ *  reaches every room: `Enabled everywhere: <script>`. */
 export function regexScriptEverywhereSwitchName(scriptName: string): string {
-  return itemSwitchName("Everywhere", scriptName);
+  return itemSwitchName(REGEX_SCRIPT_ENABLED_SETTING, scriptName);
 }
 
-/** A tier's lever in the strip, whether the tier runs in this room: `In this chat: <tier>`. */
+/** A tier's lever in the strip, whether the tier runs in this room: `Allow scripts from: <tier>`. */
 export function regexTierAllowedSwitchName(tierLabel: string): string {
-  return itemSwitchName("In this chat", tierLabel);
+  return itemSwitchName(REGEX_TIER_ALLOW_SETTING, tierLabel);
 }
 
 /** The GROUP kicker — the same tier said as a provenance heading (§3's run-order groups). */

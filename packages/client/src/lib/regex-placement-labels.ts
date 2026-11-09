@@ -175,7 +175,7 @@ export function regexRowScent(
  *  `regex-collection-rows.tsx`'s header, where the switch used to be.)
  *
  *  THE ENABLE STATE LEFT THIS LINE (side-eye 2026-08-22 P2-2). It used to ride in front as a bare `off ·`,
- *  and on the picker that word sat ~500px from a switch named `Attach <name>` — so one row said "off" at one
+ *  and on the picker that word sat ~500px from a switch named `Attach: <name>` — so one row said "off" at one
  *  end and showed an ON switch at the other, about two DIFFERENT facts, with neither labelled. The bare
  *  token also never named its own subject: the fact that matters is "attached, but disabled in your library,
  *  so it will not run", and a user flipping the switch on and seeing nothing happen had no path to the cause.

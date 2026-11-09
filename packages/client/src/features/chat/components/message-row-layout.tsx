@@ -19,12 +19,15 @@ export function MessageRowRoot({
   messageRole,
   hoverGroup,
   arrival,
+  selecting = false,
   ...props
 }: RowBoxProps & {
   readonly skin: RowSkin;
   readonly messageRole: MessageRole;
   readonly hoverGroup: boolean;
   readonly arrival?: StackProps["arrival"];
+  /** Selection mode stacks a checkbox above the body, so the gap between them holds the next chip's reach clear of the checkbox's touch square. */
+  readonly selecting?: boolean;
 }): ReactElement {
   return (
     <Track
@@ -34,6 +37,7 @@ export function MessageRowRoot({
       arrival={arrival}
       container={true}
       gap="row"
+      gapNarrow={selecting ? "avatarReach" : undefined}
       align={rowAlignFor(skin, messageRole)}
       className={hoverGroup ? "group" : undefined}
     />

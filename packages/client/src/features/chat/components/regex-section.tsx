@@ -9,7 +9,7 @@
 // TWO KINDS OF SWITCH, AND THEY MEAN DIFFERENT THINGS. A TIER switch means HERE (`chat.setRegexAllow` — a
 // per-chat flag; the preset's scripts stop running in this room and nowhere else). A ROW switch means
 // EVERYWHERE (`regex.updateScript {enabled}` — the library row's own flag, SillyTavern's semantics). The row
-// says so in its accessible name (`Everywhere: <name>`) and a flip that reaches beyond this chat raises a
+// says so in its accessible name (`Enabled everywhere: <name>`) and a flip that reaches beyond this chat raises a
 // toast with Undo. That distinction is the whole design; if you are tempted to "simplify" the two into one
 // control, read §1 and §5 of the design first — a per-chat MUTE of an inherited script was considered and
 // refused (a second meaning of "off" on one row).
@@ -272,7 +272,7 @@ function RegexLeverStrip({
               <InlineToken>{regexTierLeverCount(rows)}</InlineToken>
             </Row>
             {/* The name carries the SCOPE, because the switch's meaning is exactly what its neighbours'
-                is not: this one is per-room ("In this chat: <tier>"), a row's is per-library ("Everywhere: <script>").
+                is not: this one is per-room ("Allow scripts from: <tier>"), a row's is per-library ("Enabled everywhere: <script>").
                 It CONTAINS the visible label, so voice control still works (WCAG 2.5.3). */}
             <Switch
               aria-label={regexTierAllowedSwitchName(label)}

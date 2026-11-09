@@ -559,11 +559,23 @@ function assertSeedBlockRestatesEmitSurface(block: string, label: string): void 
 const DENSITY_SPACING = /var\(--spacing-(?:field|row|block|section)\)/u;
 
 /**
- * A sum that reads a density step resolves at the element that declares it, and the root sits above every density scope. Each such `orb.cssValues` entry
+ * A sum that reads a density step, directly or through another sum, resolves at the element that declares it, and the root sits above every density scope. Each such `orb.cssValues` entry
  * is declared again where density is stamped, read off its value, so a new sum follows density with no edit and the formula keeps one home.
  */
 function renderDensitySums(cssValues: TokenContractResult["cssValues"], portableByPath: ReadonlyMap<string, string>): string {
-  const sums = Object.entries(cssValues).filter(([, entry]) => DENSITY_SPACING.test(entry.value));
+  const entries = Object.entries(cssValues);
+  // A sum that reads density through another sum resolves at the root's step too, so the set closes over `var(<sum>)` reads.
+  const dense = new Set<string>();
+  for (let grew = true; grew; ) {
+    grew = false;
+    for (const [target, entry] of entries) {
+      if (!dense.has(target) && (DENSITY_SPACING.test(entry.value) || [...dense].some((name) => entry.value.includes(`var(${name})`)))) {
+        dense.add(target);
+        grew = true;
+      }
+    }
+  }
+  const sums = entries.filter(([target]) => dense.has(target));
   const body = sums.map(([target, entry]) => `    ${target}: ${resolveCssValue(entry.value, portableByPath)};`).join("\n");
   return `\n@layer ui {\n  [data-density] {\n${body}\n  }\n}\n`;
 }
