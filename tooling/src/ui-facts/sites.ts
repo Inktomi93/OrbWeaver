@@ -44,7 +44,7 @@ export const KINDS: Readonly<Record<string, KindInfo>> = {
     replacement: "a token utility, primitive prop or variant",
     guard: "orb/no-static-style-prop",
   },
-  "inline-style-runtime": { area: "A", what: "inline style with a runtime value", replacement: null, guard: null },
+  "inline-style-runtime": { area: "A", what: "inline style with a runtime value on a raw element", replacement: null, guard: "orb/no-raw-intrinsic-paint" },
   "inline-svg": { area: "A", what: "hand-drawn inline svg", replacement: "@orb/ui/icons (grow the allowlist)", guard: "orb/ui-no-inline-svg" },
   "css-raw-color": { area: "A", what: "raw colour in CSS", replacement: "a colour token", guard: "orb/no-raw-color-in-css" },
   "css-raw-length": { area: "A", what: "raw px or rem in CSS", replacement: "a spacing, size, width or radius token", guard: null },

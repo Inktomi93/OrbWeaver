@@ -9,8 +9,8 @@ const TOKEN_FILES = new Set([
   "packages/ui/src/styles/fonts.css",
   "packages/client/src/styles/appearance-channel.gen.css",
 ]);
-// The shell index and its region files are the one feature-tier CSS home (client-architecture-lockdown.md §4.2); the
-// hand-rolling census judges each value in them against the shell's structural literals (§4.4).
+// The shell index and its region files are the one feature-tier CSS home (client-architecture-lockdown.md §4.2), and
+// stylelint judges each value in them against the shell's structural literals (§4.4; `orb/shell-paint-law` in stylelint.config.ts).
 const OWNER_LAYER =
   /^packages\/(?:ui\/src\/(?:styles|markdown)\/|client\/src\/styles\/|client\/src\/features\/app-shell\/surfaces\/(?:shell\.css$|shell\/[\w-]+\.css$))/u;
 
