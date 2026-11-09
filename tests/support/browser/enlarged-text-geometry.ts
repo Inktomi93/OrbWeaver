@@ -8,6 +8,8 @@ const REACHABLE =
   'button, a[href], input, textarea, select, [role="button"], [role="tab"], [role="menuitem"], [role="switch"], [role="checkbox"], [role="radio"], [role="combobox"], [role="textbox"]';
 // The character band's chip row scrolls by ruling: it keeps each chip whole rather than wrap into a ragged void. A strip built to scroll sideways
 // declares it with the attribute.
+// An open toast is transient chrome with its own close and timeout, so it lies over the controls beneath it the way pinned chrome does.
+const TRANSIENT_CHROME = '[data-slot="toast-root"]';
 const SIDEWAYS_STRIPS = 'input, textarea, [role="tablist"], [role="toolbar"], [data-slot="character-context-band"] > * > *, [data-sideways-strip]';
 
 interface ControlGeometry {
@@ -21,7 +23,10 @@ interface ControlGeometry {
  * something that is not the control. Overlapping: pairs inside one scroller, which a centre hit test misses when one
  * lies over a neighbour's edge.
  */
-function controlGeometry(subject: Element, { reachable, subpixel }: { readonly reachable: string; readonly subpixel: number }): ControlGeometry {
+function controlGeometry(
+  subject: Element,
+  { reachable, subpixel, transient }: { readonly reachable: string; readonly subpixel: number; readonly transient: string },
+): ControlGeometry {
   const labelsOf = (element: Element): HTMLLabelElement[] =>
     element instanceof HTMLInputElement ||
     element instanceof HTMLSelectElement ||
@@ -135,8 +140,8 @@ function controlGeometry(subject: Element, { reachable, subpixel }: { readonly r
       return null;
     }
     const cover = coveredBy(element, box);
-    // A pinned footer lies over the rows scrolling under it by design.
-    return cover === null || cover.closest('[class*="sticky"]') !== null
+    // A pinned footer lies over the rows scrolling under it by design, and an open toast over the page.
+    return cover === null || cover.closest('[class*="sticky"]') !== null || cover.closest(transient) !== null
       ? null
       : `${label(element)} ${at} is covered at its centre by ${label(cover)} ${cover.className}`;
   };
@@ -242,7 +247,7 @@ function collapsedScrollers(subject: Element, { subpixel }: { readonly subpixel:
 
 /** Every enlarged-text geometry finding inside `scope`; an empty list is a clean scope. */
 export async function enlargedTextFindings(scope: Locator): Promise<string[]> {
-  const controls = await scope.evaluate(controlGeometry, { reachable: REACHABLE, subpixel: LAYOUT_SUBPIXEL_PX });
+  const controls = await scope.evaluate(controlGeometry, { reachable: REACHABLE, subpixel: LAYOUT_SUBPIXEL_PX, transient: TRANSIENT_CHROME });
   const text = await scope.evaluate(cutOffText, { subpixel: LAYOUT_SUBPIXEL_PX });
   const columns = await scope.evaluate(sidewaysColumns, { strips: SIDEWAYS_STRIPS, subpixel: LAYOUT_SUBPIXEL_PX });
   const collapsed = await scope.evaluate(collapsedScrollers, { subpixel: LAYOUT_SUBPIXEL_PX });

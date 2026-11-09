@@ -24,4 +24,4 @@ Save edit is clickable at 200% and 300% on chromium-phone-portrait in every read
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Part, in fc90fda367: echo's Save edit at 200% is clear because an edited row passes no art view. Ripple at 200% and 300% is open, held as test.fixme cells in platform-enlarged-reach. Ruling (claude-b under delegation): the ripple phone portrait width token becomes container-relative, measured at 320 and 390, and the fixme cells turn on.

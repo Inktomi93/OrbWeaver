@@ -45,9 +45,13 @@ export interface ScheduleIdentity {
  * admin sees other users' rows, so kind alone names two rows alike. Two rows of one kind, cadence and owner still share it:
  * nothing else on the row tells them apart.
  */
-export function scheduleName({ kind, cadence, ownerHandle }: ScheduleIdentity): string {
-  const name = `${WORKLOAD_KIND_LABELS[kind]} · ${SCHEDULE_CADENCE_LABELS[cadence]}`;
-  return ownerHandle === null ? name : `${name} · for ${ownerHandle}`;
+export function scheduleName(identity: ScheduleIdentity): string {
+  return `${WORKLOAD_KIND_LABELS[identity.kind]} · ${scheduleQualifier(identity)}`;
+}
+
+/** The half of a schedule's name that tells two schedules of one kind apart: its cadence and, on another user's row, its owner. */
+export function scheduleQualifier({ cadence, ownerHandle }: Pick<ScheduleIdentity, "cadence" | "ownerHandle">): string {
+  return ownerHandle === null ? SCHEDULE_CADENCE_LABELS[cadence] : `${SCHEDULE_CADENCE_LABELS[cadence]} · for ${ownerHandle}`;
 }
 
 /** A schedule row's enable switch: `Enabled: <schedule>`, with `aria-checked` carrying the state. */

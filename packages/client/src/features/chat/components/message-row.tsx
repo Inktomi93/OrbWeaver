@@ -431,7 +431,8 @@ export function MessageRow({
                   speakerThemes,
                   narratorVoiced: isNarratorVoiced(message.kind),
                   editing,
-                  artView: artViewFor(viewArt, attribution, artControl),
+                  // The art pane lies over the editor at enlarged text; while editing it is plain paint, so the chip stays the one opener and the editor's controls take the press.
+                  artView: editing ? null : artViewFor(viewArt, attribution, artControl),
                   onArtFailed: setArtFailed,
                 })}
               </>,

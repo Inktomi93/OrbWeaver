@@ -84,6 +84,8 @@ export const MIN_HEIGHT = {
   // The first tile of a shelf floors at the control height, so a shelf that starts on a short tile keeps its line.
   firstTile: "group-first/tile:min-block-(--size-control-sm)",
   controlMd: "min-block-(--size-control-md)",
+  // One touch row in rem: a list that sits under chrome keeps this much window however tall the chrome grows.
+  scrollShort: "min-block-(--height-scroll-short)",
   scrollSm: "min-block-(--height-scroll-sm)",
   scrollMd: "min-block-(--height-scroll-md)",
   scrollLg: "min-block-(--height-scroll-lg)",
