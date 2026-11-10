@@ -5,6 +5,8 @@
 import { ASSET_KINDS } from "@orb/contracts/assets";
 import type { ScheduleCadence, WorkloadKind, WorkloadMode } from "@orb/contracts/workloads";
 import { SCHEDULE_CADENCES, WORKLOAD_KIND_MODES } from "@orb/contracts/workloads";
+import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
+import type { Trpc } from "#data";
 import { ITEM_ENABLED_SETTING, itemSwitchName } from "#lib";
 import type { WorkloadRunValues } from "./workloads-model.ts";
 import { isMaintenanceWorkloadKind, isRunnableWorkloadKind, RUNNABLE_WORKLOAD_KINDS, WORKLOAD_KIND_LABELS } from "./workloads-model.ts";
@@ -108,13 +110,12 @@ function scheduleParamsToRunValues(params: Record<string, unknown>): WorkloadRun
   };
 }
 
-/** Seed the edit dialog's form from an existing schedule row. Structural on purpose so it stays DOM-free without the wire type. */
-export function scheduleFormValuesFromRow(row: {
-  readonly kind: WorkloadKind;
-  readonly cadence: ScheduleCadence;
-  readonly mode: WorkloadMode;
-  readonly params: Record<string, unknown>;
-}): CreateScheduleFormValues {
+type ScheduleUpdate = inferInput<Trpc["workloads"]["updateSchedule"]>;
+type StoredSchedule = inferOutput<Trpc["workloads"]["listSchedules"]>[number];
+type ScheduleSeed = Pick<StoredSchedule, keyof NonNullable<ScheduleUpdate["input"]> | keyof Pick<ScheduleUpdate, "mode" | "cadence">>;
+
+/** Stored params may predate the current per-kind input. Project only editable controls. */
+export function scheduleFormValuesFromRow(row: ScheduleSeed): CreateScheduleFormValues {
   return {
     kind: row.kind,
     cadence: row.cadence,

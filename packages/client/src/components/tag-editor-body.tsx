@@ -1,6 +1,6 @@
 // One immediate-commit tag editor, shared by Corpus Labels and chip popovers.
 // Merge confirms inline: a body-portaled modal sits below its owning chip popover in the ruled overlay stack.
-import type { TagView, TagWithUsage } from "@orb/contracts/tag";
+import type { TagView, TagWithUsage, UpdateTagInput } from "@orb/contracts/tag";
 import { createTagSchema } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
 import { normalizeTagName } from "@orb/kit/tag";
@@ -26,7 +26,7 @@ import { MemberDrillHeader } from "./member-drill-header.tsx";
 import { SettingSwitchRow } from "./setting-switch-row.tsx";
 import { useMergeTags, useUpdateTag } from "./tag-mutations.ts";
 
-type TagEditorValues = Pick<TagView, "name" | "color" | "color2" | "folderType" | "isHiddenOnCard">;
+type TagEditorValues = Pick<TagView, keyof UpdateTagInput>;
 
 function tagEditorValues(tag: TagView): TagEditorValues {
   return { name: tag.name, color: tag.color, color2: tag.color2, folderType: tag.folderType, isHiddenOnCard: tag.isHiddenOnCard };
