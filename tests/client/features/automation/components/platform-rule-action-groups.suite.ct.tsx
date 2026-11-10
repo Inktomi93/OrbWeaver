@@ -291,6 +291,16 @@ test.describe("rule editor field rows", () => {
         throw new Error("The panel and its hint must paint");
       }
       expect(hintBox.x + hintBox.width).toBeLessThanOrEqual(panelBox.x + panelBox.width);
+      // The requirement badges wrap inside the panel too; a badge is no control, so the probe does not see one that runs past it.
+      const badges = await slot.locator('[data-slot="badge"]').evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().right));
+      expect(badges.length).toBeGreaterThan(0);
+      expect(badges.filter((right) => right > panelBox.x + panelBox.width)).toEqual([]);
+      // The sortable's grip does not take a column from the card at this width, so its picker keeps the title floor a combobox holds.
+      const [pickerBox, floor] = await Promise.all([
+        slot.getByRole("combobox", { name: `${role.label} connection`, exact: true }).boundingBox(),
+        resolvedLength(page, `var(${TOKENS["width.title-floor"].cssVar})`, slot),
+      ]);
+      expect(Math.round(pickerBox?.width ?? 0), `title floor ${String(floor)}`).toBeGreaterThanOrEqual(Math.round(floor));
     });
   });
 

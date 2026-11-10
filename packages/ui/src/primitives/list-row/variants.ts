@@ -71,7 +71,8 @@ export const listRowVariants = tv({
     // THE TITLE'S DISAMBIGUATOR (`titleQualifier`) — rendered right after the name, in the quiet mono datum
     // treatment the same handle already wears in the row's hover reveal. `shrink-0`: the qualifier is the
     // half that TELLS TWO ROWS APART, so a squeeze must eat the name (which is identical across them
-    // anyway), never the thing that separates them.
+    // anyway), never the thing that separates them. The default placement keeps that until the qualifier
+    // has a line of its own, where it truncates (`subtitlePlacement.block`).
     titleQualifier: "shrink-0 font-mono text-label leading-label whitespace-nowrap text-muted-foreground",
     // Rest-visible state markers on the title line, before the stamp (the mock's ⚔ / ★ / Archived cluster).
     // `shrink-0`: a glyph slot is already minimal — it must clip the TITLE, never itself.
@@ -195,7 +196,8 @@ export const listRowVariants = tv({
     // "a fixed name column, then the gloss at 1fr" meant. The name still truncates inside its cell; it can
     // simply no longer steal the gloss's width.
     subtitlePlacement: {
-      // A qualifier, marker or stamp that cannot sit beside even an empty name takes the next line, and the qualifier truncates at the line.
+      // The title line keeps its reading order (name, qualifier, markers, stamp) at every width. An item that cannot sit beside the one
+      // before it, even with the name at no width, takes the next line, so markers follow a qualifier that has a line to itself.
       block: { titleRow: "flex-wrap", titleQualifier: "shrink truncate min-inline-0" },
       inline: {
         title: "flex-none shrink min-inline-(--width-title-floor)",
