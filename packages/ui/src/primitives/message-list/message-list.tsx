@@ -317,10 +317,11 @@ export function MessageList<T>({
     // supplies — and a caller's estimate is routinely fractional by construction: the chat transcript's is
     // a calibrated `96 + chars * 0.28` (message-list-surface.ts, #1181). One unmeasured row above the
     // viewport therefore puts every row below it on a fraction of a pixel, which every resting transform
-    // and will-change or 3D layer inside those rows inherits (a backdrop-filter layer paints the fraction in,
+    // and promoted layer inside those rows inherits (in Chromium a backdrop-filter layer paints it in,
     // integer-line-boxes.md §10). Measured on the isolated stage before this rounding:
     // `li[data-slot=message-list-row]` at `top -0.484 device px` under an integer-landing
-    // `ol[data-slot=message-list-viewport]`, carried into the row's own bubble and swipe strip. Rounding here rather than at the call site is the one-home answer: the invariant
+    // `ol[data-slot=message-list-viewport]`, carried into the row's own bubble and swipe strip. Rounding
+    // here rather than at the call site is the one-home answer: the invariant
     // belongs to whoever writes the `top`, so a future caller cannot reintroduce it. The cost is bounded
     // at half a pixel of estimate error per unmeasured row, which the estimate is already wrong by more
     // than, in both directions, by its own calibration.

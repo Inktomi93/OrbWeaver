@@ -17,15 +17,11 @@ import { nonEmpty, present } from "@orb/testkit/iso";
 import type { PureAuditRuleProof } from "@orb/testkit/node";
 import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
-import type {
-  GridPromotionKind,
-  OffGridTextInput,
-  OffGridTransformInput,
-  PromotedLayerOffsetInput,
-} from "../../../../tooling/src/ui-audit/contract/samples-grid.ts";
+import type { OffGridTextInput, OffGridTransformInput, PromotedLayerOffsetInput } from "../../../../tooling/src/ui-audit/contract/samples-grid.ts";
+import { GRID_PROMOTION_KINDS } from "../../../../tooling/src/ui-audit/contract/samples-grid.ts";
 import { checkOffGridText, checkOffGridTransform, checkPromotedLayerOffset, GRID_EXEMPTIONS } from "../../../../tooling/src/ui-audit/lib/checks-grid.ts";
 
-/** A label-voice text inside a judged promotion. A `backdrop-filter` layer never reaches these checks: the
+/** A label-voice text inside a judged promotion. In Chromium a `backdrop-filter` layer never reaches these checks: the
  *  walker excludes it in the page (docs/law/integer-line-boxes.md §10). */
 function offGridText(over: Partial<OffGridTextInput> = {}): OffGridTextInput {
   const base: OffGridTextInput = {
@@ -212,7 +208,7 @@ describe("design-audit off-grid landings across the DPR matrix", () => {
 
 describe("design-audit promoted-layer-offset (crispness Law 3)", () => {
   test("each promotion kind reports itself, so the repair knows what to drop", () => {
-    for (const promotion of ["will-change", "3d"] satisfies readonly GridPromotionKind[]) {
+    for (const promotion of GRID_PROMOTION_KINDS) {
       const finding = checkPromotedLayerOffset(promotedLayer({ promotion, topDeviceFrac: 0.5 }));
       expect(finding?.value).toContain(promotion);
     }

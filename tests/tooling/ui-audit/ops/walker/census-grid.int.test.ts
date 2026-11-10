@@ -133,7 +133,7 @@ test("Law 4 judges text under the two judged shapes, names each, and EXCLUDES te
       `${kind} is a shape Law 3 judges`,
     ).toBe(true);
   }
-  expect(kinds.join(" | "), "a backdrop-filter layer paints its fraction into the layer (§10)").not.toContain("backdrop-filter");
+  expect(kinds.join(" | "), "in Chromium a backdrop-filter layer paints its fraction in (§10)").not.toContain("backdrop-filter");
 });
 
 /** Four promotion roots on the same quarter-pixel landing. The two backdrop-filter roots, one on the element
@@ -150,6 +150,27 @@ const LAW3_BACKDROP_FIXTURE = `<style>
 <div class="root" id="glass-pseudo" data-slot="glass-pseudo-root"></div>
 <div class="root" id="willchange" data-slot="will-change-root"></div>
 <div class="root" id="both" data-slot="both-root"></div>`;
+
+/** A backdrop-filter layer nested inside a will-change layer, with text inside both. The nearest composited
+ *  ancestor is the excluded shape, but the will-change layer above it still carries the text, so Law 4 must
+ *  walk past the backdrop-filter layer and judge the text under will-change. */
+const NESTED_CHAIN_FIXTURE = `<style>
+  #outer { will-change: transform; position: relative; top: 10.25px; }
+  #inner { backdrop-filter: blur(2px); }
+  #outer p { margin: 0; }
+</style>
+<div id="outer" data-slot="will-change-outer"><div id="inner" data-slot="glass-inner"><p>text in glass in a will-change layer</p></div></div>`;
+
+test("Law 4 judges text in a backdrop-filter layer nested in a will-change layer, under the will-change layer", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "nested-chain.html"), relationalDocument(NESTED_CHAIN_FIXTURE));
+  const res = await runCli("snap", ["--file", join(scratch, "nested-chain.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+
+  expect(res.stdout).toMatch(/POPULATION\s+off-grid-text candidates=1 judged=1 /u);
+  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as GridReport;
+  const law4 = report.findings.filter((finding) => finding.rule === "off-grid-text");
+  expect(law4, "the text is judged, not excluded at the first backdrop-filter ancestor").toHaveLength(1);
+  expect(law4[0]?.value).toContain("inside a will-change layer (#outer)");
+});
 
 test("Law 3 EXCLUDES a backdrop-filter-only root, element or pseudo, and still fires on will-change at the same landing", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "law3-backdrop.html"), relationalDocument(LAW3_BACKDROP_FIXTURE));

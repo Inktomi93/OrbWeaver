@@ -868,7 +868,7 @@ test("an in-flow pseudo whose box cannot be derived is WITHHELD by name, never j
   );
 });
 
-// docs/law/integer-line-boxes.md §10: a backdrop-filter layer's fraction is painted into the layer, so the
+// docs/law/integer-line-boxes.md §10: in Chromium a backdrop-filter layer's fraction is painted in, so the
 // shell-pane glass shape leaves the population by name. The will-change pseudo on the same half pixel in the
 // same story is the control that still fires.
 test("a pseudo promoted only by backdrop-filter is EXCLUDED by name, and its will-change twin is still judged", async ({ mount, page }) => {

@@ -49,9 +49,9 @@ export const GRID_EXEMPTIONS = {
  *  the Node verdict layer and the in-page census (the `INACTIVE_KIND_EXPR` precedent, floor/instrument/wcag.ts). */
 export const GRID_READING_SURFACE_SELECTOR_JS = JSON.stringify(GRID_EXEMPTIONS.readingSurface.selector);
 
-/** The Law 3 and Law 4 exclusion for a layer promoted only by `backdrop-filter`. Chromium (GPU and software)
- *  and WebKit paint such a layer's fractional offset into its content, so an integer landing changes no
- *  pixel (docs/law/integer-line-boxes.md §10). `will-change` and 3D layers stay judged. */
+/** The Law 3 and Law 4 exclusion for a layer promoted only by `backdrop-filter`, in Chromium only. Chromium
+ *  (GPU and software raster) paints such a layer's fractional offset into its content, so an integer landing
+ *  changes no pixel (docs/law/integer-line-boxes.md §10). Other engines, `will-change` and 3D stay judged. */
 export const GRID_COMPOSITED_WITHOUT_RESAMPLE = "compositedWithoutResample";
 export const GRID_COMPOSITED_WITHOUT_RESAMPLE_JS = JSON.stringify(GRID_COMPOSITED_WITHOUT_RESAMPLE);
 
@@ -67,7 +67,7 @@ function landingText(input: { readonly topDeviceFrac: number; readonly leftDevic
  *  sub-pixel position: the browser's per-paint baseline snapping is off, so the fraction is resampled and
  *  the anti-aliasing degrades. It is invisible to every source-side scan because the authored line box,
  *  spacing and font size can all be perfectly legal tokens. Text OUTSIDE a promotion context, or inside a
- *  `backdrop-filter` layer only, is EXCLUDED in the page, not judged clean here. */
+ *  `backdrop-filter` layer only in Chromium, is EXCLUDED in the page, not judged clean here. */
 export function checkOffGridText(input: OffGridTextInput): Finding | null {
   if (!offGrid(input)) {
     return null;

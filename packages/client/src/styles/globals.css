@@ -134,7 +134,7 @@
   }
   /* `--width-shell-content` is the reader's `chatWidthPct` dial. Centred on the device-pixel grid (integer-line-boxes.md Law 3): `margin-inline:
    * auto` halves the leftover width, and the pane width and the dial set its parity, so an odd remainder would put the track and every
-   * will-change or 3D layer inside it on a half pixel. The start margin is floored and the end margin
+   * promoted layer inside it on a half pixel (integer-line-boxes.md §10). The start margin is floored and the end margin
    * absorbs the odd pixel. The history pager pins at its own size, so its box cannot be the track; it starts where the track starts. */
   [data-track="chat"],
   [data-slot="message-list-leading-action"] {
@@ -421,7 +421,8 @@
         --glass-under: light-dark(var(--color-reading-plate), transparent);
       }
       /* The pane's glass paints on a `::before` carrier, not the pane, so the pane is not a backdrop root for any
-       * glass nested inside it (the dialog carrier below states the same rule). The pane's own fill goes to none so the composite is one tint over one filtered backdrop;
+       * glass nested inside it (the dialog carrier below states the same rule). The pane's own fill goes to none
+       * so the composite is one tint over one filtered backdrop;
        * `box-shadow: inherit` repaints the elevation's inset highlight above the blur. The pane's container type
        * is what contains the carrier. */
       @variant appearance-blur-surfaces-panels {

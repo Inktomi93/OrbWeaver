@@ -677,7 +677,7 @@ export function WalkerReadingMeasureStory(): ReactElement {
  *     It must be WITHHELD by name, never judged off the wrong box: a false measurement is the other half of
  *     the same lie the missing cohort was.
  *   - `pseudo-backdrop` — the shell-pane glass shape, a `::before` promoted only by backdrop-filter on the
- *     same half pixel. It is counted as a pseudo candidate and EXCLUDED, never judged.
+ *     same half pixel. In Chromium it is counted as a pseudo candidate and EXCLUDED, never judged.
  *  Inline styles cannot express a pseudo-element, so the rules ride a `<style>` tag (the
  *  `cb-hit-extent` precedent above). */
 export function WalkerPseudoPromotionStory(): ReactElement {

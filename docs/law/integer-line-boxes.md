@@ -232,10 +232,10 @@ D333 ends custom static transform checks and their certification. The visual rul
 
 ## 10. Law 3 — promoted-layer grid alignment
 
-**The law.** `will-change` and 3D-promoted layers rasterize their subtree ONCE and composite it,
-which disables the browser's per-paint baseline snapping. A promoted layer's own offset is therefore
-inherited by every glyph and edge inside it, so that offset must be an integer number of device
-pixels.
+**The law.** `will-change`, 3D-promoted and `backdrop-filter` layers rasterize their subtree ONCE and
+composite it, which disables the browser's per-paint baseline snapping. A promoted layer's own offset
+is therefore inherited by every glyph and edge inside it, so that offset must be an integer number of
+device pixels. Chromium is the one measured exception, below.
 
 **Decision: RUNTIME, with no authorship half at all.** A layer's offset is decided by layout — its
 ancestors' box model, the resolved spacing steps, the live root font-size. There is no authored value
@@ -244,19 +244,15 @@ ui-audit, whose subject is the promotion ROOT, not the text inside it: that is w
 lands, and filing it once against the layer instead of N times against its descendants is what keeps
 a single fix from being buried under its own blast radius.
 
-**The two promotion shapes and only those.** `will-change` other than `auto`, and a 3D context
-(`transform-style: preserve-3d`, or a computed transform that resolves to `matrix3d`). A layer that
-carries either shape is judged under it, whatever else it carries. `filter` was considered and left
-out: widening the promotion vocabulary is a separate measurement.
+**The three promotion shapes and only those.** `will-change` other than `auto`, a 3D context
+(`transform-style: preserve-3d`, or a computed transform that resolves to `matrix3d`), and
+`backdrop-filter` (incl. the `-webkit-` alias). A layer that carries `will-change` or a 3D context is
+judged under it, whatever else it carries. `filter` was considered and left out: widening the
+promotion vocabulary is a separate measurement.
 
-**`backdrop-filter` is not a promotion shape.** It composites, but the browser paints the layer's
-fractional offset into the layer's content, so an integer landing changes no pixel. A pixel probe
-shows this in Chromium (GPU raster and software raster) and in WebKit, at DPR 1, 1.25 and 2. It
-compares text and edges in a backdrop-filter layer, on the element and on an absolute `::before`, at
-an integer landing, a fractional x, a fractional y and a fractional line box inside the layer, against
-the same content with no promotion. The promotion changes Chromium's anti-aliasing by about the same
-amount at every landing. In WebKit a promoted element paints the same bytes as the plain one. A layer promoted only by `backdrop-filter` is EXCLUDED
-`compositedWithoutResample`.
+**In Chromium, `backdrop-filter` is not judged.** Chromium composites the layer but paints its fractional offset into the layer's content, so an integer landing changes no pixel. A pixel probe shows this with GPU raster and with software raster, at DPR 1, 1.25 and 2, for the four carriers the census reaches: the element itself, an absolute `::before`, an absolute `::after` and an in-flow `::before`. It compares each carrier against its own twin with the filter removed, at an integer landing, a fractional x, a fractional y and a fractional line box inside the layer. The promotion changes Chromium's anti-aliasing by about the same amount at every landing. A `will-change` layer in the same probe changes its raster with the landing, which is the probe's positive control. In Chromium a layer promoted only by `backdrop-filter` is EXCLUDED `compositedWithoutResample`. The walker reads the engine from the page (`navigator.userAgentData`), never from a run or project name.
+
+**Every other engine judges `backdrop-filter`.** WebKit is unmeasured: headless Playwright WebKit on Linux paints no backdrop blur at all, so the probe's filter control reads zero there and the probe cannot see a resample. WebKit walks keep judging `backdrop-filter` layers until a WebKit that paints the filter is measured.
 
 ## 11. Law 4 — the runtime off-grid-text backstop
 
@@ -273,7 +269,7 @@ slider's stops produce a non-integer root).
 | reason | disposition | why |
 | - | - | - |
 | no promoting ancestor | EXCLUDED `snapped` | the browser re-snaps that baseline every paint — a measurement proving INAPPLICABILITY, so the verdict survives |
-| only `backdrop-filter` ancestors are composited | EXCLUDED `compositedWithoutResample` | the browser paints the layer's fraction into its content (§10) — inapplicability, so the verdict survives |
+| in Chromium, only `backdrop-filter` ancestors are composited | EXCLUDED `compositedWithoutResample` | Chromium paints the layer's fraction into its content (§10) — inapplicability, so the verdict survives; other engines judge it |
 | inside the reading surface | EXCLUDED `readingSurface` | the typed mirror of the product exception in §2 |
 | non-finite rect / unusable DPR | WITHHELD `unmeasurable` | the instrument could not judge — fails loud, never a clean pass |
 
