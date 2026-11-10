@@ -8,6 +8,11 @@
 import type { Finding, PopulationAccounting } from "./findings.ts";
 import type { RawSamples, SubjectAccountingInput } from "./samples.ts";
 
+/** The engine names Playwright's `BrowserType.name()` reports, plus `unknown` for a page with no browser
+ *  owner. The walker takes one as its argument (ops/walker.ts `collectSamplesJs`). */
+export const AUDIT_ENGINES = ["chromium", "firefox", "webkit", "unknown"] as const;
+export type AuditEngine = (typeof AUDIT_ENGINES)[number];
+
 /** What ONE `DesignAuditRuleFamily`'s checker returns to the collect dispatcher: its findings, the
  *  number of RULE dispatches it made (a scan proves a detector actually executed — a bypassed dispatch
  *  leaves a zero), and the population rows its rules published. Homed here rather than beside the

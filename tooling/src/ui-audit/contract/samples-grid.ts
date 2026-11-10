@@ -9,6 +9,11 @@
 // what makes one epsilon in lib/checks-grid.ts correct at every DPR arm; a checker comparing raw CSS
 // offsets would have to re-derive the device grid and would answer differently per arm.
 
+/** The promotion shapes Law 3 judges (docs/law/integer-line-boxes.md §10). In Chromium the walker never
+ *  emits `backdrop-filter`: it excludes that layer as `compositedWithoutResample`. Elsewhere it is judged. */
+export const GRID_PROMOTION_KINDS = ["will-change", "3d", "backdrop-filter"] as const;
+export type GridPromotionKind = (typeof GRID_PROMOTION_KINDS)[number];
+
 /** One text element painting inside a promotion context that has disabled per-paint baseline snapping —
  *  the Law-4 backstop's judged subject. `promotion`/`promotedBy` name WHICH ancestor turned snapping off,
  *  because that ancestor is where the repair lands (Law 3), not the text. */
@@ -21,12 +26,12 @@ export interface OffGridTextInput {
   readonly dpr: number;
   readonly topDeviceFrac: number;
   readonly leftDeviceFrac: number;
-  readonly promotion: string;
+  readonly promotion: GridPromotionKind;
   readonly promotedBy: string;
   readonly fontSizePx: number;
 }
 
-/** One promotion ROOT (`backdrop-filter` / `will-change` / a 3D-promoted layer) and its own landing — the
+/** One promotion ROOT (`will-change`, a 3D-promoted layer, or `backdrop-filter` outside Chromium) and its own landing — the
  *  Law-3 subject. A promoted layer is rasterized once and composited, so ITS fraction is inherited by every
  *  descendant glyph: fixing the root fixes the subtree, which is why the root is judged separately. */
 export interface PromotedLayerOffsetInput {
@@ -36,7 +41,7 @@ export interface PromotedLayerOffsetInput {
   readonly dpr: number;
   readonly topDeviceFrac: number;
   readonly leftDeviceFrac: number;
-  readonly promotion: string;
+  readonly promotion: GridPromotionKind;
   /** `"::before"` / `"::after"` when the promotion is carried by a PSEUDO of the subject rather than by the
    *  subject itself (#1172). The selector already names it; this carries the fact separately so the finding
    *  can say WHERE the repair goes — a pseudo has no box to move, so the host's landing is the thing that

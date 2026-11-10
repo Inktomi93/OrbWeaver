@@ -10,7 +10,8 @@ export async function readSurfaceDesignAudit(page: Page): Promise<{
   readonly gaps: readonly EvidenceGap[];
 }> {
   const {
-    COLLECT_SAMPLES_JS,
+    auditEngineOf,
+    collectSamplesJs,
     collectAudit,
     rawSamples,
     resolvePixelBackdrops,
@@ -22,7 +23,7 @@ export async function readSurfaceDesignAudit(page: Page): Promise<{
     populationEvidenceGap,
     viewportFrameGap,
   } = await import("@orb/tooling/ui-audit");
-  const samples = rawSamples(await page.evaluate(COLLECT_SAMPLES_JS));
+  const samples = rawSamples(await page.evaluate(collectSamplesJs(auditEngineOf(page))));
   const pixels = await resolvePixelBackdrops(page, samples);
   const audit = collectAudit(pixels.samples);
   const accounting = samples.subjectAccounting;

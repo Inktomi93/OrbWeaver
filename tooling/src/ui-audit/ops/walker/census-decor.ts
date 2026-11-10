@@ -6,7 +6,7 @@
 // census-accent.ts, which sweeps both the element's own border widths and the pseudo BAR spelling. This
 // file's only remaining accent business is the `artPane` context flag it shares with that census.
 // One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the
-// segments IN ORDER into COLLECT_SAMPLES_JS, so scope/hoisting behavior is byte-identical to the
+// segments IN ORDER into collectSamplesJs, so scope/hoisting behavior is byte-identical to the
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
 // floor/browser/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";

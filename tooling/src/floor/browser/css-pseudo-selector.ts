@@ -3,8 +3,7 @@
 // selector STRING, and neither could address `.shell-panel::before`: `querySelectorAll` cannot select a
 // pseudo (it answers population 0, measured) and `getComputedStyle(el)` with no second argument reads the
 // HOST. That blind spot is not hypothetical — #1154 deliberately moved both of the shell panes' glass
-// declarations off `.shell-panel` onto `.shell-panel::before` (a backdrop-filter on the pane composited it
-// and killed per-paint baseline snapping for its text), so from that commit the appearance row
+// declarations off `.shell-panel` onto `.shell-panel::before`, so from that commit the appearance row
 // `light-art-scrim-glass-elevation` asked the pane for a declaration the pane no longer carries and the
 // matrix cell refused with "declaration population is zero: backdrop-filter".
 //

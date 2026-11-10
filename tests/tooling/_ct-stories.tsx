@@ -669,36 +669,43 @@ export function WalkerReadingMeasureStory(): ReactElement {
  *  shell panes moved their glass onto a `::before` fill layer (#1154) the whole cohort left the census
  *  silently — `candidates=1` became `candidates=0`, which reads exactly like a surface with nothing to
  *  judge. Three subjects, one per arm:
- *   - `pseudo-promoted` — an absolutely-positioned host on a HALF PIXEL whose `::before` carries the
- *     backdrop-filter. Its layer is real and its landing is derivable (host border box + the pseudo's own
+ *   - `pseudo-promoted` — an absolutely-positioned host on a HALF PIXEL whose `::before` carries
+ *     `will-change`. Its layer is real and its landing is derivable (host border box + the pseudo's own
  *     resolved inset), so it must be JUDGED and must fire.
- *   - `element-promoted` — the original arm, unchanged: the element carries the filter itself.
+ *   - `element-promoted` — the original arm, unchanged: the element carries the promotion itself.
  *   - `pseudo-inflow` — a promotion on an IN-FLOW pseudo, whose box cannot be derived from the host's rect.
  *     It must be WITHHELD by name, never judged off the wrong box: a false measurement is the other half of
  *     the same lie the missing cohort was.
- *  Inline styles cannot express a pseudo-element, so the three rules ride a `<style>` tag (the
+ *   - `pseudo-backdrop` — the shell-pane glass shape, a `::before` promoted only by backdrop-filter on the
+ *     same half pixel. In Chromium it is counted as a pseudo candidate and EXCLUDED, never judged.
+ *  Inline styles cannot express a pseudo-element, so the rules ride a `<style>` tag (the
  *  `cb-hit-extent` precedent above). */
 export function WalkerPseudoPromotionStory(): ReactElement {
   const css = [
     ".cbpp-host{position:absolute;top:10.5px;left:10.5px;width:200px;height:60px}",
-    ".cbpp-host::before{content:'';position:absolute;inset:0;backdrop-filter:blur(4px)}",
+    ".cbpp-host::before{content:'';position:absolute;inset:0;will-change:transform}",
     ".cbpp-inflow{position:relative;width:200px;height:40px}",
-    ".cbpp-inflow::before{content:'x';display:block;backdrop-filter:blur(4px)}",
+    ".cbpp-inflow::before{content:'x';display:block;will-change:transform}",
+    ".cbpp-glass{position:absolute;top:300.5px;left:10.5px;width:200px;height:60px}",
+    ".cbpp-glass::before{content:'';position:absolute;inset:0;backdrop-filter:blur(4px)}",
   ].join("");
   return (
-    <div style={{ position: "relative", height: 260, backgroundColor: "rgb(16, 16, 20)", color: "rgb(240, 240, 245)" }}>
+    <div style={{ position: "relative", height: 380, backgroundColor: "rgb(16, 16, 20)", color: "rgb(240, 240, 245)" }}>
       <style>{css}</style>
       <div className="cbpp-host" data-testid={storyTestId("pseudoPromoted")}>
         carried by a pseudo
       </div>
       <div
         data-testid={storyTestId("elementPromoted")}
-        style={{ position: "absolute", top: 120.5, left: 10.5, width: 200, height: 60, backdropFilter: "blur(4px)" }}
+        style={{ position: "absolute", top: 120.5, left: 10.5, width: 200, height: 60, willChange: "transform" }}
       >
         carried by the element
       </div>
       <div className="cbpp-inflow" data-testid={storyTestId("pseudoInflow")} style={{ marginTop: 200 }}>
         an in-flow pseudo
+      </div>
+      <div className="cbpp-glass" data-testid={storyTestId("pseudoBackdrop")}>
+        glass carried by a pseudo
       </div>
     </div>
   );

@@ -1,5 +1,5 @@
 // The FORCED-STATE pass (`hover-contrast`) — the one sample family that cannot be gathered inside
-// COLLECT_SAMPLES_JS, because Chromium exposes no way for page JS to force its own `:hover`. The only
+// collectSamplesJs, because Chromium exposes no way for page JS to force its own `:hover`. The only
 // door is `CSS.forcePseudoState` over CDP, which is a NODE-side round trip, so this pass sandwiches a
 // Node loop between two in-page evaluations. Since 2026-09-01 it carries BOTH state mechanisms:
 // the `:hover` pseudo over CDP, and Base UI's `data-*` state
@@ -55,7 +55,7 @@ refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
  *  resolver (UI-Primitives-and-Reuse.md §13.9; three shipped rules were structurally dead the last time
  *  this instrument grew its own). CORE's mutation observer needs `mutationCarriesElement`, which is why
  *  walker.ts exports that fragment separately. WALKER_STATE_PAINT + WALKER_STATE_GLOW sit after RESOLVE,
- *  in that order, and before the census halves — the same var-initialization ordering COLLECT_SAMPLES_JS
+ *  in that order, and before the census halves — the same var-initialization ordering collectSamplesJs
  *  obeys, and the glow half is what this pass's forced glow read calls (a SIBLING file since #2494, because
  *  state-paint.ts reached the `tooling-size` cap) — and
  *  WALKER_GROUP_VARIANT (#1084) sits between them: it READS state-paint's strippers and is composed

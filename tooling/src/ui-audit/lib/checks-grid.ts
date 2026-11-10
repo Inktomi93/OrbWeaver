@@ -11,6 +11,7 @@
 // the resolved half plus Laws 3 and 4, which have no authorship half at all.
 import type { Finding } from "../contract/findings.ts";
 import type { OffGridTextInput, OffGridTransformInput, PromotedLayerOffsetInput } from "../contract/samples-grid.ts";
+import type { AuditEngine } from "../contract/types.ts";
 
 /** Tolerance on a DEVICE-pixel fraction. `getBoundingClientRect` returns exact doubles (unlike the
  *  TRUNCATED `getComputedStyle` strings that forced lib/ramp.ts's larger `LEADING_FLOOR_EPSILON`), so this
@@ -49,6 +50,15 @@ export const GRID_EXEMPTIONS = {
  *  the Node verdict layer and the in-page census (the `INACTIVE_KIND_EXPR` precedent, floor/instrument/wcag.ts). */
 export const GRID_READING_SURFACE_SELECTOR_JS = JSON.stringify(GRID_EXEMPTIONS.readingSurface.selector);
 
+/** The Law 3 and Law 4 exclusion for a layer promoted only by `backdrop-filter`, in Chromium only. Chromium
+ *  (GPU and software raster) paints such a layer's fractional offset into its content, so an integer landing
+ *  changes no pixel (docs/law/integer-line-boxes.md §10). Other engines, `will-change` and 3D stay judged. */
+export const GRID_COMPOSITED_WITHOUT_RESAMPLE = "compositedWithoutResample";
+export const GRID_COMPOSITED_WITHOUT_RESAMPLE_JS = JSON.stringify(GRID_COMPOSITED_WITHOUT_RESAMPLE);
+/** The one engine that measurement covers. */
+const GRID_MEASURED_ENGINE = "chromium" satisfies AuditEngine;
+export const GRID_MEASURED_ENGINE_JS = JSON.stringify(GRID_MEASURED_ENGINE);
+
 function offGrid(input: { readonly topDeviceFrac: number; readonly leftDeviceFrac: number }): boolean {
   return Math.abs(input.topDeviceFrac) > GRID_EPSILON_DEVICE_PX || Math.abs(input.leftDeviceFrac) > GRID_EPSILON_DEVICE_PX;
 }
@@ -59,10 +69,9 @@ function landingText(input: { readonly topDeviceFrac: number; readonly leftDevic
 
 /** LAW 4 — the runtime backstop. Text inside a promoted layer is rasterized ONCE at the layer's own
  *  sub-pixel position: the browser's per-paint baseline snapping is off, so the fraction is resampled and
- *  the anti-aliasing degrades. That is the measured founding defect (22 of 25 config-panel text elements
- *  off-grid under the panel's `backdrop-filter`), and it is invisible to every source-side scan because
- *  the authored line box, spacing and font size can all be perfectly legal tokens. Text OUTSIDE a promotion
- *  context is EXCLUDED in the page, not judged clean here — the browser re-snaps it every paint. */
+ *  the anti-aliasing degrades. It is invisible to every source-side scan because the authored line box,
+ *  spacing and font size can all be perfectly legal tokens. Text OUTSIDE a promotion context, or inside a
+ *  `backdrop-filter` layer only in Chromium, is EXCLUDED in the page, not judged clean here. */
 export function checkOffGridText(input: OffGridTextInput): Finding | null {
   if (!offGrid(input)) {
     return null;

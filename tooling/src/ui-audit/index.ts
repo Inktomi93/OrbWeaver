@@ -140,4 +140,4 @@ export {
 export { WALKER_ACCESSIBLE_NAME } from "./ops/walker/accessible-name.ts";
 export { WALKER_PRIMITIVES } from "./ops/walker/core.ts";
 export { WALKER_RESOLVE } from "./ops/walker/resolve.ts";
-export { COLLECT_SAMPLES_JS, WALKER_MUTATION_CARRIES } from "./ops/walker.ts";
+export { auditEngineOf, collectSamplesJs, WALKER_MUTATION_CARRIES } from "./ops/walker.ts";

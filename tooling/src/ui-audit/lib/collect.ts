@@ -111,7 +111,7 @@
 //                                    (role, name) HOMES folded out of the door census, not the samples
 //   hover-contrast                   hoverContrastPopulations (checks-hover.ts) — MERGES a Node/CDP pass's
 //                                    census with the check's dispositions; its samples are gathered
-//                                    outside COLLECT_SAMPLES_JS, so an absent pass publishes NO row
+//                                    outside collectSamplesJs, so an absent pass publishes NO row
 //   off-theme-font                   fontCensusPopulations (checks-font-census.ts) — the population is the
 //                                    PAGE's censused font faces, not per-element samples ·
 //                                    excluded(declaredFacePreview) · withheld(faceProbeUnusable)

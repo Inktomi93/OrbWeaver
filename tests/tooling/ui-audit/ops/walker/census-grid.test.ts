@@ -16,6 +16,8 @@
 // house-wide, and this repo already sandboxes untrusted source through vm in the regex watchdog.)
 import { runInNewContext } from "node:vm";
 import { expect, test } from "@orb/testkit/tooling";
+import type { AuditEngine } from "../../../../../tooling/src/ui-audit/contract/types.ts";
+import { GRID_COMPOSITED_WITHOUT_RESAMPLE } from "../../../../../tooling/src/ui-audit/lib/checks-grid.ts";
 import { WALKER_CENSUS_GRID } from "../../../../../tooling/src/ui-audit/ops/walker/census-grid.ts";
 
 interface CensusRow {
@@ -109,3 +111,71 @@ test("the predicate is CALLED, not re-spelled — census-grid asks core.ts's srO
     expect(WALKER_CENSUS_GRID, `${respelling} would be a second spelling of a predicate that has one home`).not.toContain(respelling);
   }
 });
+
+// THE ENGINE SCOPE of `compositedWithoutResample` (docs/law/integer-line-boxes.md §10). Only Chromium was
+// measured, so the exclusion keys on the engine Node passes in (`auditEngine`, from collectSamplesJs), and every other
+// engine judges a backdrop-filter layer as before. The CLI only drives Chromium, so the WebKit path is driven
+// here: one backdrop-filter host at a quarter-pixel landing holding one text node, with and without the fact.
+interface GridRun {
+  readonly law3: CensusRow;
+  readonly law4: CensusRow;
+  readonly layers: readonly { readonly promotion: string }[];
+  readonly texts: readonly { readonly promotion: string }[];
+}
+
+function runBackdropHost(auditEngine: AuditEngine | undefined): GridRun {
+  const row = (): CensusRow => ({ candidates: 0, judged: 0, withheld: {}, excluded: {} });
+  const accounting = { "off-grid-text": row(), "promoted-layer-offset": row(), "off-grid-transform": row() };
+  const bump = (target: Record<string, number>, reason: string): void => {
+    target[reason] = (target[reason] ?? 0) + 1;
+  };
+  const host = { ...CANDIDATE, getBoundingClientRect: CANDIDATE.getBoundingClientRect };
+  const text = { ...CANDIDATE, parentElement: host };
+  const hostStyle = { ...COMPUTED, willChange: "auto", backdropFilter: "blur(2px)", position: "relative", content: "none" };
+  const textStyle = { ...COMPUTED, willChange: "auto", content: "none" };
+  const sandbox = {
+    window: { devicePixelRatio: 1 },
+    auditEngine,
+    getComputedStyle: (el: unknown): object => (el === host ? hostStyle : textStyle),
+    isVisible: (): boolean => true,
+    describe: (el: unknown): string => (el === host ? "div.host" : "p.text"),
+    authoredTargetClaim: (): string => "claim",
+    authoredTargetHome: (): string => "home",
+    relationalAccounting: accounting,
+    excludeRelational: (target: CensusRow, reason: string): void => {
+      bump(target.excluded, reason);
+    },
+    withholdRelational: (target: CensusRow, reason: string): void => {
+      bump(target.withheld, reason);
+    },
+    carryRelational: (): undefined => undefined,
+    textEls: [text],
+    allEls: [host],
+    srOnlyText: (): boolean => false,
+  };
+  return runInNewContext(
+    `(function () {\n${WALKER_CENSUS_GRID}\n  return { law3: relationalAccounting["promoted-layer-offset"], law4: relationalAccounting["off-grid-text"], layers: promotedLayerOffsets, texts: offGridTexts };\n})()`,
+    sandbox,
+  ) as GridRun;
+}
+
+test("in Chromium a backdrop-filter host and its text are EXCLUDED by name, never judged", () => {
+  const run = runBackdropHost("chromium");
+  expect(run.law3.excluded).toEqual({ [GRID_COMPOSITED_WITHOUT_RESAMPLE]: 1 });
+  expect(run.law4.excluded).toEqual({ [GRID_COMPOSITED_WITHOUT_RESAMPLE]: 1 });
+  expect(run.layers).toHaveLength(0);
+  expect(run.texts).toHaveLength(0);
+  expect(settles(run.law3) && settles(run.law4)).toBe(true);
+});
+
+test.each([["webkit"], ["unknown"], [undefined]] as const)(
+  "outside Chromium (engine %s) the same backdrop-filter host and its text are JUDGED, as before the exclusion",
+  (engine) => {
+    const run = runBackdropHost(engine);
+    expect(run.law3.excluded).toEqual({});
+    expect(run.law4.excluded).toEqual({});
+    expect(run.layers.map((layer) => layer.promotion)).toEqual(["backdrop-filter"]);
+    expect(run.texts.map((text) => text.promotion)).toEqual(["backdrop-filter"]);
+    expect(settles(run.law3) && settles(run.law4)).toBe(true);
+  },
+);

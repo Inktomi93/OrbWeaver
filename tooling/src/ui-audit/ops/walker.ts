@@ -29,7 +29,10 @@
 // tooling/src/ui-audit/ops/walker/IMPECCABLE-ADOPTION.md for the full 59-rule
 // triage, the divergences, and the license statement.
 
+import type { Page } from "@playwright/test";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
+import type { AuditEngine } from "../contract/types.ts";
+import { AUDIT_ENGINES } from "../contract/types.ts";
 import { CENSUS_OBSERVE_MIN_MS, CENSUS_SETTLE_POLL_MS, UI_AUDIT_CEILINGS_MS } from "../lib/budgets.ts";
 import { WALKER_ACCESSIBLE_NAME } from "./walker/accessible-name.ts";
 import { WALKER_CENSUS_ACCENT } from "./walker/census-accent.ts";
@@ -133,7 +136,21 @@ ${WALKER_MUTATION_CARRIES}  var preWalkObserver = new MutationObserver(function 
 // `tooling-size` cap and the glow vocabulary was its one self-contained third (#2494);
 // the composition order makes that split free, as for
 // WALKER_OBSCURED_REACH above.
-export const COLLECT_SAMPLES_JS = `(async () => {
+//
+// THE ENGINE IS AN INPUT, not a page guess: Node knows which browser it launched, and a page-side probe
+// (`navigator.userAgentData`) is secure-context gated, so a Chromium walk over a LAN http origin would read
+// as another engine. `auditEngine` is the walker's only argument; the grid census reads it (§10).
+/** The engine the page renders in, from the browser Node launched. An unrecognised or ownerless page is
+ *  `unknown`, which every engine-scoped rule treats as unmeasured. */
+export function auditEngineOf(page: Page): AuditEngine {
+  const name = page.context().browser()?.browserType().name();
+  return AUDIT_ENGINES.find((engine) => engine === name) ?? "unknown";
+}
+
+/** The walker for one page, evaluated with `page.evaluate(collectSamplesJs(auditEngineOf(page)))`. */
+export function collectSamplesJs(engine: AuditEngine): string {
+  return `(async () => {
+  var auditEngine = ${JSON.stringify(engine)};
   try {
 ${PRE_WALK_SETTLE}${WALKER_CORE}${WALKER_CENSUS_FRAME}${WALKER_TARGET_IDENTITY}${WALKER_RESOLVE}${WALKER_STATE_PAINT}${WALKER_STATE_GLOW}${WALKER_CENSUS_TEXT}${WALKER_HIT_EXTENT}${WALKER_ACCESSIBLE_NAME}${WALKER_CENSUS_INTERACTIVE}${WALKER_CENSUS_INTERACTIVE_NAVIGABILITY}${WALKER_CENSUS_BORDER}${WALKER_CENSUS_DECOR}${WALKER_CENSUS_ACCENT}${WALKER_CENSUS_GLOW}${WALKER_CENSUS_QUALITY}${WALKER_CENSUS_COLLISION}${WALKER_OBSCURED_REACH}${WALKER_CENSUS_OCCLUSION}${WALKER_CENSUS_COHORT}${WALKER_CENSUS_SELECTION}${WALKER_CENSUS_REGION}${WALKER_CENSUS_TIER}${WALKER_CENSUS_GRID}${WALKER_RETURNS}
   } finally {
@@ -151,3 +168,4 @@ ${PRE_WALK_SETTLE}${WALKER_CORE}${WALKER_CENSUS_FRAME}${WALKER_TARGET_IDENTITY}$
     }
   }
 })()`;
+}

@@ -4,7 +4,7 @@
 //
 // WHY THIS IS NOT PARANOIA, MEASURED (2026-09-01, by renaming a key in ops/walker/returns.ts and running
 // the CLI both ways). The walker is a hand-written JS STRING assembled from ~17 segments; nothing
-// type-checks it against `RawSamples`, so `(await page.evaluate(COLLECT_SAMPLES_JS)) as RawSamples`
+// type-checks it against `RawSamples`, so `(await page.evaluate(collectSamplesJs(engine))) as RawSamples`
 // asserted a 40-field contract on faith. Both arms of the old behaviour were wrong, in different ways:
 //   • a dropped REQUIRED family did not read clean — it CRASHED, opaquely and in the wrong place:
 //     `TypeError: Cannot read properties of undefined (reading 'length')` inside lib/evidence.ts

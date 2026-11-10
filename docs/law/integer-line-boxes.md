@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-17
+updated: 2026-11-09
 ---
 
 # Integer line boxes — the crispness doctrine (Law 1: the crisp type scale; Laws 2-4: §9-§12)
@@ -12,8 +12,7 @@ orientation. This document defines the type and leading scale for integer line b
 ## 1. Integer line boxes
 
 A line box must resolve to a whole CSS pixel at every font scale. A fractional line box shifts every
-following baseline off the device-pixel grid; the effect is most visible under a promoted layer
-(`backdrop-filter`), which cannot re-snap a baseline per paint.
+following baseline off the device-pixel grid.
 
 Crispness requires integer LINE BOXES, not integer font sizes: a fractional glyph size rasterizes
 fine, and a size may stay fractional as long as its paired leading resolves to an integer box. No
@@ -233,10 +232,10 @@ D333 ends custom static transform checks and their certification. The visual rul
 
 ## 10. Law 3 — promoted-layer grid alignment
 
-**The law.** `backdrop-filter`, `will-change` and 3D-promoted layers rasterize their subtree ONCE and
+**The law.** `will-change`, 3D-promoted and `backdrop-filter` layers rasterize their subtree ONCE and
 composite it, which disables the browser's per-paint baseline snapping. A promoted layer's own offset
 is therefore inherited by every glyph and edge inside it, so that offset must be an integer number of
-device pixels.
+device pixels. Chromium is the one measured exception, below.
 
 **Decision: RUNTIME, with no authorship half at all.** A layer's offset is decided by layout — its
 ancestors' box model, the resolved spacing steps, the live root font-size. There is no authored value
@@ -245,10 +244,17 @@ ui-audit, whose subject is the promotion ROOT, not the text inside it: that is w
 lands, and filing it once against the layer instead of N times against its descendants is what keeps
 a single fix from being buried under its own blast radius.
 
-**The three promotion shapes and only those.** `backdrop-filter` (incl. the `-webkit-` alias),
-`will-change` other than `auto`, and a 3D context (`transform-style: preserve-3d`, or a computed
-transform that resolves to `matrix3d`). `filter` was considered and left out: it is not one of the
-three the law names, and widening the promotion vocabulary is a separate measurement.
+**The three promotion shapes and only those.** `will-change` other than `auto`, a 3D context
+(`transform-style: preserve-3d`, or a computed transform that resolves to `matrix3d`), and
+`backdrop-filter` (incl. the `-webkit-` alias). A layer that carries `will-change` or a 3D context is
+judged under it, whatever else it carries. `filter` was considered and left out: widening the
+promotion vocabulary is a separate measurement.
+
+**In Chromium, `backdrop-filter` on the element or an absolute pseudo is not judged.** Chromium composites the layer but paints its fractional offset into the layer's content, so an integer landing changes no pixel. A pixel probe shows this with GPU raster and with software raster, at DPR 1, 1.25 and 2, for the element itself, an absolute `::before` and an absolute `::after`. Every box in the probe is an integer number of device pixels. The probe compares the promoted render at the integer landing against the fractional landing row by row and column by column, with the unpromoted twin as the reference. At a fractional x, a fractional y and a fractional line box inside the layer, no carrier changes a row or column that its twin leaves unchanged. A render moved by a fractional transform is the positive control, and it changes up to 122 rows. In Chromium such a layer is EXCLUDED `compositedWithoutResample`. Node passes the engine of the browser it launched into the walker; the walker never infers it from the page or a project name.
+
+**An in-flow pseudo carrying `backdrop-filter` is withheld, not excluded.** Its backdrop edge row has changed with the landing in a measurement (one row at DPR 1.25, both rasters). The walker cannot derive an in-flow pseudo's box, so it is WITHHELD `pseudoBoxUnmeasurable`, as every in-flow pseudo is.
+
+**Every other engine judges `backdrop-filter`.** WebKit is unmeasured: headless Playwright WebKit on Linux paints no backdrop blur at all, so the probe's filter control reads zero there and the probe cannot see a resample. WebKit walks keep judging `backdrop-filter` layers until a WebKit that paints the filter is measured.
 
 ## 11. Law 4 — the runtime off-grid-text backstop
 
@@ -265,6 +271,7 @@ slider's stops produce a non-integer root).
 | reason | disposition | why |
 | - | - | - |
 | no promoting ancestor | EXCLUDED `snapped` | the browser re-snaps that baseline every paint — a measurement proving INAPPLICABILITY, so the verdict survives |
+| in Chromium, only `backdrop-filter` element ancestors are composited | EXCLUDED `compositedWithoutResample` | Chromium paints the layer's fraction into its content (§10) — inapplicability, so the verdict survives; other engines judge it |
 | inside the reading surface | EXCLUDED `readingSurface` | the typed mirror of the product exception in §2 |
 | non-finite rect / unusable DPR | WITHHELD `unmeasurable` | the instrument could not judge — fails loud, never a clean pass |
 
