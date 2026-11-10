@@ -3,7 +3,7 @@
 
 import type { Handle, UserId } from "@orb/kit/ids";
 import type { SelectItems } from "@orb/ui/select/items";
-import { ITEM_ENABLED_SETTING, itemSwitchName } from "#lib";
+import { DIALOG_VERBS, ITEM_ENABLED_SETTING, itemSwitchName } from "#lib";
 
 /** The props of an admin dialog that acts on one account (link SSO, reset password, sessions). */
 export interface AdminUserDialogProps {
@@ -49,7 +49,7 @@ export function userRoleFieldName(handle: Handle): string {
 }
 
 /** The admin override row's Save, at rest and while its write is in flight. */
-export const ADMIN_SAVE_LABEL = "Save";
+export const ADMIN_SAVE_LABEL = DIALOG_VERBS.save;
 export const ADMIN_SAVING_LABEL = "Saving…";
 
 /** An admin override row's Save names its section, as its Reset does, because several sections share one pane. */
