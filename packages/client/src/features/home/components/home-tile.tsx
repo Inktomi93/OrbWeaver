@@ -63,10 +63,11 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Separator } from "@orb/ui/separator";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode, RefObject } from "react";
-import { useId } from "react";
+import { use, useId, useLayoutEffect } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows } from "#data";
 import type { DormantDoorway, HomeTileContribution, HomeTileRegion } from "#state";
+import { HomeStart } from "./home-start.ts";
 
 /** The frame's fallback row count for a tile that declares no `skeletonRows` — what shipped before. */
 const TILE_SKELETON_ROWS = 3;
@@ -189,6 +190,7 @@ function TileContent({
   readonly title: string;
   readonly gridRef: RefObject<HTMLDivElement | null>;
 }): ReactElement {
+  const { start } = use(HomeStart);
   return (
     <QueryBoundary
       resetKeys={[tile.id]}
@@ -197,7 +199,7 @@ function TileContent({
       reserveBlock={tile.skeletonBlock}
       reserveKey={tile.id}
     >
-      {typeof tile.body === "function" ? tile.body({ gridRef }) : null}
+      {typeof tile.body === "function" ? tile.body({ gridRef, start }) : null}
     </QueryBoundary>
   );
 }
@@ -214,6 +216,8 @@ export function HomeTile({
   readonly gridRef: RefObject<HTMLDivElement | null>;
 }): ReactNode {
   const visible = tile.useVisible?.() ?? true;
+  const holdsStart = tile.useHoldsStart?.() ?? false;
+  const { onHold } = use(HomeStart);
   const title = tile.useTitle?.() ?? tile.title;
   // A live region of `null` holds the tile out of every column; only an absent hook falls back to the static one.
   const liveRegion = tile.useRegion?.();
@@ -222,6 +226,12 @@ export function HomeTile({
     region = liveRegion;
   }
   const headingId = useId();
+  const placed = visible && region === column;
+  // Home draws its start control in the masthead unless a placed tile in its empty state holds it. The layout effect lands before paint, so the control never shows in both places.
+  useLayoutEffect(() => {
+    onHold(tile.id, holdsStart && placed);
+  }, [holdsStart, placed, onHold, tile.id]);
+  useLayoutEffect(() => (): void => onHold(tile.id, false), [onHold, tile.id]);
   // The held tile marks the shelf, which stays invisible until the tile is placed: it lands at the top of the shelf
   // on a house with rooms, so every shelf block painted before it would move down by its whole box.
   if (visible && region === null && column === "shelf") {

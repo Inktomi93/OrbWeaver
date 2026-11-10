@@ -53,16 +53,23 @@ function useRecentsTitle(): string {
   return page !== undefined && isFirstRun(page) ? FIRST_RUN_TITLE : RESUME_TITLE;
 }
 
+// Home's start control belongs to this tile while the account has no room to resume.
+function useHoldsStart(): boolean {
+  const trpc = useTRPC();
+  return useQuery(trpc.chat.listChats.queryOptions({ limit: HOME_RECENT_CHATS_LIMIT })).data?.items.length === 0;
+}
+
 export const chatRecentsTile: HomeTileContribution = {
   id: CHAT_RECENTS_TILE_ID,
   // The mockup's approved band copy. "Recent chats" named a data set; this names what you do with it,
   // which is what the block leads the page with.
   title: RESUME_TITLE,
   useTitle: useRecentsTitle,
+  useHoldsStart,
   icon: MessagesSquare,
   order: RECENTS_TILE_ORDER,
   region: "hearth",
   skeletonBlock: RECENTS_EMPTY_BLOCK_PX,
   skeletonRows: RECENTS_SKELETON_ROWS,
-  body: () => <HomeRecentsTileBody />,
+  body: ({ start }) => <HomeRecentsTileBody start={start} />,
 };

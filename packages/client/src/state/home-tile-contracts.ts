@@ -63,6 +63,9 @@ interface HomeTileContributionBase {
    *  contract) by the tile's own component, never in a map body. `false` ⇒ render NOTHING (no gap, no
    *  empty card). NOT for gating a BUILD fact — that is the `{dormant}` body arm (H7). */
   readonly useVisible?: () => boolean;
+  /** `true` while the tile shows its empty state. Home then hands the tile its start control as `body`'s `start` and draws none in the
+   *  masthead, so the page keeps one control and the empty tile owns it. Called unconditionally, like {@link HomeTileContribution.useVisible}. */
+  readonly useHoldsStart?: () => boolean;
   /** How many skeleton rows this tile's LOADING box holds on a device that has never seen it settle —
    *  the FIRST-EVER-boot arm of the F14 reservation (`surface-box-store`: from the second boot on, the
    *  measured box wins and this is only the fill-count fallback).
@@ -105,6 +108,6 @@ interface HomeTileContributionBase {
 /** A dormant doorway has no controls; building its body replaces that arm in the same edit. */
 export type HomeTileContribution = HomeTileContributionBase &
   (
-    | { readonly body: (props: { readonly gridRef: RefObject<HTMLDivElement | null> }) => ReactNode; readonly action?: ReactNode }
+    | { readonly body: (props: { readonly gridRef: RefObject<HTMLDivElement | null>; readonly start: ReactNode }) => ReactNode; readonly action?: ReactNode }
     | { readonly body: { readonly dormant: DormantDoorway }; readonly action?: never }
   );

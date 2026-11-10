@@ -59,28 +59,31 @@ export function UtilityPresetSelect(): ReactElement {
   );
 
   return (
-    <Row gap="field" align="center" indent={true} justify="between" wrap={true}>
+    // The same placement the role rows use: the picker ends the label row, and under one container width it sits below the label.
+    <Row align="center" alignBelow="stretch-cq-32" gap="field" indent={true} justify="between" stackBelow="cq-32">
       {/* The hint is a sibling of the label, never inside it, or its name joins the label's. */}
-      <Row align="center" gap="tight" wrap={true}>
+      <Row align="center" gap="tight">
         <Text voice="label">Utility preset</Text>
         <HintTrigger
           hint="The sampling summaries, extraction, captions and other background tasks run at. A preset here lends only its sampling settings, never its prompts."
           subject="Utility preset"
         />
       </Row>
-      <Select
-        aria-label="Utility preset"
-        items={items}
-        layout="hug"
-        value={value}
-        disabled={setPreset.isPending}
-        onValueChange={(next): void => {
-          if (next === null) {
-            return;
-          }
-          setPreset.mutate({ section: "seeds", patch: { summarizePreset: choiceOf(next) } });
-        }}
-      />
+      <Row>
+        <Select
+          aria-label="Utility preset"
+          items={items}
+          layout="hug"
+          value={value}
+          disabled={setPreset.isPending}
+          onValueChange={(next): void => {
+            if (next === null) {
+              return;
+            }
+            setPreset.mutate({ section: "seeds", patch: { summarizePreset: choiceOf(next) } });
+          }}
+        />
+      </Row>
     </Row>
   );
 }
