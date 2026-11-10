@@ -1,9 +1,8 @@
 // The find-pattern editor reflows at enlarged text: a long pattern wraps inside the field, so the editor's scroller
-// never scrolls sideways on a phone (WCAG 1.4.10 reflow).
-import { LAYOUT_SUBPIXEL_PX } from "@orb/testkit/browser/spec";
+// never scrolls sideways on a phone at the browser's 300% text size (WCAG 1.4.10 reflow).
+import { LAYOUT_SUBPIXEL_PX, PLATFORM_TEXT_SCALES, setPlatformTextSize } from "@orb/testkit/browser/spec";
 import { routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { REGEX_FIND_PATTERN_NAME } from "#client/features/regex/lib/regex-names.ts";
 import type { RegexMemberSaveStory } from "./_member-save-stories.tsx";
@@ -14,12 +13,14 @@ const LONG_PATTERN = `/${"(?:out-of-character-aside|bracketed-stage-direction)|"
 
 test.use({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
 
-test("a long find pattern wraps at 300% text and the editor does not scroll sideways", async ({ mount, page }) => {
+test("a long find pattern wraps at 300% text and the editor does not scroll sideways", async ({ mount, page, browserName }) => {
+  test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+  await using _textSize = await setPlatformTextSize(page, PLATFORM_TEXT_SCALES[2]);
   await using root = await createCorpusHarness();
   const caller = await root.internalCallerFor(root.ownerId);
   const script = await caller.regex.createScript({ input: { name: "Reflow witness", findRegex: LONG_PATTERN, replaceString: "", placement: ["AI_OUTPUT"] } });
   await routeTrpc(page, serveCorpusProcedures(caller, [...SECTION_PROCEDURES, "regex.listScripts", "regex.listGlobal", "regex.updateScript"]));
-  await mount<typeof RegexMemberSaveStory>(STORY, { scriptId: script.id, appearance: ENLARGED_APPEARANCE_SETTINGS });
+  await mount<typeof RegexMemberSaveStory>(STORY, { scriptId: script.id });
   const field = page.getByRole("textbox", { name: REGEX_FIND_PATTERN_NAME, exact: true });
   await expect(field).toContainText("narration");
   const scroller = page.locator(".cm-scroller");
