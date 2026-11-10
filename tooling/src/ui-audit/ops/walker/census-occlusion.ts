@@ -3,7 +3,7 @@
 // adopted as our own `obscured-target` (#816) and lives in census-collision.ts; these are the two arms
 // that were deferred on cost when that one landed, and this segment is their build-out.
 // One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the segments IN
-// ORDER into COLLECT_SAMPLES_JS, so scope/hoisting behavior is byte-identical to the pre-split monolith.
+// ORDER into collectSamplesJs, so scope/hoisting behavior is byte-identical to the pre-split monolith.
 // It must run AFTER census-collision.ts, which declares `relationalAccounting` and `paintLayerOf`.
 // Raw JS in a template literal (no backticks / dollar-brace — see floor/browser/browser.ts for why a string,
 // not a function). Provenance + attribution: ops/walker.ts.

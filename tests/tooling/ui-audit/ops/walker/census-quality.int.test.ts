@@ -1,6 +1,6 @@
 // The QUALITY censuses' two #1317 corrections, proven through the real CLI against a file:// fixture.
 //
-// WHY THIS TIER. Both live inside COLLECT_SAMPLES_JS — a hand-written JS string evaluated in a browser —
+// WHY THIS TIER. Both live inside collectSamplesJs — a hand-written JS string evaluated in a browser —
 // so nothing below the CLI can reach them, and both are about what the walker SELECTS rather than about
 // arithmetic a unit test could fold. The observable is the findings table, which is what a reader of a
 // design-audit actually reads.

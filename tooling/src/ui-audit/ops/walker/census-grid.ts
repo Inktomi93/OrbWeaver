@@ -17,9 +17,10 @@
 // POLARITY (the census-tier.ts ruling, one property over): text with NO promoting ancestor is EXCLUDED, not
 // judged clean — the browser re-snaps its baseline every paint, so its fraction is a measurement proving
 // INAPPLICABILITY (the verdict survives). SCREEN-READER-ONLY text is excluded on the same polarity and for
-// a stronger reason (#1156): it paints no pixels at all, so "blurred" is unaskable of it. In Chromium, a layer
-// promoted only by backdrop-filter, and text whose only composited ancestors are such layers, are excluded on
-// the same polarity: Chromium paints that fraction into the layer (`compositedWithoutResample`). WITHHELD is
+// a stronger reason (#1156): it paints no pixels at all, so "blurred" is unaskable of it. In Chromium, a
+// layer or absolute pseudo promoted only by backdrop-filter, and text whose only composited ancestors are
+// such layers, are excluded on the same polarity: Chromium paints that fraction into the layer
+// (`compositedWithoutResample`). WITHHELD is
 // reserved for a landing the instrument could not read (a non-finite rect, an unusable DPR), for a
 // transform mid-animation, which has no rest landing yet, and for an sr-only answer that could not be read.
 //
@@ -29,7 +30,7 @@
 // census-cohort.ts (`excludeRelational`/`withholdRelational`), so it is placed with the other post-cohort
 // segments at the end of the composition.
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
-import { GRID_COMPOSITED_WITHOUT_RESAMPLE_JS, GRID_READING_SURFACE_SELECTOR_JS } from "../../lib/checks-grid.ts";
+import { GRID_COMPOSITED_WITHOUT_RESAMPLE_JS, GRID_MEASURED_ENGINE_JS, GRID_READING_SURFACE_SELECTOR_JS } from "../../lib/checks-grid.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
@@ -63,9 +64,8 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
   // is a promotion with nothing to judge: its subject leaves the population EXCLUDED under the reason spelled
   // in ../../lib/checks-grid.ts. No other engine was measured, so everywhere else it is judged.
   var GRID_COMPOSITED_WITHOUT_RESAMPLE = ${GRID_COMPOSITED_WITHOUT_RESAMPLE_JS};
-  // The engine, read from the page itself: navigator.userAgentData is a Blink API, and a device descriptor's
-  // user-agent string neither removes it from Chromium nor adds it to WebKit.
-  var gridBlink = typeof navigator !== "undefined" && "userAgentData" in navigator;
+  // The engine Node launched, passed in by collectSamplesJs (../walker.ts). A composition without it judges.
+  var gridMeasuredEngine = typeof auditEngine !== "undefined" && auditEngine === ${GRID_MEASURED_ENGINE_JS};
   var gridPromotionCache = new WeakMap();
   // ONE promotion vocabulary for BOTH walks. The element pass and the pseudo pass (#1172) read the same
   // shapes off a computed style; a pseudo-only list would be a second decision about what "promoted"
@@ -79,7 +79,7 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
     if (willChange !== "auto" && willChange !== "") kind = "will-change";
     else if (style.transformStyle === "preserve-3d") kind = "3d";
     else if ((style.transform || "none").indexOf("matrix3d") === 0) kind = "3d";
-    else if (backdrop && !gridBlink) kind = "backdrop-filter";
+    else if (backdrop && !gridMeasuredEngine) kind = "backdrop-filter";
     return { kind: kind, composited: kind !== null || backdrop };
   }
   function gridPromotion(el) {
@@ -286,14 +286,15 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
       relationalAccounting["promoted-layer-offset"].candidates += 1;
       carryRelational(relationalAccounting["promoted-layer-offset"], "pseudo");
       var gsKind = gsPromotion.kind;
-      // Inapplicability needs no box, so it is decided before the pseudo's landing is derived.
-      if (gsKind === null) {
-        excludeRelational(relationalAccounting["promoted-layer-offset"], GRID_COMPOSITED_WITHOUT_RESAMPLE);
-        continue;
-      }
+      // The landing is derived FIRST: the exclusion was measured on absolute pseudos only, and an in-flow
+      // pseudo's backdrop edge does change with the fraction (§10), so an underivable box stays withheld.
       var gsLanding = gridPseudoLanding(gsEl, gsHostStyle, gsStyle);
       if (gsLanding === null) {
         withholdRelational(relationalAccounting["promoted-layer-offset"], "pseudoBoxUnmeasurable", describe(gsEl));
+        continue;
+      }
+      if (gsKind === null) {
+        excludeRelational(relationalAccounting["promoted-layer-offset"], GRID_COMPOSITED_WITHOUT_RESAMPLE);
         continue;
       }
       relationalAccounting["promoted-layer-offset"].judged += 1;

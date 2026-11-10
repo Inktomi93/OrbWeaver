@@ -250,7 +250,9 @@ a single fix from being buried under its own blast radius.
 judged under it, whatever else it carries. `filter` was considered and left out: widening the
 promotion vocabulary is a separate measurement.
 
-**In Chromium, `backdrop-filter` is not judged.** Chromium composites the layer but paints its fractional offset into the layer's content, so an integer landing changes no pixel. A pixel probe shows this with GPU raster and with software raster, at DPR 1, 1.25 and 2, for the four carriers the census reaches: the element itself, an absolute `::before`, an absolute `::after` and an in-flow `::before`. It compares each carrier against its own twin with the filter removed, at an integer landing, a fractional x, a fractional y and a fractional line box inside the layer. The promotion changes Chromium's anti-aliasing by about the same amount at every landing. A `will-change` layer in the same probe changes its raster with the landing, which is the probe's positive control. In Chromium a layer promoted only by `backdrop-filter` is EXCLUDED `compositedWithoutResample`. The walker reads the engine from the page (`navigator.userAgentData`), never from a run or project name.
+**In Chromium, `backdrop-filter` on the element or an absolute pseudo is not judged.** Chromium composites the layer but paints its fractional offset into the layer's content, so an integer landing changes no pixel. A pixel probe shows this with GPU raster and with software raster, at DPR 1, 1.25 and 2, for the element itself, an absolute `::before` and an absolute `::after`. Every box in the probe is an integer number of device pixels. The probe compares the promoted render at the integer landing against the fractional landing row by row and column by column, with the unpromoted twin as the reference. At a fractional x, a fractional y and a fractional line box inside the layer, no carrier changes a row or column that its twin leaves unchanged. A render moved by a fractional transform is the positive control, and it changes up to 122 rows. In Chromium such a layer is EXCLUDED `compositedWithoutResample`. Node passes the engine of the browser it launched into the walker; the walker never infers it from the page or a project name.
+
+**An in-flow pseudo carrying `backdrop-filter` is withheld, not excluded.** Its backdrop edge row has changed with the landing in a measurement (one row at DPR 1.25, both rasters). The walker cannot derive an in-flow pseudo's box, so it is WITHHELD `pseudoBoxUnmeasurable`, as every in-flow pseudo is.
 
 **Every other engine judges `backdrop-filter`.** WebKit is unmeasured: headless Playwright WebKit on Linux paints no backdrop blur at all, so the probe's filter control reads zero there and the probe cannot see a resample. WebKit walks keep judging `backdrop-filter` layers until a WebKit that paints the filter is measured.
 
@@ -269,7 +271,7 @@ slider's stops produce a non-integer root).
 | reason | disposition | why |
 | - | - | - |
 | no promoting ancestor | EXCLUDED `snapped` | the browser re-snaps that baseline every paint — a measurement proving INAPPLICABILITY, so the verdict survives |
-| in Chromium, only `backdrop-filter` ancestors are composited | EXCLUDED `compositedWithoutResample` | Chromium paints the layer's fraction into its content (§10) — inapplicability, so the verdict survives; other engines judge it |
+| in Chromium, only `backdrop-filter` element ancestors are composited | EXCLUDED `compositedWithoutResample` | Chromium paints the layer's fraction into its content (§10) — inapplicability, so the verdict survives; other engines judge it |
 | inside the reading surface | EXCLUDED `readingSurface` | the typed mirror of the product exception in §2 |
 | non-finite rect / unusable DPR | WITHHELD `unmeasurable` | the instrument could not judge — fails loud, never a clean pass |
 

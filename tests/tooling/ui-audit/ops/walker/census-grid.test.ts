@@ -16,6 +16,7 @@
 // house-wide, and this repo already sandboxes untrusted source through vm in the regex watchdog.)
 import { runInNewContext } from "node:vm";
 import { expect, test } from "@orb/testkit/tooling";
+import type { AuditEngine } from "../../../../../tooling/src/ui-audit/contract/types.ts";
 import { GRID_COMPOSITED_WITHOUT_RESAMPLE } from "../../../../../tooling/src/ui-audit/lib/checks-grid.ts";
 import { WALKER_CENSUS_GRID } from "../../../../../tooling/src/ui-audit/ops/walker/census-grid.ts";
 
@@ -112,7 +113,7 @@ test("the predicate is CALLED, not re-spelled — census-grid asks core.ts's srO
 });
 
 // THE ENGINE SCOPE of `compositedWithoutResample` (docs/law/integer-line-boxes.md §10). Only Chromium was
-// measured, so the exclusion keys on the page's own engine fact, `navigator.userAgentData`, and every other
+// measured, so the exclusion keys on the engine Node passes in (`auditEngine`, from collectSamplesJs), and every other
 // engine judges a backdrop-filter layer as before. The CLI only drives Chromium, so the WebKit path is driven
 // here: one backdrop-filter host at a quarter-pixel landing holding one text node, with and without the fact.
 interface GridRun {
@@ -122,7 +123,7 @@ interface GridRun {
   readonly texts: readonly { readonly promotion: string }[];
 }
 
-function runBackdropHost(navigatorFacts: object): GridRun {
+function runBackdropHost(auditEngine: AuditEngine | undefined): GridRun {
   const row = (): CensusRow => ({ candidates: 0, judged: 0, withheld: {}, excluded: {} });
   const accounting = { "off-grid-text": row(), "promoted-layer-offset": row(), "off-grid-transform": row() };
   const bump = (target: Record<string, number>, reason: string): void => {
@@ -134,7 +135,7 @@ function runBackdropHost(navigatorFacts: object): GridRun {
   const textStyle = { ...COMPUTED, willChange: "auto", content: "none" };
   const sandbox = {
     window: { devicePixelRatio: 1 },
-    navigator: navigatorFacts,
+    auditEngine,
     getComputedStyle: (el: unknown): object => (el === host ? hostStyle : textStyle),
     isVisible: (): boolean => true,
     describe: (el: unknown): string => (el === host ? "div.host" : "p.text"),
@@ -159,7 +160,7 @@ function runBackdropHost(navigatorFacts: object): GridRun {
 }
 
 test("in Chromium a backdrop-filter host and its text are EXCLUDED by name, never judged", () => {
-  const run = runBackdropHost({ userAgentData: {} });
+  const run = runBackdropHost("chromium");
   expect(run.law3.excluded).toEqual({ [GRID_COMPOSITED_WITHOUT_RESAMPLE]: 1 });
   expect(run.law4.excluded).toEqual({ [GRID_COMPOSITED_WITHOUT_RESAMPLE]: 1 });
   expect(run.layers).toHaveLength(0);
@@ -167,11 +168,14 @@ test("in Chromium a backdrop-filter host and its text are EXCLUDED by name, neve
   expect(settles(run.law3) && settles(run.law4)).toBe(true);
 });
 
-test("outside Chromium the same backdrop-filter host and its text are JUDGED, as before the exclusion", () => {
-  const run = runBackdropHost({});
-  expect(run.law3.excluded).toEqual({});
-  expect(run.law4.excluded).toEqual({});
-  expect(run.layers.map((layer) => layer.promotion)).toEqual(["backdrop-filter"]);
-  expect(run.texts.map((text) => text.promotion)).toEqual(["backdrop-filter"]);
-  expect(settles(run.law3) && settles(run.law4)).toBe(true);
-});
+test.each([["webkit"], ["unknown"], [undefined]] as const)(
+  "outside Chromium (engine %s) the same backdrop-filter host and its text are JUDGED, as before the exclusion",
+  (engine) => {
+    const run = runBackdropHost(engine);
+    expect(run.law3.excluded).toEqual({});
+    expect(run.law4.excluded).toEqual({});
+    expect(run.layers.map((layer) => layer.promotion)).toEqual(["backdrop-filter"]);
+    expect(run.texts.map((text) => text.promotion)).toEqual(["backdrop-filter"]);
+    expect(settles(run.law3) && settles(run.law4)).toBe(true);
+  },
+);

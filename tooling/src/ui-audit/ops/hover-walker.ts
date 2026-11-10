@@ -4,7 +4,7 @@
 // rule-family seam for the tooling-size cap and composed IN ORDER by ops/hover.ts.
 // Raw JS in a template literal (no backticks / dollar-brace — see
 // floor/browser/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
-// Composed by ops/hover.ts, NOT by COLLECT_SAMPLES_JS: this pass has a Node-side CDP round trip in
+// Composed by ops/hover.ts, NOT by collectSamplesJs: this pass has a Node-side CDP round trip in
 // the middle of it. The shared predicate/vocabulary segment is ops/walker/state-paint.ts.
 //
 // THE PREFILTER IS THIS FILE'S; the round-trip argument behind it is stated once, in ops/hover.ts's

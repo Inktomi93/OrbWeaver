@@ -11,7 +11,7 @@
 // (lib/collect.ts's rung table) the walker returns only findings, so the carriers past the bound were not
 // under-counted, they were DELETED.
 //
-// WHY THIS TIER. The bound lives inside COLLECT_SAMPLES_JS — a hand-written JS string evaluated in a real
+// WHY THIS TIER. The bound lives inside collectSamplesJs — a hand-written JS string evaluated in a real
 // browser — so nothing below the CLI can reach it. The fixtures are therefore documents with a known
 // carrier count either side of a real bound, and the assertions are the two channels a reader actually
 // uses: the rule's own POPULATION line (`withheld(capExceeded=…)`) and the run-level refusal

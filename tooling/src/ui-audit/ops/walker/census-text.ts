@@ -9,7 +9,7 @@
 // like `object-fit: none`; anything else falls through to the "fill" math unchanged. The `<img>` half of
 // the census reads the real computed keyword and was never affected.
 // One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the
-// segments IN ORDER into COLLECT_SAMPLES_JS, so scope/hoisting behavior is byte-identical to the
+// segments IN ORDER into collectSamplesJs, so scope/hoisting behavior is byte-identical to the
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
 // floor/browser/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 import { FONT_PREVIEW_ATTRIBUTE } from "@orb/ui/select/items";

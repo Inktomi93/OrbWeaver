@@ -41,14 +41,15 @@ import type {
 import {
   actionsFailedGap,
   appFailureSurface,
+  auditEngineOf,
   buildSurfaceStateAccounting,
-  COLLECT_SAMPLES_JS,
   censusCapGap,
   censusGap,
   censusThinGap,
   censusTotal,
   checkScriptErrors,
   collectAudit,
+  collectSamplesJs,
   countBySeverity,
   failureSurfaceGap,
   hoverPassLabel,
@@ -227,7 +228,7 @@ async function proveSelectors(page: Page, findings: readonly Finding[]): Promise
 async function readSamples(page: Page): Promise<{ readonly samples: RawSamples; readonly population: DomPopulation } | { readonly walkError: string }> {
   // the walk failure is returned as walkError; walkDesignAudit turns it into a terminalMeasurement carrying walkFailureGap, and arms/design-audit.ts exit returns EXIT.toolError for any terminalGap. Ends if walkError stops reaching terminalMeasurement.
   try {
-    const samples = rawSamples(await page.evaluate(COLLECT_SAMPLES_JS));
+    const samples = rawSamples(await page.evaluate(collectSamplesJs(auditEngineOf(page))));
     const accounting = samples.subjectAccounting;
     return {
       samples,

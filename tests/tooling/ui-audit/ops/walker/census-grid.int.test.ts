@@ -136,18 +136,20 @@ test("Law 4 judges text under the two judged shapes, names each, and EXCLUDES te
   expect(kinds.join(" | "), "in Chromium a backdrop-filter layer paints its fraction in (§10)").not.toContain("backdrop-filter");
 });
 
-/** Four promotion roots on the same quarter-pixel landing. The two backdrop-filter roots, one on the element
- *  and one on an absolute `::before`, are the shell glass shapes and leave the population by name. The
+/** Five promotion roots on the same quarter-pixel landing. The three backdrop-filter roots, on the element,
+ *  an absolute `::before` and an absolute `::after`, are the measured shapes and leave the population by name. The
  *  will-change root is the control that still fires. The root carrying both shapes is judged as will-change. */
 const LAW3_BACKDROP_FIXTURE = `<style>
   .root { position: relative; top: 10.25px; width: 120px; height: 20px; }
   #glass { backdrop-filter: blur(2px); }
   #glass-pseudo::before { content: ""; position: absolute; inset: 0; backdrop-filter: blur(2px); }
+  #glass-after::after { content: ""; position: absolute; inset: 0; backdrop-filter: blur(2px); }
   #willchange { will-change: transform; }
   #both { backdrop-filter: blur(2px); will-change: transform; }
 </style>
 <div class="root" id="glass" data-slot="glass-root"></div>
 <div class="root" id="glass-pseudo" data-slot="glass-pseudo-root"></div>
+<div class="root" id="glass-after" data-slot="glass-after-root"></div>
 <div class="root" id="willchange" data-slot="will-change-root"></div>
 <div class="root" id="both" data-slot="both-root"></div>`;
 
@@ -177,15 +179,31 @@ test("Law 3 EXCLUDES a backdrop-filter-only root, element or pseudo, and still f
   const res = await runCli("snap", ["--file", join(scratch, "law3-backdrop.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   expect(res.stdout).toMatch(
-    new RegExp(`POPULATION\\s+promoted-layer-offset candidates=4 judged=2 .*excluded\\(${GRID_COMPOSITED_WITHOUT_RESAMPLE}=2\\)`, "u"),
+    new RegExp(`POPULATION\\s+promoted-layer-offset candidates=5 judged=2 .*excluded\\(${GRID_COMPOSITED_WITHOUT_RESAMPLE}=3\\)`, "u"),
   );
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as GridReport;
-  expect(report.populationAccounting?.["promoted-layer-offset"]?.excluded[GRID_COMPOSITED_WITHOUT_RESAMPLE], "carried in the report, not only stdout").toBe(2);
+  expect(report.populationAccounting?.["promoted-layer-offset"]?.excluded[GRID_COMPOSITED_WITHOUT_RESAMPLE], "carried in the report, not only stdout").toBe(3);
   const subjects = report.findings.filter((finding) => finding.rule === "promoted-layer-offset").map((finding) => finding.selector);
   expect(subjects.join(" | ")).toContain("#willchange");
   expect(subjects.join(" | "), "a root with a judged shape stays judged when it also carries a backdrop-filter").toContain("#both");
   expect(subjects.join(" | ")).not.toContain("glass");
+});
+
+/** An in-flow `::before` carrying backdrop-filter. Its backdrop edge changes with the landing (§10), so it is
+ *  not excluded; its box cannot be derived from the host's rect, so it is withheld, as any in-flow pseudo is. */
+const INFLOW_BACKDROP_FIXTURE = `<style>
+  #strip { position: relative; top: 10.25px; width: 120px; }
+  #strip::before { content: ""; display: block; height: 4px; backdrop-filter: blur(2px); }
+</style>
+<div id="strip" data-slot="glass-strip-root">text under a glass strip</div>`;
+
+test("Law 3 WITHHOLDS an in-flow backdrop-filter pseudo by name, never excluding it", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "inflow-backdrop.html"), relationalDocument(INFLOW_BACKDROP_FIXTURE));
+  const res = await runCli("snap", ["--file", join(scratch, "inflow-backdrop.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+
+  expect(res.stdout).toMatch(/POPULATION\s+promoted-layer-offset candidates=1 judged=0 .*withheld\(pseudoBoxUnmeasurable=1\) excluded\(\)/u);
+  await expect(res).toExitWith(2);
 });
 
 /** A resting transform that is genuinely animating: `gridAnimating` asks the Web Animations API, and #987

@@ -1,6 +1,6 @@
 // ui-audit in-page walker — segment: constants + selector vocabulary + the locatable-selector (describe/anchor) machinery + accumulated opacity / visibility / visually-hidden.
 // One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the
-// segments IN ORDER into COLLECT_SAMPLES_JS, so scope/hoisting behavior is byte-identical to the
+// segments IN ORDER into collectSamplesJs, so scope/hoisting behavior is byte-identical to the
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
 // floor/browser/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 // AT THE CAP: the next addition is a SIBLING segment (census-frame.ts, obscured-reach.ts) — never an arm here, never a deleted comment buying its line.

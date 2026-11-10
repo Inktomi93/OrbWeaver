@@ -11,6 +11,7 @@
 // the resolved half plus Laws 3 and 4, which have no authorship half at all.
 import type { Finding } from "../contract/findings.ts";
 import type { OffGridTextInput, OffGridTransformInput, PromotedLayerOffsetInput } from "../contract/samples-grid.ts";
+import type { AuditEngine } from "../contract/types.ts";
 
 /** Tolerance on a DEVICE-pixel fraction. `getBoundingClientRect` returns exact doubles (unlike the
  *  TRUNCATED `getComputedStyle` strings that forced lib/ramp.ts's larger `LEADING_FLOOR_EPSILON`), so this
@@ -54,6 +55,9 @@ export const GRID_READING_SURFACE_SELECTOR_JS = JSON.stringify(GRID_EXEMPTIONS.r
  *  changes no pixel (docs/law/integer-line-boxes.md §10). Other engines, `will-change` and 3D stay judged. */
 export const GRID_COMPOSITED_WITHOUT_RESAMPLE = "compositedWithoutResample";
 export const GRID_COMPOSITED_WITHOUT_RESAMPLE_JS = JSON.stringify(GRID_COMPOSITED_WITHOUT_RESAMPLE);
+/** The one engine that measurement covers. */
+const GRID_MEASURED_ENGINE = "chromium" satisfies AuditEngine;
+export const GRID_MEASURED_ENGINE_JS = JSON.stringify(GRID_MEASURED_ENGINE);
 
 function offGrid(input: { readonly topDeviceFrac: number; readonly leftDeviceFrac: number }): boolean {
   return Math.abs(input.topDeviceFrac) > GRID_EPSILON_DEVICE_PX || Math.abs(input.leftDeviceFrac) > GRID_EPSILON_DEVICE_PX;

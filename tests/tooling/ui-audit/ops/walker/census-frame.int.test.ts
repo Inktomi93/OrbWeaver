@@ -11,7 +11,7 @@
 // review of that mock set, 48 of 93 findings were retracted as drawing artifacts — and the cost of that
 // is CALIBRATION, not noise: a reviewer who learns to discount this instrument's P1s discounts a real one.
 //
-// WHY THIS TIER. The measurement lives inside COLLECT_SAMPLES_JS — a hand-written JS string evaluated in
+// WHY THIS TIER. The measurement lives inside collectSamplesJs — a hand-written JS string evaluated in
 // a real browser — so nothing below the CLI can reach it, and the refusal's whole point is what the
 // TRANSCRIPT says. The fixtures are therefore documents with a known frame either side of the tolerance.
 //

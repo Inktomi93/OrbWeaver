@@ -15,7 +15,7 @@ import { present } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { Finding, RawSamples } from "../../tooling/src/ui-audit/index.ts";
-import { COLLECT_SAMPLES_JS, collectFindings } from "../../tooling/src/ui-audit/index.ts";
+import { auditEngineOf, collectFindings, collectSamplesJs } from "../../tooling/src/ui-audit/index.ts";
 import { GRID_COMPOSITED_WITHOUT_RESAMPLE } from "../../tooling/src/ui-audit/lib/checks-grid.ts";
 import type {
   WalkerAccentBorderStory,
@@ -71,7 +71,7 @@ interface TapTarget {
  *  outlet in #247, and none of these stories renders one, so nothing is filtered — and a filter kept past
  *  its cause would silently hide a real story control that happened to match. */
 async function tapTargets(page: Page): Promise<readonly TapTarget[]> {
-  const samples = await page.evaluate<{ readonly tapTargets: readonly TapTarget[] }>(COLLECT_SAMPLES_JS);
+  const samples = await page.evaluate<{ readonly tapTargets: readonly TapTarget[] }>(collectSamplesJs(auditEngineOf(page)));
   return samples.tapTargets;
 }
 
@@ -259,7 +259,7 @@ const sampledSelectors = (rows: readonly { readonly selector: string }[]): reado
 
 /** The walker's whole raw sample set for the mounted stage. */
 async function samplesOf(page: Page): Promise<RawSamples> {
-  return await page.evaluate<RawSamples>(COLLECT_SAMPLES_JS);
+  return await page.evaluate<RawSamples>(collectSamplesJs(auditEngineOf(page)));
 }
 
 // ── A finding must be LOCATABLE (issue #148 item 5) ──────────────────────────────────────────────
@@ -1091,7 +1091,7 @@ test("the healthy twin produces no clipped-overflow finding — scroll panes, sr
 
 /** Every finding the REAL walker + the REAL checks produce for the mounted page. */
 async function findingsFor(page: Page): Promise<readonly Finding[]> {
-  const samples = await page.evaluate<RawSamples>(COLLECT_SAMPLES_JS);
+  const samples = await page.evaluate<RawSamples>(collectSamplesJs(auditEngineOf(page)));
   return collectFindings(samples);
 }
 
@@ -1154,7 +1154,7 @@ test("#816: the same row without the badges keeps its name and its hit test — 
 // (RULE-AUTHORING.md step 1/2). This mounts the real component and reads the real census.
 test("the real @orb/ui Tooltip publishes the census's two attributes, one row per seal decision", async ({ mount, page }) => {
   await mount<typeof WalkerTooltipHintStory>("tests/tooling/_ct-stories/WalkerTooltipHintStory", {});
-  const samples = await page.evaluate<{ readonly unreachableHints?: readonly UnreachableHint[] }>(COLLECT_SAMPLES_JS);
+  const samples = await page.evaluate<{ readonly unreachableHints?: readonly UnreachableHint[] }>(collectSamplesJs(auditEngineOf(page)));
   const hints = samples.unreachableHints ?? [];
 
   // A zero here is "the walker never saw a tooltip trigger" — the blind case, which must never read as clean.
