@@ -1,10 +1,9 @@
 ---
 kind: bug
-status: doing
+status: open
 updated: 2026-11-10
 priority: P2
 area: ui
-lane: wt/agent-a25c03bac14ebf059
 plan: cross-surface-consistency
 ---
 
@@ -12,7 +11,7 @@ plan: cross-surface-consistency
 
 ## What
 
-Below the list's container step the SortableList grip stacks on its own line, but in sampler order and the prompt rack it sits as close to the row above as to its own and inset from the label edge, so a sighted user cannot tell which grip moves which row. The rule list reads fine.
+Below the SortableList container step the grip stacks above its row. The stacked pair now sits 4px apart with 16px above it (merged at bcf2af03ad, CT strict), but whether a sighted user can tell which row a grip moves in sampler order and the prompt rack has had no rendered judgment since the change.
 
 ## Why
 
