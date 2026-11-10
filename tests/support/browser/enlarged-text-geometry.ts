@@ -18,7 +18,6 @@ const BOOT_VEIL = '[data-slot="weave-veil"]';
 // it) and a facet row's one-line preview. A control in a row's actions slot, or any other text in the row, is judged.
 const TRUNCATED_BY_DESIGN = [
   '[data-slot="list-row-title"]',
-  '[data-slot="list-row-title-qualifier"]',
   '[data-slot="list-row-subtitle"]',
   '[data-slot="list-row-subtitle-stack"]',
   '[data-slot="member-name"]',

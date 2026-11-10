@@ -389,6 +389,8 @@ export const TOKENS = {
   "height.picker-door-row": { cssVar: "--height-picker-door-row", value: "calc(var(--size-control-sm) + 2 * var(--spacing-block))" },
   "height.dialog-gutter": { cssVar: "--height-dialog-gutter", value: "min(var(--spacing-gutter), 5dvh)" },
   "width.dialog-gutter": { cssVar: "--width-dialog-gutter", value: "round(down, min(var(--spacing-gutter), 5dvw), 1px)" },
+  "spacing.picker-inset": { cssVar: "--spacing-picker-inset", value: "round(down, min(var(--spacing-block), 4dvw), 1px)" },
+  "spacing.picker-gap": { cssVar: "--spacing-picker-gap", value: "round(down, min(var(--spacing-row), 2dvw), 1px)" },
   "dimension.shell-topbar-block": { cssVar: "--dimension-shell-topbar-block", value: "calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-16) + var(--dimension-device-pixel) - 100dvw) * 1000), var(--dimension-chrome-row) / 2))" },
   "dimension.shell-topbar-block-primary": { cssVar: "--dimension-shell-topbar-block-primary", value: "calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-20) - 100dvw) * 1000), var(--dimension-chrome-row) / 2))" },
   "dimension.shell-title-floor": { cssVar: "--dimension-shell-title-floor", value: "6ch" },

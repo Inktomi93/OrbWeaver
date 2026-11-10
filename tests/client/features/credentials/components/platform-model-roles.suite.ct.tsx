@@ -1,5 +1,5 @@
 // Model roles reads as one short row per role: the explanation sits behind an info control a keyboard reaches, the picker sizes to its
-// value, and the Utility preset belongs to the Utility role's group. The rows hold at 200% text.
+// value, and the Utility preset belongs to the Utility role's group. The rows hold at 200% text, and a picker on a phone at 300% keeps its value the growth.
 
 import { ROLE_ROWS_ORDERED } from "@orb/client/lib";
 import { enlargedTextFindings as findings, resolvedLength, setRootFontScale } from "@orb/testkit/browser/spec";
@@ -16,6 +16,7 @@ const STORY = "tests/client/features/credentials/components/_model-roles-stories
 const HINT = '[data-slot="hint-trigger"]';
 const HINT_POPUP = '[data-slot="hint-popup"]';
 const TEXT_200 = 2;
+const TEXT_300 = 3;
 // A picker narrower than this share of its role's group is sized to its value, not stretched across the row.
 const HUG_SHARE = 0.75;
 
@@ -201,6 +202,29 @@ test.describe("desktop width", () => {
     }
     expect(picker.y).toBeLessThan(hint.y + hint.height);
     expect(picker.width).toBeLessThan(group.width * HUG_SHARE);
+  });
+});
+
+test.describe("phone at 300% layout", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+
+  test("every picker's padding, gap and chevron stay under the touch floor, so its value takes the growth", async ({ corpus, mount, page }) => {
+    await using root = await createCorpusHarness();
+    await serveRoles(page, corpus, root);
+    await mount<typeof ModelRolesStory>(STORY, {});
+    await setRootFontScale(page, channelName("fontScale"), TEXT_300);
+    await expect(page.getByRole("group", { name: roleOf("summarize").heading, exact: true })).toBeVisible();
+    await expect.poll(() => findings(page.locator("body"))).toEqual([]);
+    const pickers = page.getByRole("combobox");
+    const floor = await resolvedLength(page, `var(${TOKENS["size.touch-target"].cssVar})`, pickers.first());
+    const chrome = await pickers.evaluateAll((nodes) =>
+      nodes.map((node) => {
+        const value = node.querySelector('[data-slot="select-value"]');
+        return node.getBoundingClientRect().width - (value?.getBoundingClientRect().width ?? 0);
+      }),
+    );
+    expect(chrome.length).toBeGreaterThan(ROLE_ROWS_ORDERED.length);
+    expect(Math.max(...chrome)).toBeLessThan(floor);
   });
 });
 

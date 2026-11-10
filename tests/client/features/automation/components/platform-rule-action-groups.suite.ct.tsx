@@ -10,6 +10,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
+import type { Locator } from "@playwright/test";
 import { RULE_UNSET_EFFECTS, ruleEnabledSwitchName } from "#client/features/automation/lib/rule-copy.ts";
 import type { ChatRulesStory, RuleActionGroupsStory } from "./_rule-action-groups-stories.tsx";
 
@@ -27,7 +28,19 @@ const READS = [
   "automation.listRules",
   "worldInfo.listForChat",
 ] as const;
-const TEXT_200 = 2;
+async function paintedBox(locator: Locator): Promise<NonNullable<Awaited<ReturnType<Locator["boundingBox"]>>>> {
+  const box = await locator.boundingBox();
+  if (box === null) {
+    throw new Error("The control must paint");
+  }
+  return box;
+}
+
+const ENLARGED_PHONE_SCALES = [
+  { name: "200% text", factor: 2, badgesFit: true },
+  // The nested level's step and a badge's own padding and glyph already outrun the pane's inline room here, so a badge's edge is not held.
+  { name: "300% layout", factor: 3, badgesFit: false },
+] as const;
 const RULE_CONNECTION_READS = [...READS, "connection.list", "connection.listBindings", "connection.providersAvailable"] as const;
 const REGIMES = [
   { name: "wide desktop", width: 960, viewport: { width: 1280, height: 900 }, coarse: false, appearance: appearanceSettingsSchema.parse({}) },
@@ -247,62 +260,65 @@ test.describe("rule editor field rows", () => {
     await expect(trigger).toHaveAttribute("aria-expanded", "true");
   });
 
-  test.describe("phone at 200% text", () => {
-    test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+  for (const scale of ENLARGED_PHONE_SCALES) {
+    test.describe(`phone at ${scale.name}`, () => {
+      test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
 
-    test("the rule card keeps its connection slot's heading, hint, badge and picker inside the panel", async ({ mount, page }) => {
-      await using root = await createCorpusHarness();
-      const caller = await root.internalCallerFor(root.ownerId);
-      const appearance = appearanceSettingsSchema.parse({});
-      await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });
-      await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
-      const captured = (await caller.automation.listOwnerRules())[0];
-      if (captured === undefined) {
-        throw new Error("The corpus must contain an owned library rule");
-      }
-      const role = ROLE_ROWS_ORDERED.find((row) => row.task === "generateImage");
-      if (role === undefined) {
-        throw new Error("Model roles carries no image generation row");
-      }
-      await caller.automation.updateRule({
-        ...automationRuleEditableSchema.strip().parse(captured),
-        trigger: automationTriggerFor("character.updated"),
-        actions: [automationActionSchema.parse({ type: "generate_image", mode: "character_multimodal", quiet: true })],
-        ruleId: captured.id,
-        timeZone: captured.timeZone ?? UTC_TIME_ZONE,
+      test("the rule card keeps its connection slot's heading, hint, badge and picker inside the panel", async ({ mount, page }) => {
+        await using root = await createCorpusHarness();
+        const caller = await root.internalCallerFor(root.ownerId);
+        const appearance = appearanceSettingsSchema.parse({});
+        await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });
+        await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
+        const captured = (await caller.automation.listOwnerRules())[0];
+        if (captured === undefined) {
+          throw new Error("The corpus must contain an owned library rule");
+        }
+        const role = ROLE_ROWS_ORDERED.find((row) => row.task === "generateImage");
+        if (role === undefined) {
+          throw new Error("Model roles carries no image generation row");
+        }
+        await caller.automation.updateRule({
+          ...automationRuleEditableSchema.strip().parse(captured),
+          trigger: automationTriggerFor("character.updated"),
+          actions: [automationActionSchema.parse({ type: "generate_image", mode: "character_multimodal", quiet: true })],
+          ruleId: captured.id,
+          timeZone: captured.timeZone ?? UTC_TIME_ZONE,
+        });
+        await routeTrpc(page, serveCorpusProcedures(caller, RULE_CONNECTION_READS));
+        await mount<typeof RuleActionGroupsStory>(STORY, { width: 390, appearance });
+        await setRootFontScale(page, channelName("fontScale"), scale.factor);
+        await page
+          .getByRole("button")
+          .filter({ has: page.getByText(captured.name, { exact: true }) })
+          .click();
+        await page.getByRole("button", { name: `Connections for ${captured.name}`, exact: true }).click();
+        const slot = page.getByRole("group", { name: role.heading, exact: true });
+        await expect(slot.getByRole("combobox", { name: `${role.label} connection`, exact: true })).toBeVisible();
+        await expect.poll(() => findings(page.getByRole("group", { name: "Rule action host", exact: true }))).toEqual([]);
+        const panel = page
+          .locator('[data-slot="collapsible-panel"]')
+          .filter({ has: page.locator('[data-slot="rule-connections"]') })
+          .last();
+        const [panelBox, hintBox] = await Promise.all([paintedBox(panel), paintedBox(slot.locator('[data-slot="hint-trigger"]').first())]);
+        expect(hintBox.x + hintBox.width).toBeLessThanOrEqual(panelBox.x + panelBox.width);
+        // The requirement badges wrap inside the panel too; a badge is no control, so the probe does not see one that runs past it.
+        const badges = await slot.locator('[data-slot="badge"]').evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().right));
+        expect(badges.length).toBeGreaterThan(0);
+        const outside = scale.badgesFit ? badges.filter((right) => right > panelBox.x + panelBox.width) : [];
+        expect(outside).toEqual([]);
+        // The picker's chrome (padding, chevron, gap) stays under the touch floor, so the value keeps the growth: the value takes its trigger's
+        // room less that chrome, and reaches the title floor or the whole of a line of its own.
+        const picker = slot.getByRole("combobox", { name: `${role.label} connection`, exact: true });
+        const [pickerBox, valueBox, touchFloor] = await Promise.all([
+          paintedBox(picker),
+          paintedBox(picker.locator('[data-slot="select-value"]')),
+          resolvedLength(page, `var(${TOKENS["size.touch-target"].cssVar})`, slot),
+        ]);
+        expect(Math.round(pickerBox.width - valueBox.width), `touch floor ${String(touchFloor)}`).toBeLessThan(Math.round(touchFloor));
       });
-      await routeTrpc(page, serveCorpusProcedures(caller, RULE_CONNECTION_READS));
-      await mount<typeof RuleActionGroupsStory>(STORY, { width: 390, appearance });
-      await setRootFontScale(page, channelName("fontScale"), TEXT_200);
-      await page
-        .getByRole("button")
-        .filter({ has: page.getByText(captured.name, { exact: true }) })
-        .click();
-      await page.getByRole("button", { name: `Connections for ${captured.name}`, exact: true }).click();
-      const slot = page.getByRole("group", { name: role.heading, exact: true });
-      await expect(slot.getByRole("combobox", { name: `${role.label} connection`, exact: true })).toBeVisible();
-      await expect.poll(() => findings(page.getByRole("group", { name: "Rule action host", exact: true }))).toEqual([]);
-      const panel = page
-        .locator('[data-slot="collapsible-panel"]')
-        .filter({ has: page.locator('[data-slot="rule-connections"]') })
-        .last();
-      const [panelBox, hintBox] = await Promise.all([panel.boundingBox(), slot.locator('[data-slot="hint-trigger"]').first().boundingBox()]);
-      if (panelBox === null || hintBox === null) {
-        throw new Error("The panel and its hint must paint");
-      }
-      expect(hintBox.x + hintBox.width).toBeLessThanOrEqual(panelBox.x + panelBox.width);
-      // The requirement badges wrap inside the panel too; a badge is no control, so the probe does not see one that runs past it.
-      const badges = await slot.locator('[data-slot="badge"]').evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().right));
-      expect(badges.length).toBeGreaterThan(0);
-      expect(badges.filter((right) => right > panelBox.x + panelBox.width)).toEqual([]);
-      // The sortable's grip does not take a column from the card at this width, so its picker keeps the title floor a combobox holds.
-      const [pickerBox, floor] = await Promise.all([
-        slot.getByRole("combobox", { name: `${role.label} connection`, exact: true }).boundingBox(),
-        resolvedLength(page, `var(${TOKENS["width.title-floor"].cssVar})`, slot),
-      ]);
-      expect(Math.round(pickerBox?.width ?? 0), `title floor ${String(floor)}`).toBeGreaterThanOrEqual(Math.round(floor));
     });
-  });
+  }
 
   test("a held save is stated at the editor's body size, not under it", async ({ mount, page }) => {
     await using root = await createCorpusHarness();

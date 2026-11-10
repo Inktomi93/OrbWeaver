@@ -28,8 +28,9 @@ export const badgeVariants = tv({
     flush: { true: "gap-0 p-0" },
     cap: CAP,
     hiddenAt: HIDDEN_AT,
-    // A badge that holds a sentence wraps instead of pushing its row wider.
-    whitespace: { normal: "whitespace-normal" },
+    // A badge that holds a sentence wraps instead of pushing its row wider; only a word wider than the room breaks, so a narrow pane at
+    // enlarged text never has its longest word hold the badge past the edge.
+    whitespace: { normal: "wrap-anywhere whitespace-normal" },
     face: { text: "", code: "font-mono" },
     // A chip inside a caps kicker reads as a sentence: it stands down the inherited transform and tracking together.
     sentenceCase: { true: "tracking-normal normal-case", false: "" },

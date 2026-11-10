@@ -114,7 +114,7 @@ export function RuleManager({ chatId, rules }: { readonly chatId: ChatId | null;
           ),
         )}
       <Stack gap="field">
-        <Row gap="field">
+        <Row gap="field" wrap={true}>
           <Button
             ref={customButton}
             variant="outline"

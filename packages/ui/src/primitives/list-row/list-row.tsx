@@ -13,7 +13,7 @@ import { useId } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { SELECTION_RAIL_TONE } from "#lib";
 import type { Slots } from "./parts.tsx";
-import { ListRowContent } from "./parts.tsx";
+import { ListRowContent, TITLE_QUALIFIER_SEPARATOR } from "./parts.tsx";
 import { listRowVariants } from "./variants.ts";
 
 export interface ListRowProps {
@@ -323,7 +323,7 @@ export function ListRow({
     >
       <ListRowBody
         ariaDescribedBy={describedBy}
-        ariaLabel={titleQualifier === undefined ? title : `${title} · ${titleQualifier}`}
+        ariaLabel={titleQualifier === undefined ? title : `${title}${TITLE_QUALIFIER_SEPARATOR}${titleQualifier}`}
         clickable={clickable}
         disabled={disabled}
         expanded={expanded}

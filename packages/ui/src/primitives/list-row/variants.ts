@@ -72,8 +72,11 @@ export const listRowVariants = tv({
     // treatment the same handle already wears in the row's hover reveal. `shrink-0`: the qualifier is the
     // half that TELLS TWO ROWS APART, so a squeeze must eat the name (which is identical across them
     // anyway), never the thing that separates them. The default placement keeps that until the qualifier
-    // has a line of its own, where it truncates (`subtitlePlacement.block`).
+    // has a line of its own, where it wraps (`subtitlePlacement.block`) so the half that tells the rows apart is never cut.
     titleQualifier: "shrink-0 font-mono text-label leading-label whitespace-nowrap text-muted-foreground",
+    // The dot between the name and its qualifier, in the qualifier's own face. A line break falls between it and the qualifier, so
+    // a wrapped qualifier never opens with it.
+    titleSeparator: "shrink-0 font-mono text-label leading-label text-muted-foreground",
     // Rest-visible state markers on the title line, before the stamp (the mock's ⚔ / ★ / Archived cluster).
     // `shrink-0`: a glyph slot is already minimal — it must clip the TITLE, never itself.
     markers: "flex shrink-0 items-center gap-field",
@@ -106,7 +109,7 @@ export const listRowVariants = tv({
     align: { start: { root: "items-start" } },
     titleQualifierFace: {
       mono: {},
-      body: { titleQualifier: "font-sans" },
+      body: { titleQualifier: "font-sans", titleSeparator: "font-sans" },
     },
     // THE STACKING ARM (#2486). A row whose controls are REST-VISIBLE cannot buy the identity any width by
     // hiding them, and below roughly twice the cluster's own width the two stop fitting on one line at all:
@@ -198,7 +201,7 @@ export const listRowVariants = tv({
     subtitlePlacement: {
       // The title line keeps its reading order (name, qualifier, markers, stamp) at every width. An item that cannot sit beside the one
       // before it, even with the name at no width, takes the next line, so markers follow a qualifier that has a line to itself.
-      block: { titleRow: "flex-wrap", titleQualifier: "shrink truncate min-inline-0" },
+      block: { titleRow: "flex-wrap", titleQualifier: "shrink wrap-break-word whitespace-normal min-inline-0" },
       inline: {
         title: "flex-none shrink min-inline-(--width-title-floor)",
         // NO `truncate` here (2026-08-08): the base slot's own comment already says truncation belongs to

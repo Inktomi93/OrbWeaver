@@ -62,8 +62,10 @@ export function UtilityPresetSelect(): ReactElement {
     // The same placement the role rows use: the picker ends the label row, and under one container width it sits below the label.
     <Row align="center" alignBelow="stretch-cq-32" gap="field" indent={true} justify="between" stackBelow="cq-32">
       {/* The hint is a sibling of the label, never inside it, or its name joins the label's. */}
-      <Row align="center" gap="tight">
-        <Text voice="label">Utility preset</Text>
+      <Row align="center" className="min-inline-0" gap="tight" wrap="cq-20">
+        <Text className="min-inline-0" voice="label" wrap="word">
+          Utility preset
+        </Text>
         <HintTrigger
           hint="The sampling summaries, extraction, captions and other background tasks run at. A preset here lends only its sampling settings, never its prompts."
           subject="Utility preset"

@@ -1,12 +1,17 @@
 // The title line keeps its reading order (name, qualifier, markers) at every width. Beside the name when they fit; a qualifier too long
-// for even an empty name takes the next line and truncates there, and the markers follow it. Nothing leaves the row.
-import { LAYOUT_SUBPIXEL_PX as SUBPIXEL } from "@orb/testkit/browser/spec";
+// for even an empty name takes the next line and wraps there whole, starting on its first word, and the markers follow it. Nothing
+// leaves the row, and two rows told apart only by their qualifier stay apart.
+import { LAYOUT_SUBPIXEL_PX as SUBPIXEL, setRootFontScale } from "@orb/testkit/browser/spec";
+import { channelName } from "@orb/testkit/ct";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
-import type { TitleQualifierStory } from "./_title-qualifier-stories.tsx";
+import type { QualifierPairStory, TitleQualifierStory } from "./_title-qualifier-stories.tsx";
 
 const STORY = "tests/ui/primitives/list-row/_title-qualifier-stories/TitleQualifierStory";
+const PAIR_STORY = "tests/ui/primitives/list-row/_title-qualifier-stories/QualifierPairStory";
 const WIDTH = 373;
+const PHONE_WIDTH = 390;
+const TEXT_200 = 2;
 
 interface Box {
   readonly top: number;
@@ -19,6 +24,7 @@ interface Line {
   readonly root: Box;
   readonly title: Box;
   readonly qualifier: Box;
+  readonly separator: Box;
   readonly markers: Box;
   readonly qualifierCut: boolean;
 }
@@ -41,6 +47,7 @@ function line(row: Locator): Promise<Line> {
       root: box(root),
       title: box(part("list-row-title")),
       qualifier: box(qualifier),
+      separator: box(part("list-row-title-separator")),
       markers: box(part("list-row-markers")),
       qualifierCut: qualifier.scrollWidth > qualifier.clientWidth,
     };
@@ -56,15 +63,41 @@ test("a qualifier that fits sits beside the name with the markers after it", asy
   expect(short.qualifierCut).toBe(false);
 });
 
-test("a qualifier too long for the name's line takes the next line, truncates there, and the markers follow it inside the row", async ({ mount }) => {
+test("a qualifier too long for the name's line takes the next line and wraps there whole, with the markers after it inside the row", async ({ mount }) => {
   const component = await mount<typeof TitleQualifierStory>(STORY, { width: WIDTH });
   const long = await line(component.locator('[data-slot="list-row-root"]').nth(1));
   expect(long.qualifier.top).toBeGreaterThanOrEqual(long.title.bottom - SUBPIXEL);
-  expect(long.qualifierCut).toBe(true);
+  // The separator stays at the end of the name's line, so the wrapped qualifier opens on its first word.
+  expect(long.separator.top).toBeLessThan(long.title.bottom);
+  expect(long.qualifier.top).toBeGreaterThanOrEqual(long.separator.bottom - SUBPIXEL);
+  expect(long.qualifierCut).toBe(false);
   expect(long.title.right).toBeGreaterThan(long.title.left);
-  // The truncated qualifier fills its line, so the markers follow on the line below it.
   expect(long.markers.top).toBeGreaterThanOrEqual(long.qualifier.bottom - SUBPIXEL);
   for (const part of [long.qualifier, long.markers]) {
     expect(part.right).toBeLessThanOrEqual(long.root.right + SUBPIXEL);
   }
+});
+
+test("two rows told apart only by their qualifier stay apart at 200% text on a phone", async ({ mount, page }) => {
+  await page.setViewportSize({ width: PHONE_WIDTH, height: 844 });
+  const component = await mount<typeof QualifierPairStory>(PAIR_STORY, { width: PHONE_WIDTH });
+  await setRootFontScale(page, channelName("fontScale"), TEXT_200);
+  const qualifiers = component.locator('[data-slot="list-row-title-qualifier"]');
+  await expect(qualifiers).toHaveCount(2);
+  const shown = await qualifiers.evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const own = node.getBoundingClientRect();
+      const row = node.closest('[data-slot="list-row-root"]')?.getBoundingClientRect();
+      const lineHeight = Number.parseFloat(getComputedStyle(node).lineHeight);
+      return {
+        text: node.textContent,
+        whole: node.scrollWidth <= node.clientWidth && row !== undefined && own.right <= row.right + 1,
+        lines: Math.round(own.height / lineHeight),
+      };
+    }),
+  );
+  // Each stamp wraps onto the lines it needs and is painted whole, so the minute that differs is on screen.
+  expect(shown.filter((qualifier) => !qualifier.whole)).toEqual([]);
+  expect(shown.some((qualifier) => qualifier.lines > 1)).toBe(true);
+  expect(new Set(shown.map((qualifier) => qualifier.text)).size).toBe(2);
 });
