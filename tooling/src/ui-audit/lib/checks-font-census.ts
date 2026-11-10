@@ -1,5 +1,5 @@
 // The page font-face census compares declared and painted faces with the governed token stacks.
-import type { Finding, RulePopulationAccounting } from "../contract/findings.ts";
+import type { CandidateDisposition, Finding, RulePopulationAccounting } from "../contract/findings.ts";
 import { PAGE_SUBJECT_SELECTOR } from "../contract/findings.ts";
 import type { FontCensusInput, FontFaceInput } from "../contract/samples.ts";
 import { settledPopulationAccounting } from "./population.ts";
@@ -30,7 +30,9 @@ import { RAMP_FONT_FACES } from "./ramp.ts";
 //     is never a pass. It is deliberately the ONLY withhold: a measured absence is evidence, and routing
 //     it to `withheld` would turn every run in every lane into a NO VERDICT (lib/population.ts) over one
 //     missing webfont, burying the signal it was supposed to raise.
-type FaceOutcome = { readonly kind: "withheld"; readonly reason: string } | { readonly kind: "judged"; readonly finding: Finding | null };
+//   A face every declaring element previews (a font picker painting each choice in its own face) is
+//   EXCLUDED (`declaredFacePreview`): the element declares the face is its subject, not its typography.
+type FaceOutcome = CandidateDisposition;
 
 const TOKEN_STACKS = (): string => `font.sans/font.mono → ${[...RAMP_FONT_FACES].join(", ")}`;
 
@@ -51,7 +53,7 @@ function strayFaceFinding(face: FontFaceInput, probeUsable: boolean): Finding {
   return {
     rule: "off-theme-font",
     severity: "P2",
-    selector: PAGE_SUBJECT_SELECTOR,
+    selector: face.selector ?? PAGE_SUBJECT_SELECTOR,
     value: `${face.name} (${tag})`,
     message: `font face "${face.name}" is outside the token stacks (${TOKEN_STACKS()}) — ${paints}; a stray face means a missing font-family token application`,
     origin: "impeccable",
@@ -62,7 +64,7 @@ function unpaintableTokenFinding(face: FontFaceInput): Finding {
   return {
     rule: "off-theme-font",
     severity: "P2",
-    selector: PAGE_SUBJECT_SELECTOR,
+    selector: face.selector ?? PAGE_SUBJECT_SELECTOR,
     value: `${face.name} (token face, not paintable)`,
     message: `token font face "${face.name}" is declared (${TOKEN_STACKS()}) but MEASURABLY does not paint here — no registered @font-face and no installed face answers to it, so the surface renders the next fallback in the stack and the token names a face the reader never sees; ship the face or retoken the stack to what actually paints`,
     origin: "orbweaver",
@@ -70,6 +72,9 @@ function unpaintableTokenFinding(face: FontFaceInput): Finding {
 }
 
 function faceOutcome(face: FontFaceInput, probeUsable: boolean): FaceOutcome {
+  if (face.previewOnly === true) {
+    return { kind: "excluded", reason: "declaredFacePreview" };
+  }
   if (!RAMP_FONT_FACES.has(face.name)) {
     return { kind: "judged", finding: strayFaceFinding(face, probeUsable) };
   }
@@ -83,12 +88,14 @@ function faceOutcome(face: FontFaceInput, probeUsable: boolean): FaceOutcome {
  *  admission that it could not measure paint — never a quietly smaller denominator. */
 export function fontCensusPopulations(census: FontCensusInput): RulePopulationAccounting {
   const withheld: Record<string, number> = {};
+  const excluded: Record<string, number> = {};
   let judged = 0;
   let affected = 0;
   for (const face of census.faces) {
     const outcome = faceOutcome(face, census.probeUsable);
-    if (outcome.kind === "withheld") {
-      withheld[outcome.reason] = (withheld[outcome.reason] ?? 0) + 1;
+    if (outcome.kind !== "judged") {
+      const reasons = outcome.kind === "withheld" ? withheld : excluded;
+      reasons[outcome.reason] = (reasons[outcome.reason] ?? 0) + 1;
       continue;
     }
     judged += 1;
@@ -103,7 +110,7 @@ export function fontCensusPopulations(census: FontCensusInput): RulePopulationAc
     populations: affected,
     emitted: affected,
     withheld,
-    excluded: {},
+    excluded,
     collapsed: {},
   });
 }

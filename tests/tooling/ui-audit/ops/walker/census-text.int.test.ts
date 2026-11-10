@@ -16,9 +16,10 @@
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
-import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
 import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
+import { FONT_PREVIEW_ATTRIBUTE } from "@orb/ui/select/items";
 
 configureRelationalCliBudget();
 
@@ -614,5 +615,129 @@ auditRuleTest(
     const report = await auditFixture(scratch, runCli, "facet-preview-wrapping", body);
     expect(report.findings.filter(({ rule }) => rule === "line-length")).toHaveLength(1);
     expect(report.populationAccounting?.["line-length"]).toMatchObject({ judged: 1, affected: 1, excluded: {} });
+  },
+);
+
+// ── all-caps-body: a voice whose recipe rules uppercase ───────────────────────
+// The Home hearth credit line names everyone in the room in the `credit` voice, which its recipe sets mono,
+// uppercase and tracked. The voice is read from the element's declared `data-voice`, and the control keeps
+// the same text and transform under a voice whose recipe does not set caps.
+const CREDIT_LINE = "Mira Vance, Theo Lark and Juno Ashby";
+const CAPS_RUN = "font-family:monospace;font-size:13px;letter-spacing:0.08em;text-transform:uppercase";
+
+auditRuleTest(
+  [
+    {
+      rule: "all-caps-body",
+      kind: "silent",
+      reason: "the credit voice's recipe sets uppercase by law, so a long credit is that voice, not body copy set in caps",
+      disposition: { kind: "excluded", reason: "capsVoiceRecipe" },
+    },
+  ],
+  "a credit line in the credit voice is excluded from all-caps-body",
+  async ({ runCli, scratch }) => {
+    const body = `<span data-voice="credit" style="${CAPS_RUN}">${CREDIT_LINE}</span>`;
+    const report = await auditFixture(scratch, runCli, "caps-credit-voice", body);
+    expect(report.populationAccounting?.["all-caps-body"]).toMatchObject({ judged: 0, excluded: { capsVoiceRecipe: 1 } });
+    return report;
+  },
+);
+
+auditRuleTest(
+  [{ rule: "all-caps-body", kind: "fires", reason: "the same caps run in the gloss voice is running prose set in caps, which the rule exists to catch" }],
+  "the same caps run in a prose voice still fails all-caps-body",
+  async ({ runCli, scratch }) => {
+    const body = `<p data-voice="gloss" style="${CAPS_RUN}">${CREDIT_LINE}</p>`;
+    const report = await auditFixture(scratch, runCli, "caps-gloss-voice", body);
+    expect(report.findings.filter(({ rule }) => rule === "all-caps-body")).toHaveLength(1);
+  },
+);
+
+// ── off-theme-font: a control that previews the face it names ─────────────────
+// The theme editor's font Select paints each option label in the face it names (the select's `labelStyle`),
+// and the Select stamps that declaration on the label. A face the page declares anywhere else still fires,
+// at that element's own selector.
+const PREVIEW_FACE = "Lora";
+
+auditRuleTest(
+  [
+    {
+      rule: "off-theme-font",
+      kind: "silent",
+      reason: "a label that declares it previews the face it is painted in is the picker's design, not a stray face",
+      disposition: { kind: "excluded", reason: "declaredFacePreview" },
+    },
+  ],
+  "an open font picker's preview labels are excluded from off-theme-font",
+  async ({ runCli, scratch }) => {
+    const body = `<div role="listbox"><div role="option"><span ${FONT_PREVIEW_ATTRIBUTE}="${PREVIEW_FACE}" style="font-family:${PREVIEW_FACE}, serif">${PREVIEW_FACE}</span></div></div>`;
+    const report = await auditFixture(scratch, runCli, "font-preview-open", body);
+    expect(report.populationAccounting?.["off-theme-font"]).toMatchObject({ judged: 0, excluded: { declaredFacePreview: 1 } });
+    return report;
+  },
+);
+
+test("a stray face beside the picker still fires off-theme-font at its own element", async ({ runCli, scratch }) => {
+  const body = `<div role="listbox"><div role="option"><span ${FONT_PREVIEW_ATTRIBUTE}="${PREVIEW_FACE}" style="font-family:${PREVIEW_FACE}, serif">${PREVIEW_FACE}</span></div></div><p id="stray" style="font-family:${PREVIEW_FACE}, serif">A heading set in a face no token names.</p>`;
+  await writeFile(join(scratch, "font-preview-stray.html"), relationalDocument(body));
+  const res = await runCli("snap", ["--file", join(scratch, "font-preview-stray.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  const report = await readAuditReport(res.stdout);
+  expect(report.findings.filter(({ rule }) => rule === "off-theme-font")).toHaveLength(1);
+  expect(findingSelectors(res.stdout, "off-theme-font")).toEqual(["#stray"]);
+});
+
+// ── caveat-outweighed: the alert's own block, and the card it sits in ─────────
+// A notice's explainer under its headline is body copy of the notice, not a bounding sentence; the role must
+// sit on the caveat's own block. Pairing stops at a card or list item, so a caveat in one plugin card is never
+// weighed against the next card's title. The true positive is plugin-grant-list.tsx's unrecognised-permissions
+// sentence: `role="alert"` on the sentence itself, beside larger copy in its own block.
+const CAVEAT = "This plugin asks for 2 permissions this version doesn't recognise.";
+const SMALL = "font-size:12px";
+const LOUD = "font-size:16px";
+const CARD = "border:1px solid #555;border-radius:8px;padding:8px;margin:8px";
+
+auditRuleTest(
+  [
+    {
+      rule: "caveat-outweighed",
+      kind: "silent",
+      reason: "a notice's explainer whose own block carries no alert role is the notice's body, not a caveat that bounds its headline",
+      disposition: { kind: "excluded", reason: "alertRegionContent" },
+    },
+  ],
+  "a notice's explainer under a status role is excluded from caveat-outweighed",
+  async ({ runCli, scratch }) => {
+    const body = `<div role="status"><p style="${LOUD}">Mira needs your attention</p><p style="${SMALL}">Orbweaver did not grant the extra permissions, so it stayed off.</p></div>`;
+    const report = await auditFixture(scratch, runCli, "caveat-notice-explainer", body);
+    expect(report.populationAccounting?.["caveat-outweighed"]).toMatchObject({ judged: 0, excluded: { alertRegionContent: 2 } });
+    return report;
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "caveat-outweighed",
+      kind: "silent",
+      reason: "a caveat in one card is judged against its own card only, so the next card's larger title is no partner",
+      disposition: { kind: "judged" },
+    },
+  ],
+  "a caveat is not paired with a sibling card's title",
+  async ({ runCli, scratch }) => {
+    const body = `<div><div style="${CARD}"><p role="alert" style="${SMALL}">${CAVEAT}</p></div><div style="${CARD}"><p style="${LOUD}">Weather station</p></div></div>`;
+    const report = await auditFixture(scratch, runCli, "caveat-sibling-cards", body);
+    expect(report.populationAccounting?.["caveat-outweighed"]).toMatchObject({ judged: 1, affected: 0 });
+    return report;
+  },
+);
+
+auditRuleTest(
+  [{ rule: "caveat-outweighed", kind: "fires", reason: "the grant list's own shape: an alert sentence set smaller than the capability copy in its own card" }],
+  "an alert sentence outweighed inside its own card still fails caveat-outweighed",
+  async ({ runCli, scratch }) => {
+    const body = `<div><div style="${CARD}"><p style="${LOUD}">Read your chats</p><p role="alert" style="${SMALL}">${CAVEAT}</p></div><div style="${CARD}"><p style="${LOUD}">Weather station</p></div></div>`;
+    const report = await auditFixture(scratch, runCli, "caveat-own-card", body);
+    expect(report.findings.filter(({ rule }) => rule === "caveat-outweighed")).toHaveLength(1);
   },
 );

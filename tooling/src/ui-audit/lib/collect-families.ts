@@ -11,7 +11,7 @@ import type { Finding, PopulationAccounting } from "../contract/findings.ts";
 import type { RawSamples } from "../contract/samples.ts";
 import type { FamilyCheckResult } from "../contract/types.ts";
 import { checkObscuredTarget, checkTapTargetPopulations, classifyControlAspect } from "./checks-a11y.ts";
-import { checkAccessibleName, checkHeadingOrder, checkMainLandmark, checkTabIndexSmell, classifyUnreachableHint } from "./checks-a11y-navigability.ts";
+import { checkHeadingOrder, checkMainLandmark, checkTabIndexSmell, classifyAccessibleName, classifyUnreachableHint } from "./checks-a11y-navigability.ts";
 import { classifyBorderContrast } from "./checks-border.ts";
 import { classifyCaveatHierarchy } from "./checks-caveat.ts";
 import { checkContrast, checkGrayOnColor, checkQuietState, colorTextPopulations } from "./checks-color.ts";
@@ -79,7 +79,7 @@ export function a11yFindings(samples: RawSamples): FamilyCheckResult {
   // partitioned, so a surface whose fields all declare no border prints `excluded(noDeclaredBorder=N)`
   // rather than a zero a reader cannot tell from a census that never ran.
   const borderContrasts = partitionedFindings("border-contrast", samples.borderContrasts ?? [], classifyBorderContrast);
-  const names = totalJudge("aria-name", samples.accessibleNames, checkAccessibleName);
+  const names = partitionedFindings("aria-name", samples.accessibleNames, classifyAccessibleName);
   // #2452: the census is EVERY visible Base UI tooltip trigger and most of them are proven out of scope
   // (the tooltip repeats the control's own name, or a description already resolves), so this publishes a
   // PARTITION — a clean surface prints its exclusions rather than a zero a reader cannot tell from a

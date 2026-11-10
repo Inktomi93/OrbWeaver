@@ -16,7 +16,9 @@
 // false positive for a false clean.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { RelationalPopulationReport } from "@orb/testkit/node";
 import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import type { ToolFixtures } from "@orb/testkit/tooling";
 import { auditRuleTest, expect } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
@@ -161,5 +163,127 @@ auditRuleTest(
     const res = await runCli("snap", ["--file", join(scratch, "media-zoom-static.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
     expect(findingSelectors(res.stdout, "animated-img-hover")).toHaveLength(0);
     return readAuditReport(res.stdout);
+  },
+);
+
+// ── nested-card: frames the design ratified ───────────────────────────────────
+// Four shapes from the evidence walk fired on ratified designs: an iframe is media, a strip ruled on one side
+// is a divider, a combobox panel embedded in its host is a picker, and a box whose only border is transparent
+// draws no edge. A decorative panel holding a list with no combobox driving it stays a nested card.
+const OUTER = `${CARD};padding:16px;width:420px`;
+const INNER_BODY = "nested panel body copy";
+
+async function decorFixture(
+  scratch: string,
+  runCli: ToolFixtures["runCli"],
+  name: string,
+  body: string,
+): Promise<{ readonly stdout: string; readonly report: RelationalPopulationReport }> {
+  await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
+  const res = await runCli("snap", ["--file", join(scratch, `${name}.html`), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  return { stdout: res.stdout, report: await readAuditReport(res.stdout) };
+}
+
+auditRuleTest(
+  [
+    {
+      rule: "nested-card",
+      kind: "silent",
+      reason: "an iframe paints another document; its border and radius frame media, not a panel",
+      disposition: { kind: "excluded", reason: "cardContext" },
+    },
+  ],
+  "an iframe inside a card is not a nested card",
+  async ({ runCli, scratch }) => {
+    const { report } = await decorFixture(
+      scratch,
+      runCli,
+      "nested-iframe",
+      // The caption gives the page its own text; a page whose only text lives inside the frame has no node census.
+      `<div style="${OUTER}"><p>${INNER_BODY}</p><iframe title="preview" srcdoc="<p>preview</p>" style="${CARD};width:300px;height:150px"></iframe></div>`,
+    );
+    return report;
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "nested-card",
+      kind: "silent",
+      reason: "a header strip ruled on one side, with no radius or shadow, is a divider line across the card, not a second card edge",
+      disposition: { kind: "excluded", reason: "dividerStrip" },
+    },
+  ],
+  "a divider-only strip inside a card is not a nested card",
+  async ({ runCli, scratch }) => {
+    const { report } = await decorFixture(
+      scratch,
+      runCli,
+      "nested-divider-strip",
+      `<div style="${OUTER}"><div style="border-bottom:1px solid #555;background:#1b1b1b;padding:8px">${INNER_BODY}</div></div>`,
+    );
+    return report;
+  },
+);
+
+const PICKER_LIST = '<div role="listbox" id="face-list"><div role="option">Lora</div><div role="option">Geist</div></div>';
+
+auditRuleTest(
+  [
+    {
+      rule: "nested-card",
+      kind: "silent",
+      reason: "a combobox panel whose listbox it owns is an embedded picker, the ratified shape inside a popover, dialog or card",
+      disposition: { kind: "excluded", reason: "embeddedPicker" },
+    },
+  ],
+  "an embedded picker panel inside a card is not a nested card",
+  async ({ runCli, scratch }) => {
+    const picker = `<div style="${CARD};width:300px"><input role="combobox" aria-label="Font" aria-expanded="true" aria-controls="face-list">${PICKER_LIST}</div>`;
+    const { report } = await decorFixture(scratch, runCli, "nested-picker", `<div style="${OUTER}">${picker}</div>`);
+    return report;
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "nested-card",
+      kind: "fires",
+      reason: "the same bordered panel holding a list with no combobox driving it is a decorative panel nested in a panel",
+    },
+  ],
+  "a bordered list panel inside a card is still a nested card",
+  async ({ runCli, scratch }) => {
+    const { stdout } = await decorFixture(
+      scratch,
+      runCli,
+      "nested-list-panel",
+      `<div style="${OUTER}"><div id="list-panel" style="${CARD};width:300px">${PICKER_LIST}</div></div>`,
+    );
+    expect(findingSelectors(stdout, "nested-card")).toEqual(["#list-panel"]);
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "nested-card",
+      kind: "silent",
+      reason: "a box whose only border is transparent draws no edge, so a radius alone does not make it a card around the panel inside",
+      disposition: { kind: "excluded", reason: "unpaintedEdge" },
+    },
+  ],
+  "a transparent-bordered outer is not a card",
+  async ({ runCli, scratch }) => {
+    const { report } = await decorFixture(
+      scratch,
+      runCli,
+      "transparent-outer",
+      `<div style="border:1px solid transparent;border-radius:8px;padding:16px;width:420px"><div style="${CARD}">${INNER_BODY}</div></div>`,
+    );
+    expect(report.populationAccounting?.["nested-card"]).toMatchObject({ judged: 1, affected: 0, excluded: { unpaintedEdge: 1 } });
+    return report;
   },
 );

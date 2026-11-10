@@ -32,6 +32,15 @@ export function checkAccessibleName(input: AccessibleNameInput): Finding | null 
   };
 }
 
+/** `aria-name`'s disposition. A generic tabindex -1 node offers no action, so it is out of the population by the
+ *  same fact the door census reads; every other censused control owes a name. */
+export function classifyAccessibleName(input: AccessibleNameInput): CandidateDisposition {
+  if (input.programmaticFocus === true) {
+    return { kind: "excluded", reason: "programmaticFocus" };
+  }
+  return { kind: "judged", finding: checkAccessibleName(input) };
+}
+
 /** THE TELL, RE-DERIVED AFTER #2455 (#2452). The rule was designed against a DANGLING
  *  `aria-describedby` — the shape `@orb/ui`'s tooltip seal shipped until 2026-09-19, where every trigger
  *  pointed at a popup Base UI mounts only while open. That tell is gone: the seal now renders an

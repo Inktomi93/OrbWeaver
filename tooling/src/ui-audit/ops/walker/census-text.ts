@@ -12,6 +12,7 @@
 // segments IN ORDER into COLLECT_SAMPLES_JS, so scope/hoisting behavior is byte-identical to the
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
 // floor/browser/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
+import { FONT_PREVIEW_ATTRIBUTE } from "@orb/ui/select/items";
 import { TOKENS } from "@orb/ui/tokens";
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 import { INACTIVE_KIND_EXPR } from "../../../floor/instrument/wcag.ts";
@@ -60,6 +61,7 @@ export const WALKER_CENSUS_TEXT = `
   var texts = [];
   var textStyles = [];
   var fontFamilies = {};
+  var FONT_PREVIEW_ATTRIBUTE = ${JSON.stringify(FONT_PREVIEW_ATTRIBUTE)};
   var fontSizes = {};
   var textEls = [];
   var seenTextEls = new Set();
@@ -123,14 +125,37 @@ export const WALKER_CENSUS_TEXT = `
     blockIds.set(element, blockIdSeq);
     return blockIdSeq;
   };
+  // A CARD OR LIST ITEM CLOSES THE BLOCK: siblings in a list of cards meet in the list, and a caveat in one
+  // card is never weighed against the next card's title. The boundary itself stays in the path, so two
+  // samples inside one card still share it. Card-ness is census-decor.ts's measured \`isCardLike\` (a
+  // hoisted function over computed style); a list item is its tag or role.
+  var BLOCK_ITEM_TAGS = { LI: 1, TR: 1 };
+  var BLOCK_ITEM_ROLES = { listitem: 1, row: 1, option: 1, treeitem: 1, article: 1 };
+  var closesBlock = function (element) {
+    if (BLOCK_ITEM_TAGS[element.tagName] === 1) return true;
+    if (BLOCK_ITEM_ROLES[String(element.getAttribute("role") || "").trim().toLowerCase()] === 1) return true;
+    return isCardLike(element);
+  };
   var blockPathOf = function (element) {
     var path = [];
     var anc = element.parentElement;
     for (var bl = 0; bl < BLOCK_ANCESTOR_LEVELS && anc !== null; bl += 1) {
       path.push(blockIdOf(anc));
+      if (closesBlock(anc)) break;
       anc = anc.parentElement;
     }
     return path;
+  };
+  // THE CAVEAT IS THE BLOCK THAT CARRIES THE ROLE. An alert region's headline and explainer are its body copy;
+  // only a sentence whose own block carries the role bounds what sits beside it. An inline run reads its
+  // nearest block-level ancestor, which is the block it is set in.
+  var alertCarrierOf = function (element, elementStyle) {
+    if (element.matches(CAVEAT_ROLE_CTX)) return true;
+    if (elementStyle.display.indexOf("inline") !== 0) return false;
+    for (var blockAnc = element.parentElement; blockAnc !== null; blockAnc = blockAnc.parentElement) {
+      if (getComputedStyle(blockAnc).display.indexOf("inline") !== 0) return blockAnc.matches(CAVEAT_ROLE_CTX);
+    }
+    return false;
   };
   var voiceOf = function (element) {
     var own = element.getAttribute("data-voice");
@@ -332,15 +357,21 @@ export const WALKER_CENSUS_TEXT = `
       // The element's OWN voice, uninherited — line-length's prose population widens on it (#1183) and an
       // inherited voice would enrol every nested span of a voiced paragraph as its own reading line.
       ownVoice: el.getAttribute("data-voice") || "",
-      alertContext: !!el.closest(CAVEAT_ROLE_CTX),
+      alertContext: alertCarrierOf(el, style),
+      alertRegion: !!el.closest(CAVEAT_ROLE_CTX),
       blockPath: blockPathOf(el),
     });
 
     // Keep font faces and the size set as raw page evidence; the face classifier reads the token stacks.
+    // Each face keeps the first element that declares it without previewing it, so a finding names an owner.
     var stack = (style.fontFamily || "").split(",");
     for (var fi = 0; fi < stack.length; fi += 1) {
       var face = stack[fi].trim().replace(/^['"]|['"]$/g, "").toLowerCase();
-      if (face && GENERIC_FONTS[face] !== 1) { fontFamilies[face] = 1; break; }
+      if (!face || GENERIC_FONTS[face] === 1) continue;
+      var previewed = (el.getAttribute(FONT_PREVIEW_ATTRIBUTE) || "").trim().replace(/^['"]|['"]$/g, "").toLowerCase() === face;
+      var faceSeen = fontFamilies[face] || (fontFamilies[face] = { selector: null });
+      if (!previewed && faceSeen.selector === null) faceSeen.selector = describe(el);
+      break;
     }
     if (fontSizePx >= 8 && fontSizePx < 200) fontSizes[String(Math.round(fontSizePx * 10) / 10)] = 1;
   }
@@ -391,7 +422,8 @@ export const WALKER_CENSUS_TEXT = `
         if (faceWidthOver(declaredFace, FACE_PROBE_BASES[fe]) !== faceBaseWidth[FACE_PROBE_BASES[fe]]) { facePaints = true; break; }
       }
     }
-    fontFaces.push({ name: declaredFace, available: facePaints });
+    var faceOwner = fontFamilies[declaredFace].selector;
+    fontFaces.push({ name: declaredFace, available: facePaints, selector: faceOwner === null ? undefined : faceOwner, previewOnly: faceOwner === null });
   }
 
   // ── images (<img> + non-cover/contain background-image) ─────────────────

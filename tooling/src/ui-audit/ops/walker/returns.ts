@@ -23,6 +23,8 @@ export const WALKER_RETURNS = `  var pendingWalkMutations = walkObserver.takeRec
   for (var ss = 0; ss < settledSubjects.length; ss += 1) {
     if (!finalSubjectSet.has(settledSubjects[ss])) detachedSubjects += 1;
   }
+  // After the observer and the final subject census: the token probe inserts a node (census-glow.ts).
+  settleRestCtaGlows();
   for (var wpRule in walkerProvenCensus) relationalAccounting[wpRule] = walkerProvenCensus[wpRule];
   var subjectAccounting = {
     observed: preWalkSettlement.count,

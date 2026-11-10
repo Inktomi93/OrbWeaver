@@ -323,9 +323,14 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
         ruledTargetFloor: iel.getAttribute("data-target-floor"),
       });
     }
+    // A generic tabindex=-1 node is programmatic focus plumbing, not an offered action. Both the names
+    // census and the door census below read it from this one fact.
+    var resolvedDoorRole = doorRole(iel);
+    var programmaticGeneric = resolvedDoorRole === "generic" && String(iel.getAttribute("tabindex") || "").trim() === "-1";
     accessibleNames.push({
       selector: describe(iel),
       tag: iel.tagName.toLowerCase(),
+      programmaticFocus: programmaticGeneric,
       hasVisibleText: accNameOwnText(iel).length > 0,
       ariaLabel: iel.getAttribute("aria-label"),
       ariaLabelledbyText: labelledbyText(iel),
@@ -336,11 +341,10 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
 
     // A DOOR is an offered, NAMED, non-per-datum control. Unnamed controls are the aria-name rule's
     // finding, not this one, and an off-screen or clipped-stub control is offered to nobody. A generic
-    // tabindex=-1 node is programmatic focus plumbing, not an offered action: keep it in accessibleNames
-    // and tabIndexes above, but do not let inherited descendant text turn nested modal/command wrappers
-    // into duplicate generic doors (issue #370). This excludes role="generic" whether implicit OR
-    // explicit — doorRole does not distinguish the two — so only non-generic roles and any tabindex
-    // other than -1 remain judged.
+    // tabindex=-1 node stays in tabIndexes above, but inherited descendant text must not turn nested
+    // modal/command wrappers into duplicate generic doors (issue #370). This excludes role="generic"
+    // whether implicit OR explicit — doorRole does not distinguish the two — so only non-generic roles
+    // and any tabindex other than -1 remain judged.
     // THE NAME IS NOT COMPOSED HERE ANY MORE (#1324). This chain put \`aria-label\` ahead of
     // \`aria-labelledby\` — the reverse of accname 1.2 (2B precedes 2C) — and read raw \`textContent\` for
     // the content step, so a planted pair sharing an aria-label under different labelledby targets was
@@ -348,8 +352,6 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     // (ops/walker/accessible-name.ts) is the ONE spec-ordered key; \`doorNameKey\` still folds it to a
     // COMPARISON key (case, whitespace, trailing punctuation) — a comparison, never a WCAG computation.
     var doorName = doorNameKey(accessibleNameOf(iel));
-    var resolvedDoorRole = doorRole(iel);
-    var programmaticGeneric = resolvedDoorRole === "generic" && String(iel.getAttribute("tabindex") || "").trim() === "-1";
     if (doorName.length > 0 && onScreen && !hiddenStub && !programmaticGeneric) {
       var doorHome = doorListHome(iel);
       actionDoors.push({

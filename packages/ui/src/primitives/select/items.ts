@@ -1,6 +1,10 @@
 // Select item data is shared with pure models; this door never imports the browser seal.
 import type { CSSProperties } from "react";
 
+/** The attribute an option label carries when `labelStyle` paints it in the font face it names. Its value is that
+ *  face. The design audit reads it, so a picker previewing its fonts is not reported as a stray face. */
+export const FONT_PREVIEW_ATTRIBUTE = "data-font-preview";
+
 export interface SelectOption<Value = string> {
   label: string;
   value: Value;
@@ -20,8 +24,8 @@ export interface SelectOption<Value = string> {
   /**
    * Inline style for the option's LABEL text (`ItemText`) — the "seen, not read" slot (#866 §7.8): a
    * FONT option renders its label in its own typeface (`{ fontFamily: value }`), so the choice is seen
-   * at the moment of choosing. Because `Select.Value` mirrors `ItemText`, the closed trigger inherits
-   * the picked option's style too — deliberate (the chosen font shows itself). Style, not a className:
+   * at the moment of choosing. A `fontFamily` here also stamps {@link FONT_PREVIEW_ATTRIBUTE} on the label.
+   * `Select.Value` renders the label text only, so the closed trigger keeps its own face. Style, not a className:
    * the value IS the datum (a derived `fontFamily`), never a second vocabulary.
    */
   labelStyle?: CSSProperties;

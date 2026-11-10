@@ -9,6 +9,7 @@ import { ANCHOR_GAP_INPUT, cn, usePortalContainer, variantAttrs } from "#lib";
 import { useFieldControlDocksEnd, useFieldIdentity } from "#primitives/field";
 import { Check, ChevronDown, Icon } from "#primitives/icons";
 import type { SelectItems, SelectOption, SelectOptionGroup } from "./items.ts";
+import { FONT_PREVIEW_ATTRIBUTE } from "./items.ts";
 import { createSelectOpeningObserver } from "./opening.ts";
 import { selectBoxVariants, selectVariants } from "./variants.ts";
 
@@ -66,6 +67,7 @@ function optionDescriptionId(idPrefix: string, value: unknown): string {
 
 function renderOption<Value>(option: SelectOption<Value>, idPrefix: string): ReactElement {
   const describedBy = option.description === undefined ? undefined : optionDescriptionId(idPrefix, option.value);
+  const previewFace = option.labelStyle?.fontFamily;
   return (
     <BaseSelect.Item
       {...(describedBy === undefined ? {} : { "aria-describedby": describedBy })}
@@ -80,6 +82,7 @@ function renderOption<Value>(option: SelectOption<Value>, idPrefix: string): Rea
           className={slots.itemLabel()}
           data-slot="select-item-label"
           {...(option.labelStyle === undefined ? {} : { style: option.labelStyle })}
+          {...(previewFace === undefined ? {} : { [FONT_PREVIEW_ATTRIBUTE]: previewFace })}
         >
           {option.label}
         </BaseSelect.ItemText>

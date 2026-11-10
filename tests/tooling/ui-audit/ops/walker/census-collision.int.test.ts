@@ -1,7 +1,9 @@
 // Authored-decision population controls for the collision censuses (#987).
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { RelationalPopulationReport } from "@orb/testkit/node";
 import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
+import type { ToolFixtures } from "@orb/testkit/tooling";
 import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
@@ -77,6 +79,83 @@ auditRuleTest(
     const res = await runCli("snap", ["--file", join(scratch, "canvas-ink-silent.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
     const report = await readAuditReport(res.stdout);
     expect(report.populationAccounting?.["canvas-ink"]).toMatchObject({ candidates: 0, excluded: {} });
+    return report;
+  },
+);
+
+// ── truncated-to-nothing past the window edge ─────────────────────────────────
+// Corpus Archetypes: an over-wide row pushed the "3 members" count outside the pane clip and off the window,
+// so the census never judged it. A subject outside the viewport is judged against its clip. One that is
+// merely scrolled away, below the fold or along a scroller that can reach it, stays out of the population.
+const NARROW_VIEWPORT = "1280x800";
+const PANE = "width:600px;overflow:hidden";
+const OVERWIDE_ROW =
+  '<div style="display:flex;width:3000px"><span style="flex:none;width:2400px">Archetype name</span><span style="flex:none">3 members</span></div>';
+
+async function collisionFixture(scratch: string, runCli: ToolFixtures["runCli"], name: string, body: string): Promise<RelationalPopulationReport> {
+  await writeFile(join(scratch, `${name}.html`), relationalDocument(body));
+  const res = await runCli("snap", ["--file", join(scratch, `${name}.html`), "--viewport", NARROW_VIEWPORT, ...AUDIT_ARGV], {
+    timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
+  });
+  return await readAuditReport(res.stdout);
+}
+
+auditRuleTest(
+  [
+    {
+      rule: "truncated-to-nothing",
+      kind: "fires",
+      reason: "a count an over-wide row pushes past its pane clip and off the window is erased, however far off screen it sits",
+    },
+  ],
+  "a count pushed past the window edge by an over-wide row is judged against its clip",
+  async ({ runCli, scratch }) => {
+    const report = await collisionFixture(scratch, runCli, "pushed-past-window", `<div style="${PANE}">${OVERWIDE_ROW}</div>`);
+    expect(report.findings.filter(({ rule }) => rule === "truncated-to-nothing")).toHaveLength(1);
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "truncated-to-nothing",
+      kind: "silent",
+      reason: "a label below the fold paints inside its clip; scrolling the page reveals it, so nothing is erased",
+      disposition: { kind: "excluded", reason: "scrolledOutOfView" },
+    },
+  ],
+  "a label scrolled below the fold stays out of truncated-to-nothing",
+  async ({ runCli, scratch }) => {
+    const report = await collisionFixture(
+      scratch,
+      runCli,
+      "below-the-fold",
+      // A block label: an inline box reports no scroll width, so the census reads no natural extent from it.
+      `<div style="height:3000px"></div><div style="width:300px;overflow:hidden"><div>3 members</div></div>`,
+    );
+    expect(report.populationAccounting?.["truncated-to-nothing"]).toMatchObject({ judged: 0, excluded: { scrolledOutOfView: 1 } });
+    return report;
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "truncated-to-nothing",
+      kind: "silent",
+      reason: "the same over-wide row inside a horizontal scroller is reachable by scrolling it, so the count is out of view, not erased",
+      disposition: { kind: "excluded", reason: "scrolledOutOfView" },
+    },
+  ],
+  "a count past the window edge inside a scroller that reaches it stays out of truncated-to-nothing",
+  async ({ runCli, scratch }) => {
+    const report = await collisionFixture(
+      scratch,
+      runCli,
+      "scroller-reaches",
+      `<div style="${PANE}"><div style="width:600px;overflow-x:auto">${OVERWIDE_ROW}</div></div>`,
+    );
+    expect(report.populationAccounting?.["truncated-to-nothing"]).toMatchObject({ excluded: { scrolledOutOfView: 1 } });
     return report;
   },
 );

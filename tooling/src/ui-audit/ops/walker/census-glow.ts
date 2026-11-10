@@ -61,6 +61,16 @@ export const WALKER_CENSUS_GLOW = `  // ── chromatic glow shadows incl. pseu
   // the bound is a NO VERDICT with a count rather than a clean read of its first 200.
   var shadowGlows = [];
   var SHADOW_GLOW_CAP = 200;
+  // THE HOVERED CTA AT REST. The pointer can rest on a primary CTA while the walk runs, so its hover glow is
+  // read here. The token match needs a probe node, which the walk observer would count as churn, so each
+  // element-arm row is held here and settled by \`settleRestCtaGlows\` after returns.ts disconnects it.
+  var restCtaGlowRows = [];
+  function settleRestCtaGlows() {
+    for (var rcg = 0; rcg < restCtaGlowRows.length; rcg += 1) {
+      var held = restCtaGlowRows[rcg];
+      if (matchesCtaGlowToken(held.el, held.row.boxShadow)) held.row.sanctioned = true;
+    }
+  }
   for (var sg = 0; sg < allEls.length; sg += 1) {
     var sgel = allEls[sg];
     if (!isVisible(sgel)) continue;
@@ -71,7 +81,7 @@ export const WALKER_CENSUS_GLOW = `  // ── chromatic glow shadows incl. pseu
       var ts = sgStyle.textShadow;
       if ((bs === "none" || !bs) && (ts === "none" || !ts)) continue;
       var sgBackdrop = resolveBackdrop(sgel.parentElement || sgel);
-      capPush("shadowGlows", shadowGlows, SHADOW_GLOW_CAP, {
+      var sgRow = {
         // The pseudo rides in the selector, the radial census's spelling — a finding a reviewer cannot
         // locate to the LAYER is a finding they will re-derive by hand.
         selector: describe(sgel) + PSEUDOS[sgp],
@@ -87,7 +97,9 @@ export const WALKER_CENSUS_GLOW = `  // ── chromatic glow shadows incl. pseu
         // structural test: an element that paints its OWN accent halo clobbers the focus ring, which is
         // the defect the message names.
         sanctioned: !!((sgel.matches && sgel.matches(SANCTIONED_GLOW_SEL)) || (PSEUDOS[sgp] !== "" && isDedicatedGlowLayer(sgStyle))),
-      });
+      };
+      capPush("shadowGlows", shadowGlows, SHADOW_GLOW_CAP, sgRow);
+      if (PSEUDOS[sgp] === "" && !sgRow.sanctioned && sgRow.boxShadow !== "") restCtaGlowRows.push({ el: sgel, row: sgRow });
     }
   }
 

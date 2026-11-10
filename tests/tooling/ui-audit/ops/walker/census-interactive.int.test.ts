@@ -371,3 +371,44 @@ auditRuleTest(
     return report;
   },
 );
+
+// ── a vendored scroller: generic, tabindex -1, no API to name it ──────────────
+// `@codemirror/view` builds `div.cm-scroller` itself with tabindex -1 and exposes only contentAttributes and
+// editorAttributes, so no owner can name it. The door census already reads a generic tabindex -1 node as
+// focus plumbing; the names census reads it the same way, from the same role and tabindex facts.
+const SCROLLER = 'style="width:320px;height:120px;overflow:auto;background:#222"';
+
+auditRuleTest(
+  [
+    {
+      rule: "aria-name",
+      kind: "silent",
+      reason: "a generic node with tabindex -1 is programmatic focus plumbing, not an offered control, so it owes no name",
+      disposition: { kind: "excluded", reason: "programmaticFocus" },
+    },
+  ],
+  "a generic tabindex -1 scroller is excluded from the names census",
+  async ({ runCli, scratch }) => {
+    const body = `<div class="cm-scroller" tabindex="-1" ${SCROLLER}><div aria-hidden="true">1</div></div>`;
+    const report = await auditFixture(scratch, runCli, "name-programmatic-scroller", body);
+    expect(report.populationAccounting?.["aria-name"]).toMatchObject({ judged: 0, excluded: { programmaticFocus: 1 } });
+    return report;
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "aria-name",
+      kind: "fires",
+      reason: "the same unnamed node with a widget role is a control a user is offered, so the role, not the tabindex, decides",
+    },
+  ],
+  "an unnamed tabindex -1 node with a widget role is still judged",
+  async ({ runCli, scratch }) => {
+    const body = `<div role="textbox" tabindex="-1" ${SCROLLER}><div aria-hidden="true">1</div></div>`;
+    const report = await auditFixture(scratch, runCli, "name-roled-tabindex", body);
+    expect(namesIn(report)).toHaveLength(1);
+    expect(report.populationAccounting?.["aria-name"]).toMatchObject({ judged: 1, affected: 1, excluded: {} });
+  },
+);

@@ -40,12 +40,14 @@ import type { TextStyleInput } from "../contract/samples.ts";
 // is not a caption. That is what makes this rule narrow enough to be worth reading.
 //
 // THE FOUR CONDITIONS, each a narrowing rather than a heuristic:
-//   1. ANCHOR — the node is inside `role=alert|alertdialog|status`.
+//   1. ANCHOR — `role=alert|alertdialog|status` sits on the node's own block. Body copy elsewhere inside
+//      an alert region, such as a notice's explainer under its headline, is `alertRegionContent`.
 //   2. SENTENCE SHAPE — its own text is a full sentence (>= CAVEAT_MIN_CHARS, terminal punctuation), which
 //      separates a bounding claim from a status fragment ("Saved", "3 of 8").
 //   3. A LARGER PARTNER IN THE SAME BLOCK — a text node sharing an ancestor within four levels, at least
 //      CAVEAT_STEP_RATIO larger. Same-block is the bound that stops this becoming "is anything on the page
-//      bigger than this sentence".
+//      bigger than this sentence"; the walker ends each path at a card or list item, so a sibling card
+//      is never the partner.
 //   4. THE PARTNER IS NEITHER A HEADING NOR A CHROME LABEL — a heading, `label`, `kicker`,
 //      `interactiveKicker` or `credit` exists to NAME the thing beside it, and naming something larger
 //      than the prose under it is the ratified pattern in every one of those cases.
@@ -58,7 +60,8 @@ import type { TextStyleInput } from "../contract/samples.ts";
 //     exactly what this rule fires on, which is why the class is still worth a rule.
 //   • An inversion of COLOUR or WEIGHT at the same type step. This rule is size-anchored.
 //   • A warning written with no role at all, at a call site that skipped both vocabularies.
-//   • A partner more than four ancestor levels away.
+//   • A partner more than four ancestor levels away, or across a card or list-item boundary.
+//   • A block-level paragraph inside an alert-role wrapper that does not carry the role itself.
 //   • Anything outside this design system: the exclusions are bound to @orb/ui's voice axis on purpose.
 /** Long enough to be a bounding SENTENCE rather than a qualifier fragment. */
 const CAVEAT_MIN_CHARS = 28;
@@ -159,7 +162,7 @@ export function classifyCaveatHierarchy(inputs: readonly TextStyleInput[]): (inp
       return { kind: "excluded", reason: "codeContext" };
     }
     if (!isCaveatCarrier(input)) {
-      return { kind: "excluded", reason: "noAuthoredCaveatClaim" };
+      return { kind: "excluded", reason: input.alertRegion === true ? "alertRegionContent" : "noAuthoredCaveatClaim" };
     }
     if (!isSentenceShaped(input)) {
       return { kind: "excluded", reason: "notSentenceShaped" };

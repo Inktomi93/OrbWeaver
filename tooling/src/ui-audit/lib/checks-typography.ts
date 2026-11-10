@@ -45,6 +45,15 @@ export const TRANSCRIPT_SURFACE_SELECTOR_JS = JSON.stringify(TRANSCRIPT_SURFACE)
  *  The vocabulary's home is `packages/ui/src/primitives/text/variants.ts`; this is the prose SUBSET. */
 const PROSE_VOICES: ReadonlySet<string> = new Set(["gloss", "quiet", "reading"]);
 
+/** The `<Text>` voices whose recipe in `packages/ui/src/primitives/text/variants.ts` sets `uppercase`. Caps is
+ *  that voice's law, so a long run in one of them is the voice, not body copy set in caps. Read from the element's
+ *  own declared `data-voice`, never from its class list. */
+const CAPS_RECIPE_VOICES: ReadonlySet<string> = new Set(["credit", "interactiveKicker", "kicker"]);
+
+function hasCapsRecipeVoice(input: TextStyleInput): boolean {
+  return CAPS_RECIPE_VOICES.has(input.ownVoice ?? "");
+}
+
 const TIGHT_LEADING_TEXT_MIN = 50;
 
 const ALL_CAPS_TEXT_MIN = 30;
@@ -206,7 +215,7 @@ function checkJustified(input: TextStyleInput): Finding | null {
 }
 
 function checkAllCaps(input: TextStyleInput): Finding | null {
-  if (input.directTextLen <= ALL_CAPS_TEXT_MIN || input.textTransform !== "uppercase" || input.isHeading) {
+  if (input.directTextLen <= ALL_CAPS_TEXT_MIN || input.textTransform !== "uppercase" || input.isHeading || hasCapsRecipeVoice(input)) {
     return null;
   }
   return {
@@ -281,7 +290,7 @@ type TextStyleRuleId = (typeof TEXT_STYLE_RULE_IDS)[number];
 
 /** Per-rule disposition over the shared text census. EXCLUDED is reserved for the measured facts that
  *  put a sample outside a rule's own population — clipped `sr-only` text paints no pixels at all, a
- *  heading is not body copy, a node that is neither a prose tag nor a prose VOICE has no reading measure
+ *  heading is not body copy, a caps-recipe voice is caps by law (`capsVoiceRecipe`), a node that is neither a prose tag nor a prose VOICE has no reading measure
  *  (`notProseTag` unlabelled · `chromeVoice` authored-as-chrome, #1183), an element with no own text has no
  *  alignment to judge, a `line-height: normal` computed value is no authored leading step to compare
  *  against the ramp, and RENDERED CAPS are the ratified micro-caps voice `tracking.micro` pairs with
@@ -312,7 +321,12 @@ export function classifyTextStyle(input: TextStyleInput, rule: TextStyleRuleId):
  *  string-union dispatch discipline); each arm mirrors ITS OWN checker's guards — `checkAllCaps` and
  *  `checkJustified` have no type-size gate, so neither arm invents one. */
 const TEXT_STYLE_EXCLUSIONS: Readonly<Record<TextStyleRuleId, (input: TextStyleInput) => string | null>> = {
-  "all-caps-body": (input) => (input.isHeading ? "heading" : null),
+  "all-caps-body": (input) => {
+    if (input.isHeading) {
+      return "heading";
+    }
+    return hasCapsRecipeVoice(input) ? "capsVoiceRecipe" : null;
+  },
   "crushed-tracking": (input) => noTypeSize(input),
   "justified-text": (input) => (input.directTextLen === 0 ? "noOwnText" : null),
   "line-length": (input) => {
