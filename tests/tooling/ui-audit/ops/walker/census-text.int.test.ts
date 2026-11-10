@@ -683,6 +683,55 @@ auditRuleTest(
   },
 );
 
+// Covered ink straddling a scroller's edge, with an art row inside the scroller at a given offset from its top.
+const INK_ACROSS_SCROLLER_EDGE = (rowTop: number): string =>
+  `<div style="position:relative;width:320px;height:200px"><div style="width:320px;height:60px;overflow:auto"><div style="position:relative;height:400px"><div style="position:absolute;top:${String(rowTop)}px;left:0;right:0;height:20px;background-image:url('${ART_RASTER_URL}')"></div></div></div><div style="position:absolute;top:40px;left:0;width:320px;height:60px"><span style="position:relative;display:inline-block;line-height:60px;color:#ffffff;font-size:14px">Look</span><div style="position:absolute;inset:0"></div></div></div>`;
+
+auditRuleTest(
+  [
+    {
+      rule: "text-over-art",
+      kind: "silent",
+      reason: "the art row sits wholly below the scroller's 60px edge, so it paints nothing even where the ink straddles that edge",
+      disposition: { kind: "excluded", reason: "flatBackdrop" },
+    },
+  ],
+  "an art row clipped wholly out of its scroller does not back ink across the scroller's edge",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(scratch, runCli, "art-row-clipped-out", INK_ACROSS_SCROLLER_EDGE(70));
+    expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
+    return report;
+  },
+);
+
+auditRuleTest(
+  [{ rule: "text-over-art", kind: "fires", reason: "the same row inside the scroller's visible box paints under the covered ink, so it is art" }],
+  "an art row inside its scroller's visible box still backs the covered ink",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(scratch, runCli, "art-row-in-view", INK_ACROSS_SCROLLER_EDGE(38));
+    expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toHaveLength(1);
+  },
+);
+
+// A bordered control past a carousel edge over a fill-only layer: border-contrast keeps the label it always printed.
+auditRuleTest(
+  [
+    {
+      rule: "border-contrast",
+      kind: "silent",
+      reason: "the fill reason belongs to the text census; the border rule's withheld label stays paint-layer-over-base",
+      disposition: { kind: "withheld", reason: "paint-layer-over-base" },
+    },
+  ],
+  "a border over a fill-only layer keeps its withheld label",
+  async ({ runCli, scratch }) => {
+    const control = `<div style="position:relative;flex:none;width:200px;height:48px"><div style="position:absolute;inset:0;background:rgba(255,255,255,0.2)"></div><input aria-label="Name" style="position:relative;margin:8px;border:1px solid #888888;background:transparent;color:#ffffff"></div>`;
+    const report = await auditFixture(scratch, runCli, "border-over-fill-unreached", PAST_CAROUSEL_EDGE(control));
+    expect(report.populationAccounting?.["border-contrast"]).toMatchObject({ candidates: 1, judged: 0 });
+    return report;
+  },
+);
+
 // A tab caption scrolled past its strip's edge: its box reaches an art layer outside the strip, but it paints nothing.
 const ART_BESIDE_STRIP = `position:absolute;top:0;left:240px;width:80px;height:40px;background-image:url('${ART_RASTER_URL}');background-size:cover`;
 const CLIPPED_CAPTION = `<div style="${INK_BOX}"><div style="${ART_BESIDE_STRIP}"></div><div style="width:200px;overflow:hidden;white-space:nowrap"><span style="display:inline-block;width:260px"></span><span style="position:relative;color:#ffffff;font-size:14px">Trust</span></div></div>`;

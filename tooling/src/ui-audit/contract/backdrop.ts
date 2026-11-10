@@ -29,9 +29,9 @@ export type Backdrop =
 
 const UNRESOLVED_BACKDROP_REASONS = ["paint-layer-over-base", "fill-layer-over-base", "gradient-over-base", "art-under-subject", "no-opaque-base"] as const;
 /** Why the walk found no trustworthy base. `art-under-subject` is art in any position under one subject's centre,
- *  which a scroll can bring into view; `paint-layer-over-base` is a positioned art layer that backs every text under
- *  it, and `fill-layer-over-base` the same with only a colour fill. `gradient-over-base` is a text's translucent
- *  gradient over a found base: which band sits under the glyphs is a question for pixels. */
+ *  which a scroll can bring into view; `paint-layer-over-base` is a positioned layer that backs every subject under it.
+ *  For a text sample only, a layer with just a colour fill is `fill-layer-over-base` instead, and a translucent
+ *  gradient over a found base is `gradient-over-base`: which band sits under the glyphs is a question for pixels. */
 type UnresolvedBackdropReason = (typeof UNRESOLVED_BACKDROP_REASONS)[number];
 
 // ── Chromatic glow shadows (impeccable `dark-glow`, sanctioned axes exempt) ──

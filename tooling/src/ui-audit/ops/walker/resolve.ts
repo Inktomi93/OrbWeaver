@@ -208,14 +208,17 @@ export const WALKER_RESOLVE = `
     for (var p = n.parentElement; p && childPosition !== "fixed" && !p.contains(other); p = p.parentElement) {
       var ps = getComputedStyle(p);
       if (childPosition === "absolute" && ps.position === "static") continue;
+      // A scroller clips at its padding box: inside its border and its scrollbar.
       var pr = p.getBoundingClientRect();
+      var padLeft = pr.left + p.clientLeft;
+      var padTop = pr.top + p.clientTop;
       if (ps.overflowX !== "visible") {
-        box.left = Math.max(box.left, pr.left);
-        box.right = Math.min(box.right, pr.right);
+        box.left = Math.max(box.left, padLeft);
+        box.right = Math.min(box.right, padLeft + p.clientWidth);
       }
       if (ps.overflowY !== "visible") {
-        box.top = Math.max(box.top, pr.top);
-        box.bottom = Math.min(box.bottom, pr.bottom);
+        box.top = Math.max(box.top, padTop);
+        box.bottom = Math.min(box.bottom, padTop + p.clientHeight);
       }
       childPosition = ps.position;
     }
@@ -251,6 +254,7 @@ export const WALKER_RESOLVE = `
     if (Number(s.opacity) < 1 || s.isolation === "isolate" || s.mixBlendMode !== "normal") return true;
     if (s.transform !== "none" || s.translate !== "none" || s.rotate !== "none" || s.scale !== "none" || s.perspective !== "none") return true;
     if (s.filter !== "none" || (s.backdropFilter || "none") !== "none" || s.clipPath !== "none" || (s.maskImage || "none") !== "none") return true;
+    if ((s.viewTransitionName || "none") !== "none") return true;
     if (/transform|opacity|filter|perspective|z-index|clip-path|mask|translate|rotate|scale/.test(s.willChange)) return true;
     return /paint|layout|strict|content/.test(s.contain) || /size/.test(s.containerType || "");
   }
@@ -306,6 +310,7 @@ export const WALKER_RESOLVE = `
         lr = shownRect(layer.el, layer.rect, el);
         subjectRect = shownRect(el, elRect, layer.el);
         if (subjectRect.left >= subjectRect.right || subjectRect.top >= subjectRect.bottom) continue;
+        if (lr.left >= lr.right || lr.top >= lr.bottom) continue;
       }
       if (layer.centreOnly) {
         var centreX = (subjectRect.left + subjectRect.right) / 2;
@@ -359,7 +364,8 @@ export const WALKER_RESOLVE = `
           // Art under the centre backs only this one subject, so the pixel pass scrolls to it. Only an ART layer
           // that backs every text earns the unseen-art reclassification in ops/pixels.ts; a fill is not art.
           if (over !== null) {
-            var overReason = over.centreOnly ? "art-under-subject" : over.art ? "paint-layer-over-base" : "fill-layer-over-base";
+            // Only the text census reads the fill reason; every other caller keeps the label it always printed.
+            var overReason = over.centreOnly ? "art-under-subject" : over.art || !textQuery ? "paint-layer-over-base" : "fill-layer-over-base";
             return { kind: "unresolved", reason: overReason, fallback: acc };
           }
           if (gradientAbove) return { kind: "unresolved", reason: "gradient-over-base", fallback: acc };
