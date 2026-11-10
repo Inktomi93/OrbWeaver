@@ -60,7 +60,7 @@ const CELLS: readonly Cell[] = [
   { name: "375x667 at 150%", width: 375, height: 667, factor: 1.5, holds: true },
   { name: "320x568 at 125%", width: 320, height: 568, factor: 1.25, holds: true },
   // At 200% text a footer keeps one row only in a dialog wide enough for its count beside Clear search: a tablet-width screen holds the box, and a
-  // phone's footer wraps, so the box grows and the list keeps its window.
+  // phone's footer wraps, so the box grows and the list keeps its window less one footer row.
   { name: "600x1100 at 200%", width: 600, height: 1100, factor: 2, holds: true },
   { name: "460x915 at 200%", width: 460, height: 915, factor: 2, holds: false, listAtLeast: "height.picker-list-footed" },
   { name: "412x915 at 200%", width: 412, height: 915, factor: 2, holds: false, listAtLeast: "height.picker-list-footed" },
