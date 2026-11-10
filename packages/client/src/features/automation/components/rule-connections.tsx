@@ -9,6 +9,7 @@ import type { ReactElement } from "react";
 import { ConnectionRoleSlot, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { ROLE_ROWS_ORDERED } from "#lib";
+import { RULE_UNSET_EFFECTS } from "../lib/rule-copy.ts";
 
 export interface RuleConnectionsProps {
   readonly ruleId: AutomationRuleId;
@@ -45,6 +46,7 @@ function RuleConnectionsBody({ ruleId, tasks }: RuleConnectionsProps): ReactElem
           invalidation={invalidation}
           row={row}
           trpc={trpc}
+          unsetEffect={RULE_UNSET_EFFECTS[row.task]}
           unsetLabel={`Same as my ${row.label} role`}
           view={bindings.find((view) => view.task === row.task) ?? null}
         />

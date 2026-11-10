@@ -363,7 +363,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
                 <CollapsibleTrigger aria-label={`Connections for ${rule.name}`} size="control">
                   <Text voice="label">Connections</Text>
                 </CollapsibleTrigger>
-                <CollapsiblePanel>
+                <CollapsiblePanel offset="row">
                   <RuleConnections ruleId={rule.id} ruleName={rule.name} tasks={bindingTasks} />
                 </CollapsiblePanel>
               </Collapsible>

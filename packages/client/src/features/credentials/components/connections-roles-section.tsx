@@ -23,7 +23,7 @@ function settingControlId(settingId: string | undefined): string | undefined {
 }
 
 export function ConnectionsRolesSection({ anchorId }: { readonly anchorId: string }): ReactElement {
-  const firstBootRows = useFirstBootRows({ wide: 12, narrow: 18 });
+  const firstBootRows = useFirstBootRows({ wide: 14, narrow: 18 });
   return (
     // RESERVED (#1098) — a config section that settles into one row per model role — the tallest block on this pane.
     <QueryBoundary
@@ -58,8 +58,8 @@ function BuiltinRerankerHint({
     return null;
   }
   return (
-    <Row align="center" wrap={true} gap="field">
-      <Text prose={true} voice="gloss" cap="prose">
+    <Row align="center" gap="field" indent={true} justify="between" wrap={true}>
+      <Text voice="gloss" cap="prose">
         {`To use a lighter or older built-in reranker, open ${row.label} under Connections and pick another model.`}
       </Text>
       <Button
