@@ -3,6 +3,7 @@
 // composition order (a later row refines an earlier one). Adding a model is a row here + the table test.
 
 import type { CapabilityOverrideInput } from "@orb/contracts/inference";
+import { REASONING_DISPLAY_MODES } from "@orb/contracts/inference";
 
 /** The Claude ids measured to take a `system` row inside `messages` (matrix §7, handling (b)): a tail row and a
  *  legal mid-array row both return 200 on the direct wire. Anchored so an unmeasured sibling (a point release, a
@@ -23,6 +24,8 @@ const PREFILL_MODELS = "^(anthropic/)?claude[-/](sonnet-4([-.]5)?|opus-4[-.][15]
  *  Opus 5.5, Fable 5.1 and Sonnet 5.5 are absent: they run the check and state it on their own rows. */
 const UNCHECKED_GENERATIONS = "(instant|[123])([-.].*)?|opus-4([-.][015678])?|sonnet-4([-.][056])?|haiku-4[-.]5|(opus|sonnet|fable|mythos)-5";
 const UNCHECKED_MODELS = `(${UNCHECKED_GENERATIONS})(-20(1[0-9]|2[0-5])[0-9]{4}|-20260[0-9]{3})?(:[a-z-]+)?$`;
+
+const SONNET_5_5 = "^(anthropic/)?claude[-/].*sonnet-5[-.]5(?![0-9])";
 
 const REQUEST_CACHE = {
   turns: { requestAutomaticPromptCache: true, providerImplicitPromptCache: false, cacheRetentionRefresh: true },
@@ -319,18 +322,23 @@ export const anthropicRows = [
       cite: "@ai-sdk/anthropic 4.0.71 getModelCapabilities (dist/index.js:5209-5220) rejectsSamplingParameters: true for claude-sonnet-5; :5221-5232 false for sonnet-4-6; Models API 2026-09-23 max_input_tokens 1,000,000 / max_tokens 128,000 / thinking adaptive only (req_011CfKrpqBszB95ktdqBoGas); thinking default On for Sonnet 5: platform.claude.com/docs/en/build-with-claude/thinking-troubleshooting per-model table (fetched 2026-09-25); Sonnet 5 effort includes xhigh: platform.claude.com/docs/en/build-with-claude/effort levels table and supported models (fetched 2026-09-25)",
     },
   },
+  {
+    match: { model: SONNET_5_5, wire: "anthropic-messages" },
+    generation: { reasoning: { offMode: "between-tools", displayModes: [...REASONING_DISPLAY_MODES] } },
+    evidence: {
+      tier: "curated",
+      dated: "2026-11-09",
+      cite: "https://platform.claude.com/docs/en/models/sonnet-5-5/whats-new-sonnet-5-5 and https://platform.claude.com/docs/en/build-with-claude/thinking: Sonnet 5.5 returns progress blocks under between_tools and supports adaptive display updates under the documented beta.",
+    },
+  },
   // The sonnet-5 row above ALSO matches `sonnet-5-5` and states facts it shares (adaptive on by default, the full
   // effort ladder, no sampling knobs, 1M / 128k). This row states what differs; anchored so `sonnet-5` keeps its own.
   {
     match: {
-      model: "^(anthropic/)?claude[-/].*sonnet-5[-.]5(?![0-9])",
+      model: SONNET_5_5,
     },
     generation: {
       reasoning: {
-        // `thinking: {type:"disabled"}` 400s; off is `between_tools` (no thinking before the reply, progress notes
-        // between tool calls), legal only at effort high or below and with no other thinking field. An off turn
-        // sends no effort, so the API default (high) keeps it legal.
-        offMode: "between-tools",
         // Preserved thinking: a replayed block is bound to its conversation prefix (and to the account that made it).
         prefixBound: true,
       },
@@ -504,7 +512,7 @@ export const anthropicRows = [
   // The Claude runtime cannot spell Sonnet 5.5's off: an off turn there clamps up instead of sending `disabled`.
   {
     match: {
-      model: "^(anthropic/)?claude[-/].*sonnet-5[-.]5(?![0-9])",
+      model: SONNET_5_5,
       wire: "agent-sdk",
     },
     generation: {
@@ -514,8 +522,8 @@ export const anthropicRows = [
     },
     evidence: {
       tier: "curated",
-      dated: "2026-10-03",
-      cite: "docs-derived, not live-probed (fail closed): @anthropic-ai/claude-agent-sdk 0.3.280 sdk.d.ts:9310 ThinkingConfig = ThinkingAdaptive | ThinkingEnabled | ThinkingDisabled has no between_tools arm, so backends/agent-sdk/translate.ts can only send disabled for an off turn, and platform.claude.com/docs/en/models/sonnet-5-5/migration-guide (fetched 2026-10-03): on Claude Sonnet 5.5, disabled returns a 400 invalid_request_error",
+      dated: "2026-11-09",
+      cite: "Loopback Messages capture on SDK 0.3.306 and 0.3.319: the supported disabled option emitted adaptive thinking for Sonnet 5.5. CLI 2.1.319 rejected --thinking=between_tools. SDK 0.3.319 exposes only adaptive, enabled and disabled. https://platform.claude.com/docs/en/models/sonnet-5-5/whats-new-sonnet-5-5 documents the native Messages off mode.",
     },
   },
   {

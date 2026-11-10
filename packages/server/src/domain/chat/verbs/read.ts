@@ -237,6 +237,7 @@ type ChatRowView = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
 interface PreviewInputs extends RoomInputs {
   /** The room host whose connection the preview resolved under (§8.4-3). */
   readonly funderUserId: UserId;
+  readonly passageCounter: ReturnType<ChatContext["passageCounter"]>;
   readonly model: ModelId;
   /** The resolved model capability — the SHAPE-trace peek reads its `turns` cell (roleHandlingFloor /
    *  assistantPrefill) to shape faithfully. Undefined when the connection resolver omits it (a test double). */
@@ -465,6 +466,7 @@ async function resolvePreviewInputs(ctx: ChatContext, deps: ReadDeps, chatId: Ch
     ...room,
     funderUserId: hostUserId,
     model: connection.model,
+    passageCounter: ctx.passageCounter(connection),
     // The window the next turn sends and fits: the preset's, on a route whose request sets it.
     capability: windowForPreset(generationOf(connection), room.foreign.promptConfig.params.maxContextTokens),
     explicitCacheMarkers: preservesCacheBlockEnds(connection, generationOf(connection), room.foreign.promptConfig.params),
@@ -1206,6 +1208,7 @@ async function shapeNextTurn(
   canon: readonly MessageView[];
   rows: ReturnType<typeof toShapeCanon>;
   shape: Parameters<typeof shapeConvertFit>[0]["shape"];
+  passageCounter: PreviewInputs["passageCounter"];
 }> {
   const { chatId, inputs, assembleContext, assembled } = args;
   // The per-chat macro name producer over the full canon — resolves each history row's own macro stamps
@@ -1256,7 +1259,7 @@ async function shapeNextTurn(
       squashSystemMessages: params.advanced?.squashSystemMessages,
       prose: assembleContext.prose,
     });
-  return { canon, rows, shape };
+  return { canon, rows, shape, passageCounter: inputs.passageCounter };
 }
 
 /** Run the SAME SHAPE → CONVERT → FIT sequence the engine's turn pipeline runs over the stored rows: the budget
@@ -1278,7 +1281,7 @@ async function fitShapedHistory(args: {
   readonly assembled: AssembledPrompt;
   readonly capability: GenerationCapability | undefined;
   /** The stored rows and the turn's SHAPE over them ({@link shapeNextTurn}). */
-  readonly next: Pick<Awaited<ReturnType<typeof shapeNextTurn>>, "rows" | "shape">;
+  readonly next: Pick<Awaited<ReturnType<typeof shapeNextTurn>>, "rows" | "shape" | "passageCounter">;
   /** The CONVERT env — the previews' twin of the turn's (`runTurnPipeline`), resolved under the HOST because
    *  every preview already is (`resolvePreviewInputs`: connection, preset, `{{user}}`). */
   readonly convert: {
@@ -1324,13 +1327,14 @@ async function fitShapedHistory(args: {
     // on exactly the chats this feature creates. LAZY: untouched on a history with no model-emitted image.
     loadInlineReplyAssetIds: () => loadInlineReplyAssetIds(args.ctx.db, args.convert.chatId),
   };
-  const { shaped, fitted } = await shapeConvertFit({
+  const { shaped, fitted, fitBudget } = await shapeConvertFit({
+    passage: { count: args.next.passageCounter, system: [args.assembled.static, args.assembled.dynamic] },
     canon: args.next.rows,
     shape: args.next.shape,
     convert: (rows) => buildWireHistory(convertEnv, rows),
     budget,
   });
-  return { shaped, fitted, budget };
+  return { shaped, fitted, budget: fitBudget };
 }
 
 /** Is the fit's ceiling a GUESS rather than the connected model's real window? True only when the capability's

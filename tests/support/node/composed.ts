@@ -48,6 +48,7 @@ export {
   CORPUS_STRUCTURED_REPLIES,
   CORPUS_TEXT_MODEL,
   createCorpusProviderExecution,
+  loadCorpusPassageEncoder,
 } from "./corpus-provider.ts";
 export { createCorpusRecipe, prepareCorpusSnapFixture, runCorpusSnapConsumer } from "./corpus-recipe.ts";
 export { personasForParticipantsOf, presentHostOf } from "./cross-feature.ts";

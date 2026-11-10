@@ -154,7 +154,7 @@ export function ConnectionRoleSlot({
   const pickerLabel = `${row.label} connection`;
   // The confirm opens from the picker's own popup, which is gone by the time it closes; focus returns to the picker.
   const pickerRef = useRef<HTMLButtonElement>(null);
-  const reindex = useReindexConfirm(trpc, (): boolean => {
+  const reindex = useReindexConfirm((): boolean => {
     pickerRef.current?.focus();
     return false;
   });

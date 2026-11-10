@@ -24,6 +24,7 @@
   "dependencies": {
     "@anthropic-ai/sdk": "catalog:",
     "@axe-core/playwright": "catalog:",
+    "@huggingface/transformers": "catalog:",
     "@orb/client": "workspace:*",
     "@orb/contracts": "workspace:*",
     "@orb/db": "workspace:*",

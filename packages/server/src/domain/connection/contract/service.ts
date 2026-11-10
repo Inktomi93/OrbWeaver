@@ -7,7 +7,7 @@
 // sibling runtime.
 
 import type { RecordProbeOutcomeOp, RelabelCredentialOp } from "@orb/contracts/credentials";
-import type { SyncTargetGenerationsOp, TargetWouldMoveOp, VectorScope } from "@orb/contracts/embeddings";
+import type { PreviewTargetMoveOp, SyncTargetGenerationsOp, VectorScope } from "@orb/contracts/embeddings";
 import type {
   ConnectionBinding,
   ConnectionView,
@@ -83,9 +83,8 @@ export interface ConnectionContext {
    *  an encoder that does not make its stated width, or does not answer the probe, moves nothing and is returned for
    *  the write to undo and refuse. */
   readonly syncEmbedTargets: SyncTargetGenerationsOp;
-  /** Would the owner's stored target for `task` move if `via` resolved through `connectionId`? `null` when that row
-   *  cannot resolve. The embeddings domain's own move rule, read-only, for the change preview. */
-  readonly targetWouldMove: TargetWouldMoveOp;
+  /** Prove a prospective encoder without changing the stored target. */
+  readonly previewTargetMove: PreviewTargetMoveOp;
   /** How many vectors the owner has stored per scope (the embeddings domain's count), for the change preview. */
   readonly countOwnedVectors: (ownerId: UserId) => Promise<Readonly<Record<VectorScope, number>>>;
   /** The per-user freshness plane (`connectionsChanged`) — injected, never a sideways reach at the bus

@@ -117,8 +117,12 @@ function toSdkEffort(effort: UserIntent["effort"]): EffortLevel | undefined {
 }
 
 // Policy already ran in the funnel; pure SDK-shape map. if-blocks not switch: biome under-resolves the union.
-function buildThinking(reasoning: ResolvedReasoning): ThinkingConfig {
-  const displayPart = reasoning.display !== undefined ? { display: reasoning.display } : {};
+function buildThinking(reasoning: ResolvedReasoning, warnings: ResolvedWarning[]): ThinkingConfig {
+  const display = reasoning.display;
+  if (display === "updates") {
+    warnings.push({ code: "display_dropped", message: "The Agent SDK cannot select the progress-updates display." });
+  }
+  const displayPart = display === undefined || display === "updates" ? {} : { display };
   const { mode } = reasoning;
   if (mode === "adaptive") {
     return { type: "adaptive", ...displayPart };
@@ -129,11 +133,11 @@ function buildThinking(reasoning: ResolvedReasoning): ThinkingConfig {
   return { type: "enabled", ...displayPart };
 }
 
-function buildGenerationOptions(resolved: ResolvedChatKnobs): SdkGenerationOptions {
+function buildGenerationOptions(resolved: ResolvedChatKnobs, warnings: ResolvedWarning[]): SdkGenerationOptions {
   const options: SdkGenerationOptions = {};
   const { reasoning } = resolved;
   if (reasoning.enabled) {
-    options.thinking = buildThinking(reasoning);
+    options.thinking = buildThinking(reasoning, warnings);
     const effort = toSdkEffort(reasoning.effort);
     if (effort !== undefined) {
       options.effort = effort;
@@ -215,10 +219,11 @@ export function toSdkGeneration(
   knobs: ResolvedChatKnobs;
 } {
   const resolved = resolveChat(params, capability, { posture, wire: "agent-sdk" });
+  const warnings = [...resolved.warnings, ...droppedSamplerWarnings(resolved)];
   return {
     envOverrides: buildEnvOverrides(params, resolved),
-    options: buildGenerationOptions(resolved),
-    warnings: [...resolved.warnings, ...droppedSamplerWarnings(resolved)],
+    options: buildGenerationOptions(resolved, warnings),
+    warnings,
     turnId: resolved.turnId,
     knobs: resolved,
   };

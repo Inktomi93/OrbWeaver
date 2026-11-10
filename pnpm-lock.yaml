@@ -1368,6 +1368,9 @@ importers:
       '@axe-core/playwright':
         specifier: 'catalog:'
         version: 4.14.0(playwright-core@1.64.1(patch_hash=6e28ba62b85581fd0ff1d8e374dd9c258b97d287c893d0a68777a56b4a6ae3c6))
+      '@huggingface/transformers':
+        specifier: 'catalog:'
+        version: 4.3.1(patch_hash=eba2ee8a607da91248d8dc68cef977979fe618bd598a876d154c00c3886e5f74)(@types/node@26.6.5)
       '@orb/client':
         specifier: workspace:*
         version: link:../../packages/client

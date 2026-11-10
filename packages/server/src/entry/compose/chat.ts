@@ -199,6 +199,7 @@ export interface ChatComposeInput {
    *  to undefined (byte-identical no-op). Bridged from `databank.gatherRetrieval` at the composition root. */
   readonly gatherDatabank?: ChatAssemblyContext["gatherDatabank"];
   /** The compose-tier executor FENCE (§7.5-1a): chat receives exactly the bound `runChatTurn`. */
+  readonly passageCounter: ChatAssemblyContext["passageCounter"];
   readonly runChatTurn: ProviderExecutor["runChatTurn"];
   /** The deployment's Anthropic prompt-cache depth FLOOR, read per turn off the resolved AppSettings tier
    *  (`EffectiveAppConfig.promptCacheMinDepth`, Settings › Admin › System tuning). A thunk, not a value, so an
@@ -434,6 +435,7 @@ export function buildChatService(input: ChatComposeInput): ChatComposeResult {
     tools: input.toolUse === undefined ? null : buildChatToolOps<ResolvedToolSet>(input.toolUse, input.resolveHostPrincipal),
     // Bridges the chat role's streaming AsyncIterable onto the runtime's Promise+onDelta shape — the extracted
     // domain→runtime turn bridge (createRunChatTurnBridge), injecting the leaf `runChatTurn` (the §7.5-1a fence).
+    passageCounter: input.passageCounter,
     runChatTurn: createRunChatTurnBridge({
       runChatTurn: input.runChatTurn,
       ...(input.promptCacheMinDepth === undefined ? {} : { promptCacheMinDepth: input.promptCacheMinDepth }),

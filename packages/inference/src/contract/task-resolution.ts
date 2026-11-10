@@ -12,6 +12,8 @@ export interface DetectCache {
 
 export type ResolveArgs = ResolveTaskParams & {
   readonly signal?: AbortSignal | undefined;
+  /** A validated, uncommitted edit. Resolution still verifies the persisted row and its owner. */
+  readonly previewConnection?: UserConnection | undefined;
   /** Read only the server facts already held, in memory or in the persisted snapshot, and dial nothing. For a read-only
    *  question asked before the user commits (the change preview): a host that does not answer must not hold it. A fact
    *  never persisted degrades to the stated and curated facts. */

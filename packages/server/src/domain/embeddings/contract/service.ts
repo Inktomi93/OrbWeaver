@@ -8,12 +8,12 @@ import type {
   GenerationReceipt,
   ListCharacterIds,
   ListImageAssetIds,
+  PreviewTargetMoveOp,
   PruneDocumentChunksOp,
   PruneMemoryBlocksParams,
   ResolveEmbeddingConnectionOp,
   StoreResult,
   SyncTargetGenerationsOp,
-  TargetWouldMoveOp,
   VectorScope,
   WriteHubScoresOp,
 } from "@orb/contracts/embeddings";
@@ -160,10 +160,8 @@ export interface EmbeddingsService {
    *  cannot resolve yet moves nothing and does not throw: its first write after it can resolve moves it. Every move
    *  is width-probed before any moves, so a refusal leaves both targets and their indexes as they were. */
   readonly syncTargetGenerations: SyncTargetGenerationsOp;
-  /** Would the owner's stored target for `task` move if `via` resolved through `connectionId`? `null` when that row
-   *  cannot resolve. Read-only, and the same rule a move is made by, over the server facts already cached: it dials
-   *  no host. */
-  readonly targetWouldMove: TargetWouldMoveOp;
+  /** Check a proposed move with the same width probe as binding settlement, without landing it. */
+  readonly previewTargetMove: PreviewTargetMoveOp;
   /** Every stored target in scope (one owner, or every owner for `null`) as one comparable value: two equal
    *  snapshots mean no target in scope moved between them. Read-only. */
   readonly targetSnapshot: TargetSnapshotOp;

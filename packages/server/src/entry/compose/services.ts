@@ -557,9 +557,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
   // A connection write awaits the owner's target sync, and the pane's change preview asks the same move rule; both are
   // the embeddings domain's, which composes after the connection domain.
-  let embedTargets: Pick<EmbeddingsService, "syncTargetGenerations" | "targetWouldMove"> = {
+  let embedTargets: Pick<EmbeddingsService, "syncTargetGenerations" | "previewTargetMove"> = {
     syncTargetGenerations: () => Promise.reject(new Error("compose: syncTargetGenerations invoked before search-discovery wiring")),
-    targetWouldMove: () => Promise.reject(new Error("compose: targetWouldMove invoked before search-discovery wiring")),
+    previewTargetMove: () => Promise.reject(new Error("compose: previewTargetMove invoked before search-discovery wiring")),
   };
   // chat's memory-enabled read for the search-discovery seam, which composes before chat. Bound once chat exists.
   const isMemoryEnabledBinding = createBinding<{ readonly isMemoryEnabled: IsMemoryEnabledOp }>("compose: isMemoryEnabled invoked before chat wiring");
@@ -756,7 +756,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     // The late-bound holder above, derefed at request time.
     countOwnedVectors: (ownerId) => countOwnedVectors(ownerId),
     syncEmbedTargets: (ownerId) => embedTargets.syncTargetGenerations(ownerId),
-    targetWouldMove: (args) => embedTargets.targetWouldMove(args),
+    previewTargetMove: (args) => embedTargets.previewTargetMove(args),
     emitUserEvent: publishUserEvent,
   };
   const connection = createConnectionService(connectionCtx);
@@ -1094,6 +1094,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       signupPersonaPointersStatement: createJoinerSettingsStatement({ db }),
       minterMayMintSignup: createSignupMinterCheck(sessions, resolveHostPrincipal),
     },
+    passageCounter: runtime.catalogs.passageCounter,
     runChatTurn: executor.runChatTurn,
     // The Anthropic prompt-cache depth FLOOR, read PER TURN off the resolved AppSettings tier (Settings ›
     // Admin › System tuning). A thunk, so an admin flip governs the next turn with no restart.

@@ -88,6 +88,8 @@ export interface InferenceRuntime {
     readonly invalidateEndpoint: (connection: UserConnection) => Promise<void>;
     /** What each word tokenizes to on a resolved connection's server, through the same cache a turn reads (the
      *  logit-bias editor's live display). A row with no tokenize endpoint answers `available: false`, no words. */
+    /** An uncached passage counter for the resolved model, or null when its server exposes no tokenizer. */
+    readonly passageCounter: (resolved: ResolveOutcome["resolved"]) => ((text: string, signal?: AbortSignal) => Promise<number>) | null;
     readonly tokenize: (resolved: ResolveOutcome["resolved"], words: readonly string[]) => Promise<TokenizeResult>;
   };
   readonly diagnostics: ProviderDiagnostics;
