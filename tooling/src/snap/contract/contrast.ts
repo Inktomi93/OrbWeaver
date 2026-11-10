@@ -2,7 +2,7 @@
 // ops/contrast.ts when the #466 exemption pushed that file past the tooling size cap; shapes live in
 // contract/ by the five-slot template.
 
-import type { Rgb } from "../../floor/instrument/wcag.ts";
+import type { CoverStack, Rgb } from "../../floor/instrument/wcag.ts";
 
 /** One printed CONTRAST/CONTRAST-EDGE line and whether it reddens the run. Homed HERE, not in types.ts,
  *  since #1346: the capture sheet in types.ts carries the structured reading beside these lines, and two
@@ -54,6 +54,9 @@ export interface ContrastMeasured {
   /** Product of `opacity` over the element + ancestors — `<1` means the foreground is painted dimmed and
    *  must be composited at this alpha over the backdrop before measuring. */
   foregroundOpacity: number;
+  /** The same translucent covers over every probe of the subject, or null. A pixel-sampled backdrop already holds
+   *  them, so the ink takes their composite too. */
+  cover: CoverStack | null;
   box: { x: number; y: number; width: number; height: number };
   /** The four corner radii in CSS px (#1111). The FILL arm needs the SHAPE, not the box: a background is
    *  clipped to the rounded border box, so a pill's box corners show what is painted BEHIND it — counting

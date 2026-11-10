@@ -186,16 +186,9 @@ export const WALKER_RESOLVE = `
       var lbg = parseRgb(ls.backgroundColor);
       // A replaced element paints art with no CSS background, whether it is the layer or sits inside it, and a
       // plate over it composites against the pixels, not the body base.
-      var holdsArt = lel.querySelector(REPLACED_ART_SELECTOR) !== null;
-      var filled = positioned && ((lbg !== null && lbg.a > 0) || holdsArt);
+      var filled = positioned && ((lbg !== null && lbg.a > 0) || lel.querySelector(REPLACED_ART_SELECTOR) !== null);
       if (!(imaged || replaced || filled) || !isVisible(lel)) continue;
-      paintLayerCensus.push({
-        el: lel,
-        fixed: fixed,
-        rect: lel.getBoundingClientRect(),
-        centreOnly: !positioned || inlineSvg || holdsText,
-        art: imaged || replaced || holdsArt,
-      });
+      paintLayerCensus.push({ el: lel, fixed: fixed, rect: lel.getBoundingClientRect(), centreOnly: !positioned || inlineSvg || holdsText });
     }
     return paintLayerCensus;
   }
@@ -223,6 +216,9 @@ export const WALKER_RESOLVE = `
       childPosition = ps.position;
     }
     return box;
+  }
+  function shownBox(el, rect) {
+    return shownRect(el, rect, document.documentElement);
   }
   // WHICH SIDE OF THE SUBJECT DOES THIS LAYER PAINT ON? A layer the browser paints above the subject covers it and
   // is not between it and its base. Each side is ranked by the box that takes part in their nearest common stacking
@@ -313,7 +309,7 @@ export const WALKER_RESOLVE = `
   // TWO QUESTIONS, ONE WALK. \`resolveBackdrop(el)\` asks what is behind EL's OWN BOX starting at el, so
   // el's own background is the answer when it has one. \`resolveBackdropUnder(el)\` asks what el's fill is
   // painted ON — the same walk from el's PARENT, still measured against EL's box and EL's subtree.
-  function resolveBackdropFrom(startNode, subject, underQuery, textQuery) {
+  function resolveBackdropFrom(startNode, subject, underQuery) {
     var node = startNode;
     var layers = [];
     var elRect = subject.getBoundingClientRect();
@@ -348,13 +344,8 @@ export const WALKER_RESOLVE = `
           // fallback is the number the old code returned. It is NOT a verdict — the contrast family
           // refuses it — but the non-verdict consumers (the dark-glow tell) still need a best-effort
           // backdrop, and returning null there would silently drop findings this change never judged.
-          // Art under the centre backs only this one subject, so the pixel pass scrolls to it. Only an ART layer
-          // that backs every text earns the unseen-art reclassification in ops/pixels.ts; a fill is not art.
-          if (over !== null) {
-            // Only the text census reads the fill reason; every other caller keeps the label it always printed.
-            var overReason = over.centreOnly ? "art-under-subject" : over.art || !textQuery ? "paint-layer-over-base" : "fill-layer-over-base";
-            return { kind: "unresolved", reason: overReason, fallback: acc };
-          }
+          // Art under the centre backs only this one subject, so the pixel pass scrolls to it.
+          if (over !== null) return { kind: "unresolved", reason: over.centreOnly ? "art-under-subject" : "paint-layer-over-base", fallback: acc };
           if (gradientAbove) return { kind: "unresolved", reason: "gradient-over-base", fallback: acc };
           return { kind: "flat", color: acc };
         }
@@ -371,13 +362,7 @@ export const WALKER_RESOLVE = `
   }
 
   function resolveBackdrop(el) {
-    return resolveBackdropFrom(el, el, false, false);
-  }
-
-  // What is behind a GLYPH, for the reading-surface colour rules: only they name a fill-only layer apart, because
-  // ops/pixels.ts reads that reason to keep a fill from being reclassified as art.
-  function resolveTextBackdrop(el) {
-    return resolveBackdropFrom(el, el, false, true);
+    return resolveBackdropFrom(el, el, false);
   }
 
   // THE PAINT UNDER A SUBJECT'S OWN BOX (#1155) — for a rule that ranks an element's own FILL and must
@@ -391,50 +376,130 @@ export const WALKER_RESOLVE = `
   // every Config design-audit at population-verdict=NO-VERDICT. A layer that genuinely sits between the
   // resolved base and the subject's box still refuses: only the two false vetoes stopped counting.
   function resolveBackdropUnder(el) {
-    return resolveBackdropFrom(el.parentElement, el, true, false);
+    return resolveBackdropFrom(el.parentElement, el, true);
   }
 
   // THE PAINT CONTEXT AT A CONTAINER — its own fill (or the first opaque ancestor's), read as the surface
   // its contents sit on, so the layers INSIDE it are what it backs rather than vetoes against it. A layer
   // painted over it from OUTSIDE its own subtree still refuses.
   function resolveBackdropAt(el) {
-    return resolveBackdropFrom(el, el, true, false);
+    return resolveBackdropFrom(el, el, true);
   }
 
-  // WHO OWNS THE PIXELS AT THIS BOX (snap's occluderOf, #211 — same test, same vocabulary, because the two
-  // instruments must not disagree about what is behind a glyph). An unresolved backdrop is settled by
-  // sampling the element's real pixels back in Node, and sampling a box that fixed chrome is painted over
-  // measures the CHROME: the first pixel-sampling run of this walker reported 1.33:1 on a paragraph sitting
-  // under the 48px topbar, which is the same false-verdict class #211 fixed in snap. Only carried for
-  // unresolved samples — an opaque ancestor background is a css fact that occlusion cannot change.
   function describeNode(n) {
     var slot = n.getAttribute ? n.getAttribute("data-slot") : null;
     var cls = typeof n.className === "string" && n.className ? "." + n.className.trim().split(/\\s+/).slice(0, 2).join(".") : "";
     return n.tagName.toLowerCase() + (n.id ? "#" + n.id : "") + (slot ? "[data-slot=" + slot + "]" : "") + cls;
   }
-  // elementFromPoint is BLIND to a pointer-events:none subtree, so its silence there means "I cannot tell",
-  // not "occluded" — keep the sample rather than refuse a verdict it deserves.
-  function pointerTransparent(n) {
-    var p = n;
-    while (p) {
-      if (getComputedStyle(p).pointerEvents === "none") return true;
-      p = p.parentElement;
+  // WHAT A COVER PAINTS OVER THE GLYPHS. An opaque cover hides them. A flat translucent colour composites over the ink
+  // and its ring alike, so the ink must take the same composite before it is judged. Anything else (an image, a
+  // translucent gradient, a filter or a blend) paints a colour the walk cannot read. A cover that paints nothing here,
+  // such as a stretched link or a dialog's viewport, is null.
+  // A cover's strength counts only the groups below the one it shares with the text. That shared group dims the
+  // covered composite once, so its opacity rides along as the group.
+  var COVER_OPAQUE = "opaque";
+  var COVER_UNREADABLE = "unreadable";
+  function coverPaint(n, el) {
+    var s = getComputedStyle(n);
+    if (s.visibility === "hidden") return null;
+    if (n.closest("svg") !== null || n.matches(REPLACED_ART_SELECTOR)) return COVER_UNREADABLE;
+    var alpha = 1;
+    var cp = n;
+    for (; !cp.contains(el); cp = cp.parentElement) {
+      var cs = getComputedStyle(cp);
+      if (cs.filter !== "none" || (cs.backdropFilter || "none") !== "none" || cs.mixBlendMode !== "normal") return COVER_UNREADABLE;
+      var own = Number(cs.opacity);
+      if (!Number.isNaN(own)) alpha *= own;
     }
-    return false;
+    if (alpha <= 0) return null;
+    var group = accumulatedOpacity(cp);
+    var image = s.backgroundImage;
+    if (image && image !== "none") {
+      var stops = image.indexOf("gradient") !== -1 && image.indexOf("url(") === -1 ? parseGradientStops(image) : [];
+      var solid = stops.length > 0 && stops.every(function (stop) { return stop.a >= OPAQUE_MIN_ALPHA; });
+      return solid && alpha >= OPAQUE_MIN_ALPHA ? COVER_OPAQUE : COVER_UNREADABLE;
+    }
+    var bg = parseRgb(s.backgroundColor);
+    var seen = bg === null ? 0 : bg.a * alpha;
+    if (seen <= 0) return null;
+    if (seen >= OPAQUE_MIN_ALPHA) return COVER_OPAQUE;
+    return { el: n, color: bg, alpha: seen, group: group };
   }
-  function occluderOf(el) {
-    if (pointerTransparent(el)) return null;
-    var r = el.getBoundingClientRect();
-    var vw = window.innerWidth;
-    var vh = window.innerHeight;
-    // The VISIBLE box's centre — a half-scrolled element must not be judged by an off-screen point.
-    var x = (Math.max(0, r.left) + Math.min(vw, r.right)) / 2;
-    var y = (Math.max(0, r.top) + Math.min(vh, r.bottom)) / 2;
-    if (x < 0 || y < 0 || x >= vw || y >= vh) return null;
-    var hit = document.elementFromPoint(x, y);
-    if (hit === null) return null;
-    if (hit === el || el.contains(hit) || hit.contains(el)) return null;
-    return describeNode(hit);
+  // The covers the browser paints over el at one point, top-down. The hit stack ends at el's own box; elements past
+  // el's paint layer are kept out by the stacking order, which hit testing alone cannot give when the point misses
+  // el's glyph fragments or el is pointer-events:none.
+  function coversAt(el, x, y) {
+    var stack = document.elementsFromPoint(x, y);
+    var translucent = [];
+    for (var si = 0; si < stack.length; si += 1) {
+      var n = stack[si];
+      if (n === el || n.contains(el)) break;
+      if (el.contains(n) || !paintsAboveSubject(n, el)) continue;
+      var paint = coverPaint(n, el);
+      if (paint === COVER_OPAQUE) return { opaque: n };
+      if (paint === COVER_UNREADABLE) return { unreadable: n };
+      if (paint !== null) translucent.push(paint);
+    }
+    return { translucent: translucent };
+  }
+  function sameCovers(a, b) {
+    return a.length === b.length && a.every(function (cover, ci) { return cover.el === b[ci].el; });
+  }
+  // WHO OWNS THE PIXELS ACROSS THE TEXT'S SHOWN BOX, probed on a grid inside the viewport.
+  // - An opaque cover at every probe: \`whole\`, the text is not painted in this frame.
+  // - An opaque cover at some probes, or translucent covers that differ between probes: \`partly\`, a ring there mixes
+  //   two composites; the translucent kind is also \`mixed\`.
+  // - A cover whose paint cannot be read: \`unreadable\`.
+  // - The same translucent covers at every probe: \`through\` and \`paint\`, the one composite they apply, and the
+  //   \`group\` opacity they share with the text.
+  var COVER_PROBES_PER_AXIS = 3;
+  function coverOf(el, shown) {
+    var left = Math.max(0, shown.left);
+    var right = Math.min(window.innerWidth, shown.right);
+    var top = Math.max(0, shown.top);
+    var bottom = Math.min(window.innerHeight, shown.bottom);
+    if (left >= right || top >= bottom) return null;
+    var opaque = null;
+    var hidden = 0;
+    var unreadable = null;
+    var covers = null;
+    var mixed = null;
+    for (var cx = 0; cx < COVER_PROBES_PER_AXIS; cx += 1) {
+      for (var cy = 0; cy < COVER_PROBES_PER_AXIS; cy += 1) {
+        var at = coversAt(el, left + ((cx + 0.5) * (right - left)) / COVER_PROBES_PER_AXIS, top + ((cy + 0.5) * (bottom - top)) / COVER_PROBES_PER_AXIS);
+        if (at.opaque) {
+          hidden += 1;
+          if (opaque === null) opaque = at.opaque;
+        } else if (at.unreadable) {
+          if (unreadable === null) unreadable = at.unreadable;
+        } else if (covers === null) {
+          covers = at.translucent;
+        } else if (mixed === null && !sameCovers(covers, at.translucent)) {
+          mixed = (at.translucent[0] || covers[0]).el;
+        }
+      }
+    }
+    if (opaque !== null) return { by: describeNode(opaque), whole: hidden === COVER_PROBES_PER_AXIS * COVER_PROBES_PER_AXIS };
+    if (unreadable !== null) return { by: describeNode(unreadable), unreadable: true };
+    if (mixed !== null) return { by: describeNode(mixed), whole: false, mixed: true };
+    if (covers === null || covers.length === 0) return null;
+    // Covers dimmed by different shared groups do not fold into one step; their composite stays unread.
+    var group = covers[0].group;
+    var apart = covers.find(function (c) { return Math.abs(c.group - group) > 1 - OPAQUE_MIN_ALPHA; });
+    if (apart !== undefined) return { by: describeNode(apart.el), unreadable: true };
+    // Fold bottom-up: each cover maps the colour beneath it to alpha * colour + (1 - alpha) * beneath.
+    var through = 1;
+    var paint = { r: 0, g: 0, b: 0 };
+    for (var fi = covers.length - 1; fi >= 0; fi -= 1) {
+      var c = covers[fi];
+      through *= 1 - c.alpha;
+      paint = {
+        r: c.alpha * c.color.r + (1 - c.alpha) * paint.r,
+        g: c.alpha * c.color.g + (1 - c.alpha) * paint.g,
+        b: c.alpha * c.color.b + (1 - c.alpha) * paint.b,
+      };
+    }
+    return { by: describeNode(covers[0].el), through: through, paint: paint, group: group };
   }
 
   function loadNaturalSize(url) {

@@ -61,16 +61,20 @@ ${WALKER_PRIMITIVES}${WALKER_RESOLVE}
     var matchIndex = -1;
     var inViewportCount = 0;
     var firstOccluder = null;
+    var elCover = null;
     for (var mi = 0; mi < all.length; mi += 1) {
       if (!inViewport(all[mi])) continue;
       inViewportCount += 1;
-      // ONE occluder test, the walker's (\`resolve.ts\` occluderOf) — snap's byte-similar twin retired with
-      // the resolver. Same ownership question, same pointer-events:none blindness caveat, one home.
-      var blocker = occluderOf(all[mi]);
+      // ONE cover test, the walker's (\`resolve.ts\` coverOf). An opaque cover over any probe, translucent covers that
+      // differ between probes, or a cover whose colour cannot be read all refuse this match. The same translucent
+      // covers everywhere are carried to Node, which gives the ink their composite.
+      var cover = coverOf(all[mi], shownBox(all[mi], all[mi].getBoundingClientRect()));
+      var blocker = cover === null || cover.through !== undefined ? null : cover.by;
       // An occluded candidate is SKIPPED, not fatal — the next match may be the one on screen.
       if (blocker !== null) { if (firstOccluder === null) firstOccluder = blocker; continue; }
       el = all[mi];
       matchIndex = mi;
+      elCover = cover === null ? null : { through: cover.through, paint: cover.paint, group: cover.group };
       break;
     }
     if (!el && inViewportCount > 0) return { occluded: true, total: all.length, inViewport: inViewportCount, occluder: firstOccluder };
@@ -227,6 +231,7 @@ ${WALKER_PRIMITIVES}${WALKER_RESOLVE}
       role: role,
       tag: tag,
       foregroundOpacity: foregroundOpacity,
+      cover: elCover,
       box: { x: rect.x, y: rect.y, width: rect.width, height: rect.height },
       matchIndex: matchIndex,
       total: all.length,

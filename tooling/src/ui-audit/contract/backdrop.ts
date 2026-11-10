@@ -17,9 +17,9 @@ import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
  *  either nothing opaque backs the chain, or a fixed/absolute PAINT LAYER (the app's wallpaper photo)
  *  sits between the opaque base it found and the glyph. design-audit.ts settles these by sampling the
  *  element's real pixels (`resolvePixelBackdrops`) and rewriting the sample to `flat` before
- *  `collectFindings` ever sees it; one that survives to here is one the runner REFUSED (off-screen box,
- *  failed shot) and reported as an explicit NO-VERDICT row, so the checks below stay silent rather than
- *  minting a number from `fallback`. `fallback` is the pre-#218 fabricated composite, kept ONLY for the
+ *  `collectFindings` ever sees it; one that survives to here is one the runner REFUSED (failed shot, a ring
+ *  that is not one backdrop, or a text the frame does not paint) and reported as an explicit row, so the
+ *  checks below stay silent rather than minting a number from `fallback`. `fallback` is the pre-#218 fabricated composite, kept ONLY for the
  *  non-verdict tells (the dark-glow "is this backdrop dark" question). */
 export type Backdrop =
   | { readonly kind: "flat"; readonly color: Rgb }
@@ -27,11 +27,11 @@ export type Backdrop =
   | { readonly kind: "image-indeterminate" }
   | { readonly kind: "unresolved"; readonly reason: UnresolvedBackdropReason; readonly fallback: Rgb };
 
-const UNRESOLVED_BACKDROP_REASONS = ["paint-layer-over-base", "fill-layer-over-base", "gradient-over-base", "art-under-subject", "no-opaque-base"] as const;
+const UNRESOLVED_BACKDROP_REASONS = ["paint-layer-over-base", "gradient-over-base", "art-under-subject", "no-opaque-base"] as const;
 /** Why the walk found no trustworthy base. `art-under-subject` is art in any position under one subject's centre,
  *  which a scroll can bring into view; `paint-layer-over-base` is a positioned layer that backs every subject under it.
- *  For a text sample only, a layer with just a colour fill is `fill-layer-over-base` instead, and a translucent
- *  gradient over a found base is `gradient-over-base`: which band sits under the glyphs is a question for pixels. */
+ *  For a text sample only, a translucent gradient over a found base is `gradient-over-base`: which band sits under
+ *  the glyphs is a question for pixels. */
 type UnresolvedBackdropReason = (typeof UNRESOLVED_BACKDROP_REASONS)[number];
 
 // ── Chromatic glow shadows (impeccable `dark-glow`, sanctioned axes exempt) ──

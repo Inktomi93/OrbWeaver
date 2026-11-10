@@ -38,6 +38,7 @@ const MEASURED = {
   role: "",
   tag: "P",
   foregroundOpacity: 1,
+  cover: null,
   box: { x: 0, y: 0, width: 10, height: 10 },
   matchIndex: 0,
   total: 1,
