@@ -1,0 +1,10 @@
+{
+  "plugin source arms": [
+    {
+      "cardinality": {
+        "node": "PluginKeyValueNode"
+      },
+      "count": 2
+    }
+  ]
+}

@@ -5,4 +5,4 @@ export type { RankedSite } from "./report.ts";
 export { rank, renderReport } from "./report.ts";
 export { runBrandFlow } from "./run.ts";
 export type { BrandFlowReport } from "./scan.ts";
-export { brandFlowWorlds, scanBrandFlow } from "./scan.ts";
+export { brandFlowWorlds, scanBrandEdgesAt, scanBrandFlow } from "./scan.ts";

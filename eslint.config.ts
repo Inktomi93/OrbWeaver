@@ -705,6 +705,7 @@ function rootSources(...refs: string[]): string[] {
   });
 }
 
+const SHOWCASE_AUTHOR_SOURCES = "packages/showcase-plugins/bundles/*/{main,ui,frame}.ts";
 const AUTHORED_SRC = rootSources(
   "@client",
   "@ui",
@@ -2099,8 +2100,16 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       rules: { "orb/ui-overlay-modal-anatomy": "error" },
     },
     {
+      files: ["packages/*/src/**/*.{ts,tsx}", SHOWCASE_AUTHOR_SOURCES],
+      rules: { "orb/closed-vocabulary": "error" },
+    },
+    {
       files: AUTHORED_SRC,
       rules: { "orb/no-raw-id": "error", "orb/no-inline-union-alias": "error" },
+    },
+    {
+      files: [...AUTHORED_SRC, SHOWCASE_AUTHOR_SOURCES],
+      rules: { "orb/no-optional-alternatives": "error" },
     },
     {
       files: ["packages/client/src/**/*.{ts,tsx}", "packages/server/src/**/*.{ts,tsx}", "packages/inference/src/**/*.{ts,tsx}"],

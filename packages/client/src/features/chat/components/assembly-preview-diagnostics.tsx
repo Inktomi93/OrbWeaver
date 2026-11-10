@@ -9,6 +9,7 @@
 // Host-only by inheritance: it renders data from the two `requireHost` reads the panel already made.
 
 import type { AssembleTrace, ShapeBreakpointDecision, ShapeFoldReason, ShapeRowSource, ShapeTrace, ShapeTraceRow } from "@orb/contracts/chat";
+import type { MessageRole } from "@orb/kit/message-role";
 import { groupThousands, NO_VALUE } from "@orb/kit/strings";
 import { Badge } from "@orb/ui/badge";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
@@ -31,7 +32,7 @@ export function AssemblyPreviewDiagnostics({
 }: {
   readonly trace: AssembleTrace;
   readonly shapeTrace: ShapeTrace;
-  readonly injections: readonly { readonly role: string; readonly depth: number; readonly content: string }[];
+  readonly injections: readonly { readonly role: MessageRole; readonly depth: number; readonly content: string }[];
 }): ReactElement {
   return (
     <Collapsible>

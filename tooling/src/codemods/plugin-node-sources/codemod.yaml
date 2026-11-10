@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "plugin-node-sources"
+version: "0.1.0"
+description: "Apply the existing plugin surface grammar to app and author declaration types."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

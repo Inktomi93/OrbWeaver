@@ -1,0 +1,36 @@
+diff --git a/dist/floating-ui.utils.dom.d.mts b/dist/floating-ui.utils.dom.d.mts
+index 27c6ece969..394f35b4e2 100644
+--- a/dist/floating-ui.utils.dom.d.mts
++++ b/dist/floating-ui.utils.dom.d.mts
+@@ -1,3 +1,4 @@
++import type { CSSStyleDeclaration, Node, ShadowRoot, VisualViewport, WindowGlobal } from "browser-realm-types";
+ declare function getComputedStyle_2(element: Element): CSSStyleDeclaration;
+ export { getComputedStyle_2 as getComputedStyle }
+ 
+@@ -20,7 +21,7 @@ export declare function getOverflowAncestors(node: Node, list?: OverflowAncestor
+ 
+ export declare function getParentNode(node: Node): Node;
+ 
+-export declare function getWindow(node: any): typeof window;
++export declare function getWindow(node: any): WindowGlobal;
+ 
+ export declare function isContainingBlock(elementOrCss: Element | CSSStyleDeclaration): boolean;
+ 
+diff --git a/dist/floating-ui.utils.dom.d.ts b/dist/floating-ui.utils.dom.d.ts
+index 27c6ece969..394f35b4e2 100644
+--- a/dist/floating-ui.utils.dom.d.ts
++++ b/dist/floating-ui.utils.dom.d.ts
+@@ -1,3 +1,4 @@
++import type { CSSStyleDeclaration, Node, ShadowRoot, VisualViewport, WindowGlobal } from "browser-realm-types";
+ declare function getComputedStyle_2(element: Element): CSSStyleDeclaration;
+ export { getComputedStyle_2 as getComputedStyle }
+ 
+@@ -20,7 +21,7 @@ export declare function getOverflowAncestors(node: Node, list?: OverflowAncestor
+ 
+ export declare function getParentNode(node: Node): Node;
+ 
+-export declare function getWindow(node: any): typeof window;
++export declare function getWindow(node: any): WindowGlobal;
+ 
+ export declare function isContainingBlock(elementOrCss: Element | CSSStyleDeclaration): boolean;
+ 

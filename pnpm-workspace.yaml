@@ -132,6 +132,14 @@ catalog:
   # --- db ---
   drizzle-orm: ^0.45.4
   drizzle-kit: ^0.31.11
+  "@types/emscripten": 1.39.13
+  "@types/babel__core": 7.20.5
+  "@types/babel__traverse": 7.28.0
+  "@electric-sql/pglite": 0.2.12
+  "@cloudflare/workers-types": 4.20230518.0
+  browser-realm-types: npm:@types/web@0.0.362
+  gel: 2.2.1
+  mysql2: 3.24.6
   "@libsql/client": ^0.18.0
   # --- server ---
   hono: ^4.13.13
@@ -364,6 +372,10 @@ catalog:
   '@axe-core/playwright': 4.14.0
   web-vitals: 6.2.3
 packageExtensions:
+  # Gel's debug color peer otherwise splits Drizzle's module identity between db and server.
+  "gel@2.2.1":
+    dependencies:
+      supports-color: "7.2.0"
   # Kit bundles Zod 3, and its public API declarations require that same major.
   "drizzle-kit@0.31.11":
     dependencies:
@@ -492,5 +504,44 @@ patchedDependencies:
   # Two open upstream fixes; a bump drops each one that has landed. stryker-js#6256 (PR 6275): a run where no test reaches a
   # selected mutant reports NoCoverage, not Survived. PR 6312: `vitest.dryRunMaxWorkers` runs the serial dry run on several workers.
   '@stryker-mutator/vitest-runner@10.1.1': patches/@stryker-mutator__vitest-runner@10.1.1.patch
+
+  # These declarations preserve each compiler world’s available host types.
+  "@ai-sdk/provider-utils@5.0.65": patches/@ai-sdk__provider-utils@5.0.65.patch
+  "@ai-sdk/provider@4.0.31": patches/@ai-sdk__provider@4.0.31.patch
+  "@base-ui/react@1.9.0": patches/@base-ui__react@1.9.0.patch
+  "@base-ui/utils@0.5.0": patches/@base-ui__utils@0.5.0.patch
+  "@bundled-es-modules/memfs@4.17.0": patches/@bundled-es-modules__memfs@4.17.0.patch
+  "@cloudflare/workers-types@4.20230518.0": patches/@cloudflare__workers-types@4.20230518.0.patch
+  "@codemirror/autocomplete@6.20.4": patches/@codemirror__autocomplete@6.20.4.patch
+  "@codemirror/lint@6.9.7": patches/@codemirror__lint@6.9.7.patch
+  "@codemirror/view@6.43.15": patches/@codemirror__view@6.43.15.patch
+  "@codemod.com/jssg-types@1.6.3": patches/@codemod.com__jssg-types@1.6.3.patch
+  "@electric-sql/pglite@0.2.12": patches/@electric-sql__pglite@0.2.12.patch
+  "@floating-ui/dom@1.8.0": patches/@floating-ui__dom@1.8.0.patch
+  "@floating-ui/utils@0.2.12": patches/@floating-ui__utils@0.2.12.patch
+  "@huggingface/tokenizers@0.2.0": patches/@huggingface__tokenizers@0.2.0.patch
+  "@huggingface/transformers@4.3.1": patches/@huggingface__transformers@4.3.1.patch
+  "@paulirish/trace_engine@0.0.65": patches/@paulirish__trace_engine@0.0.65.patch
+  "@rolldown/plugin-babel@0.2.4": patches/@rolldown__plugin-babel@0.2.4.patch
+  "@tanstack/query-core@5.104.5": patches/@tanstack__query-core@5.104.5.patch
+  "@tanstack/react-router@1.170.45": patches/@tanstack__react-router@1.170.45.patch
+  "@tanstack/router-core@1.171.38": patches/@tanstack__router-core@1.171.38.patch
+  "@trpc/client@11.23.0": patches/@trpc__client@11.23.0.patch
+  "@types/emscripten@1.39.13": patches/@types__emscripten@1.39.13.patch
+  "@types/web@0.0.362": patches/@types__web@0.0.362.patch
+  "ai@7.0.148": patches/ai@7.0.148.patch
+  "drizzle-kit@0.31.11": patches/drizzle-kit@0.31.11.patch
+  "drizzle-orm@0.45.4": patches/drizzle-orm@0.45.4.patch
+  "gel@2.2.1": patches/gel@2.2.1.patch
+  "hono@4.13.13": patches/hono@4.13.13.patch
+  "lighthouse@13.5.0": patches/lighthouse@13.5.0.patch
+  "mutation-testing-report-schema@3.8.4": patches/mutation-testing-report-schema@3.8.4.patch
+  "onnxruntime-common@1.30.0": patches/onnxruntime-common@1.30.0.patch
+  "openid-client@6.8.8": patches/openid-client@6.8.8.patch
+  "pdfjs-dist@6.4.299": patches/pdfjs-dist@6.4.299.patch
+  "playwright-core@1.64.1": patches/playwright-core@1.64.1.patch
+  "puppeteer-core@25.15.0": patches/puppeteer-core@25.15.0.patch
+  "style-mod@4.1.4": patches/style-mod@4.1.4.patch
+  "typed-query-selector@2.12.3": patches/typed-query-selector@2.12.3.patch
 
 nodeOptions: "--max-old-space-size=16384"

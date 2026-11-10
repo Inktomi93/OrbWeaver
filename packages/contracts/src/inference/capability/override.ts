@@ -22,20 +22,22 @@ import { embeddingCapabilitySchema } from "./embedding.ts";
 import { generationCapabilitySchema } from "./generation.ts";
 import { rerankCapabilitySchema } from "./rerank.ts";
 
-const capabilityMatchSchema = z
-  .object({
-    /** A regex source over the model id, OR an explicit id list — never both. */
-    model: z.string().min(1).optional(),
-    ids: z.array(z.string().min(1)).min(1).optional(),
-    provider: providerIdSchema.optional(),
-    wire: z.enum(WIRES).optional(),
-    api: chatApiSchema.optional(),
-    /** The chat route the connection's folded `features.nativeChat` selects: a server's native route and its `/v1`
-     *  route take different request fields (D310). */
-    nativeChat: z.enum(NATIVE_CHAT_APIS).optional(),
-  })
-  .strip()
-  .refine((match) => (match.model === undefined) !== (match.ids === undefined), { error: "a match names `model` (a regex) or `ids`, not both" });
+const matchRouteFields = {
+  provider: providerIdSchema.optional(),
+  wire: z.enum(WIRES).optional(),
+  api: chatApiSchema.optional(),
+  /** The chat route the connection's folded `features.nativeChat` selects: a server's native route and its
+   *  `/v1` route take different request fields (D310). */
+  nativeChat: z.enum(NATIVE_CHAT_APIS).optional(),
+};
+
+const capabilityMatchSchema = z.union(
+  [
+    z.object({ ...matchRouteFields, model: z.string().min(1), ids: z.never().optional() }).strip(),
+    z.object({ ...matchRouteFields, model: z.never().optional(), ids: z.array(z.string().min(1)).min(1) }).strip(),
+  ],
+  { error: "a match names `model` (a regex) or `ids`, not both" },
+);
 
 /** A DATED, CITED provenance line: which tier this row is evidence at, when, and where the reader can look. */
 const capabilityEvidenceSchema = z

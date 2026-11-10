@@ -25,12 +25,14 @@
 import type { DocOrigin } from "@orb/contracts/databank";
 import { docOriginSchema } from "@orb/contracts/databank";
 import type { PortableParse } from "@orb/contracts/portability";
+import { DATABANK_SCHEMA_KIND } from "@orb/contracts/portability";
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { defineJsonObjectSerde } from "#primitives/serde/lib";
 
-export const DATABANK_SCHEMA_KIND = "orb.databank.document";
+export { DATABANK_SCHEMA_KIND } from "@orb/contracts/portability";
+
 const DATABANK_SCHEMA_VERSION = 1;
 
 /** One databank document as it travels: the canon + its provenance, plus the two re-linkable scopes. No

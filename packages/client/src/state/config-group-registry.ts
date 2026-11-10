@@ -81,7 +81,7 @@ interface ConfigSettingOption {
 }
 
 /** One searchable/jumpable setting inside a subcategory — the leaf of the config search index. */
-export interface ConfigSettingLeaf {
+export type ConfigSettingLeaf = {
   readonly id: string;
   readonly label: string;
   readonly keywords?: readonly string[];
@@ -94,15 +94,22 @@ export interface ConfigSettingLeaf {
    *  no per-leaf value chrome (a composite row, a CRUD list, an app-tier section) — the modified stripe,
    *  the row menu's Reset, and About's default-vs-current all key on this. */
   readonly key?: string;
-  /** The leaf's OPTION TABLE, when its control is a chooser — the same array the control renders. The
-   *  teacher resolves `key`'s stored value through it, so the roster and About print the control's own
-   *  display words. Absent = the value is not an enum (a boolean, a number, free text) and the honest
-   *  fallbacks apply (On/Off · None · the number). An option-LIST value (an array key, `blurSurfaces`)
-   *  maps every member through the same table. */
-  readonly options?: readonly ConfigSettingOption[];
-  /** Display an owned composite value in its controls' vocabulary; writes retain the raw value. */
-  readonly formatValue?: (value: unknown) => string;
-}
+} & (
+  | {
+      /** The leaf's OPTION TABLE, when its control is a chooser — the same array the control renders. The
+       *  teacher resolves `key`'s stored value through it, so the roster and About print the control's own
+       *  display words. Absent = the value is not an enum (a boolean, a number, free text) and the honest
+       *  fallbacks apply (On/Off · None · the number). An option-LIST value (an array key, `blurSurfaces`)
+       *  maps every member through the same table. */
+      readonly options?: readonly ConfigSettingOption[];
+      readonly formatValue?: never;
+    }
+  | {
+      readonly options?: never;
+      /** Display an owned composite value in its controls' vocabulary; writes retain the raw value. */
+      readonly formatValue?: (value: unknown) => string;
+    }
+);
 
 /** A subcategory = one anchored section inside a group; each stamps a stable anchor node the spy reads and
  *  the search jumps to. */
@@ -138,13 +145,20 @@ export interface SettingsViewerView {
 /** One dynamic search row a group contributes at runtime (a collection's members, the persona names).
  *  `subId` names the anchor a hit lands on for a non-member row; a
  *  `memberId` row opens that member instead. */
-export interface ConfigSearchRow {
+export type ConfigSearchRow = {
   readonly id: string;
   readonly label: string;
   readonly keywords?: readonly string[];
-  readonly subId?: string;
-  readonly memberId?: string;
-}
+} & (
+  | {
+      readonly subId?: string;
+      readonly memberId?: never;
+    }
+  | {
+      readonly subId?: never;
+      readonly memberId?: string;
+    }
+);
 
 // What a group RENDERS (as amended by §6.8) — an honest three-arm union:
 //  - `sections` — a pure SKIMMER: the group has no body of its own; the host renders the sections

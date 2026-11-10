@@ -5,11 +5,19 @@
 // PURE HALF ONLY: the `StatsDelta` payload type and the `applyStatsDelta` upsert (which touch the
 // stats db schema) live in the stats domain, NOT here — kit stays I/O-free.
 
+import type { MessageRole } from "#message-role";
 import { calendarBucketStart } from "#time";
 
 // Sentinel provider bucket when a model row carries no provider.
 /** The sole non-registry provider bucket, used only by the non-null `model_stats.provider` natural key. */
 export const MODEL_PROVIDER_UNKNOWN = "(unknown)" as const;
+
+/** System words share the assistant word bucket; turns retain all three roles. */
+export const MESSAGE_TALLY_FIELDS = {
+  user: { turns: "userTurns", words: "userWords" },
+  assistant: { turns: "assistantTurns", words: "assistantWords" },
+  system: { turns: "systemTurns", words: "assistantWords" },
+} as const satisfies Record<MessageRole, { turns: string; words: string }>;
 
 /** ST's exact `\b\w+\b` word count — the validation harness matches SillyTavern's stats.json. */
 export function wordCount(s: string | null | undefined): number {

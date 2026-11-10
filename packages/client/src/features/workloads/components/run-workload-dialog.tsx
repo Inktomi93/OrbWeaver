@@ -49,7 +49,7 @@ const dependsOnSchema = z.array(typeIdSchema(ID_PREFIX.workload));
 
 interface DependencyCandidate {
   readonly id: WorkloadId;
-  readonly kind: string;
+  readonly kind: WorkloadKind;
   readonly createdAt: number;
 }
 
@@ -92,7 +92,7 @@ function RunWorkloadFormBody({
 
   const dependencyItems: readonly SelectOption[] = dependencyCandidates.map((candidate) => ({
     value: candidate.id,
-    label: `${WORKLOAD_KIND_LABELS[candidate.kind as WorkloadKind]} · ${timeLib.formatRelative(candidate.createdAt)}`,
+    label: `${WORKLOAD_KIND_LABELS[candidate.kind]} · ${timeLib.formatRelative(candidate.createdAt)}`,
   }));
 
   const save = async (values: RunWorkloadFormValues): Promise<RunWorkloadFormValues> => {

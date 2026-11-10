@@ -17,11 +17,9 @@ import type { ReactElement, ReactNode } from "react";
 import type { MobileCuration, ModalSlotId } from "#state";
 import { SHELL_ACCENT_TONE } from "../lib/shell-accent.ts";
 
-export interface RailButtonProps {
+export type RailButtonProps = {
   readonly label: string;
   readonly icon: LucideIcon;
-  /** Active (current section) — Ember tint + `aria-current="page"`. Modal/footer triggers pass `false`. */
-  readonly active?: boolean;
   readonly onClick: () => void;
   /** The entry's mobile fate — `"sheet"` entries are `display:none` on the mobile bar (folded into the
    *  You sheet); `"tab"` entries stay. Desktop shows every entry regardless. Defaults to `"sheet"`. */
@@ -38,9 +36,18 @@ export interface RailButtonProps {
    *  into what the control says about itself WITHOUT the count leaving the per-entry hook that owns it. A
    *  space-separated list; ids with no node are ignored, so a gated or zero-count entry contributes nothing. */
   readonly describedById?: string;
-  /** The registry-owned modal this affordance opens, when it is a modal trigger. */
-  readonly modalId?: ModalSlotId;
-}
+} & (
+  | {
+      /** The registry-owned modal this affordance opens, when it is a modal trigger. */
+      readonly modalId?: ModalSlotId;
+      readonly active?: false;
+    }
+  | {
+      readonly modalId?: never;
+      /** Active (current section) — Ember tint + `aria-current="page"`. Modal/footer triggers pass `false`. */
+      readonly active?: boolean;
+    }
+);
 
 export function RailButton({
   label,

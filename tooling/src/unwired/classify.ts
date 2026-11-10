@@ -3,6 +3,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import ts from "typescript";
+import { literalKeys } from "../eslint/index.ts";
 
 /** One reference: a repository-relative file and the 0-based offset where the name starts. */
 export interface Site {
@@ -165,21 +166,6 @@ function literalText(node: ts.Expression): string | null {
     return "undefined";
   }
   return ts.isPrefixUnaryExpression(node) && node.operator === ts.SyntaxKind.MinusToken && ts.isNumericLiteral(node.operand) ? node.getText() : null;
-}
-
-function literalKeys(node: ts.Expression): readonly string[] | null {
-  if (!ts.isObjectLiteralExpression(node)) {
-    return null;
-  }
-  const keys: string[] = [];
-  for (const property of node.properties) {
-    const name = ts.isSpreadAssignment(property) ? undefined : property.name;
-    if (name === undefined || !(ts.isIdentifier(name) || ts.isStringLiteralLike(name))) {
-      return null;
-    }
-    keys.push(name.text);
-  }
-  return keys;
 }
 
 function argumentShape(node: ts.Expression): ArgumentShape {

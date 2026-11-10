@@ -35,7 +35,7 @@ function deterministicId(seed: string): string {
   return `${h.slice(0, HEX_8)}-${h.slice(HEX_8, HEX_12)}-4${h.slice(HEX_13, HEX_16)}-8${h.slice(HEX_17, HEX_20)}-${h.slice(HEX_20, HEX_32)}`;
 }
 
-export function toSeedTurns(canon: readonly { role: string; content: readonly AgentSeedBlock[]; model?: string | null }[]): SeedTurn[] {
+export function toSeedTurns(canon: readonly { role: MessageRole; content: readonly AgentSeedBlock[]; model?: string | null }[]): SeedTurn[] {
   const kept: SeedTurn[] = [];
   for (const m of canon) {
     if (m.role === "user" || m.role === "assistant") {

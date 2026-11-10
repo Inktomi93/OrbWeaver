@@ -15,21 +15,12 @@ export type TrackColor = 1 | 2 | 3 | 4 | 5 | 6;
 
 const FULL_PERCENT = 100;
 
-export interface TrackBarProps {
+interface TrackBarPropsBase {
   readonly grow?: VariantProps<typeof trackBarBoxVariants>["grow"];
   /** Current magnitude. */
   value: number;
   /** Domain max — the full-bar value. @defaultValue 100 */
   max?: number;
-  /** Which `--color-track-N` fills the bar. @defaultValue 1 */
-  color?: TrackColor;
-  /**
-   * Swaps the categorical ramp for a SEMANTIC zone accent — for a bar whose magnitude belongs to a named
-   * zone (the preset budget readout's setup/post lanes) rather than to a user-defined pool. Ignored while
-   * `danger` bites; `color` is ignored while this is set.
-   * @defaultValue "ramp"
-   */
-  accent?: "ramp" | "info" | "warning";
   /** A host-picked CSS color LITERAL (the free-hex ruling) that overrides the ramp step.
    *  Applied as inline data only when it passes `isSafeColor` (an unsafe value falls back to the ramp);
    *  the fill is aria-hidden decoration, so a non-theme hex is accepted by design. Danger still wins. */
@@ -48,6 +39,25 @@ export interface TrackBarProps {
   width?: "full" | "swatch";
   className?: string;
 }
+
+export type TrackBarProps = TrackBarPropsBase &
+  (
+    | {
+        /** Which `--color-track-N` fills the bar. @defaultValue 1 */
+        color?: TrackColor;
+        accent?: "ramp";
+      }
+    | {
+        color?: never;
+        /**
+         * Swaps the categorical ramp for a SEMANTIC zone accent — for a bar whose magnitude belongs to a named
+         * zone (the preset budget readout's setup/post lanes) rather than to a user-defined pool. Ignored while
+         * `danger` bites; `color` is ignored while this is set.
+         * @defaultValue "ramp"
+         */
+        accent?: "ramp" | "info" | "warning";
+      }
+  );
 
 function clampFraction(value: number, max: number): number {
   if (max <= 0) {

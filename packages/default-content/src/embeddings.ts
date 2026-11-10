@@ -1,14 +1,10 @@
 // Seed vectors use the production projection and retain the encoder's actual space stamp.
 import data from "../embeddings.json" with { type: "json" };
-import type { SeedEmbeddingResult } from "./contract/index.ts";
+import type { SeedEmbeddingResult, SeedVectorKind } from "./contract/index.ts";
+import { SEED_VECTOR_KINDS } from "./contract/index.ts";
 
-interface SeedVector {
-  readonly hash: string;
-  readonly model: string;
-  readonly kind: string;
-  readonly vector: readonly number[];
-}
-const vectors: readonly SeedVector[] = data;
+type SeedVector = (typeof data)[number] & { readonly kind: SeedVectorKind };
+const vectors = data.filter((row): row is SeedVector => SEED_VECTOR_KINDS.includes(row.kind));
 
 /** A byte or embedding-space change misses the seed cache and uses normal inference. */
 export function findSeedEmbedding(hash: string, space: string, kind: string): SeedEmbeddingResult | null {

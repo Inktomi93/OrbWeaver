@@ -1,6 +1,7 @@
 // admin-model — the Admin pane's pure vocabulary: the create-user form shape + defaults, the role Select
 // options (never `owner` — the setRole verb refuses minting a second owner) and the badge-tone maps. DOM-free; presentation-only labels, the enforceable truth stays server-side.
 
+import type { UserRole } from "@orb/contracts/identity";
 import type { Handle, UserId } from "@orb/kit/ids";
 import type { SelectItems } from "@orb/ui/select/items";
 import { ITEM_ENABLED_SETTING, itemSwitchName } from "#lib";
@@ -18,7 +19,7 @@ export interface CreateUserFormValues {
   readonly handle: Handle | "";
   readonly password: string;
   /** The assignable axis only — `user | admin` (never `owner`). */
-  readonly role: string;
+  readonly role: Exclude<UserRole, "owner">;
 }
 
 export const CREATE_USER_DEFAULTS: CreateUserFormValues = {

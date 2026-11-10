@@ -16,10 +16,12 @@ import type { CreateRegexScriptInput, RegexScriptRow } from "@orb/contracts/rege
 import { EmptyState } from "@orb/ui/empty-state";
 import { Code, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
+import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { MemberDrillBack } from "#components";
 import { EditorPage, MemberDrillHeader } from "#components";
+import type { Trpc } from "#data";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { AutosaveStatus } from "#forms/editor";
@@ -31,11 +33,12 @@ import { useUpdateRegexScript } from "../hooks/use-regex-library.ts";
 import { RegexScriptForm } from "../hooks/use-regex-script-form.ts";
 import { withDerivedTierFlags } from "../lib/derive-tier-flags.ts";
 
-/** Strip a row down to the authored fields the editor binds (id is identity, not content). */
-// The form saves through the strict update input, so the row's own identity and edit stamp stay behind.
-function toFormValues(row: RegexScriptRow): CreateRegexScriptInput {
+type ScriptUpdate = inferInput<Trpc["regex"]["updateScript"]>["input"];
+
+/** Exclude server-owned fields before the form sends its authored values to the strict update. */
+function toFormValues(row: RegexScriptRow): Pick<RegexScriptRow, keyof ScriptUpdate> {
   const { id: _id, updatedAt: _updatedAt, ...authored } = row;
-  return authored;
+  return authored satisfies ScriptUpdate & Record<Exclude<keyof typeof authored, keyof ScriptUpdate>, never>;
 }
 
 export function RegexMemberSurface({ view }: { readonly view: CollectionMemberView }): ReactElement {

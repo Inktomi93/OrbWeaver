@@ -260,6 +260,28 @@ test("a failed-state mark, a toast that stands down and a catch that sets local 
   ]);
 });
 
+test("mutation failure follows the called local callback to its feedback surface", ({ scratch }) => {
+  const root = plantDir(scratch, "feedback-local-callback");
+  plant(root, {
+    "hooks/use-save.ts": "export const useSave = createEntityMutation({ failureShownInline: true });",
+    "components/consumer.tsx": [
+      'import { useSave } from "../hooks/use-save.ts";',
+      "function Editor() {",
+      "  const update = useSave(deps);",
+      "  const add = useSave(deps);",
+      "  const remove = useSave(deps);",
+      "  const report = (err) => setFailure(err);",
+      "  const submit = () => update.mutateAsync().catch(err => report(err));",
+      "  const create = () => add.mutate({}, { onError: report });",
+      "  function discard(report) { return remove.mutateAsync().catch(report); }",
+      "  return <Actions submit={submit} create={create} discard={discard} />;",
+      "}",
+    ].join("\n"),
+  });
+  const members = analyse(root, [], null).cohorts.find((cohort) => cohort.name === "feedback")?.members ?? [];
+  expect(members.map((member) => member.cells["failure"]?.value)).toEqual(["inline", "inline", "none"]);
+});
+
 test("a background mutation reads as its log, and an inline-class mutation is inline only where its consumer says the failure or rethrows into a confirm", ({
   scratch,
 }) => {

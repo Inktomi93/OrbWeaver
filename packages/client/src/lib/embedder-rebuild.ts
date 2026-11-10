@@ -3,7 +3,7 @@
 
 import type { EmbedSpaceChangePreview, EmbedTargetRefusal, RoutableTask } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
-import type { WorkloadStatus } from "@orb/contracts/workloads";
+import type { WorkloadKind, WorkloadStatus } from "@orb/contracts/workloads";
 import { ACTIVE_WORKLOAD_STATUSES, EMBEDDER_REBUILD_KINDS } from "@orb/contracts/workloads";
 import { groupThousands } from "@orb/kit/strings";
 import { trpcErrorDetailFlag, trpcErrorDetailNumber, trpcErrorReason } from "./trpc-error-reason.ts";
@@ -166,7 +166,7 @@ type RebuildState = keyof typeof REBUILD_STATUS_COPY;
 
 /** The fields of a `workloads.list` row the rebuild state reads. */
 interface RebuildRow {
-  readonly kind: string;
+  readonly kind: WorkloadKind;
   readonly status: WorkloadStatus;
   readonly ownerId: string | null;
   readonly createdAt: number;

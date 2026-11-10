@@ -35,16 +35,18 @@ export function createImportWorkloadDrivers(deps: ImportDriverDeps): ImportWorkl
           const generatedAt = deps.now();
           reportPath = await deps.writeReport(formatImportReport(report, generatedAt), generatedAt);
         }
-        return {
+        const counts = {
           scanned: report.scanned,
           changed: report.changed,
           failed: report.skippedCards.length,
           mergedKeys: report.personasMergedKeys,
           found: report.found,
-          ...(report.preview !== null ? { preview: report.preview } : {}),
           memoryScope: await deps.settleMemory({ ownerId: args.ownerId, from, memoryChatIds: report.memoryChatIds }),
-          ...(reportPath !== undefined ? { reportPath } : {}),
         };
+        if (reportPath !== undefined) {
+          return { ...counts, reportPath };
+        }
+        return report.preview === null ? counts : { ...counts, preview: report.preview };
       }),
     runBundleImport: (args): ReturnType<ImportWorkloadDrivers["runBundleImport"]> =>
       deps.quiet(async () => {

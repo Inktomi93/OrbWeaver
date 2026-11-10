@@ -3,11 +3,12 @@
 
 import type { ChatId } from "@orb/kit/ids";
 import type { CssMergeTraceSnapshot } from "@orb/ui/lib";
+import type { QueryStatus } from "@tanstack/react-query";
 import type { OrbAutomationFiresFilter, OrbPluginLogReader, OrbPluginUiReader } from "./agent-plugin-bridge.ts";
 
 export interface QuerySummary {
   readonly key: unknown;
-  readonly status: string;
+  readonly status: QueryStatus;
   readonly fetch: string;
   readonly stale: boolean;
   readonly updatedAt: number;

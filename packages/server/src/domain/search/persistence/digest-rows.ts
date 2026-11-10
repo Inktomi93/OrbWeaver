@@ -6,6 +6,7 @@ import type { CharacterId, ChatDigestId, ChatId, ChatSegmentId, EmbedGenerationI
 import type { BlockKey } from "@orb/kit/recall";
 import { and, eq, isNull, or, sql } from "drizzle-orm";
 import { toVectorBlob } from "./nearest.ts";
+import type { DigestScopeParams } from "./scope.ts";
 import { digestScopeCond, segmentScopeCond } from "./scope.ts";
 
 interface NearestDigest {
@@ -23,19 +24,7 @@ interface NearestDigest {
   readonly keywords: readonly string[];
 }
 
-interface NearestDigestsParams {
-  readonly queryVector: Float32Array;
-  readonly model: string;
-  readonly generationId?: EmbedGenerationId | undefined;
-  readonly chatIds?: readonly ChatId[] | undefined;
-  readonly ownerId: UserId;
-  readonly scopedCharacterId?: CharacterId | undefined;
-  /** By-character cross-chat scope: scoped-producer OR present-as-speaker (the chat_digest_speakers
-   *  OR-branch). Current host membership still bounds the pool. */
-  readonly speakerCharacterId?: CharacterId | undefined;
-  readonly candidates?: readonly BlockKey[] | undefined;
-  readonly limit: number;
-}
+type NearestDigestsParams = DigestScopeParams & { readonly queryVector: Float32Array; readonly limit: number };
 
 export async function nearestDigests(db: ReadOnlyDb, params: NearestDigestsParams): Promise<NearestDigest[]> {
   const distance = sql<number>`vector_distance_cos(${chatDigests.embedding}, vector32(${toVectorBlob(params.queryVector)}))`;
@@ -56,20 +45,7 @@ export async function nearestDigests(db: ReadOnlyDb, params: NearestDigestsParam
     })
     .from(chatDigests)
     .leftJoin(embedGenerations, and(eq(embedGenerations.id, chatDigests.generationId), eq(embedGenerations.ownerId, params.ownerId)))
-    .where(
-      and(
-        digestScopeCond({
-          model: params.model,
-          generationId: params.generationId,
-          chatIds: params.chatIds,
-          ownerId: params.ownerId,
-          scopedCharacterId: params.scopedCharacterId,
-          speakerCharacterId: params.speakerCharacterId,
-          candidates: params.candidates,
-        }),
-        eq(chatDigests.dim, params.queryVector.length),
-      ),
-    )
+    .where(and(digestScopeCond(params), eq(chatDigests.dim, params.queryVector.length)))
     .orderBy(distance)
     .limit(params.limit);
   return rows;

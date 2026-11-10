@@ -15,7 +15,8 @@ import { variantUsageLegDelta } from "@orb/contracts/stats";
 import type { messageVariants } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { CharacterId, UserId } from "@orb/kit/ids";
-import { modelKey, statsBucketStart, wordCount } from "@orb/kit/stats-tally";
+import type { MessageRole } from "@orb/kit/message-role";
+import { MESSAGE_TALLY_FIELDS, modelKey, statsBucketStart, wordCount } from "@orb/kit/stats-tally";
 import type { ChatAccountingContext } from "../contract/accounting-context.ts";
 
 /** Append a canonical delta sequence without widening the injected single-delta write boundary. */
@@ -428,7 +429,7 @@ export function userMessageDelta(params: {
  *  stream reads. */
 interface CanonRowInput {
   readonly characterId: CharacterId | null;
-  readonly role: string;
+  readonly role: MessageRole;
   readonly createdAt: number;
   readonly content: string | null;
   readonly tokensIn: number | null;
@@ -497,8 +498,8 @@ function hasReasoningText(reasoning: string | null): boolean {
 // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: a flat signed field-mapping of the rebuild's fold — every ternary is one column, no nesting; splitting it would scatter the drift-gate mirror.
 function legacyCanonMessageDelta(params: { readonly ownerId: UserId; readonly row: CanonRowInput; readonly sign: 1 | -1; readonly now: number }): StatsDelta {
   const { row, sign } = params;
-  const isUser = row.role === "user";
-  const isAssistant = row.role === "assistant";
+  const fields = MESSAGE_TALLY_FIELDS[row.role];
+  const isAssistant = fields.turns === "assistantTurns";
   const words = wordCount(row.content ?? "") * sign;
   const gen = genDurationMs(row.genStartedAt, row.genFinishedAt);
   const reasoningMs = reasoningMsOf(row.metadata) * sign;
@@ -519,12 +520,12 @@ function legacyCanonMessageDelta(params: { readonly ownerId: UserId; readonly ro
     bucketStart: statsBucketStart(row.createdAt),
     model: creditsModel ? model : null,
     provider: creditsModel ? provider : null,
-    userTurns: isUser ? sign : 0,
+    userTurns: fields.turns === "userTurns" ? sign : 0,
     assistantTurns: isAssistant ? sign : 0,
-    systemTurns: row.role === "system" ? sign : 0,
-    userWords: isUser ? words : 0,
+    systemTurns: fields.turns === "systemTurns" ? sign : 0,
+    userWords: fields.words === "userWords" ? words : 0,
     // Non-user (assistant + system) words land in assistantWords.
-    assistantWords: isUser ? 0 : words,
+    assistantWords: fields.words === "assistantWords" ? words : 0,
     contentChars: (row.content?.length ?? 0) * sign,
     tokensIn,
     tokensOut,
@@ -795,14 +796,14 @@ export function seatChatDelta(params: {
 export function editMessageDelta(params: {
   readonly ownerId: UserId;
   readonly characterId: CharacterId | null;
-  readonly role: string;
+  readonly role: MessageRole;
   readonly createdAt: number;
   readonly oldContent: string;
   readonly newContent: string;
   readonly now: number;
 }): StatsDelta {
-  const isUser = params.role === "user";
-  const isAssistant = params.role === "assistant";
+  const fields = MESSAGE_TALLY_FIELDS[params.role];
+  const isAssistant = fields.turns === "assistantTurns";
   const wordsDiff = wordCount(params.newContent) - wordCount(params.oldContent);
   const charsDiff = params.newContent.length - params.oldContent.length;
   return {
@@ -811,8 +812,8 @@ export function editMessageDelta(params: {
     bucketStart: statsBucketStart(params.createdAt),
     model: null,
     provider: null,
-    userWords: isUser ? wordsDiff : 0,
-    assistantWords: isUser ? 0 : wordsDiff,
+    userWords: fields.words === "userWords" ? wordsDiff : 0,
+    assistantWords: fields.words === "assistantWords" ? wordsDiff : 0,
     contentChars: charsDiff,
     lastAt: params.now,
     now: params.now,
@@ -825,7 +826,7 @@ export function editMessageDelta(params: {
 export function editReasoningDelta(params: {
   readonly ownerId: UserId;
   readonly characterId: CharacterId | null;
-  readonly role: string;
+  readonly role: MessageRole;
   readonly createdAt: number;
   readonly model: string | null;
   readonly provider: string | null;

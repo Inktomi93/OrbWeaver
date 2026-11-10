@@ -32,34 +32,41 @@ export interface BubbleDecorationArgs {
 }
 
 /** The primitive treatment and runtime identity data for the skin's artwork. */
-export interface BubbleDecoration {
+export type BubbleDecoration = {
   readonly treatment?: StackProps["artDecoration"];
-  /** Whisper's header-art band, rendered as a real block-level child above the bubble text (never a
-   *  background layer, which would let text sit on bright art). */
-  readonly headerBand?:
-    | {
-        readonly color: string;
-        readonly feather: NonNullable<StackProps["feather"]>;
-        /** The speaker's initial, shown when there is no image or it fails to load. */
-        readonly fallback: string;
-        /** The banner image, asked at the width the band renders; absent when the speaker has none. */
-        readonly image?: { readonly urlAt: (cssWidth: number) => string };
-      }
-    | undefined;
-  /** Echo's art pane: a positioned tile on the side the art sits (the role mirror, #212-3), cover-cropped
-   *  and faded by its own mask. A tile and not a background layer so a phone can give it Moonlit's fixed
-   *  mobile height while it stays cropped to its pane. */
-  readonly art?:
-    | {
-        readonly color: string;
-        readonly side: "left" | "right";
-        /** The speaker's initial, shown when there is no image or it fails to load. */
-        readonly fallback: string;
-        /** The portrait image, asked at the width the tile renders; absent when the speaker has none. */
-        readonly image?: { readonly urlAt: (cssWidth: number) => string };
-      }
-    | undefined;
-}
+} & (
+  | {
+      /** Echo's art pane: a positioned tile on the side the art sits (the role mirror, #212-3), cover-cropped
+       *  and faded by its own mask. A tile and not a background layer so a phone can give it Moonlit's fixed
+       *  mobile height while it stays cropped to its pane. */
+      readonly art?:
+        | {
+            readonly color: string;
+            readonly side: "left" | "right";
+            /** The speaker's initial, shown when there is no image or it fails to load. */
+            readonly fallback: string;
+            /** The portrait image, asked at the width the tile renders; absent when the speaker has none. */
+            readonly image?: { readonly urlAt: (cssWidth: number) => string };
+          }
+        | undefined;
+      readonly headerBand?: never;
+    }
+  | {
+      readonly art?: never;
+      /** Whisper's header-art band, rendered as a real block-level child above the bubble text (never a
+       *  background layer, which would let text sit on bright art). */
+      readonly headerBand?:
+        | {
+            readonly color: string;
+            readonly feather: NonNullable<StackProps["feather"]>;
+            /** The speaker's initial, shown when there is no image or it fails to load. */
+            readonly fallback: string;
+            /** The banner image, asked at the width the band renders; absent when the speaker has none. */
+            readonly image?: { readonly urlAt: (cssWidth: number) => string };
+          }
+        | undefined;
+    }
+);
 
 // Art asks for device pixels, never the CSS box (a CSS-sized ask is soft on dense displays); 3x is where the ladder tops out.
 const MAX_ART_PIXEL_RATIO = 3;

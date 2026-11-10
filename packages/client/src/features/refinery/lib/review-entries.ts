@@ -11,7 +11,7 @@ import type { Trpc } from "#data";
 import { NEW_GREETING_REVIEW_LABEL, reviewFieldLabel } from "./review-field-label.ts";
 
 /** One reviewable entry, resolved against the LIVE card and the ORIGINAL pin. */
-export interface ReviewEntry {
+export type ReviewEntry = {
   readonly entry: RefineryRewriteField;
   /** The LIVE card's current text for the target (what the merge overwrites). Always `""` for an APPEND —
    *  a new slot overwrites nothing, and the block renders no before pane at all (an empty left pane would
@@ -20,17 +20,24 @@ export interface ReviewEntry {
   /** The session pin's text — differs from `live` exactly when the field moved under the session. */
   readonly original: string;
   readonly diverged: boolean;
-  /** The APPEND ordinal this entry carries on the wire (`appendedRewrites`' index) — the address the accept
-   *  sends back. Absent on every other arm. */
-  readonly appendIndex?: number;
   /** The entry's position in the run payload's `fields` — the stable address its persisted Keep/Discard
    *  decision is stored under (the in-scope list shifts when the selection changes; the payload never does). */
   readonly payloadIndex: number;
-  /** Why the apply verb would refuse this entry whatever the user decides — set only for an entry that can
-   *  never land on the LIVE card (the verb's own applicability belts, mirrored). Such an entry is shown as
-   *  not applicable and is never keepable, so it can never refuse an otherwise good batch. */
-  readonly refusal?: ReviewRefusal;
-}
+} & (
+  | {
+      /** The APPEND ordinal this entry carries on the wire (`appendedRewrites`' index) — the address the accept
+       *  sends back. Absent on every other arm. */
+      readonly appendIndex?: number;
+      readonly refusal?: never;
+    }
+  | {
+      readonly appendIndex?: never;
+      /** Why the apply verb would refuse this entry whatever the user decides — set only for an entry that can
+       *  never land on the LIVE card (the verb's own applicability belts, mirrored). Such an entry is shown as
+       *  not applicable and is never keepable, so it can never refuse an otherwise good batch. */
+      readonly refusal?: ReviewRefusal;
+    }
+);
 
 /** The verb's applicability refusals the review can predict from the payload and the live card alone. */
 type ReviewRefusal = inferOutput<Trpc["refinery"]["applyFields"]>["dropped"][number]["reason"];
@@ -99,19 +106,13 @@ export function reviewEntriesOf(
     }
     const live = cardTextOf(liveCard, entry);
     const original = cardTextOf(originalCard, entry);
+    const base = { entry, live, original, diverged: live !== original, payloadIndex };
     const appendIndex = appendIndexOf.get(entry);
+    if (appendIndex !== undefined) {
+      return [{ ...base, appendIndex }];
+    }
     const refusal = refusalOf(entry, liveCard);
-    return [
-      {
-        entry,
-        live,
-        original,
-        diverged: live !== original,
-        payloadIndex,
-        ...(appendIndex === undefined ? {} : { appendIndex }),
-        ...(refusal === undefined ? {} : { refusal }),
-      },
-    ];
+    return [refusal === undefined ? base : { ...base, refusal }];
   });
 }
 

@@ -47,7 +47,7 @@ const DEFAULT_SKELETON_ROW_COUNT = 5;
 
 type CharacterListItem = inferOutput<Trpc["character"]["list"]>["items"][number];
 
-export interface CharacterPickerProps {
+export type CharacterPickerProps = {
   /** The Command's accessible label + search-input aria. */
   readonly label: string;
   /** Search-input placeholder, e.g. "Search characters…". */
@@ -66,10 +66,6 @@ export interface CharacterPickerProps {
   readonly isSelected?: (id: CharacterId) => boolean;
   /** When set, the character rows sit under this CommandGroup heading. */
   readonly rowsHeading?: string;
-  /** The list's box, from `CommandList`'s `listSize`; omitted, the list caps at the `scrollLg` step. `pickerWindow` also lets the picker share the room a short dialog leaves. */
-  readonly listSize?: "grow" | "pickerWindow";
-  /** The picker sits in an anchored popup: its list stops short of the popup's room by one touch row, so a wheel at the list's end carries the popup on to its footer. */
-  readonly inPopover?: boolean;
   /** Skeleton row count for the loading fallback. @defaultValue 5 */
   readonly skeletonCount?: number;
   /**
@@ -92,7 +88,18 @@ export interface CharacterPickerProps {
   readonly autoFocusSearch?: boolean;
   /** The search field, for an owner that moves focus into the picker from outside it. */
   readonly searchRef?: Ref<HTMLInputElement>;
-}
+} & (
+  | {
+      /** The list's box, from `CommandList`'s `listSize`; omitted, the list caps at the `scrollLg` step. `pickerWindow` also lets the picker share the room a short dialog leaves. */
+      readonly listSize?: "grow" | "pickerWindow";
+      readonly inPopover?: false;
+    }
+  | {
+      readonly listSize?: never;
+      /** The picker sits in an anchored popup: its list stops short of the popup's room by one touch row, so a wheel at the list's end carries the popup on to its footer. */
+      readonly inPopover?: boolean;
+    }
+);
 
 /** The searchable character picker body — a QueryBoundary + cmdk Command over `character.list`. */
 export function CharacterPicker(props: CharacterPickerProps): ReactElement {

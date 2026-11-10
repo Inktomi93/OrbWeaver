@@ -18,28 +18,27 @@ const SHELL_CHROMES = ["panel", "block", "inline"] as const;
 type PluginShellChrome = (typeof SHELL_CHROMES)[number];
 const SHELL_CONTAINERS = { panel: Card, block: Stack } satisfies Record<Exclude<PluginShellChrome, "inline">, typeof Card | typeof Stack>;
 
-interface PluginSurfaceShellProps {
+/** Page and inline attribution have no panel controls. Only a mounted disclosure can receive focus. */
+export type PluginShellPresentation =
+  | { readonly scale: "page"; readonly chrome?: never; readonly action?: never; readonly collapsible?: never; readonly disclosureRef?: never }
+  | { readonly scale?: "panel" | undefined; readonly chrome: "inline"; readonly action?: never; readonly collapsible?: never; readonly disclosureRef?: never }
+  | ({
+      readonly scale?: "panel" | undefined;
+      readonly chrome?: Exclude<PluginShellChrome, "inline"> | undefined;
+      readonly action?: ReactNode;
+    } & (
+      | { readonly collapsible?: false; readonly disclosureRef?: never }
+      | { readonly collapsible: true; readonly disclosureRef?: Ref<HTMLButtonElement> | undefined }
+    ));
+
+type PluginSurfaceShellProps = PluginShellPresentation & {
   readonly pluginId: PluginId;
   readonly surfaceId: string;
   readonly anchor: PluginSurfaceAnchor;
-  /** The owning plugin's display name — the attribution line, never plugin-supplied chrome. */
   readonly pluginName: string;
-  /** The surface's own title (`host.ui.register`'s `title`) — the panel's label under the plugin name. */
   readonly title: string;
-  /** How much of the screen this surface owns — a THREAT-MODEL axis, not a styling one (see the file header).
-   *  @defaultValue "panel" */
-  readonly scale?: "panel" | "page";
-  /** The rendered surface body (the declarative tree). */
   readonly children: ReactNode;
-  /** Which chrome the shell draws (see {@link SHELL_CHROMES}). Default `panel`. */
-  readonly chrome?: PluginShellChrome | undefined;
-  /** A host control drawn at the end of the attribution line. */
-  readonly action?: ReactNode;
-  /** Keep chat panels mounted while their independent disclosure is folded. */
-  readonly collapsible?: boolean;
-  /** The host restores focus to this panel's disclosure after a placement change. */
-  readonly disclosureRef?: Ref<HTMLButtonElement> | undefined;
-}
+};
 
 /** Wrap a rendered plugin surface in its first-party attribution chrome. */
 export function PluginSurfaceShell({

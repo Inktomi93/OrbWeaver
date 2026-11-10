@@ -2,14 +2,17 @@ import { browserNoNodeGlobalsRule, rawEgressRule, rawHttpClientRule, sessionChan
 import { detachedWorkRule } from "./async.ts";
 import { browserSupportRule } from "./browser-support.ts";
 import { CLIENT_DATA_RESTRICTIONS, effectOnSharedSelectionRule } from "./client-data-policy.ts";
+import { closedVocabularyRule } from "./closed-vocabulary.ts";
 import type { CustomPropertyUses } from "./css/custom-properties.ts";
 import { derivedPortMemberRule } from "./derived-port.ts";
+import { destructiveNeedsConfirmRule } from "./destructive-confirm.ts";
 import { assumesSingleReplicaRule, commentedCodeRule, sideGenSamplingRule, wireJsonRule } from "./general.ts";
 import { DB_SCHEMA_RESTRICTIONS, SERVER_HARD_RESTRICTIONS, TYPE_SHAPE_RESTRICTIONS } from "./general-policy.ts";
 import { moduleStateRule } from "./module-state.ts";
 import type { BaseUiDoors } from "./motion.ts";
 import { baseUiStateDataAttributesRule, noRenderLayoutReadRule, unruledFlipInversionRule } from "./motion.ts";
 import { baseUiPortalContainerRule, contextReturnTypeRule, directRowReadRule, directRowWriteRule, nativeTitleRule, testFactoryContractRule } from "./native.ts";
+import { optionalAlternativesRule } from "./optional-alternatives.ts";
 import { PRINCIPAL_RULES } from "./principal.ts";
 import { rawIdRule } from "./raw-id.ts";
 import {
@@ -101,6 +104,7 @@ export {
 export { intentColorRecipe } from "./css/intent-color-recipe.ts";
 export { authorClassIgnores } from "./css-classes.ts";
 export { baseUiDoors } from "./motion.ts";
+export { literalKeys } from "./optional-alternatives.ts";
 export {
   aliased,
   describeForeignTypes,
@@ -246,6 +250,7 @@ export function createOrbPlugin(options: {
   return {
     rules: {
       ...Object.fromEntries(LOCAL_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)] as const)),
+      "destructive-needs-confirm": destructiveNeedsConfirmRule,
       "surface-consumes-container": surfaceConsumesContainerRule,
       "anchor-provides-container": anchorProvidesContainerRule,
       "no-raw-intrinsic-paint": rawIntrinsicPaintRule(options.shellClasses),
@@ -281,6 +286,8 @@ export function createOrbPlugin(options: {
       "no-direct-row-reads": directRowReadRule,
       "no-context-returntype": contextReturnTypeRule,
       "no-raw-id": rawIdRule,
+      "closed-vocabulary": closedVocabularyRule,
+      "no-optional-alternatives": optionalAlternativesRule,
       "wire-json-parsed-at-consumer": wireJsonRule,
       "no-off-token-inline-style": offTokenInlineStyleRule,
       "theme-override-only-via-scope": themeOverrideRule,

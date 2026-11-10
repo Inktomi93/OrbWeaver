@@ -1,0 +1,24 @@
+diff --git a/dist/types-BxbMkv6C.d.cts b/dist/types-BxbMkv6C.d.cts
+--- a/dist/types-BxbMkv6C.d.cts
++++ b/dist/types-BxbMkv6C.d.cts
+@@ -9,7 +9,7 @@ import { Observable, Observer } from "@trpc/server/observable";
+  * If you need a property that you know exists but doesn't exist on this
+  * interface, go ahead and add it.
+  */
+-type FetchEsque = (input: RequestInfo | URL | string, init?: RequestInit | RequestInitEsque) => Promise<ResponseEsque>;
++type FetchEsque = (input: Parameters<typeof fetch>[0], init?: RequestInit | RequestInitEsque) => Promise<ResponseEsque>;
+ /**
+  * A simpler version of the native fetch function's type for packages with
+  * their own fetch types, such as undici and node-fetch.
+diff --git a/dist/types-CAPs7vhA.d.mts b/dist/types-CAPs7vhA.d.mts
+--- a/dist/types-CAPs7vhA.d.mts
++++ b/dist/types-CAPs7vhA.d.mts
+@@ -9,7 +9,7 @@ import { DefaultErrorShape, InferrableClientTypes, Maybe, TRPCErrorResponse, TRP
+  * If you need a property that you know exists but doesn't exist on this
+  * interface, go ahead and add it.
+  */
+-type FetchEsque = (input: RequestInfo | URL | string, init?: RequestInit | RequestInitEsque) => Promise<ResponseEsque>;
++type FetchEsque = (input: Parameters<typeof fetch>[0], init?: RequestInit | RequestInitEsque) => Promise<ResponseEsque>;
+ /**
+  * A simpler version of the native fetch function's type for packages with
+  * their own fetch types, such as undici and node-fetch.

@@ -25,10 +25,6 @@ interface RowToggleActionBaseProps {
   /** The accessible name, constant across states ("Star The Crimson Court"); `aria-pressed`/`aria-checked`
    *  carries on/off, so a name that also flipped would announce the state twice. */
   readonly label: string;
-  /** The pressed icon's semantic ink. */
-  readonly pressedTone?: ButtonBaseProps["tone"];
-  /** A selected surface uses the shared selection fill and its paired foreground. */
-  readonly selectedFill?: boolean;
   /** `when-on` (D11, the list default) = visible at rest only while pressed; `always` = never hidden;
    *  `never` = always reveal-gated, for a row that shows the PRESSED state elsewhere at rest (the chats
    *  row's title-line ★ marker, `ListRow.markers` + `ROW_REVEAL_SWAP_COARSE_KEEP`). D11's invariant — pressed state is
@@ -58,7 +54,8 @@ interface RowToggleActionFillProps extends RowToggleActionBaseProps {
 
 /** Either arm — declared inline at the two consumption points (a component parameter and the glyph's), so
  *  the union needs no exported alias of its own. */
-type RowToggleFillArm = RowToggleActionProps | RowToggleActionFillProps;
+type RowToggleFillArm = (RowToggleActionProps | RowToggleActionFillProps) &
+  ({ readonly selectedFill?: false; readonly pressedTone?: ButtonBaseProps["tone"] } | { readonly selectedFill: true; readonly pressedTone?: never });
 
 /** The glyph, dispatched on the FILL ARM — narrowing the whole props object (not a destructured `icon`) is
  *  what keeps `fill` typed against a `FillableIcon` with no cast: the non-filling arm never spells `fill`. */

@@ -10,13 +10,13 @@ export interface DetectCache {
   readonly detectedServer: ResolverContext["detectedServer"];
 }
 
-export interface ResolveArgs extends ResolveTaskParams {
+export type ResolveArgs = ResolveTaskParams & {
   readonly signal?: AbortSignal | undefined;
   /** Read only the server facts already held, in memory or in the persisted snapshot, and dial nothing. For a read-only
    *  question asked before the user commits (the change preview): a host that does not answer must not hold it. A fact
    *  never persisted degrades to the stated and curated facts. */
   readonly cachedFacts?: boolean | undefined;
-}
+};
 
 /** Everything the resolver reads that is not a dep: the registry + the catalog mirrors + the warms. */
 export interface ResolverContext {

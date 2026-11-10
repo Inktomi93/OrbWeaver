@@ -196,15 +196,20 @@ export const PLUGIN_PUBSUB_PAYLOAD_MAX_BYTES = 16_384;
  *  (zod-validated host-side at collection — an invalid spec is a REGISTRATION refusal, the surface absent, never
  *  activation-fatal); `onAction` is the opaque handler ref the action round-trip re-invokes (absent = a
  *  display-only surface with no actions). `anchor`/`tier`/`spec` are the U0 vocabulary (`ui.ts`). */
-export type PluginSurfaceRegistration = PluginSurfaceRegistrationMeta & {
-  readonly onAction?: PluginHandlerRef;
-  /** U7 (§6.2) — a `frame`-tier surface's DOCUMENT BODY, present exactly when `tier === "frame"` (minted only by
-   *  `host.ui.registerFrame` under the `ui.frame` capability). It lives HERE and not on
-   *  {@link PluginSurfaceRegistrationMeta} because `PluginSurfaceView extends` that meta: the projected wire shape
-   *  would otherwise ship every frame document to the client. Only the plugin-frame doorway reads it, server-side,
-   *  and only for the OWNER of the row. */
-  readonly frame?: PluginFrameBody;
-};
+export type PluginSurfaceRegistration = PluginSurfaceRegistrationMeta &
+  (
+    | {
+        readonly tier: Exclude<PluginSurfaceRegistrationMeta["tier"], "frame">;
+        readonly onAction?: PluginHandlerRef;
+        readonly frame?: never;
+      }
+    | {
+        readonly tier: "frame";
+        /** Frame document bytes stay on the server; only the owner's plugin-frame route reads them. */
+        readonly frame: PluginFrameBody;
+        readonly onAction?: never;
+      }
+  );
 
 /** A COMMAND the guest registered via `host.ui.registerCommand` — collected at activation
  *  (U5). Like a surface it needs NO external registrar: it is read directly off the resident instance by

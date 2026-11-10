@@ -1,0 +1,1 @@
+const keys = z.object({kind:z.literal("keyValue"), rows:arr.optional(), rowsFrom:binding.optional()}).strip().refine((node): node is typeof node & PluginKeyValueNode => sourceCount(node, PLUGIN_SOURCE_KEYS.keyValue) === 1, { error: PLUGIN_SOURCE_ERRORS.keyValue });
