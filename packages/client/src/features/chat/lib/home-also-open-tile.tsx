@@ -9,8 +9,7 @@
 // wire vocabulary that every CT and story selector is written against, and renaming an id to match a label
 // is how a rename becomes a migration.
 //
-// It carries the "All chats →" link that used to sit on the pick-up band, which is where the mock draws it
-// and where it stops sharing a line with the "Chats" jump pill.
+// It carries the "All chats →" link, on its own kicker row rather than on the pick-up band.
 
 import { HOME_RECENT_CHATS_LIMIT } from "@orb/contracts/chat";
 import { Button } from "@orb/ui/button";
@@ -25,7 +24,7 @@ import { HomeAlsoOpenTileBody } from "../components/home-also-open-tile-body.tsx
 import { CHAT_ALL_CHATS_NAME } from "./chat-surface-names.ts";
 import { homeAlsoOpenVisible } from "./home-also-open-visibility.ts";
 
-/** Between the hero (10) and the jump rail (40) — the mock's order down the hearth column. */
+/** Between the hero (10) and the shelf tiles (20 and up) — the mock's order down the hearth column. */
 const ALSO_OPEN_TILE_ORDER = 15;
 
 /** The skeleton's authored row count, the fill fallback inside a remembered box (a device with no memory

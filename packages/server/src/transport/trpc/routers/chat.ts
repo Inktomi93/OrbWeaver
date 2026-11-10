@@ -58,7 +58,7 @@ import { sendAvailabilitySchema } from "@orb/contracts/inference";
 import { choiceBlockValuesSchema, userIntentSchema, userMacroValuesSchema } from "@orb/contracts/preset";
 import { pageDirectionShape, trackedEventIdShape } from "@orb/contracts/rpc";
 import { messageWindowCursorSchema, messageWindowTargetSchema } from "@orb/contracts/search";
-import { themeBackgroundSchema } from "@orb/contracts/theme";
+import { themeBackgroundInputSchema, themeBackgroundSchema } from "@orb/contracts/theme";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { reportedTimeZoneSchema } from "@orb/kit/time";
 import { strictTwin } from "@orb/kit/zod-schema";
@@ -327,7 +327,7 @@ const setChatDocumentVisibilitySchema = z.strictObject({
 // INSIDE the verb, so a stranger's chatId collapses to a leak-free NOT_FOUND (the setRoomOverrides shape).
 const setChatBackgroundSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat),
-  background: themeBackgroundSchema,
+  background: themeBackgroundInputSchema,
 });
 
 // `setToolRecurseLimit` — the host's per-chat tool-call recursion cap. `limit` DERIVES from the domain's

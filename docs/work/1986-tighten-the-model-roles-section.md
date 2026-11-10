@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-11-09
+status: doing
+updated: 2026-11-10
 priority: P2
 area: ui
+lane: wt/agent-aa440b9474aaa4063
 plan: cross-surface-consistency
 ---
 

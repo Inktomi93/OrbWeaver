@@ -16,9 +16,14 @@
 // `typeIdSchema` emits a fixed message rather than the id library's echo of the rejected value).
 
 import { credentialStorageStatusSchema, credentialViewSchema, providerMetadataSchema } from "@orb/contracts/credentials";
+import type { ProviderId } from "@orb/contracts/inference";
+import type { LookupText } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
+
+// A lookup miss reaches the credential verb so the caller receives its provider-unknown error.
+const providerLookupSchema: z.ZodType<LookupText<ProviderId>, LookupText<ProviderId>> = z.string().min(1);
 
 export const credentialsRouter = t.router({
   list: authedProcedure.output(z.array(credentialViewSchema)).query(({ ctx }) => ctx.services.credentials.list({ principal: ctx.auth })),
@@ -31,7 +36,7 @@ export const credentialsRouter = t.router({
   add: authedProcedure
     .input(
       z.strictObject({
-        provider: z.string().min(1),
+        provider: providerLookupSchema,
         label: z.string().optional(),
         key: z.string().trim().min(1),
         metadata: providerMetadataSchema.optional(),

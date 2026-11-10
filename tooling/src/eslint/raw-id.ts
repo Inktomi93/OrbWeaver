@@ -1,16 +1,17 @@
-// `orb/no-raw-id`: a branded id never travels as a plain string. Three arms: a zod field named `*Id` built from
-// `z.string()`, a declared field, parameter or variable whose id name stands for a brand but is typed `string`, and a
-// `useState` of a plain string that is fed a brand. The second and third need the program; the first is syntax alone.
+// `orb/no-raw-id` checks raw Zod id fields, string declarations with a matching brand, and branded values
+// widened into a generic id field or React state. Only the Zod builder check is syntax-only.
+import { relative } from "node:path";
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES, TSESLint } from "@typescript-eslint/utils";
 import ts from "typescript";
-import type { NameMatch } from "../brand-names/index.ts";
-import { BrandTable } from "../brand-names/index.ts";
+import type { NameMatch } from "./brand-names.ts";
+import { BrandTable } from "./brand-names.ts";
 import { requireTypeServices } from "./checker.ts";
 import { lexicalVariable, singleInitializer } from "./general.ts";
 import { staticMemberName } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
+import { homes, posixPath } from "./syntax.ts";
 import { brandedString } from "./unsafe-cast.ts";
 
 const ZOD_MODULE = /^zod(?:\/|$)/u;
@@ -128,12 +129,15 @@ function plainStringAnnotation(type: TSESTree.TypeNode, isPlainAlias: (reference
   return member.type === AST_NODE_TYPES.TSStringKeyword || (member.type === AST_NODE_TYPES.TSTypeReference && isPlainAlias(member));
 }
 
-// A non-generic alias declared as a bare `string`, followed through an import. `SandboxWireId<…>` is generic, so it stays out.
-function plainAliasOf(checker: ts.TypeChecker, name: ts.Node): boolean {
+function resolvedSymbol(checker: ts.TypeChecker, name: ts.Node): ts.Symbol | undefined {
   const symbol = checker.getSymbolAtLocation(name);
   // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript SymbolFlags is a compiler-owned bitfield.
-  const target = symbol !== undefined && (symbol.flags & ts.SymbolFlags.Alias) !== 0 ? checker.getAliasedSymbol(symbol) : symbol;
-  const declaration = target?.declarations?.[0];
+  return symbol !== undefined && (symbol.flags & ts.SymbolFlags.Alias) !== 0 ? checker.getAliasedSymbol(symbol) : symbol;
+}
+
+// Generic aliases such as SandboxWireId describe a wire boundary.
+function plainAliasOf(checker: ts.TypeChecker, name: ts.Node): boolean {
+  const declaration = resolvedSymbol(checker, name)?.declarations?.[0];
   return (
     declaration !== undefined &&
     ts.isTypeAliasDeclaration(declaration) &&
@@ -147,28 +151,83 @@ const ENFORCED_MATCHES: ReadonlySet<NameMatch["match"]> = new Set<NameMatch["mat
 
 const BRAND_ALIAS = /^[A-Z]\w*Id$/u;
 
-const tables = new WeakMap<ts.Program, BrandTable>();
-
 // `any` and `never` are assignable to every brand, so neither counts as one.
 const isBrandType = (checker: ts.TypeChecker, brand: ts.Type, type: ts.Type): boolean =>
   // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript TypeFlags is a compiler-owned bitfield.
   (type.flags & (ts.TypeFlags.Any | ts.TypeFlags.Never)) === 0 && checker.isTypeAssignableTo(type, brand);
 
-// Every top-level `*Id` alias of the program that is a brand: the ids module's own and any a package declares beside its
-// schema (`ProviderId`, `AgentSdkSessionId`), so the table needs no list kept by hand.
-function brandTable(program: ts.Program, checker: ts.TypeChecker, brand: ts.Type): BrandTable {
-  const cached = tables.get(program);
-  if (cached !== undefined) {
-    return cached;
+function brandReference(node: ts.Node): ts.Node | undefined {
+  if (ts.isImportSpecifier(node) || ts.isTypeAliasDeclaration(node)) {
+    return node.name;
   }
-  const aliases = program
-    .getSourceFiles()
-    .filter((source) => !(program.isSourceFileFromExternalLibrary(source) || program.isSourceFileDefaultLibrary(source)))
-    .flatMap((source) => source.statements.filter(ts.isTypeAliasDeclaration))
-    .filter((alias) => BRAND_ALIAS.test(alias.name.text));
-  const table = new BrandTable(aliases.filter((alias) => isBrandType(checker, brand, checker.getTypeAtLocation(alias.name))).map((alias) => alias.name.text));
-  tables.set(program, table);
-  return table;
+  return ts.isTypeReferenceNode(node) ? node.typeName : undefined;
+}
+
+function collectBrand(seen: Set<string>, checker: ts.TypeChecker, brand: ts.Type, name: ts.Node): void {
+  const symbol = resolvedSymbol(checker, name);
+  if (symbol === undefined) {
+    return;
+  }
+  const type = checker.getDeclaredTypeOfSymbol(symbol);
+  if (isBrandType(checker, brand, type)) {
+    for (const candidate of [symbol.name, type.aliasSymbol?.name]) {
+      if (candidate !== undefined && BRAND_ALIAS.test(candidate)) {
+        seen.add(candidate);
+      }
+    }
+  }
+}
+
+// A brand elsewhere in the program says nothing about an identically named field here.
+function localBrands(source: ts.SourceFile, checker: ts.TypeChecker, brand: ts.Type): Set<string> {
+  const seen = new Set<string>();
+  function visit(node: ts.Node): void {
+    const name = brandReference(node);
+    if (name !== undefined) {
+      collectBrand(seen, checker, brand, name);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+  return seen;
+}
+
+// Resolve a destructured parameter back to its annotated property. Two local fields named messageId
+// may carry different identities, even when they share a module and a brand import.
+function sourceOfField(checker: ts.TypeChecker, symbol: ts.Symbol | undefined): ts.Declaration | undefined {
+  const declaration = symbol?.valueDeclaration ?? symbol?.declarations?.[0];
+  if (declaration !== undefined && ts.isBindingElement(declaration) && ts.isObjectBindingPattern(declaration.parent)) {
+    const key = declaration.propertyName ?? declaration.name;
+    if (ts.isIdentifier(key) || ts.isStringLiteral(key)) {
+      return checker.getTypeAtLocation(declaration.parent).getProperty(key.text)?.declarations?.[0];
+    }
+  }
+  return declaration;
+}
+
+function libraryFieldSource(program: ts.Program, checker: ts.TypeChecker, node: ts.Node, name: string): ts.Declaration | undefined {
+  if (!((ts.isShorthandPropertyAssignment(node) || ts.isPropertyAssignment(node)) && ts.isObjectLiteralExpression(node.parent))) {
+    return;
+  }
+  if (!(ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)) || node.name.text !== name) {
+    return;
+  }
+  const field = checker.getContextualType(node.parent)?.getProperty(name);
+  if (field?.declarations?.some((origin) => program.isSourceFileFromExternalLibrary(origin.getSourceFile())) !== true) {
+    return;
+  }
+  if (ts.isShorthandPropertyAssignment(node)) {
+    return sourceOfField(checker, checker.getShorthandAssignmentValueSymbol(node));
+  }
+  const value = ts.isPropertyAccessExpression(node.initializer) ? node.initializer.name : node.initializer;
+  return sourceOfField(checker, checker.getSymbolAtLocation(value));
+}
+
+// A value forwarded to a field of an imported library type has a known owner. Look up the actual
+// contextual property, so mapped projections such as Pick retain the original field declaration.
+function forwardsLibraryField(program: ts.Program, checker: ts.TypeChecker, declaration: ts.Node, name: string): boolean {
+  const visit = (node: ts.Node): boolean => libraryFieldSource(program, checker, node, name) === declaration || ts.forEachChild(node, visit) === true;
+  return visit(declaration.getSourceFile());
 }
 
 const STATE_HOOK = "useState";
@@ -179,13 +238,101 @@ function brandsOf(checker: ts.TypeChecker, brand: ts.Type, type: ts.Type): strin
   return members.filter((member) => member.isIntersection() && isBrandType(checker, brand, member)).map((member) => checker.typeToString(member));
 }
 
-// A state type of only `string`, with null or undefined: the slot takes any string and names no brand.
-function plainStringState(type: ts.Type): boolean {
+// A slot of only `string`, with null or undefined: the slot takes any string and names no brand.
+function plainStringSlot(type: ts.Type): boolean {
   const members = type.isUnion() ? type.types : [type];
   // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript TypeFlags is a compiler-owned bitfield.
   const kept = members.filter((member) => (member.flags & (ts.TypeFlags.Null | ts.TypeFlags.Undefined)) === 0);
   // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript TypeFlags is a compiler-owned bitfield.
   return kept.length > 0 && kept.every((member) => (member.flags & ts.TypeFlags.String) !== 0);
+}
+
+const ID_KEY = "id";
+const GHOST_ROW_HOMES = homes("packages/client/src/features/chat/hooks/use-message-items.ts");
+
+interface IdRuleScope {
+  readonly checker: ts.TypeChecker;
+  readonly brand: ts.Type;
+  readonly cwd: string;
+}
+
+// Law 4 permits the virtualizer's key. The ghost arm receives the target MessageId on swipe and a literal key on append.
+function ghostKey(scope: IdRuleScope, literal: ts.ObjectLiteralExpression, value: ts.Type, kit: ts.SourceFile): boolean {
+  const { checker, cwd } = scope;
+  const owner = checker.getContextualType(literal)?.aliasSymbol;
+  if (
+    owner?.name !== "ChatRowItem" ||
+    owner.declarations?.some((site) => GHOST_ROW_HOMES.includes(posixPath(relative(cwd, site.getSourceFile().fileName)))) !== true
+  ) {
+    return false;
+  }
+  const message = checker.getSymbolAtLocation(kit)?.exports?.get(ts.escapeLeadingUnderscores("MessageId"));
+  const kind = checker.getTypeAtLocation(literal).getProperty("kind");
+  if (message === undefined || kind === undefined || !checker.isTypeAssignableTo(value, checker.getDeclaredTypeOfSymbol(message))) {
+    return false;
+  }
+  const tag = checker.getTypeOfSymbolAtLocation(kind, literal);
+  return tag.isStringLiteral() && tag.value === "ghost";
+}
+
+function sandboxType(checker: ts.TypeChecker, declaration: ts.Declaration, kit: ts.SourceFile): ts.Type | undefined {
+  if (ts.isPropertyAssignment(declaration) && ts.isCallExpression(declaration.initializer)) {
+    const call = declaration.initializer;
+    const owner = checker.getResolvedSignature(call)?.declaration;
+    const arg = call.typeArguments?.[0];
+    if (
+      owner !== undefined &&
+      ts.isFunctionDeclaration(owner) &&
+      owner.name?.text === "sandboxWireIdSchema" &&
+      owner.getSourceFile() === kit &&
+      arg !== undefined
+    ) {
+      return checker.getTypeFromTypeNode(arg);
+    }
+  }
+  if (!ts.isPropertySignature(declaration) || declaration.type === undefined) {
+    return;
+  }
+  const nodes: readonly ts.TypeNode[] = ts.isUnionTypeNode(declaration.type) ? declaration.type.types : [declaration.type];
+  return nodes
+    .filter(ts.isTypeReferenceNode)
+    .map((node) => sandboxWireArgument(checker, node, kit))
+    .find((type) => type !== undefined);
+}
+
+function sandboxWireArgument(checker: ts.TypeChecker, node: ts.TypeReferenceNode, kit: ts.SourceFile): ts.Type | undefined {
+  const owner = checker.getSymbolAtLocation(node.typeName);
+  if (owner === undefined) {
+    return;
+  }
+  // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript SymbolFlags is a compiler-owned bitfield.
+  const target = (owner.flags & ts.SymbolFlags.Alias) !== 0 ? checker.getAliasedSymbol(owner) : owner;
+  const arg = node.typeArguments?.[0];
+  if (target.name === "SandboxWireId" && target.declarations?.some((site) => site.getSourceFile() === kit) === true && arg !== undefined) {
+    return checker.getTypeFromTypeNode(arg);
+  }
+  return undefined;
+}
+
+function ruledIdSlot(scope: IdRuleScope, literal: ts.ObjectLiteralExpression, value: ts.Type): boolean {
+  const { checker, brand } = scope;
+  const kit = brand.aliasSymbol?.declarations?.[0]?.getSourceFile();
+  const context = checker.getContextualType(literal);
+  if (kit === undefined || context === undefined) {
+    return false;
+  }
+  if (ghostKey(scope, literal, value, kit)) {
+    return true;
+  }
+  const field = checker.getNonNullableType(context).getProperty(ID_KEY);
+  const origins = field === undefined ? [] : checker.getRootSymbols(field).flatMap((symbol) => symbol.declarations ?? []);
+  return (
+    origins.length > 0 &&
+    origins.every((origin) => {
+      const expected = sandboxType(checker, origin, kit);
+      return expected !== undefined && checker.isTypeAssignableTo(value, expected);
+    })
+  );
 }
 
 const isStateHook = (callee: TSESTree.Node): boolean =>
@@ -213,7 +360,8 @@ export const rawIdRule: OrbRule = {
     if (brand === null) {
       return { "ObjectExpression > Property": zodField };
     }
-    const table = brandTable(program, checker, brand);
+    const visible = localBrands(toTs.get(context.sourceCode.ast).getSourceFile(), checker, brand);
+    const table = new BrandTable(visible);
     const judgeDeclared = (node: TSESTree.Node, name: string, annotation: TSESTree.TSTypeAnnotation | undefined): void => {
       const plain =
         annotation !== undefined &&
@@ -222,13 +370,38 @@ export const rawIdRule: OrbRule = {
           (reference) => reference.typeArguments === undefined && plainAliasOf(checker, toTs.get(reference.typeName)),
         );
       const match = plain ? table.brandOf(name) : null;
-      if (match !== null && ENFORCED_MATCHES.has(match.match)) {
+      if (
+        match !== null &&
+        visible.has(match.brand) &&
+        ENFORCED_MATCHES.has(match.match) &&
+        !forwardsLibraryField(program, checker, toTs.get(node).parent, name)
+      ) {
         context.report({ node, message: declaredMessage(name, match.brand) });
       }
     };
+    const scope = { checker, brand, cwd: context.cwd };
     const typeOf = (node: TSESTree.Node): ts.Type => checker.getTypeAtLocation(toTs.get(node));
     return {
-      "ObjectExpression > Property": zodField,
+      "ObjectExpression > Property"(property: TSESTree.Property): void {
+        zodField(property);
+        if (staticPropertyKey(property) !== ID_KEY) {
+          return;
+        }
+        const value = toTs.get(property.value);
+        const literal = toTs.get(property.parent);
+        if (!(ts.isExpression(value) && ts.isObjectLiteralExpression(literal))) {
+          return;
+        }
+        const slot = checker.getContextualType(value);
+        if (slot === undefined || !plainStringSlot(slot)) {
+          return;
+        }
+        const received = typeOf(property.value);
+        const brands = brandsOf(checker, brand, received);
+        if (brands.length > 0 && !ruledIdSlot(scope, literal, received)) {
+          context.report({ node: property.key, message: declaredMessage(ID_KEY, brands.join(" | ")) });
+        }
+      },
       "TSPropertySignature[typeAnnotation]"(signature: TSESTree.TSPropertySignature): void {
         judgeDeclared(signature.key, staticPropertyKey(signature), signature.typeAnnotation);
       },
@@ -241,7 +414,7 @@ export const rawIdRule: OrbRule = {
       "VariableDeclarator[init.type='CallExpression'][id.type='ArrayPattern']"(declarator: TSESTree.VariableDeclarator): void {
         const call = declarator.init as TSESTree.CallExpression;
         const [state, setter] = (declarator.id as TSESTree.ArrayPattern).elements;
-        if (!isStateHook(call.callee) || state?.type !== AST_NODE_TYPES.Identifier || !plainStringState(typeOf(state))) {
+        if (!isStateHook(call.callee) || state?.type !== AST_NODE_TYPES.Identifier || !plainStringSlot(typeOf(state))) {
           return;
         }
         const fed = [...call.arguments, ...(setter?.type === AST_NODE_TYPES.Identifier ? setterArguments(context, setter) : [])];

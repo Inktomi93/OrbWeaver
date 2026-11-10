@@ -9,6 +9,7 @@ import {
   baseUiDoors,
   classClassifier,
   createOrbPlugin,
+  customPropertyUses,
   DESTRUCTIVE_EXEMPT,
   exportedLabels,
   exportedProductionValues,
@@ -43,7 +44,6 @@ import biomeConfig from "./biome.json" with { type: "json" };
 import { appearanceChannelVocabulary } from "./packages/client/appearance-channel.build.ts";
 import { BROWSER_TARGETS, HARMLESS_WHEN_UNSUPPORTED, POLYFILLED_BUILTINS } from "./packages/client/browser-targets.ts";
 import { OWNER_CSS_SHELL_CLASSES } from "./packages/client/owner-css-surface.ts";
-import { customPropertyUses } from "./tooling/src/css-names/index.ts";
 import { PRINCIPAL_RULES } from "./tooling/src/eslint/principal.ts";
 import { ROLE_DATA_RESTRICTIONS } from "./tooling/src/eslint/security-policy.ts";
 import { classOwners } from "./tooling/src/eslint/ui-classes/class-owners.ts";
@@ -826,6 +826,22 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
       "@typescript-eslint/restrict-template-expressions": "error",
       "@typescript-eslint/no-deprecated": "error",
       "orb/derived-port-member": "error",
+    },
+  },
+  {
+    files: ["eslint.config.ts", "tooling/src/eslint/**/*.{ts,tsx}"],
+    rules: {
+      "no-restricted-imports": [
+        "error",
+        {
+          patterns: [
+            {
+              regex: "(?:^|/)(?:brand-flow|brand-names|css-names|unwired)(?:/|$)",
+              message: "D333 keeps shared lint judgments in the lint modules. Analysis tools consume that API.",
+            },
+          ],
+        },
+      ],
     },
   },
   {
@@ -2184,6 +2200,16 @@ export default [
   },
   { files: rootSources("@server", "@inference"), rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX) } },
   { files: rootSources("@db"), rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX) } },
+  {
+    files: rootSources("@contracts"),
+    rules: {
+      "no-restricted-syntax": restrictedSyntax({
+        selector:
+          "Property:matches([key.name=/^(url|uri|email|baseUrl|sourceUrl|provenanceUrl)$/], [key.value=/^(url|uri|email|baseUrl|sourceUrl|provenanceUrl)$/]) CallExpression[callee.object.name='z'][callee.property.name='string']",
+        message: "Use a Zod format for an address. Use its owning text schema for preserved metadata or diagnostic text.",
+      }),
+    },
+  },
   {
     files: [CLIENT_SRC],
     ignores: TRACK_STAMP_HOMES,

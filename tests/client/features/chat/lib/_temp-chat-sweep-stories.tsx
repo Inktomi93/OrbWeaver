@@ -7,7 +7,7 @@ import { useRef } from "react";
 // A tile contribution may be a dormant doorway; the temp-chat tile is built, and a dormant arm renders nothing to sweep.
 function TempChatBody({ gridRef }: { readonly gridRef: RefObject<HTMLDivElement | null> }): ReactNode {
   const { body } = chatTempChatTile;
-  return typeof body === "function" ? body({ gridRef }) : null;
+  return typeof body === "function" ? body({ gridRef, start: null }) : null;
 }
 
 /** The production Home temp-chat tile, which sweeps expired temporary chats once it mounts. */

@@ -5,7 +5,7 @@
 // (`user_connections.model_check`), never validity; inventing a closed model registry would reject the
 // supported fallback and every model a plugin or endpoint learns after startup.
 
-import type { ModelId } from "@orb/kit/ids";
+import type { LookupText, ModelId } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 
@@ -25,6 +25,6 @@ const HUB_MODEL_ID = /^\w(?:[\w.-]*\w)?\/\w(?:[\w.-]{0,94}\w)?$/;
  * the rule matches the library's own `isValidHfModelId`, so every id admitted here is one the library treats as a
  * Hub repo rather than a path. Do not loosen it to admit a bare `repo` or a path for a local model.
  */
-export function isHubModelId(id: string): boolean {
+export function isHubModelId(id: LookupText<ModelId>): boolean {
   return HUB_MODEL_ID.test(id) && !id.includes("..") && !id.includes("--") && !id.endsWith(".git") && !id.endsWith(".ipynb");
 }

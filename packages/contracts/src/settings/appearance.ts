@@ -28,7 +28,7 @@ import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 // BG-C: the background source-kind vocabulary (`BACKGROUND_IMAGE_KINDS`) is homed in `#theme` (shared with
 // the carried `ThemeBackground` twin); consumers import it from `@orb/contracts/theme`.
-import { BACKGROUND_IMAGE_KINDS, THEME_CHAT_STYLES, THEME_DENSITIES } from "#theme";
+import { BACKGROUND_IMAGE_KINDS, storedBackgroundProvenanceSchema, THEME_CHAT_STYLES, THEME_DENSITIES } from "#theme";
 import { tolerantArray } from "#versioned-config";
 
 const CHAT_WIDTH_PCT_MIN = 30;
@@ -130,9 +130,11 @@ export const backgroundLibraryEntrySchema = z
     name: z.string(),
     // Provenance for a materialized external-URL background (BG-C invariant / F-P0-2): the original URL the
     // asset was fetched-and-stored from. Optional (own-uploads have none); metadata only, never re-fetched.
-    provenanceUrl: z.string().optional(),
+    provenanceUrl: z.url().optional(),
   })
   .strip();
+// Dropping a library entry for an old provenance string would also discard its asset reference.
+const storedBackgroundLibraryEntrySchema = backgroundLibraryEntrySchema.extend({ provenanceUrl: storedBackgroundProvenanceSchema.optional() });
 export type BackgroundLibraryEntry = z.infer<typeof backgroundLibraryEntrySchema>;
 
 const READING_LINE_HEIGHT_MIN = 1.2;
@@ -229,7 +231,7 @@ export const appearanceSettingsSchema = z
     // guard could not see it and the next unrelated settings save persisted the erasure. One bad row now
     // costs one row. (RECOVERY of a library already emptied by the old behaviour is NOT attempted here —
     // the bytes are gone from the blob; the assets themselves survive in the CAS and can be re-added.)
-    backgroundLibrary: tolerantArray(backgroundLibraryEntrySchema, []).default([]),
+    backgroundLibrary: tolerantArray(storedBackgroundLibraryEntrySchema, []).default([]),
     backgroundFit: z.enum(APPEARANCE_BACKGROUND_FITS).catch("cover").default("cover"),
     backgroundDim: z.number().min(BACKGROUND_DIM_MIN).max(BACKGROUND_DIM_MAX).catch(BACKGROUND_DIM_DEFAULT).default(BACKGROUND_DIM_DEFAULT),
     backgroundBlur: z.number().min(BACKGROUND_BLUR_MIN).max(BACKGROUND_BLUR_MAX).catch(BACKGROUND_BLUR_DEFAULT).default(BACKGROUND_BLUR_DEFAULT),

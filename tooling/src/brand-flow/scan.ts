@@ -37,6 +37,7 @@ export interface BrandFlowReport {
   readonly mints: readonly MintSite[];
   readonly widens: readonly WidenSite[];
   readonly renarrows: readonly RenarrowSite[];
+  readonly sandboxWire: readonly (DeclarationCandidate & { readonly provenance: "measured" })[];
   readonly missing: readonly MissingSite[];
   readonly generic: readonly GenericId[];
   readonly crossBrand: readonly CrossBrandSite[];
@@ -110,6 +111,9 @@ function missingOf(declarations: readonly DeclarationCandidate[], table: BrandTa
       unmatched.set(declared.name, entry);
       continue;
     }
+    if (declared.sandboxBrands.length > 0 && declared.sandboxBrands.every((brand) => sharesBrand([brand], [match.brand]))) {
+      continue;
+    }
     const slot = {
       kind: "property" as const,
       name: declared.name,
@@ -119,7 +123,17 @@ function missingOf(declarations: readonly DeclarationCandidate[], table: BrandTa
       lib: false,
       declared: "plain" as const,
     };
-    missing.push({ ...declared, brand: match.brand, match: match.match, layer: layerOf(slot, declared.file), provenance: "heuristic" });
+    missing.push({
+      ...here(declared),
+      name: declared.name,
+      owner: declared.owner,
+      declKind: declared.declKind,
+      shape: declared.shape,
+      brand: match.brand,
+      match: match.match,
+      layer: layerOf(slot, declared.file),
+      provenance: "heuristic",
+    });
   }
   const generic = [...unmatched]
     .map(([name, { count: total, packages }]) => ({ name, count: total, packages: [...packages].sort() }))
@@ -197,12 +211,17 @@ export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
   }
   const table = new BrandTable(worlds.flatMap((world) => world.seen));
   const mints = worlds.flatMap((world) => world.mints);
-  const widens = worlds.flatMap((world) => world.widens);
+  const declarations = worlds.flatMap((world) => world.declarations);
+  const sandboxWire = declarations.filter((site) => site.sandboxBrands.length > 0).map((site) => ({ ...site, provenance: "measured" as const }));
+  const bySlot = new Map(sandboxWire.map((site) => [site.site, site.sandboxBrands]));
+  const widens = worlds
+    .flatMap((world) => world.widens)
+    .map((widen): WidenSite => {
+      const wire = widen.slot.declSite === null ? undefined : bySlot.get(widen.slot.declSite);
+      return wire !== undefined && widen.brands.every((brand) => sharesBrand([brand], wire)) ? { ...widen, layer: "sandbox-wire" } : widen;
+    });
   const compares = worlds.flatMap((world) => world.compares);
-  const { missing, generic } = missingOf(
-    worlds.flatMap((world) => world.declarations),
-    table,
-  );
+  const { missing, generic } = missingOf(declarations, table);
   const homed = [...homes.values()].flatMap((files) => [...files]);
   return {
     worlds: worlds.map(({ config, files, brandless }) => ({ config, files, brandless })),
@@ -228,6 +247,7 @@ export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
     mints,
     widens,
     renarrows: renarrowsOf(mints, compares, widens),
+    sandboxWire,
     missing,
     generic,
     crossBrand: crossBrandOf(table, mints, widens, compares),

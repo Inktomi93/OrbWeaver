@@ -94,7 +94,7 @@ const questsSchema = z.array(rpgQuestSchema);
 
 /** Validate one JSON column through its contract schema. A schema-invalid persisted blob is a typed
  *  `RpgStateCorruptError` — surfaced loudly, never defaulted away into a poisoned tracker. */
-function field<T>(schema: z.ZodType<T>, value: unknown, id: string, name: string): T {
+function field<T>(schema: z.ZodType<T>, value: unknown, id: RpgSnapshotId, name: string): T {
   const parsed = schema.safeParse(value);
   if (!parsed.success) {
     throw new RpgStateCorruptError("rpg_snapshots", id, `${name}: ${parsed.error.message}`);

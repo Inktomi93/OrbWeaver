@@ -46,6 +46,7 @@ import { projectJsonSchema } from "@orb/kit/json-schema";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { AvatarAnalysis } from "../contract/results.ts";
+import { NO_CAPTION_MODEL } from "../contract/results.ts";
 import type { AvatarAnalysisAvailability } from "../contract/service.ts";
 
 const ANALYSIS_SYSTEM_PROMPT = [
@@ -66,7 +67,7 @@ const ANALYSIS_RESPONSE_FORMAT: ResponseFormat = { name: "image_breakdown", sche
  *  labels. The floor defers to the owner's preset params through `resolveSideGenSampling` when available. */
 const ANALYSIS_FLOOR: RolePresetParams = SIDE_GEN_POSTURES.caption;
 
-const skipped = (model: string): AvatarAnalysis => ({ caption: "", captionMeta: { model } });
+const skipped = (model: AvatarAnalysis["captionMeta"]["model"]): AvatarAnalysis => ({ caption: "", captionMeta: { model } });
 
 /** Why an analysis on this resolved summarize role would make no provider call, or `null` when it would. The
  *  analysis and the sweep's call count both decide it here, so the count never promises a call the analysis skips. */
@@ -108,7 +109,7 @@ export async function analyzeAvatarImage(
   const resolved = await roleClients.resolved("structured");
   const skipCause = analysisSkipCause(resolved, availability);
   if (resolved === null) {
-    return skipped("(no-connection)");
+    return skipped(NO_CAPTION_MODEL);
   }
   const model = resolved.model;
   if (skipCause === "unservable") {

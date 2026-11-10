@@ -2,6 +2,7 @@
 // Several models from one provider each paint a distinct axis label in Generations by model, at desktop and phone
 // widths, and the text equivalent still names every model whole.
 
+import { modelIdSchema } from "@orb/contracts/inference";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { modelDisplayName } from "@orb/kit/model-name";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -125,7 +126,7 @@ for (const regime of REGIMES) {
           throw new Error("The committed corpus has no model usage");
         }
         // The corpus row keeps its production shape; only the ids change.
-        const rows = set.ids.map((model, index) => ({ ...template, model, generations: set.ids.length - index }));
+        const rows = set.ids.map((model, index) => ({ ...template, model: modelIdSchema.parse(model), generations: set.ids.length - index }));
         await recordPaintedText(page);
         await routeTrpc(page, {
           ...serveCorpusProcedures(caller, ["sessions.me", "settings.getUserSettings", "stats.freshness", "stats.wrapped", "stats.latency"]),

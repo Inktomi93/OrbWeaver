@@ -10,6 +10,7 @@
 
 import type { WireSchemaMode, WireSchemaViolation } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
+import type { ModelId } from "@orb/kit/ids";
 import type { ProviderScrubSet } from "#contract";
 import { ProviderError, SCHEMA_REJECTED_DETAIL } from "#contract";
 import type { ErrorClassification, HttpErrorDiagnostic, SchemaRejectionContext } from "../../contract/http.ts";
@@ -234,7 +235,7 @@ function rejectionViolation(row: SchemaRejectionRow, match: RegExpExecArray, mod
 }
 
 // The refusal as the plan's typed violation, keeping the failure's provenance (status, request id) on the outer error.
-function schemaRejected(failure: ProviderError, violation: WireSchemaViolation, model: string): ProviderError {
+function schemaRejected(failure: ProviderError, violation: WireSchemaViolation, model: ModelId): ProviderError {
   return new ProviderError({
     kind: "invalid",
     retryable: false,

@@ -8,13 +8,14 @@ import type {
   ModelCheck,
   PromptCacheSettings,
   ProviderGenerationId,
+  ProviderId,
   ResolveTaskParams as ResolveAuthority,
   ResolveChatCapabilityParams,
   RoutableTask,
 } from "@orb/contracts/inference";
 import type { Db } from "@orb/db";
 import type { ResolveArgs } from "@orb/inference";
-import type { AutomationRuleId, ConnectionBindingId, PluginId, UserConnectionId, UserCredentialId } from "@orb/kit/ids";
+import type { AutomationRuleId, ConnectionBindingId, LookupText, PluginId, UserConnectionId, UserCredentialId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 
 export type ResolveTaskParams = ResolveAuthority & Pick<ResolveArgs, "signal">;
@@ -42,7 +43,7 @@ export interface GetConnectionParams extends ActorParams {
 /** The writable fields of a connection row (everything but id / owner / timestamps). */
 export interface ConnectionFields {
   readonly label?: string | undefined;
-  readonly providerId: string;
+  readonly providerId: LookupText<ProviderId>;
   readonly credentialId: UserCredentialId | null;
   readonly baseUrl: string | null;
   /** Provider-owned foreign id: open vocabulary, normalized and branded by `modelIdSchema` at the verb. */
@@ -115,7 +116,7 @@ export interface CatalogModelsParams extends ActorParams {
  *  `create`, so a draft that lists is a draft that saves. A saved key opens under THIS provider id, the one it
  *  was sealed for. */
 export interface DraftCatalogModelsParams extends ActorParams {
-  readonly providerId: string;
+  readonly providerId: LookupText<ProviderId>;
   readonly credentialId?: UserCredentialId | undefined;
   readonly key?: string | undefined;
   readonly baseUrl?: string | undefined;
@@ -123,7 +124,7 @@ export interface DraftCatalogModelsParams extends ActorParams {
 }
 
 export interface RefreshCatalogParams {
-  readonly providerId: string;
+  readonly providerId: ProviderId;
 }
 
 export interface ConnectionDiagnosticParams extends ActorParams {

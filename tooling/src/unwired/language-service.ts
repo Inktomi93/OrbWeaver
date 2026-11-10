@@ -4,12 +4,12 @@
 import { readFileSync } from "node:fs";
 import { join, relative } from "node:path";
 import ts from "typescript";
+import type { PortMember } from "../eslint/index.ts";
+import { effectiveMember, flowMembers, flowsAt } from "../eslint/index.ts";
 import type { Site } from "./classify.ts";
 import { siteKey } from "./classify.ts";
 import type { WorldFiles } from "./native.ts";
 import { NativeWorld } from "./native.ts";
-import type { PortMember } from "./restated-port.ts";
-import { effectiveMember, flowMembers, flowsAt } from "./restated-port.ts";
 import { isProduction, loadScanWorld, realpath } from "./worlds.ts";
 
 // The scan key of a member declared directly in an interface or an object type alias; null for any other member.

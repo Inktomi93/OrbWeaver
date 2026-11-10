@@ -20,10 +20,10 @@ export type ExactPath<H extends string> = string extends H ? never : H extends G
 export const homes = <const H extends string>(...paths: ExactPath<H>[]): string[] => paths;
 
 /**
- * Exempt files keyed to the reason each is exempt.
+ * Exempt files keyed to a reason for the file, or to reasons for individual sites in it.
  * @remarks A glob key fails `tsc` for the same reason as in {@link homes}.
  */
-export const homeReasons = <const R extends Record<string, string>>(
+export const homeReasons = <const R extends Record<string, string | Readonly<Record<string, string>>>>(
   reasons: R & Record<Extract<keyof R, GlobPath>, never> & (string extends keyof R ? never : unknown),
 ): R => reasons;
 

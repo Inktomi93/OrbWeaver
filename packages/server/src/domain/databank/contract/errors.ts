@@ -5,15 +5,15 @@
 // banned barrel), so this file owns only the databank-local NotFound.
 
 import { DomainNotFoundError, DomainOperationError, DomainUnavailableError } from "@orb/kit/errors";
-import type { CharacterId } from "@orb/kit/ids";
+import type { CharacterId, DocumentId } from "@orb/kit/ids";
 
 const DATABANK_ENTITY_KINDS = ["document"] as const;
 export type DatabankEntityKind = (typeof DATABANK_ENTITY_KINDS)[number];
 
 export class DocumentNotFoundError extends DomainNotFoundError {
   public readonly entityKind: DatabankEntityKind;
-  public readonly entityId: string;
-  constructor(entityId: string) {
+  public readonly entityId: DocumentId;
+  constructor(entityId: DocumentId) {
     super("document", entityId);
     this.entityKind = "document";
     this.entityId = entityId;

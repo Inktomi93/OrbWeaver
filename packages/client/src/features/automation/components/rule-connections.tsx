@@ -9,6 +9,7 @@ import type { ReactElement } from "react";
 import { ConnectionRoleSlot, QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import { ROLE_ROWS_ORDERED } from "#lib";
+import { RULE_UNSET_EFFECTS } from "../lib/rule-copy.ts";
 
 export interface RuleConnectionsProps {
   readonly ruleId: AutomationRuleId;
@@ -45,6 +46,7 @@ function RuleConnectionsBody({ ruleId, tasks }: RuleConnectionsProps): ReactElem
           invalidation={invalidation}
           row={row}
           trpc={trpc}
+          unsetEffect={RULE_UNSET_EFFECTS[row.task]}
           unsetLabel={`Same as my ${row.label} role`}
           view={bindings.find((view) => view.task === row.task) ?? null}
         />
@@ -53,9 +55,10 @@ function RuleConnectionsBody({ ruleId, tasks }: RuleConnectionsProps): ReactElem
   );
 }
 
-/** What a slot means for a rule: which of its arms spend through it, and what the author's own role covers.
+/** What a slot means for a rule: which of its arms spend through it. What an unset slot does stays visible: the picker
+ *  reads "Same as my <role> role" and the readout names the connection it resolves to.
  *  Only the tasks `AUTOMATION_ARM_BINDING_TASK` names can reach a rule's editor; the rest keep the row's copy. */
 const RULE_SLOT_DESCRIPTIONS: Partial<Record<RoutableTask, string>> = {
-  chat: "Turns this rule starts or suggests run on it. Left on your own role, they run on your Chat connection.",
-  generateImage: "Pictures this rule makes are drawn with it. Left on your own role, they use your Image generation connection.",
+  chat: "Turns this rule starts or suggests run on it.",
+  generateImage: "Pictures this rule makes are drawn with it.",
 };

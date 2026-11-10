@@ -2,108 +2,66 @@
 // type, an untyped value named as a contract, row, brand or object type, a brand stripped to its string, and a plain
 // string made a brand by `castId` or `as` outside the seam that owns the brand.
 
+import { relative } from "node:path";
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES } from "@typescript-eslint/utils";
 import ts from "typescript";
 import { requireTypeServices } from "./checker.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
+import { homeReasons, posixPath } from "./syntax.ts";
 import { declaredInContract } from "./trpc-output.ts";
-
-/** One cast that is a real boundary, not a site waiting to be fixed: `site` is the source text of the expression it
- *  casts, or of the argument a `castId` call brands. */
-export interface UnsafeCastHome {
-  readonly file: string;
-  readonly site: string;
-  readonly reason: string;
-}
 
 // Law 4 in docs/law/Spine-TypeScript-and-Patterns.md: a brand mints only at a trusted seam.
 const MINT_RULING = "law 4 (a brand mints only at its trusted seam)";
 
 /** The casts that are the boundary itself: data that arrives untyped by construction, or a brand's own minting seam. */
-export const UNSAFE_CAST_HOMES = [
-  {
-    file: "packages/contracts/src/plugin/manifest.ts",
-    site: 'Reflect.get(globalThis, "URL")',
-    reason: "the WHATWG `URL` global exists in every runtime yet in neither lib this package compiles under, so it can only be read untyped",
+export const UNSAFE_CAST_HOMES = homeReasons({
+  "packages/contracts/src/plugin/manifest.ts": {
+    'Reflect.get(globalThis, "URL")':
+      "the WHATWG `URL` global exists in every runtime yet in neither lib this package compiles under, so it can only be read untyped",
   },
-  {
-    file: "packages/inference/src/backends/local-light/model-worker.ts",
-    site: "workerData",
-    reason: "`workerData` arrives untyped across the thread boundary from this worker's own spawner",
+  "packages/inference/src/backends/local-light/model-worker.ts": {
+    workerData: "`workerData` arrives untyped across the thread boundary from this worker's own spawner",
   },
-  {
-    file: "packages/ui/src/lib/live-token-resolver.ts",
-    site: "globalThis as unknown",
-    reason:
+  "packages/ui/src/lib/live-token-resolver.ts": {
+    "globalThis as unknown":
       "reads DOM globals through structural shims so the module compiles in the DOM-less node world; `globalThis` has no type in common with them in either world",
   },
-  {
-    file: "packages/server/src/infra/plugin-host/worker-runtime.ts",
-    site: "workerData",
-    reason: "`workerData` arrives untyped across the thread boundary from this worker's own broker",
+  "packages/server/src/infra/plugin-host/worker-runtime.ts": {
+    workerData: "`workerData` arrives untyped across the thread boundary from this worker's own broker",
+    "message.value": "a command value is structured-cloned across the thread boundary from this worker's own broker, which carries no type",
   },
-  {
-    file: "packages/server/src/infra/plugin-host/worker-runtime.ts",
-    site: "message.value",
-    reason: "a command value is structured-cloned across the thread boundary from this worker's own broker, which carries no type",
+  "packages/kit/src/png-card-chunk/index.ts": {
+    "(globalThis as Record<string, unknown>)[DECOMPRESSION_STREAM_GLOBAL]":
+      "kit declares no DOM or node types, so the platform `DecompressionStream` global can only be read untyped",
   },
-  {
-    file: "packages/kit/src/png-card-chunk/index.ts",
-    site: "(globalThis as Record<string, unknown>)[DECOMPRESSION_STREAM_GLOBAL]",
-    reason: "kit declares no DOM or node types, so the platform `DecompressionStream` global can only be read untyped",
+  "packages/ui/src/lib/class-merge.ts": {
+    "Reflect.apply(target, thisArg, args)":
+      "Tailwind Variants' overloads resolve to `any` through `Reflect.apply`; every one of them returns a variant component",
   },
-  {
-    file: "packages/ui/src/lib/class-merge.ts",
-    site: "Reflect.apply(target, thisArg, args)",
-    reason: "Tailwind Variants' overloads resolve to `any` through `Reflect.apply`; every one of them returns a variant component",
+  "packages/ui/src/markdown/dice-inline.tsx": {
+    this: "unified binds the plugin's processor as an untyped `this` through Streamdown's plugin list",
+    tree: "unified hands the transformer an untyped mdast tree; the local node type is the subset the walk reads",
   },
-  {
-    file: "packages/ui/src/markdown/dice-inline.tsx",
-    site: "this",
-    reason: "unified binds the plugin's processor as an untyped `this` through Streamdown's plugin list",
+  "packages/ui/src/markdown/reveal-plugin.ts": {
+    tree: "unified hands the transformer an untyped hast tree; the local node type is the subset the walk reads",
   },
-  {
-    file: "packages/ui/src/markdown/dice-inline.tsx",
-    site: "tree",
-    reason: "unified hands the transformer an untyped mdast tree; the local node type is the subset the walk reads",
+  "packages/kit/src/handle-key/index.ts": {
+    "keyPass(keyPass(text, data), data)": `${MINT_RULING}: \`handleKey\` is the one mint of a comparison key, and an empty handle keys to an empty key`,
   },
-  {
-    file: "packages/ui/src/markdown/reveal-plugin.ts",
-    site: "tree",
-    reason: "unified hands the transformer an untyped hast tree; the local node type is the subset the walk reads",
+  "packages/client/src/data/use-session-recovery.ts": {
+    "me.userId": `${MINT_RULING}: the \`sessions.me\` result is the one source of a \`VerifiedUserId\`, which no text parser may mint`,
   },
-  {
-    file: "packages/kit/src/handle-key/index.ts",
-    site: "keyPass(keyPass(text, data), data)",
-    reason: `${MINT_RULING}: \`handleKey\` is the one mint of a comparison key, and an empty handle keys to an empty key`,
+  "packages/kit/src/content/index.ts": {
+    "target.slice(ASSET_SCHEME.length)": `${MINT_RULING}: an \`asset:\` ref in prose is a lookup key; every resolver reads it by owner and treats an unknown id as a miss`,
   },
-  {
-    file: "packages/client/src/data/use-session-recovery.ts",
-    site: "me.userId",
-    reason: `${MINT_RULING}: the \`sessions.me\` result is the one source of a \`VerifiedUserId\`, which no text parser may mint`,
-  },
-  {
-    file: "packages/kit/src/content/index.ts",
-    site: "target.slice(ASSET_SCHEME.length)",
-    reason: `${MINT_RULING}: an \`asset:\` ref in prose is a lookup key; every resolver reads it by owner and treats an unknown id as a miss`,
-  },
-] as const satisfies readonly UnsafeCastHome[];
-
-/** A file where a plain string becomes a brand by construction: the module that defines the brands and their parsers. */
-export interface BrandMintHome {
-  readonly file: string;
-  readonly reason: string;
-}
+});
 
 /** The files that mint brands from plain strings. Add one only for the module that owns brand validation. */
-export const BRAND_MINT_HOMES = [
-  {
-    file: "packages/kit/src/ids/index.ts",
-    reason: `${MINT_RULING}: the id module defines \`castId\`, \`mintTypeId\` and the brand schemas every other mint goes through`,
-  },
-] as const satisfies readonly BrandMintHome[];
+export const BRAND_MINT_HOMES = homeReasons({
+  "packages/kit/src/ids/index.ts": `${MINT_RULING}: the id module defines \`castId\`, \`mintTypeId\` and the brand schemas every other mint goes through`,
+});
 
 const KIT_IDS = /\/packages\/kit\/src\/ids\/index\.ts$/u;
 // The shape of a drizzle row alias; the inferred select type of a table has no name to test.
@@ -239,18 +197,18 @@ function typedReason(judge: Judge, node: TSESTree.TSAsExpression, target: ts.Typ
 /** Refuses `x as unknown as T`, `JSON.parse(x) as T`, an `unknown` or `any` value cast to a contract, row, branded or object
  *  type, a branded value cast to `string`, and a plain string made a brand by `castId` or `as` outside a mint home.
  *  A cast named in `homes` is exempt; a file in `mintHomes` may mint brands. */
-export function noUnsafeCastRule(homes: readonly UnsafeCastHome[], mintHomes: readonly BrandMintHome[]): OrbRule {
+export function noUnsafeCastRule(homes: Readonly<Record<string, Readonly<Record<string, string>>>>, mintHomes: Readonly<Record<string, string>>): OrbRule {
   return {
     meta: { type: "problem", schema: [] },
     create(context: OrbRuleContext): RuleVisitor {
       const { program, checker, esTreeNodeToTSNodeMap: toTs } = requireTypeServices(context);
-      const filename = context.filename.replaceAll("\\", "/");
-      const sites = new Set(homes.filter(({ file }) => filename.endsWith(file)).map(({ site }) => site));
+      const filename = posixPath(relative(context.cwd, context.filename));
+      const sites = homes[filename] ?? {};
       const brand = brandedString(program, checker);
       const scope: Judge = {
         checker,
         isBrand: (type) => brand !== null && !isUntyped(type) && !isNever(type) && checker.isTypeAssignableTo(type, brand),
-        mints: mintHomes.some(({ file }) => filename.endsWith(file)),
+        mints: Object.hasOwn(mintHomes, filename),
       };
       const castIdCall = (node: TSESTree.CallExpression): void => {
         const [raw] = node.arguments;
@@ -261,7 +219,7 @@ export function noUnsafeCastRule(homes: readonly UnsafeCastHome[], mintHomes: re
           scope.mints ||
           raw === undefined ||
           name.type !== AST_NODE_TYPES.Identifier ||
-          sites.has(context.sourceCode.getText(raw)) ||
+          Object.hasOwn(sites, context.sourceCode.getText(raw)) ||
           !isKitCastId(checker, toTs.get(name))
         ) {
           return;
@@ -274,7 +232,7 @@ export function noUnsafeCastRule(homes: readonly UnsafeCastHome[], mintHomes: re
           isConstCast(node.typeAnnotation) ||
           UNTYPED.has(node.typeAnnotation.type) ||
           isIncludesReceiver(node) ||
-          sites.has(context.sourceCode.getText(node.expression))
+          Object.hasOwn(sites, context.sourceCode.getText(node.expression))
         ) {
           return;
         }

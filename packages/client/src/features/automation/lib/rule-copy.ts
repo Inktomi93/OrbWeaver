@@ -190,6 +190,12 @@ export function ruleBindingTasks(actions: readonly { readonly type: AutomationAc
   return [...new Set(actions.map((action) => AUTOMATION_ARM_BINDING_TASK[action.type]).filter((task): task is RoutableTask => task !== null))];
 }
 
+/** What an unset rule slot does, said in the slot's readout when the author's own role is unset too. A rule's unset slot follows that role, so the sentence names it. */
+export const RULE_UNSET_EFFECTS: Partial<Record<RoutableTask, string>> = {
+  chat: "Uses your Chat role, which isn't set, so the turns this rule starts won't run.",
+  generateImage: "Uses your Image generation role, which isn't set, so this rule can't draw.",
+};
+
 // ── B4, the rate-capped OFFER toggle's copy ─────────────────────────────────────────────────────────────
 // The wire calls it `suggestOnRefusal` and the spec calls it RULED F4; a host is told neither. What they
 // actually see when it is ON is the invitation card the server writes as `“<rule>” hit its rate cap (…).

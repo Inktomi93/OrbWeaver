@@ -3,7 +3,7 @@
 import { existsSync, readFileSync } from "node:fs";
 import { dirname, join, relative } from "node:path";
 import ts from "typescript";
-import { aliased } from "./foreign-types.ts";
+import { aliased } from "../eslint/index.ts";
 import { isProduction } from "./worlds.ts";
 
 /** A module another area imports through: its specifier and its repository-relative file. */

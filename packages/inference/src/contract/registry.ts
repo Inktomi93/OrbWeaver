@@ -1,5 +1,5 @@
 import type { ProviderDef, ProviderId, Task } from "@orb/contracts/inference";
-import type { PluginId, UserId } from "@orb/kit/ids";
+import type { LookupText, PluginId, UserId } from "@orb/kit/ids";
 import type { InferenceDeps, ProviderOrigin } from "./runtime.ts";
 
 export interface BackendDef {
@@ -10,11 +10,11 @@ export interface BackendDef {
 
 export interface ProviderRegistry {
   /** The row `viewer` may use: a built-in or admin row, or `viewer`'s own plugin row their enabled install serves. */
-  readonly get: (id: string, viewer: UserId) => ProviderDef | undefined;
+  readonly get: (id: LookupText<ProviderId>, viewer: UserId) => ProviderDef | undefined;
   /** Every row `viewer` may use, under the same rule as {@link ProviderRegistry.get}. */
   readonly list: (viewer: UserId) => readonly ProviderDef[];
   /** A deployment-wide row (built-in or admin) for a principal-free operator path. Never a plugin row. */
-  readonly deploymentRow: (id: string) => ProviderDef | undefined;
+  readonly deploymentRow: (id: LookupText<ProviderId>) => ProviderDef | undefined;
   /** Refuses a built-in id, a plugin row whose namespace is not its own plugin's, and a malformed row. */
   readonly register: (row: unknown, origin: ProviderOrigin) => Promise<ProviderDef>;
   readonly drop: (id: ProviderId) => Promise<void>;
