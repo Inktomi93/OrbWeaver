@@ -3,7 +3,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import { JOINT_BATCH_RULINGS, jointBatchRulingOf } from "../../../tooling/src/unwired/ruled-ops.ts";
+import { JOINT_BATCH_RULINGS, jointBatchRulingOf } from "../../../tooling/src/eslint/index.ts";
 
 const ADR = join(import.meta.dirname, "../../../docs/adr/0337-owner-built-statements-join-another-domains-batch.md");
 

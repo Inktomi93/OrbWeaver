@@ -3,11 +3,10 @@
 // function alias matches a hand-typed member and an interface matches an interface with the same members.
 import { relative } from "node:path";
 import ts from "typescript";
+import type { ForeignTypes } from "../eslint/index.ts";
+import { derivedMembers, foreignTypes, isHandTyped, placementOf } from "../eslint/index.ts";
 import type { LoadedWorld } from "./doors.ts";
 import { doorsOf, exportNameOf } from "./doors.ts";
-import type { ForeignTypes } from "./foreign-types.ts";
-import { foreignTypes } from "./foreign-types.ts";
-import { derivedMembers, isHandTyped, placementOf } from "./restated-port.ts";
 import { isProduction } from "./worlds.ts";
 
 export interface ForgottenExport {

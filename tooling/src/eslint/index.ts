@@ -1,8 +1,8 @@
-import type { CustomPropertyUses } from "../css-names/index.ts";
 import { browserNoNodeGlobalsRule, rawEgressRule, rawHttpClientRule, sessionChannelBoundaryRule, soleEnvReaderRule } from "./ambient.ts";
 import { detachedWorkRule } from "./async.ts";
 import { browserSupportRule } from "./browser-support.ts";
 import { CLIENT_DATA_RESTRICTIONS, effectOnSharedSelectionRule } from "./client-data-policy.ts";
+import type { CustomPropertyUses } from "./css/custom-properties.ts";
 import { derivedPortMemberRule } from "./derived-port.ts";
 import { assumesSingleReplicaRule, commentedCodeRule, sideGenSamplingRule, wireJsonRule } from "./general.ts";
 import { DB_SCHEMA_RESTRICTIONS, SERVER_HARD_RESTRICTIONS, TYPE_SHAPE_RESTRICTIONS } from "./general-policy.ts";
@@ -87,8 +87,54 @@ import { noSealedInternalsRule } from "./ui-sealed-internals.ts";
 import { darkVariantRule, noStaticStylePropRule, offTokenInlineStyleRule, themeOverrideRule } from "./ui-styles.ts";
 import { BRAND_MINT_HOMES, noUnsafeCastRule, UNSAFE_CAST_HOMES } from "./unsafe-cast.ts";
 
+export { BrandTable, type NameMatch } from "./brand-names.ts";
+export type { CustomPropertyUses } from "./css/custom-properties.ts";
+export {
+  baseUiCustomProperties,
+  customPropertyUses,
+  declaredCustomProperties,
+  declaredInCss,
+  PROPERTY_READ,
+  RUNTIME_CUSTOM_PROPERTIES,
+  VENDOR_CUSTOM_PROPERTIES,
+} from "./css/custom-properties.ts";
+export { intentColorRecipe } from "./css/intent-color-recipe.ts";
 export { authorClassIgnores } from "./css-classes.ts";
 export { baseUiDoors } from "./motion.ts";
+export {
+  aliased,
+  describeForeignTypes,
+  type ForeignTypes,
+  foreignTypes,
+  isSplitSignature,
+  mergeForeignTypes,
+  passesDbHandle,
+  runtimeTypes,
+} from "./port-ownership/foreign-types.ts";
+export {
+  aliasChain,
+  aliasOf,
+  derivedMembers,
+  effectiveMember,
+  type Flow,
+  flowMembers,
+  flowsAt,
+  homeFileOf,
+  isContractFile,
+  isHandTyped,
+  memberLabel,
+  type PortMember,
+  placementOf,
+  RELATION,
+  type Restatement,
+  restatementOf,
+  restatementsAt,
+  rootAlias,
+  rulingKeysOf,
+  type TypeFlow,
+  tierRank,
+} from "./port-ownership/restated-port.ts";
+export { JOINT_BATCH_RULINGS, jointBatchRulingOf } from "./port-ownership/ruled-ops.ts";
 export { shellOwnedSlots } from "./shell-slots.ts";
 export { homeReasons, homes } from "./syntax.ts";
 export { exportedLabels, exportedProductionValues } from "./test-labels.ts";
