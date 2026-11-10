@@ -15,9 +15,9 @@ import {
   WORKLOAD_LANES,
 } from "@orb/contracts/workloads";
 import { sentenceCase } from "@orb/kit/strings";
-import type { BadgeProps } from "@orb/ui/badge";
 import type { SelectItems } from "@orb/ui/select/items";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
+import type { StatusVocabulary } from "#components";
 import type { Trpc } from "#data";
 
 export type WorkloadProgressView = Readonly<{ pct: NonNullable<WorkloadProgress["pct"]> | null; label: NonNullable<WorkloadProgress["message"]> | null }>;
@@ -118,27 +118,19 @@ const ASSET_KIND_LABELS: Record<AssetKind, string> = {
 };
 export const ASSET_KIND_ITEMS: SelectItems = ASSET_KINDS.map((kind) => ({ value: kind, label: ASSET_KIND_LABELS[kind] }));
 
-/** Status → row-badge label (exhaustive). */
-export const WORKLOAD_STATUS_LABELS: Record<WorkloadStatus, string> = {
-  queued: "Queued",
-  running: "Running",
-  cancelling: "Cancelling",
-  succeeded: "Succeeded",
-  failed: "Failed",
-  cancelled: "Cancelled",
-  worker_died: "Worker died",
-};
+/** A row's status chip: the wire status, or a failure a dependency caused, which the row names apart from its own. */
+export type WorkloadChipStatus = WorkloadStatus | "dependency_failed";
 
-/** Status → badge (never color alone — the label above always rides with it). A success is the expected state, so it
- *  takes the quiet outline; a colour state keeps its fill and a neutral one its tint. */
-export const WORKLOAD_STATUS_BADGE: Record<WorkloadStatus, Pick<BadgeProps, "tone" | "variant">> = {
-  queued: { tone: "neutral", variant: "soft" },
-  running: { tone: "info", variant: "solid" },
-  cancelling: { tone: "warning", variant: "solid" },
-  succeeded: { tone: "success", variant: "outline" },
-  failed: { tone: "destructive", variant: "solid" },
-  cancelled: { tone: "neutral", variant: "soft" },
-  worker_died: { tone: "destructive", variant: "solid" },
+/** The row's status chip, word and tone together. */
+export const WORKLOAD_STATUS_VOCABULARY: StatusVocabulary<WorkloadChipStatus> = {
+  queued: { label: "Queued", tone: "neutral" },
+  running: { label: "Running", tone: "info" },
+  cancelling: { label: "Cancelling", tone: "warning" },
+  succeeded: { label: "Succeeded", tone: "success" },
+  failed: { label: "Failed", tone: "destructive" },
+  cancelled: { label: "Cancelled", tone: "neutral" },
+  worker_died: { label: "Worker died", tone: "destructive" },
+  dependency_failed: { label: "Dependency failed", tone: "warning" },
 };
 
 /** Lane → group heading (exhaustive over the WORKLOAD_LANES tuple — a new lane is a tsc error here). The

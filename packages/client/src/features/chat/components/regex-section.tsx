@@ -87,10 +87,7 @@ function RegexKicker({ chip }: { readonly chip: string | null }): ReactNode {
 function HostRegexHeading({ chatId }: { readonly chatId: ChatId }): ReactNode {
   const trpc = useTRPC();
   const { data } = useQuery(trpc.chat.listEffectiveRegex.queryOptions({ chatId }));
-  if (data === undefined) {
-    return <RegexKicker chip={null} />;
-  }
-  return <RegexKicker chip={data.enabled ? countChip(data.effective.length) : "off"} />;
+  return <RegexKicker chip={data === undefined ? null : hostChip(data.enabled, data.effective.length)} />;
 }
 
 /** A member's chip counts only the rows that could run — the room's own tier, enabled. It cannot say `off`:
@@ -105,6 +102,11 @@ function MemberRegexHeading({ chatId }: { readonly chatId: ChatId }): ReactNode 
 /** A zero count spends no chip (the `HeadingWithCount` rule — a "0" chip is noise). */
 function countChip(count: number): string | null {
   return count === 0 ? null : String(count);
+}
+
+/** The host reads the room's master switch, so a switched-off room says `off` instead of a count. */
+function hostChip(enabled: boolean, count: number): string | null {
+  return enabled ? countChip(count) : "off";
 }
 
 /** The section body. */

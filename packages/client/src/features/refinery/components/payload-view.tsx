@@ -180,7 +180,11 @@ function VerdictBanner({ field, payload, siblings }: { field: PlanField; payload
     >
       <Row align="center" gap="block" padding="block">
         <Stack gap="field">
-          <Heading level={3}>{value ?? <NoValue />}</Heading>
+          {/* The member is what the schema author wrote, an open vocabulary no display table covers, so it reads as
+              content, verbatim, and never as a status word (client-architecture-lockdown.md §3). */}
+          <Heading level={3} voice="reading">
+            {value ?? <NoValue />}
+          </Heading>
           {prose !== undefined ? <Text prose={true}>{scalarText(readOwnKey(payload, prose.key))}</Text> : null}
         </Stack>
         {axis !== undefined && axisWidget !== undefined ? (

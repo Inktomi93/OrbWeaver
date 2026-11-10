@@ -40,6 +40,9 @@ async function findings(rule: string, source: string, path: string): Promise<rea
   return found.filter(({ ruleId }) => ruleId === rule);
 }
 
+// A component body around a read, so a case states only the read and its branches.
+const ladder = (body: string): string => `export function Probe() {\n${body}\n}`;
+
 // [rule, label, source, path, expected finding count]
 const CASES = [
   ["orb/bus-on-data-no-store-write", "dot store write", "const x = { onData() { store.setState({}); } };", BUS, 1],
@@ -205,6 +208,116 @@ const CASES = [
   ["orb/trpc-error-code-via-helper", "the helper", 'export const conflict = trpcErrorCode(error) === "CONFLICT";', FEATURE, 0],
   ["orb/trpc-error-code-via-helper", "a cast of a data field that is not a code", "export const d = (error as { data: unknown }).data;", FEATURE, 0],
   ["orb/trpc-error-code-via-helper", "a cast of another nested field", "export const r = (error as { data?: { reason?: string } }).data?.reason;", FEATURE, 0],
+  // no-query-state-ladder
+  [
+    "orb/no-query-state-ladder",
+    "an early-return pending arm",
+    ladder("const q = useQuery(o);\nif (q.isPending) return <Skeleton />;\nreturn <X d={q.data} />;"),
+    FEATURE,
+    1,
+  ],
+  ["orb/no-query-state-ladder", "a destructured error ternary", ladder("const { error } = useQuery(o);\nreturn error ? <Failed /> : <X />;"), FEATURE, 1],
+  [
+    "orb/no-query-state-ladder",
+    "a null-checked error drawn on its else arm",
+    ladder("const q = useQuery(o);\nreturn q.error === null ? <X /> : <Failed />;"),
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a gated read's absent data",
+    ladder("const { data } = useGatedQuery(id, f);\nif (data === undefined) return <Spinner />;\nreturn <X d={data} />;"),
+    FEATURE,
+    1,
+  ],
+  ["orb/no-query-state-ladder", "an && failure line", ladder("const q = useQuery(o);\nreturn <Row>{q.isError && <Text>failed</Text>}</Row>;"), FEATURE, 1],
+  [
+    "orb/no-query-state-ladder",
+    "a useQueries element",
+    ladder("const [a] = useQueries({ queries });\nreturn a.error !== null ? <Failed /> : <X />;"),
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a pending status literal",
+    ladder('const q = useQuery(o);\nreturn q.status === "pending" ? <Skeleton /> : <X />;'),
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a success status literal",
+    ladder('const q = useQuery(o);\nreturn q.status === "success" ? <X /> : <Skeleton />;'),
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "two states joined in one test",
+    ladder("const q = useQuery(o);\nif (q.isPending || q.isError) return <Skeleton />;\nreturn <X />;"),
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a plain copy of the data",
+    ladder("const q = useQuery(o);\nconst rows = q.data;\nif (rows === undefined) return <Skeleton />;\nreturn <X d={rows} />;"),
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "an aliased import",
+    `import { useQuery as useQ } from "@tanstack/react-query";\n${ladder("const q = useQ(o);\nreturn q.isLoading ? <Skeleton /> : <X />;")}`,
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a ladder in a component tier file",
+    ladder("const q = useQuery(o);\nif (q.isPending) return <Skeleton />;\nreturn <X />;"),
+    `${CLIENT}components/probe.tsx`,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "the cited home: a suspending read under QueryBoundary",
+    `${ladder("const { data } = useSuspenseQuery(o);\nreturn <X d={data} />;")}\nexport const Y = () => <QueryBoundary fallback={<Skeleton />} resetKeys={[]}><Probe /></QueryBoundary>;`,
+    FEATURE,
+    0,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a value with a default drawn as nothing",
+    ladder("const { data } = useQuery(o);\nreturn <Row>{data === undefined ? null : <Chip n={data.count} />}</Row>;"),
+    FEATURE,
+    0,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a state read that feeds a prop and a label",
+    ladder('const q = useQuery(o);\nreturn <Button disabled={q.isPending}>{q.isPending ? "Saving" : "Save"}</Button>;'),
+    FEATURE,
+    0,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a component that returns nothing until the read lands",
+    ladder("const { data } = useQuery(o);\nif (data === undefined) return null;\nreturn <X d={data} />;"),
+    FEATURE,
+    0,
+  ],
+  ["orb/no-query-state-ladder", "the settled arm alone", ladder("const q = useQuery(o);\nreturn q.data === undefined ? null : <X d={q.data} />;"), FEATURE, 0],
+  [
+    "orb/no-query-state-ladder",
+    "a manual check behind a button",
+    ladder("const q = useQuery({ ...o, enabled: false });\nreturn q.error === null ? null : <Failed />;"),
+    FEATURE,
+    0,
+  ],
+  ["orb/no-query-state-ladder", "a mutation's pending flag", ladder("const m = useSaveThing();\nreturn m.isPending ? <Spinner /> : <X />;"), FEATURE, 0],
   // the queryKey selector
   ["no-restricted-syntax", "a hand-built queryKey", 'export const o = { queryKey: ["chat", id], queryFn };', FEATURE, 1],
   ["no-restricted-syntax", "a hand-built queryKey in data", 'export const o = queryOptions({ queryKey: ["auth", "me"], queryFn });', DATA, 1],

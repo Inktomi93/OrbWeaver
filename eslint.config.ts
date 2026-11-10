@@ -1888,7 +1888,13 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       ignores: ["packages/client/src/features/app-shell/**"],
       rules: { "orb/no-effect-on-shared-selection": "error" },
     },
-    { files: ["packages/client/src/features/**/*.{ts,tsx}"], rules: { "orb/dialog-via-composite": "error" } },
+    {
+      files: ["packages/client/src/features/**/*.{ts,tsx}", "packages/client/src/components/**/*.{ts,tsx}"],
+      // The composites themselves: each types the way out a raw dialog could lose.
+      ignores: homes("packages/client/src/components/content-dialog.tsx", "packages/client/src/components/form-dialog.tsx"),
+      rules: { "orb/dialog-via-composite": "error" },
+    },
+    { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/no-query-state-ladder": "error" } },
     {
       files: ["packages/client/src/**/*.{ts,tsx}"],
       // The forced first-run ask, ruled by D330.

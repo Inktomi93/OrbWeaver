@@ -24,21 +24,14 @@ import { Text } from "@orb/ui/text";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { ConfirmDialog } from "#components";
+import { ConfirmDialog, StatusChip } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation } from "#data";
 import { DIALOG_VERBS, timeLib } from "#lib";
 import { useWorkloadStream } from "../hooks/use-workload-stream.ts";
 import { friendlyWorkloadError } from "../lib/workloads-failure-copy.ts";
-import type { WorkloadProgressView } from "../lib/workloads-model.ts";
-import {
-  canRetryWorkload,
-  isActiveWorkloadStatus,
-  toProgressView,
-  WORKLOAD_KIND_LABELS,
-  WORKLOAD_STATUS_BADGE,
-  WORKLOAD_STATUS_LABELS,
-} from "../lib/workloads-model.ts";
+import type { WorkloadChipStatus, WorkloadProgressView } from "../lib/workloads-model.ts";
+import { canRetryWorkload, isActiveWorkloadStatus, toProgressView, WORKLOAD_KIND_LABELS, WORKLOAD_STATUS_VOCABULARY } from "../lib/workloads-model.ts";
 import { workloadResultSummary } from "../lib/workloads-result-copy.ts";
 import { dependencyWaitLabel, isDeferredWorkload, isDependencyFailure, isWaitingOnDependencies } from "../lib/workloads-run-model.ts";
 import { WorkloadFailedAssets } from "./workload-failed-assets.tsx";
@@ -88,8 +81,7 @@ function WorkloadRowBody({
   const deferred = isDeferredWorkload(workload);
   const waiting = isWaitingOnDependencies(workload);
   const depFailed = workload.status === "failed" && isDependencyFailure(workload.error);
-  const statusBadge = depFailed ? ({ tone: "warning", variant: "solid" } as const) : WORKLOAD_STATUS_BADGE[workload.status];
-  const statusLabel = depFailed ? "Dependency failed" : WORKLOAD_STATUS_LABELS[workload.status];
+  const chipStatus: WorkloadChipStatus = depFailed ? "dependency_failed" : workload.status;
   const resultSummary = workload.status === "succeeded" ? workloadResultSummary(workload.kind, workload.result) : null;
 
   const subtitleParts = [timeLib.formatRelative(workload.createdAt)];
@@ -122,9 +114,7 @@ function WorkloadRowBody({
             ) : null}
             <QueueStateBadges deferred={deferred} waiting={waiting} />
             <Row aria-live="polite" data-slot="workload-status">
-              <Badge tone={statusBadge.tone} variant={statusBadge.variant}>
-                {statusLabel}
-              </Badge>
+              <StatusChip status={chipStatus} vocabulary={WORKLOAD_STATUS_VOCABULARY} />
             </Row>
             {active ? (
               <Button type="button" variant="ghost" size="sm" aria-label={`Cancel: ${kindLabel}`} onClick={(): void => setConfirmCancel(true)}>
@@ -174,7 +164,7 @@ function WorkloadProgressLine({
     return null;
   }
   const shown = live ?? (workload.progress === null ? null : toProgressView(workload.progress));
-  return <Progress label={shown?.label ?? WORKLOAD_STATUS_LABELS[workload.status]} showValue={true} value={shown?.pct ?? null} />;
+  return <Progress label={shown?.label ?? WORKLOAD_STATUS_VOCABULARY[workload.status].label} showValue={true} value={shown?.pct ?? null} />;
 }
 
 /** The unreadable-params line: a poison row explains itself in plain words + says what Retry will do. */

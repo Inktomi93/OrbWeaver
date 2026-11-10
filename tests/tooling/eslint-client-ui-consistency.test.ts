@@ -158,6 +158,12 @@ test.for(["Dialog", "DialogPopup"] as const)("a feature cannot reach the raw %s"
   expect(await findings("orb/dialog-via-composite", `import { ${part} } from "@orb/ui/dialog";`)).toHaveLength(1);
 });
 
+test("a component-tier composer cannot reach the raw dialog either; the composites that type the way out can", async () => {
+  const raw = 'import { Dialog, DialogPopup } from "@orb/ui/dialog";';
+  expect(await findings("orb/dialog-via-composite", raw, "packages/client/src/components/relation-manager-section.tsx")).toHaveLength(2);
+  expect(await findings("orb/dialog-via-composite", raw, "packages/client/src/components/content-dialog.tsx")).toEqual([]);
+});
+
 const REQUIRED_DIALOG = 'import { RequiredFormDialog } from "#components";';
 
 test("the forced dialog is the first-run ask's alone", async () => {

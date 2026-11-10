@@ -27,6 +27,7 @@ import {
   CHARACTER_HERO_NAME_FIELD_NAME,
   CHARACTER_HISTORY_TAB_LABEL,
   CHARACTER_LIBRARY_NAME,
+  CHARACTER_LINK_BOOK_NAME,
   CHARACTER_LINKS_TAB_LABEL,
   CHARACTER_NEVER_SPOKE_TEXT,
   CHARACTER_NO_BOOKS_LINKED_TEXT,
@@ -254,6 +255,31 @@ test("Links does not claim nothing is linked while its real reads are held", asy
     await expect(context.getByText(CHARACTER_NO_PERSONAS_CONNECTED_TEXT, { exact: true })).toBeVisible();
   } finally {
     pending.release();
+  }
+});
+
+test("Links: the add picker leaves by Done and by Escape, and hands focus back to its trigger", async ({ page, corpus, mount }) => {
+  await using root = await createCorpusHarness(undefined, { startJobs: false });
+  const { caller, reads } = await prepare(root, page, corpus);
+  await routeTrpc(page, {
+    ...reads,
+    ...serveCorpusProcedures(caller, ["worldInfo.listForCharacter", "worldInfo.listBooks", "persona.listConnectedToCharacter", "persona.list"]),
+  });
+  await mount<typeof ShellAmbientStory>(STORY, {});
+  await openCharacterContext(page, CHARACTER_LINKS_TAB_LABEL);
+  const trigger = page.locator('.shell-panel[data-panel-side="context"]').getByRole("button", { name: CHARACTER_LINK_BOOK_NAME, exact: true });
+  const picker = page.getByRole("dialog");
+  for (const leave of ["done", "escape"] as const) {
+    await trigger.focus();
+    await page.keyboard.press("Enter");
+    await expect(picker).toBeVisible();
+    if (leave === "done") {
+      await picker.getByRole("button", { name: DIALOG_VERBS.done, exact: true }).click();
+    } else {
+      await page.keyboard.press("Escape");
+    }
+    await expect(picker).toHaveCount(0);
+    await expect(trigger).toBeFocused();
   }
 });
 

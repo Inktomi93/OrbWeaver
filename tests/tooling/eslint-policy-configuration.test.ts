@@ -92,7 +92,7 @@ test.for([
   {
     id: "dialog-via-composite",
     inside: "packages/client/src/features/chat/lib/dialog-probe.ts",
-    outside: "packages/client/src/components/dialog-probe.ts",
+    outside: "packages/client/src/components/form-dialog.tsx",
     bad: `import { Dialog } from "@orb/ui/dialog";`,
     good: `import { ConfirmDialog } from "#components";`,
   },

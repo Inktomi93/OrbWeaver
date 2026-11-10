@@ -3,14 +3,14 @@
 // `useGatedQuery` and `useDecisionQuery` never suspend (UI-Primitives-and-Reuse.md §13.1), so they are classified like `useQuery`.
 import ts from "typescript";
 import type { Source } from "../eslint/index.ts";
-import { lineOf, visit } from "../eslint/index.ts";
+import { lineOf, NON_SUSPENDING_READS, visit } from "../eslint/index.ts";
 import type { Cohort, KeptRead, Member } from "../floor/verdict/cohort-compare.ts";
 import { anyNode, enclosingFunction, hasProperty, resultBinding } from "./syntax.ts";
 
 const STATE_FLAGS = new Set(["isPending", "isLoading", "isError", "isLoadingError", "status"]);
-const COUNTED = ["useQuery", "useQueries", "useGatedQuery", "useDecisionQuery", "useSuspenseQuery"] as const;
+const COUNTED = [...NON_SUSPENDING_READS, "useSuspenseQuery"] as const;
 type Counted = (typeof COUNTED)[number];
-const CLASSIFIED: ReadonlySet<Counted> = new Set<Counted>(["useQuery", "useQueries", "useGatedQuery", "useDecisionQuery"]);
+const CLASSIFIED: ReadonlySet<Counted> = new Set<Counted>(NON_SUSPENDING_READS);
 const QUERY_MODULE = "@tanstack/react-query";
 
 export interface ReadScan {

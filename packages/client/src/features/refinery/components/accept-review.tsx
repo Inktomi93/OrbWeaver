@@ -34,6 +34,8 @@ import { Row, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import type { StatusVocabulary } from "#components";
+import { StatusChip } from "#components";
 import { DIALOG_VERBS, testId } from "#lib";
 import type { ReviewEntry } from "../lib/review-entries.ts";
 import { reviewTargetLabel } from "../lib/review-entries.ts";
@@ -124,6 +126,13 @@ function firstUndecidedOf(decided: readonly CompareDecision[], count: number): n
 const QUEUE_STATES = ["open", "kept", "discarded", "undecided"] as const;
 type QueueState = (typeof QUEUE_STATES)[number];
 
+/** The chip each queue state wears; an undecided row wears its verbs instead. */
+const QUEUE_CHIP: StatusVocabulary<Exclude<QueueState, "undecided">> = {
+  open: { label: "Open: deciding", tone: "neutral" },
+  kept: { label: "Kept", tone: "success" },
+  discarded: { label: "Discarded", tone: "destructive" },
+};
+
 /** A queue row's REACT KEY — the entry's own address, never its ordinal. `targetLabel` alone collides on a
  *  round that appends two greetings (both read "new greeting"), so the append ordinal joins it; every
  *  other arm is already unique by field + greeting slot. */
@@ -197,18 +206,15 @@ function QueueRow({
           Changed since the session started
         </RefineryChip>
       ) : null}
-      {state === "open" ? <RefineryChip tone="neutral">Open: deciding</RefineryChip> : null}
+      {state === "undecided" ? null : <StatusChip size="compact" status={state} vocabulary={QUEUE_CHIP} />}
       {state === "kept" || state === "discarded" ? (
-        <>
-          <RefineryChip tone={state === "kept" ? "good" : "bad"}>{state === "kept" ? "Kept" : "Discarded"}</RefineryChip>
-          <Button variant="ghost" onClick={onOpen} size="sm" wrap={true}>
-            Reopen
-            <Text as="span" className="sr-only">
-              {" "}
-              {label}
-            </Text>
-          </Button>
-        </>
+        <Button variant="ghost" onClick={onOpen} size="sm" wrap={true}>
+          Reopen
+          <Text as="span" className="sr-only">
+            {" "}
+            {label}
+          </Text>
+        </Button>
       ) : null}
       {state === "undecided" ? (
         <>
