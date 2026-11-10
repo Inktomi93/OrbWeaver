@@ -83,7 +83,7 @@ export const WALKER_HIT_EXTENT = `  // ── the compositor hit-extent probe �
   // twins, dev chrome, 1-2px plumbing) — two vocabularies here would let a phantom control veto a real
   // composite.
   function isOfferedControl(el) {
-    if (!isVisible(el) || isDevChrome(el)) return false;
+    if (!isRendered(el) || isDevChrome(el)) return false;
     if (el.closest("[aria-hidden='true']")) return false;
     var r = el.getBoundingClientRect();
     return Math.min(r.width, r.height) > 2;
