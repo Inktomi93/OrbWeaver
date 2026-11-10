@@ -30,7 +30,7 @@ export const WALKER_CENSUS_QUALITY = `  // ── heading order (impeccable skip
   var headings = [];
   for (var ho = 0; ho < headingEls.length; ho += 1) {
     var hoel = headingEls[ho];
-    if (!isVisible(hoel) || hoel.closest("[aria-hidden='true']") || isDevChrome(hoel)) continue;
+    if (!isRendered(hoel) || hoel.closest("[aria-hidden='true']") || isDevChrome(hoel)) continue;
     headings.push({ selector: describe(hoel), level: Number(hoel.tagName[1]), text: (hoel.textContent || "").trim().replace(/\\s+/g, " ").slice(0, 60) });
   }
 

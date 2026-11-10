@@ -497,7 +497,9 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/preset/lib/assembly-model.ts": "sectionEnabledSwitchName: the per-section enable switch name on a rack row and in its drill-in",
   "packages/client/src/features/chat/lib/regex-section-model.ts":
     "regexScriptEverywhereSwitchName and regexTierAllowedSwitchName: the regex script and tier switch names",
-  "packages/client/src/features/user-admin/lib/admin-model.ts": "userEnabledFieldName: the per-account enabled switch name",
+  "packages/client/src/features/user-admin/lib/admin-model.ts":
+    "userEnabledFieldName and adminSaveName: the per-account enabled switch and the admin override row Save names",
+  "packages/client/src/features/user-admin/lib/system-tuning-nav.ts": "SYSTEM_TUNING_SUBCATEGORY: the System tuning section label its admin Save names",
   "packages/client/src/lib/background-jobs.ts": "BACKGROUND_JOB_LOGS: the log line a background job writes in place of a toast",
   "packages/client/src/features/persona/lib/persona-copy.ts":
     "PERSONA_NAME_REQUIRED, CLEAR_PIN_NAME, nowDefaultNotice and their siblings: the persona editor's field and footer names, its blank-name error, the clear-pin action and the crown-moved notice",

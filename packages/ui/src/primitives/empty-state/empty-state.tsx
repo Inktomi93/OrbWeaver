@@ -58,7 +58,8 @@ export function EmptyState({
     );
   }
   return (
-    <div className={slots.root({ className })} data-slot="empty-state-root">
+    // The design audit reads `data-empty-action="none"` as the authored "no next step here" answer, apart from a slot that renders dead.
+    <div className={slots.root({ className })} data-empty-action={action === null ? "none" : undefined} data-slot="empty-state-root">
       {head}
       {/* Two spellings of ONE title, never a dynamic tag: the element is a11y STRUCTURE (see `titleAs`), and
           a computed `as` would let a caller mint any tag it liked. */}

@@ -152,7 +152,8 @@ function groupDoors(doors: readonly ActionDoorInput[]): DuplicateDoorGroups {
       viewSwitchCells += 1;
       continue;
     }
-    const key = `${door.role}|${door.name}`;
+    // A radio is keyed by its group and option together: one option label in two settings is two choices.
+    const key = door.choiceGroup === null ? `${door.role}|${door.name}` : `${door.role}|${door.choiceGroup} · ${door.name}`;
     const bucket = groups.get(key) ?? [];
     bucket.push(door);
     groups.set(key, bucket);

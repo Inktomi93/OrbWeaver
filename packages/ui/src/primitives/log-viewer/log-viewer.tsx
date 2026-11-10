@@ -74,11 +74,16 @@ const NEAR_BOTTOM_SLACK_PX = 4;
 // being flushed first.
 const VIRTUAL_TAIL_SLACK_PX = 80;
 
+// A log that states no subject keeps the generic pair; one that does is named by it.
+const UNNAMED_LOG_NAME = "Log entries";
+const UNNAMED_LOG_SUBJECT = "log";
+
 export interface LogViewerProps extends VariantProps<typeof logViewerBoxVariants> {
   readonly lines: readonly LogLine[];
   /** Cap the rendered window to the most recent N lines — a display cap; the caller owns the full log. */
   readonly maxLines?: number;
-  /** What the copy control copies: its name is `Copy <what>`, so two logs on one surface name their own. @defaultValue "log" */
+  /** What the log holds. It names the copy control `Copy <what>` and the log region itself, so two logs on one
+   *  surface name their own. Without it the control reads `Copy log` and the region `Log entries`. */
   readonly what?: string;
   readonly className?: string;
 }
@@ -89,7 +94,8 @@ export interface LogViewerProps extends VariantProps<typeof logViewerBoxVariants
  * glyph+intent-token pair per line (never color alone). Virtualizes above `VIRTUALIZE_THRESHOLD`
  * lines via `message-list`, which then requires a bounded height on `className` (e.g. `h-(--height-scroll-md)`).
  */
-export function LogViewer({ lines, maxLines, maxHeight, what = "log", className }: LogViewerProps): ReactElement {
+export function LogViewer({ lines, maxLines, maxHeight, what, className }: LogViewerProps): ReactElement {
+  const logName = what ?? UNNAMED_LOG_NAME;
   const scrollRef = useRef<HTMLDivElement | null>(null);
   // Updated only from a real scroll event, never from the autoscroll effect — reflects "was the
   // reader at the bottom before this append". Starts true: an empty/short log begins pinned.
@@ -164,7 +170,7 @@ export function LogViewer({ lines, maxLines, maxHeight, what = "log", className 
       className={cn(slots.root(), logViewerBoxVariants({ maxHeight, className }))}
       data-slot="log-viewer-root"
       text={visible.map(textOf).join("\n")}
-      what={what}
+      what={what ?? UNNAMED_LOG_SUBJECT}
     >
       <div className={slots.toolbar()} data-slot="log-viewer-toolbar">
         {/* Status first: the toolbar is end-aligned, so its text grows leftward and the button never moves. */}
@@ -178,7 +184,7 @@ export function LogViewer({ lines, maxLines, maxHeight, what = "log", className 
           // arm below keeps its container-level `aria-live`: it is append-only and mounts no history.
           <MessageList
             ref={listHandleRef}
-            ariaLabel="Log entries"
+            ariaLabel={logName}
             items={visible}
             getItemKey={(_line, index): number => keyOffset + index}
             estimateSize={(): number => ESTIMATED_LINE_HEIGHT_PX}
@@ -193,7 +199,7 @@ export function LogViewer({ lines, maxLines, maxHeight, what = "log", className 
           <div
             ref={scrollRef}
             role="log"
-            aria-label="Log entries"
+            aria-label={logName}
             aria-live="polite"
             // biome-ignore lint/a11y/noNoninteractiveTabindex: WCAG 2.1.1 keyboard-scrollable overflow region — tabIndex=0 makes arrow/Page-key scrolling reachable without a mouse; not an accidental tab-stop.
             tabIndex={0} // eslint-disable-line jsx-a11y/no-noninteractive-tabindex -- same justification as the biome-ignore above

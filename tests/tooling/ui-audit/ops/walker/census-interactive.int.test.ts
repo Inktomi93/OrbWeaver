@@ -243,6 +243,74 @@ auditRuleTest(
   },
 );
 
+// ── a radio is a choice of its group ─────────────────────────────────────────
+// Settings -> Appearance offers "Flat" in the chat-style picker and in the elevation picker. A radio's own
+// name says which option and its radiogroup says which setting, so the two fixtures differ only in the
+// second group's name: two settings stay silent, one setting offered twice still fires. The two groups
+// carry distinct slots, as the shipped pickers do, so their paths are two homes.
+// A null label leaves that group unnamed; its options' text must not stand in for a name.
+const groupLabel = (label: string | null): string => (label === null ? "" : ` aria-label="${label}"`);
+const CHOICES = (
+  second: string | null,
+  first: string | null = "Chat style",
+): string => `<div role="radiogroup"${groupLabel(first)} data-slot="chat-style-cards">
+  <button id="style-flat" role="radio" aria-checked="false" ${CONTROL}>Flat</button>
+  <button id="style-bubble" role="radio" aria-checked="true" ${CONTROL}>Bubble</button>
+</div>
+<div role="radiogroup"${groupLabel(second)} data-slot="elevation-cards">
+  <button id="second-flat" role="radio" aria-checked="true" ${CONTROL}>Flat</button>
+  <button id="second-raised" role="radio" aria-checked="false" ${CONTROL}>Raised</button>
+</div>`;
+
+auditRuleTest(
+  [
+    {
+      rule: "duplicate-action-door",
+      kind: "silent",
+      reason: "one option label in two named radiogroups is a choice in each of two settings, not one action with two homes",
+      disposition: { kind: "no-candidate" },
+    },
+  ],
+  "a shared option label in two differently named radiogroups is two choices",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(scratch, runCli, "door-two-settings", CHOICES("Surface elevation"));
+    expect(doorsIn(report), "Chat style · Flat and Surface elevation · Flat are two settings").toHaveLength(0);
+    return report;
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "duplicate-action-door",
+      kind: "fires",
+      reason: "the same pair under one group name is one setting offered twice on one plane, the rule's real target",
+    },
+  ],
+  "a shared option label in two radiogroups of one name is still two homes",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(scratch, runCli, "door-one-setting-twice", CHOICES("Chat style"));
+    expect(doorsIn(report), "the group-qualified key still pairs a repeated setting").toHaveLength(1);
+    expect(report.populationAccounting?.["duplicate-action-door"]).toMatchObject({ candidates: 2, judged: 2, excluded: {} });
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "duplicate-action-door",
+      kind: "fires",
+      reason: "two unnamed radiogroups give no setting context, so one option label in both stays one name offered twice",
+    },
+  ],
+  "a shared option label in two unnamed radiogroups is still two homes",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(scratch, runCli, "door-unnamed-groups", CHOICES(null, null));
+    expect(doorsIn(report), "an unnamed group is not named after its options").toHaveLength(1);
+    expect(report.populationAccounting?.["duplicate-action-door"]).toMatchObject({ candidates: 2, judged: 2, excluded: {} });
+  },
+);
+
 // ── #1074 (orb-ui audit F2): textarea + summary enter the base interactive population ───────────────
 //
 // INTERACTIVE_SELECTOR (ops/walker/core.ts) omitted `textarea` and `summary` while five sibling census
