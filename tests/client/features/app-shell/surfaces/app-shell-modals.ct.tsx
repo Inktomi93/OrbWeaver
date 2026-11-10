@@ -1,6 +1,6 @@
 // Every registered modal through the shell's one ModalHost: focus on open and on close, a locked document with the
 // overflow inside the popup, Escape, and the theme, colorization and density the portal inherits from the shell.
-import { BLANK_CHAT_NAME, START_NEW_CHAT_NAME } from "@orb/client/lib";
+import { BLANK_CHAT_NAME, NEW_CHAT_DIALOG_TITLE, START_NEW_CHAT_NAME } from "@orb/client/lib";
 import type { ModalSlotId } from "@orb/client/state";
 import { MODAL_SLOT_IDS } from "@orb/client/state";
 import { createCharacterSchema } from "@orb/contracts/character";
@@ -150,7 +150,7 @@ async function openNewChatFromList(page: Page): Promise<void> {
       // eslint-disable-next-line playwright/no-action-timeout -- a door that moved must fail fast so `toPass` can retry the other one.
       await bandMenu.click({ timeout: DOOR_TIMEOUT_MS });
       // eslint-disable-next-line playwright/no-action-timeout -- a door that moved must fail fast so `toPass` can retry the other one.
-      await page.getByRole("menuitem", { name: "New chat", exact: true }).click({ timeout: DOOR_TIMEOUT_MS });
+      await page.getByRole("menuitem", { name: NEW_CHAT_DIALOG_TITLE, exact: true }).click({ timeout: DOOR_TIMEOUT_MS });
     } else {
       // eslint-disable-next-line playwright/no-action-timeout -- a door that moved must fail fast so `toPass` can retry the other one.
       await landing.click({ timeout: DOOR_TIMEOUT_MS });
@@ -365,7 +365,7 @@ test.describe("on the corpus owner's own settings", () => {
         const row = dialog.getByRole("option").first();
         await expect(row).toBeVisible();
         await expect(dialog.getByRole("combobox")).toBeFocused();
-        await expectLandscapeRegime(dialog, "New chat", true);
+        await expectLandscapeRegime(dialog, NEW_CHAT_DIALOG_TITLE, true);
         await expect.poll(() => row.evaluate(firstRowAtOpen)).toEqual({ listScrollTop: 0, popupScrollTop: 0, wholeInList: true, footClear: true });
         // Every door is on screen at open, with no scroll: nothing hides under the footer or past the body's clip.
         const actions = dialog.locator('[data-slot="new-chat-actions"]');
@@ -391,9 +391,9 @@ test.describe("on the corpus owner's own settings", () => {
       const row = dialog.getByRole("option").first();
       await expect(row).toBeVisible();
       await expect(dialog.getByRole("combobox")).toBeFocused();
-      await expectLandscapeRegime(dialog, "New chat", true);
+      await expectLandscapeRegime(dialog, NEW_CHAT_DIALOG_TITLE, true);
       await expect.poll(() => row.evaluate(firstRowAtOpen)).toEqual({ listScrollTop: 0, popupScrollTop: 0, wholeInList: true, footClear: true });
-      await expect(dialog.getByRole("heading", { name: "New chat", exact: true })).toBeInViewport({ ratio: 1 });
+      await expect(dialog.getByRole("heading", { name: NEW_CHAT_DIALOG_TITLE, exact: true })).toBeInViewport({ ratio: 1 });
     });
   });
 
@@ -414,7 +414,7 @@ test.describe("on the corpus owner's own settings", () => {
         await expect(dialog.getByRole("option").first()).toBeAttached();
         await expect(dialog.getByRole("combobox")).toBeFocused();
         // At 300% on a 390px screen the close control's touch box is taller than its row: it must take a press, whole or not.
-        await expectTitleCloseAndFieldOnScreen(dialog, "New chat");
+        await expectTitleCloseAndFieldOnScreen(dialog, NEW_CHAT_DIALOG_TITLE);
       });
     });
   });
@@ -433,9 +433,9 @@ test.describe("on the corpus owner's own settings", () => {
         await page.keyboard.type("New chat");
         await page.keyboard.press("Enter");
         const dialog = page.getByRole("dialog");
-        await expect(dialog.getByRole("heading", { name: "New chat", exact: true })).toBeVisible();
+        await expect(dialog.getByRole("heading", { name: NEW_CHAT_DIALOG_TITLE, exact: true })).toBeVisible();
         await expect(dialog.getByRole("combobox")).toBeFocused();
-        await expectTitleCloseAndFieldOnScreen(dialog, "New chat");
+        await expectTitleCloseAndFieldOnScreen(dialog, NEW_CHAT_DIALOG_TITLE);
       });
     });
   });

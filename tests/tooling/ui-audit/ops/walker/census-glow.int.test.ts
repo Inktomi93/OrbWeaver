@@ -108,6 +108,7 @@ auditRuleTest(
       body: '<button class="cta" id="hovered-cta">Start chat</button>',
       hover: ["--hover", "#hovered-cta"],
     });
+    expect(report.populationAccounting?.["glow-shadow"]).toMatchObject({ affected: 0, excluded: { sanctionedGlowCarrier: 1 } });
     return report;
   },
 );
