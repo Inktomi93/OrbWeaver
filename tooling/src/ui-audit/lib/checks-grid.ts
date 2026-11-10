@@ -52,9 +52,9 @@ export const GRID_EXEMPTIONS = {
  *  the Node verdict layer and the in-page census (the `INACTIVE_KIND_EXPR` precedent, floor/instrument/wcag.ts). */
 export const GRID_READING_SURFACE_SELECTOR_JS = JSON.stringify(GRID_EXEMPTIONS.readingSurface.selector);
 
-/** The Law 3 and Law 4 exclusion for a layer promoted only by `backdrop-filter`, in Chromium only. Chromium
- *  (GPU and software raster) paints such a layer's fractional offset into its content, so an integer landing
- *  changes no pixel (docs/law/integer-line-boxes.md §10). Other engines, `will-change` and 3D stay judged. */
+/** The Law 3 and Law 4 exclusion for every promoted layer, in Chromium only. Chromium (GPU and software raster)
+ *  paints a `backdrop-filter` layer's fraction into its content and snaps a `will-change` or 3D layer to the
+ *  device-pixel grid, so no glyph is resampled (docs/law/integer-line-boxes.md §10). Other engines stay judged. */
 export const GRID_COMPOSITED_WITHOUT_RESAMPLE = "compositedWithoutResample";
 export const GRID_COMPOSITED_WITHOUT_RESAMPLE_JS = JSON.stringify(GRID_COMPOSITED_WITHOUT_RESAMPLE);
 /** The one engine that measurement covers. */
@@ -80,8 +80,8 @@ function landingText(input: { readonly topDeviceFrac: number; readonly leftDevic
 /** LAW 4 — the runtime backstop. Text inside a promoted layer is rasterized ONCE at the layer's own
  *  sub-pixel position: the browser's per-paint baseline snapping is off, so the fraction is resampled and
  *  the anti-aliasing degrades. It is invisible to every source-side scan because the authored line box,
- *  spacing and font size can all be perfectly legal tokens. Text OUTSIDE a promotion context, or inside a
- *  `backdrop-filter` layer only in Chromium, is EXCLUDED in the page, not judged clean here. */
+ *  spacing and font size can all be perfectly legal tokens. Text OUTSIDE a promotion context, or inside any
+ *  promoted layer in Chromium, is EXCLUDED in the page, not judged clean here. */
 export function checkOffGridText(input: OffGridTextInput): Finding | null {
   if (!offGrid(input)) {
     return null;

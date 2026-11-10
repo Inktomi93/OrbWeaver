@@ -17,10 +17,9 @@
 // POLARITY (the census-tier.ts ruling, one property over): text with NO promoting ancestor is EXCLUDED, not
 // judged clean — the browser re-snaps its baseline every paint, so its fraction is a measurement proving
 // INAPPLICABILITY (the verdict survives). SCREEN-READER-ONLY text is excluded on the same polarity and for
-// a stronger reason (#1156): it paints no pixels at all, so "blurred" is unaskable of it. In Chromium, a
-// layer or absolute pseudo promoted only by backdrop-filter, and text whose only composited ancestors are
-// such layers, are excluded on the same polarity: Chromium paints that fraction into the layer
-// (`compositedWithoutResample`). A unity-scale transform whose own translation is whole device pixels is
+// a stronger reason (#1156): it paints no pixels at all, so "blurred" is unaskable of it. In Chromium, every
+// promoted layer or absolute pseudo, and the text inside one, is excluded on the same polarity: Chromium never
+// resamples that layer's glyphs (`compositedWithoutResample`). A unity-scale transform whose own translation is whole device pixels is
 // excluded `inheritedLanding`: its fraction is the layout's, not the transform's. Text that lands where its
 // layer put it is judged here and collapses into the layer's Law 3 row in Node (lib/checks-grid.ts). WITHHELD is
 // reserved for a landing the instrument could not read (a non-finite rect, an unusable DPR), for a
@@ -74,28 +73,28 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
     return Math.abs(gridDeviceFrac(value)) <= GRID_EPSILON_DEVICE_PX;
   }
 
-  // THE PROMOTION SHAPES Law 3 judges: will-change, a 3D context, and backdrop-filter outside Chromium. In
-  // Chromium a backdrop-filter layer has its fractional offset painted into the layer (measured, §10), so it
-  // is a promotion with nothing to judge: its subject leaves the population EXCLUDED under the reason spelled
-  // in ../../lib/checks-grid.ts. No other engine was measured, so everywhere else it is judged.
+  // THE PROMOTION SHAPES Law 3 judges: will-change, a 3D context and backdrop-filter, outside Chromium. Chromium
+  // never resamples such a layer's glyphs (measured, §10): it paints a backdrop-filter layer's fraction into the
+  // layer and snaps a will-change or 3D layer to the device-pixel grid. So there every layer is a promotion with
+  // nothing to judge, and its subject leaves the population EXCLUDED under the reason spelled in
+  // ../../lib/checks-grid.ts. No other engine was measured, so everywhere else it is judged.
   var GRID_COMPOSITED_WITHOUT_RESAMPLE = ${GRID_COMPOSITED_WITHOUT_RESAMPLE_JS};
   // The engine Node launched, passed in by collectSamplesJs (../walker.ts). A composition without it judges.
   var gridMeasuredEngine = typeof auditEngine !== "undefined" && auditEngine === ${GRID_MEASURED_ENGINE_JS};
   var gridPromotionCache = new WeakMap();
   // ONE promotion vocabulary for BOTH walks. The element pass and the pseudo pass (#1172) read the same
   // shapes off a computed style; a pseudo-only list would be a second decision about what "promoted"
-  // means, and the two would drift the first time Law 3 gains a shape. A layer carrying both a judged
-  // shape and a backdrop-filter is judged under the judged shape.
+  // means, and the two would drift the first time Law 3 gains a shape. A layer carrying both will-change or
+  // 3D and a backdrop-filter is judged under will-change or 3D.
   function gridPromotionOf(style) {
     var backdropValue = style.backdropFilter || style.webkitBackdropFilter || "none";
-    var backdrop = backdropValue !== "none" && backdropValue !== "";
     var willChange = (style.willChange || "auto").trim();
-    var kind = null;
-    if (willChange !== "auto" && willChange !== "") kind = "will-change";
-    else if (style.transformStyle === "preserve-3d") kind = "3d";
-    else if ((style.transform || "none").indexOf("matrix3d") === 0) kind = "3d";
-    else if (backdrop && !gridMeasuredEngine) kind = "backdrop-filter";
-    return { kind: kind, composited: kind !== null || backdrop };
+    var shape = null;
+    if (willChange !== "auto" && willChange !== "") shape = "will-change";
+    else if (style.transformStyle === "preserve-3d") shape = "3d";
+    else if ((style.transform || "none").indexOf("matrix3d") === 0) shape = "3d";
+    else if (backdropValue !== "none" && backdropValue !== "") shape = "backdrop-filter";
+    return { kind: gridMeasuredEngine ? null : shape, composited: shape !== null };
   }
   function gridPromotion(el) {
     var known = gridPromotionCache.get(el);
@@ -104,8 +103,8 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
     gridPromotionCache.set(el, promotion);
     return promotion;
   }
-  // The nearest ancestor with a JUDGED shape wins, even above a backdrop-filter layer. Only a chain whose
-  // composited ancestors are all backdrop-filter in Chromium answers kind null, which the caller excludes.
+  // The nearest ancestor with a JUDGED shape wins. Only a composited chain in Chromium answers kind null, which
+  // the caller excludes.
   function gridPromotionAncestor(el) {
     var node = el;
     var steps = 0;

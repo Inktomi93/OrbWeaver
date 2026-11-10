@@ -6,6 +6,7 @@ import type { Cohort, Comparison } from "../floor/verdict/cohort-compare.ts";
 import { compareCohort } from "../floor/verdict/cohort-compare.ts";
 import type { SectionAdoption } from "./adoption.ts";
 import { adoptionBySection } from "./adoption.ts";
+import { buildCapsProseCohort } from "./caps-prose.ts";
 import { buildContext, classifiable, classifySite, clusterKey } from "./classify.ts";
 import { buildCohorts } from "./cohorts.ts";
 import type { Composition } from "./composition.ts";
@@ -120,7 +121,13 @@ export function analyse(root: string, exceptions: readonly ExceptionEntry[], sel
   const { cohorts: compositionCohorts, composition } = analyseComposition(sources, files, declared);
   const components = componentTables(root, sources);
   const census = buildHandRolling({ sources, sites: live, tokens, components, referenced });
-  const cohorts = [...buildCohorts(files), ...buildCopyCohorts(files), buildMutationCohort(sources), ...compositionCohorts];
+  const cohorts = [
+    ...buildCohorts(files),
+    ...buildCopyCohorts(files, sources),
+    buildCapsProseCohort(files, components),
+    buildMutationCohort(sources),
+    ...compositionCohorts,
+  ];
   return {
     scanned: countFiles(sources, selection),
     selection,

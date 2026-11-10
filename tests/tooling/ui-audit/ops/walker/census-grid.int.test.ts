@@ -12,11 +12,9 @@
 // cannot silently disappear from the denominator").
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
-import { present } from "@orb/testkit/iso";
 import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
 import { expect, test } from "@orb/testkit/tooling";
-import type { GridPromotionKind } from "../../../../../tooling/src/ui-audit/contract/samples-grid.ts";
-import { GRID_COLLAPSED_INTO_LAYER, GRID_COMPOSITED_WITHOUT_RESAMPLE, GRID_INHERITED_LANDING } from "../../../../../tooling/src/ui-audit/lib/checks-grid.ts";
+import { GRID_COMPOSITED_WITHOUT_RESAMPLE, GRID_INHERITED_LANDING } from "../../../../../tooling/src/ui-audit/lib/checks-grid.ts";
 
 configureRelationalCliBudget();
 
@@ -41,32 +39,30 @@ const LAW4_FIXTURE = `<style>
 </div>
 <p class="plain">text with no promoting ancestor</p>`;
 
-test("Law 4 judges promoted text and counts BOTH exclusions into the same denominator", async ({ runCli, scratch }) => {
+// The CLI drives Chromium only, where no promoted layer resamples its glyphs (docs/law/integer-line-boxes.md §10). So
+// every case below proves the Chromium population; the judged arms outside Chromium are proved over real boxes by
+// tests/tooling/design-audit-walker.ct.tsx and over the shipped string per engine by census-grid.test.ts.
+test("in Chromium Law 4 EXCLUDES promoted text by name and counts all three exclusions into the same denominator", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "law4.html"), relationalDocument(LAW4_FIXTURE));
   const res = await runCli("snap", ["--file", join(scratch, "law4.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
-  // THREE text candidates, ONE judged. `readingSurface` is the mirrored gate exemption and `snapped` is the
-  // polarity ruling (no promoting ancestor = the browser re-snaps every paint = the rule does not apply);
-  // both are EXCLUSIONS — measured proof of inapplicability — so the verdict survives them.
-  expect(res.stdout).toMatch(/POPULATION\s+off-grid-text candidates=3 judged=1 .*excluded\(readingSurface=1 snapped=1\)/u);
+  // THREE text candidates, NONE judged. `readingSurface` is the mirrored gate exemption, `snapped` is the polarity
+  // ruling (no promoting ancestor = the browser re-snaps every paint) and `compositedWithoutResample` is §10's
+  // measurement; all three are EXCLUSIONS — measured proof of inapplicability — so the verdict survives them.
+  expect(res.stdout).toMatch(/POPULATION\s+off-grid-text candidates=3 judged=0 /u);
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
 
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as GridReport;
-  const law4 = report.findings.filter((finding) => finding.rule === "off-grid-text");
-  expect(law4, "the promoted text is the one candidate the rule applies to").toHaveLength(1);
-  // The finding must name the LAYER KIND (`gridPromotionOf`) and the fraction in DEVICE px at the live
-  // DPR — the repair address is the promoting ancestor, not the text.
-  expect(law4[0]?.value).toContain("inside a will-change layer");
-  expect(law4[0]?.value).toContain("at DPR 1");
+  expect(report.populationAccounting?.["off-grid-text"]?.excluded).toEqual({ [GRID_COMPOSITED_WITHOUT_RESAMPLE]: 1, readingSurface: 1, snapped: 1 });
+  expect(report.findings.filter((finding) => finding.rule === "off-grid-text")).toEqual([]);
 });
 
 /** ONE promoted layer, THREE text nodes, at the SAME quarter-pixel landing — the only difference between
  *  them is whether the browser paints them. `.painted` is ordinary 13px text; `.clipped` is the app-wide
  *  `sr-only` posture (a real box the clip collapses); `.plumbing` is the sub-2px live-region box. Both
  *  sr-only shapes are the ones `srOnlyText` (ops/walker/core.ts) names, and both must leave the
- *  population as EXCLUDED — a node with no pixels cannot land off the device-pixel grid — while the
- *  painted twin in the SAME layer at the SAME offset still fires. The pair IS the control: a fix that
- *  merely stopped judging text in this layer would take the painted one with it. */
+ *  population as EXCLUDED `srOnly` — a node with no pixels cannot land off the device-pixel grid — before
+ *  the promotion is asked, so the painted twin is the one that leaves as `compositedWithoutResample`. */
 const SR_ONLY_FIXTURE = `<style>
   .promo { will-change: transform; position: relative; top: 10px; }
   .promo p { margin: 0; position: relative; top: 0.25px; }
@@ -79,25 +75,21 @@ const SR_ONLY_FIXTURE = `<style>
   <span class="plumbing">x</span>
 </div>`;
 
-test("Law 4 EXCLUDES screen-reader-only text and still judges its painted twin in the same layer", async ({ runCli, scratch }) => {
+test("Law 4 EXCLUDES screen-reader-only text by its own reason, before the promotion is asked", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "sr-only.html"), relationalDocument(SR_ONLY_FIXTURE));
   const res = await runCli("snap", ["--file", join(scratch, "sr-only.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
-  // PRINTED, never a silent drop: the two excluded candidates stay in the denominator under their own
-  // reason, and the identity candidates = judged + withheld + excluded still closes.
-  expect(res.stdout).toMatch(/POPULATION\s+off-grid-text candidates=3 judged=1 .*excluded\(srOnly=2\)/u);
+  // PRINTED, never a silent drop: the excluded candidates stay in the denominator under their own
+  // reasons, and the identity candidates = judged + withheld + excluded still closes.
+  expect(res.stdout).toMatch(/POPULATION\s+off-grid-text candidates=3 judged=0 /u);
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
 
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as GridReport;
   // SERIALIZED, not only printed — the JSON is what a consumer reads.
-  const row = report.populationAccounting?.["off-grid-text"];
-  expect(row?.excluded["srOnly"], "the exclusion is carried in the report, not only in stdout").toBe(2);
-  expect(row?.judged).toBe(1);
-
-  const law4 = report.findings.filter((finding) => finding.rule === "off-grid-text");
-  expect(law4, "the painted twin at the same landing is still a finding").toHaveLength(1);
-  expect(law4[0]?.value).toContain("14px text");
-  expect(present(law4[0]).selector, "the sr-only nodes must not be the subject").not.toContain("clipped");
+  expect(report.populationAccounting?.["off-grid-text"]?.excluded, "the exclusions are carried in the report, not only in stdout").toEqual({
+    srOnly: 2,
+    [GRID_COMPOSITED_WITHOUT_RESAMPLE]: 1,
+  });
 });
 
 /** The three composited shapes, one host each, so each disposition is proved by the emitted value rather than by
@@ -120,27 +112,22 @@ const PROMOTION_KIND_FIXTURE = `<style>
 <div class="host" id="willchange" data-slot="will-change-host"><p>text under will-change</p></div>
 <div class="host" id="three-d" data-slot="preserve-3d-host"><p>text under preserve-3d</p></div>`;
 
-test("Law 4 judges text under the two judged shapes, names each, and EXCLUDES text under backdrop-filter", async ({ runCli, scratch }) => {
+test("in Chromium Law 4 EXCLUDES text under each of the three promotion shapes by name", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "promotion-kinds.html"), relationalDocument(PROMOTION_KIND_FIXTURE));
   const res = await runCli("snap", ["--file", join(scratch, "promotion-kinds.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
 
-  expect(res.stdout).toMatch(new RegExp(`POPULATION\\s+off-grid-text candidates=3 judged=2 .*excluded\\(${GRID_COMPOSITED_WITHOUT_RESAMPLE}=1\\)`, "u"));
+  expect(res.stdout).toMatch(new RegExp(`POPULATION\\s+off-grid-text candidates=3 judged=0 .*excluded\\(${GRID_COMPOSITED_WITHOUT_RESAMPLE}=3\\)`, "u"));
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as GridReport;
-  const kinds = report.findings.filter((finding) => finding.rule === "off-grid-text").map((finding) => finding.value);
-  for (const kind of ["will-change", "3d"] satisfies readonly GridPromotionKind[]) {
-    expect(
-      kinds.some((value) => value.includes(`inside a ${kind} layer`)),
-      `${kind} is a shape Law 3 judges`,
-    ).toBe(true);
-  }
-  expect(kinds.join(" | "), "in Chromium a backdrop-filter layer paints its fraction in (§10)").not.toContain("backdrop-filter");
+  expect(
+    report.findings.filter((finding) => finding.rule === "off-grid-text"),
+    "no promoted layer resamples its glyphs in Chromium (§10)",
+  ).toEqual([]);
 });
 
-/** Five promotion roots on the same quarter-pixel landing. The three backdrop-filter roots, on the element,
- *  an absolute `::before` and an absolute `::after`, are the measured shapes and leave the population by name. The
- *  will-change root is the control that still fires. The root carrying both shapes is judged as will-change. */
+/** Five promotion roots on the same quarter-pixel landing: backdrop-filter on the element, an absolute `::before`
+ *  and an absolute `::after`, will-change, and a root carrying both. Each is a measured shape (§10). */
 const LAW3_BACKDROP_FIXTURE = `<style>
   .root { position: relative; top: 10.25px; width: 120px; height: 20px; }
   #glass { backdrop-filter: blur(2px); }
@@ -153,43 +140,20 @@ const LAW3_BACKDROP_FIXTURE = `<style>
 <div class="root" id="glass-pseudo" data-slot="glass-pseudo-root"></div>
 <div class="root" id="glass-after" data-slot="glass-after-root"></div>
 <div class="root" id="willchange" data-slot="will-change-root"></div>
-<div class="root" id="both" data-slot="both-root"></div>`;
+<div class="root" id="both" data-slot="both-root"></div>
+<p>five promotion roots on one landing</p>`;
 
-/** A backdrop-filter layer nested inside a will-change layer, with text inside both. The nearest composited
- *  ancestor is the excluded shape, but the will-change layer above it still carries the text, so Law 4 must
- *  walk past the backdrop-filter layer and judge the text under will-change. */
-const NESTED_CHAIN_FIXTURE = `<style>
-  #outer { will-change: transform; position: relative; top: 10px; }
-  #inner { backdrop-filter: blur(2px); }
-  #outer p { margin: 0; position: relative; top: 0.25px; }
-</style>
-<div id="outer" data-slot="will-change-outer"><div id="inner" data-slot="glass-inner"><p>text in glass in a will-change layer</p></div></div>`;
-
-test("Law 4 judges text in a backdrop-filter layer nested in a will-change layer, under the will-change layer", async ({ runCli, scratch }) => {
-  await writeFile(join(scratch, "nested-chain.html"), relationalDocument(NESTED_CHAIN_FIXTURE));
-  const res = await runCli("snap", ["--file", join(scratch, "nested-chain.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
-
-  expect(res.stdout).toMatch(/POPULATION\s+off-grid-text candidates=1 judged=1 /u);
-  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as GridReport;
-  const law4 = report.findings.filter((finding) => finding.rule === "off-grid-text");
-  expect(law4, "the text is judged, not excluded at the first backdrop-filter ancestor").toHaveLength(1);
-  expect(law4[0]?.value).toContain("inside a will-change layer (#outer)");
-});
-
-test("Law 3 EXCLUDES a backdrop-filter-only root, element or pseudo, and still fires on will-change at the same landing", async ({ runCli, scratch }) => {
+test("in Chromium Law 3 EXCLUDES every promotion root by name, element or pseudo, whatever its shape", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "law3-backdrop.html"), relationalDocument(LAW3_BACKDROP_FIXTURE));
   const res = await runCli("snap", ["--file", join(scratch, "law3-backdrop.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
 
   expect(res.stdout).toMatch(
-    new RegExp(`POPULATION\\s+promoted-layer-offset candidates=5 judged=2 .*excluded\\(${GRID_COMPOSITED_WITHOUT_RESAMPLE}=3\\)`, "u"),
+    new RegExp(`POPULATION\\s+promoted-layer-offset candidates=5 judged=0 .*excluded\\(${GRID_COMPOSITED_WITHOUT_RESAMPLE}=5\\)`, "u"),
   );
   expect(res.stdout).not.toContain("INSTRUMENT ERROR");
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as GridReport;
-  expect(report.populationAccounting?.["promoted-layer-offset"]?.excluded[GRID_COMPOSITED_WITHOUT_RESAMPLE], "carried in the report, not only stdout").toBe(3);
-  const subjects = report.findings.filter((finding) => finding.rule === "promoted-layer-offset").map((finding) => finding.selector);
-  expect(subjects.join(" | ")).toContain("#willchange");
-  expect(subjects.join(" | "), "a root with a judged shape stays judged when it also carries a backdrop-filter").toContain("#both");
-  expect(subjects.join(" | ")).not.toContain("glass");
+  expect(report.populationAccounting?.["promoted-layer-offset"]?.excluded[GRID_COMPOSITED_WITHOUT_RESAMPLE], "carried in the report, not only stdout").toBe(5);
+  expect(report.findings.filter((finding) => finding.rule === "promoted-layer-offset")).toEqual([]);
 });
 
 /** An in-flow `::before` carrying backdrop-filter. Its backdrop edge changes with the landing (§10), so it is
@@ -206,31 +170,6 @@ test("Law 3 WITHHOLDS an in-flow backdrop-filter pseudo by name, never excluding
 
   expect(res.stdout).toMatch(/POPULATION\s+promoted-layer-offset candidates=1 judged=0 .*withheld\(pseudoBoxUnmeasurable=1\) excluded\(\)/u);
   await expect(res).toExitWith(2);
-});
-
-/** Two will-change layers on the same quarter-pixel landing, 20px apart. The first holds text that lands where the
- *  layer put it, so the layer's Law 3 row owns that fraction and the text collapses into it. The second holds text
- *  with a quarter pixel of its own, which no layer row can fix, so it is the control that still fires. */
-const LAW4_COLLAPSE_FIXTURE = `<style>
-  .layer { will-change: transform; position: relative; top: 10.25px; height: 20px; }
-  .layer p { margin: 0; }
-  .own { position: relative; top: 0.25px; }
-</style>
-<div class="layer" id="inherits" data-slot="inherit-layer"><p class="as-placed">text where its layer put it</p></div>
-<div class="layer" id="offsets" data-slot="offset-layer"><p class="own">text with an offset of its own</p></div>`;
-
-test("Law 4 collapses text that lands where its filed layer put it, and still fires on text with its own fraction", async ({ runCli, scratch }) => {
-  await writeFile(join(scratch, "law4-collapse.html"), relationalDocument(LAW4_COLLAPSE_FIXTURE));
-  const res = await runCli("snap", ["--file", join(scratch, "law4-collapse.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
-
-  expect(res.stdout).toMatch(new RegExp(`POPULATION\\s+off-grid-text candidates=2 judged=2 affected=2 .*collapsed\\(${GRID_COLLAPSED_INTO_LAYER}=1\\)`, "u"));
-  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
-  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as GridReport;
-  const texts = report.findings.filter((finding) => finding.rule === "off-grid-text").map((finding) => finding.selector);
-  expect(texts, "only the text with its own fraction files a Law 4 row").toHaveLength(1);
-  expect(texts.join(" | ")).toContain("own");
-  const layers = report.findings.filter((finding) => finding.rule === "promoted-layer-offset").map((finding) => finding.selector);
-  expect(layers.join(" | "), "the collapsed text's layer files the fraction").toContain("#inherits");
 });
 
 /** Rest transforms in frames on and off the device grid. A whole-pixel translation, as the individual property or in
@@ -288,10 +227,18 @@ test("Law 2 WITHHOLDS a transform that is mid-animation — a moving element has
   await expect(res).toExitWith(2);
 });
 
+/** A resting quarter-pixel translation in a frame on the grid: Law 2 judges it in Chromium, so it carries the
+ *  landing that the DPR case below reads. */
+const DPR_FIXTURE = `<style>
+  .frame { position: relative; top: 10px; width: 200px; height: 20px; }
+  #nudged { width: 20px; height: 10px; transform: translateY(0.25px); }
+</style>
+<div class="frame" data-slot="dpr-frame"><div id="nudged" data-slot="dpr-knob"></div></div>`;
+
 /** ONE CSS offset, TWO device-pixel ratios. `gridDeviceFrac` multiplies by the live DPR before taking the
  *  fraction, which is the whole reason a single Node-side epsilon is correct at every DPR arm; a CSS-space
  *  reading would report the identical fraction on both runs. 10.25 CSS px = +0.25 device px at DPR 1 and
- *  30.75 = -0.25 at DPR 3, so the SIGN AND MAGNITUDE both move.
+ *  30.75 = -0.25 at DPR 3, so the SIGN AND MAGNITUDE both move. Laws 2 to 4 share the one normalization.
  *
  *  STATED LIMIT: the textbook flip — a CSS half-pixel that is crisp at DPR 2 and off-grid at DPR 1 — is
  *  unreachable through this CLI. The only device arm is `--mobile` (iPhone 14 Pro Max, DPR 3), and under
@@ -299,7 +246,7 @@ test("Law 2 WITHHOLDS a transform that is mid-animation — a moving element has
  *  at DPR 1 too. Proving the multiplication is live is what IS reachable, and it is the property the
  *  epsilon rests on. */
 test("the landing fraction is measured in DEVICE pixels, so the same CSS offset reads differently by DPR", async ({ runCli, scratch }) => {
-  await writeFile(join(scratch, "dpr.html"), relationalDocument(LAW4_FIXTURE));
+  await writeFile(join(scratch, "dpr.html"), relationalDocument(DPR_FIXTURE));
   const desktop = await runCli("snap", ["--file", join(scratch, "dpr.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   const mobile = await runCli("snap", ["--file", join(scratch, "dpr.html"), "--mobile", ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
@@ -309,8 +256,8 @@ test("the landing fraction is measured in DEVICE pixels, so the same CSS offset 
 
   const desktopReport = JSON.parse(await readFile(auditReport(desktop.stdout), "utf8")) as GridReport;
   const mobileReport = JSON.parse(await readFile(auditReport(mobile.stdout), "utf8")) as GridReport;
-  const desktopValue = desktopReport.findings.find((finding) => finding.rule === "off-grid-text")?.value;
-  const mobileValue = mobileReport.findings.find((finding) => finding.rule === "off-grid-text")?.value;
+  const desktopValue = desktopReport.findings.find((finding) => finding.rule === "off-grid-transform")?.value;
+  const mobileValue = mobileReport.findings.find((finding) => finding.rule === "off-grid-transform")?.value;
   expect(desktopValue, "at DPR 1 a quarter-CSS-pixel offset is a quarter DEVICE pixel").toContain("top 0.250 / left 0.000 device px off the grid at DPR 1");
   expect(mobileValue, "at DPR 3 the same CSS offset is 30.75 device px — a quarter pixel the OTHER side of the grid line").toContain(
     "top -0.250 / left 0.000 device px off the grid at DPR 3",

@@ -252,11 +252,19 @@ a single fix from being buried under its own blast radius.
 judged under it, whatever else it carries. `filter` was considered and left out: widening the
 promotion vocabulary is a separate measurement.
 
-**In Chromium, `backdrop-filter` on the element or an absolute pseudo is not judged.** Chromium composites the layer but paints its fractional offset into the layer's content, so an integer landing changes no pixel. A pixel probe shows this with GPU raster and with software raster, at DPR 1, 1.25 and 2, for the element itself, an absolute `::before` and an absolute `::after`. The probe measures boxes of an integer and of a fractional device-pixel size. The probe compares the promoted render at the integer landing against the fractional landing row by row and column by column, with the unpromoted twin as the reference. At a fractional x, a fractional y and a fractional line box inside the layer, no carrier changes a row or column that its twin leaves unchanged. A render moved by a fractional transform is the positive control, and it changes rows at every DPR. In Chromium such a layer is EXCLUDED `compositedWithoutResample`. An absolute pseudo whose host is not its containing block has no box the walker can derive, so it is WITHHELD `pseudoBoxUnmeasurable`. Node passes the engine of the browser it launched into the walker; the walker never infers it from the page or a project name.
+**In Chromium, no promoted layer on the element or an absolute pseudo is judged.** Chromium never resamples such a layer's glyphs. It paints a `backdrop-filter` layer's fractional offset into the layer's content, so an integer landing changes no pixel. It snaps a `will-change` or 3D layer to the device-pixel grid: the glyphs stay crisp and the layer sits less than one device pixel from layout, which no reader can see. Law 3 protects crisp text, so neither is a defect.
+
+A pixel probe measures both, with GPU raster and with software raster, at DPR 1, 1.25 and 2. It compares the promoted render at the integer landing against the fractional landing row by row and column by column, with the unpromoted twin as the reference. It covers a fractional x, a fractional y and a fractional line box inside the layer.
+
+- `backdrop-filter` on the element, an absolute `::before` and an absolute `::after`, on boxes of an integer and of a fractional device-pixel size: no carrier changes a row or column that its twin leaves unchanged.
+- `will-change` (`transform`, `opacity`), `translateZ(0)` and `preserve-3d` on the element, and `will-change: transform` and `translateZ(0)` on an absolute `::before`: no carrier changes a row that its twin leaves unchanged. The fractional render is the integer render moved by whole device pixels, or the twin's own pixels. A pseudo layer that snaps where its twin moves a fraction changes at most a few edge columns.
+- A render moved by a fractional transform is the positive control. It changes rows and columns its twin leaves unchanged at every DPR, in both rasters.
+
+In Chromium such a layer is EXCLUDED `compositedWithoutResample`, and text inside it is excluded the same way (§11). An absolute pseudo whose host is not its containing block has no box the walker can derive, so it is WITHHELD `pseudoBoxUnmeasurable`. Node passes the engine of the browser it launched into the walker; the walker never infers it from the page or a project name.
 
 **An in-flow pseudo carrying `backdrop-filter` is withheld, not excluded.** Its backdrop edge row changes with the landing when its box has a fractional device-pixel size, in both rasters. The walker cannot derive an in-flow pseudo's box, so it is WITHHELD `pseudoBoxUnmeasurable`, as every in-flow pseudo is.
 
-**Every other engine judges `backdrop-filter`.** WebKit is unmeasured: headless Playwright WebKit on Linux paints no backdrop blur at all, so the probe's filter control reads zero there and the probe cannot see a resample. WebKit walks keep judging `backdrop-filter` layers until a WebKit that paints the filter is measured.
+**Every other engine judges every promoted layer.** WebKit is unmeasured for this ruling: headless Playwright WebKit on Linux paints no backdrop blur at all, so the probe's filter control reads zero there, and it is not the Safari the floor ships to. WebKit walks keep judging `backdrop-filter`, `will-change` and 3D layers until a real Safari raster is measured.
 
 ## 11. Law 4 — the runtime off-grid-text backstop
 
@@ -273,7 +281,7 @@ slider's stops produce a non-integer root).
 | reason | disposition | why |
 | - | - | - |
 | no promoting ancestor | EXCLUDED `snapped` | the browser re-snaps that baseline every paint — a measurement proving INAPPLICABILITY, so the verdict survives |
-| in Chromium, only `backdrop-filter` element ancestors are composited | EXCLUDED `compositedWithoutResample` | Chromium paints the layer's fraction into its content (§10) — inapplicability, so the verdict survives; other engines judge it |
+| in Chromium, inside any promoting ancestor | EXCLUDED `compositedWithoutResample` | Chromium never resamples the layer's glyphs (§10) — inapplicability, so the verdict survives; other engines judge it |
 | inside the reading surface | EXCLUDED `readingSurface` | the typed mirror of the product exception in §2 |
 | non-finite rect / unusable DPR | WITHHELD `unmeasurable` | the instrument could not judge — fails loud, never a clean pass |
 | off the grid only where its judged layer put it | COLLAPSED `promotedLayer` | the layer's own `promoted-layer-offset` row files that fraction (§10); text with an offset of its own inside the layer still fires |

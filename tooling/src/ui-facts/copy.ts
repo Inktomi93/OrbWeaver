@@ -1,8 +1,8 @@
 // Area D: the copy strings per kind, as cohorts keyed on case, ellipsis and closing period.
 import ts from "typescript";
-import type { FileFacts } from "../eslint/index.ts";
+import type { FileFacts, Source } from "../eslint/index.ts";
 import { attrString, childrenText, constInitializer, lineOf, unwrap, visit } from "../eslint/index.ts";
-import type { Cohort, Member } from "../floor/verdict/cohort-compare.ts";
+import type { Cell, Cohort, Member } from "../floor/verdict/cohort-compare.ts";
 import { NOT_APPLICABLE } from "../floor/verdict/cohort-compare.ts";
 
 const SMALL_WORDS = new Set(["a", "an", "the", "of", "to", "in", "on", "for", "and", "or", "with", "from", "by", "at", "as"]);
@@ -117,6 +117,9 @@ interface Collected {
   readonly line: number;
   /** How a chip gets its words, see `wireOf`. */
   readonly wire?: string;
+  /** What a chip shows: its written text, or the expression in its place. */
+  readonly shown?: ts.Expression | string;
+  readonly sf?: ts.SourceFile;
 }
 
 // How an expression gets the words it shows, worst first. A `bare` read shows whatever the value is: a raw wire value when
@@ -183,6 +186,7 @@ function wireOf(expression: ts.Expression, sf: ts.SourceFile, hops: number): str
 interface ChipShown {
   readonly text: string;
   readonly wire: string;
+  readonly shown: ts.Expression | string;
 }
 
 // A chip that shows an expression: its case cannot be read from syntax, so it is listed as dynamic with its source.
@@ -193,12 +197,12 @@ function dynamicChild(sf: ts.SourceFile, element: ts.JsxElement | ts.JsxSelfClos
   const child = element.children.find((entry) => ts.isJsxExpression(entry) && entry.expression !== undefined);
   return child === undefined || !ts.isJsxExpression(child) || child.expression === undefined
     ? null
-    : { text: `{${child.expression.getText(sf)}}`, wire: wireOf(child.expression, sf, 0) };
+    : { text: `{${child.expression.getText(sf)}}`, wire: wireOf(child.expression, sf, 0), shown: child.expression };
 }
 
 function chipShown(sf: ts.SourceFile, element: ts.JsxElement | ts.JsxSelfClosingElement): ChipShown | null {
   const written = childrenText(element);
-  return written === null ? dynamicChild(sf, element) : { text: written, wire: "literal" };
+  return written === null ? dynamicChild(sf, element) : { text: written, wire: "literal", shown: written };
 }
 
 function elementStrings(facts: FileFacts): readonly Collected[] {
@@ -207,9 +211,16 @@ function elementStrings(facts: FileFacts): readonly Collected[] {
     return [];
   }
   const out: Collected[] = [];
-  const add = (kind: string, text: string | undefined | null, line: number, wire?: string): void => {
+  const add = (kind: string, text: string | undefined | null, line: number, chip?: ChipShown | null): void => {
     if (text !== undefined && text !== null && text !== "") {
-      out.push({ kind, text, path: facts.source.path, section: facts.source.section, line, ...(wire === undefined ? {} : { wire }) });
+      out.push({
+        kind,
+        text,
+        path: facts.source.path,
+        section: facts.source.section,
+        line,
+        ...(chip === undefined || chip === null ? {} : { wire: chip.wire, shown: chip.shown, sf }),
+      });
     }
   };
   for (const elem of facts.elems) {
@@ -219,7 +230,7 @@ function elementStrings(facts: FileFacts): readonly Collected[] {
       add("button-label", childrenText(elem.element), elem.line);
     }
     const chip = CHIP_TAGS.has(elem.tag) ? chipShown(sf, elem.element) : null;
-    add("chip", chip?.text, elem.line, chip?.wire);
+    add("chip", chip?.text, elem.line, chip);
     if (DIALOG_TAGS.has(elem.tag)) {
       add("dialog-title", attrString(elem.attrs.get("title")), elem.line);
     }
@@ -255,16 +266,172 @@ function wordMapStrings(facts: FileFacts): readonly Collected[] {
   return out;
 }
 
+// The client's display words for wire values: each object map whose values are words, keyed by the wire spelling.
+interface DisplayWords {
+  /** Wire spelling to the word a map paints for it, for each key whose word differs from its spelling. */
+  readonly spellings: ReadonlyMap<string, string>;
+  /** The key type of each `Record<T, ...>` display map: a value of that type is a wire value with a word. */
+  readonly wireTypes: ReadonlySet<string>;
+  readonly mapNames: ReadonlySet<string>;
+}
+
+const WORD_FIELDS = new Set(["word", "label"]);
+
+// A property's word: a string value, or the `word` or `label` string of an object value.
+function propertyWord(value: ts.Expression): string | null {
+  const node = unwrap(value);
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+    return node.text;
+  }
+  if (!ts.isObjectLiteralExpression(node)) {
+    return null;
+  }
+  for (const field of node.properties) {
+    if (ts.isPropertyAssignment(field) && ts.isIdentifier(field.name) && WORD_FIELDS.has(field.name.text) && ts.isStringLiteral(field.initializer)) {
+      return field.initializer.text;
+    }
+  }
+  return null;
+}
+
+// The `T` of a `Record<T, ...>` written as the declaration's type or its `satisfies` type.
+function recordKeyType(declaration: ts.VariableDeclaration): string | null {
+  const init = declaration.initializer;
+  const written = declaration.type ?? (init !== undefined && ts.isSatisfiesExpression(init) ? init.type : undefined);
+  if (written === undefined || !ts.isTypeReferenceNode(written) || written.typeName.getText() !== "Record") {
+    return null;
+  }
+  const key = written.typeArguments?.[0];
+  return key !== undefined && ts.isTypeReferenceNode(key) ? key.typeName.getText() : null;
+}
+
+interface DisplayMap {
+  readonly name: string;
+  readonly keyType: string | null;
+  readonly words: readonly (readonly [string, string])[];
+}
+
+function displayMapOf(node: ts.Node): DisplayMap | null {
+  if (!(ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer !== undefined)) {
+    return null;
+  }
+  const map = unwrap(node.initializer);
+  const keyType = recordKeyType(node);
+  if (!ts.isObjectLiteralExpression(map) || (keyType === null && !WORD_MAP.test(node.name.text))) {
+    return null;
+  }
+  const words = map.properties.flatMap((property) => {
+    if (!(ts.isPropertyAssignment(property) && (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)))) {
+      return [];
+    }
+    const word = propertyWord(property.initializer);
+    return word === null ? [] : [[property.name.text, word] as const];
+  });
+  return words.length === 0 ? null : { name: node.name.text, keyType, words };
+}
+
+function displayWordsOf(sources: readonly Source[]): DisplayWords {
+  const spellings = new Map<string, string>();
+  const wireTypes = new Set<string>();
+  const mapNames = new Set<string>();
+  for (const sf of sources.flatMap((source) => (source.layer === "client" && source.sf !== null ? [source.sf] : []))) {
+    visit(sf, (node) => {
+      const map = displayMapOf(node);
+      if (map === null) {
+        return;
+      }
+      mapNames.add(map.name);
+      if (map.keyType !== null) {
+        wireTypes.add(map.keyType);
+      }
+      for (const [key, word] of map.words.filter(([spelling, shown]) => spelling !== shown)) {
+        spellings.set(key, word);
+      }
+    });
+  }
+  return { spellings, wireTypes, mapNames };
+}
+
+// The reads a file itself declares as wire values: the key of a display-map lookup, and a name declared with a wire type.
+interface FileWireReads {
+  readonly lookedUp: ReadonlySet<string>;
+  readonly typed: ReadonlySet<string>;
+}
+
+const FILE_WIRE_READS = new WeakMap<ts.SourceFile, FileWireReads>();
+
+function fileWireReads(sf: ts.SourceFile, words: DisplayWords): FileWireReads {
+  const cached = FILE_WIRE_READS.get(sf);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const lookedUp = new Set<string>();
+  const typed = new Set<string>();
+  visit(sf, (node) => {
+    if (ts.isElementAccessExpression(node) && ts.isIdentifier(node.expression) && words.mapNames.has(node.expression.text)) {
+      lookedUp.add(unwrap(node.argumentExpression).getText(sf));
+    }
+    const declared = ts.isParameter(node) || ts.isVariableDeclaration(node) || ts.isPropertySignature(node) || ts.isPropertyDeclaration(node) ? node : null;
+    if (declared?.type !== undefined && ts.isTypeReferenceNode(declared.type) && words.wireTypes.has(declared.type.typeName.getText(sf))) {
+      typed.add(declared.name.getText(sf));
+    }
+  });
+  const reads = { lookedUp, typed };
+  FILE_WIRE_READS.set(sf, reads);
+  return reads;
+}
+
+const WIRE_SPELLING = "wire spelling";
+const WIRE_READ = "wire read";
+const NO_WIRE = "none";
+
+// The arms of a conditional, `??` or `||`: the chip shows one of them.
+function branchesOf(node: ts.Expression): readonly ts.Expression[] | null {
+  if (ts.isConditionalExpression(node)) {
+    return [node.whenTrue, node.whenFalse];
+  }
+  const either = ts.isBinaryExpression(node) && [ts.SyntaxKind.QuestionQuestionToken, ts.SyntaxKind.BarBarToken].includes(node.operatorToken.kind);
+  return either ? [node.left, node.right] : null;
+}
+
+// What a chip prints, judged against the display words: a written wire spelling, a read the file itself treats as a wire
+// value, or neither. A read's name is matched only against what its own file declares, never a guess from the name.
+function rawWireOf(shown: ts.Expression | string, sf: ts.SourceFile, words: DisplayWords, hops: number): string {
+  if (typeof shown === "string") {
+    return words.spellings.has(shown) ? WIRE_SPELLING : NO_WIRE;
+  }
+  const node = unwrap(shown);
+  if (ts.isStringLiteral(node) || ts.isNoSubstitutionTemplateLiteral(node)) {
+    return rawWireOf(node.text, sf, words, hops);
+  }
+  const branches = branchesOf(node);
+  if (branches !== null) {
+    return branches.map((branch) => rawWireOf(branch, sf, words, hops)).find((kind) => kind !== NO_WIRE) ?? NO_WIRE;
+  }
+  if (!(ts.isIdentifier(node) || ts.isPropertyAccessExpression(node))) {
+    return NO_WIRE;
+  }
+  const init = ts.isIdentifier(node) && hops < MAX_WIRE_HOPS ? constInitializer(sf, node.text) : null;
+  return init === null ? wireReadOf(node, sf, words) : rawWireOf(init, sf, words, hops + 1);
+}
+
+function wireReadOf(node: ts.Identifier | ts.PropertyAccessExpression, sf: ts.SourceFile, words: DisplayWords): string {
+  const reads = fileWireReads(sf, words);
+  const name = ts.isIdentifier(node) ? node.text : node.name.text;
+  return reads.lookedUp.has(node.getText(sf)) || reads.typed.has(name) ? WIRE_READ : NO_WIRE;
+}
+
 const KIND_WHAT: Readonly<Record<string, string>> = {
   placeholder: "placeholders (not search)",
   "placeholder-search": "search placeholders",
   "button-label": "button labels, dialog confirm, cancel and dismiss labels",
   "dialog-title": "dialog titles",
-  chip: "chip and badge words written in place; wire is how a shown expression gets its words (bare is a candidate raw wire value; an unjudged read is one whose name alone suggests a count, a word or the user's own value)",
+  chip: "chip and badge words written in place; wire is how a shown expression gets its words (bare is a candidate raw wire value; an unjudged read is one whose name alone suggests a count, a word or the user's own value); rawWire is a chip printing a built-in wire spelling a client display map has a word for (a wire spelling written in place, or a wire read: a key the file looks up in such a map, or a name the file declares with the map's key type). An authored value, such as a custom schema's own enum, is in no display map and is never a wire.",
   "word-map": "values of the WORD, LABEL and COPY maps",
 };
 
 const CHIP_KIND = "chip";
+const RAW_WIRE = "rawWire";
 const TAXONOMY_CHIP = "packages/client/src/features/preset/components/template-drill-in.tsx";
 const TAXONOMY_RULING =
   "the raw template kind is the drill-in header's taxonomy chip (packages/client/src/features/preset/lib/template-rows.ts `TEMPLATE_KIND_LABEL`)";
@@ -277,21 +444,28 @@ function rulingsOf(kind: string): Pick<Cohort, "columns" | "info" | "defects" | 
   const cased = CASE_RULED.has(kind);
   return {
     columns: cased ? ["case"] : [],
-    info: [...(cased ? [] : ["case"]), "ellipsis", "period", "source", ...(kind === CHIP_KIND ? ["wire"] : [])],
+    info: [...(cased ? [] : ["case"]), "ellipsis", "period", "source", ...(kind === CHIP_KIND ? ["wire", RAW_WIRE] : [])],
     defects: {
       // One ellipsis character, never three dots, and a search placeholder ends in it.
       ellipsis: kind === "placeholder-search" ? ["...", "none"] : ["..."],
       ...(cased ? { case: ["lower", "Title Case", "mixed"] } : {}),
-      ...(kind === CHIP_KIND ? { wire: ["bare"] } : {}),
+      ...(kind === CHIP_KIND ? { wire: ["bare"], [RAW_WIRE]: [WIRE_SPELLING, WIRE_READ] } : {}),
     },
     kept: cased ? { case: { [COUNT_FIRST]: `a count leads its noun, and the noun after a number is lower case (${VOICE})` } } : {},
-    ...(kind === CHIP_KIND ? { basis: { wire: "heuristic" as const }, keptSites: { wire: { [TAXONOMY_CHIP]: TAXONOMY_RULING } } } : {}),
+    ...(kind === CHIP_KIND
+      ? { basis: { wire: "heuristic" as const, [RAW_WIRE]: "measured" as const }, keptSites: { wire: { [TAXONOMY_CHIP]: TAXONOMY_RULING } } }
+      : {}),
   };
 }
 
 /** One cohort per copy kind; each member is a string with its case, ellipsis and closing period. A chip also carries its wire. */
-export function buildCopyCohorts(all: readonly FileFacts[]): readonly Cohort[] {
+export function buildCopyCohorts(all: readonly FileFacts[], sources: readonly Source[]): readonly Cohort[] {
   const collected = all.filter((facts) => facts.source.layer === "client").flatMap((facts) => [...elementStrings(facts), ...wordMapStrings(facts)]);
+  const words = displayWordsOf(sources);
+  const wireCells = (entry: Collected): Record<string, Cell> =>
+    entry.wire === undefined || entry.shown === undefined || entry.sf === undefined
+      ? {}
+      : { wire: { value: entry.wire, line: entry.line }, [RAW_WIRE]: { value: rawWireOf(entry.shown, entry.sf, words, 0), line: entry.line } };
   return Object.entries(KIND_WHAT).map(([kind, what]) => ({
     name: `copy:${kind}`,
     what,
@@ -303,7 +477,7 @@ export function buildCopyCohorts(all: readonly FileFacts[]): readonly Cohort[] {
           path: entry.path,
           section: entry.section,
           label: entry.text,
-          cells: { ...copyCells(entry.text, entry.line), ...(entry.wire === undefined ? {} : { wire: { value: entry.wire, line: entry.line } }) },
+          cells: { ...copyCells(entry.text, entry.line), ...wireCells(entry) },
         }),
       ),
   }));

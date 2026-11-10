@@ -1,5 +1,6 @@
 // Enlarged-text geometry probes: controls a user cannot press, text cut with no ellipsis, overlapping controls,
 // columns that scroll sideways and collapsed scrollers. The platform text-scale suites and the surface walk share them.
+import { OVERLAY_RELATION_ATTRIBUTE } from "@orb/ui/lib";
 import type { Locator } from "@playwright/test";
 
 /** Layout rounding can read a box a fraction past its container with nothing clipped; a one-pixel box is a screen-reader span. */
@@ -28,17 +29,23 @@ const SIDEWAYS_STRIPS = 'input, textarea, [role="tablist"], [role="toolbar"], [d
 interface ControlGeometry {
   readonly clipped: string[];
   readonly overlaps: string[];
+  readonly declared: string[];
 }
 
 /**
  * Two probes over the reachable controls that paint. Clipped: a control painted past the viewport or past a clipping
  * ancestor on either axis (a scroller keeps its children reachable on its own axis), or covered at its centre by
  * something that is not the control. Overlapping: pairs inside one scroller, which a centre hit test misses when one
- * lies over a neighbour's edge.
+ * lies over a neighbour's edge; a pair a box declares as a designed overlay is listed apart, by its relation's name.
  */
 function controlGeometry(
   subject: Element,
-  { reachable, subpixel, transient }: { readonly reachable: string; readonly subpixel: number; readonly transient: string },
+  {
+    reachable,
+    subpixel,
+    transient,
+    relation,
+  }: { readonly reachable: string; readonly subpixel: number; readonly transient: string; readonly relation: string },
 ): ControlGeometry {
   const labelsOf = (element: Element): HTMLLabelElement[] =>
     element instanceof HTMLInputElement ||
@@ -192,7 +199,18 @@ function controlGeometry(
       // A dropzone's file input is a transparent sheet over its own zone, and it passes under a dialog's pinned footer.
       !element.matches('input[type="file"]'),
   );
+  // A box that declares a designed overlay lays its controls across the controls of its parent's other children: only that
+  // pair is design. Its control over a control elsewhere, or a control inside it over another inside it, stays a finding.
+  const declaredRelation = (inside: Element, across: Element): string | null => {
+    const declarer = inside.closest(`[${relation}]`);
+    const parent = declarer?.parentElement ?? null;
+    if (declarer === null || parent === null || declarer.contains(across) || !parent.contains(across)) {
+      return null;
+    }
+    return declarer.getAttribute(relation);
+  };
   const overlaps: string[] = [];
+  const declared: string[] = [];
   painted.forEach((element, index) => {
     for (const other of painted.slice(index + 1)) {
       const [a, b] = [element.getBoundingClientRect(), other.getBoundingClientRect()];
@@ -203,10 +221,16 @@ function controlGeometry(
         continue;
       }
       // The boxes attribute a pair whose controls carry no name.
-      overlaps.push(`${label(element)} ${boxText(a)} overlaps ${label(other)} ${boxText(b)}`);
+      const pair = `${label(element)} ${boxText(a)} overlaps ${label(other)} ${boxText(b)}`;
+      const design = declaredRelation(element, other) ?? declaredRelation(other, element);
+      if (design === null) {
+        overlaps.push(pair);
+      } else {
+        declared.push(`${pair}, declared ${design}`);
+      }
     }
   });
-  return { clipped, overlaps };
+  return { clipped, overlaps, declared };
 }
 
 /** Text cut with no ellipsis to say so: a single line past its box, or lines past a box that does not scroll. */
@@ -291,13 +315,30 @@ function collapsedScrollers(subject: Element, { subpixel }: { readonly subpixel:
     );
 }
 
-/** Every enlarged-text geometry finding inside `scope`; an empty list is a clean scope. */
-export async function enlargedTextFindings(scope: Locator): Promise<string[]> {
+/** The enlarged-text geometry of a scope: its findings, and the overlapping pairs a production declaration names as design. */
+export interface EnlargedTextGeometry {
+  /** An empty list is a clean scope. */
+  readonly findings: readonly string[];
+  /** Each declared pair, with the relation that declares it; never a finding. */
+  readonly declaredOverlays: readonly string[];
+}
+
+export async function enlargedTextGeometry(scope: Locator): Promise<EnlargedTextGeometry> {
   await scope.page().locator(BOOT_VEIL).waitFor({ state: "detached" });
-  const controls = await scope.evaluate(controlGeometry, { reachable: REACHABLE, subpixel: LAYOUT_SUBPIXEL_PX, transient: TRANSIENT_CHROME });
+  const controls = await scope.evaluate(controlGeometry, {
+    reachable: REACHABLE,
+    subpixel: LAYOUT_SUBPIXEL_PX,
+    transient: TRANSIENT_CHROME,
+    relation: OVERLAY_RELATION_ATTRIBUTE,
+  });
   const text = await scope.evaluate(cutOffText, { subpixel: LAYOUT_SUBPIXEL_PX });
   const values = await scope.evaluate(cutControlValues, { reachable: REACHABLE, byDesign: TRUNCATED_BY_DESIGN, subpixel: LAYOUT_SUBPIXEL_PX });
   const columns = await scope.evaluate(sidewaysColumns, { strips: SIDEWAYS_STRIPS, subpixel: LAYOUT_SUBPIXEL_PX });
   const collapsed = await scope.evaluate(collapsedScrollers, { subpixel: LAYOUT_SUBPIXEL_PX });
-  return [...controls.clipped, ...controls.overlaps, ...text, ...values, ...columns, ...collapsed];
+  return { findings: [...controls.clipped, ...controls.overlaps, ...text, ...values, ...columns, ...collapsed], declaredOverlays: controls.declared };
+}
+
+/** Every enlarged-text geometry finding inside `scope`; an empty list is a clean scope. */
+export async function enlargedTextFindings(scope: Locator): Promise<string[]> {
+  return [...(await enlargedTextGeometry(scope)).findings];
 }

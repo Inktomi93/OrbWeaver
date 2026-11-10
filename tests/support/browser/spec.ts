@@ -12,7 +12,7 @@ export { computedStyle } from "./computed-style.ts";
 export { formatDensityFindings } from "./density-census.ts";
 export type { DisclosureWalkHooks } from "./disclosure-walk.ts";
 export { usesProgrammaticScroll, walkDisclosures } from "./disclosure-walk.ts";
-export { enlargedTextFindings, LAYOUT_SUBPIXEL_PX } from "./enlarged-text-geometry.ts";
+export { enlargedTextFindings, enlargedTextGeometry, LAYOUT_SUBPIXEL_PX } from "./enlarged-text-geometry.ts";
 export { formatFormIdentityFindings } from "./form-identity.ts";
 export { emulateMedia, releaseEmulatedMedia } from "./media-emulation.ts";
 export { landedMutedContrast, paintedArt } from "./over-art-contrast.ts";

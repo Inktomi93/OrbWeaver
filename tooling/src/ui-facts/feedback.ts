@@ -2,7 +2,7 @@
 import ts from "typescript";
 import type { Source } from "../eslint/index.ts";
 import { lineOf, visit } from "../eslint/index.ts";
-import type { Cohort, Member } from "../floor/verdict/cohort-compare.ts";
+import type { Cohort, KeptRead, Member } from "../floor/verdict/cohort-compare.ts";
 import { anyNode, enclosingFunction, hasProperty, resultBinding } from "./syntax.ts";
 
 const FACTORY = "createEntityMutation";
@@ -404,7 +404,11 @@ function isOwnOnError(node: ts.Node, handles: ReadonlySet<string>): boolean {
   return false;
 }
 
-function readsFrom(call: ts.CallExpression, names: ReadonlySet<string>): { readonly errorRead: boolean; readonly successRead: boolean } {
+function readsFrom(
+  call: ts.CallExpression,
+  names: ReadonlySet<string>,
+  managers: ReadonlySet<string>,
+): { readonly errorRead: boolean; readonly successRead: boolean; readonly successToast: boolean } {
   const binding = resultBinding(call);
   const scope = enclosingFunction(call);
   const handles = new Set([...(binding.name === null ? [] : [binding.name]), ...binding.destructured.filter((name) => MUTATE_CALLS.has(name))]);
@@ -418,7 +422,7 @@ function readsFrom(call: ts.CallExpression, names: ReadonlySet<string>): { reado
     errorRead ||= isOwnOnError(node, handles);
     successRead ||= ts.isIdentifier(node) && SUCCESS_READS.has(node.text);
   });
-  return { errorRead, successRead };
+  return { errorRead, successRead, successToast: tellsSuccessAsToast(scope, handles, managers) };
 }
 
 /** The failure surface one consumer shows. A toast-class consumer that declares `failureShownInline` at its hook call
@@ -444,10 +448,247 @@ function failureOf(factory: FactoryToast, consumerSays: boolean, declaresInline:
   return "none";
 }
 
+// The consumers whose success toast tells a result that lands out of the person's sight, each with where it lands
+// (client-architecture-state-and-gates.md §11, Toasts). A further success toast in one of these files stays a defect.
+const SUCCESS_OUT_OF_SIGHT: readonly KeptRead[] = [
+  {
+    path: "packages/client/src/features/regex/hooks/use-regex-collection.ts",
+    label: "useImportRegexScriptFile",
+    value: "toast",
+    count: 1,
+    reason: "an import from a file: whether the script was new or already held shows nowhere in place",
+  },
+  {
+    path: "packages/client/src/features/world-info/hooks/use-world-info-collection.ts",
+    label: "useImportWorldBookFile",
+    value: "toast",
+    count: 1,
+    reason: "an import from a file: its count of books and entries shows nowhere in place",
+  },
+  {
+    path: "packages/client/src/features/character/components/character-appearance-tab.tsx",
+    label: "usePromoteTheme",
+    value: "toast",
+    count: 1,
+    reason: "a save to another place: the theme lands in the person's themes, not on this tab",
+  },
+  {
+    path: "packages/client/src/features/chat/components/invite-dialog.tsx",
+    label: "useCreateInvite",
+    value: "toast",
+    count: 1,
+    reason: "the invite lands in the invitee's notifications",
+  },
+  {
+    path: "packages/client/src/features/chat/components/message-actions-row.tsx",
+    label: "useForkMutation",
+    value: "toast",
+    count: 1,
+    reason: "the fork opens a copy of the transcript, so nothing in place shows the switch",
+  },
+  {
+    path: "packages/client/src/features/config/components/appearance-looks-section.tsx",
+    label: "useImportThemeFile",
+    value: "toast",
+    count: 1,
+    reason: "an import from a file: the theme it made shows nowhere in place",
+  },
+  {
+    path: "packages/client/src/features/databank/hooks/use-owner-sweep.tsx",
+    label: "useReindexDocuments",
+    value: "toast",
+    count: 1,
+    reason: "the rebuild runs as a background job the person cannot see start",
+  },
+  {
+    path: "packages/client/src/features/databank/surfaces/databank-detail-surface.tsx",
+    label: "useReindexDocuments",
+    value: "toast",
+    count: 1,
+    reason: "the rebuild runs as a background job the person cannot see start",
+  },
+  {
+    path: "packages/client/src/features/imagery/components/image-detail-body.tsx",
+    label: "useSetChatBackground",
+    value: "toast",
+    count: 1,
+    reason: "a save to another place: the background lands in the chat, not in this dialog",
+  },
+  {
+    path: "packages/client/src/features/imagery/components/image-edit-body.tsx",
+    label: "useEditImage",
+    value: "toast",
+    count: 1,
+    reason: "a save to another place: the edited image lands in the gallery",
+  },
+  {
+    path: "packages/client/src/features/plugin/components/plugin-distribute-section.tsx",
+    label: "useDistributePlugin",
+    value: "toast",
+    count: 1,
+    reason: "the plugin lands in other accounts; the toast states how many",
+  },
+  {
+    path: "packages/client/src/features/plugin/components/plugin-distribute-section.tsx",
+    label: "useWithdrawPlugin",
+    value: "toast",
+    count: 1,
+    reason: "the plugin leaves other accounts; the toast states how many",
+  },
+  {
+    path: "packages/client/src/features/preset/hooks/use-preset-list-header.tsx",
+    label: "useImportPresetFile",
+    value: "toast",
+    count: 1,
+    reason: "an import from a file: whether it was new, renamed or already held shows nowhere in place",
+  },
+  {
+    path: "packages/client/src/features/roster-preset/components/roster-picker.tsx",
+    label: "useCreateRosterPreset",
+    value: "toast",
+    count: 1,
+    reason: "a save to another place: the roster lands in the saved rosters, not in the room",
+  },
+  {
+    path: "packages/client/src/features/tag/components/labels-suggestions.tsx",
+    label: "useAcceptSuggestion",
+    value: "toast",
+    count: 1,
+    reason: "the apply-to-all count covers characters that are not on screen",
+  },
+  {
+    path: "packages/client/src/features/user-admin/components/admin-link-sso-dialog.tsx",
+    label: "useLinkSsoIdentity",
+    value: "toast",
+    count: 1,
+    reason: "the link changes the other person's next sign-in",
+  },
+  {
+    path: "packages/client/src/features/user-admin/components/admin-reset-password-dialog.tsx",
+    label: "useResetPassword",
+    value: "toast",
+    count: 1,
+    reason: "the reset revokes the other person's sessions",
+  },
+  {
+    path: "packages/client/src/features/world-info/surfaces/world-info-member-surface.tsx",
+    label: "useBackfillWorldTitles",
+    value: "toast",
+    count: 1,
+    reason: "the fill count covers entries that are not on screen, and a fill of none changes nothing in place",
+  },
+];
+
+// The names a file binds to `useToastManager()`.
+function toastManagers(sf: ts.SourceFile): ReadonlySet<string> {
+  const names = new Set<string>();
+  visit(sf, (node) => {
+    if (!(ts.isVariableDeclaration(node) && ts.isIdentifier(node.name) && node.initializer !== undefined)) {
+      return;
+    }
+    const init = node.initializer;
+    if (ts.isCallExpression(init) && ts.isIdentifier(init.expression) && init.expression.text === "useToastManager") {
+      names.add(node.name.text);
+    }
+  });
+  return names;
+}
+
+// The call fires this mutation itself: `handle.mutate(...)`, `handle.mutateAsync(...)` or a destructured `mutate(...)`.
+function isOwnMutateCall(node: ts.Node, handles: ReadonlySet<string>): boolean {
+  if (!ts.isCallExpression(node)) {
+    return false;
+  }
+  const callee = node.expression;
+  if (ts.isPropertyAccessExpression(callee)) {
+    return MUTATE_CALLS.has(callee.name.text) && ts.isIdentifier(callee.expression) && handles.has(callee.expression.text);
+  }
+  return ts.isIdentifier(callee) && MUTATE_CALLS.has(callee.text) && handles.has(callee.text);
+}
+
+// The statement itself awaits this mutation; an `await` inside a function it declares runs at another time.
+function awaitsOwn(root: ts.Node, handles: ReadonlySet<string>): boolean {
+  if (ts.isAwaitExpression(root) && isOwnMutateAsync(unwrapAwaited(root.expression), handles)) {
+    return true;
+  }
+  return !ts.isFunctionLike(root) && ts.forEachChild(root, (child) => (awaitsOwn(child, handles) ? true : undefined)) === true;
+}
+
+const unwrapAwaited = (node: ts.Expression): ts.Expression => (ts.isParenthesizedExpression(node) ? unwrapAwaited(node.expression) : node);
+
+const SUCCESS_HANDLER = "onSuccess";
+const FAILURE_HANDLER = "onError";
+
+// An `onSuccess` on this mutation's own `mutate` call is its success path; an `onError` anywhere is a failure path.
+function handlerStep(at: ts.PropertyAssignment, handles: ReadonlySet<string>): boolean | null {
+  const name = at.name.getText();
+  if (name === FAILURE_HANDLER) {
+    return false;
+  }
+  if (name !== SUCCESS_HANDLER) {
+    return null;
+  }
+  return ts.isObjectLiteralExpression(at.parent) && isOwnMutateCall(at.parent.parent, handles) ? true : null;
+}
+
+// A callback of a promise link: the first argument of a `.then` on this mutation's `mutateAsync` is its success path;
+// a `.catch` callback or a `.then` rejection callback is a failure path.
+function callbackStep(at: ts.Expression, call: ts.CallExpression, link: ts.PropertyAccessExpression, handles: ReadonlySet<string>): boolean | null {
+  const name = link.name.text;
+  if (name === "catch" || (name === "then" && call.arguments.indexOf(at) > 0)) {
+    return false;
+  }
+  return name === "then" && anyNode(link.expression, (node) => isOwnMutateAsync(node, handles)) ? true : null;
+}
+
+// How one step out from a toast relates it to this mutation: on its success, on a failure, or neither.
+function successStep(at: ts.Node, handles: ReadonlySet<string>): boolean | null {
+  const parent = at.parent;
+  if (ts.isCatchClause(at)) {
+    return false;
+  }
+  if (ts.isPropertyAssignment(at)) {
+    return handlerStep(at, handles);
+  }
+  if (ts.isCallExpression(parent) && ts.isPropertyAccessExpression(parent.expression) && ts.isExpression(at) && parent.arguments.includes(at)) {
+    return callbackStep(at, parent, parent.expression, handles);
+  }
+  if ((ts.isBlock(parent) || ts.isSourceFile(parent)) && ts.isStatement(at)) {
+    // A statement after an `await` of this mutation runs only once it has settled without a throw.
+    const before = parent.statements.slice(0, parent.statements.indexOf(at));
+    return before.some((statement) => awaitsOwn(statement, handles)) ? true : null;
+  }
+  return null;
+}
+
+// The toast sits on this mutation's success path: its `onSuccess`, a `.then` on its `mutateAsync`, or a statement after
+// an `await` of it. A catch, a `.catch`, a rejection callback or an `onError` on the way out is a failure path.
+function onOwnSuccess(node: ts.Node, scope: ts.Node, handles: ReadonlySet<string>): boolean {
+  for (let at = node.parent; at !== scope; at = at.parent) {
+    const step = successStep(at, handles);
+    if (step !== null) {
+      return step;
+    }
+  }
+  return false;
+}
+
+// A success this consumer tells as a toast: `notify.success`, or a toast manager's `add`, on its own success path.
+function tellsSuccessAsToast(scope: ts.Node, handles: ReadonlySet<string>, managers: ReadonlySet<string>): boolean {
+  return anyNode(scope, (node) => {
+    if (!(ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && ts.isIdentifier(node.expression.expression))) {
+      return false;
+    }
+    const { expression: owner, name } = node.expression;
+    const toast = (owner.text === "notify" && name.text === "success") || (managers.has(owner.text) && name.text === "add");
+    return toast && onOwnSuccess(node, scope, handles);
+  });
+}
+
 function memberOf(source: Source, sf: ts.SourceFile, call: ts.CallExpression, factory: FactoryToast): Member {
-  const { errorRead, successRead } = readsFrom(call, ERROR_READS);
+  const { errorRead, successRead, successToast } = readsFrom(call, ERROR_READS, toastManagers(sf));
   let success = "none";
-  if (sf.text.includes("useToastManager(")) {
+  if (successToast) {
     success = "toast";
   } else if (successRead) {
     success = "callback";
@@ -481,12 +722,14 @@ export function buildFeedbackCohort(sources: readonly Source[]): { readonly coho
     cohort: {
       name: "feedback",
       what: "entity-mutation consumers: success (toast, callback, none) and failure surface (factory toast, inline, both, background log, none)",
-      // No law rules how a success is told, so success is a spread to read, not a convention to deviate from.
       columns: ["failure"],
+      // Success has no majority to follow: a success the person sees in place tells itself, and a toast is the defect
+      // unless a ruling below names where the result lands out of sight (client-architecture-state-and-gates.md §11, Toasts).
       info: ["success"],
       // A failure never shows neither and never both (client-architecture-state-and-gates.md §11): an inline consumer that reads no
       // error, and a toast-class consumer that states the failure without declaring `failureShownInline`, are defects.
-      defects: { failure: ["none", "toast+inline"] },
+      defects: { failure: ["none", "toast+inline"], success: ["toast"] },
+      keptReads: { success: SUCCESS_OUT_OF_SIGHT },
       kept: {
         failure: {
           inline:
