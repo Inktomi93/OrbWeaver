@@ -136,7 +136,8 @@ export const listRowVariants = tv({
     stackActions: {
       true: {
         root: "flex-wrap",
-        actions: "basis-full justify-between",
+        // The cluster holds the row's width and wraps its own controls: at enlarged text its controls' minimum widths exceed the row.
+        actions: "basis-full flex-wrap justify-between min-inline-0",
       },
       false: {},
     },
@@ -194,7 +195,8 @@ export const listRowVariants = tv({
     // "a fixed name column, then the gloss at 1fr" meant. The name still truncates inside its cell; it can
     // simply no longer steal the gloss's width.
     subtitlePlacement: {
-      block: {},
+      // A qualifier, marker or stamp that cannot sit beside even an empty name takes the next line, and the qualifier truncates at the line.
+      block: { titleRow: "flex-wrap", titleQualifier: "shrink truncate min-inline-0" },
       inline: {
         title: "flex-none shrink min-inline-(--width-title-floor)",
         // NO `truncate` here (2026-08-08): the base slot's own comment already says truncation belongs to

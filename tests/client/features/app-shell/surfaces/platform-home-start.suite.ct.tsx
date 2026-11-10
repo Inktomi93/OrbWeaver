@@ -69,8 +69,7 @@ for (const device of [
       const start = page.getByRole("button", { name: START_NEW_CHAT_NAME, exact: true });
       await expect(start).toBeVisible();
       await setRootFontScale(page, channelName("fontScale"), TEXT_200);
-      // The row that holds the control and the masthead: Home's whole scroller already scrolls sideways at 200% on a phone, which is not this control's.
-      await expect.poll(() => findings(start.locator("xpath=.."))).toEqual([]);
+      await expect.poll(() => findings(page.locator("main.shell-content"))).toEqual([]);
       await expect(start).toBeInViewport({ ratio: 1 });
     });
   });

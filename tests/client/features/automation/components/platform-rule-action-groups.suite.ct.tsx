@@ -4,8 +4,8 @@ import { MAX_IMAGE_COUNT, MIN_IMAGE_COUNT, SIZE_PRESET_NAMES } from "@orb/contra
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { actionGroupGeometry, resolvedLength } from "@orb/testkit/browser/spec";
-import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
+import { actionGroupGeometry, enlargedTextFindings as findings, resolvedLength, setRootFontScale } from "@orb/testkit/browser/spec";
+import { channelName, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -27,6 +27,7 @@ const READS = [
   "automation.listRules",
   "worldInfo.listForChat",
 ] as const;
+const TEXT_200 = 2;
 const RULE_CONNECTION_READS = [...READS, "connection.list", "connection.listBindings", "connection.providersAvailable"] as const;
 const REGIMES = [
   { name: "wide desktop", width: 960, viewport: { width: 1280, height: 900 }, coarse: false, appearance: appearanceSettingsSchema.parse({}) },
@@ -244,6 +245,53 @@ test.describe("rule editor field rows", () => {
     const topEdge = { x: hintBox.x + hintBox.width / 2, y: hintBox.y + 1 };
     expect(await page.evaluate((point) => document.elementFromPoint(point.x, point.y)?.closest('[data-slot="hint-trigger"]') !== null, topEdge)).toBe(true);
     await expect(trigger).toHaveAttribute("aria-expanded", "true");
+  });
+
+  test.describe("phone at 200% text", () => {
+    test.use({ viewport: { width: 390, height: 844 }, hasTouch: true, isMobile: true });
+
+    test("the rule card keeps its connection slot's heading, hint, badge and picker inside the panel", async ({ mount, page }) => {
+      await using root = await createCorpusHarness();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const appearance = appearanceSettingsSchema.parse({});
+      await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });
+      await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
+      const captured = (await caller.automation.listOwnerRules())[0];
+      if (captured === undefined) {
+        throw new Error("The corpus must contain an owned library rule");
+      }
+      const role = ROLE_ROWS_ORDERED.find((row) => row.task === "generateImage");
+      if (role === undefined) {
+        throw new Error("Model roles carries no image generation row");
+      }
+      await caller.automation.updateRule({
+        ...automationRuleEditableSchema.strip().parse(captured),
+        trigger: automationTriggerFor("character.updated"),
+        actions: [automationActionSchema.parse({ type: "generate_image", mode: "character_multimodal", quiet: true })],
+        ruleId: captured.id,
+        timeZone: captured.timeZone ?? UTC_TIME_ZONE,
+      });
+      await routeTrpc(page, serveCorpusProcedures(caller, RULE_CONNECTION_READS));
+      await mount<typeof RuleActionGroupsStory>(STORY, { width: 390, appearance });
+      await setRootFontScale(page, channelName("fontScale"), TEXT_200);
+      await page
+        .getByRole("button")
+        .filter({ has: page.getByText(captured.name, { exact: true }) })
+        .click();
+      await page.getByRole("button", { name: `Connections for ${captured.name}`, exact: true }).click();
+      const slot = page.getByRole("group", { name: role.heading, exact: true });
+      await expect(slot.getByRole("combobox", { name: `${role.label} connection`, exact: true })).toBeVisible();
+      await expect.poll(() => findings(page.getByRole("group", { name: "Rule action host", exact: true }))).toEqual([]);
+      const panel = page
+        .locator('[data-slot="collapsible-panel"]')
+        .filter({ has: page.locator('[data-slot="rule-connections"]') })
+        .last();
+      const [panelBox, hintBox] = await Promise.all([panel.boundingBox(), slot.locator('[data-slot="hint-trigger"]').first().boundingBox()]);
+      if (panelBox === null || hintBox === null) {
+        throw new Error("The panel and its hint must paint");
+      }
+      expect(hintBox.x + hintBox.width).toBeLessThanOrEqual(panelBox.x + panelBox.width);
+    });
   });
 
   test("a held save is stated at the editor's body size, not under it", async ({ mount, page }) => {

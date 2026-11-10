@@ -204,11 +204,11 @@ export function ConnectionRoleSlot({
       <Stack aria-busy={shownCheck !== null} gap="tight">
         {/* One placement for every role: the picker ends the heading row, and below one container width the picker sits under the heading. */}
         <Row align="center" alignBelow="stretch-cq-32" gap="field" justify="between" stackBelow="cq-32">
-          <Row align="center" gap="field">
+          <Row align="center" className="min-inline-0" gap="field">
             <IndicatorDot aria-label={ROLE_STATUS_LABELS[dot]} role="img" tone={DOT_SKIN[dot].tone} variant={DOT_SKIN[dot].variant} />
-            {/* The hint is a sibling of the heading, never inside it, or its name joins the group's name. It stays beside the heading when the heading wraps. */}
-            <Row align="center" gap="tight">
-              <Text id={headingId} voice="label">
+            {/* The hint is a sibling of the heading, never inside it, or its name joins the group's name. The heading wraps before the hint leaves its line. */}
+            <Row align="center" className="min-inline-0" gap="tight">
+              <Text className="min-inline-0" id={headingId} voice="label">
                 {row.heading}
               </Text>
               <HintTrigger hint={description ?? row.description} subject={row.heading} />
