@@ -267,7 +267,7 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
               // shows the message over a results list that holds member rows. It sits beside the listbox, not in it: a status is
               // not an allowed child of a listbox, and cmdk pins its own wrapper to `presentation`.
               <CommandEmpty>
-                <Text role="status" voice="gloss">
+                <Text role="status" voice="quiet">
                   {configSearchEmptyText(query.trim())}
                 </Text>
               </CommandEmpty>

@@ -12,7 +12,11 @@ export const seriesRowVariants = tv({
     swatch: "shrink-0 rounded-control block-row inline-row",
     content: "flex flex-1 flex-col min-inline-0",
     label: "truncate text-foreground",
-    detail: "truncate text-micro leading-micro text-muted-foreground",
+    // The step is the ROOT's (`text-label`), deliberately: this line rides inside a `<CollapsibleTrigger>`
+    // or a `<button>` row, so it is interactive text, and the audit's functional floor for interactive text
+    // is above the micro step — the same reasoning the `credit` voice carries for the home hero's credit
+    // line. It recedes from the label by ink alone, the way a `subtitleStep="label"` row's subtitle does.
+    detail: "truncate text-muted-foreground",
     value: "shrink-0 text-muted-foreground tabular-nums",
   },
   variants: {

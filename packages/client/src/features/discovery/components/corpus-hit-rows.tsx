@@ -51,6 +51,11 @@ export function CharacterHitRow({
       leading={<CharacterAvatar id={characterId} name={name} hash={avatarHash} />}
       title={name}
       {...(subtitle === "" ? {} : { subtitle })}
+      // The pitch/tag line is functional prose inside a clickable row, so it takes the readable label step
+      // rather than the instrument tier's micro gloss ("Functional prose inside a row action owes the
+      // readable label floor", packages/ui/src/styles/tiers.css) — the same lever `character-card.tsx` and
+      // `chat-summary-row.tsx` set on their row anatomy.
+      subtitleStep="label"
       meta={rank.toString()}
     />
   );
@@ -148,6 +153,8 @@ export function ImageHitRow({ hit, rank }: { readonly hit: ImageHit; readonly ra
       }
       title={hit.characterName ?? hit.caption ?? "Uncaptioned image"}
       subtitle={hit.characterId === null ? "Unattached image · open asset detail" : (hit.caption ?? "Uncaptioned image")}
+      // The caption is the row's readable prose, not a micro gloss under the name — see `CharacterHitRow`.
+      subtitleStep="label"
       meta={rank.toString()}
     />
   );
