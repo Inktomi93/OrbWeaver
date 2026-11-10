@@ -30,6 +30,7 @@ import {
   PUSH,
   READING_INSET,
   RECEDED,
+  RECEDED_MUTED_SEAT,
   SCROLL_FADE_X_CLASS,
   SCROLL_FADE_Y_CLASS,
   SCROLLER_Y,
@@ -483,7 +484,7 @@ export const rowVariants = tv({
     dividerTone: DIVIDER_TONE,
     dividerStyle: DIVIDER_STYLE,
     tone: DIVIDER_MEANING,
-    receded: { true: RECEDED, false: "" },
+    receded: { true: RECEDED, mutedSeat: RECEDED_MUTED_SEAT, false: "" },
     // A box that stays mounted so it can be measured but takes no room, paints nothing and takes no pointer: a part that has
     // moved into an overflow menu, or a probe that reads a width. Pair it with `inert` so focus skips it too.
     outOfFlow: { true: "orb-out-of-flow", false: "" },

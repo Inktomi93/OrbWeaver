@@ -454,3 +454,42 @@ export async function pixelMarkContrast(page: Page, mark: Locator, field: Locato
   }
   return { ratio: wcagContrastRatio(painted, fill), mark: painted, fill, describe: `mark ${show(painted)} on fill ${show(fill)}` };
 }
+
+/**
+ * The contrast of text drawn inside a filled box (pseudo-element initials in an avatar), read from the framebuffer: the fill is
+ * the median pixel of the box's inscribed ellipse and the ink is the pixel furthest from it inside that ellipse. Both are the composited colours on screen, so a dimming
+ * ancestor is already in them; it does not need {@link pixelContrast}'s ancestor-opacity composite, which would apply the dim
+ * to a backdrop the framebuffer already dimmed. The furthest pixel is the glyph's best-covered one, so the ratio is a floor.
+ */
+export async function pixelFilledTextContrast(page: Page, target: Locator): Promise<PixelMarkReceipt> {
+  const box = await target.boundingBox();
+  if (box === null) {
+    throw new Error("pixelFilledTextContrast: the target has no box (not rendered)");
+  }
+  const shot = await page.screenshot({
+    clip: { x: Math.max(0, Math.floor(box.x)), y: Math.max(0, Math.floor(box.y)), width: Math.ceil(box.width), height: Math.ceil(box.height) },
+    animations: "disabled",
+  });
+  const { data, info } = await rawPixels(shot);
+  // Only the inscribed ellipse: a round field's corners are the plate behind it, and the furthest pixel would be one of them.
+  const inside: Rgb[] = [];
+  for (let py = 0; py < info.height; py += 1) {
+    for (let px = 0; px < info.width; px += 1) {
+      const offset = (py * info.width + px) * info.channels;
+      if (inEllipse(info.width, info.height, px, py)) {
+        inside.push({ r: data[offset] ?? 0, g: data[offset + 1] ?? 0, b: data[offset + 2] ?? 0 });
+      }
+    }
+  }
+  const fill = medianRgb(Buffer.from(inside.flatMap(({ r, g, b }) => [r, g, b])), 3);
+  let ink = fill;
+  let best = 1;
+  for (const pixel of inside) {
+    const ratio = wcagContrastRatio(pixel, fill);
+    if (ratio > best) {
+      best = ratio;
+      ink = pixel;
+    }
+  }
+  return { ratio: best, mark: ink, fill, describe: `ink ${show(ink)} on fill ${show(fill)}` };
+}
