@@ -80,11 +80,13 @@ function ReactionPill({ group, viewerReacted, onToggle }: ReactionPillProps): Re
         {/* The glyph is decoration for AT — the accessible name above already says which emoji it is, and a
           screen reader announcing the raw codepoint's own name a second time is noise. */}
         <span aria-hidden={true}>{group.emoji}</span>
-        <Text as="span" voice="gloss">
+        {/* The gloss voice paints the muted ink, which a pressed chip's selected fill does not pair with; inherit
+            the control's own ink so the count follows its fill in both states. */}
+        <Text as="span" ink="inherit" voice="gloss">
           {count}
         </Text>
         {qualifier !== null ? (
-          <Text as="span" voice="gloss">
+          <Text as="span" ink="inherit" voice="gloss">
             → {qualifier}
           </Text>
         ) : null}

@@ -23,4 +23,4 @@ The color-contrast finding is gone from these surfaces' evidence checkpoints, fi
 
 ## Evidence
 
-Filled at landing: what ran and where its output is.
+Part, in dedb6854f9 (checked at merge): the reaction pill's count took the gloss voice's muted ink inside a Toggle (1.78 to 1); it now inherits the control's own ink. The per-message portrait monogram is an axe false positive: axe paired the ink with a dark surface above the opaque pigment tile and does not read mask-image, while the house audit measures 8.09 to 1 and declines a masked foreground. Ruling (claude-b under delegation): the Home chip's muted-seat monogram (3.42 to 1 at the 60% receded step) is fixed in product with a meaning-named opacity step for a muted seat that stays legible, used only there; the audit and the shared receded step are unchanged. Remaining: build that step.
