@@ -9,7 +9,7 @@ import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { ThemeChatStyle } from "@orb/contracts/theme";
 import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { enlargedTextFindings as findings, LAYOUT_SUBPIXEL_PX as SUBPIXEL, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
+import { enlargedTextFindings as findings, resolvedLength, LAYOUT_SUBPIXEL_PX as SUBPIXEL, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { absenceWindow, channelName, emulateSoftKeyboard, ROOM_PROCEDURES, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedRpgGame } from "@orb/testkit/node/composed";
@@ -69,6 +69,8 @@ const ROOM_PANEL_PROCEDURES = [
 const READING_SHARE = 0.4;
 // The transcript at 300% on a phone: a word split without a hyphen stays the exception, not one in eleven.
 const SPLIT_WORD_SHARE = 0.03;
+// A member's name on a line of its own takes most of its row, so the line is not a sliver under the avatar.
+const OWN_LINE_SHARE = 0.75;
 const LONG_REPLY = Array.from({ length: 24 }, () => "The traveller witnesses the orbital loom and walks the long gallery beside the keeper.").join(" ");
 const TYPED_DRAFT = "A draft long enough to fill the field past its second line, so the line being typed is the last one.";
 // Keyboards that leave the phone about 500px and the narrow phone 308px: the room's field and Send must stay above them.
@@ -381,6 +383,36 @@ for (const [viewport, scale] of QUALIFIED.gameRoomMembers) {
       await expect(door).toBeInViewport({ ratio: 0.5 });
       await expect.poll(() => door.evaluate(coverOf)).toBeNull();
       await expect.poll(() => findings(panel)).toEqual([]);
+    });
+
+    test("gives every member's name the title floor or a line of its own", async ({ mount, page }) => {
+      await openGameRoom((chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }), page);
+      await expect(page.getByRole("textbox", { name: CHAT_MESSAGE_INPUT_NAME, exact: true })).toBeVisible();
+      await scaleRoot(page, scale.factor);
+      await openContextPanel(page);
+      const panel = page.locator(".shell-panel[data-panel-side='context']");
+      await panel.getByRole("tab", { name: /^Members/u }).click();
+      const names = panel.locator('[data-slot="member-name"]');
+      await expect(names.first()).toBeVisible();
+      const floor = await resolvedLength(page, `var(${TOKENS["width.title-floor"].cssVar})`, panel);
+      // The name sits beside its avatar while it keeps the floor, and takes the line under the avatar when the pane cannot hold both.
+      const rows = await panel.locator('[data-slot="member-row"]').evaluateAll(
+        (nodes, { floorPx, share, subpixel }) =>
+          nodes.map((node) => {
+            const name = node.querySelector('[data-slot="member-name"]')?.getBoundingClientRect();
+            const avatar = node.querySelector('[data-slot="avatar-root"]')?.getBoundingClientRect();
+            const ownLine =
+              name !== undefined && avatar !== undefined && name.top >= avatar.bottom - subpixel && name.width >= share * node.getBoundingClientRect().width;
+            const held = name !== undefined && name.width >= floorPx - subpixel ? "floor" : "squeezed";
+            return { name: Math.round(name?.width ?? 0), held: ownLine ? "own line" : held };
+          }),
+        { floorPx: floor, share: OWN_LINE_SHARE, subpixel: SUBPIXEL },
+      );
+      expect(rows.length).toBeGreaterThan(0);
+      expect(
+        rows.filter((row) => row.held === "squeezed"),
+        `title floor ${String(floor)}; rows ${JSON.stringify(rows)}`,
+      ).toEqual([]);
     });
   });
 }

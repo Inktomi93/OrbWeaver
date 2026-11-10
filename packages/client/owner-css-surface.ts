@@ -283,6 +283,7 @@ export const OWNER_CSS_SLOTS = [
   "empty-state-icon",
   "empty-state-root",
   "empty-state-title",
+  "facet-preview",
   "field-control-col",
   "field-description",
   "field-error",
