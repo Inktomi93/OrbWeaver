@@ -51,7 +51,7 @@ import { composeProse, legacyProseOverrides, resolveProseText } from "@orb/contr
 import { batchMany, isConstraintViolation } from "@orb/db/query";
 import type { Resolved, WireTool } from "@orb/inference";
 import { resolveSideGenSampling } from "@orb/inference";
-import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageId, ModelId, PendingTurnId, PersonaId, UserId } from "@orb/kit/ids";
 import type { MacroFreeze, MacroRegistry, RandomSource } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import { foreignLabelStops } from "@orb/kit/speaker-label";
@@ -667,7 +667,7 @@ async function buildTurnContext(
     readonly runAsUserId: UserId;
     /** The turn's FUNDER (whose connection it runs on) — the rpg gather's delivery verdict reads it. */
     readonly funderUserId: UserId;
-    readonly model: string;
+    readonly model: ModelId;
     readonly kind: TurnKind;
     readonly characterIds: readonly CharacterId[];
     /** The soul-resolved seated agents (D60) — appended to the assembled seated characters so an agent speaker rides the

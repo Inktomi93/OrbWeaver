@@ -1,10 +1,12 @@
-import type { AssetId, PluginId, UserId } from "@orb/kit/ids";
+import type { AssetId, Handle, PluginId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
+import { handleSchema } from "../identity/index.ts";
 import type { PluginLogLevel } from "./host-v1.ts";
 import { PLUGIN_LOG_LEVELS } from "./host-v1.ts";
 import { PLUGIN_ORIGINS, PLUGIN_STATUSES } from "./lifecycle.ts";
-import { PLUGIN_CAPABILITIES, pluginBuiltAgainstSchema, pluginNetHostSchema } from "./manifest.ts";
+import type { PluginSlug } from "./manifest.ts";
+import { PLUGIN_CAPABILITIES, pluginBuiltAgainstSchema, pluginNetHostSchema, pluginSlugSchema } from "./manifest.ts";
 import type { PluginSurfaceRegistrationMeta } from "./ui.ts";
 import { pluginSurfaceRegistrationMetaSchema } from "./ui.ts";
 
@@ -126,7 +128,7 @@ type PluginFanoutSkipReason = (typeof PLUGIN_FANOUT_SKIP_REASONS)[number];
  *  deciding whether to chase it up; the id is carried too so a surface can key rows without a second read. */
 export interface PluginFanoutSkip {
   readonly userId: UserId;
-  readonly userHandle: string;
+  readonly userHandle: Handle;
   readonly reason: PluginFanoutSkipReason;
 }
 
@@ -134,7 +136,7 @@ export interface PluginFanoutSkip {
  *  every recipient it did NOT — reported rather than swallowed, because "one user still has this plugin" is
  *  precisely the fact an admin who just withdrew it needs, and a bare count would hide whose. */
 export interface PluginFanoutResult {
-  readonly slug: string;
+  readonly slug: PluginSlug;
   readonly name: string;
   readonly version: string;
   readonly applied: number;
@@ -142,11 +144,11 @@ export interface PluginFanoutResult {
 }
 
 export const pluginFanoutResultSchema = z.strictObject({
-  slug: z.string(),
+  slug: pluginSlugSchema,
   name: z.string(),
   version: z.string(),
   applied: z.int().nonnegative(),
-  skipped: z.array(z.strictObject({ userId: brandedId("UserId"), userHandle: z.string(), reason: z.enum(PLUGIN_FANOUT_SKIP_REASONS) })).readonly(),
+  skipped: z.array(z.strictObject({ userId: brandedId("UserId"), userHandle: handleSchema, reason: z.enum(PLUGIN_FANOUT_SKIP_REASONS) })).readonly(),
 }) satisfies z.ZodType<PluginFanoutResult>;
 
 /** One line of a plugin's host.log ring — the rate-limited, ring-buffered log surface the owner reads

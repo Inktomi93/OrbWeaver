@@ -5,6 +5,7 @@
 // here rather than a special-cased guard).
 
 import { DomainNotFoundError } from "@orb/kit/errors";
+import type { ThemeId } from "@orb/kit/ids";
 import { STORED_CONFIG_UNREADABLE } from "#primitives/stored-config";
 
 /** The `DomainOperationError.code` discriminators settings verbs throw. */
@@ -27,7 +28,7 @@ export const SETTINGS_OP_CODES = {
 /** A theme the caller may read/own does not exist (or is not theirs, or is a seed on a write verb). Maps to
  *  tRPC NOT_FOUND. */
 export class ThemeNotFoundError extends DomainNotFoundError {
-  constructor(id: string) {
+  constructor(id: ThemeId) {
     super("theme", id);
   }
 }

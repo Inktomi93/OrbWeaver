@@ -471,8 +471,8 @@ export interface ActivityBucket {
 }
 
 export interface ModelStatRow {
-  model: string;
-  provider: string | null;
+  model: ModelId;
+  provider: StatsDelta["provider"];
   generations: number;
   /** Distinct characters generated for; model_stats is character-less, so this is a separate GROUP BY. */
   charactersUsedWith: number;
@@ -594,8 +594,8 @@ export const activityBucketSchema = z.strictObject({
 }) satisfies z.ZodType<ActivityBucket>;
 
 export const modelStatRowSchema = z.strictObject({
-  model: z.string(),
-  provider: z.string().nullable(),
+  model: modelIdSchema,
+  provider: statsDeltaSchema.shape.provider,
   generations: z.number(),
   charactersUsedWith: z.number(),
   tokensOut: z.number().nullable(),

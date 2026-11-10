@@ -4,6 +4,7 @@
 // credential by id; the runtime resolves the secret through its own port at call time.
 
 // Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
+import type { ModelId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import type { JsonValue } from "@orb/kit/json";
 import { jsonValueSchema } from "@orb/kit/json";
@@ -67,7 +68,7 @@ export const CONNECTION_LABEL_SEPARATOR = " · ";
  *  ` (3)`… until it collides with none of the owner's `taken` labels. */
 export function mintConnectionLabel(
   provider: { readonly id: string; readonly label: string },
-  model: string,
+  model: ModelId,
   taken: readonly string[],
   explicit: string | undefined,
 ): string {

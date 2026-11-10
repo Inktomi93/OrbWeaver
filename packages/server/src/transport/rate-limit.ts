@@ -38,10 +38,10 @@ export interface RateLimitConfig {
   readonly logger: Logger;
 }
 
-export interface RateLimiter {
+export interface RateLimiter<Key extends string = string> {
   /** Consume one point for `id`. Throws {@link DomainRateLimitError} when over budget; the error carries
    *  `msBeforeNext` and `remainingPoints` for Retry-After / X-RateLimit-Remaining. */
-  readonly consume: (id: string) => Promise<void>;
+  readonly consume: (id: Key) => Promise<void>;
 }
 
 /** The atomic fixed-window consume every limiter shares. Increments the
@@ -93,10 +93,10 @@ async function consumeWindow(
 
 /** Construct a named DB-backed limiter. The instance is built at the entry/ composition root and
  *  threaded onto `ctx.rateLimit`. */
-export function createRateLimiter(handle: DatabaseHandle, cfg: RateLimitConfig): RateLimiter {
+export function createRateLimiter<Key extends string = string>(handle: DatabaseHandle, cfg: RateLimitConfig): RateLimiter<Key> {
   const db = databaseForOwner(handle);
   return {
-    consume: (id: string): Promise<void> =>
+    consume: (id): Promise<void> =>
       consumeWindow(db, {
         scope: cfg.scope,
         id,

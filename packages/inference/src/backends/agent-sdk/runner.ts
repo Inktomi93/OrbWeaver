@@ -23,7 +23,7 @@ import type {
   SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatUsage, ResolvedWarning } from "@orb/contracts/inference";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, ModelId } from "@orb/kit/ids";
 import { secondsToMs } from "@orb/kit/time";
 import type {
   AgentSdkChatRequest,
@@ -268,7 +268,7 @@ function turnAbortOf(
 
 /** The turn's frames, each restarting the idle window. A window with no frame aborts the subprocess and fails the
  *  turn retryably even if the SDK's iterator never settles; the caller's own cancel stays a non-retryable abort. */
-async function* idleBounded(stream: AsyncIterable<SDKMessage>, idle: IdleAbort, model: string): AsyncGenerator<SDKMessage> {
+async function* idleBounded(stream: AsyncIterable<SDKMessage>, idle: IdleAbort, model: ModelId): AsyncGenerator<SDKMessage> {
   const tripped = new Promise<never>((_resolve, reject) => {
     idle.signal.addEventListener(
       "abort",

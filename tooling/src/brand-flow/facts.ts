@@ -8,7 +8,7 @@ import type { NativeWorld } from "../unwired/index.ts";
 import { constituents, hasFlag } from "../unwired/index.ts";
 
 /** The module whose `castId` constraint names the brand shape. */
-const KIT_IDS = "packages/kit/src/ids/index.ts";
+export const KIT_IDS = "packages/kit/src/ids/index.ts";
 
 export interface TypeFacts {
   readonly brands: readonly string[];

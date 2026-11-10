@@ -2,7 +2,7 @@
 // No versions: the card IS the flat `characters` row, edited in place. No `raw` blob — every known field
 // has a typed home, so an app-authored card round-trips identically to an imported one.
 
-import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, PluginId, TagId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, LookupText, PluginId, TagId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { SLUG_HANDLE_PATTERN, slugifyHandle } from "@orb/kit/slug";
@@ -348,7 +348,7 @@ function isCharacterHandle(value: string): boolean {
 /** The handle a stored row carries off this box (a card's wire key, a chat's archive directory and seat
  *  list): the handle itself when it is inside the alphabet, else its slug, so a row stored before the
  *  alphabet was enforced still exports as a safe path segment and every file of one export agrees on it. */
-export function portableCharacterHandle(stored: string): CharacterHandle {
+export function portableCharacterHandle(stored: LookupText<CharacterHandle>): CharacterHandle {
   return characterHandleSchema.parse(isCharacterHandle(stored) ? stored : slugifyHandle(stored));
 }
 

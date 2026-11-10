@@ -338,7 +338,7 @@ function refineFixedProviderHost(args: {
 /** Cross-field provider trust checks kept together: namespace identity and fixed-host egress consent are one
  * install-time decision over the fully parsed manifest, not properties `providerDefSchema` can judge alone. */
 function refineManifestProviders(manifest: ProviderManifestFields, ctx: z.RefinementCtx, declaresEgress: boolean): void {
-  const seenProviderIds = new Set<string>();
+  const seenProviderIds = new Set<ProviderDef["id"]>();
   for (const [index, provider] of (manifest.providers ?? []).entries()) {
     if (!isPluginProviderId(provider.id) || pluginNameOfProviderId(provider.id) !== manifest.id) {
       ctx.addIssue({
