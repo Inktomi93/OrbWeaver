@@ -100,6 +100,7 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
         <Text
           as="span"
           aria-hidden={showsPreview ? true : undefined}
+          data-slot="facet-preview"
           id={previewId}
           voice="gloss"
           prose={true}

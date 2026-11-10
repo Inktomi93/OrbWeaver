@@ -85,7 +85,9 @@ export const selectVariants = tv({
       hug: { trigger: [FIELD_CONTROL, "inline-auto"] },
       // `hug` for a picker whose value names the choice and must be read whole: a value past the trigger's room wraps inside it, and
       // the trigger grows from its size step instead of cutting the value with an ellipsis. Only a word wider than the room breaks.
-      hugWrap: { trigger: [FIELD_CONTROL, "py-field block-auto inline-auto"], value: "wrap-break-word whitespace-normal" },
+      // The step is a floor (the `LABEL_BOX` shape) with no block inset: the field's line is taller than the label's, so even the tight
+      // inset would lift a one-line value past the step and out of level with its row. The line height gives a wrapped value its air.
+      hugWrap: { trigger: [FIELD_CONTROL, "py-0 block-fit inline-auto"], value: "wrap-break-word whitespace-normal" },
       // Text-height at every pointer; the touch floor is the layout-neutral hit area `InlineAction` carries.
       inline: {
         trigger: [
@@ -98,7 +100,7 @@ export const selectVariants = tv({
     // A trigger whose value is the name of the thing the line is about (an rpg subject): the name's semibold weight.
     strong: { true: { trigger: "font-semibold" } },
   },
-  // The wrapping arm's height is the size step's floor, because its value may take more than one line.
+  // The wrapping arm's height is the size step's floor, so only a value on more than one line grows it.
   compoundVariants: [
     { layout: "hugWrap", size: "chip", class: { trigger: CONTROL_MIN_BLOCK.chip } },
     { layout: "hugWrap", size: "sm", class: { trigger: CONTROL_MIN_BLOCK.sm } },

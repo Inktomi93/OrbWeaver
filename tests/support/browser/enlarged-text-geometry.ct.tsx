@@ -10,6 +10,8 @@ const CUT_STORY = "tests/support/browser/surface-design-fixtures/SurfaceCutValue
 const VEIL = '[data-slot="weave-veil"]';
 // A box far narrower than either text, so the planted cut does not depend on the font.
 const NARROW = 120;
+// A row wide enough to seat its title and its actions on one line, with the picker still wider than the room left for it.
+const ACTIONS_ROW = 200;
 const VALUE_CUT = /^button "Connection" has its value cut: /u;
 
 test("the probe waits for the boot veil to leave instead of reading the control it covers", async ({ mount, page }) => {
@@ -46,11 +48,23 @@ test("the probe stays silent for a list row title the design truncates", async (
   expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([]);
 });
 
-test("the probe stays silent for a button's hidden preview text", async ({ mount, page }) => {
-  await mount<typeof SurfaceCutValueStory>(CUT_STORY, { width: NARROW, cut: "echo" });
-  const preview = page.locator('[data-slot="text"]');
+test("the probe stays silent for a facet preview line the design truncates", async ({ mount, page }) => {
+  await mount<typeof SurfaceCutValueStory>(CUT_STORY, { width: NARROW, cut: "preview" });
+  const preview = page.locator('[data-slot="facet-preview"]');
   await expect(preview).toBeVisible();
   // The control for the silence: the preview is cut, so the probe passes over a real truncation.
   expect(await preview.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(true);
   expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([]);
+});
+
+test("the probe fails a picker cut inside a list row's actions", async ({ mount, page }) => {
+  await mount<typeof SurfaceCutValueStory>(CUT_STORY, { width: ACTIONS_ROW, cut: "action" });
+  await expect(page.getByRole("combobox", { name: "Connection", exact: true })).toBeVisible();
+  expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([expect.stringMatching(VALUE_CUT)]);
+});
+
+test("the probe fails a visible button label that is cut, though the label repeats the button's name", async ({ mount, page }) => {
+  await mount<typeof SurfaceCutValueStory>(CUT_STORY, { width: NARROW, cut: "label" });
+  await expect(page.getByRole("button", { name: "Description", exact: true })).toBeVisible();
+  expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([expect.stringMatching(/^button "Description" has its value cut: /u)]);
 });

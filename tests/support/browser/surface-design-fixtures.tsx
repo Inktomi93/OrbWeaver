@@ -236,9 +236,10 @@ const CUT_VALUE = "Same as my Image generation role";
 const CUT_TITLE = "Calamity, Doomblade of the Ninth Epoch, Keeper of the Orbital Loom";
 
 /**
- * A text-cut case in a box of the given width: a picker whose value is wider than its trigger (`value`, with `wraps` the arm that
- * wraps it), a list row whose title is wider than the row (`row`), or a button whose hidden preview text is wider than it (`echo`). The picker is a
- * control's own value; the row title and the hidden preview are design.
+ * A text-cut case in a box of the given width: a picker whose value is wider than its trigger (`value`, with `wraps` the arm that wraps it), the
+ * same picker in a list row's actions (`action`), a list row whose title is wider than the row (`row`), a button whose preview line carries the
+ * facet-preview slot (`preview`), or a button whose visible label is cut with no such slot (`label`). A picker and a label are a control's own
+ * text; the row title and the declared preview are design.
  */
 export function SurfaceCutValueStory({
   width,
@@ -246,17 +247,22 @@ export function SurfaceCutValueStory({
   wraps,
 }: {
   readonly width: number;
-  readonly cut: "value" | "row" | "echo";
+  readonly cut: "value" | "action" | "row" | "preview" | "label";
   readonly wraps?: boolean;
 }): ReactElement {
+  const picker = <Select aria-label="Connection" items={[{ label: CUT_VALUE, value: "same" }]} layout={wraps === true ? "hugWrap" : "hug"} value="same" />;
   const cases: Record<typeof cut, ReactElement> = {
-    value: (
-      <Row>
-        <Select aria-label="Connection" items={[{ label: CUT_VALUE, value: "same" }]} layout={wraps === true ? "hugWrap" : "hug"} value="same" />
-      </Row>
-    ),
+    value: <Row>{picker}</Row>,
+    action: <ListRow actions={picker} stackActions={true} title="Pamela" />,
     row: <ListRow clickable={true} title={CUT_TITLE} />,
-    echo: (
+    preview: (
+      <Button aria-label="Description" className="min-inline-0" variant="outline" width="full" wrap={true}>
+        <Text aria-hidden={true} as="span" className="min-inline-0" data-slot="facet-preview" truncate={true}>
+          {CUT_TITLE}
+        </Text>
+      </Button>
+    ),
+    label: (
       <Button aria-label="Description" className="min-inline-0" variant="outline" width="full" wrap={true}>
         <Text aria-hidden={true} as="span" className="min-inline-0" truncate={true}>
           {CUT_TITLE}

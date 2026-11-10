@@ -2,12 +2,13 @@
 // value, and the Utility preset belongs to the Utility role's group. The rows hold at 200% text.
 
 import { ROLE_ROWS_ORDERED } from "@orb/client/lib";
-import { enlargedTextFindings as findings, setRootFontScale } from "@orb/testkit/browser/spec";
+import { enlargedTextFindings as findings, resolvedLength, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import type { ModelRolesStory } from "./_model-roles-stories.tsx";
 
@@ -152,6 +153,22 @@ for (const device of [
         expect(role.dot.y + role.dot.height / 2).toBeGreaterThanOrEqual(role.heading.y);
         expect(role.dot.y + role.dot.height / 2).toBeLessThanOrEqual(bottomOf(role.heading));
       }
+    });
+
+    test("a picker whose value fits is as tall as its control-size step, and one that does not wraps its value whole", async ({ corpus, mount, page }) => {
+      await using root = await createCorpusHarness();
+      await serveRoles(page, corpus, root);
+      await mount<typeof ModelRolesStory>(STORY, {});
+      await expect(page.getByRole("group", { name: roleOf("chat").heading, exact: true })).toBeVisible();
+      const pickers = page.getByRole("combobox");
+      const step = Math.round(await resolvedLength(page, `var(${TOKENS["size.control-sm"].cssVar})`, pickers.first()));
+      const heights = (await pickers.evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().height))).map((height) => Math.round(height));
+      expect(heights.length).toBeGreaterThan(ROLE_ROWS_ORDERED.length);
+      // A value on one line keeps the step, level with the controls of its row; none is shorter than the step.
+      expect(Math.min(...heights)).toBe(step);
+      // A fine pointer has room for every value, so no picker grows; a phone wraps the values that do not fit and cuts none.
+      expect(heights.filter((height) => height !== step).length === 0).toBe(!device.coarse);
+      await expect.poll(() => findings(page.locator("body"))).toEqual([]);
     });
 
     test("the rows hold at 200% text", async ({ corpus, mount, page }) => {
