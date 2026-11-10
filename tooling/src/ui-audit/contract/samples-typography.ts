@@ -92,14 +92,18 @@ export interface TextStyleInput {
    *  `voice="reading"` paragraph into the census as its own measurable line, each with a wrap-box width
    *  that is not a reading measure. Optional: absent in sample sets that predate it. */
   readonly ownVoice?: string;
-  /** Inside `role="alert" | "alertdialog" | "status"` — the platform's own "this bounds what you are about
-   *  to do". The second anchor the caveat rule accepts, so a warning written without a voice is still
-   *  judged. Optional: absent in older fixture sample sets. */
+  /** `role="alert" | "alertdialog" | "status"` sits on this element, or on its nearest block-level ancestor when
+   *  this element is inline — the platform's own "this sentence bounds what you are about to do". Optional:
+   *  absent in older fixture sample sets. */
   readonly alertContext?: boolean;
-  /** Per-walk ids of this element's nearest four ancestors, outward. Two samples are IN THE SAME BLOCK
-   *  when their paths intersect — the bound that keeps the caveat rule from comparing a caption against
-   *  every larger glyph on the page, which is the false-positive machine it must not become. Optional:
-   *  absent in older fixture sample sets, where the rule declines rather than comparing globally. */
+  /** Inside an alert-role region at any depth. A sample here without {@link TextStyleInput.alertContext} is the
+   *  region's body copy, such as a notice's explainer under its headline. Optional: absent in older sample sets. */
+  readonly alertRegion?: boolean;
+  /** Per-walk ids of this element's nearest four ancestors, outward, ending early at the first card-like or
+   *  list-item ancestor. Two samples are IN THE SAME BLOCK when their paths intersect — the bound that keeps
+   *  the caveat rule from comparing a caption against every larger glyph on the page, or against the next
+   *  card in a list. Optional: absent in older fixture sample sets, where the rule declines rather than
+   *  comparing globally. */
   readonly blockPath?: readonly number[];
 }
 
@@ -113,6 +117,12 @@ export interface TextStyleInput {
 export interface FontFaceInput {
   readonly name: string;
   readonly available: boolean;
+  /** The first element that declares this face without previewing it, so a finding names an owner. Absent when
+   *  every declaring element previews the face, and in sample sets that predate it. */
+  readonly selector?: string;
+  /** Every element that declares this face also declares, through `FONT_PREVIEW_ATTRIBUTE` (`@orb/ui/select/items`),
+   *  that it previews this face: a font picker painting each choice in its own face. */
+  readonly previewOnly?: boolean;
 }
 
 export interface FontCensusInput {

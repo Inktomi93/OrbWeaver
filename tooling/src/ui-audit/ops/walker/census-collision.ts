@@ -94,6 +94,17 @@ export const WALKER_CENSUS_COLLISION = `  // ── truncated to NOTHING (#816) 
     var width = clip.clientWidth > 0 || cr.width <= 2 ? clip.clientWidth : cr.width;
     return { left: left, right: left + width };
   }
+  // An inline scroller from the label up to and including its clip can scroll the label into view: its own
+  // overflow-x is auto or scroll, and its content is wider than its box. The clip itself counts, because a
+  // scroller with overflow-y hidden is its own nearest clipper.
+  function scrollsInlineToward(el, clip) {
+    for (var sa = el.parentElement; sa !== null; sa = sa.parentElement) {
+      var saX = getComputedStyle(sa).overflowX;
+      if ((saX === "auto" || saX === "scroll") && sa.scrollWidth > sa.clientWidth) return true;
+      if (sa === clip) break;
+    }
+    return false;
+  }
   for (var tt = 0; tt < allEls.length; tt += 1) {
     var ttel = allEls[tt];
     if (isDevChrome(ttel) || ttel.closest("[aria-hidden='true']") || isVisuallyHidden(ttel)) continue;
@@ -113,8 +124,8 @@ export const WALKER_CENSUS_COLLISION = `  // ── truncated to NOTHING (#816) 
     // absent by intent, not erased by layout.
     if (ttStyle.display === "none" || ttStyle.visibility === "hidden" || accumulatedOpacity(ttel) === 0) continue;
     var ttRect = ttel.getBoundingClientRect();
-    // It must still occupy a LINE (so the text was laid out at all) and sit on the visible canvas.
-    if (ttRect.height <= 0 || !inVisualViewport(ttRect)) continue;
+    // It must still occupy a LINE, so the text was laid out at all.
+    if (ttRect.height <= 0) continue;
     var ttNaturalPx = ttel.scrollWidth;
     if (ttNaturalPx < TRUNC_MIN_NATURAL_PX) continue;
     var ttClip = nearestClipper(ttel);
@@ -124,6 +135,13 @@ export const WALKER_CENSUS_COLLISION = `  // ── truncated to NOTHING (#816) 
     relationalAccounting["truncated-to-nothing"].candidates += 1;
     var ttSpan = clipContentSpan(ttClip);
     var ttVisible = Math.min(ttSpan.right, ttRect.left + ttNaturalPx) - Math.max(ttSpan.left, ttRect.left);
+    // OFF THE WINDOW is two different facts. A label whose ink lies inside its clip, or that a scroller can
+    // bring into view, is merely scrolled away. One an over-wide row pushed past its clip is erased wherever
+    // it sits, so it is judged here like any on-screen label.
+    if (!inVisualViewport(ttRect) && (ttVisible > TRUNC_MAX_VISIBLE_PX || scrollsInlineToward(ttel, ttClip))) {
+      relationalAccounting["truncated-to-nothing"].excluded.scrolledOutOfView = (relationalAccounting["truncated-to-nothing"].excluded.scrolledOutOfView || 0) + 1;
+      continue;
+    }
     relationalAccounting["truncated-to-nothing"].judged += 1;
     if (ttVisible > TRUNC_MAX_VISIBLE_PX) continue;
     truncatedTexts.push({

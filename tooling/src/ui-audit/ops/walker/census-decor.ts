@@ -37,15 +37,73 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
   function isCardLike(el) {
     var s = getComputedStyle(el);
     var hasShadow = s.boxShadow !== "none" && s.boxShadow.trim() !== "";
-    var hasBorder =
-      Number.parseFloat(s.borderTopWidth) > 0 ||
-      Number.parseFloat(s.borderRightWidth) > 0 ||
-      Number.parseFloat(s.borderBottomWidth) > 0 ||
-      Number.parseFloat(s.borderLeftWidth) > 0;
     var radius = Number.parseFloat(s.borderTopLeftRadius) || 0;
     var bg = parseRgb(s.backgroundColor);
     var hasBg = bg !== null && bg.a > 0.05;
-    return (hasShadow || hasBorder) && (radius > 0 || hasBg);
+    return (hasShadow || paintedBorderSides(s) > 0) && (radius > 0 || hasBg);
+  }
+  // A BORDER IS AN EDGE ONLY WHEN IT PAINTS. A transparent border has width and draws nothing, which is the
+  // box the sanctioned \`Card nested\` arm measures, so it counts no side. \`drawsOnlyTransparentEdge\` names the
+  // box that the width-only reading called a card, so the population shows it. The side list is a literal in
+  // each function, not a segment \`var\`: census-text.ts calls \`isCardLike\` before this segment's lines run.
+  function paintedBorderSides(s) {
+    var sides = 0;
+    var sideNames = ["Top", "Right", "Bottom", "Left"];
+    for (var bsi = 0; bsi < sideNames.length; bsi += 1) {
+      if (!(Number.parseFloat(s["border" + sideNames[bsi] + "Width"]) > 0)) continue;
+      var sideColor = parseRgb(s["border" + sideNames[bsi] + "Color"]);
+      if (sideColor === null || sideColor.a > 0) sides += 1;
+    }
+    return sides;
+  }
+  function drawsOnlyTransparentEdge(el) {
+    var s = getComputedStyle(el);
+    if (s.boxShadow !== "none" && s.boxShadow.trim() !== "") return false;
+    var widthSides = 0;
+    var sideNames = ["Top", "Right", "Bottom", "Left"];
+    for (var tsi = 0; tsi < sideNames.length; tsi += 1) {
+      if (Number.parseFloat(s["border" + sideNames[tsi] + "Width"]) > 0) widthSides += 1;
+    }
+    var bg = parseRgb(s.backgroundColor);
+    var hasBg = bg !== null && bg.a > 0.05;
+    return widthSides > 0 && paintedBorderSides(s) === 0 && ((Number.parseFloat(s.borderTopLeftRadius) || 0) > 0 || hasBg);
+  }
+  // A STRIP RULED ON ONE SIDE IS A DIVIDER, NOT A CARD EDGE. One painted side with no shadow and no radius is a
+  // line across the host (a header strip's bottom rule), however it is filled; nothing is framed by it.
+  function isDividerStrip(el) {
+    var s = getComputedStyle(el);
+    if (s.boxShadow !== "none" && s.boxShadow.trim() !== "") return false;
+    return paintedBorderSides(s) === 1 && (Number.parseFloat(s.borderTopLeftRadius) || 0) === 0;
+  }
+  // AN EMBEDDED PICKER IS A RATIFIED PANEL. A box that holds a combobox together with the listbox that combobox
+  // controls is a picker (the Command shape), and its frame is the ratified way to set it inside a popover,
+  // dialog or card. Read from the ARIA wiring the vendor publishes, never from a slot or class name. The box
+  // must be the combobox's NEAREST card-like ancestor: a card that merely holds a picker somewhere inside it
+  // is still a card, and an any-depth test would excuse every ancestor of every picker.
+  function isEmbeddedPicker(el) {
+    var comboboxes = el.querySelectorAll("[role=combobox][aria-controls]");
+    for (var pk = 0; pk < comboboxes.length; pk += 1) {
+      var controlled = document.getElementById(comboboxes[pk].getAttribute("aria-controls") || "");
+      if (controlled === null || controlled.getAttribute("role") !== "listbox" || !el.contains(controlled)) continue;
+      var nearestCard = comboboxes[pk].parentElement;
+      while (nearestCard !== null && nearestCard !== el && !isCardLike(nearestCard)) nearestCard = nearestCard.parentElement;
+      if (nearestCard === el && paintsOnlyThePicker(el, comboboxes[pk], controlled)) return true;
+    }
+    return false;
+  }
+  // The panel IS the picker only when it paints no copy of its own: every visible text run sits in the
+  // combobox, its listbox, or a live status line. A card with a heading or prose around a picker is a card.
+  function paintsOnlyThePicker(el, combobox, listbox) {
+    var copyWalker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    var copyNode;
+    while ((copyNode = copyWalker.nextNode())) {
+      if (!copyNode.textContent || copyNode.textContent.trim() === "") continue;
+      var copyHost = copyNode.parentElement;
+      if (copyHost === null || combobox.contains(copyHost) || listbox.contains(copyHost)) continue;
+      if (copyHost.closest("[role=status],[aria-live]") !== null || isVisuallyHidden(copyHost)) continue;
+      return false;
+    }
+    return true;
   }
   // AN INTERACTIVE ISLAND IS NOT A NESTED CARD (2026-08-16 — 26/26 findings on home were this shape).
   // Chrome-diet CD1 SANCTIONS border+radius+bg on interactive islands and elevated surfaces
@@ -101,7 +159,7 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
   // or an actual image element is a picture of something, never a decorative panel nested in a panel. A
   // media CARD (a bordered wrapper AROUND an image) is untouched — the wrapper is not the image.
   var AVATAR_SLOT_RE = /^avatar(-|$)/;
-  var MEDIA_TAGS = { IMG: 1, PICTURE: 1, VIDEO: 1, CANVAS: 1 };
+  var MEDIA_TAGS = { IMG: 1, PICTURE: 1, VIDEO: 1, CANVAS: 1, IFRAME: 1 };
   function isMediaToken(el) {
     if (MEDIA_TAGS[el.tagName] === 1) return true;
     if (el.getAttribute("role") === "img") return true;
@@ -126,8 +184,9 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
     return false;
   }
   // THE OUTER HALF OF THE PAIR NEEDS A BOX, NOT AN EDGE (2026-08-23, issue #559). \`isCardLike\` accepts a
-  // SINGLE border side, because one side is enough to say "this thing draws an edge" for the INNER card —
-  // and it must stay that way there. But the same predicate was asked of the ANCESTOR too, so a shell pane
+  // SINGLE painted border side, because a rounded or shadowed box ruled on one side still draws an edge for
+  // the INNER card; a one-sided box with neither is a divider strip, which \`isDividerStrip\` excludes before
+  // the pair is formed. But the same predicate was asked of the ANCESTOR too, so a shell pane
   // — an \`<aside>\` whose whole box evidence is one divider border against its neighbour, radius 0, no
   // shadow — counted as the OUTER card, and every real card that happened to live inside any pane got a
   // "nesting" partner it never had visually. A divider LINE is not a container EDGE; nothing is nested
@@ -139,20 +198,30 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
     var s = getComputedStyle(el);
     if (s.boxShadow !== "none" && s.boxShadow.trim() !== "") return true;
     if ((Number.parseFloat(s.borderTopLeftRadius) || 0) > 0) return true;
-    var sides = 0;
-    if (Number.parseFloat(s.borderTopWidth) > 0) sides += 1;
-    if (Number.parseFloat(s.borderRightWidth) > 0) sides += 1;
-    if (Number.parseFloat(s.borderBottomWidth) > 0) sides += 1;
-    if (Number.parseFloat(s.borderLeftWidth) > 0) sides += 1;
-    return sides >= 2;
+    return paintedBorderSides(s) >= 2;
   }
   var cardEls = [];
   var outerEls = [];
   for (var c = 0; c < allEls.length; c += 1) {
     var cel = allEls[c];
-    if (!isVisible(cel) || !isCardLike(cel)) continue;
+    if (!isVisible(cel)) continue;
+    if (drawsOnlyTransparentEdge(cel)) {
+      walkerProvenTally("nested-card", { kind: "excluded", reason: "unpaintedEdge" });
+      continue;
+    }
+    if (!isCardLike(cel)) continue;
     if (isExcludedCardContext(cel)) {
       walkerProvenTally("nested-card", { kind: "excluded", reason: "cardContext" });
+      continue;
+    }
+    if (isDividerStrip(cel)) {
+      walkerProvenTally("nested-card", { kind: "excluded", reason: "dividerStrip" });
+      continue;
+    }
+    // A picker still frames what sits inside it, so it stays an outer while it is never the nested subject.
+    if (isEmbeddedPicker(cel)) {
+      walkerProvenTally("nested-card", { kind: "excluded", reason: "embeddedPicker" });
+      if (hasEnclosingBox(cel)) outerEls.push(cel);
       continue;
     }
     // Every visible card is judged: a nested one is a finding unless a card nested inside it is reported instead.

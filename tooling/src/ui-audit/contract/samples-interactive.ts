@@ -45,6 +45,10 @@ export interface TapTargetInput {
 export interface AccessibleNameInput {
   readonly selector: string;
   readonly tag: string;
+  /** A generic-role node with `tabindex="-1"`: focus plumbing a vendored widget builds, which offers no action and
+   *  owes no name. The door census reads the same fact. Absent from sample sets that predate it, where it reads as
+   *  false. */
+  readonly programmaticFocus?: boolean;
   readonly hasVisibleText: boolean;
   readonly ariaLabel: string | null;
   readonly ariaLabelledbyText: string | null;

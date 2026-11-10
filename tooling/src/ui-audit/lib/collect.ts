@@ -35,7 +35,8 @@
 //   repeated-container-text   subject = one literal text in one container · withheld(containerPastScanBound)
 //   clipped-overflow          subject = one clipping container · excluded(clippingViewport)
 //   edge-flush-cards          subject = one visible horizontal scroller · excluded(scrolledFromRest)
-//   nested-card               subject = one visible card · excluded(cardContext); only the innermost is filed
+//   nested-card               subject = one visible card · excluded(cardContext, unpaintedEdge, dividerStrip,
+//                             embeddedPicker); only the innermost is filed
 //   gradient-text             subject = one text element; `hasGradientText` is the walker's verdict
 //   animated-img-hover        subjects = images and state rules that transform · withheld(unparseableSelector)
 //
@@ -46,7 +47,6 @@
 //   selection-idiom           walker selection census; candidates exceed returned samples by design;
 //                             carried(heterogeneousRest) — cohorts with no majority rest paint, judged
 //                             against the smallest delta over their distinct rest paints (#1808)
-//   aria-name                 every censused interactive control is judged — the count IS the evidence
 //   tabindex-positive         every censused tabindex attribute is judged
 //   z-index-escalation        every censused positive z-index is judged
 //   icon-tile-stack           every heading with a visible previous sibling is judged
@@ -58,7 +58,8 @@
 //
 // RUNG 2b · partitionedFindings — the checker itself names each candidate's disposition, because `null`
 // meant two different things and a bare zero conflated them:
-//   control-aspect            excluded(roleWithoutSilhouette) · withheld(animating, degenerateBox)
+//   aria-name                 excluded(programmaticFocus) — a generic tabindex -1 node, the door census's fact
+//   control-aspect           excluded(roleWithoutSilhouette) · withheld(animating, degenerateBox)
 //   unreachable-hint          excluded(finePointer, tooltipRepeatsName, hasReachableDescription,
 //                             visibleOwnText, pressDoor) · withheld(noDescriptionWiring) — a fine-pointer
 //                             pass measures a pointer the defect cannot exist ON, which CLOSES the
@@ -88,10 +89,11 @@
 //                             withheld(chAdvanceUnmeasured, glyphAdvanceUnmeasured, #464)
 //   tight-leading             excluded(heading, normalKeywordLeading, noTypeSize)
 //   justified-text            excluded(noOwnText)
-//   all-caps-body             excluded(heading)
+//   all-caps-body             excluded(heading, capsVoiceRecipe)
 //   wide-tracking             excluded(capsVoice — the ratified micro-caps voice, #148 — and noTypeSize)
 //   crushed-tracking          excluded(noTypeSize)
-//   caveat-outweighed         excluded(srOnly, codeContext, noAuthoredCaveatClaim, notSentenceShaped)
+//   caveat-outweighed         excluded(srOnly, codeContext, noAuthoredCaveatClaim, alertRegionContent,
+//                             notSentenceShaped)
 //
 // RUNG 3 · cappedRelationalFindings — a walker relational census plus a representative cap:
 //   cohort-anatomy · row-void · pane-ink
@@ -111,7 +113,8 @@
 //                                    census with the check's dispositions; its samples are gathered
 //                                    outside COLLECT_SAMPLES_JS, so an absent pass publishes NO row
 //   off-theme-font                   fontCensusPopulations (checks-font-census.ts) — the population is the
-//                                    PAGE's censused font faces, not per-element samples
+//                                    PAGE's censused font faces, not per-element samples ·
+//                                    excluded(declaredFacePreview) · withheld(faceProbeUnusable)
 //   buried-raster                    checkBuriedRasterPopulations (checks-media.ts) — walker-gathered raster
 //                                    carriers with no upstream relational census to join
 //   contrast · text-over-art ·       colorTextPopulations (checks-color.ts) — FOUR rules partition ONE text
