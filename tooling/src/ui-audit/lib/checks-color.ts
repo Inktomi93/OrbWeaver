@@ -4,6 +4,7 @@
 import { AA_LARGE_RATIO, AA_NORMAL_RATIO, relativeLuminance, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { InactiveKind, Rgb } from "@orb/tooling/floor/instrument/wcag";
 import {
+  coveredBackdrop,
   FOREGROUND_OPACITY_EPS,
   INACTIVE_ADVISORY_MAX_RATIO,
   inkOverRing,
@@ -36,6 +37,7 @@ type ContrastOutcome =
   | { readonly kind: "dimmed" }
   | { readonly kind: "unresolvedBackdrop" }
   | { readonly kind: "unseenInFrame" }
+  | { readonly kind: "unreadCover" }
   | { readonly kind: "maskedForeground" }
   | { readonly kind: "inactive"; readonly unmeasurable: "imageIndeterminate" | "translucentBackdrop" | null; readonly finding: Finding | null }
   | { readonly kind: "image"; readonly finding: Finding }
@@ -50,17 +52,27 @@ export function checkContrast(input: ContrastInput): Finding | null {
   return "finding" in outcome ? outcome.finding : null;
 }
 
-function unresolvedOutcome(input: ContrastInput): ContrastOutcome {
-  return { kind: input.unseenInFrame === undefined ? "unresolvedBackdrop" : "unseenInFrame" };
+/** What the frame decides before any backdrop does: a text it does not paint is excluded, and one under a cover whose
+ *  composite is unknown is withheld, whatever its backdrop. */
+function frameOutcome(input: ContrastInput): ContrastOutcome | null {
+  if (input.unseenInFrame !== undefined) {
+    return { kind: "unseenInFrame" };
+  }
+  if (input.partlyCoveredBy !== undefined || input.coverUnreadable !== undefined) {
+    return { kind: "unreadCover" };
+  }
+  return input.backdrop.kind === "unresolved" ? { kind: "unresolvedBackdrop" } : null;
 }
 
-// A translucent cover sits in a pixel-sampled backdrop already, so the ink takes it too; one model for both
-// composites lives in `inkOverRing`.
-function seenInk(input: ContrastInput, over: Rgb, opacity: number): Rgb {
-  if (opacity >= FOREGROUND_OPACITY_EPS && input.cover === undefined) {
-    return input.color;
+// A translucent cover paints over the ink and its backdrop alike: a pixel-sampled backdrop holds it already, and a
+// css-resolved one takes it here. One model for both composites lives in `inkOverRing`.
+function ratioOver(input: ContrastInput, over: Rgb, opacity: number): number {
+  const cover = input.cover;
+  if (opacity >= FOREGROUND_OPACITY_EPS && cover === undefined) {
+    return wcagContrastRatio(input.color, over);
   }
-  return inkOverRing(input.color, over, { inner: opacity, outer: 1, fill: over }, input.cover);
+  const ring = cover === undefined || input.backdropMethod === "pixel-sample" ? over : coveredBackdrop(over, cover);
+  return wcagContrastRatio(inkOverRing(input.color, ring, { inner: opacity, outer: 1, fill: ring }, cover), ring);
 }
 
 function contrastOutcome(input: ContrastInput): ContrastOutcome {
@@ -90,23 +102,24 @@ function contrastOutcome(input: ContrastInput): ContrastOutcome {
     return { kind: "dimmed" };
   }
   const dimmed = opacity < FOREGROUND_OPACITY_EPS;
-  const dimNote = dimmed ? ` · dimmed α${opacity.toFixed(2)}` : "";
+  const dimNote = dimNoteOf(opacity);
   const dimmedMessage = dimmed
     ? ` — the glyphs are painted at ${opacity.toFixed(2)} opacity by an ancestor group, so what the eye reads is the composite, not the authored color`
     : "";
-  const seenColor = (over: Rgb): Rgb => seenInk(input, over, opacity);
+  const ratioAgainst = (over: Rgb): number => ratioOver(input, over, opacity);
 
   // NO VERDICT (issue #218): the runner either pixel-samples this into a `flat` sample before we run, or
   // refuses it out loud in its own report. A ratio against `fallback` is exactly the fiction that put 28
   // false P1s on one transcript, and "text over an art layer" is not a defect claim either — the pixels
   // may be perfectly legible.
+  const framed = frameOutcome(input);
   const backdrop = input.backdrop;
-  if (backdrop.kind === "unresolved") {
-    return unresolvedOutcome(input);
+  if (framed !== null || backdrop.kind === "unresolved") {
+    return framed ?? { kind: "unresolvedBackdrop" };
   }
 
   if (isContrastExempt(input.inactive ?? "none")) {
-    return inactiveOutcome(input, backdrop, seenColor, dimNote);
+    return inactiveOutcome(input, backdrop, ratioAgainst, dimNote);
   }
 
   if (backdrop.kind === "image-indeterminate") {
@@ -121,39 +134,48 @@ function contrastOutcome(input: ContrastInput): ContrastOutcome {
   }
 
   if (backdrop.kind === "gradient") {
-    const translucent = backdrop.stops.some((stop) => (stop.a ?? 1) < OPAQUE_STOP_MIN_ALPHA);
-    if (translucent) {
-      return {
-        kind: "gradient",
-        finding: indeterminateFinding(
-          input.selector,
-          "gradient backdrop has translucent stops — contrast indeterminate",
-          "text sits over a gradient with translucent color stops — what composites underneath is unknown, so a worst-stop ratio would be a fake number; verify legibility manually",
-        ),
-      };
-    }
-    const ratios = backdrop.stops.map((stop) => wcagContrastRatio(seenColor(stop), stop));
-    const worst = Math.min(...ratios);
-    if (worst < minRatio) {
-      return {
-        kind: "gradient",
-        finding: {
-          rule: "text-over-art",
-          severity: "P0",
-          selector: input.selector,
-          value: `${worst.toFixed(2)}:1 worst-stop (need ${minRatio}:1)${dimNote}`,
-          message: "text over a gradient backdrop fails contrast against at least one color stop — the 'text bled unreadable over the picture' defect",
-          origin: "orbweaver",
-        },
-      };
-    }
-    return { kind: "gradient", finding: null };
+    return gradientOutcome(input, backdrop.stops, ratioAgainst, minRatio);
   }
 
   return {
     kind: "flat",
-    finding: flatBackdropFinding({ input, ratio: wcagContrastRatio(seenColor(backdrop.color), backdrop.color), minRatio, large, dimNote, dimmedMessage }),
+    finding: flatBackdropFinding({ input, ratio: ratioAgainst(backdrop.color), minRatio, large, dimNote, dimmedMessage }),
   };
+}
+
+function dimNoteOf(opacity: number): string {
+  return opacity < FOREGROUND_OPACITY_EPS ? ` · dimmed α${opacity.toFixed(2)}` : "";
+}
+
+/** The gradient arm: a worst-stop ratio over opaque stops, or an indeterminate P1 when a stop is translucent. */
+function gradientOutcome(input: ContrastInput, stops: readonly Rgb[], ratioAgainst: (over: Rgb) => number, minRatio: number): ContrastOutcome {
+  const translucent = stops.some((stop) => (stop.a ?? 1) < OPAQUE_STOP_MIN_ALPHA);
+  if (translucent) {
+    return {
+      kind: "gradient",
+      finding: indeterminateFinding(
+        input.selector,
+        "gradient backdrop has translucent stops — contrast indeterminate",
+        "text sits over a gradient with translucent color stops — what composites underneath is unknown, so a worst-stop ratio would be a fake number; verify legibility manually",
+      ),
+    };
+  }
+  const ratios = stops.map(ratioAgainst);
+  const worst = Math.min(...ratios);
+  if (worst < minRatio) {
+    return {
+      kind: "gradient",
+      finding: {
+        rule: "text-over-art",
+        severity: "P0",
+        selector: input.selector,
+        value: `${worst.toFixed(2)}:1 worst-stop (need ${minRatio}:1)${dimNoteOf(input.foregroundOpacity ?? 1)}`,
+        message: "text over a gradient backdrop fails contrast against at least one color stop — the 'text bled unreadable over the picture' defect",
+        origin: "orbweaver",
+      },
+    };
+  }
+  return { kind: "gradient", finding: null };
 }
 
 /** The inactive arm. `unresolved` cannot reach here — `contrastOutcome` returns it above — so the
@@ -163,7 +185,7 @@ function contrastOutcome(input: ContrastInput): ContrastOutcome {
 function inactiveOutcome(
   input: ContrastInput,
   backdrop: Exclude<Backdrop, { readonly kind: "unresolved" }>,
-  seenColor: (over: Rgb) => Rgb,
+  ratioAgainst: (over: Rgb) => number,
   dimNote: string,
 ): ContrastOutcome {
   if (backdrop.kind === "image-indeterminate") {
@@ -173,7 +195,7 @@ function inactiveOutcome(
   if (backdrops.some((stop) => (stop.a ?? 1) < OPAQUE_STOP_MIN_ALPHA)) {
     return { kind: "inactive", unmeasurable: "translucentBackdrop", finding: null };
   }
-  const worst = Math.min(...backdrops.map((over) => wcagContrastRatio(seenColor(over), over)));
+  const worst = Math.min(...backdrops.map(ratioAgainst));
   return { kind: "inactive", unmeasurable: null, finding: inactiveAdvisory(input.selector, worst, input.inactive ?? "none", dimNote) };
 }
 
@@ -250,7 +272,7 @@ const GRAY_TEXT_MAX_LUM = 0.85;
  *  and neither of those is one — so they are EXCLUDED. Filing them as withholdings would put every surface
  *  carrying a single picture into permanent NO VERDICT over a rule that structurally cannot apply there. */
 type GrayOutcome =
-  | { readonly kind: "withheld"; readonly reason: "unresolvedBackdrop" }
+  | { readonly kind: "withheld"; readonly reason: "unresolvedBackdrop" | "unreadCover" }
   | { readonly kind: "excluded"; readonly reason: "imageBackdrop" | "pixelSampled" | "unseenInFrame" }
   | { readonly kind: "judged"; readonly finding: Finding | null };
 
@@ -262,11 +284,15 @@ export function checkGrayOnColor(input: ContrastInput): Finding | null {
 function grayOnColorOutcome(input: ContrastInput): GrayOutcome {
   // Same NO-VERDICT posture as checkContrast: "gray on a chromatic surface" is a claim about a backdrop
   // color, and an unresolved backdrop has none the walker may assert.
+  const framed = frameOutcome(input);
+  if (framed?.kind === "unseenInFrame") {
+    return { kind: "excluded", reason: "unseenInFrame" };
+  }
   if (input.backdrop.kind === "image-indeterminate") {
     return { kind: "excluded", reason: "imageBackdrop" };
   }
-  if (input.backdrop.kind === "unresolved") {
-    return input.unseenInFrame === undefined ? { kind: "withheld", reason: "unresolvedBackdrop" } : { kind: "excluded", reason: "unseenInFrame" };
+  if (framed !== null || input.backdrop.kind === "unresolved") {
+    return { kind: "withheld", reason: framed?.kind === "unreadCover" ? "unreadCover" : "unresolvedBackdrop" };
   }
   // A PIXEL-SAMPLED backdrop answers LUMINANCE, not authorship. This rule's whole remedy — "use a darker
   // shade of the background's own hue" — presumes an authored background color; run against the median of
@@ -368,6 +394,7 @@ function tallyReadingSurface(tallies: ReadingSurfaceTallies, outcome: ContrastOu
   const { contrast, overArt, inactive } = tallies;
   switch (outcome.kind) {
     case "dimmed":
+    case "unreadCover":
     case "unresolvedBackdrop": {
       for (const tally of [contrast, overArt, inactive]) {
         count(tally.withheld, outcome.kind);

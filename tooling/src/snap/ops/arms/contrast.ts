@@ -8,7 +8,7 @@ import { aggregateScope } from "../../../floor/artifacts/artifact-scope.ts";
 import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 import type { Viewport } from "../../../floor/instrument/argv.ts";
-import { FOREGROUND_OPACITY_EPS, inkOverRing, isLargeText } from "../../../floor/instrument/wcag.ts";
+import { coveredBackdrop, FOREGROUND_OPACITY_EPS, inkOverRing, isLargeText } from "../../../floor/instrument/wcag.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
 import type { ContrastCapture, ContrastFacts, ContrastMeasured, ContrastOutcome } from "../../contract/contrast.ts";
 import { buildContrastScript } from "../../lib/contrast-script.ts";
@@ -172,12 +172,13 @@ async function measureInkContrast(
     };
   }
   // Ancestor opacity dims the foreground — composite it at the accumulated alpha over the resolved
-  // backdrop before measuring (a 40%-opacity actions row's icon reads ~11:1 raw, ~2.6:1 as seen). A pixel
-  // sample also holds any translucent cover over the subject, so the ink takes that composite too; a
-  // css-resolved backdrop holds neither.
+  // backdrop before measuring (a 40%-opacity actions row's icon reads ~11:1 raw, ~2.6:1 as seen). A
+  // translucent cover over the subject paints over the ink and the backdrop alike: a pixel sample holds it
+  // already, and a css-resolved backdrop takes it here.
   const dimmed = facts.foregroundOpacity < FOREGROUND_OPACITY_EPS;
-  const cover = backdrop.method === "pixel-sample" && facts.cover !== null ? facts.cover : undefined;
-  const fg = dimmed || cover !== undefined ? inkOverRing(rawFg, backdrop.rgb, { inner: facts.foregroundOpacity, outer: 1, fill: backdrop.rgb }, cover) : rawFg;
+  const cover = facts.cover ?? undefined;
+  const ring = cover === undefined || backdrop.method === "pixel-sample" ? backdrop.rgb : coveredBackdrop(backdrop.rgb, cover);
+  const fg = dimmed || cover !== undefined ? inkOverRing(rawFg, ring, { inner: facts.foregroundOpacity, outer: 1, fill: ring }, cover) : rawFg;
   const dimNote = dimmed ? ` · dimmed α${facts.foregroundOpacity.toFixed(2)}` : "";
   // (2) Role/content-aware threshold: NO rendered text ⇒ a UI-COMPONENT boundary (WCAG 1.4.11, 3:1);
   // text keeps 4.5:1 (3:1 where the size/weight qualifies it as large). An empty field's PLACEHOLDER is
@@ -189,7 +190,7 @@ async function measureInkContrast(
   const needRatio = isComponent ? AA_NON_TEXT_RATIO : textRatio;
   const kindLabel = contrastSubjectLabel(facts);
   const fontDisplay = `${Math.round(facts.fontSizePx)}px${facts.fontWeight >= BOLD_WEIGHT ? "b" : ""}`;
-  const ratio = wcagContrastRatio(fg, backdrop.rgb);
+  const ratio = wcagContrastRatio(fg, ring);
   const pass = ratio >= needRatio;
   // Say WHICH match was measured whenever it wasn't the first — silence there is how "the first DOM
   // match" got mistaken for "the one on screen".
@@ -210,7 +211,7 @@ async function measureInkContrast(
       requiredRatio: needRatio,
       passed: pass,
       foreground: fg,
-      backdrop: backdrop.rgb,
+      backdrop: ring,
       // The ink arm never has a fill channel — that receipt belongs to ops/contrast-fill.ts (#1111).
       fillChannel: null,
       reason: null,

@@ -74,7 +74,7 @@ ${WALKER_PRIMITIVES}${WALKER_RESOLVE}
       if (blocker !== null) { if (firstOccluder === null) firstOccluder = blocker; continue; }
       el = all[mi];
       matchIndex = mi;
-      elCover = cover === null ? null : { through: cover.through, paint: cover.paint };
+      elCover = cover === null ? null : { through: cover.through, paint: cover.paint, group: cover.group };
       break;
     }
     if (!el && inViewportCount > 0) return { occluded: true, total: all.length, inViewport: inViewportCount, occluder: firstOccluder };

@@ -48,18 +48,19 @@ export interface ContrastInput {
   /** Present only for an unresolved text that fills its own box and paints nothing of its own: the ring is then read
    *  just outside the box, and these viewport boxes beside it (a swatch, a neighbour's label) are left out of it. */
   readonly groundMarks?: readonly { readonly x: number; readonly y: number; readonly width: number; readonly height: number }[];
-  /** The element painted above this text and opaque at every probe across its shown box, carried only for
-   *  `unresolved` samples. Non-null means the frame does not paint the text, so a pixel sample would measure
-   *  the cover. A translucent or transparent cover never counts: the pixels hold the composite. */
+  /** The element painted above this text and opaque at every probe across its shown box. Non-null means the frame
+   *  does not paint the text, whatever its backdrop. A translucent or transparent cover never counts: it composites. */
   readonly occludedBy?: string | null;
   /** A cover over some probes of the shown box but not the rest (an opaque one, or translucent ones that differ):
-   *  the ring would mix two composites, so the runner withholds the verdict. */
+   *  the ring would mix two composites, so the runner withholds the verdict. A css-resolved text carries it only for
+   *  the translucent kind: beside an opaque partial cover the rest still paints on the resolved backdrop. */
   readonly partlyCoveredBy?: string;
   /** A cover painted over the text whose colour the walk cannot read (an image, a filter, a blend): the ink's
    *  composite is unknown, so the runner withholds the verdict. */
   readonly coverUnreadable?: string;
-  /** The translucent covers painted over the whole shown box. The pixel ring already holds them, so the ink takes
-   *  the same composite before it is judged (`inkOverRing` in `floor/instrument/wcag.ts`). */
+  /** The translucent covers painted over the whole shown box. A pixel ring already holds them and a css-resolved
+   *  backdrop takes them, and the ink takes the same composite before it is judged (`inkOverRing` in
+   *  `floor/instrument/wcag.ts`). */
   readonly cover?: CoverStack;
   /** How `backdrop` was arrived at. Absent/`css-resolve` = an authored background the walker resolved;
    *  `pixel-sample` = the runner read the real composited pixels because the walk was `unresolved`. The

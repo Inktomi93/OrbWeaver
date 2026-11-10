@@ -147,6 +147,20 @@ function coverRefusal(text: ContrastInput): string | null {
   return text.coverUnreadable === undefined ? null : `painted over by ${text.coverUnreadable}, whose colour cannot be read`;
 }
 
+/** What a cover decides for any text, resolved or not: an opaque one hides it in this frame, and a partial or
+ *  unreadable one leaves the composite unknown, so the text is refused. `null` leaves the text to its backdrop. */
+function settleCover(text: ContrastInput, refusals: BackdropRefusal[]): { text: ContrastInput; sampled: boolean } | null {
+  if (text.occludedBy !== undefined && text.occludedBy !== null) {
+    return unseen(text, `painted over by ${text.occludedBy}`);
+  }
+  const refusal = coverRefusal(text);
+  if (refusal === null) {
+    return null;
+  }
+  refusals.push({ selector: text.selector, reason: refusal });
+  return { text, sampled: false };
+}
+
 /** Resolve ONE unresolved text sample against the viewport screenshot: the settled sample (a `flat` backdrop
  *  from pixel data, or the sample marked unseen), plus any refusal and whether a pixel sample was taken. */
 function settleOneSample(
@@ -154,19 +168,13 @@ function settleOneSample(
   raw: PixelRaw,
   refusals: BackdropRefusal[],
 ): { text: ContrastInput; sampled: boolean } | { readonly deferred: PixelBox } {
-  // Sampling would measure another element's pixels: the opaque cover's, or whatever the scroller's neighbour
-  // paints where the clipped text's box still reaches. A partial cover would mix into the ring, and an unreadable
-  // one leaves the ink's composite unknown, so both are refused.
-  if (text.occludedBy !== undefined && text.occludedBy !== null) {
-    return unseen(text, `painted over by ${text.occludedBy}`);
+  const covered = settleCover(text, refusals);
+  if (covered !== null) {
+    return covered;
   }
+  // Sampling would measure whatever the scroller's neighbour paints where the clipped text's box still reaches.
   if (text.clippedOut === true) {
     return unseen(text, CLIPPED_OUT);
-  }
-  const refusal = coverRefusal(text);
-  if (refusal !== null) {
-    refusals.push({ selector: text.selector, reason: refusal });
-    return { text, sampled: false };
   }
   if (text.box === undefined) {
     refusals.push({ selector: text.selector, reason: "walker sample carries no box" });
@@ -229,11 +237,14 @@ export async function settleHeldBackdrops(page: Page, reads: readonly HoverForce
   });
 }
 
-export async function resolvePixelBackdrops(page: Page, samples: RawSamples): Promise<PixelPass> {
+export async function resolvePixelBackdrops(page: Page, given: RawSamples): Promise<PixelPass> {
+  // A resolved backdrop needs no pixels, but a cover over it still decides whether the frame paints the text.
+  const refusals: BackdropRefusal[] = [];
+  const samples = { ...given, texts: given.texts.map((text) => (isUnresolved(text) ? text : (settleCover(text, refusals)?.text ?? text))) };
   const pendingTexts = samples.texts.filter(isUnresolved);
   const pendingBorders = (samples.borderContrasts ?? []).filter((input) => input.surround.kind === "unresolved");
   if (pendingTexts.length === 0 && pendingBorders.length === 0) {
-    return { samples, sampled: 0, refusals: [] };
+    return { samples, sampled: 0, refusals };
   }
   const raw = await viewportPixels(page);
   if ("error" in raw) {
@@ -241,10 +252,12 @@ export async function resolvePixelBackdrops(page: Page, samples: RawSamples): Pr
     return {
       samples,
       sampled: 0,
-      refusals: [...pendingTexts, ...pendingBorders].map((t) => ({ selector: t.selector, reason: `pixel sample unavailable (${raw.error})` })),
+      refusals: [
+        ...refusals,
+        ...[...pendingTexts, ...pendingBorders].map((t) => ({ selector: t.selector, reason: `pixel sample unavailable (${raw.error})` })),
+      ],
     };
   }
-  const refusals: BackdropRefusal[] = [];
   let sampled = 0;
   const deferred: DeferredText[] = [];
   const firstPass = samples.texts.map((text) => {

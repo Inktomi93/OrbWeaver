@@ -395,18 +395,24 @@ export const WALKER_RESOLVE = `
   // and its ring alike, so the ink must take the same composite before it is judged. Anything else (an image, a
   // translucent gradient, a filter or a blend) paints a colour the walk cannot read. A cover that paints nothing here,
   // such as a stretched link or a dialog's viewport, is null.
+  // A cover's strength counts only the groups below the one it shares with the text. That shared group dims the
+  // covered composite once, so its opacity rides along as the group.
   var COVER_OPAQUE = "opaque";
   var COVER_UNREADABLE = "unreadable";
   function coverPaint(n, el) {
     var s = getComputedStyle(n);
     if (s.visibility === "hidden") return null;
-    var alpha = accumulatedOpacity(n);
-    if (alpha <= 0) return null;
     if (n.closest("svg") !== null || n.matches(REPLACED_ART_SELECTOR)) return COVER_UNREADABLE;
-    for (var cp = n; cp !== null && !cp.contains(el); cp = cp.parentElement) {
+    var alpha = 1;
+    var cp = n;
+    for (; !cp.contains(el); cp = cp.parentElement) {
       var cs = getComputedStyle(cp);
       if (cs.filter !== "none" || (cs.backdropFilter || "none") !== "none" || cs.mixBlendMode !== "normal") return COVER_UNREADABLE;
+      var own = Number(cs.opacity);
+      if (!Number.isNaN(own)) alpha *= own;
     }
+    if (alpha <= 0) return null;
+    var group = accumulatedOpacity(cp);
     var image = s.backgroundImage;
     if (image && image !== "none") {
       var stops = image.indexOf("gradient") !== -1 && image.indexOf("url(") === -1 ? parseGradientStops(image) : [];
@@ -417,7 +423,7 @@ export const WALKER_RESOLVE = `
     var seen = bg === null ? 0 : bg.a * alpha;
     if (seen <= 0) return null;
     if (seen >= OPAQUE_MIN_ALPHA) return COVER_OPAQUE;
-    return { el: n, color: bg, alpha: seen };
+    return { el: n, color: bg, alpha: seen, group: group };
   }
   // The covers the browser paints over el at one point, top-down. The hit stack ends at el's own box; elements past
   // el's paint layer are kept out by the stacking order, which hit testing alone cannot give when the point misses
@@ -442,9 +448,10 @@ export const WALKER_RESOLVE = `
   // WHO OWNS THE PIXELS ACROSS THE TEXT'S SHOWN BOX, probed on a grid inside the viewport.
   // - An opaque cover at every probe: \`whole\`, the text is not painted in this frame.
   // - An opaque cover at some probes, or translucent covers that differ between probes: \`partly\`, a ring there mixes
-  //   two composites.
+  //   two composites; the translucent kind is also \`mixed\`.
   // - A cover whose paint cannot be read: \`unreadable\`.
-  // - The same translucent covers at every probe: \`through\` and \`paint\`, the one composite they apply.
+  // - The same translucent covers at every probe: \`through\` and \`paint\`, the one composite they apply, and the
+  //   \`group\` opacity they share with the text.
   var COVER_PROBES_PER_AXIS = 3;
   function coverOf(el, shown) {
     var left = Math.max(0, shown.left);
@@ -474,8 +481,12 @@ export const WALKER_RESOLVE = `
     }
     if (opaque !== null) return { by: describeNode(opaque), whole: hidden === COVER_PROBES_PER_AXIS * COVER_PROBES_PER_AXIS };
     if (unreadable !== null) return { by: describeNode(unreadable), unreadable: true };
-    if (mixed !== null) return { by: describeNode(mixed), whole: false };
+    if (mixed !== null) return { by: describeNode(mixed), whole: false, mixed: true };
     if (covers === null || covers.length === 0) return null;
+    // Covers dimmed by different shared groups do not fold into one step; their composite stays unread.
+    var group = covers[0].group;
+    var apart = covers.find(function (c) { return Math.abs(c.group - group) > 1 - OPAQUE_MIN_ALPHA; });
+    if (apart !== undefined) return { by: describeNode(apart.el), unreadable: true };
     // Fold bottom-up: each cover maps the colour beneath it to alpha * colour + (1 - alpha) * beneath.
     var through = 1;
     var paint = { r: 0, g: 0, b: 0 };
@@ -488,7 +499,7 @@ export const WALKER_RESOLVE = `
         b: c.alpha * c.color.b + (1 - c.alpha) * paint.b,
       };
     }
-    return { by: describeNode(covers[0].el), through: through, paint: paint };
+    return { by: describeNode(covers[0].el), through: through, paint: paint, group: group };
   }
 
   function loadNaturalSize(url) {

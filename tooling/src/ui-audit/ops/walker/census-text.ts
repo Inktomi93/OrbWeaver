@@ -378,17 +378,23 @@ export const WALKER_CENSUS_TEXT = `
       var textRect = el.getBoundingClientRect();
       var textBackdrop = resolveBackdrop(el);
       var textUnresolved = textBackdrop.kind === "unresolved";
-      // The pixels behind a text clipped by its own scrollers are read only from the part that still paints.
-      var textShown = textUnresolved ? shownBox(el, textRect) : null;
-      var textClippedOut = textShown !== null && (textShown.left >= textShown.right || textShown.top >= textShown.bottom);
-      var textCover = textShown !== null && !textClippedOut ? coverOf(el, textShown) : null;
+      // The pixels behind a text clipped by its own scrollers are read only from the part that still paints. A cover
+      // paints over a css-resolved backdrop as much as a sampled one, so every text takes the cover test. An opaque cover
+      // over part of a css-resolved text leaves the rest painted on that backdrop, so only a sampled ring refuses it.
+      var textShown = shownBox(el, textRect);
+      var textClippedOut = textShown.left >= textShown.right || textShown.top >= textShown.bottom;
+      var textCover = textClippedOut ? null : coverOf(el, textShown);
       var textInkBox = textUnresolved ? inkBoxOf(el, textRect) : null;
       // A clipped edge has a neighbour's pixels beyond it, so a ring outside the box is read only for an unclipped text.
       var textUnclipped =
-        textShown !== null && textShown.left <= textRect.left && textShown.right >= textRect.right && textShown.top <= textRect.top && textShown.bottom >= textRect.bottom;
+        textUnresolved &&
+        textShown.left <= textRect.left &&
+        textShown.right >= textRect.right &&
+        textShown.top <= textRect.top &&
+        textShown.bottom >= textRect.bottom;
       var textGroundMarks = textUnclipped && textInkBox === null ? groundMarksOf(el, style, textRect) : null;
       var textBox =
-        textShown !== null && !textClippedOut
+        textUnresolved && !textClippedOut
           ? { x: textShown.left, y: textShown.top, width: textShown.right - textShown.left, height: textShown.bottom - textShown.top }
           : { x: textRect.x, y: textRect.y, width: textRect.width, height: textRect.height };
       texts.push({
@@ -403,9 +409,10 @@ export const WALKER_CENSUS_TEXT = `
         foregroundMasked: hasMaskedAncestor(el),
         box: textBox,
         occludedBy: textCover !== null && textCover.whole === true ? textCover.by : null,
-        partlyCoveredBy: textCover !== null && textCover.whole === false ? textCover.by : undefined,
+        partlyCoveredBy: textCover !== null && textCover.whole === false && (textUnresolved || textCover.mixed === true) ? textCover.by : undefined,
         coverUnreadable: textCover !== null && textCover.unreadable === true ? textCover.by : undefined,
-        cover: textCover !== null && textCover.through !== undefined ? { through: textCover.through, paint: textCover.paint } : undefined,
+        cover:
+          textCover !== null && textCover.through !== undefined ? { through: textCover.through, paint: textCover.paint, group: textCover.group } : undefined,
         clippedOut: textUnresolved ? textClippedOut : undefined,
         ariaHidden: ariaHidden,
         inactive: inactiveKind,

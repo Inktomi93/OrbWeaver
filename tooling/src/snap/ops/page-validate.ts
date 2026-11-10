@@ -151,6 +151,7 @@ function coverStack(value: unknown, label: string): ContrastMeasured["cover"] {
   return {
     through: pageNumberInRange(record["through"], `${label} "through"`, { min: 0, max: 1 }),
     paint: { r: channel("r"), g: channel("g"), b: channel("b") },
+    group: pageNumberInRange(record["group"], `${label} "group"`, { min: 0, max: 1 }),
   };
 }
 
