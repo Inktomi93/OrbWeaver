@@ -267,9 +267,8 @@ ${WALKER_VISIBILITY}
   // Hidden-ness INHERITS: a child of a clipped box paints no pixels either, so the walk climbs (memoized
   // per element, the accumulatedOpacity precedent).
   //
-  // DELIBERATELY NOT APPLIED to the accessible-name census or the heading outline: an sr-only control
-  // still owes a name and an sr-only heading is still part of the document outline — the skip belongs to
-  // the PAINT and GEOMETRY rules, which is why it is per-sample-family here and not inside isVisible().
+  // isVisible (visibility.ts) applies it; isRendered does not, for the heading outline and every family that
+  // names its sr-only exclusion itself.
   var INSET_RE = /^inset\\(([^)]*)\\)/;
   function insetCollapses(clipPath) {
     var im = INSET_RE.exec(clipPath || "");
@@ -383,7 +382,7 @@ const WALKER_CORE_CENSUS = `  // ONE settled identity snapshot is the denominato
   var renderedSubjects = 0;
   var retainedHiddenSubjects = 0;
   for (var renderIndex = 0; renderIndex < allEls.length; renderIndex += 1) {
-    if (isVisible(allEls[renderIndex])) renderedSubjects += 1;
+    if (isRendered(allEls[renderIndex])) renderedSubjects += 1;
     else retainedHiddenSubjects += 1;
   }
   // Render provenance and WHOLE computed color-scheme values over the exact walked population. The source
@@ -409,7 +408,7 @@ const WALKER_CORE_CENSUS = `  // ONE settled identity snapshot is the denominato
   var themeSubjectPolarities = { light: 0, dark: 0, mixed: 0, unknown: 0 };
   for (var themeIndex = 0; themeIndex < allEls.length; themeIndex += 1) {
     var themeSubject = allEls[themeIndex];
-    if (!isVisible(themeSubject)) continue;
+    if (!isRendered(themeSubject)) continue;
     var rootScope = themeSubject.closest("[data-slot='theme-scope']");
     for (var outerScope = rootScope; outerScope !== null; outerScope = enclosingThemeScope(outerScope)) rootScope = outerScope;
     if (rootScope !== null) {

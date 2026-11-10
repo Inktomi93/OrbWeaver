@@ -53,7 +53,7 @@ export const HOVER_DENOMINATOR = `
   }
   for (var ti = 0; ti < allEls.length; ti += 1) {
     var tel = allEls[ti];
-    if (!isVisible(tel)) continue;
+    if (!isRendered(tel)) continue;
     if (directTextOf(tel) === "") continue;
     // Screen-reader-only text paints no pixels, so it has no hover contrast to judge.
     var telSrOnly = srOnlyText(tel, null);

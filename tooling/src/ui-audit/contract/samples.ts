@@ -44,6 +44,9 @@ export interface ContrastInput {
    *  larger. The backdrop ring is taken just outside this box, so a letter in a big tile reads the tile's
    *  solid centre and not the tile's feathered edge. */
   readonly inkBox?: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
+  /** Present only for an unresolved text that fills its own box and paints nothing of its own: the ring is then read
+   *  just outside the box, and these viewport boxes beside it (a swatch, a neighbour's label) are left out of it. */
+  readonly groundMarks?: readonly { readonly x: number; readonly y: number; readonly width: number; readonly height: number }[];
   /** What the compositor says is painted at this box's visible centre, when it is NOT this element (#211's
    *  test, carried only for `unresolved` samples). Non-null means a pixel sample would measure the
    *  OCCLUDER — the runner refuses the verdict instead. */

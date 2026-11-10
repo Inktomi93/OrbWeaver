@@ -18,7 +18,7 @@ export const WALKER_CENSUS_INTERACTIVE_NAVIGABILITY = `  // \`pointerCoarse\` is
   var tabIndexEls = document.querySelectorAll("[tabindex]");
   for (var t = 0; t < tabIndexEls.length; t += 1) {
     var tel = tabIndexEls[t];
-    if (!isVisible(tel) || isDevChrome(tel)) continue;
+    if (!isRendered(tel) || isDevChrome(tel)) continue;
     var raw = tel.getAttribute("tabindex");
     var val = Number(raw);
     if (!Number.isNaN(val)) tabIndexes.push({ selector: describe(tel), tabIndex: val });

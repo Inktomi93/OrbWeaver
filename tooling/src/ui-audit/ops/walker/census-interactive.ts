@@ -440,7 +440,7 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
   var mainLandmarkPresent = false;
   var mainLandmarks = document.querySelectorAll("main, [role='main']");
   for (var ml = 0; ml < mainLandmarks.length; ml += 1) {
-    if (isVisible(mainLandmarks[ml])) { mainLandmarkPresent = true; break; }
+    if (isRendered(mainLandmarks[ml])) { mainLandmarkPresent = true; break; }
   }
 
 `;

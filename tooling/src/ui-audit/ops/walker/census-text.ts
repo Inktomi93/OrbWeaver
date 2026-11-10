@@ -15,6 +15,7 @@
 import { FONT_PREVIEW_ATTRIBUTE } from "@orb/ui/select/items";
 import { TOKENS } from "@orb/ui/tokens";
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
+import { SAMPLE_RING_MAX_PX } from "../../../floor/instrument/pixel-backdrop.ts";
 import { INACTIVE_KIND_EXPR } from "../../../floor/instrument/wcag.ts";
 import { WALKER_PROVEN_RULES } from "../../contract/samples-populations.ts";
 import { TRANSCRIPT_SURFACE_SELECTOR_JS } from "../../lib/checks-typography.ts";
@@ -200,6 +201,51 @@ export const WALKER_CENSUS_TEXT = `
     return { x: left, y: top, width: right - left, height: bottom - top };
   };
 
+  // A TEXT THAT FILLS ITS OWN BOX HAS ITS GROUND OUTSIDE IT. Its box edge carries its own strokes, so when the box
+  // paints nothing of its own the pixel ring is read just outside it. A box that paints or holds text beside it, such
+  // as a swatch, is left out of that ring. Paint that reaches into the box keeps the old ring at the box edge.
+  var GROUND_RING_PX = ${String(SAMPLE_RING_MAX_PX)};
+  function overlapsBox(a, b) {
+    return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+  }
+  function paintsOrHoldsText(n) {
+    if (n.localName === "svg" || n.matches(REPLACED_ART_SELECTOR) || (n.textContent || "").trim() !== "") return true;
+    var ns = getComputedStyle(n);
+    var nbg = parseRgb(ns.backgroundColor);
+    if ((nbg !== null && nbg.a > 0) || (ns.backgroundImage || "none") !== "none") return true;
+    return ["Top", "Right", "Bottom", "Left"].some(function (side) {
+      return Number.parseFloat(ns["border" + side + "Width"]) > 0 && ns["border" + side + "Style"] !== "none";
+    });
+  }
+  var groundMarksOf = function (element, elementStyle, elementRect) {
+    var ownFill = parseRgb(elementStyle.backgroundColor);
+    if ((ownFill !== null && ownFill.a > 0) || (elementStyle.backgroundImage || "none") !== "none") return null;
+    var ring = {
+      left: elementRect.left - GROUND_RING_PX,
+      top: elementRect.top - GROUND_RING_PX,
+      right: elementRect.right + GROUND_RING_PX,
+      bottom: elementRect.bottom + GROUND_RING_PX,
+    };
+    var scope = element.parentElement;
+    while (scope !== null && scope !== document.body) {
+      var scopeRect = scope.getBoundingClientRect();
+      if (scopeRect.left <= ring.left && scopeRect.top <= ring.top && scopeRect.right >= ring.right && scopeRect.bottom >= ring.bottom) break;
+      scope = scope.parentElement;
+    }
+    var marks = [];
+    var nearby = (scope || document.body).querySelectorAll("*");
+    for (var gm = 0; gm < nearby.length; gm += 1) {
+      var near = nearby[gm];
+      if (near === element || near.contains(element) || element.contains(near) || !isVisible(near)) continue;
+      var nearRect = near.getBoundingClientRect();
+      if (!overlapsBox(nearRect, ring) || !paintsOrHoldsText(near)) continue;
+      // Paint that reaches the text's own box may be its ground, which a ring outside the box cannot see.
+      if (overlapsBox(nearRect, elementRect)) return null;
+      marks.push({ x: nearRect.x, y: nearRect.y, width: nearRect.width, height: nearRect.height });
+    }
+    return marks;
+  };
+
   // A RUN SET ON ONE LINE AND CUT THERE has no line return, so the measure rule has nothing to judge. Each
   // half is measured, never inferred from a class: the computed style must forbid a second line (no-wrap
   // with this element's own inline clip, or a one-line clamp), the style must actually CUT something (a
@@ -248,6 +294,46 @@ export const WALKER_CENSUS_TEXT = `
     return null;
   };
 
+  // A LOOPING OPACITY ANIMATION IS JUDGED AT REST. The pixel pass shoots with Playwright's animations:"disabled",
+  // which cancels an infinite animation to its base value and plays it again, so the glyph's opacity is read the
+  // same way: cancel, read, play, and put the phase back. One frame of a pulse never decides the ratio.
+  var loopingOpacity = new Map();
+  var pageAnimations = typeof document.getAnimations === "function" ? document.getAnimations() : [];
+  for (var la = 0; la < pageAnimations.length; la += 1) {
+    var laEffect = pageAnimations[la].effect;
+    if (pageAnimations[la].playState !== "running" || !laEffect || !(laEffect.target instanceof Element) || laEffect.pseudoElement) continue;
+    if (laEffect.getTiming().iterations !== Infinity) continue;
+    if (!laEffect.getKeyframes().some(function (frame) { return frame.opacity !== undefined; })) continue;
+    var laTargetAnimations = loopingOpacity.get(laEffect.target) || [];
+    laTargetAnimations.push(pageAnimations[la]);
+    loopingOpacity.set(laEffect.target, laTargetAnimations);
+  }
+  var restingOwnOpacity = new Map();
+  function ownOpacityAtRest(n) {
+    var known = restingOwnOpacity.get(n);
+    if (known !== undefined) return known;
+    var animations = loopingOpacity.get(n) || [];
+    var phases = animations.map(function (animation) { return animation.currentTime; });
+    animations.forEach(function (animation) { animation.cancel(); });
+    var raw = getComputedStyle(n).opacity;
+    animations.forEach(function (animation, ai) {
+      animation.play();
+      animation.currentTime = phases[ai];
+    });
+    var own = raw === "" ? 1 : Number(raw);
+    if (Number.isNaN(own)) own = 1;
+    restingOwnOpacity.set(n, own);
+    return own;
+  }
+  function restingOpacity(el) {
+    var animated = false;
+    for (var ra = el; ra !== null && !animated; ra = ra.parentElement) animated = loopingOpacity.has(ra);
+    if (!animated) return accumulatedOpacity(el);
+    var resting = 1;
+    for (var rn = el; rn !== null; rn = rn.parentElement) resting *= ownOpacityAtRest(rn);
+    return resting;
+  }
+
   var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   var node;
   while ((node = walker.nextNode())) {
@@ -263,7 +349,7 @@ export const WALKER_CENSUS_TEXT = `
     // which is where the attribute genuinely decides the verdict. The flag rides along so a future
     // a11y-flavoured rule over these samples can exclude it explicitly rather than by omission.
     if (isDevChrome(el)) continue;
-    if (!isVisible(el)) continue;
+    if (!isRendered(el)) continue;
     var ariaHidden = !!el.closest("[aria-hidden='true']");
     // #624 — the WCAG 1.4.3 inactive-control exemption, via the ONE shared classifier. This file's
     // no-dollar-brace convention is about stray sequences in the RAW page JS; this is a deliberate
@@ -287,14 +373,16 @@ export const WALKER_CENSUS_TEXT = `
       var textRect = el.getBoundingClientRect();
       var textBackdrop = resolveTextBackdrop(el);
       var textInkBox = textBackdrop.kind === "unresolved" ? inkBoxOf(el, textRect) : null;
+      var textGroundMarks = textBackdrop.kind === "unresolved" && textInkBox === null ? groundMarksOf(el, style, textRect) : null;
       texts.push({
         inkBox: textInkBox === null ? undefined : textInkBox,
+        groundMarks: textGroundMarks === null ? undefined : textGroundMarks,
         selector: describe(el),
         color: { r: color.r, g: color.g, b: color.b },
         backdrop: textBackdrop,
         fontSizePx: fontSizePx,
         fontWeight: fontWeight,
-        foregroundOpacity: accumulatedOpacity(el),
+        foregroundOpacity: restingOpacity(el),
         foregroundMasked: hasMaskedAncestor(el),
         box: { x: textRect.x, y: textRect.y, width: textRect.width, height: textRect.height },
         occludedBy: textBackdrop.kind === "unresolved" ? occluderOf(el) : null,

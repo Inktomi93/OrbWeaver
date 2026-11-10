@@ -1,6 +1,6 @@
 // Where on a viewport screenshot a backdrop is read, per kind of subject. Pure: the screenshot is data.
 // A ring that is not one backdrop is a refusal, never a median (floor/instrument/pixel-backdrop.ts).
-import type { PixelBox } from "@orb/tooling/floor/instrument/pixel-backdrop";
+import type { PixelBox, RingRegion } from "@orb/tooling/floor/instrument/pixel-backdrop";
 import { clampBoxToImage, SAMPLE_RING_MAX_PX, uniformRingBackdropOfRegion } from "@orb/tooling/floor/instrument/pixel-backdrop";
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 
@@ -30,17 +30,36 @@ function intersect(a: Region, b: Region): Region | null {
   return width < 1 || height < 1 ? null : { left, top, width, height };
 }
 
-function readRing(raw: PixelRaw, region: Region): RingRead {
+function readRing(raw: PixelRaw, region: RingRegion): RingRead {
   const color = uniformRingBackdropOfRegion(raw.data, raw.info.width, raw.info.channels, region);
   return color === null ? { refusal: NON_UNIFORM } : { color };
 }
 
+/** A box as a mark of `region`, grown to whole pixels so an antialiased edge pixel counts as the box's. */
+function markOf(region: Region, box: PixelBox): Region {
+  const left = Math.floor(box.x - region.left);
+  const top = Math.floor(box.y - region.top);
+  return { left, top, width: Math.ceil(box.x + box.width - region.left) - left, height: Math.ceil(box.y + box.height - region.top) - top };
+}
+
 /** The backdrop behind text. With an ink box the ring is the band just OUTSIDE the glyphs, kept inside the
- *  element box, so a letter in a big tile reads the tile and not the tile's edge. */
-export function textBackdropRing(raw: PixelRaw, box: PixelBox, inkBox?: PixelBox): RingRead {
+ *  element box, so a letter in a big tile reads the tile and not the tile's edge. With ground marks the text fills
+ *  its box, so the ring is the band just outside the box, and the glyphs and the marked boxes beside it are left out. */
+export function textBackdropRing(raw: PixelRaw, box: PixelBox, inkBox?: PixelBox, groundMarks?: readonly PixelBox[]): RingRead {
   const element = clampBoxToImage(box, raw.info.width, raw.info.height);
   if (element === null) {
     return { refusal: OFF_SCREEN_REFUSAL };
+  }
+  if (groundMarks !== undefined) {
+    const ground = clampBoxToImage(
+      { x: box.x - SAMPLE_RING_MAX_PX, y: box.y - SAMPLE_RING_MAX_PX, width: box.width + 2 * SAMPLE_RING_MAX_PX, height: box.height + 2 * SAMPLE_RING_MAX_PX },
+      raw.info.width,
+      raw.info.height,
+    );
+    if (ground !== null) {
+      const marks = [box, ...groundMarks].map((mark) => markOf(ground, mark));
+      return readRing(raw, { ...ground, marks });
+    }
   }
   if (inkBox === undefined) {
     return readRing(raw, element);
