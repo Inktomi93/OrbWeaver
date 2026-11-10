@@ -5,7 +5,8 @@ import type { RolePresetChoice } from "@orb/contracts/settings";
 import { ROLE_PRESET_CHOICE_KINDS } from "@orb/contracts/settings";
 import type { PresetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { Row, Stack } from "@orb/ui/layout";
+import { HintTrigger } from "@orb/ui/hint-trigger";
+import { Row } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -58,16 +59,19 @@ export function UtilityPresetSelect(): ReactElement {
   );
 
   return (
-    <Row gap="field" align="start" justify="between" wrap={true}>
-      <Stack gap="tight">
+    <Row gap="field" align="center" indent={true} justify="between" wrap={true}>
+      {/* The hint is a sibling of the label, never inside it, or its name joins the label's. */}
+      <Row align="center" gap="tight" wrap={true}>
         <Text voice="label">Utility preset</Text>
-        <Text prose={true} voice="gloss" cap="prose">
-          The sampling summaries, extraction, captions and other background tasks run at. A preset here lends only its sampling settings, never its prompts.
-        </Text>
-      </Stack>
+        <HintTrigger
+          hint="The sampling summaries, extraction, captions and other background tasks run at. A preset here lends only its sampling settings, never its prompts."
+          subject="Utility preset"
+        />
+      </Row>
       <Select
         aria-label="Utility preset"
         items={items}
+        layout="hug"
         value={value}
         disabled={setPreset.isPending}
         onValueChange={(next): void => {

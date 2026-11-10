@@ -2,8 +2,8 @@
 // DATABANK-owned, because the tile's data and its intent are this feature's (the home
 // tile ownership rule: the tile belongs to the feature that owns the DATA and the INTENT, never to the host).
 //
-// WHY A TILE AT ALL, when the rail already carries a Databank glyph and home's jump grid already links it:
-// a jump row says the section EXISTS. This says whether the bank is doing its job — how many passages a
+// WHY A TILE AT ALL, when the rail already carries a Databank glyph:
+// the glyph says the section EXISTS. This says whether the bank is doing its job — how many passages a
 // chat can actually pull from right now, and whether anything is wedged. An ingest that never finished is
 // invisible from everywhere except the library pane, and the whole point of D-7 is that you should not have
 // to go looking. The health line is therefore the tile's FIRST line, above the documents.

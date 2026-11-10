@@ -8,7 +8,7 @@ updated: 2026-09-23
 
 ## Context
 
-A review asked that the Databank tile float above the section-jump grid while the bank has documents needing attention. The signal is query data, so it is not known at first paint, and the home surface sorts a door-frozen tile list.
+A review asked that the Databank tile float above the other tiles while the bank has documents needing attention. The signal is query data, so it is not known at first paint, and the home surface sorts a door-frozen tile list.
 
 ## Decision
 

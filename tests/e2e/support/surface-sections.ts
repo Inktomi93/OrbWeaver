@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import { ALSO_OPEN_TILE_ID, CHAT_RECENTS_TILE_ID, HOME_JUMP_TILE_ID, HOME_TILE_IDS, QUICK_PICKS_TILE_ID, ROSTERS_TILE_ID } from "@orb/client/state";
+import { ALSO_OPEN_TILE_ID, CHAT_RECENTS_TILE_ID, HOME_TILE_IDS, QUICK_PICKS_TILE_ID, ROSTERS_TILE_ID } from "@orb/client/state";
 import { HOME_QUICK_PICKS_LIMIT } from "@orb/contracts/character";
 import type { StartChatInput } from "@orb/contracts/chat";
 import { HOME_RECENT_CHATS_LIMIT, startChatSchema } from "@orb/contracts/chat";
@@ -22,7 +22,6 @@ import {
   readTrpcOutput,
   SURFACE_CHECKS,
 } from "@orb/testkit/node/helpers";
-import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Locator, Request, Response } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { CHARACTERS_SECTION_LABEL } from "#client/features/character/lib/characters-section-label.ts";
@@ -66,7 +65,6 @@ import {
 } from "#client/features/discovery/lib/corpus-search-targets.ts";
 import { CORPUS_SECTION_LABEL } from "#client/features/discovery/lib/corpus-section-label.ts";
 import { HOME_SECTION_LABEL } from "#client/features/home/lib/home-section-label.ts";
-import { homeSectionJumpVisible } from "#client/features/home/lib/section-jump-visibility.ts";
 import { EXTENSIONS_SEARCH_NAME } from "#client/features/plugin/lib/extensions-copy.ts";
 import { EXTENSIONS_SECTION_LABEL } from "#client/features/plugin/lib/extensions-section-label.ts";
 import {
@@ -108,7 +106,7 @@ import { ANALYTICS_SEARCH_NAME } from "#client/features/stats/lib/analytics-name
 import { ANALYTICS_DEFAULT_SORT, ANALYTICS_SORT_OPTIONS } from "#client/features/stats/lib/analytics-view-model.ts";
 import { LEADERBOARD_ROW_ATTR } from "#client/features/stats/lib/leaderboard-row-attr.ts";
 import { TAG_FILTER_NAME, TAG_MORE_ACTIONS_NAME, TAG_PRUNE_NAME } from "#client/features/tag/lib/tag-list-name.ts";
-import { BLANK_CHAT_NAME, START_TEMP_CHAT_NAME } from "#client/lib/chat-launch-names.ts";
+import { BLANK_CHAT_NAME, START_NEW_CHAT_NAME, START_TEMP_CHAT_NAME } from "#client/lib/chat-launch-names.ts";
 import { deriveChatTitle } from "#client/lib/chat-title.ts";
 import { sectionBackName } from "#client/lib/context-pane-names.ts";
 import { CORPUS_MODE_LABELS, CORPUS_MODES } from "#client/lib/corpus-modes.ts";
@@ -420,16 +418,12 @@ async function home(journey: Journey): Promise<void> {
   await ready(main);
   const rooms = await journey.client.chat.listChats.query({ limit: HOME_RECENT_CHATS_LIMIT });
   const rosters = await journey.client.rosterPreset.count.query();
-  const mobile = await journey.page.evaluate((query) => matchMedia(query).matches, MEDIA_QUERIES["shell-mobile"]);
   const expected = HOME_TILE_IDS.filter((id) => {
     if (id === ALSO_OPEN_TILE_ID) {
       return homeAlsoOpenVisible(rooms.items.length);
     }
     if (id === ROSTERS_TILE_ID) {
       return homeRostersVisible(rosters);
-    }
-    if (id === HOME_JUMP_TILE_ID) {
-      return homeSectionJumpVisible(mobile);
     }
     return true;
   });
@@ -467,7 +461,7 @@ async function home(journey: Journey): Promise<void> {
   }
   await walkScope(journey, main, "home/whole-scroller");
   await attachNativeFile(journey.info, journey.info, "home-registry-admission", {
-    body: JSON.stringify({ registered: HOME_TILE_IDS, expected, inputs: { roomCount: rooms.items.length, rosterCount: rosters, mobile } }, null, 2),
+    body: JSON.stringify({ registered: HOME_TILE_IDS, expected, inputs: { roomCount: rooms.items.length, rosterCount: rosters } }, null, 2),
     contentType: "application/json",
   });
   await homeNavigation(journey);
@@ -714,6 +708,22 @@ async function homeCreationDoors(journey: Journey, operations: readonly HomeOper
       });
     }
   }
+  const started = content(journey).getByRole("button", { name: START_NEW_CHAT_NAME, exact: true });
+  if ((await started.count()) === 1) {
+    await homeOperation(journey, operations, started, async (id) => {
+      await homeCreatedRoom(
+        journey,
+        id,
+        async () => {
+          await started.click();
+          const picker = journey.page.getByRole("dialog", { name: "New chat", exact: true });
+          await ready(picker);
+          await picker.getByRole("button", { name: BLANK_CHAT_NAME, exact: true }).click();
+        },
+        { kind: "blank" },
+      );
+    });
+  }
   const temporary = content(journey).getByRole("button", { name: START_TEMP_CHAT_NAME, exact: true });
   if ((await temporary.count()) === 1) {
     await homeOperation(journey, operations, temporary, async (id) => {
@@ -745,16 +755,11 @@ async function homeNavigation(journey: Journey): Promise<void> {
       observe(journey, id, "unvisited", "Registered rendered Home action awaits a source-backed native operation witness; no blind dynamic command execution");
     }
   }
-  const jumpLabels = await content(journey)
-    .getByRole("button", { name: /^Go to /u })
-    .allTextContents();
-  for (const raw of jumpLabels) {
-    const label = raw.trim();
-    const button = content(journey).getByRole("button", { name: `Go to ${label}`, exact: true });
-    await homeOperation(journey, operations, button, async (id) => {
-      await homeSectionDoor(journey, button, label, id);
-    });
-  }
+  // Home's own start control sits outside every tile, so no tile loop above admits it.
+  const startId = "home/native/start";
+  operations.push({ id: startId, snapshot: await content(journey).getByRole("button", { name: START_NEW_CHAT_NAME, exact: true }).ariaSnapshot() });
+  expectSubject(journey, startId, "home-operation");
+  observe(journey, startId, "unvisited", "Registered rendered Home action awaits a source-backed native operation witness; no blind dynamic command execution");
   for (const door of [
     { name: CHAT_ALL_CHATS_NAME, label: CHATS_SECTION_LABEL },
     { name: CHAT_ALL_CHARACTERS_NAME, label: CHARACTERS_SECTION_LABEL },

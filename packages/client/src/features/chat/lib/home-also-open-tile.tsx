@@ -25,7 +25,7 @@ import { HomeAlsoOpenTileBody } from "../components/home-also-open-tile-body.tsx
 import { CHAT_ALL_CHATS_NAME } from "./chat-surface-names.ts";
 import { homeAlsoOpenVisible } from "./home-also-open-visibility.ts";
 
-/** Between the hero (10) and the jump rail (40) — the mock's order down the hearth column. */
+/** Between the hero (10) and the shelf tiles (20 and up) — the mock's order down the hearth column. */
 const ALSO_OPEN_TILE_ORDER = 15;
 
 /** The skeleton's authored row count, the fill fallback inside a remembered box (a device with no memory
