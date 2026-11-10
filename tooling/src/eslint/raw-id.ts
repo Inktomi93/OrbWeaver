@@ -128,12 +128,15 @@ function plainStringAnnotation(type: TSESTree.TypeNode, isPlainAlias: (reference
   return member.type === AST_NODE_TYPES.TSStringKeyword || (member.type === AST_NODE_TYPES.TSTypeReference && isPlainAlias(member));
 }
 
-// A non-generic alias declared as a bare `string`, followed through an import. `SandboxWireId<…>` is generic, so it stays out.
-function plainAliasOf(checker: ts.TypeChecker, name: ts.Node): boolean {
+function resolvedSymbol(checker: ts.TypeChecker, name: ts.Node): ts.Symbol | undefined {
   const symbol = checker.getSymbolAtLocation(name);
   // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript SymbolFlags is a compiler-owned bitfield.
-  const target = symbol !== undefined && (symbol.flags & ts.SymbolFlags.Alias) !== 0 ? checker.getAliasedSymbol(symbol) : symbol;
-  const declaration = target?.declarations?.[0];
+  return symbol !== undefined && (symbol.flags & ts.SymbolFlags.Alias) !== 0 ? checker.getAliasedSymbol(symbol) : symbol;
+}
+
+// Generic aliases such as SandboxWireId describe a wire boundary.
+function plainAliasOf(checker: ts.TypeChecker, name: ts.Node): boolean {
+  const declaration = resolvedSymbol(checker, name)?.declarations?.[0];
   return (
     declaration !== undefined &&
     ts.isTypeAliasDeclaration(declaration) &&
@@ -147,28 +150,83 @@ const ENFORCED_MATCHES: ReadonlySet<NameMatch["match"]> = new Set<NameMatch["mat
 
 const BRAND_ALIAS = /^[A-Z]\w*Id$/u;
 
-const tables = new WeakMap<ts.Program, BrandTable>();
-
 // `any` and `never` are assignable to every brand, so neither counts as one.
 const isBrandType = (checker: ts.TypeChecker, brand: ts.Type, type: ts.Type): boolean =>
   // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript TypeFlags is a compiler-owned bitfield.
   (type.flags & (ts.TypeFlags.Any | ts.TypeFlags.Never)) === 0 && checker.isTypeAssignableTo(type, brand);
 
-// Every top-level `*Id` alias of the program that is a brand: the ids module's own and any a package declares beside its
-// schema (`ProviderId`, `AgentSdkSessionId`), so the table needs no list kept by hand.
-function brandTable(program: ts.Program, checker: ts.TypeChecker, brand: ts.Type): BrandTable {
-  const cached = tables.get(program);
-  if (cached !== undefined) {
-    return cached;
+function brandReference(node: ts.Node): ts.Node | undefined {
+  if (ts.isImportSpecifier(node) || ts.isTypeAliasDeclaration(node)) {
+    return node.name;
   }
-  const aliases = program
-    .getSourceFiles()
-    .filter((source) => !(program.isSourceFileFromExternalLibrary(source) || program.isSourceFileDefaultLibrary(source)))
-    .flatMap((source) => source.statements.filter(ts.isTypeAliasDeclaration))
-    .filter((alias) => BRAND_ALIAS.test(alias.name.text));
-  const table = new BrandTable(aliases.filter((alias) => isBrandType(checker, brand, checker.getTypeAtLocation(alias.name))).map((alias) => alias.name.text));
-  tables.set(program, table);
-  return table;
+  return ts.isTypeReferenceNode(node) ? node.typeName : undefined;
+}
+
+function collectBrand(seen: Set<string>, checker: ts.TypeChecker, brand: ts.Type, name: ts.Node): void {
+  const symbol = resolvedSymbol(checker, name);
+  if (symbol === undefined) {
+    return;
+  }
+  const type = checker.getDeclaredTypeOfSymbol(symbol);
+  if (isBrandType(checker, brand, type)) {
+    for (const candidate of [symbol.name, type.aliasSymbol?.name]) {
+      if (candidate !== undefined && BRAND_ALIAS.test(candidate)) {
+        seen.add(candidate);
+      }
+    }
+  }
+}
+
+// A brand elsewhere in the program says nothing about an identically named field here.
+function localBrands(source: ts.SourceFile, checker: ts.TypeChecker, brand: ts.Type): Set<string> {
+  const seen = new Set<string>();
+  function visit(node: ts.Node): void {
+    const name = brandReference(node);
+    if (name !== undefined) {
+      collectBrand(seen, checker, brand, name);
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(source);
+  return seen;
+}
+
+// Resolve a destructured parameter back to its annotated property. Two local fields named messageId
+// may carry different identities, even when they share a module and a brand import.
+function sourceOfField(checker: ts.TypeChecker, symbol: ts.Symbol | undefined): ts.Declaration | undefined {
+  const declaration = symbol?.valueDeclaration ?? symbol?.declarations?.[0];
+  if (declaration !== undefined && ts.isBindingElement(declaration) && ts.isObjectBindingPattern(declaration.parent)) {
+    const key = declaration.propertyName ?? declaration.name;
+    if (ts.isIdentifier(key) || ts.isStringLiteral(key)) {
+      return checker.getTypeAtLocation(declaration.parent).getProperty(key.text)?.declarations?.[0];
+    }
+  }
+  return declaration;
+}
+
+function libraryFieldSource(program: ts.Program, checker: ts.TypeChecker, node: ts.Node, name: string): ts.Declaration | undefined {
+  if (!((ts.isShorthandPropertyAssignment(node) || ts.isPropertyAssignment(node)) && ts.isObjectLiteralExpression(node.parent))) {
+    return;
+  }
+  if (!(ts.isIdentifier(node.name) || ts.isStringLiteral(node.name)) || node.name.text !== name) {
+    return;
+  }
+  const field = checker.getContextualType(node.parent)?.getProperty(name);
+  if (field?.declarations?.some((origin) => program.isSourceFileFromExternalLibrary(origin.getSourceFile())) !== true) {
+    return;
+  }
+  if (ts.isShorthandPropertyAssignment(node)) {
+    return sourceOfField(checker, checker.getShorthandAssignmentValueSymbol(node));
+  }
+  const value = ts.isPropertyAccessExpression(node.initializer) ? node.initializer.name : node.initializer;
+  return sourceOfField(checker, checker.getSymbolAtLocation(value));
+}
+
+// A value forwarded to a field of an imported library type has a known owner. Look up the actual
+// contextual property, so mapped projections such as Pick retain the original field declaration.
+function forwardsLibraryField(program: ts.Program, checker: ts.TypeChecker, declaration: ts.Node, name: string): boolean {
+  const visit = (node: ts.Node): boolean => libraryFieldSource(program, checker, node, name) === declaration || ts.forEachChild(node, visit) === true;
+  return visit(declaration.getSourceFile());
 }
 
 const STATE_HOOK = "useState";
@@ -213,7 +271,8 @@ export const rawIdRule: OrbRule = {
     if (brand === null) {
       return { "ObjectExpression > Property": zodField };
     }
-    const table = brandTable(program, checker, brand);
+    const visible = localBrands(toTs.get(context.sourceCode.ast).getSourceFile(), checker, brand);
+    const table = new BrandTable(visible);
     const judgeDeclared = (node: TSESTree.Node, name: string, annotation: TSESTree.TSTypeAnnotation | undefined): void => {
       const plain =
         annotation !== undefined &&
@@ -222,7 +281,12 @@ export const rawIdRule: OrbRule = {
           (reference) => reference.typeArguments === undefined && plainAliasOf(checker, toTs.get(reference.typeName)),
         );
       const match = plain ? table.brandOf(name) : null;
-      if (match !== null && ENFORCED_MATCHES.has(match.match)) {
+      if (
+        match !== null &&
+        visible.has(match.brand) &&
+        ENFORCED_MATCHES.has(match.match) &&
+        !forwardsLibraryField(program, checker, toTs.get(node).parent, name)
+      ) {
         context.report({ node, message: declaredMessage(name, match.brand) });
       }
     };
