@@ -23,7 +23,7 @@
 //                          `instrumentError` arm for a FALSE answer, and none had one for a wrong SHAPE.
 import { pageArray, pageBoolean, pageCount, pageNumber, pageNumberInRange, pageObject, pageString } from "@orb/tooling/floor/browser/page-validate";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import type { ContrastFacts } from "../contract/contrast.ts";
+import type { ContrastFacts, ContrastMeasured } from "../contract/contrast.ts";
 import type { DeadCssEvidence } from "../contract/dead-css.ts";
 import type { MapAtlasEvidence, MapNavCapabilities, MapShellEvidence, MapShellRegion, RawMapBridgeEvidence, RawMapEntry } from "../contract/map.ts";
 import {
@@ -89,6 +89,7 @@ export function contrastFacts(value: unknown): ContrastFacts {
     role: pageString(record["role"], `${label} field "role"`),
     tag: pageString(record["tag"], `${label} field "tag"`),
     foregroundOpacity: pageNumberInRange(record["foregroundOpacity"], `${label} field "foregroundOpacity"`, { min: 0, max: 1 }),
+    cover: coverStack(record["cover"], `${label} field "cover"`),
     box: {
       x: pageNumber(box["x"], `${label} box "x"`),
       y: pageNumber(box["y"], `${label} box "y"`),
@@ -137,6 +138,20 @@ export function rawMapEntries(value: unknown): RawMapEntry[] | null {
       actionability: enumValue(record["actionability"], MAP_ACTIONABILITIES, `${label} row ${String(index)} field "actionability"`),
     };
   });
+}
+
+// A cover's paint is premultiplied, so each channel is a fraction of the sRGB range rather than a whole byte.
+function coverStack(value: unknown, label: string): ContrastMeasured["cover"] {
+  if (value === null) {
+    return null;
+  }
+  const record = pageObject(value, label);
+  const paint = pageObject(record["paint"], `${label} "paint"`);
+  const channel = (key: "r" | "g" | "b"): number => pageNumberInRange(paint[key], `${label} paint "${key}"`, { min: 0, max: 255 });
+  return {
+    through: pageNumberInRange(record["through"], `${label} "through"`, { min: 0, max: 1 }),
+    paint: { r: channel("r"), g: channel("g"), b: channel("b") },
+  };
 }
 
 function nullableBoolean(value: unknown, label: string): boolean | null {

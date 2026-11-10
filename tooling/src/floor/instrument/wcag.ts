@@ -69,6 +69,13 @@ export interface InkDimming {
   readonly fill: Rgb;
 }
 
+/** Translucent covers painted over the glyph and its ring alike, folded into one step: a colour `x` beneath them is
+ *  seen as `through * x + paint`. `paint` is the covers' own premultiplied colour, so its channels may be fractional. */
+export interface CoverStack {
+  readonly through: number;
+  readonly paint: Rgb;
+}
+
 const SRGB_CHANNEL_MAX = 255;
 
 /**
@@ -77,13 +84,17 @@ const SRGB_CHANNEL_MAX = 255;
  * @remarks An outer group dims the fill and the ink toward the same surface beneath it, so the ring already carries
  * that dim, and compositing the ink over the ring again would count it twice. Solving both composites for that
  * surface leaves `ring + outer * inner * (ink - fill)`. With no outer dim the ring is the fill, and this is
- * {@link compositeForeground} over the ring.
+ * {@link compositeForeground} over the ring. A {@link CoverStack} over both is in the ring already; the ink takes it
+ * as `through * ink + paint` before the inner dim, and in the outer form `paint` cancels and `through` scales the shift.
  */
-export function inkOverRing(fg: Rgb, ring: Rgb, dimming: InkDimming): Rgb {
+export function inkOverRing(fg: Rgb, ring: Rgb, dimming: InkDimming, cover?: CoverStack): Rgb {
+  const through = cover?.through ?? 1;
   if (dimming.outer >= FOREGROUND_OPACITY_EPS) {
-    return compositeForeground(fg, ring, dimming.inner);
+    const covered = (f: number, p: number): number => through * f + p;
+    const paint = cover?.paint ?? { r: 0, g: 0, b: 0 };
+    return compositeForeground({ r: covered(fg.r, paint.r), g: covered(fg.g, paint.g), b: covered(fg.b, paint.b) }, ring, dimming.inner);
   }
-  const shift = dimming.outer * dimming.inner;
+  const shift = through * dimming.outer * dimming.inner;
   const seen = (f: number, fill: number, r: number): number => Math.min(SRGB_CHANNEL_MAX, Math.max(0, Math.round(r + shift * (f - fill))));
   return { r: seen(fg.r, dimming.fill.r, ring.r), g: seen(fg.g, dimming.fill.g, ring.g), b: seen(fg.b, dimming.fill.b, ring.b) };
 }

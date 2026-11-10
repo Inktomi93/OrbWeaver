@@ -391,34 +391,60 @@ export const WALKER_RESOLVE = `
     var cls = typeof n.className === "string" && n.className ? "." + n.className.trim().split(/\\s+/).slice(0, 2).join(".") : "";
     return n.tagName.toLowerCase() + (n.id ? "#" + n.id : "") + (slot ? "[data-slot=" + slot + "]" : "") + cls;
   }
-  // A COVER HIDES THE GLYPHS ONLY WHERE IT PAINTS OPAQUE. A scrim, a dialog's viewport or a stretched card link sits
-  // over the text and composites with it; the pixels then hold that composite, which is what the eye reads. A url()
-  // image or a replaced element may be transparent anywhere, so it never counts as opaque here.
-  function paintsOpaque(n) {
+  // WHAT A COVER PAINTS OVER THE GLYPHS. An opaque cover hides them. A flat translucent colour composites over the ink
+  // and its ring alike, so the ink must take the same composite before it is judged. Anything else (an image, a
+  // translucent gradient, a filter or a blend) paints a colour the walk cannot read. A cover that paints nothing here,
+  // such as a stretched link or a dialog's viewport, is null.
+  var COVER_OPAQUE = "opaque";
+  var COVER_UNREADABLE = "unreadable";
+  function coverPaint(n, el) {
     var s = getComputedStyle(n);
-    if (s.visibility === "hidden" || accumulatedOpacity(n) < OPAQUE_MIN_ALPHA) return false;
-    var bg = parseRgb(s.backgroundColor);
-    if (bg !== null && bg.a >= OPAQUE_MIN_ALPHA) return true;
+    if (s.visibility === "hidden") return null;
+    var alpha = accumulatedOpacity(n);
+    if (alpha <= 0) return null;
+    if (n.closest("svg") !== null || n.matches(REPLACED_ART_SELECTOR)) return COVER_UNREADABLE;
+    for (var cp = n; cp !== null && !cp.contains(el); cp = cp.parentElement) {
+      var cs = getComputedStyle(cp);
+      if (cs.filter !== "none" || (cs.backdropFilter || "none") !== "none" || cs.mixBlendMode !== "normal") return COVER_UNREADABLE;
+    }
     var image = s.backgroundImage;
-    if (!image || image.indexOf("gradient") === -1 || image.indexOf("url(") !== -1) return false;
-    var stops = parseGradientStops(image);
-    return stops.length > 0 && stops.every(function (stop) { return stop.a >= OPAQUE_MIN_ALPHA; });
+    if (image && image !== "none") {
+      var stops = image.indexOf("gradient") !== -1 && image.indexOf("url(") === -1 ? parseGradientStops(image) : [];
+      var solid = stops.length > 0 && stops.every(function (stop) { return stop.a >= OPAQUE_MIN_ALPHA; });
+      return solid && alpha >= OPAQUE_MIN_ALPHA ? COVER_OPAQUE : COVER_UNREADABLE;
+    }
+    var bg = parseRgb(s.backgroundColor);
+    var seen = bg === null ? 0 : bg.a * alpha;
+    if (seen <= 0) return null;
+    if (seen >= OPAQUE_MIN_ALPHA) return COVER_OPAQUE;
+    return { el: n, color: bg, alpha: seen };
   }
-  // The topmost element painted above el and opaque at the point, or null. The hit stack runs top-down, so it ends at
-  // el's own box; elements past el's paint layer are kept out by the stacking order, which hit testing alone cannot
-  // give when the point misses el's glyph fragments or el is pointer-events:none.
-  function opaqueCoverAt(el, x, y) {
+  // The covers the browser paints over el at one point, top-down. The hit stack ends at el's own box; elements past
+  // el's paint layer are kept out by the stacking order, which hit testing alone cannot give when the point misses
+  // el's glyph fragments or el is pointer-events:none.
+  function coversAt(el, x, y) {
     var stack = document.elementsFromPoint(x, y);
+    var translucent = [];
     for (var si = 0; si < stack.length; si += 1) {
       var n = stack[si];
-      if (n === el || n.contains(el)) return null;
-      if (!el.contains(n) && paintsAboveSubject(n, el) && paintsOpaque(n)) return n;
+      if (n === el || n.contains(el)) break;
+      if (el.contains(n) || !paintsAboveSubject(n, el)) continue;
+      var paint = coverPaint(n, el);
+      if (paint === COVER_OPAQUE) return { opaque: n };
+      if (paint === COVER_UNREADABLE) return { unreadable: n };
+      if (paint !== null) translucent.push(paint);
     }
-    return null;
+    return { translucent: translucent };
   }
-  // WHO OWNS THE PIXELS ACROSS THE TEXT'S SHOWN BOX. Sampling a box that fixed chrome paints over measures the chrome,
-  // so a text an opaque cover hides at every probe is \`covered\`; one hidden at some probes is \`partly\` covered, and
-  // its ring would mix the cover with the backdrop. Only the shown box inside the viewport is probed.
+  function sameCovers(a, b) {
+    return a.length === b.length && a.every(function (cover, ci) { return cover.el === b[ci].el; });
+  }
+  // WHO OWNS THE PIXELS ACROSS THE TEXT'S SHOWN BOX, probed on a grid inside the viewport.
+  // - An opaque cover at every probe: \`whole\`, the text is not painted in this frame.
+  // - An opaque cover at some probes, or translucent covers that differ between probes: \`partly\`, a ring there mixes
+  //   two composites.
+  // - A cover whose paint cannot be read: \`unreadable\`.
+  // - The same translucent covers at every probe: \`through\` and \`paint\`, the one composite they apply.
   var COVER_PROBES_PER_AXIS = 3;
   function coverOf(el, shown) {
     var left = Math.max(0, shown.left);
@@ -426,20 +452,43 @@ export const WALKER_RESOLVE = `
     var top = Math.max(0, shown.top);
     var bottom = Math.min(window.innerHeight, shown.bottom);
     if (left >= right || top >= bottom) return null;
-    var first = null;
+    var opaque = null;
     var hidden = 0;
+    var unreadable = null;
+    var covers = null;
+    var mixed = null;
     for (var cx = 0; cx < COVER_PROBES_PER_AXIS; cx += 1) {
       for (var cy = 0; cy < COVER_PROBES_PER_AXIS; cy += 1) {
-        var x = left + ((cx + 0.5) * (right - left)) / COVER_PROBES_PER_AXIS;
-        var y = top + ((cy + 0.5) * (bottom - top)) / COVER_PROBES_PER_AXIS;
-        var cover = opaqueCoverAt(el, x, y);
-        if (cover === null) continue;
-        hidden += 1;
-        if (first === null) first = cover;
+        var at = coversAt(el, left + ((cx + 0.5) * (right - left)) / COVER_PROBES_PER_AXIS, top + ((cy + 0.5) * (bottom - top)) / COVER_PROBES_PER_AXIS);
+        if (at.opaque) {
+          hidden += 1;
+          if (opaque === null) opaque = at.opaque;
+        } else if (at.unreadable) {
+          if (unreadable === null) unreadable = at.unreadable;
+        } else if (covers === null) {
+          covers = at.translucent;
+        } else if (mixed === null && !sameCovers(covers, at.translucent)) {
+          mixed = (at.translucent[0] || covers[0]).el;
+        }
       }
     }
-    if (first === null) return null;
-    return { by: describeNode(first), whole: hidden === COVER_PROBES_PER_AXIS * COVER_PROBES_PER_AXIS };
+    if (opaque !== null) return { by: describeNode(opaque), whole: hidden === COVER_PROBES_PER_AXIS * COVER_PROBES_PER_AXIS };
+    if (unreadable !== null) return { by: describeNode(unreadable), unreadable: true };
+    if (mixed !== null) return { by: describeNode(mixed), whole: false };
+    if (covers === null || covers.length === 0) return null;
+    // Fold bottom-up: each cover maps the colour beneath it to alpha * colour + (1 - alpha) * beneath.
+    var through = 1;
+    var paint = { r: 0, g: 0, b: 0 };
+    for (var fi = covers.length - 1; fi >= 0; fi -= 1) {
+      var c = covers[fi];
+      through *= 1 - c.alpha;
+      paint = {
+        r: c.alpha * c.color.r + (1 - c.alpha) * paint.r,
+        g: c.alpha * c.color.g + (1 - c.alpha) * paint.g,
+        b: c.alpha * c.color.b + (1 - c.alpha) * paint.b,
+      };
+    }
+    return { by: describeNode(covers[0].el), through: through, paint: paint };
   }
 
   function loadNaturalSize(url) {

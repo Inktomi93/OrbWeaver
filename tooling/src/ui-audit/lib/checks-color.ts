@@ -4,9 +4,9 @@
 import { AA_LARGE_RATIO, AA_NORMAL_RATIO, relativeLuminance, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { InactiveKind, Rgb } from "@orb/tooling/floor/instrument/wcag";
 import {
-  compositeForeground,
   FOREGROUND_OPACITY_EPS,
   INACTIVE_ADVISORY_MAX_RATIO,
+  inkOverRing,
   isContrastExempt,
   isLargeText,
   MEASURABLE_OPACITY_MIN,
@@ -54,6 +54,15 @@ function unresolvedOutcome(input: ContrastInput): ContrastOutcome {
   return { kind: input.unseenInFrame === undefined ? "unresolvedBackdrop" : "unseenInFrame" };
 }
 
+// A translucent cover sits in a pixel-sampled backdrop already, so the ink takes it too; one model for both
+// composites lives in `inkOverRing`.
+function seenInk(input: ContrastInput, over: Rgb, opacity: number): Rgb {
+  if (opacity >= FOREGROUND_OPACITY_EPS && input.cover === undefined) {
+    return input.color;
+  }
+  return inkOverRing(input.color, over, { inner: opacity, outer: 1, fill: over }, input.cover);
+}
+
 function contrastOutcome(input: ContrastInput): ContrastOutcome {
   // A MASKED FOREGROUND IS UNRESOLVED, NEVER FLAT (#1078, orb-ui audit F6). `mask-image`
   // (`.scroll-fade-x`/`.scroll-fade-y`) fades the PAINTED alpha toward transparent at a live scroll
@@ -85,7 +94,7 @@ function contrastOutcome(input: ContrastInput): ContrastOutcome {
   const dimmedMessage = dimmed
     ? ` — the glyphs are painted at ${opacity.toFixed(2)} opacity by an ancestor group, so what the eye reads is the composite, not the authored color`
     : "";
-  const seenColor = (over: Rgb): Rgb => (dimmed ? compositeForeground(input.color, over, opacity) : input.color);
+  const seenColor = (over: Rgb): Rgb => seenInk(input, over, opacity);
 
   // NO VERDICT (issue #218): the runner either pixel-samples this into a `flat` sample before we run, or
   // refuses it out loud in its own report. A ratio against `fallback` is exactly the fiction that put 28

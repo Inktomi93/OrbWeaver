@@ -15,6 +15,7 @@
 // finding for another.
 import { writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import { wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
 import { AUDIT_ARGV, configureRelationalCliBudget, findingSelectors, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
@@ -816,26 +817,84 @@ auditRuleTest(
   },
 );
 
-// A covering layer that is not opaque hides nothing: the shot holds the composite. A #999 caption on a #ddd wallpaper
-// is 2.10:1, so a cover that let it through unjudged would hide a real failure.
-const PALE_WALLPAPER = '<div style="position:fixed;inset:0;z-index:-1;background-image:linear-gradient(#dddddd, #dddddd)"></div>';
-const FAINT_CARD = (cover: string): string =>
-  `<div style="position:relative;width:320px;padding:24px"><p style="margin:0;color:#999999;font-size:14px">Faint caption over the wallpaper</p>${cover}</div>`;
-const TRANSLUCENT_COVERS = [
-  ["a 15% black scrim", "", '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.15)"></div>'],
-  ["a transparent stretched card link", '<a href="#x" aria-label="Open" style="position:absolute;inset:0"></a>', ""],
+// A translucent cover paints over the glyphs and the backdrop alike, so both are judged through it. Each expected
+// ratio is the hand composite `alpha * cover + (1 - alpha) * beneath`, per channel, of the ink and of the wallpaper.
+const wallpaperOf = (hex: string): string => `<div style="position:fixed;inset:0;z-index:-1;background-image:linear-gradient(${hex}, ${hex})"></div>`;
+const captionCard = (ink: string, cover: string): string =>
+  `<div style="position:relative;width:320px;padding:24px"><p style="margin:0;color:${ink};font-size:14px">Caption over the wallpaper</p>${cover}</div>`;
+const gray = (level: number): { r: number; g: number; b: number } => ({ r: level, g: level, b: level });
+const mix = (alpha: number, cover: number, beneath: number): number => Math.round(alpha * cover + (1 - alpha) * beneath);
+const SCRIM = (alpha: number): string => `<div style="position:fixed;inset:0;background:rgba(0,0,0,${String(alpha)})"></div>`;
+const PALE = 0xdd;
+const FAINT = 0x99;
+const LIGHT = 0xcc;
+const COVERED_CAPTIONS = [
+  // #ccc on black under a half-black modal scrim paints #666 on black: a failure the raw ink would pass.
+  ["a 50% black scrim over light ink", wallpaperOf("#000000"), captionCard("#cccccc", ""), SCRIM(0.5), wcagContrastRatio(gray(mix(0.5, 0, LIGHT)), gray(0))],
+  [
+    "a 15% black scrim",
+    wallpaperOf("#dddddd"),
+    captionCard("#999999", ""),
+    SCRIM(0.15),
+    wcagContrastRatio(gray(mix(0.15, 0, FAINT)), gray(mix(0.15, 0, PALE))),
+  ],
+  [
+    "a 0.9 white cover",
+    wallpaperOf("#dddddd"),
+    captionCard("#999999", '<div style="position:absolute;inset:0;background:rgba(255,255,255,0.9)"></div>'),
+    "",
+    wcagContrastRatio(gray(mix(0.9, 255, FAINT)), gray(mix(0.9, 255, PALE))),
+  ],
+  [
+    "an opaque white cover inside a 0.9 opacity group",
+    wallpaperOf("#dddddd"),
+    captionCard("#999999", '<div style="position:absolute;inset:0;opacity:0.9"><div style="position:absolute;inset:0;background:#ffffff"></div></div>'),
+    "",
+    wcagContrastRatio(gray(mix(0.9, 255, FAINT)), gray(mix(0.9, 255, PALE))),
+  ],
+  // A stretched card link paints nothing, so the caption keeps its own 2.10:1.
+  [
+    "a transparent stretched card link",
+    wallpaperOf("#dddddd"),
+    captionCard("#999999", '<a href="#x" aria-label="Open" style="position:absolute;inset:0"></a>'),
+    "",
+    wcagContrastRatio(gray(FAINT), gray(PALE)),
+  ],
+  ["no cover", wallpaperOf("#dddddd"), captionCard("#999999", ""), "", wcagContrastRatio(gray(FAINT), gray(PALE))],
 ] as const;
+const RATIO_TOLERANCE_DIGITS = 1;
 
-test.for(TRANSLUCENT_COVERS)("a caption under %s is judged from the composite, never excluded", async ([name, inCard, overPage], { runCli, scratch }) => {
-  const report = await auditFixture(
-    scratch,
-    runCli,
-    `faint-under-${name.replaceAll(" ", "-").replaceAll("%", "")}`,
-    `${PALE_WALLPAPER}${FAINT_CARD(inCard)}${overPage}`,
-  );
-  expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
-  expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 1, affected: 1, excluded: {} });
-});
+test.for(COVERED_CAPTIONS)(
+  "a caption under %s is judged at the ratio the glyph paints",
+  async ([name, wallpaper, card, overPage, expected], { runCli, scratch }) => {
+    const file = join(scratch, `covered-${name.replaceAll(/[^a-z0-9]+/gu, "-")}.html`);
+    await writeFile(file, relationalDocument(`${wallpaper}${card}${overPage}`));
+    const res = await runCli("snap", ["--file", file, ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+    const report = await readAuditReport(res.stdout);
+    expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 1, affected: 1, excluded: {} });
+    // The FINDING line leads its value with the ratio: `contrast: P1 2.02:1 (need 4.5:1)`.
+    const measured = Number(/contrast: P\d (\d+\.\d+):1/u.exec(res.stdout)?.[1]);
+    expect(measured).toBeCloseTo(expected, RATIO_TOLERANCE_DIGITS);
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "contrast",
+      kind: "silent",
+      reason: "a frosted cover's blur leaves the glyph's composite unknown, so the caption is withheld, never judged with raw ink",
+      disposition: { kind: "withheld", reason: "unresolvedBackdrop" },
+    },
+  ],
+  "a caption under a cover whose colour cannot be read is withheld",
+  async ({ runCli, scratch }) => {
+    const frosted = '<div style="position:fixed;inset:0;background:rgba(255,255,255,0.3);backdrop-filter:blur(4px)"></div>';
+    const report = await auditFixture(scratch, runCli, "caption-under-frost", `${wallpaperOf("#dddddd")}${captionCard("#999999", "")}${frosted}`);
+    expect(report.findings.filter(({ rule }) => rule === "contrast")).toEqual([]);
+    return report;
+  },
+);
 
 auditRuleTest(
   [

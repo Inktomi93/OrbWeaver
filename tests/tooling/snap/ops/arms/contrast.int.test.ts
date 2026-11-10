@@ -1,6 +1,7 @@
 // #953 instrument plant: the structured contrast door must distinguish one real framebuffer sample
 // from the same selector population painted over by an unrelated layer.
 
+import { wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { present } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
 import { chromium } from "@playwright/test";
@@ -40,6 +41,29 @@ test("structured contrast proves pixel sampling and refuses the same-count occlu
     expect(occluded).toHaveLength(1);
     expect(occluded[0]?.evidence).toMatchObject({ status: "refused", candidates: 1, inViewport: 1, sampled: 0, method: null, passed: null });
     expect(occluded[0]?.outcome.line).toContain("OCCLUDED");
+  } finally {
+    await browser.close();
+  }
+});
+
+// A half-black scrim paints over the ink and the sampled backdrop alike: #ccc on black is seen as #666 on black.
+test("a pixel-sampled text under a translucent scrim is judged through the scrim", { timeout: BROWSER_TIMEOUT_MS }, async () => {
+  const browser = await chromium.launch({ headless: true });
+  try {
+    const page = await browser.newPage({ viewport: VIEWPORT });
+    await page.setContent(`
+      <style>
+        body { margin: 0; background: #000; }
+        p { width: 220px; margin: 48px; color: #ccc; font-size: 14px; }
+        .scrim { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.5); }
+      </style>
+      <p>Light caption under a modal scrim</p><div class="scrim"></div>
+    `);
+    const seen = 0x66;
+    const expected = wcagContrastRatio({ r: seen, g: seen, b: seen }, { r: 0, g: 0, b: 0 });
+    const [scrimmed] = await captureContrastEvidence(page, ["p"], true, VIEWPORT);
+    expect(scrimmed?.evidence).toMatchObject({ status: "ok", method: "pixel-sample", passed: false });
+    expect(scrimmed?.evidence.ratio).toBeCloseTo(expected, 1);
   } finally {
     await browser.close();
   }

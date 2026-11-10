@@ -8,7 +8,7 @@ import { aggregateScope } from "../../../floor/artifacts/artifact-scope.ts";
 import type { ResultPair } from "../../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 import type { Viewport } from "../../../floor/instrument/argv.ts";
-import { compositeForeground, FOREGROUND_OPACITY_EPS, isLargeText } from "../../../floor/instrument/wcag.ts";
+import { FOREGROUND_OPACITY_EPS, inkOverRing, isLargeText } from "../../../floor/instrument/wcag.ts";
 import type { ArmArgs, ArmDef, ArmFactEmission, ArmFailureCounts, ArmNeeds, ArmPairInput } from "../../contract/arms.ts";
 import type { ContrastCapture, ContrastFacts, ContrastMeasured, ContrastOutcome } from "../../contract/contrast.ts";
 import { buildContrastScript } from "../../lib/contrast-script.ts";
@@ -172,9 +172,12 @@ async function measureInkContrast(
     };
   }
   // Ancestor opacity dims the foreground — composite it at the accumulated alpha over the resolved
-  // backdrop before measuring (a 40%-opacity actions row's icon reads ~11:1 raw, ~2.6:1 as seen).
+  // backdrop before measuring (a 40%-opacity actions row's icon reads ~11:1 raw, ~2.6:1 as seen). A pixel
+  // sample also holds any translucent cover over the subject, so the ink takes that composite too; a
+  // css-resolved backdrop holds neither.
   const dimmed = facts.foregroundOpacity < FOREGROUND_OPACITY_EPS;
-  const fg = dimmed ? compositeForeground(rawFg, backdrop.rgb, facts.foregroundOpacity) : rawFg;
+  const cover = backdrop.method === "pixel-sample" && facts.cover !== null ? facts.cover : undefined;
+  const fg = dimmed || cover !== undefined ? inkOverRing(rawFg, backdrop.rgb, { inner: facts.foregroundOpacity, outer: 1, fill: backdrop.rgb }, cover) : rawFg;
   const dimNote = dimmed ? ` · dimmed α${facts.foregroundOpacity.toFixed(2)}` : "";
   // (2) Role/content-aware threshold: NO rendered text ⇒ a UI-COMPONENT boundary (WCAG 1.4.11, 3:1);
   // text keeps 4.5:1 (3:1 where the size/weight qualifies it as large). An empty field's PLACEHOLDER is

@@ -15,7 +15,7 @@
 // scroller, or hidden at every probe by a cover that paints opaque, the text owns none of the pixels its box
 // reaches. The sample is marked `unseenInFrame` and the colour rules exclude it: a measured fact, so it neither
 // withholds the population nor files the "verify manually" art P1 for text nobody can see in this frame. A
-// translucent or transparent cover hides nothing: the shot holds the composite, and that is what is judged. A wallpapered room
+// translucent cover hides nothing: the shot holds its composite, and the checks give the ink the same one. A wallpapered room
 // has dozens of these (a transcript scrolled up, a tab strip's hidden cells, a page under a dialog) beside
 // in-view twins that are sampled here. A text unseen at every checkpoint is a walk coverage gap, not a verdict.
 //
@@ -140,6 +140,13 @@ export async function viewportPixels(page: Pick<Page, "screenshot">): Promise<(P
   }
 }
 
+function coverRefusal(text: ContrastInput): string | null {
+  if (text.partlyCoveredBy !== undefined) {
+    return `partly painted over by ${text.partlyCoveredBy}`;
+  }
+  return text.coverUnreadable === undefined ? null : `painted over by ${text.coverUnreadable}, whose colour cannot be read`;
+}
+
 /** Resolve ONE unresolved text sample against the viewport screenshot: the settled sample (a `flat` backdrop
  *  from pixel data, or the sample marked unseen), plus any refusal and whether a pixel sample was taken. */
 function settleOneSample(
@@ -148,15 +155,17 @@ function settleOneSample(
   refusals: BackdropRefusal[],
 ): { text: ContrastInput; sampled: boolean } | { readonly deferred: PixelBox } {
   // Sampling would measure another element's pixels: the opaque cover's, or whatever the scroller's neighbour
-  // paints where the clipped text's box still reaches. A partial cover would mix into the ring, so it is refused.
+  // paints where the clipped text's box still reaches. A partial cover would mix into the ring, and an unreadable
+  // one leaves the ink's composite unknown, so both are refused.
   if (text.occludedBy !== undefined && text.occludedBy !== null) {
     return unseen(text, `painted over by ${text.occludedBy}`);
   }
   if (text.clippedOut === true) {
     return unseen(text, CLIPPED_OUT);
   }
-  if (text.partlyCoveredBy !== undefined) {
-    refusals.push({ selector: text.selector, reason: `partly painted over by ${text.partlyCoveredBy}` });
+  const refusal = coverRefusal(text);
+  if (refusal !== null) {
+    refusals.push({ selector: text.selector, reason: refusal });
     return { text, sampled: false };
   }
   if (text.box === undefined) {

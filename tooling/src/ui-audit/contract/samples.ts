@@ -6,7 +6,7 @@
 // the 450-line `tooling-size` cap with zero headroom until #2487, where the cap had already been paid in
 // the wrong currency — `documentFrame` lost its doc comment to fit, a trade the
 // cap never accepts; the typography family moved out to contract/samples-typography.ts to make the room.
-import type { InactiveKind, Rgb } from "@orb/tooling/floor/instrument/wcag";
+import type { CoverStack, InactiveKind, Rgb } from "@orb/tooling/floor/instrument/wcag";
 // `Backdrop` MOVED to contract/backdrop.ts (see its header). Imported locally because the shapes below
 // USE it, and re-exported below so its consumers keep one import.
 import type { Backdrop, GlowShadowInput, RadialGlowInput } from "./backdrop.ts";
@@ -52,9 +52,15 @@ export interface ContrastInput {
    *  `unresolved` samples. Non-null means the frame does not paint the text, so a pixel sample would measure
    *  the cover. A translucent or transparent cover never counts: the pixels hold the composite. */
   readonly occludedBy?: string | null;
-  /** The opaque cover over some probes of the shown box but not all: the ring would mix the cover with the
-   *  backdrop, so the runner withholds the verdict. */
+  /** A cover over some probes of the shown box but not the rest (an opaque one, or translucent ones that differ):
+   *  the ring would mix two composites, so the runner withholds the verdict. */
   readonly partlyCoveredBy?: string;
+  /** A cover painted over the text whose colour the walk cannot read (an image, a filter, a blend): the ink's
+   *  composite is unknown, so the runner withholds the verdict. */
+  readonly coverUnreadable?: string;
+  /** The translucent covers painted over the whole shown box. The pixel ring already holds them, so the ink takes
+   *  the same composite before it is judged (`inkOverRing` in `floor/instrument/wcag.ts`). */
+  readonly cover?: CoverStack;
   /** How `backdrop` was arrived at. Absent/`css-resolve` = an authored background the walker resolved;
    *  `pixel-sample` = the runner read the real composited pixels because the walk was `unresolved`. The
    *  distinction is load-bearing for the rules that are about an authored COLOR rather than about
