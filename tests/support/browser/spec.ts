@@ -17,7 +17,7 @@ export { formatFormIdentityFindings } from "./form-identity.ts";
 export { emulateMedia, releaseEmulatedMedia } from "./media-emulation.ts";
 export { landedMutedContrast, paintedArt } from "./over-art-contrast.ts";
 export { diagnosticTarget } from "./performance-entry.ts";
-export { pixelContrast, pixelMarkContrast, pixelSurface } from "./pixel-contrast.ts";
+export { pixelContrast, pixelFilledTextContrast, pixelMarkContrast, pixelSurface } from "./pixel-contrast.ts";
 export type { PlatformTextSize } from "./platform-text-size.ts";
 export { PLATFORM_TEXT_SCALES, setPlatformTextSize } from "./platform-text-size.ts";
 export { beginReading, scrollIntoReadingMessage, tokenColor } from "./reading-position.ts";

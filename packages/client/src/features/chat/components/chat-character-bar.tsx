@@ -121,7 +121,14 @@ function CharacterBarStrip({
       role="group"
     >
       {(characters.length > 1 ? characters : []).map((member) => (
-        <Row key={member.key} gap="row" align="center" data-slot="character-chip" data-muted={member.disabled ? "" : undefined} receded={member.disabled}>
+        <Row
+          key={member.key}
+          gap="row"
+          align="center"
+          data-slot="character-chip"
+          data-muted={member.disabled ? "" : undefined}
+          receded={member.disabled ? "mutedSeat" : false}
+        >
           <Avatar size="sm" fallbackDelay={0} hueSeed={member.hueSeed} {...(member.avatarHash === null ? {} : { src: blobUrl(member.avatarHash) })}>
             {initialsFor(member.displayName)}
           </Avatar>
