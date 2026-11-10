@@ -92,7 +92,11 @@ function OverrideCollapseCard({ label, isSet, snippet, open, onOpenChange, clear
           <Row align="center" gap="field" justify="between" grow={true}>
             <Text voice="label">{label}</Text>
             {/* A text node between flex items paints nothing; it keeps the two words apart in the DOM text, which is how axe reads the visible label. */}{" "}
-            <Text voice="gloss">{overrideStateWord(isSet)}</Text>
+            {/* Half the trigger's own name, so it takes the `label` step, not the micro gloss: the state word
+                is legible at a glance on a row that is one tap target. It recedes from the field name by ink. */}
+            <Text ink="muted" voice="label">
+              {overrideStateWord(isSet)}
+            </Text>
           </Row>
         </CollapsibleTrigger>
         {isSet && !open ? (

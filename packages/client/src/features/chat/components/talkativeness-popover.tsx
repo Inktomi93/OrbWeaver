@@ -60,17 +60,17 @@ export function TalkativenessPopover({
             // the percent is a chance of, which the chip has no room to spell.
             aria-label={talkativenessAccessibleName(row.displayName, row.talkativeness)}
           >
-            {/* Labeled value — a bare number fails the cold read:
-                the "Talks" label names WHAT the number is; the level stays mono for column alignment.
+            {/* Labeled value — a bare number fails the cold read: the "Talks" label names WHAT the number is.
                 BOTH halves sit at the `label` step, not `micro`: this is INTERACTIVE text (the chip is the
-                popover's trigger), and `design-audit` reds interactive type under the 11px functional floor
-                — "being on the type ramp does not exempt it". `micro` is 10.5px. */}
+                popover's trigger), and the design audit's functional floor for interactive type is 11px —
+                "being on the type ramp does not launder legibility for a control" (`micro` is 10.5px).
+                The level keeps its column figures through `numeric`, the figures half of the `datum` voice. */}
             <Text ink="inherit" as="span" voice="label">
               Talks
             </Text>
             {/* A text node between the two flex items paints nothing; it keeps "Talks" and the level apart in the DOM text axe
                 compares with the name ("talks50%" is not "talks 50%"). */}{" "}
-            <Text ink="inherit" as="span" voice="datum">
+            <Text ink="inherit" as="span" voice="label" numeric={true}>
               {talkativenessPercent(weight)}
             </Text>
           </Button>

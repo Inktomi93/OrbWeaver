@@ -359,6 +359,11 @@ function TemplateListRow({
             // tells the rows apart would be the cell being hidden. `subtitleWrap` is the house arm for a subtitle that is a SENTENCE:
             // clamp to two lines, raised leading. Titles fit — the name column is untouched.
             subtitleWrap={true}
+            // The fires line is a sentence inside a clickable row, so it takes the readable label step, not
+            // the instrument tier's micro gloss ("Functional prose inside a row action owes the readable
+            // label floor", packages/ui/src/styles/tiers.css) — the lever `chat-summary-row.tsx` and
+            // `character-card.tsx` already set on their row anatomy.
+            subtitleStep="label"
             title={def.label}
             {...(kindQualifier === undefined ? {} : { titleQualifier: kindQualifier })}
           />

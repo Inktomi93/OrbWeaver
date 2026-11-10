@@ -100,10 +100,11 @@
     font-size: var(--orb-tier-row-gloss-size);
   }
 
-  /* Functional prose inside a row action owes the readable label floor; this opt-in outranks the instrument gloss. */
+  /* Functional prose inside a row action owes the readable label floor; this opt-in outranks the instrument gloss.
+   * Size only, for the same reason the tier rule above is: the `subtitleWrap` arm's relaxed leading is a variant
+   * utility, and a line-height spelled here (a later layer) would silently beat it on a two-line clamped sentence. */
   [data-slot="list-row-subtitle"][data-subtitle-step="label"] {
     font-size: var(--text-label);
-    line-height: var(--leading-label);
   }
 
   /* A search field or picker inside a list pane is not the datum: one step down at instrument, untouched at form. */
