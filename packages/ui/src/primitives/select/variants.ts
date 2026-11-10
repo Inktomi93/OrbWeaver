@@ -87,7 +87,11 @@ export const selectVariants = tv({
       // the trigger grows from its size step instead of cutting the value with an ellipsis. Only a word wider than the room breaks.
       // The step is a floor (the `LABEL_BOX` shape) with no block inset: the field's line is taller than the label's, so even the tight
       // inset would lift a one-line value past the step and out of level with its row. The line height gives a wrapped value its air.
-      hugWrap: { trigger: [FIELD_CONTROL, "py-0 block-fit inline-auto"], value: "wrap-break-word whitespace-normal" },
+      // Its padding and the gap to the chevron are held by the picker tokens, so enlarged text on a phone grows the value and not the chrome.
+      hugWrap: {
+        trigger: [FIELD_CONTROL, "gap-(--spacing-picker-gap) px-(--spacing-picker-inset) py-0 block-fit inline-auto"],
+        value: "wrap-break-word whitespace-normal",
+      },
       // Text-height at every pointer; the touch floor is the layout-neutral hit area `InlineAction` carries.
       inline: {
         trigger: [

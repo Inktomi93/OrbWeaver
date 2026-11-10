@@ -1,8 +1,8 @@
 // Model roles reads as one short row per role: the explanation sits behind an info control a keyboard reaches, the picker sizes to its
-// value, and the Utility preset belongs to the Utility role's group. The rows hold at 200% text.
+// value, and the Utility preset belongs to the Utility role's group. The rows hold at 200% text, and a picker on a phone at 300% keeps its value the growth.
 
 import { ROLE_ROWS_ORDERED } from "@orb/client/lib";
-import { enlargedTextFindings as findings, resolvedLength, setRootFontScale } from "@orb/testkit/browser/spec";
+import { enlargedTextFindings as findings, resolvedLength, LAYOUT_SUBPIXEL_PX as SUBPIXEL, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName, createShellAmbientReads, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
@@ -16,6 +16,7 @@ const STORY = "tests/client/features/credentials/components/_model-roles-stories
 const HINT = '[data-slot="hint-trigger"]';
 const HINT_POPUP = '[data-slot="hint-popup"]';
 const TEXT_200 = 2;
+const TEXT_300 = 3;
 // A picker narrower than this share of its role's group is sized to its value, not stretched across the row.
 const HUG_SHARE = 0.75;
 
@@ -166,6 +167,9 @@ for (const device of [
       expect(heights.length).toBeGreaterThan(ROLE_ROWS_ORDERED.length);
       // A value on one line keeps the step, level with the controls of its row; none is shorter than the step.
       expect(Math.min(...heights)).toBe(step);
+      // At the default text size the gap to the chevron is the row step on a phone too, never a share of the screen under it.
+      const rowStep = await resolvedLength(page, `var(${TOKENS["spacing.row"].cssVar})`, pickers.first());
+      expect(await pickers.first().evaluate((node) => Number.parseFloat(getComputedStyle(node).columnGap))).toBe(rowStep);
       // A fine pointer has room for every value, so no picker grows; a phone wraps the values that do not fit and cuts none.
       expect(heights.filter((height) => height !== step).length === 0).toBe(!device.coarse);
       await expect.poll(() => findings(page.locator("body"))).toEqual([]);
@@ -201,6 +205,42 @@ test.describe("desktop width", () => {
     }
     expect(picker.y).toBeLessThan(hint.y + hint.height);
     expect(picker.width).toBeLessThan(group.width * HUG_SHARE);
+  });
+});
+
+test.describe("phone at 300% layout", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 390, height: 844 } });
+
+  test("every role's picker takes a line of its own at the slot's width, and its chrome is the tokens' width", async ({ corpus, mount, page }) => {
+    await using root = await createCorpusHarness();
+    await serveRoles(page, corpus, root);
+    await mount<typeof ModelRolesStory>(STORY, {});
+    await setRootFontScale(page, channelName("fontScale"), TEXT_300);
+    await expect(page.getByRole("group", { name: roleOf("summarize").heading, exact: true })).toBeVisible();
+    await expect.poll(() => findings(page.locator("body"))).toEqual([]);
+    const first = page.getByRole("combobox").first();
+    const lengthOf = (name: "spacing.indent" | "spacing.picker-inset" | "spacing.picker-gap" | "border-width.control"): Promise<number> =>
+      resolvedLength(page, `var(${TOKENS[name].cssVar})`, first);
+    const [indent, inset, gap, edge] = await Promise.all([
+      lengthOf("spacing.indent"),
+      lengthOf("spacing.picker-inset"),
+      lengthOf("spacing.picker-gap"),
+      lengthOf("border-width.control"),
+    ]);
+    // The line count is not asserted: a value at 300% text wraps by the room a phone leaves it, so the bound is the room, not a count of lines.
+    for (const row of ROLE_ROWS_ORDERED) {
+      const group = page.getByRole("group", { name: row.heading, exact: true });
+      const picker = group.getByRole("combobox", { name: `${row.label} connection`, exact: true });
+      const [groupBox, pickerBox, valueBox, iconBox] = await Promise.all([
+        boxOf(group),
+        boxOf(picker),
+        boxOf(picker.locator('[data-slot="select-value"]')),
+        boxOf(picker.locator('[data-slot="select-icon"]')),
+      ]);
+      expect(pickerBox.x - groupBox.x).toBeLessThanOrEqual(indent + SUBPIXEL);
+      expect(groupBox.x + groupBox.width - (pickerBox.x + pickerBox.width)).toBeLessThanOrEqual(SUBPIXEL);
+      expect(Math.abs(pickerBox.width - valueBox.width - (2 * (inset + edge) + gap + iconBox.width))).toBeLessThanOrEqual(SUBPIXEL);
+    }
   });
 });
 

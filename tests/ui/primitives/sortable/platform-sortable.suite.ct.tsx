@@ -106,3 +106,19 @@ test("a list narrower than the step puts the grip above its row and gives the ro
   expect(content.y).toBeGreaterThanOrEqual(grip.y + grip.height);
   expect(Math.round(content.width)).toBe(Math.round(item.width));
 });
+
+test("a stacked grip and its row read as one pair: the gap inside it is under half the gap above it", async ({ mount, page }) => {
+  await mount<typeof ReorderableTracksStory>(STORY, { disabled: false, width: `calc(${STEP} - 4rem)` });
+  const rows = page.getByRole("listitem");
+  const [above, grip, content] = await Promise.all([
+    rows.first().boundingBox(),
+    rows.nth(1).locator('[data-slot="sortable-handle"]').boundingBox(),
+    rows.nth(1).locator('[data-slot="sortable-content"]').boundingBox(),
+  ]);
+  if (above === null || grip === null || content === null) {
+    throw new Error("The first two rows must paint");
+  }
+  // One pair: the gap inside it is under half the gap above it.
+  expect(2 * (content.y - (grip.y + grip.height))).toBeLessThan(grip.y - (above.y + above.height));
+  expect(grip.x).toBe(content.x);
+});

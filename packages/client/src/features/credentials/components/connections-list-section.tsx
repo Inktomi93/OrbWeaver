@@ -174,7 +174,7 @@ function ConnectionsBody({ anchorId }: { readonly anchorId: string }): ReactElem
         </Text>
         {/* ONE "Add connection" PER VIEWPORT: the empty state owns the verb while the list is empty. */}
         {connections.length === 0 ? null : (
-          <Button ref={addConnectionFocus} id={ADD_CONNECTION_CONTROL_ID} size="sm" onClick={(): void => setAddOpen(true)}>
+          <Button ref={addConnectionFocus} id={ADD_CONNECTION_CONTROL_ID} size="sm" wrap={true} onClick={(): void => setAddOpen(true)}>
             <Icon icon={Plus} size="sm" />
             {ADD_CONNECTION_NAME}
           </Button>
@@ -187,7 +187,7 @@ function ConnectionsBody({ anchorId }: { readonly anchorId: string }): ReactElem
           title="No connections yet"
           description="Add a provider key or your own server so your roles can reach a model."
           action={
-            <Button ref={addConnectionFocus} id={ADD_CONNECTION_CONTROL_ID} size="sm" onClick={(): void => setAddOpen(true)}>
+            <Button ref={addConnectionFocus} id={ADD_CONNECTION_CONTROL_ID} size="sm" wrap={true} onClick={(): void => setAddOpen(true)}>
               <Icon icon={Plus} size="sm" />
               {ADD_CONNECTION_NAME}
             </Button>
@@ -325,7 +325,7 @@ function ConnectionRow({
         stackActions={true}
         actions={
           <>
-            <Row gap="field" align="center">
+            <Row gap="field" align="center" wrap={true}>
               <Switch
                 aria-label={switchName}
                 aria-describedby={providerUnavailable ? unavailableId : undefined}
@@ -333,7 +333,7 @@ function ConnectionRow({
                 disabled={providerUnavailable || update.isPending}
                 onCheckedChange={(checked): void => update.mutate({ connectionId: connection.id, patch: { allowBackground: checked } })}
               />
-              <Text voice="gloss" as="span">
+              <Text voice="gloss" as="span" wrap="word">
                 {switchLabel}
               </Text>
             </Row>
@@ -414,23 +414,23 @@ function ConnectionBadges({
   return (
     <Row gap="field" align="center" wrap={true}>
       {providerUnavailable ? (
-        <Badge id={unavailableId} tone="warning" size="sm">
+        <Badge id={unavailableId} tone="warning" size="sm" whitespace="normal">
           Provider unavailable
         </Badge>
       ) : null}
       {connection.tasks.length === 0 ? null : <Text voice="gloss">Can do:</Text>}
       {connectionRoleLabels(connection.tasks).map((label) => (
-        <Badge key={label} tone="primary" size="sm">
+        <Badge key={label} tone="primary" size="sm" whitespace="normal">
           {label}
         </Badge>
       ))}
       {connection.modelCheck === "unlisted" ? (
-        <Badge tone="warning" size="sm">
+        <Badge tone="warning" size="sm" whitespace="normal">
           Model not in list
         </Badge>
       ) : null}
       {connection.allowBackground ? null : (
-        <Badge tone="warning" size="sm">
+        <Badge tone="warning" size="sm" whitespace="normal">
           Background work off
         </Badge>
       )}

@@ -5,6 +5,7 @@
 
 import type { ReactElement, ReactNode } from "react";
 import { Tooltip, TooltipPopup, TooltipTrigger } from "#primitives/tooltip";
+import { TitleQualifier } from "./title-qualifier.tsx";
 import type { listRowVariants } from "./variants.ts";
 
 export type Slots = ReturnType<typeof listRowVariants>;
@@ -76,14 +77,11 @@ function ListRowTitleLine({
         </Tooltip>
       )}
       {/* THE DISAMBIGUATOR, RENDERED (#517). `aria-hidden` on a clickable row exactly like the title beside
-          it: both are the body's `aria-label`, and repeating either as content would double the name. The
-          separator AND its leading space live inside this span so the line's text is `"<title> ·
-          <qualifier>"` — character-for-character the accessible name (adjacent inline nodes concatenate
-          with NO separator, the same reason `subtitleLead` carries its own space). */}
+          it: both are the body's `aria-label`, and repeating either as content would double the name. The dot
+          is its own span, so the line's text is `"<title> · <qualifier>"` — character-for-character the
+          accessible name — and a qualifier that wraps to a line of its own starts on its first word. */}
       {titleQualifier === undefined ? null : (
-        <span aria-hidden={clickable ? true : undefined} className={slots.titleQualifier()} data-slot="list-row-title-qualifier">
-          {` · ${titleQualifier}`}
-        </span>
+        <TitleQualifier clickable={clickable} qualifier={titleQualifier} qualifierClass={slots.titleQualifier()} separatorClass={slots.titleSeparator()} />
       )}
       {/* INLINE: the scent rides the title line, taking the flexing column so the NAME keeps its floor. */}
       {inlineSubtitle}

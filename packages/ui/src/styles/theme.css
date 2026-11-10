@@ -373,6 +373,7 @@
   --reading-measure-code: calc(75 * 0.6 * var(--text-code-field));
   --tracking-micro: 0.08em;
   --dimension-composer-field-min: 12ch;
+  --spacing-indent: round(down, min(var(--spacing-block), 4dvw), 1px);
   --dimension-shell-title-floor: 6ch;
   --dimension-shell-notice-cap: min(14rem, 30dvh);
   --shadow-shell-over-art: 0 1px 3px light-dark(transparent, var(--color-backdrop));
@@ -467,6 +468,9 @@
     --height-picker-door-row: calc(var(--size-control-sm) + 2 * var(--spacing-block));
     --height-dialog-gutter: min(var(--spacing-gutter), 5dvh);
     --width-dialog-gutter: round(down, min(var(--spacing-gutter), 5dvw), 1px);
+    --spacing-picker-inset: round(down, min(var(--spacing-block), 4dvw), 1px);
+    --spacing-picker-gap: round(down, min(var(--spacing-row), max(2dvw, 8px)), 1px);
+    --spacing-title-separator: calc(var(--spacing-row) - var(--spacing-field));
     --dimension-shell-topbar-block: calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-16) + var(--dimension-device-pixel) - 100dvw) * 1000), var(--dimension-chrome-row) / 2));
     --dimension-shell-topbar-block-primary: calc(var(--dimension-chrome-row) + clamp(0px, calc((var(--container-cq-20) - 100dvw) * 1000), var(--dimension-chrome-row) / 2));
     --immersive-whisper-banner-inline-cap: calc(var(--immersive-whisper-banner-cap) * var(--aspect-banner));
@@ -944,6 +948,10 @@
     --height-picker-footer: calc(var(--size-control-sm) + 2 * var(--spacing-row) + var(--border-width-default));
     --height-picker-list-footed: calc(var(--height-picker-window) - var(--height-picker-footer));
     --height-picker-door-row: calc(var(--size-control-sm) + 2 * var(--spacing-block));
+    --spacing-picker-inset: round(down, min(var(--spacing-block), 4dvw), 1px);
+    --spacing-picker-gap: round(down, min(var(--spacing-row), max(2dvw, 8px)), 1px);
+    --spacing-title-separator: calc(var(--spacing-row) - var(--spacing-field));
+    --spacing-indent: round(down, min(var(--spacing-block), 4dvw), 1px);
     --size-control-clearance: calc(var(--size-control-sm) + var(--spacing-row));
     --size-room-island-inset-narrow: calc(var(--spacing-field) - var(--spacing-tight));
     --size-combobox-chip-sm: calc(var(--size-control-sm) - 2 * var(--border-width-control) - 2 * var(--spacing-field));
