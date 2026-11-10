@@ -89,10 +89,11 @@
 //                             withheld(chAdvanceUnmeasured, glyphAdvanceUnmeasured, #464)
 //   tight-leading             excluded(heading, normalKeywordLeading, noTypeSize)
 //   justified-text            excluded(noOwnText)
-//   all-caps-body             excluded(heading)
+//   all-caps-body             excluded(heading, capsVoiceRecipe)
 //   wide-tracking             excluded(capsVoice — the ratified micro-caps voice, #148 — and noTypeSize)
 //   crushed-tracking          excluded(noTypeSize)
-//   caveat-outweighed         excluded(srOnly, codeContext, noAuthoredCaveatClaim, notSentenceShaped)
+//   caveat-outweighed         excluded(srOnly, codeContext, noAuthoredCaveatClaim, alertRegionContent,
+//                             notSentenceShaped)
 //
 // RUNG 3 · cappedRelationalFindings — a walker relational census plus a representative cap:
 //   cohort-anatomy · row-void · pane-ink
@@ -112,7 +113,8 @@
 //                                    census with the check's dispositions; its samples are gathered
 //                                    outside COLLECT_SAMPLES_JS, so an absent pass publishes NO row
 //   off-theme-font                   fontCensusPopulations (checks-font-census.ts) — the population is the
-//                                    PAGE's censused font faces, not per-element samples
+//                                    PAGE's censused font faces, not per-element samples ·
+//                                    excluded(declaredFacePreview) · withheld(faceProbeUnusable)
 //   buried-raster                    checkBuriedRasterPopulations (checks-media.ts) — walker-gathered raster
 //                                    carriers with no upstream relational census to join
 //   contrast · text-over-art ·       colorTextPopulations (checks-color.ts) — FOUR rules partition ONE text

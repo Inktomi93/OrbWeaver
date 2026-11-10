@@ -267,6 +267,21 @@ auditRuleTest(
 );
 
 auditRuleTest(
+  [{ rule: "nested-card", kind: "fires", reason: "a card that holds a picker somewhere inside it is still a card; only the picker's own panel is excused" }],
+  "a card holding a picker deeper inside it is still a nested card",
+  async ({ runCli, scratch }) => {
+    const picker = `<div><input role="combobox" aria-label="Font" aria-expanded="true" aria-controls="face-list">${PICKER_LIST}</div>`;
+    const { stdout } = await decorFixture(
+      scratch,
+      runCli,
+      "nested-card-holds-picker",
+      `<div style="${OUTER}"><div id="inner-card" style="${CARD};width:300px"><h3>Body font</h3><p>${INNER_BODY}</p>${picker}</div></div>`,
+    );
+    expect(findingSelectors(stdout, "nested-card")).toEqual(["#inner-card"]);
+  },
+);
+
+auditRuleTest(
   [
     {
       rule: "nested-card",

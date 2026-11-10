@@ -10,6 +10,7 @@
 // this file is about LAYERING, and the OKLCH colour reading has its own pins in index.test.ts.
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
+import type { RelationalPopulationReport } from "@orb/testkit/node";
 import {
   AUDIT_ARGV,
   auditReport,
@@ -19,6 +20,7 @@ import {
   readAuditReport,
   relationalDocument,
 } from "@orb/testkit/node";
+import type { ToolFixtures } from "@orb/testkit/tooling";
 import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
@@ -69,15 +71,27 @@ test("the glow census sweeps pseudo layers, exempting the house discipline and j
   expect(glowSelectors, "SANCTIONED_GLOW_SEL keeps exempting the owner effect carriers").not.toContain("#sanctioned-cell");
 });
 
-// A primary CTA the pointer rests on paints its hover glow during the rest walk. The rest census matches the
-// element's shadow against the resolved `--shadow-cta-glow` token, as the forced-state census does; a halo that
-// differs from the token by one layer still fires.
+// A primary CTA the pointer rests on paints its hover glow during the rest walk. The rest census matches a
+// hovered element's shadow against the resolved `--shadow-cta-glow` token, as the forced-state census does. A
+// halo that differs from the token by one layer still fires, and so does the token painted at rest without hover.
 const CTA_FIXTURE = `<style>
 :root { --shadow-cta-glow: inset 0 1px 0 rgba(255, 255, 255, 0.15), 0 0 0 1px rgba(240, 130, 60, 0.4), 0 0 18px rgba(240, 130, 60, 0.18); }
 .cta { width: 160px; height: 40px; margin: 12px; }
-#hovered-cta { box-shadow: var(--shadow-cta-glow); }
-#near-cta { box-shadow: var(--shadow-cta-glow), 0 0 24px rgba(240, 130, 60, 0.5); }
+#hovered-cta:hover { box-shadow: var(--shadow-cta-glow); }
+#near-cta:hover { box-shadow: var(--shadow-cta-glow), 0 0 24px rgba(240, 130, 60, 0.5); }
+#static-card { width: 240px; height: 80px; margin: 12px; box-shadow: var(--shadow-cta-glow); }
 </style>`;
+
+async function ctaRun(
+  runCli: ToolFixtures["runCli"],
+  scratch: string,
+  name: string,
+  page: { readonly body: string; readonly hover: readonly string[] },
+): Promise<{ readonly stdout: string; readonly report: RelationalPopulationReport }> {
+  await writeFile(join(scratch, `${name}.html`), relationalDocument(`${CTA_FIXTURE}${page.body}`));
+  const res = await runCli("snap", ["--file", join(scratch, `${name}.html`), ...page.hover, ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  return { stdout: res.stdout, report: await readAuditReport(res.stdout) };
+}
 
 auditRuleTest(
   [
@@ -90,9 +104,11 @@ auditRuleTest(
   ],
   "a hovered CTA's token glow is sanctioned in the rest glow census",
   async ({ runCli, scratch }) => {
-    await writeFile(join(scratch, "rest-cta-glow.html"), relationalDocument(`${CTA_FIXTURE}<button class="cta" id="hovered-cta">Start chat</button>`));
-    const res = await runCli("snap", ["--file", join(scratch, "rest-cta-glow.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
-    return await readAuditReport(res.stdout);
+    const { report } = await ctaRun(runCli, scratch, "rest-cta-glow", {
+      body: '<button class="cta" id="hovered-cta">Start chat</button>',
+      hover: ["--hover", "#hovered-cta"],
+    });
+    return report;
   },
 );
 
@@ -100,8 +116,19 @@ auditRuleTest(
   [{ rule: "glow-shadow", kind: "fires", reason: "a halo one layer past the token is a hand-spelled glow, not the ratified CTA treatment" }],
   "a near-miss of the CTA glow token still fires in the rest glow census",
   async ({ runCli, scratch }) => {
-    await writeFile(join(scratch, "rest-cta-near.html"), relationalDocument(`${CTA_FIXTURE}<button class="cta" id="near-cta">Start chat</button>`));
-    const res = await runCli("snap", ["--file", join(scratch, "rest-cta-near.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
-    expect(findingSelectors(res.stdout, "glow-shadow")).toEqual(["#near-cta"]);
+    const { stdout } = await ctaRun(runCli, scratch, "rest-cta-near", {
+      body: '<button class="cta" id="near-cta">Start chat</button>',
+      hover: ["--hover", "#near-cta"],
+    });
+    expect(findingSelectors(stdout, "glow-shadow")).toEqual(["#near-cta"]);
+  },
+);
+
+auditRuleTest(
+  [{ rule: "glow-shadow", kind: "fires", reason: "the token is ratified for hover only, so a card painting it at rest is a stray glow" }],
+  "the CTA glow token painted at rest without hover still fires",
+  async ({ runCli, scratch }) => {
+    const { stdout } = await ctaRun(runCli, scratch, "rest-cta-static", { body: '<div id="static-card">A card that glows at rest</div>', hover: [] });
+    expect(findingSelectors(stdout, "glow-shadow")).toEqual(["#static-card"]);
   },
 );

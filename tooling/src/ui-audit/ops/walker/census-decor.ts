@@ -77,14 +77,33 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
   }
   // AN EMBEDDED PICKER IS A RATIFIED PANEL. A box that holds a combobox together with the listbox that combobox
   // controls is a picker (the Command shape), and its frame is the ratified way to set it inside a popover,
-  // dialog or card. Read from the ARIA wiring the vendor publishes, never from a slot or class name.
+  // dialog or card. Read from the ARIA wiring the vendor publishes, never from a slot or class name. The box
+  // must be the combobox's NEAREST card-like ancestor: a card that merely holds a picker somewhere inside it
+  // is still a card, and an any-depth test would excuse every ancestor of every picker.
   function isEmbeddedPicker(el) {
     var comboboxes = el.querySelectorAll("[role=combobox][aria-controls]");
     for (var pk = 0; pk < comboboxes.length; pk += 1) {
       var controlled = document.getElementById(comboboxes[pk].getAttribute("aria-controls") || "");
-      if (controlled !== null && controlled.getAttribute("role") === "listbox" && el.contains(controlled)) return true;
+      if (controlled === null || controlled.getAttribute("role") !== "listbox" || !el.contains(controlled)) continue;
+      var nearestCard = comboboxes[pk].parentElement;
+      while (nearestCard !== null && nearestCard !== el && !isCardLike(nearestCard)) nearestCard = nearestCard.parentElement;
+      if (nearestCard === el && paintsOnlyThePicker(el, comboboxes[pk], controlled)) return true;
     }
     return false;
+  }
+  // The panel IS the picker only when it paints no copy of its own: every visible text run sits in the
+  // combobox, its listbox, or a live status line. A card with a heading or prose around a picker is a card.
+  function paintsOnlyThePicker(el, combobox, listbox) {
+    var copyWalker = document.createTreeWalker(el, NodeFilter.SHOW_TEXT);
+    var copyNode;
+    while ((copyNode = copyWalker.nextNode())) {
+      if (!copyNode.textContent || copyNode.textContent.trim() === "") continue;
+      var copyHost = copyNode.parentElement;
+      if (copyHost === null || combobox.contains(copyHost) || listbox.contains(copyHost)) continue;
+      if (copyHost.closest("[role=status],[aria-live]") !== null || isVisuallyHidden(copyHost)) continue;
+      return false;
+    }
+    return true;
   }
   // AN INTERACTIVE ISLAND IS NOT A NESTED CARD (2026-08-16 — 26/26 findings on home were this shape).
   // Chrome-diet CD1 SANCTIONS border+radius+bg on interactive islands and elevated surfaces
@@ -165,8 +184,9 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
     return false;
   }
   // THE OUTER HALF OF THE PAIR NEEDS A BOX, NOT AN EDGE (2026-08-23, issue #559). \`isCardLike\` accepts a
-  // SINGLE border side, because one side is enough to say "this thing draws an edge" for the INNER card —
-  // and it must stay that way there. But the same predicate was asked of the ANCESTOR too, so a shell pane
+  // SINGLE painted border side, because a rounded or shadowed box ruled on one side still draws an edge for
+  // the INNER card; a one-sided box with neither is a divider strip, which \`isDividerStrip\` excludes before
+  // the pair is formed. But the same predicate was asked of the ANCESTOR too, so a shell pane
   // — an \`<aside>\` whose whole box evidence is one divider border against its neighbour, radius 0, no
   // shadow — counted as the OUTER card, and every real card that happened to live inside any pane got a
   // "nesting" partner it never had visually. A divider LINE is not a container EDGE; nothing is nested

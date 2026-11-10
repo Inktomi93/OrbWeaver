@@ -94,12 +94,14 @@ export const WALKER_CENSUS_COLLISION = `  // ── truncated to NOTHING (#816) 
     var width = clip.clientWidth > 0 || cr.width <= 2 ? clip.clientWidth : cr.width;
     return { left: left, right: left + width };
   }
-  // An inline scroller between the label and its clip can scroll the label into view: its own overflow is
-  // auto or scroll, and its content is wider than its box.
+  // An inline scroller from the label up to and including its clip can scroll the label into view: its own
+  // overflow-x is auto or scroll, and its content is wider than its box. The clip itself counts, because a
+  // scroller with overflow-y hidden is its own nearest clipper.
   function scrollsInlineToward(el, clip) {
-    for (var sa = el.parentElement; sa !== null && sa !== clip; sa = sa.parentElement) {
+    for (var sa = el.parentElement; sa !== null; sa = sa.parentElement) {
       var saX = getComputedStyle(sa).overflowX;
       if ((saX === "auto" || saX === "scroll") && sa.scrollWidth > sa.clientWidth) return true;
+      if (sa === clip) break;
     }
     return false;
   }

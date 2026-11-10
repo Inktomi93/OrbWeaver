@@ -159,3 +159,25 @@ auditRuleTest(
     return report;
   },
 );
+
+auditRuleTest(
+  [
+    {
+      rule: "truncated-to-nothing",
+      kind: "silent",
+      reason: "a scroller with overflow-y hidden is the label's own clip, and scrolling it still reaches the count",
+      disposition: { kind: "excluded", reason: "scrolledOutOfView" },
+    },
+  ],
+  "a count past the window edge inside a scroller that is its own clip stays out of truncated-to-nothing",
+  async ({ runCli, scratch }) => {
+    const report = await collisionFixture(
+      scratch,
+      runCli,
+      "scroller-is-clip",
+      `<div style="width:600px;overflow-x:auto;overflow-y:hidden">${OVERWIDE_ROW}</div>`,
+    );
+    expect(report.populationAccounting?.["truncated-to-nothing"]).toMatchObject({ excluded: { scrolledOutOfView: 1 } });
+    return report;
+  },
+);

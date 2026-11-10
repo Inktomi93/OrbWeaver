@@ -99,7 +99,8 @@ export const WALKER_CENSUS_GLOW = `  // ── chromatic glow shadows incl. pseu
         sanctioned: !!((sgel.matches && sgel.matches(SANCTIONED_GLOW_SEL)) || (PSEUDOS[sgp] !== "" && isDedicatedGlowLayer(sgStyle))),
       };
       capPush("shadowGlows", shadowGlows, SHADOW_GLOW_CAP, sgRow);
-      if (PSEUDOS[sgp] === "" && !sgRow.sanctioned && sgRow.boxShadow !== "") restCtaGlowRows.push({ el: sgel, row: sgRow });
+      // The token is ratified as a hover treatment only, so a static use of it at rest still fires.
+      if (PSEUDOS[sgp] === "" && !sgRow.sanctioned && sgRow.boxShadow !== "" && sgel.matches(":hover")) restCtaGlowRows.push({ el: sgel, row: sgRow });
     }
   }
 
