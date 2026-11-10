@@ -297,6 +297,7 @@ export const STORY_TEST_IDS = {
   primaryProbe: "primary-probe",
   probeBarrier: "probe-barrier",
   promoteStoryIsDirty: "promote-story-is-dirty",
+  pseudoBackdrop: "pseudo-backdrop",
   pseudoCarriedIsolated: "pseudo-carried-isolated",
   pseudoInflow: "pseudo-inflow",
   pseudoPromoted: "pseudo-promoted",

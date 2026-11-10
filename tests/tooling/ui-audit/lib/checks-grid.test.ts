@@ -17,12 +17,16 @@ import { nonEmpty, present } from "@orb/testkit/iso";
 import type { PureAuditRuleProof } from "@orb/testkit/node";
 import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
-import type { OffGridTextInput, OffGridTransformInput, PromotedLayerOffsetInput } from "../../../../tooling/src/ui-audit/contract/samples-grid.ts";
+import type {
+  GridPromotionKind,
+  OffGridTextInput,
+  OffGridTransformInput,
+  PromotedLayerOffsetInput,
+} from "../../../../tooling/src/ui-audit/contract/samples-grid.ts";
 import { checkOffGridText, checkOffGridTransform, checkPromotedLayerOffset, GRID_EXEMPTIONS } from "../../../../tooling/src/ui-audit/lib/checks-grid.ts";
 
-/** The founding measurement: the config list panel's label voice, 0.125 CSS px off the grid under the
- *  panel's `backdrop-filter` — 22 of 25 text elements on that surface at mint, 7 horizontal residuals
- *  after Law 1 landed the integer line boxes. */
+/** A label-voice text inside a judged promotion. A `backdrop-filter` layer never reaches these checks: the
+ *  walker excludes it in the page (docs/law/integer-line-boxes.md §10). */
 function offGridText(over: Partial<OffGridTextInput> = {}): OffGridTextInput {
   const base: OffGridTextInput = {
     selector: "[data-slot=list-row-title]",
@@ -31,7 +35,7 @@ function offGridText(over: Partial<OffGridTextInput> = {}): OffGridTextInput {
     dpr: 1,
     topDeviceFrac: 0,
     leftDeviceFrac: 0,
-    promotion: "backdrop-filter",
+    promotion: "will-change",
     promotedBy: "[data-slot=config-list-panel]",
     fontSizePx: 13,
   };
@@ -46,7 +50,7 @@ function promotedLayer(over: Partial<PromotedLayerOffsetInput> = {}): PromotedLa
     dpr: 1,
     topDeviceFrac: 0,
     leftDeviceFrac: 0,
-    promotion: "backdrop-filter",
+    promotion: "will-change",
   };
   return { ...base, ...over };
 }
@@ -79,8 +83,7 @@ auditRuleTest(
     {
       rule: "off-grid-text",
       kind: "fires",
-      reason:
-        "the founding defect: 13px label-voice text 0.125 device px off the grid inside the config panel's backdrop-filter layer, where baseline snapping is off",
+      reason: "13px label-voice text 0.125 device px off the grid inside a will-change layer, where baseline snapping is off",
     },
   ],
   "off-grid-text proof: fires",
@@ -109,7 +112,7 @@ auditRuleTest(
     {
       rule: "promoted-layer-offset",
       kind: "fires",
-      reason: "the CAUSE half: the backdrop-filter panel itself lands a half device pixel off, so every glyph in its one raster inherits that fraction",
+      reason: "the CAUSE half: the will-change layer itself lands a half device pixel off, so every glyph in its one raster inherits that fraction",
     },
   ],
   "promoted-layer-offset proof: fires",
@@ -165,7 +168,7 @@ describe("design-audit off-grid-text (crispness Law 4)", () => {
   test("a promoted text landing 0.125 device px off the grid FIRES at P2 and names the promoting ancestor", () => {
     const finding = checkOffGridText(offGridText({ leftDeviceFrac: 0.125 }));
     expect(finding?.severity).toBe("P2");
-    expect(finding?.value).toContain("backdrop-filter");
+    expect(finding?.value).toContain("will-change");
     // The repair is at the LAYER, not the text — the finding has to say so or it routes the fix wrong.
     expect(finding?.message).toContain("[data-slot=config-list-panel]");
   });
@@ -209,7 +212,7 @@ describe("design-audit off-grid landings across the DPR matrix", () => {
 
 describe("design-audit promoted-layer-offset (crispness Law 3)", () => {
   test("each promotion kind reports itself, so the repair knows what to drop", () => {
-    for (const promotion of ["backdrop-filter", "will-change", "3d"]) {
+    for (const promotion of ["will-change", "3d"] satisfies readonly GridPromotionKind[]) {
       const finding = checkPromotedLayerOffset(promotedLayer({ promotion, topDeviceFrac: 0.5 }));
       expect(finding?.value).toContain(promotion);
     }
