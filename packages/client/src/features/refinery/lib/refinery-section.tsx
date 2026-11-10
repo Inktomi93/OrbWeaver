@@ -97,6 +97,7 @@ export const refinerySection: SectionDefinition = {
     </RefineryListAnchor>
   ),
   useListHeader: useRefineryListHeader,
+  listSearchPlaceholder: "Search sessions…",
   selection: refinerySectionSelection,
   useSelectionTitle: useRefinerySelectionTitle,
   content: (): ReactElement => <RefineryContentSurface />,

@@ -99,6 +99,9 @@ interface SectionWithList {
   /** The shell renders the identity from data, so a section cannot substitute its own band anatomy. */
   readonly useListHeader: () => ListPaneHeaderView;
   readonly selection: SectionSelection;
+  /** The placeholder of the list's search field: the one home of the voice table's per-section placeholder, read by the section's own list
+   *  surface. It names what the list searches and ends in the ellipsis character; a node test asserts every section's differs. */
+  readonly listSearchPlaceholder: `${string}…`;
   /** The phone's existing list door names its destination when the section has a more precise noun. */
   readonly listDoorLabel?: {
     readonly useLabel: () => string | null;
@@ -111,6 +114,7 @@ interface SectionWithoutList {
   readonly list?: never;
   readonly useListHeader?: never;
   readonly selection?: never;
+  readonly listSearchPlaceholder?: never;
 }
 
 /** The `useSelectionTitle` a section with nothing to name declares — the shell then prints the section

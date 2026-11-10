@@ -361,7 +361,14 @@ export {
 } from "./rule-creation-store.ts";
 export type { SectionId } from "./section-ids.ts";
 export { resolveSectionPath, SECTION_IDS } from "./section-ids.ts";
-export { LIST_OFF_SCREEN_HINT, useSectionBackTarget, useSectionHasSelection, useSectionListIsScreen, useSectionListMode } from "./section-list-projection.ts";
+export {
+  LIST_OFF_SCREEN_HINT,
+  useSectionBackTarget,
+  useSectionHasSelection,
+  useSectionListIsScreen,
+  useSectionListMode,
+  useSectionListSearchPlaceholder,
+} from "./section-list-projection.ts";
 export type {
   MobileCuration,
   SectionDefinition,

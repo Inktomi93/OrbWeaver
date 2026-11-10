@@ -32,6 +32,7 @@ import {
   useCorpusSearchQuery,
   useCorpusSearchRerank,
   useCorpusSearchTargetId,
+  useSectionListSearchPlaceholder,
 } from "#state";
 import { CorpusBrowseView } from "../components/corpus-browse-view.tsx";
 import { CorpusSearchResults } from "../components/corpus-search-results.tsx";
@@ -188,6 +189,7 @@ function SearchOmnibox({
   readonly inputRef: RefObject<HTMLInputElement | null>;
 }): ReactElement {
   const trpc = useTRPC();
+  const searchPlaceholder = useSectionListSearchPlaceholder("corpus");
   const trimmed = deferredQuery.trim();
   const suggestions = useQuery(
     trpc.search.suggest.queryOptions({ query: trimmed, limit: CORPUS_SUGGEST_LIMIT }, { enabled: trimmed.length >= MIN_SUGGEST_LEN }),
@@ -210,7 +212,7 @@ function SearchOmnibox({
         // memories…") clipped with NO ellipsis under the `reading` appearance preset — a placeholder cut
         // mid-word reads as a rendering fault, and the per-target rest hint below already teaches what each
         // target searches, so the placeholder only has to name the act.
-        placeholder="Search your corpus…"
+        placeholder={searchPlaceholder}
       />
     </Stack>
   );

@@ -8,12 +8,14 @@ import type { ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
 import {
   expectPinnedFailure,
+  expectShellRegime,
   PLATFORM_TEXT_SCALES,
   pressableWhole,
   seedShellState,
   setPlatformTextSize,
   settledBox,
   settledReadingRow,
+  shellRegimeAt,
 } from "@orb/testkit/browser/spec";
 import {
   absenceWindow,
@@ -30,7 +32,6 @@ import {
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { nonEmpty } from "@orb/testkit/iso";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusHarness, createCorpusProviderExecution, seedTranscript } from "@orb/testkit/node/composed";
-import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import {
   CHAT_EARLIER_MESSAGES_NAME,
@@ -286,18 +287,6 @@ function lineCount(node: Locator): Promise<number> {
   });
 }
 
-type Shell = "desktop" | "mobile";
-
-// Enlarged browser text moves the desktop shell's breakpoint past a 1280 viewport, so those cells measure the mobile shell.
-function shellAt({ coarse }: { readonly coarse: boolean }, textScale: number): Shell {
-  return !coarse && textScale === 1 ? "desktop" : "mobile";
-}
-
-/** Assert that the mounted page lays out the shell a cell is named for. */
-async function expectShell(page: Page, shell: Shell): Promise<void> {
-  expect(await page.evaluate((query) => matchMedia(query).matches, MEDIA_QUERIES["shell-desktop"])).toBe(shell === "desktop");
-}
-
 function loadedRows(list: Locator): Promise<string | null> {
   return list.locator('[data-slot="message-list-row"]').first().getAttribute("aria-setsize");
 }
@@ -502,7 +491,7 @@ for (const regime of [
       expect(live.reads() - before).toBe(once);
     });
     for (const textScale of PLATFORM_TEXT_SCALES) {
-      test(`a failed refresh at ${String(textScale)}x text in the ${shellAt(regime, textScale)} shell reports without moving or pinning, a press still pages, and recovery wastes no press`, async ({
+      test(`a failed refresh at ${String(textScale)}x text in the ${shellRegimeAt(regime.viewport.width, textScale)} shell reports without moving or pinning, a press still pages, and recovery wastes no press`, async ({
         corpus,
         mount,
         page,
@@ -525,7 +514,7 @@ for (const regime of [
           intercept: ({ cursor }) => (failing && cursor !== undefined ? trpcError({ code: "BAD_REQUEST" }) : undefined),
         });
         await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true });
-        await expectShell(page, shellAt(regime, textScale));
+        await expectShellRegime(page, shellRegimeAt(regime.viewport.width, textScale));
         const list = page.locator('[data-slot="message-list-scroll"]');
         const earlier = list.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
         await expect(earlier).toBeAttached();
@@ -561,7 +550,7 @@ for (const regime of [
         await expect.poll(() => live.reads()).toBeGreaterThan(reads + 1);
         await page.screenshot({ path: test.info().outputPath("recovered-refresh.png") });
       });
-      test(`a press offline through a failed refresh at ${String(textScale)}x text in the ${shellAt(regime, textScale)} shell pins the longer offline line without moving the reader`, async ({
+      test(`a press offline through a failed refresh at ${String(textScale)}x text in the ${shellRegimeAt(regime.viewport.width, textScale)} shell pins the longer offline line without moving the reader`, async ({
         corpus,
         mount,
         page,
@@ -584,7 +573,7 @@ for (const regime of [
           intercept: ({ cursor }) => (failing && cursor !== undefined ? trpcError({ code: "BAD_REQUEST" }) : undefined),
         });
         await mount<typeof ChatRoomShellStory>(STORY, { chatId: room.id, socket: true });
-        await expectShell(page, shellAt(regime, textScale));
+        await expectShellRegime(page, shellRegimeAt(regime.viewport.width, textScale));
         const list = page.locator('[data-slot="message-list-scroll"]');
         const earlier = list.getByRole("button", { name: CHAT_EARLIER_MESSAGES_NAME, exact: true });
         await expect(earlier).toBeAttached();

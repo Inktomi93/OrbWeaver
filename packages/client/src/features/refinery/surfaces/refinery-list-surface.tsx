@@ -46,6 +46,7 @@ import {
   setRefinerySearchQuery,
   useMobileViewport,
   useRefinerySearchQuery,
+  useSectionListSearchPlaceholder,
   useSelectedRefinerySessionId,
 } from "#state";
 import { RefineryChip } from "../components/refinery-chip.tsx";
@@ -109,12 +110,13 @@ export function RefineryListSurface(): ReactElement {
   // The search is pane chrome above the boundary, so it stays on screen while the read is in flight. It is store
   // state because the chrome band's census names the lens the rows are read through.
   const search = useRefinerySearchQuery();
+  const searchPlaceholder = useSectionListSearchPlaceholder("refinery");
 
   return (
     <ListPage
       body="bounded"
       ref={surfaceRef}
-      search={<Input aria-label={REFINERY_SEARCH_SESSIONS_NAME} onValueChange={setRefinerySearchQuery} placeholder="Search sessions…" value={search} />}
+      search={<Input aria-label={REFINERY_SEARCH_SESSIONS_NAME} onValueChange={setRefinerySearchQuery} placeholder={searchPlaceholder} value={search} />}
       skipTo="Skip to sessions"
     >
       <LibrarySurfaceShell errorLabel="your sessions" loadingLabel="Loading your sessions…" resetKeys={[]}>

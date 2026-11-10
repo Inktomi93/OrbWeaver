@@ -54,6 +54,7 @@ import {
   setDatabankSearchQuery,
   useDatabankPhaseFilter,
   useDatabankSearchQuery,
+  useSectionListSearchPlaceholder,
   useSelectedDocumentId,
 } from "#state";
 import { DatabankLibraryRow } from "../components/databank-library-row.tsx";
@@ -132,6 +133,7 @@ export function DatabankLibrarySurface(): ReactElement {
   // The search is pane chrome above the boundary, so it stays on screen while the read is in flight. It is store
   // state because the chrome band's census names the lens the rows are read through.
   const query = useDatabankSearchQuery();
+  const searchPlaceholder = useSectionListSearchPlaceholder("databank");
   const phaseFilter = useDatabankPhaseFilter();
 
   return (
@@ -147,7 +149,7 @@ export function DatabankLibrarySurface(): ReactElement {
         </>
       }
       ref={surfaceRef}
-      search={<Input aria-label={DATABANK_SEARCH_NAME} onValueChange={setDatabankSearchQuery} placeholder="Search documents…" value={query} />}
+      search={<Input aria-label={DATABANK_SEARCH_NAME} onValueChange={setDatabankSearchQuery} placeholder={searchPlaceholder} value={query} />}
       skipTo="Skip to documents"
     >
       <LibrarySurfaceShell errorLabel="your documents" loadingLabel="Loading your documents…" resetKeys={[query, phaseFilter]}>

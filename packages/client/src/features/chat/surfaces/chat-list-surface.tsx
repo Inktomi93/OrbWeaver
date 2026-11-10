@@ -69,6 +69,7 @@ import {
   useChatListMonth,
   useChatListSearch,
   useMobileViewport,
+  useSectionListSearchPlaceholder,
 } from "#state";
 import { ChatListFacesStrip, ChatListFilterChip } from "../components/chat-list-character-filter.tsx";
 import { FilterExits } from "../components/chat-list-filter-exits.tsx";
@@ -116,6 +117,7 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
   // band is a sibling shell region and cannot read this component's `useState`, which is how `CHATS 896`
   // came to sit above twelve rows.
   const query = useChatListSearch();
+  const searchPlaceholder = useSectionListSearchPlaceholder("chats");
   const month = useChatListMonth();
   const beforeRecencyAt = monthExclusiveUpperBound(month);
   const monthLabel = formatMonthLabel(month);
@@ -154,7 +156,7 @@ export function ChatListSurface({ onSelect, onNewChat, onDeletedChat }: ChatList
             grow={true}
             clearsGlyph={true}
             onValueChange={setChatListSearch}
-            placeholder="Search chats…"
+            placeholder={searchPlaceholder}
             value={query}
           />
           {query === "" ? null : <ClearFilterGlyph label={CLEAR_SEARCH_LABEL} onClick={clearSearch} />}

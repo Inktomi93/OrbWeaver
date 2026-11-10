@@ -65,6 +65,7 @@ import {
   useCharacterViewMode,
   useFavoritesOnly,
   useFiltersOpen,
+  useSectionListSearchPlaceholder,
   useSelectedCharacterId,
   useShowArchived,
   useTagFilter,
@@ -136,6 +137,7 @@ export function CharacterLibrarySurface(): ReactElement {
   // chrome band prints the census, it is a sibling shell region with no shared React ancestor, and a census
   // that ignores the search box directly above the rows is not a fact about anything the reader can see.
   const query = useCharacterSearch();
+  const searchPlaceholder = useSectionListSearchPlaceholder("characters");
   // DEBOUNCED, not deferred: deferring picks a render, and every distinct string here is a round trip now
   // that the predicate is the server's (the chats pane's ruling, `chat-list-surface.tsx`). The band damps
   // the same raw value with the same constant, so the number and the rows settle together.
@@ -286,7 +288,7 @@ export function CharacterLibrarySurface(): ReactElement {
           className="min-inline-0"
           grow={true}
           onValueChange={setCharacterSearch}
-          placeholder="Search characters…"
+          placeholder={searchPlaceholder}
           value={query}
         />
       }

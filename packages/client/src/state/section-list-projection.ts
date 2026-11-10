@@ -105,3 +105,13 @@ export function useSectionListMode(section: SectionId): PanelMode {
   const resolved = override ?? definition.panelDefaults.list;
   return resolvePanelMode("list", resolved, { isMobile, isNarrow, openOverlayPanel, listIsScreen });
 }
+
+/** The placeholder of `section`'s list search field, from the section's own definition: the one home of the voice
+ *  table's per-section placeholder. Throws for a section that declares no list, since it has no search to name. */
+export function useSectionListSearchPlaceholder(section: SectionId): `${string}…` {
+  const placeholder = useSectionRegistry().get(section).listSearchPlaceholder;
+  if (placeholder === undefined) {
+    throw new Error(`Section "${section}" declares no list, so it has no list search placeholder`);
+  }
+  return placeholder;
+}

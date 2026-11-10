@@ -37,6 +37,22 @@ test("every section definition sits under its own id and states any planned reas
   expect(composition.sections.list().flatMap(({ content }) => plannedFaults(content))).toEqual([]);
 });
 
+/** The values more than one entry spells. */
+const repeated = (values: readonly string[]): readonly string[] => values.filter((value, index) => values.indexOf(value) !== index);
+
+test("every list-bearing section names its list search with a placeholder of its own that ends in the ellipsis", () => {
+  const listed = composition.sections.list().filter(({ list }) => list !== undefined);
+  expect(listed.length).toBeGreaterThan(1);
+  const placeholders = listed.map(({ listSearchPlaceholder }) => listSearchPlaceholder ?? "");
+  expect(repeated(placeholders)).toEqual([]);
+  expect(placeholders.filter((placeholder) => !placeholder.endsWith("…"))).toEqual([]);
+});
+
+test("the placeholder judge refuses a repeated placeholder", () => {
+  expect(repeated(["Search chats…", "Search characters…", "Search chats…"])).toEqual(["Search chats…"]);
+  expect(repeated(["Search chats…", "Search characters…"])).toEqual([]);
+});
+
 test("a planned section that states nothing is refused by the judge", () => {
   expect(plannedFaults({ planned: " " })).toEqual(["empty planned reason"]);
   expect(plannedFaults({ planned: "Build pending." })).toEqual([]);

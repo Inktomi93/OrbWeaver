@@ -107,6 +107,7 @@ export function makeConfigSection(groups: ConfigGroupRegistry): SectionDefinitio
     // ruling is untouched; only the create's address changed, which is the same sentence the members'
     // address change is.
     useListHeader: configListHeader,
+    listSearchPlaceholder: "Search settings…",
     selection: makeSelectionSeam(),
     useSelectionTitle: (): ScreenTitle | null => {
       const name = useConfigSelectionTitle(groups);

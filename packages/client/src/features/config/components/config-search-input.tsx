@@ -25,7 +25,14 @@ import { useSettingsViewerView, useTRPC } from "#data";
 import type { ConfigQueryToken, ParsedConfigQuery } from "#lib";
 import { applyConfigToken, CONFIG_QUERY_TOKENS, findHighlightRanges, parseConfigQuery, partialConfigToken, partialValueToken } from "#lib";
 import type { ConfigGroupDefinition, ConfigGroupRegistry, ConfigSearchRow } from "#state";
-import { openConfigTo, selectCollectionMember, setConfigSearchMatch, setConfigSearchQuery, useConfigSearchQuery } from "#state";
+import {
+  openConfigTo,
+  selectCollectionMember,
+  setConfigSearchMatch,
+  setConfigSearchQuery,
+  useConfigSearchQuery,
+  useSectionListSearchPlaceholder,
+} from "#state";
 import { useConfigModified } from "../hooks/use-modified-sections.ts";
 import { CONFIG_SEARCH_NAME, configSearchEmptyText } from "../lib/config-control-names.ts";
 import { CONFIG_MODIFIED_MARKER } from "../lib/config-copy.ts";
@@ -179,6 +186,7 @@ export interface ConfigSearchInputProps {
 
 export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElement {
   const query = useConfigSearchQuery();
+  const searchPlaceholder = useSectionListSearchPlaceholder("config");
   const viewer = useSettingsViewerView();
   const subcategoriesFor = useConfigSubcategories();
   const modified = useConfigModified();
@@ -219,7 +227,7 @@ export function ConfigSearchInput({ groups }: ConfigSearchInputProps): ReactElem
               aria-label={CONFIG_SEARCH_NAME}
               expanded={expanded}
               onValueChange={setConfigSearchQuery}
-              placeholder="Search settings…"
+              placeholder={searchPlaceholder}
               value={query}
             />
           </Stack>
