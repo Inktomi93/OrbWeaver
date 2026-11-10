@@ -11,23 +11,28 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { StatusChip, USER_ROLE_STATUS } from "#components";
-import { signOut, useAuthConfig, useAuthMe } from "#data";
+import { QueryBoundary, StatusChip, USER_ROLE_STATUS } from "#components";
+import { authConfigOptions, authMeOptions, QueryErrorState, signOut, useSuspenseQuery } from "#data";
 import { notify, testId } from "#lib";
 
 /** The identity strip + Log out. The `accountSurface`/`accountLogout` test ids moved here WITH the facts
  *  they mark (the e2e drives follow the anatomy, not the container). */
 export function PersonaAccountFoot(): ReactElement {
-  const config = useAuthConfig();
-  const me = useAuthMe();
+  return (
+    <QueryBoundary
+      fallback={<Skeleton width="full" height="controlMd" />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="your account" onRetry={retry} />}
+      resetKeys={[]}
+    >
+      <AccountFootBody />
+    </QueryBoundary>
+  );
+}
+
+function AccountFootBody(): ReactElement {
+  const { mode } = useSuspenseQuery(authConfigOptions).data;
+  const { handle, role } = useSuspenseQuery(authMeOptions).data;
   const [signingOut, setSigningOut] = useState(false);
-
-  if (config.data === undefined || me.data === undefined) {
-    return <Skeleton width="full" height="controlMd" />;
-  }
-
-  const { mode } = config.data;
-  const { handle, role } = me.data;
   const canLogout = mode === "local" || mode === "oidc";
   // The role shows only when it says something the handle does not; the auth mode is plumbing, never shown.
   const showRole = role !== null && role !== handle;

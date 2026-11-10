@@ -15,6 +15,7 @@ import { baseUiStateDataAttributesRule, noRenderLayoutReadRule, unruledFlipInver
 import { baseUiPortalContainerRule, contextReturnTypeRule, directRowReadRule, directRowWriteRule, nativeTitleRule, testFactoryContractRule } from "./native.ts";
 import { optionalAlternativesRule } from "./optional-alternatives.ts";
 import { PRINCIPAL_RULES } from "./principal.ts";
+import { queryStateLadderRule } from "./query-state-ladder.ts";
 import { rawIdRule } from "./raw-id.ts";
 import {
   AMBIENT_GLOBAL_RESTRICTIONS,
@@ -291,6 +292,7 @@ export function createOrbPlugin(options: {
       "no-context-returntype": contextReturnTypeRule,
       "no-raw-id": rawIdRule,
       "closed-vocabulary": closedVocabularyRule,
+      "no-query-state-ladder": queryStateLadderRule,
       "no-optional-alternatives": optionalAlternativesRule,
       "wire-json-parsed-at-consumer": wireJsonRule,
       "no-off-token-inline-style": offTokenInlineStyleRule,

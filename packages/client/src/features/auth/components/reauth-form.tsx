@@ -9,31 +9,40 @@ import { Stack } from "@orb/ui/layout";
 import { Skeleton } from "@orb/ui/skeleton";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { completeReauth, useAuthConfig } from "#data";
+import { QueryBoundary } from "#components";
+import { authConfigOptions, completeReauth, QueryErrorState, useSuspenseQuery } from "#data";
 import { testId } from "#lib";
 import { closeModal } from "#state";
 import { LoginLocalForm } from "./login-local-form.tsx";
 
 /** The modal body: one sentence of reassurance + the same credential form /login renders. */
 export function ReauthForm(): ReactElement {
-  const config = useAuthConfig();
   return (
     <Stack gap="block" data-testid={testId("reauthSurface")}>
       <Text voice="gloss">Your session expired. Sign back in and you'll pick up exactly where you left off. Nothing you were working on has been lost.</Text>
       {/* The form seeds its handle from `defaultHandle` in `useState` — an INITIAL value, so mounting it
           before `/api/auth/config` lands would bake in a blank prefill that never corrects itself. Wait for
-          the read (the AccountSurface precedent) rather than ship a field the user has to retype. */}
-      {config.data === undefined ? (
-        <Skeleton width="full" height="controlMd" />
-      ) : (
-        <LoginLocalForm
-          defaultHandle={config.data.defaultHandle}
-          onLoggedIn={(): void => {
-            completeReauth("recovered");
-            closeModal();
-          }}
-        />
-      )}
+          the read rather than ship a field the user has to retype. */}
+      <QueryBoundary
+        fallback={<Skeleton width="full" height="controlMd" />}
+        renderError={(_error, retry): ReactElement => <QueryErrorState label="the sign-in form" onRetry={retry} />}
+        resetKeys={[]}
+      >
+        <ReauthCredentials />
+      </QueryBoundary>
     </Stack>
+  );
+}
+
+function ReauthCredentials(): ReactElement {
+  const { defaultHandle } = useSuspenseQuery(authConfigOptions).data;
+  return (
+    <LoginLocalForm
+      defaultHandle={defaultHandle}
+      onLoggedIn={(): void => {
+        completeReauth("recovered");
+        closeModal();
+      }}
+    />
   );
 }

@@ -24,7 +24,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ContextTabBody, DestructiveAction, QueryBoundary } from "#components";
 import type { Trpc } from "#data";
-import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
+import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { RefineryContextState } from "#lib";
 import { DIALOG_VERBS, groupOrdinalQualifiers, testId } from "#lib";
 import type { RefineryWorkbenchDoor } from "#state";
@@ -336,9 +336,6 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
   const { data: rows } = useSuspenseQuery(trpc.character.listSnapshots.queryOptions({ characterId: state.characterId }));
   const restore = useRestoreCharacterSnapshot({ trpc, invalidation });
   const [compareId, setCompareId] = useState<SnapshotRow["id"] | null>(null);
-  // The LIST stays trimmed; the blob is fetched per selected snapshot (the paginate-the-list,
-  // fetch-content-per-pair posture — the `getSnapshot` read).
-  const comparing = useGatedQuery(compareId, (snapshotId) => trpc.character.getSnapshot.queryOptions({ characterId: state.characterId, snapshotId }));
   const snapshotNow = useSnapshotCharacterNow({ trpc, invalidation });
   // "No versions yet" is a claim about the snapshot log, and its empty state offers to mint the first snapshot: a list that
   // failed to load reaches the boundary's error block, never this empty state.
@@ -393,11 +390,13 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
               {compareId === snapshot.id ? (
                 <Stack gap="tight">
                   <Text voice="kicker">{REFINERY_VERSION_DIFF_HEADING}</Text>
-                  {comparing.data === undefined ? (
-                    <Text voice="gloss">{REFINERY_VERSION_LOADING_TEXT}</Text>
-                  ) : (
-                    <DiffView after={liveDescription} before={comparing.data.content.description ?? ""} mode="words" />
-                  )}
+                  <QueryBoundary
+                    resetKeys={[state.characterId, snapshot.id]}
+                    fallback={<Text voice="gloss">{REFINERY_VERSION_LOADING_TEXT}</Text>}
+                    renderError={(_error, retry): ReactElement => <QueryErrorState label="that version" onRetry={retry} />}
+                  >
+                    <SnapshotDiff characterId={state.characterId} snapshotId={snapshot.id} liveDescription={liveDescription} />
+                  </QueryBoundary>
                 </Stack>
               ) : null}
             </Stack>
@@ -406,4 +405,19 @@ function LoadedVersions({ state, liveDescription }: { state: RefineryContextStat
       })}
     </ContextTabBody>
   );
+}
+
+/** One snapshot against the live card. The list stays trimmed; the blob is fetched only for the snapshot being compared. */
+function SnapshotDiff({
+  characterId,
+  snapshotId,
+  liveDescription,
+}: {
+  readonly characterId: RefineryContextState["characterId"];
+  readonly snapshotId: SnapshotRow["id"];
+  readonly liveDescription: string;
+}): ReactElement {
+  const trpc = useTRPC();
+  const { data } = useSuspenseQuery(trpc.character.getSnapshot.queryOptions({ characterId, snapshotId }));
+  return <DiffView after={liveDescription} before={data.content.description ?? ""} mode="words" />;
 }

@@ -5,9 +5,8 @@
 //
 // EVERY DATUM HERE HAS ONE HOME ALREADY, and this band only re-states it as the pane's identity (§13 — the
 // CONTENT hero is the editing surface, this is the glance):
-//   · the portrait + name + `@handle` — `character.get`, the read the editor already suspends on (a plain
-//     `useQuery` here: the band never suspends on its own account; it renders the SHAPE of an identity until
-//     the read lands, the `chat-header.tsx` "the placeholder may not lie" rule);
+//   · the portrait + name + `@handle` — `character.get`, the read the editor already suspends on; the band's own
+//     boundary renders the SHAPE of an identity until the read lands, so it never suspends the pane above it;
 //   · OWN LOOK — the hero's own mark (`OwnLookMark`, one component, one predicate, one sentence), rendered
 //     only when the card carries a theme override (an override-less card shows nothing — the honest absence);
 //   · N CHATS — the census the hero's "N chats ›" spends: `chat.listChats` page-of-one `totalCount`, the SAME
@@ -27,7 +26,8 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Heading, Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useTRPC } from "#data";
+import { QueryBoundary } from "#components";
+import { QueryErrorState, useSuspenseQuery, useTRPC } from "#data";
 import { characterCardFormFromDetail, totalTokenCount } from "../lib/character-card-form-model.ts";
 import { OwnLookMark } from "./character-hero-band.tsx";
 
@@ -43,19 +43,26 @@ export interface CharacterContextBandProps {
 }
 
 export function CharacterContextBand({ characterId }: CharacterContextBandProps): ReactElement {
+  return (
+    <QueryBoundary
+      fallback={
+        <Row gap="block" align="center" aria-busy={true} className="min-inline-0">
+          <Skeleton className="shrink-0" width="avatarLg" height="avatarLg" data-slot="character-context-band-pending" variant="portrait" />
+          <Skeleton cap="paneSm" width="full" height="control" />
+        </Row>
+      }
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="this character" onRetry={retry} />}
+      resetKeys={[characterId]}
+    >
+      <CharacterContextBandBody characterId={characterId} />
+    </QueryBoundary>
+  );
+}
+
+function CharacterContextBandBody({ characterId }: CharacterContextBandProps): ReactElement {
   const trpc = useTRPC();
-  const { data: detail } = useQuery(trpc.character.get.queryOptions({ characterId }));
+  const { data: detail } = useSuspenseQuery(trpc.character.get.queryOptions({ characterId }));
   const { data: chats } = useQuery(trpc.chat.listChats.queryOptions({ characterId, limit: CENSUS_PAGE }));
-
-  if (detail === undefined) {
-    return (
-      <Row gap="block" align="center" aria-busy={true} className="min-inline-0">
-        <Skeleton className="shrink-0" width="avatarLg" height="avatarLg" data-slot="character-context-band-pending" variant="portrait" />
-        <Skeleton cap="paneSm" width="full" height="control" />
-      </Row>
-    );
-  }
-
   const tokens = totalTokenCount(characterCardFormFromDetail(detail), RESTING_GREETING);
   return (
     <Row gap="block" align="center" data-slot="character-context-band" className="min-inline-0">

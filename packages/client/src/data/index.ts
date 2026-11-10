@@ -4,17 +4,18 @@
 
 export type { AuthConfig } from "@orb/contracts/auth-config";
 export {
+  authMeOptions,
   confirmPendingJoin,
   fetchAuthMe,
   firstRunSetup,
   login,
+  pendingJoinPreviewOptions,
   signOut,
   signUpWithInvite,
-  useAuthMe,
-  usePendingJoinPreview,
   useSignupInvitePreview,
 } from "./auth-bootstrap.ts";
 export {
+  authConfigOptions,
   fetchLiveShare,
   useAuthConfig,
   useExternalMediaBlocked,

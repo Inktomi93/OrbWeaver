@@ -190,7 +190,8 @@ export const UI_FEATURE_RESTRICTIONS = [
       {
         // The popup is refused with the root: `FormDialogRoot` is a root, so a raw popup inside it would have no way out.
         selector: "ImportDeclaration[source.value='@orb/ui/dialog'] > ImportSpecifier[imported.name=/^(Dialog|DialogPopup)$/]",
-        message: "A features/** file imports a raw dialog part from @orb/ui/dialog — use FormDialog for a form/prompt or ConfirmDialog for an alert.",
+        message:
+          "A raw dialog part from @orb/ui/dialog outside the composites: use FormDialog to commit, DismissDialog, ContentDialog, FlowDialog, ViewerDialog or PickerDialog for nothing to commit, or ConfirmDialog for an alert.",
       },
     ],
   },

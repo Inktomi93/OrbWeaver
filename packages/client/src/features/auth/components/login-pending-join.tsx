@@ -11,7 +11,8 @@ import { Skeleton } from "@orb/ui/skeleton";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, SyntheticEvent } from "react";
 import { useEffect, useRef, useState } from "react";
-import { confirmPendingJoin, usePendingJoinPreview } from "#data";
+import { QueryBoundary } from "#components";
+import { confirmPendingJoin, pendingJoinPreviewOptions, QueryErrorState, useSuspenseQuery } from "#data";
 import { focusFirstInvalidFieldIn } from "#forms/editor";
 import { DEAD_INVITE_SENTENCE, inviteRoomSentence, testId } from "#lib";
 import { joinerPersonaOf } from "../lib/joiner-persona.ts";
@@ -55,8 +56,25 @@ export interface LoginPendingJoinProps {
 }
 
 /** The pending-join card: the room, then Join or Not now. */
-export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPendingJoinProps): ReactElement {
-  const preview = usePendingJoinPreview();
+export function LoginPendingJoin(props: LoginPendingJoinProps): ReactElement {
+  return (
+    <QueryBoundary
+      fallback={
+        <Stack gap="row" aria-label="Loading your invite">
+          <Skeleton width="full" height="controlMd" />
+          <Skeleton width="full" height="controlMd" />
+        </Stack>
+      }
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="your invite" onRetry={retry} />}
+      resetKeys={[]}
+    >
+      <PendingJoinCard {...props} />
+    </QueryBoundary>
+  );
+}
+
+function PendingJoinCard({ providerName, onJoined, onDismiss }: LoginPendingJoinProps): ReactElement {
+  const { data: room } = useSuspenseQuery(pendingJoinPreviewOptions);
   const [state, setState] = useState<ConfirmState>({ kind: "idle" });
   const [personaName, setPersonaName] = useState("");
   const [personaDescription, setPersonaDescription] = useState("");
@@ -71,14 +89,6 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
     }
   }, [attempts]);
 
-  if (preview.isPending) {
-    return (
-      <Stack gap="row" aria-label="Loading your invite">
-        <Skeleton width="full" height="controlMd" />
-        <Skeleton width="full" height="controlMd" />
-      </Stack>
-    );
-  }
   if (state.kind === "approval") {
     return (
       <Stack gap="block" data-testid={testId("pendingJoinApproval")}>
@@ -90,8 +100,7 @@ export function LoginPendingJoin({ providerName, onJoined, onDismiss }: LoginPen
       </Stack>
     );
   }
-  const room = preview.data;
-  if (room === null || room === undefined) {
+  if (room === null) {
     return <InviteUnavailable onBack={onDismiss} />;
   }
 

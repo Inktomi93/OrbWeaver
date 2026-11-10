@@ -1,3 +1,4 @@
+import { DIALOG_VERBS } from "@orb/client/lib";
 import { CSRF_HEADER } from "@orb/contracts/identity";
 import { unnamedLandmarkElementFindings } from "@orb/testkit/browser/spec";
 import { routeAuthConfig } from "@orb/testkit/ct";
@@ -78,6 +79,21 @@ test("a held preview offers no Join until the room is available", async ({ mount
     release.resolve();
     await Promise.all(deliveries);
   }
+});
+
+test("a failed preview offers Retry, and the retried read opens the room", async ({ mount, page }) => {
+  let failing = true;
+  await page.route(PENDING_PREVIEW_PATH, (route) =>
+    failing ? route.fulfill({ status: 503, json: { error: "unavailable" } }) : route.fulfill({ status: 200, json: PENDING_ROOM }),
+  );
+  await mount<typeof PendingJoinStory>("tests/client/features/auth/components/_pending-join-stories/PendingJoinStory", {});
+  const retry = page.getByRole("button", { name: DIALOG_VERBS.retry, exact: true });
+  await expect(retry).toBeVisible();
+  await expect(page.getByRole("button", { name: JOIN_CONFIRM_LABEL, exact: true })).toHaveCount(0);
+  failing = false;
+  await retry.click();
+  await expect(page.getByRole("heading", { name: "You're invited", exact: true })).toBeVisible();
+  await expect(page.getByRole("button", { name: JOIN_CONFIRM_LABEL, exact: true })).toBeEnabled();
 });
 
 test("an unavailable pending join exposes no persona or confirmation", async ({ mount, page }) => {

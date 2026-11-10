@@ -1,5 +1,15 @@
 // Every dialog has a way out by type: a commit dialog needs a submit, the rest name a dismiss, and only the forced ask has neither.
-import { DismissDialog, FlowDialog, FormDialog, FormDialogPopup, PickerDialog, RequiredFormDialog, ViewerDialog } from "@orb/client/components";
+import {
+  ConfirmDialog,
+  DestructiveAction,
+  DismissDialog,
+  FlowDialog,
+  FormDialog,
+  FormDialogPopup,
+  PickerDialog,
+  RequiredFormDialog,
+  ViewerDialog,
+} from "@orb/client/components";
 import { createElement } from "react";
 import { expectTypeOf, test } from "vitest";
 
@@ -48,6 +58,40 @@ test("the forced ask takes a submit and no open state", () => {
   // @ts-expect-error it is always open, so nothing can close it
   createElement(RequiredFormDialog, { ...frame, submit, onOpenChange: shared.onOpenChange });
   expectTypeOf<Parameters<typeof RequiredFormDialog>[0]>().toHaveProperty("submit");
+});
+
+// Called as functions, the composites infer their label parameter from the literal exactly as JSX does.
+test("every composite label refuses an empty literal and takes a computed string", () => {
+  const word: string = ["Save", "Close"].join(" ");
+  const confirm = { title: "Delete it?", onConfirm: (): void => undefined };
+  const trigger = createElement("span");
+  FormDialog({ ...shared, submit: { ...submit, label: word } });
+  // @ts-expect-error an empty submit label draws a button with no name
+  FormDialog({ ...shared, submit: { ...submit, label: "" } });
+  // @ts-expect-error the popup's submit is the same button
+  FormDialogPopup({ ...frame, submit: { ...submit, label: "" } });
+  // @ts-expect-error the forced ask's one button needs its word most of all
+  RequiredFormDialog({ ...frame, submit: { ...submit, label: "" } });
+  DismissDialog({ ...shared, dismissLabel: word });
+  // @ts-expect-error the footer dismiss
+  DismissDialog({ ...shared, dismissLabel: "" });
+  FlowDialog({ ...shared, dismiss: { at: "footer", label: word } });
+  // @ts-expect-error a content dialog's footer dismiss
+  FlowDialog({ ...shared, dismiss: { at: "footer", label: "" } });
+  ConfirmDialog({ ...confirm, open: true, onOpenChange: shared.onOpenChange, confirmLabel: "Delete", cancelLabel: word });
+  // @ts-expect-error a confirm's verb
+  ConfirmDialog({ ...confirm, open: true, onOpenChange: shared.onOpenChange, confirmLabel: "" });
+  // @ts-expect-error one empty label among two refuses the call
+  ConfirmDialog({ ...confirm, open: true, onOpenChange: shared.onOpenChange, confirmLabel: "Delete", cancelLabel: "" });
+  // @ts-expect-error a computed cancel word does not excuse an empty confirm verb
+  ConfirmDialog({ ...confirm, open: true, onOpenChange: shared.onOpenChange, confirmLabel: "", cancelLabel: word });
+  DestructiveAction({ onConfirm: confirm.onConfirm, trigger, confirm: { title: confirm.title, confirmLabel: "Delete" } });
+  // @ts-expect-error a computed confirm verb does not excuse an empty cancel word
+  DestructiveAction({ onConfirm: confirm.onConfirm, trigger, confirm: { title: confirm.title, confirmLabel: word, cancelLabel: "" } });
+  // @ts-expect-error a destructive action's confirm verb
+  DestructiveAction({ onConfirm: confirm.onConfirm, trigger, confirm: { title: confirm.title, confirmLabel: "" } });
+  expectTypeOf<Parameters<typeof FormDialog<"">>[0]["submit"]["label"]>().toBeNever();
+  expectTypeOf<Parameters<typeof FormDialog<string>>[0]["submit"]["label"]>().toBeString();
 });
 
 test("a content dialog carries its dismiss, and a viewer or picker defaults it", () => {

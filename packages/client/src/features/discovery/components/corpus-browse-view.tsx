@@ -33,12 +33,12 @@ import { ListRow } from "@orb/ui/list-row";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
-import { useQueries } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useId, useState } from "react";
+import { QueryBoundary } from "#components";
 import type { Trpc } from "#data";
-import { createCollectionSurface, QueryErrorState, SkeletonRows, useTRPC } from "#data";
+import { createCollectionSurface, QueryErrorState, SkeletonRows, useSuspenseQueries, useTRPC } from "#data";
 import { ESTIMATED_ROW_PX, groupOrdinalQualifiers, testId } from "#lib";
 import { selectCorpusArtifact } from "#state";
 import { characterFacetLine } from "../lib/character-facet.ts";
@@ -92,6 +92,18 @@ const useCorpusBrowseCollection = createCollectionSurface({
 
 /** The distilled-catalog browser: facet + sort + tag selects over the keyset-paged `browseCharacters`. */
 export function CorpusBrowseView(): ReactElement {
+  return (
+    <QueryBoundary
+      fallback={<SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />}
+      renderError={(_error, retry): ReactElement => <QueryErrorState label="your catalog filters" onRetry={retry} />}
+      resetKeys={[]}
+    >
+      <CorpusBrowseBody />
+    </QueryBoundary>
+  );
+}
+
+function CorpusBrowseBody(): ReactElement {
   const trpc = useTRPC();
   const [genre, setGenre] = useState(ANY_VALUE);
   const [tone, setTone] = useState(ANY_VALUE);
@@ -100,26 +112,9 @@ export function CorpusBrowseView(): ReactElement {
   const [sort, setSort] = useState(ANY_VALUE);
   const noChoiceNoteId = useId();
   const collection = useCorpusBrowseCollection({ trpc }, { genre, tone, setting, tag, sort });
-  const [facetsRead, catalogRead] = useQueries({
+  const [{ data: facets }, { data: catalog }] = useSuspenseQueries({
     queries: [trpc.discovery.characterFacets.queryOptions(), trpc.discovery.catalog.queryOptions()],
   });
-
-  if (facetsRead.error !== null || catalogRead.error !== null) {
-    return (
-      <QueryErrorState
-        label="your catalog filters"
-        onRetry={(): void => {
-          void facetsRead.refetch().catch(globalThis.reportError);
-          void catalogRead.refetch().catch(globalThis.reportError);
-        }}
-      />
-    );
-  }
-  const facets = facetsRead.data;
-  const catalog = catalogRead.data;
-  if (facets === undefined || catalog === undefined) {
-    return <SkeletonRows count={SKELETON_ROW_COUNT} shape="avatar-row" />;
-  }
   const genreItems = toSelectItems("All genres", facets.genres);
   const toneItems = toSelectItems("All tones", facets.tones);
   const settingItems = toSelectItems("All settings", facets.settings);

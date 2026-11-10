@@ -5,6 +5,7 @@ import type { StackProps } from "@orb/ui/layout";
 import { DialogBody, Row } from "@orb/ui/layout";
 import type { ComponentProps, ReactElement, ReactNode, Ref } from "react";
 import { DIALOG_VERBS } from "#lib";
+import type { NonEmptyLabel } from "./non-empty-label.ts";
 
 type DialogPopupProps = ComponentProps<typeof DialogPopup>;
 // The popup's look rides on named props of the composite, so the variant census reads the DialogPopup they land on.
@@ -12,7 +13,7 @@ const POPUP_LOOK = ["size", "anchor", "className", "keepMounted", "forceRender",
 type PopupLook = (typeof POPUP_LOOK)[number];
 
 // The way out, drawn by the composite so a caller's header or footer cannot lose it; touch has no Escape.
-type ContentDismiss =
+type ContentDismiss<L extends string = string> =
   | {
       readonly at: "header";
       /** The close glyph the shell's own modals wear, not the verb. @defaultValue false */
@@ -21,15 +22,15 @@ type ContentDismiss =
     }
   | {
       readonly at: "footer";
-      readonly label: string;
+      readonly label: NonEmptyLabel<L>;
       /** The verb is the dialog's main act, as Done is on an autosaving editor. @defaultValue false */
       readonly primary?: boolean;
       readonly control?: Ref<HTMLButtonElement>;
     };
 
-export interface ContentDialogProps extends Omit<ComponentProps<typeof Dialog>, "children"> {
+export interface ContentDialogProps<L extends string = string> extends Omit<ComponentProps<typeof Dialog>, "children"> {
   readonly title: ReactNode;
-  readonly dismiss: ContentDismiss;
+  readonly dismiss: ContentDismiss<L>;
   readonly children: ReactNode;
   readonly size?: DialogPopupProps["size"];
   readonly anchor?: DialogPopupProps["anchor"];
@@ -57,7 +58,7 @@ export interface ContentDialogProps extends Omit<ComponentProps<typeof Dialog>, 
 export type HeaderDismissDialogProps = Omit<ContentDialogProps, "dismiss"> & { readonly dismiss?: Extract<ContentDismiss, { at: "header" }> };
 
 /** Owns the named header and scrolling body; native focus and dismissal props reach the dialog seal. */
-export function ContentDialog({
+export function ContentDialog<L extends string>({
   title,
   children,
   size,
@@ -73,7 +74,7 @@ export function ContentDialog({
   footer,
   dismiss,
   ...root
-}: ContentDialogProps): ReactElement {
+}: ContentDialogProps<L>): ReactElement {
   const close = dismiss.at === "header" ? <ContentDialogClose dismiss={dismiss} /> : null;
   return (
     <Dialog {...root}>

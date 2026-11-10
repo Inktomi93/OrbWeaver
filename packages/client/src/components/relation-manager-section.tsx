@@ -7,12 +7,13 @@
 // client-shared (a generic relation manager — the RowActionsMenu precedent; NOT @orb/ui, ui stays parts-only).
 
 import { Button } from "@orb/ui/button";
-import { Dialog, DialogClose, DialogFooter, DialogPopup, DialogTitle, DialogTrigger } from "@orb/ui/dialog";
-import { DialogBody, Section, Stack } from "@orb/ui/layout";
+import { Section, Stack } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
+import { useRef, useState } from "react";
 import { DIALOG_VERBS } from "#lib";
+import { DismissDialog } from "./form-dialog.tsx";
 
 /** One related/available entity in a relation section — the ListRow projection (id keeps its brand). */
 export interface RelationManagerItem<TId extends string = string> {
@@ -63,6 +64,8 @@ export function RelationManagerSection<TId extends string>({
   addLabel,
   onAdd,
 }: RelationManagerSectionProps<TId>): ReactElement {
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const addTrigger = useRef<HTMLButtonElement>(null);
   return (
     <Section heading={heading}>
       {items.length === 0 ? (
@@ -83,35 +86,30 @@ export function RelationManagerSection<TId extends string>({
           ))}
         </Stack>
       )}
-      <Dialog>
-        <DialogTrigger render={<Button variant="outline">{addTriggerLabel}</Button>} />
-        <DialogPopup>
-          <DialogBody grow={true} gap="block">
-            <DialogTitle>{addTitle}</DialogTitle>
-            {available.length === 0 ? (
-              <Text ink="muted">{addEmptyLabel}</Text>
-            ) : (
-              <Stack gap="row">
-                {available.map((item) => (
-                  <ListRow
-                    key={item.id}
-                    title={item.title}
-                    {...(item.subtitle === undefined ? {} : { subtitle: item.subtitle })}
-                    actions={
-                      <Button aria-label={`${addLabel} ${item.title}`} variant="ghost" onClick={(): void => onAdd(item)}>
-                        {addLabel}
-                      </Button>
-                    }
-                  />
-                ))}
-              </Stack>
-            )}
-            <DialogFooter>
-              <DialogClose render={<Button variant="ghost">{DIALOG_VERBS.done}</Button>} />
-            </DialogFooter>
-          </DialogBody>
-        </DialogPopup>
-      </Dialog>
+      <Button ref={addTrigger} variant="outline" onClick={(): void => setPickerOpen(true)}>
+        {addTriggerLabel}
+      </Button>
+      {/* Each add is its own immediate write, so the picker has nothing to commit and Done is its way out. */}
+      <DismissDialog dismissLabel={DIALOG_VERBS.done} finalFocus={addTrigger} open={pickerOpen} onOpenChange={setPickerOpen} title={addTitle}>
+        {available.length === 0 ? (
+          <Text ink="muted">{addEmptyLabel}</Text>
+        ) : (
+          <Stack gap="row">
+            {available.map((item) => (
+              <ListRow
+                key={item.id}
+                title={item.title}
+                {...(item.subtitle === undefined ? {} : { subtitle: item.subtitle })}
+                actions={
+                  <Button aria-label={`${addLabel} ${item.title}`} variant="ghost" onClick={(): void => onAdd(item)}>
+                    {addLabel}
+                  </Button>
+                }
+              />
+            ))}
+          </Stack>
+        )}
+      </DismissDialog>
     </Section>
   );
 }

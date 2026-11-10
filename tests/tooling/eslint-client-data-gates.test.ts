@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
@@ -39,6 +39,9 @@ async function findings(rule: string, source: string, path: string): Promise<rea
   ).toEqual([]);
   return found.filter(({ ruleId }) => ruleId === rule);
 }
+
+// A component body around a read, so a case states only the read and its branches.
+const ladder = (body: string): string => `export function Probe() {\n${body}\n}`;
 
 // [rule, label, source, path, expected finding count]
 const CASES = [
@@ -214,6 +217,209 @@ const CASES = [
 
 test.for(CASES)("%s: %s", { timeout: 120_000 }, async ([rule, , source, path, count]) => {
   expect(await findings(rule, source, path)).toHaveLength(count);
+});
+
+const LADDER_CASES = [
+  [
+    "orb/no-query-state-ladder",
+    "an early-return pending arm",
+    ladder("const q = useQuery(o);\nif (q.isPending) return <Skeleton />;\nreturn <X d={q.data} />;"),
+    FEATURE,
+    1,
+  ],
+  ["orb/no-query-state-ladder", "a destructured error ternary", ladder("const { error } = useQuery(o);\nreturn error ? <Failed /> : <X />;"), FEATURE, 1],
+  [
+    "orb/no-query-state-ladder",
+    "a null-checked error drawn on its else arm",
+    ladder("const q = useQuery(o);\nreturn q.error === null ? <X /> : <Failed />;"),
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a gated read's absent data",
+    ladder("const { data } = useGatedQuery(id, f);\nif (data === undefined) return <Spinner />;\nreturn <X d={data} />;"),
+    FEATURE,
+    1,
+  ],
+  ["orb/no-query-state-ladder", "an && failure line", ladder("const q = useQuery(o);\nreturn <Row>{q.isError && <Text>failed</Text>}</Row>;"), FEATURE, 1],
+  [
+    "orb/no-query-state-ladder",
+    "a useQueries element",
+    ladder("const [a] = useQueries({ queries });\nreturn a.error !== null ? <Failed /> : <X />;"),
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a pending status literal",
+    ladder('const q = useQuery(o);\nreturn q.status === "pending" ? <Skeleton /> : <X />;'),
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a success status literal",
+    ladder('const q = useQuery(o);\nreturn q.status === "success" ? <X /> : <Skeleton />;'),
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "two states joined in one test",
+    ladder("const q = useQuery(o);\nif (q.isPending || q.isError) return <Skeleton />;\nreturn <X />;"),
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a plain copy of the data",
+    ladder("const q = useQuery(o);\nconst rows = q.data;\nif (rows === undefined) return <Skeleton />;\nreturn <X d={rows} />;"),
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a wrapper hook's absent data",
+    ladder("const config = useConfig();\nconst me = useMe();\nif (config.data === undefined || me.data === undefined) return <Skeleton />;\nreturn <X />;"),
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "an imported wrapper hook's pending flag",
+    `import { useConfig as useSettings } from "../../../data/reads.ts";\n${ladder("const q = useSettings();\nreturn q.isLoading ? <Skeleton /> : <X />;")}`,
+    FEATURE,
+    1,
+  ],
+  ["orb/no-query-state-ladder", "a wrapper hook read for a value", ladder("const caps = useConfig().data?.count ?? 0;\nreturn <X n={caps} />;"), FEATURE, 0],
+  [
+    "orb/no-query-state-ladder",
+    "a wrapper hook's data drawn as nothing until it lands",
+    ladder("const { data } = useConfig();\nreturn data === undefined ? null : <X d={data} />;"),
+    FEATURE,
+    0,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a ladder in a component tier file",
+    ladder("const q = useQuery(o);\nif (q.isPending) return <Skeleton />;\nreturn <X />;"),
+    `${CLIENT}components/probe.tsx`,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "the cited home: a suspending read under QueryBoundary",
+    `${ladder("const { data } = useSuspenseQuery(o);\nreturn <X d={data} />;")}\nexport const Y = () => <QueryBoundary fallback={<Skeleton />} resetKeys={[]}><Probe /></QueryBoundary>;`,
+    FEATURE,
+    0,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a value with a default drawn as nothing",
+    ladder("const { data } = useQuery(o);\nreturn <Row>{data === undefined ? null : <Chip n={data.count} />}</Row>;"),
+    FEATURE,
+    0,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a state read that feeds a prop and a label",
+    ladder('const q = useQuery(o);\nreturn <Button disabled={q.isPending}>{q.isPending ? "Saving" : "Save"}</Button>;'),
+    FEATURE,
+    0,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a component that returns nothing until the read lands",
+    ladder("const { data } = useQuery(o);\nif (data === undefined) return null;\nreturn <X d={data} />;"),
+    FEATURE,
+    0,
+  ],
+  ["orb/no-query-state-ladder", "the settled arm alone", ladder("const q = useQuery(o);\nreturn q.data === undefined ? null : <X d={q.data} />;"), FEATURE, 0],
+  [
+    "orb/no-query-state-ladder",
+    "a manual check behind a button",
+    ladder("const q = useQuery({ ...o, enabled: false });\nreturn q.error === null ? null : <Failed />;"),
+    FEATURE,
+    0,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a hook that hands its rendering component a retry item",
+    "export function useHeader() {\nconst q = useQuery(o);\nreturn { item: q.isError ? <MenuItem /> : null };\n}",
+    FEATURE,
+    0,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "the known limit: a hook that draws its own loading JSX is not judged",
+    "export const useBody = () => {\nconst q = useQuery(o);\nif (q.isPending) return <Skeleton />;\nreturn <X />;\n};",
+    FEATURE,
+    0,
+  ],
+  ["orb/no-query-state-ladder", "a mutation's pending flag", ladder("const m = useSaveThing();\nreturn m.isPending ? <Spinner /> : <X />;"), FEATURE, 0],
+] as const;
+
+// The rule judges a read by its type, so the cases run over a planted program whose reads carry the TanStack result
+// shapes: a non-suspending result can be pending, a suspending one cannot, and a mutation has no refetch.
+const READ_TYPES = `type Pending = { status: "pending"; isPending: true; isLoading: boolean; isError: false; isSuccess: false; data: undefined; error: null; refetch(): void };
+type Failed = { status: "error"; isPending: false; isLoading: false; isError: true; isSuccess: false; data: undefined; error: Error; refetch(): void };
+type Settled<T> = { status: "success"; isPending: false; isLoading: false; isError: false; isSuccess: true; data: T; error: null; refetch(): void };
+export type Read<T> = Pending | Failed | Settled<T>;
+export type Row = { count: number };
+export declare function useQuery(options: unknown): Read<Row>;
+export declare function useQueries(options: unknown): Read<Row>[];
+export declare function useGatedQuery(id: unknown, optionsFor: unknown): Read<Row>;
+export declare function useSuspenseQuery(options: unknown): Settled<Row> | (Omit<Failed, "data"> & { data: Row });
+export declare function useSaveThing(): { status: "idle" | "pending" | "success" | "error"; isPending: boolean; mutate(): void };
+export function useConfig(): Read<Row> { return useQuery({}); }
+export function useMe(): Read<Row> { return useQuery({}); }
+`;
+const READS_MODULE = `${CLIENT}data/reads.ts`;
+const ladderHeader = (path: string): string =>
+  `import { useConfig, useGatedQuery, useMe, useQueries, useQuery, useSaveThing, useSuspenseQuery } from "./${relative(dirname(path), READS_MODULE)}";\ndeclare const o: object;\ndeclare const id: string | null;\ndeclare const f: unknown;\ndeclare const queries: unknown[];\n`;
+
+const LADDER_RULE = "orb/no-query-state-ladder";
+
+async function ladderFindings(source: string, path: string, plantedTree: (files: Record<string, string>) => Promise<string>): Promise<number> {
+  const text = `${ladderHeader(path)}${source}`;
+  const root = await plantedTree({
+    "tsconfig.json": JSON.stringify({
+      compilerOptions: {
+        strict: true,
+        module: "esnext",
+        moduleResolution: "bundler",
+        target: "esnext",
+        allowImportingTsExtensions: true,
+        noEmit: true,
+        skipLibCheck: true,
+        jsx: "preserve",
+      },
+      include: ["packages"],
+    }),
+    [READS_MODULE]: READ_TYPES,
+    [path]: text,
+  });
+  const config = await resolvedConfig(eslint, join(ROOT, path));
+  const found = new Linter({ cwd: root }).verify(
+    text,
+    {
+      files: ["**/*.{ts,tsx}"],
+      plugins: config.plugins,
+      languageOptions: {
+        parser: tseslint.parser,
+        parserOptions: { project: ["tsconfig.json"], projectService: false, tsconfigRootDir: root, ecmaFeatures: { jsx: true } },
+      },
+      rules: { [LADDER_RULE]: config.rules[LADDER_RULE] ?? "off" },
+    },
+    { filename: join(root, path) },
+  );
+  expect(found.filter(({ fatal }) => fatal === true)).toEqual([]);
+  return found.filter(({ ruleId }) => ruleId === LADDER_RULE).length;
+}
+
+test.for(LADDER_CASES)("%s: %s", { timeout: 120_000 }, async ([, , source, path, count], { plantedTree }) => {
+  expect(await ladderFindings(source, path, plantedTree)).toBe(count);
 });
 
 // no-effect-on-shared-selection resolves each hook to its declaring file, so it runs over a planted program.

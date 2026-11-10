@@ -20,13 +20,15 @@ import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { useEffect, useRef, useState } from "react";
 import { DIALOG_VERBS, notify } from "#lib";
+import type { NonEmptyLabel } from "./non-empty-label.ts";
 
 /** A confirm's close target. A ref lands on that element's first tabbable control. A function runs at close
  *  and returns `false` once it has placed focus itself, which is how a programmatic stop (tabindex -1) with
  *  controls inside it takes focus as a whole. */
 type ConfirmFinalFocus = RefObject<HTMLElement | null> | (() => boolean);
 
-interface ConfirmDialogBaseProps {
+// One type parameter per label, so a computed word on one cannot widen the other's check away.
+interface ConfirmDialogBaseProps<C extends string = string, K extends string = string> {
   /** The alert-dialog heading. */
   readonly title: ReactNode;
   /** Supporting copy — plain text/fragment only (AlertDialogDescription IS a <p>; no nested <Text>). Omit for a title-only confirm. */
@@ -37,9 +39,9 @@ interface ConfirmDialogBaseProps {
    *  is genuinely a small FORM — the host handoff's "also give copies…" opt-in — not for decoration. */
   readonly body?: ReactNode;
   /** The confirm button's label. @defaultValue "Confirm" */
-  readonly confirmLabel?: string;
+  readonly confirmLabel?: NonEmptyLabel<C>;
   /** The cancel button's label. @defaultValue "Cancel" */
-  readonly cancelLabel?: string;
+  readonly cancelLabel?: NonEmptyLabel<K>;
   /** The confirm button's tone. @defaultValue "destructive" */
   readonly confirmTone?: "destructive" | "primary";
   /**
@@ -71,22 +73,23 @@ interface ConfirmDialogBaseProps {
 }
 
 /** A confirm another surface opens: a menu item, an icon action, a row. The caller owns the state and its changes. */
-export interface ConfirmDialogProps extends ConfirmDialogBaseProps {
+export interface ConfirmDialogProps<C extends string = string, K extends string = string> extends ConfirmDialogBaseProps<C, K> {
   readonly open: boolean;
   readonly onOpenChange: (open: boolean) => void;
 }
 
 /** What the confirm says: the question, the verb that answers it, and whatever else the decision needs. */
-interface DestructiveConfirmCopy extends Pick<ConfirmDialogBaseProps, "description" | "body" | "cancelLabel" | "confirmTone"> {
+interface DestructiveConfirmCopy<C extends string = string, K extends string = string>
+  extends Pick<ConfirmDialogBaseProps<C, K>, "description" | "body" | "cancelLabel" | "confirmTone"> {
   readonly title: ReactNode;
-  readonly confirmLabel: string;
+  readonly confirmLabel: NonEmptyLabel<C>;
 }
 
-export interface DestructiveActionProps
+export interface DestructiveActionProps<C extends string = string, K extends string = string>
   extends Pick<ConfirmDialogBaseProps, "onConfirm" | "confirmDisabled" | "confirmLoading" | "forceRender" | "finalFocus"> {
   /** The control that opens the confirm. */
   readonly trigger: ReactElement;
-  readonly confirm: DestructiveConfirmCopy;
+  readonly confirm: DestructiveConfirmCopy<C, K>;
 }
 
 // The two public entries meet here: a trigger means the surface holds the open state, `open` means the caller does.
@@ -225,11 +228,11 @@ function ConfirmSurface({
 }
 
 /** The confirm for a state another surface opens. A control a person presses directly is a {@link DestructiveAction}. */
-export function ConfirmDialog(props: ConfirmDialogProps): ReactElement {
+export function ConfirmDialog<C extends string, K extends string>(props: ConfirmDialogProps<C, K>): ReactElement {
   return <ConfirmSurface {...props} />;
 }
 
 /** A control and its confirm as one element, so a destructive control with nothing to say to the reader fails to compile. */
-export function DestructiveAction({ trigger, confirm, ...action }: DestructiveActionProps): ReactElement {
+export function DestructiveAction<C extends string, K extends string>({ trigger, confirm, ...action }: DestructiveActionProps<C, K>): ReactElement {
   return <ConfirmSurface {...confirm} {...action} trigger={trigger} />;
 }
