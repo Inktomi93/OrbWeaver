@@ -266,7 +266,7 @@ export const WALKER_CENSUS_TEXT = `
       // Node by sampling the element's real pixels out of one screenshot, and a sample needs a box. It is
       // carried on every text sample rather than only the unresolved ones so the sample shape stays uniform.
       var textRect = el.getBoundingClientRect();
-      var textBackdrop = resolveBackdrop(el);
+      var textBackdrop = resolveTextBackdrop(el);
       var textInkBox = textBackdrop.kind === "unresolved" ? inkBoxOf(el, textRect) : null;
       texts.push({
         inkBox: textInkBox === null ? undefined : textInkBox,

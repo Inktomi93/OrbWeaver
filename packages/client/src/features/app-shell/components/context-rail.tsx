@@ -145,6 +145,7 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
 
 /** The overflow marks: a fade plus a chevron on the edge where cells are hidden. Presentational. */
 // The fade dissolves into the rail's own fill: the raised step on the owning rail, the sidebar on the receded one.
+// It takes the cells' own raised layer and follows them in the tree, so it paints over the tab it cuts.
 function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; readonly fill: "raised" | "sidebar" }): ReactElement {
   return (
     <>
@@ -156,6 +157,7 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           data-slot="context-rail-fade"
           data-edge="start"
           placed="startEdge"
+          layer="raised"
           passThrough={true}
           width="gutter"
           fade="start"
@@ -174,6 +176,7 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           data-slot="context-rail-fade"
           data-edge="end"
           placed="endEdge"
+          layer="raised"
           passThrough={true}
           width="gutter"
           fade="end"
