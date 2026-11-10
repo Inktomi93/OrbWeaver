@@ -127,7 +127,7 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
             activateOnFocus={false}
             aria-label={ariaLabel}
             track="cells"
-            className="min-inline-0"
+            className="shell-overflow-track min-inline-0"
             fill={true}
             fold={tabs.length === RAIL_WRAP_CELLS}
             rule="none"
@@ -145,6 +145,8 @@ export function ContextRail({ ariaLabel, tabs, activeTab, owns, onSelect }: Cont
 
 /** The overflow marks: a fade plus a chevron on the edge where cells are hidden. Presentational. */
 // The fade dissolves into the rail's own fill: the raised step on the owning rail, the sidebar on the receded one.
+// It takes the cells' own raised layer and follows them in the tree, so it paints over the tab it cuts. Every track beside
+// it wears `shell-overflow-track`, whose scroll-padding (chrome.css) is this fade's gutter width.
 function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; readonly fill: "raised" | "sidebar" }): ReactElement {
   return (
     <>
@@ -156,6 +158,7 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           data-slot="context-rail-fade"
           data-edge="start"
           placed="startEdge"
+          layer="raised"
           passThrough={true}
           width="gutter"
           fade="start"
@@ -174,6 +177,7 @@ function OverflowMarks({ overflow, fill }: { readonly overflow: RailOverflow; re
           data-slot="context-rail-fade"
           data-edge="end"
           placed="endEdge"
+          layer="raised"
           passThrough={true}
           width="gutter"
           fade="end"
@@ -232,7 +236,7 @@ export function ContextHeaderTabs({
         activateOnFocus={false}
         aria-label={ariaLabel}
         track="strip"
-        className="shell-context-tab-strip min-inline-0"
+        className="shell-context-tab-strip shell-overflow-track min-inline-0"
         fill={true}
         rule="none"
       >

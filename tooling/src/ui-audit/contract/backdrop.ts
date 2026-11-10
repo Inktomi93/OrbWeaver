@@ -7,7 +7,8 @@
 import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
 
 /** Resolved backdrop behind a text node — `flat` (solid ancestor bg), `gradient` (worst-stop
- *  ratio over OPAQUE stops; translucent stops refuse as indeterminate),
+ *  ratio over OPAQUE stops; translucent stops refuse as indeterminate, and a text sample never carries
+ *  them because its walk reads through to the base as `unresolved(gradient-over-base)`),
  *  `image-indeterminate` (a url() layer — incl. gradient-over-image composites — has no cheap
  *  DOM-only pixel sample, so it's flagged rather than silently passed), or `unresolved` — the DOM
  *  walk found no trustworthy base at all (issue #218).
@@ -26,9 +27,11 @@ export type Backdrop =
   | { readonly kind: "image-indeterminate" }
   | { readonly kind: "unresolved"; readonly reason: UnresolvedBackdropReason; readonly fallback: Rgb };
 
-const UNRESOLVED_BACKDROP_REASONS = ["paint-layer-over-base", "art-under-subject", "no-opaque-base"] as const;
+const UNRESOLVED_BACKDROP_REASONS = ["paint-layer-over-base", "fill-layer-over-base", "gradient-over-base", "art-under-subject", "no-opaque-base"] as const;
 /** Why the walk found no trustworthy base. `art-under-subject` is art in any position under one subject's centre,
- *  which a scroll can bring into view; `paint-layer-over-base` is a positioned layer that backs every text under it. */
+ *  which a scroll can bring into view; `paint-layer-over-base` is a positioned layer that backs every subject under it.
+ *  For a text sample only, a layer with just a colour fill is `fill-layer-over-base` instead, and a translucent
+ *  gradient over a found base is `gradient-over-base`: which band sits under the glyphs is a question for pixels. */
 type UnresolvedBackdropReason = (typeof UNRESOLVED_BACKDROP_REASONS)[number];
 
 // ── Chromatic glow shadows (impeccable `dark-glow`, sanctioned axes exempt) ──

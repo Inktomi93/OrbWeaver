@@ -199,7 +199,10 @@
   /* The tab strip scrolls inside its row; the fade and chevron say there is more, so no native scrollbar. */
   .shell-context-tab-strip {
     scrollbar-width: none;
-    /* A focused tab scrolls into view clear of the one-gutter fade, so the end chevron never covers it. */
+  }
+  /* Every strip that wears the overflow fade (context-rail.tsx OverflowMarks, one gutter wide) scrolls a focused cell
+   * clear of it, so the fade painted over the cells never covers that cell's ring or caption. */
+  .shell-overflow-track {
     scroll-padding-inline: var(--spacing-gutter);
   }
   /* The fade blends into whatever the pane paints: the ramp elevation lifts the panes to the raised step. */
