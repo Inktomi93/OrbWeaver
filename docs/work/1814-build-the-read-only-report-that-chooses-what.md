@@ -1,10 +1,10 @@
 ---
 kind: work
 status: blocked
-updated: 2026-11-06
+updated: 2026-11-10
 priority: P3
 area: testing
-blocked: wake gone docs/plans/type-law/design.md
+blocked: wake gone docs/plans/unwired-code/design.md
 plan: restoration-register
 ---
 

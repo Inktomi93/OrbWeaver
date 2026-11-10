@@ -265,7 +265,7 @@ None.
 - [0292](0292-let-local-light-query-embeds-run-ahead-of.md) P3 Let local-light query embeds run ahead of indexer embeds `inference-flow` (owner)
 - [0818](0818-make-workflow-failures-actionable-and-protect-image-publication.md) P1 Make workflow failures actionable and protect image publication (owner)
 - [1414](1414-investigate-webkit-chart-layer-opacity-after-background-changes.md) P3 Investigate WebKit chart layer opacity after background changes `surface-walk` (owner)
-- [1814](1814-build-the-read-only-report-that-chooses-what.md) P3 Build the read-only report that chooses what to test, per the restoration-register plan's selection section `restoration-register` (wake gone docs/plans/type-law/design.md)
+- [1814](1814-build-the-read-only-report-that-chooses-what.md) P3 Build the read-only report that chooses what to test, per the restoration-register plan's selection section `restoration-register` (wake gone docs/plans/unwired-code/design.md)
 - [2055](2055-check-the-macro-list-on-a-real-phone.md) P3 Check the macro list on a real phone with a soft keyboard `cross-surface-consistency` (owner)
 - [2074](2074-confirm-the-browser-env-allowlist-on-macos-and.md) P3 Confirm the browser env allowlist on macOS and Windows `test-foundation` (owner)
 - [2117](2117-write-time-and-dial-time-admission-agree-on.md) P3 Write-time and dial-time admission agree on a private IP literal issuer (owner)

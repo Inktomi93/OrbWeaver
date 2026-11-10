@@ -1,9 +1,9 @@
 ---
 kind: plan
 status: parked
-updated: 2026-11-06
+updated: 2026-11-10
 rank: 8
-blocked: wake gone docs/plans/type-law/design.md
+blocked: wake gone docs/plans/unwired-code/design.md
 ---
 
 # Restoration register
@@ -24,7 +24,7 @@ The records are source reads. They were not run, and `legacy_comparison` is `not
 
 ## Shape
 
-This plan waits until the [type law](../type-law/design.md) plan is done in full and the [unwired code](../unwired-code/design.md) cleanup is finished; then its judging pass starts.
+This plan waits until the [unwired code](../unwired-code/design.md) cleanup is finished; then its judging pass starts.
 
 One table of reference scopes with a porting state, a maintained home or decision, and the remaining action. Ledger, law and work docs link to it instead of to removed tests. The test-foundation plan owns the rebuild order.
 
