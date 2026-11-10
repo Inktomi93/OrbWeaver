@@ -31,7 +31,7 @@ export interface CommandProps extends Omit<ComponentProps<typeof BaseCommandRoot
   elevated?: boolean;
   /** The palette fills its parent's block extent. */
   fill?: boolean;
-  /** The palette is a picker window's frame: it holds that box, and a footer inside takes room from the list. */
+  /** The palette is a picker window's frame: on a landscape phone its box shrinks with the dialog, down to its search strip and one touch row. */
   windowed?: boolean;
 }
 

@@ -40,8 +40,7 @@ export const commandVariants = tv({
     // phone). `control-sm` already varies by pointer (2.75rem coarse / 2rem fine, theme.css) but only
     // via the `pointer: fine` media query, not Tailwind's `pointer-coarse:` variant — spelling the
     // floor here keeps the tap target explicit rather than relying on that CSS-var-only coincidence.
-    // `shrink-0`: the root is a column capped at a box that counts the list's window but not the footer a picker adds, so the footer's
-    // room comes out of the list; the field is a control, and a control keeps its height.
+    // `shrink-0`: the field is a control, and a control keeps its height.
     inputWrapper: `${ROW_STRIP} shrink-0 border-be border-border px-row block-(--size-control-sm) pointer-coarse:block-(--size-touch-target)`,
     input: `
       flex-1 bg-transparent text-field leading-field text-foreground outline-none block-full inline-full min-inline-0
@@ -73,11 +72,9 @@ export const commandVariants = tv({
     elevated: { true: { root: "shadow-overlay" } },
     // The palette takes its parent's whole block extent; in a short dialog it takes the room the dialog leaves, so its list is the box that scrolls.
     fill: { true: { root: "block-full dialog-short:glass-short:block-auto" } },
-    // A roomy dialog holds the box a picker settles at, so its footer takes room from the list and the dialog does not jump on the first
-    // keystroke. A dialog too short for the window to give the footer room and keep a touch row, or too narrow for the footer to keep one line,
-    // lets the footer add to the box.
-    // On a landscape phone the box shrinks with the dialog, down to its search strip and one touch row.
-    windowed: { true: { root: "dialog-short:glass-short:min-block-(--height-picker-floor) dialog-roomy:max-block-(--height-picker-box)" } },
+    // On a landscape phone the box shrinks with the dialog, down to its search strip and one touch row. A roomy dialog's list gives the room a footer
+    // takes (see `pickerWindow`), so the dialog does not jump on the first keystroke.
+    windowed: { true: { root: "dialog-short:glass-short:min-block-(--height-picker-floor)" } },
     listSize: {
       content: { list: "" },
       // A stable compact viewport keeps filtering from moving its containing dialog without reserving
@@ -98,12 +95,16 @@ export const commandVariants = tv({
       // A picker's window inside a dialog: it caps at the window step. A short dialog is one box with one scroller, so the
       // window stops guessing at the chrome around it: the command box and its list take what the dialog leaves, down to
       // one touch row, and the list drops the inset, the headings and the scroll chain so the rows keep the room.
+      // In a roomy dialog the list that has a footer under it (a following sibling) caps at the window less one footer, so a one-row footer takes
+      // room from the list and the box keeps the size the skeleton held. A footer that wraps is taller and adds to the box; it never takes the
+      // list below one touch row. A dialog too narrow for the footer to share a row keeps the whole window, and its footer adds to the box.
       pickerWindow: {
         list: `
           max-block-(--height-picker-window)
           dialog-short:overflow-x-hidden dialog-short:overscroll-auto dialog-short:p-0
           dialog-short:glass-short:mx-(--border-width-rule) dialog-short:glass-short:mbe-(--border-width-rule) dialog-short:glass-short:flex-auto
           dialog-short:glass-short:max-block-none dialog-short:glass-short:min-block-(--height-scroll-short)
+          dialog-roomy:[&:has(~*)]:max-block-(--height-picker-list-footed) dialog-roomy:[&:has(~*)]:min-block-(--height-scroll-short)
           dialog-short:**:[[cmdk-group-heading]]:hidden
         `,
       },
