@@ -55,8 +55,8 @@ import { createProviderExecutor } from "./roles/executor.ts";
 import { createRoleClientsFor } from "./roles/role-clients.ts";
 
 export type { ResolvedWarning } from "@orb/contracts/inference";
-
 export { availableClaudeExecutable } from "./backends/agent-sdk/executable.ts";
+export { supportsToolInputExamples } from "./backends/anthropic-messages/model.ts";
 
 export { cachePolicyContextOf, responseReplaySupportedFor } from "./backends/http/response-cache.ts";
 export { cacheDepthCovering, preservesCacheBlockEnds, rowIndexAtCacheDepth } from "./backends/wire/cache-control.ts";
