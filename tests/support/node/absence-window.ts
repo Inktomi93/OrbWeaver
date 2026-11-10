@@ -2,12 +2,6 @@
 // only what never renders, so the case keeps a positive control under the same wiring (Spine-Testing §3).
 import type { Locator, Page } from "@playwright/test";
 
-// The members the browser callback reads: the Node world compiles this file without DOM declarations.
-interface ScrollHost {
-  scrollTop: number;
-  readonly addEventListener: (type: "scroll", listener: () => void, options: { readonly signal: AbortSignal }) => void;
-}
-
 /** A scroll the window starts, and whose events restart it, so the window ends only after the scroller has stayed quiet. */
 interface QuietScroll {
   readonly scroller: Locator;
@@ -23,23 +17,19 @@ export async function absenceWindow(page: Page, windowMs: number, scroll?: Quiet
     await page.evaluate((span) => new Promise<void>((resolve) => setTimeout(resolve, span)), windowMs);
     return;
   }
-  await scroll.scroller.evaluate<void, { readonly span: number; readonly byPx: number }, ScrollHost & HTMLElement>(
+  await scroll.scroller.evaluate(
     (node, { span, byPx }) =>
       new Promise<void>((resolve) => {
-        const quiet = new AbortController();
-        const settle = (): void => {
-          quiet.abort();
+        function settle(): void {
+          node.removeEventListener("scroll", restart);
           resolve();
-        };
+        }
+        function restart(): void {
+          clearTimeout(timer);
+          timer = setTimeout(settle, span);
+        }
         let timer = setTimeout(settle, span);
-        node.addEventListener(
-          "scroll",
-          () => {
-            clearTimeout(timer);
-            timer = setTimeout(settle, span);
-          },
-          { signal: quiet.signal },
-        );
+        node.addEventListener("scroll", restart);
         node.scrollTop += byPx;
       }),
     { span: windowMs, byPx: scroll.byPx },

@@ -1,0 +1,21 @@
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -1674,7 +1674,7 @@ type ExecutableTool<TOOL extends Tool = Tool> = TOOL & {
+ export declare function isExecutableTool<TOOL extends Tool>(tool: TOOL | undefined): tool is ExecutableTool<TOOL>;
+ //#endregion
+ //#region src/types/never-optional.d.ts
+-type NeverOptional<N, T> = 0 extends 1 & N ? Partial<T> : [N] extends [never] ? Partial<Record<keyof T, undefined>> : T;
++type NeverOptional<N, T> = 0 extends 1 & N ? Partial<T> | Partial<Record<keyof T, undefined>> : [N] extends [never] ? Partial<Record<keyof T, undefined>> : T;
+ //#endregion
+ //#region src/types/tool-approval-request.d.ts
+ /**
+@@ -2331,7 +2331,7 @@
+  */
+ declare function tool$1<INPUT, OUTPUT, CONTEXT extends Context>(tool: Tool<INPUT, OUTPUT, CONTEXT> & {
+   execute: ToolExecuteFunction<INPUT, OUTPUT, CONTEXT>;
+-}): ExecutableTool<Tool<INPUT, OUTPUT, CONTEXT>>;
++}): typeof tool;
+ declare function tool$1<INPUT, OUTPUT, CONTEXT extends Context>(tool: Tool<INPUT, OUTPUT, CONTEXT>): Tool<INPUT, OUTPUT, CONTEXT>;
+ declare function tool$1<INPUT, CONTEXT extends Context>(tool: Tool<INPUT, never, CONTEXT>): Tool<INPUT, never, CONTEXT>;
+ declare function tool$1<OUTPUT, CONTEXT extends Context>(tool: Tool<never, OUTPUT, CONTEXT>): Tool<never, OUTPUT, CONTEXT>;

@@ -1,0 +1,64 @@
+diff --git a/dist/esm/RouterProvider.d.ts b/dist/esm/RouterProvider.d.ts
+--- a/dist/esm/RouterProvider.d.ts
++++ b/dist/esm/RouterProvider.d.ts
+@@ -1,3 +1,4 @@
++import type { ScrollIntoViewOptions } from "browser-realm-types";
+ import { NavigateOptions, ToOptions } from './link.js';
+ import { ParsedLocation } from './location.js';
+ import { RoutePaths } from './routeInfo.js';
+diff --git a/dist/cjs/RouterProvider.d.cts b/dist/cjs/RouterProvider.d.cts
+--- a/dist/cjs/RouterProvider.d.cts
++++ b/dist/cjs/RouterProvider.d.cts
+@@ -1,3 +1,4 @@
++import type { ScrollIntoViewOptions } from "browser-realm-types";
+ import { NavigateOptions, ToOptions } from './link.cjs';
+ import { ParsedLocation } from './location.cjs';
+ import { RoutePaths } from './routeInfo.cjs';
+diff --git a/dist/esm/link.d.ts b/dist/esm/link.d.ts
+--- a/dist/esm/link.d.ts
++++ b/dist/esm/link.d.ts
+@@ -1,3 +1,4 @@
++import type { HTMLAnchorElement, ScrollIntoViewOptions } from "browser-realm-types";
+ import { HistoryState, ParsedHistoryState } from '@tanstack/history';
+ import { AllParams, CatchAllPaths, CurrentPath, FullSearchSchema, FullSearchSchemaInput, ParentPath, RouteByPath, RouteByToPath, RoutePaths, RouteToPath, ToPath } from './routeInfo.js';
+ import { AnyRouter, RegisteredRouter, ViewTransitionOptions } from './router.js';
+diff --git a/dist/cjs/link.d.cts b/dist/cjs/link.d.cts
+--- a/dist/cjs/link.d.cts
++++ b/dist/cjs/link.d.cts
+@@ -1,3 +1,4 @@
++import type { HTMLAnchorElement, ScrollIntoViewOptions } from "browser-realm-types";
+ import { HistoryState, ParsedHistoryState } from '@tanstack/history';
+ import { AllParams, CatchAllPaths, CurrentPath, FullSearchSchema, FullSearchSchemaInput, ParentPath, RouteByPath, RouteByToPath, RoutePaths, RouteToPath, ToPath } from './routeInfo.cjs';
+ import { AnyRouter, RegisteredRouter, ViewTransitionOptions } from './router.cjs';
+diff --git a/dist/esm/router.d.ts b/dist/esm/router.d.ts
+--- a/dist/esm/router.d.ts
++++ b/dist/esm/router.d.ts
+@@ -1,3 +1,4 @@
++import type { ScrollBehavior, ScrollIntoViewOptions } from "browser-realm-types";
+ import { SieveCache } from './sieve-cache.js';
+ import { ProcessRouteTreeResult, ProcessedTree } from './new-process-route-tree.js';
+ import { SearchParser, SearchSerializer } from './searchParams.js';
+diff --git a/dist/cjs/router.d.cts b/dist/cjs/router.d.cts
+--- a/dist/cjs/router.d.cts
++++ b/dist/cjs/router.d.cts
+@@ -1,3 +1,4 @@
++import type { ScrollBehavior, ScrollIntoViewOptions } from "browser-realm-types";
+ import { SieveCache } from './sieve-cache.cjs';
+ import { ProcessRouteTreeResult, ProcessedTree } from './new-process-route-tree.cjs';
+ import { SearchParser, SearchSerializer } from './searchParams.cjs';
+diff --git a/dist/esm/scroll-restoration.d.ts b/dist/esm/scroll-restoration.d.ts
+--- a/dist/esm/scroll-restoration.d.ts
++++ b/dist/esm/scroll-restoration.d.ts
+@@ -1,3 +1,4 @@
++import type { ScrollToOptions } from "browser-realm-types";
+ import { AnyRouter } from './router.js';
+ import { ParsedLocation } from './location.js';
+ export type ScrollRestorationEntry = {
+diff --git a/dist/cjs/scroll-restoration.d.cts b/dist/cjs/scroll-restoration.d.cts
+--- a/dist/cjs/scroll-restoration.d.cts
++++ b/dist/cjs/scroll-restoration.d.cts
+@@ -1,3 +1,4 @@
++import type { ScrollToOptions } from "browser-realm-types";
+ import { AnyRouter } from './router.cjs';
+ import { ParsedLocation } from './location.cjs';
+ export type ScrollRestorationEntry = {

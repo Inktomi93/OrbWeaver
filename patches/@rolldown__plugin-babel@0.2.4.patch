@@ -1,0 +1,38 @@
+diff --git a/dist/index.d.mts b/dist/index.d.mts
+--- a/dist/index.d.mts
++++ b/dist/index.d.mts
+@@ -1,32 +1,8 @@
+ import * as babel from "@babel/core";
+ import { GeneralHookFilter, ModuleTypeFilter, Plugin } from "rolldown";
+ import { Plugin as Plugin$1, ResolvedConfig } from "vite";
+-declare namespace babelCompat_d_exports {
+-  export { FileResult, InputOptions, PluginObject, PresetItem, loadOptionsAsync };
+-}
+-import * as import__babel_core from "@babel/core";
+-type IsAny<T> = boolean extends (T extends never ? true : false) ? true : false;
+-/** **When using babel 7, install `@types/babel__core` to get proper types.** */
+-type InputOptionsFallback = {
+-  /** **When using babel 7, install `@types/babel__core` to get proper types.** */
+-  plugins?: unknown[];
+-  /** **When using babel 7, install `@types/babel__core` to get proper types.** */
+-  presets?: unknown[];
+-};
+-type InputOptions8 = babel.InputOptions;
+-type PresetItem8 = babel.PresetItem;
+-type PluginObject8<T> = babel.PluginObject<T>;
+-type FileResult8 = babel.FileResult;
+-type TransformOptions = babel.TransformOptions;
+-type PluginObj<T> = babel.PluginObj<T>;
+-type BabelFileResult = babel.BabelFileResult;
+-type InputOptions = IsAny<InputOptions8> extends false ? InputOptions8 : IsAny<TransformOptions> extends false ? TransformOptions : InputOptionsFallback;
+-type PresetItem = IsAny<PresetItem8> extends false ? PresetItem8 : babel.PluginItem;
+-type PluginObject<T = babel.PluginPass> = IsAny<PluginObject8<T>> extends false ? PluginObject8<T> : PluginObj<T>;
+-type FileResult = IsAny<FileResult8> extends false ? FileResult8 : BabelFileResult;
+-declare const loadOptionsAsync: (options?: InputOptions) => Promise<InputOptions & {
+-  plugins: babel.PluginItem[];
+-}>;
++type InputOptions = NonNullable<Parameters<typeof babel.transformSync>[1]>;
++type PresetItem = NonNullable<InputOptions["presets"]>[number];
+ //#endregion
+ //#region src/rolldownPreset.d.ts
+ type PartialEnvironment = Parameters<NonNullable<Plugin$1['applyToEnvironment']>>[0];

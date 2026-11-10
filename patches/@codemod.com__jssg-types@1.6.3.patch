@@ -1,0 +1,90 @@
+diff --git a/src/llrt/index.d.ts b/src/llrt/index.d.ts
+index d828e73133..99c2ef79e1 100644
+--- a/src/llrt/index.d.ts
++++ b/src/llrt/index.d.ts
+@@ -26,7 +26,6 @@
+ /// <reference path="./stream/web.d.ts" />
+ /// <reference path="./string_decoder.d.ts" />
+ /// <reference path="./timers.d.ts" />
+-/// <reference path="./timezone.d.ts" />
+ /// <reference path="./tty.d.ts" />
+ /// <reference path="./url.d.ts" />
+ /// <reference path="./util.d.ts" />
+diff --git a/src/llrt/module.d.ts b/src/llrt/module.d.ts
+index 16cb9b7f4b..32a03c3456 100644
+--- a/src/llrt/module.d.ts
++++ b/src/llrt/module.d.ts
+@@ -2,7 +2,8 @@
+  * @since v0.3.7
+  */
+ declare module "module" {
+-  import { URL } from "node:url";
++  import type { Dict } from "process";
++  import { URL } from "url";
+   class Module {
+     constructor(id: string, parent?: Module);
+   }
+@@ -70,7 +71,7 @@ declare module "module" {
+      * @experimental
+      */
+     function registerHooks(options: RegisterHooksOptions): ModuleHooks;
+-    interface ImportAttributes extends NodeJS.Dict<string> {
++    interface ImportAttributes extends Dict<string> {
+       type?: string | undefined;
+     }
+     type ImportPhase = "source" | "evaluation";
+@@ -83,7 +84,7 @@ declare module "module" {
+       | "module"
+       | "module-typescript"
+       | "wasm";
+-    type ModuleSource = string | ArrayBuffer | NodeJS.TypedArray;
++    type ModuleSource = string | ArrayBuffer | QuickJS.TypedArray;
+     interface ResolveHookContext {
+       /**
+        * Export conditions of the relevant `package.json`
+diff --git a/src/llrt/os.d.ts b/src/llrt/os.d.ts
+index 135007c7b0..eb29d58312 100644
+--- a/src/llrt/os.d.ts
++++ b/src/llrt/os.d.ts
+@@ -1,4 +1,6 @@
+ declare module "os" {
++  import type { Dict } from "process";
++  import type { BufferEncoding } from "buffer";
+   interface CpuInfo {
+     model: string;
+     speed: number;
+@@ -220,7 +222,7 @@ declare module "os" {
+    * }
+    * ```
+    */
+-  function networkInterfaces(): NodeJS.Dict<NetworkInterfaceInfo[]>;
++  function networkInterfaces(): Dict<NetworkInterfaceInfo[]>;
+   /**
+    * Returns a string identifying the operating system platform for which
+    * the Node.js binary was compiled. The value is set at compile time.
+diff --git a/src/modules/metrics.d.ts b/src/modules/metrics.d.ts
+index ffaa99da1b..28f5e8a7bf 100644
+--- a/src/modules/metrics.d.ts
++++ b/src/modules/metrics.d.ts
+@@ -36,7 +36,7 @@ declare module "codemod:metrics" {
+    * }
+    * ```
+    */
+-  export declare class MetricAtom {
++  export class MetricAtom {
+     /**
+      * The name of this metric.
+      */
+diff --git a/src/modules/runtime.d.ts b/src/modules/runtime.d.ts
+index 5b49621959..ab01b73b66 100644
+--- a/src/modules/runtime.d.ts
++++ b/src/modules/runtime.d.ts
+@@ -53,7 +53,7 @@ declare module "codemod:runtime" {
+     isCanceled(): boolean;
+   }
+ 
+-  declare const runtime: RuntimeHooks;
++  const runtime: RuntimeHooks;
+ 
+   export default runtime;
+ 

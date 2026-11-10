@@ -1,0 +1,212 @@
+diff --git a/Dir.d.ts b/Dir.d.ts
+index 4bfab6e581..13f5272a7e 100644
+--- a/Dir.d.ts
++++ b/Dir.d.ts
+@@ -1,6 +1,6 @@
+-import { Link } from './node';
+-import * as opts from './node/types/options';
+-import type { IDir, IDirent } from './node/types/misc';
++import { Link } from './node.js';
++import * as opts from './node/types/options.js';
++import type { IDir, IDirent } from './node/types/misc.js';
+ /**
+  * A directory stream, like `fs.Dir`.
+  */
+diff --git a/Dirent.d.ts b/Dirent.d.ts
+index 9e3bf39ee7..a7f7d57f99 100644
+--- a/Dirent.d.ts
++++ b/Dirent.d.ts
+@@ -1,6 +1,6 @@
+-import { Link } from './node';
+-import { TEncodingExtended, TDataOut } from './encoding';
+-import type { IDirent } from './node/types/misc';
++import { Link } from './node.js';
++import { TEncodingExtended, TDataOut } from './encoding.js';
++import type { IDirent } from './node/types/misc.js';
+ /**
+  * A directory entry, like `fs.Dirent`.
+  */
+diff --git a/Stats.d.ts b/Stats.d.ts
+index b8991311eb..b9e10a2733 100644
+--- a/Stats.d.ts
++++ b/Stats.d.ts
+@@ -1,4 +1,4 @@
+-import { Node } from './node';
++import { Node } from './node.js';
+ export type TStatNumber = number | bigint;
+ /**
+  * Statistics about a file/directory, like `fs.Stats`.
+diff --git a/index.d.ts b/index.d.ts
+index 1a71a64963..5dc19d0b53 100644
+--- a/index.d.ts
++++ b/index.d.ts
+@@ -1,9 +1,9 @@
+-import Stats from './Stats';
+-import Dirent from './Dirent';
+-import { Volume as _Volume, StatWatcher, FSWatcher, IWriteStream, DirectoryJSON, NestedDirectoryJSON } from './volume';
+-import { constants } from './constants';
+-import type { FsPromisesApi } from './node/types';
+-import type * as misc from './node/types/misc';
++import Stats from './Stats.js';
++import Dirent from './Dirent.js';
++import { Volume as _Volume, StatWatcher, FSWatcher, IWriteStream, DirectoryJSON, NestedDirectoryJSON } from './volume.js';
++import { constants } from './constants.js';
++import type { FsPromisesApi } from './node/types/index.js';
++import type * as misc from './node/types/misc.js';
+ export { DirectoryJSON, NestedDirectoryJSON };
+ export declare const Volume: typeof _Volume;
+ export declare const vol: _Volume;
+diff --git a/node/types/FsCallbackApi.d.ts b/node/types/FsCallbackApi.d.ts
+index 6e547ef301..f9145b8caf 100644
+--- a/node/types/FsCallbackApi.d.ts
++++ b/node/types/FsCallbackApi.d.ts
+@@ -1,5 +1,5 @@
+-import type * as misc from './misc';
+-import type * as opts from './options';
++import type * as misc from './misc.js';
++import type * as opts from './options.js';
+ export interface FsCallbackApi {
+     access(path: misc.PathLike, callback: misc.TCallback<void>): any;
+     access(path: misc.PathLike, mode: number, callback: misc.TCallback<void>): any;
+diff --git a/node/types/FsPromisesApi.d.ts b/node/types/FsPromisesApi.d.ts
+index bc49e7e9a9..692177ffee 100644
+--- a/node/types/FsPromisesApi.d.ts
++++ b/node/types/FsPromisesApi.d.ts
+@@ -1,6 +1,6 @@
+-import type { constants } from '../../constants';
+-import * as misc from './misc';
+-import * as opts from './options';
++import type { constants } from '../../constants.js';
++import * as misc from './misc.js';
++import * as opts from './options.js';
+ export interface FsPromisesApi {
+     constants: typeof constants;
+     FileHandle: new (...args: unknown[]) => misc.IFileHandle;
+diff --git a/node/types/FsSynchronousApi.d.ts b/node/types/FsSynchronousApi.d.ts
+index c735669cc6..c76c22f1e9 100644
+--- a/node/types/FsSynchronousApi.d.ts
++++ b/node/types/FsSynchronousApi.d.ts
+@@ -1,5 +1,5 @@
+-import type * as misc from './misc';
+-import type * as opts from './options';
++import type * as misc from './misc.js';
++import type * as opts from './options.js';
+ export interface FsSynchronousApi {
+     accessSync(path: misc.PathLike, mode?: number): void;
+     appendFileSync(id: misc.TFileId, data: misc.TData, options?: opts.IAppendFileOptions | string): void;
+diff --git a/node/types/index.d.ts b/node/types/index.d.ts
+index 7368a149ae..5e46da4b9d 100644
+--- a/node/types/index.d.ts
++++ b/node/types/index.d.ts
+@@ -1,6 +1,6 @@
+-import type { FsSynchronousApi } from './FsSynchronousApi';
+-import type { FsCallbackApi } from './FsCallbackApi';
+-import type { FsPromisesApi } from './FsPromisesApi';
++import type { FsSynchronousApi } from './FsSynchronousApi.js';
++import type { FsCallbackApi } from './FsCallbackApi.js';
++import type { FsPromisesApi } from './FsPromisesApi.js';
+ export { FsSynchronousApi, FsCallbackApi, FsPromisesApi };
+ export interface FsApi extends FsCallbackApi, FsSynchronousApi {
+     promises: FsPromisesApi;
+diff --git a/node/types/misc.d.ts b/node/types/misc.d.ts
+index 43321716b8..c40d99361f 100644
+--- a/node/types/misc.d.ts
++++ b/node/types/misc.d.ts
+@@ -1,8 +1,9 @@
++import type { ReadableStream } from "node:stream/web";
+ import type { PathLike as NodePathLike, symlink } from 'fs';
+-import type { constants } from '../../constants';
++import type { constants } from '../../constants.js';
+ import type { EventEmitter } from 'events';
+-import type { TSetTimeout } from '../../setTimeoutUnref';
+-import type { IAppendFileOptions, IFileHandleReadStreamOptions, IFileHandleWriteStreamOptions, IReadableWebStreamOptions, IReadFileOptions, IStatOptions, IWriteFileOptions } from './options';
++import type { TSetTimeout } from '../../setTimeoutUnref.js';
++import type { IAppendFileOptions, IFileHandleReadStreamOptions, IFileHandleWriteStreamOptions, IReadableWebStreamOptions, IReadFileOptions, IStatOptions, IWriteFileOptions } from './options.js';
+ import type { Readable, Writable } from 'stream';
+ export { symlink };
+ export type PathLike = NodePathLike | Uint8Array;
+@@ -101,15 +102,6 @@ export interface IFSWatcher extends EventEmitter {
+     start(path: PathLike, persistent?: boolean, recursive?: boolean, encoding?: BufferEncoding): void;
+     close(): void;
+ }
+-/**
+- * Declare ReadableStream in case dom.d.ts is not added to the tsconfig lib causing
+- * ReadableStream interface is not defined. For developers with dom.d.ts added,
+- * the ReadableStream interface will be merged correctly.
+- */
+-declare global {
+-    export interface ReadableStream {
+-    }
+-}
+ export interface IFileHandle {
+     fd: number;
+     appendFile(data: TData, options?: IAppendFileOptions | string): Promise<void>;
+diff --git a/node/types/options.d.ts b/node/types/options.d.ts
+index e25daf4393..5e166a894b 100644
+--- a/node/types/options.d.ts
++++ b/node/types/options.d.ts
+@@ -1,4 +1,4 @@
+-import type { IFileHandle, TEncodingExtended, TFlags, TMode } from './misc';
++import type { IFileHandle, TEncodingExtended, TFlags, TMode } from './misc.js';
+ export interface IOptions {
+     encoding?: BufferEncoding | TEncodingExtended;
+ }
+diff --git a/node.d.ts b/node.d.ts
+index 7c80c0a52e..3bab24a13c 100644
+--- a/node.d.ts
++++ b/node.d.ts
+@@ -1,6 +1,6 @@
+-import { Volume } from './volume';
++import { Volume } from './volume.js';
+ import { EventEmitter } from 'events';
+-import Stats from './Stats';
++import Stats from './Stats.js';
+ export declare const SEP = "/";
+ /**
+  * Node in a file system (like i-node, v-node).
+diff --git a/print/index.d.ts b/print/index.d.ts
+index 8663d2d8d2..c79666a463 100644
+--- a/print/index.d.ts
++++ b/print/index.d.ts
+@@ -1,4 +1,4 @@
+-import type { FsSynchronousApi } from '../node/types';
++import type { FsSynchronousApi } from '../node/types/index.js';
+ export declare const toTreeSync: (fs: FsSynchronousApi, opts?: ToTreeOptions) => string;
+ export interface ToTreeOptions {
+     dir?: string;
+diff --git a/volume.d.ts b/volume.d.ts
+index 52594f0abd..1e9f3b7dd2 100644
+--- a/volume.d.ts
++++ b/volume.d.ts
+@@ -1,18 +1,18 @@
+-import { Node, Link, File } from './node';
+-import Stats from './Stats';
+-import Dirent from './Dirent';
+-import { TSetTimeout } from './setTimeoutUnref';
++import { Node, Link, File } from './node.js';
++import Stats from './Stats.js';
++import Dirent from './Dirent.js';
++import { TSetTimeout } from './setTimeoutUnref.js';
+ import { Writable } from 'stream';
+-import { constants } from './constants';
++import { constants } from './constants.js';
+ import { EventEmitter } from 'events';
+-import { TDataOut } from './encoding';
+-import * as misc from './node/types/misc';
+-import * as opts from './node/types/options';
+-import { FsCallbackApi, WritevCallback } from './node/types/FsCallbackApi';
+-import { ToTreeOptions } from './print';
+-import type { PathLike, symlink } from './node/types/misc';
+-import type { FsPromisesApi, FsSynchronousApi } from './node/types';
+-import { Dir } from './Dir';
++import { TDataOut } from './encoding.js';
++import * as misc from './node/types/misc.js';
++import * as opts from './node/types/options.js';
++import { FsCallbackApi, WritevCallback } from './node/types/FsCallbackApi.js';
++import { ToTreeOptions } from './print/index.js';
++import type { PathLike, symlink } from './node/types/misc.js';
++import type { FsPromisesApi, FsSynchronousApi } from './node/types/index.js';
++import { Dir } from './Dir.js';
+ export interface IError extends Error {
+     code?: string;
+ }

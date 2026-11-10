@@ -1,0 +1,24 @@
+diff --git a/index.ts b/index.ts
+--- a/index.ts
++++ b/index.ts
+@@ -335,7 +335,7 @@
+   trace?: ExportedHandlerTraceHandler<Env>;
+   scheduled?: ExportedHandlerScheduledHandler<Env>;
+   test?: ExportedHandlerTestHandler<Env>;
+-  queue?: ExportedHandlerQueueHandler<Env, Message>;
++  queue?: ExportedHandlerQueueHandler<Env, QueueMessage>;
+ }
+ export interface StructuredSerializeOptions {
+   transfer?: any[];
+diff --git a/index.d.ts b/index.d.ts
+--- a/index.d.ts
++++ b/index.d.ts
+@@ -333,7 +333,7 @@
+   trace?: ExportedHandlerTraceHandler<Env>;
+   scheduled?: ExportedHandlerScheduledHandler<Env>;
+   test?: ExportedHandlerTestHandler<Env>;
+-  queue?: ExportedHandlerQueueHandler<Env, Message>;
++  queue?: ExportedHandlerQueueHandler<Env, QueueMessage>;
+ }
+ declare interface StructuredSerializeOptions {
+   transfer?: any[];

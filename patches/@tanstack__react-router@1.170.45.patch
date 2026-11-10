@@ -1,0 +1,16 @@
+diff --git a/dist/esm/history.d.ts b/dist/esm/history.d.ts
+--- a/dist/esm/history.d.ts
++++ b/dist/esm/history.d.ts
+@@ -1,3 +1,4 @@
++import type { ScrollIntoViewOptions } from "browser-realm-types";
+ declare module '@tanstack/history' {
+     interface HistoryState {
+         __tempLocation?: HistoryLocation;
+diff --git a/dist/cjs/history.d.cts b/dist/cjs/history.d.cts
+--- a/dist/cjs/history.d.cts
++++ b/dist/cjs/history.d.cts
+@@ -1,3 +1,4 @@
++import type { ScrollIntoViewOptions } from "browser-realm-types";
+ declare module '@tanstack/history' {
+     interface HistoryState {
+         __tempLocation?: HistoryLocation;
