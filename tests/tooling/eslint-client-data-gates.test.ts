@@ -358,15 +358,128 @@ const LADDER_CASES = [
     0,
   ],
   ["orb/no-query-state-ladder", "a mutation's pending flag", ladder("const m = useSaveThing();\nreturn m.isPending ? <Spinner /> : <X />;"), FEATURE, 0],
+  [
+    "orb/no-query-state-ladder",
+    "a destructure of a copied result",
+    ladder("const q = useQuery(o);\nconst { isPending } = q;\nif (isPending) return <Skeleton />;\nreturn <X />;"),
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a destructured copy that only feeds a prop",
+    ladder("const q = useQuery(o);\nconst { isPending } = q;\nreturn <Button disabled={isPending}>Save</Button>;"),
+    FEATURE,
+    0,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a switch on status with pending and error cases",
+    ladder(
+      'const q = useQuery(o);\nswitch (q.status) {\ncase "pending":\nreturn <Skeleton />;\ncase "error":\nreturn <Failed />;\ndefault:\nreturn <X d={q.data} />;\n}',
+    ),
+    FEATURE,
+    2,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a switch default beside a success case",
+    ladder('const q = useQuery(o);\nswitch (q.status) {\ncase "success":\nreturn <X d={q.data} />;\ndefault:\nreturn <Skeleton />;\n}'),
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a switch whose unsettled cases fall through to nothing",
+    ladder('const q = useQuery(o);\nswitch (q.status) {\ncase "pending":\ncase "error":\nreturn null;\ndefault:\nreturn <X d={q.data} />;\n}'),
+    FEATURE,
+    0,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "an arm that returns a call drawing an element",
+    ladder("const q = useQuery(o);\nif (q.isPending) return renderSkeleton();\nreturn <X />;"),
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "an arm that calls for a label",
+    ladder("const q = useQuery(o);\nreturn <Button>{q.isPending ? savingLabel() : <X />}</Button>;"),
+    FEATURE,
+    0,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "an arm that assigns an element",
+    ladder("const q = useQuery(o);\nlet body = <X />;\nif (q.isError) body = <Failed />;\nreturn body;"),
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "an arm that assigns a flag",
+    ladder("const q = useQuery(o);\nlet busy = false;\nif (q.isPending) busy = true;\nreturn <X busy={busy} />;"),
+    FEATURE,
+    0,
+  ],
+  ["orb/no-query-state-ladder", "deep presence on the data", ladder("const q = useQuery(o);\nreturn q.data?.count ? <X /> : <Skeleton />;"), FEATURE, 1],
+  [
+    "orb/no-query-state-ladder",
+    "deep presence compared with undefined",
+    ladder("const { data } = useQuery(o);\nreturn data?.count === undefined ? <Skeleton /> : <X />;"),
+    FEATURE,
+    1,
+  ],
+  ["orb/no-query-state-ladder", "a deep value with a default", ladder("const q = useQuery(o);\nreturn <X n={q.data?.count ?? 0} />;"), FEATURE, 0],
+  ["orb/no-query-state-ladder", "deep presence drawn as nothing", ladder("const q = useQuery(o);\nreturn q.data?.count ? <X /> : null;"), FEATURE, 0],
+  [
+    "orb/no-query-state-ladder",
+    "isFetching is a refresh hint, not an unsettled state",
+    ladder("const q = useQuery(o);\nreturn <Row>{q.isFetching ? <Spinner /> : null}<X d={q.data} /></Row>;"),
+    FEATURE,
+    0,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a useQueries result read by index",
+    ladder("const qs = useQueries({ queries });\nreturn qs[0].isPending ? <Skeleton /> : <X />;"),
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a useQueries list tested with some",
+    ladder("const qs = useQueries({ queries });\nif (qs.some((r) => r.isPending)) return <Skeleton />;\nreturn <X />;"),
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a useQueries list tested with every",
+    ladder("const qs = useQueries({ queries });\nreturn qs.every(({ isSuccess }) => isSuccess) ? <X /> : <Skeleton />;"),
+    FEATURE,
+    1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "a useQueries list counted for a value",
+    ladder("const qs = useQueries({ queries });\nreturn <X n={qs.filter((r) => r.isSuccess).length}>{qs.some((r) => r.isPending) ? savingLabel() : null}</X>;"),
+    FEATURE,
+    0,
+  ],
 ] as const;
 
 // The rule judges a read by its type, so the cases run over a planted program whose reads carry the TanStack result
 // shapes: a non-suspending result can be pending, a suspending one cannot, and a mutation has no refetch.
-const READ_TYPES = `type Pending = { status: "pending"; isPending: true; isLoading: boolean; isError: false; isSuccess: false; data: undefined; error: null; refetch(): void };
-type Failed = { status: "error"; isPending: false; isLoading: false; isError: true; isSuccess: false; data: undefined; error: Error; refetch(): void };
-type Settled<T> = { status: "success"; isPending: false; isLoading: false; isError: false; isSuccess: true; data: T; error: null; refetch(): void };
+const READ_TYPES = `type Pending = { status: "pending"; isPending: true; isLoading: boolean; isFetching: boolean; isError: false; isSuccess: false; data: undefined; error: null; refetch(): void };
+type Failed = { status: "error"; isPending: false; isLoading: false; isFetching: boolean; isError: true; isSuccess: false; data: undefined; error: Error; refetch(): void };
+type Settled<T> = { status: "success"; isPending: false; isLoading: false; isFetching: boolean; isError: false; isSuccess: true; data: T; error: null; refetch(): void };
 export type Read<T> = Pending | Failed | Settled<T>;
 export type Row = { count: number };
+export type Element = { type: unknown; props: unknown; key: string | null };
+export declare function renderSkeleton(): Element | null;
+export declare function savingLabel(): string;
 export declare function useQuery(options: unknown): Read<Row>;
 export declare function useQueries(options: unknown): Read<Row>[];
 export declare function useGatedQuery(id: unknown, optionsFor: unknown): Read<Row>;
@@ -377,7 +490,7 @@ export function useMe(): Read<Row> { return useQuery({}); }
 `;
 const READS_MODULE = `${CLIENT}data/reads.ts`;
 const ladderHeader = (path: string): string =>
-  `import { useConfig, useGatedQuery, useMe, useQueries, useQuery, useSaveThing, useSuspenseQuery } from "./${relative(dirname(path), READS_MODULE)}";\ndeclare const o: object;\ndeclare const id: string | null;\ndeclare const f: unknown;\ndeclare const queries: unknown[];\n`;
+  `import { renderSkeleton, savingLabel, useConfig, useGatedQuery, useMe, useQueries, useQuery, useSaveThing, useSuspenseQuery } from "./${relative(dirname(path), READS_MODULE)}";\ndeclare const o: object;\ndeclare const id: string | null;\ndeclare const f: unknown;\ndeclare const queries: unknown[];\n`;
 
 const LADDER_RULE = "orb/no-query-state-ladder";
 
