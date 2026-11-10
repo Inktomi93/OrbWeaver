@@ -16,7 +16,7 @@ import { present } from "@orb/testkit/iso";
 import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
 import { expect, test } from "@orb/testkit/tooling";
 import type { GridPromotionKind } from "../../../../../tooling/src/ui-audit/contract/samples-grid.ts";
-import { GRID_COMPOSITED_WITHOUT_RESAMPLE } from "../../../../../tooling/src/ui-audit/lib/checks-grid.ts";
+import { GRID_COLLAPSED_INTO_LAYER, GRID_COMPOSITED_WITHOUT_RESAMPLE, GRID_INHERITED_LANDING } from "../../../../../tooling/src/ui-audit/lib/checks-grid.ts";
 
 configureRelationalCliBudget();
 
@@ -27,11 +27,13 @@ interface GridReport {
   >;
 }
 
-/** One promoted host holding one text element, offset by a quarter CSS pixel — 16/64, so Chromium's
- *  LayoutUnit carries it exactly and the landing is the authored one rather than a rounding artefact. */
+/** One promoted host on the grid holding one text element offset by a quarter CSS pixel of its own — 16/64, so
+ *  Chromium's LayoutUnit carries it exactly and the landing is the authored one rather than a rounding artefact. The
+ *  offset is the text's, not the layer's: text that lands where its layer put it collapses into the layer's row. */
 const LAW4_FIXTURE = `<style>
-  .promo { will-change: transform; position: relative; top: 10.25px; }
+  .promo { will-change: transform; position: relative; top: 10px; }
   .promo p, .plain { margin: 0; }
+  .promo p { position: relative; top: 0.25px; }
 </style>
 <div class="promo">
   <p class="inside">text inside a promoted layer</p>
@@ -66,8 +68,8 @@ test("Law 4 judges promoted text and counts BOTH exclusions into the same denomi
  *  painted twin in the SAME layer at the SAME offset still fires. The pair IS the control: a fix that
  *  merely stopped judging text in this layer would take the painted one with it. */
 const SR_ONLY_FIXTURE = `<style>
-  .promo { will-change: transform; position: relative; top: 10.25px; }
-  .promo p { margin: 0; }
+  .promo { will-change: transform; position: relative; top: 10px; }
+  .promo p { margin: 0; position: relative; top: 0.25px; }
   .clipped { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
   .plumbing { display: block; width: 1px; height: 1px; overflow: hidden; }
 </style>
@@ -108,8 +110,8 @@ test("Law 4 EXCLUDES screen-reader-only text and still judges its painted twin i
  *  three kinds were invisible and the test read as a defect in `gridPromotionOf`. Distinct slots are
  *  three authored decisions, which is what the live tree looks like anyway. */
 const PROMOTION_KIND_FIXTURE = `<style>
-  .host { position: relative; top: 10.25px; }
-  .host p { margin: 0; }
+  .host { position: relative; top: 10px; }
+  .host p { margin: 0; position: relative; top: 0.25px; }
   #backdrop { backdrop-filter: blur(2px); }
   #willchange { will-change: opacity; }
   #three-d { transform-style: preserve-3d; }
@@ -157,9 +159,9 @@ const LAW3_BACKDROP_FIXTURE = `<style>
  *  ancestor is the excluded shape, but the will-change layer above it still carries the text, so Law 4 must
  *  walk past the backdrop-filter layer and judge the text under will-change. */
 const NESTED_CHAIN_FIXTURE = `<style>
-  #outer { will-change: transform; position: relative; top: 10.25px; }
+  #outer { will-change: transform; position: relative; top: 10px; }
   #inner { backdrop-filter: blur(2px); }
-  #outer p { margin: 0; }
+  #outer p { margin: 0; position: relative; top: 0.25px; }
 </style>
 <div id="outer" data-slot="will-change-outer"><div id="inner" data-slot="glass-inner"><p>text in glass in a will-change layer</p></div></div>`;
 
@@ -204,6 +206,67 @@ test("Law 3 WITHHOLDS an in-flow backdrop-filter pseudo by name, never excluding
 
   expect(res.stdout).toMatch(/POPULATION\s+promoted-layer-offset candidates=1 judged=0 .*withheld\(pseudoBoxUnmeasurable=1\) excluded\(\)/u);
   await expect(res).toExitWith(2);
+});
+
+/** Two will-change layers on the same quarter-pixel landing, 20px apart. The first holds text that lands where the
+ *  layer put it, so the layer's Law 3 row owns that fraction and the text collapses into it. The second holds text
+ *  with a quarter pixel of its own, which no layer row can fix, so it is the control that still fires. */
+const LAW4_COLLAPSE_FIXTURE = `<style>
+  .layer { will-change: transform; position: relative; top: 10.25px; height: 20px; }
+  .layer p { margin: 0; }
+  .own { position: relative; top: 0.25px; }
+</style>
+<div class="layer" id="inherits" data-slot="inherit-layer"><p class="as-placed">text where its layer put it</p></div>
+<div class="layer" id="offsets" data-slot="offset-layer"><p class="own">text with an offset of its own</p></div>`;
+
+test("Law 4 collapses text that lands where its filed layer put it, and still fires on text with its own fraction", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "law4-collapse.html"), relationalDocument(LAW4_COLLAPSE_FIXTURE));
+  const res = await runCli("snap", ["--file", join(scratch, "law4-collapse.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+
+  expect(res.stdout).toMatch(new RegExp(`POPULATION\\s+off-grid-text candidates=2 judged=2 affected=2 .*collapsed\\(${GRID_COLLAPSED_INTO_LAYER}=1\\)`, "u"));
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as GridReport;
+  const texts = report.findings.filter((finding) => finding.rule === "off-grid-text").map((finding) => finding.selector);
+  expect(texts, "only the text with its own fraction files a Law 4 row").toHaveLength(1);
+  expect(texts.join(" | ")).toContain("own");
+  const layers = report.findings.filter((finding) => finding.rule === "promoted-layer-offset").map((finding) => finding.selector);
+  expect(layers.join(" | "), "the collapsed text's layer files the fraction").toContain("#inherits");
+});
+
+/** Rest transforms in frames on and off the device grid. A whole-pixel translation, as the individual property or in
+ *  the matrix, inside a frame at a quarter pixel keeps the frame's landing and leaves the population by name. An
+ *  authored half pixel in a frame on the grid, and a percentage the walker cannot read as a length, stay judged. */
+const LAW2_INHERITED_FIXTURE = `<style>
+  .frame { position: relative; width: 200px; height: 20px; }
+  .fraction { left: 10.25px; }
+  .whole { left: 10px; }
+  .knob { width: 10px; height: 10px; }
+  #property { translate: 16px; }
+  #matrix { transform: translateX(16px); }
+  #authored { translate: 0.5px; }
+  #percent { width: 11px; translate: 50%; }
+</style>
+<div class="frame fraction" data-slot="property-frame"><div class="knob" id="property" data-slot="property-knob"></div></div>
+<div class="frame fraction" data-slot="matrix-frame"><div class="knob" id="matrix" data-slot="matrix-knob"></div></div>
+<div class="frame whole" data-slot="authored-frame"><div class="knob" id="authored" data-slot="authored-knob"></div></div>
+<div class="frame fraction" data-slot="percent-frame"><div class="knob" id="percent" data-slot="percent-knob"></div></div>`;
+
+test("Law 2 EXCLUDES a whole-pixel translation that keeps its frame's landing, and fires on an authored fraction", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "law2-inherited.html"), relationalDocument(LAW2_INHERITED_FIXTURE));
+  const res = await runCli("snap", ["--file", join(scratch, "law2-inherited.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+
+  expect(res.stdout).toMatch(new RegExp(`POPULATION\\s+off-grid-transform candidates=4 judged=2 .*excluded\\(${GRID_INHERITED_LANDING}=2\\)`, "u"));
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as GridReport;
+  expect(report.populationAccounting?.["off-grid-transform"]?.excluded[GRID_INHERITED_LANDING], "carried in the report, not only stdout").toBe(2);
+  const subjects = report.findings
+    .filter((finding) => finding.rule === "off-grid-transform")
+    .map((finding) => finding.selector)
+    .join(" | ");
+  expect(subjects).toContain("#authored");
+  expect(subjects, "a percentage translation is not read as whole pixels").toContain("#percent");
+  expect(subjects).not.toContain("#property");
+  expect(subjects).not.toContain("#matrix");
 });
 
 /** A resting transform that is genuinely animating: `gridAnimating` asks the Web Animations API, and #987

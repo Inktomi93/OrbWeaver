@@ -1,5 +1,5 @@
 import { readFile } from "node:fs/promises";
-import type { DesignAuditRuleId, PopulationAccounting } from "@orb/tooling/ui-audit";
+import type { DesignAuditRuleId, PopulationAccounting, RulePopulationAccounting } from "@orb/tooling/ui-audit";
 import { vi } from "vitest";
 import { expect } from "./fixtures.ts";
 
@@ -103,23 +103,36 @@ function countOf(tally: Readonly<Record<string, number>>): number {
   return Object.values(tally).reduce((sum, count) => sum + count, 0);
 }
 
+/** The case's other silent proofs for the rule, and whether one of its subjects fires by design. */
+export interface PopulationContext {
+  readonly alongsideFires?: boolean;
+  readonly siblings?: readonly SilentDisposition[];
+}
+
+/** How many subjects a judged-clean claim covers. Each subject carries its own disposition: a withheld subject has no
+ *  verdict, so a judged claim beside one may be that subject's claim, and an excluded subject beside the judged one
+ *  must be claimed by the case's own excluded proof, or the judged claim may be the excluded subject's. */
+function judgedClean(row: RulePopulationAccounting, claimedExclusions: ReadonlySet<string>): number {
+  const unclaimed = Object.entries(row.excluded).some(([reason, count]) => count > 0 && !claimedExclusions.has(reason));
+  return countOf(row.withheld) === 0 && !unclaimed ? row.judged - row.affected : 0;
+}
+
 /** How many of a row's subjects the disposition accounts for. Zero means the rule was silent for another cause. */
 function subjectsDisposed(
   accounting: PopulationAccounting | undefined,
   rule: DesignAuditRuleId,
   disposition: SilentDisposition,
-  alongsideFires: boolean,
+  context: { readonly alongsideFires: boolean; readonly claimedExclusions: ReadonlySet<string> },
 ): number {
+  const { alongsideFires, claimedExclusions } = context;
   const row = accounting?.[rule];
   if (row === undefined) {
     return accounting !== undefined && disposition.kind === "no-population" ? 1 : 0;
   }
-  // A withheld subject has no verdict, so a judged-clean claim beside one may be the withheld subject's claim. An
-  // excluded subject is a closed verdict counted under its own reason, and only a no-candidate claim must see none.
   const withheld = countOf(row.withheld);
   switch (disposition.kind) {
     case "judged": {
-      return withheld === 0 ? row.judged - row.affected : 0;
+      return judgedClean(row, claimedExclusions);
     }
     case "excluded": {
       return row.excluded[disposition.reason] ?? 0;
@@ -137,11 +150,18 @@ function subjectsDisposed(
 }
 
 /** Read one rule's disposition from a report. `alongsideFires` marks a run where another subject of the same rule
- *  fires in this report, so the row keeps its affected count and the silence is what remains beside it. */
-export function expectPopulation(report: RelationalPopulationReport, rule: DesignAuditRuleId, disposition: SilentDisposition, alongsideFires = false): void {
+ *  fires in this report, so the row keeps its affected count and the silence is what remains beside it. `siblings`
+ *  are the case's other silent dispositions for the rule; a judged claim holds beside an exclusion only one of them names. */
+export function expectPopulation(
+  report: RelationalPopulationReport,
+  rule: DesignAuditRuleId,
+  disposition: SilentDisposition,
+  { alongsideFires = false, siblings = [] }: PopulationContext = {},
+): void {
   const row = report.populationAccounting?.[rule];
+  const claimedExclusions = new Set(siblings.flatMap((sibling) => (sibling.kind === "excluded" ? [sibling.reason] : [])));
   expect(
-    subjectsDisposed(report.populationAccounting, rule, disposition, alongsideFires),
+    subjectsDisposed(report.populationAccounting, rule, disposition, { alongsideFires, claimedExclusions }),
     `${rule} ${JSON.stringify(row)} is not ${JSON.stringify(disposition)}`,
   ).toBeGreaterThan(0);
   expect(alongsideFires ? [] : report.findings.filter((finding) => finding.rule === rule), `${rule} was silent, so it files nothing`).toEqual([]);

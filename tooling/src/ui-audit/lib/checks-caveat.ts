@@ -40,8 +40,9 @@ import type { TextStyleInput } from "../contract/samples.ts";
 // is not a caption. That is what makes this rule narrow enough to be worth reading.
 //
 // THE FOUR CONDITIONS, each a narrowing rather than a heuristic:
-//   1. ANCHOR — `role=alert|alertdialog|status` sits on the node's own block. Body copy elsewhere inside
-//      an alert region, such as a notice's explainer under its headline, is `alertRegionContent`.
+//   1. ANCHOR — `role=alert|alertdialog|status` sits on the node's own block, or on a wrapper whose whole text
+//      is the node's (a Row holding an icon and the sentence). Body copy elsewhere inside an alert region, such
+//      as a notice's explainer under its headline, is `alertRegionContent`.
 //   2. SENTENCE SHAPE — its own text is a full sentence (>= CAVEAT_MIN_CHARS, terminal punctuation), which
 //      separates a bounding claim from a status fragment ("Saved", "3 of 8").
 //   3. A LARGER PARTNER IN THE SAME BLOCK — a text node sharing an ancestor within four levels, at least
@@ -61,13 +62,14 @@ import type { TextStyleInput } from "../contract/samples.ts";
 //   • An inversion of COLOUR or WEIGHT at the same type step. This rule is size-anchored.
 //   • A warning written with no role at all, at a call site that skipped both vocabularies.
 //   • A partner more than four ancestor levels away, or across a card or list-item boundary.
-//   • A block-level paragraph inside an alert-role wrapper that does not carry the role itself.
+//   • A block-level paragraph inside an alert-role wrapper that holds other text beside it.
 //   • Anything outside this design system: the exclusions are bound to @orb/ui's voice axis on purpose.
 /** Long enough to be a bounding SENTENCE rather than a qualifier fragment. */
 const CAVEAT_MIN_CHARS = 28;
 /** One ramp step, with room for rounding: micro 10.5 → label 13 is 1.238, body 15 is 1.43. */
 const CAVEAT_STEP_RATIO = 1.15;
-const SENTENCE_END_RE = /[.!?]["')\]]?$/u;
+/** Terminal punctuation, with an optional closing quote or bracket: the end of a sentence. */
+export const SENTENCE_END_RE = /[.!?]["')\]]?$/u;
 /** Voices whose JOB is to name the thing beside them — a label above its caption is the ratified pattern,
  *  not an inversion, and treating one as a "louder partner" fires on every settings row in the product. */
 const CHROME_LABEL_VOICES: ReadonlySet<string> = new Set(["credit", "interactiveKicker", "kicker", "label"]);

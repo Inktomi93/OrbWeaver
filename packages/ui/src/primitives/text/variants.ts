@@ -147,7 +147,7 @@ export const textVariants = tv({
       lead: "font-sans text-body leading-body font-semibold tracking-normal text-foreground",
       // THE MONO READOUT AT THE CODE STEP (added 2026-08-23, owner ruling on #573). An id, a hash, a byte
       // count, a raw payload — machine text a human reads but does not compare in a column. `datum` is the
-      // voice for a value you DO compare (label step, tabular, foreground); this is its receded twin at the
+      // voice for a value you DO compare (micro step, tabular, foreground); this is its receded twin at the
       // dedicated `code` step, which is not a `size` arm: a mono readout in a feature is spelled with a voice.
       //
       // NO `tabular-nums`, deliberately — that is `datum`'s column-alignment property and it is wrong here

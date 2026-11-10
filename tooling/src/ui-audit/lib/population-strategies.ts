@@ -198,23 +198,48 @@ interface DecisionFindingRow<T> {
   readonly finding: Finding | null;
 }
 
+/** The judged items grouped by authored decision, less the affected ones another decision already files. */
+function decisionGroups<T>(
+  items: readonly T[],
+  check: (item: T) => Finding | null,
+  decisionKey: (item: T) => string,
+  collapse: ((item: T) => string | null) | undefined,
+): { readonly groups: ReadonlyMap<string, readonly DecisionFindingRow<T>[]>; readonly collapsed: Record<string, number>; readonly collapsedCount: number } {
+  const groups = new Map<string, DecisionFindingRow<T>[]>();
+  const collapsed: Record<string, number> = {};
+  let collapsedCount = 0;
+  for (const input of items) {
+    const finding = check(input);
+    const owner = finding === null ? null : (collapse?.(input) ?? null);
+    if (owner !== null) {
+      collapsed[owner] = (collapsed[owner] ?? 0) + 1;
+      collapsedCount += 1;
+      continue;
+    }
+    const key = decisionKey(input);
+    const group = groups.get(key) ?? [];
+    group.push({ input, finding });
+    groups.set(key, group);
+  }
+  return { groups, collapsed, collapsedCount };
+}
+
+/** `collapse` names the decision that already files an affected item, so it counts in `collapsed` and files no row. */
 export function decisionPopulationFindings<T extends { readonly selector: string }>(
   rule: DesignAuditRuleId,
   items: readonly T[],
   check: (item: T) => Finding | null,
-  options: { readonly census: RelationalCensusAccountingInput | undefined; readonly decisionKey: (item: T) => string },
+  options: {
+    readonly census: RelationalCensusAccountingInput | undefined;
+    readonly decisionKey: (item: T) => string;
+    readonly collapse?: (item: T) => string | null;
+  },
 ): { readonly accounting: RulePopulationAccounting; readonly findings: readonly Finding[] } {
-  const { census, decisionKey } = options;
+  const { census, decisionKey, collapse } = options;
   if (census !== undefined) {
     assertCensusAccounting(rule, census);
   }
-  const groups = new Map<string, DecisionFindingRow<T>[]>();
-  for (const input of items) {
-    const key = decisionKey(input);
-    const group = groups.get(key) ?? [];
-    group.push({ input, finding: check(input) });
-    groups.set(key, group);
-  }
+  const { groups, collapsed, collapsedCount } = decisionGroups(items, check, decisionKey, collapse);
   const findings: Finding[] = [];
   let affected = 0;
   let emitted = 0;
@@ -248,12 +273,12 @@ export function decisionPopulationFindings<T extends { readonly selector: string
     accounting: settledPopulationAccounting(rule, {
       candidates: census?.candidates ?? items.length,
       judged: census?.judged ?? items.length,
-      affected,
+      affected: affected + collapsedCount,
       populations: findings.length,
       emitted,
       withheld,
       excluded: { ...(census?.excluded ?? {}) },
-      collapsed: {},
+      collapsed,
       ...carriedOf(census),
       ...withheldSubjectsOf(census),
     }),

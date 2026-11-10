@@ -2115,6 +2115,12 @@ auditRuleTest(
       reason: "the nearest legitimate neighbour — the same CTA whose hover pair stays above the floor",
       disposition: { kind: "judged" },
     },
+    {
+      rule: "hover-contrast",
+      kind: "silent",
+      reason: "the untouched paragraph paints nothing on hover, so it leaves the population by name",
+      disposition: { kind: "excluded", reason: "noHoverPaint" },
+    },
   ],
   "the hover twin exits clean, and the untouched paragraph is EXCLUDED rather than counted as a pass",
   async ({ runCli, scratch }) => {

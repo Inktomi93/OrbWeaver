@@ -448,6 +448,12 @@ auditRuleTest(
       reason: "the hover pass after the reveal judges the label above the captions, so the scroll came back",
       disposition: { kind: "judged" },
     },
+    {
+      rule: "hover-contrast",
+      kind: "silent",
+      reason: "the four captions paint nothing on hover, so they leave the hover population by name",
+      disposition: { kind: "excluded", reason: "noHoverPaint" },
+    },
   ],
   "captions at four depths are each measured, and the hover pass after them still judges the top of the page",
   async ({ runCli, scratch }) => {
@@ -967,6 +973,12 @@ auditRuleTest(
       reason: "a caveat in one card is judged against its own card only, so the next card's larger title is no partner",
       disposition: { kind: "judged" },
     },
+    {
+      rule: "caveat-outweighed",
+      kind: "silent",
+      reason: "the next card's title carries no alert role, so it is outside the caveat population",
+      disposition: { kind: "excluded", reason: "noAuthoredCaveatClaim" },
+    },
   ],
   "a caveat is not paired with a sibling card's title",
   async ({ runCli, scratch }) => {
@@ -984,5 +996,97 @@ auditRuleTest(
     const body = `<div><div style="${CARD}"><p style="${LOUD}">Read your chats</p><p role="alert" style="${SMALL}">${CAVEAT}</p></div><div style="${CARD}"><p style="${LOUD}">Weather station</p></div></div>`;
     const report = await auditFixture(scratch, runCli, "caveat-own-card", body);
     expect(report.findings.filter(({ rule }) => rule === "caveat-outweighed")).toHaveLength(1);
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "caveat-outweighed",
+      kind: "fires",
+      reason: "a role wrapper whose whole text is the sentence carries that sentence's role, as an icon-and-text Row does",
+    },
+  ],
+  "an alert sentence alone in a role wrapper is the caveat, and fails caveat-outweighed beside larger copy",
+  async ({ runCli, scratch }) => {
+    const body = `<div><p style="${LOUD}">Read your chats</p><div role="alert"><p style="${SMALL}">${CAVEAT}</p></div></div>`;
+    const report = await auditFixture(scratch, runCli, "caveat-role-wrapper", body);
+    expect(report.findings.filter(({ rule }) => rule === "caveat-outweighed")).toHaveLength(1);
+  },
+);
+
+auditRuleTest(
+  [{ rule: "all-caps-body", kind: "fires", reason: "a sentence set in a caps voice is prose in caps, which the voice's law does not cover" }],
+  "a sentence in the credit voice still fails all-caps-body",
+  async ({ runCli, scratch }) => {
+    const body = `<span data-voice="credit" style="${CAPS_RUN}">Mira said the room was still warm when she left.</span>`;
+    const report = await auditFixture(scratch, runCli, "caps-credit-sentence", body);
+    expect(report.findings.filter(({ rule }) => rule === "all-caps-body")).toHaveLength(1);
+  },
+);
+
+test("a face preview attribute outside a picker option declares nothing, so the face still fires off-theme-font", async ({ runCli, scratch }) => {
+  const body = `<p id="loose" ${FONT_PREVIEW_ATTRIBUTE}="${PREVIEW_FACE}" style="font-family:${PREVIEW_FACE}, serif">${PREVIEW_FACE}</p>`;
+  await writeFile(join(scratch, "font-preview-loose.html"), relationalDocument(body));
+  const res = await runCli("snap", ["--file", join(scratch, "font-preview-loose.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  expect(findingSelectors(res.stdout, "off-theme-font")).toEqual(["#loose"]);
+});
+
+// ── undersized-ui-text: the control a label belongs to ────────────────────────
+// A label is a control's when its own text is nearly all the control's text. A focusable container (a tab panel)
+// or a programmatic focus target (tabindex -1, the command palette root) is no control, so an empty-state sentence
+// alone inside one is body text. A label inside a real button is the control that still fires.
+const MICRO = "font-size:10.5px;margin:0";
+const EMPTY_LINE = "Nothing yet: when a rule fires, posts a notice, runs a tool, or you confirm a card, it shows up here.";
+
+auditRuleTest(
+  [
+    {
+      rule: "undersized-ui-text",
+      kind: "silent",
+      reason: "a sentence alone in a focusable tab panel or a tabindex -1 focus target is body text, not a control's label",
+      disposition: { kind: "judged" },
+    },
+  ],
+  "an empty-state sentence in a focusable container is judged as body text, not interactive text",
+  async ({ runCli, scratch }) => {
+    const body = `<div role="tabpanel" tabindex="0"><p style="${MICRO}">${EMPTY_LINE}</p></div><div tabindex="-1"><p style="${MICRO}">${EMPTY_LINE}</p></div>`;
+    const report = await auditFixture(scratch, runCli, "interactive-container", body);
+    expect(report.populationAccounting?.["undersized-ui-text"]).toMatchObject({ judged: 2, affected: 0 });
+    return report;
+  },
+);
+
+// A roving-tabindex item sits at tabindex -1 until it is highlighted, and is still its label's control.
+const ROVING_ITEMS = [
+  ["menu", "menuitemradio"],
+  ["menu", "menuitemcheckbox"],
+  ["menu", "menuitem"],
+  ["listbox", "option"],
+  ["tablist", "tab"],
+  ["tree", "treeitem"],
+] as const;
+
+auditRuleTest(
+  [{ rule: "undersized-ui-text", kind: "fires", reason: "a roving item's micro label at tabindex -1 is its control's label under the floor" }],
+  "a menu, option, tab or tree item label at tabindex -1 still fails undersized-ui-text",
+  async ({ runCli, scratch }) => {
+    const body = ROVING_ITEMS.map(
+      ([group, item]) =>
+        `<div role="${group}" tabindex="-1"><div role="${item}" tabindex="-1"><span id="${item}" style="${MICRO}">Light theme</span></div></div>`,
+    ).join("");
+    await writeFile(join(scratch, "interactive-roving-items.html"), relationalDocument(body));
+    const res = await runCli("snap", ["--file", join(scratch, "interactive-roving-items.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+    expect(new Set(findingSelectors(res.stdout, "undersized-ui-text"))).toEqual(new Set(ROVING_ITEMS.map(([, item]) => `#${item}`)));
+  },
+);
+
+auditRuleTest(
+  [{ rule: "undersized-ui-text", kind: "fires", reason: "a button's whole label at the micro step is interactive text under the floor" }],
+  "a button label at the micro step still fails undersized-ui-text",
+  async ({ runCli, scratch }) => {
+    const body = `<button><span style="${MICRO}">Save changes</span></button>`;
+    const report = await auditFixture(scratch, runCli, "interactive-button-label", body);
+    expect(report.findings.filter(({ rule }) => rule === "undersized-ui-text")).toHaveLength(1);
   },
 );

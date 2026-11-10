@@ -56,6 +56,7 @@ test.for<readonly [string, SilentDisposition, RulePopulationAccounting | null | 
   ["a judged claim on a rule that judged nothing", { kind: "judged" }, NO_CANDIDATE],
   ["a judged claim where every judged subject fired", { kind: "judged" }, row({ judged: 1, affected: 1, populations: 1, emitted: 1 })],
   ["a judged claim beside a withheld subject", { kind: "judged" }, row({ candidates: 2, judged: 1, withheld: { unresolved: 1 } })],
+  ["a judged claim beside an excluded subject no proof claims", { kind: "judged" }, row({ candidates: 2, judged: 1, excluded: { art: 1 } })],
   ["an excluded claim on a withheld subject", { kind: "excluded", reason: "reason" }, WITHHELD],
   ["a withheld claim on an excluded subject", { kind: "withheld", reason: "reason" }, EXCLUDED],
   ["an exclusion under another reason", { kind: "excluded", reason: "other" }, EXCLUDED],
@@ -68,10 +69,17 @@ test.for<readonly [string, SilentDisposition, RulePopulationAccounting | null | 
   expect(() => expectPopulation(filedReport, "contrast", disposition)).toThrow(NO_DISPOSITION_MATCH);
 });
 
+test("a judged claim beside an excluded subject holds only when the case's own excluded proof names that reason", async () => {
+  const mixed = await report(row({ candidates: 2, judged: 1, excluded: { art: 1 } }));
+  expect(() => expectPopulation(mixed, "contrast", { kind: "judged" }, { siblings: [{ kind: "excluded", reason: "art" }] })).not.toThrow();
+  expect(() => expectPopulation(mixed, "contrast", { kind: "judged" }, { siblings: [{ kind: "excluded", reason: "other" }] })).toThrow(NO_DISPOSITION_MATCH);
+  expect(() => expectPopulation(mixed, "contrast", { kind: "judged" }, { siblings: [{ kind: "withheld", reason: "art" }] })).toThrow(NO_DISPOSITION_MATCH);
+});
+
 test("a silent rule that filed a finding is refused, unless the run's other subject fires by design", async () => {
   const firing = await report(row({ judged: 2, affected: 1, populations: 1, emitted: 1 }), true);
   expect(() => expectPopulation(firing, "contrast", { kind: "judged" })).toThrow(SILENCE_BROKEN);
-  expect(() => expectPopulation(firing, "contrast", { kind: "judged" }, true)).not.toThrow();
+  expect(() => expectPopulation(firing, "contrast", { kind: "judged" }, { alongsideFires: true })).not.toThrow();
 });
 
 test.for<readonly [string, RulePopulationAccounting]>([
@@ -80,10 +88,10 @@ test.for<readonly [string, RulePopulationAccounting]>([
   ["excluded", row({ candidates: 2, judged: 1, affected: 1, populations: 1, emitted: 1, excluded: { art: 1 } })],
 ])("beside a firing subject, a no-candidate claim on a subject %s is refused", async ([, accounting]) => {
   const filedReport = await report(accounting, true);
-  expect(() => expectPopulation(filedReport, "contrast", { kind: "no-candidate" }, true)).toThrow(NO_DISPOSITION_MATCH);
+  expect(() => expectPopulation(filedReport, "contrast", { kind: "no-candidate" }, { alongsideFires: true })).toThrow(NO_DISPOSITION_MATCH);
 });
 
 test("beside a firing subject, no-candidate holds when the fired subject is the whole population", async () => {
   const onlyFired = await report(row({ judged: 1, affected: 1, populations: 1, emitted: 1 }), true);
-  expect(() => expectPopulation(onlyFired, "contrast", { kind: "no-candidate" }, true)).not.toThrow();
+  expect(() => expectPopulation(onlyFired, "contrast", { kind: "no-candidate" }, { alongsideFires: true })).not.toThrow();
 });

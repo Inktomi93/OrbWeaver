@@ -20,13 +20,22 @@ function plant(root: string, files: Readonly<Record<string, string>>): void {
 const shell = (name: string): string =>
   `import { ListPage, LibrarySurfaceShell } from "#components";\nexport const ${name} = () => <ListPage><LibrarySurfaceShell loadingLabel="a" errorLabel="b"><Rows /></LibrarySurfaceShell></ListPage>;`;
 
-test("a list surface built without the template is an outlier beside the nearest common skeleton, with the diff", ({ scratch }) => {
+/** A section definition that mounts each named `<x>-list-surface.tsx` component in its `list` slot. */
+const listSlot = (...names: readonly string[]): string =>
+  [
+    ...names.map((name) => `import { ${name} } from "../surfaces/${name.toLowerCase()}-list-surface.tsx";`),
+    `export const section = { list: <>${names.map((name) => `<${name} />`).join("")}</> };`,
+  ].join("\n");
+
+test("a list-slot surface built without the template is an outlier with the diff, and a list-named surface no slot mounts is no member", ({ scratch }) => {
   const root = plantDir(scratch, "skeleton");
   plant(root, {
     "surfaces/a-list-surface.tsx": shell("A"),
     "surfaces/b-list-surface.tsx": shell("B"),
     "surfaces/c-list-surface.tsx": shell("C"),
     "surfaces/d-list-surface.tsx": 'import { Stack } from "@orb/ui/layout";\nexport const D = () => <Stack><Rows /></Stack>;',
+    "surfaces/e-list-surface.tsx": 'import { Stack } from "@orb/ui/layout";\nexport const E = () => <Stack><Rows /></Stack>;',
+    "lib/probe-section.tsx": listSlot("A", "B", "C", "D"),
   });
   const cohort = analyse(root, [], null).composition.skeletons.find((entry) => entry.name === "surface:list");
   expect(cohort?.common.map((entry) => [entry.fingerprint, entry.count])).toEqual([["T:ListPage(T:LibrarySurfaceShell)", 3]]);
@@ -176,12 +185,13 @@ test("a spread of object literals writes its axes, and a spread the syntax canno
 
 test("the skeleton cohorts hold list panes and context bodies, not the transcript, the host or the wiring file", () => {
   const feature = "packages/client/src/features";
-  expect(skeletonCohortOf(`${feature}/tag/surfaces/labels-list-surface.tsx`)).toBe("surface:list");
-  expect(skeletonCohortOf(`${feature}/chat/surfaces/message-list-surface.tsx`)).toBe("surface:other");
-  expect(skeletonCohortOf(`${feature}/regex/components/regex-context-body.tsx`)).toBe("context-tab");
-  expect(skeletonCohortOf(`${feature}/refinery/components/context-tabs.tsx`)).toBe("context-tab");
-  expect(skeletonCohortOf(`${feature}/app-shell/components/context-tabs-panel.tsx`)).toBeNull();
-  expect(skeletonCohortOf(`${feature}/refinery/components/refinery-context-tabs.tsx`)).toBeNull();
+  const listSlots = new Set([`${feature}/plugin/surfaces/extensions-switcher-surface.tsx`]);
+  expect(skeletonCohortOf(`${feature}/plugin/surfaces/extensions-switcher-surface.tsx`, listSlots)).toBe("surface:list");
+  expect(skeletonCohortOf(`${feature}/chat/surfaces/message-list-surface.tsx`, listSlots)).toBe("surface:other");
+  expect(skeletonCohortOf(`${feature}/regex/components/regex-context-body.tsx`, listSlots)).toBe("context-tab");
+  expect(skeletonCohortOf(`${feature}/refinery/components/context-tabs.tsx`, listSlots)).toBe("context-tab");
+  expect(skeletonCohortOf(`${feature}/app-shell/components/context-tabs-panel.tsx`, listSlots)).toBeNull();
+  expect(skeletonCohortOf(`${feature}/refinery/components/refinery-context-tabs.tsx`, listSlots)).toBeNull();
 });
 
 test("an autosave form that dismisses with Cancel is a defect, and a hook toast beside an inline error is a repeated failure", ({ scratch }) => {
@@ -471,6 +481,7 @@ test("a section's list boundary is the shell, the boundary or none", ({ scratch 
   const root = plantDir(scratch, "structure");
   plant(root, {
     "surfaces/a-list-surface.tsx": shell("A"),
+    "lib/probe-section.tsx": listSlot("A"),
     "surfaces/b-detail-surface.tsx":
       'import { QueryBoundary } from "#components";\nexport const B = () => <QueryBoundary fallback={null}><Rows /></QueryBoundary>;',
   });

@@ -18,10 +18,12 @@ import type { AuditEngine } from "../contract/types.ts";
  *  covers float noise from the `* dpr` multiply only. The smallest fraction the founding defect produced
  *  was 0.125 device px — two orders of magnitude above this — so no real landing hides under it. */
 const GRID_EPSILON_DEVICE_PX = 0.001;
+export const GRID_EPSILON_DEVICE_PX_JS = JSON.stringify(GRID_EPSILON_DEVICE_PX);
 
 /** A resolved scale is "none" within this — a matrix decomposition of an identity transform can come back
  *  as 0.9999999999 through a rotate/skew round trip. */
 const SCALE_IDENTITY_EPSILON = 1e-6;
+export const SCALE_IDENTITY_EPSILON_JS = JSON.stringify(SCALE_IDENTITY_EPSILON);
 
 /** Reported precision. A device fraction is meaningful to ~0.001 (the epsilon); a scale factor to ~1e-4. */
 const FRACTION_DIGITS = 3;
@@ -59,6 +61,14 @@ export const GRID_COMPOSITED_WITHOUT_RESAMPLE_JS = JSON.stringify(GRID_COMPOSITE
 const GRID_MEASURED_ENGINE = "chromium" satisfies AuditEngine;
 export const GRID_MEASURED_ENGINE_JS = JSON.stringify(GRID_MEASURED_ENGINE);
 
+/** The Law 2 exclusion for a unity-scale transform whose own translation is whole device pixels: the landing is
+ *  the one the box had before the transform, so the layout that placed the box owns any fraction in it (§9). */
+export const GRID_INHERITED_LANDING = "inheritedLanding";
+export const GRID_INHERITED_LANDING_JS = JSON.stringify(GRID_INHERITED_LANDING);
+
+/** The Law 4 collapse for text that lands where its layer put it: the layer's own Law 3 row files that fraction (§10). */
+export const GRID_COLLAPSED_INTO_LAYER = "promotedLayer";
+
 function offGrid(input: { readonly topDeviceFrac: number; readonly leftDeviceFrac: number }): boolean {
   return Math.abs(input.topDeviceFrac) > GRID_EPSILON_DEVICE_PX || Math.abs(input.leftDeviceFrac) > GRID_EPSILON_DEVICE_PX;
 }
@@ -84,6 +94,18 @@ export function checkOffGridText(input: OffGridTextInput): Finding | null {
     message: `this text is painted inside a promoted layer, which turns OFF the browser's per-paint baseline snapping — so its sub-pixel offset is rasterized and resampled instead of corrected, and the glyphs blur. Land the promoting ancestor on the device-pixel grid (the repair is at ${input.promotedBy}, not here), or drop the promotion if nothing needs it. See docs/law/integer-line-boxes.md §11`,
     origin: "orbweaver",
   };
+}
+
+/** The Law 3 row that already owns this text's fraction, or null when the text's own offset in its layer is off the
+ *  grid, or the layer has no off-grid Law 3 row. Device fractions subtract modulo one device pixel. */
+export function offGridTextOwner(input: OffGridTextInput): typeof GRID_COLLAPSED_INTO_LAYER | null {
+  const layer = input.layerLanding;
+  if (layer === undefined || !offGrid(layer)) {
+    return null;
+  }
+  const relative = (text: number, host: number): number => text - host - Math.round(text - host);
+  const own = { topDeviceFrac: relative(input.topDeviceFrac, layer.topDeviceFrac), leftDeviceFrac: relative(input.leftDeviceFrac, layer.leftDeviceFrac) };
+  return offGrid(own) ? null : GRID_COLLAPSED_INTO_LAYER;
 }
 
 /** LAW 3 — a promoted layer is composited from ONE raster, so its own fractional offset is inherited by

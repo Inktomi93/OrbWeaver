@@ -76,3 +76,28 @@ describe("the walker's carried tag reaches the printed row from every census-tak
     expect(accounting.carried).toStrictEqual({ pseudo: 1 });
   });
 });
+
+describe("a rung-4 subject another decision already files", () => {
+  const fires = (item: Subject): Finding => ({ rule: "off-grid-text", severity: "P2", selector: item.selector, value: "v", message: "m", origin: "orbweaver" });
+  const judged = (count: number): RelationalCensusAccountingInput => ({ candidates: count, judged: count, withheld: {}, excluded: {} });
+
+  test("is affected and collapsed under its owner, and files no row of its own", () => {
+    const owned = { selector: "#owned" };
+    const result = decisionPopulationFindings("off-grid-text", [owned, { selector: "#own" }], fires, {
+      census: judged(2),
+      decisionKey: (item) => item.selector,
+      collapse: (item) => (item === owned ? "layer" : null),
+    });
+    expect(result.findings.map((finding) => finding.selector)).toEqual(["#own"]);
+    expect([result.accounting.affected, result.accounting.emitted, result.accounting.collapsed]).toStrictEqual([2, 1, { layer: 1 }]);
+  });
+
+  test("is never collapsed when it passes: a clean subject owes no owner", () => {
+    const result = decisionPopulationFindings("off-grid-text", [SUBJECT], NO_FINDING, {
+      census: judged(1),
+      decisionKey: (item) => item.selector,
+      collapse: () => "layer",
+    });
+    expect([result.accounting.affected, result.accounting.collapsed]).toStrictEqual([0, {}]);
+  });
+});
