@@ -1,10 +1,13 @@
 // The first character typed into New chat's search brings the picker's footer ("Showing N of M", Clear search) into the command box. Where the dialog
-// is roomy the box and the dialog around it keep their size and place: the footer takes room from the list and never adds to the box. Where it is
-// not, the footer adds to the box. Either way the list keeps a whole touch row.
+// is roomy and the footer keeps one row, the box and the dialog around it keep their size and place: the footer takes room from the list and never
+// adds to the box. A footer that wraps, or a dialog that is not roomy, adds to the box. Either way the list keeps a whole touch row, whatever the
+// footer says.
+
+import { createCharacterSchema } from "@orb/contracts/character";
 import { LAYOUT_SUBPIXEL_PX, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
-import { createCorpusHarness } from "@orb/testkit/node/composed";
+import { createCorpusHarness, seedCharacter } from "@orb/testkit/node/composed";
 import { CLEAR_SEARCH_NAME } from "#client/lib/search-empty-names.ts";
 import type { AppShellModalStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -29,8 +32,19 @@ const COMMAND_ROOT = '[data-slot="command-root"]';
 const LIST = "[cmdk-list]";
 const FONT_SCALE = channelName("fontScale");
 const SEARCH_TERM = "a";
+const MIN_THREE_DIGIT_LIBRARY = 100;
 
-const CELLS = [
+interface Cell {
+  readonly name: string;
+  readonly width: number;
+  readonly height: number;
+  readonly factor: number;
+  readonly holds: boolean;
+  /** Characters seeded on top of the corpus library, so the footer's count reads three digits. */
+  readonly extra?: number;
+}
+
+const CELLS: readonly Cell[] = [
   { name: "1440x900 at 100%", width: 1440, height: 900, factor: 1, holds: true },
   { name: "390x844 at 100%", width: 390, height: 844, factor: 1, holds: true },
   { name: "1440x900 at 150%", width: 1440, height: 900, factor: 1.5, holds: true },
@@ -39,8 +53,8 @@ const CELLS = [
   { name: "1440x900 at 175%", width: 1440, height: 900, factor: 1.75, holds: true },
   { name: "375x667 at 150%", width: 375, height: 667, factor: 1.5, holds: true },
   { name: "320x568 at 125%", width: 320, height: 568, factor: 1.25, holds: true },
-  // At 200% text the footer's count and Clear search keep one line only in a dialog about 14rem wide or more: a tablet-width screen holds the
-  // cap, and a phone's footer wraps, so the box grows and a cap would squeeze the list under one row.
+  // At 200% text a footer keeps one row only in a dialog wide enough for its count beside Clear search: a tablet-width screen holds the box, and a
+  // phone's footer wraps, so the box grows and the list keeps its window.
   { name: "600x1100 at 200%", width: 600, height: 1100, factor: 2, holds: true },
   { name: "460x915 at 200%", width: 460, height: 915, factor: 2, holds: false },
   { name: "412x915 at 200%", width: 412, height: 915, factor: 2, holds: false },
@@ -52,7 +66,11 @@ const CELLS = [
   { name: "844x390 at 300%", width: 844, height: 390, factor: 3, holds: false },
   { name: "568x320 at 200%", width: 568, height: 320, factor: 2, holds: false },
   { name: "568x320 at 300%", width: 568, height: 320, factor: 3, holds: false },
-] as const;
+  // A library past a hundred characters reads "Showing 100 of 108": the count's length is not what decides whether the list keeps its row. 480 is a
+  // width where the shorter count still fits beside Clear search.
+  { name: "480x915 at 200% with 108 characters", width: 480, height: 915, factor: 2, holds: false, extra: 70 },
+  { name: "412x915 at 200% with 108 characters", width: 412, height: 915, factor: 2, holds: false, extra: 70 },
+];
 
 interface Frame {
   readonly dialog: { readonly top: number; readonly height: number };
@@ -69,7 +87,18 @@ for (const cell of CELLS) {
       cell.holds ? "moves neither the dialog nor the picker box, and keeps a whole row" : "keeps a whole row in the list",
       async ({ corpus, mount, page }) => {
         await using root = await createCorpusHarness();
-        await routeShell(page, corpus, await root.internalCallerFor(root.ownerId), SERVED);
+        const owner = await root.principalFor(root.ownerId);
+        for (let index = 0; index < (cell.extra ?? 0); index += 1) {
+          const handle = `keystroke-bulk-${String(index)}`;
+          await seedCharacter(root, {
+            principal: owner,
+            input: createCharacterSchema.parse({ handle, name: `Bulk archivist ${String(index)}`, description: "" }),
+          });
+        }
+        const caller = await root.internalCallerFor(root.ownerId);
+        // The fixture reached the size the cell names: the footer's count is the server's own, three digits where the cell seeds extra characters.
+        expect((await caller.character.list({ limit: 1 })).totalCount).toBeGreaterThanOrEqual(cell.extra === undefined ? 0 : MIN_THREE_DIGIT_LIBRARY);
+        await routeShell(page, corpus, caller, SERVED);
         await seedShellState(page, { activeSection: "chats" });
         await mount<typeof AppShellModalStory>(`${SHELL_STORIES}/AppShellModalStory`, { modalId: "newChat" });
         const dialog = page.getByRole("dialog");

@@ -79,6 +79,9 @@ export const MIN_HEIGHT = {
   shrinks: "min-block-0",
   shrinksOnLandscape: "dialog-short:glass-short:min-block-0",
   holdsPickerOnLandscape: "dialog-short:glass-short:min-block-(--height-picker-floor)",
+  // In a roomy dialog a picker's footer is never shorter than one row, with a Clear search or without, so the list above it gives up one footer
+  // however the footer reads. A shorter dialog gives its rows the room a short footer leaves.
+  holdsPickerFooter: "dialog-roomy:min-block-(--height-picker-footer)",
   // A truncating box has no automatic minimum, so a scrolling column squeezes its line to nothing; this holds the line.
   holdsLineOnLandscape: "dialog-short:glass-short:min-block-min",
   viewport: "min-block-dvh",

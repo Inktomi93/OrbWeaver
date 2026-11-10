@@ -1109,6 +1109,8 @@ export const OWNER_CSS_TOKEN_VARS = [
   "--height-picker-chrome",
   "--height-picker-door-row",
   "--height-picker-floor",
+  "--height-picker-footer",
+  "--height-picker-list-footed",
   "--height-picker-window",
   "--height-prose-cap",
   "--height-room-thread-min",
