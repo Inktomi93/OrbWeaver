@@ -4,7 +4,13 @@ import { MAX_IMAGE_COUNT, MIN_IMAGE_COUNT, SIZE_PRESET_NAMES } from "@orb/contra
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import type { ChatId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { actionGroupGeometry, enlargedTextFindings as findings, resolvedLength, setRootFontScale } from "@orb/testkit/browser/spec";
+import {
+  actionGroupGeometry,
+  enlargedTextFindings as findings,
+  resolvedLength,
+  LAYOUT_SUBPIXEL_PX as SUBPIXEL,
+  setRootFontScale,
+} from "@orb/testkit/browser/spec";
 import { channelName, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
@@ -37,9 +43,8 @@ async function paintedBox(locator: Locator): Promise<NonNullable<Awaited<ReturnT
 }
 
 const ENLARGED_PHONE_SCALES = [
-  { name: "200% text", factor: 2, badgesFit: true },
-  // The nested level's step and a badge's own padding and glyph already outrun the pane's inline room here, so a badge's edge is not held.
-  { name: "300% layout", factor: 3, badgesFit: false },
+  { name: "200% text", factor: 2 },
+  { name: "300% layout", factor: 3 },
 ] as const;
 const RULE_CONNECTION_READS = [...READS, "connection.list", "connection.listBindings", "connection.providersAvailable"] as const;
 const REGIMES = [
@@ -305,17 +310,23 @@ test.describe("rule editor field rows", () => {
         // The requirement badges wrap inside the panel too; a badge is no control, so the probe does not see one that runs past it.
         const badges = await slot.locator('[data-slot="badge"]').evaluateAll((nodes) => nodes.map((node) => node.getBoundingClientRect().right));
         expect(badges.length).toBeGreaterThan(0);
-        const outside = scale.badgesFit ? badges.filter((right) => right > panelBox.x + panelBox.width) : [];
-        expect(outside).toEqual([]);
-        // The picker's chrome (padding, chevron, gap) stays under the touch floor, so the value keeps the growth: the value takes its trigger's
-        // room less that chrome, and reaches the title floor or the whole of a line of its own.
+        expect(badges.filter((right) => right > panelBox.x + panelBox.width)).toEqual([]);
+        // The picker takes a line of its own: it spans the slot to the held nested step, and its chrome is the tokens' width, so the value takes every
+        // other pixel. The line count is not asserted: a 48px value in a 172px slot cannot wrap to a couple of lines at any inset, so the bound is the room.
         const picker = slot.getByRole("combobox", { name: `${role.label} connection`, exact: true });
-        const [pickerBox, valueBox, touchFloor] = await Promise.all([
+        const [slotBox, pickerBox, valueBox, iconBox, indent, inset, gap, edge] = await Promise.all([
+          paintedBox(slot),
           paintedBox(picker),
           paintedBox(picker.locator('[data-slot="select-value"]')),
-          resolvedLength(page, `var(${TOKENS["size.touch-target"].cssVar})`, slot),
+          paintedBox(picker.locator('[data-slot="select-icon"]')),
+          resolvedLength(page, `var(${TOKENS["spacing.indent"].cssVar})`, slot),
+          resolvedLength(page, `var(${TOKENS["spacing.picker-inset"].cssVar})`, slot),
+          resolvedLength(page, `var(${TOKENS["spacing.picker-gap"].cssVar})`, slot),
+          resolvedLength(page, `var(${TOKENS["border-width.control"].cssVar})`, slot),
         ]);
-        expect(Math.round(pickerBox.width - valueBox.width), `touch floor ${String(touchFloor)}`).toBeLessThan(Math.round(touchFloor));
+        expect(pickerBox.x - slotBox.x).toBeLessThanOrEqual(indent + SUBPIXEL);
+        expect(slotBox.x + slotBox.width - (pickerBox.x + pickerBox.width)).toBeLessThanOrEqual(SUBPIXEL);
+        expect(Math.abs(pickerBox.width - valueBox.width - (2 * (inset + edge) + gap + iconBox.width))).toBeLessThanOrEqual(SUBPIXEL);
       });
     });
   }

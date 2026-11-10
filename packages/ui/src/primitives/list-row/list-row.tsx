@@ -13,7 +13,8 @@ import { useId } from "react";
 import type { VariantProps } from "tailwind-variants";
 import { SELECTION_RAIL_TONE } from "#lib";
 import type { Slots } from "./parts.tsx";
-import { ListRowContent, TITLE_QUALIFIER_SEPARATOR } from "./parts.tsx";
+import { ListRowContent } from "./parts.tsx";
+import { TITLE_QUALIFIER_SEPARATOR } from "./title-qualifier.tsx";
 import { listRowVariants } from "./variants.ts";
 
 export interface ListRowProps {

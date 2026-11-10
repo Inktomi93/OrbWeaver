@@ -107,7 +107,7 @@ test("a list narrower than the step puts the grip above its row and gives the ro
   expect(Math.round(content.width)).toBe(Math.round(item.width));
 });
 
-test("a stacked grip sits closer to its own row than to the row above, at the start of its row", async ({ mount, page }) => {
+test("a stacked grip and its row read as one pair: the gap inside it is at most half the gap above it", async ({ mount, page }) => {
   await mount<typeof ReorderableTracksStory>(STORY, { disabled: false, width: `calc(${STEP} - 4rem)` });
   const rows = page.getByRole("listitem");
   const [above, grip, content] = await Promise.all([
@@ -118,6 +118,7 @@ test("a stacked grip sits closer to its own row than to the row above, at the st
   if (above === null || grip === null || content === null) {
     throw new Error("The first two rows must paint");
   }
-  expect(content.y - (grip.y + grip.height)).toBeLessThan(grip.y - (above.y + above.height));
+  // One pair: the gap inside it is at most half the gap above it.
+  expect(2 * (content.y - (grip.y + grip.height))).toBeLessThanOrEqual(grip.y - (above.y + above.height));
   expect(grip.x).toBe(content.x);
 });

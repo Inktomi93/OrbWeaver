@@ -6,14 +6,14 @@ import { ACCENT_HOVER, DISABLED_STATE_NATIVE, FIELD_ROW, FOCUS_RING, tv } from "
 export const sortableVariants = tv({
   slots: {
     // The list is the container its rows answer to. Under `cq-16` (16rem, a pane at enlarged text) the grip stops taking a column from the
-    // row and sits on a line of its own above it, at the same control size, so the row keeps the list's whole width. The grip then closes up to
-    // its own row (`tight`, under the list's `row` gap), so it reads as that row's and not the row above's. The threshold is the list's
-    // width, never the viewport's, and a rem threshold narrows a pane the way enlarged text does.
+    // row and sits on a line of its own above it, at the same control size, so the row keeps the list's whole width. The grip and its row then
+    // read as one pair: `tight` inside it, and a `row` step more above it than the list's own gap, so the grip is never as near the row above as
+    // its own. The threshold is the list's width, never the viewport's, and a rem threshold narrows a pane the way enlarged text does.
     root: "@container/sortable flex flex-col gap-row",
     item: [
       `group/sortable-item relative ${FIELD_ROW} rounded-control`,
       "data-dragging:opacity-dragging",
-      "@max-cq-16/sortable:flex-col @max-cq-16/sortable:items-stretch @max-cq-16/sortable:gap-tight",
+      "@max-cq-16/sortable:flex-col @max-cq-16/sortable:items-stretch @max-cq-16/sortable:gap-tight @max-cq-16/sortable:not-first:mbs-row",
     ],
     handle: [
       "inline-flex shrink-0 cursor-grab items-center justify-center block-(--size-control-sm) inline-(--size-control-sm) @max-cq-16/sortable:self-start",

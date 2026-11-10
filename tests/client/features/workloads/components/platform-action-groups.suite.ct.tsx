@@ -351,9 +351,7 @@ test.describe("narrow phone at enlarged text", () => {
     await expect(rows).toHaveCount(cadences.length);
     const qualifiers = rows.locator('[data-slot="list-row-title-qualifier"]');
     await expect(qualifiers).toHaveCount(cadences.length);
-    expect((await qualifiers.allTextContents()).map((text) => text.replace(" · ", "")).sort()).toEqual(
-      cadences.map((cadence) => SCHEDULE_CADENCE_LABELS[cadence]).sort(),
-    );
+    expect((await qualifiers.allTextContents()).sort()).toEqual(cadences.map((cadence) => SCHEDULE_CADENCE_LABELS[cadence]).sort());
     for (const label of await qualifiers.all()) {
       // Whole: a label cut by an ellipsis has more text than its box shows.
       expect(await label.evaluate((node) => node.scrollWidth - node.clientWidth)).toBeLessThanOrEqual(1);

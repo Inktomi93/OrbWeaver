@@ -1,8 +1,9 @@
 // The title line keeps its reading order (name, qualifier, markers) at every width. Beside the name when they fit; a qualifier too long
 // for even an empty name takes the next line and wraps there whole, starting on its first word, and the markers follow it. Nothing
 // leaves the row, and two rows told apart only by their qualifier stay apart.
-import { LAYOUT_SUBPIXEL_PX as SUBPIXEL, setRootFontScale } from "@orb/testkit/browser/spec";
+import { resolvedLength, LAYOUT_SUBPIXEL_PX as SUBPIXEL, setRootFontScale } from "@orb/testkit/browser/spec";
 import { channelName } from "@orb/testkit/ct";
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { QualifierPairStory, TitleQualifierStory } from "./_title-qualifier-stories.tsx";
@@ -54,9 +55,20 @@ function line(row: Locator): Promise<Line> {
   });
 }
 
-test("a qualifier that fits sits beside the name with the markers after it", async ({ mount }) => {
+test("a qualifier that fits sits beside the name with the markers after it, and its dot shows a field step after the name and a row step before it", async ({
+  mount,
+  page,
+}) => {
   const component = await mount<typeof TitleQualifierStory>(STORY, { width: WIDTH });
-  const short = await line(component.locator('[data-slot="list-row-root"]').nth(0));
+  const first = component.locator('[data-slot="list-row-root"]').nth(0);
+  const short = await line(first);
+  const [field, row] = await Promise.all([
+    resolvedLength(page, `var(${TOKENS["spacing.field"].cssVar})`, first),
+    resolvedLength(page, `var(${TOKENS["spacing.row"].cssVar})`, first),
+  ]);
+  expect(await first.locator('[data-slot="list-row-title-separator"]').evaluate((dot) => getComputedStyle(dot).visibility)).toBe("visible");
+  expect(Math.abs(short.separator.left - short.title.right - field)).toBeLessThanOrEqual(SUBPIXEL);
+  expect(Math.abs(short.qualifier.left - short.separator.right - row)).toBeLessThanOrEqual(SUBPIXEL);
   expect(short.qualifier.top).toBeLessThan(short.title.bottom);
   expect(short.markers.top).toBeLessThan(short.title.bottom);
   expect(short.markers.left).toBeGreaterThanOrEqual(short.qualifier.right - SUBPIXEL);
@@ -65,7 +77,10 @@ test("a qualifier that fits sits beside the name with the markers after it", asy
 
 test("a qualifier too long for the name's line takes the next line and wraps there whole, with the markers after it inside the row", async ({ mount }) => {
   const component = await mount<typeof TitleQualifierStory>(STORY, { width: WIDTH });
-  const long = await line(component.locator('[data-slot="list-row-root"]').nth(1));
+  const second = component.locator('[data-slot="list-row-root"]').nth(1);
+  const long = await line(second);
+  // The dot left on the name's line hides, so no lone dot hangs there.
+  await expect(second.locator('[data-slot="list-row-title-separator"]')).toHaveCSS("visibility", "hidden");
   expect(long.qualifier.top).toBeGreaterThanOrEqual(long.title.bottom - SUBPIXEL);
   // The separator stays at the end of the name's line, so the wrapped qualifier opens on its first word.
   expect(long.separator.top).toBeLessThan(long.title.bottom);

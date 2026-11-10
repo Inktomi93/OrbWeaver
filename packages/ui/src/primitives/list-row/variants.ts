@@ -75,8 +75,9 @@ export const listRowVariants = tv({
     // has a line of its own, where it wraps (`subtitlePlacement.block`) so the half that tells the rows apart is never cut.
     titleQualifier: "shrink-0 font-mono text-label leading-label whitespace-nowrap text-muted-foreground",
     // The dot between the name and its qualifier, in the qualifier's own face. A line break falls between it and the qualifier, so
-    // a wrapped qualifier never opens with it.
-    titleSeparator: "shrink-0 font-mono text-label leading-label text-muted-foreground",
+    // a wrapped qualifier never opens with it, and the dot left on the name's line hides. The gap after it is the row step, so the dot
+    // sits where the space that used to follow it put the qualifier.
+    titleSeparator: "me-(--spacing-title-separator) shrink-0 font-mono text-label leading-label text-muted-foreground data-wrapped:invisible",
     // Rest-visible state markers on the title line, before the stamp (the mock's ⚔ / ★ / Archived cluster).
     // `shrink-0`: a glyph slot is already minimal — it must clip the TITLE, never itself.
     markers: "flex shrink-0 items-center gap-field",
