@@ -22,6 +22,7 @@ Measurement-budget qualification follows [D308](../adr/0308-hardware-scoped-timi
 | `.dom.test.ts` | DOM + Node | Vitest in Node | Browser-subject behavior that needs DOM declarations but no browser execution |
 | `.int.test.ts` | Node | Vitest | Real persistence, I/O or composed service behavior |
 | `.repo.int.test.ts` | Node | Vitest | Integration behavior that requires the repository resource |
+| `.disk.int.test.ts` | Node | Vitest | Integration behavior that saturates host disk; runs alone after every other group |
 | `.suite.corpus.int.test.ts` | Node | Vitest | Corpus-backed integration behavior with isolated fixtures |
 | `.contract.test.ts` | Node | Vitest | Parsing, serialization and wire contracts |
 | `.test-d.ts` | Node | Native TypeScript compiler | Type-only contracts |
