@@ -179,12 +179,11 @@ export const localServerRows = [
       },
     },
     // `typical_p` is left out: Ollama deprecated it (api/types.go:578) and only warns while passing it on.
-    // This set is what the options decoder accepts. Whether each key changes sampling depends on the model runner
-    // Ollama loads, which this tree neither reads nor measures; the set stays, scoped to the decoder.
+    // The common decoder gates what this row can send. A connection does not identify the runner that consumes it.
     evidence: {
       tier: "curated",
       dated: DATED,
-      cite: "ollama 42e911bc api/types.go Options (568-596) decoded by Options.FromMap (1022-1123): the server's options decoder, which runs before any model runner; that a given runner applies each key is unverified, and no evidence shows which runner a deployment uses",
+      cite: "Ollama 42e911bc api/types.go:568-596,1022-1040 defines the accepted option keys. llm/llama_server.go:2259-2275 forwards these sampling options to llama-server. mlxrunner/server.go:130-141 binds temperature, top_p, min_p, top_k, penalty settings and seed for MLX. Orbweaver has no observation of the deployed runner or of an option's effect on its output.",
     },
   },
   {

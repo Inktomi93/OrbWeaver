@@ -1,4 +1,6 @@
-// A triggered confirm cannot be written without its copy, and only DestructiveAction carries a trigger.
+// A triggered confirm cannot be written without its copy, only DestructiveAction carries a trigger, and a plain
+// handler cannot stand in for a ConfirmedAction opener.
+import type { ConfirmedAction } from "@orb/client/components";
 import { ConfirmDialog, DestructiveAction } from "@orb/client/components";
 import { createElement } from "react";
 import { expectTypeOf, test } from "vitest";
@@ -24,4 +26,11 @@ test("a bare ConfirmDialog is controlled, so it never carries the control", () =
   // @ts-expect-error the trigger arm belongs to DestructiveAction
   createElement(ConfirmDialog, { title: "Delete it?", onConfirm, trigger });
   expectTypeOf<Parameters<typeof ConfirmDialog>[0]>().toHaveProperty("title");
+});
+
+test("a plain handler is not a ConfirmedAction", () => {
+  expectTypeOf(onConfirm).not.toExtend<ConfirmedAction>();
+  // @ts-expect-error a plain function claims no confirm upstream
+  const unproven: ConfirmedAction = onConfirm;
+  expectTypeOf(unproven).toBeFunction();
 });

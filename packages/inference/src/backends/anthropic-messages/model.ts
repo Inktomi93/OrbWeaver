@@ -4,6 +4,7 @@
 
 import { createAnthropic } from "@ai-sdk/anthropic";
 import type { LanguageModelV4 } from "@ai-sdk/provider";
+import { builtinProvider } from "@orb/contracts/inference";
 import type { Resolved } from "#contract";
 import { ProviderError } from "#contract";
 import type { AnthropicCall } from "../../contract/anthropic-backend.ts";
@@ -30,6 +31,18 @@ function withPlannedSchema(body: Record<string, unknown>, schema: Record<string,
     return body;
   }
   return { ...body, [OUTPUT_CONFIG_KEY]: { ...config, format: { ...format, schema } } };
+}
+
+/** Only the direct Anthropic service is qualified for the tool-examples beta header. */
+export function supportsToolInputExamples(connection: Pick<Resolved, "api" | "wire" | "baseUrl">): boolean {
+  const directOrigin = builtinProvider("anthropic")?.baseUrl;
+  return (
+    connection.api === "anthropic-messages" &&
+    connection.wire === "anthropic-messages" &&
+    connection.baseUrl !== null &&
+    directOrigin !== undefined &&
+    URL.parse(connection.baseUrl)?.origin === directOrigin
+  );
 }
 
 export function anthropicBaseUrl(connection: Pick<Resolved, "baseUrl">, label: string): string {

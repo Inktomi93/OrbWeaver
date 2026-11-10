@@ -9,7 +9,7 @@ supersedes: docs/adr/0296-ollama-chat-rides-its-native-route.md
 
 ## Context
 
-D7 keeps every local server a provider row on the openai-compat wire, with its quirks as features. Ollama's /v1/chat/completions drops num_ctx, top_k, min_p, typical_p, repeat_penalty and logit_bias, and it injects temperature and top_p of 1.0 when a request leaves them out. The native /api/chat route takes all of these in options. A connection test that posts a hand-built body to /v1 can pass while the chat turn on /api/chat fails, so a green test did not mean chat works.
+D7 keeps every local server a provider row on the openai-compat wire, with its quirks as features. Ollama's /v1/chat/completions drops num_ctx, top_k, min_p, typical_p, repeat_penalty and logit_bias, and it injects temperature and top_p of 1.0 when a request leaves them out. At the reviewed Ollama revision, the native /api/chat options decoder recognizes num_ctx, top_k, min_p and repeat_penalty. It accepts the deprecated typical_p per request with a warning and has no logit_bias field. The runner-specific evidence is in [Tier-3b section 8](../law/Tier-3b-Providers.md#local-servers-advertised-evidence). A connection test that posts a hand-built body to /v1 can pass while the chat turn on /api/chat fails, so a green test did not mean chat works.
 
 ## Decision
 

@@ -3,6 +3,7 @@
 // inferred types and its readers (the e2e harness) parse with the schemas.
 
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { z } from "zod";
 import { participantKindSchema, participantRoleSchema } from "#chat";
 import { modelIdSchema, providerIdSchema } from "#inference";
@@ -55,7 +56,7 @@ const inspectedParticipantSchema = z.strictObject({
 const inspectedMessageSchema = z.strictObject({
   id: typeIdSchema(ID_PREFIX.message),
   seq: z.int(),
-  role: z.string(),
+  role: z.enum(MESSAGE_ROLES),
   authorUserId: brandedId("UserId").nullable(),
   characterId: typeIdSchema(ID_PREFIX.character).nullable(),
   personaId: typeIdSchema(ID_PREFIX.persona).nullable(),

@@ -1,6 +1,7 @@
 // Immutable encoder generations and the authoritative per-owner migration target.
 
 import type { EmbeddingTask, GenerationReceipt, VectorScope } from "@orb/contracts/embeddings";
+import type { UserConnection } from "@orb/contracts/inference";
 import { embedDimsOf, embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
 import { embedGenerations, embedGenerationTargets } from "@orb/db";
 import type { VectorWidthMismatch } from "@orb/inference";
@@ -146,10 +147,14 @@ export async function pendingTargetMove(
     readonly via: EmbeddingTask;
     readonly connectionId?: UserConnectionId | undefined;
     readonly cachedFacts?: boolean | undefined;
+    readonly previewConnection?: UserConnection | undefined;
   },
 ): Promise<PendingTargetMove | null> {
   const { ownerId, task, via, connectionId } = args;
-  const connection = await ctx.resolveEmbeddingConnection(ownerId, via, connectionId, { cachedFacts: args.cachedFacts });
+  const connection = await ctx.resolveEmbeddingConnection(ownerId, via, connectionId, {
+    cachedFacts: args.cachedFacts,
+    previewConnection: args.previewConnection,
+  });
   if (connection === null) {
     return null;
   }

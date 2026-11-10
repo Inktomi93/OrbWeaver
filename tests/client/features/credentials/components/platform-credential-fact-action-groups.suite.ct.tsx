@@ -1,9 +1,11 @@
+import { DIALOG_VERBS } from "@orb/client/lib";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { actionGroupGeometry } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import type { Locator, Page } from "@playwright/test";
 import type { ConnectionActionGroupsStory, CredentialActionGroupsStory } from "./_connection-action-groups-stories.tsx";
 
 const KEYS_STORY = "tests/client/features/credentials/components/_connection-action-groups-stories/CredentialActionGroupsStory";
@@ -12,6 +14,7 @@ const KEY_LABEL = "The shared key for the long-running collaborative story and i
 const CONNECTION_LABEL = "The connection whose declared facts are being edited";
 const SECRET = "synthetic-layout-key-never-returned";
 const MODEL = "gpt-6-sol";
+const CLEAR_REVOKED = "Clear revoked";
 const READS = [
   "sessions.me",
   "settings.getUserSettings",
@@ -29,6 +32,17 @@ const REGIMES = [
   { name: "phone portrait enlarged", width: 390, viewport: { width: 390, height: 844 }, coarse: true, appearance: ENLARGED_APPEARANCE_SETTINGS },
   { name: "phone landscape enlarged", width: 844, viewport: { width: 844, height: 390 }, coarse: true, appearance: ENLARGED_APPEARANCE_SETTINGS },
 ] as const;
+
+/** Clear revoked asks first: Cancel keeps the flag, and only the confirm clears it. */
+async function clearRevokedThroughConfirm(page: Page, clear: Locator): Promise<void> {
+  await clear.click();
+  const confirm = page.getByRole("alertdialog");
+  await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
+  await expect(confirm).toHaveCount(0);
+  await expect(clear).toBeVisible();
+  await clear.click();
+  await confirm.getByRole("button", { name: CLEAR_REVOKED, exact: true }).click();
+}
 
 for (const regime of REGIMES) {
   test.describe(regime.name, () => {
@@ -72,7 +86,7 @@ for (const regime of REGIMES) {
       expect(routes.count("credentials.markRevokedByUser")).toBe(0);
       await revoke.click();
       await page.getByRole("alertdialog").getByRole("button", { name: "Revoke", exact: true }).click();
-      const clear = row.getByRole("button", { name: "Clear revoked", exact: true });
+      const clear = row.getByRole("button", { name: CLEAR_REVOKED, exact: true });
       const remove = row.getByRole("button", { name: /^Remove the /u });
       await expect(clear).toBeVisible();
       await expect(row.getByText("Revoked by you", { exact: false })).toBeVisible();
@@ -90,7 +104,7 @@ for (const regime of REGIMES) {
       await expect(remove).toBeFocused();
       expect(routes.count("credentials.remove")).toBe(0);
       expect((await caller.credentials.list()).find((key) => key.id === credential.id)).toMatchObject({ revokedReason: "user" });
-      await clear.click();
+      await clearRevokedThroughConfirm(page, clear);
       await expect(replace).toBeVisible();
       expect((await caller.credentials.list()).find((key) => key.id === credential.id)?.revokedAt).toBeNull();
     });
@@ -160,3 +174,35 @@ for (const regime of REGIMES) {
     });
   });
 }
+
+test("a key the provider revoked keeps its own reason until the confirm clears it", async ({ mount, page }) => {
+  await page.emulateMedia({ reducedMotion: "reduce", colorScheme: "dark", forcedColors: "none" });
+  await using root = await createServerHarness({ startJobs: false, secretBoxKey: Buffer.alloc(32, 17) });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const appearance = appearanceSettingsSchema.parse({});
+  const credential = await caller.credentials.add({ provider: "openai", key: SECRET, label: KEY_LABEL });
+  await root.services.credentials.recordProbeOutcome({
+    principal: await root.principalFor(root.ownerId),
+    credentialId: credential.id,
+    localEndpoint: false,
+    result: { status: "revoked", checkedAt: 0, reason: "scripted provider rejection" },
+  });
+  const revokedAt = (await caller.credentials.list()).find((key) => key.id === credential.id)?.revokedAt;
+  expect(revokedAt).not.toBeNull();
+  const routes = await routeTrpc(page, {
+    ...serveCorpusProcedures(caller, READS),
+    ...serveCorpusProcedures(caller, ["credentials.clearRevoked", "credentials.markRevokedByUser"]),
+  });
+  // The narrowest regime width fits every project viewport, the iPhone one included.
+  await mount<typeof CredentialActionGroupsStory>(KEYS_STORY, { width: 300, appearance });
+  const row = page.locator('[data-slot="list-row-root"]').filter({ hasText: KEY_LABEL });
+  const clear = row.getByRole("button", { name: CLEAR_REVOKED, exact: true });
+  await clear.click();
+  await page.getByRole("alertdialog").getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
+  expect(routes.count("credentials.clearRevoked")).toBe(0);
+  expect((await caller.credentials.list()).find((key) => key.id === credential.id)).toMatchObject({ revokedReason: "auth_failed", revokedAt });
+  await clearRevokedThroughConfirm(page, clear);
+  await expect(row.getByRole("button", { name: /^Replace the /u })).toBeVisible();
+  expect((await caller.credentials.list()).find((key) => key.id === credential.id)?.revokedAt).toBeNull();
+  expect(routes.count("credentials.markRevokedByUser")).toBe(0);
+});

@@ -1,11 +1,12 @@
 // Cache directive spelling and shared placement; the funnel owns activation, TTL and depth policy.
 // Conversational depth ignores within-turn tool exchanges and never moves authored prompt content.
+
 import type { CachePolicy, GenerationCapability, PromptCacheTtl } from "@orb/contracts/inference";
 import { cacheMinTokensOf } from "@orb/contracts/inference";
 import type { UserIntent } from "@orb/contracts/preset";
 import { estimateTokens } from "@orb/kit/tokens";
 import { detectModelFamily } from "#capability";
-import type { Resolved } from "#contract";
+import type { HistoryRole, Resolved } from "#contract";
 import { resolveCachePolicy } from "#funnel";
 import type { ProviderLogger } from "../../contract/http.ts";
 import type { AnthropicCacheDirective, CacheMarkerPlacement, CacheMarkerRow, ExplicitCachePlan, OpenRouterRouting } from "../../contract/wire.ts";
@@ -103,7 +104,7 @@ export function effectiveProviderRouting<T extends OpenRouterRouting>(
 /** One delivered wire row as the breakpoint placer sees it. */
 interface CacheBreakpointRow {
   /** The wire role — the depth axis (`system` consumes none). */
-  readonly role: string;
+  readonly role: HistoryRole;
   /** Part of a WITHIN-TURN tool exchange (a `tool` result row, or the assistant row carrying its calls):
    *  transparent to conversational depth, because it postdates the depth's computation. */
   readonly toolExchange: boolean;
@@ -124,7 +125,7 @@ const TOOL_DEPTH_TRANSPARENT_ROLE = "system";
  *  is not that deep. Depth 0 is the newest role group; each role SWITCH walking backwards opens the next. The
  *  ONE counter of the depth axis: SHAPE (`chat/assembly/shape.ts`) computes the depth it hands the runner with
  *  it, and the placer below resolves that depth with it, so the two cannot count differently. */
-export function rowIndexAtCacheDepth(rows: readonly { readonly role: string; readonly toolExchange?: boolean }[], wanted: number): number | undefined {
+export function rowIndexAtCacheDepth(rows: readonly { readonly role: HistoryRole; readonly toolExchange?: boolean }[], wanted: number): number | undefined {
   let depth = 0;
   let previousRole = "";
   let found: number | undefined;
@@ -148,7 +149,7 @@ export function rowIndexAtCacheDepth(rows: readonly { readonly role: string; rea
 /** The shallowest depth whose newest row sits at or before `index`: the depth that pins row `index` itself when
  *  it ends its role group, else the nearest group that ends above it. Undefined when no depth does (a negative
  *  `index`, or a history too short). */
-export function cacheDepthCovering(rows: readonly { readonly role: string; readonly toolExchange?: boolean }[], index: number): number | undefined {
+export function cacheDepthCovering(rows: readonly { readonly role: HistoryRole; readonly toolExchange?: boolean }[], index: number): number | undefined {
   let covering: number | undefined;
   let at: number | undefined = index < 0 ? undefined : rows.length;
   for (let depth = 0; at !== undefined && covering === undefined; depth += 1) {

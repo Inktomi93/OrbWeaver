@@ -354,6 +354,14 @@ interface PluginMeterNode {
   readonly max?: number | undefined;
   readonly label?: string | undefined;
 }
+type PluginOneSource<T, Keys extends keyof T> = {
+  [Selected in Keys]-?: T & { readonly [Key in Selected]-?: Exclude<T[Key], undefined> } & { readonly [Key in Exclude<Keys, Selected>]?: undefined };
+}[Keys];
+
+type PluginOptionalSource<T, Keys extends keyof T> = {
+  [Selected in Keys]-?: T & { readonly [Key in Exclude<Keys, Selected>]?: undefined };
+}[Keys];
+
 interface PluginKeyValueRow {
   readonly key: string;
   readonly value: PluginBoundString;
@@ -361,11 +369,14 @@ interface PluginKeyValueRow {
 /** A fact sheet. Exactly one of `rows` (declared — values may still bind) / `rowsFrom` (bound: the row
  *  set itself is published state, `[{key, value}]` plain strings — for a sheet whose cardinality is data,
  *  like a per-provider stat list; validated + clamped at resolve). */
-interface PluginKeyValueNode {
-  readonly kind: "keyValue";
-  readonly rows?: readonly PluginKeyValueRow[] | undefined;
-  readonly rowsFrom?: PluginStateBinding | undefined;
-}
+type PluginKeyValueNode = PluginOneSource<
+  {
+    readonly kind: "keyValue";
+    readonly rows?: readonly PluginKeyValueRow[] | undefined;
+    readonly rowsFrom?: PluginStateBinding | undefined;
+  },
+  "rows" | "rowsFrom"
+>;
 interface PluginListNode {
   readonly kind: "list";
   readonly items: readonly PluginBoundString[];
@@ -373,14 +384,17 @@ interface PluginListNode {
 /** An image source is exactly one of an installer-owned CAS id, a state-bound CAS id, or a flat raster path
  *  shipped under `ui/assets/`. A bundle path is a name resolved through this plugin's install-time asset map,
  *  never a URL or filesystem location. */
-interface PluginImageNode {
-  readonly kind: "image";
-  readonly assetId?: string | undefined;
-  readonly assetFrom?: PluginStateBinding | undefined;
-  readonly bundleAsset?: string | undefined;
-  readonly alt?: string | undefined;
-  readonly aspect?: PluginImageAspect | undefined;
-}
+type PluginImageNode = PluginOneSource<
+  {
+    readonly kind: "image";
+    readonly assetId?: string | undefined;
+    readonly assetFrom?: PluginStateBinding | undefined;
+    readonly bundleAsset?: string | undefined;
+    readonly alt?: string | undefined;
+    readonly aspect?: PluginImageAspect | undefined;
+  },
+  "assetId" | "assetFrom" | "bundleAsset"
+>;
 interface PluginMarkdownNode {
   readonly kind: "markdown";
   readonly value: PluginBoundString;
@@ -416,17 +430,20 @@ interface PluginSelectOption {
 /** Exactly one of `options` (declared, registration-fixed) / `optionsFrom` (bound: the option set is
  *  published state, `[{value, label}]` — for a menu whose vocabulary is data, like a per-hub sort list;
  *  validated + clamped at resolve). A select naming `actionId` is LIVE: a pick fires it immediately. */
-interface PluginSelectNode {
-  readonly kind: "select";
-  readonly name: string;
-  readonly label: string;
-  readonly options?: readonly PluginSelectOption[] | undefined;
-  readonly optionsFrom?: PluginStateBinding | undefined;
-  /** The host renders its own catalog; the guest receives only the person's selected id. */
-  readonly optionsFromHost?: "owned-lore-books" | undefined;
-  readonly value?: string | undefined;
-  readonly actionId?: string | undefined;
-}
+type PluginSelectNode = PluginOneSource<
+  {
+    readonly kind: "select";
+    readonly name: string;
+    readonly label: string;
+    readonly options?: readonly PluginSelectOption[] | undefined;
+    readonly optionsFrom?: PluginStateBinding | undefined;
+    /** The host renders its own catalog; the guest receives only the person's selected id. */
+    readonly optionsFromHost?: "owned-lore-books" | undefined;
+    readonly value?: string | undefined;
+    readonly actionId?: string | undefined;
+  },
+  "options" | "optionsFrom" | "optionsFromHost"
+>;
 /** A glyph from the curated set. `label` ABSENT = decorative (aria-hidden, the house default for an icon
  *  beside text); naming one claims the glyph is the only thing saying this and gives it an accessible name. */
 interface PluginIconNode {
@@ -437,15 +454,18 @@ interface PluginIconNode {
 /** The ONE-OF-N segmented strip — the page's own axis, every option visible (max 8; a bigger vocabulary is a
  *  `select`). Same option arms as `select`: exactly one of `options`/`optionsFrom`. A pick fires `actionId`
  *  immediately. It is NOT a tab panel container: what a pick changes is whatever you republish. */
-interface PluginTabsNode {
-  readonly kind: "tabs";
-  readonly name: string;
-  readonly label: string;
-  readonly options?: readonly PluginSelectOption[] | undefined;
-  readonly optionsFrom?: PluginStateBinding | undefined;
-  readonly value?: string | undefined;
-  readonly actionId?: string | undefined;
-}
+type PluginTabsNode = PluginOneSource<
+  {
+    readonly kind: "tabs";
+    readonly name: string;
+    readonly label: string;
+    readonly options?: readonly PluginSelectOption[] | undefined;
+    readonly optionsFrom?: PluginStateBinding | undefined;
+    readonly value?: string | undefined;
+    readonly actionId?: string | undefined;
+  },
+  "options" | "optionsFrom"
+>;
 interface PluginSliderNode {
   readonly kind: "slider";
   readonly name: string;
@@ -473,18 +493,21 @@ interface PluginConfirmButtonNode {
   readonly confirmBody?: string | undefined;
 }
 /** One DECLARED grid tile. `actionId` makes the tile a round-trip (`values.tile` = its id). */
-interface PluginGridTile {
-  readonly id: string;
-  readonly title: PluginBoundString;
-  readonly subtitle?: PluginBoundString | undefined;
-  readonly badge?: PluginBoundString | undefined;
-  readonly assetId?: string | undefined;
-  /** A declared flat raster path shipped by this plugin, such as `ui/assets/cover.png`. */
-  readonly bundleAsset?: string | undefined;
-  readonly alt?: string | undefined;
-  readonly tags?: readonly string[] | undefined;
-  readonly actionId?: string | undefined;
-}
+type PluginGridTile = PluginOptionalSource<
+  {
+    readonly id: string;
+    readonly title: PluginBoundString;
+    readonly subtitle?: PluginBoundString | undefined;
+    readonly badge?: PluginBoundString | undefined;
+    readonly assetId?: string | undefined;
+    /** A declared flat raster path shipped by this plugin, such as `ui/assets/cover.png`. */
+    readonly bundleAsset?: string | undefined;
+    readonly alt?: string | undefined;
+    readonly tags?: readonly string[] | undefined;
+    readonly actionId?: string | undefined;
+  },
+  "assetId" | "bundleAsset"
+>;
 /** One BOUND grid tile as you publish it in state (the `tilesFrom` arm) — plain strings, no per-tile action
  *  (the grid-level `tileAction` owns the round-trip). Entries are validated at resolve; malformed ones are
  *  dropped; the count clamps to 64. */
@@ -499,29 +522,35 @@ interface PluginBoundGridTile {
 }
 /** The media-forward tile grid. Exactly one of `tiles` (declared — the set is spec structure) /
  *  `tilesFrom` (bound — the set is published state, so its COUNT is data: search results, growing albums). */
-interface PluginGridNode {
-  readonly kind: "grid";
-  readonly tiles?: readonly PluginGridTile[] | undefined;
-  readonly tilesFrom?: PluginStateBinding | undefined;
-  readonly tileAction?: string | undefined;
-  readonly aspect?: PluginImageAspect | undefined;
-  readonly empty?: string | undefined;
-  /** TRUE ⇒ the grid renders a shape- and aspect-matched SKELETON instead of tiles or the empty line. Publish
-   *  `true` before you float the wire work and `false` with the results — the loading arm outranks both. */
-  readonly loading?: PluginBoundBoolean | undefined;
-}
+type PluginGridNode = PluginOneSource<
+  {
+    readonly kind: "grid";
+    readonly tiles?: readonly PluginGridTile[] | undefined;
+    readonly tilesFrom?: PluginStateBinding | undefined;
+    readonly tileAction?: string | undefined;
+    readonly aspect?: PluginImageAspect | undefined;
+    readonly empty?: string | undefined;
+    /** TRUE ⇒ the grid renders a shape- and aspect-matched SKELETON instead of tiles or the empty line. Publish
+     *  `true` before you float the wire work and `false` with the results — the loading arm outranks both. */
+    readonly loading?: PluginBoundBoolean | undefined;
+  },
+  "tiles" | "tilesFrom"
+> &
+  ({ readonly tiles?: undefined } | { readonly tileAction?: undefined });
+type PluginPageHero = PluginOneSource<
+  {
+    readonly assetId?: string | undefined;
+    readonly assetFrom?: PluginStateBinding | undefined;
+    readonly bundleAsset?: string | undefined;
+    readonly alt?: string | undefined;
+  },
+  "assetId" | "assetFrom" | "bundleAsset"
+>;
 interface PluginPageStage {
   readonly id: string;
   readonly kind: PluginPageStageKind;
   readonly title?: PluginBoundString | undefined;
-  readonly hero?:
-    | {
-        readonly assetId?: string | undefined;
-        readonly assetFrom?: PluginStateBinding | undefined;
-        readonly bundleAsset?: string | undefined;
-        readonly alt?: string | undefined;
-      }
-    | undefined;
+  readonly hero?: PluginPageHero | undefined;
   readonly body: PluginSurfaceNode;
 }
 /** The page arrangement: declared stages, one active — and `active` is a BINDING, so stage navigation is

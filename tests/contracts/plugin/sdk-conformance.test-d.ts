@@ -166,6 +166,16 @@ test("closed vocabularies and node fields match the app contracts", () => {
   expectTypeOf<PluginToastLevel>().toEqualTypeOf<ContractToastLevel>();
   expectTypeOf<PluginCommandArgSpec["type"]>().toEqualTypeOf<ContractCommandArgSpec["type"]>();
   expectTypeOf<PluginCommandPlacement>().toEqualTypeOf<ContractCommandPlacement>();
+  const declared = { kind: "keyValue", rows: [] } as const;
+  const bound = { kind: "keyValue", rowsFrom: { $state: "rows" } } as const;
+  const ambiguous = { ...declared, ...bound };
+  const missing = { kind: "keyValue" } as const;
+  expectTypeOf(declared).toExtend<PluginSurfaceNode>();
+  expectTypeOf(bound).toExtend<ContractNode>();
+  expectTypeOf(ambiguous).not.toExtend<PluginSurfaceNode>();
+  expectTypeOf(ambiguous).not.toExtend<ContractNode>();
+  expectTypeOf(missing).not.toExtend<PluginSurfaceNode>();
+  expectTypeOf(missing).not.toExtend<ContractNode>();
   expectTypeOf<PluginSurfaceNode["kind"]>().toEqualTypeOf<ContractNode["kind"]>();
   expectTypeOf<NodeKeys<PluginSurfaceNode>>().toEqualTypeOf<NodeKeys<ContractNode>>();
   expectTypeOf<PluginSurfaceNode>().toExtend<DeepUnbrand<ContractNode>>();

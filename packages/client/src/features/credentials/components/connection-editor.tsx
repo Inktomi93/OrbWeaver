@@ -135,7 +135,7 @@ function AvailableConnectionEditorBody({
       factNodes.current.set(path, node);
     }
   };
-  const reindex = useReindexConfirm(trpc, (): boolean => {
+  const reindex = useReindexConfirm((): boolean => {
     const widthRow = factNodes.current.get(VECTOR_WIDTH_FACT_PATH) ?? null;
     widthRow?.focus();
     return widthRow === null;

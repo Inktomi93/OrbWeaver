@@ -1,0 +1,26 @@
+diff --git a/models/trace/Processor.d.ts b/models/trace/Processor.d.ts
+index e4c009db7e..5b9c973678 100644
+--- a/models/trace/Processor.d.ts
++++ b/models/trace/Processor.d.ts
+@@ -5,7 +5,7 @@ import * as Types from './types/types.js';
+ export declare class TraceParseProgressEvent extends Event {
+     data: Model.TraceParseEventProgressData;
+     static readonly eventName = "traceparseprogress";
+-    constructor(data: Model.TraceParseEventProgressData, init?: EventInit);
++    constructor(data: Model.TraceParseEventProgressData, init?: ConstructorParameters<typeof Event>[1]);
+ }
+ declare global {
+     interface HTMLElementEventMap {
+diff --git a/models/trace/types/TraceEvents.d.ts b/models/trace/types/TraceEvents.d.ts
+index 088a060945..52b878beae 100644
+--- a/models/trace/types/TraceEvents.d.ts
++++ b/models/trace/types/TraceEvents.d.ts
+@@ -2367,7 +2367,7 @@ export interface LegacyTimelineFrame extends Event {
+     isPartial: boolean;
+     layerTree: LegacyFrameLayerTreeData | null;
+     paints: LegacyLayerPaintEvent[];
+-    mainFrameId?: number;
++    mainFrameId?: number | undefined;
+     readonly seqId: number;
+     index: number;
+ }

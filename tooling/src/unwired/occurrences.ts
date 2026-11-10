@@ -772,6 +772,27 @@ function sendsOf(facts: readonly PropertyFacts[], links: readonly Link[]): Reado
   return sends;
 }
 
+/** Construction inventories need only the writes and their typed hand-offs after a world closes. */
+export function constructionWrites(world: NativeWorld, home: ReadonlySet<string>): Pick<PropertyFacts, "credits" | "flows"> {
+  const { credits, flows, written } = propertyFacts(world, home);
+  return { credits: credits.filter(({ site, keys }) => keys.length > 0 && written.has(siteKey(site))), flows };
+}
+
+/** Carry each construction's writes to the shape an assignment, return or call delivers it into. */
+export function joinConstructionWrites(parts: readonly ReturnType<typeof constructionWrites>[]): ReferenceIndex {
+  const index = new Map<string, Site[]>();
+  for (const part of parts) {
+    for (const { site, keys } of part.credits) {
+      credit(index, keys, site);
+    }
+  }
+  const { down } = flowEdges(parts.flatMap((part) => part.flows));
+  return withCarried(
+    index,
+    carriedAlong(index, down, () => true),
+  );
+}
+
 /** The indexes the facts of several file sets make together, every link and flow joined once over all of them. */
 export function joinFacts(facts: readonly PropertyFacts[]): PropertyReferences {
   const index = new Map<string, Site[]>();

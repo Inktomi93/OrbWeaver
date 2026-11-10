@@ -1,4 +1,5 @@
 import type { PromptCacheTtl } from "@orb/contracts/inference";
+import type { HistoryRole } from "./chat.ts";
 import type { AgentSdkSessionId } from "./identity.ts";
 
 /** The openrouter routing-prefs slice this pin reads/writes. The full block is validated by the transport's
@@ -23,7 +24,7 @@ export interface ExplicitCachePlan {
 
 /** One delivered wire row as the marker placer reads it: the depth axis inputs plus the prose it estimates. */
 export interface CacheMarkerRow {
-  readonly role: string;
+  readonly role: HistoryRole;
   readonly toolExchange: boolean;
   readonly text: string;
 }

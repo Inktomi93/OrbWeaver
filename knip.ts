@@ -56,7 +56,19 @@ export const config = {
       // typeid-js is resolved through the root node_modules by fixtures that copy packages/kit/src/ids (testkit-enforcement nativeProgram).
       // knip's Stryker plugin reads every `checkers` name as an `@stryker-mutator/<name>-checker` package; the
       // native checker is the in-repo plugin the config loads by path (tooling/src/mutation-checker/index.ts).
-      ignoreDependencies: ["pino-pretty", "@anthropic-ai/sdk", "typeid-js", "@stryker-mutator/native-checker"],
+      // The compiler, not an import, reads three declaration packages once declaration checking is on:
+      // `@rolldown/plugin-babel`'s and `babel-plugin-react-compiler`'s types import `@babel/core`, the latter's also
+      // import `@babel/traverse`, and the patched `@electric-sql/pglite` types import `emscripten/modular.js`
+      // (patches/@electric-sql__pglite@0.2.12.patch).
+      ignoreDependencies: [
+        "pino-pretty",
+        "@anthropic-ai/sdk",
+        "typeid-js",
+        "@stryker-mutator/native-checker",
+        "@types/babel__core",
+        "@types/babel__traverse",
+        "@types/emscripten",
+      ],
       // knip's Stryker plugin only globs js and json configs; naming the `.ts` config credits the runner and checker.
       stryker: { config: ["stryker.config.ts"] },
     },

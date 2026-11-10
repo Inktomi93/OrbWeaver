@@ -706,6 +706,7 @@ function rootSources(...refs: string[]): string[] {
   });
 }
 
+const SHOWCASE_AUTHOR_SOURCES = "packages/showcase-plugins/bundles/*/{main,ui,frame}.ts";
 const AUTHORED_SRC = rootSources(
   "@client",
   "@ui",
@@ -1904,6 +1905,8 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       ignores: Object.keys(DESTRUCTIVE_EXEMPT),
       rules: { "orb/destructive-needs-confirm": "error" },
     },
+    // No exempt file: a ConfirmedAction minted or cast anywhere would vouch for a confirm in every file.
+    { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/confirmed-action-mint": "error" } },
     {
       files: ["packages/client/src/**/*.{ts,tsx}"],
       ignores: ["packages/client/src/**/hooks/**", "packages/client/src/**/*-mutations.ts", "packages/client/src/data/**"],
@@ -2101,8 +2104,16 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       rules: { "orb/ui-overlay-modal-anatomy": "error" },
     },
     {
+      files: ["packages/*/src/**/*.{ts,tsx}", SHOWCASE_AUTHOR_SOURCES],
+      rules: { "orb/closed-vocabulary": "error" },
+    },
+    {
       files: AUTHORED_SRC,
       rules: { "orb/no-raw-id": "error", "orb/no-inline-union-alias": "error" },
+    },
+    {
+      files: [...AUTHORED_SRC, SHOWCASE_AUTHOR_SOURCES],
+      rules: { "orb/no-optional-alternatives": "error" },
     },
     {
       files: ["packages/client/src/**/*.{ts,tsx}", "packages/server/src/**/*.{ts,tsx}", "packages/inference/src/**/*.{ts,tsx}"],

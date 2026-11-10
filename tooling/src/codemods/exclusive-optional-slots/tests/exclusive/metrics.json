@@ -1,0 +1,10 @@
+{
+  "exclusive prop interfaces": [
+    {
+      "cardinality": {
+        "owner": "EmptyStateProps"
+      },
+      "count": 1
+    }
+  ]
+}

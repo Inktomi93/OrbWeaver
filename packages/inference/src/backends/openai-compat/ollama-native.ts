@@ -123,9 +123,9 @@ function nativeMessage(row: Json, toolNames: ReadonlyMap<string, string>, label:
 }
 
 /** OpenAI messages to Ollama's: string content, base64 `images`, object tool arguments, replayed thinking as
- *  `thinking` (the field the route takes; whether the loaded runner and model template render it back into the
- *  prompt is unmeasured here), and a tool result named by the call it answers (`tool_name`) and paired with it by id
- *  (`tool_call_id`), so two calls of one tool keep their own results in any order. */
+ *  `thinking`, and tool results paired with calls by name and id. The capture records the submitted history.
+ *  At Ollama 42e911bc, llamaServerChatMessage omits the separate thinking field, while the Qwen3.5 renderer can
+ *  place it in the prompt. The connection does not report which path handled a request (docs/law/Tier-3b-Providers.md §8). */
 function nativeMessages(messages: unknown, label: string): Json[] {
   const rows = Array.isArray(messages) ? messages.filter(isRecord) : [];
   const toolNames = new Map<string, string>();

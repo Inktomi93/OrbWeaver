@@ -1,0 +1,10 @@
+{
+  "exclusive prop interfaces": [
+    {
+      "cardinality": {
+        "owner": "SandboxFrameProps"
+      },
+      "count": 1
+    }
+  ]
+}

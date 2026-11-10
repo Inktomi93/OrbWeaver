@@ -316,7 +316,7 @@ function parameterHomes(world: NativeWorld): ReadonlySet<string> {
   return new Set(world.symbolsAt(names).flatMap((symbol) => (symbol === undefined ? [] : declarationKeys(symbol))));
 }
 
-function declarations(world: NativeWorld): readonly FieldDeclaration[] {
+export function fieldDeclarations(world: NativeWorld, includeCallables = false): readonly FieldDeclaration[] {
   const owned = parameterHomes(world);
   const keys = schemaKeys(world);
   const symbols = world.symbolsAt(keys.map(({ node }) => node.name));
@@ -324,7 +324,7 @@ function declarations(world: NativeWorld): readonly FieldDeclaration[] {
   const mirrors = new Map(world.symbolsAt(mirrorNodes).map((symbol, at) => [mirrorNodes[at], symbol]));
   const members = world.batch(keys.map((key) => mirrored(world.checker, key, key.mirror === null ? undefined : mirrors.get(key.mirror))));
   const memberSites = world.batch(members.map((member) => declarationSites(world, member)));
-  const types = typeMembers(world).filter((member) => !member.callable);
+  const types = typeMembers(world).filter((member) => includeCallables || !member.callable);
   const typeKeys = new Set(types.flatMap((member) => member.keys));
   // A mirrored key and its named type's member are one field, reported at the member with both sets of sites. A key
   // whose member sits in an anonymous union member stays a schema field that the member's references also reach.
@@ -447,7 +447,7 @@ function mergedSites(names: readonly Site[], second: ReadonlyMap<string, readonl
 const namesOf = (field: FieldDeclaration): readonly Site[] => [field.site, ...field.mirrorSites];
 
 function tallyWorld(tally: Map<string, Tally>, declared: Set<string>, world: NativeWorld): number {
-  const fields = declarations(world);
+  const fields = fieldDeclarations(world);
   for (const field of fields) {
     const entry = tally.get(field.key) ?? { field, keys: new Set(), sites: new Map(), direct: new Map(), sends: new Map() };
     for (const key of field.keys) {

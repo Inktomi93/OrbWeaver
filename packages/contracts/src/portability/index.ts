@@ -7,6 +7,20 @@ import type { UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
+import type { PortableSchemaKind } from "./envelope.ts";
+
+export {
+  CHAT_BUNDLE_SCHEMA_KIND,
+  DATABANK_SCHEMA_KIND,
+  GALLERY_SCHEMA_KIND,
+  IMAGERY_SCHEMA_KIND,
+  PERSONA_SCHEMA_KIND,
+  REGEX_SCRIPT_SCHEMA_KIND,
+  TAG_LIBRARY_SCHEMA_KIND,
+  THEME_SCHEMA_KIND,
+  USER_SETTINGS_SCHEMA_KIND,
+  WORLD_INFO_SCHEMA_KIND,
+} from "./envelope.ts";
 export { exportCharacterPath, exportChatPath, PORTABILITY_ROUTES } from "./routes.ts";
 
 /** The closed set of portable entity kinds. New entity = one member here + the union widens everywhere.
@@ -101,7 +115,7 @@ export const importLandingSchema = z.strictObject({ created: z.boolean(), name: 
  *  portable family (the upload router routes on it); `schemaVersion` is the lift-walk key — a reader
  *  accepts `<= its own` and refuses newer. */
 export interface PortableEnvelope {
-  readonly schemaKind: string;
+  readonly schemaKind: PortableSchemaKind;
   readonly schemaVersion: number;
 }
 

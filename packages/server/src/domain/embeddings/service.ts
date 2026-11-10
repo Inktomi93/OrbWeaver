@@ -14,7 +14,7 @@ import { createImageAnalysisCounter, createImageIndexer } from "./indexer/image.
 import { countOwnedVectors } from "./persistence/owned-vector-counts.ts";
 import { readTargetSnapshot } from "./persistence/space-state.ts";
 import { createAvatarAnalysisAvailability } from "./substrate/avatar-analysis-availability.ts";
-import { pendingTargetMove, resolveTargetGeneration } from "./substrate/generation.ts";
+import { resolveTargetGeneration } from "./substrate/generation.ts";
 import { createImageSpaceDegradeReport } from "./substrate/image-space-degrade.ts";
 import { createCountDocumentChunks } from "./verbs/count-document-chunks.ts";
 import { createCountDocumentChunksByOwner } from "./verbs/count-document-chunks-by-owner.ts";
@@ -28,7 +28,7 @@ import { createPurgeMemoryVectors } from "./verbs/purge-memory-vectors.ts";
 import { createStaleGenerationOwners } from "./verbs/stale-generation-owners.ts";
 import { createStore } from "./verbs/store.ts";
 import { createStoreSegments } from "./verbs/store-segments.ts";
-import { createSyncTargetGenerations } from "./verbs/sync-target-generations.ts";
+import { createPreviewTargetMove, createSyncTargetGenerations } from "./verbs/sync-target-generations.ts";
 import { createWriteHubScores } from "./verbs/write-hub-scores.ts";
 
 /** A root's empty embeddings latches; its composition root builds them once and passes them in the context. */
@@ -52,8 +52,7 @@ export function createEmbeddingsService(input: DbAssemblyInput<EmbeddingsContext
     indexAsset,
     resolveGeneration: (ownerId, task, via) => resolveTargetGeneration(ctx, ownerId, task, via),
     syncTargetGenerations: createSyncTargetGenerations(ctx),
-    // The preview asks before the user commits; a host that does not answer must not hold the question.
-    targetWouldMove: async (args) => (await pendingTargetMove(ctx, { ...args, cachedFacts: true }))?.moves ?? null,
+    previewTargetMove: createPreviewTargetMove(ctx),
     targetSnapshot: (ownerId) => readTargetSnapshot(ctx.db, ownerId),
     staleGenerationOwners: createStaleGenerationOwners(ctx),
     countOwnedVectors: (ownerId) => countOwnedVectors(ctx.db, ownerId),

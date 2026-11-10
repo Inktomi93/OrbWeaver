@@ -10,6 +10,7 @@
 // The native envelope round-trips through buildThemeBackup and parseThemeFile.
 
 import type { PortableParseFailure } from "@orb/contracts/portability";
+import { THEME_SCHEMA_KIND } from "@orb/contracts/portability";
 import type { ThemeOverride } from "@orb/contracts/theme";
 import { THEME_CSS_MAX, THEME_NAME_MAX, themeOverrideSchema } from "@orb/contracts/theme";
 import { isPlainObject } from "@orb/kit/guards";
@@ -20,9 +21,9 @@ import { decodePortableObject, defineJsonRowsSerde, NO_JSON_HEADER, noJsonHeader
 import type { ParsedStTheme } from "./st.ts";
 import { stThemeFromJson } from "./st.ts";
 
+export { THEME_SCHEMA_KIND } from "@orb/contracts/portability";
 export type { ParsedStTheme } from "./st.ts";
 
-export const THEME_SCHEMA_KIND = "orb.theme";
 const THEME_SCHEMA_VERSION = 1;
 
 /** One theme as it travels in the backup file: the portable display fields only. No id, no ownerId, no

@@ -17,7 +17,7 @@ import { ListRowContent } from "./parts.tsx";
 import { TITLE_QUALIFIER_SEPARATOR } from "./title-qualifier.tsx";
 import { listRowVariants } from "./variants.ts";
 
-export interface ListRowProps {
+interface ListRowPropsBase {
   readonly align?: VariantProps<typeof listRowVariants>["align"];
   /** Leading slot — avatar/icon, rendered before the title/subtitle stack. */
   leading?: ReactNode;
@@ -113,41 +113,8 @@ export interface ListRowProps {
    * Trailing actions. Rendered as a sibling of the clickable body, never nested inside it.
    */
   actions?: ReactNode;
-  /**
-   * Lets the `actions` cluster drop to its OWN LINE beneath the identity once the row itself is narrower
-   * than {@link ListRowProps.stackActionsAt} — a container query on the row's own box, never the viewport's. For a row whose
-   * controls are REST-VISIBLE and therefore cannot buy the identity any width by hiding: below that width
-   * the name and the cluster stop fitting on one line, and the name is what loses (#2486, measured at the
-   * 486px settings body). Mutually exclusive with `actionsFloat`, which answers the same squeeze for a
-   * cluster that is hidden at rest. The stacked cluster is still a SIBLING of the body — stacking is a
-   * layout arm, never a change to what the row's `<button>` contains (#512).
-   */
-  stackActions?: boolean;
-  /**
-   * The container-breakpoint token below which a `stackActions` row stacks: at least twice the cluster's width.
-   * `cq-32` (32rem) fits a multi-control cluster; `cq-24` (24rem) fits one compact control.
-   * @defaultValue "cq-32"
-   */
-  stackActionsAt?: "cq-32" | "cq-24";
-  /**
-   * Lifts the `actions` cluster OUT OF FLOW at the row's inline end (fine pointers only), so a cluster
-   * that is HIDDEN at rest stops reserving width the title/subtitle need. Pass it for a row whose
-   * trailing controls are ALL hover-revealed; a rest-VISIBLE marker (a pressed star, a badge) belongs in
-   * flow, where it can't sit on top of the text. Requires the row root to carry `group` (the reveal +
-   * this slot's backdrop both key on it).
-   */
-  actionsFloat?: boolean;
   /** Dims the whole row to the receded step, for a row that stands behind its live siblings (an archived chat). */
   receded?: boolean;
-  /**
-   * WHICH box wears the hover/selected tint. Default `body`. Pass `row` when the `actions` cluster is IN
-   * FLOW and reveal-gated: the cluster is a sibling of the body, so a body-painted tint stops before it and
-   * the controls sit on the pane background instead of on the row. `row` paints the ROOT, so the glyphs ride
-   * the row's own tint and the cluster needs no backdrop of its own (a cluster backdrop is a box-in-box
-   * double highlight). Mutually exclusive with `actionsFloat` by construction — a floated cluster is already
-   * inside the body's box.
-   */
-  rowTint?: "body" | "row";
   /**
    * Renders the row's body as a native `<button>`, with the `actions` slot kept a sibling so
    * nothing interactive nests inside it. The body's children are all phrasing content, so a
@@ -180,6 +147,51 @@ export interface ListRowProps {
   bodyRef?: Ref<HTMLButtonElement>;
   className?: string;
 }
+
+export type ListRowProps = ListRowPropsBase &
+  (
+    | {
+        /**
+         * Lets the `actions` cluster drop to its OWN LINE beneath the identity once the row itself is narrower
+         * than {@link ListRowProps.stackActionsAt} — a container query on the row's own box, never the viewport's. For a row whose
+         * controls are REST-VISIBLE and therefore cannot buy the identity any width by hiding: below that width
+         * the name and the cluster stop fitting on one line, and the name is what loses (#2486, measured at the
+         * 486px settings body). Mutually exclusive with `actionsFloat`, which answers the same squeeze for a
+         * cluster that is hidden at rest. The stacked cluster is still a SIBLING of the body — stacking is a
+         * layout arm, never a change to what the row's `<button>` contains (#512).
+         */
+        stackActions?: boolean;
+        /**
+         * The container-breakpoint token below which a `stackActions` row stacks: at least twice the cluster's width.
+         * `cq-32` (32rem) fits a multi-control cluster; `cq-24` (24rem) fits one compact control.
+         * @defaultValue "cq-32"
+         */
+        stackActionsAt?: "cq-32" | "cq-24";
+        actionsFloat?: false;
+        /**
+         * WHICH box wears the hover/selected tint. Default `body`. Pass `row` when the `actions` cluster is IN
+         * FLOW and reveal-gated: the cluster is a sibling of the body, so a body-painted tint stops before it and
+         * the controls sit on the pane background instead of on the row. `row` paints the ROOT, so the glyphs ride
+         * the row's own tint and the cluster needs no backdrop of its own (a cluster backdrop is a box-in-box
+         * double highlight). Mutually exclusive with `actionsFloat` by construction — a floated cluster is already
+         * inside the body's box.
+         */
+        rowTint?: "body" | "row";
+      }
+    | {
+        stackActions?: false;
+        stackActionsAt?: never;
+        /**
+         * Lifts the `actions` cluster OUT OF FLOW at the row's inline end (fine pointers only), so a cluster
+         * that is HIDDEN at rest stops reserving width the title/subtitle need. Pass it for a row whose
+         * trailing controls are ALL hover-revealed; a rest-VISIBLE marker (a pressed star, a badge) belongs in
+         * flow, where it can't sit on top of the text. Requires the row root to carry `group` (the reveal +
+         * this slot's backdrop both key on it).
+         */
+        actionsFloat?: boolean;
+        rowTint?: "body";
+      }
+  );
 
 /**
  * ListRow — the slot-based entity row every list surface composes: leading slot → title/subtitle

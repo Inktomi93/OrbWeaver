@@ -9,7 +9,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import { FlowDialog } from "#components";
+import { DestructiveAction, FlowDialog } from "#components";
 import type { AppFormInstance } from "#forms/editor";
 import { DIALOG_VERBS, notify } from "#lib";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
@@ -85,18 +85,25 @@ function OptionList({ form, index }: { readonly form: AppForm; readonly index: n
                 <Row key={id} gap="field" align="end" role="group" aria-label={`Option ${j + 1}`}>
                   <form.AppField name={`variables[${index}].options[${j}].label`}>{(field): ReactElement => <field.TextField label="Label" />}</form.AppField>
                   <form.AppField name={`variables[${index}].options[${j}].value`}>{(field): ReactElement => <field.TextField label="Value" />}</form.AppField>
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={(): void => {
-                      addButton.current?.focus();
+                  <DestructiveAction
+                    confirm={{
+                      title: `Remove option ${j + 1}?`,
+                      description: "The variable saves without it. This can't be undone.",
+                      confirmLabel: DIALOG_VERBS.remove,
+                    }}
+                    finalFocus={addButton}
+                    forceRender={true}
+                    onConfirm={(): void => {
                       Promise.all([form.removeFieldValue(optionsName, j), form.removeFieldValue(`variableRowIds[${index}].options`, j)]).catch(() =>
                         notify.error("Couldn't remove the option."),
                       );
                     }}
-                  >
-                    Remove
-                  </Button>
+                    trigger={
+                      <Button variant="ghost" size="sm">
+                        Remove
+                      </Button>
+                    }
+                  />
                 </Row>
               ))
             )}

@@ -1108,18 +1108,17 @@ function roleFloors<Role extends string, Knob extends string, Host extends strin
 export type ToneRoleRecipes<Role extends string, Knob extends string, Host extends string> = Readonly<Record<Role, ToneRoleRecipe<Role, Knob, Host>>>;
 
 /** The scope colours a tone resolves against: its polarity (the arm `light-dark()` takes) and its ramp hosts. */
-export interface TonePalette<Host extends string> {
+export type TonePalette<Host extends string> = {
   readonly polarity: SurfacePolarity;
   readonly foreground: Oklch;
   readonly background: Oklch;
   /** The surface a `host` mix moves toward: the page, unless a surface sets `--tone-host` ({@link tonePaletteOn}). */
   readonly host: Oklch;
-  /** The ink a page ink becomes on the host: on a card the page's `foreground` is the card's own ink. Absent on the page. */
-  readonly hostInks?: Readonly<Partial<Record<Host, Host>>>;
-  /** False on a host whose content paints no selected, hovered or active fill (a message bubble): its page inks are not judged over a tint there. */
-  readonly carriesPageInks?: boolean;
   readonly hosts: Readonly<Record<Host, Oklch>>;
-}
+} & (
+  | { readonly carriesPageInks: false; readonly hostInks?: never }
+  | { readonly carriesPageInks?: true; readonly hostInks?: Readonly<Partial<Record<Host, Host>>> }
+);
 
 /** The ramp hosts a carried palette derives and a tone recipe may bind or floor over. */
 export const CARRIED_TONE_HOSTS = [
@@ -1172,9 +1171,11 @@ const TONE_HOST_INKS: Readonly<Partial<Record<ToneHost, CarriedToneHost>>> = {
  */
 export function tonePaletteOn(palette: TonePalette<CarriedToneHost>, host: ToneHost): TonePalette<CarriedToneHost> {
   const ink = TONE_HOST_INKS[host];
-  return ink === undefined
-    ? { ...palette, host: palette.hosts[host], carriesPageInks: false }
-    : { ...palette, host: palette.hosts[host], hostInks: { foreground: ink } };
+  if (ink === undefined || palette.carriesPageInks === false) {
+    const { hostInks: _pageInks, ...surface } = palette;
+    return { ...surface, host: palette.hosts[host], carriesPageInks: false };
+  }
+  return { ...palette, host: palette.hosts[host], hostInks: { foreground: ink } };
 }
 
 /** The panels a form control sits on, each of which the input wash composites over. */

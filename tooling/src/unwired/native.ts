@@ -56,7 +56,7 @@ export class NativeWorld implements Disposable {
   readonly #sourceOf: ReadonlyMap<string, SourceFile>;
   readonly #answers = new Map<string>();
 
-  private constructor(root: string, config: string, api: API) {
+  private constructor(root: string, config: string, api: API, declarations: ReadonlySet<string>) {
     this.config = config;
     this.#root = root;
     this.#api = api;
@@ -69,23 +69,24 @@ export class NativeWorld implements Disposable {
     }
     this.checker = project.checker;
     this.#languageService = project.languageService;
-    const names = project.program.getSourceFileNames().filter(isWorldSource);
+    const names = project.program.getSourceFileNames().filter((name) => isWorldSource(name) || declarations.has(relative(root, name)));
     this.files = this.batch(names.map((name) => project.program.getSourceFile.gen(name))).flatMap((file) => (file === undefined ? [] : [file]));
     this.#fileOfPath = new Map(this.files.map((file) => [file.path, relative(root, file.fileName)]));
     this.#sourceOf = new Map(this.files.map((file) => [relative(root, file.fileName), file]));
   }
 
-  static open(root: string, config: string): NativeWorld {
-    return new NativeWorld(root, config, new API({ cwd: root }));
+  static open(root: string, config: string, declarations: ReadonlySet<string> = new Set()): NativeWorld {
+    return new NativeWorld(root, config, new API({ cwd: root }), declarations);
   }
 
   /** The repository-relative source files and root files of every world, listed in one session rather than one
    *  process per world. */
-  static fileLists(root: string, configs: readonly string[]): ReadonlyMap<string, WorldFiles> {
+  static fileLists(root: string, configs: readonly string[], declarations: ReadonlySet<string> = new Set()): ReadonlyMap<string, WorldFiles> {
     using api = new API({ cwd: root });
     const files = Object.fromEntries(configs.map((config) => [`${root}/${config}`, bridgedConfigText(root, config)]));
     const snapshot = api.createSnapshot({ openProjects: Object.keys(files), fileSystem: { kind: "layer", files } });
-    const relatives = (names: readonly string[]): ReadonlySet<string> => new Set(names.filter(isWorldSource).map((name) => relative(root, name)));
+    const relatives = (names: readonly string[]): ReadonlySet<string> =>
+      new Set(names.filter((name) => isWorldSource(name) || declarations.has(relative(root, name))).map((name) => relative(root, name)));
     return new Map(
       configs.map((config) => {
         const project = snapshot.getConfiguredProject(`${root}/${config}`);

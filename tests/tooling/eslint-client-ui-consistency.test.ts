@@ -70,25 +70,82 @@ const DESTRUCTIVE = "orb/destructive-needs-confirm";
 test.for([
   ["a Delete button with no confirm", "<Button>Delete</Button>"],
   ["a Reset menu item with no confirm", "<MenuItem>Reset to defaults</MenuItem>"],
+  [
+    "a dialog opener that deletes eagerly",
+    `(() => {
+    const [open, setOpen] = useState(false);
+    return <><Button onClick={() => { remove(); setOpen(true); }}>Delete</Button><ConfirmDialog open={open} onOpenChange={setOpen} /></>;
+  })()`,
+  ],
+  [
+    "a dialog target obtained by deleting immediately",
+    `(() => {
+    const [choice, setChoice] = useState(null);
+    return <><Button onClick={() => setChoice({ id: remove(row), open: true })}>Delete</Button><ConfirmDialog open={choice?.open} /></>;
+  })()`,
+  ],
+  [
+    "an unrelated file selection",
+    "<><FileTrigger onFilesSelected={remove}>{({ open }) => <Button onClick={open}>Delete</Button>}</FileTrigger><ConfirmDialog open={picked !== null} /></>",
+  ],
+  ["a second destructive choice after Keep", "<><Button>Keep</Button><Button>Delete</Button><Button>Reset</Button></>"],
+  ["a raw control beside an editing dialog", "<><FormDialog submit={save} /><Button>Remove</Button></>"],
+  ["an unrelated Undo", "<><Button onClick={remove}>Remove</Button>{notify.info({ action: { label: 'Undo', onClick: restore } })}</>"],
+  [
+    "a different binding with the same property name",
+    `(() => {
+    const [open, setOpen] = useState(false);
+    return <><Button onClick={() => setOpen(true)}>Remove</Button><ConfirmDialog open={other.open} /></>;
+  })()`,
+  ],
   ["a destructive-tone button", '<Button tone="destructive">Go</Button>'],
 ] as const)("%s is a finding", async ([, jsx]) => {
   expect(await findings(DESTRUCTIVE, `export const A = () => ${jsx};`)).toHaveLength(1);
 });
 
 test.for([
-  ["a controlled ConfirmDialog", '<><Button>Delete</Button><ConfirmDialog title="t" open={open} onOpenChange={setOpen} /></>'],
+  [
+    "a controlled confirm",
+    `(() => {
+    const [open, setOpen] = useState(false);
+    return <><Button onClick={() => setOpen(true)}>Delete</Button><ConfirmDialog open={open} onOpenChange={setOpen} /></>;
+  })()`,
+  ],
+  [
+    "a staged object in a controlled confirm",
+    `(() => {
+    const [choice, setChoice] = useState(null);
+    return <><Button onClick={() => setChoice({ id: row.id, open: true })}>Delete</Button><ConfirmDialog open={choice?.id === row.id && choice.open} /></>;
+  })()`,
+  ],
+  [
+    "a file picker that stages a controlled confirm",
+    `(() => {
+    const [file, setFile] = useState(null);
+    return <><FileTrigger onFilesSelected={([first]) => setFile(first ?? null)}>{({ open }) => <Button onClick={open}>Replace</Button>}</FileTrigger><ConfirmDialog open={file !== null} /></>;
+  })()`,
+  ],
+  ["a draft footer action", "<FormDialogPopup submit={save} footerLead={<Button>Reset</Button>} />"],
   ["a DestructiveAction trigger", "<DestructiveAction confirm={copy} trigger={<Button>Delete</Button>} />"],
-  ["an Undo action", "<><Button>Remove</Button>{notify({ action: { label: 'Undo' } })}</>"],
-  ["an inline Keep step", "<Row><Button>Keep</Button><Button>Dismiss</Button></Row>"],
+  ["an Undo action", "<Button onClick={() => notify.info({ action: { label: 'Undo', onClick: restore } })}>Remove</Button>"],
+  ["an inline Keep step", "<Row><Button>Keep</Button><Button>Remove</Button></Row>"],
   ["an inline Cancel step", "<Row><Button>Cancel</Button><Button>Delete</Button></Row>"],
   ["an inline Cancel step by shared verb", "<Row><Button>{DIALOG_VERBS.cancel}</Button><Button>Delete</Button></Row>"],
   ["an inline Cancel step in a dialog close", "<Row><DialogClose render={<Button>Cancel</Button>} /><Button>Delete</Button></Row>"],
   ["an inline verb step in a dialog close", "<Row><AlertDialogClose render={<Button>{DIALOG_VERBS.cancel}</Button>} /><Button>Delete</Button></Row>"],
-  ["an editing dialog", "<><FormDialog title='t' dismissLabel='Close' /><Button>Remove</Button></>"],
+  ["an editing dialog", "<FormDialog submit={save}><Button>Remove</Button></FormDialog>"],
   ["a search clear", "<Button>Clear search</Button>"],
   ["a non-destructive verb", "<Button>Save</Button>"],
 ] as const)("%s is not a finding", async ([, jsx]) => {
   expect(await findings(DESTRUCTIVE, `export const A = () => ${jsx};`)).toEqual([]);
+});
+
+test("each destructive control needs its own confirmation", async () => {
+  const wrapped = '<DestructiveAction confirm={copy} onConfirm={remove} trigger={<Button tone="destructive">Delete</Button>} />';
+  const bare = '<Button tone="destructive" onClick={remove}>Remove</Button>';
+  const mixed = `export const A = () => <>\n${wrapped}\n${bare}\n</>;`;
+  expect((await findings(DESTRUCTIVE, mixed)).map(({ line }) => line)).toEqual([3]);
+  expect(await findings(DESTRUCTIVE, mixed.replace(bare, wrapped))).toEqual([]);
 });
 
 test("a listed exempt file passes with a bare Delete", async () => {

@@ -3,6 +3,7 @@
 // The embedded-in-card book path is #primitives/serde/card and stays independent; both share the entry mapper.
 
 import type { PortableParse } from "@orb/contracts/portability";
+import { WORLD_INFO_SCHEMA_KIND } from "@orb/contracts/portability";
 import type { BulkImportLorebookInput, BulkImportLoreEntryInput, EntryMetadata } from "@orb/contracts/world-info";
 import { isPlainObject } from "@orb/kit/guards";
 import type { WorldBookId } from "@orb/kit/ids";
@@ -12,7 +13,8 @@ import { z } from "zod";
 import { loreEntryColumns, loreEntryIdentity, loreEntryMetadata } from "#primitives/serde/card";
 import { decodePortableObject, defineJsonRowsSerde } from "#primitives/serde/lib";
 
-export const WORLD_INFO_SCHEMA_KIND = "orb.world-info.book";
+export { WORLD_INFO_SCHEMA_KIND } from "@orb/contracts/portability";
+
 const SCHEMA_VERSION = 1;
 
 // keys is always an array (empty, never omitted — the null-collapse to world_entries.keys is the writer's

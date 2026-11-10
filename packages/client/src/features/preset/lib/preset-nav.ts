@@ -64,6 +64,7 @@ export const PARAMS_VIEW_LABEL: string = PRESET_EDITOR_VIEW_TUPLE[0].label;
 const THINKING_DISPLAY_LABELS: Record<ThinkingDisplay, string> = {
   summarized: "Summarized",
   omitted: "Omitted",
+  updates: "Progress updates",
 };
 export const THINKING_DISPLAY_ITEMS: SelectItems = THINKING_DISPLAYS.map((value) => ({
   value,

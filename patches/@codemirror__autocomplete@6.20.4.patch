@@ -1,0 +1,18 @@
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+index 5c9885e9e1..74b11b32ad 100644
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -1,3 +1,4 @@
++import type { Node } from "browser-realm-types";
+ import * as _codemirror_state from '@codemirror/state';
+ import { EditorState, ChangeDesc, TransactionSpec, StateCommand, Transaction, Facet, Extension, StateEffect } from '@codemirror/state';
+ import { EditorView, Rect, KeyBinding, Command } from '@codemirror/view';
+diff --git a/dist/index.d.cts b/dist/index.d.cts
+index 5c9885e9e1..74b11b32ad 100644
+--- a/dist/index.d.cts
++++ b/dist/index.d.cts
+@@ -1,3 +1,4 @@
++import type { Node } from "browser-realm-types";
+ import * as _codemirror_state from '@codemirror/state';
+ import { EditorState, ChangeDesc, TransactionSpec, StateCommand, Transaction, Facet, Extension, StateEffect } from '@codemirror/state';
+ import { EditorView, Rect, KeyBinding, Command } from '@codemirror/view';

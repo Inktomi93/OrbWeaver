@@ -1,0 +1,144 @@
+diff --git a/dist/cjs/env.d.ts b/dist/cjs/env.d.ts
+--- a/dist/cjs/env.d.ts
++++ b/dist/cjs/env.d.ts
+@@ -97,7 +97,7 @@ export declare namespace Env {
+         /**
+          * Get the WebGL rendering context.
+          */
+-        readonly context: WebGLRenderingContext;
++        readonly context: import("./host-instance.js").HostInstance<"WebGLRenderingContext">;
+         /**
+          * Set or get the maximum batch size for matmul. 0 means to disable batching.
+          *
+diff --git a/dist/cjs/host-instance.d.ts b/dist/cjs/host-instance.d.ts
+new file mode 100644
+--- /dev/null
++++ b/dist/cjs/host-instance.d.ts
+@@ -0,0 +1 @@
++export type HostInstance<Name extends string> = typeof globalThis extends Record<Name, { prototype: infer Instance }> ? Instance : never;
+diff --git a/dist/cjs/tensor-conversion.d.ts b/dist/cjs/tensor-conversion.d.ts
+--- a/dist/cjs/tensor-conversion.d.ts
++++ b/dist/cjs/tensor-conversion.d.ts
+@@ -25,6 +25,6 @@ export interface ConversionUtils {
+      * - `tensorLayout`: `'NCHW'`
+      * @returns an ImageData instance representing the image converted from tensor data
+      */
+-    toImageData(options?: TensorToImageDataOptions): ImageData;
++    toImageData(options?: TensorToImageDataOptions): import("./host-instance.js").HostInstance<"ImageData">;
+ }
+ //# sourceMappingURL=tensor-conversion.d.ts.map
+\ No newline at end of file
+diff --git a/dist/cjs/tensor-factory.d.ts b/dist/cjs/tensor-factory.d.ts
+--- a/dist/cjs/tensor-factory.d.ts
++++ b/dist/cjs/tensor-factory.d.ts
+@@ -187,7 +187,7 @@ export interface TensorFactory {
+      * - `dataType`: `'float32'`
+      * @returns A promise that resolves to a tensor object
+      */
+-    fromImage(imageData: ImageData, options?: TensorFromImageDataOptions): Promise<TypedTensor<'float32'> | TypedTensor<'uint8'>>;
++    fromImage(imageData: import("./host-instance.js").HostInstance<"ImageData">, options?: TensorFromImageDataOptions): Promise<TypedTensor<'float32'> | TypedTensor<'uint8'>>;
+     /**
+      * create a tensor from a HTMLImageElement object
+      *
+@@ -200,7 +200,7 @@ export interface TensorFactory {
+      * - `dataType`: `'float32'`
+      * @returns A promise that resolves to a tensor object
+      */
+-    fromImage(imageElement: HTMLImageElement, options?: TensorFromImageElementOptions): Promise<TypedTensor<'float32'> | TypedTensor<'uint8'>>;
++    fromImage(imageElement: import("./host-instance.js").HostInstance<"HTMLImageElement">, options?: TensorFromImageElementOptions): Promise<TypedTensor<'float32'> | TypedTensor<'uint8'>>;
+     /**
+      * create a tensor from URL
+      *
+@@ -226,7 +226,7 @@ export interface TensorFactory {
+      * - `dataType`: `'float32'`
+      * @returns A promise that resolves to a tensor object
+      */
+-    fromImage(bitmap: ImageBitmap, options: TensorFromImageBitmapOptions): Promise<TypedTensor<'float32'> | TypedTensor<'uint8'>>;
++    fromImage(bitmap: import("./host-instance.js").HostInstance<"ImageBitmap">, options: TensorFromImageBitmapOptions): Promise<TypedTensor<'float32'> | TypedTensor<'uint8'>>;
+     /**
+      * create a tensor from a WebGL texture
+      *
+diff --git a/dist/cjs/tensor.d.ts b/dist/cjs/tensor.d.ts
+--- a/dist/cjs/tensor.d.ts
++++ b/dist/cjs/tensor.d.ts
+@@ -104,7 +104,7 @@ export declare namespace Tensor {
+     /**
+      * type alias for WebGL texture
+      */
+-    type TextureType = WebGLTexture;
++    type TextureType = import("./host-instance.js").HostInstance<"WebGLTexture">;
+     /**
+      * supported data types for constructing a tensor from a WebGL texture
+      */
+diff --git a/dist/esm/env.d.ts b/dist/esm/env.d.ts
+--- a/dist/esm/env.d.ts
++++ b/dist/esm/env.d.ts
+@@ -97,7 +97,7 @@ export declare namespace Env {
+         /**
+          * Get the WebGL rendering context.
+          */
+-        readonly context: WebGLRenderingContext;
++        readonly context: import("./host-instance.js").HostInstance<"WebGLRenderingContext">;
+         /**
+          * Set or get the maximum batch size for matmul. 0 means to disable batching.
+          *
+diff --git a/dist/esm/host-instance.d.ts b/dist/esm/host-instance.d.ts
+new file mode 100644
+--- /dev/null
++++ b/dist/esm/host-instance.d.ts
+@@ -0,0 +1 @@
++export type HostInstance<Name extends string> = typeof globalThis extends Record<Name, { prototype: infer Instance }> ? Instance : never;
+diff --git a/dist/esm/tensor-conversion.d.ts b/dist/esm/tensor-conversion.d.ts
+--- a/dist/esm/tensor-conversion.d.ts
++++ b/dist/esm/tensor-conversion.d.ts
+@@ -25,6 +25,6 @@ export interface ConversionUtils {
+      * - `tensorLayout`: `'NCHW'`
+      * @returns an ImageData instance representing the image converted from tensor data
+      */
+-    toImageData(options?: TensorToImageDataOptions): ImageData;
++    toImageData(options?: TensorToImageDataOptions): import("./host-instance.js").HostInstance<"ImageData">;
+ }
+ //# sourceMappingURL=tensor-conversion.d.ts.map
+\ No newline at end of file
+diff --git a/dist/esm/tensor-factory.d.ts b/dist/esm/tensor-factory.d.ts
+--- a/dist/esm/tensor-factory.d.ts
++++ b/dist/esm/tensor-factory.d.ts
+@@ -187,7 +187,7 @@ export interface TensorFactory {
+      * - `dataType`: `'float32'`
+      * @returns A promise that resolves to a tensor object
+      */
+-    fromImage(imageData: ImageData, options?: TensorFromImageDataOptions): Promise<TypedTensor<'float32'> | TypedTensor<'uint8'>>;
++    fromImage(imageData: import("./host-instance.js").HostInstance<"ImageData">, options?: TensorFromImageDataOptions): Promise<TypedTensor<'float32'> | TypedTensor<'uint8'>>;
+     /**
+      * create a tensor from a HTMLImageElement object
+      *
+@@ -200,7 +200,7 @@ export interface TensorFactory {
+      * - `dataType`: `'float32'`
+      * @returns A promise that resolves to a tensor object
+      */
+-    fromImage(imageElement: HTMLImageElement, options?: TensorFromImageElementOptions): Promise<TypedTensor<'float32'> | TypedTensor<'uint8'>>;
++    fromImage(imageElement: import("./host-instance.js").HostInstance<"HTMLImageElement">, options?: TensorFromImageElementOptions): Promise<TypedTensor<'float32'> | TypedTensor<'uint8'>>;
+     /**
+      * create a tensor from URL
+      *
+@@ -226,7 +226,7 @@ export interface TensorFactory {
+      * - `dataType`: `'float32'`
+      * @returns A promise that resolves to a tensor object
+      */
+-    fromImage(bitmap: ImageBitmap, options: TensorFromImageBitmapOptions): Promise<TypedTensor<'float32'> | TypedTensor<'uint8'>>;
++    fromImage(bitmap: import("./host-instance.js").HostInstance<"ImageBitmap">, options: TensorFromImageBitmapOptions): Promise<TypedTensor<'float32'> | TypedTensor<'uint8'>>;
+     /**
+      * create a tensor from a WebGL texture
+      *
+diff --git a/dist/esm/tensor.d.ts b/dist/esm/tensor.d.ts
+--- a/dist/esm/tensor.d.ts
++++ b/dist/esm/tensor.d.ts
+@@ -104,7 +104,7 @@ export declare namespace Tensor {
+     /**
+      * type alias for WebGL texture
+      */
+-    type TextureType = WebGLTexture;
++    type TextureType = import("./host-instance.js").HostInstance<"WebGLTexture">;
+     /**
+      * supported data types for constructing a tensor from a WebGL texture
+      */

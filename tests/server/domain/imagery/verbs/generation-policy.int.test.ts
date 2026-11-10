@@ -30,6 +30,14 @@ import { createTRPCClient, httpBatchLink } from "@trpc/client";
 import { proseOverrideFromLegacy } from "#contracts/prose-slot/index.ts";
 import { SIZE_PRESETS } from "#server/domain/imagery/substrate/size.ts";
 
+// The link hands its fetch a URL string; a URL or a Request still names its address explicitly.
+function requestAddress(input: Parameters<typeof fetch>[0]): string {
+  if (typeof input === "string") {
+    return input;
+  }
+  return input instanceof URL ? input.href : input.url;
+}
+
 const HOST_MODEL = modelIdSchema.parse("imagery-host-utility");
 const LIVE_MODEL = modelIdSchema.parse("imagery-host-utility-live");
 const IMAGE_MODEL = modelIdSchema.parse("imagery-host-image");
@@ -238,7 +246,8 @@ test("a member's room image uses the host's image connection and live negative p
       httpBatchLink({
         url,
         headers,
-        fetch: async (address, init) => await root.http.request(String(address), init === undefined ? undefined : { ...init, signal: init.signal ?? null }),
+        fetch: async (address, init) =>
+          await root.http.request(requestAddress(address), init === undefined ? undefined : { ...init, signal: init.signal ?? null }),
       }),
     ],
   });

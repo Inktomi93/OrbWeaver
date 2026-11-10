@@ -1,0 +1,20 @@
+diff --git a/dist/index.d.ts b/dist/index.d.ts
+--- a/dist/index.d.ts
++++ b/dist/index.d.ts
+@@ -1013,14 +1013,14 @@ type ImageModelV4 = {
+    * `undefined` means that support is unknown. Callers should only route image
+    * editing requests to the model when this value resolves to `true`.
+    */
+-  readonly supportsFileInputs?: PromiseLike<boolean | undefined> | boolean;
++  readonly supportsFileInputs?: PromiseLike<boolean | undefined> | boolean | undefined;
+   /**
+    * Whether the model supports mask inputs for image editing.
+    *
+    * `undefined` means that support is unknown. Mask support is advertised
+    * separately because some models support image file inputs without masks.
+    */
+-  readonly supportsMaskInputs?: PromiseLike<boolean | undefined> | boolean;
++  readonly supportsMaskInputs?: PromiseLike<boolean | undefined> | boolean | undefined;
+   /**
+    * Generates an array of images.
+    */

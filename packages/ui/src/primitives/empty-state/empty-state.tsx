@@ -2,11 +2,7 @@ import type { ReactElement, ReactNode } from "react";
 import { ACCENT_AURA_PIGMENT } from "#lib";
 import { emptyStateVariants } from "./variants.ts";
 
-export interface EmptyStateProps {
-  /** Brand-glyph slot, renders unstyled and, when supplied, takes the head slot instead of `icon`. */
-  decoration?: ReactNode;
-  /** Optional muted glyph slot. Superseded by `decoration` when both set. */
-  icon?: ReactNode;
+interface EmptyStatePropsBase {
   title: ReactNode;
   /** Centres in a column only while it fits. */
   push?: "blockCentre";
@@ -27,6 +23,20 @@ export interface EmptyStateProps {
   action: ReactNode;
   className?: string;
 }
+
+export type EmptyStateProps = EmptyStatePropsBase &
+  (
+    | {
+        /** Brand-glyph slot, renders unstyled and, when supplied, takes the head slot instead of `icon`. */
+        decoration?: ReactNode;
+        icon?: never;
+      }
+    | {
+        decoration?: never;
+        /** Optional muted glyph for the head slot. */
+        icon?: ReactNode;
+      }
+  );
 
 /** Teaching empty-state pattern: icon -\> title -\> description -\> action, centered. Copy is the caller's.
  *  The VOICE scales itself to the surface it lands in (a container query on the root — see variants.ts):

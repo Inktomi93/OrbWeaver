@@ -23,6 +23,7 @@ import type { EffortLevel as ModelEffortLevel, SamplerKnob } from "#inference";
 import {
   capabilityTargetSchema,
   EFFORT_LEVELS as MODEL_EFFORT_LEVELS,
+  REASONING_DISPLAY_MODES,
   SAMPLER_KNOBS,
   samplerOrderSchema,
   userRoleHandlingSchema,
@@ -38,7 +39,8 @@ import type { CachePolicy } from "../inference/cache-policy.ts";
 import { cachePolicySchema } from "../inference/cache-policy.ts";
 import { SAMPLING_RANGE_KNOBS } from "../inference/capability/generation.ts";
 import type { ResolvedWarning } from "../inference/warnings.ts";
-import { resolvedWarningSchema } from "../inference/warnings.ts";
+import { emittedWarningSchema } from "../inference/warnings.ts";
+import { PRESET_SCHEMA_KIND } from "../portability/envelope.ts";
 import type { VersionedParseFailure } from "../versioned-config/index.ts";
 import { versionedParseFailureSchema } from "../versioned-config/index.ts";
 import { PRESET_COMPACTION_SLOT_ID, PRESET_PROSE_SLOTS } from "./prose.ts";
@@ -279,7 +281,7 @@ export const EFFORT_LEVELS = ["none", ...MODEL_EFFORT_LEVELS] as const;
 export type EffortLevel = (typeof EFFORT_LEVELS)[number];
 const effortLevelSchema = z.enum(EFFORT_LEVELS) satisfies z.ZodType<EffortLevel>;
 
-export const THINKING_DISPLAYS = ["summarized", "omitted"] as const;
+export const THINKING_DISPLAYS = REASONING_DISPLAY_MODES;
 export type ThinkingDisplay = (typeof THINKING_DISPLAYS)[number];
 
 // Compaction is a SAFETY property (owner ruling): a chat may never error from context growth, so turning
@@ -3589,7 +3591,7 @@ function stConfigOutcome(rawObj: Record<string, unknown>, sections: PromptSectio
 // ── orb native preset file (the lossless full-preset export) ───────────────────────────────────────
 // `PRESET_SCHEMA_KIND` is the ONE accepted kind — orb-native backup only. There is no legacy-kind accept:
 // the previous codebase never launched, so no foreign preset file exists to import.
-export const PRESET_SCHEMA_KIND = "orb.preset";
+export { PRESET_SCHEMA_KIND } from "../portability/envelope.ts";
 
 export interface PresetFile {
   schemaKind: typeof PRESET_SCHEMA_KIND;
@@ -3888,7 +3890,7 @@ const qualityMappingSchema = z.strictObject({
 }) satisfies z.ZodType<QualityMapping>;
 export const effectivePresetSchema = z.strictObject({
   cache: cachePolicySchema,
-  cacheWarnings: z.array(resolvedWarningSchema).readonly(),
+  cacheWarnings: z.array(emittedWarningSchema).readonly(),
   presetId: typeIdSchema(ID_PREFIX.preset),
   model: brandedId("ModelId"),
   knobs: z.partialRecord(z.enum(EFFECTIVE_KNOBS), effectiveKnobReadingSchema),

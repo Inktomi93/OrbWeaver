@@ -223,7 +223,10 @@ interface PassResolution {
 }
 
 /** A route applier's verdict: `ok` (+ whether it raised a card), or a typed refusal that fails the pass. */
-type RouteResult = { readonly ok: true; readonly suggested?: boolean; readonly watermark?: number } | { readonly ok: false; readonly detail: string };
+type RouteResult =
+  | { readonly ok: true; readonly suggested?: true; readonly watermark?: never }
+  | { readonly ok: true; readonly watermark: number; readonly suggested?: never }
+  | { readonly ok: false; readonly detail: string };
 
 const ROUTE_OK: RouteResult = { ok: true };
 

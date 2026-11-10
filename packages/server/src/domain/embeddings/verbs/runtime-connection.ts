@@ -81,10 +81,11 @@ export function createResolveEmbeddingConnection(runtime: EmbeddingRuntime, prin
         task,
         principal,
         ...(connectionId === undefined ? {} : { connectionId }),
+        ...(opts?.previewConnection === undefined ? {} : { previewConnection: opts.previewConnection }),
         ...(opts?.cachedFacts === true ? { cachedFacts: true } : {}),
       });
     } catch (error) {
-      if (connectionId === undefined) {
+      if (connectionId === undefined || opts?.previewConnection !== undefined) {
         throw error;
       }
       return null;

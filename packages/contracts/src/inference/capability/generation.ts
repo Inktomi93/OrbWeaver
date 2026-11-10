@@ -54,7 +54,7 @@ const reasoningOffModeSchema = z.enum(REASONING_OFF_MODES) satisfies z.ZodType<R
 export const REASONING_OFF_DEFAULT = "disabled" as const satisfies ReasoningOffMode;
 
 // The Anthropic-only reasoning-display knob.
-const REASONING_DISPLAY_MODES = ["summarized", "omitted"] as const;
+export const REASONING_DISPLAY_MODES = ["summarized", "omitted", "updates"] as const;
 export type ReasoningDisplayMode = (typeof REASONING_DISPLAY_MODES)[number];
 const reasoningDisplayModeSchema = z.enum(REASONING_DISPLAY_MODES) satisfies z.ZodType<ReasoningDisplayMode>;
 

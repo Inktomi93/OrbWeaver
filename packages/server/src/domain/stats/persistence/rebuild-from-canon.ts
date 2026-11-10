@@ -56,7 +56,7 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
     opts.ownerId !== undefined && opts.ownerId !== ""
       ? [userIdSchema.parse(opts.ownerId)]
       : (
-          await db.all<{ ownerId: string }>(
+          await db.all<{ ownerId: unknown }>(
             sql`SELECT owner_id AS ownerId FROM characters UNION SELECT owner_id AS ownerId FROM embedding_calls UNION SELECT funder_user_id AS ownerId FROM chat_generation_observations UNION SELECT owner_id AS ownerId FROM owner_stats`,
           )
         ).map((r) => userIdSchema.parse(r.ownerId));
@@ -79,7 +79,7 @@ export async function reconcileStats(db: Db, opts: ReconcileOpts): Promise<Recon
  *  whose only activity is that pre-ledger compaction spend, who re-runs an empty (cheap) rebuild each boot.
  *  Returns the owners rebuilt. */
 export async function reconcileOwnersMissingTimeline(db: Db, now: () => number, idSource: IdSource): Promise<number> {
-  const owners = await db.all<{ ownerId: string }>(sql`
+  const owners = await db.all<{ ownerId: unknown }>(sql`
     SELECT o.owner_id AS ownerId FROM owner_stats o
     WHERE (o.user_turns + o.assistant_turns + o.system_turns + o.chats > 0
            OR o.cost_usd <> 0

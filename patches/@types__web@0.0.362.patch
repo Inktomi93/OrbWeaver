@@ -1,0 +1,243 @@
+diff --git a/package.json b/package.json
+--- a/package.json
++++ b/package.json
+@@ -5,7 +5,13 @@
+   "license": "Apache-2.0",
+   "contributors": [],
+   "main": "",
+-  "types": "index.d.ts",
++  "types": "realm.d.ts",
++  "exports": {
++    ".": {
++      "orb-native-browser-types": { "types": "./native.d.ts" },
++      "types": "./realm.d.ts"
++    }
++  },
+   "repository": {
+     "type": "git",
+     "url": "https://github.com/microsoft/TypeScript-DOM-Lib-Generator.git"
+diff --git a/index.d.ts b/index.d.ts
+--- a/index.d.ts
++++ b/index.d.ts
+@@ -13145,7 +13145,7 @@
+      *
+      * [MDN Reference](https://developer.mozilla.org/docs/Web/API/Document/defaultView)
+      */
+-    readonly defaultView: (WindowProxy & typeof globalThis) | null;
++    readonly defaultView: (WindowProxy & typeof import("./index.js")) | null;
+     /**
+      * **`document.designMode`** controls whether the entire document is editable. Valid values are "on" and "off". According to the specification, this property is meant to default to "off". Firefox follows this standard. The earlier versions of Chrome and IE default to "inherit". Starting in Chrome 43, the default is "off" and "inherit" is no longer supported. In IE6-10, the value is capitalized.
+      *
+@@ -42359,7 +42359,7 @@
+      *
+      * [MDN Reference](https://developer.mozilla.org/docs/Web/API/Window/self)
+      */
+-    readonly self: Window & typeof globalThis;
++    readonly self: Window & typeof import("./index.js");
+     /**
+      * The **`speechSynthesis`** read-only property of the Window object returns a SpeechSynthesis object, which is the entry point into using Web Speech API speech synthesis functionality.
+      *
+@@ -42402,7 +42402,7 @@
+      *
+      * [MDN Reference](https://developer.mozilla.org/docs/Web/API/Window/window)
+      */
+-    readonly window: Window & typeof globalThis;
++    readonly window: Window & typeof import("./index.js");
+     /**
+      * **`window.alert()`** instructs the browser to display a dialog with an optional message, and to wait until the user dismisses the dialog.
+      *
+@@ -44607,7 +44607,7 @@
+  *
+  * [MDN Reference](https://developer.mozilla.org/docs/Web/API/Window/self)
+  */
+-declare var self: Window & typeof globalThis;
++declare var self: Window & typeof import("./index.js");
+ /**
+  * The **`speechSynthesis`** read-only property of the Window object returns a SpeechSynthesis object, which is the entry point into using Web Speech API speech synthesis functionality.
+  *
+@@ -44650,7 +44650,7 @@
+  *
+  * [MDN Reference](https://developer.mozilla.org/docs/Web/API/Window/window)
+  */
+-declare var window: Window & typeof globalThis;
++declare var window: Window & typeof import("./index.js");
+ /**
+  * **`window.alert()`** instructs the browser to display a dialog with an optional message, and to wait until the user dismisses the dialog.
+  *
+@@ -46136,3 +46136,5 @@
+     [Symbol.asyncIterator](options?: ReadableStreamIteratorOptions): ReadableStreamAsyncIterator<R>;
+     values(options?: ReadableStreamIteratorOptions): ReadableStreamAsyncIterator<R>;
+ }
++
++import type {} from "./realm.js";
+diff --git a/realm.d.ts b/realm.d.ts
+new file mode 100644
+--- /dev/null
++++ b/realm.d.ts
+@@ -0,0 +1,54 @@
++export type {
++    CSSStyleDeclaration,
++    CanvasGradient,
++    CanvasPattern,
++    CanvasRenderingContext2D,
++    ClipboardEvent,
++    DOMRect,
++    DOMRectList,
++    DataTransfer,
++    DataTransferItem,
++    Document,
++    DocumentOrShadowRoot,
++    DragEvent,
++    Element,
++    Event,
++    EventInit,
++    FocusEvent,
++    HTMLAnchorElement,
++    HTMLButtonElement,
++    HTMLCanvasElement,
++    HTMLDivElement,
++    HTMLDocument,
++    HTMLElement,
++    HTMLElementTagNameMap,
++    HTMLFormElement,
++    HTMLIFrameElement,
++    HTMLInputElement,
++    HTMLLinkElement,
++    HTMLScriptElement,
++    HTMLStyleElement,
++    HTMLVideoElement,
++    ImageBitmap,
++    ImageData,
++    ImageDataArray,
++    KeyboardEvent,
++    MouseEvent,
++    Node,
++    OffscreenCanvas,
++    Path2D,
++    PointerEvent,
++    SVGElement,
++    SVGElementTagNameMap,
++    SVGPathElement,
++    ScrollBehavior,
++    ScrollIntoViewOptions,
++    ScrollToOptions,
++    ShadowRoot,
++    Text,
++    ValidityState,
++    VisualViewport,
++    Window,
++    Worker,
++} from "./index.js";
++export type WindowGlobal = import("./index.js").Window & typeof import("./index.js");
+diff --git a/native.d.ts b/native.d.ts
+new file mode 100644
+--- /dev/null
++++ b/native.d.ts
+@@ -0,0 +1,107 @@
++type NativeCSSStyleDeclaration = CSSStyleDeclaration;
++type NativeCanvasGradient = CanvasGradient;
++type NativeCanvasPattern = CanvasPattern;
++type NativeCanvasRenderingContext2D = CanvasRenderingContext2D;
++type NativeClipboardEvent = ClipboardEvent;
++type NativeDOMRect = DOMRect;
++type NativeDOMRectList = DOMRectList;
++type NativeDataTransfer = DataTransfer;
++type NativeDataTransferItem = DataTransferItem;
++type NativeDocument = Document;
++type NativeDocumentOrShadowRoot = DocumentOrShadowRoot;
++type NativeDragEvent = DragEvent;
++type NativeElement = Element;
++type NativeEvent = Event;
++type NativeEventInit = EventInit;
++type NativeFocusEvent = FocusEvent;
++type NativeHTMLAnchorElement = HTMLAnchorElement;
++type NativeHTMLButtonElement = HTMLButtonElement;
++type NativeHTMLCanvasElement = HTMLCanvasElement;
++type NativeHTMLDivElement = HTMLDivElement;
++type NativeHTMLDocument = HTMLDocument;
++type NativeHTMLElement = HTMLElement;
++type NativeHTMLElementTagNameMap = HTMLElementTagNameMap;
++type NativeHTMLFormElement = HTMLFormElement;
++type NativeHTMLIFrameElement = HTMLIFrameElement;
++type NativeHTMLInputElement = HTMLInputElement;
++type NativeHTMLLinkElement = HTMLLinkElement;
++type NativeHTMLScriptElement = HTMLScriptElement;
++type NativeHTMLStyleElement = HTMLStyleElement;
++type NativeHTMLVideoElement = HTMLVideoElement;
++type NativeImageBitmap = ImageBitmap;
++type NativeImageData = ImageData;
++type NativeImageDataArray = ImageDataArray;
++type NativeKeyboardEvent = KeyboardEvent;
++type NativeMouseEvent = MouseEvent;
++type NativeNode = Node;
++type NativeOffscreenCanvas = OffscreenCanvas;
++type NativePath2D = Path2D;
++type NativePointerEvent = PointerEvent;
++type NativeSVGElement = SVGElement;
++type NativeSVGElementTagNameMap = SVGElementTagNameMap;
++type NativeSVGPathElement = SVGPathElement;
++type NativeScrollBehavior = ScrollBehavior;
++type NativeScrollIntoViewOptions = ScrollIntoViewOptions;
++type NativeScrollToOptions = ScrollToOptions;
++type NativeShadowRoot = ShadowRoot;
++type NativeText = Text;
++type NativeValidityState = ValidityState;
++type NativeVisualViewport = VisualViewport;
++type NativeWindow = Window;
++type NativeWorker = Worker;
++type NativeWindowGlobal = typeof window;
++
++export type {
++    NativeCSSStyleDeclaration as CSSStyleDeclaration,
++    NativeCanvasGradient as CanvasGradient,
++    NativeCanvasPattern as CanvasPattern,
++    NativeCanvasRenderingContext2D as CanvasRenderingContext2D,
++    NativeClipboardEvent as ClipboardEvent,
++    NativeDOMRect as DOMRect,
++    NativeDOMRectList as DOMRectList,
++    NativeDataTransfer as DataTransfer,
++    NativeDataTransferItem as DataTransferItem,
++    NativeDocument as Document,
++    NativeDocumentOrShadowRoot as DocumentOrShadowRoot,
++    NativeDragEvent as DragEvent,
++    NativeElement as Element,
++    NativeEvent as Event,
++    NativeEventInit as EventInit,
++    NativeFocusEvent as FocusEvent,
++    NativeHTMLAnchorElement as HTMLAnchorElement,
++    NativeHTMLButtonElement as HTMLButtonElement,
++    NativeHTMLCanvasElement as HTMLCanvasElement,
++    NativeHTMLDivElement as HTMLDivElement,
++    NativeHTMLDocument as HTMLDocument,
++    NativeHTMLElement as HTMLElement,
++    NativeHTMLElementTagNameMap as HTMLElementTagNameMap,
++    NativeHTMLFormElement as HTMLFormElement,
++    NativeHTMLIFrameElement as HTMLIFrameElement,
++    NativeHTMLInputElement as HTMLInputElement,
++    NativeHTMLLinkElement as HTMLLinkElement,
++    NativeHTMLScriptElement as HTMLScriptElement,
++    NativeHTMLStyleElement as HTMLStyleElement,
++    NativeHTMLVideoElement as HTMLVideoElement,
++    NativeImageBitmap as ImageBitmap,
++    NativeImageData as ImageData,
++    NativeImageDataArray as ImageDataArray,
++    NativeKeyboardEvent as KeyboardEvent,
++    NativeMouseEvent as MouseEvent,
++    NativeNode as Node,
++    NativeOffscreenCanvas as OffscreenCanvas,
++    NativePath2D as Path2D,
++    NativePointerEvent as PointerEvent,
++    NativeSVGElement as SVGElement,
++    NativeSVGElementTagNameMap as SVGElementTagNameMap,
++    NativeSVGPathElement as SVGPathElement,
++    NativeScrollBehavior as ScrollBehavior,
++    NativeScrollIntoViewOptions as ScrollIntoViewOptions,
++    NativeScrollToOptions as ScrollToOptions,
++    NativeShadowRoot as ShadowRoot,
++    NativeText as Text,
++    NativeValidityState as ValidityState,
++    NativeVisualViewport as VisualViewport,
++    NativeWindow as Window,
++    NativeWorker as Worker,
++    NativeWindowGlobal as WindowGlobal,
++};

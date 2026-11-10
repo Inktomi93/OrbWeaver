@@ -4,7 +4,7 @@
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
-import { scanBrandFlow } from "../../../tooling/src/brand-flow/index.ts";
+import { scanBrandEdgesAt } from "../../../tooling/src/brand-flow/index.ts";
 
 const ROOT = join(import.meta.dirname, "../../..");
 const FILE = "packages/client/src/features/credentials/components/first-model-setup.tsx";
@@ -13,7 +13,7 @@ const UNFIXED_STATE = "useState<string>(picked";
 
 test("the known first-model-setup case is reported until its state is typed as the brand", { timeout: 300_000 }, () => {
   const unfixed = readFileSync(join(ROOT, FILE), "utf8").includes(UNFIXED_STATE);
-  const report = scanBrandFlow({ root: ROOT, worlds: [CLIENT_WORLD], log: () => undefined });
+  const report = scanBrandEdgesAt(ROOT, CLIENT_WORLD, [FILE]);
   const states = report.widens.filter((widen) => widen.file === FILE && widen.slot.kind === "state");
   const laundered = report.renarrows.filter((site) => site.file === FILE && site.proof === "slot-widened");
   expect({ states: states.length > 0, laundered: laundered.length > 0 }).toEqual({ states: unfixed, laundered: unfixed });

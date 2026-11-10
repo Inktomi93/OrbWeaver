@@ -31,7 +31,7 @@
     // `tsconfig.json` + `tsconfig.tests-dom.json` BOTH live at the repo root — so this one path was
     // serving two different programs (different `lib`, different file sets, one cache file). Give
     // tests-dom its own `tsBuildInfoFile` before turning this back on.
-    "skipLibCheck": true,
+    "skipLibCheck": false,
 
     // --- language / module (TS 6 defaults made explicit) ---
     "target": "es2025",

@@ -49,9 +49,9 @@ function sha256(bytes: Uint8Array): string {
   return sha256Hex(bytes);
 }
 
-function assertOwnerSegment(ownerId: string): void {
-  if (!OWNER_SEGMENT.test(ownerId)) {
-    throw new Error(`cas: unsafe owner segment: ${JSON.stringify(ownerId)}`);
+function assertOwnerSegment(segment: string): void {
+  if (!OWNER_SEGMENT.test(segment)) {
+    throw new Error(`cas: unsafe owner segment: ${JSON.stringify(segment)}`);
   }
 }
 
@@ -136,12 +136,12 @@ async function fsyncDir(dir: string, log: Logger): Promise<void> {
 export function createCas(rootDir: string, log: Logger): Cas {
   const tmpDir = join(rootDir, TMP_DIRNAME);
 
-  function ownerDir(ownerId: string): string {
+  function ownerDir(ownerId: UserId): string {
     assertOwnerSegment(ownerId);
     return join(rootDir, ownerId);
   }
 
-  function shardDir(ownerId: string, hash: string): string {
+  function shardDir(ownerId: UserId, hash: string): string {
     return join(ownerDir(ownerId), hash.slice(0, SHARD_A_END), hash.slice(SHARD_A_END, SHARD_B_END));
   }
 

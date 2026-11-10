@@ -33,6 +33,8 @@ function cadenceOf(code: ChatWarningCode): Cadence {
     case "image_count_dropped":
     case "image_size_dropped":
     case "compaction_failed":
+    case "context_tokenizer_trimmed":
+    case "context_tokenizer_unavailable":
     case "context_trimmed_no_summary":
     case "provider_refused":
     case "reply_image_failed":

@@ -1,0 +1,18 @@
+version: "1"
+nodes:
+  - id: plugin-node-sources
+    name: Close the source arms in each declaration world
+    type: automatic
+    steps:
+      - name: Surface contract and published SDK
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          language: "typescript"
+          base_path: "."
+          include: ["packages/contracts/src/plugin/ui.ts", "packages/plugin-sdk/shared.d.ts"]
+      - name: Registration validators
+        js-ast-grep:
+          js_file: scripts/node-schemas.ts
+          language: "typescript"
+          base_path: "."
+          include: ["packages/contracts/src/plugin/ui.ts"]

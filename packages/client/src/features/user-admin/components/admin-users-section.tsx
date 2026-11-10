@@ -18,6 +18,7 @@ import { useRef, useState } from "react";
 import { QueryBoundary, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import { testId } from "#lib";
+import { confirmedAction } from "#src/components/confirmed-action.ts";
 import { useSetEnabled, useSetRole } from "../hooks/use-admin-mutations.ts";
 import { ADMIN_USERS_SUBCATEGORY } from "../lib/admin-users-nav.ts";
 import { AdminCreateUserDialog } from "./admin-create-user-dialog.tsx";
@@ -120,7 +121,7 @@ function AdminUsersBody({ anchorId }: { readonly anchorId: string }): ReactEleme
               onSetRole={(role: UserRole): void => changeRole(user.id, role)}
               onSetEnabled={(enabled: boolean): void => changeEnabled(user.id, enabled)}
               onOpenSessions={(): void => setSessionsFor({ userId: user.id, handle: user.handle })}
-              onResetPassword={(): void => setResetFor({ userId: user.id, handle: user.handle })}
+              onResetPassword={confirmedAction((): void => setResetFor({ userId: user.id, handle: user.handle }))}
             />
           ))}
         </Stack>

@@ -1,0 +1,153 @@
+diff --git a/types/image_processors_utils.d.ts b/types/image_processors_utils.d.ts
+--- a/types/image_processors_utils.d.ts
++++ b/types/image_processors_utils.d.ts
+@@ -113,7 +113,7 @@ declare const ImageProcessor_base: new () => {
+ /**
+  * Base class for image processors.
+  */
+-export class ImageProcessor extends ImageProcessor_base {
++export class ImageProcessor<Result = ImageProcessorResult> extends ImageProcessor_base {
+     /**
+      * Instantiate one of the processor classes of the library from a pretrained model.
+      *
+@@ -246,7 +246,7 @@ export class ImageProcessor extends ImageProcessor_base {
+      * @param {...any} args Additional arguments.
+      * @returns {Promise<ImageProcessorResult>} An object containing the concatenated pixel values (and other metadata) of the preprocessed images.
+      */
+-    _call(images: RawImage | RawImage[], ...args: any[]): Promise<ImageProcessorResult>;
++    _call(images: RawImage | RawImage[], ...args: any[]): Promise<Result>;
+ }
+ /**
+  * Named tuple to indicate the order we are using is (height x width),
+diff --git a/types/models/lfm2_vl/image_processing_lfm2_vl.d.ts b/types/models/lfm2_vl/image_processing_lfm2_vl.d.ts
+--- a/types/models/lfm2_vl/image_processing_lfm2_vl.d.ts
++++ b/types/models/lfm2_vl/image_processing_lfm2_vl.d.ts
+@@ -1,4 +1,13 @@
+-export class Lfm2VlImageProcessor extends ImageProcessor {
++import type { Tensor } from "../../utils/tensor.js";
++interface Lfm2VlResult {
++    pixel_values: Tensor;
++    pixel_attention_mask: Tensor;
++    spatial_shapes: Tensor;
++    image_rows?: number[];
++    image_cols?: number[];
++    image_sizes?: [number, number][];
++}
++export class Lfm2VlImageProcessor extends ImageProcessor<Lfm2VlResult> {
+     constructor(config: Record<string, any>);
+     downsample_factor: any;
+     do_image_splitting: any;
+@@ -34,7 +43,7 @@ export class Lfm2VlImageProcessor extends ImageProcessor {
+     /** @param {RawImage|RawImage[]|RawImage[][]} images */
+     _call(images: RawImage | RawImage[] | RawImage[][], { return_row_col_info }?: {
+         return_row_col_info?: any;
+-    }): Promise<Record<string, any>>;
++    }): Promise<Lfm2VlResult>;
+ }
+ export type RawImage = import("../../utils/image.js").RawImage;
+ import { ImageProcessor } from '../../image_processors_utils.js';
+diff --git a/types/models/mgp_str/processing_mgp_str.d.ts b/types/models/mgp_str/processing_mgp_str.d.ts
+--- a/types/models/mgp_str/processing_mgp_str.d.ts
++++ b/types/models/mgp_str/processing_mgp_str.d.ts
+@@ -1,4 +1,13 @@
+-export class MgpstrProcessor extends Processor {
++import type { Tensor } from "../../utils/tensor.js";
++type MgpstrBatch = [char_logits: Tensor, bpe_logits: Tensor, wp_logits: Tensor];
++type MgpstrDecoded = {
++        generated_text: string[];
++        scores: number[];
++        char_preds: string[];
++        bpe_preds: string[];
++        wp_preds: string[];
++    };
++export class MgpstrProcessor extends Processor<MgpstrBatch, MgpstrDecoded> {
+     static tokenizer_class: typeof AutoTokenizer;
+     static image_processor_class: typeof AutoImageProcessor;
+     /**
+@@ -49,13 +58,7 @@ export class MgpstrProcessor extends Processor {
+      * - bpe_preds: The list of BPE decoded sentences.
+      * - wp_preds: The list of wp decoded sentences.
+      */
+-    batch_decode([char_logits, bpe_logits, wp_logits]: [import("../../utils/tensor.js").Tensor, import("../../utils/tensor.js").Tensor, import("../../utils/tensor.js").Tensor]): {
+-        generated_text: string[];
+-        scores: number[];
+-        char_preds: string[];
+-        bpe_preds: string[];
+-        wp_preds: string[];
+-    };
++    batch_decode(batch: MgpstrBatch): MgpstrDecoded;
+     _call(images: any, text?: any): Promise<any>;
+ }
+ import { Processor } from '../../processing_utils.js';
+diff --git a/types/pipelines/_base.d.ts b/types/pipelines/_base.d.ts
+--- a/types/pipelines/_base.d.ts
++++ b/types/pipelines/_base.d.ts
+@@ -70,7 +70,7 @@ export class Pipeline extends Pipeline_base {
+     processor: Processor;
+     dispose(): Promise<void>;
+ }
+-export type ImageInput = string | RawImage | URL | Blob | HTMLCanvasElement | OffscreenCanvas;
++export type ImageInput = string | RawImage | URL | Blob | import("../utils/generic.js").HostInstance<"HTMLCanvasElement"> | import("../utils/generic.js").HostInstance<"OffscreenCanvas">;
+ export type ImagePipelineInputs = ImageInput | ImageInput[];
+ export type AudioInput = string | URL | Float32Array | Float64Array;
+ export type AudioPipelineInputs = AudioInput | AudioInput[];
+diff --git a/types/processing_utils.d.ts b/types/processing_utils.d.ts
+--- a/types/processing_utils.d.ts
++++ b/types/processing_utils.d.ts
+@@ -11,7 +11,7 @@ declare const Processor_base: new () => {
+  * Multi-modal preprocessor that delegates to the tokenizer, image processor,
+  * and/or feature extractor required by a model.
+  */
+-export class Processor extends Processor_base {
++export class Processor<Batch = number[][] | import("./transformers.js").Tensor, Decoded = ReturnType<PreTrainedTokenizer["batch_decode"]>> extends Processor_base {
+     static classes: string[];
+     static uses_processor_config: boolean;
+     static uses_chat_template_file: boolean;
+@@ -68,7 +68,7 @@ export class Processor extends Processor_base {
+      * @param {Parameters<PreTrainedTokenizer['batch_decode']>} args
+      * @returns {ReturnType<PreTrainedTokenizer['batch_decode']>}
+      */
+-    batch_decode(batch: number[][] | import("./transformers.js").Tensor, decode_args?: any): ReturnType<PreTrainedTokenizer["batch_decode"]>;
++    batch_decode(batch: Batch, decode_args?: any): Decoded;
+     /**
+      * Decode a single tokenized sequence via the underlying tokenizer.
+      * @param {Parameters<PreTrainedTokenizer['decode']>} args
+diff --git a/types/utils/generic.d.ts b/types/utils/generic.d.ts
+--- a/types/utils/generic.d.ts
++++ b/types/utils/generic.d.ts
+@@ -1,3 +1,4 @@
++export type HostInstance<Name extends string> = typeof globalThis extends Record<Name, { prototype: infer Instance }> ? Instance : never;
+ /**
+  * A base class for creating callable objects.
+  * See this [Stack Overflow discussion](https://stackoverflow.com/q/76073890) for more information.
+diff --git a/types/utils/image.d.ts b/types/utils/image.d.ts
+--- a/types/utils/image.d.ts
++++ b/types/utils/image.d.ts
+@@ -25,13 +25,13 @@ export class RawImage {
+      * // }
+      * ```
+      */
+-    static read(input: RawImage | string | URL | Blob | HTMLCanvasElement | OffscreenCanvas): Promise<RawImage>;
++    static read(input: RawImage | string | URL | Blob | import("./generic.js").HostInstance<"HTMLCanvasElement"> | import("./generic.js").HostInstance<"OffscreenCanvas">): Promise<RawImage>;
+     /**
+      * Read an image from a canvas.
+      * @param {HTMLCanvasElement|OffscreenCanvas} canvas The canvas to read the image from.
+      * @returns {RawImage} The image object.
+      */
+-    static fromCanvas(canvas: HTMLCanvasElement | OffscreenCanvas): RawImage;
++    static fromCanvas(canvas: import("./generic.js").HostInstance<"HTMLCanvasElement"> | import("./generic.js").HostInstance<"OffscreenCanvas">): RawImage;
+     /**
+      * Read an image from a URL or file path.
+      * @param {string|URL} url The URL or file path to read the image from.
+diff --git a/types/utils/video.d.ts b/types/utils/video.d.ts
+--- a/types/utils/video.d.ts
++++ b/types/utils/video.d.ts
+@@ -8,7 +8,7 @@
+  *
+  * @returns {Promise<RawVideo>} The loaded video.
+  */
+-export function load_video(src: string | Blob | HTMLVideoElement, { num_frames, fps }?: {
++export function load_video(src: string | Blob | import("./generic.js").HostInstance<"HTMLVideoElement">, { num_frames, fps }?: {
+     num_frames?: number;
+     fps?: number;
+ }): Promise<RawVideo>;

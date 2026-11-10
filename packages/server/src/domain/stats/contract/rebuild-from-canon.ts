@@ -2,6 +2,7 @@ import type { TokenProvenance } from "@orb/contracts/chat";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
 import type { CharacterId, IdSource, ModelId, UserId } from "@orb/kit/ids";
+import type { MessageRole } from "@orb/kit/message-role";
 import type { Clock } from "@orb/kit/time";
 
 export interface TokenSampleAccum {
@@ -124,7 +125,7 @@ export interface ReconcileOpts {
 export interface CanonMessage {
   mid: string;
   cid: string | null;
-  role: string;
+  role: MessageRole;
   createdAt: number;
   chatCreatedAt: number;
   content: string | null;

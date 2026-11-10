@@ -14,6 +14,7 @@ import { Switch } from "@orb/ui/switch";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
+import type { ConfirmedAction } from "#components";
 import { ConfirmDialog, RowActionsMenu, StatusChip, USER_ROLE_STATUS } from "#components";
 import type { Trpc } from "#data";
 import { timeLib } from "#lib";
@@ -32,7 +33,8 @@ export interface AdminUserRowProps {
   readonly onSetRole: (role: UserRole) => void;
   readonly onSetEnabled: (enabled: boolean) => void;
   readonly onOpenSessions: () => void;
-  readonly onResetPassword: () => void;
+  /** Opens the Cancel-able reset-password dialog the section renders. */
+  readonly onResetPassword: ConfirmedAction;
 }
 
 export function AdminUserRow(props: AdminUserRowProps): ReactElement {

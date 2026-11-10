@@ -4,7 +4,7 @@
 // output parser: an extra key fails the call instead of reaching the browser.
 
 import type { CachePolicy, Capability, ProviderId, ResolvedWarning, RoutableTask, Task } from "@orb/contracts/inference";
-import { cachePolicySchema, capabilitySchema, providerIdSchema, resolvedWarningSchema, taskSchema } from "@orb/contracts/inference";
+import { cachePolicySchema, capabilitySchema, emittedWarningSchema, providerIdSchema, taskSchema } from "@orb/contracts/inference";
 import { z } from "zod";
 
 /** The capability read for one row (`runtime.capabilities.for`): the descriptor + the cache plan + the tasks. */
@@ -21,7 +21,7 @@ export interface ConnectionCapabilityView {
 
 export const connectionCapabilityViewSchema = z.strictObject({
   cache: cachePolicySchema,
-  cacheWarnings: z.array(resolvedWarningSchema).readonly(),
+  cacheWarnings: z.array(emittedWarningSchema).readonly(),
   capability: capabilitySchema,
   baseline: capabilitySchema,
   tasks: z.array(taskSchema).readonly(),

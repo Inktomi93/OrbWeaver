@@ -134,7 +134,7 @@ export const connectionRouter = t.router({
     .mutation(({ ctx, input }) => ctx.services.connection.useForEverything({ principal: ctx.auth, connectionId: input.connectionId })),
 
   // The caller's own pending embedder change, read before it is written: would it rebuild the index, and how much.
-  // A query like `listBindings`: it resolves through the same runtime read and dials nothing new.
+  // The probe dials the selected embedder. POST keeps prospective headers out of the URL.
   embedSpaceChangePreview: authedProcedure
     .input(
       strictTwin(
@@ -148,7 +148,7 @@ export const connectionRouter = t.router({
       ),
     )
     .output(embedSpaceChangePreviewSchema)
-    .query(({ ctx, input }) => ctx.services.connection.previewEmbedSpaceChange({ principal: ctx.auth, change: input.change })),
+    .mutation(({ ctx, input }) => ctx.services.connection.previewEmbedSpaceChange({ principal: ctx.auth, change: input.change })),
 
   // ── catalogs
   catalogModels: authedProcedure

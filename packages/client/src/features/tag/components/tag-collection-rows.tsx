@@ -13,6 +13,7 @@ import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
 import type { ReactElement } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
+import type { ConfirmedAction } from "#components";
 import { ConfirmDialog, LibraryRow, usePruneUnusedTags, useRemoveTag, useSetTagOrder } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
@@ -28,6 +29,7 @@ import {
   unusedTagsLabel,
   usageBreakdown,
 } from "#lib";
+import { confirmedAction } from "#src/components/confirmed-action.ts";
 import { labelDeleted, setLabelFilter, setTagPruneConfirmOpen, useTagPruneConfirmOpen, useTagSortMode } from "#state";
 import { finderRoot, focusAfterConfirmCloses, focusFinderSearch, labelRowOpener, libraryOrFinder } from "../lib/labels-focus-targets.ts";
 import { TAG_LIST_NAME } from "../lib/tag-list-name.ts";
@@ -50,12 +52,7 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
   const filtered = sortTagsBy(matched, sortMode);
   const renderRow = (tag: TagWithUsage): ReactElement => (
     <Stack data-label-row={tag.id} key={tag.id}>
-      <TagCollectionRow
-        onDelete={(): void => deletion.requestDelete(tag)}
-        onSelect={(): void => view.onSelect(tag.id)}
-        selected={view.selectedId === tag.id}
-        tag={tag}
-      />
+      <TagCollectionRow onDelete={deletion.requestDelete(tag)} onSelect={(): void => view.onSelect(tag.id)} selected={view.selectedId === tag.id} tag={tag} />
     </Stack>
   );
 
@@ -205,7 +202,8 @@ function useLabelDelete(
   deps: { readonly trpc: Trpc; readonly invalidation: Invalidation },
   selectedId: TagId | null,
 ): {
-  readonly requestDelete: (tag: TagWithUsage) => void;
+  /** The opener of this hook's delete confirm for one tag. */
+  readonly requestDelete: (tag: TagWithUsage) => ConfirmedAction;
   readonly dialog: ReactElement;
 } {
   const remove = useRemoveTag({ ...deps, failureShownInline: "the delete-tag confirm's alert line" });
@@ -217,10 +215,11 @@ function useLabelDelete(
     readonly open: boolean;
     readonly completed: boolean;
   } | null>(null);
-  const requestDelete = (tag: TagWithUsage): void => {
-    const opener = labelRowOpener(tag.id);
-    setDecision((current) => ({ revision: (current?.revision ?? 0) + 1, tag, wasOpen: selectedId === tag.id, opener, open: true, completed: false }));
-  };
+  const requestDelete = (tag: TagWithUsage): ConfirmedAction =>
+    confirmedAction((): void => {
+      const opener = labelRowOpener(tag.id);
+      setDecision((current) => ({ revision: (current?.revision ?? 0) + 1, tag, wasOpen: selectedId === tag.id, opener, open: true, completed: false }));
+    });
   const onDelete = async (): Promise<void> => {
     if (decision === null) {
       return;
@@ -278,7 +277,7 @@ function TagCollectionRow({
   readonly tag: TagWithUsage;
   readonly selected: boolean;
   readonly onSelect: () => void;
-  readonly onDelete: () => void;
+  readonly onDelete: ConfirmedAction;
 }): ReactElement {
   return (
     <LibraryRow

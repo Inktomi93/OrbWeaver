@@ -9,6 +9,7 @@
 // nothing", never "this deployment has no plugins": the empty state below is written for the person asking,
 // not for an operator surveying a box. Suspends on `plugin.list` — the section owns its `QueryBoundary`.
 
+import type { PluginStatus } from "@orb/contracts/plugin";
 import { Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -23,7 +24,7 @@ import { PluginRow } from "./plugin-row.tsx";
  *  Deliberately NOT sorted by enabled/disabled — a status the owner toggles must never make the row jump
  *  mid-interaction; resolving an attention state is a settled act, and the row settling back into install
  *  order is legible. */
-function needsAttention(plugin: { readonly reconsentPending: boolean; readonly status: string }): boolean {
+function needsAttention(plugin: { readonly reconsentPending: boolean; readonly status: PluginStatus }): boolean {
   return plugin.reconsentPending || plugin.status === "errored";
 }
 

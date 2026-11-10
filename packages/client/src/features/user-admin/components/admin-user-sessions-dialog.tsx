@@ -1,7 +1,7 @@
 // The per-user sessions dialog (Settings → Admin → Users → ⋯ → Sessions). A COMPONENT so the Dialog +
 // the revoke-all <AlertDialog> are legal (rule 7). Reads `admin.listSessions({userId})` with a plain
 // `useQuery` (mounted only while open — the parent renders this conditionally, the neo
-// UserSessionsDialog shape); per-row Revoke + a confirm-gated Revoke-all header action. The revoke
+// UserSessionsDialog shape); a confirm-gated per-row Revoke and Revoke-all header action. The revoke
 // mutations path-invalidate `admin.listSessions`, so the list refreshes on settle.
 
 import { Button } from "@orb/ui/button";
@@ -10,6 +10,7 @@ import { ListRow } from "@orb/ui/list-row";
 import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
+import { useRef } from "react";
 import { DestructiveAction, DismissDialog } from "#components";
 import { QueryInlineStates, useInvalidation, useTRPC } from "#data";
 import { timeLib } from "#lib";
@@ -28,6 +29,8 @@ export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactEleme
   const rows = sessions.data ?? [];
   const activeCount = rows.filter((s) => s.revokedAt === null).length;
   const mutating = revokeOne.isPending || revokeAll.isPending;
+  // A revoked row drops its Revoke control, so focus returns to the header action that outlives it.
+  const revokeAllButton = useRef<HTMLButtonElement>(null);
 
   return (
     <DismissDialog
@@ -52,7 +55,7 @@ export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactEleme
           forceRender={true}
           onConfirm={(): void => revokeAll.mutate({ userId: props.userId })}
           trigger={
-            <Button tone="destructive" size="sm" disabled={activeCount === 0 || mutating}>
+            <Button ref={revokeAllButton} tone="destructive" size="sm" disabled={activeCount === 0 || mutating}>
               Revoke all
             </Button>
           }
@@ -81,15 +84,21 @@ export function AdminUserSessionsDialog(props: AdminUserDialogProps): ReactEleme
               }
               actions={
                 revoked ? null : (
-                  <Button
-                    tone="destructive"
-                    size="sm"
-                    disabled={mutating}
-                    aria-label={revokeSessionName(session.userAgent ?? session.id)}
-                    onClick={(): void => revokeOne.mutate({ sessionId: session.id })}
-                  >
-                    Revoke
-                  </Button>
+                  <DestructiveAction
+                    confirm={{
+                      confirmLabel: "Revoke",
+                      description: `This device is signed out of ${props.handle} on its next request.`,
+                      title: "Revoke this session?",
+                    }}
+                    finalFocus={revokeAllButton}
+                    forceRender={true}
+                    onConfirm={(): void => revokeOne.mutate({ sessionId: session.id })}
+                    trigger={
+                      <Button tone="destructive" size="sm" disabled={mutating} aria-label={revokeSessionName(session.userAgent ?? session.id)}>
+                        Revoke
+                      </Button>
+                    }
+                  />
                 )
               }
             />

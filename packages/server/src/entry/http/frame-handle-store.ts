@@ -50,34 +50,38 @@ export const FRAME_HANDLE_SHAPE = /^[0-9a-f]{32}$/u;
  *  that may since have changed. The one exception only TIGHTENS: `grant`. Not exported: consumers hand
  *  `put` an object literal and read `take`'s result through {@link FrameHandleStore}, so this shape has no
  *  cross-module caller (knip). */
-interface FrameHandleEntry {
+type FrameHandleScope = {
   readonly userId: UserId;
-  readonly doc: string;
   readonly csp: string;
-  readonly bytes: number;
-  /** Present only for a card document minted for a named character: the selector the grants came from and
-   *  the media and script grants the mint resolved (`card-frame.ts`). A serve re-resolves the selector and
-   *  may withdraw any of them, never widen `csp`. */
-  readonly grant?: {
-    readonly chatId: ChatId;
-    readonly characterId: CharacterId;
-    readonly media: CardFrameMediaPolicy;
-    readonly posture: CardFramePosture;
-  };
-  /** Present only for plugin documents. Captured from the authenticated mint, so asset requests never accept
-   *  owner or plugin identity from the opaque frame. */
-  readonly plugin?: {
-    readonly caller: Principal;
-    readonly pluginId: PluginId;
-    readonly surfaceId: string;
-  };
   expiresAt: number;
-}
+} & (
+  | {
+      /** A named card rechecks its selector's grants at serve time. An unnamed card carries no grant. */
+      readonly grant?: {
+        readonly chatId: ChatId;
+        readonly characterId: CharacterId;
+        readonly media: CardFrameMediaPolicy;
+        readonly posture: CardFramePosture;
+      };
+      readonly plugin?: never;
+    }
+  | {
+      /** Plugin assets resolve under the authenticated mint's identity. */
+      readonly plugin: {
+        readonly caller: Principal;
+        readonly pluginId: PluginId;
+        readonly surfaceId: string;
+      };
+      readonly grant?: never;
+    }
+);
 
-interface FrameHandlePut extends Omit<FrameHandleEntry, "bytes" | "doc"> {
+type FrameHandleEntry = FrameHandleScope & { readonly doc: string; readonly bytes: number };
+
+type FrameHandlePut = FrameHandleScope & {
   /** Plugin documents need their own minted id while assembling the injected asset URL. */
   readonly doc: string | ((id: string) => string);
-}
+};
 
 export interface FrameHandleStore {
   /** Store a document and return its opaque handle. */

@@ -92,6 +92,27 @@ function tokenizeAbort(cause: unknown): ProviderError {
   return new ProviderError({ kind: "aborted", retryable: false, message: "tokenize: request aborted", cause });
 }
 
+async function requestTokens(fetchImpl: typeof fetch, target: TokenTarget, text: string, signal?: AbortSignal): Promise<ReturnType<TokenizeSpec["read"]>> {
+  const spec = TOKENIZE_SPECS[target.api];
+  const result = await fetchJson({
+    fetch: fetchImpl,
+    url: `${serverRootOf(target.baseUrl)}${spec.path}`,
+    method: "POST",
+    headers: authHeaders(target.secret, target.headers),
+    body: spec.body(text, target.model),
+    secrets: target.secrets,
+    label: "tokenize",
+    signal,
+  });
+  return spec.read(result.json);
+}
+
+/** Chat text is private turn data; the persistent logit-bias lexicon must never retain it. */
+export function passageCounterFor(fetchImpl: typeof fetch, connection: Resolved): ((text: string, signal?: AbortSignal) => Promise<number>) | null {
+  const target = tokenTargetOf(connection);
+  return target === null ? null : async (text, signal): Promise<number> => (await requestTokens(fetchImpl, target, text, signal)).ids.length;
+}
+
 export function createTokenLexicon(deps: { readonly fetch: typeof fetch; readonly snapshotStore: SnapshotStore }): TokenLexicon {
   const held = new Map<string, Cached>();
 
@@ -108,19 +129,8 @@ export function createTokenLexicon(deps: { readonly fetch: typeof fetch; readonl
   };
 
   const ask = async (target: TokenTarget, word: string, signal?: AbortSignal): Promise<WordTokens> => {
-    const spec = TOKENIZE_SPECS[target.api];
     try {
-      const result = await fetchJson({
-        fetch: deps.fetch,
-        url: `${serverRootOf(target.baseUrl)}${spec.path}`,
-        method: "POST",
-        headers: authHeaders(target.secret, target.headers),
-        body: spec.body(word, target.model),
-        secrets: target.secrets,
-        label: "tokenize",
-        signal,
-      });
-      const read = spec.read(result.json);
+      const read = await requestTokens(deps.fetch, target, word, signal);
       return { ok: true, word, ids: read.ids, ...(read.pieces !== undefined ? { pieces: read.pieces } : {}) };
     } catch (err) {
       if (signal?.aborted === true) {

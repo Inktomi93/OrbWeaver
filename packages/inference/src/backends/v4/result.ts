@@ -152,12 +152,12 @@ function detailSuffix(details: string | undefined): string {
  *  not as spelled" — the class an operator fixes in OUR configuration. */
 function resolvedWarningOf(warning: SharedV4Warning): ResolvedWarning {
   if (warning.type === "unsupported") {
+    const message = `the provider does not support "${warning.feature}" on this model: it was not sent${detailSuffix(warning.details)}`;
+    if (isToolFeature(warning.feature)) {
+      return { code: "sdk_unsupported_tool", message };
+    }
     const knob = knobOf(warning.feature);
-    return {
-      code: isToolFeature(warning.feature) ? "sdk_unsupported_tool" : "sdk_unsupported_setting",
-      ...(knob !== undefined ? { knob } : {}),
-      message: `the provider does not support "${warning.feature}" on this model: it was not sent${detailSuffix(warning.details)}`,
-    };
+    return { code: "sdk_unsupported_setting", ...(knob !== undefined ? { knob } : {}), message };
   }
   if (warning.type === "compatibility") {
     return { code: "sdk_compatibility", message: `the provider ran "${warning.feature}" in a compatibility mode${detailSuffix(warning.details)}` };

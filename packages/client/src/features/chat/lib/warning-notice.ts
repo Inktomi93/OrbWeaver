@@ -87,6 +87,10 @@ function plainNotice(code: PlainChatWarningCode): NotifyNotice {
       return { description: "This connection chooses its own image size, so the requested size wasn't used.", title: "The image size was ignored" };
     case "compaction_failed":
       return { description: "Your reply is unaffected. Only the running summary missed this turn.", title: "The conversation summary couldn't update" };
+    case "context_tokenizer_trimmed":
+      return { title: "Older messages were left out", description: "The connection counted the prompt text. Only the newest history that fits was sent." };
+    case "context_tokenizer_unavailable":
+      return { title: "Prompt size was estimated", description: "The connection could not count prompt text, so this turn used the usual estimate." };
     case "context_trimmed_no_summary":
       return {
         description: "The conversation got too long to summarize, so the oldest messages were dropped from context to keep going.",
