@@ -34,7 +34,7 @@ import type { EntryPosition, MatchEntryKeysOptions, TestKeyRegex } from "@orb/ki
 import { buildKeywordHaystack, matchEntryKeys } from "@orb/kit/world-info";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
-import type { MacroRenderEnv } from "../contract/assembly-macros.ts";
+import type { MacroRenderEnv, TurnMacroContextArgs } from "../contract/assembly-macros.ts";
 import type { ChatContext } from "../contract/context.ts";
 import type { ApplyRegexReplaceOp } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatOperationError } from "../contract/errors.ts";
@@ -398,7 +398,7 @@ interface BuildAssembleContextInput {
   /** Seeded turn PRNG — never ambient Math.random; drives the SEND volatile-macro freeze so a committed
    *  row's baked value is deterministic + replayable. */
   readonly prng: RandomSource;
-  readonly model: string;
+  readonly model: TurnMacroContextArgs["model"];
   /** Per-turn injection token budget (0 = unbudgeted). */
   readonly injectionTokenBudget: number;
   /** Effective host-tier regex set (global ∪ preset ∪ character ∪ room), resolved by the verb/root; applied

@@ -5,7 +5,8 @@ import type { RolePresetChoice } from "@orb/contracts/settings";
 import { ROLE_PRESET_CHOICE_KINDS } from "@orb/contracts/settings";
 import type { PresetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { Row, Stack } from "@orb/ui/layout";
+import { HintTrigger } from "@orb/ui/hint-trigger";
+import { Row } from "@orb/ui/layout";
 import { Select } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
@@ -58,25 +59,31 @@ export function UtilityPresetSelect(): ReactElement {
   );
 
   return (
-    <Row gap="field" align="start" justify="between" wrap={true}>
-      <Stack gap="tight">
+    // The same placement the role rows use: the picker ends the label row, and under one container width it sits below the label.
+    <Row align="center" alignBelow="stretch-cq-32" gap="field" indent={true} justify="between" stackBelow="cq-32">
+      {/* The hint is a sibling of the label, never inside it, or its name joins the label's. */}
+      <Row align="center" gap="tight">
         <Text voice="label">Utility preset</Text>
-        <Text prose={true} voice="gloss" cap="prose">
-          The sampling summaries, extraction, captions and other background tasks run at. A preset here lends only its sampling settings, never its prompts.
-        </Text>
-      </Stack>
-      <Select
-        aria-label="Utility preset"
-        items={items}
-        value={value}
-        disabled={setPreset.isPending}
-        onValueChange={(next): void => {
-          if (next === null) {
-            return;
-          }
-          setPreset.mutate({ section: "seeds", patch: { summarizePreset: choiceOf(next) } });
-        }}
-      />
+        <HintTrigger
+          hint="The sampling summaries, extraction, captions and other background tasks run at. A preset here lends only its sampling settings, never its prompts."
+          subject="Utility preset"
+        />
+      </Row>
+      <Row>
+        <Select
+          aria-label="Utility preset"
+          items={items}
+          layout="hug"
+          value={value}
+          disabled={setPreset.isPending}
+          onValueChange={(next): void => {
+            if (next === null) {
+              return;
+            }
+            setPreset.mutate({ section: "seeds", patch: { summarizePreset: choiceOf(next) } });
+          }}
+        />
+      </Row>
     </Row>
   );
 }

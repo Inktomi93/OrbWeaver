@@ -17,7 +17,7 @@
 //
 // THE THREE REGIONS ARE THE TILES' OWN DECLARATION (`HomeTileContribution.region`), never a list here: a
 // masthead row above the split, the hearth column, the shelf column. Home still reads no feature — the
-// placement travels with the tile that makes it, which is the same rule `sectionId` follows.
+// placement travels with the tile that makes it.
 //
 // THE DORMANT DOORWAYS ARE GROUPED, not framed one by one (the mockup's right-rail move): every tile
 // whose body is the `{dormant}` arm lands under ONE band at the foot of the shelf. That is a
@@ -71,11 +71,12 @@ import { Separator } from "@orb/ui/separator";
 import { Heading, Text } from "@orb/ui/text";
 import { WeaveGlyph } from "@orb/ui/web-weave";
 import type { ReactElement } from "react";
-import { useRef } from "react";
+import { useRef, useState } from "react";
 import type { ContributorRegistry } from "#lib";
-import { useFocusOnMount } from "#lib";
+import { START_NEW_CHAT_NAME, useFocusOnMount } from "#lib";
 import type { DormantDoorway, HomeTileContribution } from "#state";
 import { HomePaneAnchor } from "../anchors/home-pane-anchor.tsx";
+import { HomeStart, holdersAfter } from "../components/home-start.ts";
 import { HomeDoorway, HomeTile } from "../components/home-tile.tsx";
 import { orderHomeTiles } from "../lib/order-home-tiles.ts";
 import { useBalancedFoot } from "../lib/use-balanced-foot.ts";
@@ -138,6 +139,18 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
   const shelfFoot = shelf.slice(-1);
   const shelfFootSide = shelf.slice(-2, -1);
   const shelfLead = shelf.slice(0, -2);
+  // Home's one start action. It stays outside the tiles so no tile's gate or loading box can hold it back.
+  const startChat = (
+    <Button aria-label={START_NEW_CHAT_NAME} onClick={onNewChat}>
+      <Icon icon={Plus} size="sm" />
+      New chat
+    </Button>
+  );
+  // A tile in its empty state takes the control as its own action; the masthead then draws none, so the page keeps one.
+  const [holders, setHolders] = useState<readonly string[]>([]);
+  const holdStart = (tileId: string, held: boolean): void => {
+    setHolders((current) => holdersAfter(current, tileId, held));
+  };
 
   return (
     // FORM tier (UI-Density-Law.md §3.1): home is a surface you land on and act from, so its islands
@@ -163,41 +176,40 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
         <HomePaneAnchor>
           {list.length === 0 ? (
             <EmptyState
-              action={
-                <Button onClick={onNewChat}>
-                  <Icon icon={Plus} size="sm" />
-                  New chat
-                </Button>
-              }
+              action={startChat}
               decoration={<WeaveGlyph anim={true} size="display" />}
               description="Start a thread and your recents land here."
               title="Nothing on your home yet"
             />
           ) : (
-            <Stack gap="section">
-              {masthead.map((tile) => (
-                <HomeTile gridRef={gridRef} column="masthead" key={tile.id} tile={tile} />
-              ))}
-              {/* `items-start` (mock `.room{align-items:start}`): grid's default `stretch` would make the
+            <HomeStart value={{ start: startChat, onHold: holdStart }}>
+              <Stack gap="section">
+                <Row align="start" gap="gutter" justify="between" wrap={true}>
+                  {masthead.map((tile) => (
+                    <HomeTile gridRef={gridRef} column="masthead" key={tile.id} tile={tile} />
+                  ))}
+                  {holders.length === 0 ? startChat : null}
+                </Row>
+                {/* `items-start` (mock `.room{align-items:start}`): grid's default `stretch` would make the
                   shelf column as tall as the hearth and hang its last block in dead space. */}
-              <Grid align="start" cols="pairWide" ref={gridRef} data-home-grid={true} gap="gutter">
-                {/* `min-w-0` IS THE SPLIT (side-eye 2026-08-16 P1-1). A grid TRACK CHILD is `min-width:auto`,
+                <Grid align="start" cols="pairWide" ref={gridRef} data-home-grid={true} gap="gutter">
+                  {/* `min-w-0` IS THE SPLIT (side-eye 2026-08-16 P1-1). A grid TRACK CHILD is `min-width:auto`,
                     so each track is floored at its content's min-content width — and the hero's own
                     min-content (a 64px face strip + a headline + a character/age line) is ~743px, which silently
                     overrode the approved `1.55fr/1fr` and rendered 1.92/1 at the 1280px pane (742.06/385.94
                     measured). The shelf paid for it: its face grid dropped from three fixed cells to two and
                     the page grew 1374px against 1177px. The declared ratio only means anything on tracks that
                     are allowed to shrink below their content. */}
-                <Stack className="min-inline-0" gap="section" ref={hearthRef}>
-                  {hearth.map((tile) => (
-                    <HomeTile gridRef={gridRef} column="hearth" key={tile.id} tile={tile} />
-                  ))}
-                </Stack>
-                <Stack className="group/shelf min-inline-0 has-data-home-held:invisible" data-home-shelf={true} gap="section" ref={shelfRef}>
-                  {shelfLead.map((tile) => (
-                    <HomeTile gridRef={gridRef} column="shelf" key={tile.id} tile={tile} />
-                  ))}
-                  {/* THE RAIL'S SECOND BREATH (side-eye 2026-08-16 F3). The `lead` split widens the rail at
+                  <Stack className="min-inline-0" gap="section" ref={hearthRef}>
+                    {hearth.map((tile) => (
+                      <HomeTile gridRef={gridRef} column="hearth" key={tile.id} tile={tile} />
+                    ))}
+                  </Stack>
+                  <Stack className="group/shelf min-inline-0 has-data-home-held:invisible" data-home-shelf={true} gap="section" ref={shelfRef}>
+                    {shelfLead.map((tile) => (
+                      <HomeTile gridRef={gridRef} column="shelf" key={tile.id} tile={tile} />
+                    ))}
+                    {/* THE RAIL'S SECOND BREATH (side-eye 2026-08-16 F3). The `lead` split widens the rail at
                       >=100rem, and that was only half the promise: at a 2000px pane the hearth column
                       dead-ended around y=750 with the rail's last two blocks stacked beside ~350px of void,
                       so a wider monitor bought a taller page instead of more of the house in reach. The
@@ -208,41 +220,41 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                       of the shelf" is the only thing it can say, and it is the same presentation license it
                       already exercises by grouping every doorway under one band. With no doorway group the
                       last tile pairs beside the tile before it instead, and stacked, both span the foot. */}
-                  <Grid className="grid-flow-row-dense" align="start" cols="pairWide" data-home-shelf-foot={true} gap="gutter" ref={footRef}>
-                    {shelfFootSide.map((tile) => (
-                      <Stack className="col-span-full min-inline-0 group-data-[foot=paired]/shelf:col-auto" key={tile.id}>
-                        <HomeTile gridRef={gridRef} column="shelf" tile={tile} />
-                      </Stack>
-                    ))}
-                    {shelfFoot.map((tile) => (
-                      <Stack
-                        className={
-                          hasFold
-                            ? "min-inline-0 group-data-[foot=paired]/shelf:row-span-2"
-                            : "col-span-full min-inline-0 group-data-[foot=paired]/shelf:col-auto"
-                        }
-                        key={tile.id}
-                      >
-                        <HomeTile gridRef={gridRef} column="shelf" tile={tile} />
-                      </Stack>
-                    ))}
-                    {doorways.length === 0 ? null : (
-                      // ONE FOLD over every declared doorway (#455). The `<h2>` WRAPS the trigger rather
-                      // than sitting inside it — that is the canonical disclosure shape (a button's content
-                      // model is phrasing, so a heading inside one is invalid HTML), and it keeps F6's
-                      // ruling intact: this block is still a PEER of home's other h2 blocks in the outline,
-                      // and the doorways' own h3 titles are still its children. `size="control"` because
-                      // the trigger is a CONTROL (side-eye 2026-08-22 P2-4, the ruling #482 landed on the
-                      // params deck's `Advanced`): the micro caps step measured under WCAG 2.5.8's 24×24
-                      // floor on the one thing you can press.
-                      //
-                      // THAT RULING SURVIVES; ITS COROLLARY DID NOT. This clause used to continue "…a group
-                      // you have to OPEN is a control, so the kicker retires", and read the tap-target
-                      // finding as a verdict on the BAND as well as on the type step. See the band below
-                      // for what that cost at 1920 and how the two separate (#833).
-                      <Section aria-label={DOORWAY_GROUP_LABEL}>
-                        <Collapsible>
-                          {/* …AND THE BAND CAME BACK, HOSTING THE TRIGGER RATHER THAN REPLACING IT (#833,
+                    <Grid className="grid-flow-row-dense" align="start" cols="pairWide" data-home-shelf-foot={true} gap="gutter" ref={footRef}>
+                      {shelfFootSide.map((tile) => (
+                        <Stack className="col-span-full min-inline-0 group-data-[foot=paired]/shelf:col-auto" key={tile.id}>
+                          <HomeTile gridRef={gridRef} column="shelf" tile={tile} />
+                        </Stack>
+                      ))}
+                      {shelfFoot.map((tile) => (
+                        <Stack
+                          className={
+                            hasFold
+                              ? "min-inline-0 group-data-[foot=paired]/shelf:row-span-2"
+                              : "col-span-full min-inline-0 group-data-[foot=paired]/shelf:col-auto"
+                          }
+                          key={tile.id}
+                        >
+                          <HomeTile gridRef={gridRef} column="shelf" tile={tile} />
+                        </Stack>
+                      ))}
+                      {doorways.length === 0 ? null : (
+                        // ONE FOLD over every declared doorway (#455). The `<h2>` WRAPS the trigger rather
+                        // than sitting inside it — that is the canonical disclosure shape (a button's content
+                        // model is phrasing, so a heading inside one is invalid HTML), and it keeps F6's
+                        // ruling intact: this block is still a PEER of home's other h2 blocks in the outline,
+                        // and the doorways' own h3 titles are still its children. `size="control"` because
+                        // the trigger is a CONTROL (side-eye 2026-08-22 P2-4, the ruling #482 landed on the
+                        // params deck's `Advanced`): the micro caps step measured under WCAG 2.5.8's 24×24
+                        // floor on the one thing you can press.
+                        //
+                        // THAT RULING SURVIVES; ITS COROLLARY DID NOT. This clause used to continue "…a group
+                        // you have to OPEN is a control, so the kicker retires", and read the tap-target
+                        // finding as a verdict on the BAND as well as on the type step. See the band below
+                        // for what that cost at 1920 and how the two separate (#833).
+                        <Section aria-label={DOORWAY_GROUP_LABEL}>
+                          <Collapsible>
+                            {/* …AND THE BAND CAME BACK, HOSTING THE TRIGGER RATHER THAN REPLACING IT (#833,
                               side-eye HOME delta 2026-08-30). The clause above retired the kicker anatomy
                               on the reasoning that "a group you have to OPEN is a control, not a band" —
                               and the rendered consequence was that this was the ONE right-column block with
@@ -261,19 +273,19 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                               tracked instrument register of the band at the READABLE label step rather than
                               the 10.5px micro step #482 measured under the tap floor. Same pairing the
                               config rail's collection bands already ship. */}
-                          <Row align="center" gap="field">
-                            <Heading level={2} voice="label">
-                              <CollapsibleTrigger size="control">
-                                <Text as="span" voice="interactiveKicker">
-                                  {DOORWAY_GROUP_LABEL}
-                                </Text>
-                              </CollapsibleTrigger>
-                            </Heading>
-                            {/* DECORATIVE, exactly as on every tile band (`home-tile.tsx` TileBand): the
+                            <Row align="center" gap="field">
+                              <Heading level={2} voice="label">
+                                <CollapsibleTrigger size="control">
+                                  <Text as="span" voice="interactiveKicker">
+                                    {DOORWAY_GROUP_LABEL}
+                                  </Text>
+                                </CollapsibleTrigger>
+                              </Heading>
+                              {/* DECORATIVE, exactly as on every tile band (`home-tile.tsx` TileBand): the
                                 `h2` beside it already names the region, and a bare `role="separator"` here
                                 would add an unnamed stop to the home walk's a11y tree. */}
-                            <Separator aria-hidden={true} grow={true} />
-                            {/* THE COUNT, in the band's TRAILING slot (#834) — the same position every
+                              <Separator aria-hidden={true} grow={true} />
+                              {/* THE COUNT, in the band's TRAILING slot (#834) — the same position every
                                 `TileBand` puts its one trailing affordance in ("All documents →"), which is
                                 why it needs no chrome of its own. It sits OUTSIDE the trigger deliberately:
                                 the trigger's accessible name is exactly the group's one name (#482/#833 both
@@ -290,28 +302,29 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
                                 real screen-reader-only text — the chip announces the derived “N items”, the trigger's
                                 name is untouched, and the band still paints the bare figure the mock draws
                                 (`sr-only` clips it to a 1px box, asserted in the CT). */}
-                            <Badge size="sm" variant="outline">
-                              {doorways.length}
-                              <Text as="span" className="sr-only">
-                                {" "}
-                                items
-                              </Text>
-                            </Badge>
-                          </Row>
-                          <CollapsiblePanel offset="block">
-                            <Stack gap="block">
-                              {doorways.map((entry) => (
-                                <HomeDoorway doorway={entry.doorway} key={entry.tile.id} tile={entry.tile} />
-                              ))}
-                            </Stack>
-                          </CollapsiblePanel>
-                        </Collapsible>
-                      </Section>
-                    )}
-                  </Grid>
-                </Stack>
-              </Grid>
-            </Stack>
+                              <Badge size="sm" variant="outline">
+                                {doorways.length}
+                                <Text as="span" className="sr-only">
+                                  {" "}
+                                  items
+                                </Text>
+                              </Badge>
+                            </Row>
+                            <CollapsiblePanel offset="block">
+                              <Stack gap="block">
+                                {doorways.map((entry) => (
+                                  <HomeDoorway doorway={entry.doorway} key={entry.tile.id} tile={entry.tile} />
+                                ))}
+                              </Stack>
+                            </CollapsiblePanel>
+                          </Collapsible>
+                        </Section>
+                      )}
+                    </Grid>
+                  </Stack>
+                </Grid>
+              </Stack>
+            </HomeStart>
           )}
         </HomePaneAnchor>
       </Stack>

@@ -22,6 +22,7 @@
 
 import type { ResolvedRateLimits } from "@orb/contracts/settings";
 import type { DatabaseHandle } from "@orb/db/wiring";
+import type { UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 import type { Logger } from "#foundation/observability";
 import { createRateLimiter } from "../transport/rate-limit.ts";
@@ -89,21 +90,27 @@ export function createRateLimitGate(deps: RateLimitGateDeps): RateLimitGate {
     windowMs: deps.windowMs,
     now: deps.now,
   });
-  const authedGeneral = createRateLimiter(deps.db, {
+  const authedGeneral = createRateLimiter<UserId>(deps.db, {
     logger: deps.logger,
     scope: AUTHED_GENERAL_SCOPE,
     points: () => deps.resolveRateLimits().authed,
     windowMs: deps.windowMs,
     now: deps.now,
   });
-  const aiTurn = createRateLimiter(deps.db, {
+  const aiTurn = createRateLimiter<UserId>(deps.db, {
     logger: deps.logger,
     scope: AI_TURN_SCOPE,
     points: () => deps.resolveRateLimits().aiTurn,
     windowMs: deps.windowMs,
     now: deps.now,
   });
-  const restart = createRateLimiter(deps.db, { logger: deps.logger, scope: RESTART_SCOPE, points: RESTART_POINTS, windowMs: RESTART_WINDOW_MS, now: deps.now });
+  const restart = createRateLimiter<UserId>(deps.db, {
+    logger: deps.logger,
+    scope: RESTART_SCOPE,
+    points: RESTART_POINTS,
+    windowMs: RESTART_WINDOW_MS,
+    now: deps.now,
+  });
 
   return {
     enforce: async (decision: RateLimitDecision): Promise<void> => {

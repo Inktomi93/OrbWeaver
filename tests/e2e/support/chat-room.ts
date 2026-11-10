@@ -122,10 +122,8 @@ export function charactersRailButton(page: Page): Locator {
   return page.getByRole("navigation", { name: PRIMARY_NAV_NAME }).getByRole("button", { name: SECTION_LABELS.characters, exact: true });
 }
 
-/** The RAIL's "Chats" nav button, scoped to the Primary navigation. Scoping is load-bearing the same way
- *  `charactersRailButton` is: the variant-C HOME (program #102) renders its OWN "Chats" section-jump tile
- *  with the same accessible name, so an unscoped role+name lookup is a strict-mode violation on the home
- *  surface. `exact` keeps "Collapse Chats panel" and the like out. */
+/** The RAIL's "Chats" nav button, scoped to the Primary navigation, the same way `charactersRailButton` is.
+ *  `exact` keeps "Collapse Chats panel" and the like out. */
 function chatsRailButton(page: Page): Locator {
   return page.getByRole("navigation", { name: PRIMARY_NAV_NAME }).getByRole("button", { name: SECTION_LABELS.chats, exact: true });
 }

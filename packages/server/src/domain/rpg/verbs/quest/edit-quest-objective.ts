@@ -22,7 +22,7 @@ export function createEditQuestObjective(ctx: RpgContext): Pick<RpgService, "edi
 
       let objectives = quest.objectives;
       if (op.kind === "add") {
-        objectives = [...objectives, { id: ctx.ids.quest(), text: op.text, completed: false }];
+        objectives = [...objectives, { id: ctx.idSource.unprefixed(), text: op.text, completed: false }];
       } else {
         const exists = objectives.some((objective) => objective.id === op.objectiveId);
         if (!exists) {

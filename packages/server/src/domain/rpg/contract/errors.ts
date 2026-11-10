@@ -5,12 +5,18 @@
 // `createGame(mode:"full")` throws (its verb lands in W1b, but the error class homes here with its siblings).
 
 import { DomainOperationError } from "@orb/kit/errors";
+import type { RpgGameId, RpgSheetId, RpgSnapshotId } from "@orb/kit/ids";
 import { RPG_OP_CODES } from "#src/domain/rpg/contract/op-codes.ts";
+
+type CorruptRow =
+  | [table: "rpg_games", id: RpgGameId, detail: string]
+  | [table: "rpg_sheets", id: RpgSheetId, detail: string]
+  | [table: "rpg_snapshots", id: RpgSnapshotId, detail: string];
 
 /** A persisted rpg JSON column failed re-validation through its `@orb/contracts/rpg` schema on read. Never a
  *  silent default — a corrupt tracker row is a loud typed error the caller surfaces (D58). */
 export class RpgStateCorruptError extends DomainOperationError {
-  constructor(table: string, id: string, detail: string) {
+  constructor(...[table, id, detail]: CorruptRow) {
     super(RPG_OP_CODES.stateCorrupt, `${table} ${id}: ${detail}`);
   }
 }

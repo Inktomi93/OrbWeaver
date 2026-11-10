@@ -5,7 +5,7 @@
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 import { participantKindSchema, participantRoleSchema } from "#chat";
-import { providerIdSchema } from "#inference";
+import { modelIdSchema, providerIdSchema } from "#inference";
 import { rpgTraceRecordSchema } from "#rpg";
 
 const chatIdSchema = typeIdSchema(ID_PREFIX.chat);
@@ -17,7 +17,7 @@ export const wireCaptureSchema = z.strictObject({
   api: z.string(),
   wire: z.string(),
   providerId: providerIdSchema,
-  model: z.string(),
+  model: modelIdSchema,
   at: z.number(),
   body: z.record(z.string(), z.unknown()),
   /** The provider's response headers, lower-cased and secret-scrubbed. Absent on a transport failure and on agent-sdk. */

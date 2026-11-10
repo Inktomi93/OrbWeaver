@@ -7,11 +7,12 @@
 // `agentSdkModels` is `null`-by-design here.
 
 import type { CatalogRefreshResult } from "@orb/contracts/inference";
+import { providerIdSchema } from "@orb/contracts/inference";
 import { emptyWorkloadParams } from "@orb/contracts/workloads";
 import type { WorkloadContribution } from "#domain/workloads";
 import type { ConnectionWorkloadDeps } from "./contract/service.ts";
 
-const OPENROUTER_PROVIDER_ID = "openrouter";
+const OPENROUTER_PROVIDER_ID = providerIdSchema.parse("openrouter");
 
 export function createConnectionWorkloadContributions(deps: ConnectionWorkloadDeps): readonly [WorkloadContribution<"refresh-model-catalog">] {
   return [

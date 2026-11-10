@@ -58,6 +58,6 @@ export function createUninstallForAllUsers(
     // Last, so a throw mid-fan-out leaves the record standing and the withdrawal re-runnable (the install
     // fan-out's resume posture, in the other direction).
     await deleteDistribution(ctx.db, slug);
-    return { slug: record.slug, name: record.name, version: record.version, applied, skipped };
+    return { slug, name: record.name, version: record.version, applied, skipped };
   };
 }

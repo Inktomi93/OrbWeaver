@@ -2,16 +2,16 @@
 // `@orb/contracts/inference` (`CONNECTION_OP_CODES`), because the client keys on them (no inline re-spell,
 // §7.5); every reader imports them from there.
 
-import type { EmbedWidthRefusalDetail } from "@orb/contracts/inference";
+import type { EmbedWidthRefusalDetail, ProviderId } from "@orb/contracts/inference";
 import { CONNECTION_OP_CODES } from "@orb/contracts/inference";
 import { DomainOperationError } from "@orb/kit/errors";
-import type { UserConnectionId } from "@orb/kit/ids";
+import type { LookupText, UserConnectionId } from "@orb/kit/ids";
 
 /** The caller may not use this provider: no such row, or a plugin row none of the caller's enabled installs
  *  contributes (D147). One refusal for both, so another user's plugin provider has no existence oracle. */
 export class ProviderUnknownError extends DomainOperationError {
   declare readonly code: typeof CONNECTION_OP_CODES.providerUnknown;
-  constructor(providerId: string) {
+  constructor(providerId: LookupText<ProviderId>) {
     super(CONNECTION_OP_CODES.providerUnknown, `"${providerId}" is not a registered provider.`);
   }
 }

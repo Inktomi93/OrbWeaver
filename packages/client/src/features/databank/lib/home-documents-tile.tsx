@@ -6,7 +6,7 @@
 // — home imports nothing from here, and this feature imports nothing from home
 // beyond the tier-4 contract.
 //
-// `order` 50 — after the shell-derived jump grid (40) and before the dormant doorways (80/90): a bank you
+// `order` 50 — after the chat tiles and before the dormant doorways (80/90): a bank you
 // actually own outranks a doorway to a domain that does not exist yet, and it never competes with the
 // three chat tiles that carry the launcher.
 //
@@ -19,9 +19,6 @@
 // accent fill); temp chat is a secondary button. The ghost here is unchanged and now for a stronger
 // reason — nothing on the shelf may compete with the hearth.
 //
-// `sectionId` is declared: this tile carries the section's name, glyph, live contents, health and a door into it, so
-// Elsewhere does not repeat Databank while the tile is on screen. The tile is unconditionally visible, which is what
-// keeps the claim safe (see `HomeTileContribution.sectionId`).
 
 import { HOME_RECENT_DOCUMENTS_LIMIT } from "@orb/contracts/databank";
 import { Database } from "@orb/ui/icons";
@@ -53,7 +50,6 @@ export const databankDocumentsTile: HomeTileContribution = {
   icon: Database,
   order: DOCUMENTS_TILE_ORDER,
   region: "shelf",
-  sectionId: "databank",
   skeletonRows: DOCUMENTS_SKELETON_ROWS,
   // A COMPONENT, not a static node: it hides itself on an empty bank (P2-b).
   action: <HomeDocumentsTileAction />,

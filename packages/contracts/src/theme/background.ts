@@ -38,6 +38,9 @@ import { z } from "zod";
  *  did not reach. */
 export const BACKGROUND_IMAGE_KINDS = ["none", "external", "asset"] as const;
 
+/** Stored provenance is display metadata. Reading it must retain the original string. */
+export const storedBackgroundProvenanceSchema = z.string();
+
 /** The carried decorative-background SOURCE (BG-C) — a `ThemeOverride` twin. Source-only: fit/dim/blur are
  *  never carried (the viewer keeps their own appearance treatment). `kind:"none"` (or an empty ref for the
  *  active kind) resolves to "no override" ⇒ the viewer's own background wins. Field naming mirrors the flat
@@ -64,9 +67,11 @@ export const themeBackgroundSchema = z
     // source was fetched-and-stored from, kept as metadata (never re-fetched — the bytes live in the CAS). Only
     // meaningful on `kind:"asset"`; `canonicalBackgroundSource` empties it for every other kind. Additive +
     // lenient (an old blob reads "" — no version bump; the carried twin is not a versioned-config tier).
-    provenanceUrl: z.string().catch("").default(""),
+    provenanceUrl: storedBackgroundProvenanceSchema.catch("").default(""),
   })
   .strip();
+/** Fresh background writes validate provenance. Stored and imported backgrounds retain their original metadata. */
+export const themeBackgroundInputSchema = themeBackgroundSchema.extend({ provenanceUrl: z.union([z.literal(""), z.url()]).default("") });
 export type ThemeBackground = z.infer<typeof themeBackgroundSchema>;
 
 /** Canonicalize a parsed background SOURCE to its GC-safe persisted shape: ONLY `kind:"asset"` may carry an

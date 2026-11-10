@@ -5,7 +5,7 @@
 // is the inline-mode input — TYPE HOME ONLY here; the verb implementation lives with the other verbs.
 
 import type { Principal } from "@orb/contracts/identity";
-import type { PluginBundleHash, PluginCapability, PluginCommandArgValue } from "@orb/contracts/plugin";
+import type { PluginBundleHash, PluginCapability, PluginCommandArgValue, PluginSlug } from "@orb/contracts/plugin";
 import type { ChatId, MessageId, PluginId } from "@orb/kit/ids";
 
 /** WHERE an install got its bytes — the honest origin + source provenance to remember (U8 2b). The
@@ -194,7 +194,7 @@ export interface InstallForAllUsersParams {
  *  delete the thing they chose. Those rows are SKIPPED and reported, never silently left behind. */
 export interface UninstallForAllUsersParams {
   readonly caller: Principal;
-  readonly slug: string;
+  readonly slug: PluginSlug;
 }
 
 /** `listDistributedPlugins` — the published set, for the admin's distribute surface. Admin-gated: it is

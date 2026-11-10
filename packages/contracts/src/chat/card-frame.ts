@@ -27,6 +27,11 @@ export function cardFrameUrl(id: string): string {
   return `${CARD_FRAME_ROUTE}/${id}`;
 }
 
+/** A minted document is a single handle on the same-origin frame route. */
+export function frameDocumentUrlSchema(route: string): z.ZodCustomStringFormat<"frame-document-url"> {
+  return z.stringFormat("frame-document-url", new RegExp(`^${RegExp.escape(route)}/[A-Za-z0-9_-]+$`, "u"));
+}
+
 // Bounds. A card is model-authored self-contained markup; these are generous for that and bound the
 // per-process retention (MAX_ENTRIES × these) rather than trusting a body-limit alone.
 const MAX_HTML_CHARS = 64_000;
@@ -112,7 +117,7 @@ export type CardFrameMintRequest = z.infer<typeof cardFrameMintRequestSchema>;
 /** The mint response — the frame URL plus the handle's lifetime, so a long-lived tab can re-mint before a
  *  remount finds an expired handle rather than discovering it as a blank frame. */
 export const cardFrameMintResponseSchema = z.strictObject({
-  url: z.string(),
+  url: frameDocumentUrlSchema(CARD_FRAME_ROUTE),
   expiresInMs: z.int().positive(),
   /** What the server ACTUALLY granted, echoed so the client can render an honest "images blocked" affordance
    *  instead of inferring one from the trust tier it asked with. Never an input.

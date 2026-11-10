@@ -55,8 +55,8 @@ const importsFor = (file: string): string => {
   ].join("\n");
 };
 
-const homes = [{ file: HOME_FILE, site: "boundary", reason: "the probe host reads guest JSON that arrives untyped by construction" }];
-const mintHomes = [{ file: MINT_FILE, reason: "the probe id module owns the probe id's validation" }];
+const homes = { [HOME_FILE]: { boundary: "the probe host reads guest JSON that arrives untyped by construction" } };
+const mintHomes = { [MINT_FILE]: "the probe id module owns the probe id's validation" };
 
 function lint(root: string, file: string, source: string): readonly string[] {
   const options: ts.CompilerOptions = {
@@ -167,4 +167,10 @@ test("a mint home makes a brand from a plain string; the same lines elsewhere ar
 test("a home keeps its one boundary cast and no other in that file", ({ scratch }) => {
   expect(lint(scratch, HOME_FILE, "export const a = boundary as ProbeView;")).toEqual([]);
   expect(lint(scratch, HOME_FILE, "export const a = boundary as ProbeView;\nexport const b = loose as ProbeView;")).toHaveLength(1);
+});
+
+test("a nested copy of a trusted path cannot cast or mint", ({ scratch }) => {
+  const casts = lint(scratch, `copy/${HOME_FILE}`, "export const a = boundary as ProbeView;");
+  const mints = lint(scratch, `copy/${MINT_FILE}`, "export const a = castId<ProbeId>(raw);");
+  expect([casts, mints]).toEqual([[expect.stringContaining("contract, row or branded")], [expect.stringContaining("plain string named as a brand")]]);
 });

@@ -1,11 +1,12 @@
 import type { ToolCallRecord } from "@orb/contracts/chat";
 import type { WireCapture } from "@orb/contracts/debug";
-import type { GenerationUsageLeg, ResolvedWarning } from "@orb/contracts/inference";
+import type { GenerationUsageLeg, ProviderId, ResolvedWarning } from "@orb/contracts/inference";
+import type { LookupText } from "@orb/kit/ids";
 
 /** Provider filters remain raw query strings, including names that match no captured provider. */
 export interface WireCaptureFilter {
   readonly chatId?: WireCapture["chatId"];
-  readonly providerId?: string | undefined;
+  readonly providerId?: LookupText<ProviderId> | undefined;
   readonly limit?: number | undefined;
 }
 

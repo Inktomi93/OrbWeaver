@@ -14,12 +14,9 @@
 // finding under review was "the live conversations are not the loudest thing on home", and a page whose
 // only accent was a throwaway-room button was precisely that complaint.
 //
-// THE TRAILING ACTION MOVED to the "Other rooms" tile (side-eye 2026-08-16 F13; the tile was titled "Also
-// open" then and was retitled by owner ruling 2026-08-17). "All chats →" sat on this
-// band, one line away from the "Chats" pill in the jump rail — two labels for one destination on one row —
-// and the mock puts it on the also-open kicker, which is the band the link is actually about. This block
-// now carries NO trailing affordance at all, which is the stronger reading of the sentence above: the hero
-// is the accent, and it is the only thing on its own band.
+// THE TRAILING ACTION LIVES ON the "Other rooms" tile: "All chats →" belongs on the kicker of the band it is
+// about. This block carries NO trailing affordance at all, which is the stronger reading of the sentence
+// above: the hero is the accent, and it is the only thing on its own band.
 
 import { HOME_RECENT_CHATS_LIMIT } from "@orb/contracts/chat";
 import { MessagesSquare } from "@orb/ui/icons";
@@ -56,16 +53,23 @@ function useRecentsTitle(): string {
   return page !== undefined && isFirstRun(page) ? FIRST_RUN_TITLE : RESUME_TITLE;
 }
 
+// Home's start control belongs to this tile while the account has no room to resume.
+function useHoldsStart(): boolean {
+  const trpc = useTRPC();
+  return useQuery(trpc.chat.listChats.queryOptions({ limit: HOME_RECENT_CHATS_LIMIT })).data?.items.length === 0;
+}
+
 export const chatRecentsTile: HomeTileContribution = {
   id: CHAT_RECENTS_TILE_ID,
   // The mockup's approved band copy. "Recent chats" named a data set; this names what you do with it,
   // which is what the block leads the page with.
   title: RESUME_TITLE,
   useTitle: useRecentsTitle,
+  useHoldsStart,
   icon: MessagesSquare,
   order: RECENTS_TILE_ORDER,
   region: "hearth",
   skeletonBlock: RECENTS_EMPTY_BLOCK_PX,
   skeletonRows: RECENTS_SKELETON_ROWS,
-  body: () => <HomeRecentsTileBody />,
+  body: ({ start }) => <HomeRecentsTileBody start={start} />,
 };

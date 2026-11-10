@@ -8,6 +8,7 @@
 // inherit its sealed rows (F8/F9, §5.9-1). A rename orphans the credentials sealed under the old id by
 // construction; the pane says so.
 
+import type { LookupText } from "@orb/kit/ids";
 import { z } from "zod";
 import type { ChatApi } from "./apis.ts";
 import { BUILTIN_EXAMPLE_BASE_URLS, BUILTIN_PROVIDER_ROWS } from "./builtin-providers.ts";
@@ -29,9 +30,9 @@ const builtinProviderDefSchema = providerDefSchema.refine((row) => !isPluginProv
  *  through. A malformed row is a boot failure, not a runtime surprise. */
 export const BUILTIN_PROVIDERS: readonly ProviderDef[] = z.array(builtinProviderDefSchema).parse(BUILTIN_PROVIDER_ROWS);
 
-const BUILTIN_BY_ID: ReadonlyMap<string, ProviderDef> = new Map(BUILTIN_PROVIDERS.map((row) => [row.id, row]));
+const BUILTIN_BY_ID: ReadonlyMap<LookupText<ProviderId>, ProviderDef> = new Map(BUILTIN_PROVIDERS.map((row) => [row.id, row]));
 
-export function builtinProvider(id: string): ProviderDef | undefined {
+export function builtinProvider(id: LookupText<ProviderId>): ProviderDef | undefined {
   return BUILTIN_BY_ID.get(id);
 }
 

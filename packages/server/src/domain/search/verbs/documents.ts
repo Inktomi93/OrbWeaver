@@ -21,7 +21,7 @@ import { withActiveQuerySpace } from "../substrate/space.ts";
 
 interface DocumentCandidate {
   /** The rerank runner keys on `id`; the chunk id is unique so it doubles as the candidate id. */
-  readonly id: string;
+  readonly id: DocumentChunkHit["chunkId"];
   /** applyRerank's scorable text (never null for a real chunk). */
   readonly sourceText: string;
   readonly documentId: DocumentChunkHit["documentId"];

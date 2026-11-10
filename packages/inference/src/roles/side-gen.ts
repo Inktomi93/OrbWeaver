@@ -8,7 +8,7 @@ import { rolePresetParamsOf, splittableTagPair, THINK_PREFIX_DEFAULT, THINK_SUFF
 import type { SummarizeResult, SummarizeResultItem } from "@orb/contracts/providers";
 import type { ResponseFormat } from "@orb/contracts/role-clients";
 import { toError } from "@orb/kit/error-message";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, ModelId } from "@orb/kit/ids";
 import { providerLogger } from "../backends/http/provider-log.ts";
 import { toImageUrl } from "../backends/wire/image-normalize.ts";
 import type { ChatHistoryMessage, ChatRequest, ChatResult, GenerationObservationCallback } from "../contract/chat.ts";
@@ -71,7 +71,7 @@ export function sideGenChatRequest(args: {
 
 /** The item a finished turn answered: the reply, which a structured turn already folded to its payload. A refusal
  *  is never an answer, so a refused turn or a filtered finish fails the item. */
-export function sideGenReplyOf(result: ChatResult, model: string): string {
+export function sideGenReplyOf(result: ChatResult, model: ModelId): string {
   const refused = result.finishReason === "filter" || result.events.some((event) => event.kind === "refusal" && !event.retried);
   if (refused) {
     throw new ProviderError({ kind: "refused", retryable: false, message: "the model refused the request", model });

@@ -1,5 +1,6 @@
 import { ListPaneHeaderHost } from "@orb/client/components";
 import type { ListPaneHeaderView } from "@orb/client/lib";
+import { NEW_CHAT_DIALOG_TITLE } from "@orb/client/lib";
 import { CtIsolation } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import { Plus } from "@orb/ui/icons";
@@ -39,7 +40,10 @@ export function ListPaneHeaderStory({
     ...(withBack ? { back: { label: "Back to all characters", onClick: (): void => setBacks((value) => value + 1) } } : {}),
     ...(withAction
       ? {
-          actions: [action("new-chat", "New chat"), ...Array.from({ length: extraActions }, (_unused, index) => action(`more-${index}`, `Action ${index}`))],
+          actions: [
+            action("new-chat", NEW_CHAT_DIALOG_TITLE),
+            ...Array.from({ length: extraActions }, (_unused, index) => action(`more-${index}`, `Action ${index}`)),
+          ],
         }
       : {}),
     overlay: backs === 0 && actions === 0 ? null : <output>{`Back activated ${String(backs)}; action activated ${String(actions)}`}</output>,

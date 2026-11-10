@@ -1,4 +1,5 @@
 import type { AgentSdkModel, ModelCatalogEntry, ModelInfoApi } from "@orb/contracts/inference";
+import type { ModelId } from "@orb/kit/ids";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
 import type { ProviderDiagnostics } from "./diagnostics.ts";
 import type { ProviderScrubSet } from "./errors.ts";
@@ -28,7 +29,7 @@ export interface EndpointFetchArgs {
   /** The ONE listed model the per-model probes may ask about (kind, measured width, prefill). Those probes load or
    *  wake a model, so a plain listing (the add flow, diagnostics) sets none; the resolve warm names the
    *  connection's own model. */
-  readonly probeModel?: string | undefined;
+  readonly probeModel?: ModelId | undefined;
 }
 
 export interface CatalogListingDeps {

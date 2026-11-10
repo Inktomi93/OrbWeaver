@@ -69,7 +69,7 @@ export interface ListRowProps {
   subtitleDecorative?: boolean;
   /**
    * Lets a GLOSS subtitle wrap to two clamped lines instead of truncating to one. For rows whose
-   * subtitle is a sentence (the home jump grid's per-section teaching copy); leave it off for dense
+   * subtitle is a sentence (teaching copy); leave it off for dense
    * list panes, where one scannable line per row is the point.
    */
   subtitleWrap?: boolean;

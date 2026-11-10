@@ -75,7 +75,7 @@ import { isRpgEngaged } from "@orb/contracts/rpg";
 import type { Db } from "@orb/db";
 import { generationOf, preservesCacheBlockEnds, resolveCarryReasoning } from "@orb/inference";
 import { projectBodyForPreview } from "@orb/kit/content";
-import type { CharacterId, ChatId, MessageId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, MessageId, ModelId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import type { MacroRegistry, RowMacroNameContext } from "@orb/kit/macro";
 import { globalMacroRegistry, resolveRowMacros } from "@orb/kit/macro";
 import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
@@ -237,7 +237,7 @@ type ChatRowView = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
 interface PreviewInputs extends RoomInputs {
   /** The room host whose connection the preview resolved under (§8.4-3). */
   readonly funderUserId: UserId;
-  readonly model: string;
+  readonly model: ModelId;
   /** The resolved model capability — the SHAPE-trace peek reads its `turns` cell (roleHandlingFloor /
    *  assistantPrefill) to shape faithfully. Undefined when the connection resolver omits it (a test double). */
   readonly capability: GenerationCapability | undefined;
@@ -492,7 +492,7 @@ async function resolveRoomInputs(
   ctx: ChatContext,
   deps: ReadDeps,
   chatId: ChatId,
-  opts: PreviewInputsOpts & { readonly model?: string | undefined },
+  opts: PreviewInputsOpts & { readonly model?: ModelId | undefined },
 ): Promise<RoomInputs> {
   const { anchorPersonaId, speakerCharacterId, model } = opts;
   const participants = await loadParticipants(ctx.db, chatId);
@@ -1023,9 +1023,8 @@ function createGetMemberCard(ctx: ChatContext, deps: ReadDeps): ChatService["get
 }
 
 /** Resolve the chat ANCHOR persona to its `{name, description}` the way the assemble does — through the FOREIGN
- *  persona read (`ResolveForeignInputsOp`, the ONE sanctioned persona-resolution path chat holds). `model:""`
- *  is a stub: a card DISPLAY resolves personas, not a connection-specific preset, so the foreign resolver's
- *  model arg (which only tunes preset selection) is irrelevant here — no `resolveConnection` hop is needed.
+ *  persona read (`ResolveForeignInputsOp`, the ONE sanctioned persona-resolution path chat holds). The card
+ *  needs the seated persona and requires no connection resolution.
  *  The roster is threaded in (not re-read) because the resolver's persona read is CONSENT-GATED on the room's
  *  present humans: without it a member-owned anchor would render as the kit floor on every card display. */
 async function resolveAnchorPersona(
@@ -1041,7 +1040,6 @@ async function resolveAnchorPersona(
   const foreign = await deps.resolveForeignInputs({
     chatId: args.chatId,
     runAsUserId: args.hostUserId,
-    model: "",
     anchorPersonaId: args.anchorPersonaId,
     presentHumanUserIds: args.presentHumanUserIds,
     humanSeats: args.humanSeats,

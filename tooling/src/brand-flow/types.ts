@@ -18,7 +18,7 @@ export type MintVia = (typeof MINT_VIAS)[number];
 const SLOT_KINDS = ["argument", "return", "property", "variable", "jsx-prop", "element", "state", "collection-key", "cast"] as const;
 export type SlotKind = (typeof SLOT_KINDS)[number];
 
-const LAYERS = ["contract", "port", "client-state", "local", "library", "schema-input", "unknown"] as const;
+const LAYERS = ["contract", "port", "client-state", "local", "library", "schema-input", "sandbox-wire", "unknown"] as const;
 /** How close a slot sits to a wire or port: the rank of a widen edge. A `schema-input` slot is declared as a brand
  *  schema, whose zod input type is `string` by design, so it is no defect; an `unknown` slot's declaration could not be
  *  read, so it is neither counted as one nor guessed. */

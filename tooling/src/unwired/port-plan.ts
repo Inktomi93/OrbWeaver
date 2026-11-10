@@ -3,13 +3,24 @@
 // that tells the leg what to do first.
 import { relative } from "node:path";
 import ts from "typescript";
+import type { PortMember } from "../eslint/index.ts";
+import {
+  aliasOf,
+  effectiveMember,
+  foreignTypes,
+  homeFileOf,
+  isHandTyped,
+  memberLabel,
+  placementOf,
+  RELATION,
+  rootAlias,
+  rulingKeysOf,
+  tierRank,
+} from "../eslint/index.ts";
 import type { Door, ImportGraph, LoadedWorld } from "./doors.ts";
 import { areaOf, doorsOf, exportNameOf, exportsOtherAs, lowerHome, relativeSpecifier } from "./doors.ts";
-import { foreignTypes } from "./foreign-types.ts";
 import type { Indexed, Pair, PlannedTarget, PortTarget, TargetExport, TargetImport, TargetKind } from "./port-targets.ts";
 import { conceptOf, crossDomainKind, crossDomainNote, legOf, lineOf, placementOfKey } from "./port-targets.ts";
-import type { PortMember } from "./restated-port.ts";
-import { aliasOf, effectiveMember, homeFileOf, isHandTyped, memberLabel, placementOf, RELATION, rootAlias, rulingKeysOf, tierRank } from "./restated-port.ts";
 
 export interface PlanContext {
   readonly world: LoadedWorld;

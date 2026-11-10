@@ -2,7 +2,7 @@
 // No versions: the card IS the flat `characters` row, edited in place. No `raw` blob — every known field
 // has a typed home, so an app-authored card round-trips identically to an imported one.
 
-import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, PluginId, TagId, UserId } from "@orb/kit/ids";
+import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, LookupText, PluginId, TagId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
 import { SLUG_HANDLE_PATTERN, slugifyHandle } from "@orb/kit/slug";
@@ -15,7 +15,7 @@ import { pageDirectionShape } from "#rpc";
 import type { TagFolderType, TagView } from "#tag";
 import { tagFolderTypeSchema, tagViewSchema } from "#tag";
 import type { ThemeBackground, ThemeOverride } from "#theme";
-import { themeBackgroundSchema, themeOverrideSchema } from "#theme";
+import { themeBackgroundInputSchema, themeBackgroundSchema, themeOverrideSchema } from "#theme";
 // The analysis leaf avoids a cycle: refinery's public root composes these character validators.
 import type { RefineryAnalyzePayload } from "../refinery/core.ts";
 import { refineryAnalyzePayloadSchema, refineryAnalyzePayloadViewSchema } from "../refinery/core.ts";
@@ -150,11 +150,12 @@ export function parsePluginImportedFrom(importedFrom: string | null): { readonly
 // so a URI fetch is an SSRF surface. The serde stays
 // pure parse-and-validate (kit is isomorphic, zero I/O). `z.looseObject` keeps unknown asset keys; the fields are
 // lenient (a real-world asset with a missing `type`/`name` never throws — ST defaults them to `""`).
+const cardAssetText = z.string().catch("");
 const cardAssetSchema = z.looseObject({
-  type: z.string().catch(""),
-  uri: z.string().catch(""),
-  name: z.string().catch(""),
-  ext: z.string().catch(""),
+  type: cardAssetText,
+  uri: cardAssetText,
+  name: cardAssetText,
+  ext: cardAssetText,
 });
 
 // Character's Note @ Depth: reuses the shared `@orb/kit/injection` `{depth, role?}` directive.
@@ -347,7 +348,7 @@ function isCharacterHandle(value: string): boolean {
 /** The handle a stored row carries off this box (a card's wire key, a chat's archive directory and seat
  *  list): the handle itself when it is inside the alphabet, else its slug, so a row stored before the
  *  alphabet was enforced still exports as a safe path segment and every file of one export agrees on it. */
-export function portableCharacterHandle(stored: string): CharacterHandle {
+export function portableCharacterHandle(stored: LookupText<CharacterHandle>): CharacterHandle {
   return characterHandleSchema.parse(isCharacterHandle(stored) ? stored : slugifyHandle(stored));
 }
 
@@ -470,7 +471,7 @@ export const updateCharacterSchema = createCharacterSchema.partial().extend({
   /** BG-C — the carried card BACKGROUND source (the `themeOverride` twin). `undefined` = leave unchanged;
    *  `null` = clear (no card background); a value = set it. Applies only in a true-solo room, below the
    *  chat-set override (resolution is client-side in the app-shell background resolver). */
-  backgroundOverride: themeBackgroundSchema.nullable().optional(),
+  backgroundOverride: themeBackgroundInputSchema.nullable().optional(),
 });
 export type UpdateCharacterInput = z.infer<typeof updateCharacterSchema>;
 

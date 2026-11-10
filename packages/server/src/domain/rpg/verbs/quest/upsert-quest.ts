@@ -21,7 +21,7 @@ export function createUpsertQuest(ctx: RpgContext): Pick<RpgService, "upsertQues
       const existing = head.state.quests.find((q) => q.id === questId);
       const objectives =
         params.questId === undefined
-          ? (params.objectives ?? []).map((o) => ({ id: ctx.ids.quest(), text: o.text, completed: o.completed ?? false }))
+          ? (params.objectives ?? []).map((o) => ({ id: ctx.idSource.unprefixed(), text: o.text, completed: o.completed ?? false }))
           : (existing?.objectives ?? []);
       const next: RpgQuest = {
         id: questId,

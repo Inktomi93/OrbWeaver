@@ -1,3 +1,4 @@
+import { embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
 import type { AdminCardEmbedDeps } from "../contract/ops.ts";
 import type { AdminContext } from "../contract/service.ts";
 
@@ -17,7 +18,13 @@ export function createAdminCardEmbed(deps: AdminCardEmbedDeps): AdminContext["em
       if (space === null) {
         return false;
       }
-      await deps.store({ lens: "card-text", ownerId: principal.userId, characterId, content: text, model: space.model });
+      await deps.store({
+        lens: "card-text",
+        ownerId: principal.userId,
+        characterId,
+        content: text,
+        model: embedSpaceOf(space.model, embedDtypeOf(space.capability)),
+      });
       return true;
     },
   };

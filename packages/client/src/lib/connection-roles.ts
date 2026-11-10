@@ -57,7 +57,13 @@ export interface RoleRow {
   /** The row's HEADING in the section. `label` for five rows; §5.3a renames the Summarize slot to name its
    *  three consumers, because a user who reads "Summaries" and binds a text-only model breaks captioning. */
   readonly heading: string;
+  /** What the role is for. It may sit behind the info trigger: nothing here depends on the role's state. */
   readonly description: string;
+  /** The consequence of the user's own role being unset, shown as the unset readout so it is visible in that state.
+   *  Absent where the plain "nothing is set" sentence says it all. */
+  readonly unsetEffect?: string;
+  /** A consequence that holds in every state, shown beside the picker. */
+  readonly standingEffect?: string;
   /** `true` for the vector-space rows: leaving them unset means search reads nothing, not "a default". */
   readonly optional: boolean;
   /** The `Needs:` rail. Empty where the slot demands nothing a user could get wrong by picking. */
@@ -83,7 +89,8 @@ const ROLE_ROWS: Record<RoutableTask, RoleRow> = {
     label: CONNECTION_ROLE_LABELS.summarize,
     heading: "Utility model: summaries, structured extraction, captions",
     description:
-      "Point this at a cheap model; it needs background work allowed. Several things use this slot. Memory digests, summaries, extraction and image captions. While it is not set, memory digests are paused.",
+      "Point this at a cheap model; it needs background work allowed. Several things use this slot. Memory digests, summaries, extraction and image captions.",
+    unsetEffect: "Nothing. No connection is set, so memory digests are paused.",
     optional: false,
     requirements: [NEEDS_PROSE, NEEDS_STRUCTURED, NEEDS_CAPTION_INPUT],
   },
@@ -91,7 +98,8 @@ const ROLE_ROWS: Record<RoutableTask, RoleRow> = {
     task: "generateImage",
     label: CONNECTION_ROLE_LABELS.generateImage,
     heading: "Image generation",
-    description: "Renders pictures from prompts (the /imagine surface). Optional: leaving it unset means /imagine says so instead of failing.",
+    description: "Renders pictures from prompts (the /imagine surface). Optional.",
+    unsetEffect: "Nothing. No connection is set, so /imagine tells you it can't run.",
     optional: true,
     requirements: [NEEDS_IMAGE_OUTPUT],
   },
@@ -99,7 +107,10 @@ const ROLE_ROWS: Record<RoutableTask, RoleRow> = {
     task: "embed",
     label: CONNECTION_ROLE_LABELS.embed,
     heading: "Text embedding",
-    description: "Vectorizes text for search and memory. Changing it re-embeds your whole index.",
+    description: "Vectorizes text for search and memory.",
+    // Unbinding the text embedder queues nothing: the stored index stays, and search keeps answering from it.
+    unsetEffect: "None set. Search keeps using your last index until you pick an embedder.",
+    standingEffect: "Changing it re-embeds your whole index.",
     optional: false,
     requirements: [],
   },
@@ -107,7 +118,8 @@ const ROLE_ROWS: Record<RoutableTask, RoleRow> = {
     task: "imageEmbed",
     label: CONNECTION_ROLE_LABELS.imageEmbed,
     heading: "Image embedding",
-    description: "A multimodal embedder for searching images directly. Unset falls back to the captioned-text lens.",
+    description: "A multimodal embedder for searching images directly.",
+    unsetEffect: "Nothing. No connection is set, so picture search uses the captioned-text lens.",
     optional: true,
     requirements: [NEEDS_VECTOR_INPUT],
   },
