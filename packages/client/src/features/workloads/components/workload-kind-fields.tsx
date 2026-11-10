@@ -2,13 +2,14 @@
 // create-schedule-dialog.tsx, so a scheduled run enqueues exactly what a manual run would. Generic over
 // the caller's own form-value shape.
 
+import type { WorkloadKind } from "@orb/contracts/workloads";
 import type { ReactElement } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import type { WorkloadRunValues } from "../lib/workloads-model.ts";
 import { ASSET_KIND_ITEMS, INDEX_SOURCE_ITEMS, isStartableWorkloadKind, WORKLOAD_PARAM_SHAPE_BY_KIND } from "../lib/workloads-model.ts";
 
 /** The active kind's param controls, shared byte-for-byte between the run and schedule dialogs. */
-export function WorkloadParamFields<TValues extends WorkloadRunValues & { readonly kind: string }>({
+export function WorkloadParamFields<TValues extends WorkloadRunValues & { readonly kind: WorkloadKind }>({
   form,
 }: {
   readonly form: AppFormInstance<TValues>;

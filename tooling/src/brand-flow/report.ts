@@ -220,6 +220,14 @@ export function renderReport(report: BrandFlowReport, ranked: readonly RankedSit
     "",
     ...vocabLines(report.vocabularies),
     "",
+    `## Optional fields supplied separately (${report.optionalAlternatives.length} pairs)`,
+    "",
+    "All rows and construction receipts are in brand-flow.json. Each pair's group indexes optionalGroups; its evidence indexes optionalWitnessSets, whose entries index optionalWitnesses.",
+    ...table(
+      ["Group", "Owner", "Fields"],
+      report.optionalGroups.slice(0, TOP).map((group) => [group.id, group.owner, group.fields.length]),
+    ),
+    "",
     `## Top real sites (production only; ${production(ranked).length} ranked)`,
   ];
   for (const tier of TIERS) {

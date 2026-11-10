@@ -64,6 +64,7 @@ import type {
   BoundToolExecution,
   ChatToolExecFrame,
   ChatToolOps,
+  EngineContext,
   LoadInlineReplyAssetIdsOp,
   ReserveReceiptEventsOp,
   ResolveTurnImageUrlOp,
@@ -112,6 +113,8 @@ interface RunTurnPipelineArgs {
   readonly logger: Logger;
   readonly onObservedResult?: GenerationObservationCallback | undefined;
   readonly attachmentQuality?: AttachmentQuality | undefined;
+  readonly passageCounter: EngineContext["passageCounter"];
+  readonly onFitNotice: (notice: NonNullable<Awaited<ReturnType<typeof shapeConvertFit>>["notice"]>) => void | Promise<void>;
   readonly runChatTurn: RunChatTurnOp;
   /** The turn's clock (`ChatContext.now`) — the pipeline's ONE time source, used to measure the reasoning
    *  stream window. Injected, never ambient: no `Date.now()` in a verb (determinism law). */
@@ -362,12 +365,16 @@ function reasoningClock(now: () => number): {
   };
 }
 
+function assertNever(chunk: never): never {
+  throw new Error(`Unknown turn stream chunk: ${String(chunk)}`);
+}
+
 /** Drains the role's stream: text/reasoning deltas accumulate + fan out; the out-of-band `warning` chunks
  *  collect for the engine's bus emit (D41 — the runner's honest-degrade codes, still in the infra vocabulary;
  *  the engine narrows them to chat's own); the terminal final chunk yields economics. The runner's
  *  final.content/reasoning (when given) are authoritative; accumulated deltas fall back. */
 async function reduceStream(
-  stream: AsyncIterable<{ kind: string }>,
+  stream: AsyncIterable<TurnStreamChunk>,
   args: RunTurnPipelineArgs,
 ): Promise<{
   content: string;
@@ -383,22 +390,31 @@ async function reduceStream(
   let refused = false;
   const warnings: ResolvedWarning[] = [];
   const clock = reasoningClock(args.now);
-  for await (const chunk of stream as AsyncIterable<TurnStreamChunk>) {
-    if (chunk.kind === "text") {
-      clock.onAnswerDelta();
-      text += chunk.text;
-      args.onDelta({ chatId: args.chatId, kind: "text", text: chunk.text });
-    } else if (chunk.kind === "reasoning") {
-      clock.onReasoningDelta();
-      reasoning += chunk.text;
-      args.onDelta({ chatId: args.chatId, kind: "reasoning", text: chunk.text });
-    } else if (chunk.kind === "warning") {
-      const { kind: _kind, ...warning } = chunk;
-      warnings.push(warning);
-    } else if (chunk.kind === "refusal") {
-      refused = true;
-    } else {
-      economics = chunk.economics;
+  for await (const chunk of stream) {
+    switch (chunk.kind) {
+      case "text":
+        clock.onAnswerDelta();
+        text += chunk.text;
+        args.onDelta({ chatId: args.chatId, kind: "text", text: chunk.text });
+        break;
+      case "reasoning":
+        clock.onReasoningDelta();
+        reasoning += chunk.text;
+        args.onDelta({ chatId: args.chatId, kind: "reasoning", text: chunk.text });
+        break;
+      case "warning": {
+        const { kind: _kind, ...warning } = chunk;
+        warnings.push(warning);
+        break;
+      }
+      case "refusal":
+        refused = true;
+        break;
+      case "final":
+        economics = chunk.economics;
+        break;
+      default:
+        assertNever(chunk);
     }
   }
   const content = economics?.content ?? text;
@@ -763,7 +779,11 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
     shaped,
     fitted,
     kept: fitKept,
+    fitBudget: deliveredBudget,
+    notice,
+    exceedsHardWindow,
   } = await shapeConvertFit({
+    passage: { count: args.passageCounter(args.connection), system: [assembled.static, assembled.dynamic], signal: args.signal },
     canon: assembled.sendHistory ? toShapeCanon(args.canon, ctx, args.historyMacroNames ?? EMPTY_HISTORY_MACRO_NAMES, promptHistoryEnv(ctx, args)) : [],
     shape: (canon) =>
       shapeTurn({
@@ -798,6 +818,16 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
     convert: (rows) => buildWireHistory(convertEnv, rows),
     budget,
   });
+  if (exceedsHardWindow) {
+    throw new ChatOperationError(
+      CHAT_OP_CODES.promptExceedsWindow,
+      "The system prompt and newest messages exceed this model’s context window. Shorten the prompt or use a larger window.",
+    );
+  }
+  if (notice !== null) {
+    await args.onFitNotice(notice);
+  }
+
   // The empty-row drop re-anchors the §8 breakpoint: it is a DEPTH from the end, which the fit's front-trim and
   // the marker's head row preserve for free and a mid-array drop does not (#1543 — see `shiftBreakpoint`).
   const { kept, cacheBreakpointFromEnd } = dropEmptyWireRows(fitKept, shaped.cacheBreakpointFromEnd);
@@ -862,7 +892,7 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
     droppedCount: fitted.droppedCount,
     contextBoundaryMessageId: fitted.earliestKeptMessageId,
     fitUsedTokens,
-    systemTokens: supportsManagedCompaction(args.connection) ? systemTokens : null,
+    systemTokens: supportsManagedCompaction(args.connection) ? deliveredBudget.systemTokens : null,
     fitCeilingTokens: fitCeiling(budget),
     imageDropped,
     videoDropped,

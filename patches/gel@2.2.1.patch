@@ -1,0 +1,10 @@
+diff --git a/dist/utils.d.ts b/dist/utils.d.ts
+--- a/dist/utils.d.ts
++++ b/dist/utils.d.ts
+@@ -30,5 +30,5 @@
+     H: (msg: Uint8Array) => Promise<Uint8Array>;
+     HMAC: (key: Uint8Array | CryptoKey, msg: Uint8Array) => Promise<Uint8Array>;
+ }
+-export type AuthenticatedFetch = (path: RequestInfo | URL, init?: RequestInit) => Promise<Response>;
++export type AuthenticatedFetch = (path: Parameters<typeof fetch>[0], init?: RequestInit) => Promise<Response>;
+ export declare function getAuthenticatedFetch(config: ResolvedConnectConfigReadonly, httpSCRAMAuth: HttpSCRAMAuth, basePath?: string): Promise<AuthenticatedFetch>;

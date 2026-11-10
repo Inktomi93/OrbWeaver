@@ -14,6 +14,7 @@ import {
   withStateToolExamples,
 } from "@orb/contracts/rpg";
 import type { Resolved } from "@orb/inference";
+import { supportsToolInputExamples } from "@orb/inference";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { PromptInputs, RpgRoundsDeps } from "#src/domain/rpg/contract/rounds.ts";
 import { findGameByChat } from "#src/domain/rpg/persistence/games.ts";
@@ -170,11 +171,9 @@ export function toolRoundUserPrompt(userPrompt: string, prose: ProseOverrides): 
   return `${userPrompt}\n\n${resolveProseText("rpg.extract.toolRoundUserLine", prose)}`;
 }
 
-/** The tools the dedicated cheap round sends on `conn`: `update_scene`'s worked examples ride only where the wire
- *  has a slot for them (the Anthropic wire; the openai-compatible converter drops them), so a priced payload counts
- *  no bytes the wire never sends. The folded turn and the resync send the plain tools. */
+/** Price and send the same tool examples on qualified connections. Folded turns and resync use the plain tool list. */
 export function cheapRoundTools(conn: Resolved<"chat">, tools: RpgStateRoundTool[]): RpgStateRoundTool[] {
-  return conn.api === "anthropic-messages" ? withStateToolExamples(tools) : tools;
+  return supportsToolInputExamples(conn) ? withStateToolExamples(tools) : tools;
 }
 
 /** The SEMANTIC self-ref the human player's actor always answers to — a STABLE token independent of the

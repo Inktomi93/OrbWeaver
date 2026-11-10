@@ -8,8 +8,8 @@
 
 import type { EmbedMoveRefusal } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";
-import type { EmbedTargetRefusal, RoutableTask } from "@orb/contracts/inference";
-import { servesImageVectors } from "@orb/contracts/inference";
+import type { EmbedTargetRefusal, RoutableTask, UserConnection } from "@orb/contracts/inference";
+import { EMBED_SPACE_FIELDS, servesImageVectors } from "@orb/contracts/inference";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import { connectionFingerprint } from "#primitives/embedding-generation";
 import { EmbedAuthError, EmbedUnreachableError, EmbedWidthUnmakeableError } from "../contract/errors.ts";
@@ -19,6 +19,9 @@ import type { ConnectionContext } from "../contract/service.ts";
 interface SpaceResolveCtx {
   readonly runtime: Pick<ConnectionContext["runtime"], "resolve">;
 }
+
+/** A changed credential can make a previously unresolvable encoder available. */
+export const SPACE_PATCH_FIELDS = [...EMBED_SPACE_FIELDS, "credentialId"] as const satisfies readonly (keyof UserConnection)[];
 
 /** The routable tasks whose binding defines a vector space. Both are `scope: "owner"` in `TASK_DEFS`. */
 export const VECTOR_TASKS: readonly RoutableTask[] = ["embed", "imageEmbed"];
@@ -40,7 +43,7 @@ export async function vectorResolutionOf(
   ctx: SpaceResolveCtx,
   principal: Principal,
   task: RoutableTask,
-  through: { readonly connectionId?: UserConnectionId | undefined; readonly cachedFacts?: boolean } = {},
+  through: { readonly connectionId?: UserConnectionId | undefined; readonly cachedFacts?: boolean; readonly previewConnection?: UserConnection } = {},
 ): Promise<{ readonly space: EmbedSpace; readonly servesImages: boolean } | null> {
   const { connectionId, cachedFacts = false } = through;
   // a refused resolve IS the "no space" answer this comparison
@@ -51,6 +54,7 @@ export async function vectorResolutionOf(
       principal,
       ...(connectionId === undefined ? {} : { connectionId }),
       ...(cachedFacts ? { cachedFacts } : {}),
+      ...(through.previewConnection === undefined ? {} : { previewConnection: through.previewConnection }),
     });
     if (resolved.capability.kind !== "embedding") {
       return null;

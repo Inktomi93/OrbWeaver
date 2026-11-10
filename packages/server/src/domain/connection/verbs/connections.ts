@@ -11,15 +11,7 @@
 // `declared` patch can move it without touching `model`, and an unrelated `declared` edit moves nothing.
 
 import type { ConnectionApi, ConnectionView, ModelCheck, ProviderDef, UserConnection } from "@orb/contracts/inference";
-import {
-  CONNECTION_OP_CODES,
-  connectionApiAllowed,
-  EMBED_SPACE_FIELDS,
-  isHubModelId,
-  mintConnectionLabel,
-  modelIdSchema,
-  providerDisplayLabel,
-} from "@orb/contracts/inference";
+import { CONNECTION_OP_CODES, connectionApiAllowed, isHubModelId, mintConnectionLabel, modelIdSchema, providerDisplayLabel } from "@orb/contracts/inference";
 import { requiresHubModelId } from "@orb/inference";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { ModelId, UserConnectionId, UserId } from "@orb/kit/ids";
@@ -38,7 +30,7 @@ import {
   updateOwnedConnection,
 } from "../persistence/connections.ts";
 import { requireBaseUrl, requireCredential, requireProvider } from "../substrate/admission.ts";
-import { settleEmbedSpace, VECTOR_TASKS, vectorSpacesOf } from "../substrate/embed-space.ts";
+import { SPACE_PATCH_FIELDS, settleEmbedSpace, VECTOR_TASKS, vectorSpacesOf } from "../substrate/embed-space.ts";
 import type { createOwnerWriteQueue } from "../substrate/owner-queue.ts";
 
 type OwnerWriteQueue = ReturnType<typeof createOwnerWriteQueue>;
@@ -188,7 +180,7 @@ function namedIdentityColumns(patch: UpdateConnectionParams["patch"], values: Id
 }
 
 /** The columns a patch may write, re-validated against the row's (possibly patched) provider. */
-async function validatedPatch(
+export async function validatedPatch(
   ctx: ConnectionContext,
   ownerId: UserId,
   row: UserConnection,
@@ -245,10 +237,6 @@ async function rowWrite<T>(
 ): Promise<T> {
   return (await backsVectorRole(ctx, target.ownerId, target.connectionId)) ? await ownerWrites(target.ownerId, write) : await write();
 }
-
-/** The patch fields that can change what a vector role resolves to: the space's identity fields, and the credential,
- *  which decides whether the row resolves at all. */
-const SPACE_PATCH_FIELDS = [...EMBED_SPACE_FIELDS, "credentialId"] as const satisfies readonly (keyof UpdateConnectionParams["patch"])[];
 
 /** An update that can change an embed space waits its turn in the owner's write queue, and only there asks whether a
  *  vector role reads the row: asked before, a binding of the row could land between the answer and the write, leaving

@@ -46,7 +46,10 @@ export interface DraftModelsCheckProps {
 }
 
 /** What authenticates the dial: a pasted draft key, a saved credential id, or nothing. */
-function dialAuth(keyValue: string, heldCredentialId: UserCredentialId | null): { readonly key?: string; readonly credentialId?: UserCredentialId } {
+function dialAuth(
+  keyValue: string,
+  heldCredentialId: UserCredentialId | null,
+): { readonly key: string; readonly credentialId?: never } | { readonly key?: never; readonly credentialId?: UserCredentialId } {
   const key = keyValue.trim();
   if (key !== "") {
     return { key };

@@ -210,6 +210,67 @@ function isFailureStatement(node: ts.Node): boolean {
   return ts.isPropertyAccessExpression(callee) && ts.isIdentifier(callee.expression) && callee.expression.text === "notify" && callee.name.text === "error";
 }
 
+// Bind only the parsed consumer file: a callback elsewhere with the same spelling cannot handle this rejection.
+const localCheckers = new WeakMap<ts.SourceFile, ts.TypeChecker>();
+
+function callbackBody(name: ts.Identifier): ts.ConciseBody | undefined {
+  const file = name.getSourceFile();
+  let checker = localCheckers.get(file);
+  if (checker === undefined) {
+    const options: ts.CompilerOptions = { noLib: true, noResolve: true, jsx: ts.JsxEmit.Preserve, types: [] };
+    const host = ts.createCompilerHost(options);
+    host.getSourceFile = (path): ts.SourceFile | undefined => (path === file.fileName ? file : undefined);
+    checker = ts.createProgram([file.fileName], options, host).getTypeChecker();
+    localCheckers.set(file, checker);
+  }
+  const declaration = checker.getSymbolAtLocation(name)?.valueDeclaration;
+  if (declaration === undefined || declaration.getSourceFile() !== file) {
+    return undefined;
+  }
+  if (ts.isFunctionDeclaration(declaration)) {
+    return declaration.body;
+  }
+  if (
+    !(ts.isVariableDeclaration(declaration) && ts.isVariableDeclarationList(declaration.parent)) ||
+    declaration.parent.getFirstToken()?.kind !== ts.SyntaxKind.ConstKeyword
+  ) {
+    return undefined;
+  }
+  const value = declaration.initializer;
+  return value !== undefined && (ts.isArrowFunction(value) || ts.isFunctionExpression(value)) ? value.body : undefined;
+}
+
+function handlerSaysFailure(handler: ts.Node): boolean {
+  const visited = new Set<ts.Node>();
+  const follow = (name: ts.Identifier): boolean => {
+    const body = callbackBody(name);
+    if (body === undefined || visited.has(body)) {
+      return false;
+    }
+    visited.add(body);
+    return reads(body);
+  };
+  const reads = (node: ts.Node): boolean => {
+    if (ts.isFunctionLike(node)) {
+      return false;
+    }
+    if (isFailureStatement(node) || isFailedState(node)) {
+      return true;
+    }
+    if (ts.isCallExpression(node) && ts.isIdentifier(node.expression) && follow(node.expression)) {
+      return true;
+    }
+    return ts.forEachChild(node, readsChild) === true;
+  };
+  function readsChild(child: ts.Node): true | undefined {
+    return reads(child) ? true : undefined;
+  }
+  if (ts.isIdentifier(handler)) {
+    return follow(handler);
+  }
+  return reads(ts.isArrowFunction(handler) || ts.isFunctionExpression(handler) ? handler.body : handler);
+}
+
 const MUTATE_CALLS = new Set(["mutate", "mutateAsync"]);
 
 /** The call is `handle.mutateAsync(...)` or a destructured `mutateAsync(...)` of this mutation. */
@@ -321,24 +382,18 @@ function catchSaysFailure(root: ts.Node, handles: ReadonlySet<string>): boolean 
   return anyNode(root, (node) => {
     if (ts.isCatchClause(node)) {
       const attempt = node.parent;
-      return ts.isTryStatement(attempt) && rejectsHere(attempt.tryBlock) && anyNode(node.block, isFailureStatement);
+      return ts.isTryStatement(attempt) && rejectsHere(attempt.tryBlock) && handlerSaysFailure(node.block);
     }
     const isPromiseCatch = ts.isCallExpression(node) && ts.isPropertyAccessExpression(node.expression) && node.expression.name.text === "catch";
     const reachesMutation = (receiver: ts.Expression): boolean => rejectsHere(receiver);
-    return isPromiseCatch && reachesMutation(node.expression.expression) && node.arguments.some((argument) => anyNode(argument, isFailureStatement));
+    return isPromiseCatch && reachesMutation(node.expression.expression) && node.arguments.some(handlerSaysFailure);
   });
 }
 
 /** A per-call `onError` handler on this mutation's own `mutate` call that states the failure. A handler that only tidies
  *  up (retires a card whose ask is gone) leaves the toast as the one surface. */
 function isOwnOnError(node: ts.Node, handles: ReadonlySet<string>): boolean {
-  if (
-    !(
-      ts.isPropertyAssignment(node) &&
-      node.name.getText() === "onError" &&
-      anyNode(node.initializer, (inner) => isFailureStatement(inner) || isFailedState(inner))
-    )
-  ) {
+  if (!(ts.isPropertyAssignment(node) && node.name.getText() === "onError" && handlerSaysFailure(node.initializer))) {
     return false;
   }
   for (let at: ts.Node = node.parent; !ts.isSourceFile(at); at = at.parent) {

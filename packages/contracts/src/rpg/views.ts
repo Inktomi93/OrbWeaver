@@ -25,8 +25,8 @@ import type { RpgClockTime, RpgWeather } from "./ambient.ts";
 import { rpgClockTimeSchema, rpgWeatherSchema } from "./ambient.ts";
 import type { RpgDeliveryPath, RpgFoldFallbackReason, RpgGameConfig } from "./config.ts";
 import { RPG_DELIVERY_PATHS, RPG_FOLD_FALLBACK_REASONS, rpgGameConfigSchema, rpgGameFeaturesSchema } from "./config.ts";
-import type { RpgCheckpointTrigger, RpgGameMode, RpgGameStatus } from "./enums.ts";
-import { rpgCheckpointTriggerSchema, rpgGameModeSchema, rpgGameStatusSchema } from "./enums.ts";
+import type { RpgCheckpointTrigger, RpgGameMode, RpgGameStatus, RpgQuestStatus } from "./enums.ts";
+import { rpgCheckpointTriggerSchema, rpgGameModeSchema, rpgGameStatusSchema, rpgQuestStatusSchema } from "./enums.ts";
 import type { RpgToolCallVerdict } from "./extraction.ts";
 import { rpgRecordedToolCallSchema } from "./extraction.ts";
 import { RPG_PROFILE_MAX_ATTRIBUTES, rpgStatProfileSchema } from "./profile.ts";
@@ -169,7 +169,7 @@ export interface RpgTrackerEntry {
 export interface RpgQuestView {
   readonly id: RpgQuestId;
   readonly name: string;
-  readonly status: string;
+  readonly status: RpgQuestStatus;
   readonly description: string;
   readonly objectives: readonly { readonly id: string; readonly text: string; readonly completed: boolean }[];
 }
@@ -445,7 +445,7 @@ const rpgTrackerEntrySchema = z.strictObject({
 const rpgQuestViewSchema = z.strictObject({
   id: brandedId("RpgQuestId"),
   name: z.string(),
-  status: z.string(),
+  status: rpgQuestStatusSchema,
   description: z.string(),
   objectives: z.array(z.strictObject({ id: z.string(), text: z.string(), completed: z.boolean() })).readonly(),
 }) satisfies z.ZodType<RpgQuestView>;

@@ -475,61 +475,84 @@ export interface PluginMeterNode {
   readonly max?: number | undefined;
   readonly label?: string | undefined;
 }
+const PLUGIN_SOURCE_KEYS = {
+  keyValue: ["rows", "rowsFrom"],
+  image: ["assetId", "assetFrom", "bundleAsset"],
+  select: ["options", "optionsFrom", "optionsFromHost"],
+  tabs: ["options", "optionsFrom"],
+  grid: ["tiles", "tilesFrom"],
+  tile: ["assetId", "bundleAsset"],
+} as const;
+
+type PluginOneSource<T, Keys extends keyof T> = {
+  [Selected in Keys]-?: T & { readonly [Key in Selected]-?: Exclude<T[Key], undefined> } & { readonly [Key in Exclude<Keys, Selected>]?: undefined };
+}[Keys];
+
+type PluginOptionalSource<T, Keys extends keyof T> = {
+  [Selected in Keys]-?: T & { readonly [Key in Exclude<Keys, Selected>]?: undefined };
+}[Keys];
+
 export interface PluginKeyValueRow {
   readonly key: string;
   readonly value: PluginBoundString;
 }
-export interface PluginKeyValueNode {
-  readonly kind: "keyValue";
-  /** Declared rows — spec structure, fixed at registration (values may still bind). Exactly ONE of
-   *  `rows`/`rowsFrom` (the spec-level belt enforces it — the grid's declared-vs-bound discipline). */
-  readonly rows?: readonly PluginKeyValueRow[] | undefined;
-  /** THE BOUND ARM (hub v1.3): the row set itself is PUBLISHED STATE (`{ $state: "path" }` naming an
-   *  array of `{key, value}` strings) — for a fact sheet whose CARDINALITY is data (a hub detail's
-   *  per-provider stat rows: one hub answers three, another seven, and a fixed row set would show
-   *  half a page of "—"). Resolved by {@link resolvePluginBoundKeyValueRows}: entries are UNTRUSTED
-   *  STATE, so each is schema-validated (malformed ⇒ dropped) and the count clamps to
-   *  {@link PLUGIN_ROWS_MAX} — state is never a loophole past the declared arm's bound. */
-  readonly rowsFrom?: PluginStateBinding | undefined;
-}
+export type PluginKeyValueNode = PluginOneSource<
+  {
+    readonly kind: "keyValue";
+    /** Declared rows — spec structure, fixed at registration (values may still bind). Exactly ONE of
+     *  `rows`/`rowsFrom` (the spec-level belt enforces it — the grid's declared-vs-bound discipline). */
+    readonly rows?: readonly PluginKeyValueRow[] | undefined;
+    /** THE BOUND ARM (hub v1.3): the row set itself is PUBLISHED STATE (`{ $state: "path" }` naming an
+     *  array of `{key, value}` strings) — for a fact sheet whose CARDINALITY is data (a hub detail's
+     *  per-provider stat rows: one hub answers three, another seven, and a fixed row set would show
+     *  half a page of "—"). Resolved by {@link resolvePluginBoundKeyValueRows}: entries are UNTRUSTED
+     *  STATE, so each is schema-validated (malformed ⇒ dropped) and the count clamps to
+     *  {@link PLUGIN_ROWS_MAX} — state is never a loophole past the declared arm's bound. */
+    readonly rowsFrom?: PluginStateBinding | undefined;
+  },
+  (typeof PLUGIN_SOURCE_KEYS.keyValue)[number]
+>;
 export interface PluginListNode {
   readonly kind: "list";
   readonly items: readonly PluginBoundString[];
 }
-export interface PluginImageNode {
-  readonly kind: "image";
-  /** An asset in the INSTALLER's CAS ONLY — a well-formed asset id (the `typeIdSchema` rejects a URL: the
-   *  seam-11 "no URL arm exists" wall). The FORMAT is validated here; the CAS OWNERSHIP resolve is server-side.
-   *  Exactly ONE of `assetId`/`assetFrom`/`bundleAsset` (the spec-level belt enforces it): declared for an
-   *  asset the SPEC knows, bound for one the STATE carries, bundle for one the plugin SHIPPED. */
-  readonly assetId?: AssetId | undefined;
-  /** THE BOUND ARM (#774 ARM C): resolve the asset id from published state (`{ $state: "path" }`) — for an
-   *  image whose subject is DATA, not structure (a photo plugin's detail view; a generated cover). The
-   *  resolved value is UNTRUSTED STATE: it is format-validated at resolve (a non-TypeID string paints
-   *  nothing) and then rides the SAME owner-scoped server resolve every declared `assetId` rides — a foreign
-   *  owner's id yields no ref and the node renders its placeholder, NEVER another user's blob. */
-  readonly assetFrom?: PluginStateBinding | undefined;
-  /** THE BUNDLE ARM (#820 seam 11): art the plugin SHIPPED, named by its zip path (`ui/assets/happy.png`).
-   *  It exists because the other two arms structurally cannot express it — a sprite pack's ids are minted by
-   *  the CAS at INSTALL time, so the spec cannot know one and the guest is never told one.
-   *
-   *  IT IS A NAME, NEVER A LOCATION, and that is the whole security shape. The string is format-validated
-   *  here against the SAME anchored, flat, alphanumeric-led pattern the install funnel admitted the zip entry
-   *  under ({@link PLUGIN_UI_ASSET_ENTRY_RE}), so a URL, a traversal, a second path segment and an absolute
-   *  path are all unspellable rather than filtered. At render it is looked up in the plugin's OWN
-   *  install-time path→id map (`plugin.listBundleAssets`, gated by the owner-scoped `plugins` row load) and
-   *  the resulting id then rides the SAME owner-scoped `assets.resolveBlobRefs` a declared `assetId` rides.
-   *  So a path this plugin never shipped resolves to nothing and paints the placeholder — exactly like a
-   *  foreign `assetId` — and the arm adds a name lookup, never a new way to reach bytes.
-   *
-   *  DECLARED-ONLY, deliberately: there is no `bundleAssetFrom`. A bundle's contents are fixed at install, so
-   *  a path that came from published STATE would be untrusted input entering a namespace whose whole value is
-   *  that it is spec structure. A plugin whose image is genuinely data-driven has `assetFrom` already. */
-  readonly bundleAsset?: string | undefined;
-  readonly alt?: string | undefined;
-  /** Reserve a fixed RATIO box (U5) — a token-named ratio, never a pixel. See {@link PLUGIN_IMAGE_ASPECTS}. */
-  readonly aspect?: PluginImageAspect | undefined;
-}
+export type PluginImageNode = PluginOneSource<
+  {
+    readonly kind: "image";
+    /** An asset in the INSTALLER's CAS ONLY — a well-formed asset id (the `typeIdSchema` rejects a URL: the
+     *  seam-11 "no URL arm exists" wall). The FORMAT is validated here; the CAS OWNERSHIP resolve is server-side.
+     *  Exactly ONE of `assetId`/`assetFrom`/`bundleAsset` (the spec-level belt enforces it): declared for an
+     *  asset the SPEC knows, bound for one the STATE carries, bundle for one the plugin SHIPPED. */
+    readonly assetId?: AssetId | undefined;
+    /** THE BOUND ARM (#774 ARM C): resolve the asset id from published state (`{ $state: "path" }`) — for an
+     *  image whose subject is DATA, not structure (a photo plugin's detail view; a generated cover). The
+     *  resolved value is UNTRUSTED STATE: it is format-validated at resolve (a non-TypeID string paints
+     *  nothing) and then rides the SAME owner-scoped server resolve every declared `assetId` rides — a foreign
+     *  owner's id yields no ref and the node renders its placeholder, NEVER another user's blob. */
+    readonly assetFrom?: PluginStateBinding | undefined;
+    /** THE BUNDLE ARM (#820 seam 11): art the plugin SHIPPED, named by its zip path (`ui/assets/happy.png`).
+     *  It exists because the other two arms structurally cannot express it — a sprite pack's ids are minted by
+     *  the CAS at INSTALL time, so the spec cannot know one and the guest is never told one.
+     *
+     *  IT IS A NAME, NEVER A LOCATION, and that is the whole security shape. The string is format-validated
+     *  here against the SAME anchored, flat, alphanumeric-led pattern the install funnel admitted the zip entry
+     *  under ({@link PLUGIN_UI_ASSET_ENTRY_RE}), so a URL, a traversal, a second path segment and an absolute
+     *  path are all unspellable rather than filtered. At render it is looked up in the plugin's OWN
+     *  install-time path→id map (`plugin.listBundleAssets`, gated by the owner-scoped `plugins` row load) and
+     *  the resulting id then rides the SAME owner-scoped `assets.resolveBlobRefs` a declared `assetId` rides.
+     *  So a path this plugin never shipped resolves to nothing and paints the placeholder — exactly like a
+     *  foreign `assetId` — and the arm adds a name lookup, never a new way to reach bytes.
+     *
+     *  DECLARED-ONLY, deliberately: there is no `bundleAssetFrom`. A bundle's contents are fixed at install, so
+     *  a path that came from published STATE would be untrusted input entering a namespace whose whole value is
+     *  that it is spec structure. A plugin whose image is genuinely data-driven has `assetFrom` already. */
+    readonly bundleAsset?: string | undefined;
+    readonly alt?: string | undefined;
+    /** Reserve a fixed RATIO box (U5) — a token-named ratio, never a pixel. See {@link PLUGIN_IMAGE_ASPECTS}. */
+    readonly aspect?: PluginImageAspect | undefined;
+  },
+  (typeof PLUGIN_SOURCE_KEYS.image)[number]
+>;
 export interface PluginMarkdownNode {
   readonly kind: "markdown";
   /** Rendered by the sealed Streamdown renderer (already hardened for untrusted model text). */
@@ -570,27 +593,30 @@ export interface PluginSelectOption {
 const PLUGIN_SELECT_HOST_SOURCES = ["owned-lore-books"] as const;
 export type PluginSelectHostSource = (typeof PLUGIN_SELECT_HOST_SOURCES)[number];
 
-export interface PluginSelectNode {
-  readonly kind: "select";
-  readonly name: string;
-  readonly label: string;
-  /** Declared options — spec structure, fixed at registration. Exactly ONE of `options`/`optionsFrom`
-   *  (the spec-level belt enforces it). */
-  readonly options?: readonly PluginSelectOption[] | undefined;
-  /** THE BOUND ARM (hub v1.3): the option set is PUBLISHED STATE (`{ $state: "path" }` naming an array
-   *  of `{value, label}` strings) — for a select whose vocabulary is DATA (a per-hub sort menu: the
-   *  members and their labels differ by which hub is picked, which a registration-fixed list
-   *  structurally cannot express). Resolved by {@link resolvePluginBoundSelectOptions}: entries are
-   *  UNTRUSTED STATE (validated, malformed dropped, clamped to {@link PLUGIN_ROWS_MAX}). */
-  readonly optionsFrom?: PluginStateBinding | undefined;
-  readonly optionsFromHost?: PluginSelectHostSource | undefined;
-  readonly value?: string | undefined;
-  /** Fired when the person PICKS a value (hub v1.2) — the `searchBar.actionId` shape one control over, so a
-   *  select that drives the page (a source switcher, a sort order) applies on change instead of sitting inert
-   *  until some other submit. The round-trip carries the whole collected `values` bag, new value included.
-   *  Absent = the U0 behavior: the choice is collected and travels with whatever action fires next. */
-  readonly actionId?: string | undefined;
-}
+export type PluginSelectNode = PluginOneSource<
+  {
+    readonly kind: "select";
+    readonly name: string;
+    readonly label: string;
+    /** Declared options — spec structure, fixed at registration. Exactly ONE of `options`/`optionsFrom`
+     *  (the spec-level belt enforces it). */
+    readonly options?: readonly PluginSelectOption[] | undefined;
+    /** THE BOUND ARM (hub v1.3): the option set is PUBLISHED STATE (`{ $state: "path" }` naming an array
+     *  of `{value, label}` strings) — for a select whose vocabulary is DATA (a per-hub sort menu: the
+     *  members and their labels differ by which hub is picked, which a registration-fixed list
+     *  structurally cannot express). Resolved by {@link resolvePluginBoundSelectOptions}: entries are
+     *  UNTRUSTED STATE (validated, malformed dropped, clamped to {@link PLUGIN_ROWS_MAX}). */
+    readonly optionsFrom?: PluginStateBinding | undefined;
+    readonly optionsFromHost?: PluginSelectHostSource | undefined;
+    readonly value?: string | undefined;
+    /** Fired when the person PICKS a value (hub v1.2) — the `searchBar.actionId` shape one control over, so a
+     *  select that drives the page (a source switcher, a sort order) applies on change instead of sitting inert
+     *  until some other submit. The round-trip carries the whole collected `values` bag, new value included.
+     *  Absent = the U0 behavior: the choice is collected and travels with whatever action fires next. */
+    readonly actionId?: string | undefined;
+  },
+  (typeof PLUGIN_SOURCE_KEYS.select)[number]
+>;
 export interface PluginSliderNode {
   readonly kind: "slider";
   readonly name: string;
@@ -641,22 +667,25 @@ export interface PluginIconNode {
  *
  *  The two option arms and the `actionId` are the `select`'s, verbatim (one grammar, two presentations):
  *  exactly one of `options`/`optionsFrom` (the spec-level belt), and the pick IS the act. */
-export interface PluginTabsNode {
-  readonly kind: "tabs";
-  readonly name: string;
-  /** The strip's accessible name (the a11y floor every form leaf carries) — rendered as the group's label. */
-  readonly label: string;
-  /** Declared options — spec structure, fixed at registration. */
-  readonly options?: readonly PluginSelectOption[] | undefined;
-  /** THE BOUND ARM: the option set is PUBLISHED STATE, resolved by {@link resolvePluginBoundTabOptions}
-   *  (validated, malformed dropped, clamped to {@link PLUGIN_TABS_OPTIONS_MAX}) — for a strip whose axis is
-   *  data (the hubs a plugin actually reached this session). */
-  readonly optionsFrom?: PluginStateBinding | undefined;
-  readonly value?: string | undefined;
-  /** Fired when the person picks — a strip that sat inert until some other submit would be a switcher that
-   *  does not switch. The round-trip carries the whole `values` bag with the fresh pick riding as an extra. */
-  readonly actionId?: string | undefined;
-}
+export type PluginTabsNode = PluginOneSource<
+  {
+    readonly kind: "tabs";
+    readonly name: string;
+    /** The strip's accessible name (the a11y floor every form leaf carries) — rendered as the group's label. */
+    readonly label: string;
+    /** Declared options — spec structure, fixed at registration. */
+    readonly options?: readonly PluginSelectOption[] | undefined;
+    /** THE BOUND ARM: the option set is PUBLISHED STATE, resolved by {@link resolvePluginBoundTabOptions}
+     *  (validated, malformed dropped, clamped to {@link PLUGIN_TABS_OPTIONS_MAX}) — for a strip whose axis is
+     *  data (the hubs a plugin actually reached this session). */
+    readonly optionsFrom?: PluginStateBinding | undefined;
+    readonly value?: string | undefined;
+    /** Fired when the person picks — a strip that sat inert until some other submit would be a switcher that
+     *  does not switch. The round-trip carries the whole `values` bag with the fresh pick riding as an extra. */
+    readonly actionId?: string | undefined;
+  },
+  (typeof PLUGIN_SOURCE_KEYS.tabs)[number]
+>;
 export interface PluginConfirmButtonNode {
   readonly kind: "confirmButton";
   readonly actionId: string;
@@ -679,26 +708,29 @@ export interface PluginConfirmButtonNode {
 /** ONE media-forward tile in a {@link PluginGridNode}. The `image` slot is FIRST-CLASS and the whole point: the
  *  genre's primary signal is the art, and a tile without one falls back to a shape-matched placeholder rather
  *  than collapsing into a row. `actionId` makes the tile the round-trip (a browse click), absent = display-only. */
-export interface PluginGridTile {
-  /** The tile's own key + the `values.tile` the round-trip carries, so a handler knows WHICH tile was picked. */
-  readonly id: string;
-  readonly title: PluginBoundString;
-  readonly subtitle?: PluginBoundString | undefined;
-  readonly badge?: PluginBoundString | undefined;
-  /** The cover image — an asset in the INSTALLER's CAS (the `image` node's rule, one home for the wall). */
-  readonly assetId?: AssetId | undefined;
-  /** …or an image the plugin's own bundle shipped, by zip path (#820 — the `image` node's bundle arm, same
-   *  rule and same wall). At most one of the two; neither is the shape-matched placeholder this genre wants
-   *  when a tile has no cover. */
-  readonly bundleAsset?: string | undefined;
-  readonly alt?: string | undefined;
-  /** The tile's tag/genre words (hub v1.2) — rendered as a clipped chip row under the subtitle, so a browse
-   *  grid shows the vocabulary a person filters by. Plain strings on BOTH arms (a tag set is data, not a
-   *  binding target); count-capped at {@link PLUGIN_TILE_TAGS_MAX}. */
-  readonly tags?: readonly string[] | undefined;
-  /** Names the server round-trip a click fires; the collected `values` gain `tile: <this tile's id>`. */
-  readonly actionId?: string | undefined;
-}
+export type PluginGridTile = PluginOptionalSource<
+  {
+    /** The tile's own key + the `values.tile` the round-trip carries, so a handler knows WHICH tile was picked. */
+    readonly id: string;
+    readonly title: PluginBoundString;
+    readonly subtitle?: PluginBoundString | undefined;
+    readonly badge?: PluginBoundString | undefined;
+    /** The cover image — an asset in the INSTALLER's CAS (the `image` node's rule, one home for the wall). */
+    readonly assetId?: AssetId | undefined;
+    /** …or an image the plugin's own bundle shipped, by zip path (#820 — the `image` node's bundle arm, same
+     *  rule and same wall). At most one of the two; neither is the shape-matched placeholder this genre wants
+     *  when a tile has no cover. */
+    readonly bundleAsset?: string | undefined;
+    readonly alt?: string | undefined;
+    /** The tile's tag/genre words (hub v1.2) — rendered as a clipped chip row under the subtitle, so a browse
+     *  grid shows the vocabulary a person filters by. Plain strings on BOTH arms (a tag set is data, not a
+     *  binding target); count-capped at {@link PLUGIN_TILE_TAGS_MAX}. */
+    readonly tags?: readonly string[] | undefined;
+    /** Names the server round-trip a click fires; the collected `values` gain `tile: <this tile's id>`. */
+    readonly actionId?: string | undefined;
+  },
+  (typeof PLUGIN_SOURCE_KEYS.tile)[number]
+>;
 
 /** A media-forward TILE GRID (U5) — the browse shape that replaces results-as-rows. Renders through the house
  *  `MediaTileGrid` composite in `@orb/ui` (the §4.3 shelf-exposure rule: a browse-genre gap in the shelf is what
@@ -715,31 +747,35 @@ export interface PluginGridTile {
  *     dropped) and the count is clamped to {@link PLUGIN_GRID_TILES_MAX}; covers ride the SAME owner-scoped
  *     server resolve declared tiles ride. `tileAction` names ONE round-trip for every bound tile (the clicked
  *     tile's id rides as `values.tile`) — per-tile actions are a declared-arm affair. */
-export interface PluginGridNode {
-  readonly kind: "grid";
-  readonly tiles?: readonly PluginGridTile[] | undefined;
-  readonly tilesFrom?: PluginStateBinding | undefined;
-  /** The bound arm's ONE actionId (ident grammar), fired with `values.tile = <clicked tile id>`. Absent ⇒ a
-   *  display-only bound grid. Only legal WITH `tilesFrom` (the belt refuses it beside `tiles`). */
-  readonly tileAction?: string | undefined;
-  /** The tile cover's reserved ratio — one decision for the whole grid, so tiles cannot shear. @defaultValue "portrait" */
-  readonly aspect?: PluginImageAspect | undefined;
-  /** What the grid says when it has no tiles — the three-states law reaching INTO the vocabulary. Absent ⇒ the
-   *  host's own neutral line; a plugin that names one gets a teaching empty for free. */
-  readonly empty?: string | undefined;
-  /** THE LOADING THIRD of the three-states law (#799), previously unreachable: `MediaTileGridSkeleton` has
-   *  been on the shelf since U5 and nothing could spell it, so a browse grid mid-fetch sat on stale tiles or
-   *  on its `empty` line — the state that is neither. Bound (or declared) TRUE ⇒ the grid renders the
-   *  shape- and aspect-matched skeleton INSTEAD of tiles or the empty state, so the loading arm outranks
-   *  both (a grid that is loading is not empty, and it is not showing you last query's results).
-   *
-   *  IT IS REACHABLE AT BOTH TIERS. A `scripted` guest holds its own state and flips this before it awaits.
-   *  A `static` guest reaches it through the SETTLEMENT-WALL shape its handlers already use: publish
-   *  `loading: true` synchronously, FLOAT the wire work, and republish `false` with the results — the second
-   *  `setState`'s `pluginSurfaceStateChanged` poke repaints the surface. `card-atlas`'s search/page handlers
-   *  are the worked example. */
-  readonly loading?: PluginBoundBoolean | undefined;
-}
+export type PluginGridNode = PluginOneSource<
+  {
+    readonly kind: "grid";
+    readonly tiles?: readonly PluginGridTile[] | undefined;
+    readonly tilesFrom?: PluginStateBinding | undefined;
+    /** The bound arm's ONE actionId (ident grammar), fired with `values.tile = <clicked tile id>`. Absent ⇒ a
+     *  display-only bound grid. Only legal WITH `tilesFrom` (the belt refuses it beside `tiles`). */
+    readonly tileAction?: string | undefined;
+    /** The tile cover's reserved ratio — one decision for the whole grid, so tiles cannot shear. @defaultValue "portrait" */
+    readonly aspect?: PluginImageAspect | undefined;
+    /** What the grid says when it has no tiles — the three-states law reaching INTO the vocabulary. Absent ⇒ the
+     *  host's own neutral line; a plugin that names one gets a teaching empty for free. */
+    readonly empty?: string | undefined;
+    /** THE LOADING THIRD of the three-states law (#799), previously unreachable: `MediaTileGridSkeleton` has
+     *  been on the shelf since U5 and nothing could spell it, so a browse grid mid-fetch sat on stale tiles or
+     *  on its `empty` line — the state that is neither. Bound (or declared) TRUE ⇒ the grid renders the
+     *  shape- and aspect-matched skeleton INSTEAD of tiles or the empty state, so the loading arm outranks
+     *  both (a grid that is loading is not empty, and it is not showing you last query's results).
+     *
+     *  IT IS REACHABLE AT BOTH TIERS. A `scripted` guest holds its own state and flips this before it awaits.
+     *  A `static` guest reaches it through the SETTLEMENT-WALL shape its handlers already use: publish
+     *  `loading: true` synchronously, FLOAT the wire work, and republish `false` with the results — the second
+     *  `setState`'s `pluginSurfaceStateChanged` poke repaints the surface. `card-atlas`'s search/page handlers
+     *  are the worked example. */
+    readonly loading?: PluginBoundBoolean | undefined;
+  },
+  (typeof PLUGIN_SOURCE_KEYS.grid)[number]
+> &
+  ({ readonly tiles?: undefined } | { readonly tileAction?: undefined });
 
 /** ONE tile of a BOUND grid (`tilesFrom`) as the plugin PUBLISHES it in state. The declared-tile shape minus
  *  the binding arms (state inside state would be a hall of mirrors) and minus `actionId` (the grid-level
@@ -779,14 +815,17 @@ interface PluginPageStage {
  *  format-validated at resolve (a non-TypeID string paints nothing) and then owner-scope-resolved server-side
  *  exactly like a declared id, so a foreign owner's id yields no ref and the hero renders nothing, never
  *  another user's blob. */
-export interface PluginPageHero {
-  readonly assetId?: AssetId | undefined;
-  readonly assetFrom?: PluginStateBinding | undefined;
-  /** …or the THIRD arm, the `image` node's bundle path (#820 seam 11) — hero art the plugin shipped with its
-   *  own code. Same wall, same one-home rule: see {@link PluginImageNode.bundleAsset}. */
-  readonly bundleAsset?: string | undefined;
-  readonly alt?: string | undefined;
-}
+export type PluginPageHero = PluginOneSource<
+  {
+    readonly assetId?: AssetId | undefined;
+    readonly assetFrom?: PluginStateBinding | undefined;
+    /** …or the THIRD arm, the `image` node's bundle path (#820 seam 11) — hero art the plugin shipped with its
+     *  own code. Same wall, same one-home rule: see {@link PluginImageNode.bundleAsset}. */
+    readonly bundleAsset?: string | undefined;
+    readonly alt?: string | undefined;
+  },
+  (typeof PLUGIN_SOURCE_KEYS.image)[number]
+>;
 
 /** The PAGE ARRANGEMENT (U5): declared stages, one active. `active` is a bound string so the ACTIVE STAGE is
  *  ordinary published state — which is what makes "page state persists across the switcher and stage nav" free
@@ -848,6 +887,21 @@ export type PluginSurfaceNode =
 // Strip mode: also reads plugin guest data; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 // ── The zod gate (host-side at registration + client-side before mount) ──────────────────────────────────────
 
+const PLUGIN_SOURCE_ERRORS = {
+  keyValue: "a keyValue names exactly one of `rows` (declared) or `rowsFrom` (bound)",
+  image: "an image names exactly one of `assetId` (declared), `assetFrom` (bound) or `bundleAsset` (shipped)",
+  hero: "a stage hero names exactly one of `assetId` (declared), `assetFrom` (bound) or `bundleAsset` (shipped)",
+  select: "a select names exactly one option source",
+  tabs: "a tabs names exactly one option source",
+  grid: "a grid names exactly one of `tiles` (declared) or `tilesFrom` (bound)",
+  tile: "a grid tile names at most one of `assetId` (declared) or `bundleAsset` (shipped)",
+  tileAction: "`tileAction` belongs to the bound arm — a declared tile carries its own `actionId`",
+} as const;
+
+function sourceCount<T>(node: T, keys: readonly (keyof T)[]): number {
+  return keys.filter((key) => node[key] !== undefined).length;
+}
+
 const stateBindingSchema = z.object({ $state: z.string().min(1).max(STATE_PATH_MAX) }).strip();
 
 /** A string bounded in BYTES — the unit every `*_MAX_BYTES` cap here names. `z.string().max()` measures
@@ -901,7 +955,10 @@ const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
         rows: readonlyArrayOutput(z.array(z.object({ key: labelSchema, value: boundString(LABEL_MAX) }).strip()).max(PLUGIN_ROWS_MAX)).optional(),
         rowsFrom: stateBindingSchema.optional(),
       })
-      .strip(),
+      .strip()
+      .refine((node): node is typeof node & PluginKeyValueNode => sourceCount(node, PLUGIN_SOURCE_KEYS.keyValue) === 1, {
+        error: PLUGIN_SOURCE_ERRORS.keyValue,
+      }),
     z.object({ kind: z.literal("list"), items: readonlyArrayOutput(z.array(boundString(LABEL_MAX)).max(PLUGIN_ROWS_MAX)) }).strip(),
     z
       .object({
@@ -912,7 +969,8 @@ const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
         alt: z.string().max(LABEL_MAX).optional(),
         aspect: z.enum(PLUGIN_IMAGE_ASPECTS).optional(),
       })
-      .strip(),
+      .strip()
+      .refine((node): node is typeof node & PluginImageNode => sourceCount(node, PLUGIN_SOURCE_KEYS.image) === 1, { error: PLUGIN_SOURCE_ERRORS.image }),
     z.object({ kind: z.literal("markdown"), value: boundString(PLUGIN_TEXT_MAX_BYTES) }).strip(),
     z
       .object({
@@ -946,7 +1004,8 @@ const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
         value: z.string().max(LABEL_MAX).optional(),
         actionId: identSchema.optional(),
       })
-      .strip(),
+      .strip()
+      .refine((node): node is typeof node & PluginSelectNode => sourceCount(node, PLUGIN_SOURCE_KEYS.select) === 1, { error: PLUGIN_SOURCE_ERRORS.select }),
     z
       .object({
         kind: z.literal("slider"),
@@ -996,7 +1055,8 @@ const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
                   tags: readonlyArrayOutput(z.array(z.string().max(LABEL_MAX)).max(PLUGIN_TILE_TAGS_MAX)).optional(),
                   actionId: identSchema.optional(),
                 })
-                .strip(),
+                .strip()
+                .refine((node): node is typeof node & PluginGridTile => sourceCount(node, PLUGIN_SOURCE_KEYS.tile) <= 1, { error: PLUGIN_SOURCE_ERRORS.tile }),
             )
             .max(PLUGIN_GRID_TILES_MAX),
         ).optional(),
@@ -1006,7 +1066,13 @@ const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
         empty: z.string().max(LABEL_MAX).optional(),
         loading: boundBoolean.optional(),
       })
-      .strip(),
+      .strip()
+      .refine((node): node is PluginOneSource<typeof node, (typeof PLUGIN_SOURCE_KEYS.grid)[number]> => sourceCount(node, PLUGIN_SOURCE_KEYS.grid) === 1, {
+        error: PLUGIN_SOURCE_ERRORS.grid,
+      })
+      .refine((node): node is typeof node & PluginGridNode => node.tileAction === undefined || node.tilesFrom !== undefined, {
+        error: PLUGIN_SOURCE_ERRORS.tileAction,
+      }),
     // #799 — the glyph leaf. `name` is the closed curated tuple, so an off-tuple glyph is a REGISTRATION
     // refusal rather than a runtime miss, and the client's total Record cannot be reached with a name it has
     // no component for.
@@ -1025,7 +1091,8 @@ const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
         value: z.string().max(LABEL_MAX).optional(),
         actionId: identSchema.optional(),
       })
-      .strip(),
+      .strip()
+      .refine((node): node is typeof node & PluginTabsNode => sourceCount(node, PLUGIN_SOURCE_KEYS.tabs) === 1, { error: PLUGIN_SOURCE_ERRORS.tabs }),
     z
       .object({
         kind: z.literal("masterDetail"),
@@ -1045,6 +1112,9 @@ const pluginSurfaceNodeSchema: z.ZodType<PluginSurfaceNode> = z.lazy(() =>
                       alt: z.string().max(LABEL_MAX).optional(),
                     })
                     .strip()
+                    .refine((node): node is typeof node & PluginPageHero => sourceCount(node, PLUGIN_SOURCE_KEYS.image) === 1, {
+                      error: PLUGIN_SOURCE_ERRORS.hero,
+                    })
                     .optional(),
                   body: pluginSurfaceNodeSchema,
                 })
@@ -1149,83 +1219,6 @@ function countSearchBars(node: PluginSurfaceNode): number {
   return count;
 }
 
-/** The DECLARED-vs-BOUND exactly-one-of belts (#774 ARM C), collected in one walk. They live at the SPEC
- *  level rather than on the node schemas because a `z.discriminatedUnion` member must be a plain object
- *  schema (`.refine` would make it a ZodEffects and the union refuses it) — the same reason the per-anchor
- *  belts live on the registration meta. One issue per offending node, in walk order. */
-/** Each stage hero's exactly-one-of belt (#798) — split out of {@link collectArmViolations} so that function
- *  stays under the cognitive-complexity ceiling. One issue per offending hero, in stage order. */
-function collectHeroViolations(node: Extract<PluginSurfaceNode, { kind: "masterDetail" }>, out: string[]): void {
-  for (const stage of node.stages) {
-    if (stage.hero !== undefined && countImageSourceArms(stage.hero) !== 1) {
-      out.push("a stage hero names exactly one of `assetId` (declared), `assetFrom` (bound) or `bundleAsset` (shipped)");
-    }
-  }
-}
-
-/** How many of an image source's THREE arms are present. Counting rather than the old two-arm XOR because the
- *  #820 bundle arm made "exactly one" a real arity question — an XOR pair silently readmits "all three", which
- *  is a node describing one picture three ways and a renderer picking whichever it happens to check first. */
-function countImageSourceArms(node: { readonly assetId?: unknown; readonly assetFrom?: unknown; readonly bundleAsset?: unknown }): number {
-  return [node.assetId, node.assetFrom, node.bundleAsset].filter((arm) => arm !== undefined).length;
-}
-
-/** A DECLARED grid tile's cover arms (#820). AT MOST one, not exactly one: the browse genre's own rule is that
- *  a coverless tile is a shape-matched placeholder rather than an error (see the grid schema's note), so zero
- *  is legal here where it is not on an `image` node. Split out for the same cognitive-complexity reason
- *  {@link collectHeroViolations} was. */
-function collectTileCoverViolations(node: Extract<PluginSurfaceNode, { kind: "grid" }>, out: string[]): void {
-  for (const tile of node.tiles ?? []) {
-    if (tile.assetId !== undefined && tile.bundleAsset !== undefined) {
-      out.push("a grid tile names at most one of `assetId` (declared) or `bundleAsset` (shipped)");
-    }
-  }
-}
-
-/** The `options`/`optionsFrom` exactly-one-of belt, shared by the two nodes that speak that grammar — the
- *  `select` menu and the `tabs` strip (#799). Split out for the same reason {@link collectHeroViolations}
- *  was: {@link collectArmViolations} sits at the cognitive-complexity ceiling. */
-function collectOptionArmViolation(node: Extract<PluginSurfaceNode, { kind: "select" | "tabs" }>, out: string[]): void {
-  const sources =
-    Number(node.options !== undefined) + Number(node.optionsFrom !== undefined) + Number(node.kind === "select" && node.optionsFromHost !== undefined);
-  if (sources !== 1) {
-    out.push(`a ${node.kind} names exactly one option source`);
-  }
-}
-
-function collectArmViolations(node: PluginSurfaceNode, out: string[]): void {
-  if (node.kind === "grid") {
-    if ((node.tiles === undefined) === (node.tilesFrom === undefined)) {
-      out.push("a grid names exactly one of `tiles` (declared) or `tilesFrom` (bound)");
-    }
-    if (node.tileAction !== undefined && node.tilesFrom === undefined) {
-      out.push("`tileAction` belongs to the bound arm — a declared tile carries its own `actionId`");
-    }
-    collectTileCoverViolations(node, out);
-  }
-  if (node.kind === "image" && countImageSourceArms(node) !== 1) {
-    out.push("an image names exactly one of `assetId` (declared), `assetFrom` (bound) or `bundleAsset` (shipped)");
-  }
-  // The hub-v1.3 bound arms carry the identical exactly-one-of discipline: a node naming both is two
-  // descriptions of one control, and a node naming neither renders nothing while claiming to be a control.
-  // `select` and `tabs` (#799) are ONE grammar in two presentations, so they share one belt.
-  if (node.kind === "select" || node.kind === "tabs") {
-    collectOptionArmViolation(node, out);
-  }
-  if (node.kind === "keyValue" && (node.rows === undefined) === (node.rowsFrom === undefined)) {
-    out.push("a keyValue names exactly one of `rows` (declared) or `rowsFrom` (bound)");
-  }
-  // A detail stage's hero carries the SAME exactly-one-of belt as an `image` node (#798). `pluginChildNodes`
-  // walks only stage BODIES, so the hero — which is not itself a node — is checked in `collectHeroViolations`
-  // against its parent masterDetail; without this a hero could declare both arms (or neither) and slip past.
-  if (node.kind === "masterDetail") {
-    collectHeroViolations(node, out);
-  }
-  for (const child of pluginChildNodes(node)) {
-    collectArmViolations(child, out);
-  }
-}
-
 /** The SPEC schema: a node tree plus the whole-tree global bounds (node count, nesting depth, serialized
  *  size). This is the schema a registration/mount validates against — the per-node schema alone bounds each
  *  node but never the aggregate, which is exactly the DoS surface the caps close. */
@@ -1245,12 +1238,6 @@ export const pluginSurfaceSpecSchema: z.ZodType<PluginSurfaceNode> = pluginSurfa
   // two of them on one page is a flat control stack wearing the slot's name.
   if (countSearchBars(spec) > 1) {
     ctx.addIssue({ code: "custom", message: "a surface spec may declare at most one searchBar" });
-  }
-  // The declared-vs-bound belts (#774 ARM C) — see `collectArmViolations` for why they live here.
-  const armViolations: string[] = [];
-  collectArmViolations(spec, armViolations);
-  for (const message of armViolations) {
-    ctx.addIssue({ code: "custom", message });
   }
 });
 

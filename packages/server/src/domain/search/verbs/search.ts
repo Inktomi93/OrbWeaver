@@ -3,7 +3,7 @@
 // Character-card and image scans retain their producer ownership rules.
 
 import type { MemoryRetrievalMode, SearchScope } from "@orb/contracts/search";
-import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId } from "@orb/kit/ids";
 import { blockKeyStr } from "@orb/kit/recall";
 import { applyRerank } from "@orb/kit/rerank";
 import { SEARCH_EMPTY_QUERY, SEARCH_LENS_REQUIRED, SEARCH_SCOPE_UNSUPPORTED, SearchError } from "../contract/errors.ts";
@@ -36,17 +36,21 @@ function requireOwnerScope(scope: SearchScope, over: string): void {
   }
 }
 
-interface DigestScanArgs {
-  readonly ownerId: UserId;
-  readonly chatId?: ChatId | undefined;
-  readonly speakerCharacterId?: CharacterId | undefined;
-  readonly query: string;
-  readonly topN: number;
-  readonly rerank: boolean;
+function digestScopeFilter(scope: SearchScope): { readonly chatIds?: readonly ChatId[] } | { readonly speakerCharacterId: CharacterId } {
+  switch (scope.kind) {
+    case "chat":
+      return { chatIds: [scope.chatId] };
+    case "character":
+      return { speakerCharacterId: scope.characterId };
+    case "owner":
+      return {};
+    default:
+      return assertNever(scope);
+  }
 }
 
 /** Every digest scope requires current host membership before ranking; chat and character filters only narrow that pool. */
-async function digestScan(ctx: SearchContext, args: DigestScanArgs, coverage: DigestCoverageOp): Promise<DigestSourceHit[]> {
+async function digestScan(ctx: SearchContext, args: UnifiedSearchParams, coverage: DigestCoverageOp): Promise<DigestSourceHit[]> {
   const rc = await ctx.roleClientsFor(args.ownerId);
   return await withActiveQuerySpace(ctx, args.ownerId, "embed", async (space) => {
     const embedded = await space.connection.embed(args.query, {
@@ -62,8 +66,7 @@ async function digestScan(ctx: SearchContext, args: DigestScanArgs, coverage: Di
       model: space.model,
       generationId: space.generationId,
       ownerId: args.ownerId,
-      ...(args.chatId !== undefined ? { chatIds: [args.chatId] } : {}),
-      ...(args.speakerCharacterId !== undefined ? { speakerCharacterId: args.speakerCharacterId } : {}),
+      ...digestScopeFilter(args.scope),
       limit: Math.min(args.topN * OWNER_OVERFETCH, SCOPED_POOL_K),
     });
     const ranked = pool
@@ -91,7 +94,7 @@ async function digestScan(ctx: SearchContext, args: DigestScanArgs, coverage: Di
         ),
       );
     // Instruction-aware rerankers key off the scope <Instruct>; text-only families ignore the prefix.
-    const ordered = args.rerank ? await applyRerank(`${SCOPE_INSTRUCTIONS.digests.rerank}\n${args.query}`, ranked, rc.rerank, ranked.length) : ranked;
+    const ordered = args.rerank === true ? await applyRerank(`${SCOPE_INSTRUCTIONS.digests.rerank}\n${args.query}`, ranked, rc.rerank, ranked.length) : ranked;
     const top = ordered.slice(0, args.topN);
     // The DESTINATION vocabulary (R1a), resolved for the SURVIVORS only — the same rank-then-enrich shape
     // discover uses, so an 80-row pool never pays for 60 display joins it throws away.
@@ -127,22 +130,6 @@ async function digestScan(ctx: SearchContext, args: DigestScanArgs, coverage: Di
       })),
     );
   });
-}
-
-/** Owner, chat and character scopes retain the current-host pool restriction. */
-async function dispatchDigests(ctx: SearchContext, params: UnifiedSearchParams, coverage: DigestCoverageOp): Promise<DigestSourceHit[]> {
-  const { scope, ownerId, query, topN, rerank } = params;
-  const base = { ownerId, query, topN, rerank: rerank === true };
-  switch (scope.kind) {
-    case "chat":
-      return await digestScan(ctx, { ...base, chatId: scope.chatId }, coverage);
-    case "character":
-      return await digestScan(ctx, { ...base, speakerCharacterId: scope.characterId }, coverage);
-    case "owner":
-      return await digestScan(ctx, base, coverage);
-    default:
-      return assertNever(scope);
-  }
 }
 
 export function createSearch(ctx: SearchContext, verbs: DelegateVerbs, coverage: DigestCoverageOp): SearchService["search"] {
@@ -197,7 +184,7 @@ export function createSearch(ctx: SearchContext, verbs: DelegateVerbs, coverage:
           hits: await verbs.documents({ scope: { ownerId }, ownerId, queryText: query, k: topN, minScore: 0, rerank }),
         };
       case "digests":
-        return { over, hits: await dispatchDigests(ctx, params, coverage) };
+        return { over, hits: await digestScan(ctx, params, coverage) };
       default:
         return assertNever(over);
     }

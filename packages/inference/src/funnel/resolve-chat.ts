@@ -274,8 +274,8 @@ export function templateThinkingFor(
  *
  *  Two gates, both dropping to `off` with the ordinary `sampling_knob_dropped` warning rather than greying a
  *  control the user cannot reason about (§8.7-3):
- *   1. COHERENCE (from ST, kept): carry above `off` requires reasoning to be ON for this turn — a carry knob on
- *      a non-reasoning turn has nothing to carry. An unset effort is on at the model's own default.
+ *   1. The turn can return reasoning or signed between-tools progress. Progress-only mode keeps at most the
+ *      current tool chain because its thinking object forbids prefix-mismatch recovery.
  *   2. CAPABILITY: `reasoning.replay: "none"` means the wire refuses replayed thinking outright.
  *  Then one clamp, with `carry_reasoning_downgraded`: `conversation` on a prefix-bound model runs as `tool-chain`
  *  on a route where a prefix edit could fail the turn. Inside one turn's tool loop the prefix does not change.
@@ -287,13 +287,23 @@ export function resolveCarryReasoning(params: UserIntent, capability: Generation
     return "off";
   }
   // The engine hands in the preset's raw params; the chat posture's intent is what the turn runs.
-  if (!reasoningEnabledFor(postureIntent(params, capability, "chat", []), capability, []).on) {
+  const on = reasoningEnabledFor(postureIntent(params, capability, "chat", []), capability, []).on;
+  const progressOnly = !on && reasoningOffModeOf(capability) === "between-tools";
+  if (!(on || progressOnly)) {
     warnings.push({ code: "sampling_knob_dropped", knob: "carryReasoning", message: CARRY_NEEDS_REASONING_WARNING });
     return "off";
   }
   if (reasoningReplayOf(capability) === "none") {
     warnings.push({ code: "sampling_knob_dropped", knob: "carryReasoning", message: CARRY_UNSUPPORTED_WARNING });
     return "off";
+  }
+  if (wanted === "conversation" && progressOnly) {
+    warnings.push({
+      code: "carry_reasoning_downgraded",
+      knob: "carryReasoning",
+      message: "Conversation carry was limited to the current tool chain. The between-tools mode cannot recover a signed progress block after a prefix edit.",
+    });
+    return "tool-chain";
   }
   if (wanted === "conversation" && bindsThinkingToPrefix(capability) && !survivesPrefixEdit(capability)) {
     warnings.push({ code: "carry_reasoning_downgraded", knob: "carryReasoning", message: CARRY_PREFIX_WARNING });

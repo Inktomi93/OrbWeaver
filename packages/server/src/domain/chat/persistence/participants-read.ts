@@ -14,7 +14,7 @@ import { chatParticipants, chats } from "@orb/db";
 import type { CharacterId, ChatId, ChatParticipantId, PersonaId, UserId } from "@orb/kit/ids";
 import { and, asc, eq, inArray, isNotNull, isNull, ne } from "drizzle-orm";
 import { captureParticipantRole } from "#primitives/role-data";
-import type { ParticipantRow } from "../contract/participant-row.ts";
+import type { ParticipantInsertRow, ParticipantRow } from "../contract/participant-row.ts";
 import { assertForcedCharacterMember } from "./participant.ts";
 
 /** How many rows an existence probe needs. */
@@ -81,8 +81,6 @@ export async function loadPresentVisibilityRows(
   }
   return out;
 }
-
-type ParticipantInsertRow = typeof chatParticipants.$inferInsert;
 
 /** The user ids of a room's PRESENT human seats (`kind='human'`, `leftSeq IS NULL`); a seat with no user is skipped. */
 export async function loadPresentHumanUserIds(db: Db, chatId: ChatId): Promise<UserId[]> {

@@ -1752,6 +1752,8 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
     const pipelineArgs = {
       logger: ctx.logger,
       onObservedResult: observations.onObservedResult,
+      passageCounter: ctx.passageCounter,
+      onFitNotice: (code): Promise<void> => emitQuiet(deps, { type: "warning", chatId: prep.chatId, code }),
       runChatTurn: ctx.runChatTurn,
       attachmentQuality: prep.attachmentQuality,
       now: ctx.now,
@@ -2099,6 +2101,8 @@ async function generateTextUnpersisted(ctx: EngineContext, prep: TurnPrep, onTex
     await runTurnPipeline({
       logger: ctx.logger,
       onObservedResult: observations.onObservedResult,
+      passageCounter: ctx.passageCounter,
+      onFitNotice: (code) => getLog(ctx.logger).warn({ chatId: prep.chatId, code }, "Unpersisted generation history fit"),
       runChatTurn: ctx.runChatTurn,
       attachmentQuality: prep.attachmentQuality,
       now: ctx.now,

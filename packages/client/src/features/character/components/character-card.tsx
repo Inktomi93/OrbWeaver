@@ -139,8 +139,7 @@ export function CharacterCardTile({
       // exactly that, and it keeps the reserved strip (`rowTint="row"`, or the tint stops before the
       // sibling cluster). The star's pressed state moved to `markers` on the title line, where it is in the
       // accessible tree and in flow — the same split the chats row landed (chat-summary-row.tsx).
-      actionsFloat={!bulkMode}
-      rowTint={bulkMode ? "row" : "body"}
+      {...(bulkMode ? { rowTint: "row" as const } : { actionsFloat: true as const })}
       {...(markers === undefined ? {} : { markers })}
       className="group"
       clickable={true}

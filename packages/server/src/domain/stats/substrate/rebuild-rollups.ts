@@ -9,7 +9,7 @@ import { SPEND_DELTA_FIELDS, variantUsageLegDelta } from "@orb/contracts/stats";
 import type { characterStats, dailyStats, modelStats, ownerStats } from "@orb/db";
 import type { IdSource, UserId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import { MODEL_PROVIDER_UNKNOWN, statsBucketStart, wordCount } from "@orb/kit/stats-tally";
+import { MESSAGE_TALLY_FIELDS, MODEL_PROVIDER_UNKNOWN, statsBucketStart, wordCount } from "@orb/kit/stats-tally";
 import type {
   Accums,
   BucketAccum,
@@ -262,22 +262,11 @@ function foldOwnerMessage(owner: OwnerAccum, bucket: BucketAccum, r: CanonMessag
 /** Turn/word counts split on role (ST is_user binary: userWords vs non-user assistant+system words). */
 function foldRoleCounts(owner: OwnerAccum, bucket: BucketAccum, r: CanonMessage): void {
   const words = wordCount(r.content);
-  if (r.role === "user") {
-    owner.userTurns++;
-    owner.userWords += words;
-    bucket.userTurns++;
-    bucket.userWords += words;
-    return;
-  }
-  owner.assistantWords += words;
-  bucket.assistantWords += words;
-  if (r.role === "system") {
-    owner.systemTurns++;
-    bucket.systemTurns++;
-  } else {
-    owner.assistantTurns++;
-    bucket.assistantTurns++;
-  }
+  const fields = MESSAGE_TALLY_FIELDS[r.role];
+  owner[fields.turns]++;
+  bucket[fields.turns]++;
+  owner[fields.words] += words;
+  bucket[fields.words] += words;
 }
 
 /** Per-character grain (assistant only; system/user carry no characterId). */

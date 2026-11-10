@@ -39,25 +39,21 @@ export interface EvidenceWindow {
 }
 
 /** What ONE evidence source could honestly contribute to a window. Read this before reading its entries. */
-export interface EvidenceSourceMeta {
+export type EvidenceSourceMeta = {
   /** The read this describes — `"motion().shifts"`, `"flags()"`, `"wire/captures"`, … */
   readonly source: string;
-  /** false ⇒ the entries carry no comparable timestamp; the source ships WHOLE and `reason` says why. */
-  readonly windowFilterable: boolean;
-  /** Why a non-filterable source is non-filterable. Absent on filterable sources. */
-  readonly reason?: string;
   /** The ring's capacity; `null` where the source has no cap. */
   readonly cap: number | null;
   /** How many entries the ring held before the window filter. */
   readonly held: number;
   /** How many entries the window kept (equals `held` for a non-filterable source). */
   readonly kept: number;
-  /** Wall-clock epoch ms of the oldest entry the ring still holds, when that is NEWER than the requested
-   *  start — the ring dropped part of the asked-for window. `null` ⇒ the ring reaches the whole ask. */
-  readonly truncatedAt: number | null;
   /** Entries the ring evicted since its last reset, where the ring counts them (most do not). */
   readonly dropped?: number;
-}
+} & (
+  | { readonly windowFilterable: true; readonly truncatedAt: number | null; readonly reason?: never }
+  | { readonly windowFilterable: false; readonly truncatedAt: null; readonly reason: string }
+);
 
 /** One source's contribution: the entries plus the meta that keeps them honest. */
 export interface EvidenceSlice<T> {

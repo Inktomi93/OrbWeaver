@@ -1,0 +1,45 @@
+diff --git a/core/lib/i18n/i18n.d.ts b/core/lib/i18n/i18n.d.ts
+index f74c194ef1..0304b781e5 100644
+--- a/core/lib/i18n/i18n.d.ts
++++ b/core/lib/i18n/i18n.d.ts
+@@ -1,4 +1,6 @@
+-export type LhlMessages = import("../../../shared/localization/locales").LhlMessages;
++import type {Locale} from "../../../types/lhr/settings.js";
++import type {IcuMessage} from "../../../types/lhr/i18n.js";
++export type LhlMessages = import("../../../shared/localization/locales.js").LhlMessages;
+ export namespace UIStrings {
+     let ms: string;
+     let seconds: string;
+@@ -64,18 +66,18 @@ export namespace UIStrings {
+  * @param {Array<string>=} possibleLocales
+  * @return {LH.Locale}
+  */
+-export function lookupLocale(locales?: (string | string[]) | undefined, possibleLocales?: Array<string> | undefined): LH.Locale;
++export function lookupLocale(locales?: (string | string[]) | undefined, possibleLocales?: Array<string> | undefined): Locale;
+ /**
+  * Returns a function that generates `LH.IcuMessage` objects to localize the
+  * messages in `fileStrings` and the shared `i18n.UIStrings`.
+  * @param {string} filename
+  * @param {Record<string, string>=} fileStrings
+  */
+-export function createIcuMessageFn(filename: string, fileStrings?: Record<string, string> | undefined): (message: string, values?: Record<string, string | number>) => LH.IcuMessage;
++export function createIcuMessageFn(filename: string, fileStrings?: Record<string, string> | undefined): (message: string, values?: Record<string, string | number>) => IcuMessage;
+ /**
+  * Returns true if the given value is a string or an LH.IcuMessage.
+  * @param {unknown} value
+  * @return {value is string|LH.IcuMessage}
+  */
+-export function isStringOrIcuMessage(value: unknown): value is string | LH.IcuMessage;
++export function isStringOrIcuMessage(value: unknown): value is string | IcuMessage;
+ //# sourceMappingURL=i18n.d.ts.map
+\ No newline at end of file
+diff --git a/shared/localization/locales.d.ts b/shared/localization/locales.d.ts
+index d7ea7526b8..cf16d44f62 100644
+--- a/shared/localization/locales.d.ts
++++ b/shared/localization/locales.d.ts
+@@ -1,4 +1,4 @@
+-export type Locale = import("../../types/lhr/settings").Locale;
++export type Locale = import("../../types/lhr/settings.js").Locale;
+ export type LhlMessages = Record<string, {
+     message: string;
+ }>;

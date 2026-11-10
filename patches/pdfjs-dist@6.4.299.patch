@@ -1,0 +1,152 @@
+diff --git a/types/src/display/api.d.ts b/types/src/display/api.d.ts
+--- a/types/src/display/api.d.ts
++++ b/types/src/display/api.d.ts
+@@ -1,3 +1,4 @@
++import type { CanvasGradient, CanvasPattern, CanvasRenderingContext2D, HTMLCanvasElement, HTMLDocument, ImageBitmap, Worker } from "browser-realm-types";
+ export type TypedArray = Int8Array | Uint8Array | Uint8ClampedArray | Int16Array | Uint16Array | Int32Array | Uint32Array | Float32Array | Float64Array;
+ export type RefProxy = {
+     num: number;
+diff --git a/types/src/display/display_utils.d.ts b/types/src/display/display_utils.d.ts
+--- a/types/src/display/display_utils.d.ts
++++ b/types/src/display/display_utils.d.ts
+@@ -1,3 +1,4 @@
++import type { HTMLDivElement, Path2D } from "browser-realm-types";
+ export function applyOpacity(color: any, opacity: any): any;
+ export class ColorScheme {
+     static get isDarkMode(): any;
+diff --git a/types/src/display/draw_layer.d.ts b/types/src/display/draw_layer.d.ts
+--- a/types/src/display/draw_layer.d.ts
++++ b/types/src/display/draw_layer.d.ts
+@@ -1,3 +1,4 @@
++import type { Element, HTMLDivElement, Node, SVGPathElement } from "browser-realm-types";
+ /**
+  * Configuration for {@linkcode DrawLayer}.
+  */
+diff --git a/types/src/display/editor/annotation_editor_layer.d.ts b/types/src/display/editor/annotation_editor_layer.d.ts
+--- a/types/src/display/editor/annotation_editor_layer.d.ts
++++ b/types/src/display/editor/annotation_editor_layer.d.ts
+@@ -1,3 +1,4 @@
++import type { DOMRect, HTMLDivElement, PointerEvent } from "browser-realm-types";
+ export type AnnotationEditorUIManager = import("./tools.js").AnnotationEditorUIManager;
+ export type PageViewport = import("../page_viewport.js").PageViewport;
+ export type TextAccessibilityManager = import("../../../web/text_accessibility.js").TextAccessibilityManager;
+diff --git a/types/src/display/editor/draw.d.ts b/types/src/display/editor/draw.d.ts
+--- a/types/src/display/editor/draw.d.ts
++++ b/types/src/display/editor/draw.d.ts
+@@ -1,3 +1,4 @@
++import type { HTMLElement, PointerEvent } from "browser-realm-types";
+ export type AnnotationEditorLayer = import("./annotation_editor_layer.js").AnnotationEditorLayer;
+ export type AnnotationEditorUIManager = import("./tools.js").AnnotationEditorUIManager;
+ /**
+diff --git a/types/src/display/editor/editor.d.ts b/types/src/display/editor/editor.d.ts
+--- a/types/src/display/editor/editor.d.ts
++++ b/types/src/display/editor/editor.d.ts
+@@ -1,3 +1,4 @@
++import type { DOMRect, DataTransferItem, FocusEvent, HTMLDivElement, HTMLElement, KeyboardEvent, MouseEvent, PointerEvent } from "browser-realm-types";
+ export type AnnotationEditorLayer = import("./annotation_editor_layer.js").AnnotationEditorLayer;
+ export type AnnotationEditorParameters = {
+     /**
+diff --git a/types/src/display/editor/stamp.d.ts b/types/src/display/editor/stamp.d.ts
+--- a/types/src/display/editor/stamp.d.ts
++++ b/types/src/display/editor/stamp.d.ts
+@@ -1,3 +1,4 @@
++import type { HTMLCanvasElement, ImageDataArray } from "browser-realm-types";
+ /**
+  * Basic text editor in order to create a FreeTex annotation.
+  */
+diff --git a/types/src/display/annotation_layer.d.ts b/types/src/display/annotation_layer.d.ts
+--- a/types/src/display/annotation_layer.d.ts
++++ b/types/src/display/annotation_layer.d.ts
+@@ -1,3 +1,4 @@
++import type { HTMLCanvasElement, HTMLDivElement, HTMLElement } from "browser-realm-types";
+ export type PDFPageProxy = import("./api").PDFPageProxy;
+ export type PageViewport = import("./page_viewport").PageViewport;
+ export type OptionalContentConfig = any;
+diff --git a/types/src/display/editor/color_picker.d.ts b/types/src/display/editor/color_picker.d.ts
+--- a/types/src/display/editor/color_picker.d.ts
++++ b/types/src/display/editor/color_picker.d.ts
+@@ -1,3 +1,4 @@
++import type { HTMLButtonElement, HTMLDivElement, HTMLInputElement } from "browser-realm-types";
+ /**
+  * BasicColorPicker class provides a simple color picker.
+  * It displays an input element (with type="color") that allows the user
+diff --git a/types/src/display/editor/freetext.d.ts b/types/src/display/editor/freetext.d.ts
+--- a/types/src/display/editor/freetext.d.ts
++++ b/types/src/display/editor/freetext.d.ts
+@@ -1,3 +1,4 @@
++import type { HTMLDivElement, HTMLElement } from "browser-realm-types";
+ export type AnnotationEditorLayer = import("./annotation_editor_layer.js").AnnotationEditorLayer;
+ /**
+  * Basic text editor in order to create a FreeTex annotation.
+diff --git a/types/src/display/editor/toolbar.d.ts b/types/src/display/editor/toolbar.d.ts
+--- a/types/src/display/editor/toolbar.d.ts
++++ b/types/src/display/editor/toolbar.d.ts
+@@ -1,3 +1,4 @@
++import type { HTMLDivElement } from "browser-realm-types";
+ export class EditorToolbar {
+     static #l10nRemove: null;
+     static #pointerDown(e: any): void;
+diff --git a/types/src/display/editor/tools.d.ts b/types/src/display/editor/tools.d.ts
+--- a/types/src/display/editor/tools.d.ts
++++ b/types/src/display/editor/tools.d.ts
+@@ -1,3 +1,4 @@
++import type { ClipboardEvent, DragEvent, KeyboardEvent } from "browser-realm-types";
+ export type AnnotationEditor = import("./editor.js").AnnotationEditor;
+ export type AnnotationEditorLayer = import("./annotation_editor_layer.js").AnnotationEditorLayer;
+ /**
+diff --git a/types/src/display/text_layer.d.ts b/types/src/display/text_layer.d.ts
+--- a/types/src/display/text_layer.d.ts
++++ b/types/src/display/text_layer.d.ts
+@@ -1,3 +1,4 @@
++import type { HTMLElement } from "browser-realm-types";
+ export type PageViewport = import("./page_viewport").PageViewport;
+ export type TextContent = import("./api").TextContent;
+ export type TextLayerImages = import("./text_layer_images").TextLayerImages;
+diff --git a/types/src/display/text_layer_images.d.ts b/types/src/display/text_layer_images.d.ts
+--- a/types/src/display/text_layer_images.d.ts
++++ b/types/src/display/text_layer_images.d.ts
+@@ -1,3 +1,4 @@
++import type { HTMLDivElement } from "browser-realm-types";
+ /**
+  * Used to manage paceholder <canvas> elements that, when right-clicked on,
+  * are populated with the corresponding image extracted from the PDF page.
+diff --git a/types/src/display/touch_manager.d.ts b/types/src/display/touch_manager.d.ts
+--- a/types/src/display/touch_manager.d.ts
++++ b/types/src/display/touch_manager.d.ts
+@@ -1,3 +1,4 @@
++import type { HTMLElement, Window } from "browser-realm-types";
+ export type TouchManagerOptions = {
+     container: HTMLElement | Window;
+     isPinchingDisabled?: Function | undefined;
+diff --git a/types/src/display/worker_options.d.ts b/types/src/display/worker_options.d.ts
+--- a/types/src/display/worker_options.d.ts
++++ b/types/src/display/worker_options.d.ts
+@@ -1,3 +1,4 @@
++import type { Worker } from "browser-realm-types";
+ export class GlobalWorkerOptions {
+     static #port: null;
+     static #src: string;
+diff --git a/types/src/display/xfa_layer.d.ts b/types/src/display/xfa_layer.d.ts
+--- a/types/src/display/xfa_layer.d.ts
++++ b/types/src/display/xfa_layer.d.ts
+@@ -1,3 +1,4 @@
++import type { HTMLDivElement, Text } from "browser-realm-types";
+ export type AnnotationStorage = import("./annotation_storage").AnnotationStorage;
+ export type PDFLinkService = import("../../web/pdf_link_service.js").PDFLinkService;
+ export type XfaLayerParameters = {
+diff --git a/types/web/pdf_link_service.d.ts b/types/web/pdf_link_service.d.ts
+--- a/types/web/pdf_link_service.d.ts
++++ b/types/web/pdf_link_service.d.ts
+@@ -1,3 +1,4 @@
++import type { HTMLAnchorElement } from "browser-realm-types";
+ export type EventBus = import("./event_utils").EventBus;
+ export type PDFLinkServiceOptions = {
+     /**
+diff --git a/types/web/text_accessibility.d.ts b/types/web/text_accessibility.d.ts
+--- a/types/web/text_accessibility.d.ts
++++ b/types/web/text_accessibility.d.ts
+@@ -1,3 +1,4 @@
++import type { HTMLDivElement, HTMLElement } from "browser-realm-types";
+ /**
+  * This class aims to provide some methods:
+  *  - to reorder elements in the DOM with respect to the visual order;

@@ -38,3 +38,6 @@ export interface SeedEmbeddingResult {
   readonly model: string;
   readonly vector: Float32Array<ArrayBuffer>;
 }
+
+export const SEED_VECTOR_KINDS = ["card-text", "image-raw"] as const;
+export type SeedVectorKind = (typeof SEED_VECTOR_KINDS)[number];

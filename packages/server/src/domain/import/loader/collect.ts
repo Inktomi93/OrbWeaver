@@ -54,9 +54,11 @@ interface Group {
 }
 
 /** One profile directory with its own listing, which says what each plane really is. */
+type DirectoryEntries = Awaited<ReturnType<ImportDirectory["list"]>>;
+
 interface ListedProfile {
   readonly dir: ImportDirectory;
-  readonly entries: readonly { readonly name: string; readonly kind: string }[];
+  readonly entries: DirectoryEntries;
 }
 
 interface CollectState {
@@ -124,8 +126,8 @@ function group(state: CollectState, handle: CharacterHandle): Group {
 // hostile staging dir, but a silent slice is exactly the "reports success over an incomplete import" shape
 // this collector's header forbids. The port's own failures arrive typed here too (the dir EXISTS but is
 // unreadable ⇒ `ImportInfraFailureError`, never a raw errno escaping the domain).
-async function listDir(dir: ImportDirectory, state: CollectState): Promise<{ name: string; kind: string }[]> {
-  let entries: readonly { name: string; kind: string }[];
+async function listDir(dir: ImportDirectory, state: CollectState): Promise<DirectoryEntries> {
+  let entries: DirectoryEntries;
   // The catch RE-THROWS — `rethrowInfraFailure` maps an
   // infra fault to the typed error and the trailing `throw` re-raises anything else unchanged (a missing dir
   // is the PORT's null at open, so nothing is swallowed here).

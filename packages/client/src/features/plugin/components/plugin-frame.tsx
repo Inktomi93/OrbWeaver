@@ -43,13 +43,14 @@ import type { PluginFrameCall, PluginSurfaceAnchor } from "@orb/contracts/plugin
 import { PLUGIN_FRAME_CALL_REFUSED, PLUGIN_FRAME_CALLS_IN_FLIGHT_MAX, parsePluginFrameCall, pluginFrameResultMessage } from "@orb/contracts/plugin";
 import type { ChatId, PluginId } from "@orb/kit/ids";
 import { SandboxFrame, useSandboxTheme } from "@orb/ui/sandbox-frame";
-import type { ComponentProps, ReactElement, ReactNode, Ref } from "react";
+import type { ReactElement } from "react";
 import { useRef } from "react";
 import { usePluginFrameSrc } from "#data";
 import { usePluginHostCall } from "../hooks/use-plugin-host-call.ts";
+import type { PluginShellPresentation } from "./plugin-surface-shell.tsx";
 import { PluginSurfaceShell } from "./plugin-surface-shell.tsx";
 
-export interface PluginFrameProps {
+export type PluginFrameProps = PluginShellPresentation & {
   readonly pluginId: PluginId;
   readonly anchor: PluginSurfaceAnchor;
   /** The room this frame is mounted in, when its anchor has one (a chat anchor or a transcript tool card). The
@@ -62,17 +63,6 @@ export interface PluginFrameProps {
   readonly pluginName: string;
   /** The surface's own title (`host.ui.registerFrame`'s `title`). */
   readonly title: string;
-  /** Which shell chrome to draw the frame inside — forwarded verbatim to {@link PluginSurfaceShell} (#787).
-   *  DEFAULT `panel`, the room/settings/tool-card/dialog scale. A `page`-anchored frame passes `page` so the
-   *  §9 pinned attribution band wraps it: a full-page frame is arbitrary HTML at the biggest impersonation
-   *  scale in the design, so it needs the wall the vocabulary pages get, not the smaller panel band. */
-  readonly scale?: "panel" | "page" | undefined;
-  /** The host anchor selects the shared attribution presentation. */
-  readonly chrome?: ComponentProps<typeof PluginSurfaceShell>["chrome"];
-  /** A host control for the shell's attribution line — forwarded verbatim to {@link PluginSurfaceShell}. */
-  readonly action?: ReactNode;
-  readonly collapsible?: boolean;
-  readonly disclosureRef?: Ref<HTMLButtonElement> | undefined;
   /** What to render when the frame cannot be had — DEFAULT `null`, which is the flank law (§4.9).
    *
    *  It exists because ONE anchor's law is the opposite. A `tool-card` frame sits on CANON: the call happened
@@ -81,7 +71,7 @@ export interface PluginFrameProps {
    *  default and collapses. A caller must not be able to get this wrong by omission, which is why the SAFE
    *  behaviour is the default and the loud one is opt-in. */
   readonly fallback?: ReactElement | null;
-}
+};
 
 /**
  * One plugin `frame`-tier surface INSIDE its attribution shell, or the `fallback` (default `null`).
@@ -101,11 +91,7 @@ export function PluginFrame({
   pluginName,
   title,
   fallback = null,
-  scale = "panel",
-  chrome = "panel",
-  action,
-  collapsible = false,
-  disclosureRef,
+  ...presentation
 }: PluginFrameProps): ReactElement | null {
   const inFlight = useRef(0);
   const hostCall = usePluginHostCall(pluginId, chatId);
@@ -152,18 +138,7 @@ export function PluginFrame({
     return fallback ?? null;
   }
   return (
-    <PluginSurfaceShell
-      anchor={anchor}
-      pluginId={pluginId}
-      surfaceId={surfaceId}
-      chrome={chrome}
-      action={action}
-      collapsible={collapsible}
-      disclosureRef={disclosureRef}
-      pluginName={pluginName}
-      scale={scale}
-      title={title}
-    >
+    <PluginSurfaceShell anchor={anchor} pluginId={pluginId} surfaceId={surfaceId} {...presentation} pluginName={pluginName} title={title}>
       {/* `SandboxFrame` owns the iframe, its sandbox grant (`allow-scripts`, never `allow-same-origin`), the
           height fold, and the window-identity check. `html=""` because this is a ROUTED-ONLY surface: the srcdoc
           floor is never rendered when `src` is present (and would be script-dead anyway). The frame's accessible

@@ -134,8 +134,8 @@ function sheetDismisses(layout: ShellLayout, mode: PanelMode): boolean {
 }
 
 /** A panel's own sheet dismiss: a phone sheet carries one, a desktop sheet is closed from its edge control. */
-function phoneDismiss(layout: ShellLayout, panel: PanelName): { readonly onDismiss?: () => void } {
-  return layout.mobileViewport ? { onDismiss: (): void => layout.collapsePanel(panel) } : {};
+function panelDismissal(layout: ShellLayout, panel: PanelName): { onDismiss: () => void } | { sheet: boolean } {
+  return layout.mobileViewport ? { onDismiss: () => layout.collapsePanel(panel) } : { sheet: panel === "list" ? layout.listIsSheet : layout.contextIsSheet };
 }
 
 /** The state each panel draws its edge control in, or `undefined` where it draws none: a pane the section does not
@@ -374,11 +374,10 @@ export function AppShell(): ReactElement {
                 available={layout.listAvailable}
                 header={activeDef.useListHeader === undefined ? null : <ListPaneHeaderHost key={layout.activeSection} useView={activeDef.useListHeader} />}
                 mode={layout.listMode}
-                {...phoneDismiss(layout, "list")}
+                {...panelDismissal(layout, "list")}
                 covered={layout.underSheet}
                 primaryContent={layout.listIsPrimaryContent}
                 ref={listPaneRef}
-                sheet={layout.listIsSheet}
               >
                 <RegionAnchor region="list">{listContent}</RegionAnchor>
               </PanelChrome>
@@ -445,9 +444,8 @@ export function AppShell(): ReactElement {
                 available={layout.contextAvailable}
                 header={contextPane.header}
                 mode={layout.contextMode}
-                {...phoneDismiss(layout, "context")}
+                {...panelDismissal(layout, "context")}
                 ref={contextPaneRef}
-                sheet={layout.contextIsSheet}
               >
                 {contextPane.body}
               </PanelChrome>

@@ -171,7 +171,11 @@ export interface MembraneRuntime {
    *  trust boundary); `onAction` is the guest handler HANDLE the Sandbox keeps alive keyed by a minted ref (`null`
    *  = a display-only surface). Unlike tools/transforms/events a surface needs NO external registrar: it is read
    *  directly off the resident instance by `plugin.listSurfaces` and re-entered by `plugin.invokeUiAction`. */
-  readonly collectSurface: (meta: PluginSurfaceRegistrationMeta, onAction: QuickJSHandle | null, frame?: PluginFrameBody) => void;
+  readonly collectSurface: (
+    ...args:
+      | [meta: PluginSurfaceRegistrationMeta & { tier: Exclude<PluginSurfaceRegistrationMeta["tier"], "frame"> }, onAction: QuickJSHandle | null]
+      | [meta: PluginSurfaceRegistrationMeta & { tier: "frame" }, onAction: null, frame: PluginFrameBody]
+  ) => void;
   /** Collect a UI COMMAND registration — the `collectSurface` mirror. `meta` is
    *  the ALREADY-VALIDATED serializable descriptor; `onRun` is the guest handler HANDLE the Sandbox keeps alive
    *  keyed by a minted ref, and it is NON-NULL by construction (a command with nothing to run is a dead menu
@@ -407,6 +411,10 @@ function dumpDefProps(ctx: QuickJSContext, defHandle: QuickJSHandle, names: read
 /** A def's metadata, materialized and validated, or the SOFT-refusal reason (§4.9). */
 type SurfaceMetaParse = { readonly ok: true; readonly meta: PluginSurfaceRegistrationMeta } | { readonly ok: false; readonly reason: string };
 
+function isDeclarativeTier(tier: PluginSurfaceRegistrationMeta["tier"]): tier is Exclude<PluginSurfaceRegistrationMeta["tier"], "frame"> {
+  return PLUGIN_TIER_REGISTRAR[tier] === "ui.register";
+}
+
 /**
  * Materialize `props` off a guest def, apply `overrides` (HOST-supplied fields the guest may not name), and
  * validate the result at the trust boundary. Shared by both registrars.
@@ -469,15 +477,16 @@ function newRegisterFn(ctx: QuickJSContext, runtime: MembraneRuntime): QuickJSHa
     // tier by naming it and the louder consent line would never have been shown. Read off `PLUGIN_TIER_REGISTRAR`
     // rather than re-spelled as `tier === "frame"`, so a FUTURE tier fails `tsc` at that Record instead of
     // silently defaulting into this door.
-    if (PLUGIN_TIER_REGISTRAR[parsed.meta.tier] !== "ui.register") {
+    const tier = parsed.meta.tier;
+    if (!isDeclarativeTier(tier)) {
       return refuse(`the '${parsed.meta.tier}' tier is registered through host.ui.registerFrame`);
     }
     if (ctx.typeof(onAction) === "function") {
-      runtime.collectSurface(parsed.meta, onAction);
+      runtime.collectSurface({ ...parsed.meta, tier }, onAction);
     } else {
       // No action handler — a display-only surface. Drop the non-function handle (an absent prop is `undefined`).
       onAction.dispose();
-      runtime.collectSurface(parsed.meta, null);
+      runtime.collectSurface({ ...parsed.meta, tier }, null);
     }
     return ctx.undefined;
   });
@@ -542,7 +551,7 @@ function newRegisterFrameFn(ctx: QuickJSContext, runtime: MembraneRuntime): Quic
       return refuse(body.reason);
     }
     registered += 1;
-    runtime.collectSurface(parsed.meta, null, body.body);
+    runtime.collectSurface({ ...parsed.meta, tier: "frame" }, null, body.body);
     return ctx.undefined;
   });
 }

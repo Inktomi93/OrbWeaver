@@ -50,6 +50,7 @@ import { installRealm, LogRing } from "./realm.ts";
  *  sees it as a rejected `invoke`, so a hang finally counts toward the 3-strike auto-disable. */
 const PLUGIN_HANDLER_REF = brandedId("PluginHandlerRef");
 const PLUGIN_INVOCATION_ENDED = "PluginInvocationEnded";
+const FRAME_REGISTRATION_ARITY = 3;
 
 /** The settlement-race sentinel — a unique symbol so a guest value can never impersonate the deadline arm. */
 const ENDED = Symbol("plugin-invocation-ended");
@@ -274,18 +275,20 @@ export class Sandbox implements Disposable {
               state.handlers.set(ref, handler);
               state.macros.push({ name: reg.name, description: reg.description, handler: ref });
             },
-            collectSurface: (meta, onAction, frame): void => {
-              // U7: `frame` is the frame-tier DOCUMENT BODY. It rides the registration and NOT the meta, so it
-              // stays server-side — `PluginSurfaceView extends PluginSurfaceRegistrationMeta`, and a body on the
-              // meta would ship every frame document to the client through `listSurfaces`.
-              const body = frame === undefined ? {} : { frame };
+            collectSurface: (...args): void => {
+              if (args.length === FRAME_REGISTRATION_ARITY) {
+                const [meta, , frame] = args;
+                upsertSurface(state.surfaces, { ...meta, frame });
+                return;
+              }
+              const [meta, onAction] = args;
               if (onAction === null) {
-                upsertSurface(state.surfaces, { ...meta, ...body });
+                upsertSurface(state.surfaces, meta);
                 return;
               }
               const ref = PLUGIN_HANDLER_REF.parse(`plugin-handler-${refCounter++}`);
               state.handlers.set(ref, onAction);
-              upsertSurface(state.surfaces, { ...meta, ...body, onAction: ref });
+              upsertSurface(state.surfaces, { ...meta, onAction: ref });
             },
             collectCommand: (meta, onRun): void => {
               const ref = PLUGIN_HANDLER_REF.parse(`plugin-handler-${refCounter++}`);

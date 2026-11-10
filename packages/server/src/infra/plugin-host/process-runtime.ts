@@ -77,7 +77,22 @@ const COMMAND_TIMEOUT_MS = {
 } as const;
 const CONNECT_TIMEOUT_MS = 10_000;
 
-interface Binding {
+/** A logical instance can restart from its runtime config. A snippet holds an admission until release. */
+type BindingLifetime =
+  | {
+      readonly runtimeConfig: Omit<CreateInstanceInputIn, "bridge" | "mainJs">;
+      readonly reloadMainJs?: CreateLogicalInstanceInputIn["reloadMainJs"];
+      readonly label?: string;
+      readonly releaseAdmission?: never;
+    }
+  | {
+      readonly releaseAdmission: () => void;
+      readonly runtimeConfig?: never;
+      readonly reloadMainJs?: never;
+      readonly label?: never;
+    };
+
+type Binding = BindingLifetime & {
   readonly registry: Map<string, Binding>;
   readonly timers: TimerScheduler;
   runtimeId: string | undefined;
@@ -92,7 +107,6 @@ interface Binding {
   readonly seams: PluginHostSeamDeps;
   readonly invokeArgs: Map<string, (chatHandle: string | null) => string>;
   readonly log: PluginLogView[];
-  readonly label?: string;
   chars: number;
   suppressLogs: boolean;
   crashed: Error | null;
@@ -102,12 +116,9 @@ interface Binding {
    *  event for it must not crash a binding it never touched. */
   dispatched: boolean;
   onCrash: (error: Error) => void;
-  readonly releaseAdmission?: () => void;
-  readonly runtimeConfig?: Omit<CreateInstanceInputIn, "bridge" | "mainJs">;
-  readonly reloadMainJs?: CreateLogicalInstanceInputIn["reloadMainJs"];
   catalog?: PluginInstance;
   retirement: { readonly runtimeId: string; readonly done: Promise<void> } | undefined;
-}
+};
 
 interface AuthorityTail {
   readonly timer: () => void;
@@ -139,14 +150,10 @@ interface AuthorityCommand {
   readonly value?: unknown;
 }
 
-interface NewBindingInput {
+type NewBindingInput = BindingLifetime & {
   readonly bridge: PluginBridge;
   readonly grants: readonly PluginCapability[];
-  readonly runtimeConfig?: Omit<CreateInstanceInputIn, "bridge" | "mainJs">;
-  readonly reloadMainJs?: CreateLogicalInstanceInputIn["reloadMainJs"];
-  readonly label?: string;
-  readonly releaseAdmission?: () => void;
-}
+};
 
 interface BoundInvokeArgs {
   readonly wireArgs: string | { readonly builderId: string };
@@ -831,7 +838,10 @@ function isSurfaceRegistration(value: unknown): value is PluginSurfaceRegistrati
   }
   const onAction = value["onAction"];
   const frame = value["frame"];
-  return (onAction === undefined || typeof onAction === "string") && (frame === undefined || pluginFrameBodySchema.safeParse(frame).success);
+  if (value["tier"] === "frame") {
+    return onAction === undefined && pluginFrameBodySchema.safeParse(frame).success;
+  }
+  return frame === undefined && (onAction === undefined || typeof onAction === "string");
 }
 
 function isCommandRegistration(value: unknown): value is PluginCommandRegistration {
@@ -1204,7 +1214,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
     }
   };
 
-  const newBinding = ({ bridge, grants, runtimeConfig, reloadMainJs, label, releaseAdmission }: NewBindingInput): Binding => {
+  const newBinding = ({ bridge, grants, ...lifetime }: NewBindingInput): Binding => {
     const binding: Binding = {
       registry: bindings,
       timers,
@@ -1212,7 +1222,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       lifecycleGeneration: 0,
       bridge,
       // A snippet carries no runtimeConfig and so no hosts: every snippet fetch is refused, as in-process.
-      netEgress: createPluginNetEgress(runtimeConfig?.netHosts ?? [], bridge, seams.safeFetch),
+      netEgress: createPluginNetEgress(lifetime.runtimeConfig?.netHosts ?? [], bridge, seams.safeFetch),
       grants: new Set(grants),
       authorities: new Map(),
       authorityTails: new Map(),
@@ -1226,10 +1236,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       dispatched: false,
       retirement: undefined,
       onCrash: (error) => pool.fail(binding, error),
-      ...(runtimeConfig === undefined ? {} : { runtimeConfig }),
-      ...(reloadMainJs === undefined ? {} : { reloadMainJs }),
-      ...(label === undefined ? {} : { label }),
-      ...(releaseAdmission === undefined ? {} : { releaseAdmission }),
+      ...lifetime,
     };
     ownedBindings.add(binding);
     return binding;

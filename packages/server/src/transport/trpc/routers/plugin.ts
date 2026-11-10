@@ -32,6 +32,7 @@
 // tag could never load but also a thing nothing stops the client from `eval`ing; the route's MIME + `nosniff`
 // make "this is not script" a property of the response rather than of the caller's discipline).
 
+import type { PluginSurfaceView } from "@orb/contracts/plugin";
 import {
   distributedPluginViewSchema,
   NET_HOSTS_MAX,
@@ -113,6 +114,11 @@ function decodeBundle(bundleBase64: string): Uint8Array {
 const URL_MAX = 2048;
 const bundleUrlSchema = z.url().max(URL_MAX);
 const gitCommitSchema = z.string().regex(/^[0-9a-f]{40}$/u);
+
+// Keep the recursive public surface named in the emitted router declaration.
+const listedSurfacesSchema: z.ZodType<readonly PluginSurfaceView[], readonly z.input<typeof pluginSurfaceViewSchema>[]> = strictTwin(
+  z.array(pluginSurfaceViewSchema).readonly(),
+);
 
 export const pluginRouter = t.router({
   install: authedProcedure
@@ -282,9 +288,7 @@ export const pluginRouter = t.router({
   //    service gates each on the owner-scoped `getById` load (leak-free NOT_FOUND). `invokeUiAction` is the
   //    guest-action round-trip: the mutation surfaces a throwing handler as a typed refusal (house toast) and a
   //    repeat crash rides the 3-strike auto-disable.
-  listSurfaces: authedProcedure
-    .output(strictTwin(z.array(pluginSurfaceViewSchema).readonly()))
-    .query(({ ctx }) => ctx.services.plugin.listSurfaces({ caller: ctx.auth })),
+  listSurfaces: authedProcedure.output(listedSurfacesSchema).query(({ ctx }) => ctx.services.plugin.listSurfaces({ caller: ctx.auth })),
 
   // #820 seam 11 — the bundle-shipped image map for ONE owned plugin (`ui/assets/<name>` → CAS id), read by
   // the renderer when a spec names a bundle path. It takes a FOREIGN pluginId, so it joins the PROBED sweep

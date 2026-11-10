@@ -1,0 +1,16 @@
+diff --git a/api.d.ts b/api.d.ts
+--- a/api.d.ts
++++ b/api.d.ts
+@@ -1,3 +1,4 @@
++import type { D1Database } from "@cloudflare/workers-types/index.ts";
+ import { PGlite } from '@electric-sql/pglite';
+ import { LibSQLDatabase } from 'drizzle-orm/libsql';
+ import { MySql2Database } from 'drizzle-orm/mysql2';
+diff --git a/api.d.mts b/api.d.mts
+--- a/api.d.mts
++++ b/api.d.mts
+@@ -1,3 +1,4 @@
++import type { D1Database } from "@cloudflare/workers-types/index.ts";
+ import { PGlite } from '@electric-sql/pglite';
+ import { LibSQLDatabase } from 'drizzle-orm/libsql';
+ import { MySql2Database } from 'drizzle-orm/mysql2';

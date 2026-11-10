@@ -8,32 +8,9 @@ import { sectionVariants } from "./variants.ts";
 const HEADING_TAGS = { 2: "h2", 3: "h3", 4: "h4" } as const;
 type SectionLevel = keyof typeof HEADING_TAGS;
 
-interface SectionBaseProps extends ComponentProps<"section">, Omit<VariantProps<typeof sectionVariants>, "trails"> {
-  heading?: ReactNode;
-  /**
-   * The INSTRUMENT-tier form of `heading` (UI-Density-Law.md §2.3/§4.3): the section's name in the
-   * `kicker` voice — micro caps, muted — followed by a hairline rule to the edge. This is what a read-only
-   * grouping gets INSTEAD of a border+radius+bg box (chrome diet CD1). Still a real `<h3>`, so the document
-   * outline survives. Wins over `heading` if both are passed (they are two skins of one slot).
-   */
-  kicker?: ReactNode;
-  /**
-   * How the `kicker` grouping is SPELLED. @defaultValue "stacked"
-   *
-   * `stacked` — the kicker on its own line, a hairline rule running to the edge beside it. The literal
-   * CD1 reading, and the right one wherever the group is a block of rows.
-   *
-   * `inline` — the rule becomes this section's own top edge and the kicker LEADS the group's first (and
-   * usually only) control line. Same two marks, ~17px per group cheaper; for a dense chrome rail where
-   * the group is one wrapping line of controls and a stacked kicker would spend a chip row on saying so
-   * (the characters pane's View/Filters rail, program #102 variant B). Ignored without `kicker`.
-   */
-  kickerLayout?: "stacked" | "inline";
+interface SectionBaseProps extends ComponentProps<"section">, Omit<VariantProps<typeof sectionVariants>, "trails" | "kickerLayout"> {
   /** Render a hairline under the heading (UIP-404 settings panes). @defaultValue false */
   divider?: boolean;
-  /** Short explainer surfaced as an info-icon hover tooltip beside the heading (the Field `hint` idiom,
-   *  no vertical-space cost) — for the insider terms a section's rows can't self-explain. */
-  hint?: ReactNode;
   /**
    * The heading's RANK, in either arm. @defaultValue 3
    *
@@ -47,10 +24,13 @@ interface SectionBaseProps extends ComponentProps<"section">, Omit<VariantProps<
   level?: SectionLevel;
 }
 
-/** A stacked kicker's band may carry trailing content; no other heading has a rule to trail. */
-type SectionTrailing = { kicker: ReactNode; kickerLayout?: "stacked"; trailing?: ReactNode } | { trailing?: never };
+/** A stacked kicker can carry a trailing control beside its hairline. The heading arm owns the hint. */
+type SectionHeading =
+  | { heading?: ReactNode; hint?: ReactNode; kicker?: never; kickerLayout?: never; trailing?: never }
+  | { heading?: never; hint?: never; kicker: ReactNode; kickerLayout?: "stacked"; trailing?: ReactNode }
+  | { heading?: never; hint?: never; kicker: ReactNode; kickerLayout: "inline"; trailing?: never };
 
-export type SectionProps = SectionBaseProps & SectionTrailing;
+export type SectionProps = SectionBaseProps & SectionHeading;
 
 /**
  * Block-spacing wrapper with an optional heading slot (ui-package-design §6.1).

@@ -75,10 +75,11 @@ function RailChromeEntry({
       </div>
     );
   }
-  const active = behavior.kind === "section" && behavior.sectionId === activeSection;
-  const onClick = behavior.kind === "section" ? (): void => onSelectSection(behavior.sectionId) : (): void => onOpenModal(behavior.modalId);
-  const modalIdProp = behavior.kind === "modal" ? { modalId: behavior.modalId } : {};
-  return <RailButton active={active} icon={behavior.icon} label={entry.label} mobile={mobile} {...modalIdProp} onClick={onClick} />;
+  const button =
+    behavior.kind === "section"
+      ? { active: behavior.sectionId === activeSection, onClick: (): void => onSelectSection(behavior.sectionId) }
+      : { modalId: behavior.modalId, onClick: (): void => onOpenModal(behavior.modalId) };
+  return <RailButton icon={behavior.icon} label={entry.label} mobile={mobile} {...button} />;
 }
 
 /** The BRAND cell as a real affordance. The Weave glyph was a decorative

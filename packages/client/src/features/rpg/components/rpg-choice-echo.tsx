@@ -14,6 +14,7 @@
 
 import type { RpgCyoaChoiceBehavior } from "@orb/contracts/rpg";
 import { tokenizeContent } from "@orb/kit/content";
+import type { MessageRole } from "@orb/kit/message-role";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { Stack } from "@orb/ui/layout";
@@ -37,7 +38,7 @@ const TURN_IN_FLIGHT = "Wait for the current turn to finish.";
 
 /** The newest message's choice options — `null` unless the LAST transcript message is an assistant turn
  *  carrying a parseable `:::choices` fence (the LIVE choice; anything older is settled history). */
-function liveChoices(messages: readonly { readonly role: string; readonly content: string }[]): readonly string[] | null {
+function liveChoices(messages: readonly { readonly role: MessageRole; readonly content: string }[]): readonly string[] | null {
   const last = messages.at(-1);
   if (last === undefined || last.role !== "assistant") {
     return null;

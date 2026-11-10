@@ -36,6 +36,7 @@ import type { UpsertLoreEntryInput } from "@orb/contracts/world-info";
 import type { AutomationRuleId, ChatId, MessageId, MessageVariantId, UserId, WorldBookId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
 import { projectJsonSchema } from "@orb/kit/json-schema";
+import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
 
 /** The `run_analysis` arm as stored/dispatched (the parsed schema member — one home, derived). */
@@ -409,7 +410,7 @@ export type RuleLoreWriteOutcome = { readonly ok: true } | { readonly ok: false;
  *  identity spine into a read that steers no canon. */
 export interface AnalysisWindowRow {
   readonly seq: number;
-  readonly role: string;
+  readonly role: MessageRole;
   readonly speaker: string | null;
   readonly content: string;
 }

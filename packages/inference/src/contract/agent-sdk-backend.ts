@@ -28,18 +28,16 @@ import type { NormalizeImageBytes } from "./wire.ts";
 
 /** Per-turn knobs written into the subprocess env. Boolean fields opt OUT with `=== false`, distinguishing
  *  "unset" from "explicitly off". Knob names verified against the bundled claude runtime binary. */
-export interface ClaudeRuntimeOverrides {
+export type ClaudeRuntimeOverrides = {
   maxOutputTokens?: number | undefined;
-  /** Soft cap on the runtime working set; the runtime transparently compacts/truncates to fit. */
-  maxContextTokens?: number | undefined;
   /** Default OFF; set `false` to engage (then the typed thinking/effort SDK Options drive depth). */
   disableThinking?: boolean | undefined;
-  disableAutoCompact?: boolean | undefined;
-  /** When auto-compaction fires, as a percent of the window (0-100). Only meaningful in mode "auto". */
-  autoCompactPct?: number | undefined;
   /** Power-user escape hatch for CLAUDE RUNTIME KNOBS only — allowlisted, then RESERVED stripped. */
   userEnv?: Record<string, string | null> | undefined;
-}
+} & (
+  | { disableAutoCompact: true; maxContextTokens?: never; autoCompactPct?: never }
+  | { disableAutoCompact?: false | undefined; maxContextTokens?: number | undefined; autoCompactPct?: number | undefined }
+);
 
 export interface ClaudeSdkEnvArgs {
   /** The child-env allowlist source (`deps.env.hostEnvAllowlist()`), narrowed here to the supported keys. */

@@ -1,0 +1,48 @@
+diff --git a/build/legacy/hydration-Bf0oMcwO.d.ts b/build/legacy/hydration-Bf0oMcwO.d.ts
+--- a/build/legacy/hydration-Bf0oMcwO.d.ts
++++ b/build/legacy/hydration-Bf0oMcwO.d.ts
+@@ -1397,7 +1397,7 @@ declare function shouldThrowError<T extends (...args: Array<any>) => boolean>(th
+  * @param onCancelled - Called when the signal is aborted, if `signal` was read.
+  * @returns The same object, with the `signal` property added.
+  */
+-declare function addConsumeAwareSignal<T>(object: T, getSignal: () => AbortSignal, onCancelled: VoidFunction): T & {
++declare function addConsumeAwareSignal<T>(object: T, getSignal: () => AbortSignal, onCancelled: () => void): T & {
+   signal: AbortSignal;
+ };
+ //#endregion
+diff --git a/build/legacy/hydration-C6zghADG.d.cts b/build/legacy/hydration-C6zghADG.d.cts
+--- a/build/legacy/hydration-C6zghADG.d.cts
++++ b/build/legacy/hydration-C6zghADG.d.cts
+@@ -1397,7 +1397,7 @@ declare function shouldThrowError<T extends (...args: Array<any>) => boolean>(th
+  * @param onCancelled - Called when the signal is aborted, if `signal` was read.
+  * @returns The same object, with the `signal` property added.
+  */
+-declare function addConsumeAwareSignal<T>(object: T, getSignal: () => AbortSignal, onCancelled: VoidFunction): T & {
++declare function addConsumeAwareSignal<T>(object: T, getSignal: () => AbortSignal, onCancelled: () => void): T & {
+   signal: AbortSignal;
+ };
+ //#endregion
+diff --git a/build/modern/hydration-Bf0oMcwO.d.ts b/build/modern/hydration-Bf0oMcwO.d.ts
+--- a/build/modern/hydration-Bf0oMcwO.d.ts
++++ b/build/modern/hydration-Bf0oMcwO.d.ts
+@@ -1397,7 +1397,7 @@ declare function shouldThrowError<T extends (...args: Array<any>) => boolean>(th
+  * @param onCancelled - Called when the signal is aborted, if `signal` was read.
+  * @returns The same object, with the `signal` property added.
+  */
+-declare function addConsumeAwareSignal<T>(object: T, getSignal: () => AbortSignal, onCancelled: VoidFunction): T & {
++declare function addConsumeAwareSignal<T>(object: T, getSignal: () => AbortSignal, onCancelled: () => void): T & {
+   signal: AbortSignal;
+ };
+ //#endregion
+diff --git a/build/modern/hydration-C6zghADG.d.cts b/build/modern/hydration-C6zghADG.d.cts
+--- a/build/modern/hydration-C6zghADG.d.cts
++++ b/build/modern/hydration-C6zghADG.d.cts
+@@ -1397,7 +1397,7 @@ declare function shouldThrowError<T extends (...args: Array<any>) => boolean>(th
+  * @param onCancelled - Called when the signal is aborted, if `signal` was read.
+  * @returns The same object, with the `signal` property added.
+  */
+-declare function addConsumeAwareSignal<T>(object: T, getSignal: () => AbortSignal, onCancelled: VoidFunction): T & {
++declare function addConsumeAwareSignal<T>(object: T, getSignal: () => AbortSignal, onCancelled: () => void): T & {
+   signal: AbortSignal;
+ };
+ //#endregion

@@ -6,19 +6,17 @@ import type { BlockKey } from "@orb/kit/recall";
 import type { SQL, SQLWrapper } from "drizzle-orm";
 import { and, eq, inArray, or, sql } from "drizzle-orm";
 
-interface DigestScopeParams {
+/** A producer filter narrows a digest to one POV. The speaker filter includes co-star blocks as well (D16). */
+export type DigestScopeParams = {
   readonly model: string;
   readonly generationId?: EmbedGenerationId | undefined;
   readonly chatIds?: readonly ChatId[] | undefined;
   readonly ownerId: UserId;
-  readonly scopedCharacterId?: CharacterId | undefined;
-  /** The membership-widened by-character cross-chat scope (D16): match digests this character
-   *  egocentrically produced OR co-star blocks where it was merely PRESENT (a `chat_digest_speakers`
-   *  row). Filtering on `scopedCharacterId` alone silently drops the co-star blocks. Mutually exclusive
-   *  with `scopedCharacterId` (this widens; that narrows). */
-  readonly speakerCharacterId?: CharacterId | undefined;
   readonly candidates?: readonly BlockKey[] | undefined;
-}
+} & (
+  | { readonly scopedCharacterId?: CharacterId | undefined; readonly speakerCharacterId?: never }
+  | { readonly speakerCharacterId: CharacterId; readonly scopedCharacterId?: never }
+);
 
 // Current room authority derives from membership, independent of character ownership.
 function hostScopeCond(chatId: SQLWrapper, ownerId: UserId): SQL {

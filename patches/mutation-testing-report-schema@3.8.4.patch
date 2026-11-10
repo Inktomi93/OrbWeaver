@@ -1,0 +1,87 @@
+diff --git a/dist/src/index.d.ts b/dist/src/index.d.ts
+index 00f62c8d32..bf361e9849 100644
+--- a/dist/src/index.d.ts
++++ b/dist/src/index.d.ts
+@@ -1,5 +1,5 @@
+ export type * from '../src-generated/schema.js';
+-import schema from './mutation-testing-report-schema.json';
++import schema from './mutation-testing-report-schema.json' with { type: 'json' };
+ export type SchemaType = typeof schema;
+ export { schema };
+ //# sourceMappingURL=index.d.ts.map
+\ No newline at end of file
+diff --git a/dist/src-generated/schema.d.ts b/dist/src-generated/schema.d.ts
+index 7a255ae075..450d8a0274 100644
+--- a/dist/src-generated/schema.d.ts
++++ b/dist/src-generated/schema.d.ts
+@@ -57,15 +57,15 @@ export interface MutantResult {
+     /**
+      * The test ids that covered this mutant. If a mutation testing framework doesn't measure this information, it can simply be left out.
+      */
+-    coveredBy?: string[];
++    coveredBy?: string[] | undefined;
+     /**
+      * Description of the applied mutation.
+      */
+-    description?: string;
++    description?: string | undefined;
+     /**
+      * The net time it took to test this mutant in milliseconds. This is the time measurement without overhead from the mutation testing framework.
+      */
+-    duration?: number;
++    duration?: number | undefined;
+     /**
+      * Unique id, can be used to correlate this mutant across reports.
+      */
+@@ -73,7 +73,7 @@ export interface MutantResult {
+     /**
+      * The test ids that killed this mutant. It is a best practice to "bail" on first failing test, in which case you can fill this array with that one test.
+      */
+-    killedBy?: string[];
++    killedBy?: string[] | undefined;
+     location: Location;
+     /**
+      * Category of the mutation.
+@@ -82,20 +82,20 @@ export interface MutantResult {
+     /**
+      * Actual mutation that has been applied.
+      */
+-    replacement?: string;
++    replacement?: string | undefined;
+     /**
+      * A static mutant means that it was loaded once at during initialization, this makes it slow or even impossible to test, depending on the mutation testing framework.
+      */
+-    static?: boolean;
++    static?: boolean | undefined;
+     status: MutantStatus;
+     /**
+      * The reason that this mutant has this status. In the case of a killed mutant, this should be filled with the failure message(s) of the failing tests. In case of an error mutant, this should be filled with the error message.
+      */
+-    statusReason?: string;
++    statusReason?: string | undefined;
+     /**
+      * The number of tests actually completed in order to test this mutant. Can differ from "coveredBy" because of bailing a mutant test run after first failing test.
+      */
+-    testsCompleted?: number;
++    testsCompleted?: number | undefined;
+ }
+ /**
+  * A location with start and end. Start is inclusive, end is exclusive.
+@@ -124,7 +124,7 @@ export interface TestFile {
+     /**
+      * Full source code of the test file, this can be used to display in the report.
+      */
+-    source?: string;
++    source?: string | undefined;
+     tests: TestDefinition[];
+ }
+ /**
+@@ -139,7 +139,7 @@ export interface TestDefinition {
+      * Name of the test, used to display the test.
+      */
+     name: string;
+-    location?: OpenEndLocation;
++    location?: OpenEndLocation | undefined;
+ }
+ /**
+  * A location where "end" is not required. Start is inclusive, end is exclusive.

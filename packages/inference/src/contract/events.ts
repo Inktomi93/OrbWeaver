@@ -2,8 +2,7 @@
 // only, never RP content. SDK-decoupled: status/limit fields are plain string/number, never an
 // `@anthropic-ai/claude-agent-sdk` or `@ai-sdk/*` type — each backend maps its events at its boundary.
 
-import type { AdjustedKnob } from "@orb/contracts/chat";
-import type { EffortLevel, WarningCode } from "@orb/contracts/inference";
+import type { ResolvedWarning } from "@orb/contracts/inference";
 import { z } from "zod";
 
 export const COMPACTION_TRIGGERS = ["manual", "auto"] as const;
@@ -11,15 +10,23 @@ export const compactionTriggerSchema = z.enum(COMPACTION_TRIGGERS);
 export const COMPACT_RESULTS = ["success", "failed"] as const;
 export const compactResultSchema = z.enum(COMPACT_RESULTS);
 
+const RATE_LIMIT_STATUSES = ["allowed", "allowed_warning", "rejected"] as const;
+type RateLimitStatus = (typeof RATE_LIMIT_STATUSES)[number];
+export const rateLimitStatusSchema = z.enum(RATE_LIMIT_STATUSES);
+
+const SDK_ACTIVITY_STATUSES = ["compacting", "requesting"] as const;
+export const sdkActivityStatusSchema = z.enum(SDK_ACTIVITY_STATUSES);
+const ACTIVITY_STATUSES = [...SDK_ACTIVITY_STATUSES, "unknown"] as const;
+
 /** The ban-risk canary surfaced loudly on the subscription path. */
 export interface RateLimitSnapshot {
-  readonly status: string;
+  readonly status: RateLimitStatus;
   readonly rateLimitType: string | undefined;
   readonly resetsAt: number | undefined;
   readonly utilization: number | undefined;
   readonly isUsingOverage: boolean | undefined;
   readonly surpassedThreshold: number | undefined;
-  readonly overageStatus: string | undefined;
+  readonly overageStatus: RateLimitStatus | undefined;
   readonly overageResetsAt: number | undefined;
   readonly overageDisabledReason: string | undefined;
   readonly errorCode: string | undefined;
@@ -46,7 +53,7 @@ export type ChatEvent =
   | {
       readonly kind: "rate_limit";
       readonly at: number;
-      readonly status: string;
+      readonly status: RateLimitStatus;
       readonly rateLimitType: string | undefined;
       readonly resetsAt: number | undefined;
       readonly utilization: number | undefined;
@@ -55,7 +62,7 @@ export type ChatEvent =
   | {
       readonly kind: "status";
       readonly at: number;
-      readonly status: string;
+      readonly status: (typeof ACTIVITY_STATUSES)[number];
       readonly compactResult: (typeof COMPACT_RESULTS)[number] | undefined;
     }
   | {
@@ -71,18 +78,7 @@ export type ChatEvent =
       readonly requested: string;
       readonly billed: readonly string[];
     }
-  | {
-      // The runner's honest-degrade report — a `ResolvedWarning` carried whole, never re-derived.
-      readonly kind: "warning";
-      readonly at: number;
-      readonly code: WarningCode;
-      readonly message: string;
-      readonly knob?: AdjustedKnob | undefined;
-      readonly key?: string | undefined;
-      readonly field?: string | undefined;
-      readonly appliedBudget?: number | undefined;
-      readonly appliedEffort?: EffortLevel | undefined;
-    }
+  | ({ readonly kind: "warning"; readonly at: number } & ResolvedWarning)
   | {
       // `category` is an open vocab; `explanation` is unstable human prose — display only, never parse.
       readonly kind: "refusal";

@@ -10,13 +10,15 @@
 // Defined through `#primitives/serde/lib` — envelope, decode, version gate and row loop are the spine's.
 
 import type { PortableParse } from "@orb/contracts/portability";
+import { TAG_LIBRARY_SCHEMA_KIND } from "@orb/contracts/portability";
 import type { TagView } from "@orb/contracts/tag";
 import { tagFolderTypeSchema, tagSourceSchema } from "@orb/contracts/tag";
 import { z } from "zod";
 import type { EmptyJsonHeader } from "#primitives/serde/lib";
 import { defineJsonRowsSerde, NO_JSON_HEADER, noJsonHeader } from "#primitives/serde/lib";
 
-export const TAG_LIBRARY_SCHEMA_KIND = "orb.tag-library";
+export { TAG_LIBRARY_SCHEMA_KIND } from "@orb/contracts/portability";
+
 const TAG_LIBRARY_SCHEMA_VERSION = 1;
 /** One tag as it travels in the library file: display + presentation axes only. No id (minted on
  *  import), no ownerId (stamped at write time), no createdAt (born at insert). */

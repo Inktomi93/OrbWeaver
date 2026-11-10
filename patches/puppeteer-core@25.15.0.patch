@@ -1,0 +1,11 @@
+diff --git a/lib/types.d.ts b/lib/types.d.ts
+--- a/lib/types.d.ts
++++ b/lib/types.d.ts
+@@ -5,6 +5,7 @@
+  */
+ /// <reference types="node" />
+ 
++import type { Element, HTMLElementTagNameMap, HTMLFormElement, HTMLIFrameElement, HTMLInputElement, HTMLLinkElement, HTMLScriptElement, HTMLStyleElement, Node, SVGElementTagNameMap } from "browser-realm-types";
+ import type {ChildProcess} from 'node:child_process';
+ import {PassThrough} from 'node:stream';
+ 

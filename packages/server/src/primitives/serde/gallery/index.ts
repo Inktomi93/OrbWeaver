@@ -12,6 +12,7 @@
 // foreign/absent schemaKind and drops malformed rows.
 
 import type { PortableParse } from "@orb/contracts/portability";
+import { GALLERY_SCHEMA_KIND } from "@orb/contracts/portability";
 import type { AssetId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
@@ -20,7 +21,8 @@ import { defineJsonRowsSerde, NO_JSON_HEADER, noJsonHeader } from "#primitives/s
 
 // The wire discriminant + schema version. `schemaKind` fences a gallery file from every other portable file
 // (the upload router routes on it); `schemaVersion` is the lift-walk key for a future shape change.
-export const GALLERY_SCHEMA_KIND = "orb.gallery";
+export { GALLERY_SCHEMA_KIND } from "@orb/contracts/portability";
+
 const GALLERY_SCHEMA_VERSION = 1;
 
 /** One curation row as it travels in a gallery file: the curated assetId and its content hash (null in a

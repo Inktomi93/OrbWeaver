@@ -1,7 +1,5 @@
 import { z } from "zod";
-import type { AdjustedKnob } from "../chat/adjusted-knobs.ts";
 import { ADJUSTED_KNOBS } from "../chat/adjusted-knobs.ts";
-import type { EffortLevel } from "./capability/generation.ts";
 import { effortLevelSchema } from "./capability/generation.ts";
 
 /** One code per distinct drop site a resolver/transport actually emits; clamps are silent. Every member has a
@@ -77,24 +75,7 @@ export const WARNING_CODE = {
 } as const;
 export type WarningCode = (typeof WARNING_CODE)[keyof typeof WARNING_CODE];
 
-export interface ResolvedWarning {
-  readonly code: WarningCode;
-  /** OPERATOR prose — logs and the wire-outcome ring read it; the USER never does (the chat bus admits no
-   *  unanchored free text, D16). What crosses to a user is the STRUCTURED half below, re-voiced by the client. */
-  readonly message: string;
-  /** WHICH setting a `sampling_knob_dropped`/`sampling_knob_conflict` refers to. */
-  readonly knob?: AdjustedKnob | undefined;
-  /** WHICH `extras` key a `custom_parameters_ignored` refers to. */
-  readonly key?: string | undefined;
-  /** WHICH capability field a `declared_overrides_measured` refers to. */
-  readonly field?: string | undefined;
-  /** What the provider USED after a clamp: the reasoning budget in TOKENS (`reasoning_budget_clamped`). */
-  readonly appliedBudget?: number | undefined;
-  /** What the provider USED after a clamp: the reasoning effort (`reasoning_mandatory_clamp`). */
-  readonly appliedEffort?: EffortLevel | undefined;
-}
-
-/** Strict: the connection capability read ships warnings to the client through this output parser. */
+/** The existing wire decoder accepts optional detail fields on previously produced warnings. */
 export const resolvedWarningSchema = z.strictObject({
   code: z.enum(WARNING_CODE),
   message: z.string(),
@@ -103,4 +84,38 @@ export const resolvedWarningSchema = z.strictObject({
   field: z.string().optional(),
   appliedBudget: z.number().optional(),
   appliedEffort: effortLevelSchema.optional(),
-}) satisfies z.ZodType<ResolvedWarning>;
+});
+type WarningWire = z.infer<typeof resolvedWarningSchema>;
+type WarningDetail = Exclude<keyof WarningWire, "message" | "code">;
+
+const DETAIL_CODES = {
+  knob: [WARNING_CODE.samplingKnobDropped, WARNING_CODE.samplingKnobConflict, WARNING_CODE.carryReasoningDowngraded, WARNING_CODE.sdkUnsupportedSetting],
+  key: [WARNING_CODE.customParametersIgnored],
+  field: [WARNING_CODE.declaredOverridesMeasured],
+  appliedBudget: [WARNING_CODE.reasoningBudgetClamped],
+  appliedEffort: [WARNING_CODE.reasoningMandatoryClamp],
+} as const satisfies Record<WarningDetail, readonly WarningCode[]>;
+
+type WarningShape<Code extends WarningCode, Detail extends WarningDetail> = {
+  readonly code: Code;
+  readonly message: string;
+} & Readonly<Pick<WarningWire, Detail>> & { readonly [Other in Exclude<WarningDetail, Detail>]?: never };
+
+type DetailedWarning = { [Field in WarningDetail]: WarningShape<(typeof DETAIL_CODES)[Field][number], Field> }[WarningDetail];
+
+/** A resolver emits only the structured detail its code describes. Wire readers preserve already-stored fields. */
+export type ResolvedWarning = DetailedWarning | WarningShape<Exclude<WarningCode, DetailedWarning["code"]>, never>;
+
+const codesWithDetail: ReadonlySet<WarningCode> = new Set(Object.values(DETAIL_CODES).flat());
+const plainCodes = Object.values(WARNING_CODE).filter((code): code is Exclude<WarningCode, DetailedWarning["code"]> => !codesWithDetail.has(code));
+const { message, knob, key, field, appliedBudget, appliedEffort } = resolvedWarningSchema.shape;
+
+/** A live resolver output may carry only the detail defined for its warning code. */
+export const emittedWarningSchema = z.discriminatedUnion("code", [
+  z.strictObject({ code: z.enum(plainCodes), message }),
+  z.strictObject({ code: z.enum(DETAIL_CODES.knob), message, knob }),
+  z.strictObject({ code: z.enum(DETAIL_CODES.key), message, key }),
+  z.strictObject({ code: z.enum(DETAIL_CODES.field), message, field }),
+  z.strictObject({ code: z.enum(DETAIL_CODES.appliedBudget), message, appliedBudget }),
+  z.strictObject({ code: z.enum(DETAIL_CODES.appliedEffort), message, appliedEffort }),
+]) satisfies z.ZodType<ResolvedWarning>;

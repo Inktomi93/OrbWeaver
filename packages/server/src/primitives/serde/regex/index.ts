@@ -9,11 +9,13 @@
 // buildRegexScriptFile(parseRegexScriptFile(buildRegexScriptFile(s))) deep-equals buildRegexScriptFile(s).
 
 import type { PortableParse } from "@orb/contracts/portability";
+import { REGEX_SCRIPT_SCHEMA_KIND } from "@orb/contracts/portability";
 import type { PortableRegexScript, RegexScriptCard } from "@orb/contracts/regex";
 import { portableRegexScriptSchema, regexScriptCardSchema } from "@orb/contracts/regex";
 import { decodePortableObject, defineJsonObjectSerde } from "#primitives/serde/lib";
 
-export const REGEX_SCRIPT_SCHEMA_KIND = "orb.regex-script";
+export { REGEX_SCRIPT_SCHEMA_KIND } from "@orb/contracts/portability";
+
 const REGEX_SCRIPT_SCHEMA_VERSION = 1;
 
 const regexScriptSerde = defineJsonObjectSerde<PortableRegexScript, PortableRegexScript>({

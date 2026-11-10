@@ -22,10 +22,11 @@ export function EditableTagChip({
   onManage,
 }: {
   readonly tag: Pick<TagView, "id" | "name">;
-  readonly iconOnly?: boolean;
-  readonly trigger?: (edit: () => void) => ReactElement;
   readonly onManage?: () => void;
-}): ReactElement {
+} & (
+  | { readonly iconOnly?: boolean; readonly trigger?: never }
+  | { readonly iconOnly?: false; readonly trigger: (edit: () => void) => ReactElement }
+)): ReactElement {
   const trpc = useTRPC();
   const [open, setOpen] = useState(false);
   const [navigating, setNavigating] = useState(false);

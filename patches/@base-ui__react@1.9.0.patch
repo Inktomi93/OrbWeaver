@@ -1,0 +1,288 @@
+diff --git a/combobox/portal/ComboboxPortal.d.mts b/combobox/portal/ComboboxPortal.d.mts
+index ab0a8e59cd..f5e7cf206c 100644
+--- a/combobox/portal/ComboboxPortal.d.mts
++++ b/combobox/portal/ComboboxPortal.d.mts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import * as React from 'react';
+ import type { BaseUIComponentProps } from "../../internals/types.mjs";
+ /**
+diff --git a/combobox/portal/ComboboxPortal.d.ts b/combobox/portal/ComboboxPortal.d.ts
+index 7e6c7cb972..f9bcee8ffb 100644
+--- a/combobox/portal/ComboboxPortal.d.ts
++++ b/combobox/portal/ComboboxPortal.d.ts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import * as React from 'react';
+ import type { BaseUIComponentProps } from "../../internals/types.js";
+ /**
+diff --git a/context-menu/root/ContextMenuRootContext.d.mts b/context-menu/root/ContextMenuRootContext.d.mts
+index 700c55e656..bb35706e1b 100644
+--- a/context-menu/root/ContextMenuRootContext.d.mts
++++ b/context-menu/root/ContextMenuRootContext.d.mts
+@@ -1,3 +1,4 @@
++import type { DOMRect } from "browser-realm-types";
+ import * as React from 'react';
+ import type { ContextMenuRoot } from "./ContextMenuRoot.mjs";
+ export interface ContextMenuRootContext {
+diff --git a/context-menu/root/ContextMenuRootContext.d.ts b/context-menu/root/ContextMenuRootContext.d.ts
+index db000f032f..e0b7a828cd 100644
+--- a/context-menu/root/ContextMenuRootContext.d.ts
++++ b/context-menu/root/ContextMenuRootContext.d.ts
+@@ -1,3 +1,4 @@
++import type { DOMRect } from "browser-realm-types";
+ import * as React from 'react';
+ import type { ContextMenuRoot } from "./ContextMenuRoot.js";
+ export interface ContextMenuRootContext {
+diff --git a/dialog/portal/DialogPortal.d.mts b/dialog/portal/DialogPortal.d.mts
+index 299ffafd74..235ccd202b 100644
+--- a/dialog/portal/DialogPortal.d.mts
++++ b/dialog/portal/DialogPortal.d.mts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import * as React from 'react';
+ import type { BaseUIComponentProps } from "../../internals/types.mjs";
+ /**
+diff --git a/dialog/portal/DialogPortal.d.ts b/dialog/portal/DialogPortal.d.ts
+index 0e6ff01c74..fea1a99b5a 100644
+--- a/dialog/portal/DialogPortal.d.ts
++++ b/dialog/portal/DialogPortal.d.ts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import * as React from 'react';
+ import type { BaseUIComponentProps } from "../../internals/types.js";
+ /**
+diff --git a/drawer/portal/DrawerPortal.d.mts b/drawer/portal/DrawerPortal.d.mts
+index a0b67c7862..040c4747ab 100644
+--- a/drawer/portal/DrawerPortal.d.mts
++++ b/drawer/portal/DrawerPortal.d.mts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import type * as React from 'react';
+ import type { BaseUIComponentProps } from "../../internals/types.mjs";
+ /**
+diff --git a/drawer/portal/DrawerPortal.d.ts b/drawer/portal/DrawerPortal.d.ts
+index e30194f7cb..057532a503 100644
+--- a/drawer/portal/DrawerPortal.d.ts
++++ b/drawer/portal/DrawerPortal.d.ts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import type * as React from 'react';
+ import type { BaseUIComponentProps } from "../../internals/types.js";
+ /**
+diff --git a/field/error/FieldError.d.mts b/field/error/FieldError.d.mts
+index 86fec68e33..8a58a2db9c 100644
+--- a/field/error/FieldError.d.mts
++++ b/field/error/FieldError.d.mts
+@@ -1,3 +1,4 @@
++import type { ValidityState } from "browser-realm-types";
+ import * as React from 'react';
+ import type { FieldRootState } from "../root/FieldRoot.mjs";
+ import type { BaseUIComponentProps } from "../../internals/types.mjs";
+diff --git a/field/error/FieldError.d.ts b/field/error/FieldError.d.ts
+index 0f019d85ef..cfd5878709 100644
+--- a/field/error/FieldError.d.ts
++++ b/field/error/FieldError.d.ts
+@@ -1,3 +1,4 @@
++import type { ValidityState } from "browser-realm-types";
+ import * as React from 'react';
+ import type { FieldRootState } from "../root/FieldRoot.js";
+ import type { BaseUIComponentProps } from "../../internals/types.js";
+diff --git a/floating-ui-react/components/FloatingPortal.d.mts b/floating-ui-react/components/FloatingPortal.d.mts
+index 1d31c8f01c..c64cd20cc0 100644
+--- a/floating-ui-react/components/FloatingPortal.d.mts
++++ b/floating-ui-react/components/FloatingPortal.d.mts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import * as React from 'react';
+ import type { UseRenderElementComponentProps } from "../../internals/useRenderElement.mjs";
+ import type { BaseUIComponentProps } from "../../internals/types.mjs";
+diff --git a/floating-ui-react/components/FloatingPortal.d.ts b/floating-ui-react/components/FloatingPortal.d.ts
+index f3c75a632c..d514efe683 100644
+--- a/floating-ui-react/components/FloatingPortal.d.ts
++++ b/floating-ui-react/components/FloatingPortal.d.ts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import * as React from 'react';
+ import type { UseRenderElementComponentProps } from "../../internals/useRenderElement.js";
+ import type { BaseUIComponentProps } from "../../internals/types.js";
+diff --git a/floating-ui-react/hooks/useHoverShared.d.mts b/floating-ui-react/hooks/useHoverShared.d.mts
+index f8f7163f3d..8a30782671 100644
+--- a/floating-ui-react/hooks/useHoverShared.d.mts
++++ b/floating-ui-react/hooks/useHoverShared.d.mts
+@@ -1,3 +1,4 @@
++import type { PointerEvent } from "browser-realm-types";
+ import type { ExtendedElements, FloatingTreeType, Placement } from "../types.mjs";
+ export { isTargetInsideEnabledTrigger as isInsideEnabledTrigger } from "../utils/element.mjs";
+ export interface HandleCloseOptions {
+diff --git a/floating-ui-react/hooks/useHoverShared.d.ts b/floating-ui-react/hooks/useHoverShared.d.ts
+index 1e437c9701..75df301edc 100644
+--- a/floating-ui-react/hooks/useHoverShared.d.ts
++++ b/floating-ui-react/hooks/useHoverShared.d.ts
+@@ -1,3 +1,4 @@
++import type { PointerEvent } from "browser-realm-types";
+ import type { ExtendedElements, FloatingTreeType, Placement } from "../types.js";
+ export { isTargetInsideEnabledTrigger as isInsideEnabledTrigger } from "../utils/element.js";
+ export interface HandleCloseOptions {
+diff --git a/floating-ui-react/utils/composite.d.mts b/floating-ui-react/utils/composite.d.mts
+index 4e61cde3a2..614af3d2f1 100644
+--- a/floating-ui-react/utils/composite.d.mts
++++ b/floating-ui-react/utils/composite.d.mts
+@@ -1,3 +1,4 @@
++import type { CSSStyleDeclaration } from "browser-realm-types";
+ import type { Dimensions } from "../types.mjs";
+ export type DisabledIndices = ReadonlyArray<number> | ((index: number) => boolean);
+ export declare function isDifferentGridRow(index: number, cols: number, prevRow: number): boolean;
+diff --git a/floating-ui-react/utils/composite.d.ts b/floating-ui-react/utils/composite.d.ts
+index 0ef2882d9b..a7a04d3bdd 100644
+--- a/floating-ui-react/utils/composite.d.ts
++++ b/floating-ui-react/utils/composite.d.ts
+@@ -1,3 +1,4 @@
++import type { CSSStyleDeclaration } from "browser-realm-types";
+ import type { Dimensions } from "../types.js";
+ export type DisabledIndices = ReadonlyArray<number> | ((index: number) => boolean);
+ export declare function isDifferentGridRow(index: number, cols: number, prevRow: number): boolean;
+diff --git a/floating-ui-react/utils/element.d.mts b/floating-ui-react/utils/element.d.mts
+index 476bf5ad6f..9de44c5547 100644
+--- a/floating-ui-react/utils/element.d.mts
++++ b/floating-ui-react/utils/element.d.mts
+@@ -1,3 +1,4 @@
++import type { Node } from "browser-realm-types";
+ import { activeElement, closest, contains, getTarget } from '@base-ui/utils/shadowDom';
+ import type { PopupTriggerMap } from "../../utils/popups/index.mjs";
+ export { activeElement, closest, contains, getTarget };
+diff --git a/floating-ui-react/utils/element.d.ts b/floating-ui-react/utils/element.d.ts
+index 62f5560515..1b5e84b473 100644
+--- a/floating-ui-react/utils/element.d.ts
++++ b/floating-ui-react/utils/element.d.ts
+@@ -1,3 +1,4 @@
++import type { Node } from "browser-realm-types";
+ import { activeElement, closest, contains, getTarget } from '@base-ui/utils/shadowDom';
+ import type { PopupTriggerMap } from "../../utils/popups/index.js";
+ export { activeElement, closest, contains, getTarget };
+diff --git a/menu/portal/MenuPortal.d.mts b/menu/portal/MenuPortal.d.mts
+index 186a81544f..5e428c511a 100644
+--- a/menu/portal/MenuPortal.d.mts
++++ b/menu/portal/MenuPortal.d.mts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import * as React from 'react';
+ import type { BaseUIComponentProps } from "../../internals/types.mjs";
+ /**
+diff --git a/menu/portal/MenuPortal.d.ts b/menu/portal/MenuPortal.d.ts
+index e88f9f2fe3..5ce9b72eb8 100644
+--- a/menu/portal/MenuPortal.d.ts
++++ b/menu/portal/MenuPortal.d.ts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import * as React from 'react';
+ import type { BaseUIComponentProps } from "../../internals/types.js";
+ /**
+diff --git a/navigation-menu/portal/NavigationMenuPortal.d.mts b/navigation-menu/portal/NavigationMenuPortal.d.mts
+index ba8ef9a0b9..03020b23a7 100644
+--- a/navigation-menu/portal/NavigationMenuPortal.d.mts
++++ b/navigation-menu/portal/NavigationMenuPortal.d.mts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import * as React from 'react';
+ import type { BaseUIComponentProps } from "../../internals/types.mjs";
+ /**
+diff --git a/navigation-menu/portal/NavigationMenuPortal.d.ts b/navigation-menu/portal/NavigationMenuPortal.d.ts
+index b28303718b..e098be6a41 100644
+--- a/navigation-menu/portal/NavigationMenuPortal.d.ts
++++ b/navigation-menu/portal/NavigationMenuPortal.d.ts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import * as React from 'react';
+ import type { BaseUIComponentProps } from "../../internals/types.js";
+ /**
+diff --git a/popover/portal/PopoverPortal.d.mts b/popover/portal/PopoverPortal.d.mts
+index 42e4d5c95c..ba3025e03b 100644
+--- a/popover/portal/PopoverPortal.d.mts
++++ b/popover/portal/PopoverPortal.d.mts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import * as React from 'react';
+ import type { BaseUIComponentProps } from "../../internals/types.mjs";
+ /**
+diff --git a/popover/portal/PopoverPortal.d.ts b/popover/portal/PopoverPortal.d.ts
+index 8ffa60e293..7785413419 100644
+--- a/popover/portal/PopoverPortal.d.ts
++++ b/popover/portal/PopoverPortal.d.ts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import * as React from 'react';
+ import type { BaseUIComponentProps } from "../../internals/types.js";
+ /**
+diff --git a/preview-card/portal/PreviewCardPortal.d.mts b/preview-card/portal/PreviewCardPortal.d.mts
+index ab85460026..3bf7fcaa19 100644
+--- a/preview-card/portal/PreviewCardPortal.d.mts
++++ b/preview-card/portal/PreviewCardPortal.d.mts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import * as React from 'react';
+ import type { BaseUIComponentProps } from "../../internals/types.mjs";
+ /**
+diff --git a/preview-card/portal/PreviewCardPortal.d.ts b/preview-card/portal/PreviewCardPortal.d.ts
+index 05146177ba..ec3ac691e0 100644
+--- a/preview-card/portal/PreviewCardPortal.d.ts
++++ b/preview-card/portal/PreviewCardPortal.d.ts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import * as React from 'react';
+ import type { BaseUIComponentProps } from "../../internals/types.js";
+ /**
+diff --git a/select/portal/SelectPortal.d.mts b/select/portal/SelectPortal.d.mts
+index 2c883cc0f4..672e3ad74f 100644
+--- a/select/portal/SelectPortal.d.mts
++++ b/select/portal/SelectPortal.d.mts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import * as React from 'react';
+ import type { BaseUIComponentProps } from "../../internals/types.mjs";
+ /**
+diff --git a/select/portal/SelectPortal.d.ts b/select/portal/SelectPortal.d.ts
+index 06dbf75788..458036bd17 100644
+--- a/select/portal/SelectPortal.d.ts
++++ b/select/portal/SelectPortal.d.ts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import * as React from 'react';
+ import type { BaseUIComponentProps } from "../../internals/types.js";
+ /**
+diff --git a/toast/portal/ToastPortal.d.mts b/toast/portal/ToastPortal.d.mts
+index 205c93cb37..d82f776548 100644
+--- a/toast/portal/ToastPortal.d.mts
++++ b/toast/portal/ToastPortal.d.mts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import * as React from 'react';
+ import type { BaseUIComponentProps } from "../../internals/types.mjs";
+ /**
+diff --git a/toast/portal/ToastPortal.d.ts b/toast/portal/ToastPortal.d.ts
+index eef4ec0039..34ac3352f4 100644
+--- a/toast/portal/ToastPortal.d.ts
++++ b/toast/portal/ToastPortal.d.ts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import * as React from 'react';
+ import type { BaseUIComponentProps } from "../../internals/types.js";
+ /**
+diff --git a/tooltip/portal/TooltipPortal.d.mts b/tooltip/portal/TooltipPortal.d.mts
+index 7a2e38efaa..914341f2f7 100644
+--- a/tooltip/portal/TooltipPortal.d.mts
++++ b/tooltip/portal/TooltipPortal.d.mts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import * as React from 'react';
+ import type { BaseUIComponentProps } from "../../internals/types.mjs";
+ /**
+diff --git a/tooltip/portal/TooltipPortal.d.ts b/tooltip/portal/TooltipPortal.d.ts
+index 371ec9ff4b..bbdaad3a2d 100644
+--- a/tooltip/portal/TooltipPortal.d.ts
++++ b/tooltip/portal/TooltipPortal.d.ts
+@@ -1,3 +1,4 @@
++import type { ShadowRoot } from "browser-realm-types";
+ import * as React from 'react';
+ import type { BaseUIComponentProps } from "../../internals/types.js";
+ /**

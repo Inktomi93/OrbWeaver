@@ -79,29 +79,6 @@ function isProjectCommand(value: string | undefined): value is ProjectCommand {
   return value === "build" || value === "check" || value === "pack";
 }
 
-interface ParsedProjectOption {
-  readonly sdk?: string;
-  readonly source?: string;
-  readonly output?: string;
-  readonly bundle?: string;
-}
-
-function parseProjectOption(option: string | undefined, value: string, command: ProjectCommand): ParsedProjectOption {
-  if (option === "--sdk") {
-    return { sdk: resolve(value) };
-  }
-  if (option === "--source-dir") {
-    return { source: resolve(value) };
-  }
-  if (option === "--out-dir" && command !== "pack") {
-    return { output: resolve(value) };
-  }
-  if (option === "--out" && command === "pack") {
-    return { bundle: resolve(value) };
-  }
-  fail(USAGE, EXIT_MISUSE);
-}
-
 function parseProjectArgs(command: ProjectCommand, args: readonly string[]): ParsedProjectArgs {
   const first = args[0];
   let cursor = 0;
@@ -115,11 +92,30 @@ function parseProjectArgs(command: ProjectCommand, args: readonly string[]): Par
   let outputDirectory = join(pluginDirectory, ".orb-plugin", "build");
   let bundlePath: string | undefined;
   for (; cursor < args.length; cursor += 2) {
-    const option = parseProjectOption(args[cursor], requireOptionValue(args, cursor), command);
-    sdkDirectory = option.sdk ?? sdkDirectory;
-    sourceDirectory = option.source ?? sourceDirectory;
-    outputDirectory = option.output ?? outputDirectory;
-    bundlePath = option.bundle ?? bundlePath;
+    const option = args[cursor] ?? fail(USAGE, EXIT_MISUSE);
+    const value = requireOptionValue(args, cursor);
+    switch (option) {
+      case "--sdk":
+        sdkDirectory = resolve(value);
+        break;
+      case "--source-dir":
+        sourceDirectory = resolve(value);
+        break;
+      case "--out-dir":
+        if (command === "pack") {
+          fail(USAGE, EXIT_MISUSE);
+        }
+        outputDirectory = resolve(value);
+        break;
+      case "--out":
+        if (command !== "pack") {
+          fail(USAGE, EXIT_MISUSE);
+        }
+        bundlePath = resolve(value);
+        break;
+      default:
+        fail(USAGE, EXIT_MISUSE);
+    }
   }
   if (command === "pack" && bundlePath === undefined) {
     fail(`orb-plugin pack requires --out <bundle.zip>\n${USAGE}`, EXIT_MISUSE);

@@ -1,0 +1,32 @@
+diff --git a/dist/pglite-BvWM7BTQ.d.cts b/dist/pglite-BvWM7BTQ.d.cts
+--- a/dist/pglite-BvWM7BTQ.d.cts
++++ b/dist/pglite-BvWM7BTQ.d.cts
+@@ -1,8 +1,9 @@
++import type { Emscripten, EmscriptenModule, FS as EmscriptenFS } from "emscripten/modular.js";
+ type IDBFS = Emscripten.FileSystemType & {
+     quit: () => void;
+-    dbs: Record<string, IDBDatabase>;
+-};
+-type FS = typeof FS & {
++    dbs: Record<string, typeof globalThis extends { IDBDatabase: { prototype: infer Database } } ? Database : never>;
++};
++type FS = typeof EmscriptenFS & {
+     filesystems: {
+         MEMFS: Emscripten.FileSystemType;
+         NODEFS: Emscripten.FileSystemType;
+diff --git a/dist/pglite-BvWM7BTQ.d.ts b/dist/pglite-BvWM7BTQ.d.ts
+--- a/dist/pglite-BvWM7BTQ.d.ts
++++ b/dist/pglite-BvWM7BTQ.d.ts
+@@ -1,8 +1,9 @@
++import type { Emscripten, EmscriptenModule, FS as EmscriptenFS } from "emscripten/modular.js";
+ type IDBFS = Emscripten.FileSystemType & {
+     quit: () => void;
+-    dbs: Record<string, IDBDatabase>;
+-};
+-type FS = typeof FS & {
++    dbs: Record<string, typeof globalThis extends { IDBDatabase: { prototype: infer Database } } ? Database : never>;
++};
++type FS = typeof EmscriptenFS & {
+     filesystems: {
+         MEMFS: Emscripten.FileSystemType;
+         NODEFS: Emscripten.FileSystemType;

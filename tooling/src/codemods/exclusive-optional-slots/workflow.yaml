@@ -1,0 +1,12 @@
+version: "1"
+nodes:
+  - id: exclusive-optional-slots
+    name: Close reviewed pairs of alternative props
+    type: automatic
+    steps:
+      - name: UI prop declarations
+        js-ast-grep:
+          js_file: scripts/codemod.ts
+          language: "tsx"
+          base_path: "."
+          include: ["packages/ui/src/primitives/toggle-group/toggle-group.tsx", "packages/ui/src/primitives/file-dropzone/file-dropzone.tsx", "packages/ui/src/primitives/empty-state/empty-state.tsx", "packages/ui/src/primitives/media-grid/media-grid.tsx", "packages/ui/src/primitives/compare-blocks/compare-blocks.tsx", "packages/ui/src/content/sandbox-frame/sandbox-frame.tsx", "packages/ui/src/charts/meter/track-bar.tsx", "packages/ui/src/primitives/list-row/list-row.tsx"]

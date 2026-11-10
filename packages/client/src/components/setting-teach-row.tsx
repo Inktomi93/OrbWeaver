@@ -62,28 +62,35 @@ export function ConfigTeachScope({ value, children }: { readonly value: ConfigTe
   return <TeachScopeContext value={value}>{children}</TeachScopeContext>;
 }
 
-export interface SettingRowProps {
+export type SettingRowProps = {
   /** The row's LEAF id inside the scope's subcategory — the declared `settings[]` entry (R-TEACH makes its
    *  `teach` a compile-time requirement, so a row here always has a lesson or a stated opt-out). */
   readonly settingId: string;
-  /**
-   * FULL-SPAN mode: the row draws its OWN lead (the leaf's label · the `i` · the gloss) plus the action
-   * cell, and `children` render BELOW it across every track. That is the shape a picker, a canvas or a
-   * card grid needs — a `Field`'s two-column anatomy cannot hold one, and hand-rolling the label beside it
-   * (which three sections did) re-spells the lead in a third voice per section.
-   */
-  readonly span?: boolean;
-  /**
-   * A composite row's DEPENDENT fields, rendered below the row's own control inside the SAME row.
-   *
-   * ONE ADDRESS IS ONE DOM ROW (#932): auto-swipe mounted THREE `SettingRow`s all naming `auto-swipe`, so
-   * one setting painted three modified rails, three action cells and three `i`s, and every one of them
-   * reset the same top-level `autoSwipe` object. The details live here instead. The annotation is
-   * re-published as `null` around them, so the gloss and the teacher door are stated exactly once.
-   */
-  readonly details?: ReactNode;
   readonly children: ReactNode;
-}
+} & (
+  | {
+      /**
+       * A composite row's DEPENDENT fields, rendered below the row's own control inside the SAME row.
+       *
+       * ONE ADDRESS IS ONE DOM ROW (#932): auto-swipe mounted THREE `SettingRow`s all naming `auto-swipe`, so
+       * one setting painted three modified rails, three action cells and three `i`s, and every one of them
+       * reset the same top-level `autoSwipe` object. The details live here instead. The annotation is
+       * re-published as `null` around them, so the gloss and the teacher door are stated exactly once.
+       */
+      readonly details?: ReactNode;
+      readonly span?: false;
+    }
+  | {
+      readonly details?: never;
+      /**
+       * FULL-SPAN mode: the row draws its OWN lead (the leaf's label · the `i` · the gloss) plus the action
+       * cell, and `children` render BELOW it across every track. That is the shape a picker, a canvas or a
+       * card grid needs — a `Field`'s two-column anatomy cannot hold one, and hand-rolling the label beside it
+       * (which three sections did) re-spells the lead in a third voice per section.
+       */
+      readonly span?: boolean;
+    }
+);
 
 /** The `i` tooltip. The GLOSS already answered "what this is", so the trigger answers what the pane adds
  *  and the row cannot: what moves when this moves. `affects` is non-empty by the R-TEACH honesty arm. */

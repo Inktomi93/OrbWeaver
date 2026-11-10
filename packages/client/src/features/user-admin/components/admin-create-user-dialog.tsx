@@ -42,7 +42,7 @@ function CreateUserFormBody({ viewerIsOwner, onDone }: { readonly viewerIsOwner:
     await createUser.mutateAsync({
       handle: handleSchema.parse(values.handle.trim()),
       password: values.password,
-      ...(values.role === "admin" ? { role: "admin" as const } : {}),
+      role: values.role,
     });
     onDone();
     return values;

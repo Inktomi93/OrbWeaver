@@ -1,0 +1,18 @@
+diff --git a/build/index.d.ts b/build/index.d.ts
+--- a/build/index.d.ts
++++ b/build/index.d.ts
+@@ -1074,12 +1074,12 @@ export interface ConfigurationProperties {
+      *
+      * @see {@link customFetch}
+      */
+-    [customFetch]?: CustomFetch;
++    [customFetch]?: CustomFetch | undefined;
+     /**
+      * Timeout (in seconds) for the HTTP Requests the client will be making.
+      * Default is `30` (seconds)
+      */
+-    timeout?: number;
++    timeout?: number | undefined;
+ }
+ /**
+  * Represents an authorization server and its client configuration.

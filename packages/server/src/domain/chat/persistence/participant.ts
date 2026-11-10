@@ -28,9 +28,7 @@ import type { CharacterId, ChatId, ChatInviteId, ChatParticipantId, PersonaId, U
 import type { AnyColumn, SQL } from "drizzle-orm";
 import { and, eq, gt, isNotNull, isNull, sql } from "drizzle-orm";
 
-type ParticipantActor = { readonly kind: "human"; readonly userId: UserId } | { readonly kind: "character"; readonly characterId: CharacterId };
-
-type ParticipantInsertRow = typeof chatParticipants.$inferInsert;
+import type { ParticipantActor, ParticipantInsertRow } from "../contract/participant-row.ts";
 
 /** The row shape {@link classifyParticipant} discriminates. */
 interface ParticipantRowShape {

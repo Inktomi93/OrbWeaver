@@ -39,18 +39,24 @@ interface ModalTrigger {
 
 /** A modal as ONE definition. `body` is a real feature-owned render, or the DECLARED-PLANNED arm
  *  (`{ planned: "<reason>" }`) — mirror SectionDefinition O1; a placeholder body is unspellable. */
-export interface ModalDefinition {
+export type ModalDefinition = {
   readonly id: ModalSlotId;
   /** The dialog heading (a noun, e.g. "Theme") — distinct from `trigger.label` (the affordance's
    *  action verb, e.g. "Switch theme"); intentionally different, not a desync. */
   readonly title: string;
-  /** A centered `dialog` (default) or a bottom `drawer` sheet — ModalHost picks the component off this. */
-  readonly presentation?: "dialog" | "drawer";
-  /** The Dialog width/presentation variant. Ignored for `presentation: "drawer"`. */
-  readonly size?: DialogPopupProps["size"];
   readonly trigger: ModalTrigger;
   /** Feature-owned cleanup that must run when shell chrome dismisses the modal. Component unmount
    *  cleanup is not equivalent: React Strict Mode probes it while the modal is still logically open. */
   readonly onClose?: () => void;
   readonly body: (() => ReactElement) | { readonly planned: string };
-}
+} & (
+  | {
+      /** The width of a centered dialog. */
+      readonly size?: DialogPopupProps["size"];
+      readonly presentation?: "dialog";
+    }
+  | {
+      readonly size?: never;
+      readonly presentation: "drawer";
+    }
+);
