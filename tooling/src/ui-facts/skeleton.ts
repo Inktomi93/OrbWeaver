@@ -2,6 +2,7 @@
 // Raw elements are transparent (their children hoist), so two surfaces that differ only in wrapper divs match.
 import ts from "typescript";
 import type { Elem, FileFacts } from "../eslint/index.ts";
+import { listSlotSurfaces } from "../eslint/index.ts";
 
 /** Levels of included elements kept below a root; deeper elements are dropped from the fingerprint. */
 const SKELETON_DEPTH = 4;
@@ -174,11 +175,11 @@ function cohortOfSkeletons(name: string, members: readonly SkeletonMember[]): Sk
   return { name, members, common, outliers };
 }
 
-/** Which skeleton cohort a client file belongs to, or null. List and library surfaces are their own cohort, except the
- *  chat transcript (`message-list-surface`), which is a message list and not a LIST pane. Context cohort members render
- *  a body; `context-tabs-panel` and `refinery-context-tabs` host or wire bodies and render no layout of their own. */
-export function skeletonCohortOf(path: string): string | null {
-  if (/^packages\/client\/src\/features\/[^/]+\/surfaces\/(?!message-list-)[^/]*(?:list|library)-surface\.tsx$/u.test(path)) {
+/** Which skeleton cohort a client file belongs to, or null. The LIST panes are `listSlots`, the surfaces a definition
+ *  mounts in its `list` slot ({@link listSlotSurfaces}). Context cohort members render a body; `context-tabs-panel` and
+ *  `refinery-context-tabs` host or wire bodies and render no layout of their own. */
+export function skeletonCohortOf(path: string, listSlots: ReadonlySet<string>): string | null {
+  if (listSlots.has(path)) {
     return "surface:list";
   }
   if (/^packages\/client\/src\/features\/[^/]+\/surfaces\/[^/]+\.tsx$/u.test(path)) {
@@ -189,8 +190,9 @@ export function skeletonCohortOf(path: string): string | null {
 
 export function buildSkeletons(all: readonly FileFacts[]): readonly SkeletonCohort[] {
   const byCohort = new Map<string, SkeletonMember[]>();
+  const listSlots = listSlotSurfaces(all);
   for (const facts of all) {
-    const cohort = skeletonCohortOf(facts.source.path);
+    const cohort = skeletonCohortOf(facts.source.path, listSlots);
     const skeleton = cohort === null ? null : skeletonOf(facts);
     if (cohort !== null && skeleton !== null) {
       byCohort.set(cohort, [...(byCohort.get(cohort) ?? []), skeleton]);

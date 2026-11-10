@@ -2,6 +2,7 @@
 // Page font faces and same-block caveat hierarchy have separate classifiers.
 import type { CandidateDisposition, Finding } from "../contract/findings.ts";
 import type { TextStyleInput } from "../contract/samples.ts";
+import { SENTENCE_END_RE } from "./checks-caveat.ts";
 import { INTERACTIVE_TEXT_FLOOR_PX, LEADING_FLOOR, LEADING_FLOOR_EPSILON, RAMP_FLOOR_EPSILON_PX, TEXT_MICRO_PX } from "./ramp.ts";
 
 const LINE_LENGTH_TEXT_MIN = 80;
@@ -46,12 +47,15 @@ export const TRANSCRIPT_SURFACE_SELECTOR_JS = JSON.stringify(TRANSCRIPT_SURFACE)
 const PROSE_VOICES: ReadonlySet<string> = new Set(["gloss", "quiet", "reading"]);
 
 /** The `<Text>` voices whose recipe in `packages/ui/src/primitives/text/variants.ts` sets `uppercase`. Caps is
- *  that voice's law, so a long run in one of them is the voice, not body copy set in caps. Read from the element's
- *  own declared `data-voice`, never from its class list. */
-const CAPS_RECIPE_VOICES: ReadonlySet<string> = new Set(["credit", "interactiveKicker", "kicker"]);
+ *  that voice's law, so a name or a credit in one of them is the voice, not body copy set in caps. Read from the
+ *  element's own declared `data-voice`, never from its class list. */
+export const CAPS_RECIPE_VOICES: ReadonlySet<string> = new Set(["credit", "interactiveKicker", "kicker"]);
 
+/** A caps voice names or credits; a run that ends a sentence, or outruns the walker's text sample, is prose set in it. */
 function hasCapsRecipeVoice(input: TextStyleInput): boolean {
-  return CAPS_RECIPE_VOICES.has(input.ownVoice ?? "");
+  const text = input.directText;
+  const prose = text !== undefined && (SENTENCE_END_RE.test(text) || input.directTextLen > text.length);
+  return CAPS_RECIPE_VOICES.has(input.ownVoice ?? "") && !prose;
 }
 
 const TIGHT_LEADING_TEXT_MIN = 50;

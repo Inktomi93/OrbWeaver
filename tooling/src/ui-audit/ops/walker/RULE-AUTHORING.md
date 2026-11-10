@@ -100,8 +100,7 @@ input object handed to the pure `checks-*.ts` function, which proves the THRESHO
 whether the census can see the shape on a real page. That is precisely the blindness this document
 exists to name (checklist step 2: the control must be planted in the codebase's own idiom), so an
 "owed" cell is a real gap in the mechanism axis, filed as such and not backfilled with an invented
-receipt. Of the 63 registered rules, 47 carry a planted rendered control, 15 are owed one, and
-`off-grid-transform` is half-owed (its withheld arm is planted, its firing arm is not). One of the 22 —
+receipt. Of the 63 registered rules, 48 carry a planted rendered control and 15 are owed one. One of the 22 —
 `buried-raster` — is owed BY OWNER RULING rather than by omission; its cell says so.
 
 Shorthand for the collection sites: `w/<file>` = `tooling/src/ui-audit/ops/walker/<file>.ts` (the in-page
@@ -173,7 +172,7 @@ Finding at all and their control is the printed population row.
 | tier-drift | painted value vs the tier's OWN `--orb-tier-*`, resolved by the browser (a self-oracle) | `w/census-tier` | `lib/checks-quality` | `T/…/census-tier.int.test.ts` (7 arms) · `census-tier.test.ts` (the pair-map derivation) |
 | off-grid-text | device-pixel landing of text inside a promotion context | `w/census-grid` | `lib/checks-typography` | `T/…/census-grid.int.test.ts` · `census-grid.test.ts` |
 | promoted-layer-offset | the promotion ROOTS' own fractional landing, element AND pseudo | `w/census-grid` | `lib/checks-quality` | walker CT (#1154 pseudo arm) |
-| off-grid-transform | a non-identity REST transform's fractional landing | `w/census-grid` | `lib/checks-quality` | **partial — the WITHHELD (animating) arm is planted in `census-grid.int.test.ts`; a firing rendered plant is owed** |
+| off-grid-transform | a non-identity REST transform's fractional landing | `w/census-grid` | `lib/checks-quality` | `T/…/census-grid.int.test.ts` (the withheld animating arm, and an authored fraction firing beside the excluded `inheritedLanding` arm) |
 
 ## Closing verdicts (session tasks #21, #19 — folded in 2026-09-01)
 

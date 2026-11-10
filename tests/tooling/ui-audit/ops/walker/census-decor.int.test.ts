@@ -305,3 +305,27 @@ auditRuleTest(
     return report;
   },
 );
+
+auditRuleTest(
+  [
+    {
+      rule: "nested-card",
+      kind: "silent",
+      reason: "a transparent-bordered button in a card is an interactive island, so it keeps that reason rather than reading as an unpainted panel",
+      disposition: { kind: "excluded", reason: "cardContext" },
+    },
+  ],
+  "a transparent-bordered button in a card is excluded by its context, not as an unpainted edge",
+  async ({ runCli, scratch }) => {
+    const { report } = await decorFixture(
+      scratch,
+      runCli,
+      "transparent-button",
+      `<div style="${OUTER}"><button type="button" style="border:1px solid transparent;border-radius:6px;background:#333;color:#fff">Save</button></div>`,
+    );
+    const excluded = report.populationAccounting?.["nested-card"]?.excluded;
+    expect(excluded?.["unpaintedEdge"], "the button is no unpainted panel").toBeUndefined();
+    expect(excluded?.["cardContext"]).toBeGreaterThan(0);
+    return report;
+  },
+);

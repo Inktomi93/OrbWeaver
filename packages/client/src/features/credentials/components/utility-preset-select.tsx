@@ -73,7 +73,7 @@ export function UtilityPresetSelect(): ReactElement {
         <Select
           aria-label="Utility preset"
           items={items}
-          layout="hug"
+          layout="hugWrap"
           value={value}
           disabled={setPreset.isPending}
           onValueChange={(next): void => {

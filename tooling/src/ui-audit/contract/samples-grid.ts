@@ -28,6 +28,9 @@ export interface OffGridTextInput {
   readonly leftDeviceFrac: number;
   readonly promotion: GridPromotionKind;
   readonly promotedBy: string;
+  /** The promoting layer's own device fractions, present when Law 3 judges that layer. Text that lands where the
+   *  layer put it collapses into the layer's row. */
+  readonly layerLanding?: { readonly topDeviceFrac: number; readonly leftDeviceFrac: number };
   readonly fontSizePx: number;
 }
 

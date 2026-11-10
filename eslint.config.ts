@@ -15,6 +15,7 @@ import {
   exportedProductionValues,
   homeReasons,
   homes,
+  listSlotSurfacePaths,
   OWNED_ROOT_ACQUISITIONS,
   shellOwnedSlots,
 } from "@orb/tooling/eslint";
@@ -1895,7 +1896,8 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
     },
     { files: ["packages/client/src/features/**/*.{ts,tsx}"], rules: { "orb/page-template-shapes": "error" } },
     { files: CLIENT_JSX_SOURCE, rules: { "orb/no-single-row-textarea": "error", "orb/copy-ellipsis": "error" } },
-    { files: ["packages/client/src/features/**/surfaces/*-{list,library}-surface.tsx"], rules: { "orb/library-surface-row": "error" } },
+    // The surfaces a section mounts in its `list` slot: the same set the composition census reads.
+    { files: [...listSlotSurfacePaths(ROOT)], rules: { "orb/library-surface-row": "error" } },
     {
       files: ["packages/client/src/**/*.tsx"],
       // Each exempt file names its reason in DESTRUCTIVE_EXEMPT (docs/law/client-architecture-state-and-gates.md §14).

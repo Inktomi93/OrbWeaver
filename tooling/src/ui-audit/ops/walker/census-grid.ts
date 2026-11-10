@@ -20,7 +20,9 @@
 // a stronger reason (#1156): it paints no pixels at all, so "blurred" is unaskable of it. In Chromium, a
 // layer or absolute pseudo promoted only by backdrop-filter, and text whose only composited ancestors are
 // such layers, are excluded on the same polarity: Chromium paints that fraction into the layer
-// (`compositedWithoutResample`). WITHHELD is
+// (`compositedWithoutResample`). A unity-scale transform whose own translation is whole device pixels is
+// excluded `inheritedLanding`: its fraction is the layout's, not the transform's. Text that lands where its
+// layer put it is judged here and collapses into the layer's Law 3 row in Node (lib/checks-grid.ts). WITHHELD is
 // reserved for a landing the instrument could not read (a non-finite rect, an unusable DPR), for a
 // transform mid-animation, which has no rest landing yet, and for an sr-only answer that could not be read.
 //
@@ -30,7 +32,14 @@
 // census-cohort.ts (`excludeRelational`/`withholdRelational`), so it is placed with the other post-cohort
 // segments at the end of the composition.
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
-import { GRID_COMPOSITED_WITHOUT_RESAMPLE_JS, GRID_MEASURED_ENGINE_JS, GRID_READING_SURFACE_SELECTOR_JS } from "../../lib/checks-grid.ts";
+import {
+  GRID_COMPOSITED_WITHOUT_RESAMPLE_JS,
+  GRID_EPSILON_DEVICE_PX_JS,
+  GRID_INHERITED_LANDING_JS,
+  GRID_MEASURED_ENGINE_JS,
+  GRID_READING_SURFACE_SELECTOR_JS,
+  SCALE_IDENTITY_EPSILON_JS,
+} from "../../lib/checks-grid.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
@@ -57,6 +66,12 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
   function gridDeviceFrac(value) {
     var device = value * gridDpr;
     return device - Math.round(device);
+  }
+  var GRID_EPSILON_DEVICE_PX = ${GRID_EPSILON_DEVICE_PX_JS};
+  var GRID_SCALE_IDENTITY_EPSILON = ${SCALE_IDENTITY_EPSILON_JS};
+  var GRID_INHERITED_LANDING = ${GRID_INHERITED_LANDING_JS};
+  function gridOnDeviceGrid(value) {
+    return Math.abs(gridDeviceFrac(value)) <= GRID_EPSILON_DEVICE_PX;
   }
 
   // THE PROMOTION SHAPES Law 3 judges: will-change, a 3D context, and backdrop-filter outside Chromium. In
@@ -123,6 +138,8 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
     var scaleX = 1;
     var scaleY = 1;
     var translated = false;
+    var tx = 0;
+    var ty = 0;
     var open = transform.indexOf("(");
     if (open !== -1) {
       var parts = transform.slice(open + 1, transform.lastIndexOf(")")).split(",");
@@ -130,20 +147,36 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
       if (parts.length === 6) {
         scaleX = Math.sqrt(parts[0] * parts[0] + parts[1] * parts[1]);
         scaleY = Math.sqrt(parts[2] * parts[2] + parts[3] * parts[3]);
-        translated = parts[4] !== 0 || parts[5] !== 0;
+        tx = parts[4];
+        ty = parts[5];
+        translated = tx !== 0 || ty !== 0;
       } else if (parts.length === 16) {
         scaleX = Math.sqrt(parts[0] * parts[0] + parts[1] * parts[1] + parts[2] * parts[2]);
         scaleY = Math.sqrt(parts[4] * parts[4] + parts[5] * parts[5] + parts[6] * parts[6]);
-        translated = parts[12] !== 0 || parts[13] !== 0;
+        tx = parts[12];
+        ty = parts[13];
+        translated = tx !== 0 || ty !== 0;
       }
     }
     // The INDIVIDUAL translate property is a second writer of the same landing and is reported separately
     // by CSSOM — a matcher reading only \`transform\` is blind to every \`translate: -50% 0\` rule.
     var individual = (translate || "none").trim();
     if (individual !== "none" && individual !== "" && individual !== "0px" && individual !== "0px 0px") translated = true;
+    // The element's OWN translation in CSS px, or null when a part of it is not a length this walk can read
+    // (a percentage or a calc() of one resolves against the box, which CSSOM does not hand back).
+    var own = Number.isFinite(tx) && Number.isFinite(ty) ? { x: tx, y: ty } : null;
+    if (own !== null && individual !== "none" && individual !== "") {
+      var axes = individual.split(" ");
+      for (var ga = 0; ga < axes.length && own !== null; ga += 1) {
+        var axisPx = /^(-?[0-9.]+(?:e-?[0-9]+)?)px$/.exec(axes[ga]);
+        if (axisPx === null) own = null;
+        else if (ga === 0) own.x += parseFloat(axisPx[1]);
+        else if (ga === 1) own.y += parseFloat(axisPx[1]);
+      }
+    }
     if (!Number.isFinite(scaleX)) scaleX = 1;
     if (!Number.isFinite(scaleY)) scaleY = 1;
-    return { scaleX: scaleX, scaleY: scaleY, translated: translated };
+    return { scaleX: scaleX, scaleY: scaleY, translated: translated, own: own };
   }
 
   function gridLandingOf(el) {
@@ -154,6 +187,8 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
 
   // ── LAW 4: text inside a promotion context ────────────────────────────────
   // textEls is the deduped, visible, dev-chrome-filtered text-bearing set the TEXT census already built.
+  // The subjects Law 3's element pass walks, so a text sample can say whether its layer has a Law 3 row.
+  var gridWalked = new Set(allEls);
   for (var gt = 0; gt < textEls.length; gt += 1) {
     var gtEl = textEls[gt];
     relationalAccounting["off-grid-text"].candidates += 1;
@@ -193,6 +228,8 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
       continue;
     }
     relationalAccounting["off-grid-text"].judged += 1;
+    // The layer's own landing, under the conditions Law 3's element pass judges it: walked, visible, measurable.
+    var gtLayerLanding = gridWalked.has(gtPromotion.el) && isVisible(gtPromotion.el) ? gridLandingOf(gtPromotion.el) : null;
     offGridTexts.push({
       selector: describe(gtEl),
       authoredTarget: authoredTargetClaim(gtEl),
@@ -202,6 +239,7 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
       leftDeviceFrac: gtLanding.leftDeviceFrac,
       promotion: gtPromotion.kind,
       promotedBy: describe(gtPromotion.el),
+      layerLanding: gtLayerLanding === null ? undefined : { topDeviceFrac: gtLayerLanding.topDeviceFrac, leftDeviceFrac: gtLayerLanding.leftDeviceFrac },
       fontSizePx: parseFloat(getComputedStyle(gtEl).fontSize) || 0,
     });
   }
@@ -333,6 +371,13 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
     }
     if (!gxMatrix.translated && gxMatrix.scaleX === 1 && gxMatrix.scaleY === 1) {
       excludeRelational(relationalAccounting["off-grid-transform"], "identity");
+      continue;
+    }
+    // A unity scale moved by whole device pixels keeps the landing its box had before the transform, so the
+    // fraction belongs to the layout that placed the box. An unreadable own translation stays judged.
+    var gxUnity = Math.abs(gxMatrix.scaleX - 1) <= GRID_SCALE_IDENTITY_EPSILON && Math.abs(gxMatrix.scaleY - 1) <= GRID_SCALE_IDENTITY_EPSILON;
+    if (gxUnity && gxMatrix.own !== null && gridUsableDpr() && gridOnDeviceGrid(gxMatrix.own.x) && gridOnDeviceGrid(gxMatrix.own.y)) {
+      excludeRelational(relationalAccounting["off-grid-transform"], GRID_INHERITED_LANDING);
       continue;
     }
     var gxLanding = gridLandingOf(gxEl);

@@ -165,6 +165,8 @@ export {
   SUPPORTS_PROPERTY,
   VERDICTS,
 } from "./ui-classes/hand-model.ts";
+export type { Rendered } from "./ui-classes/list-slots.ts";
+export { listSlotSurfacePaths, listSlotSurfaces, mounted, SLOT_HOPS } from "./ui-classes/list-slots.ts";
 export type { Lit } from "./ui-classes/literals.ts";
 export { conditionLits, conditionStringLits, lit, litsOf, parseValue, valueStringLits, written } from "./ui-classes/literals.ts";
 export { PLAIN_LAYOUT, PLAIN_LAYOUT_RULE, plainLayout } from "./ui-classes/plain-layout.ts";

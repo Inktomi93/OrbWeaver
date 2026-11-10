@@ -19,7 +19,14 @@ import { expect, test } from "@orb/testkit/tooling";
 import { describe } from "vitest";
 import type { OffGridTextInput, OffGridTransformInput, PromotedLayerOffsetInput } from "../../../../tooling/src/ui-audit/contract/samples-grid.ts";
 import { GRID_PROMOTION_KINDS } from "../../../../tooling/src/ui-audit/contract/samples-grid.ts";
-import { checkOffGridText, checkOffGridTransform, checkPromotedLayerOffset, GRID_EXEMPTIONS } from "../../../../tooling/src/ui-audit/lib/checks-grid.ts";
+import {
+  checkOffGridText,
+  checkOffGridTransform,
+  checkPromotedLayerOffset,
+  GRID_COLLAPSED_INTO_LAYER,
+  GRID_EXEMPTIONS,
+  offGridTextOwner,
+} from "../../../../tooling/src/ui-audit/lib/checks-grid.ts";
 
 /** A label-voice text inside a judged promotion. In Chromium a `backdrop-filter` layer never reaches these checks: the
  *  walker excludes it in the page (docs/law/integer-line-boxes.md §10). */
@@ -171,6 +178,22 @@ describe("design-audit off-grid-text (crispness Law 4)", () => {
 
   test("the vertical residual fires too — Law 1 closed the line-box arithmetic, not the horizontal class", () => {
     expect(checkOffGridText(offGridText({ topDeviceFrac: -0.375 }))?.rule).toBe("off-grid-text");
+  });
+
+  test("text that lands where its off-grid layer put it is owned by the layer's Law 3 row", () => {
+    const layer = { topDeviceFrac: 0.25, leftDeviceFrac: -0.406 };
+    expect(offGridTextOwner(offGridText({ topDeviceFrac: 0.25, leftDeviceFrac: -0.406, layerLanding: layer }))).toBe(GRID_COLLAPSED_INTO_LAYER);
+    // The subtraction wraps: +0.4 inside a layer at -0.4 is 0.8 device px apart, so the text's own offset is -0.2.
+    expect(offGridTextOwner(offGridText({ topDeviceFrac: 0.4, leftDeviceFrac: 0, layerLanding: { topDeviceFrac: -0.4, leftDeviceFrac: 0 } }))).toBeNull();
+    expect(offGridTextOwner(offGridText({ topDeviceFrac: 0.5, leftDeviceFrac: 0, layerLanding: { topDeviceFrac: -0.5, leftDeviceFrac: 0 } }))).toBe(
+      GRID_COLLAPSED_INTO_LAYER,
+    );
+  });
+
+  test("text with an offset of its own, or under a layer Law 3 does not file, stays this rule's finding", () => {
+    expect(offGridTextOwner(offGridText({ topDeviceFrac: 0.5, layerLanding: { topDeviceFrac: 0.25, leftDeviceFrac: 0 } }))).toBeNull();
+    expect(offGridTextOwner(offGridText({ topDeviceFrac: 0.25, layerLanding: { topDeviceFrac: 0, leftDeviceFrac: 0 } }))).toBeNull();
+    expect(offGridTextOwner(offGridText({ topDeviceFrac: 0.25 }))).toBeNull();
   });
 
   test("the reading-surface exemption is the gate's row, mirrored — never re-decided here", () => {

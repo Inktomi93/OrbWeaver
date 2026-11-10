@@ -206,9 +206,9 @@ export function ConnectionRoleSlot({
         <Row align="center" alignBelow="stretch-cq-32" gap="field" justify="between" stackBelow="cq-32">
           <Row align="center" className="min-inline-0" gap="field">
             <IndicatorDot aria-label={ROLE_STATUS_LABELS[dot]} role="img" tone={DOT_SKIN[dot].tone} variant={DOT_SKIN[dot].variant} />
-            {/* The hint is a sibling of the heading, never inside it, or its name joins the group's name. The heading wraps before the hint leaves its line. */}
+            {/* The hint is a sibling of the heading, never inside it, or its name joins the group's name. The heading wraps inside its own box, so its last word never runs under the hint's touch target. */}
             <Row align="center" className="min-inline-0" gap="tight">
-              <Text className="min-inline-0" id={headingId} voice="label">
+              <Text className="min-inline-0" id={headingId} voice="label" wrap="word">
                 {row.heading}
               </Text>
               <HintTrigger hint={description ?? row.description} subject={row.heading} />
@@ -220,7 +220,7 @@ export function ConnectionRoleSlot({
               aria-label={pickerLabel}
               id={controlId}
               items={items}
-              layout="hug"
+              layout="hugWrap"
               value={current}
               disabled={setBinding.isPending || reindex.asking}
               onValueChange={(value): void => {

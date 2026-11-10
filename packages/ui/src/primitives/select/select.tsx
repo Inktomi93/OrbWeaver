@@ -287,7 +287,7 @@ export function Select<Value = string, Multiple extends boolean = false>(props: 
             {...variantAttrs(selectVariants, { size, layout })}
             id={triggerId}
           >
-            <BaseSelect.Value className={slots.value()} data-slot="select-value" placeholder={placeholder}>
+            <BaseSelect.Value className={slots.value({ layout })} data-slot="select-value" placeholder={placeholder}>
               {renderValue}
             </BaseSelect.Value>
             <BaseSelect.Icon className={slots.icon()} data-slot="select-icon">
