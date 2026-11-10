@@ -20,8 +20,9 @@
 // the sampler merely cannot resolve the exact composite. `image-indeterminate` is exactly that semantic:
 // "there is a background-image layer here, contrast is indeterminate" — the `text-over-art` rule emits
 // a P1, which is JUDGED rather than withheld, so the population can produce a verdict. Only
-// `paint-layer-over-base` earns this: `no-opaque-base` carries no evidence of an image layer and stays
-// `unresolved` (withheld).
+// `paint-layer-over-base` earns this, because the walker sets it only for a layer carrying an image, a gradient
+// or a replaced element. `no-opaque-base`, `fill-layer-over-base` and `gradient-over-base` carry no evidence of
+// art and stay `unresolved` (withheld).
 //
 // ART UNDER ONE SUBJECT IS MEASURED, NOT RECLASSIFIED. `art-under-subject` is a card image under its own caption:
 // it backs only that caption, so a caption below the fold is scrolled into view and sampled like its in-view twin.

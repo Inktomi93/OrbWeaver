@@ -526,6 +526,251 @@ auditRuleTest(
   },
 );
 
+// ── a translucent gradient over its own opaque fill ───────────────────────────
+// The menu popup's scroll shadow: two translucent bands at the box edges over an opaque fill on the same element.
+// CSS paints that fill under the image, so the base is known; which band sits under the glyphs is a pixel question.
+
+const SHADOW_BANDS = "background-image:linear-gradient(rgba(255,255,255,0.4), transparent);background-size:100% 4px;background-repeat:no-repeat";
+const SHADOWED_ROW = (base: string, ink: string): string =>
+  `<div style="width:320px;padding:24px 10px;background-color:${base};${SHADOW_BANDS};color:${ink};font-size:14px"><span>Menu row</span></div>`;
+const PAST_CAROUSEL_EDGE = (body: string): string =>
+  `<div style="display:flex;width:340px;overflow-x:auto"><div style="flex:none;width:2400px"></div>${body}</div>`;
+
+auditRuleTest(
+  [
+    {
+      rule: "text-over-art",
+      kind: "silent",
+      reason: "the shadow bands sit over the row's own opaque fill, so the pixels measure a flat backdrop and no art is under the ink",
+      disposition: { kind: "excluded", reason: "flatBackdrop" },
+    },
+    { rule: "contrast", kind: "silent", reason: "white ink on the measured black fill passes", disposition: { kind: "judged" } },
+  ],
+  "a translucent gradient over its own opaque fill is measured from pixels, not filed as art",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(scratch, runCli, "gradient-over-fill", SHADOWED_ROW("#000000", "#ffffff"));
+    expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
+    expect(report.populationAccounting?.["gray-on-color"]?.excluded).toMatchObject({ pixelSampled: 1 });
+    return report;
+  },
+);
+
+auditRuleTest(
+  [
+    { rule: "contrast", kind: "fires", reason: "dark ink on the same row's dark fill reads about 1.7:1 in the pixels and still fails" },
+    {
+      rule: "text-over-art",
+      kind: "silent",
+      reason: "the failure is a contrast verdict on measured pixels, not an art refusal",
+      disposition: { kind: "excluded", reason: "flatBackdrop" },
+    },
+  ],
+  "dark ink over a translucent gradient on a dark fill still fails contrast through the pixel pass",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(scratch, runCli, "gradient-over-fill-dark", SHADOWED_ROW("#000000", "#333333"));
+    expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
+    expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 1, affected: 1 });
+    return report;
+  },
+);
+
+const UNREACHED_GRADIENT_PROOFS = [
+  {
+    rule: "text-over-art",
+    kind: "silent",
+    reason: "a row the pixels cannot see has no verdict; it is withheld, never filed as art or passed",
+    disposition: { kind: "withheld", reason: "unresolvedBackdrop" },
+  },
+  {
+    rule: "contrast",
+    kind: "silent",
+    reason: "the same row has no contrast verdict either",
+    disposition: { kind: "withheld", reason: "unresolvedBackdrop" },
+  },
+] as const;
+
+auditRuleTest(UNREACHED_GRADIENT_PROOFS, "a translucent gradient row past a carousel edge is withheld", async ({ runCli, scratch }) => {
+  const report = await auditFixture(scratch, runCli, "gradient-over-fill-unreached", PAST_CAROUSEL_EDGE(SHADOWED_ROW("#000000", "#ffffff")));
+  expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
+  return report;
+});
+
+auditRuleTest(UNREACHED_GRADIENT_PROOFS, "a translucent gradient with no opaque base past a carousel edge is withheld", async ({ runCli, scratch }) => {
+  const noBase = "<style>html, body { background: transparent !important; }</style>";
+  const report = await auditFixture(scratch, runCli, "gradient-no-base-unreached", `${noBase}${PAST_CAROUSEL_EDGE(SHADOWED_ROW("transparent", "#ffffff"))}`);
+  expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
+  return report;
+});
+
+// ── a paint layer the text is not over ────────────────────────────────────────
+// Each subject below is covered by a contentless, unpainted box, so the pixel pass cannot sample it. That is the
+// case where a layer the walk names is reclassified as unseen art, so the layer must really be under the glyphs.
+
+const WHITE_FILL = "background-image:linear-gradient(#ffffff, #ffffff)";
+const COVERED_INK = '<span style="position:relative;color:#ffffff;font-size:14px">Look</span><div style="position:absolute;inset:0"></div>';
+const INK_BOX = "position:relative;width:320px;height:40px;margin:20px";
+
+auditRuleTest(
+  [
+    {
+      rule: "text-over-art",
+      kind: "silent",
+      reason: "the overflow fade comes later in the tree with both z-index auto, so it paints over the caption, not between it and the body",
+      disposition: { kind: "excluded", reason: "flatBackdrop" },
+    },
+  ],
+  "a gradient cover painted over a caption is not art under it",
+  async ({ runCli, scratch }) => {
+    const fade = '<div style="position:absolute;inset:0;background-image:linear-gradient(to left, #000000, transparent)"></div>';
+    const report = await auditFixture(
+      scratch,
+      runCli,
+      "fade-over-caption",
+      `<div style="${INK_BOX}"><span style="color:#ffffff;font-size:14px">Look</span>${fade}</div>`,
+    );
+    expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
+    return report;
+  },
+);
+
+// Later in the tree but under the text in paint order: the layer stays between, so the pixels measure white on white.
+const LATER_LAYER_UNDER_INK = [
+  [
+    "a negative z-index",
+    `<div style="${INK_BOX}"><span style="color:#ffffff;font-size:14px">Look</span><div style="position:absolute;inset:0;z-index:-1;${WHITE_FILL}"></div></div>`,
+  ],
+  [
+    "a sibling stacking context ranked below the text's",
+    `<div style="position:relative;z-index:1;width:320px;height:40px;margin:0 20px"><span style="color:#ffffff;font-size:14px">Look</span></div><div style="position:relative;z-index:0;width:320px;height:40px;margin:-40px 20px 0"><div style="position:absolute;inset:0;${WHITE_FILL}"></div></div>`,
+  ],
+] as const;
+
+test.for(LATER_LAYER_UNDER_INK)("a later layer under the ink by %s still backs it", async ([name, body], { runCli, scratch }) => {
+  const report = await auditFixture(scratch, runCli, `later-layer-under-${name.replaceAll(" ", "-").replaceAll("'", "")}`, body);
+  expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
+  expect(report.populationAccounting?.["gray-on-color"]?.excluded).toMatchObject({ pixelSampled: 1 });
+});
+
+// A virtualized grid row scrolled out of its scroller: its box reaches past the scroller's edge onto the ink below.
+const ART_ROW = `position:absolute;top:200px;left:0;right:0;height:60px;background-image:url('${ART_RASTER_URL}');background-size:cover`;
+const SCROLLED_GRID = (overflow: string): string =>
+  `<div style="position:relative;width:320px;height:60px;overflow:${overflow}"><div style="position:relative;height:400px"><div style="${ART_ROW}"></div></div></div>`;
+const INK_UNDER_GRID = `<div style="height:150px"></div><div style="${INK_BOX};margin:0">${COVERED_INK}</div>`;
+
+auditRuleTest(
+  [
+    {
+      rule: "text-over-art",
+      kind: "silent",
+      reason: "the art row is clipped by its scroller, so nothing it paints reaches the ink",
+      disposition: { kind: "excluded", reason: "flatBackdrop" },
+    },
+  ],
+  "an art row clipped by its scroller does not back the ink below the scroller",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(scratch, runCli, "clipped-art-row", `${SCROLLED_GRID("auto")}${INK_UNDER_GRID}`);
+    expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
+    return report;
+  },
+);
+
+auditRuleTest(
+  [{ rule: "text-over-art", kind: "fires", reason: "the same art row with no clip paints under the ink, which the pixels cannot see, so it is art" }],
+  "the same art row unclipped still files the covered ink as text over art",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(scratch, runCli, "unclipped-art-row", `${SCROLLED_GRID("visible")}${INK_UNDER_GRID}`);
+    expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toHaveLength(1);
+  },
+);
+
+// Covered ink straddling a scroller's edge, with an art row inside the scroller at a given offset from its top.
+const INK_ACROSS_SCROLLER_EDGE = (rowTop: number): string =>
+  `<div style="position:relative;width:320px;height:200px"><div style="width:320px;height:60px;overflow:auto"><div style="position:relative;height:400px"><div style="position:absolute;top:${String(rowTop)}px;left:0;right:0;height:20px;background-image:url('${ART_RASTER_URL}')"></div></div></div><div style="position:absolute;top:40px;left:0;width:320px;height:60px"><span style="position:relative;display:inline-block;line-height:60px;color:#ffffff;font-size:14px">Look</span><div style="position:absolute;inset:0"></div></div></div>`;
+
+auditRuleTest(
+  [
+    {
+      rule: "text-over-art",
+      kind: "silent",
+      reason: "the art row sits wholly below the scroller's 60px edge, so it paints nothing even where the ink straddles that edge",
+      disposition: { kind: "excluded", reason: "flatBackdrop" },
+    },
+  ],
+  "an art row clipped wholly out of its scroller does not back ink across the scroller's edge",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(scratch, runCli, "art-row-clipped-out", INK_ACROSS_SCROLLER_EDGE(70));
+    expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
+    return report;
+  },
+);
+
+auditRuleTest(
+  [{ rule: "text-over-art", kind: "fires", reason: "the same row inside the scroller's visible box paints under the covered ink, so it is art" }],
+  "an art row inside its scroller's visible box still backs the covered ink",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(scratch, runCli, "art-row-in-view", INK_ACROSS_SCROLLER_EDGE(38));
+    expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toHaveLength(1);
+  },
+);
+
+// A bordered control past a carousel edge over a fill-only layer: border-contrast keeps the label it always printed.
+auditRuleTest(
+  [
+    {
+      rule: "border-contrast",
+      kind: "silent",
+      reason: "the fill reason belongs to the text census; the border rule's withheld label stays paint-layer-over-base",
+      disposition: { kind: "withheld", reason: "paint-layer-over-base" },
+    },
+  ],
+  "a border over a fill-only layer keeps its withheld label",
+  async ({ runCli, scratch }) => {
+    const control = `<div style="position:relative;flex:none;width:200px;height:48px"><div style="position:absolute;inset:0;background:rgba(255,255,255,0.2)"></div><input aria-label="Name" style="position:relative;margin:8px;border:1px solid #888888;background:transparent;color:#ffffff"></div>`;
+    const report = await auditFixture(scratch, runCli, "border-over-fill-unreached", PAST_CAROUSEL_EDGE(control));
+    expect(report.populationAccounting?.["border-contrast"]).toMatchObject({ candidates: 1, judged: 0 });
+    return report;
+  },
+);
+
+// A tab caption scrolled past its strip's edge: its box reaches an art layer outside the strip, but it paints nothing.
+const ART_BESIDE_STRIP = `position:absolute;top:0;left:240px;width:80px;height:40px;background-image:url('${ART_RASTER_URL}');background-size:cover`;
+const CLIPPED_CAPTION = `<div style="${INK_BOX}"><div style="${ART_BESIDE_STRIP}"></div><div style="width:200px;overflow:hidden;white-space:nowrap"><span style="display:inline-block;width:260px"></span><span style="position:relative;color:#ffffff;font-size:14px">Trust</span></div></div>`;
+
+auditRuleTest(
+  [
+    {
+      rule: "text-over-art",
+      kind: "silent",
+      reason: "the caption is clipped out of its strip, so no part of it paints over the art beside the strip",
+      disposition: { kind: "excluded", reason: "flatBackdrop" },
+    },
+  ],
+  "a caption scrolled out of its strip does not meet an art layer outside the strip",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(scratch, runCli, "clipped-caption-beside-art", CLIPPED_CAPTION);
+    expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
+    return report;
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "text-over-art",
+      kind: "silent",
+      reason: "a colour fill under covered ink carries no art, so the unseen sample is withheld rather than filed as art",
+      disposition: { kind: "withheld", reason: "unresolvedBackdrop" },
+    },
+  ],
+  "a fill-only layer under covered ink is withheld, not reclassified as art",
+  async ({ runCli, scratch }) => {
+    const fill = '<div style="position:absolute;inset:0;background:rgba(255,255,255,0.2)"></div>';
+    const report = await auditFixture(scratch, runCli, "fill-under-covered-ink", `<div style="${INK_BOX}">${fill}${COVERED_INK}</div>`);
+    expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
+    return report;
+  },
+);
+
 // ── line-length: a run cut to one line has no line return ─────────────────────
 // The Characters facet row's filled preview: a gloss-voiced span inside the row button, cut to one line and
 // aria-hidden, echoing a long field body. The two controls keep the voice, the size and the box and change

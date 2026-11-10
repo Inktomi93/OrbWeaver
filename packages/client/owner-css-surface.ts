@@ -899,6 +899,7 @@ export const OWNER_CSS_SHELL_CLASSES = [
   "shell-context-toggle",
   "shell-grid",
   "shell-main",
+  "shell-overflow-track",
   "shell-panel",
   "shell-panel-body",
   "shell-panel-edge",
