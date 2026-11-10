@@ -188,13 +188,14 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
   };
   // A RADIO IS A CHOICE OF ITS GROUP. Its own name ("Flat") says which option, and the nearest
   // \`role="radiogroup"\` says which setting, so two groups that offer one option label are two settings.
-  // This publishes the group's comparison-key name; an unnamed group gives no context and stays null.
+  // The name comes from aria-labelledby or aria-label only: a radiogroup takes no name from content, and the
+  // accname fallback would name an unnamed group after its own options. An unnamed group stays null.
   var doorChoiceGroup = function (el, role) {
     if (role !== "radio") return null;
     var levels = 0;
     for (var anc = el.parentElement; anc && anc !== document.body && levels < LIST_ANCESTOR_MAX; anc = anc.parentElement, levels += 1) {
       if (String(anc.getAttribute("role") || "").trim().toLowerCase() !== "radiogroup") continue;
-      var groupName = doorNameKey(accessibleNameOf(anc));
+      var groupName = doorNameKey(labelledbyText(anc) || anc.getAttribute("aria-label") || "");
       return groupName.length > 0 ? groupName : null;
     }
     return null;

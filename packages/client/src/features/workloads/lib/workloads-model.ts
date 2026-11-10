@@ -193,8 +193,8 @@ export const WORKLOAD_FILTER_EMPTY_COPY: Record<(typeof WORKLOAD_FILTERS)[number
   failed: "No failed jobs. Good.",
 };
 
-/** A filtered tab's reason for offering no action: the one Run a job control heads the tabs. */
-export const WORKLOAD_FILTER_EMPTY_NEXT_STEP = "Jobs you start with Run a job are listed here once they reach this state.";
+/** A filtered tab's reason for offering no action: what lands here, and where the one Run a job control sits. */
+export const WORKLOAD_FILTER_EMPTY_NEXT_STEP = "Jobs from schedules and from Run a job, beside these tabs, show here once they reach this state.";
 
 const RECENT_STATUSES = ["succeeded", "cancelled"] as const satisfies readonly WorkloadStatus[];
 const FAILED_STATUSES = ["failed", "worker_died"] as const satisfies readonly WorkloadStatus[];

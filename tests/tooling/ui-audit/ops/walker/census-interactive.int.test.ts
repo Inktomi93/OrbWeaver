@@ -248,11 +248,16 @@ auditRuleTest(
 // name says which option and its radiogroup says which setting, so the two fixtures differ only in the
 // second group's name: two settings stay silent, one setting offered twice still fires. The two groups
 // carry distinct slots, as the shipped pickers do, so their paths are two homes.
-const CHOICES = (second: string): string => `<div role="radiogroup" aria-label="Chat style" data-slot="chat-style-cards">
+// A null label leaves that group unnamed; its options' text must not stand in for a name.
+const groupLabel = (label: string | null): string => (label === null ? "" : ` aria-label="${label}"`);
+const CHOICES = (
+  second: string | null,
+  first: string | null = "Chat style",
+): string => `<div role="radiogroup"${groupLabel(first)} data-slot="chat-style-cards">
   <button id="style-flat" role="radio" aria-checked="false" ${CONTROL}>Flat</button>
   <button id="style-bubble" role="radio" aria-checked="true" ${CONTROL}>Bubble</button>
 </div>
-<div role="radiogroup" aria-label="${second}" data-slot="elevation-cards">
+<div role="radiogroup"${groupLabel(second)} data-slot="elevation-cards">
   <button id="second-flat" role="radio" aria-checked="true" ${CONTROL}>Flat</button>
   <button id="second-raised" role="radio" aria-checked="false" ${CONTROL}>Raised</button>
 </div>`;
@@ -286,6 +291,22 @@ auditRuleTest(
   async ({ runCli, scratch }) => {
     const report = await auditFixture(scratch, runCli, "door-one-setting-twice", CHOICES("Chat style"));
     expect(doorsIn(report), "the group-qualified key still pairs a repeated setting").toHaveLength(1);
+    expect(report.populationAccounting?.["duplicate-action-door"]).toMatchObject({ candidates: 2, judged: 2, excluded: {} });
+  },
+);
+
+auditRuleTest(
+  [
+    {
+      rule: "duplicate-action-door",
+      kind: "fires",
+      reason: "two unnamed radiogroups give no setting context, so one option label in both stays one name offered twice",
+    },
+  ],
+  "a shared option label in two unnamed radiogroups is still two homes",
+  async ({ runCli, scratch }) => {
+    const report = await auditFixture(scratch, runCli, "door-unnamed-groups", CHOICES(null, null));
+    expect(doorsIn(report), "an unnamed group is not named after its options").toHaveLength(1);
     expect(report.populationAccounting?.["duplicate-action-door"]).toMatchObject({ candidates: 2, judged: 2, excluded: {} });
   },
 );

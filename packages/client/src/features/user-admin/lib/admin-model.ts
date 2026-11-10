@@ -48,6 +48,15 @@ export function userRoleFieldName(handle: Handle): string {
   return `Role: ${handle}`;
 }
 
+/** The admin override row's Save, at rest and while its write is in flight. */
+export const ADMIN_SAVE_LABEL = "Save";
+export const ADMIN_SAVING_LABEL = "Saving…";
+
+/** An admin override row's Save names its section, as its Reset does, because several sections share one pane. */
+export function adminSaveName(label: typeof ADMIN_SAVE_LABEL | typeof ADMIN_SAVING_LABEL, sectionLabel: string): string {
+  return `${label}: ${sectionLabel}`;
+}
+
 /** One user row's enabled Switch: the item-switch grammar over the handle. */
 export function userEnabledFieldName(handle: Handle): string {
   return itemSwitchName(ITEM_ENABLED_SETTING, handle);

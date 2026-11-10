@@ -5,7 +5,12 @@
 import { routeAuthConfig, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { ADMIN_SAVE_LABEL, adminSaveName } from "#client/features/user-admin/lib/admin-model.ts";
+import { SYSTEM_TUNING_SUBCATEGORY } from "#client/features/user-admin/lib/system-tuning-nav.ts";
 import type { ConfigSaveFooterStory } from "./_config-save-footer-stories.tsx";
+
+// Any section's Save: the admin grammar with its section left open.
+const ANY_ADMIN_SAVE = new RegExp(`^${RegExp.escape(adminSaveName(ADMIN_SAVE_LABEL, ""))}`, "u");
 
 const STORY = "tests/client/features/config/surfaces/_config-save-footer-stories/ConfigSaveFooterStory";
 const FOOTER = '[data-slot="config-save-footer"]';
@@ -42,7 +47,7 @@ test("a valid admin draft reads as waiting for Save, then Saved once saved", asy
   await depth.fill(String(floor + 1));
   await expect(footer).toContainText(WAITING_FOR_SAVE);
 
-  await page.getByRole("button", { name: "Save: System tuning", exact: true, disabled: false }).click();
+  await page.getByRole("button", { name: adminSaveName(ADMIN_SAVE_LABEL, SYSTEM_TUNING_SUBCATEGORY.label), exact: true, disabled: false }).click();
   await expect(footer).toHaveText(SAVED);
   expect((await caller.settings.getAppSettingsWithOverrides()).resolved.promptCacheMinDepth).toBe(floor + 1);
 });
@@ -61,7 +66,7 @@ test("an admin draft Save cannot send needs a fix, not Saved", async ({ mount, p
   await cap.fill("");
   await expect(footer).toContainText(NEEDS_A_FIX);
   // The positive control for the reading: no section offers a Save that could send this draft.
-  await expect(page.getByRole("button", { name: /^Save: /u, disabled: false })).toHaveCount(0);
+  await expect(page.getByRole("button", { name: ANY_ADMIN_SAVE, disabled: false })).toHaveCount(0);
 });
 
 // An emptied box is no number: it must read as needing a fix and offer no Save, not become 0 or the field's minimum.
@@ -86,7 +91,7 @@ for (const { section, name } of NUMERIC_ADMIN_FIELDS) {
     await field.fill("");
     await expect(footer).toContainText(NEEDS_A_FIX);
     await expect(footer).not.toContainText("waiting for Save");
-    await expect(page.getByRole("button", { name: /^Save: /u, disabled: false })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: ANY_ADMIN_SAVE, disabled: false })).toHaveCount(0);
   });
 }
 

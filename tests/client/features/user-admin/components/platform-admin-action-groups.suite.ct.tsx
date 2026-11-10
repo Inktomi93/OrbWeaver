@@ -4,6 +4,8 @@ import { holdServed, routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { ENLARGED_APPEARANCE_SETTINGS } from "@orb/testkit/iso";
 import { createServerHarness } from "@orb/testkit/node/composed";
+import { ADMIN_SAVE_LABEL, ADMIN_SAVING_LABEL, adminSaveName } from "#client/features/user-admin/lib/admin-model.ts";
+import { SYSTEM_TUNING_SUBCATEGORY } from "#client/features/user-admin/lib/system-tuning-nav.ts";
 import type { AdminActionGroupsStory } from "./_admin-action-groups-stories.tsx";
 
 const STORY = "tests/client/features/user-admin/components/_admin-action-groups-stories/AdminActionGroupsStory";
@@ -31,7 +33,7 @@ for (const regime of REGIMES) {
       });
       try {
         await mount<typeof AdminActionGroupsStory>(STORY, { width: regime.width, appearance: regime.appearance });
-        const save = page.getByRole("button", { name: "Save: System tuning", exact: true });
+        const save = page.getByRole("button", { name: adminSaveName(ADMIN_SAVE_LABEL, SYSTEM_TUNING_SUBCATEGORY.label), exact: true });
         const reset = page.getByRole("button", { name: "Reset to defaults: System tuning", exact: true });
         await expect(save).toBeDisabled();
         await expect(reset).toBeVisible();
@@ -46,7 +48,7 @@ for (const regime of REGIMES) {
         expect(geometry.inlineOverflow).toBeLessThanOrEqual(1);
         await save.press("Enter");
         await hold.requested;
-        const saving = page.getByRole("button", { name: "Saving…: System tuning", exact: true });
+        const saving = page.getByRole("button", { name: adminSaveName(ADMIN_SAVING_LABEL, SYSTEM_TUNING_SUBCATEGORY.label), exact: true });
         await expect(saving).toBeDisabled();
         await expect(reset).toBeDisabled();
         geometry = await actionGroupGeometry(page.locator('[data-slot="admin-action-host"]'), [saving, reset]);

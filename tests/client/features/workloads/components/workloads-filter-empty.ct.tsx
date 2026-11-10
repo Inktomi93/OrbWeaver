@@ -42,7 +42,8 @@ test("each filtered empty tab states its next step and leaves Run a job to the h
 
   for (const id of FILTERED) {
     await page.getByRole("tab", { name: WORKLOAD_FILTER_LABELS[id], exact: true }).click();
-    const panel = page.getByRole("tabpanel");
+    // The panel its tab names: a leaving panel can still be mounted during the switch.
+    const panel = page.getByRole("tabpanel", { name: WORKLOAD_FILTER_LABELS[id], exact: true });
     await expect(panel.locator('[data-slot="empty-state-title"]')).toBeVisible();
     await expect(panel.locator('[data-slot="empty-state-description"]'), `the ${id} tab says where its next step is`).toBeVisible();
     await expect(panel.getByRole("button"), `the ${id} tab mints no second Run a job door`).toHaveCount(0);

@@ -4,7 +4,7 @@ import { join } from "node:path";
 import type { RelationalPopulationReport } from "@orb/testkit/node";
 import { AUDIT_ARGV, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, readAuditReport, relationalDocument } from "@orb/testkit/node";
 import type { ToolFixtures } from "@orb/testkit/tooling";
-import { expect, test } from "@orb/testkit/tooling";
+import { auditRuleTest, expect, test } from "@orb/testkit/tooling";
 
 configureRelationalCliBudget();
 
@@ -279,13 +279,22 @@ async function auditEmpty(name: string, body: string, runCli: ToolFixtures["runC
   return res.stdout;
 }
 
-test("an authored no-action empty state with a visible reason is excluded, not a dead end", async ({ runCli, scratch }) => {
-  const stdout = await auditEmpty("authored-reason.html", libraryEmpty(AUTHORED_REASON), runCli, scratch);
-  expect(stdout).not.toMatch(/^P2\s+double-empty-state/mu);
-  expect(stdout).toContain(
-    "POPULATION   double-empty-state candidates=1 judged=0 affected=0 populations=0 representatives=0 withheld() excluded(authoredNoAction=1)",
-  );
-});
+auditRuleTest(
+  [
+    {
+      rule: "double-empty-state",
+      kind: "silent",
+      reason: "an authored action={null} with a visible reason is the primitive's declared no-step answer, not a dead end",
+      disposition: { kind: "excluded", reason: "authoredNoAction" },
+    },
+  ],
+  "an authored no-action empty state with a visible reason is excluded, not a dead end",
+  async ({ runCli, scratch }) => {
+    const stdout = await auditEmpty("authored-reason.html", libraryEmpty(AUTHORED_REASON), runCli, scratch);
+    expect(stdout).not.toMatch(/^P2\s+double-empty-state/mu);
+    return await readAuditReport(stdout);
+  },
+);
 
 test("an authored no-action empty state with a bare title is still a dead end", async ({ runCli, scratch }) => {
   const bare = '<div data-slot="empty-state-root" data-empty-action="none"><p data-slot="empty-state-title">Nothing selected</p></div>';

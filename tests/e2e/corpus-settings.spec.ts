@@ -16,6 +16,8 @@ import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { Page, Response } from "@playwright/test";
 import { CHECK_FOR_UPDATES_LABEL } from "#client/features/plugin/lib/plugin-copy.ts";
 import { REGEX_REPLACE_WITH_NAME } from "#client/features/regex/lib/regex-names.ts";
+import { ADMIN_SAVE_LABEL, adminSaveName } from "#client/features/user-admin/lib/admin-model.ts";
+import { SYSTEM_TUNING_SUBCATEGORY } from "#client/features/user-admin/lib/system-tuning-nav.ts";
 import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import { ownerActor } from "./support/actors.ts";
 import { openConfigGroup as openGroup } from "./support/config-flow.ts";
@@ -208,7 +210,7 @@ test.describe("committed corpus settings", () => {
     await openGroup(page, "admin");
     const input = page.getByRole("textbox", { name: "Prompt-cache depth floor (0–20)", exact: true });
     await input.fill(String(next));
-    await page.getByRole("button", { name: "Save: System tuning", exact: true }).click();
+    await page.getByRole("button", { name: adminSaveName(ADMIN_SAVE_LABEL, SYSTEM_TUNING_SUBCATEGORY.label), exact: true }).click();
     await expect.poll(async () => (await host.trpc.settings.getAppSettingsWithOverrides.query(undefined)).resolved.promptCacheMinDepth).toBe(next);
     await page.reload();
     await openGroup(page, "admin");
