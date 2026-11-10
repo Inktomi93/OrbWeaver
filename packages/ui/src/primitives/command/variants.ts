@@ -97,14 +97,14 @@ export const commandVariants = tv({
       // one touch row, and the list drops the inset, the headings and the scroll chain so the rows keep the room.
       // In a roomy dialog the list that has a footer under it (a following sibling) caps at the window less one footer, so a one-row footer takes
       // room from the list and the box keeps the size the skeleton held. A footer that wraps is taller and adds to the box; it never takes the
-      // list below one touch row.
+      // list below one touch row. A dialog too narrow for the footer to share a row keeps the whole window, and its footer adds to the box.
       pickerWindow: {
         list: `
           max-block-(--height-picker-window)
-          dialog-roomy:[&:has(~*)]:max-block-(--height-picker-list-footed) dialog-roomy:[&:has(~*)]:min-block-(--height-scroll-short)
           dialog-short:overflow-x-hidden dialog-short:overscroll-auto dialog-short:p-0
           dialog-short:glass-short:mx-(--border-width-rule) dialog-short:glass-short:mbe-(--border-width-rule) dialog-short:glass-short:flex-auto
           dialog-short:glass-short:max-block-none dialog-short:glass-short:min-block-(--height-scroll-short)
+          dialog-roomy:[&:has(~*)]:max-block-(--height-picker-list-footed) dialog-roomy:[&:has(~*)]:min-block-(--height-scroll-short)
           dialog-short:**:[[cmdk-group-heading]]:hidden
         `,
       },

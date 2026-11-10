@@ -8,6 +8,7 @@ import { LAYOUT_SUBPIXEL_PX, seedShellState, setRootFontScale } from "@orb/testk
 import { channelName } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, seedCharacter } from "@orb/testkit/node/composed";
+import { TOKENS } from "@orb/ui/tokens";
 import { CLEAR_SEARCH_NAME } from "#client/lib/search-empty-names.ts";
 import type { AppShellModalStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
@@ -42,6 +43,11 @@ interface Cell {
   readonly holds: boolean;
   /** Characters seeded on top of the corpus library, so the footer's count reads three digits. */
   readonly extra?: number;
+  /**
+   * The list's least height after the keystroke, as the token that names it: the whole window where the dialog is too narrow for the footer to share
+   * a row, the window less one footer row where it is not. A footer that wraps then adds to the box and takes nothing more from the list.
+   */
+  readonly listAtLeast?: "height.picker-window" | "height.picker-list-footed";
 }
 
 const CELLS: readonly Cell[] = [
@@ -56,20 +62,23 @@ const CELLS: readonly Cell[] = [
   // At 200% text a footer keeps one row only in a dialog wide enough for its count beside Clear search: a tablet-width screen holds the box, and a
   // phone's footer wraps, so the box grows and the list keeps its window.
   { name: "600x1100 at 200%", width: 600, height: 1100, factor: 2, holds: true },
-  { name: "460x915 at 200%", width: 460, height: 915, factor: 2, holds: false },
-  { name: "412x915 at 200%", width: 412, height: 915, factor: 2, holds: false },
-  { name: "430x932 at 200%", width: 430, height: 932, factor: 2, holds: false },
-  { name: "393x873 at 200%", width: 393, height: 873, factor: 2, holds: false },
-  { name: "360x900 at 200%", width: 360, height: 900, factor: 2, holds: false },
+  { name: "460x915 at 200%", width: 460, height: 915, factor: 2, holds: false, listAtLeast: "height.picker-list-footed" },
+  { name: "412x915 at 200%", width: 412, height: 915, factor: 2, holds: false, listAtLeast: "height.picker-list-footed" },
+  { name: "430x932 at 200%", width: 430, height: 932, factor: 2, holds: false, listAtLeast: "height.picker-list-footed" },
+  // Narrower than the footer's one row needs, the dialog keeps the whole window and the footer adds to the box.
+  { name: "393x873 at 200%", width: 393, height: 873, factor: 2, holds: false, listAtLeast: "height.picker-window" },
+  { name: "360x900 at 200%", width: 360, height: 900, factor: 2, holds: false, listAtLeast: "height.picker-window" },
   // A landscape phone at enlarged text scrolls the dialog as one sheet around a one-row list window, and the footer still keeps that row.
   { name: "844x390 at 200%", width: 844, height: 390, factor: 2, holds: false },
   { name: "844x390 at 300%", width: 844, height: 390, factor: 3, holds: false },
   { name: "568x320 at 200%", width: 568, height: 320, factor: 2, holds: false },
   { name: "568x320 at 300%", width: 568, height: 320, factor: 3, holds: false },
-  // A library past a hundred characters reads "Showing 100 of 108": the count's length is not what decides whether the list keeps its row. 480 is a
-  // width where the shorter count still fits beside Clear search.
-  { name: "480x915 at 200% with 108 characters", width: 480, height: 915, factor: 2, holds: false, extra: 70 },
-  { name: "412x915 at 200% with 108 characters", width: 412, height: 915, factor: 2, holds: false, extra: 70 },
+  // A library past a hundred characters reads "Showing 100 of 108": the count's length does not decide whether the list keeps its row. It is also
+  // a footer with text and no Clear search before the first keystroke, so a footer that is only as tall as its text moves the box on the keystroke.
+  { name: "1440x900 at 100% with 108 characters", width: 1440, height: 900, factor: 1, holds: true, extra: 70 },
+  { name: "390x844 at 100% with 108 characters", width: 390, height: 844, factor: 1, holds: true, extra: 70 },
+  { name: "480x915 at 200% with 108 characters", width: 480, height: 915, factor: 2, holds: false, extra: 70, listAtLeast: "height.picker-list-footed" },
+  { name: "412x915 at 200% with 108 characters", width: 412, height: 915, factor: 2, holds: false, extra: 70, listAtLeast: "height.picker-list-footed" },
 ];
 
 interface Frame {
@@ -122,6 +131,23 @@ for (const cell of CELLS) {
         const after = await frame();
         expect(after.list, `the list went ${String(before.list)}px to ${String(after.list)}px under rows of ${String(after.row)}px`).toBeGreaterThanOrEqual(
           after.row,
+        );
+        const floorToken = cell.listAtLeast;
+        const floor =
+          floorToken === undefined
+            ? 0
+            : await dialog.evaluate((popup, variable) => {
+                const probe = document.createElement("div");
+                // The popup is a column that scrolls; a probe that could shrink would read less than the step.
+                probe.style.flex = "none";
+                probe.style.blockSize = `var(${variable})`;
+                popup.append(probe);
+                const height = probe.getBoundingClientRect().height;
+                probe.remove();
+                return height;
+              }, TOKENS[floorToken].cssVar);
+        expect(after.list, `the list is ${String(after.list)}px, under the ${String(floorToken)} step of ${String(floor)}px`).toBeGreaterThanOrEqual(
+          floor - LAYOUT_SUBPIXEL_PX,
         );
         // The list stays a window onto the matches: an unbounded list would run every match down the sheet and put Start past them.
         expect(after.list, `the list is ${String(after.list)}px tall on a ${String(cell.height)}px screen`).toBeLessThanOrEqual(cell.height);
