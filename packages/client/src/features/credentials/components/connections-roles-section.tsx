@@ -23,7 +23,7 @@ function settingControlId(settingId: string | undefined): string | undefined {
 }
 
 export function ConnectionsRolesSection({ anchorId }: { readonly anchorId: string }): ReactElement {
-  const firstBootRows = useFirstBootRows({ wide: 25, narrow: 22 });
+  const firstBootRows = useFirstBootRows({ wide: 12, narrow: 18 });
   return (
     // RESERVED (#1098) — a config section that settles into one row per model role — the tallest block on this pane.
     <QueryBoundary
@@ -94,19 +94,19 @@ function ModelRolesBody({ anchorId }: { readonly anchorId: string }): ReactEleme
       </Text>
       <Stack gap="block">
         {ROLE_ROWS_ORDERED.map((row) => (
-          <Stack key={row.task} gap="field">
-            <ConnectionRoleSlot
-              row={row}
-              connections={connections}
-              view={bindings.find((view) => view.task === row.task) ?? null}
-              controlId={settingControlId(ROLE_SETTING_IDS[row.task])}
-              trpc={trpc}
-              invalidation={invalidation}
-            />
+          <ConnectionRoleSlot
+            key={row.task}
+            row={row}
+            connections={connections}
+            view={bindings.find((view) => view.task === row.task) ?? null}
+            controlId={settingControlId(ROLE_SETTING_IDS[row.task])}
+            trpc={trpc}
+            invalidation={invalidation}
+          >
             {/* Chat's preset is the active preset (the Presets pane); only Utility picks its own (D299). */}
             {row.task === "summarize" ? <UtilityPresetSelect /> : null}
             {row.task === "rerank" ? <BuiltinRerankerHint bindings={bindings} builtinProviderIds={builtinProviderIds} connections={connections} /> : null}
-          </Stack>
+          </ConnectionRoleSlot>
         ))}
       </Stack>
     </Section>

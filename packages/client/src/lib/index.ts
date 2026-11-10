@@ -19,7 +19,14 @@ export { buildPublicBugReport, publicBugReportIssueUrl } from "./bug-report-publ
 export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog.ts";
 export type { ScreenTitle } from "./census-title.ts";
 export { censusSuffix, censusTitle } from "./census-title.ts";
-export { BLANK_CHAT_NAME, NO_CHAT_SELECTED_TITLE, START_NEW_CHAT_NAME, START_TEMP_CHAT_NAME, TEMPORARY_CHAT_BADGE } from "./chat-launch-names.ts";
+export {
+  BLANK_CHAT_NAME,
+  NEW_CHAT_DIALOG_TITLE,
+  NO_CHAT_SELECTED_TITLE,
+  START_NEW_CHAT_NAME,
+  START_TEMP_CHAT_NAME,
+  TEMPORARY_CHAT_BADGE,
+} from "./chat-launch-names.ts";
 export { CHAT_NAME_FIELD_NAME, CHAT_TITLE_FIELD_NAME, RENAME_CHAT_NAME, renameChatButtonName } from "./chat-rename-names.ts";
 export { authoredChatName, chatRoomTitle, deriveChatTitle } from "./chat-title.ts";
 export { buildClientErrorPayload } from "./client-error-report.ts";

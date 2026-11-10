@@ -17,7 +17,7 @@
 //
 // THE THREE REGIONS ARE THE TILES' OWN DECLARATION (`HomeTileContribution.region`), never a list here: a
 // masthead row above the split, the hearth column, the shelf column. Home still reads no feature — the
-// placement travels with the tile that makes it, which is the same rule `sectionId` follows.
+// placement travels with the tile that makes it.
 //
 // THE DORMANT DOORWAYS ARE GROUPED, not framed one by one (the mockup's right-rail move): every tile
 // whose body is the `{dormant}` arm lands under ONE band at the foot of the shelf. That is a
@@ -73,7 +73,7 @@ import { WeaveGlyph } from "@orb/ui/web-weave";
 import type { ReactElement } from "react";
 import { useRef } from "react";
 import type { ContributorRegistry } from "#lib";
-import { useFocusOnMount } from "#lib";
+import { START_NEW_CHAT_NAME, useFocusOnMount } from "#lib";
 import type { DormantDoorway, HomeTileContribution } from "#state";
 import { HomePaneAnchor } from "../anchors/home-pane-anchor.tsx";
 import { HomeDoorway, HomeTile } from "../components/home-tile.tsx";
@@ -138,6 +138,13 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
   const shelfFoot = shelf.slice(-1);
   const shelfFootSide = shelf.slice(-2, -1);
   const shelfLead = shelf.slice(0, -2);
+  // Home's one start action. It stays outside the tiles so no tile's gate or loading box can hold it back.
+  const startChat = (
+    <Button aria-label={START_NEW_CHAT_NAME} onClick={onNewChat}>
+      <Icon icon={Plus} size="sm" />
+      New chat
+    </Button>
+  );
 
   return (
     // FORM tier (UI-Density-Law.md §3.1): home is a surface you land on and act from, so its islands
@@ -163,21 +170,19 @@ export function HomeSurface({ tiles, onNewChat }: HomeSurfaceProps): ReactElemen
         <HomePaneAnchor>
           {list.length === 0 ? (
             <EmptyState
-              action={
-                <Button onClick={onNewChat}>
-                  <Icon icon={Plus} size="sm" />
-                  New chat
-                </Button>
-              }
+              action={startChat}
               decoration={<WeaveGlyph anim={true} size="display" />}
               description="Start a thread and your recents land here."
               title="Nothing on your home yet"
             />
           ) : (
             <Stack gap="section">
-              {masthead.map((tile) => (
-                <HomeTile gridRef={gridRef} column="masthead" key={tile.id} tile={tile} />
-              ))}
+              <Row align="start" gap="gutter" justify="between" wrap={true}>
+                {masthead.map((tile) => (
+                  <HomeTile gridRef={gridRef} column="masthead" key={tile.id} tile={tile} />
+                ))}
+                {startChat}
+              </Row>
               {/* `items-start` (mock `.room{align-items:start}`): grid's default `stretch` would make the
                   shelf column as tall as the hearth and hang its last block in dead space. */}
               <Grid align="start" cols="pairWide" ref={gridRef} data-home-grid={true} gap="gutter">

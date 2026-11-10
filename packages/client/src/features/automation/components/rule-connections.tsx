@@ -53,9 +53,10 @@ function RuleConnectionsBody({ ruleId, tasks }: RuleConnectionsProps): ReactElem
   );
 }
 
-/** What a slot means for a rule: which of its arms spend through it, and what the author's own role covers.
+/** What a slot means for a rule: which of its arms spend through it. What an unset slot does stays visible: the picker
+ *  reads "Same as my <role> role" and the readout names the connection it resolves to.
  *  Only the tasks `AUTOMATION_ARM_BINDING_TASK` names can reach a rule's editor; the rest keep the row's copy. */
 const RULE_SLOT_DESCRIPTIONS: Partial<Record<RoutableTask, string>> = {
-  chat: "Turns this rule starts or suggests run on it. Left on your own role, they run on your Chat connection.",
-  generateImage: "Pictures this rule makes are drawn with it. Left on your own role, they use your Image generation connection.",
+  chat: "Turns this rule starts or suggests run on it.",
+  generateImage: "Pictures this rule makes are drawn with it.",
 };
