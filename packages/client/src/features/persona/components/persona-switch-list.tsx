@@ -27,6 +27,7 @@ import { rowActionSubject, rowQualifiers, timeLib } from "#lib";
 import type { ChromePresentation } from "#state";
 import { closeModal, openPersonaEditor } from "#state";
 import { PersonaCardPin } from "./persona-card-pin.tsx";
+import { PersonaClearDefaultItem } from "./persona-clear-default-item.tsx";
 import { PersonaCrown } from "./persona-crown.tsx";
 import { ConnectedGlyph, PlayingGlyph } from "./persona-state-markers.tsx";
 
@@ -176,7 +177,7 @@ function SwitchRow({
           ) : (
             <MenuItem onClick={(): void => openEditor(persona.id, presentation)}>Edit</MenuItem>
           )}
-          {isDefault ? <MenuItem onClick={onClearDefault}>Clear default</MenuItem> : <MenuItem onClick={onSetDefault}>Set as default</MenuItem>}
+          {isDefault ? <PersonaClearDefaultItem onClear={onClearDefault} /> : <MenuItem onClick={onSetDefault}>Set as default</MenuItem>}
           {room?.viewerIsHost === true ? <CardPinMenuItem persona={persona} room={room} /> : null}
         </RowActionsMenu>
       </Row>

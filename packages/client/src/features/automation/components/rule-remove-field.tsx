@@ -5,6 +5,7 @@ import { Button } from "@orb/ui/button";
 import type { ReactElement } from "react";
 import { DestructiveAction } from "#components";
 import type { RemovalFocus } from "../hooks/use-removal-focus.ts";
+import { RuleRemoveEmptyField } from "./rule-remove-empty-field.tsx";
 
 interface RuleRemoveFieldProps {
   /** The field's lower-case name, as the control and its confirm say it. */
@@ -22,11 +23,7 @@ export function RuleRemoveField({ name, value, onRemove, focus }: RuleRemoveFiel
     onRemove();
   };
   if ((value ?? "").trim() === "") {
-    return (
-      <Button variant="ghost" justify="start" onClick={remove}>
-        Remove {name}
-      </Button>
-    );
+    return <RuleRemoveEmptyField name={name} onRemove={remove} />;
   }
   return (
     <DestructiveAction

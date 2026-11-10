@@ -9,7 +9,7 @@ const CONFIRMED: unique symbol = Symbol("ConfirmedAction");
  */
 export type ConfirmedAction = (() => void) & { readonly [CONFIRMED]: true };
 
-/** Brands the opener of a confirm. Call it only in the code that renders the confirm `open` reveals. */
+/** Brands the opener of a confirm. `orb/confirmed-action-mint` allows the call only in `CONFIRMED_ACTION_MINT_HOMES`, each of which renders the confirm `open` reveals. */
 export function confirmedAction(open: () => void): ConfirmedAction {
   return Object.assign(open, { [CONFIRMED]: true as const });
 }

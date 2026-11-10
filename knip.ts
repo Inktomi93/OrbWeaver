@@ -57,8 +57,9 @@ export const config = {
       // knip's Stryker plugin reads every `checkers` name as an `@stryker-mutator/<name>-checker` package; the
       // native checker is the in-repo plugin the config loads by path (tooling/src/mutation-checker/index.ts).
       // The compiler, not an import, reads three declaration packages once declaration checking is on:
-      // `@rolldown/plugin-babel`'s types import `@babel/core` (whose types import `@babel/traverse`), and the
-      // patched `@electric-sql/pglite` types import `emscripten/modular.js` (patches/@electric-sql__pglite@0.2.12.patch).
+      // `@rolldown/plugin-babel`'s and `babel-plugin-react-compiler`'s types import `@babel/core`, the latter's also
+      // import `@babel/traverse`, and the patched `@electric-sql/pglite` types import `emscripten/modular.js`
+      // (patches/@electric-sql__pglite@0.2.12.patch).
       ignoreDependencies: [
         "pino-pretty",
         "@anthropic-ai/sdk",

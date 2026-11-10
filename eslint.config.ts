@@ -1905,6 +1905,8 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       ignores: Object.keys(DESTRUCTIVE_EXEMPT),
       rules: { "orb/destructive-needs-confirm": "error" },
     },
+    // No exempt file: a ConfirmedAction minted or cast anywhere would vouch for a confirm in every file.
+    { files: ["packages/client/src/**/*.{ts,tsx}"], rules: { "orb/confirmed-action-mint": "error" } },
     {
       files: ["packages/client/src/**/*.{ts,tsx}"],
       ignores: ["packages/client/src/**/hooks/**", "packages/client/src/**/*-mutations.ts", "packages/client/src/data/**"],

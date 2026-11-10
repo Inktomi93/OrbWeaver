@@ -3,6 +3,7 @@ import { detachedWorkRule } from "./async.ts";
 import { browserSupportRule } from "./browser-support.ts";
 import { CLIENT_DATA_RESTRICTIONS, effectOnSharedSelectionRule } from "./client-data-policy.ts";
 import { closedVocabularyRule } from "./closed-vocabulary.ts";
+import { confirmedActionMintRule } from "./confirmed-action-mint.ts";
 import type { CustomPropertyUses } from "./css/custom-properties.ts";
 import { derivedPortMemberRule } from "./derived-port.ts";
 import { destructiveNeedsConfirmRule } from "./destructive-confirm.ts";
@@ -63,7 +64,7 @@ import type { DomLookupHome } from "./ui-dom.ts";
 import { classListWriteRule, domLookupRule } from "./ui-dom.ts";
 import type { CandidatesToCss, ClassClassifier, PropOwners } from "./ui-feature-classname.ts";
 import { featureClassNameLayoutOnlyRule, noBuiltClassStringRule } from "./ui-feature-classname.ts";
-import { UI_FEATURE_RESTRICTIONS } from "./ui-feature-policy.ts";
+import { CONFIRMED_ACTION_MINT_HOMES, UI_FEATURE_RESTRICTIONS } from "./ui-feature-policy.ts";
 import { intentColorRecipeRule } from "./ui-intent-color.ts";
 import { rawIntrinsicPaintRule } from "./ui-intrinsics.ts";
 import { noManualMemoRule, noUsePromiseRule } from "./ui-law-policy.ts";
@@ -253,6 +254,7 @@ export function createOrbPlugin(options: {
     rules: {
       ...Object.fromEntries(LOCAL_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)] as const)),
       "destructive-needs-confirm": destructiveNeedsConfirmRule,
+      "confirmed-action-mint": confirmedActionMintRule(CONFIRMED_ACTION_MINT_HOMES),
       "surface-consumes-container": surfaceConsumesContainerRule,
       "anchor-provides-container": anchorProvidesContainerRule,
       "no-raw-intrinsic-paint": rawIntrinsicPaintRule(options.shellClasses),

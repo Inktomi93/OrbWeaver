@@ -10,6 +10,7 @@ import inferencePackage from "./packages/inference/package.json" with { type: "j
 import kitPackage from "./packages/kit/package.json" with { type: "json" };
 import serverPackage from "./packages/server/package.json" with { type: "json" };
 import uiPackage from "./packages/ui/package.json" with { type: "json" };
+import { CONFIRMED_ACTION_MINT_HOMES } from "./tooling/src/eslint/ui-feature-policy.ts";
 import { BROWSER_TEST_SUFFIXES, TEST_KIND_DEFINITIONS, TEST_KIND_SUFFIXES } from "./tooling/src/floor/testing/test-kinds.ts";
 
 const ROOT = fileURLToPath(new URL(".", import.meta.url));
@@ -187,6 +188,8 @@ const SUBPATH_LEAF_IMPORTERS = [
   // The lib barrel deliberately omits these development-only leaves.
   "packages/client/src/features/app-shell/lib/bug-report-capture.ts",
   "packages/client/src/features/chat/components/message-row.tsx",
+  // The components barrel omits the ConfirmedAction mint, so only its homes reach it (orb/confirmed-action-mint).
+  ...Object.keys(CONFIRMED_ACTION_MINT_HOMES),
 ].map((path) => `^${path.replaceAll(".", "\\.")}$`);
 
 // The packages kit, contracts, db, inference and client may import; a test tree of the package runs production only from the same set. Server, default-content and showcase-plugins keep their rows below.

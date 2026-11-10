@@ -1,6 +1,6 @@
 // A destructive control owns the trigger, reversible draft, inline choice or undo that makes its press safe (§14).
-// A confirm another surface opens is proven by the press handler's type: a `ConfirmedAction`, which only the code
-// rendering that confirm mints. Without type information the rule never accepts that arm.
+// A confirm another surface opens is proven by the press handler's type: a `ConfirmedAction`, which `orb/confirmed-action-mint`
+// lets only a listed home mint and no cast forge. Without type information the rule never accepts that arm.
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES as T, TSESLint } from "@typescript-eslint/utils";
@@ -22,13 +22,14 @@ const DIALOG = "JSXOpeningElement[name.name=/^(ConfirmDialog|ModelRunConfirmDial
 const UNDO =
   "CallExpression[callee.object.name='notify'] > ObjectExpression.arguments > Property[key.name='action'] > ObjectExpression:has(> Property[key.name='label'][value.value='Undo']):has(> Property[key.name='onClick'])";
 const MESSAGE = "A control that destroys data needs its own confirmation or undo (docs/law/client-architecture-state-and-gates.md §14).";
-const CONFIRMED_HOME = /\/packages\/client\/src\/components\/confirmed-action\.ts$/u;
+export const CONFIRMED_HOME = /\/packages\/client\/src\/components\/confirmed-action\.ts$/u;
 const CONFIRMED_TYPE = "ConfirmedAction";
 // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript TypeFlags is a compiler-owned bitfield.
-const UNPROVEN = ts.TypeFlags.Any | ts.TypeFlags.Unknown | ts.TypeFlags.Never;
+export const UNPROVEN = ts.TypeFlags.Any | ts.TypeFlags.Unknown | ts.TypeFlags.Never;
 const confirmedCache = new WeakMap<ts.Program, ts.Type | null>();
 
-function confirmedType(program: ts.Program, checker: ts.TypeChecker): ts.Type | null {
+/** The shipped `ConfirmedAction` brand in this program, or null when the program does not hold its module. */
+export function confirmedType(program: ts.Program, checker: ts.TypeChecker): ts.Type | null {
   const cached = confirmedCache.get(program);
   if (cached !== undefined) {
     return cached;

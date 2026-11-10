@@ -14,7 +14,7 @@ import { VirtualList } from "@orb/ui/virtual-list";
 import type { ReactElement } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import type { ConfirmedAction } from "#components";
-import { ConfirmDialog, confirmedAction, LibraryRow, usePruneUnusedTags, useRemoveTag, useSetTagOrder } from "#components";
+import { ConfirmDialog, LibraryRow, usePruneUnusedTags, useRemoveTag, useSetTagOrder } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import {
@@ -29,6 +29,7 @@ import {
   unusedTagsLabel,
   usageBreakdown,
 } from "#lib";
+import { confirmedAction } from "#src/components/confirmed-action.ts";
 import { labelDeleted, setLabelFilter, setTagPruneConfirmOpen, useTagPruneConfirmOpen, useTagSortMode } from "#state";
 import { finderRoot, focusAfterConfirmCloses, focusFinderSearch, labelRowOpener, libraryOrFinder } from "../lib/labels-focus-targets.ts";
 import { TAG_LIST_NAME } from "../lib/tag-list-name.ts";

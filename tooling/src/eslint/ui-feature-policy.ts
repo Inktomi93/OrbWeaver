@@ -40,12 +40,20 @@ const EDITOR_COLUMN = String.raw`/mx-auto.*max-inline-\(--width-content-col\)|ma
 // (docs/law/client-architecture-state-and-gates.md §14, "Destructive confirms"). `pnpm ui-facts` reads the same list.
 export const DESTRUCTIVE_EXEMPT = homeReasons({
   "packages/client/src/features/persona/components/persona-room-block.tsx": "Clear pin moves a pointer, which the same menu sets again",
-  "packages/client/src/features/persona/components/persona-switch-list.tsx": "Clear default moves a pointer, which the same menu sets again",
-  "packages/client/src/features/automation/components/rule-remove-field.tsx":
-    "an empty field holds nothing, and its Add control brings it back; a filled field asks through DestructiveAction",
+  "packages/client/src/features/persona/components/persona-clear-default-item.tsx": "Clear default moves a pointer, which the same menu sets again",
+  "packages/client/src/features/automation/components/rule-remove-empty-field.tsx": "an empty field holds nothing, and its Add control brings it back",
   "packages/client/src/features/refinery/components/apply-outcome.tsx": "the label names the discard, and the refused rewrite was never applied",
   "packages/client/src/features/config/components/config-teacher.tsx":
     "resets one setting to the default its row shows; a list or object value gets an Undo toast, and a scalar is one click from set again",
+});
+
+// The files that may mint a `ConfirmedAction`, each rendering the confirm its opener reveals
+// (docs/law/client-architecture-state-and-gates.md §14). `orb/confirmed-action-mint` refuses the mint anywhere else.
+export const CONFIRMED_ACTION_MINT_HOMES = homeReasons({
+  "packages/client/src/features/tag/components/tag-collection-rows.tsx":
+    "`useLabelDelete` renders the delete-tag ConfirmDialog its opener reveals, so a bus refresh cannot unmount the confirm with the row",
+  "packages/client/src/features/user-admin/components/admin-users-section.tsx":
+    "the section renders the Cancel-able reset-password dialog its row opener reveals",
 });
 
 export const UI_FEATURE_RESTRICTIONS = [

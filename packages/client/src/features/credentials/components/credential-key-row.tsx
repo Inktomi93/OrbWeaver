@@ -30,10 +30,10 @@ import { Row } from "@orb/ui/layout";
 import { ListRow } from "@orb/ui/list-row";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
-import { ConfirmDialog, FormDialog } from "#components";
+import { useRef, useState } from "react";
+import { ConfirmDialog, DestructiveAction, FormDialog } from "#components";
 import type { Invalidation, Trpc } from "#data";
-import { notify, testId } from "#lib";
+import { testId } from "#lib";
 import { useClearRevokedCredential, useMarkRevokedByUser, useRemoveCredential, useReplaceCredential } from "../hooks/use-connections-mutations.ts";
 import { keyRowSubtitle, keySubject, reuseSentence } from "../lib/credential-key-model.ts";
 
@@ -54,7 +54,9 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
   const deps = { trpc, invalidation };
   const remove = useRemoveCredential(deps);
   const markRevoked = useMarkRevokedByUser(deps);
-  const clearRevoked = useClearRevokedCredential(deps);
+  const clearRevoked = useClearRevokedCredential({ ...deps, failureShownInline: "the clear-revoked confirm's alert line" });
+  // Clearing swaps the revoked row's actions for Replace and Revoke; focus moves to Replace when the refetch has painted it.
+  const replaceButton = useRef<HTMLButtonElement>(null);
   const replace = useReplaceCredential(deps);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [revokeOpen, setRevokeOpen] = useState(false);
@@ -91,21 +93,25 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
         <Row wrap={true} gap="field" align="center">
           {revoked ? (
             <>
-              <Button
-                data-testid={testId("credentialClearRevoked")}
-                variant="outline"
-                size="sm"
-                disabled={clearRevoked.isPending}
-                onClick={(): void => {
-                  clearRevoked.mutate({ credentialId: credential.id });
-                  notify.info({
-                    title: `Cleared the revoked flag on the ${subject} key`,
-                    action: { label: "Undo", onClick: (): void => markRevoked.mutate({ credentialId: credential.id }) },
-                  });
+              {/* No undo: re-revoking would record a different reason and time than the revocation being cleared. */}
+              <DestructiveAction
+                confirm={{
+                  confirmLabel: "Clear revoked",
+                  description: `${reuseSentence(usedBy)}, and every one of them starts using this key again. Why it was revoked is not kept.`,
+                  title: `Clear the revoked flag on the ${subject} key?`,
+                  confirmTone: "primary",
                 }}
-              >
-                Clear revoked
-              </Button>
+                finalFocus={(): boolean => {
+                  replaceButton.current?.focus();
+                  return replaceButton.current === null;
+                }}
+                onConfirm={(): Promise<void> => clearRevoked.mutateAsync({ credentialId: credential.id }).then((): void => undefined)}
+                trigger={
+                  <Button data-testid={testId("credentialClearRevoked")} variant="outline" size="sm" disabled={clearRevoked.isPending}>
+                    Clear revoked
+                  </Button>
+                }
+              />
               <Button variant="ghost" size="sm" aria-label={`Remove the ${subject} key`} onClick={(): void => setDeleteOpen(true)}>
                 Remove
               </Button>
@@ -113,6 +119,7 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
           ) : (
             <>
               <Button
+                ref={replaceButton}
                 variant="outline"
                 size="sm"
                 aria-label={`Replace the ${subject} key`}
