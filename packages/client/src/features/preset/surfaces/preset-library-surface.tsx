@@ -29,7 +29,15 @@ import { useDeferredValue, useRef } from "react";
 import { LibraryListRows, LibrarySurfaceShell, ListPage, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQueries, useTRPC, useTRPCClient } from "#data";
 import { CLEAR_SEARCH_NAME, downloadJson, NO_MATCHES_TITLE, notify, rowQualifiers, slugifyFilename, timeLib, useFocusListArrival } from "#lib";
-import { getSelectedPresetId, presetSectionSelection, selectPreset, setPresetSearchQuery, usePresetSearchQuery, useSelectedPresetId } from "#state";
+import {
+  getSelectedPresetId,
+  presetSectionSelection,
+  selectPreset,
+  setPresetSearchQuery,
+  usePresetSearchQuery,
+  useSectionListSearchPlaceholder,
+  useSelectedPresetId,
+} from "#state";
 import { PresetLibraryRow } from "../components/preset-library-row.tsx";
 import { useCreatePreset, useRemovePreset, useSetDefaultPreset } from "../hooks/use-preset-mutations.ts";
 import { notifyActivePreset } from "../lib/active-preset-notice.ts";
@@ -49,6 +57,7 @@ export function PresetLibrarySurface({ onSelectPreset }: PresetLibrarySurfacePro
   // census answers off the same lens — so nothing about ownership changes, only which side of the read it
   // is read on. The list below still reads it (deferred) for the filter.
   const query = usePresetSearchQuery();
+  const searchPlaceholder = useSectionListSearchPlaceholder("presets");
 
   return (
     // THE FOCUS TARGET IS NAMED (side-eye 2026-08-19 ARIA). `useFocusOnMount` parks focus on this container
@@ -58,7 +67,7 @@ export function PresetLibrarySurface({ onSelectPreset }: PresetLibrarySurfacePro
     <ListPage
       label="Presets list"
       ref={surfaceRef}
-      search={<Input aria-label={PRESET_SEARCH_NAME} onValueChange={setPresetSearchQuery} placeholder="Search presets…" value={query} />}
+      search={<Input aria-label={PRESET_SEARCH_NAME} onValueChange={setPresetSearchQuery} placeholder={searchPlaceholder} value={query} />}
       skipTo="Skip to presets"
     >
       {/* The reservation's measuring Stack is auto-height, so the `scroll` body above the boundary is the pane's

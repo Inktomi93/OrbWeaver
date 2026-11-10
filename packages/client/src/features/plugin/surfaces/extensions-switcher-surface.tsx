@@ -26,7 +26,14 @@ import { useRef } from "react";
 import { LibraryRow, LibrarySurfaceShell, ListPage } from "#components";
 import { SkeletonRows } from "#data";
 import { CLEAR_SEARCH_NAME, testId, useFocusListArrival } from "#lib";
-import { openConfigTo, selectPluginPageFromList, setExtensionsSearchQuery, useExtensionsSearchQuery, usePluginPageKey } from "#state";
+import {
+  openConfigTo,
+  selectPluginPageFromList,
+  setExtensionsSearchQuery,
+  useExtensionsSearchQuery,
+  usePluginPageKey,
+  useSectionListSearchPlaceholder,
+} from "#state";
 import { ExtensionsAwaitingRows } from "../components/extensions-awaiting-consent.tsx";
 import { useExtensionsEmpty } from "../hooks/use-extensions-empty.ts";
 import { useExtensionsRoster } from "../hooks/use-extensions-roster.ts";
@@ -103,6 +110,7 @@ function ExtensionsPageList(): ReactElement {
 /** The LIST pane surface. */
 export function ExtensionsSwitcherSurface(): ReactElement {
   const search = useExtensionsSearchQuery();
+  const searchPlaceholder = useSectionListSearchPlaceholder("extensions");
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusListArrival(surfaceRef);
   return (
@@ -112,7 +120,7 @@ export function ExtensionsSwitcherSurface(): ReactElement {
       data-testid={testId("extensionsSwitcher")}
       label={EXTENSIONS_SECTION_LABEL}
       ref={surfaceRef}
-      search={<Input aria-label={EXTENSIONS_SEARCH_NAME} onValueChange={setExtensionsSearchQuery} placeholder="Search plugin pages…" value={search} />}
+      search={<Input aria-label={EXTENSIONS_SEARCH_NAME} onValueChange={setExtensionsSearchQuery} placeholder={searchPlaceholder} value={search} />}
       skipTo="Skip to plugin pages"
     >
       <LibrarySurfaceShell errorLabel="your plugin pages" loadingLabel="Loading plugin pages…" resetKeys={[]}>

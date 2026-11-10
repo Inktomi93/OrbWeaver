@@ -41,6 +41,7 @@ export const presetsSection: SectionDefinition = {
   ),
   // The LIST chrome-band content (D66 A1/A2 — the L4 sweep): "PRESETS" + count + the create verbs.
   useListHeader: usePresetListHeader,
+  listSearchPlaceholder: "Search presets…",
   // How the SHELL reads "is a preset open?" — the mobile ONE-SHELL rule's input + its back affordance.
   selection: presetSectionSelection,
   // …and what it calls the open preset in the pushed frame's topbar.

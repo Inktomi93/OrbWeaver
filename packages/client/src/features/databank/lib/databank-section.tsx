@@ -56,6 +56,7 @@ export const databankSection: SectionDefinition = {
   ),
   // The LIST chrome-band content (D66 A1/A2): "DATABANK" + count + Add + the maintenance kebab.
   useListHeader: useDatabankListHeader,
+  listSearchPlaceholder: "Search documents…",
   // How the SHELL reads "is a document open?" — the mobile ONE-SHELL rule's input + its back affordance.
   selection: databankSectionSelection,
   // …and what it calls the open document in the pushed frame's topbar.

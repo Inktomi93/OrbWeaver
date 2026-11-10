@@ -3,7 +3,7 @@ import { expectTypeOf, test } from "vitest";
 
 declare const base: Pick<SectionDefinition, "id" | "rail" | "panelDefaults" | "placeholder" | "contentInset" | "useSelectionTitle">;
 declare const withoutInset: Omit<typeof base, "contentInset">;
-declare const list: Required<Pick<SectionDefinition, "list" | "useListHeader" | "selection">>;
+declare const list: Required<Pick<SectionDefinition, "list" | "useListHeader" | "selection" | "listSearchPlaceholder">>;
 
 test("planned section content cannot carry a list, a header or a rendered context", () => {
   const planned: SectionDefinition = { ...base, content: { planned: "Tracked delivery" }, context: { kind: "none" } };

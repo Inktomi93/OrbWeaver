@@ -19,7 +19,7 @@ export { landedMutedContrast, paintedArt } from "./over-art-contrast.ts";
 export { diagnosticTarget } from "./performance-entry.ts";
 export { pixelContrast, pixelFilledTextContrast, pixelMarkContrast, pixelSpread, pixelSurface } from "./pixel-contrast.ts";
 export type { PlatformTextSize } from "./platform-text-size.ts";
-export { PLATFORM_TEXT_SCALES, setPlatformTextSize } from "./platform-text-size.ts";
+export { expectShellRegime, PLATFORM_TEXT_SCALES, setPlatformTextSize, shellRegimeAt } from "./platform-text-size.ts";
 export { beginReading, scrollIntoReadingMessage, tokenColor } from "./reading-position.ts";
 export { enlargeUntilVisible, setRootFontScale } from "./root-property.ts";
 export { assertSurfaceReady, auditSurface } from "./settle-surface.ts";

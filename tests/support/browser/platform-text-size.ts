@@ -1,6 +1,8 @@
 // The browser's own text-size setting: Chromium's default font size, which a user sets in the browser's appearance
 // settings. The page's `rem`, and the rem inside a media query, follow it; the app's own font-scale setting multiplies it.
+import { MEDIA_QUERIES, TOKENS } from "@orb/ui/tokens";
 import type { Page } from "@playwright/test";
+import { expect } from "@playwright/test";
 
 /** The text sizes a platform case runs at: the engine default, and the two enlarged steps a reader with low vision sets. */
 export const PLATFORM_TEXT_SCALES = [1, 2, 3] as const;
@@ -39,4 +41,25 @@ export async function setPlatformTextSize(page: Page, scale: number): Promise<Pl
       }
     },
   };
+}
+
+/** The shell layout a viewport measures: the desktop shell or the phone shell. */
+type ShellRegime = "desktop" | "mobile";
+
+// The engine's own default font size, the `rem` that `setPlatformTextSize` scales. `expectShellRegime` re-reads the real breakpoint, so a wrong default fails there.
+const ENGINE_DEFAULT_FONT_PX = 16;
+
+/**
+ * The shell a viewport of `viewportWidth` px measures at browser text size `textScale`. `shell.css` switches at the shell breakpoint,
+ * a `rem` count, so enlarged browser text moves the breakpoint past a wide viewport: a 1280px viewport at 300% is the phone shell.
+ * Name a cell by this regime, not by its width alone, and assert it with {@link expectShellRegime}.
+ */
+export function shellRegimeAt(viewportWidth: number, textScale: number): ShellRegime {
+  const breakpointPx = Number.parseFloat(TOKENS["breakpoint.shell"].value) * ENGINE_DEFAULT_FONT_PX * textScale;
+  return viewportWidth > breakpointPx ? "desktop" : "mobile";
+}
+
+/** Assert the mounted page resolves the shell a cell is named for. */
+export async function expectShellRegime(page: Page, regime: ShellRegime): Promise<void> {
+  expect(await page.evaluate((query) => matchMedia(query).matches, MEDIA_QUERIES["shell-desktop"])).toBe(regime === "desktop");
 }

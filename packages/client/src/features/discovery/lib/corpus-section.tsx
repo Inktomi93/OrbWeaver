@@ -72,6 +72,7 @@ export function makeCorpusSection(contributions: CorpusSectionContributions): Se
     },
     list: () => <CorpusWorkspaceList modes={modes} />,
     useListHeader: (): ListPaneHeaderView => useCorpusWorkspaceListHeader(modes),
+    listSearchPlaceholder: "Search your corpus…",
     // The shell's "is a subject open?" and Back, answered for the ACTIVE mode, plus the per-mode phone landing.
     selection: corpusSectionSelection,
     listDoorLabel: {

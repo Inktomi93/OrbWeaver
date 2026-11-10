@@ -7,7 +7,16 @@ import type { ThemeChatStyle } from "@orb/contracts/theme";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { expectPinnedFailure, PLATFORM_TEXT_SCALES, seedShellState, setPlatformTextSize, settledBox, settledReadingRow } from "@orb/testkit/browser/spec";
+import {
+  expectPinnedFailure,
+  expectShellRegime,
+  PLATFORM_TEXT_SCALES,
+  seedShellState,
+  setPlatformTextSize,
+  settledBox,
+  settledReadingRow,
+  shellRegimeAt,
+} from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, ROOM_PROCEDURES, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusHarness, createCorpusProviderExecution } from "@orb/testkit/node/composed";
@@ -273,8 +282,10 @@ for (const cell of [
     test.use({ viewport: cell.viewport, hasTouch: cell.coarse, isMobile: cell.coarse });
 
     for (const textScale of PLATFORM_TEXT_SCALES) {
+      // Enlarged text moves the shell breakpoint past the wide viewport, so the cell is named for the shell it measures.
+      const regime = shellRegimeAt(cell.viewport.width, textScale);
       for (const landing of [50, 56, 120, 300]) {
-        test(`that fails after one jump to ${String(landing)}px at ${String(textScale)}x text holds the reader's row, and so does the retry that lands`, async ({
+        test(`that fails after one jump to ${String(landing)}px at ${String(textScale)}x text in the ${regime} shell holds the reader's row, and so does the retry that lands`, async ({
           corpus,
           mount,
           page,
@@ -288,6 +299,7 @@ for (const cell of [
           let failing = true;
           await serveRoom(page, corpus, caller, ({ cursor }) => (failing && cursor !== undefined ? trpcError({ code: "BAD_REQUEST" }) : undefined));
           await mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId });
+          await expectShellRegime(page, regime);
           const list = page.locator('[data-slot="message-list-scroll"]');
           await expect(earlierIn(list)).toBeAttached();
           await list.evaluate((node, top) => {

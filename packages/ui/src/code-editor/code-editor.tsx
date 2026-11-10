@@ -249,6 +249,8 @@ export function CodeEditor({
       extensions: [
         setup === "full" ? basicSetup : minimalSetup,
         TOKEN_THEME,
+        // Every use is a short snippet inside a form, where a sideways-scrolling field fails reflow at enlarged text.
+        EditorView.lineWrapping,
         EditorView.editable.of(!readOnly),
         // EditorView.editable only toggles contenteditable; it doesn't gate paste/drop/command
         // inserts, which check state.readOnly instead — both are needed for a real read-only contract.
