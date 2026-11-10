@@ -208,7 +208,7 @@ test.describe("committed corpus settings", () => {
     await openGroup(page, "admin");
     const input = page.getByRole("textbox", { name: "Prompt-cache depth floor (0–20)", exact: true });
     await input.fill(String(next));
-    await page.getByRole("button", { name: "Save", exact: true }).filter({ visible: true }).last().click();
+    await page.getByRole("button", { name: "Save: System tuning", exact: true }).click();
     await expect.poll(async () => (await host.trpc.settings.getAppSettingsWithOverrides.query(undefined)).resolved.promptCacheMinDepth).toBe(next);
     await page.reload();
     await openGroup(page, "admin");

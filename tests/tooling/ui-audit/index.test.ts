@@ -1813,7 +1813,7 @@ test("the page size census remains descriptive rather than prescribing a hierarc
  *  throughout: the view-switch-cell exclusion (#1705) is a DOM fact, so its proof is the rendered fixture in
  *  `ops/walker/census-interactive.int.test.ts`, not a hand-built sample. */
 function door(selector: string, path: string, list: string | null = null, item: string | null = null): ActionDoorInput {
-  return { selector, role: "button", name: "more message actions", path, listKey: list, itemKey: item, toolbarKey: null };
+  return { selector, role: "button", name: "more message actions", path, listKey: list, itemKey: item, toolbarKey: null, choiceGroup: null };
 }
 
 auditRuleTest(

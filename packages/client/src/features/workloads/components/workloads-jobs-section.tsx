@@ -26,6 +26,7 @@ import {
   groupWorkloadsByLane,
   isActiveWorkloadStatus,
   WORKLOAD_FILTER_EMPTY_COPY,
+  WORKLOAD_FILTER_EMPTY_NEXT_STEP,
   WORKLOAD_FILTER_LABELS,
   WORKLOAD_FILTERS,
   WORKLOAD_KIND_LABELS,
@@ -141,19 +142,7 @@ function WorkloadsJobsBody({ anchorId }: { readonly anchorId: string }): ReactEl
               return (
                 <TabsPanel key={id} value={id}>
                   {rows.length === 0 ? (
-                    // The CTA is the ALL tab's only (SE-D): on a FILTERED tab "nothing failed" / "nothing is
-                    // running" is a state to read, not a dead end — and the header's "Run a job…" is already
-                    // on screen right above it, so a second home for the same verb is the two-CTA shape.
-                    <EmptyState
-                      title={WORKLOAD_FILTER_EMPTY_COPY[id]}
-                      action={
-                        id === "all" ? (
-                          <Button variant="outline" onClick={(): void => setRunOpen(true)}>
-                            Run a job
-                          </Button>
-                        ) : undefined
-                      }
-                    />
+                    <FilterEmpty filter={id} onRun={(): void => setRunOpen(true)} />
                   ) : (
                     <LaneGroups
                       rows={rows}
@@ -185,6 +174,25 @@ function WorkloadsJobsBody({ anchorId }: { readonly anchorId: string }): ReactEl
         />
       </Stack>
     </Section>
+  );
+}
+
+// Run a job is the ALL tab's action only. A FILTERED tab is a state to read, and the header's Run a job
+// heads the tabs, so a second door to it there is the two-CTA shape.
+function FilterEmpty({ filter, onRun }: { readonly filter: WorkloadFilter; readonly onRun: () => void }): ReactElement {
+  if (filter !== "all") {
+    // action={null}: the header's Run a job is this state's next step; the description says so.
+    return <EmptyState action={null} description={WORKLOAD_FILTER_EMPTY_NEXT_STEP} title={WORKLOAD_FILTER_EMPTY_COPY[filter]} />;
+  }
+  return (
+    <EmptyState
+      title={WORKLOAD_FILTER_EMPTY_COPY[filter]}
+      action={
+        <Button variant="outline" onClick={onRun}>
+          Run a job
+        </Button>
+      }
+    />
   );
 }
 

@@ -168,12 +168,14 @@ export interface AdminOverrideResetRowProps {
 /** The Save + Reset-to-defaults row shared by the admin override sections. Save renders only for a section
  *  that HAS a draft; Reset appears only when the section has an active override. */
 export function AdminOverrideResetRow({ sectionLabel, dirty, anyOverridden, saving, error, onSave, onReset }: AdminOverrideResetRowProps): ReactElement {
+  const saveLabel = saving ? "Saving…" : "Save";
   return (
     <Stack gap="field">
       <Row wrap={true} gap="field" align="center">
         {onSave === undefined ? null : (
-          <Button size="sm" disabled={dirty !== true || saving} onClick={onSave}>
-            {saving ? "Saving…" : "Save"}
+          // Several admin sections share one pane, so each Save names its section, as Reset does.
+          <Button aria-label={`${saveLabel}: ${sectionLabel}`} size="sm" disabled={dirty !== true || saving} onClick={onSave}>
+            {saveLabel}
           </Button>
         )}
         {anyOverridden ? (

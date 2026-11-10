@@ -186,6 +186,19 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
     }
     return null;
   };
+  // A RADIO IS A CHOICE OF ITS GROUP. Its own name ("Flat") says which option, and the nearest
+  // \`role="radiogroup"\` says which setting, so two groups that offer one option label are two settings.
+  // This publishes the group's comparison-key name; an unnamed group gives no context and stays null.
+  var doorChoiceGroup = function (el, role) {
+    if (role !== "radio") return null;
+    var levels = 0;
+    for (var anc = el.parentElement; anc && anc !== document.body && levels < LIST_ANCESTOR_MAX; anc = anc.parentElement, levels += 1) {
+      if (String(anc.getAttribute("role") || "").trim().toLowerCase() !== "radiogroup") continue;
+      var groupName = doorNameKey(accessibleNameOf(anc));
+      return groupName.length > 0 ? groupName : null;
+    }
+    return null;
+  };
   // The accessible name as a COMPARISON KEY, not as a WCAG computation: case-folded, whitespace-collapsed,
   // and stripped of trailing punctuation, so "New chat" / "new chat" / "New chat…" are one door.
   var doorNameKey = function (name) {
@@ -362,6 +375,7 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
         listKey: doorHome ? doorHome.list : null,
         itemKey: doorHome ? doorHome.item : null,
         toolbarKey: doorToolbarHome(iel),
+        choiceGroup: doorChoiceGroup(iel, resolvedDoorRole),
       });
     }
   }

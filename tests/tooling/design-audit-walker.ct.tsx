@@ -20,6 +20,7 @@ import { GRID_COMPOSITED_WITHOUT_RESAMPLE } from "../../tooling/src/ui-audit/lib
 import type {
   WalkerAccentBorderStory,
   WalkerAriaHiddenVisualStory,
+  WalkerAuthoredEmptyStory,
   WalkerBelowTheFoldStory,
   WalkerBoxCarriedIsolatedControlStory,
   WalkerCapsTrackingStory,
@@ -1168,4 +1169,20 @@ test("the real @orb/ui Tooltip publishes the census's two attributes, one row pe
   expect(described?.describedByResolved).toBeGreaterThan(0);
   expect(hints.find((hint) => hint.describesDecision === "name")?.describedByResolved).toBe(0);
   expect(hints.find((hint) => hint.describesDecision === "caller")?.describedByResolved).toBe(0);
+});
+
+// The Node fixtures for `double-empty-state` spell `data-empty-action="none"` by hand. This proves the shipped
+// EmptyState emits it for `action={null}`, so a rename in the primitive cannot leave them green.
+test("the real EmptyState marks an authored null action, and only a reasoned one leaves the dead-end half", async ({ mount, page }) => {
+  await mount<typeof WalkerAuthoredEmptyStory>("tests/tooling/_ct-stories/WalkerAuthoredEmptyStory", {});
+  const samples = await samplesOf(page);
+  const census = samples.relationalAccounting?.["double-empty-state"];
+
+  expect(census?.candidates, `each pane is one candidate. census=${JSON.stringify(census)}`).toBe(3);
+  expect(census?.excluded["authoredNoAction"], "the reasoned authored null is excluded by name").toBe(1);
+  const findings = collectFindings(samples).filter((f) => f.rule === "double-empty-state");
+  expect(
+    findings.map((f) => f.selector),
+    "the bare-title null is the one dead end; the offered state is judged and silent",
+  ).toStrictEqual(["[aria-label=Bare]"]);
 });

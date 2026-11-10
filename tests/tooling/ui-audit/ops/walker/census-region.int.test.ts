@@ -265,6 +265,58 @@ test("a hidden empty-state action is not an operable door out", async ({ runCli,
   expect(res.stdout, "the hidden descendant must not clear the dead-end arm").toContain("1 with no action");
 });
 
+// EmptyState stamps `data-empty-action="none"` only for an authored `action={null}`. These fixtures vary the
+// stamp and the reason line alone, so each control differs from the excluded case by one fact.
+function libraryEmpty(state: string): string {
+  return `<section role="region" aria-label="Library">${state}</section>`;
+}
+const AUTHORED_REASON =
+  '<div data-slot="empty-state-root" data-empty-action="none"><p data-slot="empty-state-title">Nothing selected</p><p data-slot="empty-state-description">Pick a book from the list.</p></div>';
+
+async function auditEmpty(name: string, body: string, runCli: ToolFixtures["runCli"], scratch: string): Promise<string> {
+  await writeFile(join(scratch, name), relationalDocument(body));
+  const res = await runCli("snap", ["--file", join(scratch, name), "--fail-on", "P2", ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  return res.stdout;
+}
+
+test("an authored no-action empty state with a visible reason is excluded, not a dead end", async ({ runCli, scratch }) => {
+  const stdout = await auditEmpty("authored-reason.html", libraryEmpty(AUTHORED_REASON), runCli, scratch);
+  expect(stdout).not.toMatch(/^P2\s+double-empty-state/mu);
+  expect(stdout).toContain(
+    "POPULATION   double-empty-state candidates=1 judged=0 affected=0 populations=0 representatives=0 withheld() excluded(authoredNoAction=1)",
+  );
+});
+
+test("an authored no-action empty state with a bare title is still a dead end", async ({ runCli, scratch }) => {
+  const bare = '<div data-slot="empty-state-root" data-empty-action="none"><p data-slot="empty-state-title">Nothing selected</p></div>';
+  const stdout = await auditEmpty("authored-bare.html", libraryEmpty(bare), runCli, scratch);
+  expect(stdout).toMatch(/^P2\s+double-empty-state/mu);
+  expect(stdout).toContain("1 with no action");
+});
+
+test("an authored no-action empty state whose reason is hidden is still a dead end", async ({ runCli, scratch }) => {
+  const hiddenReason = AUTHORED_REASON.replace('data-slot="empty-state-description"', 'data-slot="empty-state-description" style="display:none"');
+  const stdout = await auditEmpty("authored-hidden-reason.html", libraryEmpty(hiddenReason), runCli, scratch);
+  expect(stdout).toMatch(/^P2\s+double-empty-state/mu);
+  expect(stdout).toContain("1 with no action");
+});
+
+test("an unstamped empty state with a reason and a disabled action is still a dead end", async ({ runCli, scratch }) => {
+  const disabled =
+    '<div data-slot="empty-state-root"><p data-slot="empty-state-title">No books yet</p><p data-slot="empty-state-description">Import one first.</p><div data-slot="empty-state-action"><button disabled>Create</button></div></div>';
+  const stdout = await auditEmpty("disabled-action.html", libraryEmpty(disabled), runCli, scratch);
+  expect(stdout).toMatch(/^P2\s+double-empty-state/mu);
+  expect(stdout).toContain("1 with no action");
+});
+
+test("an authored empty state beside a second one in its surface still crowds it", async ({ runCli, scratch }) => {
+  const actionable =
+    '<div data-slot="empty-state-root"><p data-slot="empty-state-title">No books yet</p><div data-slot="empty-state-action"><button>Create</button></div></div>';
+  const stdout = await auditEmpty("authored-crowded.html", libraryEmpty(`${AUTHORED_REASON}${actionable}`), runCli, scratch);
+  expect(stdout).toMatch(/^P2\s+double-empty-state/mu);
+  expect(stdout, "the authored root answers the dead-end half, not the crowding half").toContain("2 empty state(s) rendered at once, 0 with no action");
+});
+
 /** A pane whose three text leaves end at the top, with `lowerInk` the only thing that can reach the lower pane. */
 async function runLowerInkFixture(name: string, lowerInk: string, runCli: ToolFixtures["runCli"], scratch: string): Promise<RelationalPopulationReport> {
   await writeFile(

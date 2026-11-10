@@ -142,6 +142,10 @@ export interface ActionDoorInput {
    *  (or a walker regression) omit the fact silently, which reads as "not in a toolbar" and re-opens the
    *  false positive with no tell. */
   readonly toolbarKey: string | null;
+  /** The comparison-key name of a radio's nearest named `role="radiogroup"`, or null for any other door.
+   *  A radio's own name says which option and its group says which setting, so the pair is the radio's
+   *  identity. Required on the same precedent as `toolbarKey`. */
+  readonly choiceGroup: string | null;
 }
 
 // ── Control silhouette (orbweaver; #430, from the side-eye #420 receipts) ────────────────────────────

@@ -31,7 +31,7 @@ for (const regime of REGIMES) {
       });
       try {
         await mount<typeof AdminActionGroupsStory>(STORY, { width: regime.width, appearance: regime.appearance });
-        const save = page.getByRole("button", { name: "Save", exact: true });
+        const save = page.getByRole("button", { name: "Save: System tuning", exact: true });
         const reset = page.getByRole("button", { name: "Reset to defaults: System tuning", exact: true });
         await expect(save).toBeDisabled();
         await expect(reset).toBeVisible();
@@ -46,7 +46,7 @@ for (const regime of REGIMES) {
         expect(geometry.inlineOverflow).toBeLessThanOrEqual(1);
         await save.press("Enter");
         await hold.requested;
-        const saving = page.getByRole("button", { name: "Saving…", exact: true });
+        const saving = page.getByRole("button", { name: "Saving…: System tuning", exact: true });
         await expect(saving).toBeDisabled();
         await expect(reset).toBeDisabled();
         geometry = await actionGroupGeometry(page.locator('[data-slot="admin-action-host"]'), [saving, reset]);

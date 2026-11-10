@@ -8,6 +8,7 @@
 import { storyTestId } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import { Checkbox } from "@orb/ui/checkbox";
+import { EmptyState } from "@orb/ui/empty-state";
 import { GlyphButton } from "@orb/ui/glyph-button";
 import { Slider } from "@orb/ui/slider";
 import { TOKENS } from "@orb/ui/tokens";
@@ -1172,6 +1173,26 @@ export function WalkerFinePointerFloorStory(): ReactElement {
  *  is the blindness RULE-AUTHORING.md step 2 exists to prevent — so this stage mounts the real seal in all
  *  three of its decisions: a tooltip that says MORE than the name (described), one that only repeats the
  *  name (nothing to reach), and one whose caller was handed the description and wrote none. */
+/** THE MECHANISM STAGE for `double-empty-state`'s authored no-action exclusion. The census reads
+ *  `data-empty-action="none"`, which only the shipped `EmptyState` emits for `action={null}`, so this mounts
+ *  the real primitive: an authored null with its reason, an authored null with a bare title, and a state
+ *  that offers its action. */
+export function WalkerAuthoredEmptyStory(): ReactElement {
+  return (
+    <div style={{ display: "flex", gap: 32, padding: 48, width: 960 }}>
+      <aside aria-label="Reasoned" style={{ inlineSize: 280 }}>
+        <EmptyState action={null} description="Pick a book from the list and its entries appear here." title="Nothing selected" />
+      </aside>
+      <aside aria-label="Bare" style={{ inlineSize: 280 }}>
+        <EmptyState action={null} title="Nothing selected" />
+      </aside>
+      <aside aria-label="Offered" style={{ inlineSize: 280 }}>
+        <EmptyState action={<Button type="button">Create a book</Button>} title="No books yet" />
+      </aside>
+    </div>
+  );
+}
+
 export function WalkerTooltipHintStory(): ReactElement {
   return (
     <div style={{ display: "flex", gap: 32, padding: 48, width: 520 }}>
