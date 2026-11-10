@@ -9,14 +9,12 @@ import { z } from "zod";
 
 import type { PortableSchemaKind } from "./envelope.ts";
 
-export type { PortableSchemaKind } from "./envelope.ts";
 export {
   CHAT_BUNDLE_SCHEMA_KIND,
   DATABANK_SCHEMA_KIND,
   GALLERY_SCHEMA_KIND,
   IMAGERY_SCHEMA_KIND,
   PERSONA_SCHEMA_KIND,
-  PRESET_SCHEMA_KIND,
   REGEX_SCRIPT_SCHEMA_KIND,
   TAG_LIBRARY_SCHEMA_KIND,
   THEME_SCHEMA_KIND,

@@ -40,6 +40,9 @@ const EDITOR_COLUMN = String.raw`/mx-auto.*max-inline-\(--width-content-col\)|ma
 // (docs/law/client-architecture-state-and-gates.md §14, "Destructive confirms"). `pnpm ui-facts` reads the same list.
 export const DESTRUCTIVE_EXEMPT = homeReasons({
   "packages/client/src/features/persona/components/persona-room-block.tsx": "Clear pin moves a pointer, which the same menu sets again",
+  "packages/client/src/features/persona/components/persona-switch-list.tsx": "Clear default moves a pointer, which the same menu sets again",
+  "packages/client/src/features/automation/components/rule-remove-field.tsx":
+    "an empty field holds nothing, and its Add control brings it back; a filled field asks through DestructiveAction",
   "packages/client/src/features/refinery/components/apply-outcome.tsx": "the label names the discard, and the refused rewrite was never applied",
   "packages/client/src/features/config/components/config-teacher.tsx":
     "resets one setting to the default its row shows; a list or object value gets an Undo toast, and a scalar is one click from set again",

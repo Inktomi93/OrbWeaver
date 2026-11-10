@@ -22,7 +22,7 @@ import { constituents, declarationKeys, hasFlag } from "./native.ts";
 import { isProduction } from "./optional-population.ts";
 
 export type Construction = ObjectLiteralExpression | JsxAttributes;
-export interface ContextWrite {
+interface ContextWrite {
   readonly id: string;
   readonly owner: string;
   readonly site: Site;

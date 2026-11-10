@@ -33,7 +33,7 @@ import type { ReactElement } from "react";
 import { useState } from "react";
 import { ConfirmDialog, FormDialog } from "#components";
 import type { Invalidation, Trpc } from "#data";
-import { testId } from "#lib";
+import { notify, testId } from "#lib";
 import { useClearRevokedCredential, useMarkRevokedByUser, useRemoveCredential, useReplaceCredential } from "../hooks/use-connections-mutations.ts";
 import { keyRowSubtitle, keySubject, reuseSentence } from "../lib/credential-key-model.ts";
 
@@ -96,7 +96,13 @@ export function CredentialKeyRow({ credential, usedBy, providerLabel, trpc, inva
                 variant="outline"
                 size="sm"
                 disabled={clearRevoked.isPending}
-                onClick={(): void => clearRevoked.mutate({ credentialId: credential.id })}
+                onClick={(): void => {
+                  clearRevoked.mutate({ credentialId: credential.id });
+                  notify.info({
+                    title: `Cleared the revoked flag on the ${subject} key`,
+                    action: { label: "Undo", onClick: (): void => markRevoked.mutate({ credentialId: credential.id }) },
+                  });
+                }}
               >
                 Clear revoked
               </Button>

@@ -93,6 +93,13 @@ for (const regime of REGIMES) {
       await clear.click();
       await expect(replace).toBeVisible();
       expect((await caller.credentials.list()).find((key) => key.id === credential.id)?.revokedAt).toBeNull();
+      // Clearing the flag is the one revoked-row verb without a confirm, so its toast offers the way back.
+      const undo = page.locator('[data-slot="toast-action"]');
+      await expect(undo).toHaveCount(1);
+      await undo.click();
+      await expect(clear).toBeVisible();
+      await expect(replace).toHaveCount(0);
+      expect((await caller.credentials.list()).find((key) => key.id === credential.id)).toMatchObject({ revokedReason: "user" });
     });
     test("the real Advanced fact editor keeps Override, Cancel/Save and Reset contained and cancellation preserves the server value", async ({
       mount,

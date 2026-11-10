@@ -1,7 +1,10 @@
 // A destructive control owns the trigger, reversible draft, inline choice or undo that makes its press safe (§14).
+// A confirm another surface opens is proven by the press handler's type: a `ConfirmedAction`, which only the code
+// rendering that confirm mints. Without type information the rule never accepts that arm.
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES as T, TSESLint } from "@typescript-eslint/utils";
+import ts from "typescript";
 import { lexicalVariable, singleInitializer } from "./general.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 
@@ -19,6 +22,38 @@ const DIALOG = "JSXOpeningElement[name.name=/^(ConfirmDialog|ModelRunConfirmDial
 const UNDO =
   "CallExpression[callee.object.name='notify'] > ObjectExpression.arguments > Property[key.name='action'] > ObjectExpression:has(> Property[key.name='label'][value.value='Undo']):has(> Property[key.name='onClick'])";
 const MESSAGE = "A control that destroys data needs its own confirmation or undo (docs/law/client-architecture-state-and-gates.md §14).";
+const CONFIRMED_HOME = /\/packages\/client\/src\/components\/confirmed-action\.ts$/u;
+const CONFIRMED_TYPE = "ConfirmedAction";
+// biome-ignore lint/suspicious/noBitwiseOperators: TypeScript TypeFlags is a compiler-owned bitfield.
+const UNPROVEN = ts.TypeFlags.Any | ts.TypeFlags.Unknown | ts.TypeFlags.Never;
+const confirmedCache = new WeakMap<ts.Program, ts.Type | null>();
+
+function confirmedType(program: ts.Program, checker: ts.TypeChecker): ts.Type | null {
+  const cached = confirmedCache.get(program);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const source = program.getSourceFiles().find(({ fileName }) => CONFIRMED_HOME.test(fileName));
+  const symbol = source === undefined ? undefined : checker.getSymbolAtLocation(source)?.exports?.get(ts.escapeLeadingUnderscores(CONFIRMED_TYPE));
+  const type = symbol === undefined ? null : checker.getDeclaredTypeOfSymbol(symbol);
+  confirmedCache.set(program, type);
+  return type;
+}
+
+// The press is the branded opener itself; `any` is assignable to the brand, so it proves nothing.
+function pressIsConfirmed(context: OrbRuleContext, control: TSESTree.JSXOpeningElement): boolean {
+  const services = context.sourceCode.parserServices;
+  const press = prop(control, "onClick") ?? prop(control, "onSelect");
+  const program = services?.program ?? null;
+  if (press === undefined || program === null || services?.esTreeNodeToTSNodeMap === undefined) {
+    return false;
+  }
+  const checker = program.getTypeChecker();
+  const confirmed = confirmedType(program, checker);
+  const type = checker.getTypeAtLocation(services.esTreeNodeToTSNodeMap.get(press));
+  // biome-ignore lint/suspicious/noBitwiseOperators: TypeScript TypeFlags is a compiler-owned bitfield.
+  return confirmed !== null && (type.flags & UNPROVEN) === 0 && checker.isTypeAssignableTo(type, confirmed);
+}
 
 function prop(element: TSESTree.JSXOpeningElement, name: string): TSESTree.Expression | undefined {
   const attr = element.attributes.find((item) => item.type === T.JSXAttribute && item.name.name === name);
@@ -181,7 +216,8 @@ export const destructiveNeedsConfirmRule: OrbRule = {
             continue;
           }
           const handler = pressHandler(context, control.openingElement) ?? fileSelection(context, control.openingElement);
-          if (handler === undefined || !(undo.has(handler) || opensDialog(context, handler, setters))) {
+          const proven = handler !== undefined && (undo.has(handler) || opensDialog(context, handler, setters));
+          if (!(proven || pressIsConfirmed(context, control.openingElement))) {
             context.report({ node: control.openingElement, message: MESSAGE });
           }
         }

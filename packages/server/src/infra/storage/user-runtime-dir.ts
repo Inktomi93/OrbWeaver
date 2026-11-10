@@ -11,9 +11,9 @@ import type { RuntimeTool, UserRuntimeDirs } from "./contract.ts";
 /** A TypeID (`user_…`) is `[a-z0-9_]+`; anything else could escape the root and is refused before a path is built. */
 const OWNER_SEGMENT = /^[a-z0-9_]+$/;
 
-function assertOwnerSegment(ownerId: string): void {
-  if (!OWNER_SEGMENT.test(ownerId)) {
-    throw new Error(`userRuntimeDir: refusing owner segment ${JSON.stringify(ownerId)}`);
+function assertOwnerSegment(segment: string): void {
+  if (!OWNER_SEGMENT.test(segment)) {
+    throw new Error(`userRuntimeDir: refusing owner segment ${JSON.stringify(segment)}`);
   }
 }
 

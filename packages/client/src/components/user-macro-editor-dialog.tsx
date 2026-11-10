@@ -26,10 +26,11 @@ import { Icon, Plus } from "@orb/ui/icons";
 import { DialogBody, Row, Section, Stack } from "@orb/ui/layout";
 import type { SelectItems } from "@orb/ui/select";
 import { Text } from "@orb/ui/text";
-import type { ReactElement } from "react";
+import type { ReactElement, RefObject } from "react";
 import { useRef } from "react";
 import type { AppFormInstance } from "#forms/editor";
 import { DIALOG_VERBS, notify } from "#lib";
+import { DestructiveAction } from "./confirm-dialog.tsx";
 import { DismissDialog } from "./form-dialog.tsx";
 import type { UserMacrosFormValues } from "./user-macro-editor-model.ts";
 
@@ -175,18 +176,25 @@ function ArgList({ form, index }: { readonly form: UserMacroEditorForm; readonly
                   {(field): ReactElement => <field.SwitchField label="Optional" />}
                 </form.AppField>
                 <form.AppField name={`userMacros[${index}].args[${j}].default`}>{(field): ReactElement => <field.TextField label="Default" />}</form.AppField>
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={(): void => {
-                    addButton.current?.focus();
+                <DestructiveAction
+                  confirm={{
+                    title: `Remove argument ${j + 1}?`,
+                    description: "The macro saves without it. This can't be undone.",
+                    confirmLabel: DIALOG_VERBS.remove,
+                  }}
+                  finalFocus={addButton}
+                  forceRender={true}
+                  onConfirm={(): void => {
                     Promise.all([form.removeFieldValue(argsName, j), form.removeFieldValue(`macroRowIds[${index}].args`, j)]).catch(() =>
                       notify.error("Couldn't update the macro."),
                     );
                   }}
-                >
-                  Remove
-                </Button>
+                  trigger={
+                    <Button variant="ghost" size="sm">
+                      Remove
+                    </Button>
+                  }
+                />
               </Row>
             ))}
             <Row>
@@ -244,8 +252,8 @@ function InputList({ form, index }: { readonly form: UserMacroEditorForm; readon
                 macroIndex={index}
                 inputIndex={j}
                 kind={input.kind}
+                addButton={addButton}
                 onRemove={(): void => {
-                  addButton.current?.focus();
                   Promise.all([form.removeFieldValue(inputsName, j), form.removeFieldValue(`macroRowIds[${index}].inputs`, j)]).catch(() =>
                     notify.error("Couldn't update the macro."),
                   );
@@ -280,12 +288,15 @@ function InputEditor({
   macroIndex,
   inputIndex,
   kind,
+  addButton,
   onRemove,
 }: {
   readonly form: UserMacroEditorForm;
   readonly macroIndex: number;
   readonly inputIndex: number;
   readonly kind: UserMacroInput["kind"];
+  /** The list's Add control, which outlives this input and takes focus after it is removed. */
+  readonly addButton: RefObject<HTMLButtonElement | null>;
   readonly onRemove: () => void;
 }): ReactElement {
   const base = `userMacros[${macroIndex}].inputs[${inputIndex}]` as const;
@@ -295,9 +306,21 @@ function InputEditor({
       <Stack gap="field">
         <Row gap="field" align="end" justify="between">
           <form.AppField name={`${base}.kind`}>{(field): ReactElement => <field.SelectField label="Kind" items={USER_MACRO_INPUT_KIND_ITEMS} />}</form.AppField>
-          <Button variant="ghost" size="sm" onClick={onRemove}>
-            Remove
-          </Button>
+          <DestructiveAction
+            confirm={{
+              title: `Remove input ${inputIndex + 1}?`,
+              description: "The macro saves without it and its options. This can't be undone.",
+              confirmLabel: DIALOG_VERBS.remove,
+            }}
+            finalFocus={addButton}
+            forceRender={true}
+            onConfirm={onRemove}
+            trigger={
+              <Button variant="ghost" size="sm">
+                Remove
+              </Button>
+            }
+          />
         </Row>
         <Row gap="field" align="end">
           <form.AppField name={`${base}.name`}>
@@ -380,19 +403,26 @@ function InputOptionList({
             <Row key={id} gap="field" align="end" role="group" aria-label={`Input option ${k + 1}`}>
               <form.AppField name={`${base}.options[${k}].label`}>{(field): ReactElement => <field.TextField label="Label" />}</form.AppField>
               <form.AppField name={`${base}.options[${k}].value`}>{(field): ReactElement => <field.TextField label="Value" />}</form.AppField>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={(): void => {
-                  addButton.current?.focus();
+              <DestructiveAction
+                confirm={{
+                  title: `Remove option ${k + 1}?`,
+                  description: "The input saves without it. This can't be undone.",
+                  confirmLabel: DIALOG_VERBS.remove,
+                }}
+                finalFocus={addButton}
+                forceRender={true}
+                onConfirm={(): void => {
                   Promise.all([
                     form.removeFieldValue(optionsName, k),
                     form.removeFieldValue(`macroRowIds[${macroIndex}].inputs[${inputIndex}].options`, k),
                   ]).catch(() => notify.error("Couldn't update the macro."));
                 }}
-              >
-                Remove
-              </Button>
+                trigger={
+                  <Button variant="ghost" size="sm">
+                    Remove
+                  </Button>
+                }
+              />
             </Row>
           ))}
           <Row>

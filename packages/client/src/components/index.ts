@@ -6,6 +6,8 @@ export { Band } from "./band.tsx";
 export { CharacterPicker } from "./character-picker.tsx";
 export { CollectionGrid } from "./collection-grid.tsx";
 export { ConfirmDialog, DestructiveAction } from "./confirm-dialog.tsx";
+export type { ConfirmedAction } from "./confirmed-action.ts";
+export { confirmedAction } from "./confirmed-action.ts";
 export { useSetBinding, useUpdateConnection } from "./connection-role-mutations.ts";
 export { ConnectionRoleSlot } from "./connection-role-slot.tsx";
 export { ContextTabBody } from "./context-tab-body.tsx";

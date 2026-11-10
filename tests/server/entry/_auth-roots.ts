@@ -10,6 +10,14 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createTestEnv } from "@orb/testkit/node/composed";
 import { createTRPCClient, httpBatchLink } from "@trpc/client";
 
+// The link hands its fetch a URL string; a URL or a Request still names its address explicitly.
+function requestAddress(input: Parameters<typeof fetch>[0]): string {
+  if (typeof input === "string") {
+    return input;
+  }
+  return input instanceof URL ? input.href : input.url;
+}
+
 type Root = Pick<ServerTestHarness, "http">;
 
 const MEMBER_PASSWORD = "entry-auth-roots-password";
@@ -28,7 +36,7 @@ export async function wireViewer(root: Root, headers: Record<string, string> = {
       httpBatchLink({
         url: "http://localhost/api/trpc",
         headers,
-        fetch: async (url, init) => await root.http.request(String(url), init === undefined ? undefined : { ...init, signal: init.signal ?? null }),
+        fetch: async (url, init) => await root.http.request(requestAddress(url), init === undefined ? undefined : { ...init, signal: init.signal ?? null }),
       }),
     ],
   });

@@ -100,7 +100,7 @@ function ownBinding(node: PluginSurfaceNode): boolean {
   if (node.kind === "keyValue") {
     // The bound arm (`rowsFrom`, hub v1.3) is a binding by construction — a detail page whose only
     // binding is a state-driven stat sheet must not read as "purely static" (the §4.9 silence rule).
-    return node.rowsFrom !== undefined || (node.rows ?? []).some((row) => isBinding(row.value));
+    return node.rowsFrom !== undefined || node.rows.some((row) => isBinding(row.value));
   }
   if (node.kind === "list") {
     return node.items.some((item) => isBinding(item));
@@ -122,7 +122,7 @@ function browseOwnBinding(node: PluginSurfaceNode): boolean {
       // A bound `loading` (#799) is a binding by construction — a browse page whose grid is skeletoned by
       // state must not read as "purely static" (the §4.9 silence rule).
       (node.loading !== undefined && isBinding(node.loading)) ||
-      (node.tiles ?? []).some(
+      node.tiles.some(
         (tile) => isBinding(tile.title) || (tile.subtitle !== undefined && isBinding(tile.subtitle)) || (tile.badge !== undefined && isBinding(tile.badge)),
       )
     );
@@ -244,7 +244,7 @@ export function heroCoverKey(hero: PluginPageHero, state: Record<string, unknown
   if (hero.bundleAsset !== undefined) {
     return hero.bundleAsset;
   }
-  return hero.assetFrom === undefined ? undefined : resolvePluginBoundAssetId(state, hero.assetFrom);
+  return resolvePluginBoundAssetId(state, hero.assetFrom);
 }
 
 /** A grid tile's effective COVER KEY — the declared id or the bundle path (#820). A tile has no bound arm
@@ -269,7 +269,7 @@ export function imageNodeCoverKey(node: Extract<PluginSurfaceNode, { kind: "imag
   if (node.bundleAsset !== undefined) {
     return node.bundleAsset;
   }
-  return node.assetFrom === undefined ? undefined : resolvePluginBoundAssetId(state, node.assetFrom);
+  return resolvePluginBoundAssetId(state, node.assetFrom);
 }
 
 /** A grid's effective tile list — declared tiles verbatim, or the bound arm resolved (validated + clamped)
@@ -280,7 +280,7 @@ export function gridTiles(node: Extract<PluginSurfaceNode, { kind: "grid" }>, st
   if (node.tiles !== undefined) {
     return node.tiles;
   }
-  return node.tilesFrom === undefined ? [] : resolvePluginBoundTiles(state, node.tilesFrom);
+  return resolvePluginBoundTiles(state, node.tilesFrom);
 }
 
 /** A select's effective option list (hub v1.3) — declared options verbatim, or the bound arm resolved
@@ -300,7 +300,7 @@ export function tabOptions(node: Extract<PluginSurfaceNode, { kind: "tabs" }>, s
   if (node.options !== undefined) {
     return node.options;
   }
-  return node.optionsFrom === undefined ? [] : resolvePluginBoundTabOptions(state, node.optionsFrom);
+  return resolvePluginBoundTabOptions(state, node.optionsFrom);
 }
 
 /** A grid's effective LOADING verdict (#799) — the declared literal or the bound path, resolved through the
@@ -323,7 +323,7 @@ export function keyValueRows(node: Extract<PluginSurfaceNode, { kind: "keyValue"
   if (node.rows !== undefined) {
     return node.rows;
   }
-  return node.rowsFrom === undefined ? [] : resolvePluginBoundKeyValueRows(state, node.rowsFrom);
+  return resolvePluginBoundKeyValueRows(state, node.rowsFrom);
 }
 
 /** Stringify a primitive form default. Concretely typed so the toString is the primitive's own, never a

@@ -172,7 +172,7 @@ export const CONNECTION_OP_CODES = {
 } as const;
 
 /** The two widths an `embedWidthUnmakeable` refusal names: what the connection states, and what the model made. */
-export const embedWidthRefusalDetailSchema = z.strictObject({
+const embedWidthRefusalDetailSchema = z.strictObject({
   stated: z.int().positive(),
   measured: z.int().nonnegative(),
   truncatable: z.boolean(),

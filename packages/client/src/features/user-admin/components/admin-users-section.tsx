@@ -15,7 +15,7 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { QueryBoundary, useFirstBootRows } from "#components";
+import { confirmedAction, QueryBoundary, useFirstBootRows } from "#components";
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import { testId } from "#lib";
 import { useSetEnabled, useSetRole } from "../hooks/use-admin-mutations.ts";
@@ -120,7 +120,7 @@ function AdminUsersBody({ anchorId }: { readonly anchorId: string }): ReactEleme
               onSetRole={(role: UserRole): void => changeRole(user.id, role)}
               onSetEnabled={(enabled: boolean): void => changeEnabled(user.id, enabled)}
               onOpenSessions={(): void => setSessionsFor({ userId: user.id, handle: user.handle })}
-              onResetPassword={(): void => setResetFor({ userId: user.id, handle: user.handle })}
+              onResetPassword={confirmedAction((): void => setResetFor({ userId: user.id, handle: user.handle }))}
             />
           ))}
         </Stack>

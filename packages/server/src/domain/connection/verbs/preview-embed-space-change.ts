@@ -7,13 +7,12 @@ import type { UserConnectionId } from "@orb/kit/ids";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { ConnectionNotFoundError } from "../contract/errors.ts";
 import type { EmbedSpaceChange } from "../contract/params.ts";
-
 import type { ConnectionContext, ConnectionService } from "../contract/service.ts";
 import { lookupBinding } from "../persistence/bindings.ts";
 import { fetchOwnedConnection } from "../persistence/connections.ts";
+import { validatedPatch } from "../substrate/connection-patch.ts";
 import { SPACE_PATCH_FIELDS, VECTOR_TASKS, vectorResolutionOf } from "../substrate/embed-space.ts";
 import { everywhereTasks } from "../substrate/kind.ts";
-import { validatedPatch } from "./connections.ts";
 
 type VectorTask = keyof typeof VECTOR_SCOPES_BY_TASK;
 type UpdateChange = Extract<EmbedSpaceChange, { readonly kind: "update" }>;
