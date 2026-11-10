@@ -1,10 +1,11 @@
 ---
 kind: bug
-status: open
-updated: 2026-10-24
+status: doing
+updated: 2026-11-10
 priority: P3
-plan: inference-flow
 area: connection
+lane: wt/agent-a8de7b4cdde0d7872
+plan: inference-flow
 ---
 
 # The embed width confirm checks the width before it warns
