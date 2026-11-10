@@ -78,6 +78,26 @@ for (const device of [
       await expect(chat.getByRole("combobox")).toHaveCount(1);
     });
 
+    test("an unset role states what unset does in view, and the embedder states its re-embed cost beside the picker", async ({ corpus, mount, page }) => {
+      await using root = await createCorpusHarness();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const withEffect = ROLE_ROWS_ORDERED.filter((row) => row.unsetEffect !== undefined);
+      for (const row of withEffect) {
+        await caller.connection.setBinding({ task: row.task, connectionId: null });
+      }
+      await serveRoles(page, corpus, root);
+      await mount<typeof ModelRolesStory>(STORY, {});
+      for (const row of withEffect) {
+        const group = page.getByRole("group", { name: row.heading, exact: true });
+        await expect(group.getByText(row.unsetEffect ?? "", { exact: true })).toBeVisible();
+      }
+      for (const row of ROLE_ROWS_ORDERED.filter((candidate) => candidate.standingEffect !== undefined)) {
+        const group = page.getByRole("group", { name: row.heading, exact: true });
+        await expect(group.getByText(row.standingEffect ?? "", { exact: true })).toBeVisible();
+      }
+      expect(withEffect.length).toBeGreaterThan(1);
+    });
+
     test("the rows hold at 200% text", async ({ corpus, mount, page }) => {
       await using root = await createCorpusHarness();
       await serveRoles(page, corpus, root);

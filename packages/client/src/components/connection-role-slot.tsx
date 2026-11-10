@@ -47,9 +47,6 @@ const UNSET_VALUE = "";
 
 // The pane is as wide as the settings body; a sentence capped at the prose measure never runs across it.
 
-// Unbinding the text embedder queues nothing: the stored index stays, and search keeps answering from it.
-const TEXT_EMBEDDER_UNSET = "None set. Search keeps using your last index until you pick an embedder.";
-
 type ConnectionListItem = inferOutput<Trpc["connection"]["list"]>[number];
 type BindingView = inferOutput<Trpc["connection"]["listBindings"]>[number];
 type BindingActorInput = NonNullable<inferInput<Trpc["connection"]["setBinding"]>["actor"]>;
@@ -207,7 +204,13 @@ export function ConnectionRoleSlot({
               <HintTrigger hint={description ?? row.description} subject={row.heading} />
             </Row>
             {verdicts.length === 0 ? null : <RequirementRail verdicts={verdicts} />}
-            <ReadoutLine readout={readout} unsetSentence={isVectorRole && row.task === "embed" ? TEXT_EMBEDDER_UNSET : undefined} />
+            {/* A rule's unset slot falls back to the author's role, so the role's own unset consequence does not apply to it. */}
+            <ReadoutLine readout={readout} unsetSentence={actor === undefined ? row.unsetEffect : undefined} />
+            {row.standingEffect === undefined ? null : (
+              <Text voice="gloss" cap="prose">
+                {row.standingEffect}
+              </Text>
+            )}
             <EmbedderNote check={shownCheck} refused={embedRefusal} />
             {isVectorRole ? <RebuildLine rebuild={rebuild} /> : null}
             {repairs.map((connection) => (

@@ -17,7 +17,7 @@
 //
 // THE THREE REGIONS ARE THE TILES' OWN DECLARATION (`HomeTileContribution.region`), never a list here: a
 // masthead row above the split, the hearth column, the shelf column. Home still reads no feature — the
-// placement travels with the tile that makes it, which is the same rule `sectionId` follows.
+// placement travels with the tile that makes it.
 //
 // THE DORMANT DOORWAYS ARE GROUPED, not framed one by one (the mockup's right-rail move): every tile
 // whose body is the `{dormant}` arm lands under ONE band at the foot of the shelf. That is a

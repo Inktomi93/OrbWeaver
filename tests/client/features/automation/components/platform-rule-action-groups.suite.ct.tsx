@@ -1,4 +1,4 @@
-import { IMAGE_SIZE_LABELS, IMAGE_SIZE_MODE_DEFAULT, ROW_DELETE_NAME } from "@orb/client/lib";
+import { IMAGE_SIZE_LABELS, IMAGE_SIZE_MODE_DEFAULT, ROLE_ROWS_ORDERED, ROLE_STATUS_LABELS, ROW_DELETE_NAME } from "@orb/client/lib";
 import { AUTOMATION_RULE_NAME_MAX_CHARS, automationActionSchema, automationRuleEditableSchema, automationTriggerFor } from "@orb/contracts/automation";
 import { MAX_IMAGE_COUNT, MIN_IMAGE_COUNT, SIZE_PRESET_NAMES } from "@orb/contracts/imagery";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
@@ -27,6 +27,7 @@ const READS = [
   "automation.listRules",
   "worldInfo.listForChat",
 ] as const;
+const RULE_CONNECTION_READS = [...READS, "connection.list", "connection.listBindings", "connection.providersAvailable"] as const;
 const REGIMES = [
   { name: "wide desktop", width: 960, viewport: { width: 1280, height: 900 }, coarse: false, appearance: appearanceSettingsSchema.parse({}) },
   { name: "narrow desktop", width: 300, viewport: { width: 1280, height: 900 }, coarse: false, appearance: appearanceSettingsSchema.parse({}) },
@@ -147,6 +148,42 @@ test.describe("rule editor field rows", () => {
     expect(await typeOf("When")).toBe(await typeOf("Rule name"));
     const automationSwitch = editor.getByRole("switch", { name: "Include events caused by automation", exact: true });
     await expect(automationSwitch.locator("xpath=ancestor::*[@data-orientation][1]")).toHaveAttribute("data-orientation", "horizontal");
+  });
+
+  test("a rule's unset image slot says it follows the author's role in view, not only behind the hint", async ({ mount, page }) => {
+    await using root = await createCorpusHarness();
+    const caller = await root.internalCallerFor(root.ownerId);
+    const appearance = appearanceSettingsSchema.parse({});
+    await caller.settings.updateUserSettingsSection({ section: "appearance", patch: appearance });
+    await caller.settings.updateUserSettingsSection({ section: "theme", patch: { selectedThemeId: null } });
+    const captured = (await caller.automation.listOwnerRules())[0];
+    if (captured === undefined) {
+      throw new Error("The corpus must contain an owned library rule");
+    }
+    const role = ROLE_ROWS_ORDERED.find((row) => row.task === "generateImage");
+    if (role === undefined) {
+      throw new Error("Model roles carries no image generation row");
+    }
+    await caller.connection.setBinding({ task: role.task, connectionId: null });
+    await caller.automation.updateRule({
+      ...automationRuleEditableSchema.strip().parse(captured),
+      trigger: automationTriggerFor("character.updated"),
+      actions: [automationActionSchema.parse({ type: "generate_image", mode: "character_multimodal", quiet: true })],
+      ruleId: captured.id,
+      timeZone: captured.timeZone ?? UTC_TIME_ZONE,
+    });
+    await routeTrpc(page, serveCorpusProcedures(caller, RULE_CONNECTION_READS));
+    await mount<typeof RuleActionGroupsStory>(STORY, { width: 960, appearance });
+    await page
+      .getByRole("button")
+      .filter({ has: page.getByText(captured.name, { exact: true }) })
+      .click();
+    await page.getByRole("button", { name: `Connections for ${captured.name}`, exact: true }).click();
+    const slot = page.getByRole("group", { name: role.heading, exact: true });
+    await expect(slot.getByRole("combobox", { name: `${role.label} connection`, exact: true })).toContainText(`Same as my ${role.label} role`);
+    await expect(slot.getByRole("img", { name: ROLE_STATUS_LABELS.unset, exact: true })).toBeVisible();
+    // The unset consequence of the user's own role would be wrong here: an unset rule slot follows the author's role.
+    await expect(slot.getByText(role.unsetEffect ?? "", { exact: true })).toHaveCount(0);
   });
 
   test("a held save is stated at the editor's body size, not under it", async ({ mount, page }) => {

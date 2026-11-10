@@ -23,7 +23,7 @@ function settingControlId(settingId: string | undefined): string | undefined {
 }
 
 export function ConnectionsRolesSection({ anchorId }: { readonly anchorId: string }): ReactElement {
-  const firstBootRows = useFirstBootRows({ wide: 12, narrow: 17 });
+  const firstBootRows = useFirstBootRows({ wide: 12, narrow: 18 });
   return (
     // RESERVED (#1098) — a config section that settles into one row per model role — the tallest block on this pane.
     <QueryBoundary
