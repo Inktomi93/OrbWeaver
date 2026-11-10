@@ -1,10 +1,11 @@
 ---
 kind: work
-status: open
-updated: 2026-10-03
+status: doing
+updated: 2026-11-10
 priority: P3
-plan: inference-flow
 area: inference
+lane: wt/agent-a8de7b4cdde0d7872
+plan: inference-flow
 ---
 
 # Sonnet 5.5 follow-ups
