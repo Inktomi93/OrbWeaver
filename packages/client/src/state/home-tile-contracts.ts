@@ -1,17 +1,8 @@
 // Contract home for the HOME-TILE contributor seam — the
 // shapes home and every tile-raising feature both need without either importing the other.
-//
-// IT MOVED FROM `lib/` (tier 4) TO `state/` — under H10's OWN test, not against it. H10 put it in tier 4
-// "because it binds no state-owned vocabulary (`ReactNode` + `LucideIcon` only)" and ruled, in the same
-// breath: "if a tile ever needs `SectionId` in its own contract, it moves to `state/` under the same test
-// that moved `ConfigSectionContribution` there". `sectionId` is that day (side-eye 2026-08-08 P2-c): a
-// tile can now declare the section whose jump row it SUBSUMES, which is `SectionId`, which is
-// state-owned vocabulary. The seam, the entry point and every consumer's import shape are otherwise
-// unchanged — `#lib` became `#state`.
 
 import type { LucideIcon } from "@orb/ui/icons";
 import type { ReactNode, RefObject } from "react";
-import type { SectionId } from "./section-ids.ts";
 
 /** WHERE on home a tile lands — a CLOSED axis (§5.5: one importable union), so an unlisted region is
  *  unspellable. It REPLACED `HOME_TILE_SPANS` ("half" | "full") on 2026-08-16 with the hearth build
@@ -68,18 +59,6 @@ interface HomeTileContributionBase {
   /** The region when it depends on live data, called unconditionally by the tile's own component like
    *  {@link HomeTileContribution.useVisible}. `null` holds the tile out of every column until it is known. */
   readonly useRegion?: () => HomeTileRegion | null;
-  /** The section whose JUMP ROW this tile subsumes — declared only by a tile that does that row's entire
-   *  job (the section's name, its glyph, its live contents and a door into it), never by a tile that merely
-   *  reads a section's data. Home's jump grid drops the row while such a tile is registered, so one
-   *  destination is not two doors ten pixels apart (side-eye 2026-08-08 P2-c). Absent ⇒ the section keeps
-   *  its jump row, which is the right default: most tiles are DATA surfaces, not navigation.
-   *
-   *  LATENT INCOMPATIBILITY: the jump grid computes its claims off the raw door registration and does NOT
-   *  consult `useVisible` — so a tile that pairs `sectionId` with a sometimes-false `useVisible` would drop
-   *  the jump row PERMANENTLY while its own tile renders nothing on the ticks `useVisible` reads false,
-   *  orphaning the section from Home with no door left to it at all. No claimer does this today (every
-   *  `sectionId` tile is unconditionally visible); a future one MUST resolve this before pairing the two. */
-  readonly sectionId?: SectionId;
   /** Live CAPABILITY gate, called UNCONDITIONALLY over the door-frozen list (the `ChromeEntry.useVisible`
    *  contract) by the tile's own component, never in a map body. `false` ⇒ render NOTHING (no gap, no
    *  empty card). NOT for gating a BUILD fact — that is the `{dormant}` body arm (H7). */

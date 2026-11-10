@@ -4,7 +4,7 @@
 /** The Chats section's no-selection state. */
 export const NO_CHAT_SELECTED_TITLE = "No chat selected";
 
-/** The no-selection state's one door, which opens the new-chat picker. */
+/** The one door that opens the new-chat picker: the Chats no-selection state's, and Home's start control. */
 export const START_NEW_CHAT_NAME = "Start a new chat";
 
 /** The Home temp-chat tile's control, which opens the picker for a temporary room. */

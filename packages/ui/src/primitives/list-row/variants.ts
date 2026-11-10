@@ -214,7 +214,7 @@ export const listRowVariants = tv({
       },
     },
     // A one-line dense row TRUNCATES (the default — a list pane scans by column). A row whose subtitle is
-    // a SENTENCE (the home jump grid's per-section teaching gloss) clamps to two lines instead: a nowrap
+    // a SENTENCE (a teaching gloss) clamps to two lines instead: a nowrap
     // ellipsis eats the second half of every sentence, which is the whole content of that row.
     subtitleWrap: {
       // The wrapping arm raises the leading: a two-line clamped sentence at the one-line step (1.25) has

@@ -7,7 +7,6 @@ export const HOME_TILE_IDS = [
   "rosterPreset.rosters",
   "chat.tempChat",
   "databank.documents",
-  "home.jump",
 ] as const;
 export type HomeTileId = (typeof HOME_TILE_IDS)[number];
 
@@ -19,5 +18,4 @@ export const [
   ROSTERS_TILE_ID,
   CHAT_TEMP_CHAT_TILE_ID,
   DATABANK_DOCUMENTS_TILE_ID,
-  HOME_JUMP_TILE_ID,
 ] = HOME_TILE_IDS;

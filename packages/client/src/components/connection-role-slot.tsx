@@ -6,6 +6,7 @@ import type { EmbedTargetRefusal } from "@orb/contracts/inference";
 import type { UserConnectionId } from "@orb/kit/ids";
 import { Badge } from "@orb/ui/badge";
 import { Button } from "@orb/ui/button";
+import { HintTrigger } from "@orb/ui/hint-trigger";
 import { Check, Icon, X } from "@orb/ui/icons";
 import type { IndicatorDotProps } from "@orb/ui/indicator-dot";
 import { IndicatorDot } from "@orb/ui/indicator-dot";
@@ -14,8 +15,8 @@ import { Select } from "@orb/ui/select";
 import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
-import type { ComponentProps, ReactElement } from "react";
-import { useRef, useState } from "react";
+import type { ComponentProps, ReactElement, ReactNode } from "react";
+import { useId, useRef, useState } from "react";
 import type { Invalidation, Trpc } from "#data";
 import type { RoleConnectionFacts, RoleRequirementVerdict, RoleRow } from "#lib";
 import {
@@ -125,6 +126,8 @@ export interface ConnectionRoleSlotProps {
   readonly description?: string | undefined;
   /** The picker's DOM id — a settings deep link to this role focuses the element carrying it. */
   readonly controlId?: string | undefined;
+  /** Controls that belong to this role, set inside its group under the picker. */
+  readonly children?: ReactNode;
 }
 
 export function ConnectionRoleSlot({
@@ -137,7 +140,9 @@ export function ConnectionRoleSlot({
   unsetLabel,
   description,
   controlId,
+  children,
 }: ConnectionRoleSlotProps): ReactElement {
+  const headingId = useId();
   const deps = { trpc, invalidation };
   const setBinding = useSetBinding(deps);
   const update = useUpdateConnection(deps);
@@ -188,64 +193,72 @@ export function ConnectionRoleSlot({
   const current = draft === undefined ? persisted : (draft ?? UNSET_VALUE);
 
   return (
-    <Row aria-busy={shownCheck !== null} gap="field" align="start" justify="between" wrap={true}>
-      <Row gap="field" align="start">
-        <IndicatorDot aria-label={ROLE_STATUS_LABELS[dot]} role="img" tone={DOT_SKIN[dot].tone} variant={DOT_SKIN[dot].variant} />
-        <Stack gap="tight">
-          <Text voice="label">{row.heading}</Text>
-          <Text prose={true} voice="gloss" cap="prose">
-            {description ?? row.description}
-          </Text>
-          {verdicts.length === 0 ? null : <RequirementRail verdicts={verdicts} />}
-          <ReadoutLine readout={readout} unsetSentence={isVectorRole && row.task === "embed" ? TEXT_EMBEDDER_UNSET : undefined} />
-          <EmbedderNote check={shownCheck} refused={embedRefusal} />
-          {isVectorRole ? <RebuildLine rebuild={rebuild} /> : null}
-          {repairs.map((connection) => (
-            <BackgroundRepair
-              key={connection.id}
-              connection={connection}
-              pending={update.isPending}
-              onAllow={(): void => update.mutate({ connectionId: connection.id, patch: { allowBackground: true } })}
-            />
-          ))}
-        </Stack>
+    // The group is named by the role's heading, so a control that belongs to the role (the Utility preset) sits inside it.
+    <Stack aria-labelledby={headingId} gap="field" role="group">
+      <Row aria-busy={shownCheck !== null} gap="field" align="start" justify="between" wrap={true}>
+        <Row gap="field" align="start">
+          <IndicatorDot aria-label={ROLE_STATUS_LABELS[dot]} role="img" tone={DOT_SKIN[dot].tone} variant={DOT_SKIN[dot].variant} />
+          <Stack gap="tight">
+            {/* The hint is a sibling of the heading, never inside it, or its name joins the group's name. */}
+            <Row align="center" gap="tight" wrap={true}>
+              <Text id={headingId} voice="label">
+                {row.heading}
+              </Text>
+              <HintTrigger hint={description ?? row.description} subject={row.heading} />
+            </Row>
+            {verdicts.length === 0 ? null : <RequirementRail verdicts={verdicts} />}
+            <ReadoutLine readout={readout} unsetSentence={isVectorRole && row.task === "embed" ? TEXT_EMBEDDER_UNSET : undefined} />
+            <EmbedderNote check={shownCheck} refused={embedRefusal} />
+            {isVectorRole ? <RebuildLine rebuild={rebuild} /> : null}
+            {repairs.map((connection) => (
+              <BackgroundRepair
+                key={connection.id}
+                connection={connection}
+                pending={update.isPending}
+                onAllow={(): void => update.mutate({ connectionId: connection.id, patch: { allowBackground: true } })}
+              />
+            ))}
+          </Stack>
+        </Row>
+        <Select
+          triggerRef={pickerRef}
+          aria-label={pickerLabel}
+          id={controlId}
+          items={items}
+          layout="hug"
+          value={current}
+          disabled={setBinding.isPending || reindex.asking}
+          onValueChange={(value): void => {
+            const pickedRow = value === UNSET_VALUE ? null : compatible.find((connection) => connection.id === value);
+            if (pickedRow === undefined) {
+              return;
+            }
+            const picked = pickedRow?.id ?? null;
+            const embedder = pickedRow?.label;
+            const write = (checksEmbedder: boolean): void => {
+              setDraft(picked);
+              setEmbedRefusal(null);
+              setChecking(checksEmbedder ? { embedder } : null);
+              const bound = setBinding.mutateAsync({ task: row.task, connectionId: picked, ...(actor !== undefined ? { actor } : {}) });
+              toastRefusalIfGone(bound, (refusal) => embedRefusalText(refusal, embedder));
+              // an embedder refusal reaches `setEmbedRefusal` and renders as the row's alert (EmbedRefusalLine); any other
+              // failure is toasted by `useSetBinding`'s errorToast (connection-role-mutations.ts). Ends if either of those stops surfacing its failure.
+              void bound.catch(rollBackOnEmbedRefusal(setDraft, (refusal) => setEmbedRefusal({ refusal, embedder }))).finally((): void => setChecking(null));
+            };
+            // Only the user's own vector roles define their index; a rule's or a plugin's binding never moves it.
+            if (isVectorRole) {
+              setAsked({ embedder });
+              reindex.guard({ kind: "bind", task: row.task, connectionId: picked }, write);
+            } else {
+              write(false);
+            }
+          }}
+          placeholder={unsetText}
+        />
+        {reindex.dialog}
       </Row>
-      <Select
-        triggerRef={pickerRef}
-        aria-label={pickerLabel}
-        id={controlId}
-        items={items}
-        value={current}
-        disabled={setBinding.isPending || reindex.asking}
-        onValueChange={(value): void => {
-          const pickedRow = value === UNSET_VALUE ? null : compatible.find((connection) => connection.id === value);
-          if (pickedRow === undefined) {
-            return;
-          }
-          const picked = pickedRow?.id ?? null;
-          const embedder = pickedRow?.label;
-          const write = (checksEmbedder: boolean): void => {
-            setDraft(picked);
-            setEmbedRefusal(null);
-            setChecking(checksEmbedder ? { embedder } : null);
-            const bound = setBinding.mutateAsync({ task: row.task, connectionId: picked, ...(actor !== undefined ? { actor } : {}) });
-            toastRefusalIfGone(bound, (refusal) => embedRefusalText(refusal, embedder));
-            // an embedder refusal reaches `setEmbedRefusal` and renders as the row's alert (EmbedRefusalLine); any other
-            // failure is toasted by `useSetBinding`'s errorToast (connection-role-mutations.ts). Ends if either of those stops surfacing its failure.
-            void bound.catch(rollBackOnEmbedRefusal(setDraft, (refusal) => setEmbedRefusal({ refusal, embedder }))).finally((): void => setChecking(null));
-          };
-          // Only the user's own vector roles define their index; a rule's or a plugin's binding never moves it.
-          if (isVectorRole) {
-            setAsked({ embedder });
-            reindex.guard({ kind: "bind", task: row.task, connectionId: picked }, write);
-          } else {
-            write(false);
-          }
-        }}
-        placeholder={unsetText}
-      />
-      {reindex.dialog}
-    </Row>
+      {children}
+    </Stack>
   );
 }
 
@@ -363,7 +376,7 @@ function RequirementRail({ verdicts }: { readonly verdicts: readonly RoleRequire
         Needs:
       </Text>
       {verdicts.map((verdict) => (
-        <Badge key={verdict.label} size="sm" tone={verdict.met === true ? "success" : "neutral"} variant="outline">
+        <Badge key={verdict.label} size="sm" tone={verdict.met === true ? "success" : "neutral"} variant="outline" whitespace="normal">
           {verdict.met === null ? null : <Icon icon={verdict.met ? Check : X} size="xs" />}
           {verdict.met === false ? `${verdict.label}: ${verdict.unmet}` : verdict.label}
         </Badge>
