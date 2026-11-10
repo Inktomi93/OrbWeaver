@@ -1,7 +1,7 @@
 ---
 kind: law
 status: active
-updated: 2026-10-17
+updated: 2026-11-09
 ---
 
 # Integer line boxes — the crispness doctrine (Law 1: the crisp type scale; Laws 2-4: §9-§12)
@@ -12,8 +12,7 @@ orientation. This document defines the type and leading scale for integer line b
 ## 1. Integer line boxes
 
 A line box must resolve to a whole CSS pixel at every font scale. A fractional line box shifts every
-following baseline off the device-pixel grid; the effect is most visible under a promoted layer
-(`backdrop-filter`), which cannot re-snap a baseline per paint.
+following baseline off the device-pixel grid.
 
 Crispness requires integer LINE BOXES, not integer font sizes: a fractional glyph size rasterizes
 fine, and a size may stay fractional as long as its paired leading resolves to an integer box. No
@@ -233,10 +232,10 @@ D333 ends custom static transform checks and their certification. The visual rul
 
 ## 10. Law 3 — promoted-layer grid alignment
 
-**The law.** `backdrop-filter`, `will-change` and 3D-promoted layers rasterize their subtree ONCE and
-composite it, which disables the browser's per-paint baseline snapping. A promoted layer's own offset
-is therefore inherited by every glyph and edge inside it, so that offset must be an integer number of
-device pixels.
+**The law.** `will-change` and 3D-promoted layers rasterize their subtree ONCE and composite it,
+which disables the browser's per-paint baseline snapping. A promoted layer's own offset is therefore
+inherited by every glyph and edge inside it, so that offset must be an integer number of device
+pixels.
 
 **Decision: RUNTIME, with no authorship half at all.** A layer's offset is decided by layout — its
 ancestors' box model, the resolved spacing steps, the live root font-size. There is no authored value
@@ -245,10 +244,19 @@ ui-audit, whose subject is the promotion ROOT, not the text inside it: that is w
 lands, and filing it once against the layer instead of N times against its descendants is what keeps
 a single fix from being buried under its own blast radius.
 
-**The three promotion shapes and only those.** `backdrop-filter` (incl. the `-webkit-` alias),
-`will-change` other than `auto`, and a 3D context (`transform-style: preserve-3d`, or a computed
-transform that resolves to `matrix3d`). `filter` was considered and left out: it is not one of the
-three the law names, and widening the promotion vocabulary is a separate measurement.
+**The two promotion shapes and only those.** `will-change` other than `auto`, and a 3D context
+(`transform-style: preserve-3d`, or a computed transform that resolves to `matrix3d`). A layer that
+carries either shape is judged under it, whatever else it carries. `filter` was considered and left
+out: widening the promotion vocabulary is a separate measurement.
+
+**`backdrop-filter` is not a promotion shape.** It composites, but the browser paints the layer's
+fractional offset into the layer's content, so an integer landing changes no pixel. A pixel probe
+shows this in Chromium (GPU raster and software raster) and in WebKit, at DPR 1, 1.25 and 2. It
+compares text and edges in a backdrop-filter layer, on the element and on an absolute `::before`, at
+an integer landing, a fractional x, a fractional y and a fractional line box inside the layer, against
+the same content with no promotion. The promotion changes Chromium's anti-aliasing by about the same
+amount at every landing. In WebKit a promoted element paints the same bytes as the plain one. A layer promoted only by `backdrop-filter` is EXCLUDED
+`compositedWithoutResample`.
 
 ## 11. Law 4 — the runtime off-grid-text backstop
 
@@ -265,6 +273,7 @@ slider's stops produce a non-integer root).
 | reason | disposition | why |
 | - | - | - |
 | no promoting ancestor | EXCLUDED `snapped` | the browser re-snaps that baseline every paint — a measurement proving INAPPLICABILITY, so the verdict survives |
+| only `backdrop-filter` ancestors are composited | EXCLUDED `compositedWithoutResample` | the browser paints the layer's fraction into its content (§10) — inapplicability, so the verdict survives |
 | inside the reading surface | EXCLUDED `readingSurface` | the typed mirror of the product exception in §2 |
 | non-finite rect / unusable DPR | WITHHELD `unmeasurable` | the instrument could not judge — fails loud, never a clean pass |
 

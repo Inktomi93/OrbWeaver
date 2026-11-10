@@ -17,17 +17,19 @@
 // POLARITY (the census-tier.ts ruling, one property over): text with NO promoting ancestor is EXCLUDED, not
 // judged clean — the browser re-snaps its baseline every paint, so its fraction is a measurement proving
 // INAPPLICABILITY (the verdict survives). SCREEN-READER-ONLY text is excluded on the same polarity and for
-// a stronger reason (#1156): it paints no pixels at all, so "blurred" is unaskable of it. WITHHELD is
+// a stronger reason (#1156): it paints no pixels at all, so "blurred" is unaskable of it. A layer promoted
+// only by backdrop-filter, and text whose only composited ancestors are such layers, are excluded on the
+// same polarity: the browser paints that fraction into the layer (`compositedWithoutResample`). WITHHELD is
 // reserved for a landing the instrument could not read (a non-finite rect, an unusable DPR), for a
 // transform mid-animation, which has no rest landing yet, and for an sr-only answer that could not be read.
 //
 // Raw JS in a template literal (no backticks / dollar-brace — see floor/browser/browser.ts for why a string, not
-// a function; the one interpolation is a deliberate tooling constant, the `INACTIVE_KIND_EXPR` precedent).
+// a function; the interpolations are deliberate tooling constants, the `INACTIVE_KIND_EXPR` precedent).
 // Provenance + attribution: ops/walker.ts. Must run after census-collision.ts (`relationalAccounting`) and
 // census-cohort.ts (`excludeRelational`/`withholdRelational`), so it is placed with the other post-cohort
 // segments at the end of the composition.
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
-import { GRID_READING_SURFACE_SELECTOR_JS } from "../../lib/checks-grid.ts";
+import { GRID_COMPOSITED_WITHOUT_RESAMPLE_JS, GRID_READING_SURFACE_SELECTOR_JS } from "../../lib/checks-grid.ts";
 
 refuseDirectInvocation(import.meta.url, "pnpm snap <route> --design-audit");
 
@@ -56,38 +58,45 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
     return device - Math.round(device);
   }
 
-  // THE THREE PROMOTION SHAPES Law 3 names, and only those. A composited layer is rasterized once at its
-  // own sub-pixel position, so the browser cannot re-snap the baselines inside it per paint.
+  // THE PROMOTION SHAPES Law 3 judges: will-change and a 3D context. A backdrop-filter also composites, but
+  // the browser paints its fractional offset into the layer, so it is a promotion with nothing to judge:
+  // its subject leaves the population EXCLUDED under the reason spelled in ../../lib/checks-grid.ts.
+  var GRID_COMPOSITED_WITHOUT_RESAMPLE = ${GRID_COMPOSITED_WITHOUT_RESAMPLE_JS};
   var gridPromotionCache = new WeakMap();
   // ONE promotion vocabulary for BOTH walks. The element pass and the pseudo pass (#1172) read the same
-  // three shapes off a computed style; a pseudo-only list would be a second decision about what "promoted"
-  // means, and the two would drift the first time Law 3 gains a shape.
-  function gridPromotionKindOf(style) {
+  // shapes off a computed style; a pseudo-only list would be a second decision about what "promoted"
+  // means, and the two would drift the first time Law 3 gains a shape. A layer carrying both a judged
+  // shape and a backdrop-filter is judged under the judged shape.
+  function gridPromotionOf(style) {
     var backdrop = style.backdropFilter || style.webkitBackdropFilter || "none";
     var willChange = (style.willChange || "auto").trim();
-    if (backdrop !== "none" && backdrop !== "") return "backdrop-filter";
-    if (willChange !== "auto" && willChange !== "") return "will-change";
-    if (style.transformStyle === "preserve-3d") return "3d";
-    if ((style.transform || "none").indexOf("matrix3d") === 0) return "3d";
-    return null;
+    var kind = null;
+    if (willChange !== "auto" && willChange !== "") kind = "will-change";
+    else if (style.transformStyle === "preserve-3d") kind = "3d";
+    else if ((style.transform || "none").indexOf("matrix3d") === 0) kind = "3d";
+    return { kind: kind, composited: kind !== null || (backdrop !== "none" && backdrop !== "") };
   }
-  function gridPromotionKind(el) {
+  function gridPromotion(el) {
     var known = gridPromotionCache.get(el);
     if (known !== undefined) return known;
-    var kind = gridPromotionKindOf(getComputedStyle(el));
-    gridPromotionCache.set(el, kind);
-    return kind;
+    var promotion = gridPromotionOf(getComputedStyle(el));
+    gridPromotionCache.set(el, promotion);
+    return promotion;
   }
+  // The nearest ancestor with a JUDGED shape wins, even above a backdrop-filter layer. Only a chain whose
+  // composited ancestors are all backdrop-filter answers kind null, which the caller excludes.
   function gridPromotionAncestor(el) {
     var node = el;
     var steps = 0;
+    var composited = null;
     while (node && node.nodeType === 1 && steps < GRID_PROMOTION_MAX_STEPS) {
-      var kind = gridPromotionKind(node);
-      if (kind !== null) return { kind: kind, el: node };
+      var promotion = gridPromotion(node);
+      if (promotion.kind !== null) return { kind: promotion.kind, el: node };
+      if (promotion.composited && composited === null) composited = { kind: null, el: node };
       node = node.parentElement;
       steps += 1;
     }
-    return null;
+    return composited;
   }
 
   // A transform mid-animation has no REST landing to judge (#987: only running/pending animations count —
@@ -168,6 +177,10 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
       excludeRelational(relationalAccounting["off-grid-text"], "snapped");
       continue;
     }
+    if (gtPromotion.kind === null) {
+      excludeRelational(relationalAccounting["off-grid-text"], GRID_COMPOSITED_WITHOUT_RESAMPLE);
+      continue;
+    }
     var gtLanding = gridLandingOf(gtEl);
     if (gtLanding === null) {
       withholdRelational(relationalAccounting["off-grid-text"], "unmeasurable", describe(gtEl));
@@ -190,9 +203,14 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
   // ── LAW 3: the promotion roots themselves ─────────────────────────────────
   for (var gp = 0; gp < allEls.length; gp += 1) {
     var gpEl = allEls[gp];
-    var gpKind = gridPromotionKind(gpEl);
-    if (gpKind === null || !isVisible(gpEl)) continue;
+    var gpPromotion = gridPromotion(gpEl);
+    if (!gpPromotion.composited || !isVisible(gpEl)) continue;
     relationalAccounting["promoted-layer-offset"].candidates += 1;
+    var gpKind = gpPromotion.kind;
+    if (gpKind === null) {
+      excludeRelational(relationalAccounting["promoted-layer-offset"], GRID_COMPOSITED_WITHOUT_RESAMPLE);
+      continue;
+    }
     var gpLanding = gridLandingOf(gpEl);
     if (gpLanding === null) {
       withholdRelational(relationalAccounting["promoted-layer-offset"], "unmeasurable", describe(gpEl));
@@ -257,10 +275,16 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
       // An ungenerated pseudo is not a subject at all — it has no box and paints nothing.
       if (gsContent === "none" || gsContent === "normal" || gsContent === "") continue;
       if ((gsStyle.display || "none") === "none" || (gsStyle.visibility || "visible") === "hidden") continue;
-      var gsKind = gridPromotionKindOf(gsStyle);
-      if (gsKind === null) continue;
+      var gsPromotion = gridPromotionOf(gsStyle);
+      if (!gsPromotion.composited) continue;
       relationalAccounting["promoted-layer-offset"].candidates += 1;
       carryRelational(relationalAccounting["promoted-layer-offset"], "pseudo");
+      var gsKind = gsPromotion.kind;
+      // Inapplicability needs no box, so it is decided before the pseudo's landing is derived.
+      if (gsKind === null) {
+        excludeRelational(relationalAccounting["promoted-layer-offset"], GRID_COMPOSITED_WITHOUT_RESAMPLE);
+        continue;
+      }
       var gsLanding = gridPseudoLanding(gsEl, gsHostStyle, gsStyle);
       if (gsLanding === null) {
         withholdRelational(relationalAccounting["promoted-layer-offset"], "pseudoBoxUnmeasurable", describe(gsEl));

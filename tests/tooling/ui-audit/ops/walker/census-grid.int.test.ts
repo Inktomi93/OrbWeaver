@@ -2,8 +2,8 @@
 //
 // WHY IT NEEDS ONE AND WHY AT THIS TIER. Every decision this census makes is a RUNTIME product that
 // authorship cannot see: `gridDeviceFrac` multiplies a CSS landing by the live `devicePixelRatio`,
-// `gridPromotionKind` reads four computed-style shapes, `gridAnimating` asks the Web Animations API for a
-// running/pending animation, and the two exclusions (`readingSurface`, `snapped`) are the polarity ruling
+// `gridPromotionOf` reads four computed-style shapes, `gridAnimating` asks the Web Animations API for a
+// running/pending animation, and the exclusions (`readingSurface`, `snapped`, `compositedWithoutResample`) are the polarity ruling
 // that keeps a per-paint-snapped baseline out of the numerator. None of it is reachable below the CLI.
 //
 // THE ACCOUNTING IS THE ASSERTION. Each arm below pins the whole population row — candidates, judged, and
@@ -15,6 +15,8 @@ import { join } from "node:path";
 import { present } from "@orb/testkit/iso";
 import { AUDIT_ARGV, auditReport, configureRelationalCliBudget, RELATIONAL_CLI_TIMEOUT_MS, relationalDocument } from "@orb/testkit/node";
 import { expect, test } from "@orb/testkit/tooling";
+import type { GridPromotionKind } from "../../../../../tooling/src/ui-audit/contract/samples-grid.ts";
+import { GRID_COMPOSITED_WITHOUT_RESAMPLE } from "../../../../../tooling/src/ui-audit/lib/checks-grid.ts";
 
 configureRelationalCliBudget();
 
@@ -50,7 +52,7 @@ test("Law 4 judges promoted text and counts BOTH exclusions into the same denomi
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as GridReport;
   const law4 = report.findings.filter((finding) => finding.rule === "off-grid-text");
   expect(law4, "the promoted text is the one candidate the rule applies to").toHaveLength(1);
-  // The finding must name the LAYER KIND (`gridPromotionKind`) and the fraction in DEVICE px at the live
+  // The finding must name the LAYER KIND (`gridPromotionOf`) and the fraction in DEVICE px at the live
   // DPR — the repair address is the promoting ancestor, not the text.
   expect(law4[0]?.value).toContain("inside a will-change layer");
   expect(law4[0]?.value).toContain("at DPR 1");
@@ -96,14 +98,14 @@ test("Law 4 EXCLUDES screen-reader-only text and still judges its painted twin i
   expect(present(law4[0]).selector, "the sr-only nodes must not be the subject").not.toContain("clipped");
 });
 
-/** The three shapes Law 3 names, one host each, so the KIND is proved by the emitted value rather than by
+/** The three composited shapes, one host each, so each disposition is proved by the emitted value rather than by
  *  a count that any of them could have produced.
  *
  *  EACH HOST CARRIES A `data-slot`, and that is load-bearing rather than decoration: `off-grid-text` is a
  *  rung-4 rule (`decisionPopulationFindings`) keyed on `authoredTarget + authoredHome`, and
  *  `authoredTargetHome` resolves to the nearest `data-slot` ancestor. Measured while writing this file —
  *  three slot-less hosts produced ONE finding reading "3 affected; 3 representative(s)", so two of the
- *  three kinds were invisible and the test read as a defect in `gridPromotionKind`. Distinct slots are
+ *  three kinds were invisible and the test read as a defect in `gridPromotionOf`. Distinct slots are
  *  three authored decisions, which is what the live tree looks like anyway. */
 const PROMOTION_KIND_FIXTURE = `<style>
   .host { position: relative; top: 10.25px; }
@@ -116,21 +118,53 @@ const PROMOTION_KIND_FIXTURE = `<style>
 <div class="host" id="willchange" data-slot="will-change-host"><p>text under will-change</p></div>
 <div class="host" id="three-d" data-slot="preserve-3d-host"><p>text under preserve-3d</p></div>`;
 
-test("Law 3 recognises all three promotion shapes and names each one in its Law-4 finding", async ({ runCli, scratch }) => {
+test("Law 4 judges text under the two judged shapes, names each, and EXCLUDES text under backdrop-filter", async ({ runCli, scratch }) => {
   await writeFile(join(scratch, "promotion-kinds.html"), relationalDocument(PROMOTION_KIND_FIXTURE));
   const res = await runCli("snap", ["--file", join(scratch, "promotion-kinds.html"), ...AUDIT_ARGV], {
     timeoutMs: RELATIONAL_CLI_TIMEOUT_MS,
   });
 
-  expect(res.stdout).toMatch(/POPULATION\s+off-grid-text candidates=3 judged=3 /u);
+  expect(res.stdout).toMatch(new RegExp(`POPULATION\\s+off-grid-text candidates=3 judged=2 .*excluded\\(${GRID_COMPOSITED_WITHOUT_RESAMPLE}=1\\)`, "u"));
   const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as GridReport;
   const kinds = report.findings.filter((finding) => finding.rule === "off-grid-text").map((finding) => finding.value);
-  for (const kind of ["backdrop-filter", "will-change", "3d"]) {
+  for (const kind of ["will-change", "3d"] satisfies readonly GridPromotionKind[]) {
     expect(
       kinds.some((value) => value.includes(`inside a ${kind} layer`)),
-      `${kind} is one of the three shapes Law 3 names`,
+      `${kind} is a shape Law 3 judges`,
     ).toBe(true);
   }
+  expect(kinds.join(" | "), "a backdrop-filter layer paints its fraction into the layer (§10)").not.toContain("backdrop-filter");
+});
+
+/** Four promotion roots on the same quarter-pixel landing. The two backdrop-filter roots, one on the element
+ *  and one on an absolute `::before`, are the shell glass shapes and leave the population by name. The
+ *  will-change root is the control that still fires. The root carrying both shapes is judged as will-change. */
+const LAW3_BACKDROP_FIXTURE = `<style>
+  .root { position: relative; top: 10.25px; width: 120px; height: 20px; }
+  #glass { backdrop-filter: blur(2px); }
+  #glass-pseudo::before { content: ""; position: absolute; inset: 0; backdrop-filter: blur(2px); }
+  #willchange { will-change: transform; }
+  #both { backdrop-filter: blur(2px); will-change: transform; }
+</style>
+<div class="root" id="glass" data-slot="glass-root"></div>
+<div class="root" id="glass-pseudo" data-slot="glass-pseudo-root"></div>
+<div class="root" id="willchange" data-slot="will-change-root"></div>
+<div class="root" id="both" data-slot="both-root"></div>`;
+
+test("Law 3 EXCLUDES a backdrop-filter-only root, element or pseudo, and still fires on will-change at the same landing", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "law3-backdrop.html"), relationalDocument(LAW3_BACKDROP_FIXTURE));
+  const res = await runCli("snap", ["--file", join(scratch, "law3-backdrop.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+
+  expect(res.stdout).toMatch(
+    new RegExp(`POPULATION\\s+promoted-layer-offset candidates=4 judged=2 .*excluded\\(${GRID_COMPOSITED_WITHOUT_RESAMPLE}=2\\)`, "u"),
+  );
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+  const report = JSON.parse(await readFile(auditReport(res.stdout), "utf8")) as GridReport;
+  expect(report.populationAccounting?.["promoted-layer-offset"]?.excluded[GRID_COMPOSITED_WITHOUT_RESAMPLE], "carried in the report, not only stdout").toBe(2);
+  const subjects = report.findings.filter((finding) => finding.rule === "promoted-layer-offset").map((finding) => finding.selector);
+  expect(subjects.join(" | ")).toContain("#willchange");
+  expect(subjects.join(" | "), "a root with a judged shape stays judged when it also carries a backdrop-filter").toContain("#both");
+  expect(subjects.join(" | ")).not.toContain("glass");
 });
 
 /** A resting transform that is genuinely animating: `gridAnimating` asks the Web Animations API, and #987

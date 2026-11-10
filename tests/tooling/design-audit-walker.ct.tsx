@@ -16,6 +16,7 @@ import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import type { Finding, RawSamples } from "../../tooling/src/ui-audit/index.ts";
 import { COLLECT_SAMPLES_JS, collectFindings } from "../../tooling/src/ui-audit/index.ts";
+import { GRID_COMPOSITED_WITHOUT_RESAMPLE } from "../../tooling/src/ui-audit/lib/checks-grid.ts";
 import type {
   WalkerAccentBorderStory,
   WalkerAriaHiddenVisualStory,
@@ -834,11 +835,11 @@ test("a pseudo-carried promotion is censused, judged and named — and the eleme
   const seen = samples.promotedLayerOffsets?.map((p) => p.selector).join(" | ") ?? "";
 
   expect(census, "the census row must exist at all").toBeDefined();
-  expect(census?.carried?.["pseudo"], `the pseudo cohort must be COUNTED, not merely present. census=${JSON.stringify(census)}`).toBe(2);
+  expect(census?.carried?.["pseudo"], `the pseudo cohort must be COUNTED, not merely present. census=${JSON.stringify(census)}`).toBe(3);
   const carried = samples.promotedLayerOffsets?.find((p) => p.selector.includes("pseudo-promoted"));
   expect(carried, `the pseudo-carried layer must be judged. saw: ${seen}`).toBeDefined();
   expect(carried?.selector, "the subject is the HOST with the pseudo named — that is where the repair goes").toContain("::before");
-  expect(carried?.promotion).toBe("backdrop-filter");
+  expect(carried?.promotion).toBe("will-change");
   expect(Math.abs(carried?.topDeviceFrac ?? 0), "the host sits on a half pixel by construction").toBeGreaterThan(0.4);
   // The element arm, unchanged: the same defect carried the original way is still judged the original way.
   const element = samples.promotedLayerOffsets?.find((p) => p.selector.includes("element-promoted"));
@@ -862,6 +863,23 @@ test("an in-flow pseudo whose box cannot be derived is WITHHELD by name, never j
     "and it is NOT in the judged set — a landing measured off the wrong box is the other half of the lie",
   ).not.toContain("pseudo-inflow");
   // #987's settlement identity still closes over the widened census.
+  expect(census?.candidates).toBe(
+    (census?.judged ?? 0) + Object.values(census?.withheld ?? {}).reduce((a, b) => a + b, 0) + Object.values(census?.excluded ?? {}).reduce((a, b) => a + b, 0),
+  );
+});
+
+// docs/law/integer-line-boxes.md §10: a backdrop-filter layer's fraction is painted into the layer, so the
+// shell-pane glass shape leaves the population by name. The will-change pseudo on the same half pixel in the
+// same story is the control that still fires.
+test("a pseudo promoted only by backdrop-filter is EXCLUDED by name, and its will-change twin is still judged", async ({ mount, page }) => {
+  await mount<typeof WalkerPseudoPromotionStory>("tests/tooling/_ct-stories/WalkerPseudoPromotionStory", {});
+  const samples = await samplesOf(page);
+  const census = samples.relationalAccounting?.["promoted-layer-offset"];
+  const judged = present(samples.promotedLayerOffsets).map((p) => p.selector);
+
+  expect(census?.excluded[GRID_COMPOSITED_WITHOUT_RESAMPLE], `census=${JSON.stringify(census)}`).toBe(1);
+  expect(judged.join(" | "), "the glass carrier is not judged").not.toContain("pseudo-backdrop");
+  expect(judged.join(" | "), "the will-change carrier on the same half pixel is").toContain("pseudo-promoted");
   expect(census?.candidates).toBe(
     (census?.judged ?? 0) + Object.values(census?.withheld ?? {}).reduce((a, b) => a + b, 0) + Object.values(census?.excluded ?? {}).reduce((a, b) => a + b, 0),
   );

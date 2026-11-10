@@ -84,8 +84,7 @@ const SCRIM = '[data-slot="theme-background-scrim"]';
 const LIST_PANEL = '.shell-panel[data-panel-side="list"]';
 // THE PANE'S GLASS IS NOT ON THE PANE (#1154, re-pointed at #2431). Both glass declarations — the
 // backdrop-filter and the translucent tint — moved onto a `::before` fill carrier at `z-index: -1` so the
-// pane itself stops being one composited layer (a backdrop-filter on the pane turns off per-paint baseline
-// snapping for every text node inside it). The invariant is unchanged and so is its subject; only the box
+// pane itself is not a backdrop root. The invariant is unchanged and so is its subject; only the box
 // carrying the paint moved, so the row names the carrier the way CSS does.
 const LIST_PANEL_GLASS = `${LIST_PANEL}::before`;
 const LIST_PANEL_INK = `${LIST_PANEL} .shell-panel-header`;
