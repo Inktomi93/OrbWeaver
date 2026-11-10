@@ -5,6 +5,7 @@ import { ID_PREFIX } from "@orb/kit/ids";
 import { routeTrpc } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusReadResponder, createSeededIds, FROZEN_AT_MS, testModelId } from "@orb/testkit/iso";
+import { verdictWordOf } from "#client/features/refinery/lib/verdict.ts";
 import type { PayloadOwnerStory } from "./_payload-stories.tsx";
 
 // Spellings no display table could hold: mixed case, a doubled space and a hyphen the author typed on purpose.
@@ -104,9 +105,7 @@ test("the pinned analyze verdict shows its display word, not its wire spelling",
   await mount<typeof PayloadOwnerStory>(STORY, { run });
 
   const heading = page.getByTestId(testId("refineryVerdictBanner")).getByRole("heading", { level: 3 });
-  // The display word has no front door for tests, so the proof is that the wire spelling never paints.
-  await expect(heading).not.toHaveJSProperty("textContent", PINNED);
-  await expect(heading).not.toHaveJSProperty("textContent", "");
+  await expect(heading).toHaveJSProperty("textContent", verdictWordOf(PINNED));
   await expect(heading).not.toHaveAttribute("data-voice", "reading");
 });
 

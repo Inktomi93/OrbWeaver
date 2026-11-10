@@ -491,7 +491,9 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/roster-preset/lib/roster-names.ts": "ROSTER_SAVED_NAME and ROSTER_ALL_NAME: the saved-rosters modal and Home tile names",
   "packages/client/src/features/discovery/lib/corpus-control-names.ts":
     "CORPUS_SEARCH_TARGET_NAME and CORPUS_DISTILLED_CATALOG_NAME: the Corpus list and browse names",
-  "packages/client/src/features/refinery/lib/refinery-names.ts": "REFINERY_VERSIONS_NAME: the context pane's version history tab",
+  "packages/client/src/features/refinery/lib/refinery-names.ts":
+    "REFINERY_VERSIONS_NAME, refineryCompareToggleName and REFINERY_VERSION_LOADING_TEXT: the context pane's version history names",
+  "packages/client/src/features/refinery/lib/verdict.ts": "verdictWordOf: the display word the analyze verdict banner paints",
   "packages/client/src/features/plugin/lib/extensions-copy.ts": "EXTENSIONS_GONE_TITLE: the vanished page's title",
   "packages/client/src/features/plugin/lib/plugin-copy.ts":
     "approveLabel, enablePluginLabel, showInChatSwitchName, CHAT_PANEL_HIDE_LABEL and CHAT_PANEL_UNDO_LABEL: production action and switch names required by the no-copied-label contract",
@@ -742,6 +744,10 @@ const PACKAGE_TEST_REACHES = {
   "tests/client/features/discovery/surfaces/_duplicate-chats-stories.tsx": {
     "packages/client/src/features/discovery/components/corpus-duplicate-rows.tsx":
       "CorpusDuplicateChats: the Similarity tab's room-pair list, which only the tab renders and no door forwards; the case deletes a pair it does not read",
+  },
+  "tests/client/features/character/components/_context-band-stories.tsx": {
+    "packages/client/src/features/character/components/character-context-band.tsx":
+      "CharacterContextBand: the character section's context band, which only the section's context slot renders and no door forwards",
   },
   "tests/client/features/refinery/components/_versions-stories.tsx": {
     "packages/client/src/features/refinery/components/context-tabs.tsx":
