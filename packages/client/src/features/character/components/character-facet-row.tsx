@@ -63,6 +63,7 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
       variant="outline"
       selection="rail"
       size="sm"
+      wrap={true}
       className="min-inline-0"
       justify="start"
       width="full"
@@ -75,9 +76,9 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
           component over already ship (`aria-label` + `aria-describedby`; the Lighthouse
           label-content-name-mismatch flag on it is a false positive — retraction R2), and the visible label
           is the whole accessible name, so voice control still works (WCAG 2.5.3). */}
-      {/* The LABEL keeps its full width (shrink-0); only the preview/subtitle truncates — a filled
-            row must never ellipsize "Personality" down to "P…" to fit its own preview. `aria-hidden`
-            because it IS the button's aria-label; repeating it as content would double the name. */}
+      {/* The three runs ride a wrapping inner row, so a label, preview and state word that do not fit one line stack instead
+            of widening the pane. The LABEL never truncates ("Personality" must not become "P…"); only the preview/subtitle does.
+            `aria-hidden` because the label IS the button's aria-label; repeating it as content would double the name. */}
       {/* `as="span"` on BOTH lines (#235): `<Text>` defaults to `<p>`, and a `<p>` inside a `<button>`
             is invalid nesting — `<button>` takes phrasing content only. React-DOM constructs the tree so
             nothing reparents at runtime, but an HTML PARSER (SSR/hydration, an ariaSnapshot round trip)
@@ -85,21 +86,32 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
             typographic voice and the same accessible tree: line 1 is aria-hidden (it IS the aria-label),
             line 2 is the description on an empty row. */}
       {/* A directory field name uses the label voice; promoted is reserved for a focal item. */}
-      <Text as="span" aria-hidden={true} className="shrink-0" voice="label" ink="inherit">
-        {facet.label}
-      </Text>
-      {/* SENTENCE-LENGTH GLOSS INSIDE A BUTTON TAKES `prose` (#892, the readable-floor debt cb-bracket-fix
+      <Text as="span" flow="wrapRow" width="full" ink="inherit">
+        <Text as="span" aria-hidden={true} voice="label" ink="inherit">
+          {facet.label}
+        </Text>
+        {/* SENTENCE-LENGTH GLOSS INSIDE A BUTTON TAKES `prose` (#892, the readable-floor debt cb-bracket-fix
             surfaced closing #875 F6). `gloss` alone is the instrument-tier MICRO step (10.5px) — under the
             11px readable floor for text inside a clickable control, and both arms of this line qualify:
             the empty-row `facet.subtitle` ("Injected after history, just before the reply.") is a sentence,
             not a caption, so `interactiveKicker` (caps + tracked) is the wrong register for it; `prose`
             is the ratified lever for exactly this ("this text is sentences, not a label" — `variants.ts`),
             lifting the step to `label` (13px) while `gloss` keeps the family/weight/tracking/color. */}
-      <Text as="span" aria-hidden={showsPreview ? true : undefined} id={previewId} voice="gloss" prose={true} truncate={true}>
-        {showsPreview ? preview : facet.subtitle}
-      </Text>
+        <Text
+          as="span"
+          aria-hidden={showsPreview ? true : undefined}
+          id={previewId}
+          voice="gloss"
+          prose={true}
+          truncate={true}
+          grow={true}
+          floor="title"
+          className="min-inline-0"
+        >
+          {showsPreview ? preview : facet.subtitle}
+        </Text>
 
-      {/* THE FILL STATE, SPOKEN (#254). Both cues that tell a SIGHTED user filled from empty are out of the
+        {/* THE FILL STATE, SPOKEN (#254). Both cues that tell a SIGHTED user filled from empty are out of the
           accessible tree: the filled row's preview line is `aria-hidden` (above — it is a 1283-character
           body, not a name), and the empty row's state word is inert `Text` inside the button. So the two states
           announced identically ("Description, button" either way) — the a11y half of the decorative-preview
@@ -107,7 +119,7 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
           terse state + a magnitude ("Empty" / "Filled, 44 characters"), never the body. It rides
           `aria-describedby` rather than the name so voice control still matches the visible label (WCAG
           2.5.3), and it leads the description so the state is heard before the empty row's gloss. */}
-      {/* ONE NODE, TWO AUDIENCES (#502, side-eye 2026-08-22 rail-characters P3-1). The empty row used to
+        {/* ONE NODE, TWO AUDIENCES (#502, side-eye 2026-08-22 rail-characters P3-1). The empty row used to
           print a muted "Add…" beside this span — an ACTION word standing in a VALUE slot, which reads as a
           truncated label until you measure it (the review's own retraction: `scrollWidth === clientWidth`,
           the ellipsis is literal), and the third of three words this one editor used for "nothing here"
@@ -116,8 +128,9 @@ export function CharacterFacetRow({ facet, selected, filled, preview, fillSummar
           reader already heard — so the two audiences stop being told different things and the empty row
           stops carrying a duplicate node. A FILLED row's summary ("Filled, 44 characters") stays sr-only:
           its magnitude is a11y repair for an `aria-hidden` preview, never a second visible datum. */}
-      <Text as="span" className={filled ? "sr-only" : "shrink-0"} id={fillSummaryId} voice="gloss">
-        {fillSummary}
+        <Text as="span" className={filled ? "sr-only" : "shrink-0"} id={fillSummaryId} voice="gloss">
+          {fillSummary}
+        </Text>
       </Text>
     </Button>
   );

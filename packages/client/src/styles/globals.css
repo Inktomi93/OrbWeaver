@@ -340,6 +340,12 @@
       --row-foot-inset-left: var(--spacing-field);
       --row-foot-inset-right: var(--spacing-field);
     }
+    /* A pinned header reaches the inset the card holds here, whichever reading box the skin has: a plate's own reach is its wider
+     * inset, which would carry the bar past the card. */
+    [data-slot="message-bubble"] [data-slot="message-name-row"][data-pinned] {
+      margin-inline: calc(var(--spacing-field) * -1);
+      padding-inline: var(--spacing-field);
+    }
   }
 
   :root[data-keyboard-up] [data-slot="composer-guided-refusal"] {

@@ -94,7 +94,7 @@ export function CharacterTagSuggestions({ characterId, trpc }: CharacterTagSugge
           (the Configuration workspace's Tags collection, one rail click away); a per-card shortcut to a
           sibling section is not a capability, it is a fifth option at a decision point that already had
           four. The three that remain all act on THIS card. */}
-      <Button type="button" size="sm" variant="ghost" disabled={suggest.isPending} onClick={(): void => suggest.mutate({ characterId })}>
+      <Button type="button" size="sm" variant="ghost" wrap={true} disabled={suggest.isPending} onClick={(): void => suggest.mutate({ characterId })}>
         <Icon icon={Sparkles} size="sm" />
         {suggest.isPending ? "Suggesting…" : "Suggest tags"}
       </Button>

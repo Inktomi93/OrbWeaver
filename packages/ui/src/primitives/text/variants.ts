@@ -237,6 +237,8 @@ export const textVariants = tv({
       clusterField: "inline-flex items-center gap-field",
       lineField: "flex gap-field",
       baselineRow: "flex items-baseline gap-row",
+      // A line of runs that moves a run to the next line when it does not fit, as a button's inner row.
+      wrapRow: "flex flex-wrap items-baseline gap-x-field gap-y-tight",
     },
     // Where a run with no space in it may break: `word` only at the end of a line that would overflow, `anywhere` also when
     // the box is sized to its content (a path or an address in a narrow cell).

@@ -9,7 +9,8 @@ const REACHABLE =
 // The character band's chip row scrolls by ruling: it keeps each chip whole rather than wrap into a ragged void. A strip built to scroll sideways
 // declares it with the attribute.
 // An open toast is transient chrome with its own close and timeout, so it lies over the controls beneath it the way pinned chrome does.
-const TRANSIENT_CHROME = '[data-slot="toast-root"]';
+// So is the jump pill: it shows only while the reader is away from the tail, floats over the rows scrolling under it and goes with one press.
+const TRANSIENT_CHROME = '[data-slot="toast-root"], [data-slot="jump-to-latest"]';
 // The boot veil lies over everything while it holds and dissolves after the app is ready, so a probe that runs under it reads the veil as every
 // control's cover. Its layout is not the resting one; the probes wait for it to leave.
 const BOOT_VEIL = '[data-slot="weave-veil"]';

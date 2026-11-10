@@ -99,7 +99,7 @@ export function CharacterHeroBand({
     <Stack gap="section" data-slot="character-hero">
       <Row align="start" gap="block" wrap={true}>
         <HeroPortrait detail={detail} trpc={trpc} />
-        <Stack className="min-inline-0" grow={true} gap="field">
+        <Stack className="min-inline-0" floor="field" grow={true} cap="fit" gap="field">
           <Row align="center" gap="row" wrap={true}>
             <Stack className="min-inline-0" grow={true} gap="field">
               <form.AppField name="name">{(field): ReactElement => <field.TextField label={CHARACTER_HERO_NAME_FIELD_NAME} />}</form.AppField>

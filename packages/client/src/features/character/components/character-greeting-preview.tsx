@@ -305,11 +305,11 @@ function GreetingActions({
           <Icon icon={Plus} size="sm" />
           {ADD_GREETING_NAME}
         </Button>
-        <Toggle size="sm" pressed={editing} onPressedChange={onToggleEdit}>
+        <Toggle size="sm" wrap={true} pressed={editing} onPressedChange={onToggleEdit}>
           <Icon icon={Pencil} size="sm" />
           {editLabel}
         </Toggle>
-        <Toggle size="sm" pressed={studioOpen} onPressedChange={setStudioOpen}>
+        <Toggle size="sm" wrap={true} pressed={studioOpen} onPressedChange={setStudioOpen}>
           <Icon icon={WandSparkles} size="sm" />
           {GREETING_STUDIO_NAME}
         </Toggle>

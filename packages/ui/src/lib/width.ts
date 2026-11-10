@@ -14,7 +14,7 @@ export const WIDTH = {
   avatarMd: "inline-(--size-avatar-md)",
   avatarLg: "inline-(--size-avatar-lg)",
   avatarHero: "inline-(--size-avatar-hero)",
-  ripplePortrait: "inline-(--immersive-ripple-portrait-width) @max-cq-28:inline-(--immersive-ripple-portrait-width-phone)",
+  ripplePortrait: "inline-(--immersive-ripple-portrait-width) @max-cq-28:inline-(--size-ripple-portrait-narrow)",
   lane: "@max-cq-64:inline-full @cq-64:inline-(--width-lane)",
   flankFit: "inline-(--dimension-room-flank-fit)",
   numberInline: "inline-(--width-number-inline)",
