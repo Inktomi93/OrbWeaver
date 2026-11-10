@@ -205,8 +205,9 @@ export const WALKER_CENSUS_DECOR = `  // ── nested cards (card-like = (shado
   for (var c = 0; c < allEls.length; c += 1) {
     var cel = allEls[c];
     if (!isVisible(cel)) continue;
+    // A control or chip keeps its context reason, so unpaintedEdge counts only panels that draw no edge.
     if (drawsOnlyTransparentEdge(cel)) {
-      walkerProvenTally("nested-card", { kind: "excluded", reason: "unpaintedEdge" });
+      walkerProvenTally("nested-card", { kind: "excluded", reason: isExcludedCardContext(cel) ? "cardContext" : "unpaintedEdge" });
       continue;
     }
     if (!isCardLike(cel)) continue;

@@ -228,6 +228,8 @@ TRANSLATION that lands the box between device pixels offsets the same raster. A 
 MOTION — a state variant or a `@keyframes` stop — never to rest. Law 2 judges translate and scale
 only; a rotation is out of scope.
 
+A unity-scale transform whose own translation is a whole number of device pixels lands where its box already was, so the fraction belongs to the layout that placed the box. Law 2 EXCLUDES it as `inheritedLanding`. A translation the walker cannot read as lengths, such as a percentage, stays judged on its landing.
+
 D333 ends custom static transform checks and their certification. The visual rule remains product law; runtime pixels depend on the element box, root font size and device pixel ratio.
 
 ## 10. Law 3 — promoted-layer grid alignment
@@ -274,6 +276,7 @@ slider's stops produce a non-integer root).
 | in Chromium, only `backdrop-filter` element ancestors are composited | EXCLUDED `compositedWithoutResample` | Chromium paints the layer's fraction into its content (§10) — inapplicability, so the verdict survives; other engines judge it |
 | inside the reading surface | EXCLUDED `readingSurface` | the typed mirror of the product exception in §2 |
 | non-finite rect / unusable DPR | WITHHELD `unmeasurable` | the instrument could not judge — fails loud, never a clean pass |
+| off the grid only where its judged layer put it | COLLAPSED `promotedLayer` | the layer's own `promoted-layer-offset` row files that fraction (§10); text with an offset of its own inside the layer still fires |
 
 D333 ends custom static waiver markers. The reading surface remains a product exception because its user-owned continuous multiplier intentionally permits fractional line boxes.
 

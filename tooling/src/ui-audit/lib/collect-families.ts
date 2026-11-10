@@ -18,7 +18,7 @@ import { checkContrast, checkGrayOnColor, checkQuietState, colorTextPopulations 
 import { classifyAccentBorder, classifyGlowShadow } from "./checks-decor.ts";
 import { checkDuplicateDoorPopulations } from "./checks-duplicate-door.ts";
 import { checkFontCensus, fontCensusPopulations } from "./checks-font-census.ts";
-import { checkOffGridText, checkOffGridTransform, checkPromotedLayerOffset } from "./checks-grid.ts";
+import { checkOffGridText, checkOffGridTransform, checkPromotedLayerOffset, offGridTextOwner } from "./checks-grid.ts";
 import { checkHoverContrast, hoverContrastPopulations } from "./checks-hover.ts";
 import { checkBrokenImage, checkBuriedRasterPopulations, classifyImageDistortion } from "./checks-media.ts";
 import { checkIconTile, classifyBgPattern, classifyMotionStatic, classifyRadialGlow } from "./checks-ornament.ts";
@@ -404,6 +404,7 @@ export function typographyFindings(samples: RawSamples): FamilyCheckResult {
   const offGridText = decisionPopulationFindings("off-grid-text", samples.offGridTexts ?? [], checkOffGridText, {
     decisionKey: authoredDecisionKey,
     census: samples.relationalAccounting?.["off-grid-text"],
+    collapse: offGridTextOwner,
   });
   const caveats = partitionedFindings("caveat-outweighed", samples.textStyles, classifyCaveatHierarchy(samples.textStyles));
   runArray(state, () => caveats.findings);

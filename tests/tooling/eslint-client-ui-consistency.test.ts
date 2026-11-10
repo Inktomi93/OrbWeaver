@@ -3,6 +3,7 @@ import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
 import { beforeAll } from "vitest";
+import { listSlotSurfacePaths } from "../../tooling/src/eslint/index.ts";
 import { resolvedConfig } from "./_eslint-config.ts";
 
 const ROOT = join(import.meta.dirname, "../..");
@@ -108,12 +109,17 @@ test("the forced dialog is the first-run ask's alone", async () => {
 });
 
 const LIBRARY_ROW = "orb/library-surface-row";
-const LIST_SURFACE = "packages/client/src/features/stats/surfaces/probe-list-surface.tsx";
+// The rule's population is the list-slot set, so a slotted surface named otherwise is a member and the transcript is not.
+const LIST_SLOT_SURFACE = "packages/client/src/features/plugin/surfaces/extensions-switcher-surface.tsx";
+const TRANSCRIPT_SURFACE = "packages/client/src/features/chat/surfaces/message-list-surface.tsx";
+const RAW_ROW = "export const A = () => <ListRow title='a' />;";
 
-test("a raw ListRow in a list surface is a finding; LibraryRow and other files pass", async () => {
-  expect(await findings(LIBRARY_ROW, "export const A = () => <ListRow title='a' />;", LIST_SURFACE)).toHaveLength(1);
-  expect(await findings(LIBRARY_ROW, "export const A = () => <LibraryRow title='a' />;", LIST_SURFACE)).toEqual([]);
-  expect(await findings(LIBRARY_ROW, "export const A = () => <ListRow title='a' />;")).toEqual([]);
+test("a raw ListRow in a list-slot surface is a finding; LibraryRow, the transcript and other files pass", async () => {
+  expect(listSlotSurfacePaths(ROOT)).toContain(LIST_SLOT_SURFACE);
+  expect(await findings(LIBRARY_ROW, RAW_ROW, LIST_SLOT_SURFACE)).toHaveLength(1);
+  expect(await findings(LIBRARY_ROW, "export const A = () => <LibraryRow title='a' />;", LIST_SLOT_SURFACE)).toEqual([]);
+  expect(await findings(LIBRARY_ROW, RAW_ROW, TRANSCRIPT_SURFACE)).toEqual([]);
+  expect(await findings(LIBRARY_ROW, RAW_ROW)).toEqual([]);
 });
 
 const INTRINSIC = "orb/no-raw-interactive-intrinsics";

@@ -1,6 +1,7 @@
 // Section structure: which parts each feature has (list, detail, context tabs, empty, loading, error) and which boundary wraps its reads.
 
 import type { FileFacts } from "../eslint/index.ts";
+import { listSlotSurfaces } from "../eslint/index.ts";
 import type { Cohort, Member } from "../floor/verdict/cohort-compare.ts";
 import { NOT_APPLICABLE } from "../floor/verdict/cohort-compare.ts";
 import { skeletonCohortOf } from "./skeleton.ts";
@@ -24,8 +25,8 @@ function boundaryOf(files: readonly FileFacts[]): string {
 
 const hasBoundaryAttr = (facts: FileFacts, attr: string): boolean => facts.elems.some((elem) => elem.tag === "QueryBoundary" && elem.attrs.has(attr));
 
-function memberOf(section: string, files: readonly FileFacts[]): Member {
-  const roleOf = (facts: FileFacts): string | null => skeletonCohortOf(facts.source.path);
+function memberOf(section: string, files: readonly FileFacts[], listSlots: ReadonlySet<string>): Member {
+  const roleOf = (facts: FileFacts): string | null => skeletonCohortOf(facts.source.path, listSlots);
   const lists = files.filter((facts) => roleOf(facts) === "surface:list");
   const details = files.filter((facts) => roleOf(facts) === "surface:other");
   const contexts = files.filter((facts) => roleOf(facts) === "context-tab");
@@ -51,6 +52,7 @@ function memberOf(section: string, files: readonly FileFacts[]): Member {
 }
 
 export function buildStructureCohort(all: readonly FileFacts[]): Cohort {
+  const listSlots = listSlotSurfaces(all);
   const bySection = new Map<string, FileFacts[]>();
   for (const facts of all) {
     if (/^packages\/client\/src\/features\//u.test(facts.source.path)) {
@@ -75,6 +77,6 @@ export function buildStructureCohort(all: readonly FileFacts[]): Cohort {
       listBoundary: "heuristic",
       detailBoundary: "heuristic",
     },
-    members: [...bySection.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([section, files]) => memberOf(section, files)),
+    members: [...bySection.entries()].sort(([a], [b]) => a.localeCompare(b)).map(([section, files]) => memberOf(section, files, listSlots)),
   };
 }

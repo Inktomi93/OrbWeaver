@@ -313,12 +313,11 @@ export function auditRuleTest<const Proofs extends readonly AuditRuleProof[]>(
     const report = await fn({ runCli, scratch });
     for (const proof of proofs) {
       if (proof.kind === "silent" && report !== undefined) {
-        expectPopulation(
-          report,
-          proof.rule,
-          proof.disposition,
-          proofs.some((other) => other.kind === "fires" && other.rule === proof.rule) && report.findings.some((finding) => finding.rule === proof.rule),
-        );
+        expectPopulation(report, proof.rule, proof.disposition, {
+          alongsideFires:
+            proofs.some((other) => other.kind === "fires" && other.rule === proof.rule) && report.findings.some((finding) => finding.rule === proof.rule),
+          siblings: proofs.flatMap((other) => (other !== proof && other.kind === "silent" && other.rule === proof.rule ? [other.disposition] : [])),
+        });
       }
     }
   });

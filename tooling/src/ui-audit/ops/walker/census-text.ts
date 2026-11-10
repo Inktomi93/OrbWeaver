@@ -62,6 +62,8 @@ export const WALKER_CENSUS_TEXT = `
   var textStyles = [];
   var fontFamilies = {};
   var FONT_PREVIEW_ATTRIBUTE = ${JSON.stringify(FONT_PREVIEW_ATTRIBUTE)};
+  // A face preview is a picker option's label; the attribute anywhere else declares nothing.
+  var FONT_PREVIEW_CTX = "[role=option]";
   var fontSizes = {};
   var textEls = [];
   var seenTextEls = new Set();
@@ -149,8 +151,14 @@ export const WALKER_CENSUS_TEXT = `
   // THE CAVEAT IS THE BLOCK THAT CARRIES THE ROLE. An alert region's headline and explainer are its body copy;
   // only a sentence whose own block carries the role bounds what sits beside it. An inline run reads its
   // nearest block-level ancestor, which is the block it is set in.
+  // A role wrapper around one run, beside an icon, carries that run's role: the run is the region's whole text.
+  var spokenText = function (node) {
+    return (node.textContent || "").replace(/\\s+/g, " ").trim();
+  };
   var alertCarrierOf = function (element, elementStyle) {
     if (element.matches(CAVEAT_ROLE_CTX)) return true;
+    var region = element.closest(CAVEAT_ROLE_CTX);
+    if (region !== null && spokenText(region) === spokenText(element)) return true;
     if (elementStyle.display.indexOf("inline") !== 0) return false;
     for (var blockAnc = element.parentElement; blockAnc !== null; blockAnc = blockAnc.parentElement) {
       if (getComputedStyle(blockAnc).display.indexOf("inline") !== 0) return blockAnc.matches(CAVEAT_ROLE_CTX);
@@ -229,6 +237,17 @@ export const WALKER_CENSUS_TEXT = `
     return lineBoxCount(element, elementRect) === 1;
   };
 
+  // THE CONTROL A LABEL BELONGS TO. A \`[tabindex]\` match is a control only when it is reachable by Tab and carries no
+  // role of its own: a programmatic focus target (tabindex -1) or a focusable container (a tab panel, a region) is not.
+  var TABINDEX_CTX = "[tabindex]";
+  var CONTROL_CTX = INTERACTIVE_CTX.split(",").filter(function (part) { return part !== TABINDEX_CTX; }).join(",");
+  var controlOf = function (element) {
+    for (var ctl = element.closest(INTERACTIVE_CTX); ctl !== null; ctl = ctl.parentElement === null ? null : ctl.parentElement.closest(INTERACTIVE_CTX)) {
+      if (ctl.matches(CONTROL_CTX) || (ctl.tabIndex >= 0 && !ctl.hasAttribute("role"))) return ctl;
+    }
+    return null;
+  };
+
   var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
   var node;
   while ((node = walker.nextNode())) {
@@ -295,7 +314,7 @@ export const WALKER_CENSUS_TEXT = `
     // (density spec §2.3), while a control whose whole label is this text owes the 11px floor.
     // Primary ≈ this element's direct text is (nearly) all the text the control has.
     var textFont = (style.fontStyle || "normal") + " " + (style.fontWeight || "400") + " " + style.fontSize + " " + style.fontFamily;
-    var interactiveAnc = el.closest(INTERACTIVE_CTX);
+    var interactiveAnc = controlOf(el);
     var interactivePrimary = false;
     if (interactiveAnc) {
       var ancTextLen = (interactiveAnc.textContent || "").replace(/\\s+/g, " ").trim().length;
@@ -368,7 +387,7 @@ export const WALKER_CENSUS_TEXT = `
     for (var fi = 0; fi < stack.length; fi += 1) {
       var face = stack[fi].trim().replace(/^['"]|['"]$/g, "").toLowerCase();
       if (!face || GENERIC_FONTS[face] === 1) continue;
-      var previewed = (el.getAttribute(FONT_PREVIEW_ATTRIBUTE) || "").trim().replace(/^['"]|['"]$/g, "").toLowerCase() === face;
+      var previewed = el.closest(FONT_PREVIEW_CTX) !== null && (el.getAttribute(FONT_PREVIEW_ATTRIBUTE) || "").trim().replace(/^['"]|['"]$/g, "").toLowerCase() === face;
       var faceSeen = fontFamilies[face] || (fontFamilies[face] = { selector: null });
       if (!previewed && faceSeen.selector === null) faceSeen.selector = describe(el);
       break;
