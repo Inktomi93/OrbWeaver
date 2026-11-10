@@ -5,7 +5,7 @@ import process from "node:process";
 import { readConcurrencyProfile } from "@orb/tooling/floor/host/concurrency-profile";
 import { budget } from "@orb/tooling/floor/host/load-budget";
 import type { TestResource } from "@orb/tooling/floor/testing/test-kinds";
-import { runtimeForTestFamily, SEMANTIC_CORPUS_RESOURCE, TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
+import { HOST_DISK_RESOURCE, runtimeForTestFamily, SEMANTIC_CORPUS_RESOURCE, TEST_KIND_DEFINITIONS } from "@orb/tooling/floor/testing/test-kinds";
 import { LONG_TEST_TIMEOUT_BASE_MS, TEST_TAGS } from "@orb/tooling/floor/testing/test-tags";
 import type { ViteUserConfig } from "vitest/config";
 import { configDefaults, defineConfig } from "vitest/config";
@@ -43,6 +43,8 @@ const TAG_FILTER_CONFIG = { tagsFilter: testTagFilters(process.env) } satisfies 
 const NORMAL_GROUP_ORDER = 0;
 const REPOSITORY_GROUP_ORDER = 1;
 const SEMANTIC_CORPUS_GROUP_ORDER = 2;
+const HOST_DISK_GROUP_ORDER = 3;
+const COMPOSED_REAL_SETUP = "tests/support/node/composed-real.ts";
 
 // docs/work/0062 — every project inherits this through `extends: true`, so each one captures the working
 // tree before its own first test and re-checks it at close: a suite that writes the real tree (repo law
@@ -129,7 +131,7 @@ export function vitestConfig(): ViteUserConfig {
           test: {
             name: "integration",
             sequence: { groupOrder: NORMAL_GROUP_ORDER },
-            setupFiles: ["tests/support/node/composed-real.ts"],
+            setupFiles: [COMPOSED_REAL_SETUP],
             include: withIgnored([...exclusiveTestGlobs(({ family, resource }) => family === "integration" && resource === null), `!${TOOLING}`]),
           },
         },
@@ -153,6 +155,17 @@ export function vitestConfig(): ViteUserConfig {
             include: withIgnored(resourceGlobs(SEMANTIC_CORPUS_RESOURCE)),
             fileParallelism: true,
             maxWorkers: Math.min(CONCURRENCY.vitestMaxWorkers, CONCURRENCY.semanticCorpusMaxWorkers),
+          },
+        },
+        {
+          extends: true,
+          test: {
+            name: HOST_DISK_RESOURCE,
+            // Its own group, after every other one, and one file at a time: nothing shares the disk with its writes.
+            sequence: { groupOrder: HOST_DISK_GROUP_ORDER },
+            setupFiles: [COMPOSED_REAL_SETUP],
+            include: withIgnored(resourceGlobs(HOST_DISK_RESOURCE)),
+            fileParallelism: false,
           },
         },
         {

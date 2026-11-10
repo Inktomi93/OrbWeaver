@@ -1,17 +1,14 @@
 // @subject packages/server/src/entry/http/import.ts
 
-import { readdir, readFile, stat, statfs } from "node:fs/promises";
+import { readdir, readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
 import { importStartedSchema } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
-import { IMPORT_BUNDLE_MAX_BYTES, IMPORT_MAX_TOTAL_BYTES } from "@orb/contracts/uploads";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { BUNDLE_ROUTE, bodyRequest, CSRF_HEADERS, observedBody, REQUEST_CHUNK_BYTES } from "./_body-limit-inputs.ts";
 
-/** The extractor's rejection kind for bytes that are not a zip, as opposed to its `too-large` size refusal. */
-const MALFORMED_ARCHIVE = /zip rejected \(malformed\)/u;
 /** The extractor's rejection for an entry whose inflated bytes disagree with its record; it fires while extracting. */
 const INTEGRITY_REFUSAL = /zip rejected \(bomb\).*CRC-32/u;
 // The ZIP record layout (APPNOTE 4.3): the end record this build's writer emits has no comment.
@@ -46,54 +43,6 @@ function lastEntryCorrupted(archive: Uint8Array): Uint8Array {
   view.setUint32(at + CENTRAL_CRC_AT, (view.getUint32(at + CENTRAL_CRC_AT, true) + 1) % U32_RANGE, true);
   return out;
 }
-
-// Staging a body one byte past the 4 GiB bundle cap writes 4 GiB to disk before the refusal: that is the proven runtime.
-test("actual raw bundle overflow cancels its source and removes the partial staged file without a workload", { tags: ["slow"] }, async () => {
-  await using root = await createServerHarness({
-    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
-    physicalPeer: () => "127.0.0.1",
-  });
-  const capacity = await statfs(root.importStagingDir);
-  expect(capacity.bavail * capacity.bsize).toBeGreaterThan(IMPORT_BUNDLE_MAX_BYTES * 2);
-  const principal = await root.principalFor(root.ownerId);
-  const before = await root.services.workloads.list({ caller: principal, kind: "import-bundle" });
-  using input = observedBody(IMPORT_BUNDLE_MAX_BYTES + 1);
-  const response = await bodyRequest(root, BUNDLE_ROUTE, input.body);
-  expect(response.status).toBe(413);
-  expect(await response.json()).toEqual({ error: "bundle exceeds the maximum upload size" });
-  expect(input.snapshot()).toMatchObject({ bytes: IMPORT_BUNDLE_MAX_BYTES + 1, cancelled: true, tripwire: false });
-  const paths = await readdir(root.importStagingDir, { recursive: true, withFileTypes: true });
-  expect(paths.filter((entry) => entry.isFile()).map((entry) => entry.name)).toEqual([]);
-  expect(await root.services.workloads.list({ caller: principal, kind: "import-bundle" })).toEqual(before);
-});
-
-// The body must pass the in-memory cap, so the case streams and stages a body of that size to disk: that is its proven runtime.
-test("a backup over the in-memory import cap is staged whole and its import reads the archive itself, not a size refusal", { tags: ["slow"] }, async () => {
-  await using root = await createServerHarness({
-    env: { [AUTH_MODE_KEY]: "single-user", [AUTH_FALLBACK_KEY]: "owner" },
-    physicalPeer: () => "127.0.0.1",
-    startJobs: false,
-  });
-  const runAdmitted = root.runAdmittedWorkload;
-  if (runAdmitted === undefined) {
-    throw new Error("the harness owns its workload execution only with startJobs: false");
-  }
-  const principal = await root.principalFor(root.ownerId);
-  // Bytes with no end-of-central-directory record: the import's verdict can only come from reading the archive.
-  const body = new Uint8Array(IMPORT_MAX_TOTAL_BYTES + 1);
-  const response = await root.http.request(BUNDLE_ROUTE, { method: "POST", headers: CSRF_HEADERS, body });
-  expect(response.status).toBe(202);
-  const { workloadId } = importStartedSchema.parse(await response.json());
-  const queued = await root.services.workloads.get({ id: workloadId, caller: principal });
-  if (queued.kind !== "import-bundle" || queued.poison) {
-    throw new Error("bundle admission did not retain its typed workload");
-  }
-  const staged = await stat(join(root.stagedImportsOf(root.ownerId), queued.params.token));
-  expect(staged.size).toBe(body.byteLength);
-  await runAdmitted(workloadId, AbortSignal.timeout(WORKLOAD_DEADLINE_MS));
-  const settled = await root.services.workloads.get({ id: workloadId, caller: principal });
-  expect({ status: settled.status, error: settled.error }).toEqual({ status: "failed", error: expect.stringMatching(MALFORMED_ARCHIVE) });
-});
 
 test("a hostile archive refused mid-extraction leaves the uploader's staging folder empty", async () => {
   await using root = await createServerHarness({

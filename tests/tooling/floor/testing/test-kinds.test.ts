@@ -90,6 +90,13 @@ test("isolated semantic corpus suites have a separately priced native resource",
   });
 });
 
+test("a disk-staging case belongs to the host-disk resource, not the shared integration group", () => {
+  expect(classifyTestFilename("bundle-body-limit.disk.int.test.ts")).toMatchObject({
+    definition: { family: "integration", compilerWorld: "node", mirror: "module", resource: "host-disk" },
+    sourceBasename: "bundle-body-limit",
+  });
+});
+
 test("component mirrors accept TSX or TS sources and unknown suffixes stay unclassified", () => {
   expect(classifyTestFilename("button.ct.tsx")?.definition.sourceExtensions).toEqual([".tsx", ".ts"]);
   expect(classifyTestFilename("matrix.suite.ct.tsx")?.definition).toMatchObject({ mirror: "suite", compilerWorld: "browser" });
@@ -114,7 +121,7 @@ test("derived selectors and runtime dispatch cover the registry without duplicat
     ".suite.repo.int.test.ts",
     ".repo.int.test.ts",
   ]);
-  expect(TEST_RESOURCE_NAMES).toEqual(["repository", "semantic-corpus"]);
+  expect(TEST_RESOURCE_NAMES).toEqual(["host-disk", "repository", "semantic-corpus"]);
   expect(VITEST_RUNTIME_FAMILY_GROUPS).toEqual(["contract", "integration", "unit"]);
   expect(runtimeForTestFamily("type")).toBe("vitest-typecheck");
   expect(runtimeForTestFamily("component")).toBe("playwright-ct");
