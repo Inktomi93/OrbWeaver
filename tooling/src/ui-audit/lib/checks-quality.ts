@@ -190,7 +190,7 @@ export function checkDoubleEmptyState(input: EmptyStateInput): Finding | null {
     value: `${String(input.rendered)} empty state(s) rendered at once, ${String(input.actionless)} with no action`,
     message: crowded
       ? "more than one pane of this surface is empty at the same time, so the panes give separate — and often contradictory — guidance: one says how to create the first item while the other tells you to pick one from a list that has none. When the list is empty the content pane should mirror the list's guidance, not point at it"
-      : "an empty state offers no action — a pane that says there is nothing here and gives no door out is a dead end; every empty state owes its primary action",
+      : "an empty state offers no action — a pane that says there is nothing here and gives no door out is a dead end; every empty state owes its primary action, or an authored action={null} with a visible description that says where the next step lives",
     origin: "orbweaver",
   };
 }

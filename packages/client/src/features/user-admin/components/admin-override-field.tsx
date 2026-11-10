@@ -26,6 +26,7 @@ import { Switch } from "@orb/ui/switch";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { DestructiveAction, SettingTrackRow } from "#components";
+import { ADMIN_SAVE_LABEL, ADMIN_SAVING_LABEL, adminSaveName } from "../lib/admin-model.ts";
 
 /** The numeric row's floor formatter — the SAME default format the NumberField primitive formats its visible
  *  value with (locale defaulted, grouping off), so the floor sentence reads in the same digits as the control
@@ -168,12 +169,13 @@ export interface AdminOverrideResetRowProps {
 /** The Save + Reset-to-defaults row shared by the admin override sections. Save renders only for a section
  *  that HAS a draft; Reset appears only when the section has an active override. */
 export function AdminOverrideResetRow({ sectionLabel, dirty, anyOverridden, saving, error, onSave, onReset }: AdminOverrideResetRowProps): ReactElement {
+  const saveLabel = saving ? ADMIN_SAVING_LABEL : ADMIN_SAVE_LABEL;
   return (
     <Stack gap="field">
       <Row wrap={true} gap="field" align="center">
         {onSave === undefined ? null : (
-          <Button size="sm" disabled={dirty !== true || saving} onClick={onSave}>
-            {saving ? "Saving…" : "Save"}
+          <Button aria-label={adminSaveName(saveLabel, sectionLabel)} size="sm" disabled={dirty !== true || saving} onClick={onSave}>
+            {saveLabel}
           </Button>
         )}
         {anyOverridden ? (

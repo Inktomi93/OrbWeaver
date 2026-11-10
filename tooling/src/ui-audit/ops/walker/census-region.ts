@@ -352,20 +352,42 @@ export const WALKER_CENSUS_REGION = `  // ── pane ink: a region that does no
     return false;
   }
 
+  // AUTHORED "NO NEXT STEP HERE" (D62 rule 1 judges a reachable state, not one primitive root).
+  // EmptyState's \`action\` is a required prop, and \`null\` is its declared answer "this pane offers no step;
+  // the reason is beside it". The primitive stamps that answer as \`data-empty-action="none"\`. The type
+  // already decided it, so the runtime judges only what the type cannot see: an empty state with that stamp
+  // and a visible reason line is not a dead end. A bare-title null, an \`undefined\` action and a rendered
+  // slot with no operable control all stay dead ends.
+  function authoredNoAction(root) {
+    if (root.getAttribute("data-empty-action") !== "none") return false;
+    var reasons = root.querySelectorAll("[data-slot=empty-state-description]");
+    for (var ri = 0; ri < reasons.length; ri += 1) {
+      if (isVisible(reasons[ri]) && (reasons[ri].textContent || "").trim() !== "") return true;
+    }
+    return false;
+  }
+
   for (var ei = 0; ei < emptyRoots.length; ei += 1) {
     if (!isVisible(emptyRoots[ei])) continue;
     var surface = emptySurface(emptyRoots[ei]);
     var emptyGroup = emptyBySurface.get(surface);
     if (emptyGroup === undefined) {
-      emptyGroup = { roots: [], actionless: 0 };
+      emptyGroup = { roots: [], actionless: 0, authored: 0 };
       emptyBySurface.set(surface, emptyGroup);
     }
     emptyGroup.roots.push(emptyRoots[ei]);
-    if (!hasOperableEmptyAction(emptyRoots[ei])) emptyGroup.actionless += 1;
+    if (hasOperableEmptyAction(emptyRoots[ei])) continue;
+    if (authoredNoAction(emptyRoots[ei])) emptyGroup.authored += 1;
+    else emptyGroup.actionless += 1;
   }
   emptyBySurface.forEach(function (group, surface) {
     if (group.roots.length > 0) {
       relationalAccounting["double-empty-state"].candidates += 1;
+      // A lone authored state leaves neither question open: one root cannot crowd, and its step is declared absent.
+      if (group.roots.length === 1 && group.authored === 1) {
+        excludeRelational(relationalAccounting["double-empty-state"], "authoredNoAction");
+        return;
+      }
       relationalAccounting["double-empty-state"].judged += 1;
       emptyStates.push({ selector: describe(surface), rendered: group.roots.length, actionless: group.actionless });
     }
