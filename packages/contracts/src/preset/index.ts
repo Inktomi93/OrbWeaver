@@ -23,6 +23,7 @@ import type { EffortLevel as ModelEffortLevel, SamplerKnob } from "#inference";
 import {
   capabilityTargetSchema,
   EFFORT_LEVELS as MODEL_EFFORT_LEVELS,
+  REASONING_DISPLAY_MODES,
   SAMPLER_KNOBS,
   samplerOrderSchema,
   userRoleHandlingSchema,
@@ -279,7 +280,7 @@ export const EFFORT_LEVELS = ["none", ...MODEL_EFFORT_LEVELS] as const;
 export type EffortLevel = (typeof EFFORT_LEVELS)[number];
 const effortLevelSchema = z.enum(EFFORT_LEVELS) satisfies z.ZodType<EffortLevel>;
 
-export const THINKING_DISPLAYS = ["summarized", "omitted"] as const;
+export const THINKING_DISPLAYS = REASONING_DISPLAY_MODES;
 export type ThinkingDisplay = (typeof THINKING_DISPLAYS)[number];
 
 // Compaction is a SAFETY property (owner ruling): a chat may never error from context growth, so turning

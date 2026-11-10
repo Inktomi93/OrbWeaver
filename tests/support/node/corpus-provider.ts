@@ -7,6 +7,8 @@ import { modelIdSchema } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
 import { z } from "zod";
 import { REFINERY_RESPONSE_FORMATS } from "../../../packages/server/src/domain/refinery/substrate/stage-resolution.ts";
+import type { AnthropicStreamEvent } from "./anthropic-stream.ts";
+import { anthropicSse } from "./anthropic-stream.ts";
 import { servePhysicalPeer } from "./physical-peer.ts";
 import type { TerminalFrameOptions } from "./provider-stream.ts";
 import { terminalSseLine } from "./provider-stream.ts";
@@ -156,6 +158,8 @@ interface CorpusProviderScript {
   readonly usage?: TerminalFrameOptions["usage"];
   readonly toolCall?: { readonly name: string; readonly argumentsJson: string };
   readonly completion?: (requestBody: string) => CorpusProviderCompletion | undefined;
+  /** The Messages responder sees the physical body and headers after the real converter. */
+  readonly anthropicMessages?: (body: string, headers: Headers) => readonly AnthropicStreamEvent[];
 }
 
 /** Physical completion bytes for a request-specific script, before native provider parsing. */
@@ -173,6 +177,8 @@ const requestSchema = z.object({
   tools: z.array(z.object({ type: z.literal("function"), function: z.object({ name: z.string() }) })).optional(),
   ["response_format"]: z.object({ ["json_schema"]: z.object({ name: z.string() }).optional() }).optional(),
 });
+
+const messagesRequestSchema = requestSchema.pick({ model: true });
 
 type ProviderRequest = z.infer<typeof requestSchema>;
 interface CorpusProviderExecution {
@@ -296,9 +302,6 @@ function chatReply(script: CorpusProviderScript, fields: ProviderRequest, reques
 }
 
 function postReply(script: CorpusProviderScript, path: string, fields: ProviderRequest, requestBody: string): Response {
-  if (!script.modelIds.includes(fields.model)) {
-    throw new Error(`unscripted corpus provider model: ${fields.model}`);
-  }
   switch (path) {
     case "/v1/embeddings":
       return embeddingReply(script, fields, requestBody);
@@ -331,7 +334,13 @@ export function createCorpusProviderExecution(script: CorpusProviderScript): Cor
       throw new Error(`unscripted corpus provider execution: ${request.method} ${path}`);
     }
     const body = await request.text();
-    return postReply(script, path, requestSchema.parse(JSON.parse(body)), body);
+    const decoded: unknown = JSON.parse(body);
+    const messages = path === "/v1/messages" ? script.anthropicMessages : undefined;
+    const fields = messages === undefined ? requestSchema.parse(decoded) : messagesRequestSchema.parse(decoded);
+    if (!script.modelIds.includes(fields.model)) {
+      throw new Error(`unscripted corpus provider model: ${fields.model}`);
+    }
+    return messages === undefined ? postReply(script, path, fields, body) : anthropicSse(messages(body, request.headers));
   };
   return { execute, requests };
 }

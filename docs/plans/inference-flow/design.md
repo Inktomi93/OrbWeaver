@@ -100,3 +100,9 @@ Leave the settings table as a shared table any tenant writes directly: it gives 
 ## Test plan
 
 Each ruling lands with its gate or test: a cross-owner write in persistence fails `own-tables-only`; a tenant writing outside its prefix fails the settings port test; a domain comparing a wire fails a gate; a runtime call path that skips the funding verdict fails a test.
+
+## Sonnet 5.5
+
+On the direct Messages wire, a preset may choose progress updates for adaptive thinking. The SDK sends the display beta. Between-tools thinking always sends its standalone off object. An explicit tool-chain carry request preserves each signed progress block on the next leg. Conversation carry in that mode warns and narrows to the current chain because the mode cannot request prefix-mismatch recovery. The default carry setting remains off. Per-message effort has no wire producer; `WireMeta` carries cache and clear-at hints. [Anthropic thinking](https://platform.claude.com/docs/en/build-with-claude/thinking) and [Sonnet effort constraints](https://platform.claude.com/docs/en/models/sonnet-5-5/whats-new-sonnet-5-5).
+
+Keep the Agent SDK mandatory-reasoning row. Its 0.3.280 dependency was upgraded to 0.3.306. On November 10, 2026 UTC, both that pinned CLI and the newest 24-hour-eligible release, 0.3.319, emitted adaptive thinking for a supported disabled SDK request against loopback. CLI 2.1.319 rejected an explicit between-tools argument before dispatch. This measures client request construction; hosted model outcomes remain unmeasured.
