@@ -101,6 +101,12 @@ A string axis is an `as const` tuple; its union is **derived**, never re-spelled
 - **Banned habits:** `any` (use `unknown` + narrow — `catch` is already `unknown`) · non-null `!` (use a guard / `?? throw`) · `as` assertions by review (prefer `satisfies`/narrowing/zod; ID casts need a clear boundary reason); `as any as T` is a hard no.
 - **`@total-typescript/ts-reset` is on** — one root `reset.d.ts` pulled into every package's compilation via `tsconfig.base.json`'s `include` (`${configDir}/../../reset.d.ts`). It hardens dishonest built-ins: `JSON.parse()` / `Response.json()` return `unknown` (you MUST narrow — pairs with the zod-at-the-boundary rule), `[].filter(Boolean)` strips `null`/`undefined` from the result type, `Array.includes`/`Set.has` widen correctly. Write code expecting these stricter signatures. Declaration-only, zero runtime cost. Its sibling `platform.d.ts` rides the same mechanism for the opposite job — declaring runtime surfaces the lib is MISSING (§9).
 
+### Format-named fields
+
+Contract address fields use their Zod format. A minted frame uses its same-origin document path. The `no-restricted-syntax` error in `eslint.config.ts` rejects inline `z.string()` under the format names it lists.
+
+Use the owning text schema when the field preserves authored text, stored metadata or diagnostic output. [Serialization](Spine-Config-and-Serialization.md) preserves imported card asset references. [D51](../adr/0051-content-parts-built-once-at-request-seam.md) keeps authored markdown targets until resolution. Stored background provenance survives reads and copies with its asset. [Transport](Tier-4-Transport.md) accepts bounded client error reports. Provider inspection displays the redacted request or an empty location when no request was sent.
+
 ## 5. `erasableSyntaxOnly` — the forbidden set (+ erasable replacement)
 
 The compiler flag catches most of these; it does not catch decorators. Do not use decorators: Node's type stripping does not provide their runtime.

@@ -83,7 +83,7 @@ export const userConnectionSchema = z
     providerId: providerIdSchema,
     credentialId: typeIdSchema(ID_PREFIX.userCredential).nullable(),
     /** For `auth: endpoint` providers; `null` when the provider row fixes it. */
-    baseUrl: z.string().nullable(),
+    baseUrl: z.url().nullable(),
     /** The picked model id — NEVER defaulted (F16); the picker is the only way it gets set. */
     model: modelIdSchema,
     api: connectionApiSchema,

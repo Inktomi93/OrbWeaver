@@ -2185,6 +2185,16 @@ export default [
   { files: rootSources("@server", "@inference"), rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX) } },
   { files: rootSources("@db"), rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX) } },
   {
+    files: rootSources("@contracts"),
+    rules: {
+      "no-restricted-syntax": restrictedSyntax({
+        selector:
+          "Property:matches([key.name=/^(url|uri|email|baseUrl|sourceUrl|provenanceUrl)$/], [key.value=/^(url|uri|email|baseUrl|sourceUrl|provenanceUrl)$/]) CallExpression[callee.object.name='z'][callee.property.name='string']",
+        message: "Use a Zod format for an address. Use its owning text schema for preserved metadata or diagnostic text.",
+      }),
+    },
+  },
+  {
     files: [CLIENT_SRC],
     ignores: TRACK_STAMP_HOMES,
     rules: { "no-restricted-syntax": restrictedSyntax(...CLIENT_SYNTAX, TRACK_STAMP_SYNTAX) },

@@ -22,7 +22,7 @@ export const pluginViewSchema = z.strictObject({
   version: z.string(),
   status: z.enum(PLUGIN_STATUSES),
   origin: z.enum(PLUGIN_ORIGINS),
-  sourceUrl: z.string().nullable(),
+  sourceUrl: z.url().nullable(),
   sourceCommit: z.string().nullable(),
   updateSource: z.enum(PLUGIN_UPDATE_SOURCES).nullable(),
   grantedCapabilities: capabilityListSchema,

@@ -94,16 +94,19 @@ export const generationCostSchema = z.strictObject({
 });
 export type GenerationCost = z.infer<typeof generationCostSchema>;
 
+// Scrubbing credentials can remove part of the URL. A failure before the send has no URL.
+const inspectionDisplayText = z.string();
+
 /** The "Test endpoint" inspector's result — the `inspect` surface returns it. Carries the request one chat
  *  call sent on the route chat uses (headers REDACTED — the key never leaves the server) plus the raw
  *  response, or a `null` response + an `error` message when the request never completed (DNS / refused / timeout). */
 const endpointInspectionBaseSchema = z.strictObject({
   request: z.strictObject({
-    url: z.string(),
+    url: inspectionDisplayText,
     /** REDACTED — Authorization / key-shaped headers are masked. */
     headers: z.record(z.string(), z.string()),
     /** Pretty-printed JSON of the outbound body. */
-    body: z.string(),
+    body: inspectionDisplayText,
   }),
   /** The raw response, or `null` when the request never completed. */
   response: z.strictObject({
@@ -126,7 +129,7 @@ export type EndpointInspection = z.infer<typeof endpointInspectionSchema>;
  *  the projection instead of failing it. The wire result below re-reads it strictly. */
 export const verifyAuthAccountSchema = z
   .object({
-    email: z.string().optional(),
+    email: z.email().optional(),
     organization: z.string().optional(),
     /** The plan tier the account is on (SDK `subscriptionType`). */
     subscriptionType: z.string().optional(),
