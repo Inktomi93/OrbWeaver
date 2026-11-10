@@ -22,22 +22,18 @@ export type BackfillTokenUsage = (args: {
 }) => Promise<ImportTokenUsageBackfillResult>;
 
 /** A bulk import's pass counts (rows examined / rows written). */
-interface ImportPassCounts {
+type ImportPassCounts = {
   readonly scanned: number;
   readonly changed: number;
   /** Cards skipped by per-card isolation (a single card's defect never aborts the batch). */
   readonly failed: number;
   /** Folded names of personas merged into an owned persona of the same name (not a skip, not new canon). */
   readonly mergedKeys?: readonly string[];
-  /** Path to the written import report (what landed / what didn't). Absent on a dry run (nothing written). */
-  readonly reportPath?: string;
-  /** What a dry run found. Absent on a real run. */
-  readonly preview?: ImportPreview;
   /** How many items of each kind the folder holds, counted the way the preview counts. */
   readonly found: ImportKindCounts;
   /** The span in which the run wrote real conversations (null = none): the client's memory-build offer scope. */
   readonly memoryScope: ImportWindow | null;
-}
+} & ({ readonly preview?: ImportPreview; readonly reportPath?: never } | { readonly reportPath: string; readonly preview?: never });
 
 /** Close an import's memory scope once its writes are done: `from` is the server clock read before the import
  *  started. Returns the span as the import's scope handle, or null when the import wrote no real conversation.

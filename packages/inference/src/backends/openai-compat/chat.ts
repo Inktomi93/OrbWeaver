@@ -205,13 +205,13 @@ function plannedStrict(plan: StructuredPlan): boolean | undefined {
   return plan.responseFormat?.vehicle === "response-format" ? plan.responseFormat.strict : undefined;
 }
 
-interface TurnShape {
+type TurnShape = {
   readonly options: Omit<LanguageModelV4CallOptions, "prompt" | "abortSignal">;
   readonly extraBody: Record<string, unknown>;
-  readonly openRouterChat?: ModelCall["openRouterChat"];
-  /** The template kwarg alone spells thinking off on this turn (`compatibleReasoning`). */
-  readonly templateOff?: boolean | undefined;
-}
+} & (
+  | { readonly openRouterChat: NonNullable<ModelCall["openRouterChat"]>; readonly templateOff?: never }
+  | { readonly openRouterChat?: never; readonly templateOff?: boolean | undefined }
+);
 
 /** The openai-compatible transport: effort and the budget spelled by the row (`reasoning.ts`); verbosity rides the
  *  SDK's `textVerbosity` option; the unmodelled sampler knobs ride `providerOptions[name]` under the row's own

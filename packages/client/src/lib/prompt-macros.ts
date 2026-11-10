@@ -128,15 +128,22 @@ interface DerivedSuggestion {
 
 /** One authoring home's macros, with the source ref every macro of it carries. The surface's own editable plane
  *  is `current`; the rest are planes the surface can only read. */
-export interface MacroPlane {
+export type MacroPlane = {
   readonly source: MacroSourceRef;
-  /** What the person calls this home (a preset's or a plugin's name). Absent when the surface does not know it. */
-  readonly name?: string | undefined;
-  /** The plane this surface edits: the row says "This preset" and the browser offers no link to where the
-   *  reader already is. */
-  readonly current?: true;
   readonly defs: readonly UserMacroDef[];
-}
+} & (
+  | {
+      /** The plane this surface edits: the row says "This preset" and the browser offers no link to where the
+       *  reader already is. */
+      readonly current?: true;
+      readonly name?: never;
+    }
+  | {
+      readonly current?: never;
+      /** What the person calls this home (a preset's or a plugin's name). Absent when the surface does not know it. */
+      readonly name?: string | undefined;
+    }
+);
 
 /** A catalog macro with the plane it came from; `plane` is absent for a builtin. */
 export interface CatalogMacro {
@@ -200,7 +207,7 @@ export function pluginMacroPlanes(views: readonly PluginMacroView[]): readonly M
   if (cached !== undefined) {
     return cached;
   }
-  const byPlugin = new Map<string, { readonly plane: Omit<MacroPlane, "defs">; readonly defs: UserMacroDef[] }>();
+  const byPlugin = new Map<string, { readonly plane: Pick<MacroPlane, "source" | "name">; readonly defs: UserMacroDef[] }>();
   for (const view of views) {
     const entry = byPlugin.get(view.pluginId) ?? { plane: { source: { kind: "plugin", id: view.pluginId }, name: view.pluginName }, defs: [] };
     entry.defs.push({ name: view.name, description: view.description, args: [], body: "", inputs: [], strict: false });

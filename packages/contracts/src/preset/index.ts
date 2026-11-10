@@ -38,7 +38,7 @@ import type { CachePolicy } from "../inference/cache-policy.ts";
 import { cachePolicySchema } from "../inference/cache-policy.ts";
 import { SAMPLING_RANGE_KNOBS } from "../inference/capability/generation.ts";
 import type { ResolvedWarning } from "../inference/warnings.ts";
-import { resolvedWarningSchema } from "../inference/warnings.ts";
+import { emittedWarningSchema } from "../inference/warnings.ts";
 import { PRESET_SCHEMA_KIND } from "../portability/envelope.ts";
 import type { VersionedParseFailure } from "../versioned-config/index.ts";
 import { versionedParseFailureSchema } from "../versioned-config/index.ts";
@@ -3889,7 +3889,7 @@ const qualityMappingSchema = z.strictObject({
 }) satisfies z.ZodType<QualityMapping>;
 export const effectivePresetSchema = z.strictObject({
   cache: cachePolicySchema,
-  cacheWarnings: z.array(resolvedWarningSchema).readonly(),
+  cacheWarnings: z.array(emittedWarningSchema).readonly(),
   presetId: typeIdSchema(ID_PREFIX.preset),
   model: brandedId("ModelId"),
   knobs: z.partialRecord(z.enum(EFFECTIVE_KNOBS), effectiveKnobReadingSchema),

@@ -4,21 +4,33 @@ import { Button } from "#primitives/button";
 import { Check, Icon, Minus, Plus, X } from "#primitives/icons";
 import { COMPARE_SIDE_TONE, compareBlocksVariants } from "./variants.ts";
 
-export interface CompareBlock {
+interface CompareBlockBase {
   /** Optional field name, shown above the pair — omitted for a single full-text pair. */
   readonly label?: string;
-  /** ABSENT-SIDE ARMS (the R3 widening): at least one side is present.
-   *  `before` only = a CLEARED block (the after side renders the "Cleared" state panel); `after` only =
-   *  an ADDED block (no fabricated empty left pane — "was blank" would be a lie for an append). */
-  readonly before?: string;
-  readonly after?: string;
-  /** Replace the default pair body (the FORK-C inline-diff arm for short texts) — the review verbs and
-   *  state chips still wrap it, so a mixed round keeps ONE accept grammar. */
-  readonly body?: ReactNode;
-  /** One line of consequence copy on the absent-side state panel ("this greeting slot will be removed —
-   *  later greetings shift up"). */
-  readonly stateNote?: string;
 }
+
+export type CompareBlock = CompareBlockBase &
+  (
+    | {
+        /** ABSENT-SIDE ARMS (the R3 widening): at least one side is present.
+         *  `before` only = a CLEARED block (the after side renders the "Cleared" state panel); `after` only =
+         *  an ADDED block (no fabricated empty left pane — "was blank" would be a lie for an append). */
+        readonly before?: string;
+        readonly after?: string;
+        readonly body?: never;
+        /** One line of consequence copy on the absent-side state panel ("this greeting slot will be removed —
+         *  later greetings shift up"). */
+        readonly stateNote?: string;
+      }
+    | {
+        readonly before?: never;
+        readonly after?: never;
+        /** Replace the default pair body (the FORK-C inline-diff arm for short texts) — the review verbs and
+         *  state chips still wrap it, so a mixed round keeps ONE accept grammar. */
+        readonly body?: ReactNode;
+        readonly stateNote?: never;
+      }
+  );
 
 /** The REVIEW variant's tri-state: `null` = undecided (fails closed — never applies), `true` = kept,
  *  `false` = discarded. Belt 10 rendered as UI: every block opens undecided, each decision is an

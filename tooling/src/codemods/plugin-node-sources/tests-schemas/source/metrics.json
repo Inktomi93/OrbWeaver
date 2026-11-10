@@ -1,0 +1,10 @@
+{
+  "plugin source validators": [
+    {
+      "cardinality": {
+        "node": "PluginKeyValueNode"
+      },
+      "count": 1
+    }
+  ]
+}

@@ -83,6 +83,7 @@ export function PluginAnchoredSurfaceList({
             node.focus();
           }
         };
+        const disclosure = anchor === "chat-flank" ? ({ collapsible: true, disclosureRef } as const) : {};
         // One-tap Hide on the panel's own attribution line; the notice it raises carries the Undo.
         const hideLabel = `${CHAT_PANEL_HIDE_LABEL} ${surface.pluginName}`;
         const hideAction = (
@@ -144,8 +145,7 @@ export function PluginAnchoredSurfaceList({
             <PluginFrame
               action={hideAction}
               anchor={anchor}
-              collapsible={anchor === "chat-flank"}
-              disclosureRef={disclosureRef}
+              {...disclosure}
               key={`${surface.pluginId}:${surface.surfaceId}`}
               pluginId={surface.pluginId}
               pluginName={surface.pluginName}
@@ -161,8 +161,7 @@ export function PluginAnchoredSurfaceList({
             anchor={anchor}
             pluginId={surface.pluginId}
             surfaceId={surface.surfaceId}
-            collapsible={anchor === "chat-flank"}
-            disclosureRef={disclosureRef}
+            {...disclosure}
             key={`${surface.pluginId}:${surface.surfaceId}`}
             pluginName={surface.pluginName}
             title={surface.title}

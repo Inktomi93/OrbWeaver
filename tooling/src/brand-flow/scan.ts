@@ -3,7 +3,19 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 import { BrandTable } from "../brand-names/index.ts";
-import { homeFiles, isProduction, NativeWorld, packageWorlds, TEST_WORLDS } from "../unwired/index.ts";
+import type { OptionalInventory } from "../unwired/index.ts";
+import {
+  homeFiles,
+  isOptionalProduction,
+  isProduction,
+  joinOptionalConstructions,
+  NativeWorld,
+  optionalConstructionFacts,
+  packageWorlds,
+  pluginAuthorWorlds,
+  publishedSdkSources,
+  TEST_WORLDS,
+} from "../unwired/index.ts";
 import type { CompareCandidate, DeclarationCandidate, WorldRecords } from "./collect.ts";
 import { collectWorld } from "./collect.ts";
 import { sharesBrand } from "./facts.ts";
@@ -20,15 +32,16 @@ export interface BrandFlowOptions {
 
 /** The worlds that hold repository code: every package, the tooling program, and the test programs. */
 export function brandFlowWorlds(root: string): readonly string[] {
-  const configs = [...packageWorlds(root), "tooling/tsconfig.json", ...TEST_WORLDS, "tsconfig.tests-iso.json"];
+  const configs = [...packageWorlds(root), ...pluginAuthorWorlds(root), "tooling/tsconfig.json", ...TEST_WORLDS, "tsconfig.tests-iso.json"];
   return configs.filter((config) => existsSync(join(root, config)));
 }
 
-export interface BrandFlowReport {
+export interface BrandFlowReport extends OptionalInventory {
   readonly worlds: readonly { readonly config: string; readonly files: number; readonly brandless: boolean }[];
   readonly scanned: {
     readonly files: number;
     readonly production: number;
+    readonly optionalProduction: number;
     readonly byPackage: Readonly<Record<string, number>>;
     /** Records that share a file, line and kind: a file two worlds both counted. */
     readonly doubleCounted: number;
@@ -198,14 +211,37 @@ function doubleCounted(keys: readonly string[]): number {
   return keys.length - new Set(keys).size;
 }
 
+/** Measure brand edges in the selected sources using their owning program's types. A re-narrow is proven
+ * when its incoming widen also occurs in the selection.
+ * @throws When the program cannot supply a requested source or the brand definitions. */
+export function scanBrandEdgesAt(root: string, config: string, files: readonly string[]): Pick<BrandFlowReport, "widens" | "renarrows"> {
+  using world = NativeWorld.open(root, config, publishedSdkSources(root));
+  const selected = new Set(files);
+  for (const file of selected) {
+    if (!world.has(file)) {
+      throw new Error(`${file} is outside the compiler program ${config}`);
+    }
+  }
+  const records = collectWorld(world, selected);
+  if (records.brandless) {
+    throw new Error(`${config} does not contain the brand definitions`);
+  }
+  return { widens: records.widens, renarrows: renarrowsOf(records.mints, records.compares, records.widens) };
+}
+
 /** Scan the worlds of `options.root`, one TypeScript 7.1 process at a time. */
 export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
   const configs = options.worlds ?? brandFlowWorlds(options.root);
-  const homes = homeFiles(configs, NativeWorld.fileLists(options.root, configs));
+  const sdk = publishedSdkSources(options.root);
+  const homes = homeFiles(configs, NativeWorld.fileLists(options.root, configs, sdk));
   const worlds: WorldRecords[] = [];
+  const constructions: ReturnType<typeof optionalConstructionFacts>[] = [];
+  const contextualTypes = new Map<string, number>();
   for (const config of configs) {
-    using world = NativeWorld.open(options.root, config);
-    const records = collectWorld(world, homes.get(config) ?? new Set());
+    using world = NativeWorld.open(options.root, config, sdk);
+    const home = homes.get(config) ?? new Set<string>();
+    const records = collectWorld(world, home);
+    constructions.push(optionalConstructionFacts(world, home, contextualTypes));
     options.log(`${config}: files=${records.files} mints=${records.mints.length} widens=${records.widens.length} declarations=${records.declarations.length}`);
     worlds.push(records);
   }
@@ -228,6 +264,7 @@ export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
     scanned: {
       files: homed.length,
       production: homed.filter(isProduction).length,
+      optionalProduction: homed.filter(isOptionalProduction).length,
       byPackage: count(
         homed.map((file) =>
           file
@@ -251,6 +288,7 @@ export function scanBrandFlow(options: BrandFlowOptions): BrandFlowReport {
     missing,
     generic,
     crossBrand: crossBrandOf(table, mints, widens, compares),
+    ...joinOptionalConstructions(options.root, constructions),
     vocabularies: joinVocab(worlds.map((world) => ({ declarations: world.vocabDeclarations, observations: world.vocabObservations }))),
   };
 }

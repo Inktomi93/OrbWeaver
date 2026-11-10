@@ -78,21 +78,12 @@ export interface MediaGridHandle {
   readonly focusItem: (id: MediaGridKey) => boolean;
 }
 
-export interface MediaGridProps<T extends MediaGridItem> extends VariantProps<typeof mediaGridBoxVariants> {
+interface MediaGridPropsBase<T extends MediaGridItem> extends VariantProps<typeof mediaGridBoxVariants> {
   readonly items: readonly T[];
   /** Minimum cell width (px) the responsive column count is derived from. Default 96. */
   readonly minCellWidth?: number;
   /** Gap between cells (both axes) as a spacing intent token. */
   readonly gapToken?: GapToken;
-  /**
-   * Turns every cell into a toggle: click/Enter/Space calls `onToggle` instead of `onActivate`,
-   * and selected cells get `aria-selected` + a checkmark badge. Omit entirely for a plain
-   * browse/activate grid — toggle browse↔select by conditionally passing this prop, not a second
-   * mode flag.
-   */
-  readonly selection?: MediaGridSelection;
-  /** Fires on click/Enter/Space when `selection` is NOT set (e.g. open a lightbox). */
-  readonly onActivate?: (item: T) => void;
   /** Accessible name for the `role="grid"` region. */
   readonly ariaLabel?: string;
   /** Caller-owned sizing/skin for the scroll container — the BOUNDED height comes from here. */
@@ -100,6 +91,25 @@ export interface MediaGridProps<T extends MediaGridItem> extends VariantProps<ty
   /** Imperative handle — React 19 ref-as-prop, no `forwardRef`. */
   readonly ref?: Ref<MediaGridHandle>;
 }
+
+export type MediaGridProps<T extends MediaGridItem> = MediaGridPropsBase<T> &
+  (
+    | {
+        /**
+         * Turns every cell into a toggle: click/Enter/Space calls `onToggle` instead of `onActivate`,
+         * and selected cells get `aria-selected` + a checkmark badge. Omit entirely for a plain
+         * browse/activate grid — toggle browse↔select by conditionally passing this prop, not a second
+         * mode flag.
+         */
+        readonly selection?: MediaGridSelection;
+        readonly onActivate?: never;
+      }
+    | {
+        readonly selection?: never;
+        /** Fires on click/Enter/Space when `selection` is NOT set (e.g. open a lightbox). */
+        readonly onActivate?: (item: T) => void;
+      }
+  );
 
 function pickSrc(item: MediaGridItem): string | undefined {
   if (item.animated === true) {

@@ -152,13 +152,13 @@ function buildEnvOverrides(params: UserIntent, resolved: ResolvedChatKnobs): Cla
   const disableAutoCompact = compMode === "managed" || compMode === undefined;
   const thresholdPct = params.compaction?.thresholdPct;
   const autoCompactPct = compMode === "auto" && thresholdPct !== undefined ? Math.round(thresholdPct * PCT_SCALE) : undefined;
-  const sdkMaxContextTokens = disableAutoCompact ? undefined : params.maxContextTokens;
+
   return {
     maxOutputTokens: resolved.maxOutputTokens,
-    ...(sdkMaxContextTokens !== undefined ? { maxContextTokens: sdkMaxContextTokens } : {}),
     disableThinking: resolved.reasoning.enabled ? false : undefined,
-    disableAutoCompact: disableAutoCompact ? true : undefined,
-    autoCompactPct,
+    ...(disableAutoCompact
+      ? { disableAutoCompact: true }
+      : { ...(params.maxContextTokens !== undefined ? { maxContextTokens: params.maxContextTokens } : {}), autoCompactPct }),
     ...(params.advanced?.claudeEnv !== undefined ? { userEnv: params.advanced.claudeEnv } : {}),
   };
 }

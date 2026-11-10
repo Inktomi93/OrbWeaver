@@ -3,9 +3,11 @@ import { SandboxFrame } from "@orb/ui/sandbox-frame";
 import type { ComponentProps, ReactElement } from "react";
 import { useEffect, useRef } from "react";
 
-/** The production frame with plain-data props; the host-message callback stays out of the Node mount call. */
+/** A Node mount supplies plain data while preserving the frame's sizing union. */
+type FrameStoryProps = ComponentProps<typeof SandboxFrame> & { readonly onHostMessage?: never };
+
 /** A focused control above the frame: the frame loading must leave focus where the reader put it. */
-export function FocusedBesideFrameStory(props: Omit<ComponentProps<typeof SandboxFrame>, "onHostMessage">): ReactElement {
+export function FocusedBesideFrameStory(props: FrameStoryProps): ReactElement {
   const outside = useRef<HTMLInputElement>(null);
   useEffect(() => {
     outside.current?.focus();
@@ -18,7 +20,7 @@ export function FocusedBesideFrameStory(props: Omit<ComponentProps<typeof Sandbo
   );
 }
 
-export function SandboxFrameStory(props: Omit<ComponentProps<typeof SandboxFrame>, "onHostMessage">): ReactElement {
+export function SandboxFrameStory(props: FrameStoryProps): ReactElement {
   return (
     <CtIsolation subject="SandboxFrame" isolates="The sealed iframe painter and the policy its document is served under, without application state">
       <SandboxFrame {...props} />

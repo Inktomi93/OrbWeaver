@@ -5,6 +5,7 @@ import { formatBytes } from "@orb/kit/strings";
 import type { ChangeEvent, ComponentPropsWithRef, DragEvent, MouseEvent, ReactElement } from "react";
 import { useId, useState } from "react";
 import type { VariantProps } from "tailwind-variants";
+import type { AriaNameSource } from "#lib";
 import { HIDDEN_AT } from "#lib";
 import { useFieldIdentity, useFieldLabelled } from "#primitives/field";
 import { Check, Icon, TriangleAlert, Upload } from "#primitives/icons";
@@ -24,7 +25,7 @@ export interface FileDropzoneResult {
   rejected: FileDropzoneRejection[];
 }
 
-export interface FileDropzoneProps extends Omit<ComponentPropsWithRef<"input">, "type" | "onChange" | "value" | "defaultValue"> {
+interface FileDropzonePropsBase extends Omit<ComponentPropsWithRef<"input">, "type" | "onChange" | "value" | "defaultValue"> {
   readonly hiddenAt?: VariantProps<typeof fileDropzoneBoxVariants>["hiddenAt"];
   /**
    * The accepted-file vocabulary, in HTML `accept` grammar (suffix tokens, `family/*`, exact MIMEs). It is
@@ -53,19 +54,29 @@ export interface FileDropzoneProps extends Omit<ComponentPropsWithRef<"input">, 
   /** Fires with every processed batch, from either the native picker or a drop. */
   onFilesSelected?: (result: FileDropzoneResult) => void;
   /**
-   * What the zone takes, as a noun phrase ("a preset .json"). The instruction line follows the pointer: a fine
-   * pointer is told to drop it or click, a coarse one to tap to choose it. Omit for "a file".
-   */
-  subject?: string;
-  /** Instructional copy inside the box, for a zone whose line is not "drop or choose a thing" (a state message, or "" for none). It does not follow the pointer. */
-  instructions?: string;
-  /**
    * Supplementary line under the instructions (e.g. accepted types). When omitted and
    * `maxSizeBytes` is set, auto-renders "Up to `{size}` per file" — an explicit `hint` overrides it.
    */
   hint?: string;
   className?: string;
 }
+
+export type FileDropzoneProps = FileDropzonePropsBase &
+  (
+    | {
+        /**
+         * What the zone takes, as a noun phrase ("a preset .json"). The instruction line follows the pointer: a fine
+         * pointer is told to drop it or click, a coarse one to tap to choose it. Omit for "a file".
+         */
+        subject?: string;
+        instructions?: never;
+      }
+    | {
+        subject?: never;
+        /** Instructional copy inside the box, for a zone whose line is not "drop or choose a thing" (a state message, or "" for none). It does not follow the pointer. */
+        instructions?: string;
+      }
+  );
 
 /** The oversize half of a batch's refusal line (undefined when nothing was refused for size). */
 function sizeRejectionMessage(oversize: FileDropzoneRejection[], maxSizeBytes: number | undefined): string | undefined {
@@ -156,7 +167,7 @@ interface FileDropzoneNameSources {
  * `nativeLabel={false}`, drops `htmlFor` and leaves the attribute as the only thing naming this input.
  * Relying on the fallback would be relying on an accident. Pinned as an ATTRIBUTE assertion in both CTs.
  */
-function nameAttributes(sources: FileDropzoneNameSources): { "aria-label"?: string; "aria-labelledby"?: string } {
+function nameAttributes(sources: FileDropzoneNameSources): AriaNameSource {
   const { ariaLabel, ariaLabelledBy, fieldLabelled, instructions, instructionsId } = sources;
   if (ariaLabelledBy !== undefined) {
     return { "aria-labelledby": ariaLabelledBy };

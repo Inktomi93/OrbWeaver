@@ -11,6 +11,7 @@ import { moduleStateRule } from "./module-state.ts";
 import type { BaseUiDoors } from "./motion.ts";
 import { baseUiStateDataAttributesRule, noRenderLayoutReadRule, unruledFlipInversionRule } from "./motion.ts";
 import { baseUiPortalContainerRule, contextReturnTypeRule, directRowReadRule, directRowWriteRule, nativeTitleRule, testFactoryContractRule } from "./native.ts";
+import { optionalAlternativesRule } from "./optional-alternatives.ts";
 import { PRINCIPAL_RULES } from "./principal.ts";
 import { rawIdRule } from "./raw-id.ts";
 import {
@@ -102,6 +103,7 @@ export {
 export { intentColorRecipe } from "./css/intent-color-recipe.ts";
 export { authorClassIgnores } from "./css-classes.ts";
 export { baseUiDoors } from "./motion.ts";
+export { literalKeys } from "./optional-alternatives.ts";
 export {
   aliased,
   describeForeignTypes,
@@ -283,6 +285,7 @@ export function createOrbPlugin(options: {
       "no-context-returntype": contextReturnTypeRule,
       "no-raw-id": rawIdRule,
       "closed-vocabulary": closedVocabularyRule,
+      "no-optional-alternatives": optionalAlternativesRule,
       "wire-json-parsed-at-consumer": wireJsonRule,
       "no-off-token-inline-style": offTokenInlineStyleRule,
       "theme-override-only-via-scope": themeOverrideRule,

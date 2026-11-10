@@ -15,11 +15,10 @@ import type { CollectedChat, CollectedGroup, ParsedPersona } from "./collection.
  *  without this the row's `importedFrom` stayed null and `characterProvenanceOf` misread every hub-ingested
  *  card as `authored`. Mutually exclusive with `filename` in practice (only the plugin funnel sets this) —
  *  the verb still prefers `filename` were both ever present, matching the fallback-name precedent. */
-export interface ImportCardInput {
-  readonly bytes: Uint8Array;
-  readonly filename?: string;
-  readonly pluginId?: PluginId;
-}
+export type ImportCardInput = { readonly bytes: Uint8Array } & (
+  | { readonly filename?: string; readonly pluginId?: never }
+  | { readonly pluginId: PluginId; readonly filename?: never }
+);
 
 /** `importCharacter` input — one ST card → one canonical character (this slice). The embedded chats/
  *  lorebook (the full importCharacter) are the chats wave; here it is the card alone. */

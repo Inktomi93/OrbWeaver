@@ -11,12 +11,13 @@ import type { RoutableTask, Task } from "./tasks.ts";
 /** `resolve` / `availability` — the runtime's fold for ONE task under the caller (the funder), optionally in the
  *  context of an actor (a rule, a plugin grant) or against an explicit row. */
 
-export interface ResolveTaskParams {
+export type ResolveTaskParams = {
   readonly principal: Principal;
   readonly task: Task;
-  readonly actor?: BindingActor | undefined;
-  readonly connectionId?: UserConnectionId | undefined;
-}
+} & (
+  | { readonly actor?: BindingActor | undefined; readonly connectionId?: undefined }
+  | { readonly actor?: undefined; readonly connectionId: UserConnectionId }
+);
 /** Read the caller's persisted user-actor binding for one routable task. */
 interface GetBoundConnectionParams {
   readonly principal: Principal;

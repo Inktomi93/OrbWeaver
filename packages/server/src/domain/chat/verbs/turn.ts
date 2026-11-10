@@ -684,21 +684,11 @@ async function buildTurnContext(
      *  kind ({@link VOICE_FOR_KIND}). REQUIRED (the union's two arms are total): a turn with no live triggering
      *  human states `{kind:"none"}`. */
     readonly trigger: TurnTrigger;
-    readonly pendingUserText?: string | undefined;
-    readonly sendDraft?: string | undefined;
     /** D58 slot-adjacency: is this turn (re)generating the assistant slot that DIRECTLY responds
      *  to the latest user message (send / deferred-drain / swipe-of-that-slot)? Drives the rpg dice feed-forward
      *  flag + eligibility so a later GM/auto round never re-feeds a stale die. Absent ⇒ false (ineligible). */
     readonly respondsToLatestUserTurn?: boolean | undefined;
-    /** The assistant slot this turn REGENERATES (a swipe/reroll's `append-variant` target — the slot the canon
-     *  context also stops BEFORE). Threaded to the rpg gather so a reroll's tracked state reads as of before
-     *  the slot instead of the still-selected abandoned variant's snapshot (VER-1b). Absent for a fresh turn
-     *  and for `continue` (whose context INCLUDES the slot, so the head is its honest state). */
-    readonly regenSlotMessageId?: MessageId | undefined;
     readonly guided?: GuidedSteer | undefined;
-    /** The slot's persisted user-macro draw record (WAVE MU) on a swipe/continue turn — replayed byte-exact
-     *  so the re-generation resolves the identical draw. Absent (send/generate/impersonate) ⇒ a fresh draw. */
-    readonly frozenUserMacroDraws?: UserMacroDraws | undefined;
     /** The Ruling-B `{{char}}` for a HOST-authored / null-speaker context (Chat-Macro-Resolution.md ruling B):
      *  the JOINED CANDIDATE names (multi-character room, == `{{group}}`) / the single character (solo). Chat is the
      *  authority on this identity resolution — threaded into the rpg gather so the host `steeringNote`'s
@@ -713,7 +703,26 @@ async function buildTurnContext(
     /** The zone the turn's time macros read (the file header's clock ruling). A REQUIRED key, so every turn
      *  states its clock; `undefined` reads UTC. */
     readonly timeZone: IanaTimeZone | undefined;
-  },
+  } & (
+    | {
+        readonly pendingUserText?: string | undefined;
+        readonly sendDraft?: string | undefined;
+        readonly regenSlotMessageId?: never;
+        readonly frozenUserMacroDraws?: never;
+      }
+    | {
+        readonly pendingUserText?: never;
+        readonly sendDraft?: never;
+        /** The assistant slot this turn REGENERATES (a swipe/reroll's `append-variant` target — the slot the canon
+         *  context also stops BEFORE). Threaded to the rpg gather so a reroll's tracked state reads as of before
+         *  the slot instead of the still-selected abandoned variant's snapshot (VER-1b). Absent for a fresh turn
+         *  and for `continue` (whose context INCLUDES the slot, so the head is its honest state). */
+        readonly regenSlotMessageId?: MessageId | undefined;
+        /** The slot's persisted user-macro draw record (WAVE MU) on a swipe/continue turn — replayed byte-exact
+         *  so the re-generation resolves the identical draw. Absent (send/generate/impersonate) ⇒ a fresh draw. */
+        readonly frozenUserMacroDraws?: UserMacroDraws | undefined;
+      }
+  ),
   /** SEND sink — when present and host-tier scripts resolve, writes the post-regex user text for the verb to persist. */
   out?: SendRegexSink,
 ): Promise<BuiltTurnContext> {

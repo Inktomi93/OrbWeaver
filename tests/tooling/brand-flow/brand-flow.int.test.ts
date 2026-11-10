@@ -1,9 +1,13 @@
 // `pnpm brand-flow` over a planted tree: one case per class (mint, widen, re-narrow, missing, cross-brand), each with a
 // control the scan must leave alone. The kit ids module is a stub at the real path; the scan reads brands from the checker.
 
+import { join } from "node:path";
 import { nonEmpty } from "@orb/testkit/iso";
 import { expect, plantedTsconfig, test } from "@orb/testkit/tooling";
+import { Linter } from "eslint";
+import tseslint from "typescript-eslint";
 import { scanBrandFlow } from "../../../tooling/src/brand-flow/index.ts";
+import { optionalAlternativesRule } from "../../../tooling/src/eslint/optional-alternatives.ts";
 import { JSX_NAMESPACE, LIB, WORLD } from "../unwired/_planted.ts";
 
 const IDS = [
@@ -239,5 +243,80 @@ test("a brand handed to a brand schema field is no contract defect, and a closed
   expect(jobs.map(({ name, values, assigned, compared, cased }) => ({ name, values, assigned, compared, cased }))).toEqual([
     { name: "status", values: ["done", "failed", "queued"], assigned: 1, compared: 1, cased: 1 },
     { name: "kind", values: ["build"], assigned: 1, compared: 0, cased: 0 },
+  ]);
+});
+
+test("optional alternatives report separate writes and reject a co-set control", { timeout: 120_000 }, async ({ plantedTree }) => {
+  const file = "packages/a/src/choice.tsx";
+  const source = [
+    "export interface Input { readonly file?: string; readonly url?: string; quiet?: boolean }",
+    "declare const fileMode: boolean;",
+    'const input: Input = fileMode ? { file: "f", quiet: true } : { url: "u", quiet: true };',
+    "export const selected = input.file ?? input.url;",
+    "interface WithFallback { primary?: string; backup?: string }",
+    'const fallback: WithFallback = fileMode ? { primary: "f", backup: "b" } : { backup: "b" };',
+    "export const value = fallback.primary ?? fallback.backup;",
+    "interface Ancestor { readonly path?: string }",
+    "interface Inherited extends Ancestor { readonly address?: string }",
+    'const derived: Inherited = fileMode ? { path: "p" } : { address: "u" };',
+    "export const derivedValue = derived.path ?? derived.address;",
+    "interface Addresses<T> { readonly inline: T; readonly remote: T }",
+    "type Choice<T> = Partial<Addresses<T>>;",
+    'const text: Choice<string> = fileMode ? { inline: "s" } : { remote: "r" };',
+    "const numbers: Choice<number> = { inline: 1, remote: 2 };",
+    "export const mappedValue = text.inline ?? text.remote;",
+    "export const numbersValue = numbers.inline ?? numbers.remote;",
+    "interface WidgetInput extends Ancestor { readonly title?: string }",
+    "function Widget({ path, title }: WidgetInput) { return <span>{path ?? title}</span>; }",
+    'export const widget = fileMode ? <Widget path="p" /> : <Widget title="t" />;',
+    'import { z } from "zod";',
+    "const firstSchema = z.object({ shared: z.string(), onlyFirst: z.string() });",
+    "const secondSchema = z.object({ shared: z.number(), onlySecond: z.boolean() });",
+    'export const first: Partial<z.output<typeof firstSchema>> = fileMode ? { shared: "x" } : { onlyFirst: "y" };',
+    "export const second: Partial<z.output<typeof secondSchema>> = fileMode ? { shared: 1 } : { onlySecond: true };",
+  ].join("\n");
+  const root = await plantedTree({
+    ...TREE,
+    [WORLD]: plantedTsconfig({
+      lib: LIB,
+      jsx: "preserve",
+      include: ["src", "../kit/src"],
+      paths: { zod: [join(import.meta.dirname, "../../../node_modules/zod/index.d.ts")] },
+    }),
+    "packages/a/src/jsx.d.ts": JSX_NAMESPACE,
+    [file]: source,
+  });
+  const report = scanBrandFlow({ root, worlds: [WORLD], log: () => undefined });
+  expect(
+    report.optionalAlternatives.filter((row) => row.fallbackReaders !== 0).map(({ group, left, right }) => [report.optionalGroups[group]?.owner, left, right]),
+  ).toEqual([
+    ["Input", "file", "url"],
+    ["Inherited", "path", "address"],
+    ["Partial<Addresses<string>>", "inline", "remote"],
+    ["WidgetInput", "path", "title"],
+  ]);
+
+  const zodGroups = report.optionalGroups.filter((group) => group.fields.some(({ name }) => name === "onlyFirst" || name === "onlySecond"));
+  expect(zodGroups.map((group) => group.fields.map(({ name }) => name).sort())).toEqual([
+    ["onlyFirst", "shared"],
+    ["onlySecond", "shared"],
+  ]);
+
+  const rule = "orb/no-optional-alternatives";
+  const messages = new Linter({ cwd: root }).verify(
+    source,
+    {
+      files: ["**/*.tsx"],
+      plugins: { orb: { rules: { "no-optional-alternatives": optionalAlternativesRule } } },
+      languageOptions: { parser: tseslint.parser, parserOptions: { tsconfigRootDir: root, project: [WORLD] } },
+      rules: { [rule]: "error" },
+    },
+    { filename: join(root, file) },
+  );
+  expect(messages.map(({ ruleId, line }) => [ruleId, line])).toEqual([
+    [rule, 4],
+    [rule, 11],
+    [rule, 16],
+    [rule, 19],
   ]);
 });

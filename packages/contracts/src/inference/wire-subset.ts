@@ -193,7 +193,7 @@ const PROPERTY_NAMES_CONFLICT: NodeRefusal = {
     ("properties" in node || "patternProperties" in node || "unevaluatedProperties" in node || isPlainObject(node["additionalProperties"])),
 };
 
-interface WireSubset {
+interface WireSubsetFields {
   /** Keywords dropped from the wire copy; a dropped bound is relayed into the node's description. */
   readonly strip: ReadonlySet<string>;
   /** Keywords this wire cannot express at all: reported, never removed, because removing them changes meaning. */
@@ -210,16 +210,19 @@ interface WireSubset {
   /** Keep `minItems`, clamped to {@link CLAMPED_MIN_ITEMS}, instead of stripping it. A mode that sets this must
    *  leave `minItems` out of its `strip` set, or the keyword is gone before the clamp sees it. */
   readonly clampMinItems: boolean;
-  /** Refuse a `$defs` member that reaches itself through `$ref` (Anthropic: recursive schemas unsupported). */
-  readonly refuseRecursion?: true;
   /** Refuse a `$ref` inside a `$defs` member (llama.cpp's converter breaks on a nested reference). */
   readonly refuseNestedRef?: true;
-  /** Recursive references can occur only under a non-required property on this carrier. */
-  readonly refuseRequiredRecursion?: true;
   /** The vendor's per-request ceilings as documented; a capability row names the mode whose ceilings bind
    *  (`output.structuredLimitsFrom`) and may override them field by field (`output.structuredLimits`). */
   readonly limits?: WireSchemaLimits;
 }
+
+// A carrier rejects either every recursive reference or only those beneath a required property.
+type WireSubset = WireSubsetFields &
+  (
+    | { readonly refuseRecursion?: true; readonly refuseRequiredRecursion?: never }
+    | { readonly refuseRequiredRecursion: true; readonly refuseRecursion?: never }
+  );
 
 /** Ceilings a structured-output grammar states per request, summed across every strict schema the request
  *  carries. Each is optional: a mode states only what its vendor documents. */

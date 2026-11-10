@@ -10,7 +10,7 @@ import { buildSrcDoc } from "./srcdoc.ts";
 // that hands us an empty string, not a second naming policy.
 const UNNAMED_FRAME_TITLE = "Embedded card";
 
-export interface SandboxFrameProps {
+interface SandboxFramePropsBase {
   /** The untrusted HTML — handed to a sandboxed realm, NEVER sanitized into the main DOM. */
   readonly html: string;
   /** Optional card CSS (rides the sandboxed document's own `<style>`; cannot touch the app). */
@@ -39,12 +39,6 @@ export interface SandboxFrameProps {
   readonly title: string;
   /** While false, a skeleton renders instead of the frame — a half-rendered flash is worse than a code fence. */
   readonly complete?: boolean;
-  /** The PRE-MEASUREMENT height. On the routed arm the frame's own hash-pinned script reports its content
-   *  height and that wins (clamped + grow-only, `@orb/kit/card-frame`); on the script-dead srcdoc floor this
-   *  is the final height. Not a minimum: the whole point of #91 is that a short card measures BELOW it. */
-  readonly heightPx?: number;
-  /** Fill the parent instead of the fixed `heightPx` — the expanded/lightbox arm (the parent owns height). */
-  readonly fill?: boolean;
   readonly className?: string;
   /**
    * An AUTHENTICATED message from the framed document — called for every `message` event whose sender is THIS
@@ -60,6 +54,22 @@ export interface SandboxFrameProps {
    */
   readonly onHostMessage?: (data: unknown, reply: (message: unknown) => void) => void;
 }
+
+export type SandboxFrameProps = SandboxFramePropsBase &
+  (
+    | {
+        /** The PRE-MEASUREMENT height. On the routed arm the frame's own hash-pinned script reports its content
+         *  height and that wins (clamped + grow-only, `@orb/kit/card-frame`); on the script-dead srcdoc floor this
+         *  is the final height. Not a minimum: the whole point of #91 is that a short card measures BELOW it. */
+        readonly heightPx?: number;
+        readonly fill?: false;
+      }
+    | {
+        readonly heightPx?: never;
+        /** Fill the parent instead of the fixed `heightPx` — the expanded/lightbox arm (the parent owns height). */
+        readonly fill?: boolean;
+      }
+  );
 
 /**
  * Renders untrusted self-contained HTML/CSS inside a sandboxed iframe. The iframe IS the security

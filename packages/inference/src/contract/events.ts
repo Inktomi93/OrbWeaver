@@ -2,8 +2,7 @@
 // only, never RP content. SDK-decoupled: status/limit fields are plain string/number, never an
 // `@anthropic-ai/claude-agent-sdk` or `@ai-sdk/*` type — each backend maps its events at its boundary.
 
-import type { AdjustedKnob } from "@orb/contracts/chat";
-import type { EffortLevel, WarningCode } from "@orb/contracts/inference";
+import type { ResolvedWarning } from "@orb/contracts/inference";
 import { z } from "zod";
 
 export const COMPACTION_TRIGGERS = ["manual", "auto"] as const;
@@ -79,18 +78,7 @@ export type ChatEvent =
       readonly requested: string;
       readonly billed: readonly string[];
     }
-  | {
-      // The runner's honest-degrade report — a `ResolvedWarning` carried whole, never re-derived.
-      readonly kind: "warning";
-      readonly at: number;
-      readonly code: WarningCode;
-      readonly message: string;
-      readonly knob?: AdjustedKnob | undefined;
-      readonly key?: string | undefined;
-      readonly field?: string | undefined;
-      readonly appliedBudget?: number | undefined;
-      readonly appliedEffort?: EffortLevel | undefined;
-    }
+  | ({ readonly kind: "warning"; readonly at: number } & ResolvedWarning)
   | {
       // `category` is an open vocab; `explanation` is unstable human prose — display only, never parse.
       readonly kind: "refusal";

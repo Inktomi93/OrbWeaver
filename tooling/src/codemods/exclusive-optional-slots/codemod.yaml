@@ -1,0 +1,13 @@
+schema_version: "1.0"
+name: "exclusive-optional-slots"
+version: "0.1.0"
+description: "Split reviewed alternative field groups into a union while preserving the common fields."
+author: "Orbweaver"
+license: "MIT"
+targets:
+  languages: ["typescript", "tsx"]
+capabilities: []
+workflows:
+  - name: main
+    default: true
+    path: workflow.yaml

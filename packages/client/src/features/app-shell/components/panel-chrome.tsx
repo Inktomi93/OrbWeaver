@@ -32,7 +32,7 @@ import { LIST_PANE_TITLE_ID, PANEL_CLOSE_FALLBACK_NAME, panelCloseName } from "#
 import type { PanelMode, PanelName } from "#state";
 import { SHELL_ACCENT_TONE } from "../lib/shell-accent.ts";
 
-export interface PanelChromeProps {
+export type PanelChromeProps = {
   readonly panel: PanelName;
   /** Accessible name for the panel's `complementary` landmark, distinguishing LIST from CONTEXT. */
   readonly label?: string;
@@ -52,9 +52,6 @@ export interface PanelChromeProps {
    *  `"unavailable"` is still not a fourth `PanelMode` (the pane resolves `collapsed`, the topbar ships no
    *  toggle — section-registry.ts). This attribute is a DECLARE, not a behaviour. */
   readonly available: boolean;
-  /** Close THIS panel — the band's own dismiss, rendered only while the panel FLOATS on a phone. A desktop sheet is
-   *  closed from its edge control, so the host passes none. */
-  readonly onDismiss?: () => void;
   /** IS THIS PANE THE SCREEN'S PRIMARY CONTENT right now (#1349 — `ShellLayout.listIsPrimaryContent`)?
    *  `true` ⇒ the aside carries `main` instead of its `complementary` role and becomes the skip link's
    *  target, because on the phone landing the content column it would otherwise defer to is
@@ -64,12 +61,22 @@ export interface PanelChromeProps {
   readonly covered?: boolean;
   /** The pane element itself — the skip link needs to move focus onto it in the `primaryContent` state. */
   readonly ref?: Ref<HTMLElement>;
-  /** Is this pane a SHEET over a desktop-shaped layout in the current regime (narrow viewport, or a constrained
-   *  context column) — a pane that is only ever overlay or collapsed? shell.css keeps its box identical across
-   *  open and close, so the exit changes `transform` alone. Absent on a phone, whose sheets have their own rules. */
-  readonly sheet?: boolean;
   readonly children: ReactNode;
-}
+} & (
+  | {
+      /** Close THIS panel — the band's own dismiss, rendered only while the panel FLOATS on a phone. A desktop sheet is
+       *  closed from its edge control, so the host passes none. */
+      readonly onDismiss?: () => void;
+      readonly sheet?: false;
+    }
+  | {
+      readonly onDismiss?: never;
+      /** Is this pane a SHEET over a desktop-shaped layout in the current regime (narrow viewport, or a constrained
+       *  context column) — a pane that is only ever overlay or collapsed? shell.css keeps its box identical across
+       *  open and close, so the exit changes `transform` alone. Absent on a phone, whose sheets have their own rules. */
+      readonly sheet?: boolean;
+    }
+);
 
 export function PanelChrome({
   panel,
