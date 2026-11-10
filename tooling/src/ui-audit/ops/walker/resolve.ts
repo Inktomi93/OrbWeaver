@@ -186,16 +186,9 @@ export const WALKER_RESOLVE = `
       var lbg = parseRgb(ls.backgroundColor);
       // A replaced element paints art with no CSS background, whether it is the layer or sits inside it, and a
       // plate over it composites against the pixels, not the body base.
-      var holdsArt = lel.querySelector(REPLACED_ART_SELECTOR) !== null;
-      var filled = positioned && ((lbg !== null && lbg.a > 0) || holdsArt);
+      var filled = positioned && ((lbg !== null && lbg.a > 0) || lel.querySelector(REPLACED_ART_SELECTOR) !== null);
       if (!(imaged || replaced || filled) || !isVisible(lel)) continue;
-      paintLayerCensus.push({
-        el: lel,
-        fixed: fixed,
-        rect: lel.getBoundingClientRect(),
-        centreOnly: !positioned || inlineSvg || holdsText,
-        art: imaged || replaced || holdsArt,
-      });
+      paintLayerCensus.push({ el: lel, fixed: fixed, rect: lel.getBoundingClientRect(), centreOnly: !positioned || inlineSvg || holdsText });
     }
     return paintLayerCensus;
   }
@@ -223,6 +216,10 @@ export const WALKER_RESOLVE = `
       childPosition = ps.position;
     }
     return box;
+  }
+  function clippedOut(el, rect) {
+    var shown = shownRect(el, rect, document.documentElement);
+    return shown.left >= shown.right || shown.top >= shown.bottom;
   }
   // WHICH SIDE OF THE SUBJECT DOES THIS LAYER PAINT ON (#1155)? Among positioned elements with an auto
   // z-index, CSS paints later-in-tree last, so a layer that FOLLOWS the subject in document order is ON
@@ -361,13 +358,8 @@ export const WALKER_RESOLVE = `
           // fallback is the number the old code returned. It is NOT a verdict — the contrast family
           // refuses it — but the non-verdict consumers (the dark-glow tell) still need a best-effort
           // backdrop, and returning null there would silently drop findings this change never judged.
-          // Art under the centre backs only this one subject, so the pixel pass scrolls to it. Only an ART layer
-          // that backs every text earns the unseen-art reclassification in ops/pixels.ts; a fill is not art.
-          if (over !== null) {
-            // Only the text census reads the fill reason; every other caller keeps the label it always printed.
-            var overReason = over.centreOnly ? "art-under-subject" : over.art || !textQuery ? "paint-layer-over-base" : "fill-layer-over-base";
-            return { kind: "unresolved", reason: overReason, fallback: acc };
-          }
+          // Art under the centre backs only this one subject, so the pixel pass scrolls to it.
+          if (over !== null) return { kind: "unresolved", reason: over.centreOnly ? "art-under-subject" : "paint-layer-over-base", fallback: acc };
           if (gradientAbove) return { kind: "unresolved", reason: "gradient-over-base", fallback: acc };
           return { kind: "flat", color: acc };
         }

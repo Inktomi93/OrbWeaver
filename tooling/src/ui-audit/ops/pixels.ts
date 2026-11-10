@@ -8,32 +8,24 @@
 // (snap's shape, for its single target) would be one screenshot per text node.
 //
 // `scale: "css"` keeps image pixels 1:1 with CSS pixels under --mobile's DPR3, so a walker box indexes the
-// buffer directly. An element whose box is off-screen, or a shot/decode that fails, gets NO VERDICT — the
+// buffer directly. A shot/decode that fails, or a ring that is not one backdrop, gets NO VERDICT — the
 // refusal is printed and written to the report, never a fabricated color (the #211 posture).
 //
-// OFF-SCREEN SAMPLES OVER A PAINT LAYER (#1730). A wallpapered room's transcript can have ~22 text nodes
-// whose backdrop resolves as `unresolved(paint-layer-over-base)`. The pixel sampler settles the in-viewport
-// ones to `flat`, but off-screen or occluded texts remain `unresolved`, which the population accounting
-// tallies as `withheld` — and too many withheld samples make the run NO VERDICT over a surface that is
-// perfectly measurable in the viewport. The honest reclassification: a text whose walker PROVED a paint
-// layer (a positioned background-image sibling) sits between it and the resolved base IS text over art;
-// the sampler merely cannot resolve the exact composite. `image-indeterminate` is exactly that semantic:
-// "there is a background-image layer here, contrast is indeterminate" — the `text-over-art` rule emits
-// a P1, which is JUDGED rather than withheld, so the population can produce a verdict. Only
-// `paint-layer-over-base` earns this, because the walker sets it only for a layer carrying an image, a gradient
-// or a replaced element. `no-opaque-base`, `fill-layer-over-base` and `gradient-over-base` carry no evidence of
-// art and stay `unresolved` (withheld).
+// A TEXT THE FRAME DOES NOT PAINT IS NOT JUDGED IN IT. Off the screenshot, clipped wholly out of its own
+// scroller, or covered at its centre by another element, the text owns none of the pixels its box reaches. The
+// sample is marked `unseenInFrame` and the colour rules exclude it: a measured fact, so it neither withholds the
+// population nor files the "verify manually" art P1 for text nobody can see in this frame. A wallpapered room
+// has dozens of these (a transcript scrolled up, a tab strip's hidden cells, a page under a dialog) beside
+// in-view twins that are sampled here. A text unseen at every checkpoint is a walk coverage gap, not a verdict.
 //
-// ART UNDER ONE SUBJECT IS MEASURED, NOT RECLASSIFIED. `art-under-subject` is a card image under its own caption:
-// it backs only that caption, so a caption below the fold is scrolled into view and sampled like its in-view twin.
-// One the page scroll cannot reach stays `unresolved` (withheld), because calling it art would file a P1 the
-// audit could have measured.
+// ART UNDER ONE SUBJECT IS MEASURED FIRST. `art-under-subject` is a card image under its own caption: it backs
+// only that caption, so a caption below the fold is scrolled into view and sampled like its in-view twin. One the
+// page scroll cannot reach is unseen.
 import { errorMessage } from "@orb/kit/error-message";
 import type { PixelBox } from "@orb/tooling/floor/instrument/pixel-backdrop";
 import type { Page } from "@playwright/test";
 import sharp from "sharp";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";
-import type { Backdrop } from "../contract/backdrop.ts";
 import type { ContrastInput, RawSamples } from "../contract/samples.ts";
 import type { HoverForcedReadRow } from "../contract/samples-hover.ts";
 import type { BorderContrastInput } from "../contract/samples-interactive.ts";
@@ -47,18 +39,11 @@ function isUnresolved(text: ContrastInput): boolean {
   return text.backdrop.kind === "unresolved";
 }
 
-/** The reclassified backdrop for an unsampleable text over a proven paint layer (#1730). A typed constant
- *  rather than an inline literal so the spread preserves the discriminated-union narrowing. */
-const IMAGE_INDETERMINATE_BACKDROP: Backdrop & { readonly kind: "image-indeterminate" } = { kind: "image-indeterminate" } as const;
+const CLIPPED_OUT_REFUSAL = "clipped out of its scroller";
 
-/** When the pixel sampler cannot resolve an `unresolved(paint-layer-over-base)` sample (off-screen,
- *  occluded, or no box), reclassify it to `image-indeterminate` so the population counts it as JUDGED
- *  rather than WITHHELD (#1730). Returns the original text unchanged for other unresolved reasons. */
-function reclassifyUnsampleable(text: ContrastInput): ContrastInput {
-  if (text.backdrop.kind === "unresolved" && text.backdrop.reason === "paint-layer-over-base") {
-    return { ...text, backdrop: IMAGE_INDETERMINATE_BACKDROP };
-  }
-  return text;
+function unseen(text: ContrastInput, reason: string, refusals: BackdropRefusal[]): { text: ContrastInput; sampled: boolean } {
+  refusals.push({ selector: text.selector, reason });
+  return { text: { ...text, unseenInFrame: true }, sampled: false };
 }
 
 function isArtUnderSubject(text: ContrastInput): boolean {
@@ -148,24 +133,24 @@ export async function viewportPixels(page: Pick<Page, "screenshot">): Promise<(P
   }
 }
 
-/** Resolve ONE unresolved text sample against the viewport screenshot. Returns the settled sample (with a
- *  `flat` backdrop from pixel data, or reclassified to `image-indeterminate` for paint-layer samples the
- *  sampler cannot reach), plus any refusal and whether a pixel sample was taken. Extracted from the map
- *  body so `resolvePixelBackdrops` stays under the cognitive-complexity ceiling. */
+/** Resolve ONE unresolved text sample against the viewport screenshot: the settled sample (a `flat` backdrop
+ *  from pixel data, or the sample marked unseen), plus any refusal and whether a pixel sample was taken. */
 function settleOneSample(
   text: ContrastInput,
   raw: PixelRaw,
   refusals: BackdropRefusal[],
 ): { text: ContrastInput; sampled: boolean } | { readonly deferred: PixelBox } {
-  // Painted over: sampling the box would measure the OCCLUDER's pixels, which is how the first run of
-  // this path reported 1.33:1 on a paragraph under the topbar (snap refuses the same case as OCCLUDED).
+  // Sampling either box would measure another element's pixels: the occluder's, or whatever the scroller's
+  // neighbour paints where the clipped text's box still reaches.
   if (text.occludedBy !== undefined && text.occludedBy !== null) {
-    refusals.push({ selector: text.selector, reason: `painted over by ${text.occludedBy}` });
-    return { text: reclassifyUnsampleable(text), sampled: false };
+    return unseen(text, `painted over by ${text.occludedBy}`, refusals);
+  }
+  if (text.clippedOut === true) {
+    return unseen(text, CLIPPED_OUT_REFUSAL, refusals);
   }
   if (text.box === undefined) {
     refusals.push({ selector: text.selector, reason: "walker sample carries no box" });
-    return { text: reclassifyUnsampleable(text), sampled: false };
+    return { text, sampled: false };
   }
   const read = textBackdropRing(raw, text.box, text.inkBox);
   if ("refusal" in read && read.refusal === OFF_SCREEN_REFUSAL && isArtUnderSubject(text)) {
@@ -174,13 +159,15 @@ function settleOneSample(
   return settleFromRing(text, read, refusals);
 }
 
-/** The settled sample for one ring read: `flat` from the pixels, or the refusal and the reclassification it earns. */
+/** The settled sample for one ring read: `flat` from the pixels, unseen off the screenshot, else the refusal. */
 function settleFromRing(text: ContrastInput, read: RingRead, refusals: BackdropRefusal[]): { text: ContrastInput; sampled: boolean } {
   if ("refusal" in read) {
+    if (read.refusal === OFF_SCREEN_REFUSAL) {
+      return unseen(text, read.refusal, refusals);
+    }
+    // A ring that is not one backdrop stays UNRESOLVED: the text is painted, the instrument could not judge it.
     refusals.push({ selector: text.selector, reason: read.refusal });
-    // A ring that is not one backdrop stays UNRESOLVED: calling it art would turn a measurement we could
-    // not take into a finding. Only a box the screenshot cannot see is reclassified.
-    return { text: read.refusal === OFF_SCREEN_REFUSAL ? reclassifyUnsampleable(text) : text, sampled: false };
+    return { text, sampled: false };
   }
   return {
     text: { ...text, backdrop: { kind: "flat", color: read.color }, backdropMethod: "pixel-sample" } satisfies ContrastInput,

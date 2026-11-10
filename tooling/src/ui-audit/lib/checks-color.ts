@@ -35,6 +35,7 @@ function indeterminateFinding(selector: string, value: string, message: string):
 type ContrastOutcome =
   | { readonly kind: "dimmed" }
   | { readonly kind: "unresolvedBackdrop" }
+  | { readonly kind: "unseenInFrame" }
   | { readonly kind: "maskedForeground" }
   | { readonly kind: "inactive"; readonly unmeasurable: "imageIndeterminate" | "translucentBackdrop" | null; readonly finding: Finding | null }
   | { readonly kind: "image"; readonly finding: Finding }
@@ -46,7 +47,11 @@ type ContrastOutcome =
  *  background reports as "contrast" at P1. */
 export function checkContrast(input: ContrastInput): Finding | null {
   const outcome = contrastOutcome(input);
-  return outcome.kind === "dimmed" || outcome.kind === "unresolvedBackdrop" || outcome.kind === "maskedForeground" ? null : outcome.finding;
+  return "finding" in outcome ? outcome.finding : null;
+}
+
+function unresolvedOutcome(input: ContrastInput): ContrastOutcome {
+  return { kind: input.unseenInFrame === true ? "unseenInFrame" : "unresolvedBackdrop" };
 }
 
 function contrastOutcome(input: ContrastInput): ContrastOutcome {
@@ -88,7 +93,7 @@ function contrastOutcome(input: ContrastInput): ContrastOutcome {
   // may be perfectly legible.
   const backdrop = input.backdrop;
   if (backdrop.kind === "unresolved") {
-    return { kind: "unresolvedBackdrop" };
+    return unresolvedOutcome(input);
   }
 
   if (isContrastExempt(input.inactive ?? "none")) {
@@ -237,7 +242,7 @@ const GRAY_TEXT_MAX_LUM = 0.85;
  *  carrying a single picture into permanent NO VERDICT over a rule that structurally cannot apply there. */
 type GrayOutcome =
   | { readonly kind: "withheld"; readonly reason: "unresolvedBackdrop" }
-  | { readonly kind: "excluded"; readonly reason: "imageBackdrop" | "pixelSampled" }
+  | { readonly kind: "excluded"; readonly reason: "imageBackdrop" | "pixelSampled" | "unseenInFrame" }
   | { readonly kind: "judged"; readonly finding: Finding | null };
 
 export function checkGrayOnColor(input: ContrastInput): Finding | null {
@@ -252,7 +257,7 @@ function grayOnColorOutcome(input: ContrastInput): GrayOutcome {
     return { kind: "excluded", reason: "imageBackdrop" };
   }
   if (input.backdrop.kind === "unresolved") {
-    return { kind: "withheld", reason: "unresolvedBackdrop" };
+    return input.unseenInFrame === true ? { kind: "excluded", reason: "unseenInFrame" } : { kind: "withheld", reason: "unresolvedBackdrop" };
   }
   // A PIXEL-SAMPLED backdrop answers LUMINANCE, not authorship. This rule's whole remedy — "use a darker
   // shade of the background's own hue" — presumes an authored background color; run against the median of
@@ -361,7 +366,9 @@ function tallyReadingSurface(tallies: ReadingSurfaceTallies, outcome: ContrastOu
       return;
     }
     // A mask-image fade is a measured fact about the paint: the glyph's alpha follows a live scroll offset,
-    // so no stable ratio exists to withhold. It proves the colour rules inapplicable, not unmeasured.
+    // so no stable ratio exists to withhold. It proves the colour rules inapplicable, not unmeasured, and so
+    // does a text the frame does not paint: the pixel pass measured something else owning its pixels.
+    case "unseenInFrame":
     case "maskedForeground": {
       for (const tally of [contrast, overArt, inactive]) {
         count(tally.excluded, outcome.kind);

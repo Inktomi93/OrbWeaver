@@ -279,6 +279,7 @@ export const WALKER_CENSUS_TEXT = `
         foregroundMasked: hasMaskedAncestor(el),
         box: { x: textRect.x, y: textRect.y, width: textRect.width, height: textRect.height },
         occludedBy: textBackdrop.kind === "unresolved" ? occluderOf(el) : null,
+        clippedOut: textBackdrop.kind === "unresolved" ? clippedOut(el, textRect) : undefined,
         ariaHidden: ariaHidden,
         inactive: inactiveKind,
       });

@@ -75,6 +75,12 @@ export interface ContrastInput {
    *  walker string (a CT pinning a historical sample set); absent reads as 1, the pre-#188 behavior. */
   readonly foregroundOpacity?: number;
   /** Text/ancestor carries `mask-image` (#1078, `.scroll-fade-x/-y`); absent = unmasked. */ readonly foregroundMasked?: boolean;
+  /** The walker found this text clipped wholly out by its own scrollers, so its box holds a neighbour's pixels.
+   *  Carried only for `unresolved` samples, the ones the pixel pass would otherwise sample there. */
+  readonly clippedOut?: boolean;
+  /** The pixel pass found this `unresolved` text not painted in the frame: off-screen, clipped out, or covered.
+   *  The colour rules judge what the frame paints, so they exclude it as `unseenInFrame`. */
+  readonly unseenInFrame?: true;
 }
 
 // `ImageDistortionInput` MOVED to contract/samples-media.ts (2026-09-06, #1825) — same 450-line-cap split
