@@ -10,7 +10,7 @@
 // dev account happens to carry.
 //
 // IT IS NOT A SECOND ALGORITHM. The ring geometry (`ringBackdrop`), the WCAG kernel (`contrastRatio`) and
-// the dim composite (`compositeForeground` / `FOREGROUND_OPACITY_EPS` / `MEASURABLE_OPACITY_MIN`) are
+// the dim composite (`inkOverRing` / `FOREGROUND_OPACITY_EPS` / `MEASURABLE_OPACITY_MIN`) are
 // imported from the ONE home the probe instruments share (`@orb/tooling/floor`), for the reason that
 // module's own header states: two instruments must not disagree about what is behind a glyph. The only
 // thing here is the screenshot→raw-pixels plumbing snap keeps private to its own op.
@@ -21,8 +21,8 @@
 
 import { wcagContrastRatio } from "@orb/kit/theme-derivation";
 import { ringBackdropOfRegion } from "@orb/tooling/floor/instrument/pixel-backdrop";
-import type { Rgb } from "@orb/tooling/floor/instrument/wcag";
-import { compositeForeground, FOREGROUND_OPACITY_EPS, MEASURABLE_OPACITY_MIN } from "@orb/tooling/floor/instrument/wcag";
+import type { InkDimming, Rgb } from "@orb/tooling/floor/instrument/wcag";
+import { FOREGROUND_OPACITY_EPS, inkOverRing, MEASURABLE_OPACITY_MIN } from "@orb/tooling/floor/instrument/wcag";
 import type { Locator, Page } from "@playwright/test";
 import sharp from "sharp";
 
@@ -44,8 +44,8 @@ function markRects(
 export interface PixelContrastReceipt {
   /** The WCAG ratio of the element's resolved ink against its REAL composited backdrop. */
   readonly ratio: number;
-  /** The ink as PAINTED — the computed `color`, composited over the backdrop at the accumulated ancestor
-   *  opacity when a group dims it. */
+  /** The ink as PAINTED — the computed `color`, composited by every group that dims it, counting once a group
+   *  that dims its fill too. */
   readonly ink: Rgb;
   /** The per-channel median of the element box's perimeter ring, read out of the framebuffer. */
   readonly backdrop: Rgb;
@@ -80,8 +80,8 @@ const show = ({ r, g, b }: Rgb): string => `${String(Math.round(r))},${String(Ma
  *  back makes the ENGINE do the conversion, so every CSS colour syntax — current and future — resolves the
  *  same way the glyph itself is rasterised. Annotated (the `tier-liveness` spelling) so the awaiting caller
  *  has a declared Promise rather than an inferred one. */
-function readInk(target: Locator): Promise<{ color: Rgb; opacity: number }> {
-  return target.evaluate((element): { color: Rgb; opacity: number } => {
+function readInk(target: Locator): Promise<{ color: Rgb; opacity: number; dimming: InkDimming }> {
+  return target.evaluate((element): { color: Rgb; opacity: number; dimming: InkDimming } => {
     const canvas = element.ownerDocument.createElement("canvas");
     canvas.width = 1;
     canvas.height = 1;
@@ -89,25 +89,36 @@ function readInk(target: Locator): Promise<{ color: Rgb; opacity: number }> {
     if (context === null) {
       throw new Error("pixelContrast: no 2d context to resolve the ink colour through");
     }
-    context.fillStyle = getComputedStyle(element).color;
-    context.fillRect(0, 0, 1, 1);
-    const [r, g, b, a] = context.getImageData(0, 0, 1, 1).data;
-    // TWO INDEPENDENT DIMMERS, MULTIPLIED — both invisible to a naive read of `color`:
-    //  · the INK's OWN ALPHA (`text-muted-foreground/70`). The canvas hands `getImageData` back
-    //    UNPREMULTIPLIED, so `r,g,b` are the pure colour and the alpha is a separate byte — reading only
-    //    the first three channels reports a `/70` ink as if it were opaque. With that
-    //    channel dropped, two inks of authored alpha 1.0 and 0.7 read as the SAME colour.
-    //  · the ACCUMULATED ANCESTOR OPACITY, multiplied up the whole chain because `opacity` composites per
-    //    GROUP: two nested 0.6 groups paint at 0.36, and the element's own `opacity` counts.
     // 255 is spelled INLINE, not hoisted to a module constant: `evaluate` serialises this function and
     // runs it in the PAGE, where a module-scope binding does not exist (it fails as a ReferenceError, not
     // a type error — measured).
     const maxChannel = 255;
-    let opacity = (a ?? maxChannel) / maxChannel;
+    // The canvas hands `getImageData` back UNPREMULTIPLIED, so `r,g,b` are the pure colour and the alpha is a
+    // separate byte: a `/70` ink and an opaque one read as the same colour unless the alpha is kept.
+    const probe = (css: string): { rgb: Rgb; alpha: number } => {
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = css;
+      context.fillRect(0, 0, 1, 1);
+      const [r, g, b, a] = context.getImageData(0, 0, 1, 1).data;
+      return { rgb: { r: r ?? 0, g: g ?? 0, b: b ?? 0 }, alpha: (a ?? maxChannel) / maxChannel };
+    };
+    const ink = probe(getComputedStyle(element).color);
+    // `opacity` composites per GROUP, so the whole chain multiplies, the element's own included. The fill's painter is
+    // the nearest box, the element included, with an opaque background: the groups at or above it dim the ring the
+    // framebuffer shows as well as the ink, so they are kept apart from the groups below it.
+    const chain: { opacity: number; fill: { rgb: Rgb; alpha: number } }[] = [];
     for (let node: Element | null = element; node !== null; node = node.parentElement) {
-      opacity *= Number.parseFloat(getComputedStyle(node).opacity);
+      const style = getComputedStyle(node);
+      chain.push({ opacity: Number.parseFloat(style.opacity), fill: probe(style.backgroundColor) });
     }
-    return { color: { r: r ?? 0, g: g ?? 0, b: b ?? 0 }, opacity };
+    const painter = chain.findIndex((box) => box.fill.alpha === 1);
+    const below = painter === -1 ? chain : chain.slice(0, painter);
+    const above = painter === -1 ? [] : chain.slice(painter);
+    const product = (boxes: readonly { opacity: number }[]): number => boxes.reduce((acc, box) => acc * box.opacity, 1);
+    const inner = ink.alpha * product(below);
+    const outer = product(above);
+    const fill = chain[painter]?.fill.rgb ?? ink.rgb;
+    return { color: ink.rgb, opacity: inner * outer, dimming: { inner, outer, fill } };
   });
 }
 
@@ -255,11 +266,10 @@ export async function pixelContrast(page: Page, target: Locator): Promise<PixelC
   }
   // THE ANCESTOR-OPACITY COMPOSITE (the blind spot that lets axe score a 3.5:1 caption
   // 100/100). `getComputedStyle().color` reports the AUTHORED ink whatever `opacity` an ancestor group
-  // paints it at, and the perimeter ring reads the backdrop through that same group — so a dimmed glyph
-  // measured naively comes out at its UNDIMMED ratio and a real WCAG failure reads clean. What the eye
-  // reads is the composite; snap and design-audit both composite here, and this uses their function.
+  // paints it at, so a dimmed glyph measured naively comes out at its UNDIMMED ratio and a real WCAG failure
+  // reads clean. A group that also holds the fill has already dimmed the ring, so it counts once (`inkOverRing`).
   const dimmed = raw.opacity < FOREGROUND_OPACITY_EPS;
-  const ink = dimmed ? compositeForeground(raw.color, backdrop, raw.opacity) : raw.color;
+  const ink = dimmed ? inkOverRing(raw.color, backdrop, raw.dimming) : raw.color;
   const dimNote = dimmed ? ` · dimmed α${raw.opacity.toFixed(2)}` : "";
   return { ratio: wcagContrastRatio(ink, backdrop), ink, backdrop, describe: `ink ${show(ink)} on backdrop ${show(backdrop)}${dimNote}` };
 }
@@ -485,8 +495,8 @@ export async function pixelMarkContrast(page: Page, mark: Locator, field: Locato
 /**
  * The contrast of text drawn inside a filled box (pseudo-element initials in an avatar), read from the framebuffer: the fill is
  * the median pixel of the box's inscribed ellipse and the ink is the pixel furthest from it inside that ellipse. Both are the composited colours on screen, so a dimming
- * ancestor is already in them; it does not need {@link pixelContrast}'s ancestor-opacity composite, which would apply the dim
- * to a backdrop the framebuffer already dimmed. The furthest pixel is the glyph's best-covered one, so the ratio is a floor.
+ * ancestor is already in them. {@link pixelContrast} cannot read a round field: its perimeter ring falls in the corners, on the
+ * plate behind the field. The furthest pixel is the glyph's best-covered one, so the ratio is a floor.
  */
 export async function pixelFilledTextContrast(page: Page, target: Locator): Promise<PixelMarkReceipt> {
   const box = await target.boundingBox();
