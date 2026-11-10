@@ -36,24 +36,6 @@ export const SURFACE_SELECTORS = [
 // The centered editor column: the cap token beside `mx-auto`, in either order. A cap alone is a start-aligned measure.
 const EDITOR_COLUMN = String.raw`/mx-auto.*max-inline-\(--width-content-col\)|max-inline-\(--width-content-col\).*mx-auto/`;
 
-// A control that destroys data (docs/law/client-architecture-state-and-gates.md §14, "Destructive confirms") needs a confirm or an undo in its file.
-// The word list is the one `pnpm ui-facts` reads; a search or filter clear is not data.
-const DESTRUCTIVE_VERB = String.raw`/^\s*(Restore|Delete|Remove|Reset|Discard|Clear|Revert|Drop|Wipe|Erase|Overwrite|Replace)\b(?![^]*\b(search|filters?)\b)/i`;
-const ACTION_TAG = "/^(Button|GlyphButton|InlineAction|MenuItem)$/";
-// Evidence in the same file: a confirm, a dialog whose Cancel throws the edit away, or an Undo action.
-const CONFIRM_IN_FILE =
-  "JSXOpeningElement[name.name=/^(ConfirmDialog|DestructiveAction|AlertDialog|RowActionsMenu|ModelRunConfirmDialog|FormDialog|FormDialogPopup|DismissDialog|ContentDialog|FlowDialog)$/]";
-const UNDO_IN_FILE = "Property[key.name='label'][value.value='Undo']";
-// An inline confirm step: the destructive control sits after a Keep or Cancel button in the same parent.
-// The Cancel word is literal text or the shared `DIALOG_VERBS.cancel`, on the button or inside a dialog close's `render`.
-const CANCEL_WORD = String.raw`JSXText[value=/^\s*(Cancel|Keep)\s*$/]`;
-const CANCEL_VERB = "JSXExpressionContainer[expression.object.name='DIALOG_VERBS'][expression.property.name='cancel']";
-const DIALOG_CLOSE = "JSXElement[openingElement.name.name=/^(Alert)?DialogClose$/]";
-const KEEP_BESIDE = `:matches(JSXElement:has(> ${CANCEL_WORD}), JSXElement:has(> ${CANCEL_VERB}), ${DIALOG_CLOSE}:has(${CANCEL_WORD}), ${DIALOG_CLOSE}:has(${CANCEL_VERB}))`;
-const NOT_CONFIRMED_IN_FILE = `:not(Program:has(${CONFIRM_IN_FILE}) *):not(Program:has(${UNDO_IN_FILE}) *)`;
-const DESTRUCTIVE_MESSAGE =
-  "A control that destroys data needs a DestructiveAction or an undo (docs/law/client-architecture-state-and-gates.md §14). Make it a DestructiveAction, or offer Undo.";
-
 // Files exempt from `destructive-needs-confirm`, each with the owner-delegated call that permits it
 // (docs/law/client-architecture-state-and-gates.md §14, "Destructive confirms"). `pnpm ui-facts` reads the same list.
 export const DESTRUCTIVE_EXEMPT = homeReasons({
@@ -64,19 +46,6 @@ export const DESTRUCTIVE_EXEMPT = homeReasons({
 });
 
 export const UI_FEATURE_RESTRICTIONS = [
-  {
-    id: "destructive-needs-confirm",
-    selectors: [
-      {
-        selector: `JSXElement[openingElement.name.name=${ACTION_TAG}]:has(> JSXText[value=${DESTRUCTIVE_VERB}])${NOT_CONFIRMED_IN_FILE}:not(${KEEP_BESIDE} ~ JSXElement)`,
-        message: DESTRUCTIVE_MESSAGE,
-      },
-      {
-        selector: `JSXOpeningElement[name.name=${ACTION_TAG}]:has(> JSXAttribute[name.name='tone'][value.value='destructive'])${NOT_CONFIRMED_IN_FILE}:not(${KEEP_BESIDE} ~ JSXElement > JSXOpeningElement)`,
-        message: DESTRUCTIVE_MESSAGE,
-      },
-    ],
-  },
   {
     id: "no-layout-context-props",
     selectors: [

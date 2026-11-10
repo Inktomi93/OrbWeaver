@@ -5,6 +5,7 @@ import { CLIENT_DATA_RESTRICTIONS, effectOnSharedSelectionRule } from "./client-
 import { closedVocabularyRule } from "./closed-vocabulary.ts";
 import type { CustomPropertyUses } from "./css/custom-properties.ts";
 import { derivedPortMemberRule } from "./derived-port.ts";
+import { destructiveNeedsConfirmRule } from "./destructive-confirm.ts";
 import { assumesSingleReplicaRule, commentedCodeRule, sideGenSamplingRule, wireJsonRule } from "./general.ts";
 import { DB_SCHEMA_RESTRICTIONS, SERVER_HARD_RESTRICTIONS, TYPE_SHAPE_RESTRICTIONS } from "./general-policy.ts";
 import { moduleStateRule } from "./module-state.ts";
@@ -249,6 +250,7 @@ export function createOrbPlugin(options: {
   return {
     rules: {
       ...Object.fromEntries(LOCAL_RESTRICTIONS.map((entry) => [entry.id, restrictionRule(entry)] as const)),
+      "destructive-needs-confirm": destructiveNeedsConfirmRule,
       "surface-consumes-container": surfaceConsumesContainerRule,
       "anchor-provides-container": anchorProvidesContainerRule,
       "no-raw-intrinsic-paint": rawIntrinsicPaintRule(options.shellClasses),
