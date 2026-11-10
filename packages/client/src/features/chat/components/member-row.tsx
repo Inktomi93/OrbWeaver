@@ -75,6 +75,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
       aria-label={rowAccessibleName(row)}
       {...(responding ? { "aria-describedby": descriptionId } : {})}
       stretch="row"
+      floor="title"
       wrap={true}
       ref={(el: HTMLButtonElement | null): void => {
         bodyRef.current = el;
@@ -89,27 +90,30 @@ export function MemberRow(props: MemberRowProps): ReactElement {
         }
       }}
     >
-      <Avatar
-        size="sm"
-        fallbackDelay={0}
-        // Hue-seed: character id for a character seat (matches transcript/library); participant id for a human seat.
-        hueSeed={row.kind === "character" ? row.characterId : row.key}
-        {...(row.avatarHash === null ? {} : { src: blobUrl(row.avatarHash) })}
-      >
-        {initialsFor(row.displayName)}
-      </Avatar>
-      {row.kind === "person" ? <PresenceDot online={row.online} /> : null}
-      {/* The name owns its line. Last seen and the chips share a wrapping line below it, because beside the name
-          each `shrink-0` chip takes its width from the only thing that can give, and the name reaches zero. */}
-      <Stack className="min-inline-0" textAlign="start" grow={true}>
-        <Text as="span" voice="label" data-slot="member-name" ink={row.kind === "character" && row.disabled ? "muted" : undefined} truncate={true}>
-          {/* Identity ONLY. The ` · ${handle}` suffix that used to sit here rendered the raw login handle —
-              an EMAIL under AUTH_MODE=oidc — beside every human's name (#162); `MemberPersonRow` no longer
-              carries a handle at all, so the suffix has nothing to come back from. */}
-          {row.displayName}
-        </Text>
-        <RowMeta row={row} responding={responding} descriptionId={descriptionId} />
-      </Stack>
+      {/* The avatar and the name column share a wrapping line: a name that cannot keep the title floor beside the avatar takes the line under it. */}
+      <Row align="center" className="min-inline-0" gap="field" grow={true} wrap={true}>
+        <Avatar
+          size="sm"
+          fallbackDelay={0}
+          // Hue-seed: character id for a character seat (matches transcript/library); participant id for a human seat.
+          hueSeed={row.kind === "character" ? row.characterId : row.key}
+          {...(row.avatarHash === null ? {} : { src: blobUrl(row.avatarHash) })}
+        >
+          {initialsFor(row.displayName)}
+        </Avatar>
+        {row.kind === "person" ? <PresenceDot online={row.online} /> : null}
+        {/* The name owns its line. Last seen and the chips share a wrapping line below it, because beside the name
+            each `shrink-0` chip takes its width from the only thing that can give, and the name reaches zero. */}
+        <Stack className="min-inline-0" floor="title" grow={true} textAlign="start">
+          <Text as="span" voice="label" data-slot="member-name" ink={row.kind === "character" && row.disabled ? "muted" : undefined} truncate={true}>
+            {/* Identity ONLY. The ` · ${handle}` suffix that used to sit here rendered the raw login handle —
+                an EMAIL under AUTH_MODE=oidc — beside every human's name (#162); `MemberPersonRow` no longer
+                carries a handle at all, so the suffix has nothing to come back from. */}
+            {row.displayName}
+          </Text>
+          <RowMeta row={row} responding={responding} descriptionId={descriptionId} />
+        </Stack>
+      </Row>
     </Button>
   );
 
@@ -117,7 +121,7 @@ export function MemberRow(props: MemberRowProps): ReactElement {
     // The BARE `group` rides beside `group/member` because that is what the homed `HOVER_REVEAL.hover` posture keys
     // on (packages/ui/src/lib/hover-reveal.ts) — the named group stays for the row's own explicit
     // `group-*/member:` arms.
-    <Row gap="field" align="center" className="group group/member" data-slot="member-row">
+    <Row gap="field" align="center" className="group group/member" data-slot="member-row" wrap={true}>
       {hasMenu ? (
         <Menu>
           <MenuTrigger render={body} />

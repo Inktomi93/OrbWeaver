@@ -1,4 +1,6 @@
 // SortableList reorders by keyboard through dnd-kit; the seal's own wiring keeps focus on the handle and speaks row names, never ids.
+
+import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { sortablePositionName } from "../../../../packages/ui/src/primitives/sortable/sortable-names.ts";
@@ -73,4 +75,34 @@ test("a disabled list has no operable handle", async ({ mount, page }) => {
   await mount<typeof ReorderableTracksStory>(STORY, { disabled: true });
   await expect(handleOf(page, "Alpha")).toBeDisabled();
   await expect(handleOf(page, "Beta")).toBeDisabled();
+});
+
+// The list is the container its rows answer to: under the `cq-16` step the grip stops taking a column and sits above the row.
+type Box = NonNullable<Awaited<ReturnType<Locator["boundingBox"]>>>;
+const STEP = `var(${TOKENS["container.cq-16"].cssVar})`;
+
+async function layoutOf(page: Page): Promise<Record<"grip" | "content" | "item", Box>> {
+  const row = page.getByRole("listitem").first();
+  const [grip, content, item] = await Promise.all([
+    row.locator('[data-slot="sortable-handle"]').boundingBox(),
+    row.locator('[data-slot="sortable-content"]').boundingBox(),
+    row.boundingBox(),
+  ]);
+  if (grip === null || content === null || item === null) {
+    throw new Error("The first row must paint its grip, content and box");
+  }
+  return { grip, content, item };
+}
+
+test("a list wider than the step seats the grip beside its row", async ({ mount, page }) => {
+  await mount<typeof ReorderableTracksStory>(STORY, { disabled: false, width: `calc(${STEP} + 4rem)` });
+  const { grip, content } = await layoutOf(page);
+  expect(content.x).toBeGreaterThanOrEqual(grip.x + grip.width);
+});
+
+test("a list narrower than the step puts the grip above its row and gives the row the list's whole width", async ({ mount, page }) => {
+  await mount<typeof ReorderableTracksStory>(STORY, { disabled: false, width: `calc(${STEP} - 4rem)` });
+  const { grip, content, item } = await layoutOf(page);
+  expect(content.y).toBeGreaterThanOrEqual(grip.y + grip.height);
+  expect(Math.round(content.width)).toBe(Math.round(item.width));
 });

@@ -291,6 +291,12 @@ test.describe("rule editor field rows", () => {
         throw new Error("The panel and its hint must paint");
       }
       expect(hintBox.x + hintBox.width).toBeLessThanOrEqual(panelBox.x + panelBox.width);
+      // The sortable's grip does not take a column from the card at this width, so its picker keeps the title floor a combobox holds.
+      const [pickerBox, floor] = await Promise.all([
+        slot.getByRole("combobox", { name: `${role.label} connection`, exact: true }).boundingBox(),
+        resolvedLength(page, `var(${TOKENS["width.title-floor"].cssVar})`, slot),
+      ]);
+      expect(Math.round(pickerBox?.width ?? 0), `title floor ${String(floor)}`).toBeGreaterThanOrEqual(Math.round(floor));
     });
   });
 
