@@ -419,6 +419,7 @@ export const TOKENS = {
   "size.switch-travel": { cssVar: "--size-switch-travel", value: "calc(var(--size-switch-track) - var(--size-switch-track-height))" },
   "spacing.glyph-bleed": { cssVar: "--spacing-glyph-bleed", value: "calc((var(--size-touch-target) - var(--size-glyph-xs)) / 2)" },
   "spacing.avatar-reach": { cssVar: "--spacing-avatar-reach", value: "max(var(--spacing-field), calc((var(--size-touch-target) - var(--size-avatar-sm)) / 2))" },
+  "size.ripple-portrait-narrow": { cssVar: "--size-ripple-portrait-narrow", value: "min(var(--immersive-ripple-portrait-width-phone), 33cqw)" },
   "size.touch-target-physical": { cssVar: "--size-touch-target-physical", value: "44px" },
   "spacing.avatar-reach-physical": { cssVar: "--spacing-avatar-reach-physical", value: "max(var(--spacing-tight), calc((var(--size-touch-target-physical) - var(--size-avatar-sm)) / 2))" },
   "spacing.avatar-gap-physical": { cssVar: "--spacing-avatar-gap-physical", value: "max(var(--spacing-field), var(--spacing-avatar-reach-physical))" },

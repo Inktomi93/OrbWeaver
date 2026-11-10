@@ -70,11 +70,11 @@ export function CharacterTagsRow({ characterId, tags, trpc }: CharacterTagsRowPr
   const tagWritePending = addTag.isPending || removeTag.isPending;
   return (
     <Stack aria-labelledby={labelId} gap="field" data-slot="character-tags" role="group">
-      <Row align="center" gap="field" justify="between">
+      <Row align="center" gap="field" justify="between" wrap={true}>
         <Text id={labelId} voice="kicker">
           Tags
         </Text>
-        <Button disabled={tagWritePending} type="button" size="sm" variant="ghost" onClick={(): void => setOpen(true)}>
+        <Button disabled={tagWritePending} type="button" size="sm" variant="ghost" wrap={true} onClick={(): void => setOpen(true)}>
           <Icon icon={Plus} size="sm" />
           {CHARACTER_ADD_TAG_NAME}
         </Button>

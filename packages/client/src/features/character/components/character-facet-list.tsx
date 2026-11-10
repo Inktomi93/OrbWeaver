@@ -100,7 +100,9 @@ export function CharacterFacetList({ form, characterId, selectedFacetId, focusFa
                 {/* Converted #582 (the #573 near-kicker ruling: "takes semibold and becomes one"): a
                     label-step caps group name, byte-identical to `interactiveKicker` once the weight axis
                     is corrected medium→semibold. */}
-                <Text voice="interactiveKicker">{CHARACTER_FACET_TIER_LABELS[tier]}</Text>
+                <Text voice="interactiveKicker" cap="fit">
+                  {CHARACTER_FACET_TIER_LABELS[tier]}
+                </Text>
                 {facets.map((facet) => (
                   <CharacterFacetRow
                     key={facet.id}

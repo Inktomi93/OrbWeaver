@@ -36,7 +36,7 @@ export type ToggleProps = ToggleBaseProps & ToneInkSelection;
  *
  * Usage: `<Toggle aria-label="Bold" pressed={bold} onPressedChange={setBold}>B</Toggle>`
  */
-export function Toggle({ className, variant, tone, ink, size, shape, semantics = "toggle", checked, ...rest }: ToggleProps): ReactElement {
+export function Toggle({ className, variant, tone, ink, size, shape, wrap, semantics = "toggle", checked, ...rest }: ToggleProps): ReactElement {
   const radioAria = semantics === "radio" ? { role: "radio", "aria-checked": checked === true, "aria-pressed": undefined } : {};
   const resolvedTone = tone ?? "neutral";
   // A neutral toggle recedes until pressed; a colour tone inks it with that tone's text role.
@@ -46,7 +46,7 @@ export function Toggle({ className, variant, tone, ink, size, shape, semantics =
   return (
     <BaseToggle
       data-slot="toggle"
-      {...variantProps(toggleVariants, { variant, tone: resolvedTone, ink: resolvedInk, size, shape }, className, resolvedTone)}
+      {...variantProps(toggleVariants, { variant, tone: resolvedTone, ink: resolvedInk, size, shape, wrap }, className, resolvedTone)}
       {...rest}
       {...radioAria}
     />

@@ -36,6 +36,7 @@ export {
   settledReadingRow,
   shellTracks,
 } from "./shell-drive.ts";
+export { nearestScroller, sidewaysReach } from "./sideways-reach.ts";
 export type { SurfaceActionWindow } from "./surface-action.ts";
 export { surfaceAction } from "./surface-action.ts";
 export type { SurfaceActionGroup } from "./surface-checkpoint.ts";

@@ -1,8 +1,9 @@
 // The production room receives persisted messages through its real chat event subscription.
 import { UTC_TIME_ZONE } from "@orb/kit/time";
-import { seedShellState } from "@orb/testkit/browser/spec";
+import { enlargedTextFindings, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
 import {
   absenceWindow,
+  channelName,
   createShellAmbientReads,
   ROOM_PROCEDURES,
   routeAuthConfig,
@@ -14,6 +15,7 @@ import {
 } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { CORPUS_EMBED_MODEL, CORPUS_EMBEDDING_VECTOR, createCorpusHarness, createCorpusProviderExecution } from "@orb/testkit/node/composed";
+import type { Locator, Page } from "@playwright/test";
 import { jumpToLatestName } from "#client/features/chat/lib/transcript-copy.ts";
 import type { ChatRoomShellStory } from "./_chat-room-shell-stories.tsx";
 
@@ -22,6 +24,9 @@ const ROWS = 14;
 const SCROLL_ROUNDING_PX = 1;
 const SETTLE_MARGIN_MS = 400;
 
+const ENLARGED_TEXT_SCALE = 3;
+// Enlarged text grows the shell past the short viewport the other cases read the pill in, so its geometry is read on a desktop-high one.
+const ENLARGED_VIEWPORT_HEIGHT = 900;
 const WITHHOLD_FLAG = "__withholdScrollend";
 const SILENCE_SCROLL = "__silenceScroll";
 
@@ -61,12 +66,49 @@ const withoutScrollend = (): void => {
   Reflect.deleteProperty(Document.prototype, "onscrollend");
 };
 
-// `quiet` names the scroll whose end the page learns of only from the other signal.
-for (const [title, nativeScrollend, profile, quiet] of [
-  ["a browser with scrollend", true, undefined, undefined],
-  ["a browser without scrollend", false, withoutScrollend, undefined],
-  ["a browser whose jump scroll ends without a scrollend", true, withholdArmedScrollend, "jump"],
-  ["a browser that reports the end of a scroll but delivers no scroll events", true, undefined, "away"],
+async function enlargeText(page: Page, scale: number): Promise<void> {
+  await setRootFontScale(page, channelName("fontScale"), scale);
+  await expect.poll(() => page.evaluate(() => Number.parseFloat(getComputedStyle(document.documentElement).fontSize))).toBeGreaterThanOrEqual(16 * scale);
+}
+
+/**
+ * The pill floats over the rows scrolling under it and leaves with one press. With the room scrolled until a message action sits at the
+ * pill's centre, the pill takes that point, the geometry probe reads it as chrome rather than a cover, and the action stays pressable:
+ * a press scrolls the row out from under the pill.
+ */
+async function expectPillIsChromeOverActions(page: Page, scroller: Locator): Promise<void> {
+  const seat = await scroller.evaluate((list) => {
+    const pill = document.querySelector('[data-slot="jump-to-latest"] button')?.getBoundingClientRect();
+    const action = [...list.querySelectorAll('[data-slot="message-actions-row"] button')].find((button) => button.getBoundingClientRect().width > 0);
+    const row = action?.closest('[data-slot="message-row"]');
+    if (pill === undefined || action === undefined || row === null || row === undefined) {
+      return null;
+    }
+    const box = action.getBoundingClientRect();
+    list.scrollTop += box.top + box.height / 2 - (pill.top + pill.height / 2);
+    const moved = action.getBoundingClientRect();
+    const x = moved.left + moved.width / 2;
+    const y = moved.top + moved.height / 2;
+    return {
+      // The row's start edge, level with the action: its actions reveal while the pointer is on the row, clear of the pill.
+      point: { x: row.getBoundingClientRect().left + 8, y },
+      pillTakesThePoint: (document.elementFromPoint(x, y)?.closest('[data-slot="jump-to-latest"]') ?? null) !== null,
+    };
+  });
+  expect(seat?.pillTakesThePoint, "the pill lies over the action's centre").toBe(true);
+  await page.mouse.move(seat?.point.x ?? 0, seat?.point.y ?? 0);
+  const covered = (await enlargedTextFindings(scroller)).filter((finding) => finding.includes("is covered at its centre"));
+  expect(covered).toEqual([]);
+  await scroller.locator('[data-slot="message-actions-row"]').first().getByRole("button").first().click({ trial: true });
+}
+
+// `quiet` names the scroll whose end the page learns of only from the other signal; `scale` enlarges the text before a message lands.
+for (const [title, nativeScrollend, profile, quiet, scale] of [
+  ["a browser with scrollend", true, undefined, undefined, undefined],
+  ["a browser without scrollend", false, withoutScrollend, undefined, undefined],
+  ["a browser whose jump scroll ends without a scrollend", true, withholdArmedScrollend, "jump", undefined],
+  ["a browser that reports the end of a scroll but delivers no scroll events", true, undefined, "away", undefined],
+  ["a browser with scrollend at 300% text", true, undefined, undefined, ENLARGED_TEXT_SCALE],
 ] as const) {
   test(`the pill counts a message that lands while the reader is away, and clears once the jump reaches the tail, in ${title}`, async ({
     corpus,
@@ -146,7 +188,7 @@ for (const [title, nativeScrollend, profile, quiet] of [
         }
       },
     });
-    await page.setViewportSize({ width: 900, height: 420 });
+    await page.setViewportSize({ width: 900, height: scale === undefined ? 420 : ENLARGED_VIEWPORT_HEIGHT });
     const component = await mount<typeof ChatRoomShellStory>(STORY, { chatId, socket: true });
     expect(
       await page.evaluate(() => ({
@@ -186,12 +228,18 @@ for (const [title, nativeScrollend, profile, quiet] of [
       }, SILENCE_SCROLL);
     }
     expect(await distanceFromTail()).toBeGreaterThan(await scroller.evaluate((element) => element.clientHeight));
+    if (scale !== undefined) {
+      await enlargeText(page, scale);
+    }
     const outcome = await caller.chat.commitMessage({ chatId, content: source.content, timeZone: UTC_TIME_ZONE });
     const committed = outcome.messages.at(-1);
     if (committed === undefined) {
       throw new Error("The native commit returned no message");
     }
     await expect(page.getByRole("button", { name: jumpToLatestName(1), exact: true })).toBeVisible();
+    if (scale !== undefined) {
+      await expectPillIsChromeOverActions(page, scroller);
+    }
     if (quiet === "jump") {
       await page.evaluate((flag) => Reflect.set(globalThis, flag, true), WITHHOLD_FLAG);
     }

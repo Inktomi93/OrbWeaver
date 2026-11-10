@@ -5,7 +5,7 @@ import { createCharacterSchema } from "@orb/contracts/character";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
-import { dropOn, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
+import { dropOn, nearestScroller, seedShellState, setRootFontScale, sidewaysReach } from "@orb/testkit/browser/spec";
 import { channelName, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -124,6 +124,25 @@ test.describe("on a phone", () => {
       await expectPressable(page.locator('[data-slot="character-greeting-actions"]').getByRole("button", { name: GREETING_STUDIO_NAME, exact: true }));
     });
 
+    for (const width of [NARROW_PHONE.width, PHONE.width]) {
+      test(`the character editor pane has nothing wider than itself at ${String(factor * 100)}% text on a ${String(width)} wide phone`, async ({
+        mount,
+        page,
+      }) => {
+        await page.setViewportSize({ width, height: PHONE.height });
+        await seedShellState(page, { activeSection: "characters" });
+        const [character] = (await (await ownerCaller()).character.list({})).items;
+        if (character === undefined) {
+          throw new Error("The corpus has no character");
+        }
+        await mount<typeof AppShellCharacterStory>(`${SHELL_STORIES}/AppShellCharacterStory`, { characterId: character.id });
+        await expect(page.locator('[data-slot="save-bar-root"]')).toBeVisible();
+        await scaleRoot(page, factor);
+        const pane = await page.locator('[data-slot="character-tags"]').evaluateHandle(nearestScroller);
+        expect(await pane.evaluate(sidewaysReach)).toEqual({ scrolls: 0, wideners: [] });
+      });
+    }
+
     test(`the Corpus catalog keeps its rows when the pane chrome grows at ${String(factor * 100)}% text`, async ({ mount, page }) => {
       await seedShellState(page, { activeSection: "corpus" });
       await mount<typeof SectionShellStory>(SECTION_SHELL, { section: "corpus" });
@@ -137,6 +156,20 @@ test.describe("on a phone", () => {
     for (const chatStyle of THEME_CHAT_STYLES) {
       // The ripple portrait is a share of the card, so its two phone widths are both measured.
       const widths = chatStyle === "ripple" ? [NARROW_PHONE.width, PHONE.width] : [PHONE.width];
+      for (const width of [NARROW_PHONE.width, PHONE.width]) {
+        test(`the ${chatStyle} style's transcript has nothing wider than itself at ${String(factor * 100)}% text on a ${String(width)} wide phone`, async ({
+          mount,
+          page,
+        }) => {
+          await page.setViewportSize({ width, height: PHONE.height });
+          const { chatId } = await pictureRoom(chatStyle);
+          await seedShellState(page, { activeSection: "chats" });
+          await mount<typeof AppShellRoomStory>(`${SHELL_STORIES}/AppShellRoomStory`, { chatId });
+          await expect(page.locator('[data-slot="composer"]')).toBeVisible();
+          await scaleRoot(page, factor);
+          expect(await page.locator('[data-slot="message-list-scroll"]').evaluate(sidewaysReach)).toEqual({ scrolls: 0, wideners: [] });
+        });
+      }
       for (const width of widths) {
         test(`the ${chatStyle} style leaves a message's actions and Save edit pressable at ${String(factor * 100)}% text on a ${String(width)} wide phone`, async ({
           mount,
