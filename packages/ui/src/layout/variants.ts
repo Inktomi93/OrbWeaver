@@ -151,7 +151,7 @@ const GAP_NARROW = {
 // A nested level: what hangs under a parent row or beside a leading rule, one `block` step in, because a nested group is a block of its
 // parent (UI-Density-Law.md §2.2). One step at every level, so a feature never picks an indent. The step is held to a share of the screen, so a
 // phone at enlarged text keeps a nested control its width.
-const INDENT = { true: "ps-(--spacing-indent)", false: "" } as const;
+const INDENT = { true: "ps-indent", false: "" } as const;
 // The layer a box takes in its stacking context: `raised` floats over its siblings, `overlay` over the raised ones.
 const LAYER = { raised: "z-(--z-raised)", overlay: "z-(--z-overlay)" } as const;
 // A box laid over content that takes no pointer itself: clicks fall through to what lies under it, and only a child that asks for the pointer takes it.
