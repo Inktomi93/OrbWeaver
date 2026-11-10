@@ -25,7 +25,7 @@ CodeGraph's server instructions say to answer directly instead of delegating a l
 | Logic, data, or server correctness review | `code-reviewer` |
 | Rendered, visual, or accessibility review | `ux-reviewer` |
 | Deep pre-merge review or a hard investigation, while running unattended overnight | `deep-reviewer` |
-| Off-budget mechanical volume on the local model | `qwen-run`; load the `qwen-lane` skill first |
+| Off-budget mechanical volume on the local model | the `lanes:<role>` twin of the role (`lanes:bulk-editor`, `lanes:builder`, `lanes:scout`); see Local lanes |
 
 - Send work to `builder` only when its brief names the check that proves it done.
 - Send work that judges, designs or changes an analysis tool or lint rule to `opus-builder`, never `builder`.
@@ -60,6 +60,18 @@ Claude uses `SendMessage` and `TaskStop` below. In Codex, inspect state with `li
 - Track lane name to agent id in context. Reply by agent id; several lanes can share one role name.
 - Write the lane map to a file only when a context sentinel fires or the owner orders a handoff.
 - Stop a runaway lane with TaskStop.
+
+## Local lanes
+
+The `lanes` plugin (`~/.claude/skills/lanes`) runs a subagent on the local model. It registers `lanes:local`, `lanes:local-think` and a `lanes:<role>` twin of every role named in its `cloneAgents` setting (`/config`). A twin keeps the role file's prompt, skills and budgets; `Grep` and `Glob` become Bash. `builder:medium:4096` in that setting sets the twin's thinking level and its thinking budget per step.
+
+- Send a local lane mechanical or fully specified work with a checkable done line. Never send it security work, a design fork or a review.
+- Run `lane_control warm` before the first spawn; it waits for the lane. Flash-Next runs one local agent at a time, and a spawn that breaks that is refused with the reason. Run `lane_control unload` when the day's local work is done.
+- The brief is cold: the lane sees `AGENTS.md`, its preloaded skills (`lane`, `local-lane`, `stack-lookup`) and your message. Give the goal, constraints, absolute paths, the done line, hazards and the proof command.
+- A message resumes an idle lane and reaches a busy one at its next tool round. The lane acknowledges with one `SendMessage`; a reply after its hand-back is a new hand-back.
+- The plugin allows read-only inspection and project-scoped commands inside the worktree, the scratchpad, the engine's own tool-result directory and `permissions.additionalDirectories` in `.claude/settings.json`. List a data directory there before a lane needs it (surface-walk results live in `~/.local/state/orbweaver`). Edits stay inside the worktree. `dangerouslyDisableSandbox` is refused.
+- Stop a run with the plugin's `kill` tool; it cancels the model request too. `/local` shows runs, tokens and speed.
+- A local lane reports through `SubagentHandback` like any lane. Expect medium thinking to finish where high loops.
 
 ## Plan order
 
@@ -120,6 +132,7 @@ not get your conversation, your reads, or your output style. Write each brief so
 - The exact CT files and suites its floor runs.
 - That a correct refusal with evidence is a success.
 - The hazards you know for that area.
+- The docs index library the work leans on (`mcp__docs__list_libraries` names them), when a dependency's current API matters.
 - For an investigation, the instrumentation steps: log each boundary from client payload to server input to db row to read-back.
 - For work that produces text (a spec, a doc draft, owner-facing copy), a `docs/` path to write it to. A report alone is lost.
 - For a `docs/**` lane, the floor that the docs path rule names.

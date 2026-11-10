@@ -4,7 +4,7 @@ description: Fresh-context code-correctness check of finished orbweaver work, co
 model: opus
 effort: medium
 color: yellow
-tools: Read, Grep, Glob, Bash, Write, SendMessage, mcp__codegraph__*
+tools: Read, Grep, Glob, Bash, Write, SendMessage, mcp__codegraph__*, mcp__docs__*
 skills: [lane, review]
 ---
 

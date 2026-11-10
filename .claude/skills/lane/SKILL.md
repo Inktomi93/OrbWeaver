@@ -93,6 +93,14 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 - Run `pnpm format:docs` on a shared file only before your edit. A later format turns sibling context into your diff.
 - Two lanes may edit one file when both declared their hunk regions through main. Do not move hunks to dodge a merge.
 
+## Documentation lookup
+
+The `docs` MCP server indexes the catalog's current documentation (Node, TypeScript, React, Base UI, Tailwind, ESLint and its plugins, Biome, Vitest, Playwright, zod, drizzle, Hono, tRPC, TanStack and more) and this repository's law, ADRs and rules as the `orbweaver` library. Its registry is `~/inktomi-stack/docs-mcp/libraries.txt`.
+
+- For a dependency's API, flag, option or idiom, search the index before you write from memory: `mcp__docs__search_docs(library, query)`, then `mcp__docs__read_page` for the whole page. `mcp__docs__list_libraries` names what is indexed.
+- Search a ruling by question before you read a whole law file: `mcp__docs__search_docs("orbweaver", "<question>")`. Read the file it points to when you need the context.
+- One lookup per question. When the library is not indexed, use the web tools you have and ask in your report for it to be indexed.
+
 ## Running tools
 
 - Run named Node tests with `pnpm test <paths>` and CTs with `pnpm test:ct <paths>`.

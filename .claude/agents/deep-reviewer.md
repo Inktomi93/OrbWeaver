@@ -4,7 +4,7 @@ description: Fresh-context deep review of a substantial orbweaver diff or branch
 model: fable
 effort: high
 color: purple
-tools: Read, Grep, Glob, Bash, Write, SendMessage, mcp__codegraph__*
+tools: Read, Grep, Glob, Bash, Write, SendMessage, mcp__codegraph__*, mcp__docs__*
 skills: [lane, review]
 ---
 

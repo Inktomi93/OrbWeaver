@@ -4,7 +4,7 @@ description: Security-sensitive implementation, analysis and review in orbweaver
 model: opus
 effort: high
 color: cyan
-tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage, mcp__codegraph__*
+tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage, mcp__codegraph__*, mcp__docs__*
 skills: [lane]
 ---
 

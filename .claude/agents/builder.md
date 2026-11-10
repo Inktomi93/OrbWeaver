@@ -6,7 +6,7 @@ effort: high
 autoCompactWindow: 500000
 permissionMode: acceptEdits
 color: blue
-tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage, mcp__codegraph__*
+tools: Read, Edit, Write, Grep, Glob, Bash, SendMessage, mcp__codegraph__*, mcp__docs__*
 skills: [lane]
 ---
 
