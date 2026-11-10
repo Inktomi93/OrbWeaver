@@ -38,7 +38,8 @@ export function fetchAuthConfig(): Promise<AuthConfig> {
   return configPromise;
 }
 
-const authConfigOptions = queryOptions({
+/** The auth config read, for a surface that suspends on it under a QueryBoundary. */
+export const authConfigOptions = queryOptions({
   queryKey: AUTH_CONFIG_KEY,
   queryFn: fetchAuthConfig,
   staleTime: Number.POSITIVE_INFINITY,

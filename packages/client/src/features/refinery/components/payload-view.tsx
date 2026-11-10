@@ -10,6 +10,8 @@
 // order. Empty/absent values are LOAD-BEARING designed states ("—" / "none listed"), never collapses.
 // Field keys are author- and model-chosen identifiers, so every payload and tone read is an own-key read.
 
+import type { RefineryVerdict } from "@orb/contracts/refinery";
+import { refineryVerdictSchema } from "@orb/contracts/refinery";
 import { isPrimitive } from "@orb/kit/guards";
 import { readOwnKey } from "@orb/kit/objects";
 import { NO_VALUE } from "@orb/kit/strings";
@@ -26,6 +28,7 @@ import { testId } from "#lib";
 import { useCountUp } from "../hooks/use-count-up.ts";
 import type { PlanField, RenderPlan, RowPlan } from "../lib/render-plan.ts";
 import { armFits, dangerBelowOf } from "../lib/render-plan.ts";
+import { verdictWordOf } from "../lib/verdict.ts";
 
 export interface PayloadViewProps {
   readonly plan: RenderPlan;
@@ -161,10 +164,25 @@ const HINT_TONE: Record<string, NonNullable<ComponentProps<typeof Card>["tone"]>
   neutral: "neutral",
 };
 
+const PINNED_VERDICTS: readonly string[] = refineryVerdictSchema.options;
+
+/**
+ * The system verdict a member names, or `undefined` for an authored member. The analyze contract pins every analyze
+ * schema's verdict to exactly the {@link RefineryVerdict} set, so a field whose members are exactly that set is the
+ * system verdict and paints its display word. The render plan records no field provenance, so this is the authoring
+ * belt's own exact-set test; an authored enum that only shares some spellings stays verbatim.
+ */
+function systemVerdictOf(widget: ChipEnumWidget, member: string): RefineryVerdict | undefined {
+  const pinned = widget.members.length === PINNED_VERDICTS.length && PINNED_VERDICTS.every((verdict) => widget.members.includes(verdict));
+  const parsed = refineryVerdictSchema.safeParse(member);
+  return pinned && parsed.success ? parsed.data : undefined;
+}
+
 function VerdictBanner({ field, payload, siblings }: { field: PlanField; payload: Record<string, unknown>; siblings: readonly PlanField[] }): ReactElement {
   const widget = field.widget as ChipEnumWidget;
   const raw = readOwnKey(payload, field.key);
   const value = typeof raw === "string" ? raw : null;
+  const verdict = value === null ? undefined : systemVerdictOf(widget, value);
   const tone = value === null ? "neutral" : (readOwnKey(widget.tones, value) ?? "neutral");
   const axis = siblings.find((f) => f.widget.kind === "gauge" && !f.widget.hero && f !== field);
   const prose = siblings.find((f) => f.widget.kind === "prose");
@@ -180,11 +198,15 @@ function VerdictBanner({ field, payload, siblings }: { field: PlanField; payload
     >
       <Row align="center" gap="block" padding="block">
         <Stack gap="field">
-          {/* The member is what the schema author wrote, an open vocabulary no display table covers, so it reads as
-              content, verbatim, and never as a status word (client-architecture-lockdown.md §3). */}
-          <Heading level={3} voice="reading">
-            {value ?? <NoValue />}
-          </Heading>
+          {/* A system verdict paints its display word; any other member is what the schema author wrote, an open
+              vocabulary no display table covers, so it reads as content, verbatim (client-architecture-lockdown.md §3). */}
+          {verdict === undefined ? (
+            <Heading level={3} voice="reading">
+              {value ?? <NoValue />}
+            </Heading>
+          ) : (
+            <Heading level={3}>{verdictWordOf(verdict)}</Heading>
+          )}
           {prose !== undefined ? <Text prose={true}>{scalarText(readOwnKey(payload, prose.key))}</Text> : null}
         </Stack>
         {axis !== undefined && axisWidget !== undefined ? (
@@ -323,11 +345,12 @@ function ScalarRow({ field, value }: { field: PlanField; value: unknown }): Reac
   );
 }
 
-// Every member here is one the schema author wrote, so like the verdict banner's it reads verbatim as content, tinted by
-// the author's own tone map, never as a status chip (client-architecture-lockdown.md §3).
+// Like the verdict banner: a system verdict paints its display word, and an authored member reads verbatim as content,
+// tinted by the author's own tone map, never as a status chip (client-architecture-lockdown.md §3).
 function EnumRow({ field, widget, value }: { field: PlanField; widget: ChipEnumWidget; value: unknown }): ReactElement {
   const v = typeof value === "string" ? value : null;
   const tone = v === null ? "neutral" : (readOwnKey(widget.tones, v) ?? "neutral");
+  const verdict = v === null ? undefined : systemVerdictOf(widget, v);
   return (
     <Row align="center" data-field={field.key} data-testid={testId("refineryField")} gap="row">
       <Text voice="label">{field.label}</Text>
@@ -336,8 +359,8 @@ function EnumRow({ field, widget, value }: { field: PlanField; widget: ChipEnumW
           <NoValue />
         </Text>
       ) : (
-        <Text data-hint-tone={tone} tone={HINT_TONE[tone] ?? "neutral"} voice="reading">
-          {v}
+        <Text data-hint-tone={tone} tone={HINT_TONE[tone] ?? "neutral"} {...(verdict === undefined ? { voice: "reading" } : {})}>
+          {verdict === undefined ? v : verdictWordOf(verdict)}
         </Text>
       )}
     </Row>

@@ -22,8 +22,7 @@ import {
 import type { AuthLogoutResult, AuthMe } from "@orb/contracts/identity";
 import { authErrorResponseSchema, authLogoutResultSchema, authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import type { ChatId, Handle } from "@orb/kit/ids";
-import type { UseQueryResult } from "@tanstack/react-query";
-import { queryOptions, useQuery } from "@tanstack/react-query";
+import { queryOptions } from "@tanstack/react-query";
 import { useEffect, useRef, useState } from "react";
 import type { z } from "zod";
 import { postSessionMessage, sessionDocument } from "#lib";
@@ -60,16 +59,9 @@ async function optionalAuthBody<T>(response: Response, schema: z.ZodType<T>): Pr
   }
 }
 
-const authMeOptions = queryOptions({ queryKey: AUTH_ME_KEY, queryFn: fetchAuthMe });
-
-/** THIS session's auth state, as a shared react-query read (N mounted readers, one cache entry). Lived in
- *  `features/auth/hooks` until #866 S4 — the rail persona switcher's account foot needs it, and a
- *  cross-feature reach into auth is banned, so it moved to `#data` (the `useAuthConfig` precedent exactly).
- *  The app QueryClient's `staleTime: Infinity` default applies — freshness is event-driven: login navigates
- *  (a fresh guard fetch), sign-out hard-redirects (a full document reset), so a mounted reader never polls. */
-export function useAuthMe(): UseQueryResult<AuthMe> {
-  return useQuery(authMeOptions);
-}
+/** This session's auth state, for a surface that suspends on it under a QueryBoundary. The app QueryClient's
+ *  `staleTime: Infinity` default applies: login navigates and sign-out hard-redirects, so a mounted reader never polls. */
+export const authMeOptions = queryOptions({ queryKey: AUTH_ME_KEY, queryFn: fetchAuthMe });
 
 /** Local-mode login: POST the credential form → the server verifies (scrypt + dummy-hash floor) and
  *  mints the session cookie. The route parses a FORM body (`parseBody`), so this posts
@@ -156,18 +148,14 @@ async function previewPendingJoin(): Promise<SignedOutInvitePreview | null> {
   return signedOutInvitePreviewSchema.parse(await res.json());
 }
 
-const pendingJoinPreviewOptions = queryOptions({
+/** The pending-join preview read, for a surface that suspends on it under a QueryBoundary: fetched once per /login
+ *  visit, never retried by itself (the route spends the per-address sign-in bucket) and never refetched on focus. */
+export const pendingJoinPreviewOptions = queryOptions({
   queryKey: PENDING_JOIN_PREVIEW_KEY,
   queryFn: previewPendingJoin,
   retry: false,
   staleTime: Number.POSITIVE_INFINITY,
 });
-
-/** The pending-join preview as a shared read: fetched once per /login visit, never retried (the route spends
- *  the per-address sign-in bucket) and never refetched on focus. */
-export function usePendingJoinPreview(): UseQueryResult<SignedOutInvitePreview | null> {
-  return useQuery(pendingJoinPreviewOptions);
-}
 
 /** D260 — the room a stashed local sign-up token opens, or null when it names no invite that still admits anyone.
  *  The same controls as the signup route guard it, and a dead token answers the same 404. */

@@ -83,7 +83,11 @@ test("every composite label refuses an empty literal and takes a computed string
   ConfirmDialog({ ...confirm, open: true, onOpenChange: shared.onOpenChange, confirmLabel: "" });
   // @ts-expect-error one empty label among two refuses the call
   ConfirmDialog({ ...confirm, open: true, onOpenChange: shared.onOpenChange, confirmLabel: "Delete", cancelLabel: "" });
+  // @ts-expect-error a computed cancel word does not excuse an empty confirm verb
+  ConfirmDialog({ ...confirm, open: true, onOpenChange: shared.onOpenChange, confirmLabel: "", cancelLabel: word });
   DestructiveAction({ onConfirm: confirm.onConfirm, trigger, confirm: { title: confirm.title, confirmLabel: "Delete" } });
+  // @ts-expect-error a computed confirm verb does not excuse an empty cancel word
+  DestructiveAction({ onConfirm: confirm.onConfirm, trigger, confirm: { title: confirm.title, confirmLabel: word, cancelLabel: "" } });
   // @ts-expect-error a destructive action's confirm verb
   DestructiveAction({ onConfirm: confirm.onConfirm, trigger, confirm: { title: confirm.title, confirmLabel: "" } });
   expectTypeOf<Parameters<typeof FormDialog<"">>[0]["submit"]["label"]>().toBeNever();

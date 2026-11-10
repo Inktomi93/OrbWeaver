@@ -3,7 +3,7 @@
 // trpc.sessions.me directly, never this slice.
 
 // The `account` modal RETIRED with #866 S4 (owner-ruled F-3): its facts + sign-out live in the persona
-// switcher's foot now (`PersonaAccountFoot`), over the `useAuthMe`/`signOut` seams that moved to `#data`.
+// switcher's foot now (`PersonaAccountFoot`), over the `authMeOptions`/`signOut` seams that moved to `#data`.
 export {} from "#data";
 
 export { LoginShellAnchor } from "./anchors/login-shell-anchor.tsx";

@@ -1,4 +1,4 @@
-import { join } from "node:path";
+import { dirname, join, relative } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint, Linter } from "eslint";
 import tseslint from "typescript-eslint";
@@ -208,7 +208,18 @@ const CASES = [
   ["orb/trpc-error-code-via-helper", "the helper", 'export const conflict = trpcErrorCode(error) === "CONFLICT";', FEATURE, 0],
   ["orb/trpc-error-code-via-helper", "a cast of a data field that is not a code", "export const d = (error as { data: unknown }).data;", FEATURE, 0],
   ["orb/trpc-error-code-via-helper", "a cast of another nested field", "export const r = (error as { data?: { reason?: string } }).data?.reason;", FEATURE, 0],
-  // no-query-state-ladder
+  // the queryKey selector
+  ["no-restricted-syntax", "a hand-built queryKey", 'export const o = { queryKey: ["chat", id], queryFn };', FEATURE, 1],
+  ["no-restricted-syntax", "a hand-built queryKey in data", 'export const o = queryOptions({ queryKey: ["auth", "me"], queryFn });', DATA, 1],
+  ["no-restricted-syntax", "a proxy-derived queryKey", "export const o = { queryKey: trpc.chat.get.queryKey({ chatId }), queryFn };", FEATURE, 0],
+  ["no-restricted-syntax", "a named key constant", "export const o = { queryKey: AUTH_ME_KEY, queryFn };", DATA, 0],
+] as const;
+
+test.for(CASES)("%s: %s", { timeout: 120_000 }, async ([rule, , source, path, count]) => {
+  expect(await findings(rule, source, path)).toHaveLength(count);
+});
+
+const LADDER_CASES = [
   [
     "orb/no-query-state-ladder",
     "an early-return pending arm",
@@ -269,10 +280,25 @@ const CASES = [
   ],
   [
     "orb/no-query-state-ladder",
-    "an aliased import",
-    `import { useQuery as useQ } from "@tanstack/react-query";\n${ladder("const q = useQ(o);\nreturn q.isLoading ? <Skeleton /> : <X />;")}`,
+    "a wrapper hook's absent data",
+    ladder("const config = useConfig();\nconst me = useMe();\nif (config.data === undefined || me.data === undefined) return <Skeleton />;\nreturn <X />;"),
     FEATURE,
     1,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "an imported wrapper hook's pending flag",
+    `import { useConfig as useSettings } from "../../../data/reads.ts";\n${ladder("const q = useSettings();\nreturn q.isLoading ? <Skeleton /> : <X />;")}`,
+    FEATURE,
+    1,
+  ],
+  ["orb/no-query-state-ladder", "a wrapper hook read for a value", ladder("const caps = useConfig().data?.count ?? 0;\nreturn <X n={caps} />;"), FEATURE, 0],
+  [
+    "orb/no-query-state-ladder",
+    "a wrapper hook's data drawn as nothing until it lands",
+    ladder("const { data } = useConfig();\nreturn data === undefined ? null : <X d={data} />;"),
+    FEATURE,
+    0,
   ],
   [
     "orb/no-query-state-ladder",
@@ -317,16 +343,83 @@ const CASES = [
     FEATURE,
     0,
   ],
+  [
+    "orb/no-query-state-ladder",
+    "a hook that hands its rendering component a retry item",
+    "export function useHeader() {\nconst q = useQuery(o);\nreturn { item: q.isError ? <MenuItem /> : null };\n}",
+    FEATURE,
+    0,
+  ],
+  [
+    "orb/no-query-state-ladder",
+    "the known limit: a hook that draws its own loading JSX is not judged",
+    "export const useBody = () => {\nconst q = useQuery(o);\nif (q.isPending) return <Skeleton />;\nreturn <X />;\n};",
+    FEATURE,
+    0,
+  ],
   ["orb/no-query-state-ladder", "a mutation's pending flag", ladder("const m = useSaveThing();\nreturn m.isPending ? <Spinner /> : <X />;"), FEATURE, 0],
-  // the queryKey selector
-  ["no-restricted-syntax", "a hand-built queryKey", 'export const o = { queryKey: ["chat", id], queryFn };', FEATURE, 1],
-  ["no-restricted-syntax", "a hand-built queryKey in data", 'export const o = queryOptions({ queryKey: ["auth", "me"], queryFn });', DATA, 1],
-  ["no-restricted-syntax", "a proxy-derived queryKey", "export const o = { queryKey: trpc.chat.get.queryKey({ chatId }), queryFn };", FEATURE, 0],
-  ["no-restricted-syntax", "a named key constant", "export const o = { queryKey: AUTH_ME_KEY, queryFn };", DATA, 0],
 ] as const;
 
-test.for(CASES)("%s: %s", { timeout: 120_000 }, async ([rule, , source, path, count]) => {
-  expect(await findings(rule, source, path)).toHaveLength(count);
+// The rule judges a read by its type, so the cases run over a planted program whose reads carry the TanStack result
+// shapes: a non-suspending result can be pending, a suspending one cannot, and a mutation has no refetch.
+const READ_TYPES = `type Pending = { status: "pending"; isPending: true; isLoading: boolean; isError: false; isSuccess: false; data: undefined; error: null; refetch(): void };
+type Failed = { status: "error"; isPending: false; isLoading: false; isError: true; isSuccess: false; data: undefined; error: Error; refetch(): void };
+type Settled<T> = { status: "success"; isPending: false; isLoading: false; isError: false; isSuccess: true; data: T; error: null; refetch(): void };
+export type Read<T> = Pending | Failed | Settled<T>;
+export type Row = { count: number };
+export declare function useQuery(options: unknown): Read<Row>;
+export declare function useQueries(options: unknown): Read<Row>[];
+export declare function useGatedQuery(id: unknown, optionsFor: unknown): Read<Row>;
+export declare function useSuspenseQuery(options: unknown): Settled<Row> | (Omit<Failed, "data"> & { data: Row });
+export declare function useSaveThing(): { status: "idle" | "pending" | "success" | "error"; isPending: boolean; mutate(): void };
+export function useConfig(): Read<Row> { return useQuery({}); }
+export function useMe(): Read<Row> { return useQuery({}); }
+`;
+const READS_MODULE = `${CLIENT}data/reads.ts`;
+const ladderHeader = (path: string): string =>
+  `import { useConfig, useGatedQuery, useMe, useQueries, useQuery, useSaveThing, useSuspenseQuery } from "./${relative(dirname(path), READS_MODULE)}";\ndeclare const o: object;\ndeclare const id: string | null;\ndeclare const f: unknown;\ndeclare const queries: unknown[];\n`;
+
+const LADDER_RULE = "orb/no-query-state-ladder";
+
+async function ladderFindings(source: string, path: string, plantedTree: (files: Record<string, string>) => Promise<string>): Promise<number> {
+  const text = `${ladderHeader(path)}${source}`;
+  const root = await plantedTree({
+    "tsconfig.json": JSON.stringify({
+      compilerOptions: {
+        strict: true,
+        module: "esnext",
+        moduleResolution: "bundler",
+        target: "esnext",
+        allowImportingTsExtensions: true,
+        noEmit: true,
+        skipLibCheck: true,
+        jsx: "preserve",
+      },
+      include: ["packages"],
+    }),
+    [READS_MODULE]: READ_TYPES,
+    [path]: text,
+  });
+  const config = await resolvedConfig(eslint, join(ROOT, path));
+  const found = new Linter({ cwd: root }).verify(
+    text,
+    {
+      files: ["**/*.{ts,tsx}"],
+      plugins: config.plugins,
+      languageOptions: {
+        parser: tseslint.parser,
+        parserOptions: { project: ["tsconfig.json"], projectService: false, tsconfigRootDir: root, ecmaFeatures: { jsx: true } },
+      },
+      rules: { [LADDER_RULE]: config.rules[LADDER_RULE] ?? "off" },
+    },
+    { filename: join(root, path) },
+  );
+  expect(found.filter(({ fatal }) => fatal === true)).toEqual([]);
+  return found.filter(({ ruleId }) => ruleId === LADDER_RULE).length;
+}
+
+test.for(LADDER_CASES)("%s: %s", { timeout: 120_000 }, async ([, , source, path, count], { plantedTree }) => {
+  expect(await ladderFindings(source, path, plantedTree)).toBe(count);
 });
 
 // no-effect-on-shared-selection resolves each hook to its declaring file, so it runs over a planted program.

@@ -126,7 +126,7 @@ export const WORKLOAD_STATUS_VOCABULARY: StatusVocabulary<WorkloadChipStatus> = 
   queued: { label: "Queued", tone: "neutral" },
   running: { label: "Running", tone: "info" },
   cancelling: { label: "Cancelling", tone: "warning" },
-  succeeded: { label: "Succeeded", tone: "success" },
+  succeeded: { label: "Succeeded", tone: "success", expected: true },
   failed: { label: "Failed", tone: "destructive" },
   cancelled: { label: "Cancelled", tone: "neutral" },
   worker_died: { label: "Worker died", tone: "destructive" },

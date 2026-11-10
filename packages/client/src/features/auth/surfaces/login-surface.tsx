@@ -13,8 +13,9 @@ import { Heading, Text } from "@orb/ui/text";
 import { useNavigate } from "@tanstack/react-router";
 import type { ReactElement } from "react";
 import { useEffect, useRef, useState } from "react";
+import { QueryBoundary } from "#components";
 import type { AuthConfig } from "#data";
-import { clearJoinStash, peekJoinStash, useAuthConfig, useSignupInvitePreview } from "#data";
+import { authConfigOptions, clearJoinStash, peekJoinStash, useSignupInvitePreview, useSuspenseQuery } from "#data";
 import { DIALOG_VERBS, inviteRoomSentence, testId, useFocusOnMount, useRouterUrlReplace, withoutUrlSearchParam } from "#lib";
 import { selectChat, setActiveSection } from "#state";
 import { InviteUnavailable } from "../components/invite-unavailable.tsx";
@@ -30,7 +31,6 @@ import { isPendingJoinLanding, oidcLoginUrl, shouldAutoRedirectToSso } from "../
 export function LoginSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
-  const config = useAuthConfig();
   const navigate = useNavigate();
   const replaceUrl = useRouterUrlReplace();
   const goHome = (): void => void navigate({ to: "/", replace: true }).catch(globalThis.reportError);
@@ -48,53 +48,45 @@ export function LoginSurface(): ReactElement {
     setPendingJoin(false);
   };
 
-  const search = globalThis.location.search;
   // A7 — the OIDC callback lands here with ?authError=<sanitized code> on any failed sign-in; surface it as a
   // human message above the Continue button. Read from location (the callback is a full-document 302, so the
   // SPA boots fresh with the param present) and mapped to copy — never the raw token.
-  const authError = authErrorMessage(new URLSearchParams(search).get("authError"));
+  const authError = authErrorMessage(new URLSearchParams(globalThis.location.search).get("authError"));
 
-  // A9 (default flipped 2026-08-09) — DEFAULT is to render the branded login card; auto-redirect to the IdP
-  // only on explicit ?sso (the instant-bounce opt-in), and never with ?authError (a failed round-trip). The
-  // route guard already keeps authed users off /login, so this only ever runs for the unauthenticated case.
-  const autoRedirect = config.data !== undefined && shouldAutoRedirectToSso(config.data.mode, search);
-  const oidcLoginTarget = oidcLoginUrl(config.data?.multiHumanCapable === true ? joinToken : null);
+  return (
+    <Stack ref={surfaceRef} tabIndex={-1} gap="block" focusTarget={true}>
+      <QueryBoundary fallback={<LoginLoading />} renderError={(_error, retry): ReactElement => <LoginUnreachable onRetry={retry} />} resetKeys={[]}>
+        <LoginConfigured
+          authError={authError}
+          joinToken={joinToken}
+          onDismissJoin={dismissJoin}
+          pendingJoin={pendingJoin}
+          onLeavePendingJoin={leavePendingJoin}
+          onDone={goHome}
+        />
+      </QueryBoundary>
+    </Stack>
+  );
+}
+
+type LoginBodyProps = Parameters<typeof LoginBody>[0];
+
+/** The card once the deployment config is in hand: the SSO bounce, or the per-mode body. */
+function LoginConfigured(props: Omit<LoginBodyProps, "config">): ReactElement {
+  const { data: config } = useSuspenseQuery(authConfigOptions);
+  // A9 — DEFAULT is to render the branded login card; auto-redirect to the IdP only on explicit ?sso (the
+  // instant-bounce opt-in), and never with ?authError (a failed round-trip). The route guard already keeps
+  // authed users off /login, so this only ever runs for the unauthenticated case.
+  const autoRedirect = shouldAutoRedirectToSso(config.mode, globalThis.location.search);
+  const oidcLoginTarget = oidcLoginUrl(config.multiHumanCapable ? (props.joinToken ?? null) : null);
   useEffect(() => {
     if (autoRedirect) {
       globalThis.location.assign(oidcLoginTarget);
     }
   }, [autoRedirect, oidcLoginTarget]);
-
-  const body = ((): ReactElement => {
-    if (config.isPending) {
-      return <LoginLoading />;
-    }
-    if (config.data === undefined) {
-      return <LoginUnreachable onRetry={(): void => void config.refetch().catch(globalThis.reportError)} />;
-    }
-    if (autoRedirect) {
-      // The effect above is navigating away — show a settled "redirecting" note, not the manual button that
-      // would flash-then-vanish.
-      return <LoginRedirecting providerName={config.data.oidcProviderName} />;
-    }
-    return (
-      <LoginBody
-        config={config.data}
-        authError={authError}
-        joinToken={joinToken}
-        onDismissJoin={dismissJoin}
-        pendingJoin={pendingJoin}
-        onLeavePendingJoin={leavePendingJoin}
-        onDone={goHome}
-      />
-    );
-  })();
-
-  return (
-    <Stack ref={surfaceRef} tabIndex={-1} gap="block" focusTarget={true}>
-      {body}
-    </Stack>
-  );
+  // The effect above is navigating away: show a settled "redirecting" note, not the manual button that would
+  // flash and vanish.
+  return autoRedirect ? <LoginRedirecting providerName={config.oidcProviderName} /> : <LoginBody config={config} {...props} />;
 }
 
 // A new account is seated in the room it joined: land there, through the seam the signed-in join dialog uses.

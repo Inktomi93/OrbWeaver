@@ -7,6 +7,8 @@ import type { ComponentProps, ReactElement } from "react";
 interface StatusEntry {
   readonly label: string;
   readonly tone: keyof typeof STATUS_PILL_VARIANT;
+  /** The member is the expected outcome, so it takes the quiet outline instead of the filled pill. @defaultValue false */
+  readonly expected?: boolean;
 }
 
 /** The tone and word of every member of a status union. */
@@ -19,11 +21,11 @@ interface StatusChipProps<S extends string> {
   readonly size?: ComponentProps<typeof Badge>["size"];
 }
 
-/** The filled status pill for one member of a status union. */
+/** The status pill for one member of a status union: filled, or outlined for the expected outcome. */
 export function StatusChip<S extends string>({ vocabulary, status, size }: StatusChipProps<S>): ReactElement {
-  const { label, tone } = vocabulary[status];
+  const { label, tone, expected = false } = vocabulary[status];
   return (
-    <Badge size={size} tone={tone} variant={STATUS_PILL_VARIANT[tone]}>
+    <Badge size={size} tone={tone} variant={expected ? "outline" : STATUS_PILL_VARIANT[tone]}>
       {label}
     </Badge>
   );

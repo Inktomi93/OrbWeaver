@@ -141,7 +141,6 @@ export {
   tierRank,
 } from "./port-ownership/restated-port.ts";
 export { JOINT_BATCH_RULINGS, jointBatchRulingOf } from "./port-ownership/ruled-ops.ts";
-export { NON_SUSPENDING_READS } from "./query-state-ladder.ts";
 export { shellOwnedSlots } from "./shell-slots.ts";
 export { homeReasons, homes } from "./syntax.ts";
 export { exportedLabels, exportedProductionValues } from "./test-labels.ts";
