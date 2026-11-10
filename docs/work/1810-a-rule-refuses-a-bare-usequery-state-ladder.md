@@ -1,9 +1,10 @@
 ---
 kind: work
-status: open
-updated: 2026-11-06
+status: doing
+updated: 2026-11-10
 priority: P2
 area: client
+lane: wt/agent-a866f791d38520b05
 plan: type-law
 ---
 
