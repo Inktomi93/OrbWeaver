@@ -103,6 +103,8 @@ Isolated before and after captures at desktop and phone: Chats, Characters, Corp
 
 Do not substitute board closure, isolated screenshot scores, overflow-only checks, or unexplained screenshot baselines for comparative acceptance. Do not introduce page-specific appearance knobs or a second design system.
 
+Refinery shows no money line before a run. Output tokens are unknown until the run ends, so any figure would be a guess. The Runs ledger states the real cost after each run.
+
 ## Coupled sites
 
 Existing UI and client laws, semantic ramps, plugin attribution and authoring contracts, testkit layering, and remaining action-group qualification.

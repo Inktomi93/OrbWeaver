@@ -5,6 +5,7 @@
 import type { AvatarProps } from "@orb/ui/avatar";
 import { AVATAR_PIGMENT, Avatar } from "@orb/ui/avatar";
 import { Stack } from "@orb/ui/layout";
+import { declaresOverlay } from "@orb/ui/lib";
 import type { PictureButtonProps, PictureReach } from "@orb/ui/picture-button";
 import { PictureButton } from "@orb/ui/picture-button";
 import { Text } from "@orb/ui/text";
@@ -196,6 +197,7 @@ export function EchoArtTile({
       passThrough={!tappable}
       placed={art.side === "left" ? "flushStart" : "flushEnd"}
       ref={attach}
+      {...declaresOverlay("message-controls-over-art")}
     >
       {/* The tile dims with its pane's hover: the button over it takes the pointer, so the tile is never hovered itself. */}
       <Stack

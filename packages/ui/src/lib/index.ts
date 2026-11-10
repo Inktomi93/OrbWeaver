@@ -51,6 +51,7 @@ export { mergeRefs } from "./merge-refs.ts";
 export { MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL } from "./message-bubble.ts";
 export { OVERLAY_ARROW } from "./overlay-arrow.ts";
 export { OVERLAY_MOTION } from "./overlay-motion.ts";
+export { declaresOverlay, OVERLAY_RELATION_ATTRIBUTE } from "./overlay-relation.ts";
 export { ACCENT_AURA_PIGMENT, GRADIENT_RING_PIGMENT, SWATCH_LADDER_PIGMENT } from "./pigment-scopes.ts";
 export { CORNER, PINNED, PLACED } from "./placed.ts";
 export { HIDDEN_AT, SR_ONLY_AT } from "./pointer-visibility.ts";

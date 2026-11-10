@@ -42,6 +42,7 @@ import { Button } from "@orb/ui/button";
 import { FileTrigger } from "@orb/ui/file-trigger";
 import { Icon, Plus, Upload } from "@orb/ui/icons";
 import { Row, Section, Stack } from "@orb/ui/layout";
+import { declaresOverlay } from "@orb/ui/lib";
 import { RadioGroupPicker, RadioGroupPickerItem } from "@orb/ui/radio-group";
 import { ThemePreviewPane } from "@orb/ui/theme-swatch";
 import type { ReactElement } from "react";
@@ -232,7 +233,14 @@ function LooksBody(): ReactElement {
                         {...(isActive(theme) ? { meta: "current" } : {})}
                         value={theme.id}
                       />
-                      <ThemePreviewPane placed="cornerStart" holdsLine={true} padding="none" fill="translucent" shape="row">
+                      <ThemePreviewPane
+                        placed="cornerStart"
+                        holdsLine={true}
+                        padding="none"
+                        fill="translucent"
+                        shape="row"
+                        {...declaresOverlay("theme-menu-over-cell")}
+                      >
                         <ThemeRowMenu
                           onApply={(): void => apply(theme)}
                           onDelete={(): void => removeTheme.mutate({ id: theme.id })}

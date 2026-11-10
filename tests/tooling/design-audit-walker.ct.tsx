@@ -14,9 +14,10 @@
 import { present } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
+import type { AuditEngine } from "../../tooling/src/ui-audit/contract/types.ts";
 import type { Finding, RawSamples } from "../../tooling/src/ui-audit/index.ts";
-import { auditEngineOf, collectFindings, collectSamplesJs } from "../../tooling/src/ui-audit/index.ts";
-import { GRID_COMPOSITED_WITHOUT_RESAMPLE } from "../../tooling/src/ui-audit/lib/checks-grid.ts";
+import { auditEngineOf, collectAudit, collectFindings, collectSamplesJs } from "../../tooling/src/ui-audit/index.ts";
+import { GRID_COLLAPSED_INTO_LAYER, GRID_COMPOSITED_WITHOUT_RESAMPLE } from "../../tooling/src/ui-audit/lib/checks-grid.ts";
 import type {
   WalkerAccentBorderStory,
   WalkerAriaHiddenVisualStory,
@@ -33,6 +34,7 @@ import type {
   WalkerFinePointerFloorStory,
   WalkerForwardingLabelStory,
   WalkerGradientBackdropStory,
+  WalkerGridTextStory,
   WalkerListRowCardStory,
   WalkerListRowDoorStory,
   WalkerListRowSelectionStory,
@@ -258,9 +260,11 @@ test("a list-row wrapper around its one control is not a nested card, while a re
 /** The selectors the walker sampled in one family: a clean verdict on a subject it never reached proves nothing. */
 const sampledSelectors = (rows: readonly { readonly selector: string }[]): readonly string[] => rows.map((row) => row.selector);
 
-/** The walker's whole raw sample set for the mounted stage. */
-async function samplesOf(page: Page): Promise<RawSamples> {
-  return await page.evaluate<RawSamples>(collectSamplesJs(auditEngineOf(page)));
+/** The walker's whole raw sample set for the mounted stage. `engine` defaults to the browser this page renders in; a
+ *  grid case names `webkit` to reach the arms only engines other than Chromium judge (docs/law/integer-line-boxes.md §10),
+ *  over the same real-browser boxes. */
+async function samplesOf(page: Page, engine: AuditEngine = auditEngineOf(page)): Promise<RawSamples> {
+  return await page.evaluate<RawSamples>(collectSamplesJs(engine));
 }
 
 // ── A finding must be LOCATABLE (issue #148 item 5) ──────────────────────────────────────────────
@@ -829,9 +833,9 @@ test("a prose VOICE on a non-prose tag is judged, while its chrome twin is exclu
 // a `::before` fill layer — left the census silently: `candidates=1` became `candidates=0`, which prints
 // exactly like a surface that has nothing to promote. jsdom cannot answer any of this; the pseudo's
 // generated content, its resolved inset and the host's containing-block status are all real-browser facts.
-test("a pseudo-carried promotion is censused, judged and named — and the element arm is untouched", async ({ mount, page }) => {
+test("outside Chromium a pseudo-carried promotion is censused, judged and named — and the element arm is untouched", async ({ mount, page }) => {
   await mount<typeof WalkerPseudoPromotionStory>("tests/tooling/_ct-stories/WalkerPseudoPromotionStory", {});
-  const samples = await samplesOf(page);
+  const samples = await samplesOf(page, "webkit");
   const census = samples.relationalAccounting?.["promoted-layer-offset"];
   const seen = samples.promotedLayerOffsets?.map((p) => p.selector).join(" | ") ?? "";
 
@@ -869,21 +873,48 @@ test("an in-flow pseudo whose box cannot be derived is WITHHELD by name, never j
   );
 });
 
-// docs/law/integer-line-boxes.md §10: in Chromium a backdrop-filter layer's fraction is painted in, so the
-// shell-pane glass shape leaves the population by name. The will-change pseudo on the same half pixel in the
-// same story is the control that still fires.
-test("a pseudo promoted only by backdrop-filter is EXCLUDED by name, and its will-change twin is still judged", async ({ mount, page }) => {
+// docs/law/integer-line-boxes.md §10: Chromium resamples no promoted layer's glyphs, so in Chromium every derivable
+// carrier on the stage leaves the population by name, and the in-flow pseudo stays withheld. The same stage walked
+// as WebKit is the control: the same three carriers on the same half pixel are judged.
+test("in Chromium every promoted layer, element or pseudo, is EXCLUDED by name; outside Chromium the same layers are judged", async ({ mount, page }) => {
   await mount<typeof WalkerPseudoPromotionStory>("tests/tooling/_ct-stories/WalkerPseudoPromotionStory", {});
-  const samples = await samplesOf(page);
-  const census = samples.relationalAccounting?.["promoted-layer-offset"];
-  const judged = present(samples.promotedLayerOffsets).map((p) => p.selector);
-
-  expect(census?.excluded[GRID_COMPOSITED_WITHOUT_RESAMPLE], `census=${JSON.stringify(census)}`).toBe(1);
-  expect(judged.join(" | "), "the glass carrier is not judged").not.toContain("pseudo-backdrop");
-  expect(judged.join(" | "), "the will-change carrier on the same half pixel is").toContain("pseudo-promoted");
+  const chromium = await samplesOf(page);
+  const census = chromium.relationalAccounting?.["promoted-layer-offset"];
+  expect(auditEngineOf(page)).toBe("chromium");
+  expect(census?.excluded[GRID_COMPOSITED_WITHOUT_RESAMPLE], `census=${JSON.stringify(census)}`).toBe(3);
+  expect(census?.withheld["pseudoBoxUnmeasurable"]).toBe(1);
+  expect(census?.judged).toBe(0);
+  expect(present(chromium.promotedLayerOffsets)).toEqual([]);
   expect(census?.candidates).toBe(
     (census?.judged ?? 0) + Object.values(census?.withheld ?? {}).reduce((a, b) => a + b, 0) + Object.values(census?.excluded ?? {}).reduce((a, b) => a + b, 0),
   );
+
+  const webkit = await samplesOf(page, "webkit");
+  const judged = present(webkit.promotedLayerOffsets).map((p) => p.selector);
+  expect(webkit.relationalAccounting?.["promoted-layer-offset"]?.excluded).toEqual({});
+  for (const carrier of ["pseudo-backdrop", "pseudo-promoted", "element-promoted"]) {
+    expect(judged.join(" | "), `${carrier} is judged outside Chromium`).toContain(carrier);
+  }
+});
+
+// Law 4 outside Chromium, over real boxes: text that lands where its layer put it collapses into the layer's row, text
+// with a quarter pixel of its own fires, and screen-reader-only text beside it is excluded. In Chromium the same texts
+// leave by name, because no promoted layer there resamples its glyphs (§10).
+test("outside Chromium Law 4 fires on text with its own fraction, collapses text its layer placed, and excludes sr-only text", async ({ mount, page }) => {
+  await mount<typeof WalkerGridTextStory>("tests/tooling/_ct-stories/WalkerGridTextStory", {});
+  const audit = collectAudit(await samplesOf(page, "webkit"));
+  const row = audit.populationAccounting["off-grid-text"];
+  expect(row?.excluded["srOnly"], `row=${JSON.stringify(row)}`).toBe(1);
+  expect(row?.collapsed[GRID_COLLAPSED_INTO_LAYER]).toBe(1);
+  const law4 = audit.findings.filter((finding) => finding.rule === "off-grid-text");
+  expect(law4.map((finding) => finding.selector).join(" | ")).toContain("cbgt-own");
+  expect(law4[0]?.value).toContain("inside a will-change layer");
+  expect(law4[0]?.value).toContain("top -0.500 / left 0.000 device px off the grid at DPR 1");
+  expect(audit.findings.filter((finding) => finding.rule === "promoted-layer-offset")).toHaveLength(2);
+
+  const chromium = (await samplesOf(page)).relationalAccounting?.["off-grid-text"];
+  expect(chromium?.excluded).toMatchObject({ [GRID_COMPOSITED_WITHOUT_RESAMPLE]: 2, srOnly: 1 });
+  expect(chromium?.judged).toBe(0);
 });
 
 // ── BELOW THE FOLD IS NOT UNREACHABLE (issue #653) ────────────────────────────────────────────────

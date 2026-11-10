@@ -9,10 +9,10 @@
 // what makes one epsilon in lib/checks-grid.ts correct at every DPR arm; a checker comparing raw CSS
 // offsets would have to re-derive the device grid and would answer differently per arm.
 
-/** The promotion shapes Law 3 judges (docs/law/integer-line-boxes.md §10). In Chromium the walker never
- *  emits `backdrop-filter`: it excludes that layer as `compositedWithoutResample`. Elsewhere it is judged. */
+/** The promotion shapes Law 3 judges (docs/law/integer-line-boxes.md §10). In Chromium the walker emits none of
+ *  them: it excludes every promoted layer as `compositedWithoutResample`. Elsewhere each is judged. */
 export const GRID_PROMOTION_KINDS = ["will-change", "3d", "backdrop-filter"] as const;
-export type GridPromotionKind = (typeof GRID_PROMOTION_KINDS)[number];
+type GridPromotionKind = (typeof GRID_PROMOTION_KINDS)[number];
 
 /** One text element painting inside a promotion context that has disabled per-paint baseline snapping —
  *  the Law-4 backstop's judged subject. `promotion`/`promotedBy` name WHICH ancestor turned snapping off,
@@ -34,7 +34,7 @@ export interface OffGridTextInput {
   readonly fontSizePx: number;
 }
 
-/** One promotion ROOT (`will-change`, a 3D-promoted layer, or `backdrop-filter` outside Chromium) and its own landing — the
+/** One promotion ROOT outside Chromium (`will-change`, a 3D-promoted layer, or `backdrop-filter`) and its own landing — the
  *  Law-3 subject. A promoted layer is rasterized once and composited, so ITS fraction is inherited by every
  *  descendant glyph: fixing the root fixes the subtree, which is why the root is judged separately. */
 export interface PromotedLayerOffsetInput {

@@ -127,9 +127,10 @@ function compareColumn(cohort: Cohort, column: string, informational = false): C
   const rulings = cohort.kept?.[column] ?? {};
   const siteRulings = cohort.keptSites?.[column] ?? {};
   const differs = rows.filter((row) => row.cell.value !== top[0]);
-  const bySite = differs.filter((row) => Object.hasOwn(siteRulings, row.member.path));
+  // A member ruling covers the member whatever the majority: a defect value can be the majority, and its ruled member is still no defect.
+  const bySite = rows.filter((row) => Object.hasOwn(siteRulings, row.member.path));
   const byRead = keptByRead(
-    differs.filter((row) => !bySite.includes(row)),
+    rows.filter((row) => !bySite.includes(row)),
     cohort.keptReads?.[column] ?? [],
   );
   const byValue = differs.filter((row) => !(bySite.includes(row) || byRead.has(row)) && Object.hasOwn(rulings, row.cell.value));

@@ -114,8 +114,22 @@ test("the predicate is CALLED, not re-spelled — census-grid asks core.ts's srO
 
 // THE ENGINE SCOPE of `compositedWithoutResample` (docs/law/integer-line-boxes.md §10). Only Chromium was
 // measured, so the exclusion keys on the engine Node passes in (`auditEngine`, from collectSamplesJs), and every other
-// engine judges a backdrop-filter layer as before. The CLI only drives Chromium, so the WebKit path is driven
-// here: one backdrop-filter host at a quarter-pixel landing holding one text node, with and without the fact.
+// engine judges a promoted layer as before. The CLI only drives Chromium, so the WebKit path is driven here: one
+// promoted host at a quarter-pixel landing holding one text node, with and without the fact, for each promotion shape.
+const PROMOTED_HOSTS = {
+  "backdrop-filter": { willChange: "auto", backdropFilter: "blur(2px)" },
+  "will-change": { willChange: "transform", backdropFilter: "none" },
+  "preserve-3d": { willChange: "auto", backdropFilter: "none", transformStyle: "preserve-3d" },
+  matrix3d: { willChange: "auto", backdropFilter: "none", transform: "matrix3d(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)" },
+} as const;
+type PromotedHost = keyof typeof PROMOTED_HOSTS;
+const PROMOTION_OF_HOST: Record<PromotedHost, string> = {
+  "backdrop-filter": "backdrop-filter",
+  "will-change": "will-change",
+  "preserve-3d": "3d",
+  matrix3d: "3d",
+};
+const HOST_SHAPES = ["backdrop-filter", "will-change", "preserve-3d", "matrix3d"] as const satisfies readonly PromotedHost[];
 interface GridRun {
   readonly law3: CensusRow;
   readonly law4: CensusRow;
@@ -123,7 +137,7 @@ interface GridRun {
   readonly texts: readonly { readonly promotion: string }[];
 }
 
-function runBackdropHost(auditEngine: AuditEngine | undefined): GridRun {
+function runPromotedHost(auditEngine: AuditEngine | undefined, shape: PromotedHost): GridRun {
   const row = (): CensusRow => ({ candidates: 0, judged: 0, withheld: {}, excluded: {} });
   const accounting = { "off-grid-text": row(), "promoted-layer-offset": row(), "off-grid-transform": row() };
   const bump = (target: Record<string, number>, reason: string): void => {
@@ -131,7 +145,7 @@ function runBackdropHost(auditEngine: AuditEngine | undefined): GridRun {
   };
   const host = { ...CANDIDATE, getBoundingClientRect: CANDIDATE.getBoundingClientRect };
   const text = { ...CANDIDATE, parentElement: host };
-  const hostStyle = { ...COMPUTED, willChange: "auto", backdropFilter: "blur(2px)", position: "relative", content: "none" };
+  const hostStyle = { ...COMPUTED, ...PROMOTED_HOSTS[shape], position: "relative", content: "none" };
   const textStyle = { ...COMPUTED, willChange: "auto", content: "none" };
   const sandbox = {
     window: { devicePixelRatio: 1 },
@@ -159,8 +173,8 @@ function runBackdropHost(auditEngine: AuditEngine | undefined): GridRun {
   ) as GridRun;
 }
 
-test("in Chromium a backdrop-filter host and its text are EXCLUDED by name, never judged", () => {
-  const run = runBackdropHost("chromium");
+test.each(HOST_SHAPES)("in Chromium a %s host and its text are EXCLUDED by name, never judged", (shape) => {
+  const run = runPromotedHost("chromium", shape);
   expect(run.law3.excluded).toEqual({ [GRID_COMPOSITED_WITHOUT_RESAMPLE]: 1 });
   expect(run.law4.excluded).toEqual({ [GRID_COMPOSITED_WITHOUT_RESAMPLE]: 1 });
   expect(run.layers).toHaveLength(0);
@@ -168,14 +182,14 @@ test("in Chromium a backdrop-filter host and its text are EXCLUDED by name, neve
   expect(settles(run.law3) && settles(run.law4)).toBe(true);
 });
 
-test.each([["webkit"], ["unknown"], [undefined]] as const)(
-  "outside Chromium (engine %s) the same backdrop-filter host and its text are JUDGED, as before the exclusion",
-  (engine) => {
-    const run = runBackdropHost(engine);
+test.each(HOST_SHAPES.flatMap((shape) => (["webkit", "unknown", undefined] as const).map((engine) => [shape, engine] as const)))(
+  "outside Chromium a %s host and its text are JUDGED (engine %s), as before the exclusion",
+  (shape, engine) => {
+    const run = runPromotedHost(engine, shape);
     expect(run.law3.excluded).toEqual({});
     expect(run.law4.excluded).toEqual({});
-    expect(run.layers.map((layer) => layer.promotion)).toEqual(["backdrop-filter"]);
-    expect(run.texts.map((text) => text.promotion)).toEqual(["backdrop-filter"]);
+    expect(run.layers.map((layer) => layer.promotion)).toEqual([PROMOTION_OF_HOST[shape]]);
+    expect(run.texts.map((text) => text.promotion)).toEqual([PROMOTION_OF_HOST[shape]]);
     expect(settles(run.law3) && settles(run.law4)).toBe(true);
   },
 );

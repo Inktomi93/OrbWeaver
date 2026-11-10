@@ -6,6 +6,7 @@ import { GlyphButton } from "@orb/ui/glyph-button";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Container, Row, Stack, Surface } from "@orb/ui/layout";
+import { declaresOverlay } from "@orb/ui/lib";
 import { ListRow } from "@orb/ui/list-row";
 import { MessageBubble } from "@orb/ui/message-bubble";
 import { RoomIsland } from "@orb/ui/room-island";
@@ -188,6 +189,44 @@ export function SurfaceTextContainedOverlayStory(): ReactElement {
             >
               <Icon icon={Plus} size="sm" />
             </GlyphButton>
+          </Stack>
+        </Stack>
+      </main>
+    </CtIsolation>
+  );
+}
+
+/**
+ * A cell whose corner control lies over the cell's own control, and a second cell below it. `declared` declares the corner
+ * as a designed overlay; `none` is the same layout with no declaration; `foreign` drops the declared corner onto the next
+ * cell's control as well, which the declaration does not cover.
+ */
+export function SurfaceDeclaredOverlayStory({ declare }: { readonly declare: "declared" | "none" | "foreign" }): ReactElement {
+  const control = `var(${TOKENS["size.control-md"].cssVar})`;
+  const corner = {
+    position: "absolute",
+    insetInlineEnd: `calc(0.25 * ${control})`,
+    insetBlockEnd: declare === "foreign" ? `calc(-0.25 * ${control})` : `calc(0.25 * ${control})`,
+  } as const;
+  return (
+    <CtIsolation subject="Enlarged-text declared overlay" isolates="Two production cells, one with a corner control over it, need no application services.">
+      <main>
+        <Stack padding="section">
+          <h1>Declared overlay control</h1>
+          <Stack>
+            <Stack style={{ position: "relative" }}>
+              <Button variant="outline" style={{ blockSize: `calc(3 * ${control})` }}>
+                Covered cell
+              </Button>
+              <Stack style={corner} {...(declare === "none" ? {} : declaresOverlay("theme-menu-over-cell"))}>
+                <GlyphButton aria-label="Corner control" glyph="sm" variant="ghost">
+                  <Icon icon={Plus} size="sm" />
+                </GlyphButton>
+              </Stack>
+            </Stack>
+            <Button variant="outline" style={{ blockSize: `calc(3 * ${control})` }}>
+              Next cell
+            </Button>
           </Stack>
         </Stack>
       </main>

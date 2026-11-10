@@ -712,6 +712,29 @@ export function WalkerPseudoPromotionStory(): ReactElement {
   );
 }
 
+/** Law 4's arms on one stage: a will-change layer on a quarter pixel whose text lands where the layer put it, a second
+ *  layer whose text carries a quarter pixel of its own, and a screen-reader-only span beside that text. */
+export function WalkerGridTextStory(): ReactElement {
+  const css = [
+    ".cbgt-layer{position:absolute;left:10px;width:240px;height:24px;will-change:transform}",
+    ".cbgt-layer p{margin:0}",
+    ".cbgt-own{position:relative;top:0.25px}",
+    ".cbgt-sr{position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap}",
+  ].join("");
+  return (
+    <div style={{ position: "relative", height: 120, backgroundColor: "rgb(16, 16, 20)", color: "rgb(240, 240, 245)" }}>
+      <style>{css}</style>
+      <div className="cbgt-layer" data-slot="grid-inherit-layer" style={{ top: 10.25 }}>
+        <p>text where its layer put it</p>
+      </div>
+      <div className="cbgt-layer" data-slot="grid-offset-layer" style={{ top: 50.25 }}>
+        <p className="cbgt-own">text with an offset of its own</p>
+        <span className="cbgt-sr">status for a screen reader</span>
+      </div>
+    </div>
+  );
+}
+
 /** The NEGATIVE-OVERFLOW stage (issue #444), a reconstruction of the #439 frame both overflow
  *  instruments were blind to. `clip-dialog` is an overflow-hidden box whose footer is a `nowrap`
  *  `justify-end` row wider than the content box, so the FIRST button is pushed past the container's

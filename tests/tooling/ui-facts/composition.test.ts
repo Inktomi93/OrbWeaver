@@ -401,7 +401,7 @@ test("a toast-class consumer that states the failure is a defect unless its call
     [24, "toast"],
     [29, "toast"],
   ]);
-  expect(feedback?.defects).toEqual({ failure: ["none", "toast+inline"] });
+  expect(feedback?.defects).toEqual({ failure: ["none", "toast+inline"], success: ["toast"] });
 });
 
 test("a toast that only takes null as an argument still toasts, a setter that is not a failure says nothing, and a form submit's catch is the failure surface", ({
@@ -517,6 +517,112 @@ test("a section's list boundary is the shell, the boundary or none", ({ scratch 
   });
 });
 
+test("a success toast on a mutation's own success path is a defect unless a ruling names where it lands out of sight", ({ scratch }) => {
+  const root = plantDir(scratch, "feedback-success");
+  const hooks = [
+    'export const useSave = createEntityMutation<A, B>({ errorToast: "Save failed.", busDriven: true });',
+    'export const useDrop = createEntityMutation<A, B>({ errorToast: "Drop failed.", busDriven: true });',
+    'export const useSetChatBackground = createEntityMutation<A, B>({ errorToast: "No.", busDriven: true });',
+  ].join("\n");
+  plant(root, {
+    "hooks/use-save.ts": hooks,
+    "components/save.tsx": [
+      'import { useDrop, useSave } from "../hooks/use-save.ts";',
+      "export const Handler = (d) => {",
+      "  const save = useSave(d);",
+      "  const drop = useDrop(d);",
+      '  const run = () => save.mutate({}, { onSuccess: () => notify.success("Saved.") });',
+      "  return null;",
+      "};",
+      "export const Awaited = (d) => {",
+      "  const save = useSave(d);",
+      "  const toast = useToastManager();",
+      '  const run = async () => { try { await save.mutateAsync({}); } catch { toast.add({ title: "No." }); return; } toast.add({ title: "Saved." }); };',
+      "  return null;",
+      "};",
+      "export const Chained = (d) => {",
+      "  const save = useSave(d);",
+      "  const drop = useDrop(d);",
+      "  const later = async () => { await drop.mutateAsync({}); };",
+      '  const run = () => save.mutateAsync({}).then(() => undefined).catch(() => notify.success("never a success"));',
+      '  const other = () => { notify.success("not on a mutation path"); };',
+      "  return null;",
+      "};",
+    ].join("\n"),
+  });
+  plantFile(
+    root,
+    "packages/client/src/features/imagery/components/image-detail-body.tsx",
+    [
+      'import { useSetChatBackground } from "../../probe/hooks/use-save.ts";',
+      "export const Body = (d) => {",
+      "  const set = useSetChatBackground(d);",
+      '  const run = () => set.mutateAsync({}).then(() => notify.success("Set as chat background"));',
+      "  return null;",
+      "};",
+    ].join("\n"),
+  );
+  const facts = analyse(root, [], null);
+  const feedback = facts.cohorts.find((entry) => entry.name === "feedback");
+  expect(feedback?.members.map((member) => [member.path.split("/").at(-1), member.label, member.cells["success"]?.value])).toEqual([
+    ["image-detail-body.tsx", "useSetChatBackground", "toast"],
+    ["save.tsx", "useSave", "toast"],
+    // The onSuccess beside it is the cohort's callback reading; the toast in that handler belongs to the other hook.
+    ["save.tsx", "useDrop", "callback"],
+    ["save.tsx", "useSave", "toast"],
+    ["save.tsx", "useSave", "none"],
+    ["save.tsx", "useDrop", "none"],
+  ]);
+  const success = facts.comparisons.find((entry) => entry.cohort === "feedback" && entry.column === "success");
+  expect(success?.defects.map((defect) => defect.at)).toEqual([`${FEATURE}/components/save.tsx:3`, `${FEATURE}/components/save.tsx:9`]);
+  expect(success?.kept.map((kept) => kept.at)).toEqual(["packages/client/src/features/imagery/components/image-detail-body.tsx:3"]);
+});
+
+test("a caps-voiced Text whose words are a sentence or a label with a gloss is prose; a label, another voice and a Chip's label are not", ({ scratch }) => {
+  const root = plantDir(scratch, "caps-prose");
+  plant(root, {
+    "components/chip.tsx": 'import { Text } from "@orb/ui/text";\nexport function Chip({ children }) {\n  return <Text voice="kicker">{children}</Text>;\n}',
+    "components/other-chip.tsx": "export function Chip({ children }) {\n  return <span>{children}</span>;\n}",
+    "components/bands.tsx": [
+      'import { Text } from "@orb/ui/text";',
+      'import { Chip } from "./chip.tsx";',
+      "export const A = ({ x }) => (",
+      "  <>",
+      '    <Text voice="kicker">Delivery path</Text>',
+      '    <Text voice="kicker">Changed since the session started</Text>',
+      '    <Text voice="body">Changed since the session started</Text>',
+      '    <Text voice="kicker">Hidden channels: host only</Text>',
+      '    <Text voice="kicker">{x}</Text>',
+      "    <Chip>Fields in this rewrite</Chip>",
+      "    <Chip>The same renderer every run uses</Chip>",
+      "  </>",
+      ");",
+    ].join("\n"),
+    "components/elsewhere.tsx": 'import { Chip } from "./other-chip.tsx";\nexport const B = () => <Chip>A sentence that is not in a caps voice here</Chip>;',
+  });
+  plantFile(root, "packages/ui/package.json", JSON.stringify({ exports: { "./text": "./src/primitives/text/index.ts" } }));
+  plantFile(
+    root,
+    "packages/ui/src/primitives/text/variants.ts",
+    'export const textVariants = tv({ variants: { voice: { kicker: "text-micro uppercase", body: "text-body" } } });',
+  );
+  plantFile(
+    root,
+    "packages/ui/src/primitives/text/text.tsx",
+    "export function Text({ voice, className }) {\n  return <p className={textVariants({ voice, className })} />;\n}",
+  );
+  const caps = analyse(root, [], null).cohorts.find((entry) => entry.name === "caps-voice");
+  expect(caps?.members.map((member) => [member.label, member.cells["prose"]?.value])).toEqual([
+    ["Delivery path", "label"],
+    ["Changed since the session started", "prose"],
+    ["Hidden channels: host only", "prose"],
+    ['<Text voice="kicker">{x}</Text>', "dynamic"],
+    ["Fields in this rewrite (via Chip)", "label"],
+    ["The same renderer every run uses (via Chip)", "prose"],
+  ]);
+  expect(caps?.defects?.["prose"]).toEqual(["prose"]);
+});
+
 test("a chip's wire is literal, a lookup, a call, or a bare read that may be a raw wire value", ({ scratch }) => {
   const root = plantDir(scratch, "chip-wire");
   plant(root, {
@@ -551,6 +657,44 @@ test("a chip's wire is literal, a lookup, a call, or a bare read that may be a r
     ['{flag ? "On" : kind}', "bare"],
   ]);
   expect(chips?.defects?.["wire"]).toEqual(["bare"]);
+});
+
+test("a chip printing a wire spelling a display map has a word for is a raw wire; an authored value and the word are not", ({ scratch }) => {
+  const root = plantDir(scratch, "chip-raw-wire");
+  plant(root, {
+    "lib/verdict.ts": [
+      'import type { Verdict, Stage } from "@orb/contracts/probe";',
+      'export const VERDICT_WORD: Record<Verdict, string> = { ACCEPT: "Accept", REGRESSION: "Regression" };',
+      'export const STAGE_CHIP: Record<Stage, { readonly word: string }> = { scoring: { word: "Scoring" } };',
+    ].join("\n"),
+    "components/verdict-chips.tsx": [
+      'import type { Verdict } from "@orb/contracts/probe";',
+      'import { Badge } from "@orb/ui/badge";',
+      'import { STAGE_CHIP, VERDICT_WORD } from "../lib/verdict.ts";',
+      "export const A = ({ verdict, run, field }: { readonly verdict: Verdict; readonly run: Run; readonly field: Field }) => (",
+      "  <>",
+      "    <Badge>ACCEPT</Badge>",
+      "    <Badge>{verdict}</Badge>",
+      "    <Badge>{run.stage}</Badge>",
+      "    <Badge>{STAGE_CHIP[run.stage].word}</Badge>",
+      "    <Badge>{VERDICT_WORD[verdict]}</Badge>",
+      "    <Badge>Accept</Badge>",
+      "    <Badge>{field.value}</Badge>",
+      "  </>",
+      ");",
+    ].join("\n"),
+  });
+  const chips = analyse(root, [], null).cohorts.find((entry) => entry.name === "copy:chip");
+  expect(chips?.members.map((member) => [member.label, member.cells["rawWire"]?.value])).toEqual([
+    ["ACCEPT", "wire spelling"],
+    ["{verdict}", "wire read"],
+    ["{run.stage}", "wire read"],
+    ["{STAGE_CHIP[run.stage].word}", "none"],
+    ["{VERDICT_WORD[verdict]}", "none"],
+    ["Accept", "none"],
+    ["{field.value}", "none"],
+  ]);
+  expect(chips?.defects?.["rawWire"]).toEqual(["wire spelling", "wire read"]);
 });
 
 test("a declared axis built from a shared scale, a spread of one, or a call over one is declared; one the syntax cannot open is listed", ({ scratch }) => {

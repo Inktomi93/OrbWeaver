@@ -28,6 +28,8 @@ Split off [UI-Density-Law.md](UI-Density-Law.md) for the 48 KiB law cap; it keep
 - Geist and Geist Mono are the shipped faces. `THEME_FONT_ALLOWLIST` owns the selectable faces and their derived fallback stacks.
 - The root font size respects the browser default; appearance font scale is a multiplier on it. Keep the text-scale metadata and the input zoom floor.
 - An isolated card or plugin frame cannot inherit the host root. The host delivers `--appearance-font-scale` as the style token `--sandbox-root-size`, a percentage the frame applies to its root. It rides the frame style-token clamp, which bounds it to the font-scale range, on the srcdoc, plugin frame and chat card paths. First-party frame bundles size text in rem.
+- At enlarged text no control lies over another control, unless the design lays it there. A box whose controls lie over the controls of its parent's other children by design carries `OVERLAY_RELATION_ATTRIBUTE` from `packages/ui/src/lib/overlay-relation.ts`, set through `declaresOverlay`. Its value names the relation from the closed `OverlayRelation` list.
+- The attribute is a declaration of design, not a waiver. Add a relation only for an overlay the design draws, never to clear a finding. The enlarged-text probe in `tests/support/browser/enlarged-text-geometry.ts` lists each declared pair by its relation and reports no finding for it. A control of the declaring box over any other control is still a finding.
 - Dynamic Type (`-apple-system-body`) is deferred. Adopting it changes the approved iPhone type hierarchy and needs an owner decision after device review.
 
 ### 8.3 Appearance preferences

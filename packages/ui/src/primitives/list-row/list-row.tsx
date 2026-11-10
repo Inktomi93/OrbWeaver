@@ -11,7 +11,7 @@
 import type { MouseEventHandler, ReactElement, ReactNode, Ref } from "react";
 import { useId } from "react";
 import type { VariantProps } from "tailwind-variants";
-import { SELECTION_RAIL_TONE } from "#lib";
+import { declaresOverlay, SELECTION_RAIL_TONE } from "#lib";
 import type { Slots } from "./parts.tsx";
 import { ListRowContent } from "./parts.tsx";
 import { TITLE_QUALIFIER_SEPARATOR } from "./title-qualifier.tsx";
@@ -365,7 +365,8 @@ export function ListRow({
         />
       </ListRowBody>
       {actions === undefined ? null : (
-        <div className={slots.actions()} data-slot="list-row-actions">
+        // A floated cluster lies over the body on a fine pointer by design (`float` in variants.ts).
+        <div className={slots.actions()} data-slot="list-row-actions" {...(actionsFloat ? declaresOverlay("row-actions-over-body") : {})}>
           {actions}
         </div>
       )}

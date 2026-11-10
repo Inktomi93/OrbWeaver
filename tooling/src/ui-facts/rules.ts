@@ -164,6 +164,8 @@ export const HAND_ROLLING_CANNOT_SEE: readonly string[] = [
 
 export const CANNOT_SEE: readonly string[] = [
   "Syntax only: no type checker. A chip that renders a raw expression is reported as dynamic; its case is not measured.",
+  "A chip's raw wire is read against the client's display maps: an object map typed `Record<T, ...>` or named for words, whose values are words. A read is a wire read only when its own file looks it up in such a map or declares its name with the map's key type; a read typed in another file is not seen.",
+  "A caps-voice member's words are prose when they close with sentence punctuation, pair a label with a gloss after a colon, or run past three words other than function words. A template, a call or a prop shows dynamic words and is not judged. A component that shows its `children` in a caps voice is judged at each call site that imports it by a relative path or sits in its file; a barrel import is not followed.",
   "Class strings assembled across statements are not read. A constant is read when it is named *Class or *Classes, or when a className, *ClassName, cn or tv in its own file or a relative importer reads it; an import through an alias is not followed.",
   "A computed prop is unread by the variant census; an axis with such a use cannot claim an unused value. A spread that is not an object literal writes nothing there, on the word of orb/no-opaque-variant-spread.",
   "Layout variants are merged per door, so a value used on Row counts for Stack.",
