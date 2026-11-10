@@ -219,7 +219,7 @@ function CharacterPickerBody({
           when it has something to say: an exhausted walk with no search is a footer about nothing. Carries
           the honest count and CLEAR — the tail load itself is now keyboard/scroll-driven, no button. */}
         {hasNextPage || term !== "" || query.isFetchNextPageError || excludedLoadedCount > 0 ? (
-          <Row wrap={true} divider="top" align="center" gap="row" padding="row">
+          <Row wrap={true} divider="top" align="center" gap="row" padding="row" minHeight="holdsPickerFooter">
             <Text as="span" voice="gloss">
               {excludedLoadedCount === 0 ? `Showing ${candidates.length} of ${totalCount}` : characterCountLabel(candidates.length)}
             </Text>

@@ -385,6 +385,8 @@ export const TOKENS = {
   "height.picker-window": { cssVar: "--height-picker-window", value: "clamp(var(--height-scroll-short), calc(100dvh - var(--height-picker-chrome)), var(--height-scroll-lg))" },
   "height.picker-box": { cssVar: "--height-picker-box", value: "calc(var(--size-control-sm) + var(--height-picker-window) + 2 * var(--border-width-control))" },
   "height.picker-floor": { cssVar: "--height-picker-floor", value: "calc(var(--size-control-sm) + var(--height-scroll-short) + 2 * var(--border-width-control))" },
+  "height.picker-footer": { cssVar: "--height-picker-footer", value: "calc(var(--size-control-sm) + 2 * var(--spacing-row) + var(--border-width-default))" },
+  "height.picker-list-footed": { cssVar: "--height-picker-list-footed", value: "calc(var(--height-picker-window) - var(--height-picker-footer))" },
   "height.command-strip": { cssVar: "--height-command-strip", value: "calc(var(--size-control-sm) + 2 * var(--border-width-control))" },
   "height.picker-door-row": { cssVar: "--height-picker-door-row", value: "calc(var(--size-control-sm) + 2 * var(--spacing-block))" },
   "height.dialog-gutter": { cssVar: "--height-dialog-gutter", value: "min(var(--spacing-gutter), 5dvh)" },
