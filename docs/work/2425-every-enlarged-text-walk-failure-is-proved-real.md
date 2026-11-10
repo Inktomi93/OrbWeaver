@@ -11,7 +11,7 @@ plan: surface-walk
 
 ## What
 
-The surface walk at 200 and 300 percent text on desktop 1440 all panes and phone portrait failed many cases. reports/cb-walk-text holds the failures grouped by error and the text-geometry findings grouped by kind, with the run directory. The largest groups are buttons clipped on x, values cut in buttons, popovers and config-content scrolling sideways, coverage gaps in chat reading and game inventories, read-recovery scenario mismatches, the Admin repeated Save census control, and accessible names that now carry a message ordinal.
+The surface walk at 200 and 300 percent text on desktop 1440 all panes and phone portrait failed many cases. reports/cb-walk-text/README.md indexes the evidence: walk-groups.md groups every failing assertion, geometry-by-kind.md groups every text-geometry finding with each checkpoint, and raw/ keeps the Playwright report and attachments. The largest groups are buttons clipped on x, values cut in buttons, popovers and config-content scrolling sideways, coverage gaps in chat reading and game inventories, read-recovery scenario mismatches, the Admin repeated Save census control, and accessible names that now carry a message ordinal. Items 2426 and 2427 are already split out.
 
 ## Why
 
