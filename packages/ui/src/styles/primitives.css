@@ -5,15 +5,15 @@
  * root, and the box it reads is the viewport less its gutters. A query cannot read a var, so these are the `container.cq-*`
  * tokens' values. Under the cq-32 width step a short dialog's footer cannot keep its actions on one row, so it stacks
  * (`dialog-stacked`); wider, they keep their one pinned row. `dialog-tiny` is the cq-14 step, where even a one-control
- * footer would cover the row. `dialog-roomy` is the cq-26 height step and the cq-12 width step: above the height a picker's window, the screen less 21rem of
+ * footer would cover the row. `dialog-roomy` is the cq-26 height step and the cq-14 width step: above the height a picker's window, the screen less 21rem of
  * chrome, still leaves the footer's one line (about 3rem) and a 2.75rem touch row (this box is the screen less its gutters); above the width that footer
- * keeps its one line, and a wrapped footer would take the room the window has left. A landscape phone's dialog is the one that is also short in the glass: `dialog-short:glass-short:` stacks the media height step (a `rem` there keeps the
+ * (its count beside a Clear search button at its content width) keeps its one line, and a wrapped footer would take the room the window has left. A landscape phone's dialog is the one that is also short in the glass: `dialog-short:glass-short:` stacks the media height step (a `rem` there keeps the
  * platform default) on the dialog's own. A screen 27rem tall or less is in it at any text scale; enlarged text alone never moves a taller
  * screen into it. */
 @custom-variant dialog-short (@container dialog (height <= 24rem));
 @custom-variant dialog-stacked (@container dialog (height <= 24rem) and (width <= 32rem));
 @custom-variant dialog-tiny (@container dialog (height <= 14rem));
-@custom-variant dialog-roomy (@container dialog (height > 26rem) and (width > 12rem));
+@custom-variant dialog-roomy (@container dialog (height > 26rem) and (width > 14rem));
 
 /* A stacked dialog whose height cannot hold a picker's pinned row with two actions over one whole row of its list; there the row stops
  * pinning (`PINNED.dialogFooter`), so nothing it seats covers the list. Every term is a rem size, so each case is one height step at any

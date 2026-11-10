@@ -39,9 +39,12 @@ const CELLS = [
   { name: "1440x900 at 175%", width: 1440, height: 900, factor: 1.75, holds: true },
   { name: "375x667 at 150%", width: 375, height: 667, factor: 1.5, holds: true },
   { name: "320x568 at 125%", width: 320, height: 568, factor: 1.25, holds: true },
-  // A tall phone at 200% text: wide enough for the footer's one line, the cap holds; narrower, the footer wraps and a cap would squeeze the list.
-  { name: "412x915 at 200%", width: 412, height: 915, factor: 2, holds: true },
-  { name: "430x932 at 200%", width: 430, height: 932, factor: 2, holds: true },
+  // At 200% text the footer's count and Clear search keep one line only in a dialog about 14rem wide or more: a tablet-width screen holds the
+  // cap, and a phone's footer wraps, so the box grows and a cap would squeeze the list under one row.
+  { name: "600x1100 at 200%", width: 600, height: 1100, factor: 2, holds: true },
+  { name: "460x915 at 200%", width: 460, height: 915, factor: 2, holds: false },
+  { name: "412x915 at 200%", width: 412, height: 915, factor: 2, holds: false },
+  { name: "430x932 at 200%", width: 430, height: 932, factor: 2, holds: false },
   { name: "393x873 at 200%", width: 393, height: 873, factor: 2, holds: false },
   { name: "360x900 at 200%", width: 360, height: 900, factor: 2, holds: false },
   // A landscape phone at enlarged text scrolls the dialog as one sheet around a one-row list window, and the footer still keeps that row.
