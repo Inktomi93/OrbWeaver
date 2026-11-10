@@ -172,14 +172,18 @@ export const CONNECTION_OP_CODES = {
 } as const;
 
 /** The two widths an `embedWidthUnmakeable` refusal names: what the connection states, and what the model made. */
-export interface EmbedWidthRefusalDetail {
-  readonly stated: number;
-  readonly measured: number;
-  /** The model can shorten its vectors, so `measured` is the widest it makes rather than its only width. */
-  readonly truncatable: boolean;
-  /** No one stated a width, so `stated` is the width assumed for the model rather than one the user set. */
-  readonly assumed: boolean;
-}
+export const embedWidthRefusalDetailSchema = z.strictObject({
+  stated: z.int().positive(),
+  measured: z.int().nonnegative(),
+  truncatable: z.boolean(),
+  assumed: z.boolean(),
+});
+export type EmbedWidthRefusalDetail = z.infer<typeof embedWidthRefusalDetailSchema>;
 
 /** Why a write that would move the owner's index was refused before anything moved. */
-export type EmbedTargetRefusal = ({ readonly kind: "width" } & EmbedWidthRefusalDetail) | { readonly kind: "unreachable" } | { readonly kind: "auth" };
+export const embedTargetRefusalSchema = z.discriminatedUnion("kind", [
+  embedWidthRefusalDetailSchema.extend({ kind: z.literal("width") }),
+  z.strictObject({ kind: z.literal("unreachable") }),
+  z.strictObject({ kind: z.literal("auth") }),
+]);
+export type EmbedTargetRefusal = z.infer<typeof embedTargetRefusalSchema>;

@@ -266,7 +266,7 @@ function ConnectionRow({
   const remove = useRemoveConnection(deps);
   const update = useUpdateConnection(deps);
   const applyEverywhere = useUseForEverything(deps);
-  const reindex = useReindexConfirm(trpc);
+  const reindex = useReindexConfirm();
   const [addModelOpen, setAddModelOpen] = useState(false);
   const providerUnavailable = provider === null;
   const addModel = provider === null ? null : addModelScope({ auth: provider.auth, credentialId: connection.credentialId });

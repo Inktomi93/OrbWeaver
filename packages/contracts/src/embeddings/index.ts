@@ -263,6 +263,7 @@ export type {
   ListCharacterIds,
   ListImageAssetIds,
   MemoryEmbedSpace,
+  PreviewTargetMoveOp,
   PruneDocumentChunksOp,
   PruneDocumentChunksResult,
   PruneMemoryBlocksParams,
@@ -271,5 +272,4 @@ export type {
   ResolveEmbeddingConnectionOp,
   ResolveMemoryEmbedSpaceOp,
   SyncTargetGenerationsOp,
-  TargetWouldMoveOp,
 } from "./owner-ops.ts";

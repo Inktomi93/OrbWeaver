@@ -1,7 +1,7 @@
 // Shared owner data and injected operations; implementations and authority resolution stay in server domains.
 
 import type { AssetId, CharacterId, ChatId, DocumentId, EmbedGenerationId, UserConnectionId, UserId } from "@orb/kit/ids";
-import type { EmbedTargetRefusal } from "../inference/connection.ts";
+import type { EmbedTargetRefusal, UserConnection } from "../inference/connection.ts";
 import type { WorkloadRunScope } from "../workloads/execution.ts";
 import type { EmbeddingTask } from "./accounting.ts";
 import type { CountDocumentChunksParams, OwnerChunkCountsParams, PruneDocumentChunksParams } from "./document-vectors.ts";
@@ -111,12 +111,12 @@ export interface PruneDocumentChunksResult {
   readonly rowsDeleted: number;
 }
 
-/** Would the owner's stored target for `task` move if `via` resolved through `connectionId`? */
-interface TargetWouldMoveArgs {
+/** The owned row that would serve this target, with any proposed edits validated before resolution. */
+interface PreviewTargetMoveArgs {
   readonly ownerId: UserId;
   readonly task: EmbeddingTask;
   readonly via: EmbeddingTask;
-  readonly connectionId: UserConnectionId;
+  readonly connection: UserConnection;
 }
 
 /** The reindex-shrink seam: deletes a document's stray chunks. */
@@ -131,8 +131,10 @@ export type CountDocumentChunksByOwnerOp = (params: OwnerChunkCountsParams) => P
 /** Bring the owner's stored targets in line with what their vector bindings resolve to now. */
 export type SyncTargetGenerationsOp = (ownerId: UserId) => Promise<EmbedMoveRefusal | null>;
 
-/** Read-only preview of a target move; `null` when that row cannot resolve. */
-export type TargetWouldMoveOp = (args: TargetWouldMoveArgs) => Promise<boolean | null>;
+/** Prove the prospective move without publishing a target or writing the proposed connection. */
+export type PreviewTargetMoveOp = (
+  args: PreviewTargetMoveArgs,
+) => Promise<{ readonly kind: "move" | "skip" | "unresolved" } | { readonly kind: "refused"; readonly refusal: EmbedTargetRefusal }>;
 
 /** Resolve the owner's encoder for `task` into a connection snapshot; `null` when an explicit `connectionId` no
  *  longer resolves. `cachedFacts`: read only the server facts already cached, dialing nothing (a read-only
@@ -141,5 +143,5 @@ export type ResolveEmbeddingConnectionOp<TConnection> = (
   ownerId: UserId,
   task: EmbeddingTask,
   connectionId?: UserConnectionId | undefined,
-  opts?: { readonly cachedFacts?: boolean | undefined },
+  opts?: { readonly cachedFacts?: boolean | undefined; readonly previewConnection?: UserConnection | undefined },
 ) => Promise<TConnection | null>;

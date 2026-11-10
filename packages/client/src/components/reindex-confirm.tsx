@@ -2,14 +2,14 @@
 // at once and rebuilds it, so the pane asks the server what the change would rebuild before writing it, and asks
 // the user only when something stored would be rebuilt. Cancel writes nothing.
 
-import type { EmbedSpaceChangePreview } from "@orb/contracts/inference";
-import { useQueryClient } from "@tanstack/react-query";
+import type { EmbedSpaceChangePreview, EmbedTargetRefusal } from "@orb/contracts/inference";
+import { Text } from "@orb/ui/text";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Trpc } from "#data";
-import { readFresh } from "#data";
-import { REINDEX_CONFIRM_COPY, reindexConfirmDescription, reindexNeedsConfirm } from "#lib";
+import { useTRPCClient } from "#data";
+import { embedRefusalText, REINDEX_CONFIRM_COPY, reindexConfirmDescription, reindexNeedsConfirm } from "#lib";
 import type { ConfirmDialogProps } from "./confirm-dialog.tsx";
 import { ConfirmDialog } from "./confirm-dialog.tsx";
 
@@ -34,44 +34,72 @@ export interface ReindexConfirm {
 }
 
 /** `finalFocus`: where focus lands when the confirm closes, because the control that opened it may be gone. */
-export function useReindexConfirm(trpc: Trpc, finalFocus?: ConfirmDialogProps["finalFocus"]): ReindexConfirm {
-  const queryClient = useQueryClient();
+export function useReindexConfirm(finalFocus?: ConfirmDialogProps["finalFocus"]): ReindexConfirm {
+  const client = useTRPCClient();
+  const latest = useRef(0);
+  const [refusal, setRefusal] = useState<EmbedTargetRefusal | null>(null);
   const [pending, setPending] = useState<PendingWrite | null>(null);
   const [asking, setAsking] = useState(false);
+  useEffect(
+    () => (): void => {
+      latest.current += 1;
+    },
+    [],
+  );
 
   const guard = (change: EmbedSpaceChange, write: GuardedWrite): void => {
+    const request = ++latest.current;
+    setPending(null);
+    setRefusal(null);
     setAsking(true);
-    // `staleTime: 0`: the answer depends on rows that change between asks, so a cached one could skip the confirm.
-    // the catch below `setPending`s a null preview, which opens the confirm dialog with `reindexConfirmDescription(null)`'s unknown-count copy. Ends if a failed preview stops opening that dialog.
-    void readFresh(queryClient, trpc.connection.embedSpaceChangePreview.queryOptions({ change }))
+    void client.connection.embedSpaceChangePreview
+      .mutate({ change })
       .then((preview): void => {
-        if (reindexNeedsConfirm(preview)) {
+        if (request !== latest.current) {
+          return;
+        }
+        if (preview.refusal !== null) {
+          setRefusal(preview.refusal);
+        } else if (reindexNeedsConfirm(preview)) {
           setPending({ preview, write });
         } else {
           write(preview.reindex);
         }
       })
-      // An unreadable preview still asks: writing straight through could delete an index the user never weighed.
-      .catch((): void => setPending({ preview: null, write }))
-      .finally((): void => setAsking(false));
+      // An unreadable preview cannot establish that writing is safe; retain the unknown-cost confirmation.
+      .catch((): void => {
+        if (request === latest.current) {
+          setPending({ preview: null, write });
+        }
+      })
+      .finally((): void => {
+        if (request === latest.current) {
+          setAsking(false);
+        }
+      });
   };
 
-  const dialog = (
-    <ConfirmDialog
-      title={REINDEX_CONFIRM_COPY.title}
-      description={reindexConfirmDescription(pending?.preview ?? null)}
-      confirmLabel={REINDEX_CONFIRM_COPY.confirmLabel}
-      {...(finalFocus === undefined ? {} : { finalFocus })}
-      open={pending !== null}
-      onOpenChange={(open): void => {
-        if (!open) {
-          setPending(null);
-        }
-      }}
-      onConfirm={(): void => {
-        pending?.write(pending.preview?.reindex ?? true);
-      }}
-    />
-  );
+  const dialog =
+    refusal !== null ? (
+      <Text role="alert" tone="destructive" voice="gloss">
+        {embedRefusalText(refusal)}
+      </Text>
+    ) : (
+      <ConfirmDialog
+        title={REINDEX_CONFIRM_COPY.title}
+        description={reindexConfirmDescription(pending?.preview ?? null)}
+        confirmLabel={REINDEX_CONFIRM_COPY.confirmLabel}
+        {...(finalFocus === undefined ? {} : { finalFocus })}
+        open={pending !== null}
+        onOpenChange={(open): void => {
+          if (!open) {
+            setPending(null);
+          }
+        }}
+        onConfirm={(): void => {
+          pending?.write(pending.preview?.reindex ?? true);
+        }}
+      />
+    );
   return { guard, asking, dialog };
 }

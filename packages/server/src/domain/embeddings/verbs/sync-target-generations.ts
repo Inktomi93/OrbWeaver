@@ -2,7 +2,8 @@
 // stored target, not the previous binding, is what a re-point is measured against: re-binding the encoder the
 // target already names moves nothing, and a move queues its rebuild through the resolver's own trigger.
 
-import type { EmbeddingTask, EmbedMoveRefusal } from "@orb/contracts/embeddings";
+import type { EmbeddingTask, EmbedMoveRefusal, PreviewTargetMoveOp } from "@orb/contracts/embeddings";
+import type { EmbedTargetRefusal, UserConnection } from "@orb/contracts/inference";
 import { NoConnectionError, ProviderError } from "@orb/inference";
 import { DomainNoCredentialError } from "@orb/kit/errors";
 import type { EmbedGenerationId, UserId } from "@orb/kit/ids";
@@ -26,20 +27,23 @@ interface SyncTarget {
 
 type Proof =
   | { readonly kind: "move"; readonly generationId: EmbedGenerationId }
-  | { readonly kind: "skip" }
-  | { readonly kind: "refused"; readonly refusal: EmbedMoveRefusal };
+  | { readonly kind: "skip" | "unresolved" }
+  | { readonly kind: "refused"; readonly refusal: EmbedTargetRefusal };
 
 /**
  * Probe one target's move before anything moves. A width the encoder does not make is the refusal the waiting write
  * reports, and so is an embedder that does not answer or refuses the row's key: an unchecked width is never accepted. An unresolvable binding
  * skips the target (its first write after it can resolve moves it).
  */
-async function prove(ctx: EmbeddingsContext, ownerId: UserId, target: SyncTarget): Promise<Proof> {
+async function prove(ctx: EmbeddingsContext, ownerId: UserId, target: SyncTarget, previewConnection?: UserConnection): Promise<Proof> {
   let truncatable = false;
   let assumed = false;
   try {
-    const move = await pendingTargetMove(ctx, { ownerId, task: target.task, via: target.via });
-    if (move?.moves !== true) {
+    const move = await pendingTargetMove(ctx, { ownerId, ...target, connectionId: previewConnection?.id, previewConnection });
+    if (move === null) {
+      return { kind: "unresolved" };
+    }
+    if (!move.moves) {
       return { kind: "skip" };
     }
     const { capability } = move.connection;
@@ -50,21 +54,25 @@ async function prove(ctx: EmbeddingsContext, ownerId: UserId, target: SyncTarget
   } catch (error) {
     const width = widthMismatchOf(error);
     if (width !== null) {
-      return { kind: "refused", refusal: { kind: "width", task: target.task, ...width, truncatable, assumed } };
+      return { kind: "refused", refusal: { kind: "width", ...width, truncatable, assumed } };
     }
     if (bindingUnresolvable(error)) {
-      return { kind: "skip" };
+      return { kind: "unresolved" };
     }
     if (error instanceof ProviderError && error.kind === "auth_failed") {
       getLog(ctx.logger).warn({ err: error, ownerId, task: target.task }, "embeddings: a re-point's width probe was refused its key; the write is refused");
-      return { kind: "refused", refusal: { kind: "auth", task: target.task } };
+      return { kind: "refused", refusal: { kind: "auth" } };
     }
     if (error instanceof ProviderError || error instanceof EmbedFailedError) {
       getLog(ctx.logger).warn({ err: error, ownerId, task: target.task }, "embeddings: a re-point's width probe got no answer; the write is refused");
-      return { kind: "refused", refusal: { kind: "unreachable", task: target.task } };
+      return { kind: "refused", refusal: { kind: "unreachable" } };
     }
     throw error;
   }
+}
+
+export function createPreviewTargetMove(ctx: EmbeddingsContext): PreviewTargetMoveOp {
+  return async ({ ownerId, task, via, connection }) => await prove(ctx, ownerId, { task, via }, connection);
 }
 
 export function createSyncTargetGenerations(ctx: EmbeddingsContext): EmbeddingsService["syncTargetGenerations"] {
@@ -81,7 +89,7 @@ export function createSyncTargetGenerations(ctx: EmbeddingsContext): EmbeddingsS
     for (const target of targets) {
       const proof = await prove(ctx, ownerId, target);
       if (proof.kind === "refused") {
-        return proof.refusal;
+        return { ...proof.refusal, task: target.task };
       }
       proofs.push({ target, proof });
     }
