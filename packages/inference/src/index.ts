@@ -19,7 +19,7 @@ import { z } from "zod";
 import { fetchAnthropicModels } from "./backends/anthropic-messages/index.ts";
 import { cachePolicyContextOf, responseReplaySupportedFor } from "./backends/http/response-cache.ts";
 import { NO_PROVIDER_SECRETS, resolvedScrubSet } from "./backends/http/sanitize.ts";
-import { tokenTargetOf } from "./backends/openai-compat/tokens.ts";
+import { passageCounterFor, tokenTargetOf } from "./backends/openai-compat/tokens.ts";
 import { detectServer } from "./catalog/detect.ts";
 import { fetchEndpointModels, probeListedModel, sameModelId } from "./catalog/endpoint.ts";
 import { fetchGoogleModels } from "./catalog/google.ts";
@@ -408,6 +408,7 @@ export async function createInferenceRuntime(deps: InferenceDeps): Promise<Infer
         return { models: null };
       },
       invalidateEndpoint,
+      passageCounter: (resolved) => passageCounterFor(fetchImpl, resolved),
       tokenize: async (resolved, words): Promise<TokenizeResult> => {
         const target = tokenTargetOf(resolved);
         return target === null ? { available: false, words: [] } : { available: true, words: [...(await built.openAiCompat.tokens.lookup(target, words))] };

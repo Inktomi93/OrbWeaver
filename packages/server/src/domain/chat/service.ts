@@ -93,6 +93,7 @@ export function createChatService(
       emitChatChanged: ctx.emitChatChanged,
       applyRegexReplace: ctx.applyRegexReplace,
       prng: ctx.prng,
+      passageCounter: ctx.passageCounter,
       runChatTurn: ctx.runChatTurn,
       tools: ctx.tools,
       resolveImageUrl: ctx.resolveImageUrl,

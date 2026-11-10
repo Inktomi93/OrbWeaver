@@ -27,7 +27,7 @@
 // holding every reply's thinking is refused on both OpenRouter endpoints (OR-9, the OpenRouter probe).
 
 import type { ChatContentPart, ChatReasoningPart, ContentSignatures, MessageView, ToolCallRecord } from "@orb/contracts/chat";
-import type { ChatHistoryMessage, GeneratedImage, ToolCallInput, WireMeta } from "@orb/inference";
+import type { ChatHistoryMessage, GeneratedImage, InferenceRuntime, ToolCallInput, WireMeta } from "@orb/inference";
 import { cacheDepthCovering, rowIndexAtCacheDepth } from "@orb/inference";
 import type { ContentImageRef, ContentSpan, ContentSpanKind } from "@orb/kit/content";
 import { cardWireStub, contentSpanRaw, tokenizeContent } from "@orb/kit/content";
@@ -360,7 +360,7 @@ type ShapedHistoryRow = ReturnType<typeof shapeTurn>["history"][number];
 interface WireRow {
   readonly row: ChatHistoryMessage;
   readonly prefixRows?: readonly ChatHistoryMessage[];
-  readonly costRow: ShapedHistoryRow & { readonly extraTokens?: number };
+  readonly costRow: ShapedHistoryRow & { readonly extraTokens?: number; readonly passageTokens?: number };
   readonly imageDropped: boolean;
   readonly videoDropped: boolean;
 }
@@ -800,23 +800,69 @@ function withNewChatMarkerAtHead(kept: readonly WireRow[], marker: NonNullable<N
   return [{ row, costRow: { role: "user", content: marker.content, messageId: undefined }, imageDropped: false, videoDropped: false }, ...kept];
 }
 
+type PassageCounter = NonNullable<ReturnType<InferenceRuntime["catalogs"]["passageCounter"]>>;
+type MeasurePassage = (text: string) => Promise<number>;
+
+/** Only the failed endpoint lookup triggers estimate fallback. Conversion and shape errors still surface. */
+class PassageCountUnavailable extends Error {}
+
+function turnPassageCounter(count: PassageCounter, signal: AbortSignal | undefined): MeasurePassage {
+  const costs = new Map<string, number>();
+  return async (text) => {
+    if (text === "") {
+      return 0;
+    }
+    const known = costs.get(text);
+    if (known !== undefined) {
+      return known;
+    }
+    try {
+      const tokens = await count(text, signal);
+      costs.set(text, tokens);
+      return tokens;
+    } catch (cause) {
+      signal?.throwIfAborted();
+      throw new PassageCountUnavailable("The connection could not count prompt passages.", { cause });
+    }
+  };
+}
+
+/** Tool replay is atomic for trimming, but each emitted provider message pays its own framing overhead. */
+async function measuredRows(rows: WireRow[], measure: MeasurePassage | undefined): Promise<WireRow[]> {
+  if (measure === undefined) {
+    return rows;
+  }
+  const result: WireRow[] = [];
+  for (const wire of rows) {
+    const frames = [...(wire.prefixRows ?? []), wire.row];
+    let passageTokens = 0;
+    for (const frame of frames) {
+      passageTokens += await measure(wireCostText(frame.content));
+    }
+    const extraTokens = (frames.length - 1) * historyTurnTokens({ content: "" });
+    result.push({ ...wire, costRow: { ...wire.costRow, passageTokens, extraTokens } });
+  }
+  return result;
+}
+
 /** THE FIT over the converted rows — the one home both the turn pipeline and the read previews call, so the wire
  *  and the preview keep the same rows and report the same cost. The fit drops the OLDEST rows, and the new-chat
  *  marker is the oldest row, so a trimmed history reserves the marker's own row before it trims and then places
  *  the marker at the head of what it kept (`kept`, the rows the wire sends; `fitted.history`, their cost rows).
  *  `fitted.usedTokens` prices the rows as delivered, marker included. */
-function fitWireHistory(
+async function fitWireHistory(
   converted: readonly WireRow[],
   budget: Parameters<typeof fitHistory>[1],
   marker: NewChatMarker,
-): { readonly fitted: ReturnType<typeof fitHistory>; readonly kept: WireRow[] } {
+  measure: MeasurePassage | undefined,
+): Promise<{ readonly fitted: ReturnType<typeof fitHistory>; readonly kept: WireRow[] }> {
   const fitted = fitHistory(wireCostRows(converted), budget);
   if (marker === null || fitted.droppedCount === 0) {
     return { fitted, kept: converted.slice(fitted.droppedCount) };
   }
-  const reserve = historyTurnTokens({ content: marker.content });
+  const reserve = historyTurnTokens({ content: marker.content, ...(measure === undefined ? {} : { passageTokens: await measure(marker.content) }) });
   const trimmed = fitHistory(wireCostRows(converted), { ...budget, systemTokens: budget.systemTokens + reserve });
-  const kept = withNewChatMarkerAtHead(converted.slice(trimmed.droppedCount), marker);
+  const kept = await measuredRows(withNewChatMarkerAtHead(converted.slice(trimmed.droppedCount), marker), measure);
   const history = wireCostRows(kept);
   return { fitted: { ...trimmed, history, usedTokens: history.reduce((sum, row) => sum + historyTurnTokens(row), 0) }, kept };
 }
@@ -861,22 +907,63 @@ function tailSquashesStoredRows(canon: ShapeCanonRows, history: readonly ShapedH
  *  apart, level `none`), runs SHAPE once and is returned as the post-shape fit left it, so its wire bytes, its cut and
  *  its cache prefix are what they were without the pre-trim. After a pre-trim the dropped count is the stored rows
  *  before the first one kept, which the boundary names. */
-export async function shapeConvertFit(args: {
+interface ShapeFitArgs {
   readonly canon: ShapeCanonRows;
   readonly shape: (canon: ShapeCanonRows) => ReturnType<typeof shapeTurn>;
   readonly convert: (history: readonly ShapedHistoryRow[]) => Promise<WireRow[]>;
   readonly budget: Parameters<typeof fitHistory>[1];
-}): Promise<Omit<ShapedFit, "deliveredTokens">> {
+  readonly passage: { readonly count: PassageCounter | null; readonly system: readonly string[]; readonly signal?: AbortSignal | undefined };
+}
+
+type PassageFitNotice = "context_tokenizer_trimmed" | "context_tokenizer_unavailable";
+
+/** Unsupported servers use the same estimate. A real endpoint prices text only; opaque media and the provider's own chat template are not tokenized. */
+export async function shapeConvertFit(args: ShapeFitArgs): Promise<
+  Omit<ShapedFit, "deliveredTokens"> & {
+    readonly fitBudget: ShapeFitArgs["budget"];
+    readonly notice: PassageFitNotice | null;
+    readonly exceedsHardWindow: boolean;
+  }
+> {
+  const window = args.budget.windowTokens;
+  if (args.passage.count === null || window === undefined || !Number.isFinite(window)) {
+    return { ...(await fitShapedRows(args)), fitBudget: args.budget, notice: null, exceedsHardWindow: false };
+  }
+  const measure = turnPassageCounter(args.passage.count, args.passage.signal);
+  try {
+    let systemTokens = 0;
+    for (const passage of args.passage.system) {
+      systemTokens += await measure(passage);
+    }
+    const fitBudget = { ...args.budget, systemTokens };
+    const measured = await fitShapedRows({ ...args, budget: fitBudget }, measure);
+    return {
+      ...measured,
+      fitBudget,
+      notice: measured.fitted.droppedCount > 0 ? "context_tokenizer_trimmed" : null,
+      exceedsHardWindow: systemTokens + measured.fitted.usedTokens + fitBudget.reserveOutputTokens > window,
+    };
+  } catch (error) {
+    if (!(error instanceof PassageCountUnavailable)) {
+      throw error;
+    }
+    return { ...(await fitShapedRows(args)), fitBudget: args.budget, notice: "context_tokenizer_unavailable", exceedsHardWindow: false };
+  }
+}
+
+async function fitShapedRows(args: ShapeFitArgs, measure?: MeasurePassage): Promise<Omit<ShapedFit, "deliveredTokens">> {
   const run = async (canon: ShapeCanonRows): Promise<ShapedFit> => {
     const shaped = args.shape(canon);
-    const converted = await args.convert(shaped.history);
-    return { shaped, ...fitWireHistory(converted, args.budget, shaped.newChatMarker), deliveredTokens: costOf(wireCostRows(converted)) };
+    const converted = await measuredRows(await args.convert(shaped.history), measure);
+    return { shaped, ...(await fitWireHistory(converted, args.budget, shaped.newChatMarker, measure)), deliveredTokens: costOf(wireCostRows(converted)) };
   };
   const whole = await run(args.canon);
   if (overrun(whole.fitted, args.budget) === 0 || !tailSquashesStoredRows(args.canon, whole.shaped.history)) {
     return whole;
   }
-  const stored = wireCostRows(await args.convert(args.canon.map((row) => ({ role: row.role, content: row.content, messageId: row.messageId }))));
+  const stored = wireCostRows(
+    await measuredRows(await args.convert(args.canon.map((row) => ({ role: row.role, content: row.content, messageId: row.messageId }))), measure),
+  );
   let attempt = whole;
   let trimmed = 0;
   // Each pass either cuts deeper or stops: a cut no deeper than the last means the stored rows already fit with

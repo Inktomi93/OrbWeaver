@@ -2,7 +2,7 @@
 import type { DurableChatBusEvent, PromptTransformPoint, PromptTransformResult, ToolCallRecord } from "@orb/contracts/chat";
 import type { ChatMembership } from "@orb/contracts/identity";
 import type { AttachmentQuality } from "@orb/contracts/inference";
-import type { ChatToolDefinition, GeneratedImage, Resolved, ToolCallInput } from "@orb/inference";
+import type { ChatToolDefinition, GeneratedImage, InferenceRuntime, Resolved, ToolCallInput } from "@orb/inference";
 import type { ContentImageRef } from "@orb/kit/content";
 import type { AssetId, CharacterId, ChatId, ChatTurnId, MessageAssetId, MessageId, MessageVariantId, UserId } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
@@ -110,6 +110,7 @@ export interface EngineContext extends Pick<ChatAccountingContext, "db" | "now" 
   readonly applyRegexReplace: ApplyRegexReplaceOp;
   /** The service PRNG the turn-stage macro context draws `{{random}}`/`{{roll}}`/`{{pick}}` from. */
   readonly prng: RandomSource;
+  readonly passageCounter: InferenceRuntime["catalogs"]["passageCounter"];
   readonly runChatTurn: RunChatTurnOp;
   readonly tools: ChatToolOps | null;
   readonly resolveImageUrl: ResolveImageUrlOp;

@@ -1094,6 +1094,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
       signupPersonaPointersStatement: createJoinerSettingsStatement({ db }),
       minterMayMintSignup: createSignupMinterCheck(sessions, resolveHostPrincipal),
     },
+    passageCounter: runtime.catalogs.passageCounter,
     runChatTurn: executor.runChatTurn,
     // The Anthropic prompt-cache depth FLOOR, read PER TURN off the resolved AppSettings tier (Settings ›
     // Admin › System tuning). A thunk, so an admin flip governs the next turn with no restart.

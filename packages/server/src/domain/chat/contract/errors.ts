@@ -26,6 +26,7 @@ export class ChatNotFoundError extends DomainNotFoundError {
 /** The `DomainOperationError.code` discriminators chat verbs throw. ONE home for the strings (§7.5). */
 export const CHAT_OP_CODES = {
   toolCallChanged: "tool_call_changed",
+  promptExceedsWindow: "prompt_exceeds_window",
   /** A host-only verb (roster mutation, group-config, room-overrides, force-character, kick, delete-chat,
    *  invites, handoff, anchor-reassignment, memberCardVisibility) called by a non-host member. */
   notHost: "not_host",

@@ -138,6 +138,8 @@ const PLAIN_CHAT_WARNING_CODES = [
   // Degraded-and-loud, never error-and-dead. The client warning-notice mapper is a rotation-4 restoration; the
   // server emits this now so the pickup lands later.
   "context_trimmed_no_summary",
+  "context_tokenizer_trimmed",
+  "context_tokenizer_unavailable",
   // The `smart` group policy's side-LLM turn arbiter was unusable this round — the summarize role threw
   // (unwired/offline backend, HTTP error) or its reply named nobody on the eligible roster — so the speaking
   // order fell back to the deterministic `natural` arbitration. Emitted from the turn

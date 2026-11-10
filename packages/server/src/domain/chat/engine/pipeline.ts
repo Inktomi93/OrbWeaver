@@ -64,6 +64,7 @@ import type {
   BoundToolExecution,
   ChatToolExecFrame,
   ChatToolOps,
+  EngineContext,
   LoadInlineReplyAssetIdsOp,
   ReserveReceiptEventsOp,
   ResolveTurnImageUrlOp,
@@ -112,6 +113,8 @@ interface RunTurnPipelineArgs {
   readonly logger: Logger;
   readonly onObservedResult?: GenerationObservationCallback | undefined;
   readonly attachmentQuality?: AttachmentQuality | undefined;
+  readonly passageCounter: EngineContext["passageCounter"];
+  readonly onFitNotice: (notice: NonNullable<Awaited<ReturnType<typeof shapeConvertFit>>["notice"]>) => void | Promise<void>;
   readonly runChatTurn: RunChatTurnOp;
   /** The turn's clock (`ChatContext.now`) — the pipeline's ONE time source, used to measure the reasoning
    *  stream window. Injected, never ambient: no `Date.now()` in a verb (determinism law). */
@@ -763,7 +766,11 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
     shaped,
     fitted,
     kept: fitKept,
+    fitBudget: deliveredBudget,
+    notice,
+    exceedsHardWindow,
   } = await shapeConvertFit({
+    passage: { count: args.passageCounter(args.connection), system: [assembled.static, assembled.dynamic], signal: args.signal },
     canon: assembled.sendHistory ? toShapeCanon(args.canon, ctx, args.historyMacroNames ?? EMPTY_HISTORY_MACRO_NAMES, promptHistoryEnv(ctx, args)) : [],
     shape: (canon) =>
       shapeTurn({
@@ -798,6 +805,16 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
     convert: (rows) => buildWireHistory(convertEnv, rows),
     budget,
   });
+  if (exceedsHardWindow) {
+    throw new ChatOperationError(
+      CHAT_OP_CODES.promptExceedsWindow,
+      "The system prompt and newest messages exceed this model’s context window. Shorten the prompt or use a larger window.",
+    );
+  }
+  if (notice !== null) {
+    await args.onFitNotice(notice);
+  }
+
   // The empty-row drop re-anchors the §8 breakpoint: it is a DEPTH from the end, which the fit's front-trim and
   // the marker's head row preserve for free and a mid-array drop does not (#1543 — see `shiftBreakpoint`).
   const { kept, cacheBreakpointFromEnd } = dropEmptyWireRows(fitKept, shaped.cacheBreakpointFromEnd);
@@ -862,7 +879,7 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
     droppedCount: fitted.droppedCount,
     contextBoundaryMessageId: fitted.earliestKeptMessageId,
     fitUsedTokens,
-    systemTokens: supportsManagedCompaction(args.connection) ? systemTokens : null,
+    systemTokens: supportsManagedCompaction(args.connection) ? deliveredBudget.systemTokens : null,
     fitCeilingTokens: fitCeiling(budget),
     imageDropped,
     videoDropped,

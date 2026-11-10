@@ -1,6 +1,8 @@
 // Only raw vendor HTTP bytes vary. Resolution, structured validation, vector decoding and accounting stay real.
 
 import { createHash } from "node:crypto";
+import { readFile } from "node:fs/promises";
+import { gunzipSync } from "node:zlib";
 import { modelIdSchema } from "@orb/contracts/inference";
 import type { ModelId } from "@orb/kit/ids";
 import { z } from "zod";
@@ -17,6 +19,17 @@ const BYTE_MIDPOINT = 0xff / 2;
 export const CORPUS_EMBEDDING_VECTOR: readonly number[] = Object.freeze(
   Array.from({ length: createHash(EMBEDDING_DIGEST).digest().length }, (_, index) => Number(index === 0)),
 );
+
+/** Decode the fixture with its published vocabulary; only tokenizing corpus requests need the model library. */
+export async function loadCorpusPassageEncoder(fixture: URL): Promise<(text: string) => readonly number[]> {
+  const { PreTrainedTokenizer } = await import("@huggingface/transformers");
+  const artifact = gunzipSync(await readFile(fixture));
+  const { tokenizer, config } = z
+    .object({ tokenizer: z.record(z.string(), z.unknown()), config: z.record(z.string(), z.unknown()) })
+    .parse(JSON.parse(artifact.toString("utf8")));
+  const reference = new PreTrainedTokenizer(tokenizer, config);
+  return (text): readonly number[] => reference.encode(text, { ["add_special_tokens"]: false });
+}
 
 /** Stable synthetic geometry retains controlled case/whitespace neighbors without collapsing unrelated inputs. */
 export function corpusEmbeddingForText(text: string): readonly number[] {
