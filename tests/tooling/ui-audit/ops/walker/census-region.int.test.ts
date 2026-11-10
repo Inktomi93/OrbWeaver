@@ -223,10 +223,8 @@ test("quiet-state judges a carrier whose overlapping layer paints ON TOP of it, 
   await expect(res).toExitWith(0);
 });
 
-test("quiet-state will not guess the paint order when the author set an explicit z-index", async ({ runCli, scratch }) => {
-  // The document-order tell only holds for auto z-index; deciding a reordered stack means resolving
-  // stacking contexts, which the walker does not do. It refuses in the safe direction — the layer keeps
-  // its veto and the cohort is withheld — rather than assuming the chip is on top.
+test("quiet-state judges a carrier whose chip a positive z-index ranks above it", async ({ runCli, scratch }) => {
+  // The walker resolves the stacking context: the chip's z-index 2 outranks the cells' level 0 in the root context.
   const zChip = PICKER_CHIP.replace("position:absolute", "position:absolute;z-index:2");
   await writeFile(
     join(scratch, "z-indexed-chip.html"),
@@ -234,8 +232,49 @@ test("quiet-state will not guess the paint order when the author set an explicit
   );
   const res = await runCli("snap", ["--file", join(scratch, "z-indexed-chip.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
   expect(res.stdout).toContain(
+    "POPULATION   quiet-state candidates=2 judged=1 affected=0 populations=0 representatives=0 withheld() excluded(nestedStatePart=1)",
+  );
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+  await expect(res).toExitWith(0);
+});
+
+test("quiet-state still withholds when a negative z-index ranks the chip below the carrier", async ({ runCli, scratch }) => {
+  // Control for the case above: a layer ranked under the cells is not above them, so it keeps its veto.
+  const zChip = PICKER_CHIP.replace("position:absolute", "position:absolute;z-index:-1");
+  await writeFile(
+    join(scratch, "z-under-chip.html"),
+    relationalDocument(`<section role="region" aria-label="Pickers" style="background:#000;padding:12px">${pickerGroup("", zChip)}</section>`),
+  );
+  const res = await runCli("snap", ["--file", join(scratch, "z-under-chip.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain(
     "POPULATION   quiet-state candidates=2 judged=0 affected=0 populations=0 representatives=0 withheld(unresolved=1) excluded(nestedStatePart=1)",
   );
+  expect(res.stdout).toContain("INSTRUMENT ERROR");
+  await expect(res).toExitWith(2);
+});
+
+/** A painted scrim inside a 60px scroller, laid at 70px so the scroller clips it out; the cells sit over that spot. */
+function clippedScrimFixture(scrimTop: number): string {
+  const scrim = `<span data-slot="picker-scrim" style="position:absolute;top:${String(scrimTop)}px;left:0;width:320px;height:60px;background:rgba(255,255,255,0.2)"></span>`;
+  const scroller = `<div style="width:320px;height:60px;overflow:auto"><div style="position:relative;height:400px">${scrim}</div></div>`;
+  return `<section role="region" aria-label="Pickers" style="position:relative;background:#000;width:320px;height:200px">${scroller}<div style="position:absolute;top:${String(scrimTop)}px;left:0">${pickerGroup("")}</div></section>`;
+}
+
+test("quiet-state judges a carrier whose scrim its scroller clips away", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "clipped-scrim.html"), relationalDocument(clippedScrimFixture(70)));
+  const res = await runCli("snap", ["--file", join(scratch, "clipped-scrim.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  expect(res.stdout).toContain(
+    "POPULATION   quiet-state candidates=2 judged=1 affected=0 populations=0 representatives=0 withheld() excluded(nestedStatePart=1)",
+  );
+  expect(res.stdout).not.toContain("INSTRUMENT ERROR");
+  await expect(res).toExitWith(0);
+});
+
+test("quiet-state still withholds when the scrim paints inside its scroller under the carrier", async ({ runCli, scratch }) => {
+  await writeFile(join(scratch, "shown-scrim.html"), relationalDocument(clippedScrimFixture(0)));
+  const res = await runCli("snap", ["--file", join(scratch, "shown-scrim.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+  // The scrim also covers the paint context both cohorts are keyed on, so the indicator cohort is withheld too.
+  expect(res.stdout).toContain("POPULATION   quiet-state candidates=2 judged=0 affected=0 populations=0 representatives=0 withheld(unresolved=2) excluded()");
   expect(res.stdout).toContain("INSTRUMENT ERROR");
   await expect(res).toExitWith(2);
 });
@@ -306,6 +345,15 @@ test("an authored no-action empty state with a bare title is still a dead end", 
 test("an authored no-action empty state whose reason is hidden is still a dead end", async ({ runCli, scratch }) => {
   const hiddenReason = AUTHORED_REASON.replace('data-slot="empty-state-description"', 'data-slot="empty-state-description" style="display:none"');
   const stdout = await auditEmpty("authored-hidden-reason.html", libraryEmpty(hiddenReason), runCli, scratch);
+  expect(stdout).toMatch(/^P2\s+double-empty-state/mu);
+  expect(stdout).toContain("1 with no action");
+});
+
+test("an authored no-action empty state whose reason is clipped screen-reader-only text is still a dead end", async ({ runCli, scratch }) => {
+  // Tailwind's sr-only recipe: the box is laid out, and the clip paints none of it.
+  const srOnly = "position:absolute;width:1px;height:1px;overflow:hidden;clip-path:inset(50%);white-space:nowrap";
+  const clippedReason = AUTHORED_REASON.replace('data-slot="empty-state-description"', `data-slot="empty-state-description" style="${srOnly}"`);
+  const stdout = await auditEmpty("authored-sr-only-reason.html", libraryEmpty(clippedReason), runCli, scratch);
   expect(stdout).toMatch(/^P2\s+double-empty-state/mu);
   expect(stdout).toContain("1 with no action");
 });

@@ -75,7 +75,7 @@ function contrastOutcome(input: ContrastInput): ContrastOutcome {
   // NO VERDICT below the measurable-opacity floor (#466): at that alpha the composite is the backdrop
   // whatever the authored color is, so the ratio is arithmetic, not evidence. Measured live: a home run
   // caught mid boot-animation filed two P1s reading `1.00:1 · dimmed α0.00` against the weave veil and
-  // the brand wordmark — text that paints nothing at that instant. `isVisible` already drops EXACTLY
+  // the brand wordmark — text that paints nothing at that instant. `isRendered` already drops EXACTLY
   // zero; this closes the mid-fade window it cannot see.
   if (opacity < MEASURABLE_OPACITY_MIN) {
     return { kind: "dimmed" };

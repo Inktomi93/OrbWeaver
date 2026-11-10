@@ -7,7 +7,7 @@ import { routeTrpc, trpcError } from "../node/route-trpc.ts";
 import { labelInNameFindings } from "./accessible-names.ts";
 import { beginAutosaveStatusTranscript, readAutosaveStatusTranscript } from "./autosave-status-transcript.ts";
 import { lastInkColumn, readCanvasBandInk, solidColumns } from "./canvas-ink.ts";
-import { auditRenderedTextContrast } from "./pixel-contrast.ts";
+import { auditRenderedTextContrast, pixelContrast } from "./pixel-contrast.ts";
 import { frameFingerprint, frameFingerprintPair } from "./weave-drive.ts";
 
 // Ample for a scripted socket body to reach the page once its handshake settles.
@@ -87,6 +87,29 @@ test("socket frames wait for the named room even after another room attached fir
   });
   await recorder.served();
   expect(await stream).toContain('"type":"serverReady"');
+});
+
+// White ink on a #000000 fill, both in one 0.5 group over a white page: the ink paints #ffffff and the fill #808080,
+// which is 3.95:1; the bounds allow the engine's rounding of the 0.5 blend. Compositing the ink again over the already
+// dimmed fill reads #c0c0c0 on #808080, 2.17:1.
+test("pixelContrast reads a chip dimmed with its own fill from one composite, 3.95:1", async ({ page }) => {
+  await page.setContent(
+    '<body style="margin:0;background:white"><div style="display:inline-block;color:white;background:black;opacity:0.5;padding:20px">Muted</div></body>',
+  );
+  const { ratio } = await pixelContrast(page, page.getByText("Muted", { exact: true }));
+  expect(ratio).toBeGreaterThan(3.85);
+  expect(ratio).toBeLessThan(4.05);
+});
+
+// Control: the 0.5 group holds the ink and not its fill, so the ink still composites over the ring. White at 0.5 over
+// #000000 paints #808080, which is 5.32:1.
+test("pixelContrast still composites ink dimmed apart from its fill, 5.32:1", async ({ page }) => {
+  await page.setContent(
+    '<body style="margin:0;background:white"><div style="display:inline-block;background:black;padding:20px"><span style="display:inline-block;color:white;opacity:0.5;padding:12px">Faint</span></div></body>',
+  );
+  const { ratio } = await pixelContrast(page, page.getByText("Faint", { exact: true }));
+  expect(ratio).toBeGreaterThan(5.25);
+  expect(ratio).toBeLessThan(5.4);
 });
 
 test("contrast identities are deterministic per page and clean up root text owners", async ({ page }) => {

@@ -49,7 +49,7 @@ ${WALKER_PRIMITIVES}${WALKER_RESOLVE}
     if (all.length === 0) return null;
     var vw = window.innerWidth;
     var vh = window.innerHeight;
-    // \`isVisible\` is the walker's (display/visibility/accumulated-opacity/zero-box, composed above); the
+    // \`isVisible\` is the walker's (display/visibility/accumulated-opacity/zero-box/sr-only clip, composed above); the
     // VIEWPORT half is snap's own question and stays here — the walk judges a whole document, this arm
     // judges the one target a caller named and must refuse a target nobody can look at.
     function inViewport(node) {

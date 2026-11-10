@@ -186,9 +186,16 @@ export const WALKER_RESOLVE = `
       var lbg = parseRgb(ls.backgroundColor);
       // A replaced element paints art with no CSS background, whether it is the layer or sits inside it, and a
       // plate over it composites against the pixels, not the body base.
-      var filled = positioned && ((lbg !== null && lbg.a > 0) || lel.querySelector(REPLACED_ART_SELECTOR) !== null);
+      var holdsArt = lel.querySelector(REPLACED_ART_SELECTOR) !== null;
+      var filled = positioned && ((lbg !== null && lbg.a > 0) || holdsArt);
       if (!(imaged || replaced || filled) || !isVisible(lel)) continue;
-      paintLayerCensus.push({ el: lel, fixed: fixed, rect: lel.getBoundingClientRect(), centreOnly: !positioned || inlineSvg || holdsText });
+      paintLayerCensus.push({
+        el: lel,
+        fixed: fixed,
+        rect: lel.getBoundingClientRect(),
+        centreOnly: !positioned || inlineSvg || holdsText,
+        art: imaged || replaced || holdsArt,
+      });
     }
     return paintLayerCensus;
   }
@@ -221,22 +228,9 @@ export const WALKER_RESOLVE = `
     var shown = shownRect(el, rect, document.documentElement);
     return shown.left >= shown.right || shown.top >= shown.bottom;
   }
-  // WHICH SIDE OF THE SUBJECT DOES THIS LAYER PAINT ON (#1155)? Among positioned elements with an auto
-  // z-index, CSS paints later-in-tree last, so a layer that FOLLOWS the subject in document order is ON
-  // TOP of it and cannot be between it and its base. An explicit z-index on either side reorders that and
-  // resolving it properly means resolving stacking contexts, which this walker will not guess: there the
-  // layer keeps its veto. Measured live on Settings -> Appearance (2026-09-02): the theme cell's own ⋯
-  // menu chip (\`Row absolute top-tight left-tight bg-card/80\`, a following sibling of the picker item —
-  // appearance-looks-section.tsx) is contentless, positioned and painted, so it is a paint layer by this
-  // census's definition, and it held the theme cohort at withheld(unresolved) while sitting VISIBLY over
-  // the very cell whose backdrop it was said to hide.
-  function paintsOverSubject(layerEl, subject) {
-    if (getComputedStyle(layerEl).zIndex !== "auto" || getComputedStyle(subject).zIndex !== "auto") return false;
-    return (subject.compareDocumentPosition(layerEl) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
-  }
-  // THE TEXT QUERY RESOLVES THE STACKING CONTEXTS paintsOverSubject declines to: a layer the browser paints above
-  // the glyphs covers them and is not between them and their base. Each side is ranked by the box that takes part
-  // in their nearest common stacking context. Any doubt answers false, so the layer keeps its veto.
+  // WHICH SIDE OF THE SUBJECT DOES THIS LAYER PAINT ON? A layer the browser paints above the subject covers it and
+  // is not between it and its base. Each side is ranked by the box that takes part in their nearest common stacking
+  // context. Any doubt answers false, so the layer keeps its veto.
   function isFlexOrGridItem(n) {
     var parent = n.parentElement;
     return parent !== null && /flex|grid/.test(getComputedStyle(parent).display);
@@ -270,7 +264,7 @@ export const WALKER_RESOLVE = `
     var bs = getComputedStyle(box);
     return { el: box, level: zIndexApplies(box, bs) ? Number.parseInt(bs.zIndex, 10) : 0 };
   }
-  function paintsAboveText(layerEl, subject) {
+  function paintsAboveSubject(layerEl, subject) {
     var common = layerEl.parentElement;
     while (common !== null && !common.contains(subject)) common = common.parentElement;
     if (common === null) return false;
@@ -282,28 +276,28 @@ export const WALKER_RESOLVE = `
     if (text === null) return layer.level >= 0;
     if (layer.el.contains(text.el)) return false;
     if (layer.level !== text.level) return layer.level > text.level;
-    // A layer nested in the text's own positioned box still follows it in the tree-order list.
+    // A layer nested in the subject's own positioned box still follows it in the tree-order list.
     return (text.el.compareDocumentPosition(layer.el) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
   }
   // Is the opaque background found at baseNode actually what the eye sees behind el, or does a paint
   // layer sit on top of it? Only layers INSIDE the base's subtree count (a layer outside it paints under
   // the base's own background, not over it), and never one that contains el — that one is an ancestor
-  // and the walk already accounted for it. \`underQuery\` adds the two fences the UNDER/AT questions need
-  // (below): a layer inside the subject, and a layer that paints over the subject, are both above its own
-  // fill rather than between it and the surface beneath it.
-  function paintLayerOver(baseNode, el, elRect, underQuery, textQuery) {
+  // and the walk already accounted for it, nor one the browser paints above el. \`underQuery\` adds the fence
+  // the UNDER/AT questions need (below): a layer inside the subject is above its own fill rather than between
+  // it and the surface beneath it.
+  function paintLayerOver(baseNode, el, elRect, underQuery) {
     var census = paintLayers();
     for (var pi = 0; pi < census.length; pi += 1) {
       var layer = census[pi];
       if (layer.el === el || layer.el.contains(el)) continue;
-      if (underQuery && (el.contains(layer.el) || paintsOverSubject(layer.el, el))) continue;
+      if (underQuery && el.contains(layer.el)) continue;
       if (!baseNode.contains(layer.el) || layer.el === baseNode) continue;
-      if (textQuery && paintsAboveText(layer.el, el)) continue;
+      if (paintsAboveSubject(layer.el, el)) continue;
       var lr = layer.rect;
       var subjectRect = elRect;
-      // A text and a layer in different scrollers meet only where both paint. A fixed layer backs the text at
-      // every scroll position, so its veto stays.
-      if (textQuery && !layer.fixed) {
+      // A subject and a layer in different scrollers meet only where both paint. A fixed layer backs the subject
+      // at every scroll position, so its veto stays.
+      if (!layer.fixed) {
         lr = shownRect(layer.el, layer.rect, el);
         subjectRect = shownRect(el, elRect, layer.el);
         if (subjectRect.left >= subjectRect.right || subjectRect.top >= subjectRect.bottom) continue;
@@ -334,14 +328,14 @@ export const WALKER_RESOLVE = `
       if (bgImage && bgImage !== "none") {
         if (bgImage.indexOf("gradient") !== -1 && bgImage.indexOf("url(") === -1) {
           var stops = parseGradientStops(bgImage);
-          var seeThrough = textQuery && stops.some(function (stop) { return stop.a < OPAQUE_MIN_ALPHA; });
+          var seeThrough = stops.some(function (stop) { return stop.a < OPAQUE_MIN_ALPHA; });
           if (stops.length > 0 && !seeThrough) {
             if (!gradientAbove) return { kind: "gradient", stops: stops };
             var under = { r: stops[0].r, g: stops[0].g, b: stops[0].b };
             for (var gi = layers.length - 1; gi >= 0; gi -= 1) under = compositeOver(layers[gi], under);
             return { kind: "unresolved", reason: "gradient-over-base", fallback: under };
           }
-          // A text query reads on past a translucent gradient: CSS paints this node's own background-color, and
+          // The walk reads on past a translucent gradient: CSS paints this node's own background-color, and
           // whatever is beneath that, under its image. The stop list cannot say which band sits under the glyphs.
           if (stops.length > 0) gradientAbove = true;
           else return { kind: "image-indeterminate" };
@@ -354,12 +348,17 @@ export const WALKER_RESOLVE = `
         if (bg.a >= OPAQUE_MIN_ALPHA) {
           var acc = { r: bg.r, g: bg.g, b: bg.b };
           for (var li = layers.length - 1; li >= 0; li -= 1) acc = compositeOver(layers[li], acc);
-          var over = paintLayerOver(node, subject, elRect, underQuery, textQuery);
+          var over = paintLayerOver(node, subject, elRect, underQuery);
           // fallback is the number the old code returned. It is NOT a verdict — the contrast family
           // refuses it — but the non-verdict consumers (the dark-glow tell) still need a best-effort
           // backdrop, and returning null there would silently drop findings this change never judged.
-          // Art under the centre backs only this one subject, so the pixel pass scrolls to it.
-          if (over !== null) return { kind: "unresolved", reason: over.centreOnly ? "art-under-subject" : "paint-layer-over-base", fallback: acc };
+          // Art under the centre backs only this one subject, so the pixel pass scrolls to it. Only an ART layer
+          // that backs every text earns the unseen-art reclassification in ops/pixels.ts; a fill is not art.
+          if (over !== null) {
+            // Only the text census reads the fill reason; every other caller keeps the label it always printed.
+            var overReason = over.centreOnly ? "art-under-subject" : over.art || !textQuery ? "paint-layer-over-base" : "fill-layer-over-base";
+            return { kind: "unresolved", reason: overReason, fallback: acc };
+          }
           if (gradientAbove) return { kind: "unresolved", reason: "gradient-over-base", fallback: acc };
           return { kind: "flat", color: acc };
         }
@@ -379,8 +378,8 @@ export const WALKER_RESOLVE = `
     return resolveBackdropFrom(el, el, false, false);
   }
 
-  // What is behind a GLYPH, for the reading-surface colour rules: a translucent gradient and a paint layer get the
-  // text-only answers above (read through, paint order, clipped box). Every other caller keeps resolveBackdrop.
+  // What is behind a GLYPH, for the reading-surface colour rules: only they name a fill-only layer apart, because
+  // ops/pixels.ts reads that reason to keep a fill from being reclassified as art.
   function resolveTextBackdrop(el) {
     return resolveBackdropFrom(el, el, false, true);
   }

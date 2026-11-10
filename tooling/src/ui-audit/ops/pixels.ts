@@ -79,7 +79,12 @@ function revealedRing(raw: (PixelRaw & { data: Buffer }) | { error: string }, { 
   if ("error" in raw) {
     return { refusal: `pixel sample unavailable (${raw.error})` };
   }
-  return textBackdropRing(raw, shiftedUp(box, offset), text.inkBox === undefined ? undefined : shiftedUp(text.inkBox, offset));
+  return textBackdropRing(
+    raw,
+    shiftedUp(box, offset),
+    text.inkBox === undefined ? undefined : shiftedUp(text.inkBox, offset),
+    text.groundMarks?.map((mark) => shiftedUp(mark, offset)),
+  );
 }
 
 /** Settle off-screen `art-under-subject` texts by scrolling to each one. Each shot centres the first unsettled text and
@@ -152,7 +157,7 @@ function settleOneSample(
     refusals.push({ selector: text.selector, reason: "walker sample carries no box" });
     return { text, sampled: false };
   }
-  const read = textBackdropRing(raw, text.box, text.inkBox);
+  const read = textBackdropRing(raw, text.box, text.inkBox, text.groundMarks);
   if ("refusal" in read && read.refusal === OFF_SCREEN_REFUSAL && isArtUnderSubject(text)) {
     return { deferred: text.box };
   }

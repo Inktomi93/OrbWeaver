@@ -59,6 +59,35 @@ export function compositeForeground(fg: Rgb, bg: Rgb, opacity: number): Rgb {
   return { r: mix(fg.r, bg.r), g: mix(fg.g, bg.g), b: mix(fg.b, bg.b) };
 }
 
+/** The opacity groups between a glyph and what is painted behind it, split at the box that paints the glyph's fill. */
+export interface InkDimming {
+  /** The ink's own alpha times every group below the fill's painter: these dim the ink against that fill. */
+  readonly inner: number;
+  /** The fill painter's group and every group above it: these dim the ink and the fill alike. */
+  readonly outer: number;
+  /** The painter's own fill, as CSS declares it. */
+  readonly fill: Rgb;
+}
+
+const SRGB_CHANNEL_MAX = 255;
+
+/**
+ * The glyph colour on screen, given the backdrop a framebuffer ring reads beside it.
+ *
+ * @remarks An outer group dims the fill and the ink toward the same surface beneath it, so the ring already carries
+ * that dim, and compositing the ink over the ring again would count it twice. Solving both composites for that
+ * surface leaves `ring + outer * inner * (ink - fill)`. With no outer dim the ring is the fill, and this is
+ * {@link compositeForeground} over the ring.
+ */
+export function inkOverRing(fg: Rgb, ring: Rgb, dimming: InkDimming): Rgb {
+  if (dimming.outer >= FOREGROUND_OPACITY_EPS) {
+    return compositeForeground(fg, ring, dimming.inner);
+  }
+  const shift = dimming.outer * dimming.inner;
+  const seen = (f: number, fill: number, r: number): number => Math.min(SRGB_CHANNEL_MAX, Math.max(0, Math.round(r + shift * (f - fill))));
+  return { r: seen(fg.r, dimming.fill.r, ring.r), g: seen(fg.g, dimming.fill.g, ring.g), b: seen(fg.b, dimming.fill.b, ring.b) };
+}
+
 // ── Inactive controls (WCAG 1.4.3 / 1.4.11 exemption) ────────────────────────
 // THE ONE CLASSIFIER, shared by every instrument that samples the page. It lives here because two homes
 // for one rule is exactly how snap and design-audit drifted (#624): snap skipped a disabled control out
