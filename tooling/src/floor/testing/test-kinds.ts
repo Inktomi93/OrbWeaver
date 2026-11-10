@@ -4,6 +4,8 @@
 import { STABLE_TIMING_CAPABILITY } from "../host/timing-capability.ts";
 
 export const SEMANTIC_CORPUS_RESOURCE = "semantic-corpus";
+/** A case that writes gigabytes to the host disk. Its writeback stalls every fsync beside it on a hosted runner, so it runs alone. */
+export const HOST_DISK_RESOURCE = "host-disk";
 
 const RAW_TEST_KIND_DEFINITIONS = [
   { suffix: ".test.ts", family: "unit", compilerWorld: "node", mirror: "module", sourceExtensions: [".ts"], resource: null },
@@ -16,6 +18,14 @@ const RAW_TEST_KIND_DEFINITIONS = [
     mirror: "module",
     sourceExtensions: [".ts"],
     resource: "repository",
+  },
+  {
+    suffix: ".disk.int.test.ts",
+    family: "integration",
+    compilerWorld: "node",
+    mirror: "module",
+    sourceExtensions: [".ts"],
+    resource: HOST_DISK_RESOURCE,
   },
   { suffix: ".suite.int.test.ts", family: "integration", compilerWorld: "node", mirror: "suite", sourceExtensions: [".ts"], resource: null },
   {

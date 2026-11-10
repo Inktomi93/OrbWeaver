@@ -5,7 +5,7 @@ import { dirname, join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/tooling";
 import { spawnNiced } from "@orb/tooling/floor/process/proc";
-import { SEMANTIC_CORPUS_RESOURCE } from "@orb/tooling/floor/testing/test-kinds";
+import { HOST_DISK_RESOURCE, SEMANTIC_CORPUS_RESOURCE } from "@orb/tooling/floor/testing/test-kinds";
 import base from "../../vitest.config.ts";
 import { scaledBudget } from "./_load-budget.ts";
 
@@ -167,6 +167,26 @@ test("the real semantic-corpus resource admits independent files only after seri
   expect(result.findIndex((event) => event.startsWith("corpus-"))).toBeGreaterThan(result.findLastIndex((event) => event.startsWith("repository-")));
   const corpus = result.filter((event) => event.startsWith("corpus-")).map((event) => event.replace("corpus-", "repository-"));
   expect(repositoryConcurrency(corpus)).toEqual({ starts: 2, maxActive: workers, finalActive: 0 });
+});
+
+test("the real host-disk resource runs after every other group, one file at a time", { timeout: RUN_BUDGET_MS }, async ({ scratch }) => {
+  const projects = (base.test?.projects ?? []).flatMap((project) => (typeof project === "object" && "test" in project ? [project.test] : []));
+  const native = projects.find((project) => project.name === HOST_DISK_RESOURCE);
+  if (native === undefined) {
+    throw new Error("the host-disk resource has no native execution project");
+  }
+  const order = native.sequence?.groupOrder ?? 0;
+  expect(projects.filter((project) => project !== native && (project.sequence?.groupOrder ?? 0) >= order).map(({ name }) => name)).toEqual([]);
+  const events = join(scratch, "events.log");
+  write(scratch, "tests/normal/a.test.ts", source(events, "normal-a"));
+  write(scratch, "tests/disk/a.disk.int.test.ts", source(events, "repository-a"));
+  write(scratch, "tests/disk/b.disk.int.test.ts", source(events, "repository-b"));
+  const result = await runNative(scratch, [
+    { name: "normal", include: ["tests/normal/*.test.ts"], groupOrder: 0 },
+    { name: HOST_DISK_RESOURCE, include: native.include ?? [], groupOrder: order, fileParallelism: native.fileParallelism ?? true },
+  ]);
+  assertRepositoryBarrier(result);
+  expect(repositoryConcurrency(result), result.join(", ")).toEqual({ starts: 2, maxActive: 1, finalActive: 0 });
 });
 
 test("native runtime realms execute product and tooling repository kinds in their own tier exactly once", { timeout: RUN_BUDGET_MS }, async ({ scratch }) => {

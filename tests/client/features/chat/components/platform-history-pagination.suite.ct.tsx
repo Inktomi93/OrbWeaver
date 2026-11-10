@@ -49,6 +49,8 @@ const EXTRA_ROWS = 115;
 // The transcript's own busy state: a loading Earlier messages carries `aria-busy` too.
 const TRANSCRIPT_BUSY = '[aria-busy]:not([data-slot="button"])';
 const ARRIVALS = 55;
+// Keyboard steps taken at each arrival edge; the rows between them are proven by position, not by focus.
+const ROVING_EDGE_STEPS = 3;
 // The top of the platform text steps, the one the phone's room is shortest at.
 const PHONE_TOP_TEXT_SCALE = PLATFORM_TEXT_SCALES[2];
 type Caller = Awaited<ReturnType<Awaited<ReturnType<typeof createCorpusHarness>>["internalCallerFor"]>>;
@@ -66,6 +68,8 @@ interface HistoryFixture {
   readonly anchor: CanonMessage;
   readonly loadedFirst: CanonMessage;
   readonly removed: CanonMessage;
+  /** The row after `removed`, where a keyboard step from `loadedFirst` lands once `removed` is deleted. */
+  readonly afterRemoved: CanonMessage;
 }
 
 async function commitArrivals(caller: Caller, chatId: ChatId): Promise<readonly CanonMessage[]> {
@@ -84,6 +88,66 @@ async function oldestOf(caller: Caller, chatId: ChatId): Promise<CanonMessage | 
     page = await caller.chat.listMessages({ chatId, cursor: page.previousCursor });
   }
   return page.messages[0];
+}
+
+/** The newest `count` rows of a room's canon in server order, read back page by page from the tail. */
+async function newestCanon(caller: Caller, chatId: ChatId, count: number): Promise<readonly CanonMessage[]> {
+  let page = await caller.chat.listMessages({ chatId });
+  const rows = [...page.messages];
+  while (rows.length < count && page.previousCursor !== null) {
+    page = await caller.chat.listMessages({ chatId, cursor: page.previousCursor });
+    rows.unshift(...page.messages);
+  }
+  return rows.slice(-count);
+}
+
+/**
+ * Every `position:id` pair the transcript renders while its scroller steps up from where it is to the row of `untilId`.
+ * The list is virtual, so one read sees only the rows on screen; half-viewport steps keep each read overlapping the last.
+ */
+function sweepRenderedRows(port: Locator, untilId: string): Promise<readonly string[]> {
+  return port.evaluate(
+    async (node, { untilId: target, rowSelector, maxSteps }) => {
+      const seen = new Set<string>();
+      const frame = (): Promise<void> => new Promise((resolve) => requestAnimationFrame(() => resolve()));
+      const collect = (): boolean => {
+        let reached = false;
+        for (const row of node.querySelectorAll(rowSelector)) {
+          const id = row.querySelector("[data-message-id]")?.getAttribute("data-message-id");
+          if (id !== null && id !== undefined) {
+            seen.add(`${row.getAttribute("aria-posinset") ?? ""}:${id}`);
+            reached ||= id === target;
+          }
+        }
+        return reached;
+      };
+      for (let step = 0; !collect() && node.scrollTop > 0 && step < maxSteps; step++) {
+        node.scrollTop = Math.max(0, node.scrollTop - node.clientHeight / 2);
+        await frame();
+        await frame();
+      }
+      return [...seen];
+    },
+    { untilId, rowSelector: '[data-slot="message-list-row"]', maxSteps: ARRIVALS * 4 },
+  );
+}
+
+/** One roving key press, then the row holding `messageId` must own focus. */
+async function stepFocus(page: Page, key: "ArrowUp" | "ArrowDown", messageId: string): Promise<void> {
+  await page.keyboard.press(key);
+  await expect(page.getByRole("listitem").filter({ has: page.locator(`[data-message-id="${messageId}"]`) })).toBeFocused();
+}
+
+/** The ids of `pairs` at positions `from..to`, one per position; a position with two ids, or none, fails the read. */
+function idsByPosition(pairs: readonly string[], from: number, to: number): readonly (string | undefined)[] {
+  const byPosition = new Map<number, Set<string>>();
+  for (const pair of pairs) {
+    const split = pair.indexOf(":");
+    const position = Number(pair.slice(0, split));
+    byPosition.set(position, (byPosition.get(position) ?? new Set()).add(pair.slice(split + 1)));
+  }
+  expect([...byPosition].filter(([, ids]) => ids.size > 1)).toEqual([]);
+  return Array.from({ length: to - from + 1 }, (_, offset) => [...(byPosition.get(from + offset) ?? [])][0]);
 }
 
 async function prepareHistory(root: Root, caller: Caller): Promise<HistoryFixture> {
@@ -123,10 +187,11 @@ async function prepareHistory(root: Root, caller: Caller): Promise<HistoryFixtur
   const previous = await caller.chat.listMessages({ chatId: room.id, cursor: tail.previousCursor });
   const loadedFirst = previous.messages[0];
   const removed = previous.messages[1];
-  if (loadedFirst === undefined || removed === undefined) {
-    throw new Error("The earlier page needs two reading witnesses");
+  const afterRemoved = previous.messages[2];
+  if (loadedFirst === undefined || removed === undefined || afterRemoved === undefined) {
+    throw new Error("The earlier page needs three reading witnesses");
   }
-  return { rooms, room, other, original, otherTail, tail, anchor, loadedFirst, removed };
+  return { rooms, room, other, original, otherTail, tail, anchor, loadedFirst, removed, afterRemoved };
 }
 
 type ChatEvents = ReturnType<Awaited<ReturnType<typeof createCorpusHarness>>["app"]["liveBuses"]["chat"]["subscribeChatEvents"]>;
@@ -311,7 +376,7 @@ for (const regime of [
     test("ordinary history reaches its original canon, preserves the prepend anchor and scopes pages to the room", async ({ corpus, mount, page }) => {
       await using root = await historyRoot();
       const caller = await root.internalCallerFor(root.ownerId);
-      const { rooms, room, other, original, otherTail, tail, anchor, loadedFirst, removed } = await prepareHistory(root, caller);
+      const { rooms, room, other, original, otherTail, tail, anchor, loadedFirst, removed, afterRemoved } = await prepareHistory(root, caller);
       expect(nonEmpty(tail.messages).some((message) => message.id === original.id)).toBe(false);
       await caller.settings.updateUserSettingsSection({
         section: "appearance",
@@ -415,6 +480,10 @@ for (const regime of [
       await expect(page.getByRole("main", { name: "Chats content", exact: true }).locator(TRANSCRIPT_BUSY)).toHaveAttribute("aria-busy", "false");
       await expect(canonical).toContainText("Edited oldest history witness");
       await expect(deleted).toHaveCount(0);
+      // Roving focus steps over the deleted row's place, not into it.
+      await page.getByRole("listitem").filter({ has: canonical }).focus();
+      await stepFocus(page, "ArrowDown", afterRemoved.id);
+      await stepFocus(page, "ArrowUp", loadedFirst.id);
       await jump.click();
       const last = arrivals.at(-1);
       if (last === undefined) {
@@ -423,11 +492,30 @@ for (const regime of [
       const newest = page.locator(`[data-message-id="${last.id}"]`);
       await expect(newest).toBeVisible();
       await expect(jump).toHaveCount(0);
+      const firstArrival = nonEmpty(arrivals)[0];
+      // The server's own order for the arrivals: the newest rows of the room once every write has landed.
+      const canonArrivals = (await newestCanon(caller, room.id, arrivals.length)).map((message) => message.id);
+      expect(canonArrivals).toEqual(arrivals.map((message) => message.id));
+      // Rows are virtual, so the newest row's position is the loaded length; every arrival owns one position below it.
+      const lastPosition = Number(await page.getByRole("listitem").filter({ has: newest }).getAttribute("aria-posinset"));
+      expect(lastPosition).toBe(Number(await loadedRows(port)));
+      // Roving focus crosses both arrival edges: the newest rows here, the first arrival into the canon it followed below.
       await page.getByRole("listitem").filter({ has: newest }).focus();
-      for (const arrival of arrivals.toReversed().slice(1)) {
-        await page.keyboard.press("ArrowUp");
-        await expect(page.getByRole("listitem").filter({ has: page.locator(`[data-message-id="${arrival.id}"]`) })).toBeFocused();
+      for (const arrival of arrivals.slice(-ROVING_EDGE_STEPS - 1, -1).toReversed()) {
+        await stepFocus(page, "ArrowUp", arrival.id);
       }
+      const rendered = await sweepRenderedRows(port, firstArrival.id);
+      expect(idsByPosition(rendered, lastPosition - arrivals.length + 1, lastPosition)).toEqual(canonArrivals);
+      const precedingCanon = nonEmpty(tail.messages).at(-1);
+      await page
+        .getByRole("listitem")
+        .filter({ has: page.locator(`[data-message-id="${arrivals[ROVING_EDGE_STEPS]?.id ?? ""}"]`) })
+        .focus();
+      for (const arrival of arrivals.slice(0, ROVING_EDGE_STEPS).toReversed()) {
+        await stepFocus(page, "ArrowUp", arrival.id);
+      }
+      await stepFocus(page, "ArrowUp", precedingCanon?.id ?? "");
+      await stepFocus(page, "ArrowDown", firstArrival.id);
       await earlier.click();
       await expect(page.getByRole("main", { name: "Chats content", exact: true }).locator(TRANSCRIPT_BUSY)).toHaveAttribute("aria-busy", "false");
       await expect(earlier).toBeDisabled();
@@ -437,7 +525,6 @@ for (const regime of [
       const endBox = await endStatement.boundingBox();
       expect(endBox?.height ?? 0).toBeGreaterThan(1);
       expect(endBox?.width ?? 0).toBeGreaterThan(1);
-      const firstArrival = arrivals[0] ?? last;
       await page
         .getByRole("listitem")
         .filter({ has: page.locator(`[data-message-id="${firstArrival.id}"]`) })
