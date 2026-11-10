@@ -24,7 +24,7 @@
 //              sample. Both are viewport-coordinate  testing and    hit-extent probe), the
 //              APIs: outside 0..innerWidth/Height    screenshots    unresolved-backdrop pixel
 //              they answer null, and null reads as   only exist     sampler (ops/pixels.ts),
-//              "nothing there", never as "I could    inside the     occluderOf
+//              "nothing there", never as "I could    inside the     coverOf
 //              not look".                            viewport.
 //   OFFERED    is this control reachable by a        NO — an        actionDoors, controlAspects
 //              pointer AT ALL (the 2026-08-16        off-CANVAS     (they inherit the tap-target

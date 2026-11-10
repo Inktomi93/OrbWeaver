@@ -51,7 +51,7 @@ export function checkContrast(input: ContrastInput): Finding | null {
 }
 
 function unresolvedOutcome(input: ContrastInput): ContrastOutcome {
-  return { kind: input.unseenInFrame === true ? "unseenInFrame" : "unresolvedBackdrop" };
+  return { kind: input.unseenInFrame === undefined ? "unresolvedBackdrop" : "unseenInFrame" };
 }
 
 function contrastOutcome(input: ContrastInput): ContrastOutcome {
@@ -257,7 +257,7 @@ function grayOnColorOutcome(input: ContrastInput): GrayOutcome {
     return { kind: "excluded", reason: "imageBackdrop" };
   }
   if (input.backdrop.kind === "unresolved") {
-    return input.unseenInFrame === true ? { kind: "excluded", reason: "unseenInFrame" } : { kind: "withheld", reason: "unresolvedBackdrop" };
+    return input.unseenInFrame === undefined ? { kind: "withheld", reason: "unresolvedBackdrop" } : { kind: "excluded", reason: "unseenInFrame" };
   }
   // A PIXEL-SAMPLED backdrop answers LUMINANCE, not authorship. This rule's whole remedy — "use a darker
   // shade of the background's own hue" — presumes an authored background color; run against the median of

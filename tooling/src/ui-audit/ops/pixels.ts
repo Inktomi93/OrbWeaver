@@ -12,9 +12,10 @@
 // refusal is printed and written to the report, never a fabricated color (the #211 posture).
 //
 // A TEXT THE FRAME DOES NOT PAINT IS NOT JUDGED IN IT. Off the screenshot, clipped wholly out of its own
-// scroller, or covered at its centre by another element, the text owns none of the pixels its box reaches. The
-// sample is marked `unseenInFrame` and the colour rules exclude it: a measured fact, so it neither withholds the
-// population nor files the "verify manually" art P1 for text nobody can see in this frame. A wallpapered room
+// scroller, or hidden at every probe by a cover that paints opaque, the text owns none of the pixels its box
+// reaches. The sample is marked `unseenInFrame` and the colour rules exclude it: a measured fact, so it neither
+// withholds the population nor files the "verify manually" art P1 for text nobody can see in this frame. A
+// translucent or transparent cover hides nothing: the shot holds the composite, and that is what is judged. A wallpapered room
 // has dozens of these (a transcript scrolled up, a tab strip's hidden cells, a page under a dialog) beside
 // in-view twins that are sampled here. A text unseen at every checkpoint is a walk coverage gap, not a verdict.
 //
@@ -39,11 +40,12 @@ function isUnresolved(text: ContrastInput): boolean {
   return text.backdrop.kind === "unresolved";
 }
 
-const CLIPPED_OUT_REFUSAL = "clipped out of its scroller";
+const CLIPPED_OUT = "clipped out of its scroller";
 
-function unseen(text: ContrastInput, reason: string, refusals: BackdropRefusal[]): { text: ContrastInput; sampled: boolean } {
-  refusals.push({ selector: text.selector, reason });
-  return { text: { ...text, unseenInFrame: true }, sampled: false };
+// An unseen text is excluded, not refused: the reason rides on the sample, and the refusal list stays the
+// NO VERDICT rows.
+function unseen(text: ContrastInput, reason: string): { text: ContrastInput; sampled: boolean } {
+  return { text: { ...text, unseenInFrame: reason }, sampled: false };
 }
 
 function isArtUnderSubject(text: ContrastInput): boolean {
@@ -145,13 +147,17 @@ function settleOneSample(
   raw: PixelRaw,
   refusals: BackdropRefusal[],
 ): { text: ContrastInput; sampled: boolean } | { readonly deferred: PixelBox } {
-  // Sampling either box would measure another element's pixels: the occluder's, or whatever the scroller's
-  // neighbour paints where the clipped text's box still reaches.
+  // Sampling would measure another element's pixels: the opaque cover's, or whatever the scroller's neighbour
+  // paints where the clipped text's box still reaches. A partial cover would mix into the ring, so it is refused.
   if (text.occludedBy !== undefined && text.occludedBy !== null) {
-    return unseen(text, `painted over by ${text.occludedBy}`, refusals);
+    return unseen(text, `painted over by ${text.occludedBy}`);
   }
   if (text.clippedOut === true) {
-    return unseen(text, CLIPPED_OUT_REFUSAL, refusals);
+    return unseen(text, CLIPPED_OUT);
+  }
+  if (text.partlyCoveredBy !== undefined) {
+    refusals.push({ selector: text.selector, reason: `partly painted over by ${text.partlyCoveredBy}` });
+    return { text, sampled: false };
   }
   if (text.box === undefined) {
     refusals.push({ selector: text.selector, reason: "walker sample carries no box" });
@@ -168,7 +174,7 @@ function settleOneSample(
 function settleFromRing(text: ContrastInput, read: RingRead, refusals: BackdropRefusal[]): { text: ContrastInput; sampled: boolean } {
   if ("refusal" in read) {
     if (read.refusal === OFF_SCREEN_REFUSAL) {
-      return unseen(text, read.refusal, refusals);
+      return unseen(text, read.refusal);
     }
     // A ring that is not one backdrop stays UNRESOLVED: the text is painted, the instrument could not judge it.
     refusals.push({ selector: text.selector, reason: read.refusal });

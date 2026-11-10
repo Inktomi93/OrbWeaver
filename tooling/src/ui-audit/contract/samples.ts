@@ -38,7 +38,8 @@ export interface ContrastInput {
   readonly fontSizePx: number;
   readonly fontWeight: number;
   /** Viewport-coordinate box of the text element, present from the live walker (absent in the fixture
-   *  sample sets that predate it). The pixel sampler needs it to settle an `unresolved` backdrop. */
+   *  sample sets that predate it). The pixel sampler needs it to settle an `unresolved` backdrop; for those
+   *  samples it is the part of the box its own scrollers still show. */
   readonly box?: { readonly x: number; readonly y: number; readonly width: number; readonly height: number };
   /** Viewport box of the element's own text (Range rects), carried only when the element box is materially
    *  larger. The backdrop ring is taken just outside this box, so a letter in a big tile reads the tile's
@@ -47,10 +48,13 @@ export interface ContrastInput {
   /** Present only for an unresolved text that fills its own box and paints nothing of its own: the ring is then read
    *  just outside the box, and these viewport boxes beside it (a swatch, a neighbour's label) are left out of it. */
   readonly groundMarks?: readonly { readonly x: number; readonly y: number; readonly width: number; readonly height: number }[];
-  /** What the compositor says is painted at this box's visible centre, when it is NOT this element (#211's
-   *  test, carried only for `unresolved` samples). Non-null means a pixel sample would measure the
-   *  OCCLUDER — the runner refuses the verdict instead. */
+  /** The element painted above this text and opaque at every probe across its shown box, carried only for
+   *  `unresolved` samples. Non-null means the frame does not paint the text, so a pixel sample would measure
+   *  the cover. A translucent or transparent cover never counts: the pixels hold the composite. */
   readonly occludedBy?: string | null;
+  /** The opaque cover over some probes of the shown box but not all: the ring would mix the cover with the
+   *  backdrop, so the runner withholds the verdict. */
+  readonly partlyCoveredBy?: string;
   /** How `backdrop` was arrived at. Absent/`css-resolve` = an authored background the walker resolved;
    *  `pixel-sample` = the runner read the real composited pixels because the walk was `unresolved`. The
    *  distinction is load-bearing for the rules that are about an authored COLOR rather than about
@@ -81,9 +85,9 @@ export interface ContrastInput {
   /** The walker found this text clipped wholly out by its own scrollers, so its box holds a neighbour's pixels.
    *  Carried only for `unresolved` samples, the ones the pixel pass would otherwise sample there. */
   readonly clippedOut?: boolean;
-  /** The pixel pass found this `unresolved` text not painted in the frame: off-screen, clipped out, or covered.
-   *  The colour rules judge what the frame paints, so they exclude it as `unseenInFrame`. */
-  readonly unseenInFrame?: true;
+  /** Why the pixel pass found this `unresolved` text not painted in the frame: off-screen, clipped out, or
+   *  covered. The colour rules judge what the frame paints, so they exclude it as `unseenInFrame`. */
+  readonly unseenInFrame?: string;
 }
 
 // `ImageDistortionInput` MOVED to contract/samples-media.ts (2026-09-06, #1825) — same 450-line-cap split

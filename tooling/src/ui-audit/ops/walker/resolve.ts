@@ -186,16 +186,9 @@ export const WALKER_RESOLVE = `
       var lbg = parseRgb(ls.backgroundColor);
       // A replaced element paints art with no CSS background, whether it is the layer or sits inside it, and a
       // plate over it composites against the pixels, not the body base.
-      var holdsArt = lel.querySelector(REPLACED_ART_SELECTOR) !== null;
-      var filled = positioned && ((lbg !== null && lbg.a > 0) || holdsArt);
+      var filled = positioned && ((lbg !== null && lbg.a > 0) || lel.querySelector(REPLACED_ART_SELECTOR) !== null);
       if (!(imaged || replaced || filled) || !isVisible(lel)) continue;
-      paintLayerCensus.push({
-        el: lel,
-        fixed: fixed,
-        rect: lel.getBoundingClientRect(),
-        centreOnly: !positioned || inlineSvg || holdsText,
-        art: imaged || replaced || holdsArt,
-      });
+      paintLayerCensus.push({ el: lel, fixed: fixed, rect: lel.getBoundingClientRect(), centreOnly: !positioned || inlineSvg || holdsText });
     }
     return paintLayerCensus;
   }
@@ -224,9 +217,8 @@ export const WALKER_RESOLVE = `
     }
     return box;
   }
-  function clippedOut(el, rect) {
-    var shown = shownRect(el, rect, document.documentElement);
-    return shown.left >= shown.right || shown.top >= shown.bottom;
+  function shownBox(el, rect) {
+    return shownRect(el, rect, document.documentElement);
   }
   // WHICH SIDE OF THE SUBJECT DOES THIS LAYER PAINT ON? A layer the browser paints above the subject covers it and
   // is not between it and its base. Each side is ranked by the box that takes part in their nearest common stacking
@@ -317,7 +309,7 @@ export const WALKER_RESOLVE = `
   // TWO QUESTIONS, ONE WALK. \`resolveBackdrop(el)\` asks what is behind EL's OWN BOX starting at el, so
   // el's own background is the answer when it has one. \`resolveBackdropUnder(el)\` asks what el's fill is
   // painted ON — the same walk from el's PARENT, still measured against EL's box and EL's subtree.
-  function resolveBackdropFrom(startNode, subject, underQuery, textQuery) {
+  function resolveBackdropFrom(startNode, subject, underQuery) {
     var node = startNode;
     var layers = [];
     var elRect = subject.getBoundingClientRect();
@@ -352,13 +344,8 @@ export const WALKER_RESOLVE = `
           // fallback is the number the old code returned. It is NOT a verdict — the contrast family
           // refuses it — but the non-verdict consumers (the dark-glow tell) still need a best-effort
           // backdrop, and returning null there would silently drop findings this change never judged.
-          // Art under the centre backs only this one subject, so the pixel pass scrolls to it. Only an ART layer
-          // that backs every text earns the unseen-art reclassification in ops/pixels.ts; a fill is not art.
-          if (over !== null) {
-            // Only the text census reads the fill reason; every other caller keeps the label it always printed.
-            var overReason = over.centreOnly ? "art-under-subject" : over.art || !textQuery ? "paint-layer-over-base" : "fill-layer-over-base";
-            return { kind: "unresolved", reason: overReason, fallback: acc };
-          }
+          // Art under the centre backs only this one subject, so the pixel pass scrolls to it.
+          if (over !== null) return { kind: "unresolved", reason: over.centreOnly ? "art-under-subject" : "paint-layer-over-base", fallback: acc };
           if (gradientAbove) return { kind: "unresolved", reason: "gradient-over-base", fallback: acc };
           return { kind: "flat", color: acc };
         }
@@ -375,13 +362,7 @@ export const WALKER_RESOLVE = `
   }
 
   function resolveBackdrop(el) {
-    return resolveBackdropFrom(el, el, false, false);
-  }
-
-  // What is behind a GLYPH, for the reading-surface colour rules: only they name a fill-only layer apart, because
-  // ops/pixels.ts reads that reason to keep a fill from being reclassified as art.
-  function resolveTextBackdrop(el) {
-    return resolveBackdropFrom(el, el, false, true);
+    return resolveBackdropFrom(el, el, false);
   }
 
   // THE PAINT UNDER A SUBJECT'S OWN BOX (#1155) — for a rule that ranks an element's own FILL and must
@@ -395,50 +376,70 @@ export const WALKER_RESOLVE = `
   // every Config design-audit at population-verdict=NO-VERDICT. A layer that genuinely sits between the
   // resolved base and the subject's box still refuses: only the two false vetoes stopped counting.
   function resolveBackdropUnder(el) {
-    return resolveBackdropFrom(el.parentElement, el, true, false);
+    return resolveBackdropFrom(el.parentElement, el, true);
   }
 
   // THE PAINT CONTEXT AT A CONTAINER — its own fill (or the first opaque ancestor's), read as the surface
   // its contents sit on, so the layers INSIDE it are what it backs rather than vetoes against it. A layer
   // painted over it from OUTSIDE its own subtree still refuses.
   function resolveBackdropAt(el) {
-    return resolveBackdropFrom(el, el, true, false);
+    return resolveBackdropFrom(el, el, true);
   }
 
-  // WHO OWNS THE PIXELS AT THIS BOX (snap's occluderOf, #211 — same test, same vocabulary, because the two
-  // instruments must not disagree about what is behind a glyph). An unresolved backdrop is settled by
-  // sampling the element's real pixels back in Node, and sampling a box that fixed chrome is painted over
-  // measures the CHROME: the first pixel-sampling run of this walker reported 1.33:1 on a paragraph sitting
-  // under the 48px topbar, which is the same false-verdict class #211 fixed in snap. Only carried for
-  // unresolved samples — an opaque ancestor background is a css fact that occlusion cannot change.
   function describeNode(n) {
     var slot = n.getAttribute ? n.getAttribute("data-slot") : null;
     var cls = typeof n.className === "string" && n.className ? "." + n.className.trim().split(/\\s+/).slice(0, 2).join(".") : "";
     return n.tagName.toLowerCase() + (n.id ? "#" + n.id : "") + (slot ? "[data-slot=" + slot + "]" : "") + cls;
   }
-  // elementFromPoint is BLIND to a pointer-events:none subtree, so its silence there means "I cannot tell",
-  // not "occluded" — keep the sample rather than refuse a verdict it deserves.
-  function pointerTransparent(n) {
-    var p = n;
-    while (p) {
-      if (getComputedStyle(p).pointerEvents === "none") return true;
-      p = p.parentElement;
-    }
-    return false;
+  // A COVER HIDES THE GLYPHS ONLY WHERE IT PAINTS OPAQUE. A scrim, a dialog's viewport or a stretched card link sits
+  // over the text and composites with it; the pixels then hold that composite, which is what the eye reads. A url()
+  // image or a replaced element may be transparent anywhere, so it never counts as opaque here.
+  function paintsOpaque(n) {
+    var s = getComputedStyle(n);
+    if (s.visibility === "hidden" || accumulatedOpacity(n) < OPAQUE_MIN_ALPHA) return false;
+    var bg = parseRgb(s.backgroundColor);
+    if (bg !== null && bg.a >= OPAQUE_MIN_ALPHA) return true;
+    var image = s.backgroundImage;
+    if (!image || image.indexOf("gradient") === -1 || image.indexOf("url(") !== -1) return false;
+    var stops = parseGradientStops(image);
+    return stops.length > 0 && stops.every(function (stop) { return stop.a >= OPAQUE_MIN_ALPHA; });
   }
-  function occluderOf(el) {
-    if (pointerTransparent(el)) return null;
-    var r = el.getBoundingClientRect();
-    var vw = window.innerWidth;
-    var vh = window.innerHeight;
-    // The VISIBLE box's centre — a half-scrolled element must not be judged by an off-screen point.
-    var x = (Math.max(0, r.left) + Math.min(vw, r.right)) / 2;
-    var y = (Math.max(0, r.top) + Math.min(vh, r.bottom)) / 2;
-    if (x < 0 || y < 0 || x >= vw || y >= vh) return null;
-    var hit = document.elementFromPoint(x, y);
-    if (hit === null) return null;
-    if (hit === el || el.contains(hit) || hit.contains(el)) return null;
-    return describeNode(hit);
+  // The topmost element painted above el and opaque at the point, or null. The hit stack runs top-down, so it ends at
+  // el's own box; elements past el's paint layer are kept out by the stacking order, which hit testing alone cannot
+  // give when the point misses el's glyph fragments or el is pointer-events:none.
+  function opaqueCoverAt(el, x, y) {
+    var stack = document.elementsFromPoint(x, y);
+    for (var si = 0; si < stack.length; si += 1) {
+      var n = stack[si];
+      if (n === el || n.contains(el)) return null;
+      if (!el.contains(n) && paintsAboveSubject(n, el) && paintsOpaque(n)) return n;
+    }
+    return null;
+  }
+  // WHO OWNS THE PIXELS ACROSS THE TEXT'S SHOWN BOX. Sampling a box that fixed chrome paints over measures the chrome,
+  // so a text an opaque cover hides at every probe is \`covered\`; one hidden at some probes is \`partly\` covered, and
+  // its ring would mix the cover with the backdrop. Only the shown box inside the viewport is probed.
+  var COVER_PROBES_PER_AXIS = 3;
+  function coverOf(el, shown) {
+    var left = Math.max(0, shown.left);
+    var right = Math.min(window.innerWidth, shown.right);
+    var top = Math.max(0, shown.top);
+    var bottom = Math.min(window.innerHeight, shown.bottom);
+    if (left >= right || top >= bottom) return null;
+    var first = null;
+    var hidden = 0;
+    for (var cx = 0; cx < COVER_PROBES_PER_AXIS; cx += 1) {
+      for (var cy = 0; cy < COVER_PROBES_PER_AXIS; cy += 1) {
+        var x = left + ((cx + 0.5) * (right - left)) / COVER_PROBES_PER_AXIS;
+        var y = top + ((cy + 0.5) * (bottom - top)) / COVER_PROBES_PER_AXIS;
+        var cover = opaqueCoverAt(el, x, y);
+        if (cover === null) continue;
+        hidden += 1;
+        if (first === null) first = cover;
+      }
+    }
+    if (first === null) return null;
+    return { by: describeNode(first), whole: hidden === COVER_PROBES_PER_AXIS * COVER_PROBES_PER_AXIS };
   }
 
   function loadNaturalSize(url) {

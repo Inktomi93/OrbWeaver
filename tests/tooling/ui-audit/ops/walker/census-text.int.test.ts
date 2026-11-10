@@ -603,11 +603,11 @@ auditRuleTest(UNREACHED_GRADIENT_PROOFS, "a translucent gradient with no opaque 
 });
 
 // ── a paint layer the text is not over ────────────────────────────────────────
-// Each subject below is covered by a contentless, unpainted box, so the pixel pass cannot sample it. A layer the
+// Each subject below is hidden by an opaque box painted after it, so the pixel pass cannot sample it. A layer the
 // walk names leaves it unseen in the frame; with no layer the walk resolves a flat backdrop and judges it.
 
 const WHITE_FILL = "background-image:linear-gradient(#ffffff, #ffffff)";
-const COVERED_INK = '<span style="position:relative;color:#ffffff;font-size:14px">Look</span><div style="position:absolute;inset:0"></div>';
+const COVERED_INK = '<span style="position:relative;color:#ffffff;font-size:14px">Look</span><div style="position:absolute;inset:0;background:#000000"></div>';
 const INK_BOX = "position:relative;width:320px;height:40px;margin:20px";
 
 auditRuleTest(
@@ -696,7 +696,7 @@ auditRuleTest(
 
 // Covered ink straddling a scroller's edge, with an art row inside the scroller at a given offset from its top.
 const INK_ACROSS_SCROLLER_EDGE = (rowTop: number): string =>
-  `<div style="position:relative;width:320px;height:200px"><div style="width:320px;height:60px;overflow:auto"><div style="position:relative;height:400px"><div style="position:absolute;top:${String(rowTop)}px;left:0;right:0;height:20px;background-image:url('${ART_RASTER_URL}')"></div></div></div><div style="position:absolute;top:40px;left:0;width:320px;height:60px"><span style="position:relative;display:inline-block;line-height:60px;color:#ffffff;font-size:14px">Look</span><div style="position:absolute;inset:0"></div></div></div>`;
+  `<div style="position:relative;width:320px;height:200px"><div style="width:320px;height:60px;overflow:auto"><div style="position:relative;height:400px"><div style="position:absolute;top:${String(rowTop)}px;left:0;right:0;height:20px;background-image:url('${ART_RASTER_URL}')"></div></div></div><div style="position:absolute;top:40px;left:0;width:320px;height:60px"><span style="position:relative;display:inline-block;line-height:60px;color:#ffffff;font-size:14px">Look</span><div style="position:absolute;inset:0;background:#000000"></div></div></div>`;
 
 auditRuleTest(
   [
@@ -800,12 +800,64 @@ auditRuleTest(
 );
 
 auditRuleTest(
-  UNSEEN_OVER_WALLPAPER_PROOFS("the caption is covered by the box painted after it"),
-  "a covered caption over the wallpaper is unseen, not a manual art check",
+  UNSEEN_OVER_WALLPAPER_PROOFS("an opaque dialog panel is painted over the whole caption"),
+  "a caption under an opaque dialog panel is unseen, not a manual art check",
   async ({ runCli, scratch }) => {
-    const report = await auditFixture(scratch, runCli, "wallpaper-covered", `${WALLPAPER}<div style="${INK_BOX}">${COVERED_INK}</div>`);
+    const panel = '<div role="dialog" aria-label="Panel" style="position:fixed;top:0;left:0;width:400px;height:120px;background:#202020"></div>';
+    const report = await auditFixture(scratch, runCli, "wallpaper-under-panel", `${WALLPAPER}<div style="${INK_BOX}">${WHITE_INK}</div>${panel}`);
     expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
     return report;
+  },
+);
+
+// A covering layer that is not opaque hides nothing: the shot holds the composite. A #999 caption on a #ddd wallpaper
+// is 2.10:1, so a cover that let it through unjudged would hide a real failure.
+const PALE_WALLPAPER = '<div style="position:fixed;inset:0;z-index:-1;background-image:linear-gradient(#dddddd, #dddddd)"></div>';
+const FAINT_CARD = (cover: string): string =>
+  `<div style="position:relative;width:320px;padding:24px"><p style="margin:0;color:#999999;font-size:14px">Faint caption over the wallpaper</p>${cover}</div>`;
+const TRANSLUCENT_COVERS = [
+  ["a 15% black scrim", "", '<div style="position:fixed;inset:0;background:rgba(0,0,0,0.15)"></div>'],
+  ["a transparent stretched card link", '<a href="#x" aria-label="Open" style="position:absolute;inset:0"></a>', ""],
+] as const;
+
+test.for(TRANSLUCENT_COVERS)("a caption under %s is judged from the composite, never excluded", async ([name, inCard, overPage], { runCli, scratch }) => {
+  const report = await auditFixture(
+    scratch,
+    runCli,
+    `faint-under-${name.replaceAll(" ", "-").replaceAll("%", "")}`,
+    `${PALE_WALLPAPER}${FAINT_CARD(inCard)}${overPage}`,
+  );
+  expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
+  expect(report.populationAccounting?.["contrast"]).toMatchObject({ judged: 1, affected: 1, excluded: {} });
+});
+
+auditRuleTest(
+  [
+    {
+      rule: "contrast",
+      kind: "silent",
+      reason: "an opaque cover hides part of the caption, so a ring there would mix the cover in; the caption is painted, so it is withheld",
+      disposition: { kind: "withheld", reason: "unresolvedBackdrop" },
+    },
+  ],
+  "a caption an opaque box covers in part is withheld, not excluded",
+  async ({ runCli, scratch }) => {
+    // The cover spans the caption's first few glyphs only: the left probe column falls under it, the rest do not.
+    const head = '<div style="position:absolute;top:0;left:0;width:12px;height:100%;background:#000000"></div>';
+    const report = await auditFixture(scratch, runCli, "wallpaper-partly-covered", `${WALLPAPER}<div style="${INK_BOX}">${WHITE_INK}${head}</div>`);
+    expect(report.findings.filter(({ rule }) => rule === "text-over-art")).toEqual([]);
+    return report;
+  },
+);
+
+auditRuleTest(
+  [{ rule: "contrast", kind: "fires", reason: "the ring is read from the part of the caption its strip still shows: white ink on the white wallpaper" }],
+  "a caption mostly clipped by its strip is read from its shown part, not the neighbour beside the strip",
+  async ({ runCli, scratch }) => {
+    const neighbour = '<div style="position:absolute;top:0;left:24px;width:280px;height:40px;background:#000000"></div>';
+    const strip = `<div style="width:24px;overflow:hidden;white-space:nowrap">${WHITE_INK.replace("Trust", "Trust the long caption")}</div>`;
+    const report = await auditFixture(scratch, runCli, "wallpaper-mostly-clipped", `${WALLPAPER}<div style="${INK_BOX}">${strip}${neighbour}</div>`);
+    expect(report.findings.filter(({ rule }) => rule === "contrast")).toHaveLength(1);
   },
 );
 

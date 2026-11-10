@@ -64,9 +64,10 @@ ${WALKER_PRIMITIVES}${WALKER_RESOLVE}
     for (var mi = 0; mi < all.length; mi += 1) {
       if (!inViewport(all[mi])) continue;
       inViewportCount += 1;
-      // ONE occluder test, the walker's (\`resolve.ts\` occluderOf) — snap's byte-similar twin retired with
-      // the resolver. Same ownership question, same pointer-events:none blindness caveat, one home.
-      var blocker = occluderOf(all[mi]);
+      // ONE cover test, the walker's (\`resolve.ts\` coverOf): an opaque cover over any probe of the shown box
+      // would mix into the ring, and a translucent one is part of the composite this arm measures.
+      var cover = coverOf(all[mi], shownBox(all[mi], all[mi].getBoundingClientRect()));
+      var blocker = cover === null ? null : cover.by;
       // An occluded candidate is SKIPPED, not fatal — the next match may be the one on screen.
       if (blocker !== null) { if (firstOccluder === null) firstOccluder = blocker; continue; }
       el = all[mi];
