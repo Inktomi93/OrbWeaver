@@ -336,7 +336,7 @@ export function RuleRow({ chatId, rule, onEdit }: RuleRowProps): ReactElement {
             {spends ? (
               <Stack gap="tight">
                 <Row gap="field" align="center" justify="between">
-                  <Text as="span" voice="label">
+                  <Text as="span" className="min-inline-0" voice="label">
                     {SUGGEST_ON_REFUSAL_LABEL}
                   </Text>
                   <Switch

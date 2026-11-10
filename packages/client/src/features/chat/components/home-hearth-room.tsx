@@ -198,7 +198,7 @@ export function HomeHearthRoom({
               in …"). One instant, one rendering — the masthead owns the sentence form (its own header
               carries the `formatRelativeAgo` ruling), and the hero owns the room. */}
           {creditRepeatsTitle ? null : (
-            <Text as="span" className="min-inline-0" grow={true} id={creditId} voice="credit">
+            <Text as="span" className="min-inline-0" grow={true} id={creditId} voice="credit" wrap="anywhere">
               {credit}
             </Text>
           )}

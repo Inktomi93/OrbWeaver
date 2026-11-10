@@ -89,7 +89,7 @@ function TileBand({ title, trailing, headingId }: { readonly title: string; read
     // an empty bank once its read lands, and a band that collapsed then shifted every tile below it.
     // The first tile of a column takes that height too, so the two columns' first kickers share one top; growing
     // every band would push the fresh house's columns past the 120px balance budget.
-    <Row align="center" minHeight={trailing === undefined ? "firstTile" : "control"} gap="field">
+    <Row align="center" minHeight={trailing === undefined ? "firstTile" : "control"} gap="field" wrap={true}>
       {/* The `kicker` VOICE on a real heading element (density-pass §2.3); `level` keeps the document
           outline (a styled div would leave home with one heading and six anonymous blocks). */}
       <Heading id={headingId} level={2} voice="kicker">
