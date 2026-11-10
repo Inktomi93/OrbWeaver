@@ -77,7 +77,7 @@ function lint(root: string, file: string, source: string, rule: NonNullable<ESLi
 // into the rule's own template for that id and compared with the reported message.
 type Reported = Pick<Linter.LintMessage, "messageId" | "message">;
 
-function reported({ messageId, data }: { readonly messageId: NonNullable<Reported["messageId"]>; readonly data: Readonly<Record<string, string>> }): Reported {
+function reported({ messageId, data }: { readonly messageId: string; readonly data: Readonly<Record<string, string>> }): Reported {
   const template = derivedPortMemberRule.meta.messages?.[messageId] ?? "";
   return { messageId, message: template.replaceAll(/\{\{\s*(\w+)\s*\}\}/gu, (_: string, key: string) => data[key] ?? `{{${key}}}`) };
 }

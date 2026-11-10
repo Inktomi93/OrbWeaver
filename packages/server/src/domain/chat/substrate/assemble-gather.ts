@@ -21,7 +21,7 @@ import { LIVE_WINDOW_FULL_HISTORY_CUTOFF } from "@orb/kit/recall";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { humanizeDuration, UTC_TIME_ZONE } from "@orb/kit/time";
 import { buildAssembleContext } from "../assembly/context.ts";
-import type { ChoicePickMode } from "../contract/assembly-macros.ts";
+import type { ChoicePickMode, TurnMacroContextArgs } from "../contract/assembly-macros.ts";
 import type { ChatContext } from "../contract/context.ts";
 import type { ForeignInputs } from "../contract/foreign.ts";
 import type { MemoryRecallInputs, MsgRow, TurnRetrievalWarningEpisode } from "../contract/memory.ts";
@@ -298,7 +298,7 @@ export async function gatherAssembleContext(
   args: {
     readonly chatId: ChatId;
     readonly runAsUserId: UserId;
-    readonly model: string;
+    readonly model: TurnMacroContextArgs["model"];
     readonly characterIds: readonly CharacterId[];
     /** Present seated agents (D60), soul-resolved by `loadRoom`; threaded straight to the pure build core. */
 

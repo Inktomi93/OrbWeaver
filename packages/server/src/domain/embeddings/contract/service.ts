@@ -27,7 +27,18 @@ import type { ListCorpusOwners, TargetSnapshotOp } from "@orb/contracts/workload
 import type { Db } from "@orb/db";
 import type { DbAssemblyInput } from "@orb/db/wiring";
 import type { EmbeddingExecution } from "@orb/inference";
-import type { AssetId, CharacterEmbeddingId, CharacterId, ChatDigestId, ChatId, ChatSegmentId, DocumentChunkId, ImageEmbeddingId, UserId } from "@orb/kit/ids";
+import type {
+  AssetId,
+  CharacterEmbeddingId,
+  CharacterId,
+  ChatDigestId,
+  ChatId,
+  ChatSegmentId,
+  DocumentChunkId,
+  ImageEmbeddingId,
+  ModelId,
+  UserId,
+} from "@orb/kit/ids";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
 import type { SQL } from "drizzle-orm";
 import type { Logger } from "#foundation/observability";
@@ -68,11 +79,11 @@ export type LoadCardText = (characterId: CharacterId) => Promise<string | undefi
 
 /** One root's memory of which summarize models cannot analyse an avatar, keyed by model id. */
 export interface AvatarAnalysisAvailability {
-  readonly unservable: (model: string) => boolean;
+  readonly unservable: (model: ModelId) => boolean;
   /** Latch the backend's own refusal; true when THIS call latched it, so the caller logs the loud line once. */
-  readonly markUnservable: (model: string) => boolean;
+  readonly markUnservable: (model: ModelId) => boolean;
   /** True the first time this model's pre-call skip is announced. */
-  readonly announceSkip: (model: string) => boolean;
+  readonly announceSkip: (model: ModelId) => boolean;
 }
 
 /** Says once per owner, space and cause that a root's images are indexed by their caption alone. */

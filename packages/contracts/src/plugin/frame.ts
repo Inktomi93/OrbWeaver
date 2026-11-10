@@ -30,7 +30,7 @@
 // Strip mode: these schemas also read plugin guest data, which can carry keys this release does not declare.
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
-import { cardFrameStyleTokensSchema } from "../chat/card-frame.ts";
+import { cardFrameStyleTokensSchema, frameDocumentUrlSchema } from "../chat/card-frame.ts";
 import { PLUGIN_SURFACE_ID_RE } from "./ui.ts";
 
 /** The route prefix — the mint POSTs here, the frame document is `${PLUGIN_FRAME_ROUTE}/<id>`. */
@@ -104,7 +104,7 @@ export type PluginFrameMintRequest = z.infer<typeof pluginFrameMintRequestSchema
 /** The mint response — the frame URL plus the handle's lifetime, so a long-lived tab can re-mint before a
  *  remount finds an expired handle rather than discovering it as a blank frame. */
 export const pluginFrameMintResponseSchema = z.strictObject({
-  url: z.string(),
+  url: frameDocumentUrlSchema(PLUGIN_FRAME_ROUTE),
   expiresInMs: z.int().positive(),
 });
 /** Type twin of {@link pluginFrameMintResponseSchema}. */

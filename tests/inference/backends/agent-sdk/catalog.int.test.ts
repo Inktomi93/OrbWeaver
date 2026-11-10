@@ -42,7 +42,7 @@ test("native daemon discovery uses the caller's current saved credential and nor
     generation: { reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "high"] } },
   });
   await root.services.credentials.replace({ principal, credentialId: key.id, key: ROTATED });
-  await root.app.runtime.catalogs.refresh("claude-sub");
+  await root.app.runtime.catalogs.refresh(row.providerId);
   expect(await root.services.connection.draftCatalogModels(draft)).toMatchObject({ listed: true });
   expect(edge.environments.map((env) => env["CLAUDE_CODE_OAUTH_TOKEN"])).toEqual([TOKEN, ROTATED]);
 });

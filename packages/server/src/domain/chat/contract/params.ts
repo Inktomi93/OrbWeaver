@@ -16,6 +16,7 @@ import type {
   RoomOverrides,
   SendContentBlock,
   ToolCallEditAction,
+  ToolCallId,
 } from "@orb/contracts/chat";
 import type { ChatDocumentVisibility } from "@orb/contracts/databank";
 import type { Principal } from "@orb/contracts/identity";
@@ -328,7 +329,7 @@ export interface EditToolCallParams extends MessageScopedParams {
   readonly callOrdinal?: number | undefined;
   readonly variantId: MessageVariantId;
   // Provider-emitted opaque call handle, not an Orbweaver identity.
-  readonly toolCallId: string;
+  readonly toolCallId: ToolCallId;
   readonly action: ToolCallEditAction;
 }
 

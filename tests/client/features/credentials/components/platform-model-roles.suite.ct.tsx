@@ -8,7 +8,7 @@ import { expect, test } from "@orb/testkit/ct-corpus";
 import type { CorpusPlayback } from "@orb/testkit/iso";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
-import type { Page } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
 import type { ModelRolesStory } from "./_model-roles-stories.tsx";
 
 const STORY = "tests/client/features/credentials/components/_model-roles-stories/ModelRolesStory";
@@ -17,6 +17,45 @@ const HINT_POPUP = '[data-slot="hint-popup"]';
 const TEXT_200 = 2;
 // A picker narrower than this share of its role's group is sized to its value, not stretched across the row.
 const HUG_SHARE = 0.75;
+
+interface Box {
+  readonly x: number;
+  readonly y: number;
+  readonly width: number;
+  readonly height: number;
+}
+
+async function boxOf(locator: Locator): Promise<Box> {
+  const box = await locator.boundingBox();
+  if (box === null) {
+    throw new Error("The control must paint");
+  }
+  return box;
+}
+
+interface Placement {
+  readonly heading: Box;
+  readonly hint: Box;
+  readonly dot: Box;
+  readonly picker: Box;
+}
+
+/** Where each role's pieces sit, measured once for the placement tests. */
+async function placementOf(page: Page): Promise<readonly Placement[]> {
+  const placed: Placement[] = [];
+  for (const row of ROLE_ROWS_ORDERED) {
+    const group = page.getByRole("group", { name: row.heading, exact: true });
+    placed.push({
+      heading: await boxOf(group.getByText(row.heading, { exact: true })),
+      hint: await boxOf(group.locator(HINT).first()),
+      dot: await boxOf(group.getByRole("img").first()),
+      picker: await boxOf(group.getByRole("combobox", { name: `${row.label} connection`, exact: true })),
+    });
+  }
+  return placed;
+}
+
+const bottomOf = (box: Box): number => box.y + box.height;
 
 function roleOf(task: "chat" | "summarize"): (typeof ROLE_ROWS_ORDERED)[number] {
   const row = ROLE_ROWS_ORDERED.find((candidate) => candidate.task === task);
@@ -78,6 +117,43 @@ for (const device of [
       await expect(chat.getByRole("combobox")).toHaveCount(1);
     });
 
+    test("an unset role states what unset does in view, and the embedder states its re-embed cost beside the picker", async ({ corpus, mount, page }) => {
+      await using root = await createCorpusHarness();
+      const caller = await root.internalCallerFor(root.ownerId);
+      const withEffect = ROLE_ROWS_ORDERED.filter((row) => row.unsetEffect !== undefined);
+      for (const row of withEffect) {
+        await caller.connection.setBinding({ task: row.task, connectionId: null });
+      }
+      await serveRoles(page, corpus, root);
+      await mount<typeof ModelRolesStory>(STORY, {});
+      for (const row of withEffect) {
+        const group = page.getByRole("group", { name: row.heading, exact: true });
+        await expect(group.getByText(row.unsetEffect ?? "", { exact: true })).toBeVisible();
+      }
+      for (const row of ROLE_ROWS_ORDERED.filter((candidate) => candidate.standingEffect !== undefined)) {
+        const group = page.getByRole("group", { name: row.heading, exact: true });
+        await expect(group.getByText(row.standingEffect ?? "", { exact: true })).toBeVisible();
+      }
+      expect(withEffect.length).toBeGreaterThan(1);
+    });
+
+    test("every role seats its picker the same way against its heading, and its dot and hint stay on the heading", async ({ corpus, mount, page }) => {
+      await using root = await createCorpusHarness();
+      await serveRoles(page, corpus, root);
+      await mount<typeof ModelRolesStory>(STORY, {});
+      await expect(page.getByRole("group", { name: roleOf("chat").heading, exact: true })).toBeVisible();
+      const placed = await placementOf(page);
+      // One rule for every role: the picker is beside its heading on all of them, or under it on all of them.
+      expect(new Set(placed.map((role) => role.picker.y >= bottomOf(role.heading) - 1)).size).toBe(1);
+      for (const role of placed) {
+        // The hint rides beside the heading, never alone on a line of its own.
+        expect(role.hint.y).toBeLessThan(bottomOf(role.heading));
+        // The dot shares the heading's line.
+        expect(role.dot.y + role.dot.height / 2).toBeGreaterThanOrEqual(role.heading.y);
+        expect(role.dot.y + role.dot.height / 2).toBeLessThanOrEqual(bottomOf(role.heading));
+      }
+    });
+
     test("the rows hold at 200% text", async ({ corpus, mount, page }) => {
       await using root = await createCorpusHarness();
       await serveRoles(page, corpus, root);
@@ -108,5 +184,18 @@ test.describe("desktop width", () => {
     }
     expect(picker.y).toBeLessThan(hint.y + hint.height);
     expect(picker.width).toBeLessThan(group.width * HUG_SHARE);
+  });
+});
+
+test.describe("phone landscape", () => {
+  test.use({ hasTouch: true, isMobile: true, viewport: { width: 844, height: 390 } });
+
+  test("every role seats its picker the same way against its heading", async ({ corpus, mount, page }) => {
+    await using root = await createCorpusHarness();
+    await serveRoles(page, corpus, root);
+    await mount<typeof ModelRolesStory>(STORY, {});
+    await expect(page.getByRole("group", { name: roleOf("chat").heading, exact: true })).toBeVisible();
+    const placed = await placementOf(page);
+    expect(new Set(placed.map((role) => role.picker.y >= bottomOf(role.heading) - 1)).size).toBe(1);
   });
 });

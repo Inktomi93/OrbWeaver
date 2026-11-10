@@ -53,6 +53,7 @@ import { getLog } from "#foundation/observability";
 import { sha256Hex } from "#primitives/content-hash";
 import { captureParticipantRole } from "#primitives/role-data";
 import type { ActiveTurns } from "../contract/active-turns.ts";
+import type { TurnMacroContextArgs } from "../contract/assembly-macros.ts";
 import type { ChatContext, ChatServiceDeps } from "../contract/context.ts";
 import type { EmitDurableChatEventOp } from "../contract/engine-context.ts";
 import { CHAT_OP_CODES, ChatNotFoundError, ChatOperationError } from "../contract/errors.ts";
@@ -266,7 +267,7 @@ async function applyRunOnEditRegex(
     return args.content;
   }
   const { chatId, hostUserId } = args;
-  const model = args.slot.model ?? "";
+  const model: TurnMacroContextArgs["model"] = args.slot.model ?? "";
   const characterIds = args.participants.flatMap((r) => {
     const actor = classifyParticipant(r);
     return actor?.kind === "character" ? [actor.characterId] : [];
@@ -281,7 +282,7 @@ async function applyRunOnEditRegex(
   const foreign = await deps.resolveForeignInputs({
     chatId,
     runAsUserId: hostUserId,
-    model,
+    model: args.slot.model ?? undefined,
     anchorPersonaId: args.anchorPersonaId,
     presentHumanUserIds,
     humanSeats: humanSeatPersonasOf(args.participants, presentHumanUserIds),
@@ -424,7 +425,7 @@ async function freezeSelectedVariant(
   }
   const source = args.variant.rawContent ?? args.variant.content;
   const stored = macroFreezeRecordSchema.safeParse(args.variant.macroFreezes);
-  const model = args.variant.model ?? "";
+  const model: TurnMacroContextArgs["model"] = args.variant.model ?? "";
   const characterIds = args.participants.flatMap((r) => {
     const actor = classifyParticipant(r);
     return actor?.kind === "character" ? [actor.characterId] : [];
@@ -435,7 +436,7 @@ async function freezeSelectedVariant(
   const foreign = await deps.resolveForeignInputs({
     chatId: args.chatId,
     runAsUserId: hostUserId,
-    model,
+    model: args.variant.model ?? undefined,
     anchorPersonaId: args.anchorPersonaId,
     presentHumanUserIds: presentHumanUserIdsForBake,
     humanSeats: humanSeatPersonasOf(args.participants, presentHumanUserIdsForBake),

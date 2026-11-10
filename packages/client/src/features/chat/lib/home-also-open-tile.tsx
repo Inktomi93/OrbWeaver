@@ -9,8 +9,7 @@
 // wire vocabulary that every CT and story selector is written against, and renaming an id to match a label
 // is how a rename becomes a migration.
 //
-// It carries the "All chats →" link that used to sit on the pick-up band, which is where the mock draws it
-// and where it stops sharing a line with the "Chats" jump pill.
+// It carries the "All chats →" link, on its own kicker row rather than on the pick-up band.
 
 import { HOME_RECENT_CHATS_LIMIT } from "@orb/contracts/chat";
 import { Button } from "@orb/ui/button";

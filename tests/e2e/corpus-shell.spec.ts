@@ -1,6 +1,6 @@
 // The app shell on the committed corpus: boot readiness and focus, the lazy route's failure surface, the census
 // each screen prints, and the phone's tab bar, You sheet and push-and-Back navigation.
-import { CORPUS_MODE_LABELS, dataThemeOf, START_NEW_CHAT_NAME } from "@orb/client/lib";
+import { CORPUS_MODE_LABELS, dataThemeOf, NEW_CHAT_DIALOG_TITLE, START_NEW_CHAT_NAME } from "@orb/client/lib";
 import { APPEARANCE_BOOT_AXES, DATA_THEME_ATTR } from "@orb/client/state";
 import { HOME_QUICK_PICKS_LIMIT } from "@orb/contracts/character";
 import { OS_PREFERENCE_MODES } from "@orb/contracts/settings";
@@ -379,7 +379,7 @@ test.describe("committed corpus shell", () => {
     await openHome(page);
     await expect(page.locator('[data-home-tile="chat.quickPicks"]')).toBeVisible();
     await page.getByRole("button", { name: START_NEW_CHAT_NAME, exact: true }).click();
-    await expect(page.getByRole("dialog", { name: "New chat", exact: true })).toBeVisible();
+    await expect(page.getByRole("dialog", { name: NEW_CHAT_DIALOG_TITLE, exact: true })).toBeVisible();
   });
 
   test("a phone's list screen carries its census in the screen name and sheds the band's copy", { tag: "@smoke" }, async ({ page, baseURL, isMobile }) => {

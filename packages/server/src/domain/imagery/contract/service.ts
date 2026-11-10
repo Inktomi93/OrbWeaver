@@ -14,7 +14,7 @@ import type { Db } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import type { BatchHandle, DatabaseHandle, DbAssemblyInput } from "@orb/db/wiring";
 import type { GeneratedImage, ImageGenerateRequest as InferenceImageGenerateRequest, Resolved } from "@orb/inference";
-import type { CharacterId, ChatId, ImageryCallId, ImageryGenerationId, UserId } from "@orb/kit/ids";
+import type { CharacterId, ChatId, ImageryCallId, ImageryGenerationId, ModelId, UserId } from "@orb/kit/ids";
 import type { Clock, IanaTimeZone } from "@orb/kit/time";
 import type { EditImageParams, ExtractionMode, ExtractPromptParams, MultimodalMode, ReadProvenanceParams } from "./params.ts";
 import type { ExtractedPrompt, GeneratedPicture, GenerationProvenance, ImageryWarning } from "./results.ts";
@@ -91,7 +91,7 @@ export interface ImageGenerateRequest {
 export interface ImageGenerateResult {
   readonly images: readonly GeneratedImage[];
   /** Provider-reported foreign id; `runGeneration` validates/brands it before any persistence. */
-  readonly model: string;
+  readonly model: ModelId;
   readonly usage: GenerationUsage;
   readonly warnings: readonly ImageryWarning[];
 }

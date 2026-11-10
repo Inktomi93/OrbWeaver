@@ -415,7 +415,7 @@ export interface NotificationRecipientQuery {
   readonly recipient: NotificationRecipient;
   readonly chatId: ChatId;
   readonly hostUserId: UserId;
-  readonly actorUserId: string | null;
+  readonly actorUserId: NonNullable<TriggerFact["message"]>["authorUserId"];
 }
 
 // ── the dispatch seam the arm executors plug into ─────────────────────────────────────────────────

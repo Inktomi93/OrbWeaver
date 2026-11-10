@@ -5,7 +5,7 @@
 // @subject packages/server/src/domain/plugin/verbs/install-for-all-users.ts
 // @subject packages/server/src/domain/plugin/verbs/uninstall-for-all-users.ts
 
-import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema } from "@orb/contracts/plugin";
+import { PLUGIN_HOST_VERSIONS, PLUGIN_MAIN_ENTRY, pluginManifestSchema, pluginSlugSchema } from "@orb/contracts/plugin";
 import { adminDistributedPlugins, assets, users } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
@@ -13,7 +13,7 @@ import { makePluginBundle } from "@orb/testkit/node/composed";
 import { seedDistributedPluginRows } from "@orb/testkit/node/rows";
 import { eq } from "drizzle-orm";
 
-const SLUG = "house-style";
+const SLUG = pluginSlugSchema.parse("house-style");
 
 function bundle(harness: ServerTestHarness, version: string, name: string): Uint8Array {
   const manifest = pluginManifestSchema.parse({

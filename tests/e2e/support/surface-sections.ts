@@ -106,7 +106,7 @@ import { ANALYTICS_SEARCH_NAME } from "#client/features/stats/lib/analytics-name
 import { ANALYTICS_DEFAULT_SORT, ANALYTICS_SORT_OPTIONS } from "#client/features/stats/lib/analytics-view-model.ts";
 import { LEADERBOARD_ROW_ATTR } from "#client/features/stats/lib/leaderboard-row-attr.ts";
 import { TAG_FILTER_NAME, TAG_MORE_ACTIONS_NAME, TAG_PRUNE_NAME } from "#client/features/tag/lib/tag-list-name.ts";
-import { BLANK_CHAT_NAME, START_NEW_CHAT_NAME, START_TEMP_CHAT_NAME } from "#client/lib/chat-launch-names.ts";
+import { BLANK_CHAT_NAME, NEW_CHAT_DIALOG_TITLE, START_NEW_CHAT_NAME, START_TEMP_CHAT_NAME } from "#client/lib/chat-launch-names.ts";
 import { deriveChatTitle } from "#client/lib/chat-title.ts";
 import { sectionBackName } from "#client/lib/context-pane-names.ts";
 import { CORPUS_MODE_LABELS, CORPUS_MODES } from "#client/lib/corpus-modes.ts";
@@ -716,7 +716,7 @@ async function homeCreationDoors(journey: Journey, operations: readonly HomeOper
         id,
         async () => {
           await started.click();
-          const picker = journey.page.getByRole("dialog", { name: "New chat", exact: true });
+          const picker = journey.page.getByRole("dialog", { name: NEW_CHAT_DIALOG_TITLE, exact: true });
           await ready(picker);
           await picker.getByRole("button", { name: BLANK_CHAT_NAME, exact: true }).click();
         },
@@ -732,7 +732,7 @@ async function homeCreationDoors(journey: Journey, operations: readonly HomeOper
         id,
         async () => {
           await temporary.click();
-          const picker = journey.page.getByRole("dialog", { name: "New chat", exact: true });
+          const picker = journey.page.getByRole("dialog", { name: NEW_CHAT_DIALOG_TITLE, exact: true });
           await ready(picker);
           await picker.getByRole("button", { name: BLANK_CHAT_NAME, exact: true }).click();
         },

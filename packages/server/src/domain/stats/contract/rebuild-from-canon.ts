@@ -114,7 +114,7 @@ export interface GenRow {
 export interface ReconcileOpts {
   readonly idSource: IdSource;
   /** Scope to one owner; omit to rebuild every owner that owns a character. */
-  ownerId?: string;
+  ownerId?: UserId;
   /** INJECTED clock (epoch-ms) — the determinism seam (no-raw-clock). Stamped as every row's computedAt. */
   now: Clock;
   /** Cooperative abort between owners. */

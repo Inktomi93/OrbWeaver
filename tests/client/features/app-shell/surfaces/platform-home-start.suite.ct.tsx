@@ -1,5 +1,5 @@
-// Home has one primary start control: above the fold at the desktop and phone sizes, the same door every New chat opens, and no second one in
-// the empty room tile. It holds at 200% text.
+// Home has one primary start control in every state: above the fold at the desktop and phone sizes, the same door every New chat opens. With
+// rooms it sits in the masthead; with none the empty room tile owns it. It holds at 200% text.
 
 import { BLANK_CHAT_NAME, START_NEW_CHAT_NAME } from "@orb/client/lib";
 import { enlargedTextFindings as findings, seedShellState, setRootFontScale } from "@orb/testkit/browser/spec";
@@ -34,12 +34,13 @@ for (const device of [
       await expect(start).toHaveCount(1);
       await expect(start).toBeInViewport({ ratio: 1 });
       await expect(start).toHaveAttribute("data-cta", "");
+      await expect(page.locator(RECENTS_TILE).getByRole("button", { name: START_NEW_CHAT_NAME, exact: true })).toHaveCount(0);
       await start.click();
       await page.getByRole("dialog").getByRole("button", { name: BLANK_CHAT_NAME, exact: true }).click();
       await expect(page.getByRole("group", { name: CHAT_COMPOSER_NAME, exact: true })).toBeVisible();
     });
 
-    test("an account with no rooms has the one start control and no second one in its empty room tile", async ({ corpus, corpusViewer, mount, page }) => {
+    test("an account with no rooms has the one start control, and its empty room tile owns it", async ({ corpus, corpusViewer, mount, page }) => {
       await using root = await createFirstBootHarness();
       const caller = await root.internalCallerFor(root.ownerId);
       await routeTrpc(page, {
@@ -50,9 +51,9 @@ for (const device of [
       await mount<typeof SectionShellStory>(STORY, { section: "home" });
       const recents = page.locator(RECENTS_TILE);
       await expect(recents.locator(EMPTY_STATE)).toHaveCount(1);
-      await expect(recents.getByRole("button")).toHaveCount(0);
       const start = page.getByRole("button", { name: START_NEW_CHAT_NAME, exact: true });
       await expect(start).toHaveCount(1);
+      await expect(recents.locator(EMPTY_STATE).getByRole("button", { name: START_NEW_CHAT_NAME, exact: true })).toHaveCount(1);
       await expect(start).toBeInViewport({ ratio: 1 });
     });
 

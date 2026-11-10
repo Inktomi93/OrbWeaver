@@ -3067,7 +3067,7 @@ function roleOf(prompt: StPrompt): MessageRole {
 }
 
 /** A non-empty trimmed name, else the fallback id. */
-function resolveSectionName(raw: string | undefined, fallback: string): string {
+function resolveSectionName(raw: string | undefined, fallback: PromptSectionId): string {
   const trimmed = raw?.trim();
   return trimmed !== undefined && trimmed.length > 0 ? trimmed : fallback;
 }

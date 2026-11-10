@@ -4,6 +4,7 @@
 // @instrument-absence-proof: a call with no recorded usage, a prompt below the calibration prefix or the model's
 // cache minimum, a case with one call, and a run whose every line is SKIPPED must never read as a clean verdict.
 import process from "node:process";
+import { providerGenerationIdSchema } from "@orb/contracts/inference";
 import { expect, test } from "@orb/testkit/tooling";
 import type { CallUsage, CaseOutcome, CaseVerdict } from "@orb/tooling/cache-check";
 import { CACHE_READ_FLOOR, exitFor, FLOOR_CALIBRATION, formatOutcome, judgeCase, runVerdict } from "@orb/tooling/cache-check";
@@ -17,7 +18,7 @@ const LIVE_PROMPT = 18_584;
 const SYSTEM_ONLY = 400;
 
 function call(id: string, promptTokens: number | null, readTokens: number | null, writeTokens: number | null = 0): CallUsage {
-  return { id, promptTokens, readTokens, writeTokens };
+  return { id: providerGenerationIdSchema.parse(id), promptTokens, readTokens, writeTokens };
 }
 
 function judge(calls: readonly CallUsage[]): ReturnType<typeof judgeCase> {

@@ -202,6 +202,7 @@ auditRuleTest(
       // The caption gives the page its own text; a page whose only text lives inside the frame has no node census.
       `<div style="${OUTER}"><p>${INNER_BODY}</p><iframe title="preview" srcdoc="<p>preview</p>" style="${CARD};width:300px;height:150px"></iframe></div>`,
     );
+    expect(report.populationAccounting?.["nested-card"]).toMatchObject({ affected: 0, excluded: { cardContext: 1 } });
     return report;
   },
 );
@@ -223,6 +224,7 @@ auditRuleTest(
       "nested-divider-strip",
       `<div style="${OUTER}"><div style="border-bottom:1px solid #555;background:#1b1b1b;padding:8px">${INNER_BODY}</div></div>`,
     );
+    expect(report.populationAccounting?.["nested-card"]).toMatchObject({ affected: 0, excluded: { dividerStrip: 1 } });
     return report;
   },
 );
@@ -242,6 +244,7 @@ auditRuleTest(
   async ({ runCli, scratch }) => {
     const picker = `<div style="${CARD};width:300px"><input role="combobox" aria-label="Font" aria-expanded="true" aria-controls="face-list">${PICKER_LIST}</div>`;
     const { report } = await decorFixture(scratch, runCli, "nested-picker", `<div style="${OUTER}">${picker}</div>`);
+    expect(report.populationAccounting?.["nested-card"]).toMatchObject({ affected: 0, excluded: { embeddedPicker: 1 } });
     return report;
   },
 );

@@ -869,8 +869,8 @@ const USER_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => R
       if (typeof existing === "string" && existing.length > 0) {
         return entry;
       }
-      const assetId = typeof entry["assetId"] === "string" ? entry["assetId"] : "bg";
-      return { ...entry, entryId: `${assetId}:${index}` };
+      const entryPrefix = typeof entry["assetId"] === "string" ? entry["assetId"] : "bg";
+      return { ...entry, entryId: `${entryPrefix}:${index}` };
     });
     return { ...c, appearance: { ...appearance, backgroundLibrary } };
   },

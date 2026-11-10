@@ -3,32 +3,37 @@
 // reference or an alias makes two shapes one concept; every target lands in the cluster of its concept's owner.
 import { dirname, relative } from "node:path";
 import ts from "typescript";
+import type { Flow, PortMember, TypeFlow } from "../eslint/index.ts";
+import {
+  aliasChain,
+  aliased,
+  aliasOf,
+  derivedMembers,
+  describeForeignTypes,
+  flowMembers,
+  flowsAt,
+  foreignTypes,
+  homeFileOf,
+  isContractFile,
+  isHandTyped,
+  isSplitSignature,
+  jointBatchRulingOf,
+  mergeForeignTypes,
+  passesDbHandle,
+  placementOf,
+  restatementOf,
+  rulingKeysOf,
+  tierRank,
+} from "../eslint/index.ts";
 import type { DistinctRegistry } from "./distinct-lookalikes.ts";
 import { DISTINCT_LOOKALIKES, isDistinctPair } from "./distinct-lookalikes.ts";
 import { ImportGraph } from "./doors.ts";
-import { aliased, describeForeignTypes, foreignTypes, isSplitSignature, mergeForeignTypes, passesDbHandle } from "./foreign-types.ts";
 import type { ForgottenExport } from "./forgotten-exports.ts";
 import { forgottenDoorExports } from "./forgotten-exports.ts";
 import type { PlanContext } from "./port-plan.ts";
 import { collapse, doorExportTargets, planMember } from "./port-plan.ts";
 import type { Indexed, Pair, PlannedTarget, PortTarget, RulingKeys, TargetKind } from "./port-targets.ts";
 import { clustered, conceptOf, crossDomainKind, crossDomainNote, keyOf, legOf, lineOf, placementOfKey, SPLIT_RULING } from "./port-targets.ts";
-import type { Flow, PortMember, TypeFlow } from "./restated-port.ts";
-import {
-  aliasChain,
-  aliasOf,
-  derivedMembers,
-  flowMembers,
-  flowsAt,
-  homeFileOf,
-  isContractFile,
-  isHandTyped,
-  placementOf,
-  restatementOf,
-  rulingKeysOf,
-  tierRank,
-} from "./restated-port.ts";
-import { jointBatchRulingOf } from "./ruled-ops.ts";
 import { createWorldProgram, isProduction, packageWorlds } from "./worlds.ts";
 
 interface WorldCount {

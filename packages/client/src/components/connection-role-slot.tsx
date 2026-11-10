@@ -47,9 +47,6 @@ const UNSET_VALUE = "";
 
 // The pane is as wide as the settings body; a sentence capped at the prose measure never runs across it.
 
-// Unbinding the text embedder queues nothing: the stored index stays, and search keeps answering from it.
-const TEXT_EMBEDDER_UNSET = "None set. Search keeps using your last index until you pick an embedder.";
-
 type ConnectionListItem = inferOutput<Trpc["connection"]["list"]>[number];
 type BindingView = inferOutput<Trpc["connection"]["listBindings"]>[number];
 type BindingActorInput = NonNullable<inferInput<Trpc["connection"]["setBinding"]>["actor"]>;
@@ -66,6 +63,11 @@ const REBUILD_FAILED_CAUSE = "its search index failed to rebuild";
 /** The readout repeats the dot's name, so when a failed rebuild takes the dot off running, the steady arm follows it. */
 function readoutForDot(readout: RoleReadout, dotIsStatus: boolean): RoleReadout {
   return !dotIsStatus && readout.kind === "steady" ? { kind: "blocked", cause: REBUILD_FAILED_CAUSE } : readout;
+}
+
+/** A rule's unset slot falls back to the author's role, so the role's own unset consequence does not apply to it: the rule names its own. */
+function unsetSentenceOf(row: RoleRow, actor: BindingActorInput | undefined, override: string | undefined): string | undefined {
+  return override ?? (actor === undefined ? row.unsetEffect : undefined);
 }
 
 /** The DOT's skin per state. `unset` is a RING: the `outline` dot has no fill. */
@@ -124,6 +126,8 @@ export interface ConnectionRoleSlotProps {
   readonly unsetLabel?: string | undefined;
   /** Replaces the row's own description where the role means something narrower (a rule's turns). */
   readonly description?: string | undefined;
+  /** Replaces the row's unset sentence where unset means something else for this actor (a rule falls back to its author's role). */
+  readonly unsetEffect?: string | undefined;
   /** The picker's DOM id — a settings deep link to this role focuses the element carrying it. */
   readonly controlId?: string | undefined;
   /** Controls that belong to this role, set inside its group under the picker. */
@@ -139,6 +143,7 @@ export function ConnectionRoleSlot({
   actor,
   unsetLabel,
   description,
+  unsetEffect,
   controlId,
   children,
 }: ConnectionRoleSlotProps): ReactElement {
@@ -194,69 +199,82 @@ export function ConnectionRoleSlot({
 
   return (
     // The group is named by the role's heading, so a control that belongs to the role (the Utility preset) sits inside it.
-    <Stack aria-labelledby={headingId} gap="field" role="group">
-      <Row aria-busy={shownCheck !== null} gap="field" align="start" justify="between" wrap={true}>
-        <Row gap="field" align="start">
-          <IndicatorDot aria-label={ROLE_STATUS_LABELS[dot]} role="img" tone={DOT_SKIN[dot].tone} variant={DOT_SKIN[dot].variant} />
-          <Stack gap="tight">
-            {/* The hint is a sibling of the heading, never inside it, or its name joins the group's name. */}
-            <Row align="center" gap="tight" wrap={true}>
+    // It is its own container, so every role answers to the same width and the pickers never alternate sides.
+    <Stack aria-labelledby={headingId} container={true} gap="field" role="group">
+      <Stack aria-busy={shownCheck !== null} gap="tight">
+        {/* One placement for every role: the picker ends the heading row, and below one container width the picker sits under the heading. */}
+        <Row align="center" alignBelow="stretch-cq-32" gap="field" justify="between" stackBelow="cq-32">
+          <Row align="center" gap="field">
+            <IndicatorDot aria-label={ROLE_STATUS_LABELS[dot]} role="img" tone={DOT_SKIN[dot].tone} variant={DOT_SKIN[dot].variant} />
+            {/* The hint is a sibling of the heading, never inside it, or its name joins the group's name. It stays beside the heading when the heading wraps. */}
+            <Row align="center" gap="tight">
               <Text id={headingId} voice="label">
                 {row.heading}
               </Text>
               <HintTrigger hint={description ?? row.description} subject={row.heading} />
             </Row>
-            {verdicts.length === 0 ? null : <RequirementRail verdicts={verdicts} />}
-            <ReadoutLine readout={readout} unsetSentence={isVectorRole && row.task === "embed" ? TEXT_EMBEDDER_UNSET : undefined} />
-            <EmbedderNote check={shownCheck} refused={embedRefusal} />
-            {isVectorRole ? <RebuildLine rebuild={rebuild} /> : null}
-            {repairs.map((connection) => (
-              <BackgroundRepair
-                key={connection.id}
-                connection={connection}
-                pending={update.isPending}
-                onAllow={(): void => update.mutate({ connectionId: connection.id, patch: { allowBackground: true } })}
-              />
-            ))}
-          </Stack>
+          </Row>
+          <Row indent={true}>
+            <Select
+              triggerRef={pickerRef}
+              aria-label={pickerLabel}
+              id={controlId}
+              items={items}
+              layout="hug"
+              value={current}
+              disabled={setBinding.isPending || reindex.asking}
+              onValueChange={(value): void => {
+                const pickedRow = value === UNSET_VALUE ? null : compatible.find((connection) => connection.id === value);
+                if (pickedRow === undefined) {
+                  return;
+                }
+                const picked = pickedRow?.id ?? null;
+                const embedder = pickedRow?.label;
+                const write = (checksEmbedder: boolean): void => {
+                  setDraft(picked);
+                  setEmbedRefusal(null);
+                  setChecking(checksEmbedder ? { embedder } : null);
+                  const bound = setBinding.mutateAsync({ task: row.task, connectionId: picked, ...(actor !== undefined ? { actor } : {}) });
+                  toastRefusalIfGone(bound, (refusal) => embedRefusalText(refusal, embedder));
+                  // an embedder refusal reaches `setEmbedRefusal` and renders as the row's alert (EmbedRefusalLine); any other
+                  // failure is toasted by `useSetBinding`'s errorToast (connection-role-mutations.ts). Ends if either of those stops surfacing its failure.
+                  void bound
+                    .catch(rollBackOnEmbedRefusal(setDraft, (refusal) => setEmbedRefusal({ refusal, embedder })))
+                    .finally((): void => setChecking(null));
+                };
+                // Only the user's own vector roles define their index; a rule's or a plugin's binding never moves it.
+                if (isVectorRole) {
+                  setAsked({ embedder });
+                  reindex.guard({ kind: "bind", task: row.task, connectionId: picked }, write);
+                } else {
+                  write(false);
+                }
+              }}
+              placeholder={unsetText}
+            />
+            {reindex.dialog}
+          </Row>
         </Row>
-        <Select
-          triggerRef={pickerRef}
-          aria-label={pickerLabel}
-          id={controlId}
-          items={items}
-          layout="hug"
-          value={current}
-          disabled={setBinding.isPending || reindex.asking}
-          onValueChange={(value): void => {
-            const pickedRow = value === UNSET_VALUE ? null : compatible.find((connection) => connection.id === value);
-            if (pickedRow === undefined) {
-              return;
-            }
-            const picked = pickedRow?.id ?? null;
-            const embedder = pickedRow?.label;
-            const write = (checksEmbedder: boolean): void => {
-              setDraft(picked);
-              setEmbedRefusal(null);
-              setChecking(checksEmbedder ? { embedder } : null);
-              const bound = setBinding.mutateAsync({ task: row.task, connectionId: picked, ...(actor !== undefined ? { actor } : {}) });
-              toastRefusalIfGone(bound, (refusal) => embedRefusalText(refusal, embedder));
-              // an embedder refusal reaches `setEmbedRefusal` and renders as the row's alert (EmbedRefusalLine); any other
-              // failure is toasted by `useSetBinding`'s errorToast (connection-role-mutations.ts). Ends if either of those stops surfacing its failure.
-              void bound.catch(rollBackOnEmbedRefusal(setDraft, (refusal) => setEmbedRefusal({ refusal, embedder }))).finally((): void => setChecking(null));
-            };
-            // Only the user's own vector roles define their index; a rule's or a plugin's binding never moves it.
-            if (isVectorRole) {
-              setAsked({ embedder });
-              reindex.guard({ kind: "bind", task: row.task, connectionId: picked }, write);
-            } else {
-              write(false);
-            }
-          }}
-          placeholder={unsetText}
-        />
-        {reindex.dialog}
-      </Row>
+        <Stack gap="tight" indent={true}>
+          {verdicts.length === 0 ? null : <RequirementRail verdicts={verdicts} />}
+          <ReadoutLine readout={readout} unsetSentence={unsetSentenceOf(row, actor, unsetEffect)} />
+          {row.standingEffect === undefined ? null : (
+            <Text voice="gloss" cap="prose">
+              {row.standingEffect}
+            </Text>
+          )}
+          <EmbedderNote check={shownCheck} refused={embedRefusal} />
+          {isVectorRole ? <RebuildLine rebuild={rebuild} /> : null}
+          {repairs.map((connection) => (
+            <BackgroundRepair
+              key={connection.id}
+              connection={connection}
+              pending={update.isPending}
+              onAllow={(): void => update.mutate({ connectionId: connection.id, patch: { allowBackground: true } })}
+            />
+          ))}
+        </Stack>
+      </Stack>
       {children}
     </Stack>
   );

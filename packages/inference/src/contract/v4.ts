@@ -54,7 +54,7 @@ export interface WrapFetchArgs {
         readonly api: string;
         readonly wire: Wire;
         readonly providerId: ProviderId;
-        readonly model: string;
+        readonly model: ModelId;
         /** Tap the RESPONSE BODY too (§D2/§D3). Off by default and independently gated: the request capture
          *  is the operator's prompt, while the reply is the model's prose, which the recorder's outcome arm
          *  deliberately never keeps. A caller that does not ask gets today's request-and-headers entry. */
@@ -108,7 +108,7 @@ export interface MeasuredCost {
 export interface ResultContext {
   readonly responseCache?: ResponseCache | undefined;
   readonly model: ModelId;
-  readonly providerId: string;
+  readonly providerId: ProviderId;
   readonly generation: GenerationCapability;
   readonly maxOutputTokens: number | undefined;
   readonly startedAt: number;

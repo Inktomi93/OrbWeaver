@@ -1,9 +1,10 @@
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import ts from "typescript";
-import type { Restatement } from "../unwired/index.ts";
-import { memberLabel, passesDbHandle, RELATION, restatementsAt, runtimeTypes } from "../unwired/index.ts";
 import { requireTypeServices } from "./checker.ts";
+import { passesDbHandle, runtimeTypes } from "./port-ownership/foreign-types.ts";
+import type { Restatement } from "./port-ownership/restated-port.ts";
+import { memberLabel, RELATION, restatementsAt } from "./port-ownership/restated-port.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 import { CONTRACT_FILE, declaredHere } from "./trpc-output.ts";
 
@@ -12,7 +13,7 @@ const MESSAGES = {
   handRestated:
     '{{restating}} hand-restates {{owner}}: derive it from the owner (`Owner["member"]`, or `Pick<Owner, …>` for a whole port) so the reference stays linked.',
   crossDomainDbHandle:
-    "{{restating}} passes a db handle ({{handles}}) across domains from {{owner}} with no ledger row ruling the joint batch: rule it (tooling/src/unwired/ruled-ops.ts follows the ledger) or redesign it into an op that returns data.",
+    "{{restating}} passes a db handle ({{handles}}) across domains from {{owner}} with no ledger row ruling the joint batch: rule it (tooling/src/eslint/port-ownership/ruled-ops.ts follows the ledger) or redesign it into an op that returns data.",
   crossDomainData:
     "{{restating}} restates {{owner}} across domains with domain data ({{types}}): move that data to packages/contracts; the runtime types stay with their owners and the signature stays in this domain's contract.",
   crossDomainShape:

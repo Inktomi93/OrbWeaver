@@ -10,8 +10,7 @@
 // the other six announced as a child of one of them. The frame law says a tile does not draw its own title
 // band, and the fix is not to draw a better one here: it is to be a tile. Which is also what the approved
 // mock draws — two sibling `.block`s in the hearth column, the second one carrying "All chats →" on its own
-// kicker row instead of on the hero's (F13: the pick-up row had the trailing link AND the "Chats" jump pill
-// side by side, two labels for one destination on one line).
+// kicker row instead of on the hero's.
 //
 // ONE READ, TWO TILES. `trpc.chat.listChats` with the SAME `limit` is the SAME query key as the hero's, so
 // this is one cache entry and one fetch — the split is presentational and costs no network. The hero takes

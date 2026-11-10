@@ -3,6 +3,7 @@
 
 import { Plus } from "@orb/ui/icons";
 import type { ReactElement } from "react";
+import { NEW_CHAT_DIALOG_TITLE } from "#lib";
 import type { ModalDefinition } from "#state";
 import { clearNewChatIntent } from "#state";
 import { NewChatPickerAnchor } from "../anchors/new-chat-picker-anchor.tsx";
@@ -10,8 +11,8 @@ import { NewChatPicker } from "../surfaces/new-chat-picker-surface.tsx";
 
 export const newChatModal: ModalDefinition = {
   id: "newChat",
-  title: "New chat",
-  trigger: { placement: "surface", label: "New chat", icon: Plus },
+  title: NEW_CHAT_DIALOG_TITLE,
+  trigger: { placement: "surface", label: NEW_CHAT_DIALOG_TITLE, icon: Plus },
   onClose: clearNewChatIntent,
   body: (): ReactElement => (
     <NewChatPickerAnchor>

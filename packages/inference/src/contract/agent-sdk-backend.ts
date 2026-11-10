@@ -1,5 +1,5 @@
 import type { SessionKey, SessionStore, SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
-import type { AgentSdkModel } from "@orb/contracts/inference";
+import type { AgentSdkModel, ProviderId } from "@orb/contracts/inference";
 import type { EffortLevel } from "@orb/contracts/preset";
 import type { ChatId, ModelId } from "@orb/kit/ids";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
@@ -98,9 +98,9 @@ export interface AgentSdkLog {
   readonly error: (err: ProviderError, extra?: { readonly stderrTail?: string; readonly label?: string }) => void;
   readonly rateLimit: (banRisk: boolean, fields: Record<string, unknown>) => void;
   readonly retry: (fields: Record<string, unknown>) => void;
-  readonly drift: (entry: { readonly requested: string; readonly billed: readonly string[] }) => void;
+  readonly drift: (entry: { readonly requested: ModelId; readonly billed: readonly string[] }) => void;
   readonly refusal: (entry: { readonly category: string | null; readonly retried: boolean }) => void;
-  readonly leak: (entry: { readonly model: string; readonly toolNames: readonly string[] }) => void;
+  readonly leak: (entry: { readonly model: ModelId; readonly toolNames: readonly string[] }) => void;
   readonly terminalTools: (entry: {
     readonly turnId: string;
     readonly mounted: boolean;
@@ -151,7 +151,7 @@ export interface TurnStreamContext {
   readonly onObservedResult?: ((result: ChatResult) => Promise<void>) | undefined;
   readonly turnId?: string | undefined;
   readonly model: ModelId;
-  readonly providerId: string;
+  readonly providerId: ProviderId;
   readonly resumed: boolean;
   /** The spend totals the resumed transcript saved, which this turn's result carries forward; null when a saved
    *  entry was unreadable, which leaves the turn's cost unrecorded. */
@@ -217,7 +217,7 @@ export interface ProviderTurnLog {
   readonly chatId?: ChatId;
   readonly sessionId?: AgentSdkSessionId;
   readonly apiKeySource?: string;
-  readonly requestedModel: string;
+  readonly requestedModel: ModelId;
   readonly servedModel?: string;
   readonly disposition?: SeededSessionDecision["disposition"];
   readonly terminalReason?: string | null;

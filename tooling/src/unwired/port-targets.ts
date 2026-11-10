@@ -2,11 +2,8 @@
 // members that derive from kit types, and how a cross-domain shape is classified against the ledger.
 import { relative } from "node:path";
 import ts from "typescript";
-import type { ForeignTypes } from "./foreign-types.ts";
-import { describeForeignTypes, passesDbHandle, runtimeTypes } from "./foreign-types.ts";
-import type { PortMember, Restatement } from "./restated-port.ts";
-import { placementOf } from "./restated-port.ts";
-import { jointBatchRulingOf } from "./ruled-ops.ts";
+import type { ForeignTypes, PortMember, Restatement } from "../eslint/index.ts";
+import { describeForeignTypes, jointBatchRulingOf, passesDbHandle, placementOf, runtimeTypes } from "../eslint/index.ts";
 
 /** What a target asks its leg to do. The codemod applies {@link APPLIED_KINDS}; {@link INFORMATIONAL_KINDS} ask nothing;
  *  the others are judgment or hand work. */

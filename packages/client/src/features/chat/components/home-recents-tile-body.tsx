@@ -34,7 +34,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { EmptyState } from "@orb/ui/empty-state";
 import { Icon, MessagesSquare } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
-import type { ReactElement } from "react";
+import type { ReactElement, ReactNode } from "react";
 import { useSuspenseQuery, useTRPC } from "#data";
 import { resumeChat } from "#state";
 import { usePrefetchRoom } from "../hooks/use-prefetch-room.ts";
@@ -45,7 +45,7 @@ function openRecent(chatId: ChatId): void {
   resumeChat(chatId);
 }
 
-export function HomeRecentsTileBody(): ReactElement {
+export function HomeRecentsTileBody({ start }: { readonly start: ReactNode }): ReactElement {
   const trpc = useTRPC();
   const { data: page } = useSuspenseQuery(trpc.chat.listChats.queryOptions({ limit: HOME_RECENT_CHATS_LIMIT }));
   // THE DOOR WARMS THE ROOM'S ROSTER (#1126, side-eye HOME H13). "Resume" is this surface's one focal
@@ -61,11 +61,11 @@ export function HomeRecentsTileBody(): ReactElement {
   // face rides the chat ROW itself, so it costs no network at all: the whole-library `character.list` read
   // this used to index into is gone, and a room whose seats have no portrait simply has no bleed.
   if (hearth === undefined) {
-    // action={null}: Home's own New chat control sits above this tile and is the empty state's next step. Ends if that control leaves Home.
+    // `start` is Home's one New chat control: the tile declares `useHoldsStart` for this state, so Home draws it nowhere else.
     return (
       <Stack minHeight="homeRecents" justify="center">
         <EmptyState
-          action={null}
+          action={start}
           description="Your rooms appear here when you start one."
           icon={<Icon icon={MessagesSquare} size="lg" />}
           title="No rooms yet"

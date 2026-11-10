@@ -1,5 +1,6 @@
 // @subject packages/client/src/components/list-pane-header.tsx
 // @subject packages/client/src/components/list-pane-header-host.tsx
+import { NEW_CHAT_DIALOG_TITLE } from "@orb/client/lib";
 import { TOKENS } from "@orb/ui/tokens";
 import { expect, test } from "@playwright/test";
 import type { ListPaneHeaderStory } from "./_list-pane-header-stories.tsx";
@@ -70,7 +71,7 @@ test("back is keyboard operable and the host renders one optional action and its
 
   const markedAction = component.locator('[data-slot="list-pane-action"]');
   await expect(markedAction).toHaveCount(1);
-  await markedAction.getByRole("button", { name: "New chat", exact: true }).click();
+  await markedAction.getByRole("button", { name: NEW_CHAT_DIALOG_TITLE, exact: true }).click();
   await expect(component.getByText("Back activated 1; action activated 1", { exact: true })).toBeVisible();
   await expect(component.getByRole("button")).toHaveCount(2);
 

@@ -172,13 +172,42 @@ export interface PixelSurfaceOptions {
  * than fabricating, on the same terms as `pixelContrast`.
  */
 export async function pixelSurface(page: Page, target: Locator, options: PixelSurfaceOptions = {}): Promise<PixelSurfaceReceipt> {
+  const { data, info } = await regionPixels(page, target, options, "pixelSurface");
+  const rgb = medianRgb(data, info.channels);
+  return { rgb, describe: show(rgb) };
+}
+
+/** The widest per-channel range across every pixel of the target's region: near zero where one smooth fill is all
+ *  that paints, large where a glyph or an edge shows through. Same refusals as {@link pixelSurface}. */
+export async function pixelSpread(page: Page, target: Locator, options: PixelSurfaceOptions = {}): Promise<number> {
+  const { data, info } = await regionPixels(page, target, options, "pixelSpread");
+  let spread = 0;
+  for (let channel = 0; channel < 3; channel += 1) {
+    let low = 255;
+    let high = 0;
+    for (let i = channel; i < data.length; i += info.channels) {
+      const value = data[i] ?? 0;
+      low = Math.min(low, value);
+      high = Math.max(high, value);
+    }
+    spread = Math.max(spread, high - low);
+  }
+  return spread;
+}
+
+async function regionPixels(
+  page: Page,
+  target: Locator,
+  options: PixelSurfaceOptions,
+  caller: string,
+): Promise<{ data: Buffer; info: { width: number; height: number; channels: number } }> {
   const box = await target.boundingBox();
   if (box === null) {
-    throw new Error("pixelSurface: the target has no box (not rendered)");
+    throw new Error(`${caller}: the target has no box (not rendered)`);
   }
   const viewport = page.viewportSize();
   if (viewport === null) {
-    throw new Error("pixelSurface: the page has no viewport size");
+    throw new Error(`${caller}: the page has no viewport size`);
   }
   const region = options.region ?? { x0: 0, x1: 1, y0: 0, y1: 1 };
   const x = Math.max(0, Math.floor(box.x + box.width * region.x0));
@@ -186,12 +215,10 @@ export async function pixelSurface(page: Page, target: Locator, options: PixelSu
   const width = Math.min(Math.ceil(box.width * (region.x1 - region.x0)), viewport.width - x);
   const height = Math.min(Math.ceil(box.height * (region.y1 - region.y0)), viewport.height - y);
   if (width < 1 || height < 1) {
-    throw new Error(`pixelSurface: the target box is empty or off-screen (${JSON.stringify(box)}, region ${JSON.stringify(region)})`);
+    throw new Error(`${caller}: the target box is empty or off-screen (${JSON.stringify(box)}, region ${JSON.stringify(region)})`);
   }
   const shot = await page.screenshot({ clip: { x, y, width, height }, animations: "disabled" });
-  const { data, info } = await rawPixels(shot);
-  const rgb = medianRgb(data, info.channels);
-  return { rgb, describe: show(rgb) };
+  return await rawPixels(shot);
 }
 
 /**

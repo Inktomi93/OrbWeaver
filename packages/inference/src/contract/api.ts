@@ -9,6 +9,7 @@ import type {
   ModelListing,
   ProviderAvailability,
   ProviderDef,
+  ProviderId,
   SendAvailability,
   Task,
   TokenizeResult,
@@ -75,12 +76,12 @@ export interface InferenceRuntime {
     readonly models: (draft: CatalogDraft) => Promise<ModelListing>;
     /** A `builtin` provider's closed model set (the curated rows), or `null` for a `url` provider, whose list
      *  can lag the provider and so admits a typed id. The write seam refuses an id outside a closed set. */
-    readonly builtin: (providerId: string, viewer: UserId) => readonly ModelCatalogEntry[] | null;
+    readonly builtin: (providerId: ProviderId, viewer: UserId) => readonly ModelCatalogEntry[] | null;
     /** Force a live re-fetch of a provider's mirror (the OpenRouter enrichment; the daemon catalog needs a
      *  connection and refreshes on its next `models` read after `invalidate`). Returns the mirror's entry
      *  count when one was warmed, `null` when the strategy has no process-wide mirror. An operator path with
      *  no principal, so it reaches deployment-wide rows only — never a plugin row. */
-    readonly refresh: (providerId: string) => Promise<{ readonly models: number | null }>;
+    readonly refresh: (providerId: ProviderId) => Promise<{ readonly models: number | null }>;
     /** Forget what one connection's server last advertised, in memory and in the persisted snapshot, so its
      *  next resolve dials the server again — the hook a save or an endpoint inspection runs, because a server
      *  restarted without its projector or `--jinja` keeps its earlier facts until something asks again. */

@@ -4,8 +4,9 @@
 // membrane's guest-observable `PluginCapabilityError`/`HostVersionError` (`@orb/contracts/plugin`) — these are
 // host-side lifecycle failures a CALLER sees, never a guest.
 
+import type { PluginSlug } from "@orb/contracts/plugin";
 import { DomainConflictError, DomainError, DomainNotFoundError, DomainOperationError, DomainUnavailableError } from "@orb/kit/errors";
-import type { PluginId, SandboxWireId } from "@orb/kit/ids";
+import type { CharacterId, PluginId } from "@orb/kit/ids";
 
 /** The bundle failed unzip/validation: a bad zip, extra/unknown entries, a decompression-bomb over the caps,
  *  malformed `manifest.json`, or a manifest that fails `pluginManifestSchema` (bad slug/version/hostVersion shape/
@@ -178,10 +179,10 @@ export class PluginCrashedError extends DomainUnavailableError {}
 
 /** An owned-plugin verb (upgrade/setEnabled/uninstall/getLog) was handed a pluginId that is missing OR not the
  *  caller's — collapsed leak-free (no foreign-existence oracle; the owner-scoped read returns undefined either
- *  way). Maps to NOT_FOUND. */
+ *  way). D148 uses the same refusal for unavailable character card data. Maps to NOT_FOUND. */
 export class PluginNotFoundError extends DomainNotFoundError {
-  constructor(pluginId: SandboxWireId<PluginId>) {
-    super("plugin", pluginId);
+  constructor(target: PluginId | { readonly characterId: CharacterId }) {
+    super("plugin", typeof target === "string" ? target : target.characterId);
   }
 }
 
@@ -191,7 +192,7 @@ export class PluginNotFoundError extends DomainNotFoundError {
  *  which of those two things is missing. Maps to NOT_FOUND. No leak concern: the published set is deployment
  *  policy the caller is already admin over, not an owned entity whose existence could be oracled. */
 export class PluginNotDistributedError extends DomainNotFoundError {
-  constructor(slug: string) {
+  constructor(slug: PluginSlug) {
     super("plugin distribution", slug);
   }
 }

@@ -5,8 +5,8 @@
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES } from "@typescript-eslint/utils";
-import type { CustomPropertyUses } from "../css-names/index.ts";
-import { PROPERTY_READ } from "../css-names/index.ts";
+import type { CustomPropertyUses } from "./css/custom-properties.ts";
+import { PROPERTY_READ } from "./css/custom-properties.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 
 // A declaration inside CSS text (`{ --x:` or `; --x:`) and a class string's `[--x:v]` arbitrary property.

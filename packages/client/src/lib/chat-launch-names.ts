@@ -7,6 +7,9 @@ export const NO_CHAT_SELECTED_TITLE = "No chat selected";
 /** The one door that opens the new-chat picker: the Chats no-selection state's, and Home's start control. */
 export const START_NEW_CHAT_NAME = "Start a new chat";
 
+/** The new-chat picker dialog's title, and the label of its modal trigger. */
+export const NEW_CHAT_DIALOG_TITLE = "New chat";
+
 /** The Home temp-chat tile's control, which opens the picker for a temporary room. */
 export const START_TEMP_CHAT_NAME = "Start a temp chat";
 

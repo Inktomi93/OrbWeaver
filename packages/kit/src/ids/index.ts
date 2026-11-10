@@ -16,6 +16,9 @@ declare const sessionVerified: unique symbol;
 /** A `string` tagged with a phantom `B` marker (erased at runtime). */
 export type Branded<B extends string> = string & { readonly [brand]: B };
 
+/** A text lookup accepts a raw key or an id of its own family. The result still requires admission at the lookup boundary. */
+export type LookupText<Id extends Branded<string>> = string & { readonly [brand]?: Id[typeof brand] };
+
 // The compile-time brand reuses this file's `Branded<…>` phantom, not typeid-js's own object brand —
 // an object-shaped brand trips biome's `noBaseToString` on `${id}` template interpolation.
 export type TypeIdOf<P extends string> = Branded<P>;

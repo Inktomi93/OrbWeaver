@@ -56,15 +56,17 @@ export function createPluginRuntimeOps(input: DbAssemblyInput<PluginRuntimeDeps>
     },
     cardState: {
       setCardData: async ({ installerUserId, slug, characterId, data }): ReturnType<PluginRuntimeOps["cardState"]["setCardData"]> => {
-        const written = await deps.writeCardData({ characterId: typeIdSchema(ID_PREFIX.character).parse(characterId), ownerId: installerUserId, slug }, data);
+        const id = typeIdSchema(ID_PREFIX.character).parse(characterId);
+        const written = await deps.writeCardData({ characterId: id, ownerId: installerUserId, slug }, data);
         if (!written) {
-          throw new PluginNotFoundError(characterId);
+          throw new PluginNotFoundError({ characterId: id });
         }
       },
       getCardData: async ({ installerUserId, slug, characterId }): ReturnType<PluginRuntimeOps["cardState"]["getCardData"]> => {
-        const read = await deps.readCardData({ characterId: typeIdSchema(ID_PREFIX.character).parse(characterId), ownerId: installerUserId, slug });
+        const id = typeIdSchema(ID_PREFIX.character).parse(characterId);
+        const read = await deps.readCardData({ characterId: id, ownerId: installerUserId, slug });
         if (!read.found) {
-          throw new PluginNotFoundError(characterId);
+          throw new PluginNotFoundError({ characterId: id });
         }
         return read.data;
       },
