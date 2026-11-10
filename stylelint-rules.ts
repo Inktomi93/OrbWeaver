@@ -4,7 +4,7 @@ import { blankText } from "@orb/kit/strings";
 import valueParser from "postcss-value-parser";
 import type { PostcssResult, Rule } from "stylelint";
 import stylelint from "stylelint";
-import { intentColorRecipe } from "./tooling/src/css-names/index.ts";
+import { intentColorRecipe } from "./tooling/src/eslint/css/intent-color-recipe.ts";
 
 type CssRoot = Parameters<ReturnType<Rule>>[0];
 type Declaration = Parameters<Parameters<CssRoot["walkDecls"]>[0]>[0];

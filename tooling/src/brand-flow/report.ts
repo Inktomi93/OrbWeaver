@@ -193,6 +193,8 @@ export function renderReport(report: BrandFlowReport, ranked: readonly RankedSit
     "",
     ...table(["via", "sites"], [...tally(report.mints, (mint) => mint.via)].sort(byName)),
     "",
+    `Sandbox wire declarations: ${production(report.sandboxWire).length}. The wire keeps the id family declared by SandboxWireId.`,
+    "",
     "## Widen (production files)",
     "",
     "A `schema-input` slot is declared as a brand schema, whose zod input type is `string` by design; an `unknown` slot's declaration could not be read. Neither is a defect count.",

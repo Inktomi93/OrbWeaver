@@ -1,7 +1,7 @@
 // D336: TypeScript strings spell no colour recipe over an intent or tone colour; the tone roles and `orb.pigments` own them.
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESTree } from "@typescript-eslint/utils";
-import { intentColorRecipe } from "../css-names/index.ts";
+import { intentColorRecipe } from "./css/intent-color-recipe.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 
 // An interpolation reads as a space, so a recipe split around one still reads as one string and names no colour of its own.

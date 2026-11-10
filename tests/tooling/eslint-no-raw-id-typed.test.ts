@@ -18,6 +18,7 @@ const KIT_SOURCE = [
   "export type Branded<B extends string> = string & { readonly [brand]: B };",
   "export type TypeIdOf<P extends string> = Branded<P>;",
   'export type ChatId = TypeIdOf<"chat">;',
+  'export type MessageId = TypeIdOf<"message">;',
   'export type ChatTurnId = TypeIdOf<"chat_turn">;',
   'export type UserId = Branded<"UserId">;',
   'export type CharacterId = TypeIdOf<"character">;',
@@ -36,6 +37,9 @@ const CONTRACT_SOURCE = [
   'type LocalProbeId = Branded<"LocalProbeId">;',
   "export const local: LocalProbeId | null = null;",
 ].join("\n");
+
+const kitFromProbe = relative(dirname(FILE), KIT);
+const contractsFromProbe = relative(dirname(FILE), CONTRACT);
 
 const preamble = (file: string): string => {
   const from = (target: string): string => relative(dirname(file), target);
@@ -59,6 +63,7 @@ function lint(root: string, source: string): readonly string[] {
     allowImportingTsExtensions: true,
     noEmit: true,
     types: [],
+    paths: { eslint: [join(import.meta.dirname, "../../node_modules/eslint/lib/types/index.d.ts")] },
   };
   const text = `${preamble(FILE)}\n${source}`;
   for (const [path, body] of [
@@ -70,6 +75,9 @@ function lint(root: string, source: string): readonly string[] {
     writeFileSync(join(root, path), body);
   }
   const program = ts.createProgram({ rootNames: [KIT, CONTRACT, FILE].map((path) => join(root, path)), options });
+  const file = program.getSourceFile(join(root, FILE));
+  expect(file).toBeDefined();
+  expect(program.getSemanticDiagnostics(file)).toEqual([]);
   const found = new Linter({ cwd: root }).verify(
     text,
     {
@@ -94,11 +102,19 @@ test.for([
   { name: "a function type parameter", source: "export type Open = (chatId: string) => void;", found: "ChatId" },
   { name: "a class field", source: "export class Holder {\n  chatId: string = raw;\n}", found: "ChatId" },
   { name: "an annotated variable", source: "export const chatId: string = raw;", found: "ChatId" },
-  { name: "an owner is a user", source: "export interface Row { readonly ownerId: string }", found: "UserId" },
-  { name: "a brand declared beside its schema", source: "export interface Row { readonly providerId: string }", found: "ProviderId" },
+  {
+    name: "an owner is a user",
+    source: `import type { UserId as Principal } from "${kitFromProbe}";\nexport interface Row { readonly ownerId: string }`,
+    found: "UserId",
+  },
+  {
+    name: "a brand declared beside its schema",
+    source: `import type * as Protocol from "${contractsFromProbe}";\nexport type Current = Protocol.ProviderId;\nexport interface Row { readonly providerId: string }`,
+    found: "ProviderId",
+  },
   {
     name: "a stem that leaves off the brand's qualifier",
-    source: "export interface Row { readonly sdkSessionId: string }",
+    source: `import type { AgentSdkSessionId } from "${contractsFromProbe}";\nexport interface Row { readonly sdkSessionId: string }`,
     found: "AgentSdkSessionId",
   },
   {
@@ -108,7 +124,12 @@ test.for([
   },
   { name: "a nullable state seeded with a brand", source: "const [a] = useState<string | null>(id);\nexport const b = a;", found: "useState" },
   { name: "an inferred string state set to a brand", source: 'const [a, setA] = useState("");\nsetA(id);\nexport const b = a;', found: "useState" },
-  { name: "a brand its module keeps private", source: "export interface Row { readonly localProbeId: string }", found: "LocalProbeId" },
+  { name: "an unrelated private brand in another module", source: "export interface Row { readonly localProbeId: string }", found: null },
+  {
+    name: "a file-local branded alias",
+    source: `import type { Branded } from "${kitFromProbe}";\ntype LocalId = Branded<"local">;\nexport interface Row { localId: string }`,
+    found: "LocalId",
+  },
   { name: "a field typed by an alias of string", source: "type Raw = string;\nexport interface Row { readonly chatId: Raw }", found: "ChatId" },
   // Controls: the shapes the rule must leave alone.
   { name: "a trailing-word match is only reported", source: "export interface Row { readonly speakerCharacterId: string }", found: null },
@@ -129,4 +150,15 @@ test.for([
   const messages = lint(scratch, source);
   expect(messages).toHaveLength(found === null ? 0 : 1);
   expect(messages.filter((message) => !message.includes(found ?? ""))).toEqual([]);
+});
+
+test("a message key returned to ESLint can coexist with chat and message brands", ({ scratch }) => {
+  const source = [
+    'import type { Linter } from "eslint";',
+    `import type { MessageId } from "${kitFromProbe}";`,
+    'type Diagnostic = Pick<Linter.LintMessage, "messageId">;',
+    "export function report({ messageId }: { messageId: string }): Diagnostic { return { messageId }; }",
+    "export interface Row { chatId: string; messageId: string }",
+  ].join("\n");
+  expect(lint(scratch, source)).toEqual([expect.stringContaining("`chatId`"), expect.stringContaining("`messageId`")]);
 });

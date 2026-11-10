@@ -5,11 +5,12 @@
 // tRPC NOT_FOUND via the kit-error middleware.
 
 import { DomainNotFoundError } from "@orb/kit/errors";
+import type { TagId } from "@orb/kit/ids";
 
 /** A tag does not exist for the requesting owner (owner-scoped: a foreign-owned tag reads as not-found,
  *  never another user's row). */
 export class TagNotFoundError extends DomainNotFoundError {
-  constructor(id: string) {
+  constructor(id: TagId) {
     super("tag", id);
   }
 }

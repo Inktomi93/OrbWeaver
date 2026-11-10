@@ -1,5 +1,8 @@
 // cache-check shapes: the route and case axes, one measured provider call, one line's verdict, and the run's
 // inputs (routes, the parsed env file, the typed orb client).
+
+import type { ProviderGenerationId } from "@orb/contracts/inference";
+import type { MessageId } from "@orb/kit/ids";
 import type { AppRouter } from "@orb/server/transport/trpc";
 import type { TRPCClient } from "@trpc/client";
 
@@ -29,7 +32,7 @@ export type CaseVerdict = (typeof CASE_VERDICTS)[number];
 /** One provider call, read off the assistant row it produced. A null count means no usage was recorded. */
 export interface CallUsage {
   /** The upstream request or generation id (`msg_…`, `gen-…`), else the orb message id. */
-  readonly id: string;
+  readonly id: ProviderGenerationId | MessageId;
   /** The whole prompt: uncached input plus cache read plus cache write (orb's `tokensIn`). */
   readonly promptTokens: number | null;
   readonly readTokens: number | null;

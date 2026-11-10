@@ -17,7 +17,7 @@ import type { AssemblePersona } from "@orb/contracts/chat";
 import type { DatabankRetrievalSettings } from "@orb/contracts/databank";
 import type { PromptConfig } from "@orb/contracts/preset";
 import type { ChatSettings } from "@orb/contracts/settings";
-import type { ChatId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
+import type { ChatId, ModelId, PersonaId, PresetId, UserId } from "@orb/kit/ids";
 import type { MemoryConfig } from "./memory.ts";
 
 /** The host's turn-behavior knobs the engine honors — the schema-real `UserSettings.chat` arm the
@@ -194,7 +194,7 @@ export type ResolveForeignInputsOp = (args: {
   readonly chatId: ChatId;
   readonly runAsUserId: UserId;
   /** The resolved connection's model, when the caller has one — the room's Regex read resolves none. */
-  readonly model?: string | undefined;
+  readonly model?: ModelId | undefined;
   readonly anchorPersonaId: PersonaId | null;
   /** The room's PRESENT human participants — the persona-read consent set (see above). Empty ⇒ no persona
    *  resolves (a hostless/stale room assembles with the kit floor rather than an unscoped read). */

@@ -10,6 +10,7 @@ import type {
   ResolvedWarning,
   Wire,
 } from "@orb/contracts/inference";
+import type { LookupText, ModelId } from "@orb/kit/ids";
 
 /** The window a server runs where the request cannot set one, and whether that figure is only its floor. */
 export interface ServedWindow {
@@ -46,7 +47,7 @@ export interface CompiledRow {
 
 /** What a resolver asks the row tiers with: the model id plus the route it resolved on. */
 export interface RowQuery {
-  readonly model: string;
+  readonly model: LookupText<ModelId>;
   readonly providerId?: ProviderId | undefined;
   readonly wire?: Wire | undefined;
   readonly api?: ChatApi | null | undefined;

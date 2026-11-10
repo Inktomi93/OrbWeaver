@@ -7,6 +7,7 @@
 
 import type { WireSchemaViolation } from "@orb/contracts/inference";
 import type { SummarizeResultItem } from "@orb/contracts/providers";
+import type { ModelId } from "@orb/kit/ids";
 import type { AgentSdkSessionId } from "./identity.ts";
 
 declare const providerScrubSet: unique symbol;
@@ -55,7 +56,7 @@ export interface ProviderErrorInit {
   /** Epoch-ms at which a rate-limit window resets, when the provider reports it. */
   readonly resetsAt?: number;
   readonly apiErrorStatus?: number;
-  readonly model?: string;
+  readonly model?: ModelId;
   /** The RAW backend terminal/subtype string this failure was classified from — string-only provenance. */
   readonly terminalReason?: string;
   /** The specific SDK code the classification narrowed from (`oauth_org_not_allowed` under `auth_failed`). */
@@ -86,7 +87,7 @@ export class ProviderError extends Error {
   readonly retryable: boolean;
   readonly resetsAt: number | undefined;
   readonly apiErrorStatus: number | undefined;
-  readonly model: string | undefined;
+  readonly model: ModelId | undefined;
   readonly terminalReason: string | undefined;
   readonly detail: string | undefined;
   readonly sessionId: AgentSdkSessionId | undefined;

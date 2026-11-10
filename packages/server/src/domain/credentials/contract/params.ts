@@ -6,7 +6,7 @@ import type { ProviderMetadata } from "@orb/contracts/credentials";
 import type { Principal } from "@orb/contracts/identity";
 import type { ProviderId } from "@orb/contracts/inference";
 import type { InferenceDeps } from "@orb/inference";
-import type { UserCredentialId, UserId } from "@orb/kit/ids";
+import type { LookupText, UserCredentialId, UserId } from "@orb/kit/ids";
 
 /** Common to every ownership-scoped credential verb: the acting principal (`principal.userId` is the
  *  row owner). */
@@ -31,7 +31,7 @@ export interface ListCredentialsParams extends CredentialActorParams {}
 
 export interface AddCredentialParams extends CredentialActorParams {
   /** The provider REGISTRY id (validated against the registry in the verb). */
-  readonly provider: string;
+  readonly provider: LookupText<ProviderId>;
   /** Optional — defaults to `"default"` inside the verb. A label the owner already holds on this provider gets
    *  the next free spelling; `add` never overwrites an existing key. */
   readonly label?: string;

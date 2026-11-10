@@ -27,6 +27,7 @@
 // than an error — it is also the retry mechanism.
 
 import type { PluginFanoutSkip } from "@orb/contracts/plugin";
+import { pluginSlugSchema } from "@orb/contracts/plugin";
 import type { InstallForAllUsersParams } from "../contract/params.ts";
 import type { DistributionInstallDeps, PluginContext, PluginDistributionDeps, PluginService } from "../contract/service.ts";
 import { upsertDistribution } from "../persistence/distributed-plugins.ts";
@@ -66,6 +67,6 @@ export function createInstallForAllUsers(ctx: PluginContext, deps: PluginDistrib
       applied += 1;
     }
 
-    return { slug: manifest.id, name: manifest.name, version: manifest.version, applied, skipped };
+    return { slug: pluginSlugSchema.parse(manifest.id), name: manifest.name, version: manifest.version, applied, skipped };
   };
 }

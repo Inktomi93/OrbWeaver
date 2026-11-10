@@ -1,14 +1,19 @@
 import type { ImageCaptionMeta } from "@orb/contracts/embeddings";
+import type { ModelId } from "@orb/kit/ids";
+
+export const NO_CAPTION_MODEL = "(no-connection)";
 
 /** One owner's Utility analysis before persistence: caption and provenance/facets share one call.
  * An empty caption is the facetless skip signal. The indexer saves a successful annotation before
  * encoding, so a failed encoder does not repeat paid Utility work on the next pass. */
 export interface AvatarAnalysis {
   readonly caption: string;
-  readonly captionMeta: ImageCaptionMeta;
+  readonly captionMeta: ImageCaptionMeta & { readonly model: ModelId | typeof NO_CAPTION_MODEL };
 }
 
-export interface StoredImageAnalysis extends AvatarAnalysis {
+export interface StoredImageAnalysis {
+  readonly caption: string;
+  readonly captionMeta: ImageCaptionMeta;
   readonly revision: number;
 }
 

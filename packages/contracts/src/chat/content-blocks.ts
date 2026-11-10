@@ -24,17 +24,20 @@ const messageMediaKindSchema = z.enum(["image", "audio", "video"]);
 const cardTrustSchema = z.enum(["tierA", "tierB"]);
 export type CardTrust = z.infer<typeof cardTrustSchema>;
 
+// D51 preserves the markdown target until media policy resolves it.
+const authoredMarkdownText = z.string();
+
 /** Where a media block's bytes come from: an owned asset (per-user CAS, D21) or an external URL (gated by
  *  `forbidExternalMedia` at render, D294, UI-Theming-and-Content §12.3 — never auto-loaded for untrusted content). */
 const messageMediaSrcSchema = z.discriminatedUnion("kind", [
   z.strictObject({ kind: z.literal("asset"), assetId: typeIdSchema(ID_PREFIX.asset) }),
-  z.strictObject({ kind: z.literal("external"), url: z.string() }),
+  z.strictObject({ kind: z.literal("external"), url: authoredMarkdownText }),
 ]);
 
 /** The typed message-content block union. `html-card` carries its own trust tier; `media` covers image +
  *  native audio/video; `markdown` is the default text path. (D294, UI-Theming-and-Content §12.4 — born-compliant before Phase 5.) */
 export const messageContentBlockSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("markdown"), md: z.string() }),
+  z.strictObject({ kind: z.literal("markdown"), md: authoredMarkdownText }),
   z.strictObject({
     kind: z.literal("media"),
     media: messageMediaKindSchema,

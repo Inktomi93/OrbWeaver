@@ -1,6 +1,6 @@
 // Provider identity is a leaf: pricing/usage provenance needs this parser without importing a provider
 // row that itself imports endpoint pricing. Public row-module reexports preserve the existing API.
-import type { Branded } from "@orb/kit/ids";
+import type { Branded, LookupText } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
 import { z } from "zod";
 
@@ -13,10 +13,10 @@ export const providerIdSchema: z.ZodType<ProviderId, string> = z
   .regex(PROVIDER_ID, "a provider id is bare [a-z0-9-]+ (built-in) or plugin:<name>/<id>")
   .pipe(brandedId("ProviderId"));
 
-export function isPluginProviderId(id: string): boolean {
+export function isPluginProviderId(id: LookupText<ProviderId>): boolean {
   return PLUGIN_PROVIDER_ID.test(id);
 }
 
-export function pluginNameOfProviderId(id: string): string | undefined {
+export function pluginNameOfProviderId(id: LookupText<ProviderId>): string | undefined {
   return PLUGIN_PROVIDER_ID.exec(id)?.[1];
 }

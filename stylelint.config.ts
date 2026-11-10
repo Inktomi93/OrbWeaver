@@ -23,7 +23,7 @@ import {
   TEXT_STEP,
   Z_INDEX_VALUES,
 } from "./stylelint-rules.ts";
-import { declaredCustomProperties } from "./tooling/src/css-names/index.ts";
+import { declaredCustomProperties } from "./tooling/src/eslint/css/custom-properties.ts";
 
 const leadings = Object.keys(tokens.leading)
   .filter((name) => !name.startsWith("$"))

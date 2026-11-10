@@ -1,4 +1,5 @@
-import type { WireSchemaMode } from "@orb/contracts/inference";
+import type { ProviderId, WireSchemaMode } from "@orb/contracts/inference";
+import type { ModelId } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
 import type { AddSpanEvent, ConnectionTransport, ProviderErrorKind, ProviderScrubSet } from "#contract";
@@ -29,7 +30,7 @@ export interface HttpErrorDiagnostic {
 /** What a structured call's failure says about its schema, for {@link withSchemaRejection}. */
 export interface SchemaRejectionContext {
   readonly log: ProviderLogger;
-  readonly model: string;
+  readonly model: ModelId;
   readonly mode: WireSchemaMode;
   readonly secrets: ProviderScrubSet;
 }
@@ -78,8 +79,8 @@ export interface ProviderTurnUsage {
 export interface ProviderCapabilityLog {
   readonly turnId: string;
   readonly api: string | null;
-  readonly providerId: string;
-  readonly requestedModel: string;
+  readonly providerId: ProviderId;
+  readonly requestedModel: ModelId;
   readonly servedModel?: string;
   readonly turns: Record<string, unknown>;
   readonly droppedWarnings: readonly ProviderCapabilityDrop[];

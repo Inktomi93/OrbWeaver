@@ -1,14 +1,30 @@
 // The checker half of the brand-flow scan: one world, its home files, every question batched. A record is `measured`
 // when a type settled it and `heuristic` when a name or a text shape did.
-import type { Expression, Node } from "@typescript/native/ast";
-import { isBinaryExpression, isCallExpression, isPropertyAccessExpression, isTemplateExpression, SyntaxKind } from "@typescript/native/ast";
+import type { Expression, IndexedAccessTypeNode, Node, TypeReferenceNode } from "@typescript/native/ast";
+import {
+  isArrayTypeNode,
+  isBinaryExpression,
+  isCallExpression,
+  isIndexedAccessTypeNode,
+  isLiteralTypeNode,
+  isParenthesizedTypeNode,
+  isPropertyAccessExpression,
+  isPropertyAssignment,
+  isStringLiteral,
+  isTemplateExpression,
+  isTypeOperatorNode,
+  isTypeReferenceNode,
+  isUnionTypeNode,
+  SyntaxKind,
+} from "@typescript/native/ast";
 import type { APIRequestGenerator, Type } from "@typescript/native/sync";
 import { all } from "@typescript/native/sync";
 import type { NativeWorld } from "../unwired/index.ts";
+import { propertiesNamed } from "../unwired/index.ts";
 import type { DeclInfo } from "./decl.ts";
-import { shortText, symbolInfo, variableOf, whereOf } from "./decl.ts";
+import { declInfo, shortText, siteKey, symbolInfo, variableOf, whereOf } from "./decl.ts";
 import type { TypeFacts } from "./facts.ts";
-import { brandConstraint, sharesBrand, TypeReader, takesAnyString } from "./facts.ts";
+import { brandConstraint, KIT_IDS, sharesBrand, TypeReader, takesAnyString } from "./facts.ts";
 import { layerOf, slotOf, stateIndex } from "./slots.ts";
 import type { Gathered } from "./syntax.ts";
 import { calleeName, enclosingFunction, gather, insideCallTo, ownerOf, PARSE_MINTS, peel, rootNames } from "./syntax.ts";
@@ -29,6 +45,8 @@ export interface CompareCandidate extends Where {
 /** An id-named declaration whose type is a plain string, kept until the name table is known. */
 export interface DeclarationCandidate extends Where {
   readonly name: string;
+  readonly site: string;
+  readonly sandboxBrands: readonly string[];
   readonly declKind: string;
   readonly owner: string | null;
   readonly shape: "string" | "collection";
@@ -304,11 +322,87 @@ function collectComparisons(world: NativeWorld, reader: TypeReader, comparisons:
   }));
 }
 
+function sandboxReference(type: Node): TypeReferenceNode | IndexedAccessTypeNode | undefined {
+  if (isUnionTypeNode(type)) {
+    const members = type.types.filter(
+      (part) => part.kind !== SyntaxKind.UndefinedKeyword && !(isLiteralTypeNode(part) && part.literal.kind === SyntaxKind.NullKeyword),
+    );
+    const [member] = members;
+    return members.length === 1 && member !== undefined ? sandboxReference(member) : undefined;
+  }
+  if (isParenthesizedTypeNode(type) || (isTypeOperatorNode(type) && type.operator === SyntaxKind.ReadonlyKeyword)) {
+    return sandboxReference(type.type);
+  }
+  if (isArrayTypeNode(type)) {
+    return sandboxReference(type.elementType);
+  }
+  return isTypeReferenceNode(type) || isIndexedAccessTypeNode(type) ? type : undefined;
+}
+
+interface WireReference {
+  readonly reference: Node;
+  readonly argument: Node;
+  readonly owner: "SandboxWireId" | "sandboxWireIdSchema";
+}
+
+function schemaReference(node: Node): WireReference | undefined {
+  if (!isCallExpression(node)) {
+    return undefined;
+  }
+  if (isPropertyAccessExpression(node.expression) && ["nullable", "optional", "nullish", "array"].includes(node.expression.name.getText())) {
+    return schemaReference(node.expression.expression);
+  }
+  const [argument] = node.typeArguments ?? [];
+  return argument === undefined ? undefined : { reference: node.expression, argument, owner: "sandboxWireIdSchema" };
+}
+
+// An indexed access over a schema's inferred output resolves to the property that declared the field.
+function* wireReference(world: NativeWorld, node: Node): APIRequestGenerator<WireReference | undefined> {
+  const annotation = (node as Node & { readonly type?: Node }).type;
+  const type = annotation === undefined ? undefined : sandboxReference(annotation);
+  if (type === undefined) {
+    return undefined;
+  }
+  if (isTypeReferenceNode(type)) {
+    const [argument] = type.typeArguments ?? [];
+    return argument === undefined ? undefined : { reference: type.typeName, argument, owner: "SandboxWireId" };
+  }
+  const index = type.indexType;
+  if (!(isLiteralTypeNode(index) && isStringLiteral(index.literal))) {
+    return undefined;
+  }
+  const properties = yield* propertiesNamed(world.checker, yield* world.checker.getTypeAtLocation.gen(type.objectType), index.literal.text);
+  const [property] = properties;
+  if (property === undefined || !properties.every((candidate) => candidate?.id === property.id)) {
+    return undefined;
+  }
+  const { node: field } = yield* declInfo(world, property);
+  return field !== undefined && isPropertyAssignment(field) ? schemaReference(field.initializer) : undefined;
+}
+
+// SandboxWireId erases to string. Resolve the authored alias before asking the checker for its argument's brand.
+function sandboxBrandsOf(world: NativeWorld, reader: TypeReader, nodes: readonly Node[]): ReadonlyMap<Node, readonly string[]> {
+  const found = world.batch(nodes.map((node) => wireReference(world, node)));
+  const references = nodes.flatMap((node, index) => {
+    const result = found[index];
+    return result === undefined ? [] : [{ node, ...result }];
+  });
+  const symbols = world.symbolsAt(references.map(({ reference }) => reference));
+  const sandbox = references.filter(({ owner }, index) => {
+    const symbol = symbols[index];
+    const declaration = symbol?.declarations[0];
+    return symbol?.name === owner && declaration !== undefined && world.fileOf(declaration) === KIT_IDS;
+  });
+  const argumentsFacts = reader.read(world.typesAt(sandbox.map(({ argument }) => argument)));
+  return new Map(sandbox.map(({ node }, at) => [node, argumentsFacts[at]?.brands ?? []]));
+}
+
 function collectDeclarations(world: NativeWorld, reader: TypeReader, declarations: readonly Node[]): DeclarationCandidate[] {
   const named = declarations.filter((node): node is Node & { readonly name: Node } => (node as Node & { readonly name?: Node }).name !== undefined);
   const types = world.typesAt(named.map((node) => node.name));
   const facts = reader.read(types);
   const held = elementFacts(world, reader, types, (at) => (facts[at] as TypeFacts).other);
+  const sandboxBrands = sandboxBrandsOf(world, reader, named);
   return named.flatMap((node, at): DeclarationCandidate[] => {
     const own = facts[at] as TypeFacts;
     const string = takesAnyString(own) && !own.other;
@@ -319,6 +413,8 @@ function collectDeclarations(world: NativeWorld, reader: TypeReader, declaration
       {
         ...whereOf(world, node),
         name: node.name.getText(),
+        site: siteKey(world, node.name),
+        sandboxBrands: sandboxBrands.get(node) ?? [],
         declKind: SyntaxKind[node.kind],
         owner: ownerOf(node) ?? enclosingFunction(node)?.name?.getText() ?? null,
         shape: string ? "string" : "collection",

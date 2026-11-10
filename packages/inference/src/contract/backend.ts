@@ -16,7 +16,7 @@ import type {
   SummarizeResult,
   VerifyAuthResult,
 } from "@orb/contracts/providers";
-import type { ChatId, UserId } from "@orb/kit/ids";
+import type { ChatId, ModelId, UserId } from "@orb/kit/ids";
 import type { ChatRequest, ChatResult } from "./chat.ts";
 import type { DiagnosticRequestCommon, GenerationCostRequest, ListModelsRequest } from "./diagnostics.ts";
 import type {
@@ -59,7 +59,7 @@ export type WireCaptureSink = (entry: {
   readonly api: string;
   readonly wire: Wire;
   readonly providerId: ProviderId;
-  readonly model: string;
+  readonly model: ModelId;
   readonly body: Record<string, unknown>;
   /** WHAT CAME BACK'S envelope (§D1): the response headers, lower-cased, secret-scrubbed by value like the
    *  body. This is where the support handle and the rate-limit budget live — Anthropic's `request-id` +

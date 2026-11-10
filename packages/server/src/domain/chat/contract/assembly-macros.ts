@@ -6,7 +6,7 @@
 import type { AssembleContext, MacroSlice, MacroSliceRejection, UserMacroDraws } from "@orb/contracts/chat";
 import type { PluginMacroNames } from "@orb/contracts/plugin";
 import type { UserMacroValues } from "@orb/contracts/preset";
-import type { ChatId } from "@orb/kit/ids";
+import type { ChatId, ModelId } from "@orb/kit/ids";
 import type { MacroFreeze, MacroRegistry, MacroSourceKind, MacroSourceOf, RandomSource, UserMacroDef } from "@orb/kit/macro";
 
 export const CHOICE_PICK_MODES = ["random", "stable"] as const;
@@ -38,7 +38,8 @@ export interface RenderMacrosOptions {
 /** The inputs to `buildTurnMacroContext` — the turn-stage regex/guided macro context, built once per turn. */
 export interface TurnMacroContextArgs {
   readonly assembleCtx: AssembleContext;
-  readonly model: string;
+  /** A historical message without a model renders an empty model macro. */
+  readonly model: ModelId | "";
   readonly chatId: ChatId;
   readonly input?: string | undefined;
   /** The turn PRNG (`ChatContext.prng`) every `{{random}}`/`{{roll}}`/`{{pick}}` draw rides; required so no draw

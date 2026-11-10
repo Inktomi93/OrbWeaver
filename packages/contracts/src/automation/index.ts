@@ -841,7 +841,7 @@ export interface AutomationCelEnv {
   /** The RULE AUTHOR's per-user global variables — never the triggering member's namespace. */
   readonly global: Record<string, string>;
   /** Narrow chat projections. Deliberately tiny; a predicate needing more is a Tier-2 job. */
-  readonly chat: { readonly id: string; readonly messageCount: number };
+  readonly chat: { readonly id: ChatId | ""; readonly messageCount: number };
   /** The injected clock, sampled ONCE per dispatch batch (determinism + no intra-batch skew). `hour` and
    *  `dayOfWeek` (0 = Sunday) are the instant's reading on the rule's own clock, {@link AutomationCelEnv.timeZone}. */
   readonly now: { readonly epochMs: number; readonly hour: number; readonly dayOfWeek: number };

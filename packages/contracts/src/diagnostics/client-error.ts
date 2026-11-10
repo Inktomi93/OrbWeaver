@@ -6,6 +6,8 @@ const CLIENT_ERROR_TEXT_MAX = 20_000;
 const CLIENT_ERROR_URL_MAX = 4000;
 const CLIENT_ERROR_REQUEST_ID_MAX = 200;
 
+const reportedLocationText = z.string().max(CLIENT_ERROR_URL_MAX);
+
 /** The correlation text a client error report carries; the diagnostic sink scrubs it before it is logged. */
 const clientRequestIdSchema = brandedId("ClientRequestId").refine((value) => value.length <= CLIENT_ERROR_REQUEST_ID_MAX);
 
@@ -14,7 +16,7 @@ export const clientErrorReportSchema = z.strictObject({
   message: z.string().max(CLIENT_ERROR_TEXT_MAX),
   stack: z.string().max(CLIENT_ERROR_TEXT_MAX).optional(),
   ownerStack: z.string().max(CLIENT_ERROR_TEXT_MAX).optional(),
-  url: z.string().max(CLIENT_ERROR_URL_MAX),
+  url: reportedLocationText,
   requestId: clientRequestIdSchema.optional(),
 });
 export type ClientErrorReport = z.infer<typeof clientErrorReportSchema>;

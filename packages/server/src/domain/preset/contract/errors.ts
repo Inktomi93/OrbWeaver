@@ -2,6 +2,7 @@
 // to BAD_REQUEST, carrying a code discriminator. One home for those reason codes.
 
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
+import type { PresetId } from "@orb/kit/ids";
 
 export const PRESET_OP_CODES = {
   /** The single system-default row (ownerId IS NULL) may never be removed — only the boot seeder owns its lifecycle. */
@@ -11,7 +12,7 @@ export const PRESET_OP_CODES = {
 export type PresetOpCode = (typeof PRESET_OP_CODES)[keyof typeof PRESET_OP_CODES];
 
 export class PresetNotFoundError extends DomainNotFoundError {
-  constructor(id: string) {
+  constructor(id: PresetId) {
     super("preset", id);
   }
 }
