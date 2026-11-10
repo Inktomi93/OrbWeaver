@@ -8,6 +8,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import { BUILT_IN_EMBED_DIMS } from "@orb/contracts/inference";
 import { createDb, runMigrations } from "@orb/db";
 import { databaseHandle } from "@orb/db/wiring-driver";
+import type { SeedVectorKind } from "@orb/default-content";
 import { readSeedAvatar } from "@orb/default-content";
 import type { CharacterHandle, Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -46,10 +47,10 @@ const built = await createServices({
   share: NO_SHARE_RELAY,
   providerSeams: { localLight: { cacheDir: process.argv[2], device: "cpu", embedDtype: "q8", allowRemoteModels: false } },
 });
-const rows: { kind: string; source: string; hash: string; model: string; dim: number; vector: number[] }[] = [];
+const rows: { kind: SeedVectorKind; source: string; hash: string; model: string; dim: number; vector: number[] }[] = [];
 const hash = (content: string | Uint8Array): string => createHash("sha256").update(content).digest("hex");
 function add(
-  kind: string,
+  kind: SeedVectorKind,
   source: string,
   content: string | Uint8Array,
   result: { readonly model: string; readonly vectors: readonly (Float32Array | null)[] },

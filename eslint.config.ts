@@ -2099,6 +2099,10 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       rules: { "orb/ui-overlay-modal-anatomy": "error" },
     },
     {
+      files: ["packages/*/src/**/*.{ts,tsx}", "packages/showcase-plugins/bundles/*/{main,ui,frame}.ts"],
+      rules: { "orb/closed-vocabulary": "error" },
+    },
+    {
       files: AUTHORED_SRC,
       rules: { "orb/no-raw-id": "error", "orb/no-inline-union-alias": "error" },
     },

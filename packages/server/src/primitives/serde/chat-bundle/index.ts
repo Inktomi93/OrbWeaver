@@ -51,6 +51,7 @@ import {
 } from "@orb/contracts/chat";
 import { generationUsageSchema } from "@orb/contracts/inference";
 import type { PortableParse } from "@orb/contracts/portability";
+import { CHAT_BUNDLE_SCHEMA_KIND } from "@orb/contracts/portability";
 import { userMacroValuesSchema } from "@orb/contracts/preset";
 import type {
   RPG_GAME_MODES,
@@ -76,7 +77,8 @@ import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
 import { defineJsonObjectSerde } from "#primitives/serde/lib";
 
-export const CHAT_BUNDLE_SCHEMA_KIND = "orb.chat.bundle";
+export { CHAT_BUNDLE_SCHEMA_KIND } from "@orb/contracts/portability";
+
 const CHAT_BUNDLE_SCHEMA_VERSION = 1;
 
 /** The bundle file extension the chat descriptor emits and its import half routes on. Distinct from the ST

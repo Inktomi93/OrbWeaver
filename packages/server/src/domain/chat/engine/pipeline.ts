@@ -362,12 +362,16 @@ function reasoningClock(now: () => number): {
   };
 }
 
+function assertNever(chunk: never): never {
+  throw new Error(`Unknown turn stream chunk: ${String(chunk)}`);
+}
+
 /** Drains the role's stream: text/reasoning deltas accumulate + fan out; the out-of-band `warning` chunks
  *  collect for the engine's bus emit (D41 — the runner's honest-degrade codes, still in the infra vocabulary;
  *  the engine narrows them to chat's own); the terminal final chunk yields economics. The runner's
  *  final.content/reasoning (when given) are authoritative; accumulated deltas fall back. */
 async function reduceStream(
-  stream: AsyncIterable<{ kind: string }>,
+  stream: AsyncIterable<TurnStreamChunk>,
   args: RunTurnPipelineArgs,
 ): Promise<{
   content: string;
@@ -383,22 +387,31 @@ async function reduceStream(
   let refused = false;
   const warnings: ResolvedWarning[] = [];
   const clock = reasoningClock(args.now);
-  for await (const chunk of stream as AsyncIterable<TurnStreamChunk>) {
-    if (chunk.kind === "text") {
-      clock.onAnswerDelta();
-      text += chunk.text;
-      args.onDelta({ chatId: args.chatId, kind: "text", text: chunk.text });
-    } else if (chunk.kind === "reasoning") {
-      clock.onReasoningDelta();
-      reasoning += chunk.text;
-      args.onDelta({ chatId: args.chatId, kind: "reasoning", text: chunk.text });
-    } else if (chunk.kind === "warning") {
-      const { kind: _kind, ...warning } = chunk;
-      warnings.push(warning);
-    } else if (chunk.kind === "refusal") {
-      refused = true;
-    } else {
-      economics = chunk.economics;
+  for await (const chunk of stream) {
+    switch (chunk.kind) {
+      case "text":
+        clock.onAnswerDelta();
+        text += chunk.text;
+        args.onDelta({ chatId: args.chatId, kind: "text", text: chunk.text });
+        break;
+      case "reasoning":
+        clock.onReasoningDelta();
+        reasoning += chunk.text;
+        args.onDelta({ chatId: args.chatId, kind: "reasoning", text: chunk.text });
+        break;
+      case "warning": {
+        const { kind: _kind, ...warning } = chunk;
+        warnings.push(warning);
+        break;
+      }
+      case "refusal":
+        refused = true;
+        break;
+      case "final":
+        economics = chunk.economics;
+        break;
+      default:
+        assertNever(chunk);
     }
   }
   const content = economics?.content ?? text;

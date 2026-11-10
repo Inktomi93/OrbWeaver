@@ -1,12 +1,15 @@
 // One identity home for parsed imagery history. Sibling images are deliberately outside the call hash:
 // deleting one output, or restoring overlapping subsets, must not invent another provider call.
+
 import type { PortableImageryCall, PortableImageryImage } from "@orb/contracts/imagery";
 import { portableImageryCallSchema, portableImageryExecutionSchema } from "@orb/contracts/imagery";
+import { IMAGERY_SCHEMA_KIND } from "@orb/contracts/portability";
 import { z } from "zod";
 import { sha256Hex } from "#primitives/content-hash";
 import { defineJsonObjectSerde } from "#primitives/serde/lib";
 
-export const IMAGERY_SCHEMA_KIND = "orb.imagery";
+export { IMAGERY_SCHEMA_KIND } from "@orb/contracts/portability";
+
 const IMAGERY_SCHEMA_VERSION = 1;
 
 function canonicalCall(call: PortableImageryCall): PortableImageryCall {

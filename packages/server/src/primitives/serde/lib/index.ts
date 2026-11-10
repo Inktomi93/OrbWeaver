@@ -60,7 +60,7 @@ export type EmptyJsonHeader = Record<never, never>;
 /** Envelope-side spec shared by both factories. */
 interface EnvelopeSpec {
   /** The wire discriminant (`orb.theme`, `orb.gallery`, …) — what fences this file from every other family. */
-  readonly schemaKind: string;
+  readonly schemaKind: PortableEnvelope["schemaKind"];
   /** The version this build emits, and the ceiling parse accepts. */
   readonly schemaVersion: number;
 }

@@ -15,7 +15,7 @@ import type { MessageRole } from "@orb/kit/message-role";
  *  `number | null`). */
 export interface InjectionFormValues {
   readonly position: string;
-  readonly role: string;
+  readonly role: MessageRole;
   readonly depth: number | null;
   readonly content: string;
 }
@@ -44,7 +44,7 @@ export function toInjectionForm(injection: Pick<ChatInjection, "position" | "rol
 export function fromInjectionForm(values: InjectionFormValues): Pick<ChatInjection, "position" | "role" | "depth" | "content"> {
   return {
     position: values.position as ChatInjection["position"],
-    role: values.role as MessageRole,
+    role: values.role,
     depth: values.depth ?? 0,
     content: values.content,
   };

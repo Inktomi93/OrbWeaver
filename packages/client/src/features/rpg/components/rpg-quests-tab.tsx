@@ -175,13 +175,18 @@ function QuestCardMeta({
   );
 }
 
+const QUEST_ENDINGS = {
+  active: null,
+  completed: { completed: true, tone: undefined, note: "wrapped: the story closed this one." },
+  failed: { completed: false, tone: "destructive", note: "failed: the story closed this one." },
+} as const satisfies Record<RpgQuestView["status"], { completed: boolean; tone: "destructive" | undefined; note: string } | null>;
+
 /** One quest card: clock ring (segments = objectives) · name · description · objective checklist. */
 function QuestCard({ quest, edit }: QuestCardProps): ReactElement {
   const total = quest.objectives.length;
   const filled = quest.objectives.filter((o) => o.completed).length;
-  const done = quest.status === "completed";
-  const failed = quest.status === "failed";
-  const dim = done || failed;
+  const ending = QUEST_ENDINGS[quest.status];
+  const dim = ending !== null;
 
   return (
     <Card>
@@ -191,10 +196,10 @@ function QuestCard({ quest, edit }: QuestCardProps): ReactElement {
             <SegmentedClock
               segments={total}
               filled={filled}
-              completed={done}
+              completed={ending?.completed ?? false}
               size="sm"
               label={`${quest.name} objectives`}
-              tone={failed ? "destructive" : undefined}
+              tone={ending?.tone}
             />
           ) : null}
           <Stack gap="field" className="min-inline-0" grow={true}>
@@ -214,12 +219,11 @@ function QuestCard({ quest, edit }: QuestCardProps): ReactElement {
 
         <QuestObjectives quest={quest} dim={dim} {...(edit === undefined ? {} : { edit })} />
 
-        {done ? <Text voice="gloss">wrapped: the story closed this one.</Text> : null}
-        {failed ? (
-          <Text tone="destructive" voice="gloss">
-            failed: the story closed this one.
+        {ending === null ? null : (
+          <Text tone={ending.tone} voice="gloss">
+            {ending.note}
           </Text>
-        ) : null}
+        )}
       </Stack>
     </Card>
   );

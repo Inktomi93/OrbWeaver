@@ -76,7 +76,7 @@ export const SCHEDULE_CADENCE_ITEMS: readonly { value: string; label: string }[]
 /** The schedule form values. Backs both the create and edit dialogs; the param slots mirror the run form
  *  so `buildStartInput` assembles the same wire input a manual run would. */
 export interface CreateScheduleFormValues extends WorkloadRunValues {
-  readonly kind: string;
+  readonly kind: WorkloadKind;
   readonly cadence: ScheduleCadence;
   /** Owner-only bulk (all-owners recurring sweep) toggle — a non-owner's dialog never renders the field. */
   readonly bulk: boolean;
@@ -110,7 +110,7 @@ function scheduleParamsToRunValues(params: Record<string, unknown>): WorkloadRun
 
 /** Seed the edit dialog's form from an existing schedule row. Structural on purpose so it stays DOM-free without the wire type. */
 export function scheduleFormValuesFromRow(row: {
-  readonly kind: string;
+  readonly kind: WorkloadKind;
   readonly cadence: ScheduleCadence;
   readonly mode: WorkloadMode;
   readonly params: Record<string, unknown>;

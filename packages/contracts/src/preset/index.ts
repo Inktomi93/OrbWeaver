@@ -39,6 +39,7 @@ import { cachePolicySchema } from "../inference/cache-policy.ts";
 import { SAMPLING_RANGE_KNOBS } from "../inference/capability/generation.ts";
 import type { ResolvedWarning } from "../inference/warnings.ts";
 import { resolvedWarningSchema } from "../inference/warnings.ts";
+import { PRESET_SCHEMA_KIND } from "../portability/envelope.ts";
 import type { VersionedParseFailure } from "../versioned-config/index.ts";
 import { versionedParseFailureSchema } from "../versioned-config/index.ts";
 import { PRESET_COMPACTION_SLOT_ID, PRESET_PROSE_SLOTS } from "./prose.ts";
@@ -3589,7 +3590,7 @@ function stConfigOutcome(rawObj: Record<string, unknown>, sections: PromptSectio
 // ── orb native preset file (the lossless full-preset export) ───────────────────────────────────────
 // `PRESET_SCHEMA_KIND` is the ONE accepted kind — orb-native backup only. There is no legacy-kind accept:
 // the previous codebase never launched, so no foreign preset file exists to import.
-export const PRESET_SCHEMA_KIND = "orb.preset";
+export { PRESET_SCHEMA_KIND } from "../portability/envelope.ts";
 
 export interface PresetFile {
   schemaKind: typeof PRESET_SCHEMA_KIND;

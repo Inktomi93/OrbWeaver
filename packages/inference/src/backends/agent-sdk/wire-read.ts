@@ -2,7 +2,7 @@
 // Unused frames and fields stay opaque; known projections refuse before arithmetic, callbacks or accounting.
 import { generationUsageLegSchema, generationUsageSchema } from "@orb/contracts/inference";
 import { z } from "zod";
-import { compactionTriggerSchema, compactResultSchema, ProviderError } from "#contract";
+import { compactionTriggerSchema, compactResultSchema, ProviderError, rateLimitStatusSchema, sdkActivityStatusSchema } from "#contract";
 import { assertInitFrameShape } from "./verify.ts";
 
 const tokenCount = generationUsageSchema.shape.tokensIn.unwrap();
@@ -67,20 +67,24 @@ const retrySchema = z.object({
   retry_delay_ms: z.number(),
   error_status: z.number().nullable(),
 });
-const statusSchema = z.object({ status: z.string().nullish(), compact_result: compactResultSchema.optional(), compact_error: z.string().optional() });
+const statusSchema = z.object({
+  status: sdkActivityStatusSchema.nullish(),
+  compact_result: compactResultSchema.optional(),
+  compact_error: z.string().optional(),
+});
 const thinkingTokensSchema = z.object({ estimated_tokens: tokenCount });
 const refusalSchema = z.object({ original_model: z.string(), api_refusal_category: z.string().nullish(), api_refusal_explanation: z.string().nullish() });
 const fallbackSchema = z.object({ fallback_model: z.string() });
 const initModelSchema = z.object({ model: z.string() });
 const rateLimitSchema = z.object({
   rate_limit_info: z.object({
-    status: z.string(),
+    status: rateLimitStatusSchema,
     rateLimitType: z.string().optional(),
     resetsAt: z.number().optional(),
     utilization: z.number().optional(),
     isUsingOverage: z.boolean().optional(),
     surpassedThreshold: z.number().optional(),
-    overageStatus: z.string().optional(),
+    overageStatus: rateLimitStatusSchema.optional(),
     overageResetsAt: z.number().optional(),
     overageDisabledReason: z.string().optional(),
     errorCode: z.string().optional(),

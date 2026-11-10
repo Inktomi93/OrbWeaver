@@ -2,6 +2,7 @@ import { browserNoNodeGlobalsRule, rawEgressRule, rawHttpClientRule, sessionChan
 import { detachedWorkRule } from "./async.ts";
 import { browserSupportRule } from "./browser-support.ts";
 import { CLIENT_DATA_RESTRICTIONS, effectOnSharedSelectionRule } from "./client-data-policy.ts";
+import { closedVocabularyRule } from "./closed-vocabulary.ts";
 import type { CustomPropertyUses } from "./css/custom-properties.ts";
 import { derivedPortMemberRule } from "./derived-port.ts";
 import { assumesSingleReplicaRule, commentedCodeRule, sideGenSamplingRule, wireJsonRule } from "./general.ts";
@@ -281,6 +282,7 @@ export function createOrbPlugin(options: {
       "no-direct-row-reads": directRowReadRule,
       "no-context-returntype": contextReturnTypeRule,
       "no-raw-id": rawIdRule,
+      "closed-vocabulary": closedVocabularyRule,
       "wire-json-parsed-at-consumer": wireJsonRule,
       "no-off-token-inline-style": offTokenInlineStyleRule,
       "theme-override-only-via-scope": themeOverrideRule,

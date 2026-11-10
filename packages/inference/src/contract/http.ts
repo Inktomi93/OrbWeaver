@@ -166,7 +166,7 @@ export interface ProviderSummarizeItemLog {
   readonly finishReason: string | null;
   readonly hasResponseFormat: boolean;
   /** Present only on a failed item — the classified error kind (never the message/body). */
-  readonly errorKind?: string;
+  readonly errorKind?: ProviderErrorKind;
 }
 
 export type ProviderLogLevel = (typeof PROVIDER_LOG_LEVELS)[number];

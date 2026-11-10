@@ -263,7 +263,7 @@ export function workloadKindNeedsAssetKind(kind: string): boolean {
 
 /** The run dialog's form values. `kind` is a plain string; {@link isRunnableWorkloadKind} narrows at the save seam. */
 export interface RunWorkloadFormValues extends WorkloadRunValues {
-  readonly kind: string;
+  readonly kind: WorkloadKind;
   /** Owner-only bulk toggle — a non-owner's dialog never renders the field, so it stays `false`. */
   readonly bulk: boolean;
   /** The bulk-create mint target (`""` = unpicked). */

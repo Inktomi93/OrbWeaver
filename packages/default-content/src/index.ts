@@ -42,7 +42,7 @@ import type { CharacterHandle } from "@orb/kit/ids";
 
 import type { SeedAssetBytes, SeedBackgroundPlate } from "./contract/index.ts";
 
-export type { SeedAssetBytes, SeedBackgroundPlate, SeedManifestItem } from "./contract/index.ts";
+export type { SeedAssetBytes, SeedBackgroundPlate, SeedManifestItem, SeedVectorKind } from "./contract/index.ts";
 export { findSeedEmbedding } from "./embeddings.ts";
 export { SEED_MANIFEST } from "./manifest.ts";
 

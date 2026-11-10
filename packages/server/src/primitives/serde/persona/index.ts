@@ -15,12 +15,14 @@ import type { PersonaDifference } from "@orb/contracts/import";
 import type { PersonaDetail, PersonaMetadata } from "@orb/contracts/persona";
 import { personaBackupSchema, personaMetadataSchema } from "@orb/contracts/persona";
 import type { PortableParse } from "@orb/contracts/portability";
+import { PERSONA_SCHEMA_KIND } from "@orb/contracts/portability";
 import type { PersonaId } from "@orb/kit/ids";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { stripNameSuffix } from "@orb/kit/strings";
 import { defineJsonObjectSerde } from "#primitives/serde/lib";
 
-export const PERSONA_SCHEMA_KIND = "orb.persona";
+export { PERSONA_SCHEMA_KIND } from "@orb/contracts/portability";
+
 const PERSONA_SCHEMA_VERSION = 1;
 /** The canonical persona-backup value: the portable fields with concrete (non-optional) types. Excludes
  *  avatarAssetId (a binary asset reference can't ride a JSON backup). */
