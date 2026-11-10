@@ -1057,6 +1057,30 @@ auditRuleTest(
   },
 );
 
+// A roving-tabindex item sits at tabindex -1 until it is highlighted, and is still its label's control.
+const ROVING_ITEMS = [
+  ["menu", "menuitemradio"],
+  ["menu", "menuitemcheckbox"],
+  ["menu", "menuitem"],
+  ["listbox", "option"],
+  ["tablist", "tab"],
+  ["tree", "treeitem"],
+] as const;
+
+auditRuleTest(
+  [{ rule: "undersized-ui-text", kind: "fires", reason: "a roving item's micro label at tabindex -1 is its control's label under the floor" }],
+  "a menu, option, tab or tree item label at tabindex -1 still fails undersized-ui-text",
+  async ({ runCli, scratch }) => {
+    const body = ROVING_ITEMS.map(
+      ([group, item]) =>
+        `<div role="${group}" tabindex="-1"><div role="${item}" tabindex="-1"><span id="${item}" style="${MICRO}">Light theme</span></div></div>`,
+    ).join("");
+    await writeFile(join(scratch, "interactive-roving-items.html"), relationalDocument(body));
+    const res = await runCli("snap", ["--file", join(scratch, "interactive-roving-items.html"), ...AUDIT_ARGV], { timeoutMs: RELATIONAL_CLI_TIMEOUT_MS });
+    expect(new Set(findingSelectors(res.stdout, "undersized-ui-text"))).toEqual(new Set(ROVING_ITEMS.map(([, item]) => `#${item}`)));
+  },
+);
+
 auditRuleTest(
   [{ rule: "undersized-ui-text", kind: "fires", reason: "a button's whole label at the micro step is interactive text under the floor" }],
   "a button label at the micro step still fails undersized-ui-text",

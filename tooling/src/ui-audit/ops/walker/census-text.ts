@@ -283,12 +283,17 @@ export const WALKER_CENSUS_TEXT = `
     return lineBoxCount(element, elementRect) === 1;
   };
 
-  // THE CONTROL A LABEL BELONGS TO. A \`[tabindex]\` match is a control only when it is reachable by Tab and carries no
-  // role of its own: a programmatic focus target (tabindex -1) or a focusable container (a tab panel, a region) is not.
+  // THE CONTROL A LABEL BELONGS TO. An element with a widget role is a control at any tabindex: a roving-tabindex item
+  // (a menu item of any kind, an option, a tab, a radio, a tree item) sits at -1 until it is highlighted. A bare
+  // \`[tabindex]\` match is a control only when it is reachable by Tab and has no role: a programmatic focus target
+  // (tabindex -1) or a focusable container with a structural role (a tab panel, a region, a menu) is not.
   var TABINDEX_CTX = "[tabindex]";
-  var CONTROL_CTX = INTERACTIVE_CTX.split(",").filter(function (part) { return part !== TABINDEX_CTX; }).join(",");
+  var WIDGET_ROLES = ["button", "checkbox", "combobox", "gridcell", "link", "menuitem", "menuitemcheckbox", "menuitemradio", "option", "radio", "scrollbar", "searchbox", "slider", "spinbutton", "switch", "tab", "textbox", "treeitem"];
+  var CONTROL_CTX = INTERACTIVE_CTX.split(",").filter(function (part) { return part !== TABINDEX_CTX; })
+    .concat(WIDGET_ROLES.map(function (role) { return "[role=" + role + "]"; })).join(",");
+  var CONTROL_SEARCH_CTX = CONTROL_CTX + "," + TABINDEX_CTX;
   var controlOf = function (element) {
-    for (var ctl = element.closest(INTERACTIVE_CTX); ctl !== null; ctl = ctl.parentElement === null ? null : ctl.parentElement.closest(INTERACTIVE_CTX)) {
+    for (var ctl = element.closest(CONTROL_SEARCH_CTX); ctl !== null; ctl = ctl.parentElement === null ? null : ctl.parentElement.closest(CONTROL_SEARCH_CTX)) {
       if (ctl.matches(CONTROL_CTX) || (ctl.tabIndex >= 0 && !ctl.hasAttribute("role"))) return ctl;
     }
     return null;
