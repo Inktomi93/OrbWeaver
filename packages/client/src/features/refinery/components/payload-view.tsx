@@ -26,7 +26,6 @@ import { testId } from "#lib";
 import { useCountUp } from "../hooks/use-count-up.ts";
 import type { PlanField, RenderPlan, RowPlan } from "../lib/render-plan.ts";
 import { armFits, dangerBelowOf } from "../lib/render-plan.ts";
-import { RefineryChip } from "./refinery-chip.tsx";
 
 export interface PayloadViewProps {
   readonly plan: RenderPlan;
@@ -148,12 +147,13 @@ export function PayloadView({ plan, payload, pending = false, arrived = false }:
 
 /** The verdict banner (§3.3): the enum WORD is primary; the authored tone map is the tint; an
  *  `axis`-hinted bounded number (soul) docks as the side pill; the first prose sibling is the banner
- *  body. A hintless enum never reaches this — it renders as a neutral chip in `FieldBlock`. */
-/** The banner's tone TINT (word-primary: the enum member is the signal, the tint is secondary — but the
- *  mock's banner IS tinted, so the tone must paint, not just ride a data attribute).
+ *  body. A hintless enum never reaches this — it renders as a plain row in `FieldBlock`. */
+/** The author's tone TINT on an enum member (word-primary: the member is the signal, the tint is secondary — but
+ *  the mock's banner IS tinted, so the tone must paint, not just ride a data attribute). It tints the banner card
+ *  and a row's member ink alike.
  *  It rides `data-hint-tone`, never `data-tone` (#1113 = #1097's chip fix, whose header holds the reasoning:
  *  `data-tone` is the recipe-arm channel the ui-audit walker reads as AUTHORED IDENTITY). */
-const BANNER_TONE: Record<string, NonNullable<ComponentProps<typeof Card>["tone"]>> = {
+const HINT_TONE: Record<string, NonNullable<ComponentProps<typeof Card>["tone"]>> = {
   good: "success",
   warn: "warning",
   bad: "destructive",
@@ -175,7 +175,7 @@ function VerdictBanner({ field, payload, siblings }: { field: PlanField; payload
     <Card
       data-testid={testId("refineryVerdictBanner")}
       data-hint-tone={tone}
-      tone={BANNER_TONE[tone] ?? "neutral"}
+      tone={HINT_TONE[tone] ?? "neutral"}
       variant={tone === "neutral" ? "surface" : "soft"}
     >
       <Row align="center" gap="block" padding="block">
@@ -272,7 +272,7 @@ function FieldBlock({ field, value }: { field: PlanField; value: unknown }): Rea
     case "text":
       return <ScalarRow field={field} value={value} />;
     case "chip-enum":
-      return <ChipRow field={field} value={value} widget={widget} />;
+      return <EnumRow field={field} value={value} widget={widget} />;
     case "prose":
       return <ProseBlock field={field} value={value} />;
     case "bullets":
@@ -323,8 +323,11 @@ function ScalarRow({ field, value }: { field: PlanField; value: unknown }): Reac
   );
 }
 
-function ChipRow({ field, widget, value }: { field: PlanField; widget: ChipEnumWidget; value: unknown }): ReactElement {
+// Every member here is one the schema author wrote, so like the verdict banner's it reads verbatim as content, tinted by
+// the author's own tone map, never as a status chip (client-architecture-lockdown.md §3).
+function EnumRow({ field, widget, value }: { field: PlanField; widget: ChipEnumWidget; value: unknown }): ReactElement {
   const v = typeof value === "string" ? value : null;
+  const tone = v === null ? "neutral" : (readOwnKey(widget.tones, v) ?? "neutral");
   return (
     <Row align="center" data-field={field.key} data-testid={testId("refineryField")} gap="row">
       <Text voice="label">{field.label}</Text>
@@ -333,7 +336,9 @@ function ChipRow({ field, widget, value }: { field: PlanField; widget: ChipEnumW
           <NoValue />
         </Text>
       ) : (
-        <RefineryChip tone={readOwnKey(widget.tones, v) ?? "neutral"}>{v}</RefineryChip>
+        <Text data-hint-tone={tone} tone={HINT_TONE[tone] ?? "neutral"} voice="reading">
+          {v}
+        </Text>
       )}
     </Row>
   );

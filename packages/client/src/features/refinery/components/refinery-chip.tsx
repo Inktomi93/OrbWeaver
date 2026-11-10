@@ -1,5 +1,5 @@
-// RefineryChip — the word-primary state/tone chip the refinery surfaces share (verdict lists, enum
-// values, block states). The WORD is the signal; the tone tint is secondary (the colourblind law), and
+// RefineryChip — the word-primary state/tone chip the refinery surfaces share (verdict lists, block
+// states; never an authored enum member, which reads as content). The WORD is the signal; the tone tint is secondary (the colourblind law), and
 // the tone vocabulary is the render-hint contract's (`good/warn/bad/info/neutral`) mapped to Badge intents
 // — never inferred from spellings.
 
