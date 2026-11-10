@@ -1,10 +1,9 @@
 ---
 kind: tooling
-status: doing
+status: open
 updated: 2026-11-10
 priority: P3
 area: testing
-lane: wt/agent-aecd4bf3e1ec1baab
 plan: test-foundation
 ---
 
@@ -12,7 +11,7 @@ plan: test-foundation
 
 ## What
 
-From the cb-typelaw review in reports/code-reviewer: orb/no-query-state-ladder does not judge a destructure of a copied result, a switch on status, branches that return a call or assign a variable, deep presence, isFetching or useQueries read by index; no CT holds then fails the reads moved under a boundary (the character context band, corpus browse, snapshot compare) and CorpusBrowseView has no CT; the empty-label guard does not reach createElement calls; the verdict CT asserts only that the raw spelling never shows, because tests have no import path to the display word; the accept-review chips moved off micro caps without a rendered review.
+The accept-review chips in packages/client/src/features/refinery/components/accept-review\.tsx moved off micro caps onto the shared status pill when the status vocabulary took them over, and no rendered review has judged the change. Before and after CT captures are in reports/cb-tlclose (before is the source from bfaf1da851^). The rest of the type-law closeout landed at the cb-tlclose merge.
 
 ## Why
 
@@ -20,7 +19,7 @@ Each is a gap between what the type-law rules claim and what a test proves.
 
 ## Done when
 
-Each gap gets a fixture or CT that fails without the guarded behaviour, or a recorded reason in the rule's TSDoc, and a rendered review judges the accept-review chips.
+A rendered review judges the accept-review chips against the shared status pill and either accepts them or files the fix.
 
 ## Evidence
 
