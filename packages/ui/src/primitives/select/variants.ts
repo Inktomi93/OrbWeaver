@@ -2,6 +2,7 @@ import {
   CAPTION,
   COLOR_MOTION,
   CONTROL_BLOCK,
+  CONTROL_MIN_BLOCK,
   DISABLED_STATE,
   FIELD_CONTROL,
   FIELD_CONTROL_BOX,
@@ -82,6 +83,9 @@ export const selectVariants = tv({
       field: { trigger: FIELD_CONTROL },
       // The field chrome at the width of its value, for a sort or filter beside a search box that a full-width trigger would crush.
       hug: { trigger: [FIELD_CONTROL, "inline-auto"] },
+      // `hug` for a picker whose value names the choice and must be read whole: a value past the trigger's room wraps inside it, and
+      // the trigger grows from its size step instead of cutting the value with an ellipsis. Only a word wider than the room breaks.
+      hugWrap: { trigger: [FIELD_CONTROL, "py-field block-auto inline-auto"], value: "wrap-break-word whitespace-normal" },
       // Text-height at every pointer; the touch floor is the layout-neutral hit area `InlineAction` carries.
       inline: {
         trigger: [
@@ -94,6 +98,13 @@ export const selectVariants = tv({
     // A trigger whose value is the name of the thing the line is about (an rpg subject): the name's semibold weight.
     strong: { true: { trigger: "font-semibold" } },
   },
+  // The wrapping arm's height is the size step's floor, because its value may take more than one line.
+  compoundVariants: [
+    { layout: "hugWrap", size: "chip", class: { trigger: CONTROL_MIN_BLOCK.chip } },
+    { layout: "hugWrap", size: "sm", class: { trigger: CONTROL_MIN_BLOCK.sm } },
+    { layout: "hugWrap", size: "md", class: { trigger: CONTROL_MIN_BLOCK.md } },
+    { layout: "hugWrap", size: "lg", class: { trigger: CONTROL_MIN_BLOCK.lg } },
+  ],
   defaultVariants: { size: "sm", layout: "field" },
 });
 

@@ -6,10 +6,13 @@ import { GlyphButton } from "@orb/ui/glyph-button";
 import { Icon, Plus } from "@orb/ui/icons";
 import { Input } from "@orb/ui/input";
 import { Container, Row, Stack, Surface } from "@orb/ui/layout";
+import { ListRow } from "@orb/ui/list-row";
 import { MessageBubble } from "@orb/ui/message-bubble";
 import { RoomIsland } from "@orb/ui/room-island";
 import { ScrollArea } from "@orb/ui/scroll-area";
+import { Select } from "@orb/ui/select";
 import { Slider } from "@orb/ui/slider";
+import { Text } from "@orb/ui/text";
 import { ThemePreviewPane } from "@orb/ui/theme-swatch";
 import { TOKENS } from "@orb/ui/tokens";
 import { WeaveVeil } from "@orb/ui/web-weave";
@@ -225,6 +228,47 @@ export function SurfaceVeilCoverStory({ cover }: { readonly cover: "veil" | "pan
         </Stack>
       </main>
       {cover === "veil" ? <WeaveVeil open={veilOpen} label="Loading" /> : <div style={{ position: "fixed", inset: 0 }} />}
+    </CtIsolation>
+  );
+}
+
+const CUT_VALUE = "Same as my Image generation role";
+const CUT_TITLE = "Calamity, Doomblade of the Ninth Epoch, Keeper of the Orbital Loom";
+
+/**
+ * A text-cut case in a box of the given width: a picker whose value is wider than its trigger (`value`, with `wraps` the arm that
+ * wraps it), a list row whose title is wider than the row (`row`), or a button whose hidden preview text is wider than it (`echo`). The picker is a
+ * control's own value; the row title and the hidden preview are design.
+ */
+export function SurfaceCutValueStory({
+  width,
+  cut,
+  wraps,
+}: {
+  readonly width: number;
+  readonly cut: "value" | "row" | "echo";
+  readonly wraps?: boolean;
+}): ReactElement {
+  const cases: Record<typeof cut, ReactElement> = {
+    value: (
+      <Row>
+        <Select aria-label="Connection" items={[{ label: CUT_VALUE, value: "same" }]} layout={wraps === true ? "hugWrap" : "hug"} value="same" />
+      </Row>
+    ),
+    row: <ListRow clickable={true} title={CUT_TITLE} />,
+    echo: (
+      <Button aria-label="Description" className="min-inline-0" variant="outline" width="full" wrap={true}>
+        <Text aria-hidden={true} as="span" className="min-inline-0" truncate={true}>
+          {CUT_TITLE}
+        </Text>
+      </Button>
+    ),
+  };
+  return (
+    <CtIsolation subject="Enlarged-text cut value" isolates="A production picker, list row and button in a narrow box need no application services.">
+      <main>
+        <Container style={{ inlineSize: width }}>{cases[cut]}</Container>
+      </main>
     </CtIsolation>
   );
 }

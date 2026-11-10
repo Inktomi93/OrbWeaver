@@ -14,6 +14,8 @@ const TRANSIENT_CHROME = '[data-slot="toast-root"], [data-slot="jump-to-latest"]
 // The boot veil lies over everything while it holds and dissolves after the app is ready, so a probe that runs under it reads the veil as every
 // control's cover. Its layout is not the resting one; the probes wait for it to leave.
 const BOOT_VEIL = '[data-slot="weave-veil"]';
+// A list row's door and a roster member's row truncate their title on purpose: the row's accessible name keeps the whole of it.
+const ROW_DOORS = '[data-slot="list-row-root"], [data-slot="member-row"]';
 const SIDEWAYS_STRIPS = 'input, textarea, [role="tablist"], [role="toolbar"], [data-slot="character-context-band"] > * > *, [data-sideways-strip]';
 
 interface ControlGeometry {
@@ -219,6 +221,41 @@ function cutOffText(subject: Element, { subpixel }: { readonly subpixel: number 
     .map((element) => `${element.tagName.toLowerCase()} "${element.textContent.trim().slice(0, 40)}"`);
 }
 
+/**
+ * A control's own value cut with an ellipsis: the picker that reads "Sa…", a button label or an input value ended early. The cut hides what the
+ * control says, and the reader chose the control for that text. Two cuts are excluded by name: a row door's title, truncated on purpose with the
+ * row's accessible name keeping the whole of it, and text the control hides from the accessible tree or only describes.
+ */
+function cutControlValues(
+  subject: Element,
+  { reachable, rowDoors, subpixel }: { readonly reachable: string; readonly rowDoors: string; readonly subpixel: number },
+): string[] {
+  const paintsText = (element: Element): boolean =>
+    element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement
+      ? element.value !== ""
+      : [...element.childNodes].some((node) => node.nodeType === Node.TEXT_NODE && (node.textContent ?? "").trim() !== "");
+  const cut = (element: Element): boolean => {
+    const style = getComputedStyle(element);
+    const clips = style.overflowX === "hidden" || style.overflowX === "clip";
+    return clips && style.textOverflow === "ellipsis" && element.scrollWidth > element.clientWidth + subpixel && paintsText(element);
+  };
+  const nameOf = (control: Element): string => (control.getAttribute("aria-label") ?? control.textContent).trim().slice(0, 40);
+  return [...subject.querySelectorAll(reachable)]
+    .filter((control) => control.checkVisibility({ visibilityProperty: true }) && control.closest("[inert]") === null && control.closest(rowDoors) === null)
+    .flatMap((control) => {
+      // Text the control hides from the accessible tree or only describes (a facet row's one-line preview or gloss) is not its value.
+      const descriptions = (control.getAttribute("aria-describedby") ?? "").split(/\s+/u).flatMap((id) => document.getElementById(id) ?? []);
+      const isValue = (element: Element): boolean =>
+        element.closest('[aria-hidden="true"]') === null && !descriptions.some((description) => description.contains(element));
+      return [control, ...control.querySelectorAll("*")]
+        .filter((element) => element.checkVisibility({ visibilityProperty: true }) && isValue(element) && cut(element))
+        .map(
+          (element) =>
+            `${control.tagName.toLowerCase()} "${nameOf(control)}" has its value cut: ${element.tagName.toLowerCase()} ${element.scrollWidth}/${element.clientWidth}`,
+        );
+    });
+}
+
 /** A column that scrolls sideways has stopped reflowing; a strip of tabs or chips is built to scroll that way. */
 function sidewaysColumns(subject: Element, { strips, subpixel }: { readonly strips: string; readonly subpixel: number }): string[] {
   return [subject, ...subject.querySelectorAll("*")]
@@ -254,7 +291,8 @@ export async function enlargedTextFindings(scope: Locator): Promise<string[]> {
   await scope.page().locator(BOOT_VEIL).waitFor({ state: "detached" });
   const controls = await scope.evaluate(controlGeometry, { reachable: REACHABLE, subpixel: LAYOUT_SUBPIXEL_PX, transient: TRANSIENT_CHROME });
   const text = await scope.evaluate(cutOffText, { subpixel: LAYOUT_SUBPIXEL_PX });
+  const values = await scope.evaluate(cutControlValues, { reachable: REACHABLE, rowDoors: ROW_DOORS, subpixel: LAYOUT_SUBPIXEL_PX });
   const columns = await scope.evaluate(sidewaysColumns, { strips: SIDEWAYS_STRIPS, subpixel: LAYOUT_SUBPIXEL_PX });
   const collapsed = await scope.evaluate(collapsedScrollers, { subpixel: LAYOUT_SUBPIXEL_PX });
-  return [...controls.clipped, ...controls.overlaps, ...text, ...columns, ...collapsed];
+  return [...controls.clipped, ...controls.overlaps, ...text, ...values, ...columns, ...collapsed];
 }
