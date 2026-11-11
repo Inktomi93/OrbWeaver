@@ -118,8 +118,7 @@ export const CHAT_OP_CODES = {
   greetingAlternateNotFound: "greeting_alternate_not_found",
   /** `applyProseRewrite`'s VARIANT pin missed: the slot's selected variant is no longer the one the audit
    *  read — the host swiped between the ask and the yes. The rewrite was written against a different body, so
-   *  landing it would silently replace prose nobody audited. Refused; canon is untouched (the legacy
-   *  stale-accept guard, `legacy-main:.../crew/verbs/proposals.ts`). */
+   *  landing it would silently replace prose nobody audited. Refused; canon is untouched. */
   rewriteSuperseded: "rewrite_superseded",
   /** `applyProseRewrite`'s CONTENT pin missed: the audited variant is still selected but its bytes changed
    *  (a hand edit, a continue, a freeze) since the audit read them. Same posture, different cause — refused,

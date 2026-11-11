@@ -416,17 +416,6 @@ overrides:
   sharp: "catalog:"
   # Keep tsdoc's transitive utilities on the parser family's TypeScript 6-compatible release.
   "@typescript-eslint/utils": "8.72.0"
-  # streamdown pins `mermaid: ^11.12.2`; the resolved copy carried advisories fixed by 11.16.1
-  # (prototype pollution x2, CSS injection, XY-chart + radar DoS).
-  # No diagram plugin is wired, so a mermaid fence in chat renders as inert code and this bump is
-  # defence in depth for the bundled dependency, not a reachable path. mermaid's own
-  # `dompurify: ^3.3.3` range covers the fixed 3.4.13, but pnpm resolves an older in-range copy
-  # (2 advisories, incl. an
-  # XSS via IN_PLACE hook removal), so both floors are forced here.
-  # Both ranges are satisfied by streamdown's own deps, so this is a
-  # pure resolution-bump, not an API-incompatible major.
-  mermaid: ">=11.16.1"
-  dompurify: ">=3.4.13"
   # rehype-katex 7 depends on katex ^0.16 while @orb/ui ships the katex stylesheet from the catalog.
   # One katex for both keeps the rendered markup and the stylesheet's class names in step (0.18 renamed
   # internal classes) and drops the 0.16 line, which carries the settings prototype-pollution advisory.

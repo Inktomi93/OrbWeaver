@@ -2,13 +2,10 @@
 // ingest phase, and the stall hint. Zero I/O, zero React: every value is a function of a `DocumentView`, so
 // the surfaces stay thin and these rules are unit-tested in isolation.
 //
-// PORTED hunk-by-hunk from `legacy-main:features/databank/lib/databank-model.ts` ("the best thing in the
-// tree"), with ONE deliberate logic addition and zero deletions:
-//
-//   §6.1's PHASE-CHIP RULING — `showsPhaseChip` is new. Legacy rendered a phase Badge on EVERY row, `Ready`
-//   included; at the real 320px pane floor a `Ready` chip on six of seven rows is chrome carrying zero
-//   information (the steady state IS ready) while eating the title down to an ellipsis. Ready is now the
-//   ABSENCE of a chip. The derived phase itself is unchanged — only this render predicate is new.
+//   §6.1's PHASE-CHIP RULING — `showsPhaseChip` decides the chip. A phase Badge on EVERY row, `Ready`
+//   included, is chrome carrying zero information at the real 320px pane floor (the steady state IS ready)
+//   while it eats the title down to an ellipsis. Ready is the ABSENCE of a chip. The derived phase itself
+//   is unchanged; only this render predicate decides the chip.
 //
 // The ingest phase is DERIVED, never stamped: there is no `status` column — the
 // chunk/embed counts ARE the truth, so the surface can never show a phase the data does not support.

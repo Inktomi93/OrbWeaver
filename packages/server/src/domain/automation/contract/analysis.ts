@@ -1,7 +1,5 @@
 // domain/automation/contract/analysis — the `run_analysis` arm's INTERNAL shapes (S5,
-// the honest carrier of the purged crew director's think-first pass —
-// semantics carried from a whole-file read of `legacy-main:.../crew/{contract,members}/director.ts`, never
-// string-ported). Three planes live here, each with its enforcer:
+// the honest carrier of the purged crew director's think-first pass). Three planes live here, each with its enforcer:
 //
 //   • the STORED STATE (`automation_rule_state.state`, parse-on-read). VERSION POSTURE (orchestrator ruling
 //     2026-08-24): "corrupt" means UNPARSEABLE, never merely old — every field carries a default AND a

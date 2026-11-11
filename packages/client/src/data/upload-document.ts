@@ -11,9 +11,8 @@
 // own JSON could drive the caller's created-vs-duplicate UI off a value nothing validated. All three closed
 // vocabularies are now checked against the tuples they are typed from.
 //
-// PORTED from `legacy-main:packages/client/src/data/upload-document.ts`. The one
-// named edit is at the CALLER: the client-side size pre-check derives from `useUploadCaps().databankUpload`,
-// never legacy's hardcoded 20 MiB literal (§2.2).
+// The client-side size pre-check, at the CALLER, derives from `useUploadCaps().databankUpload`, never a
+// hardcoded byte literal (§2.2).
 
 import type { DocumentDestination, UploadResult } from "@orb/contracts/databank";
 import { DOCUMENT_DESTINATION_FORM_FIELD, uploadResultSchema } from "@orb/contracts/databank";
