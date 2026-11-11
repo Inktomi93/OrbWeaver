@@ -155,6 +155,7 @@
     "typeid-js": "catalog:",
     "typescript": "catalog:",
     "typescript-eslint": "catalog:",
+    "undici": "catalog:",
     "vite": "catalog:",
     "vitest": "catalog:",
     "yaml": "catalog:",

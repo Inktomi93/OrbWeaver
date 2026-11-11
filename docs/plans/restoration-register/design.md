@@ -116,6 +116,7 @@ Legacy paths below are relative to the external reference source named in [Spine
 | `inference/backends/agent-sdk/env.test.ts` | Unreviewed | No maintained home; | - |
 | `inference/backends/anthropic-messages/chat.test.ts` | Accounted for | `tests/inference/backends/anthropic-messages/chat-wire.int.test.ts`; `tests/inference/conformance/unsupported-settings.suite.int.test.ts`; `tests/server/foundation/observability/provider-turn-span-events.int.test.ts` | - |
 | `inference/backends/openai-compat/body.test.ts` | Accounted for | `tests/inference/backends/openai-compat/body-shaping.int.test.ts` | - |
+| `inference/backends/openai-compat/chat-extras-and-wire-bytes.test.ts` | Partial | The two full-body cases live in `tests/inference/backends/openai-compat/body-shaping.int.test.ts`. | Compare the OpenRouter plugin merge, debug block, `require_parameters` and modelled-extras cases. |
 | `inference/backends/openai-compat/diagnostics.test.ts` | Accounted for | `tests/inference/backends/openai-compat/endpoint-inspection.int.test.ts`; `tests/support/node/corpus-connection.int.test.ts` | None beyond the security batch. |
 | `inference/registry/providers.test.ts` | Accounted for | `tests/server/domain/connection/persistence/provider-rows.int.test.ts`; `tests/server/domain/plugin/activation/provider-contributions.suite.int.test.ts`; `tests/server/domain/connection/persistence/registry-publication-order.int.test.ts` | - |
 | `server/domain/character/persistence/plugin-card-data.int.test.ts` | Accounted for | `tests/server/domain/character/persistence/plugin-card-data.int.test.ts`; `tests/server/domain/plugin/substrate/guest-installer-scope.suite.int.test.ts` | - |
@@ -174,6 +175,7 @@ Legacy paths below are relative to the external reference source named in [Spine
 | `server/infra/auth/forwarded.test.ts` | Unreviewed | No maintained home; | - |
 | `server/infra/auth/transport.test.ts` | Unreviewed | No maintained home; | - |
 | `server/infra/crypto/key.test.ts` | Unreviewed | No maintained home; | - |
+| `server/infra/network/dispatcher-contract.suite.int.test.ts` | Accounted for | `tests/server/infra/network/global-dispatcher-handoff.int.test.ts` runs the handoff through `installEgressFirewall` and pins the undici major. Dropped: the canary connector, the bad-port case and the accessor round trip, which assert undici and fetch behavior rather than the firewall. | - |
 | `server/infra/network/egress-attack.suite.int.test.ts` | Unreviewed | No maintained home; | - |
 | `server/infra/network/egress.int.test.ts` | Unreviewed | No maintained home; | - |
 | `server/infra/network/egress.test.ts` | Unreviewed | No maintained home; | - |

@@ -1,5 +1,6 @@
+import { spawnSync } from "node:child_process";
 import { readFileSync } from "node:fs";
-import { join } from "node:path";
+import { dirname, join } from "node:path";
 import { runInNewContext } from "node:vm";
 import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/tooling";
@@ -63,21 +64,26 @@ test("development publication has no dead branch trigger", ({ repoRoot }) => {
   expect(workflow.on.workflow_dispatch).toBeNull();
 });
 
+const dependabotSchema = z.object({
+  updates: z.array(
+    z.object({
+      ["package-ecosystem"]: z.string(),
+      directory: z.string().optional(),
+      ["target-branch"]: z.string().optional(),
+      ["open-pull-requests-limit"]: z.number().optional(),
+      groups: z.record(z.string(), z.json()).optional(),
+      ignore: z.array(z.json()).optional(),
+    }),
+  ),
+});
+
+function dependabotConfig(repoRoot: string): z.infer<typeof dependabotSchema> {
+  return dependabotSchema.parse(parse(readFileSync(join(repoRoot, ".github/dependabot.yml"), "utf8"), { maxAliasCount: 0 }));
+}
+
 test("security dependency updates configure the default branch without changing main version updates", ({ repoRoot }) => {
-  const config = z
-    .object({
-      updates: z.array(
-        z.object({
-          ["package-ecosystem"]: z.string(),
-          ["target-branch"]: z.string().optional(),
-          ["open-pull-requests-limit"]: z.number().optional(),
-          groups: z.record(z.string(), z.json()).optional(),
-          ignore: z.array(z.json()).optional(),
-        }),
-      ),
-    })
-    .parse(parse(readFileSync(join(repoRoot, ".github/dependabot.yml"), "utf8"), { maxAliasCount: 0 }));
-  const npm = config.updates.filter((entry) => entry["package-ecosystem"] === "npm");
+  const config = dependabotConfig(repoRoot);
+  const npm = config.updates.filter((entry) => entry["package-ecosystem"] === "npm" && entry.directory === "/");
   const main = npm.find((entry) => entry["target-branch"] === "main");
   const security = npm.find((entry) => entry["target-branch"] === undefined);
   expect(npm).toHaveLength(2);
@@ -85,6 +91,22 @@ test("security dependency updates configure the default branch without changing 
   expect(security?.groups).toEqual({ "npm-security": { "applies-to": "security-updates", patterns: ["*"] } });
   expect(security?.ignore).toEqual(main?.ignore);
   expect(main?.groups?.["npm-security"]).toBeUndefined();
+});
+
+test("every tracked npm lockfile outside the pnpm workspace has its own version-update entry, which leaves pnpm to packageManager", ({ repoRoot }) => {
+  const listed = spawnSync("git", ["ls-files", "-z", "*package-lock.json"], { cwd: repoRoot, encoding: "utf8" });
+  expect(listed.status, listed.stderr).toBe(0);
+  const directories = listed.stdout
+    .split("\0")
+    .filter((path) => path !== "")
+    .map((path) => `/${dirname(path)}`);
+  expect(directories).toContain("/.devcontainer/tools");
+  const npm = dependabotConfig(repoRoot).updates.filter((entry) => entry["package-ecosystem"] === "npm");
+  for (const directory of directories) {
+    const entry = npm.find((candidate) => candidate.directory === directory);
+    expect(entry?.["target-branch"], directory).toBe("main");
+    expect(entry?.ignore, directory).toContainEqual({ ["dependency-name"]: "pnpm" });
+  }
 });
 
 test("privileged run approval never checks out candidate code or restores candidate caches", ({ repoRoot }) => {
