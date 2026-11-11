@@ -29,13 +29,15 @@ interface RefusalCase {
   readonly shown: string;
 }
 
+const DAMAGED: RefusalCase = {
+  label: "a damaged file",
+  status: 400,
+  body: { error: new ExtractionFailedError("docx").message, reason: EXTRACTION_OP_CODES.failed },
+  shown: DOCUMENT_UPLOAD_FAILURE[EXTRACTION_OP_CODES.failed],
+};
+
 const REFUSALS: readonly RefusalCase[] = [
-  {
-    label: "a damaged file",
-    status: 400,
-    body: { error: new ExtractionFailedError("docx").message, reason: EXTRACTION_OP_CODES.failed },
-    shown: DOCUMENT_UPLOAD_FAILURE[EXTRACTION_OP_CODES.failed],
-  },
+  DAMAGED,
   {
     label: "a file that unpacks past the size budget",
     status: 400,
@@ -50,8 +52,6 @@ const REFUSALS: readonly RefusalCase[] = [
   },
   { label: "a refusal that states no code", status: 413, body: null, shown: DOCUMENT_UPLOAD_GENERAL_FAILURE },
 ];
-
-const DAMAGED = REFUSALS[0] as RefusalCase;
 
 /** Answers every upload with `refusal` at the network edge and returns the count of requests that reached it. */
 async function refuseUploads(page: Page, { status, body }: RefusalCase): Promise<() => number> {
@@ -81,8 +81,10 @@ for (const refusal of REFUSALS) {
     await expect(line).toHaveText(shown);
     expect(await toastMounts()).toBe(0);
 
-    // The control that took the pick is the one that holds focus again, so the line is read with it.
+    // The control that took the pick is the one that holds focus again, so the line is read with it, and the line is part of the
+    // control's description: a screen-reader user returning later hears why it is invalid.
     await expect(page.locator(FILE_INPUT)).toBeFocused();
+    await expect(page.locator(FILE_INPUT)).toHaveAccessibleDescription(new RegExp(RegExp.escape(shown), "u"));
 
     // Usable: the zone takes the same file again and asks the server a second time.
     await expect(page.locator(FILE_INPUT)).toBeEnabled();

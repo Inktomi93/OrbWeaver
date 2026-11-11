@@ -211,6 +211,33 @@ function FileDropzoneInstructions({ className, id, instructions, lines }: FileDr
   );
 }
 
+interface FileDropzoneErrorProps {
+  readonly message: string;
+  readonly inField: boolean;
+  readonly slots: ReturnType<typeof fileDropzoneVariants>;
+}
+
+/** The refusal line. Inside a `Field` it is a Field.Error, as the Field primitive renders its own: Base UI adds its id to the
+ *  control's `aria-describedby`, so a screen-reader user returning to an invalid zone hears why, not only "invalid". Field.Error
+ *  throws outside a Field.Root, so a standalone zone keeps the plain line. */
+function FileDropzoneError({ message, inField, slots }: FileDropzoneErrorProps): ReactElement {
+  const line = (
+    <>
+      <Icon className={slots.errorIcon()} icon={TriangleAlert} label="Error" size="xs" />
+      <span className={slots.errorText()}>{message}</span>
+    </>
+  );
+  return inField ? (
+    <BaseField.Error className={slots.error()} data-slot="file-dropzone-error" match={true} render={<p />} role="alert">
+      {line}
+    </BaseField.Error>
+  ) : (
+    <p className={slots.error()} data-slot="file-dropzone-error" role="alert">
+      {line}
+    </p>
+  );
+}
+
 /** The content-stack glyph dispatch, split out to avoid a 3-way nested ternary in the render tree. */
 function FileDropzoneGlyph({ loading, success, slots }: FileDropzoneGlyphProps): ReactElement {
   if (loading) {
@@ -381,12 +408,7 @@ export function FileDropzone({
         <FileDropzoneInstructions className={slots.instructions()} id={instructionsId} instructions={instructions} lines={pointerLines} />
         {resolvedHint === undefined ? null : <p className={slots.hint()}>{resolvedHint}</p>}
       </div>
-      {errorMessage === undefined ? null : (
-        <p className={slots.error()} data-slot="file-dropzone-error" role="alert">
-          <Icon className={slots.errorIcon()} icon={TriangleAlert} label="Error" size="xs" />
-          <span className={slots.errorText()}>{errorMessage}</span>
-        </p>
-      )}
+      {errorMessage === undefined ? null : <FileDropzoneError inField={fieldLabelled} message={errorMessage} slots={slots} />}
     </div>
   );
 }
