@@ -12,10 +12,11 @@
 // surface that can re-render at animation rate, so it gets the same belt from birth rather than after the first
 // flood — the D46 review's P2-F lesson ("the throttle applies to `invokeUiAction`/`uiHostCall` from birth").
 //
-// IT IS A COUNTER, NOT A QUEUE, and that is deliberate: the N+1 call is REFUSED with a typed error the guest
-// can see and back off from, never parked. A queue here would convert a hostile flood into unbounded host
+// IT IS A COUNTER, NOT A QUEUE, and that is deliberate: the N+1 call is REFUSED with a rate-limit error (a 429
+// the guest can see and back off from), never parked. A queue here would convert a hostile flood into unbounded host
 // memory, which is the failure the server-side FIFO's own depth bound exists to prevent.
 
+import { DomainRateLimitError } from "@orb/kit/errors";
 import type { PluginId } from "@orb/kit/ids";
 import type { UiHostCallGate } from "../contract/ops.ts";
 
@@ -40,7 +41,7 @@ export function createUiHostCallGate(): UiHostCallGate {
     admit: (pluginId: PluginId): (() => void) => {
       const current = inFlight.get(pluginId) ?? 0;
       if (current >= UI_HOST_CALLS_IN_FLIGHT_MAX) {
-        throw new Error(`plugin host: too many concurrent UI host calls (>${UI_HOST_CALLS_IN_FLIGHT_MAX}) — call refused`);
+        throw new DomainRateLimitError(`plugin host: too many concurrent UI host calls (>${UI_HOST_CALLS_IN_FLIGHT_MAX}) — call refused`);
       }
       inFlight.set(pluginId, current + 1);
       // ONE release per acquisition, idempotent: a double-released slot would drift the counter DOWN and

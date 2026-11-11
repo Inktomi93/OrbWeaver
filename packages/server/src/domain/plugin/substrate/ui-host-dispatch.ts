@@ -22,25 +22,18 @@
 // composed. A chat-scoped function called with no admitted room is a refusal, not a silent no-op.
 
 import type { PluginBridge, UiProxyableHostFunction } from "@orb/contracts/plugin";
-import { pluginUiHostArgsSchemas } from "@orb/contracts/plugin";
+import { PLUGIN_UI_HOST_CALL_CODES, pluginUiHostArgsSchemas } from "@orb/contracts/plugin";
 import type { ChatId } from "@orb/kit/ids";
+import { z } from "zod";
+import { PluginUiHostCallRefusedError } from "../contract/errors.ts";
 
-/** Thrown when a chat-scoped proxy is called without an admitted room. A distinct MESSAGE because the two
- *  failures a plugin author hits here are genuinely different: "you did not pass the room" (this) versus "you
- *  passed a room you cannot read" (the verb's leak-free NOT_FOUND). Module-private on purpose — it is a named
- *  message, not a taxonomy member: nothing branches on the class, the transport maps it like any other domain
- *  throw, and exporting it would invite a caller to start branching on a distinction that only exists to make
- *  the sentence right. */
-class UiHostCallScopeError extends Error {
-  constructor(fn: string) {
-    super(`plugin host: ${fn} needs a chat scope — pass the surface's room id with the call`);
-    this.name = "UiHostCallScopeError";
-  }
-}
-
+/** A chat-scoped proxy called without an admitted room is its own refusal (scope-required), distinct from "you
+ *  passed a room you cannot read", which is the verb's leak-free NOT_FOUND. */
 function requireChat(fn: string, chatId: ChatId | null): ChatId {
   if (chatId === null) {
-    throw new UiHostCallScopeError(fn);
+    throw new PluginUiHostCallRefusedError(`plugin host: ${fn} needs a chat scope — pass the surface's room id with the call`, {
+      code: PLUGIN_UI_HOST_CALL_CODES.scopeRequired,
+    });
   }
   return chatId;
 }
@@ -100,6 +93,17 @@ const UI_HOST_CALL_IMPLS: Record<UiProxyableHostFunction, UiHostCallImpl> = {
 
 /** Run one proxied host call. The caller (`verbs/ui-host-call.ts`) has already proven the fn is proxyable, the
  *  caller owns the plugin, the capability is granted, and the room (if any) is one the caller may read. */
-export function runUiHostCall(fn: UiProxyableHostFunction, bridge: PluginBridge, args: unknown, chatId: ChatId | null): Promise<unknown> {
-  return UI_HOST_CALL_IMPLS[fn](bridge, args, chatId);
+export async function runUiHostCall(fn: UiProxyableHostFunction, bridge: PluginBridge, args: unknown, chatId: ChatId | null): Promise<unknown> {
+  try {
+    return await UI_HOST_CALL_IMPLS[fn](bridge, args, chatId);
+  } catch (error) {
+    // The schema's own text names the guest's argument shapes, so the cause stays server-side.
+    if (error instanceof z.ZodError) {
+      throw new PluginUiHostCallRefusedError(`plugin host: the arguments for ${fn} do not match its signature`, {
+        code: PLUGIN_UI_HOST_CALL_CODES.argsInvalid,
+        cause: error,
+      });
+    }
+    throw error;
+  }
 }

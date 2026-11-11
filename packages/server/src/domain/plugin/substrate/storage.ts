@@ -3,27 +3,17 @@
 // ownerId (the persistence guard filter), so plugin A can never read plugin B's keys and no cross-owner read is
 // possible. The value/key BYTE caps are DDL CHECKs (persistence surfaces them); this layer owns the 256-key cap
 // (a count read the DDL can't do) — a `set` that would create a NEW key past the ceiling is refused with a typed
-// error the membrane contains as guest errors-as-data (never a host crash). Pure of Principal (the bridge closed
+// error the membrane contains as guest errors-as-data (never a host crash) and `plugin.uiHostCall` answers as a
+// client error carrying the storage-cap code. Pure of Principal (the bridge closed
 // the scope over the installer); `db` is injected at compose.
 
+import { PLUGIN_KV_MAX_KEYS } from "@orb/contracts/plugin";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import { databaseForOwner } from "@orb/db/wiring-owner";
 import type { PluginId, UserId } from "@orb/kit/ids";
+import { PluginKvCapError } from "../contract/errors.ts";
 import type { PluginHostOps } from "../contract/ops.ts";
 import { compareAndSetKv, deleteKv, getKv, listKv, upsertKvUnderCap } from "../persistence/plugin-kv.ts";
-
-/** The per-plugin key ceiling ("≤ 256 keys/plugin"). Enforced HERE (a count the DDL cannot do); the
- *  value/key BYTE caps are DDL CHECKs. ONE home for the count cap. */
-const PLUGIN_KV_MAX_KEYS = 256;
-
-/** A storage-cap refusal — the membrane's host-fn reject arm contains it as guest errors-as-data (a caught
- *  error to the guest, never a host crash). Thrown internally by `set`; not caught by name elsewhere. */
-class PluginKvCapError extends Error {
-  constructor(detail: string) {
-    super(`plugin storage.kv cap: ${detail}`);
-    this.name = "PluginKvCapError";
-  }
-}
 
 /** Build the composed `storage.kv` op bundle (the `PluginHostOps.storage` shape). `set` enforces the 256-key
  *  ceiling: an upsert of an EXISTING key always proceeds (no new slot); a NEW key past the cap is refused. The
@@ -40,7 +30,7 @@ export function buildPluginStorage(handle: DatabaseHandle, nowMs: () => number):
     set: async (pluginId: PluginId, ownerId: UserId, key: string, value: string): Promise<void> => {
       const admitted = await upsertKvUnderCap(db, { pluginId, ownerId }, { key, value, updatedAt: nowMs() }, PLUGIN_KV_MAX_KEYS);
       if (!admitted) {
-        throw new PluginKvCapError(`at most ${PLUGIN_KV_MAX_KEYS} keys per plugin`);
+        throw new PluginKvCapError();
       }
     },
     // The ATOMIC arm (#1442), under the SAME ceiling predicate for the same reason: the create precondition is
@@ -59,7 +49,7 @@ export function buildPluginStorage(handle: DatabaseHandle, nowMs: () => number):
       const scope = { pluginId, ownerId };
       const outcome = await compareAndSetKv(db, scope, { key: entry.key, expected: entry.expected, value: entry.next, updatedAt: nowMs() }, PLUGIN_KV_MAX_KEYS);
       if (entry.expected === null && !outcome.applied && outcome.current === null) {
-        throw new PluginKvCapError(`at most ${PLUGIN_KV_MAX_KEYS} keys per plugin`);
+        throw new PluginKvCapError();
       }
       return outcome;
     },

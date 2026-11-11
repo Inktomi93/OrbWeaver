@@ -981,4 +981,7 @@ export const PLUGIN_READ_CONTENT_MAX_CHARS = 16_384;
  *  unit, at least one UTF-8 byte each). The server host and the client guest both enforce it, so a guest is cut
  *  at the same line on either side. */
 export const PLUGIN_LOG_LINES_MAX = 256;
+
+/** Keys one plugin may hold in `storage.kv`; a write that would create a key past it is refused. */
+export const PLUGIN_KV_MAX_KEYS = 256;
 export const PLUGIN_LOG_CHARS_MAX = 16_384;

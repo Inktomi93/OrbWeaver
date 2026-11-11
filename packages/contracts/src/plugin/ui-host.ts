@@ -3,6 +3,20 @@
 import { z } from "zod";
 import type { UiProxyableHostFunction } from "./host-v1.ts";
 
+/** The `data.reason` of every refusal `plugin.uiHostCall` answers as the caller's own mistake, one per way a call
+ *  can be wrong. A plugin surface keys on these, never on the message text. */
+export const PLUGIN_UI_HOST_CALL_CODES = {
+  notEnabled: "plugin_ui_not_enabled",
+  notProxyable: "plugin_ui_not_proxyable",
+  notGranted: "plugin_ui_not_granted",
+  argsNotJson: "plugin_ui_args_not_json",
+  argsInvalid: "plugin_ui_args_invalid",
+  scopeRequired: "plugin_ui_scope_required",
+  resultTooLarge: "plugin_ui_result_too_large",
+  storageCap: "plugin_storage_cap",
+} as const;
+export type PluginUiHostCallCode = (typeof PLUGIN_UI_HOST_CALL_CODES)[keyof typeof PLUGIN_UI_HOST_CALL_CODES];
+
 const KV_KEY_MAX = 512;
 /** The bounded transcript page accepted by the scripted UI relay. */
 export const PLUGIN_UI_CHAT_MESSAGES_LIMIT_MAX = 50;
