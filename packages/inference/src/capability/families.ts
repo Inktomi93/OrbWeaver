@@ -1,5 +1,5 @@
 // Family detection for the capability synthesis — one of the TWO homes a model-id regex may live in (the
-// other is `sources/curated/loader.ts`; the `inference-model-regex-fence` gate reds any third). The anthropic
+// other is `sources/curated/loader.ts`; review refuses a third). The anthropic
 // anchor is LOAD-BEARING: `/^(anthropic\/)?claude[-/]/i` matches bare and prefixed Claude ids but rejects
 // `some-org/claude-fork`, so an alien backend whose id merely contains "claude" never receives Anthropic-only
 // directives (cache_control) or the Claude family floor.

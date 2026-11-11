@@ -8,8 +8,8 @@ import type { HubScoreUpdate, ImageLens, ImageSkipReason, VectorTable } from "@o
 import type { Db } from "@orb/db";
 // `documents` is databank's table, read here (and only here) to derive the OWNER scope of a chunk row — the
 // vector tables carry no ownerId (D20: scope derives through the FK to the producer). A cross-domain READ
-// from `persistence/`, which is the sanctioned home for exactly that (own-tables-only scopes `persistence/`
-// out; `search/persistence/nearest.ts` joins the same table for the same reason).
+// from `persistence/`, which is the sanctioned home for exactly that (Tier-1-DB.md §"Cross-tier composition";
+// `search/persistence/nearest.ts` joins the same table for the same reason).
 import {
   assets,
   characterEmbeddings,

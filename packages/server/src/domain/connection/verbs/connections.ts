@@ -230,7 +230,7 @@ function createRemove(ctx: ConnectionContext, ownerWrites: OwnerWriteQueue): Con
 /** The slice of `ConnectionService` this grouped file owns. */
 type ConnectionRowVerbs = Pick<ConnectionService, "list" | "get" | "create" | "update" | "remove">;
 
-/** The `user_connections` verb bundle (`verb-naming`: one factory named for the file). */
+/** The `user_connections` verb bundle (one factory named for the file). */
 export function createConnections(ctx: ConnectionContext, ownerWrites: OwnerWriteQueue): ConnectionRowVerbs {
   return {
     list: createList(ctx),

@@ -94,7 +94,7 @@ export type StageResolution =
     };
 
 /** What one NL→schema FORGE turn needs (task #36). Homed here rather than beside the engine because a
- *  domain's exported shapes live in its `contract/` (§7.4, `no-inline-types`) — `substrate/schema-forge.ts`
+ *  domain's exported shapes live in its `contract/` (§7.4) — `substrate/schema-forge.ts`
  *  imports it back. `userPrompt` is the caller's own ask (describe-to-schema, or the modify-this-schema
  *  instruction); each arm appends its own per-call material. */
 export interface ForgeTurnArgs {
@@ -108,8 +108,8 @@ export interface ForgeTurnArgs {
 }
 
 /** What sizing ONE stage call's output cap needs (`substrate/output-budget`). Homed here for the same
- *  reason as {@link ForgeTurnArgs}: a domain's exported shapes live in its `contract/` (§7.4,
- *  `no-inline-types`), and the substrate imports them back. */
+ *  reason as {@link ForgeTurnArgs}: a domain's exported shapes live in its `contract/` (§7.4), and the
+ *  substrate imports them back. */
 export interface StageOutputBudgetArgs {
   /** The §8 prediction for this stage (`outputEstimateOf`). */
   readonly estimate: number;
@@ -130,7 +130,7 @@ export interface StageOutputBudgetArgs {
  * the 503). Stage-tagged so the rewrite arm can REQUIRE its mode instead of defaulting one in.
  */
 export type StageEstimateSubject =
-  // DERIVED, never re-spelled (`no-inline-union-redecl`): "every stage but the one that carries a mode".
+  // DERIVED, never re-spelled (Spine-TypeScript-and-Patterns §7.5): "every stage but the one that carries a mode".
   | { readonly stage: Exclude<RefineryStage, "rewrite">; readonly card: CharacterCard; readonly selection: RefinerySelection }
   | { readonly stage: "rewrite"; readonly card: CharacterCard; readonly selection: RefinerySelection; readonly mode: RefineryRewriteMode };
 

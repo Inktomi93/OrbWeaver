@@ -26,7 +26,7 @@
 import { MODEL_ROLES_PATH_TEXT, trpcErrorCode } from "#lib";
 
 /** The three causes the failure band can distinguish — `unknown` is the honest arm, not a fallback hole.
- *  Homed as a tuple so the union DERIVES rather than re-spells it (§5.5; `no-inline-union-redecl`). */
+ *  Homed as a tuple so the union DERIVES rather than re-spells it (§5.5; `orb/no-inline-union-alias`). */
 const RESOLVE_FAILURE_CAUSES = ["not-found", "routing", "unknown"] as const;
 
 type ResolveFailureCause = (typeof RESOLVE_FAILURE_CAUSES)[number];

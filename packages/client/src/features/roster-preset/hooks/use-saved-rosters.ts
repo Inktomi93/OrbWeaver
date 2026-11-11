@@ -4,7 +4,7 @@
 // exact shape) so it suspends ONLY when a room is open; the cross-feature channel is `trpc.chat.getChat`
 // (cache-first — the open room's detail is already warm), never a chat-feature import. Wire types come
 // from `@orb/contracts/roster-preset` (one home); the active-room projection is deliberately UN-exported
-// (no-inline-types — a consumer derives it via `ReturnType<typeof useActiveRosterChat>`).
+// (§7.4 — a consumer derives it via `ReturnType<typeof useActiveRosterChat>`).
 
 import type { RulePresetId, RulePresetKnobValueInputs, RulePresetView } from "@orb/contracts/automation";
 import { rulePresetKnobBagToInputs } from "@orb/contracts/automation";

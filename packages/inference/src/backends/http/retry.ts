@@ -7,7 +7,7 @@
 // DETERMINISM (spine/testing §3): the jitter RNG and the `resetsAt`-proximity clock are INJECTED via
 // `RetryOptions` (no ambient `Math.random` / `Date.now` on the production path — the same seam tests use).
 // `random` and `scheduleTimeout` are required; `now` is optional — omit it and the `resetsAt` shortcut is simply
-// skipped (pure exponential backoff), so no raw clock read ever happens here (no-raw-clock).
+// skipped (pure exponential backoff), so no raw clock read ever happens here.
 //
 // TRACE VOCABULARY: every retry decision annotates the active request span (`addSpanEvent`, a no-op when
 // there is none) — `provider.retry` {attempt, kind, delayMs} per scheduled backoff, and exactly one

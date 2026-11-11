@@ -11,7 +11,7 @@ import { Skeleton } from "@orb/ui/skeleton";
 import type { ReactElement } from "react";
 
 /** The placeholder shapes, homed ONCE as a tuple so the union DERIVES rather than re-spells its members
- *  (§5.5 dispatch discipline; `no-inline-union-redecl` — a two-member inline union slipped that gate, a
+ *  (§5.5 dispatch discipline; `orb/no-inline-union-alias` — a two-member inline union slipped that gate, a
  *  third member does not). Module-private on purpose: callers spell the shape as a literal prop, so an
  *  exported tuple would be an orphan the liveness lens correctly flags. */
 const SKELETON_ROW_SHAPES = ["line", "avatar-row", "datum"] as const;

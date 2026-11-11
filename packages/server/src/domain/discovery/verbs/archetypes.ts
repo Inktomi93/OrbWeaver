@@ -23,7 +23,7 @@ import { readOwnedCardFacets } from "../persistence/summary-reads.ts";
 import { collapseByHash } from "../substrate/collapse.ts";
 import { kmeans } from "../substrate/kmeans.ts";
 
-/** Bind the archetypes read over the DI bundle (the verb-naming factory the service composes). */
+/** Bind the archetypes read over the DI bundle (the factory the service composes). */
 export function createArchetypes(ctx: DiscoveryContext): Pick<DiscoveryService, "archetypes"> {
   return { archetypes: (userId, opts) => archetypes(ctx.db, userId, opts) };
 }

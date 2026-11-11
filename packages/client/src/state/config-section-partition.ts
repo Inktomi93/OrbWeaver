@@ -10,10 +10,8 @@
 // under the partition and every remaining key must be claimed or CITED. So each stage that decomposes a
 // group brings its namespace under the pin automatically, and no stage can half-claim a namespace silently.
 // The APP tier runs the OVERLAP arm only (including the nesting arm — its claims may be leaf paths), never
-// a gap arm: "an AppSettings key with no admin editor" is already `knob-wire-coverage`'s arm B2 (D107),
-// which reconciles it against the WHOLE admin surface with its own cited-deferral registry. Two registries
-// of two different facts, deliberately (§10 Q5) — this one would only re-state it worse, since a key can be
-// edited by a non-contributed surface.
+// a gap arm: a key can be edited by a non-contributed surface, so this registry cannot judge "an
+// AppSettings key with no admin editor" (D107).
 
 import type { UserSettings, UserSettingsSection } from "@orb/contracts/settings";
 import type { ContributorRegistry } from "#lib";

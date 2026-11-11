@@ -1,7 +1,7 @@
 // verb: rebuildFromTree — DISASTER RECOVERY: re-derive index rows for orphan blobs by walking +
 // hashing the per-user CAS tree. For every blob with no `assets` row: read the bytes, `sniffMime` a
 // best-effort mime, and write a fresh row through the coherence writer (`storeBlob` — the single
-// `db.insert(assets)`/`cas.putBytes` site, so this respects `assets-single-writer`; the re-put dedup-hits the
+// `db.insert(assets)`/`cas.putBytes` site, so this keeps one writer; the re-put dedup-hits the
 // existing blob and only bumps mtime). The caller-supplied `kind` is stamped on every rebuilt row (a rebuild
 // targets one kind at a time). Does NOT emit `asset.created`: a rebuilt row was never
 // `asset.created`-emitted; the embeddings `content_hash` catch-up sweep re-covers the vectors.

@@ -22,8 +22,8 @@ export interface LibrarySurfaceShellProps {
   readonly errorLabel: string;
   /**
    * The OWNER's surface-box id (#885/#1748). This shell is shared, so it can never mint a key of its own —
-   * one literal here is one remembered box for every library that mounts it, which is exactly the
-   * copy-paste collision the `query-boundary-reservation` gate's duplicate arm reds. Each owner mints its
+   * one literal here is one remembered box for every library that mounts it, a
+   * copy-paste collision. Each owner mints its
    * own (`preset.library`, `databank.library`, …); omitted, the boundary reserves nothing, as before.
    */
   readonly reserveKey?: string | undefined;

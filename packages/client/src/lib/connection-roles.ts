@@ -237,7 +237,7 @@ export interface RoleConnectionFacts {
 }
 
 /** The four arms, as ONE discriminated union. It is deliberately NOT an exported `type` alias: a client
- *  feature's `lib/` is not a type home (`no-inline-types`), so the shape is DERIVED at every reader through
+ *  feature's `lib/` is not a type home (§7.4), so the shape is DERIVED at every reader through
  *  `ReturnType<typeof roleReadout>` — one home, and a fifth arm is a `tsc` error at every consumer. */
 type RoleReadout =
   // `connection: null` — the picker beside the sentence already shows what a turn uses, so the sentence does not
@@ -315,7 +315,7 @@ export function roleReadout(args: {
  *  a bound model that cannot read images still runs, and two of the Utility slot's three consumers work.
  *
  *  THE LABEL MAP IS THE AXIS. There is no separate exported union to keep in sync with it (and a client
- *  `lib/` may not home one, `no-inline-types`): a state with no accessible name is a state the amber dot
+ *  `lib/` may not home one, §7.4): a state with no accessible name is a state the amber dot
  *  could not be decided without, so the map's keys ARE the states, and `keyof typeof` is how every reader
  *  spells them. The blocked arm's words are REPEATED VERBATIM by the readout's blocked sentence. */
 export const ROLE_STATUS_LABELS = {

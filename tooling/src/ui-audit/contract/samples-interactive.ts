@@ -100,12 +100,10 @@ export interface TabIndexInput {
 }
 
 // ── Duplicate action doors — the RUNTIME half of issue #252 ─────────────────────────────────────────
-// "New chat lives in three places." The STATIC gate (`duplicate-action-doors`, tooling/src/verify/gates) censuses
-// tRPC call sites per rail section and is blind by construction to a REGISTRY-RENDERED action — one call site
-// behind N rendered slots, which is precisely how the founding complaint escapes it (its three doors all
-// call one shared state action). This lens is the other half: the same (role, accessible name) OFFERED more
-// than once on one rendered plane. Neither arm subsumes the other — the static one catches one verb wearing
-// N different labels, this one catches one label rendered N times from one verb.
+// "New chat lives in three places." A REGISTRY-RENDERED action is one call site behind N rendered slots (the
+// founding complaint's three doors all call one shared state action), so only the rendered page shows it.
+// This lens judges the same (role, accessible name) OFFERED more than once on one rendered plane: one label
+// rendered N times from one verb.
 //
 // NOTHING IS HARDCODED. The key is the control's own computed name; no procedure or affordance is named here.
 //
@@ -178,7 +176,7 @@ export interface ControlAspectInput {
 // box; the control's own fill is the inside of the boundary and is not what 1.4.11 compares against here.
 /** THE SIDE AXIS, once. The walker interpolates this tuple into its census loop and the shape below
  *  derives its member from it, so the four spellings cannot drift apart across the page boundary
- *  (`no-inline-union-redecl` is the enforcer). */
+ *  (`orb/no-inline-union-alias` is the enforcer). */
 export const BORDER_CONTRAST_SIDES = ["top", "right", "bottom", "left"] as const;
 type BorderContrastSideName = (typeof BORDER_CONTRAST_SIDES)[number];
 

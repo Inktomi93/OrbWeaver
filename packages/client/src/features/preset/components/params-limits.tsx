@@ -1,5 +1,5 @@
 // The params deck's LIMIT clusters — OUTPUT · CONTEXT ·
-// ADVANCED. Split out of params-deck.tsx for the component-size cap; it is one continuous column with the
+// ADVANCED. Apart from params-deck.tsx; it is one continuous column with the
 // clusters above it, not a second surface.
 //
 // OUTPUT/CONTEXT ride the SAME KnobRow grammar as sampling at capability-fed integer ranges (owner ruling,
@@ -325,7 +325,7 @@ function AdvancedCluster({ form }: { readonly form: AppForm }): ReactElement {
           `CollapsibleTrigger` primitive already defaults to — the kicker was overriding it DOWN — and
           `size="control"` is the primitive's own ≥44px coarse row box (a VARIANT, not a call-site `min-h-*`
           — tailwind-merge cannot classify a custom-token utility, so an override wins or loses by
-          stylesheet order; gate `ui-size-via-variant`). The trigger is `inline-flex`, so the box grows
+          stylesheet order). The trigger is `inline-flex`, so the box grows
           around the word rather than claiming the row's width. */}
       <CollapsibleTrigger size="control">
         <Text voice="label">Advanced</Text>

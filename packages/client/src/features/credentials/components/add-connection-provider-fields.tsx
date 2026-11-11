@@ -1,6 +1,6 @@
 // The provider-dependent fields of "Add a connection" — URL and/or key, the model picker, the api control
-// only when the row lists more than one, label and the background switch — split out of
-// add-connection-dialog.tsx (which composes this) to keep that file under the component-size cap.
+// only when the row lists more than one, label and the background switch — apart from
+// add-connection-dialog.tsx, which composes this.
 
 import type { CredentialView } from "@orb/contracts/credentials";
 import type { ProviderDef } from "@orb/contracts/inference";

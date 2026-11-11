@@ -15,7 +15,7 @@
 // on the OVERFLOW-HIDDEN element, while dropping `min-w-0` on a flex ancestor lets the painted box itself
 // grow past the wrapper.
 //
-// POLLED, never one-shot (`ct-no-oneshot-live-read-assert`): the subject can still be settling layout
+// POLLED, never one-shot: the subject can still be settling layout
 // (a ResizeObserver, a late font swap) when the assertion first runs, and a single read would sample that
 // transition instead of the settled state.
 

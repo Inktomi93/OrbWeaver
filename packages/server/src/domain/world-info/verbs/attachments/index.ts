@@ -1,4 +1,4 @@
-// verbs/attachments — the scope-attachment verb group barrel. One verb per file (verb-naming gate), FOUR
+// verbs/attachments — the scope-attachment verb group barrel. One verb per file, FOUR
 // scopes: character (role-carrying + the primary belt), global, persona, and chat (membership-
 // scoped via the injected chat guards + the `WiBusEvent` emit; contract/service.ts header). The
 // composition root imports the factories from here.

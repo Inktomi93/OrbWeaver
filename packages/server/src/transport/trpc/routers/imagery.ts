@@ -23,7 +23,7 @@ const MIN_IMAGE_COUNT = 1;
 const MAX_IMAGE_COUNT = 4;
 
 // The extraction modes (`free` has nothing to extract); derived from the contract
-// tuple via `.exclude`, never re-spelled (`no-inline-union-redecl`).
+// tuple via `.exclude`, never re-spelled (Spine-TypeScript-and-Patterns §7.5).
 const extractionModeSchema = promptTemplateModeSchema.exclude(["free"]);
 
 export const imageryRouter = t.router({

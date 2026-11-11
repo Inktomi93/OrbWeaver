@@ -1,5 +1,5 @@
-// The Corpus overview's ANALYSIS SUB-SECTIONS — split out of corpus-home-surface so the surface stays under
-// the god-component cap: the keyword explorer (`topKeywords` → `cooccurringKeywords`) and story-time theme
+// The Corpus overview's ANALYSIS SUB-SECTIONS — apart from corpus-home-surface:
+// the keyword explorer (`topKeywords` → `cooccurringKeywords`) and story-time theme
 // drift (`themeDrift`, scene↔arc, folded into the viewer's months). Each level/keyword switch is a plain
 // refetching query (no whole-overview re-suspend).
 //

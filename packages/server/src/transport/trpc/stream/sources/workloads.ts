@@ -1,7 +1,7 @@
 // Room source: `workloads` — one execution row's live lifecycle tail (SSE-1 S5), MOVED from
 // `routers/workloads.ts::subscribe` (`workloadEvents`, body intact). It is the LAST stage of the staged fold:
 // with it, `stream.connect` is the only `.subscription(` in the tree bar the permanently-exempt
-// `chat.impersonateStream`, and the `single-stream-transport` ratchet closes.
+// `chat.impersonateStream` (D118).
 //
 // WHY IT HAD TO FOLD (spec §14 decision 3): this was the one room keyed by something a user opens N of. The
 // Workloads pane mounts a tail PER ACTIVE ROW and the import section mounts another, so a user watching three

@@ -97,8 +97,8 @@ export async function backfillPluginProvenance(handle: BootDatabaseHandle): Prom
     const updated = await db
       .update(characters)
       .set({ importedFrom: pluginImportedFrom(pluginId, candidate.importHash) })
-      // The owner rides the WHERE (owner-scoped-writes arm 1): the candidate row was read WITH its owner, so a
-      // stranger's row of the same id — impossible by the id mint, but the gate asks the statement to say so —
+      // The owner rides the WHERE: the candidate row was read WITH its owner, so a
+      // stranger's row of the same id — impossible by the id mint, but the statement says so —
       // moves 0 rows.
       .where(and(eq(characters.id, candidate.id), eq(characters.ownerId, candidate.ownerId), isNull(characters.importedFrom)))
       .returning({ id: characters.id });

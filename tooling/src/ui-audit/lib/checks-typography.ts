@@ -27,8 +27,8 @@ const TRANSCRIPT_MAX_CH = 75;
 
 /** The chat transcript's reading surface — the subject of `--reading-measure` (#1145's split).
  *  DELIBERATELY NOT `GRID_EXEMPTIONS.readingSurface` (lib/checks-grid.ts), even though both resolve to the
- *  same DOM node today: that row is the `integer-line-boxes` gate's ARM C mirror (a user-owned CONTINUOUS
- *  line-height multiplier is exempt from the line-box law) and this one is the measure SPLIT (the transcript
+ *  same DOM node today: that row is the line-box law's exemption (a user-owned CONTINUOUS
+ *  line-height multiplier is exempt from it) and this one is the measure SPLIT (the transcript
  *  takes the wider of two reading measures). Two axes that happen to share a member need two spellings —
  *  collapsing them would make one law's exemption move when the other's does. */
 const TRANSCRIPT_SURFACE = '[data-slot="message-bubble"]';

@@ -15,7 +15,7 @@
 //
 // THE TTL IS SWEPT EXPLICITLY, never by a timer: every method that could observe an expired record takes the
 // injected `nowMs` and drops the dead ones first. A `setInterval` would read the wall clock in a domain whose
-// every other time read is injected (the test-determinism gate's whole point) and would hold a process handle
+// every other time read is injected (Spine-Testing §3) and would hold a process handle
 // open for a map that is allowed to be empty.
 
 import type {

@@ -5,7 +5,7 @@
 //
 // `users.id` is DELIBERATELY a PLAIN `Branded<"UserId">` nanoid, NOT a prefix-validated TypeID (Tier-1-DB.md
 // esoteric #4): inbound `ownerId`/`userId` FKs inherit that plainness. It still carries a `.$type<UserId>()`
-// brand (the schema-branding gate + type-safety), the brand is just not a `prefix_…` TypeID.
+// brand (type-safety), the brand is just not a `prefix_…` TypeID.
 //
 // AGENT PRINCIPALS (D60 — BUILD-STATE RIDER, 2026-08-03: design of record, NOT built; Spine-Identity-and-Auth.md
 // §4 is the tree). `kind` (`human|agent`) + `ownerUserId` (self-FK CASCADE) are DORMANT DDL kept deliberately so

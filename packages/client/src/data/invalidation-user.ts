@@ -170,7 +170,7 @@ export const USER_BUS_FILTERS: UserBusFilterMap = {
   // reload, which at `staleTime: Infinity` may never come. It joins the reconnect gap-heal by DERIVATION, and
   // that half matters most here: the write happens on somebody ELSE'S request, so a device that was offline
   // for the grant has no local signal at all. NOT `admin.listUsers`/`listSessions` — those are the ACTING
-  // admin's reads (writer-local, per their own cited `query-freshness-coverage` entries); this member only
+  // admin's reads (writer-local); this member only
   // ever reaches the AFFECTED user's channel.
   identityChanged: (_e, trpc) => identityFilters(trpc),
   // A plugin surface published new state (`host.ui.setState` U1). PATH-invalidate the

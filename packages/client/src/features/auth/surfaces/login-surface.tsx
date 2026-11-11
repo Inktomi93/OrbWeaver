@@ -167,7 +167,7 @@ function LoginBody({
           </Text>
           {authError === null ? null : (
             // `voice="label"` is the feature type axis; the destructive color rides a semantic-token className
-            // (the same `text-destructive` the internal `tone` axis maps to) so this adds no density-tier debt.
+            // (the same `text-destructive` the internal `tone` axis maps to) so this stays on the token ramp.
             <Text tone="destructive" voice="label" role="alert" data-testid={testId("loginAuthError")}>
               {authError}
             </Text>

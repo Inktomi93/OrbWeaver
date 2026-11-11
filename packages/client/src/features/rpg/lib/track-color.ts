@@ -33,7 +33,7 @@ interface CustomTrackColor {
 }
 /** The resolved display color for a bar/orb/slice. LOCAL (not exported): no consumer outside this module
  *  names it — the `@orb/ui` bars take a `customColor: string`, and the feature callers spread
- *  `trackColorProps(...)`'s inferred result. Homing it in a feature-lib would trip `no-inline-types`
+ *  `trackColorProps(...)`'s inferred result. Homing it in a feature-lib would break §7.4
  *  (the type-HOME rule); keeping it local is the correct placement. */
 type ResolvedTrackColor = RampTrackColor | CustomTrackColor;
 

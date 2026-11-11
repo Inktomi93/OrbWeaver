@@ -183,9 +183,8 @@ export async function writeUserConfig(db: Db, ownerId: UserId, config: UserSetti
  * guarding it would refuse the user's own explicit repair while preventing no loss. Before this existed the
  * settings blob had NO repair door at all: every section write refused, the per-leaf Reset
  * (`use-config-leaf.ts`) refused because it writes through `updateUserSettingsSection`, and even the backup
- * restore (`verbs/import-user-settings.ts`) refused because it read-merges. The exemption is recorded
- * two-sidedly in the `json-column-write-parity` gate's GUARD_EXEMPT table, so a future caller that starts
- * merging onto the stored value turns that row RED.
+ * restore (`verbs/import-user-settings.ts`) refused because it read-merges. A future caller that
+ * merges onto the stored value belongs on the guarded writer, not here.
  *
  * The BACKGROUND predicate still rides the write, unchanged from {@link writeUserConfig}: a repair may not
  * pin an asset the caller does not own. (`DEFAULT_USER_SETTINGS` pins none, so the guard list is empty and

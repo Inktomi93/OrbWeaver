@@ -1,7 +1,7 @@
 // The Waystone's GEOMETRY + TINT tables (charts/meter/waystone.tsx — RV-10). Component-free: the 96×96 dial
 // maths (where an hour sits on the ring, the arc paths, the bezel ticks), the fixed star/cloud/particle
-// lattices, and every token tint the layers paint with. Split out of the component so the stone stays under
-// the §13.7 primitive size cap and so the pure geometry is readable on its own.
+// lattices, and every token tint the layers paint with. Apart from the component so the pure
+// geometry is readable on its own.
 //
 // Every color here is a theme token or a `color-mix()` over tokens — zero raw literals, so any seed theme
 // restyles the stone for free (D71).

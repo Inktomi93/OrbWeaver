@@ -5,8 +5,7 @@
 // phone Filters row now (`chat-list-phone-filters.tsx`), because two stacked disclosures paid a 44px coarse
 // trigger twice to carry two facts. This file is viewport-agnostic again: one strip, one printed kicker,
 // rendered inside that panel on a phone and in the column on a desktop.
-// Split out of `surfaces/chat-list-surface.tsx` under the 450-line component cap (UI-Architecture §2.1) when
-// #490's filter work pushed that surface past it; a shortcut strip and a chip are components, and the
+// Apart from `surfaces/chat-list-surface.tsx`: a shortcut strip and a chip are components, and the
 // surface keeps the composition. Both read and write the ONE narrowing store (`chat-list-filter-store`), so
 // nothing is threaded through props that the store already carries.
 

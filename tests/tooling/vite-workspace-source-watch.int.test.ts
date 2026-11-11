@@ -1,6 +1,6 @@
 // The dev server's watch coverage of the SIBLING workspace packages (#2462) — a ROOT-CONFIG pin, hence a
-// flat `tests/tooling/` file (the `test-layout` gate's exempt non-mirror tier: `packages/client/vite.config.ts`
-// is not under a `src/`, so it prefix-swaps to nothing — the same standing as `vite-fs-deny.test.ts`).
+// flat `tests/tooling/` file (`packages/client/vite.config.ts`
+// is not under a `src/`, so no mirror path exists — the same standing as `vite-fs-deny.test.ts`).
 //
 // WHAT BROKE. Vite watches everything outside `root` ONE PATH AT A TIME (`ensureWatchedFile` →
 // `watcher.add(file)`), and a chokidar path added AS A FILE stops delivering after the second

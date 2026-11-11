@@ -1,6 +1,6 @@
 // The composer's terminal Send/turn-Stop slot, owned by the row-1 `Attach and send` group because it commits
-// the composed message or aborts that live turn. Extracted from `Composer` (component-size cap) so the
-// honest-refusal gate's props (#54) don't inflate that file. Stop wins while a turn is live; otherwise Send,
+// the composed message or aborts that live turn. Apart from `Composer`, so the
+// honest-refusal gate's props (#54) stay with the control they gate. Stop wins while a turn is live; otherwise Send,
 // which disables-with-reason when the chat's connection can't serve (`focusableWhenDisabled` -> aria-disabled
 // but hoverable). Only the PERSISTENT unavailable gate carries a reason; the transient pending/empty
 // disablements do not.

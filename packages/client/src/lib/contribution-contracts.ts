@@ -7,8 +7,7 @@
 //
 // WHY IT IS ITS OWN FILE, not a block in `registry-contracts.ts` (the same reason
 // `home-tile-contracts.ts` is): that file holds §6b — the CONTEXT-panel model, its mint, and the
-// per-section `S` projections the `context-definition-shape` gate resolves BY PATH
-// (`/lib/registry-contracts.ts$`), so those cannot move. §6c has no such pin, and the two halves share
+// per-section `S` projections. The two halves share
 // nothing but a tier: this file imports neither the registry primitive nor `registry-contracts.ts`.
 // Tier, import surface and entry point are identical — every consumer imports from `#lib`.
 //

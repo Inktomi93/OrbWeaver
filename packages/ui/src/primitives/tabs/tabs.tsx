@@ -170,7 +170,7 @@ function indicatorGeometry(node: HTMLElement): IndicatorGeometry | null {
  *
  * The obvious transform spelling is illegal here. A pure-CSS `translateX(var(--active-tab-left)) scaleX(width/base)`
  * never rests at identity — EVERY selected tab is a rest state carrying a
- * non-identity scale — which the `rest-transform-grid` gate reds (integer-line-boxes §9 Law 2: a resting
+ * non-identity scale — which integer-line-boxes §9 Law 2 refuses (a resting
  * scale permanently resamples the subtree's raster), and it would scale the 2px bar's `rounded-full` cap
  * radius by the same factor for the whole life of the element.
  *

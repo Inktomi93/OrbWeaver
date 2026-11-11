@@ -1,7 +1,7 @@
 // The Waystone's LAYER components (charts/meter/waystone.tsx — RV-10): the independently animated pieces of
 // the living clock — the dial's label arcs, the sun/moon on its arc, the star field, the cloud deck, the
-// falling particles, the sky wash + lightning, and the enveloping fog/wind bands. Split out of the component
-// file so the stone stays under the §13.7 primitive size cap; each layer is decorative SVG (the whole
+// falling particles, the sky wash + lightning, and the enveloping fog/wind bands. Apart from the component
+// file; each layer is decorative SVG (the whole
 // composite is `aria-hidden` — the band's TEXT carries every datum).
 //
 // ONE ANIMATION PER ELEMENT: the CSS `animation` shorthand is not additive, so an enter-fade and a loop never

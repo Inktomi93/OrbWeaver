@@ -24,7 +24,7 @@ import type { AutomationBusEvent, AutomationEmitSource } from "@orb/contracts/au
 import { sourceKey } from "./apply-automation-bus-event.ts";
 
 /** The `quickReplySurfaced` arm of the bus union — narrowed once so the chip shape derives from the wire and
- *  is never re-spelled (`no-inline-types`: the choice shape has ONE home, the contract's union). */
+ *  is never re-spelled (§7.4: the choice shape has ONE home, the contract's union). */
 type QuickReplyEvent = Extract<AutomationBusEvent, { type: "quickReplySurfaced" }>;
 
 /** One origin's live chip set — the rendered choices a rule OR plugin surfaced, kept whole. There is no fuller

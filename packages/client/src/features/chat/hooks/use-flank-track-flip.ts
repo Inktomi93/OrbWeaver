@@ -1,6 +1,6 @@
 // The room flank's copy of the shell's FLIP stamp (use-shell-track-flip.ts): JS stamps only the direction when the
 // plugin column joins or leaves the row, and shell.css owns the distance and the glide. The attribute names stay
-// literals here because `css-selector-has-a-writer` reads the writer's literal names.
+// literals here so a reader can match each shell.css selector to its writer.
 
 import type { RefObject } from "react";
 import { useEffect, useLayoutEffect, useRef } from "react";

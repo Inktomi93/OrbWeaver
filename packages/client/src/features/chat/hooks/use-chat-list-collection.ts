@@ -27,7 +27,7 @@ import { createCollectionSurface } from "#data";
  *  paint enrich twenty rows the virtualizer cannot mount yet. */
 const CHAT_LIST_PAGE_SIZE = 30;
 
-// Derived, not exported: `no-inline-types` keeps a feature's exported shapes in its contract home, and the
+// Derived, not exported: §7.4 keeps a feature's exported shapes in its contract home, and the
 // row type is a one-line `inferOutput` every consumer already spells for itself (chat-list-row.tsx,
 // chat-summary-row.ts) — a second exported name for the same wire row would be the doubling that rule exists
 // to stop.

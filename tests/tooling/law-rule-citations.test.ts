@@ -2,7 +2,7 @@
 // Without this check a doc keeps citing a gate that was renamed or never built, and a reader trusts a check that does
 // not exist.
 import { globSync, readFileSync } from "node:fs";
-import { extname, join } from "node:path";
+import { basename, extname, join } from "node:path";
 import { expect, test } from "@orb/testkit/tooling";
 import { ESLint } from "eslint";
 import dependencyCruiser from "../../.dependency-cruiser.ts";
@@ -89,14 +89,19 @@ const enabledStylelintRules = (): Set<string> => {
   return new Set(blocks.flatMap((block) => Object.entries(block.rules ?? {}).flatMap(([id, setting]) => (isOn(setting) ? [id] : []))));
 };
 
+/** The rule names the stylelint config's own plugins register. */
+const stylelintPluginRules = (): string[] =>
+  [stylelintConfig.plugins]
+    .flat()
+    .flatMap((plugin: unknown) =>
+      typeof plugin === "object" && plugin !== null && "ruleName" in plugin && typeof plugin.ruleName === "string" ? [plugin.ruleName] : [],
+    );
+
 test("every orb/ rule a law or rule file cites is registered and enabled in a config block", { timeout: 120_000 }, async () => {
   const eslint = new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: ROOT });
   const config = await resolvedConfig(eslint, join(ROOT, CLIENT_PROBE));
   const registered = Object.keys(config.plugins["orb"]?.rules ?? {}).map((id) => `orb/${id}`);
-  const plugins: readonly unknown[] = [stylelintConfig.plugins].flat();
-  const stylelintRegistered = plugins.flatMap((plugin) =>
-    typeof plugin === "object" && plugin !== null && "ruleName" in plugin && typeof plugin.ruleName === "string" ? [plugin.ruleName] : [],
-  );
+  const stylelintRegistered = stylelintPluginRules();
   // A plugin that loads no rules would pass every citation as missing; fail on that first.
   expect(registered.length).toBeGreaterThan(0);
   expect(stylelintRegistered.length).toBeGreaterThan(0);
@@ -150,4 +155,67 @@ test("every policy a code comment cites is a dependency-cruiser rule or an ESLin
 test("a policy cite names a loaded rule or is refused", () => {
   const source: Source = { path: "tooling/src/a.ts", text: "// policy `tooling-cli-via-index` holds; policy `tooling-ghost` does not\nexport {};\n" };
   expect(deadPolicyNames([source], new Set(["tooling-cli-via-index"]))).toStrictEqual(["tooling/src/a.ts:1 policy tooling-ghost"]);
+});
+
+const GATE_ROOTS = [...POLICY_ROOTS, "scripts/"] as const;
+// A check named as the enforcer: "`x` gate", "gate `x`" or "enforced by `x`". A rule name carries a hyphen, which keeps
+// a door such as `#data` or a procedure such as `stream.connect` out.
+const GATE_NAME = String.raw`\x60(?:orb\/)?([a-z0-9]+(?:-[a-z0-9]+)+)\x60`;
+const GATE_CITE = new RegExp(
+  String.raw`${GATE_NAME} (?:gate|door|ratchet)\b|\bgate ${GATE_NAME}|\b(?:enforced|pinned|held|checked) by (?:the )?${GATE_NAME}`,
+  "gu",
+);
+const GATE_HINT = /\bgate\b|\bdoor\b|\bratchet\b|\b(?:enforced|pinned|held|checked) by\b/u;
+
+/** Every name a gate cite may resolve to: a loaded lint or dependency rule, an ESLint rule id without its plugin prefix, or a test file's stem. */
+function enforcerNames(paths: ReadonlySet<string>): ReadonlySet<string> {
+  const rules = [...lintRuleNames(), ...enabledStylelintRules(), ...stylelintPluginRules()];
+  const stems = [...paths].filter((path) => path.startsWith("tests/")).map((path) => basename(path).split(".")[0] ?? "");
+  return new Set([...rules, ...rules.map((rule) => rule.slice(rule.lastIndexOf("/") + 1)), ...stems]);
+}
+
+function deadGateCites(spans: readonly Citation[], live: ReadonlySet<string>): string[] {
+  return spans.flatMap(({ file, line, name: text }) =>
+    [...text.matchAll(GATE_CITE)].flatMap((match) => {
+      const name = match[1] ?? match[2] ?? match[3] ?? "";
+      return live.has(name) ? [] : [`${file}:${String(line)} ${name}`];
+    }),
+  );
+}
+
+/** The comment lines of a script and the lines of a law file, in the shape `deadGateCites` reads. */
+function gateSpans(sources: readonly Source[]): Citation[] {
+  return sources.flatMap((source) => {
+    const kind = SCRIPT_KINDS[extname(source.path)];
+    const spans = kind === undefined ? source.text.split("\n").map((text, index) => ({ line: index + 1, text })) : scriptComments(source, kind);
+    return spans.flatMap(({ line, text }) => text.split("\n").map((part, offset) => ({ file: source.path, line: line + offset, name: part })));
+  });
+}
+
+test("every gate a code comment or law file names as an enforcer is a loaded rule or a tracked test", { timeout: 120_000 }, () => {
+  const { paths } = trackedFiles();
+  const live = enforcerNames(paths);
+  // An unread config or tree would pass every cite; the set holds a rule of each tool and a test stem.
+  expect([...live]).toEqual(expect.arrayContaining(["no-inline-union-alias", "package-subpath-crossing", "orb/rest-transform-grid", "law-rule-citations"]));
+  const sources = [...paths]
+    .filter(
+      (path) =>
+        (LAW_FILES.includes(path) || (SCRIPT_KINDS[extname(path)] !== undefined && GATE_ROOTS.some((root) => path.startsWith(root)))) &&
+        !path.startsWith(VENDORED),
+    )
+    .map((path) => ({ path, text: readFromRepo(path) }))
+    .filter(({ text }) => GATE_HINT.test(text));
+  expect(deadGateCites(gateSpans(sources), live)).toStrictEqual([]);
+});
+
+test("a gate cite names a loaded rule or a test file, or is refused", () => {
+  const sources: Source[] = [
+    {
+      path: "packages/x/src/a.ts",
+      text: '// the `ghost-gate` gate reds it; gate `orb/closed-vocabulary` holds; enforced by `law-rule-citations`\n// the `#data` door and the `stream.connect` door are not rules\nexport const s = "gate `string-ghost`";\n',
+    },
+    { path: "docs/law/Law.md", text: "Pinned by `tooling-cli-via-index`.\nThe `retired-check` ratchet keeps it.\n" },
+  ];
+  const live = new Set(["closed-vocabulary", "tooling-cli-via-index", "law-rule-citations"]);
+  expect(deadGateCites(gateSpans(sources), live)).toStrictEqual(["packages/x/src/a.ts:1 ghost-gate", "docs/law/Law.md:2 retired-check"]);
 });

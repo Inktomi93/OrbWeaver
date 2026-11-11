@@ -3,7 +3,7 @@
 // surface adapts to THIS box (never the viewport) and its `@container` queries resolve. `h-full` gives
 // the surface a bounded height to scroll inside (the message-list seal throws on an unbounded window) —
 // the anchor's parent (the shell CONTENT region) supplies the actual pixels. This is the cross-file
-// anchor-wraps-surface shape §4 mandates + what flips the `surface-in-a-container` gate green.
+// anchor-wraps-surface shape §4 mandates + what `orb/anchor-provides-container` checks.
 
 import { Container } from "@orb/ui/layout";
 import type { ReactElement, ReactNode } from "react";

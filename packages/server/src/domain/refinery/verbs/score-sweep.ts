@@ -98,7 +98,7 @@ function sweepOutputSamplingOf(items: readonly SweepItem[], presetParams: RolePr
   return resolveStageSampling({ subject: hungriest.subject, presetParams, contextTokens, inputEstimate: widestInput });
 }
 
-/** Bind the library score sweep over the workload DI bundle (the verb-naming factory the workload
+/** Bind the library score sweep over the workload DI bundle (the factory the workload
  *  contribution composes — the `createDistill` precedent). */
 export function createScoreSweep(deps: RefineryWorkloadDeps): ScoreSweep {
   return (opts) => runScoreSweep(deps, opts);

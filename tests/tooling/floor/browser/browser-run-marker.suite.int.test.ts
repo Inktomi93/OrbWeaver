@@ -182,7 +182,7 @@ test("a MARKED reparented-leak chromium is reaped once its owner is gone, and le
   // marker string: `MARKER_RE` (tooling/src/floor/process/run-marker.ts:48) matches it as `[1-9]\d*` and nothing
   // ever reads the value — `runMarkerOwnerPid` reads only the pid, and the sweep decides on pid plus
   // liveness. What separates these two markers is the PID and the crypto nonce, so the subject here is
-  // identity, never elapsed time, and a `test-determinism` waiver would have recorded a false reason.
+  // identity, never elapsed time.
   const owner = plantOwner();
   const retiringOwnerMarker = mintRunMarker(spawnedPid(owner), FROZEN_AT_MS);
   const liveOwnerMarker = mintRunMarker(process.pid, FROZEN_AT_MS);

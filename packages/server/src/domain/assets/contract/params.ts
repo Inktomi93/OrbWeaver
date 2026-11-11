@@ -11,7 +11,7 @@ export type { StoreParams } from "@orb/contracts/assets";
 
 // domain/assets/contract/params — every verb's *Params, declared ONCE (§7.4 — one type home). `AssetKind`
 // is the upload-wire `kind` axis; its canonical home is `@orb/contracts/assets` (the db enum, the route,
-// and the client all derive from the SAME tuple — §7.5 `no-inline-union-redecl`), imported here TYPE-ONLY
+// and the client all derive from the SAME tuple — §7.5), imported here TYPE-ONLY
 // so the verb signatures reference one name (consumers reach it via `@orb/contracts/assets` directly). This
 // stays a pure-type file (no `z.object` → no contract-test obligation here).
 //

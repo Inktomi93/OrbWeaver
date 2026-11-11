@@ -57,7 +57,7 @@ export function sameFold(previous: FoldState | null, next: FoldState): boolean {
  *  token: `+8 More, Filter by another character` / `+8, Filter by another character`.
  *
  *  It lives HERE because the name is decided
- *  by what the FOLD hid, it is pure, and `face-strip.tsx` sits on the client component-size cap. */
+ *  by what the FOLD hid, and it is pure. */
 export function tileName(caption: boolean, label: string, hidden: number): string {
   return caption ? `+${hidden} More, ${label}` : `+${hidden}, ${label}`;
 }

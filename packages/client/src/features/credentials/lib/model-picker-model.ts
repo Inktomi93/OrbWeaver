@@ -16,7 +16,7 @@ import { isSpaceChar, trimEndWhile } from "@orb/kit/strings";
 
 /** Where the picker's models come from, as the caller last saw it. `unlisted` is a source with no list to
  *  offer (nothing fetched yet, or no catalog door for this draft); `failed` is a list read that errored.
- *  NOT an exported alias: a feature's `lib/` is not a type home (`no-inline-types`), so every reader derives
+ *  NOT an exported alias: a feature's `lib/` is not a type home (§7.4), so every reader derives
  *  it from `ModelPickerProps["source"]`, and a new arm is a `tsc` error at each of them. */
 type ModelCatalogSource =
   | { readonly status: "loading" }

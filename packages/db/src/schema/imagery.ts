@@ -15,8 +15,8 @@
 // precedent — "the vector row FKs the owned asset, no ownerId on the row"). `chat_id SET NULL`: the image
 // (and its provenance) outlives a deleted chat — it's the user's, the chat was just where it was born.
 //
-// `mode` DERIVES the canonical `PROMPT_TEMPLATE_MODES` tuple from `@orb/contracts/imagery` (the ONE home;
-// `no-inline-union-redecl`) on BOTH tiers — the column's `{ enum }` gives the row-type union and the
+// `mode` DERIVES the canonical `PROMPT_TEMPLATE_MODES` tuple from `@orb/contracts/imagery` (the ONE home,
+// Spine-TypeScript-and-Patterns §7.5) on BOTH tiers — the column's `{ enum }` gives the row-type union and the
 // tuple-built CHECK gates the SQL; the column never re-spells the union on either side.
 
 import type { TokenProvenance } from "@orb/contracts/chat";

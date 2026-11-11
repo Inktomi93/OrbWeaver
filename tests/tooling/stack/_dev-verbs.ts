@@ -1,4 +1,4 @@
-// Shared scaffolding for the dev-verb tests (NOT a test file — no `.test` suffix, so test-layout ignores it): a
+// Shared scaffolding for the dev-verb tests (NOT a test file — no `.test` suffix): a
 // stack context on a scratch run dir with no record, the verb's printed lines captured through the output sink,
 // and planted socket-table reads handed to the verb through its `DevPortDeps` seam.
 

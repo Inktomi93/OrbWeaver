@@ -42,7 +42,7 @@ import { InboxRow } from "./notification-inbox-row.tsx";
 
 /** The `notifications.list` row shape — a private local alias (each file that needs it derives its own,
  *  the `use-character-mutations.ts` house pattern): the ONE home is the router's own inference, not a
- *  hand-declared shape, so `no-inline-types` does not apply and this is never exported. */
+ *  hand-declared shape, so §7.4 does not apply and this is never exported. */
 type InboxItem = inferOutput<Trpc["notifications"]["list"]>["items"][number];
 
 /** The sheet lens's heading id — the block points its `aria-labelledby` at it, so the group and the heading

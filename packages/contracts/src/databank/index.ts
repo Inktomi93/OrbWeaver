@@ -18,7 +18,7 @@ import { pageDirectionShape } from "#rpc";
 import type { VisibleRoomRef } from "../chat/visible-rooms.ts";
 import { visibleRoomRefSchema } from "../chat/visible-rooms.ts";
 
-/** The provenance of a databank document. ONE canonical tuple (§7.5 no-inline-union-redecl): the db
+/** The provenance of a databank document. ONE canonical tuple (§7.5): the db
  *  `documents.origin` enum column derives from it, and the tRPC wire builds its `z.enum` from the same
  *  home. `text` = pasted/authored canon (no source bytes); the rest carry re-extractable source bytes or
  *  a scrape URL. */
@@ -71,8 +71,8 @@ export const INGEST_PHASES = ["empty", "indexing", "embedding", "ready", "stalle
  *  reports every `case` of an exhaustive switch over the `z.infer` alias as
  *  `lint/suspicious/noUnnecessaryConditions` "unreachable", while the tuple-derived alias lints clean (probe
  *  from untracked files under `packages/contracts/src/` and `packages/server/src/`, never /tmp where zod does
- *  not resolve). The `satisfies` below is a ONE-WAY assignability check; the `zod-output-twin-parity` gate is what proves the schema output and this
- *  type are exactly equal. */
+ *  not resolve). The `satisfies` below is a ONE-WAY assignability check; exact equality holds because the schema and this
+ *  type both derive from `INGEST_PHASES`. */
 export type IngestPhase = (typeof INGEST_PHASES)[number];
 
 const ingestPhaseSchema = z.enum(INGEST_PHASES) satisfies z.ZodType<IngestPhase>;
@@ -265,7 +265,7 @@ export const DOCUMENT_DESTINATION_FORM_FIELD = "destination";
 
 // ── reindex scope + mode (the cross-boundary maintenance axis) ───────────────────────────────────────────
 // Both the tRPC `reindex` verb and the `databank-reindex` WORKLOAD params derive from these ONE schemas
-// (§7.5 no-inline-union-redecl). `document` re-runs one document; `owner` re-runs every document the caller
+// (§7.5). `document` re-runs one document; `owner` re-runs every document the caller
 // owns. `chunk-embed` covers a chunk-param or embed-model change (the hash/prune machinery finds the delta);
 // `re-extract` additionally re-runs `infra/extraction` over the CAS bytes (extractor-upgrade sweep).
 export const reindexModeSchema = z.enum(["chunk-embed", "re-extract"]);

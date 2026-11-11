@@ -207,8 +207,7 @@ interface SectionsBandProps {
 }
 
 /** A SETTINGS group's band. Its own component so the frame above reads as a dispatch (the collection arm's
- *  two bands are each one for the same reason), and so this file stays under the `component-size` cap the
- *  collection split was about. */
+ *  two bands are each one for the same reason). */
 function SectionsBand({ group, hasRows, open, active, modifiedMarker, unbuilt, bandId, bodyId, onSelectGroup, bandRef }: SectionsBandProps): ReactElement {
   // THE UNBUILT ARM NEEDS NO STATED NAME — MEASURED, NOT ASSUMED (#1169). The obvious reading of #1214-1
   // is that the unbuilt marker is the same welding defect as the modified one and owes the same

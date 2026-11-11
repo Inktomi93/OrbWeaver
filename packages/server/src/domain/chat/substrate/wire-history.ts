@@ -650,7 +650,7 @@ function extraFrameTokens(frames: readonly ChatHistoryMessage[], content: string
  *  the fit drops, and a dropped row's spans are never projected. */
 export async function buildWireHistory(
   /** The per-assembly inputs the conversion needs, spelled INLINE (an exported shape declared in
-   *  `substrate/` is `no-inline-types` RED — a domain type home is `contract/`), and identical on both
+   *  `substrate/` breaks §7.4 — a domain type home is `contract/`), and identical on both
    *  callers: the turn reads them off `RunTurnPipelineArgs`, the previews off `PreviewInputs` + the chat ctx. */
   env: {
     readonly toolsOk?: boolean;

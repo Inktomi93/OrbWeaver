@@ -1,7 +1,7 @@
 // The condensed orb-web GLYPH — the brand mark's parametric form (D173
 // "one emblem, every scale": the favicon IS the settled web's final
-// frame, and this module is that frame as maths). Split from web-weave-geometry.ts under the
-// component-size-ui cap; consumed by the icon seal (primitives/icons/orb-web.ts), the client
+// frame, and this module is that frame as maths). Apart from web-weave-geometry.ts;
+// consumed by the icon seal (primitives/icons/orb-web.ts), the client
 // WeaveGlyph mark, and WebSpinner's dash metrics. Pure — no DOM, no colors.
 
 import type { WeavePoint } from "./web-weave-math.ts";

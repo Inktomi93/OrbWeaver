@@ -19,7 +19,7 @@ import type { SlashArgCompleter, SlashArgOffer, SlashCommandContext, SlashComman
 import { SlashCommandRegistryContext } from "#state";
 import { commandNotReadyNotice, parseSlashDraft, unknownCommandNotice } from "../lib/slash-command.ts";
 
-// The result of a composer send. Non-exported (a feature hooks module is not a `no-inline-types` home);
+// The result of a composer send. Non-exported (a feature hooks module is not a §7.4 type home);
 // the composer consumes it by inference and narrows on `kind`.
 type SlashDispatch = { readonly kind: "send"; readonly text: string } | { readonly kind: "ran" } | { readonly kind: "blocked"; readonly reason: string };
 

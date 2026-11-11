@@ -33,11 +33,8 @@ const ACTIONS_JSON: SQL = sql`(case when json_valid(${automationRules.actions}) 
 /** One arm's field, addressed from the COLUMN by index rather than off `json_each`'s row value.
  *
  *  WHY THE INDEXED FORM RATHER THAN THE SHORTER `element.value`: it is the SAME addressing the rewrite's own
- *  `json_set` uses, so the file speaks one scheme end to end — and `element.value` is genuinely NOT a column
- *  read, which the `open-json-column-key-parity` gate cannot tell (a `json_each(…) AS element` alias is not a
- *  table alias, so its `.value` pools into every drizzle column named `value` and the arm's `$.type` read gets
- *  attributed to the open `settings.value` blob). Reported as a gate blind spot; this spelling is the honest
- *  one regardless of the gate. */
+ *  `json_set` uses, so the file speaks one scheme end to end — and `element.value` reads like a column read
+ *  when it is not (a `json_each(…) AS element` alias is not a table alias). */
 function armField(index: SQL, field: "type" | "name"): SQL {
   return sql`json_extract(${ACTIONS_JSON}, '$[' || ${index} || '].${sql.raw(field)}')`;
 }

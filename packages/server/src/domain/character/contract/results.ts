@@ -10,7 +10,7 @@ export type { PluginCardDataHit, PluginCardDataRead } from "@orb/contracts/chara
 export type BulkTagOutcome = { readonly characterId: CharacterId; readonly applied: boolean } | { readonly characterId: CharacterId; readonly failed: unknown };
 
 /** The #1708 pre-#1702 plugin-provenance backfill verdict (`persistence/backfill-plugin-provenance.ts`).
- *  Homed HERE per no-inline-types §7.4. */
+ *  Homed HERE per §7.4. */
 export interface BackfillPluginProvenanceResult {
   /** Rows whose `importedFrom` was minted from a recovered plugin identity. */
   readonly backfilled: number;

@@ -29,7 +29,7 @@
 // gate is the same guarantee expressed as a TESTED refusal rather than a silently-forked second cell.)
 //
 // COMPOSED AT ENTRY, on the Context — the `presence-registry.ts` posture, not a module singleton like the
-// three buses. Two reasons: the reap clock must be the INJECTED one (determinism — `no-raw-clock`), and a
+// three buses. Two reasons: the reap clock must be the INJECTED one (determinism — Spine-Testing §3), and a
 // per-instance registry means a test drives an isolated socket world instead of a process-global one.
 //
 // REAPING IS LAZY, not a timer: every registry entry point sweeps cells that have been dark past the window.

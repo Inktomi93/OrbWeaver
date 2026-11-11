@@ -52,7 +52,7 @@ const HEADER_PLACEMENTS = ["inside", "outside"] as const;
  *  same enforcement `avatarTreatment`/`bubbleLayout` carry. */
 // NOT exported: a consumer reads it off the table it belongs to (`RowSkin["headerPlacement"]`), the same
 // way `avatarTreatment`'s return type is reached. An exported alias here would be a second home for a
-// shape the skin table already owns, which `no-inline-types` reds.
+// shape the skin table already owns, which §7.4 refuses.
 type HeaderPlacement = (typeof HEADER_PLACEMENTS)[number];
 
 const COLUMN_PLACEMENTS = ["anchored", "gutterCentred"] as const;

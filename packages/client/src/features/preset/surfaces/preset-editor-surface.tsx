@@ -28,8 +28,8 @@
 //
 // HEADER TRUTH (G7) LIVES WITH THE BAND: the sticky header — the name, the ACTIVE truth + its Activate
 // affordance, the autosave status, the Reset door and its confirm, and the view-tab strip — is
-// `../components/preset-editor-header.tsx` (split out at #496 when this file crossed the component-size
-// cap). Every ruling recorded against those elements moved there verbatim; read its header for G7, the
+// `../components/preset-editor-header.tsx` (split out at #496).
+// Every ruling recorded against those elements moved there verbatim; read its header for G7, the
 // dead model chip's 2026-08-19 reversal, the shared-content-column ruling and the strip's scroll rule.
 //
 // The deck's ghost column reads `preset.resolveEffective` (§4.3/D5) — the REAL funnel, not a client

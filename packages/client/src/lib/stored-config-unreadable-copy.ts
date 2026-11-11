@@ -28,8 +28,7 @@
 
 import type { VersionedParseFailure } from "@orb/contracts/versioned-config";
 
-/** The two causes a reader can act on differently. Homed as a tuple so the union DERIVES (§5.5,
- *  `no-inline-union-redecl`). */
+/** The two causes a reader can act on differently. Homed as a tuple so the union DERIVES (§5.5). */
 const UNREADABLE_CAUSES = ["from-a-newer-version", "corrupt"] as const;
 
 export type UnreadableConfigCause = (typeof UNREADABLE_CAUSES)[number];

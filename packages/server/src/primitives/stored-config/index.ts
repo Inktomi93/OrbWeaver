@@ -22,8 +22,8 @@
 // that GETs a leniently-parsed blob and PUTs the whole thing back. A write whose content is INDEPENDENT of
 // the stored blob (a packaged registry constant, the schema default a `reset` verb writes, an uploaded
 // backup file) carries no degraded read to persist, and guarding it would refuse the user's own explicit
-// repair while buying no protection. Those writers are named, with their reasons, in the
-// `json-column-write-parity` gate's GUARD_EXEMPT table — a permanent two-sided exemption, not debt.
+// repair while buying no protection. Each such writer states that reason
+// at its own site; the exemption is permanent, not debt.
 //
 // TRADEOFF (deliberate): a user whose row is genuinely corrupt can no longer perform a read-modify-write
 // against it until the row is repaired — the write fails loudly with `stored_config_unreadable` instead of

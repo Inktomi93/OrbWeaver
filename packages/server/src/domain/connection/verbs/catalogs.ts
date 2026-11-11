@@ -61,7 +61,7 @@ function createRefreshCatalog(ctx: ConnectionContext): ConnectionService["refres
 /** The slice of `ConnectionService` this grouped file owns. */
 type CatalogVerbs = Pick<ConnectionService, "catalogModels" | "draftCatalogModels" | "refreshCatalog">;
 
-/** The catalog verb bundle (`verb-naming`: one factory named for the file). */
+/** The catalog verb bundle (one factory named for the file). */
 export function createCatalogs(ctx: ConnectionContext): CatalogVerbs {
   return {
     catalogModels: createCatalogModels(ctx),

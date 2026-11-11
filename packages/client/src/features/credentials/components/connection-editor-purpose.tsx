@@ -1,6 +1,6 @@
 // The PURPOSE tier's two readings (inference program §5.3a · the step-3b mock `editor.html` Board A): the
-// inferred-kind verdict and the task-requirement badge rail. Split out of `connection-editor.tsx` at the
-// `component-size` cap; the tier's third row (the background switch) stays with the editor, because it is a
+// inferred-kind verdict and the task-requirement badge rail. Apart from `connection-editor.tsx`;
+// the tier's third row (the background switch) stays with the editor, because it is a
 // plain field rather than a derived reading.
 
 import type { DeclaredCapability, ModelKind } from "@orb/contracts/inference";

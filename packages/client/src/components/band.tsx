@@ -76,7 +76,7 @@ import { CountText } from "./count-text.tsx";
 
 /**
  * The band's props. Its two AXES ride inline here rather than as exported aliases:
- * `packages/client/src/components/` is not a type home (`no-inline-types` — the homes are `contracts`/`kit`/`db`/`ui` and the
+ * `packages/client/src/components/` is not a type home (§7.4 — the homes are `contracts`/`kit`/`db`/`ui` and the
  * client's own `data`/`forms`/`state`/`lib`), and a purely presentational axis of one composite has nothing
  * to say in `state` or `lib`. A consumer that needs to NAME an arm derives it — `BandProps["chevron"]` —
  * which is the §5.5 "one importable union, never re-spelled" shape with the union's one home right here.

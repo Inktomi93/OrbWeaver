@@ -292,9 +292,8 @@ export type ContentSignatures = z.infer<typeof contentSignaturesSchema>;
 //  §5.3c CLASS 3 — a parsed JSON sidecar with a zod schema at the read seam and a producer-side parse on
 //  write, never `Record<string, unknown>` past the seam. The column's `$type` is this shape
 //  (`db/schema/chat.ts`), every reader goes through {@link parseVariantMetadata}, and every writer builds
-//  this object rather than a bag — which is what puts the SQL rollup readers'
-//  `json_extract(metadata, '$.reasoning_duration')` under `open-json-column-key-parity` at all (an open bag
-//  is one level BELOW that gate's reach: it judges the column's `$type`, never a bag inside it).
+//  this object rather than a bag, so the SQL rollup readers'
+//  `json_extract(metadata, '$.reasoning_duration')` reads a declared key.
 //
 //  `importResidue` is the ST import's OWN doorway and the reason closing this type is not a data drop: an ST
 //  `swipe_info[i].extra` carries arbitrary foreign keys (`api`, `bias`, `send_date`, a tool's own residue)

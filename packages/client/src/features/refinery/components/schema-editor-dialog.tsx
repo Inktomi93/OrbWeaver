@@ -20,8 +20,8 @@
 // the accounting stats. The advisory tier derives every wire claim from the structured layer's own check
 // (`checkWireSchema` over the hosted intersection), so it re-implements no vendor law.
 //
-// The two READ-ONLY panes (`PreflightNote` + `PreviewCard`) live in `schema-editor-panes.tsx` — the
-// `component-size` split, on this file's own `render-hint-picker` precedent. This module keeps the four
+// The two READ-ONLY panes (`PreflightNote` + `PreviewCard`) live in `schema-editor-panes.tsx`, on this
+// file's own `render-hint-picker` precedent. This module keeps the four
 // panes that AUTHOR, the save press, and the close guard.
 
 import type { RefineryForgeArm, RefinerySchemaStage, RefinerySchemaSummary } from "@orb/contracts/refinery";

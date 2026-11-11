@@ -1,5 +1,5 @@
-// One CHRONICLE BEAT — the journal tab's row family, split out of `rpg-journal-tab.tsx` (the component-size
-// cap; the tab keeps the scopes/grouping composition, this keeps the row anatomy).
+// One CHRONICLE BEAT — the journal tab's row family, apart from `rpg-journal-tab.tsx` (the tab
+// keeps the scopes/grouping composition, this keeps the row anatomy).
 //
 // A beat renders as a BULLET LINE (bordered cards are reserved for ARTIFACTS): the type word, the title,
 // then the body in the same muted voice. A member reads static text (PERMISSION-omit, never a disabled

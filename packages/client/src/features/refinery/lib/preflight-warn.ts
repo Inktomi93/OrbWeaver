@@ -46,8 +46,7 @@ export function stageWarnOf(stagePre: StagePreflightView | undefined, contextTok
 /**
  * The whole preflight READING the workbench does, derived in one call: the context ceiling both the lanes
  * and the warn compare against, the SESSION-level warn, and the stages that warn speaks for — which are
- * exactly the stages whose own copy is suppressed. One function because the three are one decision, and
- * because a surface at its `component-size` cap may not spell a derivation it can import.
+ * exactly the stages whose own copy is suppressed. One function because the three are one decision.
  */
 export function preflightViewOf(data: PreflightData): {
   readonly contextTokens: number | null;

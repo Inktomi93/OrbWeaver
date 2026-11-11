@@ -328,7 +328,7 @@ export const rollDiceArgsSchema = z
 // Strip mode: also reads stored rows.
 /** `roll_dice`'s persisted TOOL RESULT (the JSON `ToolCallRecord.result` the model round's dice call writes —
  *  `domain/rpg/tools/index.ts` handler value). B8's in-thread `tool-renderers` contribution parses
- *  `record.result` through THIS rather than re-spelling the shape inline (`no-inline-types`; same home as
+ *  `record.result` through THIS rather than re-spelling the shape inline (§7.4; same home as
  *  `rollDiceArgsSchema`). `faces` are the per-die rolls, `total` the summed value the server baked; `reason`
  *  echoes the model's optional `reason` arg. A malformed/absent blob is the renderer's own fall-back-to-generic
  *  decision (a tool call is CANON — the record is never dropped), never a parse throw here. */

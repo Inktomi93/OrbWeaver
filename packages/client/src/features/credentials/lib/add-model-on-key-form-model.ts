@@ -24,7 +24,7 @@ const ADD_MODEL_ACTION_COPY = {
   },
 } as const;
 
-/** Not exported (`no-inline-types`): readers derive it as `NonNullable<ReturnType<typeof addModelScope>>`. */
+/** Not exported (§7.4): readers derive it as `NonNullable<ReturnType<typeof addModelScope>>`. */
 type AddModelScope = keyof typeof ADD_MODEL_ACTION_COPY;
 
 /** The row's scope, or `null` when the action cannot work: a hosted row whose key is gone has nothing to

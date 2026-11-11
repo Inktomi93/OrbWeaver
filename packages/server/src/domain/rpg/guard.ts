@@ -65,8 +65,7 @@ function permitsHost(can: Can, principal: Principal, role: ParticipantRoleState)
   }
 }
 
-/** THE host gate — rpg's ONE authority-refusal site (the `two-class-role-authority` gate's cited chokepoint
- *  for this domain). The COMPARISON is the kernel's (`can`, injected); what lives here is the refusal.
+/** THE host gate — rpg's ONE authority-refusal site. The COMPARISON is the kernel's (`can`, injected); what lives here is the refusal.
  *  `reason` is the refusal SENTENCE, because that is the only thing the six verbs that used to re-spell
  *  `role !== "host"` inline actually needed: `patchActor` says "…to hand-edit an actor", `promoteActor` says
  *  "…to promote an actor to the room's characters". Taking the sentence as an argument collapses seven comparisons to one

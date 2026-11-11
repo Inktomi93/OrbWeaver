@@ -9,7 +9,7 @@
 // `entry/http/auth-routes.ts`, which made the callback's ENTIRE happy path undrivable in-process: the
 // package resolves only under `packages/server/node_modules`, so a `vi.mock("openid-client")` from `tests/`
 // never binds (the real library runs and every callback test reports `token_exchange_failed` while LOOKING
-// wired), and the path-form mock that WOULD bind is correctly RED under `test-mock-doctrine`. Injecting is
+// wired), and the path-form mock that WOULD bind is refused by the test `no-restricted-syntax` mock rules in `eslint.config.ts`. Injecting is
 // the doctrine's own answer: fake at the edges, wire the real thing at the composition root.
 //
 // WHAT THIS FILE MUST NEVER GROW INTO. It is a NARROWING ADAPTER and nothing else:

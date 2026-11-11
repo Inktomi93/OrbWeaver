@@ -5,15 +5,12 @@
 // the registry primitive; imports zero features. `SectionDefinition` itself lives in `#state` (it binds
 // these shapes to the shell's SectionId/PanelMode vocabulary, which state owns — §5 rule 5).
 //
-// THIS FILE'S PATH IS LOAD-BEARING: the `context-definition-shape` gate resolves a `defineContextTabs<S>`
-// type argument by matching the declaration's file against `/lib/registry-contracts.ts$` (O5 strict —
-// a projection must be a real type PUBLISHED here, never an inline literal). So the per-section
-// projections below cannot be re-homed without moving the gate's anchor with them.
+// A `defineContextTabs<S>` type argument names a projection PUBLISHED here, never an inline literal (O5
+// strict); review holds this.
 //
 // The §6c CROSS-FEATURE CONTRIBUTOR vocabularies (chat/character surface anchors, tool renderers, slash
 // commands) are a sibling file, `contribution-contracts.ts` — same tier, same `#lib` entry point, no
-// shared imports, and split out when this file reached the 450-line component-size cap (the
-// `home-tile-contracts.ts` precedent).
+// shared imports (the `home-tile-contracts.ts` precedent).
 //
 // `S` appears only CONTRAVARIANTLY on `ContextTabDef` (when/body) — safe to erase, unsafe to PRODUCE
 // across the registry seam (no existentials in TS). So `S` is confined to `defineContextTabs`/

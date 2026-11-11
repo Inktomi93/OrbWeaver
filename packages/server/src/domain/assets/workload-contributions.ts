@@ -7,7 +7,7 @@
 // `db.select` at all. The SQL half then moved one step further in, to
 // `persistence/maintenance.ts::loadAvatarBackfillCandidates`: `characters` is CHARACTER's table, and a
 // domain's cross-domain read lives in its db-access slot, never in a root seam (Tier-1-DB.md §"Cross-tier
-// composition"; the `own-tables-only` gate). What stays here is the CAS half — the per-row blob probe.
+// composition"). What stays here is the CAS half — the per-row blob probe.
 
 import type { FsckReport } from "@orb/contracts/assets";
 import type { MaintenanceResult } from "@orb/contracts/workloads";

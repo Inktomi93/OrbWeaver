@@ -1,7 +1,7 @@
-// message-row.tsx's render helpers, split out to stay under the component-size cap. No state of its
+// message-row.tsx's render helpers. No state of its
 // own — every export is a pure (args) => ReactElement/ReactNode the row calls with already-resolved data.
 // The row's HEADER (speaker · timestamp · actions) and its placement decision are a second module,
-// message-row-header.tsx, split off when #288 pushed this file past the cap.
+// message-row-header.tsx.
 
 import type { MessageView } from "@orb/contracts/chat";
 import type { UserId } from "@orb/kit/ids";

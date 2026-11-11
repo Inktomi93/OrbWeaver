@@ -18,18 +18,18 @@ export { PROMPT_TEMPLATE_MODES, promptTemplateModeSchema } from "./modes.ts";
 
 // @orb/contracts/imagery — the image-generation wire vocabulary (D49 item 1). The ONE home for the prompt
 // template MODES (the db `imagery_generations` CHECK + the Phase-7 leaf's templates both DERIVE this tuple —
-// `no-inline-union-redecl`), the size presets, and the chat-facing `generatePicture` request. The Phase-7
+// Spine-TypeScript-and-Patterns §7.5), the size presets, and the chat-facing `generatePicture` request. The Phase-7
 // leaf (extract/caption/reuse/edit fields) + the D46 `/imagine` action args grow this file ADDITIVELY.
 //
 // IC-C: `MODE_TRIGGERS` + `generateImageActionArgsSchema` are minted HERE and
 // imported DOWN by `@orb/contracts/automation`'s `generate_image` action arm (never re-spelled there —
-// `no-inline-union-redecl`); they land in the SAME commit as their first consumer.
+// Spine-TypeScript-and-Patterns §7.5); they land in the SAME commit as their first consumer.
 
 // ── The prompt-building CATALOG (Phase B ⑫) — the SHIPPED-DEFAULT authored content, as-data ──────────
 // The image-prompt-mode instructions were hardcoded in the server leaf (`domain/imagery/substrate/templates`);
 // homed HERE as the catalog (the ONE imagery-vocabulary home, grows additively) so a per-user
 // `UserSettings.imagery` override composes over them (unset ⇒ byte-identical to the shipped default). The
-// consumers read these canonical defaults directly (never re-spelled — the `no-inline-union-redecl`
+// consumers read these canonical defaults directly (never re-spelled — the §7.5
 // discipline the modes tuple follows). The `{{char}}`/`{{user}}` macros resolve through the ONE
 // `@orb/kit/macro` engine at extraction time (a user override rides the same engine).
 
@@ -245,7 +245,7 @@ export const generatePictureRequestSchema = z.discriminatedUnion("mode", [
 // ── IC-C mints ──────────────────────────────────────────────────────────────────────────────────────
 // The `/imagine` trigger→mode map + the automation `generate_image` action-arm args. Both land WITH their
 // first consumer and are imported down — the /imagine client parse + the automation union
-// read ONE home, never a re-spelled stand-in (`no-inline-union-redecl`).
+// read ONE home, never a re-spelled stand-in (Spine-TypeScript-and-Patterns §7.5).
 
 /** Trigger word → mode, for the `/imagine` surface (client autocomplete AND the automation arm parse read
  *  ONE map — engine-vs-data: helpers are substrate, the DATA is contracts). `you`→character card,
@@ -273,7 +273,7 @@ const generateImageActionArgsFields = z
   })
   .strip();
 /** The automation Tier-1 `generate_image` action-arm args — lives HERE so the
- *  automation contract IMPORTS it into its action union, never re-spells it (`no-inline-union-redecl`). The
+ *  automation contract IMPORTS it into its action union, never re-spells it (Spine-TypeScript-and-Patterns §7.5). The
  *  args map 1:1 onto `GeneratePictureParams`; `quiet` is interpreted by the CALLER (post vs fire-log
  *  return), not by imagery. */
 export const generateImageActionArgsSchema = z.discriminatedUnion("mode", [

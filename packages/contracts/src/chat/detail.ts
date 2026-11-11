@@ -1,6 +1,6 @@
 // @orb/contracts/chat/detail — the full chat read (`ChatDetail`) and the invite join result that carries it.
 // The shape is authored as an interface (its per-field docs are the room's visibility contract) and twinned
-// by a strict runtime schema; `zod-output-twin-parity` holds the two to the same output. The schema is the
+// by a strict runtime schema of the same output (review holds the twin). The schema is the
 // tRPC output parser of `invites.redeemInvite` and `invites.acceptInvite`, so a producer that adds a key to
 // the detail, a roster row or an identity entry fails the join response instead of reaching the new member.
 

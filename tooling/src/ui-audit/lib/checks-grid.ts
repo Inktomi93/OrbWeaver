@@ -29,14 +29,14 @@ export const SCALE_IDENTITY_EPSILON_JS = JSON.stringify(SCALE_IDENTITY_EPSILON);
 const FRACTION_DIGITS = 3;
 const SCALE_DIGITS = 4;
 
-/** THE ONE TYPED MIRROR of the `integer-line-boxes` gate's ARM C exemption row — NEVER a second decision.
- *  The gate exempts `packages/client/src/styles/globals.css::var(--appearance-reading-line-height)`; that declaration
+/** THE RUNTIME MIRROR of the source exemption — NEVER a second decision. The reviewed stylelint disable in
+ *  `packages/client/src/styles/globals.css` exempts `var(--appearance-reading-line-height)`; that declaration
  *  sits on `[data-slot="message-bubble"]`, so the same user-owned continuous multiplier decides every text
  *  landing inside the bubble. Two-sidedness at runtime is the ACCOUNTING, not a stale arm: the exclusion is
  *  counted and printed per run (#987 — "an N/A cohort cannot silently disappear from the denominator"), so
  *  a surface with bubbles and a zero `readingSurface` count is visible as an instrument problem. The row
  *  ends when the reading rule gains its own round() belt at the consuming declaration — the same end
- *  condition the gate row carries, restated so neither copy can drift silently. */
+ *  condition the source exemption carries. */
 export const GRID_EXEMPTIONS = {
   readingSurface: {
     selector: '[data-slot="message-bubble"]',

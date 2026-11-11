@@ -1,6 +1,5 @@
 // EVERYTHING THAT REACTS TO MEASURED CONTENT HEIGHT — the message list's two `contentHeightPx` layout
-// effects, split out of message-list.tsx to keep the primitive under the 450-line cap
-// (UI-Primitives-and-Reuse.md §13.7), like list-window.ts, follow-yield.ts, pin-spacer.ts and announce.ts.
+// effects, apart from message-list.tsx, like list-window.ts, follow-yield.ts, pin-spacer.ts and announce.ts.
 // The seal keeps the WHEN (which refs, which render); this file owns the WHAT and the WHY.
 //
 // THE TRANSCRIPT'S SCROLL COST ON A DEV BUILD IS DEV-ONLY AND EXPECTED (#2438, measured 2026-09-19). A

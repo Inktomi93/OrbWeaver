@@ -1,5 +1,5 @@
 // The shell's MODAL-SLOT vocabulary — the rail-triggered/content-triggered modal registry is total over this
-// tuple (assembled at the door). Extracted from `shell-store.ts` into its own module for `component-size`, the
+// tuple (assembled at the door). Its own module, the
 // `section-ids.ts`/`config-group-ids.ts` precedent: it is a self-contained VOCABULARY with two readers (this
 // store's `openModal` state and the door's `ModalDefinition` totality check) and belongs to neither's subject
 // matter.

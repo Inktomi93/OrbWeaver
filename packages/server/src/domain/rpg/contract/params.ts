@@ -116,8 +116,7 @@ export interface StagedPatch {
 }
 
 // ── the cheap-mode state TOOLS' internal shapes (#408) ──────────────────────────────────────────────────
-// Homed here, not in `tools/apply.ts`, since 2026-08-22: the `no-inline-types` gate's `/tools/` clause was
-// exempting this whole subsystem by string accident (it predated `domain/rpg/tools/`), and these are ordinary
+// Homed here, not in `tools/apply.ts`: these are ordinary
 // domain-internal shapes — §7.4 puts them in the domain's own `contract/` like every other param above. Two
 // of the three additionally cross OUT of the domain (`domain/rpg/index.ts` re-exports them for
 // `tools/rounds/`), which is precisely the case the one-home rule exists for.

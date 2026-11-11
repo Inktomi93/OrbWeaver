@@ -1,4 +1,4 @@
-// The heal-wave/invalidate-wave COLLAPSE — extracted from invalidation.ts (component-size cap) as
+// The heal-wave/invalidate-wave COLLAPSE — apart from invalidation.ts as
 // pure logic with one consumer: invalidateFilters, the sole invalidateQueries call site.
 import type { InvalidateQueryFilters, QueryKey } from "@tanstack/react-query";
 import { partialMatchKey } from "@tanstack/react-query";
@@ -57,8 +57,7 @@ export function collapseFilters(filters: readonly InvalidateQueryFilters[]): rea
 }
 
 /** The tRPC filter's dotted path — the readable key name the `[bus]` dev log keys off. Dev-only. Homed here
- *  (not in `invalidation.ts`) for the SAME reason this file exists: the seam file is at its component-size cap,
- *  and a filter-key helper is filter logic with one consumer, exactly what this file already collects. */
+ *  (not in `invalidation.ts`) because a filter-key helper is filter logic with one consumer, exactly what this file already collects. */
 export function filterKeyName(filter: InvalidateQueryFilters): string {
   const queryKey = (filter as { readonly queryKey?: readonly unknown[] }).queryKey;
   const path = Array.isArray(queryKey) ? queryKey[0] : undefined;

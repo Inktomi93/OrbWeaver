@@ -1,4 +1,4 @@
-// The apply/save-as-copy verb row (extracted from the content surface under the component-size cap) —
+// The apply/save-as-copy verb row (apart from the content surface) —
 // the TERMINAL acts: apply is the ONE live-card write (snapshot-first, belt 13), save-as-copy is its
 // branch-off twin (no snapshot by construction). The acts are the workbench's ONE `useTerminalActs`
 // instance, handed in, so a recovery in flight disables these buttons too.

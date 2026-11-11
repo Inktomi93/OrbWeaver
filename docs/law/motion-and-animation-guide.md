@@ -456,8 +456,8 @@ vars, and the MOVE is a transform-only FLIP (`glideIndicator` — §1.5's except
 transitioned back to identity at `--motion-base`/`ease-out-expo`).
 A `transition-all` on `left`/`width` is a layout animation that relayouts the list every frame
 and is a §3.7 violation. The obvious pure-CSS transform spelling is illegal here — `scaleX(width/base)` never rests at identity, so every
-selected tab would be a rest state carrying a non-identity scale (`rest-transform-grid`,
-integer-line-boxes §9 Law 2) and the 2px bar's `rounded-full` caps would be permanently
+selected tab would be a rest state carrying a non-identity scale
+(integer-line-boxes §9 Law 2) and the 2px bar's `rounded-full` caps would be permanently
 stretched. Pinned by `tests/ui/primitives/tabs/indicator.ct.tsx` (the launched property set, the
 resting transition contract, and the settled landing on the new tab's box).
 

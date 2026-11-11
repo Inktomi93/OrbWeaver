@@ -96,7 +96,7 @@ function createInspectEndpoint(ctx: ConnectionContext): ConnectionService["inspe
 /** The slice of `ConnectionService` this grouped file owns. */
 type DiagnosticVerbs = Pick<ConnectionService, "probe" | "accountCredits" | "generationCost" | "verifyAuth" | "inspectEndpoint">;
 
-/** The diagnostics verb bundle (`verb-naming`: one factory named for the file). */
+/** The diagnostics verb bundle (one factory named for the file). */
 export function createDiagnostics(ctx: ConnectionContext): DiagnosticVerbs {
   return {
     probe: createProbe(ctx),

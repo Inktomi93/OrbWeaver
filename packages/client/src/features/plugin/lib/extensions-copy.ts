@@ -70,8 +70,8 @@ export const EXTENSIONS_REVIEW_PLUGINS_ACTION = "Review plugins";
  * `keyof typeof EXTENSIONS_EMPTY_COPY`, derived at every consumer (`use-extensions-empty.ts`). One home, and
  * a fifth reason cannot exist without copy — which is the failure mode a parallel union would allow. The
  * `satisfies` (rather than a `Record<Reason, …>` annotation) is what keeps the keys narrow enough to derive
- * from while still checking every value against the shape; a declared-and-exported union here would also be
- * `no-inline-types` RED, since a client feature is not a type home.
+ * from while still checking every value against the shape; a declared-and-exported union here would also break
+ * §7.4, since a client feature is not a type home.
  */
 export const EXTENSIONS_EMPTY_COPY = {
   "none-installed": {

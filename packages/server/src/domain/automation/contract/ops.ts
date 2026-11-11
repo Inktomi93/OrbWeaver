@@ -475,7 +475,7 @@ export type ArmOutcome =
  *  (`null` = no arm errored), plus the two terminal MODIFIERS an arm can raise — `suggested` (the S4 stash:
  *  the arm ASKED instead of acting) and `paused` (D146-d: the arm's contributor vanished mid-dispatch). Each
  *  changes the TERMINAL and nothing else. Homed here (not `engine/dispatch.ts`, where `runArms` computes
- *  it) because `no-inline-types` wants an exported cross-file shape in the domain's type home. */
+ *  it) because §7.4 puts an exported cross-file shape in the domain's type home. */
 export interface ArmsResult {
   readonly detail: Record<string, unknown> | null;
   readonly suggested: boolean;
@@ -648,7 +648,7 @@ export type IsPluginLive = (pluginId: PluginId, ownerId: UserId) => Promise<bool
 /** The per-process pending map (`substrate/suggestions.ts` implements it). Every method that can observe an
  *  expired entry takes the INJECTED clock's `nowMs` and sweeps first — the TTL is carried EXPLICITLY
  *  (§3-S4) rather than by a timer: a timer reads the wall clock in a domain whose every other time read is
- *  injected (test-determinism) and holds a process handle open for a map allowed to be empty. */
+ *  injected (Spine-Testing §3) and holds a process handle open for a map allowed to be empty. */
 export interface SuggestionStore {
   /** Stash an ask, REPLACING any pending one for the same `(chatId, ruleId)` (RULED F1's replace-per-kind):
    *  a rule that keeps firing keeps ONE live ask, so a cadence rule can never wallpaper the band. */

@@ -274,7 +274,7 @@ export const LIVE_TRIGGERS = {
 // arms for purged domains (agents/rpg/force-activate) are not typed here today — the rebuild mints them onto
 // `AUTOMATION_ACTION_TYPES` if those domains return. The `generate_image` arm does NOT own its shape — it
 // EXTENDS `@orb/contracts/imagery`'s `generateImageActionArgsSchema` (one home per shape —
-// `no-inline-union-redecl`).
+// Spine-TypeScript-and-Patterns §7.5).
 
 /** The closed action-arm discriminators. A new arm fails the `ARM_EXECUTORS` mapped-type in the
  *  domain engine (exhaustive-dispatch).
@@ -589,7 +589,7 @@ export const automationActionSchema = z.discriminatedUnion("type", [
       confirmFirst: confirmFirstSchema,
     })
     .strip(),
-  // 1.7 generate an image (SPEND-classed). Args home in @orb/contracts/imagery (`no-inline-union-redecl`).
+  // 1.7 generate an image (SPEND-classed). Args home in @orb/contracts/imagery (Spine-TypeScript-and-Patterns §7.5).
   z.discriminatedUnion("mode", [
     generateImageActionArgsSchema.options[0].extend({ type: z.literal("generate_image"), confirmFirst: confirmFirstSchema }),
     generateImageActionArgsSchema.options[1].extend({ type: z.literal("generate_image"), confirmFirst: confirmFirstSchema }),

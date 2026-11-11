@@ -1,7 +1,7 @@
 // THE THEME SCOPE'S EMIT SURFACE — the ROSTER of every `--*` custom property `clampThemeTokens` can
 // write, and the subset whose SEED form stays a static polarity token. Spellings only: not one line here
 // decides anything, which is exactly why they are not in `clamp.ts` (that file owns the POLICY — what a
-// picked base derives and what a clamp refuses — and it crossed the 450-line primitive cap carrying both).
+// picked base derives and what a clamp refuses).
 // The same seam `color-parse.ts` already cut for the READERS, cut once more for the NAMES.
 //
 // THE ROSTER IS A CLAIM, not documentation: the keys `clampThemeTokens` actually writes must equal this

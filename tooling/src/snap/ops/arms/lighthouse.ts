@@ -250,8 +250,8 @@ async function runLighthouseArm(session: ProbeSession, opts: Args, name: string,
     return refusal;
   }
   // A Lighthouse throw is never a finding about the app: it is converted into the REFUSED outcome the
-  // caller prints as an INSTRUMENT ERROR and exits 2 on. (No gate-ignore: the catch RETURNS a value
-  // carrying the caught binding, so caught-failure-ownership classifies it as owned and files nothing.)
+  // caller prints as an INSTRUMENT ERROR and exits 2 on. The catch RETURNS a value
+  // carrying the caught binding, so the failure keeps its owner.
   try {
     const receipt = await auditSettledPage(page, {
       device,

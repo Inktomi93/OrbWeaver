@@ -1,7 +1,6 @@
 // ui-guest-realm — THE GUEST REALM half of the Tier-C client sandbox: the
-// ambient-denial stubs, the injected seams, and everything `orb.ui(1)` hands a scripted plugin. Split out of
-// `ui-guest.worker.ts` when that file passed the client size cap; the seam is a real one rather than a line
-// count, and it is the same seam the server draws — `infra/plugin-host/realm.ts` builds the surface, and
+// ambient-denial stubs, the injected seams, and everything `orb.ui(1)` hands a scripted plugin. Apart from
+// `ui-guest.worker.ts` on a real seam, the same seam the server draws — `infra/plugin-host/realm.ts` builds the surface, and
 // `sandbox.ts` drives it. This module BUILDS; the worker DRIVES.
 //
 // It exports `post` because the realm itself is a producer of outbound messages (`render`, `log`) and the

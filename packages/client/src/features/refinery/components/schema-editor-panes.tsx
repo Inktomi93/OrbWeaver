@@ -1,5 +1,5 @@
 // The custom-schema editor's two READ-ONLY panes — the preflight advisory and the live render preview +
-// test drill. Split out of `schema-editor-dialog.tsx` for the `component-size` cap (the `render-hint-picker`
+// test drill. Apart from `schema-editor-dialog.tsx` (the `render-hint-picker`
 // precedent that file's own header cites). They belong together and apart from the dialog for the same
 // reason: neither AUTHORS anything. The dialog owns the four editable panes, the save press and the close
 // guard; these two only ever READ the draft and tell the author what it will cost and what it will look

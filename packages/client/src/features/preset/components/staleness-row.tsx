@@ -1,4 +1,4 @@
-// The params deck's staleness row (§4.2) — its own module for the component-size cap. It names the stored
+// The params deck's staleness row (§4.2) — its own module. It names the stored
 // settings the target model does not honor; they stay stored (a preset is shared across connections) and
 // are neither sent nor deleted unless the user presses Clear.
 

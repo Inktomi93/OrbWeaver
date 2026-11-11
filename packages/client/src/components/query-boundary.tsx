@@ -66,8 +66,8 @@ interface QueryBoundaryBase {
    * renders inside the height the child settled at on THIS device last time and the settled child is
    * re-measured on every commit, so a keyed surface holds its box across the read. Keys share the
    * `surface-box-store` namespace with the home tiles' registry ids; one mount, one key — a
-   * deliberately shared surface routes through one exported const (gate `query-boundary-reservation`
-   * REDs a repeated literal).
+   * deliberately shared surface routes through one exported const, never a
+   * repeated literal.
    */
   readonly reserveKey?: string;
   /** Preserve a parent-owned definite height through the reservation wrapper. */

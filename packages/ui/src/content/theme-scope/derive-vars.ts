@@ -1,5 +1,4 @@
-// The DERIVED custom-property spellings for one picked base surface — extracted from `clamp.ts` at the
-// component-size split (#243), on the same seam `color-parse.ts` was cut along: the clamp keeps the
+// The DERIVED custom-property spellings for one picked base surface — apart from `clamp.ts`, on the same seam `color-parse.ts` was cut along: the clamp keeps the
 // POLICY (what parses, what is dropped, which field wins), this file owns the CSS a base surface derives.
 //
 // Everything here is relative-colour syntax off the ONE picked base, so the browser does the arithmetic

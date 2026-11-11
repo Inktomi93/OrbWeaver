@@ -1,5 +1,5 @@
 // The ATTRIBUTES plane of the character takeover — the game's stat-profile vocabulary rendered as one cell
-// per attribute. Extracted from `rpg-character-detail.tsx` when that file crossed the component-size cap: the
+// per attribute. Apart from `rpg-character-detail.tsx`: the
 // plane is a coherent unit (the vocabulary, the clamp band, and the clear door travel together) and it is the
 // only part of the takeover with a value CONTRACT of its own, so it reads better with its rule beside it.
 //

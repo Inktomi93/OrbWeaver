@@ -1,5 +1,5 @@
 // Web-weave shared maths — the floor under the family (geometry builds with it, the render + spider
-// painters interpolate with it). Split out under the component-size-ui cap; structural `{x,y}` points
+// painters interpolate with it). Structural `{x,y}` points
 // so this module carries no type cycles (its one value import, `#lib`'s `sinHash`, is the shared
 // seeded-hash engine — waystone-geometry.ts's `jitter` is the sibling consumer).
 

@@ -27,7 +27,7 @@ import { motionPrecedingInputHint, motionQueueHint, orderMotionGaps } from "../.
 import { motionExit, motionStatus } from "../../../../tooling/src/snap/lib/motion-verdict.ts";
 
 // A REAL rendered selector, and deliberately not a `data-testid` one: these fixtures only exercise the
-// argv parser, and a testid nothing mints would be a dead selector promise (`testid-liveness` A1).
+// argv parser, and a testid nothing mints would be a dead selector promise.
 const BURST = '[data-slot="message-list-scroll"]=100:10';
 
 /** A selector-less window that composited `total` frames, none dropped. */

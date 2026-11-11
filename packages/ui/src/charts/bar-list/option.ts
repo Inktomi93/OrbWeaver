@@ -35,7 +35,7 @@ export interface BarListItem {
  *  muted teal) instead. Nothing is carried by hue either way — the bar-end value label and the axis name
  *  state the reading for a viewer who sees no colour at all.
  *
- *  Homed as a tuple and DERIVED (`no-inline-union-redecl`), so the `SERIES_COLOR` map below is exhaustive
+ *  Homed as a tuple and DERIVED (`orb/no-inline-union-alias`), so the `SERIES_COLOR` map below is exhaustive
  *  by construction and a new intent fails `tsc` rather than falling through to a default. */
 const BAR_LIST_INTENTS = ["accent", "positive", "negative", "quiet"] as const;
 export type BarListIntent = (typeof BAR_LIST_INTENTS)[number];

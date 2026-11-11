@@ -1,5 +1,5 @@
 // domain/imagery/substrate/mode — mode classification over the @orb/contracts/imagery 7-tuple. The mode
-// SUBSETS are DERIVED via Exclude/Extract (never re-spelled — no-inline-union-redecl); each guard narrows
+// SUBSETS are DERIVED via Exclude/Extract (never re-spelled — Spine-TypeScript-and-Patterns §7.5); each guard narrows
 // PromptTemplateMode so the template Records + the orchestrator's step-3 dispatch stay exhaustive under tsc
 // (a new tuple member fails to key a Record / falls through a guard until it declares its arm).
 

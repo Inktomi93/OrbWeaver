@@ -1,5 +1,4 @@
-// The row's CONTENT parts — the title line and the body's inner content. Split out of `list-row.tsx` when
-// the rendered `titleQualifier` (#517) pushed the primitive past the 450-line `component-size-ui` cap: the
+// The row's CONTENT parts — the title line and the body's inner content. Apart from `list-row.tsx`: the
 // seal (the props contract, the clickable-body wrapper, the collapse observer) stays there, and everything
 // that lays out ONE row's text column lives here. Internal to the primitive — `index.ts` exports neither.
 
@@ -147,7 +146,7 @@ export function ListRowContent({
 }): ReactElement {
   // The subtitle YIELDS on hover/focus only when a reveal is present, so the reveal takes the exact line.
   // VISIBILITY, not display: both spans share one grid cell (`subtitleStack`), so the line's box is the max
-  // of the two and never changes under the pointer (gate `no-hover-display-swap`).
+  // of the two and never changes under the pointer.
   const subtitleSwap = subtitleReveal === undefined ? "" : "col-start-1 row-start-1 group-hover:invisible group-focus-within:invisible";
   const subtitleSpan =
     subtitle === undefined ? null : (

@@ -79,8 +79,7 @@ test("a subject the reveal cannot make answerable STILL withholds its verdict", 
 //
 // The four arms below were authored against `ops/walker/census-collision.ts` while the obscured census
 // still lived inside it. The census moved to `ops/walker/obscured-reach.ts`; these moved WITH it, because
-// a spec whose name resolves to a file that is not its subject is exactly the lie `test-layout`'s own
-// DECLARED CAPABILITY LIMIT (#2264) says that gate cannot catch.
+// a spec whose name resolves to a file that is not its subject tests the wrong module.
 
 test("obscured targets scan past the old cap and retain a later distinct collision decision", async ({ runCli, scratch }) => {
   const collision = (

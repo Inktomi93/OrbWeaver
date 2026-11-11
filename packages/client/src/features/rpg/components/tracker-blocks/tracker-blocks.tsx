@@ -12,7 +12,7 @@ import type { ReactElement, ReactNode } from "react";
 import { TrackerValue } from "./tracker-value.tsx";
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// 1. METER ROW — extracted to ./meter-row.tsx (the component-size cap; the ambient-strip precedent). The
+// 1. METER ROW — extracted to ./meter-row.tsx (the ambient-strip precedent). The
 //    row is five coupled pieces (label · datum · value cell · `/max` · track) with no other consumer.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -127,8 +127,8 @@ export function TrackerChip({ label, value, subject, guide = false, onEditValue 
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// 4. NPC CARD — extracted to ./npc-card-slots.tsx beside its three header slots (the component-size cap;
-//    the ambient-strip precedent). The card and the slots it composes are ONE unit: NpcRelationship,
+// 4. NPC CARD — extracted to ./npc-card-slots.tsx beside its three header slots (the
+//    ambient-strip precedent). The card and the slots it composes are ONE unit: NpcRelationship,
 //    NpcMood and NpcGuides have no other consumer, and the card is nothing but their arrangement.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
@@ -159,7 +159,7 @@ export function BeatLine({ children }: BeatLineProps): ReactElement {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
-// 6. AMBIENT STRIP — extracted to ./ambient-strip.tsx (the component-size cap).
+// 6. AMBIENT STRIP — extracted to ./ambient-strip.tsx.
 // ─────────────────────────────────────────────────────────────────────────────────────────────────
 
 // ─────────────────────────────────────────────────────────────────────────────────────────────────

@@ -19,7 +19,7 @@ export interface ToolCallBlockProps {
   readonly record: ToolCallBlockRecord;
 }
 
-// Declared ONCE as an `as const` tuple, the union derived (§7.5 no-inline-union-redecl).
+// Declared ONCE as an `as const` tuple, the union derived (§7.5 orb/no-inline-union-alias).
 const TOOL_CALL_STATES = ["error", "success", "unexecuted"] as const;
 type ToolCallState = (typeof TOOL_CALL_STATES)[number];
 

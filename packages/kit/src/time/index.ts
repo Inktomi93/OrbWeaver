@@ -112,7 +112,7 @@ export function isoToMs(value: string): number | null {
 // sanctioned resolver for the source box, never an ambient parser read.
 
 /** The IANA zone name of the host process — the ONE sanctioned ambient-zone read (this module is the
- *  `no-raw-intl-time` exemption zone). For a foreign corpus whose wall-clock timestamps carry no zone,
+ *  one home for raw `Intl`). For a foreign corpus whose wall-clock timestamps carry no zone,
  *  the importing box's zone is the only honest guess and is exactly what the writing app used when the
  *  corpus is imported where it was produced. Falls back to `"UTC"` on an ICU build that reports none. */
 export function hostTimeZone(): string {
@@ -211,7 +211,7 @@ export const reportedTimeZoneSchema: z.ZodType<IanaTimeZone, string> = z.string(
 // Localization happens exactly ONCE, at the display edge, through this factory (UI-Gates §11.5 —
 // the timezone pipeline): the wire stays epoch-ms UTC; the viewer's locale/timezone applies here and
 // nowhere else. `now` is INJECTED (client-determinism — relative-time is snapshot-testable); this
-// module is the raw-`Intl`/ambient-clock exemption zone (no-raw-intl-time / no-raw-clock), so the
+// module is the one home for raw `Intl` and the ambient clock, so the
 // ambient defaults below are the sanctioned single site of both.
 
 /** The current instant as epoch milliseconds, injected wherever code reads time so a test can pin it. */

@@ -8,8 +8,8 @@
 // `./kit` is DELIBERATELY NOT re-exported here (2026-08-02). `Tier-1-DB.md` §Invariants #5 has always
 // said "`@orb/db/query` is also their documented IMPORT PATH", but the barrel re-export made the wrong path
 // compile, so half the tree reached `batchMany`/`fetchOwned`/`isConstraintViolation`/`parseStringArrayColumn`
-// through `@orb/db` — which reads as "a table-ish thing from the schema barrel" and blurs the one line the
-// `own-tables-only` gate keys on (tables are OWNED, kit primitives are legal everywhere). Dropping the
+// through `@orb/db` — which reads as "a table-ish thing from the schema barrel" and blurs the one line between
+// OWNED tables and the kit primitives that are legal everywhere. Dropping the
 // re-export makes the documented path the ONLY path: `@orb/db/query` for primitives, `@orb/db` for rows +
 // tables + the client.
 

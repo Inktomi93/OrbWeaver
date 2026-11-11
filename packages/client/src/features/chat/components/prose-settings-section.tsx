@@ -43,7 +43,7 @@ import {
 } from "../lib/prose-settings-model.ts";
 
 /** The form bag + the patch shape as LOCAL aliases off the model's own return types (D120: an exported
- *  patch/form alias is `no-inline-types` RED — the shape has ONE home, the function that builds it). */
+ *  patch/form alias breaks §7.4 — the shape has ONE home, the function that builds it). */
 type ProseForm = ReturnType<typeof projectProseForm>;
 
 // The validator REFUSES a write it cannot make survive (see `validateProseLengths`): an over-cap override

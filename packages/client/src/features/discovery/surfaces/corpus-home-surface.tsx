@@ -67,12 +67,12 @@
 // "THEMES" ON THIS SURFACE IS ALWAYS "STORY THEMES" — the discovery domain's distillation output. It shares
 // a word with the app's colour themes and the owner has been caught by that once; the spelling is law here.
 //
-// ── WHAT IS COMPOSED HERE VS OWNED NEXT DOOR (the `component-size` split, 2026-08-21) ─────────────────
+// ── WHAT IS COMPOSED HERE VS OWNED NEXT DOOR ────────────────────────────────────────────────
 // This file is the OVERVIEW'S COMPOSITION: the four suspended reads, the derived analysis state, the
 // masthead, the focal/rail grid, and the below-fold blocks' QUERIES. Blocks that own a closed interaction
 // live in `../components/`, and the story-theme rows + their detail card went there
 // (`corpus-theme-section.tsx`) because the selection state they share is read by nothing else here — a
-// surface holding a child's state beside seven unrelated reads is exactly how this file passed the cap.
+// surface does not hold a child's state beside seven unrelated reads.
 // The two inventory blocks (Never played, Model economics) followed on 2026-08-23 to
 // `corpus-home-insights.tsx`, for the same reason one step later: each grew the denominator and coverage
 // COPY it owed the populated library, and a section's own words are not the composition's business.

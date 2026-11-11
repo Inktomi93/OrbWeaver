@@ -14,7 +14,7 @@
 // LIVE TAILING IS NOT HERE ANY MORE (SSE-1 S5). The deleted `subscribe` proc is the `workloads` ROOM on the
 // tab's ONE socket (`transport/trpc/stream/sources/workloads.ts`), which is where its owner gate, its 60s
 // replay ring and its per-`workloadId` filter moved verbatim. A user watching three runs now pays three
-// attach round-trips instead of three browser connections; `single-stream-transport` keeps it that way.
+// attach round-trips instead of three browser connections (D118: one socket per tab).
 
 import {
   asStartWorkloadInput,

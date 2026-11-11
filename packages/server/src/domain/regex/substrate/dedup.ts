@@ -2,7 +2,7 @@
 //
 // It lives here and not in `persistence/` because it is LOGIC: it decides which candidates become new rows
 // and which re-use an existing one, and it builds the in-memory index that decision needs. `persistence/`
-// is queries-only (the `persistence-no-in-memory-state` gate is the enforcer) — it reads the owner's rows,
+// is queries-only — it reads the owner's rows,
 // hands them here, and writes back what this planner returns.
 //
 // THE RULE: a candidate matches an existing owned row when its NAME is equal AND its behavior body is

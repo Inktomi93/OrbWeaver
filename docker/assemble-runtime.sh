@@ -159,7 +159,7 @@ assemble_app() {
   # redirect root (the linked-worktree shape the reader already understands). With no refs (an archive build,
   # or a linked worktree whose .git is a file) the mount is empty and the stamp reads the source root.
   # `builtAt` is passed IN rather than read inside the package: production source reads time from the
-  # injected clock (the `no-raw-clock` law), and a build script is the one place that legitimately knows the
+  # injected clock (Spine-Testing §3), and a build script is the one place that legitimately knows the
   # wall instant.
   #
   # `--config.verify-deps-before-run=false`: the stamp reads package.json and the ref files and nothing that

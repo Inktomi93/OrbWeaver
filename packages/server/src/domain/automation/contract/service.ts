@@ -64,7 +64,7 @@ import type { NewSuggestionId } from "./suggestion-id.ts";
 
 /** The DI bundle the automation verbs close over. Assembled at the entry composition root and handed to
  *  `createAutomationService`. `now` is the injected clock; `prng` is the injected [0,1) source the dry-run
- *  template render passes to `{{random}}`/`{{roll}}` (test-determinism gate); `can` is the ONE authority
+ *  template render passes to `{{random}}`/`{{roll}}` (Spine-Testing §3); `can` is the ONE authority
  *  seam (D17 — automation never compares `role === 'host'` itself). */
 export interface AutomationContext {
   readonly logger: Logger;

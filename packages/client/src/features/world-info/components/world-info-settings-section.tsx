@@ -22,7 +22,7 @@ import { WORLD_INFO_SETTINGS_ENTITY_ID, WorldInfoSettingsAutosaveForm } from "..
 import { SCAN_DEPTH_MAX, SCAN_DEPTH_MIN, WI_TOKEN_BUDGET_MAX, WI_TOKEN_BUDGET_MIN } from "../lib/world-info-settings-model.ts";
 import { WORLD_INFO_SETTINGS_SUBCATEGORY } from "../lib/world-info-settings-nav.ts";
 
-// The form value IS the stored section shape — derived in place (no re-spelled alias; no-inline-types).
+// The form value IS the stored section shape — derived in place (no re-spelled alias; §7.4).
 type WorldInfoSettingsForm = UserSettings["worldInfo"];
 
 /** The World-info settings section body — mounted at the chat-behavior pane's contributed-sections anchor. */

@@ -1017,7 +1017,7 @@ function applyCompactionOverlay(ctx: AssembleContext, overlay: CompactionOverlay
 }
 
 /** The pre-turn arm's ELIGIBILITY read, lifted out of the orchestration below so its failure arm can stay
- *  inline (where the caught-failure-ownership grammar can see who owns the throw). The EFFECTIVE compaction
+ *  inline, where a reader sees who owns the throw. The EFFECTIVE compaction
  *  config = preset params folded with the per-send intent, per-send wins — reading `prep.intent` alone missed
  *  a preset-configured managed mode + cap (the reviewer's no-fire receipt). A `coveragePoint` of `undefined`
  *  is "not eligible this turn": not managed, not the agent-sdk api, or nothing above the verbatim tail. */

@@ -336,9 +336,8 @@ export type StageHealth = (typeof STAGE_HEALTH)[number];
 /** What the three probes answered for one band.
  *
  *  `served` IS the stack tool's `ServedState`, imported TYPE-ONLY through its front door — not a copy of it.
- *  The first draft re-spelled the four members here with a comment claiming that kept the stack tool behind
- *  snap's door; `no-inline-union-redecl` was right and the comment was wrong. The purity that comment was
- *  actually protecting is about VALUES: a type-only import is erased at compile time, so this file still
+ *  Re-spelling the four members here would not keep the stack tool behind snap's door
+ *  (Spine-TypeScript-and-Patterns §7.5). The purity that matters is about VALUES: a type-only import is erased at compile time, so this file still
  *  pulls in no stack code, no `ss`, no fetch and no runtime edge — while the vocabulary keeps ONE home
  *  (`tooling/src/stack/contract/types.ts` `SERVED_STATES`, exported as `ServedState` at that tool's
  *  index.ts). The IMPERATIVE probe that produces the value still enters through the same front door

@@ -154,9 +154,8 @@ export async function analyzeAvatarImage(
     // this schema at all (no guided decoding on the summarize role, a family that drops `responseFormat`)
     // fails EVERY asset identically, and the sweep's own counts cannot say so — the raw lens still lands, so
     // a whole-corpus analysis failure reports as a tidy "0 embedded, N skipped". This line is the difference
-    // between a diagnosable outage and a silent one, and it is the catch's OWNER under
-    // `caught-failure-ownership`: a guarded early exit ahead of the governed log would leave the
-    // model-unavailable arm an unproven absorb, because the walk credits the first top-level statement.
+    // between a diagnosable outage and a silent one, and it is the catch's OWNER: a
+    // guarded early exit ahead of it would absorb the model-unavailable arm without a log.
     getLog(logger).warn(
       { model, err: error, unservable, latched },
       "embeddings indexer: avatar analysis failed — asset skipped, will retry next sweep (unservable=true means the summarize backend does not serve this model at all and analysis is now disabled for it until restart; point the summarize role at the model the engine serves)",

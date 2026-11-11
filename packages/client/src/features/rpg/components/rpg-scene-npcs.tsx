@@ -1,5 +1,5 @@
-// The Scene tab's CAST section — the on-stage cards AND the "Known characters" disclosure. Split out of
-// `rpg-scene-tab.tsx` for the component-size gate; the two lists are ONE anatomy, so they live together.
+// The Scene tab's CAST section — the on-stage cards AND the "Known characters" disclosure. Apart from
+// `rpg-scene-tab.tsx`; the two lists are ONE anatomy, so they live together.
 //
 // THE OFFSTAGE NPC IS A PERSON THE HOST CAN SEE. Departure is a PRESENCE drop, and everything is retained —
 // identity row (name, emoji, mood, relationship, the standing guides) and tracked state — so the disclosure

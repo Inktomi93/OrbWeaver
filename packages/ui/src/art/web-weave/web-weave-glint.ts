@@ -1,5 +1,5 @@
 // The GLINT — the slow accent window that sweeps the settled web once per period, lighting the silk it
-// crosses. Split from web-weave-render.ts under the component-size-ui cap; its own concern anyway: a
+// crosses. Apart from web-weave-render.ts as its own concern: a
 // highlight pass over strands somebody else drew.
 //
 // PER SEGMENT, always. Canvas applies `globalAlpha` at stroke() time, so accumulating a multi-segment

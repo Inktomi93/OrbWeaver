@@ -22,8 +22,8 @@
 // (`applyFields` / `applyAsCopy` set `completed`). That is the ruled trade: the duplicate-list defect is
 // the live one.
 //
-// This pane lives beside the content surface rather than inside it because the surface is at its
-// `component-size` cap; the split is also the honest one — the landing joins a different read set than the
+// This pane lives beside the content surface rather than inside it because the
+// landing joins a different read set than the
 // session pipeline does and shares none of its state.
 
 import type { CharacterId } from "@orb/kit/ids";

@@ -1,5 +1,4 @@
-// The composer's PENDING-ATTACHMENT strip (extracted from composer.tsx at the #317 video landing — the
-// component-size cap): one thumb + remove button per picked file, image (CrossfadeImage) or video
+// The composer's PENDING-ATTACHMENT strip (apart from composer.tsx): one thumb + remove button per picked file, image (CrossfadeImage) or video
 // (BackgroundVideo first-frame/loop) by the FILE's mime. The object-URL lifecycle lives in
 // `use-composer-attachments.ts`; this is render-only.
 

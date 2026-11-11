@@ -31,7 +31,7 @@ export const TAG_FOLDER_TYPES = ["NONE", "OPEN", "CLOSED"] as const;
 // "unreachable" (`character-list-view.ts`'s `groupStartsOpen` is the live dispatch); the probe that called
 // this fixed ran under /tmp, where zod does not resolve, against `lint/correctness/noUnreachable`. Reproduce
 // from an untracked file under `packages/contracts/src/`. `satisfies` is only a one-way
-// assignability check; the `zod-output-twin-parity` gate proves exact parity.
+// assignability check; parity is exact because both derive from `TAG_FOLDER_TYPES`.
 export type TagFolderType = (typeof TAG_FOLDER_TYPES)[number];
 export const tagFolderTypeSchema = z.enum(TAG_FOLDER_TYPES) satisfies z.ZodType<TagFolderType>;
 

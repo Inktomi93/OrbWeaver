@@ -4,7 +4,7 @@
 // `useChatContextState` pairs with the tabs so `S` never crosses the shell seam. The tabs used to carry a
 // DRAFT twin per body (a rowless room wrote a client draft-config store instead of the verbs) — gone with
 // draft mode (D166): one body per tab, one set of verbs. `makeChatsSection` takes its five contributor
-// seams as ONE named-field bundle (§12 row 5, gate `section-factory-contribution-bundle`) — context tabs
+// seams as ONE named-field bundle (§12 row 5) — context tabs
 // (§6c) + REGION claims (HUD-1 §3.2) + surface anchors + tool renderers + the "This chat" SECTION seam
 // (#616) — so rpg/agents/automation graft at the door without importing chat. The bundle is exactly why
 // the fifth seam cost one FIELD and zero arity churn at the door and both CT overrides.
@@ -103,7 +103,7 @@ function chatContextTabs(
 }
 
 /** The chat section's contributor seams as ONE named-field bundle (client-architecture-state-and-gates.md §12
- *  row 5, gate `section-factory-contribution-bundle`): a fifth seam is a FIELD here, not another positional
+ *  row 5): a fifth seam is a FIELD here, not another positional
  *  parameter churned through the door and both CT overrides. */
 interface ChatsSectionContributors {
   /** §6c — the chat-context TAB contributors, merged after chat's own tabs at the `defineContextTabs` mint. */

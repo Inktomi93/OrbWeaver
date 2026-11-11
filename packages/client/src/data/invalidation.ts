@@ -17,8 +17,8 @@ import { collapseFilters, filterKeyName } from "./collapse-filters.ts";
 import { allAutomationRoomFilters, automationEventFilters } from "./invalidation-automation.ts";
 import { applyCanonView } from "./invalidation-carrier.ts";
 import {
-  // The RPG bus's whole map lives in the reads module, and the user bus's in `invalidation-user.ts`: this file stays
-  // under the 450-line cap — seam unchanged.
+  // The RPG bus's whole map lives in the reads module, and the user bus's in `invalidation-user.ts`: the seam is
+  // unchanged.
   allRpgGameFilters,
   chatCanonReads,
   chatReads,

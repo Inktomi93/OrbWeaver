@@ -1,5 +1,5 @@
-// The composer CARD — the compact message-first surface, which is also the media DROP TARGET (#376). Extracted
-// from composer.tsx when the drop gesture pushed that file past the component-size cap; the card's paint and
+// The composer CARD — the compact message-first surface, which is also the media DROP TARGET (#376). Apart
+// from composer.tsx; the card's paint and
 // the drag affordance are one concern (a surface that says what it will accept), so they moved together.
 //
 // The drop target is the whole card a user aims at, not a separate box. It claims only FILE drags (the

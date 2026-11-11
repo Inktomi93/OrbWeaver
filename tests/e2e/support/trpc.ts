@@ -558,9 +558,8 @@ export function getGame(chatId: ChatId): Promise<TrpcClientOutput<"rpg.getGame">
 }
 
 /** Set the game's delivery model (`rpg.updateConfig` — host). `folded` (default) = the character turn records
- *  its own state; `cheap` = a dedicated tool round post-commit. `mode` stays `string` (the
- *  no-inline-union-redecl gate bans re-spelling the homed RPG_EXTRACTION_MODES tuple here; the spec passes the
- *  literal). */
+ *  its own state; `cheap` = a dedicated tool round post-commit. `mode` is the wire input's
+ *  own type, so the homed RPG_EXTRACTION_MODES tuple is never re-spelled here. */
 export function setExtractionMode(chatId: ChatId, mode: NonNullable<TrpcInput<"rpg.updateConfig">["extractionMode"]>): Promise<unknown> {
   return trpc.rpg.updateConfig.mutate({ chatId, extractionMode: mode });
 }

@@ -1,5 +1,5 @@
 // The PACK ITEM's CLICK-TO-EDIT FIELD SET — one authoring vocabulary, composed by BOTH pack lenses (the
-// grid tile's popover editor and the list row), split out of `rpg-pack-rows.tsx` at the component-size cap.
+// grid tile's popover editor and the list row), apart from `rpg-pack-rows.tsx`.
 // The seam is the honest one the family already had: this module owns what a single DATUM of an item looks
 // like under each PERMISSION arm (`edit` present = the host's inline field; absent = the stored text, and an
 // empty read-only value renders NOTHING rather than a blank labelled slot), while the lenses own the

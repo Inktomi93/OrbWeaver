@@ -3,7 +3,7 @@
 // persistence' `loadOwnedCharacterCard`, which gates ownership in one round-trip: a foreign/absent
 // character → PersonaCharacterNotFoundError. `characters` is CHARACTER's table, so the read lives in
 // persona's `persistence/` (the cross-domain ownership-check home, beside `ensureCharacterOwned`) and never
-// in the verb — Tier-1-DB.md §"Cross-tier composition" / the `own-tables-only` gate. The row stores
+// in the verb — Tier-1-DB.md §"Cross-tier composition". The row stores
 // sourceCharacterId + swapMacros provenance so the swap decision is recoverable.
 
 import { personas } from "@orb/db";

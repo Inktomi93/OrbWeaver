@@ -1,5 +1,5 @@
-// The row's identity art: the gutter chip, ripple's welded portrait and the full-size view they open. Split from
-// message-row-parts.tsx to stay under the component-size cap; pure (args) => ReactElement like its sibling.
+// The row's identity art: the gutter chip, ripple's welded portrait and the full-size view they open. Apart from
+// message-row-parts.tsx; pure (args) => ReactElement like its sibling.
 
 import { blobPortraitUrl } from "@orb/contracts/assets";
 import type { MessageView } from "@orb/contracts/chat";

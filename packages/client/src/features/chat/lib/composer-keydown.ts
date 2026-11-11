@@ -1,5 +1,5 @@
 // The composer textarea's keydown POLICY — the pure glue between the OPEN slash strip's combobox keys and the
-// enterSends send pref. Extracted from `components/composer.tsx` for `component-size`; it was already module
+// enterSends send pref. Apart from `components/composer.tsx`; it was already module
 // scope there (not a closure) precisely so its branching stays OUT of the component's cognitive-complexity
 // budget, so the move is a relocation, not a refactor. Classification stays the pure `resolveSlashKey`
 // (`lib/slash-command.ts`); this only translates the resolved action into effects + `preventDefault` and

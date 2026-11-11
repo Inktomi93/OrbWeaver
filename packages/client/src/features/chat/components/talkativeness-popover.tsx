@@ -1,5 +1,4 @@
-// The anchored TALKATIVENESS popover (member-row-menu.tsx's §7.1 companion — split out under the
-// 450-line component cap). The mono weight CHIP is the popover's trigger/anchor AND the glance
+// The anchored TALKATIVENESS popover (member-row-menu.tsx's §7.1 companion, in its own file). The mono weight CHIP is the popover's trigger/anchor AND the glance
 // readout; the Members row's "Talkativeness…" Menu item opens the same controlled popover. The
 // labeled `@orb/ui/slider` is arrow-key operable and commits on thumb release (Base UI
 // `onValueCommitted` fires after keyboard adjustment too); Enter closes.

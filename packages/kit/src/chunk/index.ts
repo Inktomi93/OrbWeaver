@@ -1,6 +1,6 @@
 // @orb/kit/chunk — the pure recursive text splitter. A pure ENGINE in the kit/macro /
 // kit/regex class: zero I/O, zero domain deps, isomorphic (the client chunk-count preview imports the same
-// function). Gate: kit-purity + test-determinism. The zod wire twin of {@link ChunkParams} lives in
+// function). Boundary: dep-cruiser `kit-purity`. The zod wire twin of {@link ChunkParams} lives in
 // `@orb/contracts/databank` (chunkParamsSchema) and is pinned to this shape by a `satisfies` check THERE —
 // kit stays zod-free and dependency-bottom.
 //

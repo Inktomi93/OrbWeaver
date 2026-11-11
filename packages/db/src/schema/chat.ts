@@ -550,9 +550,8 @@ export const messageVariants = sqliteTable(
     // (@orb/contracts/chat) is the closed shape both sides import — the measured reasoning window under
     // `VARIANT_METADATA_REASONING_MS_KEY`, the per-provider `providerMetadata` union, and the ST import's
     // declared-opaque `importResidue`. Every read goes through `parseVariantMetadata` (the `$type` states the
-    // contract; the parse proves it). Closing this type is what brings the stats rollups'
-    // `json_extract(metadata, '$.reasoning_duration')` under `open-json-column-key-parity` (#184): the gate
-    // judges a column's `$type` and can never see inside a bag.
+    // contract; the parse proves it). Closing this type makes the stats rollups'
+    // `json_extract(metadata, '$.reasoning_duration')` read a declared key.
     metadata: text("metadata", { mode: "json" }).$type<VariantMetadata>(),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },

@@ -9,8 +9,7 @@
 //
 // WHY AN ORDERED ARRAY AND NOT A `Record<PluginCapability, …>`, stated so nobody "simplifies" it back: the
 // Record is the house shape and was written first, but ONE capability member (`global_vars`) is snake_case,
-// and a snake_case Record KEY forces a `useNamingConvention` suppression — which in turn needs a row in the
-// `suppressions.baseline.json` ratchet. The row array reaches the identical compile-time guarantee with zero
+// and a snake_case Record KEY forces a `useNamingConvention` suppression. The row array reaches the identical compile-time guarantee with zero
 // suppressions, and it carries a second property the Record could not: its order IS the render order, which
 // `PLUGIN_CAPABILITIES` already declares ("Order is the confirm-dialog display order",
 // `contracts/plugin/manifest.ts:12`).

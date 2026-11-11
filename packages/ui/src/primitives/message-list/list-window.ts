@@ -1,5 +1,4 @@
-// The scroll WINDOW's two pure/DOM-only helpers, split out of message-list.tsx to keep the primitive
-// under the 450-line cap (UI-Primitives-and-Reuse.md §13.7): what the reader can see past each edge, and
+// The scroll WINDOW's two pure/DOM-only helpers, apart from message-list.tsx: what the reader can see past each edge, and
 // which indices the virtualizer must render regardless of where the window sits.
 
 import type { Range } from "@tanstack/react-virtual";

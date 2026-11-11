@@ -1,5 +1,5 @@
-// WebWeave TIMING — the build's beat map, split from web-weave-geometry.ts under the
-// component-size-ui cap (its own concern: geometry answers WHERE, this answers WHEN, and the spider,
+// WebWeave TIMING — the build's beat map, apart from web-weave-geometry.ts
+// (its own concern: geometry answers WHERE, this answers WHEN, and the spider,
 // the painters and the caption axis all read it).
 //
 // TIMING IS DATA, not CSS tokens (motion guide §4.3 forbids a 4th duration token, and a multi-phase

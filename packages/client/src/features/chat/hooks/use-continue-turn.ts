@@ -5,8 +5,8 @@
 // convenience. Both are bus-driven like every other turn mutation (they stream into the ghost and settle
 // through the canon invalidation); the pure `resolveEmptySendAction` classifier picks which arm fires.
 //
-// TWO DOORS, RATIFIED (#568 — the duplicate-action-doors budget carries `chats::chat.continueTurn: 2` and
-// `chats::chat.generate: 2`; the second door of each is `use-guided-actions.ts`). NOT the #539 echo class,
+// TWO DOORS, RATIFIED (#568 — `chat.continueTurn` and `chat.generate` each have two doors; the second
+// door of each is `use-guided-actions.ts`). NOT the #539 echo class,
 // which was two controls in ONE home where one carried a strict subset of the other's payload. These two are
 // different AFFORDANCE KINDS on different planes: this hook is a SETTINGS-GATED KEYBOARD GESTURE (an empty
 // Send, off entirely unless `continueOnSend`/`generateOnEmptySend` is on) that fires the BARE verb, while the

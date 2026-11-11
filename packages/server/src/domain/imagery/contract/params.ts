@@ -12,7 +12,7 @@ export type { GeneratePictureParams } from "@orb/contracts/imagery";
 
 // The mode SUBSETS home in `@orb/contracts/imagery` (the canonical `EXTRACTION_MODES`/`MULTIMODAL_MODES`
 // tuples the default catalog keys on, Phase B ⑫) — re-exported here under the domain's local names so the
-// substrate guards + params keep their type-home import path (no re-spell — the `no-inline-union-redecl` law).
+// substrate guards + params keep their type-home import path (no re-spell — Spine-TypeScript-and-Patterns §7.5).
 /** The multimodal caption modes (doc 02 §3). */
 export type MultimodalMode = MultimodalCaptionMode;
 /** The four text-extraction modes — NOT "free", NOT multimodal (doc 02 §2). */

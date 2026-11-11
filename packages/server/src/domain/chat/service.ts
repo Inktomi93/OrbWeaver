@@ -54,7 +54,7 @@ export function createVisibleExtractQuiet(deps: DbAssemblyInput<VisibleExtractQu
  *  injected op the entry root hands automation's `trigger_turn` arm + the plugin membrane's `turn.trigger`,
  *  never a routed verb (no principal; the turn triple is resolved internally, not passed). `claimChat` is the one
  *  claim chokepoint, shared with the rpg-facing ops. The return shape is
- *  inline (not a named export) per `no-inline-types` — its one consumer destructures `{ service, requestTurn }`. */
+ *  inline (not a named export) per §7.4 — its one consumer destructures `{ service, requestTurn }`. */
 export function createChatService(
   input: ChatAssemblyContext,
   deps: ChatServiceDeps,

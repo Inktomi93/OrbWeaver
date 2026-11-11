@@ -150,7 +150,7 @@ function plantRow(input: {
     vitePort: input.vitePort ?? input.port + 1,
     checkout: input.checkout,
     ownerPid: null,
-    // The frozen clock, not the ambient one (test-determinism): a boot-dead row's timestamps are inputs the
+    // The frozen clock, not the ambient one (Spine-Testing §3): a boot-dead row's timestamps are inputs the
     // teardown arm never compares against wall time, so the fixture's value is arbitrary but must be injected.
     startedAt: new Date(FROZEN_AT_MS).toISOString(),
     lastUsedAt: new Date(FROZEN_AT_MS).toISOString(),

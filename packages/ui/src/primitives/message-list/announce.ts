@@ -1,5 +1,5 @@
-// WHAT A VIRTUALIZED LOG ANNOUNCES — the message list's live-region rule, split out of message-list.tsx
-// to keep the primitive under the 450-line cap (UI-Primitives-and-Reuse.md §13.7), like list-window.ts.
+// WHAT A VIRTUALIZED LOG ANNOUNCES — the message list's live-region rule, apart from message-list.tsx,
+// like list-window.ts.
 //
 // The list is a `role="log"` and does NOT become a `feed` or a `grid`: `feed` has no live region (the
 // streaming tail needs one) and `grid` promises tabular two-axis navigation this surface does not have.

@@ -1,5 +1,5 @@
-// THE CONTEXT-TAB ARM (issue #656 — the false `ok:true` that poisoned every one-call probe chain), split
-// out of agent-nav/index.ts (component-size, 2026-09-06) — no behavior change, same module graph
+// THE CONTEXT-TAB ARM (issue #656 — the false `ok:true` that poisoned every one-call probe chain), apart
+// from agent-nav/index.ts — no behavior change, same module graph
 // (`#state`, `../../lib/motion-stats.ts`, `../../lib/agent-bridge.ts`), just its own file.
 //
 // A VOCABULARY THAT MAY BE EMPTY IS NOT A VOCABULARY. The context-tab set is PUBLISHED BY A MOUNT EFFECT

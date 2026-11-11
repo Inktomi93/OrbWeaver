@@ -3,7 +3,7 @@
 
 // clock + id minter only) so the import path can be wired at compose without dragging the whole service.
 //
-// QUERIES-ONLY, by the rule the `persistence-no-in-memory-state` gate enforces: every file here reads and
+// QUERIES-ONLY: every file here reads and
 // writes, and the DECISION about what to write lives in `substrate/dedup` (which owns the dedup rule and
 // the in-memory index it needs). The shape is read → plan → ONE batch: a lift that half-minted its rows
 // before failing to attach them would leave the library with orphan scripts and the card with none.

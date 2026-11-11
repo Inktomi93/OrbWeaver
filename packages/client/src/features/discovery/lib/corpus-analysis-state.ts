@@ -123,9 +123,8 @@ export interface CorpusAnalysisState {
  * here — this exists for the below-fold reads the #269 deferral made non-suspending, which now render the
  * rail while they are still in flight.
  *
- * MODULE-PRIVATE, and it has to be: an EXPORTED type alias outside a type home is `no-inline-types` RED
- * (the exported interfaces beside it survive because that gate chases exported INTERFACES only inside a
- * server domain). Nothing needs to name it — callers spell the literals and the field type checks them.
+ * MODULE-PRIVATE, and it has to be: an EXPORTED type alias outside a type home breaks §7.4.
+ * Nothing needs to name it — callers spell the literals and the field type checks them.
  */
 type CorpusPassCount = number | "pending" | "unavailable";
 
@@ -138,8 +137,8 @@ type CorpusPassCount = number | "pending" | "unavailable";
  * "It has not run" is a claim about the PASS; "we could not ask" is a claim about the READ, and the surface
  * offers the second one a retry.
  *
- * MODULE-PRIVATE for the reason {@link CorpusPassCount} is: an EXPORTED type alias outside a type home is
- * `no-inline-types` RED. Callers never name it — they hand in {@link CorpusAnalysisInput.queueRead} plus the
+ * MODULE-PRIVATE for the reason {@link CorpusPassCount} is: an EXPORTED type alias outside a type home breaks
+ * §7.4. Callers never name it — they hand in {@link CorpusAnalysisInput.queueRead} plus the
  * plain booleans, and this module derives.
  */
 type CorpusPassRan = boolean | "unknown";
