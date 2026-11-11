@@ -1,13 +1,13 @@
 // infra/auth — FRONT DOOR. The sealed, db-free auth VERIFICATION executor (docs/law/Tier-3-Infra.md + spine
 // Spine-Identity-and-Auth.md §1/§3). This tier does VERIFICATION ONLY: `resolve(headers, deps)` turns a
 // request's headers into an `IdentityResolution` — the pre-row `ResolvedIdentity` (NO `userId`, NO
-// `role` — invariant #3) + its `via` signal — dispatching on
+// `role` — Spine-Identity-and-Auth invariant 3) + its `via` signal — dispatching on
 // AUTH_MODE and applying the origin-gated owner fallback. It does NOT upsert, does NOT derive a role,
 // does NOT mint a `Principal`. Those are LOWER tiers, invoked by the seam AFTER verification:
 //   • `determineRole` + the users-row upsert → RESOLUTION tier, `domain/sessions`
 //     (`substrate/role-policy.ts` + `verbs/provision-identity.ts`, Phase 4c).
 //   • the ONE `Principal` mint (from `via:"fallback"` → owner, or the upserted row) → CONSTRUCTION tier,
-//     `entry/auth/seam.ts` (Phase 4e, invariant #1).
+//     `entry/auth/seam.ts` (Phase 4e, Spine-Identity-and-Auth invariant 1).
 //
 // The forward-JWT verifier arrives INJECTED via `ResolveDeps`, the seam validates the cookie before this runs,
 // and the OIDC transaction store stays with the entry routes — this module imports NO `@orb/db` and NO domain
@@ -28,7 +28,7 @@ import { reportRelayedFallback } from "./relay-notice.ts";
  *     `sessions.validate` BEFORE calling here), so cookie modes fall through to the owner fallback / unauth.
  *   - SSO HEADER (`forward-header`) — the verified header/JWT identity (NO upsert here — that's the seam).
  *   - OWNER FALLBACK — the peer-gated un-credentialed owner identity, stamped `via:"fallback"` (the seam
- *     mints the owner from this discriminant — invariant #7). Two conditions, in this order: the
+ *     mints the owner from this discriminant — Spine-Identity-and-Auth invariant 7). Two conditions, in this order: the
  *     `AUTH_FALLBACK=owner` knob, THEN `ownerFallbackAllowed` (a LOOPBACK TCP peer or a peer inside
  *     `AUTH_FALLBACK_TRUSTED_PEERS`, on a request that carries no relay tell; never the client `Host`
  *     header). So `single-user` + `AUTH_FALLBACK=deny` resolves NOBODY — boot-fatal in `foundation/env`,

@@ -35,7 +35,7 @@ export function createRpgChatOps(input: RpgAssemblyContext): RpgChatOps {
     return game?.config.engaged === true ? game : undefined;
   }
 
-  // KNOB-DRIVEN, MODE-BLIND (§3.2 / ratification #2): the game's `gmPresetId` (born NULL = augment the user's
+  // KNOB-DRIVEN, MODE-BLIND (§3.2): the game's `gmPresetId` (born NULL = augment the user's
   // own preset), or null for a non-game chat. Full changes only what SEEDS the knob, never this read.
   async function resolvePresetOverride(chatId: ChatId): Promise<PresetId | null> {
     const game = await findEngagedGame(chatId);

@@ -357,7 +357,7 @@ function foldSwipeChar(charMap: Map<string, CharAccum>, r: SwipeRow, cid: string
 }
 
 /** Fold one swipe (a NON-selected variant) across owner/char/bucket/model. Swipes credit the RE-ROLL
- *  counters; the timeline bucket gets swipe COUNT + gen-time but NOT swipe tokens (esoteric #1). */
+ *  counters; the timeline bucket gets swipe COUNT + gen-time but NOT swipe tokens. */
 function foldSwipe(r: SwipeRow, a: Accums): void {
   const bucket = a.bucketMap.getOrInsertComputed(statsBucketStart(r.msgCreatedAt), freshBucket);
   const gen = genDurationMs(r);

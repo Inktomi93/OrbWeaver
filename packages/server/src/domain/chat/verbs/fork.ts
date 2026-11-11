@@ -20,7 +20,7 @@
 // `parentChatId`/`forkedAt`/timestamps/`starred`/`archived`; the host becomes the forker. Other human participants are NOT copied (a fresh `chat_participants` insert is invite/host-action
 // only). The compaction checkpoint copies only when covered by the fork point, else reset to null — and under
 // a floor the variable delta LOG collapses the same way, into ONE synthetic baseline batch
-// (`buildForkStandaloneDeltas`, D79 ruling #8).
+// (`buildForkStandaloneDeltas`, D79).
 
 import type { ChatMetadata, HistoryFloorSeq, StandaloneVariableDelta, VariantMetadata } from "@orb/contracts/chat";
 import {
@@ -260,7 +260,7 @@ function forkVariantValues(args: {
     generationId: variant.generationId,
     // `toolCalls` is on `MessageView` (the client's only tool read surface — members render the chips), so it
     // is member-plane by construction. `variableDelta` is the runtime-variable op-log whose folded state a
-    // member already reads UNCLAMPED (`getRuntimeVariables` is member-gated; the D79 ruling #8 baseline below leans on
+    // member already reads UNCLAMPED (`getRuntimeVariables` is member-gated; the D79 baseline below leans on
     // exactly that), and the fork's own fold depends on it. Metadata keeps economics and import residue;
     // its embedded continuation prose/offsets project with the copied canon and private signatures drop.
     toolCalls:
@@ -506,7 +506,7 @@ async function resolveOwnedCharacterSeats(ctx: ChatContext, forkerUserId: UserId
   return characterSeats.filter((s) => seatable.has(s.characterId));
 }
 
-/** D79 ruling #8 — THE FORK'S VARIABLE CARRY. The runtime variable state is DERIVED by folding the seq-ordered
+/** D79 — THE FORK'S VARIABLE CARRY. The runtime variable state is DERIVED by folding the seq-ordered
  *  delta chain (every slot's selected-variant `variable_delta` ∪ every standalone out-of-turn batch), so a fork
  *  that copies only `seq >= floor` slots must reconstitute the invisible PREFIX or its fold diverges from the
  *  room's real state at the fork point (F6a: a silent gameplay-state reset). Carrying the pre-floor batches
@@ -523,13 +523,13 @@ async function resolveOwnedCharacterSeats(ctx: ChatContext, forkerUserId: UserId
  *  `getRuntimeVariables` already reads); no pre-floor seq stamp survives.
  *
  *  BOUNDARY = the floor INCLUSIVE (deltas at `seq <= floor` fold into the baseline). Two reasons, one shape:
- *  ruling #1's interval algebra makes the row AT `joinSeq` the member's entry context, and the fold's stable
+ *  D79's interval algebra makes the row AT `joinSeq` the member's entry context, and the fold's stable
  *  seq-sort applies a standalone batch AFTER a message at the SAME seq — so a floor-EXCLUSIVE baseline stamped
  *  at the floor would clobber the copied floor row's own delta on every later refold. The floor row's delta is
  *  therefore inside the baseline AND on its copied slot; harmless by construction, because the baseline is an
  *  absolute `set` snapshot that lands after it, never a relative re-application.
  *
- *  DEVIATION FROM THE RULING'S LITERAL RECIPE (receipt): ruling #8 says to fold the source at
+ *  DEVIATION FROM THE RULING'S LITERAL RECIPE (receipt): the ruling says to fold the source at
  *  `min(throughSeq, head)` — the state at the FORK POINT — and then still replay the above-floor deltas on top.
  *  `VarOp` is NOT idempotent (`inc`/`dec`/`add` — `@orb/kit/macro::applyVarOp`), so that composition
  *  double-counts every above-floor `inc`/`add` and breaks the ruling's own stated invariant ("byte-equal to the
@@ -663,7 +663,7 @@ async function forkGameOntoFork(
  *  `kind:"human"` present row (a seated character / agent is never a human recipient of a laundered secret).
  *
  *  The HOST half of the verdict routes through the ONE injected `can()` seam (`substrate/auth::permitsHost`,
- *  spine invariant #6) — never an inline `role === "host"`. The composite is still chat's own policy: the
+ *  Spine-Identity-and-Auth invariant 6) — never an inline `role === "host"`. The composite is still chat's own policy: the
  *  seam answers "is this caller the host?", this function decides what that means for a fork. */
 function assertForkAllowed(args: {
   readonly can: ChatContext["can"];
@@ -714,7 +714,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     // `resolveForkStripReasoning`.
     const stripReasoning = await resolveForkStripReasoning(ctx, chatId, forkerReadsHidden);
     // The fork's variable delta log: the fork-horizon standalone batches, prefixed under a floor by the ONE
-    // synthetic present-state baseline that stands in for the invisible pre-floor history (D79 ruling #8 — see
+    // synthetic present-state baseline that stands in for the invisible pre-floor history (D79 — see
     // `buildForkStandaloneDeltas` for the whole derivation).
     const forkStandaloneDeltas = buildForkStandaloneDeltas({ chain: chainDeltas, historyFloorSeq, throughSeq });
     // The fork carries only the character seats the forker owns. The canon is copied whole regardless,

@@ -3,7 +3,7 @@
 // → map errors. The turn-time `resolve`/`availability` verbs are internal (chat's turn path) — NOT exposed.
 // Every row read or written is the CALLER's (`principal.userId` is the owner predicate at the domain).
 //
-// Esoteric #9: `draftCatalogModels`, `probe`, `verifyAuth`, `inspectEndpoint` and `refreshCatalog` are
+// docs/law/Tier-4-Transport.md Esoteric 9: `draftCatalogModels`, `probe`, `verifyAuth`, `inspectEndpoint` and `refreshCatalog` are
 // `.mutation()` despite being read-shaped — each dials an endpoint (a user-supplied
 // `baseUrl` is an SSRF surface; the F12 admission + the egress guard judge it) or spends a tiny generation, so
 // they keep the CSRF gate tRPC applies to mutations. Do NOT demote to `.query()`.

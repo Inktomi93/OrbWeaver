@@ -1,5 +1,5 @@
 // domain/databank — COMPOSITION ROOT: wires the verbs over the DI bundle (zero logic). The databank store:
-// uploaded/authored source documents (a NEW single-owned canon producer, D49 #5) + their derived
+// uploaded/authored source documents (a NEW single-owned canon producer, D49) + their derived
 // `document_chunks` (a chat_segments twin, written ONLY through the injected `embeddingsStore`), attached at
 // the global/chat scopes for retrieval. `DatabankContext` is assembled at the entry root (db + injected
 // clock/id + the injected cross-feature ops) and passed in. The chunk→embed ingest subsystem is a SEPARATE

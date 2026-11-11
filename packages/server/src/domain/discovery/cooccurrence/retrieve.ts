@@ -2,7 +2,7 @@
 // for the live tRPC paths; the heavy pass that POPULATES the tables is generate.ts, workload-driven). Was
 // the previous codebase’s `corpus/cooccurrence/retrieve.ts` (adapted to orb's schema: `keyword_cooccurrence` stores NO
 // sampled `characterIds`, `character_keyword_profiles` has NO ownerId — owner DERIVES via `characterId →
-// characters.ownerId`, D23). `ownerId` is ALWAYS the resolved principal id (audit #1).
+// characters.ownerId`, D23). `ownerId` is ALWAYS the resolved principal id.
 
 import type { Db } from "@orb/db";
 import { characterKeywordProfiles, characters, keywordCooccurrence } from "@orb/db";

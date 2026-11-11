@@ -29,7 +29,7 @@ import { decideProvision } from "../substrate/decide-provision.ts";
 // is never denied. `email` refreshes from the claim when carried (keep-on-null);
 // `enabled` is never reset on update. Race-tolerant insert + re-read absorbs a concurrent first-login loser.
 //
-// OWNER-FLIP RECONCILIATION (#8): an owner-by-policy OIDC login whose subject/handle does NOT resolve to the
+// OWNER-FLIP RECONCILIATION: an owner-by-policy OIDC login whose subject/handle does NOT resolve to the
 // existing seeded (single-user/local) owner row binds ONTO that row (`bindOwnerSubject`) rather than minting
 // a second row the singleton then downgrades to `user`. This is what lets the owner flip single-user → OIDC
 // without db surgery; see the guarded branch below for the exact adoptability conditions.
@@ -88,7 +88,7 @@ async function updateExisting(
   if (identity.externalId !== null && existing.externalId !== identity.externalId) {
     changes.externalId = identity.externalId;
   }
-  // THE OWNER'S HANDLE IS THE RE-SEED KEY, NOT AN IdP-TRACKED ATTRIBUTE (#8 cascade, D17/D135). The owner
+  // THE OWNER'S HANDLE IS THE RE-SEED KEY, NOT AN IdP-TRACKED ATTRIBUTE (D17/D135). The owner
   // row's durable SSO key is `externalId`; its HANDLE is what boot's `seedOwner` → `ensureUser` and the auth
   // seam's owner fallback resolve the owner ROW through (`isOwnerSeedHandle`). Renaming it to the IdP handle
   // — which the owner-exemption branch did on every login AFTER the adoption bound the subject — strands both:
@@ -270,7 +270,7 @@ async function insertNew(ctx: SessionsContext, identity: ResolvedIdentity, resol
 }
 
 /**
- * OWNER-FLIP RECONCILIATION (#8, D17/D135). An owner-by-policy SSO identity whose stable subject did not
+ * OWNER-FLIP RECONCILIATION (D17/D135). An owner-by-policy SSO identity whose stable subject did not
  * resolve to the owner row ADOPTS the existing UNBOUND owner row — the single-user/local seeded (or
  * owner-fallback-created) owner, whose `externalId` is still null — instead of minting a SECOND row the
  * singleton would downgrade to `user`, stranding the owner's whole library under an un-loginable row.
@@ -322,7 +322,7 @@ async function refuseLostOwnerBind(
   return { outcome: "denied", reason: "account-exists" };
 }
 
-/** Bind an OIDC subject onto the existing UNBOUND owner row (owner-flip reconciliation, #8/D17/D135). Links
+/** Bind an OIDC subject onto the existing UNBOUND owner row (owner-flip reconciliation, D17/D135). Links
  *  the stable `externalId` (+ refreshes email) and keeps `role=owner`; the owner's HANDLE is deliberately
  *  left as seeded — it is the `OWNER_HANDLES` key the boot owner-seed and the owner-fallback both resolve on,
  *  so keeping it makes `externalId` the durable OIDC key while re-seed / mode-flip stay idempotent (no

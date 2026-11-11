@@ -1,6 +1,6 @@
 // verb: list — the caller's credentials (all providers, all labels), ordered `(provider, createdAt)`.
 // Owner-scoped by `principal.userId`. Every row is projected through `toCredentialView`, so no secret
-// field (ciphertext/iv/tag) or plaintext key ever reaches the wire (invariant #4).
+// field (ciphertext/iv/tag) or plaintext key ever reaches the wire.
 
 import type { CredentialView } from "@orb/contracts/credentials";
 import type { ListCredentialsParams } from "../contract/params.ts";

@@ -3,7 +3,7 @@
 //
 // Everything a run needs is a dep of THIS factory, closed over at `entry/compose` — never a shared
 // per-dispatch env hub. The projections from each verb's richer stats down to the wire `AnalyticsResult`
-// live here too (they used to sit at the entry tier, in `compose/runner-env.ts`), as does the tunable
+// live here too (not at the entry tier), as does the tunable
 // PRECEDENCE (per-run param → the triggering user's `UserSettings.workloads` knob → the domain's own floor).
 //
 // EVERY PASS ANNOUNCES ITSELF ONCE, AT ITS TERMINAL (event-bus coverage survey §2.5/§3.4-4/F6, the

@@ -13,7 +13,7 @@ import { selectForProvisionById } from "../persistence/users.ts";
 // THIS VERB GATES NOTHING — it REPORTS `enabled` and the CALLER decides, because its two caller classes want
 // opposite answers (D135 amendment):
 //   • REQUEST authentication (the auth seam's owner-fallback arm) MUST refuse a disabled row, exactly as
-//     `sessions.validate` (invariant #8/D40) and the SSO arm's `provisioned.enabled` do — otherwise one of
+//     `sessions.validate` (Spine-Identity-and-Auth invariant 8, D40) and the SSO arm's `provisioned.enabled` do — otherwise one of
 //     the three request paths admits an account the other two lock out.
 //   • The FROZEN-HOST bridge must NOT: the host isn't authenticating, and a disabled (or merely offline)
 //     host's row still has to answer "what is this room's authority" for the members still reading it.

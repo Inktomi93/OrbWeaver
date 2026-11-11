@@ -4,7 +4,7 @@
 // no parse, no authz (the verb host-gates + tokenizes). It reads chat's tables directly, the `readBeat` /
 // `findLastAssistantSelectedVariant` precedent (rpg reaches the committed variant content at the persistence
 // layer within its own compose). Scoped to the chat by construction (the `messages.chatId` join), so a message
-// from another room is unreachable — the cross-tenant belt (D108 carve #1) holds without a re-scope re-query.
+// from another room is unreachable — the cross-tenant belt (D108) holds without a re-scope re-query.
 
 import type { Db } from "@orb/db";
 import { messages, messageVariants } from "@orb/db";

@@ -4,8 +4,8 @@
 //
 // UNDER CONNECTIONS-AS-THE-UNIT (inference program §5.3, ground5 M9): a credential row is a SEALED SECRET WITH A
 // LABEL, and connections give it meaning. WHICH key resolves is the connection's `credentialId` — there is no
-// `active` flag, no `setActive`, no per-provider slot resolution. The endpoint diagnostics that used to live here
-// (`testHealth`'s dial, `inspectEndpoint`, `fetchModels`) are CONNECTION verbs now (the URL is on the connection
+// `active` flag, no `setActive`, no per-provider slot resolution. The endpoint diagnostics
+// (`testHealth`'s dial, `inspectEndpoint`, `fetchModels`) are CONNECTION verbs (the URL is on the connection
 // row); what stays here is the ROW side of a probe outcome — `recordProbeOutcome` writes the revocation / strike
 // consequences, because only this domain writes `user_credentials`.
 
@@ -81,7 +81,7 @@ export interface CredentialsService {
   readonly storageStatus: () => Promise<CredentialStorageStatus>;
 
   // Health
-  /** User-facing revoke (adds the ownership check). MUST stay distinct from `maybeRevokeOnAuthFailed` (invariant #6). */
+  /** User-facing revoke (adds the ownership check). MUST stay distinct from `maybeRevokeOnAuthFailed`. */
   readonly markRevokedByUser: (params: MarkRevokedByUserParams) => Promise<void>;
   readonly clearRevoked: (params: ClearRevokedParams) => Promise<void>;
   readonly probeKeyDecrypt: () => Promise<boolean>;

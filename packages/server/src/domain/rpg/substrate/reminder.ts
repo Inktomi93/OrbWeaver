@@ -24,7 +24,7 @@
 // was READING-BOUND, so a tracker nobody had moved yet reached the model NOWHERE: the owner's pinned
 // `Corruption 0/100`, visible on every Status card, was absent from the whole injection. A carried tracker
 // with no reading now lists its bare LABEL on its carrier's line — carriage is the datum when there is no
-// value. LOCKED trackers read here in full (D113 #4: the reminder is the model's KNOWLEDGE, the tools are its
+// value. LOCKED trackers read here in full (D113: the reminder is the model's KNOWLEDGE, the tools are its
 // permissions — the lock filter belongs at the write-schema assembly and nowhere in this path).
 //
 // THIS FILE IS THE ONE HOME OF THE STATE-LINE GRAMMAR (the third-surface parity fix). The macro /
@@ -71,7 +71,7 @@ import { readOwnKey } from "@orb/kit/objects";
 import type { LiteReminderInput } from "../contract/params.ts";
 import { buildDeltaBlock } from "./delta.ts";
 
-/** The ambient line. `dateMode` (#9): `narrated` renders the FREEFORM date string as the date datum and
+/** The ambient line. `dateMode`: `narrated` renders the FREEFORM date string as the date datum and
  *  DROPS the sequential `day N` counter (no forced day-count pressure on the model); `structured` keeps
  *  it. Time-of-day stays in BOTH modes (structured + functional — it drives the Waystone).
  *
@@ -142,7 +142,7 @@ function trackerVocabularyLine(defs: readonly RpgTrackerDef[]): string {
  *  actors only, and the accidental channel it used to leak through (the pre-F4 constraint enums, which
  *  enumerated every live condition name) is correctly gone. An affliction the tool round had just applied to an
  *  NPC was therefore invisible to the very turn that had to play it — and unremovable, since the model could
- *  not know it existed (D113 #4: the reminder is the model's KNOWLEDGE). */
+ *  not know it existed (D113: the reminder is the model's KNOWLEDGE). */
 function conditionsSeg(conditions: RpgActorVolatile["conditions"]): string | null {
   return conditions.length === 0 ? null : `conditions: ${conditions.map((c) => c.name).join(", ")}`;
 }
@@ -458,7 +458,7 @@ export function buildLiteReminder(input: LiteReminderInput): string {
   }
   stateLines.push(...actorBlocks(input));
   if (view.gameTrackers.length > 0) {
-    // "Game trackers" (not the bare "Trackers:" it used to be) — the vocabulary line above now owns that
+    // "Game trackers" (not the bare "Trackers:") — the vocabulary line above owns that
     // word, and this block is specifically the SUBJECT:GAME readings that belong to nobody in particular.
     stateLines.push("Game trackers:");
     stateLines.push(...view.gameTrackers.map(gameTrackerLine));

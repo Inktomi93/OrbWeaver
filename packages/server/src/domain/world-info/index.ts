@@ -1,6 +1,6 @@
 // domain/world-info — FRONT DOOR: the only legal external import; re-exports the public surface. The
 // per-turn pool builder (chat-assembly) reads these tables directly as a db-layer consumer, NOT through
-// this front door (invariant #8).
+// this front door.
 
 export type { WorldInfoExportAssemblyContext } from "./contract/export.ts";
 

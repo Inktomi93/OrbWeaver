@@ -589,8 +589,8 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly testRegexKey: TestKeyRegex;
   /** D121-E: dereference the FOUR regex scope junctions (global / preset / character / chat) into the host-tier
    *  sources. Injected from `domain/regex` at compose — chat owns the UNION (`substrate/regex-tier`), never
-   *  the storage. Replaced the three embed-by-value carriers chat used to read off settings/preset/card
-   *  blobs. Called with the turn's frozen `runAsUserId` (D19), so a member can never widen the set. */
+   *  the storage. The sources are library rows, never an embed-by-value copy on a settings, preset or card
+   *  blob. Called with the turn's frozen `runAsUserId` (D19), so a member can never widen the set. */
   readonly resolveRegexSources: ResolveRegexSources;
   /** The chat host's active-preset params — used by the quiet-generate factory (compaction), which runs on the
    *  chat connection. Wired at compose. */

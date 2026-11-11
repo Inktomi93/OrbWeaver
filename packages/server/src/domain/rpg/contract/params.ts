@@ -224,7 +224,7 @@ export interface UpdateConfigParams {
         // The FRONT-DOOR toggle — omit keeps; `false` disengages (state preserved, reversible);
         // the verb mirrors the value onto the chat pointer (`ChatRpgPointer.engaged`).
         readonly engaged?: boolean | undefined;
-        // The #9 ambient-date mode (`narrated` | `structured`) — omit keeps.
+        // The ambient-date mode (`narrated` | `structured`) — omit keeps.
         readonly dateMode?: RpgDateMode | undefined;
         // The §1.3 extraction-depth knobs (how much story the state round reads + its token budget + the
         // reconcile cadence) — omit keeps (MA-4 patch semantics).
@@ -512,7 +512,7 @@ export interface LiteReminderInput {
   readonly omniscience: boolean;
   /** This turn answers a player message carrying a dice stamp. A flag, so no player text enters the reminder. */
   readonly playerRolledDice?: boolean | undefined;
-  /** The #9 ambient-date mode — `narrated` drops the `day N` counter from the ambient line. */
+  /** The ambient-date mode — `narrated` drops the `day N` counter from the ambient line. */
   readonly dateMode: RpgDateMode;
   /** D132 — the turn PRESET's model-facing prose OVERRIDES (`promptConfig.prose`), threaded whole so the reminder
    *  resolves each teach/heading against it (`resolveProse`). ABSENT/`{}` ⇒ every slot resolves to its shipped

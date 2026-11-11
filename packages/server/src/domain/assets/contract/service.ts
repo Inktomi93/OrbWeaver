@@ -111,7 +111,7 @@ export interface AssetsService {
 
 /** What the domain's `WorkloadContribution` factory needs from the composition root (the CAS
  *  maintenance kinds). `db` + `cas` are here because the `assets-backfill` GATHER (the staged-card scan +
- *  per-row CAS probe) belongs in this domain — it used to run at the entry tier. */
+ *  per-row CAS probe) belongs in this domain. */
 export interface AssetsWorkloadDeps {
   readonly db: Db;
   readonly cas: Cas;

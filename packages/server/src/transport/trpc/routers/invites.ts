@@ -14,7 +14,7 @@
 //
 // TOKEN-CARRYING procedures (`previewInvite`/`redeemInvite`) are `.mutation()` even though preview is
 // semantically a read: tRPC queries ride GET with the input in the URL, which would put the RAW invite
-// token into access logs/history — the `fetchModels` precedent (Tier-4 Esoteric #9: transport shape
+// token into access logs/history — the `fetchModels` precedent (docs/law/Tier-4-Transport.md Esoteric 9: transport shape
 // chosen for the security property, not the read/write semantics). The domain stores only the peppered
 // token HASH; these bodies + the `/join/:token` redirect are the token's only transit points.
 //
@@ -113,7 +113,7 @@ export const invitesRouter = t.router({
     .input(revokeSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.revokeInvite({ principal: ctx.auth, ...input })),
 
-  // FIX #4 — the host-management outstanding-invites read (`InviteView`s; tokens never re-derivable).
+  // The host-management outstanding-invites read (`InviteView`s; tokens never re-derivable).
   // A genuine `.query()`: unlike preview/redeem there is no raw token in the input or output, so the
   // token-in-URL transport concern (file header) does not apply. Host authority lives INSIDE the verb.
   listInvites: multiHumanProcedure

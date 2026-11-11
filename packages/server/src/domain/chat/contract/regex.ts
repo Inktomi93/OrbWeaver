@@ -4,8 +4,7 @@
 // `substrate/`; the SEND (`USER_INPUT`) verb + the RECEIVE (`AI_OUTPUT`/`REASONING`) engine both reference
 // this one named input when they resolve the scopes under the frozen `runAsUserId` (D19).
 //
-// WHAT D121-E CHANGED: the CONTENT of each slice. It used to be three blob copies (`UserSettings.regex.
-// scripts`, `PromptConfig.regexScripts`, `characters.regexScripts`); it is now library ROWS dereferenced
+// THE CONTENT OF EACH SLICE (D121-E) is library ROWS dereferenced
 // from the four scope junctions by the injected `ResolveRegexSources` op (`domain/regex`). The AUTHORITY
 // model is untouched: every slice is pre-resolved under the host, and a non-host member has no parameter on
 // this surface, so the member-exclusion stays STRUCTURAL rather than a runtime check.

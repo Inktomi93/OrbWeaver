@@ -7,7 +7,7 @@
 // row and the composed state.
 //
 // THE INJECTED-OP SEAM (the cross-feature pattern, §0/§3): rpg's verbs need chat/connection ops they do NOT
-// own — the privilege KERNEL (`can`, admin's seam — spine invariant #6), membership (`getMembership`), the
+// own — the privilege KERNEL (`can`, admin's seam — Spine-Identity-and-Auth invariant 6), membership (`getMembership`), the
 // opaque pointer write (`setRpgPointer`), the participant projection
 // (`resolveParticipants`), the narrator-slot mint for restore (`postNarratorMessage`), and the honest-arms
 // capability verdict (`resolveStateDelivery`). These are declared HERE as typed members of `RpgContext`
@@ -624,7 +624,7 @@ export interface RpgContext {
   readonly handWrites: RpgHandWrites;
   /** The ONE privilege-decision kernel (`domain/admin/guard.ts::can`, injected — never an admin import; the
    *  `AutomationContext.can` precedent). rpg RESOLVES membership itself (`getMembership`, below) and hands the
-   *  resolved role to the kernel for the VERDICT — spine invariant #6: `role === "host"` is compared inside
+   *  resolved role to the kernel for the VERDICT — Spine-Identity-and-Auth invariant 6: `role === "host"` is compared inside
    *  `can()` and nowhere else. Pure + principal-explicit per call, so no caller can be dropped. rpg's `guard.ts`
    *  remains the domain's ONE cited chokepoint: it owns the leak-free refusal SHAPE (not-found vs forbidden) and
    *  the verb-specific refusal sentence; the kernel owns the comparison. */

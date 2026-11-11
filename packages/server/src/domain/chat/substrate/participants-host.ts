@@ -4,14 +4,14 @@
 //
 // THE CLASS (the role-authority clause): a host lookup is in NEITHER of the two
 // role-comparison classes. It is not ENFORCEMENT (it decides nothing, throws nothing — that is
-// `substrate/auth/decide.ts::assertHost`/`permitsHost` over the injected `can()`, spine invariant #6) and it
+// `substrate/auth/decide.ts::assertHost`/`permitsHost` over the injected `can()`, Spine-Identity-and-Auth invariant 6) and it
 // is not a DATA PROJECTION of the viewer's own authority (that is `member-visibility.ts::viewerHoldsHost`,
 // which answers "does THIS VIEWER hold host?" — a different question with a different input). This one
 // answers "which seat in this room is the host?", and its consumers want an OWNER for a downstream read:
 // card/preset/connection ownership, the stats delta's owner, the notification recipient. Fourteen call sites
 // spelled it inline in two variants before this file existed; the drift that ends here is D19's.
 //
-// THE userId BELT — one answer for the whole class (it used to be present at 11 sites, absent at 3). It STAYS,
+// THE userId BELT — one answer for the whole class. It STAYS,
 // and the contract is the reason: the shipped answer is a host's USER id, so a seat holding `role="host"` with
 // no `userId` cannot satisfy it and must not consume the lookup. Today the belt is behavior-free — no write
 // path grants `host` to a userId-less seat (`buildInitialParticipantRows` mints the human founder host;

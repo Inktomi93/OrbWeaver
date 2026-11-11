@@ -414,7 +414,7 @@ interface BuiltTurnContext {
   readonly chatBehavior: ChatBehaviorInputs;
   /** The tool names a game turn's GATHER contributed (D58) — threaded onto the round base →
    *  `TurnPrep.attachedToolNames` (the pipeline resolves them against the tool-use registry). Empty for a
-   *  non-game turn (byte-identical); empty until the rpg tool registry lands (R4 #2/#3) even for a game. */
+   *  non-game turn (byte-identical); empty until the rpg tool registry lands even for a game. */
   readonly attachedToolNames: readonly string[];
   /** The TERMINAL wire tools a game turn's GATHER contributed (R1 — the folded state extraction), threaded
    *  onto the PERSISTING lifecycle's prep only. `undefined` for a non-game / non-folded turn (byte-identical). */
@@ -633,7 +633,7 @@ function prepMacroFields(
  *  branches stay OUT of `buildTurnContext`'s cognitive-complexity budget.
  *
  *  The gather's INJECTIONS are deliberately NOT here: they ride the S2 teaching collection (chat's own
- *  contributor #0 projects them, `teaching-contribution.ts`), so every prose steering contributor reaches
+ *  the rpg-gather contributor projects them, `teaching-contribution.ts`), so every prose steering contributor reaches
  *  assembly through ONE channel. */
 function rpgAssembleFields(rpg: ChatRpgGatherResult | null): {
   rpgMacros?: Readonly<Record<string, string>>;
@@ -773,7 +773,7 @@ async function buildTurnContext(
   };
   const rpg = ctx.rpg !== null ? await ctx.rpg.gatherTurnContext(gatherArgs) : null;
   // THE S2 TEACHING COLLECTION — the ONE assembly of "what this chat's model is told it can do", collected
-  // right after the gather so contributor #0 (chat's own rpg projection) sees THIS turn's gather. Its
+  // right after the gather so the rpg-gather contributor (chat's own rpg projection) sees THIS turn's gather. Its
   // `injections` ride the one prose-steering channel to assembly; its `toolNames` are the turn's wire attach
   // set. An empty registry ⇒ both empty ⇒ byte-identical to a turn built before this seam existed.
   const teaching = await collectTeaching(ctx.teaching, {

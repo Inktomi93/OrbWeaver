@@ -189,7 +189,7 @@ export interface DiscoveryContext {
 /**
  * The discovery surface for THIS slice — duplicate-CHARACTER detection + theme/hub discovery. Every read
  * verb takes the already-resolved `UserId` (branded at the tRPC seam) and forwards it as `ownerId`; a verb
- * NEVER accepts a caller-supplied ownerId (audit #1 — the cross-user-write P0). The `compute*` passes are
+ * NEVER accepts a caller-supplied ownerId (the cross-user-write defect class). The `compute*` passes are
  * workload-driven (no principal — global recomputes); the reads are owner-scoped.
  */
 export interface DiscoveryService {
@@ -307,12 +307,12 @@ export interface DiscoveryService {
   // ── hubness (workload-driven; CSLS values written via the injected writeHubScores seam) ─────────────
   /** Compute + write `character_embeddings.hub_score` (CSLS mean-cosine, per-space, content-collapsed). */
   readonly computeCharacterHubScores: (opts: ComputeHubScoresOptions) => Promise<HubStats>;
-  /** Compute + write `chat_digests.hub_score` (grouped per (tier, space) — digests, esoteric #5). */
+  /** Compute + write `chat_digests.hub_score` (grouped per (tier, space) — digests). */
   readonly computeDigestHubScores: (opts: ComputeHubScoresOptions) => Promise<number>;
   /** Compute + write `chat_segments.hub_score` (per-space). */
   readonly computeSegmentHubScores: (opts: ComputeHubScoresOptions) => Promise<number>;
-  /** Compute + write `image_embeddings.hub_score` (per-space; image↔image ONLY — never read on text→image,
-   *  esoteric #2; discovery stamps it, `search` omits it cross-modally). */
+  /** Compute + write `image_embeddings.hub_score` (per-space; image↔image ONLY — never read on text→image;
+   *  discovery stamps it, `search` omits it cross-modally). */
   readonly computeImageHubScores: (opts: ComputeHubScoresOptions) => Promise<number>;
 }
 

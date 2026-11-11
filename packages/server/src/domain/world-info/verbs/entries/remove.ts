@@ -1,5 +1,5 @@
-// verb: removeEntry — delete an entry, owner-scoped via the owned-book `inArray` subquery (invariant #4 —
-// never a bare `eq(id)`). DELETE … WHERE id=? AND worldBookId IN (caller's books) RETURNING folds the gate +
+// verb: removeEntry — delete an entry, owner-scoped via the owned-book `inArray` subquery (never a bare
+// `eq(id)`). DELETE … WHERE id=? AND worldBookId IN (caller's books) RETURNING folds the gate +
 // the deletion into one round-trip; an empty result = not owned / not found → typed NotFound.
 //
 // A removed entry leaves the WI pool of every chat the book is attached to — fan out `wiEntryDetached`

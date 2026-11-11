@@ -106,7 +106,7 @@ function selectsTrpcJsonHandler(contentType: string | undefined): boolean {
 }
 
 /**
- * THE CSRF CONTENT-TYPE BELT (spine invariant #9). A tRPC mutation is POST-only
+ * THE CSRF CONTENT-TYPE BELT (Spine-Identity-and-Auth invariant 9). A tRPC mutation is POST-only
  * (`TYPE_ACCEPTED_METHOD_MAP`, and the `allowMethodOverride` map keeps it so), and `@trpc/server` 11.18's
  * `getContentTypeHandler` accepts THREE content-types — `application/json`, `multipart/form-data` and
  * `application/octet-stream` — dispatching the latter two as `type:"mutation"`. `multipart/form-data` is
@@ -519,7 +519,7 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
     // The recorder-state publisher: compose's decision, never a second read of the knob.
     wireCaptureEnabled: (): boolean => deps.wireCapture,
     // The admin arm judges the ONE principal the auth middleware above already resolved for this request
-    // (spine invariant #2). It must never re-resolve: the peer-less second resolution this replaced could not
+    // (Spine-Identity-and-Auth invariant 2). It must never re-resolve: the peer-less second resolution this replaced could not
     // mint the loopback owner arm, so a single-user/dev box's only operator was refused at its own door
     //. `?? null` is the fail-closed read for a context this middleware never ran on.
     auth: {

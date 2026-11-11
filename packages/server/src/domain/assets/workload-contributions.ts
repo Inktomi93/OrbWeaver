@@ -1,10 +1,9 @@
 // domain/assets — the domain's OWN background work, raised as `WorkloadContribution`s (the workloads
 // junk-drawer exit: domains raise seams, the worker skims them). Four kinds: the CAS maintenance passes.
 //
-// This file also RE-HOMES a defect: the `assets-backfill` GATHER (a `db.select` over `characters` plus a
-// per-row CAS probe) used to run at the ENTRY tier, in `compose/runner-env.ts`, purely because the old hub
-// demanded a count-only op shape. Domain reads belong in the domain — the compose file contains no
-// `db.select` at all. The SQL half then moved one step further in, to
+// The `assets-backfill` GATHER (a `db.select` over `characters` plus a per-row CAS probe) lives here, not at
+// the ENTRY tier: domain reads belong in the domain, and the compose file contains no `db.select` at all.
+// The SQL half lives in
 // `persistence/maintenance.ts::loadAvatarBackfillCandidates`: `characters` is CHARACTER's table, and a
 // domain's cross-domain read lives in its db-access slot, never in a root seam (Tier-1-DB.md §"Cross-tier
 // composition"). What stays here is the CAS half — the per-row blob probe.

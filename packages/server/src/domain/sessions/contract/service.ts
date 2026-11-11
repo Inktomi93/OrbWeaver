@@ -113,8 +113,8 @@ export interface SessionsService {
   revokeAllForUser: RevokeAllSessionsForUserOp;
   /** The UNEXECUTED form of {@link SessionsService.revokeAllForUser} — the same atomic UPDATE, handed to a
    *  caller that must commit the kick INSIDE its own privileged write's `db.batch` rather than after it
-   *  (`admin.resetPassword`'s revoke used to be a separate await, so a failed kick left the NEW
-   *  password live with the OLD sessions). The revoke instant is the caller's, so one clock stamps the whole
+   *  (a separately awaited revoke would leave the NEW
+   *  password live with the OLD sessions when the kick failed). The revoke instant is the caller's, so one clock stamps the whole
    *  batch. It does NOT evict live sockets — that is the entry-tier port (W7a), after the commit. @internal */
   revokeAllForUserStatement: (userId: UserId, revokedAt: number) => StatementToken;
   /** A5 — revoke every live session for the user(s) bound to a stable external subject (`sub`), for OIDC

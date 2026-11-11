@@ -173,7 +173,7 @@ function mergeConfig(params: UpdateConfigParams, current: RpgGameConfig, nextPro
     extractionMode: params.extractionMode ?? current.extractionMode,
     // The §1.3 extraction-depth knobs — keep-on-omit.
     ...mergeExtractionKnobs(patch, current),
-    // #9 — keep-on-omit like every sibling.
+    // The ambient-date mode — keep-on-omit like every sibling.
     dateMode: patch?.dateMode ?? current.dateMode,
     // The parity-plus feature knobs (§2.8/§2.1 M1 + P3 §3.3/§3.6 + P4 cards) — keep-on-omit (see mergeFeatures).
     features: mergeFeatures(patch, current.features),

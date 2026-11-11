@@ -27,7 +27,7 @@ export function createGetConfigView(ctx: RpgContext): Pick<RpgService, "getConfi
       stateCaptureVehicle: game.config.stateCaptureVehicle,
       extractionWindowTokens: game.config.extractionWindowTokens,
       reconcileEveryBeats: game.config.reconcileEveryBeats,
-      dateMode: game.config.dateMode, // #9 — the ambient-date mode knob
+      dateMode: game.config.dateMode, // the ambient-date mode knob
       trackers: game.config.trackers,
       relationshipHints: game.config.features.relationshipHints,
       journalTypeHints: game.config.features.journalTypeHints,

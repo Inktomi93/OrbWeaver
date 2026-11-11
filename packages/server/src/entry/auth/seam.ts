@@ -162,7 +162,7 @@ async function resolveCookiePrincipal(sessions: SessionsService, headers: Header
  * WHICH handle the owner fallback lands on. Verification stamps `config.defaultHandle`
  * (`DEFAULT_USER_HANDLE`, whose schema default is the literal `"owner"`) on the `via:"fallback"` identity —
  * but that is a PLACEHOLDER, not a verdict: infra deliberately does not read owner policy
- * (`infra/auth/config.ts`, invariant #3). WHO the box owner is, is RESOLUTION-tier policy — `ownerHandles()`,
+ * (`infra/auth/config.ts`, Spine-Identity-and-Auth invariant 3). WHO the box owner is, is RESOLUTION-tier policy — `ownerHandles()`,
  * the same predicate `determineRole` and the boot owner-seed read, exported from the sessions front door
  * precisely "so entry's boot owner-seed and the login-derived role path can never fork" (D135: the fallback
  * is a third consumer of that one predicate). D17 makes the list a singleton, so `[0]` is THE owner handle.
@@ -277,7 +277,7 @@ export function createHostPrincipalResolver(sessions: Pick<SessionsService, "loa
 /**
  * The OWNER-FALLBACK arm's resolver: the same mapper PLUS the `enabled` gate, because this one IS a request
  * authentication. The other two request paths refuse a disabled row — `sessions.validate` re-checks
- * `users.enabled` per request (invariant #8/D40) and the SSO arm returns `null` on `!provisioned.enabled` —
+ * `users.enabled` per request (Spine-Identity-and-Auth invariant 8, D40) and the SSO arm returns `null` on `!provisioned.enabled` —
  * so without this the file's "all three request paths agree" claim would be true of `role` and false of
  * `enabled`, and a directly-written `users.enabled = 0` on the owner row would still admit an un-credentialed
  * caller as owner. (`admin.setEnabled` refuses to disable an owner, so today only a raw DB write reaches it:
@@ -398,7 +398,7 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
    * hands out deliberately, and it never rides a browser's ambient cookie.
    *
    * IT JUDGES, IT DOES NOT RESOLVE. The principal is the one `resolvePrincipal` already minted for
-   * this request in `entry/app.ts`'s middleware — spine invariant #2, "resolve once". The old shape re-ran
+   * this request in `entry/app.ts`'s middleware — Spine-Identity-and-Auth invariant 2, "resolve once". The old shape re-ran
    * the whole resolution from bare headers with NO `PerRequestSeamDeps`, so the gate silently asked a
    * DIFFERENT question than the rest of the app: with no `peerIp`, `ownerFallbackAllowed` fail-closed and the
    * loopback owner arm could not even be minted here, which (with `fallback:false`) is why the owner's own

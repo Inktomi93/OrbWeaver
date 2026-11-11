@@ -13,8 +13,7 @@
 // Wire input schemas are DERIVED from `@orb/contracts/rpg` (`inputs.ts` — the actor/tracker shapes + enums are
 // reused, never re-spelled at the transport edge, §5.5); the router only wires them to the verbs.
 //
-// The per-game LIVE event stream used to live here as `stream`. It FOLDED into the multiplexed socket at
-// SSE-1 S1: it is now the `rpg` ROOM (`transport/trpc/stream/sources/rpg.ts`), which carries the SAME
+// The per-game LIVE event stream is not on this router: it is the `rpg` ROOM of the multiplexed socket (`transport/trpc/stream/sources/rpg.ts`), which carries the SAME
 // chat-membership authority verbatim — accept-always at attach (withhold-not-throw: a game may be born while
 // a client is attached), then the `chatEventBounds` probe re-run PER YIELD so a kicked member stops
 // receiving. It gained per-room fault isolation on the way: a throw from that probe is now a `roomFailed`
