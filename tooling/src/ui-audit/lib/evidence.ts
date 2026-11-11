@@ -179,7 +179,7 @@ export function censusCapGap(samples: RawSamples): EvidenceGap | null {
  *  together, so a broken CDP diagnostic wire-up was filed as a P0 DEFECT OF THE APP and exited 1 — the
  *  instrument blaming the product for its own failure, which is the exact polarity the exit-code
  *  contract exists to prevent (0 clean · 1 violations · 2 the run is NOT a verdict). Typing the channel
- *  (Codex, 2026-09-04) made the two distinguishable; this is the ui-audit consumer that reads the kind.
+ *  made the two distinguishable; this is the ui-audit consumer that reads the kind.
  *  Exit 2, never a finding. */
 export function instrumentPageErrorGap(messages: readonly string[]): EvidenceGap | null {
   if (messages.length === 0) {
@@ -230,8 +230,8 @@ export function actionsFailedGap(actionsFailed: number, actionCount: number): Ev
 
 /** THE FAILURE-SURFACE GAP (#1081) — the arm that made this file's own opening paragraph literally true.
  *
- *  MEASURED 2026-09-01 through the real CLI against the dev stack (the retired `pnpm design-audit`, now
- *  `pnpm snap /__no-such-route__ --design-audit`): the run
+ *  MEASURED through the real CLI against the dev stack (`pnpm snap /__no-such-route__ --design-audit`):
+ *  the run
  *  printed all 48 POPULATION rows, filed `landmark-missing` P2 against the router's not-found boundary and
  *  exited 0 — "a swallowed error boundary … audits as the cleanest page in the product", six lines up.
  *  Nothing above catches it and nothing above can: the route RESOLVED (so `data-app-ready` went up and

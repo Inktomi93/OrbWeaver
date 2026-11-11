@@ -1,8 +1,7 @@
 // @instrument-absence-proof: perf-meter's rate is the one output whose ABSENCE must never read as a
 // measurement — software acceleration and an unknown acceleration posture each WITHHOLD before the arm
 // votes, and the quiet planted control proves the withhold is a measurement rather than a blanket refusal.
-// The marker moved here at #1315 with the deletion of the retired `pnpm perf-meter`'s door; the firing half
-// stays on the boot-trace suite.
+// The firing half stays on the boot-trace suite.
 // §7.1 load honesty at perf-meter's actual RATE-result seam, AS AMENDED BY #1616's owner ruling: a
 // CONTENDED box no longer withholds — it MEASURES, prints the LOAD-SUSPECT receipt, publishes
 // `perf=load-suspect` and leaves the exit alone. Only an unproven browser (NO number at all) still

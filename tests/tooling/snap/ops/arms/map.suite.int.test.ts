@@ -102,8 +102,7 @@ test("live map prints executable SPA atlas, factual desktop shell geometry, and 
   });
 
   await expect(run).toExitWith(0);
-  // #1372: a plain --map states the atlas as ONE line and keeps the 2.1 KB block one flag away (#1515 —
-  // this suite pinned the pre-#1372 block and went red on main without `pnpm check` ever running it).
+  // A plain --map states the atlas as ONE line and keeps the full block one flag away.
   expect(run.stdout).toContain(
     "atlas: 8 SPA targets (2 sections, 1 modals, 1 settings, 1 context tabs, 3 chat positions) at section=Chats — list them with --map --atlas",
   );

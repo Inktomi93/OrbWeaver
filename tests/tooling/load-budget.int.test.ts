@@ -98,7 +98,7 @@ test("spawnNodeWithBudget: a planted slow child throws a legible kill; a normal 
   expect(run.status).toBe(2);
 });
 
-// BOTH KILL SHAPES (#999 f, 2026-09-01). A `pnpm check:structure` child killed at its budget under loadavg
+// BOTH KILL SHAPES. A `pnpm` child killed at its budget under loadavg
 // 38/24 cores did NOT arrive as a SIGTERM'd exit — node surfaced spawnSync's own error object instead
 // (`code:"ETIMEDOUT"`, `signal:null`, `status:0`), so the SIGTERM-only discriminator missed it and the kill
 // printed as an opaque "child exit 0". The planted-slow-child tests above only ever produce the SIGTERM

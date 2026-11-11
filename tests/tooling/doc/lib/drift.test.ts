@@ -56,7 +56,7 @@ test("a consistent tree prints nothing", () => {
 });
 
 test("a doing item is live only when its lane names a worktree or unmerged branch EXACTLY; a substring is stale", () => {
-  const stale = facts({ items: [item({ id: 1, state: "doing", lane: "cb-x" })], unmergedBranches: ["wt/cb-x-docs", "codex/cb-x"] });
+  const stale = facts({ items: [item({ id: 1, state: "doing", lane: "cb-x" })], unmergedBranches: ["wt/cb-x-docs", "release/cb-x"] });
   expect(driftLines(stale)).toEqual(["1 is doing under lane cb-x with no live worktree and no unmerged branch — pnpm doc set 1 open"]);
   expect(driftLines({ ...stale, unmergedBranches: ["cb-x"] })).toEqual([]);
   expect(driftLines({ ...stale, worktreeBranches: ["cb-x"] })).toEqual([]);

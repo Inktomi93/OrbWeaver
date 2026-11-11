@@ -131,7 +131,7 @@ export function markdownLinkTargets(source: string): readonly { readonly line: n
 
 /** Top-level directories whose backticked paths must exist. Other spans (commands, globs, runtime
  *  artifacts under `reports/`, bare file names) are not repository paths. */
-const REPO_PATH_ROOTS = ["packages/", "tooling/", "tests/", "docs/", "scripts/", ".claude/", ".codex/", ".agents/", ".github/"];
+const REPO_PATH_ROOTS = ["packages/", "tooling/", "tests/", "docs/", "scripts/", ".claude/", ".github/"];
 /** A span opening with one of these names a path relative to the file that holds it. */
 const RELATIVE_PATH_PREFIXES = ["./", "../"];
 const NOT_A_PATH = /[\s*<>{}$?…|,;()[\]"'=]|\.\.\./u;

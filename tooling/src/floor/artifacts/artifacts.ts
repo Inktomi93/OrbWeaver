@@ -62,8 +62,7 @@ export function ensureReportsDir(root: string, ...segments: readonly string[]): 
 // ── RUN IDENTITY + PER-RUN ARTIFACT SLOTS (#1029) ────────────────────────────────────────────────────
 // THE DEFECT THIS CLOSES (owner ruling 2026-09-01: "all reports need to be able to be ran concurrently").
 // Every instrument wrote its artifact to ONE fixed path, so two runs on one checkout — two lanes, a lane
-// and the orchestrator, a `pnpm check` and the `check:structure` a sibling started — clobbered each other:
-// measured live, `reports/check-structure.json` flipped from a complete 248-gate verdict to another run's
+// and the orchestrator — clobbered each other: one run's complete verdict flipped to another run's
 // in-flight stub inside 30s, and the read-the-artifact-not-the-pipe law assumes the artifact is YOURS.
 //
 // THE MECHANISM. A run writes ONLY inside its own slot `reports/runs/<instrument>/<runId>/`, where the run
@@ -251,7 +250,7 @@ export interface RunAlias {
  *  "a process is writing here", never "this slot became `latest`" — but `publishRunSlot` was its only
  *  unlinker, so every run that finishes WITHOUT publishing left one behind and `abandonedRuns` then reported
  *  it as a run that DIED. Measured on main 2026-09-12: 17 of 32 structure slots carried a marker and 13 of
- *  those were FINISHED fixture-mode runs, so `pnpm check:show` refused the real pointer with "that run never
+ *  those were FINISHED fixture-mode runs, so the run reader refused the real pointer with "that run never
  *  finished" about a run that finished perfectly and only declined to speak for the real tree (#2167).
  *
  *  Two callers by design: a NON-VERDICT run and a GATE-SCOPED run. Both are complete; neither may become

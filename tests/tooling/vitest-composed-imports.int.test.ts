@@ -24,7 +24,7 @@ test("effective Vitest rules recognize composed imports and retain legal asserti
       },
     ],
   });
-  for (const door of ["@orb/testkit/node/fixtures.ts", "@orb/testkit/node/tool-fixtures.ts", "vitest"]) {
+  for (const door of ["@orb/testkit/node", "@orb/testkit/tooling", "vitest"]) {
     const head = `import { test as check, expect } from "${door}";\n`;
     for (const [body, expected] of [
       ['check("missing", () => { const value = 1; });', [ASSERTIONS]],

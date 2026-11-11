@@ -1108,13 +1108,7 @@ const NATIVE_CONFIG: FlatConfig.Config[] = [
     plugins: { vitest },
     settings: {
       vitest: {
-        vitestImports: [
-          "@orb/testkit/node",
-          "@orb/testkit/tooling",
-          "@orb/testkit/node/fixtures.ts",
-          "@orb/testkit/node/tool-fixtures.ts",
-          /(?:^|\/)(?:_fixtures|_support|fixtures|tool-fixtures|[\w-]+\.fixtures)\.ts$/u,
-        ],
+        vitestImports: ["@orb/testkit/node", "@orb/testkit/tooling", /(?:^|\/)(?:_fixtures|_support|fixtures|tool-fixtures|[\w-]+\.fixtures)\.ts$/u],
       },
     },
     rules: {

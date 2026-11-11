@@ -107,8 +107,7 @@ const controls = [
 
 test.for(controls)("native test policy %#: %s %s", async ([file, rule, bad, good], { repoRoot }) => {
   const config = await resolvedConfig(new ESLint({ flags: ["unstable_native_nodejs_ts_config"], cwd: repoRoot }), file);
-  const doors =
-    file === pw ? ["@playwright/test", "@orb/testkit/node/ct-corpus.ts"] : ["vitest", "@orb/testkit/node/fixtures.ts", "@orb/testkit/node/tool-fixtures.ts"];
+  const doors = file === pw ? ["@playwright/test", "@orb/testkit/ct-corpus"] : ["vitest", "@orb/testkit/node", "@orb/testkit/tooling"];
 
   const native = {
     files: ["**/*.{ts,tsx}"],

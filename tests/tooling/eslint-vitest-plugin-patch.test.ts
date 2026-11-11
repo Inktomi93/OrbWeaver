@@ -103,7 +103,7 @@ test("a listed wrapper's call site with an empty body flags", () => {
   expect(findings("function cellTest(title, body) {\n  test(title, body);\n}\ncellTest('empty', () => {});", EXPECT_EXPECT)).toEqual([EXPECT_EXPECT]);
 });
 
-test.for(["@orb/testkit/node", "@orb/testkit/tooling", "@orb/testkit/node/fixtures.ts", "@orb/testkit/node/tool-fixtures.ts", "vitest"])(
+test.for(["@orb/testkit/node", "@orb/testkit/tooling", "vitest"])(
   "the repository config recognizes native Vitest imports from %s",
   { timeout: 120_000 },
   async (source, { repoRoot }) => {

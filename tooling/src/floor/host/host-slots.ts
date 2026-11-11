@@ -50,7 +50,7 @@ import { budget } from "./load-budget.ts";
 
 export type { HostSlotHolder } from "./host-slot-records.ts";
 
-refuseDirectInvocation(import.meta.url, "pnpm check (or pnpm test:ct <paths…>)");
+refuseDirectInvocation(import.meta.url, "pnpm test:ct <paths…>");
 
 /** One pool's identity: its directory suffix and printed name (`<runtime>/orb-<name>-slots/`), the label its
  *  slot file records so an operator sees WHAT holds a slot, and its size — from

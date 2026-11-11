@@ -1,7 +1,7 @@
 // THE `--design-audit` ARM: the deterministic UI defect scan, as one of Snap's arms (#1315).
 //
-// THE RETIRED `pnpm design-audit` HAS NO EXECUTION PATH. The scan is `pnpm snap <route> --design-audit`,
-// and everything a caller used to get from the sibling CLI it now gets from Snap for free: the isolated
+// THE SCAN HAS NO CLI OF ITS OWN. It is `pnpm snap <route> --design-audit`, and through Snap a caller
+// gets for free: the isolated
 // stage, the session, the appearance/theme shims, the `--pages`/`--contexts` fan-out, the run slot, the
 // typed facts, `--report --problems`, the matrix. The 14k-line detector engine stayed exactly where it
 // was and is entered through `ui-audit/index.ts` (the motion-audit precedent, 1208 §10.6/§12.3).

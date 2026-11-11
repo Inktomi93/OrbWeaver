@@ -5,7 +5,7 @@
 // INHERITS: inside a marked run its subject was the OUTER run, not this daemon. A session daemon is spawned
 // detached and outlives its launcher, so once reparented its ancestor chain is JUST ITSELF and
 // `selfAndAncestors` excludes nothing — the sweep reached every sibling vitest worker and the top-level
-// pnpm. `pnpm test:tooling` with `ORB_RUN_MARKER` set and its owner alive: `Killed`, exit 137, 11 files, no
+// pnpm. `pnpm test:tools` with `ORB_RUN_MARKER` set and its owner alive: `Killed`, exit 137, 11 files, no
 // summary. The same command with the variable unset: 556 files and a published verdict. One variable.
 //
 // WHY A DOOR TEST AND NOT ONLY THE MECHANISM TEST: the bug was never in `sweepRunMarkerNow` — it was in

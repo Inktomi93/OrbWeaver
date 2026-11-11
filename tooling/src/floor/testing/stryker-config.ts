@@ -30,7 +30,6 @@ const IGNORE_PATTERNS = [
   "test-results/**",
   ".claude/**",
   ".agents/**",
-  ".codex/**",
   ".qwen/**",
   "reference/**",
   "scratch/**",

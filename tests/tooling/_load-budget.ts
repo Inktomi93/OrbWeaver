@@ -166,8 +166,8 @@ function runCommandWithBudget(run: CommandBudget): string {
   } catch (err) {
     const e = err as { code?: string; signal?: string | null; stdout?: string };
     // A timeout kill has TWO shapes and BOTH are load kills. The original ruling — `signal:"SIGTERM"` (a
-    // plain non-zero exit has `signal:null`) — still holds and is kept; what changed is the INPUT. Measured
-    // 2026-09-01 (#999 f): `pnpm check:structure` killed at its budget under loadavg 38/24 cores threw the
+    // plain non-zero exit has `signal:null`) — still holds and is kept; what changed is the INPUT. Measured:
+    // a `pnpm` child killed at its budget under loadavg 38/24 cores threw the
     // OTHER shape instead — `code:"ETIMEDOUT"`, `errno:-110`, `syscall:"spawnSync pnpm"`, with `signal:null`
     // and `status:0`, because node surfaces spawnSync's own `error` field rather than a signalled exit when
     // the killed child's group does not report the signal back. The SIGTERM-only discriminator therefore

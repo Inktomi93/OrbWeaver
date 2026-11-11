@@ -25,10 +25,9 @@ Failure scenarios:
 - Boot-only checkpoint fields other than the small explicit appearance/theme refusal set are inherited/overwritten without an error, so malformed scenarios look valid.
 - Matrix cells call the same scenario runner (`tooling/src/snap/ops/matrix.ts:124`), so matrix composition multiplies rather than repairs the ambiguity.
 
-Evidence produced this session:
+Output of the review's scratch probe, which is not kept in the tree:
 
 ```text
-$ pnpm tsx reports/stickler/scratch/snap-argv-audit.ts
 scenario.outer.errors []
 scenario.checkpoint0 {"cpuThrottle":1,"network":null,"pages":1,"aria":false,"shot":true,"eval":[{"expr":"window.__orb?.snap()","page":0}],"watchMs":0,"everyMs":1000}
 scenario.errors []
@@ -43,10 +42,9 @@ The governing contract explicitly says scenario checkpoints are session calls an
 
 Failure scenario: a session is booted with failure evidence enabled; a later `--session <name> --no-failure-evidence ...` parses cleanly, but failure evidence remains enabled. An operator can request reduced evidence retention and receive the opposite policy without an error.
 
-Evidence produced this session:
+Output of the review's scratch probe, which is not kept in the tree:
 
 ```text
-$ pnpm tsx reports/stickler/scratch/snap-argv-audit.ts
 session.noFailureEvidence.refused []
 session.noFailureEvidence.inherited true
 ```
@@ -70,10 +68,9 @@ Failure scenarios:
 - `node tooling/src/snap/cli.ts --stage-status --click body` exited 0 after printing stage status and never performed the click. It also minted the transient run slot `reports/runs/snap/main-1251943-2026-09-04T01-11-42-024Z/` before returning. Shared run-slot pruning removed the directory later, so the artifact is no longer inspectable; the command/output observed during the run is the durable evidence.
 - Pure parser probes accepted `--stage-sweep --eval 1`, `--stage-down --eval 1`, `--session-close p-x --eval 1`, `--session-sweep --eval 1`, `--session-export p-x --eval 1`, `--session-status --json`, and `--materialize-devtools-assets --json` with no errors.
 
-Evidence produced this session:
+Output of the review's scratch probe, which is not kept in the tree:
 
 ```text
-$ pnpm tsx reports/stickler/scratch/snap-argv-audit.ts
 mixed ["--materialize-devtools-assets","--json"] []
 mixed ["--stage-status","--click","body"] []
 mixed ["--stage-sweep","--eval","1"] []
@@ -96,10 +93,9 @@ Failure scenarios:
 - `--report latest --channel --problems` becomes `channel="--problems"` with no error.
 - `--report latest --text --page 2` becomes `text="--page"` and reports only `unknown report flag 2`, obscuring the actual missing value.
 
-Evidence produced this session:
+Output of the review's scratch probe, which is not kept in the tree:
 
 ```text
-$ pnpm tsx reports/stickler/scratch/snap-argv-audit.ts
 report ["--report","latest","--arm","--all"] {...arm:"--all",errors:[]}
 report ["--report","latest","--channel","--problems"] {...channel:"--problems",errors:[]}
 report ["--report","latest","--text","--page","2"] {...text:"--page",errors:["unknown report flag 2"]}
@@ -123,10 +119,9 @@ Verdict: **KEEP** and widen `--upload <trigger-or-input-selector>=<path[,path...
 
 Failure scenarios: `--summary` outside a scenario, `--every 250` without `--watch`, `--motion-window 10` or `--motion-no-throttle` without `--motion`, `--force` without a destructive admin action, and `--fixture-server/--fixture-base` without `--contexts` or `--as` all parse successfully and do nothing.
 
-Evidence produced this session:
+Output of the review's scratch probe, which is not kept in the tree:
 
 ```text
-$ pnpm tsx reports/stickler/scratch/snap-argv-audit.ts
 orphan ["--summary"] {"errors":[],"warnings":[]}
 orphan ["--every","250"] {"errors":[],"warnings":[]}
 orphan ["--motion-window","10"] {"errors":[],"warnings":[]}
@@ -373,30 +368,8 @@ None of `--choose-files`, `--pick-files`, `--upload-directory`, `--file-dialog`,
 - Read the authority chain in full: root `AGENTS.md`, `.claude/agent-doctrine.md`, `docs/law/Constitution.md`, `Core-Laws-and-Precedents.md`, relevant core architecture/tooling/documentation law, imported browser/tooling/lane/orchestration rules.
 - Read the normal parser, all flag registries/classes/handlers, stage/session flag modules, every registered arm module, arm/help/type contracts, session-plan partition, scenario preparation/catalog/runtime, matrix contract/runtime, shared instrument argv/browser environment/appearance/panel/theme owners, report query/rendering, session admin/daemon/evidence, contexts and materialization paths, plus relevant parser/session/matrix/CLI tests.
 - Re-derived 116 normal flags from executable registries (115 public descriptors plus internal `--session-daemon`) and 13 reader spellings from raw-argv dispatch. `pnpm snap --help` now prints the generated complete grammar block, so a new public handler receives one authoritative row without relying on incidental prose.
-- Ran the minted post-repair acceptance and focused behavioral suites:
-
-```text
-$ pnpm test:scoped tests/tooling/snap/ops/cli-truth.suite.int.test.ts --maxWorkers=1
-Test Files  1 passed (1)
-Tests       6 passed (6)
-
-$ pnpm test:scoped tests/tooling/snap/ops/session-daemon.int.test.ts --maxWorkers=1
-Test Files  1 passed (1)
-Tests       15 passed (15)
-
-$ pnpm test:scoped tests/tooling/snap/ops/arms/profile.suite.int.test.ts --maxWorkers=1
-Test Files  1 passed (1)
-Tests       4 passed (4)
-
-$ pnpm test:scoped tests/tooling/snap/ops/cli-truth.suite.int.test.ts tests/tooling/snap/lib/session-plan.test.ts tests/tooling/snap/lib/session-wire.test.ts tests/tooling/snap/ops/parse.test.ts tests/tooling/screen-record/index.test.ts --maxWorkers=1
-Test Files  5 passed (5)
-Tests       39 passed (39)
-```
-
 - Ran structural consumer sweeps for scenario summaries, failure evidence, watch cadence, motion modifiers, force, and fixture URLs with `ast-grep --inspect summary`; each sweep scanned 153 TypeScript files with zero skipped files, then was cross-checked with scoped literal search.
 - Confirmed the only real accepted spelling alias is `-h`/`--help`; related same-slot alternatives express intentionally different values or mechanisms.
-
-`pnpm check` was not run. This review was performed on a shared dirty main tree with active repair lanes; repo lane law forbids a lane from taking the global gate while sibling work is in flight. The focused tests above are the test boundary of this report.
 
 ## Scope not fully reviewed
 
