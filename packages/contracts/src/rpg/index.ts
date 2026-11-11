@@ -3,8 +3,8 @@
 // index re-exports, consumer-invisible):
 //   • enums.ts    — the string-union tuples (mode/status/quest/journal/checkpoint/widget), CHECK-derived in db
 //   • profile.ts  — `statProfile` as data + live ruleset profile defaults (D281)
-//   • ruleset.ts  — the RULESET axis (#862): the host setting that picks a game's vocabulary + dice, and the
-//                   ADDITIVE apply the write door commits (owner ruling 2026-08-30)
+//   • ruleset.ts  — the RULESET axis: the host setting that picks a game's vocabulary + dice, and the
+//                   ADDITIVE apply the write door commits (owner ruling)
 //   • sheet.ts    — the per-actor identity sheet (§4.3)
 //   • actor.ts    — THE actor: ref + `actorRefKey` + the cast SLUG + the identity half + the volatile half
 //                   (wallet/inventory first-class, §2.6; the R2 one-row reshape)

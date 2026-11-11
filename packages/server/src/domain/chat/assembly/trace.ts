@@ -3,8 +3,7 @@
 // "why did SHAPE produce this history + (not) place a cache breakpoint?" WITHOUT dumping RP content.
 //
 // Distinct consumers from shape()'s content-bearing `stages`: those feed the engine (the wire history)
-// and this builder's own counts/decision derivation (they also fed the neo differential oracle's byte-diff
-// until #428 ripped it out 2026-08-22). THIS is the content-FREE projection safe to log / show in the
+// and this builder's own counts/decision derivation. THIS is the content-FREE projection safe to log / show in the
 // inspector — counts, roles, the squash-merge count, and the breakpoint decision + abort reason.
 //
 // CONSUMER: the host/admin assembly inspector reads this on demand — `chat.getShapeTrace` re-runs
@@ -25,8 +24,8 @@ interface ShapeStages {
   // (`turns.midConversationSystem`) or mid-array (`turns.historySystemRows`) — so `withTail` (pre-splice) in
   // fact never carries one. It is typed on the full axis anyway rather than `Exclude<…,"system">`: this is a
   // structural INPUT shape, and narrowing it would make the builder reject a caller that is already correct.
-  // (`withTail` did briefly carry system, from the D129(B) narrator delivery `6aad2053fb` shipped; the owner
-  // ruled that out 2026-08-18 — group narration is the assistant's own voice.)
+  // (`withTail` never carries system: the owner ruled out the D129(B) narrator delivery — group narration
+  // is the assistant's own voice.)
   withTail: readonly { role: MessageRole }[];
   injected: readonly { role: MessageRole }[];
   squashed: readonly { role: MessageRole }[];

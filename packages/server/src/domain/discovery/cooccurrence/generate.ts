@@ -161,7 +161,7 @@ export async function computeCooccurrence(db: Db, deps: ComputeCooccurrenceDeps,
   signal?.throwIfAborted();
   const now = deps.now();
   const all = await readRunDigestKeywords(db, opts);
-  // GROUP-ROOM DIGESTS ARE NOT ONE CHARACTER'S KEYWORDS (#1467). A group digest is scoped to the synthetic
+  // GROUP-ROOM DIGESTS ARE NOT ONE CHARACTER'S KEYWORDS. A group digest is scoped to the synthetic
   // per-room group bucket, so every keyword of a whole room's scene landed in ONE synthetic character's
   // `character_keyword_profiles` row, and the pair tally counted a room's vocabulary as a character's. The
   // theme pass already drops these rows before clustering (`themes/generate.ts`); this is the same drop, at
@@ -209,9 +209,9 @@ export async function computeCooccurrence(db: Db, deps: ComputeCooccurrenceDeps,
   return {
     // The INPUT-PLANE census, reported even though every other counter is a write count: with no tier-0
     // digests all four are legitimately zero, and the caller cannot otherwise tell "the memory backfill has
-    // not run" from "the tally changed nothing" (issue #558). The SOLO count is the second discriminator: a
+    // not run" from "the tally changed nothing". The SOLO count is the second discriminator: a
     // group-rooms-only corpus reads digests and still writes nothing, and its fix is not "run the backfill
-    // again" (#1467).
+    // again".
     digestsRead: all.length,
     soloDigestsRead: solo.length,
     pairsWritten,

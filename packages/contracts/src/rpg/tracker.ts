@@ -1,5 +1,5 @@
 // @orb/contracts/rpg/tracker — THE tracked-field unification (D113,
-// owner-approved 2026-07-31; noun = TRACKER). ONE def replaces the four names the panel used to carry for
+// owner-approved; noun = TRACKER). ONE def replaces the four names the panel used to carry for
 // the same concept — pool (`sheet.poolDefs`), meter/npc field (`features.castFields`), band orb
 // (`features.pinnedOrbs`), HUD widget (the dropped `rpg_hud_widgets` table). They were never siblings; they
 // were ONE def read along four AXES:
@@ -9,7 +9,7 @@
 //                 ARM the model gets, its mental model, and the panel read (a bar you drain vs a gauge)
 //   • carriers  — `appliesTo` class or explicit actor list, ± per-actor grants/revokes off the SHEET
 //
-// NO LEGACY (owner ruling 2026-08-01, "we haven't launched — there shouldn't be legacy anything"): the old
+// NO LEGACY (owner ruling, "we haven't launched — there shouldn't be legacy anything"): the old
 // shapes are REPLACED outright. There is no lift-at-parse, no dual read, no compat wire arm.
 //
 // ADDRESSING IS BY `key`, ALWAYS. The old surfaces addressed by NAME/LABEL (`pools[].name`, `widgetValues`
@@ -56,7 +56,7 @@ type RpgTrackerAppliesTo = z.infer<typeof rpgTrackerAppliesToSchema>;
  *  a game, whatever its subject (the old per-actor `sheet.poolDefs` split was exactly the thing that forced
  *  the three-tab define/value/pin dance the unification kills).
  *
- *  `max` is a meter's DEFAULT ceiling (owner amendment 2026-07-31): what a carrier gets when it has no
+ *  `max` is a meter's DEFAULT ceiling (owner amendment): what a carrier gets when it has no
  *  override, what the reminder teaches, and what the Game-tab editor edits. A carrier MAY deliberately differ
  *  (two characters with different Vitality ceilings — the d20 max-HP reality), which rides `RpgTrackerValue.max`
  *  and resolves through the ONE {@link trackerCeiling} home. `hint` is THE steering lever: a bare tracked number measurably does NOT move
@@ -92,7 +92,7 @@ export type RpgTrackerDef = z.infer<typeof rpgTrackerDefSchema>;
  *    • `list`  ⇒ `items` carries the lines (`value` null)
  *  A null across the board is an EXISTING-but-unset tracker (the carrier has it, the story hasn't moved it).
  *
- *  `max` is the PER-CARRIER CEILING OVERRIDE (owner amendment 2026-07-31, restoring §5.2): `null` = this
+ *  `max` is the PER-CARRIER CEILING OVERRIDE (owner amendment, restoring §5.2): `null` = this
  *  carrier uses the def's default ceiling; a number = this carrier is DELIBERATELY different (Kael's Vitality
  *  tops out at 34 where the party default is 30 — the d20 max-HP reality, which `hp` has always modelled this
  *  way). The old drift class it was cut to kill is killed by an ANTI-DRIFT WRITE RULE instead of by absence:
@@ -309,7 +309,7 @@ export function trackerNumber(value: RpgTrackerValue | undefined): number | null
     return Number.isFinite(raw) ? raw : null;
   }
   if (typeof raw === "string") {
-    // WHOLLY-NUMERIC OR NOTHING (#1371 item 4, and the contract this function always meant). It used to
+    // WHOLLY-NUMERIC OR NOTHING (and the contract this function always meant). It used to
     // run `parseInt`, which is lenient in the two directions that are actually WRONG here:
     //   • PREFIX-STOP — `"5garbage"` read as `5`. That is fabrication, not leniency: the reading is
     //     indistinguishable from a meter the model genuinely set to 5, and it then feeds the delta

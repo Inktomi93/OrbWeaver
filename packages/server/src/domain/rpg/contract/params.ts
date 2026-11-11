@@ -90,7 +90,7 @@ export interface StagedTurnFlush {
    *  round's delta — each carrying the state it was composed against. Replayed in the same order by the fold,
    *  so the composition is identical to `state`'s. */
   readonly patches: readonly StagedPatch[];
-  /** The dotted paths this turn's writes lost to the base's hand LOCKS while staging (#77) — observed at the
+  /** The dotted paths this turn's writes lost to the base's hand LOCKS while staging — observed at the
    *  merge, never re-derived. The flush unions them with the fold's own losses onto the turn's tool-call
    *  record, so a suppressed write is disclosed instead of reported as `applied`. */
   readonly suppressedByLocks: readonly string[];
@@ -115,7 +115,7 @@ export interface StagedPatch {
   readonly base: RpgSnapshotState;
 }
 
-// ── the cheap-mode state TOOLS' internal shapes (#408) ──────────────────────────────────────────────────
+// ── the cheap-mode state TOOLS' internal shapes ──────────────────────────────────────────────────
 // Homed here, not in `tools/apply.ts`: these are ordinary
 // domain-internal shapes — §7.4 puts them in the domain's own `contract/` like every other param above. Two
 // of the three additionally cross OUT of the domain (`domain/rpg/index.ts` re-exports them for
@@ -176,8 +176,8 @@ export interface StagedJournalEntry {
 // `?: T` rejects the explicit `undefined` a zod-optional infers, and the transport pass-through spreads it.
 
 /** `createGame` — the host-gated create. `mode ∈ RPG_GAME_MODES`; `"full"` throws `RpgModeUnbuiltError`.
- *  `ruleset` is the game's born vocabulary (omit ⇒ `freeform`, the birth default). #862 replaced the
- *  start-time `profile` pick with this SETTING: one start action, retuned additively on the Game tab. */
+ *  `ruleset` is the game's born vocabulary (omit ⇒ `freeform`, the birth default). This SETTING, not a
+ *  start-time `profile` pick: one start action, retuned additively on the Game tab. */
 export interface CreateGameParams {
   readonly principal: Principal;
   readonly chatId: ChatId;
@@ -194,8 +194,8 @@ export interface UpdateConfigParams {
   readonly patch?:
     | {
         readonly statProfile?: RpgStatProfile | undefined;
-        // THE RULESET SETTING (#862) — omit keeps. A CHANGED value merges that ruleset's vocabulary in
-        // ADDITIVELY (owner ruling 2026-08-30); re-sending the current value changes nothing.
+        // THE RULESET SETTING — omit keeps. A CHANGED value merges that ruleset's vocabulary in
+        // ADDITIVELY (owner ruling); re-sending the current value changes nothing.
         readonly ruleset?: RpgRuleset | undefined;
         readonly steeringNote?: string | undefined;
         // THE TRACKERS (the tracked-field unification) — the host's whole tracker set in ONE write
@@ -221,7 +221,7 @@ export interface UpdateConfigParams {
         readonly cyoa?: boolean | undefined;
         readonly cyoaChoiceBehavior?: RpgGameFeatures["cyoaChoiceBehavior"] | undefined;
         readonly plotProgression?: boolean | undefined;
-        // The FRONT-DOOR toggle (#40) — omit keeps; `false` disengages (state preserved, reversible);
+        // The FRONT-DOOR toggle — omit keeps; `false` disengages (state preserved, reversible);
         // the verb mirrors the value onto the chat pointer (`ChatRpgPointer.engaged`).
         readonly engaged?: boolean | undefined;
         // The #9 ambient-date mode (`narrated` | `structured`) — omit keeps.
@@ -233,7 +233,7 @@ export interface UpdateConfigParams {
         readonly stateCaptureVehicle?: RpgStateCaptureVehicle | undefined;
         readonly extractionWindowTokens?: number | undefined;
         readonly reconcileEveryBeats?: number | undefined;
-        // WAVE MU (owner ruling #20's game half): the GAME's authored user macros — the whole set in ONE
+        // WAVE MU (the owner ruling's game half): the GAME's authored user macros — the whole set in ONE
         // write (whole-list replace, the `trackers` semantics); omit keeps the current set.
         readonly userMacros?: readonly UserMacroSpec[] | undefined;
         // D132 — the per-GAME model-facing prose overrides (`slotId → {text, baseVersion}`);
@@ -279,7 +279,7 @@ export interface EditSnapshotParams {
   readonly patch: Record<string, unknown>;
   /** Dotted lock paths to CLEAR from `fieldLocks` (§12.3 lock-release) — the host's Release affordance. */
   readonly releaseLocks?: readonly string[] | undefined;
-  /** The FINE lock paths this hand edit stamps (#10 per-field manual-edit-wins) — the caller names exactly
+  /** The FINE lock paths this hand edit stamps (per-field manual-edit-wins) — the caller names exactly
    *  which values it touched (`actorState.user:<id>.pools.<name>`, `…status`), so the pin lands on the
    *  SPECIFIC datum, not the whole plane. Omit ⇒ the coarse default (every top-level patch key). */
   readonly lockPaths?: readonly string[] | undefined;

@@ -4,7 +4,7 @@ import type { ListPresetUsageParams } from "../contract/params.ts";
 import type { PresetContext, PresetService } from "../contract/service.ts";
 import { readablePreset } from "../persistence/queries.ts";
 
-// verb: listUsage — where this preset is bound from OUTSIDE the library (#279): the caller's active-pick
+// verb: listUsage — where this preset is bound from OUTSIDE the library: the caller's active-pick
 // flag + the rooms whose rpg GM voice redirects to it. The CONTEXT panel's backward-bindings block.
 //
 // THE GATE IS HERE, THE READ IS INJECTED. Readability is preset's own rule (own row OR the shared system

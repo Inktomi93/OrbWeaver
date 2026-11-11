@@ -94,7 +94,7 @@ export function killPidGroup(pid: number | undefined, signal: NodeJS.Signals, de
   captureProcessGroup(pid, deps).signal(signal);
 }
 
-/** The default child ceiling, LOAD-SCALED through the one policy (#1232
+/** The default child ceiling, LOAD-SCALED through the one policy (
  *  §7.1): 120s is the QUIET-BOX base, and a caller that names no ceiling gets it stretched by the box's
  *  contention rather than killed at a number written for an idle machine. Evaluated per CALL (not at module
  *  load) because a long-lived process spawns children across changing load. */
@@ -102,7 +102,7 @@ const DEFAULT_TIMEOUT_BASE_MS = 120_000;
 
 /** Sync spawn at the lowered priority (`nicedCommand`, or the supervising launcher when `supervised`) — never
  *  throws on a non-zero status (the caller judges). IT ALSO NEVER THROWS ON A FAILED SPAWN, which is why
- *  `errorCode` exists (#2284): `spawnSync` puts that failure on `res.error` and leaves `status` null; see the
+ *  `errorCode` exists: `spawnSync` puts that failure on `res.error` and leaves `status` null; see the
  *  field's own note in ./proc-contract.ts for the four causes it separates. */
 export function runNicedSync(cmd: string, args: readonly string[], opts: RunNicedSyncOptions = {}): RunNicedSyncResult {
   const stdio = opts.stdio === undefined || opts.stdio === "collect" ? undefined : opts.stdio;
@@ -152,7 +152,7 @@ function capturedStdio(): ["ignore", "pipe", "pipe"] {
  *  "Command failed: …". Fold the captured diagnostic into the message (the error object — and its
  *  `.stderr`/`.stdout` — is rethrown unchanged, so translating callers still see the raw text).
  *
- *  IT APPENDS ONLY WHERE NODE HAS NOT (#2272). Node's own `checkExecSyncError` already builds
+ *  IT APPENDS ONLY WHERE NODE HAS NOT. Node's own `checkExecSyncError` already builds
  *  `Command failed: <argv>\n<stderr>` for any COMPLETED non-zero exit — Buffer stderr included — so an
  *  unconditional append DOUBLED the diagnosis on every ordinary failure in the repo. Measured, occurrences
  *  of the child's stderr text in the thrown message:
@@ -165,7 +165,7 @@ function capturedStdio(): ["ignore", "pipe", "pipe"] {
  *  THE LAST ROW IS WHY THE HELPER EXISTS AT ALL and why the guard is a containment test rather than a
  *  deletion. On an ENOBUFS kill node throws a DIFFERENT error — the child was TERMINATED at the ceiling
  *  rather than completing — whose message carries the argv and nothing else, and this append is the entire
- *  repair. That is the #2211/#2212 incident shape (the buffer ceiling that made the whole-repo lint tier
+ *  repair. That is the incident shape (the buffer ceiling that made the whole-repo lint tier
  *  unobtainable and whose diagnosis was unreadable until this function existed).
  *
  *  THE GUARD IS `includes`, NOT A SHAPE MATCH ON NODE'S TEMPLATE. Matching `Command failed:` would key on
@@ -194,7 +194,7 @@ export function execNicedSync(cmd: string, args: readonly string[], opts: Captur
       encoding: "utf8",
       stdio: capturedStdio(),
       ...(opts.cwd === undefined ? {} : { cwd: opts.cwd }),
-      // #2211/#2212: the hazard is declared once on `CaptureCeilingOption` above — unset means node's ~1MiB,
+      // The hazard is declared once on `CaptureCeilingOption` above — unset means node's ~1MiB,
       // and `execFileSync` KILLS the child at that ceiling rather than truncating.
       ...(opts.maxBuffer === undefined ? {} : { maxBuffer: opts.maxBuffer }),
     });
@@ -333,7 +333,7 @@ export function spawnNicedTranscript(cmd: string, args: readonly string[], opts:
     // the direct child leaves the tool running with the pipes open — the promise would never settle.
     const child = DOORS.spawn(cmd, [...args], { cwd: opts.cwd, shell: false, env: opts.env, detached: DETACHED_GROUP_LEADER });
     lowerChildPriority(child.pid);
-    // THE GROUP KILL IS NOT THE WHOLE TEARDOWN (#1848). Playwright's browsers and vite's service children
+    // THE GROUP KILL IS NOT THE WHOLE TEARDOWN. Playwright's browsers and vite's service children
     // leave the group, so the caller's teardown runs AFTER it and the promise waits for it to finish —
     // otherwise the transcript would resolve before the line saying what it reaped.
     let sweeping: Promise<string | null> | null = null;
@@ -426,7 +426,7 @@ export function spawnNiced(cmd: string, args: readonly string[], opts: SpawnNice
     });
     const timer = setTimeout(() => {
       timedOut = true;
-      // The GROUP, not the direct child (#1508): a command that forks descendants left them RUNNING after
+      // The GROUP, not the direct child: a command that forks descendants left them RUNNING after
       // the caller had already seen `timedOut: true`, and those orphans pollute a later run's measurements.
       try {
         killPidGroup(child.pid, "SIGKILL");

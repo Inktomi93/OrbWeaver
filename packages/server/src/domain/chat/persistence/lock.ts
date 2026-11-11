@@ -1,6 +1,6 @@
 // domain/chat/persistence/lock — the per-chat turn lock. A DB-backed concurrency primitive over the
 // `chat_locks` table
-// (natural PK = `chatId`), the EXPLICIT named exception to "persistence is queries only" (inv #13): it does
+// (natural PK = `chatId`), the EXPLICIT named exception to "persistence is queries only" (the persistence invariant): it does
 // INSERT/UPDATE/DELETE, not just reads, because it IS the concurrency mechanism, co-located with the table it
 // guards. Multi-replica-aware via a TTL horizon (`expiresAt`) + a `holder` tag; a stale lock is takeover-
 // eligible. Determinism: `now`/`expiresAt` arrive as PARAMS (the verb's injected clock + the LOCK_TTL_MS it
@@ -59,7 +59,7 @@ export async function refreshLock(db: Db, chatId: ChatId, holder: string, expire
   return refreshed.length > 0;
 }
 
-/** Does THIS holder still own the lock? The turn's PRE-WRITE fence (#1393): cancellation is not a write
+/** Does THIS holder still own the lock? The turn's PRE-WRITE fence: cancellation is not a write
  *  barrier — a generation that finished streaming before the heartbeat noticed the loss would otherwise
  *  reach `commitGeneration` and write canon under a lock another holder now owns. Read immediately before
  *  the commit batch, so the window it leaves is the batch's own latency rather than a whole generation.

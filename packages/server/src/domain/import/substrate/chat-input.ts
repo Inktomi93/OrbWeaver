@@ -270,7 +270,7 @@ export function disambiguateChatTitles(inputs: readonly BulkImportChatInput[]): 
 // The sender stamp is independent of both header signals.
 //
 // EVERY signal is a best-effort EXACT (case/whitespace-insensitive) NAME match against the personas this run
-// imported (owner ruling 2026-08-17: match, never guess, and NEVER fling the currently-active orb persona at
+// imported (owner ruling: match, never guess, and NEVER fling the currently-active orb persona at
 // an imported chat). An UNRESOLVABLE name resolves to NOTHING; an unresolvable PIN is additionally REPORTED.
 // It never near-matches, and it never blocks the chat: ST likewise drops a dangling lock and falls back to the
 // ambient persona, so the later signals are still consulted underneath.
@@ -425,7 +425,7 @@ export function buildGroupChatInput(ci: CollectedChat, deps: GroupChatInputDeps)
     // explicit null would say the same thing in a second spelling.
     return speaker === null ? message : { ...message, characterId: speaker };
   });
-  // #1687: ST's `disabled_members` become orb's per-seat mute. Emitted only when the group actually disabled
+  // ST's `disabled_members` become orb's per-seat mute. Emitted only when the group actually disabled
   // someone — an absent list is the "every seat takes the column defaults" arm the field's contract states.
   const seatKnobs = deps.mutedSeats.map((characterId): BulkImportSeatKnobs => ({ characterId, disabled: true }));
   return { ...base, messages, characterIds: deps.characterIds, metadata: deps.metadata, ...(seatKnobs.length > 0 ? { seatKnobs } : {}) };

@@ -30,7 +30,7 @@ export function createSettleImportMemory(workloads: Pick<ImportPostprocessDeps, 
         adoptActive: true,
       });
     } catch (err) {
-      // The ONE expected refusal: memory is off for this owner, so the pass has nothing to build (#156).
+      // The ONE expected refusal: memory is off for this owner, so the pass has nothing to build.
       if (!(err instanceof DomainOperationError && err.code === WORKLOAD_NOT_ADMISSIBLE)) {
         throw err;
       }

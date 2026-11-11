@@ -1,4 +1,4 @@
-// The ONE seam that normalises an INJECTED pseudo-random draw (#1359).
+// The ONE seam that normalises an INJECTED pseudo-random draw.
 //
 // `ctx.random` (and `resolveUserMacroInputs`'s `opts.prng`) is caller-supplied — a seeded generator in
 // tests, a per-turn deterministic one in chat, and, once plugins ship one, an ADVERSARY-supplied

@@ -136,7 +136,7 @@ export const ID_PREFIX = {
 export type UserId = Branded<"UserId">;
 /**
  * A `UserId` THE SESSION VERIFIED — the viewer id as it came back from `sessions.me`, never one derived
- * from anything the browser can write (#854, follow-up to #837).
+ * from anything the browser can write.
  *
  * Why a second brand rather than a comment: `packages/client/src/state/durable-local.ts` decides whether a
  * durable-local namespace stays live by comparing an incoming id against a BROWSER-WRITABLE boot hint
@@ -150,7 +150,7 @@ export type UserId = Branded<"UserId">;
  * `UserId`-typed read unchanged), and `UserId` is NOT assignable to `VerifiedUserId` (it lacks the second
  * phantom). Pinned both directions in `tests/kit/ids/mint-contract.test-d.ts`.
  *
- * IT CARRIES ITS OWN PHANTOM KEY, NOT A SECOND `Branded` alias. Measured 2026-08-30: intersecting a second
+ * IT CARRIES ITS OWN PHANTOM KEY, NOT A SECOND `Branded` alias. Measured: intersecting a second
  * `Branded` reuses the ONE `brand` key, so tsc sees a discriminant property with two disjoint literal types
  * and reduces the whole intersection to `never` — which type-checks (never is assignable everywhere) while
  * making a `VerifiedUserId | null` slot collapse to `null` and every value of the type a lie. A distinct
@@ -211,7 +211,7 @@ export type RosterPresetId = TypeIdOf<"roster_preset">;
 export type ChatId = TypeIdOf<"chat">;
 export type MessageId = TypeIdOf<"message">;
 export type MessageVariantId = TypeIdOf<"message_variant">;
-/** #67 — the structural chat-message ↔ asset link row (`message_assets`; inline-attachment GC retention). */
+/** The structural chat-message ↔ asset link row (`message_assets`; inline-attachment GC retention). */
 export type MessageAssetId = TypeIdOf<"message_asset">;
 /** B6/MR0 — ONE reactor's ONE emoji on ONE variant (`message_reactions`). The Discord-style grouped chip a
  *  reader sees is a READ PROJECTION over these rows (`MessageReactionGroup`), never a stored array: two

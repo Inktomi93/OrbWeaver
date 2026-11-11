@@ -47,7 +47,7 @@ async function findExisting(ctx: SessionsContext, identity: ResolvedIdentity): P
 
 // THE bind-once mismatch predicate moved to `substrate/role-policy.ts` (`isSubjectMismatch`) so the admin
 // link capability can share the ONE rule without a verb→verb import (Spine-Identity-and-Auth.md invariant
-// #10 — every external-identity mode routes through THIS verb). Only the HANDLE fallback in
+// Every external-identity mode routes through THIS verb). Only the HANDLE fallback in
 // `findExisting` can reach it here — an `externalId` match is equal by construction — so a mismatch means
 // "someone else's login carries this row's handle" (the impostor refusal at the verb below).
 //
@@ -61,12 +61,12 @@ async function findExisting(ctx: SessionsContext, identity: ResolvedIdentity): P
 //     null is the normal shape.
 //   • `oidc` — `identityFromClaims` yields a null EXTERNALID when `OIDC_UID_CLAIM` names a claim the IdP does
 //     not emit. The default `sub` is REQUIRED by OIDC Core, so a default-configured box never reaches this.
-// RESIDUAL, oidc half — CLOSED UPSTREAM 2026-08-25 (#699). "The ruling survives; its INPUT changed": this verb
+// RESIDUAL, oidc half — CLOSED UPSTREAM. "The ruling survives; its INPUT changed": this verb
 // still must NOT widen its guard to null (forward-header depends on that), so the fix lives one tier UP where
 // the mode IS known — the OIDC callback (`entry/http/auth-routes.ts`) now refuses a login whose `externalId`
 // is null, fail-closed, in oidc mode only. So a misconfigured `oidc` box (`OIDC_UID_CLAIM` repointed at a claim
 // the IdP omits) can no longer reach this verb with a null subject at all; forward-header still can, and still
-// should. The two observability tells remain the operator's diagnosis either way (#34): `identityFromClaims`
+// should. The two observability tells remain the operator's diagnosis either way: `identityFromClaims`
 // warns `oidc_subject_claim_missing`, and {@link reportNullSubjectOnBoundRow} warns `sso_null_subject_on_bound_row`
 // when a null-subject login (now: forward-header only) reaches a BOUND row.
 
@@ -98,9 +98,8 @@ async function updateExisting(
   // freeze: an operator who MOVES `OWNER_HANDLES` is migrating the key, and BOOT — not this login — performs
   // that migration (`entry/boot/seed-owner.ts` `adoptMovedSeedKey` renames the owner row onto the new key
   // before anything resolves by handle, refusing loudly if another user already holds it). This guard then
-  // stops pinning the OLD key, because it no longer IS one. (Until 2026-08-08 the migration was claimed here
-  // and implemented nowhere: the restart after the env edit died in `ensureUser` on that same single-owner
-  // UNIQUE, so no login ever ran to do the rename.) Every other row keeps full IdP rename tracking
+  // stops pinning the OLD key, because it no longer IS one. (Without the migration, the restart after the env edit died in `ensureUser` on that same single-owner
+  // UNIQUE, so no login would ever run to do the rename.) Every other row keeps full IdP rename tracking
   // (`externalId` keys SSO, `handle` keys everything else — Spine-Identity "Esoterica").
   const handleIsPolicyOwned = policy.isBootstrapOwner && ctx.rolePolicy.isOwnerSeedHandle(existing.handle);
   if (!handleIsPolicyOwned && existing.handle !== identity.handle && (await renameIsFree(ctx, existing, identity, policy.isBootstrapOwner))) {
@@ -117,7 +116,7 @@ async function updateExisting(
   if (Object.keys(changes).length > 0) {
     await updateUser(ctx.db, existing.id, { ...changes, updatedAt: ctx.now() });
     const roleChange = changes.role !== undefined ? { roleChanged: { from: existing.role, to: changes.role } } : {};
-    // #140 — the login's GROUPS ride every provisioning line: they are what `deriveIdentityAccess` decided
+    // The login's GROUPS ride every provisioning line: they are what `deriveIdentityAccess` decided
     // the role from, so a `roleChanged` with no groups beside it is an un-auditable demotion. Bounded NAMES
     // only (`groupsLogFields`); the claim object and the token are never logged.
     getLog(ctx.logger).info(
@@ -186,7 +185,7 @@ const LOST_RACE_ADVICE: Readonly<Record<"exact" | "key-only" | "none", string>> 
 
 /**
  * THE INSERT LOST A RACE and no row carries this identity — REACHABLE, and the comment that used to sit
- * here calling it "Unreachable" was the defect (#1478): it threw a raw Error, i.e. a 500 on the login path.
+ * here calling it "Unreachable" was the defect: it threw a raw Error, i.e. a 500 on the login path.
  * `insertUser` is a bare `onConflictDoNothing()`, so a concurrent writer that took this HANDLE
  * (`users_handle_unique`) — or the owner singleton (`users_single_owner_unique`) — silently no-ops our
  * insert, and the re-read keys on the column WE own (`externalId`), which that winner does not carry. Only
@@ -251,7 +250,7 @@ async function insertNew(ctx: SessionsContext, identity: ResolvedIdentity, resol
   if (settled === undefined) {
     return await refuseLostInsertRace(ctx, identity);
   }
-  // #2481 — the new account's local-light vector floor, AFTER the row has settled (§5.3b). Below the two
+  // The new account's local-light vector floor, AFTER the row has settled (§5.3b). Below the two
   // refusal paths on purpose: a DENIED login and a lost insert race have no row of their own to seed.
   await ctx.seedUserConnections(settled.id);
   getLog(ctx.logger).info(
@@ -329,7 +328,7 @@ async function refuseLostOwnerBind(
  *  so keeping it makes `externalId` the durable OIDC key while re-seed / mode-flip stay idempotent (no
  *  duplicate owner row, no db surgery). The caller has already guaranteed `externalId !== null`.
  *
- *  THE BIND IS A COMPARE-AND-SWAP, not a plain UPDATE (#1451). The adoptability read in
+ *  THE BIND IS A COMPARE-AND-SWAP, not a plain UPDATE. The adoptability read in
  *  {@link tryAdoptUnboundOwner} (`owner.externalId !== null` ⇒ bail) is a READ, and a read cannot hold a row
  *  unbound: two concurrent owner-policy logins carrying DIFFERENT subjects both passed it, and a bare
  *  `updateUser` let the second one overwrite `external_id` — the owner row silently changed hands, both
@@ -366,7 +365,7 @@ function reportOwnerSingletonDowngrade(identity: ResolvedIdentity, ownerId: User
 }
 
 /**
- * #34 — THE STATE HALF of the null-subject signal (the CONFIG half is the OIDC claim mapper's
+ * THE STATE HALF of the null-subject signal (the CONFIG half is the OIDC claim mapper's
  * `oidc_subject_claim_missing` warn in `entry/http/auth-routes.ts`). Fires when a login carrying NO stable
  * subject has resolved BY HANDLE onto a row that IS bound to one: {@link isSubjectMismatch} is structurally
  * unable to speak about this login (it needs a subject to contradict), so the bind-once takeover refusal is
@@ -395,7 +394,7 @@ function reportNullSubjectOnBoundRow(existing: ProvisionCandidate | undefined, i
 }
 
 /**
- * MS-W1 — THE MODE-SWITCH COLLISION HARD-DENY (owner-ruled 2026-08-09). A SUBJECT-BEARING NON-OWNER identity
+ * MS-W1 — THE MODE-SWITCH COLLISION HARD-DENY (owner-ruled). A SUBJECT-BEARING NON-OWNER identity
  * that is NOT already bound to a row (no `externalId` match) must NEVER be auto-linked onto — or minted beside —
  * an EXISTING account it collides with (by handle OR email). Auto-linking by the mutable email/handle IS the
  * OpenWebUI W1 takeover we refuse; silently minting a second row is the orphan/duplicate the mode-switch
@@ -435,7 +434,7 @@ function refuse(identity: ResolvedIdentity, cause: ProvisionDenyCause, logger: L
       );
       return { outcome: "denied" };
     case "access-gate":
-      // #140 — the groups the identity DID carry are the whole diagnosis here: an empty list means the claim
+      // The groups the identity DID carry are the whole diagnosis here: an empty list means the claim
       // never arrived (see the mapper's `oidc_groups_claim` line), a populated one that misses the allowlist
       // means the operator's group names disagree with the IdP's.
       getLog(logger).warn(
@@ -511,7 +510,7 @@ export function createProvisionIdentity(ctx: SessionsContext): Pick<SessionsServ
   async function provisionIdentity(identity: ResolvedIdentity, options: ProvisionIdentityOptions): Promise<ProvisionResult> {
     const existing = await findExisting(ctx, identity);
     reportNullSubjectOnBoundRow(existing, identity, ctx.logger);
-    // OPERATOR RECOVERY for the subject-mismatch refusal (the accepted trade, owner-ruled 2026-08-08): the ONE
+    // OPERATOR RECOVERY for the subject-mismatch refusal (the accepted trade, owner-ruled): the ONE
     // legitimate way to reach it is an IdP that genuinely RE-ISSUED a stable subject (an authentik
     // migration/rebuild), which locks that user — owner included — out of their own row. The repair is
     // deliberately manual and out-of-band, because the alternative is a silent re-key we cannot distinguish

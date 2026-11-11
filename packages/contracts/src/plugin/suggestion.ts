@@ -4,7 +4,7 @@
 // — and neither may import the other (the cake). The shape is JSON-safe and inert: it names an act, it does
 // not carry a closure, a principal, or anything that could execute by itself.
 //
-// THE THREE-POSTURE LAW IT IMPLEMENTS (interaction spec §3-S4, the #14 law over rules, plugins joining):
+// THE THREE-POSTURE LAW IT IMPLEMENTS (interaction spec §3-S4, the law over rules, plugins joining):
 // standing authority ⇒ act directly; NO standing authority ⇒ a SUGGESTION the host confirms; the fourth
 // posture — direct execution without standing authority — never exists. Before this, a plugin whose installer
 // was not host of the invocation chat got a flat refusal from the membrane, which is posture 3 wearing

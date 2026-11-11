@@ -116,7 +116,7 @@ export function resolveLane<K extends WorkloadKind>(contributions: WorkloadContr
  * The ADMISSION PRECONDITION check, shared by both enqueue doors (`start` and `retry` — the only two callers
  * of `insertWorkload`). The queue asks; the OWNING DOMAIN answers (`WorkloadContribution.admit`), because only
  * it knows when its own work is meaningless. A refusal is a CALLER error carrying the domain's own sentence,
- * so the client renders the reason instead of a job that runs and reports nothing (#156).
+ * so the client renders the reason instead of a job that runs and reports nothing.
  *
  * A kind that declares no precondition is always admissible — the check is a no-op for every other kind.
  */

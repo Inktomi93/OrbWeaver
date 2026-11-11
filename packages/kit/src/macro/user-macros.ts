@@ -1,9 +1,9 @@
-// kit/macro/user-macros — the #24 typed-input fold: preset/game-
+// kit/macro/user-macros — the typed-input fold: preset/game-
 // authored TEMPLATE macros as FIRST-CLASS registry entries, plus the typed choice-block INPUT vocabulary
 // (single-select / boolean-toggle / multi-select+separator / random-pick-from-pool) and its pure
 // resolution against an injected VALUES bag.
 //
-// The design (owner-ratified #20/#24 — SAFER than ST's dynamic macros):
+// The design (owner-ratified — SAFER than ST's dynamic macros):
 //  • DEFINITIONS live in preset/game CONFIG (`@orb/contracts/preset` `userMacroSchema`, mirrored onto
 //    `rpg_games.config`), never a global mutable runtime — `registerUserMacros` composes them onto a
 //    per-render registry the caller builds (`createDefaultRegistry()` + this), so one user's macros can
@@ -13,7 +13,7 @@
 //    content-as-last-arg for free, and flags (`! ? ~ > #`) behave exactly as on a builtin.
 //  • The body evaluates through `ctx.resolve` — the SAME budget/PRNG/op-log/depth as eager resolution,
 //    so recursion (self- or mutual-) trips the `MacroBudget` and degrades, never hangs; nested draws
-//    land in document order (the determinism-through-nesting invariant, owner-ratified #19).
+//    land in document order (the determinism-through-nesting invariant, owner-ratified).
 //  • Untrusted values (delivered args, per-user input picks) are `neutralizeMacros`'d BEFORE they are
 //    spliced into the author's template — a user macro can never be a macro-injection vector.
 //  • RANDOM-PICK is deterministic + swipe-safe: the draw rides the injected PRNG, and
@@ -35,7 +35,7 @@ import type { MacroAnalysisOptions, MacroArgDef, MacroContext, MacroHandler, Mac
 
 // ── the definition vocabulary ────────────────────────────────────────────────────────────────────
 
-/** The #24 typed-input KIND vocabulary (owner-ratified, final). The kind determines the control; the
+/** The typed-input KIND vocabulary (owner-ratified, final). The kind determines the control; the
  *  client owns the rendering (the presentation-style zoo is deliberately skipped). */
 export const USER_MACRO_INPUT_KINDS = ["single-select", "boolean-toggle", "multi-select", "random-pick"] as const;
 export type UserMacroInputKind = (typeof USER_MACRO_INPUT_KINDS)[number];
@@ -49,11 +49,11 @@ interface UserMacroInputOption {
 /** One typed input of a user macro — a FLAT shape (kind + the per-kind knobs; irrelevant knobs are
  *  inert), mirroring the ChoiceBlock authoring idiom so the editor binds fields directly. Semantics by
  *  `kind` (resolveUserMacroInputs is the ONE resolution home):
- *   single-select  — the pick (a string, and one of the DECLARED options — #1356) or `defaultValue`
+ *   single-select  — the pick (a string, and one of the DECLARED options) or `defaultValue`
  *                    (else the first option's value).
  *   boolean-toggle — a boolean pick renders `onValue`/`offValue`; unpicked ⇒ `defaultValue` truthiness
  *                    (the `{{if}}` vocabulary) decides.
- *   multi-select   — the picks (a string[]) filtered to the DECLARED options (#1356) and joined by
+ *   multi-select   — the picks (a string[]) filtered to the DECLARED options and joined by
  *                    `separator` in pick order; an explicit `[]` is a real "none"; unpicked (absent, or a
  *                    selection nothing survives) ⇒ `defaultValue` verbatim (an author-joined string).
  *   random-pick    — the user pre-selects a POOL (a string[]); each generation draws ONE via the
@@ -92,7 +92,7 @@ export interface UserMacroDef {
 /** Why a user macro whose name is already registered is refused. */
 export const USER_MACRO_NAME_COLLISION_REASON = "name collides with an existing macro — user macros never shadow";
 
-// ── the values bag + input resolution (#24) ──────────────────────────────────────────────────────
+// ── the values bag + input resolution ──────────────────────────────────────────────────────
 
 /** One input's per-turn per-user pick: string (single-select) · boolean (boolean-toggle) ·
  *  string[] (multi-select picks / the random-pick POOL). The wire schema lives in contracts/preset
@@ -118,7 +118,7 @@ export interface ResolvedUserMacroInputs {
 }
 
 /** The `{{if}}` truthiness vocabulary applied to a boolean-toggle's `defaultValue` — one semantics for
- *  "does this string mean on?" (empty/false/off/0 ⇒ off). EXPORTED because the picks pane (#24) must
+ *  "does this string mean on?" (empty/false/off/0 ⇒ off). EXPORTED because the picks pane must
  *  SHOW an unpicked toggle's resolved state ("Use default (On)") — that label has to read the same
  *  vocabulary the turn resolves against, never a client re-spelling of it. */
 export function userMacroToggleDefaultsOn(value: string): boolean {
@@ -147,7 +147,7 @@ function declaredValues(input: UserMacroInputDef): ReadonlySet<string> {
 
 // The non-random kinds — pure value→string per the UserMacroInputDef kind table.
 //
-// #1356 — the SECOND vocabulary belt (the first refuses the write at the seam that has both the values
+// The SECOND vocabulary belt (the first refuses the write at the seam that has both the values
 // and the defs, `domain/chat` `setUserMacroValues`): a select value outside the input's DECLARED options
 // never reaches the rendered prompt. This belt exists because a stored pick outlives its definition — an
 // author renaming/deleting an option leaves the persisted bag naming a value that no longer exists — and
@@ -186,7 +186,7 @@ function resolveMultiSelect(input: UserMacroInputDef, picks: readonly string[]):
   return kept.length > 0 ? kept.join(input.separator) : input.defaultValue;
 }
 
-/** One select-family pick that names a value the input does not declare (#1356). `options` carries the
+/** One select-family pick that names a value the input does not declare. `options` carries the
  *  declared vocabulary so the refusal can SAY what was allowed instead of just "invalid". */
 export interface OffVocabularyPick {
   readonly input: string;
@@ -195,7 +195,7 @@ export interface OffVocabularyPick {
 }
 
 /** Every off-vocabulary select pick in one macro's values bag — the pure half of the WRITE-side belt
- *  (#1356): the server refuses a `setUserMacroValues` flush that carries one, naming the field and its
+ *: the server refuses a `setUserMacroValues` flush that carries one, naming the field and its
  *  declared options. Deliberately narrow: only `single-select`/`multi-select` values are vocabulary-bound
  *  (a `random-pick` POOL is already normalised by {@link poolOf}, and a boolean has no vocabulary), and a
  *  bag entry naming an input the def does not declare is IGNORED rather than refused — the picks pane
@@ -247,7 +247,7 @@ function resolveRandomPick(
   if (pool.length === 0) {
     return ""; // an option-less input — nothing to draw from
   }
-  // `opts.prng` is caller-supplied and untrusted — the draw rides the ONE normalising seam (#1359,
+  // `opts.prng` is caller-supplied and untrusted — the draw rides the ONE normalising seam (
   // ./prng.ts). Pre-guard, an out-of-range draw indexed past the pool and the `?? ""` below bound the
   // macro to the empty string AND recorded "" as the frozen draw, so a silently deleted option then
   // REPLAYED on every swipe of that turn.
@@ -256,7 +256,7 @@ function resolveRandomPick(
   return drawn;
 }
 
-/** Resolve one macro's typed inputs against the per-turn per-user VALUES bag (#24) — pure; every draw
+/** Resolve one macro's typed inputs against the per-turn per-user VALUES bag — pure; every draw
  *  rides `opts.prng`; frozen draws replay byte-exact and fresh draws are reported for freezing. */
 export function resolveUserMacroInputs(
   inputs: readonly UserMacroInputDef[],

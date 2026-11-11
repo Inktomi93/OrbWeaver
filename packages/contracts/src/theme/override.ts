@@ -35,12 +35,12 @@ export const THEME_RADII = ["base", "control", "card", "full"] as const;
 export type ThemeRadius = (typeof THEME_RADII)[number];
 
 // A DERIVED fill must answer BOTH questions: one authored pixel (`isDeterministicColor`) that the renderer
-// can actually resolve (`isRenderableColor`, #1358). They are separate predicates because the render-side
+// can actually resolve (`isRenderableColor`). They are separate predicates because the render-side
 // clamp asks only the first.
 const isRenderableDeterministicColor = (raw: string): boolean => isDeterministicColor(raw) && isRenderableColor(raw);
 
 // Lenient per-field: a failed parse yields `undefined` (field drops), never a thrown blob.
-// RENDERABLE, not merely injection-safe (#1358): `isSafeColor`'s letters-only NAMED arm admits any bare
+// RENDERABLE, not merely injection-safe: `isSafeColor`'s letters-only NAMED arm admits any bare
 // word, so `notacolorxx` used to pass this refine, persist verbatim, and then paint nothing at all — no
 // error, no fallback message, no visible change. The wire clamp now asks the second question too, so a
 // value that survives to storage is one the renderer can resolve. The user-facing REFUSAL lives at the

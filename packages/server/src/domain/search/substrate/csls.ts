@@ -11,7 +11,7 @@ export function cslsAdjust(distance: number, hubScore: number | null): number {
 }
 
 /**
- * THE ONE READOUT SEAM (corpus forensics 2026-08-18 §3, R2b). Cosine SIMILARITY for a reader —
+ * THE ONE READOUT SEAM (corpus forensics §3, R2b). Cosine SIMILARITY for a reader —
  * `1 − distance`, clamped to [0,1]; HIGHER is closer, which is the universal convention any rendered
  * "score" column is read by.
  *

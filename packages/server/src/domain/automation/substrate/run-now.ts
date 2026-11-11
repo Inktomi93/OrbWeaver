@@ -1,5 +1,5 @@
 // domain/automation/substrate/run-now — the verbs↔ENGINE mediator for R7 (`runRuleNow`), for the S4
-// invitation's confirm (which IS an R7 run), and for the S4 CONFIRM class's stashed CONTINUATION (#1553,
+// invitation's confirm (which IS an R7 run), and for the S4 CONFIRM class's stashed CONTINUATION (
 // OWNER RULING: STASH — the arms behind a raised confirmation). SUBSTRATE mediates because `engine/` is a
 // named subsystem a verb may not import directly (`domain-substrate-mediates-subsystems`) — the same seam
 // `handle-event.ts` is for the bus side.
@@ -36,14 +36,14 @@ const MANUAL_DEPTH = 0;
  *  one cause: it is a `transform_draft` rule, which registers into the turn pipeline and never dispatches.
  *  The caller turns that into a typed refusal rather than reporting a fire that did not happen. */
 export function dispatchRuleNow(ctx: AutomationContext, rule: RuleRow, chatId: ChatId | null, manualBy: UserId): Promise<AutomationRunOutcome | null> {
-  // #1565 — A MANUAL RUN TAKES THE SAME LANE THE BUS DOOR TAKES. It is a full `runDispatch` over the chat's
+  // A MANUAL RUN TAKES THE SAME LANE THE BUS DOOR TAKES. It is a full `runDispatch` over the chat's
   // shared variable env, so a host pressing "Run now" while a bus event is mid-dispatch read the same
-  // snapshot, computed the same increment and wrote the same value — the exact interleave #1423 closed one
+  // snapshot, computed the same increment and wrote the same value — the exact interleave closed one
   // door over. The key is derived through `automationChatLaneKey`/`automationDomainLaneKey`, never
   // re-spelled: two entries on
   // lanes that only LOOK alike is the same defect wearing a typo.
   //
-  // NO RE-ENTRANCY, and it is structural rather than lucky (receipts, 2026-09-05): `dispatchRuleNow` has
+  // NO RE-ENTRANCY, and it is structural rather than lucky (receipts): `dispatchRuleNow` has
   // exactly two callers — `verbs/run-rule-now.ts:27` (the R7 tRPC verb) and `verbs/confirm-suggestion.ts:300`
   // (the INVITATION branch) — and neither runs inside a lane. The confirm verb's other execution branch (the
   // stashed arm) is EXCLUSIVE with the invitation branch and takes this lane itself, so the two can never
@@ -60,7 +60,7 @@ async function dispatchNow(ctx: AutomationContext, rule: RuleRow, chatId: ChatId
   const resolved: ResolvedTrigger = { fact: synthFact(trigger, chatId), automationDepth: MANUAL_DEPTH };
   const summary = await runDispatch(ctx, [rule], resolved, { manualBy });
   if (summary.anyDisabled) {
-    // `refresh`, not `reload` (#1564, the #1431 sweep's residue): the auto-disable this reconciles is ALREADY
+    // `refresh`, not `reload` (the stale-latch rule): the auto-disable this reconciles is ALREADY
     // COMMITTED, so a failed rebuild must latch stale and let the front door retry — never reject a manual run
     // whose write landed, and never leave a stale index with nobody scheduled to rebuild it.
     await ctx.enabled.refresh();
@@ -68,7 +68,7 @@ async function dispatchNow(ctx: AutomationContext, rule: RuleRow, chatId: ChatId
   return summary.outcomes[0] ?? null;
 }
 
-/** Run a stashed confirm-first arm's CONTINUATION (#1553, OWNER RULING: STASH) — every arm that sat behind
+/** Run a stashed confirm-first arm's CONTINUATION (OWNER RULING: STASH) — every arm that sat behind
  *  it in the rule's own action list at fire time, against the SAME frame the confirmed arm just ran in
  *  (arms mutate a shared env; order is semantics, exactly as a fresh dispatch's `runArms` call already
  *  states). `verbs/confirm-suggestion.ts::executeStashedArm` is the one caller, ALREADY inside the chat's

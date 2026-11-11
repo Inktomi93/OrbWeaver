@@ -109,7 +109,7 @@ export interface RefineryContext {
   readonly planSchema: (ownerId: UserId, schema: WireReady) => Promise<RefinerySchemaPlan>;
   /** `character.snapshot` — the pre-apply reversibility belt ("auto: before refinery apply", §4.13). */
   readonly snapshotCharacter: SnapshotCharacterOp;
-  /** The apply path's own retraction (#1551): un-does the belt-13 snapshot above when the conditional
+  /** The apply path's own retraction: un-does the belt-13 snapshot above when the conditional
    *  write it was taken FOR refuses `CHARACTER_STALE_BASIS` — the snapshot is the apply's witness, not its
    *  prelude, so a refused apply must leave none behind. */
   readonly deleteSnapshot: DeleteSnapshotOp;
@@ -147,7 +147,7 @@ export interface RefineryWorkloadDeps {
   /** The F6 stamp — the sweep's ONE write, the same op every other score run stamps through. */
   readonly stampRefinerySignals: StampRefinerySignalsOp;
   /**
-   * The sweep's TERMINAL fan (survey F2 + the #23 import-terminal precedent): ONE `charactersChanged` per
+   * The sweep's TERMINAL fan (survey F2 + the import-terminal precedent): ONE `charactersChanged` per
    * owner whose cards this pass actually stamped, emitted once at the end — never per card. The stamp
    * itself stays SILENT (F6, `character/persistence/refinery-ops.ts`); what this announces is that the
    * library's `refineryScore` SORT axis moved, which no mutation exists to hang an `invalidates` on

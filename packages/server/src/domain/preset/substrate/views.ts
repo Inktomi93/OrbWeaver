@@ -1,7 +1,7 @@
 // The PURE row → view mappers (zero I/O). The ONE home for the read seam's two load-bearing
 // projections: (1) `config` is run through `promptConfigConfig.parseOutcome` (lenient — a malformed or older
 // blob is lifted forward / bounded to DEFAULT rather than throwing mid-load; the db schema's "parsed at the
-// read seam" note — and since #1716 the outcome's PROVENANCE crosses as `configUnreadable`, see
+// read seam" note — and the outcome's PROVENANCE crosses as `configUnreadable`, see
 // `toPresetDetail`), and (2) `isSystemDefault` is derived from the sentinel id (`id === SYSTEM_DEFAULT_PRESET_ID`),
 // NOT `ownerId IS NULL` — any other ownerless row (a retired packaged template) is NOT the default. Verbs
 // map through here instead of re-spelling the projection at five call sites.
@@ -41,10 +41,10 @@ export function toPresetSummary(row: PresetRow): PresetSummary {
 }
 
 /**
- * THE DETAIL PROJECTION READS THROUGH `parseOutcome`, NOT `parse` (#1716) — same walk, same value, plus the
+ * THE DETAIL PROJECTION READS THROUGH `parseOutcome`, NOT `parse` — same walk, same value, plus the
  * PROVENANCE the editor needs. Two things ride on that:
  *
- *  • `configUnreadable` — the read-time twin of the #1026 write refusal. `updatePresetRow` re-reads this
+ *  • `configUnreadable` — the read-time twin of the intact write refusal. `updatePresetRow` re-reads this
  *    exact row through `promptConfigConfig.parseOutcome(row.config, row.schemaVersion)` and refuses a
  *    config write when it is not intact, so the DETAIL must ask the identical question or the editor's
  *    state and the save's verdict can disagree (the whole defect: a defaults-looking editor followed by a

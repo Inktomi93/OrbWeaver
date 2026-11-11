@@ -13,7 +13,7 @@
 // character_stats has no ownerId (owner derives via characterId→characters.ownerId), so its conflict
 // target is the `characterId` unique index.
 //
-// THE ROOM COUNT IS GRAIN-SPLIT (#1147): `character_stats.chats` reads `delta.characterChats` and
+// THE ROOM COUNT IS GRAIN-SPLIT: `character_stats.chats` reads `delta.characterChats` and
 // `owner_stats.chats` reads `delta.chats`. They are the same event counted at two grains — one room with N
 // character seats is +1 to the owner's library and +1 to EACH seat's census — and one shared field made the
 // second seat uncountable without inflating the owner. Same shape as the `daily*`/`model*` slices.

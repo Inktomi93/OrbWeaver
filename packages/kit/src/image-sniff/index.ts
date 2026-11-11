@@ -349,7 +349,7 @@ const ISPE_BODY_LEN = 12;
 /** The one `ispe` version this parser reads; a future version may re-lay the fields, so it is a refusal. */
 const ISPE_VERSION = 0;
 /** A declared extent below this is not an image (0 would also pass every pixel cap for free). MODULE-WIDE
- *  since #1529 — {@link withDimensionFloor} applies it to every format arm, not just the `ispe` read that
+ *  {@link withDimensionFloor} applies it to every format arm, not just the `ispe` read that
  *  first needed it; it lives here because this is where it was first spelled. */
 const MIN_DIMENSION = 1;
 
@@ -443,7 +443,7 @@ function isAvif(bytes: Uint8Array): boolean {
 /** A parsed extent pair with the POSITIVITY floor applied: either dimension below {@link MIN_DIMENSION}
  *  collapses the PAIR to unknown.
  *
- *  #1529 — the floor was applied in exactly ONE of the five format arms. `avifDimensions` refused a
+ *  The floor was applied in exactly ONE of the five format arms. `avifDimensions` refused a
  *  zero-extent `ispe` (see {@link MIN_DIMENSION}: "a declared extent below this is not an image"), while
  *  PNG/JPEG/GIF/WebP returned whatever their header math produced — so a COMPLETE, well-formed header
  *  DECLARING `0` sniffed to `{width: 0, height: 0}`. That is a measurement no image can have, and it

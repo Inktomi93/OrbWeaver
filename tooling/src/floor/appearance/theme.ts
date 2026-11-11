@@ -2,7 +2,7 @@
 // under (`--theme <name|id|none>`), the sibling axis of `--appearance` (_kit/appearance.ts owns the
 // interception; this file owns what a theme request MEANS).
 //
-// WHY THIS EXISTS (#225): `--appearance` reaches `config.appearance` only, but the ACTIVE THEME is a
+// WHY THIS EXISTS: `--appearance` reaches `config.appearance` only, but the ACTIVE THEME is a
 // DIFFERENT settings axis — `config.theme.selectedThemeId` — so "score this surface under the Light seed
 // theme" was undrivable without writing the owner's settings row. Theme-polarity coverage therefore rode
 // only on carried-theme ROOMS (a character card's own palette); every surface without a carried room (Home,
@@ -26,7 +26,7 @@ import { isPlainObject } from "../browser/page-validate.ts";
 // matches the request against the real library. A name that is not there WARNS loudly and the run proceeds
 // on the account's real theme: the silent-drop trap the appearance presets file documents, refused here.
 //
-// CARRIED ROOMS (field-measured 2026-08-18): inside a chat whose CARD carries its own theme, <html> has no
+// CARRIED ROOMS (field-measured): inside a chat whose CARD carries its own theme, <html> has no
 // `data-theme` at all — the room's ThemeScope takes over (D44 §12). A pretended app theme is EXPECTED to be
 // invisible there; verify this axis on a non-carried surface (Home, Configuration).
 

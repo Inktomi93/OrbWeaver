@@ -1,6 +1,6 @@
 // verb: listRuns — the session's append-only run ledger, oldest first (the D62 CONTEXT Runs tab). The
 // ownership belt resolves the SESSION first; run rows are reachable only through it (a run id alone
-// never resolves a payload — security pass §3.E). A stored row whose payload no longer parses is
+// never resolves a payload). A stored row whose payload no longer parses is
 // DROPPED from the view observably (the persistence read-seam heal), never fabricated.
 
 import { DomainNotFoundError } from "@orb/kit/errors";

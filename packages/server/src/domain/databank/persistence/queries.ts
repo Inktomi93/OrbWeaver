@@ -142,7 +142,7 @@ function searchPredicate(needle: string): SQL {
  *  empty the day embeddings can report the two counts apart. */
 const NO_DOCUMENT: SQL = sql`1 = 0`;
 
-/** The ingest PHASE as a predicate over the same scope the page windows (owner ruling 2026-08-13). The
+/** The ingest PHASE as a predicate over the same scope the page windows (owner ruling). The
  *  arithmetic is `features/databank/lib/databank-model.ts`'s `countedPhase` + its stall overlay, expressed in
  *  SQL over the two facts that live on the row (canon length, `updatedAt`) and the one that does not (chunk
  *  presence, which arrives as an id set from embeddings — databank never reads the vector table).

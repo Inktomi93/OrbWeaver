@@ -65,7 +65,7 @@ function monotonicStateWrite(blob: SQL, throughSeq: number | null): SQL {
   return sql`json_set(${blob}, '$.settledThroughSeq', ${next})`;
 }
 
-/** The analysis pass's END-OF-PASS write (#1543): the merged banks + the optional guidance wholesale, and
+/** The analysis pass's END-OF-PASS write: the merged banks + the optional guidance wholesale, and
  *  the watermark MONOTONIC.
  *
  *  Separate from {@link upsertRuleState} — whose contract is a faithful round-trip of whatever blob it is
@@ -73,7 +73,7 @@ function monotonicStateWrite(blob: SQL, throughSeq: number | null): SQL {
  *  contract safely. It reads `state.settledThroughSeq` once at pass start and writes it back at the end,
  *  and a host confirming a lore card in between advances the mark through {@link advanceSettledWatermark};
  *  a faithful blob write then REVERTED that confirm's coverage and the next pass re-distilled a span the
- *  host had already accepted — the second half of #1418's split, on the other side of the pass. The banks
+ *  host had already accepted — the second half of the duplicate guard, on the other side of the pass. The banks
  *  and guidance are still written wholesale (they ARE this pass's conclusions); only the mark is maxed. */
 export async function commitPassState(
   db: Db,
@@ -93,7 +93,7 @@ export async function commitPassState(
     });
 }
 
-/** Advance ONLY the settled watermark, as ONE statement (#1418 — the confirm path's half).
+/** Advance ONLY the settled watermark, as ONE statement (the confirm path's half).
  *
  *  NOT a read-then-write. `select` → `{...state, settledThroughSeq: max(...)}` → `upsert` is lost-update by
  *  construction: a confirm and a live pass both read the same row, and whichever writes second reverts the

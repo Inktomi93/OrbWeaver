@@ -80,7 +80,7 @@ const PAYLOAD_TOO_LARGE = 413;
 const NO_CONTENT = 204;
 
 /** This doorway serves only the four raster extensions `getFrameAsset`'s mime-sniff can ever answer
- *  with (PNG/JPEG/GIF/WebP — work item 0236's "done when"). Checked HERE, at the query-string boundary,
+ *  with (PNG/JPEG/GIF/WebP). Checked HERE, at the query-string boundary,
  *  alongside {@link PLUGIN_UI_ASSET_ENTRY_RE} rather than instead of it: the shared regex is the
  *  install-time flat-name grammar (deliberately extension-agnostic — content, not spelling, is what
  *  `sniffMime` polices for a house surface's `bundleAsset` lookup). This route additionally answers a

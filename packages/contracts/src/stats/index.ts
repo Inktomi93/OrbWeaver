@@ -61,7 +61,7 @@ const statsDeltaSchema = z.strictObject({
   cacheWriteTokens: z.number().optional(),
   // per-OWNER chat count (chat created / forked). The per-CHARACTER half is `characterChats` below.
   chats: z.number().optional(),
-  // The per-CHARACTER room census: +1 for each SEAT this write creates (#1147). Split off `chats`/
+  // The per-CHARACTER room census: +1 for each SEAT this write creates. Split off `chats`/
   // `forkedChats` because those two feed `owner_stats` AND `character_stats` from one field, so a
   // multi-seat room could not credit its second seat without double-counting the owner's library. The
   // rebuild defines this column as `COUNT(DISTINCT cp.chat_id)` per character seat
@@ -363,7 +363,7 @@ export type BumpStatsCanonVersion<Batch, Db> = (batch: Batch, db: Db, ownerId: U
 export interface CharacterEconomics {
   readonly characterId: CharacterId;
   /** Output tokens summed over the selected variants — `null` when NOT ONE of them recorded a count.
-   *  ABSENT ACCOUNTING IS NOT ZERO (side-eye corpus re-pass B2): an imported library carries thousands of
+   *  ABSENT ACCOUNTING IS NOT ZERO: an imported library carries thousands of
    *  real assistant turns whose `tokens_out` was never written, and coalescing that to 0 made the corpus
    *  surface print "0 tokens returned" beside "1,187 exchanges" — a contradiction the reader can only
    *  resolve as a bug. A genuine 0 (the provider reported it) still sums to 0 and stays distinguishable. */

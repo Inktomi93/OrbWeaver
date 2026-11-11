@@ -11,13 +11,13 @@
 // written (retrieval over them is safe — missing chunks simply aren't hits yet) and one bad document must
 // never fail an owner-wide reindex.
 //
-// EACH PASS ANNOUNCES ITSELF ONCE, AT ITS TERMINAL (event-bus coverage survey H3/§2.5, the #23 import-terminal
+// EACH PASS ANNOUNCES ITSELF ONCE, AT ITS TERMINAL (event-bus coverage survey H3/§2.5, the import-terminal
 // shape): one `databankChanged` per owner whose documents this pass actually touched — see `announceIngest`.
 // This is the half no mutation could ever drive: the writer is a WORKLOAD, so not even the tab that hit
 // Reindex has an `invalidates` to hang on, and what moves is the `chunkCount`/`embeddedCount` every library
 // row projects.
 //
-// THE CLIENT'S MID-INGEST POLL STAYS, and it is NOT redundant with this event (owner ruling 2026-08-14 —
+// THE CLIENT'S MID-INGEST POLL STAYS, and it is NOT redundant with this event (owner ruling —
 // written down here because "the bus covers it now" is the predictable future misread). The library's
 // bounded `refetchInterval` while a row is ingesting is the only driver of PROGRESS: the chunk counts tick
 // continuously between enqueue and terminal, and nothing emits per chunk — correctly, since a per-chunk fan
@@ -161,7 +161,7 @@ async function resolveReindexIds(ctx: DatabankContext, ownerId: UserId | null, s
 }
 
 /**
- * THE TERMINAL FAN (survey H3, the #23 import-terminal shape): ONE `databankChanged` per owner whose
+ * THE TERMINAL FAN (survey H3, the import-terminal shape): ONE `databankChanged` per owner whose
  * documents this pass touched, at the END of the pass — never per document (that is a storm over a
  * bank-sized loop) and never per chunk.
  *

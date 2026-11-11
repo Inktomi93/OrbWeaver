@@ -2,7 +2,7 @@
 // bookmarks. Member-gated.
 //
 // `label` is FREE TEXT (host-authored, or auto-composed from the scene at a trigger), so it carries the same
-// hidden-span belt as the two sibling member reads (#1528) — the member→host fork strips checkpoint labels for
+// hidden-span belt as the two sibling member reads — the member→host fork strips checkpoint labels for
 // exactly this reason, and until now the source read served them whole.
 
 import type { RpgCheckpointView } from "@orb/contracts/rpg";

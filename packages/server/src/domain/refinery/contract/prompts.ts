@@ -93,7 +93,7 @@ export type StageResolution =
       readonly instruction: string;
     };
 
-/** What one NL→schema FORGE turn needs (task #36). Homed here rather than beside the engine because a
+/** What one NL→schema FORGE turn needs. Homed here rather than beside the engine because a
  *  domain's exported shapes live in its `contract/` (§7.4) — `substrate/schema-forge.ts`
  *  imports it back. `userPrompt` is the caller's own ask (describe-to-schema, or the modify-this-schema
  *  instruction); each arm appends its own per-call material. */
@@ -126,7 +126,7 @@ export interface StageOutputBudgetArgs {
  * plus (rewrite only) the mode whose prose promises a length. Deliberately NOT a session: a
  * `RefinerySessionView` satisfies it (`stageSubjectOf`), and so does the LIBRARY SWEEP's per-card pair,
  * which has no session at all and still has to size its cap off the payload rather than the raw posture
- * floor (live-e2e 2026-08-09 open fork 3 — the sweep shipped on the raw floor, the same defect class as
+ * floor (the raw floor is the same defect class as
  * the 503). Stage-tagged so the rewrite arm can REQUIRE its mode instead of defaulting one in.
  */
 export type StageEstimateSubject =

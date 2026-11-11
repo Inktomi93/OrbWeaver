@@ -13,7 +13,7 @@ import type { DatabankContext, DatabankService } from "../contract/service.ts";
 export function createRemove(ctx: DatabankContext): DatabankService["remove"] {
   return async ({ principal, id }: RemoveDocumentParams): Promise<void> => {
     const ownerId = principal.userId;
-    // PRE-WRITE ROOM REACH (#2471). All three D85 scope junctions CASCADE with the row, so resolving the
+    // PRE-WRITE ROOM REACH. All three D85 scope junctions CASCADE with the row, so resolving the
     // rooms AFTER the delete answers ∅ always and every co-member's rack would keep rendering a document
     // that no longer exists. Snapshot while the junctions are intact; the thunk is fanned only once
     // RETURNING proves a row was really the caller's and was removed, so a refused delete announces nothing.

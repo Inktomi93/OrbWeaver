@@ -1,4 +1,4 @@
-// domain/chat/persistence/migrate-plugin-tool-wire-names — the #1391 rewrite of persisted
+// domain/chat/persistence/migrate-plugin-tool-wire-names — the rewrite of persisted
 // `ToolCallRecord.name`s inside `message_variants.tool_calls`, one prefix rename at a time.
 //
 // WHY CHAT OWNS IT even though the subject is a plugin's namespace: `message_variants` is chat's table and a
@@ -16,7 +16,7 @@
 // name": a `tool-card` plugin surface is matched to a persisted call by `toolWireName`
 // (`domain/plugin/verbs/list-surfaces.ts`, U3). Rename the mint without rewriting the rows and every card a
 // hyphen-slug plugin ever rendered silently falls back to the generic tool block — no error, no log, just a
-// transcript that quietly got poorer. That is the #1649 silent-loss class the owner ruled against.
+// transcript that quietly got poorer. That is the silent-loss class the owner ruled against.
 //
 // THE STATEMENT SHAPE, and why it is a LOOP rather than one array rebuild. `tool_calls` is a JSON ARRAY, and
 // the obvious `json_group_array(...) FROM json_each(...)` rebuild would re-serialize the whole array —
@@ -38,7 +38,7 @@
 //
 // FAIL-OPEN ON GARBAGE: the `json_valid` guard is nested INSIDE the json function's first argument, never a
 // sibling AND term — SQLite may reorder AND operands and `json_each`/`json_type` RAISE on non-JSON text,
-// which at this call site would abort boot on one corrupt row (#1649 proved this by un-nesting it). A blob
+// which at this call site would abort boot on one corrupt row (proven by un-nesting it). A blob
 // that is not a JSON array resolves to `'[]'`, matches nothing, and is left for the read seam's own parse.
 
 import type { Db } from "@orb/db";
@@ -99,7 +99,7 @@ async function applyOneRename(db: Db, from: string, to: string): Promise<number>
 }
 
 /**
- * Re-prefix every persisted plugin tool-call name that the #1391 injective mint renamed. `renames` is
+ * Re-prefix every persisted plugin tool-call name that the injective mint renamed. `renames` is
  * `pluginToolWireNameRenames(...)`'s answer, handed down by the boot step — an empty array (no hyphenated
  * slug installed, or every one of them ambiguous) is a no-op and the normal case.
  *

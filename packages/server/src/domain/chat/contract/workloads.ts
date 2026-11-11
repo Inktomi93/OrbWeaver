@@ -43,9 +43,9 @@ export interface ChatWorkloadDeps {
    *  never reaches a neighbour's space. The state write lives in embeddings/persistence — this is the injected
    *  op, never a db reach from chat. */
   readonly purgeMemoryVectors: PurgeMemoryVectorsOp;
-  /** Is the memory subsystem ON for this host (#156)? Resolved through the ONE memory-config merge
+  /** Is the memory subsystem ON for this host? Resolved through the ONE memory-config merge
    *  (`entry/compose/chat.ts resolveMemoryConfig`: admin defaults ⊕ the host's `memory.enabled` opt-out), so
-   *  the admission gate cannot drift from the sweep's own per-host skip (#54) or from the live turn. Injected
+   *  the admission gate cannot drift from the sweep's own per-host skip or from the live turn. Injected
    *  because settings is not chat's to read — the same seam shape `ResolveBackfillMemoryConfig` uses. */
   readonly isMemoryEnabled: IsMemoryEnabledOp;
   /** Every stored embedding target in the enumeration scope as one comparable string; any target move changes it. */

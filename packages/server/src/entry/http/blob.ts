@@ -26,7 +26,7 @@ const WEBP_MIME = "image/webp";
 // Per-user cache: the response is scoped to one owner's session, immutable by content-address.
 const CACHE_CONTROL = "private, immutable";
 const DEFAULT_VARIANT_KIND: VariantKind = "icon";
-// #709 serve-boundary neutralization. A blob is served from the app's OWN origin, so a stored HTML/JS/SVG
+// Serve-boundary neutralization. A blob is served from the app's OWN origin, so a stored HTML/JS/SVG
 // asset navigated-to or `<script src=/api/blob/…>`-chained would execute with the owner's cookies: the app
 // CSP's `script-src 'self'` permits the same-origin script chain and `nosniff` does not help (text/javascript
 // is a real script type). So only PASSIVE MEDIA (image/video/audio) is served inline with its real type;
@@ -150,7 +150,7 @@ async function serveVariant(
 }
 
 function serveBytes(bytes: Uint8Array, mime: string): Response {
-  // #709: passive media serves inline with its real type; anything else is neutralized to a downloaded
+  // Passive media serves inline with its real type; anything else is neutralized to a downloaded
   // octet-stream so a stored user blob can never be rendered as an active same-origin document/script.
   const inline = isInlineServable(mime);
   const headers: Record<string, string> = {

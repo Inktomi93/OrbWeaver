@@ -11,7 +11,7 @@
 // art `@orb/default-content` ships at avatars/<handle>.png and stamps the id — a missing file seeds art-less).
 // `greetings[0]` is NEVER `groupOnly` (the first message is always solo-eligible; contract invariant).
 //
-// WHAT A SEED MAY NEVER HAND-SET (#900 — the derived-field parity rule). A seed row that spells a value the
+// WHAT A SEED MAY NEVER HAND-SET (the derived-field parity rule). A seed row that spells a value the
 // product DERIVES ships the impossible shape to every real user, so:
 //   · The DERIVED COLUMNS are unreachable BY TYPE and stay that way. A card here is a `CreateCharacterInput`,
 //     which carries no `contentHash` (`cardContentHash` over the card's identity fields, stamped by
@@ -21,7 +21,7 @@
 //     from `creator` + `importedFrom` at the READ seam; this pack's only lever is `creator`, and it spends it
 //     on the shared `AUTHORED_CARD_CREATOR` marker so all ten read `shipped`. A card here that carried a
 //     `source` URL list (the V3 upstream-provenance field) while reading `shipped` would be exactly the
-//     impossible pair #893 found in a fixture — so `source` stays null.
+//     impossible pair a fixture once held — so `source` stays null.
 //   · The CARRIED BACKGROUND is computed, not typed — see {@link seededBackground}.
 // The two hand-authored fields that DO ride a derivation's output are `creator` (above) and the scene plate.
 //
@@ -41,7 +41,7 @@ export const WELCOME_ASSISTANT_HANDLE = characterHandleSchema.parse("charlotte")
  *  carried scripts/extensions/residual wire data, art attached by the seeder. */
 const AUTHORED_CARD_DEFAULTS = {
   systemPrompt: null,
-  // The shared marker, not a local literal (#843): the client's Origin readout reads this exact value to
+  // The shared marker, not a local literal: the client's Origin readout reads this exact value to
   // say `Example — shipped with Orbweaver` instead of claiming a shipped card was `Made here`.
   creator: AUTHORED_CARD_CREATOR,
   cardVersion: "1.0.0",
@@ -53,15 +53,15 @@ const AUTHORED_CARD_DEFAULTS = {
   avatarAssetId: null,
 } satisfies Partial<CreateCharacterInput>;
 
-/** THE CARD'S OWN SCENE PLATE, DERIVED FROM ITS HANDLE — never a hand-typed slug (#900).
+/** THE CARD'S OWN SCENE PLATE, DERIVED FROM ITS HANDLE — never a hand-typed slug.
  *
  *  Every card in this pack ships a plate, and the plate's content slug IS `<handle>-bg` (the file
  *  `@orb/default-content` ships at `backgrounds/<handle>-bg.jpg`), so it is computed here rather than
  *  retyped beside each card: a pack card can no longer point at a sibling's plate, or at a slug the pack
  *  never shipped a file for.
  *
- *  IT IS A SLUG, NOT A BACKGROUND, and that is the 2026-09-18 change. The pack used to spell a whole
- *  `kind:"seeded"` `ThemeBackground` here, because a plate was a static catalog entry every install resolved
+ *  IT IS A SLUG, NOT A BACKGROUND. The pack does not spell a whole
+ *  `kind:"seeded"` `ThemeBackground` here, as if a plate were a static catalog entry every install resolved
  *  to the same vite `public/` URL. A plate is now an OWNED asset, minted per user in their own CAS, so the
  *  pack cannot name the reference — only WHICH plate. The seeder turns it into the receiving user's own
  *  `kind:"asset"` ref through the injected `resolveSeededBackground`, which runs the same
@@ -751,7 +751,7 @@ const AUTHORED_CARDS: readonly AuthoredCard[] = [
 
 /** The shipped pack. The authored literals above carry the CONTENT and the palette; the scene plate's SLUG
  *  is attached HERE, from each card's own handle, so the card ↔ plate coupling is structural rather than a
- *  convention ten literals have to keep (#900 — a fixture/seed field the product derives is derived). */
+ *  convention ten literals have to keep (a fixture/seed field the product derives is derived). */
 export const DEFAULT_CHARACTER_CARDS: readonly SeedCard[] = AUTHORED_CARDS.map(
   (card): SeedCard => ({ ...card, backgroundSlug: backgroundSlugFor(card.input.handle) }),
 );

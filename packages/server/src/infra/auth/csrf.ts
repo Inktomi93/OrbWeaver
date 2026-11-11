@@ -4,7 +4,7 @@
 // single via-keying any more (spine invariant #9 — the gate is split by CONTENT-TYPE PHYSICS):
 //   · the four byte-ingest registrars (`entry/http/upload.ts`, `import.ts`, `import-tree.ts`,
 //     `import-chat.ts`) accept a CORS-SIMPLE content-type, so they gate `via !== "header"` — cookie AND
-//     the loopback owner fallback both must carry the header (#300);
+//     the loopback owner fallback both must carry the header;
 //   · the tRPC ladder (`transport/trpc/trpc.ts`) gates `via === "cookie"` only, because `entry/app.ts`'s
 //     content-type belt already refuses every non-`application/json` POST to the mount — which is what
 //     keeps the un-cookied loopback dev tooling working without the header.

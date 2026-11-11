@@ -181,7 +181,7 @@ function removeBackupFiles(backupPath: string): void {
  * the directory choice so the backup unit and the live db can sit in sibling directories.
  * No-op for `:memory:` / a not-yet-created db. Returns the backup path, or undefined if none.
  *
- * RETRYABLE BY CONSTRUCTION (#1374). The name derives from the source's own mtimes, and `VACUUM INTO`
+ * RETRYABLE BY CONSTRUCTION. The name derives from the source's own mtimes, and `VACUUM INTO`
  * refuses an existing destination — so a failed boot (which writes nothing, leaving the mtimes unchanged)
  * used to compute the identical name, fail identically, and WEDGE BOOT PERMANENTLY, recoverable only by
  * deleting a file nothing told the operator about. The naming stays (`pruneDbBackups` matches
@@ -393,7 +393,7 @@ export async function assertReferentialIntegrity(db: Db): Promise<void> {
 // shipped migration (sha256 of each `<tag>.sql` + its journal `when`), computed identically to drizzle so
 // a byte-identical file compares equal.
 //
-// MATCH ANY ENTRY, NOT THE NEWEST ONE (2026-09-18, #316 Arm A). Until launch the chain was a single
+// MATCH ANY ENTRY, NOT THE NEWEST ONE. Until launch the chain was a single
 // regenerated `0000_baseline` and "the newest shipped entry" and "the chain" were the same fact, so this
 // compared against `.at(-1)` alone. Post-launch that read is a trap: a db sitting at `0000` with a freshly
 // committed `0001` is BEHIND, not diverged, and `.at(-1)` reports it `regenerated` — which the
@@ -428,7 +428,7 @@ async function readAppliedBaseline(db: Db): Promise<{ hash: string; folderMillis
 
 // The migrations journal drizzle itself reads: one `{ when, tag }` per migration file, in apply order.
 //
-// VALIDATED, not cast (#1377 item 5). This used to trust `JSON.parse` as the entry shape outright, so a
+// VALIDATED, not cast. This used to trust `JSON.parse` as the entry shape outright, so a
 // truncated or hand-edited journal produced entries whose `when` was `undefined` — and every comparison
 // against it (`entry.when > applied.folderMillis`) is then silently `false`, which reads as "no pending
 // migrations" rather than as a broken journal. Both consumers below decide whether the DEV DB gets
@@ -453,7 +453,7 @@ function readJournalEntries(migrationsFolder: string): readonly { readonly when:
     }
     return { when: entry["when"], tag: entry["tag"] };
   });
-  // ORDER IS AN ASSUMPTION EVERY CONSUMER MAKES (#1377 item 6) — `shippedMigrationChain` takes `.at(-1)`
+  // ORDER IS AN ASSUMPTION EVERY CONSUMER MAKES — `shippedMigrationChain` takes `.at(-1)`
   // as "the newest" and `hasPendingMigrations` walks the list in apply order. Drizzle generates the file in
   // apply order, so this asserts an invariant rather than imposing one; stating it means a generator that
   // ever stopped sorting is a loud error instead of a chain tip computed off the wrong migration.
@@ -574,7 +574,7 @@ export function closeDb(db: Db): void {
 /**
  * Optimize, truncate the WAL, then close the connection — the graceful-shutdown housekeeping.
  *
- * The close is in a `finally` (#1376): either PRAGMA can throw (a busy checkpoint, a disk error), and
+ * The close is in a `finally`: either PRAGMA can throw (a busy checkpoint, a disk error), and
  * before this that throw skipped `close()` entirely — the libSQL client leaked and the WAL stayed
  * un-checkpointed on the way out. The REJECTION is deliberately preserved: a failed checkpoint is a real
  * problem the shutdown path should report loudly (`entry/lifecycle.ts` → `entry/index.ts` exits non-zero);

@@ -38,13 +38,13 @@ export type DistillCharactersOptions = DistillTargetNarrow & {
   readonly funderUserId: UserId;
   readonly signal?: AbortSignal | undefined;
   /** Per-card position for the caller's progress surface (`done`, `total`). The PASS owns the denominator —
-   *  the workload wrapper never reads the target list — so N-of-M can only originate here (issue #166). */
+   *  the workload wrapper never reads the target list — so N-of-M can only originate here. */
   readonly onProgress?: ((done: number, total: number) => void) | undefined;
 };
 
 /**
  * WHICH CARDS a distill pass targets — and the ONE place the `characterId`↔`ownerId` pairing is enforced
- * (#1414 seam 1). The narrow used to be two independent optionals, so `{characterId}` ALONE was well-typed:
+ *. The narrow used to be two independent optionals, so `{characterId}` ALONE was well-typed:
  * `readCardDistillTargets` would then select any non-synthetic character in the box and the pass would commit
  * a `character_summaries` row + staged `pending` tag suggestions under THAT card's own owner. Every live
  * caller happened to pair them (the tRPC seam supplies `ctx.auth.userId`; the workload arm never sets
@@ -74,7 +74,7 @@ export interface DuplicateChatsOptions {
 }
 
 // ── BrowseSort (the browse ordering dispatch axis) ────────────────────────────
-// The axis and its keyset live in `@orb/contracts/discovery` (moved 2026-08-19 with the A8 paging): the
+// The axis and its keyset live in `@orb/contracts/discovery` (moved with the A8 paging): the
 // cursor is a WIRE shape discriminated on this union, so the two have to be spelled in one place, and that
 // place is the one both ends can import.
 export type { BrowseCursor } from "@orb/contracts/discovery";

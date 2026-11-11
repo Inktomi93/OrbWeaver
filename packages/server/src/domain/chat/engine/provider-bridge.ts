@@ -34,7 +34,7 @@ function outOfBandChunks(events: readonly ChatEvent[]): TurnStreamChunk[] {
     }
     if (event.kind === "warning") {
       const { kind: _kind, at: _at, ...warning } = event;
-      // KEYED ON THE WHOLE WARNING, not on the code alone (#1440): with the drop's structured half carried
+      // KEYED ON THE WHOLE WARNING, not on the code alone: with the drop's structured half carried
       // through, two DIFFERENT dropped knobs share the `sampling_knob_dropped` code and are two distinct
       // degrades — a code-keyed dedupe would silently pick one and lie about the other. Identical repeats
       // (the same runner re-raising the same drop) still collapse to one.
@@ -125,7 +125,7 @@ function finalTurnChunk(req: TurnRequest, result: ChatResult): TurnStreamChunk {
       // because "turn" already means a CHAT turn on this side. It is what makes `tokensOut` (a sum
       // over the calls) legible against `maxOutputTokens` (a per-call ceiling).
       modelCalls: result.numTurns,
-      // The APPLIED effort the wire reported (inference audit B1) — never `req.intent.effort`, which a transport may
+      // The APPLIED effort the wire reported — never `req.intent.effort`, which a transport may
       // have dropped or a mandatory clamp raised; the requested value already rides `params`.
       reasoningEffort: result.appliedEffort,
       ttftMs: result.ttftMs,

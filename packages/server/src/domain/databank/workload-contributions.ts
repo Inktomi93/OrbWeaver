@@ -27,7 +27,7 @@ interface ReindexRun {
 
 /** One reindex round, its terminal included. */
 async function reindexOnce(deps: DatabankWorkloadDeps, { ctx, params, report, signal }: ReindexRun): Promise<IngestRunResult> {
-  // Only an OWNER-WIDE pass re-derives a whole `documents` scope, so only it may claim one (#2517) —
+  // Only an OWNER-WIDE pass re-derives a whole `documents` scope, so only it may claim one —
   // a single-document repair covers one row and says nothing about the rest of the corpus.
   const corpusWide = params.scope.kind === "owner";
   const generationReceipts = corpusWide ? await deps.beginDocumentVectorSweep(ctx) : [];

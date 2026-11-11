@@ -89,8 +89,8 @@ export function createSubmitManualRewrite(ctx: RefineryContext): RefineryService
       strippedKeys: [] as string[],
       createdAt: at,
     };
-    // Same-tick, no data dependency, cross-table — batched for atomicity (issue #794, the #754 spike's one
-    // true positive): either both the run row and the session's active flip land, or neither does.
+    // Same-tick, no data dependency, cross-table — batched for atomicity (a real
+    // atomicity need): either both the run row and the session's active flip land, or neither does.
     await ctx.db.batch(
       batchMany([
         batchStmt(ctx.db.insert(refineryRuns).values(view)),

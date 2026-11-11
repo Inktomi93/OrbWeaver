@@ -1,5 +1,5 @@
 // verb: listConnectedCharacters — characters connected to a persona, the junction read from the PERSONA
-// side (#866 S4: the editor's "Connected characters" section; `list-connected.ts` is the character-side
+// side (the editor's "Connected characters" section; `list-connected.ts` is the character-side
 // twin). Owner-scoped: the persona must belong to the caller (gate first — a foreign/absent persona
 // collapses to not-found, no existence leak). Summary views only. A read: no audit.
 

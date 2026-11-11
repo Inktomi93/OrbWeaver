@@ -15,13 +15,13 @@
 // id sources are a `satisfies Record<ChatIdentityKind, …>` table, so a third kind (agent, D60) is a compile
 // error here until it declares its coverage — never a forgotten set.
 //
-// THE TWO NEIGHBOURS THIS IS NOT — and why this paragraph is no longer the enforcer (D137(F), #903).
+// THE TWO NEIGHBOURS THIS IS NOT — and why this paragraph is no longer the enforcer (D137(F)).
 //   • NOT the pin layer: `resolvePersonasForParticipants` (D122) answers "who is {{user}} NOW"; this producer
 //     answers "what is id X called/shown as". Two layers, two questions — still a prose boundary, because
 //     the two shapes never meet in one assignment.
 //   • NOT the D60 DRIVE axis — `AssembleContext.characters`/`speakerRefs` (`assembly/context.ts`), the
-//     present AI-driven speakers. That neighbour is the one this header used to fence BY HAND: until #903
-//     both axes were spelled `cast`, and they are near-antonyms on the persona plane — a persona IS a chat
+//     present AI-driven speakers. That neighbour must stay fenced: the
+//     two axes are near-antonyms on the persona plane — a persona IS a chat
 //     identity here, and is NEVER a speaker there. The rename made the distinction structural: the READ
 //     axis is `ChatIdentity`/`identityKey`/`.identities`, the DRIVE axis is `characters`/`speakerRefs`, and
 //     assigning one to the other is a `tsc` error rather than a comment somebody has to read. The RULE did

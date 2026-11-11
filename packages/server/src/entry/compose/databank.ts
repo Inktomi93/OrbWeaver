@@ -58,7 +58,7 @@ export interface DatabankComposeDeps {
    *  (chunk params for ingest + retrieval params for gather), replacing the schema-default stub. */
   readonly loadUserSettings: SettingsService["loadUserSettings"];
   /** chat's DURABLE-APPEND-FREE live fan — the entity→room bridge's emit surface (the regex precedent).
-   *  Threaded here for #2471: every databank junction write has a member-visible projection in the rooms
+   *  Threaded here because every databank junction write has a member-visible projection in the rooms
    *  that credit the document (the D85 rack), and `databankChanged` is a per-USER channel that never
    *  reaches them. */
   readonly emitChatEventLive: ChatServiceDeps["emitLive"];
@@ -140,7 +140,7 @@ export function buildDatabank(deps: DatabankComposeDeps): DatabankComposeResult 
     ensureChatHost: chatGuards.requireHost,
     ensureChatMember: chatGuards.requireParticipant,
     resolveChatHost: (chatId) => loadPresentHostUserId(db, chatId),
-    // The SHARED leak-safe reverse-room read (#276) — the same factory regex's roster and the preset
+    // The SHARED leak-safe reverse-room read — the same factory regex's roster and the preset
     // CONTEXT's GM bindings wire. A `chat_documents` row outlives its attacher's seat, so the "Active in"
     // roster names PRESENT rooms only.
     resolveVisibleRooms: createVisibleRoomsReader(db),

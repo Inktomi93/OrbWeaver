@@ -46,7 +46,7 @@ import { listOwnedScripts, loadOwnedScript, loadOwnedScriptsByIds, toRow } from 
 export function createImportCardScripts(input: DbAssemblyInput<RegexPortabilityContext>): ImportCardScripts {
   const ctx: RegexPortabilityContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, characterId, scripts, carried }): Promise<ImportCardScriptsResult> => {
-    // BOTH SIDES GATED (#1414 seam 4) — the same rule `verbs/attachments` has always applied to a hand
+    // BOTH SIDES GATED — the same rule `verbs/attachments` has always applied to a hand
     // attach, applied to the bulk one. The SCRIPT side is the owner-scoped read below: a carried id naming a
     // row this owner does not have simply does not come back, so the reference channel can never launder a
     // foreign script onto this character. The TARGET side is this gate: the junction insert used to take
@@ -87,7 +87,7 @@ export function createImportCardScripts(input: DbAssemblyInput<RegexPortabilityC
 export function createImportPresetScripts(input: DbAssemblyInput<RegexPortabilityContext>): ImportPresetScripts {
   const ctx: RegexPortabilityContext = { ...input, db: databaseForOwner(input.db) };
   return async ({ ownerId, presetId, scripts }): Promise<ImportCardScriptsResult> => {
-    // The TARGET gate, as in the card lift above (#1414 seam 4). `ensurePresetOwned` also makes the SYSTEM
+    // The TARGET gate, as in the card lift above. `ensurePresetOwned` also makes the SYSTEM
     // preset (nullable ownerId) un-attachable, which is correct — it is read-only by construction.
     await ensurePresetOwned(ctx.db, ownerId, presetId);
     const existing = await listOwnedScripts(ctx.db, ownerId);
@@ -137,7 +137,7 @@ export function createImportGlobalScripts(input: DbAssemblyInput<RegexPortabilit
 /** The card RE-EMBED: the character's attached rows, in junction order, projected onto the ST card wire +
  *  the reference list the same-install re-import re-links by.
  *
- *  BOTH SIDES SCOPED (#1414 seam 4): the SCRIPT rows were already filtered by `regexScripts.ownerId`, but
+ *  BOTH SIDES SCOPED: the SCRIPT rows were already filtered by `regexScripts.ownerId`, but
  *  `characterId` itself was unconstrained, so the read answered "which of MY scripts hang off THAT card" for
  *  any card id. The `characters` join makes the card the caller's own; a foreign/absent id returns `[]`,
  *  which is the same answer an owned card with no attachments gives (no existence oracle). */

@@ -33,7 +33,7 @@ const GENERATED_IMAGE_ALT = "generated image";
  *  `image_edit_dropped` = the whole edit strip; `image_count_dropped` and `image_size_dropped` = that knob. The code is spelled identically across the two vocabularies —
  *  a match against this compile-checked `ChatWarningCode` subset yields the chat code (no re-spell).
  *
- *  The subset EXCLUDES `settings_adjusted` (#1440), and that exclusion is load-bearing rather than tidy: that
+ *  The subset EXCLUDES `settings_adjusted`, and that exclusion is load-bearing rather than tidy: that
  *  code's bus member REQUIRES its structured `adjustment`, which the imagery vocabulary has no notion of — so
  *  a bare `{ code }` emit below is only well-typed while the subset cannot contain it. */
 type ImageryChatWarningCode = Exclude<ChatWarningCode, "settings_adjusted">;
@@ -80,7 +80,7 @@ export function createGenerateImage(ctx: ChatContext, deps: PostNarratorMessageD
       const trimmed = prompt?.trim() ?? "";
       const body = trimmed.length > 0 ? `${trimmed}\n\n${refs}` : refs;
 
-      // THE CLAIM GOES HERE (#1463 item 6): claiming is the one-way husk→real transition — it publishes the
+      // THE CLAIM GOES HERE: claiming is the one-way husk→real transition — it publishes the
       // room into every member's library and replays the creation-time economics — so it must not be spent on
       // a generation that never produced anything. By this line the picture exists and is durable, so the only
       // way the post fails is a DB fault. The ordering invariant is preserved on the other side: the claim

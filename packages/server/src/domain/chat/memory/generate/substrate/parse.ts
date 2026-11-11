@@ -4,7 +4,7 @@
 
 import type { ParsedDigest } from "#src/domain/chat/memory/types.ts";
 
-/** The keywords MARKER — matched ANYWHERE on a line, not just at its start (#330 P5). A sloppy model often
+/** The keywords MARKER — matched ANYWHERE on a line, not just at its start. A sloppy model often
  *  appends `Keywords: …` inline after the final fact sentence ("… behind the painting. Keywords: ledger, …")
  *  rather than on its own line; anchoring on `^\s*keywords:` silently dropped that block's keywords (1 in 26
  *  real digests measured). The prefix BEFORE the marker on that line stays part of the facts body. */

@@ -17,7 +17,7 @@ export function createSessionsContext(
   sessionSecret: string | null,
   inputs: Pick<SessionsContext, "seedUserConnections" | "rolePolicy" | "idSource" | "logger" | "audit"> & { readonly crypto: SessionsCryptoOps },
 ): SessionsContext {
-  // #141 — the OIDC id_token cipher, keyed off the SAME pepper (HKDF, own purpose label — tokens/tokens.ts).
+  // The OIDC id_token cipher, keyed off the SAME pepper (HKDF, own purpose label — tokens/tokens.ts).
   const idTokenBox = createIdTokenBox(sessionSecret, inputs.crypto.createSecretBox);
   const pendingHasher = createTokenHasher(sessionSecret);
   const passwords = inputs.crypto.createPasswordHasher(sessionSecret);
@@ -34,7 +34,7 @@ export function createSessionsContext(
     // Bound from the same pepper as the token hasher. Unset pepper -> a disabled hasher that throws at call time.
     verifyPassword: passwords.verify,
     dummyPasswordHash: passwords.dummyHash,
-    // #141 — THE ONE AAD SITE for the sealed OIDC id_token, seal and open bound here together so the two
+    // THE ONE AAD SITE for the sealed OIDC id_token, seal and open bound here together so the two
     // halves cannot drift: the AAD is the session ROW id, byte-identical (the `domain/credentials` shape,
     // where the single `aadFor()` site is what makes a lifted row fail LOUDLY instead of decrypting wrong).
     // A blob moved to another session's row therefore fails GCM tag verification.

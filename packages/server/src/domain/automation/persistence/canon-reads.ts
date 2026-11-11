@@ -166,7 +166,7 @@ export async function listRuleEntryTitles(db: Db, bookId: WorldBookId, titlePref
 /** Read one analysis window, oldest-first. `afterSeq`/`throughSeq` bound the span (both optional).
  *
  *  `slice` picks WHICH end of an over-long span the `limit` keeps, and the two arms exist because the two
- *  callers are asking different questions (#1416):
+ *  callers are asking different questions:
  *   • `"newest"` (the default, and the FRESH tip's only sensible reading) walks newest-first and re-reverses
  *     — the legacy slice posture: a COLD start over a long chat reads what is freshest, and the pass's
  *     watermark still advances over the whole span. That ruling stands; see `analysis-arm::readPassInputs`.

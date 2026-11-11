@@ -15,7 +15,7 @@ export type { SeededPlateAsset, StoreSeedPlate } from "./seed-plate.ts";
 /** The kinds of binary we content-address. `card` = a character-card PNG (also the avatar); `avatar` =
  *  a persona avatar; `export` = a future generated export (unwired in v1); `generated` = a model-generated
  *  image from a chat turn; `gallery` = a curated gallery image; `attachment` = a user-attached inline
- *  chat image or video (mp4/webm/gif, #317); `document` = a databank source document's original bytes; `background` = a user-uploaded
+ *  chat image or video (mp4/webm/gif); `document` = a databank source document's original bytes; `background` = a user-uploaded
  *  decorative app background (pinned by the `appearance.backgroundAssetId` JSON field, GC-rooted
  *  via the settings live-source scan, NOT an FK column); `plugin` = an installed plugin's bundle bytes.
  *  The db `assets.kind` enum derives from this tuple. */
@@ -220,14 +220,14 @@ export const resolveBlobRefsParamsSchema = z.strictObject({
 /** One resolved reference: the `(assetId, hash, mime)` identity slice plus the stored pixel dimensions.
  *  Only the caller's own assets come back; a foreign/gone id is simply absent (no leak). `mime` rides so
  *  the render side can pick the element (`video/*` → a native `<video>`, everything else `<img>`) without
- *  a second lookup — the same asset-owned media-kind fact the provider wire classifies on (#317).
+ *  a second lookup — the same asset-owned media-kind fact the provider wire classifies on.
  *
  *  The identity slice DERIVES rather than re-spelling `assetId`/`hash`/`mime`; the dimensions are declared
  *  here because only THIS projection needs them (the grid sizes its own tiles). */
 export type AssetBlobRef = Pick<AssetListItem, "assetId" | "hash" | "mime"> & {
-  /** Header-parsed intrinsic size, stored at upload (#625) — the render side reserves the true box with
+  /** Header-parsed intrinsic size, stored at upload — the render side reserves the true box with
    *  it BEFORE the bytes arrive. `null` when the asset is not an image or its header was unparseable
-   *  (and on every row written before #625): the renderer falls back to its placeholder aspect. */
+   *  (and on every row written before the dimension columns existed): the renderer falls back to its placeholder aspect. */
   readonly width: number | null;
   readonly height: number | null;
 };
@@ -269,7 +269,7 @@ export const fsckReportSchema = z.strictObject({ danglingRows: z.number(), corru
  *  re-own cheap and idempotent — the same bytes under an owner who already has them resolve to their existing
  *  row rather than a second copy. Injected (assets owns the table); wired at the entry composition root.
  *
- *  TWO CARRIED PICTURES, ONE PORT (#1426). The avatar was always re-owned here; the card's carried BACKGROUND
+ *  TWO CARRIED PICTURES, ONE PORT. The avatar was always re-owned here; the card's carried BACKGROUND
  *  (`background_override` `kind:"asset"`) is the same fact wearing a different column and was being copied by
  *  id, which is the exact pointer-into-a-foreign-library this port exists to prevent — and the UPDATE path
  *  already refuses it (`ensureBackgroundOverrideOwned`, the BG-C belt), so a handoff copy was the one write

@@ -23,7 +23,7 @@ interface NotificationsServiceDeps {
   now: Clock;
   readonly idSource: IdSource;
   readonly logger: Logger;
-  /** The #1799 cross-feature read behind `InboxView.actionable` (`@orb/contracts/notifications`). Required: see the field's
+  /** The cross-feature read behind `InboxView.actionable` (`@orb/contracts/notifications`). Required: see the field's
    *  note on `NotificationsContext` for why a defaulted no-op would be a silently wrong indicator. */
   resolveStandingAsks: ResolveStandingAsks;
 }

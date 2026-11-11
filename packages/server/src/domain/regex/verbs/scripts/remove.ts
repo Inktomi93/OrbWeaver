@@ -12,7 +12,7 @@ export function createRemove(ctx: RegexContext): RegexService["removeScript"] {
   return async ({ principal, scriptId }: RemoveScriptParams) => {
     const ownerId = principal.userId;
     const record = await requireOwnedScript(ctx.db, ownerId, scriptId);
-    // PRE-WRITE reach capture (#1746, the entity→room bridge §3.6 residual the world-info book delete
+    // PRE-WRITE reach capture (the entity→room bridge §3.6 residual the world-info book delete
     // established): the CASCADE below tears `chat_regex_scripts` down with the row, so a post-write reach
     // resolves ∅ and every other member of a room that attached this script keeps reading a rack that still
     // lists it. Snapshot the rooms while the junction is intact; fan the captured set after the delete.

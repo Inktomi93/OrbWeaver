@@ -1,13 +1,13 @@
 // String primitives shared across layers.
 //
 // `escapeRegExp` used to live here (neo triplicated it; this was the one copy). It was DELETED
-// 2026-08-03 for the platform's `RegExp.escape` (Node-26 program §4.7) — browser-baseline, so kit
+// for the platform's `RegExp.escape` (Node-26 program §4.7) — browser-baseline, so kit
 // stays isomorphic. Verified before the swap: `RegExp.escape` escapes a strict SUPERSET of our set
 // (ours: `$()*+.?[\]^{|}`; the platform adds control/whitespace, `/`, the other punctuators, and a
 // leading alnum as `\xHH`), so every consumer regex is byte-different and match-identical. Never
 // re-mint one — the ESCAPE-MINT gate arm exists for exactly that.
 
-// ── the Unicode word-character class (#1354 · #1530 · #1439 · #1543) ─────────────────────────────────
+// ── the Unicode word-character class ─────────────────────────────────
 // THE ONE ANSWER TO "IS THIS CHARACTER PART OF A WORD". Homed here, not in any of its consumers, because
 // it is a pure text primitive with three of them across two unrelated modules (`#speaker-label`'s label
 // stripper and name matchers, `#world-info`'s literal key compile) — the same reason `escapeRegExp` lived
@@ -50,7 +50,7 @@ const BYTES_PER_UNIT = 1024;
 const SIZE_UNITS = ["B", "KB", "MB", "GB"] as const;
 const ONE_DECIMAL = 10;
 
-// ── the numeric boundary both formatters share (#1359) ───────────────────────────────────────────────
+// ── the numeric boundary both formatters share ───────────────────────────────────────────────
 // Every caller of both functions below hands over a SERVER-SUPPLIED count — a stored `byteSize`, a chunk
 // or token tally. A non-finite value there is a bug upstream, and the un-guarded versions laundered it
 // into a string that reads exactly like a real measurement ("NaN B", "Infinity GB", "-1024 B" for a
@@ -84,13 +84,13 @@ export function formatBytes(bytes: number): string {
 
 // ── grouped digits ───────────────────────────────────────────────────────────────────────────────────
 // THE ONE THOUSANDS GROUPER, by the same placement rule `formatBytes` above states, and lifted for the
-// same reason on the same evidence (#878 F13, 2026-08-30).
+// same reason on the same evidence.
 //
 // IT WAS DELIBERATELY NOT LIFTED, AND THAT RULING'S OWN CRITERION IS WHAT CHANGED. `databank-model.ts`
 // recorded it verbatim — *"Same spelling as the assembly panel's own `formatCount`, deliberately not
-// lifted into a shared home for two call sites in different features"* (side-eye 2026-08-19 N-3) — and
+// lifted into a shared home for two call sites in different features"* — and
 // `character-facet-list.tsx` tracked the count in prose: *"so the three hand-rolled thousands-groupers on
-// the tree stay at three."* Both are COUNT arguments, and #878 F13 adds a fourth and a fifth in a THIRD
+// the tree stay at three."* Both are COUNT arguments, and a fourth and a fifth in a THIRD
 // feature (the character context band's token chip and the editor's save-bar census, which the review
 // caught printing `1257 tokens` and `1257 total · 1017 permanent` — four-digit runs with no separator read
 // as ids). Three call sites is `formatBytes`'s own stated threshold. The ruling survives; its input moved.
@@ -100,7 +100,7 @@ export function formatBytes(bytes: number): string {
 //
 // THE REGEX GROUPS AN INTEGER RUN, NOT A NUMBER. `\B(?=(\d{3})+(?!\d))` is anchored on digit runs alone,
 // so applied to the whole `String(value)` it grouped the FRACTIONAL digits too and `1234.5678` read
-// `1,234.5,678` (#1359 — the one wrong-output defect in that row, and the function had no direct test at
+// `1,234.5,678` (the one wrong-output defect in that row, and the function had no direct test at
 // all). The fix is positional, not a new engine: split the sign and the fraction off, group only the
 // integer run, reassemble. `.toLocaleString()`/`Intl.NumberFormat` stay out of display code
 // (un-memoized Intl by the back door), so the hand-rolled spelling stays.

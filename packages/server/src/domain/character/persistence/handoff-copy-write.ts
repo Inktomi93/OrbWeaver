@@ -1,5 +1,5 @@
 // domain/character/persistence/handoff-copy-write — the character-owned card copy the host-handoff property
-// offer executes (stickler 2026-08-03 §5.1). A named exception to "persistence is queries only", the
+// offer executes. A named exception to "persistence is queries only", the
 // `createLinkCharacterAvatars` / `createBulkImportPersonas` shape: chat must mint cards into the NOMINEE's
 // library and never touches the `characters` table itself. The WHY (and why not `duplicate`) is in
 // `../contract/handoff-copy.ts`; this file is the mechanism.
@@ -12,11 +12,11 @@
 //   3. RE-OWN EVERY CARRIED PICTURE (the injected `copyAsset` op — assets are per-owner with a
 //      `(owner_id, hash)` dedup, so carrying a source asset id verbatim would hand the nominee a pointer
 //      into a library they cannot read AND GC-root the old host's blob through their card). That is BOTH
-//      the avatar and the card's carried BACKGROUND when it is `kind:"asset"` (#1426): the background was
+//      the avatar and the card's carried BACKGROUND when it is `kind:"asset"`: the background was
 //      the one that used to travel by id, and the ordinary edit verb would have refused the resulting card
 //      (`ensureBackgroundOverrideOwned`);
 //   4. INSERT under a handle free in the nominee's own namespace, CLAIMING the provenance key in the write
-//      itself (#1432) — step 1's read is a fast path, not a lock, so two accepts of one offer racing here
+//      itself — step 1's read is a fast path, not a lock, so two accepts of one offer racing here
 //      would otherwise both see "no copy" and mint two libraries. The loser converges on the winner's row.
 //
 // The copies are ORDINARY LIBRARY ROWS from the instant they land — the nominee's own cards, editable,
@@ -59,7 +59,7 @@ function freeHandle(stored: CharacterHandle, taken: ReadonlySet<string>): Charac
   return null;
 }
 
-/** The carried BACKGROUND, re-owned into the recipient's library (#1426). Only `kind:"asset"` names an
+/** The carried BACKGROUND, re-owned into the recipient's library. Only `kind:"asset"` names an
  *  owned row — a `seeded` slug is a static catalog entry every user can read, `none` is nothing, and a
  *  persisted `external` cannot paint at all (BG-C's input-only invariant) — so those three travel verbatim,
  *  exactly as `themeOverride` does. An asset source is re-stored under the recipient (content-addressed, so
@@ -152,8 +152,8 @@ export function createCopyHandoffCards(input: CharacterHandoffCopyAssemblyContex
             // carries them for the same reason).
             forbidExternalMedia: source.forbidExternalMedia,
             trustHtml: source.trustHtml,
-            // …but `interactiveHtml` is DROPPED, and this reverses the leg-1 comment that used to sit here.
-            // RULING, #111 leg-3 security pass (2026-08-16), which that comment explicitly deferred to: the
+            // …but `interactiveHtml` is DROPPED, deliberately.
+            // RULING, from the interactive-card security pass: the
             // top rung is NOT the weaker consent. `trustHtml` widens what markup renders and the renderer
             // still SANITIZES it (no script/iframe/style/`on*` — `@orb/ui/markdown` policy.ts); `interactive`
             // is the ladder's only rung that EXECUTES model-authored code, and it carries a WebRTC beacon no
@@ -166,13 +166,13 @@ export function createCopyHandoffCards(input: CharacterHandoffCopyAssemblyContex
             // every other card the nominee owns; only an explicit opt-in is held back.
             interactiveHtml: null,
             themeOverride,
-            // …but the BACKGROUND is re-owned, not carried by id (step 3 / #1426).
+            // …but the BACKGROUND is re-owned, not carried by id (step 3).
             backgroundOverride,
             // The provenance stamp IS the idempotency key (`duplicate` deliberately clears provenance; a
             // handoff copy deliberately carries it), and the insert CLAIMS it atomically.
             // `importHash` stays null — there were no import bytes.
             importedFrom: provenance,
-            // RULING (security pass §3.D, refinery R1): the refinery signals do NOT cross the owner
+            // RULING (refinery R1): the refinery signals do NOT cross the owner
             // boundary — they are the OLD host's private quality judgement (the analysis may echo their
             // session `guidance`), derived data the new owner regenerates in one run. Every other
             // cross-boundary path already clears them (serde nulls `refinery` on the card wire; only

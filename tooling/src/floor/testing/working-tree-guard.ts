@@ -103,7 +103,7 @@ export function diffWorkingTree(root: string, before: WorkingTreeSnapshot): read
 
 /** Throws naming every offending path, or returns cleanly when the tree matches its setup snapshot.
  *
- *  ALSO SETS `process.exitCode` (#62). Vitest's own `Vitest.close()` runs global teardown AFTER the test
+ *  ALSO SETS `process.exitCode`. Vitest's own `Vitest.close()` runs global teardown AFTER the test
  *  result already decided `process.exitCode` and only LOGS a teardown rejection ("error during close") —
  *  measured: a probe that wrote a real-tree file threw exactly this error and the CLI still exited 0.
  *  Playwright does not share that gap (its task runner folds a thrown teardown into the run's own

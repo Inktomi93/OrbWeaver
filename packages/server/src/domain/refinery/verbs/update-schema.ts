@@ -1,6 +1,6 @@
 // verb: updateSchema — patch an owned schema row. The WHOLE merged document re-runs the belt (a stage
 // flip re-checks the core against the possibly-unchanged schema; a schema edit re-checks everything).
-// CONTENT changes bump `version` — the pin the run log's embedded provenance records (P1-B); a
+// CONTENT changes bump `version` — the pin the run log's embedded provenance records; a
 // description-only edit does not (prose is not provenance). Leak-free NOT_FOUND on foreign/absent ids.
 
 import { refinerySchemaDocumentSchema } from "@orb/contracts/refinery";
@@ -55,7 +55,7 @@ export function createUpdateSchema(ctx: RefineryContext): RefineryService["updat
       version,
       updatedAt: ctx.now(),
     };
-    // OPTIMISTIC CAS (#1445). The merge above is a READ-MODIFY-WRITE of the WHOLE document, so the write
+    // OPTIMISTIC CAS. The merge above is a READ-MODIFY-WRITE of the WHOLE document, so the write
     // must be conditional on the row still being `row` — two concurrent patches to DISJOINT fields both
     // merge off the same pre-edit snapshot, and without the predicate the second one silently drops the
     // first (both answering success, both reporting the same version). `row` is what this caller OBSERVED;

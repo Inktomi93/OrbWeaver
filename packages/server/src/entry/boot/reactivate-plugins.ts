@@ -1,4 +1,4 @@
-// Boot step: bring every ENABLED plugin row RESIDENT again (#1865). `PluginRegistry` is an in-process `Map`
+// Boot step: bring every ENABLED plugin row RESIDENT again. `PluginRegistry` is an in-process `Map`
 // (`domain/plugin/contract/service.ts`, ASSUMES(single-replica)) that only `activate` ever writes, and
 // `activate`'s callers are all owner-initiated verbs — so before this step existed, a restart left every
 // `enabled` row with NO resident instance and the app silently lost every plugin contribution at once:

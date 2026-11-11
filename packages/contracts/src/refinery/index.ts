@@ -13,7 +13,7 @@
 // expressed as a NATIVE zod keyword (grammar-enforced on vLLM, post-parse-belt everywhere else).
 // Selection/config schemas are storage/input shapes, never projected, and MAY refine.
 //
-// THE ONE SANCTIONED REFINEMENT (owner ruling 2026-08-08, amending the pre-2026-08-08 "carry NO zod
+// THE ONE SANCTIONED REFINEMENT (owner ruling, amending the older "carry NO zod
 // refinements" rule): critique prose is capped in TOKENS, and a token count is not a JSON-Schema keyword —
 // no grammar can express it, so the belt is the ONLY possible enforcer for that tier. The relaxation is
 // SAFE because it is additive: every critique field still carries its native `.max()`, so the projected
@@ -53,7 +53,7 @@ export { REFINERY_PROSE_SLOTS } from "./prose.ts";
 // nothing from this package, so its position in the re-export order carries no load-order meaning.
 export * from "./schema-advisory.ts";
 export * from "./schema-authoring.ts";
-// The forge's WIRE GRAMMAR (task #36 — the meta-schema every NL→schema call is constrained by). Imports
+// The forge's WIRE GRAMMAR (the meta-schema every NL→schema call is constrained by). Imports
 // ./schema-authoring.ts for the caps it mirrors, so it is re-exported AFTER it.
 export * from "./schema-forge.ts";
 // What the bound Utility model would do with a draft: the structured planner's answer, server-computed.
@@ -89,7 +89,7 @@ const GREETING_INDEXES_MAX = GREETING_SLOTS_MAX;
 /** Host-authored session label (the card `NAME_MAX` twin — a roster row's label, not prose). */
 const SESSION_NAME_MAX = 200;
 
-// ── WORST-CASE PAYLOAD BUDGET (recomputed 2026-08-08 for the chars→tokens cap; measured, not estimated) ──
+// ── WORST-CASE PAYLOAD BUDGET (recomputed for the chars→tokens cap; measured, not estimated) ──
 // Every string and array at its ceiling, serialized:
 //   • ANALYZE — THE ONE THAT REACHES CANON — ~127 KB → ~139 KB (+9%). The 4× prose growth barely moves it:
 //     six 50×500 note lists dominate this payload, and one critique string is a small share of it. This is
@@ -120,14 +120,14 @@ export const refinerySessionStatusSchema = z.enum(REFINERY_SESSION_STATUSES) sat
 export const REFINERY_STAGE_NOT_READY_REASON = "refinery_stage_not_ready";
 
 /** The coded reason for a stage run refused because the CALLER'S OWN preset caps `maxOutputTokens` below
- *  what this stage's payload needs (the ruled refusal, live-e2e 2026-08-09 open fork 1). Distinct from
+ *  what this stage's payload needs (the ruled refusal). Distinct from
  *  {@link REFINERY_STAGE_NOT_READY_REASON} because the fix is a different knob — raise the preset cap or
  *  narrow the selection, not "run the missing stage first" — and the server's sentence carries the fit
  *  receipt (the computed need, the cap, the knob), so the client quotes it rather than inventing copy. */
 export const REFINERY_OUTPUT_BUDGET_REASON = "refinery_output_budget_too_small";
 
 /** The coded reason for a refinement round refused because ANOTHER round already holds the session's
- *  in-flight claim (#1568). Distinct from the two above because it is neither an ordering mistake nor a knob:
+ *  in-flight claim. Distinct from the two above because it is neither an ordering mistake nor a knob:
  *  nothing is wrong, the session is simply busy, and the fix is to wait for the round in flight. Refused
  *  BEFORE any model call, so a loser pays nothing. */
 export const REFINERY_ROUND_IN_FLIGHT_REASON = "refinery_round_in_flight";
@@ -227,7 +227,7 @@ export const refinerySessionNameSchema = z.string().max(SESSION_NAME_MAX);
 // ── Per-stage payload config — the kind-tagged union (the SF seam, now TWO-ARMED on score/analyze) ──────
 // The SESSION-side custom arm is a POINTER (`{kind:"custom", schemaId}`): the session's in-force schema
 // is mutable state, re-resolved at every run so a schema edit governs the next call (the D126 per-call
-// discipline). The RUN-side provenance arm EMBEDS the schema (further down — the P1-B header ruling);
+// discipline). The RUN-side provenance arm EMBEDS the schema (further down — the provenance header ruling);
 // the two arms are deliberately different shapes for different lifetimes. REWRITE has no custom arm
 // (F-N3: the apply path's semantics ARE the fixed typed contract) — its second RUN-side arm is `manual`
 // (a hand-authored rewrite, og-extension-feedback gap 1).
@@ -293,7 +293,7 @@ export const DEFAULT_REFINERY_STAGE_CONFIG = {
   analyze: { kind: "fixed", mode: "full" },
 } as const satisfies RefineryStageConfig;
 
-/** The RUN-side custom provenance arm — SELF-CONTAINED per the P1-B ruling: the run log is append-only forever, so a run EMBEDS
+/** The RUN-side custom provenance arm — SELF-CONTAINED per the provenance ruling: the run log is append-only forever, so a run EMBEDS
  *  the schema it was produced under (depth-capped objects are small; runs are per-user artifacts, dedupe
  *  is not worth a join) plus the schema row's `version` at run time. The renderer and the read-seam
  *  re-parse never dereference a live `refinery_schemas` row for a historical run — "the schema is gone"
@@ -366,7 +366,7 @@ const rewriteFieldTarget = {
 
 /** One rewritten field — a THREE-ARM union: replace the text, EMPTY the field, or APPEND a new greeting.
  *
- *  EMPTYING IS REFINING (owner ruling 2026-08-08, overruling the R0 stance that lived on this comment —
+ *  EMPTYING IS REFINING (owner ruling, overruling the R0 stance that lived on this comment —
  *  "why wouldn't they be able to empty personality? They can fill it therefore they can empty it").
  *  Consolidating several fields into one REQUIRES clearing the donors, so the pipeline must be able to say
  *  it.
@@ -575,7 +575,7 @@ const refineryRunBaseSchema = z.strictObject({
   sourceRunId: typeIdSchema(ID_PREFIX.refineryRun).nullable(),
   /** The keys the zod strip-mode parse silently REMOVED from the model's payload — dotted paths, never
    *  content (the strip-and-itemize posture: an invented key must appear in the run record instead of
-   *  vanishing into a success; security pass §1 gap 5 / belt 6). Empty = the payload was shape-clean. */
+   *  vanishing into a success). Empty = the payload was shape-clean. */
   strippedKeys: z.array(z.string()),
   createdAt: z.int(),
 });
@@ -622,7 +622,7 @@ export type RefineryRun = z.infer<typeof refineryRunSchema>;
  *  `originalCard`.
  *
  *  CHARACTER IDENTITY RIDES THE ROW, SERVER-SIDE. This comment previously read "Character display
- *  resolves client-side by `characterId`" — TRUTH-REPAIRED (orchestrator ruling, 2026-08-09), because
+ *  resolves client-side by `characterId`" — TRUTH-REPAIRED (orchestrator ruling), because
  *  that mechanism has a hard ceiling the roster cannot survive: the client join's only source is
  *  `character.list`, a cursor page capped at 100 rows (`MAX_LIMIT`, domain/character/verbs/list.ts), so
  *  a session whose card sits past page one renders UNNAMED and is unfindable by the roster's own search
@@ -679,7 +679,7 @@ export type SchemaForgeResult =
   /** `dropped` itemizes design rows the transpiler could not place (a duplicate path, a path that collides
    *  with a value). Never silence — a dropped row is data the editor shows (D112 (3)). */
   | { readonly kind: "draft"; readonly name: string; readonly schema: Record<string, unknown>; readonly dropped: readonly string[] }
-  /** The HONEST-REFUSAL arm (task #36, owner: "think about the people who want to do weird scorings"): the
+  /** The HONEST-REFUSAL arm (owner: "think about the people who want to do weird scorings"): the
    *  ask needs a construct the generator's guaranteed-servable leaf language cannot express (a union, a
    *  heterogeneous array, deeper nesting). The RAW JSON-Schema door takes the full liftable vocabulary, so
    *  the editor routes there with `skeleton` — whatever the design DID reach — as the starting point. A

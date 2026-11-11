@@ -44,7 +44,7 @@ interface AvatarOwnerRow {
  * Which owned character WEARS each of these assets as its avatar — the image hit's destination.
  *
  * An image search returns assets, and an asset on its own is not a place you can go; this is what turns a
- * matched avatar into the door onto that character's dossier (side-eye corpus re-pass U4: the Images target
+ * matched avatar into the door onto that character's dossier (the Images target
  * shipped 20 rows styled exactly like the live ones with nowhere to click). An asset NOBODY wears is simply
  * absent from the result, and the caller renders that hit as the preview it honestly is.
  *

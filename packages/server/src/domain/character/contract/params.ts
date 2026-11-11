@@ -11,8 +11,8 @@ export type { PluginCardDataLookup, PluginCardDataTarget } from "@orb/contracts/
 
 export type { CharacterListCursor, CharacterListSort } from "@orb/contracts/character";
 
-/** The library list's read, with EVERY lens the toolbar offers resolved server-side (owner ruling
- *  2026-08-13, the `listChats` precedent): a keyset page can only ever search/filter what it has fetched, so
+/** The library list's read, with EVERY lens the toolbar offers resolved server-side (owner ruling,
+ *  the `listChats` precedent): a keyset page can only ever search/filter what it has fetched, so
  *  a client-side predicate over the loaded window is a claim the surface has no standing to make.
  *
  *  The two boolean axes are TRI-STATE — `undefined` is UNFILTERED, not `false`. That is what keeps the
@@ -26,7 +26,7 @@ export interface ListCharactersParams extends CharacterActorParams, CharacterLib
 }
 
 /**
- * The GROUP-BY-TAG census request (#1696) — the same lens axes {@link ListCharactersParams} carries, and
+ * The GROUP-BY-TAG census request — the same lens axes {@link ListCharactersParams} carries, and
  * NOTHING ELSE. No `sort`, no `cursor`, no `limit`: a census is not a page, and every one of those three
  * would be a way to make the answer window-dependent again, which is the whole defect.
  */
@@ -75,10 +75,10 @@ export interface RestoreParams extends CharacterActorParams {
   readonly snapshotId: CharacterSnapshotId;
 }
 
-/** Greeting studio (audit §3) — the guided-action machinery pointed at a BASE greeting, owner-gated. Both
+/** Greeting studio — the guided-action machinery pointed at a BASE greeting, owner-gated. Both
  *  verbs RETURN text and NEVER write; the client appends the accepted result via `character.update`.
  *
- *  The steer is composed HERE, not in the browser (the templating fork's ARM B — owner 2026-08-09): the wire
+ *  The steer is composed HERE, not in the browser (the templating fork's ARM B — owner ruling): the wire
  *  carries the picked transform KINDS plus the host's own free text, and the verb resolves each kind's
  *  `preset.greetingTransform.*` prose slot against the caller's preset overrides before joining them with
  *  `composeRewriteSteer` — the ONE steer that becomes `{{input}}` inside the resolved preset template.
@@ -130,7 +130,7 @@ export interface FindByNameParams {
 }
 
 /** The library list's LENS axes — every narrowing the toolbar offers, as SQL predicates over the same scope
- *  the page windows and the census counts (owner ruling 2026-08-13; the `MemberChatFilter` precedent in
+ *  the page windows and the census counts (owner ruling; the `MemberChatFilter` precedent in
  *  `domain/chat/persistence/queries.ts`). Homed HERE per §7.4. Built by the verb — the verb normalizes
  *  the request into this shape once and hands the SAME object to both the page read and the census.
  *

@@ -1,5 +1,5 @@
-// domain/preset/persistence/migrate-prose-slot-vocab — the #1737 PROSE-SLOT ID vocabulary DATA migration
-// (owner-ruled 2026-09-05, arm (a)), the `migrateHandoffOfferVocab` shape one table over.
+// domain/preset/persistence/migrate-prose-slot-vocab — the PROSE-SLOT ID vocabulary DATA migration
+// (owner-ruled, arm (a)), the `migrateHandoffOfferVocab` shape one table over.
 //
 // WHY PRESET OWNS IT. A `home: "preset"` prose slot's host override is stored inside `presets.config`
 // (`promptConfig.prose`, keyed by slot id — `contracts/preset` `promptConfigSchema.prose`), and the `presets`
@@ -11,7 +11,7 @@
 // stored blob unparseable). So the instant the id is renamed, an un-migrated override under the
 // old id does not fail loudly: it VANISHES at the parse seam, the shipped default rides, and the host's
 // authored narrator character heading is gone with no signal anywhere. That silent-loss shape is exactly what
-// #1649 ruled against, and the ruling recorded in the slot's own header (`contracts/chat/prose.ts`, 2026-08-30)
+// the owner ruled against, and the ruling recorded in the slot's own header (`contracts/chat/prose.ts`)
 // SURVIVES with its input changed: it warned that a SILENT id edit would strand every host's `baseVersion`
 // stamp, and this rewrite carries the whole `{text, baseVersion}` record across, stamp intact.
 //
@@ -31,7 +31,7 @@
 //    default; see the `json_valid` note on the predicate for why that guard is NESTED rather than a sibling
 //    AND term.
 //
-// The value is NOT re-minted through `json(...)` (the #1649 boolean hazard): the override is an OBJECT, and
+// The value is NOT re-minted through `json(...)` (the boolean hazard): the override is an OBJECT, and
 // `json_extract`'s object result is a documented JSON-subtyped value that `json_set` inserts as JSON, not as a
 // string. `json()` would be actively worse here — it RAISES on a non-JSON text, which for a corrupt scalar
 // override would abort boot, the one thing this step must never do.
@@ -41,13 +41,13 @@ import type { BootDatabaseHandle } from "@orb/db/wiring";
 import { bootDatabaseForOwner } from "@orb/db/wiring-owner";
 import { sql } from "drizzle-orm";
 
-/** The #1737 rename, as the two JSON paths the rewrite moves an override between. Spelled as paths rather
+/** The rename, as the two JSON paths the rewrite moves an override between. Spelled as paths rather
  *  than as `ProseSlotId`s on purpose: the OLD id is no longer a member of the union, and a migration's whole
  *  job is to name a spelling the live type system has already forgotten. */
 const OLD_PROSE_PATH = '$.prose."chat.group.castMember"';
 const NEW_PROSE_PATH = '$.prose."chat.group.characterHeading"';
 
-/** Re-key every pre-#1737 `promptConfig.prose` override from `chat.group.castMember` to
+/** Re-key every old-spelling `promptConfig.prose` override from `chat.group.castMember` to
  *  `chat.group.characterHeading`, carrying its `baseVersion` stamp. Returns the number of preset rows
  *  rewritten — 0 on every boot after the first, and on a db that never carried the old spelling. */
 export async function migrateProseSlotVocab(handle: BootDatabaseHandle): Promise<number> {

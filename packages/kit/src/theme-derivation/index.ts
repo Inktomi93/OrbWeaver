@@ -10,7 +10,7 @@
 //     contrast against the actual gamut-mapped surface, then the existing endpoint moves in 0.001-L steps
 //     toward that extreme until both float and quantized pixels clear WCAG AA;
 //   • the neutral surface RAMP is the base with only L shifted (hue + chroma held) — by a delta from the
-//     TWO-ARM `ramp` block, selected by the same measured polarity (#682): a dark base's chrome rises off it, a
+//     TWO-ARM `ramp` block, selected by the same measured polarity: a dark base's chrome rises off it, a
 //     light base's recedes, because above L ≈ 0.95 "lighter" has no headroom left and the whole family
 //     collapses into one white;
 //   • `color-scheme`, ramps, elevation, charts and reading plates derive from that SAME measured polarity,
@@ -23,24 +23,24 @@
 /** The numeric derivation constants — the ONE declaration. `@orb/ui`'s clamp re-exports these as
  *  `THEME_DERIVATION` (its own consumers' name) and spells them into CSS; nothing re-derives them.
  *
- *  `readingPlate` is the transcript's over-art text backing (`--color-reading-plate`, #204): the base
+ *  `readingPlate` is the transcript's over-art text backing (`--color-reading-plate`): the base
  *  surface with only L shifted (like the ramp) but CARRYING ITS OWN ALPHA, because the plate composites
  *  over wallpaper art. It is NOT the backdrop dimmer (`--color-backdrop`, polarity-FIXED smoke): a
  *  reading plate must follow the palette's polarity so the palette's own inks land on their own surface
- *  — the #204 root cause was one `--color-scrim` token serving both jobs. `deltaL` −0.038 reproduces the
+ *  — one `--color-scrim` token serving both jobs is the defect this splits. `deltaL` −0.038 reproduces the
  *  retired scrim's dark value off the Hearth base to the digit (0.158 − 0.038 = 0.120); `alpha` 0.65 is
- *  the MEASURED floor (live A/B 2026-08-18: 0.65 turned the failing carried-light room's dialogue
+ *  the MEASURED floor (live A/B: 0.65 turned the failing carried-light room's dialogue
  *  1.32→6.79 and body 1.14→14.33 while the dark-art room stayed 12.06/13.60 and visually identical),
  *  a plate floor. `alpha` is the FLOOR the
  *  polarity-aware {@link readingPlateAlpha} starts from, no longer the emitted value for every palette
- *  (#217 — read that function's contract for the algebra and for `inkReferenceRatio`).
+ *  (read that function's contract for the algebra and for `inkReferenceRatio`).
  *
  *  The plate's OPAQUE sibling — the sticky attribution BAND — uses the same
  *  `deltaL` off the same base, at {@link READING_BAND_ALPHA}. It carries no alpha of its own to declare
- *  here precisely because it is the plate at α 1 (#241).
+ *  here precisely because it is the plate at α 1.
  *
  *  `shadow` is the two-armed ELEVATION recipe {@link shadowIngredients} selects between — the five
- *  `--color-shadow-*` ingredients `--shadow-overlay` / `--shadow-cta` are built from (#232/#243). Neither
+ *  `--color-shadow-*` ingredients `--shadow-overlay` / `--shadow-cta` are built from. Neither
  *  arm is invented: `dark` is the base `@theme` recipe digit-for-digit and `light` is the Light seed's
  *  own measured block, promoted from a hand-authored per-seed value into the derivation a CUSTOM theme
  *  gets too. The two arms are what an elevation IS on each polarity: on a dark surface the ring and the
@@ -50,8 +50,8 @@
  *  Only `l`/`c`/`alpha` live here: the HUE is the palette's own (see the function).
  *
  *  `ramp` is the neutral SURFACE ramp, and it is two-armed for the same reason and measured polarity
- *  (#682, the #243 move applied to the surfaces): the arms are lightness DELTAS off the picked base that
- *  {@link rampDeltas} selects between. Neither arm is invented — `dark` is the pre-#682 single additive
+ *  (the polarity split applied to the surfaces): the arms are lightness DELTAS off the picked base that
+ *  {@link rampDeltas} selects between. Neither arm is invented — `dark` is the original single additive
  *  block digit-for-digit, and `light` is the shipped Light seed's own measured block promoted from a
  *  hand-authored per-seed value-set into the derivation a CUSTOM theme gets too (base 0.98 → sidebar
  *  0.955, surface-raised 0.965, card/popover 0.995, secondary 0.94, muted 0.95, accent 0.93,
@@ -231,7 +231,7 @@ function srgbLinear(channel: number): number {
   return c <= SRGB_EOTF_THRESHOLD ? c / GAMMA_LINEAR_SLOPE : ((c + GAMMA_OFFSET) / GAMMA_SCALE) ** GAMMA_EXPONENT;
 }
 
-/** sRGB (0–255) → OKLCH — the exact inverse of {@link oklchToSrgb} (#204: lets the prose-ink clamp and
+/** sRGB (0–255) → OKLCH — the exact inverse of {@link oklchToSrgb} (lets the prose-ink clamp and
  *  the polarity derivation judge a hex/rgb()/hsl() authored value instead of failing open on format). */
 export function srgbToOklch({ r, g, b }: Rgb): Oklch {
   const lr = srgbLinear(r);
@@ -292,7 +292,7 @@ function proseInkAim(endpoint: number, neutral: boolean): number {
 }
 
 /**
- * The #204 §7a prose-ink clamp decision — for the four AUTHOR-PICKED transcript inks
+ * The §7a prose-ink clamp decision — for the four AUTHOR-PICKED transcript inks
  * (`speaker`/`dialogueColor`/`narrationColor`/`bodyColor`), the only inks exempt from the house
  * "a foreground is never picked, only derived" law. Judged against the surfaces it is read on, at the worse of the float colour and the 8-bit pixel:
  *   • `null`  — the authored ink already clears AA on every host: keep it BYTE-IDENTICAL
@@ -486,12 +486,12 @@ const PLATE_ALPHA_DECIMALS = 3;
 const PLATE_ALPHA_STEPS = Math.round((1 - THEME_DERIVATION.readingPlate.alpha) / PLATE_ALPHA_STEP);
 
 /**
- * THE READING PLATE'S ALPHA for a base surface — polarity-aware, derived, never designed (#217).
+ * THE READING PLATE'S ALPHA for a base surface — polarity-aware, derived, never designed.
  *
  * WHY IT CANNOT BE ONE NUMBER. The plate is translucent, so the surface the transcript's ink actually
  * lands on is `plate·α + art·(1−α)` — the ART is in the composite, and art is arbitrary.
  *
- * THIS DERIVATION KEEPS RAW ART AS ITS INPUT, DELIBERATELY, EVEN THOUGH RAW ART IS NO LONGER LEGAL (#487).
+ * THIS DERIVATION KEEPS RAW ART AS ITS INPUT, DELIBERATELY, EVEN THOUGH RAW ART IS NO LONGER LEGAL.
  * The sentence here used to read "`BACKGROUND_DIM_MIN` is 0, so raw pixels are legal"; that premise died
  * when the wallpaper scrim grew a derived floor of 0.45. Re-solving the alpha against SCRIMMED art would
  * relax it — and relaxing a shipped plate alpha moves pixels in every light room for no legibility gain.
@@ -499,7 +499,7 @@ const PLATE_ALPHA_STEPS = Math.round((1 - THEME_DERIVATION.readingPlate.alpha) /
  * guarantee stacked under this one, never a reason to weaken it. Which art is the WORST case is a function of the
  * plate's POLARITY, and the intuition runs backwards: a LIGHT plate carries DARK inks, so the composite
  * is worst when the art DARKENS it ⇒ BLACK art; a DARK plate carries LIGHT inks ⇒ WHITE art. Measured
- * live 2026-08-18 (the chats rescoring pass): at the flat 0.65 the light-palette
+ * live (the chats rescoring pass): at the flat 0.65 the light-palette
  * done-bar room read narration 3.48:1 / dialogue 4.09:1 over the bright wallpaper regions and 4.94/5.39
  * over the dark ones — the same ink, the same alpha, the scroll position deciding the verdict.
  *
@@ -511,7 +511,7 @@ const PLATE_ALPHA_STEPS = Math.round((1 - THEME_DERIVATION.readingPlate.alpha) /
  * `4.5 × (baseLuminance + 0.05) / (plateLuminance + 0.05)`
  * — measured 5.04–5.25 across the realistic light bases — so the derivation
  * must name a reference ABOVE it. It protects `inkReferenceRatio` (6:1 vs the base) — OWNER-RULED
- * 2026-08-18 off the table below, the knob being a legibility-vs-art trade nobody else may set: the
+ * off the table below, the knob being a legibility-vs-art trade nobody else may set: the
  * legibility of the LEAST legible ink orb SHIPS (the light palette's speaker, 6.02:1), kept beside
  * the shipped palettes so the reference cannot rot away from the shipped palettes. The
  * alphas that buys, and their cost in art: ref 6 → α 0.921 · ref 5.5 → 0.960 · ref 5.2 → 0.985 ·
@@ -519,7 +519,7 @@ const PLATE_ALPHA_STEPS = Math.round((1 - THEME_DERIVATION.readingPlate.alpha) /
  *
  * THE STATED RESIDUAL: an ink between AA_NORMAL and `inkReferenceRatio` against its own base is legible
  * on the plate over ordinary art and is NOT guaranteed over the worst legal art. It is a real case, not
- * a hypothetical — the owner's own done-bar card (harvested live 2026-08-18: base `oklch(0.98 0.004 78)`,
+ * a hypothetical — the owner's own done-bar card (harvested live: base `oklch(0.98 0.004 78)`,
  * speaker `oklch(0.53 0.14 58)` = 5.20:1) sits there, and reads 3.90 over the plate over pure black
  * while measuring 5.51 in the room. Its three FILED inks are the ones this closes: dialogue 3.38→6.81,
  * narration 2.98→6.01, prose-body 5.15→10.37. Moving the residual is a `deltaL` question, not an alpha
@@ -527,13 +527,13 @@ const PLATE_ALPHA_STEPS = Math.round((1 - THEME_DERIVATION.readingPlate.alpha) /
  *
  * THE DARK ARM KEEPS THE MEASURED FLOOR, and that is an owner ruling, not an oversight. D144(d): "Inks
  * are guaranteed vs their BASE, not worst-case art pixels — closing that would move the sacred dark
- * rooms (owner-adjacent, refused)", restated by #217 as the fix's hard constraint. The dark plates carry
+ * rooms (owner-adjacent, refused)", restated as the fix's hard constraint. The dark plates carry
  * the same defect over BRIGHT art (measured at 0.65: hearth speaker 2.51, mocha speaker 2.50) and
  * closing it needs α 0.86 — exactly the sacred-room move that was refused. So a dark base returns the
  * floor unchanged and the dark rooms do not move a pixel BY CONSTRUCTION.
  *
  * Returns a 3-decimal alpha in `[readingPlate.alpha, 1]`: the smallest one at which the reference ink
- * clears AA_NORMAL over the plate composited on the worst legal art. No art is ever sampled (#106).
+ * clears AA_NORMAL over the plate composited on the worst legal art. No art is ever sampled.
  */
 function referencePlateAlpha(base: Oklch, plate: Rgb): number {
   const plateAlphaFloor = THEME_DERIVATION.readingPlate.alpha;
@@ -591,13 +591,12 @@ export function readingPlateForeground(base: Oklch): Oklch {
 }
 
 /**
- * THE STICKY ATTRIBUTION BAND'S ALPHA — opaque, and that is an OWNER RULING, not a tuning (#168,
- * re-stated as the hard constraint of #241's ruling). A pinned band that lets the prose it is pinned
+ * THE STICKY ATTRIBUTION BAND'S ALPHA — opaque, and that is an OWNER RULING, not a tuning (re-stated as the hard constraint of that ruling). A pinned band that lets the prose it is pinned
  * over show through does not own its slice; the band is the one over-prose backing in the transcript
  * that must OCCLUDE. Named rather than inlined because relative-colour syntax DEFAULTS the omitted
  * alpha slot to the ORIGIN's — deriving the band off a translucent plate without spelling `/ 1` would
  * silently reproduce the translucency this constant exists to refuse (the same fixed-point that bit the
- * §7a ink clamp, stickler F1).
+ * §7a ink clamp).
  */
 export const READING_BAND_ALPHA = 1;
 
@@ -622,9 +621,9 @@ export interface ShadowIngredients {
 
 /**
  * THE ELEVATION INGREDIENTS for a base surface — polarity-derived, so a CUSTOM theme stops inheriting the
- * base palette's dark smoke (#243, the recorded residual of #232).
+ * base palette's dark smoke (a recorded residual).
  *
- * WHY THESE ARE COLOURS AND NOT A `--shadow-*` VALUE (#232, probed with the repo's own compiler):
+ * WHY THESE ARE COLOURS AND NOT A `--shadow-*` VALUE (probed with the repo's own compiler):
  * Tailwind v4 INLINES a composite `--shadow-*` `@theme` token into its `.shadow-*` utility at build time,
  * so overriding the composite in a `[data-theme]` block or a `ThemeScope` moves the var and ZERO pixels.
  * A `var()` colour INGREDIENT survives the inlining and resolves in scope — which is the only reason
@@ -633,7 +632,7 @@ export interface ShadowIngredients {
  * WHY IT IS DERIVED AND NOT PICKED: elevation is not a palette role a user has an opinion about; it is
  * what light does to a raised surface, and the only free variable is the surface's POLARITY. Measured on
  * the realistic light bases while a custom light theme still wore the dark arm: the white ring composited
- * to 1.00-1.02:1 against its own page (invisible — #232 measured the same class at 1.29:1 on the Light
+ * to 1.00-1.02:1 against its own page (invisible — the same class measured 1.29:1 on the Light
  * seed) while the near-black far-ambient hit 3.73-3.93:1, a hard halo ~14px past the card box. The light
  * arm turns those into 1.32-1.34:1 and 1.26-1.27:1 — a ring you can see and a drop you cannot.
  *
@@ -676,7 +675,7 @@ export interface RampDeltas {
 
 /**
  * THE NEUTRAL SURFACE RAMP for a base surface — polarity-derived, so a near-white palette stops
- * collapsing its whole chrome family into one white (#682, the #243 move applied to the surfaces).
+ * collapsing its whole chrome family into one white (the polarity split applied to the surfaces).
  *
  * THE DEFECT THIS CLOSES: the ramp was ONE additive block, every member but `sidebar` positive. Above
  * L ≈ 0.95 the positive members saturate at 1.0 and stop being different colours — measured on the
@@ -688,14 +687,14 @@ export interface RampDeltas {
  * WHY A SECOND ARM AND NOT A SMALLER STEP: the additive form is not merely too big near white, it is the
  * wrong DIRECTION. On a light surface "raised" cannot mean lighter — there is no headroom — it means
  * recessed, which is what the shipped Light seed has always spelled by hand. The light arm IS that
- * block, promoted; the dark arm IS the pre-#682 block. Neither is invented, exactly as #243 did for
+ * block, promoted; the dark arm IS the earlier block. Neither is invented, exactly as the polarity split did for
  * elevation.
  *
  * THE POLARITY IS {@link surfacePolarity}, the same measured decision foregrounds, `color-scheme` and the
  * elevation arm ride, so a palette can never get light-arm surfaces with dark-arm text.
  *
  * THE SHIPPED DARK ARM DOES NOT MOVE: a proposed ramp surface that stays in the base's contrast-safe
- * polarity returns the pre-#682 number exactly. If an arbitrary accepted base would let a proposed member
+ * polarity returns the original single-block number exactly. If an arbitrary accepted base would let a proposed member
  * cross that boundary, only that DERIVED delta retracts toward zero on a 0.001 grid until the base's
  * black/white endpoint clears it. Accent and sidebar-accent are exempt because each owns a dedicated
  * surface foreground, with one D336 exception: accent shares its ink with muted (the neutral tone's two tints), so
@@ -894,7 +893,7 @@ function chartFamily(direction: "bright" | "dark", surfaces: readonly Oklch[]): 
 }
 
 /**
- * Five categorical fills for a carried custom surface (#939). The judge is the real chart-host family —
+ * Five categorical fills for a carried custom surface. The judge is the real chart-host family —
  * base, card, raised surface and sidebar — at the worse of float and quantized sRGB contrast. A single
  * light/dark token arm cannot cover the accepted mid-tone bases around the foreground pivot, so the clamp
  * emits this concrete ramp instead of asking `color-scheme` to choose an arm that is known to fail there.
@@ -928,7 +927,7 @@ const ACCENT_L_STEP = 0.001;
 
 /**
  * THE ACCENT-FILL SEARCH'S JUDGE — the ratio of a fill against its card measured BOTH ways, at the WORSE
- * of the two (#692): the float triple this file's math produces, and the 8-BIT PIXEL a browser actually
+ * of the two: the float triple this file's math produces, and the 8-BIT PIXEL a browser actually
  * paints (`Math.round`). Everything else here judges the float, and for a fence a fraction of a percent
  * does not matter; for a search that STOPS at its first clearing step it decides the answer, in both
  * directions. MEASURED at the shipped case (Hearth's accent over the near-white card): at L 0.680 float
@@ -946,19 +945,19 @@ export type AccentFill = { readonly kind: "clears" } | { readonly kind: "correct
 
 /**
  * THE ACCENT FILL'S LIGHTNESS for a carried base — the §7a ink clamp's shape, applied to the one PICKED
- * token that paints a GRAPHIC rather than an ink (#692). `clears` ⇒ the accent already clears against the
+ * token that paints a GRAPHIC rather than an ink. `clears` ⇒ the accent already clears against the
  * card it is painted on, so the caller passes it through (the no-op-where-the-pick-was-sensible guarantee
  * `proseInkCorrection` states); `corrected` ⇒ the fill re-derived at a new lightness, keeping the author's hue
  * and chroma as far as the sRGB gamut allows.
  *
- * THE MOTIVATING MEASUREMENT (#692, and it is not a light-arm ramp defect): `--color-primary` is never
+ * THE MOTIVATING MEASUREMENT (and it is not a light-arm ramp defect): `--color-primary` is never
  * derived — `clamp.ts` emits the PICKED accent, so a scope that carries a light background and no accent
  * INHERITS the app theme's. Hearth's `oklch(0.72 0.175 52)` over the near-white base's derived card
  * (0.98 → 0.995) measures 2.5858:1 — the arc meter's VALUE arc, the part that carries the reading, under
  * WCAG 1.4.11's 3:1 floor. The shipped Light seed's own primary measures 5.07:1 against the same card, so
- * there is nothing to promote and no ramp arm to move: this is the #243/#682 POLARITY DIVORCE ("a custom
- * light theme inherited the base palette's dark smoke") one token over, and the remedy is the one #236
- * already minted for inks — judge the carried token against the surface it will actually be painted on.
+ * there is nothing to promote and no ramp arm to move: this is the POLARITY DIVORCE ("a custom
+ * light theme inherited the base palette's dark smoke") one token over, and the remedy is the one the ink clamp
+ * already applies — judge the carried token against the surface it will actually be painted on.
  *
  * THE SURFACE IS THE CARD, not the base: every low-emphasis graphic this protects (the arc meter's value
  * arc, a ring gauge's fill, a track bar) is painted on a panel, and the card is the ramp member panels
@@ -976,7 +975,7 @@ export type AccentFill = { readonly kind: "clears" } | { readonly kind: "correct
  * the colour this judged: an out-of-gamut chroma never reaches the CSS.
  *
  * `none` means NO lightness in `[fgLMin, fgLMax]` clears — a card that cannot carry this hue at all. Failing open
- * to the authored accent is the pre-#692 behaviour, and inventing a colour is what this file exists not to do.
+ * to the authored accent is the wrong behaviour, and inventing a colour is what this file exists not to do.
  */
 export function accentFillLightness(accent: Oklch, accentAlpha: number, base: Oklch): AccentFill {
   const deltas = rampDeltas(base);

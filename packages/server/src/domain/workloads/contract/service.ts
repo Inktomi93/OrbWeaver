@@ -96,7 +96,7 @@ export interface RunAsker {
 }
 
 /**
- * WHY a `worker_died` reap fired — the axis that makes a reaped row post-hoc ATTRIBUTABLE (#560).
+ * WHY a `worker_died` reap fired — the axis that makes a reaped row post-hoc ATTRIBUTABLE.
  *
  * Both reap paths run the SAME sweep and stamp the SAME status, and `markTerminal` overwrites `updatedAt`
  * (the lease column) with the reap instant — so without this discriminator the row keeps no trace of which
@@ -105,7 +105,7 @@ export interface RunAsker {
  *    the grace window (a genuinely wedged run, or one whose worker died between boots).
  *  - `worker_restart` — the boot reclaim: single replica, so every in-flight row is orphaned BY DEFINITION
  *    and the threshold is 0. The lease is typically seconds old; calling that "stale" is the false sentence.
- *  - `respawn_loop` — the boot reclaim's BOUND (#529/#543): a row of a resumable kind that boot has already
+ *  - `respawn_loop` — the boot reclaim's BOUND: a row of a resumable kind that boot has already
  *    re-queued `MAX_BOOT_RESPAWNS` times without the run reporting any progress in between. It is the one
  *    death the operator can act on (the job itself is looping), so it must not read as one unlucky respawn.
  */
@@ -117,7 +117,7 @@ export type WorkloadReapReason = (typeof WORKLOAD_REAP_REASONS)[number];
 export interface ReapWorkloadsArgs {
   readonly emitEvent: WorkloadServiceContext["emitEvent"];
   readonly db: Db;
-  // No `contributions` (#1413): the sweep disposes of RAW in-flight rows and resolves no kind against the
+  // No `contributions`: the sweep disposes of RAW in-flight rows and resolves no kind against the
   // registry, so handing it the domain map would be a dep it does not use — and the version that DID narrow
   // through the registry is precisely what dropped unknown-kind rows on the floor.
   readonly now: number;
@@ -126,7 +126,7 @@ export interface ReapWorkloadsArgs {
   readonly reason: WorkloadReapReason;
 }
 
-/** What the single-replica BOOT reclaim did with the orphans it found (#529). Two counters, not one: a
+/** What the single-replica BOOT reclaim did with the orphans it found. Two counters, not one: a
  *  re-queued row is work that SURVIVED the respawn, and a reaped one is work that was lost — collapsing them
  *  into a single "reclaimed" number is exactly the log line that made three worker-kills in one day look
  *  like routine boot noise. */

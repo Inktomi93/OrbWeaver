@@ -54,11 +54,11 @@ import type {
 } from "./params.ts";
 import type { GeneratedGreeting, ListCharactersResult, ListCharacterTagGroupsResult, SnapshotSummary, SnapshotView } from "./results.ts";
 
-/** The editable greeting-studio prompt material resolved from the CALLER's preset (audit §3): the
+/** The editable greeting-studio prompt material resolved from the CALLER's preset: the
  *  `greeting_rewrite`/`greeting_new` `guidedActions` template PLUS that preset's `prose` overrides. Wired at
  *  compose to the preset domain's optional configuration read; character owns selection and never imports preset.
  *
- *  The `prose` half landed with the templating fork's ARM B (owner 2026-08-09): the greeting studio's
+ *  The `prose` half landed with the templating fork's ARM B (owner ruling): the greeting studio's
  *  transform fragments are `preset.greetingTransform.*` slots now, so the verb needs the same override bag
  *  the chat assembly seam already composes — the wire carries the picked ids, the bytes are resolved HERE.
  *  Absent overrides (`{}`) resolve every fragment to its shipped default, which is byte-identical to the
@@ -72,8 +72,8 @@ type ResolveGreetingTemplateOp = (args: {
  *  the summarize lane). ONE prompt in, `{text, costUsd}` out; character resolves the caller's live connection
  *  through the injected runtime port (every studio verb is owner-gated). Character resolves sampling from
  *  the caller's Utility-role preset over the `greeting_studio` posture —
- *  the same for BOTH studio kinds, so the op carries no `kind` (per-template sampling was deleted, owner
- *  ruling 2026-08-01; `kind` still selects the TEMPLATE, on `resolveGreetingTemplate`). */
+ *  the same for BOTH studio kinds, so the op carries no `kind` (per-template sampling is deleted, owner
+ *  ruling; `kind` still selects the TEMPLATE, on `resolveGreetingTemplate`). */
 type GenerateGreetingTextOp = (args: { readonly caller: Principal; readonly prompt: string }) => Promise<GeneratedGreeting>;
 
 /** DI bundle every character verb closes over. */
@@ -95,11 +95,11 @@ export interface CharacterContext {
   /** Fires charactersChanged with the owner's userId after each durable write; distinct from emit
    *  (which drives embedding re-index, not client cache). */
   readonly emitUserEvent: EmitUserEvent;
-  /** Materialize a user-pasted external carried-background URL into an owned CAS asset (side-eye F-P0-2) —
+  /** Materialize a user-pasted external carried-background URL into an owned CAS asset —
    *  `update` runs it for a `kind:"external"` `backgroundOverride` so the persisted card background is always
    *  same-origin-paintable (an external URL is CSP-blocked). Compose-built from infra + assets.store. */
   readonly materializeBackground: MaterializeBackgroundOp;
-  /** Reads the caller's preset greeting-studio template (audit §3); character never imports preset. */
+  /** Reads the caller's preset greeting-studio template; character never imports preset. */
   readonly resolveGreetingTemplate: ResolveGreetingTemplateOp;
   /** Runs the bounded side-LLM completion the greeting-studio verbs await (the summarize lane at compose). */
   readonly generateGreetingText: GenerateGreetingTextOp;
@@ -116,7 +116,7 @@ export interface CharacterService {
   /** The caller's characters named by the avatar asset ids they wear — a by-ids read, never a page walk. */
   readonly namesByAvatarAssets: (params: NamesByAvatarAssetsParams) => Promise<CharacterAvatarNames>;
   readonly list: (params: ListCharactersParams) => Promise<ListCharactersResult>;
-  /** The GROUP-BY-TAG census over the SAME lens `list` pages (#1696) — see `verbs/list-tag-groups.ts`. */
+  /** The GROUP-BY-TAG census over the SAME lens `list` pages — see `verbs/list-tag-groups.ts`. */
   readonly listTagGroups: (params: ListCharacterTagGroupsParams) => Promise<ListCharacterTagGroupsResult>;
   /** Edits the live card in place (no CAS/COW); recomputes contentHash. */
   readonly update: UpdateCharacterOp;
@@ -126,9 +126,9 @@ export interface CharacterService {
   /** Missing/foreign ids are skipped, not thrown. */
   readonly bulkRemove: (params: BulkRemoveParams) => Promise<void>;
   readonly bulkArchive: (params: BulkArchiveParams) => Promise<void>;
-  /** Per-item outcome — the honest wire for a partial batch (#1694). */
+  /** Per-item outcome — the honest wire for a partial batch. */
   readonly bulkAddCardTag: (params: BulkAddCardTagParams) => Promise<CharacterBulkTagResult>;
-  /** Per-item outcome — the honest wire for a partial batch (#1694). */
+  /** Per-item outcome — the honest wire for a partial batch. */
   readonly bulkRemoveCardTag: (params: BulkRemoveCardTagParams) => Promise<CharacterBulkTagResult>;
 
   readonly snapshot: SnapshotCharacterOp;
@@ -160,10 +160,10 @@ export interface CharacterService {
   readonly mintSyntheticGroupCharacter: MintSyntheticGroupCharacterOp;
   readonly findSyntheticGroupCharacter: FindSyntheticGroupCharacterOp;
 
-  /** Greeting studio (audit §3): rewrite the supplied base greeting under the caller's `greeting_rewrite`
+  /** Greeting studio: rewrite the supplied base greeting under the caller's `greeting_rewrite`
    *  template + composed steer. Owner-gated (leak-free NOT_FOUND for a non-owner); RETURNS text, NEVER writes. */
   readonly rewriteGreeting: (params: RewriteGreetingParams) => Promise<GeneratedGreeting>;
-  /** Greeting studio (audit §3): generate a fresh greeting under the caller's `greeting_new` template +
+  /** Greeting studio: generate a fresh greeting under the caller's `greeting_new` template +
    *  composed steer. Owner-gated (leak-free NOT_FOUND for a non-owner); RETURNS text, NEVER writes. */
   readonly generateGreeting: (params: GenerateGreetingParams) => Promise<GeneratedGreeting>;
 }

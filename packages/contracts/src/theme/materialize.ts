@@ -1,4 +1,4 @@
-// The external-background MATERIALIZE op (BG-C invariant / side-eye F-P0-2). An external URL can never paint
+// The external-background MATERIALIZE op (BG-C invariant). An external URL can never paint
 // (the CSP `img-src` is self/data/blob only, by design), so every background write path that receives a
 // `kind:"external"` source runs THIS op: fetch the URL through the SSRF-safe egress belt, verify the bytes
 // are a real image via the magic-sniff belt (never the claimed content-type — the avatar-proxy precedent),

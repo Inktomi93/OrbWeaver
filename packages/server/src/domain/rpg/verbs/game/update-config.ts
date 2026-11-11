@@ -2,8 +2,8 @@
 // profile mutability matrix, the `steeringNote`, and the `gmPresetId` + `extractionMode` KNOBS.
 // Host-gated.
 //
-// It is also the RULESET door (#862): the setting the Game tab's segmented control writes. The apply is
-// ADDITIVE by owner ruling (2026-08-30) and the law lives in contracts (`applyRulesetVocabulary`) — the verb
+// It is also the RULESET door: the setting the Game tab's segmented control writes. The apply is
+// ADDITIVE by owner ruling and the law lives in contracts (`applyRulesetVocabulary`) — the verb
 // only decides WHEN it runs (on a real change) and commits the result.
 
 import type { RpgGameConfig, RpgGameFeatures, RpgStatProfile, RpgTrackerDef } from "@orb/contracts/rpg";
@@ -17,7 +17,7 @@ import { resolveHost } from "#src/domain/rpg/guard.ts";
 import { updateGame } from "#src/domain/rpg/persistence/games.ts";
 import { listSheets } from "#src/domain/rpg/persistence/sheets.ts";
 
-/** The profile's SELF-coherence, independent of any sheet (#1371 item 2). Three states
+/** The profile's SELF-coherence, independent of any sheet. Three states
  *  `rpgStatProfileSchema` permits and no consumer can honestly use: a duplicate attribute `key` (a sheet's
  *  `attributes` record can only hold one, so the second definition is unreachable vocabulary), an inverted
  *  `range`, and a `defaultAttribute`/`perceptionAttribute` naming a key the profile does not declare —
@@ -29,7 +29,7 @@ import { listSheets } from "#src/domain/rpg/persistence/sheets.ts";
  *  contract-side header (`@orb/contracts/rpg` profile.ts, `rpgStatProfileSchema`) records that trade.
  *
  *  WHOLE-ENVELOPE REFUSAL IS DELIBERATE HERE, unlike the ST-import mapper's per-field `dropped: [...]`
- *  list (#1532 sweep-record — a REVIEW asked whether this should align with that shape instead). The two
+ *  list, though the two can look alike. The two
  *  are different problem classes: the import mapper drops UNMAPPABLE FOREIGN fields the host never edited
  *  in orb's own vocabulary — silently ignoring a field ST carries that orb has no seat for costs nothing
  *  the host authored. A duplicate attribute key / dangling reference is not an unmappable field; it is a
@@ -62,7 +62,7 @@ function assertProfileCoherent(next: RpgStatProfile): void {
   }
 }
 
-/** The tracker list's coherence (#1371 item 3). Values are keyed by `key` on every snapshot plane, so two
+/** The tracker list's coherence. Values are keyed by `key` on every snapshot plane, so two
  *  defs sharing one key make the second unreachable AND make a value's owning def ambiguous; and the array
  *  had no cap at all while every sibling vocabulary carries one. Same placement reasoning as
  *  {@link assertProfileCoherent} — a write-door refusal, never a parse-on-read bound. */
@@ -148,7 +148,7 @@ function mergeExtractionKnobs(
  *  verb so `updateConfig` stays under the cognitive-complexity ceiling. */
 function mergeConfig(params: UpdateConfigParams, current: RpgGameConfig, nextProfile: RpgStatProfile | undefined): Record<string, unknown> {
   const patch = params.patch;
-  // THE RULESET SETTING (#862, owner ruling 2026-08-30 — ADDITIVE). A CHANGED ruleset merges that ruleset's
+  // THE RULESET SETTING (owner ruling — ADDITIVE). A CHANGED ruleset merges that ruleset's
   // vocabulary (attributes · skill map · seeded trackers) BESIDE what the game already carries; nothing is
   // removed, renamed or confirmed, and switching back hides nothing (`freeform` adds nothing). The apply is
   // gated on an actual CHANGE, never on presence: re-sending the current arm must not resurrect a packaged
@@ -160,7 +160,7 @@ function mergeConfig(params: UpdateConfigParams, current: RpgGameConfig, nextPro
   const vocabulary = rulesetChanged ? applyRulesetVocabulary(base, ruleset) : base;
   return {
     ruleset,
-    // The FRONT-DOOR toggle (#40) — keep-on-omit like every sibling (an unrelated config write must
+    // The FRONT-DOOR toggle — keep-on-omit like every sibling (an unrelated config write must
     // never silently re-engage/disengage the game).
     engaged: patch?.engaged ?? current.engaged,
     statProfile: vocabulary.statProfile,
@@ -177,7 +177,7 @@ function mergeConfig(params: UpdateConfigParams, current: RpgGameConfig, nextPro
     dateMode: patch?.dateMode ?? current.dateMode,
     // The parity-plus feature knobs (§2.8/§2.1 M1 + P3 §3.3/§3.6 + P4 cards) — keep-on-omit (see mergeFeatures).
     features: mergeFeatures(patch, current.features),
-    // The GAME's authored user macros (MU §12A.5 / owner ruling #20's game half) — whole-list replace on a
+    // The GAME's authored user macros (MU §12A.5 / the owner ruling's game half) — whole-list replace on a
     // passed array, keep-on-omit like every sibling ([versioned-config-lift-drops-overrides]: without the
     // keep, an unrelated config edit would reset them to the schema default `[]`). The turn registers these
     // beside the preset's, the game winning a name clash.
@@ -211,7 +211,7 @@ export function createUpdateConfig(ctx: RpgContext): Pick<RpgService, "updateCon
       updatedAt: ctx.now(),
     });
 
-    // #40 — an engaged flip re-writes the chat POINTER MIRROR (`ChatRpgPointer.engaged`) so the client's
+    // An engaged flip re-writes the chat POINTER MIRROR (`ChatRpgPointer.engaged`) so the client's
     // sync takeover gate flips off the SAME `ChatDetail` read that gated it on (no rpg round-trip).
     // Replay an explicit mirror write even when the game row already equals the request. That equality is the
     // exact state left by an interruption after `updateGame` but before `setPointer`; using it as a skip gate

@@ -70,7 +70,7 @@ export type LocalLightSeedSlot = (typeof LOCAL_LIGHT_SEED_ROWS)[number]["task"];
 const taskDefinitions = {
   chat: { kind: "generation", scope: "actor", spend: "foreground", routable: true },
   summarize: { kind: "generation", scope: "actor", spend: "background", routable: true },
-  // The one-shot schema-constrained primitive (owner ruling 2026-07-27) — its OWN task on the wire, riding
+  // The one-shot schema-constrained primitive (owner ruling) — its OWN task on the wire, riding
   // the summarize binding in the pane (F4: one Utility slot, three requirement badges).
   structured: { kind: "generation", requires: { structured: true }, scope: "actor", spend: "background", routable: false, ridesOn: "summarize" },
   generateImage: { kind: "generation", requires: { output: ["image"] }, scope: "actor", spend: "foreground", routable: true },

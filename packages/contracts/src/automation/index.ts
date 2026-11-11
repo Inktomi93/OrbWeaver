@@ -69,7 +69,7 @@ export type ChatTriggerType = (typeof CHAT_TRIGGER_TYPES)[number];
  *  service when their domains land their domain-event mirrors.
  *
  *  IT CARRIES ALL FOUR LIVE DOMAIN EVENTS (S7, landed with C5). It carried two until then, while the source
- *  bus had four — `persona.updated` and `world-info.updated` grew it on 2026-08-14 for the entity→room
+ *  bus had four — `persona.updated` and `world-info.updated` grew it for the entity→room
  *  freshness bridge and the trigger tuple never caught up, so the vocabulary was two members BEHIND its own
  *  source union. The catch-up is BATCHED into the owner-global lane's merge window rather than landed alone,
  *  because every member of this tuple is paired with the `automation_rules` bus↔type CHECK, which is
@@ -102,7 +102,7 @@ const DOMAIN_TRIGGER_SET: ReadonlySet<string> = new Set(DOMAIN_TRIGGER_TYPES);
 /** WHICH BUS an event type is trigger vocabulary on — `null` when it is on NEITHER tuple (a bus member
  *  automation does not trigger on: a `delta`/`warning` chat beat, a `crew.*`/`rpg.*` domain mirror).
  *
- *  IT IS TUPLE MEMBERSHIP, NEVER PUNCTUATION (#1433). Both this and the watcher front door previously
+ *  IT IS TUPLE MEMBERSHIP, NEVER PUNCTUATION. Both this and the watcher front door previously
  *  classified by "does the type contain a dot", which is a property of today's NAMES rather than of the
  *  taxonomy: nothing makes every `DomainEventType` dot-namespaced or forbids a `ChatBusEvent` from carrying a
  *  dot, so a future member of either union would silently route through the WRONG pre-check and rule loader
@@ -184,12 +184,12 @@ export interface GlobalVariableView {
 // re-firing) from hammering a paid API. It is a FIXED ceiling with no stored override (owner ruling: the
 // host-editable per-chat plane had no route and no client, so no user could reach it). The
 // dispatch rate gate and the atomic fire reservation both import THIS const. (The per-day $/spend-action
-// ceilings were stripped 2026-07-24 — enterprise spend enforcement; cost visibility + rate caps stay.)
+// ceilings were stripped — enterprise spend enforcement; cost visibility + rate caps stay.)
 
 /** The per-chat fire-rate ceiling: every chat's rules together admit at most this many fires per hour. */
 export const AUTOMATION_CHAT_MAX_FIRES_PER_HOUR = 120;
 
-/** The CEILING on the per-owner rate-cap belt (#1430).
+/** The CEILING on the per-owner rate-cap belt.
  *
  *  A BELT NEEDS A TOP OR IT IS NOT A BELT. The per-RULE cap is 0..240 (`substrate/validate.ts`), and the
  *  budget plane had no upper bound at all: the wire took `int().min(0)` and the verb took whatever arrived,
@@ -212,7 +212,7 @@ export const AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR = 3600;
 // belt — the one that bounds a whole scope rather than one rule — has no chat to key on. Without this
 // table a runaway global rule multiplies by the owner's entire library instead of by one room, which is
 // exactly the hammering the belt exists to bound. It is a runaway-loop belt and NOT a spend ceiling: the
-// per-day $ ceilings were stripped 2026-07-24 and nothing here re-introduces them.
+// per-day $ ceilings were stripped and nothing here re-introduces them.
 
 /** The per-OWNER fire-rate ceiling default — the value the write path stamps on a fresh
  *  `automation_owner_budgets` row (mirrored by that table's DDL column default: ONE app-side home, the DDL
@@ -431,7 +431,7 @@ const ANALYSIS_STEER_MAX = 600;
  *  only on the host's yes. Declared ONCE as a tuple and derived (§5.5 — no inline union re-spell). */
 export const ANALYSIS_APPLY_MODES = ["direct", "confirm"] as const;
 /** S5 — the `setVariable` route's NUMERIC-SCORE value contract: the ONLY shape an analysis pass may publish
- *  into the member-visible chat-vars plane (the needle, catalogue #16 — F6's single ruled exception). The
+ *  into the member-visible chat-vars plane (the needle — F6's single ruled exception). The
  *  applier writes `String(clamp(int(score), 0..ANALYSIS_SCORE_MAX))` and NOTHING ELSE — arcs, twists and
  *  guidance are disjoint payload fields no code path hands to the vars writer. */
 export const ANALYSIS_SCORE_MAX = 10;
@@ -526,7 +526,7 @@ export const automationActionSchema = z.discriminatedUnion("type", [
   // 1.2 run a macro template over the draft (the D50 PromptTransform seam).
   // `.min(1)` like the `run_analysis.brief` / `run_tool.name` arms: an arm with NO BODY is not a
   // configuration, it is an unfinished one, and this arm's blank was DESTRUCTIVE rather than inert — a blank
-  // template rendered to "" and REPLACED the user's draft with nothing (#1368). The runtime half of that is
+  // template rendered to "" and REPLACED the user's draft with nothing. The runtime half of that is
   // fixed at the seam (an empty render is a skip, not a rewrite); this half stops the rule being authorable.
   z
     .object({
@@ -557,7 +557,7 @@ export const automationActionSchema = z.discriminatedUnion("type", [
       type: z.literal("surface_quick_reply"),
       choices: z
         .array(
-          // Both `.min(1)` (#1368): a blank label reaches the member's chat surface as an INVISIBLE button,
+          // Both `.min(1)`: a blank label reaches the member's chat surface as an INVISIBLE button,
           // and a blank `sendTemplate` sends/seeds nothing when they click it.
           z
             .object({
@@ -576,7 +576,7 @@ export const automationActionSchema = z.discriminatedUnion("type", [
     .object({
       type: z.literal("post_notification"),
       recipient: z.enum(NOTIFICATION_RECIPIENTS),
-      // `.min(1)` (#1368) — a blank message is delivered as an empty toast / an empty inbox row.
+      // `.min(1)` — a blank message is delivered as an empty toast / an empty inbox row.
       messageTemplate: z.string().min(1).max(NOTIFICATION_MESSAGE_MAX),
     })
     .strip(),
@@ -613,7 +613,7 @@ export const automationActionSchema = z.discriminatedUnion("type", [
   // `routes` IS the consent-and-capability surface, and ABSENCE is the off switch: a route the author did not
   // spell is not merely skipped — it is REMOVED from the model's enforced response schema (the xgrammar lever),
   // so the pass cannot even emit that output class. The `vars` route is the needle's publication gate
-  // (RULED 2026-08-24, OFF by default): no default, no preset in C1 authors it — a host opts a room in by
+  // (RULED: OFF by default): no default, no preset in C1 authors it — a host opts a room in by
   // spelling it, and the ONLY value that can cross into member-visible chat vars is the clamped NUMERIC score
   // ({@link ANALYSIS_SCORE_MAX}); arcs/twists/guidance NEVER cross (F6's wall, held by disjoint payload fields).
   //
@@ -863,7 +863,7 @@ export function automationRuleClockZone<Zone extends string = IanaTimeZone>(time
 }
 
 // ── S4: the suggest/confirm vocabulary ────────────────────────────────────────────────────────────
-// The #14 three-posture law over rules AND plugins: standing authority ⇒ act; no standing authority ⇒ ASK
+// The three-posture law over rules AND plugins: standing authority ⇒ act; no standing authority ⇒ ASK
 // the host. A PLUGIN joins the same law and the same inbox — a plugin whose installer is not host of the
 // invocation chat raises an ask instead of taking a flat refusal (`domain/plugin`; the act vocabulary is
 // `@orb/contracts/plugin`'s `PluginSuggestedAct`). One store, one card surface, one host answer: a second
@@ -1227,7 +1227,7 @@ export interface RuleView {
   readonly trigger: AutomationTrigger;
   readonly predicateCel: string | null;
   readonly actions: readonly AutomationAction[];
-  /** #1422 — the stored `actions` blob did not parse, so {@link RuleView.actions} above is EMPTY BECAUSE IT
+  /** The stored `actions` blob did not parse, so {@link RuleView.actions} above is EMPTY BECAUSE IT
    *  IS UNREADABLE, not because the rule has no arms. Without this the two states projected identically and a
    *  broken rule read as benign in management until an event happened to dispatch it (which is where the
    *  auto-disable lives). A surface renders the difference; nothing else about the row is changed by it. */

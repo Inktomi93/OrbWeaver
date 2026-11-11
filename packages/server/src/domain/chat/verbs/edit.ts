@@ -255,7 +255,7 @@ async function applyRunOnEditRegex(
     readonly editorUserId: UserId;
     readonly editorPersonaId: PersonaId | null;
     readonly content: string;
-    /** #1742 — the room's regex levers, off the chat row the caller already holds. A runOnEdit re-apply must
+    /** The room's regex levers, off the chat row the caller already holds. A runOnEdit re-apply must
      *  run the SAME set a live turn would, so a tier this room switched off is switched off here too. */
     readonly regexAllow: HostTierRegexAllow;
     /** The editor's zone, for a `{{time}}` in a script's replacement. */
@@ -275,7 +275,7 @@ async function applyRunOnEditRegex(
   const personaIds = args.editorPersonaId !== null ? [args.editorPersonaId] : [];
   // The consent set for the persona read — the editor is a member of this room, so their own persona (and a
   // member-owned anchor) resolve exactly as they do on a turn. `presentAndEnabledHumanUserIdsOf`, not the
-  // presence-only `presentHumanUserIdsOf` (2026-08-15): a runOnEdit re-apply must agree with the live turn
+  // presence-only `presentHumanUserIdsOf`: a runOnEdit re-apply must agree with the live turn
   // path on the enabled axis too, or a disabled member's persona could re-resolve on every future edit even
   // after generation started refusing it (the same silently-dead-pin bug class, edit-triggered).
   const presentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, args.participants);
@@ -323,7 +323,7 @@ type VariantRow = RetainedCanonCapturedView["contributions"]["variants"][number]
  *  not a generation. Spelling that here rather than spreading the AUDITED variant is what keeps the live
  *  delta describing THE ROW WRITTEN: carrying the audited economics forward would credit its cost, tokens,
  *  cache and reasoning to a row that has none, and the rebuild — which reads the written row — would disagree
- *  by exactly that generation (#1463 item 2; the drift gate is the pin). */
+ *  by exactly that generation (the drift gate is the pin). */
 function appendedVariantOf(audited: VariantRow, content: string, idx: number): VariantRow {
   return {
     ...audited,
@@ -430,7 +430,7 @@ async function freezeSelectedVariant(
     const actor = classifyParticipant(r);
     return actor?.kind === "character" ? [actor.characterId] : [];
   });
-  // Same enabled-axis narrowing as the runOnEdit re-apply above (2026-08-15) — the greeting re-bake must agree
+  // Same enabled-axis narrowing as the runOnEdit re-apply above — the greeting re-bake must agree
   // with the live turn / edit paths on who's still a valid foreign-persona consent.
   const presentHumanUserIdsForBake = await presentAndEnabledHumanUserIdsOf(ctx, args.participants);
   const foreign = await deps.resolveForeignInputs({

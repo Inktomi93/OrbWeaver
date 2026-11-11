@@ -30,7 +30,7 @@ const CODE_FENCE = "```";
  *  not a fence. Bounds what counts as a fence LINE (the anchor that stray inline backticks lack). */
 const MAX_FENCE_INDENT = 3;
 
-/** The name-boundary class — `#strings`'s {@link UNICODE_WORD_CHARS}, which is its ONE home (#1543 moved it
+/** The name-boundary class — `#strings`'s {@link UNICODE_WORD_CHARS}, which is its ONE home (moved
  *  there when `#world-info`'s key compile turned out to be a fourth spelling of the same question; the three
  *  failure modes it fixes are documented at that home). Aliased here only so the three uses below read as
  *  "a NAME boundary"; the EMPHASIS bytes are NOT part of it — `inlineLabelRe`'s lookbehind adds those. */
@@ -58,7 +58,7 @@ export interface SpeakerSpan {
  *  this module's private `SPEAKER_TAG_PAIR`; promoted here so kit tweaking the grammar can't silently
  *  diverge the renderer's span split, C16). Zero markers is the load-bearing no-op: exactly ONE
  *  `{speaker: null}` span whose `text` is byte-identical to `content` — the caller uses that single-span
- *  shape as the signal to render through the untouched pre-#21 path.
+ *  shape as the signal to render through the untouched plain path.
  *
  *  Torn/mid-stream tags are already held back UPSTREAM by the streaming lane's `holdTornSpeaker`
  *  (`#fix-markdown`, the streaming-ghost path only) before content ever settles into canon — so by the
@@ -122,7 +122,7 @@ function plainLabelRe(characterNames: readonly string[]): RegExp | null {
 
 // True when `index` sits inside a fenced code block — an ODD number of fence LINES opened before it.
 //
-// THE GRAMMAR IS LINE-LEVEL, and this used to count raw ``` OCCURRENCES anywhere (#1354): one stray inline
+// THE GRAMMAR IS LINE-LEVEL, and this used to count raw ``` OCCURRENCES anywhere: one stray inline
 // triple-backtick in prose flipped the state and suppressed EVERY later speaker label in the message, which
 // is the fail-open direction for label suppression (a real `Tom:` line silently stopped splitting). A fence
 // is a LINE whose first non-space run is ```, indented at most three spaces — nothing mid-line counts.
@@ -297,7 +297,7 @@ function inlineLabelRe(name: string): RegExp {
   // The name (optionally emphasised) then its colon (optionally emphasised) then any run-in whitespace.
   const label = `${n}${emph}?\\s*:${emph}?\\s*`;
   // THREE ARMS, because "a label" and "a name that happens to END an ordinary word" are the same bytes
-  // (#1354: `stripInlineSpeakerLabel("I told SusAnn: watch out.", "Ann")` deleted from the middle of
+  // (`stripInlineSpeakerLabel("I told SusAnn: watch out.", "Ann")` deleted from the middle of
   // `SusAnn` and returned `"I told Suswatch out."` — the user's prose, altered on the way into canon).
   // Mid-word matching still HAPPENS, but only for a shape that is unambiguously a torn tag rather than
   // ordinary text; that is the grammar this file always meant by "a label at the start of an utterance":
@@ -309,14 +309,14 @@ function inlineLabelRe(name: string): RegExp {
   //      splice this file was written for (→ `dumb`).
   // A bare `SusAnn: ` has none of the three and is therefore prose.
   //
-  // TWO THINGS THE BOUNDARY AND THE DASH ARM BOTH HAD TO NARROW (#1530, the residue of the #1354 fix):
+  // TWO THINGS THE BOUNDARY AND THE DASH ARM BOTH HAD TO NARROW (beyond the line-level grammar):
   //   · the boundary class is the shared {@link NAME_WORD_CHARS} — `\p{L}\p{N}\p{M}`, not `\b`, because `\b`
   //     is ASCII-only (a CJK or Cyrillic name would still splice mid-word) — and it carries the MARKS
   //     because without them a DECOMPOSED letter ends the word for this test: `caféAnn:` written as
   //     `cafe`+U+0301+`Ann` put a combining mark immediately before the name, the lookbehind passed, and the
   //     stripper ate `Ann: ` out of the middle of the word again. Same reasoning `rpgNpcSlug` uses: in many
   //     scripts a mark IS part of the letter. That class is SHARED with the mention/arbitration matchers
-  //     (#1439) so all three ask the same question of the same bytes; the EMPHASIS bytes are added HERE and
+  // so all three ask the same question of the same bytes; the EMPHASIS bytes are added HERE and
   //     only here, or the boundary would be satisfied by the inner `*` of a `**` pair.
   //   · arm C takes the EM/EN dash only, never the ASCII hyphen. `Name: -` is ordinary prose punctuation
   //     ("I told SusAnn: -bring it" was collapsing to "I told Susbring it"), while `Name: —` is the measured

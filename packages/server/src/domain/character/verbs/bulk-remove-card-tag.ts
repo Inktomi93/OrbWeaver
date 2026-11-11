@@ -6,7 +6,7 @@
 // already-absent tag/junction — idempotent). A blank tag name is a no-op. Freshness mirrors the attach exactly:
 // on any removal it fires `charactersChanged` (the user-bus event that drives `trpc.character.*` — the editor's
 // card + its tag chips), NOT `tagsChanged` (the attach doesn't emit that either; a tag is not card content).
-// The partial-failure posture mirrors the attach exactly (#1694): each mapped promise catches its OWN
+// The partial-failure posture mirrors the attach exactly: each mapped promise catches its OWN
 // rejection into a named `BulkTagOutcome` so `Promise.all` here can never abandon a sibling, announce what
 // committed, and RESOLVE with the honest per-item split (`buildBulkTagResult`) instead of rethrowing the
 // first rejection (see `bulkAddCardTag`'s header for the full mechanism, and why a rethrow launders a

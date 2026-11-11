@@ -55,7 +55,7 @@ interface PruneSegmentBlocksParams {
   /** Segments are chat-wide and single-tier — one BLOCK ceiling, no scope bucket. Rows at
    *  `blockIdx >= keepBlockCount` index canon that is no longer ingested. */
   readonly keepBlockCount: number;
-  /** The second ceiling, per block, since a block is a ROW SET now (#172): the blocks whose chunk count is
+  /** The second ceiling, per block, since a block is a ROW SET now: the blocks whose chunk count is
    *  NOT 1, so `chunkIdx >= chunkCount` is deletable. Listing only the exceptions keeps the DELETE bounded —
    *  every block absent from this list holds exactly one chunk, so anything at `chunkIdx >= 1` is stale
    *  there. A block that could not be chunked at all (the pathological ceiling) rides here with
@@ -63,7 +63,7 @@ interface PruneSegmentBlocksParams {
   readonly chunkCounts: readonly { readonly blockIdx: number; readonly chunkCount: number }[];
 }
 
-// THE STALENESS-INVALIDATION arm (#1395) — a third `lens` value on the prune seam rather than a third verb,
+// THE STALENESS-INVALIDATION arm — a third `lens` value on the prune seam rather than a third verb,
 //  because it is the same question asked about a different reason for a row to be wrong: the shrink arm above
 //  reclaims blocks that stopped EXISTING, this one reclaims blocks whose stored digest the build has already
 //  PROVEN stale (hash mismatch) and then failed to replace (an empty/failed summarize). Without it the

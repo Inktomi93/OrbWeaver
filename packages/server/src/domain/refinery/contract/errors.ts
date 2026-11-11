@@ -30,7 +30,7 @@ export class RefineryStageNotReadyError extends DomainOperationError {
 
 /**
  * A stage run refused because the CALLER'S OWN preset caps `maxOutputTokens` below what this stage's payload
- * needs (the owner ruling on live-e2e 2026-08-09 open fork 1; the predicate is `stageBudgetMisfitOf`). NOT
+ * needs (the owner ruling; the predicate is `stageBudgetMisfitOf`). NOT
  * retryable, not the model's fault, and not a server capacity problem (→ BAD_REQUEST): re-running changes
  * nothing until a knob moves, which is why it is refused before a single token is decoded rather than
  * discovered 21 seconds later as a truncation.
@@ -52,7 +52,7 @@ export class RefineryOutputBudgetError extends DomainOperationError {
 }
 
 /**
- * A refinement round refused because the session already has one IN FLIGHT (#1568) — the leased claim
+ * A refinement round refused because the session already has one IN FLIGHT — the leased claim
  * `iterate` takes before it spends. NOT retryable-by-machine and not a fault (→ BAD_REQUEST): the session is
  * busy, and the caller's fix is to wait for the round that is running, which is what the message says.
  * Thrown AFTER the ownership belt (the same existence-oracle ordering as {@link RefineryStageNotReadyError})
@@ -83,7 +83,7 @@ export class RefinerySessionCompletedError extends DomainOperationError {
 /**
  * The stage reached the model and produced nothing usable — the reply failed the payload schema on BOTH
  * the first turn and the bounded retry, or the retry hit a provider fault. Transient and RETRYABLE
- * (→ SERVICE_UNAVAILABLE); NEVER a fallback write (security pass §4.7 — a double failure is a typed
+ * (→ SERVICE_UNAVAILABLE); NEVER a fallback write (a double failure is a typed
  * error, not a degraded run row). The `DistillFailedError` twin.
  */
 /**

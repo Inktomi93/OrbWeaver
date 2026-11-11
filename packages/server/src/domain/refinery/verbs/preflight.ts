@@ -5,14 +5,14 @@
 // and output (the §8 per-stage arithmetic vs the resolved max-output budget).
 //
 // ADVISORY BY DESIGN: QuadChars is an estimate and the copy says "likely", never a hard number
-// (`@orb/kit/tokens`' own doctrine); preflight WARNS, never blocks. That is unchanged by the 2026-08-09
+// (`@orb/kit/tokens`' own doctrine); preflight WARNS, never blocks. That is unchanged by the
 // ruling that the RUN refuses a caller-capped overrun (`verbs/run-stage.ts` → `RefineryOutputBudgetError`):
 // the readout's job is to show the fit BEFORE anyone commits, and a readout that refused would be a readout
 // nobody could read. The two agree by construction — the refusal's predicate is this line's own predicate
 // over this line's own numbers. The reasoning-wire caveat (max_completion_tokens covers THINKING+TEXT on
 // reasoning models) is surface copy, not arithmetic.
 //
-// THE ARITHMETIC IS NOT PRIVATE TO THIS VERB (live e2e, 2026-08-09). It used to be, and the engine never
+// THE ARITHMETIC IS NOT PRIVATE TO THIS VERB (live e2e). It used to be, and the engine never
 // read it — so this readout could tell the user `out ≈ 980 / 768 tok ⚠` while `runStage` went ahead and
 // requested 768, truncated on both attempts and failed the stage. Both halves now derive from
 // `substrate/output-budget.ts`: `maxOutputTokens` below is the budget the NEXT RUN WILL ACTUALLY REQUEST,

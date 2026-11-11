@@ -30,7 +30,7 @@ export const rpgSheetSchema = z
     // fact — so it is ABSENT from the extraction schema + every tool arg (unwritable BY PLAY): a
     // model bumping "level" off a vibe is the progression-inflation footgun the no-`update_stats` posture exists
     // to prevent, and matching marinara's restraint there is the honest call.
-    // TWO write doors, both host-driven and neither of them a turn (owner ruling 2026-08-01): `patchSheet` (the
+    // TWO write doors, both host-driven and neither of them a turn (owner ruling): `patchSheet` (the
     // hand edit) and `populateFromCharacter` (the ONE sanctioned model doorway — a host-clicked, per-character,
     // one-shot round over the character CARD + the room's opening, which FILLS this only while it is still null;
     // `rpgPopulateSchema`, a schema no turn vehicle rides). Birth is not progression.

@@ -1,7 +1,7 @@
 // @orb/contracts/preset — generation config: the `PromptConfig` blob, its lift chain, user-intent
 // generation knobs, guided-actions config, custom parameters, and ST/neo preset serde. NOT the macro
 // catalog: the ONE catalog is the `@orb/kit/macro` registry+metadata pair, and every consumer (the macro
-// browser, the `{{ }}` autocomplete) derives from it — a contracts-side copy lived here until 2026-08-02,
+// browser, the `{{ }}` autocomplete) derives from it — a contracts-side copy here would be a second home,
 // redundant and consumer-less.
 // preset = GENERATION config, NOT the connection (`{api, source, model}` is `contracts/connection`'s axis).
 //
@@ -73,7 +73,7 @@ const MAX_SEPARATOR_LENGTH = 64;
 // The deploy's OWN `CLAUDE_CODE_*` pins — the isolation set the subprocess builder writes
 // (`infra/providers/backends/agent-sdk/env.ts` `ISOLATION_PINS`, which is typed BY this tuple, so the two
 // cannot drift) plus the project-memory suppression each builder sets. THE NAMES LIVE HERE, IN CONTRACTS,
-// BECAUSE THE WRITE SCHEMA MUST REFUSE THEM (#1536): they sit inside the `CLAUDE_*` namespace the hatch
+// BECAUSE THE WRITE SCHEMA MUST REFUSE THEM: they sit inside the `CLAUDE_*` namespace the hatch
 // admits, so an allowlist that stopped at the namespace let a preset re-enable auto-memory, background
 // tasks, cron, the full system prompt, project-memory injection or the cache-churning attribution header inside
 // the RP subprocess — or UNSET any of them with `null`. Their VALUES stay in the server: what the pin is
@@ -101,7 +101,7 @@ export const HOST_OWNED_CLAUDE_ENV_KEYS = [...CLAUDE_ISOLATION_PIN_KEYS, "CLAUDE
 const HOST_OWNED_CLAUDE_ENV_KEY_SET: ReadonlySet<string> = new Set<string>(HOST_OWNED_CLAUDE_ENV_KEYS);
 
 // A preset value reaches the Agent SDK CHILD PROCESS, which runs tools as the host — so `claudeEnv` is a
-// process-execution boundary, not ordinary advanced tuning, and it is an ALLOWLIST (#1472). A deny set was
+// process-execution boundary, not ordinary advanced tuning, and it is an ALLOWLIST. A deny set was
 // tried and lost: it enumerated loader/search/proxy/CA names and never carried `PATH` (which picks the
 // binary the child executes), `HOME` (which picks where the runtime reads config + credentials), `SHELL`,
 // `TMPDIR` — nor `LD_AUDIT`, `GIT_SSH_COMMAND`, `JAVA_TOOL_OPTIONS`, and whatever the next runtime adds.
@@ -111,7 +111,7 @@ const HOST_OWNED_CLAUDE_ENV_KEY_SET: ReadonlySet<string> = new Set<string>(HOST_
 //     builder's own `SUPPORTED_HOST_ENV_KEYS` baseline supplies them from the operator's environment;
 //   • auth / routing / model selection (`ANTHROPIC_*`) is RUNNER-owned and pinned after the overlay;
 //   • the deploy's own isolation pins are HOST-owned too (`HOST_OWNED_CLAUDE_ENV_KEYS` above) — they live
-//     INSIDE this namespace, so admitting the namespace wholesale re-opened them (#1536).
+//     INSIDE this namespace, so admitting the namespace wholesale re-opened them.
 // Matching is CASE-SENSITIVE because POSIX environment keys are: `path` is a different key from `PATH`,
 // and neither is admitted. Exported so the write schema and the final subprocess builder read one
 // vocabulary (validation plus defense in depth).
@@ -134,8 +134,8 @@ const claudeEnvSchema = z.record(z.string(), z.string().nullable()).superRefine(
     }
   }
 });
-/** The cap on an authored TURN-INJECTION TEMPLATE — the ONE number for that whole class (owner ruling
- *  2026-08-08, option 2). Two schemas wear it and they are
+/** The cap on an authored TURN-INJECTION TEMPLATE — the ONE number for that whole class (owner ruling,
+ *  option 2). Two schemas wear it and they are
  *  the same kind of thing: a `formatStrings` slot and a `guidedActions.*.prompt` are both macro-carrying text
  *  spliced into a turn. It supersedes the old `MAX_FORMAT_STRING_LENGTH` (same value, renamed rather than aliased —
  *  a second spelling of one cap is the drift this constant exists to prevent), and the guided prompt was
@@ -255,7 +255,7 @@ export const SIDE_GEN_POSTURES = {
   rule_analysis: { temperature: 0.3, maxOutputTokens: 1024 },
   // Vision caption / avatar analysis: near-deterministic classification with a budget sized for the
   // sentence plus sixteen short structured fields. Originally empty (backend defaults stood); the avatar
-  // analysis call hardcoded its own floor — this IS that floor, promoted to its canonical home (#2243).
+  // analysis call hardcoded its own floor — this IS that floor, promoted to its canonical home.
   caption: { temperature: 0.2, maxOutputTokens: 512, effort: NO_REASONING },
   // ── Refinery stage postures (R1; study §5.3's values). The caller is always the card owner, so the owner's
   //    Utility-role preset always applies (no mixed-owner batch arm here). ──
@@ -266,9 +266,9 @@ export const SIDE_GEN_POSTURES = {
   // Analyze: a grounded drift comparison — short, structured, near-deterministic.
   refine_analyze: { temperature: 0.3, maxOutputTokens: 512, effort: NO_REASONING },
   // Schema DESIGN (refinery SF — the NL design §4.6): a near-deterministic structural artifact, never
-  // prose. The budget is 2 048, not the pre-task-#36 768: the design language emits one verbose ROW per
+  // prose. The budget is 2 048, not 768: the design language emits one verbose ROW per
   // leaf field, and the hosted wire serves it in the all-required shape (every unset knob an explicit
-  // `null`), which measured ~1 500 tokens for a four-field design on 2026-08-09. 768 truncated it —
+  // `null`), which measured ~1 500 tokens for a four-field design. 768 truncated it —
   // `finish_reason:"length"`, i.e. a failed forge that looked like a bad model.
   schema_forge: { temperature: 0.2, maxOutputTokens: 2048 },
   // Theme-cluster naming (discovery): a two-to-four-word label for a keyword set — deterministic-ish, tiny.
@@ -654,7 +654,7 @@ export const guidedActionKindSchema = z.enum(GUIDED_ACTION_KINDS) satisfies z.Zo
 // rows 38-44) and read here, so the shipped default, the registry row and the editor's ghosted placeholder
 // can never disagree. Revising one is a `text` + `version` edit in `./prose`; `tests/contracts/prose/prose-baseline.repo.int.test.ts` fails the edit unless the version rises.
 //
-// Greeting studio (audit §3) — the guided-action machinery pointed at a BASE greeting text (the card's own
+// Greeting studio — the guided-action machinery pointed at a BASE greeting text (the card's own
 // opening), NOT a chat turn. `greeting_rewrite` carries `{{base}}` — the existing greeting text, spliced
 // (ZWSP-neutralized, other-author content) by the same guided-only pre-substitution as `{{person}}`
 // (@orb/kit/guided). Keep-close prose adapted from the source's editIntros.editExisting (verbatim
@@ -672,7 +672,7 @@ const GUIDED_DEFAULT_ROLE: MessageRole = "system";
 
 // Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 // A guided action carries its TEMPLATE + delivery role and NOTHING about sampling: the per-template
-// sampling override (temperature/topP/maxOutputTokens) was DELETED (owner ruling 2026-08-01) — a guided
+// sampling override (temperature/topP/maxOutputTokens) was DELETED (owner ruling) — a guided
 // generation runs at the preset's normal generation params, exactly like every other turn. Unknown keys on
 // a stored blob are STRIPPED by this non-strict object, so a preset saved with the old `sampling` key still
 // parses and simply loses it.
@@ -680,7 +680,7 @@ const guidedActionConfigSchema = z
   .object({
     /** The injection template; `{{input}}` = the user's steering text. Missing/empty falls back to `{{input}}` alone.
      *
-     *  CAPPED at the shared injection-template max (owner ruling 2026-08-08). It was an unbounded `z.string()` —
+     *  CAPPED at the shared injection-template max (owner ruling). It was an unbounded `z.string()` —
      *  the one authored text field in this contract with no ceiling, reaching BOTH the preset row and the model's
      *  system block (`assembly/macros.ts` resolveGuidedInstruction) at whatever length a caller sent. Its
      *  functional sibling `formatStrings` has always carried this same number; they are one class. */
@@ -713,7 +713,7 @@ export const guidedActionsSchema = z
       prompt: CONTINUE_DEFAULT_PROMPT,
       role: GUIDED_DEFAULT_ROLE,
     }),
-    // Greeting-studio kinds (audit §3) — defaulted like opening/continue so a stored blob predating them
+    // Greeting-studio kinds — defaulted like opening/continue so a stored blob predating them
     // still parses. `role` is inert for these (the studio verbs run a standalone bounded completion, never a
     // chat-turn injection) but kept for schema uniformity. The keys ARE the `GuidedActionKind` strings (the
     // schema map is keyed by kind, so key === kind avoids a translation layer); the audit-ratified vocabulary
@@ -742,21 +742,21 @@ export const DEFAULT_GUIDED_ACTIONS: GuidedActionsConfig = {
 };
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// Rewrite toggle catalog — the "toggle options to guide it" the Rewrite modal renders (owner ruling
-// 2026-07-25). Adapted (not ported) from the ST Guided-Generations rewrite family: the *Corrections*
+// Rewrite toggle catalog — the "toggle options to guide it" the Rewrite modal renders (owner ruling).
+// Adapted (not ported) from the ST Guided-Generations rewrite family: the *Corrections*
 // tool itself ships no toggle catalog (only a free-text instruction + include-history + selection-scope),
 // so the guiding vocabulary here is lifted from the sibling **editIntros** transform catalog
 // (`prompts.json editIntros.options`), which IS the source's "one-click steer without prose-writing" set.
 // Only the transforms that make sense for a MID-CONVERSATION reply correction are kept: prose STYLE and
 // TENSE. The perspective/gender options are excluded — they reframe {{user}} in an OPENING and belong to
-// the greeting-studio surface (audit §3), not a reply rewrite. `concise`/`expand` are the two universal
+// the greeting-studio surface, not a reply rewrite. `concise`/`expand` are the two universal
 // correction-length fragments the Corrections OOC prompt implies ("change it to reflect …").
 //
 // Registry-as-data (the databank SCRAPER_KINDS / steer-library precedent — "substrate not a type home":
 // contracts owns the shape+data both the client chips and the server's composer need). Each toggle = a
 // stable `id`, a display `label`, and the PROSE SLOT holding the instruction sentence it contributes.
 //
-// THE FRAGMENT BYTES ARE NOT HERE (the templating fork, ARM B — owner ruling 2026-08-09,
+// THE FRAGMENT BYTES ARE NOT HERE (the templating fork, ARM B — owner ruling,
 // D172). They are host-editable prose slots
 // (`PRESET_REWRITE_TOGGLE_PROSE_SLOTS`, ./prose.ts), resolved by the SERVER at the assembly seam that
 // already holds the preset's prose blob, and joined there by the same pure `composeRewriteSteer`
@@ -797,7 +797,7 @@ type UncataloguedRewriteToggleId = Exclude<RewriteToggleId, (typeof REWRITE_TOGG
 const [_rewriteTogglesAreExhaustive]: [[UncataloguedRewriteToggleId] extends [never] ? true : UncataloguedRewriteToggleId] = [true];
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// Greeting transform catalog — the greeting studio's one-click steer set (audit §3). Adapted (not ported)
+// Greeting transform catalog — the greeting studio's one-click steer set. Adapted (not ported)
 // from the ST Guided-Generations editIntros transform catalog (`prompts.json editIntros.options`): the
 // 4-axis catalog (perspective / tense / style / gender) that IS the source's "steer an OPENING without
 // prose-writing" ergonomic. Unlike REWRITE_TOGGLES (which drops the perspective/gender axes as nonsensical
@@ -925,7 +925,7 @@ export const NAMES_BEHAVIOR = ["none", "default", "content", "completion"] as co
 export type NamesBehavior = (typeof NAMES_BEHAVIOR)[number];
 
 /** What an UNSET `namesBehavior` resolves to on the wire. Exported because the EDITOR must ghost the
- *  effective default in its select rather than render blank (side-eye F-05) — a select that shows nothing
+ *  effective default in its select rather than render blank — a select that shows nothing
  *  for "inherited" hides the very datum it exists to state. The assembler's two `?? "default"` sites read
  *  this same constant, so the shown default and the sent default cannot drift. */
 export const DEFAULT_NAMES_BEHAVIOR: NamesBehavior = "default";
@@ -986,7 +986,7 @@ const plainMarkerSection = z
     marker: z.enum(PLAIN_MARKERS),
     role: z.enum(MESSAGE_ROLES).default("system"),
     enabled: z.boolean().default(true),
-    /** The firing gate, on the plain markers too (#1462, owner ruling: ST sets `injection_trigger` on EVERY
+    /** The firing gate, on the plain markers too (owner ruling: ST sets `injection_trigger` on EVERY
      *  prompt-manager entry including the World Info and Chat History rows, and the neo-parity oracle is a
      *  FLOOR). Its absence here was a PARITY GAP, not a design boundary: `sectionFromPrompt` silently dropped
      *  an imported `injection_trigger` for these three, and the assembler's world-info anchor routing had no
@@ -1060,14 +1060,14 @@ interface FormatCarrierToken {
   readonly token: string;
 }
 
-/** CARRIER tokens — the write-boundary guard's whole enumeration (owner ruling 2026-08-02: "format strings
+/** CARRIER tokens — the write-boundary guard's whole enumeration (owner ruling: "format strings
  *  must not silently break"). A carrier format string WRAPS content, so a non-empty value that drops its
  *  token renders the wrapper with the content GONE (`wrapWiFormat` skips the wrap entirely and the author's
  *  framing silently never ships). That write is REFUSED with a message naming the token — never accepted and
  *  quietly ignored. Blank/absent stays legal: blank means "the shipped default rides", the storage semantic
  *  everywhere in this schema.
  *
- *  THE LINE IS "DELETES CONTENT", NOT "IS A FORMAT STRING" (owner ruling 2026-08-08, option C of
+ *  THE LINE IS "DELETES CONTENT", NOT "IS A FORMAT STRING" (owner ruling, option C of
  *  this clause previously read "DELIBERATELY DISTINCT from
  *  PROSE-1's `requiredMacros`", which was true of the `requiredMacros` set as it then stood and false of
  *  `{{note}}`). A carrier is any token whose absence deletes the payload, wherever it is stored: the two
@@ -1093,12 +1093,12 @@ const FORMAT_STRING_CARRIER_TOKENS = [{ key: "wiFormat", token: "{{entry}}" }] a
 // registration-cost shape), never a new editor. The client's old `GUIDED_ACTION_COPY` map is retired INTO
 // `label`/`fires` (G11) — one home for the copy.
 //
-// SCOPE (WIDENED by the owner ruling of 2026-08-07 — "templates need to have one home in presets not
+// SCOPE (WIDENED by the owner ruling — "templates need to have one home in presets not
 // scattered between that and settings or hiding in code"): `guidedActions` ∪ the ACTION-shaped
 // `formatStrings` ∪ `PRESET_PROSE_SLOT_IDS` (the turn-wire framings, which used to be `UserSettings.prose`
 // rows and a `const` in `assembly/shape.ts`). The original scope line read "the ACTIONS-VIEW set only" and was
 // scoped to things a USER ACTION fires; the ruling makes the tab the one home for authorable prompt TEXT,
-// which is a superset. A row's `kind` still says which it is. WIDENED AGAIN 2026-08-08 by the same ruling read
+// which is a superset. A row's `kind` still says which it is. WIDENED AGAIN by the same ruling read
 // to its end ("we are putting everything in presets"): the eleven rpg steering-reminder teaches re-homed here
 // from `rpg_games.config.prose`, so the set is now every `PRESET_PROSE_SLOT_ID` whatever domain authored it.
 // `wiFormat` is NOT here: it frames world-info ENTRIES and is edited in the WI marker's body editor (per the
@@ -1109,7 +1109,7 @@ const FORMAT_STRING_CARRIER_TOKENS = [{ key: "wiFormat", token: "{{entry}}" }] a
 // PROSE-1 slot's `title`/`fires` (per-SLOT copy — those two kinds SHARE one slot, so slot copy cannot name a
 // row). `defaultSlot` is the one pointer between them: the ghost/placeholder bytes always come from PROSE-1.
 
-// `teach` (added 2026-08-08 with the rpg re-home) is the sixth kind and the only one that does NOT fire on a user
+// `teach` (added with the rpg re-home) is the sixth kind and the only one that does NOT fire on a user
 // action: a teach is standing copy the GAME TURN's steering reminder composes — it teaches the model an output
 // grammar (`<lie …/>`, `:::card`, `:::choices`) or labels a block of tracked state. It is its own kind rather
 // than more `format` rows because a group kicker is what tells a preset author "these eleven only do anything on
@@ -1121,7 +1121,7 @@ const FORMAT_STRING_CARRIER_TOKENS = [{ key: "wiFormat", token: "{{entry}}" }] a
 // (populate) round's own header/teaching/user-turn blocks. Its own kind rather
 // than more `teach` rows because the two groups fire on different CALLS (the character turn vs the state
 // round) and a host tuning one has no reason to read the other.
-// `group` (added 2026-08-08 with the F4 re-home) is the wire framings a GROUP round puts around content — the
+// `group` (added with the F4 re-home) is the wire framings a GROUP round puts around content — the
 // co-speaker card headings, the per-speaker/narrator round nudges + speaker-tag instruction, and the person
 // heading over each other present human's persona. Its own kind rather than more `format` rows for the exact
 // reason `teach` is: the kicker is what tells a preset author "these only do anything in a room of several
@@ -1156,7 +1156,7 @@ export type TemplateCapability =
 
 /** WHICH slot a def edits — three storage arms, every vocabulary derived rather than re-spelled: a
  *  guided-action kind (`guidedActions.<kind>.prompt`), a format-string key (`formatStrings.<key>`), or a
- *  PROSE-1 slot id (`prose[<id>].text` — the 2026-08-07 framing rows). The id IS the storage key in all
+ *  PROSE-1 slot id (`prose[<id>].text` — the re-homed framing rows). The id IS the storage key in all
  *  three, which is what keeps "one enum member + one def row" true for the new arm too.
  *
  *  The prose arm is typed as the WHOLE `ProseSlotId` union because the `home` that narrows it to the
@@ -1208,7 +1208,7 @@ export const TEMPLATE_DEFS = [
     defaultSlot: "preset.guided.rewrite",
   },
   { id: "opening", kind: "steer", label: "Greeting", fires: "A new chat's first message", caps: STEER_CAPS, defaultSlot: "preset.guided.opening" },
-  // ── THE REWRITE MODAL'S ONE-CLICK STEER VOCABULARY (the templating fork, ARM B — owner 2026-08-09) ────
+  // ── THE REWRITE MODAL'S ONE-CLICK STEER VOCABULARY (the templating fork, ARM B — owner ruling) ────
   // The seven toggle sentences the Rewrite modal joins into the correction steer. `steer` kind, and they sit
   // under the Rewrite row they compose into: their bytes reach the model INSIDE that steer, by exactly the
   // delivery `TEMPLATE_KIND_DELIVERY.steer` already states (a system-role steer rides the
@@ -1455,7 +1455,7 @@ export const TEMPLATE_DEFS = [
     caps: [],
     defaultSlot: "preset.format.newChatMarker",
   },
-  // ── THE TURN-WIRE FRAMINGS (owner ruling 2026-08-07) ──────────────────────────────────────────────────
+  // ── THE TURN-WIRE FRAMINGS (owner ruling) ──────────────────────────────────────────────────
   // The wrappers assembly puts AROUND content on the way to the model. They are `format`, not `nudge`:
   // a nudge is prose fired by an ACTION with nothing to steer it; these fire on the shape of the WIRE (an
   // operator note, a re-roled assistant note, a history that would end on the model's own reply). Their id is a
@@ -1503,7 +1503,7 @@ export const TEMPLATE_DEFS = [
     caps: [{ kind: "tokens", tokens: ["{{guidance}}"] }],
     defaultSlot: "automation.guidance.frame",
   },
-  // ── THE GROUP-ROUND FRAMINGS (F4 re-home, owner ruling 2026-08-08 — D132(B) amendment) ─────────────────────
+  // ── THE GROUP-ROUND FRAMINGS (F4 re-home, owner ruling — D132(B) amendment) ─────────────────────
   // The `chat.group.*` slots a group room puts around content: the merged/narrator co-speaker card headings,
   // the per-speaker/narrator round nudges + the speaker-tag instruction, and the person heading of a
   // multi-human room's people block. Re-homed user →
@@ -1568,7 +1568,7 @@ export const TEMPLATE_DEFS = [
     caps: [],
     defaultSlot: "chat.group.speakerTags",
   },
-  // ── THE GAME-TURN TEACHES (owner ruling 2026-08-08, "we are putting everything in presets") ────────────────
+  // ── THE GAME-TURN TEACHES (owner ruling, "we are putting everything in presets") ────────────────
   // The slots the rpg steering reminder composes. They were `rpg_games.config.prose` for one merge; the
   // ruling re-homed them to `promptConfig.prose`, which is what puts them here — a preset-homed prose slot with
   // no row is a slot no host can reach, and the two-sided coverage test in `tests/contracts/prose/preset-storage.contract.test.ts` REDs on it.
@@ -2225,7 +2225,7 @@ export const THINK_SUFFIX_DEFAULT = "</think>";
 const macro = (name: string): string => `{{${name}}}`;
 
 export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
-  // THE STARTER FRAMING LIVES HERE, NOT IN A STORED `template` (side-eye F-03, 2026-08-02). It used to be
+  // THE STARTER FRAMING LIVES HERE, NOT IN A STORED `template`. It used to be
   // materialized as a VALUE on `DEFAULT_PROMPT_CONFIG`'s main section, so the untouched built-in preset
   // opened with a full-weight body and a `custom` cue — the exact F2/§5.2a defect the redesign exists to
   // kill, on the one preset every user meets first. Moving the bytes to the marker's DEFAULT makes the
@@ -2234,7 +2234,7 @@ export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
   // `section.template ?? DEFAULT_MARKER_TEMPLATES[marker]` (`assembly/assemble.ts`), so the same bytes go
   // out — a marker-less ST import now inherits this framing instead of nothing, which is the same "the
   // built-in default rides" rule every other marker already followed.
-  // The ADDRESS clause is not filler (owner-ruled, 2026-08-02). `{{user}}` resolves to a persona NAME, and a
+  // The ADDRESS clause is not filler (owner-ruled). `{{user}}` resolves to a persona NAME, and a
   // default persona's name is a LABEL, not a name its owner picked — so a model reaching for a vocative
   // produced "Goodnight, You." The clause is deliberately CONDITIONAL rather than a name ban: a persona the
   // user actually named ("Sarah") must stay addressable, and only the placeholder case degrades to "you".
@@ -2274,7 +2274,7 @@ export const DEFAULT_MARKER_TEMPLATES: Record<TemplatedMarker, string> = {
  *  keyed on the speaker arm). There is deliberately NO second resolution home and NO mode-keyed record here:
  *  this file owns the BYTES, the assembler owns the pick.
  *
- *  The ADDRESS clause is byte-identical to the per-speaker default's, on purpose (owner ruling 2026-08-02 —
+ *  The ADDRESS clause is byte-identical to the per-speaker default's, on purpose (owner ruling —
  *  see the comment above): the vocative defect is a property of `{{user}}`, not of the turn's mode.
  *
  *  A host's per-section `template` override is ONE stored text and REPLACES both arms (row 52: the override
@@ -2316,8 +2316,8 @@ export const choiceBlockValuesSchema = z.record(z.string().max(MAX_NAME_LENGTH),
 export type ChoiceBlockValues = z.infer<typeof choiceBlockValuesSchema>;
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// User macros (the #24 typed-input fold). The DEFINITION home is
-// preset/game CONFIG (owner ruling #20 — never a global runtime): `promptConfig.userMacros` here and
+// User macros (the typed-input fold). The DEFINITION home is
+// preset/game CONFIG (owner ruling — never a global runtime): `promptConfig.userMacros` here and
 // `rpg_games.config.userMacros` (contracts/rpg/config.ts imports THIS schema — one shape, two homes).
 // The vocabulary (kinds/arg-types/name shape) derives from `@orb/kit/macro` — the engine half
 // (`registerUserMacros`/`resolveUserMacroInputs`, kit/macro/user-macros.ts) consumes exactly these
@@ -2350,7 +2350,7 @@ const userMacroInputOptionSchema = z
   .strip();
 
 // Strip mode: also reads imported files and stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
-/** One typed input (#24): a FLAT shape (kind + per-kind knobs, the ChoiceBlock editor idiom) — the
+/** One typed input: a FLAT shape (kind + per-kind knobs, the ChoiceBlock editor idiom) — the
  *  semantics table lives on kit's `UserMacroInputDef` (resolveUserMacroInputs is the ONE resolution
  *  home). Every knob is defaulted so a stored def predating a knob self-heals at the parse seam. */
 const userMacroInputSchema = z
@@ -2391,7 +2391,7 @@ export type UserMacroSpec = z.infer<typeof userMacroSchema>;
 // unmapped. A schema field diverging from the kit shape is a compile error here, not a runtime surprise.
 const [_userMacroIsKitDef]: [UserMacroSpec extends UserMacroDef ? true : never] = [true];
 
-// The per-turn per-user input VALUES bag (#24): macro name → input name → pick. This is the WIRE shape
+// The per-turn per-user input VALUES bag: macro name → input name → pick. This is the WIRE shape
 //  the FOREIGN-inputs threading (`ResolveForeignInputsOp`, the post-P2 stint) carries UNRESHAPED into
 //  kit's `resolveUserMacroInputs` — string (single-select) · boolean (boolean-toggle) · string[]
 //  (multi-select picks / the random-pick POOL).
@@ -2399,7 +2399,7 @@ const [_userMacroIsKitDef]: [UserMacroSpec extends UserMacroDef ? true : never] 
 //  This schema bounds the value's TYPE and LENGTH and can never bound its VOCABULARY: it is per-VALUE, and
 //  the declared `options` live on the macro DEFINITION, one level up and in another row. The membership
 //  check therefore lives at the seam that holds both — `domain/chat` `setUserMacroValues` refuses a new
-//  off-vocabulary select pick (`unknown_macro_pick`, #1356) — with kit's `resolveStaticInput` as the
+//  off-vocabulary select pick (`unknown_macro_pick`) — with kit's `resolveStaticInput` as the
 //  resolve-side belt for values already stored. Do not "fix" that by reshaping this union.
 const userMacroInputValueSchema = z.union([
   z.string().max(MAX_CHOICE_VALUE_LENGTH),
@@ -2460,7 +2460,7 @@ export const promptConfigSchema = z
     continuePostfix: z.enum(CONTINUE_POSTFIX_TYPES).optional(),
     formatStrings: formatStringsSchema.optional(),
     guidedActions: guidedActionsSchema.optional(),
-    // The per-PRESET PROSE-1 overrides (owner ruling 2026-08-07: templates have ONE home and it is presets).
+    // The per-PRESET PROSE-1 overrides (owner ruling: templates have ONE home and it is presets).
     // Keyed by slot id, holding the SAME `{text, baseVersion}` record every other home stores — which is why
     // `resolveProse` needs no per-home arm. Additive + `.prefault({})`, so a pre-ruling blob parses unchanged
     // and resolves every slot to its shipped default (the `variables`/`userMacros` precedent — no version bump).
@@ -2597,12 +2597,12 @@ export interface ProseCarrierToken {
   readonly token: string;
 }
 
-/** PROSE CARRIER slots — the write guard's SECOND enumeration (owner ruling 2026-08-08,
+/** PROSE CARRIER slots — the write guard's SECOND enumeration (owner ruling,
  *  option C). The user-note frame carries `{{note}}`, the game-notes frame `{{reminder}}`, the choices-teach frame
  *  `{{teach}}` and the story-direction frame `{{guidance}}`, each the injection's ENTIRE payload:
  *  `spliceProseTokens` is a replace, so an override that drops the token matches nothing and the frame ships as
  *  an empty wrapper (`[Note from user: ]`) with the author's note gone. That is byte-for-byte the `{{entry}}`
- *  failure the 2026-08-02 carrier ruling refuses, so these refuse with it.
+ *  failure the carrier ruling refuses, so these refuse with it.
  *
  *  WHY A SECOND LIST rather than a row in `FORMAT_STRING_CARRIER_TOKENS`: that enum keys off `FormatStringKey`
  *  and its loop reads `config.formatStrings`. These frames are `kind:"format"` rows in the same Templates tab,
@@ -2752,20 +2752,20 @@ const CONFIG_LIFTS: Record<number, (config: Record<string, unknown>) => Record<s
   // empty template becomes `{ template: undefined, enabled: false }`: the marker is off, and clearing the
   // field in the editor now means "the built-in default rides" for every section alike.
   4: (c): Record<string, unknown> => ({ ...c, schemaVersion: SCHEMA_VERSION_V5, sections: liftSilentTemplates(c["sections"]) }),
-  // v5 → v6: `params.maxBudgetUsd` is DELETED (owner ruling 2026-08-02, resolving the redesign's D6 fork:
+  // v5 → v6: `params.maxBudgetUsd` is DELETED (owner ruling, resolving the redesign's D6 fork:
   // the knob had no editor on any surface, so no user could ever set, see, or clear it). A LIFT and not a
   // silent drop, because `userIntentSchema` is strict and `promptConfigSchema` `.catch({})`s the whole
   // params blob on a parse failure: without this, one stored budget key would take EVERY other knob on that
   // preset down with it. Strip the key, keep the rest.
   5: (c): Record<string, unknown> => ({ ...c, schemaVersion: SCHEMA_VERSION_V6, params: liftDropMaxBudgetUsd(c["params"]) }),
-  // v6 → v7: the `databank` marker + its DEFAULT_PROMPT_CONFIG section (issue #80). STAMP-ONLY, the v2→v3
+  // v6 → v7: the `databank` marker + its DEFAULT_PROMPT_CONFIG section. STAMP-ONLY, the v2→v3
   // precedent: the addition is purely additive to the marker vocabulary, so a stored blob at v6 is already a
   // valid v7 blob and NOTHING of an author's config is rewritten — a user-owned preset survives this lift
   // byte-identical but for the version stamp. The bump exists for the SEEDER: `ensureSystemDefaultPreset`
   // reseeds the ownerless row only when its stored version is below the default's, so
   // without it an existing install's built-in preset would keep the slotless arrangement forever. A stored
   // OWNED preset that names no slot is DELIBERATELY left alone — the per-chat Documents warning chip covers
-  // those (an imported ST preset is never silently rewritten), the owner's ruled shape for #80.
+  // those (an imported ST preset is never silently rewritten), the owner's ruled shape for a slotless preset.
   6: (c): Record<string, unknown> => ({ ...c, schemaVersion: SCHEMA_VERSION_V7 }),
   // v7 → v8: DEFAULT_PROMPT_CONFIG moves memory, databank and the guided instruction below the pivot
   // (D251). STAMP-ONLY, the v6→v7 precedent: the bump exists so the boot seeder reseeds the ownerless
@@ -2832,7 +2832,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
       marker: "main_prompt",
       role: "system",
       enabled: true,
-      // NO `template` (side-eye F-03): the starter framing is `DEFAULT_MARKER_TEMPLATES.main_prompt`, so
+      // NO `template`: the starter framing is `DEFAULT_MARKER_TEMPLATES.main_prompt`, so
       // the built-in ships this section UNSET like every other marker — the editor ghosts the default and
       // the `custom` cue stays honest. Same bytes on the wire (the assembler's `?? DEFAULT_MARKER_TEMPLATES`).
     },
@@ -3084,7 +3084,7 @@ function triggerOf(prompt: StPrompt): GenerationType[] | undefined {
 
 /**
  * Clamp ONE foreign ST number into the bound the orb schema actually stores, recording every adjustment on
- * `dropped` (#1363). A foreign value carried through unclamped fails the whole-config schema at the parse
+ * `dropped`. A foreign value carried through unclamped fails the whole-config schema at the parse
  * seam below, and the lenient parser answers that by returning DEFAULT_PROMPT_CONFIG — so before this, an
  * `injection_depth` of MAX_INJECTION_DEPTH + 1 silently replaced the user's entire preset with orb's
  * default while `dropped` stayed empty. A per-value clamp degrades ONE field, visibly.
@@ -3136,7 +3136,7 @@ function overrideFields(prompt: StPrompt, marker: MarkerType): { template?: stri
 }
 
 /** Build ONE section from an ST prompt + its prompt_order enabled flag. `dropped` collects the per-value
- *  clamps this section's foreign numbers needed (#1363). */
+ *  clamps this section's foreign numbers needed. */
 function sectionFromPrompt(prompt: StPrompt, id: PromptSectionId, enabled: boolean, dropped: StDroppedField[]): PromptSection {
   const name = resolveSectionName(prompt.name, id);
   const marker = ST_IDENTIFIER_TO_MARKER[id];
@@ -3256,7 +3256,7 @@ const ST_CONTINUE_POSTFIX: Record<string, ContinuePostfix> = {
 // Top-level ST fields with no neo home — reported (when present + meaningful) so the user knows.
 const DROPPABLE_FIELDS: readonly StDroppedField[] = [
   { field: "group_nudge_prompt", reason: "group nudge is room-owned, not preset-owned" },
-  // `new_chat_prompt` is NOT here any more (2026-08-15 re-judgment): its orb seat EXISTS now —
+  // `new_chat_prompt` is NOT here: its orb seat EXISTS —
   // `formatStrings.newChatMarker`, the history-START boundary the assembler reads
   // (`assembly/context.ts` newChatMarkerCandidate / G9) — so `collectFormatStrings` maps it.
   // The GROUP variant stays dropped with the truthful reason: ST fires it only in group chats, and orb's
@@ -3340,8 +3340,8 @@ function collectDroppableFields(rawObj: Record<string, unknown>): StDroppedField
 
 /** Map ST's prompt-string slots onto the preset's `formatStrings`. `impersonation_prompt` →
  *  `impersonateNudge` (previously dropped), `continue_nudge_prompt` → `continueNudge`, and
- *  `new_chat_prompt` → `newChatMarker` (the history-START boundary the assembler reads — mapped since the
- *  2026-08-15 re-judgment; the seat postdates the old "no new-chat injection slot" drop row). A blank/absent
+ *  `new_chat_prompt` → `newChatMarker` (the history-START boundary the assembler reads — the seat exists, so it
+ *  is mapped rather than dropped). A blank/absent
  *  slot is omitted so the assembler falls back to `DEFAULT_FORMAT_STRINGS`. Bounds each to the schema max
  *  so a hostile import can't smuggle an oversized nudge. */
 function collectFormatStrings(rawObj: Record<string, unknown>): PromptConfig["formatStrings"] {
@@ -3358,7 +3358,7 @@ function collectFormatStrings(rawObj: Record<string, unknown>): PromptConfig["fo
   return Object.keys(out).length > 0 ? out : undefined;
 }
 
-// ── The ST `power_user` GENERATION-adjacent knobs (owner ruling 2026-08-08) ────────────────────────
+// ── The ST `power_user` GENERATION-adjacent knobs (owner ruling) ────────────────────────
 // ST scatters what orb calls "generation settings" across TWO sections: the per-family preset (`oai_settings`
 // / `OpenAI Settings/*.json`) AND the global `power_user` blob. orb homes generation config on the PRESET, so
 // the `power_user` half folds in HERE — the one ST→PromptConfig mapper — rather than growing a second answer
@@ -3434,7 +3434,7 @@ const DROPPABLE_POWER_USER_FIELDS: readonly StDroppedField[] = [
   { field: "tokenizer", reason: "the ST tokenizer set is reaffirmed OUT (D49) — orb counts through the provider" },
   { field: "custom_stopping_strings_macro", reason: "macro substitution INSIDE stop strings — orb's stop list is literal (the strings themselves DO import)" },
   { field: "auto_continue", reason: "ST's auto-continue-until-length loop — no orb counterpart" },
-  // BY DESIGN, not deferred (owner ruling, reaffirmed 2026-08-15: "we are never running text-complete") —
+  // BY DESIGN, not deferred (owner ruling, reaffirmed: "we are never running text-complete") —
   // these three are text-completion prompt-format state, and orb has no text-completion mode to spend them in.
   { field: "context", reason: "text-completion context template — text-completion is out of product scope (owner ruling, reaffirmed 2026-08-15)" },
   { field: "instruct", reason: "text-completion instruct template — text-completion is out of product scope (owner ruling, reaffirmed 2026-08-15)" },
@@ -3470,10 +3470,10 @@ function stPowerUserGenerationKnobs(powerUser: unknown): {
   };
 }
 
-/** The ST reader's TYPED outcome (#1580). The two refusals are DIFFERENT ANSWERS and a caller cannot tell
+/** The ST reader's TYPED outcome. The two refusals are DIFFERENT ANSWERS and a caller cannot tell
  *  them apart from a message: `recognised: false` means the reader never claimed the file (no `prompts`, no
  *  `prompt_order` — it may be some other tool's JSON entirely), while `recognised: true` means the reader
- *  DID claim it and then refused what it mapped to (#1363's intact-parse belt). A door that renders both as
+ *  DID claim it and then refused what it mapped to (the intact-parse belt). A door that renders both as
  *  "the reader stopped" tells the owner their SillyTavern preset was not a SillyTavern preset.
  *
  *  `recognised` is the discriminant on purpose: it is the question the caller is actually asking, and it
@@ -3483,7 +3483,7 @@ export type StImportOutcome =
   | { readonly ok: false; readonly recognised: false; readonly reason: string }
   | { readonly ok: false; readonly recognised: true; readonly reason: string };
 
-/** Render a `schema-rejected` outcome's issue for the ST import door (#1592): resolve a `sections.<n>…`
+/** Render a `schema-rejected` outcome's issue for the ST import door: resolve a `sections.<n>…`
  *  path back to the ST prompt IDENTIFIER that section was built from — every section carries its source
  *  identifier verbatim as `id` (`sectionFromPrompt`) — so the refusal names the same prompt the owner
  *  authored in ST, not an opaque array index. Falls back to the bare dot-path outside `sections` (every
@@ -3500,7 +3500,7 @@ function describeStRejectionIssue(issue: VersionedParseIssue, sections: PromptSe
   return ` — ${who}${where}: ${issue.message}`;
 }
 
-/** The `recognised: true` refusal for a non-intact `parseOutcome` (#1363/#1592) — split out of
+/** The `recognised: true` refusal for a non-intact `parseOutcome` — split out of
  *  {@link tryImportStChatCompletionPreset} purely to keep that function's own branching under the
  *  complexity ceiling. */
 function stSchemaRejection(
@@ -3516,7 +3516,7 @@ function stSchemaRejection(
 }
 
 /** Import a SillyTavern Chat Completion preset (parsed JSON) into a validated PromptConfig, as a TYPED
- *  OUTCOME (#1580) — the one home for both refusals and their diagnostic reasons.
+ *  OUTCOME — the one home for both refusals and their diagnostic reasons.
  *
  *  `powerUser` is ST's GLOBAL `settings.json.power_user` blob, supplied ONLY when importing the LIVE
  *  `oai_settings` preset (see the section above): its generation-adjacent knobs fold onto the config, and its
@@ -3560,7 +3560,7 @@ function stConfigOutcome(rawObj: Record<string, unknown>, sections: PromptSectio
   const { stop, postProcess, reasoningParse, dropped: powerUserDropped } = stPowerUserGenerationKnobs(powerUser);
   dropped.push(...powerUserDropped);
 
-  // Construct + validate through the canonical walk — but read its PROVENANCE, not just its value (#1363).
+  // Construct + validate through the canonical walk — but read its PROVENANCE, not just its value.
   // An IMPORT is a FILE, not a stored blob: the lenient contract (`parsePromptConfig`, whose degrade is
   // right for a corrupt STORED blob) answered a single out-of-bounds foreign value by returning
   // DEFAULT_PROMPT_CONFIG, and the caller had no signal — no throw, `dropped` empty, `sectionCount` still
@@ -3582,7 +3582,7 @@ function stConfigOutcome(rawObj: Record<string, unknown>, sections: PromptSectio
   const config = outcome.value;
 
   // The count DESCRIBES THE RETURNED CONFIG, never the array that was built: when the two could disagree,
-  // the disagreement was invisible and made the silent-default failure above look like a success (#1363).
+  // the disagreement was invisible and made the silent-default failure above look like a success.
   return { ok: true, result: { config, dropped, sectionCount: config.sections.length } };
 }
 
@@ -3724,13 +3724,13 @@ export interface PresetSummary {
    *  simply omits the lineage scent when the source is not among them. */
   readonly forkedFrom: PresetId | null;
   /**
-   * WHY A DETAIL'S `config` MAY NOT BE THIS ROW'S (#1716) — `null` ⇒ the stored blob was read faithfully;
+   * WHY A DETAIL'S `config` MAY NOT BE THIS ROW'S — `null` ⇒ the stored blob was read faithfully;
    * a failure kind ⇒ `config` is a STAND-IN (the schema default, or for `version-from-future` the stored
    * blob minus every field this build cannot represent) and the editor is looking at something the row
    * does not contain.
    *
    * IT IS THE READ-TIME TWIN OF THE WRITE REFUSAL, and that is the whole point of putting it on the wire.
-   * Since #1026 a config write derived from this read is refused with `stored_config_unreadable`
+   * A config write derived from this read is refused with `stored_config_unreadable`
    * (`#primitives/stored-config`), so before this field the user saw a defaults-looking editor, typed into it, and
    * got a generic save failure — the refusal was correct and completely invisible until it was too late.
    * It is projected from the SAME `promptConfigConfig.parseOutcome(row.config, row.schemaVersion)` call the
@@ -3753,7 +3753,7 @@ export interface PresetDetail extends PresetSummary {
 }
 
 /**
- * WHERE THIS PRESET IS BOUND FROM OUTSIDE THE LIBRARY (#279) — the CONTEXT panel's backward-bindings block.
+ * WHERE THIS PRESET IS BOUND FROM OUTSIDE THE LIBRARY — the CONTEXT panel's backward-bindings block.
  *
  * The library is full of forward readouts ("what does this preset set"); nothing answered "what would break
  * if I changed it". The honest answer is short, and the SHAPE of it is the finding: a chat does NOT carry a
@@ -3828,7 +3828,7 @@ export interface StaleKnob {
  *  Projected server-side because `QUALITY_SAMPLING`/`QUALITY_EFFORT` are funnel vocabulary the client is
  *  banned from importing (redesign §12) — the previous client derivation could only see knobs the funnel
  *  happened to attribute to the dial, so an overridden dial rendered "everything is overridden" instead of
- *  its mapping (side-eye F-15). */
+ *  its mapping. */
 export interface QualityMappingEntry {
   readonly knob: EffectiveKnob;
   readonly value: number | string;

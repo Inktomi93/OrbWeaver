@@ -34,7 +34,7 @@ export interface ToolUseService {
    *  drivable stops appearing, and the per-turn attach seam can never hand `resolveTools` a ghost. */
   readonly listDrivableToolNames: ListDrivableToolNamesOp;
   /** Resolve caller-supplied names against `driverUserId`'s view of the registry — their own contributor tools
-   *  plus the first-party ones, never another user's (#677; `substrate/partition.ts`). The driver is the turn
+   *  plus the first-party ones, never another user's (`substrate/partition.ts`). The driver is the turn
    *  HOST for a chat attach (the identity `listDrivableToolNames` enumerated from). Unknown name throws (our
    *  wiring bug). */
   readonly resolveTools: ResolveToolsOp<ResolvedToolSet>;

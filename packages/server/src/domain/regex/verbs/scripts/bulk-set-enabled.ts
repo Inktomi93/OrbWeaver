@@ -28,7 +28,7 @@ export function createBulkSetEnabled(ctx: RegexContext): RegexService["bulkSetSc
         at,
       );
       ctx.emitUserEvent(ownerId, { type: "regexChanged" });
-      // #1733's library half, per written row (see `update.ts`): the bulk bar is the same row switch, and
+      // The library half of the room fan, per written row (see `update.ts`): the bulk bar is the same row switch, and
       // each script reaches a different set of rooms.
       await Promise.all(written.map((scriptId) => ctx.fanRegexScriptRooms(scriptId)));
     }

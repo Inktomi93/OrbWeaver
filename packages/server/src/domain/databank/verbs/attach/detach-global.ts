@@ -18,7 +18,7 @@ export function createDetachGlobal(ctx: DatabankContext): DatabankService["detac
     }
     await ctx.audit({ actorUserId: ownerId, action: "databank.detachGlobal", entityType: "document", entityId: documentId }, ctx.now());
     // Real change only — the idempotent no-op returned above (survey H3). The room half is the same D85
-    // reach as the attach twin, resolvable after the delete because its key is the ownerId (#2471).
+    // reach as the attach twin, resolvable after the delete because its key is the ownerId.
     await ctx.fanDatabankRoomsForMember(ownerId);
     ctx.emitUserEvent(ownerId, { type: "databankChanged", documentId });
   };

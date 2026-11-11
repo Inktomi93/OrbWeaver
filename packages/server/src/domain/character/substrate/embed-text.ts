@@ -19,7 +19,7 @@ type CardEmbedFields = Pick<CharacterCard, "name" | "description" | "personality
 // `@orb/kit/tokens` is the house seam for "cut this to fit a real engine window" (its header names the embed
 // clamp and the memory chunker as its callers; the vLLM embed surface sizes off the SAME pair). It counts
 // codepoints — every non-ASCII codepoint is one token — and `safeTokenWindow` carries the measured 1.4156×
-// headroom between that estimate and a real BPE tokenizer (#187). Capping here still keeps `content_hash`
+// headroom between that estimate and a real BPE tokenizer. Capping here still keeps `content_hash`
 // consistent with the bytes that actually reach the vector, which is why the cut lives at this projection
 // and not only at the provider surface.
 //

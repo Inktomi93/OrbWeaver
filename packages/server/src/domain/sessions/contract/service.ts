@@ -59,17 +59,17 @@ export interface SessionsContext {
   verifyPassword: SessionsPasswordVerifier["verify"];
   /** The login constant-time floor's stand-in for a missing or SSO-only row's hash. */
   dummyPasswordHash: string;
-  /** #141 — seal the OIDC `id_token` for at-rest storage on ITS OWN session row. The `sessionId` is the
+  /** Seal the OIDC `id_token` for at-rest storage on ITS OWN session row. The `sessionId` is the
    *  GCM AAD, not a lookup key: sealing against row A and storing on row B produces a blob that can never
    *  be opened. Key = HKDF over the same `SESSION_SECRET`, bound at `context.ts` (the one AAD site).
    *  Narrowed from `SecretBox.encrypt` on purpose: the AAD is a branded `SessionId`, never a bare string. */
   sealIdToken: (idToken: string, sessionId: SessionId) => Sealed;
-  /** #141 — open a sealed id_token bound to `sessionId`. THROWS on a wrong key / lifted row / tampered tag
+  /** Open a sealed id_token bound to `sessionId`. THROWS on a wrong key / lifted row / tampered tag
    *  (GCM verifies before it returns a byte); `verbs/revoke` owns the degrade, because a logout must end
    *  the session whether or not the end-session HINT survives. Narrowed from `SecretBox.decrypt` on purpose,
    *  like `sealIdToken`: the AAD is a branded `SessionId`. */
   openIdToken: (sealed: Sealed, sessionId: SessionId) => string;
-  /** #2481 / inference program §5.3b — the new account's local-light vector floor, as an INJECTED op:
+  /** Inference program §5.3b — the new account's local-light vector floor, as an INJECTED op:
    *  `domain/sessions` may not import `domain/connection`, so the composition root hands the seed in and the
    *  two minting verbs call it once their `users` row has SETTLED. Deliberately REQUIRED, not optional — the
    *  defect it closes is a mint site that silently seeds nothing, and an optional field would let the next
@@ -103,7 +103,7 @@ export interface SessionsService {
   /** Revoke the session a token belongs to (logout); audits `AUTH_LOGOUT`. Returns WHICH session ended plus
    *  its OIDC end-session hint, or `null` if it was already gone — the entry-tier logout route evicts that
    *  session's live sockets with it (W7a; per-SESSION so signing out on the phone leaves the desktop
-   *  connected) and appends the hint to the IdP end-session URL (#141). The hint is CONSUMED here: the same
+   *  connected) and appends the hint to the IdP end-session URL. The hint is CONSUMED here: the same
    *  call that flips `revokedAt` clears the stored blob, so it is readable exactly once. */
   revokeByToken: (token: SessionToken) => Promise<RevokedSession | null>;
   /** Revoke one session by id (admin: kick a specific device) → WHOSE it was, or `null` if it was already
@@ -113,7 +113,7 @@ export interface SessionsService {
   revokeAllForUser: RevokeAllSessionsForUserOp;
   /** The UNEXECUTED form of {@link SessionsService.revokeAllForUser} — the same atomic UPDATE, handed to a
    *  caller that must commit the kick INSIDE its own privileged write's `db.batch` rather than after it
-   *  (#1691: `admin.resetPassword`'s revoke used to be a separate await, so a failed kick left the NEW
+   *  (`admin.resetPassword`'s revoke used to be a separate await, so a failed kick left the NEW
    *  password live with the OLD sessions). The revoke instant is the caller's, so one clock stamps the whole
    *  batch. It does NOT evict live sockets — that is the entry-tier port (W7a), after the commit. @internal */
   revokeAllForUserStatement: (userId: UserId, revokedAt: number) => StatementToken;
@@ -139,7 +139,7 @@ export interface SessionsService {
   authenticate: (handle: Handle, password: string) => Promise<UserId | null>;
   /** B5 — the UNEXECUTED bind: stamp a stable external subject onto an existing row (the admin "link SSO
    *  identity" capability), handed back unrun so the caller commits it INSIDE its own privileged write's
-   *  `db.batch` (#1707 — the bind and its audit row are one atomic unit, or a link returns 200 unaudited).
+   *  `db.batch` (the bind and its audit row are one atomic unit, or a link returns 200 unaudited).
    *  The SECOND `externalId` writer after `provisionIdentity` and the SAME single atomic claim (spine U1:
    *  one linking site), so the bind-once condition rides in the statement's own WHERE. NON-EMPTY rows back
    *  = bound; EMPTY = nothing was bound, and {@link SessionsService.settleUnclaimedLink} says why. Gating +

@@ -1,8 +1,8 @@
 // Global roles, identity and admin user wire views. DAG root: kit-only, no sibling contracts node.
 // Identity resolves once at the entry seam into one immutable Principal; ResolvedIdentity is pre-row.
 //
-// VOCABULARY (#1772 / #914, vocabulary-map row 45): `ChatResource.membership` was `ChatResource.roster`
-// until 2026-09-06. The TYPE half of row 45 landed at #903 C2 (`ChatRoster` → `ChatMembership`) and left
+// VOCABULARY (vocabulary-map row 45): `ChatResource.membership` is not `ChatResource.roster`.
+// The TYPE half of row 45 (`ChatRoster` → `ChatMembership`) once left
 // the FIELD spelling the old word, so every `can()` call site read `{ kind: "chat", roster: {…} }` for a
 // single-`{role}` value that is not a list at all. `roster` remains RESERVED for the saved TEMPLATE
 // concept (`rosterPreset`, "Rosters" — row 48) and never names this one.
@@ -20,8 +20,8 @@ export const USER_ROLES = ["owner", "admin", "user"] as const;
 export type UserRole = (typeof USER_ROLES)[number];
 export const userRoleSchema = z.enum(USER_ROLES) satisfies z.ZodType<UserRole>;
 
-// Principal-KIND axis — currently `human` only (post-rollback: the agent-principal seat wave was purged
-// 2026-07-25). A tuple, never an `isAgent` boolean, so it can grow a third flavor without `if`-branching —
+// Principal-KIND axis — currently `human` only (post-rollback: the agent-principal seat wave was
+// purged). A tuple, never an `isAgent` boolean, so it can grow a third flavor without `if`-branching —
 // the rebuild grafts an `agent` member here if the agent-principal design set returns (docs/work/0048).
 export const USER_KINDS = ["human"] as const;
 export type UserKind = (typeof USER_KINDS)[number];

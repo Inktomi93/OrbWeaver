@@ -16,7 +16,7 @@ const PRINTABLE_ASCII_HIGH = 0x7e; // tilde
 const CHARS_PER_TOKEN = 4;
 
 /**
- * The fraction of a HARD model window this estimate may be measured against (#187).
+ * The fraction of a HARD model window this estimate may be measured against.
  *
  * QuadChars is an ADVISORY estimate, not a tokenizer, and it undercounts real BPE vocabularies on dense
  * prose/code. Measured live against the box's embed engine (Qwen3-VL-Embedding-2B, `max_model_len` 8192) over
@@ -68,7 +68,7 @@ export function estimateTokens(text: string): number {
  * home and cannot drift between them.
  */
 export function safeTokenWindow(windowTokens: number): number {
-  // #1359: `Math.max(0, NaN)` is NaN, so an un-guarded non-finite window used to leave HERE as a number
+  // `Math.max(0, NaN)` is NaN, so an un-guarded non-finite window used to leave HERE as a number
   // that poisons every downstream budget subtraction silently (`safeTokenWindow(x) - RESERVE` stays NaN
   // and every `<=` comparison against it reads false). The window arrives from provider/model config, so
   // a non-finite value is a config-ingestion defect and this is the seam that can still name it. A
@@ -88,7 +88,7 @@ export function windowInputRoom(windowTokens: number, reserveOutputTokens: numbe
 
 /** The effective integer budget for a cut. A FRACTIONAL `maxTokens` breaks the "every piece fits" bound
  *  outright — `estimateTokens` is integer-valued and its floor for any non-empty piece is 1, so a 0.5
- *  budget admits no piece at all while the pre-guard loop happily emitted single-character ones (#1359).
+ *  budget admits no piece at all while the pre-guard loop happily emitted single-character ones.
  *  Flooring makes the two cutters agree with the estimator they measure against, and `NaN` collapses to
  *  the same "nothing can fit" arm `maxTokens <= 0` already had. */
 function effectiveBudget(maxTokens: number): number {
@@ -120,7 +120,7 @@ function longestFittingPrefix(codepoints: readonly string[], maxTokens: number):
  *
  * A clamp LOSES content, so it belongs only where the input is transient (a scoring pass, a query, an
  * already-chunked body). Content that FEEDS MEMORY is chunked instead — {@link splitToTokenBudget} — because a
- * vector built from the head of a block claims a span it never read (owner ruling, #165).
+ * vector built from the head of a block claims a span it never read (owner ruling).
  */
 export function clampToTokenBudget(text: string, maxTokens: number): string {
   const budget = effectiveBudget(maxTokens);

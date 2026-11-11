@@ -98,7 +98,7 @@ export interface ParsedStGroup {
   readonly memberFiles: readonly string[];
   /** Members the author DISABLED in ST. Still SEATED — the room's cast is the cast — and now seated MUTED:
    *  the flag TRAVELS onto orb's own per-seat mute (`chat_participants.disabled`, `seatKnobsSchema`) through
-   *  the bulk-import wire's `seatKnobs` channel (#1687). The ruling survives with its input changed: the old
+   *  the bulk-import wire's `seatKnobs` channel. The ruling survives with its input changed: the old
    *  parenthetical "orb has no per-member mute" was false — orb had the knob, the WIRE had no channel for it,
    *  and the report could only say the flag was lost. Reported either way, so the operator knows which seats
    *  arrived quiet. */
@@ -189,7 +189,7 @@ export interface CollectResult {
   readonly galleryImageCount: number;
   readonly orphanChatDirs: string[];
   /** The orphan dirs' TRANSCRIPTS, with their evidence (the original dir name + the parsed headers) — the
-   *  mint-a-placeholder wave's input. Before 2026-08-15 the chats were counted, named, and thrown away. */
+   *  mint-a-placeholder wave's input. Without it the chats would be counted, named, and thrown away. */
   readonly orphanBundles: { readonly dirName: string; readonly handle: CharacterHandle; readonly chats: CollectedChat[] }[];
   readonly unreadableCards: string[];
   /** A `worlds/*.json` that did not parse as an ST world-info file (recorded, never silent). */

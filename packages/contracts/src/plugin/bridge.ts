@@ -44,13 +44,13 @@ export interface PluginBridge {
   readonly chat: {
     readonly listMessages: (chatId: ChatId, limit: number | undefined, liveness?: PluginInvocationLiveness) => Promise<readonly PluginMessageView[]>;
     readonly getVariables: (chatId: ChatId, liveness?: PluginInvocationLiveness) => Promise<Record<string, string>>;
-    /** The invocation chat's present CHARACTER roster (`chat.listCharacters`, chat.read — #788 F11). The membrane
+    /** The invocation chat's present CHARACTER roster (`chat.listCharacters`, chat.read). The membrane
      *  passes the ALREADY-ADMITTED `chatId`; the domain builder resolves the installer's viewer visibility
      *  (membership) before the read and short-circuits a non-member to `[]` (the `listMessages` viewer choke), so
      *  a plugin sees only the roster of a room it is in. Reduced to id/name/avatar — never a co-participant's full
      *  card. */
     readonly listCharacters: (chatId: ChatId, liveness?: PluginInvocationLiveness) => Promise<readonly PluginCharacterView[]>;
-    /** The room's variable write, with the OPTIONAL compare-and-set (#1555). The membrane parses the guest's
+    /** The room's variable write, with the OPTIONAL compare-and-set. The membrane parses the guest's
      *  preconditions before they reach here; the domain applies the ops only while every one still holds and
      *  answers `stale` (with the live values) otherwise, having written nothing. */
     readonly applyVariableOps: (
@@ -74,12 +74,12 @@ export interface PluginBridge {
     ) => Promise<void>;
   };
   readonly worldInfo: {
-    /** List the books ATTACHED to the invocation chat (`worldInfo.listBooks`, worldinfo.read — #788 F12). The
+    /** List the books ATTACHED to the invocation chat (`worldInfo.listBooks`, worldinfo.read). The
      *  membrane passes the ALREADY-ADMITTED `chatId`; the domain builder resolves the installer's Principal and
      *  reads world-info's own member-gated attachment front door (`listForChat`), so a non-member/kicked caller
      *  gets `[]` and a plugin sees only THIS room's lore. Reduced to `{id, name}`. */
     readonly listBooks: (chatId: ChatId, liveness?: PluginInvocationLiveness) => Promise<readonly PluginWorldBookView[]>;
-    /** List the entries of one attached book (`worldInfo.listEntries`, worldinfo.read — #788 F12). The membrane
+    /** List the entries of one attached book (`worldInfo.listEntries`, worldinfo.read). The membrane
      *  passes the ADMITTED `chatId` + the guest-supplied `bookId`; the domain builder gates the book on ATTACHMENT
      *  to this chat (the write path's own `isBookAttachedToChat`) before reading its entries, so a `bookId` not
      *  attached to this room — even one the installer owns in another chat — resolves to `[]`, leak-free. */
@@ -109,7 +109,7 @@ export interface PluginBridge {
     readonly set: (key: string, value: string, liveness?: PluginInvocationLiveness) => Promise<void>;
     readonly delete: (key: string, liveness?: PluginInvocationLiveness) => Promise<void>;
   };
-  /** Read one asset from the installer's OWN CAS (`assets.read`, assets.read — #788 seam-11 read half). The
+  /** Read one asset from the installer's OWN CAS (`assets.read`, assets.read). The
    *  membrane passes ONLY the guest-supplied `assetId`; the domain builder closes the INSTALLER over the op and
    *  reads through the assets domain's OWNER-GATED front door (`readOwnedAssetBytes`), so a guest names an id but
    *  can only ever read its own. A foreign/absent id is the leak-free `null` (indistinguishable — no existence
@@ -118,7 +118,7 @@ export interface PluginBridge {
   readonly assets: {
     readonly read: (assetId: SandboxWireId<AssetId>, liveness?: PluginInvocationLiveness) => Promise<PluginAssetView | null>;
     /** Write ALREADY-FETCHED-AND-VALIDATED image bytes into the installer's OWN CAS and return the assetId
-     *  (`net.fetchAsset`, capability `net.fetch_asset` — plugin-remote-image #798). Infra PERFORMS the fetch +
+     *  (`net.fetchAsset`, capability `net.fetch_asset`). Infra PERFORMS the fetch +
      *  the SSRF egress wall + the remote-image guard (all live in `infra/network`, which a domain may not
      *  import), then hands the domain ONLY the validated bytes + the SNIFFED mime (never the remote
      *  Content-Type); the domain builder closes the INSTALLER over the store so the asset lands owner-scoped (a
@@ -132,8 +132,8 @@ export interface PluginBridge {
       readonly assetId: SandboxWireId<AssetId>;
     }>;
   };
-  /** Semantic document search over the installer's OWN indexed corpus (`search.documents`, search.query — #788
-   *  F1). The membrane passes ONLY the guest-supplied query text + the (host-clamped) limit; the domain builder
+  /** Semantic document search over the installer's OWN indexed corpus (`search.documents`, search.query).
+   *  The membrane passes ONLY the guest-supplied query text + the (host-clamped) limit; the domain builder
    *  closes the INSTALLER's ownerId over the search scope, so a guest searches no other owner's library. Returns
    *  ranked reduced hits. Query embedding may use the installer's hosted, paid provider; the domain bridge
    *  claims a per-plugin hourly slot before the search op. Authority-agnostic like every bridge op — infra
@@ -151,7 +151,7 @@ export interface PluginBridge {
     readonly set: (key: string, value: string, liveness?: PluginInvocationLiveness) => Promise<void>;
     readonly delete: (key: string, liveness?: PluginInvocationLiveness) => Promise<void>;
     readonly list: (prefix: string | undefined, liveness?: PluginInvocationLiveness) => Promise<readonly string[]>;
-    /** The ATOMIC write (#1442): apply `next` only while the key still holds `expected` (`null` = absent).
+    /** The ATOMIC write: apply `next` only while the key still holds `expected` (`null` = absent).
      *  ONE statement at the persistence layer — the predicate rides the write, so nothing can interleave —
      *  which is the only thing a guest can build a lost-update-free counter on. `current` is the post-state
      *  value (advisory on a refusal: the caller's next `expected`). */
@@ -212,7 +212,7 @@ export interface PluginBridge {
    *  by construction). So the domain hands the admission down as a closure, exactly as it hands `netHosts`
    *  down as data, and infra calls it without knowing whose budget it just spent.
    *
-   *  WHAT IT CLOSES (the D46 review's tracked finding, 2026-08-24 §8): `safeFetch`
+   *  WHAT IT CLOSES (the D46 review's tracked finding): `safeFetch`
    *  bounds each REQUEST — deadline, byte cap, redirect budget — and the manifest bounds the target SET, but
    *  nothing bounded the RATE. A plugin subscribing to `messageCommitted` egresses once per committed message,
    *  forever; the ≤32-in-flight cap is a concurrency bound and says nothing about how many calls per hour.
@@ -220,8 +220,8 @@ export interface PluginBridge {
    *  miss the identical egress reachable from a tool handler or a D50 transform, while throttling legitimate
    *  non-egress work. */
   readonly admitEgress: () => void;
-  /** CHECK-AND-CLAIM one `net.fetchAsset` slot for this plugin's OWN hourly floor (#801 — the belt split).
-   *  The asset arm rode `admitEgress` when #798 landed; it moved to its own belt because the two channels
+  /** CHECK-AND-CLAIM one `net.fetchAsset` slot for this plugin's OWN hourly floor (the belt split).
+   *  The asset arm has its own belt rather than riding `admitEgress` because the two channels
    *  price differently: `net.fetch` carries a POST body OUT (the D46 exfil channel the tight ceiling is
    *  for), while `fetchAsset` is GET-only to the manifest allowlist and its product lands in the
    *  installer's OWN CAS — its honest cost is an art GRID's (a fresh browse page is ~30 covers), which a
@@ -243,7 +243,7 @@ export interface PluginBridge {
    *  (the S4-suggestion-store precedent — respawn wipes; durable state is the plugin's own `storage.kv` job) and
    *  emits the per-user freshness poke (`pluginSurfaceStateChanged`) so the installer's own client refetches.
    *
-   *  `chatId` is the ROOM DIMENSION (row 777): `null` ⇒ the plugin-wide row every room shares; a chat id ⇒ the
+   *  `chatId` is the ROOM DIMENSION: `null` ⇒ the plugin-wide row every room shares; a chat id ⇒ the
    *  per-room row a room-anchored surface reads. It arrives ALREADY ADMITTED, like every other chat-scoped
    *  bridge op — the membrane resolved the guest's opaque `ChatHandle` against the invocation's one admitted
    *  token before calling, so infra stays authority-blind and a guest can never name a room it was not admitted
@@ -291,7 +291,7 @@ export interface PluginBridge {
       readonly created: boolean;
     }>;
     /** Ingest a character from a PNG ASSET in the installer's OWN CAS (`host.character.ingestAsset`, capability
-     *  `character.ingest` — plugin-remote-image #798). The membrane passes ONLY the guest-supplied `assetId`;
+     *  `character.ingest`). The membrane passes ONLY the guest-supplied `assetId`;
      *  the domain builder closes the installer over the op, reads the PNG bytes through the assets domain's
      *  OWNER-GATED front door (a foreign/absent id rejects leak-free), and runs the SAME `importCharacter` funnel
      *  a file upload takes — which parses the card chunk AND CAS-stores the embedded avatar, so the character

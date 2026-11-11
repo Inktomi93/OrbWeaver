@@ -4,7 +4,7 @@
 //   • the CLIENT (`@orb/ui` sandbox-frame) — the SRCDOC floor, policy in a `<meta http-equiv>`.
 // It lives in kit precisely because a second spelling of a security policy is the defect this prevents.
 //
-// ── WHY TWO DELIVERY ARMS (measured 2026-08-09, Chromium 1.61 headless; probe in the lane report) ─────────
+// ── WHY TWO DELIVERY ARMS (measured, Chromium 1.61 headless; probe in the lane report) ─────────
 // A `srcdoc` iframe is a LOCAL-scheme document, so it INHERITS the embedding document's CSP ON TOP OF its
 // own meta policy. Measured: an app document at `img-src 'self' blob:` framing a srcdoc whose meta policy
 // says `img-src 'self' data:` paints the `data:` image at naturalWidth=0 — the parent policy wins the
@@ -19,14 +19,14 @@
 //     (measured: `window.origin === null`). Without it the same navigation lands model-authored HTML in the
 //     app's own origin. It is not expressible in `<meta>` (the spec ignores
 //     `sandbox`/`frame-ancestors`/`report-uri` there), which is the second reason the routed arm is the
-//     primary and srcdoc is the floor. Since the 2026-08-16 tier-B pass that navigation is no longer
+//     primary and srcdoc is the floor. That navigation is not
 //     script-DEAD — it runs the one hash-pinned height script (which posts to itself and does nothing).
 //     On the `static` posture every CARD-authored script stays refused by hash, in a frame and at top
-//     level alike; on the `interactive` posture (#111 leg 3) card scripts run — inside the same opaque
+//     level alike; on the `interactive` posture card scripts run — inside the same opaque
 //     origin, which is why the `sandbox` directive matters more after the grant, not less.
 //
-// ── FRAME NAVIGATION (measured 2026-08-16, Chromium via playwright-ct; #111 leg 2 — the tier-B review's
-//    one UNVERIFIED control, and the prerequisite #110 named for the interactive grant) ────────────────────
+// ── FRAME NAVIGATION (measured, Chromium via playwright-ct — the control the
+//    interactive grant depended on) ────────────────────
 // QUESTION: with `sandbox allow-scripts` (no `allow-top-navigation`/`allow-popups`/`allow-forms`, never
 // `allow-same-origin`), this document's own `default-src 'none'`, and the APP document's `default-src 'self'`
 // above it — where can a card document navigate? ANSWER, per vector (probed by serving the REAL bytes under the REAL policies
@@ -41,7 +41,7 @@
 //   • a `<form action="https://elsewhere">` submit — REFUSED (`form-action 'none'`, this document's own).
 //   • a `<meta http-equiv="refresh">` — REFUSED. Note this one needs NO script, so it is reachable under
 //     today's posture and is not something an interactivity grant would newly enable.
-//   • the INTERACTIVE posture (since #111 leg 3 this is the SHIPPED policy, not a lab arm): card code RUNS
+//   • the INTERACTIVE posture (the SHIPPED policy, not a lab arm): card code RUNS
 //     (positive control: it stamps the body) and STILL reaches no navigation — `top.location` and
 //     `window.open` die on the sandbox, and `location.href` off-origin dies on the app's `default-src
 //     'self'`, exactly as the script-free link does. Chromium leaves the refused frame at an empty
@@ -52,7 +52,7 @@
 // widening `default-src` for some unrelated reason would silently widen frame navigation for BOTH postures
 // at once. Serving a card frame from a page with a looser policy would still lose the control.
 //
-// ── THE INTERACTIVE GRANT'S REACH CENSUS (measured 2026-08-16, #111 leg 3 — the security pass; Chromium
+// ── THE INTERACTIVE GRANT'S REACH CENSUS (measured; Chromium
 //    149.0.7827.55, two REAL http servers so "did it land" is a hit counter on the far end, never a
 //    devtools event) ───────────────────────────────────────────────────────────────────────────────────
 // QUESTION: with `script-src 'unsafe-inline'`, what NEW reach does a card-authored script buy?
@@ -115,8 +115,7 @@ export type CardFrameDelivery = (typeof CARD_FRAME_DELIVERIES)[number];
  * (`@orb/ui` sandbox-frame reads this record) and the CSP `sandbox` DIRECTIVE below. They were two constants
  * in two packages that a comment asked a reviewer to keep in sync; they are one value indexed by arm now.
  *
- * TIER-B TRUST REVIEW, 2026-08-16 (security-executor pass, #91), ARM B — the MINIMAL grant, and it did NOT
- * move when #111 leg 3 granted card scripts:
+ * The MINIMAL grant, and it does NOT move with the card-script grant:
  *   • `document` (routed) = `allow-scripts`. Which scripts may run is decided ENTIRELY by `script-src` in
  *     the same policy ({@link CARD_FRAME_SCRIPT_SOURCES}) — one hash on the `static` posture, the card's
  *     own code on `interactive`. The sandbox is what makes either safe to say: opaque origin, no cookies,
@@ -124,7 +123,7 @@ export type CardFrameDelivery = (typeof CARD_FRAME_DELIVERIES)[number];
  *   • `meta` (srcdoc floor) = EMPTY, every restriction on. A srcdoc document also inherits the app CSP
  *     (`script-src 'self'`), so a hash we do not also add to the APP policy could never match there —
  *     granting the flag would buy nothing and spend a belt. The floor stays script-dead; that arm keeps
- *     the fixed pre-measurement height and that is the accepted outcome (#91's defect is routed cards).
+ *     the fixed pre-measurement height and that is the accepted outcome (the clipped-card defect the height channel closes is a routed-card defect).
  * NEVER `allow-same-origin` on either arm (that combo lets the frame reach into the app origin and lets it
  * remove its own sandbox) — and the grant made that NEVER load-bearing rather than theoretical: with card
  * code executing, `allow-same-origin` would hand a model-authored script the app's session and DOM.
@@ -132,8 +131,8 @@ export type CardFrameDelivery = (typeof CARD_FRAME_DELIVERIES)[number];
 export const CARD_FRAME_SANDBOX = { document: "allow-scripts", meta: "" } as const satisfies Record<CardFrameDelivery, string>;
 
 /**
- * The card document's SCRIPT POSTURE — the per-document selection seam (#111 leg 1), GRANTED by leg 3's
- * security pass (2026-08-16).
+ * The card document's SCRIPT POSTURE — the per-document selection seam, GRANTED by leg 3's
+ * security pass.
  *
  *   • `static` — only OUR hash-pinned measurement script may execute. What a card gets when its character
  *     sits below the top rung ("Render HTML", "Untrusted"), when the deployment ceiling is off, and on
@@ -155,8 +154,7 @@ export const CARD_FRAME_SANDBOX = { document: "allow-scripts", meta: "" } as con
  * never `allow-top-navigation`/`allow-forms`/`allow-popups`) and only `script-src` moves — so
  * {@link CARD_FRAME_SANDBOX} stays keyed by delivery alone.
  *
- * TRUTH-REPAIR (2026-08-16, leg 1): #110/#111 both said the per-card knob "is NOT BUILT" and named
- * `config.features.immersiveHtmlInteractive` as the thing to build. That knob EXISTS and is something else:
+ * `config.features.immersiveHtmlInteractive` is NOT the per-card script knob. It is something else:
  * `contracts/rpg/config.ts` (`default(true)`) drives which TEACHING prose slot the rpg reminder emits
  * (`domain/rpg/substrate/reminder.ts` — `rpg.card.askInteractive` vs `rpg.card.askStatic`). It is per-GAME,
  * defaults ON, shapes the PROMPT, and the program spec that introduced it explicitly REJECTED gating the
@@ -174,7 +172,7 @@ export type CardFramePosture = (typeof CARD_FRAME_POSTURES)[number];
  *
  * `document.body.scrollHeight`, NOT `documentElement.scrollHeight`: the latter is floored at the VIEWPORT
  * height, so a short card in a tall frame would measure the frame it is trying to shrink and never report
- * a smaller number — the exact defect (#91) this channel exists to fix.
+ * a smaller number — the exact defect this channel exists to fix.
  *
  * `postMessage(..., "*")` because an opaque-origin document cannot know the embedder's origin to target it
  * (and could not be trusted with it): the payload is one integer, and the RECEIVER authenticates by window
@@ -198,7 +196,7 @@ const UNSAFE_INLINE = "'unsafe-inline'";
  * never match there).
  *
  * THE INTERACTIVE ROW REPLACES THE HASH; IT DOES NOT JOIN IT. That is not a style choice — measured
- * 2026-08-16 (Chromium 149), a policy of `script-src 'unsafe-inline' 'sha256-…'` REFUSES the card's script
+ * on Chromium 149, a policy of `script-src 'unsafe-inline' 'sha256-…'` REFUSES the card's script
  * and says why: *"Note that 'unsafe-inline' is ignored if either a hash or nonce value is present in the
  * source list."* (CSP3 §"Match element to source list": the keyword is skipped whenever the list carries a
  * nonce- or hash-source.) An appended grant would therefore have read as live and granted nothing — the
@@ -225,7 +223,7 @@ const CARD_FRAME_SCRIPT_SOURCES = {
  *  • FLOOR: a card that reports 0 (or a hostile 1) must not collapse to an invisible hairline the reader
  *    cannot see or hit — one touch target is the smallest thing that still reads as an object.
  *  • CAP: the failure mode the clamp exists for is unbounded growth. 720px is about the mobile viewport
- *    #91 measures against; past it an INLINE card owns the whole screen and the reader loses the
+ *    the height channel is measured against; past it an INLINE card owns the whole screen and the reader loses the
  *    transcript, so taller content scrolls inside the frame (what every card past 320px already did) and the
  *    lightbox stays the see-it-big path. */
 const CARD_FRAME_MIN_HEIGHT_PX = 48;
@@ -245,7 +243,7 @@ const HEIGHT_KEY = "orbCardFrameHeight";
  * MONOTONIC after the first report, deliberately: frame height feeds back into content height (`vh` units,
  * percentage heights, media queries), so a card — hostile or merely fluid — can otherwise drive an endless
  * measure/resize/measure loop that relayouts the whole transcript. Grow-only bounds that to ONE downward
- * step per mount, which is exactly the step #91 needs (the void closes on the first measurement); a later
+ * step per mount, which is exactly the step the height channel needs (the void closes on the first measurement); a later
  * shrink just leaves whitespace inside the frame.
  */
 export function foldCardFrameHeight(current: number | undefined, data: unknown): number | undefined {

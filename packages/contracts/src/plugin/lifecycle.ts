@@ -3,7 +3,7 @@
 // (not the domain) because `@orb/db` — BELOW server — must derive its CHECK from the ONE tuple, exactly the
 // `ASSET_KINDS` precedent.
 
-/** How the host obtained the bundle bytes (owner-ruled 2026-07-18 — first-party catalog seam). ADDITIVE axis
+/** How the host obtained the bundle bytes (owner-ruled — first-party catalog seam). ADDITIVE axis
  *  (D86 resolution-discriminant precedent — the bundle-validate funnel stays source-agnostic; a new origin is
  *  just another byte source, never a re-shape or a second install path):
  *    - `"upload"` — a file the installer handed over (or an admin fan-out's bytes); has NO remembered URL.

@@ -1,5 +1,5 @@
 // How to READ one serialized line out of `logger.ts`'s pino ring — the parse and the severity, in one home.
-// Extracted from `routes.ts` when the bug-report capture (#1095) became a second reader of the same ring: two
+// Extracted from `routes.ts` when the bug-report capture became a second reader of the same ring: two
 // copies of the severity read is exactly the doubling that produced the bug documented in `recordLevel` below,
 // and a second copy could reintroduce it in the half nobody was looking at.
 

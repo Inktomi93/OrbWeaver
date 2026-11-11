@@ -336,7 +336,7 @@ export const ATTACHED_REGEX_SCRIPTS_WIRE_KEY = "orbweaver_attached_regex_scripts
 // reason is measured, not stylistic: the arms carry `typeIdSchema`, which is a transform-backed `ZodType`
 // rather than a `ZodObject` — `tsc` reads the discriminant correctly through it, but biome's type service
 // does not, and flagged every `case` of a switch over the inferred type as unreachable. Re-measured on Biome
-// 2.5.1 (2026-09-23): still every `case`, `lint/suspicious/noUnnecessaryConditions`, single-file and
+// 2.5.1: still every `case`, `lint/suspicious/noUnnecessaryConditions`, single-file and
 // cross-module, from untracked files under `packages/contracts/src/` and `packages/server/src/` (never /tmp,
 // where zod does not resolve).
 // ONE declared union keeps BOTH tools seeing the same four arms. The `satisfies` below is a ONE-WAY
@@ -385,8 +385,8 @@ export interface RegexAttachmentRef<TId extends PresetId | CharacterId | ChatId>
 // character HAVE a name — one authored string the server can hand over finished. A chat does not: its title
 // is a fallback CHAIN the client owns, and WHICH rooms may even be named is chat's membership question
 // (D18). Both halves are `#chat`'s `VisibleRoomRef`, shared with every other library that keeps a chat-scope
-// attachment junction; regex re-derives from it rather than re-spelling it (promoted 2026-08-19, when
-// databank + preset became the second and third consumers).
+// attachment junction; regex re-derives from it rather than re-spelling it (promoted because
+// databank + preset are the second and third consumers).
 
 /** Where one script already runs, read from the SCRIPT's side — the three roster scopes.
  *  GLOBAL is absent on purpose: it is a property of the script itself (`global_regex_scripts` PKs on the

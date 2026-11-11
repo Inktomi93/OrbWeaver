@@ -74,7 +74,7 @@ export function createPostNarratorMessage(input: ChatAssemblyContext, deps: Post
     // ordering invariant. This op is principal-free by design (automation/plugins drive it), so there
     // is no authority guard to sequence after: the caller was authorized at ITS own boundary.
     //
-    // AFTER EVERY REFUSAL THAT CAN BE DECIDED WITHOUT WRITING, and that ordering is the point (#1463 item 6):
+    // AFTER EVERY REFUSAL THAT CAN BE DECIDED WITHOUT WRITING, and that ordering is the point:
     // claiming is one-way — it publishes the husk into every member's library and replays the creation-time
     // economics — so a post that was never going to commit (no host to author under, nothing to say) must not
     // spend it. The invariant it must not break is the other side: the claim still precedes the WRITE, because
@@ -99,7 +99,7 @@ export function createPostNarratorMessage(input: ChatAssemblyContext, deps: Post
         // which is exactly the inference that evaporates when that character is deleted (its FK SET-NULLs) or
         // when the room's output dial flips. The canon `role` stays `assistant`, and so does the DELIVERED
         // role: the narrator→wire-`system` mapping that was briefly a SHAPE-time projection is owner-ruled out
-        // (2026-08-18 — group narration is the assistant's own output voice).
+        // (group narration is the assistant's own output voice).
         kind: "narrator" as const,
         authorUserId: null,
         characterId: group.characterId,

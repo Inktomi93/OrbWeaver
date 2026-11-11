@@ -1,4 +1,4 @@
-// THE ONE SURVIVING luxon IMPORT IN THE REPO, and it is deliberate (2026-08-21). `@orb/kit/time` moved
+// THE ONE SURVIVING luxon IMPORT IN THE REPO, and it is deliberate. `@orb/kit/time` moved
 // to the platform `Temporal` API; this file did NOT, because `{{datetimeformat::FORMAT}}` (below) hands
 // luxon's FORMAT-TOKEN VOCABULARY to users as a documented contract — `builtin-metadata.ts` ships the
 // phrase "Luxon format string" into the macro browser, and those strings live in user cards/presets and
@@ -66,7 +66,7 @@ class SimpleMacroRegistry implements MacroRegistry {
   // register()'s `options.metadata` (extensions) and setMetadata() (the builtin backfill).
   private metadata = new Map<string, MacroMetadataInput>();
 
-  /** Register (or REPLACE) a macro. All three maps move together — #1360 item 4: the handler used to be
+  /** Register (or REPLACE) a macro. All three maps move together — the handler used to be
    *  replaced unconditionally while `options`/`metadata` were only overwritten when new ones were passed,
    *  so a bare-handler re-registration left the PREVIOUS macro's `volatile` flag, `requires` gate and
    *  browser metadata attached to a different implementation. Replacing atomically means the registration
@@ -189,7 +189,7 @@ function readContextValue(name: string, ctx: MacroContext): unknown {
     case "lastCharMessage":
       return ctx.lastCharMessage;
     default:
-      // OWN keys only (#1564): property syntax would answer `Object.prototype` for a bare `{{__proto__}}`
+      // OWN keys only: property syntax would answer `Object.prototype` for a bare `{{__proto__}}`
       // and the prototype's methods for `{{toString}}` — inherited members are not this plane's vocabulary.
       return readOwnKey(ctx.env, name);
   }
@@ -296,7 +296,7 @@ const ifHandler: MacroHandler = (args, ctx, children) => {
 
 // {{random}} → 0..100; {{random::X::Y}} → integer in [X,Y]; {{random::A::B::C}} → pick one option.
 const randomHandler: MacroHandler = (args, ctx) => {
-  // Every draw below rides the ONE normalising seam — an injected PRNG is untrusted (#1359, ./prng.ts).
+  // Every draw below rides the ONE normalising seam — an injected PRNG is untrusted (./prng.ts).
   const source = ctx.random ?? Math.random;
   const random = (): number => unitDraw(source);
   if (args.length === 0) {
@@ -318,7 +318,7 @@ const randomHandler: MacroHandler = (args, ctx) => {
 
 // {{roll::NdM(+/-K)}} (the sum of N M-sided dice plus K) or {{roll::N}} (one N-sided die). Empty/invalid → "".
 const rollHandler: MacroHandler = (args, ctx) => {
-  // Every draw below rides the ONE normalising seam — an injected PRNG is untrusted (#1359, ./prng.ts).
+  // Every draw below rides the ONE normalising seam — an injected PRNG is untrusted (./prng.ts).
   const source = ctx.random ?? Math.random;
   const spec = args[0]?.trim() ?? "";
   const notation = parseDiceNotation(PLAIN_INT.test(spec) ? `d${spec}` : spec);
@@ -333,7 +333,7 @@ const pickHandler: MacroHandler = (args, ctx) => {
   if (args.length === 0) {
     return "";
   }
-  // Every draw below rides the ONE normalising seam — an injected PRNG is untrusted (#1359, ./prng.ts).
+  // Every draw below rides the ONE normalising seam — an injected PRNG is untrusted (./prng.ts).
   const source = ctx.random ?? Math.random;
   const random = (): number => unitDraw(source);
   const index = Math.floor(random() * args.length);
@@ -365,7 +365,7 @@ function pushExprError(ctx: MacroContext, message: string): void {
   }
 }
 
-// Push a non-integer-var diagnostic at the {{incvar}}/{{decvar}} call's span (#1557). Same sink-only
+// Push a non-integer-var diagnostic at the {{incvar}}/{{decvar}} call's span. Same sink-only
 // posture as pushExprError: no span or no sink ⇒ nothing recorded, and the render still degrades — here
 // to the UNCHANGED stored value rather than "", because `applyVarOp` already refused to mutate it.
 function pushVarError(ctx: MacroContext, message: string): void {
@@ -438,8 +438,8 @@ const addVar: MacroHandler = (args, ctx) => {
   return "";
 };
 
-// {{incvar::name}} — +1 on the stored string, IFF it is a complete integer (#1557, OWNER RULING: align
-// with #1420's complete-bounded-integer refusal — one engine, one behavior). A non-numeric/missing-digit
+// {{incvar::name}} — +1 on the stored string, IFF it is a complete integer (OWNER RULING: align
+// with the complete-bounded-integer refusal — one engine, one behavior). A non-numeric/missing-digit
 // current value is a REFUSAL, not a silent rebase to 0: `applyVarOp` leaves the stored value untouched and
 // this handler renders it byte-identical (the degraded-passthrough shape every other refusing macro here
 // uses) plus a visible diagnostic, rather than inventing a "0" the author never wrote. An ABSENT variable is

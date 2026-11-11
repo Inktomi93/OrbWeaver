@@ -61,7 +61,7 @@ export interface RegexContext {
   readonly audit: AuditWiring["log"];
   readonly requireChatHost: RequireHostOp;
   readonly requireChatMember: RequireParticipantOp;
-  /** D121-E display-tier room OPTION (owner ruling 2026-08-02): resolve WHOSE display scripts this room
+  /** D121-E display-tier room OPTION (owner ruling): resolve WHOSE display scripts this room
    *  broadcasts. Injected from chat because both halves are chat's data — the room's host seat and the
    *  `chatMetadata.hostDisplayScripts` flag. Regex reads neither the roster nor chat metadata itself (the
    *  same posture as the guards above). `enabled:false` ⇒ the per-user default, and `listRoomDisplayScripts`
@@ -70,24 +70,24 @@ export interface RegexContext {
   /** The REVERSE-roster room filter (`listScriptUsage`) — chat's answer to "of these rooms, which may this
    *  caller see, and what are they called". Injected for the same reason the guards are: D18 rooms scope on
    *  `chat_participants`, and regex reads neither the roster nor `chats`. The TYPE is chat's (shared with
-   *  databank + preset since 2026-08-19); the runtime is `entry/compose/visible-rooms.ts`. */
+   *  databank + preset); the runtime is `entry/compose/visible-rooms.ts`. */
   readonly resolveVisibleRooms: ResolveVisibleRoomsOp;
   /** Live-freshness invalidation. O-7 arm (a): the library is a low-churn owner surface, so ONE
    *  `regexChanged` user event carries every mutation; FK CASCADE + the D50 no-deletion-events discipline
    *  carry the rest. There are no per-entity bus events. */
   readonly emitUserEvent: EmitUserEvent;
-  /** #1733 — the ROOM plane's fan for the room's OWN tier. `regexChanged` (above) is a per-USER channel, so
+  /** The ROOM plane's fan for the room's OWN tier. `regexChanged` (above) is a per-USER channel, so
    *  a host's `attachToChat`/`detachFromChat`/chat-arm `applyScopeOrder` repainted the host's devices and
    *  left every other member of that room reading a stale rack until they reloaded. The verb already holds
    *  the `chatId`, so this is a direct emit and not a reach lookup. Live-only, non-durable, never rejects —
    *  regex touches no bus itself (the `requireChatHost` posture: chat's plane, injected). */
   readonly emitRoomRegexChanged: (chatId: ChatId) => void;
-  /** #1733's other half — the LIBRARY-ROW fan. A row's `enabled` (the #1742 section's row switch, which is
+  /** The other half — the LIBRARY-ROW fan. A row's `enabled` (the Regex section's row switch, which is
    *  off-EVERYWHERE by design) or its name is member-visible in every room whose own tier attaches it, and
    *  those rooms are not knowable from the verb's arguments. Regex persistence reads its room junction;
    *  chat's injected refresh policy isolates failures so the lookup cannot fault the committed write. */
   readonly fanRegexScriptRooms: (scriptId: RegexScriptId) => Promise<void>;
-  /** #1746 — the DELETE half of the same reach. `chat_regex_scripts` CASCADEs with the library row, so
+  /** The DELETE half of the same reach. `chat_regex_scripts` CASCADEs with the library row, so
    *  `fanRegexScriptRooms` after a delete resolves ∅ and every OTHER member of the room keeps reading a rack
    *  that still lists the gone script. Call this BEFORE the delete to snapshot the reach, then call the
    *  returned thunk with the ids the delete really removed. Error-isolated: it can never fault the delete. */

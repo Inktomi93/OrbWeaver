@@ -1,4 +1,4 @@
-// Boot step: the #1600 legacy-background-pin ONE-TIME DATA heal (heal, not narrow — the fork + its default
+// Boot step: the legacy-background-pin ONE-TIME DATA heal (heal, not narrow — the fork + its default
 // is recorded in `domain/settings/persistence/heal-legacy-background-pins.ts`'s header).
 //
 // It is a boot step rather than a `0000_baseline.sql` line for the usual reason: the fix carries no DDL —
@@ -19,8 +19,8 @@ export interface HealLegacyBackgroundPinsDeps {
   readonly db: BootDatabaseHandle;
 }
 
-/** Clear every pre-#1478 stale background pin. Returns the number of `user_settings` rows rewritten — 0 on
- *  every boot after the first, and on a db seeded entirely post-#1478. */
+/** Clear every stale background pin that predates the ownership+kind guard. Returns the number of `user_settings` rows rewritten — 0 on
+ *  every boot after the first, and on a db seeded entirely under the guard. */
 export async function healLegacyBackgroundPinsOnBoot(deps: HealLegacyBackgroundPinsDeps): Promise<number> {
   const healed = await healLegacyBackgroundPins(deps.db);
   if (healed > 0) {

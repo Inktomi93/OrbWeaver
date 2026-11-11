@@ -169,7 +169,7 @@ export const IMAGERY_PROSE_SLOTS = {
     title: "Negative-prompt base",
     fires: "Every image generation — the standing defect-suppression list the request's negative opens with.",
   },
-  // #578 — the `generate_image` chat TOOL's model-facing description (`domain/imagery/tool/index.ts`), the
+  // The `generate_image` chat TOOL's model-facing description (`domain/imagery/tool/index.ts`), the
   // §2.5 tool-description class. Registered ONCE at compose (no user in scope), so — like its `imagery.template.*`
   // siblings have no analogue for — this resolves to its shipped default at module load; a future per-call
   // tool-listing resolution can read this same slot without a second home.

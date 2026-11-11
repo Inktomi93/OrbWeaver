@@ -122,7 +122,7 @@ export const cardFrameMintResponseSchema = z.strictObject({
   /** What the server ACTUALLY granted, echoed so the client can render an honest "images blocked" affordance
    *  instead of inferring one from the trust tier it asked with. Never an input.
    *
-   *  `interactive` is the POSTURE the document was built under (#111 legs 1+3) — `true` only when the
+   *  `interactive` is the POSTURE the document was built under — `true` only when the
    *  selector's character resolves to the ladder's top rung (opted in, or inheriting the default) AND the
    *  deployment's `allowInteractiveCards` ceiling is up. It means exactly what it says: this document's
    *  `script-src` lets the CARD'S OWN scripts

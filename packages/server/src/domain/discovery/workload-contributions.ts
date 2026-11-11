@@ -6,7 +6,7 @@
 // live here too (they used to sit at the entry tier, in `compose/runner-env.ts`), as does the tunable
 // PRECEDENCE (per-run param → the triggering user's `UserSettings.workloads` knob → the domain's own floor).
 //
-// EVERY PASS ANNOUNCES ITSELF ONCE, AT ITS TERMINAL (event-bus coverage survey §2.5/§3.4-4/F6, the #23
+// EVERY PASS ANNOUNCES ITSELF ONCE, AT ITS TERMINAL (event-bus coverage survey §2.5/§3.4-4/F6, the
 // import-terminal shape): one `corpusRecomputed` per owner in scope, from a `finally` — see `announceCorpus`.
 // This is the ONE home for all five fans because it is the one place all five passes end; the pass internals
 // stay ignorant of the bus, exactly as they are ignorant of the queue.
@@ -87,7 +87,7 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
           report({ message: `computing ${k} themes` });
           const stats = await deps.discovery.computeThemes({ k, ...ctx, funderUserId: requireWorkloadFunder(ctx.funderUserId) });
           // THE INPUT PLANE IS MEMORY DIGESTS, NOT DISTILLED CARDS — and a digest-less run must SAY so
-          // (issue #166). It used to return a bare `{scanned: 0, written: 0}`, which the runs console renders
+          //. It used to return a bare `{scanned: 0, written: 0}`, which the runs console renders
           // as "0 rows · 0 written" under a green Succeeded: a pass that could not run reported as one that
           // ran. The reason rides the RESULT, not a progress line, because the progress line is gone the
           // moment the row terminals and the durable answer is what a user comes back to.
@@ -95,9 +95,9 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
             report({ message: "no memory digests to cluster — run the memory backfill first" });
             return { scanned: 0, written: 0, emptyReason: "no-digests" };
           }
-          // THE SAME REFUSAL, ONE PLANE IN (issue #558). The pass clusters SOLO digests; a corpus whose
+          // THE SAME REFUSAL, ONE PLANE IN. The pass clusters SOLO digests; a corpus whose
           // digests are all group-room ones has a non-zero `digestsRead` and still nothing to cluster, which
-          // fell straight through to `{scanned: 0, written: 0}` — the very green nothing #166 exists to kill.
+          // fell straight through to `{scanned: 0, written: 0}` — the very green nothing honest accounting exists to kill.
           // It gets its OWN reason because the fix differs: the backfill already ran, so re-running it does
           // nothing.
           if (stats.soloDigestsRead === 0) {
@@ -127,7 +127,7 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
             ...ctx,
             funderUserId: requireWorkloadFunder(ctx.funderUserId),
             signal,
-            // N-of-M (issue #166 rider 3) — the pass counts the cards, this turns each position into a row.
+            // N-of-M — the pass counts the cards, this turns each position into a row.
             onProgress: (done, total) => {
               report({ message: `distilling character summaries — ${done} of ${total}`, current: done, total });
             },
@@ -137,7 +137,7 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
           // The final progress line is their reader: it says what the sweep declined to invent, and names the
           // fix. A count nobody can read is the same silence the on-demand refusal exists to end.
           report({ message: distillProgressMessage(stats) });
-          // An EMPTY LIBRARY is not a zero-change distill (issue #166's honest-accounting family): nothing was
+          // An EMPTY LIBRARY is not a zero-change distill (the honest-accounting family): nothing was
           // scanned because there is nothing to scan, and the result says which.
           return stats.scanned === 0 ? { scanned: 0, written: 0, emptyReason: "no-cards" } : { scanned: stats.scanned, written: stats.distilled };
         } finally {
@@ -161,7 +161,7 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
             ...(workloads.maxPairs !== undefined ? { maxPairs: workloads.maxPairs } : {}),
             ...(workloads.hubFraction !== undefined ? { hubFraction: workloads.hubFraction } : {}),
           });
-          // SAME INPUT PLANE AS compute-themes — tier-0 memory digests — so the same refusal (issue #558).
+          // SAME INPUT PLANE AS compute-themes — tier-0 memory digests — so the same refusal.
           // Without it a digest-less corpus reported "0 rows · 0 written" under a green Succeeded, and the
           // keyword panels sat empty with nothing on the row saying which pass was missing.
           if (stats.digestsRead === 0) {
@@ -200,7 +200,7 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
             deps.discovery.computeChatDuplicatePairs(ctx),
           ]);
           const scanned = chars.charactersScanned + chatPairs.chatsScanned;
-          // THE EMBEDDINGS PLANE, SAME HONESTY (issue #561). Both arms read what the INDEX pass writes — card
+          // THE EMBEDDINGS PLANE, SAME HONESTY. Both arms read what the INDEX pass writes — card
           // vectors and chat segment hashes — so a never-indexed corpus reported "0 rows · 0 written" under a
           // green Succeeded, with nothing on the row naming the job that would fill it. The refusal keys on
           // BOTH arms reading nothing: a populated plane that yields no pairs is a real answer ("you have no
@@ -247,7 +247,7 @@ export function createDiscoveryWorkloadContributions(deps: DiscoveryWorkloadDeps
           await deps.discovery.backfillDigestStoryTime(ctx, signal);
           // `rowsScored` IS the read census (every vector a pass loads gets exactly one hub update), so a zero
           // total means no embeddings of any kind exist, never that the calibration found nothing to say.
-          // Rendered as "0 rows · 0 written" the two were the same sentence (issue #561).
+          // Rendered as "0 rows · 0 written" the two were the same sentence.
           const scored = characters.rowsScored + digests + segments + images;
           if (scored === 0) {
             report({ message: "no embeddings to score — run the embeddings index first" });

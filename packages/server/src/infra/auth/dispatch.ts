@@ -3,7 +3,7 @@
 // `ResolvedIdentity | null` (NO `userId`, NO `role` — invariant #3); modes never import each other. Plus
 // the peer-gated owner-fallback predicate.
 //
-// PEER-GATED FALLBACK (load-bearing safety, #298 f2 / re-gate 2026-08-19). The un-credentialed owner
+// PEER-GATED FALLBACK (load-bearing safety). The un-credentialed owner
 // fallback is granted ONLY when the raw TCP peer is LOOPBACK — the ONE rule across all four modes,
 // `single-user` included. The credential is the unspoofable socket peer, NEVER the client-supplied `Host`
 // header: a `Host:` a caller writes is not a fact about the network, so the old Host/trusted-ranges gate

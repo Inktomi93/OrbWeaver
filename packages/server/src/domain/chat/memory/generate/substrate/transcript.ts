@@ -82,7 +82,7 @@ export function renderTranscript(rows: readonly MsgRow[], macroNames: RowMacroNa
     .join("\n");
 }
 
-/** ONE row's transcript line, kept in its two parts. The segment CHUNKER (#172) needs them separately: a
+/** ONE row's transcript line, kept in its two parts. The segment CHUNKER needs them separately: a
  *  single message too big for the embed window is split into pieces that each RE-CARRY the label, so every
  *  piece stays an attributable transcript fragment instead of anonymous prose. `renderTranscript` composes
  *  the same two parts — one renderer, so a chunked block and a whole one are byte-identical where they

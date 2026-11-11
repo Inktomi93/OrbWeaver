@@ -106,8 +106,7 @@ export interface ParsedChatMessage {
   /** ST's `extra.token_count` for a row whose text is INBOUND to a generation — a `user` or `system` line.
    *  ST's field is the token count of THIS ROW'S OWN TEXT, not an API usage figure (SOURCE-PINNED:
    *  `script.js` `message.extra.token_count = await getTokenCountAsync(message.mes, 0)` on the user-send
-   *  path), so on a user/system line it is an INPUT count and landing it in `tokensOut` (which this did
-   *  until the 2026-08-08 import-fidelity audit) credits typed text as model OUTPUT in every economics
+   *  path), so on a user/system line it is an INPUT count and landing it in `tokensOut` credits typed text as model OUTPUT in every economics
    *  rollup.
    *
    *  ON THE PARSE SIDE exactly one of `tokensIn`/`tokensOut` is non-null — ST has one field and `tokenColumns`
@@ -668,7 +667,7 @@ function variantMetadata(swipeEntry: unknown): VariantMetadata | null {
 
 /** The MESSAGE-level take's sidecar (a line's own flat `extra`), through the one shape {@link variantMetadata}
  *  builds for the swipe pool. Wrapping it as a synthetic `swipe_info` entry is what keeps ONE producer for the
- *  column across both parse paths — the 2026-08-08 audit's whole finding was two shapes here. */
+ *  column across both parse paths — two shapes here is the defect this closes. */
 function messageMetadata(extra: unknown): VariantMetadata | null {
   return variantMetadata({ extra });
 }

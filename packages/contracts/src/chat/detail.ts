@@ -57,7 +57,7 @@ export interface ChatDetail {
   readonly viewerIsHost: boolean;
   /** The CALLER's own userId (== `principal.userId`, never a foreign-user leak) — the "own-authored
    *  content" signal for a client-side own-messages filter (e.g. reattribute's `authorUserId` match).
-   *  NOT an identity/whoami surface (no handle/avatar/email) — those stay deferred to auth #50. */
+   *  NOT an identity/whoami surface (no handle/avatar/email) — those stay deferred to the auth surface. */
   readonly viewerUserId: UserId;
   /** The present character seats the CALLER owns, in roster order (an owner-scoped read per seat). A gallery
    *  add is owner-only, so every per-character gallery door in the room lists exactly these. */

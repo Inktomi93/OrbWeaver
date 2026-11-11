@@ -366,7 +366,7 @@ interface PresenceSlice {
  *  reached the model prompt in the SCENE OPENS block (the projection-clean law's exact failure: "an id is
  *  never model-facing"). One helper, both readers.
  *
- *  THE ROW-LESS ARM CLOSES THE SAME HOLE ONE STEP FURTHER OUT (#1468 item 6). This used to return the KEY
+ *  THE ROW-LESS ARM CLOSES THE SAME HOLE ONE STEP FURTHER OUT. This used to return the KEY
  *  when no actor row matched — so a presence entry whose row had gone (a rekey that lost it, a hand edit that
  *  dropped an actor still listed on stage, a stale key surviving a restore) printed `character:chr_…` /
  *  `user:usr_…` into exactly the two model-facing surfaces the participant join was fixed for. The row's absence is

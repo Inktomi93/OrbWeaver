@@ -2,7 +2,7 @@
 // demoted; a single-owner conflict and the owner-immutability guard are checked pre-write AND re-asserted
 // atomically in the UPDATE's WHERE to close the race.
 //
-// The grant and its audit row are ONE batch (#1691, `substrate/audited-write.ts`). An authority move whose
+// The grant and its audit row are ONE batch (`substrate/audited-write.ts`). An authority move whose
 // record can be lost is not audited: the injected `audit` is `logAudit` in production and SWALLOWS its
 // failure, so a degraded audit channel used to promote a user to `admin` and return the new view with no
 // forensic row. `identityChanged` still fans AFTER the commit — it is live-only and total (context header).
@@ -40,7 +40,7 @@ export function createSetRole(ctx: AdminContext): AdminService["setRole"] {
     }
 
     const at = ctx.now();
-    // ONE batch: the grant and its audit row (#1691). The audit insert carries the `changes() > 0` guard, so
+    // ONE batch: the grant and its audit row. The audit insert carries the `changes() > 0` guard, so
     // it is a biconditional with the UPDATE — a lost race writes NEITHER the role nor a row claiming it.
     // Race defense: 0 rows match if the row became owner/agent between the pre-check and here.
     const updated = await commitAuditedWrite(ctx, {

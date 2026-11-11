@@ -42,7 +42,7 @@ function redactSensitivePath(path: string): string {
 const REQUEST_ID_HEADER = "X-Request-Id";
 
 /**
- * THE stamp (#480), and it must run AFTER `next()`. The pre-`next()` `c.header()` this replaced reached only
+ * THE stamp, and it must run AFTER `next()`. The pre-`next()` `c.header()` this replaced reached only
  * responses Hono builds from the context — a handler returning its OWN `Response` replaces that, which is
  * every tRPC response (`fetchRequestHandler`'s return value), so the app's primary API surface answered with
  * no correlation handle for /api/_debug/logs?requestId=… at all. Mutating `c.res.headers` after `next()` is
@@ -125,7 +125,7 @@ function observeRequest(log: Logger, rings: ObservabilityRings, now: Clock): Mid
  * A throw from a middleware mounted ABOVE {@link observability} — today the principal-resolution middleware
  * (`entry/app.ts`), i.e. an AUTH-INFRASTRUCTURE fault, the class most worth seeing. Hono's `compose()`
  * catches a handler throw at ITS OWN dispatch frame, so an outer middleware's `next()` resolves normally and
- * cannot observe it: `app.onError` is the only place that can (#1479).
+ * cannot observe it: `app.onError` is the only place that can.
  *
  * THE MOUNT ORDER IS NOT THE BUG AND IS NOT TOUCHED. `observability` is mounted AFTER auth deliberately —
  * it reads the already-resolved Principal to bind the request user, and moving it first would widen the

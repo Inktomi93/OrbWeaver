@@ -96,7 +96,7 @@ export function createStart(ctx: WorkloadServiceContext): Pick<WorkloadService, 
       throw new DomainNotFoundError("workload", unavailableDependency);
     }
     // The OWNING DOMAIN's precondition, asked AFTER the owner is resolved (a per-user precondition needs the
-    // row's enumeration scope) and BEFORE a row exists (#156): work that structurally cannot produce anything
+    // row's enumeration scope) and BEFORE a row exists: work that structurally cannot produce anything
     // is refused at the door, never enqueued to land as a vacuous success.
     await assertAdmissible(contributions, input.kind, input.params, ownerId);
     const now = ctx.now();

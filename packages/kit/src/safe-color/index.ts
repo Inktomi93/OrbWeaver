@@ -111,7 +111,7 @@ export function isSafeColor(raw: string): boolean {
 }
 
 /**
- * THE SECOND QUESTION (#1358): can the RENDERER resolve this colour to a pixel at all?
+ * THE SECOND QUESTION: can the RENDERER resolve this colour to a pixel at all?
  *
  * {@link isSafeColor} answers "injection-safe" and nothing else — its `NAMED` arm is a letters-only SHAPE
  * check, so `notacolorxx` passes it, saves, persists, and then emits NOTHING (the browser drops the
@@ -124,7 +124,7 @@ export function isSafeColor(raw: string): boolean {
  * Everything else must survive the standards parser.
  *
  * WHERE IT BELONGS: WRITE boundaries — the thing a user typed, and the wire schema that stores it. NOT the
- * `<ThemeScope>` render clamp, whose fail-open is load-bearing (#939: an unreadable base still derives its
+ * `<ThemeScope>` render clamp, whose fail-open is load-bearing (an unreadable base still derives its
  * ramp from ambient) and whose parser is deliberately allowed to be narrower than the browser's.
  */
 export function isRenderableColor(raw: string): boolean {
@@ -143,7 +143,7 @@ export function isRenderableColor(raw: string): boolean {
  * CSS-wide cascade semantics. Use this narrower predicate only for fills that become inputs to static
  * ramp/foreground/contrast derivation; direct paints and inherited inks continue to use {@link isSafeColor}.
  *
- * ORTHOGONAL to {@link isRenderableColor} on purpose (#1358): this answers "does it denote ONE authored
+ * ORTHOGONAL to {@link isRenderableColor} on purpose: this answers "does it denote ONE authored
  * pixel", not "can the renderer resolve it". A WRITE boundary that needs both asks both — the render-side
  * `<ThemeScope>` clamp deliberately does not, because its fail-open (emit the authored spelling, derive
  * the ramp from ambient) is what keeps a value our parser cannot read but a BROWSER can from vanishing.
@@ -153,7 +153,7 @@ export function isDeterministicColor(raw: string): boolean {
   return isSafeColor(value) && !NON_DETERMINISTIC_COLOR_KEYWORDS.has(value.toLowerCase());
 }
 
-// ── STATIC sRGB parsing for the derive law's judgments (#204 / #939) ─────────────────────────────────
+// ── STATIC sRGB parsing for the derive law's judgments ─────────────────────────────────
 // The security predicate above remains the gate. AFTER that gate, ColorJS supplies the standards CSS
 // Color parser + CSS gamut mapping the pure ThemeScope boundary needs for named colors, alpha and extreme
 // accepted OKLCH values. Unknown safe bare words remain accepted by the security contract and return null:
@@ -209,7 +209,7 @@ const HUE_WHEEL_DEGREES = 360;
  * The HUE angle of an `oklch(L C H)` color, normalised to [0,360), or `null` for any other form.
  *
  * Deliberately narrow: it exists so a surface can tell whether two AUTHORED tints are perceptually the same
- * colour (side-eye 2026-08-03 — two speakers' dialogue spans shipped 8° apart and read as one), and hue is
+ * colour (two speakers' dialogue spans shipped 8° apart and read as one), and hue is
  * the only axis that answers that at the fixed lightness/chroma this app tints at. `null` for hex/rgb/hsl is
  * an honest "cannot compare", never a conversion guess: a caller that cannot read a hue must leave the
  * authored value alone rather than de-collide against a fabricated number.

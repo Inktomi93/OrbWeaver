@@ -23,7 +23,7 @@ const REVALIDATE_CACHE = "no-cache";
 const HASHED_ASSET_PREFIX = "/assets/";
 const API_PREFIX = "/api/";
 const HTML_MEDIA_TYPE = "text/html";
-// F1 belt (pre-auth-attack-surface audit 2026-08-09): source artifacts must NEVER leave the edge, even
+// F1 belt: source artifacts must NEVER leave the edge, even
 // if a build regression re-ships them into the served dist. `.map` = sourcemaps (the root fix is
 // `vite.config.ts sourcemap:false`; this is defense-in-depth so a config flip can't re-leak the whole
 // first-party `src/**` via `sourcesContent`); `.ts`/`.tsx` = raw source that has no place in a prod

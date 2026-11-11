@@ -1,19 +1,19 @@
 // THE RUN MARKER — how a run proves which live processes are ITS OWN, so a killed run can take its whole
-// tree with it (#1848). Sibling of proc.ts's `killPidGroup`, and deliberately the half that door cannot do.
+// tree with it. Sibling of proc.ts's `killPidGroup`, and deliberately the half that door cannot do.
 //
 // THE DEFECT. Every tooling child is spawned `detached` and reaped by its PROCESS GROUP — which is correct
 // for `pnpm → node → tool`, and blind to anything that leaves the group. Playwright starts each browser in
 // its OWN session, and vite/esbuild service processes do the same, so a stage killed at its timeout (or a
 // lane's `test:ct` interrupted, or a snap killed mid-drive) leaves the browsers running with their parent
 // reaped: 72 `chrome-headless-shell` processes, some 40 h old and re-parented to the chrome roots
-// themselves, were alive on this box on 2026-09-06 and had to be killed by hand — plus a stale CT vite
+// themselves, were once alive on this box and had to be killed by hand — plus a stale CT vite
 // server still holding :3100, which is why the next run printed "Port 3100 is in use, trying another one".
 //
 // THE MECHANISM, IN TWO CHANNELS. A run mints one high-entropy marker and exports it in the ENVIRONMENT of
 // every child it spawns. A process's spawn environment is exported before the exec and unforgeable
 // afterwards, so a live pid carrying this exact value was started by THIS run and by nothing else.
 // CHROMIUM IS THE EXCEPTION AND IT IS THE REASON THE SECOND CHANNEL EXISTS: a chromium process rewrites its
-// own environ area for its process title, so its environment reads EMPTY (measured 2026-09-06 — see
+// own environ area for its process title, so its environment reads EMPTY (measured — see
 // RUN_MARKER_ARG_PREFIX). A browser is therefore stamped through its ARGV as well, and every reader here
 // asks both. The process table comes from the platform module: on win32 no environment is readable at
 // all, so a marker there is found only in argv, which every browser and every stamped child carries.
@@ -29,8 +29,8 @@
 //     gone can have no legitimate live descendants, whoever minted it. This is the arm that covers SIGKILL
 //     and a hard power-off of a lane, and it is why the marker embeds its owner's pid.
 //
-// TWO IDENTITIES, AND THE LAW THAT SEPARATES THEM (#2504). A process belongs to two runs at once: the OUTER
-// run (`ORB_RUN_MARKER`, INHERITED by every descendant — #1848's requirement, so the outer run's kill path
+// TWO IDENTITIES, AND THE LAW THAT SEPARATES THEM. A process belongs to two runs at once: the OUTER
+// run (`ORB_RUN_MARKER`, INHERITED by every descendant, so the outer run's kill path
 // still reaches a browser a nested launcher started) and a LEASE (`ORB_RUN_LEASE`, MINTED by whoever takes a
 // scoped resource — a snap session daemon, one `test:ct` invocation — and never inherited). Both are stamped
 // on the child, in both channels; the sweeps match EITHER, because the marker's entropy is the whole proof
@@ -92,7 +92,7 @@ export function runMarkerEnv(marker: string): Readonly<Record<string, string>> {
   return { [RUN_MARKER_ENV]: marker };
 }
 
-/** THE SECOND CHANNEL, AND CHROMIUM NEEDS IT (measured 2026-09-06, #1848). A chromium process REWRITES ITS
+/** THE SECOND CHANNEL, AND CHROMIUM NEEDS IT (measured). A chromium process REWRITES ITS
  *  OWN environ area to set its process title, so `/proc/<pid>/environ` for every browser and renderer comes
  *  back EMPTY — `chromium.launch({ env })` reaches the process, and then the process erases the evidence.
  *  Probed directly: 5 fresh chromium pids, 0-1 environ entries each, marker absent from all of them; the
@@ -108,7 +108,7 @@ export function runMarkerArg(marker: string): string {
   return `${RUN_MARKER_ARG_PREFIX}${marker}`;
 }
 
-/** THE LEASE CHANNEL (#2504) — the same two files, a second pair of keys, and the reason it exists is that
+/** THE LEASE CHANNEL — the same two files, a second pair of keys, and the reason it exists is that
  *  the RUN channel is INHERITED: a launcher that swept it reached its own grandparents' siblings. A lease is
  *  minted by the process that takes a scoped resource, rides beside the run marker on every child it starts,
  *  and is swept by that process alone. Same grammar as a marker (`MARKER_RE`), so the abandoned sweep reaps a
@@ -163,7 +163,7 @@ function tableReaders(deps: RunMarkerDeps): Required<Pick<RunMarkerDeps, "listPi
 
 /** The marker inside one command line or environment blob, or null.
  *
- *  IT SEARCHES, IT DOES NOT SPLIT, AND THAT IS FORCED BY CHROMIUM (measured 2026-09-06): a chromium
+ *  IT SEARCHES, IT DOES NOT SPLIT, AND THAT IS FORCED BY CHROMIUM (measured): a chromium
  *  process rewrites its argv area into ONE string, so its command line comes back as a single field
  *  holding every switch — a per-field `startsWith` finds nothing there. An ordinary process's fields are
  *  separated and a search over them is the same answer. The marker's own entropy is what keeps the search
@@ -298,7 +298,7 @@ export async function sweepAbandonedRunMarkers(deps: RunMarkerDeps = {}): Promis
  *  inside a marked run must keep the outer marker or its browsers vanish from the outer sweep.
  *
  *  THE MEMO IS THE ENVIRONMENT, NOT A MODULE VARIABLE, and that is a fix rather than a style choice
- *  (measured 2026-09-06): under vitest this module is reachable BOTH as `@orb/tooling/floor/process/run-marker`
+ *  (measured): under vitest this module is reachable BOTH as `@orb/tooling/floor/process/run-marker`
  *  and as a relative path, which are two module instances — so a module-scoped memo minted TWO markers,
  *  the browser was stamped with one and the sweep asked about the other, and the pin failed against the
  *  fixed launcher. Publishing it makes every instance, every child process and every nested launcher agree
@@ -315,7 +315,7 @@ export function currentRunMarker(): string {
 
 /** TAKE A LEASE: mint THIS process's own scoped identity and publish it, so every browser this process
  *  launches from here on carries it beside the outer run marker. It OVERWRITES any inherited value by
- *  design — inheriting a lease is how a shutdown ends up sweeping its parent's fleet (#2504), so the door
+ *  design — inheriting a lease is how a shutdown ends up sweeping its parent's fleet, so the door
  *  that publishes one cannot also be the door that adopts one.
  *
  *  PUBLISHED RATHER THAN PASSED because the stamp site is deep (`floor/browser/browser.ts`'s launch doors, three
@@ -345,7 +345,7 @@ export function sweepAbandonedRunMarkersNow(deps: RunMarkerDeps = {}): readonly 
 
 /** Every identity on the box — run marker OR lease — whose minting process is gone, minus this process's
  *  own chain. Reading BOTH channels is what lets a SIGKILLed lease owner's browsers be reaped while the
- *  outer run it was nested inside is still alive and still legitimately holds the run marker (#2504). */
+ *  outer run it was nested inside is still alive and still legitimately holds the run marker. */
 function abandonedMarkers(deps: RunMarkerDeps): readonly string[] {
   const { listPids, identitiesOf, parentOf } = tableReaders(deps);
   const alive = deps.alive ?? aliveBySignal;
@@ -404,7 +404,7 @@ export function armRunMarkerTeardown(marker: string | undefined, killGroup: () =
 
 /** THE TRANSCRIPT DOOR'S TEARDOWN for a marked run: the graceful sweep after the door's timeout kill and
  *  the Ctrl-C guard, both over `marker`. IT MUST BE AN IDENTITY THE CALLER MINTED, NEVER AN INHERITED ONE
- *  (#2504) — everything carrying it is SIGKILLed, and the outer `ORB_RUN_MARKER` names a run that may merely
+ * — everything carrying it is SIGKILLed, and the outer `ORB_RUN_MARKER` names a run that may merely
  *  CONTAIN the caller. The verify runner hands its own `runLease` here and stamps the inherited marker only
  *  into the child's `env`. */
 export function runMarkerTranscriptTeardown(marker: string, deps: RunMarkerDeps = {}): TranscriptTeardown {

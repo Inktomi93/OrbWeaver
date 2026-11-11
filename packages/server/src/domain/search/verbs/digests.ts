@@ -4,12 +4,12 @@
 // optional rerank to rerankTo (mode mixC). The SQL scan requires current host membership before ranking.
 // retrieveK is the "top retrieveK" retrieval count (the cosine-ranked, floor-passing pool cut to its
 // head — and the pool the mixC cross-encoder reranks); rerankTo is the mixC keep-count after that rerank.
-// The embed + rerank carry the digests SCOPE_INSTRUCTIONS (#330 P3) — the SAME conditioning the corpus digest
+// The embed + rerank carry the digests SCOPE_INSTRUCTIONS — the SAME conditioning the corpus digest
 // scan uses (`verbs/search.ts` digestScan); an instruction-aware family (Qwen3-VL) sharpens on it, a text-only
 // one drops it (the no-op-knob doctrine), so the within-chat recall path is no longer the weaker sibling.
-// NO RECENCY BOOST LIVES HERE (docs/work/0122, owner ruling 2026-08-22). An experimental
-// `relevance + recencyBias × recencyFactor` re-order shipped 2026-08-19 purely so the owner could MEASURE it;
-// his 2026-08-20 probe over the real corpus (222-message conversation, biases 0…1) returned the same final
+// NO RECENCY BOOST LIVES HERE (docs/work/0122, owner ruling). An experimental
+// `relevance + recencyBias × recencyFactor` re-order shipped purely so the owner could MEASURE it;
+// his probe over the real corpus (222-message conversation, biases 0…1) returned the same final
 // top three at every bias in mixC and demonstrated HARM at a smaller retrieveK — a .626 semantic hit displaced
 // by a newer .570 one. So the whole knob was removed rather than blessed with a production blend. Ranking here
 // is CSLS relevance and nothing else; recall tuning returns as a fresh, separately-ruled feature or not at all.
@@ -57,12 +57,12 @@ function keywordHit(keywords: readonly string[], terms: ReadonlySet<string>): bo
 const EMBED_ROLE: Task = "embed";
 const RERANK_ROLE: Task = "rerank";
 
-/** OWN the query embed's failure (#1603) — the catch that holds a side-role generation is the only place that
+/** OWN the query embed's failure — the catch that holds a side-role generation is the only place that
  *  still knows WHICH role produced it.
  *
  *  Why it matters beyond a nicer message: a role client resolves its OWN credential per call, so this can be a
  *  401 on a key the CHAT connection has never seen. Escaping bare, it reached the turn as an anonymous failure
- *  — the engine's whole-body catch cannot say "your embed key was rejected" (and, since #1373 leg 3, correctly
+ *  — the engine's whole-body catch cannot say "your embed key was rejected" (and correctly
  *  refuses to strike the chat credential for it), so the user was told the turn failed and never which of
  *  their keys to fix. The role name travels in the message, which is the surface a turn failure actually
  *  reaches a human through.
@@ -105,12 +105,12 @@ async function rerankOrKeep<T extends { readonly id: string; readonly sourceText
   try {
     return await applyRerank(`${SCOPE_INSTRUCTIONS.digests.rerank}\n${text}`, retrieved, rc.rerank, params.rerankTo);
   } catch (rerankErr) {
-    // #405 F2: the CAUSE is logged before the degrade, matching both sibling degrade seams
+    // The CAUSE is logged before the degrade, matching both sibling degrade seams
     // (`compaction_failed` / `memory_build_failed` in chat's engine, which `getLog(env.logger).warn({ err })` first).
     // `onRerankUnavailable()` carries no payload — it is a client-facing "you got mixB" bit — so without this
     // line an operator diagnosing a rerank outage had ZERO server-side signal: the fallback is honest to the
     // user and invisible to the person who has to fix it.
-    // #1603 — the ROLE rides the line too, for the same reason the embed arm above names it: two different
+    // The ROLE rides the line too, for the same reason the embed arm above names it: two different
     // side roles fail into this one verb, each with its own credential and its own provider.
     getLog(env.logger).warn({ err: rerankErr, role: RERANK_ROLE }, "search: digest rerank unavailable — keeping the vector order (mixC → mixB)");
     events?.onRerankUnavailable();
@@ -177,7 +177,7 @@ export function createDigests(ctx: SearchContext): SearchService["digests"] {
       // the candidate pool the cross-encoder reranks, then rerankTo caps the reranked result.
       const retrieved = ranked.slice(0, params.retrieveK);
       // Instruction-aware rerankers key off the scope <Instruct> prefix; text-only families ignore it (the same
-      // shape the corpus digest scan uses — #330 P3).
+      // shape the corpus digest scan uses).
       // Retrieval already completed successfully. A failed rerank keeps that exact vector/CSLS order intact
       // and lets the caller surface the narrower outage through its own user-facing channel.
       const ordered = await rerankOrKeep({ logger: ctx.logger, rc, params, text, retrieved, events });

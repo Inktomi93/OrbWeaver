@@ -3,7 +3,7 @@
 // the join NEVER reads the `users` table). CSLS-ranked (highest first). No `similarCharacters` here — top-k
 // "more like this character" is `search`'s; this is the recorded-pairs read.
 //
-// BOTH SIDES OF A PAIR CARRY THE PREDICATE (#1414 seam 2). These reads used to scope side A only, on the
+// BOTH SIDES OF A PAIR CARRY THE PREDICATE. These reads used to scope side A only, on the
 // stated grounds that a pair is only ever computed inside one owner's library so A implies B. That is a
 // property of the WRITER, and neither pair table has an owner column or a same-owner constraint to hold it —
 // so the belt was a comment. Under the invariant the second predicate matches everything and costs a hash
@@ -24,7 +24,7 @@ import type { DuplicateCharacterPair, DuplicateChatPair } from "../contract/resu
 export async function readDuplicateCharacters(db: Db, ownerId: UserId, opts: DuplicateCharactersOptions = {}): Promise<DuplicateCharacterPair[]> {
   const charA = aliasedTable(characters, "char_a");
   const charB = aliasedTable(characters, "char_b");
-  // BOTH sides carry the predicate (#1414 seam 2). "A pair is only ever computed inside one owner's library"
+  // BOTH sides carry the predicate. "A pair is only ever computed inside one owner's library"
   // is a WRITER invariant, and `duplicate_character_pairs` has no owner column and no same-owner constraint
   // to hold it — so filtering A and inferring B was a comment, not a query guarantee. Under the invariant
   // the B predicate is free; when the invariant breaks, it is the whole belt.
@@ -60,7 +60,7 @@ export async function readDuplicateCharacters(db: Db, ownerId: UserId, opts: Dup
 export async function readDuplicateChats(db: Db, ownerId: UserId, opts: DuplicateChatsOptions = {}): Promise<DuplicateChatPair[]> {
   const chatA = aliasedTable(chats, "chat_a");
   const chatB = aliasedTable(chats, "chat_b");
-  /** The present-host EXISTS belt for ONE side of the pair (#1414 seam 2 — both sides carry it now: the
+  /** The present-host EXISTS belt for ONE side of the pair (both sides carry it now: the
    *  same-owner property of a pair is a WRITER invariant with no column and no constraint behind it). */
   const hostedBy = (chatId: typeof duplicateChatPairs.chatIdA | typeof duplicateChatPairs.chatIdB): ReturnType<typeof exists> =>
     exists(

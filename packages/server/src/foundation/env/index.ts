@@ -40,13 +40,13 @@ const UTF8_BOM = "﻿";
 /** Load a local `.env` into `process.env`. `override` = a checked-in dev `.env` WINS over an already-set
  *  (stale shell) export; otherwise the file only fills keys that are unset.
  *
- *  dotenv died here 2026-08-03 (node-26 adoption program §3) — `node:util`'s `parseEnv` IS the platform
+ *  No dotenv (node-26 adoption program §3) — `node:util`'s `parseEnv` IS the platform
  *  .env parser. `process.loadEnvFile()` is deliberately NOT used: it can only ever fill UNSET keys, and
  *  the override direction is load-bearing (the dev stack pins model/port/posture in the checked-in
  *  `.env`; a silent flip to "a stale shell export wins" reads as a config bug for hours). The merge is
  *  therefore OURS and stays explicit here.
  *
- *  Parity with dotenv 16.6.1 was MEASURED case-by-case (30 inputs, 2026-08-03), not assumed: identical on
+ *  Parity with dotenv 16.6.1 was MEASURED case-by-case (30 inputs), not assumed: identical on
  *  comments, blank + junk lines, `export ` prefixes, single/double/backtick quotes, `\n` escapes inside
  *  double quotes, literal multiline quoted values, inline `#` comments, CRLF, duplicate keys, unterminated
  *  quotes and the empty file. Exactly two deltas:
@@ -60,13 +60,13 @@ const UTF8_BOM = "﻿";
  *  A missing or unreadable file is a silent no-op — the same tolerance dotenv's `quiet: true` gave. */
 /** The keys the loaded `.env` FILE declared (populated by `loadEnvFileWithOverride`). Provenance the parsed
  *  `env` can't carry: because the file loads with `override:true`, a value in `.env` wins over a launcher's
- *  export, so #301 needs to know which knobs the FILE pinned regardless of what the schema finally resolved.
+ *  export, so the launch-only refusal needs to know which knobs the FILE pinned regardless of what the schema finally resolved.
  *  Empty when the file is absent/unreadable or skipped (`ORB_ENV_NO_FILE`, e.g. under vitest).
  *
  *  ASSUMES(single-replica) — and it holds BY CONSTRUCTION, so no DB-backed seam is warranted (unlike a
  *  per-request process cache, the shape this gate exists to catch). This Set is written EXACTLY ONCE, at
  *  module load, by the single `loadEnvFileWithOverride(...)` call at the bottom of this file; nothing mutates
- *  it per request, and its only reader is the #301 refusal in the parse below. Every replica loads the SAME
+ *  it per request, and its only reader is the launch-only refusal in the parse below. Every replica loads the SAME
  *  `.env` with `override:true` and computes byte-identical contents, so there is no cross-replica state to
  *  reconcile — it is boot-constant deployment provenance, not runtime accumulator state. */
 const envFileKeys = new Set<string>();
@@ -86,7 +86,7 @@ function loadEnvFileWithOverride(override: boolean): void {
   }
   let raw: string;
   // a missing .env is a normal deploy state —
-  // envFileKeys stays empty, correctly read by the #301 superRefine as "not declared". Ends
+  // envFileKeys stays empty, correctly read by the launch-only superRefine as "not declared". Ends
   // if the loader stops treating a missing file as absence rather than an error.
   try {
     raw = readFileSync(resolve(process.cwd(), ENV_FILE), "utf8");

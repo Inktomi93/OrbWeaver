@@ -158,7 +158,7 @@ export interface ResolvedSnapshotHead {
  *                    merge to attempt. */
 export type TurnWriteFoldOutcome =
   | { readonly kind: "head"; readonly headId: RpgSnapshotId }
-  /** `suppressed` — the dotted paths the HAND HEAD's locks dropped out of the replay (#77): the second of the
+  /** `suppressed` — the dotted paths the HAND HEAD's locks dropped out of the replay: the second of the
    *  two suppression sites, and the only one that exists on a mid-flight hand edit. The flush records them. */
   | { readonly kind: "folded"; readonly headId: RpgSnapshotId; readonly suppressed: readonly string[] }
   | { readonly kind: "refused"; readonly headId: RpgSnapshotId; readonly reason: string }
@@ -292,7 +292,7 @@ interface RpgFlushRegistration {
 
 // ── the injected cross-feature ops (§0/§3 — wired at compose, W1b-integration/W1c) ───────────────────────
 
-/** THE viewer-visibility verdict for rpg's MEMBER-FACING READS (#1528), consumed from chat's ONE
+/** THE viewer-visibility verdict for rpg's MEMBER-FACING READS, consumed from chat's ONE
  *  `resolveViewerVisibility` op — never re-derived here. Two halves, both DATA (D106-F1):
  *
  *   • `readsHidden` — chat's `viewerReadsHidden` verdict. `false` ⇒ every free-text plane this read serves is
@@ -634,7 +634,7 @@ export interface RpgContext {
   readonly getMembership: GetMembership;
   /** The latest user message's text, for a gather whose turn carries none of its own (a swipe, a drained send). */
   readonly getPendingUserText: GetPendingUserText;
-  /** #1528 — the member-facing reads' PROJECTION verdict (hidden-span posture + the D16 floor), resolved by
+  /** The member-facing reads' PROJECTION verdict (hidden-span posture + the D16 floor), resolved by
    *  chat's one cross-domain op. Distinct from `getMembership` on purpose: that answers "may this caller ACT"
    *  (the ENFORCEMENT class `guard.ts` gates on), this answers "what may this viewer SEE" (the DATA-PROJECTION
    *  class). Collapsing the two is the defect the spine's three-questions clause names. */
@@ -701,7 +701,7 @@ export interface RpgContext {
   /** OBSERVABILITY: the flush's DROP hook — "a state round fired and its writes are not in canon", on every arm
    *  that can end that way: the F1 backstop refusing a contract-invalid state, the fold's two losing arms
    *  (`refused`/`shadowed`, prefixed in the reason), and the round that could not RUN at all
-   *  ({@link RpgStateDelta.failure} — #1468 item 2, where the variant is the correlation the vehicle's own warn
+   *  ({@link RpgStateDelta.failure}, where the variant is the correlation the vehicle's own warn
    *  cannot carry).
    *  Called with the schema failure reason when `writeStagedSnapshotAndJournal` refuses — so the drop is never silent
    *  (a state extraction fired, produced applicable output, and vanished at the backstop is the exact
@@ -720,7 +720,7 @@ export interface RpgContext {
    *  remove. So the resolution is named on every flush, with the reason when it is not what the knob asked for.
    *  Wired at compose to a log line; a fake recorder asserts it in tests. Fire-and-forget (`void`). */
   readonly onStateRoundPath: (info: StateRoundPathInfo) => void;
-  /** OBSERVABILITY: the WRITE BOUNDARY SETTLED (#1493). {@link onStateRoundPath} above names the vehicle at
+  /** OBSERVABILITY: the WRITE BOUNDARY SETTLED. {@link onStateRoundPath} above names the vehicle at
    *  DISPATCH — before the round runs — so nothing in this contract said "the extraction is over" until this
    *  hook; an e2e barrier polling the dispatch event was racing the write it claimed to wait for. Called on
    *  EVERY arm past the cancel gate (wrote / backstop-dropped / staged-nothing / threw), from a `finally`, so
@@ -755,7 +755,7 @@ interface FoldBuildFailedInfo {
 interface StateRoundPathBase {
   readonly chatId: ChatId;
   readonly gameId: RpgGameId;
-  /** The turn this flush belongs to — the correlation key the rpg flight recorder (R-OBS) joins a turn's
+  /** The turn this flush belongs to — the correlation key the rpg flight recorder joins a turn's
    *  mount/tool/flush events on, and the one `/api/_debug/rpg/traces?turnId=` filters by. */
   readonly turnId: ChatTurnId;
   readonly mode: RpgExtractionMode;
@@ -786,7 +786,7 @@ interface StateRoundCancelInfo {
   readonly discardedStagedWrites: boolean;
 }
 
-/** The STATE-ROUND SETTLE signal (#1493) — the round is over, whatever it did, on EVERY arm including the
+/** The STATE-ROUND SETTLE signal — the round is over, whatever it did, on EVERY arm including the
  *  ones that never reached a write. `outcome` is the shared closed vocabulary ({@link RpgFlushOutcome}, one
  *  home in `./trace.ts`); `droppedReason` is the F1 backstop's field-level refusal and is `null` on every
  *  arm but `dropped` (a quiet beat is not a drop).

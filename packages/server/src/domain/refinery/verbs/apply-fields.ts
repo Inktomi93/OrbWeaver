@@ -1,4 +1,4 @@
-// verb: applyFields — the SHARP END (security pass §4.8-13, in order): the user-accepted entries of the
+// verb: applyFields — the SHARP END (13, in order): the user-accepted entries of the
 // chosen rewrite run (latest, or the §16.1 operate-back `rewriteRunId`) land on the LIVE card. OWNER RULING:
 // Apply is an ATOMIC COMMIT and Keep/Discard is staging — one refused entry refuses the whole apply, every
 // refused entry is itemized with its typed reason, and recovery is the user's explicit discard of those
@@ -17,7 +17,7 @@
 // SNAPSHOT FIRST (belt 13): `character.snapshot("auto: before refinery apply · <sessionId>")` — the
 // label carries the SESSION id (schema-renderer §6.2's classification convention: the version walk
 // classifies snapshots by prefix + session), and the minted snapshot id rides the RESULT (§16.2's
-// widening) as the immediate rollback-point affordance. RETRACTED ON REFUSAL (#1551): the snapshot is the
+// widening) as the immediate rollback-point affordance. RETRACTED ON REFUSAL: the snapshot is the
 // belt-14 write's WITNESS, not its prelude, so a `CHARACTER_STALE_BASIS` refusal deletes exactly that row
 // before re-throwing — see the catch around `ctx.updateCharacter` below.
 
@@ -48,7 +48,7 @@ function applySnapshotLabelOf(sessionId: RefinerySessionId): string {
 type UnwitnessedRefinableField = Exclude<RefinableField, CardIdentityField>;
 
 /** The basis belt 14 fences on: the identity hash PLUS every field this verb can write that the hash does
- *  not cover (#1560 — a hash-only fence let a creator-notes-only edit through and overwrote it, the same
+ *  not cover (a hash-only fence let a creator-notes-only edit through and overwrote it, the same
  *  defect for one field in nine).
  *
  *  THE `satisfies` IS THE ENFORCER, not decoration: a tenth refinable field added outside the identity set
@@ -90,7 +90,7 @@ export function createApplyFields(ctx: RefineryContext): RefineryService["applyF
 
     // Belt 13 — snapshot first, then the ONE canon write (both through the injected character ops).
     //
-    // BELT 14 — THE BASIS FENCE (#1446). Every concrete value in `input` was computed from `liveCard`, which
+    // BELT 14 — THE BASIS FENCE. Every concrete value in `input` was computed from `liveCard`, which
     // was read at `resolveApplyBasis` and is by construction OLD: a snapshot write sits between, and the user
     // reached this verb after reading a rendered diff. A plain in-place update would silently overwrite an
     // edit that landed in that window, and the §21 divergence belt cannot see it (that belt compares against
@@ -103,7 +103,7 @@ export function createApplyFields(ctx: RefineryContext): RefineryService["applyF
     try {
       detail = await ctx.updateCharacter({ principal, characterId: session.characterId, input, expectedBasis: basisOf(liveCard) });
     } catch (err) {
-      // #1551 — the snapshot above is the apply's WITNESS, not its prelude (the `restoreCardInPlace`
+      // The snapshot above is the apply's WITNESS, not its prelude (the `restoreCardInPlace`
       // precedent's own words): it exists to record what the card looked like BEFORE THIS APPLY, so it has
       // to be taken while that state is still live, i.e. before the conditional write can refuse. A
       // `CHARACTER_STALE_BASIS` refusal means the write never happened — the snapshot it was taken FOR is

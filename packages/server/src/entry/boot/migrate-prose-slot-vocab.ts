@@ -1,4 +1,4 @@
-// Boot step: the #1737 prose-slot id vocabulary DATA migration (owner-ruled 2026-09-05, arm (a)) — the
+// Boot step: the prose-slot id vocabulary DATA migration (owner-ruled, arm (a)) — the
 // `migrate-handoff-offer-vocab` sibling, over `presets.config`'s `promptConfig.prose` map.
 //
 // It is a boot step rather than a `0000_baseline.sql` line for the same reason its sibling is: the rename
@@ -22,7 +22,7 @@ export interface MigrateProseSlotVocabDeps {
   readonly db: BootDatabaseHandle;
 }
 
-/** Re-key every pre-#1737 stored prose override onto the current slot id. Returns the number of preset rows
+/** Re-key every old-spelling stored prose override onto the current slot id. Returns the number of preset rows
  *  rewritten — 0 on every boot after the first, and on a db that never carried the old spelling. */
 export async function migrateProseSlotVocabOnBoot(deps: MigrateProseSlotVocabDeps): Promise<number> {
   const rewritten = await migrateProseSlotVocab(deps.db);

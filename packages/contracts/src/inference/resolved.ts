@@ -46,7 +46,7 @@ export const resolvedConnectionViewSchema = z.strictObject({
   requirement: requirementVerdictSchema,
 }) satisfies z.ZodType<ResolvedConnectionView>;
 
-// Why a task cannot be served deterministically right now — the composer's pre-send verdict (#54), the
+// Why a task cannot be served deterministically right now — the composer's pre-send verdict, the
 //  picker's row state. `no-connection` = no binding in the fold or the bound row was deleted/unset;
 //  `endpoint-unreachable` = reachability says down or a wake timed out (renamed from `engine-down`);
 //  `runtime-missing` = the wire's runtime is absent on this box (the bundled `claude` executable does not

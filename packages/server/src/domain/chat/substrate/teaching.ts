@@ -52,8 +52,7 @@ function injectionKey(injection: ChatInjection): string {
  *  has one home (`PROSE_SLOTS`), so two contributions teaching the same fence ARE the same bytes, and a
  *  future contributor gets the collapse for free without having to know the others exist.
  *
- *  WHAT THIS DOES **NOT** COVER — TRUTH-REPAIRED 2026-08-24 (B1), because the original text of this comment
- *  claimed it did and was wrong. It said "the game's CYOA teach and a chat-level offer-choices teach ARE the
+ *  WHAT THIS DOES **NOT** COVER. It is NOT true that "the game's CYOA teach and a chat-level offer-choices teach ARE the
  *  same bytes, and a chat that has both knobs on gets one line instead of the same instruction twice." A real
  *  game turn does not emit its teach as its own injection: rpg pushes every teach into ONE `blocks` array
  *  with the game-state block, the delta and the steering license (`domain/rpg/substrate/reminder.ts:459`),

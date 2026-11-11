@@ -201,7 +201,7 @@ export async function listConnectedPersonasWithAvatar(db: Db, ownerId: UserId, c
 }
 
 /** Characters connected to a persona (via `character_personas`) — the junction read from the persona side
- *  (#866 S4). Owner-scoped in the WHERE (both endpoints are the caller's by construction — the junction is
+ *. Owner-scoped in the WHERE (both endpoints are the caller's by construction — the junction is
  *  only ever written between owned rows — but the predicate rides anyway, per the file rule). Summary
  *  columns only ({@link ConnectedCharacterView}); newest connection's character first, mirroring
  *  {@link listConnectedPersonasWithAvatar}. */

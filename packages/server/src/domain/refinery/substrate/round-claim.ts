@@ -1,5 +1,5 @@
-// domain/refinery/substrate/round-claim — the LEASED in-flight claim on a refinery session (#1568, the
-// deferred serializing half of #1445). `iterate` takes it BEFORE it pays for a single model call and clears
+// domain/refinery/substrate/round-claim — the LEASED in-flight claim on a refinery session (the
+// serializing half of the round guard). `iterate` takes it BEFORE it pays for a single model call and clears
 // it on both the commit and the failure arm; a second round that cannot take it is refused typed and free.
 //
 // WHY A LEASE DEADLINE AND NOT A BOOLEAN. A flag says "busy" and nothing ever says otherwise if the process
@@ -32,7 +32,7 @@ import type { RefineryRoundClaim } from "../contract/results.ts";
 // How long a taken round claim stays valid without being released.
 //
 // THIS IS A CRASH BACKSTOP, NOT A CORRECTNESS BOUND, and that is what makes the number safe to choose: if it
-// expires while a round is genuinely still running, the session degrades to EXACTLY the pre-#1568 behaviour
+// expires while a round is genuinely still running, the session degrades to EXACTLY the unclaimed behaviour
 // (two rounds refining off the same analysis) — never to a corrupt tally or a lost run, because the counter is
 // still incremented in SQL and the run log is still append-only. So it is set generously above a real round
 // and read as "how long a crashed process may hold a session".

@@ -19,7 +19,7 @@ function rolePresetOf(config: PromptConfig): RolePresetParams {
 
 export function buildSideGenParams(deps: SideGenParamsDeps): SideGenParams {
   // `null` from a stale/unowned/missing id. A database/I/O/program failure must surface, not silently replace the
-  // caller's configured sampling (#759).
+  // caller's configured sampling.
   const loadOptional = createLoadOptionalPreset((args) => deps.preset.get(args));
   const presetParams = async (userId: UserId, presetId: PresetId): Promise<RolePresetParams | null> => {
     const detail = await loadOptional(userId, presetId);

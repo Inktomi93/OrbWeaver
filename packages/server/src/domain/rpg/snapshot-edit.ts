@@ -275,7 +275,7 @@ export function foldTurnWriteIntoHandHead(
   written: { readonly patches: readonly StagedPatch[]; readonly snapshotId: RpgSnapshotId },
   slotSeq: number,
 ): Promise<TurnWriteFoldOutcome> {
-  // THE WHOLE DECISION IS SERIALIZED (#1458), not just the write. The head resolve, the supersede check and
+  // THE WHOLE DECISION IS SERIALIZED, not just the write. The head resolve, the supersede check and
   // the replay are ONE read-modify-write against the per-game chain: run outside it, the supersede check
   // answered about a head that a newer flush replaced while this call waited its turn in the queue, and the
   // queued callback re-resolved the head WITHOUT re-asking whether this slot was still the current beat — so
@@ -314,7 +314,7 @@ async function foldOwnedTurnWrite(
     // the boarded REGEN-VS-LATER-FLUSH row, which needs ladder state that does not exist today.
     return { kind: "shadowed", headId: head.row.id, reason: `the ${head.arm} row ${head.row.id} outranks this flush's row at seq ${head.seq}` };
   }
-  // What the HAND HEAD's locks drop out of this replay (#77) — collected at the merge and returned to the
+  // What the HAND HEAD's locks drop out of this replay — collected at the merge and returned to the
   // flush, which puts it on the turn's tool-call record. The human keeps their field either way; the trail is
   // what stops the record from claiming the model's write landed.
   const suppressed: string[] = [];

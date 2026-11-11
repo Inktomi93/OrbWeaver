@@ -40,7 +40,7 @@ export interface ListRunsParams extends RefineryActorParams {
 
 /** The session-config patch (the D62 Setup surface's write). Absent = leave unchanged; `null` on the two
  *  nullable text fields = clear. Each present member is re-parsed through its contracts schema AT THE VERB
- *  (the internal-boundary re-parse posture, security pass §3.A) — the tRPC wire parse does not cover a
+ *  (the internal-boundary re-parse posture) — the tRPC wire parse does not cover a
  *  future internal caller.
  *
  *  `selection` is a DELTA, not a value — it is the one column `applyFields` also writes (the
@@ -181,7 +181,7 @@ export interface DeleteSchemaParams extends RefineryActorParams {
 export type ListSchemasParams = RefineryActorParams;
 
 /** `generateSchema` — NL → a draft schema document (never persisted; the client holds the draft). `arm`
- *  picks the authoring PIPELINE (task #36 — single enforced call · stepwise · structure-then-hints); absent
+ *  picks the authoring PIPELINE (single enforced call · stepwise · structure-then-hints); absent
  *  = `REFINERY_FORGE_ARM_DEFAULT`. */
 export interface GenerateSchemaParams extends RefineryActorParams {
   readonly description: string;

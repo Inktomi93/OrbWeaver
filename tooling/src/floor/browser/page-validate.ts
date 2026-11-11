@@ -1,4 +1,4 @@
-// The PAGE→NODE seam primitives, shared by every probe that evaluates something in a browser (#1004).
+// The PAGE→NODE seam primitives, shared by every probe that evaluates something in a browser.
 //
 // WHY THIS EXISTS. `(await page.evaluate(script)) as T` is an assertion with no compiler behind it: the
 // script is a STRING, the page is a different realm, and the value comes back as JSON. The cast is the
@@ -33,7 +33,7 @@ export function describePageValue(value: unknown): string {
 /** THE THROWING DOOR. Deliberately NOT called `instrumentError`: `floor/verdict/evidence.ts` already exports
  *  that name for the door that PRINTS a gap and RETURNS `EXIT.toolError`, and two exports with one name
  *  and opposite control flow is how a `return instrumentError(...)` and a `instrumentError(...)` that
- *  never returns end up looking identical at a call site (#1317 item 2). This one throws; every local
+ *  never returns end up looking identical at a call site. This one throws; every local
  *  copy of the throwing shape imports it instead of re-declaring a third spelling. */
 export function instrumentRefusal(message: string): never {
   throw new Error(`INSTRUMENT ERROR: ${message}`);
@@ -41,7 +41,7 @@ export function instrumentRefusal(message: string): never {
 
 /** The boolean half of `pageObject` — a plain (non-array, non-null) object, for the readers that
  *  classify a value rather than settle it. ONE home under ONE name: five copies of this predicate across
- *  the floor and `ui-audit` is what #1317 item 3 named, and #1319 re-homed the rest. The name is generic on
+ *  the floor and `ui-audit` are folded into this one. The name is generic on
  *  purpose — most callers (settings/theme/ratchet rows) never touch a `page.evaluate()` boundary, and a
  *  second exported name for the same binding is a duplicate export (knip). */
 export function isPlainObject(value: unknown): value is Record<string, unknown> {
@@ -87,7 +87,7 @@ export function pageNumber(value: unknown, label: string): number {
 
 /** A finite number inside a stated inclusive range. `pageNumber` alone only rules out NaN, so a negative
  *  count, a negative width or an opacity of 12 walked straight into a printed verdict; the ranges live at
- *  the CALL SITES because only the consumer knows what its own field can legally be (#1509). `min`/`max`
+ *  the CALL SITES because only the consumer knows what its own field can legally be. `min`/`max`
  *  are both optional: an open end is a real answer for a length, which has a floor and no ceiling. */
 export function pageNumberInRange(value: unknown, label: string, bounds: { readonly min?: number; readonly max?: number }): number {
   const number = pageNumber(value, label);

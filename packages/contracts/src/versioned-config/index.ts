@@ -9,17 +9,17 @@
 // its default beats a hard load failure mid-session).
 //
 // …but degrading is only correct for the CURRENT REQUEST. A read-modify-WRITE that cannot tell the
-// degraded stand-in from the real blob persists the default and destroys the user's data silently (#471 —
-// the proven cause of the #461 settings wipe). `parseOutcome` is that discriminator: same value as
+// degraded stand-in from the real blob persists the default and destroys the user's data silently (
+// the proven cause of a real settings wipe). `parseOutcome` is that discriminator: same value as
 // `parse`, plus whether it is the stored blob or a stand-in for one that could not be read. Every write
 // seam branches on it (`domain/settings/substrate/stored-config.ts`); read seams keep using `parse`.
 //
-// TWO ways `intact: true` used to LIE, both fixed here (#1364/#1365 — the same wipe family as #461):
+// TWO ways `intact: true` can LIE, both closed here (the same wipe family):
 //
 //  1. A blob from the FUTURE (a newer build wrote it; a rollback / branch switch / older client reads it).
 //     There is no lift for a version ABOVE `def.version`, so the walk never runs and the current
 //     (non-strict) schema simply STRIPS every field this build has never heard of — a successful parse
-//     over a truncated blob. READ POSTURE (chosen deliberately, #1364): serve the stripped value so the
+//     over a truncated blob. READ POSTURE (chosen deliberately): serve the stripped value so the
 //     session stays usable, but report `intact: false` + `versionFromFuture` so every write seam REFUSES.
 //     Degrading the VALUE to `default` instead would read to the user as "my settings reset", which is the
 //     visible half of the very failure this guard exists to prevent; the write refusal is the load-bearing
@@ -28,9 +28,9 @@
 //     that catches its own failure makes the parse succeed over data the blob no longer carries —
 //     `intact: true` cannot mean "the stored blob was fully read" while any `.catch()` sits below it.
 //     A whole-COLLECTION `.catch([])` therefore erases every good row with the one bad one, invisibly to
-//     the guard (#1365, `appearance.backgroundLibrary`). Collection leaves under a versioned config use
-//     {@link tolerantArray} — one bad element costs one element. SWEEP RECORDED 2026-09-04, EXTENDED
-//     2026-09-05 (#1532) over the three tenants (`appSettingsConfig`, `userSettingsConfig`,
+//     the guard (`appearance.backgroundLibrary`). Collection leaves under a versioned config use
+//     {@link tolerantArray} — one bad element costs one element. SWEEP RECORDED over
+//     the three tenants (`appSettingsConfig`, `userSettingsConfig`,
 //     `promptConfigConfig`) — the array leaves below, FOUR verdicts. `appearance.backgroundLibrary` +
 //     `chat.customStoppingStrings` carry user CONTENT and moved to `tolerantArray`; `appearance.blurSurfaces`
 //     KEEPS its whole-collection self-heal because an empty set is itself a meaningful stored value there
@@ -66,7 +66,7 @@ export const VERSIONED_PARSE_FAILURES = {
   schemaRejected: "schema-rejected",
   /**
    * The blob's version is NEWER than this build knows: there is no lift for it, so the current schema
-   * would silently STRIP every field this build has never heard of (#1364). The value is still served
+   * would silently STRIP every field this build has never heard of. The value is still served
    * (see the read posture in the header) but no write may be derived from it.
    */
   versionFromFuture: "version-from-future",
@@ -74,7 +74,7 @@ export const VERSIONED_PARSE_FAILURES = {
 
 export type VersionedParseFailure = (typeof VERSIONED_PARSE_FAILURES)[keyof typeof VERSIONED_PARSE_FAILURES];
 
-/** The FIRST zod issue off a `schema-rejected` failure (#1592) — enough for a caller to name WHICH field
+/** The FIRST zod issue off a `schema-rejected` failure — enough for a caller to name WHICH field
  *  blew the schema, without carrying the whole zod `ZodError` (an internal detail this contract has never
  *  otherwise leaked). `path` is dot-joined (`"sections.0.content"`), never the raw `PropertyKey[]` — a
  *  caller renders it, never re-walks it structurally (walking it back to source vocabulary, e.g. an ST
@@ -88,13 +88,13 @@ export interface VersionedParseIssue {
  * `parse`'s value plus its PROVENANCE. `intact: true` ⇒ `value` IS the stored blob (lifted + validated);
  * `intact: false` ⇒ `value` is a STAND-IN for a blob that could not be read faithfully — the `default`,
  * or (for `version-from-future` only) the stored blob minus the fields this build cannot represent — and
- * overwriting storage with anything derived from it would destroy the real data (#471/#1364).
+ * overwriting storage with anything derived from it would destroy the real data.
  *
- * `issue` is populated ONLY for `schema-rejected` (#1592) — the one failure with a zod error to name; a
+ * `issue` is populated ONLY for `schema-rejected` — the one failure with a zod error to name; a
  * write-time REFUSAL (`requireIntactStoredConfig`) still names only the table/scope, never blob contents
  * (the leak-free posture), but an IMPORT door reading its own freshly-mapped value back through this seam
  * is not reading someone else's stored blob, so naming the offending field there is safe and load-bearing
- * (the #1592 defect: a 100k-character prompt's owner could not tell which prompt to shrink).
+ * (without it, a 100k-character prompt's owner could not tell which prompt to shrink).
  */
 export type VersionedParseOutcome<T> =
   | { readonly intact: true; readonly value: T }
@@ -124,7 +124,7 @@ export interface VersionedConfig<T> {
   parse: (raw: unknown, storedVersion?: number) => T;
   /**
    * `parse` with its provenance attached — the ONLY read a write path may build on. Same walk, same
-   * value; the caller learns whether it got the stored blob or a degraded stand-in (#471).
+   * value; the caller learns whether it got the stored blob or a degraded stand-in.
    *
    * Absence is the CALLER's to model: a never-written blob arrives here as `undefined` and reports
    * `not-an-object`, which is honest (there is nothing to read) but is NOT a corruption — a write seam
@@ -153,12 +153,12 @@ function firstIssue(parsed: z.ZodSafeParseError<unknown>): VersionedParseIssue |
 }
 
 /** The verdict once the lift walk is done: a from-the-future blob (served, never intact), a schema pass
- *  (intact), or a schema rejection (degraded, carrying the first offending field — #1592). Split out of
+ *  (intact), or a schema rejection (degraded, carrying the first offending field). Split out of
  *  `parseOutcome` purely to keep that function's own branching under the complexity ceiling. */
 function verdictAfterLifts<T>(def: VersionedConfigDef<T>, config: Record<string, unknown>, version: number): VersionedParseOutcome<T> {
   const parsed = def.schema.safeParse(config);
   if (version > def.version) {
-    // A blob from a NEWER build (#1364). The walk above cannot have lifted it — lifts only go forward — so
+    // A blob from a NEWER build. The walk above cannot have lifted it — lifts only go forward — so
     // `parsed.data` is the stored blob with every unknown field stripped. Serve it (the session stays
     // usable) and mark it NOT intact so the write seams refuse; header §1 states the posture.
     return { intact: false, value: parsed.success ? parsed.data : def.default, failure: VERSIONED_PARSE_FAILURES.versionFromFuture };
@@ -212,9 +212,9 @@ export function defineVersionedConfig<T>(def: VersionedConfigDef<T>): VersionedC
 
 /**
  * A COLLECTION leaf for a versioned config: element-wise tolerance instead of a whole-array `.catch()`.
- * One malformed element costs THAT element; every readable element survives (#1365 — a single malformed
+ * One malformed element costs THAT element; every readable element survives (a single malformed
  * `backgroundLibrary` row erased the whole library, and because the array's own `.catch([])` made the
- * parse succeed, `parseOutcome` reported `intact: true` and the #471 write guard persisted the erasure).
+ * parse succeed, `parseOutcome` reported `intact: true` and the intact write guard persisted the erasure).
  *
  * `whenNotAnArray` is the only whole-collection fallback left, and it fires ONLY when the stored value is
  * not an array at all — a shape with no element-wise reading. It exists because

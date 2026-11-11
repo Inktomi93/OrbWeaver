@@ -2,7 +2,7 @@
 // LLM) over character_summaries. catalog = per-facet card counts + top tags;
 // compareCharacters = a facet diff of two cards. Owner scope derives via a characters join
 // (character_summaries keeps no ownerId), never a caller-supplied owner — through the ONE
-// `ownedRealCharacters` belt, so the per-room synthetic group cards never count as library cards (#1467).
+// `ownedRealCharacters` belt, so the per-room synthetic group cards never count as library cards.
 
 import type { Db } from "@orb/db";
 import { characterSummaries, characters } from "@orb/db";

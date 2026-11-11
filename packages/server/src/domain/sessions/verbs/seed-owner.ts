@@ -21,7 +21,7 @@ import {
  * owner row yet) and on every ordinary boot (the row already holds the key).
  *
  * WHY A RENAME IS THE RIGHT ANSWER HERE, where the sibling impostor case is deliberately manual
- * (`provision-identity`, owner-ruled 2026-08-08): that refusal exists because a re-issued SSO subject arrives
+ * (`provision-identity`, owner-ruled): that refusal exists because a re-issued SSO subject arrives
  * OFF THE WIRE and is indistinguishable from an attacker's. `OWNER_HANDLES` is ENV — trusted config at the
  * same tier as `SESSION_SECRET`/`DATABASE_URL`, writable only by whoever already owns the box. There is no
  * adversary in this path, so the ambiguity that justifies a manual repair there does not exist here.

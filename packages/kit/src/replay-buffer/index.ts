@@ -35,7 +35,7 @@ export interface ReplayBuffer<K, E> {
  * expired, so idle keys don't accumulate. Cleared on process restart (subscribers re-attach and
  * re-snapshot). `now` is the caller's injected clock.
  *
- * `ttlMs` must be a finite positive number, and throws `RangeError` otherwise (#1359). A zero/negative
+ * `ttlMs` must be a finite positive number, and throws `RangeError` otherwise. A zero/negative
  * TTL retains NOTHING and an infinite one never expires — either reads exactly like a bus nobody wired,
  * and `bounded-ring` next door already refuses a nonsense capacity the same way. One ring family, one
  * failure mode.

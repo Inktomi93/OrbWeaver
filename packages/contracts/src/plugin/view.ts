@@ -64,7 +64,7 @@ export type PluginSurfaceState = Record<string, unknown>;
 /** The map is the guest's own published JSON, open by design; only its top-level shape is checked. */
 export const pluginSurfaceStateSchema = z.record(z.string(), z.unknown()) satisfies z.ZodType<PluginSurfaceState>;
 
-/** ONE bundle-shipped image's path → CAS id (`listBundleAssets` — #820 seam 11). The renderer turns a node's
+/** ONE bundle-shipped image's path → CAS id (`listBundleAssets`). The renderer turns a node's
  *  `bundleAsset: "ui/assets/happy.png"` into this `assetId` and then resolves it through the SAME owner-scoped
  *  `assets.resolveBlobRefs` every declared `assetId` rides — so the bundle arm adds a NAME lookup and no new
  *  trust: an id that is not the viewer's still yields no ref and paints the placeholder.

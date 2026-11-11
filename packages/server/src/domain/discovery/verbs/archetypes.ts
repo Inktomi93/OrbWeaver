@@ -3,7 +3,7 @@
 // labelled cheaply from the distilled facets (mode genre/tone + top tags — no LLM). Character-side analog
 // of `themes`. Content-collapsed before clustering so byte-identical fork/import copies don't bias a centroid.
 //
-// TWO READS, TWO QUESTIONS (issue #154). A member's NAME + FACE come from `readOwnedCardDisplay` (the
+// TWO READS, TWO QUESTIONS. A member's NAME + FACE come from `readOwnedCardDisplay` (the
 // `characters` row, present from import); the cluster's LABEL comes from `readOwnedCardFacets` (the distill
 // pass's output, present only after it runs). They used to be one read rooted at `character_summaries`, so a
 // card the distill pass had not reached rendered as "Unknown" with no face inside a cluster it was

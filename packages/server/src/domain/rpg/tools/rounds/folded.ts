@@ -46,7 +46,7 @@ export function buildFoldedTurnBuilder(input: RpgRoundsAssemblyDeps): RpgContext
   return async ({ chatId, baseState, reconcile, prose }) => {
     const { refs, config } = await resolveExtractionRefs(deps, chatId, baseState, reconcile);
     const tools = buildToolRoundWireTools(cacheStableExtractionRefs(refs, config.trackers), config, prose);
-    // R-OBS: what this turn was even ABLE to write. The optional CALL short-circuits its argument, so the
+    // What this turn was even ABLE to write. The optional CALL short-circuits its argument, so the
     // event object is never built when tracing is off (`domain/rpg/contract/trace` header).
     deps.trace?.({ phase: "mount", chatId, toolNames: tools.map((tool) => tool.name) });
     // The FOLDED reconcile note is deliberately NOT `rpg.extract.reconcilePass`: that one addresses a
@@ -63,7 +63,7 @@ export function buildFoldTurnToolCalls(input: RpgRoundsAssemblyDeps): RpgContext
   const deps = createRpgRoundsContext(input);
   return async ({ chatId, turnId, baseState, trackerDefs, turnConnection, toolCalls }) => {
     const conn = turnConnection.connection;
-    // R-OBS: what the model CALLED and what survived the schema — the folded turn's tool traffic is otherwise
+    // What the model CALLED and what survived the schema — the folded turn's tool traffic is otherwise
     // server-internal by D112 design, so this ring is the only place it is legible after the fact.
     // `recordToolCalls` is the ONE projection (`@orb/contracts/rpg`) — the durable per-variant row the user
     // disclosure reads is written from the same call, so the ring, the warn and the row cannot disagree.

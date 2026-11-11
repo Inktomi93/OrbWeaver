@@ -13,7 +13,7 @@
 //      locks; tools HONOR them here. A locked path is skipped ENTIRELY (base value survives), so a
 //      hand-edited field can never be overwritten by a later model tool write.
 //
-//   3. THE SUPPRESSION REPORT (#77) — a dropped write is a LOSS, and the surface that shows a turn's tool
+//   3. THE SUPPRESSION REPORT — a dropped write is a LOSS, and the surface that shows a turn's tool
 //      calls must be able to say so instead of reporting `applied` about a write no state carries. This
 //      engine is the ONE place a lock actually drops something, so it is the one place that names it: the
 //      tracked entry point collects the dotted paths it suppressed and every caller (the staging accumulator,
@@ -37,7 +37,7 @@
 //     (locks off, participant-only client view) and the tool appliers author less than the whole array;
 //   • a correlated pair with neither DEEP-MERGES per field (the same `mergeAt` walk, path-prefixed
 //     `<field>.<id>`), so a SUB-FIELD lock (`actorState.user:u1.status`, `actorState.user:u1.pools.Mana`)
-//     bites on exactly that value while unlocked sibling fields take the patch — the per-field pin (#10);
+//     bites on exactly that value while unlocked sibling fields take the patch — the per-field pin;
 //   • an uncorrelated patch element (a new id) lands as-is.
 // The registry below matches a path's FINAL SEGMENT to the element-key resolver; a new keyed plane is ONE
 // entry (the extensible shape — KISS/YAGNI suspended here). Nested keyed planes (an actor's `pools` /
@@ -81,7 +81,7 @@ interface KeyedPlane {
 }
 
 /** The keyed snapshot arrays, matched by the path's FINAL SEGMENT: `quests`/`inventory` (key `id`),
- *  `presentCharacters` (`key`), `actorState` (the computed `actorRefKey` — the #10 per-field-lock wire),
+ *  `presentCharacters` (`key`), `actorState` (the computed `actorRefKey` — the per-field-lock wire),
  *  and the per-actor nested planes `wallet`/`conditions` (`name` — the name-addressed vocabulary, D86).
  *  Segment-matching (over full-path keys) is what lets the nested planes key under ANY actor prefix
  *  (`actorState.<key>.wallet`) without a per-actor registry re-spell.
@@ -103,7 +103,7 @@ interface KeyedPlane {
  *  existed precisely because the old name-addressed `pools[]` array could not express one. */
 const KEYED_ARRAYS: Readonly<Record<string, KeyedPlane>> = {
   quests: { keyOf: propKey("id"), omissionRemoves: true },
-  // `inventory`'s per-element pins stopped being hypothetical with #78: the pack's hand door now MINTS
+  // `inventory`'s per-element pins are live: the pack's hand door MINTS
   // `…inventory.<id>.<field>` for the fields a host claimed, so the sub-field walk below is the live path for
   // every manual pack edit — and the element-lock removal defense is what keeps a hand-added item from being
   // deleted by a story that simply never mentions it.
@@ -189,7 +189,7 @@ function hasLockAtOrBelow(path: string, locks: RpgFieldLocks | null): boolean {
 
 /** Merge a keyed array under the `<field>.<id>` lock grammar (the header's four-rule contract): a
  *  whole-element lock pins the base element; a correlated pair deep-merges per field (nested locks bite —
- *  the #10 per-field pin); an unnamed base element survives when the plane is ADDITIVE or when it carries
+ *  the per-field pin); an unnamed base element survives when the plane is ADDITIVE or when it carries
  *  any lock at/under its path (appended at the tail, deterministically); an unkeyed/uncorrelated patch
  *  element lands as-is. */
 function mergeKeyedArray(args: {
@@ -240,7 +240,7 @@ function mergeKeyedArray(args: {
 
 /** Resolve ONE correlated keyed element: a whole-element lock pins the base (a locked-but-absent base takes
  *  the patch); a base+patch object pair deep-merges per field under the element path (nested locks bite —
- *  the #10 per-field pin); anything else takes the patch element as-is. */
+ *  the per-field pin); anything else takes the patch element as-is. */
 function resolveKeyedElement(base: unknown, el: unknown, arb: MergeArbitration, elPath: string): unknown {
   if (isPathLocked(elPath, arb.locks)) {
     if (base === undefined) {
@@ -307,7 +307,7 @@ export function applyLockedPatch<T extends object>(base: T, patch: Record<string
   return mergeAt(base as Record<string, unknown>, patch, { locks: fieldLocks, sink: null }, "") as T;
 }
 
-/** {@link applyLockedPatch} with the suppression report (#77). The two writers that must answer "what did this
+/** {@link applyLockedPatch} with the suppression report. The two writers that must answer "what did this
  *  turn lose to a hand edit" — the staging accumulator and the flush's fold — call THIS one, so the answer is
  *  observed where the drop happens instead of re-derived from a state diff that cannot tell a lock from a
  *  model that never wrote. */

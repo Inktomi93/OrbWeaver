@@ -207,7 +207,7 @@ const GUIDED_SCAFFOLD_ONLY_ACTIONS: Record<GuidedActionKind, boolean> = {
   rewrite: true,
   impersonate: false,
   opening: false,
-  // Greeting-studio kinds (audit §3) — authoring-time card verbs, NEVER routed through this chat-turn
+  // Greeting-studio kinds — authoring-time card verbs, NEVER routed through this chat-turn
   // resolver; listed only to keep the Record exhaustive over GuidedActionKind. `true` is the safe classing
   // (their templates are `{{input}}`/`{{base}}` frames), but this arm is unreachable for these kinds.
   greeting_rewrite: true,

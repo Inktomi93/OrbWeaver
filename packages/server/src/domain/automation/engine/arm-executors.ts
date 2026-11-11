@@ -80,7 +80,7 @@ function chatRequiredRefusal(type: AutomationAction["type"]): ArmOutcome {
  *  `inc`/`dec` compute against the CURRENT value (the standalone chat-fold cache or the author's global) — the
  *  VarOp vocabulary's `inc`/`dec` are ±1 only, so an operand-bearing inc/dec resolves to a computed `set`.
  *
- *  BOTH INPUTS ARE VALIDATED, NOT COERCED (#1420). An absent operand is the arm's documented default of 1 and
+ *  BOTH INPUTS ARE VALIDATED, NOT COERCED. An absent operand is the arm's documented default of 1 and
  *  reaches here as the rendered `"1"`; an operand the author wrote and mis-spelled used to collapse to that
  *  SAME 1, so a typo was indistinguishable from writing nothing. And a non-numeric CURRENT value used to mean
  *  0 — silently rebasing a counter off whatever a `set` arm or a plugin had put in the variable. Both are now
@@ -137,14 +137,14 @@ async function writeArmVariable(
  *  It computes against the CURRENT value. Chat scope reads the SHARED env `vars` (so an earlier arm's write in
  *  this same batch composes — `[set hp=5, inc hp]` ⇒ 6); global scope reads the DB fresh (globals aren't
  *  env-cached, so they already compose across arms). An ABSENT variable is a fresh counter at 0; a variable
- *  holding something that is not a whole number is a REFUSAL, not a silent rebase (#1420). */
+ *  holding something that is not a whole number is a REFUSAL, not a silent rebase. */
 async function runIncDec(
   deps: ArmExecutorDeps,
   frame: DispatchFrame,
   args: { readonly scope: AutomationVariableScope; readonly key: string; readonly op: "inc" | "dec"; readonly operandText: string },
 ): Promise<ArmOutcome> {
   const { scope, key, op, operandText } = args;
-  // OWN-key read (#1564). `frame.env.vars[key]` for the key `__proto__` answers `Object.prototype` on any
+  // OWN-key read. `frame.env.vars[key]` for the key `__proto__` answers `Object.prototype` on any
   // plane that does not already own it — an OBJECT where the rest of this function needs a string, which
   // turned a legal variable name into `current.trim is not a function` and a generic `action_error`.
   const current = scope === "chat" ? (readOwnKey(frame.env.vars, key) ?? "0") : ((await selectGlobalVariable(deps.db, frame.authorUserId, key)) ?? "0");
@@ -167,7 +167,7 @@ async function runSetVariable(deps: ArmExecutorDeps, action: Extract<AutomationA
       await deps.ops.chat.applyVariableOps(chatId, [{ op: "delete", key }]);
       // WRITE-THROUGH, the delete half (`writeArmVariable` states the rule for the set half): mirror the
       // delete onto the shared in-memory `vars` too, so a later `has()` in this batch is false.
-      // `Reflect.deleteProperty`, never the bare `delete` operator (#1571) — `kit/macro/variables.ts`'s own
+      // `Reflect.deleteProperty`, never the bare `delete` operator — `kit/macro/variables.ts`'s own
       // `applyVarOp` states why: house style bans it, and it is what keeps that file's "property syntax is
       // not used on this plane anywhere" claim actually true rather than one this call site quietly broke.
       Reflect.deleteProperty(frame.env.vars, key);
@@ -573,7 +573,7 @@ function stashConfirmFirstArm(
 function runArm(deps: ArmExecutorDeps, action: AutomationAction, frame: DispatchFrame, continuation: readonly AutomationAction[] = []): Promise<ArmOutcome> {
   const type: AutomationAction["type"] = action.type;
   // S4 — THE CONFIRM-FIRST CHOKEPOINT, deliberately ahead of the switch: an arm that asked to be confirmed
-  // never reaches its executor on a fire. It STASHES itself (arm + frame + `continuation`, #1553 OWNER
+  // never reaches its executor on a fire. It STASHES itself (arm + frame + `continuation`, OWNER
   // RULING) and returns `ok` — the ARMS BEHIND IT wait on the same ask rather than running now or being
   // dropped (`verbs/confirm-suggestion.ts::executeStashedArm` runs the continuation once the host confirms).
   // The confirm verb feeds the stored arm back through THIS function with the flag CLEARED (`armToExecute`),

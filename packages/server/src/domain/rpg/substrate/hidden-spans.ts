@@ -19,9 +19,9 @@
 // `role === "host"`):
 //   • the member-facing READS (`getTrackerView`, `listJournal`, `listCheckpoints`), which pass the
 //     `readsHidden` half of chat's ONE `resolveViewerVisibility` verdict;
-//   • the member→host FORK (`chat-ops/fork-game.ts`, #1398), which passes the forker's source-room posture.
-// The read side is the SOURCE of the bytes and the fork is the SINK; before #1528 only the sink was belted,
-// so the same human read the secret in the panel a moment before the fork carefully refused to copy it.
+//   • the member→host FORK (`chat-ops/fork-game.ts`), which passes the forker's source-room posture.
+// The read side is the SOURCE of the bytes and the fork is the SINK; belting only the sink
+// lets the same human read the secret in the panel a moment before the fork carefully refused to copy it.
 
 import { stripHiddenSpans } from "@orb/kit/content";
 

@@ -25,7 +25,7 @@
 // the auto-locks the edit stamped — the human keeps what they claimed, the turn keeps the rest. Neither writer
 // can erase the other any more; see `foldIntoShadowingHandRow` below and `snapshot-edit.ts`.
 //
-// WHAT A LOCK ATE IS PART OF THE TURN'S RECORD (#77). A pinned path drops this turn's write at either of two
+// WHAT A LOCK ATE IS PART OF THE TURN'S RECORD. A pinned path drops this turn's write at either of two
 // merges — the accumulator's (the base already carried the lock) or the fold's (a hand row landed mid-flight) —
 // and the durable tool-call row must say so rather than report `applied` about a write no state carries. Both
 // sites report their drops from `substrate/merge.ts` itself; the flush unions them onto the record below.
@@ -98,7 +98,7 @@ async function stageStateRound(ctx: RpgContext, game: RpgGameRow, turn: Complete
     reconcile,
   });
   // THE VEHICLE'S OWN FAILURE, carried out rather than collapsed into the empty delta it necessarily returns
-  // with (#1468 item 2). `undefined` on every round that reached a verdict — including the quiet one.
+  // with. `undefined` on every round that reached a verdict — including the quiet one.
   const failure = delta.failure ?? null;
   const hasStatePatch = Object.keys(delta.statePatch).length > 0;
   if (!hasStatePatch && delta.journal.length === 0) {
@@ -143,11 +143,11 @@ const POST_COMMIT_PATH: Readonly<Record<RpgExtractionMode, "tool-round">> = {
  *  with ZERO further model calls; every other mode — and a `folded` turn whose connection could not carry
  *  terminal tools at all, whose wire would go MUTE if they rode, or whose declarations collided with registry
  *  tool names (`terminalToolCalls === null`: a tools-incapable model, an unbuildable mount, the fold-guarded
- *  local engine, or #1617's withheld channel) — runs its dedicated post-commit
+ *  local engine, or a withheld channel) — runs its dedicated post-commit
  *  round exactly as before. An EMPTY call array also falls back: a quiet folded beat must explicitly emit
  *  `no_changes`, otherwise zero calls is indistinguishable from a model that ignored its bookkeeping tools.
  *
- *  THE ARRAY MAY CARRY MORE THAN ONE RECURSION DEPTH'S CALLS (#1604, since #1404). The pipeline partitions each
+ *  THE ARRAY MAY CARRY MORE THAN ONE RECURSION DEPTH'S CALLS. The pipeline partitions each
  *  depth's model-emitted calls by tool identity and ACCUMULATES the terminal half across the whole recurse loop
  *  (`engine/pipeline.ts::runRecurseLoop`), rather than re-reading the final aggregate economics — which keeps
  *  only the LAST depth's `toolCalls` and therefore ERASED a terminal call co-emitted with a registry call at
@@ -169,7 +169,7 @@ const POST_COMMIT_PATH: Readonly<Record<RpgExtractionMode, "tool-round">> = {
  *  each is the point of the WARN: a wire that co-emits but handed back no channel had no terminal capability at
  *  all; a wire that SILENCES prose under tool attachment was deliberately never mounted (D112's fold guard, gated
  *  PRE-commit at the gather off the same capability fact); and a COLLIDED declaration means the wire was fine
- *  and a contributor re-spelled a registry tool's name, so the channel was withheld on purpose (#1617 — read
+ *  and a contributor re-spelled a registry tool's name, so the channel was withheld on purpose (read
  *  FIRST, because a collision also arrives as a `null` channel and would otherwise be reported as the
  *  wire's fault). Same round, same delta — different diagnosis, and they point at different people. */
 function foldFallbackReason(turn: CompletedTurn, mode: RpgExtractionMode, calls: readonly unknown[] | null): RpgFoldFallbackReason | null {
@@ -204,17 +204,17 @@ function resolveStateRound(ctx: RpgContext, game: RpgGameRow, turn: CompletedTur
 /** Write a taken flush: the clone-forward snapshot keyed to the committed variant + the staged journal entries
  *  stamped with that variant (§2.5). `now`/`snapshot id` are injected (determinism).
  *
- *  STRUCTURAL BACKSTOP (stickler F1): `writeStagedSnapshotAndJournal` returns `{ok:false, reason}` when the assembled
+ *  STRUCTURAL BACKSTOP: `writeStagedSnapshotAndJournal` returns `{ok:false, reason}` when the assembled
  *  state is contract-INVALID (a `max <= 0` pool from a buggy applier, present or future). On refusal the ENTIRE
  *  flush is DROPPED — no snapshot, no journal, no bus emits — errors-as-data, mirroring the extraction's
  *  non-conforming empty-delta path — AND the drop is LOGGED with the field-level reason (never silent). The
  *  journal rides the SAME atomic drop: an entry keyed to a snapshot that never landed would be an orphan beat
  *  referencing a state the panel can't resolve. Canon stays uncorrupted by construction.
  *
- *  RETURNS the dotted paths the FOLD's hand locks suppressed (#77) — empty on every arm that folded nothing.
+ *  RETURNS the dotted paths the FOLD's hand locks suppressed — empty on every arm that folded nothing.
  *  The caller unions them with the accumulator's own and records the pair on the turn's tool calls — paired
  *  with the backstop's `droppedReason` (`null` ⇒ the flush WROTE), which the caller publishes on the settle
- *  event (#1493), the only place a reader learns this boundary is done. */
+ *  event, the only place a reader learns this boundary is done. */
 async function writeFlush(
   ctx: RpgContext,
   game: RpgGameRow,
@@ -279,7 +279,7 @@ async function writeFlush(
  *  A REFUSED fold is LOGGED, never silent — the same posture as the write-boundary drop above: the turn's state
  *  stays shadowed (the pre-fix outcome), and the reason says so.
  *
- *  It also answers WHAT THE HAND'S LOCKS ATE (#77): only the `folded` arm can suppress anything, so every other
+ *  It also answers WHAT THE HAND'S LOCKS ATE: only the `folded` arm can suppress anything, so every other
  *  arm returns nothing to say. */
 async function foldIntoShadowingHandRow(
   ctx: RpgContext,
@@ -317,7 +317,7 @@ async function foldIntoShadowingHandRow(
  *  that same round when the fold could not ride. Each stages its delta into the accumulator; then take + write.
  *  A turn that staged nothing (empty delta / readonly / no-op) is a byte-identical non-writing turn.
  *
- *  READONLY GATE (stickler F2): a game whose RESOLVED connection has no write path for its mode
+ *  READONLY GATE: a game whose RESOLVED connection has no write path for its mode
  *  (both surviving modes need `tools`) runs NO round — a per-turn model call that
  *  would predictably fail (`rpg.extraction.*`/`rpg.toolround.failed`) and, on hosted creds, cost real spend for
  *  a structurally-impossible write. The verdict is derived from the SAME connection the round would use (the
@@ -328,7 +328,7 @@ async function flushWritableTurn(
   game: RpgGameRow,
   turn: CompletedTurn,
   /** The round's inputs and its OUTPUT LEDGER, grouped because they travel together. `settle` is written as
-   *  each arm LEARNS its verdict and read by `flushTurn`'s outermost `finally` (#1493 residual): a returned
+   *  each arm LEARNS its verdict and read by `flushTurn`'s outermost `finally`: a returned
    *  value could not work, because the caller must still publish an honest settle when this function THROWS,
    *  and the truth at that moment ("the write landed, the disclosure write blew up") exists only here. It is
    *  born `failed`, so an arm that never updates it reports the throw it took. */
@@ -367,13 +367,13 @@ async function flushWritableTurn(
   // IT RUNS AFTER THE WRITE because part of the verdict does not exist until then: a hand LOCK suppresses
   // writes at TWO points — the accumulator's merge (the base already carried the lock) and the fold's replay
   // onto a mid-flight hand row — and a row written first would have to claim `applied` and be corrected by a
-  // second write, which is the same lie with a shorter life (#77).
+  // second write, which is the same lie with a shorter life.
   const flush = ctx.staging.take(turn.turnId);
   const suppressed: string[] = [...(flush?.suppressedByLocks ?? [])];
   try {
     if (flush === undefined) {
       // The quiet beat: the round ran, staged nothing, and that IS its terminal state — UNLESS the vehicle
-      // told us it could not run at all (#1468 item 2). A provider throw returns the BYTE-IDENTICAL empty
+      // told us it could not run at all. A provider throw returns the BYTE-IDENTICAL empty
       // delta, so without that bit this arm reported a failed state round as the quiet beat: the committed
       // narrative carried an invisible missing state update whose only trace was a transient warn line.
       settle.outcome = produced.failure === null ? "no-writes" : "failed";
@@ -403,7 +403,7 @@ async function flushWritableTurn(
  *  gap. `finally` is load-bearing: every started lifecycle gets its matching settle even when a provider or
  *  write boundary throws, and the turn id lets concurrent rounds settle independently.
  *
- *  IT IS ALSO THE ONE SETTLE SITE (#1493 residual, verifier v-L2-tooling). The first cut raised
+ *  IT IS ALSO THE ONE SETTLE SITE (verifier v-L2-tooling). The first cut raised
  *  `onFlushSettled` inside the write boundary's own `finally` and AFTER `recordTurnCalls`, which made it
  *  neither total nor last-word: a failed disclosure write, a throw out of `stageStateRound`, both cancel
  *  arms and the readonly return below all skipped it, and a barrier polling for the settle hung to its
@@ -439,9 +439,9 @@ export async function flushTurn(ctx: RpgContext, game: RpgGameRow, mode: RpgGame
  *  records nothing, so a quiet beat still has no empty disclosure — with ONE exception, the round that could
  *  not run (see the guard below).
  *
- *  The projection is `contracts/rpg`'s `recordToolCalls` — the SAME one the compose warn and the R-OBS ring
+ *  The projection is `contracts/rpg`'s `recordToolCalls` — the SAME one the compose warn and the observer ring
  *  read, so the row, the log and the trace cannot disagree about what was lost. `suppressed` adds the ONE
- *  thing those two cannot know (#77): the paths this turn's writes lost to a hand lock at the merge, unioned
+ *  thing those two cannot know: the paths this turn's writes lost to a hand lock at the merge, unioned
  *  from both suppression sites and folded onto the calls by `markLockSuppressions` (which owns the rule for
  *  which calls may carry it). The ring and the warn keep the schema-only projection by design — they fire
  *  before any state is composed. */
@@ -456,7 +456,7 @@ async function recordTurnCalls(
 ): Promise<void> {
   const recorded = produced.roundCalls ?? (turn.turnConnection.terminalToolCalls === null ? undefined : recordToolCalls(turn.turnConnection.terminalToolCalls));
   const calls = recorded === undefined ? [] : markLockSuppressions(recorded, produced.suppressed);
-  // A VEHICLE THAT CALLED NOTHING RECORDS NOTHING — unless it could not RUN (#1468 item 2). Those are two
+  // A VEHICLE THAT CALLED NOTHING RECORDS NOTHING — unless it could not RUN. Those are two
   // different turns wearing one shape: the quiet beat legitimately has no disclosure, while a round the
   // provider refused is precisely the turn a reader needs an answer for ("it thought for a while and then
   // nothing happened"), and its call list is empty BY NECESSITY. So the row is written with `failure` and an

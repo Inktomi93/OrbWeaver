@@ -86,7 +86,7 @@ async function pushClaimStatsDeltas(
     ctx.db,
     chatCreatedDelta({ ownerId, characterId: characterIds[0] ?? null, forked: false, newCharacter: firstChat[0] === true, now: createdAt }),
   );
-  // EVERY OTHER FOUNDING SEAT COUNTS THE ROOM TOO (#1147). The rebuild credits the room to each of its
+  // EVERY OTHER FOUNDING SEAT COUNTS THE ROOM TOO. The rebuild credits the room to each of its
   // character seats (`COUNT(DISTINCT cp.chat_id)`), so a seat that rode only an `owner_stats.characters`
   // bump left the live census reading 0 chats for every character seated after the first — the ordinary
   // group room. The seat delta carries no owner-grain `chats`, so the room still counts ONCE for the owner.

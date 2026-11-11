@@ -58,7 +58,7 @@ function gemRank(messageCount: number, lastActiveAt: number, newestActiveAt: num
  * `tokensOut`/`costUsd` come from the injected per-character economics op (never a raw `messages` SUM).
  * A character with no economics row keeps its semantic rank and reports `tokensOut: null` — "we have no
  * accounting for this one", which is most of an imported library and is NOT the zero it used to report
- * (side-eye corpus re-pass B2). Cost follows the same honesty rule: unrecorded is null, never a fabricated
+ *. Cost follows the same honesty rule: unrecorded is null, never a fabricated
  * zero-dollar observation.
  */
 async function forgottenGems(ctx: DiscoveryContext, ownerId: UserId, limit = DEFAULT_FORGOTTEN_GEMS_LIMIT): Promise<ForgottenGem[]> {

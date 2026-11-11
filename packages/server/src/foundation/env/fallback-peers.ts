@@ -6,7 +6,7 @@
 // into `AuthConfig.fallbackTrustedPeers` so the rule has ONE spelling.
 //
 // ── WHY THE KNOB EXISTS ──────────────────────────────────────────────────────────────────────────────────
-// Since #298 f2 the fallback admits a LOOPBACK TCP peer only (`infra/auth/dispatch.ts`). That is correct on
+// The fallback admits a LOOPBACK TCP peer only (`infra/auth/dispatch.ts`). That is correct on
 // bare metal and UNUSABLE in a container: docker's port publication SNATs every inbound connection to the
 // bridge gateway (`172.17.0.1`-class), and a fronting proxy in its own container arrives as a bridge address
 // too — so `docker compose up` + `AUTH_MODE=single-user` authenticates NOBODY and 401s every browser request,
@@ -17,7 +17,7 @@
 // Every peer inside a named range becomes the OWNER with no credential. Under docker's NAT that is not a
 // statement about a trusted machine — it is a statement about a SOCKET. With `-p 8788:8788` (all interfaces)
 // every client on the LAN or the internet reaches the app AS the bridge gateway, so naming the bridge range
-// means "anyone who can reach the published port is the owner": the pre-#298 world-owner shape, re-opened on
+// means "anyone who can reach the published port is the owner": the world-owner shape the loopback gate removes, re-opened on
 // purpose. The control that actually bounds it is the HOST-SIDE publication (`-p 127.0.0.1:8788:8788`), not
 // `IP_ALLOWLIST` — `isIngressAllowed` (`infra/network/ingress.ts`) admits every private address, which is
 // exactly what the NAT produces, so the perimeter ring cannot see past the gateway. The warning says so.
@@ -28,7 +28,7 @@
 //   2. A request carrying a forwarding header (`infra/auth/forwarded.ts`) is refused the fallback on every
 //      peer, the widened ranges and loopback alike: a relay hop announcing itself means the peer represents
 //      someone else.
-//   3. The knob is LAUNCH-ONLY (#301, generalized in `index.ts`): a `.env` pin is boot-fatal, and it may not
+//   3. The knob is LAUNCH-ONLY (generalized in `index.ts`): a `.env` pin is boot-fatal, and it may not
 //      be combined with `AUTH_BREAK_GLASS` (which is defined as the brief ON-BOX recovery door).
 // What it does NOT reach: the local-mode first-run owner-password gate and its `localFirstRun` probe stay
 // LOOPBACK-ONLY (`entry/lifecycle.ts`) — they consult no `AUTH_FALLBACK`, so widening them would grant an
@@ -57,7 +57,7 @@ export function resolveOwnerFallbackPeers(input: OwnerFallbackPeerInput): OwnerF
 
 /** The operator-facing lines — EMPTY when nothing needs saying, so a healthy boot is silent (the
  *  `diagnostics.ts` contract). The one standing warning is the widening itself: it re-opens, deliberately,
- *  the exact property #298 f2 removed, so it should keep announcing itself for as long as it is true — and
+ *  the exact property the loopback gate removes, so it should keep announcing itself for as long as it is true — and
  *  it names the ranges back to the operator, because a typo'd CIDR silently matches nothing and a too-broad
  *  one silently matches everything. */
 export function ownerFallbackPeerWarnings(posture: OwnerFallbackPeerPosture): readonly string[] {

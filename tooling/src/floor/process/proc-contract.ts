@@ -40,7 +40,7 @@ export interface NicedCommand {
   readonly args: readonly string[];
 }
 
-/** THE CAPTURE CEILING, stated ONCE for every capturing door in the subprocess home (#2211, #2212).
+/** THE CAPTURE CEILING, stated ONCE for every capturing door in the subprocess home.
  *
  *  Raise node's ~1MiB capture ceiling. `spawnSync`/`execFileSync` do NOT truncate at the ceiling, they
  *  TERMINATE the child (SIGTERM + ENOBUFS) — so a caller whose payload is genuinely large (ts7
@@ -50,7 +50,7 @@ export interface NicedCommand {
  *  IT IS SHARED BECAUSE THE PROSE ALONE DID NOT TRAVEL. This warning lived on `runNicedSync` for months and
  *  was correct the whole time, while `execNicedSync` three functions down took no `maxBuffer` at all; the
  *  ESLint discovery door outgrew 1MiB behind that gap and the whole-repo lint tier became unobtainable
- *  (#2211). A hazard documented per-door is a hazard the next door does not inherit — so the option and its
+ *. A hazard documented per-door is a hazard the next door does not inherit — so the option and its
  *  warning are one declaration that both doors take, and the executing half of the guarantee lives with the
  *  caller whose payload is large (`ops/eslint.ts#readDiscoveredPopulation` refuses by name and is pinned by a
  *  planted tiny-ceiling control). */
@@ -83,7 +83,7 @@ export interface RunNicedSyncResult {
   readonly signal?: NodeJS.Signals;
   readonly stdout: string;
   readonly stderr: string;
-  /** THE DISCRIMINATOR FOR A `status: null` (#2284). `spawnSync` reports a failure of the SPAWN — as opposed
+  /** THE DISCRIMINATOR FOR A `status: null`. `spawnSync` reports a failure of the SPAWN — as opposed
    *  to a child that ran and exited — on its `error` field, and this door used to drop it, leaving `null` to
    *  mean four different things a caller could not tell apart: the capture ceiling killed the child
    *  (`ENOBUFS`, and `execFileSync`'s sibling THROWS this where `spawnSync` does not), the wall-clock
@@ -125,7 +125,7 @@ export interface FullPriorityChild {
   readonly stdout: NodeJS.ReadableStream | null;
   readonly hasExited: () => boolean;
   /** Drop the handle from the parent's event loop — without it an "exited" launcher lives exactly as long
-   *  as its children (the 2026-08-03 immortal-launcher audit). */
+   *  as its children (an immortal launcher otherwise outlives the run). */
   readonly unref: () => void;
   readonly kill: (signal: NodeJS.Signals) => void;
   readonly killGroup: (signal: NodeJS.Signals) => void;
@@ -170,7 +170,7 @@ export interface NicedChild {
 export interface TranscriptOptions {
   readonly cwd: string;
   readonly env: NodeJS.ProcessEnv;
-  /** REQUIRED wall-clock ceiling (#1508). This door had NO timeout at all — the promise settled only on
+  /** REQUIRED wall-clock ceiling. This door had NO timeout at all — the promise settled only on
    *  `error`/`close`, so one wedged child hung its whole caller forever with no verdict and no
    *  artifact. Required rather than defaulted: how long a stage may legitimately take is the CALLER's
    *  policy, and a default here would silently pick one for a caller that never considered it. */
@@ -203,6 +203,6 @@ export interface TranscriptResult {
   /** stdout+stderr as ONE transcript in ARRIVAL order — so the TAIL of the transcript is the tail of the
    *  RUN. Whole-stream CONCATENATION (`stdout + stderr`) put the tail of STDERR last, which for a compound
    *  stage (vitest && playwright-ct) meant pnpm's banner and node warnings, while the real verdict sat
-   *  mid-file — a CT failure read as a silent death for three diagnoses (#259, 2026-08-18). */
+   *  mid-file — a CT failure read as a silent death for three diagnoses. */
   readonly transcript: string;
 }

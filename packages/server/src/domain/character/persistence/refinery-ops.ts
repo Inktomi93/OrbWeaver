@@ -8,7 +8,7 @@
 // user-bus event, no snapshot — the stamp is a derived-signal refresh (F6), not an authored edit;
 // reversibility lives on the APPLY path (`applyFields` snapshots first), never here.
 //
-// `createDeleteSnapshot` (#1551) is the apply path's OWN retraction, not a new writer of `characters.*`
+// `createDeleteSnapshot` is the apply path's OWN retraction, not a new writer of `characters.*`
 // generally: `applyFields` snapshots BEFORE its conditional write (the pre-image must be captured while it
 // is still live), and a `CHARACTER_STALE_BASIS` refusal from that write leaves the snapshot with nothing to
 // witness — this op is how the verb un-does exactly the row it just minted, scoped to its own id.
@@ -134,7 +134,7 @@ export function createStampRefinerySignals(input: DbAssemblyInput<CharacterRefin
   };
 }
 
-/** Build the snapshot-retraction op (#1551, owner-scoped per train-78's `injected-op-caller-param`
+/** Build the snapshot-retraction op (owner-scoped per train-78's `injected-op-caller-param`
  *  finding) — a single scoped delete: `characterId` in the WHERE (an op that dropped it would let one
  *  owner's refused apply retract a DIFFERENT character's row if the ids ever collided, which TypeID
  *  collision-freedom makes practically impossible but the WHERE still states for free), PLUS an `owns`

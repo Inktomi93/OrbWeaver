@@ -32,7 +32,7 @@ export interface ChatImportContext {
   /** The imported author's-note prompt lands as a `chat_injections` row (the ONE per-chat prose door — the
    *  room-override author's note is retired), so the write mints injection ids. */
   readonly newChatInjectionId: () => ChatInjectionId;
-  /** #67 — the subset of `assetIds` that EXIST for `ownerId` on the target box (owner-scoped; wired from
+  /** The subset of `assetIds` that EXIST for `ownerId` on the target box (owner-scoped; wired from
    *  `assets.resolveOwnedAssetRefs`). Import re-creates a `message_assets` retaining row ONLY for an inline
    *  `asset:<id>` body ref whose asset actually landed (the bundle's `assets` entity imports FIRST, so a
    *  bundled attachment resolves); a ref to a non-bundled asset degrades to plain body text (no dangling FK,

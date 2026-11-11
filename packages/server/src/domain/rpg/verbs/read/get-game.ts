@@ -36,7 +36,7 @@ export function createGetGame(ctx: RpgContext): Pick<RpgService, "getGame"> {
       effectiveDelivery: deriveEffectiveDelivery(game.config.extractionMode, { ...verdicts, stateRoundOverflow }),
       publicConfig: {
         statProfile: game.config.statProfile,
-        // #862 — the ruleset setting: member-safe AND member-needed (the dice-ask row above the composer
+        // The ruleset setting: member-safe AND member-needed (the dice-ask row above the composer
         // publishes this ruleset's dice; a freeform game publishes none).
         ruleset: game.config.ruleset,
         dateMode: game.config.dateMode, // #9 — the ambient-date display mode (member-safe)

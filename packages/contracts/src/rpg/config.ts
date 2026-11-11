@@ -45,7 +45,7 @@ export const RPG_CARD_KEEP_LAST_DEFAULT = 0;
 export const rpgGameFeaturesSchema = z
   .object({
     relationshipHints: z.record(z.string(), z.string().max(RPG_HINT_MAX)).default({}),
-    // R4c (owner go, 2026-07-31) — the JOURNAL-TYPE gloss map, the exact sibling of `relationshipHints`: a
+    // R4c (owner go) — the JOURNAL-TYPE gloss map, the exact sibling of `relationshipHints`: a
     // journal entry may ride `type:"custom"` with a free `label`, and this maps that label → a steering gloss so
     // a host-defined beat type teaches as precisely as the seven built-ins (the R4b hint argument, applied to
     // the plane that fires on 79% of turns). Empty ⇒ bare labels.
@@ -90,11 +90,11 @@ export function isDeceptionActive(features: RpgGameFeatures): boolean {
   return features.deception || features.omniscience;
 }
 
-/** The delivery-model knob (the 2026-07-26 amendment / D108, as amended by D109 + the R1 fold). It picks the
+/** The delivery-model knob (D108, as amended by D109 + the R1 fold). It picks the
  *  state round's VEHICLE, never its existence:
  *    • `cheap` = a DEDICATED post-commit TOOL round (the 7 state tools, `tool_choice:"required"`). Two model
  *      calls per exchange; the LOCAL champion (grammar-bound on vLLM — the measured 8B floor).
- *    • `folded` (DEFAULT, owner ruling 2026-08-01) = the SAME 7 tools mounted on the CHARACTER turn itself with
+ *    • `folded` (DEFAULT, owner ruling) = the SAME 7 tools mounted on the CHARACTER turn itself with
  *      `tool_choice:"auto"`, whose co-emitted `tool_calls` ARE the state round — ONE model call per exchange
  *      (measured ~43% cheaper / ~34% faster on a hosted strong model, 6/6 co-emission — D112) and the ONLY mode
  *      whose state lands WITH the turn. The narrative is never at risk — and that guarantee, not the mode, is
@@ -111,7 +111,7 @@ export function isDeceptionActive(features: RpgGameFeatures): boolean {
  *  An ADDITIVE config field — a pre-amendment blob self-heals to the default at the parse seam (the schema
  *  `.default` fills it; no version stamp — §4.11 #1 / D107 knob-wire discipline).
  *
- *  DELETED THIRD MODE (owner ruling 2026-08-01, pre-launch NO-LEGACY): the dedicated structured-output round
+ *  DELETED THIRD MODE (owner ruling, pre-launch NO-LEGACY): the dedicated structured-output round
  *  ("reliable") was the accuracy arm on paper and measured WORST on the exact field its schema guardrail
  *  existed to secure (0/12 hpDelta — a field-routing failure; the extraction-mode empirical map). It is gone
  *  whole — no shim, no deprecation arm. The structured-output MACHINERY survives where it is still the only
@@ -131,7 +131,7 @@ export type RpgExtractionMode = (typeof RPG_EXTRACTION_MODES)[number];
  *      pre-commit, off the room connection's capability. Knowable BEFORE a turn runs.
  *    • `no-terminal-calls`       — the tools rode but the model returned neither a state write nor the explicit
  *      `no_changes` bookkeeping call, so the required post-commit round retries the state beat.
- *    • `terminal-declaration-collided` — a declared terminal tool re-spelled a REGISTRY tool's name (#1617).
+ *    • `terminal-declaration-collided` — a declared terminal tool re-spelled a REGISTRY tool's name.
  *      The registry owns the name, so the whole terminal channel was withheld for that turn: nothing about
  *      the wire or the model was wrong, and reporting `no-terminal-channel` for it pointed the reader at the
  *      connection instead of at the contributor that re-spelled a name. The server log names the collisions. */
@@ -188,13 +188,13 @@ export const RPG_RECONCILE_EVERY_BEATS_DEFAULT = 10;
 /** The ambient DATE mode (#9, owner-ruled default): `narrated` = the date is a FREEFORM STRING the model
  *  provides from the fiction (`calendarDate` — "3rd of Frostmoon"), with NO forced sequential day-counter
  *  display and no exact-date pressure; `structured` = the integer `clock.day` counter renders beside it
- *  (the pre-#9 behavior). Time-of-day + weather stay STRUCTURED and functional in BOTH modes — they drive
+ *  (the original behavior). Time-of-day + weather stay STRUCTURED and functional in BOTH modes — they drive
  *  the Waystone day-night + rain visual, which must never be lost. A DISPLAY/steering knob only: the
  *  stored `clock` plane is untouched by the mode (flipping it back loses nothing). */
 export const RPG_DATE_MODES = ["narrated", "structured"] as const;
 export type RpgDateMode = (typeof RPG_DATE_MODES)[number];
 
-/** How many tracker DEFINITIONS one game may carry (#1371 item 3 — the array had no cap at all while every
+/** How many tracker DEFINITIONS one game may carry (the array had no cap at all while every
  *  sibling vocabulary has one). Sized off what the trackers actually feed: every def can reach the model's
  *  reminder and the panel, so the ceiling is a prompt-budget shape constant like
  *  {@link RPG_PROFILE_MAX_ATTRIBUTES}, generous enough that no real game meets it (the packaged d20 seed is
@@ -203,23 +203,23 @@ export const RPG_CONFIG_MAX_TRACKERS = 64;
 
 /** The `rpg_games.config` blob. `lite.steeringNote` is the always-wins user tuning slot (§4.11 #2 — a
  *  real shipped knob). `statProfile` defaults to `freeform` (lite's create default). `extractionMode` is the
- *  delivery-model knob (the amendment), default `"folded"` (the one-call fold — owner ruling 2026-08-01, on
+ *  delivery-model knob (the amendment), default `"folded"` (the one-call fold — owner ruling, on
  *  D112's measured evidence; the two-call `cheap` arm is the host's opt-out). `dateMode` (#9) defaults `"narrated"` —
  *  additive, self-heals at the parse seam. */
 export const rpgGameConfigSchema = z
   .object({
-    // The FRONT-DOOR toggle (#40 — the ⋯-menu game switch): `false` fully DISENGAGES the game from the
+    // The FRONT-DOOR toggle (the ⋯-menu game switch): `false` fully DISENGAGES the game from the
     // turn assembly (no reminder/state/steering/tools — every rpg chat-op behaves as a non-game chat) and
     // hides the panel, while PRESERVING every game row/snapshot (reversible — re-enable restores the
     // sheet/scene as they were, never a delete). Additive defaulted — a pre-toggle blob self-heals to
     // `true` (engaged) at the parse seam. Mirrored onto the chat pointer (`ChatRpgPointer.engaged`) so the
     // client's sync gate reads it off `ChatDetail` without a round-trip.
     engaged: z.boolean().default(true),
-    // THE RULESET SETTING (#862, owner ruling 2026-08-30) — `freeform` (born default) | `d20`. One game mode;
+    // THE RULESET SETTING (owner ruling) — `freeform` (born default) | `d20`. One game mode;
     // the ruleset is a host SETTING on the Game tab, not a start-time door. It is the SELECTION, never a second
     // storage for the vocabulary: `statProfile`/`trackers` below stay the truth, and a switch MERGES the
     // ruleset's vocabulary into them additively (`applyRulesetVocabulary`, ruleset.ts). Additive defaulted — a
-    // pre-#862 blob self-heals to `freeform` at the parse seam.
+    // blob without it self-heals to `freeform` at the parse seam.
     ruleset: rpgRulesetSchema.default(RPG_RULESET_DEFAULT),
     statProfile: rpgStatProfileSchema.default(RPG_PROFILE_FREEFORM),
     // THE TRACKERS — the ONE home for every tracked field in the game, whatever its subject (the tracked-field
@@ -232,7 +232,7 @@ export const rpgGameConfigSchema = z
     // (`assertTrackersCoherent`, `domain/rpg/verbs/game/update-config.ts`), NOT as `.max()`/`.refine()` here —
     // this whole schema is parse-on-read and a bound added here would make an over-cap or duplicate-keyed
     // STORED blob permanently unreadable (`RpgStateCorruptError`). Same trade, same reason as the statProfile
-    // invariants; `rpg/profile.ts`'s schema header states it once (#1371 items 2/3).
+    // invariants; `rpg/profile.ts`'s schema header states it once.
     trackers: z.array(rpgTrackerDefSchema).default([]),
     lite: z
       .object({
@@ -263,12 +263,12 @@ export const rpgGameConfigSchema = z
     // default parses `{}` through the sub-schema so EVERY inner default fills (a bare `{}` object literal
     // wouldn't satisfy the fully-required output type).
     features: rpgGameFeaturesSchema.default(() => rpgGameFeaturesSchema.parse({})),
-    // GAME-authored user macros (owner ruling #20) — the game half of the two-home
+    // GAME-authored user macros (owner ruling) — the game half of the two-home
     // definition rule (preset `promptConfig.userMacros` is the other; ONE schema, imported from #preset).
     // Additive defaulted — a pre-MU blob self-heals to [] at the parse seam. Registered with source
     // `{kind:"game"}` by the macro-feed threading (kit `registerUserMacros`).
     userMacros: z.array(userMacroSchema).max(MAX_USER_MACROS).default([]),
-    // NO `prose` FIELD (owner ruling 2026-08-08, "we are putting everything in presets"). The steering-reminder
+    // NO `prose` FIELD (owner ruling, "we are putting everything in presets"). The steering-reminder
     // teach/heading OVERRIDES live in the PRESET's `promptConfig.prose` and are authored in the Templates tab;
     // a game turn assembles its `gmPresetId`, so a table's own copy rides that preset. The one-merge-long
     // `config.prose` spine is deleted, not deprecated — a second storage for one concept is the defect the

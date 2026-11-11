@@ -22,7 +22,7 @@ import { estimateTokens, windowInputRoom } from "@orb/kit/tokens";
 interface HistoryTurn {
   /** The delivered wire-row role — the full `MessageRole` axis (`system` appears only as a capability-kept
    *  INJECTION row, at the tail `turns.midConversationSystem` or mid-array `turns.historySystemRows`; never a
-   *  canon row, since the D129(B) narrator→`system` delivery was owner-ruled out 2026-08-18 — role-agnostic
+   *  canon row, since the D129(B) narrator→`system` delivery was owner-ruled out — role-agnostic
    *  here either way). Derived, never re-spelled. */
   readonly role: MessageRole;
   readonly content: string;

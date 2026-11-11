@@ -1,13 +1,13 @@
-// domain/character/persistence/backfill-plugin-provenance — the #1708 one-time DATA repair for cards
-// plugin-ingested BEFORE #1702 minted `importedFrom`. Those rows carry `importedFrom: null` and still read
+// domain/character/persistence/backfill-plugin-provenance — the one-time DATA repair for cards
+// plugin-ingested before provenance stamping minted `importedFrom`. Those rows carry `importedFrom: null` and still read
 // "Made here" (`characterProvenanceOf` collapses a null `importedFrom` to `authored`).
 //
 // THE CANDIDATE SET IS ALREADY TIGHT WITHOUT THE RESERVED KEY. `importHash` is stamped by the import funnel
 // (the card's import identity, `cardImportHash`; the whole-file hash on rows imported before it) for every
 // row that went through it (file upload OR plugin ingest) and stays NULL for an authored row
-// (`schema/character.ts`: "Null when authored"); post-#1702 every import ALSO stamps
+// (`schema/character.ts`: "Null when authored"); every import ALSO stamps
 // `importedFrom` (a filename, or the plugin marker). So `importedFrom IS NULL AND importHash IS NOT NULL`
-// means "this row was imported, but provenance was never stamped" — reachable by a pre-#1702 plugin ingest,
+// means "this row was imported, but provenance was never stamped" — reachable by a plugin ingest from before provenance stamping,
 // and by a seeded card, which carries its own export's identity and no `importedFrom`. A seeded card has no
 // `plugin_<slug>` key (the pack ships no extensions), so it is counted left authored, never re-stamped. That pair is the CANDIDATE predicate; the reserved key below
 // answers a NARROWER question (which plugin), never "was this row plugin-ingested at all".
@@ -72,7 +72,7 @@ async function resolveInstalledPluginId(db: Db, ownerId: UserId, slug: string): 
   return rows[0]?.id ?? null;
 }
 
-/** Stamp `importedFrom` for every pre-#1702 plugin-ingested character whose plugin identity is recoverable
+/** Stamp `importedFrom` for every plugin-ingested character stamped before provenance existed whose plugin identity is recoverable
  *  from its card's reserved `plugin_<slug>` extensions key; leaves the rest `authored` (a heuristic derived
  *  from card content — the same honest limit `AUTHORED_CARD_CREATOR` accepts, `@orb/contracts/character`).
  *  Idempotent — see the file header. */

@@ -14,7 +14,7 @@
 // construction and never resized, so a long-lived process cannot grow one. That is deliberate and it is
 // what makes these safe to leave wired in a dev process for hours.
 //
-// NOT CONVERGED, and why (#414 — re-derived on the tree 2026-08-22, not inherited from the survey):
+// NOT CONVERGED, and why (re-derived on the tree, not inherited from a survey):
 //   • `domain/rpg/trace.ts` (the RPG flight recorder) has its OWN ring and it is NOT this shape: a plain
 //     `push`/`shift` array read OLDEST-FIRST with a tail slice, then FILTERED by chatId/turnId. Moving it
 //     here would either flip `/api/_debug/rpg/traces`'s record order or force an oldest-first door onto
@@ -28,7 +28,7 @@
  *  troubleshooting tail ("what just happened"), never a chronological log.
  *
  *  `T` EXCLUDES `undefined` (`NonNullable<unknown>` — the "anything but null/undefined" constraint), and
- *  that is load-bearing rather than tidiness (#1359): the empty slots of the preallocated buffer ARE
+ *  that is load-bearing rather than tidiness: the empty slots of the preallocated buffer ARE
  *  `undefined`, so `newestFirst` skips them and would silently drop a legitimate
  *  `undefined` value. The bound is FREE — all four
  *  instantiations hold concrete non-optional records — and it makes the disagreement unrepresentable at

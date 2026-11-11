@@ -27,7 +27,7 @@ import type {
 } from "./params.ts";
 
 /**
- * The injected BACKWARD-BINDINGS read (#279) — "where is this preset bound from outside the library".
+ * The injected BACKWARD-BINDINGS read — "where is this preset bound from outside the library".
  *
  * Injected rather than queried here because BOTH of its facts belong to other domains: the active pick is
  * `settings`' `UserSettings.seeds.defaultPresetId`, and the GM redirect is `rpg_games.gmPresetId` joined to
@@ -86,7 +86,7 @@ export interface PresetService {
    *  §4.3): per-knob effective value + provenance, plus the stored-but-unhonored list. A read — no write, no
    *  audit. Throws `PresetNotFoundError` for a preset this caller can't read. */
   readonly resolveEffective: (params: ResolveEffectiveParams) => Promise<EffectivePreset>;
-  /** Where this preset is bound from OUTSIDE the library (#279) — the caller's active-pick flag + the rooms
+  /** Where this preset is bound from OUTSIDE the library — the caller's active-pick flag + the rooms
    *  whose rpg GM voice redirects to it. Gated like `get` (readable-by-this-caller or `PresetNotFoundError`);
    *  the rooms are membership-filtered by the injected resolver, never listed raw. A read — no audit. */
   readonly listUsage: (params: ListPresetUsageParams) => Promise<PresetUsageView>;

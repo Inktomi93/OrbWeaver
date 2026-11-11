@@ -3,7 +3,7 @@
 // warning list, both unit-testable. `foundation/env` owns
 // the ONE process.env read and calls this with its parsed floor; `entry/lifecycle` binds to the result.
 //
-// ── WHY THIS FILE EXISTS (the 2026-08-09 incident) ────────────────────────────────────────────────────────
+// ── WHY THIS FILE EXISTS (the dev-process incident) ────────────────────────────────────────────────────────
 // The public site was being served by a DEV process — a `node --watch` started out of a worktree cache,
 // bound bare on every interface, with the reverse proxy in front of it. `NODE_ENV` therefore defaulted to
 // `development`, tRPC's `isDev` was true, and every error (including the pre-auth 401 an anonymous prober

@@ -16,7 +16,7 @@
 // preset's rule order IS its semantics (the clock's counter must sit above its threshold so the shared-env
 // write-through composes within one batch).
 //
-// #1427 — ALL-OR-NOTHING NOW, AND WHY THE OLD RULING'S REASON SURVIVES IT. This verb used to commit each rule
+// ALL-OR-NOTHING NOW, AND WHY THE OLD RULING'S REASON SURVIVES IT. This verb used to commit each rule
 // through the whole `createRule` verb in a loop and documented itself as NOT TRANSACTIONAL, on the grounds
 // that a half set is harmless: every minted rule is born DISABLED, so it does nothing until a host enables it,
 // and the `(i/n)` titles make the missing half visible. That reasoning was and is correct — it is why the

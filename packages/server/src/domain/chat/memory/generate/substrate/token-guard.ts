@@ -37,8 +37,8 @@ export const SUMMARIZER_CONTEXT_FLOOR = 4096;
  *  (system instruction + four role markers ≈ 30 estimated tokens) plus slack for tokenizer disagreement. */
 const EMBED_SCAFFOLD_RESERVE_TOKENS = 64;
 
-// The PATHOLOGICAL ceiling (#172): above this many chunks a single block stops being chunked and is skipped
-//  WHOLE-and-recorded (the #165 arm, which survives for exactly this case). Sized far above the real corpus —
+// The PATHOLOGICAL ceiling: above this many chunks a single block stops being chunked and is skipped
+//  WHOLE-and-recorded (the skip arm, which survives for exactly this case). Sized far above the real corpus —
 //  its worst block is a 200k-char code dump, ≈5 chunks at the box's 8192-token embed window — so the ceiling
 //  only ever catches something absurd (a 100MB paste), where N thousand vectors of one block would drown the
 //  recall pool and cost more than the content is worth. A skip here is COUNTED and logged, never silent.
@@ -107,7 +107,7 @@ function chunkPackedLines(lines: readonly RenderedLine[], budget: number): Segme
     for (const t of texts) {
       chunks.push({ chunkIdx: chunks.length, seqStart: groupFirst.seq, seqEnd: groupLast.seq, text: t });
       if (chunks.length > MAX_SEGMENT_CHUNKS_PER_BLOCK) {
-        return null; // the pathological ceiling — skip-and-record (#165's surviving arm)
+        return null; // the pathological ceiling — skip-and-record (the surviving skip arm)
       }
     }
   }
@@ -119,7 +119,7 @@ function chunkPackedLines(lines: readonly RenderedLine[], budget: number): Segme
  * and deliberately a CHUNKER rather than a fitter or a clamp. A digest is a SUMMARY (trimming the oldest
  * message still yields an honest summary of what is left), while a segment is the VERBATIM ground truth a
  * digest hit resolves back to: truncating one produces a vector that claims a seq-span it never read, and the
- * tail of memory-feeding content vanishes with no trace (owner ruling, #165 — "if we are skimping out on
+ * tail of memory-feeding content vanishes with no trace (owner ruling — "if we are skimping out on
  * messages that's a no go since this feeds the memory system"). So an oversized block becomes N in-budget
  * chunks and NOTHING is lost.
  *
@@ -132,7 +132,7 @@ function chunkPackedLines(lines: readonly RenderedLine[], budget: number): Segme
  * {@link MAX_SEGMENT_CHUNKS_PER_BLOCK} chunks (the pathological ceiling) — and the caller skips-and-RECORDS.
  */
 export function chunkBlockForEmbedWindow(rows: readonly MsgRow[], macroNames: RowMacroNameContext, embedContextTokens: number): SegmentChunk[] | null {
-  // The window is DISCOUNTED before the flat scaffold reserve (#187): the QuadChars estimate undercounts the
+  // The window is DISCOUNTED before the flat scaffold reserve: the QuadChars estimate undercounts the
   // engine's real tokenizer proportionally (measured up to 1.4156× on this corpus), and 6 of the 30 largest
   // blocks cut to the undiscounted budget were refused 400 "at least 8193 input tokens". Chunking more finely
   // costs packing density and loses NOTHING — a rejected chunk loses the whole flood's write.
@@ -177,7 +177,7 @@ export function fitBlockToBudget(rows: readonly MsgRow[], macroNames: RowMacroNa
 }
 
 /**
- * Fit a consolidation's child digest BODIES to the summarizer context (#329 P1). A consolidation now feeds the
+ * Fit a consolidation's child digest BODIES to the summarizer context. A consolidation now feeds the
  * children's FULL stored three-part digests (anchor · significance-filtered facts · keywords) — not the
  * anchor+keywords facets it used to, which starved the summarizer of the actual facts and made it confabulate.
  * `fanOut` full bodies on a SMALL-context summarizer (the "tiny local main, 32k" the header names, or the §10

@@ -1,4 +1,4 @@
-// domain/chat/memory/recall/recorder — the MEMORY RECALL flight recorder (#250; the `domain/rpg/trace.ts`
+// domain/chat/memory/recall/recorder — the MEMORY RECALL flight recorder (the `domain/rpg/trace.ts`
 // model). A compose-created singleton: a bounded in-memory ring of the per-recall `MemoryRecallSlice`, with
 // the injected `MemoryRecallSink` recall writes through (`ChatContext.recordRecall`) and the host-only read
 // (`recent`) the `/api/_debug/memory/recalls` route tails.

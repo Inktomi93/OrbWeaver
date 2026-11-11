@@ -335,7 +335,7 @@ export const generationCapabilitySchema = z
      *  `samplingDefaults`, and read before it: a server's advertised default never reaches a turn on this route. */
     routeSamplingDefaults: z.partialRecord(z.enum(SAMPLING_RANGE_KNOBS), z.number()).optional(),
     verbosity: z.array(verbositySchema).optional(),
-    /** What a chat turn may CARRY. `image` gates the multimodal send, `video` likewise (#317); `audio`/`file`
+    /** What a chat turn may CARRY. `image` gates the multimodal send, `video` likewise; `audio`/`file`
      *  are captured truth no consumer sends yet. */
     input: z.array(modalitySchema),
     /** Present ⇒ offers `tools[]`, subject to the stated turn conditions. `silencesProse` = MEASURED: attaching tools suppresses the assistant's

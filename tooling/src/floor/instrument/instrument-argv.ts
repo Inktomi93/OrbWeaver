@@ -3,7 +3,7 @@
 // `parseArgv(spec)` is refused — a tool keeps its own byte-stable parser and scanner — so this file holds only
 // the DATA a family shares (the flag's name, its required-value shape), never a parser.
 //
-// THERE IS ONE PARSER LEFT (#1315). The family tables were the accepted-vocabulary source for Snap AND
+// THERE IS ONE PARSER LEFT. The family tables were the accepted-vocabulary source for Snap AND
 // its four sibling CLIs; the siblings are folded into Snap arms and their argv doors are gone, so this
 // file is now Snap's own enforcement input plus the vocabulary that tests/tooling/floor/instrument/instrument-argv.test.ts pins. It is kept rather
 // than inlined because the FAMILY is the contract: `instrumentFamilyRosterErrors` still makes a missing
@@ -23,7 +23,7 @@ export const HELP_FLAGS: ReadonlySet<string> = new Set(["--help", "-h"]);
  *  A consuming tool passes ITS OWN known-flag set to `aliasRefusal` so the suggestion never names a flag
  *  that tool does not actually have (`--full`/`--every`/`--shot-of` are snap-only; `--out` is shared).
  *
- *  THE RETIRED SIBLING SPELLINGS ARE OUT (owner ruling, #1315, extending the `--settle → --pause` call:
+ *  THE RETIRED SIBLING SPELLINGS ARE OUT (owner ruling, extending the `--settle → --pause` call:
  *  an old spelling of a live flag is exactly the case the ruling names). `--os-reduced-motion`,
  *  `--os-full-motion`, `--cpuprofile`, `--jsclick`, `--wheelburst` and `--cycles` were rows here; the
  *  product is unlaunched, so NOBODY OUTSIDE THIS REPO EVER TYPED THEM and there is no one left to
@@ -52,7 +52,7 @@ export function aliasRefusal(flag: string, knownFlags: ReadonlySet<string>): str
 }
 
 /** `--session <name>`. The sibling tools this constant was minted for are gone
- *  (#1315) and Snap owns the flag outright (`snap/ops/flags-session.ts`); it stays a named member of
+ * and Snap owns the flag outright (`snap/ops/flags-session.ts`); it stays a named member of
  *  `WHERE_FLAGS` below because the family roster is what `instrumentFamilyRosterErrors` enforces. */
 export const SESSION_FLAG = "--session";
 
@@ -61,8 +61,8 @@ const WHERE_FLAG_NAMES = ["--base", "--isolated", "--ref", "--dirty", "--fresh",
 export type WhereFlag = (typeof WHERE_FLAG_NAMES)[number];
 export const WHERE_FLAGS: ReadonlySet<WhereFlag> = new Set(WHERE_FLAG_NAMES);
 
-/** The canonical `--reduced-motion` spelling — the RENAME target (owner ruling 2026-09-03) whose old
- *  spellings were grep-fixed away at #1315; snap has carried this one since phase 1. A named constant
+/** The canonical `--reduced-motion` spelling — the RENAME target (owner ruling) whose old
+ *  spellings are gone from the tree; snap has carried this one since phase 1. A named constant
  *  (SESSION_FLAG's shape) rather than a bare literal so a future consumer never re-spells it. */
 export const REDUCED_MOTION_FLAG = "--reduced-motion";
 
@@ -105,7 +105,7 @@ export const SESSION_ADMIN_FLAGS: ReadonlySet<string> = new Set([
 ]);
 
 /** STAGE_ADMIN_FLAGS: snap-only (unchanged ruling: one lifecycle owner). `--force` is shared with
- *  SESSION_ADMIN_FLAGS' teardown-consent shape (#447) rather than doubled in both sets. */
+ *  SESSION_ADMIN_FLAGS' teardown-consent shape rather than doubled in both sets. */
 export const STAGE_ADMIN_FLAGS: ReadonlySet<string> = new Set(["--stage-status", "--stage-down", "--stage-sweep", "--force"]);
 
 /** A sibling tool's scanArgv calls this on every unknown flag BEFORE the generic "unknown flag" and before

@@ -83,7 +83,7 @@ const BUG_REPORT_WINDOW_MAX_MINUTES = 1440;
 const BYTES_PER_KIB = 1024;
 const BYTES_PER_MIB = BYTES_PER_KIB * BYTES_PER_KIB;
 const BUG_REPORT_MAX_BODY_MIB = 4;
-/** The byte ceiling on the bug-report POST, enforced BEFORE `c.req.json()` (#1473). The `client` half is
+/** The byte ceiling on the bug-report POST, enforced BEFORE `c.req.json()`. The `client` half is
  *  deliberately `z.unknown()` — the page owns its bundle shape — so no schema bounds its size, and without
  *  this the parse, the scrub and the on-disk artifact are all unbounded for anyone past the gate. 4 MiB is
  *  generous against the real bundle (capped rings: 128 flags, 64 bus events, 32 shifts, the console ring)
@@ -102,7 +102,7 @@ const bugReportInput = z.object({
 });
 
 /**
- * THE CSRF CONTENT-TYPE BELT on the one WRITE this surface carries (#2376 — the #300 class, spine
+ * THE CSRF CONTENT-TYPE BELT on the one WRITE this surface carries (the CORS-simple CSRF class, spine
  * invariant #9). `hono`'s `c.req.json()` is `text()` + `JSON.parse` and reads NO content-type, so without
  * this belt a `text/plain` POST carrying a JSON body ran the handler.
  *
@@ -216,7 +216,7 @@ function collectErrors(ring: BoundedRing<string>, limit: number): Record<string,
 
 /** The refusal's ARM-NAMING half. A caller told only "an admin session or x-debug-token" cannot act: the
  *  owner's dev bug button reported exactly that for months while the session arm was the one refusing
- *  (#1193). These name WHICH arm said no — and nothing about the principal, which an unauthenticated
+ *. These name WHICH arm said no — and nothing about the principal, which an unauthenticated
  *  response has no business describing. */
 const ADMIN_ARM_REFUSED = "the admin-session arm refused this request (/api/_debug is owner-only, and this request carries no owner session)";
 const TOKEN_UNSET = "and DEBUG_TOKEN is not configured on this server";
@@ -311,7 +311,7 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
     });
   });
 
-  // THE BUG-REPORT CAPTURE (#1095) — the one WRITE on this surface, and the only route here that is not a
+  // THE BUG-REPORT CAPTURE — the one WRITE on this surface, and the only route here that is not a
   // read. The owner's dev top-rail button POSTs its in-page bundle; this snapshots the server's own in-memory
   // flight recorders IN THE SAME TICK (they die on the next `node --watch` respawn — `bug-report.ts`'s header
   // states why that timing is the whole point), stamps the build identity, scrubs by value, and writes one
@@ -321,11 +321,11 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
   // resolution inside `client`; this resolves the same ask against the SERVER's clock for the server's rings.
   // One shared resolution would silently attribute one machine's clock skew to the other's evidence.
   //
-  // THE BYTE CAP RIDES THE ROUTE, not `entry/app.ts` (#1473): `client` is `z.unknown()`, so the schema
+  // THE BYTE CAP RIDES THE ROUTE, not `entry/app.ts`: `client` is `z.unknown()`, so the schema
   // bounds nothing about its size and `readJsonBody` parses BEFORE validation — an uncapped POST is
   // unbounded buffering, parsing and artifact growth for anyone past the gate. Registered here so every
   // app that mounts this registrar carries it, and AFTER the gate middleware above so an un-credentialed
-  // caller is still refused without reading a byte. The CSRF content-type belt (#2376) sits AHEAD of that
+  // caller is still refused without reading a byte. The CSRF content-type belt sits AHEAD of that
   // cap for the same reason the tRPC mount orders its two belts that way: a forgeable POST is refused
   // before a byte of it is buffered.
   app.post(
@@ -391,14 +391,14 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
   // `chatId` (the harness's correlation key) or `backend`. Host-only (this debug gate); read-only, no table.
   // Returns `[]` when capture is off (the ring is never written) — prod-safe by construction.
   //
-  // `enabled` (#412) is what makes that empty read LEGIBLE: without it a reader cannot tell "the recorder is
+  // `enabled` is what makes that empty read LEGIBLE: without it a reader cannot tell "the recorder is
   // off" (apparatus absent — a run that is not a verdict) from "the recorder is on and nothing was sent"
   // (an honest zero), and `wire-tap captures` could only print a caveat and exit clean either way. It is the
   // REQUEST-SINK decision (compose, from the record), not a re-derivation — see `wireCaptureEnabled`.
   app.get("/api/_debug/wire/captures", (c) => {
     // THE FILTER IS BUILT AS AN ANNOTATED LITERAL, NOT A CONDITIONAL SPREAD, AND THAT IS THE ENFORCER.
     // `?backend=` is the QUERY vocabulary (the axis a reader and `wire-tap --backend` both say); the ring's
-    // field is `providerId`. Until 2026-09-20 the route spread `{ backend }` into `recentWireCaptures` — and
+    // field is `providerId`. A route that spreads `{ backend }` into `recentWireCaptures` gets no check, because
     // a SPREAD is exempt from TypeScript's excess-property check, so a filter key the ring has never heard of
     // type-checked clean and every `?backend=` read silently returned the WHOLE ring. A filter that answers
     // "everything" to a narrowing ask is a lying instrument, which is worse than an absent one. Spelling the
@@ -418,7 +418,7 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
   // completion apart from a provider that returned nothing — this is what closes that. Metadata only, never
   // reply text. Empty when capture is off.
   //
-  // `enabled` (#412) is the same compose decision as the request read: compose wires the outcome recorder
+  // `enabled` is the same compose decision as the request read: compose wires the outcome recorder
   // into the engine on exactly the gate it wires the request sink on.
   app.get("/api/_debug/wire/outcomes", (c) => {
     const chatId = c.req.query("chatId");
@@ -549,7 +549,7 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
     app.get("/api/_debug/db/assets", async (c) => c.json(await assets.fsck()));
   }
   if (rpgTrace !== undefined) {
-    // The rpg flight recorder (R-OBS): the per-turn trace stream, filterable by `chatId` (a chat's events) or
+    // The rpg flight recorder: the per-turn trace stream, filterable by `chatId` (a chat's events) or
     // `turnId` (one turn's tool + staging events). Host-only introspection, no table (D75).
     app.get("/api/_debug/rpg/traces", (c) => {
       const chatId = c.req.query("chatId");
@@ -563,7 +563,7 @@ export function registerDebugRoutes<E extends Env>(app: Hono<E>, options: DebugR
     });
   }
   if (memoryRecall !== undefined) {
-    // The memory-recall flight recorder (#250): every `{{memory}}` recall's slice — the query, the pool, the
+    // The memory-recall flight recorder: every `{{memory}}` recall's slice — the query, the pool, the
     // candidate set, the admitted blocks with their scores, and the reason the top rejects lost. `?chatId=`
     // narrows to one room. Host-only introspection, no table (D75).
     app.get("/api/_debug/memory/recalls", (c) => {

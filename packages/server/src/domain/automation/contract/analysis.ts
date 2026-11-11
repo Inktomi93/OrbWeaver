@@ -1,12 +1,12 @@
 // domain/automation/contract/analysis — the `run_analysis` arm's INTERNAL shapes (S5,
 // the honest carrier of the purged crew director's think-first pass). Three planes live here, each with its enforcer:
 //
-//   • the STORED STATE (`automation_rule_state.state`, parse-on-read). VERSION POSTURE (orchestrator ruling
-//     2026-08-24): "corrupt" means UNPARSEABLE, never merely old — every field carries a default AND a
+//   • the STORED STATE (`automation_rule_state.state`, parse-on-read). VERSION POSTURE (orchestrator
+//     ruling): "corrupt" means UNPARSEABLE, never merely old — every field carries a default AND a
 //     per-field `.catch`, so a row written before a field existed (or with one damaged field) reads with
 //     that field defaulted and its WATERMARK PRESERVED; only non-object garbage resets whole. A reset
 //     watermark is the SAFE direction (0 = re-cover the span, duplicating work but never skipping one).
-//     SIZE is enforced as a CLAMP ON READ, never a schema refusal (#1480 item 3): the reader parses the
+//     SIZE is enforced as a CLAMP ON READ, never a schema refusal: the reader parses the
 //     row and truncates arc/banks/strings to the caps the live write paths already hold, because a `.max()`
 //     here would make an already-stored row UNPARSEABLE and reset the watermark it was meant to protect.
 //   • the MODEL PAYLOAD — COMPOSED from the arm's enabled routes (`buildAnalysisPayloadSchema`), which is
@@ -107,7 +107,7 @@ const analysisStateSchema = z.object({
 
 export const EMPTY_ANALYSIS_STATE: AnalysisState = { arc: "", twists: [], retiredTwists: [], settledThroughSeq: null };
 
-/** THE SIZE CEILING, APPLIED AS A CLAMP RATHER THAN A REFUSAL (#1480 item 3).
+/** THE SIZE CEILING, APPLIED AS A CLAMP RATHER THAN A REFUSAL.
  *
  *  The bounds already existed on the MODEL PAYLOAD — {@link ANALYSIS_ARC_MAX} on `updatedArc`/`successorArc`,
  *  {@link ANALYSIS_TWIST_MAX} per twist op, {@link ANALYSIS_TWIST_CAP}/{@link ANALYSIS_RETIRED_CAP} on the
@@ -364,7 +364,7 @@ export function mergeAnalysisState(current: AnalysisState, payload: AnalysisPayl
   applyAdds(twists, retired, payload.twistOps);
 
   const resolvedArc = payload.arcStatus === "completed" ? (payload.successorArc ?? payload.updatedArc) : payload.updatedArc;
-  // THE CLAMP RUNS LAST AND UNCONDITIONALLY (#1480 item 3). `applyAdds` only declines to GROW a full bank,
+  // THE CLAMP RUNS LAST AND UNCONDITIONALLY. `applyAdds` only declines to GROW a full bank,
   // so a `current` that arrived over the cap — a pre-clamp stored blob, or a state handed straight to the
   // confirm path's faithful round-trip (`persistence/rule-state.ts#upsertRuleState`) — used to survive every
   // merge at its original size. `clampTwists`/`clampRetiredTwists` are the same read-side helpers, so a

@@ -228,7 +228,7 @@ function imageSpanBlock(span: Extract<ContentSpan, { kind: "image" }>): MessageC
     return {
       kind: "media",
       // The D51 grammar is mime-blind, so the PROJECTION says image; the client's ASSET arm re-picks the
-      // element off the resolved asset mime (`video/*` → the native <video>, #317). External refs stay
+      // element off the resolved asset mime (`video/*` → the native <video>). External refs stay
       // image (the attachment machinery never mints them).
       media: "image",
       src: { kind: "external", url: span.ref.url },

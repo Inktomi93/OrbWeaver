@@ -72,7 +72,7 @@ type SwipeHotspotRow = Pick<typeof messages.$inferSelect, "seq"> & {
  *  (a foreign chat's messages belong to another owner → zero rows, no leak). `snippet` is the SELECTED variant's
  *  content (SEMANTIC only); the COUNT join + the selected-content join never touch an economics column.
  *
- *  DELIBERATELY NOT synthetic-excluded, unlike every sibling read in this file (#1467 item 1). Those answer
+ *  DELIBERATELY NOT synthetic-excluded, unlike every sibling read in this file. Those answer
  *  LIBRARY questions ("which of my cards…"), where the per-room group bucket is not a card. This one answers a
  *  per-chat FORENSIC question — which slots did I re-roll hardest — and the synthetic group card authors real
  *  narrator prose (recaps, illustrations) that the owner re-rolls like any other take. Dropping those rows

@@ -73,7 +73,7 @@ export function createExtractQuiet(input: DbAssemblyInput<ExtractQuietDeps>): Ex
     // slice is deliberate — a clamped caller still gets a full RECENT_WINDOW of rows they may actually see.
     // Floor 0 (the common `full` case) is inert: `messages.seq` is 1-based.
     //
-    // PROMPT ELIGIBILITY IS PART OF THAT SAME "may actually see" (#1463 items 3+4), so it is resolved on the
+    // PROMPT ELIGIBILITY IS PART OF THAT SAME "may actually see", so it is resolved on the
     // same side of the slice: a tail of prompt-hidden rows must not starve the window of the ten real rows it
     // exists to carry. And the verdict is the SHARED one (`isPromptEligible` — the host's hide AND the row's
     // declared purpose), not a local re-spell: this is a prompt boundary into a side model, so a `comment` row

@@ -49,7 +49,7 @@ async function step(params: AutoModeParams, last: SpeakerRef | null): Promise<St
   try {
     const outcome = await params.runTurn(speaker);
     if (outcome.aborted) {
-      // AN ABORT IS A STOP CONDITION (#1453). `TurnOutcome` carries abortion as RESULT state, not a throw
+      // AN ABORT IS A STOP CONDITION. `TurnOutcome` carries abortion as RESULT state, not a throw
       // (`engine/result.ts` — the owner-ruled return-based shape), and the engine's OWN abort paths (a caller
       // Stop that raced this turn, the heartbeat's stale-lock kill) never touch the chain's outer signal. So
       // reading only `outcome.messages` fed a dead turn forward as if it had committed: the last speaker

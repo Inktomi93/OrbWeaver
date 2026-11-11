@@ -90,7 +90,7 @@ function assertSeatedSpeakers(ci: BulkImportChatInput, primary: CharacterId): vo
   }
 }
 
-/** Referential gate for the per-seat KNOBS (#1687), the {@link assertSeatedSpeakers} posture: a knob may only
+/** Referential gate for the per-seat KNOBS, the {@link assertSeatedSpeakers} posture: a knob may only
  *  configure a seat this chat actually SEATS. Dropping an unseated knob silently would make "the mute
  *  travelled" a claim nobody can check — the whole point of carrying the flag. */
 function assertSeatedKnobs(ci: BulkImportChatInput, primary: CharacterId): void {
@@ -135,7 +135,7 @@ async function loadExistingImports(db: Db, characterId: CharacterId, hashes: rea
 }
 
 /**
- * The DEDUP-SKIP arm's HEAL (owner ruling 2026-08-17): back-fill persona attribution onto a room that was
+ * The DEDUP-SKIP arm's HEAL (owner ruling): back-fill persona attribution onto a room that was
  * already imported without it.
  *
  * WHY IT CANNOT BE A RE-IMPORT. The importer is idempotent by `chats.importHash`, so once a transcript has
@@ -248,8 +248,8 @@ function rosterRows(args: {
   readonly ownerId: UserId;
   readonly characterIds: readonly CharacterId[];
   readonly anchorPersonaId: BulkImportChatInput["anchorPersonaId"];
-  /** The chat's declared per-seat knobs (#1687). A seat with none takes the columns' own defaults, which is
-   *  byte-identically the pre-#1687 row — the knobs are SPREAD, never defaulted here, so the column stays the
+  /** The chat's declared per-seat knobs. A seat with none takes the columns' own defaults, which is
+   *  byte-identically a row without knobs — the knobs are SPREAD, never defaulted here, so the column stays the
    *  one home for "what an unspecified knob means". */
   readonly seatKnobs: BulkImportChatInput["seatKnobs"];
   readonly now: number;
@@ -693,7 +693,7 @@ async function planOneChat(args: Omit<OneChatArgs, "existingAssetIds" | "narrato
 }
 
 /** The run's whole-input gates, BEFORE any write: EVERY id this run could seat, attribute or CONFIGURE — the
- *  primary, every chat's extra roster, every slot's named speaker, every per-seat knob (#1687) — must be the
+ *  primary, every chat's extra roster, every slot's named speaker, every per-seat knob — must be the
  *  caller's, and every named speaker and knob must be seated in its own room. A foreign or unseated id
  *  anywhere refuses the whole run rather than landing a partially-correct room. */
 async function assertImportPreconditions(db: Db, ownerId: UserId, characterId: CharacterId, input: readonly BulkImportChatInput[]): Promise<void> {

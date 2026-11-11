@@ -85,7 +85,7 @@ export interface PortabilityRunnerComposeDeps {
   readonly importCardScripts: ImportCardScripts;
   readonly exportRegexScripts: ExportRegexScripts;
   readonly importRegexScript: ImportRegexScript;
-  /** The ST profile import's PRESET-scoped + GLOBAL regex lifts (the silent-gap sweep, 2026-08-15). */
+  /** The ST profile import's PRESET-scoped + GLOBAL regex lifts (the silent-gap sweep). */
   readonly importPresetScripts: ImportPresetScripts;
   readonly importGlobalScripts: ImportGlobalScripts;
   /** The ST world NAME-LINK attach (card `extensions.world` + charLore → the owner's books, by exact name). */

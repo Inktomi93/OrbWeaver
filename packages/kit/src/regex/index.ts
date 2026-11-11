@@ -58,8 +58,7 @@ export interface RegexHistoryDepth {
 // WHY DERIVE AND NOT AUTHOR. Both tier flags are pure MASKS over `placement`: `skipsScript` (below) skips a
 // `markdownOnly` script on every non-`DISPLAY` leg and a `promptOnly` one on `DISPLAY`. As independent
 // switches they add no expressive power — they only subtract from the placement set — so a switch beside the
-// chips can only ever CONTRADICT them. Deriving makes the dead state unrepresentable (side-eye X-1/X-2,
-// owner-ratified 2026-08-03). `historyDepth` is not a mask but the same shape of fact: it has no meaning
+// chips can only ever CONTRADICT them. Deriving makes the dead state unrepresentable (owner-ratified). `historyDepth` is not a mask but the same shape of fact: it has no meaning
 // without the `PROMPT_HISTORY` leg (the contract refuses either half alone), so it too is paired here.
 
 /** The tier flags a placement set implies. THREE ARMS, exhaustive over the set:

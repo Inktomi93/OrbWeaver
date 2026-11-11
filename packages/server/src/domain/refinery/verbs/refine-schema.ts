@@ -3,7 +3,7 @@
 // design knob — NL design §2.1); the engine lives in `substrate/schema-forge.ts`.
 //
 // The current schema rides the PROMPT as JSON, not as a typed input: the model answers in the forge's own
-// leaf language (task #36), so an existing document — including one hand-authored at the raw door, outside
+// leaf language, so an existing document — including one hand-authored at the raw door, outside
 // the leaf language — is readable material without needing an inverse transpile.
 
 import { REFINERY_FORGE_ARM_DEFAULT, refineryGuidanceSchema } from "@orb/contracts/refinery";

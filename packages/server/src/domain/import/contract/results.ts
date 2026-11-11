@@ -18,7 +18,7 @@ export interface ImportOrphanCharacterResult {
 }
 
 /** `created:false` means an existing character already carried this importHash, so no new CHARACTER was
- *  written — NOT that nothing was (#1470). That re-import RECONCILES the card's overlay planes against the
+ *  written — NOT that nothing was. That re-import RECONCILES the card's overlay planes against the
  *  existing character (a run that threw after the create leaves them missing, and the dedup key is that same
  *  row), so the counts below report what the reconcile actually landed and are NOT zero by definition on the
  *  dedup arm. */
@@ -33,14 +33,14 @@ export interface ImportCharacterResult {
   readonly regexScriptsLifted: number;
   readonly regexScriptsReused: number;
   /** The card planes this import deliberately did NOT assert, each as one operator-facing line (the
-   *  {@link ImportChatFileOutcome} `skippedOverlays` model, #1598). Present even when EMPTY: "the card landed
+   *  {@link ImportChatFileOutcome} `skippedOverlays` model). Present even when EMPTY: "the card landed
    *  whole" has to be legible apart from "nobody looked". Today's one member is the embedded lorebook a
    *  re-upload KEEPS instead of replacing, because the character already holds a primary book the owner may
    *  have edited since (the restore verb is how they ask for the card's version back). */
   readonly skippedOverlays: readonly string[];
 }
 
-/** The RESTORE door's outcome (#1598). Never throws for a bad/unmatched card — the refusal is a value the
+/** The RESTORE door's outcome. Never throws for a bad/unmatched card — the refusal is a value the
  *  calling door renders, exactly like {@link ImportChatFileOutcome}. `replaced:false` means the character
  *  held no primary book at all and the card's book was landed fresh (a restore onto a character whose book
  *  was deleted is still a restore). */
@@ -100,10 +100,10 @@ export interface ImportGroupsResult {
    *  already-imported group room gains its persona attribution the same way a solo one does). */
   readonly chatsPersonaHealed: number;
   /** Display names two seated cards share: the name-only attribution fallback is withheld for them and the
-   *  slots fall to the room's primary, reported rather than guessed (#1469 item 5). */
+   *  slots fall to the room's primary, reported rather than guessed. */
   readonly ambiguousSpeakerNames: readonly ImportAmbiguousSpeakerName[];
-  /** Members ST had disabled that the room seats MUTED — the flag TRAVELLED (#1687; #1469 item 4 shipped the
-   *  reporting half first, when the bulk-import wire still had no knob channel). */
+  /** Members ST had disabled that the room seats MUTED — the flag TRAVELLED through
+   *  the bulk-import wire's knob channel. */
   readonly seatedDisabledMembers: readonly ImportSeatedDisabledMember[];
 }
 
@@ -115,7 +115,7 @@ export interface ImportPersonasResult {
 /** `importChatFile` — never throws for a malformed/unmatched file; the refusal carries the operator-facing
  *  reason the calling door renders. `created:false` ⇒ the transcript deduped against an existing chat.
  *
- *  `skippedOverlays` is the SUCCESS arm's honest half (#1469 item 6): an orb-native bundle carries planes the
+ *  `skippedOverlays` is the SUCCESS arm's honest half: an orb-native bundle carries planes the
  *  room's canon write does not own — the tag overlay and the rpg campaign — and each rides an OPTIONAL
  *  injected op. A composition without that op used to drop the plane with no record at all, so a discarded
  *  campaign answered a bare `{ok:true, created:true}`. Each dropped plane is now one operator-facing line
@@ -201,7 +201,7 @@ export interface ImportUnresolvedPinnedPersona {
 export interface GroupSeats {
   readonly seated: readonly { readonly file: string; readonly characterId: CharacterId }[];
   readonly speakerByName: ReadonlyMap<string, CharacterId>;
-  /** The seats ST had DISABLED (#1687) — carried alongside the cast so the room is seated MUTED in the same
+  /** The seats ST had DISABLED — carried alongside the cast so the room is seated MUTED in the same
    *  pass that seats it. A subset of `seated`, by construction. */
   readonly mutedSeats: readonly CharacterId[];
 }
@@ -216,7 +216,7 @@ export interface ImportAmbiguousSpeakerName {
   readonly seats: number;
 }
 
-/** One member ST had DISABLED in its group file, and which the imported room SEATS MUTED (#1687). The member
+/** One member ST had DISABLED in its group file, and which the imported room SEATS MUTED. The member
  *  is seated (the room's cast is the cast) with orb's own per-seat mute set, so this record is no longer a
  *  loss report — it is the accounting of which seats arrived quiet, which an operator staring at a silent
  *  character otherwise has to guess at. Only RESOLVED members appear: a disabled member whose card never
@@ -292,7 +292,7 @@ export interface ImportReport {
   /** Room display names two seated cards share — the name-only speaker fallback is withheld there, so those
    *  lines fall to the room's primary instead of being assigned to whichever seat happened to be last. */
   readonly ambiguousSpeakerNames: readonly ImportAmbiguousSpeakerName[];
-  /** Members ST had DISABLED that the imported room seats MUTED — the flag travelled (#1687). */
+  /** Members ST had DISABLED that the imported room seats MUTED — the flag travelled. */
   readonly seatedDisabledMembers: readonly ImportSeatedDisabledMember[];
   /** A transcript leaf a group's own `chats[]` claimed with no readable file under `group chats/`. */
   readonly missingGroupChats: readonly string[];
@@ -307,7 +307,7 @@ export interface ImportReport {
   readonly unhandledSettings: readonly string[];
   /** Directories the collector TRUNCATED at its entry ceiling — everything past `kept` was never examined,
    *  so the operator is told exactly which plane lost its tail instead of reading a normal-looking report
-   *  over a partial import (#1469). */
+   *  over a partial import. */
   readonly truncatedDirs: readonly { readonly dir: string; readonly kept: number; readonly total: number }[];
   /** Chats whose ST chat-bound persona pick named a persona this install does not have (solo + group waves
    *  merged). The chats imported; only the pin did not travel. */
@@ -324,7 +324,7 @@ export interface ImportReport {
   /** Every real conversation the solo, group and orphan waves WROTE — the scope of the client's memory-build
    *  offer. Empty on a dry run. Not rendered into the written report. */
   readonly memoryChatIds: readonly ChatId[];
-  // ── the regex + world-link + user-plane accounting (the silent-gap sweep, 2026-08-15): every one of these
+  // ── the regex + world-link + user-plane accounting (the silent-gap sweep): every one of these
   // planes used to vanish without a report line — the counts render even at zero so "read and empty" is
   // distinguishable from "never looked at". ──
   /** GLOBAL regex scripts found in `extension_settings.regex` (both write-time outcomes below are 0 on a

@@ -382,11 +382,11 @@ export interface ServicesResult extends AsyncDisposable {
    *  fan-out, driven by the same first-authed-request hook and latched per user. Distinct from
    *  `examplePluginSeeder`: that ships with the build, this is whatever THIS deployment's admin published. */
   readonly distributedPluginApplier: DistributedPluginApplier;
-  /** R-OBS — the rpg flight recorder's READ half, or `undefined` when tracing is off. `lifecycle.ts` hands it
+  /** The rpg flight recorder's READ half, or `undefined` when tracing is off. `lifecycle.ts` hands it
    *  to `createApp`, which registers `/api/_debug/rpg/traces` only when it is present (the route's own
    *  `rpgTrace === undefined ⇒ not registered` contract, `foundation/observability/debug/routes.ts`). */
   readonly rpgTrace: RpgTraceRecorder | undefined;
-  /** #412 — whether THIS compose actually wired the provider wire-capture request sink (`WIRE_CAPTURE` in
+  /** Whether THIS compose actually wired the provider wire-capture request sink (`WIRE_CAPTURE` in
    *  the record). `lifecycle.ts` hands it to `createApp`, which publishes it on
    *  `/api/_debug/wire/captures` as `enabled` so a reader can tell an off recorder from a quiet one. Surfaced
    *  because the decision lives HERE, so no downstream reader re-reads the knob. */
@@ -399,7 +399,7 @@ export interface ServicesResult extends AsyncDisposable {
   readonly detachEmbedReindex: EmbeddingReindexTriggers["detachEmbedReindex"];
   /** Boot's re-index of every owner whose stored generation went stale without a user action, detached. */
   readonly detachStaleSpaceReindex: () => void;
-  /** #250 — the memory-recall flight recorder's READ half. Always present (the recorder is unconditional);
+  /** The memory-recall flight recorder's READ half. Always present (the recorder is unconditional);
    *  `lifecycle.ts` hands it to `createApp`, which registers `/api/_debug/memory/recalls` over it. */
   readonly recallRecorder: MemoryRecallRecorder;
   /** The REAL chat-side rpg-facing ops (getMembership/postNarratorMessage/setRpgPointer/resolveRpgRoster) —
@@ -529,7 +529,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     "compose: embed reindex invoked before search-discovery wiring",
   );
 
-  // #2481 — the per-user half of the local-light seed (§7.2/§5.3b). The boot SWEEP covers the accounts
+  // The per-user half of the local-light seed (§7.2/§5.3b). The boot SWEEP covers the accounts
   // alive at boot; this op is what covers every account minted afterwards, and it is threaded into both
   // user-minting domains (sessions below, admin further down) rather than called from one of them —
   // neither may import `domain/connection`.
@@ -567,7 +567,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // The connection pane's embedder-change preview counts the embeddings domain's rows, which compose after it.
   let countOwnedVectors: ConnectionAssemblyContext["countOwnedVectors"] = () =>
     Promise.reject(new Error("compose: countOwnedVectors invoked before search-discovery wiring"));
-  // materializeBackground (side-eye F-P0-2): built after `assets` + `effectiveConfig` exist (the assets-character
+  // materializeBackground: built after `assets` + `effectiveConfig` exist (the assets-character
   // seam), but settings/character/chat compose BEFORE `assets`, so they deref this late-bound holder at request
   // time (the `spriteSheetOps` pattern). Invoked only when a user pastes an external background URL.
   let materializeBackgroundOp: MaterializeBackgroundOp = () => {
@@ -637,7 +637,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
 
   // The credentials domain composes BEFORE the runtime: the runtime resolves a connection's sealed secret
   // through it (`resolveCredential` by credentialId — `loadActiveCredential` is gone, §5.3), and reports a
-  // derive-task auth failure back to it (#1800). `findProvider` is bound to the runtime's registry through a
+  // derive-task auth failure back to it. `findProvider` is bound to the runtime's registry through a
   // late-bound holder because the registry exists only once the runtime does — a genuine construction cycle,
   // closed one line after `createInferenceRuntime` returns.
   const runtimeBinding = createBinding<InferenceRuntime>("compose: inference runtime derefed before it was built");
@@ -690,9 +690,9 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     bindings: ports.bindings,
     providerStore: ports.providerStore,
     resolveCredential: ({ credentialId, ownerId, providerId }) => credentials.resolve({ ownerId, credentialId, providerId }),
-    // THE DERIVE-ROLE CREDENTIAL STRIKE-OUT (#1800) — a DIRECT wire: the runtime carries the provider's own
+    // THE DERIVE-ROLE CREDENTIAL STRIKE-OUT — a DIRECT wire: the runtime carries the provider's own
     // `ProviderErrorKind` plus the credentialId the call authenticated with, which is exactly
-    // `MaybeRevokeParams`; an adapter here could only re-derive a fact it was handed (#1373's whole defect).
+    // `MaybeRevokeParams`; an adapter here could only re-derive a fact it was handed.
     onAuthFailed: credentials.maybeRevokeOnAuthFailed,
     // The sink stamps `at` from the injected clock (Spine-Testing §3) and forwards to the process ring.
     ...(wireCaptureOn ? { captureWire: (entry): void => recordWireCapture(deps.rings.wireCaptures, { ...entry, at: now() }, wireSpill) } : {}),
@@ -701,7 +701,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     captureWireReply: wireReplyCaptureOn,
     imageToPng: (bytes) => imageAdapter.transform(bytes, { format: "png" }),
     agentSdk: {
-      // D8 `session_entries` write path (issue #71) — the sealed backend never touches @orb/db itself.
+      // D8 `session_entries` write path — the sealed backend never touches @orb/db itself.
       sessionWriter: createSessionEntryWriter(db, minter(ID_PREFIX.sessionEntry, idSource)),
       ...(deps.providerSeams?.agentSdk ?? {}),
     },
@@ -1018,7 +1018,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     handoffWouldCopyGmPreset: (chatId, nomineeUserId) => rpgOps().handoffWouldCopyGmPreset(chatId, nomineeUserId),
     handoffRekeyActors: (chatId, cardCopies) => rpgOps().handoffRekeyActors(chatId, cardCopies),
   };
-  // #250 — the memory-recall flight recorder. Built UNCONDITIONALLY (unlike `rpgTrace`): the slice it retains
+  // The memory-recall flight recorder. Built UNCONDITIONALLY (unlike `rpgTrace`): the slice it retains
   // is produced by every recall anyway (it is the assembly trace's memory row), so the ring's only cost is
   // holding a bounded number of already-built objects — and an observability lens that first requires a
   // restart with a flag set does not answer "why did memory surface that".
@@ -1102,7 +1102,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     readPresence: (userId) => Promise.resolve(presence.read(userId)),
     generatePicture: imagery.generatePicture,
     // The `{{databank}}` slot's in-turn retrieval, with the SAME space-refusal degrade the digest op carries
-    // (#2510 — `retrieval-degrade.ts` states the boundary). This arm is the one that was actually killing
+    // (`retrieval-degrade.ts` states the boundary). This arm is the one that was actually killing
     // turns: `search.documents` runs once per turn whether or not the room has documents, so an owner whose
     // vector space was mid-move could not send a message at all. `null` is databank's own ruled empty — the
     // byte-identical no-op an absent op produces — so a degraded gather assembles exactly like a bankless one.
@@ -1138,14 +1138,14 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   // ── rpg (the rpg seam) — the LITE vertical. Built AFTER chat (its `rpgChatOps` are rpg's cross-feature deps);
   // its `ChatRpgOps` are bound back onto the forward-ref holder above so chat's turn hooks reach the live rpg
   // service. Registers rpg's 7 state tools into the ONE tool registry (the imagery precedent).
-  // R-OBS — the rpg flight recorder. Built ONLY when tracing is enabled, and `undefined` otherwise: the emit
+  // The rpg flight recorder. Built ONLY when tracing is enabled, and `undefined` otherwise: the emit
   // sites guard with `deps.trace?.(…)`, so an untraced deployment never even constructs an event object and
   // its turns are byte-identical. The knob is the root's record, so a test root turns it in its own parse.
   // THE cross-domain viewer-visibility op (the read-visibility D-entry): membership AND the D16 canon floor as
   // ONE answer for one human over one chat. Built ONCE here and injected into every non-chat consumer that
   // decides "may this human see this chat's CONTENT" — imagery's extractQuiet (via the late-bound getter
   // above), the automation plugin fan-out's delivery gate, the plugin membrane's canon read, and rpg's
-  // member-facing reads (#1528). There is exactly ONE clamp home (chat's `resolveHistoryFloorSeq`, reached
+  // member-facing reads. There is exactly ONE clamp home (chat's `resolveHistoryFloorSeq`, reached
   // only through this op). Declared BEFORE the rpg compose because rpg consumes it; it needs only `db`.
   const resolveViewerVisibility = createResolveViewerVisibility({ db });
 
@@ -1160,7 +1160,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     now,
     ...(rpgTrace === undefined ? {} : { trace: rpgTrace.sink }),
     rpgChatOps: chatCompose.rpgChatOps,
-    // #1528 — the member-facing rpg reads' PROJECTION verdict (hidden-span posture + the D16 floor). The SAME
+    // The member-facing rpg reads' PROJECTION verdict (hidden-span posture + the D16 floor). The SAME
     // op every other non-chat consumer takes: one clamp home, one hidden-content verdict.
     resolveViewerVisibility,
     connection,
@@ -1207,15 +1207,15 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   });
   const { worldInfo, importWorldInfo, bulkImportChats, bulkImportPersonas, resolveOwnerPrincipal } = worldInfoCompose;
 
-  // #679 U8 seam 17 + #798 — the ONE per-installer character-import closure both plugin canon-write arms share.
+  // U8 seam 17 — the ONE per-installer character-import closure both plugin canon-write arms share.
   // It runs the SAME `importCharacter` funnel a file upload takes over the given bytes (the ContentChanged-
   // emitting path: importHash dedup, book/regex relink, `character.create`'s `contentChanged:true` emit). The
   // input form is the only difference between the arms: `character.ingest` serializes a guest JSON card (no
-  // avatar); `character.ingestAsset` (#798) hands the funnel a PNG the installer owns, and a PNG carries its
-  // EMBEDDED avatar through (`isPng` → `parseCardPng` → CAS-store the avatar), which is the whole point of #798.
-  // `pluginId` is PROVENANCE ONLY (#1702): neither `character.ingest` arm carries a filename (a guest JSON
+  // avatar); `character.ingestAsset` hands the funnel a PNG the installer owns, and a PNG carries its
+  // EMBEDDED avatar through (`isPng` → `parseCardPng` → CAS-store the avatar), which is the whole point of the asset arm.
+  // `pluginId` is PROVENANCE ONLY: neither `character.ingest` arm carries a filename (a guest JSON
   // card and a CAS-read PNG both arrive nameless), so `importCharacter` derived nothing and every hub-ingested
-  // card read `characterProvenanceOf` as `authored` (row #1702). It rides straight through to `ImportCardInput`,
+  // card read `characterProvenanceOf` as `authored`. It rides straight through to `ImportCardInput`,
   // which mints `importedFrom` from the plugin's OWN verified identity + the card's content hash — never from
   // guest-authored card content, which is unspoofable-or-bust the whole reason it lives at contracts
   // (`pluginImportedFrom`, `@orb/contracts/character`).
@@ -1260,7 +1260,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     imagery,
     settings,
     assets,
-    // #788 F1 — the owner-scoped RAG verb the plugin `search.query` read rides (search over the installer's own corpus).
+    // The owner-scoped RAG verb the plugin `search.query` read rides (search over the installer's own corpus).
     search,
     toolUse,
     // The fan-out's RECIPIENT enumeration (D147 clause (d)) — the admin verb, so the list is read under the
@@ -1272,12 +1272,12 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     sessions,
     roleClientsFor,
     resolveUtilityPresetParams,
-    // #679 U8 seams 15/17 — the two canon-write ops the plugin membrane rides under the installer. databank's
+    // U8 seams 15/17 — the two canon-write ops the plugin membrane rides under the installer. databank's
     // own createFromText content-addresses + dedups + enqueues the ingest workload (the indexer).
     databankCreateFromText: databank.createFromText,
-    // #679 U8 seam 17 — the guest JSON card serialized to bytes (no embedded avatar) through the shared funnel.
+    // The guest JSON card serialized to bytes (no embedded avatar) through the shared funnel.
     ingestCharacterCard: ({ installerUserId, card, pluginId }) => runInstallerCharacterImport(installerUserId, serializeImportCard(card), pluginId),
-    // #798 — the remote-image "summon with art" arm. Read the PNG from the installer's OWN CAS through the
+    // The remote-image "summon with art" arm. Read the PNG from the installer's OWN CAS through the
     // OWNER-GATED `readOwnedAssetBytes` (a foreign/absent id throws leak-free — `AssetNotFoundError` collapses
     // "not yours" and "absent", no existence oracle), then run the SAME funnel: a PNG carries its embedded
     // avatar, so the summoned character arrives WITH its art. Owner-scoped by construction (the read AND the
@@ -1379,7 +1379,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
     targetSnapshot: embeddings.targetSnapshot,
     backfillMemory: (args) => chatCompose.backfill.memory(args),
     estimateMemoryBackfill: (args) => chatCompose.backfill.estimateMemory(args),
-    // The #156 admission gate's read — one hop to the ONE memory-config merge, never a second settings read.
+    // The memory admission gate's read — one hop to the ONE memory-config merge, never a second settings read.
     isMemoryEnabled: chatCompose.isMemoryEnabled,
     backfillGroupCharacters: (args) => chatCompose.backfill.groupCharacters(args),
     loadUserSettings: settings.loadUserSettings,

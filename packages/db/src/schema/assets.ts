@@ -40,11 +40,11 @@ export const assets = sqliteTable(
     // Drives `resolveVariant`'s bailout (don't downscale an animated asset — sharp drops animation).
     animated: integer("animated", { mode: "boolean" }).notNull().default(false),
     // The other STORED byte-facts from the same store-time sniff: header-parsed pixel dimensions, so a
-    // render surface can RESERVE the image's true box before the bytes arrive (#625, the reservation half
-    // of #622) without decoding anything. NULLABLE on purpose and NOT a defect: a non-image asset (a zip,
+    // render surface can RESERVE the image's true box before the bytes arrive (the reservation half
+    // of the media-box contract) without decoding anything. NULLABLE on purpose and NOT a defect: a non-image asset (a zip,
     // a pdf), an unrecognized signature, and a truncated header all legitimately have no dimensions — the
     // render side falls back to the `auto 16 / 9` placeholder, which is correct, just not reserved.
-    // Pre-#625 rows are NULL for the same reason (no backfill: the fallback already handles them).
+    // Rows older than these columns are NULL for the same reason (no backfill: the fallback already handles them).
     width: integer("width"),
     height: integer("height"),
     uploadedAt: integer("uploaded_at").notNull().default(sql`(unixepoch() * 1000)`),
@@ -53,7 +53,7 @@ export const assets = sqliteTable(
     // D21 — within-user dedup: the SAME bytes can exist once per owner (was a bare global `hash` unique).
     uniqueIndex("assets_owner_hash_unique").on(table.ownerId, table.hash),
     check("assets_kind_check", sql.raw(`kind in (${ASSET_KIND_CHECK_LIST})`)),
-    // #1378 item 1 — the PHYSICAL floor under what the writers already refuse to produce. `size` is a
+    // The PHYSICAL floor under what the writers already refuse to produce. `size` is a
     // buffer length and `width`/`height` are header-parsed pixel counts; a negative one is not a small
     // image, it is a corrupt row, and a zero-dimension one is an image with no pixels. NULL stays legal
     // for the dimensions (a zip, a pdf, an unrecognized signature — see the column comment); the CHECK

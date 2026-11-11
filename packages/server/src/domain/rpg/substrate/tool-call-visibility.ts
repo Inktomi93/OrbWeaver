@@ -1,11 +1,11 @@
-// domain/rpg/substrate/tool-call-visibility — the hidden-span belt for the RECORDED TOOL CALLS (#1690, the
-// #1528 class). Zero-I/O, principal-free: the CALLER owns the authority gate and threads the verdict as data
+// domain/rpg/substrate/tool-call-visibility — the hidden-span belt for the RECORDED TOOL CALLS (the
+// hidden-span class). Zero-I/O, principal-free: the CALLER owns the authority gate and threads the verdict as data
 // (D106-F1), this owns only the transform.
 //
 // WHY THIS ISN'T `stripHiddenForViewer` OVER THE SAME BYTES. A recorded call's `args` is the RAW JSON STRING
 // the model sent, deliberately kept unparsed so a call that did not parse is still visible
 // (`contracts/rpg/extraction.ts` — TOOLDROP-BLIND). Running the span strip over that ENCODED form does not
-// half-work: it is a SILENT FALSE CLEAN. Measured 2026-09-05 against the live recognizer —
+// half-work: it is a SILENT FALSE CLEAN. Measured against the live recognizer —
 //
 //   stripHiddenSpans('{"location":"hall <lie truth=\\"trapped\\"/> ok"}')
 //     → content UNCHANGED, hadHidden: FALSE      (the truth ships, and the belt reports it did not)
@@ -17,7 +17,7 @@
 // the parsed leaves, re-encode. The same trap applies to an issue line's model-SENT value, which is a JSON
 // literal embedded in prose.
 //
-// THE UNPARSEABLE ARM IS A WITHHOLD, and that is the product decision this file records (#1690): args that do
+// THE UNPARSEABLE ARM IS A WITHHOLD, and that is the product decision this file records: args that do
 // not parse cannot be decoded, so the belt cannot be applied to them, and the fail-closed answer for a viewer
 // who does not read hidden is to serve NONE of the bytes plus a typed reason
 // (`RPG_TOOL_CALL_WITHHOLD_REASONS`) the panel states out loud. Pass-through was rejected: the calls most
@@ -88,7 +88,7 @@ export function projectToolCallsForViewer(calls: readonly RpgRecordedToolCall[],
   return calls.map((call) => projectToolCallForViewer(call, readsHidden));
 }
 
-/** The member-facing projection of a FAILED round's reason (#1468 item 2). The stored sentence is
+/** The member-facing projection of a FAILED round's reason. The stored sentence is
  *  `<summary>: <the vehicle's own error>`; the tail is a provider diagnostic (endpoint, model id, whatever the
  *  backend put in its error body) and this read is MEMBER-gated, so only a hidden-reading viewer — the host,
  *  who is also the person who can DO something about a broken connection — gets it. Everyone else is told the

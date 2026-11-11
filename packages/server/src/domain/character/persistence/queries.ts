@@ -43,7 +43,7 @@ type CharacterRow = typeof characters.$inferSelect;
 type AssetRow = typeof assets.$inferSelect;
 
 const depthPromptParser = cardDepthPromptSchema.nullable().catch(null);
-// The refinery-signals READ heal — FIELD-LEVEL, never whole-object (security pass §1 gap 2): the two
+// The refinery-signals READ heal — FIELD-LEVEL, never whole-object : the two
 // halves have independent producers (score runs stamp `score`, analyze runs stamp `analysis`), so one
 // arm's drift must never wipe the other. The measured pre-fix failure: `{score: 8, analysis: <legacy>}`
 // healed to null — the stamped score DELETED on read, silently. Each arm now heals to null OBSERVABLY
@@ -158,7 +158,7 @@ interface CharacterListRow {
   readonly lastChattedAt: number | null;
   /** The total-order resume room attaining the visible maximum, or null for an unchatted character. */
   readonly lastChatId: ChatId | null;
-  /** A `COUNT` of those rooms — never null, so a never-chatted character reads 0 (#865's contract, now
+  /** A `COUNT` of those rooms — never null, so a never-chatted character reads 0 (the contract,
    *  stated at the source rather than coalesced in {@link summaryOf}). */
   readonly chatCount: number;
   /** The score the score sorts ORDERED BY — selected through the SAME expression, never re-derived from the
@@ -271,7 +271,7 @@ function characterActivityCtes(
 
 // `recent` sinks never-chatted (a NULL max over no rooms) to the tail via the `is null` leading term, then
 // DESC. The two chat-count sorts sink the never-chatted group the same way — the ruling survives, its INPUT
-// changed (#1131): "never chatted" used to be "no `character_stats` row" and is now "zero visible rooms", so
+// changed: "never chatted" used to be "no `character_stats` row" and is now "zero visible rooms", so
 // the leading term reads `= 0` where it read `is null`. An unchatted card is still never "fewest".
 function orderFor(activity: CharacterActivity, sort: CharacterListSort): SQL[] {
   const lastChatted = activity.lastChattedAt;
@@ -326,7 +326,7 @@ function recentKeyset(activity: CharacterActivity, cursor: Extract<CharacterList
   return or(isNull(lastChatted), lt(lastChatted, cursor.lastChattedAt), and(eq(lastChatted, cursor.lastChattedAt), olderTiebreak));
 }
 
-// NO NULL ARM (#1131): the count is a `COUNT`, so every row carries a number and the boundary is a plain
+// NO NULL ARM: the count is a `COUNT`, so every row carries a number and the boundary is a plain
 // keyset. DESC needs no zero term — zero is already last.
 function mostChatsKeyset(activity: CharacterActivity, cursor: Extract<CharacterListCursor, { sort: "mostChats" }>): SQL | undefined {
   const chatCount = sql<number>`coalesce(${activity.chatCount}, 0)`;
@@ -523,7 +523,7 @@ function carriesVisibleTag(db: Db): SQL {
 }
 
 /**
- * THE GROUP-BY-TAG CENSUS, VISIBLE-TAG HALF (#1696) — per visible tag, how many of the owner's
+ * THE GROUP-BY-TAG CENSUS, VISIBLE-TAG HALF — per visible tag, how many of the owner's
  * non-synthetic characters carry it WITHIN the given lens.
  *
  * ONE `GROUP BY` over the SAME `ownedCharacterScope` the page and `totalCount` use, which is the whole
@@ -558,7 +558,7 @@ export async function countOwnedCharactersByVisibleTag(db: Db, ownerId: UserId, 
     .sort((a, b) => b.characters - a.characters || a.name.localeCompare(b.name));
 }
 
-/** THE GROUP-BY-TAG CENSUS, UNCATEGORIZED HALF (#1696) — matching characters carrying NO visible tag.
+/** THE GROUP-BY-TAG CENSUS, UNCATEGORIZED HALF — matching characters carrying NO visible tag.
  *
  *  A SEPARATE COUNT, never a subtraction: a character with two visible tags is counted in BOTH buckets
  *  above, so `totalCount - sum(groups)` is not the uncategorized number and would go negative on a
@@ -572,7 +572,7 @@ export async function countOwnedCharactersWithoutVisibleTag(db: Db, ownerId: Use
   return rows.at(0)?.total ?? 0;
 }
 
-/** Ambiguous names are lowercased names shared by multiple owned non-synthetic characters (#517). One
+/** Ambiguous names are lowercased names shared by multiple owned non-synthetic characters. One
  *  grouped COUNT is bounded to the page names but answers against the whole library; its result is page-
  *  and lens-independent so later pages or filters cannot change a row announced identity. Case-folded names
  *  collide; empty input reads nothing. Persistence returns a list rather than owning in-memory indexes, and

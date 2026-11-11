@@ -168,7 +168,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
   const assets = createAssetsService(assetsCtx);
   // Now that `assets` exists, bind the real materializeBackground op (the holder above forwards to it). Full
   // public-internet SSRF firewall (ANY_HOST, unconditional public-address pin) — this is a user-pasted URL; the
-  // image magic-belt + the effective per-image byte cap bound the download (side-eye F-P0-2).
+  // image magic-belt + the effective per-image byte cap bound the download.
   const materializeBackgroundOp = createMaterializeBackground({
     fetchImpl: deps.fetchImpl,
     storeBackground: createBackgroundStore({ store: (params) => assets.store(params), maxBytes: () => deps.maxImageBytes() }),
@@ -188,7 +188,7 @@ export function buildAssetsCharacter(deps: AssetsCharacterComposeDeps): AssetsCh
     // Every card write also drops the owner's lexical index, so the next text search rebuilds over the live
     // card set: a deleted card leaves both the hits and the coverage counts.
     emitUserEvent: createCharacterIndexPublication(deps.emitUserEvent, deps.evictFieldIndex),
-    // F-P0-2: a `kind:"external"` carried card background is materialized into an owned CAS asset at update.
+    // A `kind:"external"` carried card background is materialized into an owned CAS asset at update.
     materializeBackground: deps.materializeBackground,
     // Best-effort: remove/bulk-remove wrap it in try/catch, so a reap failure never fails the delete —
     // the orphan self-heals on the next collectGarbage sweep.

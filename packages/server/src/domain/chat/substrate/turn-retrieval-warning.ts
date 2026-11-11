@@ -3,7 +3,7 @@
 // turn per outage class, never once per call and never through global client coalescing. A new gathered turn
 // constructs a new episode.
 //
-// IT LIVES IN `substrate/`, NOT UNDER `memory/recall/` (#2510): `gatherAll` constructs it and hands the SAME
+// IT LIVES IN `substrate/`, NOT UNDER `memory/recall/`: `gatherAll` constructs it and hands the SAME
 // object to BOTH gather arms, so it is a property of the turn's assembly, not of the memory subsystem. It was
 // `memory/recall/rerank-warning.ts` while recall was its only producer.
 

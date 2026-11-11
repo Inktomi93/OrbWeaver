@@ -53,7 +53,7 @@ export interface PluginMessageView {
   readonly content: string;
 }
 
-/** A REDUCED roster projection (`chat.listCharacters`, #788 F11 — the ST `context.characters` parity arm). The read
+/** A REDUCED roster projection (`chat.listCharacters` — the ST `context.characters` parity arm). The read
  *  floor is what EVERY member already sees in the transcript: a character seat's id, its resolved display name,
  *  and its avatar asset id. Deliberately NOT the full card — a member plugin reading another participant's
  *  description/personality/scenario would be a leak of a co-participant's private character definition; the roster
@@ -86,14 +86,14 @@ export const pluginWorldEntryUpsertSchema = z
   })
   .strip() satisfies z.ZodType<PluginWorldEntryUpsert>;
 
-/** A REDUCED world-book projection (`worldInfo.listBooks`, #788 F12). The room's own lore books — those ATTACHED
+/** A REDUCED world-book projection (`worldInfo.listBooks`). The room's own lore books — those ATTACHED
  *  to the invocation chat, member-visible. `id` is what the guest passes back to `worldInfo.listEntries`. */
 export interface PluginWorldBookView {
   readonly id: SandboxWireId<WorldBookId>;
   readonly name: string;
 }
 
-/** A REDUCED world-entry projection (`worldInfo.listEntries`, #788 F12) — the read symmetry of
+/** A REDUCED world-entry projection (`worldInfo.listEntries`) — the read symmetry of
  *  `PluginWorldEntryUpsert`: the keys + content of ONE entry in an attached book, for the lore-indexing class
  *  (the vectors extension consumes exactly these). Content is host-capped like `PluginMessageView.content`. */
 export interface PluginWorldEntryView {
@@ -109,14 +109,14 @@ export interface PluginWorldEntryView {
  *  loading after this long can no longer be answered by the continuation that set it loading. */
 export const PLUGIN_CONTINUATION_WINDOW_MS = 45_000;
 
-/** The most bytes one `assets.read` call returns (#788 seam-11 read half). A bounded read of the installer's own
+/** The most bytes one `assets.read` call returns. A bounded read of the installer's own
  *  CAS: the membrane already caps a serialized RESULT (`HOST_FN_RESULT_CAP_BYTES`), and base64 inflates ~4/3, so
  *  the byte ceiling here is the honest pre-encode bound — an asset over it is a typed refusal of the CALL, not a
  *  truncated read (a guest must not mistake a clipped image for the whole one). 1 MiB mirrors `net.fetch`'s
  *  response cap: the two "read external/own bytes into the guest" surfaces carry the same bound. */
 export const PLUGIN_ASSET_READ_MAX_BYTES = 1_048_576;
 
-/** What `assets.read` hands back for an asset in the INSTALLER's OWN CAS (#788 seam-11 read half). Bytes as
+/** What `assets.read` hands back for an asset in the INSTALLER's OWN CAS. Bytes as
  *  base64 (the membrane boundary is JSON-safe — a `Uint8Array` cannot cross it) + the mime + the pre-encode byte
  *  size. A foreign/absent asset is the leak-free `null` the read returns instead of this — indistinguishable, no
  *  existence oracle. */
@@ -131,11 +131,11 @@ export interface PluginAssetView {
   readonly dataBase64: string | null;
 }
 
-/** The most results one `search.documents` call returns (#788 F1). A guest-supplied limit is clamped to this;
+/** The most results one `search.documents` call returns. A guest-supplied limit is clamped to this;
  *  an unbounded page is an unbounded read of the installer's corpus per call (the `listMessages` limit posture). */
 export const PLUGIN_SEARCH_RESULTS_MAX = 20;
 
-/** One ranked hit from `search.documents` (#788 F1 — the first-party retrieval read). A REDUCED
+/** One ranked hit from `search.documents` (the first-party retrieval read). A REDUCED
  *  `DocumentChunkHit`: the document's id + name, the matched chunk's content (host-capped), and the relevance
  *  score. Chunk internals (chunkId/idx/contentHash) are withheld — a guest wants the text + provenance, not the
  *  index plumbing. */
@@ -220,7 +220,7 @@ export interface PluginHostV1 {
     error: (msg: string) => void;
   };
 
-  /** Token-count ESTIMATION over the guest's OWN text (#788 F13, the ST `getTokenCountAsync` parity arm). A FREE
+  /** Token-count ESTIMATION over the guest's OWN text (the ST `getTokenCountAsync` parity arm). A FREE
    *  namespace — capability: none (always granted) — and that is the correct classification, not a shortcut: it is
    *  the kit `estimateTokens` engine (`@orb/kit/tokens`, the SAME estimator `clampToTokenBudget`/`splitToTokenBudget`
    *  build on), a PURE deterministic function of the input string with ZERO reach — no tenant data, no DB, no I/O,
@@ -243,7 +243,7 @@ export interface PluginHostV1 {
     /** The runtime variable fold cache (read) — capability: chat.read */
     getVariables: (chat: ChatHandle) => Promise<Record<string, string>>;
     /** The invocation chat's present CHARACTER roster, reduced to {@link PluginCharacterView} (id/name/avatar —
-     *  #788 F11, the ST `context.characters` parity arm). SCOPED TO THIS ROOM: the characters seated in the chat
+     *  the ST `context.characters` parity arm). SCOPED TO THIS ROOM: the characters seated in the chat
      *  this invocation was admitted to, never a global "all your characters" list and never a character from a
      *  chat the caller isn't in — a non-member resolves to `[]` (the `listMessages` viewer choke, member-gated).
      *  capability: chat.read */
@@ -264,12 +264,12 @@ export interface PluginHostV1 {
   };
 
   readonly worldInfo: {
-    /** The books ATTACHED to the invocation chat, reduced to {@link PluginWorldBookView} (#788 F12). SCOPED TO
+    /** The books ATTACHED to the invocation chat, reduced to {@link PluginWorldBookView}. SCOPED TO
      *  THIS ROOM: only books attached to the chat this invocation was admitted to (the write path's own
      *  `isBookAttachedToChat` gate, one plane over), member-gated — a non-member resolves to `[]`. Owner-scoped by
      *  construction (the bridge resolves the installer's Principal). capability: worldinfo.read */
     listBooks: (chat: ChatHandle) => Promise<readonly PluginWorldBookView[]>;
-    /** The entries of ONE attached book, reduced to {@link PluginWorldEntryView} (#788 F12 — the read symmetry of
+    /** The entries of ONE attached book, reduced to {@link PluginWorldEntryView} (the read symmetry of
      *  `upsertEntry`). Leak-free: a `bookId` not attached to THIS chat (or not owned) resolves to `[]`,
      *  indistinguishable from an attached-but-empty book — no existence oracle for another room's or owner's
      *  books. capability: worldinfo.read */
@@ -280,7 +280,7 @@ export interface PluginHostV1 {
   };
 
   readonly assets: {
-    /** Read back one asset from the INSTALLER's OWN CAS (#788 seam-11 read half). The guest names an `assetId`
+    /** Read back one asset from the INSTALLER's OWN CAS. The guest names an `assetId`
      *  (e.g. one `imagery.generatePicture` just returned); the host resolves the installer's Principal and reads
      *  through the assets domain's OWNER-GATED front door, so a guest can only ever read its own. A foreign or
      *  absent id is the leak-free `null` — indistinguishable, no existence oracle for another owner's CAS. An
@@ -290,7 +290,7 @@ export interface PluginHostV1 {
   };
 
   readonly search: {
-    /** Semantic document search over the INSTALLER's OWN indexed corpus (#788 F1 — the first-party RAG parity
+    /** Semantic document search over the INSTALLER's OWN indexed corpus (the first-party RAG parity
      *  arm the vectors extension hand-rolls). The guest supplies only the query text; the host closes the
      *  installer's `ownerId` over the search scope, so a guest can search no other owner's library — a read of
      *  the installer's own data, owner-scoped by construction. Results are ranked {@link PluginSearchHit}s,
@@ -325,7 +325,7 @@ export interface PluginHostV1 {
      *  A LOST RACE IS DATA, NOT AN ERROR: `applied: false` resolves, it never rejects. Three throws
      *  auto-disable a plugin, and losing a race is the ordinary case this call exists to report.
      *
-     *  WHY IT EXISTS (#1442). `get` → compute → `set` is not atomic, and a plugin's own handlers race INSIDE
+     *  WHY IT EXISTS. `get` → compute → `set` is not atomic, and a plugin's own handlers race INSIDE
      *  ONE PROCESS — two chat events, a tool call and a surface action can all be in flight at once, each
      *  awaiting a host call between the read and the write, so the second write silently discards the first's
      *  increment. A guest CANNOT solve this itself: the sandbox has no timers, no randomness and no shared
@@ -423,7 +423,7 @@ export interface PluginHostV1 {
       created: boolean;
     }>;
     /** Ingest a character from a PNG ASSET the guest already has in the INSTALLER's OWN CAS (plugin-remote-image
-     *  #798 — the "Add to your library WITH its art" arm). The guest names an `assetId` (e.g. one
+     *  The "Add to your library WITH its art" arm). The guest names an `assetId` (e.g. one
      *  `net.fetchAsset` just returned for a hub cover); the host resolves the installer's OWN CAS through the
      *  OWNER-GATED read (a foreign/absent id rejects leak-free — the `readOwnedAssetBytes` posture, no existence
      *  oracle) and runs the SAME `importCharacter` PNG funnel a file upload takes: it parses the ccv3/chara
@@ -603,18 +603,18 @@ export interface PluginHostV1 {
      *  D61 B5a). */
     fetch: (url: string, init?: { method?: "GET" | "POST"; headers?: Record<string, string>; body?: string }) => Promise<{ status: number; body: string }>;
     /** capability: net.fetch_asset — download a REMOTE IMAGE into the INSTALLER's OWN CAS and get back an
-     *  assetId (plugin-remote-image #798). The guest supplies ONLY the url string and receives ONLY an assetId;
+     *  assetId. The guest supplies ONLY the url string and receives ONLY an assetId;
      *  the BYTES never enter the guest realm and NO URL is ever spellable inside a rendered node — the
      *  `image`/`hero` DSL nodes stay assetId-only, so the seam-11 anti-exfil-pixel wall is unchanged.
      *
-     *  THE HOST performs everything: it claims its OWN hourly belt (`PluginBridge.admitAssetEgress`, #801 —
+     *  THE HOST performs everything: it claims its OWN hourly belt (`PluginBridge.admitAssetEgress` —
      *  split from `net.fetch`'s so an art grid's honest cover spend can never starve text egress; the REACH
      *  delta stays zero — an allowlisted GET is already expressible via `net.fetch`, so this adds a
      *  CAS-WRITE, not egress reach), GETs the url through the audited SSRF guard pinned to the manifest `netHosts` allowlist (every
      *  hop re-validates https + the allowlist + private-range denial — a loopback/internal/off-allowlist/
      *  scheme-downgrade target is refused), runs the remote-image guard on the downloaded bytes (magic-byte
      *  sniff — the remote Content-Type is NEVER trusted — plus the dimension/pixel decompression-bomb caps and
-     *  the 5 MiB asset byte cap, #801: real hub art outgrows the 1 MiB wire cap and these bytes never enter
+     *  the 5 MiB asset byte cap: real hub art outgrows the 1 MiB wire cap and these bytes never enter
      *  the guest), and writes the validated bytes to the installer's OWN CAS under the sniffed mime. A
      *  non-2xx, an SSRF/oversize/non-image refusal, or a network error is a typed REJECTION of the call (there
      *  is no assetId to return), never a silent empty asset. The CAS write is owner-scoped by construction (the
@@ -671,7 +671,7 @@ export interface PluginHostV1 {
      *  in through the args bag would be a second spelling of the same token. Run outside a room (the palette or top bar
      *  on a non-chat screen), `chat.current()` throws — the honest answer, not a synthesized room.
      *
-     *  THE #791 TYPED-ARG GRAMMAR: a command MAY declare `args` (the ST `SlashCommandArgument` core —
+     *  THE TYPED-ARG GRAMMAR: a command MAY declare `args` (the ST `SlashCommandArgument` core —
      *  named/typed/enum/required). When it does, the platform COLLECTS + TYPES + VALIDATES + AUTOCOMPLETES them at
      *  both surfaces (the palette's typed input strip, the composer's `name=value` completion) before `onRun`
      *  runs, and hands the guest the typed `values` bag ALONGSIDE the raw `args` remainder (unchanged — a command
@@ -757,7 +757,7 @@ export const HOST_FUNCTION_CAPABILITY = {
   "chat.current": "chat.read",
   "chat.listMessages": "chat.read",
   "chat.getVariables": "chat.read",
-  // #788 F11 — the character roster read rides the SAME `chat.read` grant its sibling reads do: the present
+  // The character roster read rides the SAME `chat.read` grant its sibling reads do: the present
   // roster (id/name/avatar) is member-visible room state at the exact tier `listMessages`/`getVariables` read,
   // so it is not a distinct consent line (a reader agreeing to "read this room's messages" already agrees to see
   // who is in the room).
@@ -765,16 +765,16 @@ export const HOST_FUNCTION_CAPABILITY = {
   "chat.applyVariableOps": "chat.variables.write",
   "chat.surfaceQuickReply": "chat.quick_reply",
   "chat.requestTurn": "turn.trigger",
-  // #788 F12 — the world-info READ half, its OWN `worldinfo.read` grant (a distinct consent line from the write:
+  // The world-info READ half, its OWN `worldinfo.read` grant (a distinct consent line from the write:
   // "read the room's lore" is a reach a person weighs apart from "write lore"). Both read functions ride the one
   // grant — listing the books and reading their entries is one symmetric "read your lore" consent.
   "worldInfo.listBooks": "worldinfo.read",
   "worldInfo.listEntries": "worldinfo.read",
   "worldInfo.upsertEntry": "worldinfo.write",
-  // #788 seam-11 read half — the CAS asset read, its OWN `assets.read` grant. Owner-scoped: a guest reads back
+  // The CAS asset read, its OWN `assets.read` grant. Owner-scoped: a guest reads back
   // only assets in the installer's own CAS (the domain's owner-gated read), a foreign/absent id is leak-free null.
   "assets.read": "assets.read",
-  // #788 F1 — the first-party retrieval read, its OWN `search.query` grant. Owner-scoped: the bridge closes the
+  // The first-party retrieval read, its OWN `search.query` grant. Owner-scoped: the bridge closes the
   // installer's ownerId over the search scope, so a guest searches only its own corpus.
   "search.documents": "search.query",
   "variables.get": "global_vars",
@@ -783,7 +783,7 @@ export const HOST_FUNCTION_CAPABILITY = {
   "storage.get": "storage.kv",
   "storage.set": "storage.kv",
   "storage.delete": "storage.kv",
-  // #1442 — the ATOMIC arm of the same plane. Its capability is `storage.kv`, IDENTICAL to `storage.set`:
+  // The ATOMIC arm of the same plane. Its capability is `storage.kv`, IDENTICAL to `storage.set`:
   // same grant, same owner scope, no new ownership check, a PRECONDITION added rather than a reach widened.
   // A distinct consent line would be a lie — a user who allowed the plugin to write its own KV has already
   // allowed exactly this write.
@@ -797,7 +797,7 @@ export const HOST_FUNCTION_CAPABILITY = {
   // over each op, so there is no `canWrite` gate here — the grant is the whole membrane-tier wall.
   "databank.ingest": "databank.ingest",
   "character.ingest": "character.ingest",
-  // #798 — the remote-image "summon with art" arm rides the SAME `character.ingest` grant as `character.ingest`:
+  // The remote-image "summon with art" arm rides the SAME `character.ingest` grant as `character.ingest`:
   // its reach is identical (a character import into the installer's own library), only the input form differs (a
   // PNG asset the installer owns vs. a JSON card), so it is not a distinct consent line (the `card_state`
   // read/write pair riding ONE grant is the precedent).
@@ -824,8 +824,8 @@ export const HOST_FUNCTION_CAPABILITY = {
   "transforms.registerDisplay": "chat.transform",
   "macros.register": "chat.transform",
   "net.fetch": "net.fetch",
-  // #798 — the remote-image-into-CAS arm, its OWN `net.fetch_asset` consent line (identical egress REACH to
-  // `net.fetch` — same allowlist; since #801 it claims its own art-sized hourly belt — plus a CAS write, which
+  // The remote-image-into-CAS arm, its OWN `net.fetch_asset` consent line (identical egress REACH to
+  // `net.fetch` — same allowlist; it claims its own art-sized hourly belt — plus a CAS write, which
   // is the distinct reach a person weighs). Keyed 1:1 to its capability; the netHosts biconditional treats both
   // as egress capabilities.
   "net.fetchAsset": "net.fetch_asset",
@@ -872,8 +872,8 @@ export const HOST_FUNCTION_CAPABILITY = {
  *     has no invocation. The client names its room as `chatId` on the proc instead, and the server verifies
  *     MEMBERSHIP rather than trusting the claim.
  *   - `notifications.post` — THE MOST LIKELY FIRST WIDENING. Its per-call bounds already exist (the 60 s
- *     per-(plugin, chat) notify floor, the domain-side recipient resolve, the 200-char cap); what it lacked
- *     until row 777 was a membership-verified room for a CLIENT-claimed `chatId`. Row 777's
+ *     per-(plugin, chat) notify floor, the domain-side recipient resolve, the 200-char cap); what it needs
+ *     is a membership-verified room for a CLIENT-claimed `chatId`. The room dimension's
  *     `resolveChatAuthority` gate is exactly that, so the sanctioned shape is: admit the claimed chat, then
  *     call the bridge op under the existing floor. Priced, not built — it is an EFFECT, and this lane's
  *     tuple is deliberately reads + KV + belted egress.
@@ -917,7 +917,7 @@ export const HOST_FUNCTION_CAPABILITY = {
  *     SERVER guests — neither is server-owned DATA a client guest lacks. A client UI guest holds `orb.ui(1)`, not
  *     `orb.host(1)`, and the private-event plane is a SERVER-guest composition primitive; relaying it would put a
  *     client guest into the installer's resident event graph, which is not what §4.6's read-latency purchase was.
- *   - `chat.listCharacters` (#788 F11) — OUT, but the STRONGEST future proxy candidate: it is the same class as the
+ *   - `chat.listCharacters` — OUT, but the STRONGEST future proxy candidate: it is the same class as the
  *     proxyable `chat.listMessages`/`getVariables` (a chat-scoped canon read a surface renders from, self-gating
  *     membership → `[]` for a non-member), and a scripted sprite/expression surface swapping art per speaker is
  *     exactly the local-immediate latency want §4.6 bought. It is OUT of THIS lane only because the tuple is an
@@ -925,15 +925,15 @@ export const HOST_FUNCTION_CAPABILITY = {
  *     act, not a lane's side effect — a PRICED widening (add it to the tuple + its pin, no new gate needed), never
  *     a silent entry. Until then a scripted surface reads the roster through its server guest on an `actionId`
  *     round-trip, losing latency, nothing else.
- *   - `worldInfo.listBooks` / `worldInfo.listEntries` (#788 F12) — OUT. Chat-scoped reads that self-gate
+ *   - `worldInfo.listBooks` / `worldInfo.listEntries` — OUT. Chat-scoped reads that self-gate
  *     (attachment + membership), so like `listCharacters` they COULD be proxied under the same membership-on-claimed-
  *     `chatId` shape `listMessages` already uses — but the lore-read consumer is the server-side indexing class,
  *     not a per-frame surface render, so the latency want is weak; a PRICED widening, not this lane's tuple edit.
- *   - `assets.read` (#788 seam-11) — OUT, the `character.getCardData` shape one plane over: it IS a read, but its
+ *   - `assets.read` — OUT, the `character.getCardData` shape one plane over: it IS a read, but its
  *     owner-scope is per-ASSET and a proxied call names an `assetId` the server would owe an ownership check on
  *     before reading (the `chat.current`/row-777 `resolveChatAuthority` posture onto asset ownership). The bridge
  *     read already owner-gates, so the widening is small, but it is a widening — priced, never a free entry.
- *   - `search.documents` (#788 F1) — OUT. It IS an owner-scoped read (the bridge closes the installer's ownerId
+ *   - `search.documents` — OUT. It IS an owner-scoped read (the bridge closes the installer's ownerId
  *     over the scope, so a proxied call would need no new ownership gate), but every call runs a QUERY EMBEDDING
  *     (which may call a hosted provider), and a client guest firing it at animation rate would hammer the embedder — the
  *     compute-cost class the read tuple deliberately does not admit (§4.6 bought LATENCY for local-immediate
@@ -953,7 +953,7 @@ export const UI_PROXYABLE_HOST_FUNCTIONS = [
   "storage.set",
   "storage.delete",
   "storage.list",
-  // #1442 — IN, and the classification is forced rather than chosen: this is a `storage.kv`-plane DATA op,
+  // IN, and the classification is forced rather than chosen: this is a `storage.kv`-plane DATA op,
   // and its reach is strictly NARROWER than `storage.set` three lines up (same grant, same owner scope, a
   // precondition added). Excluding it would leave a Tier-C surface — which does the same read-modify-write on
   // the same keys the server guest does — with no atomic write at all, which is the defect, not a limit.

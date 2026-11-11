@@ -39,7 +39,7 @@ const FAIL_CLOSED_FLOOR = Number.MAX_SAFE_INTEGER;
  *  keys the selected-variant check off the live pointer, so a swipe re-projects with no journal writes.
  *
  *  `historyFloorSeq` is the caller's D16 floor, MINTED by chat's clamp resolver and threaded in as data
- *  (#1528) — REQUIRED, so a new caller must decide whose floor it reads at rather than inheriting "unclamped"
+ * — REQUIRED, so a new caller must decide whose floor it reads at rather than inheriting "unclamped"
  *  from a default. See the floor paragraph in the WHERE below. */
 export async function listActiveJournal(
   db: Db,
@@ -54,7 +54,7 @@ export async function listActiveJournal(
     .from(messageVariants)
     .innerJoin(messages, eq(messages.id, messageVariants.messageId))
     .where(and(eq(messageVariants.id, rpgJournal.variantId), eq(messages.selectedVariantId, rpgJournal.variantId)));
-  // THE D16 FLOOR, IN THE QUERY (#1528): a model entry is DISTILLED FROM the slot it stamps, so an entry whose
+  // THE D16 FLOOR, IN THE QUERY: a model entry is DISTILLED FROM the slot it stamps, so an entry whose
   // source message sits below the caller's floor is pre-join canon one derivation removed. Expressed as NOT
   // EXISTS over the anchor rather than a join, so a HAND entry (`sourceMessageId IS NULL` — no canon anchor,
   // the chat event clamp's own rule for an anchorless payload) rides through, and so the LIMIT counts only

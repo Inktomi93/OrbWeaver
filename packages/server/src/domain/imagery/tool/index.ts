@@ -38,7 +38,7 @@ export function imageryToolDefinitions(deps: ImageryToolDeps): readonly ToolHand
   return [
     imageryTool({
       name: "generate_image",
-      // PROSE-1 slot (#578): `imagery.tool.generateImageDescription`, resolved to its shipped default at
+      // PROSE-1 slot: `imagery.tool.generateImageDescription`, resolved to its shipped default at
       // module load (no user in scope at compose registration — the `RPG_BASELINE_TOOL_DESCRIPTIONS` posture).
       description: IMAGERY_GENERATE_IMAGE_TOOL_DESCRIPTION,
       argsSchema: generateImageToolArgsSchema,

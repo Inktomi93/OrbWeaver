@@ -2,11 +2,11 @@
 // exception to "persistence is queries only", exactly like persona's `import-write.ts`: batch-UPDATEs
 // `characters.avatarAssetId` for one owner, in ONE `db.batch`, owner-scoped in every WHERE.
 //
-// OWNER-SCOPED ON BOTH AXES (#1480 item 4): the character (id + owner, directly) AND the asset the SET
+// OWNER-SCOPED ON BOTH AXES: the character (id + owner, directly) AND the asset the SET
 // writes (an EXISTS subquery inside the same UPDATE — see `ownedAssetExists`). Neither id is derived here:
 // both arrive from the caller's list, so both are gated here.
 //
-// It moved here from `assets/persistence/maintenance.ts` (2026-08-02), which is where it was WRITTEN from
+// It moved here from `assets/persistence/maintenance.ts`, which is where it was WRITTEN from
 // but not where it BELONGS: `characters` is character's table, and a cross-domain write routes through the
 // owning domain's persistence helper + an injected op (Tier-1-DB.md §"Cross-tier composition"; Constitution.md §2).
 // Assets keeps the READ half (`loadAvatarBackfillCandidates`) — `persistence/` is the sanctioned home for a
@@ -15,7 +15,7 @@
 // SILENT by design: no audit entry, no user-bus event, no snapshot. A backfill reconciles a pointer the
 // import path already meant to set; the workload reports the counts at the run level.
 //
-// IT DOES STAMP `updatedAt`, THOUGH — and that is the one thing "silent" never covered (#1379 item 2).
+// IT DOES STAMP `updatedAt`, THOUGH — and that is the one thing "silent" never covered.
 // The three omissions above are enumerated deliberately and the timestamp was not among them: it was
 // missing, not decided. The precedent is recorded one file over, on the archive flip
 // (`persistence/card.ts` setArchivedBulk): *"the X-16 edited-stamp precedent — a flag flip is still an
@@ -39,7 +39,7 @@ import type { SQL } from "drizzle-orm";
 import { and, eq, exists, sql } from "drizzle-orm";
 import type { CharacterAvatarLinkContext } from "../contract/avatar-link.ts";
 
-/** THE ASSET AXIS OF THE RELINK'S BELT (#1480 item 4). The character axis (id + owner) was always in the
+/** THE ASSET AXIS OF THE RELINK'S BELT. The character axis (id + owner) was always in the
  *  WHERE; the asset the SET writes was not checked at all, so a caller-supplied `link.assetId` naming
  *  ANOTHER owner's asset landed on this owner's own card — a live pointer into a library the card's owner
  *  cannot read, and an FK that GC-roots the other owner's blob through a row they do not control. That is

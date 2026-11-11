@@ -7,7 +7,7 @@
 // contract tuples (`@orb/contracts/plugin` — no re-spell, the ASSET_KINDS precedent). `plugin_kv` is the
 // `storage.kv` plane: PK (plugin_id, key), a denormalized `owner_id` guard column (belt: WHERE both), the
 // key / value caps as CHECK-DDL read from the contract constants the UI relay's argument schema reads too. `plugin_assets` is the plugin ASSET register —
-// the FK column that makes a `net.fetchAsset` cover (#802) or a bundle-shipped `ui/assets/` image (#820)
+// the FK column that makes a `net.fetchAsset` cover or a bundle-shipped `ui/assets/` image
 // VISIBLE to the asset-GC ref registry; `bundle_path` distinguishes the two and resolves a UI node's path.
 
 import type { PluginCapability, PluginManifest } from "@orb/contracts/plugin";
@@ -125,7 +125,7 @@ export const plugins = sqliteTable(
   ],
 );
 
-/** The SERVER-WIDE DISTRIBUTION SET (D147 clause (d), resolved 2026-08-24): what an admin has published to
+/** The SERVER-WIDE DISTRIBUTION SET (D147 clause (d)): what an admin has published to
  *  every user. It is a LIST OF PUBLISHED BUNDLES, never an install — the installs themselves are ordinary
  *  per-owner `plugins` rows minted by the fan-out, so nothing here is shared at run time (no shared row, no
  *  shared principal, no consent junction).
@@ -181,11 +181,11 @@ export const adminDistributedPlugins = sqliteTable(
   ],
 );
 
-// The PER-PLUGIN spend envelope (`plugin_budgets`) was stripped 2026-07-24 — enterprise spend enforcement.
+// The PER-PLUGIN spend envelope (`plugin_budgets`) was stripped — enterprise spend enforcement.
 // A runaway plugin's autonomous turns/images stay bounded by the per-member turn RATE cap + the cascade-depth
 // guard (shared with automation); cost VISIBILITY rides the stats domain. No per-plugin $/action ceiling.
 
-/** THE PLUGIN ASSET REGISTER (#802 fetched · #820 bundle-shipped): one row per (installed plugin, asset it
+/** THE PLUGIN ASSET REGISTER (runtime-fetched · bundle-shipped): one row per (installed plugin, asset it
  *  holds, the bundle path it came from). It exists for exactly one reason — `ASSET_REFS` (the FK enumeration
  *  BOTH asset-GC paths iterate) can only see an `AssetId` sitting in a real FK column, and a `net.fetchAsset`
  *  cover landed in the installer's CAS with NO referencing row anywhere. So the scheduled `assets-gc` reaped a
@@ -194,18 +194,18 @@ export const adminDistributedPlugins = sqliteTable(
  *  `message_assets` posture: a link row whose whole job is to make an otherwise-invisible reference VISIBLE to
  *  the registry.
  *
- *  TWO PROVENANCES, ONE TABLE (#820 seam 11): `bundle_path` is `''` for a RUNTIME-fetched cover (#802) and
+ *  TWO PROVENANCES, ONE TABLE: `bundle_path` is `''` for a RUNTIME-fetched cover and
  *  the zip entry path (`ui/assets/<name>`) for an INSTALL-TIME bundle-shipped image. It is one table and not
  *  two because the GC question is identical for both — "does an installed plugin still hold this blob" — and
  *  a second table would be a second thing to remember to register in `ASSET_REFS`, which is precisely the
- *  omission #802 was minted to fix. What differs is only whether the row can also ANSWER "which asset is
+ *  omission this register exists to close. What differs is only whether the row can also ANSWER "which asset is
  *  `ui/assets/happy.png`", which is what the column adds.
  *
  *  WHY THE PATH IS IN THE PRIMARY KEY, and why it is `NOT NULL DEFAULT ''` rather than nullable. The CAS is
  *  content-addressed, so a bundle shipping TWO paths with IDENTICAL bytes dedups to ONE assetId — under the
  *  original (plugin_id, asset_id) key the second path would COLLIDE and be silently lost, and the node naming
  *  it would render a placeholder forever. And NULL is not available as the "no path" spelling: SQLite does not
- *  enforce NOT NULL on the PK columns of a rowid table, so NULLs would compare DISTINCT and the #802 re-fetch
+ *  enforce NOT NULL on the PK columns of a rowid table, so NULLs would compare DISTINCT and the re-fetch
  *  upsert would duplicate rows instead of refreshing one. `''` is therefore the sentinel, and the CHECK below
  *  is what keeps it from becoming a free-text column.
  *
@@ -240,8 +240,8 @@ export const pluginAssets = sqliteTable(
       .$type<AssetId>()
       .notNull()
       .references(() => assets.id, { onDelete: "cascade" }),
-    /** The zip entry this asset was unpacked from (`ui/assets/<name>`, #820), or `''` for a runtime
-     *  `net.fetchAsset` cover (#802) — see the table header for why the sentinel is `''` and not NULL. It is
+    /** The zip entry this asset was unpacked from (`ui/assets/<name>`), or `''` for a runtime
+     *  `net.fetchAsset` cover — see the table header for why the sentinel is `''` and not NULL. It is
      *  the RESOLUTION key: a UI node names a bundle path and `listPluginBundleAssets` turns it into the id. */
     bundlePath: text("bundle_path").notNull().default(""),
     // Diagnostic provenance for the last fetch or bundle unpack of this retained CAS link; asset
@@ -250,7 +250,7 @@ export const pluginAssets = sqliteTable(
   },
   (t) => [
     // (plugin_id, asset_id, bundle_path) is the identity: the same plugin re-fetching the same bytes upserts
-    // ONE row (both #802 coordinates plus the empty path), while a bundle shipping the same image at two
+    // ONE row (both fetch coordinates plus the empty path), while a bundle shipping the same image at two
     // paths keeps BOTH rows — the dedup'd assetId is the same, and the path is what tells them apart.
     // The leading two columns are unchanged, so every read written against the old key keeps its plan.
     primaryKey({ columns: [t.pluginId, t.assetId, t.bundlePath] }),
@@ -273,7 +273,7 @@ export const pluginKv = sqliteTable(
       .references(() => plugins.id, { onDelete: "cascade" }),
     // Denormalized guard column (belt: every query filters WHERE plugin_id AND owner_id).
     //
-    // NOTHING TIES IT TO `plugins.owner_id`, AND THAT IS ACCEPTED (#1378 item 11 — the review's strongest
+    // NOTHING TIES IT TO `plugins.owner_id`, AND THAT IS ACCEPTED (the review's strongest
     // DB claim, and reachability-traced to nil). The PK is `(plugin_id, key)`, so a row could in principle
     // name plugin P while carrying a DIFFERENT user's `owner_id`, and SQLite cannot express a CHECK against
     // another table. UNREACHABLE today: every traced writer derives `ownerId` from a caller already gated

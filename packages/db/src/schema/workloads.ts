@@ -143,7 +143,7 @@ export const workloads = sqliteTable(
     // The heartbeat: bumped on every in-flight lease tick; the reaper's stale-threshold key (a dead
     // worker stops bumping → the row is reaped to worker_died, freeing the kind's active slot).
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
-    // The BOOT-RESPAWN counter (#529): how many times the single-replica boot reclaim has re-queued this
+    // The BOOT-RESPAWN counter: how many times the single-replica boot reclaim has re-queued this
     // row after a process respawn WITHOUT the run reporting progress since. A resumable kind
     // (`WorkloadContribution.resume !== "none"`) survives a respawn by going back to `queued` instead of
     // terminal — the counter is what keeps that from being an unbounded crash loop: past the bound the

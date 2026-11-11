@@ -13,9 +13,9 @@
 //     seam: `ChatContext.resolveChatProse(chatId)`, which resolves the present host exactly as
 //     `resolveChatPresetParams` does (`resolveChatHostUserId` → `loadUserSettings(host).prose`); a
 //     hostless/stale room degrades to `{}` ⇒ the shipped defaults.
-//   • per-PRESET (owner ruling 2026-08-07, verbatim: "templates need to have one home in presets not
+//   • per-PRESET (owner ruling, verbatim: "templates need to have one home in presets not
 //     scattered between that and settings or hiding in code"): the TURN-WIRE FRAMINGS — the two injection note
-//     frames, the continuation cue, and (F4 re-home, 2026-08-08, ruling arm (a) + D132(B) amendment) the
+//     frames, the continuation cue, and (F4 re-home, ruling arm (a) + D132(B) amendment) the
 //     GROUP-ROOM FRAMINGS: the co-speaker headings (`characterHeading`/
 //     `scenarioHeading`/`exampleHeading`), the person heading (`personaHeading`), the per-speaker and narrator
 //     round nudges (`roundNudge`/`narratorNudge`), and the speaker-tag instruction (`speakerTags`). Storage `promptConfig.prose`; authored
@@ -30,7 +30,7 @@
 //     and the no-cascade law holds.
 //
 // NO DATA MIGRATION for the re-homed frames (pre-launch NO-LEGACY): a `UserSettings.prose` override written
-// against the two injection frames (before 2026-08-07) or the seven group framings (before the F4 re-home)
+// against the two injection frames or the seven group framings from before the re-home
 // stops applying — D132(D) leaves the stale user-blob key inert — and is re-entered in the preset Templates tab.
 //
 // MACRO MODE = "none" for every row: a summarizer / arbiter / digest prompt runs over a
@@ -156,13 +156,13 @@ export const CHAT_PROSE_SLOTS = {
     // cue names who speaks.
     //
     // v2 is a VOCABULARY fix on the `chat.arbiter.system` v2 / `chat.group.speakerTags` v2 precedent, not a
-    // behavior change: #901 Fork 1 retired "cast" for the room's seated characters, and this heading spent it.
-    // Owner-ruled 2026-08-30 to a direct swap ("[Character — {{name}}]") rather than dropping the label — the
+    // behavior change: the vocabulary ruling retired "cast" for the room's seated characters, and this heading spent it.
+    // Owner-ruled to a direct swap ("[Character — {{name}}]") rather than dropping the label — the
     // explicit "this block is a character" signal is what weaker local models lean on. Model-facing bytes are
     // still bytes, so it rides the lawful re-version path (D132(A)); a silent edit would strand every
     // host's `baseVersion` stamp.
     //
-    // THE ID ITSELF WAS `chat.group.castMember` UNTIL 2026-09-05 (#1737, owner-ruled arm (a)). The 2026-08-30
+    // THE ID ITSELF IS NOT `chat.group.castMember` (owner-ruled arm (a)). The
     // ruling above SURVIVES — its INPUT changed: the warning it records is about a SILENT id edit, and this one
     // is not silent. `migrateProseSlotVocab` (`domain/preset/persistence/migrate-prose-slot-vocab.ts`, run as a
     // boot step) re-keys every stored `promptConfig.prose` override onto the new id CARRYING its `baseVersion`
@@ -246,8 +246,8 @@ export const CHAT_PROSE_SLOTS = {
     home: "preset",
     version: 2,
     // v2 is a VOCABULARY fix on the `chat.arbiter.system` v2 precedent, not a behavior change: the default
-    // said "as it is spelled in the cast" and #901 Fork 1 retired "cast" for the room's seated characters.
-    // Owner-ruled 2026-08-30 to read "in the room" rather than "in the character list" — the string is read
+    // said "as it is spelled in the cast" and the vocabulary ruling retired "cast" for the room's seated characters.
+    // Owner-ruled to read "in the room" rather than "in the character list" — the string is read
     // by a MODEL, never shown as chrome, so it owes unambiguity, not agreement with a UI label. Model-facing
     // bytes are still bytes, so it rides the lawful re-version path (D132(A)) instead of a silent edit
     // that would strand every host's `baseVersion` stamp.
@@ -319,7 +319,7 @@ export const CHAT_PROSE_SLOTS = {
   "chat.recovery.narrativeContinuation": {
     home: "user",
     version: 1,
-    // The ONE ask of the recovery pass (dogfood EMPTYGEN-REASONING, owner ruling 2026-08-07 — RECOVER, do not
+    // The ONE ask of the recovery pass (dogfood EMPTYGEN-REASONING, owner ruling — RECOVER, do not
     // discard). A reasoning turn on a tool-attached game can conclude that its tool calls discharged the beat
     // and emit ZERO prose; the state writes are good, the reply is missing, and the turn used to be thrown
     // away whole. The recovery pass re-runs the SAME turn with the tools removed and this line as the trailing

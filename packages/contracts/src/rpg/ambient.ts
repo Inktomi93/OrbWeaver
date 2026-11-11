@@ -19,7 +19,7 @@ const MINUTE_MAX = 59;
  *  story has stated no when at all, the born state); within a present plane the TIME is separately nullable,
  *  and that is a distinction the surfaces need rather than a hedge.
  *
- *  WHY THE TIME IS NULLABLE INSIDE A PRESENT CLOCK (2026-08-07). `day` is a CALENDAR COUNTER and
+ *  WHY THE TIME IS NULLABLE INSIDE A PRESENT CLOCK. `day` is a CALENDAR COUNTER and
  *  `hour`/`minute` are a TIME OF DAY: two facts a story moves independently ("three days later" says nothing
  *  about the hour). They shared one all-or-nothing nullability, so the only way to unset the time was to null
  *  the whole plane — which took `day N` with it, and `day N` has no other host-side door to restore (the
@@ -89,8 +89,8 @@ export function rpgWeatherText(weather: RpgWeather): string {
 }
 
 /** The label vocabulary lite steers ambient time through (§2.7). `update_scene.timeOfDay` picks one; the
- *  banner derives the label back from the stored hour. Deliberately does NOT carry `dusk` (owner ruling
- *  2026-07-31): a WRITE vocabulary with both `dusk` and `evening` invites the model to dither between
+ *  banner derives the label back from the stored hour. Deliberately does NOT carry `dusk` (owner
+ *  ruling): a WRITE vocabulary with both `dusk` and `evening` invites the model to dither between
  *  near-synonyms. Dawn/dusk differentiation is a RENDER concern — the Waystone reads `clock.hour` directly and
  *  glows through the golden windows (`waystone-treatment.ts`), so the visual distinction ships without a
  *  vocabulary member. */

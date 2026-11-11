@@ -57,7 +57,7 @@ const cardSpecSchema = z.enum(CARD_SPECS) satisfies z.ZodType<CardSpec>;
  * reads it (`character-overview-card.tsx`). It used to be a bare `"orbweaver"` literal in the pack with no
  * reader, so the Origin card told a first-time user their ten shipped example characters were `Made here` —
  * provenance that is false about every row in a fresh library, on the one card whose whole job is provenance
- * (side-eye 2026-08-30 rail-characters P3, #843).
+ * That is why the Origin readout derives from the server's projection.
  *
  * It is a card-content field, so it is a HEURISTIC by construction: an imported card whose author wrote
  * `orbweaver` in its creator field reads as shipped too. That is the honest limit of a claim derived from
@@ -65,7 +65,7 @@ const cardSpecSchema = z.enum(CARD_SPECS) satisfies z.ZodType<CardSpec>;
  */
 export const AUTHORED_CARD_CREATOR = "orbweaver";
 
-// WHERE A CHARACTER IN THE LIBRARY CAME FROM — the closed verdict both read models project (#865).
+// WHERE A CHARACTER IN THE LIBRARY CAME FROM — the closed verdict both read models project.
 //
 // `shipped` = one of the app's own default cards ({@link AUTHORED_CARD_CREATOR}) · `imported` = brought in
 // from outside (the row carries an `importedFrom`) · `authored` = the owner made it here. Three arms, total
@@ -83,8 +83,8 @@ export type CharacterProvenance = (typeof CHARACTER_PROVENANCES)[number];
  *
  * It lives in contracts for the same reason {@link AUTHORED_CARD_CREATOR} does: the server read seam calls
  * it (`domain/character/persistence/queries.ts` — `summaryOf` and `detailOf`) and the client only DISPATCHES
- * on the result, and neither package may import the other. Before #865 the Origin readout derived this
- * itself from two raw columns, which is why the list row — carrying neither — could not answer at all.
+ * on the result, and neither package may import the other. An Origin readout that derives this
+ * itself from two raw columns cannot answer on the list row, which carries neither.
  *
  * ORDER IS LOAD-BEARING: `imported` wins outright. A card imported FROM another Orbweaver install carries
  * both signals, and what it IS to this library is an import. The shipped arm inherits
@@ -106,7 +106,7 @@ const PLUGIN_IMPORTED_FROM_PREFIX = "plugin";
 
 /**
  * Mint the deterministic `importedFrom` value for a card ingested through a plugin's `character.ingest` /
- * `character.ingestAsset` capability (#1702).
+ * `character.ingestAsset` capability.
  *
  * THE HUB'S OWN CARD ID NEVER REACHES THIS FUNNEL, AND THAT IS THE POINT. `character.ingest`'s wire shape is
  * `{ card: Record<string, unknown> }` — arbitrary, plugin-authored JSON the funnel treats as UNTRUSTED
@@ -174,7 +174,7 @@ export type CardDepthPrompt = z.infer<typeof cardDepthPromptSchema>;
 // The read seam's whole-object `.catch(null)` (character persistence) heals any pre-tightening loose
 // blob to null — the pre-launch bargain, no migration mechanics.
 // `score` holds the pipeline's 1-10 rubric (a score run's `overallScore`) — tightened IN THE SAME CHANGE
-// as the read seam's field-level heal split (security pass §1 gap 2's ordering condition: tightening
+// as the read seam's field-level heal split (the ordering condition: tightening
 // under the old whole-object catch would have wiped BOTH halves on any legacy out-of-range value).
 export const refinerySignalsSchema = z
   .object({
@@ -460,7 +460,7 @@ export const updateCharacterSchema = createCharacterSchema.partial().extend({
   forbidExternalMedia: z.boolean().nullable().optional(),
   /** Tri-state: null = inherit the deployment default, true = HTML renders TRUSTED, false = force untrusted. */
   trustHtml: z.boolean().nullable().optional(),
-  /** The interactive-card opt-in (#111) — the TOP RUNG of the html-trust ladder, stored beside `trustHtml`
+  /** The interactive-card opt-in — the TOP RUNG of the html-trust ladder, stored beside `trustHtml`
    *  and folded with it by `resolveRenderPolicy`. `true` = build this character's routed card documents
    *  under the `interactive` frame posture (and render its HTML trusted, which the rung implies);
    *  `null`/`false`/absent = not interactive (no deployment tier inherits here). A caller that writes this
@@ -480,12 +480,12 @@ export type UpdateCharacterInput = z.infer<typeof updateCharacterSchema>;
 // The library-list page bounds — ONE home, because the transport enforces the ceiling and the verb applies
 // the default, and a second spelling of either lets the two disagree.
 //
-// THE CEILING IS LOUD, NOT SILENT (2026-08-09). It used to be a `Math.min` inside the verb: four callers
+// THE CEILING IS LOUD, NOT SILENT. It used to be a `Math.min` inside the verb: four callers
 // asked for 200-500 rows to build id→name/portrait LOOKUP MAPS, silently got 100, and quietly under-covered
 // a large library — the chats list simply stopped resolving portraits past the loaded page, with
 // nothing anywhere saying so. The router now REFUSES an over-ceiling ask (a wire-level BAD_REQUEST naming
 // the bound), so an ask that cannot be served fails where it is written instead of being answered wrong.
-// 500 is the ceiling those lookup callers needed. THE CHAT-ROW ONE IS GONE (#192, 2026-08-18): the shape
+// 500 is the ceiling those lookup callers needed. THE CHAT-ROW ONE IS GONE: the shape
 // this comment prescribed — a read that carries the seats it is about — is what `ChatSummary` now does
 // (`participantPortraits`, resolved by the roster read the list projection already runs), and the chats
 // list, the character projection and both home tiles stopped fetching a whole-library map to decorate six
@@ -549,7 +549,7 @@ const characterListCursorSchema = z.discriminatedUnion("sort", [
   }),
   z.strictObject({
     sort: z.literal("mostChats"),
-    /** NOT NULLABLE (#1131): the count is a `COUNT` over the caller's visible rooms seated with this
+    /** NOT NULLABLE: the count is a `COUNT` over the caller's visible rooms seated with this
      *  character, so a never-chatted boundary row is `0`, not absent. `0` is the tail in both directions —
      *  DESC reaches it last by arithmetic, ASC by an explicit leading term (an unchatted card is unjudged,
      *  never "fewest"; the `bestScore`/`worstScore` precedent). */
@@ -601,7 +601,7 @@ const characterBookEntrySchema = z.looseObject({
   constant: z.boolean().optional(),
   extensions: z.record(z.string(), z.unknown()).optional(),
   // V3-additive lorebook fields. `use_regex` marks the entry's keys as REGEX PATTERNS rather than literals —
-  // honored on both halves of the serde (#266 D-2): it normalizes into `world_entries.metadata.keyMode` on
+  // honored on both halves of the serde: it normalizes into `world_entries.metadata.keyMode` on
   // import and is re-derived from the resolved mode on export, and the keyword matcher compiles accordingly.
   // Decorators are NOT a wire field — V3 embeds them as `@@`-prefixed lines INSIDE `content`, so they ride
   // through verbatim with the content (no separate column). `.catch` keeps a malformed value non-throwing.
@@ -666,7 +666,7 @@ export type CharacterCardV3 = z.infer<typeof characterCardV3Schema>;
 // on that structured field and never on message text — and the code therefore has to live BELOW both
 // packages, not inside `domain/character/contract/errors.ts` where the client cannot reach it. That is
 // exactly how `character.create` came to answer a `handle_conflict` with "Couldn't create the character."
-// (#542): the server's refusal was already typed and already on the wire; nothing downstream could read it.
+//: the server's refusal was already typed and already on the wire; nothing downstream could read it.
 // The server's own constants derive from these.
 
 /** A per-owner handle collision — the `characters` unique index fired on a create, or on a rename. The
@@ -679,14 +679,14 @@ export const CHARACTER_HANDLE_CONFLICT_OP_CODE = "handle_conflict" as const;
 export const CHARACTER_HANDLE_RESERVED_OP_CODE = "handle_reserved" as const;
 
 /** An update whose caller declared the card BASIS it was editing from (`expectedBasis`, a `CardWriteBasis`
- *  — #1560 widened it past the identity hash alone to also cover `creatorNotes`) lost the race: the card
+ *  — it covers `creatorNotes` as well as the identity hash) lost the race: the card
  *  changed between that caller's read and its write, so applying the patch would silently overwrite the
- *  edit that landed in between (#1446). The refusal is TOTAL — no field was written — and the fix is to
+ *  edit that landed in between. The refusal is TOTAL — no field was written — and the fix is to
  *  re-read and re-apply. OPT-IN: only a caller that writes from a basis it read EARLIER declares one (the
  *  refinery apply), so the ordinary edit-in-place update can never raise this. */
 export const CHARACTER_STALE_BASIS_OP_CODE = "stale_basis" as const;
 
-// ── Bulk card-tag per-item result (#1694) — the honest wire for a PARTIAL batch ────────────────────────
+// ── Bulk card-tag per-item result — the honest wire for a PARTIAL batch ────────────────────────
 // `bulkAddCardTag`/`bulkRemoveCardTag` used to `allSettled` the per-character writes, audit + announce the
 // siblings that committed, then RETHROW the first rejection unchanged — so the caller saw one typed error
 // for a batch that had, in fact, partially landed. The honest shape is a per-item result: which characters
@@ -725,7 +725,7 @@ export interface CharacterDetail extends CharacterCard {
   readonly forbidExternalMedia: boolean | null;
   /** Tri-state: null = inherit deployment default, true = trusted, false = force untrusted. */
   readonly trustHtml: boolean | null;
-  /** The interactive-card opt-in (#111) — `true` = this card's routed frames are built under the
+  /** The interactive-card opt-in — `true` = this card's routed frames are built under the
    *  `interactive` posture, `null`/`false` = static (no deployment tier inherits here). On the DETAIL only:
    *  this view is what the editor and the roster's seat decoration pass to `resolveRenderPolicy` as the
    *  card's `RenderPolicyOverride`, while the library-list summary renders no card content and reads none
@@ -737,7 +737,7 @@ export interface CharacterDetail extends CharacterCard {
   readonly backgroundOverride: ThemeBackground | null;
   readonly importedFrom: string | null;
   readonly importHash: string | null;
-  /** #865 — the CLOSED where-it-came-from verdict, derived ONCE at the read seam (`characterProvenanceOf`)
+  /** The CLOSED where-it-came-from verdict, derived ONCE at the read seam (`characterProvenanceOf`)
    *  from `importedFrom` + `creator`. The Origin readout DISPATCHES on this rather than re-deriving it, so
    *  the detail and the library row can never disagree about a card's origin. Distinct from the card's own
    *  `source` (the ST V3 provenance-URL list this view inherits from `CharacterCard`). */
@@ -766,11 +766,11 @@ interface CharacterSummaryFields {
   /** LEFT JOIN character_summaries.elevatorPitch; null until the distill producer has run. */
   readonly elevatorPitch: string | null;
   /**
-   * #865 — HOW MANY THREADS this character has: a `COUNT` of the same member-visible seated rooms
+   * HOW MANY THREADS this character has: a `COUNT` of the same member-visible seated rooms
    * `lastChattedAt` maxes over, which is what the editor header's "N chats" and the context band's chip
    * already counted through `chat.listChats.totalCount`.
    *
-   * IT IS NOT `character_stats.chats` (#1131). That counter is bumped only for a room's FIRST founding
+   * IT IS NOT `character_stats.chats`. That counter is bumped only for a room's FIRST founding
    * character (`chatCreatedDelta`, `domain/chat/verbs/claim-chat.ts`); a character seated second — or
    * joined into a running room — contributes message deltas and never a chat, so the rollup read `0` for a
    * character the rest of the app said had one.
@@ -780,11 +780,11 @@ interface CharacterSummaryFields {
    * two chat-count SORTS see the same zero and still sink it to their tail.
    */
   readonly chatCount: number;
-  /** #865 — the CLOSED where-it-came-from verdict; the {@link CharacterDetail} twin, same one derivation.
+  /** The CLOSED where-it-came-from verdict; the {@link CharacterDetail} twin, same one derivation.
    *  This is what lets the landing name its fresh-install shelf without a second read per row. */
   readonly provenance: CharacterProvenance;
   /**
-   * Does ANOTHER of this owner's characters carry the same name (case-insensitively)? #517 — the row's
+   * Does ANOTHER of this owner's characters carry the same name (case-insensitively)? The row's
    * DISAMBIGUATION gate, and the reason it is a projection field rather than a client derivation.
    *
    * The library is keyset-paged 30 at a time, so a collision scan over the loaded rows would answer about
@@ -803,7 +803,7 @@ export type CharacterSummary = CharacterSummaryFields &
   ({ readonly lastChattedAt: null; readonly lastChatId: null } | { readonly lastChattedAt: number; readonly lastChatId: ChatId });
 
 /**
- * ONE BUCKET OF THE LIBRARY'S GROUP-BY-TAG CENSUS (#1696) — a visible tag and how many characters carry it
+ * ONE BUCKET OF THE LIBRARY'S GROUP-BY-TAG CENSUS — a visible tag and how many characters carry it
  * WITHIN THE CURRENT LENS.
  *
  * `characters` is a real `COUNT` over the same scope `character.list` pages and `totalCount` counts, so the
@@ -826,7 +826,7 @@ export interface CharacterTagGroupCensus {
   readonly characters: number;
 }
 
-/** Returned by the greeting-studio verbs (`rewriteGreeting`/`generateGreeting`, audit §3): the generated
+/** Returned by the greeting-studio verbs (`rewriteGreeting`/`generateGreeting`): the generated
  *  greeting text. The verb NEVER writes — the client previews `text` and appends it to
  *  `characters.greetings` via `character.update` on accept. */
 export interface GeneratedGreeting {
@@ -871,7 +871,7 @@ export interface ListCharactersResult {
 }
 
 /**
- * THE GROUP-BY-TAG CENSUS (#1696) — every bucket the categorized view can render, counted over the request's
+ * THE GROUP-BY-TAG CENSUS — every bucket the categorized view can render, counted over the request's
  * lens.
  *
  * `uncategorized` is a FIRST-CLASS member rather than a derivation: it is the biggest bucket on a real
@@ -1090,7 +1090,7 @@ export interface GetCharacterParams extends CharacterActorParams {
   readonly characterId: CharacterId;
 }
 
-/** What a caller writing from an OLD basis declares it merged against (#1446/#1560) — the card state the
+/** What a caller writing from an OLD basis declares it merged against — the card state the
  *  write is conditional on. `contentHash` covers the card's IDENTITY; every member beside it is a field a
  *  stale-basis caller may WRITE that the hash deliberately does not witness (`#primitives/serde/card`
  *  `semanticFields` excludes the re-attribution fields on purpose, and `creatorNotes` is both excluded and
@@ -1104,7 +1104,7 @@ export interface CardWriteBasis {
 export interface UpdateCharacterParams extends CharacterActorParams {
   readonly characterId: CharacterId;
   readonly input: UpdateCharacterInput;
-  /** OPT-IN compare-and-swap for a caller writing from a basis it read EARLIER (#1446): the card state the
+  /** OPT-IN compare-and-swap for a caller writing from a basis it read EARLIER: the card state the
    *  patch was constructed against ({@link CardWriteBasis}). Supplied means the write is conditional on the
    *  card still carrying it, and a card that moved refuses TOTALLY with `CHARACTER_STALE_BASIS` instead of
    *  overwriting the edit that landed in between. Omitted is the ordinary read-and-write-back edit,
@@ -1190,7 +1190,7 @@ export type ListRefineryScoreTargetsOp = (args: WorkloadRunScope & { readonly un
 export type CountRefineryScoreTargetsOp = (args: WorkloadEstimateScope & { readonly unscoredOnly: boolean }) => Promise<number>;
 
 /** One half of the derived signals — the two halves have INDEPENDENT producers (a score run stamps
- *  `score`, an analyze run stamps `analysis`; security pass §1 gap 2), so the patch is one arm, never
+ *  `score`, an analyze run stamps `analysis`), so the patch is one arm, never
  *  both, and the stamp merges it over the currently-stored other half. */
 type RefinerySignalsPatch = { readonly score: number } | { readonly analysis: RefineryAnalyzePayload };
 
@@ -1204,8 +1204,8 @@ export type StampRefinerySignalsOp = (args: {
   readonly patch: RefinerySignalsPatch;
 }) => Promise<void>;
 
-/** Delete ONE `character_snapshots` row by id, scoped to the OWNER + the owning character (#1551, tightened
- *  #1571/train-78: `injected-op-caller-param` — a retraction is owner-scoped work like the stamp op above,
+/** Delete ONE `character_snapshots` row by id, scoped to the OWNER + the owning character (the
+ *  `injected-op-caller-param` rule — a retraction is owner-scoped work like the stamp op above,
  *  and the owner predicate rides IN THE WHERE for the same defense-in-depth reason). The apply path's
  *  "auto: before refinery apply" belt-13 snapshot is the apply's WITNESS, not its prelude (the
  *  `restoreCardInPlace` precedent's own words) — it must be taken BEFORE the conditional write to capture

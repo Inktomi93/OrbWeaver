@@ -11,7 +11,7 @@ import type { RpgActorEntry } from "@orb/contracts/rpg";
  *  `lockReleases` are PREFIXES, not paths: a removed element's own path plus everything under it. The applier
  *  is pure and never sees the stored locks, so the VERB expands each prefix against the head's own
  *  `fieldLocks` — the identical expansion `verbs/dismiss-actor.ts` performs for a whole actor. Without it a
- *  dropped item leaves pins the panel can no longer render and the host can never release (#78). */
+ *  dropped item leaves pins the panel can no longer render and the host can never release. */
 export type ApplyActorOpsResult =
   | { readonly ok: true; readonly actor: RpgActorEntry; readonly lockPaths: readonly string[]; readonly lockReleases: readonly string[] }
   | { readonly ok: false; readonly reason: string };
@@ -19,7 +19,7 @@ export type ApplyActorOpsResult =
 /** What one lock-honoring merge produced AND what its locks cost (rule 3): the merged state plus the dotted
  *  paths whose writes the locks dropped. Homed here because a domain type has no home in the substrate that
  *  produces it (substrate-not-a-type-home) — `substrate/merge.ts` is the one producer, the staging accumulator
- *  and the flush fold are the consumers (#77). */
+ *  and the flush fold are the consumers. */
 export interface LockedPatchOutcome<T> {
   readonly state: T;
   /** Deduplicated, in the order the walk met them. EMPTY when no lock bit. */

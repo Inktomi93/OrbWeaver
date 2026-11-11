@@ -14,7 +14,7 @@
 // advisory + a shell-break guard, not a sandbox.
 import { blankText } from "#strings";
 
-// ── comments and strings are NOT active CSS (#1360 item 3) ───────────────────────────────────────────
+// ── comments and strings are NOT active CSS ───────────────────────────────────────────
 // The three patterns below are substring tests over raw text, so before this they fired inside
 // `/* position: fixed */` and inside a quoted `content: "@import"` — a pure FALSE POSITIVE that rejects
 // an author's own note about the rule they are obeying. The false-NEGATIVE direction was probed and does
@@ -51,7 +51,7 @@ export interface CssValidationResult {
 export function validateThemeCss(css: string): CssValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
-  // Comments and quoted strings are inert; only what remains can actually apply (#1360 item 3).
+  // Comments and quoted strings are inert; only what remains can actually apply.
   const active = activeCssOnly(css);
 
   if (IMPORT_RE.test(active)) {

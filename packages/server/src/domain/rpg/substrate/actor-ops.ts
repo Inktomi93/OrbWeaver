@@ -1,5 +1,4 @@
-// domain/rpg/substrate/actor-ops — the PURE op applier for the per-actor volatile plane (the actor-state
-// review §5 R1). Zero I/O: it takes ONE actor's CURRENT row (read by the caller from the TRUE resolved head)
+// domain/rpg/substrate/actor-ops — the PURE op applier for the per-actor volatile plane (R1). Zero I/O: it takes ONE actor's CURRENT row (read by the caller from the TRUE resolved head)
 // plus the hand's ops, and returns the next row + the FINE lock paths those ops earn. The verb
 // (`verbs/patch-actor.ts`) does the head resolve, the write, and the authority; this module owns the
 // arithmetic, so the whole op vocabulary is unit-testable without a db.
@@ -14,7 +13,7 @@
 // row it is applied to is read at WRITE time — the blast radius is the datum the human actually touched, and
 // "hand always wins" stops being a merge flag (`fieldLocks: null`) and becomes a property of the applier.
 //
-// ERRORS-AS-DATA (the `editSnapshot` precedent, `0911fee2dd`): an op naming an item/condition the actor does not
+// ERRORS-AS-DATA (the `editSnapshot` precedent): an op naming an item/condition the actor does not
 // carry is REFUSED with a reason, never a silent no-op. A stale panel click is the reachable case, and "I did
 // nothing and I'm not telling you" is the exact class this door exists to kill.
 
@@ -74,7 +73,7 @@ const OP_FIELD: Readonly<Record<VolatileOpName, RpgActorOpField>> = {
  *  per-element lock there would be a pin the host can SEE stopping the story and CANNOT release — a trap.
  *  Per-element pins follow the per-element Release UI, not the reverse.
  *
- *  `inventory` LEFT this rule the day the pack grew that UI (#78, owner ruling 2026-08-16), and it had to: the
+ *  `inventory` LEFT this rule the day the pack grew that UI (owner ruling), and it had to: the
  *  plane-level pin meant ONE hand-added item fenced the model out of the WHOLE pack forever — measured live, a
  *  perfect model update (the `location` of the very item the host had added) was folded away in silence, which
  *  turns seeding your pack by hand into permanently disabling inventory tracking. Its pins are minted per ITEM,

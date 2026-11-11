@@ -240,17 +240,17 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
   let sharing: ShareGraph | null = null;
   let booted = false;
 
-  // RATIFIED (#596). boot is the ORDERED startup protocol, and its score is the protocol's LENGTH, not tangled
+  // RATIFIED. boot is the ORDERED startup protocol, and its score is the protocol's LENGTH, not tangled
   // control flow: fail-closed guards on the sequence plus one conditional column per optional dependency, each
   // at real nesting depth 0 and each DOUBLED by biome's enclosing-closure nesting penalty. The genuinely nested
-  // wiring HAS been lifted out (OIDC composition / scheduleInterval, #596 — 57 → 45); what is
+  // wiring HAS been lifted out (OIDC composition / scheduleInterval); what is
   // left is the inventory this file exists to state IN ORDER, and splitting it further hides that ordering.
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: the ordered boot protocol — ruling above
   async function boot(): Promise<void> {
     if (booted) {
       return;
     }
-    // SET BEFORE THE PROTOCOL, ON PURPOSE (#1479 item 2, refuted as a defect): this is the IN-FLIGHT latch
+    // SET BEFORE THE PROTOCOL, ON PURPOSE (refuted as a defect): this is the IN-FLIGHT latch
     // of `if (booted) return`, not an "initialization finished" flag — nothing else reads it. Moving the
     // assignment after the bind below would let a second `boot()` re-run migrations, the seeds, compose and
     // the listener bind concurrently. A boot FAILURE never leaves it stale either: `entry/index.ts` exits
@@ -306,20 +306,20 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
 
     await runBootMigrations({ logger: seams.logger, db, databaseUrl: env.DATABASE_URL, backupDir: env.DATA_LAYOUT.backups });
 
-    // #1649 DATA migration, immediately after the schema migrations and before anything reads a chat: the
+    // The handoff-offer DATA migration, immediately after the schema migrations and before anything reads a chat: the
     // host-handoff offer's `$.copyCast` key became `$.copyCharacters`, and the offer's read seam degrades an
     // unrecognised blob to NO_HANDOFF_OFFER rather than failing, so an un-migrated row silently drops a
     // departing host's recorded consent. Idempotent — a no-op on every boot after the first.
     await migrateHandoffOfferVocabOnBoot({ logger: seams.logger, db: bootDb });
 
-    // #1737 DATA migration, in the same window and for the same reason: the `home:"preset"` prose slot
+    // The prose-slot DATA migration, in the same window and for the same reason: the `home:"preset"` prose slot
     // `chat.group.castMember` became `chat.group.characterHeading`, and `proseOverridesSchema` STRIPS an
     // unknown slot id at the parse seam — so an un-migrated `presets.config` silently loses the host's
     // authored narrator character heading instead of failing. Idempotent — a no-op on every boot after the
     // first. Runs before compose, which is where the first preset read lives.
     await migrateProseSlotVocabOnBoot({ logger: seams.logger, db: bootDb });
 
-    // #1391 DATA migration, same window and same class: `pluginToolWireName` became INJECTIVE (a slug's `-`
+    // The tool-wire-name DATA migration, same window and same class: `pluginToolWireName` became INJECTIVE (a slug's `-`
     // now doubles to `__`), which renames every hyphen-slug plugin's model-visible tool names. A persisted
     // `ToolCallRecord.name` under the old spelling silently unmatches its plugin's `tool-card` surface, and a
     // `run_tool` automation arm under it stops firing. Idempotent, and a no-op on a box with no hyphenated
@@ -329,19 +329,19 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // stale claim that refuses the plugin's own definition at activation, so it moves before compose.
     await rehashPluginProviderDefinitionsOnBoot({ logger: seams.logger, db: bootDb });
 
-    // #1600 ONE-TIME DATA heal, same window: a `user_settings` row pinning a background asset that predates
-    // #1478.1's ownership+kind guard (dev data, or any asset whose `kind` was never `background`) refuses
+    // The background-pin ONE-TIME DATA heal, same window: a `user_settings` row pinning a background asset that predates
+    // the ownership+kind guard (dev data, or any asset whose `kind` was never `background`) refuses
     // EVERY settings write for that user, not only a background edit. Idempotent — a no-op on every boot
-    // after the first, and on a db seeded entirely post-#1478.
+    // after the first, and on a db seeded entirely under the guard.
     await healLegacyBackgroundPinsOnBoot({ logger: seams.logger, db: bootDb });
-    // #1708 DATA repair, in the same window and for the same reason: a card ingested through a plugin BEFORE
-    // #1702 shipped never got an `importedFrom` stamp, and `characterProvenanceOf` collapses a null
+    // The plugin-provenance DATA repair, in the same window and for the same reason: a card ingested
+    // through a plugin before provenance stamping never got an `importedFrom` stamp, and `characterProvenanceOf` collapses a null
     // `importedFrom` to `authored` — so an un-migrated row silently misreports "Made here" on every read
     // until this runs. Idempotent — a no-op on every boot once the candidate set is drained. Runs before
     // compose, which is where the first character read lives.
     await backfillPluginProvenanceOnBoot({ logger: seams.logger, db: bootDb });
-    // #2253 DATA repair: before 39f71b2294 the invite-redeem's `canonHeadSeq` subquery was unqualified,
-    // recording the table-wide max(messages.seq) instead of the per-chat head. Clamp any stale join_seq
+    // The join_seq DATA repair: an unqualified invite-redeem `canonHeadSeq` subquery
+    // records the table-wide max(messages.seq) instead of the per-chat head. Clamp any stale join_seq
     // to the actual per-chat canon head. Idempotent — a no-op on every boot once the candidates are drained.
     await repairStaleJoinSeqOnBoot({ logger: seams.logger, db: bootDb });
     // DATA repair, same window: the `daily_stats` timeline re-grain drops rows only canon can rebuild, so every
@@ -486,7 +486,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     // (§7.2: the two convenience rows + their `user` bindings for every account that EXISTS NOW, idempotent)
     // rides here because a user row may predate the connection table on this pre-launch box. It is half the
     // story — accounts minted after this point are seeded by the per-user op wired into the minting verbs
-    // (#2481), not by a later boot.
+    //, not by a later boot.
     await seedDefaultPreset({ logger: seams.logger, db: wiringDb, now });
     await seedThemes({ logger: seams.logger, db: bootDb, now });
     await seedLocalLightOnBoot({ logger: seams.logger, db: bootDb, now, idSource: seams.idSource, onEmbedSpaceBound: built.detachEmbedReindex });
@@ -520,7 +520,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       await seedDefaultBackgrounds({ seeder: built.backgroundSeeder, owner });
       // The user seed (D263): the manifest's characters, persona and roster presets the ledger lacks.
       await seedUserContent({ seeder: built.contentSeeder, owner });
-      // BEFORE the seeder, and before anything serves (#1865): the resident-plugin registry is an in-process
+      // BEFORE the seeder, and before anything serves: the resident-plugin registry is an in-process
       // Map the respawn wiped, so every row the db calls `enabled` has no instance and contributes no surface,
       // command, transform, tool or subscription until something re-activates it. Restoring first also means
       // the seeder's auto-upgrade — which re-activates the rows it swaps — lands the NEW bundle resident
@@ -534,7 +534,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       // Independent of the three above (the examples attach to nothing) — the rows land installed, disabled and
       // ungranted, so the owner's first act on the Plugins pane is a real consent.
       await seedExamplePlugins({ seeder: built.examplePluginSeeder, owner });
-      // The CAS maintenance cadence (#11) — GC weekly, fsck monthly. Existence-gated per kind, so an owner's
+      // The CAS maintenance cadence — GC weekly, fsck monthly. Existence-gated per kind, so an owner's
       // cadence/enabled edits survive a restart. Runs after the owner exists (the row's owner is NOT NULL).
       await seedCasSchedules({ workloads: built.services.workloads, ownerId: owner.userId });
     }
@@ -684,7 +684,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
     return shutdownCompletion;
   }
 
-  // RATIFIED (#596). Nine null-guarded stops at real nesting depth 0 score 20 only because biome DOUBLES every
+  // RATIFIED. Nine null-guarded stops at real nesting depth 0 score 20 only because biome DOUBLES every
   // increment inside a closure — the measured tell that this score is length, not tangle.
   // biome-ignore lint/complexity/noExcessiveCognitiveComplexity: the graceful-drain teardown is a flat sequence of independent null-guarded stops (server, schedulers, worker, observer, vLLM, db) — one cohesive shutdown, splitting it hides the ordering.
   async function drain(request: { readonly drainMs?: number }): Promise<void> {
@@ -711,10 +711,10 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
       server = null;
       loopbackServer = null;
       listenerAddress = null;
-      // STAGE BREADCRUMB (#1936). Everything between `draining` and `complete` used to be silent, so when
+      // STAGE BREADCRUMB. Everything between `draining` and `complete` used to be silent, so when
       // `stack down prod` escalated to SIGKILL the log said only that the process had not finished — never
       // WHICH stage it was in, which is the whole reason the original report could not be diagnosed. The
-      // bounded drain announces only its FORCED path (a warn); this is the quiet one. Measured 2026-09-19 on
+      // bounded drain announces only its FORCED path (a warn); this is the quiet one. Measured on
       // an isolated prod instance: 12 ms idle, and exactly 10.001 s with one in-flight request.
       log.info(SHUTDOWN_MESSAGES.httpDrained);
     }
@@ -747,7 +747,7 @@ export function createLifecycle(options: LifecycleOptions = {}): Lifecycle {
         stopPlannerMaintenance = null;
         await stop();
       }
-      // STAGE BREADCRUMB (#1936) — the SECOND unbounded stage, and the last thing between here and exit:
+      // STAGE BREADCRUMB — the SECOND unbounded stage, and the last thing between here and exit:
       // bounded planner refresh + `wal_checkpoint(TRUNCATE)` (`@orb/db`'s `preCloseHousekeeping`), whose cost is a
       // function of the db, not of a timeout we control. Announced before the await for the same reason as
       // the worker join: a shutdown that stalls here must say so rather than look identical to a wedge.

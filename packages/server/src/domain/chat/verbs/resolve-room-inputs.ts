@@ -49,7 +49,7 @@ export function createChatRoomInputs(deps: ChatRoomInputDeps): ChatRoomInputs {
     return config.variables;
   };
 
-  // The chat's active preset's authored USER MACROS (#24) — the picks pane's declaration half, resolved
+  // The chat's active preset's authored USER MACROS — the picks pane's declaration half, resolved
   // under the chat's host exactly like `resolvePromptVariables` (its ChoiceBlock sibling). A feature preset
   // OVERRIDE is deliberately not applied: it is a per-turn redirect (the rpg GM voice) no pane read can
   // anticipate. Hostless/stale room ⇒ no declared macros.
@@ -173,7 +173,7 @@ export function createChatRoomInputs(deps: ChatRoomInputDeps): ChatRoomInputs {
         promptConfig,
         // WAVE MU — the resolved preset id for user-macro source attribution (override id / host default / null).
         presetId,
-        // #1754 — the SAME resolution's NAME, so the room's Regex section can say WHICH preset it is showing
+        // The SAME resolution's NAME, so the room's Regex section can say WHICH preset it is showing
         // (the GM redirect's on a game chat) instead of falling back to the viewer's own active preset.
         presetName,
         personas: turnPersonas,

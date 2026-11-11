@@ -112,7 +112,7 @@ export interface PortableChatMessage {
 }
 
 /** One `chat_injections` row — the per-chat prose plane that replaced the room-override author's-note twin
- *  (owner ruling 2026-08-01) and that the ST arm can only carry ONE of, one-way. */
+ *  (owner ruling) and that the ST arm can only carry ONE of, one-way. */
 export type PortableChatInjection = Readonly<Omit<z.output<typeof wireInjectionSchema>, "order">> & {
   readonly order: Exclude<z.output<typeof wireInjectionSchema>["order"], undefined>;
 };

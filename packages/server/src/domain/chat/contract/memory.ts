@@ -15,9 +15,9 @@ import type { RecorderFilter } from "#foundation/observability";
 //
 // IMPORT DIRECTION — THIS FILE IS A LEAF, AND THAT IS THE RULE, NOT AN ACCIDENT. `context.ts` (the chat
 // domain's contract hub) imports FROM here; this file imports NOTHING from a sibling in `contract/`. The one
-// time a type was declared in `context.ts` and pulled back here (`MemoryEmbedSpace`, #2475) it closed three
+// time a type was declared in `context.ts` and pulled back here (`MemoryEmbedSpace`) it closed three
 // `no-circular` rings at once — `context.ts` → {`memory.ts`, `results.ts` → `memory.ts`, `foreign.ts` →
-// `memory.ts`} → `context.ts` (#2484). `import type` does NOT exempt an edge from dependency-cruiser. So: a
+// `memory.ts`} → `context.ts`. `import type` does NOT exempt an edge from dependency-cruiser. So: a
 // subsystem-internal SHAPES stay HERE and `context.ts` imports them downward. The cross-domain
 // `MemoryEmbedSpace` receipt now homes in `@orb/contracts/embeddings`; chat and reindex consumers derive
 // that same receipt without importing either domain barrel. Chat-specific injected ops stay in `context.ts`.
@@ -120,7 +120,7 @@ export interface MemoryRecallInputs {
 /** The narrow stateful seam between a turn's RETRIEVAL and the engine-owned chat bus. The gather reports the
  *  outage; the engine takes it after `turnStarted`, exactly once per class for this turn.
  *
- *  NAMED FOR THE TURN, NOT FOR MEMORY (#2510). It was `TurnRetrievalWarningEpisode` while recall was its only
+ *  NAMED FOR THE TURN, NOT FOR MEMORY. It was `TurnRetrievalWarningEpisode` while recall was its only
  *  producer; the databank slot's gather now reports into the SAME episode, because one turn losing both its
  *  retrieval slots to one unqueryable vector space owes the user ONE notice, not two. It is declared here (a
  *  memory file) only because `MemoryRecallInputs` above carries it and `contract/context.ts` imports THIS
@@ -187,13 +187,13 @@ export interface Tier0Counts {
 /** The SEGMENT pass's fold — {@link MemoryPassCounts} plus the blocks that could not be CHUNKED into the embed
  *  model's window at all (a block past the pathological ceiling, `MAX_SEGMENT_CHUNKS_PER_BLOCK`). Those are
  *  skipped WHOLE and counted here, never truncated into a vector that claims a seq-span it never read (owner
- *  ruling, #165); an ordinary oversized block is CHUNKED and loses nothing (#172). The count rides the sweep
+ *  ruling); an ordinary oversized block is CHUNKED and loses nothing. The count rides the sweep
  *  result + the workload progress copy so a skipped block is a recorded fact, never a silent gap in memory. */
 export interface SegmentPassCounts extends MemoryPassCounts {
   readonly skippedOverWindow: number;
 }
 
-/** ONE in-budget piece of a verbatim block (#172) — a `chat_segments` row. `chunkIdx` is its position within
+/** ONE in-budget piece of a verbatim block — a `chat_segments` row. `chunkIdx` is its position within
  *  the block (0 for the overwhelming majority: one chunk covers the whole block); `(seqStart, seqEnd)` is the
  *  HONEST span of messages the `text` contains — chunks cut at message boundaries, and a single message
  *  bigger than the window yields pieces that all carry that one message's seq. */
@@ -215,7 +215,7 @@ export interface WitnessInterval {
 }
 
 /** What `recallMemory` produces: the rendered `{{memory}}` block AND the explanation of how it got there.
- *  ONE return, not a value plus an optional out-param sink — the trace is the reason #250 exists, and a shape
+ *  ONE return, not a value plus an optional out-param sink — the trace is the reason this shape exists, and a shape
  *  a caller can forget to collect is exactly the hole that let recall run unobserved. `text` is `""` for every
  *  zero-work path (off / empty pool / nothing survived); the slice then carries the REASON. */
 export interface MemoryRecallResult {
@@ -239,12 +239,12 @@ export interface MemoryRecallRecord {
  *  byte-identical either way. */
 export type MemoryRecallSink = (record: Omit<MemoryRecallRecord, "seq" | "at">) => void;
 
-/** The `memoryRecall` bus member itself (#313) — the domain CONSTRUCTS this literal (the `turnStarted`
+/** The `memoryRecall` bus member itself — the domain CONSTRUCTS this literal (the `turnStarted`
  *  precedent: `domain/chat/engine` builds its own bus events), so the emit sits in
  *  domain scope, not in compose wiring. */
 type MemoryRecallBusEvent = Extract<ChatBusEvent, { type: "memoryRecall" }>;
 
-/** The injected recall-PHASE emitter (`ChatContext.emitRecallPhase`, #313) — the live feed the header
+/** The injected recall-PHASE emitter (`ChatContext.emitRecallPhase`) — the live feed the header
  *  brain-icon reflects. Fired at the SINGLE recall convergence (`recall/recall.ts`): `"recalling"` (count
  *  null) the instant recall begins for a turn with memory ON, `"recalled"` (the surfaced count) once it
  *  closes. `recall/recall.ts` builds the `{ type: "memoryRecall", … }` event; compose wires this straight to
@@ -286,7 +286,7 @@ export type MemoryLogEntry =
       readonly event: "memory.recall";
       readonly chatId: ChatId;
       readonly scopedCharacterId: CharacterId;
-      /** The SAME slice the assembly trace + the debug ring carry — one recall shape, three readers (#250);
+      /** The SAME slice the assembly trace + the debug ring carry — one recall shape, three readers;
        *  the log fragment is deliberately not a narrower second spelling of it. */
       readonly trace: MemoryRecallSlice;
       readonly note?: string | undefined;
@@ -330,7 +330,7 @@ export type MemoryBackfillSweepCounts = MemoryBackfillResult & {
  *  `UserSettings.memory.enabled === false → mode:"off"`), extracted to ONE home so the sweep and the turn
  *  can't drift. Injected into {@link backfillMemory} (NOT `ChatContext` — there is no settings-read op there,
  *  engine.ts header): the sweep resolves it off each chat's HOST and SKIPS a `mode:"off"` host's chats
- *  entirely (D293 opt-out honored on the corpus sweep, not just the live turn — #54). */
+ *  entirely (D293 opt-out honored on the corpus sweep, not just the live turn). */
 export type ResolveBackfillMemoryConfig = (hostUserId: UserId) => Promise<MemoryConfig>;
 
 /** `scope.scopedCharacterId` is the speaker's own bucket; `groupCharacterId` is the shared bucket (equal for

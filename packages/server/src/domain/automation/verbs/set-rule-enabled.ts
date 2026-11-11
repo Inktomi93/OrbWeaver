@@ -17,7 +17,7 @@ export function createSetRuleEnabled(ctx: AutomationContext): AutomationService[
       // whose confirm the re-check now refuses; the honest surface is no card at all.
       ctx.suggestions.voidRule(ruleId);
     }
-    // `refresh`, not `reload` (#1431): the flip above is durable, so an index failure must not reject an
+    // `refresh`, not `reload`: the flip above is durable, so an index failure must not reject an
     // operation that SUCCEEDED — it latches stale (reads fail OPEN) and the watcher rebuilds on the next event.
     await ctx.enabled.refresh();
     // A transform_draft rule's registration into the turn pipeline follows enablement — reconcile it.

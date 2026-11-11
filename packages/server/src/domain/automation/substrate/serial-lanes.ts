@@ -3,7 +3,7 @@
 import type { ChatId, UserId } from "@orb/kit/ids";
 
 /**
- * THE AUTOMATION SCOPE KEYS — one lane per chat, one per OWNER on the domain bus (#1554 — the domain bus
+ * THE AUTOMATION SCOPE KEYS — one lane per chat, one per OWNER on the domain bus (the domain bus
  * used to be ONE lane, full stop; the header below states why per-owner is the improvement and per-subject
  * is not), and this pair is their ONE home.
  *

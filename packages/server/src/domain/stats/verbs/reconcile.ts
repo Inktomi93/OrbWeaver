@@ -10,7 +10,7 @@
 // only ever rebuild its own rollups; owner enumeration inside the rebuild is membership-derived from the
 // owner's characters.
 //
-// SINGLE-FLIGHT (owner ruling 2026-08-02): a caller with a rebuild in flight is REFUSED (CONFLICT) rather
+// SINGLE-FLIGHT (owner ruling): a caller with a rebuild in flight is REFUSED (CONFLICT) rather
 // than starting a second full pass over the same rollup rows — there is no cancel on this path, so the
 // honest answer to a second click is "wait for the running one". The gate is the in-memory per-user
 // registry built once per service; WHY in-memory is sanctioned lives in `../reconcile-in-flight.ts`.

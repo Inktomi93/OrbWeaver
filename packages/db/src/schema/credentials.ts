@@ -47,7 +47,7 @@ export const userCredentials = sqliteTable(
     ciphertext: text("ciphertext").notNull(),
     iv: text("iv").notNull(),
     tag: text("tag").notNull(),
-    // Set when the credential is revoked; null = live. THE POLICY (#1373, wired end to end — adapter
+    // Set when the credential is revoked; null = live. THE POLICY (wired end to end — adapter
     // `ProviderErrorKind` → post-generation hook → this row → the Connections pane): ONE provider
     // `auth_failed` revokes (there is no strike COUNTER on this table and none is wanted — a key the
     // provider has rejected is dead now, not on the third try); the health probe's 3-strike UNREACHABLE

@@ -367,9 +367,9 @@ export const chatDigests = sqliteTable(
 // chat_segments — the VERBATIM chat-block lens (the raw transcript a digest hit resolves back to). Keyed
 // `(chatId, blockIdx, chunkIdx)`; carries the seq-span back to canon. FK chats CASCADE; NO ownerId (D20).
 //
-// WHY `chunk_idx` (#172, the owner ruling behind it): a block whose verbatim transcript exceeds the EMBED
+// WHY `chunk_idx` (the owner ruling behind it): a block whose verbatim transcript exceeds the EMBED
 // model's window cannot be embedded whole, and it must NOT be truncated — "if we are skimping out on
-// messages that's a no go since this feeds the memory system" (#165). So an oversized block becomes N
+// messages that's a no go since this feeds the memory system". So an oversized block becomes N
 // in-budget CHUNKS, each its own row with its own honest `(seq_start, seq_end)` span, losing nothing. The
 // common case is a single chunk 0 covering the whole block; the corpus's pathological case (a coding-helper
 // chat's 177k–200k-char single message) becomes a handful. Consequences a reader must know: a `(chat, block)`
@@ -419,13 +419,13 @@ export const chatSegments = sqliteTable(
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
   (t) => [
-    // One verbatim segment per (chat, block, CHUNK, model) — the idempotent-upsert key. `chunk_idx` joined
-    // the key with #172 (a block over the embed window becomes N chunks, never a truncated row). `model` is
+    // One verbatim segment per (chat, block, CHUNK, model) — the idempotent-upsert key. `chunk_idx` is in
+    // the key because a block over the embed window becomes N chunks, never a truncated row. `model` is
     // in the key so a `(model, dim)` change writes a NEW space additively rather than overwriting
     // the old one in place; the old space is reclaimed by the purge+reindex path. Uniform with all 5 producers.
     uniqueIndex("chat_segments_chat_block_chunk_unique").on(t.chatId, t.blockIdx, t.chunkIdx, t.generationId),
     index("chat_segments_generation_idx").on(t.generationId),
-    // #1378 item 4 — the span this chunk claims must be a real span. `seq` is a monotonic per-chat message
+    // The span this chunk claims must be a real span. `seq` is a monotonic per-chat message
     // ordinal, so a negative bound names no message, and `start > end` claims a backwards range that every
     // reader resolving a hit back to canon would read as empty. `chunk_idx`/`block_idx` are reading-order
     // ordinals from 0. All four are maintained by the chunker; this is the physical floor under it.
@@ -507,7 +507,7 @@ export const documentChunks = sqliteTable(
     uniqueIndex("document_chunks_doc_chunk_generation_unique").on(t.documentId, t.chunkIdx, t.generationId),
     index("document_chunks_document_idx").on(t.documentId),
     index("document_chunks_generation_idx").on(t.generationId),
-    // #1378 item 4 (the document half) — `char_start`/`char_end` are offsets into
+    // The document half of the counter checks — `char_start`/`char_end` are offsets into
     // `documents.extractedText` with an exclusive end, so a negative offset points outside the text and
     // `start > end` is a backwards slice. Equal bounds stay legal: an empty span is representable.
     check("document_chunks_span_check", sql.raw("chunk_idx >= 0 and char_start >= 0 and char_end >= char_start")),

@@ -58,7 +58,7 @@ export type LoreEntryProvenance = z.infer<typeof loreEntryProvenanceSchema>;
 
 // Loose: unknown keys (e.g. preserved ST entry fields) ride through untouched; the load-bearing fields are
 // typed. `provenance` is the machine-writer provenance (above) — present only on entries an upserter owns.
-// (Renamed from `crew` by the 2026-08-08 vocab kill; pre-launch NO-LEGACY, so a pre-rename row's `crew` key
+// (Renamed from `crew` by the vocab kill; pre-launch NO-LEGACY, so a pre-rename row's `crew` key
 // rides through as an inert unknown key and the writer re-stamps `provenance`. Note for the record only —
 // no such row exists pre-launch, so this is comment-accuracy, not a live gap: on a hypothetical pre-rename
 // row the hand-edit belt would be DISARMED, not merely inert — `upsertEntries` reads
@@ -80,7 +80,7 @@ export type EntryMetadata = z.infer<typeof entryMetadataSchema>;
 // Write-side metadata guard: stays a lenient open record (unknown keys ride through), but the
 //  load-bearing fields are validated when present — a typo'd `scopeMode`/`inject` rejects at WRITE.
 //
-//  The two hops are deliberate (the `personaMetadataWriteSchema` rationale, audited 2026-08-02): the opaque
+//  The two hops are deliberate (the `personaMetadataWriteSchema` rationale, audited): the opaque
 //  `Record<string, unknown>` OUTPUT keeps the wire input unnarrowed so every writer passes the ONE narrowing
 //  seam. The `code:"custom"` re-emit is an ACCEPTED loss for the same reason stated there: forwarding the
 //  original issue does not typecheck on 4.4.3 (`$ZodIssue` lacks `$ZodRawIssue`'s index signature) and
@@ -273,7 +273,7 @@ export type BulkImportLorebookResult = BulkImportLorebookResultBase &
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // upsertEntries — the SHARED machine-writer bulk op (D58 satellite). The ONE
 // home for hand-edit-safe lore upkeep: the D46 automation writer injects it today (the chat agents keeper and
-// rpg lorebook upkeep were the other two intended consumers before the 2026-07-25 purge — the rebuild wires
+// rpg lorebook upkeep were the other two intended consumers before the purge — the rebuild wires
 // them here too, never a fork of the fence-strip/compare copy). The op upserts by (bookId,
 // title) — a re-run REPLACES its own prior entry for the same title — and NEVER overwrites a human-curated
 // entry (the stored `metadata.provenance.contentHash` vs the current content is the guard). Caller policy (caps,

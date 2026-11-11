@@ -15,7 +15,7 @@
 //
 // The WI-anchor half had the defect UNDERNEATH that one: `plainMarkerSection` carried no `trigger` field at
 // all, so those two anchors could not be gated even though ST sets `injection_trigger` on every
-// prompt-manager entry — a parity GAP, not a design boundary (owner ruling, #1462). The field is on the plain
+// prompt-manager entry — a parity GAP, not a design boundary (owner ruling). The field is on the plain
 // markers now, so this predicate finally has something to read there.
 
 import type { GenerationType, PromptConfig, PromptSection } from "@orb/contracts/preset";

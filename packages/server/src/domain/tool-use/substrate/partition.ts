@@ -3,7 +3,7 @@
 // `reachability.ts` says whose contributor an entry is; this one says where it LIVES and what a name resolves
 // to for a caller.
 //
-// WHY A COMPOSITE KEY (#677). `plugins` is unique per (owner, slug), not globally — two users installing the
+// WHY A COMPOSITE KEY. `plugins` is unique per (owner, slug), not globally — two users installing the
 // same plugin is the NORMAL case, and the seeded example plugins install for EVERY user. Both installs produce
 // the byte-identical namespaced tool name (`plugin_<slug'>_<name>` — the host derives it from the manifest, and
 // the manifest is the same file), so a registry keyed by NAME ALONE made the first user to ENABLE the squatter:

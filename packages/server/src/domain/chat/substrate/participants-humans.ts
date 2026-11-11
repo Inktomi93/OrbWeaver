@@ -14,7 +14,7 @@
 // target must be owned by a present human"), and the FOREIGN persona read is gated on it
 // (`ResolveForeignInputsOp.presentHumanUserIds`). They disagreed before the widening — a host could pin a
 // member's persona the resolver then refused to read, so the sanctioned control produced a silently dead pin.
-// THE SAME CLASS OF BUG bit the enabled axis (2026-08-15, verifier-caught): `verbs/turn.ts` narrowed its OWN
+// THE SAME CLASS OF BUG bit the enabled axis (verifier-caught): `verbs/turn.ts` narrowed its OWN
 // copy of this set by `resolveUserEnabled` without touching this file, so a host could pin — and an edit
 // re-apply could still resolve — a DISABLED member's persona that a live turn had already started refusing.
 // {@link presentAndEnabledHumanUserIdsOf} is the fix: the ONE async narrowing every consumer that can reach
@@ -32,7 +32,7 @@ import { classifyParticipant, isBackingUserEnabled } from "../persistence/partic
 type HumanSeat = Parameters<typeof classifyParticipant>[0];
 
 /** The room's PERSONA CONSENT SET: every human seat's `userId`, deduped (see the file header). Routes
- *  through {@link classifyParticipant} — the one-home XOR discriminator (2026-08-15 consolidation).
+ *  through {@link classifyParticipant} — the one-home XOR discriminator.
  *
  *  Pass a PRESENT roster (`loadParticipants`'s default, `leftSeq IS NULL`) — presence IS the consent, so a departed
  *  member's persona stops resolving and a stale pin heals downward to the active persona (the HEAL
@@ -49,8 +49,8 @@ function presentHumanUserIdsOf(participants: readonly HumanSeat[]): readonly Use
   ];
 }
 
-/** {@link presentHumanUserIdsOf}, further narrowed by the disabled-account containment gate (owner-ruled
- *  2026-08-15): a disabled human's backing `users.enabled` drops them from the consent set the same way a
+/** {@link presentHumanUserIdsOf}, further narrowed by the disabled-account containment gate (owner-ruled):
+ *  a disabled human's backing `users.enabled` drops them from the consent set the same way a
  *  departed member's presence already does. THE call every consumer wired to `ctx.resolveUserEnabled` must
  *  route through — `verbs/turn.ts`'s `loadRoom` inlined this once and nowhere else, which is exactly the
  *  silently-dead-pin disagreement this file's header warns about, reintroduced for a second axis. Read fresh
@@ -77,7 +77,7 @@ export async function ownedByConsentingHuman(
 }
 
 /** How the room's pin stands for `ChatDetailData.anchorState`. A pin nobody present and enabled owns is `held`:
- *  the card still means that persona (item 885). */
+ *  the card still means that persona. */
 async function resolveAnchorState(
   ctx: Pick<ChatContext, "resolveUserEnabled" | "verifyPersonaOwned">,
   participants: readonly HumanSeat[],

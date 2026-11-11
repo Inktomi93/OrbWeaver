@@ -214,8 +214,8 @@ function forkVariantValues(args: {
     // served only on the host-gated variant wire view, never on `MessageView`). The receive transforms exist
     // partly to STRIP (a host regex can remove hidden material), so the raw is by definition PRE-strip bytes:
     // copying it forward hands a non-host forker exactly what the strip removed. LIVE, not dormant: the D129-F
-    // writers landed in `7512e842e3` (the user send's pre-transform text, `turn.ts`; the volatile-macro freeze on
-    // commit, `freezeVariantContentStatement`) and `a2225f9e20` made every non-freeze content write CLEAR the
+    // writers are live (the user send's pre-transform text, `turn.ts`; the volatile-macro freeze on
+    // commit, `freezeVariantContentStatement`) and every non-freeze content write CLEARS the
     // pair — so real rows carry these bytes and this strip is load-bearing on every member→host fork today.
     rawContent: hostPlane(variant.rawContent),
     macroFreezes: hostPlane(variant.macroFreezes),
@@ -243,7 +243,7 @@ function forkVariantValues(args: {
     cacheReadTokens: variant.cacheReadTokens,
     cacheWriteTokens: variant.cacheWriteTokens,
     // The reasoning-token count and the cost breakdown are economics figures beside `tokensOut`/`costUsd` — numbers,
-    // no prose, the same member-readable readout (inference audit B5/B8).
+    // no prose, the same member-readable readout.
     reasoningTokens: variant.reasoningTokens,
     costUsd: variant.costUsd,
     costProvenance: variant.costProvenance,
@@ -437,7 +437,7 @@ function pushForkStatsDeltas(
       now,
     }),
   );
-  // The fork is a NEW ROOM FOR EVERY SEAT IT COPIES (#1147) — the rebuild credits the forked chat to each
+  // The fork is a NEW ROOM FOR EVERY SEAT IT COPIES — the rebuild credits the forked chat to each
   // of its character participants, so each kept seat past the first rides its own census bump. Owner-grain
   // `chats`/`forkedChats` stay on the head delta above: one new room, however wide its roster.
   for (const [idx, characterId] of args.characterIds.entries()) {
@@ -720,7 +720,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     // The fork carries only the character seats the forker owns. The canon is copied whole regardless,
     // so a dropped character's prior lines survive in the fork; only the live seat is gone.
     const keptCharacterSeats = await resolveOwnedCharacterSeats(ctx, principal.userId, sourceParticipants);
-    // The pin carries whoever owns it: a pin resolves live even when its owner is not in the room (item 885),
+    // The pin carries whoever owns it: a pin resolves live even when its owner is not in the room,
     // so forking never changes who the card means.
     const forkAnchorPersonaId = source.anchorPersonaId;
     const slotIds = slots.map((s) => s.id);

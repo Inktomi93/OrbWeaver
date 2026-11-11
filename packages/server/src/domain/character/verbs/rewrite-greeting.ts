@@ -1,4 +1,4 @@
-// verb: rewriteGreeting — greeting studio (audit §3). Owner-gated: rewrite the supplied base greeting under
+// verb: rewriteGreeting — greeting studio. Owner-gated: rewrite the supplied base greeting under
 // the caller's `greeting_rewrite` preset template + the composed steer, awaiting ONE bounded side-LLM
 // completion. RETURNS the text; NEVER writes (the client appends the accepted result to characters.greetings
 // via character.update). Leak-free NOT_FOUND for a non-owner — the owner gate (`loadOwnedCharacterRow`) is

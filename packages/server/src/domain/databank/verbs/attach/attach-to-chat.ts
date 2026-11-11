@@ -2,7 +2,7 @@
 // the room gate is the INJECTED `ensureChatHost` (host authority — attaching injects content into every
 // participant's prompts on the host's dime; member-initiated attach would be prompt injection by junction).
 // The document gate stays ownership (`loadOwnedMeta` — the host shares THEIR document). Idempotent re-attach.
-// Announces on BOTH planes: the host's own bank (user bus) and the ROOM's rack (chat bus, #2471).
+// Announces on BOTH planes: the host's own bank (user bus) and the ROOM's rack (chat bus).
 
 import { chatDocuments } from "@orb/db";
 import { DocumentNotFoundError } from "#src/domain/databank/contract/errors.ts";
@@ -26,7 +26,7 @@ export function createAttachToChat(ctx: DatabankContext): DatabankService["attac
       return; // already attached — idempotent
     }
     await ctx.audit({ actorUserId: ownerId, action: "databank.attachToChat", entityType: "document", entityId: documentId, metadata: { chatId } }, ctx.now());
-    // TWO PLANES, one write, and they are not interchangeable (#2471). The HOST's own bank view (the
+    // TWO PLANES, one write, and they are not interchangeable. The HOST's own bank view (the
     // attachment chips) is per-person and announces on the user bus; the ROOM's view of what feeds its
     // prompts (`listActiveForChat`) is MEMBER-VISIBLE and announces on the chat bus through the injected
     // room fan — widening the per-person member to the room is the exact leak `membership-fan-guard` bans,

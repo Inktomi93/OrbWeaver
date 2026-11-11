@@ -23,7 +23,7 @@ export function createRead(ctx: NotificationsContext): Pick<NotificationsService
     if (row === undefined) {
       throw new DomainNotFoundError(ENTITY, params.notificationId);
     }
-    // Dismissed = settled: the row has left the inbox, so it asks nothing of anyone (#1799).
+    // Dismissed = settled: the row has left the inbox, so it asks nothing of anyone.
     return asSettled(row);
   }
 

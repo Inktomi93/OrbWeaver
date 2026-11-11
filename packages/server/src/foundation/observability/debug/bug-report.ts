@@ -1,4 +1,4 @@
-// THE BUG-REPORT CAPTURE (#1095) — the server half of the owner's dev bug-found button: one click, a typed
+// THE BUG-REPORT CAPTURE — the server half of the owner's dev bug-found button: one click, a typed
 // note, and everything the process knows lands in a durable file an agent session can read cold.
 //
 // WHY THIS HALF EXISTS AT ALL: the in-memory flight recorders (the root's log, request, trace and
@@ -6,7 +6,7 @@
 // on every server respawn — and `node --watch` respawns on every saved source file. Asking the owner to "go look
 // at /api/_debug/wire/captures later" is asking for evidence that will not exist by then. The capture happens AT REPORT TIME, in the same process that holds the rings.
 //
-// RING COVERAGE AND INTENTIONAL BOUNDARIES (#1168, inventory of #1095):
+// RING COVERAGE AND INTENTIONAL BOUNDARIES (inventory):
 //   COVERED: the root log ring (error-level log lines), requests (HTTP-level with method/path/status/duration/userId),
 //   traces (OTel spans with per-procedure timing), wireCaptures (provider request payloads),
 //   wireOutcomes (turn outcomes), rpgTraces (injected), memoryRecalls (injected).
@@ -29,7 +29,7 @@
 // states about every probe. There is no tRPC twin and no sweep row: the cross-tenant sweep enumerates
 // `appRouter._def.procedures`, so a hono route is structurally outside it, and moving a dev-only file-writing
 // capture into the production router to earn a classification row would satisfy the letter against the purpose
-// (owner ruling 2026-09-02, fork 1). `tests/server/entry/debug-gate-admission.int.test.ts` and the e2e specs over
+// (owner ruling, fork 1). `tests/server/entry/debug-gate-admission.int.test.ts` and the e2e specs over
 // `tests/e2e/support/debug-gate.ts` — the enforcers that DO govern it — carry this path.
 //
 // THE SCRUB IS VALUE-BASED AND RUNS OVER THE WHOLE SERIALIZED REPORT, once, immediately before the write
@@ -40,7 +40,7 @@
 // a file with a credential in it (`serializeScrubbed`).
 //
 // THE ARTIFACT SHAPE IS NOT DECLARED HERE. `BUG_REPORT_DIR`, the file-stem grammar and `BugReportRecord`
-// live in `@orb/kit/bug-report` because the READER (`pnpm bug:reports`, #1184) needs the same three facts
+// live in `@orb/kit/bug-report` because the READER (`pnpm bug:reports`) needs the same three facts
 // and cannot import this tier — a re-spelled directory name in the reader turns a rename here into a
 // lister that silently finds nothing.
 //
@@ -124,7 +124,7 @@ export function secretLiterals(environment: Readonly<Record<string, unknown>>): 
 //  until every literal is gone, degrading its marker to `""` when it must), which is exactly the property the
 //  spec pins — a post-condition on a security boundary earns its keep by being checked, not by firing.
 //
-//  It asks about `secretRedactionLiterals`, not about the raw `secrets` (#1785). This is a SERIALIZE-then-
+//  It asks about `secretRedactionLiterals`, not about the raw `secrets`. This is a SERIALIZE-then-
 //  scrub site: `JSON.stringify` escapes `"` and `\`, so an operator credential holding either is in these
 //  bytes only as `a\"b`. A post-condition that searched for the raw literal would have certified exactly the
 //  bytes it exists to refuse.
@@ -258,7 +258,7 @@ function noteMarkdown(record: BugReportRecord, stem: string): string {
     "",
     record.note,
     "",
-    // THE ARTIFACT NAMES ITS OWN READER (#1184). These files are gitignored, so nothing on the tree points at
+    // THE ARTIFACT NAMES ITS OWN READER. These files are gitignored, so nothing on the tree points at
     // them and a cold investigator who stumbles on one has no way to find its siblings. One line here is the
     // cheapest of the three discoverability homes and the only one that travels WITH the evidence.
     "---",

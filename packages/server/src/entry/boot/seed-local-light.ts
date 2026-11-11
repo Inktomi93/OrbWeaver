@@ -5,7 +5,7 @@
 //
 //   • {@link seedLocalLightOnBoot} — the BOOT SWEEP. It enumerates `users` and therefore covers exactly the
 //     accounts that exist AT BOOT: a fresh install's seeded owner and every pre-existing account. It covers
-//     NOTHING minted afterwards, and saying so is the point (#2481) — the sibling boot step
+//     NOTHING minted afterwards, and saying so is the point — the sibling boot step
 //     `local-light-prefetch.ts` declares its enumeration limit in its own header, this one used to claim the
 //     per-user call existed when it did not, and the claim read as coverage for a year of accounts that got
 //     none until the next restart.

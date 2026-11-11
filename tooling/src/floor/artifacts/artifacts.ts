@@ -1,7 +1,7 @@
 // Tool output lands under `<repo>/reports/<kind>/` (root-anchor gitignored) + the RESULT-line
 // convention: report lines to stdout via `print`; the LAST line is a stable `RESULT <tool> key=value …`
 // machine line (`tail -1` / `grep ^RESULT`). Exit codes are the CALLER's (floor/cli/exit-contract.ts).
-// Since #1029 a RUN writes into its own slot and publishes those `reports/…` paths as `latest`
+// A RUN writes into its own slot and publishes those `reports/…` paths as `latest`
 // pointers when it finishes, and the slot machinery below is the layout's
 // mechanism. The `--out`-keyed FILING doors that ride on it live in ./artifact-out.ts (one layer up,
 // so this module never imports back down).
@@ -59,8 +59,8 @@ export function ensureReportsDir(root: string, ...segments: readonly string[]): 
   return dir;
 }
 
-// ── RUN IDENTITY + PER-RUN ARTIFACT SLOTS (#1029) ────────────────────────────────────────────────────
-// THE DEFECT THIS CLOSES (owner ruling 2026-09-01: "all reports need to be able to be ran concurrently").
+// ── RUN IDENTITY + PER-RUN ARTIFACT SLOTS ────────────────────────────────────────────────────
+// THE DEFECT THIS CLOSES (owner ruling: "all reports need to be able to be ran concurrently").
 // Every instrument wrote its artifact to ONE fixed path, so two runs on one checkout — two lanes, a lane
 // and the orchestrator — clobbered each other: one run's complete verdict flipped to another run's
 // in-flight stub inside 30s, and the read-the-artifact-not-the-pipe law assumes the artifact is YOURS.
@@ -73,7 +73,7 @@ export function ensureReportsDir(root: string, ...segments: readonly string[]): 
 // torn or in-flight artifact. Readers therefore keep their existing spelling: the documented path IS the
 // `latest` pointer. A launcher that knows its own run id reads its OWN slot instead (`runFile`).
 //
-// WHAT REPLACES THE FIXED-PATH IN-FLIGHT STUB (#410, contract/run-manifest.ts). The stub survives — it is
+// WHAT REPLACES THE FIXED-PATH IN-FLIGHT STUB (contract/run-manifest.ts). The stub survives — it is
 // written into the slot, not over the published pointer — and the "this run died" tell that used to come
 // from finding `complete:false` at the fixed path now comes from `abandonedRuns`: a slot whose `.inflight`
 // marker is still there and whose pid is GONE. That distinction is strictly finer than the old one, which
@@ -85,13 +85,13 @@ const INFLIGHT_MARKER = ".inflight";
 /** The alias list a publish leaves in its slot, so `pruneRuns` can ask "does any pointer still resolve
  *  here?" without walking `reports/`. Dot-prefixed: the `--out` layer's alias enumerator skips it. */
 export const PUBLISHED_MANIFEST = ".published";
-// Retention — HOW LONG a slot lives and the ledger of the ones that went — is ./run-retention.ts (#1341).
+// Retention — HOW LONG a slot lives and the ledger of the ones that went — is ./run-retention.ts.
 const RUNS_SEGMENT = "runs";
 /** Dot-prefixed, so the pointer inventory skips it. */
 const PUBLISH_LOCK = ".publish.lock";
 // DOT-FREE on purpose: a run id becomes a path SEGMENT and, for a scratch artifact, part of a filename
 // a `*.json` glob has to match — a stray dot from the timestamp's milliseconds turns a `*.tmp.*.json`
-// config row into a silent non-match (paid once, 2026-09-01).
+// config row into a silent non-match (paid once).
 const RUN_ID_UNSAFE_RE = /[^a-zA-Z0-9_-]+/gu;
 
 /** The CHECKOUT a run is judging: `main` for the primary checkout, the worktree directory's basename for a
@@ -150,7 +150,7 @@ export interface InflightMarker {
 }
 
 /** THE FOUR SLOT READERS (this, `readMarker`, `runDirs`, `pointerRunId`) are exported for ./artifact-pointer.ts
- *  — the READ half of this layout (#2502). It asks; it never writes, and this module never imports it back. */
+ *  — the READ half of this layout. It asks; it never writes, and this module never imports it back. */
 export function instrumentRunsDir(root: string, instrument: string): string {
   return reportsPath(root, RUNS_SEGMENT, instrument);
 }
@@ -215,7 +215,7 @@ export function runFile(slot: RunSlot, ...segments: readonly string[]): string {
 
 /** Replace `absPath` with a RELATIVE symlink to `target` atomically: create the link at a unique temp name
  *  in the same directory, then `rename` over the alias (POSIX rename of a symlink is atomic). A stale REAL
- *  file/dir at the alias — every pre-#1029 artifact is one — is removed first; that one-time swap is the
+ *  file/dir at the alias — every artifact older than run slots is one — is removed first; that one-time swap is the
  *  only non-atomic moment in the layout, and it happens once per alias per checkout. */
 function publishSymlink(absPath: string, target: string): void {
   const tmp = `${absPath}.tmp.${process.pid}`;
@@ -246,22 +246,22 @@ export interface RunAlias {
   readonly target: string;
 }
 
-/** FINISH a run that completed and deliberately published NOTHING (#2221). The in-flight marker means
+/** FINISH a run that completed and deliberately published NOTHING. The in-flight marker means
  *  "a process is writing here", never "this slot became `latest`" — but `publishRunSlot` was its only
  *  unlinker, so every run that finishes WITHOUT publishing left one behind and `abandonedRuns` then reported
- *  it as a run that DIED. Measured on main 2026-09-12: 17 of 32 structure slots carried a marker and 13 of
+ *  it as a run that DIED. Measured on main: 17 of 32 structure slots carried a marker and 13 of
  *  those were FINISHED fixture-mode runs, so the run reader refused the real pointer with "that run never
- *  finished" about a run that finished perfectly and only declined to speak for the real tree (#2167).
+ *  finished" about a run that finished perfectly and only declined to speak for the real tree.
  *
  *  Two callers by design: a NON-VERDICT run and a GATE-SCOPED run. Both are complete; neither may become
  *  `latest`. The empty `.published` manifest is the honest record — the retention reader asks "does any
  *  pointer still resolve here?" and an empty list is the correct NO.
  *
- *  IT DOES NOT PRUNE (#2262). This used to be `publishRunSlot(root, slot, [])`, and the honest name was the
+ *  IT DOES NOT PRUNE. This used to be `publishRunSlot(root, slot, [])`, and the honest name was the
  *  whole point — a bare `publishRunSlot(…, [])` on a non-publishing path reads as a mistake and gets "tidied"
  *  back into the bug this closed. But the delegation carried a SIDE EFFECT: publishing ends in `pruneRuns`,
  *  so a run that merely closed retired other runs' evidence. Its two callers are exactly the ones with no
- *  standing to do that — a GATE-SCOPED run publishes no pointer and is the #1584 per-conversion floor, cheap
+ *  standing to do that — a GATE-SCOPED run publishes no pointer and is the per-conversion floor, cheap
  *  and constant, so it added nothing to the ring while evicting from it. Closing and publishing share the
  *  unlink; deleting evidence is a publisher's act. It therefore no longer needs `root` at all — the
  *  parameter went with the prune, because a signature that still asked for the checkout would imply this
@@ -297,7 +297,7 @@ export function publishRunSlot(root: string, slot: RunSlot, aliases: readonly Ru
       ? []
       : withDirLock(join(ensureReportsDir(root), PUBLISH_LOCK), "the artifact alias publication lock", () => publishAliases(root, slot, aliases));
   finishSlot(slot, published);
-  // THE PUBLISHER-ONLY HALF (#2262): retention runs here and NOT in `closeRunSlot`. A run that publishes a
+  // THE PUBLISHER-ONLY HALF: retention runs here and NOT in `closeRunSlot`. A run that publishes a
   // `latest` pointer is speaking for the instrument, and that is what gives it standing to retire older runs.
   pruneRuns(root, slot);
   return published;
@@ -357,7 +357,7 @@ export function pointerRunId(root: string, alias: string, instrument: string): s
 
 /** Is any `latest` pointer still resolving INTO this slot? The `--out`-keyed families publish one pointer
  *  per artifact NAME, so pointers from many runs are live at once — pruning by age alone would delete the
- *  evidence a live pointer names and leave it dangling (#1164). */
+ *  evidence a live pointer names and leave it dangling. */
 function slotIsReferenced(root: string, instrument: string, runIdOfSlot: string, dir: string): boolean {
   return publishedAliases(dir).some((alias) => pointerRunId(root, alias, instrument) === runIdOfSlot);
 }
@@ -375,7 +375,7 @@ function exists(path: string): boolean {
 }
 
 /** A slot's last-modified instant, or null when the slot VANISHED between the directory listing and this
- *  read. THE DEFECT THIS CLOSES (#1029 adversarial verification, 2026-09-02): every other per-slot read in
+ *  read. THE DEFECT THIS CLOSES: every other per-slot read in
  *  the prune chain — `readMarker`, `publishedAliases`, `pointerRunId` — already answers "gone" with a
  *  value, but this one called `statSync(...).mtimeMs` bare after a multi-syscall filter chain. A SIBLING
  *  publisher pruning the same stale slot inside that window threw ENOENT out of `publishRunSlot`, BEFORE
@@ -396,7 +396,7 @@ function slotMtime(dir: string): number | null {
 export type { PrunedRun } from "./run-retention.ts";
 
 /** The runs of this instrument the ring deleted on this checkout, oldest first — so `--reports` can answer a
- *  citation that no longer resolves with `PRUNED <id> <when>` instead of omitting it (#1341). */
+ *  citation that no longer resolves with `PRUNED <id> <when>` instead of omitting it. */
 export function prunedRuns(root: string, instrument: string): readonly PrunedRun[] {
   return readPrunedRuns(instrumentRunsDir(root, instrument));
 }
@@ -426,7 +426,7 @@ function pruneRuns(root: string, slot: RunSlot): void {
   recordPrunedRuns(base, pruned);
 }
 
-/** Slots of this instrument whose run DIED — the marker survived a process that is gone. This is the #410
+/** Slots of this instrument whose run DIED — the marker survived a process that is gone. This is the
  *  killed-run tell after the fixed-path stub retired: a reader that finds one newer than the published
  *  pointer is looking at a run that never became a verdict. Newest first. */
 export function abandonedRuns(root: string, instrument: string): readonly AbandonedRun[] {
@@ -438,7 +438,7 @@ export function abandonedRuns(root: string, instrument: string): readonly Abando
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt));
 }
 
-// THE `--out` NAMING CONTRACT MOVED OUT (#2242) to ./artifact-naming.ts — the same shape as the #1029 slot machinery's own split of retention into
+// THE `--out` NAMING CONTRACT MOVED OUT to ./artifact-naming.ts — the same shape as the slot machinery's own split of retention into
 // ./run-retention.ts. It is NOT re-exported here: biome's `lint/performance/noBarrelFile` forbids a value
 // re-export, so the eleven callers import the new module directly and this file keeps exactly the
 // capability it is named for (`PrunedRun` below survives only because a TYPE-only re-export is allowed).

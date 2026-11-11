@@ -106,7 +106,7 @@ function selectsTrpcJsonHandler(contentType: string | undefined): boolean {
 }
 
 /**
- * THE CSRF CONTENT-TYPE BELT (#300 leg 5, spine invariant #9). A tRPC mutation is POST-only
+ * THE CSRF CONTENT-TYPE BELT (spine invariant #9). A tRPC mutation is POST-only
  * (`TYPE_ACCEPTED_METHOD_MAP`, and the `allowMethodOverride` map keeps it so), and `@trpc/server` 11.18's
  * `getContentTypeHandler` accepts THREE content-types — `application/json`, `multipart/form-data` and
  * `application/octet-stream` — dispatching the latter two as `type:"mutation"`. `multipart/form-data` is
@@ -127,7 +127,7 @@ function selectsTrpcJsonHandler(contentType: string | undefined): boolean {
  * GET is untouched — it carries no content-type, and tRPC's method map admits GET for queries and
  * subscriptions only. The mount's `allowMethodOverride` admits a query or subscription over POST too, which
  * is why this belt, not the method, is what bounds a POST to `application/json`. A bare 415 with no body mirrors the body-limit belt: no legitimate client reaches it,
- * and the refusal still carries `X-Request-Id` (observability is mounted above this — and since #480 it
+ * and the refusal still carries `X-Request-Id` (observability is mounted above this — and it
  * stamps the id on `c.res.headers` AFTER `next()`, so the header rides EVERY response through this mount,
  * including the tRPC handler's own Response objects, not just the context-built refusals like this one).
  */
@@ -202,11 +202,11 @@ export interface AppDeps {
   readonly trpcContext: ContextForRequest;
   /** The multiplexed-socket cells (SSE-1) — read by the `stream` router and the /api/_debug counter. */
   readonly sockets: SocketRegistry;
-  /** R-OBS — the rpg flight recorder's read half, present ONLY when tracing is enabled (`RPG_TRACE=on` in the
+  /** The rpg flight recorder's read half, present ONLY when tracing is enabled (`RPG_TRACE=on` in the
    *  record). Absent ⇒ `/api/_debug/rpg/traces` is not registered at all, which is the route's
    *  own contract: tracing off means the door does not exist rather than answering an empty ring. */
   readonly rpgTrace?: RpgTraceInspector;
-  /** #250 — the memory-recall flight recorder's read half. Present in production compose (the recorder is
+  /** The memory-recall flight recorder's read half. Present in production compose (the recorder is
    *  built unconditionally); absent ⇒ `/api/_debug/memory/recalls` is not registered. */
   readonly memoryRecall?: MemoryRecallInspector;
   /** Compose's wire-capture decision (`WIRE_CAPTURE` in the record), published on `/api/_debug/wire/captures` and
@@ -287,7 +287,7 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
     }),
   );
 
-  // ONE RULE, MOUNTED ONCE PER POST-`next()` WRITER (#1761). hono's `compose()` hands `app.onError` only an
+  // ONE RULE, MOUNTED ONCE PER POST-`next()` WRITER. hono's `compose()` hands `app.onError` only an
   // `err instanceof Error`, and it runs it at the frame that CAUGHT the throw — so every middleware OUTSIDE
   // that frame sees `next()` resolve and gets its post-`next()` write, and everything INSIDE has unwound.
   // A non-Error therefore has to be converted BELOW each middleware whose post-`next()` work must still
@@ -297,7 +297,7 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
   //
   // The middleware is transparent to an `Error` (same instance, no re-wrap), so the inner mount simply makes
   // the outer one a no-op for anything below it. The outer one still covers what sits BETWEEN them: the IP
-  // allowlist and the principal-resolution middleware — the auth-infrastructure fault class of #1479.
+  // allowlist and the principal-resolution middleware — the auth-infrastructure fault class.
   app.use("*", normalizeThrownErrors());
 
   const allowlist = parseAllowlist(deps.env.IP_ALLOWLIST);
@@ -409,14 +409,14 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
   registerCardFrame(app, {
     participants: { listParticipants: (params) => deps.services.chat.listParticipants(params) },
     allowExternalMedia: () => !deps.services.settings.getEffectiveConfig().forbidExternalMedia,
-    // The deployment half of the html-trust ladder's TOP rung (#111 leg 3). Same live read the participant
+    // The deployment half of the html-trust ladder's TOP rung. Same live read the participant
     // resolver uses, applied a second time at the boundary that actually mints the policy.
     allowInteractiveCards: () => deps.services.settings.getEffectiveConfig().allowInteractiveCards,
     viewerRunsCardScripts: async (viewer) => (await deps.services.settings.loadUserSettings(viewer.userId)).chat.runCardScripts,
     now: deps.now,
   });
 
-  // The PLUGIN-frame doorway (#679 U7). Same substrate, one authority: the owner-scoped `getFrameBody` read,
+  // The PLUGIN-frame doorway. Same substrate, one authority: the owner-scoped `getFrameBody` read,
   // which also re-checks the row's live `ui.frame` grant per mint. It takes NO deployment ceiling because its
   // policy has no variable axis — a plugin frame is always the media floor plus the `data:` door (the reasoning
   // is in `plugin-frame.ts`). `securityHeaders` skips the served-document path here for the same mechanical
@@ -510,10 +510,10 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
     // the server is actually running on, and a character's `trustHtml: null` ("inherit") resolves to a real
     // verdict instead of leaving the reader to infer what it inherits.
     effectiveConfig: () => deps.services.settings.getEffectiveConfig(),
-    // R-OBS: registered only when the recorder exists (tracing on) — spread, so an untraced boot passes the
+    // Registered only when the recorder exists (tracing on) — spread, so an untraced boot passes the
     // key at all rather than an `undefined` the route's `!== undefined` check would still have to read.
     ...(deps.rpgTrace === undefined ? {} : { rpgTrace: deps.rpgTrace }),
-    // #250: the memory-recall ring. Same spread shape as rpgTrace, but the recorder is unconditional in
+    // The memory-recall ring. Same spread shape as rpgTrace, but the recorder is unconditional in
     // production compose — the `undefined` arm only fires for a hand-built app (a route/gate test).
     ...(deps.memoryRecall === undefined ? {} : { memoryRecall: deps.memoryRecall }),
     // The recorder-state publisher: compose's decision, never a second read of the knob.
@@ -521,7 +521,7 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
     // The admin arm judges the ONE principal the auth middleware above already resolved for this request
     // (spine invariant #2). It must never re-resolve: the peer-less second resolution this replaced could not
     // mint the loopback owner arm, so a single-user/dev box's only operator was refused at its own door
-    // (#1193). `?? null` is the fail-closed read for a context this middleware never ran on.
+    //. `?? null` is the fail-closed read for a context this middleware never ran on.
     auth: {
       expectedToken: deps.env.DEBUG_TOKEN,
       adminAuth: { isAdmin: (c: Context): boolean => deps.seam.debugGateAdmits((c as Context<PrincipalEnv>).get("principal") ?? null, c.req.raw.headers) },

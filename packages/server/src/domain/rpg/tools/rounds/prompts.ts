@@ -73,7 +73,7 @@ function sliceTranscript(transcript: readonly RpgTurnTranscriptMessage[], config
  *  The model reads the RECENT STORY + the CURRENT TRACKED STATE + the LATEST BEAT and emits the WHOLE state
  *  delta as ONE structured object — no user-facing prose, structured output is the fit. The projected schema
  *  marks the five array fields REQUIRED (zod `.default([])` in output mode), so "nothing changed" is EMPTY
- *  ARRAYS, not a literal `{}` (stickler S5 — a bare `{}` fails the Anthropic runtime's schema validation).
+ *  ARRAYS, not a literal `{}` (a bare `{}` fails the Anthropic runtime's schema validation).
  *
  *  ARC AWARENESS (crunchy-cluster §1.3): the RECENT STORY is the model's EVIDENCE. The delta it outputs covers
  *  ONLY the LATEST BEAT, but it may use the whole story to understand it — a relationship warming over several
@@ -134,7 +134,7 @@ function extractionUserPrompt(args: {
     return `CURRENT STATE:\n${stateBlock}\n\nLATEST BEAT:\n${args.beat}`;
   }
   const storyLines = args.story.map(renderTranscriptLine).join("\n");
-  // PROSE-1 slot (#578): the LATEST BEAT label carries real prose ("your delta covers exactly this") beside
+  // PROSE-1 slot: the LATEST BEAT label carries real prose ("your delta covers exactly this") beside
   // the two structural block headers (§2.11, out of scope) — `rpg.extract.userPrompt.latestBeatLabel`.
   return (
     `RECENT STORY (oldest first):\n${storyLines}\n\n` +
@@ -177,7 +177,7 @@ export function cheapRoundTools(conn: Resolved<"chat">, tools: RpgStateRoundTool
 }
 
 /** The SEMANTIC self-ref the human player's actor always answers to — a STABLE token independent of the
- *  display name (owner ruling 2026-07-27: "You" is the no-persona fallback, a persona sets a real name, and
+ *  display name (owner ruling: "You" is the no-persona fallback, a persona sets a real name, and
  *  the model reaching for "player" was the saner API). The wire vocabulary leads with this; the resolver
  *  (`buildActorRefIndex` self-aliases) maps it to the user ref, and the snapshot keys on `user:<id>` (stable
  *  across persona changes — verified, never orphaned by a display-name toggle). */
@@ -197,13 +197,13 @@ interface ResolvedRefs {
  *  (`tools/apply.ts`) can actually resolve, so the enum offers exactly the resolvable targets:
  *   • the semantic `player` token — ADDED only when NO participant member already occupies the name "player"
  *     (`buildActorRefIndex` gives an explicit participant name precedence over the self-alias; a participant char
- *     literally named "Player" therefore OWNS the `player` ref — stickler F10 — and the human is addressed by
+ *     literally named "Player" therefore OWNS the `player` ref — and the human is addressed by
  *     their own display name, kept below);
  *   • every participant member's display name (incl. a "Player"-named char and the user's persona name);
  *   • every tracked NPC actor's display name (`baseState.actorState` npc entries — R2 folded the old separate
  *     `presentCharacters[].key` walk into this one, because the scene npcs and the tracked npcs are the same
  *     rows now) — so `scene.presentRemove` can name an NPC the model previously upserted, and
- *     party/inventory/wallet reach a first-class npc whether or not she is on stage (stickler F4, D108).
+ *     party/inventory/wallet reach a first-class npc whether or not she is on stage (D108).
  *  Deduped case-insensitively. A model can then only target a REAL, resolvable ref under an enforcing backend,
  *  and the npc-actor reach is representable in BOTH constrained modes. */
 export async function resolveExtractionRefs(deps: RpgRoundsDeps, chatId: ChatId, baseState: RpgSnapshotState, reconcile: boolean): Promise<ResolvedRefs> {
@@ -344,7 +344,7 @@ function refEnumerationLines(inputs: PromptInputs): string {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// CHEAP mode — the DEDICATED TOOL ROUND (owner ruling 2026-07-27). The sibling of `runExtraction`.
+// CHEAP mode — the DEDICATED TOOL ROUND (owner ruling). The sibling of `runExtraction`.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // A state-only request (NOT tools on the character turn): the 6 state tools + a `no_changes` escape, with
 // ref-enum-constrained args (R1) + `tool_choice:"required"` (LIVE-VERIFIED: vLLM hermes/Qwen3 + OpenRouter
@@ -359,7 +359,7 @@ function refEnumerationLines(inputs: PromptInputs): string {
  *  structured arm uses, plus the tool-round's decomposition-nudge framing + the ref enumeration (R1 fallback). */
 export function toolRoundSystem(inputs: PromptInputs): string {
   const { config, refs, prose, reconcile } = inputs;
-  // DECOMPOSITION NUDGE (2026-07-27): the 8B under-fires — a beat that moved location AND wounded someone often
+  // DECOMPOSITION NUDGE: the 8B under-fires — a beat that moved location AND wounded someone often
   // wrote only ONE plane. So the prompt walks the model plane-by-plane (a checklist) and gives the concrete
   // multi-call example, forcing it to consider EACH plane independently rather than settling for one call.
   // Bounded attempt ([[plan-for-small-hardware]] — if the 8B ceiling holds, the honest-arms degrade holds).

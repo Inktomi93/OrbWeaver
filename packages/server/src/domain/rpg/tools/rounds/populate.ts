@@ -22,7 +22,7 @@ import { extractStructured, isUnresolvable, roomWindowed } from "./round-connect
 import { logExtractionOutcome, safeJson } from "./round-log.ts";
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// POPULATE — the HOST BORN-STATE model call (owner ruling 2026-08-01). The resync's sibling, over the CARD.
+// POPULATE — the HOST BORN-STATE model call (owner ruling). The resync's sibling, over the CARD.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // Same host-principal seam as the resync (a host-INITIATED interactive action: resolve the ROOM connection AS
 // THE HOST fresh at the verb, consent is the host's OWN, `input.hostUserId` is the room host by ROLE — never a

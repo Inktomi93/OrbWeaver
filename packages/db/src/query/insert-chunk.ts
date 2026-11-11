@@ -9,7 +9,7 @@ const MIN_ROWS_PER_INSERT = 1;
 
 /** How many rows fit in one insert given `columnsPerRow` bound variables each (≥1, floored).
  *
- *  `columnsPerRow` must be a POSITIVE INTEGER and throws `RangeError` otherwise (#1377 item 1). It used to
+ *  `columnsPerRow` must be a POSITIVE INTEGER and throws `RangeError` otherwise. It used to
  *  clamp with `Math.max(1, columnsPerRow)`, which is `NaN` for `NaN` — and the NaN then flowed into
  *  {@link chunkRows}, where the loop ran its body once against `rows.slice(0, NaN)` (an EMPTY chunk) and
  *  `start += NaN` ended it forever. A non-empty batch produced one empty chunk and no error, which reads

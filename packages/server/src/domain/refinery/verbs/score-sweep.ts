@@ -17,13 +17,13 @@
 // member of one JSON column, through the SAME injected character op every other stamp goes through
 // (`characters.*` keeps exactly one writer, F6).
 //
-// THE OUTPUT CAP IS PAYLOAD-AWARE HERE TOO (live e2e 2026-08-09, open fork 3). This pass used to resolve the
+// THE OUTPUT CAP IS PAYLOAD-AWARE HERE TOO (live e2e). Resolving the
 // RAW `refine_score` posture floor — the same static number whose being smaller than the payload 503'd the
 // session path twice against the real fleet. A sweep's failure mode is quieter and worse: a truncated card
 // just counts `failed`, so a library-wide under-budget reads as "the model is bad at this" instead of as a
 // misconfiguration. It now folds the SAME `substrate/output-budget` expression (`sweepOutputSamplingOf`).
 //
-// THE PASS ANNOUNCES ITSELF ONCE, AT THE TERMINAL (event-bus coverage survey §2.5/F2, the #23 import
+// THE PASS ANNOUNCES ITSELF ONCE, AT THE TERMINAL (event-bus coverage survey §2.5/F2, the import
 // precedent): one `charactersChanged` per owner whose cards it stamped — see `announceSweep`. The per-card
 // stamp stays silent (F6); what moves is the library's score SORT order, and a workload has no mutation for
 // any client to hang an `invalidates` on.
@@ -77,8 +77,8 @@ interface SweepItem {
 }
 
 /**
- * THE BATCH'S ONE OUTPUT CAP, payload-aware (live e2e 2026-08-09, open fork 3 — this pass shipped on the raw
- * `refine_score` posture floor, which is the exact defect that 503'd the session path: a floor smaller than
+ * THE BATCH'S ONE OUTPUT CAP, payload-aware (live e2e — the raw
+ * `refine_score` posture floor is the exact defect that 503'd the session path: a floor smaller than
  * the payload truncates on both attempts and fails the card). Same expression the session engine and the fit
  * line evaluate — one home for the number, never a second arithmetic that agrees by luck.
  *
@@ -169,7 +169,7 @@ async function runScoreSweep(deps: RefineryWorkloadDeps, opts: ScoreSweepOptions
 }
 
 /**
- * THE TERMINAL FAN (survey F2 / the #23 import-terminal shape): ONE `charactersChanged` per owner whose
+ * THE TERMINAL FAN (survey F2 / the import-terminal shape): ONE `charactersChanged` per owner whose
  * cards this pass stamped, at the END of the pass — never per card (that is a storm over a library-sized
  * loop, and the per-card stamp's F6 silence is deliberate and unchanged).
  *

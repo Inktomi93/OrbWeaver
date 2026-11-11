@@ -19,7 +19,7 @@ import type { Clock } from "@orb/kit/time";
 /** The DI bundle `createLinkCharacterAvatars` closes over (assembled at the entry composition root). */
 export interface CharacterAvatarLinkContext {
   readonly db: Db;
-  /** The injected clock the relink stamps `characters.updatedAt` from (#1379 item 2). It is NOT ambient
+  /** The injected clock the relink stamps `characters.updatedAt` from. It is NOT ambient
    *  `Date.now()` — the determinism gate, and the same seam every other character writer takes. */
   readonly now: Clock;
 }

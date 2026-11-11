@@ -96,7 +96,7 @@ export interface PersonaService {
   readonly disconnectFromCharacter: (params: DisconnectParams) => Promise<DisconnectResult>;
   /** Personas connected to this character, owner-scoped, newest first. */
   readonly listConnectedToCharacter: (params: ListConnectedParams) => Promise<PersonaDetail[]>;
-  /** Characters connected to this persona — the junction read from the OTHER side (#866 S4, the persona
+  /** Characters connected to this persona — the junction read from the OTHER side (the persona
    *  editor's "Connected characters" section). Owner-scoped through the persona gate; summary views only. */
   readonly listConnectedCharacters: (params: ListConnectedCharactersParams) => Promise<ConnectedCharacterView[]>;
   /** Set the active persona for a participant in a chat (host-or-self scoped). */

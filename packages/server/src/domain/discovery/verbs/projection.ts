@@ -4,7 +4,7 @@
 // A PCA basis only makes sense within one embedding space, so this runs over the owner's most-populous
 // (owner, model) group; cards in a stray secondary space are omitted (they can't share the basis).
 //
-// THE POINT SET IS EVERY INDEXED CARD, so its NAME read has to be too (issue #154): names come from the
+// THE POINT SET IS EVERY INDEXED CARD, so its NAME read has to be too: names come from the
 // `characters` row, genre from the distilled facets. Reading both off the facet row meant an un-distilled
 // library plotted correctly and labelled every point "Unknown".
 

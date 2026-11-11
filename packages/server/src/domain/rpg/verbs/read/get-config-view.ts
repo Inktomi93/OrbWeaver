@@ -12,13 +12,13 @@ import { resolveHost } from "#src/domain/rpg/guard.ts";
 export function createGetConfigView(ctx: RpgContext): Pick<RpgService, "getConfigView"> {
   async function getConfigView(params: ReadGameParams): Promise<RpgConfigView> {
     const { game } = await resolveHost(ctx, params.principal, params.chatId);
-    // The preset half of the two definition homes (owner ruling #20) — NAMES only: the editor's shadow gloss
+    // The preset half of the two definition homes (owner ruling) — NAMES only: the editor's shadow gloss
     // needs to know which names are taken, never the preset's bodies. Resolved through the injected chat op
     // (the picks pane's own resolution), so the console cannot disagree with what the turn actually registers.
     const presetMacros = await ctx.resolvePresetUserMacros(params.chatId);
     return {
       statProfile: game.config.statProfile,
-      ruleset: game.config.ruleset, // #862 — the Game tab's segmented ruleset control reads this
+      ruleset: game.config.ruleset, // The Game tab's segmented ruleset control reads this
       steeringNote: game.config.lite.steeringNote,
       gmPresetId: game.gmPresetId,
       extractionMode: game.config.extractionMode,

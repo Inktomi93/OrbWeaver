@@ -3,7 +3,7 @@
 // maxUses/expiry/targeting TOCTOU is closed by a single conditional UPDATE … RETURNING. The token is never
 // raw here — lookups key on the peppered `tokenHash` the verb computes.
 //
-// THE JOIN FLOOR IS RESOLVED IN-BATCH (#1403), never pre-read: `insertMemberAfterInviteClaimStatement`
+// THE JOIN FLOOR IS RESOLVED IN-BATCH, never pre-read: `insertMemberAfterInviteClaimStatement`
 // stamps `joinSeq` from a scalar subquery over `messages`, so a message committed while the redeem is in
 // flight can never land ABOVE the floor the seat records. Both redeem doors below share that builder.
 
@@ -29,10 +29,10 @@ export async function findInviteById(db: Db, inviteId: ChatInviteId): Promise<ty
   return rows.at(0);
 }
 
-/** The subset of `inviteIds` that are STILL PENDING **and still targeted at this user** (#1799 — the read
+/** The subset of `inviteIds` that are STILL PENDING **and still targeted at this user** (the read
  *  behind `InboxView.actionable`). Both predicates are the point: `status = 'pending'` excludes an invite
- *  that was accepted, declined, revoked or expired ANYWHERE (a share-link accept, a host revoke, or the
- *  #1501 accept whose follow-up dismiss failed), and `invited_user_id = :user` is what stops the read from
+ *  that was accepted, declined, revoked or expired ANYWHERE (a share-link accept, a host revoke, or an
+ *  accept whose follow-up dismiss failed), and `invited_user_id = :user` is what stops the read from
  *  becoming an existence oracle over invites belonging to other people's rooms. An untargeted share-link
  *  invite is never in the answer — it addresses nobody, so nobody's inbox is waiting on it.
  *  Empty `inviteIds` returns empty without touching the db (`inArray` on an empty list is a SQL error). */

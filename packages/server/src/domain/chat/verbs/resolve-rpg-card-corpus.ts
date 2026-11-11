@@ -60,7 +60,7 @@ export function createResolveRpgCardCorpus(input: ChatAssemblyContext): ResolveR
     if (hostUserId === null) {
       return null;
     }
-    // THE SEAT IS THE SCOPE (#1448). `characterId` reaches here from `params.actorRef.characterId` — a wire
+    // THE SEAT IS THE SCOPE. `characterId` reaches here from `params.actorRef.characterId` — a wire
     // parameter on `rpg.populateFromCharacter`, validated only for `kind === "character"`. Owner-scoping the
     // CARD read alone let a host name any card in their library and pull its prose into THIS room's corpus
     // (and mint an `rpg_sheets` row against a character with no seat). D18: membership is the scope of a

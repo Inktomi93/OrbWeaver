@@ -156,7 +156,7 @@ export interface MemoryDigestInput {
 /** memory's verbatim-segment CHUNK write payload → `embeddings.storeSegments`. `(chatId, blockIdx, chunkIdx)`
  *  is the upsert key; segments are shared per chat, not scope-keyed. One chunk covers the whole block in the
  *  overwhelming majority of cases — a block too big for the embed model's window becomes N chunks rather than
- *  one truncated row (#172), each carrying the honest span of the messages its text contains. */
+ *  one truncated row, each carrying the honest span of the messages its text contains. */
 export interface StoreSegmentParams {
   readonly ownerId: UserId;
   readonly model: string;

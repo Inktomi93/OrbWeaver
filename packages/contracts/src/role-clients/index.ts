@@ -33,7 +33,7 @@ const responseFormatSchema = z.strictObject({
 });
 /** `schema` is PINNED to {@link WireReady} (the rest rides the zod infer): only `projectJsonSchema` output
  *  can fill it, so a raw/stored/unprojected schema at any structured-output send-site fails to typecheck —
- *  the compile-time enforcement of task #41's wire-closure convention. The zod carries no `schema` key:
+ *  the compile-time enforcement of the wire-closure convention. The zod carries no `schema` key:
  *  nothing parses a `ResponseFormat`, so the pinned type is the only declaration. */
 export type ResponseFormat = z.infer<typeof responseFormatSchema> & { schema: WireReady };
 

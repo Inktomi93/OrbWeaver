@@ -1,4 +1,4 @@
-// op: resolveStandingAsks — which of a notifications page's CHAT-OWNED decisions are still open (#1799).
+// op: resolveStandingAsks — which of a notifications page's CHAT-OWNED decisions are still open.
 // A STANDALONE compose-built factory over `Db`, NOT a `ChatService` verb and never tRPC: it takes no
 // Principal (the `resolvePersonasForParticipants` / `postNarratorMessage` Principal-less precedent) because its
 // one caller is the notifications domain's read model, which already knows whose inbox it is holding and
@@ -7,7 +7,7 @@
 // WHY THE ANSWER LIVES HERE. The inbox's `actionable` flag means "this row still wants a decision", and the
 // settling state for the two chat-shaped asks is chat's own: `chat_invites.status` and
 // `chats.pending_host_user_id`. Both move WITHOUT any notification row moving — a share-link accept, a host
-// revoke, a re-nominate, or the #1501 accept whose follow-up dismiss failed — so a flag derived from the
+// revoke, a re-nominate, or an accept whose follow-up dismiss failed — so a flag derived from the
 // notification row alone would keep asserting a decision that no longer exists. notifications declares the
 // op TYPE it needs (`@orb/contracts/notifications`); this file is the runtime half; `entry/compose`
 // is where they meet. Neither domain imports the other.

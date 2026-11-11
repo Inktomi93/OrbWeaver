@@ -11,8 +11,8 @@
 // The insert's guards are subqueries feeding its `id` (a refused guard NULLs the PK); the update's are
 // extra conjuncts on its WHERE (a refused row simply does not update, and the empty result is then
 // disambiguated by an owner-scoped re-read). "No CAS" (the D28 posture) still describes the DEFAULT update
-// — the opt-in `expectedBasis` (#1446, widened to a `CardWriteBasis` by #1560) exists only for a caller
-// writing from an OLD basis, and the provenance claim (#1432) only for the one caller whose `importedFrom`
+// — the opt-in `expectedBasis` (a `CardWriteBasis`) exists only for a caller
+// writing from an OLD basis, and the provenance claim only for the one caller whose `importedFrom`
 // is an idempotency key.
 
 import type { CardWriteBasis } from "@orb/contracts/character";
@@ -143,7 +143,7 @@ function classifyInsertFailure(err: unknown, values: CharacterInsert): unknown {
   return err;
 }
 
-/** Insert a copy that ATOMICALLY CLAIMS its provenance key (#1432): the row lands only while no character
+/** Insert a copy that ATOMICALLY CLAIMS its provenance key: the row lands only while no character
  *  of this owner already carries this `importedFrom`, and `false` says a concurrent writer got there first
  *  (the caller converges on THEIR row — the same answer a sequential retry gives).
  *
@@ -218,7 +218,7 @@ async function provenanceClaimed(db: Db, ownerId: UserId, importedFrom: string):
  *  unique index → the same typed `CharacterOperationError("handle_conflict")` `insertCharacter` raises
  *  (never a raw DB error surfacing).
  *
- *  `expectedBasis` is the OPT-IN compare-and-swap (#1446), and it does not reopen D28: edit-in-place is
+ *  `expectedBasis` is the OPT-IN compare-and-swap, and it does not reopen D28: edit-in-place is
  *  still always safe for a caller that read the card and wrote it back in one breath, which is every
  *  ordinary edit and is why this file's header says "no CAS, no COW". What changed is the INPUT — the
  *  refinery's apply constructs its patch from a card it read BEFORE two model calls and a snapshot write,
@@ -226,7 +226,7 @@ async function provenanceClaimed(db: Db, ownerId: UserId, importedFrom: string):
  *  supplied it rides the same WHERE as ownership (one statement, no read-then-write window); a row that
  *  moved answers `"stale"` and NOTHING is written.
  *
- *  THE BASIS IS NOT THE CONTENT HASH ALONE (#1560). `content_hash` is the card's IDENTITY, and identity
+ *  THE BASIS IS NOT THE CONTENT HASH ALONE. `content_hash` is the card's IDENTITY, and identity
  *  deliberately excludes the re-attribution fields — `creatorNotes` among them (`#primitives/serde/card`
  *  `semanticFields`: re-attributing a card must not change what it IS). But
  *  `creatorNotes` is also a field the refinery REWRITES, so a hash-only fence passed a creator-notes-only

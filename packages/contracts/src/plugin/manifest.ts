@@ -23,7 +23,7 @@ export const PLUGIN_CAPABILITIES = [
   "chat.variables.write",
   "chat.quick_reply",
   "chat.transform", // D50 PromptTransform registration
-  // The world-info READ half (#788 F12) — the benign read-symmetry of `worldinfo.write` below. It lists the
+  // The world-info READ half — the benign read-symmetry of `worldinfo.write` below. It lists the
   // books ATTACHED to the invocation chat + their entries: the room's own lore, member-visible, owner-scoped by
   // construction (the bridge resolves the installer's Principal, the attachment gate is the write path's own
   // `isBookAttachedToChat`). BENIGN band (neither spend nor risk): a read of lore the room already renders, never
@@ -33,14 +33,14 @@ export const PLUGIN_CAPABILITIES = [
   "worldinfo.write",
   "global_vars", // the installing user's {{getglobalvar}} namespace
   "storage.kv", // plugin-private KV
-  // The CAS asset READ (#788 seam-11 read half). A guest reads back the bytes + mime of an asset in the
+  // The CAS asset READ. A guest reads back the bytes + mime of an asset in the
   // INSTALLER's OWN CAS (e.g. an image it just generated via `imagery.generate`). Owner-scoped by construction:
   // the bridge resolves the installer's Principal and calls the assets domain's OWNER-GATED `readOwnedAssetBytes`,
   // so a guest names an id but can only ever read its own; a foreign/absent id is the leak-free `null`
   // (indistinguishable — no existence oracle). BENIGN band (neither spend nor risk): reading the installer's own
   // stored bytes touches no paid budget and leaves no sandbox, and the read is size-capped host-side.
   "assets.read",
-  // The first-party RETRIEVAL read (#788 F1 residual / gap #9). A guest runs semantic document search over the
+  // The first-party RETRIEVAL read. A guest runs semantic document search over the
   // INSTALLER's OWN indexed corpus (the vectors-extension parity — plugins consume first-party RAG instead of
   // hand-rolling it). Owner-scoped by construction: the bridge closes the installer's `ownerId` over the search
   // scope, so a guest names only the query text and can search no other owner's library. The active embedding
@@ -91,7 +91,7 @@ export const PLUGIN_CAPABILITIES = [
   "plugin_events",
   "tools.register", // D48 tool-use registry, source (b)
   "net.fetch", // requires netHosts
-  // The REMOTE-IMAGE-INTO-CAS capability (plugin-remote-image #798). `host.net.fetchAsset(url)` downloads an
+  // The REMOTE-IMAGE-INTO-CAS capability. `host.net.fetchAsset(url)` downloads an
   // image from a manifest-allowlisted host through the SAME audited SSRF egress wall, but a SEPARATE hourly
   // image-download belt from `net.fetch` (EGRESS DELTA ZERO — a plugin that can `net.fetch` a host can already GET its bytes),
   // runs the remote-image guard, and writes the bytes into the INSTALLER's OWN CAS, returning an assetId. It is
@@ -119,7 +119,7 @@ export const PLUGIN_HOST_VERSIONS = [1] as const;
  *  Derived once so a third egress capability lands in ONE place instead of a hand-updated `||` chain. */
 const EGRESS_CAPABILITIES = ["net.fetch", "net.fetch_asset"] as const satisfies readonly PluginCapability[];
 
-// THE MINT'S BYTE BUDGET (#1803, the #1391 fork). `pluginToolWireName` (`registrations.ts`) mints
+// THE MINT'S BYTE BUDGET. `pluginToolWireName` (`registrations.ts`) mints
 //  `plugin_<slug'>_<name>` where `slug'` doubles every hyphen, and the ONE registry grammar `TOOL_NAME_RE`
 //  (`packages/server/src/domain/tool-use/contract/params.ts`) refuses a name over 64 bytes. Contracts
 //  cannot import server (the cake), so the 64 here must match that regex,
@@ -153,7 +153,7 @@ const PLUGIN_SLUG_MAX = 20;
  *  maximum `SLUG_RE` admits) is `2 * PLUGIN_SLUG_MAX - 1` bytes, not `2 * PLUGIN_SLUG_MAX` — the `-1`
  *  that separator's own `+1` immediately cancels, which is why the formula below has no `-1`/`+1` of its
  *  own. Raising `PLUGIN_SLUG_MAX` automatically SHRINKS this instead of silently reopening the overrun
- *  #1803 fixes. Every showcase tool name (`advance_clock`, 13 bytes,
+ *  this budget closes. Every showcase tool name (`advance_clock`, 13 bytes,
  *  `packages/showcase-plugins/bundles/story-clocks/main.ts`) clears it with margin. Consumed by
  *  `PLUGIN_TOOL_NAME_RE` (`ui.ts`) — the SAME grammar the membrane's `tools.register` trust boundary and
  *  the `tool-card` surface's `toolName` linkage both enforce (one grammar, both boundaries). */
@@ -171,7 +171,7 @@ export const pluginSlugSchema = z.string().regex(SLUG_RE).pipe(brandedId("Plugin
 /** An exact hostname `net.fetch` may reach (the SSRF posture; the per-request enforcer is `validateUrl`
  *  in the egress module, see below).
  *
- *  `z.hostname()` (a real RFC hostname grammar) replaced the charset regex `/^[a-z0-9.-]+$/` on 2026-08-02.
+ *  `z.hostname()` (a real RFC hostname grammar) replaced the charset regex `/^[a-z0-9.-]+$/`.
  *  The regex was a CHARSET test, not a grammar, and that was a live hole: `hostAllowed` in
  *  `server/src/infra/network/egress.ts` treats a LEADING-DOT entry as a SUFFIX WILDCARD
  *  (`if (e.startsWith(".")) host.endsWith(e)`), and the charset regex happily accepted `.com` — so a manifest
@@ -205,7 +205,7 @@ const NAME_MAX = 80;
 const DESCRIPTION_MAX = 500;
 const AUTHOR_MAX = 120;
 /** The per-manifest `netHosts` ceiling. Exported for TWO consumers, and it is deliberately ONE constant:
- *  the client says the ceiling out loud next to a host list (the P3 side-eye finding — the consent screen
+ *  the client says the ceiling out loud next to a host list (the consent screen
  *  asserted the list was exhaustive but gave no way to check it against the declared cap), and the re-grant
  *  acknowledgement echo (`plugin.setGrant`) bounds its array by it, since an echo can never legitimately
  *  name more hosts than a manifest may declare.
@@ -220,7 +220,7 @@ const ENGINE_VERSION_MAX = 40;
 const ENGINE_COMMIT_MAX = 64;
 
 /** Build provenance — the engine the bundle was built/tested against (the Marinara `builtAgainst` shape,
- *  owner-ruled 2026-07-18). Persisted on the plugins row + surfaced in the read/list views so a mismatch
+ *  owner-ruled). Persisted on the plugins row + surfaced in the read/list views so a mismatch
  *  against the RUNNING engine is VISIBLE (display/warn only in v1 — never a hard install gate). OPTIONAL
  *  block: a hand-authored bundle (esbuild + a text manifest) can't always produce provenance; when present,
  *  `engineVersion` is required (declared, trivially producible by any author) and `engineCommit` is
@@ -260,7 +260,7 @@ export const PLUGIN_SCRIPT_ENTRY_MAX_BYTES = 1_048_576;
 /** The decompressed ceiling for `manifest.json`. */
 export const PLUGIN_MANIFEST_ENTRY_MAX_BYTES = 65_536;
 
-/** The zip's optional BUNDLE-ASSET directory (#820, seam 11) — the ONE prefix under which a bundle may ship
+/** The zip's optional BUNDLE-ASSET directory (seam 11) — the ONE prefix under which a bundle may ship
  *  static IMAGE bytes (a sprite pack, decorative art) that `install`/`upgrade` extract into the INSTALLER's own
  *  CAS. It is the FOURTH admitted entry class and the only one that is a PREFIX rather than an exact name, so
  *  it is also the only place a path could ever be attacker-shaped — {@link PLUGIN_UI_ASSET_ENTRY_RE} is what

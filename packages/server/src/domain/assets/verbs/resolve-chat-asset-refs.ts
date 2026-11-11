@@ -1,4 +1,4 @@
-// verb: resolveChatAssetRefs (#67 co-participant render) — the CHAT-SCOPED sibling of `resolveOwnedAssetRefs`.
+// verb: resolveChatAssetRefs (co-participant render) — the CHAT-SCOPED sibling of `resolveOwnedAssetRefs`.
 // A group/multi-human chat member (not just the uploader) must render another present member's inline
 // attachment. The gate is NOT owner-scope and NOT bare chat-membership: it is the STRUCTURAL `message_assets`
 // reference in THIS chat at or above the caller's history floor + the asset owner is a PRESENT participant + the

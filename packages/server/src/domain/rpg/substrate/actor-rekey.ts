@@ -1,5 +1,5 @@
 // domain/rpg/substrate/actor-rekey — the PURE re-key of ONE actor across every plane that addresses it by key
-// (the actor-state review §4.3 / R4 promotion). Zero I/O: it takes the resolved head's state + locks and a
+// (the R4 promotion). Zero I/O: it takes the resolved head's state + locks and a
 // from→to ref pair, and returns the next state plus the lock DELTA. The verb (`verbs/promote-actor.ts`) owns
 // the authority, the durable card mint, and the write; this module owns "what does it mean to move a person's
 // key", so the arithmetic is unit-testable without a db.

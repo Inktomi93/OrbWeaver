@@ -4,7 +4,7 @@ import type { CharacterCard } from "@orb/contracts/character";
 import type { DroppedField, RefineryRewriteField } from "@orb/contracts/refinery";
 import type { ModelId } from "@orb/kit/ids";
 
-/** A held ROUND CLAIM (#1568) — what `substrate/round-claim.ts::takeRoundClaim` hands back and what
+/** A held ROUND CLAIM — what `substrate/round-claim.ts::takeRoundClaim` hands back and what
  *  `releaseRoundClaim` requires. The deadline is the claim's IDENTITY, not merely its expiry: the release is
  *  matched on it, so a round whose lease already lapsed cannot clear its successor's claim. */
 export interface RefineryRoundClaim {

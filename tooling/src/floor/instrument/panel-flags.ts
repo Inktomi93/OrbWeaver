@@ -3,7 +3,7 @@
 // rather than inside it because nav.ts's job is "one verb → one bridge call" and this file's job is "one
 // preset name → the ordered verbs that reach a named configuration". Splitting them keeps nav.ts a decoder.
 //
-// WHY THE AXIS EXISTS (#148 item 3): --panel made the shell's panel layout DRIVABLE, but a run with
+// WHY THE AXIS EXISTS: --panel made the shell's panel layout DRIVABLE, but a run with
 // no panel flags still occupies whichever configuration the account happened to be left in — so two runs of
 // the same probe measured two different surfaces and neither said so. A preset lets a run OCCUPY a named
 // configuration. It adds no mechanism: a preset expands into the same `--panel` nav actions, in

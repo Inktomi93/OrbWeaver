@@ -4,7 +4,7 @@
 // `assertCharacterOwned` op is wired, must also be owned — a gallery row must never reference another
 // user's asset or character. Upsert-guarded on the subject: a duplicate add returns the existing item
 // (idempotent) — for the un-charactered add too, which needs its own partial unique index because SQLite
-// treats NULL subjects as distinct (#1375; `persistence/queries.ts#insertGalleryItem` owns the mechanics).
+// treats NULL subjects as distinct (`persistence/queries.ts#insertGalleryItem` owns the mechanics).
 // Deterministic via the injected `newGalleryItemId`/`now`.
 //
 // Degradation (documented): when `assertCharacterOwned` is absent (non-HTTP/DR/workload contexts that never
@@ -39,7 +39,7 @@ export function createAddToGallery(ctx: AssetsContext): AssetsService["addToGall
     });
     const view = await galleryItemViewById(ctx.db, principal.userId, galleryItemId);
     if (view === undefined) {
-      // REACHABLE, not "Unreachable" (the #1478.5 shape in a second home): `insertGalleryItem` and this
+      // REACHABLE, not "Unreachable" (the same shape as the background guard): `insertGalleryItem` and this
       // re-read are two separate statements with no transaction between them, so a concurrent
       // `removeFromGallery`/asset-delete on THIS SAME item — or the CASCADE off the asset row — can land in
       // the gap and make the re-read empty. No unique/partial index on `gallery_items` can do this on its

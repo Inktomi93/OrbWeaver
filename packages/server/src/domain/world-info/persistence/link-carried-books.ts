@@ -5,7 +5,7 @@
 // the import/character domains never write character_books themselves (world-info owns that junction, D28),
 // so import consumes this as an INJECTED op wired at the compose root.
 //
-// TWO GATES, BOTH SECURITY-LOAD-BEARING — the SOURCE side and the TARGET side (#1414 seam 3):
+// TWO GATES, BOTH SECURITY-LOAD-BEARING — the SOURCE side and the TARGET side:
 //   • SOURCE: a carried id is a plain string from an untrusted card — it links ONLY when a world_book with
 //     that id EXISTS and is OWNED by the importing user. An absent or cross-tenant id is skipped (and
 //     counted), never linked — this is what stops a crafted card from attaching another tenant's book to the
@@ -26,7 +26,7 @@ import type { WorldInfoDuplicateCarryContext } from "../contract/import.ts";
 
 const LIMIT_ONE = 1;
 
-/** Is the TARGET character the importer's own? (#1414 seam 3.) The op is a DOMAIN BOUNDARY: its signature is
+/** Is the TARGET character the importer's own? (Seam 3.) The op is a DOMAIN BOUNDARY: its signature is
  *  the only promise the next call site inherits, and the source side alone being gated says nothing about
  *  where the junction lands. Its twin `duplicate-carry` already re-checks its own target for this reason. */
 async function targetOwned(db: Db, ownerId: UserId, characterId: CharacterId): Promise<boolean> {

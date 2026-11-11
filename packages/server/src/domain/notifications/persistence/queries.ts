@@ -74,7 +74,7 @@ function buildInsertNotification(db: Db, row: NotificationInsert): AwaitableBatc
     .returning(ROW_COLS);
 }
 
-/** UNEXECUTED "dismiss every active row of one type for one recipient" (#1041) — the supersede half of a
+/** UNEXECUTED "dismiss every active row of one type for one recipient" — the supersede half of a
  *  singleton delivery and the whole of a retract. Idempotent by the same `COALESCE` the per-row dismiss
  *  uses, so a row already dismissed keeps its original instant. Returned unexecuted because the supersede
  *  MUST ride the insert's own batch. */
@@ -91,7 +91,7 @@ function buildDismissActiveOfType(
     .returning({ id: notifications.id });
 }
 
-/** UPDATE the payload of the recipient's ACTIVE row of one type, in place (#1041) — `seq`, `readAt` and
+/** UPDATE the payload of the recipient's ACTIVE row of one type, in place — `seq`, `readAt` and
  *  `createdAt` are untouched, so a QUIET correction of a standing ask's own number never re-badges an inbox
  *  the reader already looked at. Returns the rows it changed: EMPTY means the reader has no active row of
  *  that type, which is a legitimate settled state (they dismissed it) and never a reason to insert one —
@@ -153,7 +153,7 @@ export async function dismissActiveOfType(
 }
 
 /** What rides the INSERT's own batch. `coStatements` is the producer seam (membership transitions);
- *  `supersedeActiveOfSameType` is the #1041 singleton seam. Both are statements the INSERT must commit
+ *  `supersedeActiveOfSameType` is the singleton seam. Both are statements the INSERT must commit
  *  WITH, never before or after — which is why they are options here rather than two calls at the verb. */
 interface InsertNotificationExtras {
   readonly coStatements?: readonly BatchStmt[];
@@ -242,7 +242,7 @@ export async function selectInbox(db: Db, recipientUserId: NotificationEvent["re
 
 /** The RESUME page — recipient-scoped, dismissed excluded, `seq` strictly ABOVE the watermark, OLDEST-first.
  *
- *  THE ASCENDING ORDER IS THE WHOLE POINT (#1459). `selectInbox` walks DOWN from the newest row, so a bounded
+ *  THE ASCENDING ORDER IS THE WHOLE POINT. `selectInbox` walks DOWN from the newest row, so a bounded
  *  walk that stops before it reaches the resume watermark has skipped the MIDDLE of the log while holding its
  *  TOP — and a reader that delivers what it holds advances its watermark past rows it never read. Walking UP
  *  from the watermark makes a short page a contiguous PREFIX instead: whatever the caller delivered, the next

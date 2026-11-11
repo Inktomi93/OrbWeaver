@@ -12,7 +12,7 @@ import { toPresetDetail } from "../substrate/views.ts";
 // mirrors `config.schemaVersion` (the reseed-gate compare key). Timestamps come from the injected clock.
 // The submitted name is de-collided against the caller's own library at mint time (`nextFreeName`) —
 // the client's Duplicate derives "Copy of X" from a row, so repeat duplicates would otherwise stack
-// indistinguishable rows (visual-blech audit F5).
+// indistinguishable rows.
 
 const PRESET_CREATE = "preset.create";
 const PRESET_ENTITY = "preset";

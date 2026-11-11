@@ -45,11 +45,11 @@ export const sessions = sqliteTable(
     revokedAt: integer("revoked_at"),
     // The User-Agent captured at mint; null when the mint carried no UA header.
     userAgent: text("user_agent"),
-    // ── The OIDC RP-initiated-logout hint (#141, owner ruling 2026-08-30) ────────────────────────────
+    // ── The OIDC RP-initiated-logout hint (owner ruling) ────────────────────────────
     // AES-256-GCM sealed OIDC `id_token`, held for ONE purpose: the `id_token_hint` on the end-session
     // request, so authentik honours `post_logout_redirect_uri` and the user lands back on our /login
     // instead of the IdP's page. Without the hint that param makes authentik 400 BEFORE its invalidation
-    // flow runs, which leaves the upstream SSO session alive (#437) — the two params are inseparable.
+    // flow runs, which leaves the upstream SSO session alive — the two params are inseparable.
     //
     // WHAT THIS IS: a bearer-ish credential at rest. It is an ID token, not an access token — it grants
     // no API authority — but it names the subject and, replayed as a hint, identifies the session to the

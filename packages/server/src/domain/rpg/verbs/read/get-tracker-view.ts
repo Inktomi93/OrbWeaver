@@ -3,7 +3,7 @@
 // projection (`./tracker-view` — the same projection the gather's steering reminder reads, so the panel and the
 // injection never drift). Resolves `trackersReadOnly` (the CP read-only pill) and hands it to the projection.
 //
-// THE HIDDEN-SPAN STRIP LIVES HERE, NOT IN THE PROJECTION (#1528). `buildTrackerView` is principal-free and is
+// THE HIDDEN-SPAN STRIP LIVES HERE, NOT IN THE PROJECTION. `buildTrackerView` is principal-free and is
 // ALSO the gather's reminder source, which feeds the MODEL — and the model must read the hidden truth (that is
 // the whole deception mechanic). So the belt is a property of THIS READ: a viewer who does not read hidden
 // (`viewerReadsHidden` = every present role but the host) gets every free-text plane of the view stripped, the

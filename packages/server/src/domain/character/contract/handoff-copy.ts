@@ -8,7 +8,7 @@ import type { CharacterId, ChatId, UserId } from "@orb/kit/ids";
 import type { Clock } from "@orb/kit/time";
 
 // domain/character/contract/handoff-copy — the `CharacterHandoffCopyContext` DI bundle + op type for the
-// character-OWNED card copy the host handoff's property offer executes (stickler 2026-08-03 §5.1).
+// character-OWNED card copy the host handoff's property offer executes.
 //
 // WHY IT EXISTS. `chat.acceptHostHandoff` must mint cards into the NOMINEE's library from cards the OLD HOST
 // owns — a cross-domain write, and a deliberately cross-TENANT one (it is a gift, made by the departing host

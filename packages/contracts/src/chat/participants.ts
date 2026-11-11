@@ -7,14 +7,14 @@
 // precedent to copy): that split exists because its AXIS is in kit (`ContentSpanKind` — the tokenizer must
 // read it and the cake forbids kit→contracts) while only the POLICY could home in contracts. The message-kind
 // axis has no kit reachability, so tuple + schema + policy are ONE home, beside the sibling role axis they are
-// orthogonal to (stickler 2026-08-08 §R1; deviation from that report's letter, endorsed 2026-08-07).
+// orthogonal to.
 
 import type { CharacterId } from "@orb/kit/ids";
 import type { MessageRole } from "@orb/kit/message-role";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import { z } from "zod";
 
-// `human`/`character` are the only live kinds post-rollback (2026-07-25 purge). `agent` (a first-class
+// `human`/`character` are the only live kinds post-rollback purge. `agent` (a first-class
 // userId-backed AND AI-driven principal, D60) and `observer` (the Narrative Director seam — watches +
 // proposes, never acts, unseatable) were purged with the agent-principal build; docs/work/0048 tracks the rebuild —
 // no `chat.seatAgent`/`requestAgentSeat` verb exists today. The rebuild grafts both kinds back onto this
@@ -46,7 +46,7 @@ export function speakerKey(ref: SpeakerRef): string {
 export const messageRoleSchema = z.enum(MESSAGE_ROLES) satisfies z.ZodType<MessageRole>;
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// MESSAGE KIND — what a canon row IS, DECLARED at mint (stickler 2026-08-08, canon-message-identity §2/§R1)
+// MESSAGE KIND — what a canon row IS, DECLARED at mint (canon-message-identity §2/§R1)
 //
 // The problem it closes: a row's PURPOSE was inferred from `role` + attribution + the room's CURRENT config —
 // a narrator row was "assistant + the synthetic group character", an agent line "assistant + authorUserId".
@@ -64,11 +64,11 @@ export const messageRoleSchema = z.enum(MESSAGE_ROLES) satisfies z.ZodType<Messa
 // So there is deliberately NO `agent` kind: an agent's room speech is `standard` + `authorUserId` (real
 // canon, D60), and its OUT-OF-BAND, unseated reaction is `comment` (visible, never prompt, never memory).
 //
-// KIND NEVER DECIDES THE CANON `role` (owner ruling, 2026-08-07). Narrator rows stay `role:'assistant'` in
-// canon. KIND NOW DECIDES NO WIRE ROLE EITHER (owner ruling, 2026-08-18, verbatim: "if you mean group chat
+// KIND NEVER DECIDES THE CANON `role` (owner ruling). Narrator rows stay `role:'assistant'` in
+// canon. KIND NOW DECIDES NO WIRE ROLE EITHER (owner ruling, verbatim: "if you mean group chat
 // narration mode then that is the wrong behavior"): the "ship a narrator row as a wire `system` row on
-// capable models" mapping — a SHAPE-time dispatch on kind × capability, built on the measured vLLM cell in
-// `6aad2053fb` — is RULED OUT. Group narration is ONE generation voicing all the seated characters, i.e. the assistant's
+// capable models" mapping — a SHAPE-time dispatch on kind × capability, built on the measured vLLM cell —
+// is RULED OUT. Group narration is ONE generation voicing all the seated characters, i.e. the assistant's
 // own output voice, so a narrator row delivers `assistant` on every wire. Kind also does not replace the D55
 // synthetic group character: that identity keeps the `__group__` memory scoping, the attribution chrome and
 // the host-owned mint. Kind is purpose; attribution remains voice.
@@ -114,7 +114,7 @@ function assertNeverMessageKind(kind: never): never {
  *   • `prompt`  — how the row enters the assembled prompt. `conversation` = an ordinary history row;
  *     `system-channel` = ALSO an ordinary history row on the wire, assistant-voiced, byte-identically to
  *     `conversation`. The arm's name is archaeology: it was minted for the capability-gated
- *     narrator→wire-`system` mapping, which the owner RULED OUT on 2026-08-18 (group narration is the
+ *     narrator→wire-`system` mapping, which the owner RULED OUT (group narration is the
  *     assistant's own output voice, not the operator channel). It is kept as its own arm because the two
  *     purposes still differ where purpose matters — the label policy and the delivered-row trace read it.
  *     `never` = the row is not prompt material at all.

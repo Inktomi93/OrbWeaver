@@ -9,7 +9,7 @@ export function createChatMemorySearchOps(deps: ChatMemorySearchDeps): ChatMemor
     // The digest SPACE is the host's (their `embed`/`rerank` bindings wrote it — vector tasks are owner-scoped,
     // inference program §7.5); `MemoryQueryOptions` carries no owner by D20, so the host is resolved from the
     // chat FK here. Hostless room ⇒ nothing to recall (leak-free).
-    // The SPACE refusals degrade here rather than faulting the turn (#2510 — `retrieval-degrade.ts` states
+    // The SPACE refusals degrade here rather than faulting the turn (`retrieval-degrade.ts` states
     // the whole boundary): a mid-move or unbound vector space is an ordinary owner state, and the user hears
     // about it through the episode this reports into. Every other search failure still propagates.
     searchDigests: async (query, events): ReturnType<ChatMemorySearchOps["searchDigests"]> => {

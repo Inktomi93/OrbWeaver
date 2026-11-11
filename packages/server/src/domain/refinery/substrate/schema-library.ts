@@ -12,7 +12,7 @@ export function schemaNameTakenError(name: string): DomainOperationError {
   return new DomainOperationError(SCHEMA_NAME_TAKEN_REASON, `You already have a schema named "${name}" — names are unique per library (case-insensitive).`);
 }
 
-/** The coded refusal for a patch written from a STALE read (#1445): the row moved between this caller's
+/** The coded refusal for a patch written from a STALE read: the row moved between this caller's
  *  load and its write, so applying the merged document would silently drop the other writer's fields. */
 const SCHEMA_STALE_PATCH_REASON = "refinery_schema_stale_patch";
 

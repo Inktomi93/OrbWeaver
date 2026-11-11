@@ -1,6 +1,6 @@
 // schema/refinery — card-refinery pipeline sessions + the append-only run log (producer: domain/refinery
 // — R1). Design: D171; the owner-signed port study
-// (2026-08-08, §5.2/§6) landed the shape below.
+// (§5.2/§6) landed the shape below.
 //
 // OWNERSHIP IS DERIVED, NOT STAMPED (D23): a session is anchored by `character_id NOT NULL → characters`
 // (single-owner canon), so it carries NO `owner_id` — the same DERIVE class as gallery_items /
@@ -75,7 +75,7 @@ export const refinerySessions = sqliteTable(
     // as each block is pressed so a re-entered session shows the same decisions and the same Apply count.
     // Read-seam parsed; a run id that no longer exists is harmless (nothing addresses it).
     rewriteDecisions: text("rewrite_decisions", { mode: "json" }).$type<RefineryRewriteDecisions>().notNull().default(sql`'{}'`),
-    // THE ROUND CLAIM (#1568) — a LEASE DEADLINE in epoch ms, not a boolean flag, and that is the whole
+    // THE ROUND CLAIM — a LEASE DEADLINE in epoch ms, not a boolean flag, and that is the whole
     // design: a flag set by a process that then crashes wedges the session forever, whereas a deadline in
     // the past IS a free session with no reaper, no heartbeat and no boot sweep to own. NULL = no round in
     // flight. `iterate` takes it with a conditional UPDATE (`inflight_until IS NULL OR inflight_until < now`)
@@ -138,7 +138,7 @@ export const refineryRuns = sqliteTable(
       .$type<RefineryRunId>()
       .references((): AnySQLiteColumn => refineryRuns.id, { onDelete: "set null" }),
     // The keys the strip-mode payload parse silently REMOVED — dotted paths, never content (the
-    // strip-and-itemize posture, security pass §1 gap 5 / belt 6: an invented key must appear in the run
+    // strip-and-itemize posture: an invented key must appear in the run
     // record instead of vanishing into a success). Always a list; `[]` = shape-clean.
     strippedKeys: text("stripped_keys", { mode: "json" }).$type<string[]>().notNull().default(sql`'[]'`),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
@@ -159,7 +159,7 @@ export const refineryRuns = sqliteTable(
 // through the character join): a schema is library tooling, not per-character work product. `schema` is
 // LIFTABLE BY INVARIANT — every write parses `refinerySchemaDocumentSchema` (the contracts belt: lift +
 // depth/pattern/hint/core tightenings); reads still re-lift defensively. `version` bumps on every content
-// update — the run log pins it in its EMBEDDED provenance (P1-B), so editing a schema never re-writes
+// update — the run log pins it in its EMBEDDED provenance, so editing a schema never re-writes
 // history. RESTRICT like `presets`: never cascade-delete a user's authored library.
 export const refinerySchemas = sqliteTable(
   "refinery_schemas",

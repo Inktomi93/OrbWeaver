@@ -244,7 +244,7 @@ export function resolveMentions(triggerText: string, candidates: readonly Speake
     if (member.name.length === 0) {
       continue;
     }
-    // The right boundary is the SHARED Unicode name class (#1439), never `\b`: `\b` is defined over ASCII
+    // The right boundary is the SHARED Unicode name class, never `\b`: `\b` is defined over ASCII
     // `\w` even under `u`, so `@Аня ` (Cyrillic) or `@結衣 ` had no letter→non-letter transition to assert
     // and the mention silently did not resolve — on every human turn. The leading `@` is the left boundary.
     const spans = [...triggerText.matchAll(new RegExp(`@${RegExp.escape(member.name)}${NAME_END_BOUNDARY}`, "giu"))].map((m) => ({

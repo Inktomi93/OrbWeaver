@@ -18,7 +18,7 @@ import type { DatabankContext, DatabankService } from "#src/domain/databank/cont
 import { finalizeScrape } from "#src/domain/databank/substrate/scrape-canon.ts";
 
 const HTML_MIME = "text/html";
-/** #709 refuses `text/html` as a STORED asset (stored-XSS). The fetched page is UTF-8 text, so the blob is
+/** The stored-XSS guard refuses `text/html` as a STORED asset (stored-XSS). The fetched page is UTF-8 text, so the blob is
  *  stored as plain text — magic-verified as UTF-8, served as an attachment like every non-media asset — while
  *  `documents.mime` stays `text/html` so the html loader still runs on every re-extraction. */
 const STORE_MIME = "text/plain";

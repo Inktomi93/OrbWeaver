@@ -71,7 +71,7 @@ async function settleImportRun(args: {
     report({ message: "reconciling stats post-import" });
     await reconcileImportStats({ ownerId });
     await refreshPlannerAfterImport(refreshPlannerStats, ownerId, report, args.logger);
-    // #23: refresh the owner's character + chat lists (background import has no other client driver).
+    // Refresh the owner's character + chat lists (background import has no other client driver).
     emitLibraryChanged({ ownerId });
   }
 }
@@ -342,13 +342,13 @@ export function createImportWorkloadContributions(deps: ImportWorkloadDeps): Imp
             params.source === "dir"
               ? await deps.runStagedDirImport({ stagedPath, digest, ownerId: targetOwnerId, signal })
               : await importStagedZip(deps.runBundleImport, { stagedPath, digest, ownerId: targetOwnerId, stagingRoot: ownerRoot, signal });
-          // #23: a background bundle/tree import that wrote canon refreshes the owner's character + chat lists
+          // A background bundle/tree import that wrote canon refreshes the owner's character + chat lists
           // (the client's own completion invalidation only fires while the import UI stayed mounted).
           if (report_.imported > 0) {
             await refreshPlannerAfterImport(deps.refreshPlannerStats, targetOwnerId, report, deps.logger);
             deps.emitLibraryChanged({ ownerId: targetOwnerId });
           }
-          // #1710 — a background run surfaces the SAME per-file notes (#1688) a sync door would: what a file
+          // A background run surfaces the SAME per-file notes a sync door would: what a file
           // that DID import still left behind (a kept edited lorebook, a dropped overlay). Named on the run's
           // own progress stream, not only buried in the terminal result.
           for (const note of report_.notes) {

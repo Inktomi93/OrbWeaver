@@ -3,7 +3,7 @@
 // fault-isolation pattern: a corrupt blob degrades that ONE rule to an empty arm list (never throws, never
 // nukes the chat's rule list — 04 §1).
 //
-// POSITION IS ALLOCATED BY THE DB, NEVER BY A CALLER (#1427). It is a total order per scope, so every write
+// POSITION IS ALLOCATED BY THE DB, NEVER BY A CALLER. It is a total order per scope, so every write
 // that mints it does so inside its own statement — the INSERT carries a `max+1` scalar subquery over the
 // rule's scope, and `applyReorder` admits the exact set and rewrites it in one UPDATE. There is no exported way to hand a
 // position in: a caller that could would be a caller that can duplicate one.
@@ -36,7 +36,7 @@ function toTrigger(row: RuleRow): AutomationTrigger {
 
 /** Project a row onto `RuleView`, LAZY-PARSING `actions` with fault isolation: a corrupt blob yields `[]`
  *  (the read never throws; the chat's rule list survives — the active disable-on-corrupt is dispatch-time,
- *  A5) AND sets `actionsCorrupt` (#1422).
+ *  A5) AND sets `actionsCorrupt`.
  *
  *  THE FLAG IS THE HALF THAT WAS MISSING. The fault isolation is right and stays: one unreadable blob must not
  *  cost a host their whole rule list. But `[]` alone is a LIE the surface cannot see through — an unreadable
@@ -73,7 +73,7 @@ export function toRuleView(row: RuleRow): RuleView {
   };
 }
 
-/** `position = max + 1` WITHIN ONE SCOPE, as a scalar subquery on the INSERT itself (#1427) — never a JS read
+/** `position = max + 1` WITHIN ONE SCOPE, as a scalar subquery on the INSERT itself — never a JS read
  *  followed by a write. `-1` for an empty scope, so the first rule lands at 0.
  *
  *  IT IS A SUBQUERY BECAUSE THE ALLOCATION IS THE RACE. Read-then-insert is two statements, and two creates
@@ -167,7 +167,7 @@ export async function selectRuleCreationScope(
   return rows[0];
 }
 
-/** ALL-OR-NOTHING: one `db.batch`, so a preset's rule set is committed whole or not at all (#1427) — and the
+/** ALL-OR-NOTHING: one `db.batch`, so a preset's rule set is committed whole or not at all — and the
  *  per-statement position subquery sees the rows the earlier statements wrote, so the set lands at ascending
  *  positions in the order given, off ONE snapshot and with no read. An empty set writes nothing (libsql
  *  resolves an empty batch, but there is no statement to build). */
@@ -198,7 +198,7 @@ export async function selectRuleRow(db: Db, ruleId: AutomationRuleId): Promise<R
   return rows[0];
 }
 
-/** JUST the ids of a chat's rules — the reorder verb's totality check (#1429), which compares the requested
+/** JUST the ids of a chat's rules — the reorder verb's totality check, which compares the requested
  *  set against the chat's complete current one and needs nothing else off the rows. */
 export async function listRuleIdsForChat(db: Db, chatId: ChatId): Promise<AutomationRuleId[]> {
   const rows = await db.select({ id: automationRules.id }).from(automationRules).where(eq(automationRules.chatId, chatId));

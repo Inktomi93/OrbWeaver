@@ -1,7 +1,7 @@
 // domain/workloads/engine/reap-record — the ONE sentence dispatch every `worker_died` stamp draws from, and
 // the boot-respawn bound one of those sentences names.
 //
-// WHY A SHARED LEAF (#560 + #543). TWO engines terminal a row with `worker_died`: the steady-state `reaper`
+// WHY A SHARED LEAF. TWO engines terminal a row with `worker_died`: the steady-state `reaper`
 // sweep and the boot `boot-reclaim` disposition. They stamp the SAME status, and `markTerminal` overwrites
 // `updatedAt` — the lease column — with the reap instant, so the `error` STRING is the row's only surviving
 // evidence of which death it was. One shared `assertNever` dispatch over `WorkloadReapReason` is what keeps

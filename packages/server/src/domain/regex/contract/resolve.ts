@@ -17,9 +17,9 @@ export interface RegexResolveContext {
   readonly db: Db;
 }
 
-// THE REVERSE-ROSTER ROOM FILTER MOVED OUT OF THIS FILE (2026-08-19). It was `ResolveVisibleRooms`, declared
-// here because regex was its only consumer; databank's "Active in" doors (#276) and the preset CONTEXT's
-// backward bindings (#279) made it three, which is the one-home threshold. The shape + the op type are
+// THE REVERSE-ROSTER ROOM FILTER MOVED OUT OF THIS FILE. It was `ResolveVisibleRooms`, declared
+// here because regex was its only consumer; databank's "Active in" doors and the preset CONTEXT's
+// backward bindings made it three, which is the one-home threshold. The shape + the op type are
 // `@orb/contracts/chat`'s `VisibleRoomRef` / `ResolveVisibleRoomsOp` (rooms are chat's concept, D18) and the
 // ONE runtime is `entry/compose/visible-rooms.ts`. regex still DECLARES the op it needs — the DI slot is on
 // `RegexContext` (`contract/service.ts`), typed by the contracts name; nothing here re-spells it.

@@ -1,7 +1,7 @@
 // domain/stats/substrate/rates — pure read-layer rate math (zero I/O). Rollup columns stay additively
 // mergeable; the ratios a dashboard wants are not additive, so they're derived here on read, never stored.
 //
-// PROVENANCE IS PART OF THE MATH (side-eye rail-analytics 2026-08-19, P1a/P2a). The rollup columns are
+// PROVENANCE IS PART OF THE MATH. The rollup columns are
 // NOT NULL integers that start at 0, so "never recorded" and "measured zero" arrive here as the same
 // byte. A rate or a total that cannot tell those apart PRINTS A FALSEHOOD — the measured case was
 // `Cache hits 100%` on a corpus whose true cache share was 1.9%, and `0 tok` / `$0.00` on ST-imported

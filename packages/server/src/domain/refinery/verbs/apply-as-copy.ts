@@ -7,7 +7,7 @@
 //
 // NO SNAPSHOT by construction — nothing existing is written — and the result says so (the apply panel
 // teaches snapshot-first, so its absence here must not read as a miss). Signals: the copy's `refinery`
-// signals are stamped from the score/analyze runs CORRELATED to the applied rewrite (#1519 —
+// signals are stamped from the score/analyze runs CORRELATED to the applied rewrite (
 // `latestRunRowAtOrBefore`, never the session's head: an operate-back apply of an older named rewrite
 // must not stamp a newer run describing different content) — they describe exactly the copy's content
 // (§17's carry decision; unlike the handoff-clear precedent, where the signals described someone else's
@@ -46,7 +46,7 @@ export function createApplyAsCopy(ctx: RefineryContext): RefineryService["applyA
     const input = updateCharacterSchema.parse({ ...patch, name: copyName });
     const detail = await ctx.updateCharacter({ principal, characterId: duplicated.id, input });
 
-    // Signal stamps CORRELATED to the applied rewrite (#1519) — never the session's head, which drifts
+    // Signal stamps CORRELATED to the applied rewrite — never the session's head, which drifts
     // the moment a newer score/analyze run lands after an OLDER named rewrite is applied (the §16.1
     // operate-back path). `rewriteRunCutoff` is that rewrite's own mint-time position.
     const [scoreRow, analyzeRow] = await Promise.all([

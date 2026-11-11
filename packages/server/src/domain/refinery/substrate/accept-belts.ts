@@ -344,7 +344,7 @@ export async function resolveApplyBasis(
   readonly applied: AppliedFieldRef[];
   readonly dropped: DroppedField[];
   readonly chosen: RefineryRewriteField[];
-  /** The APPLIED rewrite's own `(createdAt, id)` — #1519's correlation cutoff: a caller stamping signals
+  /** The APPLIED rewrite's own `(createdAt, id)` — the correlation cutoff: a caller stamping signals
    *  onto a copy/merge must correlate to THIS rewrite, never the session's head (`latestRunRowAtOrBefore`
    *  in `persistence/queries.ts`), because an operate-back apply of an OLDER named rewrite must not stamp
    *  a NEWER score/analyze run that describes different content. */

@@ -54,7 +54,7 @@ export interface RpgComposeDeps extends Omit<RpgRoundsAssemblyDeps, "rpgChatOps"
   readonly rpgChatOps: ChatComposeResult["rpgChatOps"];
   /** THE cross-domain viewer-visibility op (chat's `resolveViewerVisibility`, built once at the services root)
    *  — the hidden-content posture + the D16 canon floor for one human over one chat. rpg's member-facing reads
-   *  belt on it (#1528) and never re-derive either half. */
+   *  belt on it and never re-derive either half. */
   readonly resolveViewerVisibility: RpgResolveViewerVisibility;
   /** The preset-ownership gate (fork-clones-the-game §3.2), wired off the preset front door `get`. */
   readonly resolvePresetOwned: PresetReadable;
@@ -112,7 +112,7 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     can,
     getMembership: deps.rpgChatOps.getMembership,
     getPendingUserText: deps.rpgChatOps.getPendingUserText,
-    // #1528 — the DATA-PROJECTION verdict the member-facing reads belt on (hidden-span posture + the D16
+    // The DATA-PROJECTION verdict the member-facing reads belt on (hidden-span posture + the D16
     // floor), off chat's ONE cross-domain op. Distinct from `getMembership`, which answers the ENFORCEMENT
     // question `guard.ts` gates with.
     resolveViewerVisibility: deps.resolveViewerVisibility,
@@ -139,7 +139,7 @@ export function buildRpg(deps: RpgComposeDeps): RpgComposeResult {
     // non-inherited rpg model call, gated host-only inside the verb).
     runResyncExtraction: buildRunResyncExtraction(rounds),
     // The BORN-STATE corpus read (the injected chat op — rpg reads no chat/character table) + the host populate
-    // model call it feeds (owner ruling 2026-08-01 — the ONE sanctioned doorway for the hand-only sheet fields).
+    // model call it feeds (owner ruling — the ONE sanctioned doorway for the hand-only sheet fields).
     resolveCardCorpus: deps.rpgChatOps.resolveCardCorpus,
     runPopulateExtraction: buildRunPopulateExtraction(rounds),
     // The dice CSPRNG (bake-once, server-authoritative — a client seed is never honored, §4.4).

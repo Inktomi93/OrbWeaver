@@ -25,7 +25,7 @@ export interface PluginChatReads {
    *  snippet. */
   readonly listMessages: (chatId: ChatId, opts: { readonly limit?: number; readonly visibility: ViewerVisibility }) => Promise<readonly PluginMessageView[]>;
   /** The invocation chat's PRESENT CHARACTER roster, projected to the reduced `PluginCharacterView`
-   *  (`chat.listCharacters`, capability `chat.read` — #788 F11). PRINCIPAL-FREE, the `listMessages` posture: the
+   *  (`chat.listCharacters`, capability `chat.read`). PRINCIPAL-FREE, the `listMessages` posture: the
    *  bridge resolves the installer's membership via `resolveViewerVisibility` FIRST and short-circuits a
    *  non-member to `[]`, so this read is reached only for a member of THIS room and carries no owner filter (a
    *  room's roster is the room's own member-visible state). Wired at compose to the principal-free
@@ -42,12 +42,12 @@ export interface PluginWorldInfoReads {
   /** The book's existing entry TITLES, for the per-plugin entry ceiling (a looping guest fills a book
    *  otherwise). Wired at compose to world-info's owner-gated `listEntryIndex`. */
   readonly listEntryTitles: (ownerId: UserId, bookId: WorldBookId) => Promise<readonly string[]>;
-  /** The `worldinfo.read` READ half (#788 F12): the books ATTACHED to the invocation chat, reduced to
+  /** The `worldinfo.read` READ half: the books ATTACHED to the invocation chat, reduced to
    *  `PluginWorldBookView`. Wired at compose to world-info's member-gated `listForChat` under the installer's
    *  Principal — so a non-member/kicked caller gets `[]` and only books attached to THIS room are ever named.
    *  Owner-scoped by construction: the installer's own attached books. */
   readonly listBooksForChat: (ownerId: UserId, chatId: ChatId) => Promise<readonly PluginWorldBookView[]>;
-  /** The `worldinfo.read` entry read (#788 F12): the entries of ONE book, reduced to `PluginWorldEntryView`.
+  /** The `worldinfo.read` entry read: the entries of ONE book, reduced to `PluginWorldEntryView`.
    *  Wired at compose to world-info's OWNER-gated `listEntries`. The ATTACHMENT gate is applied by the bridge
    *  BEFORE this op (the write path's own `isBookAttachedToChat`), so a `bookId` not attached to the invocation
    *  chat never reaches here — this op reads only an already-attachment-verified, installer-owned book. */
@@ -64,7 +64,7 @@ export interface PluginDocumentReads {
 
 export interface PluginNotificationDelivery {
   readonly emit: (event: NotificationEvent) => Promise<void>;
-  /** The STANDING-ASK TRIO (#1041) the consent prompt drives — a standing ask is a claim that stays true,
+  /** The STANDING-ASK TRIO the consent prompt drives — a standing ask is a claim that stays true,
    *  so it has three moves an episodic event does not, and the CALLER picks by what actually changed:
    *   - `emitStanding` — the ask GREW: record the event as the recipient's ONE live row of its type
    *     (any active row of that type is superseded in the same batch) and re-badge. New information.

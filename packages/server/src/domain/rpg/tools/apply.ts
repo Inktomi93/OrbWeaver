@@ -263,7 +263,7 @@ function applyInventoryUpdates(
 }
 
 /** One `remove` entry applied — the QUANTITY is denominated in ITEMS, spent across the name's stacks in order
- *  (#1468 item 4).
+ *.
  *
  *  WHAT WAS WRONG. `add` permits duplicate names, so a name can address several stacks, while `update` patches
  *  the FIRST name match. Remove used to walk the whole inventory and take the requested quantity off EVERY
@@ -576,7 +576,7 @@ export function applyUpsertQuest(
 
 /** `add_journal_entry` → a staged journal entry (flushed at commit stamped with the committed variant, §2.5).
  *  `title` is DERIVED from the content head when the model omitted it (`journalTitleFor` — the small-model-robust
- *  arm, ruling #10: an 8B dropping the nested-required `title` used to fail the whole extraction `safeParse`);
+ *  arm: an 8B dropping the nested-required `title` would otherwise fail the whole extraction `safeParse`);
  *  `type` is HEALED to `note` the same way (EXT-4b — the identical nested-array blind spot, `journalTypeFor`).
  *  The heal is VISIBLE: `healedJournalTypes` names the entries this healed and the caller logs them. */
 export function toStagedJournalEntry(args: AddJournalEntryArgs): StagedJournalEntry {
@@ -706,7 +706,7 @@ export function extractionToStateDelta(base: RpgSnapshotState, extraction: RpgEx
     }
   }
   // Drop a genuinely-empty beat (no content AND no title — nothing to log); a content-full but title-less
-  // entry is KEPT (title derived from the content head — the small-model-robust arm, ruling #10).
+  // entry is KEPT (title derived from the content head — the small-model-robust arm).
   const journal = extraction.journal.filter((e) => e.content.trim().length > 0 || (e.title?.trim().length ?? 0) > 0).map(toStagedJournalEntry);
   // §2.4 — DERIVE a journal beat for each relationship-KIND change (a durable, swipe-consistent record of "when
   // did she turn"). Derived at the fold (both old + new state are in hand), NOT model-authored (a second write

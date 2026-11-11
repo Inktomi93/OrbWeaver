@@ -61,7 +61,7 @@ export async function loadPluginMessages(db: Db, chatId: ChatId, opts: Parameter
 
 /**
  * The invocation chat's PRESENT CHARACTER roster, projected to the reduced {@link PluginCharacterView}
- * (#788 F11 — the ST `context.characters` parity arm): id/name/avatar only, never a co-participant's full card.
+ * (the ST `context.characters` parity arm): id/name/avatar only, never a co-participant's full card.
  *
  * SCOPED TO THIS ROOM AND MEMBER-GATED UPSTREAM. This is a principal-free read of `chat_participants` for ONE
  * `chatId`, exactly the `loadPluginMessages` posture: the caller (`domain/plugin/substrate/bridge`) resolves the

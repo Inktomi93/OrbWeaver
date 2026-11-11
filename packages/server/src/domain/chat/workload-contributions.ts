@@ -6,10 +6,10 @@
 // The ops are the SAME chat-ctx-bound sweeps compose already built; only their home changed. The one
 // cross-domain reach — the memory scope's `embed_space_state` completion — is an INJECTED op at chat's door
 // (`purgeMemoryVectors`), which is exactly what
-// the retired hub existed to avoid building. That op ENUMERATES the scope it is handed (#2517), so the
+// the retired hub existed to avoid building. That op ENUMERATES the scope it is handed, so the
 // bulk/singular distinction is a fan-out property of the op and not a fence on calling it.
 //
-// A memory sweep with ANY per-chat failure is a FAILED workload (#165): the tally throws rather than
+// A memory sweep with ANY per-chat failure is a FAILED workload: the tally throws rather than
 // returns, and the completion is suppressed on the same condition — an incomplete sweep neither succeeded nor
 // re-derived the corpus into the active embed space.
 
@@ -86,7 +86,7 @@ async function sweepMemoryOnce(deps: ChatWorkloadDeps, { ctx, params, report, si
   // handed, so a singular run reaches only its own owner (`enumerationScope` is the WORKLOAD ROW's scope,
   // not a chat owner — chats stay membership-scoped, D18).
   const enumerationScope = ctx;
-  // A sweep that skipped chats or was cancelled did not re-derive the corpus (#165), so it may not claim
+  // A sweep that skipped chats or was cancelled did not re-derive the corpus, so it may not claim
   // the scope; the new index stays partial and the rerun completes it.
   //
   // An IMPORT-SCOPED run or a SEGMENTS-ONLY pass never reaches the terminal: it re-derived only part of the
@@ -95,12 +95,12 @@ async function sweepMemoryOnce(deps: ChatWorkloadDeps, { ctx, params, report, si
   if (importWindow === null && !segmentsOnly && !signal.aborted && counts.failed === 0) {
     await deps.purgeMemoryVectors(counts.completedSpaces, enumerationScope);
   }
-  // HONEST ACCOUNTING (#165, the #156 family): a per-chat skip is a chat whose memory silently did not
+  // HONEST ACCOUNTING (the memory-admission family): a per-chat skip is a chat whose memory silently did not
   // build. Returning the tally landed `succeeded` on a run that skipped every chat it touched, so the
   // tally now FAILS the row — the sweep is `idempotent-restart`, so everything durable already landed
   // and the rerun resumes from it. Zero failures is still the only success.
   if (counts.failed > 0) {
-    // THE SENTENCE IS READ BY A PERSON, in a row and on the corpus rail (side-eye corpus re-pass C4).
+    // THE SENTENCE IS READ BY A PERSON, in a row and on the corpus rail.
     // It shipped as "1 chat FAILED during the sweep and were skipped" — a number/verb disagreement on
     // the singular arm, a shout the surrounding copy never uses, and one ~99-char line. Two short
     // sentences, agreeing with their own count, saying the same two facts.
@@ -123,8 +123,8 @@ export function createChatWorkloadContributions(deps: ChatWorkloadDeps): ChatCon
     {
       kind: "memory-backfill",
       params: memoryBackfillWorkloadParams,
-      // ADMISSION, not execution (#156): with memory disabled the sweep skips this host's chats entirely
-      // (the D293 opt-out, honored on the corpus sweep since #54), so the run can only ever land
+      // ADMISSION, not execution: with memory disabled the sweep skips this host's chats entirely
+      // (the D293 opt-out, honored on the corpus sweep), so the run can only ever land
       // "0 segments · 0 digests" as a SUCCESS — owner-observed after an ST import auto-enqueued one. A job
       // that structurally cannot produce anything is refused at the enqueue door instead.
       // A BULK pass sweeps EVERY host, so it is admitted regardless: one host's opt-out says nothing about

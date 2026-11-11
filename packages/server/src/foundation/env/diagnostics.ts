@@ -23,7 +23,7 @@
 //                                               admissions count as "an owner SESSION" is the rule below
 //                                               ({@link resolveOwnerFallbackCredential}) — on a DEV box the
 //                                               operator's session IS the loopback owner fallback, and
-//                                               excluding it closed the door to its only user (#1193).
+//                                               excluding it closed the door to its only user.
 //
 //   RETENTION   `WIRE_CAPTURE`, `RPG_TRACE`     WHAT IS BEHIND THE DOOR. Off ⇒ the recorder sink is never
 //               (`debug/wire-capture.ts`,       wired: zero retained bytes, byte-identical turns, and the
@@ -54,18 +54,18 @@ import type { DiagnosticsExposure, DiagnosticsPosture, DiagnosticsPostureInput, 
 /**
  * IS THE UN-CREDENTIALED LOOPBACK OWNER FALLBACK THIS BOX'S OPERATOR CREDENTIAL, or an acknowledged
  * SSO-bypass hazard? The one home for that question; `entry/auth/seam.ts` consumes the boolean at the
- * /api/_debug credential plane and decides nothing about it itself (#1193).
+ * /api/_debug credential plane and decides nothing about it itself.
  *
  * WHY THE QUESTION EXISTS. `via:"fallback"` is minted only when `AUTH_FALLBACK=owner` AND the raw TCP peer is
- * LOOPBACK (`infra/auth/dispatch.ts::ownerFallbackAllowed`, #298 f2) — but "loopback peer" means two opposite
+ * LOOPBACK (`infra/auth/dispatch.ts::ownerFallbackAllowed`) — but "loopback peer" means two opposite
  * things depending on how the box was started. On a DEV stack (vite proxying over 127.0.0.1, loopback-bound
  * by `bind.ts`'s deploy-mode invariant) it means "the human at this machine", and it is the only way that
  * human authenticates: they already hold full owner authority on every tRPC surface without presenting
- * anything, which is why refusing them at the diagnostics door closed it to its only user (#1193). Behind a
+ * anything, which is why refusing them at the diagnostics door closed it to its only user. Behind a
  * same-host reverse proxy in PRODUCTION it means "any request from the internet".
  *
  * THE RULE IS PRODUCTION-EXCLUDING, and it reuses the discriminator the SSO-bypass ruling already chose
- * (NODE_ENV — `foundation/env/record/index.ts`'s superRefine, #298 owner ruling 2026-08-19) rather than minting a
+ * (NODE_ENV — `foundation/env/record/index.ts`'s superRefine, owner ruling) rather than minting a
  * second flag the two could disagree about. Two production cases are deliberately NOT covered even though
  * their fallback arm is live:
  *   • `single-user` in production, where `AUTH_FALLBACK=owner` is forced (deny is boot-fatal there): behind a

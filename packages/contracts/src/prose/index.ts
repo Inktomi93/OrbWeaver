@@ -10,7 +10,7 @@
 //   • `#imagery`                      — per-USER image-prompt + negative-base prose (census 82-88)
 //   • `#chat` (chat/prose.ts)         — per-USER app-tier side-generation prose (census 74-81) + the
 //                                       per-PRESET group-round / injection FRAMING prose (the framings home on
-//                                       the preset — the 2026-08-07 injection frames + the F4 group re-home)
+//                                       the preset — the injection frames + the F4 group re-home)
 //   • `#automation` (automation/prose.ts) — per-USER quiet-pick prose (census 91)
 //   • `#discovery` (discovery/prose.ts)   — per-USER library-semantics system prompts
 // …and THIS file composes them into `PROSE_SLOTS` and owns the resolver. Later stages graft the per-game
@@ -97,7 +97,7 @@ export function isPresetProseSlotId(id: string): id is ProseSlotId {
  *  Each source is FILTERED TO THE SLOTS THAT ACTUALLY HOME THERE, which is what makes this a merge and not a
  *  cascade (D132 clause D): a key can only survive from its own storage, so two homes carrying the same id cannot
  *  produce a precedence question — the wrong one is dropped, never "loses". That also means a stale key left
- *  in a blob by a RE-HOME (the two injection frames moved user → preset on 2026-08-07) is inert rather than
+ *  in a blob by a RE-HOME (the two injection frames moved user → preset) is inert rather than
  *  quietly authoritative from the storage it no longer belongs to.
  *
  *  Absent/`{}` sources contribute nothing, so a caller that threads none of them gets the shipped defaults

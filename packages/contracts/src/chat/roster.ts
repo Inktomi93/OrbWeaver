@@ -62,7 +62,7 @@ const TALKATIVENESS_MIN = 0;
 const TALKATIVENESS_MAX = 1;
 /** The default talkativeness weight (Part III §1) — the natural-arbitration sampling weight. */
 export const TALKATIVENESS_DEFAULT = 0.5;
-// `talkativenessSchema` (a .catch/.default-ing 0–1 clamp) was DELETED 2026-08-28 (#26 pre-merge F5): its
+// `talkativenessSchema` (a .catch/.default-ing 0–1 clamp) is DELETED: its
 // predicted-future consumer — the roster-preset seat-knobs projection — arrived and stores the knob
 // through `characterMemberSpecSchema`'s inline clamp instead (NULL-means-inherit semantics, which the
 // defaulting schema could not express), so the prediction died on arrival and the export had no consumer.
@@ -70,12 +70,12 @@ export const TALKATIVENESS_DEFAULT = 0.5;
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // THE ONE ROSTER-MEMBER VOCABULARY (D80 — the participant five-plane model). Homed HERE (chat owns the
 // runtime seats + already exports PARTICIPANT_KINDS / SpeakerRef / GroupConfig; the roster-preset domain
-// imports from chat — identity stays the DAG root; #26 is the live consumer).
+// imports from chat — identity stays the DAG root; the roster-preset seat knobs are the live consumer).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 /** The knobs every AI seat carries — ONE home (D80). The participantId-keyed `setSeatKnobs` verb projects
  *  this shape; the per-kind knob-verb forking is retired (it guaranteed skipped arms — the mute +
- *  talkativeness gaps proved the class). Roster presets are BUILT (#26, D61 B6 — `domain/roster-preset`):
+ *  talkativeness gaps proved the class). Roster presets are BUILT (D61 B6 — `domain/roster-preset`):
  *  the `roster_preset_members` junction's talkativeness/disabled columns and `applyToChat`'s `setSeatKnobs`
  *  patch project exactly this shape. Founding character sets stay unbuilt (they graft onto the same shape if they
  *  return). `talkativeness` absent = inherit the chat default ({@link TALKATIVENESS_DEFAULT}). */
@@ -87,11 +87,11 @@ export type SeatKnobs = z.infer<typeof seatKnobsSchema>;
 
 /** The card-seat shape every membership-template lifetime PROJECTS through (D16/D61/D60) — extracted so a
  *  surface that persists characters ONLY narrows to it without re-spelling the shape (derive, one home).
- *  LIVE consumer: roster presets v1 (#26 — `@orb/contracts/roster-preset`'s `rosterPresetMemberSchema` IS
+ *  LIVE consumer: roster presets v1 (`@orb/contracts/roster-preset`'s `rosterPresetMemberSchema` IS
  *  this schema). A card seat: a `characterId` + `position` + the AI-seat knobs. Nothing mints a flat
  *  characterId array beside it; founding character sets and saved-rosters v2 remain unbuilt.
  *  `human` is UNREPRESENTABLE by design (invites are the only human join path — a template cannot carry an
- *  invite's runtime preconditions); `observer` and `agent` were purged 2026-07-25 (the rebuild re-adds
+ *  invite's runtime preconditions); `observer` and `agent` are purged (the rebuild re-adds
  *  their arms here if either domain returns). */
 export const characterMemberSpecSchema = z.strictObject({
   kind: z.literal("character"),
@@ -107,7 +107,7 @@ export type CharacterMemberSpec = z.infer<typeof characterMemberSpecSchema>;
  *  pick the markdown render trust tier + gate external media for content THIS participant authored. Every
  *  field is non-null (already resolved). */
 /**
- * ONE ORDERED LADDER for how much a participant's authored HTML may do (owner ruling 2026-08-16, #111 —
+ * ONE ORDERED LADDER for how much a participant's authored HTML may do (owner ruling —
  * "one ladder control, not a second checkbox"). Strictly increasing, and the order IS the meaning:
  *
  *   `untrusted`   — the D21 safe default. Sanitized markdown; a card renders in the inert tierA seal.
@@ -138,7 +138,7 @@ export function rendersTrustedHtml(step: HtmlTrustStep): boolean {
 }
 
 /** Does this step select the INTERACTIVE card-frame posture — i.e. may this participant's routed cards RUN
- *  THEIR OWN SCRIPTS? Only the top step, and since #111 leg 3 that is a real capability rather than an arm
+ *  THEIR OWN SCRIPTS? Only the top step, and that is a real capability rather than an arm
  *  selection. A step only REACHES `interactive` when the deployment ceiling allowed it ({@link
  *  resolveRenderPolicy}), so a reader of the resolved ladder never has to re-check the AppSetting. */
 export function allowsInteractiveCards(step: HtmlTrustStep): boolean {
@@ -193,7 +193,7 @@ export interface RenderPolicyOverride {
  * THE render-policy resolver — the ONE place the deployment tier and a lower tier (per-character today)
  * combine. Every producer of a {@link RenderPolicy} calls this; nobody re-spells the `??`/`||` inline.
  *
- * The two axes combine DIFFERENTLY, on purpose (owner ruling 2026-08-01):
+ * The two axes combine DIFFERENTLY, on purpose (owner ruling):
  *  • `forbidExternalMedia` is TIGHTEN-ONLY. The deployment "Block external media" AppSetting is an
  *    ABSOLUTE ceiling — a lower tier may only restrict FURTHER, never widen. So it is an OR (deployment
  *    forbids ∨ this tier forbids), never `override ?? deployment`: a card carrying `false` (allow) on a
@@ -202,7 +202,7 @@ export interface RenderPolicyOverride {
  *    `override ?? deployment` here produced a control that rendered the element and then ate a CSP block:
  *    a dead opt-in that looked live. Belt and suspenders now agree.
  *  • the HTML-TRUST LADDER folds the two stored columns into ONE ordered step, and the fold is where
- *    "interactive implies trusted" becomes unrepresentable-otherwise (owner ruling 2026-08-16):
+ *    "interactive implies trusted" becomes unrepresentable-otherwise (owner ruling):
  *      – the RENDER step keeps `override ?? deployment`, unchanged. Its deployment value is a DEFAULT, not
  *        a block: the floor is the strict end (`untrusted`), and an explicit per-character step IS the
  *        designed escalation path (docs/law/UI-Theming-and-Content.md §12.2); an admin-global `true` likewise stays overridable DOWN by a
@@ -289,7 +289,7 @@ export interface ParticipantView {
   avatarAssetId: AssetId | null;
   /** The CAS hash of `avatarAssetId` (`assets.hash`, joined server-side) — `blobUrl(avatarHash)` is the
    *  renderable `<img src>`; `null` when `avatarAssetId` is null OR the asset row is gone. Kept a SIBLING
-   *  field (never derived client-side — the client has no id→hash resolver, #67). */
+   *  field (never derived client-side — the client has no id→hash resolver). */
   avatarHash: string | null;
   /** The RESOLVED content-render policy for content THIS participant authored (docs/law/UI-Theming-and-Content.md §12.2 — see
    *  {@link RenderPolicy}). ALWAYS server-populated on the `getChat`/roster read; declared OPTIONAL so a
@@ -360,14 +360,14 @@ interface CarriedAppearanceMember {
  * ONE shape for BOTH chat phases, and that is the point. The takeover rules used to be spelled over
  * `ParticipantView[]`, which only a COMMITTED chat has, so the whole carried look (background + room theme)
  * was silently gated on a server row existing: a brand-new chat wore the viewer's default chrome until its
- * first message landed and then re-skinned itself (owner dogfood 2026-08-06 — "backgrounds and avatars
+ * first message landed and then re-skinned itself (owner dogfood — "backgrounds and avatars
  * don't show up until the first message"). A committed room projects this off its roster
  * ({@link carriedAppearanceFromParticipants}); a draft projects it off its founding CARDS plus the viewer's own
  * single seat. The rules below read only this shape, so the two phases cannot resolve a card's look
  * differently.
  */
 export interface CarriedAppearance {
-  /** Human seats on the roster. Counted exactly as the pre-#903 `isSingleHumanCast` counted them — every `human`
+  /** Human seats on the roster. Counted exactly as the old `isSingleHumanCast` counted them — every `human`
    *  row, `leftSeq` NOT consulted. A pre-send draft has exactly one: the viewer (an invite can only land
    *  once the chat exists). */
   readonly humanCount: number;
@@ -401,8 +401,8 @@ function soleCarriedCharacter(appearance: CarriedAppearance): CarriedAppearanceM
   return appearance.humanCount === SOLO_COUNT && appearance.characters.length === SOLO_COUNT ? appearance.characters[0] : undefined;
 }
 
-/** "This room holds no OTHER human seat" — exactly one human, any number of characters (owner ruling
- *  2026-08-03, WIDENING the 07-18 true-solo spelling). THE gate on the carried-appearance takeover: the
+/** "This room holds no OTHER human seat" — exactly one human, any number of characters (owner ruling,
+ *  WIDENING the true-solo spelling). THE gate on the carried-appearance takeover: the
  *  stated rationale ("a host writing it never forces another human's viewport") does not reach a
  *  single-human GROUP room, because there is no second viewport. Two humans stays permanently INERT. */
 function isSingleHumanRoom(appearance: CarriedAppearance): boolean {
@@ -501,13 +501,13 @@ export interface MemberCardView {
   authorsNoteDepth: number | null;
 }
 
-// ── HOST HANDOFF — the departing host's OPT-IN property offer (stickler 2026-08-03 §5/§6(f)) ──
+// ── HOST HANDOFF — the departing host's OPT-IN property offer ──
 
 /** What the DEPARTING host optionally gives the nominee alongside the room, persisted on
  *  `chats.pendingHandoffOffer` at NOMINATE and executed at ACCEPT (copy-at-accept: acceptance is what freezes
  *  the point in time, and nobody receives property they have not accepted).
  *
- *  CLASS-LEVEL, never per-item (owner ruling 2026-08-03: "the name of the game is OPTIONS … a POINT-IN-TIME
+ *  CLASS-LEVEL, never per-item (owner ruling: "the name of the game is OPTIONS … a POINT-IN-TIME
  *  COPY of their characters, worldbooks, the message variants"). A per-item matrix is the jank the ruling's
  *  own addendum asked to avoid; the blob is an OBJECT rather than a boolean precisely so a later per-class
  *  arm needs no schema churn.
@@ -523,7 +523,7 @@ export const handoffOfferSchema = z
     /** Copy the OLD HOST's seated characters into the nominee's library and re-point this room's seats at the
      *  copies: their present character seats, each card's attached character-scoped world books AS COPIES
      *  (a reference-carry would silently lose the lore — the character-book pool is owner-filtered), the
-     *  host-owned chat-attached books, and the host-owned chat-attached REGEX SCRIPTS (#1739 — the executable
+     *  host-owned chat-attached books, and the host-owned chat-attached REGEX SCRIPTS (the executable
      *  member of the same set: left behind, they keep transforming the new host's turns under an owner who has
      *  left). `false` ⇒ the D64 drop (the seats the nominee cannot resolve are leftSeq-stamped, exactly as
      *  today) and nothing is copied — the incoming host's remedy for a left-behind script is `detachFromChat`,
@@ -543,11 +543,11 @@ export type HandoffOffer = z.infer<typeof handoffOfferSchema>;
  *  `{ copyCharacters: false, copyGmPreset: false }` and no arm can drift from the byte-identical default. */
 export const NO_HANDOFF_OFFER: HandoffOffer = { copyCharacters: false, copyGmPreset: false };
 
-/** WHAT AN ACCEPTED OFFER WOULD LAND IN THE NOMINEE'S LIBRARY — the DISCLOSURE half of the offer (#1762),
+/** WHAT AN ACCEPTED OFFER WOULD LAND IN THE NOMINEE'S LIBRARY — the DISCLOSURE half of the offer,
  *  frozen at NOMINATE and carried by the `handoff-nominated` notification so the nominee can read what they
  *  are accepting before they accept it. The receiving side used to render a bare Accept for a press that
  *  copied four classes of someone else's property — including the room's REGEX SCRIPTS, which are executable
- *  transforms over the accepter's own chats (#1739).
+ *  transforms over the accepter's own chats.
  *
  *  COUNTS, NEVER IDS. A nominee cannot resolve the departing host's character/book/script ids (they own
  *  none of those rows yet), so an id here would be an unreadable pointer AND a disclosure of another user's

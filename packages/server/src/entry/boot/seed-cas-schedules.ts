@@ -1,4 +1,4 @@
-// Boot seed: the CAS maintenance schedules (#11). The `assets-gc` / `assets-fsck` contributions have existed
+// Boot seed: the CAS maintenance schedules. The `assets-gc` / `assets-fsck` contributions have existed
 // since the workloads engine landed, but nothing ever CREATED a schedule row for them — a box would run its
 // blob GC and integrity check exactly as often as a human remembered to press the button, which is never.
 // This is the seed step that gives a fresh box the ratified cadence: GC weekly, fsck monthly.

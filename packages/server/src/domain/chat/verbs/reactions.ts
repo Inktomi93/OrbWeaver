@@ -21,7 +21,7 @@
 // errors-as-data. The host default arrives through the injected `ctx.readReactionDefaults` op — no
 // ForeignInputs exists outside the turn path, and chat never imports settings.
 //
-// THE POSTURE GATE IS ROOM-LEVEL; THE SEAT GATE IS THIS FILE'S ALONE (#1402, resolved 2026-09-04). The attach
+// THE POSTURE GATE IS ROOM-LEVEL; THE SEAT GATE IS THIS FILE'S ALONE. The attach
 // side (`teaching-contribution.ts`) puts the react tool on the wire when the ROOM's two knobs resolve on — it
 // knows no seat, and the model names the character at CALL time — so `reactAsCharacter` is the only place a
 // `disabled` (muted) character seat can be refused. That refusal is enforcement, not defence in depth.
@@ -309,7 +309,7 @@ export function createReactAsCharacter(input: ChatAssemblyContext, deps: Reactio
     if (seat === undefined) {
       return { ok: false, reason: `No present character named "${characterName}" in this chat — use a present character's exact name.` };
     }
-    // THE SEAT KILL-SWITCH (#1402). `disabled` is the host's per-seat mute: the arbiter never selects that
+    // THE SEAT KILL-SWITCH. `disabled` is the host's per-seat mute: the arbiter never selects that
     // character (`participant::isArbiterEligible`) and `{{groupNotMuted}}` excludes it. A reaction is that seat
     // SPEAKING onto the transcript, so a muted seat may not author one — and nothing upstream enforces it: the
     // attach gate is knob-level only (`teaching-contribution.ts` attaches the tool when the ROOM's

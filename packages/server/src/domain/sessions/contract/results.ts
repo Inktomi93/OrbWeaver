@@ -31,12 +31,12 @@ export interface ValidatedSession {
 }
 
 /**
- * #141 — what a LOGOUT ended: which session row, and the OIDC end-session hint that row was carrying.
+ * What a LOGOUT ended: which session row, and the OIDC end-session hint that row was carrying.
  *
  * `sessionId` is the W7a socket-eviction key (unchanged — the caller holds a token, and a token is not an
  * identity, so only the row can name it). `oidcIdToken` is the DECRYPTED `id_token`, present only when this
  * session was minted by the OIDC callback AND the blob still opened; `null` covers a local/first-run login,
- * a pre-#141 row, and a decrypt failure (a rotated `SESSION_SECRET`), and the route then sends the bare
+ * a row older than the stored hint, and a decrypt failure (a rotated `SESSION_SECRET`), and the route then sends the bare
  * end-session URL. It is a SECRET IN FLIGHT: the logout route puts it in the outbound end-session URL and
  * nowhere else — never a log field, never a response body, never a `SessionView`.
  */

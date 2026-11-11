@@ -219,11 +219,10 @@ export interface CueReplay {
  *  (`createRunChatTurnBridge`) carries them here VERBATIM, in the infra vocabulary. Chat owns its own bus
  *  vocabulary and translates at the engine (`toChatWarning`) — the mirror of the IMAGE role's hop, where
  *  compose hands over a narrowed infra code and `verbs/generate-image.ts` re-maps it to a `ChatWarningCode`.
- *  Every infra code has a chat surface as of #1440 — the ten resolve/wire degradations that used to be
- *  dropped there now ride the `settings_adjusted` carrier — and the translation stays exhaustive by
+ *  Every infra code has a chat surface — the ten resolve/wire degradations ride the `settings_adjusted` carrier — and the translation stays exhaustive by
  *  `assertNever`, so a NEW infra code fails `tsc` until someone rules on it.
  *
- *  The warning rides WHOLE (`& ResolvedWarning`), not as a bare code (#1440): the structured half
+ *  The warning rides WHOLE (`& ResolvedWarning`), not as a bare code: the structured half
  *  (`knob`/`appliedBudget`/`appliedEffort`) is the only thing that can tell a user WHICH setting the
  *  provider refused and what it used instead, and re-deriving it in the domain would be inventing a fact
  *  the resolver already knows. `message` rides too — operator prose for the wire-outcome ring, never a
@@ -258,16 +257,16 @@ export interface TurnEconomics {
   readonly tokensOut?: number | null;
   readonly cacheReadTokens?: number | null;
   readonly cacheWriteTokens?: number | null;
-  /** The reasoning share of `tokensOut` where the wire reports one (inference audit B5); absent/null otherwise. */
+  /** The reasoning share of `tokensOut` where the wire reports one; absent/null otherwise. */
   readonly reasoningTokens?: number | null;
   readonly costUsd?: number | null;
   /** `measured | estimated | unrecorded` — the SAME tuple as token provenance (§5.3c); a subscription's SDK
    *  cost is `estimated`, so a rollup never sums it with a metered provider's invoice. */
   readonly costProvenance?: TokenProvenance | null;
   /** The breakdown behind `costUsd` (the phase split, the BYOK gateway/upstream pair) — persisted as the
-   *  `cost_details` sidecar, parsed by `costDetailsSchema` at any read seam (inference audit A4/B8). */
+   *  `cost_details` sidecar, parsed by `costDetailsSchema` at any read seam. */
   readonly costDetails?: CostDetails | null;
-  /** The model's own reasoning blocks WITH their per-wire provenance (`ChatResult.reasoningParts`, audit A1) —
+  /** The model's own reasoning blocks WITH their per-wire provenance (`ChatResult.reasoningParts`) —
    *  persisted as `message_variants.reasoning_parts` so the next leg of a tool loop can replay verified
    *  reasoning; absent/null on a turn that reasoned nothing replayable. The read side (the assembly's
    *  re-materialization onto the assistant row) is `carryReasoning`'s (§8.8). */
@@ -440,7 +439,7 @@ export interface TurnPrep {
    *  turn — every other turn-starting verb accepts) ⇒ pre-start refusals stay bus-SILENT exactly as before. */
   readonly acceptedTurnId?: ChatTurnId | undefined;
   /** The caller's abort signal, threaded engine → pipeline → runChatTurn (and → the pre-turn compaction, which
-   *  is awaited before dispatch). THIS SIGNAL IS WHAT PROVES A CANCELLATION (#1435): a post-start throw with
+   *  is awaited before dispatch). THIS SIGNAL IS WHAT PROVES A CANCELLATION: a post-start throw with
    *  the signal SETTLED is `turnAborted(reason:"user"|"stale")` and returns the aborted outcome; with the
    *  signal un-settled it is a fault — `turnAborted(reason:"error")` and a rethrow — however the error is
    *  NAMED. Absent ⇒ nothing can cancel this turn, so every post-start throw is a fault. */

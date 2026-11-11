@@ -10,7 +10,7 @@ import type { AutomationContext, AutomationService } from "../contract/service.t
 import { requireChatHost } from "../guard.ts";
 import { applyReorder, listRuleIdsForChat, listRuleIdsForScope } from "../persistence/rules.ts";
 
-/** THE TOTALITY GATE (#1429). `applyReorder` writes `position = array index` per id, so the list is not a
+/** THE TOTALITY GATE. `applyReorder` writes `position = array index` per id, so the list is not a
  *  preference — it IS the chat's new total order, and anything that is not a permutation of the chat's
  *  current rule set silently produces a broken one: an OMITTED rule keeps its old position (now colliding
  *  with a rewritten one), a DUPLICATE id is written twice and wins its last index, and a FOREIGN id touches
@@ -52,7 +52,7 @@ export function createReorderRules(ctx: AutomationContext): AutomationService["r
       return;
     }
     // Position IS a transform_draft rule's `PromptTransform.order` — a reorder re-ranks the pipeline.
-    // `refresh`, not `reload` (#1431): the positions are written, so an index failure latches stale rather
+    // `refresh`, not `reload`: the positions are written, so an index failure latches stale rather
     // than rejecting a committed operation.
     await ctx.transforms.refresh();
     // Order IS semantics here (arms mutate the shared env in position order), so a reorder is a real change

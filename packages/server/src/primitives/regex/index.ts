@@ -36,7 +36,7 @@ export function createRegexApplyReplace(): (text: string, regex: RegExp, replace
   };
 }
 
-// The `.test` twin of {@link APPLY_SCRIPT}, for the world-info regex-KEY matcher (#710). A V3 `use_regex`
+// The `.test` twin of {@link APPLY_SCRIPT}, for the world-info regex-KEY matcher. A V3 `use_regex`
 // entry key is a user-authored pattern `.test`ed against the chat-history haystack EVERY turn; a catastrophic
 // key (`(a|a)+$`, `(a+)+$`) that slips past the kit's pre-compile heuristic backtracks unbounded on the main
 // event loop, hanging the server for every user on the process. Running the `.test` under V8's watchdog

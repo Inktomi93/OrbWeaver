@@ -7,7 +7,7 @@
 //
 //  1. THE MIME IS THE WALL. The response is `application/octet-stream` + `X-Content-Type-Options: nosniff`, so
 //     a `<script src="/api/plugin-ui/plugin_…">` is REFUSED BY THE BROWSER before a byte executes — the app's
-//     own `script-src 'self'` would otherwise permit exactly that same-origin script chain (the #709 lesson
+//     own `script-src 'self'` would otherwise permit exactly that same-origin script chain (the lesson
 //     `blob.ts` records, and plugin source is the most obviously executable payload we serve). Over tRPC the
 //     source would arrive as a JSON string with an `application/json` type and no such property: the ONLY thing
 //     standing between it and execution would be every future client author choosing not to. Here the refusal

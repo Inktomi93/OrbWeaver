@@ -330,7 +330,7 @@ export interface PromptTransformRegistry {
 export type ChatRpgGatherResult = RpgGatherWithTools<WireTool>;
 
 export interface ChatRpgOps extends RpgTurnOps {
-  /** The #40 DRAFT-TIME game birth plan. RPG constructs its own table statements and minted id; chat folds
+  /** The DRAFT-TIME game birth plan. RPG constructs its own table statements and minted id; chat folds
    *  them into the room's creation batch and stores only the opaque pointer. No domain constructs the
    *  other's rows, while room/game/pointer are one durable commit. */
   readonly planGameBirth: PlanGameBirthOp<StatementToken>;
@@ -340,8 +340,8 @@ export interface ChatRpgOps extends RpgTurnOps {
    *  before preset resolution so the turn assembles THAT preset instead of the host default. */
   readonly resolvePresetOverride: ResolvePresetOverrideOp;
   /** The GAME's authored user macros (`rpg_games.config.userMacros`) — the game half of the two-home
-   *  definition rule (owner ruling #20; the preset half is {@link ChatContext.resolvePromptUserMacros}). Empty for a
-   *  non-game / DISENGAGED chat (#40 ⇒ byte-identical to a non-game turn). Chat learns no rpg type: the
+   *  definition rule (owner ruling; the preset half is {@link ChatContext.resolvePromptUserMacros}). Empty for a
+   *  non-game / DISENGAGED chat (byte-identical to a non-game turn). Chat learns no rpg type: the
    *  return is contracts' own `UserMacroSpec`, the SAME shape the preset half returns, and chat merges the
    *  two under the ruled collision policy (`shadowPresetUserMacros` — the game shadows the preset).
    *
@@ -410,7 +410,7 @@ export interface ChatRpgOps extends RpgTurnOps {
   /** FORK CLONES THE GAME (fork-clones-the-game §3.2). Called by `forkChat` AFTER its atomic fork batch commits:
    *  rpg re-keys its whole 6-table vertical from the source game onto the fork through the fork's id maps and
    *  writes the fork's `metadata.rpg` pointer LAST (crash safety — a mid-clone failure leaves the fork a valid
-   *  PLAIN chat, the `03c60fae63`/`forkMetadataWithoutGame` stopgap as the structural fallback). The maps ENCODE
+   *  PLAIN chat, the `forkMetadataWithoutGame` stopgap as the structural fallback). The maps ENCODE
    *  the fork horizon: a snapshot/journal row whose variant was not copied (truncated past the fork's `throughSeq`,
    *  or withheld below the forker's D106 join-floor) has no `variantIdMap` entry and is dropped by construction —
    *  no separate horizon param. `forker` drives the host-secret strip: a NON-`readsHidden` forker becomes HOST of
@@ -436,7 +436,7 @@ export interface ChatRpgOps extends RpgTurnOps {
    *  host can empty. An offer-less accept passes `false` + `[]` and produces the IDENTICAL statement list the
    *  pre-offer heal produced. */
   readonly handoffHealStatements: HandoffHealStatementsOp<StatementToken>;
-  /** HOST HANDOFF, the NOMINATE-side disclosure (#1762): WOULD an accepted `copyGmPreset` offer copy this
+  /** HOST HANDOFF, the NOMINATE-side disclosure: WOULD an accepted `copyGmPreset` offer copy this
    *  room's GM voice into `nomineeUserId`'s library? `true` only when the room is a game, its `gmPresetId` is
    *  set, and the nominee cannot already read it — i.e. exactly the gate `handoffHealStatements` applies at
    *  accept, asked without writing. A preset the nominee already owns answers FALSE and that is not a
@@ -509,8 +509,7 @@ type VerifyPersonaOwnedOp = (params: { readonly ownerId: UserId; readonly person
  *  memory payload, and `AbortSignal` is not declared in the contracts program. */
 export type EmbeddingsStoreOp = (params: MemoryDigestInput & { readonly signal?: AbortSignal | undefined }) => Promise<MemoryEmbedSpace>;
 
-/** memory's verbatim-segment write — a BATCH, and the one place the segment phase's embed flood lives (#172,
- * owner batching ruling: derived-data sweeps batch BY PHASE, never per-item interleaved). The corpus sweep
+/** memory's verbatim-segment write — a BATCH, and the one place the segment phase's embed flood lives (owner batching ruling: derived-data sweeps batch BY PHASE, never per-item interleaved). The corpus sweep
  * collects every chat's pending chunks, hands them over in ONE call, and the embeddings side submits them to
  * the engine as a single flood with no client-side throttle; the live post-turn build calls the same op with
  * one chat's chunks. Nothing here decides concurrency — that is the provider surface's. The signature stays here
@@ -518,7 +517,7 @@ export type EmbeddingsStoreOp = (params: MemoryDigestInput & { readonly signal?:
 export type EmbeddingsStoreSegmentsOp = (params: readonly StoreSegmentParams[], signal?: AbortSignal) => Promise<readonly MemoryEmbedSpace[]>;
 
 /** memory's chat-scoped recall. Returns the ranked blocks WITH their retrieval numbers; memory resolves the
- *  identities back to digest text and reports the numbers in its recall trace (#250 — a bare key list left
+ *  identities back to digest text and reports the numbers in its recall trace (a bare key list left
  *  "why did THIS block surface" unanswerable at the only seam that knows). */
 /** `ownerId` is OMITTED on purpose: `MemoryScope` carries no owner (D20), so the compose binding resolves the
  *  chat HOST — whose `embed`/`rerank` bindings define the digest space — from the chat FK before calling search. */
@@ -527,14 +526,14 @@ type SearchDigestsOp = (query: Omit<MemoryQueryOptions, "ownerId">, events?: Tur
 /** The per-call degrade observations BOTH in-turn retrieval ops report back — the neutral, chat-side half of
  *  the seam (search owns its own `DigestSearchEvents`; neither side imports the other's vocabulary).
  *
- *  `onIndexUnavailable` IS A CONTRACT ON THE BINDING, not a courtesy (#2510): an op that reports it MUST also
+ *  `onIndexUnavailable` IS A CONTRACT ON THE BINDING, not a courtesy: an op that reports it MUST also
  *  resolve empty rather than throw. The owner's vector space being mid-move or unbound is an ordinary state,
  *  and a turn's retrieval is an ENHANCEMENT to the turn — so that one class degrades here while every other
  *  search failure still propagates and still faults the turn (a `strikeOutOnTurnFault` premise, `engine.ts`). */
 
 /** The databank `{{databank}}`-slot GATHER op. OPTIONAL: absent ⇒ GATHER skips
  *  the branch entirely and the slot resolves empty, byte-identical to a non-databank deploy (the null-op pin).
- *  A `null` result = nothing retrieved (bankless scope / no hits / budget too small — and, since #2510, an
+ *  A `null` result = nothing retrieved (bankless scope / no hits / budget too small — and an
  *  unqueryable vector space, which reports through `events` before resolving null). chat reads ONLY `.text`
  *  (the slot value); databank's provenance/token fields never cross into chat.
  *
@@ -585,7 +584,7 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly audit: AuditWiring["log"];
   /** Unexecuted audit insert for the host-handoff swap's all-or-nothing forensic record. */
   readonly auditStatement: AuditWiring["statement"];
-  /** The world-info regex-KEY ReDoS watchdog (#710) — the assembler `.test`s a `use_regex` entry's user-authored
+  /** The world-info regex-KEY ReDoS watchdog — the assembler `.test`s a `use_regex` entry's user-authored
    *  key against the chat-history haystack under this per-call budget so a catastrophic key can't hang the turn. */
   readonly testRegexKey: TestKeyRegex;
   /** D121-E: dereference the FOUR regex scope junctions (global / preset / character / chat) into the host-tier
@@ -624,9 +623,9 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
    *  nominee's library, returning the UNEXECUTED `chat_regex_scripts` re-point the swap batch commits.
    *  Injected because `regex_scripts` is the regex domain's. Without it the departed host keeps an EDITABLE
    *  find/replace running on the transferred room's prompts and rendered output — the chat-book license,
-   *  except executable, and un-flippable by anyone still in the room (#1739). */
+   *  except executable, and un-flippable by anyone still in the room. */
   readonly copyHandoffRegexScripts: CopyHandoffRegexScriptsOp;
-  /** HOST HANDOFF, the NOMINATE-side disclosure (#1762): how many books / scripts an accept would land in
+  /** HOST HANDOFF, the NOMINATE-side disclosure: how many books / scripts an accept would land in
    *  the nominee's library. Injected for the same reason their copy twins are — the tables are world-info's
    *  and regex's — and they exist as their own ops rather than as a dry-run flag on the copies because a
    *  disclosure must be UNABLE to write: the nomination happens before consent, and an op that could mint is
@@ -648,7 +647,7 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly resolveAssetHash: ResolveAssetHashOp;
   readonly filterOwnedAssetIds: FilterOwnedAssetIdsOp;
   readonly filterOwnedImageAssetIds: FilterOwnedAssetIdsOp;
-  /** Materialize a user-pasted external background URL into an owned CAS asset (side-eye F-P0-2) — the
+  /** Materialize a user-pasted external background URL into an owned CAS asset — the
    *  `setChatBackground` verb runs it for a `kind:"external"` source so a persisted carried background is
    *  always same-origin-paintable (an external URL is CSP-blocked). Compose-built from infra + assets.store. */
   readonly materializeBackground: MaterializeBackgroundOp;
@@ -668,14 +667,14 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
    *  summarize connection bound (`no-connection`) digests are not derivable, the same as Memory off. */
   readonly summarizeAvailability: (funderUserId: UserId) => Promise<SendAvailability>;
   /** The FUNDER's EMBED model's window (tokens) — the segment build's window guard. A verbatim block that
-   *  cannot fit is SKIPPED AND RECORDED, never truncated (#165). Same per-call resolution as above. */
+   *  cannot fit is SKIPPED AND RECORDED, never truncated. Same per-call resolution as above. */
   readonly embedContextTokens: (funderUserId: UserId) => Promise<number>;
   /** The FUNDER's Utility-role preset params (D299), `undefined` under task defaults. The arbiter and the memory
    *  build fold them over their task posture; read per call, so a changed choice reaches the next summarize. */
   readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   readonly emitNotification: NotificationsEmitOp;
   readonly resolveHandle: ResolveHandleOp;
-  /** The disabled-account containment gate (owner-ruled 2026-08-15): whether a human's backing `users` row
+  /** The disabled-account containment gate (owner-ruled): whether a human's backing `users` row
    *  is enabled. Read fresh per call (never cached), mirroring `sessions.validate`'s per-request re-check, so
    *  an admin disable propagates the very next round. Chat never reads `users` itself — see
    *  `resolveHandle`. Feeds {@link isBackingUserEnabled} (`persistence/participant.ts`) at the ONE
@@ -713,16 +712,16 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   readonly gatherDatabank?: GatherDatabankOp;
   /** The structured memory observability sink. */
   readonly log: MemoryLog;
-  /** The recall FLIGHT RECORDER sink (#250) — every `{{memory}}` recall's slice, ring-buffered by the
+  /** The recall FLIGHT RECORDER sink — every `{{memory}}` recall's slice, ring-buffered by the
    *  compose-built recorder and read host-only at `/api/_debug/memory/recalls`. OPTIONAL: absent (a
    *  hand-built ctx, a unit test) ⇒ nothing records and recall is byte-identical. */
   readonly recordRecall?: MemoryRecallSink;
-  /** The recall-PHASE emitter (#313) — the live feed the header brain-icon reflects (recalling → recalled:N).
+  /** The recall-PHASE emitter — the live feed the header brain-icon reflects (recalling → recalled:N).
    *  OPTIONAL: absent (a hand-built ctx, a unit test) ⇒ nothing emits and recall is byte-identical. Wired at
    *  compose to the LIVE-ONLY `memoryRecall` bus member. */
   readonly emitRecallPhase?: MemoryRecallPhaseEmitter;
   readonly resolvePromptVariables: ResolvePromptVariablesOp;
-  /** The chat's active preset's authored user macros (#24), resolved under the host's settings — the picks pane's declaration half. Empty means no authored macros (or a hostless/stale room). */
+  /** The chat's active preset's authored user macros, resolved under the host's settings — the picks pane's declaration half. Empty means no authored macros (or a hostless/stale room). */
   readonly resolvePromptUserMacros: ReadChatUserMacrosOp;
   /** ⑧(a) — the caller's `UserSettings.chat.tempChatTtlHours`, the per-user temporary-chat reap TTL (the
    *  FOREIGN-inputs seam: chat never reads the settings domain; wired at compose from `loadUserSettings`).
@@ -772,7 +771,7 @@ export interface ChatServiceDeps {
     readonly chatId: ChatId;
     readonly actor?: BindingActor | undefined;
   }) => Promise<Resolved<"chat">>;
-  /** The deterministic pre-send serveability verdict for the room HOST's chat connection (#54) — the
+  /** The deterministic pre-send serveability verdict for the room HOST's chat connection — the
    *  honest-refusal gate the composer disables SEND on. Fires no turn or API call. Wired at the composition root. */
   readonly checkSendAvailability: (args: { readonly funderUserId: UserId; readonly chatId: ChatId }) => Promise<SendAvailability>;
   readonly getNextTurnConnection: (args: { readonly funderUserId: UserId }) => Promise<NextTurnConnectionView>;

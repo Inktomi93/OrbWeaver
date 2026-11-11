@@ -71,7 +71,7 @@ export interface ImportWorkloadDeps extends ImportTokenUsageBackfillDeps {
   /** System planner maintenance, once after a completed bulk import, never per entity. */
   readonly refreshPlannerStats: (args: { readonly ownerId: UserId }) => Promise<void>;
   /** Fan the "your library changed" user-bus events (`charactersChanged` + `chatsChanged`) to the target
-   *  owner ONCE at the end of a run that wrote canon (#23). A background import runs off-request, so the
+   *  owner ONCE at the end of a run that wrote canon. A background import runs off-request, so the
    *  import UI's own completion invalidation may never fire (the section was navigated away from) — and the
    *  chat bulk-import write path emits nothing of its own. This terminal fan is the always-on driver that
    *  refreshes the owner's character + chat lists with no manual cache clear. Injected (the domain

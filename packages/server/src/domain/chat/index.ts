@@ -37,7 +37,7 @@ export { createWiredChatGuards, requireWiredAuthorOrHost } from "./guard.ts";
 export { SUMMARIZE_TRANSCRIPT_MARKER } from "./memory/generate/substrate/prompts.ts";
 export { consolidationHash } from "./memory/generate/substrate/transcript.ts";
 export { createLiveTier0Range } from "./memory/recall/live-tier-range.ts";
-// The recall flight recorder (#250) — the composition root builds ONE and wires its sink onto `ChatContext`.
+// The recall flight recorder — the composition root builds ONE and wires its sink onto `ChatContext`.
 export { createMemoryRecallRecorder } from "./memory/recall/recorder.ts";
 export { createBulkImportChats, createFindImportedChatHashes } from "./persistence/import-write.ts";
 export { createRoomSeatReach } from "./persistence/room-reach.ts";
@@ -132,7 +132,7 @@ export { createChatRoomInputs } from "./verbs/resolve-room-inputs.ts";
 // line; wired into `RpgContext.resolveCardCorpus` at the composition root. Standalone + principal-free.
 export { createResolveRpgCardCorpus } from "./verbs/resolve-rpg-card-corpus.ts";
 export { createResolveRpgParticipants } from "./verbs/resolve-rpg-participants.ts";
-// The #1799 inbox read: which of a notifications page's chat-owned decisions are still open. Exported for
+// The inbox read: which of a notifications page's chat-owned decisions are still open. Exported for
 // the same reason the guards above are — the ANSWER is chat's (it lives in `chat_invites.status` and
 // `chats.pending_host_user_id`), while the QUESTION belongs to a domain that must not import chat. The
 // composition root joins them; notifications declares the op type it consumes and never learns a table name.

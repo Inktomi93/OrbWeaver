@@ -3,7 +3,7 @@
 // asymmetry. Mints humans only. Guards: invalid_handle (empty), cannot_grant_owner (never minted here),
 // weak_password, user_exists (both the pre-SELECT and the TOCTOU insert-conflict race translate to the same code).
 //
-// The account and its audit row are ONE batch (#1691, `substrate/audited-write.ts`). Before that the audit
+// The account and its audit row are ONE batch (`substrate/audited-write.ts`). Before that the audit
 // was a separate await after the INSERT, which failed both ways: in production the injected `audit` is
 // `logAudit`, which SWALLOWS its failure, so a dead audit channel minted a loginable account and returned
 // 200 with no forensic record at all; and any tail that did reject rejected the endpoint with the account
@@ -88,7 +88,7 @@ async function insertLocalUser(ctx: AdminContext, row: LocalUserInsert, actorUse
   const id = ctx.newUserId();
   let inserted: { readonly id: UserId }[];
   try {
-    // ONE batch: the account and its audit row exist together or neither does (#1691). A rejecting audit
+    // ONE batch: the account and its audit row exist together or neither does. A rejecting audit
     // insert now un-mints the account instead of leaving a loginable row with no forensic record.
     inserted = await commitAuditedWrite(ctx, {
       // D257: the mint is sessions' statement, which derives the handle key and mints humans only.
@@ -138,7 +138,7 @@ export function createCreateUser(ctx: AdminContext): AdminService["createUser"] 
     const passwordHash = await ctx.hashPassword(params.password);
     const at = ctx.now();
     const view = await insertLocalUser(ctx, { handle, role, passwordHash, at }, params.principal.userId);
-    // #2481 — the new account's local-light vector floor (§5.3b), AFTER the audited batch has committed and
+    // The new account's local-light vector floor (§5.3b), AFTER the audited batch has committed and
     // deliberately OUTSIDE it: the batch's bargain is that a mint which cannot be recorded must not happen,
     // and the inverse bargain here is that a mint whose convenience seed fails must still happen. Total by
     // contract, so there is nothing to catch — see `AdminContext.seedUserConnections`.

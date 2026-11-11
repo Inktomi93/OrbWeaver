@@ -5,7 +5,7 @@
 // (the same annotation the chat replay ring + agents scheduler carry). Rebuilt at boot and after every lifecycle
 // mutation that can change enablement (setRuleEnabled/deleteRule/updateRule call `refresh`).
 //
-// TWO REFRESH DOORS, because the two callers want opposite things from a failure (#1431). `reload` THROWS —
+// TWO REFRESH DOORS, because the two callers want opposite things from a failure. `reload` THROWS —
 // it is the BOOT call, where a db that will not answer means the process must not come up pretending it has a
 // pre-check. `refresh` never rejects — it is the post-mutation call, and by the time it runs the rule write
 // has COMMITTED, so a throw would report failure for an operation that succeeded and leave the index stale
@@ -25,7 +25,7 @@ export function createEnabledRuleIndex(handle: DatabaseHandle): EnabledRuleIndex
   // ASSUMES(single-replica): a per-process snapshot, eventually-consistent within one reload of a mutation.
   let enabledChats = new Set<ChatId>();
   let domainRules = false;
-  // #1431 — the STALE latch. Set when a post-mutation refresh failed, cleared by the next successful one. It
+  // The STALE latch. Set when a post-mutation refresh failed, cleared by the next successful one. It
   // is PROCESS-LOCAL like the sets it guards: nothing persists it, a respawn starts clean off a boot `reload`.
   let stale = false;
 
@@ -37,7 +37,7 @@ export function createEnabledRuleIndex(handle: DatabaseHandle): EnabledRuleIndex
   };
 
   return {
-    // WHILE STALE BOTH READS ANSWER TRUE, which is the "readers fall back to the DB" half of #1431: this index
+    // WHILE STALE BOTH READS ANSWER TRUE, which is the "readers fall back to the DB" half: this index
     // is a pure OPTIMISATION over `loadEnabledChatRules`/`loadEnabledDomainRules`, so answering true costs one
     // indexed query per event and answering off a snapshot we KNOW is behind costs correctness — a deleted
     // rule that keeps dispatching, or an enabled one that never does. Fail OPEN, not fast.
@@ -49,7 +49,7 @@ export function createEnabledRuleIndex(handle: DatabaseHandle): EnabledRuleIndex
       // DELIBERATE ABSORBER. The owner is the STALE
       // LATCH below plus the watcher front door's `healStaleIndexes` retry: the failure is surfaced as
       // fail-open reads (canon decides every event) and cleared by the next successful rebuild. Propagating
-      // instead is the #1431 defect — it rejects a verb whose durable write already committed. Ends when the
+      // instead is the defect — it rejects a verb whose durable write already committed. Ends when the
       // enabled index stops being a pure optimisation over `loadEnabledChatRules`.
       try {
         await rebuild();

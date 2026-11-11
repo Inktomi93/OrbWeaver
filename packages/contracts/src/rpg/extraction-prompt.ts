@@ -26,7 +26,7 @@
 // resolves to the shipped default, so a game whose host has edited nothing composes byte-identically to the
 // pre-PROSE-1 prompt.
 //
-// CENSUS 27 IS WIRED (owner ruling 2026-08-08 on spec §11 decision 6: WIRE it and measure). The state-tracking
+// CENSUS 27 IS WIRED (owner ruling on spec §11 decision 6: WIRE it and measure). The state-tracking
 // GUIDE — Appendix A's "be thorough, the panel should reflect the FULL richness of the narration" addendum, the
 // measured per-turn coverage lifter — spent its whole life as `RPG_STATE_TRACKING_GUIDE`, an exported const
 // composed onto nothing. It is now the `rpg.extract.stateTrackingGuide` slot, pushed by
@@ -203,9 +203,8 @@ const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
 
 /** Compose the plane fragments into a teaching block for a system prompt — the SHARED body both the structured
  *  extraction and the cheap tool round walk (§1.6). Drops disabled planes (null fragments), and on a
- *  DECEPTION-ACTIVE game prefixes the surface-only standing clause (#7 recommendation A). The two CROSS-PLANE
- *  doctrines ride here so both arms teach them identically: the state-tracking GUIDE (be thorough — census 27,
- *  wired 2026-08-08) and the RECONCILE rule (fix a contradicted plane). */
+ *  DECEPTION-ACTIVE game prefixes the surface-only standing clause. The two CROSS-PLANE
+ *  doctrines ride here so both arms teach them identically: the state-tracking GUIDE (be thorough — census 27) and the RECONCILE rule (fix a contradicted plane). */
 export function composePlaneTeaching(ctx: ExtractionPromptContext): string {
   const blocks: string[] = [];
   if (isDeceptionActive(ctx.config.features)) {
@@ -217,7 +216,7 @@ export function composePlaneTeaching(ctx: ExtractionPromptContext): string {
       blocks.push(fragment);
     }
   }
-  // Census 27, wired 2026-08-08. It rides HERE rather than in the two system builders for the same reason the
+  // Census 27. It rides HERE rather than in the two system builders for the same reason the
   // RECONCILE doctrine does: a cross-plane doctrine composed once cannot drift between the two arms, which is
   // the §1.6 thesis. Position is deliberate — it lands AFTER the per-plane teaching (it is a summary of the
   // planes above, not a preamble) and BEFORE the reconcile rule, so the "never fabricate numbers, items, or
@@ -320,7 +319,7 @@ function buildRpgToolDescriptions(ctx: ExtractionPromptContext): ReadonlyMap<str
     ["add_journal_entry", rpgProse(ctx, "rpg.extract.tool.addJournalEntry")],
     // `roll_dice` carries no extraction-schema plane (zero-state, bake-once — `domain/rpg/tools/index.ts`
     // header) and no per-game token, but rides this SAME map so the registry's static registration
-    // (`RPG_BASELINE_TOOL_DESCRIPTIONS`) never diverges from a future per-call render (#578).
+    // (`RPG_BASELINE_TOOL_DESCRIPTIONS`) never diverges from a future per-call render.
     ["roll_dice", rpgProse(ctx, "rpg.extract.tool.rollDice")],
   ]);
 }

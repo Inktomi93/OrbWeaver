@@ -51,7 +51,7 @@ export function createAutomationService(input: DbAssemblyInput<AutomationService
   // Built ONCE and injected into BOTH mints: a preset's rule set is validated and shaped by the SAME planner
   // a hand-authored rule goes through (one validation, one row shape), and the dependency stays visible at
   // the composition root instead of hiding inside a verb→verb import. The two differ only in how they
-  // COMMIT — one row, or one all-or-nothing batch (#1427).
+  // COMMIT — one row, or one all-or-nothing batch.
   const planRule = createPlanRule(ctx);
   const createRule = createCreateRule(ctx, planRule);
   return {

@@ -26,7 +26,7 @@ export type RpgQuestStatus = (typeof RPG_QUEST_STATUSES)[number];
 export const rpgQuestStatusSchema = z.enum(RPG_QUEST_STATUSES) satisfies z.ZodType<RpgQuestStatus>;
 
 /** Journal entry type — vocabulary WHOLE; lite's model writes any of them (labels, not engines). R4c added
- *  the `custom` ESCAPE (owner go, 2026-07-31): the closed seven were combat-flavoured on a plane that fires on
+ *  the `custom` ESCAPE (owner go): the closed seven were combat-flavoured on a plane that fires on
  *  79% of turns, in the genres lite is best at, and a DB CHECK made them a wall. `custom` mirrors
  *  {@link RPG_RELATIONSHIP_KINDS} exactly — keep the enum (a model can never emit an off-vocab token under an
  *  enforcing grammar) and reach anything else through the entry's free `label` (+ per-game

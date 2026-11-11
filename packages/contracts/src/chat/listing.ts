@@ -25,7 +25,7 @@ export const HOME_RECENT_CHATS_LIMIT = 8;
 
 /** The keyset boundary — the LAST row of the page just served, in the list's own `(recencyAt, id)` order.
  *
- *  `recencyAt` is the list's ONE recency clock (#150): the room's newest message time, falling back to the
+ *  `recencyAt` is the list's ONE recency clock: the room's newest message time, falling back to the
  *  chat row's `updatedAt` when it has none — the same value every row DISPLAYS. It was spelled `updatedAt`
  *  while the list sorted on the row stamp; the field is renamed rather than reused because a cursor whose
  *  name no longer describes its column is how the next reader re-derives it from the wrong one. */

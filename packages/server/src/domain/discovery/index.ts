@@ -1,15 +1,15 @@
 // domain/discovery — front door: the only legal external import; re-exports the slice's public surface.
 // similarArt is NOT here by design — "more like this avatar" is retrieval, built as search.similarArt
-// (2026-07-10; the dossier client queries it directly); discovery's image analytics stay retrieval-free.
+// (the dossier client queries it directly); discovery's image analytics stay retrieval-free.
 //
-// TWO TYPED ERRORS, wired (2026-08-03, superseding the same day's zero-error state). The 08-03 deletion of
+// TWO TYPED ERRORS, wired (superseding the same day's zero-error state). The 08-03 deletion of
 // `DiscoveryError` was correct — it was a class with no throw site — and the header that replaced it read the
 // absence as law. The failure-path audit found one path where the absence was the DEFECT: the on-demand
 // single-card distill (`suggestCharacterTags`) contained its own failure and answered 200 with `{distilled: 0,
 // failed: 1}`, so the editor's "Suggest tags" button went quiet and told the user nothing. `contract/errors.ts`
 // carries exactly the two errors that path throws — `DistillFailedError` (the summarizer produced nothing
-// usable) and `CardNotDistillableError` (the card is name-only, so every facet would be INVENTED; owner ruling
-// 2026-08-03) — and nothing else; its third refusal reuses the house `DomainNotFoundError` for the leak-free
+// usable) and `CardNotDistillableError` (the card is name-only, so every facet would be INVENTED; owner
+// ruling) — and nothing else; its third refusal reuses the house `DomainNotFoundError` for the leak-free
 // ownership collapse the cross-tenant sweep requires, and that belt runs BEFORE both content verdicts.
 //
 // Everything else in this domain still mints nothing, and that IS the law:

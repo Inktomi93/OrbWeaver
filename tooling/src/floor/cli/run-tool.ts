@@ -60,7 +60,7 @@ export async function runTool(main: () => Promise<number> | number): Promise<voi
     // After the heap re-exec, so the folder belongs to the process that keeps running. Its Chromium profiles and
     // scratch folders go with it; the exit hook removes it on every path, a crash's `process.exit` included.
     acquireRunTempRoot();
-    // THE AMBIENT-KNOB DOOR (#1666). A mis-spelled `ORB_BOX_LOAD` is MISUSE — the same class as bad argv —
+    // THE AMBIENT-KNOB DOOR. A mis-spelled `ORB_BOX_LOAD` is MISUSE — the same class as bad argv —
     // but it is read lazily by whichever module first needs a budget, which for several instruments is the
     // IMPORT GRAPH: a throw there escapes before these handlers exist and exits 1, i.e. "violations found"
     // under the house contract. Asking here, once, inside the try, makes it one line and exit 3.

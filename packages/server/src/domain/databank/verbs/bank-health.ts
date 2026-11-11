@@ -2,7 +2,7 @@
 // actually pull from out of the passages that exist, and how many documents sit in each ingest phase. The
 // home tile's D-7 health line and its attention chips ("12 stalled") are this, and nothing else.
 //
-// WHY IT IS ITS OWN VERB AND NOT A FIELD ON `list` (owner ruling 2026-08-14). The tile used to derive all
+// WHY IT IS ITS OWN VERB AND NOT A FIELD ON `list` (owner ruling). The tile used to derive all
 // three from the ONE page it renders four rows of, so every claim it made was scoped to the newest 100
 // documents while reading as a claim about the bank — the same blind-lens class as a client-side list filter.
 // The fix cannot ride `databank.list`: the phase counts need the bank-wide chunk read below, and folding that

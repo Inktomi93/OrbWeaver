@@ -65,13 +65,13 @@ export interface StartChatParams extends ChatActorParams {
   readonly injections?: readonly ChatInjectionInput[] | undefined;
   /** Born ephemeral: hidden from listChats, swept by reapTemporaryChats once expired. */
   readonly temporary?: boolean | undefined;
-  /** #40 DRAFT-TIME game start: mint a lite game atomically with the new chat (turn 1 is already in-game).
+  /** DRAFT-TIME game start: mint a lite game atomically with the new chat (turn 1 is already in-game).
    *  Threaded BLIND to the injected `ChatRpgOps.planGameBirth` (the pointer precedent);
-   *  `ruleset` is rpg's own setting axis (omit = `freeform`, the birth default — #862). */
+   *  `ruleset` is rpg's own setting axis (omit = `freeform`, the birth default). */
   readonly startAsGame?: RpgGameTemplate | undefined;
 }
 
-/** `listChats` — the caller's membership library, newest-CONVERSATION-first (#150: the ONE recency clock,
+/** `listChats` — the caller's membership library, newest-CONVERSATION-first (the ONE recency clock,
  *  `coalesce(newest message, updatedAt)` — the same value the row displays), KEYSET-PAGED (the `character.list`
  *  precedent). `characterId` is the D18 PROJECTION filter: it narrows the SERVER read to the chats that seat
  *  one character (present or departed), so a character screen never has to pull the whole library to find
@@ -437,7 +437,7 @@ export interface SetUserMacroValuesParams extends ChatScopedParams {
   readonly values: UserMacroValues;
 }
 
-/** `getUserMacroPicks` (#24) — the picks pane's ONE read: the chat's pickable user-macro declarations +
+/** `getUserMacroPicks` — the picks pane's ONE read: the chat's pickable user-macro declarations +
  *  the persisted picks `setUserMacroValues` writes. */
 export type GetUserMacroPicksParams = ChatScopedParams;
 
@@ -518,8 +518,8 @@ export interface SetHostDisplayScriptsParams extends ChatScopedParams {
   readonly enabled: boolean;
 }
 
-/** ONE lever of the room's regex, as the host flipped it (#1742). A discriminated union rather than a bag of
- *  optional fields because the write is ONE metadata key per call (#1450 — `commitMetadataUpdate` writes a
+/** ONE lever of the room's regex, as the host flipped it. A discriminated union rather than a bag of
+ *  optional fields because the write is ONE metadata key per call (`commitMetadataUpdate` writes a
  *  single JSON path, and a two-key write would be a lost-update race against every other host knob), and
  *  because "the master" and "a tier" are different keys with different blobs. */
 type RegexAllowLever =
@@ -529,7 +529,7 @@ type RegexAllowLever =
    *  lever and never has to send back a map it might have raced. */
   | { readonly kind: "tier"; readonly tier: RegexTierKey; readonly enabled: boolean };
 
-/** `setRegexAllow` — host-only write of ONE of the room's regex levers (#1742).
+/** `setRegexAllow` — host-only write of ONE of the room's regex levers.
  *  Host authority for the `setOfferChoices` reason and not
  *  the display-scripts one: these levers govern PROMPT CONTENT for everyone in the room (they decide which
  *  scripts the shared assembly runs), so they are room state, never a viewer preference. Returns the stored
@@ -538,7 +538,7 @@ export interface SetRegexAllowParams extends ChatScopedParams {
   readonly lever: RegexAllowLever;
 }
 
-/** `listEffectiveRegex` — the host's read of what regex runs in this room, in run order, by tier (#1742). */
+/** `listEffectiveRegex` — the host's read of what regex runs in this room, in run order, by tier. */
 export type ListEffectiveRegexParams = ChatScopedParams;
 
 /** `setOfferChoices` — host-only write of the B1 offer-choices POSTURE (`chatMetadata.offerChoices`).

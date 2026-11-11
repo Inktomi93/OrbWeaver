@@ -1,21 +1,21 @@
 // Persona-owned default-user-persona seeder (mirrors the default-character seeder). Called both at boot (the
 // deployment owner) and on first authed request (a new user). `ensureSeeded` never throws.
 //
-// IDEMPOTENCY HAS TWO LAYERS (the character seeder's shape — #461 is what it cost to only have one):
+// IDEMPOTENCY HAS TWO LAYERS (the character seeder's shape — one layer alone cost a real settings wipe):
 //   1. the persisted latch `UserSettings.onboarding.defaultPersonaSeeded` — once true it never re-runs, which
 //      is also the DELETION-RESPECT guard (a deleted default persona isn't resurrected);
 //   2. `findSeededDefault` — the seeder recognises its OWN artifact (`metadata.seededDefault`) in the library
-//      and heals the latch (plus any null `seeds.*` pointer, #1412) instead of minting a second one.
+//      and heals the latch (plus any null `seeds.*` pointer) instead of minting a second one.
 // Layer 2 exists because layer 1 is a value in a settings BLOB and a blob can come back at schema defaults:
-// live dev-db receipt 2026-08-22, every `user_settings.config` section byte-identical to
+// live dev-db receipt: every `user_settings.config` section byte-identical to
 // DEFAULT_USER_SETTINGS 19.4h after a good seed, with zero audited settings writes in between — `isSeeded`
 // answered false and a second byte-identical "Traveler" was minted (the character pack survived the identical
 // boot untouched, on ITS layer 2: per-card handle-conflict tolerance against the db's own uniqueness).
-// Personas carry no unique key by design (same-named personas are supported, #458), so the artifact marker is
+// Personas carry no unique key by design (same-named personas are supported), so the artifact marker is
 // the persona analogue of that handle. Layer 2 is deliberately NOT "the user owns any persona": owning
 // UNRELATED personas has never suppressed the seed, and tests/server/domain/persona/seeder/default.int.test.ts holds that arm.
 //
-// THE AUTO-CREATE ARM IS CONDITIONAL (owner ruling, 2026-08-03 — the forced-first-run redesign). Auto-seeding
+// THE AUTO-CREATE ARM IS CONDITIONAL (owner ruling — the forced-first-run redesign). Auto-seeding
 // a persona is what made the shipped `FirstRunPersonaDialog` dead by construction: its trigger is "the viewer
 // owns ZERO personas" (D107 — the ruled trigger; `personaWizardSeen` was deleted as dead), and the per-request
 // hook minted Traveler before the client's first `persona.list` could ever return empty. On a REAL stack the
@@ -44,7 +44,7 @@ import type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "../contract
  *
  *  THE NAME IS OWNER-RULED COPY, and it is not decorative: this string is what a model receives as `{{user}}`,
  *  so it gets used as a form of address. It was "You" and that produced literal vocatives — "Goodnight, You."
- *  — and it collided with the no-persona DISPLAY fallback, which is itself "You" (owner ruling 2026-07-27,
+ *  — and it collided with the no-persona DISPLAY fallback, which is itself "You" (owner ruling,
  *  `domain/rpg/tools/rounds/prompts.ts` `PLAYER_SEMANTIC_REF`), making "has a persona" and "has none" render identically.
  *  A neutral NOUN reads correctly in the vocative position a model will inevitably put it in.
  *
@@ -53,11 +53,11 @@ import type { DefaultPersonaSeeder, DefaultPersonaSeederDeps } from "../contract
  *  reaches this constant again. (There is no separate "first-run complete" flag — `personaWizardSeen` was
  *  deleted as dead in D107; this latch IS the first-run signal.)
  *
- *  THE TITLE IS A DESCRIPTOR, NOT A STATE CLAIM (owner ruling 2026-08-22, #462). It was "Your default
+ *  THE TITLE IS A DESCRIPTOR, NOT A STATE CLAIM (owner ruling). It was "Your default
  *  persona" — a sentence that goes FALSE the moment the user defaults any other persona, while still being
  *  displayed: the crown derives from the real `seeds.defaultPersonaId` flag, the title does not, so the two
- *  contradict each other on screen (the 2026-08-03 side-eye ruling killed the row's other two
- *  default-tellings and left this one standing). It is also USER-EDITABLE PROSE, so no backfill may correct
+ *  contradict each other on screen (the ruling keeps this one of the row's three
+ *  default-tellings). It is also USER-EDITABLE PROSE, so no backfill may correct
  *  it — the only fix is to author copy that stays true forever. "Your first persona" is a fact about how the
  *  row came to exist, and nothing the user does later can falsify it. Existing rows keep whatever prose they
  *  have: `seed()` returns early on the latch, so a seeded user never reaches this constant again. */
@@ -69,7 +69,7 @@ const DEFAULT_PERSONA: Omit<CreatePersonaInput, "avatarAssetId"> = {
   description: "",
   starred: true,
   // The layer-2 artifact marker (file header). Stamped at MINT so the row is self-identifying forever —
-  // independent of the name/title copy, which is owner-ruled and moves (#462).
+  // independent of the name/title copy, which is owner-ruled and moves.
   metadata: { seededDefault: true },
 };
 
@@ -84,7 +84,7 @@ export function createDefaultPersonaSeeder(deps: DefaultPersonaSeederDeps): Defa
       return;
     }
     // LAYER 2: the latch is gone but the artifact is not. Heal the latch (so the next boot short-circuits on
-    // layer 1 again) and mint nothing. The surviving row's id IS handed over (#1412): the blob-reset this
+    // layer 1 again) and mint nothing. The surviving row's id IS handed over: the blob-reset this
     // layer exists for nulls the `seeds.*` pointers too, and `markSeeded` only ever fills a pointer that is
     // already null — so the repair cannot relitigate a pick, and withholding the id was the difference
     // between a healed user and one pointing at nothing forever.

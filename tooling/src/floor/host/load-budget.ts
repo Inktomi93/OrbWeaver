@@ -1,4 +1,4 @@
-// THE ONE READING OF THE BOX (owner addition 2026-09-02).
+// THE ONE READING OF THE BOX (owner addition).
 // A wall-clock budget written for a quiet box reads as a RED on a contended one, and a measured RATE taken
 // on a contended box is a number about the box, not the code. Both wear the clothes of a real verdict.
 // Before this module the fleet carried FOUR unrelated answers to that class (a test-only helper, five
@@ -15,8 +15,8 @@
 //   RATE — dropped-frame %, CLS deltas, LoAF/INP, any A/B delta: MEASURED at any load and LABELLED
 //     `load-suspect` above the SAME boundary (`judgeMeasurementLoad`). Load does not scale a rate, it
 //     destroys it: measured on identical code, motion-audit's mobile arm read 47.54% dropped frames at
-//     per-core 1.04, then 10%, then clean (#1040) — so the number above the boundary is NOT a verdict and
-//     can never be promoted. What changed on 2026-09-05 (OWNER RULING, #1616) is what we do about it:
+//     per-core 1.04, then 10%, then clean — so the number above the boundary is NOT a verdict and
+//     can never be promoted. The OWNER RULING decides what we do about it:
 //     "LABEL, DON'T WITHHOLD". The old arm DECLINED TO VOTE, and since our steady state is lanes + engines
 //     (per-core ≥ 1.0 means loadavg ≥ 24 on this 16c/24t box) that made every rate arm unavailable most of
 //     the day — the owner, on a snap withheld at loadavg 26-31: "that's dumb." So the arm now RUNS, reports
@@ -36,7 +36,7 @@
 // regression is still measured against the author's declared base on the run that matters, and the only
 // runs that get headroom are the ones whose wall clock was never a statement about the code. The factor is
 // therefore a statement about the BOX, and the one way to break that guarantee is to make the denominator
-// dishonest — which is what #1985 found and fixed (`load-budget-cgroup.ts#cgroupQuotaCores`).
+// dishonest — which is why the cgroup quota counts (`load-budget-cgroup.ts#cgroupQuotaCores`).
 //
 // PURE except for `readBoxLoad` (the one `os.loadavg()` read) and `budgetCeilingMs` (the one env read); the
 // cgroup CPU limit `readBoxLoad` folds in (quota ceiling + throttle sample, whatever a container, CI or a
@@ -57,8 +57,8 @@ export const LOAD_KILL_MARKER = "ORB-LOAD-KILL";
  *  load-suspect number is one that WAS measured and cannot be promoted. Conflating them would make "this
  *  reading is about the box" read as "the instrument failed", and every summary has to tell them apart.
  *
- *  RENAMED 2026-09-05 from `LOAD_WITHHOLD_MARKER`/`ORB-LOAD-WITHHOLD` (#1616): under the owner ruling the
- *  arm no longer withholds, so a marker that says WITHHOLD would be the lie this module exists to prevent.
+ *  NOT a withhold marker: under the owner ruling the
+ *  arm does not withhold, so a marker that says WITHHOLD would be the lie this module exists to prevent.
  *  Every spelling moved in the same commit — the old token appears nowhere on the tree. */
 export const LOAD_SUSPECT_MARKER = "ORB-LOAD-SUSPECT";
 
@@ -75,7 +75,7 @@ export const LOAD_SUSPECT_ANNOTATION = "orb-load-suspect";
  *  surface legibly through the kill path, not by hanging the battery. */
 export const FACTOR_CAP = 8;
 
-/** The ABSOLUTE ceiling on any scaled budget (fork F11, ruled 2026-09-02): 10 minutes. Even at FACTOR_CAP
+/** The ABSOLUTE ceiling on any scaled budget (fork F11, ruled): 10 minutes. Even at FACTOR_CAP
  *  a wedged subject must surface as exit 2 inside one lane's patience. */
 export const DEFAULT_BUDGET_CEILING_MS = 600_000;
 
@@ -91,7 +91,7 @@ export interface BoxLoad {
    *  `cpu.max` = `max`, `ORB_DEDICATED_BOX=1`) and for every PLANTED reading — a planted box states a
    *  loadavg and nothing else, so plants keep the exact behaviour they had before this field existed. */
   readonly throttle?: CpuThrottleSample | undefined;
-  /** PROVENANCE, carried by the VALUE (#1666): `true` only for a reading `readBoxLoad` took from
+  /** PROVENANCE, carried by the VALUE: `true` only for a reading `readBoxLoad` took from
    *  {@link BOX_LOAD_ENV}. The receipt printers stamp `(planted)` on exactly this, so the stamp certifies
    *  the number it is printed beside rather than the process it was printed in. Absent ⇒ the live box, or
    *  a control the caller injected and therefore owns. */
@@ -105,7 +105,7 @@ export interface BoxLoad {
 export type BoxLoadReader = () => BoxLoad;
 
 /** The live box — the ONE `os.loadavg()` read in the fleet. */
-/** THE PLANTED-READING ENV SEAM (#1651). Every judging function here takes the reading as a VALUE, which
+/** THE PLANTED-READING ENV SEAM. Every judging function here takes the reading as a VALUE, which
  *  serves an in-process control perfectly — and serves a CLI int test not at all, because the instrument
  *  under test is a CHILD PROCESS. Without this seam those suites assert against whatever the box happened
  *  to be doing: `run-bundle.suite.int.test.ts`'s "no findings" pin passed on a quiet box and went red at
@@ -126,7 +126,7 @@ function rawBoxLoadKnob(): string | undefined {
 
 /** PURE + TOTAL: the operator message for a mis-spelled knob, or `null` when the knob is absent or valid.
  *
- *  IT IS A VALUE, NOT A THROW, because of WHERE the first read happens (#1666): several instruments derive
+ *  IT IS A VALUE, NOT A THROW, because of WHERE the first read happens: several instruments derive
  *  a module-scope budget, so a throw from the reader fires during the IMPORT GRAPH — before `runTool`
  *  installs its handlers — and node's default crash exit is 1, which under the house contract means
  *  "violations found". A mis-spelled dev knob is the MISUSE class, so `floor/cli/run-tool.ts` asks this
@@ -149,7 +149,7 @@ function plantedBoxLoad(): BoxLoad | undefined {
     return;
   }
   if (boxLoadKnobError() !== null) {
-    // NO THROW HERE, and that is a MEASURED constraint, not a softening (#1666). This reader runs inside
+    // NO THROW HERE, and that is a MEASURED constraint, not a softening. This reader runs inside
     // the IMPORT GRAPH — `SNAP_CEILINGS_MS` in `snap/lib/budgets.ts` derives a module-scope ceiling — so a throw
     // fires before `runTool` installs its handlers and node's crash exit is 1, i.e. "violations found" (receipt:
     // the red-first arm printed `expected exit 3 (misuse), got 1 (violations)` with a stack frame in
@@ -162,7 +162,7 @@ function plantedBoxLoad(): BoxLoad | undefined {
     return;
   }
   const [load, cores] = raw.split("/");
-  // PROVENANCE TRAVELS WITH THE READING (#1666). The stamp used to key off "is the env set", which
+  // PROVENANCE TRAVELS WITH THE READING. The stamp used to key off "is the env set", which
   // certified numbers it had never seen: under `ORB_BOX_LOAD=0.2/24`, `loadPairs(() => ({loadavg1: 7.5,
   // cpuCount: 8}))` printed `load=7.5/8(planted)` — 7.5/8 was never planted. A flag ON THE VALUE is the
   // only thing that can answer "did THIS number come from the plant", and it survives every carrier that
@@ -185,15 +185,15 @@ export function computeLoadFactor(loadavg1: number, cpuCount: number, cap = FACT
 }
 
 /** PURE: the wall-clock stretch implied by QUOTA THROTTLING, which is the contention `computeLoadFactor`
- *  structurally cannot see (#2206).
+ *  structurally cannot see.
  *
  *  THE HOLE IT CLOSES. `computeLoadFactor` is `max(1, loadavg/cores)`, so it returns EXACTLY 1 for the whole
  *  band `0 < loadavg < cores` — a fenced session at 99% utilisation gets no uplift at all. That band is not
  *  a quiet box: a cgroup CPU quota is enforced through cgroup v2's 100ms period, and a
  *  tree that wants more CPU than its slice IS STOPPED for the rest of each period it exceeds. Measured on
- *  this session's own scope while writing this (2026-09-12): `cpu.max` = `800000 100000` (8 cores),
+ *  this session's own scope while writing this: `cpu.max` = `800000 100000` (8 cores),
  *  `nr_periods` 1,282,742, `nr_throttled` 158,691 — 12.4% of periods ended in a throttle, while loadavg sat
- *  well under 8 and the factor read a flat 1. The row that found it (#2206) is the barrier's planter dying
+ *  well under 8 and the factor read a flat 1. The row that found it is the barrier's planter dying
  *  at a 300s budget on a pass that costs 257s solo: a ≥1.17× stretch the loadavg model priced at 1.00.
  *
  *  THE CURVE HAS NO FREE CONSTANT, which is why it can be landed without a calibration drive: if a fraction
@@ -286,7 +286,7 @@ export function loadResultPairs(read: BoxLoadReader = readBoxLoad): readonly (re
   ];
 }
 
-/** THE ONE RATE-VERDICT VOCABULARY (#1616). Three members, closed, and every consumer dispatches on the
+/** THE ONE RATE-VERDICT VOCABULARY. Three members, closed, and every consumer dispatches on the
  *  member rather than on a boolean — which is what makes a new member a COMPILE error at every call site:
  *
  *  · `complete`     — the box was quiet; the number is a verdict and may be judged against a threshold.
@@ -322,15 +322,15 @@ export function hasMeasurement(verdict: MeasurementVerdict): boolean {
 /** PURE. Is this box quiet enough for a measured RATE to be a verdict about the code? The threshold is not
  *  a new constant: a measurement is `load-suspect` exactly when `computeLoadFactor` leaves 1 — the same
  *  boundary that starts stretching wall clocks. Below it the factor is exactly 1 and solo behaviour is
- *  untouched. IT NEVER RETURNS `withheld`: under the #1616 ruling load labels, it does not withhold. */
-//  #2206, DELIBERATE NON-CHANGE: this judge stays on LOADAVG ALONE and does not take `throttleFactor`.
+ *  untouched. IT NEVER RETURNS `withheld`: under the owner ruling load labels, it does not withhold. */
+//  DELIBERATE: this judge stays on LOADAVG ALONE and does not take `throttleFactor`.
 //  The throttle counters are CUMULATIVE over a session scope that lives for hours, so they are a PRIOR
 //  about how fenced this session is — fine for stretching a wall clock (which may only ever grow), and
 //  wrong for a rate arm, which needs a statement about the box DURING the measurement. Folding it in here
 //  would mark essentially every rate arm in every fenced lane `load-suspect` forever, which is the
-//  withhold-everything failure the #1616 ruling already reversed once.
+//  withhold-everything failure the owner ruling reversed.
 export function judgeMeasurementLoad(box: BoxLoad, what: string): MeasurementVerdict {
-  // The SAME stamped figure the RESULT pairs carry (#1666): a `load-suspect` reason taken under a planted
+  // The SAME stamped figure the RESULT pairs carry: a `load-suspect` reason taken under a planted
   // box used to read exactly like a live-box sentence, and this string is what a reader sees FIRST.
   const where = `loadavg ${loadValue(box)} cores`;
   if (computeLoadFactor(box.loadavg1, box.cpuCount) === 1) {
@@ -348,7 +348,7 @@ export function judgeMeasurementLoad(box: BoxLoad, what: string): MeasurementVer
 
 /** The RATE-arm door for a caller that has no vitest task and no Playwright testInfo (an instrument's own
  *  verdict path): judge the live box and hand back the verdict. The CALLER owns the consequence — and
- *  since #1616 the load consequence is a LABEL: the arm measures, prints its number, and marks that arm
+ *  the load consequence is a LABEL: the arm measures, prints its number, and marks that arm
  *  `<arm>=load-suspect`. The exit stays whatever the other members decide. */
 export function judgeRateLoad(what: string, read: BoxLoadReader = readBoxLoad): MeasurementVerdict {
   return { ...judgeMeasurementLoad(read(), what), timing: timingCapability() };
@@ -364,7 +364,7 @@ export interface AnnotatableTest {
 /** The CT twin of `labelRateLoad`: judge the box for a RATE-measuring component test and, on a loaded box,
  *  stamp `orb-load-suspect` where the REPORTER can see it (`test.info().annotations` is the CT's only
  *  per-test reporter-visible channel — the twin of vitest's `task.meta`). It never skipped and it still
- *  does not; since #1616 the CALLER must not skip either — it measures, annotates, and does not assert its
+ *  does not; the CALLER must not skip either — it measures, annotates, and does not assert its
  *  threshold, so a
  *  load-suspect CT is never a silent green. */
 export function annotateRateLoad(info: AnnotatableTest, what: string, read: BoxLoadReader = readBoxLoad): MeasurementVerdict {
@@ -383,7 +383,7 @@ export function ratePair(arm: string, verdict: MeasurementVerdict): string {
 }
 
 /** The RESULT-line pair naming WHICH arms came back load-suspect, printed beside `load=`/`budget-factor=`
- *  so one line answers "was anything measured under load, and how loaded was it?" (#1616 done-criterion 1).
+ *  so one line answers "was anything measured under load, and how loaded was it?"
  *  Absent when nothing was suspect — a reader must never have to distinguish "none" from "not reported". */
 export function loadSuspectPair(arms: readonly string[]): readonly (readonly [string, string])[] {
   return arms.length === 0 ? [] : [["load-suspect", [...arms].sort().join(",")]];
@@ -444,7 +444,7 @@ export interface KillShape {
 
 /** TRUE iff this is a child killed by its own `timeout`, in EITHER of the two shapes node produces. ONE
  *  discriminator for both runners: a second spelling is how the spawnSync path came to miss a kill and
- *  return `{status:0, stdout:""}` — a silent false green (#999 f). */
+ *  return `{status:0, stdout:""}` — a silent false green. */
 export function isTimeoutKill(kill: KillShape): boolean {
   return kill.signal === "SIGTERM" || kill.code === "ETIMEDOUT";
 }

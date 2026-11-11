@@ -34,7 +34,7 @@ const DEFAULT_PERSON = "first";
  * The untrusted `userInput` is run through `neutralizeMacros` BEFORE it is spliced in, so a user
  * cannot re-trigger macro evaluation by typing `{{…}}` into the steering box.
  *
- * `{{base}}` (the greeting studio's rewrite base text — the existing greeting, audit §3) is an OPTIONAL
+ * `{{base}}` (the greeting studio's rewrite base text — the existing greeting) is an OPTIONAL
  * guided-only pre-substitution mirroring `{{person}}`: it is spliced into the template BEFORE macro
  * processing so the editable template controls placement. The base is OTHER-AUTHOR content (the card
  * creator's greeting), so it is `neutralizeMacros`'d exactly like `userInput` — a `{{…}}` in the stored

@@ -14,7 +14,7 @@ const LIMIT_ONE = 1;
 /** The triggering message projected to the CEL fact — the SELECTED variant's content (D26). Null on a raced
  *  delete (the id names no live slot) OR when the id does not belong to `chatId`.
  *
- *  SCOPED BY THE CHAT, not by the id alone (#1456): the resolver hands this op the room the event fired in,
+ *  SCOPED BY THE CHAT, not by the id alone: the resolver hands this op the room the event fired in,
  *  and the fact it returns is what reaches third-party automation rules and plugin guest code. Looking the
  *  message up by id alone let a malformed, stale or cross-wired event hydrate a fact out of ANOTHER room. */
 async function getAutomationMessageFact(db: Db, chatId: ChatId, messageId: MessageId): Promise<NonNullable<TriggerFact["message"]> | null> {

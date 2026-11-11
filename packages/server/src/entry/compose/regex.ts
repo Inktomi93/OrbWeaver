@@ -52,7 +52,7 @@ export interface RegexComposeDeps {
   readonly now: Clock;
   readonly audit: AuditWiring["log"];
   /** chat's DURABLE-APPEND-FREE live fan — the entity→room bridge's emit surface (the world-info precedent).
-   *  Threaded here for #1733: regex's chat-arm writes and its library-row switch both have a member-visible
+   *  Threaded here because regex's chat-arm writes and its library-row switch both have a member-visible
    *  projection in rooms, and `regexChanged` is a per-USER channel that never reaches them. */
   readonly emitChatEventLive: ChatServiceDeps["emitLive"];
 }
@@ -89,13 +89,13 @@ export function buildRegex(deps: RegexComposeDeps): RegexComposeResult {
     requireChatMember: chatGuards.requireParticipant,
     resolveRoomDisplayPolicy: createResolveRoomDisplayPolicy({ db }),
     // The SHARED leak-safe reverse-room read — regex's original, promoted to `compose/visible-rooms.ts`
-    // when databank and preset became its second and third consumers (#276/#279).
+    // when databank and preset became its second and third consumers.
     resolveVisibleRooms: createVisibleRoomsReader(db),
     emitUserEvent: deps.emitUserEvent,
     // Regex owns room-junction reach; chat owns the live fan policy, bound together by the graph seam.
     emitRoomRegexChanged: createEmitRoomRegexChanged(deps.emitChatEventLive),
     fanRegexScriptRooms: createFanRegexScriptRooms(db, deps.emitChatEventLive, deps.logger),
-    // #1746 — the DELETE arm of the same reach: `chat_regex_scripts` CASCADEs with the library row, so the
+    // The DELETE arm of the same reach: `chat_regex_scripts` CASCADEs with the library row, so the
     // two remove verbs snapshot through this BEFORE their delete and fan the confirmed set after.
     captureRoomReachForDelete: createDeleteReachCapture(db, deps.emitChatEventLive, deps.logger).regex,
   });

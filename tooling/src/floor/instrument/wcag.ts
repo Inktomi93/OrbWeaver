@@ -28,7 +28,7 @@ export function isLargeText(fontSizePx: number, fontWeight: number): boolean {
 }
 
 /** The effective (accumulated) foreground opacity below which a contrast ratio stops being EVIDENCE
- *  (#466). Compositing a glyph at α over its backdrop moves each channel by α·(fg−bg), so under 0.05
+ *. Compositing a glyph at α over its backdrop moves each channel by α·(fg−bg), so under 0.05
  *  the painted color is within ~13/255 of the backdrop WHATEVER the authored color is — the ratio
  *  collapses toward 1.00:1 by arithmetic, not by anything the surface did wrong. Measured live: a
  *  design-audit home run mid boot-animation filed two P1 contrasts reading `1.00:1 · dimmed α0.00`
@@ -36,7 +36,7 @@ export function isLargeText(fontSizePx: number, fontWeight: number): boolean {
  *  can only come out one way is not a measurement, so both instruments REFUSE below this floor and say
  *  so, rather than emitting a finding the reviewer has to learn to ignore.
  *
- *  Deliberately far below the dimming the contrast rules DO judge: α0.5-0.6 text (issue #188) still
+ *  Deliberately far below the dimming the contrast rules DO judge: α0.5-0.6 text still
  *  gets composited and still fails, because at that alpha a different authored color genuinely could
  *  have passed. */
 export const MEASURABLE_OPACITY_MIN = 0.05;
@@ -48,7 +48,7 @@ export const FOREGROUND_OPACITY_EPS = 0.999;
 /** Alpha-composite a foreground rgb at `opacity` over the backdrop (source-over) — the visible color of a
  *  glyph painted inside an `opacity<1` group. opacity 1 is a no-op; opacity 0 is the pure backdrop.
  *
- *  ONE HOME, FOR THE REASON THIS FILE EXISTS (lifted 2026-08-30). This function and the epsilon above were
+ *  ONE HOME, FOR THE REASON THIS FILE EXISTS. This function and the epsilon above were
  *  spelled TWICE — `snap/lib/contrast-verdict.ts` and `ui-audit/lib/checks-color.ts` — byte-identically,
  *  with the ui-audit copy carrying a comment asking the two not to drift ("the two instruments must not
  *  disagree about what dimmed is"). A comment is not an enforcer. They now share the declaration, beside
@@ -121,7 +121,7 @@ export function inkOverRing(fg: Rgb, ring: Rgb, dimming: InkDimming, cover?: Cov
 
 // ── Inactive controls (WCAG 1.4.3 / 1.4.11 exemption) ────────────────────────
 // THE ONE CLASSIFIER, shared by every instrument that samples the page. It lives here because two homes
-// for one rule is exactly how snap and design-audit drifted (#624): snap skipped a disabled control out
+// for one rule is exactly how snap and design-audit drifted: snap skipped a disabled control out
 // loud ("SKIPPED inactive control (WCAG contrast exemption)") while design-audit, which had NO classifier
 // at all, filed the SAME element as a P1 at 2.64:1. Every disabled control in the app was a standing false
 // positive, which trains a reader to discount the instrument's P1s wholesale.
@@ -148,7 +148,7 @@ export type InactiveKind = (typeof INACTIVE_KINDS)[number];
  *
  *  TWO WAYS A CONTROL'S INACTIVENESS REACHES TEXT, and both are the SPEC's, not a convenience:
  *
- *  1. ANCESTRY (#1005, was `el.matches(…)`). A real control's text is a CHILD element — a disabled
+ *  1. ANCESTRY (was `el.matches(…)`). A real control's text is a CHILD element — a disabled
  *     button's inner label span (`<button disabled><span>Pick one</span></button>`), a disabled Select's
  *     placeholder span — and that span
  *     matches neither `:disabled` nor `[aria-disabled="true"]`. Both instruments sample the TEXT-BEARING
@@ -156,11 +156,11 @@ export type InactiveKind = (typeof INACTIVE_KINDS)[number];
  *     4.5:1 AA floor WCAG 1.4.3 exempts. `closest` matches the element ITSELF first, so the old behavior
  *     is a strict subset.
  *
- *  2. THE NAMING RELATION (#1016). WCAG 1.4.3's exception is "text … that is part of an inactive user
+ *  2. THE NAMING RELATION. WCAG 1.4.3's exception is "text … that is part of an inactive user
  *     interface component". A control's own accessible NAME is part of that component even when the DOM
  *     puts it outside the control's subtree — which is the normal shape: Base UI's `Slider.Label` renders
  *     a plain `<div>` the thumb points at with `aria-labelledby` (SliderLabel.js — `useLabel` without
- *     `native`), and a `<label for>` names its control from a sibling position. Measured 2026-09-01: a
+ *     `native`), and a `<label for>` names its control from a sibling position. Measured: a
  *     DISABLED slider's label read 3.19:1 under light (the house `data-disabled:opacity-50` group dim,
  *     `packages/ui/src/lib/disabled-state.ts`) and both instruments filed it as an AA contrast P1 — the
  *     instrument being WRONG about the spec, not conservative. So the kind also derives from a control

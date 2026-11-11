@@ -64,7 +64,7 @@ export const RULE_PRESET_IDS = [
   "rumorMill",
   /** §4 #16 — the needle: C1's analysis pass scoring narrative tension 0-10 into the ONE member-visible chat
    *  variable (`NEEDLE_TENSION_VAR_KEY`, this package's index) plus a sibling rule that redresses the room's backdrop past a
-   *  threshold. RULED 2026-08-24: it SHIPS, OFF BY DEFAULT — F6's single exception (a published SCORE may
+   *  threshold. RULED: it SHIPS, OFF BY DEFAULT — F6's single exception (a published SCORE may
    *  cross into the member-visible vars plane; arcs, twists and guidance never do). */
   "theNeedle",
   /** §4 #15 — C3's prose audit: a confirm-first `run_analysis` → `suggestRewrite` pass that audits the newest
@@ -82,7 +82,7 @@ export const RULE_PRESET_IDS = [
    *  and quietly generates a fresh portrait of them — so an import lands with art and no room ever has to
    *  be open. It is the only preset whose mint takes no chat. */
   "livingLibrary",
-  /** §4 #17 — illustrate on lore reveal (OPTIONAL, owner 2026-08-24 "everything optional gets included"):
+  /** §4 #17 — illustrate on lore reveal (OPTIONAL, owner ruling "everything optional gets included"):
    *  when a lore reveal surfaces on `worldInfoActivated`, illustrate the current scene. Rides A3. */
   "illustrateOnLoreReveal",
   /** §4 #18 — react to lore activation (OPTIONAL): a `worldInfoActivated` reveal steers a guided narrator
@@ -103,7 +103,7 @@ export const rulePresetIdSchema = z.enum(RULE_PRESET_IDS) satisfies z.ZodType<Ru
 //  IT IS ALSO THE PICKER'S PARTITION, which is why it rides the client-visible projection: the chat "Rules"
 //  section offers only `chat` presets and the Automation settings pane only `global` ones. Without it the
 //  in-room picker would offer a preset whose mint refuses, which is the affordance-that-does-nothing this
-//  catalogue has already paid for once (#655).
+//  catalogue has already paid for once.
 const RULE_PRESET_SCOPES = ["chat", "global"] as const;
 export type RulePresetScope = (typeof RULE_PRESET_SCOPES)[number];
 const rulePresetScopeSchema = z.enum(RULE_PRESET_SCOPES) satisfies z.ZodType<RulePresetScope>;
@@ -154,7 +154,7 @@ export interface RulePresetNumberKnobDescriptor extends RulePresetKnobBase {
  *  so `minLength: 1` is the common case, but a few (`storyPacing`'s "Standing direction") are documented as
  *  legitimately optional (their own `help` says "leave empty for none", and the arm field they feed is
  *  `.optional()` with no `.min()`), and those declare `minLength: 0` — never a hardcoded "must not be
- *  empty" that cannot tell the two apart (#1387). */
+ *  empty" that cannot tell the two apart. */
 export interface RulePresetTextKnobDescriptor extends RulePresetKnobBase {
   readonly kind: (typeof RULE_PRESET_KNOB_KINDS)[1];
   readonly default: string;
@@ -177,7 +177,7 @@ export interface RulePresetTextListKnobDescriptor extends RulePresetKnobBase {
  *  (e.g. a `PromptTemplateMode` subset) rather than a bare `string` — the default parameter is what lets the
  *  erased union below stay one type.
  *
- *  IT CARRIES ITS OWN LABELS, and that channel is not decoration (#655). `options` are WIRE values — the CEL
+ *  IT CARRIES ITS OWN LABELS, and that channel is not decoration. `options` are WIRE values — the CEL
  *  branch keys and arm discriminators a builder switches on (`ask`/`write`, `scenario`/`background`/`free`) —
  *  and without a label channel the picker's only honest render was the raw value, so a host configuring a
  *  money-spending image rule chose between three unexplained lowercase words while the help line directly
@@ -315,7 +315,7 @@ export interface RulePresetView {
   /** Whether this preset MINTS A RECURRING CHARGE at its default knobs — its rules carry an arm in
    *  `SPEND_ARM_TYPES` (a model call the host funds), so enabling it bills them on a cadence, forever.
    *
-   *  IT EXISTS BECAUSE THE PICKER HAD NO SPEND SIGNAL AT ALL (#655). Seven of the eleven committed presets
+   *  IT EXISTS BECAUSE THE PICKER HAD NO SPEND SIGNAL AT ALL. Seven of the eleven committed presets
    *  spend — "Periodic pacing nudge" fires a `trigger_turn` every 8 beats — and the only place the word
    *  appeared was a row's overflow menu, two clicks deep, AFTER the rule was already minted. The house bar
    *  is that a spend is visible at the DECISION point.

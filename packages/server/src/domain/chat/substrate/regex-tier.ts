@@ -1,5 +1,5 @@
 // domain/chat/substrate/regex-tier — the effective host-tier regex resolver (D53 as amended by D121-E, and
-// by #1742's per-chat allows). Produces a chat's shared, server-side regex set = host-global ∪ chat-preset ∪
+// by the per-chat allows). Produces a chat's shared, server-side regex set = host-global ∪ chat-preset ∪
 // the present characters (per seat) ∪ the room's own set, all resolved under the frozen `runAsUserId` (D19 —
 // the host, never the calling member). A non-host member has no parameter on this surface, so it contributes
 // nothing to the shared prompt — the exclusion is structural, not a runtime check.
@@ -13,7 +13,7 @@
 // SAME library row attached at two scopes runs exactly ONCE, at its earliest tier. That is the property the
 // old embed-by-value shape could not have (three copies of a script were three scripts).
 //
-// WHAT #1742 ADDED — the ROOM'S OWN LEVERS, and the one ordering rule that makes them honest:
+// THE ROOM'S OWN LEVERS, and the one ordering rule that makes them honest:
 //   • {@link HostTierRegexSources.allow} is a REQUIRED field, not an optional one. Every caller must say what
 //     this room permits; there is no "forgot to pass it" arm that silently runs a tier the host switched off.
 //   • THE DROP HAPPENS BEFORE THE DEDUP. A script attached at BOTH a disallowed tier and an allowed one must
@@ -24,7 +24,7 @@
 //   • RANK COMES ONLY FROM THE EFFECTIVE HALF (the mock design §7.1). The client never re-unions and never
 //     re-ranks; a numeral on a row is that row's index in the run order the turn will actually apply.
 //
-// WHAT #1754 ADDED — THE NAMING. `RegexTierLabels` is a second, REQUIRED parameter: the tier that resolved
+// THE NAMING. `RegexTierLabels` is a second, REQUIRED parameter: the tier that resolved
 // the preset is the one that names it, because the wire key is the bare word `preset` and the only preset
 // name a CLIENT can reach is the viewer's own active one, which the rpg GM redirect makes wrong. It is a
 // parameter rather than a source field so the turn path (`resolveHostTierRegexScripts`, which throws the
@@ -44,7 +44,7 @@ import { characterRegexTierKey, isRegexEnabledInChat, isRegexTierAllowed } from 
 import type { RegexScriptRow } from "@orb/contracts/regex";
 import type { HostTierRegexSources, RegexTierLabels } from "../contract/regex.ts";
 
-/** The room's REGEX LEVERS (#1742), lifted off the parsed metadata blob for the pure resolver below — which
+/** The room's REGEX LEVERS, lifted off the parsed metadata blob for the pure resolver below — which
  *  must not know what a chat row looks like. Both members pass through VERBATIM: the absent-⇒-allowed rule
  *  has one home (`@orb/contracts/chat`'s `isRegexEnabledInChat` / `isRegexTierAllowed`) and is applied by the
  *  resolver, never defaulted at the lift, where it would be a second copy of the rule.
@@ -121,7 +121,7 @@ export function resolveRegexTiers(sources: HostTierRegexSources, labels: RegexTi
     (slice): RegexTierGroupView => ({
       scope: slice.scope,
       allowed: isRegexTierAllowed(sources.allow.tiers, slice.scope),
-      // THE NAME, only where the KEY does not already carry one (#1754). `global`/`chat` ARE their words and
+      // THE NAME, only where the KEY does not already carry one. `global`/`chat` ARE their words and
       // `character:<id>` carries the seat, so the preset tier is the only arm a caller can name — and an
       // unresolved preset stays UNNAMED (the key is omitted, not set to a placeholder): the section prints
       // the bare `From the preset` rather than a name that might be the wrong preset's.
@@ -150,9 +150,9 @@ export function resolveHostTierRegexScripts(sources: HostTierRegexSources): Rege
   // THE ROW COMES FROM THE OCCURRENCE THAT CLAIMED THE RANK — the tier whose `runsAt` is non-null — not from
   // the first occurrence in source order. The two differ exactly when the earliest tier holding the script is
   // switched OFF: taking the first occurrence there would run the disallowed tier's copy of the row, which is
-  // the "drop before dedup" rule leaking back in through the projection (caught by that pin, 2026-09-05).
+  // the "drop before dedup" rule leaking back in through the projection (caught by that pin).
   // The TURN names nothing — it consumes the effective half only, so it hands the resolver the one honest
-  // label it has (`null` ⇒ unnamed) rather than a preset name it would never render (#1754).
+  // label it has (`null` ⇒ unnamed) rather than a preset name it would never render.
   return resolveRegexTiers(sources, { preset: null })
     .tiers.flatMap((tier) => tier.rows.filter((row) => row.runsAt !== null))
     .sort((a, b) => (a.runsAt ?? 0) - (b.runsAt ?? 0))

@@ -12,7 +12,7 @@
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { z } from "zod";
 
-/** The `chats.metadata.rpg` sub-blob — mode-free `{gameId}` + the `engaged` MIRROR (#40 front-door
+/** The `chats.metadata.rpg` sub-blob — mode-free `{gameId}` + the `engaged` MIRROR (front-door
  *  toggle; the truth is `rpg_games.config.engaged`, this is the sync copy the client's takeover gate
  *  reads off `ChatDetail`). Owned HERE (the foreign-schema precedent); the chat metadata parser
  *  lazy-parses it with `.catch(undefined)` so a corrupt blob heals to absent. `gameId` is
@@ -25,7 +25,7 @@ export const chatRpgPointerSchema = z
   .strip();
 export type ChatRpgPointer = z.infer<typeof chatRpgPointerSchema>;
 
-/** The ONE takeover-gate predicate (#40): does this chat's pointer say "a LIVE game"? `null`/absent =
+/** The ONE takeover-gate predicate: does this chat's pointer say "a LIVE game"? `null`/absent =
  *  not a game; `engaged:false` = a game that is OFF (panel hidden, turn assembly clean) but PRESERVED.
  *  Every client gate (tabs `when`, panel state, wand, reading surface) reads THIS, never a re-spelled
  *  null-check — the OFF arm must gate identically everywhere. A pointer MISSING the field (a pre-toggle

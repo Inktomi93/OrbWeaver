@@ -3,7 +3,7 @@
 // character_embeddings.sourceText, which would couple distill to the embed indexer's text builder).
 // Synthetic (per-room group) characters are excluded — they have no real card text.
 //
-// IDENTITY LIVES HERE, NOT IN `summary-reads` (issue #154). A card's DISPLAY name + face are properties of
+// IDENTITY LIVES HERE, NOT IN `summary-reads`. A card's DISPLAY name + face are properties of
 // the `characters` row and exist the moment it is imported; its genre/tone/tags are the distill pass's
 // output and exist only after that pass runs. Every embedding-driven view (archetypes · projection ·
 // similarity graph) had been resolving BOTH from `readOwnedCardFacets`, which is rooted at
@@ -28,7 +28,7 @@ interface CardDistillTarget {
    *  example dialogue is non-blank. The distill pass's readiness floor: `text` is never empty (it always
    *  opens with the `Name:` line), so a length check on it can never reject anything, and a name-only card
    *  would be summarized under a schema REQUIRING genre/tone/setting/pitch/overview/3-8 tags — every facet
-   *  invented from a name. This flag is what makes that refusable (owner ruling 2026-08-03). */
+   *  invented from a name. This flag is what makes that refusable (owner ruling). */
   readonly hasContent: boolean;
 }
 

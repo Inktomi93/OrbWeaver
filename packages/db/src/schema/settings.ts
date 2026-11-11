@@ -94,7 +94,7 @@ export const themes = sqliteTable(
     // Per-user name uniqueness: a duplicate name makes the theme picker ambiguous. NULLs are distinct in
     // SQLite, so this does not constrain seed names (the seeder is the guard for the seed namespace).
     //
-    // THE SEED-NAMESPACE HOLE IS ACCEPTED (#1378 item 9, reachability traced). SQLite's NULL-distinctness
+    // THE SEED-NAMESPACE HOLE IS ACCEPTED (reachability traced). SQLite's NULL-distinctness
     // means this index permits two SYSTEM themes (`owner_id IS NULL`) with the same `name`. It is untidy
     // and it is NOT ambiguous in practice: every system-theme read resolves BY ID
     // (`domain/settings/seed-themes.ts` upserts and reads by the seed's stable id), and no query anywhere

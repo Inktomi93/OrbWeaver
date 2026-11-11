@@ -198,7 +198,7 @@ export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: Compu
   const seed = opts.seed ?? DEFAULT_SEED;
   const all = await readRunDigestVectors(db, opts);
   const solo = all.filter((r) => !r.isGroup);
-  // NO INPUT ⇒ REFUSE BEFORE THE REPLACE (issue #166). This pass is an ATOMIC REPLACE: `replaceAll` deletes
+  // NO INPUT ⇒ REFUSE BEFORE THE REPLACE. This pass is an ATOMIC REPLACE: `replaceAll` deletes
   // the scope's `theme_clusters` (CASCADE takes the assignments) and reinserts what it just computed. With an
   // empty digest plane it therefore deleted every existing cluster and inserted nothing — a run that reported
   // `succeeded {scanned: 0, written: 0}` while DESTROYING the previous pass's output. A digest-less corpus is
@@ -207,7 +207,7 @@ export async function computeThemes(db: Db, deps: ComputeThemesDeps, opts: Compu
   // either.
   // The two counts are separate facts and the caller needs both: `digestsRead: 0` means the backfill never
   // ran, `soloDigestsRead: 0` with digests present means it ran over group rooms only. Reporting one number
-  // let the second case land as a bare `{scanned: 0, written: 0}` success (issue #558).
+  // let the second case land as a bare `{scanned: 0, written: 0}` success.
   if (solo.length === 0) {
     return { clustersWritten: 0, digestsAssigned: 0, digestsRead: all.length, soloDigestsRead: 0 };
   }

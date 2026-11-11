@@ -3,8 +3,8 @@
 // alias-resolves, top-level `z.object` always, and customFields ride an ARRAY-of-pairs shape (the D79
 // `additionalProperties:false` regime — a bare record projects an open `additionalProperties`).
 //
-// THE PROJECTION TOXIN IS `.transform()`, precisely ([tool-schema-no-branded-transform], mechanism repaired
-// 2026-08-02 against installed zod 4.4.3): `z.toJSONSchema(z.string().transform(…))` THROWS ("Transforms
+// THE PROJECTION TOXIN IS `.transform()`, precisely ([tool-schema-no-branded-transform], mechanism verified
+// against installed zod 4.4.3): `z.toJSONSchema(z.string().transform(…))` THROWS ("Transforms
 // cannot be represented in JSON Schema") — and this repo's id schemas are transform-based (`typeIdSchema`,
 // kit/ids), so an id here would kill the projection. `z.string().brand<"X">()` does NOT throw any more (brand
 // is type-level-only on 4.4.3, probed) — but zod `.brand()` is unused repo-wide regardless (ids carry the
@@ -167,7 +167,7 @@ export type UpdateInventoryArgs = z.infer<typeof updateInventoryArgsSchema>;
 
 // Strip mode: also reads model output.
 // The P5 PLOT patch (parity-plus — the snapshot-resident plot plane's model-facing write). Deliberately
-// FLAT (the small-model-robust arm, ruling #10): the model declares the CURRENT act number and/or the
+// FLAT (the small-model-robust arm): the model declares the CURRENT act number and/or the
 // current act's title/summary + the story title; the APPLIER maintains the `acts` array (padding untitled
 // acts up to `act`) so the model never manages a nested list. Omit = keep (MA-4).
 const plotPatchSchema = z
@@ -255,9 +255,9 @@ export type UpsertQuestArgs = z.infer<typeof upsertQuestArgsSchema>;
 // Strip mode: also reads model output.
 /** `add_journal_entry` — STAGED → flushed at commit stamped `{variantId, sourceMessageId}` (§2.5).
  *
- *  `title` is OPTIONAL + DERIVED-when-absent (the small-model-robust arm — ruling #10 graceful-degrade). WHY:
+ *  `title` is OPTIONAL + DERIVED-when-absent (the small-model-robust arm — graceful-degrade). WHY:
  *  the projected json_schema DOES mark `title` required, but xgrammar/some backends do NOT enforce `required`
- *  on NESTED ARRAY ITEMS (only at the top level) — LIVE-MEASURED 2026-07-27: an 8B dropped `journal[].title`
+ *  on NESTED ARRAY ITEMS (only at the top level) — LIVE-MEASURED: an 8B dropped `journal[].title`
  *  in 5/8 structured extractions, failing the whole `safeParse` (`path:["journal",0,"title"]`) and silently
  *  dropping the ENTIRE turn's state. Making `title` optional means a title-less entry PARSES; `journalTitleFor`
  *  derives a title from the content head when the model omitted it.
@@ -303,7 +303,7 @@ const DERIVED_TITLE_MAX = 60;
 const SENTENCE_BOUNDARY = /(?<=[.!?])\s/;
 
 /** Resolve a journal entry's title: the model's `title` if present, else DERIVED from the content head (first
- *  line / first sentence, capped) — the small-model-robust arm (ruling #10). A content-less-AND-title-less
+ *  line / first sentence, capped) — the small-model-robust arm. A content-less-AND-title-less
  *  entry yields `""` (the caller drops it — a genuinely empty beat). */
 export function journalTitleFor(args: { readonly title?: string | undefined; readonly content: string }): string {
   const title = args.title?.trim();

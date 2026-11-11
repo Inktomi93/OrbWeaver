@@ -4,7 +4,7 @@ import type { ExtractOptions, StagedArchive, ZipSource } from "#infra/storage";
 
 /** One file's bundle-import outcome, aggregated into the operator-auditable report. `kind: null` marks a
  *  file whose directory matched no registered entity (skipped, not failed); `notes` carries what a file that
- *  DID import still left behind (#1688). */
+ *  DID import still left behind. */
 export type BundleImportFileOutcome =
   | (Extract<PortableImportOutcome, { readonly ok: true }> & { readonly kind: PortableKind; readonly path: string; readonly notAttempted?: never })
   | (Extract<PortableImportOutcome, { readonly ok: false }> & { readonly kind: PortableKind | null; readonly path: string; readonly notAttempted?: true });

@@ -1,12 +1,12 @@
-// infra/auth/oidc-exchange — THE AUTHORIZATION-CODE → TOKEN EXCHANGE, as an injectable adapter (#867).
+// infra/auth/oidc-exchange — THE AUTHORIZATION-CODE → TOKEN EXCHANGE, as an injectable adapter.
 //
 // It lives here, beside `oidc-discovery.ts`, for the same reason and in the same shape: this is external
 // I/O (an HTTPS POST to the IdP's token endpoint and native processing of its ID-token response), infra
 // is where the sealed executors live, and the CALLER injects the round-trip — which is what makes the
 // contract provable without an IdP.
 //
-// WHY IT WAS EXTRACTED. Before #867 the grant was a module-level `openid-client` import inside
-// `entry/http/auth-routes.ts`, which made the callback's ENTIRE happy path undrivable in-process: the
+// WHY IT IS EXTRACTED. A grant that is a module-level `openid-client` import inside
+// `entry/http/auth-routes.ts` makes the callback's ENTIRE happy path undrivable in-process: the
 // package resolves only under `packages/server/node_modules`, so a `vi.mock("openid-client")` from `tests/`
 // never binds (the real library runs and every callback test reports `token_exchange_failed` while LOOKING
 // wired), and the path-form mock that WOULD bind is refused by the test `no-restricted-syntax` mock rules in `eslint.config.ts`. Injecting is
@@ -23,7 +23,7 @@
 //     flow ride every exchange by construction — there is no argument shape a caller could use to omit one.
 //     Their mapping is the load-bearing assertion in this file's mirror test.
 //   • It does NOT widen the return. Access and refresh tokens stay inside the grant's response; only the
-//     verified claims and the raw ID token (#141, sealed downstream by `sessions.create`) cross the seam,
+//     verified claims and the raw ID token (sealed downstream by `sessions.create`) cross the seam,
 //     and neither is logged here or anywhere on the way.
 //
 // THERE IS NO DEFAULT GRANT AND NO ENV KNOB, deliberately: a switch that could substitute the exchange

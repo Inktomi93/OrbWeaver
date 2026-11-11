@@ -343,7 +343,7 @@ function remapRpg(game: PortableRpgGame, remap: Extract<ImportedChatRemap, { kin
 /** The re-links that ride AFTER the canon write, each isolated: a failing overlay must not un-write a room
  *  that already restored.
  *
- *  Returns the planes this composition could NOT restore, one operator-facing line each (#1469 item 6). Both
+ *  Returns the planes this composition could NOT restore, one operator-facing line each. Both
  *  ops are OPTIONAL on the ST-only precedent, and an unwired one used to drop its whole plane with no `else`
  *  and nowhere to say so — a bundle carrying an entire rpg campaign answered `{ok:true, created:true}` having
  *  discarded it. The room still imports either way; the loss is now NAMED. */

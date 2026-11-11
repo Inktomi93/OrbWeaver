@@ -55,7 +55,7 @@ interface ForkMint {
 /** Mint a NEW owned fork of the system default carrying the submission, under `desiredName`.
  *
  *  The name is de-collided at the WRITE with `nextFreeName` — the same mint-time numbering the derived
- *  "Default (edited)" and the client's Duplicate use (`substrate/names.ts`, visual-blech F5), so the name the
+ *  "Default (edited)" and the client's Duplicate use (`substrate/names.ts`), so the name the
  *  owner sees is the name the row carries. It deliberately does NOT follow `verbs/import.ts`'s merge-on-name:
  *  the import is idempotent by (ownerId, name) so re-importing one backup file can't duplicate a row, whereas
  *  "start a new fork" is an explicit ask for an ADDITIONAL row — merging would silently overwrite whatever
@@ -68,8 +68,8 @@ async function mintFork(
   admission: "ordinary" | "converged",
 ): Promise<PresetDetail | undefined> {
   // A caller-submitted config carries no read of `base` at all (the GUARD_EXEMPT shape); the copy-forward
-  // arm DOES descend from a read of `base.config` (#1717), so it is guarded the same way the editor path is
-  // (#1026): a base whose blob cannot be read must not silently mint a fork carrying DEFAULT_PROMPT_CONFIG —
+  // arm DOES descend from a read of `base.config`, so it is guarded the same way the editor path is
+  //: a base whose blob cannot be read must not silently mint a fork carrying DEFAULT_PROMPT_CONFIG —
   // the owner would get a fork that does not match the base they think they forked.
   const config = params.config ?? requireIntactStoredConfig(promptConfigConfig.parseOutcome(base.config, base.schemaVersion), `presets.config for ${base.id}`);
   const forkId = ctx.newPresetId();
@@ -78,7 +78,7 @@ async function mintFork(
     id: forkId,
     ownerId: params.userId,
     name,
-    // NOT `base.kind` (side-eye 2026-08-30 P2-B): the base is always the system default, so the fork wore
+    // NOT `base.kind`: the base is always the system default, so the fork wore
     // `system` — the word this surface reserves for the locked row — as the leading token of its library
     // subtitle. A fork is an ordinary owned preset; its lineage rides `forkedFrom`, which the subtitle
     // already prints. A caller-submitted kind still wins: this is a default, not an override.

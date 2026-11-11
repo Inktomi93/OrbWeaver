@@ -1,7 +1,7 @@
 // Playwright-chromium bootstrap shared by the browser probes.
 // INIT SCRIPTS SHIP AS RAW STRINGS, not functions: the DOM-less tsconfig aggregator won't
 // compile a function body touching `window`. (The historical second reason — tsx's esbuild
-// keepNames `__name` helper breaking serialized functions — died with the 2026-08-03 tsx shed;
+// keepNames `__name` helper breaking serialized functions — died with the tsx shed;
 // the lib-mismatch reason stands alone.)
 
 import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
@@ -38,7 +38,7 @@ export async function settle(page: Page, ms: number): Promise<void> {
   await page.waitForTimeout(ms);
 }
 
-// ── the TEST-ONLY CDP fault injector (#1093) ────────────────────────────────────────────────────
+// ── the TEST-ONLY CDP fault injector ────────────────────────────────────────────────────
 // WHY IT LIVES HERE AND NOWHERE ELSE. Several instruments own a protocol-failure arm whose behaviour is
 // a real verdict — ui-audit's forced-state pass demotes a failed `CSS.forcePseudoState` to a per-group
 // WITHHOLDING (so the run is NO VERDICT rather than clean), snap's navigation and motion arms have their
@@ -56,7 +56,7 @@ export async function settle(page: Page, ms: number): Promise<void> {
 // on stderr, so a run taken under injected faults can never be mistaken for a measurement.
 const CDP_FAULT_ENV = "ORB_PROBE_TEST_CDP_FAULT";
 /** `<Domain.method>` — every call — or `<Domain.method>@<nth>` for one occurrence. The occurrence form is
- *  what tells a PARTIAL failure (one bad node, the rest measured — the #1031 demotion ruling) apart from a
+ *  what tells a PARTIAL failure (one bad node, the rest measured — the demotion ruling) apart from a
  *  whole-instrument abort; a boolean injector can only produce the second. */
 const CDP_FAULT_ROW_RE = /^([A-Z]\w*\.\w+)(?:@([1-9]\d*))?$/u;
 
@@ -200,15 +200,15 @@ export function nativeBrowserLaunchOptions(
   return { ...options, args, env: browserLaunchEnvironment(environment, args, deps) };
 }
 
-/** THE RUN MARKER FOR EVERY BROWSER THIS PROCESS LAUNCHES (#1848). Playwright puts each browser in its own
+/** THE RUN MARKER FOR EVERY BROWSER THIS PROCESS LAUNCHES. Playwright puts each browser in its own
  *  session, so a snap killed mid-drive (SIGKILL, a stage timeout, a lane torn down) leaves a Chromium that
  *  no process-group kill can reach — the same leak the CT runner had, and the reason 72 headless-shell
- *  processes were alive on this box on 2026-09-06. The marker rides the browser's ENVIRONMENT, which
+ *  processes were once alive on this box at the same time. The marker rides the browser's ENVIRONMENT, which
  *  `/proc/<pid>/environ` makes readable and unforgeable, so `floor/process/run-marker.ts`'s sweeps can find them
  *  by RUN — never by program name, which would kill a sibling lane's fleet.
  *
- *  BOTH IDENTITIES RIDE WHEN THIS PROCESS HOLDS A LEASE (#2504): the OUTER run's marker, so that run's kill
- *  path still reaches this browser exactly as #1848 requires, AND the lease this process minted, which is
+ *  BOTH IDENTITIES RIDE WHEN THIS PROCESS HOLDS A LEASE: the OUTER run's marker, so that run's kill
+ *  path still reaches this browser, AND the lease this process minted, which is
  *  the only value its own teardown may sweep. One stamp would have to serve both, and it could not. */
 function markedBrowserEnv(args: readonly string[], deps: BrowserLaunchDeps): NodeJS.ProcessEnv {
   const lease = currentRunLease();
@@ -220,7 +220,7 @@ function markedBrowserEnv(args: readonly string[], deps: BrowserLaunchDeps): Nod
 }
 
 /** …AND THE ARG, because the env alone does not survive: chromium rewrites its own environ area for its
- *  process title, so `/proc/<pid>/environ` reads EMPTY for every browser process (measured 2026-09-06).
+ *  process title, so `/proc/<pid>/environ` reads EMPTY for every browser process (measured).
  *  The switch is unknown to chromium, which ignores it, and lands in `/proc/<pid>/cmdline` — where the
  *  sweep's second channel reads it. Marking the ROOT is sufficient: killing it took all six of the probe's
  *  chromium processes with it. The lease rides the same way and for the same reason — a chromium that keeps
@@ -244,7 +244,7 @@ export function ownedLaunchOptions(opts: ProbeLaunchOptions, deviceDescriptor: (
   if (opts.persistentProfileDir === undefined) {
     return { kind: "browser", options: launch };
   }
-  // ONE SIZE ANSWER (#1668): the descriptor supplies touch/DPR/UA/isMobile while the shared size resolver
+  // ONE SIZE ANSWER: the descriptor supplies touch/DPR/UA/isMobile while the shared size resolver
   // composes viewport + screen, so the launch options and environment receipt cannot disagree.
   const sizing = {
     ...(deviceDescriptor ?? {}),

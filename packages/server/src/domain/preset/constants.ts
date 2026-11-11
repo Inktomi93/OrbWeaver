@@ -11,7 +11,7 @@ export const SYSTEM_DEFAULT_PRESET_ID: PresetId = typeIdSchema(ID_PREFIX.preset)
 export const SYSTEM_DEFAULT_PRESET_NAME = "Default";
 export const SYSTEM_DEFAULT_PRESET_KIND = "system";
 
-/** The kind an OWNED preset is born with — the copy-on-write fork's (side-eye 2026-08-30 P2-B, #856).
+/** The kind an OWNED preset is born with — the copy-on-write fork's.
  *
  *  `kind` is free text describing what a preset IS, and it is rendered VERBATIM as the leading token of the
  *  library row's subtitle (`preset-row-view.ts`). The fork used to copy its base's kind, so a user's own

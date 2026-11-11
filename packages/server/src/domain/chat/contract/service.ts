@@ -152,7 +152,7 @@ export interface ChatService {
   /** One chat resolved (row + present roster + effective room behavior). Throws `ChatNotFoundError` when
    *  missing or the caller is not a participant (leak-free). */
   readonly getChat: (params: GetChatParams) => Promise<ChatDetailData>;
-  /** The deterministic pre-send serveability verdict for THIS chat's own resolved connection (#54, the
+  /** The deterministic pre-send serveability verdict for THIS chat's own resolved connection (the
    *  honest-refusal gate) — "would the turn's own `resolveChat → deriveRunner → requireBackend` succeed,
    *  WITHOUT firing a turn or an API call?" Engine-agnostic; a configured hosted connection reads available
    *  (never pre-flighted). Member-gated; the composer disables SEND + the guided fire actions on `!available`. */
@@ -275,7 +275,7 @@ export interface ChatService {
   readonly setVariables: (params: SetVariablesParams) => Promise<void>;
   /** The per-chat user-macro INPUT picks flush (WAVE MU) — `chats.user_macro_values`. Member-gated. */
   readonly setUserMacroValues: (params: SetUserMacroValuesParams) => Promise<void>;
-  /** The picks pane read (#24) — the pickable user-macro declarations + the persisted picks. Member-gated. */
+  /** The picks pane read — the pickable user-macro declarations + the persisted picks. Member-gated. */
   readonly getUserMacroPicks: (params: GetUserMacroPicksParams) => Promise<UserMacroPicksView>;
   /** The picks pane's ChoiceBlock read — the declared variables + the persisted picks. Member-gated. */
   readonly getVariablePicks: (params: GetVariablePicksParams) => Promise<VariablePicksView>;
@@ -346,11 +346,11 @@ export interface ChatService {
   /** D121-E display-tier room OPTION — host-only. Returns the stored value. */
   readonly setHostDisplayScripts: (params: SetHostDisplayScriptsParams) => Promise<boolean>;
 
-  /** #1742 — host-only write of ONE of the room's regex levers (the master, or one tier's allow). Returns
+  /** Host-only write of ONE of the room's regex levers (the master, or one tier's allow). Returns
    *  the stored post-write allow. Governs PROMPT CONTENT (which scripts the shared assembly runs), so host
    *  authority, and it emits `chatUpdated` like every other `chatMetadata` write. */
   readonly setRegexAllow: (params: SetRegexAllowParams) => Promise<HostTierRegexAllow>;
-  /** #1742 — the room's effective regex, in run order, grouped by tier, with what is switched off still
+  /** The room's effective regex, in run order, grouped by tier, with what is switched off still
    *  LISTED. HOST-ONLY under D19: the union resolves under the host's frozen `runAsUserId`, so the tiers
    *  above the room's own are the host's LIBRARY and a member has no parameter on them. A member reads the
    *  room's own tier through `regex.listForChat` (member-gated, room-public) instead. */

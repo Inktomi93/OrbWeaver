@@ -64,8 +64,7 @@ interface KnobProbe {
  *
  *  A model that CANNOT REASON AT ALL (`reasoning.mode === "none"`) has no effort knob to report: emitting
  *  `none` there gave the dial's `high` something to be "clamped" from, so the readout printed
- *  `effort · none · clamped` on a model where nothing was clamped and the knob does not exist (side-eye
- *  F-14). The absence is the honest answer — the same doctrine the deck already applies to an unlisted
+ *  `effort · none · clamped` on a model where nothing was clamped and the knob does not exist. The absence is the honest answer — the same doctrine the deck already applies to an unlisted
  *  sampling knob. */
 function resolvedEffortOf(reasoning: ResolvedChatKnobs["reasoning"], capability: GenerationCapability): string | undefined {
   if (capability.reasoning.mode === "none") {

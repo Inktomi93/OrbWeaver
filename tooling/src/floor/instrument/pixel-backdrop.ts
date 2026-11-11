@@ -2,7 +2,7 @@
  * PERIMETER-RING PIXEL SAMPLING — the shared "what is actually painted behind this box" reader for the
  * probe instruments (snap's `--contrast`, design-audit's contrast family).
  *
- * WHY IT IS SHARED (issue #218). Both instruments resolve a backdrop from the DOM first, and both hit the
+ * WHY IT IS SHARED. Both instruments resolve a backdrop from the DOM first, and both hit the
  * same wall: a CSS ancestor walk cannot see a FIXED sibling art layer (`ThemeBackgroundLayer`) painting
  * over the base, so a translucent reading plate resolves against the near-black palette base and reports a
  * ratio nothing on screen has (3.16:1 measured where the real composite is 4.94:1 — 28 false P1s on one
@@ -127,13 +127,13 @@ export function ringBackdrop(data: Buffer | Uint8Array, width: number, height: n
   return ringBackdropOfRegion(data, width, channels, { left: 0, top: 0, width, height });
 }
 
-// ── SCANLINE backdrop (issue #508) ───────────────────────────────────────────────────────────────────
+// ── SCANLINE backdrop ───────────────────────────────────────────────────────────────────
 //
 // THE LIE THIS REPLACES. A review drive that decodes a framebuffer ROW BY ROW cannot use the ring: it has
 // no box, only a horizontal cut through one. The scratch decoders reached for the obvious stand-in —
 // "the backdrop is the scanline's p50, text glyphs are a minority of a text row" — and that premise is
 // FALSE on a dense line: glyph + anti-aliasing pixels exceed half the row, so p50 lands ON A GLYPH.
-// Measured 2026-08-22 on the rail-chats plate (reports/px-rail-chats.mjs, untracked): row y=62 read
+// Measured on the rail-chats plate (reports/px-rail-chats.mjs, untracked): row y=62 read
 // p50 = 0.2392 against a true plate backdrop of 0.0476–0.0504 — a ~5x overstatement, which UNDERSTATES
 // every contrast ratio computed from it (the review's "compact 4.27:1" re-derives to 7.83:1 inside the
 // plate). An instrument that can only err toward FAILING is not a measurement.
@@ -224,7 +224,7 @@ export function scanlineLuminances(data: Buffer | Uint8Array, imageWidth: number
 
 /** Clamp a viewport-coordinate CSS box into an image of `imageWidth`x`imageHeight` pixels, integer-aligned.
  *  Returns null when nothing of the box is inside — the caller must REFUSE a verdict rather than sample
- *  some other part of the page (the #211 posture: no evidence is not a passing measurement). */
+ *  some other part of the page (the house posture: no evidence is not a passing measurement). */
 export function clampBoxToImage(box: PixelBox, imageWidth: number, imageHeight: number): { left: number; top: number; width: number; height: number } | null {
   const left = Math.max(0, Math.floor(box.x));
   const top = Math.max(0, Math.floor(box.y));

@@ -2,7 +2,7 @@
 // a reset on a missing id leaves no phantom audit row. A successful reset revokes all of the target's
 // live sessions.
 //
-// THE CREDENTIAL WRITE, ITS AUDIT ROW AND THE SESSION KICK ARE ONE BATCH (#1691,
+// THE CREDENTIAL WRITE, ITS AUDIT ROW AND THE SESSION KICK ARE ONE BATCH (
 // `substrate/audited-write.ts`). They used to be three sequential awaits, and the middle one is a real DB
 // write that can reject: a failed kick rejected the endpoint with the NEW password already committed and
 // every OLD session still live — precisely the state an urgent reset exists to end, reported to the admin as
@@ -50,7 +50,7 @@ export function createResetPassword(ctx: AdminContext): AdminService["resetPassw
 
     const passwordHash = await ctx.hashPassword(password);
     const at = ctx.now();
-    // ONE batch: the new credential, its audit row, and the kick commit together or not at all (#1691). The
+    // ONE batch: the new credential, its audit row, and the kick commit together or not at all. The
     // kick is a TAIL, never statement 2 — the audit's `changes()` guard reads the statement before it, and a
     // target holding no live sessions legitimately revokes 0 rows.
     await commitAuditedWrite(ctx, {

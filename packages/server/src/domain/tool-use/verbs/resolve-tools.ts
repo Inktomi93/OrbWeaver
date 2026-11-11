@@ -6,7 +6,7 @@
 // execute-time unknown is errors-as-data instead (verbs/execute-tool-calls.ts). Order = caller order (the request
 // body stays byte-stable for a given attachment list — the prompt cache cares).
 //
-// THE RESOLUTION IS DRIVER-SCOPED (#677). `driverUserId` is WHOSE contributor shelf a name is looked up on —
+// THE RESOLUTION IS DRIVER-SCOPED. `driverUserId` is WHOSE contributor shelf a name is looked up on —
 // the turn host for a chat attach (the same identity `listDrivableToolNames` enumerated the names from), the
 // rule author for the `run_tool` arm, whose off-turn resolve admits contributor entries alone. It is not the acting principal and it is not a permission check: the
 // ceilings still run at invocation (`substrate/capability.ts` + the PL-C installer gate). It exists because the

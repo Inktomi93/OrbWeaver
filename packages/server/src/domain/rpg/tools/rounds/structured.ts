@@ -56,12 +56,12 @@ const INVENTORY_NAME_WHITESPACE = /\s+/u;
  *  The second model sees only update_inventory + no_changes, so it can either repair the proven ambiguity or
  *  decline it without repeating another plane.
  *
- *  TWO DECLARED LIMITS (#118 — stated, not silently inherited; both are the CONSEQUENCE of clause (b)+(c)):
+ *  TWO DECLARED LIMITS (stated, not silently inherited; both are the CONSEQUENCE of clause (b)+(c)):
  *    1. It is BLIND TO A FIRST ACQUISITION. Clause (b) requires an already-owned item and clause (c) requires
- *       the beat to NAME one, so the empty-pack miss (#76's measured Sabine beat: a thing acquired into a pack
+ *       the beat to NAME one, so the empty-pack miss (a measured Sabine beat: a thing acquired into a pack
  *       holding nothing) can never trigger this repair — the exact defect class the audit reads as if it
  *       covered. Reaching it needs an ACQUISITION-CUE detector over the beat text, and that escalation is
- *       DEFERRED by the owner's own sequencing: `c993cde338` ruled the fix prompt-first and said "measurement
+ *       DEFERRED by the owner's own sequencing: the owner ruled the fix prompt-first and said "measurement
  *       over real turns follows before any detector escalation". The prompt arm is now on BOTH vehicles
  *       (`rpg.extract.plane.inventory` v4 here, `rpg.extract.tool.updateInventory` v4 for the fold), and the
  *       measurement HAS run: on the empty-pack acquisition corpus the description-only (folded) teaching

@@ -1,4 +1,4 @@
-// domain/character/substrate/bulk-tag-result — shared helper for bulk-add/remove-card-tag (#1694), pure
+// domain/character/substrate/bulk-tag-result — shared helper for bulk-add/remove-card-tag, pure
 // and zero-I/O (the substrate slot — verb files may not import one another's VALUES, `domain-no-cross-verb`).
 // Builds the wire-safe `CharacterBulkTagResult` (contracts/character — the ONE home for the shape) from the
 // per-item outcomes each verb collects. The domain verbs never surface a raw `Error` on the wire: a

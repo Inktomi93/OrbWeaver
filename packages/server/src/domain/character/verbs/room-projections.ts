@@ -28,7 +28,7 @@ export function createCharacterRoomProjections(deps: CharacterRoomProjectionDeps
       const floor = deps.readRenderPolicy();
       // The deployment floor AS A RESOLVED policy — what a seat with no readable card gets. Produced by the
       // SAME resolver with no override rather than hand-built, so the no-card arm can never spell a step
-      // the resolver would not (#111: the html-trust ladder is folded in exactly one place).
+      // the resolver would not (the html-trust ladder is folded in exactly one place).
       const resolvedFloor = resolveRenderPolicy(floor, null);
       if (characterId === null || ownerId === null) {
         return { renderPolicy: resolvedFloor, themeOverride: null, backgroundOverride: null, card: null };

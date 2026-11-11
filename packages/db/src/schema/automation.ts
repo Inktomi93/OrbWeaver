@@ -150,7 +150,7 @@ export const automationRules = sqliteTable(
         `(trigger_bus = 'chat' AND trigger_type in (${checkList(CHAT_TRIGGER_TYPES)})) OR (trigger_bus = 'domain' AND trigger_type in (${checkList(DOMAIN_TRIGGER_TYPES)}))`,
       ),
     ),
-    // #1378 item 2 — the rate/health counters. Zero references existed and all three are magnitudes: a
+    // The rate/health counters. Zero references existed and all three are magnitudes: a
     // negative cooldown is a cooldown that already elapsed, a negative budget admits nothing coherent,
     // and a negative error count cannot be reached by an increment-or-reset counter. The physical floor
     // under what `engine/dispatch.ts` already maintains.
@@ -163,7 +163,7 @@ export const automationRules = sqliteTable(
 // a chat's fires against a fixed ceiling and so cannot bound a chat-less rule; this owner-keyed, owner-editable
 // ceiling is the SCOPE belt for that lane. A runaway owner-global rule otherwise multiplies by the author's
 // entire library rather than by one room — the exact hammering this belt exists to bound. A RATE cap only:
-// the per-day $/spend ceilings were stripped 2026-07-24 and nothing here re-introduces them.
+// the per-day $/spend ceilings were stripped and nothing here re-introduces them.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const automationOwnerBudgets = sqliteTable(
@@ -178,7 +178,7 @@ export const automationOwnerBudgets = sqliteTable(
     maxFiresPerHour: integer("max_fires_per_hour").notNull().default(AUTOMATION_OWNER_BUDGET_DEFAULTS.maxFiresPerHour),
     updatedAt: integer("updated_at").notNull().default(sql`(unixepoch() * 1000)`),
   },
-  // #1378 item 2 — the owner-wide budget is a magnitude like the per-rule one above.
+  // The owner-wide budget is a magnitude like the per-rule one above.
   () => [check("automation_owner_budgets_budget_check", sql.raw("max_fires_per_hour >= 0"))],
 );
 
@@ -218,13 +218,13 @@ export const automationFires = sqliteTable(
     // (ruleId, firedAt) index cannot serve a chatId-only predicate (FK-index test).
     index("automation_fires_chat_idx").on(t.chatId),
     check("automation_fires_outcome_check", sql.raw(`outcome in (${checkList(AUTOMATION_FIRE_STORAGE_OUTCOMES)})`)),
-    // #1378 item 3 — the HISTORICAL table was looser than the live one. `automation_rules.trigger_type`
+    // The HISTORICAL table was looser than the live one. `automation_rules.trigger_type`
     // is bus-paired above; the fire ledger's denormalized copy had no CHECK at all, so the audit trail
     // could record a trigger name the rules table would refuse. It carries no `trigger_bus` column of its
     // own, so the pairing is not available here — the honest constraint is membership of the UNION of
     // both tuples, which is still the whole vocabulary and closes the gap between the two tables.
     check("automation_fires_trigger_type_check", sql.raw(`trigger_type in (${checkList([...CHAT_TRIGGER_TYPES, ...DOMAIN_TRIGGER_TYPES])})`)),
-    // #1378 item 2 (the fire ledger's half) — the cascade-depth ledger is a count of nested automation
+    // The fire ledger's half of the counter checks — the cascade-depth ledger is a count of nested automation
     // hops. 0 is human-initiated and it only ever increments.
     check("automation_fires_depth_check", sql.raw("automation_depth >= 0")),
   ],
@@ -236,7 +236,7 @@ export const automationFires = sqliteTable(
 // `state` JSON) and the ONE narrator-facing `guidance` line the S2 teaching contribution delivers VERBATIM.
 // Authority DERIVES ruleId → rule (ownerId, chatId) — no ownerId here (D23-clean; the D18 inherited-scope
 // posture), no member or plugin read surface, and NOT swipe-folded (authored DIRECTION, never a function of
-// canon — the #29 fence: a rebuild from canon could not reproduce it, so it is never rebuilt).
+// canon — a rebuild from canon could not reproduce it, so it is never rebuilt).
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const automationRuleState = sqliteTable(
@@ -253,7 +253,7 @@ export const automationRuleState = sqliteTable(
     // corrupt→EMPTY fault isolation (losing analysis state costs one cold pass, never a disabled rule).
     // `settledThroughSeq` is the C2 high-water mark: the settled-span cursor DURABLE-WRITE routes advance
     // ONLY on a successful apply, so a failed/unconfirmed pass re-covers its span (the retryability law).
-    // VERSION POSTURE (orchestrator ruling 2026-08-24): "corrupt" means UNPARSEABLE, never merely OLD —
+    // VERSION POSTURE (orchestrator ruling): "corrupt" means UNPARSEABLE, never merely OLD —
     // every field of the read schema carries a default, so a row written before a field existed reads
     // with that field defaulted and its WATERMARK PRESERVED. Only non-JSON / non-object garbage resets to
     // empty (watermark 0 = re-cover, which duplicates work but never SKIPS a span). A reader that treated

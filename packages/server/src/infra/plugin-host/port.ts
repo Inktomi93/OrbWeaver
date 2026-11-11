@@ -8,7 +8,7 @@
 // (plugin-no-ambient): the returned object is STRUCTURALLY the domain's `PluginHostPort` (compose does the typed
 // assignment) and names only `@orb/contracts` + the local skeleton.
 //
-// TWO log paths, one ring (#806 + the owner's "register plugin logs centrally" ask): (1) the per-instance
+// TWO log paths, one ring (the owner's "register plugin logs centrally" ask): (1) the per-instance
 // `LogRing` is drained by every invocation AND — because a floated guest continuation logs in a post-settle
 // pump, between invocations — picked up as RESIDUE by the next `invoke` (before it runs) and by every `readLog`
 // (before it copies), so `plugin.getLog` tells the truth live; (2) every accepted line is ALSO mirrored at push
@@ -299,7 +299,7 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
         // The token is minted HERE, inside the serialized queue slot, and consumed on the very next line — so an
         // args builder always sees the handle of the scope this invoke just set, never a neighbour's (the
         // per-instance FIFO is what makes that true; see the SERIALIZATION note above).
-        // RESIDUE FIRST (#806): whatever a floated continuation logged since the last pickup is retained BEFORE
+        // RESIDUE FIRST: whatever a floated continuation logged since the last pickup is retained BEFORE
         // this invocation runs, so it reads in push order ahead of this run's own lines instead of being lost.
         // Inside the serialized slot on purpose — the same ring the guest is about to push into.
         retainLog(resident, resident.sandbox.drainLog(), seams.nowEpochMs());
@@ -382,7 +382,7 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
 
     // A COPY, not the live ring: the ring is mutated by every later invoke, and a caller holding the array
     // would silently watch its "snapshot" change under it (the domain's `getPluginLog` slices this result).
-    // The residue pickup FIRST (#806): the lines a float logged since the last pickup are retained here, so the
+    // The residue pickup FIRST: the lines a float logged since the last pickup are retained here, so the
     // read surfaces them with no later invocation needed. Stamped at pickup (the ring's `at` was always the
     // drain clock, never the push clock — unchanged posture). A read racing a mid-flight invocation may retain
     // that invocation's so-far lines itself; its outcome then carries only the rest — same resident ring either

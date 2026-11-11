@@ -25,14 +25,14 @@ export interface AuthConfig {
   /** `AUTH_FALLBACK_TRUSTED_PEERS` — the opt-in CIDR ranges admitted to the un-credentialed owner fallback IN
    *  ADDITION to loopback (docs/law/container-deployment-security.md; the rule, the hazard and the boot
    *  warning live in `foundation/env/fallback-peers.ts`). EMPTY IS THE DEFAULT and is byte-identical to the
-   *  loopback-only gate #298 f2 established. Distinct from `forwardTrustedProxies`, which gates who may
+   *  loopback-only gate. Distinct from `forwardTrustedProxies`, which gates who may
    *  ASSERT an identity in a header; this one gates who IS the owner without asserting anything. */
   fallbackTrustedPeers: readonly string[];
   jwtIssuer?: string;
   jwtAudience?: string;
 }
 
-/** #762 — the injected OIDC issuer-discovery round-trip (`openid-client`'s `discovery()` with the issuer,
+/** The injected OIDC issuer-discovery round-trip (`openid-client`'s `discovery()` with the issuer,
  *  client id and secret, at the composition root; a deterministic fake in tests). The single-flight cache that
  *  consumes it is `./oidc-discovery.ts`; the type homes here because a domain-internal shape belongs in the
  *  slice's `contract/`, not beside its one consumer. */
@@ -68,20 +68,20 @@ export interface OidcTransactionStore {
   consume: (state: string) => Promise<OidcTransaction | null>;
 }
 
-/** #867 — what a SUCCESSFUL code→token exchange yields, narrowed to the two values the OIDC callback
+/** What a SUCCESSFUL code→token exchange yields, narrowed to the two values the OIDC callback
  *  actually consumes. Deliberately NOT openid-client's `TokenEndpointResponse`: the access/refresh tokens
  *  are the RP's business with the IdP and nothing above this seam may reach them, so they do not cross it. */
 export interface OidcVerifiedTokens {
   /** The VERIFIED ID-token claims (`tokens.claims()`), or `undefined` when the response carried no ID
    *  token. Still untrusted DATA — every field is shape-checked by `identityFromClaims` before use. */
   readonly claims: { readonly [claim: string]: unknown } | undefined;
-  /** #141 — the RAW verified ID token, carried to `sessions.create`, which seals it at rest. It is a
+  /** The RAW verified ID token, carried to `sessions.create`, which seals it at rest. It is a
    *  SECRET: never logged, never put in a response body, never held past the mint. */
   readonly idToken: string | null;
 }
 
 /**
- * #867 — the injected OIDC authorization-code exchange (`openid-client`'s `authorizationCodeGrant`, wired
+ * The injected OIDC authorization-code exchange (`openid-client`'s `authorizationCodeGrant`, wired
  * at the composition root; a deterministic fake in tests). The adapter that performs it is
  * `./oidc-exchange.ts`; the type homes here beside {@link OidcDiscover} because a slice-internal shape
  * belongs in the slice's contract, not beside its one consumer.
@@ -99,7 +99,7 @@ export interface OidcVerifiedTokens {
  */
 export type OidcExchange = (config: Configuration, callbackUrl: URL, tx: OidcTransaction) => Promise<OidcVerifiedTokens>;
 
-/** #867 — the raw `openid-client` grant `createOidcExchange` closes over. Named as a type so the ONE value
+/** The raw `openid-client` grant `createOidcExchange` closes over. Named as a type so the ONE value
  *  binding to the library lives at the composition root (`entry/http/oidc.ts`) and the adapter's
  *  transaction→checks mapping is provable without an IdP — the same shape `createOidcConfigCache(discover)`
  *  already uses for discovery. */
@@ -126,7 +126,7 @@ export interface ForwardJwtVerifier {
 export interface ResolveDeps {
   verifyForwardJwt?: ForwardJwtVerifier;
   /** Raw TCP peer socket address — never a spoofable X-Forwarded-For/X-Real-IP header. TWO gates read it:
-   *  the forward-header unsigned trusted-proxy gate (`modes/forward-header.ts`) and, since #298 f2, the
+   *  the forward-header unsigned trusted-proxy gate (`modes/forward-header.ts`) and the
    *  LOOPBACK gate on the un-credentialed owner fallback (`ownerFallbackAllowed`, `dispatch.ts`). Absent
    *  means BOTH fail closed. */
   peerIp?: string;

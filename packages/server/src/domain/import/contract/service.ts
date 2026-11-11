@@ -48,8 +48,8 @@ export type CreateImportedCharacter = (args: {
 /** Re-import dedup oracle: id of the caller's existing character carrying `importHash`, or null. */
 export type FindCharacterByImportHash = (args: { readonly ownerId: UserId; readonly importHash: string }) => Promise<CharacterId | null>;
 
-/** Per-owner handle EXISTENCE oracle for `freeHandle`'s collision-suffix loop (#1470 replaced the earlier
- *  handle-MATCH re-import this op originally backed — "never dedupe by name": a byte-new card whose
+/** Per-owner handle EXISTENCE oracle for `freeHandle`'s collision-suffix loop (never a
+ *  handle-MATCH re-import — "never dedupe by name": a byte-new card whose
  *  name-slug collides gets a numeric-suffixed handle, a NEW character, never an edit of the existing one).
  *  Fires only after `FindCharacterByImportHash` misses (a byte-identical re-import is the cheaper path). */
 type FindCharacterByHandle = (args: { readonly ownerId: UserId; readonly handle: CharacterHandle }) => Promise<CharacterId | null>;
@@ -161,11 +161,10 @@ export interface ImportContext {
 
 export interface ImportService {
   /** Imports one ST character card; idempotent by importHash (a byte-identical re-import RECONCILES its
-   *  overlay planes, #1470). A byte-new card that collides on handle disambiguates via `freeHandle`
-   *  (`eleni` → `eleni-2`) instead of matching by name — #1470 replaced the earlier handle-match
-   *  edit-in-place with this "never dedupe by name" rule, so a re-import never routes to an update. */
+   *  overlay planes). A byte-new card that collides on handle disambiguates via `freeHandle`
+   *  (`eleni` → `eleni-2`) instead of matching by name — the "never dedupe by name" rule, so a re-import never routes to an update. */
   readonly importCharacter: (input: ImportCharacterInput) => Promise<ImportCharacterResult>;
-  /** THE RESTORE DOOR (#1598, owner ruling 2026-09-05). Re-asserts a card file's EMBEDDED lorebook over the
+  /** THE RESTORE DOOR (owner ruling). Re-asserts a card file's EMBEDDED lorebook over the
    *  character that card imported as — the explicit, opt-in half of the non-destructive re-upload: an ordinary
    *  re-upload now KEEPS the owner's edited primary book, and this is how they ask for the card's own version
    *  back. Owner-gated twice over: the card resolves to a character through the caller's own

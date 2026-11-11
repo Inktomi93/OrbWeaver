@@ -7,12 +7,12 @@
 // priced against the CONVERTED rows) → REQUEST (assemble the TurnRequest) → REDUCE (iterate runChatTurn,
 // fan deltas, fold economics, then the tool-recurse loop on finishReason:"tool" up to toolRecurseLimit).
 //
-// CONVERT PRECEDES FIT (#1434) and that order is load-bearing: the conversion is LOSSY on purpose (cards
+// CONVERT PRECEDES FIT and that order is load-bearing: the conversion is LOSSY on purpose (cards
 // collapse to a stub, choices drop, display-only images become a marker), so fitting the pre-conversion
 // bytes charged the budget for content the provider never receives — evicting real turns to make room for
 // deleted ones, and overstating `fitUsedTokens`, which is the managed-compaction trigger.
 //
-// CONVERT ITSELF LIVES IN `substrate/wire-history.ts` (#1540), not here: the read verb's preview family
+// CONVERT ITSELF LIVES IN `substrate/wire-history.ts`, not here: the read verb's preview family
 // (`previewContextFit`, `previewAssembly`) has to price the SAME converted rows this turn prices, or the
 // transcript divider claims rows are out of context that the turn keeps. This file owns the ORDER; that
 // module owns the conversion and the cost rule.
@@ -172,7 +172,7 @@ interface RunTurnPipelineArgs {
    *  {@link TurnPipelineResult.terminalToolCalls}. Absent/empty ⇒ byte-identical to today (every turn but a
    *  folded-mode game's character turn). Today's gather contributes these OR `attachedToolNames`, never both —
    *  but that is a CALLER's habit, not an invariant, so the two classes are partitioned by tool NAME at
-   *  {@link attachTerminalTools} and every reader downstream is blind to the other class (#1404). */
+   *  {@link attachTerminalTools} and every reader downstream is blind to the other class. */
   readonly terminalTools?: readonly WireTool[] | undefined;
   /** A structured-output request for this turn (D79). Absent on every turn today — the chat loop sets `tools`,
    *  never `responseFormat` (mutually exclusive by construction, 04 §8); a future structured chat consumer
@@ -226,7 +226,7 @@ interface TurnPipelineResult {
   readonly content: string;
   readonly reasoning: string | null;
   /** The measured REASONING WINDOW in ms, summed over recursion depths — the live producer for
-   *  `message_variants.metadata.$.reasoning_duration` (#184), which the stats rollups read as `reasoningMs`.
+   *  `message_variants.metadata.$.reasoning_duration`, which the stats rollups read as `reasoningMs`.
    *  Null ⇒ the turn never reasoned (or the window had no positive width): absence, never a fabricated 0.
    *  See {@link reasoningClock} for exactly which window this is and why. */
   readonly reasoningMs: number | null;
@@ -238,7 +238,7 @@ interface TurnPipelineResult {
    *  resolves). A display-only image (a card's greeting picture, narrator media) is NOT a drop — it was never
    *  eligible to ride, so it must not raise the `image_dropped` warning. */
   readonly imageDropped: boolean;
-  /** The video twin (#317): ≥1 USER-ATTACHED video (mp4/webm/animated-gif asset) was dropped because the
+  /** The video twin: ≥1 USER-ATTACHED video (mp4/webm/animated-gif asset) was dropped because the
    *  model lacks `input.video`. Same eligibility rule as {@link TurnPipelineResult.imageDropped}. */
   readonly videoDropped: boolean;
   /** The turn's cumulative tool exchange across every recursion depth. */
@@ -258,7 +258,7 @@ interface TurnPipelineResult {
    *  folded into `toolRecords`: they were never executed, so a record would be a lie, and they must never reach
    *  a member-visible payload. */
   readonly terminalToolCalls: readonly ToolCallInput[] | null;
-  /** The terminal tool NAMES that collided with a registry tool name and therefore never rode (#1617) — empty
+  /** The terminal tool NAMES that collided with a registry tool name and therefore never rode — empty
    *  on every ordinary turn. A collision makes the whole terminal channel unusable for this turn
    *  (`terminalToolCalls` is `null`), and this is the only thing that says WHY: the consumer's fallback would
    *  otherwise report "this wire cannot carry terminal tools", which is false — the wire was fine and a
@@ -315,7 +315,7 @@ function fitBudget(args: RunTurnPipelineArgs, intent: UserIntent, systemTokens: 
 }
 
 /**
- * THE REASONING WINDOW (#184). `message_variants.metadata.$.reasoning_duration` had exactly one producer —
+ * THE REASONING WINDOW. `message_variants.metadata.$.reasoning_duration` had exactly one producer —
  * the SillyTavern import — while three live readers rolled it into `reasoning_ms` on three stats tables, so a
  * user's own reasoning-heavy turns were worth 0ms in their own stats and every rendered number was
  * archaeology. Nothing upstream reports the figure: OpenAI-compatible wires carry reasoning as DELTAS and no
@@ -741,7 +741,7 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
 
   // REQUEST (conversion half) — the one seam where the shaped string body becomes content-parts (§3.5, the WIRE plane of the
   // content-class visibility registry): tokenize each row's spans, resolve USER-ATTACHMENT media refs by
-  // the asset's kind — input.vision for images, input.video for mp4/webm/animated-gif (#317); every other
+  // the asset's kind — input.vision for images, input.video for mp4/webm/animated-gif; every other
   // embedded image is display-only and collapses to its marker (`ridesAsModelMedia`, whose §6.7 second arm
   // also rides back a picture the MODEL itself drew, per its own `message_assets` inline-reply link),
   // ride hidden/choices/unknown spans VERBATIM ({wire: full} — the model keeps its own memory), and collapse
@@ -765,9 +765,9 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
     contentSignaturesByMessage: await args.loadContentSignatures?.(),
   };
 
-  // FIT — the history-budget tail, priced against the CONVERTED rows (#1434: the fitter used to run before
+  // FIT — the history-budget tail, priced against the CONVERTED rows (the fitter used to run before
   // this conversion and charge card bodies and choice blocks the provider never receives). The read verb's
-  // previews run this same sequence through the same substrate module (#1540) — one conversion, one cost rule.
+  // previews run this same sequence through the same substrate module — one conversion, one cost rule.
   const systemTokens = estimateTokens([assembled.static, assembled.dynamic].join("\n\n"));
   const budget = fitBudget(args, effectiveIntent, systemTokens);
 
@@ -829,7 +829,7 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
   }
 
   // The empty-row drop re-anchors the §8 breakpoint: it is a DEPTH from the end, which the fit's front-trim and
-  // the marker's head row preserve for free and a mid-array drop does not (#1543 — see `shiftBreakpoint`).
+  // the marker's head row preserve for free and a mid-array drop does not (see `shiftBreakpoint`).
   const { kept, cacheBreakpointFromEnd } = dropEmptyWireRows(fitKept, shaped.cacheBreakpointFromEnd);
   const history = kept.flatMap((w) => [...(w.prefixRows ?? []), w.row]);
   // Total context consumption for the managed-compaction trigger: kept history + system + reserved output.
@@ -861,7 +861,7 @@ export async function runTurnPipeline(input: RunTurnPipelineArgs): Promise<TurnP
   // REDUCE + the tool-recurse loop. The two request-builder gates chain (they touch disjoint fields, and by
   // construction a turn sets tools OR responseFormat, never both — 04 §8).
   const attach = await attachTools(args, baseRequest, () => streamedText.length, reserveToolOrdinals);
-  // The REGISTRY names that actually rode this turn — the left half of the tool-identity partition (#1404).
+  // The REGISTRY names that actually rode this turn — the left half of the tool-identity partition.
   // Empty when no set resolved (unwired ops / no capability), which is exactly when nothing may execute.
   const registryNames: ReadonlySet<string> = new Set(attach.execute === null ? [] : args.attachedToolNames);
   const terminal = attachTerminalTools(args, attach.request, registryNames);
@@ -960,7 +960,7 @@ async function attachTools(
   if (!toolsSupported) {
     return { request: baseRequest, execute: null, unsupported: true, offerRecords: [] };
   }
-  // Resolved on the TURN HOST's shelf (#677) — the same identity the teaching contributions enumerated the
+  // Resolved on the TURN HOST's shelf — the same identity the teaching contributions enumerated the
   // attach union from (`tctx.runAsUserId`). A guest in the room never pulls their own plugin's tools in, and
   // the host's copy of a plugin two people installed is the one that runs.
   const set = args.tools.resolveTools(args.toolExecFrame.runAsUserId, args.attachedToolNames);
@@ -1030,14 +1030,14 @@ async function executeOfferedCall(input: {
  *  Same declarations in, same `[]`-vs-`null` channel back — the domain learns no backend concept, and a wire is
  *  never made ineligible for lacking one delivery shape.
  *
- *  THE PARTITION IS THE RETURNED NAME SET (#1404), and it is the only thing that answers "who owns this
+ *  THE PARTITION IS THE RETURNED NAME SET, and it is the only thing that answers "who owns this
  *  call". On the array wires both classes ride the ONE `tools` field, so a model that picks a terminal tool
  *  produces a call indistinguishable — by position, by field, by anything but its NAME — from a registry
  *  one; the loop's gate used to be "did a registry set resolve", which handed that call to the ordinary
  *  executor and paid a second model call for a passenger that must never be executed. {@link runRecurseLoop}
  *  and {@link terminalCallsOf} both read THIS set, so neither reader can ever see the other's class.
  *
- *  A COLLIDING DECLARATION NEVER RIDES, AND IT TAKES THE WHOLE CHANNEL WITH IT (#1617). A tool NAME is minted
+ *  A COLLIDING DECLARATION NEVER RIDES, AND IT TAKES THE WHOLE CHANNEL WITH IT. A tool NAME is minted
  *  once, so a terminal declaration re-spelling a registry name is a contributor defect — shipping both would
  *  send the wire two declarations of one name (malformed) and make the partition unanswerable. The registry
  *  keeps the name (it is the class that EXECUTES; a dropped passenger degrades one fold, a mis-executed one
@@ -1088,7 +1088,7 @@ function attachTerminalTools(
  *  reported as a missing channel, never as a quiet one. Extracted so the pipeline body stays under the
  *  cognitive-complexity cap.
  *
- *  The calls are the ones {@link runRecurseLoop} PARTITIONED OFF each depth (#1404) — never a re-read of the
+ *  The calls are the ones {@link runRecurseLoop} PARTITIONED OFF each depth — never a re-read of the
  *  final aggregate economics. Two things that re-read got wrong: it reported registry calls as terminal ones
  *  in a mixed turn, and `aggregateEconomics` keeps only the LAST depth's `toolCalls`, so a terminal call
  *  co-emitted with a registry call at depth 0 was silently dropped by the recursion it triggered. */
@@ -1116,7 +1116,7 @@ async function runRecurseLoop(input: {
   readonly request: TurnRequest;
   /** The bound execute path, or null when no registry set rode (nothing may execute). */
   readonly execute: BoundToolExecution | null;
-  /** The TERMINAL half of the tool-identity partition (#1404) — {@link attachTerminalTools}'s name set. Calls
+  /** The TERMINAL half of the tool-identity partition — {@link attachTerminalTools}'s name set. Calls
    *  in it are collected for the terminal channel and are structurally unreachable from the executor below. */
   readonly terminalNames: ReadonlySet<string>;
   readonly reserveToolOrdinals: (count: number, events?: readonly number[], endEvent?: number) => number;
@@ -1157,7 +1157,7 @@ async function runRecurseLoop(input: {
   const replyImages: OrderedReplyImage[] = [];
   // Deduped across depths: the same request-level degrade (a customParameters blob, a dropped knob) re-fires at
   // every recursion, but it is ONE degrade and the user gets ONE notice (the `image_dropped` "once" precedent).
-  // KEYED ON THE WHOLE WARNING (#1440): the structured half now distinguishes two drops that share a code
+  // KEYED ON THE WHOLE WARNING: the structured half now distinguishes two drops that share a code
   // (two different sampling knobs), so a code-keyed set would surface one of them and swallow the other.
   const warnings = new Map<string, ResolvedWarning>();
   // ORed across depths, never counted: a tool loop refused at depth 2 was still ONE refused turn. Collected
@@ -1181,7 +1181,7 @@ async function runRecurseLoop(input: {
       reasoningMs = (reasoningMs ?? 0) + reduced.reasoningMs;
     }
     economics = aggregateEconomics(economics, reduced.economics);
-    // THE PARTITION (#1404): this depth's calls split by tool identity before either reader sees them.
+    // THE PARTITION: this depth's calls split by tool identity before either reader sees them.
     const split = partitionToolCalls(reduced.economics, terminalNames);
     terminalCalls.push(...split.terminal);
     const calls = pivotCalls(execute, reduced.economics, split.registry);
@@ -1266,7 +1266,7 @@ function captureReplyParts(input: {
   };
 }
 
-/** Splits ONE depth's model-emitted calls into the two tool classes by NAME (#1404) — the ONE place the
+/** Splits ONE depth's model-emitted calls into the two tool classes by NAME — the ONE place the
  *  question "who owns this call" is answered, and the reason each reader below is blind to the other's class.
  *  A name in neither set is impossible on the wire (a model may only call what was declared) but is treated
  *  as REGISTRY: the registry executor is the arm that already refuses an unknown name, where the terminal

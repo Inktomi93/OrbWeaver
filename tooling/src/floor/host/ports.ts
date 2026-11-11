@@ -10,7 +10,7 @@
 //     DECLARED here and consumed by name; nothing may ever be allocated onto one.
 //   BANDS — the allocatable range. `STAGE_BANDS` is 0..9; band k is server 8888 + 10k / vite 5273 + 10k.
 //     An allocator hands out a FREE band, so a lane's stage is private by construction rather than by the
-//     one-fixed-pair convention that made a sibling's idle marker a hard block (#1163, #1186).
+//     one-fixed-pair convention that made a sibling's idle marker a hard block.
 //
 // THE INVARIANT THIS MODULE EXISTS TO MAKE PROVABLE: the band ports and the reserved ports are DISJOINT.
 // It holds today only because the two bases were chosen above every reserved number and the stride is
@@ -26,7 +26,7 @@
 // resolved here by `e2eRunPorts`). The offset is a multiple of 10, so two runs at different offsets never
 // share a port, and the shifted set must stay clear of every reserved row and every stage band.
 //
-// THE MIRROR SIDE, which this module cannot own (owner ruling 2026-09-02, #1271: house precedent, no env
+// THE MIRROR SIDE, which this module cannot own (owner ruling: house precedent, no env
 // file and no move into @orb/kit; the port-registry gate excludes it BY RULING, not as a deferral):
 //   • BY CAKE — `packages/client/vite.config.ts` (`5173`, `http://127.0.0.1:8788`). `tooling` sits ABOVE
 //     the package cake, so importing `@orb/tooling` from `packages/**` is an UPWARD import and is
@@ -190,7 +190,7 @@ export const STAGE_BAND_PORT_NUMBERS: ReadonlySet<number> = new Set(
 );
 
 /** Which band a port belongs to, or null. Port-keyed because a band IS its ports — a `--base` naming the
- *  vite side and a probe naming the server side are the same claim about the same stage (#1186). */
+ *  vite side and a probe naming the server side are the same claim about the same stage. */
 export function stageBandForPort(port: number): number | null {
   return (
     STAGE_BANDS.find((band) => {

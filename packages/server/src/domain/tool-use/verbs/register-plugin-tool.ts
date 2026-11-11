@@ -6,7 +6,7 @@
 //   (a) COLLISION IS ACTIVATION-FATAL, not boot-fatal — a runtime source can't be boot-fatal (nothing runs
 //       at boot). A duplicate name throws `ToolNameCollisionError`, which the plugin activation catches and
 //       treats as a contained activation failure (row → errored), never a process crash. It is also scoped PER
-//       INSTALLER (#677 — `substrate/partition.ts`): the same namespaced name held by two different users is
+//       INSTALLER (`substrate/partition.ts`): the same namespaced name held by two different users is
 //       normal, so only a duplicate on this installer's own shelf (or a name a builtin already holds) is fatal.
 //   (b) The args schema is UNTRUSTED GUEST JSON Schema (a guest can't author zod). It is LIFTED to zod
 //       host-side via `@orb/kit/json-schema` `liftJsonSchema` (PL-B — conservative-or-refuse: an unsupported
@@ -57,14 +57,14 @@ async function resolveInvocationChat(spec: PluginToolSpec, exec: ToolExecutionCo
 export function createRegisterPluginTool(registry: ToolRegistry): (spec: PluginToolSpec) => PluginToolHandle {
   return (spec: PluginToolSpec): PluginToolHandle => {
     if (!TOOL_NAME_RE.test(spec.name)) {
-      // #1803 BACKSTOP, not the primary wall: `manifest.ts`'s `PLUGIN_SLUG_MAX`/`PLUGIN_TOOL_NAME_LOCAL_MAX`
+      // BACKSTOP, not the primary wall: `manifest.ts`'s `PLUGIN_SLUG_MAX`/`PLUGIN_TOOL_NAME_LOCAL_MAX`
       // bound the mint's inputs so a plugin-sourced `spec.name` can never fail this test on LENGTH — a miss
       // here means either boundary was bypassed, so the message states BOTH failure modes this regex can
       // still catch (an over-length name, or a charset a bypassed boundary let through) rather than the
       // single "charset" word a length miss would otherwise misname.
       throw new ToolNameCollisionError(`${spec.name} (invalid — must match the registry name charset/length ${TOOL_NAME_RE.source})`);
     }
-    // #677 — COLLISION IS PER INSTALLER, not per process. The same namespaced name legitimately exists once per
+    // COLLISION IS PER INSTALLER, not per process. The same namespaced name legitimately exists once per
     // installing user (two people install the same plugin; the seeded examples install for everyone), so the
     // only fatal duplicate is one INSIDE this installer's own shelf — a plugin registering the same tool twice,
     // or a second copy of the same slug, both of which are genuinely its own bug.
@@ -132,7 +132,7 @@ export function createRegisterPluginTool(registry: ToolRegistry): (spec: PluginT
     return {
       unregister: (): void => {
         // Keyed, so a deactivation removes THIS installer's copy only — another user's copy of the same plugin
-        // keeps running (the cross-user isolation half of #677).
+        // keeps running (the cross-user isolation half).
         registry.delete(key);
       },
     };

@@ -4,8 +4,8 @@
 // persists. Not every member is about a second human, though the transport belt still assumes so: the
 // owner-addressed `plugin-disabled` (`domain/plugin/activation/crash-policy.ts`), the owner-GLOBAL
 // `automation-notice` (`domain/automation/engine/dispatch.ts`, `chatId: null`) and now
-// `plugins-awaiting-consent` (#1041) are all deliverable on a single-user box and all swallowed there by the
-// multi-human refusal on the router + the socket room. That is a stated gap (#1627), not a fit. (agent-seat-request/crew-proposal were purged-domain members; the agents feature grafts here if
+// `plugins-awaiting-consent` are all deliverable on a single-user box and all swallowed there by the
+// multi-human refusal on the router + the socket room. That is a stated gap, not a fit. (agent-seat-request/crew-proposal were purged-domain members; the agents feature grafts here if
 // it returns.)
 // `recipientUserId` is mandatory on every variant. Credentials/secrets/baseUrls are TYPE-LEVEL
 // unrepresentable: every member declares `.strip()` — no `z.looseObject`, no `z.unknown()`.
@@ -97,9 +97,9 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
       chatId: chatIdSchema,
     })
     .strip(),
-  // THE NOMINATION CARRIES ITS OWN DISCLOSURE (#1762). Accepting is not just "you now host this room": it
+  // THE NOMINATION CARRIES ITS OWN DISCLOSURE. Accepting is not just "you now host this room": it
   // lands the departing host's characters, world books, GM voice and the room's REGEX SCRIPTS — executable
-  // transforms over the accepter's chats (#1739) — in the NOMINEE's library. The receiving side rendered a
+  // transforms over the accepter's chats — in the NOMINEE's library. The receiving side rendered a
   // bare Accept for all of it, so the counts ride the payload and the client confirms against them.
   //
   // COUNTS, NOT IDS — the ids-only habit inverts here and the shape is the reason: the nominee owns none of
@@ -177,10 +177,10 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
       pluginId: pluginIdSchema,
     })
     .strip(),
-  // THE STANDING CONSENT ASK, AGGREGATED (#1041/#924). Installed plugins the recipient has not answered
+  // THE STANDING CONSENT ASK, AGGREGATED. Installed plugins the recipient has not answered
   // yet — a fresh boot lands NINE of them (installed, disabled, empty grant, `pending_reconsent` raised:
   // `entry/boot/seed-example-plugins.ts`) and, before this member existed, nothing ever asked. It is ONE
-  // row per recipient, never one per plugin (owner ruling on #924): nine inbox rows for one decision is
+  // row per recipient, never one per plugin (owner ruling): nine inbox rows for one decision is
   // the spam that trains dismissal, and the per-plugin approve/deny surface already exists (Settings →
   // Plugins, which sorts the pending rows first).
   //
@@ -206,7 +206,7 @@ export const notificationEventSchema = z.discriminatedUnion("type", [
 export type NotificationEvent = z.infer<typeof notificationEventSchema>;
 export type NotificationType = NotificationEvent["type"];
 
-// ── the RUNTIME tuple (#1379 item 3) ─────────────────────────────────────────────────────────────────
+// ── the RUNTIME tuple ─────────────────────────────────────────────────────────────────
 // The union above exported only its derived TYPE, so `@orb/db`'s `notifications` schema — which needs the
 // members as VALUES to build its `type in (…)` CHECK — hand-spelled its own tuple, and the db test then
 // proved the two agreed by reaching into zod's internal discriminated-union option shape
@@ -240,14 +240,14 @@ export const NOTIFICATION_TYPES = [
  *  `notifications` domain's server-only `contract/` — that file is now a door onto this declaration. */
 interface InboxViewFields {
   readonly id: NotificationId;
-  /** THIS ROW IS STILL WAITING ON A DECISION (#1799) — an invite nobody has accepted or declined, a host
+  /** THIS ROW IS STILL WAITING ON A DECISION — an invite nobody has accepted or declined, a host
    *  nomination nobody has confirmed, a standing consent ask. FALSE for an informational row (a kick, a
    *  handoff someone else accepted, an auto-disable notice), and false for a decision that has since been
    *  settled ANYWHERE — accepted from a share link, revoked by the host, or accepted here by a client whose
-   *  follow-up dismiss failed (#1501).
+   *  follow-up dismiss failed.
    *
    *  IT IS DERIVED SERVER-SIDE, ON BOTH WIRES, AND THE READER MUST NOT RE-DERIVE IT. The bell's indicator
-   *  means "new OR pending" (owner ruling, #1799): opening the inbox marks every row read, which clears the
+   *  means "new OR pending" (owner ruling): opening the inbox marks every row read, which clears the
    *  NEW half, and only ACTING clears this one. A client cannot compute that — the settling state lives in
    *  the chat domain's `chat_invites.status` and `chats.pending_host_user_id`, which the inbox reader has
    *  no business reading and which change without any notification row changing. So the domain resolves it
@@ -328,7 +328,7 @@ export interface PresenceLastSeen {
   readonly lastSeenAt: number;
 }
 
-/** The presence DISCLOSURE wire shape (#1039) — of the user ids the caller asked about, who is online and
+/** The presence DISCLOSURE wire shape — of the user ids the caller asked about, who is online and
  *  when the others were last around.
  *
  *  IT IS A PROJECTION OF {@link PresenceView}, NEVER THE VIEW ITSELF, so a new `PresenceView` member reaches

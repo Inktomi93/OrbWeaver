@@ -10,7 +10,7 @@
 // nominee is no worse off than before the handoff, and the honest alternative (refusing the accept over
 // someone else's lore) is not an alternative.
 //
-// …AND EVERY DESTINATION READ CARRIES `toOwnerId` (#1819). The paragraph above is the SOURCE axis; the card
+// …AND EVERY DESTINATION READ CARRIES `toOwnerId`. The paragraph above is the SOURCE axis; the card
 // half also has a DESTINATION, and it is a caller-supplied id (`cardCopies[].characterId`). Nothing here
 // used to ask whose card that was, so a copy id naming a THIRD PARTY's character got a `character_books`
 // row pointing at a book this call had just minted under the recipient: a write into another tenant's
@@ -18,10 +18,10 @@
 // inert (the character-book pool is owner-filtered and they own no card it hangs off). `pendingCardCopies`
 // therefore joins `characters` on `toOwnerId` and a foreign or absent id is dropped BEFORE any mint — the
 // local belt an injected op's signature owes its next call site, exactly as the `duplicate-carry` twin
-// (#1516) and the six #1480 seams took it. The one production caller derives the ids under `toOwnerId`
+// and the six handoff seams took it. The one production caller derives the ids under `toOwnerId`
 // (`chat/substrate/handoff-copy.ts` mints them via `copyHandoffCards`), so this closes a latent class, not
 // a live bug. The ROOM half needs no destination gate: `chat_books` is keyed by the room and stays
-// chat-id-only ON PURPOSE (the room-public chat-book posture — a per-arm owner authority, #1396).
+// chat-id-only ON PURPOSE (the room-public chat-book posture — a per-arm owner authority).
 
 import type { CountHandoffBooks } from "@orb/contracts/world-info";
 import type { Db } from "@orb/db";
@@ -124,7 +124,7 @@ export function createCopyHandoffBooks(input: DbAssemblyInput<WorldInfoImportCon
   };
 }
 
-/** THE DISCLOSURE (#1762) — the same two owner-filtered halves the copy above reads, counted instead of
+/** THE DISCLOSURE — the same two owner-filtered halves the copy above reads, counted instead of
  *  minted. `db` only: a count opens no clock and mints no id, and giving it the write context would make it
  *  look like one more writer in a file whose whole subject is writes.
  *
@@ -160,7 +160,7 @@ export function createCountHandoffBooks(handle: DatabaseHandle): CountHandoffBoo
  *  (possibly retried) accept still owes lore to. Two filters resolved in ONE read, because the read is a
  *  `characters` LEFT JOIN: an owned copy with no junction row yet must still come back (an inner join
  *  through `character_books` cannot see it), and its ownership must still be decided.
- *   • OWNERSHIP (#1819) — a copy id `toOwnerId` does not own is dropped BEFORE any mint or junction; see
+ *   • OWNERSHIP — a copy id `toOwnerId` does not own is dropped BEFORE any mint or junction; see
  *     the header's destination-axis paragraph. An id that does not exist drops for the same reason, and
  *     silently: this op has no report channel, and one bad pairing must not fail the whole accept (the
  *     `duplicate-carry` skip-don't-refuse precedent).

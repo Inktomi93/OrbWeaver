@@ -22,7 +22,7 @@ export const startChatSchema = z.strictObject({
   // ALWAYS, swept by `reapTemporaryChats` once past the caller's own TTL. Creation-only BY DESIGN (a fork
   // is born non-temporary; no verb updates the column), so this is the ONE place the flag can be set.
   temporary: z.boolean().optional(),
-  // #40 DRAFT-TIME game start — mints the lite game right after chat creation, BEFORE the opening turn
+  // DRAFT-TIME game start — mints the lite game right after chat creation, BEFORE the opening turn
   // (turn 1 in-game). `ruleset` rides rpg's own setting schema (the trust boundary); omit = `freeform`.
   startAsGame: rpgGameTemplateSchema.optional(),
 });

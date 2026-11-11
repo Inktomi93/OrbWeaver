@@ -5,7 +5,7 @@
 // Every scan here is husk-excluded through the domain's one owner-chat definition
 // (`persistence/owner-chat-scope.ts`): `readByModel` merges these latencies onto `model_stats` ROLLUP rows,
 // which the rebuild built from that same scope, so a latency computed over a wider population would print a
-// number for a room the generations column denies (#1477).
+// number for a room the generations column denies.
 
 import type { LatencyScope, LatencyStats } from "@orb/contracts/stats";
 import type { Db } from "@orb/db";
@@ -20,7 +20,7 @@ const UNKNOWN_PROVIDER = "(unknown)";
  *  cost independent of an owner's lifetime message count. The bound is applied over whatever the read is
  *  ABOUT: `readLatency` bounds the scope it was asked for (owner / character / one model bucket), and
  *  `readModelLatencies` bounds EACH (model, provider) bucket separately — a bound taken across mixed models
- *  silently deletes the quiet ones (#1477). */
+ *  silently deletes the quiet ones. */
 const LATENCY_SAMPLE_LIMIT = 100;
 
 function assertNever(value: never): never {
@@ -97,7 +97,7 @@ export function modelLatencyKey(model: string, provider: string): string {
 /** Per-(model, provider) latency in one owner-scoped scan: one scan, bucketed in JS, percentiles per bucket
  *  — O(N) instead of a scan per model. Returns a Map keyed by `modelLatencyKey`.
  *
- *  THE SAMPLE BOUND IS PER BUCKET, not global (#1477). A single `ORDER BY rowid DESC LIMIT 100` across every
+ *  THE SAMPLE BOUND IS PER BUCKET, not global. A single `ORDER BY rowid DESC LIMIT 100` across every
  *  model mixed meant a model with few recent generations could be crowded out of the window entirely and
  *  vanish from this map — while `readByModel` (persistence/rollups.ts) still rendered a latency column for
  *  its rollup row, printing "—" for a model that has perfectly good timings. A `row_number()` window

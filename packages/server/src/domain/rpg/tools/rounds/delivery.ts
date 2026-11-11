@@ -18,7 +18,7 @@ import { structuredRound, structuredShapes } from "./structured.ts";
 
 /** Build the honest-arms `resolveStateDelivery` op (§4.6 — the READ-side CP pill + the D112 fold guard): resolve
  *  the ROOM's chat connection capability ONCE (via `resolveChat` — the SAME per-chat-routing verb a turn resolves
- *  through, NOT the host's global `resolveRole` default, stickler F1) and read BOTH delivery verdicts off it:
+ *  through, NOT the host's global `resolveRole` default) and read BOTH delivery verdicts off it:
  *  `trackersReadOnly` (the rpg-owned `deriveTrackersReadOnly` mode→writer mapping) and `foldGuarded` (the
  *  contracts-owned `coEmitsProseWithTools` read — a wire that goes mute under tool attachment must not be handed
  *  the fold's terminal tools). rpg gets CAPABILITY FACTS, never the credential/source they were derived from.

@@ -12,7 +12,7 @@
 // `costDetails` is ALSO the read-seam parser for `message_variants.cost_details` (a PARSED JSON sidecar, §5.3c
 // class 3 — `costDetailsSchema` is its one parser, a malformed blob degrades at the reader, never a cast).
 // The per-phase split is OPTIONAL by design: only a wire that REPORTS one (OpenRouter's
-// `usage.raw.cost_details.upstream_inference_{prompt,completions}_cost`, measured 2026-09-20) or the
+// `usage.raw.cost_details.upstream_inference_{prompt,completions}_cost`, measured) or the
 // `estimated` arm (per-MTok pricing × tokens) can state it; Anthropic reports a total only. A required split
 // would force a fabricated `0` — or an estimate laundered into a `measured` record — which is the exact class
 // the provenance column exists to prevent. On a BYOK OpenRouter turn `totalUsd = gatewayUsd (OR's fee, its

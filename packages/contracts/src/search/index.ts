@@ -24,13 +24,13 @@ export const memoryRetrievalModeSchema = z.enum(MEMORY_RETRIEVAL_MODES) satisfie
 const SEARCH_SUGGEST_MAX_LIMIT = 100;
 
 /** The `topN` CEILING for the vector-search verbs (`search.search`, `search.fields`, `search.similarArt` /
- *  `similarCharacters`), enforced at the transport trust boundary. Same #45 class as a `limit` field — a
+ *  `similarCharacters`), enforced at the transport trust boundary. Same unbounded-fetch class as a `limit` field — a
  *  top-N over a growing embedding corpus — just spelled `topN`; an over-bound ask is a BAD_REQUEST rather
  *  than an unbounded ranked fetch. Clients ask ≤ 20. */
 export const SEARCH_TOP_N_MAX = 200;
 
 /** ONE RANKED BLOCK as retrieval hands it back across the domain seam — the block's identity plus BOTH
- *  ranking readouts, so a caller that has to EXPLAIN a result (memory's recall trace, #250) is not left
+ *  ranking readouts, so a caller that has to EXPLAIN a result (memory's recall trace) is not left
  *  holding an unattributed key. `score` is the CSLS-adjusted rank signal (LOWER = closer, never rendered);
  *  `relevance` is cosine `1 − distance` (HIGHER = closer, the number a surface prints) — the split
  *  `domain/search/contract/results.ts` owns and states in full. Search's own `DigestSearchHit` EXTENDS this
@@ -126,8 +126,8 @@ export interface DiscoverSegment {
  *  verb deliberately omits it. */
 export interface ImageSearchHit {
   readonly assetId: AssetId;
-  /** The matched blob's CAS hash — an image result has to be able to SHOW the image (side-eye corpus
-   *  re-pass U4). Projected off the `assets` row the scan already joins for the owner belt. */
+  /** The matched blob's CAS hash — an image result has to be able to SHOW the image.
+   *  Projected off the `assets` row the scan already joins for the owner belt. */
   readonly hash: string;
   /** The current owned character wearing this asset, or null for an unattached asset detail. */
   readonly characterId: CharacterId | null;

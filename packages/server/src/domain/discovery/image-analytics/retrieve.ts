@@ -5,7 +5,7 @@
 // whole owner corpus (a family is "more X than YOUR LIBRARY is", and which model embedded it is not part of
 // that question).
 //
-// THE PIPELINE, END TO END, so nobody re-derives it (issue #164's audit deliverable):
+// THE PIPELINE, END TO END, so nobody re-derives it:
 //   1. `domain/embeddings/indexer/caption.ts` — ONE vision call per avatar returns a caption AND a
 //      grammar-enforced facet breakdown (`imageBreakdownSchema`, `@orb/contracts/embeddings`).
 //   2. The image indexer stores both in `image_analyses` through `persistence/image-analysis.ts`,
@@ -173,7 +173,7 @@ function rankCandidates(cluster: FacetCounts, corpus: FacetCounts, clusterSize: 
 /**
  * Compose ONE family's label from its ranked candidates, avoiding every label already handed out.
  *
- * DISTINCTNESS IS THE POINT, not a nicety (issue #164 item 3): two rows reading "wholesome slice-of-life" are
+ * DISTINCTNESS IS THE POINT, not a nicety: two rows reading "wholesome slice-of-life" are
  * two rows a reader cannot tell apart, which is worse than one row and a number. So a taken single-term label
  * grows a qualifying second term from a DIFFERENT facet, and only a family with nothing else to say at all
  * falls back to the honest unlabelled reading — which the client already renders as its member names.

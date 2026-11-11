@@ -1,8 +1,8 @@
 // The download registrar: the character card PNG/JSON, the chat transcript (jsonl/txt/orb), and the owner's
 // full/filtered portability bundle streamed as a zip. GET downloads carry no CSRF requirement.
 //
-// WHAT THE GATE ACTUALLY IS (truth-repair, side-eye 2026-08-08 — this header used to say "all routes are
-// owner/host-gated reads", which reads as "a credential is required" and is not what ships). Each route
+// WHAT THE GATE ACTUALLY IS ("all routes are owner/host-gated
+// reads" would read as "a credential is required", which is not what ships). Each route
 // requires a RESOLVED PRINCIPAL and nothing more: `null` ⇒ 401, otherwise the downstream verb scopes the read
 // to that principal (not-owned / not-host / missing all collapse to 404). WHO the principal is is decided
 // upstream, once, by the auth mode (`entry/app.ts`'s per-request middleware → `entry/auth/seam.ts`
@@ -10,7 +10,7 @@
 // unconditionally (`via:"fallback"`, `infra/auth.resolve`'s `ownerFallbackAllowed`). So a cookie-less request
 // to this door returns 200 in single-user mode, correctly: in that deployment the fallback owner IS the
 // principal. An origin is not a credential, which is why the DEBUG gate treats `via:"fallback"` as one only
-// on a non-production box (`seam.ts` `debugGateCredentialed`, #1193) — these routes deliberately gate on
+// on a non-production box (`seam.ts` `debugGateCredentialed`) — these routes deliberately gate on
 // nothing extra, because they serve the owner their own rows. Do not read "owner-gated" here as an
 // authentication claim.
 //

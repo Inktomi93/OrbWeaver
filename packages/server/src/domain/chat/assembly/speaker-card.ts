@@ -18,7 +18,7 @@
 // the `idx === -1` guard below and assemble as if it were a SOLO turn for the primary (a system row naming
 // only the primary on a turn that voices all the seated characters, with the model nonetheless attempting all the
 // seated characters from a nudge naming names it was never given a card for). The
-// `-1` guard stays, but it is a REFUSAL now, not a fallback (#1462): a genuinely off-roster speaker on a
+// `-1` guard stays, but it is a REFUSAL now, not a fallback: a genuinely off-roster speaker on a
 // PER-SPEAKER round is a wiring gap, and keeping the primary answered it by shipping the wrong character's
 // card under the asked-for speaker's name. Narrator does not reach it at all.
 //
@@ -62,7 +62,7 @@ function shapeContextForMultiVoice(ctx: AssembleContext, characters: readonly As
 /** PER-SPEAKER: `scoped` makes the named speaker's card the whole character section; `merged` renders the fixed
  *  roster layout instead (the same cards in the same order for every speaker).
  *
- *  AN OFF-ROSTER REF IS REFUSED, not absorbed (#1462). This used to `return ctx` — "keep the primary, never
+ *  AN OFF-ROSTER REF IS REFUSED, not absorbed. This used to `return ctx` — "keep the primary, never
  *  crash" — which is not a degrade but a WRONG ANSWER: the round still runs, the model is handed the PRIMARY's
  *  card and the primary's `{{char}}`, and the reply is attributed to the speaker that was asked for. A seat
  *  whose card read came back empty (`assembly/context` drops those ids from `speakerRefs`) hits exactly this

@@ -72,7 +72,7 @@ export type RpgExtraction = z.infer<typeof rpgExtractionSchema> & {
 // SCHEMA-VALID but WRONG refs (targeting "player" when the participant actor is "You", or shoving a location into
 // a nonexistent tracker) yields a silent empty panel — the phantom mint never renders. Constraining those
 // string fields to an `enum` of the ACTUAL per-call refs makes an invalid ref UNREPRESENTABLE at the token
-// level under a schema-enforcing backend (LIVE-VERIFIED 2026-07-27: vLLM xgrammar forced a "player" ask onto
+// level under a schema-enforcing backend (LIVE-VERIFIED: vLLM xgrammar forced a "player" ask onto
 // a valid participant ref; OpenRouter strict json_schema binds the same enum; agent-sdk at least sharpens the
 // post-parse belt). PORTABLE by construction — it returns plain JSON Schema, so each backend's existing
 // response_format mapping enforces it with ZERO provider-specific code. The extraction PROMPT still
@@ -292,7 +292,7 @@ export function constrainExtractionSchema<S extends Record<string, unknown>>(sch
   // scene.presentRemove is an ARRAY of ref strings (not an object array): constrain the array's item enum.
   const sceneProps = propsOf(propsOf(clone)?.["scene"]);
   constrainStringProperty(sceneProps?.["presentRemove"] !== undefined ? itemsOf(sceneProps["presentRemove"]) : undefined, refs.actorRefs);
-  // ESTABLISH-WHEN-UNSET (2026-07-28, the sad-path fix): the projected schema leaves `scene` OPTIONAL with
+  // ESTABLISH-WHEN-UNSET (the sad-path fix): the projected schema leaves `scene` OPTIONAL with
   // every inner field optional, so under xgrammar/`strict` a weak 8B legally OMITS the scene — and it did, so a
   // fresh game never established its location/time and the panel stayed empty (`rpg.extraction.empty`). Force
   // the ambient anchor REQUIRED, but ONLY while the current scene hasn't set it (`establishAmbient`, derived
@@ -325,7 +325,7 @@ export function constrainExtractionSchema<S extends Record<string, unknown>>(sch
   // backend the field is skippable. Re-marking it required in the projected grammar keeps the strong arm
   // strong: an enforcing wire (OR `strict`) must emit the kind, a non-enforcing one omits it and the applier
   // heals to `note` + logs. `title` is deliberately NOT re-required — its absence is fully recoverable from the
-  // content head, so forcing it would spend tokens on a field we derive for free (the 2026-07-27 ruling).
+  // content head, so forcing it would spend tokens on a field we derive for free (owner ruling).
   requireField(itemsOf(propsOf(clone)?.["journal"]), "type");
   // Brand-transparent: the clone of a projected schema is still projected (enums/required/pruning never
   // re-open an object node), so echo the caller's own type — a `WireReady` in stays `WireReady` out, without
@@ -369,11 +369,11 @@ export function cacheStableExtractionRefs(refs: ExtractionRefs, defs: readonly R
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// The CHEAP-mode TOOL ROUND — the parallel-tool-call vehicle (owner ruling 2026-07-27).
+// The CHEAP-mode TOOL ROUND — the parallel-tool-call vehicle (owner ruling).
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // Cheap mode is a DEDICATED, state-only request (NOT tools mounted on the character turn — that fight is
 // retired). The model gets the six state-writing tools + a `no_changes` escape, `tool_choice:"required"`, and
-// a state-focused prompt; it emits PARALLEL tool calls in ONE request (LIVE-VERIFIED 2026-07-27: vLLM
+// a state-focused prompt; it emits PARALLEL tool calls in ONE request (LIVE-VERIFIED: vLLM
 // hermes/Qwen3 + OpenRouter both emit 2-3 parallel calls on a change beat and a single `no_changes` on a
 // quiet one under `required`). The parsed calls fold to an `RpgExtraction` — the shared-plane proof made
 // literal: a tool round IS "the batch of tool calls the model would otherwise have made", so it reuses the
@@ -406,7 +406,7 @@ export interface RpgToolCall {
 /** Parse a tool call's raw JSON args, or null on non-JSON (a malformed call is DROPPED — errors-as-data for
  *  canon, mirroring the structured path's non-conforming-drop; never a throw into the flush).
  *
- *  EXPORTED because it is the ONE place the model's args string is decoded (#1690). rpg's member-facing
+ *  EXPORTED because it is the ONE place the model's args string is decoded. rpg's member-facing
  *  projection has to decode before it can belt the hidden spans out of the leaf values — running the strip
  *  over the ENCODED string is a silent false clean — and a second `JSON.parse` + catch there would be a
  *  second, differently-owned answer to "is this payload readable at all". A literal `null` payload decodes to
@@ -682,7 +682,7 @@ export function salvageExtraction(value: unknown): RpgExtractionSalvage {
 }
 
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
-// POPULATE-FROM-CHARACTER (owner ruling 2026-08-01) — the BORN-STATE schema, the ONE hand-only doorway.
+// POPULATE-FROM-CHARACTER (owner ruling) — the BORN-STATE schema, the ONE hand-only doorway.
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // A host-invoked, per-character, ONE-SHOT round over the character CARD + the room's OPENING message. It is a
 // DIFFERENT schema from `rpgExtractionSchema`, deliberately, and the difference cuts BOTH ways:
@@ -826,7 +826,7 @@ export interface RpgMalformedToolCall {
 /** Cap on a rendered offending value — a log line, not a payload dump. */
 const MALFORMED_VALUE_MAX = 80;
 
-/** THE SEPARATOR BEFORE THE MODEL-SENT VALUE, and the ONE home for it (#1690). An issue line is
+/** THE SEPARATOR BEFORE THE MODEL-SENT VALUE, and the ONE home for it. An issue line is
  *  `<path>: <message> — sent <json>`, and everything after this marker is bytes the MODEL wrote — which on a
  *  deception-active game can be a `<lie …/>` an extractor quoted into a state field. A member-facing reader
  *  therefore has to be able to find the seam, so the builder below and {@link projectIssueSentValue} read the
@@ -835,13 +835,13 @@ const SENT_VALUE_MARKER = " — sent ";
 
 /**
  * Re-render ONE issue line's model-sent value through `project`, keeping the `<path>: <message>` half intact
- * (#1690). `project` returns the replacement rendering, or `null` to DROP the value half entirely — the
+ *. `project` returns the replacement rendering, or `null` to DROP the value half entirely — the
  * fail-closed arm for a value that cannot be safely re-rendered (a truncated JSON literal, a non-JSON
  * `(absent)` marker). A line with no sent value is returned unchanged.
  *
  * WHY THE CALLER PROJECTS RATHER THAN THIS FUNCTION STRIPPING: the value is JSON-ENCODED here, and the
  * hidden-span recognizer walks `"…"` attr values with `\` escapes — so running a strip over the ENCODED form
- * matches nothing and reports `hadHidden: false`, a silent false clean (measured 2026-09-05). Only a caller
+ * matches nothing and reports `hadHidden: false`, a silent false clean (measured). Only a caller
  * that decodes first can strip it, and only rpg knows the belt.
  */
 export function projectIssueSentValue(issue: string, project: (sent: string) => string | null): string {
@@ -936,7 +936,7 @@ export function salvagedToolCallFields(calls: readonly RpgToolCall[]): readonly 
 // THE RECORDED CALL — the ONE projection of "what the model called and what survived the schema"
 // ══════════════════════════════════════════════════════════════════════════════════════════════════
 // THREE consumers read this and they may never disagree: the compose WARN (`logToolCallLosses`), the rpg
-// flight-recorder RING (R-OBS, `/api/_debug/rpg/traces`), and the DURABLE per-variant row the user-facing
+// flight-recorder RING (`/api/_debug/rpg/traces`), and the DURABLE per-variant row the user-facing
 // disclosure reads (`rpg_turn_tool_calls`). Each previously would have had to re-derive the verdict from the
 // two loss lenses below, and three re-derivations of one rule is three chances for the surface to say
 // "applied" about a call the fold dropped. So the rule lives HERE, once, beside the lenses it composes.
@@ -976,7 +976,7 @@ export type RpgRecordedToolCall = Readonly<z.infer<typeof rpgRecordedToolCallSch
 /** Project a turn's tool calls onto their per-call verdicts, by composing the two loss lenses above — so the
  *  record, the warn and the ring are the same derivation rather than three agreeing ones.
  *
- *  THE JOIN IS THE CALL, NOT THE NAME (#1370). This used to fold the lenses' whole-turn output into a
+ *  THE JOIN IS THE CALL, NOT THE NAME. This used to fold the lenses' whole-turn output into a
  *  name-keyed `Map` and look each call up by `call.name` — but a turn may hold SEVERAL calls to one tool, and
  *  a `Map` built from duplicate keys keeps only the last. One malformed `update_party` therefore marked EVERY
  *  `update_party` in the turn `dropped`, with the malformed call's issues attached to the valid one, and that
@@ -1085,7 +1085,7 @@ function lockIssue(path: string): string {
   return `locked ${path} — your manual edit holds this value`;
 }
 
-/** Mark a turn's recorded calls with the writes a hand LOCK suppressed at the merge (#77).
+/** Mark a turn's recorded calls with the writes a hand LOCK suppressed at the merge.
  *
  *  WHY IT IS A SEPARATE PASS over {@link recordToolCalls}: the schema verdicts are knowable the instant the
  *  calls parse, while a lock drop is only knowable after the state is composed and merged — two different

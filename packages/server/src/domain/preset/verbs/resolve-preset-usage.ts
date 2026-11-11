@@ -1,4 +1,4 @@
-// op: resolvePresetUsage — where a preset is bound from OUTSIDE its library (#279), the CONTEXT panel's "used by".
+// op: resolvePresetUsage — where a preset is bound from OUTSIDE its library, the CONTEXT panel's "used by".
 //
 // A CHAT DOES NOT CARRY A PRESET: a room's generation config resolves per turn from its host's
 // `seeds.defaultPresetId`. So "which chats use this preset" has two honest answers of different KINDS:

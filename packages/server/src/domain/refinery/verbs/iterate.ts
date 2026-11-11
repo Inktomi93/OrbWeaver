@@ -8,7 +8,7 @@
 // picks it up) and the counter is NOT bumped — `iterationCount` counts COMPLETED rounds, the runs' own
 // `iteration` stamps stay 0-based per round.
 //
-// WHAT THE COUNTER IS NOT: THE IN-FLIGHT CLAIM — and it never became one (#1445 → #1568). A round is
+// WHAT THE COUNTER IS NOT: THE IN-FLIGHT CLAIM — and it never becomes one. A round is
 // SERIALIZED by a separate LEASED claim on the session (`substrate/round-claim.ts`), taken here BEFORE the
 // first model call and released on both the commit and the failure arm; a second concurrent round cannot take
 // it and is refused `RefineryRoundInFlightError` having spent nothing. The three alternatives that were
@@ -63,7 +63,7 @@ export function createIterate(ctx: RefineryContext, deps: StageEngineDeps): Refi
       const rewrite = await deps.executeStage({ principal, sessionId, stage: "rewrite", isRefinement: true });
       const analyze = await deps.executeStage({ principal, sessionId, stage: "analyze", isRefinement: true });
 
-      // THE COUNTER IS INCREMENTED IN SQL, NEVER FROM THE LOADED SNAPSHOT (#1445). `row` was read before
+      // THE COUNTER IS INCREMENTED IN SQL, NEVER FROM THE LOADED SNAPSHOT. `row` was read before
       // two long model calls, so `row.iterationCount + 1` is a stale basis: two rounds running concurrently
       // on one session would both write the SAME number, both RETURN it, and leave the counter one behind
       // the rounds that actually completed. A read-modify-write over a monotonic tally has no honest

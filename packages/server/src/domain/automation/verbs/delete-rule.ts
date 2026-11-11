@@ -16,7 +16,7 @@ export function createDeleteRule(ctx: AutomationContext): AutomationService["del
     // them); drop them with it. The in-RAM store has no FK to cascade for it.
     ctx.suggestions.voidRule(ruleId);
     // Deleting an enabled rule can empty a chat's rule set (or the last domain rule) — refresh the pre-check.
-    // `refresh`, not `reload` (#1431): the DELETE is already committed, so an index failure must not reject an
+    // `refresh`, not `reload`: the DELETE is already committed, so an index failure must not reject an
     // operation that SUCCEEDED — it latches stale (reads fail OPEN, so canon decides) and the watcher front
     // door rebuilds on the next event. The alternative shipped the worst pair: a caller told the delete
     // failed, and an index that keeps dispatching the deleted rule.
