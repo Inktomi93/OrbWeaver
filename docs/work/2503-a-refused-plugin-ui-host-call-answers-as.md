@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P2
 area: plugins
+lane: wt/agent-a06d7ca7c655446af
 ---
 
 # A refused plugin UI host call answers as an unknown server fault
