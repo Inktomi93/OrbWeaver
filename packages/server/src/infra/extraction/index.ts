@@ -6,11 +6,12 @@
 // precedent). Superseded the dep-free `entry/compose/databank-extract.ts` textlike passthrough (deleted): its
 // `textlike` loader is now `loaders/textlike.ts`, and the pdf/html loaders slotted in behind the same op.
 //
-// Error taxonomy: an unknown mime throws `UnsupportedDocTypeError` BEFORE any parse (a 415-class,
-// never retried, never wrapped); any loader failure is wrapped as `ExtractionFailedError(format, {cause})`
-// (corrupt/encrypted/invalid file — a corrupt zip for docx/epub included). Empty text is NOT an error — the op
-// returns it truthfully (`charCount` tells the story; the upload verb surfaces an `empty-extraction` warning,
-// not a throw).
+// Error taxonomy: an unknown mime throws `UnsupportedDocTypeError` BEFORE any parse (never retried, never
+// wrapped); any loader failure is wrapped as `ExtractionFailedError(format, {cause})` (corrupt/encrypted/invalid
+// file — a corrupt zip for docx/epub included). Both are coded `DomainOperationError`s, so the transport answers
+// them as client errors; the loader's own error rides only as the cause and never reaches the wire. Empty text
+// is NOT an error — the op returns it truthfully (`charCount` tells the story; the upload verb surfaces an
+// `empty-extraction` warning, not a throw).
 
 import type { DocFormat, ExtractionMeta, ExtractionResult, ExtractTextOp } from "@orb/contracts/extraction";
 import { docFormatForMime, ExtractionFailedError, UnsupportedDocTypeError } from "@orb/contracts/extraction";

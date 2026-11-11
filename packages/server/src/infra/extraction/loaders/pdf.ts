@@ -3,8 +3,10 @@
 // on the main thread with a fake worker (no `GlobalWorkerOptions.workerSrc` set) and reads text content only,
 // never rasterizing (no canvas/fonts needed for `getTextContent`). Verified extracting under plain node 24.
 //
-// Text assembly: per page, text items joined with spaces, `hasEOL` items end a line, lines joined
-// `\n`; pages joined `\n\n`. `pageCount` from the document; `title` from the info-dict when present. Encrypted
+// Text assembly: per page, text items concatenated with NO separator, `hasEOL` items end a line, lines joined
+// `\n`; pages joined `\n\n`. pdfjs states every gap between items as a space character, inside an item's `str`
+// or as a whitespace-only item of its own, and closes a line with an empty `hasEOL` item after a font change; a
+// separator of ours adds a space the page does not draw. `pageCount` from the document; `title` from the info-dict when present. Encrypted
 // / corrupt / truncated pdfs throw (PasswordException / InvalidPDFException) — the dispatch wraps them as
 // ExtractionFailedError. Empty text is truthful (a scanned image-only pdf has no text layer; no OCR).
 
@@ -22,29 +24,28 @@ type TextMarkedContent = Exclude<TextContentItem, TextItem>;
 
 const PAGE_SEPARATOR = "\n\n";
 const LINE_SEPARATOR = "\n";
-const ITEM_SEPARATOR = " ";
 
 /** A text-content item that carries a string (vs a `TextMarkedContent` structural marker). */
 function isTextItem(item: TextItem | TextMarkedContent): item is TextItem {
   return "str" in item;
 }
 
-/** Assemble one page's text items: space-join items on a line, break the line on `hasEOL`, join lines `\n`. */
+/** Assemble one page's text items: concatenate the items of a line, break the line on `hasEOL`, join lines `\n`. */
 function assemblePage(items: readonly (TextItem | TextMarkedContent)[]): string {
   const lines: string[] = [];
-  let line: string[] = [];
+  let line = "";
   for (const item of items) {
     if (!isTextItem(item)) {
       continue;
     }
-    line.push(item.str);
+    line += item.str;
     if (item.hasEOL) {
-      lines.push(line.join(ITEM_SEPARATOR));
-      line = [];
+      lines.push(line);
+      line = "";
     }
   }
   if (line.length > 0) {
-    lines.push(line.join(ITEM_SEPARATOR));
+    lines.push(line);
   }
   return lines.join(LINE_SEPARATOR);
 }

@@ -5,10 +5,14 @@
 // "unsupported type" vs "extraction failed" distinctly.
 //
 // The error taxonomy is load-bearing: `UnsupportedDocTypeError` = the caller sent a type the system
-// does not do (thrown BEFORE any parse; a 415-class, never retried, never wrapped); `ExtractionFailedError` =
+// does not do (thrown BEFORE any parse; never retried, never wrapped); `ExtractionFailedError` =
 // a supported format's loader threw (corrupt/encrypted/invalid file) — retryable only in the sense that a
-// FUTURE `EXTRACTOR_VERSION` may succeed. Empty text is NOT an error (a scanned image-only PDF extracts to
+// FUTURE `EXTRACTOR_VERSION` may succeed. Both are `DomainOperationError`s with their own code
+// ({@link EXTRACTION_OP_CODES}), so the transport's one classifier answers each as a client error that carries
+// that code, on every door that reaches the op. Empty text is NOT an error (a scanned image-only PDF extracts to
 // near-empty; `charCount` tells the story, the upload verb surfaces a warning, not a throw).
+
+import { DomainOperationError } from "@orb/kit/errors";
 
 // The document formats extraction can dispatch to. The MIME→format map + the format→loader Record derive
 //  from this ONE tuple; a new member without a loader is a tsc error in `infra/extraction`.
@@ -91,24 +95,32 @@ export interface ExtractionResult {
  *  DECLARED mime (the sniff belt already ran at `assets.store`). */
 export type ExtractTextOp = (bytes: Uint8Array, mime: string) => Promise<ExtractionResult>;
 
-/** mime maps to no loader. Thrown BEFORE any parse. User-fixable; transport maps it to a 415-class error;
- *  NEVER retried; NEVER wrapped in {@link ExtractionFailedError}. */
-export class UnsupportedDocTypeError extends Error {
+/** The `DomainOperationError` code each extraction refusal carries; the transport sends it as the error's reason. */
+export const EXTRACTION_OP_CODES = {
+  unsupportedType: "unsupported_doc_type",
+  failed: "extraction_failed",
+} as const;
+
+/** mime maps to no loader. Thrown BEFORE any parse. User-fixable; the transport answers it as a client error
+ *  coded {@link EXTRACTION_OP_CODES}`.unsupportedType`; NEVER retried; NEVER wrapped in {@link ExtractionFailedError}. */
+export class UnsupportedDocTypeError extends DomainOperationError {
   readonly mime: string;
   constructor(mime: string) {
-    super(`unsupported document type: ${mime}`);
-    this.name = "UnsupportedDocTypeError";
+    super(EXTRACTION_OP_CODES.unsupportedType, `unsupported document type: ${mime}`);
     this.mime = mime;
   }
 }
 
 /** A supported format's loader threw (corrupt/encrypted/invalid file, or a loader bug). Carries the format +
- *  the underlying cause. An immediate retry is pointless; a future extractor version may succeed. */
-export class ExtractionFailedError extends Error {
+ *  the underlying cause. An immediate retry is pointless; a future extractor version may succeed. The message
+ *  names only the format: the cause is the loader's own text and stays on the server. */
+export class ExtractionFailedError extends DomainOperationError {
   readonly format: DocFormat;
-  constructor(format: DocFormat, options?: { cause?: unknown }) {
-    super(`extraction failed for format: ${format}`, options);
-    this.name = "ExtractionFailedError";
+  constructor(format: DocFormat, options?: { readonly cause?: unknown }) {
+    super(EXTRACTION_OP_CODES.failed, `extraction failed for format: ${format}`);
     this.format = format;
+    if (options?.cause !== undefined) {
+      this.cause = options.cause;
+    }
   }
 }

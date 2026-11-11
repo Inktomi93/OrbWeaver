@@ -9,7 +9,7 @@
 // @subject packages/server/src/infra/extraction/loaders/docx.ts
 // @subject packages/server/src/infra/extraction/loaders/epub.ts
 
-import { docUploadMime, ExtractionFailedError, UnsupportedDocTypeError } from "@orb/contracts/extraction";
+import { docUploadMime, EXTRACTION_OP_CODES, ExtractionFailedError, UnsupportedDocTypeError } from "@orb/contracts/extraction";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { strToU8, zipSync } from "fflate";
@@ -47,8 +47,9 @@ function buildPdf(contentStreams: readonly string[]): Uint8Array {
   return strToU8(file);
 }
 
-// Page one: line two is drawn in two fonts, so it holds two text items the loader joins with a space.
-const PDF_PAGE_ONE = "BT /F1 12 Tf 72 720 Td (Lantern oil) Tj 0 -24 Td (burns) Tj /F2 12 Tf (slow.) Tj ET";
+// Page one: line two is drawn in two fonts with a gap between the words, so it holds two text items and the space
+// pdfjs reports for the gap.
+const PDF_PAGE_ONE = "BT /F1 12 Tf 72 720 Td (Lantern oil) Tj 0 -24 Td (burns) Tj 40 0 Td /F2 12 Tf (slow.) Tj ET";
 const PDF_PAGE_TWO = "BT /F1 12 Tf 72 720 Td (The second page.) Tj ET";
 const PDF_TEXT = "Lantern oil\nburns slow.\n\nThe second page.";
 
@@ -135,13 +136,38 @@ test.for(DOCUMENTS)("an uploaded $filename reads back as its normalized text", a
   expect(uploaded.document.charCount).toBe(read.charCount);
 });
 
+// pdfjs states every gap on a line as a space character, inside an item or as an item of its own, and ends a line
+// with `hasEOL`. Each page is one line pair or one line, so the text is exactly what the page draws.
+const PDF_JOINS: readonly { readonly label: string; readonly stream: string; readonly text: string }[] = [
+  {
+    label: "a line that ends after a font change",
+    stream: "BT /F1 12 Tf 72 720 Td (Lantern oil) Tj /F2 12 Tf 0 -24 Td (Second line.) Tj ET",
+    text: "Lantern oil\nSecond line.",
+  },
+  { label: "two items with no gap between them", stream: "BT /F1 12 Tf 72 720 Td (Wick) Tj /F2 12 Tf (ed) Tj ET", text: "Wicked" },
+  { label: "two items with a gap between them", stream: "BT /F1 12 Tf 72 720 Td (Lantern) Tj 60 0 Td /F2 12 Tf (oil) Tj ET", text: "Lantern oil" },
+  {
+    label: "a space the page draws as an item of its own",
+    stream: "BT /F1 12 Tf 72 720 Td (Lantern) Tj /F2 12 Tf ( ) Tj /F1 12 Tf (oil) Tj ET",
+    text: "Lantern oil",
+  },
+];
+
+test.for(PDF_JOINS)("a pdf with $label reads back as the page draws it", async ({ stream, text }) => {
+  await using root = await createServerHarness();
+  const principal = await root.principalFor(root.ownerId);
+  const filename = "joins.pdf";
+  const uploaded = await root.services.databank.upload({ principal, bytes: buildPdf([stream]), mime: mimeOf(filename), name: filename });
+  expect((await root.services.databank.get({ principal, id: uploaded.document.id, includeText: true })).extractedText).toBe(text);
+});
+
 test("a document type extraction does not do is refused before any parse and stores no document", async () => {
   await using root = await createServerHarness();
   const principal = await root.principalFor(root.ownerId);
   const unsupported = { principal, bytes: strToU8("id,name\n1,lantern\n"), mime: "text/csv", name: "ledger.csv" };
   const refusal = root.services.databank.upload(unsupported);
   await expect(refusal).rejects.toBeInstanceOf(UnsupportedDocTypeError);
-  await expect(refusal).rejects.toMatchObject({ mime: unsupported.mime });
+  await expect(refusal).rejects.toMatchObject({ code: EXTRACTION_OP_CODES.unsupportedType, mime: unsupported.mime });
   expect((await root.services.databank.list({ principal })).items).toEqual([]);
 
   // The same root takes a supported document, so the refusal above is the extraction's answer, not a dead upload path.
@@ -162,6 +188,8 @@ const CORRUPT: readonly Pick<DocumentCase, "filename" | "bytes">[] = [
 test.for(CORRUPT)("a corrupt $filename fails extraction and stores no document", async ({ filename, bytes }) => {
   await using root = await createServerHarness();
   const principal = await root.principalFor(root.ownerId);
-  await expect(root.services.databank.upload({ principal, bytes, mime: mimeOf(filename), name: filename })).rejects.toBeInstanceOf(ExtractionFailedError);
+  const refusal = root.services.databank.upload({ principal, bytes, mime: mimeOf(filename), name: filename });
+  await expect(refusal).rejects.toBeInstanceOf(ExtractionFailedError);
+  await expect(refusal).rejects.toMatchObject({ code: EXTRACTION_OP_CODES.failed });
   expect((await root.services.databank.list({ principal })).items).toEqual([]);
 });
