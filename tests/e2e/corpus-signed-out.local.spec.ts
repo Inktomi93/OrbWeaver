@@ -17,6 +17,7 @@ import { loginLocal } from "./support/actors.ts";
 import { waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";
 import { BROWSER_PROJECTS, CORPUS_LOCAL_PASSWORDS, SELECTED_LOCAL_CORPUS_FIXTURE } from "./support/modes.ts";
+import { serverNow } from "./support/server-clock.ts";
 import { WAIT_SETTLE_MS } from "./support/timeouts.ts";
 
 const AUTH_ME = "**/api/auth/me";
@@ -88,7 +89,7 @@ async function withSignupInvite(baseURL: string, run: (token: string) => Promise
     // A signup link: a signed-out visitor may create an account through it, inside the server's signup bounds.
     const invite = await host.trpc.invites.createInvite.mutate({
       chatId: started.chat.id,
-      input: { allowSignup: true, maxUses: 1, expiresAt: Date.now() + SIGNUP_MAX_TTL_MS / 2 },
+      input: { allowSignup: true, maxUses: 1, expiresAt: (await serverNow(baseURL)) + SIGNUP_MAX_TTL_MS / 2 },
     });
     await run(invite.token);
   } finally {

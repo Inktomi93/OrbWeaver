@@ -9,6 +9,7 @@ import { createSeededIds, FIXTURE_ID_CURSOR, nonEmpty } from "@orb/testkit/iso";
 import type { Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { openChatByTitle, renameOpenChat } from "./support/chat-room.ts";
+import { runName } from "./support/run-names.ts";
 import type { StreamTap } from "./support/stream-tap.ts";
 import { chatFrameTypes, tapStream, waitForRoomOpened } from "./support/stream-tap.ts";
 import { WAIT_SHORT_MS, WAIT_UI_MS } from "./support/timeouts.ts";
@@ -43,7 +44,7 @@ async function openSeededRoom(page: Page, tap: StreamTap): Promise<ChatId> {
     throw new Error("global-setup seeds a character on every stack");
   }
   const chatId = await startChat([characterId]);
-  const title = `e2e-seq-open-${Date.now()}`;
+  const title = runName("e2e-seq-open");
   await trpc.chat.updateTitle.mutate({ chatId, title });
   const since = tap.chatFrames.length;
   await openChatByTitle(page, title);
@@ -191,7 +192,7 @@ test.describe("order-of-operations", () => {
     const roomId = await openSeededRoom(page, tap);
     try {
       const framesBefore = tap.chatFrames.length;
-      const newTitle = `e2e-seq-${Date.now()}`;
+      const newTitle = runName("e2e-seq");
       await renameOpenChat(page, newTitle);
       await expect(page.getByText(newTitle).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
       await expect.poll(() => chatFrameTypes(tap, roomId, framesBefore), { timeout: WAIT_UI_MS }).toContain(CHAT_UPDATED);

@@ -17,6 +17,7 @@ import { DEFAULT_PERSONA_NAME } from "@orb/kit/persona";
 import type { Locator, Page } from "@playwright/test";
 import { expect, test } from "@playwright/test";
 import { messageRow, openNewestChat, renameOpenChat, reopenFirstChat, sendAndAwaitReply, waitForStreamOpen } from "./support/chat-room.ts";
+import { runName } from "./support/run-names.ts";
 import { frameCursor, tapStream } from "./support/stream-tap.ts";
 import { CASE_LIVE_FOLLOW_UP_MS, WAIT_SHORT_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import { canonMessage, deleteChat, listCanon, mintFreshCharacter, removeCharacter, startChat } from "./support/trpc.ts";
@@ -68,7 +69,7 @@ test("row speaker names are DB-true and survive a chat rename + reload", {
     await expectSpeakerNames(page, rows);
 
     // ── Rename the CHAT: the TITLE propagates, the row SPEAKER names do not change. ──
-    const newTitle = `e2e-names-${Date.now()}`;
+    const newTitle = runName("e2e-names");
     await renameOpenChat(page, newTitle);
     await expect(page.getByText(newTitle).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
     await expectSpeakerNames(page, rows);

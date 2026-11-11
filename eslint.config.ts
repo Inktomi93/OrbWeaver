@@ -481,6 +481,39 @@ const EMPTY_POPULATION_RESTRICTIONS = [
   },
 ];
 
+// Package source reads time through an injected clock (Spine-Testing §3). The ambient clock is a `Date.now` read
+// (called, passed or destructured), `Date()` called without `new`, a bare `new Date()`, each also through
+// `globalThis.Date`, and `performance.timeOrigin + performance.now()`. Each home below constructs the clock it injects.
+const dateAt = (path: string): string =>
+  `:matches([${path}.type='Identifier'][${path}.name='Date'], [${path}.type='MemberExpression'][${path}.object.name='globalThis'][${path}.property.name='Date'])`;
+const performanceRead = (path: string, name: string): string => `[${path}.object.name='performance'][${path}.property.name='${name}']`;
+const CLOCK_SYNTAX = {
+  selector: `:matches(${[
+    `MemberExpression${dateAt("object")}${memberNamed("now")}`,
+    `VariableDeclarator${dateAt("init")} > ObjectPattern > Property[key.name='now']`,
+    `CallExpression${dateAt("callee")}`,
+    `NewExpression${dateAt("callee")}[arguments.length=0]`,
+    `BinaryExpression[operator='+']${performanceRead("left", "timeOrigin")}${performanceRead("right.callee", "now")}`,
+    `BinaryExpression[operator='+']${performanceRead("right", "timeOrigin")}${performanceRead("left.callee", "now")}`,
+  ].join(", ")})`,
+  message:
+    "Read time through the injected clock (Spine-Testing §3); `Date.now`, `Date()`, a bare `new Date()` and `performance.timeOrigin + performance.now()` read the ambient clock.",
+};
+// A test reads the same ambient clock the package selector names, and the ambient PRNG beside it (Spine-Testing §3).
+const mathAt = (path: string): string =>
+  `:matches([${path}.type='Identifier'][${path}.name='Math'], [${path}.type='MemberExpression'][${path}.object.name='globalThis'][${path}.property.name='Math'])`;
+const TEST_DETERMINISM_SYNTAX = [
+  {
+    selector: CLOCK_SYNTAX.selector,
+    message:
+      "A test reads time from the frozen clock (createFrozenClock from @orb/testkit/iso) and passes it to the harness (Spine-Testing §3); `Date.now`, `Date()` and a bare `new Date()` read the wall clock.",
+  },
+  {
+    selector: `:matches(MemberExpression${mathAt("object")}${memberNamed("random")}, VariableDeclarator${mathAt("init")} > ObjectPattern > Property[key.name='random'])`,
+    message: "A test draws ids and values from a seeded source (createSeededIds from @orb/testkit/iso) (Spine-Testing §3); `Math.random` differs on every run.",
+  },
+];
+
 // A later block that sets `no-restricted-syntax` replaces this list, so every test class composes it instead of restating a part.
 const TEST_SYNTAX = [
   INTERNAL_MODULE_MOCK_RESTRICTION,
@@ -488,6 +521,7 @@ const TEST_SYNTAX = [
   ...TEST_ENVIRONMENT_RESTRICTIONS,
   ...OWNED_DB_RESTRICTIONS,
   ...EMPTY_POPULATION_RESTRICTIONS,
+  ...TEST_DETERMINISM_SYNTAX,
 ];
 // A suite whose subject is the database client, the testkit's own database owners and the child process that holds a raw connection open and close the handle themselves.
 const CLIENT_SUBJECT_TEST_SYNTAX = TEST_SYNTAX.filter((restriction) => restriction !== RAW_DB_OPEN_RESTRICTION);
@@ -635,24 +669,6 @@ const DB_OPEN_JSON_COLUMN_SYNTAX = {
     "Type a JSON column with a shape its writer and reader both import from @orb/contracts or @orb/kit (.claude/rules/db.md); `JsonValue` from @orb/kit/json is the type for free-form JSON.",
 };
 
-// Package source reads time through an injected clock (Spine-Testing §3). The ambient clock is a `Date.now` read
-// (called, passed or destructured), `Date()` called without `new`, a bare `new Date()`, each also through
-// `globalThis.Date`, and `performance.timeOrigin + performance.now()`. Each home below constructs the clock it injects.
-const dateAt = (path: string): string =>
-  `:matches([${path}.type='Identifier'][${path}.name='Date'], [${path}.type='MemberExpression'][${path}.object.name='globalThis'][${path}.property.name='Date'])`;
-const performanceRead = (path: string, name: string): string => `[${path}.object.name='performance'][${path}.property.name='${name}']`;
-const CLOCK_SYNTAX = {
-  selector: `:matches(${[
-    `MemberExpression${dateAt("object")}${memberNamed("now")}`,
-    `VariableDeclarator${dateAt("init")} > ObjectPattern > Property[key.name='now']`,
-    `CallExpression${dateAt("callee")}`,
-    `NewExpression${dateAt("callee")}[arguments.length=0]`,
-    `BinaryExpression[operator='+']${performanceRead("left", "timeOrigin")}${performanceRead("right.callee", "now")}`,
-    `BinaryExpression[operator='+']${performanceRead("right", "timeOrigin")}${performanceRead("left.callee", "now")}`,
-  ].join(", ")})`,
-  message:
-    "Read time through the injected clock (Spine-Testing §3); `Date.now`, `Date()`, a bare `new Date()` and `performance.timeOrigin + performance.now()` read the ambient clock.",
-};
 const SERVER_CLOCK_HOME = homes("packages/server/src/entry/lifecycle.ts");
 const KIT_CLOCK_HOME = homes("packages/kit/src/time/index.ts");
 // Every server stream is a room on the one `stream.connect` socket (D118). The stream router is the socket's own home,

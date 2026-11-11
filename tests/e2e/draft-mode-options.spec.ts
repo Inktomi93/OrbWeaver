@@ -20,6 +20,7 @@ import {
   renameOpenChat,
   waitForAppReady,
 } from "./support/chat-room.ts";
+import { runName } from "./support/run-names.ts";
 import { WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import { createLiteGame, mintFreshCharacter, removeCharacter, trpc } from "./support/trpc.ts";
 
@@ -63,7 +64,7 @@ test("committed room: the ⋯ options menu is present with its actions enabled",
 
 test("start click mounts the real room surface and the first row write claims the husk into the library", async ({ page }) => {
   const characterId = await mintFreshCharacter(DRAFT_HANDLE, DRAFT_CHARACTER, DRAFT_GREETING);
-  const claimedTitle = `e2e-husk-claimed-${Date.now()}`;
+  const claimedTitle = runName("e2e-husk-claimed");
   try {
     await openFreshHusk(page);
 
@@ -89,7 +90,7 @@ test("start click mounts the real room surface and the first row write claims th
 
 test("turning game mode on in an unsent room claims it into the Chats list", async ({ page }) => {
   const characterId = await mintFreshCharacter(DRAFT_HANDLE, DRAFT_CHARACTER, DRAFT_GREETING);
-  const gameTitle = `e2e-game-claimed-${Date.now()}`;
+  const gameTitle = runName("e2e-game-claimed");
   try {
     // A title given at creation does not claim, so the row is hidden until the game is created.
     const started = await trpc.chat.startChat.mutate({ characterIds: [characterId], title: gameTitle });

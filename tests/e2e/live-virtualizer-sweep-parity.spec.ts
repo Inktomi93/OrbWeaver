@@ -16,6 +16,7 @@ import { castId } from "@orb/kit/ids";
 import { expect, test } from "@playwright/test";
 import { CHAT_LIST_NAME, CHAT_MESSAGE_INPUT_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { gotoChatsList, waitForStreamOpen } from "./support/chat-room.ts";
+import { runName } from "./support/run-names.ts";
 import { frameCursor, tapStream } from "./support/stream-tap.ts";
 import { CASE_LIVE_LOOP_MS, WAIT_SURFACE_MS } from "./support/timeouts.ts";
 import { listCanon, listCharacters, sendTurn, startChat, trpc } from "./support/trpc.ts";
@@ -46,7 +47,7 @@ test("collectVirtualRows sweeps a transcript longer than the viewport and matche
   // updatedAt AFTER our seeding finishes, PERSISTENTLY floating a foreign chat to the top of the Chats list —
   // the sweep would then faithfully collect the WRONG chat. An authored unique title makes the target row
   // addressable regardless of updatedAt ordering.
-  const chatTitle = `sweep-parity-${Date.now()}`;
+  const chatTitle = runName("sweep-parity");
   await trpc.chat.updateTitle.mutate({ chatId, title: chatTitle });
 
   await tapStream(page);

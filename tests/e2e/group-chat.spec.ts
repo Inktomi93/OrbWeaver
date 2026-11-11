@@ -52,6 +52,7 @@ import {
   openGroupBehaviorSection,
   openMemberRowMenu,
 } from "./support/chat-room.ts";
+import { runName } from "./support/run-names.ts";
 import { WAIT_ROUND_TRIP_MS, WAIT_SURFACE_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 import type { TrpcClientOutput } from "./support/trpc.ts";
 import {
@@ -109,7 +110,7 @@ function seatFor(seats: readonly RosterSeat[], characterId: CharacterId): Roster
 
 test("a solo room converts to a group: the character bar and Group-behavior section appear live while Members remains available", async ({ page }) => {
   const characters = await mintCharacters(2);
-  const title = `e2e-group-convert-${Date.now()}`;
+  const title = runName("e2e-group-convert");
   const chat = await startGroupChat({ characterIds: characters.characterIds.slice(0, 1), title });
   try {
     await openChatByTitle(page, title);
@@ -153,7 +154,7 @@ test("a solo room converts to a group: the character bar and Group-behavior sect
 
 test("removing a character through the Members row menu drops the seat server-side and shrinks the room back to solo", async ({ page }) => {
   const characters = await mintCharacters(2);
-  const title = `e2e-group-remove-${Date.now()}`;
+  const title = runName("e2e-group-remove");
   const chat = await startGroupChat({ characterIds: characters.characterIds, title });
   try {
     await openChatByTitle(page, title);
@@ -178,7 +179,7 @@ test("group config round-trips through the Group-behavior section: output / spea
   page,
 }) => {
   const characters = await mintCharacters(2);
-  const title = `e2e-group-config-${Date.now()}`;
+  const title = runName("e2e-group-config");
   const chat = await startGroupChat({ characterIds: characters.characterIds, title });
   try {
     // The starting point is the canonical default (per-speaker × natural × sheet) — so every flip below is
@@ -232,7 +233,7 @@ test("group config round-trips through the Group-behavior section: output / spea
 
 test("per-speaker card scope persists: scoping each character to their own card round-trips through the Group-behavior section", async ({ page }) => {
   const characters = await mintCharacters(2);
-  const title = `e2e-group-scope-${Date.now()}`;
+  const title = runName("e2e-group-scope");
   const chat = await startGroupChat({ characterIds: characters.characterIds, title });
   try {
     expect(await cardScope(chat.id)).toBe("merged");
@@ -261,7 +262,7 @@ test("per-speaker card scope persists: scoping each character to their own card 
 
 test("seat knobs are per-seat: muting one member and re-weighting another persist independently", async ({ page }) => {
   const characters = await mintCharacters(2);
-  const title = `e2e-group-seats-${Date.now()}`;
+  const title = runName("e2e-group-seats");
   const chat = await startGroupChat({ characterIds: characters.characterIds, title });
   const [alphaId, bravoId] = [characters.characterIds[0] ?? castId<CharacterId>(""), characters.characterIds[1] ?? castId<CharacterId>("")];
   try {
