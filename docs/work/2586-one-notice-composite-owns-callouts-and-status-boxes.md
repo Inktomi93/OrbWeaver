@@ -21,6 +21,29 @@ With no owner, tone and voice vary by site.
 
 A notice composite exists in the tier the law allows, every listed site uses it, and the census lists the cohort.
 
+## Sites
+
+| Site | What it is |
+| - | - |
+| `packages/client/src/features/preset/components/capability-gate.tsx:82` | Hand-spelled callouts and status boxes |
+| `packages/client/src/features/preset/components/prompt-assembly/assembly-rack.tsx:111` | Hand-spelled callouts and status boxes |
+| `packages/client/src/features/preset/components/prompt-assembly/assembly-rack.tsx:124` | Hand-spelled callouts and status boxes |
+| `packages/client/src/features/preset/components/prompt-assembly/pivot-band.tsx:36` | Hand-spelled callouts and status boxes |
+| `packages/client/src/features/preset/components/prompt-assembly/pivot-band.tsx:51` | Hand-spelled callouts and status boxes |
+| `packages/client/src/features/preset/components/readout/readout-binding.tsx:38` | Hand-spelled callouts and status boxes |
+| `packages/client/src/features/preset/components/readout/readout-parts.tsx:167` | Hand-spelled callouts and status boxes |
+| `packages/client/src/features/preset/components/staleness-row.tsx:85` | Hand-spelled callouts and status boxes |
+| `packages/client/src/features/preset/components/template-drill-in.tsx:400` | Hand-spelled callouts and status boxes |
+| `packages/client/src/features/preset/components/prompt-assembly/section-body.tsx:170` | Hand-spelled callouts and status boxes |
+| `packages/client/src/features/preset/components/prompt-assembly/assembly-preview.tsx:86` | Hand-spelled callouts and status boxes |
+| `packages/client/src/features/chat/components/message-choices-block.tsx:58` | Hand-spelled callouts and status boxes |
+| `packages/client/src/features/chat/components/chat-controls-band.tsx:264` | Hand-spelled callouts and status boxes |
+| `packages/client/src/features/rpg/components/rpg-choice-echo.tsx:87` | Hand-spelled callouts and status boxes |
+| `packages/client/src/features/automation/components/rule-editor.tsx:62` | Hand-spelled callouts and status boxes |
+| `packages/client/src/features/automation/components/rule-editor.tsx:74` | Hand-spelled callouts and status boxes |
+| `packages/client/src/features/rpg/components/rpg-veiled-section.tsx:52` | Hand-spelled callouts and status boxes |
+| `packages/client/src/features/rpg/components/rpg-veiled-section.tsx:119` | Hand-spelled callouts and status boxes |
+
 ## Evidence
 
 Filled at landing: what ran and where its output is.

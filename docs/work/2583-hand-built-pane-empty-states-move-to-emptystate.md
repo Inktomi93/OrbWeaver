@@ -21,6 +21,16 @@ The three-states law names EmptyState with an action for a surface's empty state
 
 Each convert site renders EmptyState with a component test. The empty thread and the documents rail tile each cite a law line or decision that exists, or convert.
 
+## Sites
+
+| Site | What it is |
+| - | - |
+| `packages/client/src/features/discovery/components/corpus-browse-view.tsx:169` | Hand-built pane empty states |
+| `packages/client/src/features/plugin/components/plugin-scripted-surface.tsx:192` | Hand-built pane empty states |
+| `packages/client/src/features/rpg/components/rpg-journal-tab.tsx:140` | Hand-built pane empty states |
+| `packages/client/src/features/rpg/components/rpg-quests-tab.tsx:296` | Hand-built pane empty states |
+| `packages/client/src/features/rpg/components/rpg-map-tab.tsx:20` | Hand-built pane empty states |
+
 ## Evidence
 
 Filled at landing: what ran and where its output is.
