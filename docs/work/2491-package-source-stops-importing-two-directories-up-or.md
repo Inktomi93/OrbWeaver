@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P3
 area: architecture
+lane: wt/agent-a672cae2c753c5fe3
 ---
 
 # Package source stops importing two directories up, or the law drops the limit
