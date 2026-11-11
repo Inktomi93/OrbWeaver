@@ -43,7 +43,7 @@ import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { QueryBoundary } from "#components";
 import { QueryErrorState, SkeletonRows, useSuspenseQuery, useTRPC } from "#data";
-import { testId, trpcErrorCode, viewerTimeZone } from "#lib";
+import { OS_PREFERENCE_LABELS, testId, trpcErrorCode, viewerTimeZone } from "#lib";
 import { openSectionInPrompt } from "#src/features/preset/lib/preset-nav.ts";
 import type { TemplateRow } from "#src/features/preset/lib/template-rows.ts";
 import {
@@ -147,7 +147,7 @@ function MarkerDeliveryPath({ sections }: { readonly sections: readonly PromptSe
           </Text>
         </Button>
         <Badge tone={marker.enabled ? "success" : "warning"} variant="solid" size="sm">
-          {marker.enabled ? "on" : "off"}
+          {OS_PREFERENCE_LABELS[marker.enabled ? "on" : "off"]}
         </Badge>
       </Row>
       <Stack gap="tight">
