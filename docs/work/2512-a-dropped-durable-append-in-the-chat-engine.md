@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P2
 area: chat
+lane: wt/agent-a672cae2c753c5fe3
 ---
 
 # A dropped durable append in the chat engine resolves as success
