@@ -1,10 +1,9 @@
 ---
-kind: decision
-status: blocked
+kind: tooling
+status: open
 updated: 2026-11-11
 priority: P2
 area: tooling
-blocked: owner
 ---
 
 # Rule on native lint rules for the single stream and for raw clock reads
@@ -19,7 +18,7 @@ Both rules hold today. With no check, the first violation lands unnoticed, and a
 
 ## Done when
 
-The owner has ruled. On yes: both blocks are mounted in `eslint.config.ts`, each with a planted test like its sibling rule tests, the tree passes, and the law docs name the rule ids. On no: the item records the ruling and the law keeps saying review.
+Owner ruling: adopt both. Both `no-restricted-syntax` blocks are mounted in `eslint.config.ts`, each with a planted test like its sibling rule tests, the tree passes, and the law docs name the rules in place of review.
 
 ## Evidence
 
