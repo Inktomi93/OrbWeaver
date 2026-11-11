@@ -3,13 +3,14 @@
 // the DDL CHECK mirrors) and the READ parses the state blob through the ruled version posture
 // (`contract/analysis.ts::parseAnalysisState` — corrupt = unparseable ONLY, watermark preserved otherwise).
 
+import type { AnalysisState } from "@orb/contracts/automation";
 import { ANALYSIS_GUIDANCE_MAX } from "@orb/contracts/automation";
 import type { Db } from "@orb/db";
 import { automationRuleState, automationRules } from "@orb/db";
 import type { AutomationRuleId, ChatId, UserId } from "@orb/kit/ids";
 import type { SQL } from "drizzle-orm";
 import { and, desc, eq, ne, sql } from "drizzle-orm";
-import type { AnalysisState, RuleStateRead } from "../contract/analysis.ts";
+import type { RuleStateRead } from "../contract/analysis.ts";
 import { EMPTY_ANALYSIS_STATE, parseAnalysisState } from "../contract/analysis.ts";
 
 const LIMIT_ONE = 1;

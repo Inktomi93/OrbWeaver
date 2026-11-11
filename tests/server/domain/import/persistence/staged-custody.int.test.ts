@@ -17,7 +17,7 @@ import type { WorkloadId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { exportLibrary, restoreBundle, signedInBox, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
-import { eq } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 import { CSRF_HEADERS } from "../../../entry/http/_body-limit-inputs.ts";
 import type { Files } from "./_st-tree-door.ts";
 import { admit, cardPng, chatOf, finish, harness, post, settings, stagedEntries, stagedTree, tableContents } from "./_st-tree-door.ts";
@@ -525,7 +525,8 @@ test("a queued bundle upload with no digest refuses, asks for a new upload, and 
   const token = (await readdir(root.stagedImportsOf(root.ownerId)))[0];
   await root.db
     .update(workloads)
-    .set({ params: { token, source: "dir" } })
+    // Stored text an earlier build wrote, before a bundle row carried its digest.
+    .set({ params: sql`${JSON.stringify({ token, source: "dir" })}` })
     .where(eq(workloads.id, id));
 
   expect(await run(root, id)).toEqual({ status: "failed", error: STAGED_UPLOAD_OUTDATED });

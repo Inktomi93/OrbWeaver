@@ -1,14 +1,11 @@
 // domain/automation/contract/analysis — the `run_analysis` arm's INTERNAL shapes (S5,
 // the honest carrier of the purged crew director's think-first pass). Three planes live here, each with its enforcer:
 //
-//   • the STORED STATE (`automation_rule_state.state`, parse-on-read). VERSION POSTURE (orchestrator
-//     ruling): "corrupt" means UNPARSEABLE, never merely old — every field carries a default AND a
-//     per-field `.catch`, so a row written before a field existed (or with one damaged field) reads with
-//     that field defaulted and its WATERMARK PRESERVED; only non-object garbage resets whole. A reset
-//     watermark is the SAFE direction (0 = re-cover the span, duplicating work but never skipping one).
-//     SIZE is enforced as a CLAMP ON READ, never a schema refusal: the reader parses the
-//     row and truncates arc/banks/strings to the caps the live write paths already hold, because a `.max()`
-//     here would make an already-stored row UNPARSEABLE and reset the watermark it was meant to protect.
+//   • the STORED STATE (`automation_rule_state.state`, parse-on-read). Its shape and version posture live in
+//     `@orb/contracts/automation` (`analysisStateSchema`), which the column also imports. A reset watermark is
+//     the SAFE direction (0 = re-cover the span, duplicating work but never skipping one). SIZE is enforced
+//     here as a CLAMP ON READ, never a schema refusal: the reader parses the row and truncates arc/banks/strings
+//     to the caps the live write paths already hold.
 //   • the MODEL PAYLOAD — COMPOSED from the arm's enabled routes (`buildAnalysisPayloadSchema`), which is
 //     the xgrammar lever AND a needle wall: an un-authored route's field is absent from the enforced wire
 //     schema (the model cannot emit it on an enforcing vehicle) and absent from THIS zod (a non-enforcing
@@ -28,8 +25,8 @@
 // seeds the successor in one pass), then ADDS dedup + fill to `ANALYSIS_TWIST_CAP`, overflow dropped, and
 // the SAME read-side clamp last so an already-oversized incoming bank shrinks instead of surviving.
 
-import type { AutomationAction } from "@orb/contracts/automation";
-import { ANALYSIS_REWRITE_ISSUE_MAX, ANALYSIS_REWRITE_MAX, ANALYSIS_SCORE_MAX } from "@orb/contracts/automation";
+import type { AnalysisState, AutomationAction } from "@orb/contracts/automation";
+import { ANALYSIS_REWRITE_ISSUE_MAX, ANALYSIS_REWRITE_MAX, ANALYSIS_SCORE_MAX, analysisStateSchema } from "@orb/contracts/automation";
 import type { UpsertLoreEntryInput } from "@orb/contracts/world-info";
 import type { AutomationRuleId, ChatId, MessageId, MessageVariantId, UserId, WorldBookId } from "@orb/kit/ids";
 import type { WireReady } from "@orb/kit/json-schema";
@@ -81,12 +78,6 @@ export const ANALYSIS_SETTLED_SLICE_MAX = 300;
 export const ANALYSIS_MESSAGE_CHAR_CAP = 800;
 
 // ── the stored state ──────────────────────────────────────────────────────────────────────────────────
-/** The `automation_rule_state.state` blob, parsed. `settledThroughSeq` is the C2 HIGH-WATER MARK: the
- *  settled-span cursor, advanced ONLY on a successful durable apply (`engine/analysis-arm.ts`), so a
- *  failed / unconfirmed pass re-covers its span (the legacy retryability contract). `null` = no pass has
- *  covered a span, never 0, because an imported room's canon can hold a real seq 0. */
-export type AnalysisState = z.infer<typeof analysisStateSchema>;
-
 /** True when a pass's settled mark already covers the row at `seq`; `null` covers nothing. */
 export function isSettledThrough(seq: number, settledThroughSeq: number | null): boolean {
   return settledThroughSeq !== null && seq <= settledThroughSeq;
@@ -95,15 +86,6 @@ export function isSettledThrough(seq: number, settledThroughSeq: number | null):
 // A stored 0 predates the `null` mark, when no pass could cover through seq 0, so it means "never covered".
 // Reading a newer real 0 the same way re-covers seq 0 rather than skipping it.
 const LEGACY_UNCOVERED_MARK = 0;
-
-/** Parse-on-read with the ruled version posture (header): per-field defaults + per-field `.catch`, so a
- *  missing or damaged FIELD degrades alone and the watermark survives everything short of garbage. */
-const analysisStateSchema = z.object({
-  arc: z.string().catch("").default(""),
-  twists: z.array(z.string()).readonly().catch([]).default([]),
-  retiredTwists: z.array(z.string()).readonly().catch([]).default([]),
-  settledThroughSeq: z.int().nonnegative().nullable().catch(null).default(null),
-});
 
 export const EMPTY_ANALYSIS_STATE: AnalysisState = { arc: "", twists: [], retiredTwists: [], settledThroughSeq: null };
 

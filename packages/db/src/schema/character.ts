@@ -120,14 +120,14 @@ export const characters = sqliteTable(
     creationDate: integer("creation_date"),
     modificationDate: integer("modification_date"),
     // Residual `data.extensions` MINUS the promoted-to-column fields — genuinely-unknown vendor extras only.
-    extensions: text("extensions", { mode: "json" }).$type<Record<string, unknown>>(),
+    extensions: text("extensions", { mode: "json" }).$type<NonNullable<CharacterCard["extensions"]>>(),
     // Residual TOP-LEVEL `data.*` keys MINUS the promoted-to-column fields — the sibling of
     // `extensions` above, scoped to `data.*` instead of `data.extensions.*`. Genuinely-UNKNOWN vendor keys
     // only: the known ST-V3 fields (`nickname`/`source`/`creation_date`/`modification_date`) are now typed
     // columns above. `creator_notes_multilingual` HAS no column and rides here verbatim — it also
     // feeds `creator_notes` when that is empty, but the map itself is preserved. `group_only_greetings` folds
     // into the `greetings` array as `groupOnly:true` entries (V3 promotion Phase B), so it does not ride here.
-    residualData: text("residual_data", { mode: "json" }).$type<Record<string, unknown>>(),
+    residualData: text("residual_data", { mode: "json" }).$type<NonNullable<CharacterCard["residualData"]>>(),
     // Nullable avatar pointer. An asset delete nulls the pointer (SET NULL) — must NOT delete the character.
     avatarAssetId: text("avatar_asset_id")
       .$type<AssetId>()

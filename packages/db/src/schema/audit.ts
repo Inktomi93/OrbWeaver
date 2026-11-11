@@ -9,6 +9,7 @@
 // soft-ref — `entity_id` — so the actor must NOT be a second one.
 
 import type { AuditLogId, UserId } from "@orb/kit/ids";
+import type { JsonValue } from "@orb/kit/json";
 import { index, integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 import { users } from "./users.ts";
 
@@ -27,8 +28,9 @@ export const auditLogs = sqliteTable(
     entityType: text("entity_type"),
     // The D24 sole soft-ref (see header). Polymorphic by entity_type.
     entityId: text("entity_id"),
-    // Structured context for the event (free JSON; parsed at the read seam if ever surfaced).
-    metadata: text("metadata", { mode: "json" }).$type<Record<string, unknown>>(),
+    // Structured context for the event, free-form per action: each of the many audit writers names its own
+    // fields and no reader decodes them, so the column holds any JSON value and nothing narrower.
+    metadata: text("metadata", { mode: "json" }).$type<JsonValue>(),
     createdAt: integer("created_at").notNull(),
   },
   (t) => [

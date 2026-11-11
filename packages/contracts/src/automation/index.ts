@@ -1006,6 +1006,8 @@ export type AutomationBusEvent =
   | { type: "ruleAutoDisabled"; chatId: ChatId; ruleId: AutomationRuleId }
   | { type: "rulesChanged"; chatId: ChatId };
 
+export type { AnalysisState } from "./analysis-state.ts";
+export { analysisStateSchema } from "./analysis-state.ts";
 // S3 — the rule-PRESET wire slice: the committed id tuple + the picker's read model (knob descriptors).
 // A preset is data OVER this action vocabulary — it mints ordinary rules, it adds no arm. The CEL sources
 // and the mint handlers stay domain-side (`domain/automation/contract/presets.ts`).
@@ -1038,7 +1040,6 @@ export {
   rulePresetKnobValuesSchema,
   rulePresetViewSchema,
 } from "./presets.ts";
-
 // The PROSE-1 slot table (census row 91) — the `set_chat_background` quiet pick's two authored clauses.
 // `#prose` imports this to compose `PROSE_SLOTS`; it lives beside the action vocabulary it teaches.
 export { AUTOMATION_PROSE_SLOTS } from "./prose.ts";

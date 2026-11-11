@@ -614,6 +614,14 @@ const SERVER_SYNTAX = [
   ...MODULE_LOADER_SYNTAX,
 ];
 
+// .claude/rules/db.md: a JSON column typed open lets a reader outrun its producer, so `unknown` or `any` anywhere in a
+// `$type` argument (a bare one, `Record<string, unknown>`, an array or union of either) is refused in the schema.
+const DB_OPEN_JSON_COLUMN_SYNTAX = {
+  selector: "CallExpression[callee.property.name='$type'] > TSTypeParameterInstantiation :matches(TSUnknownKeyword, TSAnyKeyword)",
+  message:
+    "Type a JSON column with a shape its writer and reader both import from @orb/contracts or @orb/kit (.claude/rules/db.md); `JsonValue` from @orb/kit/json is the type for free-form JSON.",
+};
+
 // Package source reads time through an injected clock (Spine-Testing §3). The ambient clock is a `Date.now` read
 // (called, passed or destructured), `Date()` called without `new`, a bare `new Date()`, each also through
 // `globalThis.Date`, and `performance.timeOrigin + performance.now()`. Each home below constructs the clock it injects.
@@ -2268,6 +2276,10 @@ export default [
   { files: SERVER_CLOCK_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, SERVER_STREAM_SYNTAX) } },
   { files: STREAM_ROUTER_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX) } },
   { files: rootSources("@db"), rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX, CLOCK_SYNTAX) } },
+  {
+    files: ["packages/db/src/schema/**/*.ts"],
+    rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX, CLOCK_SYNTAX, DB_OPEN_JSON_COLUMN_SYNTAX) },
+  },
   {
     files: rootSources("@kit", "@default-content", "@showcase", "@plugin-toolchain"),
     ignores: KIT_CLOCK_HOME,

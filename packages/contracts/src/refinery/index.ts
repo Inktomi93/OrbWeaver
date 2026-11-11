@@ -471,8 +471,6 @@ export const refineryRewriteSheetSchema = z.array(refineryRewriteDecisionSchema)
 export const refineryRewriteDecisionsSchema = z.record(z.string(), refineryRewriteSheetSchema);
 export type RefineryRewriteDecisions = z.infer<typeof refineryRewriteDecisionsSchema>;
 
-export type RefineryStagePayload = RefineryScorePayload | RefineryRewritePayload | RefineryAnalyzePayload;
-
 interface RefineryStagePayloadByStage {
   readonly score: RefineryScorePayload;
   readonly rewrite: RefineryRewritePayload;
