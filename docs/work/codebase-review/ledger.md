@@ -185,11 +185,11 @@ Review before anything that trusts these results.
 | Unit | Path | Band | Status |
 | - | - | - | - |
 | tooling-eslint | tooling/src/eslint/ | L | reviewed (2) |
-| tooling-floor | tooling/src/floor/ | M | queued |
+| tooling-floor | tooling/src/floor/ | M | reviewed (4) |
 | tooling-configs | tooling/src/biome-config/, tooling/src/stack/ | S | queued |
 | tooling-unwired | tooling/src/unwired/ | M | queued |
 | tooling-codemods | tooling/src/codemods/ | M | queued |
-| tooling-doc | tooling/src/doc/ | S | queued |
+| tooling-doc | tooling/src/doc/ — carry the agent-sync remnants in `doc/ops/check.ts:3-5` (dead caller, dead `pnpm check:agents` refusal message) and `doc/index.ts:3`, already counted in `units/tooling-floor.md` F1; do not re-file | S | queued |
 | tooling-ui-facts | tooling/src/ui-facts/ | S | queued |
 
 ### Phase 3 — server below domain
@@ -305,8 +305,8 @@ Triage fills this.
 | Severity | Open | Fixed in-unit | Units affected |
 | - | - | - | - |
 | P1 | 1 | 0 | root-ci |
-| P2 | 14 | 0 | root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, kit, contracts |
-| P3 | 22 | 16 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, root-docs, kit, contracts, db |
+| P2 | 16 | 0 | root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, kit, contracts, tooling-floor |
+| P3 | 24 | 16 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, root-docs, kit, contracts, db, tooling-floor |
 
 Standing hunt for every unit: comments citing `tests/legacy` paths — the D333 retirement moved
 those suites and never re-pointed the prose, and the citation gate
@@ -344,3 +344,12 @@ of every contracts+kit string-tuple export, member-equality against every enum c
 contract and made the sentence true instead of narrowing the runtime. Where prose has a proof
 obligation, db already knows how to discharge it; the triage item is about extending db's habit,
 not importing a new shape.
+
+The tooling-floor unit found the dead-door class at its widest scale: a whole COMMENT DIALECT from
+the deleted gate system. Nine `tooling-*` policy names are cited as live enforcement across
+`tooling/src/floor/` (`units/tooling-floor.md` F2) but resolve nowhere in dep-cruiser/eslint/knip —
+they were `defineGate` policy names until 821e8f8dff. Some constraints have native successors under
+other spellings (process-portability → PORTABLE_PROCESS_SYNTAX), so the enforcement often survives
+while its named promise dies; the size-cap cite has no findable successor at all. The triage
+integrity item now has a concrete second citation shape to cover: besides GENERATED/enforced-by
+headers, every `` policy `X` `` cite must resolve to a dep-cruiser rule name or eslint rule id.
