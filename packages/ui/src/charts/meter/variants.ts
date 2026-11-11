@@ -277,11 +277,11 @@ export const ringGaugeVariants = tv({
     // WCAG 1.4.11; they measured 1.89–2.65 before) and 5.9–9.3 dark against the same panel, every one of
     // them above the track.
     track: "text-border",
-    // SVG <text> — line-height is inert in SVG text layout (position comes from x/y/dy), so there is no line box to pair. Ends if these slots stop rendering as SVG text elements.
+    // SVG <text> — line-height is inert in SVG text layout (position comes from x/y/dy), so there is no line box to pair. Ends if this slot stops rendering as an SVG text element.
     valueText: "fill-foreground text-label font-semibold tabular-nums",
-    // SVG <text> — line-height is inert in SVG text layout (position comes from x/y/dy), so there is no line box to pair. Ends if these slots stop rendering as SVG text elements.
-    label: "text-micro tracking-micro text-muted-foreground uppercase",
-    // SVG <text> — line-height is inert in SVG text layout (position comes from x/y/dy), so there is no line box to pair. Ends if these slots stop rendering as SVG text elements.
-    readout: "text-micro text-muted-foreground tabular-nums",
+    // HTML span under the figure — its own line box, so it takes the micro leading box (integer-line-boxes §3a) rather than the inherited ratio.
+    label: "text-micro leading-micro tracking-micro text-muted-foreground uppercase",
+    // HTML span under the figure — its own line box, so it takes the micro leading box (integer-line-boxes §3a) rather than the inherited ratio.
+    readout: "text-micro leading-micro text-muted-foreground tabular-nums",
   },
 });
