@@ -14,8 +14,9 @@
 //   • `payload` — the full `NotificationEvent` JSON, branded `$type<NotificationEvent>()`. The union is the
 //                 phishing/exfil belt: it is built from `z.object` members that STRIP unknown keys (no
 //                 `.loose()`/`.catchall()`/`z.unknown()`), so credentials / baseUrls are TYPE-LEVEL
-//                 UNREPRESENTABLE and STRIPPED at the read seam (a test
-//                 proves a secret-shaped payload does not survive a parse).
+//                 UNREPRESENTABLE and STRIPPED at the read seam (a test,
+//                 `tests/server/domain/notifications/persistence/secret-free-payload.int.test.ts`, proves a
+//                 secret-shaped payload does not survive a parse).
 //
 // `seq` is a MONOTONIC per-recipient integer (the stream's stable cursor / `lastEventId` resume key) —
 // `unique(recipientUserId, seq)` enforces no duplicate cursor per inbox. `readAt`/`dismissedAt` are
