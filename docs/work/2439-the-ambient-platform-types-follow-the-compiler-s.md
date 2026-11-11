@@ -11,7 +11,7 @@ lane: wt/agent-a3b00fac426662467
 
 ## What
 
-`platform.d.ts` declares Map, WeakMap, Error and Iterator members that the pinned compiler ships under the es2026 library, and its header says a duplicate-declaration error will announce that moment; merged interface methods raise no such error. `reset.d.ts` says the base tsconfig includes it, but each package tsconfig lists it. `aggregator-assets.d.ts` cites an import no code makes. Source: `docs/work/codebase-review/units/root-dts.md`.
+`platform.d.ts` declares Map, WeakMap, Error and Iterator members that the pinned compiler ships under the es2026 library, and its header says a duplicate-declaration error will announce that moment; merged interface methods raise no such error. `reset.d.ts` says the base tsconfig includes it, but each package tsconfig lists it. `aggregator-assets.d.ts` cites an import no code makes. Source: `reports/codebase-review/units/root-dts.md`.
 
 ## Why
 

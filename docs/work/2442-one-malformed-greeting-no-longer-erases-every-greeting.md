@@ -11,7 +11,7 @@ lane: wt/agent-ad0e85a8b8ba4ff64
 
 ## What
 
-`greetingsColumnSchema` in `packages/contracts/src/character/index.ts` is an array schema with a whole-array catch, the shape the versioned-config header forbids. `packages/server/src/domain/character/persistence/queries.ts` and `packages/server/src/domain/discovery/persistence/card-reads.ts` parse through it, and the refinery read unwraps the catch to work around it. Source: `docs/work/codebase-review/units/contracts.md`.
+`greetingsColumnSchema` in `packages/contracts/src/character/index.ts` is an array schema with a whole-array catch, the shape the versioned-config header forbids. `packages/server/src/domain/character/persistence/queries.ts` and `packages/server/src/domain/discovery/persistence/card-reads.ts` parse through it, and the refinery read unwraps the catch to work around it. Source: `reports/codebase-review/units/contracts.md`.
 
 ## Why
 

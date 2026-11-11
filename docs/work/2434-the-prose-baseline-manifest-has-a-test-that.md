@@ -11,7 +11,7 @@ lane: wt/agent-ad0e85a8b8ba4ff64
 
 ## What
 
-`packages/contracts/src/prose/prose-baseline.json` records a hash and version per prose slot. Comments in `packages/contracts/src/prose-slot/index.ts` and `packages/contracts/src/preset/index.ts` say it enforces a version bump with every text change, but nothing reads the file. The same comments cite PROSE-1 sections that no document in the tree holds. Ruling under the delegated-rulings memory: keep the manifest with an ordinary test, which D333 allows. Source: `docs/work/codebase-review/units/contracts.md`.
+`packages/contracts/src/prose/prose-baseline.json` records a hash and version per prose slot. Comments in `packages/contracts/src/prose-slot/index.ts` and `packages/contracts/src/preset/index.ts` say it enforces a version bump with every text change, but nothing reads the file. The same comments cite PROSE-1 sections that no document in the tree holds. Ruling under the delegated-rulings memory: keep the manifest with an ordinary test, which D333 allows. Source: `reports/codebase-review/units/contracts.md`.
 
 ## Why
 

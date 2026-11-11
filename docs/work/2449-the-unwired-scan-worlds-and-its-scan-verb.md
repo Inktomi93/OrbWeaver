@@ -11,7 +11,7 @@ plan: unwired-code
 
 ## What
 
-`tooling/src/unwired/worlds.ts` says `TEST_WORLDS` is the same set `scripts/typecheck.ts` checks; typecheck also checks `tsconfig.tests-iso.json`, and `tooling/src/brand-flow/scan.ts` appends that world by hand. `tooling/src/unwired/run.ts` lists `scan` as a verb and its argument parser refuses the word. Source: `docs/work/codebase-review/units/tooling-unwired.md`.
+`tooling/src/unwired/worlds.ts` says `TEST_WORLDS` is the same set `scripts/typecheck.ts` checks; typecheck also checks `tsconfig.tests-iso.json`, and `tooling/src/brand-flow/scan.ts` appends that world by hand. `tooling/src/unwired/run.ts` lists `scan` as a verb and its argument parser refuses the word. Source: `reports/codebase-review/units/tooling-unwired.md`.
 
 ## Why
 

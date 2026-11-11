@@ -11,7 +11,7 @@ lane: wt/agent-a7cc72305cac667b5
 
 ## What
 
-The SSRF dispatcher contract suite and the per-transport wire byte-pin suites for anthropic-messages and openai-compat exist only in the reference-only legacy test tree. Comments in `pnpm-workspace.yaml` named them as live protection. `packages/server/src/infra/network/egress.ts` is the only consumer of the global dispatcher. Source: `docs/work/codebase-review/units/root-config.md`.
+The SSRF dispatcher contract suite and the per-transport wire byte-pin suites for anthropic-messages and openai-compat exist only in the reference-only legacy test tree. Comments in `pnpm-workspace.yaml` named them as live protection. `packages/server/src/infra/network/egress.ts` is the only consumer of the global dispatcher. Source: `reports/codebase-review/units/root-config.md`.
 
 ## Why
 

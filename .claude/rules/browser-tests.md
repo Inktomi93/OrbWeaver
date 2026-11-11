@@ -8,7 +8,7 @@ paths:
 
 # Browser tests (CT and e2e)
 
-Read the [testkit authoring contract](../../tests/support/README.md) before adding or changing browser tests or helpers.
+Read the [testkit authoring contract](../../tests/support/README.md) before adding or changing browser tests or helpers. Work through its [authoring checklist](../../tests/support/README.md#authoring-checklist) for every test.
 
 Follow its [helper-world split](../../tests/support/README.md#keep-helper-compiler-worlds-separate) instead of moving server preparation into browser mounts.
 
