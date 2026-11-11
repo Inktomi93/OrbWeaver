@@ -14,8 +14,9 @@ import { brandedId } from "@orb/kit/ids";
 // expiry the invocation returns `PluginInvocationEnded` and the hung guest is left INERT (see `endInvocation`).
 //
 // The BYTECODE bound is not invocation-scoped: it is a context-lifetime interrupt over a mutable window
-// (`cpu-guard.ts`), because guest bytecode also runs in the POST-invocation job pumps — `runToSettlement` opens
-// the invocation's window, and every pump opens its own. A pump that executed guest code with no handler
+// (`cpu-guard.ts`), because guest bytecode also runs in the POST-invocation job pumps and settlements. Every call
+// into the realm runs inside a span (D346): `runToSettlement` opens the invocation's account and its spans, and a
+// pump or settlement outside an invocation opens a span of its own. A pump that executed guest code with no handler
 // installed is a whole-process DoS.
 //
 // Ownership discipline (the sharp edge quickjs-emscripten demands): EVERY handle the host mints must be
@@ -36,22 +37,25 @@ import type {
   PluginTransformRegistration,
 } from "@orb/contracts/plugin";
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle, QuickJSWASMModule, VmCallResult } from "quickjs-emscripten-core";
-import { GUEST_MAX_STACK_BYTES, HOST_FN_DEADLINE_MS, PLUGIN_INVOCATION_CPU_MS, PLUGIN_INVOKE_ARGS_MAX_BYTES, PLUGIN_MEMORY_LIMIT_BYTES } from "./budgets.ts";
+import { GUEST_MAX_STACK_BYTES, PLUGIN_INVOKE_ARGS_MAX_BYTES, PLUGIN_RESIDENT_LIMITS, settlementWallMs } from "./budgets.ts";
 import type { PluginNetEgress } from "./contract/net-egress.ts";
-import { installCpuGuard, openCpuWindow, pumpGuestJobs } from "./cpu-guard.ts";
+import type { CpuSpanReport } from "./contract/port.ts";
+import { installCpuGuard, openCpuInvocation, openCpuWindow, pumpGuestJobs, releaseParkedSettlements } from "./cpu-guard.ts";
 import type { GuestMarshal } from "./marshal.ts";
 import { createGuestMarshal } from "./marshal.ts";
 import type { InFlightCounter, MembraneRuntime } from "./membrane.ts";
 import { getPluginQuickJS } from "./module.ts";
+// An ended invocation's error is surfaced as DATA on the outcome (nothing crosses back into the guest: its realm is
+// torn down). The domain's crash policy sees it as a rejected `invoke`, so a hang counts toward the auto-disable.
+import { PLUGIN_INVOCATION_ENDED } from "./process-protocol.ts";
 import type { HostSeams, LogMirror } from "./realm.ts";
 import { installRealm, LogRing } from "./realm.ts";
 
-/** The `name` an ENDED invocation's error carries — the design's `PluginInvocationEnded` (03 §3), surfaced as
- *  DATA on the outcome (nothing crosses back into the guest: its realm is torn down). The domain's crash policy
- *  sees it as a rejected `invoke`, so a hang finally counts toward the 3-strike auto-disable. */
 const PLUGIN_HANDLER_REF = brandedId("PluginHandlerRef");
-const PLUGIN_INVOCATION_ENDED = "PluginInvocationEnded";
 const FRAME_REGISTRATION_ARITY = 3;
+
+/** An invocation's first step: the guest call it makes, or a host refusal before the guest is touched. */
+type GuestProduce = () => ReturnType<QuickJSContext["evalCode"]> | { readonly refusal: string };
 
 /** The settlement-race sentinel — a unique symbol so a guest value can never impersonate the deadline arm. */
 const ENDED = Symbol("plugin-invocation-ended");
@@ -105,12 +109,6 @@ function extractGuestLine(dumped: object): number | undefined {
 export type EvalOutcome =
   | { readonly ok: true; readonly value: string; readonly error?: never; readonly logs: readonly string[] }
   | { readonly ok: false; readonly error: GuestError; readonly value?: never; readonly logs: readonly string[] };
-
-const DEFAULT_LIMITS: PluginBudgets = {
-  cpuDeadlineMs: PLUGIN_INVOCATION_CPU_MS,
-  memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES,
-  settleGraceMs: HOST_FN_DEADLINE_MS,
-};
 
 /** What a guest error or result reads as when the realm cannot serialize it (a string too large to escape). */
 const UNREADABLE_GUEST_VALUE = "plugin host: the guest's value is too large to read";
@@ -226,10 +224,13 @@ export class Sandbox implements Disposable {
   /** Boot a fresh guest instance: load the process module, mint an isolated context, cap its memory + stack,
    *  and install the injected-seam realm (+ the membrane, when `membrane` is supplied). Async because the WASM
    *  module loads once per process. */
-  static async create(seams: HostSeams, opts: { limits?: Partial<PluginBudgets>; membrane?: SandboxMembrane; logMirror?: LogMirror } = {}): Promise<Sandbox> {
+  static async create(
+    seams: HostSeams,
+    opts: { limits?: Partial<PluginBudgets>; membrane?: SandboxMembrane; logMirror?: LogMirror; spanReport?: CpuSpanReport } = {},
+  ): Promise<Sandbox> {
     const mod: QuickJSWASMModule = await getPluginQuickJS();
     const ctx = mod.newContext();
-    const resolved: PluginBudgets = { ...DEFAULT_LIMITS, ...opts.limits };
+    const resolved: PluginBudgets = { ...PLUGIN_RESIDENT_LIMITS, ...opts.limits };
     ctx.runtime.setMemoryLimit(resolved.memoryLimitBytes);
     // MANDATORY (see GUEST_MAX_STACK_BYTES): without an explicit soft stack ceiling a recursive guest crashes
     // the host and leaves the runtime un-disposable. This turns deep recursion into a clean contained RangeError.
@@ -237,7 +238,7 @@ export class Sandbox implements Disposable {
     // The guest-CPU interrupt, installed BEFORE any guest source can run and kept for the context's lifetime.
     // It is INERT until a span opens a window — but it must be in place before the first pump, because a pump
     // is precisely where an un-installed handler let guest bytecode run unbounded.
-    installCpuGuard(ctx, resolved.cpuDeadlineMs);
+    installCpuGuard(ctx, resolved.cpuDeadlineMs, opts.spanReport ?? null);
     // The marshal captures the realm's own `JSON` BEFORE the realm is installed or any guest source runs, so a guest
     // that later reassigns `JSON.parse` (or deletes `JSON`) cannot interpose on a value crossing either way.
     using construction = new DisposableStack();
@@ -456,7 +457,7 @@ export class Sandbox implements Disposable {
    *  end a guest that has stopped executing (a never-settling promise, a fire-and-forget await). The timer is
    *  `unref`'d (it must never hold the process open) and cleared on the settle arm. */
   private raceSettlement(native: Promise<VmCallResult<QuickJSHandle>>): Promise<VmCallResult<QuickJSHandle> | typeof ENDED> {
-    const wallMs = this.limits.cpuDeadlineMs + this.limits.settleGraceMs;
+    const wallMs = settlementWallMs(this.limits);
     let timer: ReturnType<typeof setTimeout> | undefined;
     const wall = new Promise<typeof ENDED>((resolve) => {
       timer = setTimeout(() => resolve(ENDED), wallMs);
@@ -488,7 +489,7 @@ export class Sandbox implements Disposable {
    *  outcome returns. The rejection also reaches `recordCrash`, so a repeat hanger auto-disables at 3 strikes. */
   private endInvocation(handle: QuickJSHandle): EvalOutcome {
     const logs = this.log.drain();
-    const wallMs = this.limits.cpuDeadlineMs + this.limits.settleGraceMs;
+    const wallMs = settlementWallMs(this.limits);
     this.drop(handle);
     this.abortHostOperations();
     this.drainPending();
@@ -548,7 +549,7 @@ export class Sandbox implements Disposable {
    *  turning activation into an unbounded command. Work still pending at the wall retains the existing posture:
    *  it may finish later in the live runtime, but it is outside the catalog returned by this activation. */
   async settleActivationJobs(): Promise<void> {
-    const deadline = performance.now() + this.limits.cpuDeadlineMs + this.limits.settleGraceMs;
+    const deadline = performance.now() + settlementWallMs(this.limits);
     while (this.state.pending.size > 0) {
       const remainingMs = deadline - performance.now();
       if (remainingMs <= 0) {
@@ -571,7 +572,7 @@ export class Sandbox implements Disposable {
   /** Drive one guest computation (an eval or a resident-handler call) under the per-invocation budget: pump the
    *  promise bridge to settlement, project the result to a string, contain any throw/deadline/OOM as `ok:false`.
    *  Shared by `evalGuest` + `invokeHandler`. */
-  private async runToSettlement(produce: () => ReturnType<QuickJSContext["evalCode"]>): Promise<EvalOutcome> {
+  private async runToSettlement(produce: GuestProduce): Promise<EvalOutcome> {
     if (!this.ctx.alive) {
       // A prior invocation hit its settlement wall and took the realm with it (see `endInvocation`). Report the
       // same contained failure rather than touching a dead context — the caller's FIFO advances, the crash
@@ -593,48 +594,80 @@ export class Sandbox implements Disposable {
     //    admitted). The counter is per-INSTANCE and self-healing by construction (one release per acquisition);
     //    see `InFlightCounter` in membrane.ts for the full reasoning.
     // The DoS deadline reads a MONOTONIC real clock (performance.now), NOT the guest's injected seam: the
-    // interrupt must fire in real time regardless of a frozen test clock. It preempts guest BYTECODE only —
-    // host calls self-bound separately (membrane's attachAsync), and the whole invocation is bounded by the
-    // settlement race below (the interrupt cannot see a guest that has stopped executing). The handler itself
-    // is installed for the CONTEXT's lifetime (`cpu-guard.ts`); this only opens THIS invocation's window, so
-    // the post-invocation job pumps — which used to run guest bytecode with no handler at all — are
-    // bounded by the same mechanism instead of by nothing.
-    const closeCpuWindow = openCpuWindow(this.ctx);
+    // interrupt must fire in real time regardless of a frozen test clock. It preempts guest BYTECODE, and every host
+    // call checks it at entry (D346); the whole invocation is bounded by the settlement race below (the interrupt
+    // cannot see a guest that has stopped executing). The handler itself is installed for the CONTEXT's lifetime
+    // (`cpu-guard.ts`). This opens THIS invocation's CPU account: the synchronous run, every pump inside the
+    // invocation and the read of its result each spend it, and the await between them does not.
+    const closeInvocation = openCpuInvocation(this.ctx);
     try {
-      const result = produce();
-      if (result.error) {
-        const error = readError(this.marshal, result.error);
-        result.error.dispose();
-        return { ok: false, error, logs: this.log.drain() };
+      const started = this.startGuest(produce);
+      if ("outcome" in started) {
+        return started.outcome;
       }
-      const handle = this.take(result.value);
-      const native = this.ctx.resolvePromise(handle);
-      pumpGuestJobs(this.ctx);
+      const { handle, native } = started;
       const settled = await this.raceSettlement(native);
       if (settled === ENDED) {
         return this.endInvocation(handle);
       }
-      this.drop(handle);
-
-      if (settled.error) {
-        const wrapped = this.take(settled.error);
-        const error = readError(this.marshal, settled.error);
-        this.drop(wrapped);
-        return { ok: false, error, logs: this.log.drain() };
+      // Reading the settled value can run its getters and `toJSON`: guest code, so a span on the same account.
+      const closeSpan = openCpuWindow(this.ctx);
+      try {
+        return this.readSettled(handle, settled);
+      } finally {
+        closeSpan();
       }
-      const wrapped = this.take(settled.value);
-      const value = serializeGuest(this.marshal, settled.value);
-      this.drop(wrapped);
-      if (value === null) {
-        return { ok: false, error: { name: "Error", message: UNREADABLE_GUEST_VALUE }, logs: this.log.drain() };
-      }
-      return { ok: true, value, logs: this.log.drain() };
     } finally {
-      // Restore the enclosing window (`Infinity` at the top level) rather than removing the handler: the
-      // handler is the CONTEXT's, and a later pump reopens its own window off it. Unguarded on purpose — this
-      // touches no runtime, only the guard's own state, so a dead context is harmless here too.
-      closeCpuWindow();
+      // Unguarded on purpose — this touches no runtime, only the guard's own state, so a dead context is harmless.
+      closeInvocation();
+      // Settlements held while work outside an invocation had spent its account run after this invocation answers, on
+      // the outside account its opening refilled: one macrotask later, so the answer leaves first (D346).
+      setImmediate(() => {
+        releaseParkedSettlements(this.ctx);
+      });
     }
+  }
+
+  // The invocation's synchronous run, under a span of its CPU account: the produce, the promise bridge and the first
+  // pump of its jobs. A synchronous throw is the outcome; otherwise the guest's promise and its host-side settlement.
+  private startGuest(
+    produce: GuestProduce,
+  ): { readonly outcome: EvalOutcome } | { readonly handle: QuickJSHandle; readonly native: Promise<VmCallResult<QuickJSHandle>> } {
+    const closeSpan = openCpuWindow(this.ctx);
+    try {
+      const result = produce();
+      if ("refusal" in result) {
+        return { outcome: { ok: false, error: { name: "Error", message: result.refusal }, logs: [] } };
+      }
+      if (result.error) {
+        const error = readError(this.marshal, result.error);
+        result.error.dispose();
+        return { outcome: { ok: false, error, logs: this.log.drain() } };
+      }
+      const handle = this.take(result.value);
+      const native = this.marshal.settlementOf(handle);
+      pumpGuestJobs(this.ctx);
+      return { handle, native };
+    } finally {
+      closeSpan();
+    }
+  }
+
+  private readSettled(handle: QuickJSHandle, settled: VmCallResult<QuickJSHandle>): EvalOutcome {
+    this.drop(handle);
+    if (settled.error) {
+      const wrapped = this.take(settled.error);
+      const error = readError(this.marshal, settled.error);
+      this.drop(wrapped);
+      return { ok: false, error, logs: this.log.drain() };
+    }
+    const wrapped = this.take(settled.value);
+    const value = serializeGuest(this.marshal, settled.value);
+    this.drop(wrapped);
+    if (value === null) {
+      return { ok: false, error: { name: "Error", message: UNREADABLE_GUEST_VALUE }, logs: this.log.drain() };
+    }
+    return { ok: true, value, logs: this.log.drain() };
   }
 
   /** Run guest source under the per-invocation budget (activation `main.js` / a snippet). Deadline / OOM / throw
@@ -662,14 +695,18 @@ export class Sandbox implements Disposable {
     if (Buffer.byteLength(argsJson, "utf8") > PLUGIN_INVOKE_ARGS_MAX_BYTES) {
       return { ok: false, error: { name: "Error", message: `plugin host: handler args exceed ${PLUGIN_INVOKE_ARGS_MAX_BYTES}-byte inbound cap` }, logs: [] };
     }
-    const parsed = this.parseArgs(argsJson);
-    if (typeof parsed === "string") {
-      // A CONTAINED refusal, before the guest is touched: the caller's payload is not a JSON document, so the
-      // JSON-only contract of this channel is broken and there is nothing safe to hand over.
-      return { ok: false, error: { name: "Error", message: parsed }, logs: [] };
-    }
-    using argHandle = parsed;
-    return await this.runToSettlement(() => this.ctx.callFunction(handler, this.ctx.undefined, argHandle));
+    // The parse is a call into the realm, so it runs in the invocation's first span: between spans the window is
+    // closed (D346).
+    return await this.runToSettlement(() => {
+      const parsed = this.parseArgs(argsJson);
+      if (typeof parsed === "string") {
+        // A CONTAINED refusal, before the guest is touched: the caller's payload is not a JSON document, so the
+        // JSON-only contract of this channel is broken and there is nothing safe to hand over.
+        return { refusal: parsed };
+      }
+      using argHandle = parsed;
+      return this.ctx.callFunction(handler, this.ctx.undefined, argHandle);
+    });
   }
 
   /** Marshal the caller's `argsJson` into a guest handle by CALLING the realm's pristine `JSON.parse` on it —

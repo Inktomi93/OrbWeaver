@@ -13,6 +13,17 @@ import type {
 import { PLUGIN_BRIDGE_OPERATIONS, PLUGIN_COMMAND_OPERATIONS, PLUGIN_SYNC_OPERATIONS } from "./contract/process-protocol.ts";
 
 export const PLUGIN_BROKER_SYNC_TIMEOUT_MS = 10_000;
+/** The error name of a refusal the host made for a reason the plugin did not cause: a broker that stopped answering,
+ *  a runtime replaced before the command ran, shutdown. The parent turns it into a refusal that is never a strike. */
+export const PLUGIN_HOST_UNAVAILABLE = "PluginHostUnavailable";
+/** The error name of an invocation the host ended: at its settlement wall, or by terminating its stuck Worker. */
+export const PLUGIN_INVOCATION_ENDED = "PluginInvocationEnded";
+/** The Int32 slots a Worker shares with its broker to report its guest work: the open span's sequence number (0 while
+ *  no span is open), that span's CPU window in ms, and the running total of closed spans in ms, which wraps. */
+export const SPAN_SEQUENCE_SLOT = 0;
+export const SPAN_WINDOW_SLOT = 1;
+export const SPAN_CLOSED_TOTAL_SLOT = 2;
+export const SPAN_SLOTS_BYTES = (SPAN_CLOSED_TOTAL_SLOT + 1) * Int32Array.BYTES_PER_ELEMENT;
 export const PLUGIN_BROKER_SYNC_RESULT_BYTES = 2_097_152;
 /** Largest inherited-channel JSON frame. `net.fetchAsset` may carry a 5 MiB image as base64. */
 export const PLUGIN_BROKER_MESSAGE_MAX_BYTES = 10_485_760;
@@ -167,6 +178,11 @@ export function parseParentBrokerMessage(message: unknown): ParentBrokerMessage 
   if (message["kind"] === "bridge-result") {
     return parseParentBridgeResult(message);
   }
+  if (message["kind"] === "end-runtime") {
+    return typeof message["runtimeId"] === "string" && typeof message["commandId"] === "string"
+      ? { kind: "end-runtime", runtimeId: message["runtimeId"], commandId: message["commandId"] }
+      : null;
+  }
   return message["kind"] === "command" ? parseParentCommand(message) : null;
 }
 
@@ -233,6 +249,17 @@ function parseBrokerRuntimeCrashed(value: Readonly<Record<string, unknown>>): Br
   return typeof value["runtimeId"] === "string" && error !== undefined ? { kind: "runtime-crashed", runtimeId: value["runtimeId"], error } : null;
 }
 
+function parseBrokerRuntimeEnded(value: Readonly<Record<string, unknown>>): BrokerParentMessage | null {
+  if (typeof value["runtimeId"] !== "string") {
+    return null;
+  }
+  if (value["error"] === undefined) {
+    return { kind: "runtime-ended", runtimeId: value["runtimeId"] };
+  }
+  const error = parseRpcError(value["error"]);
+  return error === undefined ? null : { kind: "runtime-ended", runtimeId: value["runtimeId"], error };
+}
+
 function parseBrokerAuthorityReleased(value: Readonly<Record<string, unknown>>): BrokerParentMessage | null {
   return typeof value["runtimeId"] === "string" && typeof value["authorityId"] === "string"
     ? { kind: "authority-released", runtimeId: value["runtimeId"], authorityId: value["authorityId"] }
@@ -242,6 +269,9 @@ function parseBrokerAuthorityReleased(value: Readonly<Record<string, unknown>>):
 function parseBrokerRuntimeMessage(kind: string, value: Readonly<Record<string, unknown>>): BrokerParentMessage | null {
   if (kind === "runtime-crashed") {
     return parseBrokerRuntimeCrashed(value);
+  }
+  if (kind === "runtime-ended") {
+    return parseBrokerRuntimeEnded(value);
   }
   if (kind === "log") {
     return parseBrokerLog(value);

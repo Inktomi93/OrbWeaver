@@ -54,6 +54,7 @@ import { authorizeBridgeCall, authorizeSyncCall, dispatchBridgeCall, dispatchSyn
 import {
   PLUGIN_AUTHORITY_TAIL_CALLS_MAX,
   PLUGIN_AUTHORITY_TAIL_MS,
+  PLUGIN_COMMAND_TIMEOUT_MS,
   PLUGIN_LOG_RING_CHARS,
   PLUGIN_LOG_RING_LINES,
   PLUGIN_RUNTIME_REQUEST_QUEUE_MAX,
@@ -65,16 +66,19 @@ import type { BrokerParentMessage, ParentBrokerMessage, RpcResult } from "./cont
 import { createPluginNetEgress } from "./net-egress.ts";
 import { PluginIpcSender, parsePluginIpcMessage } from "./process-channel.ts";
 import { pluginWatchdogExecArgv } from "./process-permission.ts";
-import { fromRpcError, isBridgeOperation, parseBrokerParentMessage, parseMessageLine, rpcError, serializeMessage } from "./process-protocol.ts";
+import {
+  fromRpcError,
+  isBridgeOperation,
+  PLUGIN_HOST_UNAVAILABLE,
+  PLUGIN_INVOCATION_ENDED,
+  parseBrokerParentMessage,
+  parseMessageLine,
+  rpcError,
+  serializeMessage,
+} from "./process-protocol.ts";
 import type { WarmRuntimeLease } from "./warm-runtime-pool.ts";
 import { WarmRuntimePool } from "./warm-runtime-pool.ts";
 
-const COMMAND_TIMEOUT_MS = {
-  create: 30_000,
-  invoke: 120_000,
-  snippet: 30_000,
-  dispose: 30_000,
-} as const;
 const CONNECT_TIMEOUT_MS = 10_000;
 
 /** A logical instance can restart from its runtime config. A snippet holds an admission until release. */
@@ -110,12 +114,17 @@ type Binding = BindingLifetime & {
   chars: number;
   suppressLogs: boolean;
   crashed: Error | null;
+  /** An ended invocation's refusal that no command carried, because the broker ended this binding's runtime with
+   *  none pending; the next invoke rejects with it once. */
+  owedRefusal: Error | null;
   disposed: boolean;
   /** Set once this binding's first command has actually reached a live broker connection. A binding still
    *  waiting on `ensureConnected()` was never served by the connection that just died and a belated exit
    *  event for it must not crash a binding it never touched. */
   dispatched: boolean;
   onCrash: (error: Error) => void;
+  /** The broker terminated this binding's runtime for overrunning its window; the binding stays usable. */
+  onEnded: () => void;
   catalog?: PluginInstance;
   retirement: { readonly runtimeId: string; readonly done: Promise<void> } | undefined;
 };
@@ -129,7 +138,10 @@ interface AuthorityTail {
 interface PendingCommand {
   readonly resolve: (value: unknown) => void;
   readonly reject: (error: Error) => void;
-  readonly timer: () => void;
+  readonly runtimeId: string;
+  readonly operation: Extract<ParentBrokerMessage, { readonly kind: "command" }>["operation"];
+  /** Cancels the backstop, which is armed only while this is its runtime's oldest outstanding command. */
+  cancelBackstop: () => void;
 }
 
 interface MutableLiveness extends PluginInvocationLiveness {
@@ -289,6 +301,8 @@ class BrokerClient {
   private managedChild: ChildProcess | undefined;
   private directoryResources = new AsyncDisposableStack();
   private readonly pending = new Map<string, PendingCommand>();
+  /** Each runtime's outstanding command ids, oldest first. */
+  private readonly outstanding = new Map<string, string[]>();
   private readonly bridgeCalls = new Map<string, ActiveBridgeCall>();
   private closing: Promise<void> | undefined;
   private nextCommand = 0;
@@ -389,23 +403,79 @@ class BrokerClient {
       value,
     });
     return await new Promise((resolve, reject) => {
-      const timer = this.timers.timeout(() => {
-        this.pending.delete(id);
-        const error = new Error(`plugin broker: ${operation} timed out`);
-        reject(error);
-        this.stopConnection(error);
-      }, COMMAND_TIMEOUT_MS[operation]);
-      this.pending.set(id, { resolve, reject, timer });
+      this.pending.set(id, { resolve, reject, runtimeId, operation, cancelBackstop: () => undefined });
+      const outstanding = this.outstanding.get(runtimeId);
+      if (outstanding === undefined) {
+        this.outstanding.set(runtimeId, [id]);
+        this.armBackstop(id);
+      } else {
+        outstanding.push(id);
+      }
       try {
         sender.send({ kind: "frame", generation, frame: serialized });
         // the write failure rejects the command promise (reject(error)) and stopConnection terminates the unusable channel. Ends if either the reject or the stopConnection call is removed.
       } catch (error) {
-        this.pending.delete(id);
-        timer();
+        this.settleCommand(id);
         reject(error instanceof Error ? error : unavailableError());
         this.stopConnection(error instanceof Error ? error : unavailableError());
       }
     });
+  }
+
+  // A runtime runs its commands one at a time, so only its oldest outstanding command is timed, from when it became the
+  // oldest: the commands queued ahead of a command are never charged to it (D347).
+  private armBackstop(id: string): void {
+    const pending = this.pending.get(id);
+    if (pending === undefined) {
+      return;
+    }
+    pending.cancelBackstop = this.timers.timeout(() => this.backstop(id), PLUGIN_COMMAND_TIMEOUT_MS[pending.operation]);
+  }
+
+  // Forget a command that has answered or failed, and time the next command of its runtime if this was the oldest.
+  private settleCommand(id: string): PendingCommand | undefined {
+    const pending = this.pending.get(id);
+    if (pending === undefined) {
+      return;
+    }
+    this.pending.delete(id);
+    pending.cancelBackstop();
+    const outstanding = this.outstanding.get(pending.runtimeId) ?? [];
+    const [oldest] = outstanding;
+    const rest = outstanding.filter((other) => other !== id);
+    if (rest.length === 0) {
+      this.outstanding.delete(pending.runtimeId);
+    } else {
+      this.outstanding.set(pending.runtimeId, rest);
+    }
+    if (oldest === id && rest[0] !== undefined) {
+      this.armBackstop(rest[0]);
+    }
+    return pending;
+  }
+
+  // The broker ends a stuck Worker itself, well inside this backstop; a command still unanswered here is late on its
+  // own account. It fails alone, as its plugin's strike, and the broker is asked to end that runtime. The broker itself
+  // is never killed for a late command: only its watchdog's heartbeat bound replaces it (D347).
+  private backstop(id: string): void {
+    const pending = this.settleCommand(id);
+    if (pending === undefined) {
+      return;
+    }
+    const ended = new Error(`plugin broker: a ${pending.operation} command ran past its ${PLUGIN_COMMAND_TIMEOUT_MS[pending.operation]}ms backstop`);
+    ended.name = PLUGIN_INVOCATION_ENDED;
+    pending.reject(ended);
+    const sender = this.sender;
+    const generation = this.generation;
+    if (sender === undefined || generation === undefined) {
+      return;
+    }
+    try {
+      sender.send({ kind: "frame", generation, frame: serializeMessage({ kind: "end-runtime", runtimeId: pending.runtimeId, commandId: id }) });
+      // a channel that cannot carry this frame cannot carry any: stopConnection ends it, as every other send failure does. Ends if the channel gains another failure owner.
+    } catch (error) {
+      this.stopConnection(error instanceof Error ? error : unavailableError());
+    }
   }
 
   private async ensureConnected(): Promise<void> {
@@ -597,6 +667,10 @@ class BrokerClient {
       this.handleRuntimeCrash(message);
       return;
     }
+    if (message.kind === "runtime-ended") {
+      this.handleRuntimeEnded(message);
+      return;
+    }
     if (message.kind === "log") {
       this.handleLog(message);
       return;
@@ -618,17 +692,38 @@ class BrokerClient {
   }
 
   private handleResponse(message: Extract<BrokerParentMessage, { readonly kind: "response" }>): void {
-    const pending = this.pending.get(message.id);
+    const pending = this.settleCommand(message.id);
     if (pending === undefined) {
       return;
     }
-    this.pending.delete(message.id);
-    pending.timer();
     if (message.ok) {
       pending.resolve(message.value);
     } else {
-      pending.reject(fromRpcError(message.error, "plugin broker command failed"));
+      pending.reject(
+        message.error.name === PLUGIN_HOST_UNAVAILABLE
+          ? new PluginHostUnavailableError(message.error.message)
+          : fromRpcError(message.error, "plugin broker command failed"),
+      );
     }
+  }
+
+  // The broker terminated this runtime's stuck Worker. The plugin's logical instance is not crashed: it is forgotten
+  // from the pool, so its next call cold-starts a fresh runtime from its durable source.
+  private handleRuntimeEnded(message: Extract<BrokerParentMessage, { readonly kind: "runtime-ended" }>): void {
+    const binding = this.bindings.get(message.runtimeId);
+    if (binding === undefined) {
+      return;
+    }
+    this.bindings.delete(message.runtimeId);
+    binding.runtimeId = undefined;
+    clearAuthorities(binding);
+    binding.invokeArgs.clear();
+    // The stall ran after its command returned, so no command answered for it: the plugin's next invocation does, once,
+    // as the ended refusal it would have carried, and that is the strike (D347).
+    if (message.error !== undefined) {
+      binding.owedRefusal = fromRpcError(message.error, "plugin worker ended");
+    }
+    binding.onEnded();
   }
 
   private handleBridgeCancel(id: string): void {
@@ -737,12 +832,16 @@ class BrokerClient {
     }
   }
 
-  private onDisconnect(error: Error): void {
+  // A lost broker is the host's failure, never one plugin's: every command it held and every binding it served fails
+  // as host-unavailable, which the crash policy does not count as a strike (D347).
+  private onDisconnect(cause: Error): void {
+    const error = cause instanceof PluginHostUnavailableError ? cause : new PluginHostUnavailableError(cause.message);
     for (const [id, pending] of this.pending) {
       this.pending.delete(id);
-      pending.timer();
+      pending.cancelBackstop();
       pending.reject(error);
     }
+    this.outstanding.clear();
     for (const call of this.bridgeCalls.values()) {
       call.liveness.abort();
     }
@@ -779,10 +878,18 @@ class BrokerClient {
   }
 }
 
+/** A refusal the host made for a reason the plugin did not cause: its broker stopped answering or was lost, its
+ *  runtime was replaced before the command ran, or the host is shutting down. It is a conflict, which the domain's
+ *  crash policy never counts as a strike against the plugin (D347). */
+class PluginHostUnavailableError extends DomainConflictError {
+  constructor(message: string) {
+    super(message);
+    this.name = PLUGIN_HOST_UNAVAILABLE;
+  }
+}
+
 function unavailableError(): Error {
-  const error = new Error("plugin broker became unavailable; its RSS watchdog or a process failure stopped every resident runtime");
-  error.name = "PluginHostUnavailable";
-  return error;
+  return new PluginHostUnavailableError("plugin broker became unavailable; its RSS watchdog or a process failure stopped every resident runtime");
 }
 
 const PLUGIN_INSTANCE_KEYS = ["tools", "transforms", "events", "pubsub", "surfaces", "commands", "displayTransforms", "macros"] as const;
@@ -968,7 +1075,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
 
   const runOwned = async <T>(operation: () => Promise<T>): Promise<T> => {
     if (closed) {
-      throw new Error("plugin host: logical host is closed");
+      throw new PluginHostUnavailableError("plugin host: logical host is closed");
     }
     const completion = Promise.withResolvers<void>();
     pending.add(completion.promise);
@@ -1232,10 +1339,12 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       chars: 0,
       suppressLogs: false,
       crashed: null,
+      owedRefusal: null,
       disposed: false,
       dispatched: false,
       retirement: undefined,
       onCrash: (error) => pool.fail(binding, error),
+      onEnded: () => pool.discard(binding),
       ...lifetime,
     };
     ownedBindings.add(binding);
@@ -1291,6 +1400,11 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
       if (binding.crashed !== null) {
         throw binding.crashed;
       }
+      const owed = binding.owedRefusal;
+      if (owed !== null) {
+        binding.owedRefusal = null;
+        throw owed;
+      }
       const generation = binding.lifecycleGeneration;
       const lease = await pool.acquire(binding, { signal });
       return await invokeWithLease({ binding, lease, handler, argsJson, chat }, generation);
@@ -1321,6 +1435,13 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
               value: { code: input.code, grants: input.grants, chat: input.chat },
             }),
           );
+        } catch (error) {
+          // The broker terminated this snippet's stuck Worker. The run started, so it answers as a snippet the wall
+          // ended does; its log lines died with the Worker.
+          if (error instanceof Error && error.name === PLUGIN_INVOCATION_ENDED) {
+            return { logLines: [], error: error.message, errorKind: "runtime" };
+          }
+          throw error;
         } finally {
           forgetRuntime(binding, runtimeId);
         }
@@ -1380,7 +1501,7 @@ export function createPluginHost(seams: PluginHostSeamDeps): ProcessPluginHost {
           }
         });
         cleanup.defer(() => poolResources.disposeAsync());
-        const failure = new Error("plugin host: logical host is closing");
+        const failure = new PluginHostUnavailableError("plugin host: logical host is closing");
         for (const binding of ownedBindings) {
           logicalBindings.delete(binding);
           binding.disposed = true;

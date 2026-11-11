@@ -132,19 +132,23 @@ export interface RealmHost {
   readonly marshal: GuestMarshal;
 }
 
-// A guest string read whole through the marshal. Any other value keeps the realm's own `ToString`: dumping it
-// would materialize a guest object here with no depth guard, and a deep one corrupts the shared WASM runtime.
+// The text a log line or a token count takes from a guest value. The contract takes a string, which reads whole
+// through the marshal; another primitive reads as its own text, which runs no guest code. An object or a function
+// reads as its kind alone: its text would come from its `toString` or its getters, guest code a host read must not
+// run (D346), and dumping it here would have no depth guard. `null` reads as an object too: this engine build offers
+// no equality check to tell it apart without a read.
 function logText(ctx: QuickJSContext, marshal: GuestMarshal, handle: QuickJSHandle): string {
-  if (ctx.typeof(handle) !== "string") {
-    return ctx.getString(handle);
+  const type = ctx.typeof(handle);
+  if (type === "function" || type === "object") {
+    return `[${type}]`;
   }
   const read = marshal.fromGuest(handle);
   switch (read.kind) {
     case "value":
-      return typeof read.value === "string" ? read.value : "";
+      return typeof read.value === "string" ? read.value : String(read.value);
     case "thrown":
       throw new GuestCallFailure(read.error);
-    // Only a string reaches this read, and a string is never a promise.
+    // Only a primitive reaches this read, and a primitive is never a promise.
     case "promise":
       return "";
     default: {
@@ -159,39 +163,42 @@ function logText(ctx: QuickJSContext, marshal: GuestMarshal, handle: QuickJSHand
  *  `membrane` is supplied, the capability-gated namespaces (chat/variables/worldInfo/imagery/tools + `grants`)
  *  are attached onto the same surface (membrane.ts) — else it is the determinism-floor-only shape. */
 function buildHostSurface(ctx: QuickJSContext, { seams, log, marshal }: RealmHost, membrane: MembraneRuntime | undefined): QuickJSHandle {
-  const surface = ctx.newObject();
+  // `surface` is the return, so it is released only if the build ends early: every set below can run a guest setter
+  // on `Object.prototype` and so asks the window first (`setHostProp`, D346), which can end the guest mid-build.
+  using building = new DisposableStack();
+  const surface = building.adopt(ctx.newObject(), (made) => made.dispose());
 
-  ctx.setProp(surface, "version", ctx.newNumber(1));
+  using version = ctx.newNumber(1);
+  marshal.setHostProp(surface, "version", version);
 
   // Every intermediate handle below is `using` (quickjs-emscripten's `Lifetime` IS a `Disposable` — it extends
   // `UsingDisposable`, whose `[Symbol.dispose]` calls `.dispose()`), so the ownership discipline is declarative
   // and holds through a mid-build throw. `setProp` DUPs the value into the target, so a handle freed at scope
-  // exit rather than immediately after its `setProp` is refcount-identical — only `surface` (the return) is
-  // hand-owned. Scope-exit order is REVERSE-declaration = inner-fn-before-its-object, exactly the order the
-  // hand-written disposals used.
+  // exit rather than immediately after its `setProp` is refcount-identical. Scope-exit order is
+  // REVERSE-declaration = inner-fn-before-its-object, exactly the order the hand-written disposals used.
   using clock = ctx.newObject();
   using nowFn = marshal.newHostFunction("nowEpochMs", () => ctx.newNumber(seams.nowEpochMs()));
-  ctx.setProp(clock, "nowEpochMs", nowFn);
-  ctx.setProp(surface, "clock", clock);
+  marshal.setHostProp(clock, "nowEpochMs", nowFn);
+  marshal.setHostProp(surface, "clock", clock);
 
   using random = ctx.newObject();
   using nextFn = marshal.newHostFunction("next", () => ctx.newNumber(seams.nextRandom()));
-  ctx.setProp(random, "next", nextFn);
-  ctx.setProp(surface, "random", random);
+  marshal.setHostProp(random, "next", nextFn);
+  marshal.setHostProp(surface, "random", random);
 
   using ids = ctx.newObject();
   using mintFn = marshal.newHostFunction("mint", () => marshal.newHostString(seams.mintId()));
-  ctx.setProp(ids, "mint", mintFn);
-  ctx.setProp(surface, "ids", ids);
+  marshal.setHostProp(ids, "mint", mintFn);
+  marshal.setHostProp(surface, "ids", ids);
 
   using logObj = ctx.newObject();
   for (const level of LOG_LEVELS) {
     using fn = marshal.newHostFunction(level, (msgHandle?: QuickJSHandle) => {
       log.push(level, msgHandle === undefined ? "" : logText(ctx, marshal, msgHandle));
     });
-    ctx.setProp(logObj, level, fn);
+    marshal.setHostProp(logObj, level, fn);
   }
-  ctx.setProp(surface, "log", logObj);
+  marshal.setHostProp(surface, "log", logObj);
 
   // tokens.count(text) — a FREE (always-granted) namespace: the pure, isomorphic `estimateTokens` engine
   // computed host-side. Zero reach — a deterministic function of the guest's OWN string — so it needs
@@ -201,13 +208,14 @@ function buildHostSurface(ctx: QuickJSContext, { seams, log, marshal }: RealmHos
   using countFn = marshal.newHostFunction("count", (textHandle?: QuickJSHandle) =>
     ctx.newNumber(estimateTokens(textHandle === undefined || ctx.typeof(textHandle) !== "string" ? "" : logText(ctx, marshal, textHandle))),
   );
-  ctx.setProp(tokens, "count", countFn);
-  ctx.setProp(surface, "tokens", tokens);
+  marshal.setHostProp(tokens, "count", countFn);
+  marshal.setHostProp(surface, "tokens", tokens);
 
   if (membrane !== undefined) {
     attachMembrane(ctx, surface, membrane);
   }
 
+  building.move();
   return surface;
 }
 
@@ -228,14 +236,16 @@ export function installRealm(ctx: QuickJSContext, host: RealmHost, membrane?: Me
 
   using orb = ctx.newObject();
   using hostFn = host.marshal.newHostFunction("host", (majorHandle?: QuickJSHandle) => {
-    const major = majorHandle === undefined ? Number.NaN : ctx.getNumber(majorHandle);
+    // A number reads with no guest code; anything else would run its `valueOf` (D346), and is no version anyway.
+    const major = majorHandle !== undefined && ctx.typeof(majorHandle) === "number" ? ctx.getNumber(majorHandle) : Number.NaN;
     if (!PLUGIN_HOST_VERSIONS.some((served) => served === major)) {
       // Throw the TYPED class (not a plain Error) so `.name` crosses the boundary as "HostVersionError" — a
-      // guest feature-detects by `e.name`, and `served` rides along as data.
+      // guest feature-detects by `e.name`; the message names the served versions.
       throw new HostVersionError(major, PLUGIN_HOST_VERSIONS);
     }
     return buildHostSurface(ctx, host, membrane);
   });
+  // Set while the realm is built, before any guest source: no guest setter exists yet.
   ctx.setProp(orb, "host", hostFn);
   ctx.setProp(ctx.global, "orb", orb);
 }
