@@ -6,7 +6,15 @@
 
 import { spawn } from "node:child_process";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
-import { PLUGIN_KV_MAX_KEYS, PLUGIN_MAIN_ENTRY, PLUGIN_UI_ENTRY, PLUGIN_UI_HOST_CALL_CODES, pluginManifestSchema } from "@orb/contracts/plugin";
+import {
+  PLUGIN_KV_KEY_MAX_CHARS,
+  PLUGIN_KV_MAX_KEYS,
+  PLUGIN_KV_VALUE_MAX_BYTES,
+  PLUGIN_MAIN_ENTRY,
+  PLUGIN_UI_ENTRY,
+  PLUGIN_UI_HOST_CALL_CODES,
+  pluginManifestSchema,
+} from "@orb/contracts/plugin";
 import { expect, test } from "@orb/testkit/node";
 import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, makePluginBundle, seedCorpusActors, seedInstalledPlugin, seedPluginGrant } from "@orb/testkit/node/composed";
@@ -80,6 +88,37 @@ test("a storage write past the key cap answers a client error with the storage-c
   const refused = await relay(root, { pluginId, fn: "storage.set", argsJson: JSON.stringify(["one-too-many", "v"]) });
   expect(refused.status).toBe(BAD_REQUEST);
   expect(refusalSchema.parse(await refused.json()).error.data).toMatchObject({ code: "BAD_REQUEST", reason: PLUGIN_UI_HOST_CALL_CODES.storageCap });
+  expect(errorRecords(root)).toBe(logged);
+});
+
+// A character that is three UTF-8 bytes, so a value of N of them is a third as many characters as bytes.
+const THREE_BYTE_CHAR = "中";
+const THREE_BYTE_CHAR_WIDTH = 3;
+
+test.for([
+  {
+    name: "a key past the key cap",
+    within: ["k".repeat(PLUGIN_KV_KEY_MAX_CHARS), "v"],
+    past: ["k".repeat(PLUGIN_KV_KEY_MAX_CHARS + 1), "v"],
+  },
+  {
+    // Fewer characters than the byte cap, more bytes than it: the cap is in bytes.
+    name: "a value past the byte cap",
+    within: ["key", THREE_BYTE_CHAR.repeat(Math.floor(PLUGIN_KV_VALUE_MAX_BYTES / THREE_BYTE_CHAR_WIDTH))],
+    past: ["key", THREE_BYTE_CHAR.repeat(Math.floor(PLUGIN_KV_VALUE_MAX_BYTES / THREE_BYTE_CHAR_WIDTH) + 1)],
+  },
+])("$name answers a client error with the invalid-arguments code and logs no error", async ({ within, past }) => {
+  await using root = await ownerRoot();
+  const { pluginId } = await seedUiPlugin(root);
+  const logged = errorRecords(root);
+
+  const stored = await relay(root, { pluginId, fn: "storage.set", argsJson: JSON.stringify(within) });
+  expect(stored.status).toBe(200);
+  await stored.arrayBuffer();
+
+  const refused = await relay(root, { pluginId, fn: "storage.set", argsJson: JSON.stringify(past) });
+  expect(refused.status).toBe(BAD_REQUEST);
+  expect(refusalSchema.parse(await refused.json()).error.data).toMatchObject({ code: "BAD_REQUEST", reason: PLUGIN_UI_HOST_CALL_CODES.argsInvalid });
   expect(errorRecords(root)).toBe(logged);
 });
 

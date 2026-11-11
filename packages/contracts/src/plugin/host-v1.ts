@@ -982,6 +982,14 @@ export const PLUGIN_READ_CONTENT_MAX_CHARS = 16_384;
  *  at the same line on either side. */
 export const PLUGIN_LOG_LINES_MAX = 256;
 
+export const PLUGIN_LOG_CHARS_MAX = 16_384;
+
 /** Keys one plugin may hold in `storage.kv`; a write that would create a key past it is refused. */
 export const PLUGIN_KV_MAX_KEYS = 256;
-export const PLUGIN_LOG_CHARS_MAX = 16_384;
+
+/** The longest `storage.kv` key in characters. The table's CHECK and the UI relay's argument schema both read it, so
+ *  a key the relay admits is a key the table stores. */
+export const PLUGIN_KV_KEY_MAX_CHARS = 128;
+
+/** The largest `storage.kv` value in UTF-8 bytes, read by the table's CHECK and the UI relay's argument schema. */
+export const PLUGIN_KV_VALUE_MAX_BYTES = 65_536;
