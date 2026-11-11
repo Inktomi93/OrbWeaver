@@ -32,10 +32,12 @@ import { nonEmpty, present } from "../iso/non-empty.ts";
 import { attachNativeFile } from "../node/native-attachments.ts";
 import type { CheckpointStability } from "./layout-stability.ts";
 import { readCheckpointStability, STABILITY_SETTLE_MS } from "./layout-stability.ts";
+import { HELD_LEAVING_TIMEOUT_MS, LEAVING_BACKDROP, LEAVING_RELEASE_EVENT, PLANTED_BACKDROP } from "./leaving-cover.ts";
 import type { SerializedPerformanceEntry } from "./performance-entry.ts";
 import type {
   SurfaceCodeEditorStory,
   SurfaceDesignStory,
+  SurfaceLeavingCoverStory,
   SurfaceTextContainedOverlayStory,
   SurfaceTextDisclosureStory,
   SurfaceTextGeometryStory,
@@ -578,6 +580,35 @@ test("enlarged-text geometry judges a disclosure's controls once its panel has g
   });
   expect(await nativeAttachmentText(info, `${name}-text-geometry`)).toContain('"settlingAtReadiness": true');
   expect(info.errors).toEqual([]);
+});
+
+test("enlarged-text geometry refuses a closed dialog's backdrop that never leaves the scope, and records it as leaving at readiness", async ({
+  mount,
+  page,
+  browserName,
+}, info) => {
+  test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+  await using profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+  await page.addInitScript({ content: webVitalsInitScript(await webVitalsSource()) });
+  await mount<typeof SurfaceLeavingCoverStory>("tests/support/browser/surface-design-fixtures/SurfaceLeavingCoverStory", { cover: "leaving" });
+  await page.getByRole("alertdialog").getByRole("button", { name: "Confirm", exact: true }).click();
+  // The close is held until the test releases it, so the backdrop is still leaving through readiness and the whole probe.
+  await expect(page.locator(LEAVING_BACKDROP)).toHaveCount(1);
+  const witness = page.getByRole("button", { name: "Restore", exact: true });
+  const name = "text-geometry-leaving-backdrop";
+  page.setDefaultTimeout(HELD_LEAVING_TIMEOUT_MS);
+  const checkpoint = surfaceCheckpoint(info, { name, scope: page.getByRole("main"), state: "loaded", witnesses: [witness], checks: ["names"] }, [], {
+    pass: "measurement",
+    layoutStability: false,
+    textGeometry: { expectedRootFontPx: profile.standardFontPx },
+  });
+  await expect(checkpoint).rejects.toThrow(/a part never finished leaving: body > /u);
+  await expect(checkpoint).rejects.toThrow(PLANTED_BACKDROP);
+  const record: unknown = JSON.parse(await nativeAttachmentText(info, `${name}-text-geometry`));
+  // The held dialog's viewport and popup leave with its backdrop; the backdrop is the layer over the scope.
+  expect(record).toMatchObject({ leavingAtReadiness: expect.arrayContaining([expect.stringContaining(PLANTED_BACKDROP)]) });
+  await page.evaluate((event) => dispatchEvent(new Event(event)), LEAVING_RELEASE_EVENT);
+  await expect(page.locator(PLANTED_BACKDROP)).toHaveCount(0);
 });
 
 test("enlarged-text geometry still names a visible button a fixed box clips, and not a slider's visually hidden input", async ({

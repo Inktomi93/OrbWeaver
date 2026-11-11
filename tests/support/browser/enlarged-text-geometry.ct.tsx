@@ -1,10 +1,20 @@
 // @subject tests/support/browser/enlarged-text-geometry.ts
-// The probe's planted cases: a control under the boot veil is read once the veil has left, a control under a standing panel still fails,
+// The probe's planted cases: a control under the boot veil or a closed dialog's leaving backdrop is read once the layer has left, a backdrop
+// that never leaves fails the probe by its path, a control under a standing panel or an open dialog still fails, a scroller that scrolls sideways names the descendant that widens it,
 // a control's own value cut with an ellipsis fails while a list row title the design truncates does not, and a declared overlay is
 // named apart while an undeclared one, or the declared control over a control the declaration does not cover, still fails.
 import { expect, test } from "@playwright/test";
+import type { ComponentProps } from "react";
 import { enlargedTextFindings, enlargedTextGeometry } from "./enlarged-text-geometry.ts";
-import type { SurfaceCutValueStory, SurfaceDeclaredOverlayStory, SurfaceVeilCoverStory } from "./surface-design-fixtures.tsx";
+import { HELD_LEAVING_TIMEOUT_MS, LEAVING_BACKDROP, LEAVING_RELEASE_EVENT, PLANTED_BACKDROP } from "./leaving-cover.ts";
+import type {
+  SurfaceCutValueStory,
+  SurfaceDeclaredOverlayStory,
+  SurfaceLeavingCoverStory,
+  SurfaceSidewaysStory,
+  SurfaceTabStripStory,
+  SurfaceVeilCoverStory,
+} from "./surface-design-fixtures.tsx";
 
 const STORY = "tests/support/browser/surface-design-fixtures/SurfaceVeilCoverStory";
 const CUT_STORY = "tests/support/browser/surface-design-fixtures/SurfaceCutValueStory";
@@ -26,6 +36,36 @@ test("the probe still fails a control a standing panel covers", async ({ mount, 
   await mount<typeof SurfaceVeilCoverStory>(STORY, { cover: "panel" });
   await expect(page.getByRole("button", { name: "Retry", exact: true })).toBeVisible();
   expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([expect.stringMatching(/^button "Retry" \[.*\] is covered at its centre by div /u)]);
+});
+
+const LEAVING_STORY = "tests/support/browser/surface-design-fixtures/SurfaceLeavingCoverStory";
+
+test("the probe refuses to read under a closed dialog's backdrop that never leaves, and names the backdrop", async ({ mount, page }) => {
+  await mount<typeof SurfaceLeavingCoverStory>(LEAVING_STORY, { cover: "leaving" });
+  await page.getByRole("alertdialog").getByRole("button", { name: "Confirm", exact: true }).click();
+  // The close is held until the test releases it, so the backdrop stays leaving over the control for the whole probe.
+  await expect(page.locator(LEAVING_BACKDROP)).toHaveCount(1);
+  page.setDefaultTimeout(HELD_LEAVING_TIMEOUT_MS);
+  const probe = enlargedTextFindings(page.getByRole("main"));
+  await expect(probe).rejects.toThrow(/^enlarged-text geometry: a part never finished leaving: body > /u);
+  await expect(probe).rejects.toThrow(PLANTED_BACKDROP);
+});
+
+test("the probe reads the control once the closed dialog's held backdrop has left", async ({ mount, page }) => {
+  await mount<typeof SurfaceLeavingCoverStory>(LEAVING_STORY, { cover: "leaving" });
+  await page.getByRole("alertdialog").getByRole("button", { name: "Confirm", exact: true }).click();
+  await expect(page.locator(LEAVING_BACKDROP)).toHaveCount(1);
+  const findings = enlargedTextFindings(page.getByRole("main"));
+  await page.evaluate((event) => dispatchEvent(new Event(event)), LEAVING_RELEASE_EVENT);
+  expect(await findings).toEqual([]);
+  await expect(page.locator(PLANTED_BACKDROP)).toHaveCount(0);
+});
+
+test("the probe still fails a control an open dialog's layers stand over", async ({ mount, page }) => {
+  await mount<typeof SurfaceLeavingCoverStory>(LEAVING_STORY, { cover: "standing" });
+  await expect(page.getByRole("alertdialog")).toBeVisible();
+  // The open modal hides the page from the accessibility tree, so the scope is found by its element.
+  expect(await enlargedTextFindings(page.locator("main"))).toEqual([expect.stringMatching(/^button "Restore" \[.*\] is covered at its centre by div /u)]);
 });
 
 test("the probe fails a picker whose value is cut with an ellipsis", async ({ mount, page }) => {
@@ -68,6 +108,76 @@ test("the probe fails a visible button label that is cut, though the label repea
   await mount<typeof SurfaceCutValueStory>(CUT_STORY, { width: NARROW, cut: "label" });
   await expect(page.getByRole("button", { name: "Description", exact: true })).toBeVisible();
   expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([expect.stringMatching(/^button "Description" has its value cut: /u)]);
+});
+
+const SIDEWAYS_STORY = "tests/support/browser/surface-design-fixtures/SurfaceSidewaysStory";
+const WIDENED_BY = /^div .* scrolls sideways by \d+, widened by (?<path>:scope(?: > [^ ]+)+) by \d+$/u;
+
+// The widened arms whose cause is the planted box: a wide child, a fixed-width box its block child only fills, and a wide child that
+// overflows a right-to-left scroller to the left.
+const WIDENING_BOXES = ["child", "filled", "rtl"] as const satisfies readonly ComponentProps<typeof SurfaceSidewaysStory>["widened"][];
+
+for (const widened of WIDENING_BOXES) {
+  test(`the sideways finding names the box that widens its scroller by a path that resolves to it (${widened})`, async ({ mount, page }) => {
+    await mount<typeof SurfaceSidewaysStory>(SIDEWAYS_STORY, { widened });
+    const scroller = page.locator('[data-planted="scroller"]');
+    await expect(scroller).toBeVisible();
+    const findings = await enlargedTextFindings(page.getByRole("main"));
+    expect(findings).toEqual([expect.stringMatching(WIDENED_BY)]);
+    const path = WIDENED_BY.exec(findings[0] ?? "")?.groups?.["path"] ?? "";
+    // The strip beside it holds wider content than the planted box; only the planted box sets the scroller's width.
+    expect(await scroller.evaluate((node, at) => node.querySelector(at) === node.querySelector('[data-planted="widening"]'), path)).toBe(true);
+    // A checkpoint read at the far scroll position names the same box by the same overflow; a right-to-left scroller scrolls to negative offsets.
+    await scroller.evaluate((node) =>
+      node.scrollTo({ left: getComputedStyle(node).direction === "rtl" ? -node.scrollWidth : node.scrollWidth, behavior: "instant" }),
+    );
+    expect(await scroller.evaluate((node) => node.scrollLeft)).not.toBe(0);
+    expect(await enlargedTextFindings(page.getByRole("main"))).toEqual(findings);
+  });
+}
+
+test("the sideways finding names a scroller's own text when one unbreakable word in it widens it", async ({ mount, page }) => {
+  await mount<typeof SurfaceSidewaysStory>(SIDEWAYS_STORY, { widened: "text" });
+  const scroller = page.locator('[data-planted="scroller"]');
+  await expect(scroller).toBeVisible();
+  const findings = await enlargedTextFindings(page.getByRole("main"));
+  expect(findings).toEqual([expect.stringMatching(/^div .* scrolls sideways by \d+, widened by its own text by \d+$/u)]);
+  // The finding attributes the cause without carrying the text itself.
+  expect(findings[0]).not.toContain(await scroller.evaluate((node) => node.firstChild?.textContent ?? ""));
+});
+
+const TAB_STRIP_STORY = "tests/support/browser/surface-design-fixtures/SurfaceTabStripStory";
+
+test("the probe passes a tab strip that scrolls in a wrapper holding the tablist alone", async ({ mount, page }) => {
+  await mount<typeof SurfaceTabStripStory>(TAB_STRIP_STORY, { wrapper: "strip" });
+  const scroller = page.locator('[data-planted="scroller"]');
+  await expect(page.getByRole("tablist", { name: "Planted views", exact: true })).toBeVisible();
+  // The control for the silence: the wrapper does scroll sideways.
+  expect(await scroller.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(true);
+  expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([]);
+});
+
+test("the probe still fails a wrapper that holds more than the tablist", async ({ mount, page }) => {
+  await mount<typeof SurfaceTabStripStory>(TAB_STRIP_STORY, { wrapper: "shared" });
+  await expect(page.getByRole("tablist", { name: "Planted views", exact: true })).toBeVisible();
+  expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([expect.stringMatching(/^div .* scrolls sideways by \d+, widened by :scope > /u)]);
+});
+
+test("the probe still fails a wrapper its own text widens beside a lone tablist", async ({ mount, page }) => {
+  await mount<typeof SurfaceTabStripStory>(TAB_STRIP_STORY, { wrapper: "text" });
+  await expect(page.getByRole("tablist", { name: "Planted views", exact: true })).toBeVisible();
+  expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([
+    expect.stringMatching(/^div .* scrolls sideways by \d+, widened by its own text by \d+$/u),
+  ]);
+});
+
+test("the probe reports no sideways finding for a scroller its content fits", async ({ mount, page }) => {
+  await mount<typeof SurfaceSidewaysStory>(SIDEWAYS_STORY, { widened: "none" });
+  const scroller = page.locator('[data-planted="scroller"]');
+  await expect(scroller).toBeVisible();
+  // The control for the silence: the strip inside it does scroll, by its own declaration.
+  expect(await scroller.locator("[data-sideways-strip]").evaluate((strip) => strip.scrollWidth > strip.clientWidth)).toBe(true);
+  expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([]);
 });
 
 const OVERLAY_STORY = "tests/support/browser/surface-design-fixtures/SurfaceDeclaredOverlayStory";
