@@ -34,6 +34,8 @@ Per-unit workflow rules:
   with type in the 11 allowed, and a well-formed `Co-Authored-By: Name <local@domain>` trailer
   on every commit. Message: what changed and why, two to four body lines.
 - Commit between units, not mid-unit.
+- Push cadence is the owner's: he routinely runs hundreds of local commits before pushing. Local
+  accumulation is not a finding and needs no reminder; a cold session must not nag about it.
 
 Context you need to grade findings, not just find them:
 
