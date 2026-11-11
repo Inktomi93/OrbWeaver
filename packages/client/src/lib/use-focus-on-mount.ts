@@ -15,6 +15,9 @@ interface FocusTarget {
   readonly focus: () => void;
   readonly closest?: MinimalElement["closest"];
 }
+interface ConnectedNode {
+  readonly isConnected: boolean;
+}
 interface MinimalEvent {
   readonly key?: string;
   readonly target: object | null;
@@ -40,11 +43,18 @@ const browserDocument = (globalThis as { document?: MinimalDocument }).document;
 // press, and only this tells a field that started the arrival from one the reader went on typing in. Typing clears it, and a
 // click on the field itself activates nothing.
 let pressedFrom: MinimalElement | null = null;
+// The control the reader's last press landed on, kept to tell a surface arriving after that control was removed (a navigation)
+// from one mounting on a cold load (no press at all). One arrival consumes it.
+let activated: ConnectedNode | null = null;
+function isConnectedNode(target: object | null): target is ConnectedNode {
+  return target !== null && "isConnected" in target;
+}
 browserDocument?.addEventListener(
   "keydown",
-  ({ key }) => {
+  ({ key, target }) => {
     if (key === "Enter") {
       pressedFrom = browserDocument.activeElement;
+      activated = isConnectedNode(target) ? target : null;
     }
   },
   { capture: true },
@@ -54,6 +64,7 @@ browserDocument?.addEventListener(
   ({ target }) => {
     const active = browserDocument.activeElement;
     pressedFrom = active === target ? null : active;
+    activated = isConnectedNode(target) ? target : null;
   },
   { capture: true },
 );
@@ -72,8 +83,9 @@ browserDocument?.addEventListener(
  *  nav — a keyboard user's first Tab would skip the entire primary navigation (WCAG 2.4.3 Focus Order /
  *  2.1.1 Keyboard). On a real navigation or modal-open the user has activated a control (or `SectionContent`
  *  focused the content anchor on the section change first), so `activeElement` is a real element ⇒ we DO
- *  move focus into the new surface. The `<body>`/null check is the exact initial-load ⇄ navigation
- *  discriminator, with no timing flag.
+ *  move focus into the new surface. The `<body>`/null check is the initial-load ⇄ navigation discriminator,
+ *  with one exception: a press whose own control the same render removed (a You-sheet row that opens a section
+ *  closes with it) also leaves focus on `<body>`, and that is a navigation, so the surface arrives there too.
  *
  *  A surface can arrive long after the press that opened it, behind a read or a deferred render. By then the user may be
  *  typing elsewhere, and a blur can cancel what they typed, or working in an open menu. So a text field outside the target
@@ -114,6 +126,15 @@ function keepsFocus(active: MinimalElement, target: FocusTarget | null): boolean
   return active.closest(OVERLAY_FOCUS_SCOPE) !== null && (target?.closest?.(OVERLAY_FOCUS_SCOPE) ?? null) === null;
 }
 
+/** Whether arrival may move focus off `active`: from a real element unless it keeps focus, and from `<body>` only when the last
+ *  press landed on a control that is gone now (a cold load has no such press). */
+function mayTakeFocus(active: MinimalElement | null | undefined, target: FocusTarget | null): boolean {
+  if (active === null || active === undefined || active === browserDocument?.body) {
+    return activated !== null && !activated.isConnected;
+  }
+  return !keepsFocus(active, target);
+}
+
 function useArrivalFocus(ref: RefObject<FocusTarget | null>, { enabled, repeatOnReveal, preserveFocus, bandFirst }: ArrivalOptions): void {
   const handled = useRef(false);
   useEffect(() => {
@@ -121,13 +142,10 @@ function useArrivalFocus(ref: RefObject<FocusTarget | null>, { enabled, repeatOn
       return;
     }
     handled.current = true;
-    const active = browserDocument?.activeElement;
-    if (active === null || active === undefined || active === browserDocument?.body) {
+    if (!mayTakeFocus(browserDocument?.activeElement, ref.current)) {
       return;
     }
-    if (keepsFocus(active, ref.current)) {
-      return;
-    }
+    activated = null;
     const band = bandFirst ? (browserDocument?.querySelector(LIST_BAND_FIRST_CONTROL) ?? null) : null;
     (band ?? ref.current)?.focus();
   }, [ref, enabled, repeatOnReveal, preserveFocus, bandFirst]);

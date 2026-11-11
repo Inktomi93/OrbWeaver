@@ -496,6 +496,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/roster-preset/lib/roster-names.ts": "ROSTER_SAVED_NAME and ROSTER_ALL_NAME: the saved-rosters modal and Home tile names",
   "packages/client/src/features/discovery/lib/corpus-control-names.ts":
     "CORPUS_SEARCH_TARGET_NAME and CORPUS_DISTILLED_CATALOG_NAME: the Corpus list and browse names",
+  "packages/client/src/features/refinery/lib/refinery-section-label.ts": "REFINERY_LIST_TITLE: the name the Refinery list pane's focus target announces",
   "packages/client/src/features/refinery/lib/refinery-names.ts":
     "REFINERY_VERSIONS_NAME, refineryCompareToggleName and REFINERY_VERSION_LOADING_TEXT: the context pane's version history names",
   "packages/client/src/features/refinery/lib/verdict.ts": "verdictWordOf: the display word the analyze verdict banner paints",

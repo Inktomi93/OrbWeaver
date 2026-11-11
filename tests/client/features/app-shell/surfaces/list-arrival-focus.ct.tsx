@@ -10,6 +10,7 @@ import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { REFINERY_LIST_TITLE } from "#client/features/refinery/lib/refinery-section-label.ts";
 import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
@@ -102,6 +103,18 @@ function focusRegion(page: Page): Promise<Region> {
     },
     { bandSelector: BAND, contentSelector: CONTENT, listSelector: LIST, railSelector: RAIL },
   );
+}
+
+/** What holds focus, as a person meets it: its tag, its role and its name. Two landings on one control share it; a pane frame has its own. */
+function focusSignature(page: Page): Promise<string> {
+  return page.evaluate(() => {
+    const active = document.activeElement;
+    if (active === null) {
+      return "none";
+    }
+    const name = active.getAttribute("aria-label") ?? active.getAttribute("aria-labelledby") ?? active.textContent.trim();
+    return `${active.tagName}|${active.getAttribute("role") ?? ""}|${name}`;
+  });
 }
 
 const STOP_KINDS = ["band-action", "new", "fold", "search", "row", "other"] as const;
@@ -202,9 +215,21 @@ test("a Refinery whose list the user docked lands focus in the list on a return 
   await expect.poll(() => focusRegion(page)).toBe("list");
 });
 
-// A phone shows one pane at a time: with nothing open, the list IS the screen, so it owns arrival in both sections. The shell
-// also lands a jump from the You sheet on the list screen (the body-focus rescue in app-shell.tsx), so these cases guard the
-// regime the user sees and stay green whichever surface claims; they are not a control for the surface claims above.
+// The Refinery list's focus target is the pane's own frame, and a screen reader announces it on arrival: it carries the name of what
+// the pane holds, as the Extensions list's does.
+test("the Refinery list pane's focus target is a region named for what the pane holds", async ({ mount, page }) => {
+  await seedShellState(page, { activeSection: "home" });
+  await mount<typeof AppShellStory>(STORY, {});
+  await pressRail(page, ARRIVALS.refinery.label);
+  await page.getByRole("button", { name: panelEdgeName(LIST_PANEL_NOUN, false), exact: true }).click();
+  await expect(page.locator(LIST)).toHaveAttribute("data-panel-mode", "docked");
+
+  await expect(page.locator(LIST).getByRole("region", { name: REFINERY_LIST_TITLE, exact: true })).toBeVisible();
+});
+
+// A phone shows one pane at a time: with nothing open, the list IS the screen, so it owns arrival in both sections. A jump from
+// the You sheet closes the sheet in the render that opens the section, so focus is on the body when the surface arrives; the
+// surface still lands on the control a first arrival does, and the shell's body-focus rescue (app-shell.tsx) is only the fallback.
 const PHONE_LIST_SECTIONS = ["refinery", "extensions"] as const satisfies readonly SectionId[];
 const SHEET = '[data-slot="drawer-popup"]';
 
@@ -227,12 +252,15 @@ test.describe("on a phone", () => {
       await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", section);
       await expect(page.locator(LIST)).toBeVisible();
       await expect.poll(() => focusRegion(page)).toMatch(LIST_PANE);
+      const firstArrival = await focusSignature(page);
 
       await pressRail(page, ARRIVALS.home.label);
       await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", "home");
       await openFromYouSheet(page, label);
       await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", section);
       await expect.poll(() => focusRegion(page)).toMatch(LIST_PANE);
+      // The return lands on the very control the first arrival did, not on the pane frame the shell's own rescue falls back to.
+      await expect.poll(() => focusSignature(page)).toBe(firstArrival);
     });
   }
 });
