@@ -89,7 +89,7 @@ export async function loadPersonasForOwners(db: Db, personaIds: readonly Persona
 }
 
 /** The room pin's presentation surface: the persona `chats.anchorPersonaId` names for `chatId`, whoever owns it
- *  (ADR 0314, `contract/ops.ts`). The read starts at the chat and walks the pin's FK, so a caller names a room,
+ *  (ADR 0315, `contract/ops.ts`). The read starts at the chat and walks the pin's FK, so a caller names a room,
  *  never a persona; a chat with no pin, or no such chat, reads undefined. */
 export async function loadPinnedPersonaView(db: Db, chatId: ChatId): Promise<PersonaListView | undefined> {
   const rows = await db
