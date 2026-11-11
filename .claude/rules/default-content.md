@@ -10,7 +10,7 @@ Read the header of `packages/default-content/src/index.ts` before you change thi
 ## Placement
 
 - The package depends on `@orb/kit` alone. The `default-content-cake` rule in `.dependency-cruiser.ts` enforces the direction.
-- No `domain/**` module imports the package. The composition root in `packages/server/src/entry/compose/` closes over its readers and injects the bytes into the seeders, which stay filesystem-unaware (`docs/adr/0160-default-content-ships-as-a-workspace-package-the.md`).
+- No `domain/**` module imports the package. The composition root in `packages/server/src/entry/compose/` closes over its readers and injects the bytes into the seeders, which stay filesystem-unaware (`docs/adr/0160-default-content-ships-as-a-workspace-package-the.md`). The `domain-no-default-content` rule in `.dependency-cruiser.ts` refuses every such import, type-only included; a shape a domain needs lives in its own `contract/`.
 - Shipped bytes belong in this package, not in a server directory an image build copies. The server declares the package as a dependency (`docs/adr/0160-default-content-ships-as-a-workspace-package-the.md`).
 - Character card definitions, themes and the default preset stay in their server domains. They are code with domain meaning (`docs/adr/0160-default-content-ships-as-a-workspace-package-the.md`).
 

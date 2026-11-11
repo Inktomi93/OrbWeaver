@@ -481,6 +481,60 @@ const EMPTY_POPULATION_RESTRICTIONS = [
   },
 ];
 
+// Package source reads time through an injected clock (Spine-Testing §3). The ambient clock is a `Date.now` read
+// (called, passed or destructured), `Date()` called without `new`, a bare `new Date()`, each also through
+// `globalThis.Date`, and `performance.timeOrigin + performance.now()`. Each home below constructs the clock it injects.
+const dateAt = (path: string): string =>
+  `:matches([${path}.type='Identifier'][${path}.name='Date'], [${path}.type='MemberExpression'][${path}.object.name='globalThis'][${path}.property.name='Date'])`;
+const performanceRead = (path: string, name: string): string => `[${path}.object.name='performance'][${path}.property.name='${name}']`;
+const CLOCK_SYNTAX = {
+  selector: `:matches(${[
+    `MemberExpression${dateAt("object")}${memberNamed("now")}`,
+    `VariableDeclarator${dateAt("init")} > ObjectPattern > Property[key.name='now']`,
+    `CallExpression${dateAt("callee")}`,
+    `NewExpression${dateAt("callee")}[arguments.length=0]`,
+    `BinaryExpression[operator='+']${performanceRead("left", "timeOrigin")}${performanceRead("right.callee", "now")}`,
+    `BinaryExpression[operator='+']${performanceRead("right", "timeOrigin")}${performanceRead("left.callee", "now")}`,
+  ].join(", ")})`,
+  message:
+    "Read time through the injected clock (Spine-Testing §3); `Date.now`, `Date()`, a bare `new Date()` and `performance.timeOrigin + performance.now()` read the ambient clock.",
+};
+// A test reads the same ambient clock the package selector names, and the ambient PRNG beside it (Spine-Testing §3).
+const mathAt = (path: string): string =>
+  `:matches([${path}.type='Identifier'][${path}.name='Math'], [${path}.type='MemberExpression'][${path}.object.name='globalThis'][${path}.property.name='Math'])`;
+const TEST_DETERMINISM_SYNTAX = [
+  {
+    selector: CLOCK_SYNTAX.selector,
+    message:
+      "A test reads time from the frozen clock (createFrozenClock from @orb/testkit/iso) and passes it to the harness (Spine-Testing §3); `Date.now`, `Date()` and a bare `new Date()` read the wall clock.",
+  },
+  {
+    selector: `:matches(MemberExpression${mathAt("object")}${memberNamed("random")}, VariableDeclarator${mathAt("init")} > ObjectPattern > Property[key.name='random'])`,
+    message: "A test draws ids and values from a seeded source (createSeededIds from @orb/testkit/iso) (Spine-Testing §3); `Math.random` differs on every run.",
+  },
+];
+
+// The traps .claude/rules/browser-tests.md names: `innerText` is layout-aware, so an sr-only or hidden name reads as
+// empty; a bare `route.abort()` takes Playwright's default `failed` code, which reads as a real network failure. A
+// zero-argument `abort()` is also AbortController's, so the abort selector judges a receiver named `route` (or `…Route`)
+// and any receiver inside a handler written in a `.route()` call. It cannot see a handler passed by reference whose
+// parameter is not named as a route: a typed `Route` parameter cannot be told from an AbortController in the same body.
+const TRAP_TEXT_READ = "/^(innerText|allInnerTexts)$/";
+const BARE_ABORT = `CallExpression[arguments.length=0]${memberNamed("abort", "callee.")}`;
+const BROWSER_TEST_TRAPS = [
+  {
+    selector: `:matches(MemberExpression${memberNamed("innerText")}, MemberExpression${memberNamed("allInnerTexts")}, ObjectPattern > Property:matches([key.name=${TRAP_TEXT_READ}], [key.value=${TRAP_TEXT_READ}]))`,
+    message: "Read an accessible name with textContent, ariaSnapshot or getByRole(..., { exact: true }); innerText drops a name the layout hides.",
+  },
+  {
+    selector: `:matches(${[
+      `${BARE_ABORT}[callee.object.name=/^(route|.*Route)$/]`,
+      `CallExpression[callee.property.name=/^route(FromHAR|WebSocket)?$/] > :function ${BARE_ABORT}`,
+    ].join(", ")})`,
+    message: 'Abort a route with route.abort("aborted"); a bare route.abort() sends the default `failed` code, which reads as a real network failure.',
+  },
+];
+
 // A later block that sets `no-restricted-syntax` replaces this list, so every test class composes it instead of restating a part.
 const TEST_SYNTAX = [
   INTERNAL_MODULE_MOCK_RESTRICTION,
@@ -488,6 +542,8 @@ const TEST_SYNTAX = [
   ...TEST_ENVIRONMENT_RESTRICTIONS,
   ...OWNED_DB_RESTRICTIONS,
   ...EMPTY_POPULATION_RESTRICTIONS,
+  ...TEST_DETERMINISM_SYNTAX,
+  ...BROWSER_TEST_TRAPS,
 ];
 // A suite whose subject is the database client, the testkit's own database owners and the child process that holds a raw connection open and close the handle themselves.
 const CLIENT_SUBJECT_TEST_SYNTAX = TEST_SYNTAX.filter((restriction) => restriction !== RAW_DB_OPEN_RESTRICTION);
@@ -614,24 +670,6 @@ const SERVER_SYNTAX = [
   ...MODULE_LOADER_SYNTAX,
 ];
 
-// Package source reads time through an injected clock (Spine-Testing §3). The ambient clock is a `Date.now` read
-// (called, passed or destructured), `Date()` called without `new`, a bare `new Date()`, each also through
-// `globalThis.Date`, and `performance.timeOrigin + performance.now()`. Each home below constructs the clock it injects.
-const dateAt = (path: string): string =>
-  `:matches([${path}.type='Identifier'][${path}.name='Date'], [${path}.type='MemberExpression'][${path}.object.name='globalThis'][${path}.property.name='Date'])`;
-const performanceRead = (path: string, name: string): string => `[${path}.object.name='performance'][${path}.property.name='${name}']`;
-const CLOCK_SYNTAX = {
-  selector: `:matches(${[
-    `MemberExpression${dateAt("object")}${memberNamed("now")}`,
-    `VariableDeclarator${dateAt("init")} > ObjectPattern > Property[key.name='now']`,
-    `CallExpression${dateAt("callee")}`,
-    `NewExpression${dateAt("callee")}[arguments.length=0]`,
-    `BinaryExpression[operator='+']${performanceRead("left", "timeOrigin")}${performanceRead("right.callee", "now")}`,
-    `BinaryExpression[operator='+']${performanceRead("right", "timeOrigin")}${performanceRead("left.callee", "now")}`,
-  ].join(", ")})`,
-  message:
-    "Read time through the injected clock (Spine-Testing §3); `Date.now`, `Date()`, a bare `new Date()` and `performance.timeOrigin + performance.now()` read the ambient clock.",
-};
 const SERVER_CLOCK_HOME = homes("packages/server/src/entry/lifecycle.ts");
 const KIT_CLOCK_HOME = homes("packages/kit/src/time/index.ts");
 // Every server stream is a room on the one `stream.connect` socket (D118). The stream router is the socket's own home,

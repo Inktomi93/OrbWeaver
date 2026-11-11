@@ -1,6 +1,5 @@
 // Two native local cookies read the same committed corpus room, with role-specific rendered controls.
 
-import { renderMessageForDisplay } from "@orb/client/lib";
 import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
 import { THEME_CHAT_STYLES } from "@orb/contracts/theme";
 import type { CharacterId, PersonaId } from "@orb/kit/ids";
@@ -9,6 +8,7 @@ import { devices } from "@playwright/test";
 import { z } from "zod";
 import { CHAT_MEMBERS_ENTRY_PREFIX } from "#client/features/chat/lib/chat-surface-names.ts";
 import { CHAT_INVITE_PEOPLE_NAME } from "#client/features/chat/lib/members-names.ts";
+import { renderMessageForDisplay } from "#client/lib/message-render.ts";
 import { loginLocal } from "./support/actors.ts";
 import { openChatByTitle, waitForAppReady } from "./support/chat-room.ts";
 import { expect, test } from "./support/corpus-test.ts";

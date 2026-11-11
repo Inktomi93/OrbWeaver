@@ -25,6 +25,7 @@ import type { ActorClient } from "./support/actors.ts";
 import { addMemberToChat, loginLocal, ownerActor } from "./support/actors.ts";
 import { openBrowserActor, openMembersTab } from "./support/browser-actors.ts";
 import { LOCAL_MEMBER, LOCAL_OWNER } from "./support/modes.ts";
+import { runName } from "./support/run-names.ts";
 import { CASE_LIVE_FOLLOW_UP_MS } from "./support/timeouts.ts";
 
 const MEMBERS_PANEL = "[data-testid=members-panel]";
@@ -87,7 +88,7 @@ test("MEMBERS TAB: the same two-human room rendered as HOST and as MEMBER (host 
     const started = await api.trpc.chat.startChat.mutate({ characterIds });
     const chatId = started.chat.id;
     // The real UI has no chat-by-id door, so each browser opens the room by a unique list-row title.
-    const title = `e2e-members-${Date.now()}`;
+    const title = runName("e2e-members");
     await api.trpc.chat.updateTitle.mutate({ chatId, title });
     const memberApi = await loginLocal(origin, castId<Handle>(LOCAL_MEMBER.handle), LOCAL_MEMBER.password);
     await addMemberToChat(api, memberApi, chatId, LOCAL_MEMBER.handle);

@@ -2,6 +2,7 @@
 // Exact transcript identity and content are covered by scripted-chat.spec.ts.
 import { expect, test } from "@playwright/test";
 import { openOrCreateChat, renameOpenChat, reopenFirstChat, waitForAppReady } from "./support/chat-room.ts";
+import { runName } from "./support/run-names.ts";
 import { WAIT_SHORT_MS, WAIT_UI_MS } from "./support/timeouts.ts";
 
 const STAR_MENU_ITEM = /^(Star|Unstar)$/u;
@@ -19,7 +20,7 @@ async function openRowKebab(page: import("@playwright/test").Page): Promise<void
 test.describe("chat persistence", () => {
   test("rename → reload → re-open → title persists", async ({ page }) => {
     await openOrCreateChat(page);
-    const newTitle = `e2e-rename-${Date.now()}`;
+    const newTitle = runName("e2e-rename");
     await renameOpenChat(page, newTitle);
     await expect(page.getByText(newTitle).first()).toBeVisible({ timeout: WAIT_SHORT_MS });
 

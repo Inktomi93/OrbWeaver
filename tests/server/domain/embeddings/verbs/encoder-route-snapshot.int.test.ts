@@ -1,14 +1,15 @@
 // @subject packages/server/src/domain/embeddings/verbs/runtime-connection.ts
 // @subject packages/server/src/domain/embeddings/substrate/seed-embedding.ts
 // @subject packages/server/src/primitives/embedding-generation/binding.ts
-import { ENCODER_IDENTITY_NO_API, embedDimsOf, embedDtypeOf, embedSpaceOf, LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
+import { BUILT_IN_EMBED_DIMS, ENCODER_IDENTITY_NO_API, embedDtypeOf, embedSpaceOf, LOCAL_LIGHT_SEED_ROWS, modelIdSchema } from "@orb/contracts/inference";
 import { userConnections } from "@orb/db";
-import { SEED_MANIFEST } from "@orb/default-content";
+import { readSeedAvatar, SEED_MANIFEST } from "@orb/default-content";
+import type { LocalLightModelCache } from "@orb/inference";
 import { NoConnectionError, supportsManagedCompaction } from "@orb/inference";
-import { createResolveEmbeddingConnection, precomputedSeedEmbedding } from "@orb/server/domain/embeddings";
-import { sha256Hex } from "@orb/server/primitives/content-hash";
+import { createResolveEmbeddingConnection } from "@orb/server/domain/embeddings";
+import { finiteReplies } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import { createServerHarness, SECRET_BOX_TEST_KEY, withheldTable } from "@orb/testkit/node/composed";
+import { CORPUS_PROVIDER_ENDPOINT, createCorpusProviderExecution, createServerHarness, SECRET_BOX_TEST_KEY, withheldTable } from "@orb/testkit/node/composed";
 
 test("runtime operation capabilities retain stateful chat and concrete embedding route behavior", async () => {
   await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY });
@@ -52,26 +53,137 @@ test("runtime operation capabilities retain stateful chat and concrete embedding
   expect(
     supportsManagedCompaction((await app.runtime.resolve({ principal: ownerPrincipal, task: "embed", connectionId: remote.id, cachedFacts: true })).resolved),
   ).toBe(false);
-  const card = SEED_MANIFEST.find((item) => item.kind === "character");
-  if (card === undefined || localSnapshot === null) {
-    throw new Error("the shipped card and its local encoder must exist");
+});
+
+const unscripted = (): Promise<never> => Promise.reject(new Error("unscripted local-light model call"));
+
+/** A local-light model edge that refuses every call, for a root whose case never encodes locally. */
+function unscriptedLocalLight(): LocalLightModelCache {
+  return { embedTexts: unscripted, scorePairs: unscripted, embedImages: unscripted, embedClipTexts: unscripted, preload: unscripted, loadFailed: () => false };
+}
+
+// The scripted endpoint records each request as `<method> <path>`; a POST is one model call.
+const isSend = (request: string): boolean => request.startsWith("POST ");
+
+/** A shipped avatar's bytes; the packaged vectors cover every shipped card's art. */
+async function shippedAvatar(): Promise<{ readonly bytes: Uint8Array; readonly mime: string }> {
+  const handle = SEED_MANIFEST.flatMap((item) => (item.kind === "character" ? [item.handle] : []))[0];
+  const avatar = handle === undefined ? null : await readSeedAvatar(handle);
+  if (avatar === null) {
+    throw new Error("the shipped content carries no avatar");
   }
-  await app.contentSeeder.ensureSeeded(ownerPrincipal);
-  const characterId = (await services.character.findByHandle({ ownerId: ownerPrincipal.userId, handle: card.handle }))?.characterId ?? null;
-  if (characterId === null) {
-    throw new Error("the production seeder did not produce its shipped card");
+  return avatar;
+}
+
+test("a shipped avatar stored on the local-light image encoder takes its packaged vector, while other bytes reach the model", async () => {
+  // One reply: the changed-bytes control spends it, and a seeded store that reached the model would overdraw the plan.
+  using plan = finiteReplies("local-light image encode", [new Float32Array(BUILT_IN_EMBED_DIMS).fill(1)]);
+  const encoded: number[] = [];
+  const localLightCache: LocalLightModelCache = {
+    embedTexts: unscripted,
+    scorePairs: unscripted,
+    embedImages: (_model, images) => {
+      encoded.push(images.length);
+      return Promise.resolve(images.map(() => plan.take()));
+    },
+    embedClipTexts: unscripted,
+    preload: unscripted,
+    loadFailed: () => false,
+  };
+  await using root = await createServerHarness({ localLightCache });
+  const owner = await root.principalFor(root.ownerId);
+  const local = await root.services.connection.create({
+    principal: owner,
+    providerId: "local-light",
+    credentialId: null,
+    baseUrl: null,
+    model: LOCAL_LIGHT_SEED_ROWS[0].model,
+    allowBackground: true,
+  });
+  await root.services.connection.setBinding({ principal: owner, task: "imageEmbed", connectionId: local.id });
+  const avatar = await shippedAvatar();
+  const { assetId } = await root.app.assets.store({ principal: owner, ...avatar, kind: "avatar" });
+  await root.settleBackground();
+  const generation = await root.app.embeddings.resolveGeneration(owner.userId, "imageEmbed");
+  expect(encoded).toEqual([]);
+
+  const seeded = await root.app.embeddings.store({
+    lens: "image-raw",
+    ownerId: owner.userId,
+    assetId,
+    content: avatar.bytes,
+    model: generation.space,
+    force: true,
+  });
+  expect(seeded).toMatchObject({ outcome: "written", model: generation.space });
+  expect(encoded).toEqual([]);
+
+  // One trailing byte changes the content hash, so no packaged vector matches it.
+  const changed = new Uint8Array(avatar.bytes.length + 1);
+  changed.set(avatar.bytes);
+  const live = await root.app.embeddings.store({ lens: "image-raw", ownerId: owner.userId, assetId, content: changed, model: generation.space, force: true });
+  expect(live).toMatchObject({ outcome: "written", model: generation.space });
+  expect(encoded).toEqual([1]);
+});
+
+test("an endpoint encoder in the packaged vectors' own space embeds a shipped avatar live, because only local-light takes seeds", async () => {
+  const model = modelIdSchema.parse(LOCAL_LIGHT_SEED_ROWS[0].model);
+  const physical = createCorpusProviderExecution({
+    modelIds: [model],
+    embedding: () => new Array<number>(BUILT_IN_EMBED_DIMS).fill(1),
+    chatText: "",
+    structuredReplies: new Map(),
+    images: [],
+  });
+  await using root = await createServerHarness({ providerFetch: physical.execute, localLightCache: unscriptedLocalLight() });
+  const owner = await root.principalFor(root.ownerId);
+  const local = await root.services.connection.create({
+    principal: owner,
+    providerId: "local-light",
+    credentialId: null,
+    baseUrl: null,
+    model,
+    allowBackground: true,
+  });
+  const localSnapshot = await createResolveEmbeddingConnection(root.app.runtime, async () => owner)(owner.userId, "imageEmbed", local.id);
+  if (localSnapshot === null) {
+    throw new Error("the local-light encoder did not resolve");
   }
-  const text = await services.character.loadCardText(characterId);
-  if (text === null) {
-    throw new Error("the seeded card has no embedding projection");
-  }
-  const hash = sha256Hex(text);
-  const space = embedSpaceOf(localSnapshot.model, embedDtypeOf(localSnapshot.capability));
-  const seeded = precomputedSeedEmbedding(hash, space, "card-text", localSnapshot);
-  expect(seeded?.model).toBe(space);
-  expect(seeded?.vector.length).toBe(embedDimsOf(localSnapshot.capability));
-  expect(precomputedSeedEmbedding(hash, space, "card-text", remoteSnapshot)).toBeNull();
-  expect(precomputedSeedEmbedding(sha256Hex(`${text} changed`), space, "card-text", localSnapshot)).toBeNull();
+  const dtype = embedDtypeOf(localSnapshot.capability);
+  const localSpace = embedSpaceOf(localSnapshot.model, dtype);
+  // The same weights at the same precision over an endpoint: one space by design, so only the seed gate tells them apart.
+  const endpoint = await root.services.connection.create({
+    principal: owner,
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: CORPUS_PROVIDER_ENDPOINT,
+    model,
+    allowBackground: true,
+    declared: {
+      kind: "embedding",
+      embedding: { dims: BUILT_IN_EMBED_DIMS, maxInputTokens: 8192, input: ["text", "image"], ...(dtype === undefined ? {} : { dtype }) },
+      features: { detectServer: false },
+    },
+  });
+  await root.services.connection.setBinding({ principal: owner, task: "imageEmbed", connectionId: endpoint.id });
+  const avatar = await shippedAvatar();
+  const { assetId } = await root.app.assets.store({ principal: owner, ...avatar, kind: "avatar" });
+  await root.settleBackground();
+  const generation = await root.app.embeddings.resolveGeneration(owner.userId, "imageEmbed");
+  expect(generation.space).toBe(localSpace);
+  const sendsBefore = physical.requests.filter(isSend).length;
+
+  const stored = await root.app.embeddings.store({
+    lens: "image-raw",
+    ownerId: owner.userId,
+    assetId,
+    content: avatar.bytes,
+    model: generation.space,
+    force: true,
+  });
+  // The row carries the tag the endpoint answered with, so the model call itself is the witness.
+  expect(stored).toMatchObject({ outcome: "written", generationId: generation.id });
+  expect(physical.requests.filter(isSend)).toHaveLength(sendsBefore + 1);
 });
 
 test("an explicit connection id that no longer resolves answers null, while the binding form refuses with no connection", async () => {
