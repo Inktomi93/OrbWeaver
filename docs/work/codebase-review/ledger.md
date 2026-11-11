@@ -1,21 +1,59 @@
 # Codebase review ledger
 
-Log-only sweep of the whole repository. The ledger is the review; the conversation is disposable.
+## START HERE — read this file top to bottom; it is the whole assignment
+
+You are the reviewer in a log-only whole-repo sweep. The conversation is disposable; this ledger
+is the review. Nothing found goes unfixed-and-unwritten: every finding is written down with a
+path and line the moment it is found, and fixes wait for triage.
+
+Boot sequence, in this order, every cold start:
+
+1. Read this file. Protocol, axes, commands, and the unit table are all in here — there is no
+   second guide doc and none is needed.
+2. Find the first `in-progress` unit in the table, else the first `queued` one. That is the
+   assignment. If it is XL, split it into sub-units by subfolder and rewrite its rows first.
+3. Read `units/<id>.md` if it exists (a half-done unit); else create it: title, band, sweeps,
+   findings, verdict.
+4. Mark the unit `in-progress`, update its status cell, commit nothing yet.
+5. Work the unit: sweep commands below (raw output into the unit file), read the unit's
+   `contract/` in full, read every file header, then targeted-read only what the sweeps or
+   headers made suspicious. For root-level config chunks, also truth the comments per the
+   comment law while in there — one combined commit is fine.
+6. Append findings as you find them, in the finding format below. A finding held in your head
+   across a tool call is a finding you will lose.
+7. Close: status to `reviewed (N)`, update the rollup table, run `pnpm format:docs`, commit
+   ledger + unit file + any in-unit comment fixes together.
+
+Per-unit workflow rules:
+
+- Verify at the tier the change lives in. Comment/config edits: run the suites that read those
+  files plus `pnpm typecheck` when a tsconfig moved. Never call a static pass "done".
+- Commit trailer contract (`scripts/commit-msg-check.sh`) is enforced: `type(scope): subject`
+  with type in the 11 allowed, and a well-formed `Co-Authored-By: Name <local@domain>` trailer
+  on every commit. Message: what changed and why, two to four body lines.
+- Commit between units, not mid-unit.
+
+Operational traps already paid for — do not re-pay them:
+
+- `pnpm exec <tool>`, never `npx` (devEngines will refuse, loudly and rightly).
+- `git ls-files ... | xargs wc -l` prints a total PER BATCH; read the last line and you
+  undercount by half. Use tokei (`tokei <path> -o json`).
+- `rg -r` takes a REPLACEMENT argument; it ate a search pattern once already. `-rn` is not
+  "recursive, line-numbered".
+- The doc formatter escapes `[P1]`-style brackets and stray asterisks in markdown; expect
+  `\[P2]` in committed ledger text and match it when editing.
+- `tests/tooling/**` is excluded from `pnpm test`; run tooling suites with
+  `pnpm vitest run --config=vitest.config.ts <path>` or `pnpm test:tools`.
+- The citation gate does not scan root files or `scripts/` (logged P2); re-point dead cites by
+  hand and grep `tests/legacy` before closing any unit.
+- A zero from grep/ast-grep is not absence: print a scanned-file count and use a second method
+  before any negative claim.
+
 Unit records live in `units/<id>.md`, where `<id>` is the Unit column below. The index holds
-protocol and status only; findings live in the unit file.
+status only; findings live in the unit file. Trust no summary from a previous session that is not
+written in a unit file.
 
-## Protocol
-
-1. Resume: read this file, take the first `in-progress` unit, else the first `queued` unit. Trust no
-   summary from a previous session that is not written here.
-2. Per unit, in order: run the sweeps, paste raw output into the unit file; read the unit's
-   `contract/` in full and every file header; targeted-read only where a sweep or header raises a
-   question.
-3. Write every finding into the unit file the moment it is found, with a path and line. Commit the
-   ledger and the unit file between units. Never carry a finding in context across units.
-4. Mark the unit `reviewed` only when its sweep output and findings are committed.
-5. No fixes during the sweep. Comment truthing on the chunk under review is part of the unit
-   (`.claude/rules/comments.md` rule 5); logic and test fixes are a later program.
+## Conventions
 
 Unit bands are size classes for splitting work, not tracked values. Recompute with `tokei <path> -o json`.
 
