@@ -8,6 +8,8 @@
 import type { CharacterId, ChatId, PersonaId, UserId, WorldBookId, WorldEntryId } from "@orb/kit/ids";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
+import type { JsonObject, NarrowedJsonObject } from "@orb/kit/json";
+import { jsonMemberSchema, jsonObjectSchema, narrowJsonObject } from "@orb/kit/json";
 import { ENTRY_KEY_MODES, ENTRY_POSITIONS, ENTRY_SCOPE_MODES } from "@orb/kit/world-info";
 import { z } from "zod";
 
@@ -66,33 +68,49 @@ export type LoreEntryProvenance = z.infer<typeof loreEntryProvenanceSchema>;
 // `undefined` on a `crew`-only row, which the belt treats as "never machine-owned" and overwrites
 // unconditionally; the stale `crew` key would also persist beside the new `provenance`, since the
 // upsert spreads `prior.metadata` forward rather than stripping retired keys.)
-export const entryMetadataSchema = z.looseObject({
-  scopeMode: z.enum(ENTRY_SCOPE_MODES).optional(),
-  /** How the entry's keys compile — the orb spelling of Character-Card-V3 `use_regex`, normalized in by the
-   *  card serde (`loreEntryMetadata`). Absent ⇒ `literal`. */
-  keyMode: z.enum(ENTRY_KEY_MODES).optional(),
-  inject: injectionDirectiveSchema.optional(),
-  position: z.enum(ENTRY_POSITIONS).optional(),
-  provenance: loreEntryProvenanceSchema.optional(),
-});
-export type EntryMetadata = z.infer<typeof entryMetadataSchema>;
-
-// Write-side metadata guard: stays a lenient open record (unknown keys ride through), but the
-//  load-bearing fields are validated when present — a typo'd `scopeMode`/`inject` rejects at WRITE.
 //
-//  The two hops are deliberate (the `personaMetadataWriteSchema` rationale, audited): the opaque
-//  `Record<string, unknown>` OUTPUT keeps the wire input unnarrowed so every writer passes the ONE narrowing
-//  seam. The `code:"custom"` re-emit is an ACCEPTED loss for the same reason stated there: forwarding the
-//  original issue does not typecheck on 4.4.3 (`$ZodIssue` lacks `$ZodRawIssue`'s index signature) and
-//  `message` + `path` — what a client renders — survive the flatten.
-const entryMetadataWriteSchema = z.record(z.string(), z.unknown()).superRefine((val, ctx): void => {
+// The `world_entries.metadata` column takes only {@link narrowEntryMetadata}'s output, so a writer cannot store an
+// object it never narrowed.
+export const entryMetadataSchema = z
+  .object({
+    scopeMode: z.enum(ENTRY_SCOPE_MODES).exactOptional(),
+    /** How the entry's keys compile — the orb spelling of Character-Card-V3 `use_regex`, normalized in by the
+     *  card serde (`loreEntryMetadata`). Absent ⇒ `literal`. */
+    keyMode: z.enum(ENTRY_KEY_MODES).exactOptional(),
+    inject: injectionDirectiveSchema.exactOptional(),
+    position: z.enum(ENTRY_POSITIONS).exactOptional(),
+    provenance: loreEntryProvenanceSchema.exactOptional(),
+  })
+  .catchall(jsonMemberSchema);
+/** Entry metadata as a read or a view carries it: parsed, not narrowed for the column. */
+export type ParsedEntryMetadata = z.infer<typeof entryMetadataSchema>;
+/** The value the `world_entries.metadata` column takes: only {@link narrowEntryMetadata} produces one. */
+export type EntryMetadata = NarrowedJsonObject<ParsedEntryMetadata, "EntryMetadata">;
+
+/** The one narrowing of a written metadata object into {@link EntryMetadata}. Every writer passes it: the write
+ *  schema hands out a plain {@link JsonObject} and the import serdes an object decoded from a file, and the
+ *  column takes only this function's output.
+ *  @throws ZodError when a known field is out of shape. */
+export function narrowEntryMetadata(raw: Readonly<Record<string, unknown>> | null): EntryMetadata | null {
+  return raw === null ? null : narrowJsonObject<"EntryMetadata", ParsedEntryMetadata>(entryMetadataSchema, raw);
+}
+
+// Write-side metadata guard: stays an open JSON object (unknown keys ride through), but the known fields are
+//  validated when present — a typo'd `scopeMode`/`inject` rejects at WRITE.
+//
+//  The two hops are deliberate (the `personaMetadataWriteSchema` rationale): the plain `JsonObject` OUTPUT keeps
+//  the wire input unnarrowed so every writer passes the one narrowing seam, {@link narrowEntryMetadata}. The
+//  `code:"custom"` re-emit is an ACCEPTED loss for the same reason stated there: forwarding the original issue
+//  does not typecheck on 4.4.3 (`$ZodIssue` lacks `$ZodRawIssue`'s index signature) and `message` + `path` —
+//  what a client renders — survive the flatten.
+const entryMetadataWriteSchema = jsonObjectSchema.superRefine((val, ctx): void => {
   const known = entryMetadataSchema.safeParse(val);
   if (!known.success) {
     for (const issue of known.error.issues) {
       ctx.addIssue({ code: "custom", message: issue.message, path: issue.path });
     }
   }
-}) satisfies z.ZodType<Record<string, unknown>>;
+}) satisfies z.ZodType<JsonObject, Record<string, unknown>>;
 
 export const createEntrySchema = z.strictObject({
   title: z.string().min(1).max(WORLD_INFO_NAME_MAX),
@@ -158,7 +176,7 @@ export interface EntryView {
   priority: number;
   /** When true, this entry bypasses the per-turn WI token budget (must-have lore). */
   ignoreBudget: boolean;
-  metadata: EntryMetadata | null;
+  metadata: ParsedEntryMetadata | null;
 }
 
 /** Book-attachment view: the book's metadata + an optional `role` for `character` attachments. */

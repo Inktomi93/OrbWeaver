@@ -6,6 +6,7 @@
 // in the verb — Tier-1-DB.md §"Cross-tier composition". The row stores
 // sourceCharacterId + swapMacros provenance so the swap decision is recoverable.
 
+import { narrowPersonaMetadata } from "@orb/contracts/persona";
 import { personas } from "@orb/db";
 import { PersonaNotFoundError } from "../contract/errors.ts";
 import type { CreateFromCharacterParams } from "../contract/params.ts";
@@ -29,7 +30,7 @@ export function createCreateFromCharacter(ctx: PersonaContext): PersonaService["
       name: card.name,
       description,
       avatarAssetId: card.avatarAssetId,
-      metadata: { sourceCharacterId: characterId, swapMacros },
+      metadata: narrowPersonaMetadata({ sourceCharacterId: characterId, swapMacros }),
       createdAt: at,
       updatedAt: at,
     });

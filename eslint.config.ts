@@ -670,14 +670,6 @@ const SERVER_SYNTAX = [
   ...MODULE_LOADER_SYNTAX,
 ];
 
-// .claude/rules/db.md: a JSON column typed open lets a reader outrun its producer, so `unknown` or `any` anywhere in a
-// `$type` argument (a bare one, `Record<string, unknown>`, an array or union of either) is refused in the schema.
-const DB_OPEN_JSON_COLUMN_SYNTAX = {
-  selector: "CallExpression[callee.property.name='$type'] > TSTypeParameterInstantiation :matches(TSUnknownKeyword, TSAnyKeyword)",
-  message:
-    "Type a JSON column with a shape its writer and reader both import from @orb/contracts or @orb/kit (.claude/rules/db.md); `JsonValue` from @orb/kit/json is the type for free-form JSON.",
-};
-
 const SERVER_CLOCK_HOME = homes("packages/server/src/entry/lifecycle.ts");
 const KIT_CLOCK_HOME = homes("packages/kit/src/time/index.ts");
 // Every server stream is a room on the one `stream.connect` socket (D118). The stream router is the socket's own home,
@@ -1884,7 +1876,7 @@ const LOCAL_RULE_BLOCKS: FlatConfig.Config[] = (
       ],
       rules: { "orb/trpc-output-declared-keys": "error" },
     },
-    { files: ["packages/*/src/**/*.{ts,tsx}"], rules: { "orb/no-unsafe-cast": "error" } },
+    { files: ["packages/*/src/**/*.{ts,tsx}"], rules: { "orb/no-unsafe-cast": "error", "orb/narrowed-json-brand": "error" } },
     {
       files: ["packages/contracts/src/**/*.{ts,tsx}", "packages/server/src/transport/**/*.{ts,tsx}"],
       rules: { "orb/wire-object-declares-mode": "error" },
@@ -2314,10 +2306,6 @@ export default [
   { files: SERVER_CLOCK_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, SERVER_STREAM_SYNTAX) } },
   { files: STREAM_ROUTER_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX) } },
   { files: rootSources("@db"), rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX, CLOCK_SYNTAX) } },
-  {
-    files: ["packages/db/src/schema/**/*.ts"],
-    rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX, CLOCK_SYNTAX, DB_OPEN_JSON_COLUMN_SYNTAX) },
-  },
   {
     files: rootSources("@kit", "@default-content", "@showcase", "@plugin-toolchain"),
     ignores: KIT_CLOCK_HOME,
