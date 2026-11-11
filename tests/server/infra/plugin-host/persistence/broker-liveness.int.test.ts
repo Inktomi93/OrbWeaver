@@ -2,7 +2,7 @@
 // The broker is replaced only when its own main thread stops answering its watchdog's heartbeat, never because a
 // command or a Worker is late, and a replacement strikes no plugin (D347). The strike count is read from the plugin's
 // row, which no door shows.
-import { execFileSync } from "node:child_process";
+import { existsSync, readFileSync } from "node:fs";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
 import type { PluginStatus } from "@orb/contracts/plugin";
@@ -32,9 +32,15 @@ const STALL_COMMAND = `h.ui.registerCommand({name:"stall",describe:"One native c
 // The broker ends a stuck Worker one span bound after its window opens; a green run waits that out once.
 const STUCK_TEST_TIMEOUT_MS = 3 * (PLUGIN_INVOCATION_CPU_MS + PLUGIN_WORKER_OVERRUN_MAX_MS);
 
-// The broker is the watchdog's one child process; this reads its pid from the operating system.
+// The broker is the watchdog's one child process, and no production surface names its pid, so this reads it from the
+// watchdog's Linux process entry.
 function brokerPid(edge: ReturnType<typeof createPluginProcessEdge>): number {
-  return Number(execFileSync("pgrep", ["-P", String(firstChild(edge).pid)], { encoding: "utf8" }).trim());
+  const watchdog = firstChild(edge).pid;
+  const children = readFileSync(`/proc/${String(watchdog)}/task/${String(watchdog)}/children`, "utf8")
+    .trim()
+    .split(" ");
+  expect(children).toHaveLength(1);
+  return Number(children[0]);
 }
 
 function stoppedReports(edge: ReturnType<typeof createPluginProcessEdge>): readonly unknown[] {
@@ -62,11 +68,20 @@ test("a broker whose main thread stops answering is replaced within the heartbea
   await caller.invoke("noop");
   await bystander.invoke("noop");
   const hung = brokerPid(edge);
+  // A red run never ends this broker, and the root's teardown would wait on it while stopped: resume it on the way out.
+  using _resumed = {
+    [Symbol.dispose]: (): void => {
+      if (existsSync(`/proc/${String(hung)}`)) {
+        process.kill(hung, "SIGCONT");
+      }
+    },
+  };
 
   // A stopped process runs nothing: its heartbeat timer is as silent as a hung main thread's.
   process.kill(hung, "SIGSTOP");
   const stoppedAt = performance.now();
-  await expect(caller.invoke("noop")).toThrowTRPCError("CONFLICT");
+  // Raced against twice the replacement bound, so a broker that is never replaced fails here and the resume above runs.
+  await expect(Promise.race([caller.invoke("noop"), sleep(2 * REPLACED_WITHIN_MS)])).toThrowTRPCError("CONFLICT");
   const failedAfterMs = performance.now() - stoppedAt;
   expect(failedAfterMs).toBeGreaterThan(PLUGIN_BROKER_LIVENESS_BOUND_MS - PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS);
   expect(failedAfterMs).toBeLessThan(REPLACED_WITHIN_MS);
