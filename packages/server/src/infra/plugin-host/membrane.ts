@@ -18,9 +18,8 @@
 //      ≤ 32 concurrent host calls per INSTANCE (the reentrancy footgun, 03 §3) — counted over
 //      STARTED-AND-UNSETTLED host work, which is what makes the cap a bound on work rather than on promises.
 // `tests/server/infra/plugin-host/membrane.int.test.ts` drives each through a real guest: the refused grant, a
-// fabricated, raw-id and ended-invocation handle, the inbound argument budget and each string argument's refusal of a
-// non-string. The deadline, the result cap and
-// the in-flight cap have no case there.
+// fabricated, raw-id and ended-invocation handle, the inbound argument budget, the deadline, the result cap, the
+// in-flight cap and each string argument's refusal of a non-string.
 
 import { randomUUID } from "node:crypto";
 import type { ChatTriggerType, DomainTriggerType } from "@orb/contracts/automation";

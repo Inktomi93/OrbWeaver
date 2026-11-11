@@ -1,13 +1,15 @@
 // The membrane's three mechanisms, each through a real guest's host call: the capability gate, the opaque chat handle
-// and the self-bound argument budget. The dump depth guard and the string-argument check are part of the argument
-// intake.
+// and the self-bound limits (the argument budget, the deadline, the result cap and the in-flight cap). The dump depth
+// guard and the string-argument check are part of the argument intake.
 // @subject packages/server/src/infra/plugin-host/membrane.ts
 import { spawn } from "node:child_process";
-import { PluginCapabilityError } from "@orb/contracts/plugin";
+import type { PluginHostV1 } from "@orb/contracts/plugin";
+import { PluginCapabilityError, PluginHostDeadlineError } from "@orb/contracts/plugin";
+import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
-import type { GuestOps } from "@orb/testkit/node/composed";
+import type { GuestOps, ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, guestRunner, installGuest } from "@orb/testkit/node/composed";
-import { HOST_FN_ARGS_MAX_BYTES } from "#server/infra/plugin-host/budgets.ts";
+import { HOST_CALLS_IN_FLIGHT_MAX, HOST_FN_ARGS_MAX_BYTES, HOST_FN_RESULT_CAP_BYTES } from "#server/infra/plugin-host/budgets.ts";
 
 // Far past the membrane's dump depth guard, so the iterative pre-walk must refuse this argument.
 const PAST_DEPTH_GUARD = 1000;
@@ -153,3 +155,96 @@ test.for(STRING_ARGUMENTS)(
     expect(await run("accepted")).toMatchObject({ ok: true });
   },
 );
+
+// The remote end of a guest's `net.fetch`, the external edge. `/held` answers only once released and gives up when its
+// request is aborted; `/body` answers `quotes` double quotes then `tail` letters, a body whose JSON doubles per quote.
+const NET_HOST = "peer.test";
+const HELD_URL = `https://${NET_HOST}/held`;
+const NOW_URL = `https://${NET_HOST}/now`;
+const bodyUrl = (quotes: number, tail: number): string => `https://${NET_HOST}/body?quotes=${String(quotes)}&tail=${String(tail)}`;
+
+interface ScriptedRemote {
+  readonly fetch: typeof fetch;
+  readonly release: () => void;
+}
+
+function scriptedRemote(): ScriptedRemote {
+  const gate = Promise.withResolvers<void>();
+  return {
+    release: () => gate.resolve(),
+    fetch: (input, init): Promise<Response> => {
+      const url = new URL(new Request(input, init).url);
+      if (url.pathname === new URL(HELD_URL).pathname) {
+        const signal = init?.signal;
+        const aborted = new Promise<never>((_resolve, reject) => {
+          signal?.addEventListener("abort", () => reject(new Error("the held request was aborted", { cause: signal.reason })), { once: true });
+        });
+        return Promise.race([gate.promise.then(() => new Response("held")), aborted]);
+      }
+      if (url.pathname === new URL(NOW_URL).pathname) {
+        return Promise.resolve(new Response("now"));
+      }
+      const quotes = Number(url.searchParams.get("quotes"));
+      const tail = Number(url.searchParams.get("tail"));
+      return Promise.resolve(new Response(`${'"'.repeat(quotes)}${"a".repeat(tail)}`, { headers: { "content-type": "text/plain" } }));
+    },
+  };
+}
+
+const NET_OPS = {
+  status: "async (h, room, a) => (await h.net.fetch(a.url)).status",
+  bodyLength: "async (h, room, a) => (await h.net.fetch(a.url)).body.length",
+  flood:
+    "async (h, room, a) => { globalThis.held = Array.from({ length: a.max }, () => h.net.fetch(a.url).then((r) => r.status, (e) => e.name)); return (await h.net.fetch(a.url)).status; }",
+  drain: "() => Promise.all(globalThis.held)",
+} as const satisfies GuestOps;
+
+async function netGuest(root: ServerTestHarness): Promise<ReturnType<typeof guestRunner>> {
+  const owner = await root.principalFor(root.ownerId);
+  const pluginId = await installGuest(root, owner, { slug: "net-caller", capabilities: ["net.fetch"], netHosts: [NET_HOST] }, NET_OPS);
+  return guestRunner({ root, caller: owner, pluginId, chatId: null });
+}
+
+test("a host call still running at the deadline rejects with the deadline error, and one that answers sooner resolves", { tags: ["slow"] }, async () => {
+  const remote = scriptedRemote();
+  await using root = await createServerHarness({
+    pluginSpawn: spawn,
+    networkExecution: { resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]), fetch: remote.fetch },
+  });
+  using _released = { [Symbol.dispose]: remote.release };
+  const run = await netGuest(root);
+
+  // No door shortens `HOST_FN_DEADLINE_MS`: this call waits the production deadline in real time.
+  expect(await run("status", { url: HELD_URL })).toEqual({ ok: false, name: PluginHostDeadlineError.name });
+  expect(await run("status", { url: NOW_URL })).toEqual({ ok: true, value: 200 });
+});
+
+test("a host result exactly at the result cap crosses, and one byte more is refused", { tags: ["slow"] }, async () => {
+  const remote = scriptedRemote();
+  await using root = await createServerHarness({
+    pluginSpawn: spawn,
+    networkExecution: { resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]), fetch: remote.fetch },
+  });
+  const run = await netGuest(root);
+  // Each quote serializes to two bytes, so the body fills what the `{status, body}` wrapper leaves of the cap.
+  const emptyResult: Awaited<ReturnType<PluginHostV1["net"]["fetch"]>> = { status: 200, body: "" };
+  const room = HOST_FN_RESULT_CAP_BYTES - Buffer.byteLength(JSON.stringify(emptyResult), "utf8");
+  const quotes = Math.floor(room / 2);
+  const tail = room - quotes * 2;
+
+  expect(await run("bodyLength", { url: bodyUrl(quotes, tail) })).toEqual({ ok: true, value: quotes + tail });
+  expect(await run("bodyLength", { url: bodyUrl(quotes, tail + 1) })).toEqual({ ok: false, name: Error.name });
+});
+
+test("the in-flight cap admits its number of concurrent host calls and refuses one more", { tags: ["slow"] }, async () => {
+  const remote = scriptedRemote();
+  await using root = await createServerHarness({
+    pluginSpawn: spawn,
+    networkExecution: { resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]), fetch: remote.fetch },
+  });
+  const run = await netGuest(root);
+
+  expect(await run("flood", { url: HELD_URL, max: HOST_CALLS_IN_FLIGHT_MAX })).toEqual({ ok: false, name: Error.name });
+  remote.release();
+  expect(await run("drain")).toEqual({ ok: true, value: Array.from({ length: HOST_CALLS_IN_FLIGHT_MAX }, () => 200) });
+});
