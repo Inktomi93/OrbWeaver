@@ -28,7 +28,7 @@ export function createListImportedTokenUsageCandidates(input: DatabaseHandle): L
     // `compareAndSetSkipped` all inflate (the CAS itself is idempotent, so only the audit numbers lie) and
     // the loser host is never reconciled. Two things now make that impossible, and BOTH are load-bearing:
     // (1) `chat_participants_chat_host_unique` — a partial UNIQUE over (chatId) WHERE role='host' AND
-    // left_seq IS NULL (#390) — caps the PRESENT host seats at one (this was writer discipline only until
+    // left_seq IS NULL — caps the PRESENT host seats at one (this was writer discipline only until
     // that index landed; D18); (2) this resolver's own `leftSeq IS NULL` + limit-1 — a DEPARTED host KEEPS
     // role='host' and is deliberately outside that index, so without the presence filter every prior host
     // of the room would re-enter the join. The `ORDER BY joinSeq, id` picks the EARLIEST-JOINED present
@@ -41,7 +41,7 @@ export function createListImportedTokenUsageCandidates(input: DatabaseHandle): L
       .where(and(eq(hostSeat.chatId, chats.id), eq(hostSeat.role, "host"), eq(hostSeat.kind, "human"), isNotNull(hostSeat.userId), isNull(hostSeat.leftSeq)))
       .orderBy(asc(hostSeat.joinSeq), asc(hostSeat.id))
       .limit(1);
-    // Scope is CHAT-was-imported, deliberately (#402, owner-ruled 2026-08-21 accept-as-designed): live
+    // Scope is CHAT-was-imported, deliberately (owner-ruled accept-as-designed): live
     // turns continued in an imported chat are swept too, so an unrecorded live variant can gain an
     // ESTIMATED tokensOut (tokensIn stays null). The figures are honest and labeled `estimated`; a
     // variant-era narrowing was priced and rejected as unneeded complexity.

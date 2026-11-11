@@ -72,7 +72,7 @@ export interface UserMacroDefGroup<K extends MacroSourceKind> {
 }
 
 /** The inputs to `buildTurnUserMacros` — the per-turn user-macro registry build (WAVE MU delivery). The two
- *  authoring homes (owner ruling #20) ride SEPARATE groups rather than one pre-merged list: the collision
+ *  authoring homes (owner ruling) ride SEPARATE groups rather than one pre-merged list: the collision
  *  policy is law, not a caller's choice, so `buildTurnUserMacros` owns it (see its header). */
 export interface BuildTurnUserMacrosArgs {
   /** The active preset's authored macro defs (`foreign.promptConfig.userMacros`) + the resolved preset id. */

@@ -18,7 +18,7 @@ import type { HumanSeatPersona, ResolvedPersonas, ResolveTurnPersonas, TurnTrigg
  *     rider); binding to `personaIds[0]` instead would address the prompt to a presence-order-arbitrary
  *     bystander, and falling to the kit floor would address `DEFAULT_PERSONA_NAME` in a room whose `{{user}}` is well-defined.
  *
- * THERE IS NO ABSENT ARM (owner ruling, 2026-08-07 — the `personaIds[0]` fallback is RETIRED). It used to
+ * THERE IS NO ABSENT ARM (owner ruling — the `personaIds[0]` fallback is RETIRED). It would
  * exist for trigger-less contexts (previews, host instruments) and bound `{{user}}` to "whoever joined
  * first" — presence-order-arbitrary, nondeterministic across a join, and on a host instrument a cross-member
  * read. Every caller now states its arm, and `trigger` is REQUIRED rather than loud-at-runtime: a caller that

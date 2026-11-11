@@ -28,13 +28,13 @@ export interface HostTierRegexSources {
   readonly preset: readonly RegexScriptRow[];
   /** The present characters' sets, PER SEAT and in ROSTER ORDER — the `character_regex_scripts` junction.
    *  Per seat rather than flat because each seated character is its OWN tier: its own per-chat allow flag and
-   *  its own group in the room's Regex section (#1742/F3). Concatenating the slices in array order reproduces
+   *  its own group in the room's Regex section (F3). Concatenating the slices in array order reproduces
    *  the flat list this used to be. */
   readonly character: readonly CharacterRegexSlice[];
   /** The ROOM's own set — the `chat_regex_scripts` junction (host-set room state, the `chat_books` twin).
    *  Last tier: a room quirk layers OVER the library/preset/character defaults rather than shadowing them. */
   readonly chat: readonly RegexScriptRow[];
-  /** WHAT THIS ROOM PERMITS (#1742) — the per-chat master + the per-tier allows, read off `ChatMetadata`.
+  /** WHAT THIS ROOM PERMITS — the per-chat master + the per-tier allows, read off `ChatMetadata`.
    *
    *  REQUIRED, not optional, and that is the point: every caller of the resolver must state the room's
    *  levers, so there is no "forgot to pass it" arm in which a tier the host switched off silently runs
@@ -45,7 +45,7 @@ export interface HostTierRegexSources {
 }
 
 /**
- * WHAT THE TIERS ARE CALLED (#1754) — the names the resolver stamps onto `RegexTierGroupView.label`
+ * WHAT THE TIERS ARE CALLED — the names the resolver stamps onto `RegexTierGroupView.label`
  * (`@orb/contracts/chat`), for the tiers whose KEY does not carry its own identity. Today exactly one: `preset`.
  *
  * It is a SECOND PARAMETER of `resolveRegexTiers` rather than a member of {@link HostTierRegexSources},

@@ -273,7 +273,7 @@ interface TurnEconomicsInput {
   readonly genTimeMs?: number | null | undefined;
   /** The generation's context window → `owner_stats.maxContextTokens` (a MAX extremum, owner grain only). */
   readonly contextWindow?: number | null | undefined;
-  /** The variant's PARSED metadata sidecar (§5.3c class 3) — read for `reasoning_duration` only (#184). The
+  /** The variant's PARSED metadata sidecar (§5.3c class 3) — read for `reasoning_duration` only. The
    *  swipe/continue builders below read the same key off the COMMITTED row; this is the new-slot path's copy
    *  of it, so all three modes contribute reasoning time and the live writer can't drift from a rebuild on
    *  this column. The key is a typed `number | undefined` here because the column's shape is closed — a
@@ -367,7 +367,7 @@ function legacyAssistantTurnDelta(params: {
   setNum(optional, "dailyTokensOut", e.tokensOut);
   // A reasoningGeneration counts only on trim().length > 0 (a whitespace-only thinking block is not one).
   const hasReasoning = typeof e.reasoning === "string" && e.reasoning.trim().length > 0;
-  // #184: the measured reasoning window the turn stamped into the variant's metadata. Before it had a live
+  // The measured reasoning window the turn stamped into the variant's metadata. Before it had a live
   // producer this was structurally always 0 here, which is why the new-slot builder never carried it while
   // the swipe/continue builders (reading the committed row) did — a drift that could not fire until now.
   const reasoningMs = reasoningMsOf(e.metadata ?? null);
@@ -471,7 +471,7 @@ interface SwipeRowInput {
 
 /** metadata.reasoning_duration as non-negative rounded ms, or 0 (mirrors the rebuild's `reasoningMsOf`).
  *  The key has ONE home (`VARIANT_METADATA_REASONING_MS_KEY`), shared with the live turn's writer — this
- *  reader is exactly the half that had no live producer until #184. The blob arrives PARSED
+ *  reader is the half the live producer feeds. The blob arrives PARSED
  *  (`parseVariantMetadata` at the query seam), so the value is already `number | undefined`: the finite
  *  guard is about the VALUE (a negative or zero window is not a measurement), never about the type. */
 function reasoningMsOf(metadata: VariantMetadata | null): number {
@@ -735,7 +735,7 @@ export function swipeVariantDelta(params: Parameters<typeof legacySwipeVariantDe
  * and +1 daily chatsCreated that the room itself contributes, PLUS that seat's own census bump
  * ({@link seatChatDelta}'s payload), the fork lineage counters, and the firstAt/lastAt extrema candidates.
  *
- * EVERY OTHER SEAT RIDES ONE {@link seatChatDelta} (#1147) — the room counts ONCE for the owner and ONCE
+ * EVERY OTHER SEAT RIDES ONE {@link seatChatDelta} — the room counts ONCE for the owner and ONCE
  * PER SEAT for the census, which is exactly what the rebuild derives
  * (`rebuild-from-canon.ts::loadChatMeta`, `COUNT(DISTINCT cp.chat_id)` per character).
  *

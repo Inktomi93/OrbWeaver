@@ -69,7 +69,7 @@ function isRecoverableProselessTurn(result: TurnPipelineResult): boolean {
  * The recovered result is pass 2's display — content, reasoning and the
  * request that produced it — EXCEPT the FOLD CHANNEL, which stays pass 1's: `terminalToolCalls` (the whole
  * point of the feature, and why this merges rather than returning pass 2) and, with it, the
- * `terminalToolsCollided` names that explain a null channel (#1617). Pass 2 rides tool-less by construction,
+ * `terminalToolsCollided` names that explain a null channel. Pass 2 rides tool-less by construction,
  * so its own collided list is always empty — taking it would erase the reason pass 1 refused the channel and
  * leave the consumer reading "this wire cannot carry terminal tools" about a wire that could.
  */

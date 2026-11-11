@@ -51,7 +51,7 @@ const THREW: BoundedOutcome = { kind: "skip", cause: "throw" };
  *  surface). Anything else is treated as a SKIP rather than trusted: a registrar that returns garbage has
  *  malfunctioned, and a malfunction is exactly the D53 case, never an abort.
  *
- *  AN EMPTY (or whitespace-only) ANSWER IS A SKIP, NOT A REWRITE (#1368). D53's rule is that a broken
+ *  AN EMPTY (or whitespace-only) ANSWER IS A SKIP, NOT A REWRITE. D53's rule is that a broken
  *  transform never eats a turn, and the emptiness cases are exactly the broken ones: an automation
  *  `transform_draft` whose template is blank, or whose macros all render to nothing, silently REPLACED the
  *  user's typed message with "" — as did a guest plugin transform returning "". A transform that produced

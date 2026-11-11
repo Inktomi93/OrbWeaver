@@ -180,7 +180,7 @@ async function readCommittedView(ctx: EngineContext, messageId: MessageId): Prom
 }
 
 /**
- * The variant's `metadata` sidecar for a LIVE generation (#184). The column is a CLOSED shape
+ * The variant's `metadata` sidecar for a LIVE generation. The column is a CLOSED shape
  * (`VariantMetadata`, §5.3c class 3) whose SQL rollup readers still address it BY PATH, so the live turn
  * builds the same ONE key the ST import writes and the three stats readers extract —
  * `VARIANT_METADATA_REASONING_MS_KEY`. Until this existed the key had a single producer
@@ -235,14 +235,14 @@ function variantPayloadOf(
   return {
     content: result.content,
     reasoning: result.reasoning,
-    // The measured reasoning window (#184 — the live producer the three stats readers were missing) and the
+    // The measured reasoning window (the live producer the three stats readers were missing) and the
     // runtime's per-provider sidecar (§5.3c), in ONE parsed blob.
     metadata: liveVariantMetadata(result),
     ...economicsCommon(e),
     contextWindow: e?.contextWindow ?? null,
     maxOutputTokens: e?.maxOutputTokens ?? null,
     // The APPLIED effort off the runner (compose reads `ChatResult.appliedEffort`), never the requested intent —
-    // that folds into `params` (inference audit B1). The two economics sidecars every wire normalizes ride beside it (B5/B8).
+    // that folds into `params`. The two economics sidecars every wire normalizes ride beside it.
     reasoningEffort: e?.reasoningEffort ?? null,
     reasoningTokens: e?.reasoningTokens ?? null,
     costDetails: e?.costDetails ?? null,
@@ -311,7 +311,7 @@ function generatedRowEconomics(
     genFinishedAt,
     model: e?.model ?? null,
     provider: e?.provider ?? null,
-    // The SAME blob the variant row persists (#184 + §5.3c): the live stats mirror folds `reasoning_duration`
+    // The SAME blob the variant row persists (§5.3c): the live stats mirror folds `reasoning_duration`
     // exactly as `reconcileStats` re-derives it from the written row, so the two can never disagree.
     metadata: liveVariantMetadata(result),
   };
@@ -352,7 +352,7 @@ async function buildTurnStatsDeltas(args: {
             economics: {
               content: result.content,
               reasoning: result.reasoning,
-              // The SAME sidecar the row persists (#184) — the new-slot builder folds `reasoning_duration` out
+              // The SAME sidecar the row persists — the new-slot builder folds `reasoning_duration` out
               // of it exactly as the swipe/continue builders (which read the committed row) already do.
               metadata: econ.metadata,
               ...economicsCommon(result.economics),
@@ -651,7 +651,7 @@ async function commitGeneration(args: {
         : currentDeltas.map((e) => (e.messageId === target.messageId ? { seq: e.seq, delta: turnDelta } : e));
     statements.push(runtimeVariablesUpdateStatement(ctx.db, prep.chatId, foldChain(postEntries)));
 
-    // THE WRITE FENCE (#1393) — the LAST thing before the batch, and re-run on the seq-retry. Everything
+    // THE WRITE FENCE — the LAST thing before the batch, and re-run on the seq-retry. Everything
     // above is in-memory statement building; this is where the turn stops being reversible.
     await assertTurnMayCommit(ctx, deps, prep);
     await args.observations.commit(statements, facts, retainedStats.predicate);
@@ -670,7 +670,7 @@ async function commitGeneration(args: {
   // A group round reuses ONE assembleContext across its speakers, so the by-reference op-log accumulates;
   // clear it now that this turn's ops are COMMITTED, so the next speaker's delta starts empty.
   //
-  // AFTER THE WRITE, NEVER BEFORE (#1437). Clearing it up front — while `variant` already held the
+  // AFTER THE WRITE, NEVER BEFORE. Clearing it up front — while `variant` already held the
   // spread-copy — mutated a context the CALLER owns before anything durable existed: any throw out of
   // `attempt` (the fence above, a DB fault, a stats read) left the round's shared log emptied with nothing
   // committed, and a retry on that same context wrote an empty `variableDelta`. The snapshot is taken at
@@ -686,7 +686,7 @@ async function commitGeneration(args: {
 }
 
 /**
- * THE PRE-WRITE FENCE (#1393): may this turn still commit canon?
+ * THE PRE-WRITE FENCE: may this turn still commit canon?
  *
  * Cancellation is not a write barrier. The heartbeat ({@link runInLockWithHeartbeat}) aborts the turn's
  * composed signal the moment it finds the lock stolen or gone, but the ONLY thing that honors an abort
@@ -791,7 +791,7 @@ function fireRpgTurnCompleted(ctx: EngineContext, view: MessageView, turnId: Cha
     // diagnosis that surfaced the routing bug). The reply already landed; this only records that the state
     // write behind it failed. `turn` carries THIS turn's ALREADY-RESOLVED connection + enforced owner-consent
     // verdict so the rpg state round runs on the exact same route/consent the engine gated — never a second
-    // hand-rolled resolve/consent path (stickler F1).
+    // hand-rolled resolve/consent path.
     trackSettledWork(
       ctx,
       view.chatId,
@@ -817,7 +817,7 @@ function rpgAbortRequestId(turnId: ChatTurnId): string {
  *  forget — clearing staging must never mask the abort the caller is already surfacing. Wrapped in its own
  *  DETACHED root for the same reason `fireRpgTurnCompleted` is: it outlives the request.
  *
- *  #1461 — the catch LOGS (it was `.catch(() => undefined)`). This is the hook whose silence costs the most:
+ *  The catch LOGS (it was `.catch(() => undefined)`). This is the hook whose silence costs the most:
  *  a failed clear leaves the dead turn's staged writes in place, so the NEXT turn on this chat flushes them
  *  — the exact cross-turn contamination the clear exists to prevent, previously invisible. Warn + ids (the
  *  sibling convention); the detached root records the rejection before this outer catch logs it. */
@@ -1048,7 +1048,7 @@ async function preTurnCompactionPlan(
  *  estimate already crosses the managed pct, compact BEFORE dispatch so a chat whose context already overflows
  *  the window can escape (the post-turn arm never runs on a failing turn). Awaited, single-flight, failure-honest
  *  (a failed pre-turn compaction logs + proceeds with the pre-compaction canon — never blocks the turn) but
- *  CANCELLABLE (#1436): the turn's signal rides into the generation, and a cancelled one propagates instead of
+ *  CANCELLABLE: the turn's signal rides into the generation, and a cancelled one propagates instead of
  *  being absorbed as a failure. Returns the (possibly reloaded) canon + maxSeq + a marker overlay (null when
  *  nothing compacted). */
 async function runPreTurnCompaction(ctx: EngineContext, deps: OwnedEngineDeps, prep: TurnPrep): Promise<PreTurnCompaction> {
@@ -1069,7 +1069,7 @@ async function runPreTurnCompaction(ctx: EngineContext, deps: OwnedEngineDeps, p
       ownerId: prep.runAsUserId,
       coveragePoint,
       instructions,
-      // CANCELLABLE (#1436). This arm is AWAITED before dispatch, so it is on the caller's Stop path: without
+      // CANCELLABLE. This arm is AWAITED before dispatch, so it is on the caller's Stop path: without
       // the signal the turn kept paying for — and blocking on — a whole summary generation nobody was waiting
       // for, and only noticed the cancellation afterwards. The post-turn hook is deliberately NOT threaded
       // (it is fire-and-forget under its own detached span, outliving the request by design).
@@ -1079,7 +1079,7 @@ async function runPreTurnCompaction(ctx: EngineContext, deps: OwnedEngineDeps, p
       overlay = { compactSummary: res.summary, compactedThroughSeq: res.compactedAtSeq };
     }
   } catch (compactErr) {
-    // A CANCELLED compaction is not a FAILED one (#1436). The failure-honest arm below exists so a BROKEN
+    // A CANCELLED compaction is not a FAILED one. The failure-honest arm below exists so a BROKEN
     // summarizer cannot wedge a turn that could still succeed; a cancelled turn has no such turn to protect,
     // and absorbing its abort here would log a summariser fault that never happened, strike out the user's
     // credential for it, and then dispatch the very generation the caller just cancelled. Re-thrown so
@@ -1122,8 +1122,8 @@ async function emitTrimmedNoSummary(deps: EngineDeps, chatId: ChatId, pre: PreTu
   }
 }
 
-/** The managed-compaction marker build's own trace root (I-7 finding: found alongside the three named holes —
- *  same outlives-the-request class, same file, same fire-and-forget shape, so fixed in this lane too). */
+/** The managed-compaction marker build's own trace root (the same
+ *  outlives-the-request class and fire-and-forget shape as the other spans in this file). */
 const COMPACTION_SPAN = "chat.managedCompaction";
 
 /** The trace-ring request id the compaction build is bucketed under — its OWN id, for the same reason
@@ -1243,7 +1243,7 @@ class StaleLockAbort extends Error {
  *  cause → "user" (the caller cancelled via `activeTurns`). A throw with an UN-aborted signal is a genuine
  *  fault (provider/DB) → "error".
  *
- *  …EXCEPT the commit fence's own refusal (#1537). {@link assertTurnMayCommit} can find the lock gone up to a
+ *  …EXCEPT the commit fence's own refusal. {@link assertTurnMayCommit} can find the lock gone up to a
  *  whole heartbeat interval (TTL/3) BEFORE the heartbeat next ticks, so at that instant nothing has aborted
  *  the signal — and the signal-only classification labelled a lost-lock refusal `"error"`, which is what the
  *  `turnAborted` bus event and the wire-fault outcome row then told the operator. `CHAT_OP_CODES.aborted` is
@@ -1251,7 +1251,7 @@ class StaleLockAbort extends Error {
  *  heartbeat had got there yet or not. Same reason, same `abortedOutcome` return, same loud surfaces — the
  *  fence logs at ERROR and the bus carries `turnAborted{reason:"stale"}`.
  *
- *  AN ERROR'S NAME IS NEVER PROOF OF A CANCELLATION (#1435). The rule is one sentence: an abort is proven by
+ *  AN ERROR'S NAME IS NEVER PROOF OF A CANCELLATION. The rule is one sentence: an abort is proven by
  *  a cancellation this engine OWNS — an aborted signal (whose `reason` then says which arm) or chat's own
  *  typed `aborted` refusal — and nothing else. The removed belt classified any error merely NAMED
  *  `AbortError` as `"user"` with the signal NOT aborted; `AbortError` is the name provider timeouts,
@@ -1316,7 +1316,7 @@ function captureTurnOutcome(ctx: EngineContext, prep: TurnPrep, result: Awaited<
     reasoningEffort: economics?.reasoningEffort ?? null,
     toolCalls: result.toolRecords.map((record) => ({ name: record.name, args: record.arguments })),
     // The RAW provider degradations, operator prose and all — the half the user's re-voiced chat warning
-    // deliberately does not carry (#1440). This ring is where "which knob did the provider refuse, and what
+    // deliberately does not carry. This ring is where "which knob did the provider refuse, and what
     // did it clamp to" is answered after the fact.
     warnings: result.runnerWarnings.map((warning) => ({ code: warning.code, message: warning.message })),
   });
@@ -1366,8 +1366,8 @@ function providerTerminalReason(err: unknown): string | null {
  * a measurement rather than an absence (the "absent data renders absent, never floor-synthesized" rule).
  * `model` + `reasoningEffort` come off `prep` (the REQUESTED route): a faulted turn applied nothing, so the
  * requested effort is the only honest fact this RING can carry. The success arm differs on purpose — its
- * `economics.reasoningEffort` is the APPLIED effort compose reads off `ChatResult.appliedEffort` (inference
- * audit B1), and the variant ROW records that; the ring is diagnostics, not the record.
+ * `economics.reasoningEffort` is the APPLIED effort compose reads off `ChatResult.appliedEffort`, and the
+ * variant ROW records that; the ring is diagnostics, not the record.
  *
  * THROW-SAFE BY CONSTRUCTION (emits-are-total): an observability write must never mask or replace the
  * original error, so the whole body is wrapped. A recorder failure degrades to a warn line and the caller's
@@ -1600,14 +1600,14 @@ async function resolveSpeakerMemory(deps: EngineDeps, prep: TurnPrep): Promise<A
   });
   await emitRetrievalWarningsOnce(deps, prep.chatId, recall.warningEpisode);
   // The per-speaker recall REPLACES the round-level one, so its trace replaces the round-level trace too —
-  // the ctx a speaker's BUILD reads must explain the memory that speaker actually got (#250).
+  // the ctx a speaker's BUILD reads must explain the memory that speaker actually got.
   return { ...prep.assembleContext, memory: recalled.text, memoryTrace: recalled.trace };
 }
 
 /** The engine owns the typed bus literals and emits only after `turnStarted`; the shared episode owns
  * round-level/per-speaker/databank dedupe for this turn.
  *
- * TWO CLASSES, DRAINED INDEPENDENTLY (#2510). `retrieval_index_unavailable` says the owner's vector space
+ * TWO CLASSES, DRAINED INDEPENDENTLY. `retrieval_index_unavailable` says the owner's vector space
  * could not be queried at all, so `{{memory}}` and/or `{{databank}}` came back empty;
  * `memory_rerank_unavailable` says recall DID retrieve and only lost the cross-encoder order. A turn can hit
  * both, and collapsing them would tell a user their reranker failed when they have no queryable index. */
@@ -1946,14 +1946,14 @@ async function executeTurn(ctx: EngineContext, deps: OwnedEngineDeps, prep: Turn
       // If the delta append itself caused this catch, `err` already owns the failure. If generation failed
       // independently, preserve that primary error but keep the secondary durable-bus failure visible.
       //
-      // A TYPE-SEAM BELT WITH NO REACHABLE PRODUCER TODAY, and that is recorded rather than tested (#1521):
+      // A TYPE-SEAM BELT WITH NO REACHABLE PRODUCER TODAY, and that is recorded rather than tested:
       // `EngineDeps.emit` is typed `Promise<void>`, so a rejection is expressible — but the composed
       // production emitter cannot produce one. `entry/compose/services::emitChatEvent` awaits
       // `emitChatEventChecked`, whose `chatBus.emit` is TOTAL by construction (bus.ts FLAG[emit-is-total])
       // and whose fan is a synchronous `EventEmitter.emit` into `on()`-buffered subscribers
       // (`transport/trpc/chat-events-bus::publishChatEvent` → `bus-channel::publish`); the one callback-style
       // listener isolates its own throw. A dropped durable append therefore RESOLVES here — the engine is
-      // structurally blind to the loss, which is #1454's still-open propagation fork, not this belt's job.
+      // structurally blind to the loss, which is an open propagation fork, not this belt's job.
       // The belt stays because the SEAM's type permits what bus.ts's invariant currently forbids; a test that
       // injected a rejecting emitter was deleted for pinning a shape no caller can reach.
       if (deltaErr !== err) {
@@ -2047,7 +2047,7 @@ async function runInLockWithHeartbeat(ctx: EngineContext, deps: OwnedEngineDeps,
     },
     Math.floor(deps.lockTtlMs / LOCK_HEARTBEAT_DIVISOR),
   );
-  // THE RELEASE IS BOUND TO THE BODY, NOT TO THE CALLER (#1393). Releasing the lock while the turn body is
+  // THE RELEASE IS BOUND TO THE BODY, NOT TO THE CALLER. Releasing the lock while the turn body is
   // still live hands the next holder a room a zombie can still write to — the exact canon race the lock
   // exists to prevent — so the release rides the body's settlement on EVERY path. It is deliberately NOT in
   // a `finally` around the race: when the barrier wins, the caller must still get its loud `aborted` at once
@@ -2231,8 +2231,8 @@ async function emitCapabilityDropWarnings(
     await emit({ type: "warning", chatId, code: "provider_refused" });
   }
   // The infra runners' own drops (D41 read end). Deduped upstream; independent of each other, so they fan
-  // concurrently — all awaited here, which is what keeps them BEFORE the turn's terminal bus event. TOTAL
-  // since #1440: the translation answers for every infra code, so nothing is filtered out here any more.
+  // concurrently — all awaited here, which is what keeps them BEFORE the turn's terminal bus event. TOTAL:
+  // the translation answers for every infra code, so nothing is filtered out here.
   // `declared_overrides_measured` is NOT a turn-stream notice by ruling (inference program §5.3a): it renders
   // as a badge on the connection row, and the user asked for the override — filtered BEFORE the fold.
   await Promise.all(
@@ -2251,9 +2251,9 @@ async function emitCapabilityDropWarnings(
  *  `tsc` here until someone rules on it, so a runner drop can never go silently un-surfaced again — the exact
  *  failure this seam was built to end (the runners produced these for months and nothing read them).
  *
- *  TOTAL IN ITS RETURN TOO, since #1440 (owner ruling 2026-09-05). Ten of those codes used to return `null` —
- *  a "declared not-yet-surfaced" arm that `emitCapabilityDropWarnings` then filtered out, so a user believed a
- *  requested knob / reasoning budget / tool result had applied when the provider had ignored or clamped it.
+ *  TOTAL IN ITS RETURN TOO (owner ruling). A `null` return — a "declared not-yet-surfaced" arm
+ *  that `emitCapabilityDropWarnings` filters out — would let a user believe a
+ *  requested knob / reasoning budget / tool result applied when the provider ignored or clamped it.
  *  The owner ruled SURFACE: they ride ONE `settings_adjusted` code carrying the drop's structured detail, which
  *  the client re-voices per class. No `null` arm survives, and no `default: return null` may replace this list
  *  — listing every code one by one is what keeps the `assertNever` honest. */

@@ -2,7 +2,7 @@
 // is the deterministic FOLD (`foldVarOps`) of each message's SELECTED-variant `variable_delta`, seq-ordered
 // along the swipe chain (D26). It is materialized on `chats.runtime_variables` for O(1) reads and RECOMPUTED on
 // every mutating event (turn commit / swipe select / delete / fork / move-reorder) — derive-don't-stamp, so a swipe/fork
-// rewinds by re-folding (avoids the ST swipe-clobber issue #3263). This file owns the fold-composition + the cache UPDATE
+// rewinds by re-folding (a swipe never clobbers a value a later turn stamped). This file owns the fold-composition + the cache UPDATE
 // statement so the four mutators share ONE home (never diverge).
 //
 // TWO WRITE SHAPES, because the callers have different protection. The four canon MUTATORS refold inside the
@@ -10,7 +10,7 @@
 // they take the bare {@link runtimeVariablesUpdateStatement}. The STANDALONE (out-of-turn) plane has no lock
 // and never will — its callers are fire-and-forget automation/plugin ops — so it takes the guarded
 // {@link standaloneVariableCasStatement}, which writes the log and its derived cache together, under a
-// predicate that fails if another writer moved the log first (#1463 item 1).
+// predicate that fails if another writer moved the log first.
 
 import type { StandaloneVariableDelta } from "@orb/contracts/chat";
 import type { Db } from "@orb/db";

@@ -22,11 +22,11 @@
 // `chat_events.chat_id` FK, and the process exited. A failed append is therefore CLASSIFIED, never thrown:
 //   • the chat row is gone  → the expected delete-mid-turn race: drop at debug, return `null`.
 //   • anything else         → a real fault on a LIVE chat: warn, RETRY the append once, and only then drop at
-//     ERROR (#1454). Totality is the mechanism and it stands; what changed is that "the append failed" stopped
+//     ERROR. Totality is the mechanism and it stands; what changed is that "the append failed" stopped
 //     being one undifferentiated `null`. A lost event on a live chat is a permanent replay gap — a missing turn
 //     terminal, a missed automation trigger, a stranded client — so the transient half of that class (write
 //     contention) is now recovered instead of merely logged.
-// `emitAfterClaim` IS FIRE-ONCE BY DESIGN, AND THAT IS A RULING, NOT A GAP (#1522). `emit` retries because
+// `emitAfterClaim` IS FIRE-ONCE BY DESIGN, AND THAT IS A RULING, NOT A GAP. `emit` retries because
 // its append stands ALONE: a lost append is a permanent replay gap with no other record of the thing it
 // announced. The claim door's append rides the SAME SQLite batch as the state change it announces, and that
 // atomicity answers both halves of "a claim-carrying event lost to a transient fault is terminal for replay":
@@ -40,12 +40,12 @@
 // a LIVE FAN in one branch and nothing at all in the other. WHAT WOULD REOPEN THIS: a caller whose claim does NOT ride this batch, or a caller that
 // must tell `false` (converged) apart from `null` (dropped) — today no caller reads either.
 //
-// THE TERMINAL DROP HAS TWO BRANCHES, and they state opposite facts (#1544 — `reportTerminalDrop`): #1537's
-// one-id-per-retry made "the first attempt COMMITTED and the same-id retry tripped the PK" reachable, and
-// there the row (with its replay slot) STANDS. #1821 closes the remaining gap: `committedRowSeq` PROVES the
-// seq of that standing row, so `emit` now PUBLISHES it on the live fan with the SAME `publishCommitted` the
-// normal path uses — #1537's "we cannot prove what seq landed, so the fan must be skipped" premise is
-// retired; nothing is lost on this branch anymore, only a message that must stop claiming otherwise. Both
+// THE TERMINAL DROP HAS TWO BRANCHES, and they state opposite facts (`reportTerminalDrop`): with
+// one id per retry, "the first attempt COMMITTED and the same-id retry tripped the PK" is reachable, and
+// there the row (with its replay slot) STANDS. `committedRowSeq` PROVES the seq of that standing row, so
+// `emit` PUBLISHES it on the live fan with the SAME `publishCommitted` the normal path uses — the fan is
+// never skipped for want of a proven seq; nothing is lost on this branch, only a message that must not
+// claim otherwise. Both
 // branches are still ERROR — a driver that lies about a commit is a genuine fault worth flagging even when
 // fully recovered — but the message must not claim a permanent replay gap (or a lost fan) for the branch
 // that has neither. Which branch it is comes off GROUND TRUTH (the stored payload under our id), never a
@@ -54,7 +54,7 @@
 // with no `chat_events` row would be un-replayable). Aborting the turn at delete (verbs/chat-lifecycle) stops
 // the emits at the SOURCE; this classification is the floor under every other cause.
 //
-// STILL OPEN (#1454, reported as a fork rather than decided here): `ChatServiceDeps.emit` is typed
+// STILL OPEN (reported as a fork rather than decided here): `ChatServiceDeps.emit` is typed
 // `Promise<void>` and `entry/compose/services::emitChatEvent` awaits the checked variant and DISCARDS its
 // boolean, so an ordinary send/turn caller cannot see a post-retry loss. Propagating it collides with
 // FLAG[emit-is-total] above (three domain service contracts cite the `void emit()` unhandled-rejection kill as
@@ -111,7 +111,7 @@ type ChatBusDeps = Pick<ChatContext, "db" | "now" | "newEventId" | "logger">;
  *  still exist — never off the driver's error code: an FK violation is only ever a symptom, and a probe that
  *  itself fails means the db is unwell, which is exactly the unexpected arm. Never throws.
  *
- *  RETURNS THE VERDICT, does not just log it (#1454): "the chat was deleted mid-turn" is a BENIGN race with
+ *  RETURNS THE VERDICT, does not just log it: "the chat was deleted mid-turn" is a BENIGN race with
  *  nothing to recover, while "the append failed on a live chat" is a permanent replay gap — a missing turn
  *  terminal, a missed automation trigger, a stranded client — and the two must not share a fate.
  *
@@ -139,7 +139,7 @@ async function classifyFailedAppend(db: Db, event: ChatBusEvent, logger: Logger)
 /** What to do next after a failed append attempt: give up immediately (the chat is gone), retry (attempts
  *  remain), or the retry is exhausted — `committedSeq` is the terminal branch's provable seq (`null` when
  *  genuinely nothing landed), so `emit` can publish it on the live fan without re-deciding the branch itself
- *  (kept as a helper so `emit`'s own control flow stays under the cognitive-complexity ceiling — #1821). */
+ *  (kept as a helper so `emit`'s own control flow stays under the cognitive-complexity ceiling). */
 type AppendFailureVerdict = { readonly kind: "chat-gone" } | { readonly kind: "retry" } | { readonly kind: "terminal"; readonly committedSeq: number | null };
 
 async function handleAppendFailure(
@@ -162,7 +162,7 @@ async function handleAppendFailure(
 
 /** The outcome of the whole retry loop, collapsed to what `emit` needs to decide its return: `"gone"` and
  *  `"dropped"` both mean "do not fan" (only their log trail differs, already emitted by the helpers above);
- *  `"seq"` is the ordinary first-attempt success; `"recovered"` is #1821's new arm — a terminal-drop branch
+ *  `"seq"` is the ordinary first-attempt success; `"recovered"` is a terminal-drop branch
  *  that PROVED its seq, carrying the SAME `seq` shape `"seq"` does so the caller needs no third branch. */
 type AppendOutcome =
   | { readonly kind: "gone" }
@@ -171,7 +171,7 @@ type AppendOutcome =
   | { readonly kind: "recovered"; readonly seq: number };
 
 /** Run the durable append with its live-chat retry (kept out of `emit` itself so its own control flow stays
- *  under the cognitive-complexity ceiling — #1821). ONE id for the whole retry, minted by the caller (#1537):
+ *  under the cognitive-complexity ceiling). ONE id for the whole retry, minted by the caller:
  *  a fresh id per attempt made the retry UNCONDITIONALLY SAFE-LOOKING and was the opposite — see the header's
  *  FLAG discussion and `handleAppendFailure`'s doc for why re-using the id is what makes the DB the arbiter. */
 async function appendWithRetry(deps: ChatBusDeps, id: ChatEventId, event: ChatBusEvent): Promise<AppendOutcome> {
@@ -204,7 +204,7 @@ const LIVE_APPEND_ATTEMPTS = 2;
 
 /** The cursor of the row our append minted under `id` — undefined when this event never landed.
  *
- *  IDENTITY, not existence (#1544): the retry re-uses ONE event id, so a row under that id can be either OUR
+ *  IDENTITY, not existence: the retry re-uses ONE event id, so a row under that id can be either OUR
  *  committed append or a row some other emit already owns (a duplicate-id minter is exactly what the fixed-id
  *  fault pin exercises). Only the STORED PAYLOAD answers "did this event commit", so the verdict compares it
  *  against what we tried to write — the same GROUND-TRUTH rule `classifyFailedAppend` states, never a driver
@@ -232,12 +232,12 @@ interface TerminalDrop {
   readonly attempts: number;
 }
 
-/** Report the terminal drop BY BRANCH (#1544) and RETURN the branch's provable seq (#1821) so the caller can
+/** Report the terminal drop BY BRANCH and RETURN the branch's provable seq so the caller can
  *  publish it on the live fan — `null` means genuinely nothing to publish (the replay-gap branch). Both
  *  branches are still ERROR — a driver that lies about a commit is a genuine fault worth flagging even when
- *  fully recovered — but they state opposite facts, and #1537 made the second branch reachable: when the
- *  first attempt COMMITTED and the same-id retry tripped the PK, the row and its replay slot STAND. #1821:
- *  since `committedRowSeq` PROVES that row's seq, the live fan is no longer lost either — the caller
+ *  fully recovered — but they state opposite facts, and one id per retry makes the second branch reachable: when
+ *  the first attempt COMMITTED and the same-id retry tripped the PK, the row and its replay slot STAND.
+ *  Since `committedRowSeq` PROVES that row's seq, the live fan is not lost either — the caller
  *  publishes it with the same emission the normal path makes, so "its replay slot is permanently missing"
  *  (and "only the live fan was lost") are both exactly backwards on this branch. */
 async function reportTerminalDrop(db: Db, drop: TerminalDrop, logger: Logger): Promise<number | null> {
@@ -316,7 +316,7 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
     // never rethrown, because the engine's delta emits are fire-and-forget and a rejection here kills the
     // process. `null` still means "not durably logged, do not fan". The retry itself lives in
     // `appendWithRetry` — kept out of `emit` so its own control flow stays under the cognitive-complexity
-    // ceiling (#1821) — and it mints ONE id for the whole retry outside its loop (#1537, see its own header
+    // ceiling — and it mints ONE id for the whole retry outside its loop (see its own header
     // comment for why re-using the id is what makes the DB the arbiter of a duplicate-vs-lost commit).
     const outcome = await appendWithRetry(deps, deps.newEventId(), event);
     if (outcome.kind === "gone") {
@@ -327,7 +327,7 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
       closeTurn(event);
       return null;
     }
-    // #1821: `"recovered"` is the terminal-drop branch that PROVED its seq — publish it on the live fan with
+    // `"recovered"` is the terminal-drop branch that PROVED its seq — publish it on the live fan with
     // the SAME emission `"seq"` (the ordinary success arm) makes, rather than skipping the fan on the retired
     // "cannot prove what seq landed" premise.
     return publishCommitted(outcome.seq, event);
@@ -353,7 +353,7 @@ export function createChatBus(input: DbAssemblyInput<ChatBusDeps>): ChatBus {
       }
       return publishCommitted(seq, event);
     } catch (err) {
-      // Terminal on sight, and the header's `emitAfterClaim` ruling (#1522) is why that is correct rather
+      // Terminal on sight, and the header's `emitAfterClaim` ruling is why that is correct rather
       // than merely careful: this append rides the CALLER's claim in one batch, so a failure means the thing
       // being announced did not happen (nothing to replay) — or it did, durably, and only the live fan was
       // lost (a reconnect replays it). Neither case is a retry's to fix.

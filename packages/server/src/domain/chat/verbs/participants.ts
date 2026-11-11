@@ -146,7 +146,7 @@ async function commitStatsFencedChatUpdate(ctx: ChatContext, ownerId: UserId, st
   await ctx.db.batch(batchMany(statements));
 }
 
-/** Write ONE metadata key (#1450). The whole-blob read-modify-write this replaced made every host knob a
+/** Write ONE metadata key. The whole-blob read-modify-write this replaced made every host knob a
  *  lost-update race against every other one — see `persistence/chat-metadata-write.ts`. The availability guard
  *  is still computed from the EFFECTIVE metadata (the row's siblings plus this key's new value), because that
  *  is the background that will be in force after the write. */
@@ -334,7 +334,7 @@ function createSetChatDocumentVisibility(ctx: ChatContext, emit: EmitChatEvent, 
       throw new ChatOperationError(CHAT_OP_CODES.forbiddenOverride, `chat ${chatId}: databank visibility accepts only a { hidden: DocumentId[] } set`);
     }
     // The POST-WRITE metadata, for the background-availability guard only: the write itself touches this one
-    // JSON path and never re-asserts the siblings (#1450).
+    // JSON path and never re-asserts the siblings.
     const effective: ChatMetadata = { ...chat.metadata, databankVisibility: parsed.data };
     await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "databankVisibility", value: parsed.data, effective, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
@@ -371,7 +371,7 @@ function createSetHostDisplayScripts(ctx: ChatContext, emit: EmitChatEvent, clai
     const { chat } = await requireHost(ctx, principal, chatId);
     await claimChat(chatId);
     // The POST-WRITE metadata, for the background-availability guard only: the write itself touches this one
-    // JSON path and never re-asserts the siblings (#1450).
+    // JSON path and never re-asserts the siblings.
     const effective: ChatMetadata = { ...chat.metadata, hostDisplayScripts: enabled };
     await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "hostDisplayScripts", value: enabled, effective, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
@@ -383,10 +383,10 @@ function createSetHostDisplayScripts(ctx: ChatContext, emit: EmitChatEvent, clai
   };
 }
 
-/** `setRegexAllow` — host-only (#1742). Writes ONE of the room's regex levers: the master
+/** `setRegexAllow` — host-only. Writes ONE of the room's regex levers: the master
  *  (`chatMetadata.regexEnabled`) or one entry of the per-tier allow map (`chatMetadata.regexTiers`).
  *
- *  ONE KEY PER CALL (#1450). The two levers are two different metadata keys, so the union in the params is
+ *  ONE KEY PER CALL. The two levers are two different metadata keys, so the union in the params is
  *  not a convenience — it is what keeps this on the single-JSON-path write that cannot lose an update to a
  *  concurrent host knob. The TIER arm still read-modify-writes its own map (the `databankVisibility`
  *  set-semantics precedent), which is why the merge is server-side: the client flips one lever and never has
@@ -409,7 +409,7 @@ function createSetRegexAllow(ctx: ChatContext, emit: EmitChatEvent, claimChat: C
       lever.kind === "master"
         ? { enabled: lever.enabled, tiers: stored.tiers }
         : { enabled: stored.enabled, tiers: { ...stored.tiers, [lever.tier]: lever.enabled } };
-    // The POST-WRITE metadata, for the background-availability guard only (#1450: the write itself touches
+    // The POST-WRITE metadata, for the background-availability guard only (the write itself touches
     // this one JSON path and never re-asserts the siblings).
     // `exactOptionalPropertyTypes`: an ABSENT lever must stay absent, never an explicit `undefined` (the two
     // read the same through `isRegexTierAllowed`, but the blob would grow a key that means nothing).
@@ -456,7 +456,7 @@ function createSetOfferChoices(ctx: ChatContext, emit: EmitChatEvent, claimChat:
     const { chat } = await requireHost(ctx, principal, chatId);
     await claimChat(chatId);
     // The POST-WRITE metadata, for the background-availability guard only: the write itself touches this one
-    // JSON path and never re-asserts the siblings (#1450).
+    // JSON path and never re-asserts the siblings.
     const effective: ChatMetadata = { ...chat.metadata, offerChoices: enabled };
     await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "offerChoices", value: enabled, effective, authority: "carried" });
     await emit({ type: "chatUpdated", chatId });
@@ -523,7 +523,7 @@ function createSetMemberPersonaLore(ctx: ChatContext, emit: EmitChatEvent, claim
   };
 }
 
-/** Convert a `kind:"external"` background source into an owned `kind:"asset"` one (BG-C invariant, F-P0-2):
+/** Convert a `kind:"external"` background source into an owned `kind:"asset"` one (BG-C invariant):
  *  fetch → magic-belt → CAS-store the pasted URL, keeping the original URL as `provenanceUrl`. A blank URL is
  *  a no-op clear (⇒ `kind:"none"`). Any non-external source passes through untouched. A materialize refusal
  *  throws a leak-free coded error (the honest reason, never the URL). */
@@ -564,7 +564,7 @@ function createSetChatBackground(ctx: ChatContext, emit: EmitChatEvent, claimCha
     if (!parsed.success) {
       throw new ChatOperationError(CHAT_OP_CODES.forbiddenOverride, `chat ${chatId}: invalid background source`);
     }
-    // BG-C invariant (F-P0-2): a `kind:"external"` source can never paint (CSP), so materialize it server-side
+    // BG-C invariant: a `kind:"external"` source can never paint (CSP), so materialize it server-side
     // into an owned `kind:"asset"` source (original URL kept as provenance) BEFORE persisting — or refuse. A
     // blank external URL is a no-op clear (⇒ `kind:"none"`), never a fetch of "".
     const resolved = await materializeExternal(ctx, principal, parsed.data);
@@ -580,7 +580,7 @@ function createSetChatBackground(ctx: ChatContext, emit: EmitChatEvent, claimCha
       }
     }
     // The POST-WRITE metadata, for the background-availability guard only: the write itself touches this one
-    // JSON path and never re-asserts the siblings (#1450).
+    // JSON path and never re-asserts the siblings.
     const effective: ChatMetadata = { ...chat.metadata, background: source };
     await commitMetadataUpdate({ ctx, ownerId: principal.userId, chatId, key: "background", value: source, effective, authority: "owned" });
     await emit({ type: "chatUpdated", chatId });
@@ -642,7 +642,7 @@ function createGetGroupConfigForChat(ctx: ChatContext): ChatService["getGroupCon
  * added while the room's greeting window is still open greets, exactly as a founding member does; after the
  * window closes the join stays silent (today's late-add semantics). This preserves the one affordance the
  * deleted draft plane had here: a panel-added member's greeting row appeared before the first send, and
- * without it that UX silently regressed the day the draft plane went away.
+ * without it that UX is silently lost.
  *
  * THE WINDOW is the same one `setSeededGreeting` refuses on (`greeting_frozen`, verbs/edit.ts): no user-role
  * canon row. That instant is also `freezeGreetingVolatiles` (verbs/turn.ts), which bakes every prior
@@ -746,7 +746,7 @@ function createAddCharacterToChat(ctx: ChatContext, emit: EmitChatEvent, claimCh
     const participantId = ctx.newParticipantId();
     assertForcedCharacterMember({ kind: "character", role: "member" });
     const versionStatements: BatchStmt[] = [];
-    // A LATER SEAT COUNTS THE ROOM TOO (#1147). The rebuild's per-character census is
+    // A LATER SEAT COUNTS THE ROOM TOO. The rebuild's per-character census is
     // `COUNT(DISTINCT cp.chat_id)` over seats, so a character joining a live room owes a `+1` here or the
     // live rollup reads 0 chats for it until somebody reconciles. Asked BEFORE the seat row commits and
     // over PAST seats too: a removed character keeps its `leftSeq`-stamped row, so a re-add mints a second
@@ -1037,7 +1037,7 @@ function createNominateHostHandoff(ctx: ChatContext, emit: EmitChatEvent): ChatS
     const parsedOffer = handoffOfferSchema.catch(NO_HANDOFF_OFFER).parse(offer ?? NO_HANDOFF_OFFER);
     const statements: BatchStmt[] = [setPendingHostStatement(ctx.db, { chatId, nomineeUserId: userId, offer: parsedOffer, now: ctx.now() })];
     ctx.bumpStatsCanonVersion(statements, ctx.db, principal.userId);
-    // THE NOMINATION DISCLOSES WHAT IT GIVES (#1762). The nominee decides from one inbox row, and accepting
+    // THE NOMINATION DISCLOSES WHAT IT GIVES. The nominee decides from one inbox row, and accepting
     // lands characters, lore, the GM voice and this room's EXECUTABLE regex scripts in THEIR library — so the
     // counts ride the notification and their client confirms against them. Resolved from the copy's own
     // planners (`previewHandoffCopyPlan` beside `resolveHandoffCopyPlan`) over the participants already loaded
@@ -1173,7 +1173,7 @@ async function prepareHandoffRebase(
  *  cards, the lore behind them and the room's own regex scripts are copied into the nominee's library, and
  *  this room is re-pointed onto the copies — seats IN PLACE (era, knobs and identity preserved), canon
  *  `messages.characterId`, the derived digest keys, rpg's sheets, and the `chat_regex_scripts` attachments
- *  (#1739, at their stored positions so the transform chain survives byte-identical). Message VARIANTS need
+ *  (at their stored positions so the transform chain survives byte-identical). Message VARIANTS need
  *  no copying: they are this chat's rows and transfer by construction. From the swap onward the room
  *  references only the new host's property, so the old host editing or deleting their originals cannot reach
  *  it — which is the whole point of the arm.

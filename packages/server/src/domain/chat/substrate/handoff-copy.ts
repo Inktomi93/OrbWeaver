@@ -78,17 +78,17 @@ async function executeHandoffCopy(
   seats: readonly PresentCharacterSeat[],
 ): Promise<HandoffCopyPlan> {
   const { chatId, oldHostUserId, nomineeUserId } = params;
-  // THE REGEX ARM RUNS BEFORE (AND INDEPENDENTLY OF) THE SEAT CHECK — #1739. A room's chat-tier scripts are
+  // THE REGEX ARM RUNS BEFORE (AND INDEPENDENTLY OF) THE SEAT CHECK. A room's chat-tier scripts are
   // room state: they are attached to the ROOM, not carried by a card, so a room with no giftable seat can
   // still be running the departing host's find/replace. Gating them on `seats.length` would leave exactly the
   // hole this arm exists to close. Same shape as the books' room half otherwise: mints land now, the
   // `chat_regex_scripts` move comes back UNEXECUTED for the swap batch.
   const regexRepoint = (await ctx.copyHandoffRegexScripts({ fromOwnerId: oldHostUserId, toOwnerId: nomineeUserId, chatId })).map(statementForOwner);
-  // THE SEAT GATE IS THE CARD MINT'S, NOT THE WHOLE COPY'S — #1763. `copyHandoffBooks` does two halves: the
+  // THE SEAT GATE IS THE CARD MINT'S, NOT THE WHOLE COPY'S. `copyHandoffBooks` does two halves: the
   // seated cards' lore (derived from `cardCopies`) and the ROOM's own `chat_books`, which hangs off the room
   // and owes the seats nothing. Returning early on `seats.length === 0` took the room half down with the card
   // half, so an offer accepted in a seat-less room left the departed host's book firing into a room they had
-  // left — the #1739 hole, one table over. An empty `cardCopies` is already the op's own "room half only"
+  // left — the regex arm's hole, one table over. An empty `cardCopies` is already the op's own "room half only"
   // input (`pendingCardCopies([])` ⇒ the card loop never runs), so the fix is to stop skipping the CALL.
   //
   // The two halves stay in ONE op deliberately: they share the call-local source→copy map, so a book attached
@@ -119,10 +119,10 @@ async function executeHandoffCopy(
   };
 }
 
-/** THE DISCLOSURE (#1762) — what the offer would copy, resolved AT NOMINATE so the nominee's inbox row can
+/** THE DISCLOSURE — what the offer would copy, resolved AT NOMINATE so the nominee's inbox row can
  *  say it before they press Accept. The receiving side used to render a bare Accept for a press that lands
  *  four classes of the departing host's property in the accepter's own library, one of which EXECUTES on
- *  their text (the room's regex scripts, #1739).
+ *  their text (the room's regex scripts).
  *
  *  IT IS THE COPY'S OWN RESOLUTION, ASKED WITHOUT WRITING, and every branch below is the accept's branch:
  *  the same `copyCharacters` gate, the same {@link resolvePresentCharacterSeats} (both ownership axes — theirs to

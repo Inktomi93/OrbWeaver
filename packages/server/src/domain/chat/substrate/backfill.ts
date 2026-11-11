@@ -12,7 +12,7 @@
 // Cooperative abort: the signal is checked between chats/buckets and cuts off an embed waiting on the model —
 // a partial sweep is safe.
 //
-// The shared group-bucket FK is structurally satisfied, not caught (#41): `scopesFor` resolves the shared
+// The shared group-bucket FK is structurally satisfied, not caught: `scopesFor` resolves the shared
 // bucket's `scopedCharacterId` through `resolveGroupBucketCharacterId`, which is find-OR-MINT — it persists
 // the synthetic group `characters` row (via `ctx.mintSyntheticGroupCharacter`) BEFORE any digest write, so
 // the `chat_digests.scopedCharacterId` FK can never dangle here. The row's existence is a precondition the
@@ -101,7 +101,7 @@ type DigestPlan = NonNullable<Awaited<ReturnType<typeof planDigests>>>;
 type SegmentWork = Awaited<ReturnType<typeof collectSegments>>;
 
 /** The PHASE-1 fold: the collected plans + the collected SEGMENT chunk writes + the running scan counts +
- *  failure tally. Segment chunks accumulate corpus-wide instead of being embedded per chat (#172): PHASE 1b
+ *  failure tally. Segment chunks accumulate corpus-wide instead of being embedded per chat: PHASE 1b
  *  submits them as ONE flood. */
 interface PlanSweep {
   readonly plans: DigestPlan[];
@@ -207,7 +207,7 @@ async function resolveDigestFunder(ctx: ChatContext, args: MemorySweepArgs): Pro
 }
 
 /** PHASE 1 — plan every (chat × scope) bucket corpus-wide (segments + tier-0 collect; NO summarize). One
- *  poisoned chat is counted + logged, never kills the sweep (#41 — every EXPECTED branch returns without
+ *  poisoned chat is counted + logged, never kills the sweep (every EXPECTED branch returns without
  *  throwing, so a throw landing in the catch is a genuine unexpected fault). */
 async function planAllBuckets(ctx: ChatContext, args: MemorySweepArgs, resolveMemoryConfig: ResolveBackfillMemoryConfig): Promise<PlanSweep> {
   const sweep: PlanSweep = { plans: [], segments: [], segmentsScanned: 0, digestsScanned: 0, failed: 0, spaces: new Map() };
@@ -227,7 +227,7 @@ async function planAllBuckets(ctx: ChatContext, args: MemorySweepArgs, resolveMe
         throw err;
       }
       sweep.failed += 1;
-      // The CAUSE rides as scalar fields, not only inside the serialized `err` (#165): the dev stack's
+      // The CAUSE rides as scalar fields, not only inside the serialized `err`: the dev stack's
       // pretty stream renders the message line and the object separately, and two whole 890-chat runs were
       // read as "no exception logged" because the stack block below the line was never scrolled to. `err`
       // still rides for the stack; these three are what a one-line read needs. Metadata only — an error
@@ -487,7 +487,7 @@ async function commitAllPlans(
  * per-turn trigger uses; the sweep only REORDERS the work.
  *
  * THE PHASE DAG (each phase completes corpus-wide before the next starts; a phase's engine work is ONE
- * submission, never a per-item round-robin — owner batching ruling, #172):
+ * submission, never a per-item round-robin — owner batching ruling):
  *
  *   PHASE 1  PLAN      per chat: collect its SEGMENT chunks (chunk + hash-gate + shrink-prune, no embed),
  *                      then tier-0 COLLECT each of its digest scope buckets (no summarize).
@@ -535,7 +535,7 @@ export async function backfillMemory(
   };
 }
 
-/** PHASE 1b — the SEGMENT flood (#172, owner batching ruling). Every chat's pending chunks, collected during
+/** PHASE 1b — the SEGMENT flood (owner batching ruling). Every chat's pending chunks, collected during
  *  PHASE 1, go to the embeddings batch op in ONE call: one saturated continuous batch on the engine instead
  *  of a per-chat ramp, and zero client-side throttling (the provider surface owns how it lands on the wire).
  *  The pending texts are length-sorted first, exactly like the corpus summarize batch below — similar-length
@@ -568,9 +568,9 @@ async function storeAllSegments(
     if (endsTheSweep(err, signal)) {
       throw err;
     }
-    // ISOLATED like every other phase (#41): one poisoned chunk (a filtered vector, a dead engine) must not
+    // ISOLATED like every other phase: one poisoned chunk (a filtered vector, a dead engine) must not
     // also cost the corpus its DIGEST half, which needs no embed of these blocks at all. Counted + logged
-    // with the cause as scalars (#165), and the content-hash self-heal re-offers every unwritten chunk next
+    // with the cause as scalars, and the content-hash self-heal re-offers every unwritten chunk next
     // pass — a batch failure loses throughput, never content.
     getLog(ctx.logger).error(
       {

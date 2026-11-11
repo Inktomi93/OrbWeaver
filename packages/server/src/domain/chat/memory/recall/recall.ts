@@ -8,7 +8,7 @@
 // it wasn't in. The recall window-filter additionally drops any digest still verbatim in this turn's live
 // history window (token-driven, distinct from the fixed build-protect window).
 //
-// OBSERVABILITY IS A RETURN VALUE, NOT A SIDE CHANNEL (#250). Every path — including the two early returns —
+// OBSERVABILITY IS A RETURN VALUE, NOT A SIDE CHANNEL. Every path — including the two early returns —
 // produces a `MemoryRecallSlice` beside the text: the query, the pool, the candidate set, the admitted blocks
 // with the scores they were admitted on, and a bounded head of the rejects with the STAGE that eliminated
 // them. The one slice feeds three readers (the assembly trace the Preview renders, the structured
@@ -47,7 +47,7 @@ export async function recallMemory(ctx: ChatContext, args: RecallMemoryArgs): Pr
       slice: { mode: cfg.mode, queryText: null, queryEmbedded: false, poolSize: 0, candidateCount: 0, note: "mode off", verdicts, rendered: [], scored: null },
     });
   }
-  // The header brain-icon's live feed (#313): memory is ON, so the pre-provider recall WINDOW opens NOW —
+  // The header brain-icon's live feed: memory is ON, so the pre-provider recall WINDOW opens NOW —
   // stamped BEFORE the digest load + any embed/scan/rerank so the "recalling…" state covers the whole
   // latency the viewer perceives as a hang. `finish` stamps the matching "recalled" (count) at the one exit.
   // Placed after the `off` early-return so memory-off never emits (an absent event is the idle icon, not a lie).
@@ -91,7 +91,7 @@ export async function recallMemory(ctx: ChatContext, args: RecallMemoryArgs): Pr
   const selected = await selectKeys(ctx, { args, cfg, union, verdicts });
 
   // `rendered` (the trace's admitted set) stays in RETRIEVAL-RANK order — best-scoring first, the order a
-  // debugger reads "why did this block win". #330 P7: the {{memory}} TEXT, by contrast, renders in TIME order
+  // debugger reads "why did this block win". The {{memory}} TEXT, by contrast, renders in TIME order
   // for the embedding modes (mixB/mixC) — a rank-ordered "story so far" reads as scrambled chronology to the
   // model, and mixA/tiered already inject chronologically. `formatMemory` is pure, so a second call over the
   // chronologically-sorted rendered keys yields the time-ordered text without disturbing the rank-ordered
@@ -129,7 +129,7 @@ interface SliceParts {
   readonly candidateCount: number;
   readonly note: string | null;
   readonly verdicts: Verdicts;
-  /** The blocks that actually reached the prompt, in RETRIEVAL-RANK order (the trace's admitted set — #330 P7:
+  /** The blocks that actually reached the prompt, in RETRIEVAL-RANK order (the trace's admitted set —
    *  the `{{memory}}` TEXT is re-sorted chronologically for the embedding modes, but the trace keeps rank order). */
   readonly rendered: readonly BlockKey[];
   /** The retrieval numbers per block-key string; null for a mode that ran no scan. */
@@ -184,7 +184,7 @@ function finish(ctx: ChatContext, args: RecallMemoryArgs, env: { readonly text: 
     ...(slice.note !== null ? { note: slice.note } : {}),
   });
   ctx.recordRecall?.({ chatId: args.scope.chatId, scopedCharacterId: args.scope.scopedCharacterId, trace: slice });
-  // The header brain-icon's live feed (#313): close the "recalling" window opened in `recallMemory` with the
+  // The header brain-icon's live feed: close the "recalling" window opened in `recallMemory` with the
   // surfaced count. Gated on a non-off mode so it PAIRS the "recalling" that fired — the `off` path never
   // opened one, so it never closes one (an absent event is the idle icon, never a lying "recalled 0").
   if (p.mode !== "off") {
@@ -230,7 +230,7 @@ async function filterPool(
     if (env.horizons !== undefined && !spanWitnessed(first.seqStart, last.seqEnd, env.horizons)) {
       return drop(d, "unwitnessed");
     }
-    // THE LIVE-WINDOW TEST READS THE WHOLE SPAN, AND ITS ENDPOINT IS TIER-DEPENDENT (#1518). Both endpoints
+    // THE LIVE-WINDOW TEST READS THE WHOLE SPAN, AND ITS ENDPOINT IS TIER-DEPENDENT. Both endpoints
     // are already resolved above and the witnessing check uses both; reading only `first.seqStart` here kept
     // any digest whose span STRADDLES the cutoff — the ordinary case at a tier boundary, since the cutoff is
     // token-driven and never aligns to the block grid.
@@ -259,7 +259,7 @@ interface Selection {
   readonly queryText: string | null;
   readonly candidateCount: number;
   readonly scored: ReadonlyMap<string, ScoredBlock> | null;
-  /** The trace's `note` when the mode could not do its job (#2510 — an unqueryable vector space). `undefined`
+  /** The trace's `note` when the mode could not do its job (an unqueryable vector space). `undefined`
    *  ⇒ the ordinary `null` note: the mode ran and whatever it returned IS the answer. */
   readonly note?: string | undefined;
 }
@@ -271,7 +271,7 @@ interface Selection {
  *  makes that legible: the op never throws the two SPACE refusals (`TurnRetrievalEvents`,
  *  `contract/context.ts`) — it reports and resolves `[]` — so an empty array alone cannot tell the SLICE
  *  whether the scan found nothing or never ran, and a trace claiming `queryEmbedded: true` with a clean zero
- *  would be a measurement rather than the absence it actually was (#250: absent data renders absent, never
+ *  would be a measurement rather than the absence it actually was (absent data renders absent, never
  *  floor-synthesized). A flag assigned only inside the callback narrows to the `false` literal at its branch,
  *  which both linters then call statically dead; crossing a typed return boundary is what widens it. */
 async function retrieve(
@@ -348,7 +348,7 @@ function markOutside(
 }
 
 /** A block's coverage START position on the tier-0 grid (blockIdx times fanOut-to-the-tier) — the chronological
- *  sort key for the `{{memory}}` TEXT (#330 P7). A tier-k digest at blockIdx covers a tier-0 range starting at
+ *  sort key for the `{{memory}}` TEXT. A tier-k digest at blockIdx covers a tier-0 range starting at
  *  that position, i.e. the earliest scene it summarizes, so ordering by it reads the arc oldest to newest. */
 function chronoStart(k: BlockKey, fanOut: number): number {
   return k.blockIdx * fanOut ** k.tier;

@@ -4,7 +4,7 @@
 // model must apply BOTH: the host's per-row `excludedFromPrompt` hide (an operator action on one row) and the
 // row's declared PURPOSE (D129 — `MESSAGE_KIND_POLICY[kind].prompt === "never"`, i.e. an OOC `comment`, is not
 // prompt material at all). The two were spelled separately at each boundary, and the second half went missing
-// at one of them (#1463 item 3: quiet extraction sent comment rows to the side model while the compaction
+// at one of them (quiet extraction sent comment rows to the side model while the compaction
 // marker excluded them) — which is exactly the drift a shared predicate makes unrepresentable. The kind half
 // is READ from the policy record rather than a hardcoded kind list, so a fourth kind is a policy-row decision.
 //

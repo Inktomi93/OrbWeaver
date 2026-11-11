@@ -7,9 +7,9 @@
 // role='member' WHERE leftSeq IS NOT NULL — so a still-present member's redeem is a no-op. `role` is
 // server-forced `member`; the host role is only ever minted at chat creation / handoff. `joinSeq`/`leftSeq`
 // are stamped against messages.seq (the join/leave horizon), not the stream cursor, and `joinSeq` resolves
-// IN-BATCH (#1403).
+// IN-BATCH.
 //
-// THE SEAT ID IS STABLE ACROSS A RE-JOIN (#1542, owner-ruled 2026-09-05, arm A). The DO UPDATE `set` does
+// THE SEAT ID IS STABLE ACROSS A RE-JOIN (owner-ruled, arm A). The DO UPDATE `set` does
 // NOT carry `id`: a human's membership is ONE row per (chatId,userId) that outlives every leave, so the PK
 // child rows point at (`message_reactions.reactor_participant_id` today) never moves under them. The
 // alternative — `ON UPDATE CASCADE` on that FK — was REJECTED: it would make the id churn survivable rather
@@ -38,14 +38,14 @@ interface ParticipantRowShape {
 }
 
 /** Discriminate a `chat_participants` row's actor — the pure, non-throwing classify (owner-ruled
- *  2026-08-15 one-home consolidation). `null` on an XOR violation (the DB CHECK should already guarantee
+ *  one-home consolidation). `null` on an XOR violation (the DB CHECK should already guarantee
  *  `userId`/`characterId` are exclusive — a `null` here is the corrupt-row case) or an unrecognized kind.
  *  `default` is `never`-exhaustive against {@link ParticipantKind}'s today's two live kinds
- *  (`human`/`character`; `agent` was purged with the 2026-07-25 rollback and has no live row shape — see
+ *  (`human`/`character`; `agent` was purged with the rollback and has no live row shape — see
  *  `contracts/chat/participants.ts`'s header), so a reintroduced kind fails to compile here until handled.
  *
  *  THE ONE HOME for the `kind === "human" && userId !== null`-shaped narrowing every roster-derived read
- *  needs — 29 call sites across the domain re-spelled this inline before the 2026-08-15 consolidation
+ *  needs — 29 call sites across the domain would otherwise re-spell this inline
  *  (`loadParticipants`'s hot read never throws on a corrupt row; a `.filter`/`.flatMap`/`.find` site's silent-skip
  *  semantics are preserved by discarding a `null` classification exactly the way the inline guard already
  *  discarded a failed condition). */
@@ -61,7 +61,7 @@ export function classifyParticipant(row: ParticipantRowShape): ParticipantActor 
 }
 
 /** The `default:` arm's fail-CLOSED verdict, and the reason it is a function rather than a `never` binding
- *  returned inline (#1480 item 1). The old spelling assigned `row.kind` to a `never`-typed local and
+ *  returned inline. The old spelling assigned `row.kind` to a `never`-typed local and
  *  RETURNED that local: compile-time exhaustive, but the raw runtime string at runtime. A row whose `kind`
  *  is neither live kind therefore classified as that STRING, which is not `null` — so
  *  `classifyParticipant(row)?.kind === "human"` readers saw a truthy actor carrying no `userId`. Reaching
@@ -108,13 +108,13 @@ function isPresent(p: { readonly leftSeq: number | null }): boolean {
 
 /** Present and not muted. A `disabled` participant still contributes cards/WI but is never
  *  arbiter-selected + is excluded from `{{groupNotMuted}}`. Reuses {@link isPresent} — one home for
- *  the presence half of the rule (census #72 item 3: this used to re-spell `leftSeq === null` inline). */
+ *  the presence half of the rule (this used to re-spell `leftSeq === null` inline). */
 export function isArbiterEligible(p: { readonly leftSeq: number | null; readonly disabled: boolean }): boolean {
   return isPresent(p) && !p.disabled;
 }
 
-/** The PRINCIPAL kill-switch arm of the present-and-contributing predicate. Wired for `human` (owner-ruled
- *  2026-08-15) through `substrate/participants-humans.ts::presentAndEnabledHumanUserIdsOf` — the ONE async
+/** The PRINCIPAL kill-switch arm of the present-and-contributing predicate. Wired for `human` (owner-ruled)
+ *  through `substrate/participants-humans.ts::presentAndEnabledHumanUserIdsOf` — the ONE async
  *  narrowing every consent-set consumer (`verbs/turn.ts`'s `loadRoom`, `setChatAnchorPersona`'s pin
  *  validation, `edit.ts`'s runOnEdit re-apply + greeting re-bake) routes through, so a disabled human's
  *  backing `users.enabled` drops their persona from EVERY reader of the room's foreign-input consent set the
@@ -136,7 +136,7 @@ export async function insertParticipants(db: Db, rows: readonly ParticipantInser
   await db.batch(batchMany([db.insert(chatParticipants).values([...rows]), ...coStatements]));
 }
 
-/** The canon head the seat is stamped against, as SQL — evaluated INSIDE the claim batch (#1403).
+/** The canon head the seat is stamped against, as SQL — evaluated INSIDE the claim batch.
  *
  *  `joinSeq` is a HISTORY FLOOR: `substrate/auth::isBelowHistoryFloor` withholds every message at or below it
  *  from the joining member. Reading the head with a standalone `loadMaxMessageSeq` and baking the NUMBER into
@@ -147,7 +147,7 @@ export async function insertParticipants(db: Db, rows: readonly ParticipantInser
  *  the head read and the seat insert. (Not a SELECT statement AHEAD of the writes -- `@orb/db/query::batchMany`'s
  *  DEFERRED-snapshot rule bans that shape; this is a scalar subquery inside a write.)
  *
- *  THE OUTER REFERENCE IS QUALIFIED BY HAND, AND THAT IS THE WHOLE CORRELATION (#2244). Drizzle renders every
+ *  THE OUTER REFERENCE IS QUALIFIED BY HAND, AND THAT IS THE WHOLE CORRELATION. Drizzle renders every
  *  column inside an `INSERT … SELECT` projection WITHOUT its table qualifier, so passing `chatId` as a plain
  *  column emitted `where "chat_id" = "chat_id"` — a tautology SQLite resolves entirely against the subquery's
  *  own `messages` scope. The floor a first-join seat recorded was therefore the table-wide `max(messages.seq)`,
@@ -200,7 +200,7 @@ export function insertMemberAfterInviteClaimStatement(
     .onConflictDoUpdate({
       target: [chatParticipants.chatId, chatParticipants.userId],
       set: {
-        // NO `id` HERE (#1542). The seat KEEPS ITS IDENTITY across a re-join: `params.participantId` is a
+        // NO `id` HERE. The seat KEEPS ITS IDENTITY across a re-join: `params.participantId` is a
         // freshly-minted id the INSERT arm consumes, and re-stamping it on the UPDATE arm moved a PK that
         // `message_reactions.reactor_participant_id` FKs under SQLite's default NO ACTION on update — so the
         // whole redeem batch failed ("cannot re-join") for any returning member who had ever reacted. Keeping
@@ -315,7 +315,7 @@ export function acceptHostHandoffSwapStatements(
 }
 
 /** The `$.copyCast` → `$.copyCharacters` key rewrite over every `chats.pending_handoff_offer` blob written
- *  before the #1649 vocabulary rename (owner-ruled 2026-09-05 arm (a): rename the wire field WITH a data
+ *  before the vocabulary rename (owner-ruled arm (a): rename the wire field WITH a data
  *  migration, no read-compat shim). Returns the number of rows rewritten.
  *
  *  WHY A DATA MIGRATION AND NOT A SHIM: the offer's read seam is

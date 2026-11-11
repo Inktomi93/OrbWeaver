@@ -4,16 +4,16 @@
 //
 // WHY IT LIVES IN substrate/ AND NOT IN engine/: the conversion is LOSSY on purpose (a stored card collapses
 // to `[card: Title]`, a choices block drops entirely, a display-only image becomes a short marker), so what
-// the FIT must price is the CONVERTED text, never the shaped body. #1434 (0debca16) put CONVERT before FIT in
-// the turn pipeline for exactly that reason. #1540 is the same defect on the READ side: `previewContextFit`
-// (the transcript divider's boundary) and `previewAssembly` (the host's budget readout) ran the fit over the
-// RAW shaped rows, so on a card-heavy or choices-heavy chat the preview claimed rows were out of context that
+// the FIT must price is the CONVERTED text, never the shaped body. CONVERT runs before FIT in
+// the turn pipeline for exactly that reason, and on the READ side too: a `previewContextFit`
+// (the transcript divider's boundary) or `previewAssembly` (the host's budget readout) that runs the fit over
+// the RAW shaped rows makes a card-heavy or choices-heavy chat's preview claim rows were out of context that
 // the very next turn keeps. Both callers — `engine/pipeline.ts` (the turn) and `verbs/read.ts` (the previews)
 // — now build their fit input HERE, so there is one conversion, one cost rule and one ordering to drift.
 //
 // THE LAW IS D51 and this file is the seam it names: content-parts are produced
-// exactly ONCE, here, and everything upstream stays `content: string`. D51's cited file was
-// `engine/pipeline.ts` until #1540 moved the CONVERT step down to this substrate module — the ruling
+// exactly ONCE, here, and everything upstream stays `content: string`. D51's CONVERT step lives in
+// this substrate module rather than `engine/pipeline.ts` — the ruling
 // survives, its input changed: still one producer, still the request seam's conversion, now reachable by the
 // read verb that has to price the same rows. ENFORCER: the `orb/content-part-seam` restriction in
 // `eslint.config.js`, whose `homes` entry names this path and must follow it if it moves again.
@@ -124,7 +124,7 @@ interface DroppedMedia {
 /** The per-assembly wire environment for the span→part projection (§3.5 — the WIRE plane). */
 interface WirePartsEnv {
   readonly visionOk: boolean;
-  /** The video twin (#317): `capability.input.video === true` — gates video parts as `visionOk` gates images. */
+  /** The video twin: `capability.input.video === true` — gates video parts as `visionOk` gates images. */
   readonly videoOk: boolean;
   readonly resolveImageUrl: ResolveTurnImageUrlOp;
   /** The card spans riding FULL this assembly (the M2 keep-last-X window; empty = every card stubs). */
@@ -230,7 +230,7 @@ const WIRE_PART_HANDLERS: { readonly [K in ContentSpanKind]: WirePartHandler<K> 
   card: (span, env) => ({ type: "text", text: env.fullCards.has(span) ? span.raw : cardWireStub(span.title) }),
   // wire:"drop" — ATTACHMENT-ONLY (owner ruling, ST parity): a non-attachment image is DISPLAY-ONLY and
   // collapses to its short marker; an attachment resolves-or-drops-to-alt gated by the asset's media kind
-  // (`input.vision` for images, `input.video` for mp4/webm/animated-gif — #317). The KIND is only known
+  // (`input.vision` for images, `input.video` for mp4/webm/animated-gif). The KIND is only known
   // after resolve; URL preparation waits until the kind-gate admits the resolver's answer.
   image: async (span, env, row) => {
     if (!ridesAsModelMedia(span, row, env.inlineReply)) {
@@ -383,7 +383,7 @@ function carryReasoningParts(parts: readonly ChatContentPart[], stored: readonly
   return [...stored, ...parts];
 }
 
-/** The wire text a row costs the model — prose, reasoning, and replayed tool payloads (#1434).
+/** The wire text a row costs the model — prose, reasoning, and replayed tool payloads.
  *  A resolved image/video part carries a URL or a data payload the token estimator cannot price and the
  *  provider does not charge as prompt text, so it contributes ZERO here; what it replaced (a multi-KB
  *  `![alt](orb://…)` blob, or a card body collapsed to `[card: Title]`) is gone by construction because
@@ -634,7 +634,7 @@ function extraFrameTokens(frames: readonly ChatHistoryMessage[], content: string
 /** The REQUEST-step history build: tokenize each shaped row ONCE, resolve the keep-last-X card window over
  *  the whole assembly, then project every row through the ONE span→part seam (§3.5).
  *
- *  THIS RUNS BEFORE THE FIT (#1434). It used to run after, which meant the token fitter priced bytes the
+ *  THIS RUNS BEFORE THE FIT. It used to run after, which meant the token fitter priced bytes the
  *  provider never sees: it charged the full multi-KB body of every stored card that the very next step
  *  collapsed to `[card: Title]`, and charged every choices block that the next step DROPPED — so a
  *  card-heavy chat evicted useful older turns to make room for content it was about to delete, and
@@ -657,7 +657,7 @@ export async function buildWireHistory(
     readonly carryToolReasoning?: boolean;
     /** `connection.capability.input.vision === true` — gates resolved IMAGE parts. */
     readonly visionOk: boolean;
-    /** The video twin (#317): `capability.input.video === true`. */
+    /** The video twin: `capability.input.video === true`. */
     readonly videoOk: boolean;
     readonly resolveImageUrl: ResolveTurnImageUrlOp;
     /** The M2 keep-last-X card window. ABSENT ≠ ZERO — see {@link resolveFullCards}; contributed only by an
@@ -746,7 +746,7 @@ function isEmptyPartList(parts: readonly ChatContentPart[]): boolean {
   return parts.length === 1 && parts[0]?.type === "text" && parts[0].text.length === 0;
 }
 
-/** Drop the rows that converted to nothing (#1438).
+/** Drop the rows that converted to nothing.
  *
  *  A CHOICES-ONLY canon row is the reachable case: the `choices` handler returns `null` for every span
  *  (the CYOA fence — unselected options must not re-pile into context), `toContentParts` skips nulls, and
@@ -992,7 +992,7 @@ async function fitShapedRows(args: ShapeFitArgs, measure?: MeasurePassage): Prom
   };
 }
 
-/** Re-anchor the §8 cache breakpoint after a MID-ARRAY drop (#1543).
+/** Re-anchor the §8 cache breakpoint after a MID-ARRAY drop.
  *
  *  The breakpoint is a DEPTH in role groups from the end (`@orb/inference` `rowIndexAtCacheDepth`, the counter
  *  SHAPE and the runner share). The fit's front-trim leaves it alone for free; a drop from anywhere else can
@@ -1027,7 +1027,7 @@ function shiftBreakpoint(
   return shifted ?? null;
 }
 
-// The ROWS THE FIT PRICES — the single spelling of the fit's input (#1540). Both callers hand
+// The ROWS THE FIT PRICES — the single spelling of the fit's input. Both callers hand
 //  `fitHistory` exactly this: the turn pipeline, whose `droppedCount` then slices the kept wire rows back
 //  out of the same array, and the read verb's previews, which read only the boundary + the numbers. Spelling
 //  it once is the point of the ticket: a second `.map(w => w.costRow)` on the read side is how the two

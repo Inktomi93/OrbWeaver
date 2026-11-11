@@ -6,7 +6,7 @@
 // SELF-HEAL: a block is (re)digested only if missing or its content_hash changed — the protected tip
 // (maxSeq − verbatimWindow) never digests, so a swipe/edit at the live tip never touches a settled digest.
 //
-// THREE WAYS A STORED DIGEST GOES WRONG, THREE MECHANISMS (#1395): content CHANGED → the hash self-heal
+// THREE WAYS A STORED DIGEST GOES WRONG, THREE MECHANISMS: content CHANGED → the hash self-heal
 // re-summarizes it; the block DISAPPEARED → `embeddingsPruneBlocks` reclaims it (the shrink, `queries.ts`);
 // the replacement FAILED → this file INVALIDATES the row it could not replace. The third used to have no
 // mechanism, so a proven-stale digest (its hash mismatch is what queued the rebuild) stayed live in recall
@@ -129,7 +129,7 @@ async function outputReserve(ctx: ChatContext, funderUserId: UserId): Promise<nu
 }
 
 /** A consolidation pass's fold. `skippedEmpty` counts BOTH a blank summarizer result AND a bodyless arc (the
- *  #329 P1b output-shape guard) — a consolidation whose facts body is empty is skipped-and-retried, not stored. */
+ *  output-shape guard) — a consolidation whose facts body is empty is skipped-and-retried, not stored. */
 interface PassCounts {
   written: number;
   skipped: number;
@@ -341,7 +341,7 @@ async function collectTier0(
  *  index-aligned to `plan.pending`. The content-hash self-heal + empty-skip are preserved per block (a blank
  *  digest keyed by the block hash would skip forever, so it is left un-digested to retry next pass).
  *
- *  AND THE EMPTY SKIP INVALIDATES THE ROW IT LEAVES BEHIND (#1395). The skip's own reasoning is about the NEW
+ *  AND THE EMPTY SKIP INVALIDATES THE ROW IT LEAVES BEHIND. The skip's own reasoning is about the NEW
  *  digest — don't key a blank under this hash — and says nothing about the OLD one. But a pending block is
  *  pending precisely BECAUSE its stored hash mismatched: the build has already proven that row stale, and
  *  `loadDigestsForScope` has no currency filter, so leaving it live serves known-out-of-date memory on every
@@ -364,7 +364,7 @@ export async function storeTier0(ctx: ChatContext, plan: DigestPlan, texts: read
       skippedEmpty += 1;
       // Only a key with a STORED row is invalidated, and it carries that row's hash: a first-time block
       // that failed has nothing to invalidate, and the hash makes the delete a compare-and-swap so a
-      // sibling pass that healed this block meanwhile keeps its fresh digest (#1543).
+      // sibling pass that healed this block meanwhile keeps its fresh digest.
       const staleHash = plan.existing.get(`0:${item.block.blockIdx}`);
       if (staleHash !== undefined) {
         staleKeys.push({ tier: 0, blockIdx: item.block.blockIdx, staleHash });
@@ -391,7 +391,7 @@ export async function storeTier0(ctx: ChatContext, plan: DigestPlan, texts: read
   return { written, skippedEmpty };
 }
 
-/** Drop the KNOWN-stale digest rows a pass proved stale and then failed to replace (#1395) — the third
+/** Drop the KNOWN-stale digest rows a pass proved stale and then failed to replace — the third
  *  memory delete, beside the shrink reclaim and the content-hash self-heal. No-op on an empty set (the
  *  ordinary pass), so the build's no-op economy is untouched. */
 async function invalidateStale(
@@ -444,7 +444,7 @@ interface ConsPending {
   readonly input: SummarizeInput;
   /** The hash of the parent row this pending write PROVES stale (undefined ⇒ no parent stored yet, so there
    *  is nothing to invalidate if the summarize comes back empty). Carried from the COLLECT because that is
-   *  where the `existing` map is read; the STORE is the half that may need to invalidate (#1543). */
+   *  where the `existing` map is read; the STORE is the half that may need to invalidate. */
   readonly staleHash: string | undefined;
 }
 
@@ -556,7 +556,7 @@ export async function collectConsolidationTier(
   // PROSE-1 census 80/81 — the consolidation system prompt + its user-prompt lead, the ROOM HOST's slots.
   const prose = await ctx.resolveChatProse(scope.chatId);
   const consolidationSystem = consolidationSystemPrompt(prose);
-  // #329 P1: the consolidation is fed the children's FULL stored digests (anchor · facts · keywords), fitted to
+  // The consolidation is fed the children's FULL stored digests (anchor · facts · keywords), fitted to
   // the summarizer context. Feeding only anchor+keywords starved it of the actual facts and it CONFABULATED
   // relations by changing who did what. The budget
   // is resolved ONCE per tier (the system prompt + output reserve are the same for every parent this pass).
@@ -636,7 +636,7 @@ export async function storeConsolidationTier(
       continue;
     }
     const parsed = parseDigest(raw);
-    // #329 P1b — the OUTPUT-SHAPE guard against DEPTH STARVATION: at tier ≥ 3 the summarizer increasingly
+    // The OUTPUT-SHAPE guard against DEPTH STARVATION: at tier ≥ 3 the summarizer increasingly
     // returned an anchor + keywords with NO narrative body (the "story so far" for the deep past collapsed to a
     // keyword list). An arc with an empty FACTS body is a degraded consolidation, so it is skipped-and-flagged
     // exactly like a blank digest — NOT stored, the content-hash self-heal retries it next pass (degrade
@@ -668,8 +668,8 @@ export async function storeConsolidationTier(
     assertStoreSpace(plan.embedSpace, receipt);
     written += 1;
   }
-  // #1395 — the same invalidation the tier-0 store applies: a parent queued by a hash mismatch and then
-  // skipped (blank, or the #329 P1b bodyless arc) leaves a parent the build has PROVEN stale live in recall.
+  // The same invalidation the tier-0 store applies: a parent queued by a hash mismatch and then
+  // skipped (blank, or a bodyless arc) leaves a parent the build has PROVEN stale live in recall.
   await invalidateStale(ctx, scope, staleKeys);
   return { written, skipped: 0, skippedEmpty };
 }

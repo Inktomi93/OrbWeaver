@@ -257,7 +257,7 @@ export async function loadPendingHandoff(db: Db, chatId: ChatId): Promise<{ pend
 }
 
 /** The subset of `chatIds` whose pending host-handoff nomination is STILL OPEN and still names this user
- *  (#1799 — the second half of the read behind `InboxView.actionable`). `pending_host_user_id = :user` is
+ *  (the second half of the read behind `InboxView.actionable`). `pending_host_user_id = :user` is
  *  both predicates at once: `acceptHostHandoff` CLEARS the column in the same statement that swaps the role,
  *  a re-nominate OVERWRITES it with someone else, and a host cancelling nulls it — so a nomination that was
  *  accepted, superseded or withdrawn is simply not in the answer, and a chat that named somebody else never
@@ -422,7 +422,7 @@ function searchPredicate(db: Db, needle: string): SQL | undefined {
 function memberChatScope(db: Db, userId: UserId, opts: MemberChatFilter): SQL | undefined {
   const characterId = opts.characterId;
   return and(
-    // MEMBERSHIP + THE TEMPORARY/HUSK/ARCHIVED LENSES ARE `@orb/db/query`'S NOW (#1131) — the character
+    // MEMBERSHIP + THE TEMPORARY/HUSK/ARCHIVED LENSES ARE `@orb/db/query`'S NOW — the character
     // library's row has to count the SAME rooms this list pages, and neither domain may import the other
     // (constitution §2), so those four arms live one layer down and both readers spell them once. What
     // stays here is what is a chat-LIST lens rather than visibility: the recency bound, the per-character
@@ -441,12 +441,12 @@ function memberChatScope(db: Db, userId: UserId, opts: MemberChatFilter): SQL | 
   );
 }
 
-/** THE ONE RECENCY CLOCK of the chat library (#150) — `coalesce(max(message.created_at), chats.updated_at)`,
+/** THE ONE RECENCY CLOCK of the chat library — `coalesce(max(message.created_at), chats.updated_at)`,
  *  the value every surface DISPLAYS as `lastMessageAt ?? updatedAt`, ordered on so that "the top row is the
  *  most recent conversation" is true BY CONSTRUCTION rather than by a coincidence of write paths (it used to
  *  order on `chats.updated_at`, a row-modification stamp a turn does not write and a metadata touch does).
  *
- *  THE EXPRESSION MOVED TO `@orb/db/query` WITH THE VISIBILITY SCOPE (#1131) so the character library's
+ *  THE EXPRESSION MOVED TO `@orb/db/query` WITH THE VISIBILITY SCOPE so the character library's
  *  per-character `MAX` reads the same clock; this alias keeps the call sites in this file reading as before.
  *
  *  IT MIRRORS {@link loadChatMessageStats}'S PREDICATE EXACTLY, selected-variant join included: that read is
@@ -961,7 +961,7 @@ export async function loadChatEventPage(
 }
 
 /** The durable log row minted under ONE event id — its cursor plus the payload AS STORED, or undefined when
- *  no row carries that id. The GROUND-TRUTH read behind the bus's terminal-drop classification (#1544): after
+ *  no row carries that id. The GROUND-TRUTH read behind the bus's terminal-drop classification: after
  *  a same-id retry fails, only the stored payload can say whether OUR append is the one that committed (id
  *  existence alone cannot — the row under that id may belong to a different event). */
 export async function loadChatEventById(db: Db, id: ChatEventId): Promise<ChatEventLogRow | undefined> {
@@ -981,7 +981,7 @@ export async function loadChatEventBounds(db: Db, chatId: ChatId): Promise<ChatE
 }
 
 /** The full sibling-variant set for one slot, ordered by `idx` ascending — just enough to resolve an idx
- *  to its variant id. TWO belts, both in the WHERE so the next caller cannot forget either (#1399):
+ *  to its variant id. TWO belts, both in the WHERE so the next caller cannot forget either:
  *  chat-scoped via the `messages` join (a foreign-chat `messageId` matches nothing), and floored at the
  *  CALLER's D16 `floorSeq` (`substrate/auth::resolveHistoryFloorSeq`, stamped by `guard::requireParticipant`)
  *  — a variant id set IS an identifier oracle over canon the floored `listMessages` withholds, and "how many
@@ -1136,7 +1136,7 @@ interface VariableDeltaRow {
  * must describe one snapshot: the predicate compares the stored BYTES, the rebuilt array is derived from the
  * PARSED value, and two separate reads of this column let a sibling commit BETWEEN them — the guard would
  * then pass against the sibling's bytes while the array was rebuilt from the pre-sibling chain, reproducing
- * the very lost update the CAS exists to stop (#1634 item 1). One statement makes that divergence
+ * the very lost update the CAS exists to stop. One statement makes that divergence
  * unrepresentable rather than merely unlikely.
  *
  * The RAW half is deliberately not a re-serialization of the parsed half: a parse→stringify round trip

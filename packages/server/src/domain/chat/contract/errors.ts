@@ -70,14 +70,14 @@ export const CHAT_OP_CODES = {
    *  field — default-deny. */
   forbiddenOverride: "forbidden_override",
   /** `setChatBackground` was given a `kind:"external"` URL that could not be materialized into an owned image
-   *  asset (unreachable / not an image / too large — side-eye F-P0-2). A validation refusal (BAD_REQUEST); the
+   *  asset (unreachable / not an image / too large). A validation refusal (BAD_REQUEST); the
    *  message carries the honest reason (`backgroundMaterializeMessage`), never the URL or any internal detail. */
   backgroundUnavailable: "background_unavailable",
   /** `requestTurn` was asked to stamp a reply DEEPER than `AUTOMATION_DEPTH_HARD_CAP`.
    *  The WRITE-side belt for the runaway-cascade guard: automation's dispatch gate already refuses an event at
    *  depth ≥ cap, so this bites only a mis-behaving non-dispatch caller (the plugin membrane) — fail-closed. */
   cascadeDepthExceeded: "cascade_depth_exceeded",
-  /** #67 — `send` was given an `attachmentAssetIds` id the actor does not OWN (a foreign / gone asset). The
+  /** `send` was given an `attachmentAssetIds` id the actor does not OWN (a foreign / gone asset). The
    *  caller IS a present member (the send gate passed), so this is a coded validation refusal, not a
    *  NOT_FOUND collapse — and it leaks nothing about another owner's asset (per-user D21 scope). */
   attachmentNotOwned: "attachment_not_owned",
@@ -141,7 +141,7 @@ export const CHAT_OP_CODES = {
    *  speaker's). Almost always a benign race — the content or roster changed between the picker's parse and
    *  the write — and refusing beats silently retargeting the member's click at the whole message. */
   invalidSegment: "invalid_segment",
-  /** #1356 — a `setUserMacroValues` flush carried a `single-select`/`multi-select` pick that is not one of
+  /** A `setUserMacroValues` flush carried a `single-select`/`multi-select` pick that is not one of
    *  the input's DECLARED options. The pick is spliced into the author's prompt template, so an
    *  unconstrained value is arbitrary prose in someone else's prompt; the write is refused whole rather
    *  than partially cleaned, and the message names the field and the declared vocabulary so the pane can
@@ -149,19 +149,19 @@ export const CHAT_OP_CODES = {
    *  options, so a coded refusal leaks nothing. The resolve-side belt (kit `resolveStaticInput`) still
    *  drops an already-STORED pick whose option was renamed away after the write. */
   unknownMacroPick: USER_MACRO_UNKNOWN_PICK_OP_CODE,
-  /** #1463 — a STANDALONE (out-of-turn) runtime-variable write lost its compare-and-set every attempt
+  /** A STANDALONE (out-of-turn) runtime-variable write lost its compare-and-set every attempt
    *  (`substrate/variable-ops.ts`). The plane has no lock by design, so a loss means a sibling writer
    *  COMMITTED and the write re-derives; losing the bound repeatedly is therefore not contention but a
    *  defect somewhere else, and this refusal exists so it surfaces loudly instead of spinning or silently
    *  dropping the ops. Internal surface (the callers are automation/plugin ops, not a client verb). */
   variableWriteContended: "variable_write_contended",
-  /** #1634 — a canon APPEND lost the head allocation on every attempt (`persistence/canon-write.ts`
+  /** A canon APPEND lost the head allocation on every attempt (`persistence/canon-write.ts`
    *  `commitCanonAppend`). Losing once is ordinary (a sibling writer took `seq`) and the append re-allocates;
    *  losing the whole bound is not a busy chat but a defect elsewhere — a caller aiming at a fixed seq, or a
    *  head that advances faster than any writer can land — and this refusal exists so that says so instead of
    *  spinning. Internal surface (narrator/image posts; the callers were already authorized at their door). */
   canonAppendContended: "canon_append_contended",
-  /** #1462 — a PER-SPEAKER round asked to voice a speaker that is not among the turn context's resolved
+  /** A PER-SPEAKER round asked to voice a speaker that is not among the turn context's resolved
    *  `speakerRefs` (a seat whose card read came back empty, an arbitration/wiring gap). The card section is
    *  chosen BY that ref, so there is no honest degrade: `assembly/speaker-card` used to keep the PRIMARY, which
    *  ships one character's card under another character's name and attributes the reply to the speaker that was

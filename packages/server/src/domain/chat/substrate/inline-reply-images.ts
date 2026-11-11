@@ -9,7 +9,7 @@
 // `verbs/post-narrator-message.ts` write. That is also what makes the picture SURVIVE an edit, a fork, an
 // export and a re-import: it is in the prose, not in a sidecar.
 //
-// THE ALT IS UNFIXABLE LATER (F22, side-eye 8 P1-9). It is baked into canon at generation time and there is no
+// THE ALT IS UNFIXABLE LATER (F22). It is baked into canon at generation time and there is no
 // render-time correction, so a counter ("image 1") would be a filename read aloud forever. The policy is: the
 // model's caption if it emitted one, else the PRECEDING PROSE SENTENCE, else `""` — and `""` is the CORRECT
 // HTML answer for a genuinely undescribed picture (a screen reader skips it), which the grammar already admits

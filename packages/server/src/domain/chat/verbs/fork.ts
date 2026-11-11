@@ -243,7 +243,7 @@ function forkVariantValues(args: {
     cacheReadTokens: variant.cacheReadTokens,
     cacheWriteTokens: variant.cacheWriteTokens,
     // The reasoning-token count and the cost breakdown are economics figures beside `tokensOut`/`costUsd` — numbers,
-    // no prose, the same member-readable readout (inference audit B5/B8).
+    // no prose, the same member-readable readout.
     reasoningTokens: variant.reasoningTokens,
     costUsd: variant.costUsd,
     costProvenance: variant.costProvenance,
@@ -437,7 +437,7 @@ function pushForkStatsDeltas(
       now,
     }),
   );
-  // The fork is a NEW ROOM FOR EVERY SEAT IT COPIES (#1147) — the rebuild credits the forked chat to each
+  // The fork is a NEW ROOM FOR EVERY SEAT IT COPIES — the rebuild credits the forked chat to each
   // of its character participants, so each kept seat past the first rides its own census bump. Owner-grain
   // `chats`/`forkedChats` stay on the head delta above: one new room, however wide its roster.
   for (const [idx, characterId] of args.characterIds.entries()) {
@@ -720,7 +720,7 @@ function createForkChat(ctx: ChatContext, deps: ForkDeps): ChatService["forkChat
     // The fork carries only the character seats the forker owns. The canon is copied whole regardless,
     // so a dropped character's prior lines survive in the fork; only the live seat is gone.
     const keptCharacterSeats = await resolveOwnedCharacterSeats(ctx, principal.userId, sourceParticipants);
-    // The pin carries whoever owns it: a pin resolves live even when its owner is not in the room (item 885),
+    // The pin carries whoever owns it: a pin resolves live even when its owner is not in the room,
     // so forking never changes who the card means.
     const forkAnchorPersonaId = source.anchorPersonaId;
     const slotIds = slots.map((s) => s.id);

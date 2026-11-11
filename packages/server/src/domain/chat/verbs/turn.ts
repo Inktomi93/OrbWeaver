@@ -308,7 +308,7 @@ async function loadRoom(ctx: ChatContext, chatId: ChatId, anchorPersonaId: Perso
   ]);
 
   // The persona-CONSENT set (not presence-filtered — see `Room.presentHumanUserIds`), further narrowed by the
-  // disabled-account containment gate (owner-ruled 2026-08-15) — see `presentAndEnabledHumanUserIdsOf`'s own
+  // disabled-account containment gate (owner-ruled) — see `presentAndEnabledHumanUserIdsOf`'s own
   // header for why every consumer routes through the ONE async narrowing rather than re-deriving it.
   const presentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, participants);
   const humanSeats = humanSeatPersonasOf(participants, presentHumanUserIds);
@@ -440,7 +440,7 @@ interface BuiltTurnContext {
 
 /** The `TurnPrep` fields EVERY generating kind carries IDENTICALLY — one home for the block that was spelled
  *  out at seven call sites (send / force / swipe / continue / generate / the deferred-drain base / the
- *  auto-chain base). Fold rather than record (#1767): the sites do not merely look alike, they CHANGE
+ *  auto-chain base). Fold rather than record: the sites do not merely look alike, they CHANGE
  *  TOGETHER — `terminalTools`, `cardKeepLastX` and the recurse patch each arrived at all seven at once, and
  *  the next such field is why this exists.
  *
@@ -1173,7 +1173,7 @@ async function runChain(
       const turnId = ctx.newChatTurnId();
       chainTurnId = turnId;
       await deps.emit({ type: "turnAccepted", chatId: args.base.chatId, turnId, intent: chainIntent, speakerCharacterId: null, targetMessageId: null });
-      // RECORDED TWIN (#1767), not a fold: `runAiRound`'s own arbitrate call below shares this room plumbing
+      // RECORDED TWIN, not a fold: `runAiRound`'s own arbitrate call below shares this room plumbing
       // and then DIVERGES on the fields that decide the answer — that one passes the caller's `forcedIds` and
       // an origin `lastSpeaker`, this chain pass deliberately passes neither (a chained beat has no forced
       // pick, and it re-reads `facts` because the previous beat just committed). Two sites, and the shared
@@ -1736,7 +1736,7 @@ async function commitUserTurn(
   // owned by the caller, else the message-stamped persona name/avatar producers leak a foreign persona's
   // chrome. Omitted ⇒ the caller's own active persona (trusted). See assertPersonaOwnedIfExplicit.
   await assertPersonaOwnedIfExplicit(ctx, principal.userId, chatId, personaId);
-  // RECORDED TWIN (#1767): `resolveTurnBase` opens with the same three resolves, and the difference is the
+  // RECORDED TWIN: `resolveTurnBase` opens with the same three resolves, and the difference is the
   // line ABOVE them — that path claims the chat first (R0 F4(a), every GENERATED turn claims), this one has
   // already committed a user row. Folding the trio would put the claim/no-claim decision behind a helper
   // whose name cannot carry it, which is the ordering bug this file has paid for before.
@@ -2308,7 +2308,7 @@ async function closeSlotOnThrow<T>(
 function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
   return async ({ principal, chatId, messageId, intent, guided, timeZone }: SwipeParams): Promise<TurnOutcome> => {
     const membership = await requireParticipant(ctx, principal, chatId);
-    // RECORDED TWIN (#1767): `continueTurn` opens with the same guard. Two sites, and each one's COMMENT is
+    // RECORDED TWIN: `continueTurn` opens with the same guard. Two sites, and each one's COMMENT is
     // the point — the leak-free NOT_FOUND means something different per verb (swipe-append vs extend-in-place)
     // and the two other `role !== "assistant"` guards in this file check a different shape entirely. A
     // `requireAssistantSlot` helper would be one line of savings and one lost explanation apiece.
@@ -2340,7 +2340,7 @@ function createSwipe(ctx: ChatContext, deps: TurnDeps): ChatService["swipe"] {
         guided,
         timeZone,
         // WAVE MU: replay the slot's persisted draw record so this swipe resolves the IDENTICAL random-pick draw.
-        // RECORDED TWIN (#1767): continue's gather ends on the same spread + closing punctuation. That is a
+        // RECORDED TWIN: continue's gather ends on the same spread + closing punctuation. That is a
         // FORMATTING coincidence of two independent argument lists, not a shared decision — the six lines
         // jscpd pairs here carry different `kind`, different trigger and a different regen field above them.
         ...(target.macroDraws !== null ? { frozenUserMacroDraws: target.macroDraws } : {}),
@@ -2505,7 +2505,7 @@ function createDeltaBridge(): DeltaBridge {
  *  turn (flash-and-vanish on the post-commit refetch race) + its one-shot draft predecessor (text plopped in
  *  all at once).
  *
- *  THREE CANCELLATION SOURCES, ONE CONTROLLER (#1464). A draft is a generation on the room's model — it costs
+ *  THREE CANCELLATION SOURCES, ONE CONTROLLER. A draft is a generation on the room's model — it costs
  *  the same GPU and the same money as a turn — so it must be stoppable by every door that stops one:
  *   1. `activeTurns` — the registry `abort(chatId, caller)` walks. This is the room's Stop control, and a
  *      generation that never registers is unreachable from it no matter what the transport does. Registered

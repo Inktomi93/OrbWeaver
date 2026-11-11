@@ -77,7 +77,7 @@ interface CanonVariantInput {
   readonly tokenProvenance?: TokenProvenance | undefined;
   readonly cacheReadTokens?: number | null | undefined;
   readonly cacheWriteTokens?: number | null | undefined;
-  /** The reasoning share of `tokensOut` where the wire reports one (inference audit B5); absent ⇒ NULL. */
+  /** The reasoning share of `tokensOut` where the wire reports one; absent ⇒ NULL. */
   readonly reasoningTokens?: number | null | undefined;
   readonly costUsd?: number | null | undefined;
   /** §5.3c — the SAME tuple as `tokenProvenance`; absent ⇒ `unrecorded`. */
@@ -85,7 +85,7 @@ interface CanonVariantInput {
   /** The breakdown behind `costUsd` (`cost_details`, parsed by `costDetailsSchema` at any read seam — A4/B8);
    *  absent ⇒ NULL, never an empty record. */
   readonly costDetails?: CostDetails | null | undefined;
-  /** The model's reasoning blocks WITH per-wire provenance (`reasoning_parts`, audit A1) — the replay material
+  /** The model's reasoning blocks WITH per-wire provenance (`reasoning_parts`) — the replay material
    *  the assembly re-materializes onto the assistant row (`carryReasoning`, §8.8). Absent/[] ⇒ NULL: a turn
    *  whose reasoning carried no provenance has nothing replayable (the converters refuse an unsigned block). */
   readonly reasoningParts?: readonly ReasoningContentPart[] | null | undefined;
@@ -110,7 +110,7 @@ interface CanonVariantInput {
   readonly ttftMs?: number | null | undefined;
   /** The generation's metadata sidecar (`message_variants.metadata`) — a CLOSED shape (§5.3c class 3), today
    *  carrying exactly one key on this path: the measured reasoning window
-   *  (`VARIANT_METADATA_REASONING_MS_KEY`, #184), which the stats rollups extract by JSON path. Typed rather
+   *  (`VARIANT_METADATA_REASONING_MS_KEY`), which the stats rollups extract by JSON path. Typed rather
    *  than a bag, so this writer and those readers are bound by `tsc` — the producer-side half of class 3.
    *  Absent/null ⇒ no sidecar (a turn that never reasoned, a verbatim/greeting seed). NOT on
    *  `VariantEconomics`: the sidecar itself stays server-owned. `MessageView.outputCapReached` is the one
@@ -424,7 +424,7 @@ const MAX_CANON_APPEND_ATTEMPTS = 8;
 
 /**
  * Commit an APPEND at the canon head, re-allocating the seq if another writer took it first — the ONE home
- * for the head-allocation retry (#1463 item 7).
+ * for the head-allocation retry.
  *
  * WHY IT EXISTS: `messages.seq` is allocated by reading the current head and adding one, and `(chat_id, seq)`
  * is UNIQUE. Two appends that read the same head therefore both aim at the same slot and one of them trips
@@ -440,7 +440,7 @@ const MAX_CANON_APPEND_ATTEMPTS = 8;
  * actually reached the seq this attempt aimed at, so an unrelated unique failure (a duplicate message id)
  * stays loud instead of spinning.
  *
- * IT IS BOUNDED, and the bound is not a contention budget (#1634 item 2). Every loss means a sibling
+ * IT IS BOUNDED, and the bound is not a contention budget. Every loss means a sibling
  * COMMITTED, so a chat busy enough to lose twice is still making progress; losing {@link
  * MAX_CANON_APPEND_ATTEMPTS} times in a row is a defect somewhere else — a caller re-aiming at a fixed seq,
  * a head advancing faster than any writer can land — and an unbounded retry answers that by spinning until

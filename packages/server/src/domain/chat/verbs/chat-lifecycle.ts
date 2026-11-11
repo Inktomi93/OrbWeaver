@@ -121,7 +121,7 @@ type ChatLifecycleVerbs = Pick<
 >;
 
 /** Commit a rebuild-consumed chat-row mutation with the current host owner's retry token. The trio itself
- *  lives in `substrate/host-fenced-write` (#1767 — four verbs had spelled it out); this stays as the
+ *  lives in `substrate/host-fenced-write` (four verbs had spelled it out); this stays as the
  *  single-statement shape this file's callers pass. */
 async function commitFencedChatWrite(ctx: ChatContext, chatId: ChatId, statement: BatchStmt): Promise<void> {
   await commitHostFencedWrite(ctx, chatId, [statement]);
@@ -435,7 +435,7 @@ function createSetVariables(ctx: ChatContext, emit: EmitDurableChatEventOp, clai
  *  `userMacroValuesSchema` at the verb (defense-in-depth over the tRPC boundary parse) — a malformed bag is
  *  refused rather than persisted; the turn build reads it back as the `values` bag. Emits `chatUpdated`.
  *
- *  #1356 — and the VOCABULARY belt: the wire schema is per-VALUE (it can never see the def's `options`), so
+ *  And the VOCABULARY belt: the wire schema is per-VALUE (it can never see the def's `options`), so
  *  the membership check lives HERE, the one seam that holds both the picks and the definitions. A select
  *  pick is spliced into the author's template, so an off-vocabulary value is arbitrary prose in someone
  *  else's prompt — refused whole with a typed reason, never silently cleaned (a partial write would tell the
@@ -452,7 +452,7 @@ function createSetUserMacroValues(ctx: ChatContext, emit: EmitDurableChatEventOp
   };
 }
 
-/** The #1356 vocabulary gate over one flush. The def set is resolved exactly as the picks pane resolves it
+/** The vocabulary gate over one flush. The def set is resolved exactly as the picks pane resolves it
  *  — BOTH authoring homes under the ruled preset↔game shadow — so the write is judged against the def the
  *  turn will actually render, never a preset def the game has replaced. A bag entry naming a macro or an
  *  input NO def declares is ignored: the pane rebuilds the whole bag, so an orphan left by a def edit is a
@@ -486,20 +486,20 @@ async function assertDeclaredPicks(ctx: ChatContext, chatId: ChatId, values: Use
 }
 
 /** One off-vocabulary pick's identity for the grandfather set — input + value, joined by U+0000 (spelled as
- *  an escape, never a raw byte: a raw NUL makes git treat the file as binary, #1356). No input NAME or value
+ *  an escape, never a raw byte: a raw NUL makes git treat the file as binary). No input NAME or value
  *  can carry a NUL, so the first NUL always ends the name and no two distinct picks collide into one key. */
 function pickKey(pick: OffVocabularyPick): string {
   return `${pick.input}\u0000${pick.value}`;
 }
 
-/** `getUserMacroPicks` (#24) — member. The picks pane's ONE read: the chat's PICKABLE user macros (those
+/** `getUserMacroPicks` — member. The picks pane's ONE read: the chat's PICKABLE user macros (those
  *  declaring ≥1 typed input — a macro with none has nothing to pick) projected to identity + inputs + the
  *  authoring home, plus the persisted per-chat picks. The projection is deliberate least-privilege: the
  *  macro BODY is prompt content (host-gated everywhere else), the picker only needs the questions. An absent
  *  macro/input entry in `values` is UNSET — the turn resolves its per-kind default, which is what the pane
  *  renders.
  *
- *  BOTH definition homes (owner ruling #20): the active preset's macros AND the game's (the injected
+ *  BOTH definition homes (owner ruling): the active preset's macros AND the game's (the injected
  *  `ChatRpgOps.resolveUserMacros`), merged under the SAME ruled policy the turn build applies — the game
  *  shadows the preset by name (`shadowPresetUserMacros`, the one home for that rule). Without the merge the
  *  pane would ask about a def the turn no longer resolves (or hide a game knob entirely). */
@@ -620,7 +620,7 @@ function createListChatInjections(ctx: ChatContext): ChatService["listChatInject
  *  row, while a DELETE that matched nothing has already got what it asked for). What it stops doing is
  *  ANNOUNCING: `chatUpdated` is what makes every present client re-read the room, so firing it for a delete
  *  that moved no row asserts a mutation that did not happen — to every member's cache and to any automation
- *  watching the room (#1463 item 9). `RETURNING` is the transition test, the same shape the claim stamp uses. */
+ *  watching the room. `RETURNING` is the transition test, the same shape the claim stamp uses. */
 function createDeleteChatInjection(ctx: ChatContext, emit: EmitDurableChatEventOp, claimChat: ClaimChatOp): ChatService["deleteChatInjection"] {
   return async ({ principal, chatId, injectionId }: DeleteChatInjectionParams): Promise<void> => {
     await requireHost(ctx, principal, chatId);

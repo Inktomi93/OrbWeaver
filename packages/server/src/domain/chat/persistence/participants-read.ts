@@ -1,7 +1,7 @@
 // domain/chat/persistence/participants-read — the participants READ + the initial-membership row BUILDER
 // (un-exiled from neo's `_shared/group-character-rows`). The `-read` half of the name is load-bearing: the
 // WRITE half of `chat_participants` is the sibling `participant.ts` (the kind-shape parser + the
-// membership-lifecycle writes), and the two were named one letter apart before #1010 split them by verb.
+// membership-lifecycle writes), and the two are split by verb.
 // QUERIES ONLY: `loadParticipants`
 // reads the present (or full) `chat_participants` set; `buildInitialParticipantRows` is a PURE row builder (no I/O —
 // the verb writes them via `participant.insertParticipants`). Name/handle/avatar resolution is the VERB's (no
@@ -163,7 +163,7 @@ export async function characterSeatedInAnotherChat(db: Db, characterId: Characte
 }
 
 /**
- * Has this character EVER held a seat in THIS chat — present OR left? The #1147 census idempotency probe:
+ * Has this character EVER held a seat in THIS chat — present OR left? The census idempotency probe:
  * `addCharacterToChat` credits the room to the joining character's `character_stats.chats` only on a seat
  * the room has never held before.
  *

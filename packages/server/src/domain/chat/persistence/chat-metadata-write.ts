@@ -1,6 +1,6 @@
 // domain/chat/persistence/chat-metadata-write — the ONE way `chats.metadata` is written.
 //
-// WHY IT EXISTS (#1450). Every knob on a room lives in one JSON column: the rpg pointer, the group config, the
+// WHY IT EXISTS. Every knob on a room lives in one JSON column: the rpg pointer, the group config, the
 // room overrides, the databank visibility, the background, the reaction and offer-choices postures. Each writer
 // used to READ the whole row, merge its own sub-blob in memory, and write the WHOLE column back with a WHERE
 // that constrained the chat id and background availability — never a prior-metadata value. That is textbook

@@ -1,4 +1,4 @@
-// The D121-E display-tier room policy (owner ruling 2026-08-02): does this room broadcast the HOST's display
+// The D121-E display-tier room policy (owner ruling): does this room broadcast the HOST's display
 // scripts, and who is its host. Both halves are chat's data (the `hostDisplayScripts` metadata flag and the
 // roster's host seat), so chat owns the answer and regex consumes it as an injected op. A hostless room (an
 // archived orphan whose host left) answers a null host: nobody's scripts can be broadcast.

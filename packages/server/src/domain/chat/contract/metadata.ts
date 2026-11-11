@@ -45,7 +45,7 @@ const chatMetadataSchema = z
     // to inherit, never to a forced posture.
     charactersCanReact: z.boolean().optional().catch(undefined),
     reactionsEnabled: z.boolean().optional().catch(undefined),
-    // #1742 — the room's regex levers. Both heal to ABSENT, which is ALLOWED: a corrupt blob must never be
+    // The room's regex levers. Both heal to ABSENT, which is ALLOWED: a corrupt blob must never be
     // able to switch a host's regex off behind their back (the failure direction that matters here is the
     // opposite of the group blob's, where healing to absent would silently revert a posture).
     regexEnabled: z.boolean().optional().catch(undefined),

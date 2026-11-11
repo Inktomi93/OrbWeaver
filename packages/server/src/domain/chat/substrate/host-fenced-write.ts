@@ -1,5 +1,5 @@
 // domain/chat/substrate/host-fenced-write — the ONE spelling of "commit these chat statements WITH the
-// room host's stats-canon bump". Four verbs had hand-rolled the same three steps (#1767: jscpd found the
+// room host's stats-canon bump". Four verbs had hand-rolled the same three steps (jscpd found the
 // chat-lifecycle↔turn pair; a `hostUserIdOf(await loadParticipants(…))` grep finds the other two) — resolve
 // the room's host off the participant rows, bump the stats canon version onto the statement list when there
 // IS a host, then run the whole list as one batch.

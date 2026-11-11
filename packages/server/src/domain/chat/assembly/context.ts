@@ -139,7 +139,7 @@ interface WiConversionArgs {
   readonly regexScripts: readonly RegexScriptInput[];
   /** The injected node:vm ReDoS watchdog (D53) — the WORLD_INFO regex pass runs its `text.replace` under it. */
   readonly applyReplace: ApplyRegexReplaceOp;
-  /** The injected node:vm ReDoS watchdog for a `use_regex` entry's key `.test` (#710) — a catastrophic
+  /** The injected node:vm ReDoS watchdog for a `use_regex` entry's key `.test` — a catastrophic
    *  user-authored key is interrupted instead of hanging the keyword scan. */
   readonly testRegexKey: TestKeyRegex;
   readonly wiFormat: string;
@@ -214,7 +214,7 @@ function wiCandidate(entry: AssembleWorldEntry, content: string, args: WiConvers
 
 /** The per-entry key-compile options: a V3 `use_regex` entry's keys compile as PATTERNS, and a bad pattern
  *  warns + falls back to a literal compare rather than failing the turn. `testRegex` is the injected node:vm
- *  ReDoS watchdog so a catastrophic user-authored key `.test` is interrupted, not run unbounded (#710). */
+ *  ReDoS watchdog so a catastrophic user-authored key `.test` is interrupted, not run unbounded. */
 function keyMatchOptions(entry: AssembleWorldEntry, testRegex: TestKeyRegex, logger: Logger): MatchEntryKeysOptions {
   return { keyMode: entry.keyMode ?? "literal", onKeyCompileFailure: onWorldInfoKeyCompileFailure(logger), testRegex };
 }
@@ -363,7 +363,7 @@ interface BuildAssembleContextInput {
   readonly currentInput?: string | undefined;
   readonly userInjections: readonly ChatInjection[];
   readonly memory?: string | null | undefined;
-  /** The recall trace explaining {@link BuildAssembleContextInput.memory} (#250) — staged by the gather that
+  /** The recall trace explaining {@link BuildAssembleContextInput.memory} — staged by the gather that
    *  produced the text. Absent ⇒ recall never ran for this build ⇒ the assembly trace reports
    *  `memoryRecall: null` (a preview / hand-built ctx), which is distinct from a recall that surfaced nothing. */
   readonly memoryTrace?: MemoryRecallSlice | undefined;
@@ -893,7 +893,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
   const prose = composeProse({ user: await ctx.resolveChatProse(input.chatId), preset: input.promptConfig.prose });
 
   // ── GATHER — the 4-scope WI pool (memory/recall/vars are engine-supplied inputs). ──
-  // The character ids handed to the pool are the OWNER-VERIFIED ones (#1396) — `present`, not `input.characterIds`.
+  // The character ids handed to the pool are the OWNER-VERIFIED ones — `present`, not `input.characterIds`.
   // Every id above was already resolved through the owner-scoped `getCard`, and the ones that came back empty
   // are exactly the cards this turn refuses to speak for; feeding the raw list let a card the ownership read
   // REFUSED still contribute its character-scope lore. The pool's own per-arm owner predicates are the second
@@ -965,7 +965,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
       // ACTIVE anchors, not merely enabled ones — the SAME predicate the walk asks. An anchor the walk drops
       // for a trigger mismatch renders nothing, so routing an always-scope entry into its bucket would delete
       // that lore for the turn; no active anchor ⇒ the entry keeps its default `in_static` placement, which
-      // is where it always went. The plain markers only gained `trigger` with #1462 (ST sets
+      // is where it always went. The plain markers carry `trigger` (ST sets
       // `injection_trigger` on every prompt-manager entry — the missing field was a parity gap), and this is
       // the reader that gap left with nothing to read.
       hasBeforeAnchor: hasActiveMarker(input.promptConfig, "world_info_before", input.generationType ?? "normal"),

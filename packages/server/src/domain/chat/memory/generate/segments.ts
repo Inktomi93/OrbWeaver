@@ -4,14 +4,14 @@
 // `(chatId, blockIdx, chunkIdx)` — shared per chat, regardless of group bucketing); the row stores the
 // verbatim text + the embedding + the seq-span pointer (the substrate stays a pure function of canon).
 //
-// A BLOCK IS A ROW SET (#172). A block whose verbatim transcript exceeds the EMBED model's window is CHUNKED
+// A BLOCK IS A ROW SET. A block whose verbatim transcript exceeds the EMBED model's window is CHUNKED
 // into N in-budget pieces — full fidelity, nothing truncated, each piece carrying the honest span of the
-// messages it contains (owner ruling, #165: "if we are skimping out on messages that's a no go since this
+// messages it contains (owner ruling: "if we are skimping out on messages that's a no go since this
 // feeds the memory system"). Only a block past the PATHOLOGICAL ceiling
-// (`MAX_SEGMENT_CHUNKS_PER_BLOCK`) is skipped whole and COUNTED (`skippedOverWindow`) — the #165 arm, kept
+// (`MAX_SEGMENT_CHUNKS_PER_BLOCK`) is skipped whole and COUNTED (`skippedOverWindow`) — the skip arm, kept
 // for exactly that case. Nothing here truncates anything, ever.
 //
-// TWO PHASES, so the corpus sweep can flood (#172, owner batching ruling: batch by PHASE, never per-item
+// TWO PHASES, so the corpus sweep can flood (owner batching ruling: batch by PHASE, never per-item
 // interleaved). `collectSegments` does the db reads + chunking + hash gate + shrink prune for ONE chat and
 // returns the pending chunk writes; `storeSegments` hands a batch to the embeddings op, which embeds every
 // chunk in ONE flood and then writes the rows. `generateSegments` = both, for the live post-turn path; the
@@ -93,7 +93,7 @@ export async function collectSegments(ctx: ChatContext, args: GenerateSegmentsAr
     args.signal?.throwIfAborted();
     const chunks = chunkBlockForEmbedWindow(block.rows, macroNames, embedContextTokens);
     if (chunks === null) {
-      // THE PATHOLOGICAL CEILING (#165's surviving arm). Not truncated, not partially stored: skipped WHOLE
+      // THE PATHOLOGICAL CEILING (the surviving skip arm). Not truncated, not partially stored: skipped WHOLE
       // and RECORDED, and left un-stored so the content-hash self-heal re-offers it every pass — it builds
       // the day it fits (a bigger embed window, a shorter block). `chunkCount: 0` reclaims any rows a
       // previous, smaller version of this block left behind.

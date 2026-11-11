@@ -78,7 +78,7 @@ export function createInvites(ctx: ChatContext, deps: InviteDeps): InviteVerbs {
 /** A 256-bit CSPRNG invite token, base64url for a URL-safe `/join/:token`. */
 const TOKEN_BYTES = 32;
 
-/** SAFE-BY-DEFAULT invite bounds (2026-09-07). `createInvite({})` used to mint a PERMANENT,
+/** SAFE-BY-DEFAULT invite bounds. `createInvite({})` used to mint a PERMANENT,
  *  UNLIMITED-USE link — both fields are optional in `createInviteSchema` and both collapsed to
  *  `null`, which the redeem predicate reads as "never expires" / "no use cap". A share link that
  *  outlives the reason it was sent is the same failure we removed from the authentik signup invite.
@@ -87,7 +87,7 @@ const TOKEN_BYTES = 32;
  *  never-expires and `maxUses: null` still means unlimited, so a deliberate durable link is one keystroke —
  *  it just can't happen by omission any more.
  *
- *  `maxUses` GAINED its null arm with this change (2026-09-07). Without it "unlimited" was unspellable, and
+ *  `maxUses` GAINED its null arm with this change. Without it "unlimited" was unspellable, and
  *  the mint dialog — whose defaults are literally `expiry: "never"` + `maxUses: null` and which projects
  *  BOTH by OMITTING the field — would have shown "Never expires" selected while minting a 48h single-use
  *  link. A safe default is only safe if the deliberate arm it displaces is still reachable from the surface

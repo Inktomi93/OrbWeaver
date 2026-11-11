@@ -7,7 +7,7 @@
 //
 // The write touches the `$.rpg` JSON PATH ONLY (`persistence/chat-metadata-write.ts`), so the pointer never
 // nukes roomOverrides/group/background AND never re-asserts a stale copy of them over a racing host knob
-// (#1450 — the in-memory merge this replaced was a lost-update on every sibling). A missing chat is a no-op
+// (the in-memory merge this replaced was a lost-update on every sibling). A missing chat is a no-op
 // (createGame FKs a real chat, so this is a racing-delete guard, not a normal path).
 //
 // NULL = DETACH (the dangling-pointer heal §3.3): a `null` pointer DROPS the `metadata.rpg` sub-blob entirely
@@ -49,7 +49,7 @@ export function createSetRpgPointer(input: ChatAssemblyContext, deps: SetRpgPoin
     if (pointer !== null) {
       await deps.claimChat(chatId);
     }
-    // ONE JSON PATH, NEVER THE WHOLE BLOB (#1450). The old shape read the row, merged `rpg` in memory and
+    // ONE JSON PATH, NEVER THE WHOLE BLOB. The old shape read the row, merged `rpg` in memory and
     // wrote the ENTIRE metadata column back, so a host knob written between that read and this write was
     // silently discarded — and a DETACH re-asserted the stale siblings it had read. `chatMetadataSetStatement`
     // / `chatMetadataDropStatement` touch `$.rpg` alone; the guard still reads the effective metadata because

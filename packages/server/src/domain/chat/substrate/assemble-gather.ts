@@ -85,7 +85,7 @@ async function gatherDatabank(
     readonly eligibleContent: readonly string[];
     /** The host's databank settings (DB6), from ForeignInputs — retrieval params + the slot budget. */
     readonly foreign: ForeignInputs;
-    /** The turn's degrade episode, shared with the MEMORY arm (#2510). */
+    /** The turn's degrade episode, shared with the MEMORY arm. */
     readonly warningEpisode: TurnRetrievalWarningEpisode;
   },
 ): Promise<string | undefined> {
@@ -107,7 +107,7 @@ async function gatherDatabank(
         ? ({ k: retrieval.k, minScore: retrieval.minScore, rerank: retrieval.rerank } satisfies Pick<GatherDatabankParams, "k" | "minScore" | "rerank">)
         : {}),
     },
-    // The binding degrades a SPACE refusal to `null` and reports here (#2510); `onRerankUnavailable` is
+    // The binding degrades a SPACE refusal to `null` and reports here; `onRerankUnavailable` is
     // unused on this arm — databank's own rerank degrade is not wired, so the binding never calls it.
     { onRerankUnavailable: args.warningEpisode.reportRerankUnavailable, onIndexUnavailable: args.warningEpisode.reportIndexUnavailable },
   );
@@ -165,7 +165,7 @@ function pickMacroRegistries(
   };
 }
 
-/** The recall query window (#330 P2): the committed recent rows PLUS the pending user message as the newest
+/** The recall query window: the committed recent rows PLUS the pending user message as the newest
  *  `user` row. Recall runs pre-persist, so without this the mixB/mixC query is the PREVIOUS turn's tail and the
  *  turn's own most-relevant text never contributes. A top-level pure helper so its branch stays OUTSIDE
  *  `gatherAssembleContext`'s cognitive-complexity budget (the `p6Fields` precedent). Absent pending text (a
@@ -195,7 +195,7 @@ function toChatInjection(row: Awaited<ReturnType<typeof loadChatInjections>>[num
   };
 }
 
-/** Resolve the `{{memory}}` string for the round PLUS its recall trace (#250). Round-level recall uses the
+/** Resolve the `{{memory}}` string for the round PLUS its recall trace. Round-level recall uses the
  *  shared/merged bucket (the synthetic group-as-character, or the primary character when none is minted).
  *  Returns `""` with a `null` trace when there is no character to key on — the ONE path where recall did not
  *  run at all, which the assembly trace reports as `memoryRecall: null` rather than as an empty recall. When
@@ -213,7 +213,7 @@ async function gatherMemory(
      *  canon fit boundary. `undefined` ⇒ no prior boundary stamp ⇒ no live-window trim this round. */
     readonly liveWindowCutoffSeq: number | undefined;
     /** The turn's degrade episode, constructed by {@link gatherAssembleContext} and shared with the DATABANK
-     *  arm (#2510) — one unqueryable vector space losing both retrieval slots owes the user ONE notice. */
+     *  arm — one unqueryable vector space losing both retrieval slots owes the user ONE notice. */
     readonly warningEpisode: TurnRetrievalWarningEpisode;
   },
   out?: SendRegexSink,
@@ -261,7 +261,7 @@ async function gatherMemory(
 }
 
 /** The recall live-window cutoff seq = the PREVIOUS turn's canon fit boundary: the newest ASSISTANT row's
- *  stored `contextBoundaryMessageId` resolved to its seq. Three outcomes (#333 — the inversion this fixes):
+ *  stored `contextBoundaryMessageId` resolved to its seq. Three outcomes (the inversion this fixes):
  *   • NO completed assistant turn (a fresh chat) → `undefined`: there is no fit boundary yet AND no aged-out
  *     digest exists to trim, so recall applies no live-window filter (moot).
  *   • A completed turn whose boundary stamp is NULL → {@link LIVE_WINDOW_FULL_HISTORY_CUTOFF}: `null` means the
@@ -385,11 +385,11 @@ export async function gatherAssembleContext(
   const lastUserMessage = eligible.findLast((m) => m.role === "user")?.content;
   const lastCharMessage = eligible.findLast((m) => m.role === "assistant")?.content;
 
-  // #330 P2 — the recall query INCLUDES the current user message (recall runs pre-persist). See
+  // The recall query INCLUDES the current user message (recall runs pre-persist). See
   // `recallRecentWindow`; absent pending text ⇒ the committed rows unchanged.
   const recallRecent = recallRecentWindow(recentRows, args.pendingUserText, args.triggerUserId);
 
-  // ONE episode for the whole gathered turn, constructed HERE rather than inside either arm (#2510): both
+  // ONE episode for the whole gathered turn, constructed HERE rather than inside either arm: both
   // retrieval slots read the same owner's vector space, so one unqueryable space owes the user one notice.
   // The engine drains it after `turnStarted` through the staged `MemoryRecallInputs`. THE ONE GAP, stated
   // rather than hidden: a room with no character to key on stages `memoryRecall: null` (below), so a databank
@@ -433,7 +433,7 @@ export async function gatherAssembleContext(
       characterIds,
       chatId,
     })),
-    // #1742 — what THIS room permits. Absent ⇒ everything runs, so a room that never touched the Regex
+    // What THIS room permits. Absent ⇒ everything runs, so a room that never touched the Regex
     // section assembles byte-identically; a switched-off tier drops out of the union here, before the dedup.
     allow: regexAllowOf(chatRow?.metadata),
   });
@@ -472,7 +472,7 @@ export async function gatherAssembleContext(
       // legitimately author an injection identical to a machine one, and this seam does not edit their canon.
       userInjections: [...injectionRows.map(toChatInjection), ...(args.teachingInjections ?? [])],
       memory: memory.text,
-      // The recall EXPLANATION rides beside the text it explains (#250) — the trace's memory row. Absent only
+      // The recall EXPLANATION rides beside the text it explains — the trace's memory row. Absent only
       // when recall never ran (no character to key on).
       ...(memory.trace === null ? {} : { memoryTrace: memory.trace }),
       // Absent (op unwired / null result) ⇒ omitted ⇒ byte-identical to a non-databank turn (DB6 null-op pin).

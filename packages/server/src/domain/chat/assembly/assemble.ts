@@ -195,7 +195,7 @@ const MERGED_JOIN = "\n\n";
 /** Render ONE member's card field with `{{char}}` bound to that member and `{{user}}` to the room anchor.
  *  `exampleMessages` is `<START>`-normalized so a member's example chain begins fresh.
  *
- *  EMPTINESS IS DECIDED ON THE RENDERED VALUE, BEFORE NORMALIZATION (#436). A field that is non-blank at
+ *  EMPTINESS IS DECIDED ON THE RENDERED VALUE, BEFORE NORMALIZATION. A field that is non-blank at
  *  source but resolves to whitespace is a contribution of nothing — but `normalizeExampleStart` prepends
  *  `<START>`, so normalizing first made that nothing look non-empty and shipped `[X's example dialogue]`
  *  over a bare `<START>`. Every other field (scenario above all) already emitted nothing from the identical
@@ -504,7 +504,7 @@ const SERVER_MARKER_VALUE: Record<ServerMarker, (ctx: AssembleContext) => string
 };
 
 /** Each server marker's `AssembleTrace` inclusion flag — set only when the marker actually DELIVERED text, so
- *  the host's diagnostics can tell "no retrieval this turn" from "the preset places no slot" (issue #80). */
+ *  the host's diagnostics can tell "no retrieval this turn" from "the preset places no slot". */
 const SERVER_MARKER_FLAG = {
   ["compact_summary"]: "compactSummaryIncluded",
   ["memory"]: "memoryIncluded",
@@ -1011,8 +1011,8 @@ function assembleWithSlices(
 
   const pivotSection = pivotIndex >= 0 ? config.sections[pivotIndex] : undefined;
   // Send history unless a chat_history marker is explicitly present AND does not fire this turn — disabled,
-  // or gated by a `trigger` that excludes this generation type. The TRIGGER arm is new with #1462 (the plain
-  // markers only just gained the field, ST parity): the pivot is the one section the walk skips before the
+  // or gated by a `trigger` that excludes this generation type. The TRIGGER arm exists because the plain
+  // markers carry the field (ST parity): the pivot is the one section the walk skips before the
   // trigger check, so nothing else would read its gate, and a stored gate no reader honours is the same
   // silent drop this row is about.
   const sendHistory = pivotSection === undefined || (pivotSection.enabled && sectionTriggers(pivotSection, generationType));

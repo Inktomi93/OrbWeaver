@@ -7,7 +7,7 @@
 // FLAG[global-scope]: global_books has no userId (unlike neo); global reads are scoped to the host owner via
 // the world_books.ownerId join to avoid a cross-tenant lore leak — flag for the world-info/schema owner to confirm.
 //
-// FLAG[attachment-scope] (#1396): all FOUR arms now name their owner authority, and it is NOT the same one.
+// FLAG[attachment-scope]: all FOUR arms now name their owner authority, and it is NOT the same one.
 // The attachment arms used to carry no owner predicate at all, which left the tenant boundary resting on
 // whatever produced the id arrays — a prose-only boundary (constitution §2). Per scope:
 //   • character → `target.ownerId` (the room HOST). Every character-card read in the domain resolves under
@@ -31,7 +31,7 @@
 //     inserts a COPY minted under the incoming host — or converges onto a same-named book the recipient
 //     already has on the room — in the SAME batch as the role swap. So "attached ⇒ owned by whoever is the
 //     room's host" holds before and after, with no window between.
-//     Writer census, 2026-09-04: `insert(chatBooks)` has exactly TWO sites, both named above
+//     Writer census: `insert(chatBooks)` has exactly TWO sites, both named above
 //     (`verbs/attachments/attach-to-chat.ts:25`, `persistence/handoff-copy-write.ts:96`); the only other
 //     mutation is `verbs/attachments/detach-from-chat.ts:19`. An owner predicate here would be redundant
 //     rather than wrong — it is left off because the junction rows are already the belt, and any future

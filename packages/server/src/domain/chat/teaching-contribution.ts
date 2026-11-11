@@ -91,8 +91,7 @@ function resolveChoicesTeach(tctx: TeachingContext): string {
  *  model it may end a turn with the `:::choices` fence, inside the `chat.teach.choicesFrame` delimiter. OFF ⇒
  *  `[]` ⇒ the turn is byte-identical.
  *
- *  THE SUPPRESSION ARM IS NOT THE COLLECTOR'S EXACT-MATCH GUARD, and this is a corrected premise (2026-08-24,
- *  B1): `substrate/teaching.ts`'s guard collapses injections that are byte-identical as a WHOLE, and A1
+ *  THE SUPPRESSION ARM IS NOT THE COLLECTOR'S EXACT-MATCH GUARD, and this is a corrected premise (B1): `substrate/teaching.ts`'s guard collapses injections that are byte-identical as a WHOLE, and A1
  *  assumed a game's cyoa teach arrives as its own injection. It does not. rpg pushes every teach into ONE
  *  `blocks` array with the game-state block, the delta and the steering license
  *  (`domain/rpg/substrate/reminder.ts:459`), joins them (`:571`), and emits exactly ONE injection

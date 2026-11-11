@@ -110,7 +110,7 @@ async function buildMarker(
     // (never a blank marker), so a retry next turn is honest.
     throw new ChatOperationError(CHAT_OP_CODES.compactionEmpty, `compaction produced an empty marker for chat ${env.chatId}`);
   }
-  // THE WRITE IS CONDITIONAL, AND THE CORE STAYS LOCK-FREE (#1463 item 5). Two passes can run at once (the
+  // THE WRITE IS CONDITIONAL, AND THE CORE STAYS LOCK-FREE. Two passes can run at once (the
   // engine's managed hook beside the host's manual lever), both read the same `compactedAtSeq` and both pay
   // for a generation — that duplicate SPEND is the accepted cost of lock-freedom and is unchanged. What must
   // not follow is the losing pass stamping its narrower marker OVER the winner's advanced one: the coverage
@@ -203,8 +203,7 @@ function makeRunCompaction(ctx: ChatContext, quietGenerate: QuietGenerate): Engi
     // the host's `excludedFromPrompt` hide AND the row's declared PURPOSE (D129 — `prompt:"never"`, i.e. an OOC
     // `comment`, is not prompt material, so folding one into a durable member-peekable marker would smuggle a
     // row into the very prompt its policy holds it out of). The verdict is `substrate/prompt-eligibility`'s —
-    // ONE predicate shared with the quiet extractor's scene, so the two prompt boundaries cannot drift (they
-    // did: #1463 item 3), and a fourth kind stays a policy-row decision rather than a sweep of this file.
+    // ONE predicate shared with the quiet extractor's scene, so the two prompt boundaries cannot drift, and a fourth kind stays a policy-row decision rather than a sweep of this file.
     const coveredThroughSeq = capped.at(-1)?.seq;
     const window = capped.filter((m) => isPromptEligible(m));
     if (coveredThroughSeq === undefined) {

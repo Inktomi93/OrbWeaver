@@ -103,7 +103,7 @@ export function renderHistoryMacros(...args: Parameters<typeof renderHistoryMacr
 
 /** FREEZE the VOLATILE (nondeterministic clock/PRNG) macros in `text` at COMMIT (Chat-Macro-Resolution.md
  *  §0): the exact inverse of `renderHistoryMacros`' names-only pass. Used by the SEND path (composer text) and
- *  the greeting FIRST-USER-TURN freeze (Task #77 / D51) — a verb reaches assembly ONLY through this bridge. */
+ *  the greeting FIRST-USER-TURN freeze (D51) — a verb reaches assembly ONLY through this bridge. */
 export function freezeVolatileMacros(...args: Parameters<typeof freezeVolatileMacrosImpl>): ReturnType<typeof freezeVolatileMacrosImpl> {
   return freezeVolatileMacrosImpl(...args);
 }

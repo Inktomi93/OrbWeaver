@@ -1,5 +1,5 @@
-// domain/chat/persistence/migrate-seeded-backgrounds — the `kind:"seeded"` retirement's ROOM half (owner ask
-// 2026-09-18). The `domain/character` and `domain/settings` siblings, over `chats.metadata.background`.
+// domain/chat/persistence/migrate-seeded-backgrounds — the `kind:"seeded"` retirement's ROOM half (owner
+// ask). The `domain/character` and `domain/settings` siblings, over `chats.metadata.background`.
 //
 // WHY IT READS RAW: `parseChatMetadata` heals an unknown background kind to `none`, so a parsed read of a
 // room carrying the retired kind reports no background and the slug is already gone. The predicate and the

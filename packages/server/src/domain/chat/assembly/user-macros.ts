@@ -85,7 +85,7 @@ export function buildTurnUserMacros(args: BuildTurnUserMacrosArgs): TurnUserMacr
   const inputBindings: Record<string, Record<string, string>> = {};
   const draws: UserMacroDraws = {};
   for (const def of [...gameDefs, ...presetDefs, ...pluginDefs]) {
-    // FIRST NAME WINS, AND THE ORDER HERE IS THE REGISTRATION ORDER (#1452). Both maps are keyed by macro
+    // FIRST NAME WINS, AND THE ORDER HERE IS THE REGISTRATION ORDER. Both maps are keyed by macro
     // NAME alone, so resolving a def whose name a HIGHER-PRECEDENCE def already claimed would replace the
     // winner's bindings and frozen draws with the loser's — and registration (below) then correctly refuses
     // the loser, leaving the winning body rendering against the loser's schema, defaults and random draws.

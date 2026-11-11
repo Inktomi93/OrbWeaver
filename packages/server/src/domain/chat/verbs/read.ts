@@ -192,7 +192,7 @@ interface ReadDeps {
   readonly loadParticipantViewsBatch: LoadParticipantViewsBatchOp;
   readonly loadParticipantViews: LoadParticipantViewsOp;
   readonly resolveConnection: ChatServiceDeps["resolveConnection"];
-  /** The deterministic pre-send serveability verdict for the chat's own resolved connection (#54). Reads the
+  /** The deterministic pre-send serveability verdict for the chat's own resolved connection. Reads the
    *  SAME chat-row routing overlay `resolveConnection` reads; fires no turn/API call. Wired at compose. */
   readonly checkSendAvailability: ChatServiceDeps["checkSendAvailability"];
   readonly getNextTurnConnection: ChatServiceDeps["getNextTurnConnection"];
@@ -228,7 +228,7 @@ type ReadVerbs = Pick<
 
 /** One parsed `chats` row as the persistence layer yields it — the input `buildSummaries` maps. Derived from
  *  the SINGLE-row read rather than from `listMemberChats`, whose rows carry the list's extra `recencyAt` sort
- *  key (#150): the fork/lineage summaries come from `loadForkChildren`/`loadAncestorChain`, which have no
+ *  key: the fork/lineage summaries come from `loadForkChildren`/`loadAncestorChain`, which have no
  *  such key, and hanging this alias off the list read made those two callers un-typeable. */
 type ChatRowView = NonNullable<Awaited<ReturnType<typeof loadChatRow>>>;
 
@@ -266,7 +266,7 @@ interface RoomInputs {
    *  already reads; the host half rides `foreign.chatBehavior`. */
   readonly metadata: ChatMetadata;
   readonly foreign: ForeignInputs;
-  /** The GAME's authored user macros (the second definition home, owner ruling #20) — resolved with the
+  /** The GAME's authored user macros (the second definition home, owner ruling) — resolved with the
    *  other cross-domain preview inputs so the preview registry sees the SAME effective def set a real turn
    *  builds (game shadows preset). Empty for a non-game / disengaged chat. */
   readonly gameUserMacros: readonly UserMacroSpec[];
@@ -287,7 +287,7 @@ interface ChatSummaryInputs {
 
 /**
  * The list row's participant display names — every present seat (humans AND characters) MINUS the viewer's
- * own seat (side-eye NR4).
+ * own seat.
  *
  * The names are what an untitled row shows as its title ("Alex, Niko"), and the viewer is in every chat they
  * can list, so their own name is a constant prefix carrying zero information while eating the width the row
@@ -301,7 +301,7 @@ function summaryParticipantNames(participants: readonly ParticipantData[], viewe
 }
 
 /**
- * The row's own faces (#192) — the PRESENT character seats, in seat order, off the roster views this
+ * The row's own faces — the PRESENT character seats, in seat order, off the roster views this
  * projection already loaded.
  *
  * It replaces a client-side whole-library join: every surface showing a chat row fetched
@@ -534,7 +534,7 @@ async function resolveRoomInputs(
   const gmPreset = explicitPreset !== undefined || ctx.rpg === null ? null : await ctx.rpg.resolvePresetOverride(chatId);
   const presetOverride = explicitPreset ?? gmPreset ?? undefined;
   // A preview is an HONESTY INSTRUMENT (see the file doc above) — it must not overstate what a live turn would
-  // actually resolve, so the enabled axis narrows this exactly like `verbs/turn.ts`'s `loadRoom` (2026-08-15).
+  // actually resolve, so the enabled axis narrows this exactly like `verbs/turn.ts`'s `loadRoom`.
   const previewPresentHumanUserIds = await presentAndEnabledHumanUserIdsOf(ctx, participants);
   const humanSeats = humanSeatPersonasOf(participants, previewPresentHumanUserIds);
   const foreign = await deps.resolveForeignInputs({
@@ -625,7 +625,7 @@ async function previewGatherFields(
     teachingInjections?: readonly ChatInjection[];
     rpgCelBindings?: Readonly<Record<string, unknown>>;
   };
-  /** The M2 keep-last-X card window this room's game contributes (#1540) — NOT an assemble-ctx field: it is
+  /** The M2 keep-last-X card window this room's game contributes — NOT an assemble-ctx field: it is
    *  the WIRE knob the CONVERT step reads, and the preview's fit must price the same stubs the turn's does.
    *  ABSENT ≠ ZERO (`verbs/turn.ts::buildTurnContext` states the rule): only a game's gather contributes it,
    *  so a non-game chat previews with NO window, exactly as its turn converts with none. */
@@ -673,7 +673,7 @@ async function previewGatherFields(
  *  merges every present roster member's — so a multi-character room's preview under-reported both its prompt
  *  and its context cost. Solo / hand-built ctxs return unchanged (the shape is a no-op there).
  *
- *  RETURNS THE GAME'S WIRE KNOB ALONGSIDE THE CTX (#1540): `cardKeepLastX` comes off the SAME gather the
+ *  RETURNS THE GAME'S WIRE KNOB ALONGSIDE THE CTX: `cardKeepLastX` comes off the SAME gather the
  *  ctx does, and the CONVERT step every fit-consuming preview now runs needs it. It is not an assemble-ctx
  *  field (the ctx is the BUILD plane, this is the WIRE plane), so it rides out as its own value rather than
  *  being smuggled onto a shape it does not belong to. */
@@ -845,7 +845,7 @@ function createGetChat(ctx: ChatContext, deps: ReadDeps): ChatService["getChat"]
   };
 }
 
-/** The honest-refusal pre-send gate (#54): the deterministic serveability verdict for the room HOST's chat
+/** The honest-refusal pre-send gate: the deterministic serveability verdict for the room HOST's chat
  *  connection — the one every turn in this room runs on. Member-gated (any participant may read it — the composer disables SEND on it). A
  *  hostless room is a leak-free NOT_FOUND (as `resolvePreviewInputs`). Fires no turn/API call. */
 function createCheckSendAvailability(ctx: ChatContext, deps: ReadDeps): ChatService["checkSendAvailability"] {
@@ -1100,7 +1100,7 @@ function createListMessages(ctx: ChatContext, deps: ReadDeps): ChatService["list
 /** `listMessageVariants` — the full sibling-variant set for one slot, ordered by idx, no content. A
  *  foreign-chat/unknown `messageId` collapses to a leak-free NOT_FOUND.
  *
- *  D16: the set is FLOORED at the caller's own `historyFloorSeq` (#1399). No content crosses here, but the
+ *  D16: the set is FLOORED at the caller's own `historyFloorSeq`. No content crosses here, but the
  *  ids and the swipe COUNT are exactly the identifiers the floored `listMessages` withholds — an unfloored
  *  read let a `from-join` member name any pre-join slot and learn its shape. The floor rides the persistence
  *  WHERE (`loadMessageVariantSummaries`) rather than a check here, so a below-floor slot is byte-identical to
@@ -1128,7 +1128,7 @@ function createListParticipants(ctx: ChatContext, deps: ReadDeps): ChatService["
  *  `getShapeTrace` and `previewContextFit` share (no user input, no group nudge, primary speaker / merged):
  *  the same `toShapeCanon` → `shapeTurn` the pipeline runs, minus the per-speaker round machinery. Returns
  *  the loaded canon beside the shaped result (the fit's boundary resolution needs both). */
-/** `listEffectiveRegex` — WHAT REGEX RUNS IN THIS ROOM, in run order, by tier (#1742).
+/** `listEffectiveRegex` — WHAT REGEX RUNS IN THIS ROOM, in run order, by tier.
  *  The room's Regex section is its only consumer.
  *
  *  HOST-ONLY under D19, and the gate is the shape of the answer, not a policy bolted onto it: the union
@@ -1159,7 +1159,7 @@ function createListEffectiveRegex(ctx: ChatContext, deps: ReadDeps): ChatService
         })),
         allow: regexAllowOf(inputs.metadata),
       },
-      // THE PRESET TIER'S NAME (#1754) comes off the SAME resolution the sources' `presetId` does, which is
+      // THE PRESET TIER'S NAME comes off the SAME resolution the sources' `presetId` does, which is
       // the preview preamble's — the GM redirect included. Naming it here rather than client-side is the
       // whole point: the section's only other route to a preset name is the viewer's own active preset,
       // which on a game chat is not the preset this room assembles.
@@ -1266,7 +1266,7 @@ async function shapeNextTurn(
  *  is the model window soft-capped by the preset's `maxContextTokens`, reserving the materialized output
  *  budget + the assembled system tokens. One home for the preview reads that need a boundary/ceiling.
  *
- *  CONVERT PRECEDES FIT HERE TOO (#1540 — the read-side half of #1434). The fitter prices WIRE TEXT, and the
+ *  CONVERT PRECEDES FIT HERE TOO (the read-side half of the turn's ordering). The fitter prices WIRE TEXT, and the
  *  conversion is lossy on purpose: a stored `:::card` body collapses to `[card: Title]`, a choices block
  *  drops entirely, a display-only image becomes a short marker. Pricing the RAW shaped rows — which is what
  *  this did — charged the preview for multi-KB bodies the provider never receives, so on a card-heavy or
