@@ -121,7 +121,7 @@ export class ProviderError extends Error {
   }
 
   /** Every carried field as its own log key. A field added to {@link ProviderErrorInit} MUST be mirrored
-   *  here AND in {@link rewrap}. */
+   *  here AND in {@link rewrap}; `tests/inference/contract/provider-error-carriers.test.ts` fails when one is missed. */
   toLog(): Record<string, unknown> {
     return {
       kind: this.kind,

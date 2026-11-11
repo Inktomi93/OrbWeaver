@@ -51,9 +51,6 @@ test("the composed pruner resolves the present host's persisted generation and d
   const { chat } = await root.services.chat.startChat({ principal: host, characterIds: [mine.id, sibling.id] });
   await root.settleBackground();
   const generation = await root.app.embeddings.resolveGeneration(host.userId, "embed");
-  if (generation === null) {
-    throw new Error("the real host binding did not resolve an embedding generation");
-  }
   const receipts: Awaited<ReturnType<typeof root.app.embeddings.store>>[] = [];
   for (const [scopedCharacterId, blockIdx] of [
     [mine.id, 0],

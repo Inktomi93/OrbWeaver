@@ -95,9 +95,6 @@ async function bindEmbedder(root: ServerTestHarness): Promise<Awaited<ReturnType
 
 async function embedSpace(root: ServerTestHarness, ownerId: UserId): Promise<{ readonly space: string }> {
   const generation = await root.app.embeddings.resolveGeneration(ownerId, "embed");
-  if (generation === null) {
-    throw new Error("the real host binding did not resolve an embedding generation");
-  }
   return generation;
 }
 

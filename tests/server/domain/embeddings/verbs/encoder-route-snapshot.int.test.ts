@@ -2,7 +2,7 @@
 // @subject packages/server/src/domain/embeddings/substrate/seed-embedding.ts
 import { ENCODER_IDENTITY_NO_API, embedDimsOf, embedDtypeOf, embedSpaceOf, LOCAL_LIGHT_SEED_ROWS } from "@orb/contracts/inference";
 import { SEED_MANIFEST } from "@orb/default-content";
-import { supportsManagedCompaction } from "@orb/inference";
+import { NoConnectionError, supportsManagedCompaction } from "@orb/inference";
 import { createResolveEmbeddingConnection, precomputedSeedEmbedding } from "@orb/server/domain/embeddings";
 import { sha256Hex } from "@orb/server/primitives/content-hash";
 import { expect, test } from "@orb/testkit/node";
@@ -40,8 +40,8 @@ test("runtime operation capabilities retain stateful chat and concrete embedding
   const resolved = (await app.runtime.resolve({ principal: ownerPrincipal, task: "chat", connectionId: stateful.id, cachedFacts: true })).resolved;
   expect(supportsManagedCompaction(resolved)).toBe(true);
   const snapshot = createResolveEmbeddingConnection(app.runtime, async () => ownerPrincipal);
-  const remoteSnapshot = await snapshot(ownerPrincipal.userId, "embed", remote.id, { cachedFacts: true });
-  const localSnapshot = await snapshot(ownerPrincipal.userId, "embed", local.id, { cachedFacts: true });
+  const remoteSnapshot = await snapshot(ownerPrincipal.userId, "embed", remote.id);
+  const localSnapshot = await snapshot(ownerPrincipal.userId, "embed", local.id);
   expect(remoteSnapshot).toMatchObject({ api: ENCODER_IDENTITY_NO_API, wire: "openai-compat", execution: { widthProbeTimeoutMs: 4321, seedVectors: false } });
   expect(localSnapshot).toMatchObject({ api: ENCODER_IDENTITY_NO_API, wire: "local-light", execution: { widthProbeTimeoutMs: 600_000, seedVectors: true } });
   if (remoteSnapshot === null) {
@@ -70,4 +70,26 @@ test("runtime operation capabilities retain stateful chat and concrete embedding
   expect(seeded?.vector.length).toBe(embedDimsOf(localSnapshot.capability));
   expect(precomputedSeedEmbedding(hash, space, "card-text", remoteSnapshot)).toBeNull();
   expect(precomputedSeedEmbedding(sha256Hex(`${text} changed`), space, "card-text", localSnapshot)).toBeNull();
+});
+
+test("an explicit connection id that no longer resolves answers null, while the binding form refuses with no connection", async () => {
+  await using root = await createServerHarness({ secretBoxKey: SECRET_BOX_TEST_KEY });
+  const owner = await root.principalFor(root.ownerId);
+  const resolveConnection = createResolveEmbeddingConnection(root.app.runtime, async () => owner);
+  const encoder = await root.services.connection.create({
+    principal: owner,
+    providerId: "custom-openai",
+    credentialId: null,
+    baseUrl: "http://127.0.0.1:9999/v1",
+    model: "owned-encoder",
+    allowBackground: true,
+    declared: { kind: "embedding", embedding: { dims: 3 }, features: { detectServer: false } },
+  });
+  expect(await resolveConnection(owner.userId, "embed", encoder.id)).toMatchObject({ connectionId: encoder.id });
+
+  await root.services.connection.remove({ principal: owner, connectionId: encoder.id });
+
+  expect(await resolveConnection(owner.userId, "embed", encoder.id)).toBeNull();
+  await root.services.connection.setBinding({ principal: owner, task: "embed", connectionId: null });
+  await expect(resolveConnection(owner.userId, "embed")).rejects.toBeInstanceOf(NoConnectionError);
 });

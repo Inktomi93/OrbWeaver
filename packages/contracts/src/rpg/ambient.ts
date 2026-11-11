@@ -102,7 +102,7 @@ export type TimeOfDay = (typeof TIME_OF_DAY)[number];
  *  lite game's clock only ever holds one of these representative hours, and the Waystone's continuous sky
  *  interpolates from exactly that number. Reading the label BACK is `timeOfDayAtHour` (range membership) —
  *  never an inversion of this table; each representative hour must lie inside its own range, or the
- *  write and the read disagree. */
+ *  write and the read disagree (`tests/contracts/rpg/ambient-time-of-day.contract.test.ts` holds it). */
 export const TIME_OF_DAY_HOURS: Readonly<Record<TimeOfDay, number>> = {
   dawn: 6,
   morning: 9,

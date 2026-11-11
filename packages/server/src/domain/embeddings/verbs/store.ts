@@ -226,9 +226,6 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
  *  `text` is the embed input, the stored body, and `{{memory}}`. */
 async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promise<StoreResult> {
   const generation = await resolveTargetGeneration(ctx, p.ownerId, "embed");
-  if (generation === null) {
-    throw embedFailure(ctx, p.lens, p.model);
-  }
   const hash = p.contentHash;
   const existing = await existingDigestHash(ctx.db, {
     chatId: p.chatId,
@@ -283,9 +280,6 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
  *  only); the FK to `documents` is the only ownership link. */
 async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): Promise<StoreResult> {
   const generation = await resolveTargetGeneration(ctx, p.ownerId, "embed");
-  if (generation === null) {
-    throw embedFailure(ctx, p.lens, p.model);
-  }
   const hash = contentHash(p.content);
   if ((await existingChunkHash(ctx.db, p.fkRefs.documentId, p.fkRefs.chunkIdx, generation.id)) === hash) {
     return {
@@ -330,9 +324,6 @@ export function createStore(ctx: EmbeddingsContext): EmbeddingsService["store"] 
     const task = params.lens === "card-text" ? "embed" : "imageEmbed";
     const via = params.lens === "image-captioned" ? params.via : task;
     const generation = await resolveTargetGeneration(ctx, params.ownerId, task, via);
-    if (generation === null) {
-      throw embedFailure(ctx, params.lens, params.model);
-    }
     const entity = params.lens === "card-text" ? params.characterId : params.assetId;
     const key = JSON.stringify([
       entity,

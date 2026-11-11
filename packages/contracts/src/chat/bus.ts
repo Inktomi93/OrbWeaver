@@ -636,7 +636,8 @@ export type ChatBusEvent =
  *    • the client's central invalidation seam (`packages/client/src/data/invalidation.ts`) + the landing
  *      switch (`data/bus/apply-chat-bus-event.ts`) — a member with no filter row is a wire that reaches the
  *      device and refreshes nothing.
- *    • a server emit site — declared, never emitted, is dead wire (review holds this).
+ *    • a server emit site, or the stream source's attach synthesis for `chatOpened` and `historyTruncated` — declared, never
+ *      emitted, is dead wire (review holds this; no check claims it).
  *    • a DURABLE member needs its row in `DROPPED_APPEND_FANS` (below; `tsc` forces it), which decides whether a
  *      dropped append still fans live. */
 export const CHAT_BUS_EVENT_TYPES = {

@@ -21,10 +21,7 @@ export function createVectorSweepOps(deps: VectorSweepDeps): VectorSweepOps {
     beginDocumentVectorSweep: async (enumerationScope): Promise<readonly DocumentVectorSweepReceipt[]> => {
       const receipts: DocumentVectorSweepReceipt[] = [];
       for (const ownerId of await sweptOwners(enumerationScope)) {
-        const generation = await embeddings.resolveGeneration(ownerId, "embed");
-        if (generation !== null) {
-          receipts.push({ ownerId, generation });
-        }
+        receipts.push({ ownerId, generation: await embeddings.resolveGeneration(ownerId, "embed") });
       }
       return receipts;
     },

@@ -34,9 +34,6 @@ test("an own segment stores; a later foreign row refuses the flood by name; a de
     view: { chat: neighbor },
   } = await seedChat(root, { principal: neighborHost, characterIds: [] });
   const generation = await root.app.embeddings.resolveGeneration(ownHost.userId, "embed");
-  if (generation === null) {
-    throw new Error("the seeded owner has no embedding generation");
-  }
   const storeSegments = vi.fn(root.app.embeddings.storeSegments);
   const ops = createMemoryEmbeddingOps({ resolveChatHostUserId: presentHostOf(root), embeddings: { ...root.app.embeddings, storeSegments } });
   const base: StoreSegmentParams = {

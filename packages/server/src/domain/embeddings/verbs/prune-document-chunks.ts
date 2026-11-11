@@ -15,8 +15,10 @@ import { resolveTargetGeneration } from "../substrate/generation.ts";
 export function createPruneDocumentChunks(ctx: EmbeddingsContext): EmbeddingsService["pruneDocumentChunks"] {
   return async (params: PruneDocumentChunksParams): Promise<PruneDocumentChunksResult> => {
     const ownerId = await loadDocumentOwnerForPrune(ctx.db, params.documentId);
-    const generation = ownerId === null ? null : await resolveTargetGeneration(ctx, ownerId, "embed");
-    const rowsDeleted = generation === null ? 0 : await pruneDocumentChunks(ctx.db, params.documentId, params.keepCount, generation.id);
-    return { rowsDeleted };
+    if (ownerId === null) {
+      return { rowsDeleted: 0 };
+    }
+    const generation = await resolveTargetGeneration(ctx, ownerId, "embed");
+    return { rowsDeleted: await pruneDocumentChunks(ctx.db, params.documentId, params.keepCount, generation.id) };
   };
 }
