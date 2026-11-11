@@ -211,7 +211,7 @@ Review before anything that trusts these results.
 | tooling-eslint | tooling/src/eslint/ | L | reviewed (2) |
 | tooling-floor | tooling/src/floor/ | M | reviewed (4) |
 | tooling-configs | tooling/src/biome-config/, tooling/src/stack/ | S | reviewed (5) |
-| tooling-unwired | tooling/src/unwired/ | M | queued |
+| tooling-unwired | tooling/src/unwired/ | M | in-progress |
 | tooling-codemods | tooling/src/codemods/ | M | queued |
 | tooling-doc | tooling/src/doc/ — carry the agent-sync remnants in `doc/ops/check.ts:3-5` (dead caller, dead `pnpm check:agents` refusal message) and `doc/index.ts:3`, already counted in `units/tooling-floor.md` F1; do not re-file | S | queued |
 | tooling-ui-facts | tooling/src/ui-facts/ | S | queued |
