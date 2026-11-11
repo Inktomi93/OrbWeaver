@@ -13,6 +13,7 @@ This is the work order: plans are worked in rank order, active before parked, an
 | - | - | - |
 | 1 | [Cross-surface visual consistency](cross-surface-consistency/design.md) | active |
 | 2 | [Automated product surface review](surface-walk/design.md) | active |
+| 3 | [Every ruling names its checker, and every claim in prose resolves](checked-law/design.md) | active |
 | 4 | [Inference flow: owners, ports and callers](inference-flow/design.md) | active |
 | 5 | [Tests on the production harness](test-foundation/design.md) | active |
 | 6 | [Mechanical checks that keep tests on production](test-enforcement/design.md) | active |
