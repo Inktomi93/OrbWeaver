@@ -289,3 +289,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D340 | [The server owns staged params and the box owner owns the operator tree](0340-the-server-owns-staged-params-and-the-owner-owns-the-operator-tree.md) | active |
 | D341 | [Debug probes read without a principal because the gate admits only the box operator](0341-debug-probes-read-without-a-principal.md) | active |
 | D342 | [A dropped chat event append still fans live without a cursor](0342-a-dropped-chat-event-append-still-fans-live.md) | active |
+| D346 | [A host call past the CPU window ends the guest](0346-a-host-call-past-the-cpu-window-ends-the-guest.md) | active |

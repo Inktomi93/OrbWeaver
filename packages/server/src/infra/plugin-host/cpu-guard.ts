@@ -11,18 +11,30 @@
 // of a process restart. Reachable at activation, with only `storage.kv` and zero interaction after enable.
 //
 // So the handler lives for the context's lifetime and every guest-bytecode span OPENS A WINDOW:
-//   - `runToSettlement` opens the invocation's window and closes it when the invocation settles;
-//   - each pump opens a fresh one for the duration of the pump.
-// A window NARROWS, never widens (`min(previous, now + budget)`), and closing RESTORES the previous deadline
-// rather than clearing it — so a pump nested inside a live invocation (the ordinary case: a guest awaits a
-// host call and resumes mid-invocation) can neither buy that invocation extra CPU nor blank its bound on the
-// way out.
+//   - an invocation (`runToSettlement`) opens a CPU ACCOUNT holding the per-instance budget. Each span inside it —
+//     the synchronous run, each pump while the invocation awaits, the read of its result — opens a window at the
+//     account's remainder and charges the account the time it ran. The await between spans charges nothing, so a
+//     guest that waits seconds on a host call and then runs briefly is inside its budget (D346);
+//   - a pump outside any invocation opens a window of the whole budget for the duration of the pump.
+// A span opened inside an open span adds nothing (the outer window already bounds it), and every pump inside an
+// invocation spends that invocation's account — so a nested pump can neither buy the invocation extra CPU nor blank
+// its bound on the way out.
+//
+// TWO BOUNDS, KEPT APART. The account bounds WORK. How long an invocation may HOLD its runtime, awaiting included, is
+// the settlement wall (`Sandbox.raceSettlement`, `cpuDeadlineMs + settleGraceMs`), which every invocation —
+// activation, snippet, tool, transform, macro, event, command, UI action — races and which reads no window. A guest
+// that chains host calls each just under `HOST_FN_DEADLINE_MS` spends almost no account and is still ended there.
 //
 // TWO CLOCKS, unchanged (budgets.ts): the deadline reads MONOTONIC REAL time (`performance.now`), NEVER the
 // guest's injected clock seam — a frozen test clock or a system-time jump must not be able to disable the DoS
 // kill. And the interrupt still preempts guest BYTECODE ONLY: a guest that has STOPPED executing
 // (`new Promise(() => {})`, an await that never resumes) is the SETTLEMENT deadline's business
 // (`Sandbox.raceSettlement`), and no window here can see it.
+//
+// THE WINDOW IS NOT ABSOLUTE. QuickJS polls the interrupt only about every ten thousand calls and loop steps, and never
+// while the host works. So every host call also asks `cpuWindowPassed` at its entry, before any read
+// (`marshal.ts`, `newHostFunction`), and ends a guest past its window there. What that cannot bound — the one call
+// already running at the deadline, host work already admitted, result handling after settlement, memory — is D346's.
 
 import { performance } from "node:perf_hooks";
 import type { QuickJSContext } from "quickjs-emscripten-core";
@@ -35,6 +47,12 @@ import { PLUGIN_INVOCATION_CPU_MS } from "./budgets.ts";
 interface CpuGuard {
   budgetMs: number;
   deadlineAtMs: number;
+  /** The open invocation's unspent budget, or `null` outside an invocation. */
+  account: CpuAccount | null;
+}
+
+interface CpuAccount {
+  remainingMs: number;
 }
 
 /** Per-context guard state. WEAK by construction: this map must never keep a disposed context alive, and the
@@ -49,11 +67,24 @@ interface CpuGuard {
  *  own guards; there is nothing to share. */
 const GUARDS = new WeakMap<QuickJSContext, CpuGuard>();
 
+// The ONE reading of the window: the interpreter's interrupt and the host-call entry check both ask this, so they
+// can never disagree about whether a guest is past its window.
+function windowPassed(guard: CpuGuard): boolean {
+  return performance.now() > guard.deadlineAtMs;
+}
+
 function createGuard(ctx: QuickJSContext, budgetMs: number): CpuGuard {
-  const guard: CpuGuard = { budgetMs, deadlineAtMs: Number.POSITIVE_INFINITY };
+  const guard: CpuGuard = { budgetMs, deadlineAtMs: Number.POSITIVE_INFINITY, account: null };
   GUARDS.set(ctx, guard);
-  ctx.runtime.setInterruptHandler(() => performance.now() > guard.deadlineAtMs);
+  ctx.runtime.setInterruptHandler(() => windowPassed(guard));
   return guard;
+}
+
+/** Whether the guest-CPU window open on `ctx` has passed — the same answer the interrupt handler gives. False when no
+ *  window is open (or no guard was installed): host work outside any span is bounded at its own seams. */
+export function cpuWindowPassed(ctx: QuickJSContext): boolean {
+  const guard = GUARDS.get(ctx);
+  return guard !== undefined && windowPassed(guard);
 }
 
 /** FAIL-CLOSED resolution: a span on an unregistered context gets the shared default budget rather than an
@@ -74,15 +105,34 @@ export function installCpuGuard(ctx: QuickJSContext, budgetMs: number): void {
   existing.budgetMs = budgetMs;
 }
 
-/** Open a guest-CPU window and return its CLOSE. The window NARROWS an already-open one and the close RESTORES
- *  it (never clears it) — the nesting contract above. Callers MUST close in a `finally`: a window left open
- *  would preempt the next unrelated span the moment its deadline passed. */
+/** Open an invocation's CPU account and return its CLOSE, which restores the account it replaced. Callers MUST close
+ *  in a `finally`. */
+export function openCpuInvocation(ctx: QuickJSContext): () => void {
+  const guard = guardOf(ctx);
+  const previous = guard.account;
+  guard.account = { remainingMs: guard.budgetMs };
+  return (): void => {
+    guard.account = previous;
+  };
+}
+
+/** Open a guest-CPU window for one span of guest execution and return its CLOSE. Inside an invocation the window is
+ *  the account's remainder and the close charges the account; outside one it is the whole budget. A span opened
+ *  while one is open adds nothing — the nesting contract above. Callers MUST close in a `finally`: a window left
+ *  open would preempt the next unrelated span the moment its deadline passed. */
 export function openCpuWindow(ctx: QuickJSContext): () => void {
   const guard = guardOf(ctx);
-  const previous = guard.deadlineAtMs;
-  guard.deadlineAtMs = Math.min(previous, performance.now() + guard.budgetMs);
+  if (Number.isFinite(guard.deadlineAtMs)) {
+    return (): void => undefined;
+  }
+  const account = guard.account;
+  const openedAtMs = performance.now();
+  guard.deadlineAtMs = openedAtMs + (account === null ? guard.budgetMs : account.remainingMs);
   return (): void => {
-    guard.deadlineAtMs = previous;
+    if (account !== null) {
+      account.remainingMs = Math.max(0, account.remainingMs - (performance.now() - openedAtMs));
+    }
+    guard.deadlineAtMs = Number.POSITIVE_INFINITY;
   };
 }
 
@@ -91,8 +141,9 @@ export function openCpuWindow(ctx: QuickJSContext): () => void {
  *  and jobs the abort left QUEUED stay queued for the next pump, which opens its own window; a context with
  *  aborted jobs still queued disposes cleanly (measured against this runtime).
  *
- *  Not a bound on TOTAL guest CPU, and it does not claim to be: every host-call settlement buys one window, so
- *  the aggregate stays bounded by the ≤32 in-flight cap × the per-instance budget rather than by one number.
+ *  Inside an invocation a pump spends that invocation's account. After the invocation, not a bound on TOTAL guest
+ *  CPU, and it does not claim to be: every late host-call settlement buys one window, so the aggregate stays bounded
+ *  by the ≤32 in-flight cap × the per-instance budget rather than by one number.
  *  What it removes is the UNBOUNDED span — a single continuation that never yields the Node main thread. */
 export function pumpGuestJobs(ctx: QuickJSContext): void {
   // A fire-and-forget host call can settle AFTER its instance was torn down (snippet end / deactivate);

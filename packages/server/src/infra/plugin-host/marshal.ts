@@ -18,7 +18,17 @@
 //
 // HOST TEXT CROSSES WITHOUT GUEST CODE. A host refusal's `Error` and the host's own strings (the grant list, a
 // minted id, the chat token) are built with the binding's allocators and `defineProp`, which call no guest function
-// and no guest setter, so building one cannot fail on the guest's account.
+// and no guest setter, so building one cannot fail on the guest's account. A host function's synchronous throw is
+// built the same way (`newHostFunction`): the binding's own path for it (`newError` through `setProp`) runs a guest
+// setter on `Error.prototype`, which loses the message and swallows the interrupt.
+//
+// A HOST CALL PAST THE WINDOW ENDS THE GUEST (D346). The interrupt is polled only about every ten thousand steps and
+// never while the host works, so a guest whose time goes into host calls, or into its own callbacks a host read runs,
+// can outlive its window without bound. Every host function therefore asks `cpuWindowPassed` (the interrupt's own
+// reading) before any read, and the depth walk asks again per node. Past the window the host runs a host-owned
+// endless step in the realm, which the interrupt stops at its first poll, and hands that exception back unchanged.
+// It is the engine's interrupt, the one exception a guest `catch` or `finally` cannot hold, so the invocation ends
+// exactly as a busy loop does; a host-built error would be caught and the loop would go on.
 //
 // A PROMISE IS REFUSED BEFORE ANY READ. The binding's `dump` disposes the handle of a promise it reads, a handle the
 // host still owns, which then aborts the engine at teardown. `fromGuest` asks the engine's promise state first, which
@@ -26,6 +36,7 @@
 // No other module reads or writes a guest string.
 
 import type { QuickJSContext, QuickJSHandle, VmCallResult, VmFunctionImplementation } from "quickjs-emscripten-core";
+import { cpuWindowPassed } from "./cpu-guard.ts";
 
 /** A guest value read into the host. `promise`: the value is a promise, refused unread. `thrown`: the realm failed
  *  while serializing it (the CPU interrupt, or its memory limit); the caller owns that exception handle. */
@@ -68,9 +79,13 @@ export interface GuestMarshal extends Disposable {
   /** A guest promise already rejected with a host error, or the realm's own failure to make one — return it from a
    *  host function as it is. */
   readonly rejectedWith: (error: HostErrorFields) => VmCallResult<QuickJSHandle>;
-  /** A host function that hands a {@link GuestCallFailure}'s exception back to the guest unchanged. Every host
-   *  function the realm and the membrane install is built here. */
+  /** A host function that ends a guest past its CPU window before it reads anything ({@link GuestMarshal.stopPastWindow}),
+   *  hands a {@link GuestCallFailure}'s exception back to the guest unchanged, and builds any other throw with
+   *  {@link GuestMarshal.newHostError}. Every host function the realm and the membrane install is built here. */
   readonly newHostFunction: (name: string, fn: VmFunctionImplementation<QuickJSHandle>) => QuickJSHandle;
+  /** Throw {@link GuestCallFailure} carrying the engine's interrupt when the guest's CPU window has passed. Call it
+   *  inside a host function before a read that can run guest code. */
+  readonly stopPastWindow: () => void;
 }
 
 /** The JSON text a host value crosses into the guest as — what the result cap measures, since it is what crosses.
@@ -127,6 +142,8 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
   const parse = captured.adopt(ctx.getProp(json, "parse"), (handle) => handle.dispose());
   const promise = captured.adopt(ctx.getProp(ctx.global, "Promise"), (handle) => handle.dispose());
   const reject = captured.adopt(ctx.getProp(promise, "reject"), (handle) => handle.dispose());
+  // A host-owned step that never returns on its own. No window is open yet, so evaluating it cannot be interrupted.
+  const endless = captured.adopt(ctx.unwrapResult(ctx.evalCode("(() => { for (;;) {} })")), (handle) => handle.dispose());
   const owned = captured.move();
 
   // `defineProp`, never `setProp`: a guest can put a setter for any key on a prototype, and `setProp` would run it.
@@ -145,6 +162,21 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
     }
     built.move();
     return handle;
+  };
+
+  // Past the window, run the endless step: the interrupt's own reading answers at its first poll, and the engine's
+  // interrupt exception is what crosses back. The step cannot return while the window stays passed, which it does
+  // for the rest of this synchronous host call; the plain error after it is the type's other arm.
+  const stopPastWindow = (): void => {
+    if (!cpuWindowPassed(ctx)) {
+      return;
+    }
+    const ended = ctx.callFunction(endless, ctx.undefined);
+    if (ended.error) {
+      throw new GuestCallFailure(ended.error);
+    }
+    ended.value.dispose();
+    throw new Error("plugin host: the guest's CPU window has passed");
   };
 
   return {
@@ -186,14 +218,17 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
     newHostFunction: (name, fn): QuickJSHandle =>
       ctx.newFunction(name, (...args) => {
         try {
+          // Before any argument is read: every read past this point may run guest code.
+          stopPastWindow();
           return fn.call(ctx.undefined, ...args);
         } catch (error) {
           if (error instanceof GuestCallFailure) {
             return { error: error.thrown };
           }
-          throw error;
+          return { error: newHostError(error instanceof Error ? error : { name: "Error", message: String(error) }) };
         }
       }),
+    stopPastWindow,
     [Symbol.dispose]: (): void => {
       owned.dispose();
     },

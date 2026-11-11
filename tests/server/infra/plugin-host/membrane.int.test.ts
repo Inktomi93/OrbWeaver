@@ -1,10 +1,11 @@
 // The membrane's three mechanisms, each through a real guest's host call: the capability gate, the opaque chat handle
 // and the self-bound limits (the argument budget, the deadline, the result cap and the in-flight cap). The dump depth
-// guard and the string-argument check are part of the argument intake.
+// guard and the string-argument check are part of the argument intake. A guest past its CPU window is ended at its
+// next host call, whatever it spends its time on (D346).
 // @subject packages/server/src/infra/plugin-host/membrane.ts
 import { spawn } from "node:child_process";
 import type { PluginHostV1 } from "@orb/contracts/plugin";
-import { PluginCapabilityError, PluginHostDeadlineError } from "@orb/contracts/plugin";
+import { PLUGIN_HOST_VERSIONS, PluginCapabilityError, PluginHostDeadlineError } from "@orb/contracts/plugin";
 import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { GuestOps, ServerTestHarness } from "@orb/testkit/node/composed";
@@ -157,6 +158,96 @@ test("a guest looping host calls it catches past its CPU window ends as a busy l
   expect(await run("ping")).toEqual({ ok: true, value: null });
 });
 
+// Guests whose time goes into host calls, or into their own callbacks a host read would run, past their window. Each
+// never ends on its own. `a.spin` is enough work for a callback to hold nearly all of each loop step.
+const PAST_WINDOW = {
+  busyLoop: "() => { for (;;) {} }",
+  ping: "(h) => h.storage.get('k')",
+  largeValues: "(h, room, a) => { const s = 'x'.repeat(a.size); for (;;) { try { h.log.info(s); } catch (e) {} } }",
+  errorSetter:
+    "(h, room, a) => { Object.defineProperty(Error.prototype, 'message', { set() { for (let i = 0; i < a.spin; i++) {} }, get() { return ''; }, configurable: true }); for (;;) { try { orb.host(a.unserved); } catch (e) {} } }",
+  slowToString: "(h, room, a) => { const value = { toString() { for (let i = 0; i < a.spin; i++) {} return 'x'; } }; for (;;) { h.log.info(value); } }",
+  slowValueOf:
+    "(h, room, a) => { const major = { valueOf() { for (let i = 0; i < a.spin; i++) {} return a.unserved; } }; for (;;) { try { orb.host(major); } catch (e) {} } }",
+  catchesInterrupt: "() => { for (;;) { try { for (;;) {} } catch (e) {} } }",
+  // The same counting step, once in one uninterrupted span and once split across spans between awaits.
+  countsAlone: "() => { globalThis.alone = 0; for (;;) { globalThis.alone++; } }",
+  spendsAcrossAwaits:
+    "async (h, room, a) => { globalThis.spent = 0; for (;;) { await h.storage.get('k'); for (let i = 0; i < a.spin; i++) { globalThis.spent++; } } }",
+  counts: "() => [globalThis.alone, globalThis.spent]",
+  callsFromFinally: "(h) => { for (;;) { try { for (;;) {} } finally { h.log.info('finally'); continue; } } }",
+} as const satisfies GuestOps;
+const CALLBACK_STEPS = 300_000;
+const UNSERVED_HOST_VERSION = Math.max(...PLUGIN_HOST_VERSIONS) + 1;
+// What an invocation may run past its window: the one host call already running at the deadline, the step to the next
+// interrupt poll, and the broker round trip. One more window covers all three.
+const PAST_WINDOW_MARGIN_MS = PLUGIN_INVOCATION_CPU_MS;
+// A red run ends at its timeout instead; a green one needs about three invocation walls.
+const PAST_WINDOW_TEST_TIMEOUT_MS = 4 * (PLUGIN_INVOCATION_CPU_MS + HOST_FN_DEADLINE_MS);
+
+test.for([
+  { name: "a loop of argument-cap values", op: "largeValues", args: { size: HOST_FN_ARGS_MAX_BYTES } },
+  {
+    name: "a loop of refused host calls under a slow Error.prototype setter",
+    op: "errorSetter",
+    args: { spin: CALLBACK_STEPS, unserved: UNSERVED_HOST_VERSION },
+  },
+  { name: "a loop logging an object with a slow toString", op: "slowToString", args: { spin: CALLBACK_STEPS } },
+  { name: "a loop passing a host call an object with a slow valueOf", op: "slowValueOf", args: { spin: CALLBACK_STEPS, unserved: UNSERVED_HOST_VERSION } },
+  { name: "a loop that catches the interrupt", op: "catchesInterrupt", args: {} },
+  { name: "a loop that calls the host from finally", op: "callsFromFinally", args: {} },
+] as const)(
+  "$name ends within the margin of its CPU window as a busy loop does, then serves the next call and retires cleanly",
+  { tags: ["slow"], timeout: PAST_WINDOW_TEST_TIMEOUT_MS },
+  async ({ op, args }) => {
+    await using root = await createServerHarness({ pluginSpawn: spawn });
+    const owner = await root.principalFor(root.ownerId);
+    const pluginId = await installGuest(root, owner, { slug: "overrunner", capabilities: ["storage.kv"] }, PAST_WINDOW);
+    const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
+    const interrupted: unknown = await run("busyLoop").catch((error: unknown) => error);
+    expect(interrupted).toBeInstanceOf(Error);
+    expect(await run("ping")).toEqual({ ok: true, value: null });
+
+    const started = performance.now();
+    await expect(run(op, args)).rejects.toEqual(interrupted);
+    expect(performance.now() - started).toBeLessThan(PLUGIN_INVOCATION_CPU_MS + PAST_WINDOW_MARGIN_MS);
+    expect(await run("ping")).toEqual({ ok: true, value: null });
+
+    await root.services.plugin.setEnabled({ caller: owner, pluginId, enabled: false });
+    await root.services.plugin.setEnabled({ caller: owner, pluginId, enabled: true });
+    expect(await run("ping")).toEqual({ ok: true, value: null });
+  },
+);
+
+// Each span between awaits spends a share of the invocation's CPU account; ten callbacks' worth keeps the awaits a
+// small part of the run.
+const SPAN_STEPS = 10 * CALLBACK_STEPS;
+// The work one account may hold, against one uninterrupted window's: the margin is one more window.
+const ACCOUNT_WORK_RATIO_MAX = (PLUGIN_INVOCATION_CPU_MS + PAST_WINDOW_MARGIN_MS) / PLUGIN_INVOCATION_CPU_MS;
+
+test("a guest that spends its CPU across many awaits gets one account's work, not a window per await", {
+  tags: ["slow"],
+  timeout: PAST_WINDOW_TEST_TIMEOUT_MS,
+}, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const owner = await root.principalFor(root.ownerId);
+  const pluginId = await installGuest(root, owner, { slug: "spender", capabilities: ["storage.kv"] }, PAST_WINDOW);
+  const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
+
+  // Neither loop returns. The interrupt stops the continuation of the second inside a pump, which leaves its promise
+  // unsettled, so that invocation ends at the wall: its work, not its end, shows the account.
+  await run("countsAlone").catch(() => undefined);
+  await run("spendsAcrossAwaits", { spin: SPAN_STEPS }).catch(() => undefined);
+  const counted = await run("counts");
+  if (!(counted.ok && Array.isArray(counted.value))) {
+    throw new Error("the guest kept both counts");
+  }
+  const [alone, spent] = counted.value;
+  expect(spent).toBeGreaterThan(0);
+  expect(Number(spent)).toBeLessThan(ACCOUNT_WORK_RATIO_MAX * Number(alone));
+  expect(await run("ping")).toEqual({ ok: true, value: null });
+});
+
 // Every place the storage and variables functions take a string, called once with an array there and once with the
 // string itself. `written` reads back both stores, so a refused write is seen to leave them empty.
 const STRING_ARGUMENTS = [
@@ -243,6 +334,8 @@ const NET_OPS = {
   flood:
     "async (h, room, a) => { globalThis.held = Array.from({ length: a.max }, () => h.net.fetch(a.url).then((r) => r.status, (e) => e.name)); return (await h.net.fetch(a.url)).status; }",
   drain: "() => Promise.all(globalThis.held)",
+  waitsOnly: "async (h, room, a) => { for (;;) { try { await h.net.fetch(a.url); } catch (e) {} } }",
+  busyLoop: "() => { for (;;) {} }",
 } as const satisfies GuestOps;
 
 async function netGuest(root: ServerTestHarness): Promise<ReturnType<typeof guestRunner>> {
@@ -262,6 +355,37 @@ test("a host call still running at the deadline rejects with the deadline error,
 
   // No door shortens `HOST_FN_DEADLINE_MS`: this call waits the production deadline in real time.
   expect(await run("status", { url: HELD_URL })).toEqual({ ok: false, name: PluginHostDeadlineError.name });
+  expect(await run("status", { url: NOW_URL })).toEqual({ ok: true, value: 200 });
+});
+
+// The invocation wall bounds how long an invocation can hold its runtime, apart from the CPU account it spends: a guest
+// that only waits on host calls spends almost none of it.
+const INVOCATION_WALL_MS = PLUGIN_INVOCATION_CPU_MS + HOST_FN_DEADLINE_MS;
+
+test("a guest that only waits on host calls is ended at the invocation wall, and the next call is served", {
+  tags: ["slow"],
+  timeout: PAST_WINDOW_TEST_TIMEOUT_MS,
+}, async () => {
+  const remote = scriptedRemote();
+  await using root = await createServerHarness({
+    pluginSpawn: spawn,
+    networkExecution: { resolver: () => Promise.resolve([PUBLIC_PEER_ADDRESS]), fetch: remote.fetch },
+  });
+  using _released = { [Symbol.dispose]: remote.release };
+  const run = await netGuest(root);
+
+  // An ended guest's failure, the shape the wall's must share.
+  const ended: unknown = await run("busyLoop").catch((error: unknown) => error);
+  if (!(ended instanceof Error && "code" in ended)) {
+    throw new Error("a busy loop ends in a coded guest failure");
+  }
+
+  // No door shortens the wall: this waits the production wall in real time.
+  const started = performance.now();
+  await expect(run("waitsOnly", { url: HELD_URL })).rejects.toMatchObject({ name: ended.name, code: ended.code });
+  const elapsed = performance.now() - started;
+  expect(elapsed).toBeGreaterThanOrEqual(INVOCATION_WALL_MS);
+  expect(elapsed).toBeLessThan(INVOCATION_WALL_MS + PAST_WINDOW_MARGIN_MS);
   expect(await run("status", { url: NOW_URL })).toEqual({ ok: true, value: 200 });
 });
 

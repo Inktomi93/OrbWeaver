@@ -132,19 +132,23 @@ export interface RealmHost {
   readonly marshal: GuestMarshal;
 }
 
-// A guest string read whole through the marshal. Any other value keeps the realm's own `ToString`: dumping it
-// would materialize a guest object here with no depth guard, and a deep one corrupts the shared WASM runtime.
+// The text a log line or a token count takes from a guest value. The contract takes a string, which reads whole
+// through the marshal; another primitive reads as its own text, which runs no guest code. An object or a function
+// reads as its kind alone: its text would come from its `toString` or its getters, guest code a host read must not
+// run (D346), and dumping it here would have no depth guard. `null` reads as an object too: this engine build offers
+// no equality check to tell it apart without a read.
 function logText(ctx: QuickJSContext, marshal: GuestMarshal, handle: QuickJSHandle): string {
-  if (ctx.typeof(handle) !== "string") {
-    return ctx.getString(handle);
+  const type = ctx.typeof(handle);
+  if (type === "function" || type === "object") {
+    return `[${type}]`;
   }
   const read = marshal.fromGuest(handle);
   switch (read.kind) {
     case "value":
-      return typeof read.value === "string" ? read.value : "";
+      return typeof read.value === "string" ? read.value : String(read.value);
     case "thrown":
       throw new GuestCallFailure(read.error);
-    // Only a string reaches this read, and a string is never a promise.
+    // Only a primitive reaches this read, and a primitive is never a promise.
     case "promise":
       return "";
     default: {
@@ -228,10 +232,11 @@ export function installRealm(ctx: QuickJSContext, host: RealmHost, membrane?: Me
 
   using orb = ctx.newObject();
   using hostFn = host.marshal.newHostFunction("host", (majorHandle?: QuickJSHandle) => {
-    const major = majorHandle === undefined ? Number.NaN : ctx.getNumber(majorHandle);
+    // A number reads with no guest code; anything else would run its `valueOf` (D346), and is no version anyway.
+    const major = majorHandle !== undefined && ctx.typeof(majorHandle) === "number" ? ctx.getNumber(majorHandle) : Number.NaN;
     if (!PLUGIN_HOST_VERSIONS.some((served) => served === major)) {
       // Throw the TYPED class (not a plain Error) so `.name` crosses the boundary as "HostVersionError" — a
-      // guest feature-detects by `e.name`, and `served` rides along as data.
+      // guest feature-detects by `e.name`; the message names the served versions.
       throw new HostVersionError(major, PLUGIN_HOST_VERSIONS);
     }
     return buildHostSurface(ctx, host, membrane);

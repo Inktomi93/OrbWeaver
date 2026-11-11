@@ -38,7 +38,7 @@ import type {
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle, QuickJSWASMModule, VmCallResult } from "quickjs-emscripten-core";
 import { GUEST_MAX_STACK_BYTES, HOST_FN_DEADLINE_MS, PLUGIN_INVOCATION_CPU_MS, PLUGIN_INVOKE_ARGS_MAX_BYTES, PLUGIN_MEMORY_LIMIT_BYTES } from "./budgets.ts";
 import type { PluginNetEgress } from "./contract/net-egress.ts";
-import { installCpuGuard, openCpuWindow, pumpGuestJobs } from "./cpu-guard.ts";
+import { installCpuGuard, openCpuInvocation, openCpuWindow, pumpGuestJobs } from "./cpu-guard.ts";
 import type { GuestMarshal } from "./marshal.ts";
 import { createGuestMarshal } from "./marshal.ts";
 import type { InFlightCounter, MembraneRuntime } from "./membrane.ts";
@@ -593,48 +593,72 @@ export class Sandbox implements Disposable {
     //    admitted). The counter is per-INSTANCE and self-healing by construction (one release per acquisition);
     //    see `InFlightCounter` in membrane.ts for the full reasoning.
     // The DoS deadline reads a MONOTONIC real clock (performance.now), NOT the guest's injected seam: the
-    // interrupt must fire in real time regardless of a frozen test clock. It preempts guest BYTECODE only —
-    // host calls self-bound separately (membrane's attachAsync), and the whole invocation is bounded by the
-    // settlement race below (the interrupt cannot see a guest that has stopped executing). The handler itself
-    // is installed for the CONTEXT's lifetime (`cpu-guard.ts`); this only opens THIS invocation's window, so
-    // the post-invocation job pumps — which used to run guest bytecode with no handler at all — are
-    // bounded by the same mechanism instead of by nothing.
-    const closeCpuWindow = openCpuWindow(this.ctx);
+    // interrupt must fire in real time regardless of a frozen test clock. It preempts guest BYTECODE, and every host
+    // call checks it at entry (D346); the whole invocation is bounded by the settlement race below (the interrupt
+    // cannot see a guest that has stopped executing). The handler itself is installed for the CONTEXT's lifetime
+    // (`cpu-guard.ts`). This opens THIS invocation's CPU account: the synchronous run, every pump inside the
+    // invocation and the read of its result each spend it, and the await between them does not.
+    const closeInvocation = openCpuInvocation(this.ctx);
+    try {
+      const started = this.startGuest(produce);
+      if ("outcome" in started) {
+        return started.outcome;
+      }
+      const { handle, native } = started;
+      const settled = await this.raceSettlement(native);
+      if (settled === ENDED) {
+        return this.endInvocation(handle);
+      }
+      // Reading the settled value can run its getters and `toJSON`: guest code, so a span on the same account.
+      const closeSpan = openCpuWindow(this.ctx);
+      try {
+        return this.readSettled(handle, settled);
+      } finally {
+        closeSpan();
+      }
+    } finally {
+      // Unguarded on purpose — this touches no runtime, only the guard's own state, so a dead context is harmless.
+      closeInvocation();
+    }
+  }
+
+  // The invocation's synchronous run, under a span of its CPU account: the produce, the promise bridge and the first
+  // pump of its jobs. A synchronous throw is the outcome; otherwise the guest's promise and its host-side settlement.
+  private startGuest(
+    produce: () => ReturnType<QuickJSContext["evalCode"]>,
+  ): { readonly outcome: EvalOutcome } | { readonly handle: QuickJSHandle; readonly native: Promise<VmCallResult<QuickJSHandle>> } {
+    const closeSpan = openCpuWindow(this.ctx);
     try {
       const result = produce();
       if (result.error) {
         const error = readError(this.marshal, result.error);
         result.error.dispose();
-        return { ok: false, error, logs: this.log.drain() };
+        return { outcome: { ok: false, error, logs: this.log.drain() } };
       }
       const handle = this.take(result.value);
       const native = this.ctx.resolvePromise(handle);
       pumpGuestJobs(this.ctx);
-      const settled = await this.raceSettlement(native);
-      if (settled === ENDED) {
-        return this.endInvocation(handle);
-      }
-      this.drop(handle);
-
-      if (settled.error) {
-        const wrapped = this.take(settled.error);
-        const error = readError(this.marshal, settled.error);
-        this.drop(wrapped);
-        return { ok: false, error, logs: this.log.drain() };
-      }
-      const wrapped = this.take(settled.value);
-      const value = serializeGuest(this.marshal, settled.value);
-      this.drop(wrapped);
-      if (value === null) {
-        return { ok: false, error: { name: "Error", message: UNREADABLE_GUEST_VALUE }, logs: this.log.drain() };
-      }
-      return { ok: true, value, logs: this.log.drain() };
+      return { handle, native };
     } finally {
-      // Restore the enclosing window (`Infinity` at the top level) rather than removing the handler: the
-      // handler is the CONTEXT's, and a later pump reopens its own window off it. Unguarded on purpose — this
-      // touches no runtime, only the guard's own state, so a dead context is harmless here too.
-      closeCpuWindow();
+      closeSpan();
     }
+  }
+
+  private readSettled(handle: QuickJSHandle, settled: VmCallResult<QuickJSHandle>): EvalOutcome {
+    this.drop(handle);
+    if (settled.error) {
+      const wrapped = this.take(settled.error);
+      const error = readError(this.marshal, settled.error);
+      this.drop(wrapped);
+      return { ok: false, error, logs: this.log.drain() };
+    }
+    const wrapped = this.take(settled.value);
+    const value = serializeGuest(this.marshal, settled.value);
+    this.drop(wrapped);
+    if (value === null) {
+      return { ok: false, error: { name: "Error", message: UNREADABLE_GUEST_VALUE }, logs: this.log.drain() };
+    }
+    return { ok: true, value, logs: this.log.drain() };
   }
 
   /** Run guest source under the per-invocation budget (activation `main.js` / a snippet). Deadline / OOM / throw

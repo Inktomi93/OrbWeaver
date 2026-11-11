@@ -351,12 +351,15 @@ function pushDumpChildren(ctx: QuickJSContext, frame: DumpWalkFrame, frames: Dum
  *  is guaranteed. The root handle is caller-owned (left alone); every handle THIS opens is disposed here —
  *  including any still queued when it short-circuits. Returns `false` ⇒ the caller refuses (soft for a spec, a
  *  rejected guest promise for an arg). */
-function handleSafeToDump(ctx: QuickJSContext, rootH: QuickJSHandle): boolean {
+function handleSafeToDump(ctx: QuickJSContext, marshal: GuestMarshal, rootH: QuickJSHandle): boolean {
   let visited = 0;
   // Root frame is caller-owned (`owned:false`); every child handle `pushDumpChildren` opens is ours to dispose.
   const frames: DumpWalkFrame[] = [{ handle: rootH, depth: 1, owned: false }];
   try {
     while (frames.length > 0) {
+      // Each node's reads can run a guest getter or proxy trap, whose interrupt the binding drops; the window is
+      // asked again per node, so a walk over many such nodes ends at the window rather than after them all (D346).
+      marshal.stopPastWindow();
       const frame = frames.pop();
       if (frame === undefined) {
         break;
@@ -402,7 +405,7 @@ const PROMISE_ARGUMENT = "a promise; pass the value it settles to";
  *  Call it only inside a host function built by `marshal.newHostFunction`: a realm failure during the read (the
  *  CPU interrupt, the memory limit) throws {@link GuestCallFailure}, which that function hands back to the guest. */
 function tryDumpGuestValue(ctx: QuickJSContext, marshal: GuestMarshal, handle: QuickJSHandle): ArgRead {
-  if (!handleSafeToDump(ctx, handle)) {
+  if (!handleSafeToDump(ctx, marshal, handle)) {
     return { ok: false, reason: UNREADABLE_ARGUMENT };
   }
   const read = marshal.fromGuest(handle);
