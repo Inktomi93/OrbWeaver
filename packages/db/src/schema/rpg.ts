@@ -280,7 +280,7 @@ export const rpgSheets = sqliteTable(
 // the baseline regen (pre-launch squash) — no incremental migration, no compat read.
 
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
-// rpg_journal — the VARIANT-AWARE ARCHIVE (§2.5, ratification #1). Model entries stamp their producing
+// rpg_journal — the VARIANT-AWARE ARCHIVE (§2.5). Model entries stamp their producing
 // `variantId` (CASCADE — an entry whose swipe died is unreachable forever; keeping it is a leak, not
 // history); hand entries stamp NULL (every lineage — room truth). The READ projects the active lineage
 // (variantId IS NULL OR variant = the slot's selectedVariantId) — the derive-don't-stamp discipline, no
@@ -376,8 +376,8 @@ export const rpgTurnToolCalls = sqliteTable(
     // reached a verdict (including the quiet one). A TURN-level column and not a synthesized `calls` entry:
     // that array is "what the MODEL called, args verbatim" and a failed round has no call to report, so
     // fabricating one would put a tool call the model never made in front of the reader. This is the durable
-    // half of the fix — a provider throw used to leave nothing but a transient warn line, and the person whose
-    // state update went missing had no way to learn it happened.
+    // record: a provider throw otherwise leaves nothing but a transient warn line, and the person whose
+    // state update went missing would have no way to learn it happened.
     failure: text("failure"),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),
   },

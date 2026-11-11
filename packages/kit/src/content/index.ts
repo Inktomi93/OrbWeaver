@@ -227,9 +227,8 @@ const MAX_TAG_SCAN = 4096;
 // ~10⁷ char steps (tens of ms); unbounded, it is the whole turn squared. A keyed secret field four times
 // past the "model garbage" line is garbage either way — the question this constant answers is only how much
 // we are willing to PARSE before we conceal, never how much we are willing to emit.
-// ONE constant, read by BOTH planes (the tokenizer and the member stream scrubber). They previously carried
-// two independent 4096 literals whose comments claimed to "mirror" each other, which is exactly how they
-// came to disagree; the mirror is now structural.
+// ONE constant, read by BOTH planes (the tokenizer and the member stream scrubber). Two independent literals that
+// claim to "mirror" each other are how such bounds come to disagree.
 const MAX_HIDDEN_TAG_SCAN = 16_384;
 // The window a tag/attr identifier is matched inside (identifiers are short; the window bounds the regex).
 const IDENT_WINDOW = 64;
