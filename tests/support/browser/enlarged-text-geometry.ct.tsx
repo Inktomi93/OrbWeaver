@@ -10,6 +10,7 @@ import type {
   SurfaceDeclaredOverlayStory,
   SurfaceLeavingCoverStory,
   SurfaceSidewaysStory,
+  SurfaceTabStripStory,
   SurfaceVeilCoverStory,
 } from "./surface-design-fixtures.tsx";
 
@@ -121,6 +122,23 @@ test("the sideways finding names a scroller's own text when one unbreakable word
   expect(findings).toEqual([expect.stringMatching(/^div .* scrolls sideways by \d+, widened by its own text by \d+$/u)]);
   // The finding attributes the cause without carrying the text itself.
   expect(findings[0]).not.toContain(await scroller.evaluate((node) => node.firstChild?.textContent ?? ""));
+});
+
+const TAB_STRIP_STORY = "tests/support/browser/surface-design-fixtures/SurfaceTabStripStory";
+
+test("the probe passes a tab strip that scrolls in a wrapper holding the tablist alone", async ({ mount, page }) => {
+  await mount<typeof SurfaceTabStripStory>(TAB_STRIP_STORY, { wrapper: "strip" });
+  const scroller = page.locator('[data-planted="scroller"]');
+  await expect(page.getByRole("tablist", { name: "Planted views", exact: true })).toBeVisible();
+  // The control for the silence: the wrapper does scroll sideways.
+  expect(await scroller.evaluate((node) => node.scrollWidth > node.clientWidth)).toBe(true);
+  expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([]);
+});
+
+test("the probe still fails a wrapper that holds more than the tablist", async ({ mount, page }) => {
+  await mount<typeof SurfaceTabStripStory>(TAB_STRIP_STORY, { wrapper: "shared" });
+  await expect(page.getByRole("tablist", { name: "Planted views", exact: true })).toBeVisible();
+  expect(await enlargedTextFindings(page.getByRole("main"))).toEqual([expect.stringMatching(/^div .* scrolls sideways by \d+, widened by :scope > /u)]);
 });
 
 test("the probe reports no sideways finding for a scroller its content fits", async ({ mount, page }) => {

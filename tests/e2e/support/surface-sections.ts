@@ -25,6 +25,7 @@ import {
 import type { Locator, Request, Response } from "@playwright/test";
 import { expect } from "@playwright/test";
 import { CHARACTERS_SECTION_LABEL } from "#client/features/character/lib/characters-section-label.ts";
+import { chatTitleQualifiers } from "#client/features/chat/lib/chat-summary-row.ts";
 import { CHAT_ALL_CHARACTERS_NAME, CHAT_ALL_CHATS_NAME, CHAT_COMPOSER_NAME } from "#client/features/chat/lib/chat-surface-names.ts";
 import { CHATS_SECTION_LABEL } from "#client/features/chat/lib/chats-section-label.ts";
 import { homeAlsoOpenVisible } from "#client/features/chat/lib/home-also-open-visibility.ts";
@@ -618,12 +619,15 @@ async function homeChatDoors(journey: Journey, operations: readonly HomeOperatio
       await homeResume(journey, resume, hearth.id, id);
     });
   }
+  // Rooms that share a title carry the list's own qualifier in the row's name; the qualifier is a stamp the browser formats.
+  const qualifiers = chatTitleQualifiers(rest);
   for (const [index, room] of rest.entries()) {
     const tile = content(journey).locator(`[data-home-tile=${JSON.stringify(ALSO_OPEN_TILE_ID)}]`);
+    const title = deriveChatTitle(room.title, room.participantNames);
     const row = tile
       .getByRole("listitem")
       .nth(index)
-      .getByRole("button", { name: deriveChatTitle(room.title, room.participantNames), exact: true });
+      .getByRole("button", { name: qualifiers[index] === undefined ? title : namePattern(`${title}${NAME_HOLE}`), exact: true });
     if ((await row.count()) === 1) {
       await homeOperation(journey, operations, row, async (id) => {
         await homeResume(journey, row, room.id, id);
@@ -1080,7 +1084,7 @@ async function corpusMember(journey: Journey, mode: (typeof CORPUS_MODES)[number
       await row.getByRole("button").click();
     },
     ready: async () => {
-      await expect(statsBody.locator('[data-shell-identity="defer"]')).toHaveText(stats.name);
+      await expect(statsBody.getByRole("heading", { name: stats.name, exact: true })).toBeVisible();
     },
   });
   await walkScope(journey, statsBody, `corpus/insights/character/${subject.characterId}`);

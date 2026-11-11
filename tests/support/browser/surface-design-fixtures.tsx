@@ -14,6 +14,7 @@ import { RoomIsland } from "@orb/ui/room-island";
 import { ScrollArea } from "@orb/ui/scroll-area";
 import { Select } from "@orb/ui/select";
 import { Slider } from "@orb/ui/slider";
+import { Tabs, TabsList, TabsTab } from "@orb/ui/tabs";
 import { Text } from "@orb/ui/text";
 import { ThemePreviewPane } from "@orb/ui/theme-swatch";
 import { TOKENS } from "@orb/ui/tokens";
@@ -341,6 +342,33 @@ export function SurfaceSidewaysStory({ widened }: { readonly widened: "child" | 
             </div>
           </Stack>
         </div>
+      </main>
+    </CtIsolation>
+  );
+}
+
+const STRIP_TABS = ["Parameters", "Prompt", "Actions", "Data", "Transforms"] as const;
+
+/**
+ * A production tab strip wider than its scroll wrapper, the way an editor's view strip degrades to a scroll. `strip`: the wrapper holds
+ * the tablist alone. `shared`: the same wrapper also holds a wide block of its own, so it is a column, not a strip.
+ */
+export function SurfaceTabStripStory({ wrapper }: { readonly wrapper: "strip" | "shared" }): ReactElement {
+  return (
+    <CtIsolation subject="Enlarged-text tab strip" isolates="A production tab strip in a fixed-pixel wrapper needs no application services.">
+      <main>
+        <Tabs defaultValue={STRIP_TABS[0]}>
+          <div data-planted="scroller" style={{ inlineSize: SIDEWAYS_SCROLLER_PX, overflowX: "auto" }}>
+            <TabsList aria-label="Planted views">
+              {STRIP_TABS.map((tab) => (
+                <TabsTab key={tab} value={tab}>
+                  {tab}
+                </TabsTab>
+              ))}
+            </TabsList>
+            {wrapper === "shared" ? <div style={{ inlineSize: SIDEWAYS_CHILD_PX, blockSize: 1 }} /> : null}
+          </div>
+        </Tabs>
       </main>
     </CtIsolation>
   );

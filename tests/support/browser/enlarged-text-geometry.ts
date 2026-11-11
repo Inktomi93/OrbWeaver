@@ -15,9 +15,11 @@ const TRANSIENT_CHROME = '[data-slot="toast-root"], [data-slot="jump-to-latest"]
 // The boot veil lies over everything while it holds and dissolves after the app is ready, so a probe that runs under it reads the veil as every
 // control's cover. Its layout is not the resting one; the probes wait for it to leave.
 const BOOT_VEIL = '[data-slot="weave-veil"]';
-// A Base UI part that is animating out carries `data-ending-style` until it unmounts or rests closed: the backdrop of a dialog closed a
-// moment ago is portaled outside any scope and still takes the hit tests over it. The probes wait for every leaving part to go.
-const LEAVING_LAYER = "[data-ending-style]";
+/**
+ * A Base UI part that is animating out carries `data-ending-style` until it unmounts or rests closed: the backdrop of a dialog closed a
+ * moment ago is portaled outside any scope and still takes the hit tests over it. The probes wait for every leaving part to go.
+ */
+export const LEAVING_LAYER = "[data-ending-style]";
 // The text a control carries that the design truncates on purpose: a row's title and subtitle (the row's accessible name keeps the whole of
 // it) and a facet row's one-line preview. A control in a row's actions slot, or any other text in the row, is judged.
 const TRUNCATED_BY_DESIGN = [
@@ -27,7 +29,10 @@ const TRUNCATED_BY_DESIGN = [
   '[data-slot="member-name"]',
   '[data-slot="facet-preview"]',
 ].join(", ");
-const SIDEWAYS_STRIPS = 'input, textarea, [role="tablist"], [role="toolbar"], [data-slot="character-context-band"] > * > *, [data-sideways-strip]';
+// A tab strip that degrades to a scroll often scrolls in a wrapper, not on the tablist itself, so the list keeps its measured width and its
+// focus halo: a scroller whose one child is a tablist or toolbar is that strip.
+const SIDEWAYS_STRIPS =
+  'input, textarea, [role="tablist"], [role="toolbar"], :has(> [role="tablist"]:only-child), :has(> [role="toolbar"]:only-child), [data-slot="character-context-band"] > * > *, [data-sideways-strip]';
 
 interface ControlGeometry {
   readonly clipped: string[];

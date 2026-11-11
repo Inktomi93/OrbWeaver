@@ -36,6 +36,7 @@ import type { SerializedPerformanceEntry } from "./performance-entry.ts";
 import type {
   SurfaceCodeEditorStory,
   SurfaceDesignStory,
+  SurfaceLeavingCoverStory,
   SurfaceTextContainedOverlayStory,
   SurfaceTextDisclosureStory,
   SurfaceTextGeometryStory,
@@ -578,6 +579,25 @@ test("enlarged-text geometry judges a disclosure's controls once its panel has g
   });
   expect(await nativeAttachmentText(info, `${name}-text-geometry`)).toContain('"settlingAtReadiness": true');
   expect(info.errors).toEqual([]);
+});
+
+test("enlarged-text geometry waits out a closed dialog's backdrop that is still leaving over the scope", async ({ mount, page, browserName }, info) => {
+  test.skip(browserName !== "chromium", "Only Chromium exposes the browser's default font size; WebKit has no text-size door");
+  await using profile = await setPlatformTextSize(page, ENLARGED_TEXT_SCALE);
+  await page.addInitScript({ content: webVitalsInitScript(await webVitalsSource()) });
+  await mount<typeof SurfaceLeavingCoverStory>("tests/support/browser/surface-design-fixtures/SurfaceLeavingCoverStory", { cover: "leaving" });
+  await page.getByRole("alertdialog").getByRole("button", { name: "Confirm", exact: true }).click();
+  // The closed dialog's backdrop is still mounted and leaving when the checkpoint starts.
+  await expect(page.locator('[data-slot="alert-dialog-backdrop"][data-ending-style]')).toHaveCount(1);
+  const witness = page.getByRole("button", { name: "Restore", exact: true });
+  const name = "text-geometry-leaving-backdrop";
+  await surfaceCheckpoint(info, { name, scope: page.getByRole("main"), state: "loaded", witnesses: [witness], checks: ["names"] }, [], {
+    pass: "measurement",
+    layoutStability: false,
+    textGeometry: { expectedRootFontPx: profile.standardFontPx },
+  });
+  expect(info.errors).toEqual([]);
+  expect(await nativeAttachmentText(info, `${name}-text-geometry`)).toContain('"leavingAtReadiness": true');
 });
 
 test("enlarged-text geometry still names a visible button a fixed box clips, and not a slider's visually hidden input", async ({

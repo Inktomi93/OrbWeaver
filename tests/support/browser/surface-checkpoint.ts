@@ -7,7 +7,7 @@ import { attachNativeFile } from "../node/native-attachments.ts";
 import type { SurfaceAuditRequest } from "../node/surface-audit.ts";
 import { accessibilityEvidence } from "./accessibility-scan.ts";
 import { actionGroupGeometry } from "./action-group-geometry.ts";
-import { enlargedTextGeometry } from "./enlarged-text-geometry.ts";
+import { enlargedTextGeometry, LEAVING_LAYER } from "./enlarged-text-geometry.ts";
 import { readCheckpointStability } from "./layout-stability.ts";
 import { assertSurfaceReady, auditSurface } from "./settle-surface.ts";
 import { readSurfaceCohortRenders, readSurfaceDesignAudit } from "./surface-design-audit.ts";
@@ -203,9 +203,15 @@ async function checkpointTextGeometry(
     );
   const settlingAtReadiness = await settling();
   await expect.poll(settling, { message: `${request.name}: the scope's finite animations must end before its geometry is read` }).toBe(false);
+  // A layer outside the scope that is still leaving, such as a closed dialog's backdrop, is waited out by the probe; record whether one was.
+  const leavingAtReadiness = (await page.locator(LEAVING_LAYER).count()) > 0;
   const { findings, declaredOverlays } = await enlargedTextGeometry(request.scope);
   await attachNativeFile(info, step, `${request.name}-text-geometry`, {
-    body: JSON.stringify({ rootFontPx, shellRegime, swapAtReadiness, settlingAtReadiness, viewport: page.viewportSize(), findings, declaredOverlays }, null, 2),
+    body: JSON.stringify(
+      { rootFontPx, shellRegime, swapAtReadiness, settlingAtReadiness, leavingAtReadiness, viewport: page.viewportSize(), findings, declaredOverlays },
+      null,
+      2,
+    ),
     contentType: "application/json",
   });
   step.annotations.push({
