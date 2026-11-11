@@ -25,6 +25,7 @@
 // Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type { CharacterId, CharacterSnapshotId, RefinerySessionId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { jsonObjectSchema } from "@orb/kit/json";
 import { z } from "zod";
 import type { CharacterCard, CharacterDetail } from "#character";
 import { characterCardViewSchema, characterDetailSchema } from "#character";
@@ -304,7 +305,7 @@ export const refineryCustomRunConfigSchema = z
     kind: z.literal("custom"),
     schemaId: typeIdSchema(ID_PREFIX.refinerySchema),
     schemaVersion: z.int().min(1),
-    schema: z.record(z.string(), z.unknown()),
+    schema: jsonObjectSchema,
   })
   .strip();
 export type RefineryCustomRunConfig = z.infer<typeof refineryCustomRunConfigSchema>;
@@ -581,7 +582,7 @@ const refineryRunBaseSchema = z.strictObject({
 /** A custom run's payload on the wire: shape-valid against its EMBEDDED schema at write AND at the read
  *  seam — the wire type is the honest "an object of the run's own schema" (the client renders it through
  *  the render plan derived from that same embed, never through the fixed contracts). */
-const customPayloadSchema = z.record(z.string(), z.unknown());
+const customPayloadSchema = jsonObjectSchema;
 
 /** One append-only pipeline run. A plain union (not `z.discriminatedUnion`): score/analyze each carry TWO
  *  arms per stage literal (fixed + custom), which a single-key discriminator cannot spell. Narrow by

@@ -31,6 +31,7 @@ import {
   schemaForgeResultSchema,
 } from "@orb/contracts/refinery";
 import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
+import { jsonObjectSchema } from "@orb/kit/json";
 import { strictTwin } from "@orb/kit/zod-schema";
 import { z } from "zod";
 import { authedProcedure, t } from "../trpc.ts";
@@ -48,7 +49,7 @@ const acceptedFieldSchema = z.strictObject({
 
 /** The raw schema blob — belt-parsed at the VERB (`refinerySchemaDocumentSchema`), so the wire stays a
  *  plain record here (the double parse is the §3.A posture and it is cheap). */
-const rawSchemaSchema = z.record(z.string(), z.unknown());
+const rawSchemaSchema = jsonObjectSchema;
 
 export const refineryRouter = t.router({
   startSession: authedProcedure

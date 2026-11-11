@@ -37,6 +37,7 @@ import {
 import type { Db } from "@orb/db";
 import { assets, characters, refineryRuns, refinerySchemas, refinerySessions } from "@orb/db";
 import type { RefineryRunId, RefinerySchemaId, RefinerySessionId, UserId } from "@orb/kit/ids";
+import { jsonObjectSchema } from "@orb/kit/json";
 import { liftJsonSchema } from "@orb/kit/json-schema";
 import { and, asc, desc, eq, inArray, lt, lte, ne, notExists, or, sql } from "drizzle-orm";
 import { alias } from "drizzle-orm/sqlite-core";
@@ -226,10 +227,7 @@ const originalCardSourceParser = z
   .array(z.string())
   .nullable()
   .catch(() => healedOriginalCard("source"));
-const originalCardRecordParser = z
-  .record(z.string(), z.unknown())
-  .nullable()
-  .catch(() => healedOriginalCard("record"));
+const originalCardRecordParser = jsonObjectSchema.nullable().catch(() => healedOriginalCard("record"));
 const originalCardSignalsParser = refinerySignalsSchema
   .extend({
     score: refinerySignalsSchema.shape.score.catch(() => healedOriginalCard("refinery.score")),
@@ -337,7 +335,7 @@ function customRunViewOf(
   } catch {
     return healedRun(stage);
   }
-  const payload = lifted.safeParse(rawPayload);
+  const payload = lifted.pipe(jsonObjectSchema).safeParse(rawPayload);
   if (!payload.success) {
     return healedRun(stage);
   }

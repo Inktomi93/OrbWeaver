@@ -2,7 +2,7 @@
 // the honest carrier of the purged crew director's think-first pass). Three planes live here, each with its enforcer:
 //
 //   • the STORED STATE (`automation_rule_state.state`, parse-on-read). Its shape and version posture live in
-//     `@orb/contracts/automation` (`analysisStateSchema`), which the column also imports. A reset watermark is
+//     `@orb/contracts/automation` (`analysisStateSchema`), whose `AnalysisState` types the column. A reset watermark is
 //     the SAFE direction (0 = re-cover the span, duplicating work but never skipping one). SIZE is enforced
 //     here as a CLAMP ON READ, never a schema refusal: the reader parses the row and truncates arc/banks/strings
 //     to the caps the live write paths already hold.

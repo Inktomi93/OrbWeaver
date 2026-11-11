@@ -21,7 +21,8 @@ import type {
   WorldEntryId,
 } from "@orb/kit/ids";
 import { ID_PREFIX, sandboxWireIdSchema, typeIdSchema } from "@orb/kit/ids";
-import { jsonValueSchema } from "@orb/kit/json";
+import type { JsonObject } from "@orb/kit/json";
+import { jsonObjectSchema, jsonValueSchema } from "@orb/kit/json";
 import { MESSAGE_ROLES } from "@orb/kit/message-role";
 import type { IanaTimeZone } from "@orb/kit/time";
 import { reportedTimeZoneSchema, UTC_TIME_ZONE } from "@orb/kit/time";
@@ -1323,7 +1324,7 @@ export interface FireView {
   readonly chatId: ChatId | null;
   readonly triggerType: string;
   readonly outcome: AutomationFireOutcome;
-  readonly detail: Record<string, unknown> | null;
+  readonly detail: JsonObject | null;
   readonly firedAt: number;
 }
 
@@ -1380,7 +1381,7 @@ export const fireViewSchema = z.strictObject({
   chatId: typeIdSchema(ID_PREFIX.chat).nullable(),
   triggerType: z.string(),
   outcome: automationFireOutcomeSchema,
-  detail: z.record(z.string(), z.unknown()).nullable(),
+  detail: jsonObjectSchema.nullable(),
   firedAt: z.number(),
 }) satisfies z.ZodType<FireView>;
 

@@ -1504,11 +1504,11 @@ const SERVER_AUTHORITY = [
   {
     name: "domain-no-host-io",
     comment:
-      "A domain holds business logic; filesystem, network and process I/O is an infra/ adapter (Core-0-Architecture-and-Structure.md §3). A type from a host module stays legal.",
+      "A domain holds business logic; filesystem, network, process and host I/O is an infra/ adapter, and env or host facts come from foundation/ (Core-0-Architecture-and-Structure.md §3). `module` and `vm` load code past the static graph. A type from a host module stays legal.",
     severity: "error",
     from: { path: `${SRV}domain/` },
     to: {
-      path: "^(node:)?(fs|fs/promises|net|http|https|http2|child_process|dgram|dns|dns/promises|tls|cluster|worker_threads|readline)$",
+      path: "^(node:)?(fs|fs/promises|net|http|https|http2|child_process|dgram|dns|dns/promises|tls|cluster|worker_threads|readline|readline/promises|module|vm|os|process|inspector|inspector/promises|sqlite)$",
       dependencyTypesNot: ["type-only"],
     },
   },

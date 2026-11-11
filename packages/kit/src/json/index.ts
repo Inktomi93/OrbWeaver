@@ -15,6 +15,13 @@ export type JsonValue = string | number | boolean | null | JsonValue[] | { [key:
  *  `util.JSONType` is structurally the same shape under a name nothing else in the cake speaks. */
 export const jsonValueSchema: z.ZodType<JsonValue> = z.json();
 
+/** A JSON object: string keys to {@link JsonValue}s. The type for a stored or passed-through blob whose keys are
+ *  free but whose values must survive `JSON.stringify` unchanged. */
+export type JsonObject = Record<string, JsonValue>;
+
+/** The runtime gate for {@link JsonObject}. */
+export const jsonObjectSchema: z.ZodType<JsonObject, Record<string, unknown>> = z.record(z.string(), jsonValueSchema);
+
 /** The value `text` holds as JSON, or `undefined` when it is not JSON text; no JSON text decodes to
  *  `undefined`. Callers narrow the `unknown` result with a schema or a guard.
  *  @throws anything `JSON.parse` throws other than its `SyntaxError`, which only a defect can cause. */

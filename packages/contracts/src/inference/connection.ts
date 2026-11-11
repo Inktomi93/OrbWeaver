@@ -6,8 +6,7 @@
 // Strip mode: these schemas also read stored rows, which can carry keys this release does not declare; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 import type { ModelId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
-import type { JsonValue } from "@orb/kit/json";
-import { jsonValueSchema } from "@orb/kit/json";
+import { jsonObjectSchema } from "@orb/kit/json";
 import { nextFreeLabel } from "@orb/kit/strings";
 import { z } from "zod";
 import { chatApiSchema } from "./apis.ts";
@@ -38,7 +37,7 @@ const responseMapSchema = z
 export const connectionTransportSchema = z
   .object({
     headers: z.record(z.string(), z.string()).optional(),
-    includeBody: z.record(z.string(), jsonValueSchema).optional(),
+    includeBody: jsonObjectSchema.optional(),
     excludeBody: z.array(z.string()).optional(),
     responseMap: responseMapSchema.optional(),
   })
@@ -47,7 +46,7 @@ export type ConnectionTransportDoc = z.infer<typeof connectionTransportSchema>;
 
 /** `extras` — the connection's extra BODY fields (today's preset `customParameters`, re-homed where the
  *  quirk lives, §8.1c). Open by definition; its ratchet is the belt denylist applied on write AND read. */
-export const connectionExtrasSchema: z.ZodType<Record<string, JsonValue>> = z.record(z.string(), jsonValueSchema);
+export const connectionExtrasSchema = jsonObjectSchema;
 export type ConnectionExtrasDoc = z.infer<typeof connectionExtrasSchema>;
 
 /** `"auto"` ⇒ the provider's first api; anything else must be ∈ `PROVIDER.apis` (validated at the domain). */

@@ -2,7 +2,7 @@
 // testRun provenance. The rule-lifecycle slice writes the `test_run` row (from `testRule`) and reads the log
 // (`listFires`); the dispatch terminals (fired/predicate_*/budget_refused/…) are the engine's writes through
 // the same `insertFire`. Autonomous arms first write the storage-only `reserved` state; every ordinary read
-// filters it before projection. `detail` is open JSON, read-seam parsed onto the view.
+// filters it before projection. `detail` is any JSON object (`FireView["detail"]`).
 
 import type { AutomationFireOutcome, FireView } from "@orb/contracts/automation";
 import { AUTOMATION_CHAT_MAX_FIRES_PER_HOUR, AUTOMATION_OWNER_BUDGET_DEFAULTS } from "@orb/contracts/automation";
@@ -25,7 +25,7 @@ interface FireInsert {
   readonly chatId: ChatId | null;
   readonly triggerType: string;
   readonly outcome: AutomationFireOutcome;
-  readonly detail: Record<string, unknown> | null;
+  readonly detail: FireView["detail"];
   readonly automationDepth: number;
   readonly firedAt: number;
 }
@@ -154,7 +154,7 @@ function finalizeReservedFireStatement(
   db: Db,
   fireId: AutomationFireId,
   outcome: AutomationFireOutcome,
-  detail: Record<string, unknown> | null,
+  detail: FireView["detail"],
 ): AwaitableBatchStmt<{ id: AutomationFireId }[]> {
   return db
     .update(automationFires)
@@ -168,7 +168,7 @@ export async function finalizeReservedFire(
   db: Db,
   fireId: AutomationFireId,
   outcome: Exclude<AutomationFireOutcome, "fired">,
-  detail: Record<string, unknown> | null,
+  detail: FireView["detail"],
 ): Promise<void> {
   const rows = await finalizeReservedFireStatement(db, fireId, outcome, detail);
   if (rows.length !== 1) {

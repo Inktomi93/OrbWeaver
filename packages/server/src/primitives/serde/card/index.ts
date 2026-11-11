@@ -39,6 +39,8 @@ import { canonicalBackgroundSource } from "@orb/contracts/theme";
 import type { BulkImportLorebookInput, BulkImportLoreEntryInput } from "@orb/contracts/world-info";
 import { isPlainObject } from "@orb/kit/guards";
 import type { CharacterHandle } from "@orb/kit/ids";
+import type { JsonObject } from "@orb/kit/json";
+import { jsonObjectSchema } from "@orb/kit/json";
 import { messageRoleFromSt, messageRoleToSt } from "@orb/kit/message-role";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { inertActivationFields, resolveEntryInjection, resolveEntryKeyMode, resolveEntryScope } from "@orb/kit/world-info";
@@ -193,13 +195,19 @@ function parseRegexScripts(data: RawCard): RegexScriptCard[] {
 
 /** `data.extensions` MINUS the fields promoted to typed columns (`depth_prompt`, `regex_scripts`, `fav`) —
  *  only genuinely-unknown vendor extras. Null when nothing is left (the §7.3 lossiness fix: no `raw` blob). */
-function residualExtensions(data: RawCard): Record<string, unknown> | null {
+function residualExtensions(data: RawCard): JsonObject | null {
   const ext = data.extensions;
   if (ext === undefined || ext === null || typeof ext !== "object" || Array.isArray(ext)) {
     return null;
   }
   const { depth_prompt: _dp, regex_scripts: _rs, fav: _fav, ...rest } = ext;
-  return Object.keys(rest).length > 0 ? rest : null;
+  return Object.keys(rest).length > 0 ? residualObject(rest) : null;
+}
+
+// The card arrived as JSON text (`parseJsonText` in the import substrate is the only caller of `cardFromJson`), so
+// every residual value is already JSON and this parse only states it in the type.
+function residualObject(rest: Record<string, unknown>): JsonObject {
+  return jsonObjectSchema.parse(rest);
 }
 
 // Every field with a typed home on `CharacterCard`/`ExportCardFields` — MINUS from the top-level `data.*`
@@ -251,14 +259,14 @@ const PROMOTED_DATA_KEYS = new Set([
  *  what remains here is genuinely-unknown vendor residue PLUS the column-less V3 fields kept verbatim
  *  (`assets` pending its lane; `creator_notes_multilingual`; `group_only_greetings` folds into the
  *  `greetings` array). Null when nothing is left. */
-function residualData(data: RawCard): Record<string, unknown> | null {
+function residualData(data: RawCard): JsonObject | null {
   const rest: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(data as Record<string, unknown>)) {
     if (!PROMOTED_DATA_KEYS.has(key)) {
       rest[key] = value;
     }
   }
-  return Object.keys(rest).length > 0 ? rest : null;
+  return Object.keys(rest).length > 0 ? residualObject(rest) : null;
 }
 
 // ST stamps this placeholder in `creator_notes`; strip it so it doesn't ride into the canonical card.

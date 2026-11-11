@@ -4,11 +4,13 @@
 // @subject packages/db/src/migrations/meta/_journal.json
 // @subject packages/db/src/schema/index.ts
 
+import { users as usersTable } from "@orb/db";
 import { expect, test } from "@orb/testkit/node";
 import type { SchemaSnapshot } from "@orb/testkit/node/composed";
 import { latestSchemaSnapshot, schemaStatementsSince } from "@orb/testkit/node/composed";
+import { getTableName } from "drizzle-orm";
 
-const USERS_TABLE = "users";
+const USERS_TABLE = getTableName(usersTable);
 
 /** The newest snapshot with one `users` column taken out: the live schema then carries a column no migration made. */
 function withoutOneUsersColumn(snapshot: SchemaSnapshot): { readonly snapshot: SchemaSnapshot; readonly column: string } {
