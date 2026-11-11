@@ -21,9 +21,12 @@ Work through this list for every new or changed test. Each step links to the sec
 11. Seed and read through production verbs. Write or read a row directly only under `tests/db/` or a `persistence/` directory. A state the product cannot produce needs a [sanctioned home](#sanctioned-historic-states).
 12. Give every refusal its reason and every absence a positive control in the same case ([what is enforced](#what-is-enforced)).
 13. Own each database, root, reply plan and temp directory with `using`, in the order [the entry points](#use-the-maintained-entry-points) show.
-14. Prove the test red against a real production defect, for the intended reason, before trusting its green.
-15. Add no production export, testkit door or harness option only to serve a test. Report the gap instead.
-16. Report as [Run and report](#run-and-report) says.
+14. Prove the test red against a real production defect, for the intended reason, before trusting its green. Prove each positive control red the same way.
+15. Assert the outcome itself. Two production reads that agree prove nothing when both can be wrong together.
+16. Make a case table over a closed union exhaustive by type, so a member with no case fails `tsc`.
+17. Time a case that starts a real guest or a subprocess alone. Give it the `slow` tag from `tooling/src/floor/testing/test-tags.ts` when its runtime is proven; a case near its budget times out under load.
+18. Add no production export, testkit door or harness option only to serve a test. Report the gap instead.
+19. Report as [Run and report](#run-and-report) says.
 
 ## Choose the behavior and layer
 

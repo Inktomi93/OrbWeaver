@@ -105,7 +105,7 @@ The `docs` MCP server indexes the catalog's current documentation (Node, TypeScr
 
 - Run named Node tests with `pnpm test <paths>` and CTs with `pnpm test:ct <paths>`.
 - Use a named pnpm script, else `pnpm exec <tool>`. `npx` and a bare `node tooling/src/...` lose the heap floor.
-- Run `pnpm lint:eslint <files>` for affected ESLint files.
+- Run `pnpm lint:eslint` on every file in `git diff --name-only main...HEAD`. Report the file count beside the exit code.
 - Run a whole-tree ESLint on the local box with `pnpm lint:eslint:box`. It splits the tree into sequential processes with worker threads and a larger heap. CI and pre-push keep `pnpm lint:eslint`.
 - Run scoped Biome as `pnpm exec biome check <paths> --diagnostic-level=error`. A scoped `--write` is fine.
 - Pass a worker flag only to go below the values in `tooling/concurrency-profile.json`.

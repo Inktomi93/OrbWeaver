@@ -158,7 +158,8 @@ The `lane` skill carries the standing lane rules. Restate only the deltas.
 - Call work done after its applicable checks. CI is the verdict (D317). Use the native pre-push checks when the owner pushes; run affected runtime checks before that ("The barrier").
 - Use fresh-context review for substantive code changes. Review routine prose and configuration edits directly; add independent review for a concrete correctness or security risk.
 - Run `code-reviewer` over the biggest coherent chunk: a merge train or a whole plan step, never one lane or one item. Hold finished lanes for that pass.
-- Always review server logic, data, migrations and security changes.
+- Always review server logic, data, migrations and security changes. A fresh `security-builder` in review mode reviews a security change.
+- A lane that disputes a review finding does not settle it. Send the dispute back to a reviewer with the probe.
 - Review a fix batch once when it shows red-then-green tests and a passing typecheck.
 - Skip review for docs and mechanical edits that pass the floor.
 - Run `ux-reviewer` after code review is clean, so it measures code that will not change.
@@ -203,7 +204,7 @@ Run these from main. Every id list takes many ids; never loop one id per call. E
 - A landing refuses while a doc cites the item. Fix the citer first.
 - `--commit` also commits every other uncommitted change under `docs/work/`, plus generated indexes.
 - `--commit` refuses during a merge, with a staged landing, or with an uncommitted doc outside `docs/work/`. Commit that first.
-- `set --title` cannot take `--commit`, because a retitle rewrites files outside the docs.
+- `set --title` cannot take `--commit`, because a retitle rewrites files outside the docs. Commit the old path and the new path in one commit; split across two, the doc check reads two items with one id.
 
 Spend one commit per batch:
 
@@ -219,9 +220,10 @@ Scoped lane green does not prove the combined tree, including a fast-forward wit
 1. Read lane results. Reuse completed checks only while their files, dependencies, scope and execution population still match.
 2. Run `scripts/commit-msg-check.sh --range main..<branch>` for each branch. Reword a refused commit on the branch.
 3. Record the starting HEAD before integration. Check that no whole-tree check is reading the checkout.
-4. Merge the frozen batch. Confirm HEAD moved and review conflict resolutions and shared composition changes.
-5. Commit integration changes, then record the ending HEAD. Keep the tested checkout clean.
-6. Leave whole-tree evidence to pre-push and CI. Run no combined check after a train (D317).
+4. Merge the frozen batch with `git merge --no-ff --no-commit`. Review conflict resolutions and shared composition changes.
+5. Before the commit, run the branch's changed tests and `pnpm lint:eslint` on every file the merge changes, on the combined tree. Read each exit code before you commit; never chain the commit behind a check.
+6. Commit integration changes, confirm HEAD moved, then record the ending HEAD. Keep the tested checkout clean.
+7. Leave whole-tree evidence to pre-push and CI. Run no whole-tree check after a train (D317).
 
 - Freeze the batch before the barrier. A merge or edit changes the tested tree and invalidates affected evidence.
 - A merge that combines shared-interface edits needs typechecking. Pre-push covers it; run a separate typecheck only for earlier feedback.
