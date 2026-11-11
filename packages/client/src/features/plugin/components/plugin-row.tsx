@@ -252,7 +252,6 @@ export function PluginRow({ plugin, onApproved }: PluginRowProps): ReactElement 
                   // The server's settled row says whether it started; a failed start shows its own error line.
                   onSuccess: (view): void => {
                     if (view.status === "enabled") {
-                      notify.success(`${plugin.name} is on.`);
                       onApproved?.();
                     }
                   },
