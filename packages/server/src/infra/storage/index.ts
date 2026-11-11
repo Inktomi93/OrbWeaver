@@ -12,6 +12,7 @@ export { writeImportReportFile } from "./report.ts";
 export { stageDirectory } from "./stage-dir.ts";
 export type { StagedFile } from "./staged-manifest.ts";
 export { openVerifiedArchive, readStagedManifest, stagedFileOf, writeStagedManifest } from "./staged-manifest.ts";
+export { listStagedEntries, removeContained, resolveStagedPath } from "./staged-paths.ts";
 export { createUserRuntimeDirs } from "./user-runtime-dir.ts";
 export { createVariantCache } from "./variant-cache.ts";
 export { extractZip, packZip, ZIP_STAGING_PREFIX } from "./zip.ts";

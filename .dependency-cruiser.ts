@@ -1502,6 +1502,17 @@ const SERVER_AUTHORITY = [
     to: { path: "^(node:)?(fs|fs/promises|os|process|child_process|module)$", reachable: true },
   },
   {
+    name: "domain-no-host-io",
+    comment:
+      "A domain holds business logic; filesystem, network and process I/O is an infra/ adapter (Core-0-Architecture-and-Structure.md §3). A type from a host module stays legal.",
+    severity: "error",
+    from: { path: `${SRV}domain/` },
+    to: {
+      path: "^(node:)?(fs|fs/promises|net|http|https|http2|child_process|dgram|dns|dns/promises|tls|cluster|worker_threads|readline)$",
+      dependencyTypesNot: ["type-only"],
+    },
+  },
+  {
     name: "infra-no-db",
     comment: "Adapters receive database operations by injection rather than acquiring query authority.",
     severity: "error",
