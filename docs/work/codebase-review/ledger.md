@@ -213,7 +213,7 @@ Review before anything that trusts these results.
 | tooling-floor | tooling/src/floor/ | M | reviewed (4) |
 | tooling-configs | tooling/src/biome-config/, tooling/src/stack/ | S | reviewed (5) |
 | tooling-unwired | tooling/src/unwired/ | M | reviewed (2) |
-| tooling-codemods | tooling/src/codemods/ | M | queued |
+| tooling-codemods | tooling/src/codemods/ | M | reviewed (3) |
 | tooling-doc | tooling/src/doc/ — carry the agent-sync remnants in `doc/ops/check.ts:3-5` (dead caller, dead `pnpm check:agents` refusal message) and `doc/index.ts:3`, already counted in `units/tooling-floor.md` F1; do not re-file | S | queued |
 | tooling-ui-facts | tooling/src/ui-facts/ | S | queued |
 
@@ -331,7 +331,7 @@ Triage fills this.
 | - | - | - | - |
 | P1 | 1 | 0 | root-ci |
 | P2 | 18 | 0 | root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, kit, contracts, tooling-floor, tooling-configs |
-| P3 | 29 | 16 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, root-docs, kit, contracts, db, tooling-floor, tooling-configs, tooling-unwired |
+| P3 | 32 | 17 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, root-docs, kit, contracts, db, tooling-floor, tooling-configs, tooling-unwired, tooling-codemods |
 
 Standing hunt for every unit: comments citing `tests/legacy` paths — the D333 retirement moved
 those suites and never re-pointed the prose, and the citation gate
@@ -413,3 +413,14 @@ one-step drift (a world list that claims to equal typecheck's set while typechec
 world; a half-adopted verb word), and it ships the sweep's second ledger-facing generate-and-diff
 door (`ruled-ops.test.ts` parses ADR 0337's table against the rulings tuple) — the enum-tuples
 habit reaching the decision record, which is the triage item's exact direction.
+
+The tooling-codemods unit found the dead door in its mildest form and one new blind spot worth
+the triage item: 45/45 fixture suites are genuinely green (hand-ran the full matrix, language
+per fixture extension) but no script, hook or workflow ever runs `codemod jssg test` — knip's own
+comment names a runner no door invokes. `codemod workflow validate` checks structure, not
+identity: `vars-to-infer-input/codemod.yaml` shipped trpc-error-code's name and description
+through the green door (re-pointed in-unit). And the skill's delete-after-apply law is obeyed
+selectively — three codemod dirs deleted in git history while eight applied one-shots with
+extinct pre-shapes sit uncited. The integrity item now covers a third artifact class: generated
+or planned data files (census maps, plan snapshots) committed without a consumer, which the
+codemod skill itself bans ("keep the map out of the commit").

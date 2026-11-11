@@ -1,7 +1,7 @@
 schema_version: "1.0"
-name: "trpc-error-code"
+name: "vars-to-infer-input"
 version: "0.1.0"
-description: "Replace the hand cast of a tRPC error's data.code with the trpcErrorCode helper from #lib."
+description: "Rewrite a plan-listed createEntityMutation input type argument to inferInput, with an assert mode that proves each site by typecheck first."
 author: "Orbweaver"
 license: "AGPL-3.0-only"
 targets:
