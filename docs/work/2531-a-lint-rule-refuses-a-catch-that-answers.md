@@ -5,7 +5,7 @@ updated: 2026-11-11
 priority: P2
 area: tooling
 lane: wt/agent-a672cae2c753c5fe3
-plan: test-enforcement
+plan: checked-law
 ---
 
 # A lint rule refuses a catch that answers null or nothing for every error in server source

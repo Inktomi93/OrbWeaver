@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-11
 priority: P3
 area: tooling
-plan: test-enforcement
+plan: checked-law
 ---
 
 # Catches that ignore the error and answer a modeled value hide faults the same way a null does
