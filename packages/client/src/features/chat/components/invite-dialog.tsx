@@ -105,7 +105,7 @@ function InviteMintForm({ chatId, onOpenSharing }: { readonly chatId: ChatId; re
     setHandleError(null);
     setSignupError(null);
     setMintedLink(null);
-    const input = toCreateInviteInput(values, performance.timeOrigin + performance.now());
+    const input = toCreateInviteInput(values, timeLib.now());
     try {
       // Read before the mint: the token shows once, so a link must never be built on a share state that failed to load.
       const share = values.mode === "link" ? await fetchLiveShare() : null;

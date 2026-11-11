@@ -9,6 +9,7 @@ import type { ModelId } from "@orb/kit/ids";
 import type { ScheduleOp } from "@orb/kit/time";
 import type { ProviderErrorInit } from "#src/contract/errors.ts";
 import { ProviderError } from "#src/contract/errors.ts";
+import type { WorkerModelCache } from "#src/contract/local-light.ts";
 import type {
   LocalLightHostMessage,
   LocalLightWorkerCall,
@@ -18,7 +19,6 @@ import type {
   LocalLightWorkerValue,
 } from "#src/contract/local-light-worker.ts";
 import type { InferenceLog } from "#src/deps.ts";
-import type { WorkerModelCache } from "../../contract/local-light.ts";
 
 // How long `close` waits for the worker to exit: one embed or rerank run returns well inside it. A model load
 // in progress can outlast it; the process exit then tears the worker down mid-run and aborts (exit 134).
@@ -294,4 +294,4 @@ export function createWorkerModelCache(config: WorkerModelCacheConfig): WorkerMo
   };
 }
 
-export type { WorkerModelCache } from "../../contract/local-light.ts";
+export type { WorkerModelCache } from "#src/contract/local-light.ts";

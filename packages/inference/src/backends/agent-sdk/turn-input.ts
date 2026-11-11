@@ -11,7 +11,7 @@
 import { mintToolCallId } from "@orb/contracts/chat";
 import type { AgentSdkChatRequest, AgentSeedBlock, AgentSeedTurn, AgentToolServer, ChatHistoryMessage, ChatToolOffer, ChatTurnInput } from "#contract";
 import { AGENT_CONTINUATION_PROMPT_STUB, AGENT_PROMPT_TAIL_JOINER, deltaSubscriptionOf } from "#contract";
-import type { AgentToolSpec } from "../../contract/agent-sdk-backend.ts";
+import type { AgentToolSpec } from "#src/contract/agent-sdk-backend.ts";
 import { createAgentToolServer } from "./index.ts";
 import { MCP_NAMESPACE, MCP_SERVER_VERSION } from "./translate.ts";
 

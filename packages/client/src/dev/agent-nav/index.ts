@@ -21,6 +21,8 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { Trpc } from "#data";
 import type { ContributorRegistry } from "#lib";
 import { CORPUS_MODES, deriveChatTitle, isCorpusMode } from "#lib";
+import type { NavResult, OrbNavCapabilities, OrbNavHandle } from "#src/lib/agent-bridge.ts";
+import { markAgentNavigation } from "#src/lib/motion-stats.ts";
 import type { ConfigGroupId, ConfigSectionContribution, ModalSlotId, SectionId } from "#state";
 import {
   activeChatId,
@@ -37,8 +39,6 @@ import {
   setActiveSection,
   setCorpusMode,
 } from "#state";
-import type { NavResult, OrbNavCapabilities, OrbNavHandle } from "../../lib/agent-bridge.ts";
-import { markAgentNavigation } from "../../lib/motion-stats.ts";
 import { resolvePanelRequest } from "./panel-request.ts";
 import { resolveConfigTarget } from "./resolve-config-target.ts";
 import { resolveContextTab } from "./resolve-context-tab.ts";

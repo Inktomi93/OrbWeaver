@@ -42,8 +42,8 @@ import type { ImageDetail, ResolvedWarning } from "@orb/contracts/inference";
 import { DEFAULT_SAMPLER_KEYS, isBeltOwnedBodyKey } from "@orb/contracts/inference";
 import { deepMergeRequestBody } from "@orb/kit/custom-parameters";
 
-import type { ShapeArgs } from "../../contract/openai-backend.ts";
-import type { OutboundMedia, WirePlan } from "../../contract/v4.ts";
+import type { ShapeArgs } from "#src/contract/openai-backend.ts";
+import type { OutboundMedia, WirePlan } from "#src/contract/v4.ts";
 import { applyIncludeExclude } from "../wire/openai-body.ts";
 
 const REASONING_EFFORT_KEY = "reasoning_effort";
@@ -440,4 +440,4 @@ function applyImageDetail(body: Record<string, unknown>, detail: ImageDetail | u
   };
 }
 
-export type { ShapeArgs } from "../../contract/openai-backend.ts";
+export type { ShapeArgs } from "#src/contract/openai-backend.ts";

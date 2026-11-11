@@ -3,8 +3,8 @@
 // never prompt/RP/system-prompt content. A FACTORY over the injected `InferenceLog` (no `getLog()` global:
 // the package never imports the server's logger).
 
+import type { ProviderLogger } from "#src/contract/http.ts";
 import type { InferenceLog } from "#src/deps.ts";
-import type { ProviderLogger } from "../../contract/http.ts";
 
 /** Bind the sink to one wire/provider pair — every line the backend emits carries both. */
 export function providerLogger(log: InferenceLog, wire: string, providerId: string): ProviderLogger {
@@ -43,4 +43,4 @@ export function providerLogger(log: InferenceLog, wire: string, providerId: stri
   };
 }
 
-export type { ProviderLogger } from "../../contract/http.ts";
+export type { ProviderLogger } from "#src/contract/http.ts";

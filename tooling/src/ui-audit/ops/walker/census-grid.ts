@@ -50,7 +50,7 @@ export const WALKER_CENSUS_GRID = `  // ── device-pixel grid landings (crisp
   relationalAccounting["off-grid-transform"] = { candidates: 0, judged: 0, withheld: {}, excluded: {} };
 
   // The exempt reading surface is spelled ONCE, in ../../lib/checks-grid.ts, and interpolated here — the
-  // typed mirror of the integer-line-boxes gate's ARM C row, never a second decision.
+  // runtime mirror of the reviewed stylelint disable in packages/client/src/styles/globals.css, never a second decision.
   var GRID_READING_SURFACE = ${GRID_READING_SURFACE_SELECTOR_JS};
   var GRID_PROMOTION_MAX_STEPS = 40;
 

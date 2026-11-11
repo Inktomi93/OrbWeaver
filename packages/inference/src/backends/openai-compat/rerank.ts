@@ -15,8 +15,8 @@ import { clampToTokenBudget, estimateTokens } from "@orb/kit/tokens";
 import { z } from "zod";
 import type { RerankRequest } from "#contract";
 import { ProviderError } from "#contract";
-import type { RerankDeps } from "../../contract/openai-backend.ts";
-import type { NormalizeImageBytes } from "../../contract/wire.ts";
+import type { RerankDeps } from "#src/contract/openai-backend.ts";
+import type { NormalizeImageBytes } from "#src/contract/wire.ts";
 import { authHeaders, fetchJson } from "../http/fetch-json.ts";
 import { providerLogger } from "../http/provider-log.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
@@ -160,4 +160,4 @@ export async function runOpenAiCompatRerank(req: RerankRequest, deps: RerankDeps
   return toResult(rerankResponseSchema.parse(result.json), docs, req);
 }
 
-export type { RerankDeps } from "../../contract/openai-backend.ts";
+export type { RerankDeps } from "#src/contract/openai-backend.ts";

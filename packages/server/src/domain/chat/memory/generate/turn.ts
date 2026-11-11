@@ -1,10 +1,10 @@
 // Post-turn memory policy runs outside the engine, bound once to chat's memory collaborators.
-import type { ChatContext } from "../../contract/context.ts";
-import type { BuildTurnMemoryArgs } from "../../contract/memory.ts";
-import { classifyParticipant } from "../../persistence/participant.ts";
-import { loadParticipants } from "../../persistence/participants-read.ts";
-import { digestsDerivable } from "../../substrate/digests-derivable.ts";
-import { resolveGroupBucketCharacterId } from "../../substrate/group-bucket.ts";
+import type { ChatContext } from "#src/domain/chat/contract/context.ts";
+import type { BuildTurnMemoryArgs } from "#src/domain/chat/contract/memory.ts";
+import { classifyParticipant } from "#src/domain/chat/persistence/participant.ts";
+import { loadParticipants } from "#src/domain/chat/persistence/participants-read.ts";
+import { digestsDerivable } from "#src/domain/chat/substrate/digests-derivable.ts";
+import { resolveGroupBucketCharacterId } from "#src/domain/chat/substrate/group-bucket.ts";
 import { loadWitnessHorizons } from "../persistence/queries.ts";
 import { generateDigests } from "./digests.ts";
 import { generateSegments } from "./segments.ts";

@@ -55,11 +55,11 @@ test("interleaved async requests retain their own child and grandchild parentage
   }
 });
 
-test("a handled HTTP error retains error status and redacts its invite capability", async ({ ids }) => {
+test("a handled HTTP error retains error status, redacts its invite capability and stamps the injected clock", async ({ ids, clock }) => {
   const requestId = `handled:${ids.uuid()}`;
   const failure = new Error("handled-request-failure");
   const token = "private-invite-fixture";
-  const { observability, observabilityErrorHandler } = createRequestObservability(createLogger(createTestEnv().LOG_LEVEL, rings.logs), rings);
+  const { observability, observabilityErrorHandler } = createRequestObservability(createLogger(createTestEnv().LOG_LEVEL, rings.logs), rings, clock.now);
   const app = new Hono();
   app.use("*", observability);
   app.onError(observabilityErrorHandler);
@@ -76,6 +76,22 @@ test("a handled HTTP error retains error status and redacts its invite capabilit
   expect(recorded?.spans[0]?.events).toEqual([
     expect.objectContaining({ name: "exception", attributes: { "exception.message": failure.message, "exception.type": "Error" } }),
   ]);
+  expect(rings.requests.recent().find((record) => record.id === requestId)).toMatchObject({ status: 500, at: clock.now() });
+});
+
+test("a throw from a middleware above the request scope still lands in the request ring on the injected clock", async ({ ids, clock }) => {
+  const requestId = `above:${ids.uuid()}`;
+  const { observability, observabilityErrorHandler } = createRequestObservability(createLogger(createTestEnv().LOG_LEVEL, rings.logs), rings, clock.now);
+  const app = new Hono();
+  app.use("*", () => {
+    throw new Error("principal-resolution-failure");
+  });
+  app.use("*", observability);
+  app.onError(observabilityErrorHandler);
+  app.get("/probe", (c) => c.text("unreached"));
+  const response = await app.request("/probe", { headers: { "X-Request-Id": requestId } });
+  expect(response.status).toBe(500);
+  expect(rings.requests.recent().find((record) => record.id === requestId)).toMatchObject({ path: "/probe", status: 500, durationMs: 0, at: clock.now() });
 });
 
 test("cancellation propagates the original reason and ends both spans as errors", async ({ ids }) => {

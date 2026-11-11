@@ -2,6 +2,7 @@ import type { RpgTraceRecord } from "@orb/contracts/rpg";
 import type { GetEffectiveConfigOp, GlobalSettingView } from "@orb/contracts/settings";
 import type { DatabaseHandle } from "@orb/db/wiring";
 import type { ChatId, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { Context } from "hono";
 import type { Env } from "#foundation/env/record";
 import type { AuditWiring } from "./audit-wiring.ts";
@@ -68,6 +69,8 @@ export interface DebugRoutesOptions {
   readonly rings: ObservabilityRings;
   /** The root's suppressed audit failures (`AuditWiring.failures`) the db stats read reports. */
   readonly auditFailures: AuditWiring["failures"];
+  /** The root's clock; a bug report's capture instant and window read it, as the rings they slice do. */
+  readonly now: Clock;
 }
 
 interface BugReportRecorder {

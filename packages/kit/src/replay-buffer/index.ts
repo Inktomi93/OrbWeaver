@@ -11,7 +11,7 @@
 // The emitter, the emit guards, and WHAT gets buffered (chat excludes high-volume deltas; workloads
 // keeps progress) stay bus-owned; only the ring mechanism lives here.
 //
-// PURE: no I/O, no timers. The clock is injected (`now`, defaulting to `Date.now`) so the TTL/sweep
+// PURE: no I/O, no timers. The clock is injected (`now`, required) so the TTL/sweep
 // logic is deterministically testable without faking globals — the sweep is timestamp-gated on the
 // record path rather than driven by a `setInterval`, so there is no timer to leak.
 
@@ -29,20 +29,18 @@ export interface ReplayBuffer<K, E> {
   readonly snapshot: (key: K) => E[];
 }
 
-const DEFAULT_REPLAY_TTL_MS = 5000;
-
 /**
  * Build a replay buffer keyed by `K`. Memory: at a handful of events per active operation × a short
  * TTL the worst case is dozens of entries; a key's ring is deleted outright once every entry has
  * expired, so idle keys don't accumulate. Cleared on process restart (subscribers re-attach and
- * re-snapshot). `now` is the injectable clock (default `Date.now`).
+ * re-snapshot). `now` is the caller's injected clock.
  *
  * `ttlMs` must be a finite positive number, and throws `RangeError` otherwise (#1359). A zero/negative
  * TTL retains NOTHING and an infinite one never expires — either reads exactly like a bus nobody wired,
  * and `bounded-ring` next door already refuses a nonsense capacity the same way. One ring family, one
  * failure mode.
  */
-export function createReplayBuffer<K, E>(ttlMs: number = DEFAULT_REPLAY_TTL_MS, now: () => number = Date.now): ReplayBuffer<K, E> {
+export function createReplayBuffer<K, E>(ttlMs: number, now: () => number): ReplayBuffer<K, E> {
   if (!Number.isFinite(ttlMs) || ttlMs <= 0) {
     throw new RangeError(`replay-buffer ttlMs must be a finite positive number, got ${ttlMs}`);
   }

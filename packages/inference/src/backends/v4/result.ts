@@ -11,7 +11,7 @@ import { foldNestedUsage, foldTokenUsage } from "@orb/contracts/inference";
 import { z } from "zod";
 import type { ChatEvent, ChatResult, ResolvedSampling } from "#contract";
 import { normalizeFinishReason } from "#contract";
-import type { MeasuredCost, ResultContext, StreamDrain } from "../../contract/v4.ts";
+import type { MeasuredCost, ResultContext, StreamDrain } from "#src/contract/v4.ts";
 import { variantProviderMetadataOf } from "../wire/provider-metadata.ts";
 
 const TOKENS_PER_MTOK = 1_000_000;
@@ -282,4 +282,4 @@ export function toChatResult(drain: StreamDrain, ctx: ResultContext): ChatResult
   };
 }
 
-export type { MeasuredCost, ResultContext } from "../../contract/v4.ts";
+export type { MeasuredCost, ResultContext } from "#src/contract/v4.ts";

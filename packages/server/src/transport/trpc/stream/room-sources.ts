@@ -11,7 +11,8 @@
 // each stage DELETING the per-proc subscription it replaced — no dual transport, ever. Every channel below is
 // a MOVED generator body, so the `refusedUntilFolded` placeholder (a room that refused at attach because its
 // procedure still existed) is gone with the last of them; what keeps a folded proc from coming back is
-// D118, held by review (`chat.impersonateStream` is the one permanent exemption, owner-ruled).
+// D118, held by the `SERVER_STREAM_SYNTAX` entry of `no-restricted-syntax` in `eslint.config.ts`
+// (`chat.impersonateStream` is the one permanent exemption, owner-ruled).
 //
 // The vocabulary was NOT complete from S0 after all: `workloads` joined it at S5, because its event union had
 // to move into `@orb/contracts` first (spec §14 decision 3 named that as the stage's precondition) — a room

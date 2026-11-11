@@ -48,7 +48,7 @@
 
 import { replaceAngleSpans } from "@orb/kit/strings";
 import type { ProviderScrubSet } from "#contract";
-import type { ScrubSource } from "../../contract/http.ts";
+import type { ScrubSource } from "#src/contract/http.ts";
 import { secretHeaderValues } from "../wire/openai-body.ts";
 
 const DEFAULT_SANITIZE_MAX_LEN = 500;
@@ -187,4 +187,4 @@ function includeBodySecretLiterals(includeBody: Readonly<Record<string, unknown>
   return out;
 }
 
-export type { ScrubSource } from "../../contract/http.ts";
+export type { ScrubSource } from "#src/contract/http.ts";

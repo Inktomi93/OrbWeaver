@@ -13,8 +13,8 @@ import type { CachePolicy, Dialect } from "@orb/contracts/inference";
 import { wrapLanguageModel } from "ai";
 import { ProviderError } from "#contract";
 import { resolveCachePolicy } from "#funnel";
-import type { ModelCall, NativeThink, ShapeArgs } from "../../contract/openai-backend.ts";
-import type { WrapFetchArgs } from "../../contract/v4.ts";
+import type { ModelCall, NativeThink, ShapeArgs } from "#src/contract/openai-backend.ts";
+import type { WrapFetchArgs } from "#src/contract/v4.ts";
 import { authHeaders, openAiPath } from "../http/fetch-json.ts";
 import { cachePolicyContextOf, effectiveDialectOf, responseCacheHeaders } from "../http/response-cache.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
@@ -244,4 +244,4 @@ export function imageModelFor(call: ModelCall): ImageModelV4 {
   return TRANSPORTS[effectiveDialectOf(call.connection)].image(call);
 }
 
-export type { ModelCall } from "../../contract/openai-backend.ts";
+export type { ModelCall } from "#src/contract/openai-backend.ts";

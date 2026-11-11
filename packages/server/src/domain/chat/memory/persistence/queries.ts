@@ -13,7 +13,7 @@ import { projectBodyForSummary } from "@orb/kit/content";
 import type { CharacterId, ChatDigestId, ChatId, EmbedGenerationId } from "@orb/kit/ids";
 import type { RowMacroNameContext } from "@orb/kit/macro";
 import { and, asc, eq, inArray, lte, max, min } from "drizzle-orm";
-import { loadChatIdentityProducer } from "../../persistence/identity.ts";
+import { loadChatIdentityProducer } from "#src/domain/chat/persistence/identity.ts";
 import type { DigestRow, MsgRow, WitnessInterval } from "../types.ts";
 
 /** The speaker and persona names a transcript over `rows` renders with: the room identity producer over the

@@ -9,9 +9,9 @@
 // Deliberately reader-injected and DOM-free (the `client-error-report.ts` posture): the component passes the
 // reads and the clock in, so the assembly is exercised by a node unit lane instead of only through a browser.
 //
-// THE TWO CLOCKS. `bus().events` and the console-error ring already record wall-clock epoch ms; `motion()`'s
-// records carry `performance.now()` offsets, so their `at` accessor adds `performance.timeOrigin` — passed in,
-// never read here, because a clock assumption buried in a builder is one no caller can see.
+// THE TWO CLOCKS. `bus().events`, `queries()` and the console-error ring record civil epoch ms; `motion()`'s records
+// carry `performance.now()` offsets. `sliceMotionEvidence` anchors each offset to the capture instant the caller read
+// on both clocks, never to `performance.timeOrigin`, which falls behind the civil clock by every host suspend.
 //
 // TWO SOURCES SHIP WHOLE AND SAY SO (owner-ruled 2026-09-02, fork 2) rather than being filtered wrongly:
 //  · `flags()` — the flagger ring dedupes per offender for the WHOLE session (`motion-flaggers.ts`'s `raised`
@@ -24,6 +24,8 @@
 // not what it read. Every slice helper copies — do not "optimize" that away.
 
 import type { EvidenceSlice, EvidenceSourceMeta, EvidenceWindow } from "@orb/kit/evidence-window";
+import { sliceByWindow } from "@orb/kit/evidence-window";
+import type { MotionSnapshot } from "./motion-stats.ts";
 
 /** Why `flags()` cannot answer a time question — quoted into the bundle so a cold reader needs no source dive. */
 export const FLAGS_UNFILTERABLE_REASON =
@@ -153,5 +155,30 @@ export function buildBugReportClientBundle(args: {
     sources: named.map(([, slice]) => slice.meta),
     evidence: Object.fromEntries(named.map(([name, slice]) => [name, slice.entries])),
     checkpointTotals: args.checkpointTotals,
+  };
+}
+
+// One capture instant read on both clocks, back to back: civil epoch ms and the page's `performance.now()` offset.
+interface CaptureInstant {
+  readonly at: number;
+  readonly offset: number;
+}
+
+/** The two motion slices, each `performance.now()` offset placed on the civil clock relative to `instant`.
+ *  @remarks A record from before a host suspend reads as newer than it is, so the slice keeps it rather than drops it. */
+export function sliceMotionEvidence(args: {
+  readonly motion: Pick<MotionSnapshot, "shifts" | "loafs">;
+  readonly window: EvidenceWindow;
+  readonly instant: CaptureInstant;
+  readonly caps: { readonly shifts: number; readonly loafs: number };
+}): {
+  readonly "motion().shifts": EvidenceSlice<MotionSnapshot["shifts"][number]>;
+  readonly "motion().loafs": EvidenceSlice<MotionSnapshot["loafs"][number]>;
+} {
+  const { motion, window, instant, caps } = args;
+  const toEpoch = (startTime: number): number => instant.at - (instant.offset - startTime);
+  return {
+    "motion().shifts": sliceByWindow({ source: "motion().shifts", entries: motion.shifts, at: (shift) => toEpoch(shift.startTime), window, cap: caps.shifts }),
+    "motion().loafs": sliceByWindow({ source: "motion().loafs", entries: motion.loafs, at: (loaf) => toEpoch(loaf.startTime), window, cap: caps.loafs }),
   };
 }
