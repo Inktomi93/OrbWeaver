@@ -446,7 +446,7 @@ const TEST_CONSTANT_HOMES = {
     "resolveReducedMotion and APP_REDUCED_MOTION_ATTRIBUTE: the JS rule the CSS reduced-motion floor must agree with",
   "packages/client/src/data/import-tree-plan.ts": "planTreeImport: the folder import planner",
   "packages/client/src/features/workloads/lib/workloads-model.ts":
-    "WORKLOAD_KIND_LABELS, ASSET_KIND_ITEMS and toProgressView: the job and asset kind names the pickers print and the pure progress label rule",
+    "WORKLOAD_KIND_LABELS, ASSET_KIND_ITEMS, UNRESOLVED_OWNER_HANDLE and toProgressView: the job and asset kind names the pickers print, the owner name a row shows before its handle loads and the pure progress label rule",
   "packages/client/src/features/workloads/lib/portability-model.ts":
     "IMPORT_CONFIRM_NAMES, IMPORT_NOTHING_FOUND_NOTE and summarizeCardImport: the import review's control names, its empty-folder note and the pure summary rule",
   "packages/client/src/features/databank/lib/scrape-form-model.ts": "SCRAPE_FAILURE: the one failure line the add-document form and its toast both say",
@@ -529,8 +529,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/config/lib/theme-row-names.ts": "themeActionsName: the name of a Looks theme row's actions menu",
   "packages/client/src/features/workloads/lib/import-folder-copy.ts":
     "IMPORT_FOLDER_WRONG_FOLDER: the sentence the SillyTavern folder import prints when the folder is not a user folder",
-  "packages/client/src/features/character/lib/character-import-copy.ts":
-    "cardImportRefusalLine and its siblings: the character import dialog's refusal sentence for a picture that is not a card",
+  "packages/client/src/lib/card-import-copy.ts":
+    "CARD_IMPORT_REFUSED_ONE and its siblings: the refusal sentence the character import dialog and the backup import both say for a picture that is not a card",
   "packages/client/src/lib/use-focus-on-mount.ts":
     "PRESS_RENDER_WINDOW_MS: how long after a press a surface may still arrive from the body on that press's account",
   "packages/client/src/features/refinery/lib/refinery-section-label.ts": "REFINERY_LIST_TITLE: the name the Refinery list pane's focus target announces",
@@ -835,9 +835,9 @@ const PACKAGE_TEST_REACHES = {
     "packages/client/src/features/app-shell/lib/appearance-sizing-model.ts":
       "APPEARANCE_SIZING_SUBCATEGORY: the labels and keys the section's three OS preference rows read",
   },
-  "tests/client/features/config/lib/appearance-setting-label.dom.test.ts": {
-    "packages/client/src/features/config/lib/appearance-setting-label.ts":
-      "appearanceSettingLabel: the lookup the Looks note names each Appearance setting by, walked over every key a theme import can name",
+  "tests/client/features/config/lib/appearance-setting-place.dom.test.ts": {
+    "packages/client/src/features/config/lib/appearance-setting-place.ts":
+      "appearanceSettingPlace: the lookup the Looks note names and places each Appearance setting by, walked over every key a theme import can name",
   },
   "tests/client/features/app-shell/surfaces/app-shell-topbar.ct.tsx": {
     "packages/client/src/features/app-shell/lib/command-shortcut-label.ts":

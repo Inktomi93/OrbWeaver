@@ -2,6 +2,7 @@ import { cardImportResultSchema } from "@orb/contracts/import";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { summarizeCardImport } from "#client/features/workloads/lib/portability-model.ts";
+import { CARD_IMPORT_FAILED_DETAIL } from "#client/lib/card-import-copy.ts";
 
 test("card summaries retain success notes, omit empty or legacy notes, and keep failures separate", ({ ids }) => {
   const characterId = mintTypeId(ID_PREFIX.character, ids.next);
@@ -27,7 +28,7 @@ test("card summaries retain success notes, omit empty or legacy notes, and keep 
       { path: "Unnamed card", ok: true, detail: "Character card" },
       { path: "duplicate.png", ok: true, detail: "Already imported", notes: ["Book kept"] },
       { path: "empty.png", ok: true, detail: "Already imported" },
-      { path: "broken.png", ok: false, detail: "Invalid card" },
+      { path: "broken.png", ok: false, detail: CARD_IMPORT_FAILED_DETAIL },
     ],
   });
   expect(summary.outcomes[0]?.notes).toBe(result.imported[1]?.notes);

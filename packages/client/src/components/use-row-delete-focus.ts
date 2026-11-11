@@ -7,6 +7,10 @@
 // The chosen row can be mounted again before the person does anything: the server's event that removes the deleted row can also
 // change the list's container (a library that stops being virtualized), and the rows then mount in a new one. Until the person
 // presses, types or focuses something, the chosen row takes focus back when it mounts and the page body holds it.
+//
+// `returnFocusToRow` is the same hand-off for a row whose list is gone while its member is open: the list unmounts under the member's
+// editor and mounts again on Back, so the row to focus does not exist yet when Back is pressed. It is module state because the list
+// that answers it is not mounted to be asked.
 
 import type { RefCallback, RefObject } from "react";
 import { useEffect, useRef } from "react";
@@ -30,9 +34,32 @@ interface Followed {
   readonly stop: AbortController;
 }
 
-function endFollow(followed: { current: Followed | null }): void {
+interface FollowHolder {
+  current: Followed | null;
+}
+
+function endFollow(followed: FollowHolder): void {
   followed.current?.stop.abort();
   followed.current = null;
+}
+
+function startFollow(followed: FollowHolder, key: string): void {
+  endFollow(followed);
+  const stop = new AbortController();
+  followed.current = { key, stop };
+  for (const type of PERSON_ACTS) {
+    document.addEventListener(type, () => endFollow(followed), { capture: true, signal: stop.signal });
+  }
+}
+
+// The row a member's Back wants focused once its list mounts again.
+const returning: FollowHolder = { current: null };
+
+/** Ask the list that mounts next to focus the row `key`, the one a member was opened from. Call it from the Back's own handler, right
+ *  before the member closes. The request ends at the person's next press, key or focus, so a row that never mounts (a windowed list)
+ *  takes nothing later. */
+export function returnFocusToRow(key: string): void {
+  startFollow(returning, key);
 }
 
 /**
@@ -50,12 +77,7 @@ export function useRowDeleteFocus(listRootRef: RefObject<HTMLElement | null>, ke
     [],
   );
   const follow = (key: string): void => {
-    endFollow(followed);
-    const stop = new AbortController();
-    followed.current = { key, stop };
-    for (const type of PERSON_ACTS) {
-      document.addEventListener(type, () => endFollow(followed), { capture: true, signal: stop.signal });
-    }
+    startFollow(followed, key);
   };
   return {
     bodyRef:
@@ -67,9 +89,10 @@ export function useRowDeleteFocus(listRootRef: RefObject<HTMLElement | null>, ke
         }
         bodies.current.set(key, node);
         // A row's ref is attached again on every render, so only a mount that finds focus lost to the body is the remount this follows.
-        if (followed.current?.key === key && document.activeElement === document.body) {
+        if ((followed.current?.key === key || returning.current?.key === key) && document.activeElement === document.body) {
           node.focus();
           endFollow(followed);
+          endFollow(returning);
         }
       },
     delete: (key, run): ReturnType<RowDeleteFocus["delete"]> => {

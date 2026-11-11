@@ -1,14 +1,16 @@
 // Each shell modal is opened the way a keyboard user opens it in production, and focus lands on the element the modal gives its arrival:
-// the dialog's body anchor, or the drawer on a phone, never the page body and never Close. The re-auth prompt has no human opener, so
-// the production event that raises it opens it: a read the server refuses as signed out. Everything past the browser is a real corpus
-// root answering through its own caller.
+// the dialog's body anchor, or the drawer on a phone, never the page body and never Close. A modal whose one task is a field lands on
+// that field: the re-auth prompt on its password (its handle when none is prefilled), the imagine dialog on its prompt and the image
+// edit dialog on its instruction. The re-auth prompt has no human opener, so the production event that raises it opens it: a read the
+// server refuses as signed out. Everything past the browser is a real corpus root answering through its own caller.
 // @subject packages/client/src/features/app-shell/components/modal-host.tsx
 import { access } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
-import { MESSAGE_TOOLS_LABEL, YOU_TAB_LABEL } from "@orb/client/lib";
+import { MESSAGE_TOOLS_LABEL, testId, YOU_TAB_LABEL } from "@orb/client/lib";
 import type { ModalSlotId } from "@orb/client/state";
 import { MODAL_SLOT_IDS } from "@orb/client/state";
 import { blobUrl } from "@orb/contracts/assets";
+import { authConfigSchema } from "@orb/contracts/auth-config";
 import { createCharacterSchema } from "@orb/contracts/character";
 import type { CharacterHandle, ChatId } from "@orb/kit/ids";
 import { castId, ID_PREFIX } from "@orb/kit/ids";
@@ -38,7 +40,13 @@ import type { Locator, Page } from "@playwright/test";
 import { REAUTH_MODAL_TITLE } from "#client/features/auth/lib/reauth-names.ts";
 import { COMPOSER_IMAGINE_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
 import { DATABANK_ADD_DOCUMENT_TITLE, DATABANK_ADD_NAME } from "#client/features/databank/lib/databank-names.ts";
-import { IMAGE_DETAIL_TITLE, IMAGE_EDIT_NAME, IMAGINE_DIALOG_TITLE } from "#client/features/imagery/lib/imagine-names.ts";
+import {
+  IMAGE_DETAIL_TITLE,
+  IMAGE_EDIT_INSTRUCTION_NAME,
+  IMAGE_EDIT_NAME,
+  IMAGINE_DIALOG_TITLE,
+  IMAGINE_PROMPT_NAME,
+} from "#client/features/imagery/lib/imagine-names.ts";
 import { ROSTER_ALL_NAME, ROSTER_SAVED_NAME } from "#client/features/roster-preset/lib/roster-names.ts";
 import { dialogBodyAnchor, drawerPopup } from "../../../components/_dialog-landing.ts";
 import type { AppShellRecoveringStory, AppShellRoomStory, AppShellStory } from "./_app-shell-stories.tsx";
@@ -140,34 +148,44 @@ test.describe("on a phone", () => {
 
     await expect(dialogNamed(page, YOU_TAB_LABEL)).toBeVisible();
     await expect(drawerPopup(page)).toBeFocused();
+    // The sheet takes focus as a whole, so it announces arrival without the browser's own ring around the whole sheet.
+    expect(await drawerPopup(page).evaluate((node) => getComputedStyle(node).outlineStyle)).toBe("none");
   });
 });
 
-test("a session the server refuses as signed out opens the re-auth prompt with focus on its body", async ({ corpus, mount, page }) => {
-  await using root = await createCorpusHarness(undefined, { startJobs: false });
-  const caller = await root.internalCallerFor(root.ownerId);
-  const signedOut = await (await root.http.request("/api/auth/me")).text();
-  const config = await (await root.http.request("/api/auth/config")).text();
-  let expired = false;
-  await routeTrpc(page, {
-    ...createShellAmbientReads(corpus, root.ownerId),
-    ...serveCorpusProcedures(caller, SECTION_PROCEDURES),
-    ...serveCorpusProcedures(caller, ["chat.listChats"], () => (expired ? trpcError({ code: "UNAUTHORIZED" }) : undefined)),
-  });
-  await routeAuthConfig(page, config);
-  await page.route("**/api/auth/me", async (route) => {
-    await route.fulfill({ contentType: "application/json", body: signedOut });
-  });
-  await mount<typeof AppShellRecoveringStory>(RECOVERING_STORY, {});
-  await expect(page.locator(".shell-rail")).toBeVisible();
+const REAUTH_ARRIVALS = [
+  { name: "its password when the handle is prefilled", discreet: false, field: "loginPassword" },
+  { name: "its handle when discreet login leaves none prefilled", discreet: true, field: "loginHandle" },
+] as const;
 
-  // The Chats read is the production event: the refusal enters the recovery ladder, which finds the session dead and raises the prompt.
-  expired = true;
-  await pressByKeyboard(page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.chats, exact: true }));
+for (const { name, discreet, field } of REAUTH_ARRIVALS) {
+  test(`a session the server refuses as signed out opens the re-auth prompt with focus on ${name}`, async ({ corpus, mount, page }) => {
+    await using root = await createCorpusHarness(undefined, { startJobs: false });
+    const caller = await root.internalCallerFor(root.ownerId);
+    const signedOut = await (await root.http.request("/api/auth/me")).text();
+    const served = authConfigSchema.parse(JSON.parse(await (await root.http.request("/api/auth/config")).text()));
+    const config = JSON.stringify(discreet ? { ...served, discreetLogin: true, defaultHandle: null } : served);
+    let expired = false;
+    await routeTrpc(page, {
+      ...createShellAmbientReads(corpus, root.ownerId),
+      ...serveCorpusProcedures(caller, SECTION_PROCEDURES),
+      ...serveCorpusProcedures(caller, ["chat.listChats"], () => (expired ? trpcError({ code: "UNAUTHORIZED" }) : undefined)),
+    });
+    await routeAuthConfig(page, config);
+    await page.route("**/api/auth/me", async (route) => {
+      await route.fulfill({ contentType: "application/json", body: signedOut });
+    });
+    await mount<typeof AppShellRecoveringStory>(RECOVERING_STORY, {});
+    await expect(page.locator(".shell-rail")).toBeVisible();
 
-  await expect(dialogNamed(page, REAUTH_MODAL_TITLE)).toBeVisible();
-  await expect(dialogBodyAnchor(page)).toBeFocused();
-});
+    // The Chats read is the production event: the refusal enters the recovery ladder, which finds the session dead and raises the prompt.
+    expired = true;
+    await pressByKeyboard(page.locator(".shell-rail").getByRole("button", { name: SECTION_LABELS.chats, exact: true }));
+
+    await expect(dialogNamed(page, REAUTH_MODAL_TITLE)).toBeVisible();
+    await expect(page.getByTestId(testId(field))).toBeFocused();
+  });
+}
 
 /** A room of its own whose one message carries a picture, with the picture's bytes answered by the root's own blob route. */
 async function openPictureRoom(page: Page, root: Root, show: (chatId: ChatId) => Promise<unknown>): Promise<void> {
@@ -205,7 +223,7 @@ function pictureRoot(): Promise<Root> {
   return createCorpusHarness(undefined, { providerFetch: provider.execute, startJobs: false });
 }
 
-test("Imagine in the composer's tools menu opens the imagine dialog with focus on its body", async ({ mount, page }) => {
+test("Imagine in the composer's tools menu opens the imagine dialog with focus on its prompt", async ({ mount, page }) => {
   await using root = await pictureRoot();
   await openPictureRoom(page, root, (chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }));
 
@@ -213,13 +231,10 @@ test("Imagine in the composer's tools menu opens the imagine dialog with focus o
   await pressByKeyboard(page.getByRole("menuitem", { name: COMPOSER_IMAGINE_NAME, exact: true }));
 
   await expect(dialogNamed(page, IMAGINE_DIALOG_TITLE)).toBeVisible();
-  await expect(dialogBodyAnchor(page)).toBeFocused();
+  await expect(dialogNamed(page, IMAGINE_DIALOG_TITLE).getByRole("textbox", { name: IMAGINE_PROMPT_NAME, exact: true })).toBeFocused();
 });
 
-test("a picture in a message opens the image detail with focus on its body, and its Edit door lands focus on the edit dialog's body", async ({
-  mount,
-  page,
-}) => {
+test("a picture in a message opens the image detail with focus on its body, and its Edit door lands focus on the edit instruction", async ({ mount, page }) => {
   await using root = await pictureRoot();
   await openPictureRoom(page, root, (chatId) => mount<typeof AppShellRoomStory>(ROOM_STORY, { chatId }));
 
@@ -231,5 +246,5 @@ test("a picture in a message opens the image detail with focus on its body, and 
 
   await pressByKeyboard(dialogNamed(page, IMAGE_DETAIL_TITLE).getByRole("button", { name: IMAGE_EDIT_NAME, exact: true }));
   await expect(dialogNamed(page, IMAGE_EDIT_NAME)).toBeVisible();
-  await expect(dialogBodyAnchor(page)).toBeFocused();
+  await expect(dialogNamed(page, IMAGE_EDIT_NAME).getByRole("textbox", { name: IMAGE_EDIT_INSTRUCTION_NAME, exact: true })).toBeFocused();
 });

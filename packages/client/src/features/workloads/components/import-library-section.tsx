@@ -38,7 +38,7 @@ import { useUploadCaps } from "#data";
 import { DIALOG_VERBS, testId } from "#lib";
 import type { ImportPreviewState, LibraryImport } from "../hooks/use-library-import.ts";
 import { useLibraryImport } from "../hooks/use-library-import.ts";
-import { IMPORT_FOLDER_NAME } from "../lib/import-library-names.ts";
+import { IMPORT_FOLDER_NAME, IMPORT_RESULT_NAME } from "../lib/import-library-names.ts";
 import { IMPORT_CONFIRM_NAMES, IMPORT_CONSEQUENCE, IMPORT_NOTHING_FOUND_NOTE, planNotes, previewIsEmpty } from "../lib/portability-model.ts";
 import { BundleWorkloadTracker } from "./bundle-workload-tracker.tsx";
 import { ImportPreviewSummary } from "./import-preview-summary.tsx";
@@ -114,7 +114,7 @@ function ImportPreflight({
   return (
     // A named GROUP, not an alert: nothing has happened yet and nothing is being interrupted. It takes focus on a
     // pick (tabIndex -1: focusable by script, not a tab stop) so a screen reader lands on its name.
-    <Card aria-label={title} data-slot="import-preflight" padding="none" role="group" shape="row" variant="outline" tabIndex={-1} ref={ref}>
+    <Card aria-label={title} data-slot="import-preflight" focusable={true} padding="none" role="group" shape="row" variant="outline" tabIndex={-1} ref={ref}>
       <Stack gap="field" padding="field">
         <Text voice="promoted">{title}</Text>
         <ImportPreviewSummary state={preview} onRetry={onRetryPreview} />
@@ -223,6 +223,17 @@ export function ImportLibrarySection(): ReactElement {
   }, [uploading]);
   const done = state.status === "done";
   const succeeded = done && state.summary.failed === 0;
+  // The outcome, a report or a refusal, takes focus and scrolls into view when it appears: the region that held focus is gone by
+  // then, and the pane's last section renders its outcome below the fold of a desktop window.
+  const resultRef = useRef<HTMLDivElement>(null);
+  // Each outcome is a fresh state object, so a second refusal of the same words takes focus again.
+  const outcome = state.status === "done" || state.status === "error" ? state : null;
+  useEffect(() => {
+    if (outcome !== null) {
+      resultRef.current?.focus({ preventScroll: true });
+      resultRef.current?.scrollIntoView({ block: "nearest" });
+    }
+  }, [outcome]);
 
   return (
     <Stack gap="block">
@@ -294,20 +305,24 @@ export function ImportLibrarySection(): ReactElement {
         />
       ) : null}
       <ImportInFlight ref={outcomeRef} state={state} track={track} />
-      {state.status === "error" ? (
-        <Text tone="destructive" role="alert">
-          {state.message}
-        </Text>
-      ) : null}
-      {done ? (
-        <Stack gap="block">
-          <ImportReportSummary summary={state.summary} />
-          <ImportedChatsMemoryOffer scope={state.summary.memoryScope} />
-          <Row justify="start">
-            <Button variant="outline" onClick={reset}>
-              Import another
-            </Button>
-          </Row>
+      {outcome !== null ? (
+        <Stack aria-label={IMPORT_RESULT_NAME} focusTarget={true} gap="block" ref={resultRef} role="group" tabIndex={-1}>
+          {outcome.status === "error" ? (
+            <Text tone="destructive" role="alert">
+              {outcome.message}
+            </Text>
+          ) : null}
+          {outcome.status === "done" ? (
+            <>
+              <ImportReportSummary summary={outcome.summary} />
+              <ImportedChatsMemoryOffer scope={outcome.summary.memoryScope} />
+              <Row justify="start">
+                <Button variant="outline" onClick={reset}>
+                  Import another
+                </Button>
+              </Row>
+            </>
+          ) : null}
         </Stack>
       ) : null}
     </Stack>

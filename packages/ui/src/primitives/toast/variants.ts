@@ -3,12 +3,14 @@ import type { Tone } from "#tokens";
 
 export const toastVariants = tv({
   slots: {
-    // The stack receives input; the padded viewport owns scrolling and clears each card's outline.
+    // Only the cards take input: the viewport and the stack are `pointer-events-none`, so the gaps between cards and the
+    // box around them pass a press to the page. A wheel over a card still scrolls the viewport, which owns the scrolling
+    // and clears each card's outline.
     viewport: `
       @container/toast pointer-events-none fixed inset-e-0 inset-bs-(--dimension-chrome-row) z-(--z-toast) flex flex-col overflow-y-auto overscroll-contain
       p-section inline-full max-block-(--dimension-shell-notice-cap) max-inline-cq-24
     `,
-    stack: "pointer-events-none flex shrink-0 flex-col gap-row has-data-[slot=toast-root]:pointer-events-auto",
+    stack: "pointer-events-none flex shrink-0 flex-col gap-row",
     root: [
       // `flex` + `gap-row`: the type GLYPH is a sibling of the content column (see `icon`), so meaning is
       // never carried by the border colour alone.

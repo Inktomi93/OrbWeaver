@@ -130,7 +130,7 @@ type QueueState = (typeof QUEUE_STATES)[number];
 const QUEUE_CHIP: StatusVocabulary<Exclude<QueueState, "undecided">> = {
   open: { label: "Open: deciding", tone: "neutral" },
   kept: { label: "Kept", tone: "success" },
-  discarded: { label: "Discarded", tone: "destructive" },
+  discarded: { label: "Discarded", tone: "neutral" },
 };
 
 /** A queue row's REACT KEY — the entry's own address, never its ordinal. `targetLabel` alone collides on a

@@ -20,6 +20,9 @@ import type { inferInput, inferOutput } from "@trpc/tanstack-react-query";
 import type { StatusVocabulary } from "#components";
 import type { Trpc } from "#data";
 
+/** What a row says for an owner who is not the viewer while their handle is unknown: the handle list is still loading, or it misses a removed account. */
+export const UNRESOLVED_OWNER_HANDLE = "another user";
+
 export type WorkloadProgressView = Readonly<{ pct: NonNullable<WorkloadProgress["pct"]> | null; label: NonNullable<WorkloadProgress["message"]> | null }>;
 
 /** The kinds the run dialog offers: singular-capable + built (not a stub). Every `singular: true` mode is

@@ -211,28 +211,37 @@ function FileDropzoneInstructions({ className, id, instructions, lines }: FileDr
   );
 }
 
-/** A refusal the zone says itself, or the consumer hands in, marks the control invalid as a Field's own invalid state would. An
- *  empty object, not `undefined`, when there is none: a Field's `invalid` supplies the attribute through Base UI, and the render
- *  element's props win over it. */
-function invalidWhileRefused(message: string | undefined): { readonly "aria-invalid"?: true } {
-  return message === undefined ? {} : { "aria-invalid": true };
+/** A refusal the zone says itself, or the consumer hands in, marks the control invalid as a Field's own invalid state would, and a
+ *  standalone zone points the control at the refusal line too (inside a Field, Base UI does). An empty object, not `undefined`,
+ *  when there is none: a Field's `invalid` supplies the attribute through Base UI, and the render element's props win over it. */
+function refusalAttributes(
+  message: string | undefined,
+  errorId: string,
+  inField: boolean,
+): { readonly "aria-invalid"?: true; readonly "aria-describedby"?: string } {
+  if (message === undefined) {
+    return {};
+  }
+  return inField ? { "aria-invalid": true } : { "aria-invalid": true, "aria-describedby": errorId };
 }
 
 interface FileDropzoneErrorProps {
   readonly message: string;
+  readonly id: string;
   readonly inField: boolean;
   readonly slots: ReturnType<typeof fileDropzoneVariants>;
 }
 
 /** The refusal line. Inside a `Field` it is a Field.Error, as the Field primitive renders its own: Base UI adds its id to the
  *  control's `aria-describedby`, so a screen-reader user returning to an invalid zone hears why, not only "invalid". Field.Error
- *  throws outside a Field.Root, so a standalone zone keeps the plain line.
+ *  throws outside a Field.Root, so a standalone zone keeps the plain line, which the zone itself names in the control's
+ *  `aria-describedby`.
  *
  *  The line also brings itself into view when it mounts (the zone keys it on its text, so each new refusal does). A pick through
  *  the chooser leaves focus on the control the person just clicked, so no focus move scrolls the line in, and below the zone it
  *  can sit under a dialog's sticky footer. `nearest` honours the scroll container's own scroll padding, which is how a dialog
  *  body clears its footer. */
-function FileDropzoneError({ message, inField, slots }: FileDropzoneErrorProps): ReactElement {
+function FileDropzoneError({ message, id, inField, slots }: FileDropzoneErrorProps): ReactElement {
   const lineRef = useRef<HTMLParagraphElement>(null);
   useEffect(() => {
     lineRef.current?.scrollIntoView({ block: "nearest" });
@@ -248,7 +257,7 @@ function FileDropzoneError({ message, inField, slots }: FileDropzoneErrorProps):
       {line}
     </BaseField.Error>
   ) : (
-    <p className={slots.error()} data-slot="file-dropzone-error" ref={lineRef} role="alert">
+    <p className={slots.error()} data-slot="file-dropzone-error" id={id} ref={lineRef} role="alert">
       {line}
     </p>
   );
@@ -310,6 +319,7 @@ export function FileDropzone({
   const [rejected, setRejected] = useState<FileDropzoneRejection[]>([]);
   const slots = fileDropzoneVariants();
   const instructionsId = useId();
+  const errorId = useId();
   const fieldLabelled = useFieldLabelled();
   const inert = disabled || loading;
 
@@ -405,7 +415,7 @@ export function FileDropzone({
           <input
             accept={accept}
             {...nameProps}
-            {...invalidWhileRefused(errorMessage)}
+            {...refusalAttributes(errorMessage, errorId, fieldLabelled)}
             aria-busy={loading ? true : undefined}
             aria-disabled={loading ? true : undefined}
             className={slots.input()}
@@ -425,7 +435,7 @@ export function FileDropzone({
         <FileDropzoneInstructions className={slots.instructions()} id={instructionsId} instructions={instructions} lines={pointerLines} />
         {resolvedHint === undefined ? null : <p className={slots.hint()}>{resolvedHint}</p>}
       </div>
-      {errorMessage === undefined ? null : <FileDropzoneError inField={fieldLabelled} key={errorMessage} message={errorMessage} slots={slots} />}
+      {errorMessage === undefined ? null : <FileDropzoneError id={errorId} inField={fieldLabelled} key={errorMessage} message={errorMessage} slots={slots} />}
     </div>
   );
 }

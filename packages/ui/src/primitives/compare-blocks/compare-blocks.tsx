@@ -1,7 +1,9 @@
 import type { ReactElement, ReactNode } from "react";
 import { useState } from "react";
+import { Badge, STATUS_PILL_VARIANT } from "#primitives/badge";
 import { Button } from "#primitives/button";
 import { Check, Icon, Minus, Plus, X } from "#primitives/icons";
+import type { Tone } from "#tokens";
 import { COMPARE_SIDE_TONE, compareBlocksVariants } from "./variants.ts";
 
 interface CompareBlockBase {
@@ -59,6 +61,13 @@ const DECISION_WORD: Record<"kept" | "discarded" | "undecided", string> = {
   undecided: "Undecided",
 };
 
+/** The tone each decision's state chip wears, the status pill's own: a discarded rewrite is the safe outcome, so it is neutral. */
+const DECISION_TONE: Record<"kept" | "discarded" | "undecided", Tone> = {
+  kept: "success",
+  discarded: "neutral",
+  undecided: "warning",
+};
+
 function decisionOf(decision: CompareDecision): "kept" | "discarded" | "undecided" {
   if (decision === true) {
     return "kept";
@@ -86,7 +95,9 @@ function CollapsedRow({ name, decision, slots, onExpand }: { name: string; decis
     <button className={slots.collapsedRow()} data-decision={decision} data-slot="compare-block-collapsed" onClick={onExpand} type="button">
       <span className={slots.blockLabel()}>{name}</span>
       <span className={slots.blockSpacer()} />
-      <span className={slots.stateChip({ decision })}>{DECISION_WORD[decision]}</span>
+      <Badge size="compact" tone={DECISION_TONE[decision]} variant={STATUS_PILL_VARIANT[DECISION_TONE[decision]]}>
+        {DECISION_WORD[decision]}
+      </Badge>
       <span className={slots.srOnly()}>Show the change again</span>
     </button>
   );
@@ -254,9 +265,9 @@ function BlockView({
         {block.label !== undefined ? <h3 className={slots.blockLabel()}>{block.label}</h3> : null}
         <span className={slots.blockSpacer()} />
         {decision !== null ? (
-          <span className={slots.stateChip({ decision })} data-slot="compare-block-state">
+          <Badge data-slot="compare-block-state" size="compact" tone={DECISION_TONE[decision]} variant={STATUS_PILL_VARIANT[DECISION_TONE[decision]]}>
             {stateChipText(decision)}
-          </span>
+          </Badge>
         ) : null}
       </div>
       <div className={slots.body({ ...(decision === null ? {} : { decision }) })}>
