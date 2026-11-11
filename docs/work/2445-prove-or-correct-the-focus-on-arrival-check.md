@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P3
 area: docs
+lane: wt/agent-ac7632a404161150a
 ---
 
 # Prove or correct the focus-on-arrival check that the accessibility statement names
