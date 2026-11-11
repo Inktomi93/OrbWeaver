@@ -693,7 +693,7 @@ export async function readThemeClusterMembers(
     .innerJoin(themeClusters, ownedThemeCluster(ownerId, themeClusterId))
     .innerJoin(chatDigests, eq(chatDigests.id, digestThemeAssignments.digestId))
     .innerJoin(characters, eq(characters.id, chatDigests.scopedCharacterId))
-    .where(and(eq(digestThemeAssignments.themeClusterId, themeClusterId), eq(characters.synthetic, false)))
+    .where(and(eq(digestThemeAssignments.themeClusterId, themeClusterId), realCharactersOfEveryOwner()))
     .groupBy(chatDigests.scopedCharacterId, characters.name)
     // Total order: equal-count members were left in scan order, so the LIMIT cut a different set between two
     // identical reads of one theme.
