@@ -22,6 +22,7 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup, SettingSw
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
+import { configSettingLabel } from "#state";
 import { useUpdateEffects } from "../hooks/use-appearance-mutations.ts";
 import { BLUR_STRENGTH_MAX, BLUR_STRENGTH_MIN } from "../lib/appearance-bounds.ts";
 import { APPEARANCE_EFFECTS_KEYS, APPEARANCE_EFFECTS_SUBCATEGORY } from "../lib/appearance-effects-model.ts";
@@ -111,26 +112,35 @@ function EffectsBody({
           </SettingRow>
           <SettingRow settingId="glass-blur">
             <form.AppField name="blurStrength">
-              {(field): ReactElement => <field.SliderField label="Glass blur radius" min={BLUR_STRENGTH_MIN} max={BLUR_STRENGTH_MAX} />}
+              {(field): ReactElement => (
+                <field.SliderField label={configSettingLabel(APPEARANCE_EFFECTS_SUBCATEGORY, "blurStrength")} min={BLUR_STRENGTH_MIN} max={BLUR_STRENGTH_MAX} />
+              )}
             </form.AppField>
           </SettingRow>
           <SettingRow settingId="prose-shadow">
             <form.AppField name="shadowEffects">
               {(field): ReactElement => (
-                <SettingSwitchRow label="Prose shadow" checked={field.state.value} onBlur={field.handleBlur} onChange={field.handleChange} />
+                <SettingSwitchRow
+                  label={configSettingLabel(APPEARANCE_EFFECTS_SUBCATEGORY, "shadowEffects")}
+                  checked={field.state.value}
+                  onBlur={field.handleBlur}
+                  onChange={field.handleChange}
+                />
               )}
             </form.AppField>
           </SettingRow>
           <SettingRow settingId="surface-texture">
             <form.AppField name="surfaceTexture">
-              {(field): ReactElement => <field.SelectField label="Surface texture" items={SURFACE_TEXTURE_ITEMS} />}
+              {(field): ReactElement => (
+                <field.SelectField label={configSettingLabel(APPEARANCE_EFFECTS_SUBCATEGORY, "surfaceTexture")} items={SURFACE_TEXTURE_ITEMS} />
+              )}
             </form.AppField>
           </SettingRow>
           <SettingRow settingId="accent-tint">
             <form.AppField name="enableThemeColorization">
               {(field): ReactElement => (
                 <SettingSwitchRow
-                  label="Tint the UI with the accent color"
+                  label={configSettingLabel(APPEARANCE_EFFECTS_SUBCATEGORY, "enableThemeColorization")}
                   checked={field.state.value}
                   onBlur={field.handleBlur}
                   onChange={field.handleChange}

@@ -5,6 +5,7 @@
 // a corpus root, so the leftovers are what production computed for the file.
 // @subject packages/client/src/features/config/components/appearance-looks-section.tsx
 // @subject packages/client/src/features/config/components/theme-import-leftovers.tsx
+import { configSettingLabel } from "@orb/client/state";
 import type { ThemeLeftoverReasonKind } from "@orb/contracts/portability";
 import { THEME_LEFTOVER_REASON_KINDS } from "@orb/contracts/portability";
 import { watchToastMounts } from "@orb/testkit/browser/spec";
@@ -12,7 +13,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
-import { sizingSettingLabel } from "#client/features/app-shell/lib/appearance-sizing-model.ts";
+import { APPEARANCE_SIZING_SUBCATEGORY } from "#client/features/app-shell/lib/appearance-sizing-model.ts";
 import {
   THEME_IMPORT_NOTHING_TO_DO,
   THEME_IMPORT_OUTCOME,
@@ -40,7 +41,7 @@ const LEFTOVER_KEYS = {
 const LEFTOVERS = { ["custom_css"]: "#chat { color: red; }", ["font_scale"]: 1.2, ["chat_width"]: 60, ["main_text_color"]: "rgb(24, 40, 76)" };
 const ST_THEME = { name: "Azure", ["blur_tint_color"]: "rgb(16, 32, 64)", ...LEFTOVERS };
 // The labels the viewer finds those two settings under in Appearance, in the order the file lists them.
-const APPEARANCE_LABELS = [sizingSettingLabel("fontScale"), sizingSettingLabel("chatWidthPct")];
+const APPEARANCE_LABELS = [configSettingLabel(APPEARANCE_SIZING_SUBCATEGORY, "fontScale"), configSettingLabel(APPEARANCE_SIZING_SUBCATEGORY, "chatWidthPct")];
 // A file whose only leftover needs nothing from the person.
 const NO_ACTION_THEME = { name: "Plain", ["blur_tint_color"]: "rgb(16, 32, 64)", ["custom_css"]: "#chat { color: red; }" };
 // An Orbweaver export: the row's own bytes, which no leftovers can come from.

@@ -1,12 +1,13 @@
 // @subject packages/client/src/features/app-shell/components/appearance-sizing-section.tsx
 // The three OS preferences each offer System, On and Off, and a pick saves that mode on the appearance section.
 // The corpus root's settings verbs answer the section, so the merge that stores a pick is the server's own.
+import { configSettingLabel } from "@orb/client/state";
 import { OS_PREFERENCE_MODES } from "@orb/contracts/settings/appearance";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { OS_PREFERENCE_ITEMS } from "#client/features/app-shell/lib/appearance-select-items.ts";
-import { APPEARANCE_SIZING_SUBCATEGORY, sizingSettingLabel } from "#client/features/app-shell/lib/appearance-sizing-model.ts";
+import { APPEARANCE_SIZING_SUBCATEGORY } from "#client/features/app-shell/lib/appearance-sizing-model.ts";
 import type { SizingSectionStory } from "./_appearance-sizing-stories.tsx";
 
 const STORY = "tests/client/features/app-shell/components/_appearance-sizing-stories/SizingSectionStory";
@@ -56,7 +57,7 @@ test("each slider is named by the label the model gives its setting", async ({ m
   await mount<typeof SizingSectionStory>(STORY, {});
 
   for (const key of SLIDER_KEYS) {
-    const label = sizingSettingLabel(key);
+    const label = configSettingLabel(APPEARANCE_SIZING_SUBCATEGORY, key);
     await expect(page.getByRole("slider", { name: label, exact: true })).toBeVisible();
   }
 });

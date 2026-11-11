@@ -8,6 +8,8 @@ import { Stack } from "@orb/ui/layout";
 import { RadioGroupPicker, RadioGroupPickerItem } from "@orb/ui/radio-group";
 import type { ReactElement } from "react";
 import { useId } from "react";
+import { configSettingLabel } from "#state";
+import { APPEARANCE_MESSAGE_STYLE_SUBCATEGORY } from "../lib/appearance-message-style-model.ts";
 import { CHAT_STYLE_ITEMS } from "../lib/appearance-select-items.ts";
 import { MESSAGE_ROW_SKINS } from "../lib/message-row-variants.ts";
 
@@ -43,7 +45,7 @@ export function ChatStyleCards({ value, onPick }: ChatStyleCardsProps): ReactEle
   const ids = useId();
   return (
     <RadioGroupPicker
-      aria-label="Chat display"
+      aria-label={configSettingLabel(APPEARANCE_MESSAGE_STYLE_SUBCATEGORY, "chatStyle")}
       data-slot="chat-style-cards"
       detail={true}
       onValueChange={(next): void => onPick(next as ChatStyle)}

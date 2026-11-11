@@ -24,6 +24,7 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
+import { configSettingLabel } from "#state";
 import { useUpdateMessageStyle } from "../hooks/use-chat-settings-mutations.ts";
 import { APPEARANCE_MESSAGE_STYLE_KEYS, APPEARANCE_MESSAGE_STYLE_SUBCATEGORY } from "../lib/appearance-message-style-model.ts";
 import { ChatStyleCards } from "./appearance-chat-style-cards.tsx";
@@ -94,10 +95,14 @@ function MessageStyleBody({
             <form.AppField name="chatStyle">{(field): ReactElement => <ChatStyleCards onPick={field.handleChange} value={field.state.value} />}</form.AppField>
           </SettingRow>
           <SettingRow settingId="color-quoted-speech">
-            <form.AppField name="colorQuotedSpeech">{(field): ReactElement => <field.SwitchField label="Color quoted speech" />}</form.AppField>
+            <form.AppField name="colorQuotedSpeech">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(APPEARANCE_MESSAGE_STYLE_SUBCATEGORY, "colorQuotedSpeech")} />}
+            </form.AppField>
           </SettingRow>
           <SettingRow settingId="auto-fix-markdown">
-            <form.AppField name="autoFixMarkdown">{(field): ReactElement => <field.SwitchField label="Auto-fix unfinished formatting" />}</form.AppField>
+            <form.AppField name="autoFixMarkdown">
+              {(field): ReactElement => <field.SwitchField label={configSettingLabel(APPEARANCE_MESSAGE_STYLE_SUBCATEGORY, "autoFixMarkdown")} />}
+            </form.AppField>
           </SettingRow>
         </SettingRowGroup>
       </ConfigTeachScope>
