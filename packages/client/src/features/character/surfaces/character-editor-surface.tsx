@@ -29,6 +29,7 @@ import { clearCharacterFacet, selectCharacterFacet, useSelectedCharacterFacetId 
 import { CharacterFacetEditor } from "../components/character-facet-editor.tsx";
 import { CharacterFacetList } from "../components/character-facet-list.tsx";
 import { CharacterHeroBand } from "../components/character-hero-band.tsx";
+import { useCharacterDeleted } from "../hooks/use-character-deleted.ts";
 import { useUpdateCharacter } from "../hooks/use-character-mutations.ts";
 import { usePreviewRenderPolicy } from "../hooks/use-preview-render-policy.ts";
 import type { CharacterCardFacet } from "../lib/character-card-facets.ts";
@@ -203,8 +204,10 @@ function CharacterEditorForm({ data, trpc, session, detailContributors, onReveal
   const form = session.form as AppFormInstance<CharacterCardFormValues>;
 
   const surfaceRef = useRef<HTMLDivElement>(null);
-  // The keyed session resets cold focus for a new entity; retained Activity reveals leave its scroller untouched.
-  useFocusOnMount(surfaceRef, true, false);
+  // The keyed session resets cold focus for a new entity; retained Activity reveals leave its scroller untouched. A read that lands
+  // after this character's delete was confirmed never claims focus: the delete already placed it on a neighbouring row, and this
+  // editor is about to be replaced by the welcome pane.
+  useFocusOnMount(surfaceRef, true, false, useCharacterDeleted(data.id));
   const selectedFacetId = useSelectedCharacterFacetId();
   // Activating a facet drops activeElement to <body>, so on Back we tell the re-mounting facet list
   // which row should reclaim focus.

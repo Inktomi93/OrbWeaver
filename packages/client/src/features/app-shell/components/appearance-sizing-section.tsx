@@ -19,11 +19,12 @@ import { ConfigTeachScope, QueryBoundary, SettingRow, SettingRowGroup } from "#c
 import { QueryErrorState, SkeletonRows, useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { createAutosaveEntityForm, SectionSaveStatus } from "#forms/editor";
+import { configSettingLabel } from "#state";
 import { useUpdateSizing } from "../hooks/use-appearance-mutations.ts";
 import { useIsBelowShellContentFloor } from "../hooks/use-is-mobile-viewport.ts";
 import { CHAT_WIDTH_MAX, CHAT_WIDTH_MIN, FONT_SCALE_MAX, FONT_SCALE_MIN, FONT_SCALE_STEP } from "../lib/appearance-bounds.ts";
 import { OS_PREFERENCE_ITEMS } from "../lib/appearance-select-items.ts";
-import { APPEARANCE_SIZING_KEYS, APPEARANCE_SIZING_SUBCATEGORY, sizingSettingLabel } from "../lib/appearance-sizing-model.ts";
+import { APPEARANCE_SIZING_KEYS, APPEARANCE_SIZING_SUBCATEGORY } from "../lib/appearance-sizing-model.ts";
 import { DensityCards } from "./appearance-density-cards.tsx";
 import { ElevationCards } from "./appearance-elevation-cards.tsx";
 
@@ -95,13 +96,22 @@ function SizingBody({
           ) : (
             <SettingRow settingId="chat-width">
               <form.AppField name="chatWidthPct">
-                {(field): ReactElement => <field.SliderField label="Chat width (%)" min={CHAT_WIDTH_MIN} max={CHAT_WIDTH_MAX} />}
+                {(field): ReactElement => (
+                  <field.SliderField label={configSettingLabel(APPEARANCE_SIZING_SUBCATEGORY, "chatWidthPct")} min={CHAT_WIDTH_MIN} max={CHAT_WIDTH_MAX} />
+                )}
               </form.AppField>
             </SettingRow>
           )}
           <SettingRow settingId="font-scale">
             <form.AppField name="fontScale">
-              {(field): ReactElement => <field.SliderField label="Text size" min={FONT_SCALE_MIN} max={FONT_SCALE_MAX} step={FONT_SCALE_STEP} />}
+              {(field): ReactElement => (
+                <field.SliderField
+                  label={configSettingLabel(APPEARANCE_SIZING_SUBCATEGORY, "fontScale")}
+                  min={FONT_SCALE_MIN}
+                  max={FONT_SCALE_MAX}
+                  step={FONT_SCALE_STEP}
+                />
+              )}
             </form.AppField>
           </SettingRow>
           {/* SEEN, NOT READ (#866 §7.8, owner-acked): density/elevation OUTCOMES are spatial, so both are
@@ -126,17 +136,23 @@ function SizingBody({
           </SettingRow>
           <SettingRow settingId="reduced-motion">
             <form.AppField name="reducedMotion">
-              {(field): ReactElement => <field.SegmentField label={sizingSettingLabel("reducedMotion")} items={OS_PREFERENCE_ITEMS} />}
+              {(field): ReactElement => (
+                <field.SegmentField label={configSettingLabel(APPEARANCE_SIZING_SUBCATEGORY, "reducedMotion")} items={OS_PREFERENCE_ITEMS} />
+              )}
             </form.AppField>
           </SettingRow>
           <SettingRow settingId="reduced-transparency">
             <form.AppField name="reducedTransparency">
-              {(field): ReactElement => <field.SegmentField label={sizingSettingLabel("reducedTransparency")} items={OS_PREFERENCE_ITEMS} />}
+              {(field): ReactElement => (
+                <field.SegmentField label={configSettingLabel(APPEARANCE_SIZING_SUBCATEGORY, "reducedTransparency")} items={OS_PREFERENCE_ITEMS} />
+              )}
             </form.AppField>
           </SettingRow>
           <SettingRow settingId="increased-contrast">
             <form.AppField name="increasedContrast">
-              {(field): ReactElement => <field.SegmentField label={sizingSettingLabel("increasedContrast")} items={OS_PREFERENCE_ITEMS} />}
+              {(field): ReactElement => (
+                <field.SegmentField label={configSettingLabel(APPEARANCE_SIZING_SUBCATEGORY, "increasedContrast")} items={OS_PREFERENCE_ITEMS} />
+              )}
             </form.AppField>
           </SettingRow>
         </SettingRowGroup>

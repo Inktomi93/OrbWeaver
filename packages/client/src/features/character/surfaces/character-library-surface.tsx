@@ -43,7 +43,7 @@ import { useQuery } from "@tanstack/react-query";
 import type { inferOutput } from "@trpc/tanstack-react-query";
 import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
-import { FaceStrip, ListPage } from "#components";
+import { FaceStrip, ListPage, useRowDeleteFocus } from "#components";
 import type { Trpc } from "#data";
 import { createCollectionSurface, useInvalidation, useStartChat, useTRPC } from "#data";
 import { SEARCH_DEBOUNCE_MS, useDebouncedValue, useFocusListArrival } from "#lib";
@@ -227,6 +227,11 @@ export function CharacterLibrarySurface(): ReactElement {
     resumeChat(target);
   };
 
+  const rowFocus = useRowDeleteFocus(
+    surfaceRef,
+    items.map((item) => item.id),
+  );
+
   const renderRow = (item: CharacterCardItem): ReactNode => (
     <CharacterCardTile
       bulkMode={bulkMode}
@@ -239,6 +244,7 @@ export function CharacterLibrarySurface(): ReactElement {
       onToggleArchive={toggleArchive}
       onToggleBulk={toggleBulk}
       onToggleStar={toggleStar}
+      rowFocus={rowFocus}
       selected={selectedId === item.id}
     />
   );

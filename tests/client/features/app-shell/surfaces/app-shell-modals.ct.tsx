@@ -1,4 +1,4 @@
-// Every registered modal through the shell's one ModalHost: focus on open and on close, a locked document with the
+// Every registered modal through the shell's one ModalHost: focus on close, a locked document with the
 // overflow inside the popup, Escape, and the theme, colorization and density the portal inherits from the shell.
 import { BLANK_CHAT_NAME, NEW_CHAT_DIALOG_TITLE, START_NEW_CHAT_NAME } from "@orb/client/lib";
 import type { ModalSlotId } from "@orb/client/state";

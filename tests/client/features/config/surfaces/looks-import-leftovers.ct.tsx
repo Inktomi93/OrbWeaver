@@ -1,9 +1,13 @@
 // A single imported theme file reports the settings it carried that Orbweaver did not bring over, in a note beside the
-// grid that stays after the success toast: the count in its heading, the setting names behind a disclosure. A file that
+// grid that stays after the success toast: the count in its heading, each reason group under its own sentence, and the raw
+// setting names behind a disclosure, grouped the same way. A file that
 // left nothing behind shows no note, and the next import replaces the last note, a refused one included. The server is the real settings verb on
 // a corpus root, so the leftovers are what production computed for the file.
 // @subject packages/client/src/features/config/components/appearance-looks-section.tsx
 // @subject packages/client/src/features/config/components/theme-import-leftovers.tsx
+import { configSettingLabel } from "@orb/client/state";
+import type { ThemeLeftoverReasonKind } from "@orb/contracts/portability";
+import { THEME_LEFTOVER_REASON_KINDS } from "@orb/contracts/portability";
 import { watchToastMounts } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -11,9 +15,10 @@ import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
 import { APPEARANCE_SIZING_SUBCATEGORY } from "#client/features/app-shell/lib/appearance-sizing-model.ts";
 import {
-  THEME_IMPORT_ACTION,
+  THEME_IMPORT_NOTHING_TO_DO,
   THEME_IMPORT_OUTCOME,
   themeImportGroupLine,
+  themeImportGroupNamesLabel,
   themeImportLeftoverTitle,
   themeImportLeftoverToggleName,
 } from "#client/features/config/lib/theme-import-copy.ts";
@@ -22,14 +27,23 @@ import type { LooksImportStory } from "./_looks-import-stories.tsx";
 const STORY = "tests/client/features/config/surfaces/_looks-import-stories/LooksImportStory";
 const PROCEDURES = ["settings.getUserSettings", "settings.listThemes", "settings.importThemeFile"] as const;
 const NOTE = '[data-slot="theme-import-leftovers"]';
+const GROUP = '[data-slot="theme-import-group"]';
+const NAMES = '[data-slot="theme-import-names"]';
 
-// A raw SillyTavern theme: a readable surface plus one key of each kind the note groups. `custom_css` has no counterpart here,
-// `font_scale` is the viewer's Text size in Appearance, and `main_text_color` is a text colour too faint on that surface to keep.
-// The key names are SillyTavern's own spellings.
-const LEFTOVERS = { ["custom_css"]: "#chat { color: red; }", ["font_scale"]: 1.2, ["main_text_color"]: "rgb(24, 40, 76)" };
+// A raw SillyTavern theme: a readable surface plus the keys of each kind the note groups. `custom_css` has no counterpart here,
+// `font_scale` and `chat_width` are the viewer's own Appearance settings, and `main_text_color` is a text colour too faint on that
+// surface to keep. The key names are SillyTavern's own spellings.
+const LEFTOVER_KEYS = {
+  appearance: ["font_scale", "chat_width"],
+  "no-equivalent": ["custom_css"],
+  "faint-colour": ["main_text_color"],
+} as const satisfies Record<ThemeLeftoverReasonKind, readonly string[]>;
+const LEFTOVERS = { ["custom_css"]: "#chat { color: red; }", ["font_scale"]: 1.2, ["chat_width"]: 60, ["main_text_color"]: "rgb(24, 40, 76)" };
 const ST_THEME = { name: "Azure", ["blur_tint_color"]: "rgb(16, 32, 64)", ...LEFTOVERS };
-// The label the viewer finds `font_scale`'s setting under in Appearance.
-const FONT_SCALE_LABEL = APPEARANCE_SIZING_SUBCATEGORY.settings?.find((setting) => setting.key === "fontScale")?.label ?? "";
+// The labels the viewer finds those two settings under in Appearance, in the order the file lists them.
+const APPEARANCE_LABELS = [configSettingLabel(APPEARANCE_SIZING_SUBCATEGORY, "fontScale"), configSettingLabel(APPEARANCE_SIZING_SUBCATEGORY, "chatWidthPct")];
+// A file whose only leftover needs nothing from the person.
+const NO_ACTION_THEME = { name: "Plain", ["blur_tint_color"]: "rgb(16, 32, 64)", ["custom_css"]: "#chat { color: red; }" };
 // An Orbweaver export: the row's own bytes, which no leftovers can come from.
 const NATIVE_THEME = { name: "Native", override: { background: "oklch(0.2493 0.0645 262.64)" }, css: null };
 const ST_LANDED_NAME = "Azure (SillyTavern)";
@@ -42,26 +56,50 @@ async function importText(page: Page, name: string, text: string): Promise<void>
   await page.locator('input[type="file"]').setInputFiles({ name, mimeType: "application/json", buffer: Buffer.from(text) });
 }
 
-test("a SillyTavern theme that left settings behind says what to do about each group, with the raw names behind a disclosure", async ({ mount, page }) => {
+test("a SillyTavern theme that left settings behind says each group under its own sentence, with the raw names behind a disclosure grouped the same way", async ({
+  mount,
+  page,
+}) => {
   await using root = await createCorpusHarness();
   await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), PROCEDURES));
   await mount<typeof LooksImportStory>(STORY, {});
 
   await importFile(page, "azure.json", ST_THEME);
 
-  // The note names the landed theme and the count, says the rest imported, and says there is something to set.
+  // The note names the landed theme and the count, and says the rest imported. A display setting is among the leftovers, so the
+  // action is the Appearance group's line alone: the outcome line carries no second instruction.
   const note = page.locator(NOTE);
   await expect(note).toContainText(themeImportLeftoverTitle(ST_LANDED_NAME, Object.keys(LEFTOVERS).length, true));
-  await expect(note).toContainText(`${THEME_IMPORT_OUTCOME.created} ${THEME_IMPORT_ACTION.needed}`);
-  // Each group has its own line: the display setting by the label it wears in Appearance, then the two that need nothing.
-  await expect(note).toContainText(themeImportGroupLine("appearance", [FONT_SCALE_LABEL]));
-  await expect(note).toContainText(themeImportGroupLine("no-equivalent", []));
-  await expect(note).toContainText(themeImportGroupLine("faint-colour", []));
-  // The raw names are one disclosure away, not on the page until it is opened.
-  const names = Object.keys(LEFTOVERS).join(", ");
-  await expect(note.getByText(names, { exact: true })).toBeHidden();
+  await expect(note.getByText(THEME_IMPORT_OUTCOME.created, { exact: true })).toBeVisible();
+  // Each reason group has its own sentence, with its own subject and count: the display settings by the labels the Appearance
+  // controls wear, the others by how many of them there are.
+  await expect(note.locator(GROUP)).toHaveCount(THEME_LEFTOVER_REASON_KINDS.length);
+  for (const kind of THEME_LEFTOVER_REASON_KINDS) {
+    await expect(note.locator(`${GROUP}[data-kind="${kind}"]`)).toHaveText(themeImportGroupLine(kind, LEFTOVER_KEYS[kind].length, APPEARANCE_LABELS));
+  }
+  // The raw names are one disclosure away, and inside it each group's names sit under that group's heading.
+  await expect(note.locator(NAMES)).toBeHidden();
   await note.getByRole("button", { name: themeImportLeftoverToggleName(false), exact: true }).click();
-  await expect(note.getByText(names, { exact: true })).toBeVisible();
+  for (const kind of THEME_LEFTOVER_REASON_KINDS) {
+    const names = note.locator(`${NAMES}[data-kind="${kind}"]`);
+    await expect(names).toBeVisible();
+    await expect(names.getByText(themeImportGroupNamesLabel(kind), { exact: true })).toBeVisible();
+    await expect(names.getByText(LEFTOVER_KEYS[kind].join(", "), { exact: true })).toBeVisible();
+  }
+});
+
+test("a file whose leftovers need nothing from the person says so once, with no set-it-yourself line", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), PROCEDURES));
+  await mount<typeof LooksImportStory>(STORY, {});
+
+  await importFile(page, "plain.json", NO_ACTION_THEME);
+
+  const note = page.locator(NOTE);
+  await expect(note.getByText(`${THEME_IMPORT_OUTCOME.created} ${THEME_IMPORT_NOTHING_TO_DO}`, { exact: true })).toBeVisible();
+  // One group, and it is the one that needs nothing: a one-key group says so in the singular.
+  await expect(note.locator(GROUP)).toHaveCount(1);
+  await expect(note.locator(`${GROUP}[data-kind="no-equivalent"]`)).toHaveText(themeImportGroupLine("no-equivalent", 1, []));
 });
 
 test("a theme you already have is reported as reused, and its note never claims an import", async ({ mount, page }) => {

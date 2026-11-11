@@ -24,6 +24,7 @@ import { ESTIMATED_ROW_PX } from "#lib";
 import { selectCorpusArtifact, selectCorpusCharacter } from "#state";
 import { formatCount } from "../lib/corpus-analysis-state.ts";
 import { chartLabelWithDenominator, toBarItems, topRanked } from "../lib/corpus-charts.ts";
+import { CORPUS_MODEL_ROUTES_NAME } from "../lib/corpus-control-names.ts";
 import { CharacterAvatar } from "./character-avatar.tsx";
 
 type UnusedCharacter = inferOutput<Trpc["discovery"]["unusedCharacters"]>[number];
@@ -215,7 +216,7 @@ function ModelEconomicsRead(): ReactElement | null {
           valueFormatter={formatCount}
         />
         <VirtualList
-          aria-label="Model routes"
+          aria-label={CORPUS_MODEL_ROUTES_NAME}
           maxHeight="scrollLg"
           estimateSize={(): number => ESTIMATED_ROW_PX.subtitled}
           getItemKey={(route): string => `${route.genre}|${route.model}|${route.provider ?? ""}`}

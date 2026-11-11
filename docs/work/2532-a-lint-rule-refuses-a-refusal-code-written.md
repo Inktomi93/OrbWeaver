@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-11
 priority: P3
 area: tooling
-plan: test-enforcement
+plan: checked-law
 ---
 
 # A lint rule refuses a refusal code written as a string literal at the throw

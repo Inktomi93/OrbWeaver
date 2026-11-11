@@ -1,6 +1,6 @@
 // The production AppShell under the client providers. Section and panel state arrive the way a boot has them, from
 // storage the spec seeds before mount; a modal or a room opens through the store's own action.
-import { useTRPC } from "@orb/client/data";
+import { useSessionRecovery, useTRPC } from "@orb/client/data";
 import { AppShell } from "@orb/client/features/app-shell";
 import { notify } from "@orb/client/lib";
 import type { ModalSlotId } from "@orb/client/state";
@@ -168,6 +168,20 @@ export function AppShellNestedScopeStory({ modalId, tokens }: { readonly modalId
             </ThemeScope>,
             portalRoot,
           )}
+    </CtClientProviders>
+  );
+}
+
+function RecoveringShell(): ReactElement | null {
+  const session = useSessionRecovery();
+  return session.status === "ready" ? <AppShell /> : null;
+}
+
+/** The production shell under the session recovery the app root binds beside it, so a dead session raises the re-auth prompt as it does in the app. */
+export function AppShellRecoveringStory(): ReactElement {
+  return (
+    <CtClientProviders>
+      <RecoveringShell />
     </CtClientProviders>
   );
 }

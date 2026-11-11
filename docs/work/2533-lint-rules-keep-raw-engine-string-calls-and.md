@@ -4,7 +4,7 @@ status: open
 updated: 2026-11-11
 priority: P2
 area: security
-plan: test-enforcement
+plan: checked-law
 ---
 
 # Lint rules keep raw engine string calls and argument coercion inside the plugin marshal

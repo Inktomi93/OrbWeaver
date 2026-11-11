@@ -24,6 +24,7 @@ import type { ReactElement } from "react";
 import type { RowDestructiveAction } from "#components";
 import { RowActionsMenu } from "#components";
 import { DIALOG_VERBS, ROW_DUPLICATE_NAME, ROW_EXPORT_NAME } from "#lib";
+import { CONFIG_EDIT_IN_BUILDER_NAME } from "../lib/config-control-names.ts";
 import { themeActionsName } from "../lib/theme-row-names.ts";
 
 export interface ThemeRowMenuProps {
@@ -36,10 +37,12 @@ export interface ThemeRowMenuProps {
    *  `ConfirmDialog.onConfirm`, which awaits it — the confirm holds open busy and stays open with the reason
    *  on rejection. `() => void` accepted an async handler anyway, so the type said the opposite. */
   readonly onDelete: RowDestructiveAction["onConfirm"];
+  /** Where focus goes when the delete's confirm closes: the card is about to unmount with its menu (`useRowDeleteFocus`). */
+  readonly deleteFinalFocus: NonNullable<RowDestructiveAction["finalFocus"]>;
 }
 
 /** A theme's ⋯ — Apply · (Edit in builder) · Duplicate · Export · (Delete, confirm-gated). */
-export function ThemeRowMenu({ theme, onApply, onEdit, onDuplicate, onExport, onDelete }: ThemeRowMenuProps): ReactElement {
+export function ThemeRowMenu({ theme, onApply, onEdit, onDuplicate, onExport, onDelete, deleteFinalFocus }: ThemeRowMenuProps): ReactElement {
   const items = (
     <>
       <MenuItem onClick={onApply}>
@@ -49,7 +52,7 @@ export function ThemeRowMenu({ theme, onApply, onEdit, onDuplicate, onExport, on
       {theme.isSeed ? null : (
         <MenuItem onClick={onEdit}>
           <Icon icon={Pencil} size="sm" />
-          Edit in builder
+          {CONFIG_EDIT_IN_BUILDER_NAME}
         </MenuItem>
       )}
       <MenuItem onClick={onDuplicate}>
@@ -77,6 +80,7 @@ export function ThemeRowMenu({ theme, onApply, onEdit, onDuplicate, onExport, on
         title: "Delete this theme?",
         description: `This permanently deletes "${theme.name}", including its custom CSS. This can't be undone.`,
         onConfirm: onDelete,
+        finalFocus: deleteFinalFocus,
       }}
       label={themeActionsName(theme.name)}
       triggerSize="sm"

@@ -7,10 +7,11 @@ import type { ReactElement } from "react";
 import type { ModalDefinition } from "#state";
 import { clearImagineSeed } from "#state";
 import { ImagineBody } from "../components/imagine-body.tsx";
+import { IMAGINE_DIALOG_TITLE } from "./imagine-names.ts";
 
 export const imagineModal: ModalDefinition = {
   id: "imagine",
-  title: "Generate an image",
+  title: IMAGINE_DIALOG_TITLE,
   size: "md",
   trigger: { placement: "surface", label: "Imagine", icon: ImagePlus },
   onClose: clearImagineSeed,

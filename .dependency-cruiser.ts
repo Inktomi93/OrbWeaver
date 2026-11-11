@@ -460,7 +460,17 @@ const TEST_CONSTANT_HOMES = {
     "TRAIL_OVERFLOW_LABEL and BAND_OVERFLOW_LABEL: the More triggers an action folds into when its row runs out of room, which the walk presses it through",
   "packages/client/src/lib/row-menu-names.ts": "ROW_RENAME_NAME and its siblings: the library row menu items and the delete confirm title",
   "packages/client/src/lib/search-empty-names.ts": "NO_MATCHES_TITLE and CLEAR_SEARCH_NAME: the words a searched-empty list prints",
-  "packages/client/src/features/imagery/lib/imagine-names.ts": "IMAGINE_MODE_NAME and IMAGINE_PROMPT_NAME: the imagine options' field names",
+  "packages/client/src/features/imagery/lib/imagine-names.ts":
+    "IMAGINE_MODE_NAME and its siblings: the imagine options' field names and the imagery dialogs' titles and edit door",
+  "packages/client/src/features/chat/lib/appearance-avatars-model.ts":
+    "APPEARANCE_AVATARS_SUBCATEGORY: the Avatars section's model, whose setting names its pane and its test both read",
+  "packages/client/src/features/chat/lib/appearance-message-details-model.ts":
+    "APPEARANCE_MESSAGE_DETAILS_SUBCATEGORY: the Message details section's model, whose setting names its pane and its test both read",
+  "packages/client/src/features/chat/lib/appearance-message-style-model.ts":
+    "APPEARANCE_MESSAGE_STYLE_SUBCATEGORY: the Message style section's model, whose setting names its pane and its test both read",
+  "packages/client/src/features/app-shell/lib/appearance-effects-model.ts":
+    "APPEARANCE_EFFECTS_SUBCATEGORY: the Effects section's model, whose setting names its pane and its test both read",
+  "packages/client/src/features/auth/lib/reauth-names.ts": "REAUTH_MODAL_TITLE: the re-auth prompt's title, which its landing test names the dialog by",
   "packages/client/src/features/plugin/lib/plugin-command-copy.ts":
     "PLUGIN_ACTIONS_NAME and its siblings: the composer's plugin command menu, argument dialog and undo names",
   "packages/client/src/features/workloads/lib/import-library-names.ts": "IMPORT_FOLDER_NAME: the import section's folder door",
@@ -512,7 +522,12 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/preset/lib/preset-names.ts": "PRESET_DELETE_SECTION_TITLE: the section delete confirmation's title",
   "packages/client/src/features/roster-preset/lib/roster-names.ts": "ROSTER_SAVED_NAME and ROSTER_ALL_NAME: the saved-rosters modal and Home tile names",
   "packages/client/src/features/discovery/lib/corpus-control-names.ts":
-    "CORPUS_SEARCH_TARGET_NAME and CORPUS_DISTILLED_CATALOG_NAME: the Corpus list and browse names",
+    "CORPUS_SEARCH_TARGET_NAME and its siblings: the Corpus list, browse, gem shelf and model-route list names",
+  "packages/client/src/features/config/lib/theme-row-names.ts": "themeActionsName: the name of a Looks theme row's actions menu",
+  "packages/client/src/features/workloads/lib/import-folder-copy.ts":
+    "IMPORT_FOLDER_WRONG_FOLDER: the sentence the SillyTavern folder import prints when the folder is not a user folder",
+  "packages/client/src/features/character/lib/character-import-copy.ts":
+    "cardImportRefusalLine and its siblings: the character import dialog's refusal sentence for a picture that is not a card",
   "packages/client/src/lib/use-focus-on-mount.ts":
     "PRESS_RENDER_WINDOW_MS: how long after a press a surface may still arrive from the body on that press's account",
   "packages/client/src/features/refinery/lib/refinery-section-label.ts": "REFINERY_LIST_TITLE: the name the Refinery list pane's focus target announces",

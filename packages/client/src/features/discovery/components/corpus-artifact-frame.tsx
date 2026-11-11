@@ -3,7 +3,7 @@ import { Stack } from "@orb/ui/layout";
 import { Heading } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
 import { useRef } from "react";
-import { useFocusOnMount } from "#lib";
+import { CORPUS_MODE_LABELS, sectionBackName, useFocusOnMount } from "#lib";
 import { clearCorpusSelection } from "#state";
 
 export function CorpusArtifactFrame({ title, children }: { readonly title: string; readonly children: ReactNode }): ReactElement {
@@ -12,7 +12,7 @@ export function CorpusArtifactFrame({ title, children }: { readonly title: strin
   return (
     <Stack gap="block">
       <Button ref={backRef} self="start" variant="ghost" size="sm" onClick={clearCorpusSelection}>
-        Back to Explore
+        {sectionBackName(CORPUS_MODE_LABELS.explore)}
       </Button>
       <Heading level={2} voice="focal">
         {title}

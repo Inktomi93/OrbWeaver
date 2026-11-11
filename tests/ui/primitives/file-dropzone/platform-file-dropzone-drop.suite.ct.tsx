@@ -92,6 +92,19 @@ test("the picker feeds the same gate as a drop", async ({ mount, page }) => {
   await expect.poll(() => batches(page)).toEqual([{ accepted: ["ok.png"], rejected: [{ name: "no.txt", reason: "type" }] }]);
 });
 
+test("a refusal by the zone itself marks the control invalid until a pick it accepts clears the line", async ({ mount }) => {
+  const component = await mount<typeof DropAcceptStory>(STORY, { accept: "image/*" });
+  const zone = await zoneOf(component);
+  const control = zone.locator('input[type="file"]');
+  await expect(control).not.toHaveAttribute("aria-invalid", /.*/);
+  await control.setInputFiles({ name: "no.txt", mimeType: "text/plain", buffer: Buffer.from([1]) });
+  await expect(zone.getByRole("alert")).toBeVisible();
+  await expect(control).toHaveAttribute("aria-invalid", "true");
+  await control.setInputFiles({ name: "ok.png", mimeType: "image/png", buffer: Buffer.from([1]) });
+  await expect(zone.getByRole("alert")).toHaveCount(0);
+  await expect(control).not.toHaveAttribute("aria-invalid", /.*/);
+});
+
 test("the drag-over highlight follows enter and leave, and a drop clears it", async ({ mount }) => {
   const zone = await zoneOf(await mount<typeof DropAcceptStory>(STORY, {}));
   await expect(zone).not.toHaveAttribute("data-drag-over", /.*/);

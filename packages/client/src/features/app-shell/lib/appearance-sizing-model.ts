@@ -19,7 +19,7 @@ export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
     {
       id: "chat-width",
       key: "chatWidthPct",
-      label: "Chat width",
+      label: "Chat width (%)",
       keywords: ["width", "column", "reading"],
       teach: {
         summary: "How wide the reading column may grow on large screens. Narrower columns are easier to read; wider ones fit more of a long turn.",
@@ -98,15 +98,6 @@ export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
     },
   ],
 };
-
-/** The label the model gives the setting a control writes; the section's controls read it so a row has one name. */
-export function sizingSettingLabel(key: string): string {
-  const leaf = APPEARANCE_SIZING_SUBCATEGORY.settings?.find((setting) => setting.key === key);
-  if (leaf === undefined) {
-    throw new Error(`The sizing model has no setting for ${key}`);
-  }
-  return leaf.label;
-}
 
 /** The `appearance` keys this section — and ONLY this section — WRITES (SET-SEAMS §2.3 S1/S2). ONE
  *  spelling, three consumers: the body's `pickKeys` projection + seeded defaults, its `Pick`-derived form

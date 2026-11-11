@@ -21,10 +21,11 @@ import { KeyRound } from "@orb/ui/icons";
 import { completeReauth } from "#data";
 import type { ModalDefinition } from "#state";
 import { ReauthForm } from "../components/reauth-form.tsx";
+import { REAUTH_MODAL_TITLE } from "./reauth-names.ts";
 
 export const reauthModal: ModalDefinition = {
   id: "reauth",
-  title: "Session expired",
+  title: REAUTH_MODAL_TITLE,
   size: "sm",
   // `surface`: opened by `openModal("reauth")` from the recovery ladder's binding, never by a rail/topbar
   // affordance — a "sign in again" button on a live session would be nonsense chrome.

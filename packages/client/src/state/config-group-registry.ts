@@ -133,6 +133,16 @@ export interface ConfigSubcategory {
   readonly teach?: SettingTeach;
 }
 
+/** The label the section's model gives the setting stored under `key`. A pane prints its control's name from here, so Settings search,
+ *  the roster and a sentence that points at the setting all say the word the control wears. */
+export function configSettingLabel(subcategory: ConfigSubcategory, key: string): string {
+  const leaf = subcategory.settings?.find((setting) => setting.key === key);
+  if (leaf === undefined) {
+    throw new Error(`The "${subcategory.id}" section has no setting stored under "${key}"`);
+  }
+  return leaf.label;
+}
+
 /** The state-owned viewer PROJECTION a group's / a section's `when` consumes — plain derived values only,
  *  no `data/` import (§5 rule 6). Fields grow as gates need them: `isAdmin` gates the admin group + the
  *  distribute section; `isOwner` gates the host-Claude probe section (it used to render `null` for a
