@@ -2,7 +2,7 @@
 import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { globSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, globSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/tooling";
@@ -109,50 +109,174 @@ function workspaceImporters(repoRoot: string): readonly string[] {
 const FIREWALL_ADDRESSES: Readonly<Record<string, string>> = { "api.github.com": "140.82.112.5", "example.com": "203.0.113.10" };
 const FIREWALL_FALLBACK_ADDRESS = "192.0.2.10";
 const GITHUB_META_RANGE = "140.82.112.0/20";
-const FIREWALL_COMMANDS = ["iptables", "iptables-save", "ipset", "ip", "curl", "dig", "aggregate"] as const;
+const FIREWALL_COMMANDS = ["iptables", "ip6tables", "iptables-save", "ipset", "ip", "curl", "dig", "aggregate"] as const;
+const FIREWALL_FAMILIES = ["iptables", "ip6tables"] as const;
+type FirewallFamily = (typeof FIREWALL_FAMILIES)[number];
+const ALLOWED_SET = "allowed-domains";
+const SSH_SET = "github-ssh";
+const FIREWALL_CHAINS = ["INPUT", "OUTPUT", "FORWARD"] as const;
+// The fake default route; the script admits its /24 as the host network.
+const FAKE_GATEWAY = "172.17.0.1";
+const FAKE_HOST_NETWORK = "172.17.0.0/24";
 
-/** Node sources for the commands init-firewall.sh drives. A destination answers only when the allowlist the script built covers it. */
+/**
+ * Node sources for the commands init-firewall.sh drives. A destination answers only when the allowlist the script
+ * built covers it. `iptables`, `ip6tables` and `ipset` write every call, in order, to one `calls` file, and each ipset
+ * is also a file of entries. `dig-fail` names one domain whose lookup times out; an `ip-fail` file makes the route
+ * lookup fail.
+ */
 function firewallFakes(state: string): Readonly<Record<(typeof FIREWALL_COMMANDS)[number], string>> {
-  const shared = `const state = ${JSON.stringify(state)};
+  const shared = `import { appendFileSync, existsSync, readFileSync } from "node:fs";
+const state = ${JSON.stringify(state)};
 const addresses = ${JSON.stringify(FIREWALL_ADDRESSES)};
 const addressOf = (host) => addresses[host] ?? ${JSON.stringify(FIREWALL_FALLBACK_ADDRESS)};
+const record = (command) => appendFileSync(state + "/calls", [command, ...process.argv.slice(2)].join(" ") + "\\n");
 `;
   return {
-    iptables: "",
+    iptables: `${shared}record("iptables");\n`,
+    ip6tables: `${shared}record("ip6tables");\n`,
     "iptables-save": "",
-    ip: 'process.stdout.write("default via 172.17.0.1 dev eth0\\n");\n',
+    ip: `${shared}if (existsSync(state + "/ip-fail")) process.exit(1);
+process.stdout.write("default via ${FAKE_GATEWAY} dev eth0\\n");
+`,
     aggregate: "process.stdin.pipe(process.stdout);\n",
-    ipset: `import { appendFileSync } from "node:fs";
-${shared}const [verb, , entry] = process.argv.slice(2);
-if (verb === "add") appendFileSync(state + "/allowed", entry + "\\n");
+    ipset: `${shared}record("ipset");
+const [verb, set, entry] = process.argv.slice(2);
+if (verb === "add") appendFileSync(state + "/set-" + set, entry + "\\n");
 `,
     dig: `${shared}const domain = process.argv.at(-1);
+if (existsSync(state + "/dig-fail") && readFileSync(state + "/dig-fail", "utf8") === domain) process.exit(9);
 process.stdout.write(domain + ".\\t60\\tIN\\tA\\t" + addressOf(domain) + "\\n");
 `,
-    curl: `import { existsSync, readFileSync } from "node:fs";
-import { BlockList } from "node:net";
-${shared}const url = new URL(process.argv.slice(2).find((arg) => arg.startsWith("https://")));
-if (url.pathname === "/meta") {
-  if (!existsSync(state + "/meta")) process.exit(22);
-  process.stdout.write(readFileSync(state + "/meta", "utf8"));
-  process.exit(0);
-}
+    curl: `${shared}import { BlockList } from "node:net";
+const url = new URL(process.argv.slice(2).find((arg) => arg.startsWith("https://")));
 const allowed = new BlockList();
-const entries = existsSync(state + "/allowed") ? readFileSync(state + "/allowed", "utf8").split("\\n").filter(Boolean) : [];
+const set = state + "/set-${ALLOWED_SET}";
+const entries = existsSync(set) ? readFileSync(set, "utf8").split("\\n").filter(Boolean) : [];
 for (const entry of entries) {
   const [address, prefix] = entry.split("/");
   if (prefix === undefined) allowed.addAddress(address);
   else allowed.addSubnet(address, Number(prefix));
 }
-process.exit(allowed.check(addressOf(url.hostname)) ? 0 : 7);
+// Every request runs under the DROP policy, so the meta fetch too needs its host in the allowlist first.
+if (!allowed.check(addressOf(url.hostname))) process.exit(7);
+if (url.pathname === "/meta") {
+  if (!existsSync(state + "/meta")) process.exit(22);
+  process.stdout.write(readFileSync(state + "/meta", "utf8"));
+}
+process.exit(0);
 `,
   };
 }
 
+/** The IPv4 nameservers a resolv.conf names, the only DNS destinations the firewall may admit. */
+function nameservers(): readonly string[] {
+  return [...readFileSync("/etc/resolv.conf", "utf8").matchAll(/^nameserver\s+(\d{1,3}(?:\.\d{1,3}){3})\s*$/gmu)].map((match) => match[1] ?? "");
+}
+
+interface FirewallRun {
+  readonly name: string;
+  readonly meta: string | null;
+  readonly digFail?: string;
+  readonly ipFail?: boolean;
+  /** The allowlist entry a started run must hold, or `null` for a run that must not start. */
+  readonly allows: string | null;
+}
+
+/**
+ * The closed list of OUTPUT accepts each family may hold, spelled as the script spells them: loopback, DNS to each
+ * resolver, HTTPS to the allowlist set, ssh to the GitHub set and the host network. Anything else, a destination of
+ * all addresses included, is a widening.
+ */
+function admittedOutputAccepts(resolvers: readonly string[]): Readonly<Record<FirewallFamily, readonly string[]>> {
+  return {
+    iptables: [
+      "-o lo -j ACCEPT",
+      ...resolvers.flatMap((resolver) => [`-p udp -d ${resolver} --dport 53 -j ACCEPT`, `-p tcp -d ${resolver} --dport 53 -j ACCEPT`]),
+      `-p tcp --dport 443 -m set --match-set ${ALLOWED_SET} dst -j ACCEPT`,
+      `-p tcp --dport 22 -m set --match-set ${SSH_SET} dst -j ACCEPT`,
+      `-d ${FAKE_HOST_NETWORK} -j ACCEPT`,
+    ],
+    ip6tables: ["-o lo -j ACCEPT"],
+  };
+}
+
+// An appended or inserted OUTPUT rule that accepts, in any spelling of the flags: the rule body after the chain.
+const OUTPUT_ACCEPT_RE = /^(?:-t filter )?(?:-A|--append|-I|--insert) OUTPUT (?:\d+ )?(?<body>.*(?:-j|--jump) ACCEPT.*)$/u;
+// A call that creates a rule, a chain or a set; the DROP policies must already hold before the first one.
+const CREATES_RE = /^(?:(?:-t \S+ )?(?:-A|--append|-I|--insert|-N|--new-chain) |create )/u;
+
+/** Per family: did all three DROP policies land before its first rule or set, and which OUTPUT accepts fall outside the list. */
+function sequenceVerdict(calls: readonly string[], resolvers: readonly string[]): Record<string, unknown> {
+  const admitted = admittedOutputAccepts(resolvers);
+  return Object.fromEntries(
+    FIREWALL_FAMILIES.map((family) => {
+      const own = calls
+        .filter((call) => call.startsWith(`${family} `) || (family === "iptables" && call.startsWith("ipset ")))
+        .map((call) => call.slice(call.indexOf(" ") + 1));
+      const firstCreate = own.findIndex((args) => CREATES_RE.test(args));
+      const before = firstCreate === -1 ? own : own.slice(0, firstCreate);
+      const dropFirst = FIREWALL_CHAINS.every((chain) => before.includes(`-P ${chain} DROP`));
+      const strayOutputAccepts = own.flatMap((args) => {
+        const body = OUTPUT_ACCEPT_RE.exec(args)?.groups?.["body"];
+        return body === undefined || admitted[family].includes(body) ? [] : [args];
+      });
+      return [family, { dropFirst, strayOutputAccepts }];
+    }),
+  );
+}
+
+/** Run the real script once over fresh fake state, and read back what it left: exit, self-test and every rule it set. */
+function runFirewall(repoRoot: string, state: string, resolvers: readonly string[], run: FirewallRun): Record<string, unknown> {
+  for (const file of ["calls", `set-${ALLOWED_SET}`, `set-${SSH_SET}`, "meta", "dig-fail", "ip-fail"]) {
+    rmSync(join(state, file), { force: true });
+  }
+  const plant: readonly (readonly [string, string | null | undefined])[] = [
+    ["meta", run.meta],
+    ["dig-fail", run.digFail],
+    ["ip-fail", run.ipFail === true ? "" : undefined],
+  ];
+  for (const [file, content] of plant) {
+    if (typeof content === "string") {
+      writeFileSync(join(state, file), content);
+    }
+  }
+  const result = spawnSync("bash", [join(repoRoot, ".devcontainer/init-firewall.sh")], { encoding: "utf8", timeout: scaledBudget(30_000) });
+  const calls = readFileSync(join(state, "calls"), "utf8").split("\n").filter(Boolean);
+  const policies = calls.filter((call) => call.split(" ")[1] === "-P");
+  const allowed = existsSync(join(state, `set-${ALLOWED_SET}`)) ? readFileSync(join(state, `set-${ALLOWED_SET}`), "utf8").split("\n") : [];
+  const v4 = calls.filter((call) => call.startsWith("iptables ")).map((call) => call.slice("iptables ".length));
+  // Each `-P` call replaces its chain's policy, so the map ends holding the policy the run left in force.
+  const policyInForce = new Map<string, string>();
+  for (const call of policies) {
+    const [family, , chain, target] = call.split(" ");
+    if (family !== undefined && chain !== undefined && target !== undefined) {
+      policyInForce.set(`${family} ${chain}`, target);
+    }
+  }
+  const started = result.status === 0;
+  return {
+    started,
+    refusedUnlisted: result.stdout.includes("unable to reach https://example.com as expected"),
+    allowlisted: run.allows === null ? null : allowed.includes(run.allows),
+    acceptPolicies: policies.filter((call) => call.endsWith(" ACCEPT")),
+    finalPolicies: FIREWALL_FAMILIES.flatMap((family) => FIREWALL_CHAINS.map((chain) => policyInForce.get(`${family} ${chain}`))),
+    sequence: sequenceVerdict(calls, resolvers),
+    // A run that failed may stop before either rule; only a started firewall owes both.
+    admitsDns: started ? resolvers.every((resolver) => v4.includes(`-A OUTPUT -p udp -d ${resolver} --dport 53 -j ACCEPT`)) : null,
+    admitsSsh: started
+      ? v4.includes(`-A OUTPUT -p tcp --dport 22 -m set --match-set ${SSH_SET} dst -j ACCEPT`) && existsSync(join(state, `set-${SSH_SET}`))
+      : null,
+    log: `${result.stdout}${result.stderr}`,
+  };
+}
+
 // The GitHub range fetch is best effort, so a failed or junk answer must still leave a container whose start
-// passes the script's own self-test. A good answer is the positive control: its ranges reach the allowlist.
-test("the firewall starts and reaches GitHub whatever the range fetch answers, and still refuses an unlisted host", {
-  timeout: scaledBudget(60_000),
+// passes the script's own self-test. A good answer is the positive control: its ranges reach the allowlist. Every
+// run, a lookup that times out and a hard failure mid-script included, must end with egress dropped and must never
+// pass through an ACCEPT policy: the script runs at every start and through sudo at will.
+test("the firewall starts and reaches GitHub whatever the range fetch answers, never opens egress, and fails closed", {
+  timeout: scaledBudget(90_000),
 }, async ({ fakeBin, repoRoot, scratch }) => {
   const state = join(scratch, "firewall");
   mkdirSync(state);
@@ -169,25 +293,33 @@ test("the firewall starts and reaches GitHub whatever the range fetch answers, a
     expect(path.startsWith(scratch), path).toBe(true);
   }
 
-  const answers = [
-    { name: "a failed fetch", meta: null, allows: FIREWALL_ADDRESSES["api.github.com"] },
-    { name: "a junk answer", meta: "<html>rate limited</html>", allows: FIREWALL_ADDRESSES["api.github.com"] },
-    {
-      name: "a good answer",
-      meta: JSON.stringify({ web: [GITHUB_META_RANGE], api: [GITHUB_META_RANGE], git: [GITHUB_META_RANGE] }),
-      allows: GITHUB_META_RANGE,
-    },
+  const resolvers = nameservers();
+  expect(resolvers.length, "this host's resolv.conf names no IPv4 nameserver").toBeGreaterThan(0);
+  const goodMeta = JSON.stringify({ web: [GITHUB_META_RANGE], api: [GITHUB_META_RANGE], git: [GITHUB_META_RANGE] });
+  const runs: readonly FirewallRun[] = [
+    { name: "a failed fetch", meta: null, allows: FIREWALL_ADDRESSES["api.github.com"] ?? "" },
+    { name: "a junk answer", meta: "<html>rate limited</html>", allows: FIREWALL_ADDRESSES["api.github.com"] ?? "" },
+    { name: "a good answer", meta: goodMeta, allows: GITHUB_META_RANGE },
+    { name: "a lookup that times out", meta: goodMeta, digFail: "sentry.io", allows: GITHUB_META_RANGE },
+    { name: "a failed route lookup mid-script", meta: goodMeta, ipFail: true, allows: null },
   ];
-  for (const { name, meta, allows } of answers) {
-    rmSync(join(state, "allowed"), { force: true });
-    rmSync(join(state, "meta"), { force: true });
-    if (meta !== null) {
-      writeFileSync(join(state, "meta"), meta);
-    }
-    const run = spawnSync("bash", [join(repoRoot, ".devcontainer/init-firewall.sh")], { encoding: "utf8", timeout: scaledBudget(30_000) });
-    expect(run.status, `${name}: ${run.stdout}${run.stderr}`).toBe(0);
-    expect(run.stdout, name).toContain("unable to reach https://example.com as expected");
-    expect(readFileSync(join(state, "allowed"), "utf8").split("\n"), name).toContain(allows);
+  const lockedDown = {
+    acceptPolicies: [],
+    finalPolicies: FIREWALL_FAMILIES.flatMap(() => FIREWALL_CHAINS.map(() => "DROP")),
+    sequence: Object.fromEntries(FIREWALL_FAMILIES.map((family) => [family, { dropFirst: true, strayOutputAccepts: [] }])),
+    log: expect.any(String),
+  };
+  for (const run of runs) {
+    const outcome = runFirewall(repoRoot, state, resolvers, run);
+    const started = run.allows !== null;
+    expect(outcome, `${run.name}:\n${String(outcome["log"])}`).toEqual({
+      ...lockedDown,
+      started,
+      refusedUnlisted: started,
+      allowlisted: started ? true : null,
+      admitsDns: started ? true : null,
+      admitsSsh: started ? true : null,
+    });
   }
 });
 

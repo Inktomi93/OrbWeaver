@@ -4,8 +4,7 @@
     "dockerfile": "Dockerfile",
     "args": {
       "TZ": "${localEnv:TZ:America/Los_Angeles}",
-      "GIT_DELTA_VERSION": "0.18.2",
-      "ZSH_IN_DOCKER_VERSION": "1.2.0"
+      "GIT_DELTA_VERSION": "0.18.2"
     }
   },
   // NET_ADMIN/NET_RAW let init-firewall.sh manage iptables. no-new-privileges=false
@@ -73,7 +72,6 @@
   "containerEnv": {
     "NODE_OPTIONS": "--max-old-space-size=4096",
     "CLAUDE_CONFIG_DIR": "/home/node/.claude",
-    "POWERLEVEL9K_DISABLE_GITSTATUS": "true",
     // THE store fix, and the reason there is no pnpm wrapper script. pnpm ignores
     // npm_config_store_dir / ~/.npmrc / ~/.config/pnpm/rc for store-dir (settings live in the
     // committed pnpm-workspace.yaml, shared with the host), but it honors the pnpm-prefixed env var.

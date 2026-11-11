@@ -97,20 +97,8 @@ ENV SHELL=/bin/zsh
 ENV EDITOR=nano
 ENV VISUAL=nano
 
-# Default powerline10k theme
-ARG ZSH_IN_DOCKER_VERSION=1.2.0
-# Pinned like git-delta above: the release publishes no checksum.
-ARG ZSH_IN_DOCKER_SHA256=f74e5b08c295b6c3886654bb63c688e5ea16c58a4209435c4ddbab2c42fe9b41
-RUN wget -O /tmp/zsh-in-docker.sh "https://github.com/deluan/zsh-in-docker/releases/download/v${ZSH_IN_DOCKER_VERSION}/zsh-in-docker.sh" && \
-  echo "${ZSH_IN_DOCKER_SHA256}  /tmp/zsh-in-docker.sh" | sha256sum -c - && \
-  sh /tmp/zsh-in-docker.sh \
-  -p git \
-  -p fzf \
-  -a "source /usr/share/doc/fzf/examples/key-bindings.zsh" \
-  -a "source /usr/share/doc/fzf/examples/completion.zsh" \
-  -a "export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
-  -x && \
-  rm /tmp/zsh-in-docker.sh
+# The shell setup is a checked-in file over the Debian zsh and fzf packages, so the build runs no fetched shell code.
+COPY --chown=node:node zshrc /home/node/.zshrc
 
 # Playwright Chromium for the client CT (`pnpm test:ct`) and e2e (`pnpm e2e`) suites.
 # The OS libs must be baked in at build time: `install-deps` runs apt as root, and the

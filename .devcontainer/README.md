@@ -55,8 +55,9 @@ host sessions keep whatever the host user settings say.
   design — credentials stay on the host, never exposed to a permissive sandbox).
   You can still `git commit` inside; just push from a host terminal.
 - **Models/vLLM run on the HOST.** In-container there is no GPU, and the local-light
-  int suites self-skip. The firewall allows traffic to the host network, so a service
-  the host exposes on its LAN address is reachable if you ever need it.
+  int suites self-skip. The firewall admits only the Docker bridge range (the /24 of the
+  container's default gateway, usually `172.17.0.1`). A host service is reachable through that
+  gateway only when it listens on all interfaces; one bound only to the host's LAN address is not.
 - **After editing any file in this folder**, rebuild:
   ```bash
   npx @devcontainers/cli up --remove-existing-container --workspace-folder .
@@ -71,7 +72,8 @@ host sessions keep whatever the host user settings say.
 | `devcontainer.json` | Container definition: image build, mounts, run args, lifecycle commands, container-only VS Code settings. |
 | `Dockerfile` | The sandbox image: `node:26` + Claude Code + ast-grep + pnpm + git/gh/delta/zsh/iptables + the baked Playwright Chromium. |
 | `tools/package.json`, `tools/package-lock.json` | Exact coding-tool versions and integrity-locked dependencies, installed with `npm ci`. The pnpm version matches the repository's `packageManager`. |
-| `init-firewall.sh` | Default-deny egress firewall. Runs on every start (`postStartCommand`). Allowlists only what dev needs (npm, GitHub, Anthropic, VS Code); self-tests at the end. |
+| `init-firewall.sh` | Default-deny egress firewall. Runs on every start (`postStartCommand`). It drops first and builds the allowlist under that policy, so a failure or a re-run never leaves egress open. It admits HTTPS to the allowlist (npm, GitHub, Anthropic, VS Code), ssh only to GitHub's git ranges, DNS only to the resolvers in the container's `/etc/resolv.conf`, and the host subnet; self-tests at the end. |
+| `zshrc` | The shell setup, copied to `~/.zshrc`: Debian's zsh and fzf, history on the `/commandhistory` volume, and a prompt with the git branch. The build fetches no shell framework. |
 
 ---
 
