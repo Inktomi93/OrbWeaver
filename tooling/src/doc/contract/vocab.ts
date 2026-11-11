@@ -19,3 +19,7 @@ export const LAST_RESERVED_RULING = 105;
  *  (`ops/format.ts`). One home for the four paths. */
 export const DOC_TOOL_TREES = { adr: "docs/adr/", plans: "docs/plans/", work: "docs/work/", law: "docs/law/" } as const;
 export const DOC_TOOL_TREE_PREFIXES: readonly string[] = Object.values(DOC_TOOL_TREES);
+
+/** The instruction files `.claude/rules/writing.md` governs beside the docs; the writing rules alone run over
+ *  their Markdown (`ops/check.ts`). A trailing `/` marks a tree. `.claude/` is never one: it holds the worktrees. */
+export const INSTRUCTION_PATHS: readonly string[] = ["AGENTS.md", ".claude/agents/", ".claude/rules/", ".claude/skills/"];
