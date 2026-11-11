@@ -1,9 +1,9 @@
-// @orb/contracts/automation — the automation prose slot table (PROSE-1 §4.1, census row 91 + the S5
+// @orb/contracts/automation — the automation prose slot table (D132, census row 91 + the S5
 // analysis clauses, C1). Two slot families:
 //   • `automation.autobg.*` — the `set_chat_background` (BG-F) quiet pick: a SYSTEM contract + a lead
 //     INSTRUCTION + a trailing REPLY CONTRACT around three interpolated blocks (the capped scene, the
 //     candidate names, the rendered guidance). The interpolations are the prompt's grammar + data — the
-//     authored clauses are its voice, each a first-class `text` slot with no §4.5 template machinery.
+//     authored clauses are its voice, each a first-class `text` slot with no template machinery.
 //   • `automation.analysis.*` — the `run_analysis` (S5) system contract, ONE CLAUSE PER OUTPUT ROUTE:
 //     the executor composes exactly the clauses whose routes the arm authored (the enforced response
 //     schema omits the other fields, and these slots omit the other asks — schema and prompt move

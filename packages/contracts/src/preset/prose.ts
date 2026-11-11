@@ -1,4 +1,4 @@
-// @orb/contracts/preset — the per-PRESET prose slot table (PROSE-1 §4.1, census rows 38-49). The ONE home
+// @orb/contracts/preset — the per-PRESET prose slot table (D132, census rows 38-49). The ONE home
 // for the BYTES of every guided-action template, format string, and the compaction steering: `index.ts`
 // DERIVES `guidedActionsSchema`'s defaults, `DEFAULT_GUIDED_ACTIONS`, `DEFAULT_FORMAT_STRINGS` and
 // `DEFAULT_COMPACT_INSTRUCTIONS` from these rows, so a default is authored exactly once and the registry can
@@ -12,7 +12,7 @@
 // `promptConfig.prose` row like any other preset-homed slot — which is exactly why they are separate consts
 // (see their own header for what that separation buys).
 //
-// Storage note (PROSE-1 §4.6): the slots in {@link PRESET_PROSE_SLOTS} are ADAPTED, not re-homed. The override still lives in the
+// Storage note: the slots in {@link PRESET_PROSE_SLOTS} are ADAPTED, not re-homed. The override still lives in the
 // existing `promptConfig.guidedActions.*.prompt` / `promptConfig.formatStrings.*` fields — the wire, the ST
 // import mapper and the existing editors are untouched. The slot row is what gives them a version, a
 // staleness signal and a required-macro lint from ONE place.
@@ -167,7 +167,7 @@ export const PRESET_PROSE_SLOTS = {
 // Templates-tab door the same commit they land (each has a `TEMPLATE_DEFS` row; two-sided coverage is
 // asserted in `tests/contracts/prose/preset-storage.contract.test.ts`).
 //
-// `macros: "none"` for the whole cohort (PROSE-1 §6.1): a fragment is joined into the steer that becomes
+// `macros: "none"` for the whole cohort: a fragment is joined into the steer that becomes
 // `{{input}}` inside the guided template, and `{{input}}` is ZWSP-neutralized — so a `{{user}}` written into
 // one of these would reach the model as literal braces. The catalogs spell "the user" / "the character" in
 // plain words; the guided template's OWN macros resolve the names.
@@ -382,7 +382,7 @@ export const PRESET_FORMAT_SLOT_IDS = {
 } as const satisfies Record<string, ProseSlotId>;
 
 /** The compaction-steering slot id. A single slot (not a keyed family like guided/format), so a plain const
- *  rather than a map — but it is a legacy-ADAPTED preset slot for the same reason they are (§4.6): the
+ *  rather than a map — but it is a legacy-ADAPTED preset slot for the same reason they are: the
  *  override is the existing `promptConfig.compaction.instructions` field, so it is excluded from the
  *  `promptConfig.prose` editable set. `DEFAULT_COMPACT_INSTRUCTIONS` derives its bytes from this slot. */
 export const PRESET_COMPACTION_SLOT_ID = "preset.compaction.instructions" as const satisfies ProseSlotId;

@@ -23,7 +23,7 @@
 //    removes it, so the second and every later boot match zero rows. No marker column, which would be a second
 //    source of truth able to disagree with the data.
 //  • STAMP-CARRYING — the whole override VALUE is moved by `json_extract`, so `baseVersion` (the ONLY
-//    staleness signal, PROSE-1 §4.4) crosses with the text rather than being re-minted.
+//    staleness signal) crosses with the text rather than being re-minted.
 //  • SIBLING-PRESERVING — no other key is named by the statement, so every other prose override, every
 //    section, and every param survives. SQLite's json functions re-serialize the object, so KEY ORDER is not
 //    preserved; the blob is parsed by `parsePromptConfig` at every read seam and never compared as bytes.

@@ -289,7 +289,7 @@ export interface ChatComposeResult extends AsyncDisposable {
    *  ctx — automation's `set_variable` chat-scope arm injects this at the composition root (chat learns
    *  nothing automation-shaped; principal-free — the author's authority was gated upstream). */
   readonly applyVariableOps: AutomationOps["chat"]["applyVariableOps"];
-  /** The room HOST's app-tier prose overrides for a chat (PROSE-1 §4.3, owner-decision 8 option (a)) —
+  /** The room HOST's app-tier prose overrides for a chat (D132 clause A, owner-decision 8 option (a)) —
    *  surfaced so automation's `set_chat_background` quiet pick reads the SAME host prose the room's other
    *  side generations do, instead of re-deriving the host itself. */
   readonly resolveChatProse: AutomationOps["chat"]["resolveChatProse"];

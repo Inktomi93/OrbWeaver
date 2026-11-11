@@ -1,8 +1,8 @@
 @echo off
 rem Install Orbweaver on Windows: double-click this file. It installs Git and pnpm with winget when they are
 rem missing, clones the stable `release` branch into %USERPROFILE%\OrbWeaver (or ORB_DIR), then runs it from
-rem source or with Docker (ORB_MODE=source or docker skips the question). Standalone on purpose: it runs before the
-rem repository exists on this machine.
+rem source or with Docker (ORB_MODE=source or docker skips the question). ORB_START=0 installs and stops before starting it.
+rem Standalone on purpose: it runs before the repository exists on this machine.
 setlocal
 for /f %%e in ('echo prompt $E^| cmd') do set "ESC=%%e"
 set "E=%ESC%[38;2;236;145;69m" & set "C=%ESC%[38;2;240;232;220m" & set "D=%ESC%[2m" & set "R=%ESC%[38;2;232;98;92m"
@@ -57,17 +57,27 @@ if "%MODE%"=="docker" goto :docker
 
 echo %E%^>%X% Installing dependencies
 call pnpm install --frozen-lockfile || goto :failed
+if "%ORB_START%"=="0" goto :installed
 echo %G%+%X% Installed. From now on: start.cmd runs it, update.cmd updates it.
 call start.cmd
 exit /b
 
 :docker
+if "%ORB_START%"=="0" goto :installed
 echo %E%^>%X% Starting the container. The first pull takes a minute.
 docker compose up -d || goto :failed
 echo %G%+%X% Orbweaver is running at http://localhost:8788
 echo %D%  Update later with update.cmd in %ORB_DIR%. docker\README.md covers logins, LAN and backups.%X%
 start "" http://localhost:8788
 pause
+exit /b 0
+
+:installed
+if "%MODE%"=="docker" goto :installeddocker
+echo %G%+%X% Installed in %ORB_DIR%. Start it with start.cmd, update it with update.cmd.
+exit /b 0
+:installeddocker
+echo %G%+%X% Installed in %ORB_DIR%. Start it with: docker compose up -d
 exit /b 0
 
 rem :wingetinstall <winget id> <name> <folder its command lands in>. A fresh install is not on this window's PATH

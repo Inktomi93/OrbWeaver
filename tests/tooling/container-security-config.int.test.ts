@@ -2,7 +2,7 @@
 import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { globSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/tooling";
@@ -51,6 +51,28 @@ test("every container Node matches the Node the repository pins in devEngines", 
       expect(tag.split(".")[0], `${rel} runs the devEngines Node major`).toBe(major);
     }
   }
+});
+
+// The authoring release copies this manifest's `engines` into the tarball plugin authors install (scripts/release-plugin-authoring.ts).
+const WORKSPACE_ENGINES_EXCEPTIONS: readonly string[] = ["packages/plugin-toolchain/package.json"];
+
+test("the root engines floor is the pinned devEngines Node and no workspace manifest declares engines", ({ repoRoot }) => {
+  const root = z
+    .object({ engines: z.object({ node: z.string() }), devEngines: z.object({ runtime: z.object({ version: z.string() }) }) })
+    .parse(JSON.parse(read(repoRoot, "package.json")));
+  expect(root.engines.node).toBe(`>=${root.devEngines.runtime.version}`);
+  const patterns = z.object({ packages: z.array(z.string()) }).parse(parse(read(repoRoot, "pnpm-workspace.yaml"))).packages;
+  const manifests = patterns.flatMap((pattern) => globSync(`${pattern}/package.json`, { cwd: repoRoot }));
+  expect(manifests.length, "the workspace globs reach manifests").toBeGreaterThan(1);
+  const declaring = manifests.filter(
+    (rel) =>
+      !WORKSPACE_ENGINES_EXCEPTIONS.includes(rel) &&
+      z
+        .object({ engines: z.unknown().optional() })
+        .loose()
+        .parse(JSON.parse(read(repoRoot, rel))).engines !== undefined,
+  );
+  expect(declaring, "the root package.json is the one home of the Node floor").toEqual([]);
 });
 
 test("the dev container installs the pinned pnpm and gives every workspace package its own node_modules volume", ({ repoRoot }) => {

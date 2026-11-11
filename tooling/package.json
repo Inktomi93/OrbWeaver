@@ -3,9 +3,6 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "engines": {
-    "node": ">=26.3.0"
-  },
   "exports": {
     "./biome-config": "./src/biome-config/index.ts",
     "./browser-support": "./src/browser-support/index.ts",

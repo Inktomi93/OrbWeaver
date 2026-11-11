@@ -1,9 +1,9 @@
-// @orb/contracts/prose — the ONE registry of model-facing prose (PROSE-1 §4). Every string whose bytes reach
+// @orb/contracts/prose — the ONE registry of model-facing prose (D132). Every string whose bytes reach
 // a model is a SLOT: a shipped default + the metadata the edit surface and the gate need. A host override for
 // a slot lives in exactly ONE storage (its `home`), and resolution is exactly two rungs deep — the override
-// for this slot's home, else the shipped default (PROSE-1 §3.1: there is NO cascade, on purpose).
+// for this slot's home, else the shipped default (D132 clause A: there is NO cascade, on purpose).
 //
-// Layout (PROSE-1 §4.1): the slot SHAPE + the closed id tuple live in `#prose-slot`; the per-domain slot
+// Layout (D132): the slot SHAPE + the closed id tuple live in `#prose-slot`; the per-domain slot
 // TABLES live beside the vocabulary they teach —
 //   • `#preset` (preset/prose.ts)     — per-PRESET voice/nudge prose (census 38-48) + the one-click steer
 //                                       vocabulary the Rewrite modal / greeting studio compose (53-73)
@@ -59,7 +59,7 @@ export const PROSE_SLOTS: Record<ProseSlotId, ProseSlotDef> = {
   ...RPG_PROSE_SLOTS,
 };
 
-/** The legacy-adapted user slots (§4.6): their override is the pre-PROSE-1 `UserSettings.imagery.*` string
+/** The legacy-adapted user slots: their override is the pre-PROSE-1 `UserSettings.imagery.*` string
  *  field, NOT a `UserSettings.prose` row, and their editor is the Image-prompts section. Adapted, never
  *  duplicated — so the prose editor must not offer them a second door into a storage they don't use. */
 const LEGACY_ADAPTED_USER_SLOT_IDS: ReadonlySet<ProseSlotId> = new Set<ProseSlotId>([
@@ -76,7 +76,7 @@ export const USER_PROSE_SLOT_IDS: readonly ProseSlotId[] = PROSE_SLOT_IDS.filter
 );
 
 /** The preset-home slots whose override is the pre-PROSE-1 `promptConfig.guidedActions.*.prompt` /
- *  `formatStrings.*` field (§4.6 again — adapted, never re-homed). They are edited in the preset Templates
+ *  `formatStrings.*` field (adapted, never re-homed). They are edited in the preset Templates
  *  tab through those fields, so the `promptConfig.prose` blob must not offer them a second door. */
 const LEGACY_ADAPTED_PRESET_SLOT_IDS: ReadonlySet<ProseSlotId> = new Set<ProseSlotId>(Object.keys(PRESET_PROSE_SLOTS) as ProseSlotId[]);
 
@@ -95,7 +95,7 @@ export function isPresetProseSlotId(id: string): id is ProseSlotId {
 /** Merge the per-home override blobs into the ONE home-agnostic bag `resolveProse` reads.
  *
  *  Each source is FILTERED TO THE SLOTS THAT ACTUALLY HOME THERE, which is what makes this a merge and not a
- *  cascade (§3.1): a key can only survive from its own storage, so two homes carrying the same id cannot
+ *  cascade (D132 clause D): a key can only survive from its own storage, so two homes carrying the same id cannot
  *  produce a precedence question — the wrong one is dropped, never "loses". That also means a stale key left
  *  in a blob by a RE-HOME (the two injection frames moved user → preset on 2026-08-07) is inert rather than
  *  quietly authoritative from the storage it no longer belongs to.
@@ -117,7 +117,7 @@ export function composeProse(sources: Readonly<Partial<Record<ProseHome, ProseOv
   return out;
 }
 
-/** Host edit BEATS shipped default, two rungs, no cascade (PROSE-1 §4.3) — the REGISTRY-KEYED door onto the
+/** Host edit BEATS shipped default, two rungs, no cascade (D132 clause A) — the REGISTRY-KEYED door onto the
  *  primitive in `#prose-slot`. The precedence rule itself moved down there when the rpg extraction templates
  *  landed: a domain TABLE resolving its own slots cannot import this module without closing the
  *  `#prose → #<domain> → #prose` cycle. This adds the id lookup and NOTHING else, so there is still exactly
@@ -161,7 +161,7 @@ export function resolveSteerFragments(catalog: readonly SteerCatalogEntry[], pic
 }
 
 /** One prose field's derived footer state — Default/Customized plus the two WARN-NEVER-BLOCK signals every
- *  prose editor owes its author (§4.4 staleness, §6.3 the required-macro/token lint).
+ *  prose editor owes its author (staleness and the required-macro/token lint).
  *
  *  It lives in `contracts` because TWO client features render it — the Prose settings section (chat) and the
  *  preset Templates drill-in (preset) — and a client feature may not import another (the five-tier law, D70).
@@ -170,13 +170,13 @@ export function resolveSteerFragments(catalog: readonly SteerCatalogEntry[], pic
  *  the same slot. */
 export interface ProseFooterState {
   readonly isDefault: boolean;
-  /** The shipped default moved on since this override was authored (§4.4). */
+  /** The shipped default moved on since this override was authored. */
   readonly stale: boolean;
   /** Declared `requiredMacros`/`requiredTokens` this text has dropped. A WARN — never a save block. */
   readonly missing: readonly string[];
   /**
    * Characters OVER {@link PROSE_MAX_CHARS}; `0` when the text fits. **The one BLOCKING signal in this
-   * shape** — deliberately unlike `missing`/`stale`, whose warn-never-block posture is a ruled §6.3
+   * shape** — deliberately unlike `missing`/`stale`, whose warn-never-block posture is a ruled
    * decision about advice. This is not advice: `proseOverridesSchema`'s per-key `.catch(undefined)` heals
    * an over-cap override to ABSENT, so a save at `over > 0` does not fail loudly, it silently deletes the
    * host's text and lets the shipped default ride. The editors cap typing at the limit, so `over > 0` is
@@ -220,7 +220,7 @@ function tokenPresent(text: string, token: string): boolean {
   return name !== undefined ? hasProseToken(text, name) : text.includes(token);
 }
 
-/** Build a one-key override record from a legacy bare-string field, for the adapted slots (§4.6). */
+/** Build a one-key override record from a legacy bare-string field, for the adapted slots. */
 export function legacyProseOverrides(id: ProseSlotId, text: string | undefined): ProseOverrides {
   const override = proseOverrideFromLegacy(text);
   return override === undefined ? {} : { [id]: override };
