@@ -41,7 +41,7 @@
 
 ## Findings
 
-- [P2] The dead-door dialect reaches `tooling/src/doc/` in a spelling F2's regex can't see.
+- \[P2] The dead-door dialect reaches `tooling/src/doc/` in a spelling F2's regex can't see.
   Beyond the two counted remnants, ~10 living sites name commands that no longer exist:
   ghost `check:agents` — `ops/check.ts:1` and its own refusal message
   (`check.ts:16` `refuseDirectInvocation(…, "pnpm check:agents")` tells an author to run a
@@ -56,12 +56,12 @@
   the checker, leaving zero). Fix = retire the prose with the class-wide sweep; the refusal
   message and printed verb name go first (they lie to authors mid-command, the phase-0
   tripwire shape).
-- [P3] `lib/drift.ts:1-3` — the header promises the drift nag is printed by "the SessionStart
+- \[P3] `lib/drift.ts:1-3` — the header promises the drift nag is printed by "the SessionStart
   hook": neither SessionStart command runs it (`session-onboard.sh` greps P1 items by hand,
   `compact-instructions.sh` doesn't touch doc). The nag is real and used (I run `pnpm doc
   drift` every boot), just not by the named mechanism. Fix: say who runs it (the orchestrator
   protocol) or wire the hook.
-- [P3, owner call] The whole-tree rules audit has no runnable entry point. `docLayerProblems`
+- \[P3, owner call] The whole-tree rules audit has no runnable entry point. `docLayerProblems`
   is fully implemented, exported and believed (its int test asserts the REAL tree is clean),
   but nothing in-tree can invoke it on the tree: no verb, no script, no CI step. The
   writing verbs self-enforce pre-write, so the tree stays consistent by author-habit +
@@ -81,4 +81,4 @@ ghost command spellings plus the five-slot ghost. That it works at all is thanks
 surviving door nobody advertises: every mint/land verb runs the full rule composition over
 what it is about to write. The unit adds one rule to the triage item: the dead-policy sweep
 must search ghost COMMAND strings (`pnpm check:\w+` in package.json minus defined scripts),
-not just backticked policy names — the dialect doesn't always wear the `policy \`X\`` uniform.
+not just backticked policy names — the dialect doesn't always wear the `` `policy `X` `` uniform.
