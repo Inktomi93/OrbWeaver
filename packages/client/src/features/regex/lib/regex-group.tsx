@@ -8,6 +8,7 @@ import type { ConfigGroupDefinition, ConfigSearchRow } from "#state";
 import { regexCollection } from "./regex-collection.tsx";
 
 import { REGEX_COLLECTION_ID } from "./regex-model.ts";
+import { REGEX_GROUP_LABEL } from "./regex-names.ts";
 
 /** The scripts as SEARCH rows (§3.3) — the list's own cache-first read; non-suspense on purpose. */
 function useRegexSearchRows(): readonly ConfigSearchRow[] {
@@ -19,7 +20,7 @@ function useRegexSearchRows(): readonly ConfigSearchRow[] {
 export const regexGroup: ConfigGroupDefinition = {
   id: REGEX_COLLECTION_ID,
   shelf: "collections",
-  label: "Regex scripts",
+  label: REGEX_GROUP_LABEL,
   icon: Code,
   order: 20,
   // #104 item 3 (em-dash diet): a semicolon carries the same two-clause shape without a third dash on a

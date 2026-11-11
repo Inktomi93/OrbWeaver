@@ -277,13 +277,9 @@ export function useLibraryImport(): LibraryImport {
     }
     invalidation.invalidateAllUserRoots();
     setState({ status: "done", summary });
-    const caption = summaryCaption(summary);
+    // A failed or partial import is said where the person is looking: the report summary renders the same caption inline.
     if (summary.failed === 0) {
-      notify.success(`Import complete: ${caption}`);
-    } else if (summary.imported === 0) {
-      notify.error(`Import failed: ${caption}`);
-    } else {
-      notify.info(`Imported with issues: ${caption}`);
+      notify.success(`Import complete: ${summaryCaption(summary)}`);
     }
   };
 

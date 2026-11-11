@@ -134,7 +134,10 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
     timeLib.formatDateTime,
   );
   const qualifierById = new Map(filtered.map((script, index) => [script.id, qualifiers[index] ?? ""]));
-  // The sealed `VirtualList` takes no root ref: past the large-group size a deleted row always has a mounted neighbour.
+  // Where a delete's focus lands when no neighbouring row is mounted. The window is the library's, not the filter's, so
+  // a filter that leaves one row of a large library is still a window, and deleting that row leaves it with no neighbour.
+  // The root is one element around either arm, so the fallback exists whichever arm the library is in.
+  const windowed = scripts.length > COLLECTION_LARGE_GROUP;
   const listRootRef = useRef<HTMLDivElement>(null);
   const rowFocus = useRowDeleteFocus(
     listRootRef,
@@ -159,8 +162,8 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
   const rows = ((): ReactElement | null => {
     if (filtered.length === 0) {
       // A FILTER MISS AND AN EMPTY LIBRARY ARE DIFFERENT STATES: with no needle, a "No scripts match that
-      // filter." line above the host's own zero-member slot would be a second, false empty state (below
-      // COLLECTION_LARGE_GROUP the filter box isn't even rendered). No needle ⇒ the host's slot is the only voice.
+      // filter." line above the host's own zero-member slot would be a second, false empty state. No needle ⇒
+      // the host's slot is the only voice.
       // …AND THE MISS SPEAKS: focus stays in the host's filter box, so the one state with no rows at all needs
       // feedback a keyboard reader receives. `role="status"` rides the
       // MESSAGE, never the row container — a live region around the list would announce every row on every
@@ -171,14 +174,15 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
         </Text>
       );
     }
-    if (scripts.length > COLLECTION_LARGE_GROUP) {
+    if (windowed) {
       return (
         <VirtualList
           aria-label="Regex scripts"
           // THE PANE IS THE WINDOW (the mock design §5.4). The bound is the CONTENT pane's own
           // `overflow-y-auto overscroll-contain` box,
           // reached by flex (`character-library-body.tsx`'s chain): the landing is `min-h-0 flex-1` in the
-          // pane and this is `min-h-0 flex-1` in the landing. `min-h-0` is the required half — a flex
+          // pane, the list root below is `min-h-0 flex-1` in the landing and this is `min-h-0 flex-1` in the
+          // root. `min-h-0` is the required half — a flex
           // child defaults to `min-height: auto`, which lets the scroller grow to its content and trips the
           // primitive's own unbounded-window throw.
           className="min-block-0"
@@ -199,7 +203,7 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
     // a `VirtualList`, which announces "list, N items" of its own, so a bare `Stack` of buttons would make ONE
     // library speak two a11y grammars depending only on its size.
     return (
-      <Stack aria-label="Regex scripts" focusTarget={true} gap="tight" ref={listRootRef} role="list" tabIndex={-1}>
+      <Stack aria-label="Regex scripts" gap="tight" role="list">
         {filtered.map((script, index) => (
           <Stack aria-posinset={index + 1} aria-setsize={filtered.length} key={script.id} role="listitem">
             {renderRow(script)}
@@ -212,7 +216,11 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
   const checkedIds = Object.keys(selectedIds);
   return (
     <>
-      {rows}
+      {/* THE LIST ROOT: one element around either arm, the delete's fallback focus. It carries the window's bound only when the
+          library is windowed; a short library's rows overflow it into the pane's own scroller. */}
+      <Stack focusTarget={true} grow={windowed} minHeight={windowed ? "shrinks" : undefined} ref={listRootRef} tabIndex={-1}>
+        {rows}
+      </Stack>
       {/* THE BAR IS THE MODE'S ONLY VOICE WHILE NOTHING IS CHECKED — but it is not rendered then, and that
           is deliberate: the band toggle is pressed, every row wears a checkbox, and a zero-count bar would
           be chrome saying what the rows already say. It appears the moment a row is checked. */}

@@ -1,8 +1,9 @@
 // A regex script deleted from its row's actions by keyboard hands focus to the row beside it, never the page body, once the row has left
 // the list: the row and its confirm unmount together, so Base UI has nothing to return focus to. That holds when the delete takes the
-// library across the size where the list stops being virtualized, because the rows then mount again in a new container. The settings
-// list and its content are the production ones over a corpus root, whose own scripts sit beside the ones made here through the production
-// create verb, and the real server's own `regexChanged` event is what removes the row.
+// library across the size where the list stops being virtualized, because the rows then mount again in a new container, and when the
+// delete leaves a filter of a large library with no row. The settings list and its content are the production ones over a corpus root,
+// whose own scripts sit beside the ones made here through the production create verb, and the real server's own `regexChanged` event is
+// what removes the row.
 // @subject packages/client/src/features/regex/components/regex-collection-rows.tsx
 import { COLLECTION_LARGE_GROUP, ROW_DELETE_NAME } from "@orb/client/lib";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
@@ -12,6 +13,8 @@ import type { CorpusPlayback } from "@orb/testkit/iso";
 import { createCorpusReadResponder } from "@orb/testkit/iso";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
+import { collectionFilterName } from "#client/features/config/lib/config-control-names.ts";
+import { REGEX_GROUP_LABEL } from "#client/features/regex/lib/regex-names.ts";
 import { forwardUserEvent } from "../../../components/_forward-user-event.ts";
 import type { ConfigPanesBusStory } from "./_list-stories.tsx";
 
@@ -19,6 +22,7 @@ const STORY = "tests/client/features/config/surfaces/_list-stories/ConfigPanesBu
 const SCRIPTS = ["Alpha script", "Bravo script", "Charlie script"] as const;
 const ROW = '[data-slot="list-row-root"]';
 const ROW_BODY = '[data-slot="list-row-body"]';
+const LANDING = '[data-slot="config-collection-landing"]';
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
@@ -158,4 +162,29 @@ test("deleting a script that takes the library below the virtualized size leaves
 
   await expect(page.getByRole("button", { name: doomed, exact: true })).toHaveCount(0);
   await expect(bodyOfRowWith(page, neighbour)).toBeFocused();
+});
+
+test("deleting the one script a filter leaves in a large library by keyboard leaves focus in the pane, not the page body", async ({
+  corpus,
+  corpusViewer,
+  mount,
+  page,
+}) => {
+  await using root = await createCorpusHarness();
+  await using cleanup = new AsyncDisposableStack();
+  await seedScripts(root, COLLECTION_LARGE_GROUP + 5);
+  await prepare(page, root, { corpus, viewer: corpusViewer.userId }, cleanup);
+  await mount<typeof ConfigPanesBusStory>(STORY, { showList: true, initialGroup: "regex" });
+  await expect(actionButtons(page).nth(2)).toBeVisible();
+  await page.getByRole("textbox", { name: collectionFilterName(REGEX_GROUP_LABEL), exact: true }).fill(SCRIPTS[0]);
+  await expect(actionButtons(page)).toHaveCount(1);
+  const [only] = await listedActions(page);
+  if (only === undefined) {
+    throw new Error("The filter left no row");
+  }
+
+  await deleteByKeyboard(page, only);
+
+  await expect(actionButtons(page)).toHaveCount(0);
+  await expect(page.locator(LANDING).locator(":focus")).toHaveCount(1);
 });

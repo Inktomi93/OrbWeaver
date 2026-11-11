@@ -14,6 +14,9 @@ export const REGEX_TEXT_GOING_IN_NAME = "Text going in";
 export const REGEX_TEXT_AFTER_STREAM_NAME = "Text after the whole stream";
 export const REGEX_REPLACE_WITH_NAME = "Replace with";
 
+/** The regex library's group label, which names its pane and its filter box. */
+export const REGEX_GROUP_LABEL = "Regex scripts";
+
 /** The collection's create verb and the inline create form it opens. */
 export const REGEX_NEW_SCRIPT_NAME = "New script";
 export const REGEX_SCRIPT_NAME_FIELD_NAME = "Script name";
