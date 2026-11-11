@@ -1,36 +1,94 @@
-// A character deleted from its row's actions by keyboard hands focus to the row beside it, open or not, and never leaves it on the
-// page body: the row and its confirm unmount together, so Base UI has nothing to return focus to. The shell, the library list and
-// the rows are the production ones over a first-boot root; the characters are made through the production create verb.
+// A character deleted from its row's actions by keyboard hands focus to the row beside it, open or not, and focus is still there once the
+// row has left the list and the open character's editor has gone: the row and its confirm unmount together, so Base UI has nothing to
+// return focus to, and an editor whose read lands after the confirm must not take the focus the delete just placed. The shell, the
+// library list and the rows are the production ones over a first-boot root; the characters are made through the production create verb,
+// and the real server's own `charactersChanged` event is what removes the row.
 // @subject packages/client/src/features/character/surfaces/character-library-surface.tsx
 import { rowActionSubject, rowActionsName } from "@orb/client/lib";
 import { createCharacterSchema } from "@orb/contracts/character";
-import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
-import type { TrpcRecorder } from "@orb/testkit/ct";
-import { routeAuthConfig, routeTrpc, SECTION_PROCEDURES, SHELL_MOUNT_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
+import type { ServedHold } from "@orb/testkit/ct";
+import {
+  absenceWindow,
+  holdServed,
+  routeAuthConfig,
+  routeOrbSocket,
+  routeTrpc,
+  SECTION_PROCEDURES,
+  SHELL_MOUNT_PROCEDURES,
+  serveCorpusProcedures,
+  trpcError,
+} from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createFirstBootHarness } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { CHARACTER_ACTIONS } from "#client/features/character/lib/character-actions.ts";
-import { CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
+import { CHARACTER_EDITOR_NAME, CHARACTER_LIBRARY_NAME } from "#client/features/character/lib/character-names.ts";
+import type { AppShellBusStory } from "../../app-shell/surfaces/_app-shell-stories.tsx";
 
-const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
+const STORY = "tests/client/features/app-shell/surfaces/_app-shell-stories/AppShellBusStory";
 const NAMES = ["Anselm of the Vale", "Branwen the Quiet", "Corvin Ashdown"] as const;
 const ACTIONS_BUTTON = /^Actions for /u;
 
 type Root = Awaited<ReturnType<typeof createFirstBootHarness>>;
 
-/** Seeds the characters through the production verb and routes the shell's reads and the delete to the same root. */
-async function prepareLibrary(page: Page, root: Root): Promise<TrpcRecorder> {
+interface Holds {
+  /** The open character's read, when the case needs it in flight past the confirm. */
+  readonly read?: ServedHold;
+  /** The delete itself, when the case needs the confirm answered after the read. */
+  readonly remove?: ServedHold;
+}
+
+/**
+ * Seeds the characters through the production verb, serves the shell's reads and the delete from the same root, and forwards the
+ * real server's `charactersChanged` event to the page, which is what removes the deleted row from the list.
+ */
+async function prepareLibrary(page: Page, root: Root, holds: Holds, cleanup: AsyncDisposableStack): Promise<void> {
   const caller = await root.internalCallerFor(root.ownerId);
   for (const name of NAMES) {
     await caller.character.create({
       input: createCharacterSchema.parse({ handle: name.toLowerCase().replaceAll(" ", "-"), name, description: "A neighbour in the list." }),
     });
   }
-  const rpc = await routeTrpc(page, serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...SHELL_MOUNT_PROCEDURES, "character.remove"]));
+  await routeTrpc(page, {
+    ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, ...SHELL_MOUNT_PROCEDURES]),
+    ...serveCorpusProcedures(caller, ["character.get"], () => holds.read),
+    ...serveCorpusProcedures(caller, ["character.remove"], () => holds.remove),
+    "stream.attach": ({ ref }) => (ref.channel === "user" ? null : trpcError({ code: "NOT_FOUND" })),
+    "stream.detach": ({ ref }) => (ref.channel === "user" ? null : trpcError({ code: "NOT_FOUND" })),
+  });
+  const stop = new AbortController();
+  const joined = Promise.withResolvers<void>();
+  let started = false;
+  cleanup.defer(async () => {
+    stop.abort();
+    if (started) {
+      await joined.promise;
+    }
+  });
+  await routeOrbSocket(page, {
+    awaitRooms: [{ channel: "user" }],
+    frames: async (signal) => {
+      started = true;
+      const events = root.app.liveBuses.user.subscribeUserEvents(root.ownerId, AbortSignal.any([signal, stop.signal]));
+      try {
+        for await (const event of events) {
+          if (event.type === "charactersChanged") {
+            return [{ channel: "user", event }];
+          }
+        }
+        return [];
+      } catch (error) {
+        if (!stop.signal.aborted) {
+          throw error;
+        }
+        return [];
+      } finally {
+        joined.resolve();
+      }
+    },
+  });
   await seedShellState(page, { activeSection: "characters", panelOverrides: { characters: { list: "docked", context: "collapsed" } } });
-  return rpc;
 }
 
 /** The library list once every seeded row is on the page. */
@@ -49,10 +107,13 @@ function rowBody(library: Locator, name: string): Locator {
   return library.getByRole("button", { name: new RegExp(`^${RegExp.escape(name)}`, "u") }).first();
 }
 
+function rowActions(library: Locator, name: string): Locator {
+  return library.getByRole("button", { name: rowActionsName(rowActionSubject(name, undefined)), exact: true });
+}
+
 /** Deletes through the row's actions menu and its confirm with the keyboard alone. */
-async function deleteByKeyboard(page: Page, library: Locator, subject: string): Promise<void> {
-  const actions = library.getByRole("button", { name: rowActionsName(subject), exact: true });
-  await actions.focus();
+async function deleteByKeyboard(page: Page, library: Locator, name: string): Promise<void> {
+  await rowActions(library, name).focus();
   await page.keyboard.press("Enter");
   const remove = page.getByRole("menuitem", { name: CHARACTER_ACTIONS.delete.label, exact: true });
   await remove.focus();
@@ -63,40 +124,92 @@ async function deleteByKeyboard(page: Page, library: Locator, subject: string): 
   await expect(page.getByRole("alertdialog")).toHaveCount(0);
 }
 
-test.use({ viewport: { width: 1440, height: 1000 } });
-
-for (const open of [false, true]) {
-  test(`deleting ${open ? "the open character" : "a listed character"} by keyboard moves focus to the next row`, async ({ page, corpus, mount }) => {
-    await using root = await createFirstBootHarness();
-    await routeAuthConfig(page, corpus.auth.signedInConfig);
-    const rpc = await prepareLibrary(page, root);
-    await mount<typeof ShellAmbientStory>(STORY, {});
-    const library = await libraryOf(page);
-
-    const subjects = await rowSubjects(library);
-    const doomed = subjects[1]?.replace(ACTIONS_BUTTON, "");
-    const neighbour = subjects[2]?.replace(ACTIONS_BUTTON, "");
-    if (doomed === undefined || neighbour === undefined) {
-      throw new Error("The library shows fewer rows than the case seeded");
-    }
-    if (open) {
-      await rowBody(library, doomed).focus();
-      await page.keyboard.press("Enter");
-    }
-
-    await deleteByKeyboard(page, library, rowActionSubject(doomed, undefined));
-
-    // The server's bus is what removes the row from the list, and this mount has no socket: the hand-off at the confirm's close is what is under test.
-    await expect.poll(() => rpc.count("character.remove")).toBe(1);
-    await expect(rowBody(library, neighbour)).toBeFocused();
-  });
+/** The doomed row and the one beside it, read from what the list shows. */
+async function middleAndNext(library: Locator): Promise<{ readonly doomed: string; readonly neighbour: string }> {
+  const subjects = await rowSubjects(library);
+  const doomed = subjects[1]?.replace(ACTIONS_BUTTON, "");
+  const neighbour = subjects[2]?.replace(ACTIONS_BUTTON, "");
+  if (doomed === undefined || neighbour === undefined) {
+    throw new Error("The library shows fewer rows than the case seeded");
+  }
+  return { doomed, neighbour };
 }
 
-test("deleting the last listed character by keyboard moves focus to the row before it", async ({ page, corpus, mount }) => {
+test.use({ viewport: { width: 1440, height: 1000 } });
+
+test("deleting a listed character by keyboard moves focus to the next row once the row has left the list", async ({ page, corpus, mount }) => {
   await using root = await createFirstBootHarness();
+  await using cleanup = new AsyncDisposableStack();
   await routeAuthConfig(page, corpus.auth.signedInConfig);
-  const rpc = await prepareLibrary(page, root);
-  await mount<typeof ShellAmbientStory>(STORY, {});
+  await prepareLibrary(page, root, {}, cleanup);
+  await mount<typeof AppShellBusStory>(STORY, {});
+  const library = await libraryOf(page);
+  const { doomed, neighbour } = await middleAndNext(library);
+
+  await deleteByKeyboard(page, library, doomed);
+
+  await expect(rowActions(library, doomed)).toHaveCount(0);
+  await expect(rowBody(library, neighbour)).toBeFocused();
+});
+
+test("deleting the open character after its editor has loaded leaves focus on the next row once the editor has gone", async ({ page, corpus, mount }) => {
+  await using root = await createFirstBootHarness();
+  await using cleanup = new AsyncDisposableStack();
+  await routeAuthConfig(page, corpus.auth.signedInConfig);
+  await prepareLibrary(page, root, {}, cleanup);
+  await mount<typeof AppShellBusStory>(STORY, {});
+  const library = await libraryOf(page);
+  const { doomed, neighbour } = await middleAndNext(library);
+  const editor = page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true });
+  await rowBody(library, doomed).focus();
+  await page.keyboard.press("Enter");
+  await expect(editor).toBeVisible();
+
+  await deleteByKeyboard(page, library, doomed);
+
+  await expect(rowActions(library, doomed)).toHaveCount(0);
+  await expect(editor).toHaveCount(0);
+  await expect(rowBody(library, neighbour)).toBeFocused();
+});
+
+test("deleting the open character before its editor has loaded leaves focus on the next row when the read lands and once the editor has gone", async ({
+  page,
+  corpus,
+  mount,
+}) => {
+  await using root = await createFirstBootHarness();
+  await using cleanup = new AsyncDisposableStack();
+  const holds = { read: holdServed(), remove: holdServed() } satisfies Holds;
+  await routeAuthConfig(page, corpus.auth.signedInConfig);
+  await prepareLibrary(page, root, holds, cleanup);
+  await mount<typeof AppShellBusStory>(STORY, {});
+  const library = await libraryOf(page);
+  const { doomed, neighbour } = await middleAndNext(library);
+  const editor = page.getByRole("form", { name: CHARACTER_EDITOR_NAME, exact: true });
+  await rowBody(library, doomed).focus();
+  await page.keyboard.press("Enter");
+  await holds.read.requested;
+
+  await deleteByKeyboard(page, library, doomed);
+  await holds.remove.requested;
+  holds.read.release();
+  await expect(editor).toBeVisible();
+  // The editor's arrival runs in an effect after it shows, so a stolen focus is only seen once that window has passed.
+  await absenceWindow(page, 300);
+  await expect(rowBody(library, neighbour)).toBeFocused();
+  holds.remove.release();
+
+  await expect(rowActions(library, doomed)).toHaveCount(0);
+  await expect(editor).toHaveCount(0);
+  await expect(rowBody(library, neighbour)).toBeFocused();
+});
+
+test("deleting the last listed character by keyboard moves focus to the row before it once the row has left the list", async ({ page, corpus, mount }) => {
+  await using root = await createFirstBootHarness();
+  await using cleanup = new AsyncDisposableStack();
+  await routeAuthConfig(page, corpus.auth.signedInConfig);
+  await prepareLibrary(page, root, {}, cleanup);
+  await mount<typeof AppShellBusStory>(STORY, {});
   const library = await libraryOf(page);
 
   const subjects = await rowSubjects(library);
@@ -106,8 +219,8 @@ test("deleting the last listed character by keyboard moves focus to the row befo
     throw new Error("The library shows fewer rows than the case seeded");
   }
 
-  await deleteByKeyboard(page, library, rowActionSubject(last, undefined));
+  await deleteByKeyboard(page, library, last);
 
-  await expect.poll(() => rpc.count("character.remove")).toBe(1);
+  await expect(rowActions(library, last)).toHaveCount(0);
   await expect(rowBody(library, before)).toBeFocused();
 });

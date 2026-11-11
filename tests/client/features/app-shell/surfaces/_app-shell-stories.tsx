@@ -1,6 +1,6 @@
 // The production AppShell under the client providers. Section and panel state arrive the way a boot has them, from
 // storage the spec seeds before mount; a modal or a room opens through the store's own action.
-import { useTRPC } from "@orb/client/data";
+import { useInvalidation, useOrbSocket, useTRPC, useUserBus } from "@orb/client/data";
 import { AppShell } from "@orb/client/features/app-shell";
 import { notify } from "@orb/client/lib";
 import type { ModalSlotId } from "@orb/client/state";
@@ -20,6 +20,22 @@ export function AppShellStory(): ReactElement {
   return (
     <CtClientProviders>
       <AppShell />
+    </CtClientProviders>
+  );
+}
+
+function ShellWithBus(): ReactElement {
+  const invalidation = useInvalidation();
+  useOrbSocket();
+  useUserBus({ invalidateUser: invalidation.invalidateUser, invalidateAllUserRoots: invalidation.invalidateAllUserRoots });
+  return <AppShell />;
+}
+
+/** The production shell with the socket and the user bus the app root wires beside it, so a server event reaches the lists it changes. */
+export function AppShellBusStory(): ReactElement {
+  return (
+    <CtClientProviders>
+      <ShellWithBus />
     </CtClientProviders>
   );
 }
