@@ -74,8 +74,8 @@ export interface Seat extends Account {
 export interface Device {
   readonly socketId: ReturnType<typeof streamConnectInputSchema.parse>["socketId"];
   readonly frames: readonly Frame[];
-  /** The cursor each `roomLagged` notice carried, in arrival order. */
-  readonly lagCursors: readonly (number | null)[];
+  /** Each `roomLagged` notice in arrival order: the cursor it carried and how many chat frames had arrived before it. */
+  readonly lags: readonly { readonly cursor: number | null; readonly chatFramesBefore: number }[];
   /** Every `user` room event the socket delivered, in arrival order: its type and the tag it names, if any. */
   readonly userEvents: readonly { readonly type: string; readonly tagId?: TagId }[];
   readonly attach: () => Promise<void>;
@@ -102,7 +102,7 @@ export interface OutsiderDevice {
 /** What one socket has delivered so far, by lane. */
 interface SocketLog {
   readonly frames: Frame[];
-  readonly lagCursors: (number | null)[];
+  readonly lags: { readonly cursor: number | null; readonly chatFramesBefore: number }[];
   readonly userEvents: { readonly type: string; readonly tagId?: TagId }[];
   readonly controls: Set<string | undefined>;
   readonly attachedChannels: Set<string>;
@@ -117,7 +117,7 @@ interface RoomSocket extends Pick<Device, "socketId" | "close"> {
 function logControl(log: SocketLog, envelope: z.infer<typeof wireEnvelopeSchema>): void {
   log.controls.add(envelope.type);
   if (envelope.type === "roomLagged") {
-    log.lagCursors.push(envelope.cursor ?? null);
+    log.lags.push({ cursor: envelope.cursor ?? null, chatFramesBefore: log.frames.length });
   }
   if (envelope.type === "roomFailed") {
     throw new Error(`the ${envelope.ref?.channel} room failed with ${envelope.code}: ${envelope.message}`);
@@ -154,7 +154,7 @@ async function openSocket(root: ServerTestHarness, account: Account): Promise<Ro
     throw new Error("the socket omitted its stream");
   }
   const decoder = new TextDecoder();
-  const log: SocketLog = { frames: [], lagCursors: [], userEvents: [], controls: new Set(), attachedChannels: new Set(), barrierTagIds: new Set() };
+  const log: SocketLog = { frames: [], lags: [], userEvents: [], controls: new Set(), attachedChannels: new Set(), barrierTagIds: new Set() };
   let pending = "";
   const pull = async (): Promise<void> => {
     const next = await reader.read();
@@ -189,7 +189,7 @@ function seatedDevice(room: Room, socket: RoomSocket, seat: Seat): Device {
   return {
     socketId: socket.socketId,
     frames: socket.log.frames,
-    lagCursors: socket.log.lagCursors,
+    lags: socket.log.lags,
     userEvents: socket.log.userEvents,
     attach: async (): Promise<void> => {
       const caller = await room.root.internalCallerFor(seat.id);
