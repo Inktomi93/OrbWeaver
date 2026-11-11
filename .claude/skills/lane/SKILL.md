@@ -84,6 +84,7 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 - Fix the cause. Never special-case a test's inputs to make it pass.
 - If a test is wrong, tell the orchestrator instead of bending the code to fit it.
 - When you fix a defect, search for its class. Fix every instance, or list the ones you left.
+- Rerun a test that scans the tracked tree after you commit its own file, on a clean `git status`. An untracked test file is not in the set it scans.
 
 ## Regenerators and shared files
 
@@ -190,16 +191,8 @@ These restrictions apply to Claude's guarded worktree shell.
 - A glob such as `packages/*/tsconfig.json` inside a block comment closes the comment. Use a line comment.
 - To hoist a literal into a const, replace only the use sites. A `replace_all` also rewrites the declaration into `const X = X`.
 
-## Legacy-main
-
-- Read `legacy-main` as a branch: `git -C <repo> archive legacy-main | tar -x -C <scratchpad>/legacy-main`.
-- Never check it out, add a worktree for it, or copy it into the tree.
-- Port from it hunk by hunk. Diff it against the current file and lift only the named hunks.
-- Scan its SillyTavern code with `ast-grep` for both `js` and `html`. A js-only scan misses code inside HTML files.
-
 ## Build details
 
-- Name test hooks `__reset<Noun>` for state resets and `__<verb>ForTest` otherwise. A hook reached by a computed name ships with the literal search that finds it.
 - Generate TypeID fixtures with the seeded `ids.typeId(prefix)` or `root.idSource.typeId(prefix)` (Spine-Testing §3), never with literals or a one-argument `mintTypeId`.
 - Declare a union with `satisfies` when Biome misreads a zod `discriminatedUnion` transform.
 

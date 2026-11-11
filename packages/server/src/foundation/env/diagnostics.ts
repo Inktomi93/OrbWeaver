@@ -1,6 +1,6 @@
 // The DIAGNOSTICS POSTURE resolver — ONE coherent ops story for the knobs that decide who can look inside a
-// running box and how much is there to see. Pure (raw values injected, no `process.env` read here), the
-// `bind.ts` shape: a resolver + derived predicates + a warning list, all unit-testable.
+// running box and how much is there to see. Pure (raw values injected, no `process.env` read here): the
+// owner-fallback credential predicate, a posture resolver and a warning list, all unit-testable.
 //
 // ── THE MENTAL MODEL AN OPERATOR HOLDS (three planes of ONE door) ─────────────────────────────────────────
 //
