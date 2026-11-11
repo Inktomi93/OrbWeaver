@@ -18,20 +18,23 @@ import { strToU8, zipSync } from "fflate";
 const ZIP_MTIME = new Date("2025-07-01T12:00:00Z");
 const XML_PROLOGUE = '<?xml version="1.0" encoding="UTF-8"?>';
 
-/** One page per entry: the page's content stream, drawn on a Letter page with Helvetica as `/F1` and Times as `/F2`. */
+/** One page per entry: the page's content stream, drawn on a Letter page with Helvetica as `/F1` and Times as `/F2`.
+ *  `/F3` is Helvetica with glyph names that map codes A to D to the Hebrew letters alef, bet, gimel and dalet, so
+ *  pdfjs reads a run in it as right-to-left text. */
 function buildPdf(contentStreams: readonly string[]): Uint8Array {
-  const firstPageId = 5;
+  const firstPageId = 6;
   const pageId = (index: number): number => firstPageId + index * 2;
   const bodies = new Map<number, string>([
     [1, "<< /Type /Catalog /Pages 2 0 R >>"],
     [2, `<< /Type /Pages /Kids [${contentStreams.map((_, index) => `${pageId(index)} 0 R`).join(" ")}] /Count ${contentStreams.length} >>`],
     [3, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"],
     [4, "<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman >>"],
+    [5, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding << /Type /Encoding /Differences [65 /afii57664 /afii57665 /afii57666 /afii57667] >> >>"],
   ]);
   contentStreams.forEach((stream, index) => {
     bodies.set(
       pageId(index),
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${pageId(index) + 1} 0 R >>`,
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents ${pageId(index) + 1} 0 R >>`,
     );
     bodies.set(pageId(index) + 1, `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
   });
@@ -136,8 +139,11 @@ test.for(DOCUMENTS)("an uploaded $filename reads back as its normalized text", a
   expect(uploaded.document.charCount).toBe(read.charCount);
 });
 
-// pdfjs states every gap on a line as a space character, inside an item or as an item of its own, and ends a line
-// with `hasEOL`. Each page is one line pair or one line, so the text is exactly what the page draws.
+// pdfjs states a gap ahead of the previous item as a space character, inside an item or as an item of its own, ends a
+// line with `hasEOL`, and states nothing when a run starts behind the previous item's end. Each page is one line pair or
+// one line, so the text is exactly what the page draws. Hebrew is written as code points: right-to-left marks are
+// invisible in review.
+const BET_ALEF_DALET_GIMEL = String.fromCodePoint(0x5_d1, 0x5_d0, 0x5_d3, 0x5_d2);
 const PDF_JOINS: readonly { readonly label: string; readonly stream: string; readonly text: string }[] = [
   {
     label: "a line that ends after a font change",
@@ -150,6 +156,22 @@ const PDF_JOINS: readonly { readonly label: string; readonly stream: string; rea
     label: "a space the page draws as an item of its own",
     stream: "BT /F1 12 Tf 72 720 Td (Lantern) Tj /F2 12 Tf ( ) Tj /F1 12 Tf (oil) Tj ET",
     text: "Lantern oil",
+  },
+  {
+    label: "a run drawn to the left of the previous one on the same line",
+    stream: "BT /F1 12 Tf 300 720 Td (World) Tj -250 0 Td (Hello) Tj ET",
+    text: "World Hello",
+  },
+  {
+    label: "rotated text split over two items with no gap between them",
+    stream: "BT /F1 12 Tf 0 1 -1 0 300 100 Tm (Lan) Tj /F2 12 Tf (tern) Tj ET",
+    text: "Lantern",
+  },
+  {
+    // The second run is the left neighbour of the first: they touch, and read right to left as one word.
+    label: "right-to-left runs drawn leftward that touch",
+    stream: "BT /F3 12 Tf 300 720 Td (AB) Tj -17.328 0 Td (CD) Tj ET",
+    text: BET_ALEF_DALET_GIMEL,
   },
 ];
 

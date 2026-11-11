@@ -1,6 +1,6 @@
 // infra/extraction — the server-side text-extraction adapter. A SEALED, db-free,
 // domain-free I/O executor (dep-cruiser `infra-no-db` + `infra-below-domain`) behind ONE injected op:
-// `(bytes, declaredMime) → ExtractionResult`. `entry/compose` constructs `createExtractText()` once and injects
+// `(bytes, declaredMime) → ExtractionResult`. `entry/compose` constructs `createExtractText(logger)` once and injects
 // it into `DatabankContext.extractText`; the domain's only compile-time dependency is
 // `@orb/contracts/extraction` — it NEVER imports infra (the `EmbedRequest`/`@orb/contracts/providers`
 // precedent). Superseded the dep-free `entry/compose/databank-extract.ts` textlike passthrough (deleted): its
@@ -15,6 +15,8 @@
 
 import type { DocFormat, ExtractionMeta, ExtractionResult, ExtractTextOp } from "@orb/contracts/extraction";
 import { docFormatForMime, ExtractionFailedError, UnsupportedDocTypeError } from "@orb/contracts/extraction";
+import type { Logger } from "#foundation/observability";
+import { getLog } from "#foundation/observability";
 import type { RawExtraction } from "./contract.ts";
 import { LOADERS } from "./formats.ts";
 import { normalizeText } from "./normalize.ts";
@@ -47,9 +49,9 @@ function toResult(
   };
 }
 
-/** Construct the injected `extractText` op. Stateless (the loaders hold no per-call state); the factory keeps
- *  the injection seam uniform with the other infra handles. */
-export function createExtractText(): ExtractTextOp {
+/** Construct the injected `extractText` op. Stateless (the loaders hold no per-call state); `log` is the root's
+ *  logger, where the cause of a loader failure is recorded because the wire carries only the format. */
+export function createExtractText(log: Logger): ExtractTextOp {
   return async (bytes: Uint8Array, mime: string): Promise<ExtractionResult> => {
     const format = formatFor(mime);
     let raw: RawExtraction;
@@ -60,6 +62,9 @@ export function createExtractText(): ExtractTextOp {
       }
       raw = await LOADERS[format](bytes);
     } catch (error) {
+      // The one place every caller's loader failure passes (upload, scrape, re-extract sweep), so each failure is
+      // logged once. The refusal is a client error and is not logged by the transport; a broken loader looks the same.
+      getLog(log).warn({ err: error, format }, "extraction: a loader failed to read the document");
       throw new ExtractionFailedError(format, { cause: error });
     }
     return toResult({ format }, raw);
