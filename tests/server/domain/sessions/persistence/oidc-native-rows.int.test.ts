@@ -30,6 +30,7 @@ import { vi } from "vitest";
 import { z } from "zod";
 import type { HttpRoot } from "../../../entry/compose/oidc-native.fixtures.ts";
 import {
+  BACKCHANNEL_LOGOUT_PATH,
   ID_TOKEN_SECRET,
   LOGOUT_EVENT,
   LOGOUT_TOKEN_PARAM,
@@ -384,7 +385,10 @@ test("root teardown aborts and joins native remote-JWKS body cancellation before
   await using root = await rootFor(issuer);
   await signInWithOidc(root, issuer, MEMBER);
   const token = await issuer.logoutToken({ sub: MEMBER.sub, events: { [LOGOUT_EVENT]: {} } });
-  const request = root.http.request("/api/auth/oidc/backchannel-logout", { method: "POST", body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, token]]) });
+  const request = root.http.request(BACKCHANNEL_LOGOUT_PATH, {
+    method: "POST",
+    body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, token]]),
+  });
   await reading.promise;
   let disposed = false;
   const disposal = root[Symbol.asyncDispose]().then(() => {
@@ -522,7 +526,7 @@ test.each([
   const before = await root.db.select().from(sessions);
   expect(before).toHaveLength(1);
   const invalid = await issuer.logoutToken({ sub: MEMBER.sub, events: { [LOGOUT_EVENT]: value } });
-  const rejected = await root.http.request("/api/auth/oidc/backchannel-logout", {
+  const rejected = await root.http.request(BACKCHANNEL_LOGOUT_PATH, {
     method: "POST",
     body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, invalid]]),
   });
@@ -533,7 +537,7 @@ test.each([
   const valid = await issuer.logoutToken({ sub: MEMBER.sub, events: { [LOGOUT_EVENT]: {} } });
   expect(
     (
-      await root.http.request("/api/auth/oidc/backchannel-logout", {
+      await root.http.request(BACKCHANNEL_LOGOUT_PATH, {
         method: "POST",
         body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, valid]]),
       })
@@ -556,7 +560,7 @@ test.each([
   const before = await root.db.select().from(sessions);
   expect(before).toHaveLength(1);
   const token = await issuer.logoutToken({ sub: MEMBER.sub, events: { [LOGOUT_EVENT]: {} }, ...patch }, omitted);
-  const result = await root.http.request("/api/auth/oidc/backchannel-logout", {
+  const result = await root.http.request(BACKCHANNEL_LOGOUT_PATH, {
     method: "POST",
     body: new URLSearchParams([[LOGOUT_TOKEN_PARAM, token]]),
   });
