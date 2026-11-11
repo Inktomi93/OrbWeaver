@@ -110,6 +110,11 @@ test.for([
     past: [`${NUL}${"k".repeat(PLUGIN_KV_KEY_MAX_CHARS)}`, "v"],
   },
   {
+    name: "a key with a NUL mid-key past the key cap",
+    within: [`head${NUL}${"k".repeat(PLUGIN_KV_KEY_MAX_CHARS - `head${NUL}`.length)}`, "v"],
+    past: [`head${NUL}${"k".repeat(PLUGIN_KV_KEY_MAX_CHARS - `head${NUL}`.length + 1)}`, "v"],
+  },
+  {
     // Fewer characters than the byte cap, more bytes than it: the cap is in bytes.
     name: "a value past the byte cap",
     within: ["key", THREE_BYTE_CHAR.repeat(Math.floor(PLUGIN_KV_VALUE_MAX_BYTES / THREE_BYTE_CHAR_WIDTH))],
