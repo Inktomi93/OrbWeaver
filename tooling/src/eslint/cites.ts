@@ -63,10 +63,12 @@ export const LINK = /\{@link(?:code|plain)?\s+(?:\*\s+)?([^}\s|]+)/gu;
 // runtime gates and guards, so only a word that names tooling marks a claim.
 // The claim patterns run on a sentence whose whitespace is folded to single spaces, so a word gap is one literal space.
 // A noun and its verb agree in number, so a compound noun is no claim: "the CT pin" names a pin, "the CT pins" claims.
-const ONE_CHECKER =
-  "(?:test|CT|e2e(?: run)?|suite|lint(?: rule)?|ESLint(?: rule)?|Biome(?: rule)?|stylelint(?: rule)?|dependency-cruiser(?: rule)?|dep-cruiser|depcruise|knip|ratchet|typecheck|tsc)";
-const MANY_CHECKERS = "(?:tests|CTs|suites|lint rules|ESLint rules|Biome rules|stylelint rules|dependency-cruiser rules|ratchets)";
-const CHECKER = `(?:${MANY_CHECKERS}|${ONE_CHECKER})`;
+const ONE_CHECKER_WORDS =
+  "test|CT|e2e(?: run)?|suite|lint(?: rule)?|ESLint(?: rule)?|Biome(?: rule)?|stylelint(?: rule)?|dependency-cruiser(?: rule)?|dep-cruiser|depcruise|knip|ratchet|typecheck|tsc";
+const MANY_CHECKER_WORDS = "tests|CTs|suites|lint rules|ESLint rules|Biome rules|stylelint rules|dependency-cruiser rules|ratchets";
+const ONE_CHECKER = `(?:${ONE_CHECKER_WORDS})`;
+const MANY_CHECKERS = `(?:${MANY_CHECKER_WORDS})`;
+const CHECKER = `(?:${MANY_CHECKER_WORDS}|${ONE_CHECKER_WORDS})`;
 const DETERMINER_WORDS = "a|an|the|its|our|this|that|these|those|their|one|each|every";
 const DETERMINER = `(?:${DETERMINER_WORDS})`;
 // A word that opens a clause or negates one cannot modify the checker noun: in "if the test fails" or "no lint rule
@@ -75,16 +77,15 @@ const FUNCTION_WORD = String.raw`(?:${DETERMINER_WORDS}|no|not|never|for|so|what
 // Up to three words between the determiner and the noun: "the integration test", "the corpus artifact CT".
 const MODIFIERS = String.raw`(?:(?!${FUNCTION_WORD})[\w\x60/.:-]+ ){0,3}?`;
 const BASE_VERB = "(?:hold|pin|enforce|refuse|reject|fail|red|catch|guard|assert|prove|lock|ban|bar|forbid|flag|cover|verify|police)";
-const THIRD_PERSON_VERB =
-  "(?:holds|pins|enforces|refuses|rejects|fails|reds|catches|guards|asserts|proves|locks|bans|bars|forbids|flags|covers|verifies|polices)";
+const THIRD_PERSON_VERBS = "holds|pins|enforces|refuses|rejects|fails|reds|catches|guards|asserts|proves|locks|bans|bars|forbids|flags|covers|verifies|polices";
 // "also", "still" or "separately" before the verb, or "will" before its base form, keeps the claim.
 const ADVERB = "(?:(?:also|still|separately) )?";
-const ONE_VERB = `${ADVERB}(?:${THIRD_PERSON_VERB}|will ${BASE_VERB})`;
+// "ESLint guards for how tests are authored" is a heading: "guards" followed by "for" or "that" is a noun.
+const ONE_VERB = `${ADVERB}(?!guards (?:for|that)\\b)(?:${THIRD_PERSON_VERBS}|will ${BASE_VERB})`;
 const MANY_VERB = `${ADVERB}(?:will )?${BASE_VERB}`;
 // A verb whose clause ends on a stranded preposition, or that shares its object with a second verb, describes what a
 // checker reads, not what it holds: "the item a test asserts on.", "values a test asserts or sends".
-// "ESLint guards for how tests are authored" is a heading: "guards" followed by "for" or "that" is a noun.
-const NOT_DESCRIBED = String.raw`\b(?! (?:on|against|about|with)(?:[.,;:)]|$))(?! (?:or|and) [a-z]+s\b)(?!(?<=guards) (?:for|that)\b)`;
+const NOT_DESCRIBED = String.raw`\b(?! (?:on|against|about|with)(?:[.,;:)]|$))(?! (?:or|and) [a-z]+s\b)`;
 const PASSIVE =
   "(?:enforced|pinned|held|guarded|caught|asserted|locked|covered|proven|proved|verified|refused|rejected|banned|barred|forbidden|flagged|policed|blocked)";
 const TOOL = "(?:ESLint|Biome|stylelint|dependency-cruiser|dep-cruiser|depcruise|knip|typecheck|tsc)";
