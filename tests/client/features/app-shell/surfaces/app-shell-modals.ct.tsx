@@ -183,6 +183,13 @@ function cssValue(locator: Locator, property: string): Promise<string> {
   return locator.evaluate((element, name) => getComputedStyle(element).getPropertyValue(name).trim(), property);
 }
 
+/** Whether the focused element is the popup or sits inside it, which the page body never does. */
+function focusInsidePopup(selector: string): boolean {
+  const active = document.activeElement;
+  const popup = document.querySelector(selector);
+  return active instanceof HTMLElement && popup !== null && popup.contains(active);
+}
+
 /** Whether any box between the popup and the document scrolls, which would carry the title and close away with it. */
 function outsideScroller(page: Page): Promise<string | null> {
   return page.evaluate((selector) => {
@@ -507,6 +514,14 @@ test.describe("on the corpus owner's own settings", () => {
       const before = await header.boundingBox();
       expect(["scrolled", "fits"]).toContain(await scrollPopupToEnd(page));
       await expect.poll(async () => Math.abs(((await header.boundingBox())?.y ?? Number.NaN) - (before?.y ?? Number.NaN))).toBeLessThan(1.5);
+    });
+
+    test(`the ${modalId} modal opens with focus inside its popup, never on Close or the page`, async ({ mount, page }) => {
+      await mount<typeof AppShellModalStory>(MODAL_STORY, { modalId });
+      const popup = page.locator(POPUP);
+      await expect(popup).toBeVisible();
+      await expect.poll(() => page.evaluate(focusInsidePopup, POPUP)).toBe(true);
+      await expect(popup.getByRole("button", { name: "Close", exact: true })).not.toBeFocused();
     });
 
     test(`Escape closes the ${modalId} modal`, async ({ mount, page }) => {
