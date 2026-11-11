@@ -164,7 +164,7 @@ rg -n 'tests/legacy' <unit>/                      # stale cites after the D333 r
 | root-lint-configs | biome.json, eslint.config.ts, eslint-plugins.d.ts, stylelint\*.{ts}, jscpd.json, knip.ts, .dependency-cruiser.ts, lefthook.yml, stryker.config.ts, vitest\*.ts, playwright\*.config.ts, codegraph.json, .mcp.json, .markdownlint.json | L | reviewed (7) |
 | root-dts | aggregator-assets.d.ts, platform\*.d.ts, reset.d.ts — loose ambient types at root | S | reviewed (4) |
 | install-run | install.sh/.cmd, start.sh/.cmd, update.sh/.cmd, Dockerfile, docker-compose.yaml, .dockerignore, docker/, scripts/launcher/ | M | reviewed (5) |
-| root-ci | .github/ — workflows: the install proof, release train, security scans, CodeQL | S | queued |
+| root-ci | .github/ — workflows: the install proof, release train, security scans, CodeQL | S | reviewed (4) |
 | root-dev-environment | .devcontainer/, .vscode/ — sandbox image, firewall, tool lock, editor pins | S | queued |
 | scripts-patches | scripts/, patches/ | M | reviewed (3) |
 | instruction-files | AGENTS.md, .claude/rules/, .claude/hooks/, .claude/agents/, .claude/skills/, .codex/ | L | reviewed (4) |
@@ -304,9 +304,9 @@ Triage fills this.
 
 | Severity | Open | Fixed in-unit | Units affected |
 | - | - | - | - |
-| P1 | 0 | 0 | - |
-| P2 | 9 | 0 | root-config, root-dts, root-lint-configs, scripts-patches, instruction-files |
-| P3 | 11 | 13 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files |
+| P1 | 1 | 0 | root-ci |
+| P2 | 10 | 0 | root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci |
+| P3 | 13 | 13 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci |
 
 Standing hunt for every unit: comments citing `tests/legacy` paths — the D333 retirement moved
 those suites and never re-pointed the prose, and the citation gate
