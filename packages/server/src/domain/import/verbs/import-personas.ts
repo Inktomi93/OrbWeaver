@@ -11,6 +11,7 @@
 
 import type { PersonaCollisionChoices } from "@orb/contracts/import";
 import type { BulkImportPersonaInput } from "@orb/contracts/persona";
+import { narrowPersonaMetadata } from "@orb/contracts/persona";
 import type { ImportPersonaInput } from "../contract/params.ts";
 import type { ImportPersonasResult } from "../contract/results.ts";
 import type { ImportContext, ImportService } from "../contract/service.ts";
@@ -30,7 +31,7 @@ export function createImportPersonas(ctx: ImportContext): ImportService["importP
       name: pi.parsed.name,
       description: pi.parsed.description,
       avatarAssetId: pi.avatarAssetId ?? null,
-      metadata: pi.parsed.metadata ?? null,
+      metadata: narrowPersonaMetadata(pi.parsed.metadata),
       isDefault: pi.parsed.isDefault,
     }));
 

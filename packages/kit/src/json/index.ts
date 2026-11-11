@@ -60,12 +60,48 @@ export const jsonObjectSchema: z.ZodType<JsonObject, Record<string, unknown>> = 
   error: JSON_NOT_OBJECT,
 });
 
+// The refusal both the member guard and the bounded walk give a value no JSON text can hold.
+const JSON_NOT_JSON = "json_not_json";
+
+/** A member of a decoded JSON object (a stored column's open remainder, say): its kind is checked and its contents
+ *  are not walked, for the reason in the header. Refuses `undefined`, a function, a symbol, a bigint and a class
+ *  instance with the code `json_not_json`. */
+export const jsonMemberSchema: z.ZodType<JsonValue> = z.custom<JsonValue>(
+  (value) => value === null || typeof value === "string" || typeof value === "number" || typeof value === "boolean" || containerOf(value) !== null,
+  { error: JSON_NOT_JSON },
+);
+
+// The private member makes a narrowed object nominal. A spread or a rest rebuild drops a class's methods, so a
+// literal, a spread or a rest copy cannot produce one; only the parse in `narrowJsonObject` can. The brand cannot
+// refuse an Object.assign intersection or an assertion; the ESLint rule `orb/narrowed-json-brand`
+// (`tooling/src/eslint/narrowed-json.ts`) refuses both. An `any`-typed value is the hole left, refused by
+// `@typescript-eslint/no-unsafe-assignment` and `no-unsafe-argument`.
+// The private member is a method because Playwright's Babel transform rejects any field on a `declare class`. The
+// brand is an interface over the class, so no value reads as a class instance; the `Name` key tells two owners apart.
+declare class JsonNarrowingMint {
+  private jsonNarrowing(): void;
+}
+declare const narrowedFor: unique symbol;
+interface JsonNarrowing<Name extends string> extends JsonNarrowingMint {
+  readonly [narrowedFor]: Name;
+}
+
+/** A JSON object its owner's schema parsed, marked for `Name`. A column typed with it takes only
+ *  {@link narrowJsonObject}'s output; the stored value is plain JSON. */
+export type NarrowedJsonObject<T, Name extends string> = T & JsonNarrowing<Name>;
+
+/** Parse `raw` with its owner's schema and mark the result narrowed for `Name`, the brand's one mint.
+ *  @throws ZodError when `raw` fails the schema. */
+export function narrowJsonObject<Name extends string, T>(schema: z.ZodType<T>, raw: Readonly<Record<string, unknown>>): NarrowedJsonObject<T, Name> {
+  return schema.parse(raw) as NarrowedJsonObject<T, Name>;
+}
+
 /** How deep {@link boundedJsonObjectSchema} walks before it refuses. A projected tool schema at the JSON Schema lift's
  *  own depth cap spends about two JSON levels per schema level, so this holds it with room to spare. */
 export const JSON_MAX_DEPTH = 128;
 
 /** Why a value fails {@link boundedJsonObjectSchema}. */
-export const JSON_BOUND_REFUSALS = ["json_max_depth_exceeded", "json_not_json", "json_cycle"] as const;
+export const JSON_BOUND_REFUSALS = ["json_max_depth_exceeded", JSON_NOT_JSON, "json_cycle"] as const;
 type JsonBoundRefusal = (typeof JSON_BOUND_REFUSALS)[number];
 
 function leafIsJson(value: unknown): boolean {
@@ -107,7 +143,7 @@ function openFrame(walk: Walk, { value, depth }: WalkFrame): JsonBoundRefusal | 
   }
   const container = containerOf(value);
   if (container === null) {
-    return leafIsJson(value) ? null : "json_not_json";
+    return leafIsJson(value) ? null : JSON_NOT_JSON;
   }
   const height = walk.heights.get(container.node);
   if (height !== undefined) {

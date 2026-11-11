@@ -1,5 +1,6 @@
 import { createHash } from "node:crypto";
 import { ST_SETTINGS_FILE } from "@orb/contracts/import";
+import { MAX_INJECTION_DEPTH } from "@orb/kit/injection";
 import { incomingPersonasOf } from "@orb/server/domain/import";
 import { expect, test } from "@orb/testkit/node";
 
@@ -36,6 +37,19 @@ test.each([
     { name: "Selected", description: "Preserved description", artHash: createHash("sha256").update(art).digest("hex"), metadata },
     { name: "Other", description: "Other description", artHash: null, metadata: { descriptionPosition: "none" } },
   ]);
+});
+
+test("an at-depth persona deeper than the injection cap keeps its placement at the default depth", () => {
+  const files: UploadedFile[] = [
+    settingsUpload({
+      ["power_user"]: {
+        personas: { "deep.png": "Deep" },
+        ["persona_descriptions"]: { "deep.png": { description: "Far down.", position: 4, depth: MAX_INJECTION_DEPTH + 1, role: 1 } },
+      },
+    }),
+  ];
+
+  expect(incomingPersonasOf(files)).toEqual([{ name: "Deep", description: "Far down.", artHash: null, metadata: { descriptionPosition: "at_depth" } }]);
 });
 
 test("preserves tolerated scalar and JSON-array placement and depth coercion", () => {

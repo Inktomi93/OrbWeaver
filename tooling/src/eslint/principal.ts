@@ -1,7 +1,7 @@
-import { relative } from "node:path";
 import type { RuleVisitor } from "@eslint/core";
 import type { TSESLint, TSESTree } from "@typescript-eslint/utils";
 import { AST_NODE_TYPES } from "@typescript-eslint/utils";
+import { inFunctionSite, isFunctionNode } from "./function-site.ts";
 import { isValueWrapper } from "./static-values.ts";
 import type { OrbRule, OrbRuleContext } from "./syntax.ts";
 import { restrictionRule } from "./syntax.ts";
@@ -32,9 +32,6 @@ const PRINCIPAL_MINT_CALLERS = [
 
 const PRINCIPAL_TYPE_REFERENCE = "TSTypeReference:matches([typeName.name='Principal'], [typeName.right.name='Principal'])";
 
-const isPrincipalFunction = (node: TSESTree.Node): node is TSESTree.FunctionDeclaration | TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression =>
-  node.type === AST_NODE_TYPES.FunctionDeclaration || node.type === AST_NODE_TYPES.FunctionExpression || node.type === AST_NODE_TYPES.ArrowFunctionExpression;
-
 const PRINCIPAL_CASTS = new Set(["TSAsExpression", "TSTypeAssertion"]);
 
 const PRINCIPAL_LITERAL_MESSAGE =
@@ -44,25 +41,6 @@ const isPrincipalType = (type: TSESTree.Node | undefined): boolean =>
   type?.type === AST_NODE_TYPES.TSTypeReference &&
   ((type.typeName.type === AST_NODE_TYPES.Identifier && type.typeName.name === "Principal") ||
     (type.typeName.type === AST_NODE_TYPES.TSQualifiedName && type.typeName.right.name === "Principal"));
-
-function principalFunctionName(fn: TSESTree.FunctionDeclaration | TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression): string | null {
-  if (fn.type !== AST_NODE_TYPES.ArrowFunctionExpression && fn.id?.type === AST_NODE_TYPES.Identifier) {
-    return fn.id.name;
-  }
-  const { parent } = fn;
-  if (parent.type === AST_NODE_TYPES.VariableDeclarator) {
-    return parent.id.type === AST_NODE_TYPES.Identifier ? parent.id.name : null;
-  }
-  const keyed = parent.type === AST_NODE_TYPES.Property || parent.type === AST_NODE_TYPES.MethodDefinition || parent.type === AST_NODE_TYPES.PropertyDefinition;
-  return keyed && parent.key.type === AST_NODE_TYPES.Identifier ? parent.key.name : null;
-}
-
-function inPrincipalSite(context: OrbRuleContext, node: TSESTree.Node, sites: readonly { path: string; name: string }[]): boolean {
-  const path = relative(context.cwd, context.filename).replaceAll("\\", "/");
-  const fn = isPrincipalFunction(node) ? node : context.sourceCode.getAncestors(node).findLast(isPrincipalFunction);
-  const name = fn === undefined ? null : principalFunctionName(fn);
-  return sites.some((site) => site.path === path && site.name === name);
-}
 
 function principalLiterals(expression: TSESTree.Node | null | undefined): TSESTree.ObjectExpression[] {
   if (expression === null || expression === undefined) {
@@ -111,7 +89,7 @@ const principalAssertionRule: OrbRule = {
       [`:matches(TSAsExpression, TSTypeAssertion, TSSatisfiesExpression) > .typeAnnotation:matches(${PRINCIPAL_TYPE_REFERENCE}, :has(${PRINCIPAL_TYPE_REFERENCE}))`](
         node: TSESTree.TypeNode,
       ): void {
-        if (!inPrincipalSite(context, node, [PRINCIPAL_CONSTRUCTOR])) {
+        if (!inFunctionSite(context, node, [PRINCIPAL_CONSTRUCTOR])) {
           context.report({
             node,
             message: "D1/D40: an asserted Principal skips the entry mint. Receive the caller's Principal or resolve one with createHostPrincipalResolver.",
@@ -130,7 +108,7 @@ const principalReturnSiteRule: OrbRule = {
         fn: TSESTree.FunctionDeclaration | TSESTree.FunctionExpression | TSESTree.ArrowFunctionExpression | TSESTree.TSDeclareFunction,
       ): void {
         const type = fn.returnType?.typeAnnotation;
-        if (isPrincipalType(type) && !(isPrincipalFunction(fn) && inPrincipalSite(context, fn, PRINCIPAL_RETURN_SITES))) {
+        if (isPrincipalType(type) && !(isFunctionNode(fn) && inFunctionSite(context, fn, PRINCIPAL_RETURN_SITES))) {
           context.report({
             node: type as TSESTree.TSTypeReference,
             message:
@@ -146,7 +124,7 @@ const principalMintSiteRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
     const report = (node: TSESTree.Node) => {
-      if (!inPrincipalSite(context, node, PRINCIPAL_MINT_CALLERS)) {
+      if (!inFunctionSite(context, node, PRINCIPAL_MINT_CALLERS)) {
         context.report({
           node,
           message: `D1/D40: only the registered entry mint sites (PRINCIPAL_MINT_CALLERS in @orb/tooling/eslint) name ${PRINCIPAL_MINT_NAME}. Receive the caller's Principal or resolve one with createHostPrincipalResolver.`,
@@ -183,7 +161,7 @@ const principalLiteralRule: OrbRule = {
         }
       }
     };
-    const enclosingReturnType = (node: TSESTree.Node) => context.sourceCode.getAncestors(node).findLast(isPrincipalFunction)?.returnType?.typeAnnotation;
+    const enclosingReturnType = (node: TSESTree.Node) => context.sourceCode.getAncestors(node).findLast(isFunctionNode)?.returnType?.typeAnnotation;
     return {
       "VariableDeclarator[init]"(node: TSESTree.VariableDeclarator): void {
         judge(node.id.typeAnnotation?.typeAnnotation, node.init);
