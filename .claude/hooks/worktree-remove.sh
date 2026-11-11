@@ -4,7 +4,7 @@
 # Pairs with the WorktreeCreate hook: because that hook takes over creation, the harness cannot be
 # assumed to know how to undo it.
 #
-# CONTRACT (probed 2026-07-30, undocumented): stdin is
+# CONTRACT (probed against the harness, undocumented): stdin is
 #   {session_id, transcript_path, cwd, prompt_id, hook_event_name:"WorktreeRemove", worktree_path}
 # Unlike WorktreeCreate this one DOES carry worktree_path, and `cwd` is the worktree being removed
 # (not the main checkout) — hence the git-common-dir walk below rather than trusting cwd as root.

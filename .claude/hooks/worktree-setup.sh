@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # WorktreeCreate hook — create a worktree AND make it immediately usable.
 #
-# CONTRACT (probed 2026-07-30, undocumented): stdin is
+# CONTRACT (probed against the harness, undocumented): stdin is
 #   {session_id, transcript_path, cwd, prompt_id, hook_event_name:"WorktreeCreate", name}
 # where `cwd` is the MAIN checkout and `name` is the requested worktree name — no path is supplied.
 # Configuring this hook REPLACES the built-in git-worktree creation, so this script owns it, and

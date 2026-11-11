@@ -167,7 +167,7 @@ rg -n 'tests/legacy' <unit>/                      # stale cites after the D333 r
 | root-ci | .github/ — workflows: the install proof, release train, security scans, CodeQL | S | queued |
 | root-dev-environment | .devcontainer/, .vscode/ — sandbox image, firewall, tool lock, editor pins | S | queued |
 | scripts-patches | scripts/, patches/ | M | reviewed (3) |
-| instruction-files | AGENTS.md, .claude/rules/, .claude/hooks/, .claude/agents/, .claude/skills/, .codex/ | L | queued |
+| instruction-files | AGENTS.md, .claude/rules/, .claude/hooks/, .claude/agents/, .claude/skills/, .codex/ | L | reviewed (4) |
 | root-docs | README.md, CONTRIBUTING.md, ACCESSIBILITY.md, SECURITY.md, CODE_OF_CONDUCT.md, LICENSE — pass for staleness against the ledger only | S | queued |
 
 ### Phase 1 — foundations
@@ -305,8 +305,8 @@ Triage fills this.
 | Severity | Open | Fixed in-unit | Units affected |
 | - | - | - | - |
 | P1 | 0 | 0 | - |
-| P2 | 8 | 0 | root-config, root-dts, root-lint-configs, scripts-patches |
-| P3 | 8 | 10 | install-run, root-config, root-dts, root-lint-configs, scripts-patches |
+| P2 | 9 | 0 | root-config, root-dts, root-lint-configs, scripts-patches, instruction-files |
+| P3 | 11 | 13 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files |
 
 Standing hunt for every unit: comments citing `tests/legacy` paths — the D333 retirement moved
 those suites and never re-pointed the prose, and the citation gate

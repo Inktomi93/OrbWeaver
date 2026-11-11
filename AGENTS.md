@@ -105,7 +105,7 @@ as the new one. If you cannot go green without a hatch, stop and report.
 - Run affected Node tests with `pnpm test <paths>` and CTs with `pnpm test:ct <paths>`.
 - Typecheck affected programs with `pnpm typecheck <tsconfig paths...>`.
 - Run `pnpm lint` for Biome and `pnpm lint:eslint <paths>` for ESLint. Errors and warnings fail both commands.
-- Commit hooks check staged files with Biome. Pre-push runs full Biome, dependency-cruiser and ESLint sequentially.
+- Commit hooks check staged files with Biome. Pre-push runs the GitHub sync check, Biome, dependency-cruiser, ESLint, knip, knip:prod and typecheck sequentially.
 - CI owns full application verification (D317). D333 retires custom verify tiers, gates and checker qualification.
 - Read the completed native runner output. A timeout or tool error is no verdict.
 
@@ -117,7 +117,7 @@ as the new one. If you cannot go green without a hatch, stop and report.
 | Who calls X, what breaks if X changes, which tests cover a file | `codegraph callers X`, `codegraph impact X`, `codegraph affected <files>` |
 | A structural pattern | `ast-grep`, never `sg`; `/usr/bin/sg` is `newgrp` |
 | Which files keep getting fixed or churned | `pnpm hotspots` |
-| Literal text, config | `rg`; the Bash `grep` is a ugrep wrapper that honors ignore files. Read law docs in full: a ruling lives in the context around a line |
+| Literal text, config | `rg`; the Bash `grep` is GNU grep, it does not honor ignore files. Read law docs in full: a ruling lives in the context around a line |
 
 - A CodeGraph result is a lead. Open each site you cite and confirm a claim you rely on with `ast-grep` or `rg`.
 - A zero result counts only with a non-zero `scanned=` count and a second method. The evidence rules are in the `code-recon` skill.
