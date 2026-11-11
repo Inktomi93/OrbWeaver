@@ -394,6 +394,9 @@ export const AUTOMATION_ARM_BINDING_TASK: Record<AutomationActionType, RoutableT
 
 // Rendered/stored bounds (named — `noMagicNumbers`).
 const VAR_KEY_MAX = 128;
+/** A variable key a rule names (`set_variable.key`, `run_tool.resultVar`, `run_analysis`'s score key). It refuses a
+ *  NUL at authoring for the reason {@link containsNul} gives: the key would read back as a different one. */
+const automationVariableKeySchema = withoutNul(z.string().min(1).max(VAR_KEY_MAX));
 /** The chat/global variable VALUE bound, in characters. ONE home, TWO enforcers: the `set_variable` arm's
  *  authoring cap (its `value` is a template a human wrote), and the `run_tool` arm's CAPTURE truncation, where
  *  the bound stops being cosmetic — a captured tool result is a CONTRIBUTOR's bytes, and the variable plane is
@@ -531,7 +534,7 @@ export const automationActionSchema = z.discriminatedUnion("type", [
     .object({
       type: z.literal("set_variable"),
       scope: z.enum(AUTOMATION_VARIABLE_SCOPES),
-      key: z.string().min(1).max(VAR_KEY_MAX),
+      key: automationVariableKeySchema,
       op: z.enum(["set", "inc", "dec", "delete"]),
       value: z.string().max(AUTOMATION_VARIABLE_VALUE_MAX).optional(),
     })
@@ -665,10 +668,7 @@ export const automationActionSchema = z.discriminatedUnion("type", [
           rewrite: z.object({}).strip().optional(),
           /** The needle's score publication (host-OPT-IN — see the header). `key` is the ONE chat var the clamped
            *  score lands in; fixed at authoring, never model-chosen. Direct BY NATURE (a cadence meter). */
-          vars: z
-            .object({ key: z.string().min(1).max(VAR_KEY_MAX) })
-            .strip()
-            .optional(),
+          vars: z.object({ key: automationVariableKeySchema }).strip().optional(),
         })
         .strip(),
     })
@@ -704,7 +704,7 @@ export const automationActionSchema = z.discriminatedUnion("type", [
        *  message-write op exists on this surface (the class-1 wall). The captured value is TRUNCATED to
        *  {@link AUTOMATION_VARIABLE_VALUE_MAX} by the executor — see that constant for why the bound matters
        *  more here than on an authored template. */
-      resultVar: z.string().min(1).max(VAR_KEY_MAX).optional(),
+      resultVar: automationVariableKeySchema.optional(),
       /** Which variable plane `resultVar` writes — the SAME vocabulary `set_variable.scope` uses (one axis, one
        *  spelling). `chat` (the default) writes the room's runtime fold; `global` writes the AUTHOR's own plane. */
       resultScope: z.enum(AUTOMATION_VARIABLE_SCOPES).default("chat"),
