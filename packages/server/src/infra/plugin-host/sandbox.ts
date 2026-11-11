@@ -37,7 +37,7 @@ import type {
   PluginTransformRegistration,
 } from "@orb/contracts/plugin";
 import type { QuickJSContext, QuickJSDeferredPromise, QuickJSHandle, QuickJSWASMModule, VmCallResult } from "quickjs-emscripten-core";
-import { GUEST_MAX_STACK_BYTES, HOST_FN_DEADLINE_MS, PLUGIN_INVOCATION_CPU_MS, PLUGIN_INVOKE_ARGS_MAX_BYTES, PLUGIN_MEMORY_LIMIT_BYTES } from "./budgets.ts";
+import { GUEST_MAX_STACK_BYTES, PLUGIN_INVOKE_ARGS_MAX_BYTES, PLUGIN_RESIDENT_LIMITS, settlementWallMs } from "./budgets.ts";
 import type { PluginNetEgress } from "./contract/net-egress.ts";
 import type { CpuSpanReport } from "./contract/port.ts";
 import { installCpuGuard, openCpuInvocation, openCpuWindow, pumpGuestJobs, releaseParkedSettlements } from "./cpu-guard.ts";
@@ -109,12 +109,6 @@ function extractGuestLine(dumped: object): number | undefined {
 export type EvalOutcome =
   | { readonly ok: true; readonly value: string; readonly error?: never; readonly logs: readonly string[] }
   | { readonly ok: false; readonly error: GuestError; readonly value?: never; readonly logs: readonly string[] };
-
-const DEFAULT_LIMITS: PluginBudgets = {
-  cpuDeadlineMs: PLUGIN_INVOCATION_CPU_MS,
-  memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES,
-  settleGraceMs: HOST_FN_DEADLINE_MS,
-};
 
 /** What a guest error or result reads as when the realm cannot serialize it (a string too large to escape). */
 const UNREADABLE_GUEST_VALUE = "plugin host: the guest's value is too large to read";
@@ -236,7 +230,7 @@ export class Sandbox implements Disposable {
   ): Promise<Sandbox> {
     const mod: QuickJSWASMModule = await getPluginQuickJS();
     const ctx = mod.newContext();
-    const resolved: PluginBudgets = { ...DEFAULT_LIMITS, ...opts.limits };
+    const resolved: PluginBudgets = { ...PLUGIN_RESIDENT_LIMITS, ...opts.limits };
     ctx.runtime.setMemoryLimit(resolved.memoryLimitBytes);
     // MANDATORY (see GUEST_MAX_STACK_BYTES): without an explicit soft stack ceiling a recursive guest crashes
     // the host and leaves the runtime un-disposable. This turns deep recursion into a clean contained RangeError.
@@ -463,7 +457,7 @@ export class Sandbox implements Disposable {
    *  end a guest that has stopped executing (a never-settling promise, a fire-and-forget await). The timer is
    *  `unref`'d (it must never hold the process open) and cleared on the settle arm. */
   private raceSettlement(native: Promise<VmCallResult<QuickJSHandle>>): Promise<VmCallResult<QuickJSHandle> | typeof ENDED> {
-    const wallMs = this.limits.cpuDeadlineMs + this.limits.settleGraceMs;
+    const wallMs = settlementWallMs(this.limits);
     let timer: ReturnType<typeof setTimeout> | undefined;
     const wall = new Promise<typeof ENDED>((resolve) => {
       timer = setTimeout(() => resolve(ENDED), wallMs);
@@ -495,7 +489,7 @@ export class Sandbox implements Disposable {
    *  outcome returns. The rejection also reaches `recordCrash`, so a repeat hanger auto-disables at 3 strikes. */
   private endInvocation(handle: QuickJSHandle): EvalOutcome {
     const logs = this.log.drain();
-    const wallMs = this.limits.cpuDeadlineMs + this.limits.settleGraceMs;
+    const wallMs = settlementWallMs(this.limits);
     this.drop(handle);
     this.abortHostOperations();
     this.drainPending();
@@ -555,7 +549,7 @@ export class Sandbox implements Disposable {
    *  turning activation into an unbounded command. Work still pending at the wall retains the existing posture:
    *  it may finish later in the live runtime, but it is outside the catalog returned by this activation. */
   async settleActivationJobs(): Promise<void> {
-    const deadline = performance.now() + this.limits.cpuDeadlineMs + this.limits.settleGraceMs;
+    const deadline = performance.now() + settlementWallMs(this.limits);
     while (this.state.pending.size > 0) {
       const remainingMs = deadline - performance.now();
       if (remainingMs <= 0) {

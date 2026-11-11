@@ -9,7 +9,7 @@ import type { PluginStatus } from "@orb/contracts/plugin";
 import { brandedId, createIdSource } from "@orb/kit/ids";
 import { PLUGIN_CRASH_DISABLE_THRESHOLD } from "@orb/server/domain/plugin";
 import { systemTimers } from "@orb/server/infra/timers";
-import { PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
+import { createFrozenClock, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import type { GuestRun, NativeServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, guestRunner, installGuest } from "@orb/testkit/node/composed";
@@ -20,20 +20,26 @@ import {
   PLUGIN_COMMAND_CPU_BUDGET_MS,
   PLUGIN_COMMAND_TIMEOUT_MS,
   PLUGIN_INVOCATION_CPU_MS,
+  PLUGIN_RESIDENT_LIMITS,
   PLUGIN_WORKER_OVERRUN_MAX_MS,
   PLUGIN_WORKER_SPAN_CHECK_MS,
   SNIPPET_WALL_MS,
+  settlementWallMs,
 } from "#server/infra/plugin-host/budgets.ts";
+import { PLUGIN_BROKER_SYNC_TIMEOUT_MS } from "#server/infra/plugin-host/process-protocol.ts";
 import {
   BASE_GRANTS,
   createPluginProcessEdge,
   firstChild,
+  hasOperation,
   installGuest as installNativeGuest,
   NATIVE_TIMEOUT_MS,
   NOOP_COMMAND,
+  PLUGIN_PROCESS_OPERATIONS,
 } from "./process-runtime.fixtures.ts";
 
-const NATIVE_TIME = { now: (): number => Date.now(), monotonicNow: (): number => performance.now(), timers: systemTimers };
+// Production timers and the monotonic clock they run on; the wall clock stays frozen, since no bound here reads it.
+const NATIVE_TIME = { now: createFrozenClock().now, monotonicNow: (): number => performance.now(), timers: systemTimers };
 // One string search whose cost is (haystack − needle) × needle: minutes, far past the parent's snippet backstop,
 // with no interrupt poll inside it.
 const NATIVE_STALL = "'a'.repeat(400000).indexOf('a'.repeat(100000) + 'b');";
@@ -162,77 +168,63 @@ const STACKED_OPS = {
   stacked: `(h, room, a) => { Object.defineProperty(Object.prototype, 'then', { get() { ${COMMAND_GETTER_SEARCH} return undefined; }, configurable: true }); const calls = Array.from({ length: a.calls }, () => h.storage.list('')); ${COMMAND_MAIN_SEARCH} return Promise.all(calls).then(() => null); }`,
 } as const;
 
-// Two calibration runs, short and long, whose difference cancels the Worker start each snippet pays.
-const CALIBRATION_POSITIONS = 10_000;
-const CALIBRATION_SCALE = 4;
-// The guest work one invoke may spend across its spans before the broker ends its Worker, and one span's own bound.
-const INVOKE_TOTAL_BOUND_MS = PLUGIN_COMMAND_CPU_BUDGET_MS.invoke + PLUGIN_WORKER_OVERRUN_MAX_MS;
-const SPAN_BOUND_MS = PLUGIN_INVOCATION_CPU_MS + PLUGIN_WORKER_OVERRUN_MAX_MS;
-// One search sized so that two of them pass the invoke's total bound while each stays well under one span's bound.
-const PAIRED_SEARCH_SHARE = 0.6;
+// The guest work one invoke may spend across its spans before the broker ends its Worker, read up to two checks late.
+const INVOKE_TOTAL_BOUND_MS = PLUGIN_COMMAND_CPU_BUDGET_MS.invoke + PLUGIN_WORKER_OVERRUN_MAX_MS + 2 * PLUGIN_WORKER_SPAN_CHECK_MS;
+// How long the test holds one synchronous seam call at the parent, keeping a span open with no guest CPU and so at the
+// same length on any load: two held spans pass one invoke's total bound, and one stays inside the broker's own wait for
+// a seam answer and inside one span's bound.
+const HELD_SPAN_MS = (INVOKE_TOTAL_BOUND_MS / 2 + PLUGIN_BROKER_SYNC_TIMEOUT_MS) / 2;
+const HELD_OPS = {
+  busyLoop: "() => { for (;;) {} }",
+  mark: "() => { globalThis.mark = true; return null; }",
+  marked: "() => globalThis.mark === true",
+  held: "(h) => h.ids.mint()",
+  // Floats a host read and returns; when the read settles, after the command answered, its `then` getter waits on a
+  // seam call in a span on the outside account.
+  floatHeld:
+    "(h) => { let fired = false; Object.defineProperty(Array.prototype, 'then', { get() { if (!fired) { fired = true; h.ids.mint(); } return undefined; }, configurable: true }); h.storage.list(''); return null; }",
+} as const;
+const HELD_SEAM_CALL = (value: unknown): boolean => hasOperation(value, PLUGIN_PROCESS_OPERATIONS.mint);
 
-// One string search sized to run about `targetMs` on this box at its present load.
-async function sizedSearch(member: Awaited<ReturnType<NativeServerTestHarness["internalCallerFor"]>>, targetMs: number): Promise<string> {
-  const room = (await member.chat.startChat({ characterIds: [] })).chat;
-  const timed = async (positions: number): Promise<number> => {
-    const started = performance.now();
-    await member.plugin.runSnippet({ chatId: room.id, code: searchFor(SEARCH_NEEDLE + positions) });
-    return performance.now() - started;
-  };
-  const shortMs = await timed(CALIBRATION_POSITIONS);
-  const longMs = await timed(CALIBRATION_SCALE * CALIBRATION_POSITIONS);
-  const perPositionMs = (longMs - shortMs) / ((CALIBRATION_SCALE - 1) * CALIBRATION_POSITIONS);
-  return searchFor(SEARCH_NEEDLE + Math.round(targetMs / perPositionMs));
-}
-
-test("two queued invokes whose single spans together pass one invoke's total bound each keep their runtime: the second is never charged to the first", {
+test("two queued invokes whose held spans together pass one invoke's total bound each keep their runtime: the second is never charged to the first", {
   tags: ["slow"],
   timeout: STALL_TEST_TIMEOUT_MS,
 }, async () => {
-  await using owners = await rootWithBystander();
-  const owner = await owners.root.principalFor(owners.root.ownerId);
-  const search = await sizedSearch(await owners.root.internalCallerFor(owners.root.ownerId), PAIRED_SEARCH_SHARE * INVOKE_TOTAL_BOUND_MS);
-  const pluginId = await installGuest(
-    owners.root,
-    owner,
-    { slug: "paired", capabilities: ["storage.kv"] },
-    {
-      mark: STACKED_OPS.mark,
-      marked: STACKED_OPS.marked,
-      search: `() => { ${search} return null; }`,
-    },
-  );
-  const run = guestRunner({ root: owners.root, caller: owner, pluginId, chatId: null });
+  expect(2 * HELD_SPAN_MS).toBeGreaterThan(INVOKE_TOTAL_BOUND_MS);
+  expect(HELD_SPAN_MS).toBeLessThan(PLUGIN_BROKER_SYNC_TIMEOUT_MS - PLUGIN_INVOCATION_CPU_MS);
+  const edge = createPluginProcessEdge();
+  await using root = await createServerHarness({ pluginSpawn: edge.spawn });
+  const owner = await root.principalFor(root.ownerId);
+  const pluginId = await installGuest(root, owner, { slug: "held-pair", capabilities: [] }, HELD_OPS);
+  const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
   expect(await run("mark")).toEqual({ ok: true, value: null });
 
+  // Each invoke's one span waits on a seam call the test holds; the second is held only once the first is let go.
+  using first = edge.holdNext(HELD_SEAM_CALL);
+  const calls = Promise.allSettled([run("held"), run("held")]);
+  await first.reached;
+  await sleep(HELD_SPAN_MS);
+  using second = edge.holdNext(HELD_SEAM_CALL);
+  first.release();
+  await second.reached;
+  await sleep(HELD_SPAN_MS);
+  second.release();
   // Each ends however its own spent window ends it; what matters is that the broker never terminated the Worker.
-  await Promise.allSettled([run("search"), run("search")]);
+  await calls;
   expect(await run("marked")).toEqual({ ok: true, value: true });
-  expect(await owners.ping()).toEqual({ ok: true, value: null });
 });
 
-test("one invoke whose settlement span and result read each stay under one span's bound but together pass its total bound ends its Worker alone", {
+test("a span outside an invocation and the next invoke's own span, each under one span's bound, together pass that invoke's total bound and end its Worker alone", {
   tags: ["slow"],
   timeout: STALL_TEST_TIMEOUT_MS,
 }, async () => {
-  await using owners = await rootWithBystander();
-  const owner = await owners.root.principalFor(owners.root.ownerId);
-  const search = await sizedSearch(await owners.root.internalCallerFor(owners.root.ownerId), PAIRED_SEARCH_SHARE * INVOKE_TOTAL_BOUND_MS);
-  expect(PAIRED_SEARCH_SHARE * INVOKE_TOTAL_BOUND_MS).toBeLessThan(SPAN_BOUND_MS - PLUGIN_INVOCATION_CPU_MS);
-  const pluginId = await installGuest(
-    owners.root,
-    owner,
-    { slug: "settle-and-read", capabilities: ["storage.kv"] },
-    {
-      busyLoop: STACKED_OPS.busyLoop,
-      mark: STACKED_OPS.mark,
-      marked: STACKED_OPS.marked,
-      // The settlement arrives while the invocation's account still has time, so it is not held: its getter runs one
-      // search in that span, and reading the result runs the other in the next, with no await between them.
-      settleAndRead: `(h) => { let fired = false; Object.defineProperty(Array.prototype, 'then', { get() { if (!fired) { fired = true; ${search} } return undefined; }, configurable: true }); return h.storage.list('').then(() => ({ toJSON() { ${search} return 1; } })); }`,
-    },
-  );
-  const run = guestRunner({ root: owners.root, caller: owner, pluginId, chatId: null });
+  expect(2 * HELD_SPAN_MS).toBeGreaterThan(INVOKE_TOTAL_BOUND_MS);
+  expect(HELD_SPAN_MS).toBeLessThan(PLUGIN_INVOCATION_CPU_MS + PLUGIN_WORKER_OVERRUN_MAX_MS);
+  const edge = createPluginProcessEdge();
+  await using root = await createServerHarness({ pluginSpawn: edge.spawn });
+  const owner = await root.principalFor(root.ownerId);
+  const pluginId = await installGuest(root, owner, { slug: "held-chain", capabilities: ["storage.kv"] }, HELD_OPS);
+  const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
   // An ended guest's failure, the shape the terminated invocation's must share.
   const ended: unknown = await run("busyLoop").catch((error: unknown) => error);
   if (!(ended instanceof Error && "code" in ended)) {
@@ -240,10 +232,22 @@ test("one invoke whose settlement span and result read each stay under one span'
   }
   expect(await run("mark")).toEqual({ ok: true, value: null });
 
-  await expect(run("settleAndRead")).rejects.toMatchObject({ name: ended.name, code: ended.code });
+  // The floated read settles after its command answered, and its span holds the Worker; the next invoke waits behind
+  // it, the oldest command the broker holds, so that span counts toward it, and then its own span does.
+  using outside = edge.holdNext(HELD_SEAM_CALL);
+  expect(await run("floatHeld")).toEqual({ ok: true, value: null });
+  await outside.reached;
+  // The rejection lands while the test still holds the seam call, so it is caught now and asserted below.
+  const next: Promise<unknown> = run("held").catch((error: unknown) => error);
+  await sleep(HELD_SPAN_MS);
+  using own = edge.holdNext(HELD_SEAM_CALL);
+  outside.release();
+  await own.reached;
+  await sleep(HELD_SPAN_MS);
+  own.release();
+  expect(await next).toMatchObject({ name: ended.name, code: ended.code });
   // Only a Worker the broker terminated comes back without the mark.
   expect(await run("marked")).toEqual({ ok: true, value: false });
-  expect(await owners.ping()).toEqual({ ok: true, value: null });
 });
 
 test("a resident command that stacks settlement spans ends as an ended invocation before the parent's backstop, and another owner's resident plugin answers after", {
@@ -276,7 +280,7 @@ test("a resident command that stacks settlement spans ends as an ended invocatio
 const NET_HOST = "peer.test";
 const HELD_URL = `https://${NET_HOST}/held`;
 const SLOW_URL = `https://${NET_HOST}/slow`;
-const INVOCATION_WALL_MS = PLUGIN_INVOCATION_CPU_MS + HOST_FN_DEADLINE_MS;
+const INVOCATION_WALL_MS = settlementWallMs(PLUGIN_RESIDENT_LIMITS);
 // A slow remote answer an honest invocation still waits out: well inside the host-call deadline.
 const SLOW_ANSWER_MS = (7 * HOST_FN_DEADLINE_MS) / 10;
 const QUEUED_OPS = {

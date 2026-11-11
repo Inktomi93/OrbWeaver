@@ -56,6 +56,8 @@ function reportChannelFailure(channel: string, error: unknown): void {
 }
 
 interface BrokerHeartbeat {
+  /** The broker's own monotonic clock at send; compared only with that broker's earlier heartbeats. */
+  readonly sentAtMs: number;
   readonly rssBytes: number;
   readonly peakPhysicalWorkers: number;
   readonly execArgv: readonly string[];
@@ -67,11 +69,14 @@ function parseHeartbeat(message: unknown): BrokerHeartbeat | null {
     return null;
   }
   const kind: unknown = Reflect.get(message, "kind");
+  const sentAtMs: unknown = Reflect.get(message, "sentAtMs");
   const rssBytes: unknown = Reflect.get(message, "rssBytes");
   const peakPhysicalWorkers: unknown = Reflect.get(message, "peakPhysicalWorkers");
   const execArgv: unknown = Reflect.get(message, "execArgv");
   const nodeOptions: unknown = Reflect.get(message, "nodeOptions");
   return kind === "plugin-broker-memory" &&
+    typeof sentAtMs === "number" &&
+    Number.isFinite(sentAtMs) &&
     typeof rssBytes === "number" &&
     Number.isSafeInteger(rssBytes) &&
     rssBytes >= 0 &&
@@ -81,7 +86,7 @@ function parseHeartbeat(message: unknown): BrokerHeartbeat | null {
     Array.isArray(execArgv) &&
     execArgv.every((value) => typeof value === "string") &&
     nodeOptions === null
-    ? { rssBytes, peakPhysicalWorkers, execArgv, nodeOptions }
+    ? { sentAtMs, rssBytes, peakPhysicalWorkers, execArgv, nodeOptions }
     : null;
 }
 
@@ -108,7 +113,9 @@ function forwardBrokerFrame(value: unknown, generation: string, broker: ChildPro
 async function superviseOneBroker(): Promise<string> {
   const generation = randomUUID();
   const startedAt = performance.now();
-  let lastHeartbeatAt: number | undefined;
+  let newestSentAtMs: number | undefined;
+  let heardSinceJudged = false;
+  let misses = 0;
   let rssBytes: number | undefined;
   let failure: string | undefined;
   let runtimeReported = false;
@@ -142,18 +149,7 @@ async function superviseOneBroker(): Promise<string> {
       settled = true;
       resolve(reason);
     };
-    broker.on("message", (message: unknown) => {
-      if (forwardBrokerFrame(message, generation, broker)) {
-        return;
-      }
-      const heartbeat = parseHeartbeat(message);
-      if (heartbeat === null) {
-        failure = "plugin broker watchdog: broker sent a malformed memory heartbeat";
-        broker.kill("SIGKILL");
-        return;
-      }
-      lastHeartbeatAt = performance.now();
-      rssBytes = heartbeat.rssBytes;
+    const report = (heartbeat: BrokerHeartbeat): void => {
       if (heartbeat.peakPhysicalWorkers > reportedPeakPhysicalWorkers) {
         reportedPeakPhysicalWorkers = heartbeat.peakPhysicalWorkers;
         process.stderr.write(`plugin broker watchdog: residency ${JSON.stringify({ peakPhysicalWorkers: heartbeat.peakPhysicalWorkers, workerMaximum })}\n`);
@@ -164,20 +160,48 @@ async function superviseOneBroker(): Promise<string> {
           `plugin broker watchdog: runtime ${JSON.stringify({ execArgv: heartbeat.execArgv, nodeOptions: heartbeat.nodeOptions, rssLimitBytes: memoryLimitBytes })}\n`,
         );
       }
+    };
+    broker.on("message", (message: unknown) => {
+      if (forwardBrokerFrame(message, generation, broker)) {
+        // Only the broker's running main thread sends a frame, and one still being read means the pipe is not drained.
+        heardSinceJudged = true;
+        return;
+      }
+      const heartbeat = parseHeartbeat(message);
+      if (heartbeat === null) {
+        failure = "plugin broker watchdog: broker sent a malformed memory heartbeat";
+        broker.kill("SIGKILL");
+        return;
+      }
+      if (newestSentAtMs === undefined || heartbeat.sentAtMs > newestSentAtMs) {
+        newestSentAtMs = heartbeat.sentAtMs;
+        heardSinceJudged = true;
+      }
+      rssBytes = heartbeat.rssBytes;
+      report(heartbeat);
     });
     broker.once("error", (error) => settle(`plugin broker watchdog: failed to start broker: ${error.message}`));
     broker.once("exit", (code, signal) => settle(failure ?? `plugin broker watchdog: broker exited (${signal ?? code ?? "unknown"})`));
 
-    const monitor = setInterval(() => {
+    // Node runs timers before it reads the pipe, so a judgement made in the timer would see a watchdog stall as broker
+    // silence. Each judgement waits for the check phase, after the pipe's waiting messages were read, and one late tick
+    // after a stall counts as one interval at most: only consecutive intervals with nothing new end the broker (D347).
+    const judge = (): void => {
+      misses = heardSinceJudged ? 0 : misses + 1;
+      heardSinceJudged = false;
       const reason = brokerWatchdogFailure(performance.now(), memoryLimitBytes, {
         startedAt,
-        ...(lastHeartbeatAt === undefined ? {} : { lastHeartbeatAt }),
+        heard: newestSentAtMs !== undefined,
+        misses,
         ...(rssBytes === undefined ? {} : { rssBytes }),
       });
       if (reason !== null) {
         failure = reason;
         broker.kill("SIGKILL");
       }
+    };
+    const monitor = setInterval(() => {
+      setImmediate(judge);
     }, PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS);
     monitor.unref();
     broker.once("close", () => clearInterval(monitor));

@@ -51,6 +51,7 @@ const heartbeat = setInterval(() => {
   process.send?.(
     {
       kind: "plugin-broker-memory",
+      sentAtMs: performance.now(),
       rssBytes: process.memoryUsage.rss(),
       peakPhysicalWorkers,
       execArgv: process.execArgv,

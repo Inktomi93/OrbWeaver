@@ -4,13 +4,14 @@
 // row, which no door shows.
 import { execFileSync } from "node:child_process";
 import process from "node:process";
+import { setTimeout as sleep } from "node:timers/promises";
 import type { PluginStatus } from "@orb/contracts/plugin";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { capturePluginRows } from "@orb/testkit/node/rows";
 import {
   PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS,
-  PLUGIN_BROKER_HEARTBEAT_TIMEOUT_MS,
+  PLUGIN_BROKER_LIVENESS_BOUND_MS,
   PLUGIN_INVOCATION_CPU_MS,
   PLUGIN_WORKER_OVERRUN_MAX_MS,
 } from "#server/infra/plugin-host/budgets.ts";
@@ -19,10 +20,12 @@ import { BASE_GRANTS, createPluginProcessEdge, firstChild, installGuest, NATIVE_
 
 const ENABLED = "enabled" satisfies PluginStatus;
 const BROKER_STOPPED = "stopped" satisfies NonNullable<ReturnType<typeof parsePluginIpcMessage>>["kind"];
-// The watchdog reads the heartbeat once per interval, so it notices silence at most one interval late; the kill and the
-// stopped report then cross two processes, given as much again.
-const LIVENESS_BOUND_MS = PLUGIN_BROKER_HEARTBEAT_TIMEOUT_MS + PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS;
+// The watchdog judges once per interval, so it notices silence at most one interval late; the kill and the stopped
+// report then cross two processes, given as much again.
+const LIVENESS_BOUND_MS = PLUGIN_BROKER_LIVENESS_BOUND_MS + PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS;
 const REPLACED_WITHIN_MS = 2 * LIVENESS_BOUND_MS;
+// A watchdog stall twice the bound: past it whatever the stall's own jitter.
+const WATCHDOG_STALL_MS = 2 * LIVENESS_BOUND_MS;
 // One string search of minutes with no interrupt poll inside it.
 const NATIVE_STALL = "'a'.repeat(400000).indexOf('a'.repeat(100000) + 'b');";
 const STALL_COMMAND = `h.ui.registerCommand({name:"stall",describe:"One native call of minutes",onRun:()=>{${NATIVE_STALL}}});`;
@@ -65,7 +68,7 @@ test("a broker whose main thread stops answering is replaced within the heartbea
   const stoppedAt = performance.now();
   await expect(caller.invoke("noop")).toThrowTRPCError("CONFLICT");
   const failedAfterMs = performance.now() - stoppedAt;
-  expect(failedAfterMs).toBeGreaterThan(PLUGIN_BROKER_HEARTBEAT_TIMEOUT_MS - PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS);
+  expect(failedAfterMs).toBeGreaterThan(PLUGIN_BROKER_LIVENESS_BOUND_MS - PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS);
   expect(failedAfterMs).toBeLessThan(REPLACED_WITHIN_MS);
   expect(stoppedReports(edge)).toHaveLength(1);
 
@@ -79,6 +82,29 @@ test("a broker whose main thread stops answering is replaced within the heartbea
   expect((await bystander.enable()).status).toBe(ENABLED);
   await bystander.invoke("noop");
   expect(brokerPid(edge)).not.toBe(hung);
+});
+
+test("a watchdog that stalls past the liveness bound keeps a broker that went on answering", { tags: ["slow"], timeout: NATIVE_TIMEOUT_MS }, async () => {
+  const edge = createPluginProcessEdge();
+  await using root = await createServerHarness({ pluginSpawn: edge.spawn });
+  const guest = await installGuest(root, "kept", `const h=orb.host(1);${NOOP_COMMAND}`, BASE_GRANTS);
+  expect((await guest.enable()).status).toBe(ENABLED);
+  await guest.invoke("noop");
+  const live = brokerPid(edge);
+  const watchdog = firstChild(edge).pid;
+  if (watchdog === undefined) {
+    throw new Error("the production host did not spawn its watchdog");
+  }
+
+  // The broker's heartbeats wait in the stopped watchdog's pipe; on resume they are read before the broker is judged.
+  process.kill(watchdog, "SIGSTOP");
+  await sleep(WATCHDOG_STALL_MS);
+  process.kill(watchdog, "SIGCONT");
+  await sleep(LIVENESS_BOUND_MS);
+
+  expect(stoppedReports(edge)).toEqual([]);
+  expect(brokerPid(edge)).toBe(live);
+  await guest.invoke("noop");
 });
 
 test("a broker whose every Worker is stuck in a native call keeps answering its watchdog and is not replaced", {

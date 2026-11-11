@@ -9,6 +9,7 @@
 // time jump) must never be able to disable the DoS kill — so the interrupt reads real monotonic time, the
 // guest reads the seam.
 
+import type { PluginBudgets } from "@orb/contracts/plugin";
 import { PLUGIN_CONTINUATION_WINDOW_MS } from "@orb/contracts/plugin";
 import type { PluginCommandOperation } from "./contract/process-protocol.ts";
 import { PLUGIN_BROKER_SYNC_TIMEOUT_MS } from "./process-protocol.ts";
@@ -46,11 +47,21 @@ export const PLUGIN_COMMAND_TIMEOUT_MS = {
   dispose: 30_000,
 } as const satisfies Record<PluginCommandOperation, number>;
 
-/** How often the broker's main thread reports to its watchdog, whatever any command or Worker is doing. */
+/** How often the broker's main thread reports to its watchdog, whatever any command or Worker is doing; the watchdog
+ *  judges the broker on the same period. */
 export const PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS = 25;
-/** How long the watchdog waits for a heartbeat before it ends the broker as unresponsive: the one reason the broker is
- *  replaced (D347). */
-export const PLUGIN_BROKER_HEARTBEAT_TIMEOUT_MS = 500;
+// The longest heartbeat gap measured from a healthy broker, at send and at arrival, through the plugin-host floor at
+// load up to 40 on 24 cores; D347 records the run.
+const PLUGIN_BROKER_HEARTBEAT_WORST_GAP_MS = 125;
+// The margin over that gap, for a slower or busier host than the one measured.
+const PLUGIN_BROKER_HEARTBEAT_GAP_FACTOR = 8;
+/** Consecutive intervals in which the watchdog, its pipe drained, finds nothing new from the broker before it ends the
+ *  broker as unresponsive (D347): the measured worst gap times the factor, in intervals, so detection takes 1 s. */
+export const PLUGIN_BROKER_HEARTBEAT_MISSES_MAX = Math.ceil(
+  (PLUGIN_BROKER_HEARTBEAT_GAP_FACTOR * PLUGIN_BROKER_HEARTBEAT_WORST_GAP_MS) / PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS,
+);
+/** How long a broker that stops answering keeps serving before its watchdog ends it. */
+export const PLUGIN_BROKER_LIVENESS_BOUND_MS = PLUGIN_BROKER_HEARTBEAT_MISSES_MAX * PLUGIN_BROKER_HEARTBEAT_INTERVAL_MS;
 
 /** The guest CPU one command may spend across all its spans, the spans of guest work that run while it waits its turn
  *  included: the activation and the work outside it for `create`, one invocation for `invoke`, the snippet's account for
@@ -260,6 +271,21 @@ export const EVENT_QUEUE_DEPTH = 16;
  *  every entry retains its invocation arguments or activation source in the app process. Bounding it is the
  *  aggregate app-memory wall for pressure that has not reached the broker process yet. */
 export const PLUGIN_RUNTIME_REQUEST_QUEUE_MAX = 32;
+
+/** A resident invocation's limits: its CPU account, its heap, and the grace its settlement wall adds past the account. */
+export const PLUGIN_RESIDENT_LIMITS = {
+  cpuDeadlineMs: PLUGIN_INVOCATION_CPU_MS,
+  memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES,
+  settleGraceMs: HOST_FN_DEADLINE_MS,
+} as const satisfies PluginBudgets;
+
+/** A snippet's limits: a resident invocation's, with the snippet's own CPU account. */
+export const PLUGIN_SNIPPET_LIMITS = { ...PLUGIN_RESIDENT_LIMITS, cpuDeadlineMs: SNIPPET_WALL_MS } as const satisfies PluginBudgets;
+
+/** How long after its synchronous run an invocation under these limits ends if it has not settled (D346). */
+export function settlementWallMs(limits: PluginBudgets): number {
+  return limits.cpuDeadlineMs + limits.settleGraceMs;
+}
 
 // NOTE: the consecutive-crash auto-disable threshold is DOMAIN lifecycle policy, not a sandbox runtime
 // budget — it lives in `domain/plugin/activation/crash-policy.ts` (`PLUGIN_CRASH_DISABLE_THRESHOLD`). It is NOT

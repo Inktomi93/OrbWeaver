@@ -14,10 +14,12 @@ import { createServerHarness, guestRunner, installGuest } from "@orb/testkit/nod
 import {
   HOST_CALLS_IN_FLIGHT_MAX,
   HOST_FN_ARGS_MAX_BYTES,
-  HOST_FN_DEADLINE_MS,
   HOST_FN_RESULT_CAP_BYTES,
   PLUGIN_INVOCATION_CPU_MS,
+  PLUGIN_RESIDENT_LIMITS,
+  PLUGIN_SNIPPET_LIMITS,
   SNIPPET_WALL_MS,
+  settlementWallMs,
 } from "#server/infra/plugin-host/budgets.ts";
 
 // Far past the membrane's dump depth guard, so the iterative pre-walk must refuse this argument.
@@ -131,7 +133,7 @@ const LOOPS = {
 // Each loop is interrupted more than once, because where the interrupt lands in a loop's iteration varies by run.
 const LOOP_RUNS = 4;
 // Every run ends within its invocation wall; the busy-loop control and a ping follow each.
-const LOOP_TEST_TIMEOUT_MS = (2 * LOOP_RUNS + 1) * (PLUGIN_INVOCATION_CPU_MS + HOST_FN_DEADLINE_MS);
+const LOOP_TEST_TIMEOUT_MS = (2 * LOOP_RUNS + 1) * settlementWallMs(PLUGIN_RESIDENT_LIMITS);
 
 test("a guest looping host calls it catches past its CPU window ends as a busy loop does, then serves the next call and retires cleanly", {
   tags: ["slow"],
@@ -202,8 +204,8 @@ const UNSERVED_HOST_VERSION = Math.max(...PLUGIN_HOST_VERSIONS) + 1;
 const PAST_WINDOW_MARGIN_MS = PLUGIN_INVOCATION_CPU_MS;
 // The invocation wall bounds how long an invocation can hold its runtime, apart from the CPU account it spends: a guest
 // that only waits on host calls spends almost none of it.
-const INVOCATION_WALL_MS = PLUGIN_INVOCATION_CPU_MS + HOST_FN_DEADLINE_MS;
-const SNIPPET_INVOCATION_WALL_MS = SNIPPET_WALL_MS + HOST_FN_DEADLINE_MS;
+const INVOCATION_WALL_MS = settlementWallMs(PLUGIN_RESIDENT_LIMITS);
+const SNIPPET_INVOCATION_WALL_MS = settlementWallMs(PLUGIN_SNIPPET_LIMITS);
 // A red run ends at its timeout instead; a green one needs about three invocation walls.
 const PAST_WINDOW_TEST_TIMEOUT_MS = 4 * INVOCATION_WALL_MS;
 

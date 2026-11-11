@@ -48,9 +48,8 @@ import {
   PLUGIN_LOCAL_RESIDENT_RUNTIME_MAX,
   PLUGIN_LOG_RING_CHARS,
   PLUGIN_LOG_RING_LINES,
-  PLUGIN_MEMORY_LIMIT_BYTES,
+  PLUGIN_SNIPPET_LIMITS,
   PLUGIN_SNIPPET_RUNTIME_MAX,
-  SNIPPET_WALL_MS,
 } from "./budgets.ts";
 import type { CreateInstanceInputIn, CreateInstanceOutcomeOut, LocalPluginHostSeams, PluginHostSeamDeps } from "./contract/port.ts";
 import { getPluginQuickJS } from "./module.ts";
@@ -364,7 +363,7 @@ export function createLocalPluginHost(seams: LocalPluginHostSeams): {
         using sandbox = await Sandbox.create(hostSeams, {
           // A snippet has no manifest, so its profile omits net.fetch; the forwarded egress is never reached.
           membrane: { grants: new Set(input.grants), bridge: input.bridge, netEgress: seams.netEgress, log },
-          limits: { cpuDeadlineMs: SNIPPET_WALL_MS, memoryLimitBytes: PLUGIN_MEMORY_LIMIT_BYTES },
+          limits: PLUGIN_SNIPPET_LIMITS,
           ...(seams.spanReport === undefined ? {} : { spanReport: seams.spanReport }),
         });
         sandbox.setInvocationChat(input.chat);
