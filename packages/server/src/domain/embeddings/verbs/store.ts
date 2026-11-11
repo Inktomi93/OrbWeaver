@@ -26,7 +26,7 @@
 import type { StoreResult } from "@orb/contracts/embeddings";
 import type { EmbedResult, ImageEmbedResult } from "@orb/contracts/providers";
 import type { EmbedGenerationId } from "@orb/kit/ids";
-import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
+import { SpaceMismatchError } from "../contract/errors.ts";
 import type {
   CardTextStoreParams,
   DigestStoreParams,
@@ -47,6 +47,7 @@ import {
   upsertDocumentChunk,
   upsertImageEmbedding,
 } from "../persistence/queries.ts";
+import { embedFailure } from "../substrate/embed-failure.ts";
 import { resolveTargetGeneration } from "../substrate/generation.ts";
 import { contentHash } from "../substrate/hash.ts";
 
@@ -56,10 +57,10 @@ function assertNever(value: never): never {
 
 /** The first vector of an embed result, or `EmbedFailedError` when the family filtered the input (`null`) or
  *  returned nothing. */
-function firstVector(vectors: readonly (Float32Array | null)[], lens: string, model: string): Float32Array {
+function firstVector(ctx: EmbeddingsContext, vectors: readonly (Float32Array | null)[], lens: string, model: string): Float32Array {
   const vector = vectors[0];
   if (vector === null || vector === undefined) {
-    throw new EmbedFailedError(lens, model);
+    throw embedFailure(ctx, lens, model);
   }
   return vector;
 }
@@ -104,7 +105,7 @@ async function storeCardText(ctx: EmbeddingsContext, p: CardTextStoreParams, gen
   }
   const seeded = seedFor(ctx, { hash, kind: "card-text", generation });
   const embedded = seeded === null ? await generation.connection.embed(p.content, { signal: p.signal }) : { model: seeded.model, vectors: [seeded.vector] };
-  const vector = firstVector(embedded.vectors, p.lens, embedded.model);
+  const vector = firstVector(ctx, embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, generation.dims, vector);
   const landed = await upsertCharacterEmbedding(ctx.db, {
     logger: ctx.logger,
@@ -197,7 +198,7 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
       { signal: p.signal },
     );
   }
-  const vector = firstVector(embedded.vectors, p.lens, embedded.model);
+  const vector = firstVector(ctx, embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, generation.dims, vector);
   const landed = await upsertImageEmbedding(ctx.db, {
     logger: ctx.logger,
@@ -227,7 +228,7 @@ async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | Image
 async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promise<StoreResult> {
   const generation = await resolveTargetGeneration(ctx, p.ownerId, "embed");
   if (generation === null) {
-    throw new EmbedFailedError(p.lens, p.model);
+    throw embedFailure(ctx, p.lens, p.model);
   }
   const hash = p.contentHash;
   const existing = await existingDigestHash(ctx.db, {
@@ -247,7 +248,7 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
     };
   }
   const embedded = await generation.connection.embed(p.text, { signal: p.signal });
-  const vector = firstVector(embedded.vectors, p.lens, embedded.model);
+  const vector = firstVector(ctx, embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, generation.dims, vector);
   const landed = await upsertChatDigest(ctx.db, {
     logger: ctx.logger,
@@ -284,7 +285,7 @@ async function storeDigest(ctx: EmbeddingsContext, p: DigestStoreParams): Promis
 async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): Promise<StoreResult> {
   const generation = await resolveTargetGeneration(ctx, p.ownerId, "embed");
   if (generation === null) {
-    throw new EmbedFailedError(p.lens, p.model);
+    throw embedFailure(ctx, p.lens, p.model);
   }
   const hash = contentHash(p.content);
   if ((await existingChunkHash(ctx.db, p.fkRefs.documentId, p.fkRefs.chunkIdx, generation.id)) === hash) {
@@ -297,7 +298,7 @@ async function storeChunk(ctx: EmbeddingsContext, p: DocumentChunkStoreParams): 
     };
   }
   const embedded = await generation.connection.embed(p.content, { signal: p.signal });
-  const vector = firstVector(embedded.vectors, p.lens, embedded.model);
+  const vector = firstVector(ctx, embedded.vectors, p.lens, embedded.model);
   assertSpace(embedded.model, generation.dims, vector);
   const landed = await upsertDocumentChunk(ctx.db, {
     logger: ctx.logger,
@@ -331,7 +332,7 @@ export function createStore(ctx: EmbeddingsContext): EmbeddingsService["store"] 
     const via = params.lens === "image-captioned" ? params.via : task;
     const generation = await resolveTargetGeneration(ctx, params.ownerId, task, via);
     if (generation === null) {
-      throw new EmbedFailedError(params.lens, params.model);
+      throw embedFailure(ctx, params.lens, params.model);
     }
     const entity = params.lens === "card-text" ? params.characterId : params.assetId;
     const key = JSON.stringify([

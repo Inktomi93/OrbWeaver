@@ -813,11 +813,28 @@ async function configuredEndpointPin(context: EgressContext, url: URL): Promise<
  *  the address goes to the securityEvent log, not the throw. */
 export class EgressBlockedError extends Error {
   readonly reason: EgressBlockReason;
-  constructor(reason: EgressBlockReason, message: string, options?: ErrorOptions) {
+  /** The block wrote its `egress_blocked` security event, so a caller's own log line would be a second record. */
+  readonly recorded: boolean;
+  constructor(reason: EgressBlockReason, message: string, options?: ErrorOptions & { readonly recorded?: boolean }) {
     super(message, options);
     this.name = "EgressBlockedError";
     this.reason = reason;
+    this.recorded = options?.recorded ?? false;
   }
+}
+
+/** Whether a failed fetch is a block the firewall already recorded as a security event: an {@link EgressBlockedError}
+ *  that wrote one, or the connector's refusal for a private or zone-scoped address, which wrote its own. A caller that
+ *  logs the cause of a failed fetch skips this one, so a blocked egress leaves one record. */
+export function isRecordedEgressBlock(err: unknown): boolean {
+  const seen = new Set<unknown>();
+  for (let link = err; link instanceof Error && !seen.has(link); link = link.cause) {
+    seen.add(link);
+    if (link instanceof EgressBlockedError ? link.recorded : link.message.startsWith(SSRF_BLOCKED)) {
+      return true;
+    }
+  }
+  return false;
 }
 
 /** Real DNS; a composition root passes it as `resolver`, and a test passes a scripted one. */
@@ -910,7 +927,7 @@ async function openSafeFetchFor(context: EgressContext, url: string | URL, optio
     if (deadlineHit()) {
       securityEvent("egress_blocked", { reason: "deadline", hostname: start.hostname }, "security: safeFetch egress blocked (deadline)", context.log);
       // biome-ignore lint/style/useErrorCause: the cause IS forwarded — EgressBlockedError passes options to super(); biome can't see through the custom class.
-      throw new EgressBlockedError("deadline", `egress deadline of ${deadlineMs}ms exceeded`, { cause: err });
+      throw new EgressBlockedError("deadline", `egress deadline of ${deadlineMs}ms exceeded`, { cause: err, recorded: true });
     }
     throw err;
   }
@@ -1149,7 +1166,7 @@ interface EgressBlock {
 
 function blockEgress(log: Logger, { reason, host, detail, fields = {} }: EgressBlock): never {
   securityEvent("egress_blocked", { reason, hostname: host, ...fields }, `security: safeFetch egress blocked (${reason})`, log);
-  throw new EgressBlockedError(reason, detail);
+  throw new EgressBlockedError(reason, detail, { recorded: true });
 }
 
 /** Scheme + host-allowlist + IP-literal gate — runs on the start URL and re-runs on every redirect hop. */

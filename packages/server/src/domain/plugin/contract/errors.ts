@@ -190,7 +190,8 @@ export class PluginKvCapError extends DomainOperationError {
 }
 
 /** The error a guest invoke's rejection surfaces as: a guest's own throw becomes {@link PluginActionFailedError};
- *  a host DomainError keeps its own mapping. */
+ *  a host DomainError keeps its own mapping. An internal fault passes through too, on purpose: the transport answers
+ *  it with a fixed sentence, whereas wrapping it would put its text in a client-facing message. */
 export function asPluginActionError(error: unknown): DomainError {
   return error instanceof DomainError ? error : new PluginActionFailedError(`plugin action failed: ${error instanceof Error ? error.message : String(error)}`);
 }

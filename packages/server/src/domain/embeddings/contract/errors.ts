@@ -25,12 +25,13 @@ export class AssetFileCorruptError extends DomainOperationError {
 }
 
 /** A genuine producer failure: the caller decides retry vs skip; store never silently writes a null vector. A
- *  route that lets it escape answers SERVICE_UNAVAILABLE, because the embedder gave nothing to store. */
+ *  route that lets it escape answers SERVICE_UNAVAILABLE, because the embedder gave nothing to store. The message
+ *  reaches the client, so the lens and the model stay in the fields and in the producer's log record. */
 export class EmbedFailedError extends DomainUnavailableError {
   readonly lens: string;
   readonly model: string;
   constructor(lens: string, model: string) {
-    super(`embeddings.store: embed produced no vector for lens '${lens}' (model '${model}')`);
+    super("The embedder could not produce a vector for this input. Try again in a moment.");
     this.lens = lens;
     this.model = model;
   }

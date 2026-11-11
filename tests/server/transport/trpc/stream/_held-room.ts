@@ -45,6 +45,7 @@ const wireEnvelopeSchema = z.object({
   channel: z.string().optional(),
   type: z.string().optional(),
   code: z.string().optional(),
+  message: z.string().optional(),
   ref: z.object({ channel: z.string() }).optional(),
   cursor: z.number().nullable().optional(),
   event: z.object({ type: z.string().optional(), tagId: typeIdSchema(ID_PREFIX.tag).optional() }).optional(),
@@ -119,7 +120,7 @@ function logControl(log: SocketLog, envelope: z.infer<typeof wireEnvelopeSchema>
     log.lagCursors.push(envelope.cursor ?? null);
   }
   if (envelope.type === "roomFailed") {
-    throw new Error(`the ${envelope.ref?.channel} room failed with ${envelope.code}`);
+    throw new Error(`the ${envelope.ref?.channel} room failed with ${envelope.code}: ${envelope.message}`);
   }
   if (envelope.type === "attached" && envelope.ref !== undefined) {
     log.attachedChannels.add(envelope.ref.channel);
@@ -293,6 +294,7 @@ export async function openRoom(): Promise<Room> {
   await using construction = new AsyncDisposableStack();
   const root = construction.use(
     await createServerHarness({
+      logLevel: "warn",
       startJobs: false,
       env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" },
       providerFetch: async (input, init) => {

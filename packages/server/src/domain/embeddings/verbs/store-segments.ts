@@ -18,10 +18,11 @@
 
 import type { StoreGenerationReceipt, StoreResult } from "@orb/contracts/embeddings";
 import type { UserId } from "@orb/kit/ids";
-import { EmbedFailedError, SpaceMismatchError } from "../contract/errors.ts";
+import { SpaceMismatchError } from "../contract/errors.ts";
 import type { SegmentStoreParams } from "../contract/params.ts";
 import type { EmbeddingsContext, EmbeddingsService, PinnedGeneration } from "../contract/service.ts";
 import { existingSegmentHash, upsertChatSegment } from "../persistence/queries.ts";
+import { embedFailure } from "../substrate/embed-failure.ts";
 import { resolveTargetGeneration } from "../substrate/generation.ts";
 
 /** An input that survived the hash gate, carrying its position in the caller's list (results are
@@ -80,9 +81,9 @@ async function gate(
 /** The produced vector for one pending item, or the typed failure: the family filtered the input (`null`), the
  *  flood came back short, or the vector is not as wide as the owner's generation. `model` is THIS item's
  *  owner's answer, never the batch's — see `flood`. */
-function vectorFor(vector: Float32Array | null | undefined, item: PendingSegment, model: string): Float32Array {
+function vectorFor(ctx: EmbeddingsContext, vector: Float32Array | null | undefined, item: PendingSegment, model: string): Float32Array {
   if (vector === null || vector === undefined) {
-    throw new EmbedFailedError(item.params.lens, model);
+    throw embedFailure(ctx, item.params.lens, model);
   }
   if (vector.length !== item.generation.dims) {
     throw new SpaceMismatchError(model, item.generation.dims, vector.length);
@@ -162,7 +163,7 @@ export function createStoreSegments(ctx: EmbeddingsContext): EmbeddingsService["
         seqStart: p.seqStart,
         seqEnd: p.seqEnd,
         text: p.text,
-        embedding: vectorFor(embedded.vector, item, embedded.model),
+        embedding: vectorFor(ctx, embedded.vector, item, embedded.model),
         contentHash: p.contentHash,
         model: embedded.model,
         generationId: item.generation.id,
