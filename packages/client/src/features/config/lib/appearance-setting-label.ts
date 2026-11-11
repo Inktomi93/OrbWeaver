@@ -5,13 +5,11 @@ import type { ThemeLeftoverAppearanceSetting } from "@orb/contracts/portability"
 import type { ContributorRegistry } from "#lib";
 import type { ConfigSectionContribution } from "#state";
 
-/** The label of the Appearance setting stored under `key`. Every key a theme import can name has a leaf (a spec walks them). */
+/** The label of the Appearance setting stored under `key`. A key is one control in the registry, and every key a theme import can
+ *  name has a leaf (`tests/client/features/config/lib/appearance-setting-label.dom.test.ts` walks them). */
 export function appearanceSettingLabel(registry: ContributorRegistry<ConfigSectionContribution>, key: ThemeLeftoverAppearanceSetting): string {
-  for (const section of registry.list()) {
-    if (section.owns?.tier !== "user" || section.owns.section !== "appearance") {
-      continue;
-    }
-    const leaf = section.nav.settings?.find((setting) => setting.key === key);
+  for (const { nav } of registry.list()) {
+    const leaf = nav.settings?.find((setting) => setting.key === key);
     if (leaf !== undefined) {
       return leaf.label;
     }

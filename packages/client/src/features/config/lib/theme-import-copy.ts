@@ -5,9 +5,7 @@
 // own labels); a key with no counterpart here needs nothing; a text colour dropped as too faint is already covered by Orbweaver's
 // own readable colour. The sentence for each group is keyed on the wire's reason kind, so a new kind fails `tsc` until it has one.
 
-import type { ThemeLeftoverReason } from "@orb/contracts/portability";
-
-type LeftoverKind = ThemeLeftoverReason["kind"];
+import type { ThemeLeftoverReasonKind } from "@orb/contracts/portability";
 
 function settingsCount(count: number): string {
   return count === 1 ? "1 SillyTavern setting" : `${String(count)} SillyTavern settings`;
@@ -33,16 +31,19 @@ export const THEME_IMPORT_ACTION: Record<"needed" | "none", string> = {
   none: "You don't need to do anything.",
 };
 
-/** The display-settings group: the Appearance settings the file's keys stand for, named by those settings' own labels. */
-export function themeImportAppearanceLine(labels: readonly string[]): string {
-  return `Set these yourself under Settings, Appearance: ${labels.join(", ")}.`;
-}
-
-/** The sentence for each group that needs nothing from the person. */
-export const THEME_IMPORT_GROUP_NOTE: Record<Exclude<LeftoverKind, "appearance">, string> = {
-  "no-equivalent": "These have no equivalent in Orbweaver, so there is nothing to set.",
-  "faint-colour": "These text colours were too faint to read on the theme's background, so Orbweaver keeps its own readable colour.",
+/** The line for each reason kind's group, over the contracts' kind tuple so a new kind fails `tsc` until it has one. The display
+ *  settings group names the Appearance settings the file's keys stand for, by those settings' own labels; the others need nothing
+ *  from the person. */
+const GROUP_LINE: Record<ThemeLeftoverReasonKind, (appearanceLabels: readonly string[]) => string> = {
+  appearance: (labels) => `Set these yourself under Settings, Appearance: ${labels.join(", ")}.`,
+  "no-equivalent": () => "These have no equivalent in Orbweaver, so there is nothing to set.",
+  "faint-colour": () => "These text colours were too faint to read on the theme's background, so Orbweaver keeps its own readable colour.",
 };
+
+/** The line the note shows for the group of leftovers that share `kind`. */
+export function themeImportGroupLine(kind: ThemeLeftoverReasonKind, appearanceLabels: readonly string[]): string {
+  return GROUP_LINE[kind](appearanceLabels);
+}
 
 /** The disclosure trigger's name in each state: the raw SillyTavern names are the secondary detail behind it. */
 export function themeImportLeftoverToggleName(open: boolean): string {

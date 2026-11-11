@@ -12,9 +12,8 @@ import type { Page } from "@playwright/test";
 import { APPEARANCE_SIZING_SUBCATEGORY } from "#client/features/app-shell/lib/appearance-sizing-model.ts";
 import {
   THEME_IMPORT_ACTION,
-  THEME_IMPORT_GROUP_NOTE,
   THEME_IMPORT_OUTCOME,
-  themeImportAppearanceLine,
+  themeImportGroupLine,
   themeImportLeftoverTitle,
   themeImportLeftoverToggleName,
 } from "#client/features/config/lib/theme-import-copy.ts";
@@ -55,9 +54,9 @@ test("a SillyTavern theme that left settings behind says what to do about each g
   await expect(note).toContainText(themeImportLeftoverTitle(ST_LANDED_NAME, Object.keys(LEFTOVERS).length, true));
   await expect(note).toContainText(`${THEME_IMPORT_OUTCOME.created} ${THEME_IMPORT_ACTION.needed}`);
   // Each group has its own line: the display setting by the label it wears in Appearance, then the two that need nothing.
-  await expect(note).toContainText(themeImportAppearanceLine([FONT_SCALE_LABEL]));
-  await expect(note).toContainText(THEME_IMPORT_GROUP_NOTE["no-equivalent"]);
-  await expect(note).toContainText(THEME_IMPORT_GROUP_NOTE["faint-colour"]);
+  await expect(note).toContainText(themeImportGroupLine("appearance", [FONT_SCALE_LABEL]));
+  await expect(note).toContainText(themeImportGroupLine("no-equivalent", []));
+  await expect(note).toContainText(themeImportGroupLine("faint-colour", []));
   // The raw names are one disclosure away, not on the page until it is opened.
   const names = Object.keys(LEFTOVERS).join(", ");
   await expect(note.getByText(names, { exact: true })).toBeHidden();

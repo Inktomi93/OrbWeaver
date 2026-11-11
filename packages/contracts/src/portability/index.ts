@@ -128,11 +128,16 @@ export type ThemeLeftoverAppearanceSetting = (typeof THEME_LEFTOVER_APPEARANCE_S
 
 /** Why a SillyTavern theme key was left behind, and so whether the person has anything to do: `appearance` is a display
  *  choice the viewer sets themselves in Appearance (the settings it names), `no-equivalent` has no counterpart here, and
- *  `faint-colour` is a text colour dropped because it would not be readable on its background. */
+ *  `faint-colour` is a text colour dropped because it would not be readable on its background. A consumer that says
+ *  something for each maps over this tuple, so a new kind fails `tsc` where it is missing. */
+export const THEME_LEFTOVER_REASON_KINDS = ["appearance", "no-equivalent", "faint-colour"] as const;
+export type ThemeLeftoverReasonKind = (typeof THEME_LEFTOVER_REASON_KINDS)[number];
+const [APPEARANCE_KIND, NO_EQUIVALENT_KIND, FAINT_COLOUR_KIND] = THEME_LEFTOVER_REASON_KINDS;
+
 const themeLeftoverReasonSchema = z.discriminatedUnion("kind", [
-  z.strictObject({ kind: z.literal("appearance"), settings: z.array(z.enum(THEME_LEFTOVER_APPEARANCE_SETTINGS)).min(1).readonly() }),
-  z.strictObject({ kind: z.literal("no-equivalent") }),
-  z.strictObject({ kind: z.literal("faint-colour") }),
+  z.strictObject({ kind: z.literal(APPEARANCE_KIND), settings: z.array(z.enum(THEME_LEFTOVER_APPEARANCE_SETTINGS)).min(1).readonly() }),
+  z.strictObject({ kind: z.literal(NO_EQUIVALENT_KIND) }),
+  z.strictObject({ kind: z.literal(FAINT_COLOUR_KIND) }),
 ]);
 export type ThemeLeftoverReason = z.infer<typeof themeLeftoverReasonSchema>;
 

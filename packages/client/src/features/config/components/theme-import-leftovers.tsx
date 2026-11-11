@@ -4,6 +4,7 @@
 // labels in Appearance, the rest need nothing, and the raw SillyTavern names sit behind a disclosure as the secondary detail.
 
 import type { ThemeLeftover, ThemeLeftoverAppearanceSetting } from "@orb/contracts/portability";
+import { THEME_LEFTOVER_REASON_KINDS } from "@orb/contracts/portability";
 import { Collapsible, CollapsiblePanel, CollapsibleTrigger } from "@orb/ui/collapsible";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
@@ -13,9 +14,8 @@ import { useConfigSectionRegistry } from "#state";
 import { appearanceSettingLabel } from "../lib/appearance-setting-label.ts";
 import {
   THEME_IMPORT_ACTION,
-  THEME_IMPORT_GROUP_NOTE,
   THEME_IMPORT_OUTCOME,
-  themeImportAppearanceLine,
+  themeImportGroupLine,
   themeImportLeftoverTitle,
   themeImportLeftoverToggleName,
 } from "../lib/theme-import-copy.ts";
@@ -39,28 +39,20 @@ export function ThemeImportLeftovers({ themeName, created, leftovers }: ThemeImp
   const registry = useConfigSectionRegistry();
   const [open, setOpen] = useState(false);
   const appearance = appearanceSettingsOf(leftovers);
-  const hasKind = (kind: ThemeLeftover["reason"]["kind"]): boolean => leftovers.some(({ reason }) => reason.kind === kind);
+  const appearanceLabels = appearance.map((setting) => appearanceSettingLabel(registry, setting));
+  // One line per reason kind present, in the contracts' order: a kind with no line here fails `tsc` in the copy module's table.
+  const groups = THEME_LEFTOVER_REASON_KINDS.filter((kind) => leftovers.some(({ reason }) => reason.kind === kind));
   return (
     <Stack gap="field" data-slot="theme-import-leftovers" role="note">
       <Text voice="label">{themeImportLeftoverTitle(themeName, leftovers.length, created)}</Text>
       <Text voice="quiet" cap="prose">
         {`${THEME_IMPORT_OUTCOME[created ? "created" : "reused"]} ${THEME_IMPORT_ACTION[appearance.length > 0 ? "needed" : "none"]}`}
       </Text>
-      {appearance.length === 0 ? null : (
-        <Text voice="quiet" cap="prose">
-          {themeImportAppearanceLine(appearance.map((setting) => appearanceSettingLabel(registry, setting)))}
+      {groups.map((kind) => (
+        <Text key={kind} voice="quiet" cap="prose">
+          {themeImportGroupLine(kind, appearanceLabels)}
         </Text>
-      )}
-      {hasKind("no-equivalent") ? (
-        <Text voice="quiet" cap="prose">
-          {THEME_IMPORT_GROUP_NOTE["no-equivalent"]}
-        </Text>
-      ) : null}
-      {hasKind("faint-colour") ? (
-        <Text voice="quiet" cap="prose">
-          {THEME_IMPORT_GROUP_NOTE["faint-colour"]}
-        </Text>
-      ) : null}
+      ))}
       <Collapsible open={open} onOpenChange={setOpen}>
         <CollapsibleTrigger>{themeImportLeftoverToggleName(open)}</CollapsibleTrigger>
         <CollapsiblePanel>
