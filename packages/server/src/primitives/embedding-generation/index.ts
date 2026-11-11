@@ -8,6 +8,7 @@ import { brandedId } from "@orb/kit/ids";
 import { stableStringify } from "@orb/kit/stable-stringify";
 import { sha256Hex } from "#primitives/content-hash";
 
+export { isUnresolvableBinding } from "./binding.ts";
 export { GenerationSupersededError, runUntilSettled } from "./settle.ts";
 
 interface EmbeddingConnectionIdentity {
