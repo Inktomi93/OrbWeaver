@@ -47,7 +47,10 @@ Operational traps already paid for — do not re-pay them:
 - The citation gate does not scan root files or `scripts/` (logged P2); re-point dead cites by
   hand and grep `tests/legacy` before closing any unit.
 - A zero from grep/ast-grep is not absence: print a scanned-file count and use a second method
-  before any negative claim.
+  before any negative claim. A malformed ast-grep pattern exits the same as a no-match.
+- `codegraph callers/impact/affected` resolve only symbols declared in the tree. A vendor import
+  (`setGlobalDispatcher`-class) answers "Symbol not found" — that means "declared outside the
+  index", never "uncalled". Third-party call sites are `rg` work.
 
 Unit records live in `units/<id>.md`, where `<id>` is the Unit column below. The index holds
 status only; findings live in the unit file. Trust no summary from a previous session that is not
