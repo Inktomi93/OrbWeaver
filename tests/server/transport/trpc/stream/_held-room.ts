@@ -46,7 +46,8 @@ const wireEnvelopeSchema = z.object({
   type: z.string().optional(),
   code: z.string().optional(),
   ref: z.object({ channel: z.string() }).optional(),
-  event: z.object({ tagId: typeIdSchema(ID_PREFIX.tag).optional() }).optional(),
+  cursor: z.number().nullable().optional(),
+  event: z.object({ type: z.string().optional(), tagId: typeIdSchema(ID_PREFIX.tag).optional() }).optional(),
 });
 
 export interface Frame {
@@ -72,6 +73,10 @@ export interface Seat extends Account {
 export interface Device {
   readonly socketId: ReturnType<typeof streamConnectInputSchema.parse>["socketId"];
   readonly frames: readonly Frame[];
+  /** The cursor each `roomLagged` notice carried, in arrival order. */
+  readonly lagCursors: readonly (number | null)[];
+  /** Every `user` room event the socket delivered, in arrival order: its type and the tag it names, if any. */
+  readonly userEvents: readonly { readonly type: string; readonly tagId?: TagId }[];
   readonly attach: () => Promise<void>;
   readonly waitFor: (done: (frames: readonly Frame[]) => boolean) => Promise<void>;
   readonly close: () => Promise<void>;
@@ -96,6 +101,8 @@ export interface OutsiderDevice {
 /** What one socket has delivered so far, by lane. */
 interface SocketLog {
   readonly frames: Frame[];
+  readonly lagCursors: (number | null)[];
+  readonly userEvents: { readonly type: string; readonly tagId?: TagId }[];
   readonly controls: Set<string | undefined>;
   readonly attachedChannels: Set<string>;
   readonly barrierTagIds: Set<TagId>;
@@ -108,6 +115,9 @@ interface RoomSocket extends Pick<Device, "socketId" | "close"> {
 
 function logControl(log: SocketLog, envelope: z.infer<typeof wireEnvelopeSchema>): void {
   log.controls.add(envelope.type);
+  if (envelope.type === "roomLagged") {
+    log.lagCursors.push(envelope.cursor ?? null);
+  }
   if (envelope.type === "roomFailed") {
     throw new Error(`the ${envelope.ref?.channel} room failed with ${envelope.code}`);
   }
@@ -123,8 +133,12 @@ function logWireLine(log: SocketLog, line: string): void {
     log.frames.push(frameSchema.parse(raw));
   } else if (envelope.channel !== "user") {
     logControl(log, envelope);
-  } else if (envelope.event?.tagId !== undefined) {
-    log.barrierTagIds.add(envelope.event.tagId);
+  } else {
+    const { type = "", tagId } = envelope.event ?? {};
+    log.userEvents.push(tagId === undefined ? { type } : { type, tagId });
+    if (tagId !== undefined) {
+      log.barrierTagIds.add(tagId);
+    }
   }
 }
 
@@ -139,7 +153,7 @@ async function openSocket(root: ServerTestHarness, account: Account): Promise<Ro
     throw new Error("the socket omitted its stream");
   }
   const decoder = new TextDecoder();
-  const log: SocketLog = { frames: [], controls: new Set(), attachedChannels: new Set(), barrierTagIds: new Set() };
+  const log: SocketLog = { frames: [], lagCursors: [], userEvents: [], controls: new Set(), attachedChannels: new Set(), barrierTagIds: new Set() };
   let pending = "";
   const pull = async (): Promise<void> => {
     const next = await reader.read();
@@ -174,6 +188,8 @@ function seatedDevice(room: Room, socket: RoomSocket, seat: Seat): Device {
   return {
     socketId: socket.socketId,
     frames: socket.log.frames,
+    lagCursors: socket.log.lagCursors,
+    userEvents: socket.log.userEvents,
     attach: async (): Promise<void> => {
       const caller = await room.root.internalCallerFor(seat.id);
       await caller.stream.attach({ socketId: socket.socketId, ref: { channel: "chat", chatId: room.chatId } });

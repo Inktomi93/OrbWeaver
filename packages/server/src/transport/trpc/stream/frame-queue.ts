@@ -22,6 +22,9 @@
 // exactly what a saturated socket must still deliver, and it is what an UNRELATED room's client is waiting
 // on. Repeat `roomLagged` for a room already announcing one collapses (one notice per burst), so the
 // control lane cannot grow with the flood that triggered it.
+//
+// Both policies run end to end, through a real socket whose reader falls behind, in
+// `tests/server/transport/trpc/stream/frame-queue-overflow.int.test.ts`.
 
 import type { StreamControlFrame, StreamDataFrame, StreamFrame, StreamRoomRef } from "@orb/contracts/stream";
 import { roomKey } from "@orb/contracts/stream";
