@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P3
 area: server
+lane: wt/agent-a06d7ca7c655446af
 ---
 
 # The search space resolver swallows every failure of an implicit-binding lookup
