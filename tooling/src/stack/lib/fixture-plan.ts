@@ -3,7 +3,8 @@
 import { join } from "node:path";
 import { AUTH_MODE_KEY, OWNER_HANDLES_KEY } from "@orb/contracts/identity";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
-import { CREDENTIALS_KEY_ENV, SESSION_SECRET_ENV } from "@orb/server/foundation/data-layout";
+import { CREDENTIALS_KEY_ENV, DATABASE_URL_KEY, SESSION_SECRET_ENV } from "@orb/server/foundation/data-layout";
+import type { EnvKey } from "@orb/server/foundation/env/record";
 import { LOCAL_INITIAL_PASSWORD_ENV } from "@orb/server/foundation/env/record";
 import { FIXTURE_PORTS } from "../../floor/host/ports.ts";
 import { PORT_ENV, RUN_DIR_ENV, VITE_API_TARGET_ENV, VITE_PORT_ENV } from "./stack-plan.ts";
@@ -46,9 +47,9 @@ export function fixtureEnv(repoRoot: string, ambient: Readonly<Record<string, st
       [VITE_PORT_ENV, String(vite)],
       [VITE_API_TARGET_ENV, `http://127.0.0.1:${String(server)}`],
       [RUN_DIR_ENV, join(repoRoot, FIXTURE_RUN_DIR_REL)],
-      ["DATA_DIR", dataRel],
-      ["DATABASE_URL", `file:${dataRel}/orb.db`],
-      ["ASSETS_DIR", `${dataRel}/assets`],
+      ["DATA_DIR" satisfies EnvKey, dataRel],
+      [DATABASE_URL_KEY, `file:${dataRel}/orb.db`],
+      ["ASSETS_DIR" satisfies EnvKey, `${dataRel}/assets`],
     ]),
     ...fixtureIdentityEnv(server),
   };

@@ -12,8 +12,8 @@ import { DEBUG_ENV_KEYS } from "../contract/types.ts";
  *  keys are ENV NAMES (SCREAMING_SNAKE by the platform's convention, not ours), so the record is built
  *  from pairs rather than an object literal. */
 const DEBUG_ON_VALUES: Readonly<Record<Exclude<DebugEnvKey, typeof DEBUG_TOKEN_ENV>, string>> = Object.fromEntries([
-  ["WIRE_CAPTURE", "on"],
-  ["RPG_TRACE", "on"],
+  ["WIRE_CAPTURE" satisfies DebugEnvKey, "on"],
+  ["RPG_TRACE" satisfies DebugEnvKey, "on"],
 ]) as Readonly<Record<Exclude<DebugEnvKey, typeof DEBUG_TOKEN_ENV>, string>>;
 
 /** The `wanted` placeholder for a DEBUG_TOKEN conflict. A conflict message names the file value and the

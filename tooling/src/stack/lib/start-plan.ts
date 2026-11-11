@@ -5,9 +5,10 @@
 // nobody here has those boxes. Every platform-sensitive answer is a value computed from `{ platform,
 // ambient env }` rather than read from the ambient process, so the win32 answer is unit-provable on Linux.
 
-import { AUTH_MODE_KEY, SETUP_COMMAND, SHARE_MODE_REFUSAL } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, SETUP_COMMAND, SHARE_MODE_REFUSAL } from "@orb/contracts/identity";
 import { ENV_FROM_FILE_KEY, ENV_NO_OVERRIDE_KEY } from "@orb/kit/env-file";
 import { START_SUPERVISOR, SUPERVISOR_ENV_KEY } from "@orb/kit/supervisor";
+import type { EnvKey } from "@orb/server/foundation/env/record";
 import { MAX_TCP_PORT } from "../../floor/host/ports.ts";
 import type {
   AnswerParse,
@@ -31,7 +32,7 @@ const SHARE_FLAG = "--share";
 export const START_USAGE = `usage: pnpm start [--build | --no-build] [${SETUP_FLAG}] [${PORT_FLAG} <n>] [${SHARE_FLAG}]`;
 
 /** The server's switch that starts the zero-account relay at boot; the server owns the relay and its host. */
-const SHARE_RELAY_KEY = "SHARE_RELAY";
+const SHARE_RELAY_KEY = "SHARE_RELAY" satisfies EnvKey;
 const SHARE_RELAY_QUICK = "quick";
 /** A just-me box shared in `local` binds loopback: production `local` otherwise listens on every interface, which
  *  would open the LAN over plain http beside the relay. */
@@ -127,10 +128,10 @@ export function singleUserFallbackEnv(
   if (effectiveAuthMode(fileEnv, ambient) !== SINGLE_USER_MODE) {
     return {};
   }
-  const declared = fileEnv["AUTH_FALLBACK"] ?? ambient["AUTH_FALLBACK"];
+  const declared = fileEnv[AUTH_FALLBACK_KEY] ?? ambient[AUTH_FALLBACK_KEY];
   // AUTH_FALLBACK is an ENV NAME (the platform's SCREAMING_SNAKE vocabulary), so it is set by key rather
   // than as an object-literal property — the same idiom NODE_ENV takes in ./spawn-plan.ts.
-  return declared === undefined || declared === "" ? Object.fromEntries([["AUTH_FALLBACK", "owner"]]) : {};
+  return declared === undefined || declared === "" ? Object.fromEntries([[AUTH_FALLBACK_KEY, "owner"]]) : {};
 }
 
 /** The child env for a launch that overrides `.env` values (`--port <n>`, `--share`) without writing the file.
