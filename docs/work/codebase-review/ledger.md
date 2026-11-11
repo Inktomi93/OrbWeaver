@@ -350,6 +350,8 @@ the deleted gate system. Nine `tooling-*` policy names are cited as live enforce
 `tooling/src/floor/` (`units/tooling-floor.md` F2) but resolve nowhere in dep-cruiser/eslint/knip —
 they were `defineGate` policy names until 821e8f8dff. Some constraints have native successors under
 other spellings (process-portability → PORTABLE_PROCESS_SYNTAX), so the enforcement often survives
-while its named promise dies; the size-cap cite has no findable successor at all. The triage
+while its named promise dies; the size-cap cite is proved successor-less by planted-file probes
+(601 clean lines draw zero Biome diagnostics; no eslint `max-lines` anywhere) — and authors still
+split at the ghost cap by faith. The triage
 integrity item now has a concrete second citation shape to cover: besides GENERATED/enforced-by
 headers, every `` policy `X` `` cite must resolve to a dep-cruiser rule name or eslint rule id.

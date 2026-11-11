@@ -78,10 +78,15 @@ Governing law read in full: `.claude/rules/tooling.md`.
   under other spellings (os-neutral → PORTABLE_PROCESS_SYNTAX in `eslint.config.ts:370`; the
   entry-identity gates → native hard lint per 6d99e20989), so this is stale-enforcement-prose, not
   necessarily lost enforcement — but each sentence is a false promise to the next cold author, and
-  the size cap (`tooling-size`, the 450-line split law cited in `proc.ts` too) has no successor
-  findable in eslint/biome/depcruise. Fix rides the same triage integrity item as the dead doors:
+  the size cap (`tooling-size`, the 450-line split law cited in `proc.ts` and across ui-audit) has
+  NO successor, proved empirically: planted files of 481 and 601 clean lines draw zero Biome
+  diagnostics (only a naming complaint on the first), eslint has no `max-lines` in config or any
+  policy table, and the policy's only numeric thresholds are complexity 15 / max-params 4. Authors
+  still split at the cap by faith (`ui-audit/contract/samples.ts:6` "the cap had already been paid
+  in") — a dead gate still levying tax. Fix rides the same triage integrity item as the dead doors:
   every `policy \`X\`` cite must resolve to a dep-cruiser rule name, an eslint rule id, or a named
-  native door.
+  native door — and the size cap decision (renew natively, e.g. eslint `max-lines`, or retire the
+  sentences) is the owner's at triage.
 - [P3] `tooling/src/floor/http/session-cookie.ts:11` — the two session cookie names are hand-spelled
   a second time in this regex; the owning constants are
   `packages/server/src/infra/auth/modes/cookie-session.ts:23,31`. No translatable door (tooling
