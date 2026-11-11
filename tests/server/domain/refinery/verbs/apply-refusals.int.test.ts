@@ -135,8 +135,10 @@ interface RefusalCase {
 
 type Uncovered<Cases extends readonly RefusalCase[]> = Exclude<ApplyDropReason, Cases[number]["reason"]>;
 
-/** Returns the cases as given, and fails `tsc` while a reason has none. */
-function everyReason<const Cases extends readonly RefusalCase[]>(cases: Cases & ([Uncovered<Cases>] extends [never] ? unknown : never)): Cases {
+/** Returns the cases as given, and fails `tsc` while a reason has none; the error shows the reason as `reasonWithNoCase`. */
+function everyReason<const Cases extends readonly RefusalCase[]>(
+  cases: Cases & ([Uncovered<Cases>] extends [never] ? unknown : { readonly reasonWithNoCase: Uncovered<Cases> }),
+): Cases {
   return cases;
 }
 

@@ -125,9 +125,12 @@ function actorTrackerFragment(ctx: ExtractionPromptContext): string | null {
   return blocks.join("\n");
 }
 
-/** Returns the rows as given, and fails `tsc` while a schema key has no row. */
+/** Returns the rows as given, and fails `tsc` while a schema key has no row; the error shows the key as `planeWithNoRow`. */
 function everyPlane<const Rows extends readonly ExtractionPlanePrompt[]>(
-  rows: Rows & ([Exclude<ExtractionPlane, Rows[number]["plane"]>] extends [never] ? unknown : never),
+  rows: Rows &
+    ([Exclude<ExtractionPlane, Rows[number]["plane"]>] extends [never]
+      ? unknown
+      : { readonly planeWithNoRow: Exclude<ExtractionPlane, Rows[number]["plane"]> }),
 ): Rows {
   return rows;
 }

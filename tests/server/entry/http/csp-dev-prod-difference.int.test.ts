@@ -1,4 +1,4 @@
-// The app document's CSP in a dev launch differs from a production launch only by the hot-reload allowances, and the production
+// The app document's CSP in a dev launch differs from a production launch only by the dev-server allowances (HMR sockets, inline and eval script, the devtools logo's `data:` image), and the production
 // policy admits no inline or eval script. Both policies are read off the response of a composed root, so they are the
 // ones `securityHeaders` builds for each `NODE_ENV`.
 // @subject packages/server/src/entry/http/security-headers.ts
@@ -32,7 +32,7 @@ async function documentPolicy(nodeEnv: "production" | "development"): Promise<Po
   );
 }
 
-test("a dev launch adds only the hot-reload allowances to the production policy and removes none", async () => {
+test("a dev launch adds only the dev-server allowances to the production policy and removes none", async () => {
   const production = await documentPolicy("production");
   const development = await documentPolicy("development");
 
