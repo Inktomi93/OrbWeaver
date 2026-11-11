@@ -4,7 +4,7 @@
 import type { RpgGameConfig, RpgSnapshotState, RpgToolCall } from "@orb/contracts/rpg";
 import { buildToolRoundWireTools, constrainExtractionSchema, rpgExtractionSchema, salvageExtraction } from "@orb/contracts/rpg";
 import type { Resolved } from "@orb/inference";
-import { carriesForcedToolRound, GenerationObservationPersistenceError, generationOf, toForcedToolRoundRequest } from "@orb/inference";
+import { carriesForcedToolRound, GenerationObservationPersistenceError, generationOf, isResolveRefusal, toForcedToolRoundRequest } from "@orb/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ChatId } from "@orb/kit/ids";
 import { ID_PREFIX } from "@orb/kit/ids";
@@ -18,7 +18,7 @@ import { buildActorRefIndex, extractionToStateDelta } from "../apply.ts";
 import { createExtractionMints } from "../mints.ts";
 import { stateRoundRequestText } from "./delivery.ts";
 import { buildExtractionUserPrompt, extractionSystem, resolveExtractionRefs, toolRoundSystem } from "./prompts.ts";
-import { extractStructured, isUnresolvable, roomWindowed, withGenerationObservation } from "./round-connection.ts";
+import { extractStructured, roomWindowed, withGenerationObservation } from "./round-connection.ts";
 import { logExtractionOutcome, logStrippedKeys, logStructuredFallback, logToolRoundUsage, safeJson, warnIfStructuredUnavailable } from "./round-log.ts";
 import { foldRoundCalls, requestStructuredCalls, STRUCTURED_ROUND_VEHICLE, structuredRound, structuredShapes } from "./structured.ts";
 
@@ -242,7 +242,7 @@ export function buildRunResyncExtraction(input: RpgRoundsAssemblyDeps): RpgConte
     try {
       conn = await roomWindowed(deps, chatId, (await deps.connection.resolve({ task: "chat", principal: host })).resolved as Resolved<"chat">);
     } catch (err) {
-      if (isUnresolvable(err)) {
+      if (isResolveRefusal(err)) {
         deps.logger.warn({ event: "rpg.resync.unresolvable", chatId }, "rpg resync: the host's chat connection did not resolve — no rebuild");
         return { ok: false, reason: RESYNC_UNRESOLVABLE_REASON };
       }

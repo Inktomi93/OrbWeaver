@@ -1,8 +1,8 @@
-// The state rounds' connection seam: the one structured-output call, the unresolvable-connection classification,
-// the room preset window, and the funder's chat connection resolved the way the turn resolves its own.
+// The state rounds' connection seam: the one structured-output call, the room preset window, and the funder's chat
+// connection resolved the way the turn resolves its own.
 
 import type { Resolved } from "@orb/inference";
-import { NoConnectionError, ProviderError, runStructuredChat, withPresetWindow } from "@orb/inference";
+import { isResolveRefusal, runStructuredChat, withPresetWindow } from "@orb/inference";
 import type { ChatId, UserId } from "@orb/kit/ids";
 import type { ExtractCtx, RpgRoundsDeps } from "#src/domain/rpg/contract/rounds.ts";
 
@@ -22,12 +22,6 @@ export function extractStructured(deps: RpgRoundsDeps, ctx: ExtractCtx): Promise
     responseFormat: { name: EXTRACTION_SCHEMA_NAME, schema: ctx.schema },
     signal: ctx.signal,
   });
-}
-
-/** A resolve that ended in NO row / an unservable row — the pill and the two host doors degrade on it (readonly,
- *  no round) rather than 500; any other failure is a real fault and rethrows. */
-export function isUnresolvable(err: unknown): boolean {
-  return err instanceof NoConnectionError || (err instanceof ProviderError && err.kind === "forbidden");
 }
 
 export function withGenerationObservation(
@@ -54,7 +48,7 @@ export async function resolveFunderChat(deps: RpgRoundsDeps, funderUserId: UserI
   try {
     return (await deps.connection.resolve({ task: "chat", principal: funder })).resolved as Resolved<"chat">;
   } catch (err) {
-    if (isUnresolvable(err)) {
+    if (isResolveRefusal(err)) {
       return null;
     }
     throw err;

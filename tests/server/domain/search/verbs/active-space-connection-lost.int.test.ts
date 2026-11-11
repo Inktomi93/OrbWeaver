@@ -3,9 +3,12 @@
 // @subject packages/server/src/domain/search/substrate/space.ts
 // @subject packages/server/src/domain/search/substrate/retrieval-degrade.ts
 import { createCharacterSchema } from "@orb/contracts/character";
+import type { Principal } from "@orb/contracts/identity";
 import { SEARCH_SPACE_REINDEXING } from "@orb/contracts/search";
+import { userConnections } from "@orb/db";
+import type { UserConnectionId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
-import type { ServerTestHarness } from "@orb/testkit/node/composed";
+import type { HeldDb, HeldStatement, ServerTestHarness } from "@orb/testkit/node/composed";
 import {
   CORPUS_EMBED_MODEL,
   CORPUS_EMBEDDING_VECTOR,
@@ -14,6 +17,7 @@ import {
   createServerHarness,
   freshHeldDb,
   seedCorpusConnections,
+  withheldTable,
 } from "@orb/testkit/node/composed";
 import { vi } from "vitest";
 import { withRetrievalDegrade } from "#server/domain/search/index.ts";
@@ -24,16 +28,15 @@ async function admitted(root: ServerTestHarness, id: Parameters<typeof executeAd
   await expect.poll(async () => (await root.services.workloads.get({ caller: null, id })).status).not.toMatch(/queued|running|cancelling/u);
 }
 
-test("an active generation whose connection is deleted mid-search is the re-indexing refusal, and the degrade reports it once", async () => {
-  const physical = createCorpusProviderExecution({
-    modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
-    embedding: CORPUS_EMBEDDING_VECTOR,
-    chatText: "",
-    structuredReplies: new Map(),
-    images: [],
-  });
-  using held = await freshHeldDb();
-  await using root = await createServerHarness({ db: held.db, providerFetch: physical.execute });
+interface ReadyGeneration {
+  readonly principal: Principal;
+  readonly embed: { readonly id: UserConnectionId };
+  readonly query: Parameters<ServerTestHarness["services"]["search"]["search"]>[0];
+  readonly gate: HeldStatement;
+}
+
+/** A root whose owner holds a promoted embed generation, with the by-id connection read of a search held for the test to race. */
+async function readyGeneration(held: HeldDb, root: ServerTestHarness): Promise<ReadyGeneration> {
   const actor = await root.actor();
   const principal = await root.principalFor(actor.id);
   const caller = await root.internalCallerFor(actor.id);
@@ -55,9 +58,25 @@ test("an active generation whose connection is deleted mid-search is the re-inde
   await root.settleBackground();
   const query = { ownerId: principal.userId, query: "orbital ledger", over: "entities", scope: { kind: "owner" }, topN: 5 } as const;
   expect((await root.services.search.search(query)).hits).not.toEqual([]);
-
-  // The generation row still names the connection when the search reads it; the delete lands before the resolve reads the row.
+  // The generation row still names the connection when the search reads it; the race lands before the resolve reads the row.
   const gate = held.hold(/from "user_connections" where "user_connections"\."id" = \? limit/u);
+  return { principal, embed, query, gate };
+}
+
+function corpusProvider(): ReturnType<typeof createCorpusProviderExecution> {
+  return createCorpusProviderExecution({
+    modelIds: [CORPUS_TEXT_MODEL, CORPUS_EMBED_MODEL],
+    embedding: CORPUS_EMBEDDING_VECTOR,
+    chatText: "",
+    structuredReplies: new Map(),
+    images: [],
+  });
+}
+
+test("an active generation whose connection is deleted mid-search is the re-indexing refusal, and the degrade reports it once", async () => {
+  using held = await freshHeldDb();
+  await using root = await createServerHarness({ db: held.db, providerFetch: corpusProvider().execute });
+  const { principal, embed, query, gate } = await readyGeneration(held, root);
   let refusal: unknown;
   const unavailable = vi.fn();
   const degraded = withRetrievalDegrade(
@@ -82,4 +101,23 @@ test("an active generation whose connection is deleted mid-search is the re-inde
   expect(await degraded).toBeNull();
   expect(refusal).toMatchObject({ code: SEARCH_SPACE_REINDEXING });
   expect(unavailable).toHaveBeenCalledOnce();
+});
+
+test("an active generation whose connection read fails for any other reason surfaces as itself and is not reported as unavailable", async () => {
+  using held = await freshHeldDb();
+  await using root = await createServerHarness({ db: held.db, providerFetch: corpusProvider().execute });
+  const { query, gate } = await readyGeneration(held, root);
+  const unavailable = vi.fn();
+  const degraded = withRetrievalDegrade(() => root.services.search.search(query), { empty: null, onIndexUnavailable: unavailable });
+  const settled = expect(degraded).rejects.toMatchObject({ cause: expect.objectContaining({ message: expect.stringContaining("no such table") }) });
+  try {
+    await gate.reached;
+    gate.disarm();
+    await using _fault = await withheldTable(root.db, userConnections);
+    gate.release();
+    await settled;
+  } finally {
+    gate.release();
+  }
+  expect(unavailable).not.toHaveBeenCalled();
 });

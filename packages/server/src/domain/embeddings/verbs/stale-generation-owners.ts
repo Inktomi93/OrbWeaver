@@ -5,15 +5,18 @@
 import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import { embedDtypeOf, embedSpaceOf } from "@orb/contracts/inference";
 import type { UserId } from "@orb/kit/ids";
-import { generationIdOf } from "#primitives/embedding-generation";
+import { generationIdOf, isUnresolvableBinding } from "#primitives/embedding-generation";
 import type { EmbeddingConnectionSnapshot, EmbeddingsContext, EmbeddingsService } from "../contract/service.ts";
 import { readGenerationTargets } from "../persistence/space-state.ts";
 
 async function currentConnection(ctx: EmbeddingsContext, ownerId: UserId, via: EmbeddingTask): Promise<EmbeddingConnectionSnapshot | null> {
-  // an owner whose binding cannot resolve at boot has nothing a re-index could embed with; their next store or sweep raises the same failure where it is owned. Ends if this read ever gates a write.
+  // An owner whose binding cannot resolve has nothing a re-index could embed with; any other failure propagates to the boot supervisor, which logs it once.
   try {
     return await ctx.resolveEmbeddingConnection(ownerId, via);
-  } catch {
+  } catch (error) {
+    if (!isUnresolvableBinding(error)) {
+      throw error;
+    }
     return null;
   }
 }

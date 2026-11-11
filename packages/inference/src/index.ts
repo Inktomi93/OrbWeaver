@@ -74,7 +74,7 @@ export { resolveCachePolicy } from "./funnel/resolve-cache.ts";
 export { resolveCarryReasoning, resolveChat } from "./funnel/resolve-chat.ts";
 export { resolveSideGenSampling } from "./funnel/resolve-side-gen.ts";
 export { requiresHubModelId, supportsManagedCompaction } from "./resolve/operation-capabilities.ts";
-export { NoConnectionError } from "./resolve/resolve-task.ts";
+export { isResolveRefusal, NoConnectionError } from "./resolve/resolve-task.ts";
 // The chat turn's ONE neutral-to-backend projection: a caller hands over a history array and its tools as
 // definitions + an execute callback, and never branches on the connection's wire itself.
 export { toChatRequest } from "./roles/chat-request.ts";
