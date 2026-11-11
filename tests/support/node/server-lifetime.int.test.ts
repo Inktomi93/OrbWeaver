@@ -82,7 +82,7 @@ test("failed job construction removes only its owned directory and timers while 
   using fresh = await freshDb();
   const db = fresh.db;
   await using owned = new AsyncDisposableStack();
-  const parent = await mkdtemp(join(tmpdir(), "codex-compose-media-997-958-failed-"));
+  const parent = await mkdtemp(join(tmpdir(), "orb-compose-media-997-958-failed-"));
   owned.defer(() => rm(parent, { recursive: true, force: true }));
   const clock = createFrozenClock();
   // biome-ignore lint/nursery/useDisposables: ownership transfers to the root; failed job construction must dispose this exact scheduler.
@@ -105,7 +105,7 @@ test("failed job construction removes only its owned directory and timers while 
 
 test("a physical directory-construction failure still disposes the timer transferred at root admission", async () => {
   await using parentResources = new AsyncDisposableStack();
-  const parent = await mkdtemp(join(tmpdir(), "codex-compose-media-997-958-early-failed-"));
+  const parent = await mkdtemp(join(tmpdir(), "orb-compose-media-997-958-early-failed-"));
   parentResources.defer(() => rm(parent, { recursive: true, force: true }));
   // biome-ignore lint/nursery/useDisposables: root admission owns this timer; assertions precede the proof's finally fallback for mutant cleanup.
   const timers = createControlledTimers(createFrozenClock());
