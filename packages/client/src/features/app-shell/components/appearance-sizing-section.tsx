@@ -95,13 +95,15 @@ function SizingBody({
           ) : (
             <SettingRow settingId="chat-width">
               <form.AppField name="chatWidthPct">
-                {(field): ReactElement => <field.SliderField label="Chat width (%)" min={CHAT_WIDTH_MIN} max={CHAT_WIDTH_MAX} />}
+                {(field): ReactElement => <field.SliderField label={sizingSettingLabel("chatWidthPct")} min={CHAT_WIDTH_MIN} max={CHAT_WIDTH_MAX} />}
               </form.AppField>
             </SettingRow>
           )}
           <SettingRow settingId="font-scale">
             <form.AppField name="fontScale">
-              {(field): ReactElement => <field.SliderField label="Text size" min={FONT_SCALE_MIN} max={FONT_SCALE_MAX} step={FONT_SCALE_STEP} />}
+              {(field): ReactElement => (
+                <field.SliderField label={sizingSettingLabel("fontScale")} min={FONT_SCALE_MIN} max={FONT_SCALE_MAX} step={FONT_SCALE_STEP} />
+              )}
             </form.AppField>
           </SettingRow>
           {/* SEEN, NOT READ (#866 §7.8, owner-acked): density/elevation OUTCOMES are spatial, so both are

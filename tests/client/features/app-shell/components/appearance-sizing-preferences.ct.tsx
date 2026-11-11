@@ -6,7 +6,7 @@ import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import { OS_PREFERENCE_ITEMS } from "#client/features/app-shell/lib/appearance-select-items.ts";
-import { APPEARANCE_SIZING_SUBCATEGORY } from "#client/features/app-shell/lib/appearance-sizing-model.ts";
+import { APPEARANCE_SIZING_SUBCATEGORY, sizingSettingLabel } from "#client/features/app-shell/lib/appearance-sizing-model.ts";
 import type { SizingSectionStory } from "./_appearance-sizing-stories.tsx";
 
 const STORY = "tests/client/features/app-shell/components/_appearance-sizing-stories/SizingSectionStory";
@@ -44,5 +44,19 @@ test("each OS preference offers three modes and saves the one picked", async ({ 
     await expect
       .poll(async () => Object.entries((await caller.settings.getUserSettings()).config.appearance).find(([name]) => name === key)?.[1])
       .toBe(OFF.value);
+  }
+});
+
+// The Looks note points a person at a setting by the label the model gives it, so the control must wear that same label.
+const SLIDER_KEYS = ["chatWidthPct", "fontScale"] as const;
+
+test("each slider is named by the label the model gives its setting", async ({ mount, page }) => {
+  const caller = await root.internalCallerFor(root.ownerId);
+  await routeTrpc(page, serveCorpusProcedures(caller, ["settings.getUserSettings", "settings.updateUserSettingsSection"]));
+  await mount<typeof SizingSectionStory>(STORY, {});
+
+  for (const key of SLIDER_KEYS) {
+    const label = sizingSettingLabel(key);
+    await expect(page.getByRole("slider", { name: label, exact: true })).toBeVisible();
   }
 });

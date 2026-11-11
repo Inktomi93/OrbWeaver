@@ -19,7 +19,7 @@ export const APPEARANCE_SIZING_SUBCATEGORY: ConfigSubcategory = {
     {
       id: "chat-width",
       key: "chatWidthPct",
-      label: "Chat width",
+      label: "Chat width (%)",
       keywords: ["width", "column", "reading"],
       teach: {
         summary: "How wide the reading column may grow on large screens. Narrower columns are easier to read; wider ones fit more of a long turn.",

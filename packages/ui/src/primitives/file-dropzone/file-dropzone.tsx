@@ -3,7 +3,7 @@ import { Field as BaseField } from "@base-ui/react/field";
 // the per-chat rack made it a third consumer.
 import { formatBytes } from "@orb/kit/strings";
 import type { ChangeEvent, ComponentPropsWithRef, DragEvent, MouseEvent, ReactElement } from "react";
-import { useId, useState } from "react";
+import { useEffect, useId, useRef, useState } from "react";
 import type { VariantProps } from "tailwind-variants";
 import type { AriaNameSource } from "#lib";
 import { HIDDEN_AT } from "#lib";
@@ -211,6 +211,13 @@ function FileDropzoneInstructions({ className, id, instructions, lines }: FileDr
   );
 }
 
+/** A refusal the zone says itself, or the consumer hands in, marks the control invalid as a Field's own invalid state would. An
+ *  empty object, not `undefined`, when there is none: a Field's `invalid` supplies the attribute through Base UI, and the render
+ *  element's props win over it. */
+function invalidWhileRefused(message: string | undefined): { readonly "aria-invalid"?: true } {
+  return message === undefined ? {} : { "aria-invalid": true };
+}
+
 interface FileDropzoneErrorProps {
   readonly message: string;
   readonly inField: boolean;
@@ -219,8 +226,17 @@ interface FileDropzoneErrorProps {
 
 /** The refusal line. Inside a `Field` it is a Field.Error, as the Field primitive renders its own: Base UI adds its id to the
  *  control's `aria-describedby`, so a screen-reader user returning to an invalid zone hears why, not only "invalid". Field.Error
- *  throws outside a Field.Root, so a standalone zone keeps the plain line. */
+ *  throws outside a Field.Root, so a standalone zone keeps the plain line.
+ *
+ *  The line also brings itself into view when it mounts (the zone keys it on its text, so each new refusal does). A pick through
+ *  the chooser leaves focus on the control the person just clicked, so no focus move scrolls the line in, and below the zone it
+ *  can sit under a dialog's sticky footer. `nearest` honours the scroll container's own scroll padding, which is how a dialog
+ *  body clears its footer. */
 function FileDropzoneError({ message, inField, slots }: FileDropzoneErrorProps): ReactElement {
+  const lineRef = useRef<HTMLParagraphElement>(null);
+  useEffect(() => {
+    lineRef.current?.scrollIntoView({ block: "nearest" });
+  }, []);
   const line = (
     <>
       <Icon className={slots.errorIcon()} icon={TriangleAlert} label="Error" size="xs" />
@@ -228,11 +244,11 @@ function FileDropzoneError({ message, inField, slots }: FileDropzoneErrorProps):
     </>
   );
   return inField ? (
-    <BaseField.Error className={slots.error()} data-slot="file-dropzone-error" match={true} render={<p />} role="alert">
+    <BaseField.Error className={slots.error()} data-slot="file-dropzone-error" match={true} ref={lineRef} render={<p />} role="alert">
       {line}
     </BaseField.Error>
   ) : (
-    <p className={slots.error()} data-slot="file-dropzone-error" role="alert">
+    <p className={slots.error()} data-slot="file-dropzone-error" ref={lineRef} role="alert">
       {line}
     </p>
   );
@@ -389,6 +405,7 @@ export function FileDropzone({
           <input
             accept={accept}
             {...nameProps}
+            {...invalidWhileRefused(errorMessage)}
             aria-busy={loading ? true : undefined}
             aria-disabled={loading ? true : undefined}
             className={slots.input()}
@@ -408,7 +425,7 @@ export function FileDropzone({
         <FileDropzoneInstructions className={slots.instructions()} id={instructionsId} instructions={instructions} lines={pointerLines} />
         {resolvedHint === undefined ? null : <p className={slots.hint()}>{resolvedHint}</p>}
       </div>
-      {errorMessage === undefined ? null : <FileDropzoneError inField={fieldLabelled} message={errorMessage} slots={slots} />}
+      {errorMessage === undefined ? null : <FileDropzoneError inField={fieldLabelled} key={errorMessage} message={errorMessage} slots={slots} />}
     </div>
   );
 }
