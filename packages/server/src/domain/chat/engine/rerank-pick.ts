@@ -8,6 +8,8 @@
 import type { SpeakerRef } from "@orb/contracts/chat";
 import { speakerKey } from "@orb/contracts/chat";
 import type { RerankDocument } from "@orb/contracts/role-clients";
+import { ProviderError } from "@orb/inference";
+import { DomainNoCredentialError } from "@orb/kit/errors";
 import type { CharacterId } from "@orb/kit/ids";
 import type { RandomSource } from "@orb/kit/macro";
 import { clampToTokenBudget, estimateTokens, safeTokenWindow } from "@orb/kit/tokens";
@@ -81,6 +83,19 @@ async function rankKeys(params: RerankPickParams, line: TranscriptLine, named: r
   return result.hits.toSorted((a, b) => b.score - a.score).map((h) => h.id);
 }
 
+// A reranker that failed, cannot be reached or was cancelled ranks nothing (the caller then checks the cancel); any
+// other throw is a fault and fails the turn.
+async function rankOrNull(params: RerankPickParams, line: TranscriptLine, named: readonly SpeakerCandidate[]): Promise<readonly string[] | null> {
+  try {
+    return await rankKeys(params, line, named);
+  } catch (error) {
+    if (error instanceof ProviderError || error instanceof DomainNoCredentialError || params.signal?.aborted === true) {
+      return null;
+    }
+    throw error;
+  }
+}
+
 const refOf = (characterId: CharacterId): SpeakerRef => ({ characterId });
 
 /** The addressed characters (each named unambiguously), ordered by rank. With no ranking (`null`) they keep
@@ -142,18 +157,9 @@ export async function rerankPick(params: RerankPickParams): Promise<SmartArbitra
     return { speakers: orderAddressed(addressed, null), degraded: false, aborted: false };
   }
 
-  let ranked: readonly string[] | null;
-  // `ranked = null` becomes `degraded: true` in the returned result, and
-  // `arbitrate` in `verbs/turn.ts` emits the `speaker_rerank_unavailable` warning for it (`if (smart.degraded)`); an
-  // abort returns `CANCELLED` instead. Ends if `arbitrate` stops emitting that warning.
-  try {
-    ranked = await rankKeys(params, line, pool);
-  } catch {
-    if (cancelled()) {
-      return CANCELLED;
-    }
-    ranked = null;
-  }
+  // `ranked = null` becomes `degraded: true` and the `speaker_rerank_unavailable` warning `arbitrate` in
+  // `verbs/turn.ts` emits; an abort returns `CANCELLED` instead.
+  const ranked = await rankOrNull(params, line, pool);
   if (cancelled()) {
     return CANCELLED;
   }

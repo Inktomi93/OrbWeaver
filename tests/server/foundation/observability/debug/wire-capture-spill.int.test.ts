@@ -1,6 +1,6 @@
 // @subject packages/server/src/foundation/observability/debug/wire-capture.ts
 import { execFile } from "node:child_process";
-import { mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import process from "node:process";
@@ -8,9 +8,12 @@ import { setTimeout as sleep } from "node:timers/promises";
 import { promisify } from "node:util";
 import { wireCaptureSchema } from "@orb/contracts/debug";
 import { expect, test } from "@orb/testkit/node";
-import { createTestEnv } from "@orb/testkit/node/composed";
+import { createTestEnv, createTestLogger } from "@orb/testkit/node/composed";
+import { z } from "zod";
 
 const SPILL_FILE = "captures.jsonl";
+const SPILL_FAULT_LEVEL = "warn";
+const logLineSchema = z.looseObject({ level: z.string() });
 // A stack started from a checkout used to spill here; private request bodies must never reach it.
 const CHECKOUT_SPILL = join(process.cwd(), ".cache", "wire-capture", SPILL_FILE);
 
@@ -33,7 +36,7 @@ test("a wire capture spills under the data root and never into the process check
     recordWireCapture(
       createObservabilityRings().wireCaptures,
       wireCaptureSchema.parse({ api: "chat", wire: "literal", providerId: "spill-witness", model: marker, at: 1, body: { marker } }),
-      createWireCaptureSpill(layout.wireCapture),
+      createWireCaptureSpill(layout.wireCapture, createTestLogger()),
     );
     const spilled = join(layout.wireCapture, SPILL_FILE);
     expect(spilled.startsWith(dataDir)).toBe(true);
@@ -59,8 +62,8 @@ test("one graph's blocked spill write never holds another graph's settle", async
   const { wireCaptures } = createObservabilityRings();
   const capture = (marker: string): ReturnType<typeof wireCaptureSchema.parse> =>
     wireCaptureSchema.parse({ api: "chat", wire: "literal", providerId: "spill-witness", model: marker, at: 1, body: { marker } });
-  const blockedGraph = createWireCaptureSpill(blockedDir);
-  const freeGraph = createWireCaptureSpill(freeDir);
+  const blockedGraph = createWireCaptureSpill(blockedDir, createTestLogger());
+  const freeGraph = createWireCaptureSpill(freeDir, createTestLogger());
   try {
     recordWireCapture(wireCaptures, capture("blocked-graph"), blockedGraph);
     recordWireCapture(wireCaptures, capture("free-graph"), freeGraph);
@@ -71,6 +74,31 @@ test("one graph's blocked spill write never holds another graph's settle", async
     const drained = readFile(blockedFile, "utf8");
     await blockedGraph.settle();
     expect(await drained).toContain("blocked-graph");
+    await rm(root, { recursive: true, force: true });
+  }
+});
+
+test("a spill append that fails is logged and the chain still settles", async () => {
+  const root = await mkdtemp(join(tmpdir(), "orb-wire-spill-fault-"));
+  // The spill directory is a regular file, so its mkdir fails on a real filesystem.
+  const occupied = join(root, "occupied");
+  await writeFile(occupied, "not a directory");
+  const { createLogger, createObservabilityRings, createWireCaptureSpill, recordWireCapture } = await import("@orb/server/foundation/observability");
+  const rings = createObservabilityRings();
+  const spill = createWireCaptureSpill(occupied, createLogger(SPILL_FAULT_LEVEL, rings.logs));
+  try {
+    recordWireCapture(
+      rings.wireCaptures,
+      wireCaptureSchema.parse({ api: "chat", wire: "literal", providerId: "spill-fault", model: "spill-fault", at: 1, body: {} }),
+      spill,
+    );
+    await expect(spill.settle()).resolves.toBeUndefined();
+    const warnings = rings.logs
+      .recent()
+      .map((line) => logLineSchema.parse(JSON.parse(line)))
+      .filter((record) => record.level === SPILL_FAULT_LEVEL);
+    expect(warnings).toMatchObject([{ kind: "request", err: { code: expect.any(String) } }]);
+  } finally {
     await rm(root, { recursive: true, force: true });
   }
 });

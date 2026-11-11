@@ -4,7 +4,10 @@
 // issues appended → typed payload or throw. Recovery POLICY (workload `failed`, error result, canned fallback)
 // and the retry's tracing stay with the caller.
 
+import { isPlainObject } from "@orb/kit/guards";
+import { parseJsonText } from "@orb/kit/json";
 import type { z } from "zod";
+import { ProviderError } from "../contract/errors.ts";
 import type { StructuredRetrySummary, StructuredTurnArgs } from "../contract/structured-turn.ts";
 import { StructuredOutputError } from "../contract/structured-turn.ts";
 
@@ -28,6 +31,12 @@ export async function runStructuredTurn<T>(args: StructuredTurnArgs<T>): Promise
     return second.value;
   }
   throw new StructuredOutputError(second.issues, secondText);
+}
+
+/** A structured turn that failed for its own item, which a batch caller counts and moves past: the reply never
+ *  validated, or the provider refused or failed the call. An abort, and any other throw, is not the item's failure. */
+export function isStructuredTurnFailure(error: unknown): boolean {
+  return error instanceof StructuredOutputError || (error instanceof ProviderError && error.kind !== "aborted");
 }
 
 /** Extract → parse → validate ONE reply. The issue summary matches the tool-registry convention
@@ -92,14 +101,9 @@ function skipStringLiteral(raw: string, open: number): number {
   return raw.length - 1;
 }
 
+// `null` is `extractJsonObject`'s null, which `parseStructured` turns into "no JSON object found in the reply". A guard,
+// not a schema: a zod object copies the reply and drops an own `__proto__` key the model wrote.
 function tryParse(slice: string): Record<string, unknown> | null {
-  // null is `extractJsonObject`'s null, which `parseStructured` turns into the typed
-  // `ok: false` "no JSON object found in the reply"; `runStructuredTurn` retries once and then throws StructuredOutputError.
-  // Ends if that refusal path is removed.
-  try {
-    const parsed: unknown = JSON.parse(slice);
-    return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
-  } catch {
-    return null;
-  }
+  const parsed = parseJsonText(slice);
+  return isPlainObject(parsed) ? parsed : null;
 }

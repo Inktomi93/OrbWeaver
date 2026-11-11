@@ -118,6 +118,28 @@ async function dispatchLoadedRules(ctx: AutomationContext, rules: readonly RuleR
   }
 }
 
+/** Fan a resolved trigger to the plugin subscribers. The fan-out runs its OWN three gates (depth / visibility /
+ *  declared-match), leak-free by construction, and never touches the rule dispatch's state, so a fault in it (a
+ *  visibility read that failed) is logged here and the event's rule dispatch still runs. */
+async function fanOutIsolated(ctx: AutomationContext, event: BusEvent, resolved: ResolvedTrigger): Promise<void> {
+  try {
+    await fanOutToPluginSubscribers(
+      {
+        db: ctx.db,
+        registry: ctx.pluginSubscribers,
+        logger: ctx.logger,
+        resolveViewerVisibility: ctx.ops.chat.resolveViewerVisibility,
+        // The D16 anchor resolver for a fact that REFERENCES canon without carrying it — the same op
+        // the message-shaped resolve already uses, so the gate adds no seam and no second canon reader.
+        getMessageFact: ctx.ops.chat.getMessageFact,
+      },
+      resolved,
+    );
+  } catch (err) {
+    getLog(ctx.logger).warn({ err, type: event.type }, "automation: the plugin subscriber fan-out failed (isolated from rule dispatch)");
+  }
+}
+
 /** The CHAT-bus event path — not owner-keyed: a chat's rules already share exactly one lane (the chat
  *  itself), so there is no head-of-line question here to answer. Runs entirely inside the caller's chat lane. */
 async function handleChatEvent(ctx: AutomationContext, event: BusEvent, chatId: ChatId): Promise<void> {
@@ -136,20 +158,7 @@ async function handleChatEvent(ctx: AutomationContext, event: BusEvent, chatId: 
     return; // non-taxonomy event.
   }
   if (wantPlugins) {
-    // The plugin fan-out runs its OWN three gates (depth / visibility / declared-match) — leak-free by
-    // construction, and it never touches the rule dispatch's state.
-    await fanOutToPluginSubscribers(
-      {
-        db: ctx.db,
-        registry: ctx.pluginSubscribers,
-        logger: ctx.logger,
-        resolveViewerVisibility: ctx.ops.chat.resolveViewerVisibility,
-        // The D16 anchor resolver for a fact that REFERENCES canon without carrying it — the same op
-        // the message-shaped resolve already uses, so the gate adds no seam and no second canon reader.
-        getMessageFact: ctx.ops.chat.getMessageFact,
-      },
-      resolved,
-    );
+    await fanOutIsolated(ctx, event, resolved);
   }
   if (!wantRules || bus === null) {
     return;
@@ -199,16 +208,7 @@ async function handleDomainEvent(ctx: AutomationContext, event: DomainEvent): Pr
     return; // non-taxonomy event.
   }
   if (wantPlugins) {
-    await fanOutToPluginSubscribers(
-      {
-        db: ctx.db,
-        registry: ctx.pluginSubscribers,
-        logger: ctx.logger,
-        resolveViewerVisibility: ctx.ops.chat.resolveViewerVisibility,
-        getMessageFact: ctx.ops.chat.getMessageFact,
-      },
-      resolved,
-    );
+    await fanOutIsolated(ctx, event, resolved);
   }
   if (!wantRules || bus !== "domain") {
     return;

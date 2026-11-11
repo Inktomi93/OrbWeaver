@@ -17,16 +17,7 @@ export function createResolveUserPublics(input: DbAssemblyInput<Pick<PersonaCont
     const persona = personaId === null ? undefined : await loadOwnedPersonaPublic(ctx.db, userId, personaId);
     let avatarAssetId: AssetId | null = persona?.avatarAssetId ?? null;
     if (avatarAssetId === null) {
-      // optional-read-as-absent — a persona/handle
-      // display fact was already resolved above; this is the LAST-resort avatar enrichment, and a failed
-      // read just leaves `avatarAssetId` at its already-established `null`. Ends if this read becomes the
-      // only source of `displayName`/`handle`.
-      try {
-        const raw = (await deps.loadUserSettings(userId)).profile.avatarAssetId ?? null;
-        avatarAssetId = raw === null ? null : raw;
-      } catch {
-        // The fallback stays absent.
-      }
+      avatarAssetId = (await deps.loadUserSettings(userId)).profile.avatarAssetId ?? null;
     }
     return { displayName: persona?.name ?? handle, handle, avatarAssetId };
   };

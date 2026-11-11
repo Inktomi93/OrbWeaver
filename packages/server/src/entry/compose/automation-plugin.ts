@@ -204,7 +204,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
     newToolCallId: () => mintToolCallId(`automation_${newOpaqueId()}`),
   });
-  const assetReads = createPluginAssetReads({ assets, resolveOwnerPrincipal });
+  const assetReads = createPluginAssetReads({ assets, resolveOwnerPrincipal, logger: deps.logger });
   const worldInfoReads = createPluginWorldInfoReads({ worldInfo, resolveOwnerPrincipal });
   const notificationDelivery = createPluginNotificationDelivery({ notifications, publish: deps.publishNotification });
   const pluginFeedback = createPluginFeedbackOps({ db, emit: emitNotification, notify: automationNotify });
@@ -239,7 +239,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     runTool: automationRuntime.runTool,
     summarizeQuiet: automationRuntime.summarizeQuiet,
   });
-  const automationEnabled = createEnabledRuleIndex(db);
+  const automationEnabled = createEnabledRuleIndex(db, deps.logger);
   // One store backs both automation confirms and plugin suggestions.
   const automationSuggestions = createSuggestionStore();
   const newSuggestionId = minter(ID_PREFIX.automationSuggestion, deps.idSource);
@@ -249,6 +249,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
   const pluginSubscribers = createPluginSubscriberRegistry();
   const automationTransforms = createPromptTransformIndex({
     db,
+    logger: deps.logger,
     ops: automationOps,
     prng: deps.random,
     now,

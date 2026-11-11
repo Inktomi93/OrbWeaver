@@ -3,6 +3,7 @@
 // `/props`, so it is asked before llama.cpp and Ollama. vLLM serves no native identity route, so it is known last by
 // its model list's owner. The answer names the built-in row that reads that server.
 
+import { parseJsonText } from "@orb/kit/json";
 import { z } from "zod";
 import { deadlineSignal } from "../backends/http/abort-flatten.ts";
 import { authHeaders, isRedirect, SERVER_READ_TIMEOUT_MS, serverRootOf } from "../backends/http/fetch-json.ts";
@@ -43,12 +44,8 @@ async function answer(args: DetectArgs & { readonly signal: AbortSignal }, path:
   // The body is read outside the try: a transport reset or the shared deadline mid-body is "nothing answered" and
   // must throw, so the caller's cache stays cold.
   const text = await res.text();
-  // only JSON.parse of the text above can throw here, and a 2xx that is not JSON is a server that is not this one; the null reaches `probe.schema.safeParse` in `detectServer`, which moves to the next probe and ends at `{ server: null }`. Ends if a probed route can answer anything but JSON on the server it identifies.
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
+  // A 2xx that is not JSON is a server that is not this one.
+  return parseJsonText(text) ?? null;
 }
 
 /**

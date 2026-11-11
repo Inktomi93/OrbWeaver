@@ -32,6 +32,7 @@ import type { Stats } from "node:fs";
 import { readFileSync, statSync } from "node:fs";
 import { isAbsolute, join, resolve } from "node:path";
 import process from "node:process";
+import { parseJsonText } from "@orb/kit/json";
 import type { GitRefFiles, ReleaseChannel, VersionIdentity, VersionStamp } from "@orb/kit/version-identity";
 import {
   gitDirRedirect,
@@ -44,6 +45,8 @@ import {
   UNKNOWN_COMMIT,
   versionStampSchema,
 } from "@orb/kit/version-identity";
+import { z } from "zod";
+import { errnoCode } from "#primitives/errno";
 
 /** The stamp the image build writes beside the runtime file set, relative to the process root. */
 const VERSION_STAMP_FILE = "version.json";
@@ -59,10 +62,13 @@ const SAFE_REF_RE = /^refs\/(?!.*\.\.)[A-Za-z0-9._\-/]+$/u;
 /** A path's stat, or `null` when it is absent or the process may not look at it. A permission wall throws from the
  *  stat itself: an unsearchable directory, and every path outside the plugin broker's permission-model grants. */
 function statOrNull(path: string): Stats | null {
-  // owned by the `unknown` identity: a denied path reads as absent, `readCheckout` turns the missing commit or version into UNKNOWN_COMMIT or UNKNOWN_VERSION, `entry/lifecycle.ts` prints it on the first boot line, and `compareToMainHead` reports "this build carries no commit". Ends if a caller must tell a denied path from a missing one.
+  // A denied path reads as absent: `readCheckout` reports UNKNOWN_COMMIT or UNKNOWN_VERSION on the first boot line.
   try {
     return statSync(path, { throwIfNoEntry: false }) ?? null;
-  } catch {
+  } catch (error) {
+    if (errnoCode(error) === undefined) {
+      throw error;
+    }
     return null;
   }
 }
@@ -74,10 +80,13 @@ function readText(path: string): string | null {
   if (stat === null || !stat.isFile()) {
     return null;
   }
-  // owned by the `unknown` identity: a file lost to a race between the stat and the read gives null, which `readCheckout` renders as UNKNOWN_COMMIT or UNKNOWN_VERSION on the first boot line (`entry/lifecycle.ts`). Ends if a caller must treat an unreadable file as an error.
+  // A file lost to a race between the stat and the read, or one the process may stat but not read, reads as absent.
   try {
     return readFileSync(path, "utf8");
-  } catch {
+  } catch (error) {
+    if (errnoCode(error) === undefined) {
+      throw error;
+    }
     return null;
   }
 }
@@ -159,20 +168,17 @@ function readReleaseChannel(root: string, version: string | null, commit: string
   return releaseChannelOf(commit, resolveRef(tag, readLooseRef(location, tag), readFirst(location, "packed-refs")));
 }
 
+const packageVersionSchema = z.object({ version: z.string().min(1) });
+
 /** The root `package.json`'s `version` field — the release number the owner bumps and tags. */
 function readPackageVersion(root: string): string | null {
   const text = readText(join(root, "package.json"));
   if (text === null) {
     return null;
   }
-  // owned by the `unknown` version: a manifest that is not JSON returns null, and `readCheckout` (`version ?? UNKNOWN_VERSION`) puts "unknown" on the first boot line (`entry/lifecycle.ts`). Ends if a corrupt manifest must be told apart from an absent one.
-  try {
-    const parsed: unknown = JSON.parse(text);
-    const version = typeof parsed === "object" && parsed !== null ? (parsed as { readonly version?: unknown }).version : undefined;
-    return typeof version === "string" && version.length > 0 ? version : null;
-  } catch {
-    return null;
-  }
+  // A manifest that is not JSON reads as no version, which `readCheckout` reports as UNKNOWN_VERSION.
+  const manifest = packageVersionSchema.safeParse(parseJsonText(text));
+  return manifest.success ? manifest.data.version : null;
 }
 
 /** The build stamp, when one was written AND is well-formed. A corrupt stamp is treated as ABSENT (the
@@ -182,13 +188,9 @@ function readVersionStamp(root: string): VersionStamp | null {
   if (text === null) {
     return null;
   }
-  // owned by the fallthrough in `readVersionIdentity`: a stamp that is not JSON returns null, the identity is read from the checkout and reports `source: "checkout"` (or UNKNOWN_COMMIT with no `.git`), which the first boot line prints. Ends if a corrupt stamp must be reported apart from a missing one.
-  try {
-    const parsed = versionStampSchema.safeParse(JSON.parse(text));
-    return parsed.success ? parsed.data : null;
-  } catch {
-    return null;
-  }
+  // A stamp that is not JSON falls through to the checkout, as an absent one does.
+  const parsed = versionStampSchema.safeParse(parseJsonText(text));
+  return parsed.success ? parsed.data : null;
 }
 
 /** Derive the identity for one root. Pure w.r.t. process state (the root is a parameter), so a spec drives

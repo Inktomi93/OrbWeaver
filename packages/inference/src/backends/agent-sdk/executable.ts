@@ -7,13 +7,18 @@
 import { createRequire } from "node:module";
 
 const SDK_PACKAGE = "@anthropic-ai/claude-agent-sdk";
+const MODULE_NOT_FOUND = "MODULE_NOT_FOUND";
 
 function resolveClaudeExecutable(): string | null {
-  // A module-resolution miss is the answer: null reaches the registry `needs` predicate at registry/backends.ts:47, which names the unbuilt wire and surfaces `runtime-missing`. Ends if the SDK grows a second install shape.
+  // A module-resolution miss is the answer: null leaves the wire unbuilt and every `claude-sub` row reads
+  // `runtime-missing`. Any other throw is a fault.
   try {
     return createRequire(import.meta.url).resolve(SDK_PACKAGE);
-  } catch {
-    return null;
+  } catch (error) {
+    if (error instanceof Error && "code" in error && error.code === MODULE_NOT_FOUND) {
+      return null;
+    }
+    throw error;
   }
 }
 

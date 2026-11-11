@@ -25,7 +25,7 @@ import type { Db } from "@orb/db";
 import { characterSummaries } from "@orb/db";
 import type { BatchStmt } from "@orb/db/query";
 import { batchMany, batchStmt } from "@orb/db/query";
-import { resolveSideGenSampling, runStructuredTurn } from "@orb/inference";
+import { isStructuredTurnFailure, resolveSideGenSampling, runStructuredTurn } from "@orb/inference";
 import { DomainNotFoundError } from "@orb/kit/errors";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { projectJsonSchema } from "@orb/kit/json-schema";
@@ -283,13 +283,14 @@ async function buildDistillWrites(
  *  and throws the retryable {@link DistillFailedError}, whose copy covers both causes honestly. */
 async function parseOneDistill(target: DistillTarget, batchText: string, pass: DistillPass): Promise<CharacterDistillation | null> {
   const run = (correction?: string): Promise<string> => (correction === undefined ? Promise.resolve(batchText) : retryDistillOne(target, correction, pass));
-  // the `null` is counted by `buildDistillWrites` (`failed += 1`),
-  // returned as `DistillStats.failed`, and the on-demand arm throws `DistillFailedError` when `writes.failed > 0`.
-  // Ends if either path stops reading `failed`.
+  // `buildDistillWrites` counts the `null` into `DistillStats.failed`; the on-demand arm throws `DistillFailedError`.
   try {
     const p = await runStructuredTurn({ payloadSchema: DISTILL_PAYLOAD, run, onRetry: traceStructuredRetry("distill-card") });
     return { genre: p.genre, tone: p.tone, setting: p.setting, subGenres: p.subGenres, tags: p.tags, elevatorPitch: p.elevatorPitch, overview: p.overview };
-  } catch {
+  } catch (error) {
+    if (!isStructuredTurnFailure(error)) {
+      throw error;
+    }
     return null;
   }
 }

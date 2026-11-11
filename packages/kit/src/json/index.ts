@@ -14,3 +14,17 @@ export type JsonValue = string | number | boolean | null | JsonValue[] | { [key:
  *  it is the type every consumer imports (`settings` KV, the db `$type`, the catalog snapshots) and zod's own
  *  `util.JSONType` is structurally the same shape under a name nothing else in the cake speaks. */
 export const jsonValueSchema: z.ZodType<JsonValue> = z.json();
+
+/** The value `text` holds as JSON, or `undefined` when it is not JSON text; no JSON text decodes to
+ *  `undefined`. Callers narrow the `unknown` result with a schema or a guard.
+ *  @throws anything `JSON.parse` throws other than its `SyntaxError`, which only a defect can cause. */
+export function parseJsonText(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch (error) {
+    if (error instanceof SyntaxError) {
+      return undefined;
+    }
+    throw error;
+  }
+}

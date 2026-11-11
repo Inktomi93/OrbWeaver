@@ -1,5 +1,6 @@
 // Native Query decodes JSON, but does not validate the fields this application's reducers consume.
 // Unused frames and fields stay opaque; known projections refuse before arithmetic, callbacks or accounting.
+import { AbortError } from "@anthropic-ai/claude-agent-sdk";
 import { generationUsageLegSchema, generationUsageSchema } from "@orb/contracts/inference";
 import { z } from "zod";
 import { compactionTriggerSchema, compactResultSchema, ProviderError, rateLimitStatusSchema, sdkActivityStatusSchema } from "#contract";
@@ -156,6 +157,12 @@ function readStreamEvent(message: unknown): void {
 }
 
 /** Validate only the SDK message fields the application's stream consumers actually read. */
+/** True when a native Query rejected because it was aborted. The SDK rejects with its exported class, whose `name` is
+ *  the plain `Error`, so the class is the test; a platform abort is matched by its `AbortError` name. */
+export function isQueryAbort(error: unknown): boolean {
+  return error instanceof AbortError || (error instanceof Error && error.name === "AbortError");
+}
+
 export function assertSdkMessageRead(message: unknown): void {
   try {
     const header = headerSchema.parse(message);

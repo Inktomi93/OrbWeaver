@@ -2,6 +2,8 @@
 // single quotes, trailing commas) and key=value lines, read once into the JSON the request carries. The body stays
 // opaque: keys and values pass through as written, and nothing here reads one to change what the app does.
 
+import { parseJsonText } from "@orb/kit/json";
+
 /** A parse of pasted text: the value it reads as, or why it reads as nothing. */
 // the reader's own result, read only beside it in this feature's lib.
 export type PastedParse<T> = { readonly ok: true; readonly value: T } | { readonly ok: false; readonly reason: string };
@@ -29,11 +31,8 @@ export function looksLikeFields(text: string): boolean {
 
 // Not strict JSON is an answer, not a failure: the text goes on to the lenient reader.
 function tryJson(text: string): PastedParse<unknown> {
-  try {
-    return { ok: true, value: JSON.parse(text) };
-  } catch {
-    return { ok: false, reason: FORMATS_HINT };
-  }
+  const value = parseJsonText(text);
+  return value === undefined ? { ok: false, reason: FORMATS_HINT } : { ok: true, value };
 }
 
 // `{top_k:40}` reads in YAML as the key `top_k:40` with no value: name the fix rather than save that key.

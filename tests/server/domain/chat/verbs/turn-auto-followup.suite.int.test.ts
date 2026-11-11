@@ -1,8 +1,11 @@
 // @subject packages/server/src/domain/chat/verbs/turn.ts
 // Native finish reasons and saved settings distinguish in-place continuation, reroll precedence and bounded spend.
 import type { UserSettings } from "@orb/contracts/settings";
+import { messageVariants } from "@orb/db";
+import { ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
-import { readRoomCanon } from "@orb/testkit/node/composed";
+import { readRoomCanon, refuseWrites } from "@orb/testkit/node/composed";
+import { z } from "zod";
 import type { PhysicalReply } from "./followup-physical.ts";
 import { followupRoom } from "./followup-physical.ts";
 
@@ -273,6 +276,47 @@ const COMPARE: Record<(typeof COMPARISONS)[number], (content: string | undefined
     expect(content).toBe(fragments[0]);
   },
 };
+
+const CUT_REPLY = "the thought was";
+const CONTINUATION = " finished at last";
+const FOLLOWUP_FAULT = "controlled auto-continue commit fault";
+const LOG_SCAN_LIMIT = 200;
+const followUpLogSchema = z.looseObject({
+  level: z.string(),
+  followUp: z.string(),
+  messageId: typeIdSchema(ID_PREFIX.message),
+  err: z.looseObject({ message: z.string() }),
+});
+
+test("a fault in the auto-continue is logged at error and the send still answers with its committed reply", async () => {
+  await using h = await followupRoom(
+    [
+      { text: CUT_REPLY, finishReason: "length" },
+      { text: CONTINUATION, finishReason: "stop" },
+    ],
+    { group: { output: "per-speaker", policy: "natural" }, server: { logLevel: "error" } },
+  );
+  await h.caller.settings.updateUserSettingsSection({ section: "chat", patch: { autoContinue: true } });
+  // Only the continuation's commit carries the continued text, so the send's own reply commits untouched.
+  await using _refusal = await refuseWrites(h.root.db, {
+    table: messageVariants,
+    event: "UPDATE",
+    message: FOLLOWUP_FAULT,
+    when: `NEW.content LIKE '%${CONTINUATION.trim()}%'`,
+  });
+  const outcome = await h.root.services.chat.send({ principal: h.owner, chatId: h.chatId, content: "go" });
+  await h.root.settleBackground();
+  expect(outcome.aborted).toBe(false);
+  const replies = outcome.messages.filter(({ role }) => role === "assistant");
+  expect(replies.map(({ content }) => content)).toEqual([CUT_REPLY]);
+  const faults = h.root.observability
+    .logLines(LOG_SCAN_LIMIT)
+    .map((line) => followUpLogSchema.safeParse(JSON.parse(line)))
+    .flatMap((record) => (record.success ? [record.data] : []));
+  expect(faults).toMatchObject([
+    { level: "error", followUp: "auto-continue", messageId: replies[0]?.id, err: { message: expect.stringContaining(FOLLOWUP_FAULT) } },
+  ]);
+});
 
 test("a follow-up past the script, which production swallows, still fails the room when it closes", async () => {
   await expect(async () => {

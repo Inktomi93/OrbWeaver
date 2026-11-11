@@ -4,7 +4,9 @@
 
 import { createHash } from "node:crypto";
 import type { SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
+import { isPlainObject } from "@orb/kit/guards";
 import type { ChatId, UserConnectionId } from "@orb/kit/ids";
+import { parseJsonText } from "@orb/kit/json";
 import type { MessageRole } from "@orb/kit/message-role";
 import { z } from "zod";
 import type { AgentSdkSessionId, AgentSdkSessionTotals, AgentSeedBlock } from "#contract";
@@ -99,16 +101,11 @@ function toSdkToolResult(block: Extract<AgentSeedBlock, { type: "tool-result" }>
 
 /** The model-emitted `arguments` string as the wire's `input` object, or `null` when it is not one. Uses
  *  `JSON.parse`, never an object literal: `parse` defines `__proto__` as an OWN property where a literal would
- *  set the prototype. */
+ *  set the prototype. Narrowed by a guard, not a schema: a zod object or record copies the value and drops that own
+ *  key, so the wire would no longer carry what the model sent. */
 function toToolInput(raw: string): Record<string, unknown> | null {
-  let parsed: unknown;
-  try {
-    parsed = JSON.parse(raw);
-    // an unparseable argument blob cannot reach this parse: turn-input.ts:224 (`isJsonObject`) degrades such a call and its pair to announced text before a seed block exists, and the null feeds `?? {}` at frames.ts:85. Ends if a seed producer other than splitAgentHistory appears.
-  } catch {
-    return null;
-  }
-  return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
+  const parsed = parseJsonText(raw);
+  return isPlainObject(parsed) ? parsed : null;
 }
 
 /** A turn's SDK content blocks — TOTAL: every seed block mints one, so a seed's pairing survives the mapping. */

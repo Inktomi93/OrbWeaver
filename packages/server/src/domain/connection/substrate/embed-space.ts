@@ -11,7 +11,7 @@ import type { Principal } from "@orb/contracts/identity";
 import type { EmbedTargetRefusal, RoutableTask, UserConnection } from "@orb/contracts/inference";
 import { EMBED_SPACE_FIELDS, servesImageVectors } from "@orb/contracts/inference";
 import type { UserConnectionId, UserId } from "@orb/kit/ids";
-import { connectionFingerprint } from "#primitives/embedding-generation";
+import { connectionFingerprint, isUnresolvableBinding } from "#primitives/embedding-generation";
 import { EmbedAuthError, EmbedUnreachableError, EmbedWidthUnmakeableError } from "../contract/errors.ts";
 import type { EmbedSpace, EmbedSpaces } from "../contract/results.ts";
 import type { ConnectionContext } from "../contract/service.ts";
@@ -46,8 +46,7 @@ export async function vectorResolutionOf(
   through: { readonly connectionId?: UserConnectionId | undefined; readonly cachedFacts?: boolean; readonly previewConnection?: UserConnection } = {},
 ): Promise<{ readonly space: EmbedSpace; readonly servesImages: boolean } | null> {
   const { connectionId, cachedFacts = false } = through;
-  // a refused resolve IS the "no space" answer this comparison
-  // needs; nothing is swallowed, and a throw here would fail a connection write over an unrelated task.
+  // A binding that cannot resolve is the "no space" answer this comparison needs; any other failure fails the write.
   try {
     const { resolved } = await ctx.runtime.resolve({
       task,
@@ -66,7 +65,10 @@ export async function vectorResolutionOf(
       },
       servesImages: servesImageVectors(resolved.capability),
     };
-  } catch {
+  } catch (error) {
+    if (!isUnresolvableBinding(error)) {
+      throw error;
+    }
     return null;
   }
 }

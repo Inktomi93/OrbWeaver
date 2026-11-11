@@ -13,7 +13,7 @@
 //   6. at least one of `sub` / `sid` is present.
 
 import type { JWTPayload } from "jose";
-import { jwtVerify } from "jose";
+import { errors, jwtVerify } from "jose";
 import { z } from "zod";
 import type { Logger } from "#foundation/observability";
 import { securityEvent } from "#foundation/observability";
@@ -58,7 +58,11 @@ export function createBackchannelLogoutVerifier(readKeyset: JwksReader["jwksFor"
       let payload: JWTPayload;
       try {
         ({ payload } = await jwtVerify(logoutToken, keyset, { algorithms: [...PINNED_ALGS], issuer, audience, requiredClaims: ["iat", "exp", "jti"] }));
-      } catch {
+      } catch (error) {
+        // jose raises every token, key-set and claim refusal as a JOSEError; anything else is a fault, not a refusal.
+        if (!(error instanceof errors.JOSEError)) {
+          throw error;
+        }
         securityEvent(
           "oidc_backchannel_logout_rejected",
           { reason: "signature" },

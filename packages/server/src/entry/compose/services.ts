@@ -434,7 +434,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   await using construction = new AsyncDisposableStack();
   const resources = new AsyncDisposableStack();
   construction.defer(() => resources.disposeAsync());
-  const wireSpill = createWireCaptureSpill(deps.wireCaptureDir ?? deps.env.DATA_LAYOUT.wireCapture);
+  const wireSpill = createWireCaptureSpill(deps.wireCaptureDir ?? deps.env.DATA_LAYOUT.wireCapture, deps.logger);
   // Deferred first so it runs last: every turn has settled, so no wire-capture append outlives the graph.
   resources.defer(wireSpill.settle);
   const backgroundResources = new AsyncDisposableStack();

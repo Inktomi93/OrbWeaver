@@ -17,6 +17,7 @@
 import type { ConnectionTransportDoc } from "@orb/contracts/inference";
 import { NORMALIZED_FINISH_REASONS } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
+import { parseJsonText } from "@orb/kit/json";
 import { omitKey } from "@orb/kit/objects";
 import { Badge } from "@orb/ui/badge";
 import { Field } from "@orb/ui/field";
@@ -229,11 +230,8 @@ function FinishReasonReading({ value }: { readonly value: unknown }): ReactEleme
 type JsonParse = { readonly ok: true; readonly value: unknown } | { readonly ok: false };
 
 function parseJson(raw: string): JsonParse {
-  try {
-    return { ok: true, value: JSON.parse(raw) };
-  } catch {
-    return { ok: false };
-  }
+  const value = parseJsonText(raw);
+  return value === undefined ? { ok: false } : { ok: true, value };
 }
 
 /** `a.b[0].c` over a parsed body — the same dot-and-index spelling the transport's own map uses. */

@@ -5,6 +5,7 @@
 // guarantee casing); every other value is left exactly as the model wrote it.
 
 import { ARRAY_ITEMS_SEGMENT, MAP_VALUES_SEGMENT } from "@orb/contracts/inference";
+import { parseJsonText } from "@orb/kit/json";
 import type { ChatResult } from "../contract/chat.ts";
 import type { PlannedResponseFormat, StructuredPlan } from "../contract/structured.ts";
 import { extractJsonObject } from "../roles/structured-turn.ts";
@@ -181,13 +182,11 @@ export function normalizeStructuredValue(value: unknown, format: Pick<PlannedRes
   return format.reshapedPaths.reduce((current, path) => dropAt(current, segmentsOf(path)), cased);
 }
 
+// A reply that is not bare JSON falls to the tolerant object scan; one with no object at all comes back unchanged
+// from `normalizeStructuredText`, so the caller's own parse is what refuses it.
 function parseReply(text: string): unknown {
-  try {
-    return JSON.parse(text);
-    // a reply that is not bare JSON falls to the tolerant `extractJsonObject`, and a reply with no object is returned unchanged by `normalizeStructuredText`, so the caller's own parse (`parseStructured` in runStructuredTurn, which throws StructuredOutputError) is what refuses it. Ends if normalization starts failing the call.
-  } catch {
-    return extractJsonObject(text);
-  }
+  const whole = parseJsonText(text);
+  return whole === undefined ? extractJsonObject(text) : whole;
 }
 
 /** A structured reply's text normalized against the plan (casing, then the reshaped nulls). A reply that holds no JSON object is returned

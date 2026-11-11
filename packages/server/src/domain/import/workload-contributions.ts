@@ -16,7 +16,7 @@ import type { ActiveWorkloadRow, WorkloadContribution } from "#domain/workloads"
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import { openVerifiedArchive, ZIP_STAGING_PREFIX } from "#infra/storage";
-import { isMissingFile } from "#primitives/errno";
+import { isAbsentPath, isMissingFile } from "#primitives/errno";
 import type { ImportWorkloadDeps } from "./contract/workloads.ts";
 import { STAGED_BUNDLE_PREFIX, STAGED_TREE_PREFIX, stagedOwnerRoot } from "./substrate/staging.ts";
 import { createBackfillTokenUsage } from "./verbs/backfill-token-usage.ts";
@@ -153,7 +153,8 @@ async function profilePort(deps: ImportWorkloadDeps, stagedRoot: string | null, 
  * AT THE rm CALLSITE — so even a future refactor that computed the path unsafely can never delete the
  * staging root, its parent, or anything outside it. A non-contained target is refused SILENTLY:
  * `resolveStagedPath` already rejected the traversal loudly at compute time, so reaching here with an
- * out-of-root path means a bug, and the safe response is to delete nothing (never throw from a `finally`).
+ * out-of-root path means a bug, and the safe response is to delete nothing. A path that names nothing has nothing to
+ * delete; any other filesystem fault rejects, as the `rm` itself would.
  */
 async function rmContained(stagingRoot: string, target: string): Promise<void> {
   const root = resolve(stagingRoot);
@@ -164,8 +165,12 @@ async function rmContained(stagingRoot: string, target: string): Promise<void> {
   // A SYMLINK is never removed here. `rm` would unlink the link rather than its target, so this is not the
   // deletion hole — but a staged entry that turned into a link since the resolve is a tampering signal, and
   // deleting nothing is the safe response on a path this belt no longer recognizes.
-  // both arms of this stat converge on "remove nothing" — an absent path has nothing to delete, and an unreadable one is a path this belt can no longer vouch for. It runs in a `finally` whose loud half already fired at compute time (`resolveStagedPath` throws the escape), and a genuine fs fault re-surfaces on the next run's read of the same tree. Ends if this rm becomes the only proof a staged tree was removed.
-  const link = await lstat(resolved).catch(() => null);
+  const link = await lstat(resolved).catch((error: unknown) => {
+    if (!isAbsentPath(error)) {
+      throw error;
+    }
+    return null;
+  });
   if (link === null || link.isSymbolicLink()) {
     return;
   }

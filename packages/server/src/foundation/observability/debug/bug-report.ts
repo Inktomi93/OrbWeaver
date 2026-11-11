@@ -48,7 +48,7 @@
 // so `git rev-parse HEAD` + a dirty flag is the honest build identity, and a report from a dirty tree says so
 // rather than pretending to be a commit.
 
-import { execFileSync } from "node:child_process";
+import { spawnSync } from "node:child_process";
 import { randomUUID } from "node:crypto";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
@@ -81,14 +81,9 @@ const MIN_SECRET_LENGTH = 8;
 const ID_PREFIX_HINT = 8;
 
 function gitOutput(repoRoot: string, args: readonly string[]): string | null {
-  // git being absent, or the cwd not being a
-  // checkout, is a legitimate answer here — the report says `sha: null` instead of failing the capture. Ends if
-  // a caller starts treating null as an error rather than as "git could not answer".
-  try {
-    return execFileSync("git", ["-C", repoRoot, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }).trim();
-  } catch {
-    return null;
-  }
+  // Git being absent, or the root not being a checkout, is an answer: the report says `sha: null`.
+  const result = spawnSync("git", ["-C", repoRoot, ...args], { encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] });
+  return result.status === 0 ? result.stdout.trim() : null;
 }
 
 /** Stamp the build the report was taken against — `git rev-parse HEAD` + the dirty flag, AT CAPTURE TIME. */
