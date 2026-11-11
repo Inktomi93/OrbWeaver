@@ -88,7 +88,7 @@ export const DEFAULT_CAPTION_INSTRUCTIONS: Record<MultimodalCaptionMode, string>
 // ── The PROSE-1 slot table (census rows 82-87) — adapted IN PLACE ────────────────────────────────────
 // The catalog above already IS the shipped-default home; these rows give it the registry metadata every
 // prose slot carries (version + macro mode + required tokens + editor copy). The override STORAGE is
-// unchanged — still `UserSettings.imagery.templates/.captions` (PROSE-1 §4.6: adapt, never duplicate) —
+// unchanged — still `UserSettings.imagery.templates/.captions` (adapted, never duplicated) —
 // and `resolveImageryTemplate`/`resolveImageryCaption` funnel through `resolveProse` so precedence and
 // staleness come from ONE place.
 //

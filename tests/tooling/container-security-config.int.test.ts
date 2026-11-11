@@ -2,8 +2,8 @@
 import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
-import { join } from "node:path";
+import { globSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
 import process from "node:process";
 import { expect, test } from "@orb/testkit/tooling";
 import { parse } from "yaml";
@@ -53,19 +53,141 @@ test("every container Node matches the Node the repository pins in devEngines", 
   }
 });
 
+// The authoring release copies this manifest's `engines` into the tarball plugin authors install (scripts/release-plugin-authoring.ts).
+const WORKSPACE_ENGINES_EXCEPTIONS: readonly string[] = ["packages/plugin-toolchain/package.json"];
+
+test("the root engines floor is the pinned devEngines Node and no workspace manifest declares engines", ({ repoRoot }) => {
+  const root = z
+    .object({ engines: z.object({ node: z.string() }), devEngines: z.object({ runtime: z.object({ version: z.string() }) }) })
+    .parse(JSON.parse(read(repoRoot, "package.json")));
+  expect(root.engines.node).toBe(`>=${root.devEngines.runtime.version}`);
+  const patterns = z.object({ packages: z.array(z.string()) }).parse(parse(read(repoRoot, "pnpm-workspace.yaml"))).packages;
+  const manifests = patterns.flatMap((pattern) => globSync(`${pattern}/package.json`, { cwd: repoRoot }));
+  expect(manifests.length, "the workspace globs reach manifests").toBeGreaterThan(1);
+  const declaring = manifests.filter(
+    (rel) =>
+      !WORKSPACE_ENGINES_EXCEPTIONS.includes(rel) &&
+      z
+        .object({ engines: z.unknown().optional() })
+        .loose()
+        .parse(JSON.parse(read(repoRoot, rel))).engines !== undefined,
+  );
+  expect(declaring, "the root package.json is the one home of the Node floor").toEqual([]);
+});
+
 test("the dev container installs the pinned pnpm and gives every workspace package its own node_modules volume", ({ repoRoot }) => {
   const packageManager = z.object({ packageManager: z.string() }).parse(JSON.parse(read(repoRoot, "package.json"))).packageManager;
   // Node 26 has no corepack; the sandbox installs pnpm with npm at the version package.json pins.
   expect(read(repoRoot, ".devcontainer/Dockerfile")).not.toMatch(/^RUN .*corepack/mu);
   const tools = z.object({ dependencies: z.record(z.string(), z.string()) }).parse(JSON.parse(read(repoRoot, ".devcontainer/tools/package.json")));
   expect(tools.dependencies["pnpm"]).toBe(packageManager.replace(/^pnpm@/u, "").replace(/\+.*/su, ""));
-  // A package without a volume makes pnpm write its node_modules into the bind-mounted host checkout.
+  // A package without a volume makes pnpm write its node_modules into the bind-mounted host checkout. The
+  // importers are what pnpm reads: the root plus every directory a `packages:` glob of pnpm-workspace.yaml names.
   const config = read(repoRoot, ".devcontainer/devcontainer.json");
-  const packages = readdirSync(join(repoRoot, "packages"), { withFileTypes: true })
-    .filter((entry) => entry.isDirectory())
-    .map((entry) => `packages/${entry.name}`);
-  for (const dir of ["tooling", ...packages]) {
-    expect(config, `${dir} has a node_modules volume`).toContain(`target=/workspace/${dir}/node_modules,type=volume`);
+  const dockerfile = read(repoRoot, ".devcontainer/Dockerfile");
+  const importers = workspaceImporters(repoRoot);
+  expect(importers).toContain("tests/support");
+  for (const dir of [".", ...importers]) {
+    const target = join("/workspace", dir, "node_modules");
+    expect(config, `${dir} has a node_modules volume`).toContain(`target=${target},type=volume`);
+    // The image creates the mount point so the volume seeds node-owned; pnpm cannot write a root-owned one.
+    expect(dockerfile, `${dir} has its mount point in the image`).toMatch(new RegExp(`^\\s+${target}(?: \\\\|$)`, "mu"));
+  }
+});
+
+/** The workspace importer directories pnpm-workspace.yaml's `packages:` globs select, repository-relative. */
+function workspaceImporters(repoRoot: string): readonly string[] {
+  const globs = z.object({ packages: z.array(z.string()) }).parse(parse(read(repoRoot, "pnpm-workspace.yaml"))).packages;
+  const exclude = globs.filter((glob) => glob.startsWith("!")).map((glob) => `${glob.slice(1)}/package.json`);
+  const include = globs.filter((glob) => !glob.startsWith("!")).map((glob) => `${glob}/package.json`);
+  return globSync(include, { cwd: repoRoot, exclude })
+    .map((manifest) => dirname(manifest))
+    .toSorted();
+}
+
+// Addresses the fake resolver answers; every other allowlisted domain resolves to the fallback.
+const FIREWALL_ADDRESSES: Readonly<Record<string, string>> = { "api.github.com": "140.82.112.5", "example.com": "203.0.113.10" };
+const FIREWALL_FALLBACK_ADDRESS = "192.0.2.10";
+const GITHUB_META_RANGE = "140.82.112.0/20";
+const FIREWALL_COMMANDS = ["iptables", "iptables-save", "ipset", "ip", "curl", "dig", "aggregate"] as const;
+
+/** Node sources for the commands init-firewall.sh drives. A destination answers only when the allowlist the script built covers it. */
+function firewallFakes(state: string): Readonly<Record<(typeof FIREWALL_COMMANDS)[number], string>> {
+  const shared = `const state = ${JSON.stringify(state)};
+const addresses = ${JSON.stringify(FIREWALL_ADDRESSES)};
+const addressOf = (host) => addresses[host] ?? ${JSON.stringify(FIREWALL_FALLBACK_ADDRESS)};
+`;
+  return {
+    iptables: "",
+    "iptables-save": "",
+    ip: 'process.stdout.write("default via 172.17.0.1 dev eth0\\n");\n',
+    aggregate: "process.stdin.pipe(process.stdout);\n",
+    ipset: `import { appendFileSync } from "node:fs";
+${shared}const [verb, , entry] = process.argv.slice(2);
+if (verb === "add") appendFileSync(state + "/allowed", entry + "\\n");
+`,
+    dig: `${shared}const domain = process.argv.at(-1);
+process.stdout.write(domain + ".\\t60\\tIN\\tA\\t" + addressOf(domain) + "\\n");
+`,
+    curl: `import { existsSync, readFileSync } from "node:fs";
+import { BlockList } from "node:net";
+${shared}const url = new URL(process.argv.slice(2).find((arg) => arg.startsWith("https://")));
+if (url.pathname === "/meta") {
+  if (!existsSync(state + "/meta")) process.exit(22);
+  process.stdout.write(readFileSync(state + "/meta", "utf8"));
+  process.exit(0);
+}
+const allowed = new BlockList();
+const entries = existsSync(state + "/allowed") ? readFileSync(state + "/allowed", "utf8").split("\\n").filter(Boolean) : [];
+for (const entry of entries) {
+  const [address, prefix] = entry.split("/");
+  if (prefix === undefined) allowed.addAddress(address);
+  else allowed.addSubnet(address, Number(prefix));
+}
+process.exit(allowed.check(addressOf(url.hostname)) ? 0 : 7);
+`,
+  };
+}
+
+// The GitHub range fetch is best effort, so a failed or junk answer must still leave a container whose start
+// passes the script's own self-test. A good answer is the positive control: its ranges reach the allowlist.
+test("the firewall starts and reaches GitHub whatever the range fetch answers, and still refuses an unlisted host", {
+  timeout: scaledBudget(60_000),
+}, async ({ fakeBin, repoRoot, scratch }) => {
+  const state = join(scratch, "firewall");
+  mkdirSync(state);
+  const fakes = firewallFakes(state);
+  for (const name of FIREWALL_COMMANDS) {
+    await fakeBin(name, fakes[name]);
+  }
+  // The script flushes the host firewall; refuse to run it unless every command it drives is a fake.
+  const resolved = spawnSync("bash", ["-c", `command -v ${FIREWALL_COMMANDS.join(" ")}`], { encoding: "utf8" })
+    .stdout.trim()
+    .split("\n");
+  expect(resolved).toHaveLength(FIREWALL_COMMANDS.length);
+  for (const path of resolved) {
+    expect(path.startsWith(scratch), path).toBe(true);
+  }
+
+  const answers = [
+    { name: "a failed fetch", meta: null, allows: FIREWALL_ADDRESSES["api.github.com"] },
+    { name: "a junk answer", meta: "<html>rate limited</html>", allows: FIREWALL_ADDRESSES["api.github.com"] },
+    {
+      name: "a good answer",
+      meta: JSON.stringify({ web: [GITHUB_META_RANGE], api: [GITHUB_META_RANGE], git: [GITHUB_META_RANGE] }),
+      allows: GITHUB_META_RANGE,
+    },
+  ];
+  for (const { name, meta, allows } of answers) {
+    rmSync(join(state, "allowed"), { force: true });
+    rmSync(join(state, "meta"), { force: true });
+    if (meta !== null) {
+      writeFileSync(join(state, "meta"), meta);
+    }
+    const run = spawnSync("bash", [join(repoRoot, ".devcontainer/init-firewall.sh")], { encoding: "utf8", timeout: scaledBudget(30_000) });
+    expect(run.status, `${name}: ${run.stdout}${run.stderr}`).toBe(0);
+    expect(run.stdout, name).toContain("unable to reach https://example.com as expected");
+    expect(readFileSync(join(state, "allowed"), "utf8").split("\n"), name).toContain(allows);
   }
 });
 

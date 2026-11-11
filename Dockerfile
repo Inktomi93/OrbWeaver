@@ -86,9 +86,10 @@ RUN --mount=type=cache,id=orbweaver-pnpm-store,target=/pnpm/store,sharing=shared
 # the two at once), and the deploy rewrites the root node_modules/.pnpm-workspace-state-v1.json, which would
 # make pnpm's pre-run dependency check in `pnpm build` attempt a TTY-only reinstall.
 # `--legacy` is required: this workspace does not set inject-workspace-packages. `shamefully-hoist`, not
-# `node-linker=hoisted`: pnpm 12's legacy deploy writes an empty node_modules under the hoisted linker. Every
-# patched dependency is a dev tool, so a --prod deploy never installs one and pnpm would refuse its patch as
-# unused. The store mount is the same one `deps` filled, so the deploy links instead of downloading.
+# `node-linker=hoisted`: pnpm 12's legacy deploy writes an empty node_modules under the hoisted linker. Patches
+# on production dependencies of the server apply through the deploy. A --prod deploy never installs the dev-only
+# patched packages, and pnpm would refuse their patches as unused; `allow-unused-patches` tolerates the
+# dev-only ones. The store mount is the same one `deps` filled, so the deploy links instead of downloading.
 FROM deps AS prod-deps
 RUN --mount=type=cache,id=orbweaver-pnpm-store,target=/pnpm/store,sharing=shared \
     pnpm --filter @orb/server deploy --legacy --prod --config.shamefully-hoist=true --config.allow-unused-patches=true /tmp/deploy

@@ -1,6 +1,6 @@
 // Actor identity headers bind the native transport; raw probes preserve HTTP status and body evidence.
 import type { AuthMe } from "@orb/contracts/identity";
-import { authMeSchema, CSRF_HEADER } from "@orb/contracts/identity";
+import { authMeSchema, CSRF_HEADER, SESSION_COOKIE_NAMES } from "@orb/contracts/identity";
 import { ACTIVE_WORKLOAD_STATUSES } from "@orb/contracts/workloads";
 import type { ChatId, Handle } from "@orb/kit/ids";
 import { brandedId } from "@orb/kit/ids";
@@ -15,9 +15,8 @@ import { createTrpcClient } from "./trpc-client.ts";
 // fragile env coupling (the test-runner process has no `E2E_BASE_URL`; only the webServer does). The vite
 // front door proxies `/api/*` (login, tRPC) + `/join` to that project's Hono backend.
 
-// The session cookie name is infra/auth's `sessionCookieFor`. The harness reaches each stack over plain http with no proxy,
-// so a login mints the http transport's cookie.
-export const SESSION_COOKIE = "orb_session_insecure";
+// The harness reaches each stack over plain http with no proxy, so a login mints the http transport's cookie.
+export const SESSION_COOKIE = SESSION_COOKIE_NAMES.http;
 
 /** One authenticated actor's native client, identity headers and raw HTTP observations. */
 export interface ActorClient {
@@ -115,7 +114,7 @@ export async function loginLocal(baseUrl: string, handle: Handle, password: stri
     body: new URLSearchParams({ handle, password }).toString(),
   });
   const setCookie = res.headers.get("set-cookie") ?? "";
-  const match = res.ok ? new RegExp(`${SESSION_COOKIE}=([^;]+)`).exec(setCookie) : null;
+  const match = res.ok ? new RegExp(`${RegExp.escape(SESSION_COOKIE)}=([^;]+)`, "u").exec(setCookie) : null;
   if (match === null) {
     throw new Error(`actor loginLocal: no session cookie (HTTP ${res.status})`);
   }

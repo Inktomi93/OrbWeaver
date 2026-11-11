@@ -25,7 +25,6 @@
 
 import type { StDroppedField } from "@orb/contracts/preset";
 import type { ThemeOverride } from "@orb/contracts/theme";
-import { isPlainObject } from "@orb/kit/guards";
 import type { Oklch } from "@orb/kit/theme-derivation";
 import { AA_NORMAL_RATIO, oklchToSrgb, wcagContrastRatio } from "@orb/kit/theme-derivation";
 import type { SrgbColor } from "./color.ts";
@@ -41,8 +40,8 @@ export interface ParsedStTheme {
   readonly unmapped: readonly StDroppedField[];
 }
 
-/** One ST theme's parse: the converted palette, or the REASON it could not convert ("not a JSON object",
- *  "no base surface colour"). A refusal always carries its reason; the report prints it verbatim. */
+/** One ST theme's parse: the converted palette, or the REASON it could not convert ("no base surface colour").
+ *  A refusal always carries its reason; the report prints it verbatim. */
 export type StThemeParse = { readonly ok: true; readonly parsed: ParsedStTheme } | { readonly ok: false; readonly reason: string };
 
 /** Ratio decimals in a refusal reason — enough to act on, not enough to read as false precision. */
@@ -170,13 +169,10 @@ function themeLabel(raw: Record<string, unknown>, stem: string): string {
   return typeof named === "string" && named.trim().length > 0 ? named.trim() : stem;
 }
 
-/** Map an already-JSON-parsed ST theme object → the orb-native theme + its unmapped-key list, or null when it
- *  is not a recognizable theme. "Recognizable" = it yields at least ONE orb token: a JSON object that happens
- *  to live under `themes/` but carries no readable ST colour is reported unreadable, never imported blank. */
-export function stThemeFromJson(raw: unknown, stem: string): StThemeParse {
-  if (!isPlainObject(raw)) {
-    return { ok: false, reason: "not a JSON object" };
-  }
+/** Map an already-decoded ST theme object → the orb-native theme + its unmapped-key list, or a refusal with its
+ *  reason when it is not a recognizable theme. "Recognizable" = it yields at least ONE orb token: a JSON object that
+ *  happens to live under `themes/` but carries no readable ST colour is reported unreadable, never imported blank. */
+export function stThemeFromJson(raw: Record<string, unknown>, stem: string): StThemeParse {
   const stack = paintStack(raw);
   if (stack === null) {
     return { ok: false, reason: `no base surface colour (neither \`${ST_SURFACE}\` nor \`${ST_CHAT_SURFACE}\` is a readable colour)` };

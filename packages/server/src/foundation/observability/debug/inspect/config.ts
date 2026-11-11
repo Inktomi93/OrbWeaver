@@ -161,15 +161,25 @@ function renderPolicyVerdict(stored: RenderPolicyOverride, deployment: Deploymen
 }
 
 /** One character's full row + its resolved render policy. `null` when the id does not exist. */
-// un-principal HOST read (D20). Every caller is `/api/_debug/*`, and the ADMITTED SET there is exactly two things: a holder of the `DEBUG_TOKEN` operator secret (a box-level credential, not a principal at all), or the box owner's SESSION (`debugGateAdmits`, `can(p,'owner',global)`; a delegated `admin` is refused). Both are the box operator, so filtering these reads by the caller's own ownerId would raise the confidentiality bar by zero while breaking the probe's actual job — answering "what does this row hold" about OTHER users' rows for an operator debugging their deployment. There is no per-user principal at this seam to scope BY, and adding one would be a boundary that looks like a control without being one.
+// THE NO-PRINCIPAL READ EXEMPTION, homed here for every `/api/_debug` probe; `../routes.ts`, `./automation-fires.ts`
+// and `entry/auth/seam.ts` point at this comment. D341 is the ruling.
 //
-// THIS EXEMPTION IS ENFORCED, NOT ASSERTED (constitution §2 — a prose-only boundary is a wish). Its whole
-// premise is "the gate ran first", and until AUTHFIX-2 (2026-08-07) that premise was FALSE: the gate's admin
-// arm admitted the un-credentialed owner fallback, so these reads served anyone who could reach the port.
-// The enforcers are `tests/server/entry/debug-gate-admission.int.test.ts` (every AUTH_MODE × Host, through the
-// composed root) and the e2e specs over `tests/e2e/support/debug-gate.ts` (each mode's token states). The exemption ENDS if the admitted set ever widens past the box owner:
-// any other per-user principal here makes this a cross-tenant read of arbitrary caller-supplied ids, and
-// then these reads must take an ownerId and filter on it. Turn that suite red before widening anything.
+// These reads take no principal and read every owner's rows. Every caller is `/api/_debug/*`, and its gate admits
+// exactly two callers: a holder of the `DEBUG_TOKEN` operator secret (a box-level credential, not a principal), or a
+// principal the kernel judges the box OWNER (`debugGateAdmits`, `can(p,'owner',global)`) that arrived by a session
+// cookie, a verified forward-header JWT, or the loopback owner fallback where `resolveOwnerFallbackCredential` allows
+// it: `AUTH_FALLBACK=owner`, a non-production build, and no widened `AUTH_FALLBACK_TRUSTED_PEERS`. A delegated
+// `admin` is refused. Both callers are the box operator, so filtering these reads by the caller's own ownerId would
+// raise the confidentiality bar by zero while breaking the probe's actual job — answering "what does this row hold"
+// about OTHER users' rows for an operator debugging their deployment. There is no per-user principal at this seam to
+// scope BY, and adding one would be a boundary that looks like a control without being one.
+//
+// THIS EXEMPTION IS ENFORCED, NOT ASSERTED (constitution §2 — a prose-only boundary is a wish). Its whole premise is
+// "the gate ran first". The enforcers are `tests/server/entry/debug-gate-admission.int.test.ts` (every AUTH_MODE × Host,
+// through the composed root) and the e2e specs over `tests/e2e/support/debug-gate.ts` (each mode's token states). The
+// exemption ENDS if the admitted set ever widens past the box owner and the token holder: any other per-user principal
+// here makes this a cross-tenant read of arbitrary caller-supplied ids, and then these reads must take an ownerId and
+// filter on it. Turn that suite red before widening anything.
 export async function characterDetailRow(db: Db, characterId: CharacterId, deployment: DeploymentRenderPolicy | null): Promise<CharacterDetailRow | null> {
   const rows = await db.select().from(characters).where(eq(characters.id, characterId)).limit(1);
   const r = rows[0];

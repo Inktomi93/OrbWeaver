@@ -55,7 +55,7 @@ import { gameTrackers, sortTrackers } from "./tracker.ts";
 export interface ExtractionPromptContext {
   readonly config: RpgGameConfig;
   readonly refs: ExtractionRefs;
-  /** PROSE-1 §4.5 (census 11-26) — the GM PRESET's model-facing overrides for the extraction seam, threaded
+  /** Census 11-26 — the GM PRESET's model-facing overrides for the extraction seam, threaded
    *  whole exactly as `LiteReminderInput.prose` is. Every string below resolves through it, so a host edit in
    *  the preset Templates tab lands on the write surface. ABSENT ⇒ `{}` ⇒ every fragment is byte-identical to
    *  the pre-PROSE-1 constant, which is what keeps `RPG_BASELINE_TOOL_DESCRIPTIONS` (built at module load,
@@ -64,7 +64,7 @@ export interface ExtractionPromptContext {
 }
 
 /** Resolve ONE rpg prose slot against this context's overrides, splicing the slot's declared PRE-SUBSTITUTION
- *  tokens (PROSE-1 §4.5 arm (a): the per-game TEMPLATE is a slot whose text is the template source and whose
+ *  tokens (the per-game TEMPLATE is a slot whose text is the template source and whose
  *  token VALUES this module computes off the ctx).
  *
  *  It goes through `#prose-slot`'s primitives rather than `#prose`'s `resolveProseText` for ONE structural

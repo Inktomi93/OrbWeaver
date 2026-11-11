@@ -1,4 +1,4 @@
-// @orb/contracts/rpg/prose — the rpg prose slot table (PROSE-1 §4.1). TWO cohorts, one table:
+// @orb/contracts/rpg/prose — the rpg prose slot table (D132). TWO cohorts, one table:
 //   • census 1-10   — the steering REMINDER seam (what the NARRATOR is taught the tracked values mean).
 //     `domain/rpg/substrate/reminder.ts` + `delta.ts` resolve these rows through the prose registry,
 //     so defaults and preset overrides share one authored home.
@@ -27,7 +27,7 @@
 // args changed. An ABSENT override is byte-identical to the pre-PROSE-1 constant, which is the whole safety
 // story for this migration.
 //
-// MACRO MODE (§6.1): the TEACHES are `names-only` — the reminder resolves a host override's `{{user}}`/`{{char}}`
+// MACRO MODE: the TEACHES are `names-only` — the reminder resolves a host override's `{{user}}`/`{{char}}`
 // through the same identity-only registry `renderSteeringNote` uses (a default carries no macro, so it resolves
 // byte-identically). The two DELTA HEADINGS are `none`: a diff heading has no character context to substitute,
 // so its bytes ship verbatim (owner decision 5 ruled them prose/voice, in scope — the STRUCTURAL labels of
@@ -167,13 +167,13 @@ For example, a three-line sign is enough:
   },
 
   // ══════════════════════════════════════════════════════════════════════════════════════════════════
-  // THE EXTRACTION SEAM (census 11-27 + 29-36) — the WRITE-surface prose (PROSE-1 §4.5, S4).
+  // THE EXTRACTION SEAM (census 11-27 + 29-36) — the WRITE-surface prose (S4).
   // ══════════════════════════════════════════════════════════════════════════════════════════════════
   // The reminder cohort above teaches the NARRATOR what the tracked values mean. This cohort teaches the
   // EXTRACTOR what to write back — the per-plane teaching fragments, the six tool descriptions, and the two
   // system-prompt framings the structured extraction / cheap tool round / folded turn / resync all compose.
   //
-  // WHY THEY ARE PLAIN `text` SLOTS AND NOT A `render(ctx)` ARM ON `ProseSlotDef` (§4.5 arm (a), as the spec
+  // WHY THEY ARE PLAIN `text` SLOTS AND NOT A `render(ctx)` ARM ON `ProseSlotDef` (as the design
   // spells it out): "the override being a template string resolved against the SAME ctx ... with a
   // slot-declared token vocabulary ... The shipped default is expressed in that same vocabulary, so reset-to-
   // default is byte-exact." That mechanism already shipped — `resolveProseText(id, overrides, tokens)` splices
@@ -191,7 +191,7 @@ For example, a three-line sign is enough:
   // migration of this size would otherwise drift). It also means a host can retune ONE clause — the weather
   // steer, the mood-is-a-short-read rule — without re-authoring the whole plane.
   //
-  // MACRO MODE is `none` for the whole cohort (§6.1): the tokens ARE this game's own tracker vocabulary, and
+  // MACRO MODE is `none` for the whole cohort: the tokens ARE this game's own tracker vocabulary, and
   // an extraction prompt is not a character context — there is no `{{user}}`/`{{char}}` binding to resolve, so
   // any other `{{…}}` in an override ships as literal braces rather than silently rendering empty.
   //
@@ -835,7 +835,7 @@ For example, a three-line sign is enough:
   // THE USER-TURN ROWS CARRY THE BLOCK, not just its label. The seam pushes whole `label + "\n" + body`
   // strings into one `blocks` array, so the slot is that push site and the body arrives as a TOKEN — which is
   // what lets a host re-order or re-frame a block rather than only rename it. An override that drops the body
-  // token loses the body: the documented warn-never-block cost (§6.3), identical to the plane-teaching slots.
+  // token loses the body: the documented warn-never-block cost, identical to the plane-teaching slots.
   "rpg.populate.systemHeader": {
     home: "preset",
     version: 1,

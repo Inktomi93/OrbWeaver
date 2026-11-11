@@ -4,7 +4,7 @@
 // The card list is DATA: `USER_PROSE_SLOT_IDS` (contracts) is every `home:"user"` slot whose override lives
 // in the `prose` blob, derived from the registry — so a new slot table row reaches this editor with no edit
 // here. Each field ghosts its shipped default as the `placeholder`: an EMPTY field means "no override" and
-// resolves byte-identical to the shipped bytes (the default-identity discipline, §4.3).
+// resolves byte-identical to the shipped bytes (the default-identity discipline, D132 clause E).
 //
 // FIELD NAMES are the slot id with its dots swapped for dashes. TanStack Form reads `name` as a DOT PATH, so
 // a literal `chat.arbiter.system` field name would address `values.chat.arbiter.system` — three levels of
@@ -41,7 +41,7 @@ export function projectProseForm(prose: ProseOverrides): Record<string, string> 
 type ProseSlotsPatch = { [Id in ProseSlotId]?: ProseOverride | null };
 
 /** The patch value for ONE slot: a trimmed non-empty field is an override stamped with the CURRENT slot
- *  version (§4.4 — any save re-stamps, which is what "keep mine" means); a blank field is the leaf `null`
+ *  version (any save re-stamps, which is what "keep mine" means); a blank field is the leaf `null`
  *  sentinel, because the server's section merge treats `undefined` as "don't touch" and a cleared override
  *  must actually clear (`imagery-templates-model` carries the same contract). */
 function proseSlotPatch(id: ProseSlotId, value: string): ProseOverride | null {

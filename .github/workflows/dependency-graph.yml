@@ -1,8 +1,9 @@
 name: Dependency graph
 
-# GitHub's dependency graph reads only the first document of a pnpm 12 lockfile, which holds pnpm itself,
-# so Dependabot never sees the npm tree (dependabot/dependabot-core#15904). This job submits the full tree
-# from pnpm's own SBOM, which drives Dependabot alerts. Remove it once the graph parses both documents.
+# GitHub's static parse of a pnpm 12 lockfile now reads the dependency document, but reporters on
+# dependabot/dependabot-core#15904 find its runtime and development scope wrong in both directions, and scope
+# decides how an alert reads. A submitted graph outranks the static parse, so this job submits the full tree from
+# pnpm's own SBOM, which drives Dependabot alerts. Remove it once the static parse labels scope as `pnpm sbom --prod` does.
 on:
   push:
     branches: [main, release]

@@ -77,7 +77,7 @@ import type {
 } from "./results.ts";
 
 // ── injected cross-feature ops (type-only; wired at the root) ─────────────────
-/** The card owner's model-facing PROSE overrides (PROSE-1 §4.3) — `UserSettings.prose`, resolved at the entry
+/** The card owner's model-facing PROSE overrides (D132 clause A) — `UserSettings.prose`, resolved at the entry
  *  root off the SAME `loadUserSettings` seam the sampling rung reads. CALLER-scoped, not room-host-scoped
  *  (the imagery `resolvePromptTemplate` precedent): a distill / compare / ask is one human's request about
  *  their OWN library, never a room-level side generation. Bound type-only here (discovery never reads the

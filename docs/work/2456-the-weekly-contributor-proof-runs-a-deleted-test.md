@@ -1,9 +1,11 @@
 ---
 kind: bug
-status: open
+status: blocked
 updated: 2026-11-11
 priority: P1
 area: tooling
+blocked: owner
+evidence: a6870afcfb
 ---
 
 # The weekly contributor proof runs a deleted test file and is red by construction

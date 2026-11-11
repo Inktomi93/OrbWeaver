@@ -1,13 +1,13 @@
 // Cookie layer `local` and `oidc` modes share. Post-D40, the auth seam calls `sessions.validate(token)`
 // directly before ever falling through to infra's `resolve`, so infra no longer reads/validates the
-// session cookie — the cookie modes resolve to `null` here. The cookie NAMES stay homed here, shared by
-// the seam's reader and the entry route writer.
+// session cookie — the cookie modes resolve to `null` here. The cookie TABLE (name + attributes per transport)
+// stays homed here, shared by the seam's reader and the entry route writer; the names are the identity
+// contract's `SESSION_COOKIE_NAMES`, which says why each is spelled as it is.
 //
-// ONE NAME PER TRANSPORT (`transport.ts` decides the transport per request). Over https the cookie is
-// `__Host-orb_session` + `Secure`. A browser refuses a `Secure` cookie from a plain-http origin other than
-// `localhost`, and the `__Host-` prefix REQUIRES `Secure` (RFC 6265bis §4.1.3.2), so plain http gets a
-// DISTINCT, prefix-less name without `Secure`. Distinct on purpose: one jar can hold both, and two cookies
-// sharing a name would let a stale one shadow the live one in whichever order the browser sent them.
+// ONE NAME PER TRANSPORT (`transport.ts` decides the transport per request). Over https the cookie carries the
+// `__Host-` name + `Secure`. A browser refuses a `Secure` cookie from a plain-http origin other than
+// `localhost`, and the `__Host-` prefix REQUIRES `Secure` (RFC 6265bis §4.1.3.2), so plain http gets the
+// prefix-less name without `Secure`.
 //
 // THE ATTRIBUTES ARE A FUNCTION OF THE NAME. A browser drops any `Set-Cookie` under the `__Host-` name that
 // omits `Secure` + `Path=/` + no `Domain`, including the CLEARING one a logout writes. Pairing each name with
@@ -17,18 +17,8 @@
 // origin can plant it; an https request that read it would hand every https session that fixation hole.
 
 import type { RequestTransport, ResolvedIdentity } from "@orb/contracts/identity";
+import { SESSION_COOKIE_NAMES } from "@orb/contracts/identity";
 import type { SessionCookie } from "../contract.ts";
-
-/** The https name. `__Host-` pins Secure + host-only + path=/ (no Domain). */
-const SESSION_COOKIE_NAME_SECURE = "__Host-orb_session";
-
-/**
- * The plain-http name. No cookie-prefix: `__Host-` and `__Secure-` both REQUIRE `Secure` (RFC 6265bis
- * §4.1.3), so a prefixed spelling without it is a `Set-Cookie` the browser discards. NEITHER FULL NAME IS A
- * SUBSTRING OF THE OTHER, so an ad-hoc `includes` or regex against one cannot also match the other. The word
- * `insecure` lets an operator see in their own cookie jar that the session rides plain http.
- */
-const SESSION_COOKIE_NAME_INSECURE = "orb_session_insecure";
 
 /** The attributes every auth cookie carries on each transport; the `__Host-` names need the https string.
  *  `HttpOnly` (no script read), `SameSite=Lax` (no cross-site ride) and `Path=/` apply on both transports;
@@ -39,8 +29,8 @@ export const AUTH_COOKIE_ATTRS = {
 } as const satisfies Record<RequestTransport, string>;
 
 const SESSION_COOKIE_BY_TRANSPORT = {
-  https: { name: SESSION_COOKIE_NAME_SECURE, attrs: AUTH_COOKIE_ATTRS.https },
-  http: { name: SESSION_COOKIE_NAME_INSECURE, attrs: AUTH_COOKIE_ATTRS.http },
+  https: { name: SESSION_COOKIE_NAMES.https, attrs: AUTH_COOKIE_ATTRS.https },
+  http: { name: SESSION_COOKIE_NAMES.http, attrs: AUTH_COOKIE_ATTRS.http },
 } as const satisfies Record<RequestTransport, SessionCookie>;
 
 /** The session cookie for a request's transport. The reader (`entry/auth/seam.ts`) and the writer

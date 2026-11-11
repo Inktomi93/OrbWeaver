@@ -18,7 +18,7 @@ SELF_REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." 2>/dev/null && pwd)
 cd "${CLAUDE_PROJECT_DIR:-$SELF_REPO_ROOT}" 2>/dev/null || exit 0
 echo "=== AUTO-ONBOARD (SessionStart hook — read, then ACT on it; re-derive nothing below) ==="
 # core.hooksPath REPAIR. While it is set locally, lefthook does not sync the git hooks. An external tool
-# (likely Codex) sets it to the default hooks dir, which is the same as unset, so clearing that value is
+# can set it to the default hooks dir, which is the same as unset, so clearing that value is
 # safe. Any other value is someone's choice: warn, never touch.
 HOOKS_PATH=$(git config --local --get core.hooksPath 2>/dev/null || true)
 if [ -n "$HOOKS_PATH" ]; then

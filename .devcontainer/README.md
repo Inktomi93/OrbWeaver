@@ -80,9 +80,10 @@ host sessions keep whatever the host user settings say.
 The repo is bind-mounted, so host and container would otherwise fight over
 `node_modules` (pnpm stamps its store path in `.modules.yaml`; two different stores ⇒
 the "store has changed, purge?" prompt every time you switch sides). The cure is the
-standard one: **named volumes overlay every `node_modules`**: the root, `tooling/` and every
-`packages/*/node_modules`, so nothing pnpm writes touches the host folder. A container config test fails
-when a workspace package has no volume.
+standard one: **named volumes overlay every `node_modules`**: the root and every importer that the
+`packages:` globs of `pnpm-workspace.yaml` select, so nothing pnpm writes touches the host folder.
+`tests/tooling/container-security-config.int.test.ts` reads those globs and fails when an importer has no
+volume in `devcontainer.json` or no mount point in the `Dockerfile`.
 
 The store itself must share a device with those volumes (hardlinks), and pnpm's
 per-device fallback would otherwise probe the bind-mounted `/workspace` and dump a
@@ -101,13 +102,13 @@ re-verify with `pnpm store path` inside the container; the symptom of regression
 
 ## Volumes
 
-Per-project named volumes (survive rebuilds; wipe to reset):
+Per-project named volumes survive rebuilds. Each name starts with the checkout folder's name (`orbweaver-` below). Stop the container, then wipe every one to reset:
+
+> [!WARNING]
+> Keep both filters anchored. A bare `name=orbweaver` filter also matches the app's own data volumes, such as `orbweaver_data`.
 
 ```bash
-docker volume rm \
-  orbweaver-node_modules orbweaver-kit-node_modules orbweaver-contracts-node_modules \
-  orbweaver-db-node_modules orbweaver-server-node_modules orbweaver-ui-node_modules \
-  orbweaver-client-node_modules orbweaver-pnpm-store
+docker volume rm $(docker volume ls -q --filter 'name=^orbweaver-.*node_modules$' --filter 'name=^orbweaver-pnpm-store$')
 ```
 
 Plus the per-container `claude-code-config-*` (login/settings) and

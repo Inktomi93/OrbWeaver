@@ -34,7 +34,7 @@ The ledger split is one commit that re-points the D-citation gate at the ADR tre
 ## Alternatives rejected
 
 - SQLite for docs or items: a binary database cannot merge across parallel worktree lanes.
-- An MCP server: Claude-only, a server for a script's job, and a mid-session change invalidates the prompt cache; Codex and Qwen must use the same tool.
+- An MCP server: Claude-only, a server for a script's job, and a mid-session change invalidates the prompt cache; Qwen must use the same tool.
 - The proposal, design and tasks trio of spec-kit and OpenSpec: measured to cost two to three times the tokens for no better code.
 - Keeping the single ledger file: it is the mega-doc problem; one row per file keeps the numbers and lets a lane own a bounded batch.
 - Keeping GitHub Projects: throttled, rotted, and off the tree; in-flight state lives in the repo.

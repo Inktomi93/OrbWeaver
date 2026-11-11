@@ -20,7 +20,7 @@ The admission. `admitsHandle` refuses a handle outside the UTS 39 highly restric
 
 Character handles. A character handle follows the same invisible-character rule. `slugifyHandle` drops every default-ignorable, control or format code point and the two blank-rendering symbols, and `SLUG_HANDLE_PATTERN` refuses each one; a `White_Space` code point still folds to a separator. A name made only of invisible code points takes the fold's empty-slug path. A stored character handle keeps reading by length, and every copy or export of one goes through `portableCharacterHandle`. Homes: `packages/kit/src/slug/` and `packages/contracts/src/character/`. Check: `tests/contracts/character/handle-alphabet.contract.test.ts`, which enumerates every code point this Decision refuses as unseen.
 
-The data. `baseline unicode-handle-key` vendors the case folding, default-ignorable, confusable and script-code tables for the engine's Unicode version, refusing a source whose SHA-256 differs from its pin, and a kit test pins the two versions together. A Unicode bump re-keys every `users.handle_key` row.
+The data. `scripts/generate-unicode-handle-key.ts` vendors the case folding, default-ignorable, confusable and script-code tables for the engine's Unicode version, refusing a source whose SHA-256 differs from its pin, and a kit test pins the two versions together. A Unicode bump re-keys every `users.handle_key` row.
 
 Checks: the hard `orb/handle-key-writer` ESLint rule (a users write that sets `handle` without `handleKey`), the composed rename case in `tests/server/domain/sessions/persistence/users.int.test.ts`, the kit suite (idempotence and case-insensitivity over the BMP, the look-alike and mixed-script cases), `users_handle_key_unique`, and each writer's suite.
 

@@ -69,7 +69,7 @@
       "force-tag-creation": true,
       "pull-request-footer": "Merging this tags a draft release and builds the image. The GitHub release publishes after image verification succeeds. Next time, run `pnpm release` from main: it merges this version bump back into main before pushing.",
       "pull-request-header": "Merging this prepares the release below; publication waits for the verified image.",
-      "exclude-paths": [".agents", ".claude", ".codex", ".github", ".vscode", "docs", "playwright", "reports", "scripts", "tests", "tooling"]
+      "exclude-paths": [".claude", ".github", ".vscode", "docs", "playwright", "reports", "scripts", "tests", "tooling"]
     },
     "packages": {
       "release-type": "simple",

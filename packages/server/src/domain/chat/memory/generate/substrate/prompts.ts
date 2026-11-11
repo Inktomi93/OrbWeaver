@@ -9,7 +9,7 @@
 //
 // Row 79 (`digestUserPrompt`'s `SUMMARIZE_TRANSCRIPT_MARKER` lead) is deliberately NOT a slot: its only literal is a
 // two-word structural LABEL (spec §2.11 — the reading grammar, not the voice, and a host edit buys nothing),
-// and homing it would need §4.5's template machinery. It rides to S4 with the rest of the template prose.
+// and homing it would need the template machinery. It rides to S4 with the rest of the template prose.
 
 import type { ProseOverrides } from "@orb/contracts/prose";
 import { resolveProseText } from "@orb/contracts/prose";

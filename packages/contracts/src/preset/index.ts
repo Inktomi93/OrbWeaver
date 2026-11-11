@@ -652,7 +652,7 @@ export const guidedActionKindSchema = z.enum(GUIDED_ACTION_KINDS) satisfies z.Zo
 
 // The guided-action default TEMPLATES are PROSE-1 slots — the bytes are authored once in `./prose` (census
 // rows 38-44) and read here, so the shipped default, the registry row and the editor's ghosted placeholder
-// can never disagree. Revising one is a `text` + `version` edit in `./prose`, gated by `prose-baseline.json`.
+// can never disagree. Revising one is a `text` + `version` edit in `./prose`; `tests/contracts/prose/prose-baseline.repo.int.test.ts` fails the edit unless the version rises.
 //
 // Greeting studio (audit §3) — the guided-action machinery pointed at a BASE greeting text (the card's own
 // opening), NOT a chat turn. `greeting_rewrite` carries `{{base}}` — the existing greeting text, spliced
@@ -1093,15 +1093,15 @@ const FORMAT_STRING_CARRIER_TOKENS = [{ key: "wiFormat", token: "{{entry}}" }] a
 // registration-cost shape), never a new editor. The client's old `GUIDED_ACTION_COPY` map is retired INTO
 // `label`/`fires` (G11) — one home for the copy.
 //
-// SCOPE (§6.6, WIDENED by the owner ruling of 2026-08-07 — "templates need to have one home in presets not
+// SCOPE (WIDENED by the owner ruling of 2026-08-07 — "templates need to have one home in presets not
 // scattered between that and settings or hiding in code"): `guidedActions` ∪ the ACTION-shaped
 // `formatStrings` ∪ `PRESET_PROSE_SLOT_IDS` (the turn-wire framings, which used to be `UserSettings.prose`
-// rows and a `const` in `assembly/shape.ts`). The original §6.6 line read "the ACTIONS-VIEW set only" and was
+// rows and a `const` in `assembly/shape.ts`). The original scope line read "the ACTIONS-VIEW set only" and was
 // scoped to things a USER ACTION fires; the ruling makes the tab the one home for authorable prompt TEXT,
 // which is a superset. A row's `kind` still says which it is. WIDENED AGAIN 2026-08-08 by the same ruling read
 // to its end ("we are putting everything in presets"): the eleven rpg steering-reminder teaches re-homed here
 // from `rpg_games.config.prose`, so the set is now every `PRESET_PROSE_SLOT_ID` whatever domain authored it.
-// `wiFormat` is NOT here: it frames world-info ENTRIES and is edited in the WI marker's body editor (§6.5
+// `wiFormat` is NOT here: it frames world-info ENTRIES and is edited in the WI marker's body editor (per the
 // census), so a row would mint the second home the census exists to prevent. Marker templates
 // (scenario/personality/…) likewise keep their section home.
 //
@@ -2189,7 +2189,7 @@ export const TEMPLATE_DEFS = [
 ] as const satisfies readonly TemplateDef[];
 
 /** The ids the registry MUST cover: every guided kind + every ACTION-shaped format string. `wiFormat` is
- *  excluded by the §6.6 scope boundary (it lives in the WI section editor). */
+ *  excluded by the scope boundary (it lives in the WI section editor). */
 type RegistryTemplateId = GuidedActionKind | Exclude<FormatStringKey, "wiFormat">;
 /** tsc-forced exhaustiveness: a new guided kind or format string with no `TEMPLATE_DEFS` row surfaces HERE
  *  as the missing id, not as a silently absent row in the Actions view. */
@@ -2197,7 +2197,7 @@ type UnregisteredTemplateId = Exclude<RegistryTemplateId, (typeof TEMPLATE_DEFS)
 const [_templateDefsAreExhaustive]: [[UnregisteredTemplateId] extends [never] ? true : UnregisteredTemplateId] = [true];
 
 /** Default `/compact` steering (RP-tuned vs the SDK's generic coding-agent summary). DERIVED from the
- *  PROSE-1 slot (census 49, §4.6 adapted): the override stays `promptConfig.compaction.instructions`; the
+ *  PROSE-1 slot (census 49, adapted): the override stays `promptConfig.compaction.instructions`; the
  *  slot is what gives the default a version, a staleness signal and registry coverage from ONE place. */
 export const DEFAULT_COMPACT_INSTRUCTIONS = PRESET_PROSE_SLOTS[PRESET_COMPACTION_SLOT_ID].text;
 
@@ -2464,7 +2464,7 @@ export const promptConfigSchema = z
     // Keyed by slot id, holding the SAME `{text, baseVersion}` record every other home stores — which is why
     // `resolveProse` needs no per-home arm. Additive + `.prefault({})`, so a pre-ruling blob parses unchanged
     // and resolves every slot to its shipped default (the `variables`/`userMacros` precedent — no version bump).
-    // NOT a second door for the guided/format slots: those stay in their own fields (§4.6) and
+    // NOT a second door for the guided/format slots: those stay in their own fields and
     // `PRESET_PROSE_SLOT_IDS` excludes them.
     prose: proseOverridesSchema,
     postProcess: z
@@ -2948,7 +2948,7 @@ export const DEFAULT_PROMPT_CONFIG: PromptConfig = {
   guidedActions: DEFAULT_GUIDED_ACTIONS,
   // EMPTY, not the shipped framing bytes: an override record IS the "the host wrote this" signal, so seeding
   // it would make every new preset read Customized and would freeze today's wording into stored data that a
-  // revised default could never reach (§4.4). Absent ⇒ the slot's own text, byte-identical.
+  // revised default could never reach. Absent ⇒ the slot's own text, byte-identical.
   prose: {},
 };
 

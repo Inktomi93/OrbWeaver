@@ -365,7 +365,7 @@ export function questLine(quest: RpgTrackerView["quests"][number]): string {
  *  each gated by its knob (all off ⇒ `[]`, byte-identical to a pre-feature reminder). Extracted so
  *  `buildLiteReminder` stays under the cognitive-complexity ceiling — a NEW teach is one arm here. */
 /** Resolve a teach SLOT against the turn preset's `promptConfig.prose` overrides and render its `names-only` macros
- *  (§6.1) — the same identity-only registry {@link renderSteeringNote} uses, so a host override's
+ *  — the same identity-only registry {@link renderSteeringNote} uses, so a host override's
  *  `{{user}}`/`{{char}}` become names while every other macro re-emits verbatim. NOT trimmed (unlike the
  *  steering note): a teach's own leading whitespace is load-bearing — the card example opens with a blank line
  *  that separates it from the ask. A macro-FREE resolved text — every shipped default — never touches the
@@ -483,7 +483,7 @@ export function buildLiteReminder(input: LiteReminderInput): string {
     participantNames: input.participantNames,
     trackerDefs: view.trackerDefs,
     relationshipHints: input.features.relationshipHints,
-    // PROSE-1 — the two delta HEADINGS are slots resolved off the preset prose (§4.3). Absent ⇒ shipped defaults.
+    // PROSE-1 — the two delta HEADINGS are slots resolved off the preset prose. Absent ⇒ shipped defaults.
     prose: input.prose ?? {},
   });
   if (delta !== null) {

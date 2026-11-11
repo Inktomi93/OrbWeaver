@@ -206,7 +206,7 @@ test("supplied persistent CAS and variants survive root disposal and remain read
   using fresh = await freshDb();
   const db = fresh.db;
   await using callerResources = new AsyncDisposableStack();
-  const directory = await mkdtemp(join(tmpdir(), "codex-compose-media-997-958-persistent-"));
+  const directory = await mkdtemp(join(tmpdir(), "orb-compose-media-997-958-persistent-"));
   callerResources.defer(() => rm(directory, { recursive: true, force: true }));
   const casDir = join(directory, "cas");
   const variantDir = join(directory, "variants");

@@ -9,7 +9,7 @@
 #            well under one percent)
 #   body     OPTIONAL — docs and chore commits are routinely one-liners by long-standing practice
 #   trailer  at least one `Co-Authored-By: Name <local@domain>` (every commit in history carries one; the
-#            addresses are noreply@anthropic.com / noreply@openai.com / codex@openai.com) and every trailer
+#            addresses are noreply@anthropic.com / noreply@openai.com) and every trailer
 #            well-formed: no spaces or angle-bracket junk in the address (the Qwen lane emits `<qwen-lane @local>`)
 #   closes   an OPTIONAL `Closes: 12, 14` trailer names the work items (docs/work/) this commit lands;
 #            `pnpm doc land --merged` and `pnpm doc drift` read it (no git hook runs them: lefthook.yml's

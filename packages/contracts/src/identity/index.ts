@@ -196,6 +196,21 @@ export function isMultiHumanCapable(mode: AuthMode, localMultiUser: boolean): bo
 export const REQUEST_TRANSPORTS = ["https", "http"] as const;
 export type RequestTransport = (typeof REQUEST_TRANSPORTS)[number];
 
+/**
+ * The session cookie's name on each request transport. The names are distinct on purpose: one jar can hold both,
+ * and two cookies sharing a name would let a stale one shadow the live one in whichever order the browser sent
+ * them. NEITHER FULL NAME IS A SUBSTRING OF THE OTHER, so an ad-hoc `includes` or regex against one cannot also
+ * match the other.
+ */
+export const SESSION_COOKIE_NAMES = {
+  /** `__Host-` pins Secure + host-only + path=/ (no Domain). */
+  https: "__Host-orb_session",
+  /** No cookie prefix: `__Host-` and `__Secure-` both REQUIRE `Secure` (RFC 6265bis §4.1.3), so a prefixed
+   *  spelling without it is a `Set-Cookie` the browser discards. The word `insecure` lets an operator see in
+   *  their own cookie jar that the session rides plain http. */
+  http: "orb_session_insecure",
+} as const satisfies Record<RequestTransport, string>;
+
 /** Where a request's resolved client address sits: this machine (a loopback address, where nothing crosses a
  *  network), a private network, or the public internet. */
 export const CLIENT_SCOPES = ["loopback", "private", "public"] as const;

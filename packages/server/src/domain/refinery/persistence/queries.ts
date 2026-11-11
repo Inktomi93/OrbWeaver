@@ -207,10 +207,20 @@ export async function latestVerdictsOf(db: Db, sessionIds: readonly RefinerySess
   return map;
 }
 
-const originalCardGreetingsParser = greetingsColumnSchema.unwrap().catch(() => {
-  addSpanEvent(HEAL_EVENT, { arm: "originalCard.greetings" });
-  return [];
-});
+// The column schema keeps every readable greeting silently; this reader still reports a heal, so it counts what the schema dropped.
+const originalCardGreetingsParser = z
+  .array(z.unknown())
+  .catch(() => {
+    addSpanEvent(HEAL_EVENT, { arm: "originalCard.greetings" });
+    return [];
+  })
+  .transform((rows) => {
+    const greetings = greetingsColumnSchema.parse(rows);
+    if (greetings.length < rows.length) {
+      addSpanEvent(HEAL_EVENT, { arm: "originalCard.greetings" });
+    }
+    return greetings;
+  });
 const originalCardDepthPromptParser = cardDepthPromptSchema.nullable().catch(() => healedOriginalCard("depthPrompt"));
 const originalCardSourceParser = z
   .array(z.string())

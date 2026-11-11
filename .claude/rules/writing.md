@@ -50,7 +50,7 @@ Keep owner-voice sections in the owner's own words. Do not rewrite them into pla
 12. Add a rule only when a mistake repeats. A one-off gets fixed in code.
 13. Edit in place. Deleting is normal. Never write a correction beside the original.
 14. Always-on text stays small. `AGENTS.md` with its imports, plus any rule without `paths:`, stays
-    under 200 lines. `AGENTS.md` lists every rule file with its `paths:` globs, for Codex. Every rule uses list-form `paths:` frontmatter. Procedures are skills. Agent bodies stay short.
+    under 200 lines. `AGENTS.md` lists every rule file with its `paths:` globs, for Qwen Code and OpenCode. Every rule uses list-form `paths:` frontmatter. Procedures are skills. Agent bodies stay short.
 
 ## Markdown
 

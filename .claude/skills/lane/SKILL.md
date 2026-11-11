@@ -39,8 +39,7 @@ When a finding collides with a recorded ruling, keep the old mechanism and satis
 
 ## Git
 
-- Run Git in the intended checkout. In Codex, use the shell tool's `workdir` or `git -C <worktree>`.
-- In Claude's guarded worktree shell, use the checkout's working directory; follow "Shell shapes in a worktree" below.
+- Run Git in the intended checkout. In Claude's guarded worktree shell, use the checkout's working directory; follow "Shell shapes in a worktree" below.
 - In your own worktree, `git add -A` is fine.
 - On main or any shared tree, stage and commit by exact pathspec. `git stash -u` or a bare `git commit -m` can sweep a sibling's files.
 - On a shared file, check your edit per row id, not by line count. A count can match by accident.
@@ -153,7 +152,6 @@ List each command and its result in the report. The whole-tree check is the orch
 - In Claude, start a long command with `run_in_background`, then do other work or end your turn; its completion notification wakes you. To wait for a condition, use Monitor with an until-loop that exits, or one background until-loop. Never sleep-poll, re-read a log, or arm a second waiter: the orb-guard mod refuses those and names the right form.
 - Run targeted checks only: `pnpm test <files>`, `pnpm test:ct <files>`, `pnpm typecheck <tsconfig paths>`, `pnpm lint:eslint <paths>`, plus `pnpm depcruise` and `pnpm knip`. Whole-tree runs (bare `pnpm test`, `pnpm typecheck`, tree-wide `lint:eslint`, `pnpm unwired`, `pnpm e2e*`) are the orchestrator's; name the ones you think are owed in your report.
 - Run every tool through its package script (`pnpm test`, `pnpm test:ct`, `pnpm typecheck`, `pnpm lint:eslint` and the rest of `package.json`), never `npx` or `node_modules/.bin`. Redirect a script's output to a file instead of piping it into a filter.
-- In Codex, retain the running command's session identifier and collect its completion through the available shell tool.
 - A running command has no verdict. Read its completed artifact before reporting success or failure.
 - Read completed native runner output and artifacts printed by that run. A report from another run is not current evidence.
 - Never wait on `pgrep` of a harness name. It matches every checkout on the box, so a sibling's run blocks you.
@@ -161,7 +159,7 @@ List each command and its result in the report. The whole-tree check is the orch
 
 ## Shell shapes in a worktree
 
-These restrictions apply to Claude's guarded worktree shell. Codex uses its own shell and filesystem permissions.
+These restrictions apply to Claude's guarded worktree shell.
 
 - Write or change a file with the Write or Edit tool, never `cat <<` or `>>` into it.
 - Put a script in a scratch file and run `python3 <file>` or `node <file>`, never a `- <<` heredoc.

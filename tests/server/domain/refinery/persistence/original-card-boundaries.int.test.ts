@@ -58,3 +58,13 @@ test("legacy structured projection heals one signal field without losing its val
       .where(eq(refinerySessions.id, captured.id)),
   ).toEqual([{ raw: bytes }]);
 });
+
+test("a historical original card keeps its readable greetings beside a malformed one", async ({ harness }) => {
+  const { owner, captured } = await session(harness);
+  const kept = { text: "A readable greeting." };
+  await harness.db
+    .update(refinerySessions)
+    .set({ originalCard: sql`${JSON.stringify({ ...captured.originalCard, greetings: [kept, { text: false }] })}` })
+    .where(eq(refinerySessions.id, captured.id));
+  expect((await harness.services.refinery.getSession({ principal: owner, sessionId: captured.id })).originalCard.greetings).toEqual([kept]);
+});

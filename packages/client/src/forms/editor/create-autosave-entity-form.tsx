@@ -32,7 +32,7 @@ import { useAppForm } from "./use-app-form.ts";
  * not the consumer — owns the entity key. The internal Session is a closure component (never exported), so
  * wrong key placement is unspellable.
  *
- * EXACTLY ONE PERSISTENCE SEAM, ENFORCED AT COMPILE TIME (Codex audit `client-forms-01`, 2026-08-13).
+ * EXACTLY ONE PERSISTENCE SEAM, ENFORCED AT COMPILE TIME.
  * Both seams used to be optional and the driver ran `await save?.(value)` — a boundary mounted with
  * NEITHER re-baselined, cleared the crash-survival draft, and reported "Saved" over an edit that had gone
  * nowhere. Autosave that can lie is worse than no autosave. A mint-time throw cannot decide this (all 25

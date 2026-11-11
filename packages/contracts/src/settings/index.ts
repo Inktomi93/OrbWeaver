@@ -620,7 +620,7 @@ export type ImagerySettings = z.infer<typeof imagerySchema>;
  *  default-identity discipline). The ONE resolver both the compose op + the tests read (never a re-spelled
  *  fallback that could drift from the catalog).
  *
- *  PROSE-1 §4.6: the STORAGE is unchanged (`imagery.templates.<mode>`, a bare string) — the two rungs are
+ *  The STORAGE is unchanged (`imagery.templates.<mode>`, a bare string) — the two rungs are
  *  funnelled through `resolveProse` so precedence and the staleness signal come from ONE place. */
 export function resolveImageryTemplate(imagery: ImagerySettings, mode: ExtractionMode): string {
   const id = IMAGERY_TEMPLATE_SLOT_IDS[mode];
@@ -735,11 +735,11 @@ export const userSettingsSchema = z
     chat: chatSchema,
     library: librarySchema,
     imagery: imagerySchema,
-    // PROSE-1 §4.2 — the per-USER prose-slot overrides (`home: "user"` slots only). Keyed by the closed
+    // The per-USER prose-slot overrides (`home: "user"` slots only). Keyed by the closed
     // `ProseSlotId` vocabulary, so a RETIRED slot id in a stored blob is stripped at the parse seam rather
     // than failing the whole section. Empty ⇒ every slot resolves to its shipped default, byte-identical.
-    // The pre-PROSE-1 `imagery.templates/.captions` fields keep their own storage (§4.6: adapt, never
-    // duplicate) and are NOT mirrored here.
+    // The pre-PROSE-1 `imagery.templates/.captions` fields keep their own storage (adapted, never
+    // duplicated) and are NOT mirrored here.
     prose: proseOverridesSchema,
     persona: personaSchema,
     // The STORED read shares the chat blob's ONE strip home (`storedGroupConfigSchema`): a retired group key

@@ -87,8 +87,11 @@ else
     echo "Skipped GitHub IP ranges"
 fi
 
-# Resolve and add other allowed domains
+# Resolve and add other allowed domains. api.github.com is resolved here as well as covered by the
+# GitHub ranges, so a failed or junk range fetch still admits the host the self-test below must reach.
+# Keep that self-test unconditional: it is the one check that the allow path works on every start.
 for domain in \
+    "api.github.com" \
     "registry.npmjs.org" \
     "cdn.playwright.dev" \
     "api.anthropic.com" \

@@ -8,7 +8,7 @@
 //
 // WHY A DATA MIGRATION AND NOT A READ-COMPAT SHIM. `proseOverridesSchema`'s preprocess STRIPS any key that is
 // not a live `ProseSlotId` before the record schema sees it (it must — a retired id may not make a whole
-// stored blob unparseable, §4.4 rung 5). So the instant the id is renamed, an un-migrated override under the
+// stored blob unparseable). So the instant the id is renamed, an un-migrated override under the
 // old id does not fail loudly: it VANISHES at the parse seam, the shipped default rides, and the host's
 // authored narrator character heading is gone with no signal anywhere. That silent-loss shape is exactly what
 // #1649 ruled against, and the ruling recorded in the slot's own header (`contracts/chat/prose.ts`, 2026-08-30)
@@ -23,7 +23,7 @@
 //    removes it, so the second and every later boot match zero rows. No marker column, which would be a second
 //    source of truth able to disagree with the data.
 //  • STAMP-CARRYING — the whole override VALUE is moved by `json_extract`, so `baseVersion` (the ONLY
-//    staleness signal, PROSE-1 §4.4) crosses with the text rather than being re-minted.
+//    staleness signal) crosses with the text rather than being re-minted.
 //  • SIBLING-PRESERVING — no other key is named by the statement, so every other prose override, every
 //    section, and every param survives. SQLite's json functions re-serialize the object, so KEY ORDER is not
 //    preserved; the blob is parsed by `parsePromptConfig` at every read seam and never compared as bytes.

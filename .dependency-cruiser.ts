@@ -372,6 +372,7 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/domain/import/substrate/appearance.ts":
     "stAppearancePatch and ST_POWER_USER_KEY: the pure ST power_user mapping and the settings.json key it reads",
   "packages/server/src/entry/boot/disclaimer.ts": "BOOT_DISCLAIMER_TOPICS: the topic order the disclaimer block follows",
+  "packages/server/src/infra/network/contract/egress.ts": "SSRF_BLOCKED: the mark every connect-time firewall refusal opens with",
   "packages/server/src/entry/boot/migrate-data-layout.ts": "DataLayoutRefusal: the refusal class and reason the layout migration suite asserts",
   "packages/server/src/domain/refinery/substrate/stage-resolution.ts":
     "REFINERY_RESPONSE_FORMATS: the wire schema names the scripted peer answers each refinery stage under",

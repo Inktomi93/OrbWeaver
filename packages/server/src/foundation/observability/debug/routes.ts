@@ -4,14 +4,16 @@
 // injected operation; the remaining DB probes read downward.
 //
 // THIS GATE IS THE ENTIRE BOUNDARY for every route below. The probes are deliberately principal-BLIND
-// whole-db reads (D17: the admitted set is the box operator, so per-caller scoping would filter nothing —
-// the ruling lives in `inspect/config.ts`) — they take ids from QUERY PARAMS, never from auth — so whatever
-// this middleware admits reads the whole deployment. Two credentials pass and nothing else: an OWNER
-// SESSION (`AdminAuthChecker`) or the `x-debug-token` operator secret. An un-credentialed caller must never
+// whole-db reads (the admitted set is the box operator, so per-caller scoping would filter nothing — the
+// exemption's home is the comment above `characterDetailRow` in `inspect/config.ts`) — they take ids from QUERY PARAMS, never from auth — so whatever
+// this middleware admits reads the whole deployment. Two callers pass and nothing else: the `x-debug-token`
+// operator secret, or the box OWNER through `AdminAuthChecker`, arriving by a session cookie, a verified
+// forward-header JWT, or the loopback owner fallback where `resolveOwnerFallbackCredential` allows it
+// (`AUTH_FALLBACK=owner`, a non-production build, no widened `AUTH_FALLBACK_TRUSTED_PEERS`). An un-credentialed caller must never
 // pass in any AUTH_MODE, with or without a configured token; that invariant's enforcers are
 // `tests/server/entry/debug-gate-admission.int.test.ts` and the e2e specs over `tests/e2e/support/debug-gate.ts`.
 //
-// A DELEGATED `admin` IS NOT ADMITTED (2026-09-20, D17): this is BOX-OPERATOR scope. The session arm's
+// A DELEGATED `admin` IS NOT ADMITTED: this is BOX-OPERATOR scope. The session arm's
 // verdict (`entry/auth/seam.ts::debugGateAdmits`) asks `can(p,'owner',global)`, one rung narrower than every
 // other privileged surface in the app — because these reads cross the membership plane the app's own owner
 // cannot cross over tRPC, and `/wire/captures` in particular serves the literal assembled prompt of every

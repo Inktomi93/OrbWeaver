@@ -229,7 +229,7 @@ const nudgeOf = (
   key: "continueNudge" | "impersonateNudge" | "responseNudge",
   opts: { readonly random: RandomSource; readonly person?: GuidedImpersonatePerson | undefined; readonly registry?: MacroRegistry | undefined },
 ): string => {
-  // PROSE-1 §4.6: the override STORAGE is still `formatStrings.<key>`; the two rungs (override else shipped
+  // The override STORAGE is still `formatStrings.<key>`; the two rungs (override else shipped
   // default) funnel through the ONE prose resolver so precedence can't drift from the registry.
   const id = PRESET_FORMAT_SLOT_IDS[key];
   return resolveNudgeText(assembleContext, resolveProseText(id, legacyProseOverrides(id, assembleContext.promptConfig.formatStrings?.[key])), opts);

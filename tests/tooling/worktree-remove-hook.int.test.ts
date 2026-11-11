@@ -78,9 +78,9 @@ test("failed stage teardown preserves the checkout and its branch", ({ scratch }
   expect(execFixtureGit(planted.repo, ["rev-parse", "--verify", "refs/heads/wt/failed"]).trim()).not.toBe("");
 });
 
-test("Codex cleanup releases an external detached worktree without removing it", ({ scratch }) => {
+test("manual cleanup releases an external detached worktree without removing it", ({ scratch }) => {
   const planted = plantRepo(scratch);
-  const worktree = join(scratch, "codex worktree");
+  const worktree = join(scratch, "manual worktree");
   execFixtureGit(planted.repo, ["worktree", "add", "-q", "--detach", worktree]);
   writeFileSync(join(planted.repo, ".cache", "snap-stage", "bands.json"), JSON.stringify({ rows: [{ checkout: worktree }] }));
   runNicedSync("bash", ["-c", `PATH='${planted.bin}':"$PATH" bash '${planted.repo}/scripts/worktree-cleanup.sh'`], { cwd: worktree });

@@ -2,7 +2,8 @@
 # Install Orbweaver on Linux or macOS:
 #   curl -fsSL https://raw.githubusercontent.com/Inktomi93/OrbWeaver/release/install.sh | bash
 # Clones the stable `release` branch into ./OrbWeaver (or ORB_DIR), then runs it from source or with Docker
-# (ORB_MODE=source or docker skips the question).
+# (ORB_MODE=source or docker skips the question). ORB_START=0 installs and stops before starting it; pnpm must already be
+# installed then, because the offer to install it needs the terminal.
 # Under `curl | bash` stdin is this script, so questions read the terminal directly.
 set -euo pipefail
 
@@ -40,6 +41,8 @@ main() {
 
   # ORB_MODE=source or ORB_MODE=docker answers the question below without asking.
   local mode="${ORB_MODE:-source}"
+  # ORB_START=0 runs everything but the start, so a script or a CI job gets control back.
+  local start="${ORB_START:-1}"
   if [ -z "${ORB_MODE:-}" ] && command -v docker > /dev/null 2>&1 && docker compose version > /dev/null 2>&1; then
     printf '  %s1%s  From source  %s(pnpm; the default, best for tinkering)%s\n' "$B" "$X" "$D" "$X"
     printf '  %s2%s  Docker       %s(the published image; nothing to build)%s\n\n' "$B" "$X" "$D" "$X"
@@ -68,6 +71,10 @@ main() {
   cd "$TARGET"
   ok "Cloned $(git describe --tags --match 'v[0-9]*' --always)"
 
+  if [ "$mode" = docker ] && [ "$start" = 0 ]; then
+    ok "Installed in $PWD. Start it with: docker compose up -d"
+    return 0
+  fi
   if [ "$mode" = docker ]; then
     step "Starting the container (the first pull takes a minute)"
     docker compose up -d
@@ -78,6 +85,10 @@ main() {
 
   step "Installing dependencies"
   pnpm install --frozen-lockfile
+  if [ "$start" = 0 ]; then
+    ok "Installed in $PWD. Start it with ./start.sh, update it with ./update.sh."
+    return 0
+  fi
   ok "Installed. From now on: ./start.sh to run it, ./update.sh to update it."
   # stdin is still this script's pipe; the first start's setup questions need the terminal, when there is one.
   if [ -r /dev/tty ] && { : < /dev/tty; } 2> /dev/null; then

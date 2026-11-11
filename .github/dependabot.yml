@@ -36,8 +36,8 @@ updates:
         applies-to: version-updates
         patterns: ["*"]
         update-types: [major]
-    # TypeScript moves by hand. The checker runs two compilers side by side (6.x as `typescript`, 7.x through
-    # the `ts7` catalog alias), and typescript-eslint caps its peer below 6.1, so
+    # TypeScript moves by hand. The checker runs two compilers side by side (6.x under the `typescript` catalog key,
+    # 7.x under `@typescript/native`), and typescript-eslint caps its peer below 6.1, so
     # anything past a 6.0 patch breaks lint while every resolver still calls it compatible.
     ignore:
       - dependency-name: typescript
@@ -60,6 +60,43 @@ updates:
       - dependency-name: echarts-for-react
       - dependency-name: "@stryker-mutator/core"
       - dependency-name: "@stryker-mutator/vitest-runner"
+      - dependency-name: "@ai-sdk/provider-utils"
+      - dependency-name: "@ai-sdk/provider"
+      - dependency-name: "@base-ui/react"
+      - dependency-name: "@base-ui/utils"
+      - dependency-name: "@bundled-es-modules/memfs"
+      - dependency-name: "@cloudflare/workers-types"
+      - dependency-name: "@codemirror/autocomplete"
+      - dependency-name: "@codemirror/lint"
+      - dependency-name: "@codemirror/view"
+      - dependency-name: "@codemod.com/jssg-types"
+      - dependency-name: "@electric-sql/pglite"
+      - dependency-name: "@floating-ui/dom"
+      - dependency-name: "@floating-ui/utils"
+      - dependency-name: "@huggingface/tokenizers"
+      - dependency-name: "@huggingface/transformers"
+      - dependency-name: "@paulirish/trace_engine"
+      - dependency-name: "@rolldown/plugin-babel"
+      - dependency-name: "@tanstack/query-core"
+      - dependency-name: "@tanstack/react-router"
+      - dependency-name: "@tanstack/router-core"
+      - dependency-name: "@trpc/client"
+      - dependency-name: "@types/emscripten"
+      - dependency-name: "@types/web"
+      - dependency-name: ai
+      - dependency-name: drizzle-kit
+      - dependency-name: drizzle-orm
+      - dependency-name: gel
+      - dependency-name: hono
+      - dependency-name: lighthouse
+      - dependency-name: mutation-testing-report-schema
+      - dependency-name: onnxruntime-common
+      - dependency-name: openid-client
+      - dependency-name: pdfjs-dist
+      - dependency-name: playwright-core
+      - dependency-name: puppeteer-core
+      - dependency-name: style-mod
+      - dependency-name: typed-query-selector
     commit-message:
       prefix: chore
       include: scope
@@ -96,8 +133,66 @@ updates:
       - dependency-name: echarts-for-react
       - dependency-name: "@stryker-mutator/core"
       - dependency-name: "@stryker-mutator/vitest-runner"
+      - dependency-name: "@ai-sdk/provider-utils"
+      - dependency-name: "@ai-sdk/provider"
+      - dependency-name: "@base-ui/react"
+      - dependency-name: "@base-ui/utils"
+      - dependency-name: "@bundled-es-modules/memfs"
+      - dependency-name: "@cloudflare/workers-types"
+      - dependency-name: "@codemirror/autocomplete"
+      - dependency-name: "@codemirror/lint"
+      - dependency-name: "@codemirror/view"
+      - dependency-name: "@codemod.com/jssg-types"
+      - dependency-name: "@electric-sql/pglite"
+      - dependency-name: "@floating-ui/dom"
+      - dependency-name: "@floating-ui/utils"
+      - dependency-name: "@huggingface/tokenizers"
+      - dependency-name: "@huggingface/transformers"
+      - dependency-name: "@paulirish/trace_engine"
+      - dependency-name: "@rolldown/plugin-babel"
+      - dependency-name: "@tanstack/query-core"
+      - dependency-name: "@tanstack/react-router"
+      - dependency-name: "@tanstack/router-core"
+      - dependency-name: "@trpc/client"
+      - dependency-name: "@types/emscripten"
+      - dependency-name: "@types/web"
+      - dependency-name: ai
+      - dependency-name: drizzle-kit
+      - dependency-name: drizzle-orm
+      - dependency-name: gel
+      - dependency-name: hono
+      - dependency-name: lighthouse
+      - dependency-name: mutation-testing-report-schema
+      - dependency-name: onnxruntime-common
+      - dependency-name: openid-client
+      - dependency-name: pdfjs-dist
+      - dependency-name: playwright-core
+      - dependency-name: puppeteer-core
+      - dependency-name: style-mod
+      - dependency-name: typed-query-selector
     commit-message:
       prefix: fix
+      include: scope
+
+  # The dev container's coding tools: an npm lockfile outside the pnpm workspace. pnpm stays with the root
+  # packageManager, which moves by hand; the container guard test fails when the two differ.
+  - package-ecosystem: npm
+    target-branch: main
+    directory: /.devcontainer/tools
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 14
+      semver-major-days: 30
+    open-pull-requests-limit: 1
+    groups:
+      sandbox-tools:
+        applies-to: version-updates
+        patterns: ["*"]
+    ignore:
+      - dependency-name: pnpm
+    commit-message:
+      prefix: chore
       include: scope
 
   # Actions, base images (pinned by digest; tag and digest move together), Compose images and the dev

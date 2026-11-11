@@ -1,6 +1,9 @@
-// Keyboard arrival into a list surface lands on the LIST band's first control, so a forward Tab runs the band's New (inline
-// in every pane width: a band folds its other actions first), then the search field, then the rows. Each case arrives
-// through the rail the way a keyboard user does, on the production section registry.
+// Keyboard arrival from the rail lands focus inside the section it opened, for every section the production registry holds.
+// A LIST surface under a band lands on the band's first control, so a forward Tab runs the band's New (inline in every pane
+// width: a band folds its other actions first), then the search field, then the rows. Each case arrives through the rail the
+// way a keyboard user does, on the production section registry.
+import type { SectionId } from "@orb/client/state";
+import { SECTION_IDS } from "@orb/client/state";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { SECTION_LABELS, SECTION_PROCEDURES } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -10,15 +13,38 @@ import type { AppShellStory } from "./_app-shell-stories.tsx";
 import { routeShell, SHELL_STORIES } from "./app-shell-ct.ts";
 
 const STORY = `${SHELL_STORIES}/AppShellStory`;
+const RAIL = ".shell-rail";
 const LIST = '.shell-panel[data-panel-side="list"]';
 const BAND = `${LIST} .shell-panel-header`;
+const CONTENT = ".shell-content";
 // The most forward Tabs from arrival to a row: the Chats band, its filter chips and the search sit ahead of its rows.
 const MAX_TAB_STOPS = 14;
-const SECTIONS = [
-  { id: "chats", label: SECTION_LABELS.chats },
-  { id: "characters", label: SECTION_LABELS.characters },
-  { id: "presets", label: SECTION_LABELS.presets },
-] as const;
+
+const REGIONS = ["body", "rail", "band", "list", "content", "elsewhere"] as const;
+type Region = (typeof REGIONS)[number];
+type Landing = Extract<Region, "band" | "list" | "content">;
+
+interface Arrival {
+  readonly label: string;
+  /** Where focus rests once the rail press has opened the section: the LIST band's first control, another control in the LIST pane, or the content landmark and what it holds. */
+  readonly lands: Landing;
+}
+
+// One row per production section id: a section added to the registry fails `tsc` here until this says where its focus lands.
+const ARRIVALS = {
+  home: { label: SECTION_LABELS.home, lands: "content" },
+  chats: { label: SECTION_LABELS.chats, lands: "band" },
+  characters: { label: SECTION_LABELS.characters, lands: "band" },
+  corpus: { label: SECTION_LABELS.corpus, lands: "list" },
+  config: { label: SECTION_LABELS.settings, lands: "list" },
+  extensions: { label: SECTION_LABELS.extensions, lands: "list" },
+  databank: { label: SECTION_LABELS.databank, lands: "band" },
+  presets: { label: SECTION_LABELS.presets, lands: "band" },
+  refinery: { label: SECTION_LABELS.refinery, lands: "content" },
+} as const satisfies Record<SectionId, Arrival>;
+
+// The sections whose LIST band carries New, a search field and rows.
+const ROW_LISTS = ["chats", "characters", "presets"] as const satisfies readonly SectionId[];
 
 type Root = Awaited<ReturnType<typeof createCorpusHarness>>;
 
@@ -38,20 +64,39 @@ test.afterAll(async () => {
 
 test.use({ viewport: { width: 1280, height: 900 } });
 
-/** Where focus sits relative to the list pane: its band, its body, or elsewhere. */
-function focusRegion(page: Page): Promise<"band" | "body" | "elsewhere"> {
+/** The section a case starts from: Home, or Chats when Home is the subject. */
+function startFor(section: SectionId): SectionId {
+  return section === "home" ? "chats" : "home";
+}
+
+/** Presses a rail entry the way a keyboard user does: focus it, then Enter. */
+async function pressRail(page: Page, label: string): Promise<void> {
+  const entry = page.locator(RAIL).getByRole("button", { name: label, exact: true });
+  await entry.focus();
+  await entry.press("Enter");
+}
+
+/** Where focus sits: the page body, the rail, the LIST band, the rest of the LIST pane, the content landmark and what it holds, or elsewhere. */
+function focusRegion(page: Page): Promise<Region> {
   return page.evaluate(
-    ({ bandSelector, listSelector }) => {
+    ({ bandSelector, contentSelector, listSelector, railSelector }) => {
       const active = document.activeElement;
-      if (active === null) {
-        return "elsewhere";
+      if (active === null || active === document.body) {
+        return "body";
       }
-      if (document.querySelector(bandSelector)?.contains(active) === true) {
+      const holds = (selector: string): boolean => document.querySelector(selector)?.contains(active) === true;
+      if (holds(railSelector)) {
+        return "rail";
+      }
+      if (holds(bandSelector)) {
         return "band";
       }
-      return document.querySelector(listSelector)?.contains(active) === true ? "body" : "elsewhere";
+      if (holds(listSelector)) {
+        return "list";
+      }
+      return holds(contentSelector) ? "content" : "elsewhere";
     },
-    { bandSelector: BAND, listSelector: LIST },
+    { bandSelector: BAND, contentSelector: CONTENT, listSelector: LIST, railSelector: RAIL },
   );
 }
 
@@ -79,17 +124,26 @@ function stopKind(page: Page): Promise<StopKind> {
   });
 }
 
-for (const section of SECTIONS) {
-  test(`arriving in ${section.id} from the rail lands focus on the band's action, and a forward Tab runs New, then the search field, then the rows`, async ({
+for (const section of SECTION_IDS) {
+  const { label, lands } = ARRIVALS[section];
+  test(`arriving in ${section} from the rail by keyboard lands focus in its ${lands}, not on the body or the rail`, async ({ mount, page }) => {
+    await seedShellState(page, { activeSection: startFor(section) });
+    await mount<typeof AppShellStory>(STORY, {});
+    await pressRail(page, label);
+    await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", section);
+    await expect.poll(() => focusRegion(page)).toBe(lands);
+  });
+}
+
+for (const section of ROW_LISTS) {
+  test(`arriving in ${section} from the rail lands focus on the band's action, and a forward Tab runs New, then the search field, then the rows`, async ({
     mount,
     page,
   }) => {
     await seedShellState(page, { activeSection: "home" });
     await mount<typeof AppShellStory>(STORY, {});
-    const entry = page.locator(".shell-rail").getByRole("button", { name: section.label, exact: true });
-    await entry.focus();
-    await entry.press("Enter");
-    await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", section.id);
+    await pressRail(page, ARRIVALS[section].label);
+    await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", section);
     await expect.poll(() => focusRegion(page)).toBe("band");
     // The search field sits above the library's query boundary, so it exists before the rows do; a Tab walk that starts
     // while the list query is pending leaves the pane instead of reaching a row.
@@ -110,17 +164,14 @@ for (const section of SECTIONS) {
   });
 }
 
-for (const section of SECTIONS) {
-  test(`returning to ${section.id} from Home by the rail lands focus on the band's control again`, async ({ mount, page }) => {
+for (const section of ROW_LISTS) {
+  test(`returning to ${section} from Home by the rail lands focus on the band's control again`, async ({ mount, page }) => {
     await seedShellState(page, { activeSection: "home" });
     await mount<typeof AppShellStory>(STORY, {});
-    const rail = page.locator(".shell-rail");
-    for (const label of [section.label, SECTION_LABELS.home, section.label]) {
-      const entry = rail.getByRole("button", { name: label, exact: true });
-      await entry.focus();
-      await entry.press("Enter");
+    for (const name of [ARRIVALS[section].label, ARRIVALS.home.label, ARRIVALS[section].label]) {
+      await pressRail(page, name);
     }
-    await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", section.id);
+    await expect(page.locator(".shell-grid")).toHaveAttribute("data-section", section);
     await expect.poll(() => focusRegion(page)).toBe("band");
   });
 }

@@ -10,10 +10,10 @@
 // registry itself is cross-domain contracts data, so no other feature has a stronger claim, and D120 forbids
 // growing features/config — it owns the SHELL, never the knobs).
 //
-// The three affordances, identical to imagery + guided actions (PROSE-1 §5): the shipped default GHOSTS as
+// The three affordances, identical to imagery + guided actions: the shipped default GHOSTS as
 // the field placeholder (empty field = using the built-in, byte-identical), a Default/Customized footer
 // carries the warn-never-block required-macro lint, and reset = clear the field (the write sends the leaf
-// `null`, so removing an override actually removes it). Plus §4.4's stale affordance: an override authored
+// `null`, so removing an override actually removes it). Plus the stale affordance: an override authored
 // against an older slot version offers "Use the new default" (clears) or "Keep mine" (re-stamps
 // `baseVersion` through a ONE-key patch — any ordinary edit re-stamps too, so this is the no-edit path).
 
@@ -111,7 +111,7 @@ function ProseFormBody({ anchorId, sectionId }: { readonly anchorId: string; rea
   const stored: ProseOverrides = data.config.prose;
 
   const save = (values: ProseForm): Promise<unknown> => update.mutateAsync({ section: "prose", patch: toProsePatch(values) });
-  // "Keep mine" — the ONE key-minimal write outside the form (§4.4 rung 4). The text is unchanged, so the
+  // "Keep mine" — the ONE key-minimal write outside the form. The text is unchanged, so the
   // autosave driver has nothing to fire; re-stamping `baseVersion` to the current slot version is what
   // dismisses the stale chip, and it must not touch any other slot's stored override.
   const keepMine = (id: ProseSlotId, text: string): void => {
@@ -218,7 +218,7 @@ interface ProseCardFooterProps {
   readonly onKeepMine: () => void;
 }
 
-/** Default/Customized + the warn-never-block lints + the §4.4 stale pair. Both stale actions are one click
+/** Default/Customized + the warn-never-block lints + the stale pair. Both stale actions are one click
  *  and neither is automatic — a revised default never lands behind a host's back, and a host is never
  *  silently left on a stale copy.
  *

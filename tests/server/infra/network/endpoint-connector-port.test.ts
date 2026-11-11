@@ -5,6 +5,7 @@ import { createQuietTimers, PUBLIC_PEER_ADDRESS } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { createTestLogger } from "@orb/testkit/node/composed";
 import { createTestEnv } from "@orb/testkit/node/helpers";
+import { SSRF_BLOCKED } from "#server/infra/network/contract/egress.ts";
 
 const rawCalls: string[] = [];
 const raw = { reached: new Error("controlled raw dial reached"), calls: rawCalls };
@@ -66,7 +67,7 @@ test("the actual connector rejects a wrong hostname port before the physical dia
   egress.publishPrivateEndpointAllowlist(["engine.lan:11434", "127.0.0.0/8"]);
   const cause = await dialFailure(egress.configuredEndpointFetch("http://engine.lan:8080/v1"));
   expect(cause).not.toBe(raw.reached);
-  expect(cause instanceof Error ? cause.message : cause).toContain("SSRF_BLOCKED");
+  expect(cause instanceof Error ? cause.message : cause).toContain(SSRF_BLOCKED);
   expect(raw.calls).toEqual([]);
 });
 

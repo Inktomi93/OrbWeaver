@@ -1,4 +1,4 @@
-import { authMeSchema } from "@orb/contracts/identity";
+import { authMeSchema, SESSION_COOKIE_NAMES } from "@orb/contracts/identity";
 import { nonEmpty } from "@orb/testkit/iso";
 import { expect, test } from "@orb/testkit/node";
 import { beginOidcLogin, cookieHeader, finishOidcLogin, signInWithOidc } from "@orb/testkit/node/auth";
@@ -59,9 +59,9 @@ test("the mint writes the live cookie AND clears the other posture's name, in th
   const result = await finishOidcLogin(root, await beginOidcLogin(root, issuer, MEMBER));
   const [minted, cleared] = writes(result, SESSION_COOKIE_PATTERN);
   expect(writes(result, SESSION_COOKIE_PATTERN)).toHaveLength(2);
-  expect(minted).toMatch(/^orb_session_insecure=[^;]+;/u);
+  expect(minted).toMatch(new RegExp(`^${RegExp.escape(SESSION_COOKIE_NAMES.http)}=[^;]+;`, "u"));
   expect(minted).not.toContain("Max-Age=0");
-  expect(cleared).toMatch(/^__Host-orb_session=;/u);
+  expect(cleared).toMatch(new RegExp(`^${RegExp.escape(SESSION_COOKIE_NAMES.https)}=;`, "u"));
   expect(cleared).toContain("Max-Age=0");
   expect(authMeSchema.parse(await (await root.http.request("/api/auth/me", { headers: { cookie: cookieHeader(result) } })).json()).authenticated).toBe(true);
 });
