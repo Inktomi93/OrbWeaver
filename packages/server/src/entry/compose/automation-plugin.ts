@@ -136,7 +136,7 @@ export interface AutomationPluginComposeDeps {
    *  `ChatContext.pluginMacros`). Minted there rather than here purely because chat composes FIRST: one shared
    *  instance and no late bind, which is the shape the S4 store had to work around. */
   readonly pluginMacros: PluginMacroRegistry;
-  /** A user's Utility-role preset params (D299) — /autobg, rule analysis and plugin quiet calls. */
+  /** A user's Utility-role preset params (D304) — /autobg, rule analysis and plugin quiet calls. */
   readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   /** Databank's canon-write op (`createFromText`), narrowed. The membrane's `databank.ingest`
    *  host fn rides it under the installer (compose resolves the Principal): a scraper plugin ingests into the

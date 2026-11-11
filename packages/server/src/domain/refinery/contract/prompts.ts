@@ -139,7 +139,7 @@ export type StageEstimateSubject =
  *  assembles anything, so a guaranteed-overrun run spends no decode at all. */
 export interface StageBudgetFitArgs {
   readonly subject: StageEstimateSubject;
-  /** The caller's Utility-role preset params (D299), `undefined` under task defaults, unchanged by any of this. */
+  /** The caller's Utility-role preset params (D304), `undefined` under task defaults, unchanged by any of this. */
   readonly presetParams: RolePresetParams | undefined;
 }
 

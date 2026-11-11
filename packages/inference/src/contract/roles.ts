@@ -80,7 +80,7 @@ export interface SummarizeRequestItem {
   readonly images?: readonly ImageInput[] | undefined;
 }
 
-/** The per-item params a summarize/structured call carries: the role preset folded over the task posture (D299). The
+/** The per-item params a summarize/structured call carries: the role preset folded over the task posture (D304). The
  *  chat turn each item rides gates them against the model. The backend request names the output cap `maxTokens`. */
 export type TaskSampling = Readonly<Omit<RolePresetParams, "maxOutputTokens">> & { readonly maxTokens?: number | undefined };
 

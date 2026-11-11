@@ -69,7 +69,7 @@ function quietHistory(userText: string): readonly ChatHistoryMessage[] {
 function quietIntent(intent: UserIntent | undefined, chatParams: RolePresetParams): UserIntent {
   const merged: UserIntent = { ...chatParams, ...intent };
   // Only these knobs cross from the host's preset: a marker pass must not inherit the host's reasoning effort or
-  // thinking budget (a budget above this pass's output cap) or its sampler chain. D299's role allowlist governs
+  // thinking budget (a budget above this pass's output cap) or its sampler chain. D304's role allowlist governs
   // Utility-role tasks; quiet generation runs on the chat connection and keeps this narrower set.
   const carried: UserIntent = {};
   for (const knob of QUIET_PRESET_KNOBS) {

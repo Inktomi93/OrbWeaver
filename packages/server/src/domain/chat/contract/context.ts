@@ -669,7 +669,7 @@ export interface ChatContext extends EngineContext, ChatAccountingContext {
   /** The FUNDER's EMBED model's window (tokens) — the segment build's window guard. A verbatim block that
    *  cannot fit is SKIPPED AND RECORDED, never truncated. Same per-call resolution as above. */
   readonly embedContextTokens: (funderUserId: UserId) => Promise<number>;
-  /** The FUNDER's Utility-role preset params (D299), `undefined` under task defaults. The arbiter and the memory
+  /** The FUNDER's Utility-role preset params (D304), `undefined` under task defaults. The arbiter and the memory
    *  build fold them over their task posture; read per call, so a changed choice reaches the next summarize. */
   readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   readonly emitNotification: NotificationsEmitOp;
