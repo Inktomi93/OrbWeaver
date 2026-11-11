@@ -3,7 +3,7 @@
 // dispatcher's typed refusal). The prefetch handle rides beside the backend for the composition root.
 
 import type { ModelId } from "@orb/kit/ids";
-import type { LocalLightBackend, LocalLightBackendDeps, LocalLightModelCache } from "../../contract/local-light.ts";
+import type { LocalLightBackend, LocalLightBackendDeps, LocalLightModelCache } from "#src/contract/local-light.ts";
 import { localLightEmbedSpaceTag, resolveEmbedDtype } from "./model-cache.ts";
 import { createLocalLightPrefetch } from "./prefetch.ts";
 import { createScheduledCache } from "./scheduled-cache.ts";
@@ -50,4 +50,4 @@ export function createLocalLightBackend(deps: LocalLightBackendDeps): LocalLight
   };
 }
 
-export type { LocalLightBackend, LocalLightBackendDeps } from "../../contract/local-light.ts";
+export type { LocalLightBackend, LocalLightBackendDeps } from "#src/contract/local-light.ts";

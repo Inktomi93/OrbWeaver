@@ -16,9 +16,9 @@ import type { Db } from "@orb/db";
 import { automationFires } from "@orb/db";
 import { and, desc, eq, ne } from "drizzle-orm";
 
-import type { AutomationFireFilter, AutomationFireRow } from "../../contract/inspect.ts";
+import type { AutomationFireFilter, AutomationFireRow } from "#src/foundation/observability/contract/inspect.ts";
 
-export type { AutomationFireFilter, AutomationFireRow } from "../../contract/inspect.ts";
+export type { AutomationFireFilter, AutomationFireRow } from "#src/foundation/observability/contract/inspect.ts";
 
 /** The recent fire log, newest-first, `reserved` excluded, narrowed by `chatId` and/or `ruleId` when given. */
 export async function automationFireRows(db: Db, filter: AutomationFireFilter): Promise<AutomationFireRow[]> {

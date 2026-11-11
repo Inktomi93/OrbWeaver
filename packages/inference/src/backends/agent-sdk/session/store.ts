@@ -5,8 +5,8 @@
 import type { SessionKey, SessionStore, SessionStoreEntry } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatId, UserConnectionId } from "@orb/kit/ids";
 import type { AgentSdkSessionId, AgentSdkSessionTotals, SessionEntryWriter } from "#contract";
+import type { ReplaceableSessionStore, SeededSessionDecision, SeedTurn } from "#src/contract/agent-sdk-backend.ts";
 import type { InferenceLog } from "#src/deps.ts";
-import type { ReplaceableSessionStore, SeededSessionDecision, SeedTurn } from "../../../contract/agent-sdk-backend.ts";
 import {
   buildSeedFrames,
   canonHashOf,
@@ -294,4 +294,4 @@ export class SessionCache {
   }
 }
 
-export type { SeededSessionDecision } from "../../../contract/agent-sdk-backend.ts";
+export type { SeededSessionDecision } from "#src/contract/agent-sdk-backend.ts";

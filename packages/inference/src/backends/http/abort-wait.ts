@@ -1,5 +1,5 @@
 import { addAbortListener } from "node:events";
-import { ProviderError } from "../../contract/errors.ts";
+import { ProviderError } from "#src/contract/errors.ts";
 
 export const RESOLUTION_ABORTED_MESSAGE = "connection resolution aborted";
 

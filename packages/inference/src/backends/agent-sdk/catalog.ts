@@ -11,7 +11,7 @@ import type { VerifyAuthAccount, VerifyAuthResult } from "@orb/contracts/provide
 import { verifyAuthAccountSchema } from "@orb/contracts/providers";
 import type { AgentSdkQueryLease, DiagnosticRequestCommon, ProviderScrubSet, SpawnIdentity } from "#contract";
 import { ProviderError } from "#contract";
-import type { AgentSdkDeps, AgentSdkLog } from "../../contract/agent-sdk-backend.ts";
+import type { AgentSdkDeps, AgentSdkLog } from "#src/contract/agent-sdk-backend.ts";
 import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
 import { redactSecretsFromText } from "../wire/openai-body.ts";
 import { disciplineOptions } from "./translate.ts";

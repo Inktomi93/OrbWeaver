@@ -6,7 +6,7 @@
 
 import type { SDKAssistantMessageError, SDKResultError, TerminalReason } from "@anthropic-ai/claude-agent-sdk";
 import { isPlainObject } from "@orb/kit/guards";
-import type { ErrorClassification } from "../../contract/http.ts";
+import type { ErrorClassification } from "#src/contract/http.ts";
 
 /**
  * The init-frame SHAPE GUARD (Tier-3b-Providers.md Esoteric §3). The SDK's `system/init` frame carries the

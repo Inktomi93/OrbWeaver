@@ -71,7 +71,7 @@ import { DomainNotFoundError } from "@orb/kit/errors";
 import type { ChatId, MessageId } from "@orb/kit/ids";
 import type { ChatService } from "#domain/chat";
 import { eventViewMessageId, isBelowHistoryFloor, scrubDeltaEventForMember, stripChatEventForMember, withViewPosition } from "#domain/chat";
-import type { LiveBuses } from "../../contract/live-buses.ts";
+import type { LiveBuses } from "#src/transport/trpc/contract/live-buses.ts";
 import type { RoomSourceDef } from "../room-source.ts";
 
 /** What the member-gated `chatEventBounds` attach probe returns (derived off the service type — no new

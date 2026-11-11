@@ -16,6 +16,7 @@ import {
   homeReasons,
   homes,
   listSlotSurfacePaths,
+  memberNamed,
   OWNED_ROOT_ACQUISITIONS,
   shellOwnedSlots,
 } from "@orb/tooling/eslint";
@@ -613,6 +614,46 @@ const SERVER_SYNTAX = [
   ...MODULE_LOADER_SYNTAX,
 ];
 
+// Package source reads time through an injected clock (Spine-Testing §3). The ambient clock is a `Date.now` read
+// (called, passed or destructured), `Date()` called without `new`, a bare `new Date()`, each also through
+// `globalThis.Date`, and `performance.timeOrigin + performance.now()`. Each home below constructs the clock it injects.
+const dateAt = (path: string): string =>
+  `:matches([${path}.type='Identifier'][${path}.name='Date'], [${path}.type='MemberExpression'][${path}.object.name='globalThis'][${path}.property.name='Date'])`;
+const performanceRead = (path: string, name: string): string => `[${path}.object.name='performance'][${path}.property.name='${name}']`;
+const CLOCK_SYNTAX = {
+  selector: `:matches(${[
+    `MemberExpression${dateAt("object")}${memberNamed("now")}`,
+    `VariableDeclarator${dateAt("init")} > ObjectPattern > Property[key.name='now']`,
+    `CallExpression${dateAt("callee")}`,
+    `NewExpression${dateAt("callee")}[arguments.length=0]`,
+    `BinaryExpression[operator='+']${performanceRead("left", "timeOrigin")}${performanceRead("right.callee", "now")}`,
+    `BinaryExpression[operator='+']${performanceRead("right", "timeOrigin")}${performanceRead("left.callee", "now")}`,
+  ].join(", ")})`,
+  message:
+    "Read time through the injected clock (Spine-Testing §3); `Date.now`, `Date()`, a bare `new Date()` and `performance.timeOrigin + performance.now()` read the ambient clock.",
+};
+const SERVER_CLOCK_HOME = homes("packages/server/src/entry/lifecycle.ts");
+const KIT_CLOCK_HOME = homes("packages/kit/src/time/index.ts");
+// Every server stream is a room on the one `stream.connect` socket (D118). The stream router is the socket's own home,
+// and `chat.impersonateStream` in the chat router is the one permanent exception, owner-ruled.
+const STREAM_ROUTER_HOME = homes("packages/server/src/transport/trpc/routers/stream.ts");
+const IMPERSONATE_STREAM_HOME = homes("packages/server/src/transport/trpc/routers/chat.ts");
+const subscriptionCall = (exempt: string): string => `CallExpression[callee.type='MemberExpression']${memberNamed("subscription", "callee.")}${exempt}`;
+const SERVER_STREAM_MESSAGE = "Fold a stream into a room source on `stream.connect` (D118); only `chat.impersonateStream` declares its own subscription.";
+const SERVER_STREAM_SYNTAX = { selector: subscriptionCall(""), message: SERVER_STREAM_MESSAGE };
+const IMPERSONATE_STREAM_SYNTAX = {
+  selector: subscriptionCall(":not(Property[key.name='impersonateStream'] > CallExpression)"),
+  message: SERVER_STREAM_MESSAGE,
+};
+// The transport answers a failure by its base in the domain error tree; a contract error that extends `Error` directly
+// is unclassified and reaches the client as an unknown fault.
+const DOMAIN_CONTRACT_SOURCES = ["packages/server/src/domain/*/contract/**/*.{ts,tsx}"];
+const DOMAIN_CONTRACT_ERROR_SYNTAX = {
+  selector: "ClassDeclaration[superClass.name='Error'], ClassExpression[superClass.name='Error']",
+  message:
+    "Extend a base of the domain error tree in `@orb/kit/errors` (`packages/kit/src/errors/index.ts`); a contract error that extends `Error` directly answers as an unknown fault.",
+};
+
 // Literal bidi controls and C0/C1 controls make the reviewed text differ from what runs (trojan source).
 // Biome keeps escapes as written; this rejects the literal code points so source spells them as escapes.
 // Ranges are hex text so this file never carries the characters it bans. Tab, LF and CR stay allowed.
@@ -690,7 +731,7 @@ const TRACK_STAMP_SYNTAX = {
 // Flat config replaces rule options, so each authored override carries the invariant.
 const restrictedSyntax = (...restrictions: object[]): Linter.RuleEntry => ["error", INVISIBLE_CONTROL_SYNTAX, ...restrictions];
 
-const CLIENT_SYNTAX = [CLIENT_QUERY_KEY_SYNTAX, CLIENT_FORM_NAME_SYNTAX, EMPTY_ARIA_NAME_SYNTAX, RAW_FONT_SIZE_SYNTAX];
+const CLIENT_SYNTAX = [CLIENT_QUERY_KEY_SYNTAX, CLIENT_FORM_NAME_SYNTAX, EMPTY_ARIA_NAME_SYNTAX, RAW_FONT_SIZE_SYNTAX, CLOCK_SYNTAX];
 
 function rootSources(...refs: string[]): string[] {
   return refs.map((ref) => {
@@ -2211,12 +2252,29 @@ export default [
     files: ["packages/server/src/domain/settings/**/*.{ts,tsx}"],
     rules: { "no-restricted-imports": ["error", { patterns: [PNG_CHUNK_IMPORT] }] },
   },
-  { files: rootSources("@server", "@inference"), rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX) } },
-  { files: rootSources("@db"), rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX) } },
+  { files: rootSources("@inference"), rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX) } },
+  {
+    files: rootSources("@server"),
+    ignores: [...SERVER_CLOCK_HOME, ...STREAM_ROUTER_HOME, ...IMPERSONATE_STREAM_HOME, ...DOMAIN_CONTRACT_SOURCES],
+    rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX) },
+  },
+  {
+    files: DOMAIN_CONTRACT_SOURCES,
+    rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX, DOMAIN_CONTRACT_ERROR_SYNTAX) },
+  },
+  { files: IMPERSONATE_STREAM_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX, IMPERSONATE_STREAM_SYNTAX) } },
+  { files: SERVER_CLOCK_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, SERVER_STREAM_SYNTAX) } },
+  { files: STREAM_ROUTER_HOME, rules: { "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX) } },
+  { files: rootSources("@db"), rules: { "no-restricted-syntax": restrictedSyntax(...MODULE_LOADER_SYNTAX, CLOCK_SYNTAX) } },
+  {
+    files: rootSources("@kit", "@default-content", "@showcase", "@plugin-toolchain"),
+    ignores: KIT_CLOCK_HOME,
+    rules: { "no-restricted-syntax": restrictedSyntax(CLOCK_SYNTAX) },
+  },
   {
     files: rootSources("@contracts"),
     rules: {
-      "no-restricted-syntax": restrictedSyntax({
+      "no-restricted-syntax": restrictedSyntax(CLOCK_SYNTAX, {
         selector:
           "Property:matches([key.name=/^(url|uri|email|baseUrl|sourceUrl|provenanceUrl)$/], [key.value=/^(url|uri|email|baseUrl|sourceUrl|provenanceUrl)$/]) CallExpression[callee.object.name='z'][callee.property.name='string']",
         message: "Use a Zod format for an address. Use its owning text schema for preserved metadata or diagnostic text.",
@@ -2234,12 +2292,12 @@ export default [
   },
   {
     files: ["packages/ui/src/**/*.{ts,tsx}"],
-    rules: { "no-restricted-syntax": restrictedSyntax(EMPTY_ARIA_NAME_SYNTAX, RAW_FONT_SIZE_SYNTAX) },
+    rules: { "no-restricted-syntax": restrictedSyntax(EMPTY_ARIA_NAME_SYNTAX, RAW_FONT_SIZE_SYNTAX, CLOCK_SYNTAX) },
   },
   {
     files: ["packages/server/src/domain/settings/seed-themes.ts", "packages/server/src/domain/preset/seed.ts"],
     rules: {
-      "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, {
+      "no-restricted-syntax": restrictedSyntax(...SERVER_SYNTAX, CLOCK_SYNTAX, SERVER_STREAM_SYNTAX, {
         selector:
           "Program > :matches(ExportAllDeclaration, ExportDefaultDeclaration, ExportNamedDeclaration[exportKind!='type'][declaration.type!='FunctionDeclaration'])",
         message:

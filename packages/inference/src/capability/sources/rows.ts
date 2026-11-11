@@ -10,7 +10,7 @@
 import type { CapabilityOverride } from "@orb/contracts/inference";
 import { capabilityOverrideSchema } from "@orb/contracts/inference";
 import { z } from "zod";
-import type { CompiledRow, RowQuery } from "../../contract/capability.ts";
+import type { CompiledRow, RowQuery } from "#src/contract/capability.ts";
 
 const rowsSchema = z.array(capabilityOverrideSchema);
 
@@ -60,4 +60,4 @@ export function matchingRows(compiled: readonly CompiledRow[], query: RowQuery):
   return compiled.filter((candidate) => rowMatches(candidate, query)).map((candidate) => candidate.row);
 }
 
-export type { CompiledRow, RowQuery } from "../../contract/capability.ts";
+export type { CompiledRow, RowQuery } from "#src/contract/capability.ts";

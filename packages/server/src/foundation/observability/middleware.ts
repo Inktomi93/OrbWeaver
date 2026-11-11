@@ -10,6 +10,7 @@
 import { randomUUID } from "node:crypto";
 import { performance } from "node:perf_hooks";
 import type { Handle, UserId } from "@orb/kit/ids";
+import type { Clock } from "@orb/kit/time";
 import type { Context, ErrorHandler, MiddlewareHandler } from "hono";
 import type { Logger, ObservabilityRings } from "./contract/logging.ts";
 import { bindRequestUser, getLog, getRequestUserId, runInRequest } from "./logger.ts";
@@ -68,7 +69,7 @@ function resolveRequestId(c: Context): string {
  * that stamp has to happen), binds a request-scoped logger AND the request-root span, and logs one
  * structured line per request. The stamped id is the SAME id every sink below records — never a second mint.
  */
-function observeRequest(log: Logger, rings: ObservabilityRings): MiddlewareHandler {
+function observeRequest(log: Logger, rings: ObservabilityRings, now: Clock): MiddlewareHandler {
   return (c, next) => {
     const requestId = resolveRequestId(c);
     const start = performance.now();
@@ -113,9 +114,7 @@ function observeRequest(log: Logger, rings: ObservabilityRings): MiddlewareHandl
         path,
         status,
         durationMs,
-        // performance.timeOrigin + performance.now() is wall-clock now without raw Date.now() — there is no
-        // injected clock at the middleware edge, and this is observability metadata, not domain logic.
-        at: Math.round(performance.timeOrigin + performance.now()),
+        at: now(),
         ...(userId !== undefined ? { userId } : {}),
       });
     });
@@ -139,7 +138,11 @@ function observeRequest(log: Logger, rings: ObservabilityRings): MiddlewareHandl
  * /api/_debug/logs?requestId=… and /api/_debug/requests agree. `durationMs` is 0 because nothing measured
  * this request — the fault preceded the measurement.
  */
-function observeThrowAboveScope(log: Logger, rings: ObservabilityRings, err: unknown, c: Context): Promise<Response> {
+function observeThrowAboveScope(
+  { log, rings, now }: { readonly log: Logger; readonly rings: ObservabilityRings; readonly now: Clock },
+  err: unknown,
+  c: Context,
+): Promise<Response> {
   const requestId = resolveRequestId(c);
   const method = c.req.method;
   const path = redactSensitivePath(c.req.path);
@@ -158,7 +161,7 @@ function observeThrowAboveScope(log: Logger, rings: ObservabilityRings, err: unk
       path,
       status: INTERNAL_ERROR_STATUS,
       durationMs: 0,
-      at: Math.round(performance.timeOrigin + performance.now()),
+      at: now(),
     });
     return c.text(INTERNAL_ERROR_TEXT, INTERNAL_ERROR_STATUS);
   });
@@ -174,10 +177,10 @@ function observeThrowAboveScope(log: Logger, rings: ObservabilityRings, err: unk
  * or below the middleware) corrects the already-open root span; the un-observed one is
  * {@link observeThrowAboveScope}. Both return the identical 500.
  */
-function observeThrownRequest(log: Logger, rings: ObservabilityRings): ErrorHandler {
+function observeThrownRequest(log: Logger, rings: ObservabilityRings, now: Clock): ErrorHandler {
   return (err, c) => {
     if (!OBSERVED.has(c)) {
-      return observeThrowAboveScope(log, rings, err, c);
+      return observeThrowAboveScope({ log, rings, now }, err, c);
     }
     recordThrownRequest(err);
     getLog(log).error({ err }, "request.thrown");
@@ -185,11 +188,12 @@ function observeThrownRequest(log: Logger, rings: ObservabilityRings): ErrorHand
   };
 }
 
-/** The request middleware and its `app.onError` counterpart over a root's logger and rings: each request's scope
- *  children off `log`, and its record lands in that root's request ring. */
+/** The request middleware and its `app.onError` counterpart over a root's logger, rings and clock: each request's scope
+ *  children off `log`, and its record lands in that root's request ring stamped by `now`. */
 export function createRequestObservability(
   log: Logger,
   rings: ObservabilityRings,
+  now: Clock,
 ): { readonly observability: MiddlewareHandler; readonly observabilityErrorHandler: ErrorHandler } {
-  return { observability: observeRequest(log, rings), observabilityErrorHandler: observeThrownRequest(log, rings) };
+  return { observability: observeRequest(log, rings, now), observabilityErrorHandler: observeThrownRequest(log, rings, now) };
 }

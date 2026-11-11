@@ -7,7 +7,7 @@ import type { LanguageModelV4 } from "@ai-sdk/provider";
 import { builtinProvider } from "@orb/contracts/inference";
 import type { Resolved } from "#contract";
 import { ProviderError } from "#contract";
-import type { AnthropicCall } from "../../contract/anthropic-backend.ts";
+import type { AnthropicCall } from "#src/contract/anthropic-backend.ts";
 import { resolvedScrubSet } from "../http/sanitize.ts";
 import { wrapFetch } from "../v4/fetch.ts";
 
@@ -84,4 +84,4 @@ export function anthropicModelFor(call: AnthropicCall): LanguageModelV4 {
   return provider.chat(connection.model);
 }
 
-export type { AnthropicCall } from "../../contract/anthropic-backend.ts";
+export type { AnthropicCall } from "#src/contract/anthropic-backend.ts";

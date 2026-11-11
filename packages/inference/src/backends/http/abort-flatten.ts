@@ -25,7 +25,7 @@
 // (providers is sealed to domain); its header cites this law.
 
 import type { ScheduleOp } from "@orb/kit/time";
-import type { FlattenedAbort } from "../../contract/http.ts";
+import type { FlattenedAbort } from "#src/contract/http.ts";
 
 /**
  * Fold `external`'s cancellation into `controller` by RE-ABORTING it with no argument — never
@@ -70,4 +70,4 @@ export function deadlineSignal(external: AbortSignal | undefined, deadlineMs: nu
   };
 }
 
-export type { FlattenedAbort } from "../../contract/http.ts";
+export type { FlattenedAbort } from "#src/contract/http.ts";

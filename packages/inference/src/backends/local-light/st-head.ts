@@ -4,7 +4,7 @@
 
 import { z } from "zod";
 import { ProviderError } from "#src/contract/errors.ts";
-import type { DenseLayer, StHead } from "../../contract/local-light.ts";
+import type { DenseLayer, StHead } from "#src/contract/local-light.ts";
 
 /** Reads one file of the model repo (`<module>/<name>`), from the local cache or the Hub. */
 type RepoFileReader = (file: string) => Promise<Uint8Array>;
@@ -176,4 +176,4 @@ export function scoreHiddenStates(head: StHead, hidden: Float32Array, dims: read
   });
 }
 
-export type { StHead } from "../../contract/local-light.ts";
+export type { StHead } from "#src/contract/local-light.ts";

@@ -8,10 +8,10 @@
 // `resolveContextTab` waits on the panel's own publish (bounded) and verifies the landing; that is why it,
 // alone among the bridge's arms, is async.
 
+import type { NavResult } from "#src/lib/agent-bridge.ts";
+import { markAgentNavigation } from "#src/lib/motion-stats.ts";
 import type { PublishedContextTab } from "#state";
 import { getAvailableContextTabIds, getAvailableContextTabs, getContextTab, revealContextPanel, subscribeShellState } from "#state";
-import type { NavResult } from "../../lib/agent-bridge.ts";
-import { markAgentNavigation } from "../../lib/motion-stats.ts";
 
 // How long `contextTab` waits for the CONTEXT panel to publish a vocabulary that RESOLVES the request
 // (issue #656). It is a deadline on the panel's OWN mount signal, never a sleep: the common case returns on

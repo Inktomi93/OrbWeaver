@@ -1,5 +1,5 @@
 import { MESSAGE_BUBBLE_BOX, MESSAGE_BUBBLE_FILL, RECEDED, SELF, tv, WIDTH } from "#lib";
-import { ART_DECORATION } from "../../lib/art-decoration.ts";
+import { ART_DECORATION } from "#src/lib/art-decoration.ts";
 
 // The role's fill with its paired ink, edgeless: the edge colour returns to the ink so a decoration that leaves a side
 // at zero width beside the one edge it draws does not mix colours.

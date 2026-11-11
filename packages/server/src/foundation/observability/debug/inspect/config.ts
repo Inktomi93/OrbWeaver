@@ -27,7 +27,7 @@ import type {
   RenderPolicyVerdict,
   RpgGameRow,
   UserSettingsRow,
-} from "../../contract/inspect.ts";
+} from "#src/foundation/observability/contract/inspect.ts";
 
 export type {
   CharacterDetailRow,
@@ -36,7 +36,7 @@ export type {
   PresetRow,
   RpgGameRow,
   UserSettingsRow,
-} from "../../contract/inspect.ts";
+} from "#src/foundation/observability/contract/inspect.ts";
 
 /** Every `user_settings` row, or just one principal's when `userId` is given. A never-touched account has NO
  *  row (it reads defaults from `{}`), so an empty result is a real answer, not a miss. */

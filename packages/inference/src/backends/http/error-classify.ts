@@ -13,7 +13,7 @@ import { errorMessage } from "@orb/kit/error-message";
 import type { ModelId } from "@orb/kit/ids";
 import type { ProviderScrubSet } from "#contract";
 import { ProviderError, SCHEMA_REJECTED_DETAIL } from "#contract";
-import type { ErrorClassification, HttpErrorDiagnostic, SchemaRejectionContext } from "../../contract/http.ts";
+import type { ErrorClassification, HttpErrorDiagnostic, SchemaRejectionContext } from "#src/contract/http.ts";
 import { redactSecretsFromText } from "../wire/openai-body.ts";
 import { isIdleTrip } from "./idle-timeout.ts";
 import { NO_PROVIDER_SECRETS, sanitizeApiError } from "./sanitize.ts";
@@ -313,4 +313,4 @@ export function providerErrorFromHttp(error: unknown, prefix: string, secrets: P
   });
 }
 
-export type { ErrorClassification, HttpErrorDiagnostic, SchemaRejectionContext } from "../../contract/http.ts";
+export type { ErrorClassification, HttpErrorDiagnostic, SchemaRejectionContext } from "#src/contract/http.ts";

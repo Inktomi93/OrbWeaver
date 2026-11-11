@@ -1,6 +1,6 @@
 import { toError } from "@orb/kit/error-message";
 import type { ChatId } from "@orb/kit/ids";
-import type { OrbSeedHandle, SeedProfile } from "../../lib/agent-bridge.ts";
+import type { OrbSeedHandle, SeedProfile } from "#src/lib/agent-bridge.ts";
 
 type SeedStep = () => Promise<void>;
 // What `__orb.seed.game` resolves with: the handle's own result, which snap and browser agents read.

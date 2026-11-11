@@ -8,9 +8,9 @@ import { estimateTokens } from "@orb/kit/tokens";
 import { detectModelFamily } from "#capability";
 import type { HistoryRole, Resolved } from "#contract";
 import { resolveCachePolicy } from "#funnel";
-import type { ProviderLogger } from "../../contract/http.ts";
-import type { AnthropicCacheDirective, CacheMarkerPlacement, CacheMarkerRow, ExplicitCachePlan, OpenRouterRouting } from "../../contract/wire.ts";
-import { EPHEMERAL } from "../../contract/wire.ts";
+import type { ProviderLogger } from "#src/contract/http.ts";
+import type { AnthropicCacheDirective, CacheMarkerPlacement, CacheMarkerRow, ExplicitCachePlan, OpenRouterRouting } from "#src/contract/wire.ts";
+import { EPHEMERAL } from "#src/contract/wire.ts";
 import { cachePolicyContextOf } from "../http/response-cache.ts";
 
 function anthropicCacheDirective(ttl: PromptCacheTtl | null): AnthropicCacheDirective {
@@ -262,4 +262,4 @@ export function placeExplicitCacheMarkers(args: {
   return { patches, historyDepths, systemBlocks };
 }
 
-export type { CacheMarkerPlacement, CacheMarkerRow, ExplicitCachePlan, OpenRouterRouting } from "../../contract/wire.ts";
+export type { CacheMarkerPlacement, CacheMarkerRow, ExplicitCachePlan, OpenRouterRouting } from "#src/contract/wire.ts";
