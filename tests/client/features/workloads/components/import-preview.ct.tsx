@@ -324,6 +324,14 @@ test("a pick brings the preflight, with its progress bar, into view and focuses 
   const preflight = page.getByRole("group", { name: PREFLIGHT });
   await expect(preflight).toBeFocused();
   await expect(preflight.getByRole("progressbar")).toBeInViewport();
+  // The browser only paints a ring on script focus after a key, so a key is pressed and the focus taken again. Its own ring is
+  // neither the house ring nor none, so the focused card must not wear it.
+  await page.keyboard.press("Shift");
+  await preflight.blur();
+  await preflight.focus();
+  await expect(preflight).toBeFocused();
+  expect(await preflight.evaluate((node) => node.matches(":focus-visible"))).toBe(true);
+  expect(await preflight.evaluate((node) => getComputedStyle(node).outlineStyle)).not.toBe("auto");
 });
 
 test("a refused persona review says so in plain words, not the raw request error", async ({ mount, page, baseURL }, testInfo) => {

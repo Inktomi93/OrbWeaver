@@ -29,8 +29,9 @@ export const fileDropzoneVariants = tv({
     icon: "text-muted-foreground",
     instructions: "text-body leading-body text-foreground",
     hint: CAPTION,
-    // `max-w-full` + `wrap-anywhere`: a refusal names the file, and a camera-roll name has no break opportunity.
-    error: `${FIELD_ROW} text-label leading-label text-destructive max-inline-full`,
+    // `max-w-full` + `wrap-anywhere`: a refusal names the file, and a camera-roll name has no break opportunity. `relative` stacks the
+    // line above the covering input, so its text takes the press and can be selected.
+    error: `${FIELD_ROW} relative text-label leading-label text-destructive max-inline-full`,
     errorIcon: "shrink-0",
     errorText: "wrap-anywhere min-inline-0",
   },

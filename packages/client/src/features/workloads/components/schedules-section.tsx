@@ -33,7 +33,7 @@ import type { Trpc } from "#data";
 import { QueryErrorState, SkeletonRows, useGatedQuery, useInvalidation, useSuspenseQueries, useTRPC } from "#data";
 import { testId, timeLib } from "#lib";
 import { useDeleteSchedule, useSetScheduleEnabled } from "../hooks/use-workload-mutations.ts";
-import { WORKLOAD_KIND_LABELS } from "../lib/workloads-model.ts";
+import { UNRESOLVED_OWNER_HANDLE, WORKLOAD_KIND_LABELS } from "../lib/workloads-model.ts";
 import { scheduleDeleteName, scheduleEditName, scheduleEnabledSwitchName, scheduleName, scheduleQualifier } from "../lib/workloads-schedule-model.ts";
 import { WORKLOADS_SCHEDULES_SUBCATEGORY } from "../lib/workloads-schedules-nav.ts";
 import { CreateScheduleDialog, EditScheduleDialog } from "./create-schedule-dialog.tsx";
@@ -79,7 +79,8 @@ function SchedulesBody({ anchorId }: { readonly anchorId: string }): ReactElemen
     if (schedule.ownerId === viewer.userId) {
       return null;
     }
-    return handleByUserId.get(schedule.ownerId) ?? null;
+    // A row whose owner is not the viewer is never named as the viewer's own, so it says "another user" until the handle list answers.
+    return handleByUserId.get(schedule.ownerId) ?? UNRESOLVED_OWNER_HANDLE;
   };
 
   return (

@@ -19,7 +19,7 @@ Unwired code is a question about intent: it is forgotten work or dead code, and 
 
 ## Done when
 
-The component is wired into the surface it was built for, with a test, or deleted with its copy and tests, by a recorded reason.
+Ruling: delete. The component was built for the first persona editor and the compact persona panel replaced it with its own avatar control; it is registered in packages/client/src/forms/editor/use-app-form.ts and no form renders it (a structural search of the client tsx files and a literal search both find no use). The component, its registration, its copy and any test are deleted in one commit, and knip stays clean.
 
 ## Evidence
 

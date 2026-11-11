@@ -71,7 +71,21 @@ pre-push:
     typecheck:
       priority: 7
       run: pnpm typecheck
-    # The tests that hold law, rule and comment citations true. The other tooling tests stay hand-run.
-    doc-citations:
+    # Fast tests that hold repository facts true: law, rule and comment citations, the doc check, the container
+    # security config and the workflow and Dependabot agreements. The other tooling tests stay hand-run.
+    repo-integrity:
       priority: 8
-      run: pnpm test:tools tests/tooling/doc/comment-path-citations.repo.int.test.ts tests/tooling/doc/dead-references.repo.int.test.ts tests/tooling/doc/law-directory-lists.repo.int.test.ts tests/tooling/law-rule-citations.test.ts
+      run: >-
+        pnpm test:tools
+        tests/tooling/doc/comment-path-citations.repo.int.test.ts
+        tests/tooling/doc/dead-references.repo.int.test.ts
+        tests/tooling/doc/law-directory-lists.repo.int.test.ts
+        tests/tooling/law-rule-citations.test.ts
+        tests/tooling/doc/ops/check.int.test.ts
+        tests/tooling/container-security-config.int.test.ts
+        tests/tooling/dependabot-patched-ignores.test.ts
+        tests/tooling/ci-workflow.int.test.ts
+        tests/tooling/contributor-workflow.int.test.ts
+        tests/tooling/scheduled-native-workflows.int.test.ts
+        tests/tooling/workflow-security-policy.test.ts
+        tests/tooling/workflow-feedback.int.test.ts

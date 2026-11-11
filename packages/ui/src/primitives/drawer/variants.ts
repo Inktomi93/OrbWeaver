@@ -14,9 +14,10 @@ export const drawerVariants = tv({
       data-starting-style:opacity-0
     `,
     viewport: "fixed inset-0 inset-be-(--drawer-bottom-inset,0) z-(--z-modal)",
+    // The sheet takes arrival focus as a whole: that is announced, not painted, and the controls inside draw their own rings.
     popup: `
       absolute inset-x-0 inset-be-0 flex [transform:translateY(calc(var(--drawer-snap-point-offset)+var(--drawer-swipe-movement-y)))] flex-col rounded-t-card
-      bg-card text-card-foreground shadow-overlay transition-transform duration-(--motion-layout) ease-out-expo max-block-full tone-host-card
+      bg-card text-card-foreground shadow-overlay transition-transform duration-(--motion-layout) ease-out-expo outline-none max-block-full tone-host-card
       data-ending-style:translate-y-full
       data-starting-style:translate-y-full
       data-swiping:transition-none

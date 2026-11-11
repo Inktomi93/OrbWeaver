@@ -18,7 +18,7 @@ Search quality for long cards depends on a setting whose effect is invisible. An
 
 ## Done when
 
-A recorded product decision: say it in the connection or embedding settings where the model is chosen, embed long cards in windows the way documents are chunked, or accept it as stated. If a notice is chosen, a rendered review has read it.
+Owner ruling: a notice. Where the embedding model is chosen, the settings say that a model with a small window indexes only the opening of a long card. The sentence has one copy home, a component test shows it for a small-window model and not for a large one, and a rendered review has read it.
 
 ## Evidence
 

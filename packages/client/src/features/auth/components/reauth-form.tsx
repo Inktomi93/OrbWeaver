@@ -39,6 +39,7 @@ function ReauthCredentials(): ReactElement {
   return (
     <LoginLocalForm
       defaultHandle={defaultHandle}
+      takeFocus={true}
       onLoggedIn={(): void => {
         completeReauth("recovered");
         closeModal();

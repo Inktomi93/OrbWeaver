@@ -1,10 +1,9 @@
 ---
 kind: decision
-status: blocked
+status: open
 updated: 2026-11-11
 priority: P1
 area: security
-blocked: owner
 ---
 
 # Rule whether the devcontainer firewall must stop credential theft, and build the proxy if it must
@@ -19,7 +18,7 @@ The owner runs agents in this sandbox with permission checks off on the strength
 
 ## Done when
 
-The owner has ruled. Either an egress proxy under its own user checks the TLS server name against a name allowlist, only that user may open port 443 or resolve names, and a test runs the real script and shows the container user cannot do either; or the ruling in `.devcontainer/devcontainer.json` and `.devcontainer/README.md` is amended to say what the firewall does and does not stop. The host range admits only the ports the sandbox needs, or the ruling accepts it.
+Owner ruling: no egress proxy; the ruling text is amended. .devcontainer/devcontainer.json and .devcontainer/README.md say what the firewall stops and what it does not: an address allowlist does not stop a request to another site on a shared content network or data leaving inside DNS lookups, so session credentials in the container are not protected from an agent steered by fetched content. The host range admits only the ports the sandbox needs, with a test that runs the real script.
 
 ## Evidence
 

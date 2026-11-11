@@ -6,6 +6,31 @@
 // own readable colour. The sentence for each group is keyed on the wire's reason kind, so a new kind fails `tsc` until it has one.
 
 import type { ThemeLeftoverReasonKind } from "@orb/contracts/portability";
+import { CONFIG_CUSTOMIZE_LOOK_NAME } from "./config-control-names.ts";
+
+/** Where an Appearance setting is in Settings: its label, the section that holds it, and whether that section sits behind the pane's
+ *  "Customize this look" disclosure, which keeps it off the page until it is opened. */
+export interface AppearanceSettingPlace {
+  readonly label: string;
+  readonly section: string;
+  readonly folded: boolean;
+}
+
+/** The settings of one section, in the order the file listed them, for the sections in the order their first setting appeared. */
+function placesBySection(places: readonly AppearanceSettingPlace[]): readonly (readonly AppearanceSettingPlace[])[] {
+  const sections = places.map(({ section }) => section).filter((section, index, all) => all.indexOf(section) === index);
+  return sections.map((section) => places.filter((place) => place.section === section));
+}
+
+/** One section's part of the display settings line: the section, the disclosure it is behind when it is, and its settings. */
+function sectionPart(group: readonly AppearanceSettingPlace[]): string {
+  const [first] = group;
+  if (first === undefined) {
+    return "";
+  }
+  const where = first.folded ? `${first.section}, under ${CONFIG_CUSTOMIZE_LOOK_NAME}` : first.section;
+  return `${where}: ${group.map(({ label }) => label).join(", ")}.`;
+}
 
 function settingsCount(count: number): string {
   return count === 1 ? "1 SillyTavern setting" : `${String(count)} SillyTavern settings`;
@@ -29,18 +54,19 @@ export const THEME_IMPORT_OUTCOME: Record<"created" | "reused", string> = {
 export const THEME_IMPORT_NOTHING_TO_DO = "You don't need to do anything.";
 
 /** The line for each reason kind's group, over the contracts' kind tuple so a new kind fails `tsc` until it has one. Each line has its
- *  own subject: the display settings group names the Appearance settings the file's keys stand for, by those settings' own labels (and
- *  is the one place the note tells the person to act); the others count what they are about and need nothing from the person. */
-const GROUP_LINE: Record<ThemeLeftoverReasonKind, (count: number, appearanceLabels: readonly string[]) => string> = {
-  appearance: (_count, labels) => `Set these yourself under Settings, Appearance: ${labels.join(", ")}.`,
+ *  own subject: the display settings group names the Appearance settings the file's keys stand for, by those settings' own labels and
+ *  by where each is in Settings (and is the one place the note tells the person to act); the others count what they are about and need
+ *  nothing from the person. */
+const GROUP_LINE: Record<ThemeLeftoverReasonKind, (count: number, places: readonly AppearanceSettingPlace[]) => string> = {
+  appearance: (_count, places) => `Set these yourself under Settings, Appearance. ${placesBySection(places).map(sectionPart).join(" ")}`,
   "no-equivalent": (count) => `${count === 1 ? "1 has" : `${String(count)} have`} no equivalent in Orbweaver, so there is nothing to set.`,
   "faint-colour": (count) =>
     `${count === 1 ? "1 text colour was" : `${String(count)} text colours were`} too faint to read on the theme's background, so Orbweaver keeps its own readable colour.`,
 };
 
 /** The line the note shows for the group of `count` leftovers that share `kind`. */
-export function themeImportGroupLine(kind: ThemeLeftoverReasonKind, count: number, appearanceLabels: readonly string[]): string {
-  return GROUP_LINE[kind](count, appearanceLabels);
+export function themeImportGroupLine(kind: ThemeLeftoverReasonKind, count: number, places: readonly AppearanceSettingPlace[]): string {
+  return GROUP_LINE[kind](count, places);
 }
 
 const GROUP_NAMES_LABEL: Record<ThemeLeftoverReasonKind, string> = {

@@ -18,11 +18,13 @@ import { Textarea } from "@orb/ui/textarea";
 import { useToastManager } from "@orb/ui/toast";
 import { useQueryClient } from "@tanstack/react-query";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
+import { useFocusOnSwap } from "#lib";
 import type { ImageSubject } from "#state";
 import { openImageDetail, useEditSubject } from "#state";
 import { useEditImage } from "../hooks/use-imagery-mutations.ts";
+import { IMAGE_EDIT_INSTRUCTION_NAME } from "../lib/imagine-names.ts";
 
 const INSTRUCTION_ROWS = 2;
 const INSTRUCTION_MAX_ROWS = 6;
@@ -60,6 +62,9 @@ function ImageEdit({ subject }: { readonly subject: ImageSubject }): ReactElemen
   const toast = useToastManager();
   const editImage = useEditImage({ trpc, invalidation });
   const [instruction, setInstruction] = useState("");
+  // The person pressed Edit to say what should change, so the instruction is where they land.
+  const instructionRef = useRef<HTMLTextAreaElement>(null);
+  useFocusOnSwap(instructionRef);
 
   const trimmed = instruction.trim();
   const canEdit = trimmed.length > 0 && !editImage.isPending;
@@ -125,8 +130,9 @@ function ImageEdit({ subject }: { readonly subject: ImageSubject }): ReactElemen
           How should it change?
         </Text>
         <Textarea
-          aria-label="Edit instruction"
+          aria-label={IMAGE_EDIT_INSTRUCTION_NAME}
           maxRows={INSTRUCTION_MAX_ROWS}
+          ref={instructionRef}
           onValueChange={(value): void => setInstruction(value)}
           placeholder="e.g. make it night, add falling snow, turn the coat red…"
           rows={INSTRUCTION_ROWS}
