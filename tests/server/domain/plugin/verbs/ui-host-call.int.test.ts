@@ -16,7 +16,7 @@ h.ui.registerCommand({name:"seed",describe:"Seed the relay witness",onRun:async(
   await h.chat.applyVariableOps(h.chat.current(),[{op:"set",key:${JSON.stringify(VARIABLE_KEY)},value:${JSON.stringify(VARIABLE_VALUE)}}]);
 }});`;
 
-test("scripted chat reads use admitted mount scope, reject main-host argument shapes and preserve private CAS", async () => {
+test("scripted chat reads use admitted mount scope, reject main-host argument shapes and preserve private CAS", { tags: "slow" }, async () => {
   await using root = await createServerHarness({ pluginSpawn: spawn });
   const { owner: caller, secondUserId } = await seedCorpusActors(root);
   const manifest = pluginManifestSchema.parse({
