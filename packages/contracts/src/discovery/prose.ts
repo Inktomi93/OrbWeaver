@@ -1,7 +1,7 @@
-// @orb/contracts/discovery — the discovery prose slot table (PROSE-1 §4.1). The three WHOLE system prompts
+// @orb/contracts/discovery — the discovery prose slot table (D132). The three WHOLE system prompts
 // the library-semantics side generations run under: the compare narrative, the ask-a-card answer, and the
 // card distillation. Each is a substitution-free `systemPrompt:` argument — the caller's grounding data all
-// rides the USER prompt — so all three are clean `text` slots with no §4.5 template machinery.
+// rides the USER prompt — so all three are clean `text` slots with no template machinery.
 //
 // These were the last model-facing prose in the tree with NO catalog entry at all (the inline-template scout,
 // 08-02): `analyze.ts` / `distill.ts` carried them as file-local template literals and never imported the

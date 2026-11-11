@@ -1,4 +1,4 @@
-import { MS_PER_MINUTE } from "../time/index.ts";
+import { MS_PER_MINUTE } from "#time";
 
 // EVIDENCE WINDOW (#1095) — the pure "what does '~N minutes ago' honestly cover" engine, shared by the two
 // halves of a bug report: the browser filters `__orb`'s rings with it, the server filters its own in-memory

@@ -16,6 +16,7 @@ import type { TagFolderType, TagView } from "#tag";
 import { tagFolderTypeSchema, tagViewSchema } from "#tag";
 import type { ThemeBackground, ThemeOverride } from "#theme";
 import { themeBackgroundInputSchema, themeBackgroundSchema, themeOverrideSchema } from "#theme";
+import { tolerantArray } from "#versioned-config";
 // The analysis leaf avoids a cycle: refinery's public root composes these character validators.
 import type { RefineryAnalyzePayload } from "../refinery/core.ts";
 import { refineryAnalyzePayloadSchema, refineryAnalyzePayloadViewSchema } from "../refinery/core.ts";
@@ -225,9 +226,10 @@ const greetingSchema = z
   .strip();
 export type Greeting = z.infer<typeof greetingSchema>;
 
-/** The always-a-list DB read-seam coercion for the `characters.greetings` JSON column (+ snapshot blobs): a
- *  corrupt/non-array value collapses to `[]`. The ONE home the row→view readers share (queries `cardOf`). */
-export const greetingsColumnSchema = z.array(greetingSchema).catch([]);
+/** The always-a-list DB read-seam coercion for the `characters.greetings` JSON column (+ snapshot blobs): one
+ *  malformed greeting costs that greeting, and a non-array value collapses to `[]`. The ONE home the row→view
+ *  readers share (queries `cardOf`). */
+export const greetingsColumnSchema = tolerantArray(greetingSchema, []);
 
 // Strip mode: also reads stored rows; the wire parses a strict form (`strictTwin` or a `.strict()` view).
 // Identity-free (no id/handle/ownerId — those are row identity columns, not card content).

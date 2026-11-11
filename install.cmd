@@ -1,7 +1,8 @@
 @echo off
 rem Install Orbweaver on Windows: double-click this file. It installs Git and pnpm with winget when they are
 rem missing, clones the stable `release` branch into %USERPROFILE%\OrbWeaver (or ORB_DIR), then runs it from
-rem source or with Docker. Standalone on purpose: it runs before the repository exists on this machine.
+rem source or with Docker (ORB_MODE=source or docker skips the question). Standalone on purpose: it runs before the
+rem repository exists on this machine.
 setlocal
 for /f %%e in ('echo prompt $E^| cmd') do set "ESC=%%e"
 set "E=%ESC%[38;2;236;145;69m" & set "C=%ESC%[38;2;240;232;220m" & set "D=%ESC%[2m" & set "R=%ESC%[38;2;232;98;92m"
@@ -30,6 +31,8 @@ if errorlevel 1 call :wingetinstall Git.Git "Git" "%ProgramFiles%\Git\cmd"
 where git >nul 2>nul || (echo %R%x%X% Git still isn't available. Install Git for Windows, then run install.cmd again. & goto :failed)
 
 set "MODE=source"
+if defined ORB_MODE set "MODE=%ORB_MODE%"
+if defined ORB_MODE goto :choosepnpm
 where docker >nul 2>nul || goto :choosepnpm
 docker compose version >nul 2>nul || goto :choosepnpm
 echo   %B%1%X%  From source  %D%pnpm; the default, best for tinkering%X%

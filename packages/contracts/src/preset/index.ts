@@ -652,7 +652,7 @@ export const guidedActionKindSchema = z.enum(GUIDED_ACTION_KINDS) satisfies z.Zo
 
 // The guided-action default TEMPLATES are PROSE-1 slots — the bytes are authored once in `./prose` (census
 // rows 38-44) and read here, so the shipped default, the registry row and the editor's ghosted placeholder
-// can never disagree. Revising one is a `text` + `version` edit in `./prose`, gated by `prose-baseline.json`.
+// can never disagree. Revising one is a `text` + `version` edit in `./prose`; `tests/contracts/prose/prose-baseline.repo.int.test.ts` fails the edit unless the version rises.
 //
 // Greeting studio (audit §3) — the guided-action machinery pointed at a BASE greeting text (the card's own
 // opening), NOT a chat turn. `greeting_rewrite` carries `{{base}}` — the existing greeting text, spliced
