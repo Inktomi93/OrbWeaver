@@ -52,6 +52,8 @@ Keep owner-voice sections in the owner's own words. Do not rewrite them into pla
 14. Always-on text stays small. `AGENTS.md` with its imports, plus any rule without `paths:`, stays
     under 200 lines. `AGENTS.md` lists every rule file with its `paths:` globs, for Qwen Code and OpenCode. Every rule uses list-form `paths:` frontmatter. Procedures are skills. Agent bodies stay short.
 
+A path rule loads when the agent creates a matching file with Write and reads nothing first. It arrives with the Write result, so it guides the next edit and not the first write.
+
 ## Markdown
 
 The reader sees raw bytes, not a rendered page. A construct earns its place by being searchable, checked

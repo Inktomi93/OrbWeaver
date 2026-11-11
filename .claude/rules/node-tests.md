@@ -1,13 +1,13 @@
 ---
 paths:
-  - tests/**/*.test.ts
+  - tests/**/*.ts
+  - tests/**/*.mjs
   - tests/support/**
-  - tests/contracts/**
 ---
 
 # Node test suites
 
-Read the [testkit authoring contract](../../tests/support/README.md) before adding or changing Node tests or helpers. Work through its [authoring checklist](../../tests/support/README.md#authoring-checklist) for every test.
+Read the [testkit authoring contract](../../tests/support/README.md) before adding or changing Node tests or helpers. Work through [the authoring checklist](test-authoring.md) for every test.
 
 Follow its [helper-world split](../../tests/support/README.md#keep-helper-compiler-worlds-separate) when a CT shares Node preparation and DOM page drivers.
 
