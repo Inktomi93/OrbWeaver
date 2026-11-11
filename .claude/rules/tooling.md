@@ -59,7 +59,12 @@ Before you fold two readers or code facts into one, compare every version case b
 
 ## Workspace packages
 
-Declare `sideEffects` on every new workspace `package.json` at birth, or prod tree-shaking cannot reach
-consumers below the cake. A new `packages/*` package also needs a population root, a dep-cruiser rule pair, `package.json`/`tsconfig`, and a knip
+Give every new workspace package its class, library or application, in `tooling/src/package-effects/index.ts`. `tests/client/package-effects.test.ts` fails a package with no class.
+
+A library declares `sideEffects` in its `package.json`, so a consumer's bundler drops the modules nothing uses.
+
+An application never declares `sideEffects`. The bundler applies the field to the application's own modules, so any value can drop an effect-only import such as `packages/client/src/styles/index.ts`. `packages/server` and `tooling` are applications too: they run entry modules and import-time effects from source, so a declared field there would be false.
+
+A new `packages/*` package also needs a population root, a dep-cruiser rule pair, `package.json`/`tsconfig`, and a knip
 entry. Scope a `pnpm-workspace.yaml` override to its parent
 chain when a name is shared across major lines; a bare-name override collapses every instance onto one version.
