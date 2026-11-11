@@ -8,6 +8,7 @@
 
 import type { ASTNode } from "@marcbachmann/cel-js";
 import { EvaluationError, ParseError, parse } from "@marcbachmann/cel-js";
+import { DomainOperationError } from "#errors";
 import { isPrimitive } from "#guards";
 
 // The source-length cap. Bytes, not chars — a multi-byte predicate can't sneak past a char cap.
@@ -91,8 +92,14 @@ function collectRootIdentifiers(node: unknown, out: string[]): void {
 /** Thrown by {@link evalCel} on a RUNTIME failure (missing field without `has()`, type mismatch). The
  *  automation posture: the caller catches this and SKIPS the rule / renders `""` — the turn is
  *  never affected. A kit-local error so `@marcbachmann/cel-js`'s EvaluationError never leaks to catch sites. */
-export class CelEvalError extends Error {
+export class CelEvalError extends DomainOperationError {
   override readonly name = "CelEvalError";
+  constructor(message: string, options?: { readonly cause?: unknown }) {
+    super("cel_eval_failed", message);
+    if (options?.cause !== undefined) {
+      this.cause = options.cause;
+    }
+  }
 }
 
 export function isCelParseError(value: CelProgram | CelParseError): value is CelParseError {
