@@ -45,15 +45,17 @@ test("a resumable room that outruns its reader is told it lagged and then receiv
     }
     const committedIds = (): readonly MessageId[] => device.frames.flatMap(({ event }) => (event.type === "messageCommitted" ? [event.messageId] : []));
 
-    await device.waitFor(() => device.lags.length > 0 && missed.every((id) => committedIds().includes(id)));
-
-    // The notice names the cursor of the last frame the device was handed before it that carried one (a no-row frame
-    // carries `seq: null` and moves no cursor, D342), and every missed message arrives after the notice, once, by replay.
+    // The notice names the cursor of the last frame the device was handed before it that carried one: a no-row frame
+    // carries `seq: null` and moves no cursor (D342). Read before the replay, because that cursor is where it restarts.
+    await device.waitFor(() => device.lags.length > 0);
     const [lag] = device.lags;
-    expect(device.lags).toHaveLength(1);
     const handed = device.frames.slice(0, present(lag).chatFramesBefore);
     expect(handed.at(-1)?.seq).toBeNull();
     expect(present(lag).cursor).toBe(handed.findLast(({ seq }) => seq !== null)?.seq);
+
+    // Every missed message arrives after the notice, once, by replay.
+    await device.waitFor(() => missed.every((id) => committedIds().includes(id)));
+    expect(device.lags).toHaveLength(1);
     expect(missed).toHaveLength(MISSED_MESSAGES);
     expect(committedIds().filter((id) => missed.includes(id))).toHaveLength(MISSED_MESSAGES);
     for (const id of missed) {

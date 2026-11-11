@@ -49,10 +49,10 @@
 // that has neither. Which branch it is comes off GROUND TRUTH (the stored payload under our id), never a
 // driver error code, for the same reason `classifyFailedAppend` states.
 // A DROPPED append on a live chat returns `{ seq: null, event }`, never a rejection: canon committed apart from
-// the log, so the caller has nothing to undo, and D342 rules what the live fan does with it — a terminal or a canon
-// change still fans without a cursor (`fansWhenDropped`, `substrate/publication.ts`) so an attached device does not
-// hang on a row that will never exist; the rest is superseded by its turn's terminal. `null` means only "the chat
-// is gone": nothing fans, because the room's own `chatDeleted` announces it. Aborting the turn at delete
+// the log, so the caller has nothing to undo, and D342 rules what the live fan does with it — the event still fans
+// without a cursor (`fansWhenDropped`, `substrate/publication.ts`) so neither an attached device nor an automation
+// rule waits on a row that will never exist; the table there names the few types that do not, and why. `null`
+// means only "the chat is gone": nothing fans, because the room's own `chatDeleted` announces it. Aborting the turn at delete
 // (verbs/chat-lifecycle) stops the emits at the SOURCE; this classification is the floor under every other cause.
 
 import type { ChatBusEvent, DurableChatBusEvent } from "@orb/contracts/chat";
@@ -161,9 +161,9 @@ async function handleAppendFailure(
   return { kind: "terminal", committedSeq: await reportTerminalDrop(db, { id, event, err, attempts: attempt }, logger) };
 }
 
-/** The outcome of the whole retry loop, collapsed to what `emit` needs to decide its return: `"gone"` and
- *  `"dropped"` both mean "do not fan" (only their log trail differs, already emitted by the helpers above);
- *  `"seq"` is the ordinary first-attempt success; `"recovered"` is a terminal-drop branch
+/** The outcome of the whole retry loop, collapsed to what `emit` needs to decide its return: `"gone"` means the
+ *  chat is gone and nothing fans; `"dropped"` means no row and no cursor, and the publication decides its fan
+ *  (D342); `"seq"` is the ordinary first-attempt success; `"recovered"` is a terminal-drop branch
  *  that PROVED its seq, carrying the SAME `seq` shape `"seq"` does so the caller needs no third branch. */
 type AppendOutcome =
   | { readonly kind: "gone" }

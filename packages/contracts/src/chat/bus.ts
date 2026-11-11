@@ -709,12 +709,12 @@ export type DurableChatBusEvent = Exclude<ChatBusEvent, { type: LiveOnlyChatEven
  *  `entry/compose/services::emitChatEventLive` accepts. */
 export type LiveOnlyChatBusEvent = Extract<ChatBusEvent, { type: LiveOnlyChatEventType }>;
 
-/** Whether a durable event whose append the bus dropped still fans live with `seq: null` (D342).
- *  `true`: a terminal or a canon change; it closes or invalidates live state that would otherwise wait for a reattach.
- *  `messageCommitted` is `true` because it carries a committed canon row, never token text, and outside a turn nothing else
- *  tells other devices. `false`: the turn's terminal supersedes it, and live token text the log never held breaks
- *  replay-equals-live; or it is never appended through `emit` at all. */
+/** Whether a durable event whose append the bus dropped still fans live with `seq: null` (D342). `true` unless a row
+ *  below says why not: a dropped event that does not fan leaves an attached device or an automation rule (the watcher
+ *  reads this same live fan) wrong, with nothing to recover it. `messageCommitted` carries a committed canon row, never
+ *  token text, and outside a turn nothing else tells other devices. */
 const DROPPED_APPEND_FANS = {
+  // Token text the log never held would break replay-equals-live; the turn's terminal invalidates canon instead.
   delta: false,
   messageCommitted: true,
   messageEdited: true,
@@ -724,13 +724,16 @@ const DROPPED_APPEND_FANS = {
   messagesReordered: true,
   reasoningEdited: true,
   reasoningCleared: true,
+  // The client no-ops on it and no rule keys on it, so nothing reads it live.
   reasoningStreamDone: false,
+  // `turnStarted` opens the same slot and the terminal closes it; no rule keys on it.
   turnAccepted: false,
-  turnStarted: false,
+  turnStarted: true,
   turnCompleted: true,
   turnAborted: true,
-  warning: false,
-  worldInfoActivated: false,
+  // A notice the user would never see: warnings are not canon, so no read brings one back.
+  warning: true,
+  worldInfoActivated: true,
   personaSwitched: true,
   reactionsChanged: true,
   wiBookAttached: true,
@@ -738,7 +741,9 @@ const DROPPED_APPEND_FANS = {
   wiEntryAttached: true,
   wiEntryDetached: true,
   wiEntryScopeChanged: true,
-  // Its append rides the room-creation batch, so a failure means no room to announce.
+  // No audience: a fork announces its new room through `emit` before any device attaches to it or any rule can be
+  // scoped to it (a global rule watches no chat event), and its list row rides `emitChatChanged`. `startChat`
+  // appends it in the creation batch, which never fans a failure.
   chatCreated: false,
   // Attach syntheses: the pump yields them per subscription and never appends them.
   chatOpened: false,

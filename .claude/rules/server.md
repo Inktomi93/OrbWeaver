@@ -18,8 +18,8 @@ paths:
   needs a per-case owner check, not one caller-wide filter.
 - A fire-and-forget emit must never throw when its durable write rejects; classify a
   failed append by probing whether the aggregate still exists, and emit before
-  deleting it, never after. A dropped chat append still fans live with `seq: null` when
-  its event closes or invalidates live state (D342, `DROPPED_APPEND_FANS`). A derived index rebuilt after a durable write must not
+  deleting it, never after. A dropped chat append still fans live with `seq: null`
+  unless `DROPPED_APPEND_FANS` rules it out (D342). A derived index rebuilt after a durable write must not
   reject the write; latch it stale and let the bus retry.
 - `domain/*/substrate/**` and `domain/*/engine/**` are not type homes; export through
   the domain's `contract/` or `@orb/contracts`.
