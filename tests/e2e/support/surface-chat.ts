@@ -12,7 +12,7 @@ import { UTC_TIME_ZONE } from "@orb/kit/time";
 import type { SHOWCASE_PLUGIN_SLUGS } from "@orb/showcase-plugins";
 import { controlledPanel, settledBox, usesProgrammaticScroll } from "@orb/testkit/browser/spec";
 import type { SurfaceWitnessDisposition } from "@orb/testkit/iso";
-import { nonEmpty, parseSurfaceProviderEvidence } from "@orb/testkit/iso";
+import { nonEmpty, parseSurfaceProviderEvidence, present } from "@orb/testkit/iso";
 import { attachNativeFile, isTrpcRequestFor, matchesTrpcRequestInput, readTrpcOutput, SURFACE_CHECKS } from "@orb/testkit/node/helpers";
 import { MEDIA_QUERIES } from "@orb/ui/tokens";
 import type { Locator, Response, Route } from "@playwright/test";
@@ -1933,8 +1933,8 @@ async function runChatMessageOperations(input: SurfaceFlow): Promise<MessageOper
       await confirm.getByRole("button", { name: CHAT_REATTRIBUTE_CONFIRM_NAME, exact: true }).click();
       await expect(confirm).toBeHidden();
       await expect.poll(async () => (await readCanon(flow, room.id)).find(({ id }) => id === user.id)?.personaId).toBe(persona.id);
-      const restamped = (await readCanon(flow, room.id)).find(({ id }) => id === user.id);
-      await expect(messageRow(flow.page, user.id)).toHaveAccessibleName(messageArticleName(persona.name, restamped?.position) ?? persona.name);
+      const restamped = present((await readCanon(flow, room.id)).find(({ id }) => id === user.id));
+      await expect(messageRow(flow.page, user.id)).toHaveAccessibleName(present(messageArticleName(persona.name, restamped.position)));
       await messageOperationDone(
         flow,
         user,

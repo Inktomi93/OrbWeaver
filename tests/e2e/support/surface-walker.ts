@@ -833,7 +833,7 @@ async function walkScrollWindow(
         walk,
         id,
         "not-applicable",
-        `Measured scroll range ${String(before.maximum)}px has no interior outside both ${String(SCROLL_TOLERANCE)}px edge neighborhoods; start/end remain independently required`,
+        `Measured scroll range ${String(before.maximum)}px has no whole-pixel interior outside both ${String(SCROLL_TOLERANCE)}px edge neighborhoods; start/end remain independently required`,
       );
       return;
     }
@@ -904,7 +904,7 @@ async function walkScrollWindow(
       walk,
       id,
       "not-applicable",
-      `Settled scroll range ${String(after.maximum)}px has no distinct interior outside both ${String(SCROLL_TOLERANCE)}px edge neighborhoods; no interior checkpoint accepted`,
+      `Settled scroll range ${String(after.maximum)}px has no whole-pixel interior outside both ${String(SCROLL_TOLERANCE)}px edge neighborhoods; no interior checkpoint accepted`,
     );
     return;
   }
@@ -1088,8 +1088,10 @@ export async function nativeWheel(
   }
 }
 
+// The browser rests a scroller on whole pixels, so an interior needs a whole-pixel position past both edge neighborhoods: a
+// 5px range has none, and its wheel advances of half a pixel never move it off 2.
 function interiorInapplicable(state: ScrollGeometry, ratio: number): boolean {
-  return ratio === 0.5 && state.maximum <= 2 * SCROLL_TOLERANCE;
+  return ratio === 0.5 && Math.floor(SCROLL_TOLERANCE) + 1 >= state.maximum - SCROLL_TOLERANCE;
 }
 
 async function scrollGeometry(viewport: Locator, axis: string): Promise<ScrollGeometry> {
