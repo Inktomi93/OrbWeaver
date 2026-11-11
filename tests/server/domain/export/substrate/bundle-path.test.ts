@@ -23,7 +23,7 @@ test("case variants collide, and the later entry keeps its own casing", () => {
   expect([allocate("Cards/Ada.PNG"), allocate("cards/ada.png"), allocate("CARDS/ADA.PNG")]).toEqual(["Cards/Ada.PNG", "cards/ada-2.png", "CARDS/ADA-3.PNG"]);
 });
 
-test("a path no earlier entry asked for is never renamed", () => {
+test("paths that collide with no earlier entry keep their own names", () => {
   const allocate = createBundlePaths();
   const asked = ["a.txt", "b.txt", "dir/a.txt", "a.txt.bak", "A-2.txt"];
   expect(asked.map((path) => allocate(path))).toEqual(asked);

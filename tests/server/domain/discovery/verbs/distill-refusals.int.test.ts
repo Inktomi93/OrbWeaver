@@ -26,6 +26,10 @@ test("a foreign or absent card id answers not-found, even when the foreign card 
   for (const characterId of [nameOnly.id, written.id, absent]) {
     await expect(strangerCaller.discovery.suggestCharacterTags({ characterId })).rejects.toMatchObject({ code: "NOT_FOUND" });
   }
+  // Control: the owner reaches the same name-only card, so the stranger's NOT_FOUND is about ownership and not a missing row.
+  const ownerCaller = await root.internalCallerFor(root.ownerId);
+  await expect(ownerCaller.discovery.suggestCharacterTags({ characterId: nameOnly.id })).rejects.toMatchObject({ code: "BAD_REQUEST" });
+  await expect(ownerCaller.discovery.suggestCharacterTags({ characterId: absent })).rejects.toMatchObject({ code: "NOT_FOUND" });
 });
 
 test("an owned card with nothing but a name is refused as not distillable, not as a miss", async () => {
@@ -41,4 +45,15 @@ test("an owned card with nothing but a name is refused as not distillable, not a
     code: "BAD_REQUEST",
     cause: { code: CARD_NOT_DISTILLABLE_REASON },
   });
+
+  // Control: a card with written content is not refused as not distillable, so the refusal above is about content.
+  const written = await root.services.character.create({
+    principal: owner,
+    input: createCharacterSchema.parse({ handle: "inked-keeper", name: "Inked Keeper", description: "A keeper who holds the walls." }),
+  });
+  const outcome = await ownerCaller.discovery.suggestCharacterTags({ characterId: written.id }).then(
+    () => undefined,
+    (error: unknown) => error,
+  );
+  expect(outcome).not.toMatchObject({ cause: { code: CARD_NOT_DISTILLABLE_REASON } });
 });
