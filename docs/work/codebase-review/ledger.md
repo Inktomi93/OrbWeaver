@@ -70,7 +70,7 @@ rg -n '\.length\)\.toBe|\btoMatchInlineSnapshot' <unit-tests>/   # weak assertio
 
 | Unit | Path | Band | Status |
 | - | - | - | - |
-| root-config | package.json, pnpm-workspace.yaml, tsconfig\*{.base,.node,.tests-dom,.tests-iso,.world-browser,.world-node,.json}, .editorconfig, .gitattributes, .env.example | M | queued |
+| root-config | package.json, pnpm-workspace.yaml, tsconfig\*{.base,.node,.tests-dom,.tests-iso,.world-browser,.world-node,.json}, .editorconfig, .gitattributes, .env.example | M | reviewed (4) |
 | root-lint-configs | biome.json, eslint.config.ts, eslint-plugins.d.ts, stylelint\*.{ts}, jscpd.json, knip.ts, .dependency-cruiser.ts, lefthook.yml, stryker.config.ts, vitest\*.ts, playwright\*.config.ts, codegraph.json, .mcp.json, .markdownlint.json | L | queued |
 | root-dts | aggregator-assets.d.ts, platform\*.d.ts, reset.d.ts — loose ambient types at root | S | queued |
 | install-run | install.sh/.cmd, start.sh/.cmd, update.sh/.cmd, Dockerfile, docker-compose.yaml, .dockerignore, docker/ | M | queued |
@@ -205,6 +205,40 @@ Other test trees ride their slice units. `tests/support` is where test rot compo
 | ui-audit | tooling/src/ui-audit/ | L | queued |
 | motion-brand-audit | tooling/src/motion-audit/, tooling/src/brand-flow/ | S | queued |
 | e2e | tests/e2e/ + playwright configs' runtime behavior | L | queued |
+
+## Unit records
+
+### root-config — reviewed
+
+Sweeps and reads: `package.json`, `pnpm-workspace.yaml`, all seven root tsconfigs, `.editorconfig`,
+`.gitattributes`, `.env.example` read in full. `.editorconfig` matches `biome.json` (2/160/lf confirmed
+at `biome.json:36-38`). `pnpm format:docs` reports 0/625 to fix.
+
+- \[P2] `pnpm-workspace.yaml:169-171` — the undici comment says the package is "Mirrored into root
+  devDependencies so that test can import this exact package" and names the SSRF dispatcher tripwire as
+  `tests/legacy/server/infra/network/dispatcher-contract.suite.int.test.ts`. Both claims are false:
+  `package.json:78-162` has no undici (`node -e import('undici')` fails from root), `tests/legacy/` does
+  not exist in the repo (removed by `821e8f8dff`), and the suite lives only in the reference-only pile
+  `orbweaver-legacy-tests-2026-10-21`. The global-dispatcher handoff the comment itself calls "A SECURITY
+  BUG, NOT A CHORE" if it silently breaks has no in-repo tripwire. `tests/tooling/root-development-dependencies.test.ts`
+  passes and does not name undici. Direction: port the tripwire into `tests/server/infra/network/`,
+  re-declare undici at root for it, and fix the comment; or accept the contract unpinned and say so.
+  Covered: `rg undici package.json`, `rg -l dispatcher-contract|setGlobalDispatcher tests/ packages/`
+  (only `infra/network/egress.ts` consumes the dispatcher), legacy-pile listing.
+- \[P3] `pnpm-workspace.yaml:244` — comment argues "not .23" for `lucide-react` against a `^1.22` pin;
+  the pin is `^1.61.0`. `pnpm-workspace.yaml:344-346` — comment argues `^8.1.2` for `vite`; the pin is
+  `^8.3.5`. In a catalog whose comments are the pin rationales, a frozen rationale misleads the next bump.
+- \[P3] `package.json:9` — `engines.node` floor is `>=26.3.0` while `@types/node` is `^26.6.5`; code may
+  typecheck against 26.4-26.6-only APIs and fail at runtime on a floor legal Node. `devEngines` downloads
+  26.11.1 for pnpm-aware users, so this bites bare `node` and CI matrices. Raise the floor to the types floor.
+- \[P3] `tsconfig.node.json:19` — `"packages/*/*"` relies on wildcard include patterns matching files only,
+  not recursing matched directories: it resolves to thirteen depth-2 build/config files and zero package
+  `src` or `dist` files (`tsc --showConfig` files array, `--listFiles` roster confirms; the five
+  `packages/server/dist/router-types/*.d.ts` in the program arrive via imports, not include). Working as
+  presumably intended, undocumented in a repo that paragraphs every other subtlety. One comment line.
+
+Retracted during the unit: `@sentry/node` packageExtensions looked dead; they are live
+(27 lockfile mentions — the first grep ate the pattern with `rg -r`'s replacement flag).
 
 ## Findings index
 
