@@ -62,7 +62,9 @@ const AUTH_ME_ROUTE = "/api/auth/me";
 /** One harness on a scratch CAS over the box's own held database. The scripted provider answers only an image
  *  generation, with whatever bytes a test pushes into `images` first. Plugin guests run as real processes, and the
  *  cover host answers a guest's fetch with one image. */
-export async function openBox(options: { readonly loopbackOwner?: boolean; readonly ids?: ServerHarnessOptions["ids"] } = {}): Promise<GcBox> {
+export async function openBox(
+  options: { readonly loopbackOwner?: boolean; readonly ids?: ServerHarnessOptions["ids"]; readonly logLevel?: ServerHarnessOptions["logLevel"] } = {},
+): Promise<GcBox> {
   // Registered before the first await: `onTestFinished` runs after the case's own scopes, so a failed open still closes.
   const lifetime = new AsyncDisposableStack();
   onTestFinished(() => lifetime.disposeAsync());
@@ -100,6 +102,7 @@ export async function openBox(options: { readonly loopbackOwner?: boolean; reado
       },
       ...(options.loopbackOwner === true ? LOOPBACK_OWNER : {}),
       ...(options.ids === undefined ? {} : { ids: options.ids }),
+      ...(options.logLevel === undefined ? {} : { logLevel: options.logLevel }),
     }),
   );
   const principal = await root.principalFor(root.ownerId);

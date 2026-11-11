@@ -12,6 +12,7 @@ import type { Principal } from "@orb/contracts/identity";
 import { sniffMime } from "@orb/kit/image-sniff";
 import type { Hono } from "hono";
 import type { AssetsService } from "#domain/assets";
+import { readTornAsMiss } from "#domain/assets";
 import type { Logger } from "#foundation/observability";
 import { getLog } from "#foundation/observability";
 import type { Cas } from "#infra/storage";
@@ -86,7 +87,7 @@ export function registerBlob(app: Hono<PrincipalEnv>, deps: BlobDeps): void {
 }
 
 /** Serve the full-size original: `getMetadata` is the ownership gate, then a direct CAS read. Missing
- *  metadata or a torn CAS entry both 404 — a foreign/missing blob is indistinguishable from a corrupt one. */
+ *  metadata or a torn CAS entry both 404, so a foreign or missing blob reads the same as a torn one. */
 async function serveOriginal(deps: BlobDeps, principal: Principal, hash: string): Promise<Response> {
   const meta = await deps.assets.getMetadata({ principal, hash });
   if (meta === undefined) {
@@ -95,13 +96,8 @@ async function serveOriginal(deps: BlobDeps, principal: Principal, hash: string)
   // meta.ownerId is set when the asset belongs to a co-participant (roster-avatar exception); on the
   // normal path it is absent and the caller IS the owner.
   const casOwnerId = meta.ownerId ?? principal.userId;
-  // a LEAK-FREE COLLAPSE, stated in this function's own JSDoc — a torn CAS entry and a foreign/missing blob must return the identical 404, or the response distinguishes "exists but unreadable" from "not yours" and becomes an existence oracle. The ownership gate above already ran. Ends if torn-blob repair gains an operator surface that can be told apart from a miss.
-  try {
-    const bytes = await deps.cas.read(casOwnerId, hash);
-    return serveBytes(bytes, meta.mime);
-  } catch {
-    return new Response(null, { status: NOT_FOUND });
-  }
+  const bytes = await readTornAsMiss(deps.logger, { ownerId: casOwnerId, hash }, () => deps.cas.read(casOwnerId, hash));
+  return bytes === null ? new Response(null, { status: NOT_FOUND }) : serveBytes(bytes, meta.mime);
 }
 
 /** Parse the `?v=` variant-kind query value. Omitted ⇒ the `icon` floor; present-but-invalid ⇒

@@ -5,7 +5,6 @@
 // Also the `verifyAuth` diagnostic — ONE trivial prompt through the SAME firewall a real turn uses.
 
 import type { ModelInfo, Query } from "@anthropic-ai/claude-agent-sdk";
-import { AbortError } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentSdkModel } from "@orb/contracts/inference";
 import { agentSdkModelSchema } from "@orb/contracts/inference";
 import type { VerifyAuthAccount, VerifyAuthResult } from "@orb/contracts/providers";
@@ -17,7 +16,7 @@ import type { AgentSdkDeps, AgentSdkLog } from "#src/contract/agent-sdk-backend.
 import { resolvedScrubSet, sanitizeApiError } from "../http/sanitize.ts";
 import { redactSecretsFromText } from "../wire/openai-body.ts";
 import { disciplineOptions } from "./translate.ts";
-import { assertSdkMessageRead } from "./wire-read.ts";
+import { assertSdkMessageRead, isQueryAbort } from "./wire-read.ts";
 
 const DISCOVERY_TIMEOUT_MS = 15_000;
 /** The teardown's own bound: a daemon wedged on `supportedModels()` may never answer `interrupt()` either. */
@@ -61,6 +60,9 @@ function queryError(err: unknown, secrets: ProviderScrubSet, safeErrorMessage: A
     return err;
   }
   const safe = sanitizeApiError(redactSecretsFromText(safeErrorMessage(err), secrets));
+  if (isQueryAbort(err)) {
+    return new ProviderError({ kind: "aborted", retryable: false, message: `agent-sdk ${operation} was cancelled`, cause: new Error(safe) });
+  }
   return new ProviderError({ kind: "server", retryable: true, message: `agent-sdk ${operation} failed: ${safe}`, cause: new Error(safe) });
 }
 
@@ -127,7 +129,7 @@ async function probeAccountInfo(query: Query, deps: AgentSdkDeps): Promise<Verif
     // An abort is the query ending and propagates. Everything else stays contained by design: the SDK exports only its
     // abort class, and a failed control call rejects with a plain Error, so no class exists to narrow to. Account
     // identity is an optional verify diagnostic outside the auth verdict, so the failure is logged and reads as none.
-    if (error instanceof AbortError) {
+    if (isQueryAbort(error)) {
       throw error;
     }
     deps.log.warn({ err: errorMessage(error) }, "agent-sdk: the account-identity probe failed; verify reports no account");
@@ -153,14 +155,20 @@ export async function verifyAuth(req: DiagnosticRequestCommon, deps: AgentSdkDep
     req.signal,
   );
   const stream = lease.query;
+  const scrub = resolvedScrubSet({ credential: connection.credential, transport: null });
   let result: Awaited<ReturnType<typeof reduceVerifyStream>>;
   try {
     result = await reduceVerifyStream(stream);
   } catch (error) {
     await lease[Symbol.asyncDispose]();
-    throw queryError(error, resolvedScrubSet({ credential: connection.credential, transport: null }), lease.safeErrorMessage, "verification");
+    throw queryError(error, scrub, lease.safeErrorMessage, "verification");
   }
   const { apiKeySource, reply, ok, costUsd } = result;
-  const account = await probeAccountInfo(stream, deps);
+  let account: VerifyAuthAccount | undefined;
+  try {
+    account = await probeAccountInfo(stream, deps);
+  } catch (error) {
+    throw queryError(error, scrub, lease.safeErrorMessage, "verification");
+  }
   return { ok, apiKeySource, reply: reply.trim(), costUsd, ...(account !== undefined ? { account } : {}) };
 }

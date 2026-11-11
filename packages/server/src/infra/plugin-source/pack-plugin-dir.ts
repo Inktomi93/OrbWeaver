@@ -19,6 +19,7 @@ import {
   PLUGIN_UI_ENTRY,
 } from "@orb/contracts/plugin";
 import { zipSync } from "fflate";
+import { isAbsentPath } from "#primitives/errno";
 
 const BUNDLE_MTIME_MS = 331_257_600_000;
 
@@ -26,15 +27,11 @@ async function readOptionalPathEntry(directory: string, entry: string, maxBytes:
   try {
     return await readPathEntry(directory, entry, maxBytes);
   } catch (error) {
-    if (isMissing(error)) {
+    if (isAbsentPath(error)) {
       return null;
     }
     throw error;
   }
-}
-
-function isMissing(error: unknown): boolean {
-  return error instanceof Error && "code" in error && (error.code === "ENOENT" || error.code === "ENOTDIR");
 }
 
 function isNoFollowRefusal(error: unknown): boolean {
@@ -94,7 +91,7 @@ async function readPathAssetNames(directory: string): Promise<string[]> {
       return [];
     }
   } catch (error) {
-    if (isMissing(error)) {
+    if (isAbsentPath(error)) {
       return [];
     }
     throw error;
@@ -117,7 +114,7 @@ async function readPathAssetNames(directory: string): Promise<string[]> {
       names.push(entry.name);
     }
   } catch (error) {
-    if (isMissing(error)) {
+    if (isAbsentPath(error)) {
       return [];
     }
     throw error;

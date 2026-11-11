@@ -51,7 +51,7 @@ test("a host that resolves into a private range drops the one image", async () =
   await expect(egress.fetchImageBytes(IMAGE_URL)).resolves.toBeNull();
 });
 
-test.for(["ENOTFOUND", "ENODATA", "EAI_AGAIN"])("an image host whose name does not resolve (%s) drops the one image", async (code) => {
+test.for(["ENOTFOUND", "EAI_AGAIN", "EAI_FAIL"])("an image host whose name does not resolve (%s) drops the one image", async (code) => {
   await using egress = egressWith(unreachableFetch, () => Promise.reject(lookupFailure(code)));
   await expect(egress.fetchImageBytes(IMAGE_URL)).resolves.toBeNull();
 });

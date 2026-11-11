@@ -84,9 +84,11 @@ function superviseEgressCleanup(context: EgressContext, reason: string, operatio
 }
 
 const TRAILING_DOT_RE = /\.$/;
-/** The `dns.lookup` codes that mean the name has no address: it does not exist (`ENOTFOUND`), has no address record
- *  (`ENODATA`), or the resolver could not answer for it (`EAI_AGAIN`). */
-const UNRESOLVED_NAME_CODES: ReadonlySet<string> = new Set(["ENOTFOUND", "ENODATA", "EAI_AGAIN"]);
+/** The `dns.lookup` codes that mean the name has no address. `dns.lookup` is getaddrinfo, and Node's `DNSException`
+ *  (`lib/internal/errors.js`) folds its `EAI_NONAME` (no such name) and `EAI_NODATA` (no address record) into
+ *  `ENOTFOUND`, and passes `EAI_AGAIN` (the resolver could not answer now) and `EAI_FAIL` (it failed for good) through.
+ *  `ENODATA` is a `dns.resolve*` code, so a lookup never answers it. */
+const UNRESOLVED_NAME_CODES: ReadonlySet<string> = new Set(["ENOTFOUND", "EAI_AGAIN", "EAI_FAIL"]);
 /** The IPv6 zone separator (`fe80::1%eth0`); percent-encoded it is still a `%`. */
 const ZONE_MARK = "%";
 /** The socket family a connector lookup reports for an IPv4 and an IPv6 literal. */

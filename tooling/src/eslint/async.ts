@@ -263,9 +263,6 @@ const BLIND_CATCH_MESSAGE =
   "This catch never reads its error and answers null or nothing, so a database fault or a programming error reads as an ordinary miss and reaches no log. " +
   "Decide by the error's class and rethrow the rest (`if (!isResolveRefusal(error)) throw error;`). Where a ruling keeps every fault contained, cite it and log the error.";
 
-const BLIND_FINALLY_MESSAGE =
-  "This `finally` returns null or nothing, which discards any error the try threw before anything reads it. Move the answer into a catch that decides by the error's class.";
-
 const RENAME_DEPTH = 3;
 
 // `await` and `Promise.resolve(...)` carry their operand's answer, so `return Promise.resolve(null)` answers nothing too.
@@ -333,70 +330,110 @@ function readsCaughtError(context: OrbRuleContext, clause: TSESTree.CatchClause)
   return context.sourceCode.getDeclaredVariables(clause).some((variable) => variableUsed(context, variable, RENAME_DEPTH));
 }
 
-// Only `return` and `throw` end a catch with an answer; `continue` and `break` skip the item and answer nothing.
-function endsAbruptly(statement: TSESTree.Statement): boolean {
+// Only `return` and `throw` end a catch with an answer. A `break` or `continue` that leaves the catch answers nothing,
+// and the rule marks that catch where it meets the jump; `left` holds every statement some `break` leaves.
+function endsAbruptly(statement: TSESTree.Statement, left: ReadonlySet<TSESTree.Node>): boolean {
   switch (statement.type) {
     case AST_NODE_TYPES.ReturnStatement:
     case AST_NODE_TYPES.ThrowStatement:
       return true;
     case AST_NODE_TYPES.BlockStatement:
-      return statement.body.some(endsAbruptly);
+      return statement.body.some((inner) => endsAbruptly(inner, left));
     case AST_NODE_TYPES.IfStatement:
-      return statement.alternate !== null && endsAbruptly(statement.consequent) && endsAbruptly(statement.alternate);
+      return statement.alternate !== null && endsAbruptly(statement.consequent, left) && endsAbruptly(statement.alternate, left);
     case AST_NODE_TYPES.SwitchStatement:
-      return switchEndsAbruptly(statement);
+      return switchEndsAbruptly(statement, left);
     case AST_NODE_TYPES.TryStatement:
       return (
-        (statement.finalizer !== null && endsAbruptly(statement.finalizer)) ||
-        (endsAbruptly(statement.block) && (statement.handler === null || endsAbruptly(statement.handler.body)))
+        (statement.finalizer !== null && endsAbruptly(statement.finalizer, left)) ||
+        (endsAbruptly(statement.block, left) && (statement.handler === null || endsAbruptly(statement.handler.body, left)))
       );
     default:
       return false;
   }
 }
 
-// A switch answers on every path when it has a `default` and no case can fall out of its end: each case either ends
-// abruptly or is empty and falls into the next, and the last one ends abruptly. A `break` leaves the switch, so a case
-// that breaks never ends abruptly.
-function switchEndsAbruptly(statement: TSESTree.SwitchStatement): boolean {
+// A switch answers on every path when it has a `default`, no `break` leaves it at any depth, and its last case ends
+// abruptly: every earlier case then either ends abruptly or falls through into the next.
+function switchEndsAbruptly(statement: TSESTree.SwitchStatement, left: ReadonlySet<TSESTree.Node>): boolean {
   const last = statement.cases.at(-1);
-  if (last === undefined || !statement.cases.some((branch) => branch.test === null)) {
-    return false;
-  }
-  return statement.cases.every((branch) =>
-    branch === last ? branch.consequent.some(endsAbruptly) : branch.consequent.length === 0 || branch.consequent.some(endsAbruptly),
+  return (
+    last !== undefined &&
+    statement.cases.some((branch) => branch.test === null) &&
+    !left.has(statement) &&
+    last.consequent.some((inner) => endsAbruptly(inner, left))
   );
 }
 
-// The catch clause or `finally` block whose body holds `node` with no function boundary between them.
-function owningHandler(context: OrbRuleContext, node: TSESTree.Node): TSESTree.CatchClause | TSESTree.BlockStatement | undefined {
-  const boundary = context.sourceCode.getAncestors(node).findLast((ancestor) => FUNCTION_NODES.has(ancestor.type) || isHandler(ancestor));
-  return boundary !== undefined && isHandler(boundary) ? boundary : undefined;
+const LOOP_NODES: ReadonlySet<string> = new Set([
+  AST_NODE_TYPES.ForStatement,
+  AST_NODE_TYPES.ForInStatement,
+  AST_NODE_TYPES.ForOfStatement,
+  AST_NODE_TYPES.WhileStatement,
+  AST_NODE_TYPES.DoWhileStatement,
+]);
+
+// The statement a jump leaves: its label's statement, else the nearest loop, or for a `break` the nearest switch.
+function jumpTarget(context: OrbRuleContext, jump: TSESTree.BreakStatement | TSESTree.ContinueStatement): TSESTree.Node | undefined {
+  for (const node of context.sourceCode.getAncestors(jump).toReversed()) {
+    if (FUNCTION_NODES.has(node.type)) {
+      return undefined;
+    }
+    if (jump.label !== null) {
+      if (node.type === AST_NODE_TYPES.LabeledStatement && node.label.name === jump.label.name) {
+        return node.body;
+      }
+    } else if (LOOP_NODES.has(node.type) || (jump.type === AST_NODE_TYPES.BreakStatement && node.type === AST_NODE_TYPES.SwitchStatement)) {
+      return node;
+    }
+  }
+  return undefined;
 }
 
-function isHandler(node: TSESTree.Node): node is TSESTree.CatchClause | TSESTree.BlockStatement {
-  return node.type === AST_NODE_TYPES.CatchClause || (node.parent?.type === AST_NODE_TYPES.TryStatement && node.parent.finalizer === node);
+// The catch clause whose body holds `node` with no function boundary between them. A `return`, `break` or `throw` in a
+// `finally` is Biome's `lint/correctness/noUnsafeFinally`, so this rule judges catch clauses only.
+function owningCatch(context: OrbRuleContext, node: TSESTree.Node): TSESTree.CatchClause | undefined {
+  const boundary = context.sourceCode
+    .getAncestors(node)
+    .findLast((ancestor) => FUNCTION_NODES.has(ancestor.type) || ancestor.type === AST_NODE_TYPES.CatchClause);
+  return boundary?.type === AST_NODE_TYPES.CatchClause ? boundary : undefined;
 }
 
 export const blindCatchRule: OrbRule = {
   meta: { type: "problem", schema: [] },
   create(context: OrbRuleContext): RuleVisitor {
     const unanswered = new Set<TSESTree.CatchClause>();
+    const left = new Set<TSESTree.Node>();
+    const jump = (statement: TSESTree.BreakStatement | TSESTree.ContinueStatement): void => {
+      const target = jumpTarget(context, statement);
+      if (target === undefined) {
+        return;
+      }
+      left.add(target);
+      // Every catch between the jump and the statement it leaves is left with no answer.
+      for (const node of context.sourceCode.getAncestors(statement).toReversed()) {
+        if (node === target) {
+          return;
+        }
+        if (node.type === AST_NODE_TYPES.CatchClause) {
+          unanswered.add(node);
+        }
+      }
+    };
     return {
       ReturnStatement: (statement: TSESTree.ReturnStatement) => {
-        const handler = isNoAnswer(statement.argument) ? owningHandler(context, statement) : undefined;
-        if (handler?.type === AST_NODE_TYPES.CatchClause) {
-          unanswered.add(handler);
-        } else if (handler !== undefined) {
-          // A return in `finally` replaces whatever the try threw, with no binding to read it through.
-          context.report({ node: statement, message: BLIND_FINALLY_MESSAGE });
+        const clause = isNoAnswer(statement.argument) ? owningCatch(context, statement) : undefined;
+        if (clause !== undefined) {
+          unanswered.add(clause);
         }
       },
+      BreakStatement: jump,
+      ContinueStatement: jump,
       "CatchClause:exit": (clause: TSESTree.CatchClause) => {
         if (readsCaughtError(context, clause)) {
           return;
         }
-        if (unanswered.has(clause) || !endsAbruptly(clause.body)) {
+        if (unanswered.has(clause) || !endsAbruptly(clause.body, left)) {
           context.report({ node: clause, message: BLIND_CATCH_MESSAGE });
         }
       },

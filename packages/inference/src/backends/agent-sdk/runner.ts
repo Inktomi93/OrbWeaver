@@ -22,7 +22,6 @@ import type {
   SDKMessage,
   SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
-import { AbortError } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatUsage, ResolvedWarning } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ChatId, ModelId } from "@orb/kit/ids";
@@ -59,7 +58,7 @@ import { NO_SAVED_TOTALS } from "./session/index.ts";
 import { isTerminalToolCall, terminalToolOptions, toTerminalCall } from "./terminal-tools.ts";
 import { buildSystemPrompt, disciplineOptions, hookContextOf, MCP_NAMESPACE, tailSystemOptions, toSdkGeneration } from "./translate.ts";
 import { classifyAssistantError, classifyResultSubtype, classifyTerminalReason } from "./verify.ts";
-import { assertSdkMessageRead } from "./wire-read.ts";
+import { assertSdkMessageRead, isQueryAbort } from "./wire-read.ts";
 
 /** The SDK query options for a turn's structured request: the planned schema as `outputFormat`, refused before
  *  the spawn when it does not fit, and nothing for a turn that asks for none. The agent-sdk carries only the native
@@ -143,10 +142,6 @@ function mergeMountedOptions(...fragments: readonly Partial<MountedOptions>[]): 
 
 function messageOf(error: unknown): string {
   return error instanceof Error ? error.message : String(error);
-}
-
-function isAbortError(error: unknown): boolean {
-  return error instanceof Error && error.name === "AbortError";
 }
 
 type UserContentBlock = { readonly type: "text"; readonly text: string } | AnthImageBlock;
@@ -431,7 +426,7 @@ async function probeContextUsage(query: Query, deps: Pick<AgentSdkDeps, "schedul
     // An abort is the query ending and propagates. Everything else stays contained by design: the SDK exports only its
     // abort class, and a failed control call rejects with a plain Error, so no class exists to narrow to. Context fill
     // is an optional sidecar that never governs the turn result, so the failure is logged and the sidecar omitted.
-    if (error instanceof AbortError) {
+    if (isQueryAbort(error)) {
       throw error;
     }
     deps.log.warn({ err: errorMessage(error) }, "agent-sdk: the context-usage probe failed; the turn reports no context fill");
@@ -494,7 +489,7 @@ async function consumeTurnStream(stream: AsyncIterable<SDKMessage>, ctx: TurnStr
       }),
     );
   }
-  return acc.finish(await runContextUsageProbe(ctx.probeContextUsage));
+  return await finishWithContextUsage(acc, ctx.probeContextUsage);
 }
 
 async function finishTurnWithError(acc: TurnAccumulator, error: unknown): Promise<never> {
@@ -502,11 +497,15 @@ async function finishTurnWithError(acc: TurnAccumulator, error: unknown): Promis
   return acc.finishWithError(error);
 }
 
-async function runContextUsageProbe(probe: (() => Promise<ContextUsage | undefined>) | undefined): Promise<ContextUsage | undefined> {
-  if (probe === undefined) {
-    return;
+async function finishWithContextUsage(acc: TurnAccumulator, probe: (() => Promise<ContextUsage | undefined>) | undefined): Promise<ChatResult> {
+  let contextUsage: ContextUsage | undefined;
+  try {
+    contextUsage = await probe?.();
+  } catch (error) {
+    // Only an abort leaves the probe; it ends the turn as the cancel it is, mapped like a stream failure.
+    return await finishTurnWithError(acc, error);
   }
-  return await probe();
+  return acc.finish(contextUsage);
 }
 
 function dispatch(acc: TurnAccumulator, message: SDKMessage): void {
@@ -750,7 +749,7 @@ class TurnAccumulator {
       return error;
     }
     const sessionId = this.errorSessionId;
-    const kind = isAbortError(error) ? "aborted" : "server";
+    const kind = isQueryAbort(error) ? "aborted" : "server";
     const safe = this.ctx.safeErrorMessage?.(error) ?? sanitizeApiError(redactSecretsFromText(messageOf(error), this.ctx.secrets));
     return new ProviderError({
       kind,

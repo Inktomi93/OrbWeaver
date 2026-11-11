@@ -88,8 +88,13 @@ rows([
   ["Promise.resolve(null) answers nothing", tryLoad("catch {\n    return Promise.resolve(null);\n  }"), 1],
   ["an awaited empty resolve answers nothing", tryLoad("catch {\n    return await Promise.resolve();\n  }"), 1],
   [
-    "a return in finally discards the try's throw",
-    "export async function load(db: D): Promise<Row | null> {\n  try {\n    return await db.read();\n  } finally {\n    return null;\n  }\n}\n",
+    "a nested break leaves the switch with no answer",
+    tryLoad("catch {\n    switch (mode) {\n      case 1:\n        if (flag) break;\n        return first;\n      default:\n        return second;\n    }\n  }"),
+    1,
+  ],
+  [
+    "a nested continue leaves the catch with no answer",
+    "export async function each(db: D): Promise<Row | null> {\n  for (const id of ids) {\n    try {\n      return await db.read(id);\n    } catch {\n      if (flag) continue;\n      return fallback;\n    }\n  }\n  return first;\n}\n",
     1,
   ],
   // Negative controls: the error is read and decides the answer, or the catch answers with a throw or a value.
@@ -128,8 +133,13 @@ rows([
   ],
   ["a destructured field that is read", tryLoad("catch ({ code }) {\n    return code === 'ENOENT' ? null : fail(code);\n  }"), 0],
   [
-    "a finally that only cleans up",
-    "export async function load(db: D): Promise<Row> {\n  try {\n    return await db.read();\n  } finally {\n    db.release();\n  }\n}\n",
+    "a case that falls through into one that answers",
+    tryLoad("catch {\n    switch (mode) {\n      case 1:\n        note();\n      default:\n        return second;\n    }\n  }"),
+    0,
+  ],
+  [
+    "a break that stays inside the catch's own loop",
+    tryLoad("catch {\n    for (const item of items) {\n      if (item.ok) break;\n    }\n    throw new ReadFailedError();\n  }"),
     0,
   ],
 ]);
