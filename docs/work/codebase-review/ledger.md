@@ -15,7 +15,8 @@ Boot sequence, in this order, every cold start:
 3. Read `units/<id>.md` if it exists (a half-done unit); else create it: title, band, sweeps,
    findings, verdict.
 4. Mark the unit `in-progress`, update its status cell, commit nothing yet.
-5. Work the unit: sweep commands below (raw output into the unit file), read the unit's
+5. Work the unit: load the `code-recon` skill (global — see Sweep commands), run the sweeps
+   (raw output into the unit file), read the unit's
    `contract/` in full, read every file header, then targeted-read only what the sweeps or
    headers made suspicious. For root-level config chunks, also truth the comments per the
    comment law while in there — one combined commit is fine.
@@ -103,6 +104,14 @@ Every unit gets the same axes so the rollup is rankable.
    and docs citing files that moved or are untracked (`rg tests/legacy` before closing any unit).
 
 ## Sweep commands
+
+Structural search has one authority: the global `code-recon` skill
+(`~/.claude/skills/code-recon/SKILL.md`) — load it before writing any pattern. It carries the
+verified rules the commands below cannot: `ts` and `tsx` are separate languages, always run both
+and merge; `--inspect summary` prints the `scannedFileCount` receipt every negative claim needs;
+one-node-in-a-list questions (object keys, import specifiers) are positional traps as patterns
+and need `kind` rules via `--inline-rules`; default `smart` strictness silently skips unnamed
+nodes like `async`. The commands here are only the routine literal-level part of the sweep.
 
 Run scoped to the unit; paste output raw into the unit file.
 
