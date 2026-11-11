@@ -255,7 +255,7 @@ export interface AppDeps {
 export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
   const app = new Hono<PrincipalEnv>();
   const authMode = deps.authConfig.mode;
-  const { observability, observabilityErrorHandler } = createRequestObservability(deps.logger, deps.rings);
+  const { observability, observabilityErrorHandler } = createRequestObservability(deps.logger, deps.rings, deps.now);
   // SECURITY: one list for every forwarded-header read below, so the client address, the Host check and the cookie
   // transport can never disagree about which peer is a trusted hop.
   const trustedProxies = trustedProxiesOf(deps.env);
@@ -498,6 +498,7 @@ export function createApp(deps: AppDeps): Hono<PrincipalEnv> {
   registerDebugRoutes(app, {
     log: deps.logger,
     rings: deps.rings,
+    now: deps.now,
     auditFailures: deps.auditFailures,
     env: deps.env,
     db: deps.db,

@@ -14,9 +14,8 @@
 //   - `[trpc] devlog ring`: tRPC procedure calls are already attributed by the OTel trace ring — each
 //     procedure is a child span of the request root with its own timing and status. A separate procedure-level
 //     devlog would duplicate what traces carry. The request ring covers HTTP-level data.
-//   - `perf() startTime`: correctly handled. `captureNowMs()` uses `performance.timeOrigin + performance.now()`
-//     (the house wall-clock spelling, shared with the client's `bus-devlog.ts` `clockMs`). OTel spans use
-//     `hrToMs(readable.startTime)`. Both clocks are process-relative; neither leaks a wall-clock epoch.
+//   - `perf() startTime`: correctly handled. The capture instant reads the root's injected clock, the clock the
+//     request ring stamps with; OTel spans anchor `hrToMs(readable.startTime)` to the same civil clock.
 //   - `flushSync` timing: a CLIENT-side React concern (synchronous render flushing). The server observability
 //     module has no visibility into the client's React commit cycle — that is instrumented on the client side
 //     by `motion-stats.ts` (LoAF scripts carry `forcedStyleAndLayoutDuration`) and the motion flaggers.
@@ -295,16 +294,4 @@ export async function writeBugReport(args: {
 /** Mint the correlation id a report is filed under (`gh issue` evidence links quote it). */
 export function mintBugReportId(): string {
   return randomUUID();
-}
-
-/** The capture instant, as epoch ms.
- *
- *  `performance.timeOrigin + performance.now()` rather than `Date.now()` — the house spelling for a wall-clock
- *  stamp in an instrument (`client/src/lib/bus-devlog.ts`'s `clockMs`, and the console-error ring this bundle
- *  reads). It is not a dodge of the injected-clock law: that law governs app LOGIC, whose behaviour must be
- *  reproducible, while this is the physical instant a capture happened — and the client's own rings stamp
- *  themselves with the same expression, so a report whose two halves used different clocks would compare
- *  windows that do not mean the same thing. */
-export function captureNowMs(): number {
-  return performance.timeOrigin + performance.now();
 }
