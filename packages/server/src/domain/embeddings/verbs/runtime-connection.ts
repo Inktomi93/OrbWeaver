@@ -2,14 +2,19 @@
 // a generation is minted from and embeds through. Kept apart from the keystone so the embeddings suites run this
 // exact resolve instead of copies.
 
+import type { EmbeddingTask } from "@orb/contracts/embeddings";
 import type { Principal } from "@orb/contracts/identity";
+import type { UserConnection } from "@orb/contracts/inference";
 import { ENCODER_IDENTITY_NO_API } from "@orb/contracts/inference";
 import type { EmbedResult } from "@orb/contracts/providers";
 import type { ImageEmbedInput } from "@orb/contracts/role-clients";
 import type { Resolved } from "@orb/inference";
-import type { UserId } from "@orb/kit/ids";
+import type { UserConnectionId, UserId } from "@orb/kit/ids";
 import type { EmbeddingRuntime } from "../contract/runtime-connection.ts";
 import type { EmbeddingConnectionSnapshot, ResolveEmbeddingConnection } from "../contract/service.ts";
+
+/** The op's `opts` bag, read off the op so the shape has one home. */
+type ResolveOpts = Parameters<ResolveEmbeddingConnection>[3];
 
 function isResolvedTask<T extends Resolved["task"]>(candidate: Resolved, task: T): candidate is Resolved<T> {
   return candidate.task === task;
@@ -73,7 +78,26 @@ export function createResolveEmbeddingConnection(runtime: EmbeddingRuntime, prin
       });
     },
   });
-  return async (ownerId, task, connectionId, opts) => {
+  // The overloads are the op's own: only an explicit id with no previewed connection can answer `null`.
+  function resolveConnection(ownerId: UserId, task: EmbeddingTask, connectionId?: undefined, opts?: ResolveOpts): Promise<EmbeddingConnectionSnapshot>;
+  function resolveConnection(
+    ownerId: UserId,
+    task: EmbeddingTask,
+    connectionId: UserConnectionId,
+    opts: ResolveOpts & { readonly previewConnection: UserConnection },
+  ): Promise<EmbeddingConnectionSnapshot>;
+  function resolveConnection(
+    ownerId: UserId,
+    task: EmbeddingTask,
+    connectionId: UserConnectionId | undefined,
+    opts?: ResolveOpts,
+  ): Promise<EmbeddingConnectionSnapshot | null>;
+  async function resolveConnection(
+    ownerId: UserId,
+    task: EmbeddingTask,
+    connectionId?: UserConnectionId,
+    opts?: ResolveOpts,
+  ): Promise<EmbeddingConnectionSnapshot | null> {
     const principal = await principalOf(ownerId);
     let outcome: Awaited<ReturnType<typeof runtime.resolve>>;
     try {
@@ -91,5 +115,6 @@ export function createResolveEmbeddingConnection(runtime: EmbeddingRuntime, prin
       return null;
     }
     return snapshotOf(outcome.resolved);
-  };
+  }
+  return resolveConnection;
 }

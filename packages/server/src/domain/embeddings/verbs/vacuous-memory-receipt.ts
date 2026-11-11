@@ -13,6 +13,6 @@ export function createVacuousMemoryReceipt(deps: VacuousMemoryReceiptDeps): (own
       return null;
     }
     const generation = await deps.embeddings.resolveGeneration(ownerId, "embed");
-    return generation === null ? null : { ownerId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch, onlyIf };
+    return { ownerId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch, onlyIf };
   };
 }

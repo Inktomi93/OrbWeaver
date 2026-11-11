@@ -3,7 +3,6 @@
 // these exact ops instead of copies.
 
 import type { MemoryEmbedSpace } from "@orb/contracts/embeddings";
-import { NoConnectionError } from "@orb/inference";
 import type { MemoryEmbeddingDeps, MemoryEmbeddingOps } from "../contract/memory-ops.ts";
 import type { EmbeddingsService } from "../contract/service.ts";
 
@@ -35,12 +34,9 @@ function memorySegmentReceipts(rows: readonly EmbeddingSegmentRow[], results: Aw
 export function createMemoryEmbeddingOps(deps: MemoryEmbeddingDeps): MemoryEmbeddingOps {
   const { embeddings, resolveChatHostUserId } = deps;
   return {
-    // No binding is the honest `NoConnectionError`: a default would silently write into a space nobody reads.
+    // No binding is the resolver's `NoConnectionError`, never a default: that would silently write into a space nobody reads.
     resolveMemoryEmbedSpace: async (hostUserId): Promise<MemoryEmbedSpace> => {
       const generation = await embeddings.resolveGeneration(hostUserId, "embed");
-      if (generation === null) {
-        throw new NoConnectionError("no embed connection is bound for this user — bind one in Connections");
-      }
       return { ownerId: hostUserId, model: generation.space, generationId: generation.id, generationEpoch: generation.epoch };
     },
     embeddingsStore: async (params): Promise<MemoryEmbedSpace> => {

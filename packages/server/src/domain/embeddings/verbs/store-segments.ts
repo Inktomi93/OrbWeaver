@@ -42,10 +42,7 @@ async function targetGenerations(
   const generations = new Map<UserId, PinnedGeneration>();
   for (const ownerId of new Set(params.map((p) => p.ownerId))) {
     signal?.throwIfAborted();
-    const generation = await resolveTargetGeneration(ctx, ownerId, "embed");
-    if (generation !== null) {
-      generations.set(ownerId, generation);
-    }
+    generations.set(ownerId, await resolveTargetGeneration(ctx, ownerId, "embed"));
   }
   return generations;
 }

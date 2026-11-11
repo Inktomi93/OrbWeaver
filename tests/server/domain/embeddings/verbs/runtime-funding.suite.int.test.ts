@@ -36,7 +36,7 @@ test("a pinned encoder rechecks authority without changing its admitted model or
   await harness.settleBackground();
   const moveBodies = fundingProvider.requestBodies.slice(beforeMove);
   expect(moveBodies.map((body) => JSON.parse(body))).toMatchObject([{ model: REPOINTED_MODEL }]);
-  expect((await harness.app.embeddings.resolveGeneration(harness.ownerId, "embed"))?.dims).toBe(7);
+  expect((await harness.app.embeddings.resolveGeneration(harness.ownerId, "embed")).dims).toBe(7);
   expect((await snapshot.embed("after model change")).vectors[0]).toEqual(new Float32Array([1, 0, 0]));
   expect(fundingProvider.calls).toEqual([...settledCalls, EMBEDDING_PATH, EMBEDDING_PATH, EMBEDDING_PATH]);
   expect(fundingProvider.requestBodies.slice(settledBodies).map((body) => JSON.parse(body))).toMatchObject([

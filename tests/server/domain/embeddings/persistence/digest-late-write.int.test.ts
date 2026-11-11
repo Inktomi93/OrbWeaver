@@ -52,9 +52,6 @@ test("a digest written for a generation retired while it embedded is refused, an
   const { chat } = await root.services.chat.startChat({ principal: host, characterIds: [witness.id] });
   await root.settleBackground();
   const generation = await root.app.embeddings.resolveGeneration(host.userId, "embed");
-  if (generation === null) {
-    throw new Error("the real host binding did not resolve an embedding generation");
-  }
   const digest = (blockIdx: number): Parameters<typeof root.app.embeddings.store>[0] => {
     const text = `[archive — hall]\nBlock ${blockIdx}`;
     return {

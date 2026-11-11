@@ -154,7 +154,7 @@ export interface EmbeddingsService {
     assetId: AssetId,
     options?: { readonly force?: boolean; readonly embedderChanged?: boolean | undefined; readonly signal?: AbortSignal | undefined },
   ) => Promise<StoreResult | null>;
-  readonly resolveGeneration: (ownerId: UserId, task: EmbeddingTask, via?: EmbeddingTask) => Promise<PinnedGeneration | null>;
+  readonly resolveGeneration: (ownerId: UserId, task: EmbeddingTask, via?: EmbeddingTask) => Promise<PinnedGeneration>;
   /** Bring the owner's stored targets in line with what their vector bindings resolve to now, moving any that
    *  differ (which queues the rebuild through {@link EmbeddingsContext.onTargetGenerationMoved}). A binding that
    *  cannot resolve yet moves nothing and does not throw: its first write after it can resolve moves it. Every move

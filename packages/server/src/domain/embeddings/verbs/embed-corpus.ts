@@ -79,14 +79,11 @@ export function createEmbedCorpus(ctx: EmbeddingsContext, deps: { readonly store
 async function completeCardSweep(ctx: EmbeddingsContext, ownerId: UserId | null, receipts: ReadonlyMap<UserId, StoreResult>): Promise<void> {
   for (const [spaceOwnerId, receipt] of receipts) {
     const generation = await resolveTargetGeneration(ctx, spaceOwnerId, "embed");
-    if (generation !== null && generation.id === receipt.generationId && generation.epoch === receipt.generationEpoch) {
+    if (generation.id === receipt.generationId && generation.epoch === receipt.generationEpoch) {
       await completeGenerationScope(ctx, { ownerId: spaceOwnerId, scope: "cards", generation });
     }
   }
   if (ownerId !== null && !receipts.has(ownerId)) {
-    const generation = await resolveTargetGeneration(ctx, ownerId, "embed");
-    if (generation !== null) {
-      await completeGenerationScope(ctx, { ownerId, scope: "cards", generation });
-    }
+    await completeGenerationScope(ctx, { ownerId, scope: "cards", generation: await resolveTargetGeneration(ctx, ownerId, "embed") });
   }
 }

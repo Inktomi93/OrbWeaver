@@ -39,10 +39,7 @@ async function prove(ctx: EmbeddingsContext, ownerId: UserId, target: SyncTarget
   let truncatable = false;
   let assumed = false;
   try {
-    const move = await pendingTargetMove(ctx, { ownerId, ...target, connectionId: previewConnection?.id, previewConnection });
-    if (move === null) {
-      return { kind: "unresolved" };
-    }
+    const move = await pendingTargetMove(ctx, { ownerId, ...target, previewConnection });
     if (!move.moves) {
       return { kind: "skip" };
     }

@@ -136,12 +136,22 @@ export type PreviewTargetMoveOp = (
   args: PreviewTargetMoveArgs,
 ) => Promise<{ readonly kind: "move" | "skip" | "unresolved" } | { readonly kind: "refused"; readonly refusal: EmbedTargetRefusal }>;
 
-/** Resolve the owner's encoder for `task` into a connection snapshot; `null` when an explicit `connectionId` no
- *  longer resolves. `cachedFacts`: read only the server facts already cached, dialing nothing (a read-only
- *  preview). The snapshot's call closures take an AbortSignal, so each domain types its own connection. */
-export type ResolveEmbeddingConnectionOp<TConnection> = (
-  ownerId: UserId,
-  task: EmbeddingTask,
-  connectionId?: UserConnectionId | undefined,
-  opts?: { readonly cachedFacts?: boolean | undefined; readonly previewConnection?: UserConnection | undefined },
-) => Promise<TConnection | null>;
+interface ResolveEmbeddingConnectionOpts {
+  readonly cachedFacts?: boolean | undefined;
+  readonly previewConnection?: UserConnection | undefined;
+}
+
+/** Resolve the owner's encoder for `task` into a connection snapshot. Only an explicit `connectionId` that no longer
+ *  resolves answers `null`; the binding form and a previewed connection throw instead, so their snapshot is never
+ *  `null`. `cachedFacts`: read only the server facts already cached, dialing nothing (a read-only preview). The
+ *  snapshot's call closures take an AbortSignal, so each domain types its own connection. */
+export interface ResolveEmbeddingConnectionOp<TConnection> {
+  (ownerId: UserId, task: EmbeddingTask, connectionId?: undefined, opts?: ResolveEmbeddingConnectionOpts): Promise<TConnection>;
+  (
+    ownerId: UserId,
+    task: EmbeddingTask,
+    connectionId: UserConnectionId,
+    opts: ResolveEmbeddingConnectionOpts & { readonly previewConnection: UserConnection },
+  ): Promise<TConnection>;
+  (ownerId: UserId, task: EmbeddingTask, connectionId: UserConnectionId | undefined, opts?: ResolveEmbeddingConnectionOpts): Promise<TConnection | null>;
+}
