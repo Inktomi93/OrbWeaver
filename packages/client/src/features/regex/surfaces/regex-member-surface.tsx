@@ -19,15 +19,13 @@ import { Stack } from "@orb/ui/layout";
 import type { inferInput } from "@trpc/tanstack-react-query";
 import type { ReactElement } from "react";
 import { useRef } from "react";
-import type { MemberDrillBack } from "#components";
-import { EditorPage, MemberDrillHeader, returnFocusToRow } from "#components";
+import { DetailHeader, EditorPage } from "#components";
 import type { Trpc } from "#data";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { AutosaveStatus } from "#forms/editor";
-import type { CollectionMemberView } from "#lib";
+import type { CollectionMemberView, DrillBack } from "#lib";
 import { regexScriptTitle, useFocusOnMount } from "#lib";
-import { clearCollectionSelection } from "#state";
 import { RegexEditorFields } from "../components/regex-editor-fields.tsx";
 import { useUpdateRegexScript } from "../hooks/use-regex-library.ts";
 import { RegexScriptForm } from "../hooks/use-regex-script-form.ts";
@@ -45,13 +43,7 @@ export function RegexMemberSurface({ view }: { readonly view: CollectionMemberVi
   const trpc = useTRPC();
   const { data: scripts } = useSuspenseQuery(trpc.regex.listScripts.queryOptions());
   const row = scripts.find((script) => script.id === view.memberId);
-  const back = {
-    label: `Back to ${view.library}`,
-    onClick: (): void => {
-      returnFocusToRow(view.memberId);
-      clearCollectionSelection();
-    },
-  };
+  const { back } = view;
   if (row === undefined) {
     // Reachable for real: another device deleted this script while it was open here (the regex verbs are
     // bus-driven, so the list refetches under the editor). The EXIT rides along (#1747): the drill row is
@@ -59,7 +51,7 @@ export function RegexMemberSurface({ view }: { readonly view: CollectionMemberVi
     // action={null}: the regex member editor's GONE arm — the open script was deleted on another device (the regex verbs are bus-driven, so the list refetches under the editor). The next step is picking another row in the sibling roster, which is on screen. Ends if this surface can be reached without its sibling roster.
     return (
       <Stack gap="block">
-        <MemberDrillHeader back={back} />
+        <DetailHeader back={back} />
         <EmptyState
           action={null}
           description="This script was deleted. Pick another from the list."
@@ -72,7 +64,7 @@ export function RegexMemberSurface({ view }: { readonly view: CollectionMemberVi
   return <RegexMemberEditor back={back} row={row} />;
 }
 
-function RegexMemberEditor({ row, back }: { readonly row: RegexScriptRow; readonly back: MemberDrillBack }): ReactElement {
+function RegexMemberEditor({ row, back }: { readonly row: RegexScriptRow; readonly back: DrillBack }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const update = useUpdateRegexScript({ trpc, invalidation });
@@ -92,7 +84,7 @@ function RegexMemberEditorBody({
 }: {
   readonly row: RegexScriptRow;
   readonly session: AutosaveSession<CreateRegexScriptInput>;
-  readonly back: MemberDrillBack;
+  readonly back: DrillBack;
 }): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
   useFocusOnMount(surfaceRef);
@@ -107,7 +99,7 @@ function RegexMemberEditorBody({
           `RegexTestPanel` + `RegexPipelinePanel`, the REGX2 two-questions ruling), so a header button
           would be a second door onto a panel already on screen. The mock draws the button because it
           draws no panels; converging the two is a design decision this lane refuses to take silently. */}
-      <MemberDrillHeader actions={<AutosaveStatus onRetry={session.retrySave} state={session.status} />} back={back} title={regexScriptTitle(row)} />
+      <DetailHeader actions={<AutosaveStatus onRetry={session.retrySave} state={session.status} />} back={back} title={regexScriptTitle(row)} />
 
       {/* Delete lives on the ROW's kebab now (config-delete #271) — the editor is autosave-only. */}
       <RegexEditorFields form={session.form} scriptId={row.id} />

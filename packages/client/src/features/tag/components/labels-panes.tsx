@@ -11,32 +11,58 @@ import { Text } from "@orb/ui/text";
 import { useQuery } from "@tanstack/react-query";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { MemberDrillHeader, QueryBoundary } from "#components";
+import { DetailHeader, QueryBoundary, returnFocusToRow } from "#components";
 import { QueryErrorState, useTRPC } from "#data";
+import type { DrillBack } from "#lib";
 import { CORPUS_MODE_LABELS, DIALOG_VERBS, sectionBackName, tagUsageLabel, USAGE_KIND_TITLES } from "#lib";
 import { clearLabelSelection, useSelectedLabelId } from "#state";
 import { useTagName } from "../hooks/use-tag-library.ts";
+import type { LabelsLandingReturn } from "../surfaces/labels-landing-surface.tsx";
 import { LabelsLandingSurface } from "../surfaces/labels-landing-surface.tsx";
 import { TagMemberSurface } from "../surfaces/tag-member-surface.tsx";
 import { LabelAttachedEntities } from "./label-attached-entities.tsx";
 
+/** How the library comes back: on a cold arrival, after an editor closed by merge or delete, or after a Back that focused a row. */
+function landingReturn(editorWasOpen: boolean, backToRow: boolean): LabelsLandingReturn | null {
+  if (!editorWasOpen) {
+    return null;
+  }
+  return backToRow ? "row" : "library";
+}
+
 /** CONTENT: the region owns the scroll and the inset once, for both surfaces (the `corpus-content.tsx`
  *  precedent). The editor suspends on the library read, so its Back is the boundary's fallback too: the exit
- *  is never missing for the beat the reader most wants it (#1747). Keyed per tag, so the editor's local
+ *  is never missing for the beat the reader most wants it. Keyed per tag, so the editor's local
  *  name draft never carries over to the next tag. */
 export function LabelsContent(): ReactElement {
   const tagId = useSelectedLabelId();
   // Once an editor has been open, the library only ever returns by closing it (Back, merge, delete).
   const [editorWasOpen, setEditorWasOpen] = useState(tagId !== null);
-  if (tagId !== null && !editorWasOpen) {
-    setEditorWasOpen(true);
+  // A Back hands focus to the finder row the tag was opened from, so the library it returns to stands down; a finder that
+  // cannot take focus (collapsed, or a released overlay) declines, and the library keeps the landing.
+  const [backToRow, setBackToRow] = useState(false);
+  // Reset on the open itself: the Back's own render still carries the tag, and must keep the flag it just set.
+  const [shownTagId, setShownTagId] = useState(tagId);
+  if (tagId !== shownTagId) {
+    setShownTagId(tagId);
+    if (tagId !== null) {
+      setEditorWasOpen(true);
+      setBackToRow(false);
+    }
   }
-  const exit = <MemberDrillHeader back={{ label: sectionBackName(CORPUS_MODE_LABELS.labels), onClick: clearLabelSelection }} />;
+  const back: DrillBack = {
+    label: sectionBackName(CORPUS_MODE_LABELS.labels),
+    onClick: (): void => {
+      setBackToRow(tagId !== null && returnFocusToRow(tagId));
+      clearLabelSelection();
+    },
+  };
+  const exit = <DetailHeader back={back} />;
   return (
     <Container className="min-block-0" height="fill">
       <Stack scroll="y" height="fill" paddingBlock="section" data-slot="labels-content">
         {tagId === null ? (
-          <LabelsLandingSurface returning={editorWasOpen} />
+          <LabelsLandingSurface returning={landingReturn(editorWasOpen, backToRow)} />
         ) : (
           <QueryBoundary
             resetKeys={[tagId]}
@@ -56,7 +82,7 @@ export function LabelsContent(): ReactElement {
               />
             )}
           >
-            <TagMemberSurface key={tagId} tagId={tagId} />
+            <TagMemberSurface back={back} key={tagId} tagId={tagId} />
           </QueryBoundary>
         )}
       </Stack>

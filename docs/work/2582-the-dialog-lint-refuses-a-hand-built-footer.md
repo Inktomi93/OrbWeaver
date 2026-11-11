@@ -21,6 +21,12 @@ The conversions can regress with no failure.
 
 The rule refuses DialogFooter and DialogClose in a feature outside an EmptyState action, with a planted control, on at zero.
 
+## Sites
+
+| Site | What it is |
+| - | - |
+| `tooling/src/eslint/ui-feature-policy.ts:188` | Dialog lint scope |
+
 ## Evidence
 
 Filled at landing: what ran and where its output is.

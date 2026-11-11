@@ -19,14 +19,13 @@ import type { SortableItemKey } from "@orb/ui/sortable";
 import { SortableList } from "@orb/ui/sortable";
 import { Text } from "@orb/ui/text";
 import { useToastManager } from "@orb/ui/toast";
-import type { ReactElement } from "react";
+import type { ReactElement, RefCallback, RefObject } from "react";
 import { useRef, useState } from "react";
-import type { MemberDrillBack } from "#components";
-import { EditorPage, MemberDrillHeader } from "#components";
+import { DetailHeader, EditorPage, returnFocusToRow, useReturnToRowOnClose, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
-import type { CollectionMemberView } from "#lib";
-import { useFocusOnMount } from "#lib";
-import { clearCollectionSelection, clearWorldEntrySelection, selectWorldEntry, useSelectedWorldEntryId } from "#state";
+import type { CollectionMemberView, DrillBack } from "#lib";
+import { sectionBackName, useFocusOnMount } from "#lib";
+import { clearWorldEntrySelection, selectWorldEntry, useSelectedWorldEntryId } from "#state";
 import { BookDetailsDialog } from "../components/book-details-dialog.tsx";
 import { EntryEditor } from "../components/entry-editor.tsx";
 import { useApplyEntryOrder, useBackfillWorldTitles, useCreateWorldEntry, useUpdateWorldBook } from "../hooks/use-world-info-mutations.ts";
@@ -39,14 +38,14 @@ export function WorldInfoMemberSurface({ view }: { readonly view: CollectionMemb
   const trpc = useTRPC();
   const { data: books } = useSuspenseQuery(trpc.worldInfo.listBooksWithUsage.queryOptions());
   const book = books.find((row) => row.id === view.memberId);
-  const back = { label: `Back to ${view.library}`, onClick: (): void => clearCollectionSelection() };
+  const { back } = view;
   if (book === undefined) {
     // The EXIT rides the gone arm too (#1747) — the drill row is this surface's, so dropping it here would
     // strand a drilled reader on a book another device deleted.
     // action={null}: the world-info member editor's GONE arm — the open book was deleted on another device (the world-info verbs are bus-driven, so the roster refetches under the editor). The next step is picking another row in the sibling roster, which is on screen. Ends if this surface can be reached without its sibling roster.
     return (
       <Stack gap="block">
-        <MemberDrillHeader back={back} />
+        <DetailHeader back={back} />
         <EmptyState
           action={null}
           description="This book was deleted. Pick another from the list."
@@ -59,7 +58,7 @@ export function WorldInfoMemberSurface({ view }: { readonly view: CollectionMemb
   return <BookEditor back={back} bookId={book.id} />;
 }
 
-function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly back: MemberDrillBack }): ReactElement {
+function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly back: DrillBack }): ReactElement {
   const trpc = useTRPC();
   const invalidation = useInvalidation();
   const toast = useToastManager();
@@ -73,6 +72,12 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
   const backfill = useBackfillWorldTitles({ trpc, invalidation });
   const reorder = useApplyEntryOrder({ trpc, invalidation });
   const [detailsOpen, setDetailsOpen] = useState(false);
+  // The entry list unmounts under an open entry and mounts again when the entry closes, which hands focus back to its row.
+  const entryListRef = useRef<HTMLDivElement>(null);
+  const entryFocus = useRowDeleteFocus(
+    entryListRef,
+    entries.map((entry) => entry.id),
+  );
 
   // A remembered entry from a DIFFERENT book simply doesn't match here, so the surface falls back to the
   // entry list — which is why the entry selection needs no clearing when the open book changes.
@@ -107,16 +112,7 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
   };
 
   if (selectedEntry !== null) {
-    return (
-      <EditorPage focusTarget={true} data-slot="world-info-member-editor" gap="block" ref={surfaceRef} tabIndex={-1}>
-        {/* THE ENTRY RUNG'S OWN DRILL ROW (#1747) — the same composite the book level above draws, so the
-              two rungs of this one surface cannot speak two grammars. Its Back pops the ENTRY, never the
-              book (the `makeSelectionSeam` stack's deepest rung), and it states the entry's name, which
-              nothing else on this rung did: `EntryEditor` carries a Title FIELD, not a heading. */}
-        <MemberDrillHeader back={{ label: `Back to ${book.name}`, onClick: (): void => clearWorldEntrySelection() }} title={selectedEntry.title} />
-        <EntryEditor entry={selectedEntry} onDeleted={(): void => clearWorldEntrySelection()} />
-      </EditorPage>
-    );
+    return <EntryMember bookName={book.name} entry={selectedEntry} pageRef={surfaceRef} />;
   }
 
   return (
@@ -127,7 +123,7 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
             lifecycle chrome: Delete is the LIST row's kebab (D212, #271).
             EDIT DETAILS IS A LABELLED BUTTON NOW, not a bare pencil: the board names it, and the icon-only
             trigger's whole accessible name lived in an `aria-label` nothing on screen said. */}
-      <MemberDrillHeader
+      <DetailHeader
         actions={
           <>
             <Button variant="outline" onClick={(): void => setDetailsOpen(true)} size="sm">
@@ -161,28 +157,33 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
         {entries.length === 1 ? "1 entry" : `${entries.length} entries`}
       </Text>
 
-      {entries.length === 0 ? (
-        <EmptyState
-          action={
-            <Button aria-label={worldInfoNewEntryInName(book.name)} disabled={create.isPending} variant="outline" onClick={onCreate} size="sm">
-              {WORLD_INFO_NEW_ENTRY_NAME}
-            </Button>
-          }
-          description="Add an entry: a piece of lore that fires into the prompt when its keywords come up."
-          icon={<Icon icon={BookOpen} size="lg" />}
-          title={WORLD_INFO_NO_ENTRIES_TITLE}
-        />
-      ) : (
-        // handle mode: only the grip drags, so each row's own click (drill into the editor) stays live.
-        <SortableList
-          getItemKey={(entry): SortableItemKey => entry.id}
-          handle={true}
-          itemLabel={(entry): string => entry.title}
-          items={entries}
-          onReorder={onReorder}
-          renderItem={(entry): ReactElement => <EntryRow entry={entry} onSelect={(id): void => selectWorldEntry(id)} />}
-        />
-      )}
+      {/* The root is where focus lands when an open entry is gone, so it stands with no entries left as well. */}
+      <Stack focusTarget={true} ref={entryListRef} tabIndex={-1}>
+        {entries.length === 0 ? (
+          <EmptyState
+            action={
+              <Button aria-label={worldInfoNewEntryInName(book.name)} disabled={create.isPending} variant="outline" onClick={onCreate} size="sm">
+                {WORLD_INFO_NEW_ENTRY_NAME}
+              </Button>
+            }
+            description="Add an entry: a piece of lore that fires into the prompt when its keywords come up."
+            icon={<Icon icon={BookOpen} size="lg" />}
+            title={WORLD_INFO_NO_ENTRIES_TITLE}
+          />
+        ) : (
+          // handle mode: only the grip drags, so each row's own click (drill into the editor) stays live.
+          <SortableList
+            getItemKey={(entry): SortableItemKey => entry.id}
+            handle={true}
+            itemLabel={(entry): string => entry.title}
+            items={entries}
+            onReorder={onReorder}
+            renderItem={(entry): ReactElement => (
+              <EntryRow bodyRef={entryFocus.bodyRef(entry.id)} entry={entry} onSelect={(id): void => selectWorldEntry(id)} />
+            )}
+          />
+        )}
+      </Stack>
 
       <BookDetailsDialog
         currentDescription={book.description}
@@ -195,8 +196,50 @@ function BookEditor({ bookId, back }: { readonly bookId: WorldBookId; readonly b
   );
 }
 
+/** The open entry: its own page, so it leaves as one piece when Back pops it or when it is deleted elsewhere, and either
+ *  way hands focus back to the entry list. */
+function EntryMember({
+  bookName,
+  entry,
+  pageRef,
+}: {
+  readonly bookName: string;
+  readonly entry: WorldEntry;
+  /** The book's page ref, so an arrival straight into an entry takes the book's mount focus. */
+  readonly pageRef: RefObject<HTMLDivElement | null>;
+}): ReactElement {
+  useReturnToRowOnClose(pageRef, entry.id);
+  return (
+    <EditorPage focusTarget={true} data-slot="world-info-member-editor" gap="block" ref={pageRef} tabIndex={-1}>
+      {/* THE ENTRY RUNG'S OWN DRILL ROW (#1747) — the same composite the book level above draws, so the
+            two rungs of this one surface cannot speak two grammars. Its Back pops the ENTRY, never the
+            book (the `makeSelectionSeam` stack's deepest rung), and it states the entry's name, which
+            nothing else on this rung did: `EntryEditor` carries a Title FIELD, not a heading. */}
+      <DetailHeader
+        back={{
+          label: sectionBackName(bookName),
+          onClick: (): void => {
+            returnFocusToRow(entry.id);
+            clearWorldEntrySelection();
+          },
+        }}
+        title={entry.title}
+      />
+      <EntryEditor entry={entry} onDeleted={(): void => clearWorldEntrySelection()} />
+    </EditorPage>
+  );
+}
+
 /** One entry row in the book overview — title · a keyword/always summary · an enabled/disabled badge. */
-function EntryRow({ entry, onSelect }: { readonly entry: WorldEntry; readonly onSelect: (id: WorldEntryId) => void }): ReactElement {
+function EntryRow({
+  entry,
+  onSelect,
+  bodyRef,
+}: {
+  readonly entry: WorldEntry;
+  readonly onSelect: (id: WorldEntryId) => void;
+  readonly bodyRef: RefCallback<HTMLElement>;
+}): ReactElement {
   const keys = entry.keys ?? [];
   const summary = keys.length === 0 ? "Always" : keys.join(", ");
   return (
@@ -210,6 +253,7 @@ function EntryRow({ entry, onSelect }: { readonly entry: WorldEntry; readonly on
           <Badge size="sm">Off</Badge>
         )
       }
+      bodyRef={bodyRef}
       clickable={true}
       onClick={(): void => onSelect(entry.id)}
       subtitle={summary}

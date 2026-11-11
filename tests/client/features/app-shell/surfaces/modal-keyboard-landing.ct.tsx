@@ -38,6 +38,7 @@ import {
 } from "@orb/testkit/node/composed";
 import type { Locator, Page } from "@playwright/test";
 import { REAUTH_MODAL_TITLE } from "#client/features/auth/lib/reauth-names.ts";
+import { COMMAND_MODAL_TITLE } from "#client/features/chat/lib/command-palette-names.ts";
 import { COMPOSER_IMAGINE_NAME } from "#client/features/chat/lib/composer-menu-names.ts";
 import { DATABANK_ADD_DOCUMENT_TITLE, DATABANK_ADD_NAME } from "#client/features/databank/lib/databank-names.ts";
 import {
@@ -150,6 +151,27 @@ test.describe("on a phone", () => {
     await expect(drawerPopup(page)).toBeFocused();
     // The sheet takes focus as a whole, so it announces arrival without the browser's own ring around the whole sheet.
     expect(await drawerPopup(page).evaluate((node) => getComputedStyle(node).outlineStyle)).toBe("none");
+  });
+
+  test("a You sheet row that opens another modal replaces the sheet, and focus lands in the new modal", async ({ corpus, mount, page }) => {
+    await using root = await createCorpusHarness(undefined, { startJobs: false });
+    const caller = await root.internalCallerFor(root.ownerId);
+    await routeTrpc(page, {
+      ...createShellAmbientReads(corpus, root.ownerId),
+      ...serveCorpusProcedures(caller, [...SECTION_PROCEDURES, "notifications.markAllRead", "plugin.list", "plugin.listSurfaces"]),
+    });
+    await mount<typeof AppShellStory>(STORY, {});
+    await pressByKeyboard(page.locator(".shell-rail").getByRole("button", { name: YOU_TAB_LABEL, exact: true }));
+    await expect(drawerPopup(page)).toBeFocused();
+
+    await pressByKeyboard(dialogNamed(page, YOU_TAB_LABEL).getByRole("button", { name: COMMAND_MODAL_TITLE, exact: true }));
+
+    const replacement = dialogNamed(page, COMMAND_MODAL_TITLE);
+    await expect(replacement).toBeVisible();
+    await expect(dialogNamed(page, YOU_TAB_LABEL)).toHaveCount(0);
+    // The palette places its own arrival on its search; the host's anchor is the floor when a body places none.
+    await expect(replacement.locator(":focus")).toHaveCount(1);
+    expect(await page.evaluate(() => document.activeElement === document.body)).toBe(false);
   });
 });
 

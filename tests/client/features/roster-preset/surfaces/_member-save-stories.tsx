@@ -1,15 +1,11 @@
-import { useInvalidation, useOrbSocket, useUserBus } from "@orb/client/data";
 import { openConfigTo, selectCollectionMember, useSectionRegistry } from "@orb/client/state";
 import type { RosterPresetId } from "@orb/kit/ids";
-import { CtClientProviders } from "@orb/testkit/browser";
+import { CtClientProviders, CtUserBus } from "@orb/testkit/browser";
 import { Container } from "@orb/ui/layout";
 import type { ReactElement } from "react";
 import { useState } from "react";
 
 function MemberContent({ presetId }: { readonly presetId: RosterPresetId }): ReactElement {
-  const invalidation = useInvalidation();
-  useOrbSocket();
-  useUserBus({ invalidateUser: invalidation.invalidateUser, invalidateAllUserRoots: invalidation.invalidateAllUserRoots });
   useState(() => {
     openConfigTo("rosterPreset");
     selectCollectionMember("rosterPreset", presetId);
@@ -27,7 +23,9 @@ export function RosterMemberSaveStory({ presetId }: { readonly presetId: RosterP
   return (
     <CtClientProviders>
       <Container className="block-dvh">
-        <MemberContent presetId={presetId} />
+        <CtUserBus>
+          <MemberContent presetId={presetId} />
+        </CtUserBus>
       </Container>
     </CtClientProviders>
   );

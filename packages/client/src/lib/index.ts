@@ -45,6 +45,7 @@ export type {
   CollectionInsight,
   CollectionListView,
   CollectionMemberView,
+  DrillBack,
 } from "./collection-contracts.ts";
 export { COLLECTION_LARGE_GROUP } from "./collection-contracts.ts";
 export type { ConfigQueryToken, ParsedConfigQuery } from "./config-search-tokens.ts";

@@ -3,7 +3,7 @@
 // document, Cancel returns focus to the row's own menu trigger, and a landed delete hands focus to a neighbour row once the row
 // has left the list. The real server's own `databankChanged` event is what removes the row.
 
-import { ROW_DELETE_NAME, rowActionsName } from "@orb/client/lib";
+import { DIALOG_VERBS, ROW_DELETE_NAME, rowActionsName } from "@orb/client/lib";
 import type { ShellBusStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
@@ -79,7 +79,7 @@ test("a refused Databank delete keeps its confirm and its trigger, and a landed 
   const confirm = page.getByRole("alertdialog");
   await confirm.getByRole("button", { name: ROW_DELETE_NAME, exact: true }).click();
   await expect(confirm.getByRole("alert")).toBeVisible();
-  await confirm.getByRole("button", { name: "Cancel", exact: true }).click();
+  await confirm.getByRole("button", { name: DIALOG_VERBS.cancel, exact: true }).click();
   await expect(confirm).toHaveCount(0);
   await expect(
     page

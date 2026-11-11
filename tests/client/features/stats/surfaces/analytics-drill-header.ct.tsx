@@ -1,5 +1,5 @@
 // An Insights character drill heads itself the way a Labels drill does: Back and the name on one row, the name after the Back.
-import { CORPUS_MODE_LABELS, testId } from "@orb/client/lib";
+import { CORPUS_MODE_LABELS, sectionBackName, testId } from "@orb/client/lib";
 import { DEFAULT_APPEARANCE_SETTINGS, DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
@@ -34,8 +34,11 @@ test("the Insights character drill puts Back and the name on one row", async ({ 
   await page.getByRole("radiogroup", { name: CORPUS_MODE_NAME, exact: true }).getByRole("radio", { name: CORPUS_MODE_LABELS.insights, exact: true }).click();
   await page.locator(`[${LEADERBOARD_ROW_ATTR}]`).first().getByRole("button").click();
   const content = page.getByTestId(testId("analyticsCharacterSurface"));
-  const back = content.getByRole("button", { name: `Back to ${CORPUS_MODE_LABELS.insights}`, exact: true });
-  const name = content.getByRole("heading", { level: 2 });
+  const back = content.getByRole("button", { name: sectionBackName(CORPUS_MODE_LABELS.insights), exact: true });
+  const heading = content.getByRole("heading", { level: 2 });
+  await expect(heading).toHaveCount(1);
+  // The h2 names the drill for the outline; the line a reader sees is its visible twin, hidden from the outline.
+  const name = content.locator('[aria-hidden="true"][data-shell-identity]').filter({ hasText: (await heading.textContent()) ?? "" });
   await expect(name).toBeVisible();
   const backBox = await back.boundingBox();
   const nameBox = await name.boundingBox();

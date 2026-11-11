@@ -6,7 +6,7 @@ description: How to hunt through a codebase and prove what you find — ast-grep
 # Code recon
 
 The evidence standards (evidence ladder, no-matches is not absence, TS vs TSX, the three
-property-read kinds, `tree -L`, partial reads, filtering with flags, `path:line` receipts) live in
+property-read kinds, `tree -L`, partial reads, filtering with flags, `path:line` evidence) live in
 `~/.claude/CLAUDE.md`, "Code recon — evidence standards". This file is the how-to for meeting
 them. Written against ast-grep 0.45.0, ripgrep 14.1.0, tree 2.1.1; where it and `<tool> --help`
 disagree, the CLI wins.
@@ -122,7 +122,7 @@ the files you could not parse.
 
 Each pattern matches only its own form. Run all three.
 
-### Lenses
+### Patterns by use
 
 ```bash
 ast-grep run -p 'someSymbol' -l ts <p>          # identifier uses, minus comments and strings
@@ -254,7 +254,7 @@ Writes need the `kind: pair` rule, once per language. Then read producer and con
 ## Reachability limits
 
 ast-grep has no module resolution, binding, or types; its orphan and fan-in counts are
-candidates. Prefer the repo's resolution-based lens (orbweaver: `pnpm ast`) or a checked-in
+candidates. Prefer the repo's resolution-based tool (orbweaver: `pnpm ast`) or a checked-in
 generated report, and cite which you used. Before calling a JS/TS module unimported, check:
 
 - package specifiers with subpaths, and relative paths (resolve them yourself);
