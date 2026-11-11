@@ -10,7 +10,7 @@ area: docs
 
 ## What
 
-`.claude/rules/comments.md` limits a file header to three lines. `AGENTS.md` says per-domain law lives in file headers. Most headers in `packages/server/src` and `packages/kit/src` exceed the budget. The same unit found two dead procedures in `.claude/skills/lane/SKILL.md`: the `legacy-main` branch section, for a branch that does not exist, and a test-hook naming convention with no use in `packages/`. `AGENTS.md` is over the line budget that `.claude/rules/writing.md` sets for it. Source: `docs/work/codebase-review/units/instruction-files.md`.
+`.claude/rules/comments.md` limits a file header to three lines. `AGENTS.md` says per-domain law lives in file headers. Most headers in `packages/server/src` and `packages/kit/src` exceed the budget. The same unit found two dead procedures in `.claude/skills/lane/SKILL.md`: the `legacy-main` branch section, for a branch that does not exist, and a test-hook naming convention with no use in `packages/`. `AGENTS.md` is over the line budget that `.claude/rules/writing.md` sets for it. Source: `reports/codebase-review/units/instruction-files.md`.
 
 ## Why
 

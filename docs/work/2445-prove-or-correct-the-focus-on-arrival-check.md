@@ -11,7 +11,7 @@ lane: wt/agent-ac7632a404161150a
 
 ## What
 
-`ACCESSIBILITY.md` says a build check fails any new screen that skips moving focus into an opening view. The review found focus tests and Base UI focus props but no check under that name. Source: `docs/work/codebase-review/units/root-docs.md`.
+`ACCESSIBILITY.md` says a build check fails any new screen that skips moving focus into an opening view. The review found focus tests and Base UI focus props but no check under that name. Source: `reports/codebase-review/units/root-docs.md`.
 
 ## Why
 

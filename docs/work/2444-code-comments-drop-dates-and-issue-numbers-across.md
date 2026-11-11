@@ -10,7 +10,7 @@ area: docs
 
 ## What
 
-The comment law bans dates and issue or board numbers in comments. The review counted many such comments in `packages/kit`, `packages/contracts`, `packages/db`, `tooling/src/floor` and, most of all, `packages/server/src`; `packages/kit/src/card-frame/index.ts` is the densest kit file. The facts in them matter and every sampled one was true; the format is the defect. Where a comment carries a measured result or the reason for a ruling, the fact moves to an ADR or a work item and the comment cites that anchor. Source: the kit, contracts, db, tooling-floor and server-foundation unit files under `docs/work/codebase-review/units/`.
+The comment law bans dates and issue or board numbers in comments. The review counted many such comments in `packages/kit`, `packages/contracts`, `packages/db`, `tooling/src/floor` and, most of all, `packages/server/src`; `packages/kit/src/card-frame/index.ts` is the densest kit file. The facts in them matter and every sampled one was true; the format is the defect. Where a comment carries a measured result or the reason for a ruling, the fact moves to an ADR or a work item and the comment cites that anchor. Source: the kit, contracts, db, tooling-floor and server-foundation unit files under `reports/codebase-review/units/`.
 
 ## Why
 

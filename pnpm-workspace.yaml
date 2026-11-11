@@ -165,7 +165,7 @@ catalog:
   # node's built-in `fetch` READS it. If that contract ever breaks, the firewall silently stops
   # governing `fetch` and every gate stays green over an open SSRF surface. A test must pin the
   # handoff and re-run it on every node/undici bump; no in-repo test pins it yet — porting the
-  # replacement is tracked in docs/work/codebase-review/ledger.md.
+  # replacement is tracked in reports/codebase-review/ledger.md.
   undici: ^8.12.3
   # --- foundation observability (Phase 4a — Tier-2-Foundation.md › Runtime dependencies) ---
   # pino: the structured logger (pino.multistream([stdout, ringStream])).
@@ -201,7 +201,7 @@ catalog:
   # typed contract. A caret bump can move any of those under us silently, so every bump re-runs the
   # wire-capture byte pins for the anthropic-messages and openai-compat chat transports before it is
   # trusted; no in-repo suite holds these pins yet, and porting them is tracked in
-  # docs/work/codebase-review/ledger.md. `ai` is the peer the OpenRouter provider requires (`^7.0.0`);
+  # reports/codebase-review/ledger.md. `ai` is the peer the OpenRouter provider requires (`^7.0.0`);
   # the `@ai-sdk/provider` pin must satisfy every provider package's own `@ai-sdk/provider` dependency
   # at install, so the stack moves together. The exact per-transport byte pins guard the OpenRouter
   # provider's request conversion alongside the Vercel SDK providers.

@@ -11,7 +11,7 @@ lane: wt/agent-a7cc72305cac667b5
 
 ## What
 
-`tests/support` is a workspace package with no named volume in `.devcontainer/devcontainer.json` or `.devcontainer/Dockerfile`, and the guard in `tests/tooling/container-security-config.int.test.ts` lists packages from a directory scan that cannot see it. `.devcontainer/init-firewall.sh` calls the GitHub range fetch non-fatal, but `api.github.com` reaches the allowlist only through that fetch and the final self-test requires it. Smaller points from the same unit: the Dockerfile comment that says the firewall blocks `cdn.playwright.dev`, the partial volume list in the `.devcontainer/README.md` reset snippet, `.devcontainer/tools/` missing from the Dependabot npm entries, the unpinned Playwright ARG, and the two build-time downloads without a checksum. Source: `docs/work/codebase-review/units/root-dev-environment.md`.
+`tests/support` is a workspace package with no named volume in `.devcontainer/devcontainer.json` or `.devcontainer/Dockerfile`, and the guard in `tests/tooling/container-security-config.int.test.ts` lists packages from a directory scan that cannot see it. `.devcontainer/init-firewall.sh` calls the GitHub range fetch non-fatal, but `api.github.com` reaches the allowlist only through that fetch and the final self-test requires it. Smaller points from the same unit: the Dockerfile comment that says the firewall blocks `cdn.playwright.dev`, the partial volume list in the `.devcontainer/README.md` reset snippet, `.devcontainer/tools/` missing from the Dependabot npm entries, the unpinned Playwright ARG, and the two build-time downloads without a checksum. Source: `reports/codebase-review/units/root-dev-environment.md`.
 
 ## Why
 
