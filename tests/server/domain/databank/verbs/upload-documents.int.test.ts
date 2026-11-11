@@ -9,7 +9,7 @@
 // @subject packages/server/src/infra/extraction/loaders/docx.ts
 // @subject packages/server/src/infra/extraction/loaders/epub.ts
 
-import { docUploadMime, ExtractionFailedError, UnsupportedDocTypeError } from "@orb/contracts/extraction";
+import { docUploadMime, EXTRACTION_OP_CODES, ExtractionFailedError, UnsupportedDocTypeError } from "@orb/contracts/extraction";
 import { expect, test } from "@orb/testkit/node";
 import { createServerHarness } from "@orb/testkit/node/composed";
 import { strToU8, zipSync } from "fflate";
@@ -18,20 +18,23 @@ import { strToU8, zipSync } from "fflate";
 const ZIP_MTIME = new Date("2025-07-01T12:00:00Z");
 const XML_PROLOGUE = '<?xml version="1.0" encoding="UTF-8"?>';
 
-/** One page per entry: the page's content stream, drawn on a Letter page with Helvetica as `/F1` and Times as `/F2`. */
+/** One page per entry: the page's content stream, drawn on a Letter page with Helvetica as `/F1` and Times as `/F2`.
+ *  `/F3` is Helvetica with glyph names that map codes A to D to the Hebrew letters alef, bet, gimel and dalet, so
+ *  pdfjs reads a run in it as right-to-left text. */
 function buildPdf(contentStreams: readonly string[]): Uint8Array {
-  const firstPageId = 5;
+  const firstPageId = 6;
   const pageId = (index: number): number => firstPageId + index * 2;
   const bodies = new Map<number, string>([
     [1, "<< /Type /Catalog /Pages 2 0 R >>"],
     [2, `<< /Type /Pages /Kids [${contentStreams.map((_, index) => `${pageId(index)} 0 R`).join(" ")}] /Count ${contentStreams.length} >>`],
     [3, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>"],
     [4, "<< /Type /Font /Subtype /Type1 /BaseFont /Times-Roman >>"],
+    [5, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding << /Type /Encoding /Differences [65 /afii57664 /afii57665 /afii57666 /afii57667] >> >>"],
   ]);
   contentStreams.forEach((stream, index) => {
     bodies.set(
       pageId(index),
-      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents ${pageId(index) + 1} 0 R >>`,
+      `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents ${pageId(index) + 1} 0 R >>`,
     );
     bodies.set(pageId(index) + 1, `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`);
   });
@@ -47,8 +50,9 @@ function buildPdf(contentStreams: readonly string[]): Uint8Array {
   return strToU8(file);
 }
 
-// Page one: line two is drawn in two fonts, so it holds two text items the loader joins with a space.
-const PDF_PAGE_ONE = "BT /F1 12 Tf 72 720 Td (Lantern oil) Tj 0 -24 Td (burns) Tj /F2 12 Tf (slow.) Tj ET";
+// Page one: line two is drawn in two fonts with a gap between the words, so it holds two text items and the space
+// pdfjs reports for the gap.
+const PDF_PAGE_ONE = "BT /F1 12 Tf 72 720 Td (Lantern oil) Tj 0 -24 Td (burns) Tj 40 0 Td /F2 12 Tf (slow.) Tj ET";
 const PDF_PAGE_TWO = "BT /F1 12 Tf 72 720 Td (The second page.) Tj ET";
 const PDF_TEXT = "Lantern oil\nburns slow.\n\nThe second page.";
 
@@ -135,13 +139,57 @@ test.for(DOCUMENTS)("an uploaded $filename reads back as its normalized text", a
   expect(uploaded.document.charCount).toBe(read.charCount);
 });
 
+// pdfjs states a gap ahead of the previous item as a space character, inside an item or as an item of its own, ends a
+// line with `hasEOL`, and states nothing when a run starts behind the previous item's end. Each page is one line pair or
+// one line, so the text is exactly what the page draws. Hebrew is written as code points: right-to-left marks are
+// invisible in review.
+const BET_ALEF_DALET_GIMEL = String.fromCodePoint(0x5_d1, 0x5_d0, 0x5_d3, 0x5_d2);
+const PDF_JOINS: readonly { readonly label: string; readonly stream: string; readonly text: string }[] = [
+  {
+    label: "a line that ends after a font change",
+    stream: "BT /F1 12 Tf 72 720 Td (Lantern oil) Tj /F2 12 Tf 0 -24 Td (Second line.) Tj ET",
+    text: "Lantern oil\nSecond line.",
+  },
+  { label: "two items with no gap between them", stream: "BT /F1 12 Tf 72 720 Td (Wick) Tj /F2 12 Tf (ed) Tj ET", text: "Wicked" },
+  { label: "two items with a gap between them", stream: "BT /F1 12 Tf 72 720 Td (Lantern) Tj 60 0 Td /F2 12 Tf (oil) Tj ET", text: "Lantern oil" },
+  {
+    label: "a space the page draws as an item of its own",
+    stream: "BT /F1 12 Tf 72 720 Td (Lantern) Tj /F2 12 Tf ( ) Tj /F1 12 Tf (oil) Tj ET",
+    text: "Lantern oil",
+  },
+  {
+    label: "a run drawn to the left of the previous one on the same line",
+    stream: "BT /F1 12 Tf 300 720 Td (World) Tj -250 0 Td (Hello) Tj ET",
+    text: "World Hello",
+  },
+  {
+    label: "rotated text split over two items with no gap between them",
+    stream: "BT /F1 12 Tf 0 1 -1 0 300 100 Tm (Lan) Tj /F2 12 Tf (tern) Tj ET",
+    text: "Lantern",
+  },
+  {
+    // The second run is the left neighbour of the first: they touch, and read right to left as one word.
+    label: "right-to-left runs drawn leftward that touch",
+    stream: "BT /F3 12 Tf 300 720 Td (AB) Tj -17.328 0 Td (CD) Tj ET",
+    text: BET_ALEF_DALET_GIMEL,
+  },
+];
+
+test.for(PDF_JOINS)("a pdf with $label reads back as the page draws it", async ({ stream, text }) => {
+  await using root = await createServerHarness();
+  const principal = await root.principalFor(root.ownerId);
+  const filename = "joins.pdf";
+  const uploaded = await root.services.databank.upload({ principal, bytes: buildPdf([stream]), mime: mimeOf(filename), name: filename });
+  expect((await root.services.databank.get({ principal, id: uploaded.document.id, includeText: true })).extractedText).toBe(text);
+});
+
 test("a document type extraction does not do is refused before any parse and stores no document", async () => {
   await using root = await createServerHarness();
   const principal = await root.principalFor(root.ownerId);
   const unsupported = { principal, bytes: strToU8("id,name\n1,lantern\n"), mime: "text/csv", name: "ledger.csv" };
   const refusal = root.services.databank.upload(unsupported);
   await expect(refusal).rejects.toBeInstanceOf(UnsupportedDocTypeError);
-  await expect(refusal).rejects.toMatchObject({ mime: unsupported.mime });
+  await expect(refusal).rejects.toMatchObject({ code: EXTRACTION_OP_CODES.unsupportedType, mime: unsupported.mime });
   expect((await root.services.databank.list({ principal })).items).toEqual([]);
 
   // The same root takes a supported document, so the refusal above is the extraction's answer, not a dead upload path.
@@ -162,6 +210,8 @@ const CORRUPT: readonly Pick<DocumentCase, "filename" | "bytes">[] = [
 test.for(CORRUPT)("a corrupt $filename fails extraction and stores no document", async ({ filename, bytes }) => {
   await using root = await createServerHarness();
   const principal = await root.principalFor(root.ownerId);
-  await expect(root.services.databank.upload({ principal, bytes, mime: mimeOf(filename), name: filename })).rejects.toBeInstanceOf(ExtractionFailedError);
+  const refusal = root.services.databank.upload({ principal, bytes, mime: mimeOf(filename), name: filename });
+  await expect(refusal).rejects.toBeInstanceOf(ExtractionFailedError);
+  await expect(refusal).rejects.toMatchObject({ code: EXTRACTION_OP_CODES.failed });
   expect((await root.services.databank.list({ principal })).items).toEqual([]);
 });

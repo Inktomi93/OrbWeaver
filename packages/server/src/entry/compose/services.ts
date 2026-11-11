@@ -629,7 +629,7 @@ export async function createServices(deps: ServicesDeps): Promise<ServicesResult
   const secretBox = createSecretBox(deps.secretBoxKey);
   const cas = createCas(deps.casDir, deps.logger);
   const variants = createVariantCache(deps.variantDir);
-  const extractText = createExtractText();
+  const extractText = createExtractText(deps.logger);
   const passwordHasher = createPasswordHasher(deps.sessionSecret);
   const userRuntimeDirs = createUserRuntimeDirs(userRuntimeDir);
 
