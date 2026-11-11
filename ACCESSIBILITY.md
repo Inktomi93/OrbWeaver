@@ -19,8 +19,12 @@ checkboxes and icon buttons included. The hit area grows even when the visible b
 the floor is 32px, above the 24px WCAG 2.5.8 asks for.
 
 **Keyboard first.** Ctrl+K (⌘K on a Mac) jumps to any section, recent chat or create action. Esc closes the
-top layer. Focus is always visible, and when a view opens, focus moves into it instead of leaving you stranded
-at the top of the page. A build check fails any new screen that skips that.
+top layer. Focus is always visible. When you open a section from the rail with the keyboard, focus moves into
+that section instead of staying on the rail or dropping to the top of the page. A component test opens every
+section this way and checks where focus lands
+(`tests/client/features/app-shell/surfaces/list-arrival-focus.ct.tsx`). A new section fails that test until it
+declares where its focus lands. The test covers sections only. Dialogs, sheets and drilled-in views also move
+focus into themselves, and some of those have their own tests; no single check covers all of them yet.
 
 **Built for screen readers.** Controls carry accessible names, and streaming replies, status changes and
 notices are announced through live regions. A lint rule set (eslint-plugin-jsx-a11y) blocks the common markup
@@ -57,8 +61,11 @@ An accessibility barrier is a bug, not a feature request, and it gets fixed like
 
 ## For contributors
 
-New UI goes through the same checks: the jsx-a11y lint rules, the theme contrast gate, touch target floors in
-the component tests, and the focus-on-arrival gate. If one of them blocks you, fix the markup, not the check.
+New UI goes through the same checks: the jsx-a11y lint rules (`eslint.config.ts`), the theme contrast component
+tests (`tests/ui/content/theme-scope/emitted-contrast.ct.tsx`), the touch target floor component tests (for
+example `tests/ui/primitives/select/inline-touch-floor.ct.tsx`), and the section arrival focus test
+(`tests/client/features/app-shell/surfaces/list-arrival-focus.ct.tsx`). If one of them blocks you, fix the markup,
+not the check.
 
 ## Who owns this
 
