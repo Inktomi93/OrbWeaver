@@ -3,12 +3,12 @@
 // @subject packages/server/src/transport/trpc/error-mapping.ts
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { DomainConflictError } from "@orb/kit/errors";
+import { DomainConflictError, DomainInternalFaultError } from "@orb/kit/errors";
 import { classifyDomainError } from "@orb/server/transport/trpc";
 import { expect, test } from "@orb/testkit/node";
 import { z } from "zod";
 
-type ErrorClass = abstract new (...args: never[]) => Error;
+type ErrorClass = (abstract new (...args: never[]) => Error) & { readonly prototype: Error };
 
 const CENSUSED_PACKAGES = ["contracts", "kit"] as const;
 const manifestSchema = z.object({ exports: z.record(z.string(), z.unknown()) });
@@ -46,10 +46,7 @@ function leaves(classes: ReadonlyMap<ErrorClass, string>): readonly (readonly [E
  */
 function unclassified(classes: ReadonlyMap<ErrorClass, string>): readonly string[] {
   return leaves(classes)
-    .filter(([cls]) => {
-      const mapped = classifyDomainError(Object.create(cls.prototype));
-      return mapped === null || mapped.code === "INTERNAL_SERVER_ERROR";
-    })
+    .filter(([cls]) => classifyDomainError(Object.create(cls.prototype)) === null)
     .map(([, label]) => label);
 }
 
@@ -64,11 +61,13 @@ test("a plain Error subclass is reported, a domain-tree subclass is not, and a b
   class LooseBaseError extends Error {}
   class LooseLeafError extends LooseBaseError {}
   class ModeledConflictError extends DomainConflictError {}
+  class ModeledTripwireError extends DomainInternalFaultError {}
   const classes = new Map<ErrorClass, string>([
     [LooseFaultError, "loose"],
     [LooseBaseError, "base"],
     [LooseLeafError, "leaf"],
     [ModeledConflictError, "modeled"],
+    [ModeledTripwireError, "tripwire"],
   ]);
   expect(unclassified(classes)).toEqual(["loose", "leaf"]);
 });

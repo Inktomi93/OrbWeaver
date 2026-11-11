@@ -1,4 +1,4 @@
-import { DomainOperationError, DomainUnavailableError } from "@orb/kit/errors";
+import { DomainInternalFaultError, DomainOperationError, DomainUnavailableError } from "@orb/kit/errors";
 import type { AssetId } from "@orb/kit/ids";
 
 /** The stored file of an asset row is gone (`cas.read` ENOENT). The sweep fails that asset alone; nothing else
@@ -38,13 +38,12 @@ export class EmbedFailedError extends DomainUnavailableError {
 
 /** Store-time space tripwire: throwing here stops a mis-tagged row from ever landing, so search/memory
  *  never compare across spaces by accident. */
-export class SpaceMismatchError extends Error {
+export class SpaceMismatchError extends DomainInternalFaultError {
   readonly model: string;
   readonly expectedDim: number;
   readonly actualDim: number;
   constructor(model: string, expectedDim: number, actualDim: number) {
     super(`embeddings.store: vector dim mismatch for model '${model}' — declared space dim ${expectedDim}, embedder returned ${actualDim}`);
-    this.name = "SpaceMismatchError";
     this.model = model;
     this.expectedDim = expectedDim;
     this.actualDim = actualDim;
