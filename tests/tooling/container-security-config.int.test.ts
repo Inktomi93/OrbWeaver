@@ -53,6 +53,28 @@ test("every container Node matches the Node the repository pins in devEngines", 
   }
 });
 
+// The authoring release copies this manifest's `engines` into the tarball plugin authors install (scripts/release-plugin-authoring.ts).
+const WORKSPACE_ENGINES_EXCEPTIONS: readonly string[] = ["packages/plugin-toolchain/package.json"];
+
+test("the root engines floor is the pinned devEngines Node and no workspace manifest declares engines", ({ repoRoot }) => {
+  const root = z
+    .object({ engines: z.object({ node: z.string() }), devEngines: z.object({ runtime: z.object({ version: z.string() }) }) })
+    .parse(JSON.parse(read(repoRoot, "package.json")));
+  expect(root.engines.node).toBe(`>=${root.devEngines.runtime.version}`);
+  const patterns = z.object({ packages: z.array(z.string()) }).parse(parse(read(repoRoot, "pnpm-workspace.yaml"))).packages;
+  const manifests = patterns.flatMap((pattern) => globSync(`${pattern}/package.json`, { cwd: repoRoot }));
+  expect(manifests.length, "the workspace globs reach manifests").toBeGreaterThan(1);
+  const declaring = manifests.filter(
+    (rel) =>
+      !WORKSPACE_ENGINES_EXCEPTIONS.includes(rel) &&
+      z
+        .object({ engines: z.unknown().optional() })
+        .loose()
+        .parse(JSON.parse(read(repoRoot, rel))).engines !== undefined,
+  );
+  expect(declaring, "the root package.json is the one home of the Node floor").toEqual([]);
+});
+
 test("the dev container installs the pinned pnpm and gives every workspace package its own node_modules volume", ({ repoRoot }) => {
   const packageManager = z.object({ packageManager: z.string() }).parse(JSON.parse(read(repoRoot, "package.json"))).packageManager;
   // Node 26 has no corepack; the sandbox installs pnpm with npm at the version package.json pins.

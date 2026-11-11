@@ -1,10 +1,10 @@
-// @orb/contracts/chat — the APP-TIER chat prose slot table (PROSE-1 §4.1, census rows 74-81). The ONE home
+// @orb/contracts/chat — the APP-TIER chat prose slot table (D132, census rows 74-81). The ONE home
 // for the BYTES of every chat SIDE-generation prompt: the anchor-persona identity lead-in, the smart-arbiter
 // prompt, the compaction summarizer, and the memory digest/consolidation prompts. The server
 // substrate reads these through `resolveProse` — it authors none of them.
 //
 // HOME — TWO of them, and the split is the point (the table is one home for the BYTES; `home` names the
-// STORAGE per row, PROSE-1 §3.1):
+// STORAGE per row, D132 clause A):
 //
 //   • per-USER, resolved against the ROOM HOST (owner ruling on PROSE-1 owner-decision 8, option (a)): the
 //     SIDE-GENERATION prompts — arbiter, compaction, memory digest/consolidation, the recovery ask, the
@@ -33,7 +33,7 @@
 // against the two injection frames (before 2026-08-07) or the seven group framings (before the F4 re-home)
 // stops applying — D132(D) leaves the stale user-blob key inert — and is re-entered in the preset Templates tab.
 //
-// MACRO MODE = "none" for every row (PROSE-1 §6.1): a summarizer / arbiter / digest prompt runs over a
+// MACRO MODE = "none" for every row: a summarizer / arbiter / digest prompt runs over a
 // TRANSCRIPT, not a character context — there is no `{{char}}` binding at these seams, so a `{{…}}` in an
 // override ships verbatim rather than silently rendering empty.
 //
@@ -87,7 +87,7 @@ export const CHAT_PROSE_SLOTS = {
   "chat.arbiter.system": {
     home: "user",
     version: 4,
-    // Re-versioned (D132(A)/§4.4) because the bytes changed: the arbiter answers through a structured-output
+    // Re-versioned (D132(A)) because the bytes changed: the arbiter answers through a structured-output
     // schema whose enum holds only the round's candidates, so the text carries no output format and no
     // "never choose the humans" rule; the schema enforces both. It stays short on purpose: small Utility models
     // lose a long instruction.
@@ -140,7 +140,7 @@ export const CHAT_PROSE_SLOTS = {
     home: "user",
     version: 1,
     // The user-prompt LEAD only. The numbered child facets that follow it are data the builder appends —
-    // they are not authorable, and homing them here would need §4.5's template machinery (S4).
+    // they are not authorable, and homing them here would need the template machinery (S4).
     text: "Prior digests to consolidate (synthesize the arc across these — do not repeat each):",
     requiredMacros: [],
     requiredTokens: [],
@@ -159,7 +159,7 @@ export const CHAT_PROSE_SLOTS = {
     // behavior change: #901 Fork 1 retired "cast" for the room's seated characters, and this heading spent it.
     // Owner-ruled 2026-08-30 to a direct swap ("[Character — {{name}}]") rather than dropping the label — the
     // explicit "this block is a character" signal is what weaker local models lean on. Model-facing bytes are
-    // still bytes, so it rides the lawful re-version path (D132(A)/§4.4); a silent edit would strand every
+    // still bytes, so it rides the lawful re-version path (D132(A)); a silent edit would strand every
     // host's `baseVersion` stamp.
     //
     // THE ID ITSELF WAS `chat.group.castMember` UNTIL 2026-09-05 (#1737, owner-ruled arm (a)). The 2026-08-30
@@ -249,7 +249,7 @@ export const CHAT_PROSE_SLOTS = {
     // said "as it is spelled in the cast" and #901 Fork 1 retired "cast" for the room's seated characters.
     // Owner-ruled 2026-08-30 to read "in the room" rather than "in the character list" — the string is read
     // by a MODEL, never shown as chrome, so it owes unambiguity, not agreement with a UI label. Model-facing
-    // bytes are still bytes, so it rides the lawful re-version path (D132(A)/§4.4) instead of a silent edit
+    // bytes are still bytes, so it rides the lawful re-version path (D132(A)) instead of a silent edit
     // that would strand every host's `baseVersion` stamp.
     // The PRODUCE half of per-speaker color in a merged bubble: the renderer splits a narrator body on
     // `<speaker>NAME</speaker>` markers and tints each span with that character's theme, so the markers

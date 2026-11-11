@@ -274,7 +274,7 @@ export function templateStoredText(config: PromptConfig, id: string): string {
  *  This is also how the `formatStrings` rows have always behaved (a plain `AppField` stores what you type);
  *  the framing rows now match them instead of inventing a stricter keystroke.
  *
- *  `baseVersion` is stamped on every draft: any save re-stamps, which is what "keep mine" means (§4.4). */
+ *  `baseVersion` is stamped on every draft: any save re-stamps, which is what "keep mine" means. */
 export function proseTemplateDraft(config: PromptConfig, id: ProseSlotId, value: string): PromptConfig["prose"] {
   return { ...config.prose, [id]: { text: value, baseVersion: PROSE_SLOTS[id].version } };
 }

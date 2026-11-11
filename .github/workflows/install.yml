@@ -2,6 +2,7 @@ name: Install proof
 run-name: Install proof · ${{ github.event_name == 'schedule' && 'nightly' || github.ref_name }}
 
 # Source jobs exercise the README install, launch and stop on fresh runners.
+# The installer job runs install.sh and update.sh in a scratch directory without starting the app.
 # Docker uses the published release tag so compose runs the immutable image.
 # pnpm downloads package.json's pinned Node; scheduled and manual jobs run the same install checks.
 on:
@@ -164,6 +165,33 @@ jobs:
             reports/
           if-no-files-found: warn
           retention-days: 14
+  installer:
+    needs: [head]
+    name: installer scripts (ubuntu-24.04)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          ref: ${{ needs.head.outputs.sha }}
+      - name: Install pnpm (the installer asks for it on a terminal, which a runner lacks)
+        run: |
+          export SHELL="${SHELL:-/bin/bash}"
+          curl -fsSL https://get.pnpm.io/install.sh | sh -
+          echo "PNPM_HOME=${XDG_DATA_HOME:-$HOME/.local/share}/pnpm" >> "$GITHUB_ENV"
+          echo "${XDG_DATA_HOME:-$HOME/.local/share}/pnpm/bin" >> "$GITHUB_PATH"
+      - name: Pipe install.sh into bash, then run update.sh --no-start in the install
+        env:
+          ORB_MODE: source
+          ORB_START: "0"
+        run: |
+          # install.sh always clones the published release branch, so this proves this checkout's installer over the release
+          # branch's code; the update.sh that runs is the clone's own.
+          export ORB_DIR="$RUNNER_TEMP/orbweaver"
+          bash < install.sh
+          cd "$ORB_DIR"
+          ./update.sh --no-start
   docker:
     name: docker (ubuntu-24.04)
     runs-on: ubuntu-24.04

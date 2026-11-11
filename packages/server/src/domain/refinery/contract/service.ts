@@ -69,7 +69,7 @@ import type {
 import type { ResolveStructuredBinding } from "./planning.ts";
 
 /** The card owner's model-facing PROSE overrides — the 12 refinery slots resolve against these
- *  (PROSE-1 §4.3; the discovery caller-scoped precedent). */
+ *  (D132 clause A; the discovery caller-scoped precedent). */
 type ResolveUserProse = (userId: UserId) => Promise<ProseOverrides>;
 
 /** The DI bundle the refinery verbs close over (assembled at `entry/compose/refinery.ts`, surfaced via

@@ -663,7 +663,7 @@ export interface AssembleContext {
    *  under a `roster` or NARRATOR layout, in roster order. Each block opens with the `chat.group.characterHeading`
    *  frame. */
   coSpeakers?: AssembleCharacter[] | undefined;
-  /** The turn's model-facing prose overrides (PROSE-1 §4.3) — the ROOM HOST's user-tier blob and the
+  /** The turn's model-facing prose overrides (D132 clause A) — the ROOM HOST's user-tier blob and the
    *  resolved PRESET's blob, composed by home at `buildAssembleContext` (`composeProse`; disjoint by the
    *  one-home law, so this stays a two-rung resolution and never a cascade). The BUILD walk + SHAPE splice
    *  read the frames they compose (the merged co-speaker headings, the two injection note frames, the group

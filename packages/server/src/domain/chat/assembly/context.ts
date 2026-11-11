@@ -884,7 +884,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
   const speakerRefs: SpeakerRef[] = present.map((p): SpeakerRef => ({ characterId: p.characterId }));
   const character: AssembleCharacter = characters[0] ?? { name: "Assistant", description: "" };
 
-  // The turn's PROSE bag — the two homes composed into one home-agnostic record (PROSE-1 §3.1 stays intact:
+  // The turn's PROSE bag — the two homes composed into one home-agnostic record (D132 clause A stays intact:
   // `composeProse` keeps each key only from the storage that slot actually homes in, so this is a merge of
   // disjoint sets, never a cascade). USER = the room host's app-tier overrides, resolved from the chatId
   // rather than the input literal so the ~50 hand-built assemble inputs stay honest (a caller cannot forget
@@ -921,7 +921,7 @@ export async function buildAssembleContext(ctx: ChatContext, input: BuildAssembl
   }
 
   // BUILD — WI to injections (render once + keyword match), unified into one list, one budget pass.
-  // PROSE-1 §4.6: storage unchanged (`formatStrings.wiFormat`), the two rungs run through the ONE resolver.
+  // Storage unchanged (`formatStrings.wiFormat`), the two rungs run through the ONE resolver.
   const wiFormat = resolveProseText(
     PRESET_FORMAT_SLOT_IDS.wiFormat,
     legacyProseOverrides(PRESET_FORMAT_SLOT_IDS.wiFormat, input.promptConfig.formatStrings?.wiFormat),

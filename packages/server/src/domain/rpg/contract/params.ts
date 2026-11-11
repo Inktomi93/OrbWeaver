@@ -237,7 +237,7 @@ export interface UpdateConfigParams {
         // WAVE MU (owner ruling #20's game half): the GAME's authored user macros — the whole set in ONE
         // write (whole-list replace, the `trackers` semantics); omit keeps the current set.
         readonly userMacros?: readonly UserMacroSpec[] | undefined;
-        // PROSE-1 (§4.2/§4.6) — the per-GAME model-facing prose overrides (`slotId → {text, baseVersion}`);
+        // D132 — the per-GAME model-facing prose overrides (`slotId → {text, baseVersion}`);
         // whole-record replace, omit keeps (the `userMacros` semantics). Threaded to the reminder as
         // `LiteReminderInput.prose`.
         readonly prose?: ProseOverrides | undefined;
@@ -515,7 +515,7 @@ export interface LiteReminderInput {
   readonly playerRolledDice?: boolean | undefined;
   /** The #9 ambient-date mode — `narrated` drops the `day N` counter from the ambient line. */
   readonly dateMode: RpgDateMode;
-  /** PROSE-1 (§4.3) — the turn PRESET's model-facing prose OVERRIDES (`promptConfig.prose`), threaded whole so the reminder
+  /** D132 — the turn PRESET's model-facing prose OVERRIDES (`promptConfig.prose`), threaded whole so the reminder
    *  resolves each teach/heading against it (`resolveProse`). ABSENT/`{}` ⇒ every slot resolves to its shipped
    *  default, byte-identical to the pre-PROSE-1 constant — the default-identity discipline that makes this
    *  migration a no-op until a host edits prose. Optional for the same reason `steerMacros` is: a test caller

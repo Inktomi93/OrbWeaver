@@ -1,4 +1,4 @@
-// @orb/contracts/prose-slot — the SHAPE half of the PROSE-1 registry: the slot interface, the ONE closed id
+// @orb/contracts/prose-slot — the SHAPE half of the D132 prose registry: the slot interface, the ONE closed id
 // vocabulary, the override storage schema, and the legacy-field adapter. Split from `#prose` (which composes
 // the per-domain TABLES into `PROSE_SLOTS` and owns `resolveProse`) for exactly one reason: the tables live
 // beside the vocabulary they teach and must import the slot shape, so a single module would close a
@@ -10,7 +10,7 @@
 import { isPlainObject } from "@orb/kit/guards";
 import { z } from "zod";
 
-// Which storage owns a slot's override. Exactly one per slot — never a cascade (PROSE-1 §3.1).
+// Which storage owns a slot's override. Exactly one per slot — never a cascade (D132 clause A).
 //
 //  TWO storages, not three: the per-GAME home (`rpg_games.config.prose`) was RETIRED by the owner ruling of
 //  2026-08-08 ("we are putting everything in presets") and the whole rpg cohort re-homed to `preset`. A member
@@ -22,11 +22,11 @@ export type ProseHome = (typeof PROSE_HOMES)[number];
 /** One model-facing prose slot: the shipped default + everything the edit surface and the gate need. */
 export interface ProseSlotDef {
   readonly home: ProseHome;
-  /** Bumped in the SAME commit as any `text` change — enforced by `prose-baseline.json` (PROSE-1 §4.4). */
+  /** Bumped in the SAME commit as any `text` change; `tests/contracts/prose/prose-baseline.repo.int.test.ts` compares the registry with `prose-baseline.json` and fails an unbumped edit. */
   readonly version: number;
   /** The shipped default. An absent override resolves to these exact bytes. */
   readonly text: string;
-  /** Macros whose ABSENCE from an override is a lint in the editor — never a block (PROSE-1 §6.3). A
+  /** Macros whose ABSENCE from an override is a lint in the editor — never a block. A
    *  slot whose text skips the macro engine may still list one: `resolveProseText`'s optional PRE-SUBSTITUTION tokens are
    *  spliced by the CALLER (the `{{person}}`/`{{base}}` guided precedent — a plain string replace, never the
    *  macro engine), and an override that drops the token drops the value it carried. */
@@ -65,7 +65,7 @@ export const PROSE_SLOT_IDS = [
   //    (owner, 2026-08-09, D172): the fragment BYTES are prose slots
   //    resolved SERVER-side at the seam that already holds the preset blob, and the wire carries only the
   //    toggle KINDS. NOT legacy-adapted: their storage is `promptConfig.prose`, so each has a Templates-tab
-  //    row. `macros:"none"` (PROSE-1 §6.1): a fragment is composed INTO the steer that becomes `{{input}}`
+  //    row. `macros:"none"`: a fragment is composed INTO the steer that becomes `{{input}}`
   //    and is neutralized downstream, so a `{{…}}` here would reach the model as literal braces. ──
   "preset.rewriteToggle.concise",
   "preset.rewriteToggle.expand",
@@ -172,7 +172,7 @@ export const PROSE_SLOT_IDS = [
   "refinery.schemaForge.system",
   // ── per-PRESET: the game-turn steering-reminder TEACHES (census 1-7) — stored in `promptConfig.prose`,
   //    authored in the preset Templates tab, and threaded to `LiteReminderInput.prose` by chat's rpg gather
-  //    args (`domain/rpg/substrate/reminder.ts` resolves them). `names-only` macro mode (§6.1): a host
+  //    args (`domain/rpg/substrate/reminder.ts` resolves them). `names-only` macro mode: a host
   //    override's `{{user}}`/`{{char}}` resolve through the identity-only registry, the default resolves
   //    byte-identically (it carries no macro). ──
   "rpg.reminder.steeringLicense",
@@ -296,7 +296,7 @@ export function proseOverBy(text: string): number {
 }
 
 // A stored host override. `baseVersion` = the slot `version` this edit was authored against; it is the
-//  ONLY staleness signal (PROSE-1 §4.4) and is never used to pick which text wins.
+//  ONLY staleness signal and is never used to pick which text wins.
 const proseOverrideSchema = z
   .object({
     text: z.string().max(PROSE_MAX_CHARS),
@@ -310,7 +310,7 @@ export type ProseOverride = z.infer<typeof proseOverrideSchema>;
  *  self-heals to the shipped default instead of nuking the whole section (the imagery-field posture). */
 export const proseOverridesSchema = z
   .preprocess(
-    // A RETIRED slot id (§4.4 rung 5: a default whose feature was deleted) must not make a whole stored blob
+    // A RETIRED slot id (a default whose feature was deleted) must not make a whole stored blob
     // unparseable — an enum-keyed record REJECTS an unknown key, so strip them before the record sees them.
     (raw) => (isPlainObject(raw) ? Object.fromEntries(Object.entries(raw).filter(([key]) => isProseSlotId(key))) : raw),
     z.partialRecord(proseSlotIdSchema, proseOverrideSchema.optional().catch(undefined)),
@@ -326,7 +326,7 @@ export interface ProseResolution {
 }
 
 // The pre-PROSE-1 override fields (`formatStrings.*`, `UserSettings.imagery.*`) store a BARE string with no
-//  authored-against version. They are adapted, never duplicated (PROSE-1 §4.6): a legacy string is stamped
+//  authored-against version. They are adapted, never duplicated: a legacy string is stamped
 //  at the FIRST slot version, so it reads as non-stale today and correctly reports stale the first time its
 //  shipped default is revised.
 const LEGACY_PROSE_BASE_VERSION = 1;
@@ -336,7 +336,7 @@ export function proseOverrideFromLegacy(text: string | undefined): ProseOverride
   return text === undefined ? undefined : { text, baseVersion: LEGACY_PROSE_BASE_VERSION };
 }
 
-// ── THE RESOLUTION PRIMITIVES (PROSE-1 §4.3) ────────────────────────────────────────────────────────
+// ── THE RESOLUTION PRIMITIVES (D132 clause A) ────────────────────────────────────────────────────────
 // The precedence rule and the pre-substitution splice live HERE, on the SHAPE half, rather than in `#prose`
 // beside the composed registry — because a domain TABLE may need to resolve its own slots and cannot reach
 // `#prose` without closing the `#prose → #<domain> → #prose` cycle this module's split exists to prevent
