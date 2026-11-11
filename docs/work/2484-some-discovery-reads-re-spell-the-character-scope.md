@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P3
 area: server
+lane: wt/agent-a30ee1d42d1997dfe
 ---
 
 # Some discovery reads re-spell the character-scope predicate instead of calling its one home

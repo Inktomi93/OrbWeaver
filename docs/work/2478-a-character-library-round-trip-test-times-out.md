@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P3
 area: testing
+lane: wt/agent-a30ee1d42d1997dfe
 ---
 
 # A character library round-trip test times out on every batch run of its suite

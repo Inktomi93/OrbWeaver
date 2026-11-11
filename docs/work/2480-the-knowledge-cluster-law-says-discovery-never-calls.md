@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P3
 area: docs
+lane: wt/agent-a30ee1d42d1997dfe
 ---
 
 # The knowledge-cluster law says discovery never calls search while its dossier seam is wired to search

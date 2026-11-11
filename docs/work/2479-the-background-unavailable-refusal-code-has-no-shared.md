@@ -1,9 +1,10 @@
 ---
 kind: bug
-status: open
+status: doing
 updated: 2026-11-11
 priority: P3
 area: contracts
+lane: wt/agent-a30ee1d42d1997dfe
 ---
 
 # The background-unavailable refusal code has no shared home across the domains that throw it
