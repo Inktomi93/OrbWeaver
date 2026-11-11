@@ -9,8 +9,9 @@ const AVATAR_UPLOAD_FAILED_LEAD = "Couldn't upload the picture";
 /** The upload did not land and the server gave no reason of its own. */
 export const AVATAR_UPLOAD_FAILED = `${AVATAR_UPLOAD_FAILED_LEAD}.`;
 
-/** The picture uploaded but the write that would give it to the card or persona was refused, so the old one stays. */
-export const AVATAR_WRITE_REFUSED = "Couldn't save the picture. The old one stays.";
+/** The picture uploaded but the write that would give it to the card or persona was refused. It claims nothing about which picture
+ *  the row holds: after an older write committed, that is not always the one the person started with. */
+export const AVATAR_WRITE_REFUSED = "Couldn't save the picture.";
 
 /** A picked or dropped file that is not an image. */
 export const AVATAR_NOT_A_PICTURE = "That file isn't a picture. Use an image file.";
