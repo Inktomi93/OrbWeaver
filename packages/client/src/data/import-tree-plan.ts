@@ -326,9 +326,19 @@ async function groupUnits(classified: StClassification): Promise<{ readonly grou
   return { groups, unclaimedGroupChats };
 }
 
+/** The picked folder holds no library layout the importer admits, or holds an ambiguous mix of two. A caller keys its words
+ *  on this class, never on the message. */
+export class UnsupportedFolderLayoutError extends Error {
+  constructor() {
+    super("The selected folder does not contain an unambiguous supported library layout");
+    this.name = this.constructor.name;
+  }
+}
+
 /** Plan a picked folder's uploads against the served caps, charging each upload `framing` on top of its file
  *  bytes.
- *  @throws Error when the folder has no supported layout, or the caps leave no room for any file. */
+ *  @throws {@link UnsupportedFolderLayoutError} when the folder has no supported layout.
+ *  @throws Error when the caps leave no room for any file. */
 export async function planTreeImport(files: readonly File[], caps: TreeImportCaps, framing: TreeUploadFraming = NO_FRAMING): Promise<TreeImportPlan> {
   const rawPaths = files.map(relativePathOf);
   const wrapper = commonWrapper(rawPaths);
@@ -342,7 +352,7 @@ export async function planTreeImport(files: readonly File[], caps: TreeImportCap
     null,
   );
   if (layout.kind === "reject") {
-    throw new Error("The selected folder does not contain an unambiguous supported library layout");
+    throw new UnsupportedFolderLayoutError();
   }
   if (layout.kind === "orb") {
     return planGeneric(planned, caps, framing);

@@ -29,8 +29,20 @@ import { DEFAULT_PERSONA_COLLISION_CHOICE, mergeImportPreviews } from "@orb/cont
 import type { WorkloadId } from "@orb/kit/ids";
 import { useEffect, useRef, useState } from "react";
 import type { TreeImportCaps, TreeImportPlan } from "#data";
-import { HttpError, importBundle, importCharacters, importTree, planServedFolderImport, relativePathOf, useInvalidation, useTRPC, useUploadCaps } from "#data";
+import {
+  HttpError,
+  importBundle,
+  importCharacters,
+  importTree,
+  planServedFolderImport,
+  relativePathOf,
+  UnsupportedFolderLayoutError,
+  useInvalidation,
+  useTRPC,
+  useUploadCaps,
+} from "#data";
 import { notify } from "#lib";
+import { IMPORT_FOLDER_WRONG_FOLDER } from "../lib/import-folder-copy.ts";
 import type { BundleCounts, ImportSummary } from "../lib/portability-model.ts";
 import { planNotes, sumBundleCounts, summarizeBundleCounts, summarizeCardImport, summaryCaption } from "../lib/portability-model.ts";
 import type { WorkloadProgressView } from "../lib/workloads-model.ts";
@@ -279,12 +291,15 @@ export function useLibraryImport(): LibraryImport {
     }
   };
 
-  const fail = (epoch: number, message: string, toast: string = IMPORT_FAILED_TOAST): void => {
+  /** `toast: null` for a failure whose line is already on screen: the person is looking at it, so a toast would say it twice. */
+  const fail = (epoch: number, message: string, toast: string | null = IMPORT_FAILED_TOAST): void => {
     if (epoch !== requestEpoch.current) {
       return;
     }
     setState({ status: "error", message });
-    notify.error(toast);
+    if (toast !== null) {
+      notify.error(toast);
+    }
   };
 
   const stageFiles = (files: readonly File[]): void => {
@@ -314,7 +329,13 @@ export function useLibraryImport(): LibraryImport {
           }
         }
       })
-      .catch((error: unknown) => fail(epoch, error instanceof HttpError ? previewFailureMessage(error) : errorMessage(error), FOLDER_UNREADABLE_TOAST));
+      .catch((error: unknown) => {
+        if (error instanceof UnsupportedFolderLayoutError) {
+          fail(epoch, IMPORT_FOLDER_WRONG_FOLDER, null);
+          return;
+        }
+        fail(epoch, error instanceof HttpError ? previewFailureMessage(error) : errorMessage(error), FOLDER_UNREADABLE_TOAST);
+      });
   };
   const cancel = (): void => {
     dropPreview();

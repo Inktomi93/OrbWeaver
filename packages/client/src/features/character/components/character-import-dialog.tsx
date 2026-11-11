@@ -3,23 +3,25 @@
 // chrome). Drops one-or-many PNG/JSON character cards on `POST /api/import`, the multipart card route.
 //
 // The route answers 200 for an accepted batch even when every card inside it failed (per-card isolation),
-// so "it didn't throw" is never a success signal: an all-failed batch says WHY (the server's own reason —
-// the `card_unreadable` throw in domain/import), and a partial says how many of how many.
+// so "it didn't throw" is never a success signal: an all-failed batch says so on the dropzone's own error line (the dialog stays
+// open for another file, so the line is already in front of the person and no toast repeats it), and a partial says how many of how many.
 
 import type { CardImportResult } from "@orb/contracts/import";
 import { FileDropzone } from "@orb/ui/file-dropzone";
 import type { ReactElement } from "react";
+import { useState } from "react";
 import { DismissDialog } from "#components";
 import { importCharacters, useInvalidation } from "#data";
 import { DIALOG_VERBS, notify } from "#lib";
 import { selectCharacter } from "#state";
+import { cardImportRefusalLine } from "../lib/character-import-copy.ts";
 import { CHARACTER_IMPORT_NAME } from "../lib/character-names.ts";
 
 const CARD_ACCEPT = ".png,.json,image/png,application/json";
 
-/** The toast to fire for one import batch — `kind` indexes `notify`. */
+/** The toast to fire for a batch that landed at least one card — `kind` indexes `notify`. */
 interface ImportNotice {
-  readonly kind: "success" | "info" | "error";
+  readonly kind: "success" | "info";
   readonly message: string;
 }
 
@@ -28,12 +30,9 @@ function cardFailureMessage(failure: CardImportResult["failed"][number]): string
   return failure.filename === null ? failure.error : `${failure.filename}: ${failure.error}`;
 }
 
-/** Derive the toast from the REAL per-file outcome (never from the uploaded filenames). */
+/** Derive the toast from the REAL per-file outcome (never from the uploaded filenames) of a batch that landed a card. */
 function importNotice({ imported, failed }: CardImportResult): ImportNotice {
   const [firstFailure] = failed;
-  if (imported.length === 0) {
-    return { kind: "error", message: firstFailure === undefined ? "Couldn't import the card." : cardFailureMessage(firstFailure) };
-  }
   if (firstFailure === undefined) {
     return { kind: "success", message: imported.length === 1 ? "Card imported." : `${imported.length} cards imported.` };
   }
@@ -48,22 +47,25 @@ export interface CharacterImportDialogProps {
   readonly onOpenChange: (open: boolean) => void;
 }
 
-/** The card-import dialog: drop PNG/JSON → upload → toast the real outcome → open the imported card and close when something landed. */
+/** The card-import dialog: drop PNG/JSON → upload → say the real outcome → open the imported card and close when something landed. */
 export function CharacterImportDialog({ open, onOpenChange }: CharacterImportDialogProps): ReactElement {
   const invalidation = useInvalidation();
+  const [refusal, setRefusal] = useState<string | null>(null);
 
   const onFiles = (accepted: readonly File[]): void => {
     if (accepted.length === 0) {
       return;
     }
+    setRefusal(null);
     importCharacters(accepted).then(
       (result) => {
-        const notice = importNotice(result);
-        notify[notice.kind](notice.message);
         if (result.imported.length === 0) {
-          // Nothing landed — the toast named why; keep the dialog open so the owner can try another file.
+          // Nothing landed: the dropzone's error line says why and the dialog stays open for another file.
+          setRefusal(cardImportRefusalLine(result.failed.length));
           return;
         }
+        const notice = importNotice(result);
+        notify[notice.kind](notice.message);
         // A raw multipart POST (not a tRPC mutation) — fire the same user-bus path-invalidate manually.
         invalidation.invalidateUser({ type: "charactersChanged" });
         // Open what landed, like Create does — the first card of the batch when several came in.
@@ -90,12 +92,18 @@ export function CharacterImportDialog({ open, onOpenChange }: CharacterImportDia
       arriveOnTitle={true}
       closeButton={true}
       dismissLabel={DIALOG_VERBS.cancel}
-      onOpenChange={onOpenChange}
+      onOpenChange={(next): void => {
+        if (!next) {
+          setRefusal(null);
+        }
+        onOpenChange(next);
+      }}
       open={open}
       title={CHARACTER_IMPORT_NAME}
     >
       <FileDropzone
         accept={CARD_ACCEPT}
+        {...(refusal === null ? {} : { error: refusal })}
         subject="a SillyTavern character card (PNG or JSON)"
         multiple={true}
         onFilesSelected={({ accepted }): void => onFiles(accepted)}
