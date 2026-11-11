@@ -14,6 +14,7 @@ import type { ChatId } from "@orb/kit/ids";
 import { CONSOLE_STYLES } from "./console-styles.ts";
 import { IS_DEV } from "./dev-flag.ts";
 import { logClock } from "./log-clock.ts";
+import { wallClockMs } from "./wall-clock.ts";
 
 // A normal turn legitimately hits each chatReads key twice (messageCommitted + turnCompleted both
 // refetch) — the alarm only fires above that baseline (3+× is the real storm signature).
@@ -69,10 +70,6 @@ export function busLiveCount(): number {
   return liveSubscriptions;
 }
 
-function clockMs(): number {
-  return performance.timeOrigin + performance.now();
-}
-
 function shortId(id: string): string {
   const cut = id.indexOf("_");
   return cut === -1 || id.length <= SHORT_ID_WHOLE_MAX ? id : `${id.slice(0, cut + 1)}…${id.slice(-SHORT_ID_TAIL)}`;
@@ -110,7 +107,7 @@ export function busUnsubscribe(chatId: ChatId): void {
 /** A canon event dispatched through the invalidation seam → the query keys it refetched. Empty ⇒
  *  `(none)`. Pure-transient events never call `invalidate`, so they never reach here. */
 export function busInvalidate(type: string, chatId: ChatId | "user", keys: readonly string[]): void {
-  busEventLog.push({ at: clockMs(), type, chatId, keys });
+  busEventLog.push({ at: wallClockMs(), type, chatId, keys });
   if (busEventLog.length > BUS_RING_CAP) {
     busEventLog.shift();
   }
@@ -128,7 +125,7 @@ export function busDupCheck(key: string): void {
   if (!IS_DEV) {
     return;
   }
-  const now = clockMs();
+  const now = wallClockMs();
   const burst = invalidateBursts.get(key);
   if (burst === undefined || now - burst.firstAt >= DUP_WINDOW_MS) {
     invalidateBursts.set(key, { count: 1, firstAt: now });

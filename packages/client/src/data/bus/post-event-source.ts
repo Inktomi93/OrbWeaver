@@ -8,6 +8,7 @@ import { jsonValueSchema } from "@orb/kit/json";
 import type { RandomSource } from "@orb/kit/macro";
 import type { Clock } from "@orb/kit/time";
 import { MS_PER_SECOND } from "@orb/kit/time";
+import { wallClockMs } from "#lib";
 
 /** The reconnect delay before the stream sends a `retry:` field, near what browsers use natively. */
 const DEFAULT_RETRY_MS = 3000;
@@ -167,7 +168,7 @@ export class PostEventSource extends EventTarget {
     this.#openingTimeoutMs = init?.openingTimeoutMs ?? OPENING_TIMEOUT_MS;
     this.#inactivityTimeoutMs = init?.inactivityTimeoutMs ?? STREAM_INACTIVITY_TIMEOUT_MS;
     this.#random = init?.random ?? Math.random;
-    this.#now = init?.now ?? Date.now;
+    this.#now = init?.now ?? wallClockMs;
     const request = toPostRequest(url);
     this.#target = request.target;
     this.#body = request.body;

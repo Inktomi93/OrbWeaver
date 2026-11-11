@@ -4,6 +4,7 @@
 
 import type { BackgroundJob } from "./background-jobs.ts";
 import { backgroundJobOfLog } from "./background-jobs.ts";
+import { wallClockMs } from "./wall-clock.ts";
 
 /** The browser surfaces a record can come from. */
 const SAFE_ERROR_SOURCES = ["console", "uncaught", "rejection"] as const;
@@ -85,10 +86,6 @@ export function sectionOfPathname(pathname: string): string | null {
   return SECTION_RE.test(first) ? first : null;
 }
 
-function clockMs(): number {
-  return Math.round(performance.timeOrigin + performance.now());
-}
-
 /** The browser facts one recording reads. */
 interface RecordContext {
   readonly at: number;
@@ -109,7 +106,7 @@ interface RingGlobals {
 const ringGlobals = globalThis as RingGlobals;
 
 function liveContext(): RecordContext {
-  return { at: clockMs(), origin: ringGlobals.location?.origin ?? "", pathname: ringGlobals.location?.pathname ?? "" };
+  return { at: Math.round(wallClockMs()), origin: ringGlobals.location?.origin ?? "", pathname: ringGlobals.location?.pathname ?? "" };
 }
 
 // Reduce errors before retention so the production ring cannot retain reported messages.

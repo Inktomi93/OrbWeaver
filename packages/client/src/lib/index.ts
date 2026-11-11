@@ -315,3 +315,4 @@ export { useElapsedSeconds } from "./use-elapsed-seconds.ts";
 export { useFocusListArrival, useFocusOnMount, useFocusOnSwap } from "./use-focus-on-mount.ts";
 export { useRouterUrlReplace } from "./use-router-url-replace.ts";
 export { motionIsReduced, runAfterViewTransition, surfaceDeferredFailure } from "./view-transition.ts";
+export { wallClockMs } from "./wall-clock.ts";
