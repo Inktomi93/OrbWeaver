@@ -160,10 +160,10 @@ test("native stats preserve nonzero retained history and user preferences surviv
   expect(importedSource).toMatchObject({ override: settings.source.output.override, css: settings.source.output.css, isSeed: false });
   expect(settings.collision.output).toMatchObject({ created: true, renamedFrom: settings.source.output.name });
   expect(settings.collision.output.name).not.toBe(settings.source.output.name);
-  expect(settings.collisionAgain.output).toEqual({ created: false, name: settings.collision.output.name, renamedFrom: null });
+  expect(settings.collisionAgain.output).toEqual({ created: false, name: settings.collision.output.name, renamedFrom: null, unmapped: [] });
   expect(settings.removed.output).toBeUndefined();
-  expect(settings.stImported.output).toEqual({ created: true, name: "Corpus ST palette (SillyTavern)", renamedFrom: null });
-  expect(settings.stRepeated.output).toEqual({ created: false, name: settings.stImported.output.name, renamedFrom: null });
+  expect(settings.stImported.output).toEqual({ created: true, name: "Corpus ST palette (SillyTavern)", renamedFrom: null, unmapped: [] });
+  expect(settings.stRepeated.output).toEqual({ created: false, name: settings.stImported.output.name, renamedFrom: null, unmapped: [] });
   expect(settings.resetBefore.output.config.appearance.fontScale).toBe(1.3);
   expect(settings.reset.output.config).toEqual(DEFAULT_USER_SETTINGS);
   expect(settings.resetRead.output).toEqual(settings.reset.output);

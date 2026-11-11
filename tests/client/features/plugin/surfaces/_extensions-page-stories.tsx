@@ -1,9 +1,9 @@
-import { pluginPageKey, selectPluginPageFromList, useSectionRegistry } from "@orb/client/state";
+import { pluginPageKey, selectPluginPageFromList, setMobileViewport, useMobileViewport, useSectionRegistry } from "@orb/client/state";
 import type { PluginId } from "@orb/kit/ids";
 import { CtClientProviders } from "@orb/testkit/browser";
 import { Button } from "@orb/ui/button";
 import type { ReactElement } from "react";
-import { useState } from "react";
+import { useLayoutEffect, useState } from "react";
 
 function ExtensionsContent(): ReactElement {
   const definition = useSectionRegistry().get("extensions");
@@ -30,9 +30,14 @@ export function ExtensionsPageStory({ pluginId, surfaceId }: { readonly pluginId
   );
 }
 
-/** The pane mounted by a pick from a focused control, as a drill-in pushes it, so the pane's mount focus has a control to move from. */
+/** The pane mounted by a pick from a focused control, as a phone drill-in pushes it (the list is off screen, so the pane owns arrival), so the pane's mount focus has a control to move from. */
 export function ExtensionsPagePickStory({ pluginId, surfaceId }: { readonly pluginId: PluginId; readonly surfaceId: string }): ReactElement {
   const [picked, setPicked] = useState(false);
+  const [previousPhone] = useState(useMobileViewport());
+  useLayoutEffect(() => {
+    setMobileViewport(true);
+    return (): void => setMobileViewport(previousPhone);
+  }, [previousPhone]);
   return (
     <CtClientProviders>
       <Button onClick={(): void => setPicked(true)} type="button">

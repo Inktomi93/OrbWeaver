@@ -5,7 +5,7 @@ export type { ContextForRequest, RateLimitDecision, RateLimitGate, Services } fr
 export { createContext } from "./context.ts";
 export type { LiveBuses } from "./contract/live-buses.ts";
 
-export { classifyDomainError } from "./error-mapping.ts";
+export { classifyDomainError, domainReason } from "./error-mapping.ts";
 export { createLiveBuses } from "./live-buses.ts";
 export { createPresenceRegistry } from "./presence-registry.ts";
 export type { AppRouter } from "./router.ts";

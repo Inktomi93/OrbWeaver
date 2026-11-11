@@ -4,6 +4,7 @@ import type { ReactElement } from "react";
 import type { ListPaneHeaderView } from "#lib";
 import { useMobileViewport, useSelectedRefinerySessionId } from "#state";
 import { StartSessionDoor } from "../components/start-session-door.tsx";
+import { REFINERY_START_SESSION_NAME } from "../lib/refinery-names.ts";
 import { REFINERY_LIST_TITLE } from "../lib/refinery-section-label.ts";
 import { startSessionRequests } from "../lib/start-session-requests.ts";
 import { useRefineryCensus } from "./use-refinery-sessions.ts";
@@ -35,8 +36,6 @@ import { useRefineryCensus } from "./use-refinery-sessions.ts";
  * the phone startable only from the empty state. Not `disabled`: a visible dead control is the defect the
  * owner ruled out.
  */
-const START_SESSION_LABEL = "Start a new session";
-
 export function useRefineryListHeader(): ListPaneHeaderView {
   // ONE census spelling, shared with the phone topbar's screen title — and non-suspending, like every
   // other section's band ("the title renders immediately and the count settles in place"). It is the SAME
@@ -57,13 +56,13 @@ export function useRefineryListHeader(): ListPaneHeaderView {
                 <StartSessionDoor
                   answersRequests={true}
                   trigger={(busy): ReactElement => (
-                    <GlyphButton aria-busy={busy} aria-label={START_SESSION_LABEL} variant="ghost" glyph="md">
+                    <GlyphButton aria-busy={busy} aria-label={REFINERY_START_SESSION_NAME} variant="ghost" glyph="md">
                       <Icon icon={Plus} size="sm" />
                     </GlyphButton>
                   )}
                 />
               ),
-              menu: [{ id: "refinery-start", label: START_SESSION_LABEL, icon: Plus, onSelect: (): void => startSessionRequests.request() }],
+              menu: [{ id: "refinery-start", label: REFINERY_START_SESSION_NAME, icon: Plus, onSelect: (): void => startSessionRequests.request() }],
             },
           ],
         }),

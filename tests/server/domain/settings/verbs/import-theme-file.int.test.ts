@@ -96,6 +96,42 @@ test("every mapped ST key lands in its own field of the stored theme", async ({ 
   expect(themeOverrideSchema.parse(stored.override)).toEqual(stored.override);
 });
 
+// The ST keys FULL_THEME carries with a meaningful value that no orb field takes, in the importer's table order, each with why it was
+// left: a display choice the viewer sets in Appearance (naming the setting), or a key with no counterpart here.
+// `vendor_extra` is no key SillyTavern emits and the zero-valued `blur_strength` and false `noShadows` carry nothing, so none is listed.
+const FULL_THEME_UNMAPPED = [
+  { key: "chat_tint_color", reason: { kind: "no-equivalent" } },
+  { key: "shadow_width", reason: { kind: "appearance", settings: ["shadowEffects"] } },
+  { key: "custom_css", reason: { kind: "no-equivalent" } },
+  { key: "font_scale", reason: { kind: "appearance", settings: ["fontScale"] } },
+  { key: "fast_ui_mode", reason: { kind: "no-equivalent" } },
+];
+
+test("the ST keys that found no orb field come back with the landing, and a native orb theme file returns none", async ({ harness }) => {
+  const caller = await callerOf(harness);
+  const native = { name: "Native", override: { background: "oklch(0.2493 0.0645 262.64)" }, css: null };
+
+  const imported = await caller.settings.importThemeFile({ fileText: JSON.stringify(FULL_THEME), filename: FILENAME });
+  const again = await caller.settings.importThemeFile({ fileText: JSON.stringify(FULL_THEME), filename: FILENAME });
+  const orb = await caller.settings.importThemeFile({ fileText: JSON.stringify(native) });
+
+  expect(imported).toMatchObject({ created: true, unmapped: FULL_THEME_UNMAPPED });
+  // A reused equal theme states the same leftovers: they describe the file, not the write.
+  expect(again).toMatchObject({ created: false, unmapped: FULL_THEME_UNMAPPED });
+  // The control: the native file landed (so the door reached the writer) and has no leftovers.
+  expect(orb).toEqual({ created: true, name: "Native", renamedFrom: null, unmapped: [] });
+});
+
+test("an authored text colour dropped as unsafe is listed among the keys that did not carry over", async ({ harness }) => {
+  const caller = await callerOf(harness);
+
+  const landing = await caller.settings.importThemeFile({
+    fileText: JSON.stringify({ name: "Dim", ["blur_tint_color"]: "rgb(16, 32, 64)", ["main_text_color"]: "rgb(40, 50, 80)" }),
+  });
+
+  expect(landing.unmapped).toEqual([{ key: "main_text_color", reason: { kind: "faint-colour" } }]);
+});
+
 test("a theme without a name of its own is named from the file's stem, and an unset mapped key stays unset", async ({ harness }) => {
   const caller = await callerOf(harness);
 

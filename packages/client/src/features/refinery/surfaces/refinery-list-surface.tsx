@@ -46,6 +46,7 @@ import {
   setRefinerySearchQuery,
   useMobileViewport,
   useRefinerySearchQuery,
+  useSectionListMode,
   useSectionListSearchPlaceholder,
   useSelectedRefinerySessionId,
 } from "#state";
@@ -54,6 +55,7 @@ import { StartSessionDoor } from "../components/start-session-door.tsx";
 import { useDeleteRefinerySession } from "../hooks/use-refinery-mutations.ts";
 import { REFINERY_NO_SESSIONS_TITLE, REFINERY_SEARCH_SESSIONS_NAME } from "../lib/refinery-names.ts";
 import { matchesRefinerySearch, refinerySearchNeedle } from "../lib/refinery-search.ts";
+import { REFINERY_LIST_TITLE } from "../lib/refinery-section-label.ts";
 import { verdictToneOf, verdictWordOf } from "../lib/verdict.ts";
 
 interface ResolvedRow {
@@ -106,7 +108,7 @@ function readoutSubtitleOf(row: ResolvedRow): string {
 
 export function RefineryListSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
-  useFocusListArrival(surfaceRef);
+  useFocusListArrival(surfaceRef, useSectionListMode("refinery") !== "collapsed");
   // The search is pane chrome above the boundary, so it stays on screen while the read is in flight. It is store
   // state because the chrome band's census names the lens the rows are read through.
   const search = useRefinerySearchQuery();
@@ -115,6 +117,7 @@ export function RefineryListSurface(): ReactElement {
   return (
     <ListPage
       body="bounded"
+      label={REFINERY_LIST_TITLE}
       ref={surfaceRef}
       search={<Input aria-label={REFINERY_SEARCH_SESSIONS_NAME} onValueChange={setRefinerySearchQuery} placeholder={searchPlaceholder} value={search} />}
       skipTo="Skip to sessions"
