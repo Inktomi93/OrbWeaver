@@ -2,13 +2,14 @@
 // A Databank row's Delete confirm holds until the delete lands: a refused delete keeps the dialog and the open
 // document, Cancel returns focus to the row's own menu trigger, and a landed delete hands focus to a neighbour row.
 
-import { ROW_DELETE_NAME } from "@orb/client/lib";
+import { ROW_DELETE_NAME, rowActionsName } from "@orb/client/lib";
 import type { ShellAmbientStory } from "@orb/testkit/browser";
 import { seedShellState } from "@orb/testkit/browser/spec";
 import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Page } from "@playwright/test";
+import { DATABANK_LIST_NAME } from "#client/features/databank/lib/databank-names.ts";
 
 const STORY = "tests/support/browser/ct-shell-reads-stories/ShellAmbientStory";
 const READS = [...SECTION_PROCEDURES, "databank.bankHealth", "databank.listGlobal", "databank.listAttachments", "databank.get"] as const;
@@ -60,4 +61,39 @@ test("a refused Databank delete keeps its confirm and its trigger, and a landed 
   const harbour = page.locator(ROW).filter({ has: page.getByRole("button", { name: /Harbour notes/u }) });
   await expect(page.locator(ROW).locator(":focus")).toHaveCount(1);
   await expect(harbour.locator(":focus")).toHaveCount(0);
+});
+
+const SEVEN_DOCUMENTS = ["Atlas notes", "Beacon notes", "Cinder notes", "Delta notes", "Ember notes", "Fjord notes", "Grove notes"] as const;
+
+test("deleting the last listed Databank document by keyboard hands focus to the row before it, not the list", async ({ mount, page, corpus }) => {
+  await using root = await createCorpusHarness(undefined, { startJobs: false });
+  const caller = await root.internalCallerFor(root.ownerId);
+  for (const name of SEVEN_DOCUMENTS) {
+    await caller.databank.createFromText({ name, text: `${name} body.` });
+  }
+  const rpc = await routeTrpc(page, {
+    ...createShellAmbientReads(corpus, root.ownerId),
+    ...serveCorpusProcedures(caller, [...READS, "databank.remove"]),
+  });
+  await seedShellState(page, { activeSection: "databank" });
+  await mount<typeof ShellAmbientStory>(STORY, {});
+
+  const list = page.getByRole("list", { name: DATABANK_LIST_NAME, exact: true });
+  await expect(list.getByRole("button", { name: rowActionsName(SEVEN_DOCUMENTS[0]), exact: true })).toBeVisible();
+  const labels = await list
+    .getByRole("button", { name: /^Actions for / })
+    .evaluateAll((buttons) => buttons.map((button) => button.getAttribute("aria-label") ?? ""));
+  const last = labels.at(-1)?.replace(/^Actions for /, "") ?? "";
+  const before = labels.at(-2)?.replace(/^Actions for /, "") ?? "";
+
+  await list.getByRole("button", { name: rowActionsName(last), exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await page.getByRole("menuitem", { name: ROW_DELETE_NAME, exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await page.getByRole("alertdialog").getByRole("button", { name: ROW_DELETE_NAME, exact: true }).focus();
+  await page.keyboard.press("Enter");
+  await expect(page.getByRole("alertdialog")).toHaveCount(0);
+
+  await expect.poll(() => rpc.count("databank.remove")).toBe(1);
+  await expect(list.getByRole("button", { name: new RegExp(`^${RegExp.escape(before)}`, "u") }).first()).toBeFocused();
 });

@@ -47,7 +47,9 @@ import { MenuItem } from "@orb/ui/menu";
 import { Text } from "@orb/ui/text";
 import { VirtualList } from "@orb/ui/virtual-list";
 import type { ReactElement } from "react";
-import { LibraryRow } from "#components";
+import { useRef } from "react";
+import type { RowDeleteFocus } from "#components";
+import { LibraryRow, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC, useTRPCClient } from "#data";
 import type { CollectionListView } from "#lib";
 import {
@@ -132,6 +134,12 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
     timeLib.formatDateTime,
   );
   const qualifierById = new Map(filtered.map((script, index) => [script.id, qualifiers[index] ?? ""]));
+  // The sealed `VirtualList` takes no root ref: past the large-group size a deleted row always has a mounted neighbour.
+  const listRootRef = useRef<HTMLDivElement>(null);
+  const rowFocus = useRowDeleteFocus(
+    listRootRef,
+    filtered.map((script) => script.id),
+  );
 
   const renderRow = (script: RegexScriptRow): ReactElement => (
     <RegexCollectionRow
@@ -142,6 +150,7 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
       onExport={onExport}
       onSelect={(): void => view.onSelect(script.id)}
       qualifier={qualifierById.get(script.id) ?? ""}
+      rowFocus={rowFocus}
       script={script}
       selected={view.selectedId === script.id}
     />
@@ -190,7 +199,7 @@ export function RegexCollectionRows({ view }: { readonly view: CollectionListVie
     // a `VirtualList`, which announces "list, N items" of its own, so a bare `Stack` of buttons would make ONE
     // library speak two a11y grammars depending only on its size.
     return (
-      <Stack aria-label="Regex scripts" gap="tight" role="list">
+      <Stack aria-label="Regex scripts" focusTarget={true} gap="tight" ref={listRootRef} role="list" tabIndex={-1}>
         {filtered.map((script, index) => (
           <Stack aria-posinset={index + 1} aria-setsize={filtered.length} key={script.id} role="listitem">
             {renderRow(script)}
@@ -222,9 +231,21 @@ interface RegexCollectionRowProps {
   readonly onDuplicate: (id: RegexScriptId) => void;
   readonly onDelete: (id: RegexScriptId) => void;
   readonly onExport: (id: RegexScriptId) => void;
+  /** Hands focus to a neighbouring row when this row's delete confirms: the row unmounts with its confirm. */
+  readonly rowFocus: RowDeleteFocus;
 }
 
-function RegexCollectionRow({ script, selected, bulkActive, qualifier, onSelect, onDuplicate, onDelete, onExport }: RegexCollectionRowProps): ReactElement {
+function RegexCollectionRow({
+  script,
+  selected,
+  bulkActive,
+  qualifier,
+  onSelect,
+  onDuplicate,
+  onDelete,
+  onExport,
+  rowFocus,
+}: RegexCollectionRowProps): ReactElement {
   const checked = useIsRegexScriptSelected(script.id);
   const title = regexScriptTitle(script);
   // The bulk checkbox is this row's cluster while the mode runs, so it carries the SAME subject the kebab
@@ -262,7 +283,7 @@ function RegexCollectionRow({ script, selected, bulkActive, qualifier, onSelect,
         name: title,
         qualifier,
         onDuplicate: (): void => onDuplicate(script.id),
-        onDelete: (): void => onDelete(script.id),
+        ...rowFocus.delete(script.id, (): void => onDelete(script.id)),
         deleteDescription: "Deleting a script removes it from every preset, character, and room it's attached to. This can't be undone.",
         // Below Duplicate, above the destructive Delete — the §9 kebab order.
         menuItemsAfter: (
@@ -273,6 +294,7 @@ function RegexCollectionRow({ script, selected, bulkActive, qualifier, onSelect,
         ),
       }}
       actionsReserved={REGEX_CLUSTER_SLOTS}
+      bodyRef={rowFocus.bodyRef(script.id)}
       onSelect={onSelect}
       selected={selected}
       title={title}

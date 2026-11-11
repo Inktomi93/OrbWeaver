@@ -15,6 +15,8 @@ export const CONFIG_IMPORT_THEME_FILE_NAME = "Import a theme file";
 export const CONFIG_MORE_LIBRARY_ACTIONS_NAME = "More library actions";
 export const CONFIG_ADVANCED_THEME_TOOLS_NAME = "Show advanced theme tools";
 export const CONFIG_BACK_TO_LOOKS_NAME = "← Back to Looks";
+/** The theme card menu's item that opens an owned theme in the builder. */
+export const CONFIG_EDIT_IN_BUILDER_NAME = "Edit in builder";
 
 /** The theme editor's live preview section. */
 export const CONFIG_THEME_PREVIEW_NAME = "Preview";

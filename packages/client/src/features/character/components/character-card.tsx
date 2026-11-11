@@ -38,6 +38,7 @@ import { selectActionName } from "@orb/ui/lib";
 import { ListRow } from "@orb/ui/list-row";
 import { MenuItem, MenuLinkItem, MenuPopup, MenuSubmenuRoot, MenuSubmenuTrigger } from "@orb/ui/menu";
 import type { ReactElement, ReactNode } from "react";
+import type { RowDeleteFocus } from "#components";
 import { RowActionsMenu, RowToggleAction } from "#components";
 import { chatWithActionName, deleteConfirmTitle, rowActionSubject, rowActionsName } from "#lib";
 import type { CHARACTER_ACTION_SCOPE_IDS } from "../lib/character-actions.ts";
@@ -69,6 +70,8 @@ export interface CharacterCardTileProps {
   readonly onToggleArchive: (id: string, next: boolean) => void;
   readonly onDuplicate: (id: string) => void;
   readonly onDelete: (id: string) => void;
+  /** Hands focus to a neighbouring row when this row's delete confirms: the row unmounts with its confirm. */
+  readonly rowFocus: RowDeleteFocus;
 }
 
 /** The row spends its owner-unique handle as a visible and announced disambiguator only when character.list
@@ -92,6 +95,7 @@ export function CharacterCardTile({
   onToggleArchive,
   onDuplicate,
   onDelete,
+  rowFocus,
 }: CharacterCardTileProps): ReactElement {
   const visibleTags = character.tags.filter((tag) => !tag.isHiddenOnCard);
   const tagLine = visibleTags.length === 0 ? null : visibleTags.map((tag) => tag.name).join(" · ");
@@ -123,6 +127,7 @@ export function CharacterCardTile({
             onDuplicate={onDuplicate}
             onToggleArchive={onToggleArchive}
             onToggleStar={onToggleStar}
+            rowFocus={rowFocus}
             subject={subject}
           />
         )
@@ -141,6 +146,7 @@ export function CharacterCardTile({
       // accessible tree and in flow — the same split the chats row landed (chat-summary-row.tsx).
       {...(bulkMode ? { rowTint: "row" as const } : { actionsFloat: true as const })}
       {...(markers === undefined ? {} : { markers })}
+      bodyRef={rowFocus.bodyRef(character.id)}
       className="group"
       clickable={true}
       // `md` (32px) is THE list-row portrait size — the mock's one row rhythm, shared with the chats panes
@@ -216,6 +222,7 @@ function NormalRowActions({
   onToggleArchive,
   onDuplicate,
   onDelete,
+  rowFocus,
 }: {
   readonly character: CharacterCardItem;
   /** The row's announced identity (`rowActionSubject(name, handleQualifier)`) — what every control here
@@ -229,6 +236,7 @@ function NormalRowActions({
   readonly onToggleArchive: (id: string, next: boolean) => void;
   readonly onDuplicate: (id: string) => void;
   readonly onDelete: (id: string) => void;
+  readonly rowFocus: RowDeleteFocus;
 }): ReactElement {
   /** Every verb the `row` scope offers, wired. `null` = not click-dispatched from this map: `exportCard`
    *  renders as download LINKS and `delete` rides `RowActionsMenu`'s destructive slot + confirm. */
@@ -241,6 +249,7 @@ function NormalRowActions({
 
   // One name for both states: `aria-pressed` carries on/off, so a flipping name would announce the state twice.
   const starName = `Star ${subject}`;
+  const deletion = rowFocus.delete(character.id, (): void => onDelete(character.id));
 
   return (
     <>
@@ -287,7 +296,8 @@ function NormalRowActions({
           label: CHARACTER_ACTIONS.delete.label,
           title: deleteConfirmTitle(character.name),
           description: "This permanently deletes the character and everything attached to it. This can't be undone.",
-          onConfirm: (): void => onDelete(character.id),
+          onConfirm: deletion.onDelete,
+          finalFocus: deletion.deleteFinalFocus,
         }}
       >
         {/* THE OVERFLOW ARM of the collapsed star (#1695) — present ONLY at a coarse pointer, where the

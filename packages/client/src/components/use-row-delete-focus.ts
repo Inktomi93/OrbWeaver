@@ -56,12 +56,13 @@ export function useRowDeleteFocus(listRootRef: RefObject<HTMLElement | null>, ke
             return true;
           }
           armed.current = null;
-          const target = mine.neighbours.map((neighbour) => bodies.current.get(neighbour)).find((body) => body !== undefined) ?? listRootRef.current;
-          if (target === null) {
-            return true;
-          }
-          // Base UI reads this answer inside the dialog's own unmount, where a focus() is taken back to the trigger.
-          queueMicrotask((): void => target.focus());
+          // Base UI reads this answer inside the dialog's own unmount, where a focus() is taken back to the trigger, so the
+          // answer is `false` and the focus moves after the commit. The target is looked up then too: a commit that re-renders
+          // the rows has detached every body ref by the time the dialog unmounts and reattaches them only after.
+          queueMicrotask((): void => {
+            const target = mine.neighbours.map((neighbour) => bodies.current.get(neighbour)).find((body) => body !== undefined) ?? listRootRef.current;
+            target?.focus();
+          });
           return false;
         },
       };
