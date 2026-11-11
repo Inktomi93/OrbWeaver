@@ -6,7 +6,7 @@ import { createServer } from "node:http";
 import { join } from "node:path";
 import process from "node:process";
 import { setTimeout as sleep } from "node:timers/promises";
-import { AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { AUTH_MODE_KEY, SESSION_COOKIE_NAMES } from "@orb/contracts/identity";
 import type { CliResult } from "@orb/testkit/tooling";
 import { expect, test } from "@orb/testkit/tooling";
 import { EXIT } from "@orb/tooling/floor/cli/exit-contract";
@@ -104,14 +104,15 @@ const AUTH_FIXTURE_SOURCE = `
 import { createServer } from "node:http";
 import { writeFileSync } from "node:fs";
 const ready = process.argv[2];
+const sessionName = ${JSON.stringify(SESSION_COOKIE_NAMES.http)};
 const credentials = new Map([["owner","owner-dev-pass"],["member","member-dev-pass"]]);
 const sessions = new Map();
 const page = '<!doctype html><html lang="en" data-app-ready="loading"><head><meta charset="utf-8"><title>fixture user</title></head><body><main id="viewer">loading</main><script>globalThis.__orb={consoleErrors:()=>({records:[],dropped:0,cap:128}),resetEvidence:()=>{},snap:()=>({fixture:true})};fetch("/api/whoami").then(r=>r.json()).then(v=>{document.body.dataset.viewer=v.handle;document.body.dataset.session=v.session;document.querySelector("#viewer").textContent="viewer:"+v.handle;localStorage.setItem("viewer",v.handle);document.documentElement.dataset.appReady="settled"})</script></body></html>';
 const server=createServer((request,response)=>{
   if(request.url==="/healthz"){response.writeHead(200);response.end("ok");return}
   if(request.url==="/api/auth/config"){response.writeHead(200,{"content-type":"application/json"});response.end(JSON.stringify({mode:"local",localEnabled:true,multiHumanCapable:true}));return}
-  if(request.url==="/api/auth/login"&&request.method==="POST"){let body="";request.on("data",c=>body+=c);request.on("end",()=>{const form=new URLSearchParams(body);const handle=form.get("handle")??"";if(credentials.get(handle)!==form.get("password")){response.writeHead(401);response.end("bad login");return}const token=handle+"-session";sessions.set(token,handle);response.writeHead(200,{"set-cookie":"orb_session_insecure="+token+"; Path=/; HttpOnly; SameSite=Lax","content-type":"application/json"});response.end(JSON.stringify({ok:true}))});return}
-  if(request.url==="/api/whoami"){const cookie=request.headers.cookie??"";const token=/orb_session_insecure=([^;]+)/.exec(cookie)?.[1]??"";const handle=sessions.get(token);if(handle===undefined){response.writeHead(401,{"content-type":"application/json"});response.end(JSON.stringify({error:"unauthorized",cookie}));return}response.writeHead(200,{"content-type":"application/json"});response.end(JSON.stringify({handle,session:token}));return}
+  if(request.url==="/api/auth/login"&&request.method==="POST"){let body="";request.on("data",c=>body+=c);request.on("end",()=>{const form=new URLSearchParams(body);const handle=form.get("handle")??"";if(credentials.get(handle)!==form.get("password")){response.writeHead(401);response.end("bad login");return}const token=handle+"-session";sessions.set(token,handle);response.writeHead(200,{"set-cookie":sessionName+"="+token+"; Path=/; HttpOnly; SameSite=Lax","content-type":"application/json"});response.end(JSON.stringify({ok:true}))});return}
+  if(request.url==="/api/whoami"){const cookie=request.headers.cookie??"";const token=new RegExp(RegExp.escape(sessionName)+"=([^;]+)").exec(cookie)?.[1]??"";const handle=sessions.get(token);if(handle===undefined){response.writeHead(401,{"content-type":"application/json"});response.end(JSON.stringify({error:"unauthorized",cookie}));return}response.writeHead(200,{"content-type":"application/json"});response.end(JSON.stringify({handle,session:token}));return}
   response.writeHead(200,{"content-type":"text/html; charset=utf-8"});response.end(page)
 });
 server.listen(0,"127.0.0.1",()=>{const address=server.address();writeFileSync(ready,JSON.stringify({port:address.port}))});

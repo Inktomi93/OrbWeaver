@@ -14,7 +14,9 @@ import { createRuntimeRoot, generationCapability, wireConnection } from "../../r
 
 type Connection = Parameters<typeof wireConnection<"chat">>[1];
 
-const USER_LINE: ChatHistoryMessage = { role: "user", content: [{ type: "text", text: "Hello." }] };
+const SYSTEM_TEXT = "You are a fixture.";
+const USER_TEXT = "Hello.";
+const USER_LINE: ChatHistoryMessage = { role: "user", content: [{ type: "text", text: USER_TEXT }] };
 const ASSISTANT_OPENING: ChatHistoryMessage = { role: "assistant", content: [{ type: "text", text: "Once upon a" }] };
 
 interface Sent {
@@ -35,7 +37,7 @@ async function send(
     api: "chat-completions",
     connection,
     params: options.params ?? {},
-    systemPrompt: { static: "You are a fixture.", dynamic: "" },
+    systemPrompt: { static: SYSTEM_TEXT, dynamic: "" },
     history: options.history ?? [USER_LINE],
   });
   const [first] = recorded;
@@ -51,6 +53,40 @@ function ignoredKeys(events: readonly ChatEvent[]): string[] {
 
 const NO_THINKING_SWITCH = generationCapability({ reasoning: { mode: "none", enabled: false } });
 const EFFORT = generationCapability({ reasoning: { mode: "effort", enabled: true, effortLevels: ["low", "medium", "high"] } });
+
+test("a minimal turn sends exactly one request body on each transport, so a provider SDK upgrade that reshapes any field fails here", async () => {
+  const params = { effort: "high" } satisfies UserIntent;
+  const compatible = await send({ capability: EFFORT, declaredFeatures: { effort: "reasoning_effort" } }, { params });
+  expect(compatible.body).toEqual({
+    model: "shaping-model",
+    ["reasoning_effort"]: "high",
+    messages: [
+      { role: "system", content: SYSTEM_TEXT },
+      { role: "user", content: USER_TEXT },
+    ],
+    stream: true,
+    ["stream_options"]: { ["include_usage"]: true },
+    ["chat_template_kwargs"]: { ["enable_thinking"]: true, ["preserve_reasoning"]: false },
+  });
+
+  const openRouter = await send(
+    { providerId: providerIdSchema.parse("openrouter"), model: "anthropic/claude-opus-4-5", capability: generationCapability() },
+    { params },
+  );
+  expect(openRouter.body).toEqual({
+    model: "anthropic/claude-opus-4-5",
+    messages: [
+      { role: "system", content: [{ type: "text", text: SYSTEM_TEXT, ["cache_control"]: { type: "ephemeral", ttl: "1h" } }] },
+      { role: "user", content: USER_TEXT },
+    ],
+    reasoning: { effort: "high" },
+    usage: { include: true },
+    stream: true,
+    ["stream_options"]: { ["include_usage"]: true },
+    provider: { order: ["Anthropic"], ["allow_fallbacks"]: false },
+    plugins: [{ id: "context-compression", enabled: false }],
+  });
+});
 
 test("the connection's own body beats the preset knob and a computed key, a belt-owned key is dropped by name, and a fresh key rides", async () => {
   const belt = ["model", "stream", "messages"] as const;

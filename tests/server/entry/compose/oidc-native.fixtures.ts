@@ -1,5 +1,6 @@
 // A real HTTP root behind a scripted OIDC issuer, and the cookie and token-endpoint helpers its suites share.
 
+import { SESSION_COOKIE_NAMES } from "@orb/contracts/identity";
 import { authModeHarnessOptions } from "@orb/testkit/node/auth";
 import type { ServerHarnessOptions, ServerTestHarness, UnclaimedServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness } from "@orb/testkit/node/composed";
@@ -32,7 +33,12 @@ export function rootFor(
 
 export const ID_TOKEN_SECRET = "callback-thrown-secret-must-not-reflect";
 
-export const SESSION_COOKIE_PATTERN = /^(?:__Host-)?orb_session(?:_insecure)?=/u;
+export const SESSION_COOKIE_PATTERN = new RegExp(
+  `^(?:${Object.values(SESSION_COOKIE_NAMES)
+    .map((name) => RegExp.escape(name))
+    .join("|")})=`,
+  "u",
+);
 
 export const BINDING_COOKIE_PATTERN = /^(?:__Host-)?orb_oidc_state(?:_insecure)?=/u;
 

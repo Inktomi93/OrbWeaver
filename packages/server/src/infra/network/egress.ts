@@ -18,7 +18,7 @@ import type {
   ScopedEgress,
   ScopedEgressOptions,
 } from "./contract/egress.ts";
-import { ANY_HOST as ANY_HOST_POLICY, ENDPOINT_ADMISSIONS as ENDPOINT_ADMISSION_VALUES } from "./contract/egress.ts";
+import { ANY_HOST as ANY_HOST_POLICY, ENDPOINT_ADMISSIONS as ENDPOINT_ADMISSION_VALUES, SSRF_BLOCKED } from "./contract/egress.ts";
 import { DEFAULT_TRUSTED_RANGES, isInRanges } from "./ip-ranges.ts";
 import { createOwnedResponseBody } from "./response-body.ts";
 
@@ -686,7 +686,7 @@ function createFirewallLookupFor(context: EgressContext, judgment: ConnectJudgme
             : "security: egress SSRF blocked (private or unreadable address)",
           context.log,
         );
-        resolved(new Error(`SSRF_BLOCKED: ${hostname} → ${blocked}`), address, family);
+        resolved(new Error(`${SSRF_BLOCKED}: ${hostname} → ${blocked}`), address, family);
         return;
       }
       resolved(null, address, family);
@@ -713,7 +713,7 @@ function createFirewallConnectFor(context: EgressContext): { readonly connect: b
     // refusing any zone mark here keeps a future input path from reaching loopback or link-local through one.
     if (options.hostname.includes(ZONE_MARK)) {
       securityEvent("egress_blocked", { hostname: options.hostname }, "security: egress SSRF blocked (zone-scoped host)", context.log);
-      callback(new Error(`SSRF_BLOCKED: ${options.hostname} (zone-scoped host)`), null);
+      callback(new Error(`${SSRF_BLOCKED}: ${options.hostname} (zone-scoped host)`), null);
       return;
     }
     // Port is available HERE (undici passes options.port to the connector) but NOT in the lookup override
@@ -731,7 +731,7 @@ function createFirewallConnectFor(context: EgressContext): { readonly connect: b
       shouldBlockEgress(literal, { hostname: options.hostname, port: effectiveHttpPort(options.protocol, options.port), allowlist, ranges })
     ) {
       securityEvent("egress_blocked", { hostname: options.hostname, address: literal }, "security: egress SSRF blocked (private literal address)", context.log);
-      callback(new Error(`SSRF_BLOCKED: ${options.hostname} → ${literal}`), null);
+      callback(new Error(`${SSRF_BLOCKED}: ${options.hostname} → ${literal}`), null);
       return;
     }
     connectTarget(options, callback, false);

@@ -1,5 +1,6 @@
 import { createServer } from "node:http";
 import process from "node:process";
+import { SESSION_COOKIE_NAMES } from "@orb/contracts/identity";
 import type { ChromiumIdentity } from "@orb/testkit/node/helpers";
 import { livingChromiumIdentities, terminateChromiumIdentities, watchChromiumDescendants } from "@orb/testkit/node/helpers";
 import { expect, test } from "@orb/testkit/tooling";
@@ -12,7 +13,7 @@ test("a strict-console getter failure after capture closes the owned Chromium se
   let pageRequests = 0;
   const server = createServer((request, response) => {
     if (request.url === "/api/auth/login") {
-      response.writeHead(200, { "set-cookie": "orb_session_insecure=test-session; Path=/; HttpOnly" });
+      response.writeHead(200, { "set-cookie": `${SESSION_COOKIE_NAMES.http}=test-session; Path=/; HttpOnly` });
       response.end();
       return;
     }

@@ -6,7 +6,7 @@
 // @subject packages/server/src/infra/auth/transport.ts
 // @subject packages/server/src/domain/settings/effective-config/layer.ts
 import { authConfigSchema } from "@orb/contracts/auth-config";
-import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER, FORWARD_AUTH_TRUSTED_PROXIES_KEY } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY, CSRF_HEADER, FORWARD_AUTH_TRUSTED_PROXIES_KEY, SESSION_COOKIE_NAMES } from "@orb/contracts/identity";
 import { ALLOWED_HOSTS_KEY } from "@orb/kit/allowed-hosts";
 import type { Handle } from "@orb/kit/ids";
 import { castId } from "@orb/kit/ids";
@@ -112,7 +112,7 @@ describe("every forwarded-header read believes the record's trusted proxies", ()
   test("the auth middleware reads the session cookie of a trusted proxy's https transport", async () => {
     await using root = await behindProxy({ env: { [AUTH_MODE_KEY]: "local", [AUTH_FALLBACK_KEY]: "deny" } });
     const { cookie } = await signedInMember(root, castId<Handle>("forwarded-https-member"), FORWARDED_HTTPS);
-    expect(cookie).toMatch(/^__Host-orb_session=/u);
+    expect(cookie.split("=")[0]).toBe(SESSION_COOKIE_NAMES.https);
     expect((await authMe(root, { cookie, ...FORWARDED_HTTPS })).authenticated).toBe(true);
   });
 

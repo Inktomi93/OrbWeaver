@@ -158,14 +158,13 @@ catalog:
   jose: ^6.2.13
   "@trpc/server": ^11.23.0
   # undici: the global-dispatcher seam for the SSRF egress firewall (infra/network/egress —
-  # setGlobalDispatcher + Agent({connect.lookup})). Node's fetch is undici under the hood, but the
-  # dispatcher swap requires the package; tracks Node 26's bundled undici major (node 26.5 bundles
-  # 8.7.0). MAJOR-DRIFT IS A SECURITY BUG, NOT A CHORE: this package and node's bundled copy hand off
-  # through the SHARED symbol `Symbol.for("undici.globalDispatcher.1")` — our copy WRITES it,
-  # node's built-in `fetch` READS it. If that contract ever breaks, the firewall silently stops
-  # governing `fetch` and every gate stays green over an open SSRF surface. A test must pin the
-  # handoff and re-run it on every node/undici bump; no in-repo test pins it yet — porting the
-  # replacement is tracked in reports/codebase-review/ledger.md.
+  # setGlobalDispatcher + Agent({connect.lookup})). Node's built-in fetch runs on Node's own bundled undici,
+  # which reads the dispatcher this package writes into a shared, versioned `globalThis` slot; the slot name
+  # is undici's private detail and has moved before. MAJOR DRIFT IS A SECURITY BUG, NOT A CHORE: if the
+  # handoff breaks, the firewall stops governing a bare `fetch` and every other gate stays green over an open
+  # SSRF surface. Keep the major on Node's bundled major. The root also declares it for
+  # tests/server/infra/network/global-dispatcher-handoff.int.test.ts, which pins the handoff and the major;
+  # run it on every node or undici bump.
   undici: ^8.12.3
   # --- foundation observability (Phase 4a — Tier-2-Foundation.md › Runtime dependencies) ---
   # pino: the structured logger (pino.multistream([stdout, ringStream])).
@@ -199,12 +198,11 @@ catalog:
   # openai-compatible provider's `transformRequestBody` post-convert hook, which is where the dialects do their
   # body work; the OpenRouter provider FORWARDS per-message `cache_control` as an implementation fact, not a
   # typed contract. A caret bump can move any of those under us silently, so every bump re-runs the
-  # wire-capture byte pins for the anthropic-messages and openai-compat chat transports before it is
-  # trusted; no in-repo suite holds these pins yet, and porting them is tracked in
-  # reports/codebase-review/ledger.md. `ai` is the peer the OpenRouter provider requires (`^7.0.0`);
-  # the `@ai-sdk/provider` pin must satisfy every provider package's own `@ai-sdk/provider` dependency
-  # at install, so the stack moves together. The exact per-transport byte pins guard the OpenRouter
-  # provider's request conversion alongside the Vercel SDK providers.
+  # full request-body pins before it is trusted: the minimal-turn cases in
+  # tests/inference/backends/anthropic-messages/chat-wire.int.test.ts and, for the openai-compatible and
+  # OpenRouter transports, tests/inference/backends/openai-compat/body-shaping.int.test.ts.
+  # `ai` is the peer the OpenRouter provider requires (`^7.0.0`); the `@ai-sdk/provider` pin must satisfy
+  # every provider package's own `@ai-sdk/provider` dependency at install, so the stack moves together.
   ai: 7.0.148
   "@ai-sdk/provider": 4.0.31
   "@ai-sdk/openai-compatible": 3.0.75

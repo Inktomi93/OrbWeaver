@@ -41,10 +41,10 @@ RUN SNIPPET="export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhisto
 # Set `DEVCONTAINER` environment variable to help with orientation
 ENV DEVCONTAINER=true
 
-# Create workspace and config directories and set permissions. The ROOT node_modules, tooling's and
-# every packages/*/node_modules are created here
-# so their named volumes (mounted in devcontainer.json) seed as node-owned instead of
-# root — pnpm installs into them without permission errors.
+# Create workspace and config directories and set permissions. The node_modules of the root and of
+# every importer that pnpm-workspace.yaml's `packages:` globs select are created here so their named
+# volumes (mounted in devcontainer.json) seed as node-owned instead of root — pnpm installs into
+# them without permission errors.
 RUN mkdir -p \
       /workspace/node_modules \
       /workspace/tooling/node_modules \
@@ -59,14 +59,25 @@ RUN mkdir -p \
       /workspace/packages/server/node_modules \
       /workspace/packages/showcase-plugins/node_modules \
       /workspace/packages/ui/node_modules \
+      /workspace/tests/support/node_modules \
       /home/node/.claude /home/node/.local/share/pnpm && \
   chown -R node:node /workspace /home/node/.claude /home/node/.local
 
 WORKDIR /workspace
 
 ARG GIT_DELTA_VERSION=0.18.2
+# The release publishes no checksum, so these pin the bytes of this version's assets; a version bump
+# changes them too, and a mismatch stops the build.
+ARG GIT_DELTA_SHA256_AMD64=1658c7b61825d411b50734f34016101309e4b6e7f5799944cf8e4ac542cebd7f
+ARG GIT_DELTA_SHA256_ARM64=937781aa7788e1510858743fff6c9a8b4a69fe0a22a7c8a69493e633227939a9
 RUN ARCH=$(dpkg --print-architecture) && \
+  case "$ARCH" in \
+    amd64) DELTA_SHA256="$GIT_DELTA_SHA256_AMD64" ;; \
+    arm64) DELTA_SHA256="$GIT_DELTA_SHA256_ARM64" ;; \
+    *) echo "no pinned git-delta checksum for $ARCH" >&2; exit 1 ;; \
+  esac && \
   wget "https://github.com/dandavison/delta/releases/download/${GIT_DELTA_VERSION}/git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb" && \
+  echo "${DELTA_SHA256}  git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb" | sha256sum -c - && \
   sudo dpkg -i "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb" && \
   rm "git-delta_${GIT_DELTA_VERSION}_${ARCH}.deb"
 
@@ -88,22 +99,26 @@ ENV VISUAL=nano
 
 # Default powerline10k theme
 ARG ZSH_IN_DOCKER_VERSION=1.2.0
-RUN sh -c "$(wget -O- https://github.com/deluan/zsh-in-docker/releases/download/v${ZSH_IN_DOCKER_VERSION}/zsh-in-docker.sh)" -- \
+# Pinned like git-delta above: the release publishes no checksum.
+ARG ZSH_IN_DOCKER_SHA256=f74e5b08c295b6c3886654bb63c688e5ea16c58a4209435c4ddbab2c42fe9b41
+RUN wget -O /tmp/zsh-in-docker.sh "https://github.com/deluan/zsh-in-docker/releases/download/v${ZSH_IN_DOCKER_VERSION}/zsh-in-docker.sh" && \
+  echo "${ZSH_IN_DOCKER_SHA256}  /tmp/zsh-in-docker.sh" | sha256sum -c - && \
+  sh /tmp/zsh-in-docker.sh \
   -p git \
   -p fzf \
   -a "source /usr/share/doc/fzf/examples/key-bindings.zsh" \
   -a "source /usr/share/doc/fzf/examples/completion.zsh" \
   -a "export PROMPT_COMMAND='history -a' && export HISTFILE=/commandhistory/.bash_history" \
-  -x
+  -x && \
+  rm /tmp/zsh-in-docker.sh
 
 # Playwright Chromium for the client CT (`pnpm test:ct`) and e2e (`pnpm e2e`) suites.
-# The browser binary AND its OS libs must be baked in at build time: the runtime
-# firewall (init-firewall.sh) blocks cdn.playwright.dev, so a runtime
-# `playwright install` dies with ENETUNREACH. Pin to the project's Playwright
-# (pnpm-workspace.yaml catalog `@playwright/test`) so the baked browser
-# revision matches what node_modules resolves at runtime. `install-deps` (apt) needs
-# root; the browser itself installs as `node` into ~/.cache/ms-playwright (image
-# layer, not a volume — survives container restarts).
+# The OS libs must be baked in at build time: `install-deps` runs apt as root, and the
+# runtime firewall (init-firewall.sh) admits no Debian mirror while `node` has no general sudo.
+# The browser is baked beside them so a fresh container starts with it instead of downloading
+# it first. Pin to the project's Playwright (pnpm-workspace.yaml catalog `@playwright/test`) so
+# the baked browser revision matches what node_modules resolves at runtime. The browser installs
+# as `node` into ~/.cache/ms-playwright (image layer, not a volume — survives container restarts).
 ARG PLAYWRIGHT_VERSION=1.64.1
 USER root
 RUN npx --yes playwright-core@${PLAYWRIGHT_VERSION} install-deps chromium

@@ -25,12 +25,12 @@ import { bootDatabaseForOwner } from "@orb/db/wiring-owner";
 /** Every distinct installed plugin slug, across all owners. Read by ONE caller, the boot step
  *  `entry/boot/migrate-plugin-tool-wire-names`, and deliberately the narrowest possible projection — see the
  *  header for why that width is the whole safety argument. */
-// THIS READ CARRIES NO OWNER-SCOPE EXEMPTION MARKER, deliberately. That vocabulary is TWO-SIDED and belongs
-// to a bare BY-ID read (`owner-scoped-reads`), which this is not: there is no id in the predicate, and no
-// predicate at all. A marker here would guard nothing and be RED as a stale exemption — and merely SPELLING
-// the marker token in a comment is enough to trip it, which is how this note earned its careful wording. The
-// safety argument is the one in the header, and it is structural rather than promised: the projection is a
-// single column of slug strings.
+// This read takes no owner on purpose: it is a census of every owner's slugs, and there is no id in the predicate
+// to scope. The safety argument is the one in the header, and it is structural rather than promised: the
+// projection is a single column of slug strings. Who may run it is enforced by the boot grant (D335): the
+// `BootDatabaseHandle` parameter fails `tsc` for a plain handle, `bootDatabaseForOwner` refuses an unregistered
+// one. `tests/server/entry/boot/cross-owner-boot-verbs.test-d.ts` pins this verb's parameter type, and
+// `tests/server/entry/boot/persistence/forged-boot-grant.int.test.ts` proves it refuses a cast grant.
 export async function readInstalledPluginSlugs(handle: BootDatabaseHandle): Promise<readonly string[]> {
   const db = bootDatabaseForOwner(handle);
   const rows = await db.selectDistinct({ slug: plugins.slug }).from(plugins);

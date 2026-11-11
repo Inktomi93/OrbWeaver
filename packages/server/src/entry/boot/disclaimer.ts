@@ -3,7 +3,7 @@
 // naming its fix. There is no silence switch: a warning goes away when its cause is fixed.
 
 import type { AuthMode } from "@orb/contracts/identity";
-import { isCookieAuthMode } from "@orb/contracts/identity";
+import { isCookieAuthMode, SESSION_COOKIE_NAMES } from "@orb/contracts/identity";
 import type { BindPosture, OwnerFallbackPeerPosture } from "#foundation/env/record";
 
 /** The disclaimer's closed topic set; `exposure` is the only one that can carry a security line. */
@@ -78,7 +78,7 @@ function cookieLine(mode: AuthMode): string {
     return `session cookie: none — AUTH_MODE=${mode} mints no session cookie.`;
   }
   return (
-    "session cookie: Secure `__Host-orb_session` when a trusted proxy sends X-Forwarded-Proto: https; `orb_session_insecure` in clear " +
+    `session cookie: Secure \`${SESSION_COOKIE_NAMES.https}\` when a trusted proxy sends X-Forwarded-Proto: https; \`${SESSION_COOKIE_NAMES.http}\` in clear ` +
     "over plain http, so a device that signs in over plain http on your LAN keeps a cleartext cookie."
   );
 }

@@ -100,6 +100,27 @@ updates:
       prefix: fix
       include: scope
 
+  # The dev container's coding tools: an npm lockfile outside the pnpm workspace. pnpm stays with the root
+  # packageManager, which moves by hand; the container guard test fails when the two differ.
+  - package-ecosystem: npm
+    target-branch: main
+    directory: /.devcontainer/tools
+    schedule:
+      interval: monthly
+    cooldown:
+      default-days: 14
+      semver-major-days: 30
+    open-pull-requests-limit: 1
+    groups:
+      sandbox-tools:
+        applies-to: version-updates
+        patterns: ["*"]
+    ignore:
+      - dependency-name: pnpm
+    commit-message:
+      prefix: chore
+      include: scope
+
   # Actions, base images (pinned by digest; tag and digest move together), Compose images and the dev
   # container share the infrastructure PR.
   - package-ecosystem: github-actions
