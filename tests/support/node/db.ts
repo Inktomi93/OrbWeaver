@@ -20,6 +20,21 @@ import { generateSQLiteDrizzleJson, generateSQLiteMigration } from "drizzle-kit/
 import { sql } from "drizzle-orm";
 import { workerOnce } from "./worker-once.ts";
 
+// drizzle-kit's API bundle assigns these members onto the built-in prototypes as enumerable properties. pdfjs refuses
+// to run in a realm where `for...in` over an array yields a key, so the pdf loader failed in every composed root,
+// which imports this module. Production never loads drizzle-kit, so only the test world needs them hidden.
+const LEAKED_PROTOTYPE_MEMBERS = [
+  [Array.prototype, "random"],
+  [String.prototype, "capitalise"],
+  [String.prototype, "concatIf"],
+  [String.prototype, "snake_case"],
+] as const;
+for (const [prototype, name] of LEAKED_PROTOTYPE_MEMBERS) {
+  if (Object.hasOwn(prototype, name)) {
+    Object.defineProperty(prototype, name, { enumerable: false });
+  }
+}
+
 // The diff depends only on the schema module, so a worker generates it once and every freshDb applies it.
 const liveSchemaStatements = workerOnce(
   async (): Promise<string[]> => await generateSQLiteMigration(await generateSQLiteDrizzleJson({}), await generateSQLiteDrizzleJson(schema)),
