@@ -8,7 +8,7 @@ import type { TrackColor } from "@orb/ui/meter";
 import { TrackBar } from "@orb/ui/meter";
 import { Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode } from "react";
-import { trackerFieldName } from "../../lib/tracker-names.ts";
+import { trackerFieldName } from "#src/features/rpg/lib/tracker-names.ts";
 import { TrackerValue } from "./tracker-value.tsx";
 
 interface MeterRowProps {

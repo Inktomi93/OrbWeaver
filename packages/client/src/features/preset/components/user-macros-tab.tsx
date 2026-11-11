@@ -15,11 +15,10 @@ import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useState } from "react";
-import { EntryListEditor, MacroBrowser, UserMacroEditorDialog } from "#components";
+import { EntryListEditor, MacroBrowser, newMacroRowIds, UserMacroEditorDialog } from "#components";
 import { usePluginMacroPlanes } from "#data";
 import type { AppFormInstance } from "#forms/editor";
 import { macroCatalog, notify } from "#lib";
-import { newMacroRowIds } from "../../../components/user-macro-editor-model.ts";
 import type { PresetEditorValues } from "../lib/preset-editor-values.ts";
 
 type AppForm = AppFormInstance<PresetEditorValues>;

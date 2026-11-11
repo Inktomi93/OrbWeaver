@@ -35,6 +35,7 @@ import {
   RENDERS_UNFILTERABLE_REASON,
 } from "#src/lib/bug-report-bundle.ts";
 import { consoleErrorRing } from "#src/lib/console-error-ring.ts";
+import { wallClockMs } from "#src/lib/wall-clock.ts";
 
 export type BugReportCaptureInput = Pick<Parameters<typeof buildBugReportClientBundle>[0], "note"> & {
   readonly windowMinutes: Parameters<typeof resolveEvidenceWindow>[1];
@@ -127,22 +128,14 @@ function readEnvironment(): BugReportEnvironment {
   };
 }
 
-/** The capture instant, as epoch ms — the `bus-devlog.ts`/`console-error-ring.ts` spelling, deliberately not
- *  `Date.now()`. Two reasons, and the second is the load-bearing one: the injected-clock rule
- *  (Spine-Testing §3) governs app LOGIC whose behaviour must be reproducible, while this is the physical instant
- *  a capture happened; and the rings this bundle compares against stamp themselves with exactly this
- *  expression, so a window built on a different clock would not mean the same thing as the entries it filters. */
-function captureClockMs(): number {
-  return performance.timeOrigin + performance.now();
-}
-
 function absentSource(source: string): EvidenceSlice<unknown> {
   return { entries: [], meta: { source, windowFilterable: false, reason: NO_BRIDGE_REASON, cap: null, held: 0, kept: 0, truncatedAt: null } };
 }
 
 /** Assemble the client bundle from whatever the page can actually see. */
 export function captureBugReportBundle(input: BugReportCaptureInput): BugReportClientBundle {
-  const window = resolveEvidenceWindow(captureClockMs(), input.windowMinutes);
+  // The capture instant is the physical moment, on the wall clock the rings this bundle filters stamp themselves with.
+  const window = resolveEvidenceWindow(wallClockMs(), input.windowMinutes);
   const orb = readAgentDebugHandle();
   const consoleErrors = consoleErrorRing();
   const slices: Record<string, EvidenceSlice<unknown>> = {

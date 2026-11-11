@@ -4,7 +4,7 @@
 
 import { coarsePointerNow, prefersReducedMotionNow } from "@orb/ui/lib";
 import type { BugReportServerFacts, PublicBrowserFacts, SafeErrorRingRead } from "#lib";
-import { safeErrorRing } from "#lib";
+import { safeErrorRing, wallClockMs } from "#lib";
 
 /** One prepared report's frozen reads. The user's words and the "when" answer stay live in the form. */
 export interface PreparedBugReport {
@@ -30,7 +30,7 @@ function readBrowserFacts(): PublicBrowserFacts {
  *  instant is the house wall-clock spelling, the clock the error ring stamps itself with. */
 export function preparePublicBugReport(server: BugReportServerFacts): PreparedBugReport {
   return {
-    capturedAt: Math.round(performance.timeOrigin + performance.now()),
+    capturedAt: Math.round(wallClockMs()),
     server,
     browser: readBrowserFacts(),
     pathname: globalThis.location.pathname,

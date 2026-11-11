@@ -66,8 +66,13 @@ import {
   ZONE_ITEMS,
 } from "#src/features/preset/lib/assembly-model.ts";
 import { PRESET_NUMBER_FORMAT } from "#src/features/preset/lib/format-count.ts";
-import type { PresetEditorValues } from "../../lib/preset-editor-values.ts";
-import { PRESET_BACK_TO_RACK_NAME, PRESET_DELETE_SECTION_TITLE, PRESET_SECTION_ACTIONS_NAME, PRESET_SECTION_NAME_FIELD_NAME } from "../../lib/preset-names.ts";
+import type { PresetEditorValues } from "#src/features/preset/lib/preset-editor-values.ts";
+import {
+  PRESET_BACK_TO_RACK_NAME,
+  PRESET_DELETE_SECTION_TITLE,
+  PRESET_SECTION_ACTIONS_NAME,
+  PRESET_SECTION_NAME_FIELD_NAME,
+} from "#src/features/preset/lib/preset-names.ts";
 import { DeliveryCluster } from "../delivery-cluster.tsx";
 import type { DerivedZones } from "./derive-zones.ts";
 import { deriveZones } from "./derive-zones.ts";
