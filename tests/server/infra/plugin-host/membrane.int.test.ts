@@ -1,5 +1,6 @@
 // The membrane's three mechanisms, each through a real guest's host call: the capability gate, the opaque chat handle
-// and the self-bound argument budget. The dump depth guard is part of the argument intake.
+// and the self-bound argument budget. The dump depth guard and the string-argument check are part of the argument
+// intake.
 // @subject packages/server/src/infra/plugin-host/membrane.ts
 import { spawn } from "node:child_process";
 import { PluginCapabilityError } from "@orb/contracts/plugin";
@@ -107,3 +108,48 @@ test("a host call whose arguments pass the inbound byte budget is refused before
   expect(await run("readKey", { length: HOST_FN_ARGS_MAX_BYTES / 2 })).toEqual({ ok: true, value: null });
   expect(await run("readKey", { length: HOST_FN_ARGS_MAX_BYTES + 1 })).toEqual({ ok: false, name: Error.name });
 });
+
+// Every place the storage and variables functions take a string, called once with an array there and once with the
+// string itself. `written` reads back both stores, so a refused write is seen to leave them empty.
+const STRING_ARGUMENTS = [
+  { site: "storage.get key", refused: "(h) => h.storage.get(['k'])", accepted: "(h) => h.storage.get('k')" },
+  { site: "storage.set key", refused: "(h) => h.storage.set(['k'], 'v')", accepted: "(h) => h.storage.set('k', 'v')" },
+  { site: "storage.set value", refused: "(h) => h.storage.set('k', ['v'])", accepted: "(h) => h.storage.set('k', 'v')" },
+  {
+    site: "storage.compareAndSet key",
+    refused: "(h) => h.storage.compareAndSet(['k'], null, 'v')",
+    accepted: "(h) => h.storage.compareAndSet('k', null, 'v')",
+  },
+  {
+    site: "storage.compareAndSet expected value",
+    refused: "(h) => h.storage.compareAndSet('k', ['x'], 'v')",
+    // An omitted precondition is the contract's create, the same as `null`.
+    accepted: "(h) => h.storage.compareAndSet('k', undefined, 'v')",
+  },
+  {
+    site: "storage.compareAndSet next value",
+    refused: "(h) => h.storage.compareAndSet('k', null, ['v'])",
+    accepted: "(h) => h.storage.compareAndSet('k', null, 'v')",
+  },
+  { site: "storage.delete key", refused: "(h) => h.storage.delete(['k'])", accepted: "(h) => h.storage.delete('k')" },
+  { site: "variables.get key", refused: "(h) => h.variables.get(['k'])", accepted: "(h) => h.variables.get('k')" },
+  { site: "variables.set key", refused: "(h) => h.variables.set(['k'], 'v')", accepted: "(h) => h.variables.set('k', 'v')" },
+  { site: "variables.set value", refused: "(h) => h.variables.set('k', ['v'])", accepted: "(h) => h.variables.set('k', 'v')" },
+  { site: "variables.delete key", refused: "(h) => h.variables.delete(['k'])", accepted: "(h) => h.variables.delete('k')" },
+] as const;
+
+test.for(STRING_ARGUMENTS)(
+  "the $site refuses a non-string at the door and writes nothing; the string answers",
+  { tags: ["slow"] },
+  async ({ refused, accepted }) => {
+    await using root = await createServerHarness({ pluginSpawn: spawn });
+    const owner = await root.principalFor(root.ownerId);
+    const ops = { refused, accepted, written: "async (h) => [(await h.storage.list()).length, await h.variables.get('k')]" } satisfies GuestOps;
+    const pluginId = await installGuest(root, owner, { slug: "string-taker", capabilities: ["storage.kv", "global_vars"] }, ops);
+    const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
+
+    expect(await run("refused")).toEqual({ ok: false, name: Error.name });
+    expect(await run("written")).toEqual({ ok: true, value: [0, null] });
+    expect(await run("accepted")).toMatchObject({ ok: true });
+  },
+);

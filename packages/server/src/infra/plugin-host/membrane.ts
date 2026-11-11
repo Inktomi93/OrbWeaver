@@ -18,7 +18,8 @@
 //      ≤ 32 concurrent host calls per INSTANCE (the reentrancy footgun, 03 §3) — counted over
 //      STARTED-AND-UNSETTLED host work, which is what makes the cap a bound on work rather than on promises.
 // `tests/server/infra/plugin-host/membrane.int.test.ts` drives each through a real guest: the refused grant, a
-// fabricated, raw-id and ended-invocation handle, and the inbound argument budget. The deadline, the result cap and
+// fabricated, raw-id and ended-invocation handle, the inbound argument budget and each string argument's refusal of a
+// non-string. The deadline, the result cap and
 // the in-flight cap have no case there.
 
 import { randomUUID } from "node:crypto";
@@ -212,6 +213,18 @@ function requireCapability(runtime: MembraneRuntime, ref: HostFunctionRef): void
   if (!runtime.grants.has(capability)) {
     throw new PluginCapabilityError(capability);
   }
+}
+
+/** A guest argument the contract types as a string, refused at the door when it is anything else, with the plain
+ *  refusal every other string argument here throws. Coercing it would hand the host a string the guest never passed
+ *  (an array's join), and an array crosses the dump by a different path than a top-level string, so one key would
+ *  reach the host differently depending on how the guest wrapped it. */
+function stringArg(args: readonly unknown[], index: number, fn: HostFunctionRef, what: string): string {
+  const value = args[index];
+  if (typeof value !== "string") {
+    throw new Error(`plugin host: ${fn} requires a ${what} string`);
+  }
+  return value;
 }
 
 /** Adapt the infra-owned AbortSignal to the isomorphic contracts seam. Already-aborted subscriptions fire
@@ -1117,7 +1130,7 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "variables.get");
-      return await runtime.bridge.variables.get(String(args[0]), invocationLiveness(signal));
+      return await runtime.bridge.variables.get(stringArg(args, 0, "variables.get", "key"), invocationLiveness(signal));
     },
   });
   attachAsync(ctx, vars, {
@@ -1127,7 +1140,7 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "variables.set");
-      await runtime.bridge.variables.set(String(args[0]), String(args[1]), invocationLiveness(signal));
+      await runtime.bridge.variables.set(stringArg(args, 0, "variables.set", "key"), stringArg(args, 1, "variables.set", "value"), invocationLiveness(signal));
       return null;
     },
   });
@@ -1138,7 +1151,7 @@ function setVariables(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Memb
     log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "variables.delete");
-      await runtime.bridge.variables.delete(String(args[0]), invocationLiveness(signal));
+      await runtime.bridge.variables.delete(stringArg(args, 0, "variables.delete", "key"), invocationLiveness(signal));
       return null;
     },
   });
@@ -1158,7 +1171,7 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "storage.get");
-      return await runtime.bridge.storage.get(String(args[0]), invocationLiveness(signal));
+      return await runtime.bridge.storage.get(stringArg(args, 0, "storage.get", "key"), invocationLiveness(signal));
     },
   });
   attachAsync(ctx, storage, {
@@ -1168,15 +1181,15 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "storage.set");
-      await runtime.bridge.storage.set(String(args[0]), String(args[1]), invocationLiveness(signal));
+      await runtime.bridge.storage.set(stringArg(args, 0, "storage.set", "key"), stringArg(args, 1, "storage.set", "value"), invocationLiveness(signal));
       return null;
     },
   });
-  // The ATOMIC arm. `expected` is `null` for "the key must not exist", and anything that is not a
-  // STRING dumps to that null — a guest passing `undefined` means "create", which is the only reading of an
-  // absent precondition that is not a silent overwrite. The result is an object, so a lost race arrives as
-  // DATA the guest branches on rather than a throw (three throws auto-disable a plugin, and losing a race is
-  // the ordinary outcome this call reports).
+  // The ATOMIC arm. The contract types `expected` as `string | null`, `null` meaning "the key must not exist", and
+  // an omitted precondition (`undefined`) reads as that same create, the only reading of an absent precondition
+  // that is not a silent overwrite. Any other non-string is refused like the key. The result is an object, so a lost
+  // race arrives as DATA the guest branches on rather than a throw (three throws auto-disable a plugin, and losing a
+  // race is the ordinary outcome this call reports).
   attachAsync(ctx, storage, {
     name: "compareAndSet",
     inFlight: runtime.inFlight,
@@ -1184,8 +1197,10 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "storage.compareAndSet");
-      const expected = typeof args[1] === "string" ? args[1] : null;
-      return await runtime.bridge.storage.compareAndSet(String(args[0]), expected, String(args[2]), invocationLiveness(signal));
+      const expected = args[1] === null || args[1] === undefined ? null : stringArg(args, 1, "storage.compareAndSet", "expected value");
+      const key = stringArg(args, 0, "storage.compareAndSet", "key");
+      const next = stringArg(args, 2, "storage.compareAndSet", "next value");
+      return await runtime.bridge.storage.compareAndSet(key, expected, next, invocationLiveness(signal));
     },
   });
   attachAsync(ctx, storage, {
@@ -1195,7 +1210,7 @@ function setStorage(ctx: QuickJSContext, surface: QuickJSHandle, runtime: Membra
     log: runtime.log,
     impl: async (args, signal) => {
       requireCapability(runtime, "storage.delete");
-      await runtime.bridge.storage.delete(String(args[0]), invocationLiveness(signal));
+      await runtime.bridge.storage.delete(stringArg(args, 0, "storage.delete", "key"), invocationLiveness(signal));
       return null;
     },
   });

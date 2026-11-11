@@ -3,11 +3,12 @@
 // control whose value reads back under its exact key.
 //
 // How a NUL reaches the host: a key passed as a plain string is read only up to its first NUL, so a NUL-led one arrives
-// as the empty key. A key passed wrapped in an array crosses whole, NUL included, because the membrane turns the array
-// into its string. Those rows carry the NUL into the host's measure, which must count it like any other character; a
-// measure that stops at the NUL stores them past the cap. Keys are read back with `get`, never `list`, because a key the
-// host hands back to a guest is cut at its NUL too.
+// as the empty key. A key wrapped in an array used to cross whole, NUL included, and was stored past the cap; the
+// membrane now refuses a non-string key at the door, so those rows expect its refusal. No guest door delivers a NUL to
+// the size measure until a guest string crosses whole; the relay's refusal suite counts a NUL in full meanwhile. Keys are
+// read back with `get`, never `list`, because a key the host hands back to a guest is cut at its NUL too.
 // @subject packages/server/src/domain/plugin/substrate/storage.ts
+// @subject packages/server/src/infra/plugin-host/membrane.ts
 import { spawn } from "node:child_process";
 import { PLUGIN_KV_KEY_MAX_CHARS, PLUGIN_KV_VALUE_MAX_BYTES } from "@orb/contracts/plugin";
 import { expect, test } from "@orb/testkit/node";
@@ -48,16 +49,21 @@ type Write = Readonly<{ key: Recipe; value: Recipe; wrap: boolean }>;
 interface SizeCase {
   readonly name: string;
   readonly op: "set" | "create";
+  /** The refusal's name: the size check's, or the membrane's plain string refusal for a wrapped key. */
+  readonly refusal: string;
   readonly past: Write;
   readonly atCap: Write;
 }
 
 const v = plain("v");
+const SIZE_REFUSAL = PluginUiHostCallRefusedError.name;
+const MEMBRANE_REFUSAL = Error.name;
 
 const CASES: readonly SizeCase[] = [
   {
     name: "key one character past the key cap",
     op: "set",
+    refusal: SIZE_REFUSAL,
     past: { key: repeated("k", PLUGIN_KV_KEY_MAX_CHARS + 1), value: v, wrap: false },
     atCap: { key: KEY_AT_CAP, value: v, wrap: false },
   },
@@ -65,45 +71,45 @@ const CASES: readonly SizeCase[] = [
     // Arrives as the empty key, which the table's CHECK stored; the relay always refused it.
     name: "NUL-led key passed as a plain string",
     op: "set",
+    refusal: SIZE_REFUSAL,
     past: { key: repeated("k", FAR_PAST_KEY_CHARS, NUL), value: v, wrap: false },
     atCap: { key: KEY_AT_CAP, value: v, wrap: false },
   },
   {
     name: "multi-byte value one byte past the byte cap",
     op: "set",
+    refusal: SIZE_REFUSAL,
     past: { key: plain("value"), value: repeated(THREE_BYTE_CHAR, WHOLE_CHARS, "", "a".repeat(ONE_BYTE_REMAINDER + 1)), wrap: false },
     atCap: { key: plain("value"), value: repeated(THREE_BYTE_CHAR, WHOLE_CHARS, "", "a".repeat(ONE_BYTE_REMAINDER)), wrap: false },
   },
   ...(["set", "create"] as const).flatMap((op) => [
     {
-      name: `${op} of a delivered NUL-led key one character past the key cap`,
+      name: `${op} of an array-wrapped NUL-led key far past the key cap`,
       op,
-      past: { key: headedKey(NUL, 1), value: v, wrap: true },
-      atCap: { key: headedKey(NUL, 0), value: v, wrap: true },
+      refusal: MEMBRANE_REFUSAL,
+      past: { key: headedKey(NUL, FAR_PAST_KEY_CHARS), value: v, wrap: true },
+      atCap: { key: KEY_AT_CAP, value: v, wrap: false },
     },
     {
-      name: `${op} of a delivered key with a NUL mid-key one character past the key cap`,
+      name: `${op} of an array-wrapped key with a NUL mid-key far past the key cap`,
       op,
-      past: { key: headedKey(MID_KEY_HEAD, 1), value: v, wrap: true },
-      atCap: { key: headedKey(MID_KEY_HEAD, 0), value: v, wrap: true },
+      refusal: MEMBRANE_REFUSAL,
+      past: { key: headedKey(MID_KEY_HEAD, FAR_PAST_KEY_CHARS), value: v, wrap: true },
+      atCap: { key: KEY_AT_CAP, value: v, wrap: false },
     },
   ]),
 ];
 
-test.for(CASES)(
-  "a guest's $name is refused with the relay's coded refusal and writes nothing; at the cap it is stored",
-  { tags: ["slow"] },
-  async ({ op, past, atCap }) => {
-    await using root = await createServerHarness({ pluginSpawn: spawn });
-    const owner = await root.principalFor(root.ownerId);
-    const pluginId = await installGuest(root, owner, { slug: "kv-sizer", capabilities: ["storage.kv"] }, STORAGE_OPS);
-    const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
+test.for(CASES)("a guest's $name is refused and writes nothing; at the cap it is stored", { tags: ["slow"] }, async ({ op, refusal, past, atCap }) => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const owner = await root.principalFor(root.ownerId);
+  const pluginId = await installGuest(root, owner, { slug: "kv-sizer", capabilities: ["storage.kv"] }, STORAGE_OPS);
+  const run = guestRunner({ root, caller: owner, pluginId, chatId: null });
 
-    expect(await run(op, past)).toEqual({ ok: false, name: PluginUiHostCallRefusedError.name });
-    expect(await run("count")).toEqual({ ok: true, value: 0 });
+  expect(await run(op, past)).toEqual({ ok: false, name: refusal });
+  expect(await run("count")).toEqual({ ok: true, value: 0 });
 
-    expect(await run(op, atCap)).toMatchObject({ ok: true });
-    expect(await run("holds", atCap)).toEqual({ ok: true, value: true });
-    expect(await run("count")).toEqual({ ok: true, value: 1 });
-  },
-);
+  expect(await run(op, atCap)).toMatchObject({ ok: true });
+  expect(await run("holds", atCap)).toEqual({ ok: true, value: true });
+  expect(await run("count")).toEqual({ ok: true, value: 1 });
+});
