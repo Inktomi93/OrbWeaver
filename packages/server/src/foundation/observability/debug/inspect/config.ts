@@ -162,7 +162,7 @@ function renderPolicyVerdict(stored: RenderPolicyOverride, deployment: Deploymen
 
 /** One character's full row + its resolved render policy. `null` when the id does not exist. */
 // THE NO-PRINCIPAL READ EXEMPTION, homed here for every `/api/_debug` probe; `../routes.ts`, `./automation-fires.ts`
-// and `entry/auth/seam.ts` point at this comment. No ledger ruling states it yet.
+// and `entry/auth/seam.ts` point at this comment. D341 is the ruling.
 //
 // These reads take no principal and read every owner's rows. Every caller is `/api/_debug/*`, and its gate admits
 // exactly two callers: a holder of the `DEBUG_TOKEN` operator secret (a box-level credential, not a principal), or a
