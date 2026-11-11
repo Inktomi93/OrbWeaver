@@ -144,6 +144,9 @@ function logText(ctx: QuickJSContext, marshal: GuestMarshal, handle: QuickJSHand
       return typeof read.value === "string" ? read.value : "";
     case "thrown":
       throw new GuestCallFailure(read.error);
+    // Only a string reaches this read, and a string is never a promise.
+    case "promise":
+      return "";
     default: {
       const exhaustive: never = read;
       throw new Error(`plugin realm: unknown guest read ${JSON.stringify(exhaustive)}`);

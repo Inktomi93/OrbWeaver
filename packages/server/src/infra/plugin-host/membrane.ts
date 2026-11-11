@@ -389,6 +389,7 @@ type ArgRead = { readonly ok: true; readonly value: unknown } | { readonly ok: f
 
 /** Why an argument the depth guard or the read refused crosses no further. */
 const UNREADABLE_ARGUMENT = "too deeply nested or too large to read";
+const PROMISE_ARGUMENT = "a promise; pass the value it settles to";
 
 /** The ONE guest-handle materialization doorway. The explicit walk is deliberately inside the helper so a
  *  caller cannot remember the guard but accidentally put it after the read (`fromGuest`).
@@ -408,6 +409,8 @@ function tryDumpGuestValue(ctx: QuickJSContext, marshal: GuestMarshal, handle: Q
   switch (read.kind) {
     case "value":
       return ctx.typeof(handle) === "object" && typeof read.value === "string" ? { ok: false, reason: UNREADABLE_ARGUMENT } : { ok: true, value: read.value };
+    case "promise":
+      return { ok: false, reason: PROMISE_ARGUMENT };
     case "thrown":
       throw new GuestCallFailure(read.error);
     default: {

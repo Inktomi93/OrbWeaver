@@ -19,13 +19,20 @@
 // HOST TEXT CROSSES WITHOUT GUEST CODE. A host refusal's `Error` and the host's own strings (the grant list, a
 // minted id, the chat token) are built with the binding's allocators and `defineProp`, which call no guest function
 // and no guest setter, so building one cannot fail on the guest's account.
+//
+// A PROMISE IS REFUSED BEFORE ANY READ. The binding's `dump` disposes the handle of a promise it reads, a handle the
+// host still owns, which then aborts the engine at teardown. `fromGuest` asks the engine's promise state first, which
+// runs nothing.
 // No other module reads or writes a guest string.
 
 import type { QuickJSContext, QuickJSHandle, VmCallResult, VmFunctionImplementation } from "quickjs-emscripten-core";
 
-/** A guest value read into the host. `thrown`: the realm failed while serializing it (the CPU interrupt, or its
- *  memory limit); the caller owns that exception handle. */
-export type GuestRead = { readonly kind: "value"; readonly value: unknown } | { readonly kind: "thrown"; readonly error: QuickJSHandle };
+/** A guest value read into the host. `promise`: the value is a promise, refused unread. `thrown`: the realm failed
+ *  while serializing it (the CPU interrupt, or its memory limit); the caller owns that exception handle. */
+export type GuestRead =
+  | { readonly kind: "value"; readonly value: unknown }
+  | { readonly kind: "promise" }
+  | { readonly kind: "thrown"; readonly error: QuickJSHandle };
 
 /** A call into the realm, made inside a host function, failed. Thrown inside a host function built by
  *  {@link GuestMarshal.newHostFunction}, which hands `thrown` back to the guest unchanged. */
@@ -88,6 +95,29 @@ function hostText(text: string): string {
   return text.replaceAll(NUL, NUL_SHOWN);
 }
 
+// The release half of a promise-state read: a settled promise's state holds a fresh handle; a non-promise's holds the
+// caller's own handle, which is not ours to release.
+function isPromise(ctx: QuickJSContext, handle: QuickJSHandle): boolean {
+  const state = ctx.getPromiseState(handle);
+  switch (state.type) {
+    case "pending":
+      return true;
+    case "rejected":
+      state.error.dispose();
+      return true;
+    case "fulfilled":
+      if (state.notAPromise === true) {
+        return false;
+      }
+      state.value.dispose();
+      return true;
+    default: {
+      const exhaustive: never = state;
+      throw new Error(`plugin host: unknown promise state ${JSON.stringify(exhaustive)}`);
+    }
+  }
+}
+
 /** Capture the realm's own `JSON.stringify`, `JSON.parse`, `Promise` and `Promise.reject` for `ctx`. Call it once,
  *  right after the context is created and before any guest source runs. */
 export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
@@ -119,7 +149,11 @@ export function createGuestMarshal(ctx: QuickJSContext): GuestMarshal {
 
   return {
     fromGuest: (handle): GuestRead => {
-      if (ctx.typeof(handle) !== "string") {
+      const type = ctx.typeof(handle);
+      if (type === "object" && isPromise(ctx, handle)) {
+        return { kind: "promise" };
+      }
+      if (type !== "string") {
         return { kind: "value", value: ctx.dump(handle) };
       }
       const text = ctx.callFunction(stringify, ctx.undefined, handle);

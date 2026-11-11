@@ -4,7 +4,7 @@
 // which escapes a NUL, so the report itself never depends on the crossing under test. Card data is stored as JSON
 // text, so its round trip also shows that store keeps a NUL; the text stores refuse one instead
 // (`tests/server/domain/plugin/substrate/stored-text-nul.int.test.ts`). A host error reaches the guest with its name
-// and message.
+// and message, and a promise the guest hands the host is refused unread.
 // @subject packages/server/src/infra/plugin-host/marshal.ts
 import { spawn } from "node:child_process";
 import { createCharacterSchema } from "@orb/contracts/character";
@@ -63,6 +63,35 @@ test("a host error reaches the guest as an Error with the host error's name and 
   const refusal = new PluginCapabilityError("storage.kv");
 
   expect(await guestRunner({ root, caller: owner, pluginId, chatId: null })("hostError")).toEqual({ ok: true, value: [refusal.name, refusal.message, true] });
+});
+
+// A snippet whose one host call takes `value` as its options, reporting whether the host refused it.
+const passedAs = (value: string): string => `const h = orb.host(1);
+(async () => {
+  try { await h.chat.listMessages(h.chat.current(), ${value}); h.log.info("accepted"); }
+  catch (e) { h.log.info("refused:" + e.name); }
+})();`;
+
+// The binding's read of an engine promise disposes a handle the host still holds; reading one would end the run in a
+// host fault, and the teardown in an engine abort. A run that resolves to its ordinary outcome, its context torn down,
+// shows neither happened. A thenable is ordinary data: its function crosses as nothing.
+const PROMISES = [
+  { name: "a settled promise passed as an argument", code: passedAs("Promise.resolve(1)"), outcome: { logLines: ["[info] refused:Error"] } },
+  { name: "a rejected promise passed as an argument", code: passedAs("Promise.reject(new Error('no'))"), outcome: { logLines: ["[info] refused:Error"] } },
+  { name: "a pending promise passed as an argument", code: passedAs("new Promise(() => {})"), outcome: { logLines: ["[info] refused:Error"] } },
+  { name: "a thenable passed as an argument", code: passedAs("{ then: (resolve) => resolve(1) }"), outcome: { logLines: ["[info] accepted"] } },
+  { name: "a thrown promise", code: "throw Promise.resolve(1);", outcome: { errorKind: "runtime" } },
+  { name: "a rejection with a promise", code: "Promise.reject(Promise.resolve(1));", outcome: { errorKind: "runtime" } },
+  { name: "a thrown thenable", code: "throw { then: (resolve) => resolve(1) };", outcome: { errorKind: "runtime" } },
+] as const;
+
+test.for(PROMISES)("$name ends the snippet with its ordinary outcome, and the next snippet runs", { tags: ["slow"] }, async ({ code, outcome }) => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const room = (await caller.chat.startChat({ characterIds: [] })).chat;
+
+  expect(await caller.plugin.runSnippet({ chatId: room.id, code })).toMatchObject(outcome);
+  expect(await caller.plugin.runSnippet({ chatId: room.id, code: passedAs("{}") })).toEqual({ logLines: ["[info] accepted"] });
 });
 
 test("a guest's string argument reaches the host whole", { tags: ["slow"] }, async () => {

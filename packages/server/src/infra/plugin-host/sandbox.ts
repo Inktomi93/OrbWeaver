@@ -114,6 +114,8 @@ const DEFAULT_LIMITS: PluginBudgets = {
 
 /** What a guest error or result reads as when the realm cannot serialize it (a string too large to escape). */
 const UNREADABLE_GUEST_VALUE = "plugin host: the guest's value is too large to read";
+/** What a guest that throws or rejects with a promise ends with: the host refuses a promise unread (`marshal.ts`). */
+const GUEST_THREW_PROMISE = "plugin host: the guest threw or rejected with a promise; throw the value it settles to";
 
 // A guest value read for the outcome. A realm failure during the read ends the invocation anyway, so its exception
 // is released here rather than handed back.
@@ -125,6 +127,8 @@ function readOutcome(
   switch (read.kind) {
     case "value":
       return { ok: true, value: read.value };
+    case "promise":
+      return { ok: false, message: GUEST_THREW_PROMISE };
     case "thrown":
       read.error.dispose();
       return { ok: false, message: UNREADABLE_GUEST_VALUE };
