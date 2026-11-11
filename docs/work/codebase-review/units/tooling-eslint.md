@@ -20,7 +20,7 @@ where the line is.
 - Rule→test pairing by FILE name says 32 modules untested; by RULE-ID grep that collapses to
   exactly one gap (below). The file-name heuristic is the trap; the id grep is the receipt.
 
-## Findings
+## Findings (from the initial boot pass)
 
 - \[P3] tooling/src/eslint/closed-vocabulary.ts — the only rule of the 156 mounted that has no
   refutation test: `rg -i 'closed-vocabulary'` over tests/ → only subject-side uses in
@@ -50,9 +50,39 @@ where the line is.
   from the config and the registry rule map, asserting every id appears as a planted-positive rule
   name in at least one tests/tooling file — a machine-checked proof obligation, ~50 lines.
 
-(in-progress) Read so far: eslint.config.ts complete, index.ts complete, registry diff, DOM
-ledger diff, closed-vocabulary in full. The mounting layer is in its honest state: exemptions
-are `homes()` with a reason or a law §-cite, every `off` I read is scoped and explained, and
-the registry takes all its vocabulary by injection — nothing in the plugin reads global state
-it could rot on. Remaining: the rule bodies (syntax.ts mechanism, ui-classes/ census layer,
-port-ownership/ type-flow layer, principal/security policy tables) and their fixture tests.
+## Rule-body pass (complete)
+
+- Regex statelessness: every `.test()`-consumed module const is non-global (checked flag-for-flag
+  — the `lastIndex` grep hits were `lastIndexOf` substring noise); every `g`-flagged module regex
+  (10) is consumed only via `matchAll`/`replaceAll`/`replace`, which never mutate `lastIndex`.
+  Zero cross-file state leaks — the classic eslint-rule footgun is structurally absent.
+- Option parity: of the 156 mounted ids exactly 2 carry options, and both modules read them
+  (scripted diff); no dead option, no silent ignore.
+- D141 archaeology: ZERO date-stamps, ZERO issue-cites in 18.2K lines — the cleanest prose corpus
+  in the repo. (The directory that writes the laws polices its own sentences.)
+- Hatches: every suppression is the same honest family (TypeScript TypeFlags/SymbolFlags compiler
+  bitfields, reason on each line); zero TODO/FIXME.
+- Bodies read in full: `security-policy.ts` (selector-DSL tables with D-cited messages; the doors
+  cover named imports, star exports, namespace imports AND dynamic imports, with type-only forms
+  correctly excluded); `syntax.ts` (the shared mechanism: `homes()`/`homeReasons()` REFUSE a glob
+  at compile time via an `ExactPath` template type — a widening exemption is a tsc error;
+  `memberNamed` covers computed/literal/cooked-template spellings so `obj["x"]` no longer escapes
+  a name match); `ambient.ts` header (raw-egress doors enumerated); `ui-classes/variant-tables.ts`
+  (fail-closed by design — `unread`, `compoundsUnread`, `doorRefusals` track exactly what the
+  syntax could not read so a check refuses rather than guesses); `port-ownership/restated-port.ts`
+  (ONE matcher shared by the lint rule and the `unwired ports` census — the law's "reuse the
+  renderer's own matcher" honored).
+- Policy-table mounting is tested by driving the RESOLVED config against real files
+  (`tests/tooling/eslint-policy-configuration.test.ts`), not by introspecting the tables —
+  the same "tests call production" discipline as the rule fixtures.
+
+## Verdict
+
+reviewed (2: one P2, one P3, both from the initial boot). The mounting layer and the corpus agree:
+registration totality proved by scripted diff, DOM ledger live, exactly one rule without a
+refutation test, regex discipline structurally sound, exemption lists compiler-guarded against
+widening. The P2 stays the program-level one: with the verify runtime gone, proof obligations for
+new `orb/` rules are convention, and the convention has an ~50-line machine-checkable successor
+already sketched in the finding. This package is largely the exemplar of what the rest of the
+sweep keeps asking for — doors over discipline; its own gap is only that the door over ITS doors
+was retired.

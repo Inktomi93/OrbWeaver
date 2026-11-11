@@ -184,7 +184,7 @@ Review before anything that trusts these results.
 
 | Unit | Path | Band | Status |
 | - | - | - | - |
-| tooling-eslint | tooling/src/eslint/ | L | in-progress |
+| tooling-eslint | tooling/src/eslint/ | L | reviewed (2) |
 | tooling-floor | tooling/src/floor/ | M | queued |
 | tooling-configs | tooling/src/biome-config/, tooling/src/stack/ | S | queued |
 | tooling-unwired | tooling/src/unwired/ | M | queued |
