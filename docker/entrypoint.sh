@@ -8,7 +8,7 @@ set -eu
 # the setpriv exec below and is inherited by node and every child it starts.
 umask 077
 
-# ── job 0: run as YOUR user (PUID/PGID), the SillyTavern / linuxserver pattern ───────────────────────
+# ── job 0: run as YOUR user (PUID/PGID), the pattern self-hosters know ───────────────────────────────
 # The image starts as root ONLY to (a) make the data dir owned by the app user — a bind-mounted host
 # directory is otherwise root's or someone else's and the app cannot write it — and (b) drop to that user
 # with `setpriv` (util-linux, in the base image) before anything else runs. PUID/PGID default to 1000 (the

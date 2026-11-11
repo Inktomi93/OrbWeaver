@@ -12,7 +12,7 @@ import { scaledBudget } from "./_load-budget.ts";
 
 // ── the container surface's load-bearing shape (docker/README.md is the prose; these are the pins) ────
 //
-// The 2026-09-18 owner ruling retired the GPU all-in-one image + the vLLM sibling profile: ONE image, ONE
+// The owner ruling retired the GPU all-in-one image + the vLLM sibling profile: ONE image, ONE
 // compose service, engines are the deployer's own. What these pins hold is the part a careless edit would
 // silently invert — the default port binding (loopback), the login-mode default (a credentialed mode, since
 // single-user cannot work through a bridge-published port), and file secrets staying outside the original server environment.
@@ -23,7 +23,7 @@ function read(repoRoot: string, rel: string): string {
 
 test("the Dockerfile is a single app-only target: no corepack, no GPU stage, pnpm pinned from packageManager", ({ repoRoot }) => {
   const dockerfile = read(repoRoot, "Dockerfile");
-  // node 26 ships without corepack — the line that broke the first real build (2026-09-18).
+  // node 26 ships without corepack — the line that broke the first real build.
   expect(dockerfile).not.toMatch(/^RUN .*corepack/mu);
   expect(dockerfile).toContain("require('./package.json').packageManager");
   expect(dockerfile).not.toMatch(/nvidia\/cuda|runtime-gpu|gpu-base|vllm==|vllm\/vllm-openai/iu);
@@ -386,11 +386,11 @@ test("every compose shape resolves (the base and every overlay)", ({ repoRoot, s
   expect(services["orbweaver"]?.ports?.map((port) => port["host_ip"])).toEqual(["127.0.0.1"]);
 });
 
-// The sandbox is PERMISSIVE by owner ruling (2026-09-01, reverting 3715a4812c / 8e8d5d0b3e): the container +
+// The sandbox is PERMISSIVE by owner ruling: the container +
 // firewall are the boundary, and the point of the dev container is to run without prompts. These pins keep
 // the bypass CONTAINER-ONLY — the launcher and the devcontainer's own config carry it; the committed project
 // settings carry no mode at all, because a project-level pin overrides the owner's user-level `auto` in
-// every host session (that pin was the whole pain of 3715a4812c).
+// every host session (that override was the whole pain the ruling settled).
 test("the sandbox launcher starts Claude permissive and passes extra args through", async ({ fakeBin, repoRoot, scratch }) => {
   const callsPath = join(scratch, "npx-calls");
   await fakeBin(

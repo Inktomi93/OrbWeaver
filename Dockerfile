@@ -8,7 +8,7 @@
 # WHAT SHIPS: the server as SOURCE (node 26 runs .ts directly — the image CMD is the same
 # `node packages/server/src/entry/index.ts` that `pnpm stack up-fg prod` runs on bare metal), the built
 # client bundle, and a PRUNED production node_modules. No vLLM, no CUDA, no models: local engines are an
-# external server you add as a connection (identical on bare metal and in a container; the 2026-09-18 owner
+# external server you add as a connection (identical on bare metal and in a container; the owner
 # ruling retired the GPU all-in-one image so there is ONE engine story to maintain). The previous two-target
 # design lives in git history.
 #
@@ -46,7 +46,7 @@ WORKDIR /app
 # node 26 ships WITHOUT corepack (removed from the node 25+ distribution), so the pinned pnpm is installed
 # with npm. The version is READ from package.json's `packageManager` field — one home, the image cannot
 # drift from the repo pin. (`corepack enable` here was the first line that broke when the image was first
-# built for real, 2026-09-18.) This stage re-runs on any package.json edit (every release bumps `version`), but
+# built for real.) This stage re-runs on any package.json edit (every release bumps `version`), but
 # its output is one line, and the COPY that reads it keys on that line's content, so the pnpm install and the
 # store fetch below are reused until the pin itself moves.
 FROM base AS pnpm-version
@@ -95,7 +95,7 @@ RUN --mount=type=cache,id=orbweaver-pnpm-store,target=/pnpm/store,sharing=shared
 RUN --mount=type=bind,source=docker/assemble-runtime.sh,target=/tmp/assemble-runtime.sh \
     sh /tmp/assemble-runtime.sh deps /tmp/deploy /runtime/deps /runtime/links
 
-# ── git-refs: the four plain ref files the version stamp reads (.dockerignore), or nothing ───────────
+# ── git-refs: the plain ref files the version stamp reads (.dockerignore), or nothing ───────────────
 # The wildcard matches nothing when the context has no .git directory (a source archive, or a linked worktree
 # whose .git is a file), and COPY accepts an empty wildcard. Kept out of every other stage so a ref that moves
 # (any branch commit in the checkout) re-runs only the stamp, never the client build.

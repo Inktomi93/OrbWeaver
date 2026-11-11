@@ -2,8 +2,8 @@
 # secrets and state out of the daemon (a context can leak .env, data/ or a docker/secrets file into a layer),
 # and keep the context to what the build reads, so the transfer is small and a COPY only changes on a real
 # source change. A denylist leaked whatever a checkout grew next: before this, the gitignored codegraph index
-# (826 MB) and stale dist/ build output went into each build (measured 2026-10-03: a 930 MB context, now
-# about 0.5 MB).
+# (826 MB) and stale dist/ build output went into each build (measured: a 930 MB context before, 0.5 MB
+# now).
 # A file the build needs and this list misses fails the build loudly, at the COPY or the step that reads it.
 *
 
@@ -23,11 +23,10 @@
 !docker/assemble-runtime.sh
 !docker/entrypoint.sh
 
-# The four plain-text ref files the version stamp reads to stamp /app/version.json (the build identity every
+# The plain-text ref files the version stamp reads to stamp /app/version.json (the build identity every
 # surface reports — docker/assemble-runtime.sh). No objects, no history, no packfiles: HEAD plus the loose
-# branch/tag refs plus the packed table. Measured on this repo 2026-09-18: HEAD 21 B, packed-refs ~14.4 KiB,
-# refs/heads ~861 B over 21 files, refs/tags 0 — well under 16 KiB total. Without these the image can only
-# report `unknown` for its own commit, which is the exact thing a bug report needs.
+# branch/tag refs plus the packed table. Measured on this repo: well under 16 KiB total. Without these
+# the image can only report `unknown` for its own commit, which is the exact thing a bug report needs.
 !.git/HEAD
 !.git/refs/heads/**
 !.git/refs/tags/**

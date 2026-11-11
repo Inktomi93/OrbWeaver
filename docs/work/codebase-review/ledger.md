@@ -163,9 +163,11 @@ rg -n 'tests/legacy' <unit>/                      # stale cites after the D333 r
 | root-config | package.json, pnpm-workspace.yaml, tsconfig\*{.base,.node,.tests-dom,.tests-iso,.world-browser,.world-node,.json}, .editorconfig, .gitattributes, .env.example | M | reviewed (7) |
 | root-lint-configs | biome.json, eslint.config.ts, eslint-plugins.d.ts, stylelint\*.{ts}, jscpd.json, knip.ts, .dependency-cruiser.ts, lefthook.yml, stryker.config.ts, vitest\*.ts, playwright\*.config.ts, codegraph.json, .mcp.json, .markdownlint.json | L | reviewed (7) |
 | root-dts | aggregator-assets.d.ts, platform\*.d.ts, reset.d.ts — loose ambient types at root | S | reviewed (4) |
-| install-run | install.sh/.cmd, start.sh/.cmd, update.sh/.cmd, Dockerfile, docker-compose.yaml, .dockerignore, docker/ | M | queued |
+| install-run | install.sh/.cmd, start.sh/.cmd, update.sh/.cmd, Dockerfile, docker-compose.yaml, .dockerignore, docker/, scripts/launcher/ | M | reviewed (5) |
+| root-ci | .github/ — workflows: the install proof, release train, security scans, CodeQL | S | queued |
+| root-dev-environment | .devcontainer/, .vscode/ — sandbox image, firewall, tool lock, editor pins | S | queued |
 | scripts-patches | scripts/, patches/ | M | queued |
-| instruction-files | AGENTS.md, .claude/rules/, .claude/hooks/, .claude/agents/, .claude/skills/ | L | queued |
+| instruction-files | AGENTS.md, .claude/rules/, .claude/hooks/, .claude/agents/, .claude/skills/, .codex/ | L | queued |
 | root-docs | README.md, CONTRIBUTING.md, ACCESSIBILITY.md, SECURITY.md, CODE_OF_CONDUCT.md, LICENSE — pass for staleness against the ledger only | S | queued |
 
 ### Phase 1 — foundations
@@ -294,7 +296,7 @@ Other test trees ride their slice units. `tests/support` is where test rot compo
 | snap-c | third snap sub-unit | XL | queued |
 | ui-audit | tooling/src/ui-audit/ | L | queued |
 | motion-brand-audit | tooling/src/motion-audit/, tooling/src/brand-flow/ | S | queued |
-| e2e | tests/e2e/ + playwright configs' runtime behavior | L | queued |
+| e2e | tests/e2e/ + playwright/ (the CT harness mount) + playwright configs' runtime behavior | L | queued |
 
 ## Rollup
 
@@ -304,7 +306,7 @@ Triage fills this.
 | - | - | - | - |
 | P1 | 0 | 0 | - |
 | P2 | 7 | 0 | root-config, root-dts, root-lint-configs |
-| P3 | 5 | 6 | root-config, root-dts, root-lint-configs |
+| P3 | 8 | 8 | install-run, root-config, root-dts, root-lint-configs |
 
 Standing hunt for every unit: comments citing `tests/legacy` paths — the D333 retirement moved
 those suites and never re-pointed the prose, and the citation gate

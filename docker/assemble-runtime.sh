@@ -95,7 +95,7 @@ assemble_deps() {
   done
   rm -rf "$out/node_modules/@orb"
 
-  # ── prune what this image can never execute (measured 2026-09-18: ~620 MB of a 1.2 GB node_modules) ──
+  # ── prune what this image can never execute (measured: ~620 MB of a 1.2 GB node_modules) ───────────
   # onnxruntime-node ships every platform's CPU binaries (its CUDA download is denied in pnpm-workspace.yaml
   # allowBuilds); the slim image runs the CPU provider on ONE platform (the local-light embedding backend).
   # onnxruntime-web is the browser build
@@ -148,13 +148,13 @@ assemble_app() {
   mkdir -p "$out/packages/client"
   cp -R "$src/packages/client/dist" "$out/packages/client/dist"
 
-  # ── the build identity stamp (owner ask 2026-09-18) ────────────────────────────────────────────────
+  # ── the build identity stamp ───────────────────────────────────────────────────────────────────────
   # /app/version.json is how a CONTAINER answers "which commit am I?" — an image ships no .git, so nothing
   # else could. `foundation/version` PREFERS this file over any .git at runtime.
   #
   # The derivation is NOT forked here: this invokes the server's own reader (`buildVersionStamp`), the same
   # code that reads the stamp back at boot, so the stamp can never disagree with the reader's rules. The
-  # Dockerfile mounts the context's four plain ref files (.dockerignore) at <workspace>/.git-refs for this
+  # Dockerfile mounts the context's plain ref files (.dockerignore) at <workspace>/.git-refs for this
   # step only, so git never sees them during `pnpm build`, and the stamp reads them through a `gitdir:`
   # redirect root (the linked-worktree shape the reader already understands). With no refs (an archive build,
   # or a linked worktree whose .git is a file) the mount is empty and the stamp reads the source root.
