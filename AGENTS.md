@@ -102,7 +102,7 @@ To get green, never add a lint suppression for a real finding, a dep-cruiser exe
 - Run affected Node tests with `pnpm test <paths>` and CTs with `pnpm test:ct <paths>`.
 - Typecheck affected programs with `pnpm typecheck <tsconfig paths...>`.
 - Run `pnpm lint` for Biome and `pnpm lint:eslint <paths>` for ESLint. Errors and warnings fail both commands.
-- Commit hooks check staged files with Biome. Pre-push runs the GitHub sync check, Biome, dependency-cruiser, ESLint, knip, knip:prod, typecheck and the doc citation tests named in `lefthook.yml` sequentially.
+- Commit hooks check staged files with Biome. Pre-push runs the GitHub sync check, Biome, dependency-cruiser, ESLint, knip, knip:prod, typecheck and the repository integrity tests named in `lefthook.yml` sequentially.
 - CI owns full application verification (D317). D333 retires custom verify tiers, gates and checker qualification.
 - Read the completed native runner output. A timeout or tool error is no verdict.
 
