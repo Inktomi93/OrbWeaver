@@ -55,7 +55,7 @@ Governing law read in full: `.claude/rules/tooling.md`.
 
 ## Findings
 
-- [P2] `tooling/src/floor/prose/prose-rules.ts:3` — the placement justification names importer
+- \[P2] `tooling/src/floor/prose/prose-rules.ts:3` — the placement justification names importer
   "the instruction-layer walk in `agent-sync/ops/instructions.ts`": file deleted in 821e8f8dff
   (the verify-CLI removal), never re-pointed. Live importers are three modules in `doc/`
   (`lib/rules.ts`, `lib/due.ts`, `ops/check.ts`). Dead-door class, fourth distinct instance — and
@@ -64,7 +64,7 @@ Governing law read in full: `.claude/rules/tooling.md`.
   so `.claude/**` markdown losing its charter checker was the decision, not an accident (the
   instruction-files unit's P2 header-budget pair stays open regardless). Suggested direction:
   re-point the headers at the doc-walk importers and say the instruction walk was retired by D333.
-- [P2] Nine dead gate-names cited as live policy across the floor — 821e8f8dff deleted the
+- \[P2] Nine dead gate-names cited as live policy across the floor — 821e8f8dff deleted the
   `defineGate` custom-gate system (the names' origin; introduced `fb0119058d`, confirmed via
   `git log -S`), but the comments still say "(policy `X`)" as an enforcement claim:
   `tooling-artifact-path-home` (`artifacts/artifact-pointer.ts:230`, `artifacts/artifacts.ts:40`),
@@ -90,9 +90,9 @@ Governing law read in full: `.claude/rules/tooling.md`.
   EQUIVALENT REPLACEMENTS for removed analysis reports" + "do not build another policy framework."
   So a native `max-lines` successor is ledger-BANNED unless the owner amends D333; the defect is the
   prose and the ghost-tax splits, not the missing gate. Fix: rewrite the cites to past tense or
-  drop them, and the triage integrity item must still refuse a `policy \`X\`` cite that resolves
+  drop them, and the triage integrity item must still refuse a ``policy `X` `` cite that resolves
   nowhere.
-- [P3] `tooling/src/floor/http/session-cookie.ts:11` — the two session cookie names are hand-spelled
+- \[P3] `tooling/src/floor/http/session-cookie.ts:11` — the two session cookie names are hand-spelled
   a second time in this regex; the owning constants are
   `packages/server/src/infra/auth/modes/cookie-session.ts:23,31`. No translatable door (tooling
   cannot import server, tier direction) and no test pins the two homes together (grep
@@ -100,7 +100,7 @@ Governing law read in full: `.claude/rules/tooling.md`.
   check goes false),
   so hygiene not correctness; fix = a repo-level int test reading both files, or a contracts-home
   constant both import.
-- [P3] D141 archaeology cluster (extends the cross-cutting count): 20 files carry date-stamps
+- \[P3] D141 archaeology cluster (extends the cross-cutting count): 20 files carry date-stamps
   ("owner addition 2026-09-02", "measured 2026-09-06", the `browser.ts:5` header even narrates a
   dead reason "died with the 2026-08-03 tsx shed"), 156 lines cite issue numbers. Lowest-density
   prose-rot of the code units outside eslint's zero, but present at every sublayer.

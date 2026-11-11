@@ -210,7 +210,7 @@ Review before anything that trusts these results.
 | - | - | - | - |
 | tooling-eslint | tooling/src/eslint/ | L | reviewed (2) |
 | tooling-floor | tooling/src/floor/ | M | reviewed (4) |
-| tooling-configs | tooling/src/biome-config/, tooling/src/stack/ | S | queued |
+| tooling-configs | tooling/src/biome-config/, tooling/src/stack/ | S | reviewed (5) |
 | tooling-unwired | tooling/src/unwired/ | M | queued |
 | tooling-codemods | tooling/src/codemods/ | M | queued |
 | tooling-doc | tooling/src/doc/ — carry the agent-sync remnants in `doc/ops/check.ts:3-5` (dead caller, dead `pnpm check:agents` refusal message) and `doc/index.ts:3`, already counted in `units/tooling-floor.md` F1; do not re-file | S | queued |
@@ -329,8 +329,8 @@ Triage fills this.
 | Severity | Open | Fixed in-unit | Units affected |
 | - | - | - | - |
 | P1 | 1 | 0 | root-ci |
-| P2 | 16 | 0 | root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, kit, contracts, tooling-floor |
-| P3 | 24 | 16 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, root-docs, kit, contracts, db, tooling-floor |
+| P2 | 18 | 0 | root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, kit, contracts, tooling-floor, tooling-configs |
+| P3 | 27 | 16 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, root-docs, kit, contracts, db, tooling-floor, tooling-configs |
 
 Standing hunt for every unit: comments citing `tests/legacy` paths — the D333 retirement moved
 those suites and never re-pointed the prose, and the citation gate
@@ -391,3 +391,15 @@ without deciding the regeneration strategy; the version-pinned test goes red at 
 bump unless the ~30-line fetch script from the kit unit's finding lands. The triage
 integrity item now has a concrete second citation shape to cover: besides GENERATED/enforced-by
 headers, every `` policy `X` `` cite must resolve to a dep-cruiser rule name or eslint rule id.
+
+The tooling-configs unit proved the dialect escapes floor/ — `tooling-child-process-door` is the
+10th dead name, cited with fabricated "reviewed grant" strings in `stack/ops/start.ts` and
+`prod-up.ts` — and produced the thesis's sharpest single sentence: `verdicts.ts:9` justifies a
+duplicated constant with "not exported from the package" while line 5 of the same file imports
+from the barrel that exports it. That is the dead door at its cheapest: the disproving evidence
+is one line away and no door ever reads it. It also added a fresh closed-vocabulary instance with
+no door at all: `stack/contract/types.ts`'s `DEBUG_ENV_KEYS` claims to enumerate "every
+debug-surface knob foundation/env declares" and the server has since grown a fourth member
+(`WIRE_CAPTURE_REPLY`, deliberately excluded for a documented reason the tuple never states).
+Six of eight header claims in the unit verified TRUE — where the prose is coupled, the pin
+exists; every finding here is a claim whose coupling was never written down.
