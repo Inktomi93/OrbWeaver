@@ -60,6 +60,9 @@ export const COMPUTED_SLOTS: readonly ComputedSlot[] = [
   })),
   { name: "guide-chip", site: "packages/client/src/features/rpg/components/tracker-blocks/tracker-blocks.tsx", fragment: '"guide-chip"' },
   { name: "tracker-chip", site: "packages/client/src/features/rpg/components/tracker-blocks/tracker-blocks.tsx", fragment: '"tracker-chip"' },
+  // The detail header carries these only on a drilled member, so the slot is chosen at render.
+  { name: "config-drill-header", site: "packages/client/src/components/detail-header.tsx", fragment: '"config-drill-header"' },
+  { name: "config-member-verbs", site: "packages/client/src/components/detail-header.tsx", fragment: '"config-member-verbs"' },
   // biome-ignore lint/suspicious/noTemplateCurlyInString: the fragment is the template source the site spells.
   { name: "regex-usage-presets", site: "packages/client/src/features/regex/components/regex-context-body.tsx", fragment: "regex-usage-${noun}" },
   // biome-ignore lint/suspicious/noTemplateCurlyInString: the fragment is the template source the site spells.
