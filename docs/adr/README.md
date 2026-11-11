@@ -290,3 +290,4 @@ On any conflict a decision here wins over every other doc. Cite one as a bare `D
 | D341 | [Debug probes read without a principal because the gate admits only the box operator](0341-debug-probes-read-without-a-principal.md) | active |
 | D342 | [A dropped chat event append still fans live without a cursor](0342-a-dropped-chat-event-append-still-fans-live.md) | active |
 | D343 | [A rate measurement on a loaded box is labelled, not withheld](0343-a-rate-measurement-on-a-loaded-box-is-labelled-not-withheld.md) | active |
+| D344 | [A copy of a registry port that cannot import the registry stays hand-written](0344-a-copy-of-a-registry-port-outside-the-registry-stays-hand-written.md) | active |
