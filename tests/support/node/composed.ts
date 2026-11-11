@@ -52,8 +52,19 @@ export {
 } from "./corpus-provider.ts";
 export { createCorpusRecipe, prepareCorpusSnapFixture, runCorpusSnapConsumer } from "./corpus-recipe.ts";
 export { personasForParticipantsOf, presentHostOf } from "./cross-feature.ts";
-export type { CountedDb, HeldDb, HeldStatement, OwnedDb, OwnedFileDb } from "./db.ts";
-export { freshCountedDb, freshDb, freshHeldDb, migrationsBefore, migrationsBeforeLatest, ownDb, ownFileDb, SHIPPED_MIGRATIONS } from "./db.ts";
+export type { CountedDb, HeldDb, HeldStatement, OwnedDb, OwnedFileDb, SchemaSnapshot } from "./db.ts";
+export {
+  freshCountedDb,
+  freshDb,
+  freshHeldDb,
+  latestSchemaSnapshot,
+  migrationsBefore,
+  migrationsBeforeLatest,
+  ownDb,
+  ownFileDb,
+  SHIPPED_MIGRATIONS,
+  schemaStatementsSince,
+} from "./db.ts";
 export type { DbFault } from "./db-faults.ts";
 export { plantTrigger, refuseWrites, withheldTable } from "./db-faults.ts";
 export { createTestEnv } from "./env.ts";

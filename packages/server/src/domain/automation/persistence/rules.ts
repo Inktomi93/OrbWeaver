@@ -98,7 +98,6 @@ function nextPositionInScope(chatId: ChatId | null, ownerId: UserId): SQL<number
 function ruleInsertValues(row: PlannedRuleInsert): SQLiteInsertValue<typeof automationRules> {
   return {
     ...row,
-    actions: row.actions as RuleRow["actions"],
     enabled: false,
     position: nextPositionInScope(row.chatId, row.ownerId),
   };

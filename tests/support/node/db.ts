@@ -15,9 +15,12 @@ import type { Db, LibSqlWrap } from "@orb/db";
 import { closeDb, createDb, preCloseHousekeeping } from "@orb/db";
 // biome-ignore lint/performance/noNamespaceImport: drizzle-kit's snapshot API takes the whole schema module as a Record — namespace import is the canonical way to pass every table.
 import * as schema from "@orb/db/schema";
+import { isPlainObject } from "@orb/kit/guards";
 import { jsonValueSchema } from "@orb/kit/json";
+import type { DrizzleSQLiteSnapshotJSON } from "drizzle-kit/api";
 import { generateSQLiteDrizzleJson, generateSQLiteMigration } from "drizzle-kit/api";
 import { sql } from "drizzle-orm";
+import { z } from "zod";
 import { workerOnce } from "./worker-once.ts";
 
 // drizzle-kit's API bundle assigns helper methods onto `Array.prototype` and `String.prototype` as enumerable
@@ -64,6 +67,33 @@ async function readJournal(chainDir: string): Promise<ShippedJournal> {
 }
 
 const tagOf = (entry: unknown): unknown => (entry !== null && typeof entry === "object" && "tag" in entry ? entry.tag : undefined);
+
+/** A drizzle-kit SQLite snapshot: what `generate` writes beside each migration and diffs the next one from. */
+export type SchemaSnapshot = DrizzleSQLiteSnapshotJSON;
+
+const SNAPSHOT_SUFFIX = "_snapshot.json";
+const TAG_NUMBER_SEPARATOR = "_";
+const SQLITE_DIALECT = "sqlite";
+const schemaSnapshotSchema = z.custom<SchemaSnapshot>(
+  (value) => isPlainObject(value) && value["dialect"] === SQLITE_DIALECT && isPlainObject(value["tables"]),
+  "not a drizzle-kit SQLite snapshot",
+);
+
+/** The snapshot of the newest migration in `chainDir`: the schema the next `drizzle-kit generate` diffs from. Its
+ *  file carries the tag's number, as drizzle-kit names it. */
+export async function latestSchemaSnapshot(chainDir: string = SHIPPED_MIGRATIONS): Promise<SchemaSnapshot> {
+  const tag = tagOf((await readJournal(chainDir)).entries.at(-1));
+  if (typeof tag !== "string") {
+    throw new Error("migration journal has no newest entry");
+  }
+  const [number] = tag.split(TAG_NUMBER_SEPARATOR, 1);
+  return schemaSnapshotSchema.parse(JSON.parse(await readFile(join(chainDir, "meta", `${number}${SNAPSHOT_SUFFIX}`), "utf8")));
+}
+
+/** The statements drizzle-kit generates from `snapshot` to the live schema: none when the snapshot already holds it. */
+export async function schemaStatementsSince(snapshot: SchemaSnapshot): Promise<readonly string[]> {
+  return await generateSQLiteMigration(snapshot, await generateSQLiteDrizzleJson(schema));
+}
 
 /** A temporary copy of the shipped chain that stops before `tag`, so a forward-migration test can build rows
  *  at the schema the migration upgrades from. Disposing removes the copy. */

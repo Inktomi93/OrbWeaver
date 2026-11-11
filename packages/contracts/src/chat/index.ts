@@ -153,6 +153,7 @@ export type { AnchorState, ChatDetail, RedeemInviteResult } from "./detail.ts";
 export { chatDetailSchema, redeemInviteResultSchema, viewerGalleryCharacter } from "./detail.ts";
 export type { BeginGenerationObservationOp, GenerationObservationParent } from "./generation-observation.ts";
 export type { HandoffCardCopy, HandoffCardPair, HandoffHealArgs } from "./handoff-context.ts";
+export { handoffCardPairsSchema } from "./handoff-context.ts";
 export type { ImpersonateStreamDelta } from "./impersonation.ts";
 export { chatIdInputSchema, chatListInputSchema, listMessagesInputSchema } from "./inputs.ts";
 export type { ChatLibraryLens } from "./library.ts";

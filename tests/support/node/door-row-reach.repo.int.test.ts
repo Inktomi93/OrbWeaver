@@ -22,6 +22,10 @@ const DRIZZLE = { owners: new Set(["BaseSQLiteDatabase", "LibSQLDatabase", "SQLi
 const LIBSQL = { owners: new Set(["Client", "Transaction"]), path: "/node_modules/@libsql/core/" };
 const CLIENT_READS = new Set(["execute", "batch", "migrate"]);
 const RAW_CLIENT = "$client";
+// `Db` is drizzle's database class with members left off, a type with no class symbol of its own, so a receiver is
+// known for a database by the member it still carries from drizzle's declaration.
+const DATABASE_MEMBER = "select";
+const DATABASE_MEMBERS = new Set([DATABASE_MEMBER]);
 // These constructors retain raw parity metadata in private provenance, not domain seeds; their row homes are explicit in ESLint.
 const ACCEPTED = [
   { door: "./node/composed", exported: "createCorpusCapsule" },
@@ -113,14 +117,7 @@ function createProgramFactory(): (roots: readonly string[], composedSource?: str
 }
 
 function isDrizzleDatabase(type: ts.Type): boolean {
-  const declaration = type.getSymbol()?.declarations?.[0];
-  return (
-    declaration !== undefined &&
-    (ts.isClassDeclaration(declaration) || ts.isInterfaceDeclaration(declaration)) &&
-    declaration.name !== undefined &&
-    DRIZZLE.owners.has(declaration.name.text) &&
-    declaration.getSourceFile().fileName.replaceAll("\\", "/").includes(DRIZZLE.path)
-  );
+  return (type.getProperty(DATABASE_MEMBER)?.declarations ?? []).some((declaration) => isDrizzleMember(declaration, DATABASE_MEMBERS));
 }
 
 function isDrizzleMember(declaration: ts.Declaration | undefined, names: ReadonlySet<string>, library: typeof DRIZZLE = DRIZZLE): boolean {

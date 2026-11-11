@@ -21,12 +21,13 @@
 import type { CharacterCard } from "@orb/contracts/character";
 import type {
   RefineryRewriteDecisions,
+  RefineryRun,
+  RefinerySchemaDocument,
   RefinerySchemaStage,
   RefinerySelection,
   RefinerySessionStatus,
   RefineryStage,
   RefineryStageConfig,
-  RefineryStagePayload,
   RefineryStagePayloadConfig,
 } from "@orb/contracts/refinery";
 import { REFINERY_SCHEMA_STAGES, REFINERY_SESSION_STATUSES, REFINERY_STAGES } from "@orb/contracts/refinery";
@@ -110,7 +111,7 @@ export const refineryRuns = sqliteTable(
     payloadConfig: text("payload_config", { mode: "json" }).$type<RefineryStagePayloadConfig>().notNull(),
     // Fixed/manual payloads parse through the stage validators; custom payloads parse against their embedded
     // provenance schema so historical reads remain independent of the mutable library row.
-    payload: text("payload", { mode: "json" }).$type<RefineryStagePayload | Record<string, unknown>>().notNull(),
+    payload: text("payload", { mode: "json" }).$type<RefineryRun["payload"]>().notNull(),
     // NULLABLE for exactly the `manual` provenance arm (a hand-authored rewrite has no model) — an
     // honest null, never a sentinel spelling. Every model-produced run writes it.
     model: text("model").$type<ModelId>(),
@@ -178,7 +179,7 @@ export const refinerySchemas = sqliteTable(
     // Which stage this schema serves (score|analyze — no custom rewrite, F-N3).
     stage: text("stage", { enum: REFINERY_SCHEMA_STAGES }).$type<RefinerySchemaStage>().notNull(),
     // The JSON-Schema document (liftable subset + x-orb-ui hints). Read-seam re-lifted.
-    schema: text("schema", { mode: "json" }).$type<Record<string, unknown>>().notNull(),
+    schema: text("schema", { mode: "json" }).$type<RefinerySchemaDocument["schema"]>().notNull(),
     // Bumped on every content update — the provenance pin the run embed records.
     version: integer("version").notNull().default(1),
     createdAt: integer("created_at").notNull().default(sql`(unixepoch() * 1000)`),

@@ -1,5 +1,6 @@
 // Sessions, stage provenance and apply outcomes come from the real refinery and character owners.
 import { createCharacterSchema } from "@orb/contracts/character";
+import { jsonObjectSchema } from "@orb/kit/json";
 import { CORPUS_REFINERY_SCHEMA_REVISION } from "./corpus-provider.ts";
 import { seedManualRefineryRunRows, seedRefineryRunRows, seedRefinerySchemaRows, seedRefinerySessionRows } from "./factories/rows/refinery.ts";
 import type { ServerTestHarness } from "./server.ts";
@@ -82,7 +83,8 @@ export async function seedCorpusRefinery(root: ServerTestHarness): Promise<Seede
     name: forged.name,
     description: "Preserve the keeper and explain its score.",
     stage: "score",
-    schema: forged.schema,
+    // The forge draft is typed as an open record on the wire; the stored column takes JSON values.
+    schema: jsonObjectSchema.parse(forged.schema),
   });
   const customSession = await seedRefinerySessionRows(root, { principal, characterId: copy.character.id, name: "Custom keeper rubric" });
   await caller.refinery.updateSession({

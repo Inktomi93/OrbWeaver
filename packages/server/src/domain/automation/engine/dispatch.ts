@@ -29,7 +29,7 @@
 // an `arm_error` — would consume 20 errors and auto-disable the rule, and re-enabling the plugin would NOT
 // re-enable it. A first-party contributor cannot vanish, which is why no other seam here needs this.
 
-import type { AutomationAction, AutomationCelEnv, AutomationCelPlanes, AutomationFireOutcome, AutomationRunOutcome } from "@orb/contracts/automation";
+import type { AutomationAction, AutomationCelEnv, AutomationCelPlanes, AutomationFireOutcome, AutomationRunOutcome, FireView } from "@orb/contracts/automation";
 import { AUTOMATION_CONSECUTIVE_ERROR_CEILING, automationActionsSchema } from "@orb/contracts/automation";
 import { AUTOMATION_DEPTH_HARD_CAP } from "@orb/contracts/chat";
 import { AUTOMATION_NOTICE_MESSAGE_MAX } from "@orb/contracts/notifications";
@@ -122,7 +122,7 @@ function notifyRuleEvent(rc: RuleCtx, type: "ruleFired" | "ruleErrored" | "ruleA
 }
 
 /** Write a fire-log row for a rule×event terminal. */
-function record(rc: RuleCtx, outcome: AutomationFireOutcome, detail: Record<string, unknown> | null): Promise<void> {
+function record(rc: RuleCtx, outcome: AutomationFireOutcome, detail: FireView["detail"]): Promise<void> {
   return insertFire(rc.ctx.db, {
     id: rc.ctx.newFireId(),
     ruleId: rc.rule.id,
@@ -172,7 +172,7 @@ async function notifyAutoDisabled(rc: RuleCtx): Promise<void> {
 async function onRuleError(
   rc: RuleCtx,
   outcome: Exclude<AutomationFireOutcome, "fired">,
-  detail: Record<string, unknown>,
+  detail: NonNullable<FireView["detail"]>,
   reservationId: AutomationFireId | null = null,
 ): Promise<RuleResult> {
   if (reservationId === null) {

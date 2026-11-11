@@ -296,7 +296,7 @@ type IncludeBodyParse = { readonly ok: true; readonly includeBody: ConnectionTra
 
 /** The canonical schema the connection writer validates with, so the field refuses exactly what a save would. */
 const INCLUDE_BODY_SCHEMA = connectionTransportSchema.shape.includeBody;
-const INCLUDE_BODY_SHAPE_REASON = "Every value must be plain JSON: text, a number, true or false, null, a list or an object.";
+export const INCLUDE_BODY_SHAPE_REASON = "Every value must be plain JSON: text, a number, true or false, null, a list or an object.";
 
 /** The overrides field's text, in any pasted format {@link parsePastedObject} reads, as the transport value it saves.
  *  Empty text, or an empty object, clears it. */

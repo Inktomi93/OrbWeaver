@@ -27,6 +27,7 @@ import type { Db } from "@orb/db";
 import { assets, characterSnapshots, characterSummaries, characters, characterTags, chatParticipants, chats, tags } from "@orb/db";
 import { chatRecencyExpr, escapeLikeTerm, memberVisibleChatScope, parseStringArrayColumn } from "@orb/db/query";
 import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, TagId, UserId } from "@orb/kit/ids";
+import { jsonObjectSchema } from "@orb/kit/json";
 import type { SQL } from "drizzle-orm";
 import { and, asc, count, desc, eq, exists, gt, inArray, isNotNull, isNull, lt, not, or, sql } from "drizzle-orm";
 import type { WithSubqueryWithSelection } from "drizzle-orm/sqlite-core";
@@ -66,8 +67,8 @@ const refinerySignalsReadParser = z
   })
   .nullable()
   .catch(null);
-const extensionsParser = z.record(z.string(), z.unknown()).nullable().catch(null);
-const residualDataParser = z.record(z.string(), z.unknown()).nullable().catch(null);
+const extensionsParser = jsonObjectSchema.nullable().catch(null);
+const residualDataParser = jsonObjectSchema.nullable().catch(null);
 
 interface CharacterWithAvatar {
   readonly character: CharacterRow;

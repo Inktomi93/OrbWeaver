@@ -1,5 +1,5 @@
 // domain/workloads/contract/workload-row — the typed DB-row projection WorkloadRowAnyKind: per-kind
-// narrowing of the Drizzle unknown JSON columns (params/result) against the kind discriminator. One place
+// narrowing of the JSON columns (params/result, typed as any kind's shape) against the kind discriminator. One place
 // does the narrowing (persistence/toView), so no consumer casts the JSON blobs.
 //
 // The `poison` discriminant is the read path's HONESTY seam: a row whose stored params blob no longer parses
@@ -13,7 +13,7 @@ import type { UserId, WorkloadId } from "@orb/kit/ids";
 
 /** The engine-plane terminal write, correlated with the payload each terminal persists. */
 export type WorkloadTerminalWrite = { readonly id: WorkloadId; readonly now: number } & (
-  | { readonly status: "succeeded"; readonly result?: WorkloadDecodedRow["result"]; readonly error?: never }
+  | { readonly status: "succeeded"; readonly result?: StoredWorkloadResult; readonly error?: never }
   | { readonly status: "cancelled"; readonly result?: never; readonly error?: never }
   | { readonly status: "failed" | "worker_died"; readonly result?: never; readonly error: string }
 );
@@ -50,6 +50,9 @@ export interface WorkloadInFlightRow {
 }
 
 type StoredWorkloadRow = typeof workloads.$inferSelect;
+
+/** What a succeeded run stores: some kind's terminal result. */
+export type StoredWorkloadResult = NonNullable<StoredWorkloadRow["result"]>;
 type WorkloadJsonField = keyof Pick<StoredWorkloadRow, "params" | "result" | "progress" | "dependsOn">;
 
 /** Stored JSON text remains undecoded until authorization or the system queue has selected its row. */

@@ -240,7 +240,10 @@ async function bindEverywhere(ctx: ConnectionContext, principal: Principal, row:
       },
     });
   }
-  await ctx.audit({ actorUserId: userId, action: "connection.bindAll", entityType: "connection", entityId: row.id, metadata: { tasks } }, ctx.now());
+  await ctx.audit(
+    { actorUserId: userId, action: "connection.bindAll", entityType: "connection", entityId: row.id, metadata: { tasks: [...tasks] } },
+    ctx.now(),
+  );
   ctx.emitUserEvent(userId, { type: "connectionsChanged" });
   return written;
 }

@@ -42,7 +42,7 @@
 // when the kind declares one, else `lane` (a column, not a claim-time derive, so the assignment survives a restart),
 // and never participates in a lock.
 
-import type { WorkloadProgress } from "@orb/contracts/workloads";
+import type { WorkloadKind, WorkloadParamsByKind, WorkloadProgress, WorkloadResultByKind } from "@orb/contracts/workloads";
 import {
   ACTIVE_WORKLOAD_STATUSES,
   DEFAULT_ADMISSION_KEY,
@@ -102,10 +102,10 @@ export const workloads = sqliteTable(
     lane: text("lane", { enum: WORKLOAD_LANES }).notNull().default(DEFAULT_LANE),
     // Per-kind params (the ParamsByKind blob; the runner re-parses against its Zod schema at the read
     // seam). Always an object (a tunable-less kind uses `{}`), so notNull with an empty-object default.
-    params: text("params", { mode: "json" }).$type<Record<string, unknown>>().notNull().default(sql`'{}'`),
+    params: text("params", { mode: "json" }).$type<WorkloadParamsByKind[WorkloadKind]>().notNull().default(sql`'{}'`),
     // The terminal result projection (workload-OWNED ResultByKind, not the wrapped verb's return).
     // Null until the row succeeds.
-    result: text("result", { mode: "json" }).$type<unknown>(),
+    result: text("result", { mode: "json" }).$type<WorkloadResultByKind[WorkloadKind]>(),
     // The DURABLE progress snapshot — the latest `WorkloadProgress` a run reported, written by the SAME
     // UPDATE as the heartbeat (one write path, throttled to the lease cadence). The in-process replay ring
     // is a 60s live-tail smoother; THIS column is the reconnect truth, so a list row renders progress with
@@ -220,7 +220,7 @@ export const workloadSchedules = sqliteTable(
     mode: text("mode", { enum: WORKLOAD_MODES }).notNull().default(DEFAULT_MODE),
     // The workload params the run enqueues (the `ParamsByKind` blob, incl. the `index` kind's `source`). The
     // tick passes this straight into `start`; the runner re-parses against its Zod schema. Always an object.
-    params: text("params", { mode: "json" }).$type<Record<string, unknown>>().notNull().default(sql`'{}'`),
+    params: text("params", { mode: "json" }).$type<WorkloadParamsByKind[WorkloadKind]>().notNull().default(sql`'{}'`),
     // The recurring cadence — derives SCHEDULE_CADENCES; the tick advances `next_run_at` by its interval.
     cadence: text("cadence", { enum: SCHEDULE_CADENCES }).notNull(),
     // The next due instant (epoch ms). The tick dispatches every `enabled` row with `next_run_at <= now`.

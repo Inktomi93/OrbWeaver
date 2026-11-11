@@ -11,7 +11,7 @@ import type {
 } from "@orb/contracts/inference";
 import type { ReasoningTagPair, ResponseCacheControl, ResponseCacheSettings } from "@orb/contracts/preset";
 import type { ChatId } from "@orb/kit/ids";
-import type { JsonValue } from "@orb/kit/json";
+import type { JsonObject } from "@orb/kit/json";
 import type { RandomSource } from "@orb/kit/macro";
 import type { Clock, ScheduleOp } from "@orb/kit/time";
 import type { AddSpanEvent, ConnectionTransport, ProviderBackend, ProviderScrubSet, Reachability, Resolved, WireCaptureSink } from "#contract";
@@ -24,7 +24,7 @@ export interface ShapeArgs {
   readonly cacheFormat?: PromptCacheFormat | undefined;
   readonly plan: WirePlan | null;
   readonly features: EndpointFeatures;
-  readonly extras: Readonly<Record<string, JsonValue>> | null;
+  readonly extras: Readonly<JsonObject> | null;
   readonly transport: ConnectionTransport | null;
   /** `openai-compatible` merges every non-belt, non-colliding extras key; `openrouter` takes its two. */
   readonly dialect: Dialect;

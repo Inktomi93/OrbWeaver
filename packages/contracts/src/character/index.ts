@@ -5,6 +5,7 @@
 import type { AssetId, CharacterHandle, CharacterId, CharacterSnapshotId, ChatId, LookupText, PluginId, TagId, UserId } from "@orb/kit/ids";
 import { brandedId, ID_PREFIX, typeIdSchema } from "@orb/kit/ids";
 import { injectionDirectiveSchema } from "@orb/kit/injection";
+import { jsonObjectSchema } from "@orb/kit/json";
 import { SLUG_HANDLE_PATTERN, slugifyHandle } from "@orb/kit/slug";
 import { trimEndWhile } from "@orb/kit/strings";
 import { z } from "zod";
@@ -278,9 +279,9 @@ const characterCardSchema = z
      *  — a character does not carry scripts by value any more (D121-E). */
     regexScripts: z.array(regexScriptCardSchema).max(REGEX_SCRIPTS_MAX).optional(),
     /** Residual `data.extensions` MINUS the promoted-to-column fields — genuinely-unknown vendor extras only. */
-    extensions: z.record(z.string(), z.unknown()).nullable(),
+    extensions: jsonObjectSchema.nullable(),
     /** Residual TOP-LEVEL `data.*` keys MINUS the promoted-to-column fields — distinct from `extensions`. */
-    residualData: z.record(z.string(), z.unknown()).nullable(),
+    residualData: jsonObjectSchema.nullable(),
     avatarAssetId: cardFaceFields.avatarAssetId,
     /** CardRefinery pipeline signals (derived, not authored). */
     refinery: refinerySignalsSchema.nullable(),
@@ -408,8 +409,8 @@ export const createCharacterSchema = z
     // NO `regexScripts` (D121-E): a character does not carry scripts by value, so the CREATE input has no
     // slot for them. The import path reads them off the PARSED CARD and hands them to the regex domain's lift
     // op (which mints library rows + the `character_regex_scripts` attachment) — the `importLorebook` shape.
-    extensions: z.record(z.string(), z.unknown()).nullable().optional(),
-    residualData: z.record(z.string(), z.unknown()).nullable().optional(),
+    extensions: jsonObjectSchema.nullable().optional(),
+    residualData: jsonObjectSchema.nullable().optional(),
     avatarAssetId: cardFaceFields.avatarAssetId.optional(),
     /** The owner's star; an imported card lands with the star its file carries (ST `extensions.fav`). */
     starred: cardFaceFields.starred.optional(),

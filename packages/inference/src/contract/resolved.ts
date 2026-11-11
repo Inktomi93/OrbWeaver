@@ -15,7 +15,7 @@ import type {
 } from "@orb/contracts/inference";
 import { windowForPreset } from "@orb/contracts/inference";
 import type { ModelId, UserId } from "@orb/kit/ids";
-import type { JsonValue } from "@orb/kit/json";
+import type { JsonObject } from "@orb/kit/json";
 import { ProviderError } from "./errors.ts";
 
 /** A custom endpoint's REQUEST/RESPONSE transforms (today's `custom_openai` metadata, re-homed on the
@@ -45,7 +45,7 @@ export interface Resolved<T extends Task = Task> extends ResolvedConnectionView 
   readonly features: EndpointFeatures;
   /** The connection's extra BODY fields. On the openai-compatible transport every key but a belt-owned one
    *  merges over the computed body (the user's body wins); the hosted wires read their allowlisted keys. */
-  readonly extras: Readonly<Record<string, JsonValue>> | null;
+  readonly extras: Readonly<JsonObject> | null;
   readonly transport: ConnectionTransport | null;
   readonly allowBackground: boolean;
   /** The connection's prompt-cache settings, folded once at resolve: the row's own, or `SHIPPED_PROMPT_CACHE`
