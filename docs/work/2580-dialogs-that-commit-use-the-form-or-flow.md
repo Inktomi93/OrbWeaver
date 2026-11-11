@@ -21,6 +21,16 @@ A hand-built footer skips the composite's Cancel and submit contract.
 
 No listed site builds a DialogFooter, and component tests cover each new composite option on a production dialog.
 
+## Sites
+
+| Site | What it is |
+| - | - |
+| `packages/client/src/features/chat/components/add-chat-script-dialog.tsx:183` | Commit footers built inside a dismiss dialog |
+| `packages/client/src/features/preset/components/preset-fork-choice-dialog.tsx:81` | Commit footers built inside a dismiss dialog |
+| `packages/client/src/features/credentials/components/add-connection-form-body.tsx:319` | Commit footers built inside a dismiss dialog |
+| `packages/client/src/features/credentials/components/first-model-setup.tsx:229` | Commit footers built inside a dismiss dialog |
+| `packages/client/src/features/chat/components/gallery-add-picker.tsx:207` | Picker footer lead |
+
 ## Evidence
 
 Filled at landing: what ran and where its output is.

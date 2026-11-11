@@ -82,6 +82,19 @@ test("code spans, code blocks and owner-voice sections are not prose", () => {
   expect(proseOnly(source).split("\n")).toHaveLength(8);
 });
 
+test("an owner-voice marker quoted in a code span or a code block opens no section", () => {
+  const source = [
+    "Mark it with `<!-- owner-voice -->`.",
+    "```md",
+    "<!-- owner-voice -->",
+    "```",
+    "Landed 2026-09-01.",
+    "<!-- owner-voice -->",
+    "Landed 2026-09-02.",
+  ].join("\n");
+  expect(proseFindings("r.md", source, NONE)).toEqual(['r.md:5: a date ("2026-09-01")']);
+});
+
 test("a word the AGENTS.md glossary defines is allowed", () => {
   const claude = [
     "# Core",

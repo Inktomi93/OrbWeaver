@@ -21,6 +21,13 @@ Two spellings of one chrome drift apart.
 
 Both files draw one composite, no feature imports the drawer primitive, and a component test covers the composite on each caller.
 
+## Sites
+
+| Site | What it is |
+| - | - |
+| `packages/client/src/features/plugin/components/plugin-flank-sheet.tsx:45` | Phone sheet chrome written twice |
+| `packages/client/src/features/app-shell/components/modal-host.tsx:121` | Phone sheet chrome written twice |
+
 ## Evidence
 
 Filled at landing: what ran and where its output is.
