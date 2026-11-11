@@ -1,0 +1,19 @@
+# The sandbox shell, checked in so the image build runs no fetched shell code. zsh and fzf come from the
+# image's own Debian packages; history lives on the persisted /commandhistory volume.
+HISTFILE=/commandhistory/.zsh_history
+HISTSIZE=10000
+SAVEHIST=10000
+setopt INC_APPEND_HISTORY HIST_IGNORE_DUPS PROMPT_SUBST
+
+autoload -Uz compinit && compinit -i
+
+for fzf_script in /usr/share/doc/fzf/examples/key-bindings.zsh /usr/share/doc/fzf/examples/completion.zsh; do
+  [ -r "$fzf_script" ] && source "$fzf_script"
+done
+unset fzf_script
+
+# The working directory and the git branch, from zsh's own vcs_info.
+autoload -Uz vcs_info
+precmd() { vcs_info }
+zstyle ':vcs_info:git:*' formats ' (%b)'
+PROMPT='%F{cyan}%~%f${vcs_info_msg_0_} %# '

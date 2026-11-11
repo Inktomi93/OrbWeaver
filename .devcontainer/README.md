@@ -71,7 +71,8 @@ host sessions keep whatever the host user settings say.
 | `devcontainer.json` | Container definition: image build, mounts, run args, lifecycle commands, container-only VS Code settings. |
 | `Dockerfile` | The sandbox image: `node:26` + Claude Code + ast-grep + pnpm + git/gh/delta/zsh/iptables + the baked Playwright Chromium. |
 | `tools/package.json`, `tools/package-lock.json` | Exact coding-tool versions and integrity-locked dependencies, installed with `npm ci`. The pnpm version matches the repository's `packageManager`. |
-| `init-firewall.sh` | Default-deny egress firewall. Runs on every start (`postStartCommand`). Allowlists only what dev needs (npm, GitHub, Anthropic, VS Code); self-tests at the end. |
+| `init-firewall.sh` | Default-deny egress firewall. Runs on every start (`postStartCommand`). It drops first and builds the allowlist under that policy, so a failure or a re-run never leaves egress open. It admits HTTPS to the allowlist (npm, GitHub, Anthropic, VS Code), ssh only to GitHub's git ranges, DNS only to the resolvers in the container's `/etc/resolv.conf`, and the host subnet; self-tests at the end. |
+| `zshrc` | The shell setup, copied to `~/.zshrc`: Debian's zsh and fzf, history on the `/commandhistory` volume, and a prompt with the git branch. The build fetches no shell framework. |
 
 ---
 
