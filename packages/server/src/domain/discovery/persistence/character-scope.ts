@@ -15,8 +15,9 @@ const realCharacters = (): SQL => eq(characters.synthetic, false);
 /**
  * "A real card of this owner" — `characters.ownerId = :owner AND NOT characters.synthetic`.
  *
- * @remarks The owner is required and the predicate has one path, so `owner-scoped-reads` proves every read
- * that wears it. A bulk pass with no owner says so by calling {@link realCharactersOfEveryOwner} instead.
+ * @remarks The owner is a required parameter and the predicate has one path, so `tsc` refuses a call that
+ * omits it. Nothing checks that a discovery read wears this predicate: no lint rule, dependency rule or test
+ * does. A bulk pass with no owner says so by calling {@link realCharactersOfEveryOwner} instead.
  */
 export function ownedRealCharacters(ownerId: UserId): SQL {
   // `and` of two defined predicates is always a SQL; the fallback only satisfies its declared `| undefined`.

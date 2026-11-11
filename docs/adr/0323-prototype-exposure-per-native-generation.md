@@ -12,7 +12,7 @@ Per-read prototype checks enlist unrelated computed reads and delay callable-ori
 
 ## Decision
 
-Treat prototype exposure as one syntactic fact per complete native Program generation, keyed by the existing program-epoch owner. Reuse the existing inherited-read classifier for the census and report each exposure once at its mutation site. Land native lint against prototype mutation before replacing the per-read sweep. Preserve callable allocation, bindings, property paths, mutation and escape refusals. Invalidate the fact on generation changes; missing or stale evidence refuses. Qualify the unchanged original chat-accounting query and the complete owner-scoped-reads policy. If rejection is outside prototype-exposure inputs, report the measured cause and stop helper-specific repair.
+Treat prototype exposure as one syntactic fact per complete native Program generation, keyed by the existing program-epoch owner. Reuse the existing inherited-read classifier for the census and report each exposure once at its mutation site. Land native lint against prototype mutation before replacing the per-read sweep. Preserve callable allocation, bindings, property paths, mutation and escape refusals. Invalidate the fact on generation changes; missing or stale evidence refuses. Qualify the unchanged original chat-accounting query; owner-scoped reads have no static check under D333, and native application tests with distinct principals and ids verify them (`docs/law/Spine-Identity-and-Auth.md` §2b). If rejection is outside prototype-exposure inputs, report the measured cause and stop helper-specific repair.
 
 ## Consequences
 

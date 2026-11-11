@@ -410,8 +410,8 @@ export function createAuthSeam(deps: AuthSeamDeps): AuthSeam {
    * token check, `/api/_debug/*` served with no cookie and no `DEBUG_TOKEN` to anyone who could reach the
    * port and send `Host: 127.0.0.1`. Note what that means for the token: because the admin arm short-circuits
    * the `expectedToken === undefined` → 404 branch too, UNSETTING `DEBUG_TOKEN` did not close it either.
-   * Behind the gate sit principal-blind whole-db reads whose `@owner-scope-ok` exemption
-   * (`foundation/observability/debug/inspect/config.ts`) rests entirely on this verdict.
+   * Behind the gate sit principal-blind whole-db reads whose no-principal exemption (stated in
+   * `foundation/observability/debug/inspect/config.ts`) rests entirely on this verdict.
    *
    * The enforcers are `tests/server/entry/debug-gate-admission.int.test.ts` (every AUTH_MODE × Host × peer × posture,
    * through the composed root) and the e2e debug-gate specs over `tests/e2e/support/debug-gate.ts` (each mode's
