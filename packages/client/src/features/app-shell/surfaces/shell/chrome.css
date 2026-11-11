@@ -219,6 +219,12 @@
     display: none;
   }
 
+  /* A region's marked Back stands down exactly where the topbar's lead slot draws the way back: the shell publishes that one
+   * decision (`ShellLayout.backToList`), never a width of its own. */
+  .shell-grid[data-topbar-back="true"] [data-shell-identity="back"] {
+    display: none;
+  }
+
   /* On a narrow content column the identity and the trail cannot share the row without starving the title. */
   @container shell-main (max-width: 32rem) {
     /* The row seats one lead control, one name and the trail's icons, so the rich header cluster steps aside. */
@@ -244,9 +250,9 @@
       line-height: var(--leading-title);
     }
 
-    /* At this width the topbar owns the screen's identity, so a region's marked second copy of the title stands
+    /* At this width the topbar's narrow identity prints the screen's name, so a region's marked second copy stands
      * down; in the same block so the two halves cannot drift. */
-    [data-shell-identity="defer"] {
+    [data-shell-identity="name"] {
       display: none;
     }
     /* The lead's minimum is the title floor plus its control; the trail's excess moves into its menu. */

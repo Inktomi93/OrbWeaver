@@ -3,6 +3,8 @@
 // settings content over a corpus root, and focus is asserted on the editor the production surface stamps. Back out of the editor returns
 // focus to the row it was opened from, because the Back button unmounts with the editor.
 // @subject packages/client/src/features/regex/surfaces/regex-member-surface.tsx
+
+import { sectionBackName } from "@orb/client/lib";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
@@ -60,7 +62,7 @@ test("Back from a regex member's editor returns focus to the row it was opened f
   await expect(second).toBeVisible();
   await second.focus();
   await page.keyboard.press("Enter");
-  const back = page.getByRole("button", { name: `Back to ${REGEX_GROUP_LABEL}`, exact: true });
+  const back = page.getByRole("button", { name: sectionBackName(REGEX_GROUP_LABEL), exact: true });
   await expect(page.locator('[data-slot="regex-member-editor"]')).toBeFocused();
   await back.focus();
 

@@ -13,7 +13,7 @@ import { selectLabelFromList, setLabelFilter, setTagPruneConfirmOpen, useLabelFi
 import { TagCollectionRows } from "../components/tag-collection-rows.tsx";
 import { useTagSortControl } from "../hooks/use-tag-library.ts";
 import { LABELS_FINDER_SLOT } from "../lib/labels-focus-targets.ts";
-import { TAG_FILTER_NAME, TAG_MORE_ACTIONS_NAME, TAG_PRUNE_NAME, TAG_SKIP_NAME } from "../lib/tag-list-name.ts";
+import { TAG_FILTER_NAME, TAG_MORE_ACTIONS_NAME, TAG_PRUNE_NAME, TAG_SKIP_NAME, TAG_SORT_NAME } from "../lib/tag-list-name.ts";
 
 export function LabelsListSurface(): ReactElement {
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -46,7 +46,7 @@ function LabelsSortSelect(): ReactElement {
   const sort = useTagSortControl();
   return (
     <Select
-      aria-label="Sort tags"
+      aria-label={TAG_SORT_NAME}
       // Content-width field Select leaves room for the filter; inline layout would also remove its field chrome.
       layout="hug"
       items={sort.options}

@@ -11,9 +11,10 @@
 
 import type { RosterPresetSummary } from "@orb/contracts/roster-preset";
 import { Stack } from "@orb/ui/layout";
-import type { ReactElement } from "react";
+import type { ReactElement, RefCallback } from "react";
+import { useRef } from "react";
 import type { LibraryRowActions } from "#components";
-import { LibraryRow } from "#components";
+import { LibraryRow, useRowDeleteFocus } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { CollectionListView } from "#lib";
 import { clearCollectionSelection } from "#state";
@@ -25,7 +26,9 @@ function RosterLibraryRow({
   selected,
   onSelect,
   onDelete,
+  bodyRef,
 }: {
+  readonly bodyRef: RefCallback<HTMLElement>;
   readonly roster: RosterPresetSummary;
   readonly selected: boolean;
   readonly onSelect: () => void;
@@ -36,6 +39,7 @@ function RosterLibraryRow({
 }): ReactElement {
   return (
     <LibraryRow
+      bodyRef={bodyRef}
       actions={{
         name: roster.name,
         onDelete,
@@ -64,11 +68,18 @@ export function RosterCollectionRows({ view }: { readonly view: CollectionListVi
 
   const filter = view.filter.trim().toLowerCase();
   const shown = filter === "" ? rosters : rosters.filter((roster) => roster.name.toLowerCase().includes(filter));
+  // The rows take focus back on the Back from the roster one opened; the root, when that roster is gone.
+  const listRootRef = useRef<HTMLDivElement>(null);
+  const rowFocus = useRowDeleteFocus(
+    listRootRef,
+    shown.map((roster) => roster.id),
+  );
 
   return (
-    <Stack gap="tight">
+    <Stack focusTarget={true} gap="tight" ref={listRootRef} tabIndex={-1}>
       {shown.map((roster) => (
         <RosterLibraryRow
+          bodyRef={rowFocus.bodyRef(roster.id)}
           roster={roster}
           key={roster.id}
           onDelete={(): void => {

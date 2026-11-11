@@ -8,6 +8,7 @@ import { useTRPC } from "#data";
 import type { ConfigGroupDefinition, ConfigSearchRow } from "#state";
 import { rosterCollection } from "./roster-collection.tsx";
 import { ROSTER_COLLECTION_ID } from "./roster-model.ts";
+import { ROSTER_GROUP_LABEL } from "./roster-names.ts";
 
 /** The saved rosters as SEARCH rows (§3.3) — the roster's own cache-first read; non-suspense on purpose. */
 function useRosterSearchRows(): readonly ConfigSearchRow[] {
@@ -19,7 +20,7 @@ function useRosterSearchRows(): readonly ConfigSearchRow[] {
 export const rosterGroup: ConfigGroupDefinition = {
   id: ROSTER_COLLECTION_ID,
   shelf: "collections",
-  label: "Rosters",
+  label: ROSTER_GROUP_LABEL,
   icon: Users,
   order: 40,
   // B10's rules rider is named here because this card is the one place a user browsing the library learns

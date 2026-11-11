@@ -38,10 +38,13 @@ for (const regime of REGIMES) {
       await expect(pane.getByRole("heading", { name: "Activity", exact: true })).toBeVisible();
       await expect(pane.getByText("This character · Aggregate only", { exact: true })).toBeVisible();
       await expect(pane.getByRole("button", { name: "Accounting coverage", exact: true })).toBeVisible();
-      // The heading is the one name in the pane; the phone's topbar paints it, so the pane's own is visually hidden there.
+      // The heading is the one name in the outline; the pane paints the name as its hidden-from-assistive-technology twin, which
+      // stands down where the phone's topbar paints it.
       const heading = pane.getByRole("heading", { level: 2, name: stats.name, exact: true });
       await expect(heading).toHaveCount(1);
-      const painted = await heading.evaluate((node) => node.getBoundingClientRect().width > 1);
+      const twin = pane.locator('[aria-hidden="true"][data-shell-identity]').filter({ hasText: stats.name });
+      await expect(twin).toHaveCount(1);
+      const painted = await twin.evaluate((node) => node.getBoundingClientRect().width > 1);
       expect(painted).toBe(!regime.coarse);
       const topbar = page.locator('.shell-topbar-identity[data-identity="narrow"] .shell-topbar-title');
       await expect(topbar).toHaveText(stats.name);

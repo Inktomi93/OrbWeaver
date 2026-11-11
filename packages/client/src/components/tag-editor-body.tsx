@@ -17,12 +17,12 @@ import { useEffect, useRef, useState } from "react";
 import { useInvalidation, useTRPC } from "#data";
 import type { AutosaveSession } from "#forms/editor";
 import { AutosaveStatus, createAutosaveEntityForm, touchedFieldError } from "#forms/editor";
+import type { DrillBack } from "#lib";
 import { DIALOG_VERBS, useFocusOnMount } from "#lib";
 import { setLabelNameFocus, useLabelNameFocus } from "#state";
 import { FOLDER_TYPE_ITEMS, tagColorValueLabel, tagUsageLabel } from "../lib/tag-model.ts";
+import { DetailHeader } from "./detail-header.tsx";
 import { EditorPage } from "./editor-page.tsx";
-import type { MemberDrillBack } from "./member-drill-header.tsx";
-import { MemberDrillHeader } from "./member-drill-header.tsx";
 import { SettingSwitchRow } from "./setting-switch-row.tsx";
 import { useMergeTags, useUpdateTag } from "./tag-mutations.ts";
 
@@ -52,7 +52,7 @@ const TagForm = createAutosaveEntityForm<TagEditorValues>({
 interface TagEditorBodyProps {
   readonly tag: TagWithUsage;
   readonly others: readonly TagWithUsage[];
-  readonly back?: MemberDrillBack;
+  readonly back?: DrillBack;
   readonly onMerged: () => void;
 }
 
@@ -166,7 +166,7 @@ function TagEditorFields({ tag, others, back, onMerged, session, confirmed, merg
             {tag.name}
           </Heading>
         ) : (
-          <MemberDrillHeader
+          <DetailHeader
             back={back}
             meta={
               <Text as="span" voice="datum">

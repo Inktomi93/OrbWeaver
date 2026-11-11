@@ -38,11 +38,10 @@
 //    retuned (the mock design §3.2/§5.4 · stickler). Both existed because three collapsible bands shared one LIST
 //    scroll column: the box had to be capped so a first library could not push its siblings below the fold,
 //    and the filter was worth its 32px only past a glance. This pane is the library's alone and its scroller
-//    is the pane, so the cap has nothing to protect and the filter is always worth drawing. Virtualisation
-//    above 30 rows stays — that is a rendering budget, not a geometry one. The CAP became a RE-BIND rather
-//    than a bare deletion, because `@orb/ui/virtual-list` throws on an unbounded scroll box: the landing is
-//    `min-h-0 flex-1` inside the pane and each windowed arm is `min-h-0 flex-1` inside the landing, so the
-//    window is the pane's height at every width instead of 384px at all of them.
+//    is the pane, so the cap has nothing to protect and the filter is always worth drawing. The CAP became a
+//    RE-BIND rather than a bare deletion: the landing is `min-h-0 flex-1` inside the pane and each library's
+//    growing `VirtualList` takes the landing's free space, so the window is the pane's height at every width
+//    instead of 384px at all of them, and never less than the primitive's own floor.
 //
 // THE HOST SENTENCE IS GONE, AND THAT IS A STATED DEVIATION. `CONFIG_COLLECTION_LANDING.hint` read "Pick one
 // from the list to open its editor." The stickler's §5.3 says such copy must be REPLACED rather than
@@ -115,13 +114,10 @@ export function ConfigCollectionLanding({ group }: { readonly group: CollectionG
     );
   }
   return (
-    // THE LANDING IS THE PANE'S COLUMN, NOT A BLOCK INSIDE IT (#1725, the mock design §5.4). `min-h-0 flex-1` is
-    // what re-bound the windowed arm's height from a flat 384px (`COLLECTION_WINDOW_MAX_HEIGHT`) to the
-    // CONTENT pane's own `overflow-y-auto overscroll-contain` box: this column takes the pane's free space, and each library's
-    // `VirtualList` takes this column's. `min-h-0` is the half that does the work — a flex child defaults to
-    // `min-height: auto`, so without it the scroller grows to its content, virtualization is a no-op, and
-    // the primitive's own unbounded-window guard throws at mount. A SHORT library still overflows this box
-    // into the pane's scroller (overflow is visible), so a non-windowed list is unchanged.
+    // THE LANDING IS THE PANE'S COLUMN, NOT A BLOCK INSIDE IT (#1725, the mock design §5.4). `min-h-0 flex-1` binds
+    // it to the CONTENT pane's own scroller: this column takes the pane's free space, and each library's `VirtualList`
+    // takes this column's. When the chrome above leaves less than the list's floor, the list holds its floor and
+    // overflows this box into the pane's scroller (overflow is visible), so the pane scrolls the window into view.
     <Stack minHeight="shrinks" grow={true} data-collection={group.id} data-slot="config-collection-landing" gap="section">
       {/* `level={2}`: this glance IS the pane's identity, so its name is the pane's heading. */}
       <ConfigPaneGlance blurb={true} group={group} level={2} />
