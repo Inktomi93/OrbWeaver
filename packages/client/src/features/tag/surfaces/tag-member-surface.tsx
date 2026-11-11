@@ -5,23 +5,23 @@ import { Hash, Icon } from "@orb/ui/icons";
 import { Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
-import { MemberDrillHeader, TagEditorBody } from "#components";
+import { DetailHeader, TagEditorBody } from "#components";
 import { useSuspenseQuery, useTRPC } from "#data";
-import { CORPUS_MODE_LABELS, sectionBackName } from "#lib";
+import type { DrillBack } from "#lib";
 import { clearLabelSelection, useLabelNameFocus } from "#state";
 
 // Arrival focus lives in another pane: TagEditorBody owns editor arrival focus via useFocusOnMount, which lands on the Name field for creation.
-export function TagMemberSurface({ tagId }: { readonly tagId: TagId }): ReactElement {
+/** `back` is the host's, the same one its pending arm draws. */
+export function TagMemberSurface({ tagId, back }: { readonly tagId: TagId; readonly back: DrillBack }): ReactElement {
   const trpc = useTRPC();
   const { data: tags } = useSuspenseQuery(trpc.tag.listTagsWithUsage.queryOptions());
   const creating = useLabelNameFocus() === tagId;
   const tag = tags.find((row) => row.id === tagId);
-  const back = { label: sectionBackName(CORPUS_MODE_LABELS.labels), onClick: clearLabelSelection };
   if (tag === undefined) {
     // action={null}: Back in the preceding drill header exits this deleted member; ends if the surface loses that exit.
     return (
       <Stack gap="block">
-        <MemberDrillHeader back={back} />
+        <DetailHeader back={back} />
         {creating ? (
           <Text role="status" voice="gloss">
             Loading your new tag…

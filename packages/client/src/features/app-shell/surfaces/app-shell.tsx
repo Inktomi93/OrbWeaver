@@ -347,6 +347,8 @@ export function AppShell(): ReactElement {
               data-room-screen={roomScreen.roomScreen}
               data-elevation={appearance.elevation}
               {...(hasBgImage ? { "data-has-bg-image": true } : {})}
+              // The topbar's lead slot draws the way back exactly when this is true, so a region's own Back stands down on it (chrome.css).
+              data-topbar-back={layout.backToList !== null}
             >
               <CustomThemeStyle css={theme?.css ?? null} />
               {/* shell.css owns the prospective both-docked geometry. Its zero-or-deficit inline size is the

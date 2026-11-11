@@ -1,5 +1,7 @@
 import type { CardImportResult, FailedCard, ImportedCard } from "@orb/contracts/import";
 import type { ImportCardBatchDeps } from "../contract/cards.ts";
+import { ImportCardError } from "../contract/errors.ts";
+
 /** A refused card is recorded individually; later cards still reach their owner-gated writes. */
 export async function importCardBatch({ files, service }: ImportCardBatchDeps): Promise<CardImportResult> {
   const imported: ImportedCard[] = [];
@@ -7,7 +9,7 @@ export async function importCardBatch({ files, service }: ImportCardBatchDeps): 
 
   for (const file of files) {
     const filename = file.filename ?? null;
-    // the catch pushes `{ filename, error }` onto `failed`, which
+    // the catch pushes `{ filename, reason, error }` onto `failed`, which
     // `importCardBatch` returns in `CardImportResult.failed`. Ends if `failed` stops being returned.
     try {
       const result = await service.importCharacter({
@@ -24,7 +26,11 @@ export async function importCardBatch({ files, service }: ImportCardBatchDeps): 
         notes: result.skippedOverlays,
       });
     } catch (err) {
-      failed.push({ filename, error: err instanceof Error ? err.message : String(err) });
+      failed.push({
+        filename,
+        reason: err instanceof ImportCardError ? err.code : "failed",
+        error: err instanceof Error ? err.message : String(err),
+      });
     }
   }
 

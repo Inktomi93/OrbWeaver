@@ -27,6 +27,8 @@ Keep owner-voice sections in the owner's own words. Do not rewrite them into pla
    in one clause.
 6. Code speaks for itself. A comment exists only for a non-obvious reason (`.claude/rules/comments.md`).
 
+`tests/tooling/doc/ops/check.int.test.ts` fails on a breach of rules 1, 2 and 4 in `docs/`, `AGENTS.md` and the `.claude` rules, skills and agents. Frontmatter, code spans, fenced blocks, link targets and owner-voice sections (between `<!-- owner-voice -->` and `<!-- /owner-voice -->`) are not prose, so quote a dated path, a command or a code sample. A decision id, a version or a port is not history.
+
 ## Writing standard (adapted from ASD-STE100)
 
 - Instructions: one per sentence, imperative, 20 words or fewer. Descriptions: 25 words or fewer.

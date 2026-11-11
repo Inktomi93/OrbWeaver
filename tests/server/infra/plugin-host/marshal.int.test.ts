@@ -23,6 +23,8 @@ import {
   makePluginBundle,
   seedCorpusActors,
 } from "@orb/testkit/node/composed";
+import { z } from "zod";
+import { PLUGIN_MEMORY_LIMIT_BYTES } from "#server/infra/plugin-host/budgets.ts";
 
 const NUL = "\0";
 const WITH_NUL = `head${NUL}tail`;
@@ -54,6 +56,30 @@ test("a host string with a NUL, a quiet generation's reply, reaches the guest wh
   await caller.connection.setBinding({ task: "summarize", connectionId: text.id, actor: { kind: "plugin-grant", pluginId } });
 
   expect(await guestRunner({ root, caller: owner, pluginId, chatId: null })("quiet")).toEqual({ ok: true, value: WITH_NUL });
+});
+
+// Fits the guest's heap as one byte per NUL, and cannot be escaped within it at six bytes per NUL.
+const UNESCAPABLE_NULS = Math.floor(PLUGIN_MEMORY_LIMIT_BYTES / 5);
+// The same string meets the realm's own memory failure twice: in a host call's read of its argument, and in the guest's
+// own JSON. The snippet reports the name each failure reached it with, as JSON text.
+const READ_FAILS = `const h = orb.host(1);
+const s = "\\0".repeat(${String(UNESCAPABLE_NULS)});
+const seen = [];
+try { h.log.info(s); seen.push("read"); } catch (e) { seen.push(e.name); }
+try { JSON.stringify(s); seen.push("read"); } catch (e) { seen.push(e.name); }
+h.log.info(JSON.stringify(seen));`;
+
+test("a host call whose read of the guest's argument fails hands the guest the realm's own failure, not a host error", { tags: ["slow"] }, async () => {
+  await using root = await createServerHarness({ pluginSpawn: spawn });
+  const caller = await root.internalCallerFor(root.ownerId);
+  const room = (await caller.chat.startChat({ characterIds: [] })).chat;
+
+  const result = await caller.plugin.runSnippet({ chatId: room.id, code: READ_FAILS });
+  expect(result.error).toBeUndefined();
+  const report = result.logLines.at(-1) ?? "";
+  const [hostRead, ownRead] = z.tuple([z.string(), z.string()]).parse(JSON.parse(report.slice(report.indexOf(" ") + 1)));
+  expect(ownRead).not.toBe("read");
+  expect(hostRead).toBe(ownRead);
 });
 
 test("a host error reaches the guest as an Error with the host error's name and message", { tags: ["slow"] }, async () => {

@@ -121,6 +121,7 @@ const MOUNT_SUPPORT_FILES = {
   "^tests/support/browser/(?:index|ct-door|ct-runtime|ct-isolation)\\.ts$": "the browser testkit door and the CT mount runtime it forwards",
   "^tests/support/browser/(?:ct-data-providers|ct-isolated-subject)\\.tsx$": "the section and isolated-subject mounts stories render through",
   "^tests/support/browser/leaving-cover\\.ts$": "the release event and backdrop the leaving-cover story holds and its specs drive",
+  "^tests/support/browser/ct-user-bus\\.tsx$": "the socket and user bus the app root wires, which bus stories mount around their subject",
 } as const satisfies Readonly<Record<string, string>>;
 // Feature test helpers a story imports; each stays free of Node imports so the story can load it.
 const MOUNT_HELPER_FILES = {
@@ -360,7 +361,8 @@ function exportedDoors(pkg: string, exports: Readonly<Record<string, unknown>>):
 // Every server door: a module's index.ts, and each subpath the package's exports map declares.
 const SERVER_DOORS = [`${SRV}[^/]+/[^/]+/index\\.ts$`, ...exportedDoors("server", serverPackage.exports)];
 // The production files a suite may import directly for a Spine-Testing §9 import: a constant, limit, id, error class
-// or pure rule that production executes. A door forwards only what production consumes through it, so `pnpm knip:prod`
+// or pure rule that production executes, or a class or function its own module's unit suite drives directly when no
+// door runs the behavior it pins. A door forwards only what production consumes through it, so `pnpm knip:prod`
 // fails a door forward whose only importers are tests; the suite reads the symbol from its owning file here instead.
 // One entry per owning file, naming its symbols. The compile-time registries knip.ts trusts are read here too.
 // A suite of another module still needs its reach line below.
@@ -410,14 +412,18 @@ const TEST_CONSTANT_HOMES = {
   "packages/server/src/foundation/observability/tracing.ts": "getTraceByRequestId: the trace ring read the span suites assert through",
   "packages/server/src/primitives/serde/databank/index.ts": "DATABANK_SCHEMA_KIND: the sibling envelope kind a chat bundle refuses as foreign",
   "packages/server/src/infra/plugin-host/budgets.ts": "PLUGIN_ASSET_MAX_BYTES: the fetched-asset byte cap the image-cap suite sends one byte past",
+  "packages/server/src/infra/plugin-host/cpu-guard.ts":
+    "installCpuGuard and withinCpuWindow: the CPU guard its unit suite drives on a raw context, to plant the missed site no door can reach",
+  "packages/server/src/infra/plugin-host/module.ts": "getPluginQuickJS: the engine module that unit suite takes its raw context from",
   "packages/server/src/infra/plugin-host/process-argv.ts": "formatPluginBrokerArguments: the watchdog's broker launch the permission-drop suite repeats",
   "packages/server/src/infra/plugin-host/process-channel.ts":
-    "parsePluginIpcMessage: the envelope parser the permission-drop suite reads a real broker through",
+    "parsePluginIpcMessage: the envelope parser the permission-drop and broker-loss suites read a real broker's messages through",
   "packages/server/src/infra/plugin-host/process-permission.ts":
     "pluginBrokerExecArgv: the production flags the permission-drop suite starts a real broker under",
   "packages/server/src/infra/plugin-host/process-protocol.ts":
-    "parseBrokerParentMessage, parseMessageLine and serializeMessage: the frame codec the permission-drop suite speaks as the watchdog",
+    "parseBrokerParentMessage, parseMessageLine and serializeMessage: the frame codec the permission-drop suite speaks as the watchdog; PLUGIN_BROKER_SYNC_TIMEOUT_MS: the synchronous seam bound the command bounds suite counts",
   "packages/server/src/infra/plugin-host/sandbox.ts": "Sandbox: the sandbox class its unit suite constructs",
+  "packages/server/src/infra/plugin-host/warm-runtime-pool.ts": "WarmRuntimePool: the runtime pool its unit suite constructs with a failing retirement",
   "packages/server/src/infra/relay/quick-tunnel.ts": "RELAY_STOP_GRACE_MS: the relay's stop grace",
   "packages/server/src/infra/upstream-update/adapter.ts": "parseLatestRelease and parseMainHead: the pure release and head parsers",
   "packages/server/src/entry/compose/portability.ts":
@@ -530,6 +536,8 @@ const TEST_CONSTANT_HOMES = {
   "packages/client/src/features/config/lib/theme-row-names.ts": "themeActionsName: the name of a Looks theme row's actions menu",
   "packages/client/src/features/workloads/lib/import-folder-copy.ts":
     "IMPORT_FOLDER_WRONG_FOLDER: the sentence the SillyTavern folder import prints when the folder is not a user folder",
+  "packages/client/src/lib/avatar-upload-copy.ts":
+    "AVATAR_UPLOAD_FAILED and its siblings: the lines the shared avatar upload control prints for a failed upload and a refused write",
   "packages/client/src/lib/card-import-copy.ts":
     "CARD_IMPORT_REFUSED_ONE and its siblings: the refusal sentence the character import dialog and the backup import both say for a picture that is not a card",
   "packages/client/src/lib/use-focus-on-mount.ts":
@@ -668,6 +676,12 @@ const SERVER_TEST_REACHES = {
   },
   "tests/server/entry/compose/scoped-timers.int.test.ts": {
     "domain/plugin": "pluginMacroName: no wire lists a plugin's registered macros, so the suite names the token by the plugin domain's own rule",
+  },
+  // A stuck Worker must end before the parent's command timeout fires on production timers, and a lost broker must
+  // never add up to a disable.
+  "tests/server/infra/plugin-host/stuck-worker.int.test.ts": {
+    "domain/plugin": "PLUGIN_CRASH_DISABLE_THRESHOLD: the strikes a lost broker's refusals must never reach",
+    "infra/timers": "systemTimers: the production timers the parent's command timeout runs on",
   },
 } as const satisfies Readonly<Record<string, Readonly<Record<string, string>>>>;
 

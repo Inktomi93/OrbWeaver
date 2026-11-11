@@ -25,7 +25,7 @@ import type { ServerTestHarness } from "@orb/testkit/node/composed";
 import { createServerHarness, servePhysicalPeer, WORKLOAD_DEADLINE_MS } from "@orb/testkit/node/composed";
 import { TOKENS } from "@orb/ui/tokens";
 import type { Locator, Page, Request } from "@playwright/test";
-import { IMPORT_FOLDER_NAME } from "#client/features/workloads/lib/import-library-names.ts";
+import { IMPORT_FOLDER_NAME, IMPORT_PROGRESS_NAME } from "#client/features/workloads/lib/import-library-names.ts";
 import {
   asImportPreview,
   IMPORT_CONFIRM_NAMES,
@@ -324,14 +324,15 @@ test("a pick brings the preflight, with its progress bar, into view and focuses 
   const preflight = page.getByRole("group", { name: PREFLIGHT });
   await expect(preflight).toBeFocused();
   await expect(preflight.getByRole("progressbar")).toBeInViewport();
-  // The browser only paints a ring on script focus after a key, so a key is pressed and the focus taken again. Its own ring is
-  // neither the house ring nor none, so the focused card must not wear it.
+  // The browser only paints a ring on script focus after a key, so a key is pressed and the focus taken again. A Card handed focus
+  // draws the house ring (the Card `focusable` variant), and nothing of the browser's own outline.
   await page.keyboard.press("Shift");
   await preflight.blur();
   await preflight.focus();
   await expect(preflight).toBeFocused();
   expect(await preflight.evaluate((node) => node.matches(":focus-visible"))).toBe(true);
-  expect(await preflight.evaluate((node) => getComputedStyle(node).outlineStyle)).not.toBe("auto");
+  expect(await preflight.evaluate((node) => getComputedStyle(node).outlineStyle)).toBe("none");
+  expect(await preflight.evaluate((node) => getComputedStyle(node).boxShadow)).not.toBe("none");
 });
 
 test("a refused persona review says so in plain words, not the raw request error", async ({ mount, page, baseURL }, testInfo) => {
@@ -384,8 +385,15 @@ test("Import hands focus to the progress region", async ({ mount, page, baseURL 
   const preflight = page.getByRole("group", { name: PREFLIGHT });
   await expect(preflight.getByRole("group", { name: "What this import would bring", exact: true })).toBeVisible({ timeout: WORKLOAD_DEADLINE_MS });
 
-  await preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.folder, exact: true }).click();
-  await expect(page.getByRole("group", { name: "Import progress", exact: true })).toBeFocused();
+  // Confirmed from the keyboard, so the browser treats the script focus that follows as keyboard focus and would paint its own ring.
+  const confirm = preflight.getByRole("button", { name: IMPORT_CONFIRM_NAMES.folder, exact: true });
+  await confirm.focus();
+  await page.keyboard.press("Enter");
+  const progress = page.getByRole("group", { name: IMPORT_PROGRESS_NAME, exact: true });
+  await expect(progress).toBeFocused();
+  expect(await progress.evaluate((node) => node.matches(":focus-visible"))).toBe(true);
+  expect(await progress.evaluate((node) => getComputedStyle(node).outlineStyle)).toBe("none");
+  expect(await progress.evaluate((node) => getComputedStyle(node).boxShadow)).toBe("none");
 });
 
 test("a folder the dry run finds nothing in says so and leaves Import off", async ({ mount, page, baseURL }, testInfo) => {

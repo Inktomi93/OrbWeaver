@@ -8,14 +8,16 @@
 import { testId } from "@orb/client/lib";
 import { CHARA_CARD_V2_SPEC } from "@orb/contracts/character";
 import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
-import { cardImportResultSchema } from "@orb/contracts/import";
+import type { CardImportResult, FailedCardReason } from "@orb/contracts/import";
+import { CARD_REFUSAL_CODES, cardImportResultSchema, FAILED_CARD_REASONS } from "@orb/contracts/import";
 import { PORTABILITY_ROUTES } from "@orb/contracts/portability";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
 import { absenceWindow, routeAuthConfig, routeOrbSocket, routeTrpc, serveCorpusProcedures, trpcError } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness, createServerHarness } from "@orb/testkit/node/composed";
 import { IMPORT_RESULT_NAME } from "#client/features/workloads/lib/import-library-names.ts";
-import { CARD_IMPORT_REFUSED_ONE } from "#client/lib/card-import-copy.ts";
+import { IMPORT_CONFIRM_NAMES } from "#client/features/workloads/lib/portability-model.ts";
+import { cardImportFailedDetail, cardImportRefusalLine } from "#client/lib/card-import-copy.ts";
 import type { ImportPreviewStory } from "./_import-preview-stories.tsx";
 
 const STORY = "tests/client/features/workloads/components/_import-preview-stories/ImportPreviewStory";
@@ -72,7 +74,7 @@ for (const upload of UPLOADS) {
     await mount<typeof ImportPreviewStory>(STORY, { width: 960, appearance: appearanceSettingsSchema.parse({}) });
 
     await page.locator('input[type="file"]').first().setInputFiles(upload.file);
-    await page.getByRole("button", { name: /^Import(?! a (folder|backup))/u }).click();
+    await page.getByRole("button", { name: IMPORT_CONFIRM_NAMES.file, exact: true }).click();
 
     await expect(page.getByRole("alert")).toHaveCount(1);
     expect(sent).toBe(1);
@@ -81,51 +83,110 @@ for (const upload of UPLOADS) {
   });
 }
 
-test("a plain picture the server takes no card from is refused in the plain sentence, in one inline report with no toast", async ({ corpus, mount, page }) => {
-  await using root = await createServerHarness(ROOT_OPTIONS);
-  const caller = await root.internalCallerFor(root.ownerId);
-  await routeAuthConfig(page, corpus.auth.signedInConfig);
-  await routeTrpc(page, {
-    ...serveCorpusProcedures(caller, ["settings.getUserSettings", "sessions.me", "workloads.list"]),
-    "stream.attach": ({ ref }) => (ref.channel === "user" || ref.channel === "workloads" ? null : trpcError({ code: "NOT_FOUND" })),
-    "stream.detach": ({ ref }) => (ref.channel === "user" || ref.channel === "workloads" ? null : trpcError({ code: "NOT_FOUND" })),
-  });
-  await routeOrbSocket(page);
-  let sent = 0;
-  const serverSentences: string[] = [];
-  await page.route(`**${PORTABILITY_ROUTES.importCards}`, async (route) => {
-    sent += 1;
-    const incoming = route.request();
-    const upload = incoming.postDataBuffer();
-    const answer = await root.http.request(
-      new Request(`http://127.0.0.1${PORTABILITY_ROUTES.importCards}`, {
-        method: "POST",
-        headers: incoming.headers(),
-        body: upload === null ? null : new Uint8Array(upload),
-      }),
-    );
-    const body = Buffer.from(await answer.arrayBuffer());
-    serverSentences.push(...cardImportResultSchema.parse(JSON.parse(body.toString("utf8"))).failed.map((card) => card.error));
-    await route.fulfill({ status: answer.status, headers: Object.fromEntries(answer.headers), body });
-  });
-  await page.setViewportSize({ width: 960, height: SHORT_WINDOW_PX });
-  await mount<typeof ImportPreviewStory>(STORY, { width: 960, appearance: appearanceSettingsSchema.parse({}) });
+// Far past any character name cap, so the card decodes and then fails the canonical schema.
+const OVERLONG_NAME_LENGTH = 10_000;
+const [UNREADABLE, INVALID] = CARD_REFUSAL_CODES;
+const SCRIPTED_SERVER_SENTENCE = "SQLITE_CONSTRAINT: scripted storage refusal";
+// A character the storage edge refuses is a database fault, which a component spec cannot plant, so that one answer is the
+// test's own; the server's own `failed` answer is proved in the import-card-failures integration test.
+const STORAGE_REFUSED_ANSWER = {
+  imported: [],
+  failed: [{ filename: "keeper.json", reason: "failed", error: SCRIPTED_SERVER_SENTENCE }],
+} as const satisfies CardImportResult;
 
-  await page.locator('input[type="file"]').first().setInputFiles(PLAIN_PICTURE);
-  await page.getByRole("button", { name: /^Import(?! a (folder|backup))/u }).click();
+interface ReasonCase {
+  readonly name: string;
+  readonly file: { readonly name: string; readonly mimeType: string; readonly buffer: Buffer };
+  /** The answer the route gives when the server's own cannot be provoked from a component spec. */
+  readonly scripted?: CardImportResult;
+}
 
-  const report = page.getByTestId(testId("importReport"));
-  await expect(report).toBeVisible();
-  // The outcome takes focus, and it is on screen however short the window: the person who pressed Import looks there.
-  await expect(page.getByRole("group", { name: IMPORT_RESULT_NAME })).toBeFocused();
-  await expect(report).toBeInViewport();
-  await expect(report.getByText(CARD_IMPORT_REFUSED_ONE, { exact: true })).toHaveCount(1);
-  expect(sent).toBe(1);
-  // The positive control: the server did refuse the picture in its own sentence, which the report must not repeat.
-  expect(serverSentences).toHaveLength(1);
-  for (const sentence of serverSentences) {
-    await expect(report).not.toContainText(sentence);
-  }
-  await absenceWindow(page, TOAST_WINDOW_MS);
-  await expect(page.locator(TOAST_ROOT)).toHaveCount(0);
-});
+// A total `Record` over the wire's reason tuple, so a new reason fails `tsc` until it has a case here.
+const REASON_CASES: Record<FailedCardReason, ReasonCase> = {
+  [UNREADABLE]: { name: "a plain picture the server takes no card from", file: PLAIN_PICTURE },
+  [INVALID]: {
+    name: "a card whose data the server finds invalid",
+    file: {
+      name: "overlong.json",
+      mimeType: "application/json",
+      buffer: Buffer.from(
+        JSON.stringify({
+          spec: CHARA_CARD_V2_SPEC,
+          ["spec_version"]: "2.0",
+          data: { name: "x".repeat(OVERLONG_NAME_LENGTH), description: "d", ["first_mes"]: "hi" },
+        }),
+      ),
+    },
+  },
+  ["failed"]: { name: "a card the server's storage refuses", file: UPLOADS[0].file, scripted: STORAGE_REFUSED_ANSWER },
+};
+
+for (const reason of FAILED_CARD_REASONS) {
+  const { name, file, scripted } = REASON_CASES[reason];
+  test(`${name} is refused in that reason's sentence, in one inline report with no toast`, async ({ corpus, mount, page }) => {
+    await using root = await createServerHarness(ROOT_OPTIONS);
+    const caller = await root.internalCallerFor(root.ownerId);
+    await routeAuthConfig(page, corpus.auth.signedInConfig);
+    await routeTrpc(page, {
+      ...serveCorpusProcedures(caller, ["settings.getUserSettings", "sessions.me", "workloads.list"]),
+      "stream.attach": ({ ref }) => (ref.channel === "user" || ref.channel === "workloads" ? null : trpcError({ code: "NOT_FOUND" })),
+      "stream.detach": ({ ref }) => (ref.channel === "user" || ref.channel === "workloads" ? null : trpcError({ code: "NOT_FOUND" })),
+    });
+    await routeOrbSocket(page);
+    let sent = 0;
+    const serverSentences: string[] = [];
+    await page.route(`**${PORTABILITY_ROUTES.importCards}`, async (route) => {
+      sent += 1;
+      if (scripted !== undefined) {
+        serverSentences.push(...scripted.failed.map((card) => card.error));
+        await route.fulfill({ status: 200, json: scripted });
+        return;
+      }
+      const incoming = route.request();
+      const upload = incoming.postDataBuffer();
+      const answer = await root.http.request(
+        new Request(`http://127.0.0.1${PORTABILITY_ROUTES.importCards}`, {
+          method: "POST",
+          headers: incoming.headers(),
+          body: upload === null ? null : new Uint8Array(upload),
+        }),
+      );
+      const body = Buffer.from(await answer.arrayBuffer());
+      const failed = cardImportResultSchema.parse(JSON.parse(body.toString("utf8"))).failed;
+      expect(failed.map((card) => card.reason)).toEqual([reason]);
+      serverSentences.push(...failed.map((card) => card.error));
+      await route.fulfill({ status: answer.status, headers: Object.fromEntries(answer.headers), body });
+    });
+    await page.setViewportSize({ width: 960, height: SHORT_WINDOW_PX });
+    await mount<typeof ImportPreviewStory>(STORY, { width: 960, appearance: appearanceSettingsSchema.parse({}) });
+
+    await page.locator('input[type="file"]').first().setInputFiles(file);
+    // The confirm is pressed from the top of the page, with the place its outcome renders below the fold, so only the outcome's own
+    // scroll can bring the report into view. Every reason renders the same report, so each is driven this way.
+    const confirm = page.getByRole("button", { name: IMPORT_CONFIRM_NAMES.file, exact: true });
+    await page.evaluate(() => globalThis.scrollTo(0, 0));
+    await expect(confirm).not.toBeInViewport();
+    await confirm.evaluate((button) => {
+      if (button instanceof HTMLElement) {
+        button.focus({ preventScroll: true });
+      }
+    });
+    await page.keyboard.press("Enter");
+
+    const report = page.getByTestId(testId("importReport"));
+    await expect(report).toBeVisible();
+    // The outcome takes focus, and it is on screen however short the window: the person who pressed Import looks there.
+    await expect(page.getByRole("group", { name: IMPORT_RESULT_NAME })).toBeFocused();
+    await expect(report).toBeInViewport();
+    await expect(report.getByText(cardImportRefusalLine([{ reason }]), { exact: true })).toHaveCount(1);
+    await expect(report.getByText(cardImportFailedDetail(reason), { exact: true })).toHaveCount(1);
+    expect(sent).toBe(1);
+    // The positive control: the server did refuse the file in its own sentence, which the report must not repeat.
+    expect(serverSentences).toHaveLength(1);
+    for (const sentence of serverSentences) {
+      await expect(report).not.toContainText(sentence);
+    }
+    await absenceWindow(page, TOAST_WINDOW_MS);
+    await expect(page.locator(TOAST_ROOT)).toHaveCount(0);
+  });
+}

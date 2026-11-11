@@ -5,7 +5,7 @@ import { createShellAmbientReads, routeTrpc, SECTION_PROCEDURES, serveCorpusProc
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
 import type { Locator } from "@playwright/test";
-import { CONFIG_THEME_GROUP_NAME } from "#client/features/config/lib/config-control-names.ts";
+import { CONFIG_CUSTOMIZE_LOOK_NAME, CONFIG_THEME_GROUP_NAME } from "#client/features/config/lib/config-control-names.ts";
 import { REGEX_NEW_SCRIPT_NAME } from "#client/features/regex/lib/regex-names.ts";
 import type { ConfigHeadingShellStory } from "./_config-heading-stories.tsx";
 
@@ -57,7 +57,7 @@ async function expectAppearanceTasks(content: Locator, phone: boolean): Promise<
   const themes = content.getByRole("radiogroup", { name: CONFIG_THEME_GROUP_NAME, exact: true });
   await expect(themes).toBeVisible();
   await expect(themes.getByRole("radio").first()).toBeVisible();
-  await expect(content.getByRole("button", { name: /^Customize this look/u })).toBeVisible();
+  await expect(content.getByRole("button", { name: CONFIG_CUSTOMIZE_LOOK_NAME })).toBeVisible();
   const lead = await content.evaluate((node) => {
     const first = node.querySelector("section");
     if (first === null) {

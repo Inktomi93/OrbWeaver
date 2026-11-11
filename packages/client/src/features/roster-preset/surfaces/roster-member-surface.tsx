@@ -18,11 +18,10 @@ import { Row, Section, Stack } from "@orb/ui/layout";
 import { Text } from "@orb/ui/text";
 import type { ReactElement } from "react";
 import { useRef, useState } from "react";
-import { EditorPage, MemberDrillHeader, SettingRowGroup, SettingSwitchRow, SettingTrackRow } from "#components";
+import { DetailHeader, EditorPage, SettingRowGroup, SettingSwitchRow, SettingTrackRow } from "#components";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import type { CollectionMemberView } from "#lib";
 import { DIALOG_VERBS, talkativenessReadout, useFocusOnMount } from "#lib";
-import { clearCollectionSelection } from "#state";
 import { useUpdateRosterPreset } from "../hooks/use-roster-preset-mutations.ts";
 import { useRulePresetCatalogue } from "../hooks/use-saved-rosters.ts";
 import { useStartRoster } from "../hooks/use-start-roster.ts";
@@ -144,13 +143,13 @@ export function RosterMemberSurface({ view }: { readonly view: CollectionMemberV
             collection's ONE member verb, Start chat (§3.4 names it). SAVE STAYS WITH THE FIELDS below: it
             commits the two inputs it sits under and is not a member verb — moving it up would put a
             form's submit two rows above the form and leave the conflict notice (#1561) beside nothing. */}
-      <MemberDrillHeader
+      <DetailHeader
         actions={
           <Button disabled={busy} variant="ghost" onClick={onStart} size="sm">
             Start chat
           </Button>
         }
-        back={{ label: `Back to ${view.library}`, onClick: (): void => clearCollectionSelection() }}
+        back={view.back}
         title={roster.name}
       />
       {/* NO `aria-label` on either cell (#1587). A `<Field>`'s label reaches its control through Base UI's

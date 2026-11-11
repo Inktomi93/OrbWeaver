@@ -1,5 +1,6 @@
 // components/ front door — client-shared composites over @orb/ui (UI-Arch §2.1: NOT @orb/ui itself —
 // ui stays parts-only; these are cross-feature composites with no single feature owner).
+export { AvatarUpload } from "./avatar-upload.tsx";
 export { BackgroundSourceField } from "./background-source-field.tsx";
 export type { BandProps } from "./band.tsx";
 export { Band } from "./band.tsx";
@@ -29,8 +30,6 @@ export { ListPage } from "./list-page.tsx";
 export {} from "./list-pane-header.tsx";
 export { ListPaneHeaderHost } from "./list-pane-header-host.tsx";
 export { MacroBrowser } from "./macro-browser.tsx";
-export type { MemberDrillBack } from "./member-drill-header.tsx";
-export { MemberDrillHeader } from "./member-drill-header.tsx";
 export type { ModelRunConfirmDialogProps } from "./model-run-confirm-dialog.tsx";
 export { ModelRunConfirmDialog } from "./model-run-confirm-dialog.tsx";
 export type { OverflowAction } from "./overflow-actions.tsx";
@@ -74,10 +73,12 @@ export { TrailingArrow } from "./trailing-arrow.tsx";
 export type { ConfigLeafValue } from "./use-config-leaf.ts";
 export { configLeafKey, useConfigLeaf, useConfigLeafReadings } from "./use-config-leaf.ts";
 export { useEmbedderRebuild } from "./use-embedder-rebuild.ts";
+export type { FileDrop } from "./use-file-drop.ts";
+export { useFileDrop } from "./use-file-drop.ts";
 export { useFirstBootRows } from "./use-first-boot-rows.ts";
 export { useModelRunConfirm } from "./use-model-run-confirm.ts";
 export type { RowDeleteFocus } from "./use-row-delete-focus.ts";
-export { returnFocusToRow, useRowDeleteFocus } from "./use-row-delete-focus.ts";
+export { returnFocusToRow, useReturnToRowOnClose, useRowDeleteFocus } from "./use-row-delete-focus.ts";
 export { useRerankModel, useUtilityModel } from "./use-utility-model.ts";
 export { UserMacroEditorDialog } from "./user-macro-editor-dialog.tsx";
 export type { UserMacrosFormValues } from "./user-macro-editor-model.ts";

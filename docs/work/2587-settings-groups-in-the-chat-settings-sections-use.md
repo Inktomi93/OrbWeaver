@@ -21,6 +21,15 @@ The plan names SettingRowGroup as the home of settings rows.
 
 The listed files hold no Card around settings rows, and a rendered check reads each section.
 
+## Sites
+
+| Site | What it is |
+| - | - |
+| `packages/client/src/features/chat/components/assembly-preview-panel.tsx:146` | Chat settings groups |
+| `packages/client/src/features/chat/components/assembly-preview-panel.tsx:269` | Chat settings groups |
+| `packages/client/src/features/chat/components/prose-settings-section.tsx:171` | Chat settings groups |
+| `packages/client/src/features/chat/components/imagery-templates-section.tsx:155` | Chat settings groups |
+
 ## Evidence
 
 Filled at landing: what ran and where its output is.

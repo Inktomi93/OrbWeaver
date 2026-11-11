@@ -38,7 +38,7 @@ async function findings(source: string, path: string): Promise<readonly Linter.L
 
 test.for([
   ["a list search", "export const A = () => <ListSearch><Input /></ListSearch>;"],
-  ["a shell-deferred name", 'export const A = () => <Text data-shell-identity="defer">Name</Text>;'],
+  ["a shell-deferred name", 'export const A = () => <Text data-shell-identity="name">Name</Text>;'],
   ["the editor column", `export const A = () => <Stack className="${EDITOR_COLUMN}" />;`],
   ["the editor column in a template string", `export const A = () => <Stack className={\`${EDITOR_COLUMN} \${pad}\`} />;`],
   ["a list grid", 'export const A = () => <Grid cols="auto" role="list" />;'],
@@ -57,7 +57,7 @@ test("a start-aligned measure, a plain grid and a template's own file pass", asy
   expect(await findings('export const A = () => <FieldLayout orientation="inline" />;', FEATURE)).toEqual([]);
   expect(
     await findings(
-      'export const A = () => <><ListSearch /><Grid role="list" /><Text data-shell-identity="defer" /><FieldLayout orientation="horizontal" /></>;',
+      'export const A = () => <><ListSearch /><Grid role="list" /><Text data-shell-identity="name" /><FieldLayout orientation="horizontal" /></>;',
       TEMPLATE,
     ),
   ).toEqual([]);

@@ -10,14 +10,27 @@ import type { PluginHandlerRef, PluginInstance, PluginInvocationLiveness, Plugin
 import { z } from "zod";
 import { createRemoteBridge, createRemoteNetEgress } from "./bridge-rpc.ts";
 import { PLUGIN_AUTHORITY_TAIL_MS } from "./budgets.ts";
-import type { CreateInstanceInputIn, LocalPluginHostSeams } from "./contract/port.ts";
+import type { CpuSpanReport, CreateInstanceInputIn, LocalPluginHostSeams } from "./contract/port.ts";
 import type { BrokerWorkerMessage, PluginBridgeOperation, PluginSyncOperation, WorkerBrokerMessage } from "./contract/process-protocol.ts";
 import { createLocalPluginHost } from "./port.ts";
-import { decodeProcessValue, fromRpcError, PLUGIN_BROKER_SYNC_RESULT_BYTES, PLUGIN_BROKER_SYNC_TIMEOUT_MS, rpcError } from "./process-protocol.ts";
+import {
+  decodeProcessValue,
+  fromRpcError,
+  PLUGIN_BROKER_SYNC_RESULT_BYTES,
+  PLUGIN_BROKER_SYNC_TIMEOUT_MS,
+  rpcError,
+  SPAN_CLOSED_TOTAL_SLOT,
+  SPAN_SEQUENCE_SLOT,
+  SPAN_WINDOW_SLOT,
+} from "./process-protocol.ts";
+
+const INT32_MAX = 2_147_483_647;
 
 interface WorkerIdentity {
   readonly runtimeId: string;
   readonly logLevel: LocalPluginHostSeams["logLevel"];
+  /** The span slots this Worker shares with its broker (`SPAN_SLOTS_BYTES`). */
+  readonly spans: SharedArrayBuffer;
 }
 
 interface InvokeCommandValue {
@@ -58,6 +71,28 @@ if (permission?.has("worker") === true) {
 }
 
 const identity = workerData as WorkerIdentity;
+
+// The broker reads these slots from its own thread, which a stuck span cannot block: a span still open past its window,
+// or spans summed past the budget of the command they serve, by `PLUGIN_WORKER_OVERRUN_MAX_MS` end this Worker (D347).
+// The window is stored before the sequence, so a broker that sees a new sequence reads that span's window; the closed
+// total is stored before the sequence clears, so no span's time is missed between the two.
+const spans = new Int32Array(identity.spans);
+let spanSequence = 0;
+let closedTotalMs = 0;
+const spanReport: CpuSpanReport = {
+  opened: (windowMs) => {
+    spanSequence = spanSequence === INT32_MAX ? 1 : spanSequence + 1;
+    Atomics.store(spans, SPAN_WINDOW_SLOT, Math.min(windowMs, INT32_MAX));
+    Atomics.store(spans, SPAN_SEQUENCE_SLOT, spanSequence);
+  },
+  closed: (spentMs) => {
+    // Summed exactly and stored whole: rounding each span up would count a chain of thousands of sub-millisecond spans
+    // as seconds. The store wraps the total to an Int32, which the broker reads across one wrap.
+    closedTotalMs += spentMs;
+    Atomics.store(spans, SPAN_CLOSED_TOTAL_SLOT, Math.trunc(closedTotalMs));
+    Atomics.store(spans, SPAN_SEQUENCE_SLOT, 0);
+  },
+};
 const commandAuthority = new AsyncLocalStorage<string>();
 let nextRequest = 0;
 interface PendingBridgeCall {
@@ -211,6 +246,7 @@ const host = createLocalPluginHost({
   mirrorLog: (label, level, message) => post({ kind: "log", label, level, message }),
   netEgress: createRemoteNetEgress(callAsync),
   logLevel: identity.logLevel,
+  spanReport,
 });
 
 let instance: PluginInstance | undefined;

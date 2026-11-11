@@ -1,8 +1,10 @@
-import { cardImportResultSchema } from "@orb/contracts/import";
+import { CARD_REFUSAL_CODES, cardImportResultSchema } from "@orb/contracts/import";
 import { ID_PREFIX, mintTypeId } from "@orb/kit/ids";
 import { expect, test } from "@orb/testkit/node";
 import { summarizeCardImport } from "#client/features/workloads/lib/portability-model.ts";
-import { CARD_IMPORT_FAILED_DETAIL } from "#client/lib/card-import-copy.ts";
+import { cardImportFailedDetail } from "#client/lib/card-import-copy.ts";
+
+const [, INVALID] = CARD_REFUSAL_CODES;
 
 test("card summaries retain success notes, omit empty or legacy notes, and keep failures separate", ({ ids }) => {
   const characterId = mintTypeId(ID_PREFIX.character, ids.next);
@@ -13,7 +15,7 @@ test("card summaries retain success notes, omit empty or legacy notes, and keep 
       { filename: null, characterId, created: true, importHash: "legacy" },
       { filename: "empty.png", characterId, created: false, importHash: "empty", notes: [] },
     ],
-    failed: [{ filename: "broken.png", error: "Invalid card" }],
+    failed: [{ filename: "broken.png", reason: INVALID, error: "Invalid card" }],
   });
   const summary = summarizeCardImport(result);
   expect(summary).toEqual({
@@ -28,7 +30,7 @@ test("card summaries retain success notes, omit empty or legacy notes, and keep 
       { path: "Unnamed card", ok: true, detail: "Character card" },
       { path: "duplicate.png", ok: true, detail: "Already imported", notes: ["Book kept"] },
       { path: "empty.png", ok: true, detail: "Already imported" },
-      { path: "broken.png", ok: false, detail: CARD_IMPORT_FAILED_DETAIL },
+      { path: "broken.png", ok: false, detail: cardImportFailedDetail(INVALID) },
     ],
   });
   expect(summary.outcomes[0]?.notes).toBe(result.imported[1]?.notes);

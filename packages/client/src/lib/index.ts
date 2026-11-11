@@ -11,13 +11,21 @@ export {
   clearAppearanceChannel,
   writeAppearanceChannel,
 } from "./appearance-carrier-manifest.ts";
+export {
+  AVATAR_DROP_A_FILE,
+  AVATAR_NOT_A_PICTURE,
+  AVATAR_ONE_AT_A_TIME,
+  AVATAR_UPLOADING_NAME,
+  AVATAR_WRITE_REFUSED,
+  avatarUploadFailedLine,
+} from "./avatar-upload-copy.ts";
 export type { BackgroundJob } from "./background-jobs.ts";
 export { BACKGROUND_JOB_LOGS } from "./background-jobs.ts";
 export { setBootReadPending } from "./boot-reads.ts";
 export type { BugReportServerFacts, PublicBrowserFacts, PublicBugReport } from "./bug-report-public.ts";
 export { buildPublicBugReport, publicBugReportIssueUrl } from "./bug-report-public.ts";
 export { busDupCheck, busInvalidate, busSubscribe, busUnsubscribe } from "./bus-devlog.ts";
-export { CARD_IMPORT_FAILED_DETAIL, cardImportPartialLine, cardImportRefusalLine } from "./card-import-copy.ts";
+export { cardImportFailedDetail, cardImportPartialLine, cardImportRefusalLine } from "./card-import-copy.ts";
 export type { ScreenTitle } from "./census-title.ts";
 export { censusSuffix, censusTitle } from "./census-title.ts";
 export {
@@ -37,6 +45,7 @@ export type {
   CollectionInsight,
   CollectionListView,
   CollectionMemberView,
+  DrillBack,
 } from "./collection-contracts.ts";
 export { COLLECTION_LARGE_GROUP } from "./collection-contracts.ts";
 export type { ConfigQueryToken, ParsedConfigQuery } from "./config-search-tokens.ts";

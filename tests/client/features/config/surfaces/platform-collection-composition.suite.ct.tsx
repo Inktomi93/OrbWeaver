@@ -1,8 +1,9 @@
+import { COLLECTION_LARGE_GROUP } from "@orb/client/lib";
 import { createRegexScriptSchema } from "@orb/contracts/regex";
 import { createRosterPresetSchema } from "@orb/contracts/roster-preset";
 import { DEFAULT_USER_SETTINGS } from "@orb/contracts/settings";
 import { appearanceSettingsSchema } from "@orb/contracts/settings/appearance";
-import { actionGroupGeometry, resolvedLength } from "@orb/testkit/browser/spec";
+import { actionGroupGeometry, PLATFORM_TEXT_SCALES, resolvedLength, setPlatformTextSize } from "@orb/testkit/browser/spec";
 import type { TrpcRecorder } from "@orb/testkit/ct";
 import { routeTrpc, SECTION_PROCEDURES, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
@@ -152,7 +153,9 @@ function expectSeparateBoxes(door: NonNullable<Box>, value: NonNullable<Box>): v
 
 async function expectMemberHeader(content: Locator): Promise<void> {
   const header = content.locator('[data-slot="config-drill-header"]');
-  const title = header.getByRole("heading", { name: LONG_NAME, exact: true });
+  await expect(header.getByRole("heading", { name: LONG_NAME, exact: true })).toHaveCount(1);
+  // The heading names the member for the outline; the line a reader sees is its visible twin, hidden from the outline.
+  const title = header.locator('[aria-hidden="true"]').filter({ hasText: LONG_NAME });
   await expect(title).toHaveCount(1);
   const buttons = await header.getByRole("button").all();
   await test.info().attach("opened-member-header", {
@@ -360,6 +363,58 @@ for (const regime of REGIMES.slice(0, 2)) {
     }
   });
 }
+
+const WINDOWED_SUBJECTS = ["regex", "worldInfo"] as const;
+// Enough members that the list holds more rows than its window at every size.
+const LONG_LIBRARY = COLLECTION_LARGE_GROUP + 5;
+
+async function seedLongLibrary(caller: Caller, subject: (typeof WINDOWED_SUBJECTS)[number]): Promise<void> {
+  for (let index = 0; index < LONG_LIBRARY; index += 1) {
+    const name = `${LONG_NAME} ${String(index)}`;
+    if (subject === "regex") {
+      await caller.regex.createScript({
+        input: createRegexScriptSchema.parse({ name, findRegex: "witness", replaceString: "", placement: ["AI_OUTPUT"], enabled: false }),
+      });
+    } else {
+      await caller.worldInfo.createBook({ input: { name } });
+    }
+  }
+}
+
+test.describe("coarse landscape enlarged, at enlarged browser text", () => {
+  const landscape = { width: 844, height: 390 } as const;
+  test.use({ viewport: landscape, hasTouch: true, isMobile: true });
+  for (const scale of PLATFORM_TEXT_SCALES.slice(1)) {
+    for (const subject of WINDOWED_SUBJECTS) {
+      test(`${subject} at ${String(scale * 100)}% keeps a window of rows a keyboard reaches, and the pane scrolls to it`, async ({ mount, page }) => {
+        await using _textSize = await setPlatformTextSize(page, scale);
+        await using root = await createCorpusHarness();
+        const caller = await root.internalCallerFor(root.ownerId);
+        const { appearance } = await prepare(caller, page, subject, true);
+        await seedLongLibrary(caller, subject);
+        await mount<typeof CollectionCompositionStory>(STORY, { group: subject, width: landscape.width, height: landscape.height, appearance });
+        const content = page.locator('[data-slot="config-content"]');
+        const list = content.locator('[data-slot="virtual-list-scroll"]');
+        await expect(list).toHaveCount(1);
+        const floor = await resolvedLength(page, `var(${TOKENS["height.scroll-sm"].cssVar})`, list);
+        const rows = list.locator('[data-slot="list-row-body"]');
+        await expect(rows.first()).toBeAttached();
+        const listBox = await list.boundingBox();
+        await test.info().attach("short-window", { body: JSON.stringify({ floor, listBox, rows: await rows.count() }), contentType: "application/json" });
+        expect(listBox?.height).toBeGreaterThanOrEqual(floor - 1);
+        // The pane, not the list, carries the window into view: focusing the first row scrolls the pane to it.
+        expect(await content.evaluate((node) => node.scrollTop)).toBe(0);
+        await rows.first().focus();
+        await expect(rows.first()).toBeFocused();
+        await expect(rows.first()).toBeInViewport();
+        expect(await content.evaluate((node) => node.scrollTop)).toBeGreaterThan(0);
+        await page.keyboard.press("Tab");
+        await page.keyboard.press("Tab");
+        await expect(rows.nth(1)).toBeFocused();
+      });
+    }
+  }
+});
 
 test.describe("two members that share a name", () => {
   test.use({ viewport: { width: 1440, height: 900 }, hasTouch: false, isMobile: false });

@@ -121,17 +121,28 @@ export interface RpgTakeoverHeaderProps {
   readonly veiledCue?: ReactNode;
 }
 
-function BandWhen({ when }: { readonly when: ReturnType<typeof whenParts> }): ReactElement | null {
-  if (when.context === "" && when.state === "") {
+function BandDateLine({ context }: { readonly context: string }): ReactElement {
+  return (
+    <Text as="span" ink="muted" voice="datum" cap="fit" clamp={2} wrap="word" data-slot="rpg-band-when-context">
+      {context}
+    </Text>
+  );
+}
+
+/** The date line in the game tab's body, where it rides at the large type scale (`satellitesInBody`) in place of the band. */
+export function RpgBandDate({ ambient, dateMode }: { readonly ambient: RpgTrackerView["ambient"]; readonly dateMode: RpgDateMode }): ReactElement | null {
+  const { context } = ambient === null ? { context: "" } : whenParts(ambient, dateMode);
+  return context === "" ? null : <BandDateLine context={context} />;
+}
+
+function BandWhen({ when, dateInBody }: { readonly when: ReturnType<typeof whenParts>; readonly dateInBody: boolean }): ReactElement | null {
+  const context = dateInBody ? "" : when.context;
+  if (context === "" && when.state === "") {
     return null;
   }
   return (
     <Stack gap="field" className="min-inline-0" data-slot="rpg-band-when">
-      {when.context === "" ? null : (
-        <Text as="span" ink="muted" voice="datum" cap="fit" clamp={2} wrap="word" data-slot="rpg-band-when-context">
-          {when.context}
-        </Text>
-      )}
+      {context === "" ? null : <BandDateLine context={context} />}
       {when.state === "" ? null : (
         <Text as="span" ink="muted" voice="datum" cap="fit" clamp={2} wrap="word" data-slot="rpg-band-when-state">
           {when.state}
@@ -199,7 +210,7 @@ export function RpgTakeoverHeader({
   );
 
   // THE SATELLITE ROW HAS TWO POSSIBLE HOMES, AND THE BAND IS ONLY ONE OF THEM (an owner ruling). At a large type scale the row leaves this band for the game tab's own scroll region
-  // (`rpg-game-tab-body.tsx`); `satellitesInBody` is the ONE derivation of which home it is in
+  // (`rpg-game-tab-body.tsx`), and the date line goes with it; `satellitesInBody` is the ONE derivation of which home it is in
   // (`use-rpg-context-state.ts`), so the two mounts can never both render it or both drop it. The row
   // itself, its coarse drop and its no-wrap ruling all live in `rpg-satellite-row.tsx`.
   const satellites = satellitesInBody ? null : <RpgSatelliteRow trackerOrbs={trackerOrbs} actors={actors} viewerUserId={viewerUserId} />;
@@ -245,11 +256,11 @@ export function RpgTakeoverHeader({
           {/* A clock or a date WITHOUT a place: honest about which half is missing. "No ambient set" is the
               COMPRESSED arm's copy and would be a lie here — the when-line right below it is ambient. The room's
               NAME lives in the center header, never in this band; this line is the scene's place, in the
-              WHEN-line's voice, with two lines before it clips. */}
-          <Text as="span" voice="gloss" clamp={2}>
+              `label` voice (foreground ink) one step above the `datum` WHEN-lines, with two lines before it clips. */}
+          <Text as="span" voice="label" clamp={2}>
             {location || "No location set"}
           </Text>
-          <BandWhen when={when} />
+          <BandWhen when={when} dateInBody={satellitesInBody} />
           <Row gap="field" align="center" wrap={true}>
             {cues}
           </Row>

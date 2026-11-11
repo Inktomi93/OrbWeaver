@@ -31,10 +31,11 @@ import { scrollBehavior } from "@orb/ui/lib";
 import { Heading, Text } from "@orb/ui/text";
 import type { ReactElement, ReactNode, RefObject } from "react";
 import { Fragment, useEffect, useId, useState } from "react";
-import { MemberDrillHeader, QueryBoundary, SettingsPane } from "#components";
+import { DetailHeader, QueryBoundary, returnFocusToRow, SettingsPane } from "#components";
 import { QueryErrorState, useSettingsViewerView } from "#data";
 import { SaveStatusHostContext } from "#forms";
-import { useFocusOnMount } from "#lib";
+import type { DrillBack } from "#lib";
+import { sectionBackName, useFocusOnMount } from "#lib";
 import type { CollectionGroupDefinition, ConfigGroupDefinition, ConfigGroupId, ConfigGroupRegistry, KindedSelection } from "#state";
 import {
   clearCollectionSelection,
@@ -254,25 +255,27 @@ interface ContentArmProps {
 function ContentArm({ groups, selection, active, collection }: ContentArmProps): ReactNode {
   if (selection !== null) {
     const group = groups.get(selection.kind as ConfigGroupId);
+    const back = collectionBack(group, selection.memberId);
     return (
       <Stack data-slot="config-member-frame" gap="block">
-        {/* THE DRILL ROW IS THE MEMBER SURFACE'S (#1747, §3.4) — see `CollectionDrillExit` below for why,
-            and for why the host still draws the EXIT while the member's own read is in flight.
-            THE ERROR ARM IS THE BATTERY, UNWRAPPED, by convention: the arrow renders `QueryErrorState`
-            directly, never a wrapper, so the exit cannot ride along there the way it rides the fallback. It costs nothing the reader needs — the
-            battery's own Retry is the verb for a failed read, the LIST band is still on screen at every
-            desktop width, and the phone's topbar carries its own Back. */}
+        {/* The drill row is the member surface's; the host draws it with the Back alone while the member's read is in
+            flight or has failed, so the exit is never missing (the Labels editor's host does the same). */}
         <QueryBoundary
           resetKeys={[group.id, selection.memberId]}
           fallback={
             <Stack gap="block">
-              <CollectionDrillExit group={group} />
+              <DetailHeader back={back} />
               <Text voice="gloss">Loading…</Text>
             </Stack>
           }
-          renderError={(_error, retry): ReactElement => <QueryErrorState label={group.label.toLowerCase()} onRetry={retry} />}
+          renderError={(_error, retry): ReactElement => (
+            <Stack gap="block">
+              <DetailHeader back={back} />
+              <QueryErrorState label={group.label.toLowerCase()} onRetry={retry} />
+            </Stack>
+          )}
         >
-          <MemberBody group={group} memberId={selection.memberId} />
+          <MemberBody back={back} group={group} memberId={selection.memberId} />
         </QueryBoundary>
       </Stack>
     );
@@ -321,41 +324,29 @@ function ContentArm({ groups, selection, active, collection }: ContentArmProps):
 }
 
 /**
- * THE EXIT ALONE — what the host draws while the member's own drill row cannot exist (the mock design §3.4).
- *
- * ═══ THE ROW MOVED TO THE MEMBER SURFACE; THE EXIT'S RULING SURVIVED (#1747) ══════════════════════════
- * The boards draw ONE row — `← Back to <library>` · the member's NAME · the member's own verbs — and this
- * host used to draw the Back alone, with the name and the verbs one row lower on the surface's own header.
- * A host `<Heading>` here was tried and printed the name TWICE (two CTs red on a strict-mode
- * `getByRole("heading", {name})`), because all four surfaces already render the member's name as their own
- * `h2`. The name has ONE author, so the whole row went to the party that has it: the surface draws
- * `MemberDrillHeader` out of the `library` this host hands down (`CollectionMemberView`).
- *
- * WHAT DID NOT MOVE is the ruling that put the Back OUTSIDE the suspense boundary: a member surface reads
- * through `useSuspenseQuery`, so a row that only the surface draws is absent for exactly the beat the
- * drilled reader most wants an exit. That ruling survives with a changed INPUT — this Back-only row is the
- * boundary's FALLBACK and its error arm, so precisely one of the two rows paints at any moment and the exit
- * is never missing. It carries the same `data-slot`, because it is the same row in its pending state.
- *
- * NO LIFECYCLE CHROME ON EITHER SPELLING (D212, #271). Delete is the ROW's kebab in every collection, and
- * the fork "the kebab is off-screen while drilled" is answered by this Back — precisely what world info's
- * entry level already does.
+ * THE ONE BACK for an open collection member (the mock design §3.4), built here once and drawn in two places: alone, as the
+ * suspense boundary's fallback, and by the member surface on its drill row once the read lands. The row has one author for
+ * the NAME (the surface), so the exit travels down; the Back sits outside the boundary so the exit is never missing while
+ * the member's read is in flight. Pressing it returns focus to the list row the member was opened from, or the list's
+ * root when that row is gone.
  */
-function CollectionDrillExit({ group }: { readonly group: ConfigGroupDefinition }): ReactNode {
-  if (!isCollectionGroup(group)) {
-    return null;
-  }
-  return <MemberDrillHeader back={{ label: `Back to ${group.label}`, onClick: (): void => clearCollectionSelection() }} />;
+function collectionBack(group: ConfigGroupDefinition, memberId: string): DrillBack {
+  return {
+    label: sectionBackName(group.label),
+    onClick: (): void => {
+      returnFocusToRow(memberId);
+      clearCollectionSelection();
+    },
+  };
 }
 
-/** The open member's editor — the owning collection's `detail`, mounted, with the LIBRARY's own label so the
- *  surface can draw its drill row's exit (#1747). A selection can only name a collection group (its rows are
- *  the only writers), so the narrowing is a type fact, not a runtime guess. */
-function MemberBody({ group, memberId }: { readonly group: ConfigGroupDefinition; readonly memberId: string }): ReactNode {
+/** The open member's editor — the owning collection's `detail`, mounted, with the host's Back. A selection can only name a
+ *  collection group (its rows are the only writers), so the narrowing is a type fact, not a runtime guess. */
+function MemberBody({ group, memberId, back }: { readonly group: ConfigGroupDefinition; readonly memberId: string; readonly back: DrillBack }): ReactNode {
   if (!isCollectionGroup(group)) {
     return null;
   }
-  return <ConfigMemberAnchor>{group.body.collection.detail({ memberId, library: group.label })}</ConfigMemberAnchor>;
+  return <ConfigMemberAnchor>{group.body.collection.detail({ memberId, back })}</ConfigMemberAnchor>;
 }
 
 /** The active group's body — reads the definition blind over the §3.1 body union (as amended by §6.8): a

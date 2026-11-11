@@ -1,16 +1,9 @@
 import { EditableTagChip, QueryBoundary, TagEditorBody } from "@orb/client/components";
-import { SkeletonRows, useInvalidation, useOrbSocket, useSuspenseQuery, useTRPC, useUserBus } from "@orb/client/data";
+import { SkeletonRows, useSuspenseQuery, useTRPC } from "@orb/client/data";
 import type { TagView } from "@orb/contracts/tag";
 import type { TagId } from "@orb/kit/ids";
-import { CtClientProviders } from "@orb/testkit/browser";
-import type { ReactElement, ReactNode } from "react";
-
-function TagEvents({ children }: { readonly children: ReactNode }): ReactElement {
-  const invalidation = useInvalidation();
-  useOrbSocket();
-  useUserBus({ invalidateUser: invalidation.invalidateUser, invalidateAllUserRoots: invalidation.invalidateAllUserRoots });
-  return <>{children}</>;
-}
+import { CtClientProviders, CtUserBus } from "@orb/testkit/browser";
+import type { ReactElement } from "react";
 
 function TagEditor({ tagId }: { readonly tagId: TagId }): ReactElement {
   const trpc = useTRPC();
@@ -26,11 +19,11 @@ function TagEditor({ tagId }: { readonly tagId: TagId }): ReactElement {
 export function TagEditorStory({ tagId }: { readonly tagId: TagId }): ReactElement {
   return (
     <CtClientProviders>
-      <TagEvents>
+      <CtUserBus>
         <QueryBoundary resetKeys={[tagId]} fallback={<SkeletonRows count={3} />}>
           <TagEditor tagId={tagId} />
         </QueryBoundary>
-      </TagEvents>
+      </CtUserBus>
     </CtClientProviders>
   );
 }
@@ -39,9 +32,9 @@ export function TagEditorStory({ tagId }: { readonly tagId: TagId }): ReactEleme
 export function TagEditorChipStory({ tag }: { readonly tag: TagView }): ReactElement {
   return (
     <CtClientProviders>
-      <TagEvents>
+      <CtUserBus>
         <EditableTagChip tag={tag} />
-      </TagEvents>
+      </CtUserBus>
     </CtClientProviders>
   );
 }

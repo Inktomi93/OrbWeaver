@@ -87,7 +87,12 @@ export type RpcResult =
 
 export type BrokerBridgeResult = { readonly kind: "bridge-result"; readonly id: string } & RpcResult;
 
-export type ParentBrokerMessage = BrokerCommand | BrokerBridgeResult | { readonly kind: "bridge-cancel"; readonly id: string };
+export type ParentBrokerMessage =
+  | BrokerCommand
+  | BrokerBridgeResult
+  | { readonly kind: "bridge-cancel"; readonly id: string }
+  /** The parent's backstop for this command ran out: if the broker still holds it, it ends the runtime's Worker as stuck. */
+  | { readonly kind: "end-runtime"; readonly runtimeId: string; readonly commandId: string };
 
 export type BrokerParentMessage =
   | ({ readonly kind: "response"; readonly id: string } & RpcResult)
@@ -102,6 +107,9 @@ export type BrokerParentMessage =
   | { readonly kind: "bridge-cancel"; readonly id: string }
   | { readonly kind: "log"; readonly runtimeId: string; readonly label: string; readonly level: PluginLogLevel; readonly message: string }
   | { readonly kind: "runtime-crashed"; readonly runtimeId: string; readonly error: RpcError }
+  /** The broker terminated this runtime's Worker for running guest code past its window. The logical instance is not
+   *  crashed: its next call builds a fresh runtime. `error` is the ended refusal when no pending command carried it. */
+  | { readonly kind: "runtime-ended"; readonly runtimeId: string; readonly error?: RpcError }
   | { readonly kind: "authority-released"; readonly runtimeId: string; readonly authorityId: string };
 
 export type BrokerWorkerMessage =

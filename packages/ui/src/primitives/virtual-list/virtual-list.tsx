@@ -1,6 +1,6 @@
 import { useVirtualizer } from "@tanstack/react-virtual";
-import type { ReactElement, ReactNode } from "react";
-import { useLayoutEffect, useRef } from "react";
+import type { ReactElement, ReactNode, Ref } from "react";
+import { useImperativeHandle, useLayoutEffect, useRef } from "react";
 import type { VariantProps } from "tailwind-variants";
 import type { GapToken } from "#lib";
 import { assertBoundedScrollHeight, cn, gapPxFor, SCROLL_EDGE_EPSILON_PX } from "#lib";
@@ -9,7 +9,14 @@ import { virtualListVariants } from "./variants.ts";
 // TanStack's own default, made explicit.
 const OVERSCAN = 1;
 
+/** What a caller may ask of a mounted list: bring a row that is outside the window into it, so the row mounts. */
+export interface VirtualListHandle {
+  /** Scrolls the row with this key into the window. False when no item has the key. */
+  readonly scrollToKey: (key: string | number) => boolean;
+}
+
 export interface VirtualListProps<T> extends VariantProps<typeof virtualListVariants> {
+  readonly ref?: Ref<VirtualListHandle>;
   readonly items: readonly T[];
   /**
    * Stable per-item key — MUST be id-based, never the index. Index keys break prepend stability
@@ -67,9 +74,10 @@ const EDGE_FADE = "data-more:mask-b-from-90%";
  * The `@tanstack/react-virtual` seal: a windowed list whose virtualizer config the call site
  * cannot get wrong (`directDomUpdates`/`containerRef`/`useFlushSync: false`/position-mode DOM
  * updates/measureElement + data-index wiring). `grow`, `height` or the parent must bound the
- * list's height: an unbounded scroll element throws at mount.
+ * list's height: an unbounded scroll element throws at mount. A `grow` list cannot be unbounded: its rows never size its box.
  */
 export function VirtualList<T>({
+  ref,
   items,
   getItemKey,
   estimateSize,
@@ -122,6 +130,17 @@ export function VirtualList<T>({
       virtualizer.shouldAdjustScrollPositionOnItemSizeChange = undefined;
     };
   }, [virtualizer]);
+
+  useImperativeHandle(ref, () => ({
+    scrollToKey: (key): boolean => {
+      const index = items.findIndex((item, at) => getItemKey(item, at) === key);
+      if (index === -1) {
+        return false;
+      }
+      virtualizer.scrollToIndex(index, { align: "auto" });
+      return true;
+    },
+  }));
 
   // The unbounded-window tripwire — thrown, not warned.
   useLayoutEffect(() => assertBoundedScrollHeight(scrollRef.current, "VirtualList"), []);

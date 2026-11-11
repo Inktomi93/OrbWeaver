@@ -21,6 +21,13 @@ The law requires every dialog to have a way out, and a phone has no Escape key.
 
 Both render a close control with an accessible name from a production copy module, and a component test closes each with it.
 
+## Sites
+
+| Site | What it is |
+| - | - |
+| `packages/ui/src/content/lightbox/lightbox.tsx:31` | Raw dialogs in `packages/ui` |
+| `packages/ui/src/content/immersive-card/immersive-card.tsx:190` | Raw dialogs in `packages/ui` |
+
 ## Evidence
 
 Filled at landing: what ran and where its output is.

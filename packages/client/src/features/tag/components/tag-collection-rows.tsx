@@ -10,11 +10,12 @@ import { Stack } from "@orb/ui/layout";
 import { MenuItem } from "@orb/ui/menu";
 import { SortableList } from "@orb/ui/sortable";
 import { Text } from "@orb/ui/text";
+import type { VirtualListHandle } from "@orb/ui/virtual-list";
 import { VirtualList } from "@orb/ui/virtual-list";
-import type { ReactElement } from "react";
+import type { ReactElement, RefCallback } from "react";
 import { useLayoutEffect, useRef, useState } from "react";
 import type { ConfirmedAction } from "#components";
-import { ConfirmDialog, LibraryRow, usePruneUnusedTags, useRemoveTag, useSetTagOrder } from "#components";
+import { ConfirmDialog, LibraryRow, usePruneUnusedTags, useRemoveTag, useRowDeleteFocus, useSetTagOrder } from "#components";
 import type { Invalidation, Trpc } from "#data";
 import { useInvalidation, useSuspenseQuery, useTRPC } from "#data";
 import {
@@ -50,18 +51,34 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
   const needle = view.filter.trim().toLowerCase();
   const matched = needle === "" ? tags : tags.filter((tag) => tag.name.toLowerCase().includes(needle));
   const filtered = sortTagsBy(matched, sortMode);
+  // The finder's rows take focus back by key, whichever container holds them: across the swap between the drag list and the
+  // window at the cap, and on the Back from the tag a row opened. The root is where focus lands when no row can take it.
+  const listRootRef = useRef<HTMLDivElement>(null);
+  const windowRef = useRef<VirtualListHandle>(null);
+  const rowFocus = useRowDeleteFocus(
+    listRootRef,
+    filtered.map((tag) => tag.id),
+    windowRef,
+  );
   const renderRow = (tag: TagWithUsage): ReactElement => (
     <Stack data-label-row={tag.id} key={tag.id}>
-      <TagCollectionRow onDelete={deletion.requestDelete(tag)} onSelect={(): void => view.onSelect(tag.id)} selected={view.selectedId === tag.id} tag={tag} />
+      <TagCollectionRow
+        bodyRef={rowFocus.bodyRef(tag.id)}
+        onDelete={deletion.requestDelete(tag)}
+        onSelect={(): void => view.onSelect(tag.id)}
+        selected={view.selectedId === tag.id}
+        tag={tag}
+      />
     </Stack>
   );
 
-  const windowed = tags.length > COLLECTION_LARGE_GROUP;
-  const draggable = !windowed && sortMode === "manual";
+  // Drag handles cannot live in a window, so the manual order drags only while the whole library fits one list; every other
+  // reading order is the window at every size.
+  const draggable = sortMode === "manual" && tags.length <= COLLECTION_LARGE_GROUP;
   const empty = filtered.length === 0;
   const filterMiss = empty && needle !== "";
   return (
-    <Stack minHeight="shrinks" grow={true} gap="tight">
+    <Stack focusTarget={true} grow={true} gap="tight" ref={listRootRef} tabIndex={-1}>
       {filterMiss ? (
         <EmptyState
           action={
@@ -85,16 +102,16 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
         // No action: the finder's band carries the one New tag, and one verb on one screen is the ruled count.
         <EmptyState action={null} icon={<Icon icon={Tag} size="lg" />} title={LABELS_NONE} />
       ) : null}
-      {empty || !windowed ? null : (
+      {empty || draggable ? null : (
         <VirtualList
           aria-label={TAG_LIST_NAME}
-          className="min-block-0"
           grow={true}
           estimateSize={(): number => ESTIMATED_ROW_PX.subtitled}
           fadeEdge={true}
           gapToken="field"
           getItemKey={(tag): string => tag.id}
           items={filtered}
+          ref={windowRef}
           renderItem={renderRow}
         />
       )}
@@ -108,16 +125,6 @@ export function TagCollectionRows({ view }: { readonly view: TagRowsView }): Rea
           onReorder={(orderedKeys): void => setOrder.mutate({ orderedIds: orderedKeys.map((key) => typeIdSchema(ID_PREFIX.tag).parse(key)) })}
           renderItem={renderRow}
         />
-      )}
-
-      {empty || windowed || draggable ? null : (
-        <Stack aria-label={TAG_LIST_NAME} gap="field" role="list">
-          {filtered.map((tag, index) => (
-            <Stack aria-posinset={index + 1} aria-setsize={filtered.length} key={tag.id} role="listitem">
-              {renderRow(tag)}
-            </Stack>
-          ))}
-        </Stack>
       )}
 
       <LabelsPruneConfirm tags={tags} deps={{ trpc, invalidation }} />
@@ -273,7 +280,9 @@ function TagCollectionRow({
   selected,
   onSelect,
   onDelete,
+  bodyRef,
 }: {
+  readonly bodyRef: RefCallback<HTMLElement>;
   readonly tag: TagWithUsage;
   readonly selected: boolean;
   readonly onSelect: () => void;
@@ -281,6 +290,7 @@ function TagCollectionRow({
 }): ReactElement {
   return (
     <LibraryRow
+      bodyRef={bodyRef}
       actions={{
         name: tag.name,
         menuItemsAfter: (

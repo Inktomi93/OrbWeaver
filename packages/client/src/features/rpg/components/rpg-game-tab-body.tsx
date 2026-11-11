@@ -34,6 +34,7 @@ import type { ReactElement, ReactNode } from "react";
 import type { RpgPanelState } from "../hooks/use-rpg-context-state.ts";
 import { useRpgContextState } from "../hooks/use-rpg-context-state.ts";
 import { RpgSatelliteRow } from "./rpg-satellite-row.tsx";
+import { RpgBandDate } from "./rpg-takeover-header.tsx";
 
 export interface RpgGameTabBodyProps {
   readonly chatId: ChatId;
@@ -52,6 +53,7 @@ export function RpgGameTabBody({ chatId, render }: RpgGameTabBodyProps): ReactEl
   }
   return (
     <Stack gap="block">
+      <RpgBandDate ambient={state.tracker.ambient} dateMode={state.game.publicConfig.dateMode} />
       <RpgSatelliteRow trackerOrbs={state.tracker.trackerOrbs} actors={state.tracker.actors} viewerUserId={state.viewerUserId} />
       {render(state)}
     </Stack>

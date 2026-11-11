@@ -169,7 +169,6 @@ export function CharacterLibraryBody({
     <Stack minHeight="shrinks" height="fill">
       <VirtualList
         aria-label={ariaLabel}
-        className="min-block-0"
         grow={true}
         endApproachRows={listProps.endApproachRows}
         estimateSize={(): number => ESTIMATED_ROW_PX.portrait}

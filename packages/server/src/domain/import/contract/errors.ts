@@ -5,6 +5,7 @@
 // `createCharacterSchema`). The not-found path (`import-chats` into a missing character) is the chats
 // wave — its `DomainNotFoundError` re-export lands with that verb, not in this card slice.
 
+import type { CARD_REFUSAL_CODES } from "@orb/contracts/import";
 import { DomainOperationError } from "@orb/kit/errors";
 
 // The chats wave (`importChats` into a non-owned/missing character) throws the SHARED `DomainNotFoundError`
@@ -12,11 +13,11 @@ import { DomainOperationError } from "@orb/kit/errors";
 // through this module; transport already discriminates the shared kit error, so no import-domain re-home is
 // needed). This note is the pointer the spec's "re-export here" line intended.
 
-const IMPORT_CARD_ERROR_CODES = ["card_unreadable", "card_invalid"] as const;
-export type ImportCardErrorCode = (typeof IMPORT_CARD_ERROR_CODES)[number];
+export type ImportCardErrorCode = (typeof CARD_REFUSAL_CODES)[number];
 
 /** The supplied bytes are not a readable/valid character card (see header for the `code` split). */
 export class ImportCardError extends DomainOperationError {
+  declare readonly code: ImportCardErrorCode;
   constructor(code: ImportCardErrorCode, message: string) {
     super(code, message);
     this.name = this.constructor.name;
