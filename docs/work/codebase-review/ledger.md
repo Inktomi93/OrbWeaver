@@ -73,7 +73,8 @@ Operational traps already paid for — do not re-pay them:
 - `rg -r` takes a REPLACEMENT argument; it ate a search pattern once already. `-rn` is not
   "recursive, line-numbered". Same family: `-E` is an ENCODING flag, not an extended-regex flag —
   `-E 'a|b'` dies with "unknown encoding". The cluster forms (`-rn`, `-rln`) have now caused this
-  SIX times, always silently, always printing plausible rewritten output ("the n", "450-n").
+  SEVEN times, always silently, always printing plausible rewritten output ("the n", "450-n") —
+  the seventh was in the unwired unit, nearly filing a fake finding on the replaced word `n`.
   Prescription: spell `--count`, `--files-with-matches`, `--line-number` out long-form in this
   sweep. A short flag here costs seconds; a silent replace costs a wrong finding.
 
@@ -211,7 +212,7 @@ Review before anything that trusts these results.
 | tooling-eslint | tooling/src/eslint/ | L | reviewed (2) |
 | tooling-floor | tooling/src/floor/ | M | reviewed (4) |
 | tooling-configs | tooling/src/biome-config/, tooling/src/stack/ | S | reviewed (5) |
-| tooling-unwired | tooling/src/unwired/ | M | in-progress |
+| tooling-unwired | tooling/src/unwired/ | M | reviewed (2) |
 | tooling-codemods | tooling/src/codemods/ | M | queued |
 | tooling-doc | tooling/src/doc/ — carry the agent-sync remnants in `doc/ops/check.ts:3-5` (dead caller, dead `pnpm check:agents` refusal message) and `doc/index.ts:3`, already counted in `units/tooling-floor.md` F1; do not re-file | S | queued |
 | tooling-ui-facts | tooling/src/ui-facts/ | S | queued |
@@ -330,7 +331,7 @@ Triage fills this.
 | - | - | - | - |
 | P1 | 1 | 0 | root-ci |
 | P2 | 18 | 0 | root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, kit, contracts, tooling-floor, tooling-configs |
-| P3 | 27 | 16 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, root-docs, kit, contracts, db, tooling-floor, tooling-configs |
+| P3 | 29 | 16 | install-run, root-config, root-dts, root-lint-configs, scripts-patches, instruction-files, root-ci, root-dev-environment, root-docs, kit, contracts, db, tooling-floor, tooling-configs, tooling-unwired |
 
 Standing hunt for every unit: comments citing `tests/legacy` paths — the D333 retirement moved
 those suites and never re-pointed the prose, and the citation gate
@@ -403,3 +404,12 @@ debug-surface knob foundation/env declares" and the server has since grown a fou
 (`WIRE_CAPTURE_REPLY`, deliberately excluded for a documented reason the tuple never states).
 Six of eight header claims in the unit verified TRUE — where the prose is coupled, the pin
 exists; every finding here is a claim whose coupling was never written down.
+
+The tooling-unwired unit ate the sweep's first prediction-miss and it strengthens the thesis:
+the freshest module in the tree (zero archaeology, zero catches to swallow, zero dead cites,
+header claims true on first probe) shows rot is a function of neglect, not of prose-as-such —
+this module's sentences sit under rank-7 active plan work and get re-read. Its two P3s are
+one-step drift (a world list that claims to equal typecheck's set while typecheck grew an iso
+world; a half-adopted verb word), and it ships the sweep's second ledger-facing generate-and-diff
+door (`ruled-ops.test.ts` parses ADR 0337's table against the rulings tuple) — the enum-tuples
+habit reaching the decision record, which is the triage item's exact direction.
