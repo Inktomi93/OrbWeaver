@@ -1,9 +1,10 @@
 // A single imported theme file reports the settings it carried that Orbweaver did not bring over, in a note beside the
 // grid that stays after the success toast: the count in its heading, the setting names behind a disclosure. A file that
-// left nothing behind shows no note, and the next import replaces the last note. The server is the real settings verb on
+// left nothing behind shows no note, and the next import replaces the last note, a refused one included. The server is the real settings verb on
 // a corpus root, so the leftovers are what production computed for the file.
 // @subject packages/client/src/features/config/components/appearance-looks-section.tsx
 // @subject packages/client/src/features/config/components/theme-import-leftovers.tsx
+import { watchToastMounts } from "@orb/testkit/browser/spec";
 import { routeTrpc, serveCorpusProcedures } from "@orb/testkit/ct";
 import { expect, test } from "@orb/testkit/ct-corpus";
 import { createCorpusHarness } from "@orb/testkit/node/composed";
@@ -23,7 +24,11 @@ const NATIVE_THEME = { name: "Native", override: { background: "oklch(0.2493 0.0
 const ST_LANDED_NAME = "Azure (SillyTavern)";
 
 async function importFile(page: Page, name: string, theme: object): Promise<void> {
-  await page.locator('input[type="file"]').setInputFiles({ name, mimeType: "application/json", buffer: Buffer.from(JSON.stringify(theme)) });
+  await importText(page, name, JSON.stringify(theme));
+}
+
+async function importText(page: Page, name: string, text: string): Promise<void> {
+  await page.locator('input[type="file"]').setInputFiles({ name, mimeType: "application/json", buffer: Buffer.from(text) });
 }
 
 test("a SillyTavern theme that left settings behind reports their count, with the names behind a disclosure", async ({ mount, page }) => {
@@ -55,4 +60,22 @@ test("a file with nothing left behind shows no note, and a later import clears a
   await importFile(page, "native.json", NATIVE_THEME);
   await expect(page.locator(NOTE)).toHaveCount(0);
   expect(rpc.count("settings.importThemeFile")).toBe(2);
+});
+
+test("a refused import clears the note of the import before it, and the refusal is said where it already is", async ({ mount, page }) => {
+  await using root = await createCorpusHarness();
+  const rpc = await routeTrpc(page, serveCorpusProcedures(await root.internalCallerFor(root.ownerId), PROCEDURES));
+  const toastMounts = await watchToastMounts(page);
+  await mount<typeof LooksImportStory>(STORY, {});
+
+  // The control: the first import raises the note and its success toast.
+  await importFile(page, "azure.json", ST_THEME);
+  await expect(page.locator(NOTE)).toBeVisible();
+  await expect.poll(toastMounts).toBe(1);
+
+  // Text no theme parser reads: the real verb refuses it, and its refusal is the second toast.
+  await importText(page, "broken.json", "{ not a theme");
+  await expect.poll(toastMounts).toBe(2);
+  expect(rpc.count("settings.importThemeFile")).toBe(2);
+  await expect(page.locator(NOTE)).toHaveCount(0);
 });

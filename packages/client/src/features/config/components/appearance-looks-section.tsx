@@ -170,11 +170,15 @@ function LooksBody(): ReactElement {
   };
 
   const onImportFile = async (file: File): Promise<void> => {
+    // The note describes the last import, so starting a new one clears it whatever the outcome: a refusal leaves none behind either.
+    setLeftovers(null);
     try {
       const landed = await importTheme.mutateAsync({ fileText: await file.text(), filename: file.name });
       notify.success(importedThemeMessage(landed));
-      // The toast leaves; the note stays beside the grid, replaced by the next import. A file that left nothing behind clears the last one.
-      setLeftovers(landed.unmapped.length === 0 ? null : { themeName: landed.name, keys: landed.unmapped });
+      // The toast leaves; the note stays beside the grid until the next import starts.
+      if (landed.unmapped.length > 0) {
+        setLeftovers({ themeName: landed.name, keys: landed.unmapped });
+      }
     } catch (error) {
       notify.error(error instanceof Error ? error.message : "Couldn't import the theme.");
     }
