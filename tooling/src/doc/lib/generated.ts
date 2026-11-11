@@ -1,6 +1,6 @@
 // What the generated files SHOULD contain, derived from the governed docs: the four tree indexes and
 // every plan's `tasks.md`. `pnpm doc index` writes this map; the checker compares the tree against it. Each
-// rendered file goes through the repo's markdown formatter so the bytes match what `check:docs` wants.
+// rendered file goes through the repo's markdown formatter so the bytes match what `pnpm doc format --check` wants.
 import type { DocSummary, GovernedDoc, WorkItem } from "../contract/types.ts";
 import { DOC_TOOL_TREES } from "../contract/vocab.ts";
 import { formatMarkdown } from "../ops/format.ts";

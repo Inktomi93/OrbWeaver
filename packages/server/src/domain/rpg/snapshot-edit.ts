@@ -1,5 +1,5 @@
 // domain/rpg/snapshot-edit — the shared hand-edit machinery over the CURRENT resolved snapshot (D58
-// §4.4). A domain-root I/O-wrapping helper (the `turn-staging.ts`/`guard.ts` I/O-root precedent — it awaits
+// §4.4). A domain-root I/O-wrapping helper (the `guard.ts` I/O-root precedent — it awaits
 // the db + can't live in zero-I/O `substrate/`, and verb-to-verb VALUE imports are banned).
 // editSnapshot / upsertQuest / deleteQuest / patchActor / dismissActor all write the swipe-volatile plane by
 // hand; they share ONE mechanism: resolve the current snapshot (the resolution-ladder head), produce the next

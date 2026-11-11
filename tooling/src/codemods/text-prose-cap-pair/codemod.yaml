@@ -1,7 +1,7 @@
 schema_version: "1.0"
 name: "text-prose-cap-pair"
 version: "0.1.0"
-description: "Add cap=\"prose\" beside prose={true} on a Text: the prose size without the prose measure runs a paragraph the full row."
+description: "Add cap=\"prose\" beside prose={true} on a Text: the prose size without the prose measure runs a paragraph the full row. Kept because the rewrite is not applied: client Text elements still carry prose={true} with no cap, and a dry run lists them."
 author: "Orbweaver"
 license: "AGPL-3.0-only"
 targets:

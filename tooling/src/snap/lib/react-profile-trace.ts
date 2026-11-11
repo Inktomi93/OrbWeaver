@@ -1,7 +1,7 @@
 // React trace capture for Snap's `--react-profile` arm: the CDP tracing session that brackets the React
 // development-renderer read, the Performance.getMetrics clock calibration, and the projection of the raw
-// trace into React track events. Split out of ops/arms/profile.ts when that file crossed the tooling size
-// cap (2026-09-04); the arm owns the browser lifecycle and calls start/stop, this file owns the trace.
+// trace into React track events. Split out of ops/arms/profile.ts;
+// the arm owns the browser lifecycle and calls start/stop, this file owns the trace.
 import { errorMessage } from "@orb/kit/error-message";
 import { finiteNumberOrNull } from "@orb/kit/guards";
 import type { CDPSession, Page } from "@playwright/test";

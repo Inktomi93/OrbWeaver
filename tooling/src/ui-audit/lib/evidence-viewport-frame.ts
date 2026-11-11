@@ -1,6 +1,6 @@
 // THE VIEWPORT-FRAME REFUSAL — design-audit's sixth partial-verdict channel (lane cb-audit-viewport,
-// 2026-09-20). Its own module rather than a tenth arm in lib/evidence.ts because that file sits four
-// lines under Core-Tooling-Law's hard cap; the ladder it joins, and the ladder's ORDER, are owned by
+// 2026-09-20). Its own module rather than a tenth arm in lib/evidence.ts, whose header lands each new evidence
+// family as a sibling module; the ladder it joins, and the ladder's ORDER, are owned by
 // snap/ops/design-audit-walk.ts exactly as every other channel's are.
 //
 // THE DEFECT IT CLOSES. `snap --file <connections mock> --design-audit

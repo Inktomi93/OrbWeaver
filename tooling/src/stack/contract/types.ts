@@ -2,6 +2,10 @@
 // launcher make is typed here; the imperative half (spawn, signal, poll, probe) lives in ops/.
 import type { NetworkInterfaceInfo } from "node:os";
 import type { AuthMode } from "@orb/contracts/identity";
+import { AUTH_FALLBACK_KEY, AUTH_MODE_KEY } from "@orb/contracts/identity";
+import { SESSION_SECRET_ENV } from "@orb/server/foundation/data-layout";
+import type { EnvKey } from "@orb/server/foundation/env/record";
+import { DEBUG_TOKEN_ENV, LOCAL_INITIAL_PASSWORD_ENV } from "@orb/server/foundation/env/record";
 import type { PortPair } from "../../floor/host/ports.ts";
 import type { FullPriorityChild } from "../../floor/process/proc-contract.ts";
 
@@ -59,8 +63,16 @@ export type StackCommandParse = { readonly ok: true; readonly command: StackComm
 // ── The dev stack: pins, context, the leader record ──────────────────────────────────────────────────
 
 /** The env keys the dev stack pins when the host leaves them unset: the auth mode, its dev-only secrets and
- *  the seed stamp. A host export wins; the pin fills the gap. */
-export const DEV_PIN_KEYS = ["AUTH_FALLBACK", "AUTH_MODE", "SESSION_SECRET", "CREDENTIALS_KEY", "LOCAL_INITIAL_PASSWORD", "DEV_SEED"] as const;
+ *  the seed stamp. A host export wins; the pin fills the gap. Keys with no exported constant are checked
+ *  against the server's env record. */
+export const DEV_PIN_KEYS = [
+  AUTH_FALLBACK_KEY,
+  AUTH_MODE_KEY,
+  SESSION_SECRET_ENV,
+  "CREDENTIALS_KEY",
+  LOCAL_INITIAL_PASSWORD_ENV,
+  "DEV_SEED",
+] as const satisfies readonly EnvKey[];
 export type DevPinKey = (typeof DEV_PIN_KEYS)[number];
 
 export const PIN_SOURCES = ["host", "pinned"] as const;
@@ -143,10 +155,11 @@ export interface LeaderProbes {
 
 // ── The debug overlay ────────────────────────────────────────────────────────────────────────────────
 
-/** The env keys `--debug` arms — every debug-surface knob `foundation/env` declares.
+/** The env keys `--debug` arms: every debug-surface knob `foundation/env` declares except `WIRE_CAPTURE_REPLY`,
+ *  which stays off unless set on its own, because reply prose must never be implied by request capture.
  *  `DEBUG_TOKEN` gates /api/_debug/* · `WIRE_CAPTURE` records outbound provider request bodies ·
  *  `RPG_TRACE` wires the rpg flight recorder read at /api/_debug/rpg/traces. */
-export const DEBUG_ENV_KEYS = ["DEBUG_TOKEN", "WIRE_CAPTURE", "RPG_TRACE"] as const;
+export const DEBUG_ENV_KEYS = [DEBUG_TOKEN_ENV, "WIRE_CAPTURE", "RPG_TRACE"] as const satisfies readonly EnvKey[];
 export type DebugEnvKey = (typeof DEBUG_ENV_KEYS)[number];
 
 export interface DebugConflict {

@@ -3,8 +3,7 @@
 //
 // IT CARRIES ITS OWN `when`, and that is the whole placement decision. The Plugins PANE must stay ungated —
 // every user has their own plugins and hiding them is the failure D147 exists to prevent — so the admin half
-// can only be a section with a viewer gate of its own. `plugins-pane.tsx`'s header predicted exactly this
-// shape ("a separate section or pane, never a gate on this one"). The gate is UX, not authority: all three
+// can only be a section with a viewer gate of its own, never a gate on the plugins section. The gate is UX, not authority: all three
 // verbs behind it are `adminProcedure` + a domain `requireAdmin`, so a member who somehow rendered this could
 // still do nothing.
 //

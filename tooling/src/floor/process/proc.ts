@@ -27,7 +27,7 @@ import type {
 import { inheritedProcessEnv } from "./process-env.ts";
 import { launcherCommand, lowerChildPriority, nicedCommand, supervisedEnv } from "./process-priority.ts";
 
-/** The doors' option + result shapes live in ./proc-contract.ts (split at the 450-line cap, #2242) and
+/** The doors' option + result shapes live in ./proc-contract.ts and
  *  are re-exported here for the same reason `PrunedRun` is re-exported from ../artifacts/artifacts.ts: this module is
  *  the subprocess door every instrument imports, and where a pure type is authored is not a fact its
  *  callers should have to track. Nothing that SPAWNS may leave this file — see that module's header. */

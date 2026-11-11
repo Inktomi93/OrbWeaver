@@ -170,7 +170,7 @@ export function slotCensus(root: string, instrument: string): readonly SlotCensu
 /** Is there an alias here at all, and is it a POINTER? `lstat`, never `stat`: a dangling symlink must read as
  *  a dangling POINTER, not as an absent file. */
 function aliasKind(path: string): "symlink" | "file" | "absent" {
-  // the throw is the absent answer; resolvePointer carries it as state absent, which resolveReport in show-stage.ts refuses with the command to run first. Ends if absent stops reaching that refusal.
+  // the throw is the absent answer; resolvePointer carries it as state absent.
   try {
     return lstatSync(path).isSymbolicLink() ? "symlink" : "file";
   } catch {
@@ -227,7 +227,7 @@ export function resolvePointer(root: string, instrument: string, alias: string):
 }
 
 /** The repo-relative slot spelling a provenance line prints. Derived from the SAME path home the writer used
- *  (`reportsPath`), never a second `reports/…` literal (policy `tooling-artifact-path-home`). */
+ *  (`reportsPath`), never a second `reports/…` literal. */
 function relDirOf(root: string, instrument: string, runIdValue: string): string {
   return join(instrumentRunsDir(root, instrument), runIdValue).slice(root.length + 1);
 }

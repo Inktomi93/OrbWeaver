@@ -489,9 +489,8 @@ test("the withholding is keyed on the FLAG, not on the number — the same box f
   expect(checkTapTarget({ selector: "button.edge", width: 18, height: 18 }, false)?.severity).toBe("P1");
 });
 
-// #1381: the priced sub-floor ruling lived only in a source comment (the `orb/sub-floor-disclosure` home, once spelled `@sub-floor-ok`), which no DOM
-// walker can read, so two independent cold audits of /chats filed the same P1 hours apart. The control
-// now DECLARES it (`data-target-floor="sub-floor-ok"`), and the rule honours the declaration at FINE
+// A source comment is invisible to a DOM walker, so the priced sub-floor ruling is DECLARED on the control
+// (`data-target-floor="sub-floor-ok"`), and the rule honours the declaration at FINE
 // pointer only — the arm below where it must NOT is the whole reason this is a ruling and not a mute.
 test("a rendered sub-floor ruling excludes the candidate at FINE pointer and still FAILS at coarse", () => {
   const ruled = { selector: "[data-slot=collapsible-trigger]", width: 406, height: 16, ruledTargetFloor: "sub-floor-ok" } as const;

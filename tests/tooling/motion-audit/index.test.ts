@@ -1,8 +1,7 @@
 // @instrument-proof: every budget rule below is exercised by a PLANTED breach — an app-owned dirty
 // animation, a counterfeit Base UI attribution tuple, a real non-virtualized shift, a blocking LoAF past
-// 50ms — and each must come back FAILING. The markers moved here at #1315 when the retired `pnpm motion-audit`'s
-// argv door was deleted: the engine's proofs never lived in that CLI, and the gate's question is whether
-// this mirror carries both classes.
+// 50ms — and each must come back FAILING. The engine's proofs live in this mirror, not in a
+// CLI: motion-audit has no command of its own.
 // @instrument-absence-proof: an ABSENT apparatus and an EMPTY population are proven not to read clean —
 // no `__orb` bridge is zeros that are explicitly NOT a verdict, an empty raw frame population is an
 // evidence gap, and a null percentage is never rendered as 0%.

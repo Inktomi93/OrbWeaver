@@ -1,7 +1,7 @@
 // ui-audit in-page segment — the FORCED-STATE census's RULE COLLECTION and PAIR BUILDING (`:hover` AND
 // Base-UI state attributes). The denominator + grouping half is ops/hover-walker-groups.ts and the
 // read/verify closures are ops/hover-walker-read.ts — three segments of ONE function scope, split at the
-// rule-family seam for the tooling-size cap and composed IN ORDER by ops/hover.ts.
+// rule-family seam and composed IN ORDER by ops/hover.ts.
 // Raw JS in a template literal (no backticks / dollar-brace — see
 // floor/browser/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
 // Composed by ops/hover.ts, NOT by collectSamplesJs: this pass has a Node-side CDP round trip in

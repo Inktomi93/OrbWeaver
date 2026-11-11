@@ -43,7 +43,7 @@ import { repoRoot } from "./stage-git.ts";
 refuseDirectInvocation(import.meta.url, "pnpm snap --session <name> <route>");
 
 /** The daemon's entry is THIS tool's cli — derived from this module's own location, never from argv (the
- *  argv front door is cli.ts's alone, gate `tooling-argv-front-door`). */
+ *  argv front door is cli.ts's alone). */
 const SNAP_CLI = fileURLToPath(new URL("../cli.ts", import.meta.url));
 
 /** One request → the daemon's event stream, delivered in arrival order; resolves with the `done` exit.

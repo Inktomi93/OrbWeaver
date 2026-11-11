@@ -1,7 +1,7 @@
 // THE ONE GIT DOOR for tooling and test support: every git spawn names its repository root and drops the
 // `GIT_*` namespace a git hook exports to its children (`GIT_DIR`, `GIT_INDEX_FILE`, `GIT_WORK_TREE`), so a
-// command aimed at a planted repository never lands in the checkout running the hook. The
-// `tooling-os-neutral` policy reports a git spawn that bypasses this module.
+// command aimed at a planted repository never lands in the checkout running the hook. No lint rule
+// refuses a git spawn that bypasses this module.
 import type { RunNicedSyncOptions, RunNicedSyncResult } from "../process/proc.ts";
 import { execNicedSyncBuffer, runNicedSync } from "../process/proc.ts";
 import { inheritedProcessEnv } from "../process/process-env.ts";

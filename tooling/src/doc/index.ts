@@ -1,6 +1,5 @@
 // doc's programmatic front door (`pnpm doc`) — the docs system's one writer of structure: numbering,
-// status, supersession, work-item transitions, archiving, link rewrites and the generated indexes. The
-// rules it enforces are exported for `pnpm check:agents` (`agent-sync` runs `docLayerProblems`).
+// status, supersession, work-item transitions, archiving, link rewrites and the generated indexes.
 export type {
   Blocker,
   DescribedDoc,

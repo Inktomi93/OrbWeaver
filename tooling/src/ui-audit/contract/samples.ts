@@ -2,10 +2,8 @@
 // mirroring getComputedStyle/getBoundingClientRect. RawSamples at the bottom is the walker's return object.
 //
 // THIS FILE IS THE COMPOSITION HUB FOR A FAMILY OF `samples-*.ts` SIBLINGS, and that is the shape to keep:
-// a new sample family lands as a sibling re-exported from here, NEVER as another inline block. It sat at
-// the 450-line `tooling-size` cap with zero headroom until #2487, where the cap had already been paid in
-// the wrong currency — `documentFrame` lost its doc comment to fit, a trade the
-// cap never accepts; the typography family moved out to contract/samples-typography.ts to make the room.
+// a new sample family lands as a sibling re-exported from here, NEVER as another inline block. No tool
+// enforces a line cap, so never delete a comment to make room.
 import type { CoverStack, InactiveKind, Rgb } from "@orb/tooling/floor/instrument/wcag";
 // `Backdrop` MOVED to contract/backdrop.ts (see its header). Imported locally because the shapes below
 // USE it, and re-exported below so its consumers keep one import.
@@ -97,8 +95,8 @@ export interface ContrastInput {
   readonly unseenInFrame?: string;
 }
 
-// `ImageDistortionInput` MOVED to contract/samples-media.ts (2026-09-06, #1825) — same 450-line-cap split
-// reason as `BuriedRasterInput`'s own home there; re-exported below so existing consumers are unchanged.
+// `ImageDistortionInput` MOVED to contract/samples-media.ts (2026-09-06, #1825) — the same media family as
+// `BuriedRasterInput`'s own home there; re-exported below so existing consumers are unchanged.
 export type { ImageDistortionInput } from "./samples-media.ts";
 
 // ── Broken images (impeccable `broken-image`) ───────────────────────────────
@@ -109,8 +107,8 @@ export interface BrokenImageInput {
 
 export type { ObscuredScanInput, SubjectAccountingInput, ThemeRenderInput } from "./samples-evidence.ts";
 // ── The interactive census (tap targets · names · landmark · tabindex · doors · silhouettes · reach) ──
-// Re-exported, not re-declared: these shapes moved to contract/samples-interactive.ts when this file hit
-// the 450-line tooling cap (#797). `contract/samples.ts` stays the one door onto the sample vocabulary —
+// Re-exported, not re-declared: these shapes moved to contract/samples-interactive.ts
+// (#797). `contract/samples.ts` stays the one door onto the sample vocabulary —
 // and the import beside the re-export is load-bearing, because `RawSamples` below composes these names
 // (a bare `export … from` re-exports without binding them locally, which tsc catches and biome does not).
 export type {
@@ -210,9 +208,8 @@ export interface AccentBorderInput {
 // aggregator closed a type-only `no-circular` loop. Re-exported here so existing consumers are unchanged.
 
 // ── Ornament censuses (patterns · icon tiles · static motion) ────────────────────────────────────────
-// `BgPatternInput` / `IconTileInput` / `MotionStaticInput` MOVED to contract/samples-ornament.ts (#1315) —
-// the #797 split reason, one family over: this file was AT the 450-line cap and the boundary census needed
-// room. Re-exported below beside the other family doors; the import is load-bearing because `RawSamples`
+// `BgPatternInput` / `IconTileInput` / `MotionStaticInput` MOVED to contract/samples-ornament.ts (#1315),
+// one family per sibling. Re-exported below beside the other family doors; the import is load-bearing because `RawSamples`
 // composes these names (a bare `export … from` re-exports without binding them locally).
 export type { BgPatternInput, IconTileInput, MotionStaticInput } from "./samples-ornament.ts";
 
@@ -373,8 +370,7 @@ export interface RawSamples extends RelationalSamples {
   readonly obscuredScan?: ObscuredScanInput;
   /** Hover-painted texts measured in their FORCED `:hover` state, and that pass's own denominator
    *  (ops/hover.ts). Absent when the pass did not run — coarse pointer, a fixture set, a break — and
-   *  absent means NO accounting row at all, never a clean-looking zero. Inline imports: this file sits
-   *  ON the 450-line tooling cap with three lanes live in it, so these two fields cost no import line. */
+   *  absent means NO accounting row at all, never a clean-looking zero. */
   readonly hoverStates?: readonly import("./samples-hover.ts").HoverContrastInput[];
   readonly hoverScan?: import("./samples-hover.ts").HoverScanInput;
   readonly buriedRasters?: readonly import("./samples-media.ts").BuriedRasterInput[];
@@ -386,8 +382,6 @@ export interface RawSamples extends RelationalSamples {
   /** The page's own resting frame against the viewport the walk judged it at — REQUIRED for exactly
    *  `censusCaps`' reason above, since an absent-reads-as-fits field restores the silence the refusal
    *  exists to end. The full ruling (why the HEIGHT pair is carried and never judged, and why `worst` is
-   *  a bounded list beside a complete `total`) is on `DocumentFrameInput` in contract/samples-evidence.ts.
-   *  RESTORED at #2487: this comment was deleted to buy the one line the field cost when this file sat at
-   *  the 450-line cap, a trade the cap never accepts. */
+   *  a bounded list beside a complete `total`) is on `DocumentFrameInput` in contract/samples-evidence.ts. */
   readonly documentFrame: DocumentFrameInput;
 }

@@ -171,7 +171,7 @@ export interface TranscriptOptions {
   readonly cwd: string;
   readonly env: NodeJS.ProcessEnv;
   /** REQUIRED wall-clock ceiling (#1508). This door had NO timeout at all — the promise settled only on
-   *  `error`/`close`, so one wedged child hung the whole `pnpm verify` run forever with no verdict and no
+   *  `error`/`close`, so one wedged child hung its whole caller forever with no verdict and no
    *  artifact. Required rather than defaulted: how long a stage may legitimately take is the CALLER's
    *  policy, and a default here would silently pick one for a caller that never considered it. */
   readonly timeoutMs: number;

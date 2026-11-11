@@ -1,5 +1,4 @@
-// Assembles the ONE `WorkloadContributions` registry the workloads engine dispatches through — the
-// replacement for the RETIRED `runner-env.ts` cross-feature hub (deleted with its last runner). Each owning
+// Assembles the ONE `WorkloadContributions` registry the workloads engine dispatches through. Each owning
 // domain exports a standalone contribution FACTORY over its own verbs; this seam spreads them into a
 // kind-keyed registry. `reconcile-world-state` is the one exception: a RESERVED kind with no owner yet, so
 // workloads carries it as an inert stub (zero domain knowledge, which is what makes that legal).

@@ -1,7 +1,7 @@
 // THE FIDELITY JUDGEMENTS behind `ops/format.ts#formatMarkdown` — render (#2067), overflow (#2104),
 // template-span (#2067) and source (#2235) — PURE over an mdast tree and the source bytes, which is what
-// lets each law be held without the remark pipeline or a tree. Split out of the formatter at the size cap
-// (2026-09-18): the formatter's header states the laws and the order they run in, each function here
+// lets each law be held without the remark pipeline or a tree. Split out of the formatter:
+// the formatter's header states the laws and the order they run in, each function here
 // carries its own measured WHY, and the direction is one-way — this module imports nothing from `ops/`.
 
 /** The structural slice of an mdast node this comparison reads. `mdast`'s own types are a TRANSITIVE

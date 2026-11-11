@@ -4,7 +4,7 @@
 // element whose own centre hit-tests to a local neighbour, and the compositor-reach mechanism that makes
 // that answerable — MOVED to the sibling ops/walker/obscured-reach.ts (#2491); read that file's header
 // for why, and keep it composed immediately after this segment.
-// One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the segments IN
+// One IIFE, segmented by rule family: ops/walker.ts concatenates the segments IN
 // ORDER into collectSamplesJs, so scope/hoisting behavior is byte-identical to the pre-split monolith.
 // Raw JS in a template literal (no backticks / dollar-brace — see floor/browser/browser.ts for why a string,
 // not a function). Provenance + attribution: ops/walker.ts.

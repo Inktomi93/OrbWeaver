@@ -2,7 +2,7 @@
 // owner-ruled limits, the strand rule with its live-session fence, the ALLOCATOR that hands a lane its own
 // band, the exhaustion refusal, and the three-probe health verdict. No I/O — ops/stage-marker.ts reads and
 // writes the table, ops/stage-probe.ts observes the box, ops/stage.ts orchestrates. Split from
-// lib/stage-plan.ts (which keeps ports/paths/access/refusals) at the tooling line cap, §4.3.
+// lib/stage-plan.ts, which keeps ports/paths/access/refusals.
 //
 // WHY AN ALLOCATOR AT ALL. Before this, `snap --isolated` had ONE port pair, so a second lane wanting a
 // stage was a refusal by construction: four lanes were blocked in a single afternoon (2026-09-02,

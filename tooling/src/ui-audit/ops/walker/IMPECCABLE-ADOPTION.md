@@ -72,7 +72,7 @@ all there is. Orbweaver is a closed world with layers impeccable cannot have: th
 (`tokens.json` plus resolver), the variant layer (statically resolvable `tv()` class unions), the
 primitive layer (a closed `@orb/ui` set), and the cascade layer (merge trace, cascade trace, family
 ownership). A defect visible in pixels usually has an exact signature one or more layers up, where
-detection is cheaper, deterministic, and fires at `pnpm check` instead of needing a browser.
+detection is cheaper, deterministic, and fires in lint or a Node test instead of needing a browser.
 
 A rule that emits an existing finding id has no registry row of its own, and a rule-by-rule id diff
 cannot see it. Upstream's `checkHoverContrast` reuses the existing `low-contrast` id upstream, so a

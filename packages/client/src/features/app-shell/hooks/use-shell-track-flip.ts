@@ -5,15 +5,11 @@
 // are in shell.css. This is the data-attribute grammar the motion guide mandates (§1.5: no React
 // animation hook; Base UI drives its own enter/exit the same way with `data-starting-style`).
 //
-// THE FILE NAME MATCHES THE HOOK AGAIN (#2463). It shipped as `use-list-track-flip.ts` and stopped being
-// list-only at #2456, which took the second track as a second ARGUMENT rather than as a sibling file —
-// correct then and correct now (§1.5 says in as many words: "Anything else that reaches for JS to move
+// ONE HOOK TAKES BOTH TRACKS, the second as an ARGUMENT rather than as a sibling file (§1.5 says in as many words: "Anything else that reaches for JS to move
 // pixels is a defect, not a third member", and one hook is the only shape that can work: the two tracks
-// share ONE restart, ONE release and ONE composed distance per element). What #2456 deferred was the
-// NAME, because the motion law cites this PATH as one of the two members of its §1.5 FLIP-inversion
-// exception class and a rename is a law-doc edit. It is done here, with that citation
-// (`docs/law/motion-and-animation-guide.md` §1.5) moved in the same commit — the comment-citation suite
-// allows no exception, so the two can never be renamed apart.
+// share ONE restart, ONE release and ONE composed distance per element). The motion law cites this PATH as
+// one of the two members of its §1.5 FLIP-inversion exception class (`docs/law/motion-and-animation-guide.md`
+// §1.5), so a rename moves that citation in the same commit.
 //
 // TWO TRACKS, TWO ARMS, ONE STAMP. Each track's fact is stamped either as `data-<track>-flip` (motion
 // allowed — the animated FLIP) or as `data-<track>-settle` (motion reduced — the same counter-translate

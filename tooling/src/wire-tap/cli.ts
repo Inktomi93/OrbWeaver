@@ -2,7 +2,7 @@
 //   sse       (`pnpm sse-tap <chatId>`)  attach + stream the chat room's SSE frames
 //   captures  (`wire-tap captures …`)    read the wire-capture recorder (requests / --outcomes)
 //   trpc      (`wire-tap trpc <proc> …`) the uncookied dev tRPC harvest
-// Argv parse + dispatch ONLY (the five-slot cap); the programmatic surface is ./index.ts.
+// Argv parse + dispatch ONLY; the programmatic surface is ./index.ts (dependency-cruiser `tooling-cli-via-index`).
 // Incident instrument, idle-by-design: the CI proof is a
 // loopback fixture server, never the dev stack.
 // ZERO HYGIENE (#409): a tap's empty population is a LEGITIMATE outcome (a quiet-but-healthy room, a

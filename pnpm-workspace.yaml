@@ -89,7 +89,7 @@ catalog:
   # puppeteer-core: NOT a second browser — the ATTACH surface. Lighthouse drives a puppeteer Page
   # (`page.target().createCDPSession()` + a wildcard protocol listener), so snap connects puppeteer to the
   # SAME chromium Playwright already launched, over its `--remote-debugging-port` endpoint, and hands
-  # Lighthouse the handle for the exact target being driven (tooling/src/snap/ops/lighthouse.ts). Already
+  # Lighthouse the handle for the exact target being driven (tooling/src/snap/ops/arms/lighthouse.ts). Already
   # in the tree as lighthouse's own dependency; PINNED EXACT TO LIGHTHOUSE'S RESOLUTION so the two share
   # one installed copy — a drift here silently gives Lighthouse a page from a different puppeteer build.
   # Re-derive this pin on every `lighthouse` bump (`pnpm why puppeteer-core`).
@@ -353,7 +353,7 @@ catalog:
   "@trpc/tanstack-react-query": ^11.23.0
   # @tanstack/react-router: the KEPT runtime (UI-Arch KEEP list "Router-minimal") — committed
   # production stack, used MINIMALLY (~3 hand-written code-based routes: / · /login · /admin/*).
-  # NB: the FILE-BASED codegen (@tanstack/router-plugin + @tanstack/router-cli + routeTree.gen.ts) is
+  # NB: the FILE-BASED codegen (@tanstack/router-plugin + @tanstack/router-cli + the generated route tree) is
   # DELIBERATELY DROPPED (UI-Arch §6.1): hand-written code-based
   # tree; type-safety = inference + one `declare module { Register }`, not codegen. The vite build does
   # NOT wire tanstackRouter().

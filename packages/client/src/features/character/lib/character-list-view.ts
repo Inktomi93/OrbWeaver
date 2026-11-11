@@ -131,8 +131,8 @@ function pageLocalGroups<T extends FilterableRow>(
  *  An EXHAUSTIVE switch (not an `=== "OPEN"` test) is what makes that a DECISION per member: adding a
  *  fourth folder type, or building CLOSED for real, is a tsc error here instead of a silent default. A
  *  switch rather than the mapped Record the Spine's dispatch discipline also allows — the contract's
- *  members are SCREAMING_CASE, and an uppercase object key is a `useNamingConvention` error (the sibling
- *  `tags-model.ts` label table pays the same tax with a Map, which would lose the exhaustiveness). */
+ *  members are SCREAMING_CASE, and an uppercase object key is a `useNamingConvention` error (a Map would
+ *  pay that tax and lose the exhaustiveness). */
 export function groupStartsOpen(tag: RowTag | null): boolean {
   if (tag === null) {
     return true;

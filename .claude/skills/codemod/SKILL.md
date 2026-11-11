@@ -16,6 +16,7 @@ Each codemod is one directory under `tooling/src/codemods/`:
 | `scripts/codemod.ts` | the transform; default export plus an exported `getSelector` |
 | `tests/<case>/input.ts` and `expected.ts` | one fixture per case; a `tests/<case>/input/` and `expected/` pair when files are created or deleted, or when the codemod reads a config file from the target |
 | `tests-crossfile/<case>/input/` and `expected/` | a case that needs cross-file semantic resolution; verify it through `jssg run`, not `jssg test` |
+| `scripts/<second>.ts` with `tests-<second>/` | a second transform in the same codemod; its fixtures prove that script, not `scripts/codemod.ts` (`tooling/src/codemods/plugin-node-sources/scripts/node-schemas.ts`) |
 | `codemod.yaml` | name, description, target languages |
 | `workflow.yaml` | one `js-ast-grep` step per language with explicit `include` globs |
 
@@ -62,7 +63,7 @@ A rewrite that changes a type proves the new type is not wider. A wider type com
 
 Run from the repository root.
 
-1. `pnpm codemod jssg test -l typescript tooling/src/codemods/<name>/scripts/codemod.ts tooling/src/codemods/<name>/tests`
+1. `pnpm codemod jssg test -l typescript tooling/src/codemods/<name>/scripts/codemod.ts tooling/src/codemods/<name>/tests`. `pnpm test:tools tests/tooling/codemods/fixtures.suite.repo.int.test.ts` runs every codemod's fixtures.
 2. `pnpm typecheck tooling/src/codemods/tsconfig.json`
 3. `pnpm codemod workflow validate -w tooling/src/codemods/<name>`
 4. Dry-run against the real target and keep the event stream: `pnpm codemod workflow run -w tooling/src/codemods/<name> -t <dir> --dry-run --no-interactive --allow-dirty --format jsonl > <scratch>/dry.jsonl`. The workflow's `include` globs scope each language step. The text format prints no per-file result for a workflow dry run.

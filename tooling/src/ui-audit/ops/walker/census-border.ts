@@ -22,7 +22,7 @@
 // declare one has made the claim, and a declared boundary the eye cannot resolve is the defect. Inactive
 // controls carry WCAG 1.4.11's own exemption through the fleet-shared `INACTIVE_KIND_EXPR`.
 //
-// One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the segments IN
+// One IIFE, segmented by rule family: ops/walker.ts concatenates the segments IN
 // ORDER, so this one must sit AFTER WALKER_RESOLVE (`parseRgb`, `resolveBackdropUnder`) and after the core
 // primitives (`isVisible`, `isDevChrome`, `describe`). Raw JS in a template literal (no backticks /
 // dollar-brace — see floor/browser/browser.ts for why a string, not a function). Provenance: ops/walker.ts.

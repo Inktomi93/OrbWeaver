@@ -1,5 +1,4 @@
-// POPULATING A STAGE DIR — the source and the data, one command family, split out of ops/stage.ts when the
-// band table pushed it past the tooling line cap. Nothing here
+// POPULATING A STAGE DIR — the source and the data, one command family, split out of ops/stage.ts. Nothing here
 // allocates, boots, probes or judges: it puts a tree (a `git worktree` for a ref, an rsync for `--dirty`),
 // its node_modules, its own db and its assets on disk, and takes them away again.
 //

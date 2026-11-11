@@ -1,7 +1,6 @@
 // ── spawn-lock: the filesystem half of the prod spawn window ─────────────────────────────────────────
 //
-// WHY IT IS ITS OWN MODULE: `tooling/src/stack/ops/prod.ts` is an executable script — it ends in
-// `process.exit(await main())`, so importing it to test anything RUNS it. The lock's fs mechanics are
+// WHY IT IS ITS OWN MODULE: the lock's fs mechanics are
 // exactly the part that needs a test with real files on disk (a decision table cannot prove that a stale
 // lock is actually UNLINKED), so they live here, importable and side-effect-free at module scope. The
 // DECISIONS stay pure in `./prod-record.ts` (`parseLockHolder` / `decideSpawnLock`).

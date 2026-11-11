@@ -1,7 +1,7 @@
 // ui-audit in-page walker — segment: interactive census: tap targets (compositor hit-extent probe) + accessible names + action doors + control silhouette + landmark/pointer.
 // The post-reveal NAVIGABILITY censuses (tabindex, unreachable hint, z-index) are the segment immediately
 // after this one, `census-interactive-navigability.ts` — same scope, same IIFE, split at the tooling cap.
-// One IIFE, segmented by rule family for the tooling-size cap: ops/walker.ts concatenates the
+// One IIFE, segmented by rule family: ops/walker.ts concatenates the
 // segments IN ORDER into collectSamplesJs, so scope/hoisting behavior is byte-identical to the
 // pre-split monolith. Raw JS in a template literal (no backticks / dollar-brace — see
 // floor/browser/browser.ts for why a string, not a function). Provenance + attribution: ops/walker.ts.
@@ -217,7 +217,7 @@ export const WALKER_CENSUS_INTERACTIVE = `  // ── interactive elements: tap 
   var interactiveEls = document.querySelectorAll(INTERACTIVE_SELECTOR);
   // The compositor hit-extent probe — ownsPoint / measureHitExtent / probeFrameFits /
   // inVisualViewport and the ancestor-credit vocabulary — is the PRECEDING segment
-  // (ops/walker/hit-extent.ts, split out at #797 for the tooling line cap). Same function scope.
+  // (ops/walker/hit-extent.ts, split out at #797). Same function scope.
 
   // ── REACH (#653): the census's own denominator, and the sweep that earns it ──────────────────────
   // "nothing found" and "nothing looked at" must never render identically, so every control that is

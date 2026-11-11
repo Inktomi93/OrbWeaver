@@ -1,6 +1,6 @@
 // snap/lib/scenario-values — two pure helpers the scenario runner (ops/scenario.ts) uses on its per-checkpoint
 // arrays: a labelled indexer that refuses a missing element loudly, and the CSS-failure predicate over one
-// checkpoint outcome. Split out at the tooling-size cap (Core-Tooling-Law §4.3); no I/O, no browser.
+// checkpoint outcome; no I/O, no browser.
 import type { CaptureOutcome } from "../contract/types.ts";
 
 export function scenarioValue<T>(values: readonly T[], index: number, label: string): T {

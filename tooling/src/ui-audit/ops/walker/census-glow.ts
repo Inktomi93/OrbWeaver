@@ -1,7 +1,7 @@
 // ui-audit in-page walker — segment: the GLOW families — chromatic box/text-shadow glows and
 // radial-gradient washes, both swept across the element and its `::before`/`::after` layers.
-// Split out of census-decor.ts (2026-09-01) when the pseudo sweep took that file past the tooling-size
-// cap — the same rule-family segmentation ops/walker.ts already runs on. The two families move as ONE
+// Split out of census-decor.ts with the pseudo sweep —
+// the same rule-family segmentation ops/walker.ts already runs on. The two families move as ONE
 // segment because they share the `PSEUDOS` vocabulary — which now lives in ops/walker/state-paint.ts
 // (2026-09-01, with `isDedicatedGlowLayer`), because the FORCED-STATE pass became its second consumer:
 // the doctrine this census serves (checks-decor.ts — the sanctioned glow rides "selected/active

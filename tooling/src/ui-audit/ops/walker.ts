@@ -6,8 +6,8 @@
 // structural-signature grouping) are bounded FACT filters following the original walker's
 // nestedCards/gradientTexts precedent — their verdicts are still pass-throughs in checks.
 //
-// SEGMENTED, NOT REWRITTEN (P3 of #393): the IIFE exceeds the tooling-size cap as one file, so it is
-// split by rule family under ops/walker/ and concatenated here IN ORDER — one function scope, so the
+// SEGMENTED, NOT REWRITTEN: the IIFE is split by rule family under ops/walker/ and concatenated here
+// IN ORDER — one function scope, so the
 // cross-segment references (describe, isVisible, parseRgb, resolveBackdrop, allEls, textEls…) behave
 // exactly as in the pre-split monolith. The byte-equality of the composition against the monolith was
 // proven at the split (the P2 slicer-artifact fence, replayed).
@@ -132,9 +132,8 @@ ${WALKER_MUTATION_CARRIES}  var preWalkObserver = new MutationObserver(function 
 // CORE's `describe` (call-time resolution — safe), and their `var` vocabulary (STATE_PAINT_ATTRS,
 // STATE_VARIANT_TRANSFORM_RE; PSEUDOS, GLOW_LAYER_INSET_TOLERANCE_PX, ctaGlowResolvedCache) must be
 // INITIALIZED before WALKER_CENSUS_DECOR and WALKER_CENSUS_GLOW read it — the exact "var hoists
-// UNDEFINED" ordering rule stated above. The pair is TWO files because state-paint.ts reached the
-// `tooling-size` cap and the glow vocabulary was its one self-contained third (#2494);
-// the composition order makes that split free, as for
+// UNDEFINED" ordering rule stated above. The pair is TWO files because the glow vocabulary is
+// self-contained; the composition order makes that split free, as for
 // WALKER_OBSCURED_REACH above.
 //
 // THE ENGINE IS AN INPUT, not a page guess: Node knows which browser it launched, and a page-side probe

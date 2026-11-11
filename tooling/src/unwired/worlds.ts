@@ -1,5 +1,5 @@
-// The typecheck worlds the scans load, one program each, the same set `scripts/typecheck.ts` checks. Worlds are
-// never merged: server code under the DOM test options resolves different types and loses members.
+// The typecheck worlds the scans load, one program each: the package worlds and the test worlds `scripts/typecheck.ts`
+// checks. Worlds are never merged: server code under the DOM test options resolves different types and loses members.
 import { globSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
 import ts from "typescript";
@@ -10,7 +10,7 @@ export function packageWorlds(root: string): readonly string[] {
 }
 
 /** The test worlds: a use found only here is test-only. */
-export const TEST_WORLDS = ["tsconfig.node.json", "tsconfig.tests-dom.json"] as const;
+export const TEST_WORLDS = ["tsconfig.node.json", "tsconfig.tests-dom.json", "tsconfig.tests-iso.json"] as const;
 
 /** One world's program. `realpath` keeps a workspace package on its source path rather than its
  *  `node_modules` link, or every cross-package reference is lost. */

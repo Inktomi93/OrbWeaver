@@ -2,12 +2,13 @@
 // band-access verdicts (#108 — a foreign live stage is a refusal, never a teardown), the staleness rule,
 // the `--base` band claim (#1186) and the DB-bound inherited-env allowlist. The imperative half is
 // ops/stage.ts; the TABLE's own derivations — allocation, the TTL/strand rule, the three-probe health
-// verdict, the limits — are lib/stage-bands.ts (split when this file approached the tooling line cap).
+// verdict, the limits — are lib/stage-bands.ts.
 import { createHash } from "node:crypto";
 import { basename, dirname, join } from "node:path";
 import { parseEnv } from "node:util";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { resolveDataLayout } from "@orb/server/foundation/data-layout";
+import type { EnvKey } from "@orb/server/foundation/env/record";
 import { stageBandForPort } from "../../floor/host/ports.ts";
 import { PORT_ENV, STACK_CLI_REL, VITE_API_TARGET_ENV, VITE_PORT_ENV } from "../../stack/index.ts";
 import type { BandAccess, StageAuthMode, StageBandClaim, StageLauncher, StageLauncherSpawn, StagePaths, StagePorts, StageRow } from "../contract/stage.ts";
@@ -343,7 +344,7 @@ export function markerRootFromCommonDir(gitCommonDir: string): string {
  *                       hand it to the stage or the stage never boots. A dev box that lets the server
  *                       generate it has a keyfile instead, which `seedStageData` copies.
  */
-export const STAGE_INHERITED_ENV_KEYS = ["OWNER_HANDLES", "CREDENTIALS_KEY", "SESSION_SECRET"] as const;
+export const STAGE_INHERITED_ENV_KEYS = ["OWNER_HANDLES", "CREDENTIALS_KEY", "SESSION_SECRET"] as const satisfies readonly EnvKey[];
 
 /** Pick the inherited keys out of a dev `.env`'s TEXT (pure — the imperative caller supplies the bytes).
  *  A key absent from the file is absent from the result, matching the schema's own unset fallback for each. */

@@ -81,7 +81,7 @@ interface ChromeEntryAxes {
   readonly id: string;
   readonly label: string;
   /** `rail.nav` grouping — the divider order derives from it; the group axis has ONE home in
-   *  section-registry.ts (kills rail-slots.ts's duplicate tuple). No consumer this wave. */
+   *  section-registry.ts. */
   readonly group?: SectionGroup;
   readonly order?: number;
   /** Capability gate, called UNCONDITIONALLY per entry — the registry list is frozen at the door

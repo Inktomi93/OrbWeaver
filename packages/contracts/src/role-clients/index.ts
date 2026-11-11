@@ -19,7 +19,7 @@ import type { Capability } from "#inference";
 import type { RolePresetParams } from "#preset";
 import type { EmbedResult, RerankResult, SummarizeResult } from "#providers";
 
-// @typeonly-ok: the wire vocabulary lives in `ResponseFormat` (the type consumers import); the runtime
+// The wire vocabulary lives in `ResponseFormat` (the type consumers import); the runtime
 // schema itself is only referenced in type position here in contracts — infra's wire arms build their
 // OWN literal against the shape rather than calling this validator, so the schema stays the type anchor.
 // The structured-output request (D79) — one projection rule (`@orb/kit/json-schema`) fills `schema`, the

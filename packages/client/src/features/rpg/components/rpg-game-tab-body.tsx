@@ -1,6 +1,6 @@
 // One game-tab body wrapper — resolves the takeover panel state (suspending on
 // the rpg reads) and renders the tab's content. The scene banner rides the HUD's OWN band above the rails
-// (`rpg-hud.tsx` → `RpgHeaderBand`).
+// (`rpg-hud-band.tsx` → `RpgHeaderBand`).
 //
 // THE ORBS ARE THE ONE EXCEPTION, AND ONLY AT A LARGE TYPE SCALE (#878 F7, owner-ruled 2026-08-30). This
 // header used to say the orbs are never here; at `satellitesInBody` they are. MEASURED at the `reading`

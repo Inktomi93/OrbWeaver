@@ -69,12 +69,10 @@ export {
 } from "./lib/leader-record.ts";
 export { decideSpawnLock, lockHolderText, mayRemovePidfile, parseLockHolder, parseProdRecord, serializeProdRecord } from "./lib/prod-record.ts";
 export {
-  AUTH_MODE_KEY,
   BIND_HOST_KEY,
   decideSetup,
   effectiveAuthMode,
   openUrls,
-  PORT_KEY,
   parseAddressAnswer,
   parseChoiceAnswer,
   parsePortAnswer,
@@ -129,7 +127,6 @@ export {
   DRAIN_MARGIN_MS,
   DRAIN_WATCH_MS,
   debugPostureText,
-  SERVER_DRAIN_MS,
   servedCarriesDiskBytes,
   valueExportNames,
 } from "./lib/verdicts.ts";

@@ -1,6 +1,5 @@
 // The stage's GIT primitives: repo root, ref resolution, and the detached-worktree lifecycle. Split out of
-// ops/stage.ts when the ref pre-check for design-audit's `--ref` (#678) pushed that file past the tooling
-// line cap — the same decomposition ops/stage-marker.ts (marker I/O) and ops/stage-probe.ts (process
+// ops/stage.ts with the ref pre-check for design-audit's `--ref` (#678) — the same decomposition ops/stage-marker.ts (marker I/O) and ops/stage-probe.ts (process
 // probes) already follow: ops/stage.ts keeps the ORCHESTRATION, its I/O primitives sit beside it by nature.
 import { existsSync, rmSync } from "node:fs";
 import { join } from "node:path";

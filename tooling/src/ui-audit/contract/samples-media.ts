@@ -1,5 +1,5 @@
-// ui-audit sample shapes — the BURIED-RASTER family (media). Split from samples.ts (that file sits at
-// the tooling-size boundary) per the established samples-*.ts split pattern (samples-layout.ts,
+// ui-audit sample shapes — the BURIED-RASTER family (media). A sibling of samples.ts per the
+// established samples-*.ts pattern (samples-layout.ts,
 // samples-interactive.ts, samples-evidence.ts, samples-populations.ts, samples-hover.ts all exist for
 // the same reason — a family's shape gets its own home instead of contesting the aggregation file).
 //
@@ -17,8 +17,7 @@
  *  The opacity threshold itself is a Node-side verdict (`lib/checks-media.ts`) — the walker only
  *  gathers the fact. */
 // ── Distorted / stretched image (impeccable `distorted-image`) ──────────────
-// MOVED from contract/samples.ts (2026-09-06, #1825) — that file sat AT the 450-line tooling cap and had
-// no room for the new field below.
+// MOVED from contract/samples.ts (#1825) into the media family.
 export interface ImageDistortionInput {
   readonly selector: string;
   readonly naturalWidth: number;

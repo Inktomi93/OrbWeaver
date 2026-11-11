@@ -1,5 +1,5 @@
 // The ADD-ONLY tier (§6.2): applied AFTER declared/measured/advertised/curated with OR semantics — it adds,
-// never subtracts. Today's `synthesizeToolAxes` (`resolve-model-capability.ts:250-263`): OpenRouter's catalog
+// never subtracts. OpenRouter's catalog
 // omits `structured_outputs` for Claude, and a Claude NEWER than every curated row must not read as LESS
 // capable than the family, so a recognised Claude id gets tools + structured + image input OR-ed in. A data
 // row cannot express "add, never subtract", which is why this stays code, keyed by `families.ts`.

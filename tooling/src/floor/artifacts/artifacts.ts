@@ -37,7 +37,7 @@ export function printResult(tool: string, pairs: readonly ResultPair[]): void {
 // always-on AGENTS.md names them by exactly those paths as the read-don't-rerun surfaces ("Read the harness artifacts":
 // `reports/verify.json`, `reports/check-structure.json`, `reports/verify/<stage>.log`,
 // `reports/ct-flaky.json`). They ride the SAME home as every other artifact — the `reports` literal has one
-// spelling in this repo and it is here (policy `tooling-artifact-path-home`).
+// spelling in this repo and it is here; no lint rule refuses a second one.
 
 /** The ABSOLUTE path of a report artifact under `<root>/reports/…`. `root` is explicit (never REPO_ROOT)
  *  because the verify harness runs against the caller's cwd, which is the worktree it is judging. */
@@ -62,8 +62,7 @@ export function ensureReportsDir(root: string, ...segments: readonly string[]): 
 // ── RUN IDENTITY + PER-RUN ARTIFACT SLOTS (#1029) ────────────────────────────────────────────────────
 // THE DEFECT THIS CLOSES (owner ruling 2026-09-01: "all reports need to be able to be ran concurrently").
 // Every instrument wrote its artifact to ONE fixed path, so two runs on one checkout — two lanes, a lane
-// and the orchestrator, a `pnpm check` and the `check:structure` a sibling started — clobbered each other:
-// measured live, `reports/check-structure.json` flipped from a complete 248-gate verdict to another run's
+// and the orchestrator — clobbered each other: one run's complete verdict flipped to another run's
 // in-flight stub inside 30s, and the read-the-artifact-not-the-pipe law assumes the artifact is YOURS.
 //
 // THE MECHANISM. A run writes ONLY inside its own slot `reports/runs/<instrument>/<runId>/`, where the run
@@ -251,7 +250,7 @@ export interface RunAlias {
  *  "a process is writing here", never "this slot became `latest`" — but `publishRunSlot` was its only
  *  unlinker, so every run that finishes WITHOUT publishing left one behind and `abandonedRuns` then reported
  *  it as a run that DIED. Measured on main 2026-09-12: 17 of 32 structure slots carried a marker and 13 of
- *  those were FINISHED fixture-mode runs, so `pnpm check:show` refused the real pointer with "that run never
+ *  those were FINISHED fixture-mode runs, so the run reader refused the real pointer with "that run never
  *  finished" about a run that finished perfectly and only declined to speak for the real tree (#2167).
  *
  *  Two callers by design: a NON-VERDICT run and a GATE-SCOPED run. Both are complete; neither may become
@@ -439,8 +438,7 @@ export function abandonedRuns(root: string, instrument: string): readonly Abando
     .sort((a, b) => b.startedAt.localeCompare(a.startedAt));
 }
 
-// THE `--out` NAMING CONTRACT MOVED OUT (#2242) to ./artifact-naming.ts when this module crossed the
-// 450-line cap — the same shape as the #1029 slot machinery's own split of retention into
+// THE `--out` NAMING CONTRACT MOVED OUT (#2242) to ./artifact-naming.ts — the same shape as the #1029 slot machinery's own split of retention into
 // ./run-retention.ts. It is NOT re-exported here: biome's `lint/performance/noBarrelFile` forbids a value
 // re-export, so the eleven callers import the new module directly and this file keeps exactly the
 // capability it is named for (`PrunedRun` below survives only because a TYPE-only re-export is allowed).

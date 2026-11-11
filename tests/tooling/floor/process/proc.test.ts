@@ -14,7 +14,7 @@ import { settle } from "@orb/tooling/floor/process/stop-escalation";
 import { vi } from "vitest";
 
 // The ambient-env WINDOW pins live beside their door in process-env.test.ts (#1848 moved the door out of
-// proc.ts at its line cap); what stays here is the SPAWN/SIGNAL half — the only half proc.ts still owns.
+// proc.ts); what stays here is the SPAWN/SIGNAL half — the only half proc.ts still owns.
 
 const IDLE_CHILD = ["-e", "setTimeout(() => {}, 30_000)"] as const;
 

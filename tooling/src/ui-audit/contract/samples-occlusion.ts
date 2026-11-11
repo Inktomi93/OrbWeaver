@@ -1,7 +1,7 @@
 // ui-audit sample shapes — the PLACEMENT-COLLISION family: `headline-overhang` and
 // `inline-padding-leak`, the two arms of impeccable's `text-occlusion` that were deferred when arm (i)
-// landed as our own `obscured-target` (#816). Split from samples.ts because that file sits at the
-// tooling-size boundary and is contested by concurrent lanes; the walker segment is
+// landed as our own `obscured-target` (#816). A sibling of samples.ts per the samples-*.ts
+// pattern; the walker segment is
 // ops/walker/census-occlusion.ts and the verdicts are lib/checks-quality.ts.
 //
 // PAINTED, NOT LAID OUT. Every geometry field here is measured from a rect already intersected against

@@ -3,10 +3,6 @@
 // numbered band, with that stage's own run control. So they are one component taking a stage, not two
 // drawings that drift.
 //
-// (It replaces `stage-pane.tsx`, which existed because the surface showed ONE stage at a time behind a
-// stepper and therefore needed a pane that could be any stage on any render. The workbench mounts three
-// lanes at fixed stages; what survives is the payload dispatch, which is this file.)
-//
 // THE RAILS ARE NOT BOXES (chrome diet CD1). A read-only grouping gets a kicker and a hairline rule and
 // nothing else — the accent, the border and the glow belong to whichever lane is the ONE focal. What the
 // width buys here is DATA in reach, not two more frames.

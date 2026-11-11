@@ -109,7 +109,7 @@ test("relative link targets are collected without anchors; external and in-page 
 test("backticked repository paths are collected; globs, placeholders, commands and runtime artifacts are not", () => {
   const source = [
     "Read `tooling/src/a.ts:12` and `docs/b.md#part` and `.claude/rules/`.",
-    "Skip `packages/*/package.json`, `tests/<pkg>/`, `pnpm test:scoped tests/x`, `reports/verify.json`, `Tier-1-DB.md`.",
+    "Skip `packages/*/package.json`, `tests/<pkg>/`, `pnpm test tests/x`, `reports/verify.json`, `Tier-1-DB.md`.",
     "```",
     "`packages/in/fence.ts`",
     "```",

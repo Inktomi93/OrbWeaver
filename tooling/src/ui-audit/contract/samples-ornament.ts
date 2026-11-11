@@ -1,9 +1,8 @@
 // The ORNAMENT-CENSUS sample shapes: decorative background patterns, the icon-tile-over-heading stack,
 // and the static motion offenders.
 //
-// SPLIT OUT of contract/samples.ts (#1315), for the reason #797 split the interactive family: that file
-// sat EXACTLY at the 450-line tooling cap, so it had no room for the form-control boundary shapes the
-// `border-contrast` rule needed. This is the §4.3 decomposition, by family — samples.ts re-exports every
+// SPLIT OUT of contract/samples.ts (#1315) with the form-control boundary shapes the `border-contrast`
+// rule needed. This is the decomposition by family — samples.ts re-exports every
 // name below, so no importer moves and `contract/samples.ts` remains the one door onto the walker's
 // sample vocabulary.
 

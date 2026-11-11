@@ -11,13 +11,11 @@
 // (below); class 3 = the tracked markdown at the REPO ROOT (#2173, below) — the entry points every
 // session loads, admitted by PATH so a third root file could not be missed by an enumeration.
 // Every class is partitioned by AUTHORSHIP first, and the partition has FOUR questions, not three:
-// hand-authored · vendored · generated · and IS THIS FILE A SOURCE FOR A GENERATOR. The fourth was paid
-// for: `.claude/agents/*.md` is hand-authored AND the input `agents:sync` derives `.codex/agents/*.toml`
-// from, so class 1's reformat left those mirrors stale and the REGISTERED `check:agents` stage red until
-// it was repaired. Formatting a file something else DERIVES FROM is a coupled-site change.
+// hand-authored · vendored · generated · and IS THIS FILE A SOURCE FOR A GENERATOR. Formatting a file
+// something else DERIVES FROM is a coupled-site change.
 //
 // THE DEFAULT SCOPE IS THE LIVING DOC CORPUS, AND IT IS ONE POPULATION SERVING BOTH DOORS (#2059).
-// `--check` (`pnpm check:docs`) and `--write` (`pnpm format:docs`) both resolve through `formatTargets`, so
+// `--check` (`pnpm doc format --check`) and `--write` (`pnpm format:docs`) both resolve through `formatTargets`, so
 // a tree missing here is missing from BOTH: it is neither checked nor formattable, and `pnpm format:docs`
 // silently declines to touch it. That was the defect — the scope was one docs subtree alone, so the
 // program guides were outside both doors while reading exactly like docs the formatter owned.
@@ -104,9 +102,8 @@ const CLASS_2_TREES = [".claude/skills/", "tooling/"] as const;
 /**
  * THE GENERATED INDEX IS ADMITTED, and the route there is the durable part (#2178, closing the #2144
  * widening). `.claude/skills/snap-driving/reference/flags.md` is DERIVED
- * (`verify/ops/gen/snap-flags-index.ts`) and ratcheted by `ledgers:fresh`, and it was fenced out of this
- * population because four of its 123 rows were not canonical — so `check:docs` and `check:ledgers-fresh`
- * could not both be green.
+ * by a generator, and it was fenced out of this population because some of its rows were not canonical,
+ * so the format check and the generator's freshness check could not both be green.
  *
  * TWO WAYS TO CLOSE THAT, AND ONLY ONE IS ALLOWED. Letting the generator emit what this formatter wants
  * was measured and REFUSED: `__orb` went 2 grep hits to 0 and `path[,path]` 2 to 0, in the document a lane
@@ -133,7 +130,7 @@ function isClass2File(path: string): boolean {
  * prose. It survives a format byte-for-byte (it is an ordinary paragraph to CommonMark, and nothing in the
  * serializer escapes a leading `@`), and the family test proves that against a file made dirty ELSEWHERE.
  *
- * Root `AGENTS.md` is also read by `check:agents` (its rule list and line budget). Both stages accept the
+ * Root `AGENTS.md` is also read by `ops/check.ts` (its glossary). Both accept the
  * same bytes because the file is hand-written canonical markdown; when a formatter and a generator
  * disagree about bytes, move the generator — an exclusion buys silence and costs coverage forever.
  */

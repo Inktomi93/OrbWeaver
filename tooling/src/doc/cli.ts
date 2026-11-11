@@ -1,5 +1,5 @@
-// doc — the docs system's structural writer (`pnpm doc`). Argv parse + dispatch ONLY (the five-slot
-// cap); the programmatic surface is ./index.ts. Verbs: `pnpm doc help`.
+// doc — the docs system's structural writer (`pnpm doc`). Argv parse + dispatch ONLY; the programmatic
+// surface is ./index.ts (dependency-cruiser `tooling-cli-via-index`). Verbs: `pnpm doc help`.
 //
 // Exit: 0 clean · 1 a refusal (nothing written) · 2 the tool broke · 3 misuse.
 import process from "node:process";

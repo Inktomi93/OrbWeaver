@@ -14,9 +14,6 @@
 // which reconciles it against the WHOLE admin surface with its own cited-deferral registry. Two registries
 // of two different facts, deliberately (§10 Q5) — this one would only re-state it worse, since a key can be
 // edited by a non-contributed surface.
-//
-// Split out of the registry contract at the config revamp (#866 S1) for the component-size cap; the
-// mechanism is byte-identical to the settings-era `settings-pane-registry.ts` half it came from.
 
 import type { UserSettings, UserSettingsSection } from "@orb/contracts/settings";
 import type { ContributorRegistry } from "#lib";

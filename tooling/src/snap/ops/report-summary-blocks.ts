@@ -1,5 +1,5 @@
-// The derived per-arm SUMMARY lines and the CSS report blocks, moved out of report.ts to hold the
-// 450-line cap: DISPLAY-ONLY derivations over evidence the arms already emitted (contrast/assert/map),
+// The derived per-arm SUMMARY lines and the CSS report blocks, moved out of report.ts:
+// DISPLAY-ONLY derivations over evidence the arms already emitted (contrast/assert/map),
 // plus the dead/empty-CSS census and cascade-declaration printers.
 import { print } from "../../floor/artifacts/artifacts.ts";
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";

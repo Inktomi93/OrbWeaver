@@ -1,7 +1,6 @@
 // domain/workloads/contract/contribution — THE SEAM: a domain contributes its background work; the worker
-// skims the contributions. This replaces the retired `runner-env.ts` god-hub (the self-described "one true
-// cross-feature composition seam" that let any agent bolt another domain's capability onto workloads instead
-// of building a proper injected-op seam at the owning domain's door). The inversion, in one line:
+// skims the contributions, so no domain bolts another domain's capability onto workloads instead of
+// building an injected-op seam at the owning domain's door. The inversion, in one line:
 // **domains raise seams, the worker skims them.**
 //
 // HOW AN OWNING DOMAIN USES THIS: it imports this type TYPE-ONLY through the workloads front door

@@ -20,14 +20,14 @@ import { scanShapes } from "./shapes.ts";
 import { scanUnions } from "./unions.ts";
 import { TEST_WORLDS } from "./worlds.ts";
 
+/** `scan` is the member scan, and the bare invocation runs it. */
 const SCAN_VERBS = ["scan", "fields", "params", "unions", "shapes"] as const;
-/** `scan`, the bare verb, is the member scan. */
 type ScanVerb = (typeof SCAN_VERBS)[number];
 const VERBS = [...SCAN_VERBS, "ports", "removed-keys"] as const;
 type Verb = (typeof VERBS)[number];
 
 const CROSS_CHECK_FLAG = "--cross-check";
-const USAGE = `usage: pnpm unwired [${SCAN_VERBS.slice(1).join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>]`;
+const USAGE = `usage: pnpm unwired [${SCAN_VERBS.join("|")}] [--root=<dir>] [--out=<file>] [${CROSS_CHECK_FLAG}] | pnpm unwired ports [--root=<dir>] [--out=<file>] [--leg=<B|C|D|E|F>] [--cluster=<group>] | pnpm unwired removed-keys [--root=<dir>] [--base=<rev>] [--head=<rev>]`;
 const DEFAULT_PORTS_OUT = "reports/unwired/port-targets.json";
 const DEFAULT_BASE = "main";
 const DEFAULT_HEAD = "HEAD";
@@ -122,7 +122,7 @@ function oneOf<T extends string>(flag: string, value: string | null, allowed: re
 
 function parseArgs(argv: readonly string[]): Args {
   const [first] = argv;
-  const named = VERBS.find((candidate) => candidate !== "scan" && candidate === first);
+  const named = VERBS.find((candidate) => candidate === first);
   const verb = named ?? "scan";
   const flags = new Map<string, string>();
   const rest = (named === undefined ? argv : argv.slice(1)).filter((arg) => arg !== CROSS_CHECK_FLAG);

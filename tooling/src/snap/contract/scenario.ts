@@ -1,6 +1,6 @@
 // snap/contract/scenario — the scenario/matrix recipe shapes (`--scenario`): a named spec of default argv +
-// checkpoint argv lists, its prepared (parsed-to-Args) form, and the prepare outcome. Split out of types.ts at
-// the tooling-size cap (Core-Tooling-Law §4.3); one direction only — this file imports Args, types.ts never
+// checkpoint argv lists, its prepared (parsed-to-Args) form, and the prepare outcome. Split out of types.ts;
+// one direction only — this file imports Args, types.ts never
 // imports back.
 import type { Args } from "./types.ts";
 

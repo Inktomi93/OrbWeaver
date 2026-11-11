@@ -3,16 +3,18 @@
 // THE PRECEDENCE FACT THIS EXISTS FOR: `foundation/env` loads `.env` with **override:true** — a key in the
 // file BEATS the process env we spawn with (deliberate; the dev stack pins model/port/posture there and a
 // stale shell export must not win). So an overlay for a key the file already declares is a SILENT NO-OP.
+
+import { DEBUG_TOKEN_ENV } from "@orb/server/foundation/env/record";
 import type { DebugArming, DebugConflict, DebugEnvKey } from "../contract/types.ts";
 import { DEBUG_ENV_KEYS } from "../contract/types.ts";
 
 /** The value each non-token debug knob is armed to. `DEBUG_TOKEN` carries a minted secret instead. The
  *  keys are ENV NAMES (SCREAMING_SNAKE by the platform's convention, not ours), so the record is built
  *  from pairs rather than an object literal. */
-const DEBUG_ON_VALUES: Readonly<Record<Exclude<DebugEnvKey, "DEBUG_TOKEN">, string>> = Object.fromEntries([
+const DEBUG_ON_VALUES: Readonly<Record<Exclude<DebugEnvKey, typeof DEBUG_TOKEN_ENV>, string>> = Object.fromEntries([
   ["WIRE_CAPTURE", "on"],
   ["RPG_TRACE", "on"],
-]) as Readonly<Record<Exclude<DebugEnvKey, "DEBUG_TOKEN">, string>>;
+]) as Readonly<Record<Exclude<DebugEnvKey, typeof DEBUG_TOKEN_ENV>, string>>;
 
 /** The `wanted` placeholder for a DEBUG_TOKEN conflict. A conflict message names the file value and the
  *  wanted value; for the token the wanted value is a SECRET, so it is described, never printed
@@ -30,9 +32,9 @@ export function resolveDebugArming(opts: { readonly fileEnv: Readonly<Record<str
   const overlay: Record<string, string> = {};
   let token = opts.token;
 
-  const fileToken = opts.fileEnv["DEBUG_TOKEN"];
+  const fileToken = opts.fileEnv[DEBUG_TOKEN_ENV];
   if (fileToken === undefined) {
-    overlay["DEBUG_TOKEN"] = token;
+    overlay[DEBUG_TOKEN_ENV] = token;
   } else if (fileToken.length > 0) {
     // A token in the file wins by precedence, so ADOPT it as the effective token rather than arming a
     // second one the server would ignore. Never echoed — only its source is reported.
@@ -43,7 +45,7 @@ export function resolveDebugArming(opts: { readonly fileEnv: Readonly<Record<str
     // overrides on `value !== undefined`, so that empty value beats our overlay and the schema's
     // `.min(1).optional()` then leaves the surface OFF. Treating empty as absence is precisely the silent
     // placebo this refusal exists to prevent, so an empty file value is a CONFLICT like any other.
-    conflicts.push({ key: "DEBUG_TOKEN", fileValue: "", wanted: TOKEN_WANTED });
+    conflicts.push({ key: DEBUG_TOKEN_ENV, fileValue: "", wanted: TOKEN_WANTED });
   }
 
   for (const [key, wanted] of Object.entries(DEBUG_ON_VALUES)) {

@@ -1,8 +1,5 @@
-// `__orb.nav.panel` — the write-side dev-nav bridge action for the shell's two side panels. Split out of
-// `agent-nav/index.ts` when the file crossed the client component-size cap (component-size.ts, 450 lines) —
-// the extraction precedent this gate's own `fix` names (state/section-ids.ts, state/settings-categories.ts):
-// pull a self-contained VOCABULARY/behavior out, re-export from the original so every import path keeps
-// resolving. `buildAgentNav` still composes ONE call (`resolvePanelRequest`); nothing about the arm's
+// `__orb.nav.panel` — the write-side dev-nav bridge action for the shell's two side panels, pulled out of
+// `agent-nav/index.ts` and re-exported from it so every import path keeps resolving. `buildAgentNav` still composes ONE call (`resolvePanelRequest`); nothing about the arm's
 // contract changed by moving files.
 
 import type { PanelName } from "#state";

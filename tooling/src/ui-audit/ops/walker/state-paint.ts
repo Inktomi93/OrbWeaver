@@ -23,9 +23,8 @@
 // same escape discipline guards the attribute scanner (`\\[` in a class name is not an attribute
 // selector) and the pseudo-element detector.
 //
-// THE GLOW-LAYER VOCABULARY IS A SIBLING, state-glow.ts (#2494). It was an arm of this segment until
-// this file hit the 450 cap, where `tooling-size` reds on the next field — so the next addition here
-// lands as a sibling module too, never as an arm and never by deleting a comment to buy its line.
+// THE GLOW-LAYER VOCABULARY IS A SIBLING, state-glow.ts: a distinct vocabulary gets its own segment, never
+// an arm of this one. No tool enforces a line cap, so never delete a comment to make room.
 // Both compositions carry the pair in order.
 import { refuseDirectInvocation } from "../../../floor/cli/entrypoint.ts";
 

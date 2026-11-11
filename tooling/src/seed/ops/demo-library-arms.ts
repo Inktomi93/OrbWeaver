@@ -1,6 +1,6 @@
 /**
- * Demo seed — the LIBRARY arms (regex tiers + saved rosters), split out of `demo.ts` when that file crossed
- * the `tooling-size` cap (450) with #1764. Same door as the panels: every row is created through the domain
+ * Demo seed — the LIBRARY arms (regex tiers + saved rosters), apart from `demo.ts`. Same door as the
+ * panels: every row is created through the domain
  * verbs, never raw inserts, so a seeded row can never disagree with what the UI would have written.
  *
  * `deriveRegexTierFlags` is the SAME pure derivation the client's save boundary and the server's bulk-placement

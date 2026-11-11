@@ -159,7 +159,7 @@ function bootStage(paths: StagePaths, ports: StagePorts, inherited: Record<strin
     // credential ciphertext's key) must come across or the stage boots against data it cannot read. An
     // absent key falls through to the schema's own default, exactly like an unset key always has.
     ...inherited,
-    // Minted per stage boot (like probe-fire.ts) rather than inherited — the operator's real token must
+    // Minted per stage boot (like `tooling/src/render-trace/ops/fire.ts`) rather than inherited — the operator's real token must
     // never arm a second, less-guarded /api/_debug/* surface. WIRE_CAPTURE stays at its schema default
     // (off) under ORB_ENV_NO_FILE; a caller who wants the wire-capture surface on the stage can still
     // export WIRE_CAPTURE=on in their own shell (ambient environment above), same as any other opt-in.

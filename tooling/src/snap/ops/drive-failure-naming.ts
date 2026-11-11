@@ -1,4 +1,4 @@
-// The DriveFailure recording (#1344), moved out of drive.ts to hold the 450-line cap: WHAT a failed
+// The DriveFailure recording (#1344), moved out of drive.ts: WHAT a failed
 // drive action says, in the operator's own argv — the flag each queued action was typed as, the failure
 // row minted for it, and the one-line label a retry/print uses to name the step.
 import { refuseDirectInvocation } from "../../floor/cli/entrypoint.ts";

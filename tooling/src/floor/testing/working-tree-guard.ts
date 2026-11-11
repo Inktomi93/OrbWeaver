@@ -8,9 +8,7 @@
 //
 // THE ONE EXCEPTION. The retired check-gates repo test was the sanctioned real-tree planter — it
 // materializes `__g_`/`__dc_` sentinel fixtures inside the real package tree (its gates anchor on
-// realistic paths) and reaps them itself before its own run ends. `planted-fixtures.ts` already tells a
-// STRUCTURE run it cannot speak for the tree while that planter's window is open; this guard exempts the
-// identical sentinel shape rather than double-report the one suite that already announces itself.
+// realistic paths) and reaps them itself before its own run ends; this guard exempts that sentinel shape.
 //
 // ONE FUNCTION, THREE CONFIGS. Vitest's `loadGlobalSetupFile` and Playwright's `globalSetup` both accept a
 // default-exported function that returns a teardown callback — Vitest treats a returned function as the
@@ -24,9 +22,7 @@ import { join } from "node:path";
 import process from "node:process";
 import { execGit } from "../git/git.ts";
 
-/** The sanctioned real-tree planter's sentinel shape (see the header). Matches `PROBE_ARTIFACT_RE` in
- *  `verify/lib/planted-fixtures.ts` — same vocabulary, same reason, kept local because that module's
- *  regex is not exported and this guard has no other reason to depend on it. */
+/** The sanctioned real-tree planter's sentinel shape (see the header). */
 const SENTINEL_RE = /(^|\/)__(?:g|dc)_/u;
 
 /** `git status --porcelain` prints two status letters then a space before the path (`XY PATH`), and a

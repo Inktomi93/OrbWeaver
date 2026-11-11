@@ -207,8 +207,7 @@ export function buildSearchDiscovery(deps: SearchDiscoveryComposeDeps): SearchDi
   // THE ENTITY→ROOM BRIDGE (design §3.5): every content-affecting entity event → a live-only
   // `roomEntityChanged` on each room whose member-visible projection reads that entity. Always-on (not gated
   // on corpusAutoindex) — open-room freshness is orthogonal to the search knob, the shipped character fan's
-  // own ruling. This subscriber REPLACES the `character.updated → durable chatUpdated` fan
-  // (`emit-character-updated.ts`, deleted in the same commit): the member-card dialog now repaints, the
+  // own ruling. This subscriber REPLACES the `character.updated → durable chatUpdated` fan: the member-card dialog now repaints, the
   // per-edit refetch narrows from the whole-room `chatUpdated` set to three reads, and the per-seated-room
   // `chat_events` INSERT is gone. A SECOND subscriber beside the indexer's, deliberately: the two consumers
   // have different filters (the indexer skips flag-only edits and is knob-gated) and the bus error-isolates
