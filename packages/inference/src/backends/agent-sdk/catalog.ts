@@ -5,6 +5,7 @@
 // Also the `verifyAuth` diagnostic — ONE trivial prompt through the SAME firewall a real turn uses.
 
 import type { ModelInfo, Query } from "@anthropic-ai/claude-agent-sdk";
+import { AbortError } from "@anthropic-ai/claude-agent-sdk";
 import type { AgentSdkModel } from "@orb/contracts/inference";
 import { agentSdkModelSchema } from "@orb/contracts/inference";
 import type { VerifyAuthAccount, VerifyAuthResult } from "@orb/contracts/providers";
@@ -109,7 +110,7 @@ async function reduceVerifyStream(stream: Query): Promise<Pick<VerifyAuthResult,
   return { apiKeySource, reply, ok, costUsd };
 }
 
-/** Best-effort account-identity probe against the LIVE query handle — bounded and TOTALLY non-fatal. */
+/** Best-effort account-identity probe against the LIVE query handle, bounded; only an abort rejects. */
 async function probeAccountInfo(query: Query, deps: AgentSdkDeps): Promise<VerifyAuthAccount | undefined> {
   if (typeof query.accountInfo !== "function") {
     return;
@@ -123,8 +124,12 @@ async function probeAccountInfo(query: Query, deps: AgentSdkDeps): Promise<Verif
     const info = await Promise.race([query.accountInfo(), timeout]);
     account = info !== undefined ? verifyAuthAccountSchema.parse(info) : undefined;
   } catch (error) {
-    // Account identity is an optional verify diagnostic, outside the auth verdict: a rejected control call or an
-    // unexpected answer is logged and reads as no identity.
+    // An abort is the query ending and propagates. Everything else stays contained by design: the SDK exports only its
+    // abort class, and a failed control call rejects with a plain Error, so no class exists to narrow to. Account
+    // identity is an optional verify diagnostic outside the auth verdict, so the failure is logged and reads as none.
+    if (error instanceof AbortError) {
+      throw error;
+    }
     deps.log.warn({ err: errorMessage(error) }, "agent-sdk: the account-identity probe failed; verify reports no account");
   } finally {
     cancel?.();

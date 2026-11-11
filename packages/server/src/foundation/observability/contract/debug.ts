@@ -17,7 +17,8 @@ export interface AssetInspector {
  * or an inferred principal. This verdict short-circuits both token verification and the disabled-token
  * refusal, so an origin or ambient identity alone must not grant it.
  * The synchronous context port uses the principal already resolved with the raw TCP peer; resolving
- * bare headers again loses that evidence. A throwing implementation falls through to token verification.
+ * bare headers again loses that evidence. A throwing implementation fails the request with the app's error answer;
+ * only `true` opens the gate.
  */
 export interface AdminAuthChecker {
   isAdmin: (c: Context) => boolean;

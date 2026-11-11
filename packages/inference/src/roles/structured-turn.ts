@@ -4,6 +4,7 @@
 // issues appended → typed payload or throw. Recovery POLICY (workload `failed`, error result, canned fallback)
 // and the retry's tracing stay with the caller.
 
+import { isPlainObject } from "@orb/kit/guards";
 import { parseJsonText } from "@orb/kit/json";
 import type { z } from "zod";
 import { ProviderError } from "../contract/errors.ts";
@@ -100,8 +101,9 @@ function skipStringLiteral(raw: string, open: number): number {
   return raw.length - 1;
 }
 
-// `null` is `extractJsonObject`'s null, which `parseStructured` turns into "no JSON object found in the reply".
+// `null` is `extractJsonObject`'s null, which `parseStructured` turns into "no JSON object found in the reply". A guard,
+// not a schema: a zod object copies the reply and drops an own `__proto__` key the model wrote.
 function tryParse(slice: string): Record<string, unknown> | null {
   const parsed = parseJsonText(slice);
-  return typeof parsed === "object" && parsed !== null && !Array.isArray(parsed) ? (parsed as Record<string, unknown>) : null;
+  return isPlainObject(parsed) ? parsed : null;
 }

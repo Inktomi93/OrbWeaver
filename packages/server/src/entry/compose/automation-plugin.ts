@@ -204,7 +204,7 @@ export async function buildAutomationPlugin(deps: AutomationPluginComposeDeps): 
     resolveUtilityPresetParams: deps.resolveUtilityPresetParams,
     newToolCallId: () => mintToolCallId(`automation_${newOpaqueId()}`),
   });
-  const assetReads = createPluginAssetReads({ assets, resolveOwnerPrincipal });
+  const assetReads = createPluginAssetReads({ assets, resolveOwnerPrincipal, logger: deps.logger });
   const worldInfoReads = createPluginWorldInfoReads({ worldInfo, resolveOwnerPrincipal });
   const notificationDelivery = createPluginNotificationDelivery({ notifications, publish: deps.publishNotification });
   const pluginFeedback = createPluginFeedbackOps({ db, emit: emitNotification, notify: automationNotify });

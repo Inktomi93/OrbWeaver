@@ -37,15 +37,15 @@ import { DomainOperationError } from "@orb/kit/errors";
  *  string. */
 export const STORED_CONFIG_UNREADABLE = "stored_config_unreadable";
 
-/**
- * The stored blob, or a refusal. `what` names the row for the operator reading the error (a table +
- * scope, never blob contents — the same leak-free posture as the settings audit metadata).
- */
 /** Whether `error` is this guard's refusal of an unreadable stored blob. */
 export function isStoredConfigUnreadable(error: unknown): error is DomainOperationError {
   return error instanceof DomainOperationError && error.code === STORED_CONFIG_UNREADABLE;
 }
 
+/**
+ * The stored blob, or a refusal. `what` names the row for the operator reading the error (a table +
+ * scope, never blob contents — the same leak-free posture as the settings audit metadata).
+ */
 export function requireIntactStoredConfig<T>(outcome: VersionedParseOutcome<T>, what: string): T {
   if (!outcome.intact) {
     throw new DomainOperationError(

@@ -227,7 +227,8 @@ export function registerPluginFrame(app: Hono<PrincipalEnv>, deps: PluginFrameDe
       return c.body(null, NOT_FOUND);
     }
     let asset: Awaited<ReturnType<PluginFrameSurfacePort["getFrameAsset"]>>;
-    // Every stale, removed or foreign asset is the same leak-free 404 at this passive resource boundary.
+    // Every stale, removed or foreign asset is the same leak-free 404 at this passive resource boundary, and so is a
+    // torn CAS entry, as `entry/http/blob.ts` answers it (`domain/assets/verbs/plugin-reads.ts` logs that fault).
     try {
       // A handle names one live frame surface, not the plugin's entire asset namespace. An upgrade can remove
       // that surface while leaving the plugin enabled and its other assets installed.

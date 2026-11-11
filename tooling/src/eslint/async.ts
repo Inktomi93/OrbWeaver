@@ -263,18 +263,36 @@ const BLIND_CATCH_MESSAGE =
   "This catch never reads its error and answers null or nothing, so a database fault or a programming error reads as an ordinary miss and reaches no log. " +
   "Decide by the error's class and rethrow the rest (`if (!isResolveRefusal(error)) throw error;`). Where a ruling keeps every fault contained, cite it and log the error.";
 
+const BLIND_FINALLY_MESSAGE =
+  "This `finally` returns null or nothing, which discards any error the try threw before anything reads it. Move the answer into a catch that decides by the error's class.";
+
 const RENAME_DEPTH = 3;
 
-function isNoAnswer(argument: TSESTree.Expression | null): boolean {
-  if (argument === null) {
+// `await` and `Promise.resolve(...)` carry their operand's answer, so `return Promise.resolve(null)` answers nothing too.
+function isNoAnswer(argument: TSESTree.Node | null | undefined): boolean {
+  if (argument === null || argument === undefined) {
     return true;
   }
   const value = unwrapTransparent(argument);
+  if (value.type === AST_NODE_TYPES.AwaitExpression) {
+    return isNoAnswer(value.argument);
+  }
+  if (isPromiseResolve(value)) {
+    return isNoAnswer(value.arguments[0]);
+  }
   return (
     (value.type === AST_NODE_TYPES.Literal && value.raw === "null") ||
     (value.type === AST_NODE_TYPES.Identifier && value.name === "undefined") ||
     (value.type === AST_NODE_TYPES.UnaryExpression && value.operator === "void")
   );
+}
+
+function isPromiseResolve(node: TSESTree.Node): node is TSESTree.CallExpression {
+  if (node.type !== AST_NODE_TYPES.CallExpression || node.callee.type !== AST_NODE_TYPES.MemberExpression) {
+    return false;
+  }
+  const { object, property } = node.callee;
+  return object.type === AST_NODE_TYPES.Identifier && object.name === "Promise" && property.type === AST_NODE_TYPES.Identifier && property.name === "resolve";
 }
 
 // A read that discards the value (`void error`, a bare `error;`) or only renames it into a binding nothing reads
@@ -309,15 +327,10 @@ function variableUsed(context: OrbRuleContext, variable: ReturnType<typeof lexic
   return variable?.references.some((reference) => reference.isRead() && usedRead(context, reference.identifier, depth)) === true;
 }
 
+// Every name the parameter binds, a destructured field included, counts only when it is itself read; `catch ({})` binds
+// nothing and so reads nothing.
 function readsCaughtError(context: OrbRuleContext, clause: TSESTree.CatchClause): boolean {
-  if (clause.param === null) {
-    return false;
-  }
-  // A destructured binding reads the error's own fields.
-  if (clause.param.type !== AST_NODE_TYPES.Identifier) {
-    return true;
-  }
-  return variableUsed(context, lexicalVariable(context, clause.param), RENAME_DEPTH);
+  return context.sourceCode.getDeclaredVariables(clause).some((variable) => variableUsed(context, variable, RENAME_DEPTH));
 }
 
 // Only `return` and `throw` end a catch with an answer; `continue` and `break` skip the item and answer nothing.
@@ -330,17 +343,39 @@ function endsAbruptly(statement: TSESTree.Statement): boolean {
       return statement.body.some(endsAbruptly);
     case AST_NODE_TYPES.IfStatement:
       return statement.alternate !== null && endsAbruptly(statement.consequent) && endsAbruptly(statement.alternate);
+    case AST_NODE_TYPES.SwitchStatement:
+      return switchEndsAbruptly(statement);
+    case AST_NODE_TYPES.TryStatement:
+      return (
+        (statement.finalizer !== null && endsAbruptly(statement.finalizer)) ||
+        (endsAbruptly(statement.block) && (statement.handler === null || endsAbruptly(statement.handler.body)))
+      );
     default:
       return false;
   }
 }
 
-// The catch clause whose body holds `node` with no function boundary between them.
-function owningCatch(context: OrbRuleContext, node: TSESTree.Node): TSESTree.CatchClause | undefined {
-  const boundary = context.sourceCode
-    .getAncestors(node)
-    .findLast((ancestor) => FUNCTION_NODES.has(ancestor.type) || ancestor.type === AST_NODE_TYPES.CatchClause);
-  return boundary?.type === AST_NODE_TYPES.CatchClause ? boundary : undefined;
+// A switch answers on every path when it has a `default` and no case can fall out of its end: each case either ends
+// abruptly or is empty and falls into the next, and the last one ends abruptly. A `break` leaves the switch, so a case
+// that breaks never ends abruptly.
+function switchEndsAbruptly(statement: TSESTree.SwitchStatement): boolean {
+  const last = statement.cases.at(-1);
+  if (last === undefined || !statement.cases.some((branch) => branch.test === null)) {
+    return false;
+  }
+  return statement.cases.every((branch) =>
+    branch === last ? branch.consequent.some(endsAbruptly) : branch.consequent.length === 0 || branch.consequent.some(endsAbruptly),
+  );
+}
+
+// The catch clause or `finally` block whose body holds `node` with no function boundary between them.
+function owningHandler(context: OrbRuleContext, node: TSESTree.Node): TSESTree.CatchClause | TSESTree.BlockStatement | undefined {
+  const boundary = context.sourceCode.getAncestors(node).findLast((ancestor) => FUNCTION_NODES.has(ancestor.type) || isHandler(ancestor));
+  return boundary !== undefined && isHandler(boundary) ? boundary : undefined;
+}
+
+function isHandler(node: TSESTree.Node): node is TSESTree.CatchClause | TSESTree.BlockStatement {
+  return node.type === AST_NODE_TYPES.CatchClause || (node.parent?.type === AST_NODE_TYPES.TryStatement && node.parent.finalizer === node);
 }
 
 export const blindCatchRule: OrbRule = {
@@ -349,9 +384,12 @@ export const blindCatchRule: OrbRule = {
     const unanswered = new Set<TSESTree.CatchClause>();
     return {
       ReturnStatement: (statement: TSESTree.ReturnStatement) => {
-        const clause = isNoAnswer(statement.argument) ? owningCatch(context, statement) : undefined;
-        if (clause !== undefined) {
-          unanswered.add(clause);
+        const handler = isNoAnswer(statement.argument) ? owningHandler(context, statement) : undefined;
+        if (handler?.type === AST_NODE_TYPES.CatchClause) {
+          unanswered.add(handler);
+        } else if (handler !== undefined) {
+          // A return in `finally` replaces whatever the try threw, with no binding to read it through.
+          context.report({ node: statement, message: BLIND_FINALLY_MESSAGE });
         }
       },
       "CatchClause:exit": (clause: TSESTree.CatchClause) => {

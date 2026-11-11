@@ -149,7 +149,13 @@ async function operatorDirectoryAt(path: string, danglingKind: FsEntry["kind"]):
     if (!isMissingFile(error) && errnoCode(error) !== NOT_A_DIRECTORY_CODE) {
       throw error;
     }
-    const entry = await lstat(path).catch(() => null);
+    // The path is already known absent or not a directory; only a missing entry reads as no link.
+    const entry = await lstat(path).catch((lstatError: unknown) => {
+      if (!isMissingFile(lstatError)) {
+        throw lstatError;
+      }
+      return null;
+    });
     if (entry?.isSymbolicLink() === true) {
       throw new DanglingPlaneLinkError(path, { cause: error });
     }

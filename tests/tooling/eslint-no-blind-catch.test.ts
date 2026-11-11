@@ -83,6 +83,15 @@ rows([
   ["an if with no else falls through", tryLoad("catch {\n    if (flag) {\n      throw new Error('x');\n    }\n  }"), 1],
   ["the rule reaches the inference package", tryLoad("catch {\n    return null;\n  }"), 1, INFERENCE],
   ["the rule reaches the db package", tryLoad("catch {\n    return null;\n  }"), 1, DB],
+  ["an empty destructure binds nothing to read", tryLoad("catch ({}) {\n    return null;\n  }"), 1],
+  ["a destructured field nothing reads is not a read", tryLoad("catch ({ message: _m }) {\n    return null;\n  }"), 1],
+  ["Promise.resolve(null) answers nothing", tryLoad("catch {\n    return Promise.resolve(null);\n  }"), 1],
+  ["an awaited empty resolve answers nothing", tryLoad("catch {\n    return await Promise.resolve();\n  }"), 1],
+  [
+    "a return in finally discards the try's throw",
+    "export async function load(db: D): Promise<Row | null> {\n  try {\n    return await db.read();\n  } finally {\n    return null;\n  }\n}\n",
+    1,
+  ],
   // Negative controls: the error is read and decides the answer, or the catch answers with a throw or a value.
   [
     "a class predicate with a rethrow",
@@ -100,7 +109,6 @@ rows([
     tryLoad("catch (error) {\n    const cause = error;\n    log.warn({ err: cause }, 'read failed');\n    return null;\n  }"),
     0,
   ],
-  ["a destructured binding reads the error", tryLoad("catch ({ code }) {\n    return code === 'ENOENT' ? null : fail(code);\n  }"), 0],
   ["a binding-less catch that throws a typed error", tryLoad("catch {\n    throw new ReadFailedError();\n  }"), 0],
   [
     "a modeled value is not a null answer",
@@ -108,4 +116,20 @@ rows([
     0,
   ],
   ["a null return inside a nested function is not the catch's answer", tryLoad("catch {\n    throw wrap(() => {\n      return null;\n    });\n  }"), 0],
+  [
+    "a switch whose every case answers with a value",
+    tryLoad("catch {\n    switch (mode) {\n      case 1:\n      case 2:\n        return first;\n      default:\n        return second;\n    }\n  }"),
+    0,
+  ],
+  [
+    "a nested try whose branches both answer",
+    tryLoad("catch {\n    try {\n      return await db.retry();\n    } catch (inner) {\n      throw inner;\n    }\n  }"),
+    0,
+  ],
+  ["a destructured field that is read", tryLoad("catch ({ code }) {\n    return code === 'ENOENT' ? null : fail(code);\n  }"), 0],
+  [
+    "a finally that only cleans up",
+    "export async function load(db: D): Promise<Row> {\n  try {\n    return await db.read();\n  } finally {\n    db.release();\n  }\n}\n",
+    0,
+  ],
 ]);

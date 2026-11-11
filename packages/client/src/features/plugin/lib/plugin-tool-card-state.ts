@@ -8,18 +8,16 @@
 
 import type { ToolCallRecord } from "@orb/contracts/chat";
 import type { PluginToolCardState } from "@orb/contracts/plugin";
+import { parseJsonText } from "@orb/kit/json";
 
 /** A record's JSON payload, parsed. Falls back to the RAW STRING rather than throwing or nulling: the fields
  *  are provenance-faithful (a model can emit malformed argument JSON, and a guest handler's return flows back
  *  verbatim — a plugin that returns prose legitimately has prose here), and a card binding `{ $state: "result" }`
  *  against prose should render that prose, not an empty node. */
 function parseJsonOrRaw(raw: string): unknown {
-  // a non-JSON argument or result is data, not a failure; the raw string is the binding-root value and toolCardResultLine returns it for the tool card (components/plugin-tool-card.tsx) to render. Ends if the card stops rendering the raw string.
-  try {
-    return JSON.parse(raw);
-  } catch {
-    return raw;
-  }
+  // A JSON `null` is a parsed value; only text that is not JSON falls back to the raw string.
+  const value = parseJsonText(raw);
+  return value === undefined ? raw : value;
 }
 
 /** Project one persisted tool call into the card's binding root. Returned as a `Record<string, unknown>` (what

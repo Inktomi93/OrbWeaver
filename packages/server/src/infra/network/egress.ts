@@ -5,6 +5,7 @@ import { parseIp } from "@orb/kit/ip";
 import { Agent, buildConnector, getGlobalDispatcher, setGlobalDispatcher } from "undici";
 import type { Env } from "#foundation/env/record";
 import { parseTrustedPrivateRanges } from "#foundation/env/record";
+import { errnoCode } from "#primitives/errno";
 import type { Logger } from "#src/foundation/observability/contract/logging.ts";
 import { getLog, securityEvent } from "#src/foundation/observability/logger.ts";
 import { createDetachedSupervision } from "#src/foundation/observability/tracing.ts";
@@ -83,6 +84,9 @@ function superviseEgressCleanup(context: EgressContext, reason: string, operatio
 }
 
 const TRAILING_DOT_RE = /\.$/;
+/** The `dns.lookup` codes that mean the name has no address: it does not exist (`ENOTFOUND`), has no address record
+ *  (`ENODATA`), or the resolver could not answer for it (`EAI_AGAIN`). */
+const UNRESOLVED_NAME_CODES: ReadonlySet<string> = new Set(["ENOTFOUND", "ENODATA", "EAI_AGAIN"]);
 /** The IPv6 zone separator (`fe80::1%eth0`); percent-encoded it is still a `%`. */
 const ZONE_MARK = "%";
 /** The socket family a connector lookup reports for an IPv4 and an IPv6 literal. */
@@ -1233,10 +1237,24 @@ function validateUrl(log: Logger, url: URL, options: SafeFetchOptions, configure
   }
 }
 
+// A name the resolver says does not resolve is the same `unresolvable` refusal as an empty answer, so every safeFetch
+// caller sees one typed error for a dead host. Any other resolver fault (a broken resolver, a defect) rethrows.
+async function resolveHostFor(context: EgressContext, host: string): Promise<readonly string[]> {
+  try {
+    return await context.resolver(host);
+  } catch (error) {
+    const code = errnoCode(error);
+    if (code === undefined || !UNRESOLVED_NAME_CODES.has(code)) {
+      throw error;
+    }
+    return blockEgress(context.log, { reason: "unresolvable", host, detail: `host ${host} did not resolve (${code})`, fields: { code } });
+  }
+}
+
 /** Resolve→validate→pin for public URLs is unconditional, independent of deployment endpoint admission. */
 async function resolveValidatePinFor(context: EgressContext, url: URL): Promise<Agent> {
   const host = normalizeHost(url.hostname);
-  const addresses = await context.resolver(host);
+  const addresses = await resolveHostFor(context, host);
   if (addresses.length === 0) {
     blockEgress(context.log, { reason: "unresolvable", host, detail: `host ${host} did not resolve to any address` });
   }

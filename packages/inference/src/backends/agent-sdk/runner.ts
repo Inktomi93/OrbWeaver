@@ -22,6 +22,7 @@ import type {
   SDKMessage,
   SDKUserMessage,
 } from "@anthropic-ai/claude-agent-sdk";
+import { AbortError } from "@anthropic-ai/claude-agent-sdk";
 import type { ChatUsage, ResolvedWarning } from "@orb/contracts/inference";
 import { errorMessage } from "@orb/kit/error-message";
 import type { ChatId, ModelId } from "@orb/kit/ids";
@@ -413,7 +414,7 @@ function toContextUsage(res: SDKControlGetContextUsageResponse): ContextUsage {
   return { totalTokens: res.totalTokens, maxTokens: res.maxTokens, percentage: res.percentage, model: res.model };
 }
 
-/** Bounded, non-fatal context-fill probe; a throw/rejection/timeout all resolve `undefined`. */
+/** Bounded context-fill probe: a timeout or a failed control call resolves `undefined`; an abort rejects. */
 async function probeContextUsage(query: Query, deps: Pick<AgentSdkDeps, "scheduleTimeout" | "log">): Promise<ContextUsage | undefined> {
   if (typeof query.getContextUsage !== "function") {
     return;
@@ -427,7 +428,12 @@ async function probeContextUsage(query: Query, deps: Pick<AgentSdkDeps, "schedul
     const res = await Promise.race([query.getContextUsage(), timeout]);
     usage = res !== undefined ? toContextUsage(res) : undefined;
   } catch (error) {
-    // Context fill is an optional sidecar that never governs the turn result: a failed probe is logged and omits it.
+    // An abort is the query ending and propagates. Everything else stays contained by design: the SDK exports only its
+    // abort class, and a failed control call rejects with a plain Error, so no class exists to narrow to. Context fill
+    // is an optional sidecar that never governs the turn result, so the failure is logged and the sidecar omitted.
+    if (error instanceof AbortError) {
+      throw error;
+    }
     deps.log.warn({ err: errorMessage(error) }, "agent-sdk: the context-usage probe failed; the turn reports no context fill");
   } finally {
     cancelTimer?.();
