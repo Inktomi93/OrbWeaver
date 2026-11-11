@@ -117,7 +117,7 @@ export interface EmbeddingsContext {
   /** The per-FUNDER role-client bundle (inference program §7.5-2): a vector task is `scope: "owner"`, so the
    *  entity's OWNER funds the embed and DEFINES the space (their `embed`/`imageEmbed` binding). */
   readonly roleClientsFor: RoleClientsFor;
-  /** The owner's Utility-role preset params (D299), `undefined` under task defaults — avatar analysis sampling. */
+  /** The owner's Utility-role preset params (D304), `undefined` under task defaults — avatar analysis sampling. */
   readonly resolveUtilityPresetParams: ResolveUtilityPresetParams;
   readonly resolveEmbeddingConnection: ResolveEmbeddingConnection;
   /** Serialize target publication with connection writes; binding settlement already holds this queue. */

@@ -19,6 +19,7 @@ import { assets, characters } from "@orb/db";
 import type { CharacterId, UserId } from "@orb/kit/ids";
 import { and, eq } from "drizzle-orm";
 import type { DistillTargetNarrow } from "../contract/params.ts";
+import { ownedRealCharacters, realCharactersOfEveryOwner } from "./character-scope.ts";
 
 interface CardDistillTarget {
   readonly characterId: CharacterId;
@@ -55,7 +56,7 @@ export async function readOwnedCardDisplay(db: Db, ownerId: UserId): Promise<Car
     })
     .from(characters)
     .leftJoin(assets, eq(assets.id, characters.avatarAssetId))
-    .where(and(eq(characters.ownerId, ownerId), eq(characters.synthetic, false)));
+    .where(ownedRealCharacters(ownerId));
 }
 
 const distillCardFields = {
@@ -87,18 +88,12 @@ async function readOwnedCardDistillTargets(
   const rows = await db
     .select(distillCardFields)
     .from(characters)
-    .where(
-      and(
-        eq(characters.synthetic, false),
-        eq(characters.ownerId, filter.ownerId),
-        filter.characterId === undefined ? undefined : eq(characters.id, filter.characterId),
-      ),
-    );
+    .where(and(ownedRealCharacters(filter.ownerId), filter.characterId === undefined ? undefined : eq(characters.id, filter.characterId)));
   return materializeDistillTargets(rows);
 }
 
 async function readEveryOwnerCardDistillTargets(db: Db, _run: EveryOwnerRun): Promise<CardDistillTarget[]> {
-  const rows = await db.select(distillCardFields).from(characters).where(eq(characters.synthetic, false));
+  const rows = await db.select(distillCardFields).from(characters).where(realCharactersOfEveryOwner());
   return materializeDistillTargets(rows);
 }
 
@@ -108,7 +103,7 @@ export function readCardDistillTargets(db: Db, filter: DistillTargetNarrow): Pro
 }
 
 async function countEveryOwnerDistillTargets(db: Db, _estimate: EveryOwnerEstimate): Promise<number> {
-  const rows = await db.select(distillCardFields).from(characters).where(eq(characters.synthetic, false));
+  const rows = await db.select(distillCardFields).from(characters).where(realCharactersOfEveryOwner());
   return materializeDistillTargets(rows).filter((target) => target.hasContent).length;
 }
 

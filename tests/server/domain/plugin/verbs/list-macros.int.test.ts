@@ -8,7 +8,9 @@ import { expect, test } from "@orb/testkit/node";
 import { createServerHarness, installMacroGuest, seedCorpusActors } from "@orb/testkit/node/composed";
 import { pluginMacroName } from "#server/domain/plugin/substrate/plugin-macros.ts";
 
-test("listMacros returns the caller's own enabled plugins' macros with plugin id and name, and a second account reads none of them", async () => {
+test("listMacros returns the caller's own enabled plugins' macros with plugin id and name, and a second account reads none of them", {
+  tags: "slow",
+}, async () => {
   await using root = await createServerHarness({ pluginSpawn: spawn });
   const { owner, secondUserId } = await seedCorpusActors(root);
   const second = await root.principalFor(secondUserId);

@@ -11,6 +11,7 @@ import { and, asc, desc, eq, gt, isNotNull, lt, ne, or, sql } from "drizzle-orm"
 import type { BrowseCursor, BrowseFilter } from "../contract/params.ts";
 import type { BrowseCharacter, BrowseCharactersPage, CharacterFacets, FacetCount } from "../contract/results.ts";
 import type { DiscoveryContext, DiscoveryService } from "../contract/service.ts";
+import { ownedRealCharacters } from "../persistence/character-scope.ts";
 
 // KEYSET, NOT A CEILING (A8). This verb used to answer one array capped
 // at 200 and call the truncation deliberate, on the reasoning that "the row set is a browse page, not a
@@ -49,7 +50,7 @@ function nextCursorFor(sort: BrowseSort, rows: readonly BrowseCharacter[], pageS
 }
 
 async function browseCharacters(db: Db, ownerId: UserId, filter: BrowseFilter = {}): Promise<BrowseCharactersPage> {
-  const conds = [eq(characters.ownerId, ownerId), eq(characters.synthetic, false)];
+  const conds = [ownedRealCharacters(ownerId)];
   if (filter.genre !== undefined) {
     conds.push(eq(characterSummaries.genre, filter.genre));
   }

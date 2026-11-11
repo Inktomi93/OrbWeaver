@@ -1,5 +1,5 @@
 // domain/import/loader/collect — profile-dir collector. Walks a staged ST profile through the injected
-// ImportFsPort (domain-no-node-fs), reads/hashes/parses PNG cards + chat JSONL + settings.json personas,
+// ImportFsPort, reads/hashes/parses PNG cards + chat JSONL + settings.json personas,
 // and pairs them into per-character bundles. Every read goes through an open `ImportDirectory`, never a path.
 //
 // Layout: <profileDir>/characters/*.png, /chats/<charDir>/*.jsonl, /settings.json, /User Avatars/*.png,

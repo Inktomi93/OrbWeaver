@@ -128,7 +128,7 @@ export const useAdmitPrivateEndpoint = createEntityMutation<
   errorToast: "Couldn't admit that host. Only the box owner can change the allowed endpoints.",
 });
 
-/** The Utility role's preset choice (D299) — a `seeds` section patch; `null` is task defaults. */
+/** The Utility role's preset choice (D304) — a `seeds` section patch; `null` is task defaults. */
 export const useSetUtilityPreset = createEntityMutation<SectionPatchVars<"seeds">, unknown>({
   options: (trpc) => trpc.settings.updateUserSettingsSection.mutationOptions(),
   busDriven: true, // emits `settingsChanged` → USER_BUS_FILTERS covers getUserSettings.

@@ -55,7 +55,7 @@ export interface SetTagOrderParams extends TagActorParams {
 export type AttachTagParams = TagActorParams &
   TagTargetRef & {
     readonly tagId: TagId;
-    /** The proposed/accepted surface — honored ONLY for `targetType: "character"` (the four other junctions
+    /** The pending/accepted surface — honored ONLY for `targetType: "character"` (the four other junctions
      *  have no status column). Default `accepted` (a manual attach is a live tag); corpus distillation
      *  passes `pending` to stage a suggestion. Re-attaching with `accepted` flips a pending row (the "Accept"). */
     readonly status?: TagStatus;
@@ -79,7 +79,7 @@ export type BulkAttachTagParams = TagActorParams &
  *  the chat, so this carries the resolved `ownerId` and no principal.
  *
  *  NO `status`, and that is the D30 shape rather than an omission: `chat_tags` is a per-TAGGER overlay whose
- *  PK includes `ownerId` — there is no proposed/accepted surface on it, because a chat label is placed by the
+ *  PK includes `ownerId` — there is no pending/accepted surface on it, because a chat label is placed by the
  *  person who wants it and belongs to nobody else. */
 export interface AttachChatTagByNameParams {
   readonly ownerId: UserId;

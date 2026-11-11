@@ -94,7 +94,7 @@ export interface SearchDiscoveryComposeDeps {
   readonly withStableEmbeddingBinding: EmbeddingsAssemblyContext["withStableEmbeddingBinding"];
   readonly eventBus: PubSub<DomainEvent>;
   readonly attachCardTagByName: TagService["attachCardTagByName"];
-  /** The card owner's Utility-role preset params (D299) — distill + analyze. */
+  /** The card owner's Utility-role preset params (D304) — distill + analyze. */
   readonly resolveUtilityPresetParams: DiscoveryAssemblyContext["resolveUtilityPresetParams"];
   readonly character: Pick<CharacterService, "listEmbeddableCharacterIds" | "loadCardText">;
   readonly assets: Pick<AssetsService, "listImageAssetIds" | "loadAssetBytes" | "assetCasRefById">;

@@ -103,7 +103,7 @@ function ModelRolesBody({ anchorId }: { readonly anchorId: string }): ReactEleme
             trpc={trpc}
             invalidation={invalidation}
           >
-            {/* Chat's preset is the active preset (the Presets pane); only Utility picks its own (D299). */}
+            {/* Chat's preset is the active preset (the Presets pane); only Utility picks its own (D304). */}
             {row.task === "summarize" ? <UtilityPresetSelect /> : null}
             {row.task === "rerank" ? <BuiltinRerankerHint bindings={bindings} builtinProviderIds={builtinProviderIds} connections={connections} /> : null}
           </ConnectionRoleSlot>

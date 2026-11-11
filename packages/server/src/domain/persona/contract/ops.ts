@@ -20,7 +20,7 @@ import type { Handle, UserId } from "@orb/kit/ids";
 // identity. `allowedOwnerIds` is that gate, and it is IN THE PARAMS on purpose (the injected-op caller-gate
 // law): an op that reads tenant-scoped rows without carrying its gate is ungated by construction, and every
 // future caller inherits an unfenced read. A persona whose owner is absent from the set simply does not
-// appear in the result. The one exception is the room's PIN (`chats.anchorPersonaId`, ADR 0314): the host's
+// appear in the result. The one exception is the room's PIN (`chats.anchorPersonaId`, ADR 0315): the host's
 // standing pin keeps resolving after its owner leaves or is disabled, so a card never re-resolves to someone
 // else on its own. It is read live through `chatId`, never copied, and clears when the owner deletes the
 // persona. The op takes the room, never a pin id, so no caller can name a persona past the consent gate.

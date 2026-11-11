@@ -4,6 +4,7 @@
 // tried to occupy the __group__* synthetic namespace).
 
 import { CHARACTER_HANDLE_CONFLICT_OP_CODE, CHARACTER_HANDLE_RESERVED_OP_CODE, CHARACTER_STALE_BASIS_OP_CODE } from "@orb/contracts/character";
+import { BACKGROUND_UNAVAILABLE_OP_CODE } from "@orb/contracts/theme";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { AssetId, CharacterId } from "@orb/kit/ids";
 
@@ -37,7 +38,7 @@ export const CHARACTER_STALE_BASIS = CHARACTER_STALE_BASIS_OP_CODE;
 /** `update` was given a `kind:"external"` carried-background URL that could not be materialized into an owned
  *  image asset (unreachable / not an image / too large). BAD_REQUEST; the message carries
  *  the honest reason, never the URL. */
-export const CHARACTER_BACKGROUND_UNAVAILABLE = "background_unavailable";
+export const CHARACTER_BACKGROUND_UNAVAILABLE = BACKGROUND_UNAVAILABLE_OP_CODE;
 
 export class CharacterOperationError extends DomainOperationError {
   constructor(code: string, message: string) {

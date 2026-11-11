@@ -98,7 +98,7 @@ export interface AssetsCharacterComposeDeps {
   readonly newBackgroundEntryId: NewBackgroundEntryId;
   /** Request-time forward-ref: the preset service (composes after this seam) — the greeting-template resolver. */
   readonly getPreset: () => Pick<PresetService, "get">;
-  /** The caller's Utility-role preset params (D299). */
+  /** The caller's Utility-role preset params (D304). */
   readonly resolveUtilityPresetParams: GreetingCompletionDeps["resolveUtilityPresetParams"];
   /** Request-time forward-ref: the persona service (composes after this seam) — the persona seeder's create
    *  plus the `list` its layer-2 artifact probe reads (`createPersonaSeedLatch`). */

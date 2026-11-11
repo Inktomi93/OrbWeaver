@@ -94,7 +94,7 @@ export async function avatarAnalysisCallsModel(roleClients: RoleClients, availab
  * breakdown, in one call. Returns the skip shape (empty caption, facetless meta) when the structured turn
  * fails both attempts — the store verb then writes nothing and the next sweep tries the asset again.
  *
- * `presetParams` is the owner's Utility-role preset params (D299). Pass `undefined` under task defaults or
+ * `presetParams` is the owner's Utility-role preset params (D304). Pass `undefined` under task defaults or
  * when no preset context is available — the `caption` posture stands alone.
  */
 export async function analyzeAvatarImage(

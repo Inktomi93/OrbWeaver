@@ -3,7 +3,7 @@
 // whether it's an active override; Reset clears the whole nested override to the floor (the merge-safe
 // `{ <key>: null }`). Numeric knobs batch a Save; the mode enum + keywordMatch boolean write immediately.
 // Reads getAppSettingsWithOverrides for the honest floor-vs-override story. Summary sampling is not here:
-// each user's Utility role picks its preset (D299).
+// each user's Utility role picks its preset (D304).
 //
 // A settings-SECTION CONTRIBUTION (§6c) at the `admin` anchor, owned by user-admin (admin-tier config).
 
