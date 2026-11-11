@@ -32,6 +32,11 @@ export type MaterializeBackgroundResult =
  *  branches without importing infra error classes). */
 export type MaterializeBackgroundOp = (principal: Principal, url: string) => Promise<MaterializeBackgroundResult>;
 
+/** The refusal code every write path raises for an external background that could not be materialized or a
+ *  background asset that is no longer available. WIRE vocabulary: the transport carries it on `data.reason`, so
+ *  the chat, character and settings domains read this one constant and never spell it themselves. */
+export const BACKGROUND_UNAVAILABLE_OP_CODE = "background_unavailable" as const;
+
 /** The user-facing refusal copy for a failed materialize — ONE home so every write path (chat / character /
  *  settings) surfaces the same honest reason. Never echoes any URL or internal detail. */
 export function backgroundMaterializeMessage(reason: BackgroundMaterializeFailure): string {

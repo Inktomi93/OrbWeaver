@@ -14,6 +14,7 @@
 import type { AssetKind } from "@orb/contracts/assets";
 import type { GlobalSettingView, UserSettings, UserSettingsView } from "@orb/contracts/settings";
 import { appSettingsConfig, parseUserSettings, USER_SETTINGS_SCHEMA_VERSION, userSettingsConfig } from "@orb/contracts/settings";
+import { BACKGROUND_UNAVAILABLE_OP_CODE } from "@orb/contracts/theme";
 import type { Db } from "@orb/db";
 import { assets, settings, userSettings } from "@orb/db";
 import type { DatabaseHandle } from "@orb/db/wiring";
@@ -58,7 +59,7 @@ export const BACKGROUND_ASSET_KIND: AssetKind = "background";
 /** The ONE refusal both halves of the background predicate raise (the pre-write check and the guards that
  *  ride the UPDATE), so which half refused is not observable — and neither names the asset. */
 function backgroundUnavailable(): DomainOperationError {
-  return new DomainOperationError("background_unavailable", "A background asset is no longer available.");
+  return new DomainOperationError(BACKGROUND_UNAVAILABLE_OP_CODE, "A background asset is no longer available.");
 }
 
 /** The background assets a config PINS: the `asset`-kind current selection plus every library entry,

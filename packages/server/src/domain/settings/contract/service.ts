@@ -124,7 +124,7 @@ export interface SettingsService {
   /** Materialize a user-pasted external image URL into an owned CAS asset and return a ready
    *  `BackgroundLibraryEntry` (side-eye F-P0-2). A DISCRETE action — the client appends the returned entry to
    *  `appearance.backgroundLibrary` via the autosave form; NO paintable external URL is ever persisted. Throws
-   *  `DomainOperationError(background_unavailable)` on an unreachable / non-image / too-large URL. */
+   *  `DomainOperationError(BACKGROUND_UNAVAILABLE_OP_CODE)` on an unreachable / non-image / too-large URL. */
   readonly addExternalBackground: (params: AddExternalBackgroundParams) => Promise<BackgroundLibraryEntry>;
   /** The lenient typed-blob loader for cross-feature callers (raw `userId`, not a gated user-facing verb). */
   readonly loadUserSettings: LoadUserSettings;

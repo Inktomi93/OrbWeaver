@@ -11,6 +11,7 @@
 // authority refusal, not a leak. (Authoritative auth surface: docs/law/Spine-Identity-and-Auth.md.)
 
 import { TURN_ABORTED_OP_CODE, TURN_LOCKED_OP_CODE, USER_MACRO_UNKNOWN_PICK_OP_CODE } from "@orb/contracts/chat";
+import { BACKGROUND_UNAVAILABLE_OP_CODE } from "@orb/contracts/theme";
 import { DomainNotFoundError, DomainOperationError } from "@orb/kit/errors";
 import type { ChatId } from "@orb/kit/ids";
 
@@ -72,7 +73,7 @@ export const CHAT_OP_CODES = {
   /** `setChatBackground` was given a `kind:"external"` URL that could not be materialized into an owned image
    *  asset (unreachable / not an image / too large). A validation refusal (BAD_REQUEST); the
    *  message carries the honest reason (`backgroundMaterializeMessage`), never the URL or any internal detail. */
-  backgroundUnavailable: "background_unavailable",
+  backgroundUnavailable: BACKGROUND_UNAVAILABLE_OP_CODE,
   /** `requestTurn` was asked to stamp a reply DEEPER than `AUTOMATION_DEPTH_HARD_CAP`.
    *  The WRITE-side belt for the runaway-cascade guard: automation's dispatch gate already refuses an event at
    *  depth ≥ cap, so this bites only a mis-behaving non-dispatch caller (the plugin membrane) — fail-closed. */

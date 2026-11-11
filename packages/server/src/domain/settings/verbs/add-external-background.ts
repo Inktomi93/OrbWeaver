@@ -7,7 +7,7 @@
 // library entry lands through the same autosave path an uploaded background does (the `uploadAsset` twin).
 
 import type { BackgroundLibraryEntry } from "@orb/contracts/settings";
-import { backgroundMaterializeMessage } from "@orb/contracts/theme";
+import { BACKGROUND_UNAVAILABLE_OP_CODE, backgroundMaterializeMessage } from "@orb/contracts/theme";
 import { DomainOperationError } from "@orb/kit/errors";
 import type { AddExternalBackgroundParams } from "../contract/params.ts";
 import type { SettingsContext, SettingsService } from "../contract/service.ts";
@@ -36,7 +36,7 @@ export function createAddExternalBackground(ctx: SettingsContext): SettingsServi
     }
     const result = await ctx.materializeBackground(principal, trimmed);
     if (!result.ok) {
-      throw new DomainOperationError("background_unavailable", backgroundMaterializeMessage(result.reason));
+      throw new DomainOperationError(BACKGROUND_UNAVAILABLE_OP_CODE, backgroundMaterializeMessage(result.reason));
     }
     return {
       entryId: ctx.newBackgroundEntryId(),
