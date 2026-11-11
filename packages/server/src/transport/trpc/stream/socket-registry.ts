@@ -114,7 +114,7 @@ export interface SocketCell {
    * evict per-session). Re-stamped on every `adopt`, because a reconnect is a fresh request with a fresh
    * cookie: the cell survives a re-login, and it must not keep pointing at the session that just ended.
    *
-   * WHY IT LIVES HERE AND NOT ON THE PRINCIPAL (owner-ruled 2026-08-14): logout is per-SESSION — signing
+   * WHY IT LIVES HERE AND NOT ON THE PRINCIPAL (owner-ruled): logout is per-SESSION — signing
    * out on the phone must not kill the desktop — and the socket is the only long-lived thing that outlives the
    * request its Principal was minted from. D135 says the ROLE verdict has one home; a session id is not a
    * role, and threading it through the Principal would put a per-connection fact into the immutable identity

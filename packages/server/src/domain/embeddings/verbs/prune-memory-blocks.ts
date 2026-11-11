@@ -1,5 +1,4 @@
-// verb: pruneMemoryBlocks — the chat-memory SHRINK seam (stickler 2026-08-08 canon-message-identity, leg-2
-// refutation). memory's build STORES every block that currently exists, then calls this to reclaim the ones
+// verb: pruneMemoryBlocks — the chat-memory SHRINK seam. memory's build STORES every block that currently exists, then calls this to reclaim the ones
 // that no longer do.
 //
 // WHY IT HAS TO EXIST: blocks are sliced by POSITION and stored keyed `(tier, blockIdx)`, while the build's
@@ -38,7 +37,7 @@ export function createPruneMemoryBlocks(ctx: EmbeddingsContext): EmbeddingsServi
         });
         break;
       }
-      // #1395 — the KNOWN-stale reclaim (hash mismatch proved it stale, the re-summarize came back empty).
+      // The KNOWN-stale reclaim (hash mismatch proved it stale, the re-summarize came back empty).
       case "digest-stale": {
         await dropChatDigestKeys(ctx.db, params.chatId, params.scopedCharacterId, {
           keys: params.keys,

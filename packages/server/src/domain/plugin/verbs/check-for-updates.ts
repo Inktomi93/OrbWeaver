@@ -5,7 +5,7 @@
 // (`upload`) install of a plugin this build does not ship has neither a remembered source nor a bundled copy,
 // so it is simply ABSENT from the result rather than reported as a dishonest "unreachable".
 //
-// THREE SOURCES, ONE BATCH (#1740/#0081). A `url` row is re-fetched; a `git` row asks for remote HEAD without
+// THREE SOURCES, ONE BATCH. A `url` row is re-fetched; a `git` row asks for remote HEAD without
 // cloning; a SEEDED SHOWCASE row (upload-origin, its slug in
 // the set this build ships) is compared against the BUNDLED manifest version through the same injected reader
 // the boot seeder uses (`ctx.showcase.version` → `readShowcaseManifest`), so the check and the auto-upgrade can
@@ -62,7 +62,7 @@ export function createCheckForUpdates(ctx: PluginContext): PluginService["checkF
     }
   }
 
-  /** The SHOWCASE arm (#1740) — read the version off the bundle this build SHIPS. `null` means the shipped set
+  /** The SHOWCASE arm — read the version off the bundle this build SHIPS. `null` means the shipped set
    *  no longer carries that slug, which is an ABSENCE (drop out of the batch) and never `unreachable`: nothing
    *  was reached for, so reporting a source failure would be a lie about a fetch that never happened. */
   async function checkShowcase(id: PluginId, slug: string, version: string): Promise<PluginUpdateCheck | null> {

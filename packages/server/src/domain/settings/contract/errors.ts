@@ -18,7 +18,7 @@ export const SETTINGS_OP_CODES = {
   /** A section patch wrote an id pointer that is not a valid id of its family; nothing is written. */
   malformedPointer: "settings_malformed_pointer",
   /** A settings write found the EXISTING stored blob unreadable and refused rather than overwrite it with
-   *  the degraded default the read seam hands out (#471 — the silent whole-blob wipe class). The row is
+   *  the degraded default the read seam hands out (the silent whole-blob wipe class). The row is
    *  left exactly as it was; the failure reason rides the message. Thrown by `#primitives/stored-config`, which
    *  is the code's ONE home — this catalog entry references it so settings' reason codes stay enumerable
    *  in one place without re-spelling the wire string. */

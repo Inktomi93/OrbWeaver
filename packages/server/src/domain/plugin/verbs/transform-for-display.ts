@@ -2,7 +2,7 @@
 // ST message-formatting-hook parity row). The caller's own enabled plugins get to annotate ONE rendered row,
 // in registration order, and the annotated text comes back to that same caller.
 //
-// WHY THE TEXT COMES FROM THE CLIENT, argued rather than assumed (the seam-14 ruling, 2026-08-28): the house
+// WHY THE TEXT COMES FROM THE CLIENT, argued rather than assumed (the seam-14 ruling): the house
 // display pipeline is CLIENT-SIDE and SYNCHRONOUS (`client/src/lib/message-render.ts` — macros → DISPLAY regex
 // → markdown), so there is no server-side render path to hook, and a guest invoke is async and server-side. The
 // two honest arms were "server re-reads canon and the client re-renders the result" and this one. This one

@@ -83,7 +83,7 @@ function admitsWrite(scope: KvScope, key: string, maxKeys: number): SQL {
     )`;
 }
 
-/** ATOMIC compare-and-set (#1442) — the one write in this file that is safe under concurrency, and the reason
+/** ATOMIC compare-and-set — the one write in this file that is safe under concurrency, and the reason
  *  it is a distinct query rather than a caller-side read + `upsertKv`: THE PREDICATE RIDES THE WRITE. There is
  *  no JS `if` between a read and a write to interleave with, and no batch (a batch that reads first is not
  *  atomic either).

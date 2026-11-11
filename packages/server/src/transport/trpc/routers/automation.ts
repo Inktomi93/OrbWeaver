@@ -181,7 +181,7 @@ export const automationRouter = t.router({
 
   getOwnerBudgets: authedProcedure.output(ownerBudgetViewSchema).query(({ ctx }) => ctx.services.automation.getOwnerBudgets({ principal: ctx.auth })),
 
-  // The owner-wide fire-rate cap (#1430) mirrors the domain verb's authoritative ceiling at the wire edge.
+  // The owner-wide fire-rate cap mirrors the domain verb's authoritative ceiling at the wire edge.
   setOwnerBudgets: authedProcedure
     .output(z.void())
     .input(z.strictObject({ maxFiresPerHour: z.int().min(0).max(AUTOMATION_BUDGET_MAX_FIRES_PER_HOUR).optional() }))

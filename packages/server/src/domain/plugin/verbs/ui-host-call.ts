@@ -31,7 +31,7 @@
 //     out for the same reason the membrane caps its own.
 //  7. CONCURRENCY. A per-plugin in-flight slot (`UiHostCallGate`), released in a `finally`. The tRPC bucket
 //     bounds calls per window; only this bounds how many are RUNNING, which is what a re-rendering surface can
-//     turn into a flood (the D46 P2-F lesson, applied from birth).
+//     turn into a flood (the D46 lesson, applied from birth).
 //
 // WHAT THIS VERB DELIBERATELY DOES NOT DO: resolve host authority, decide what a capability means, or perform
 // any op itself. It admits, and hands off. Every semantic bound — the D16 viewer clamp on canon, the KV

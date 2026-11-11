@@ -33,7 +33,7 @@ import type { SettingsImportOutcome } from "./import-results.ts";
 
 // The `appearance` section lives in its own module so the client's pre-paint boot hint can reach the
 // CONTRACT's own schema object (e94c50a718: one set of bounds, never a client copy) without composing this
-// whole `UserSettings` tree and its prose tables (#448). Ownership is unchanged — the section is settings',
+// whole `UserSettings` tree and its prose tables. Ownership is unchanged — the section is settings',
 // and shared appearance shapes and operations are re-exported here for `@orb/contracts/settings` consumers.
 // The deep door is the exact `@orb/contracts/settings/appearance` exports entry.
 export type {
@@ -296,7 +296,7 @@ const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Re
     }
     return { ...config, schemaVersion: 2 };
   },
-  // v2→v3: the `engineLaunch` LAUNCH-config section (#14, since RETIRED with the vLLM fleet — inference
+  // v2→v3: the `engineLaunch` LAUNCH-config section (since RETIRED with the vLLM fleet — inference
   // program F11) was purely additive/optional — no field moved or renamed. Stamp the version so a v2 row
   // stops re-running the lift chain; the absent section reads back as the env floor.
   2: (config) => ({ ...config, schemaVersion: 3 }),
@@ -312,14 +312,14 @@ const APP_SETTINGS_LIFTS: Record<number, (config: Record<string, unknown>) => Re
   5: (config) => ({ ...config, schemaVersion: 6 }),
   // v6→v7: a stamp; no stored field changes meaning.
   6: (config) => ({ ...config, schemaVersion: 7 }),
-  // v7→v8: `memoryDefaults.recencyBias` is REMOVED (#321, docs/work/0122, owner ruling 2026-08-22). Unlike every lift
+  // v7→v8: `memoryDefaults.recencyBias` is REMOVED (docs/work/0122, owner ruling). Unlike every lift
   // above this one it DELETES a stored field, so it is the only one that has to be written by hand rather than
-  // stamped: the owner's 2026-08-20 probe measured the experimental boost on the real corpus (222-message
+  // stamped: the owner's probe measured the experimental boost on the real corpus (222-message
   // conversation, biases 0…1) and found the final top-three unchanged in mixC and actively WORSE at a smaller
   // retrieveK, so the knob is retired rather than blessed with a production blend.
   //
   // The deletion is SURGICAL — the section is rebuilt minus one key, never replaced. `memoryDefaults` is an
-  // admin's override blob; substituting a default for a section that failed to look right is exactly the #461
+  // admin's override blob; substituting a default for a section that failed to look right is exactly the settings-
   // wipe class, so a non-object / absent section is passed through UNTOUCHED for the schema to judge rather
   // than "repaired" here. (The final schema would strip the unknown key on its own; this lift exists so the
   // stored blob is REWRITTEN clean at the next write and so the removal is legible at the version it happened.)
@@ -504,7 +504,7 @@ const chatSchema = z
       .object({
         enabled: z.boolean().default(false),
         minLength: z.int().nonnegative().default(AUTO_SWIPE_MIN_LENGTH_DEFAULT),
-        // NO `.catch` (#1532's versioned-config class sweep, `#versioned-config`'s header §2): a bad element
+        // NO `.catch` (the versioned-config class sweep, `#versioned-config`'s header §2): a bad element
         // refuses the WHOLE settings write (loud), deliberately, rather than silently dropping a blacklist
         // entry a swipe-time comparison still needs (lossy with no on-screen signal).
         blacklist: z.array(z.string()).default([]),
@@ -514,15 +514,15 @@ const chatSchema = z
       })
       .strip()
       .prefault({}),
-    // Element-wise (#1365): a non-string element costs THAT entry, not every stop string the user wrote.
+    // Element-wise: a non-string element costs THAT entry, not every stop string the user wrote.
     customStoppingStrings: tolerantArray(z.string(), []).default([]),
     // ⑧(a) — how long a temporary chat lives before the per-user reaper (`reapTemporaryChats`, scoped to the
     // caller's hosted chats) may delete it. Was the engine's TEMPORARY_CHAT_REAP_TTL_MS=24h const; per-user
     // because the reaper runs under the caller's principal over THEIR chats. A value outside the bounds
     // self-heals to the default.
     tempChatTtlHours: z.int().min(TEMP_CHAT_TTL_HOURS_MIN).max(TEMP_CHAT_TTL_HOURS_MAX).catch(TEMP_CHAT_TTL_HOURS_DEFAULT).default(TEMP_CHAT_TTL_HOURS_DEFAULT),
-    // Client-honored (the streaming ghost's `useSmoothText` pacer). Default ON (owner ruling 2026-08-09):
-    // the #42 forge moved the per-word fade onto `mode="streaming"` itself, so this knob is now PURELY
+    // Client-honored (the streaming ghost's `useSmoothText` pacer). Default ON (owner ruling):
+    // the per-word fade lives on `mode="streaming"` itself, so this knob is PURELY
     // pacing — and the old "smooth is jankier" objection was measured dead on that build (over-budget
     // commits 205→55, LoAFs 18→11). Off ⇒ raw network-chunk cadence, still faded.
     smoothStream: z.boolean().catch(true).default(true),
@@ -652,7 +652,7 @@ const workloadsSchema = z
 
 const onboardingSchema = z
   .object({
-    // NOTE: `personaWizardSeen` was DELETED (2026-07-26, Phase B ⑥ / D107): it was defined here but READ +
+    // NOTE: `personaWizardSeen` was DELETED (Phase B ⑥ / D107): it was defined here but READ +
     // WRITTEN by nothing. The first-run persona gate triggers on zero owned personas
     // (features/persona/anchors/first-run-persona-dialog.tsx), never on a "seen" flag — the rateLimits.general
     // dead-field precedent. A stored blob's stale `personaWizardSeen` is stripped by zod (unknown key); the
@@ -673,8 +673,8 @@ const onboardingSchema = z
     // request. It gates the INSTALL half only; the upgrade half below runs on every pass, because a latch
     // that meant "never look at these rows again" is exactly what kept improvements from existing installs.
     examplePluginsSeeded: z.boolean().catch(false).default(false),
-    // WHAT WE LAST WROTE, per showcase slug: `{ "card-atlas": "1.1.0", … }`. #803's auto-upgrade oracle
-    // (owner-ruled 2026-09-05, arm (a)), and the thing that makes "has the user taken this plugin over?"
+    // WHAT WE LAST WROTE, per showcase slug: `{ "card-atlas": "1.1.0", … }`. The auto-upgrade oracle
+    // (owner-ruled, arm (a)), and the thing that makes "has the user taken this plugin over?"
     // answerable at all.
     //
     // THE PRIOR RULING ON THIS FIELD'S NEIGHBOUR SURVIVES; ITS INPUT CHANGED. `examplePluginsSeeded`'s
@@ -693,7 +693,7 @@ const onboardingSchema = z
     // idea — `domain/plugin/verbs/uninstall-for-all-users.ts` already skips a recipient whose
     // `row.version !== record.version` as `version-diverged`, reasoning that they have taken the plugin over.
     // Same rule here, same word. A slug ABSENT from this map on a row that is nonetheless installed is the
-    // pre-#803 backfill arm and is adopted as ours (see the seeder's header for why that is the safe arm
+    // backfill arm and is adopted as ours (see the seeder's header for why that is the safe arm
     // pre-launch); the arm self-retires, because the first pass records every held slug.
     //
     // `.catch({})` on purpose, like every latch here: a settings blob that comes back at schema defaults
@@ -964,10 +964,10 @@ export interface AppSettingsView {
 export interface UserSettingsView {
   config: UserSettings;
   /**
-   * WHY THE `config` ABOVE MAY NOT BE THIS USER'S (#1716) — `null` ⇒ the stored blob was read faithfully
+   * WHY THE `config` ABOVE MAY NOT BE THIS USER'S — `null` ⇒ the stored blob was read faithfully
    * (and, for a never-written account, there is nothing to fail to read: absence is not corruption);
    * a failure kind ⇒ `config` is a STAND-IN and every settings write derived from it is refused with
-   * `stored_config_unreadable` (`#primitives/stored-config`, the #471 guard).
+   * `stored_config_unreadable` (`#primitives/stored-config`, the intact guard).
    *
    * Projected from the SAME `userSettingsConfig.parseOutcome(row.config, row.schemaVersion)` call
    * `writeUserConfig` makes, so the state a settings pane renders cannot disagree with the refusal its

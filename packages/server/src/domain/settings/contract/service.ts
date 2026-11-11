@@ -56,7 +56,7 @@ export interface SettingsContext {
   /** User-bus live-freshness emit: user-settings writes fire `settingsChanged`, theme verbs fire
    *  `themesChanged`, after the durable write. AppSettings/GlobalSettings are global/admin — no emit. */
   readonly emitUserEvent: EmitUserEvent;
-  /** Materialize a user-pasted external background URL into an owned CAS asset (side-eye F-P0-2). Compose-built
+  /** Materialize a user-pasted external background URL into an owned CAS asset. Compose-built
    *  from infra + assets.store; drives `addExternalBackground`. */
   readonly materializeBackground: MaterializeBackgroundOp;
   /** Mints the stable per-row id for a new `BackgroundLibraryEntry` (crypto uuid in prod; deterministic in tests). */
@@ -117,12 +117,12 @@ export interface SettingsService {
   readonly updateUserSettingsSection: (params: UpdateUserSettingsSectionParams) => Promise<UserSettingsView>;
   /** Replace this user's WHOLE settings blob with the contract defaults at the current schema version, and
    *  return the re-read row. Serialized per user, audited, emits `settingsChanged`. DESTRUCTIVE — it is the
-   *  ONE repair door for a `user_settings.config` that cannot be read (#1771/#1716), and the only settings
+   *  ONE repair door for a `user_settings.config` that cannot be read, and the only settings
    *  write whose content does not descend from a read of the row it lands on, which is what lets it run
-   *  where the #471 guard refuses everything else. Scoped to `principal.userId`; it accepts no id. */
+   *  where the intact guard refuses everything else. Scoped to `principal.userId`; it accepts no id. */
   readonly resetUserConfig: (params: ResetUserConfigParams) => Promise<UserSettingsView>;
   /** Materialize a user-pasted external image URL into an owned CAS asset and return a ready
-   *  `BackgroundLibraryEntry` (side-eye F-P0-2). A DISCRETE action — the client appends the returned entry to
+   *  `BackgroundLibraryEntry`. A DISCRETE action — the client appends the returned entry to
    *  `appearance.backgroundLibrary` via the autosave form; NO paintable external URL is ever persisted. Throws
    *  `DomainOperationError(background_unavailable)` on an unreachable / non-image / too-large URL. */
   readonly addExternalBackground: (params: AddExternalBackgroundParams) => Promise<BackgroundLibraryEntry>;

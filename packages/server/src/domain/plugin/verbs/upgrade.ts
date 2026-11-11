@@ -8,7 +8,7 @@
 // → recompute the grant (prior grant ∩ newly-declared) → read what the OLD bundle's `ui/assets/` images were
 // → store the new bundle + its images → stop the old resident instance → swap the row AND replace its
 // bundle-asset links in one batch → reap the now-orphaned old bundle asset and any image this version
-// dropped (#820) → land `disabled`.
+// dropped → land `disabled`.
 //
 // THE TEARDOWN IS LATE ON PURPOSE. Every fallible write happens while the OLD version is still running, so a
 // failure anywhere before the swap leaves a plugin that is exactly what its row says it is — still installed,
@@ -21,7 +21,7 @@
 // is the INTERSECTION (`normalizeGrant`), so the newly-declared capability is NOT granted. Re-confirming is the
 // separate `setGrant` verb (`verbs/set-grant.ts`), whose approval may also turn the plugin back on.
 //
-// TRUTH-REPAIR (2026-08-24): this header used to say "the owner re-enables, re-confirming", and that was a
+// TRUTH-REPAIR: this header used to say "the owner re-enables, re-confirming", and that was a
 // comment overstating a security mechanism — `setEnabled` activates with the STORED grant and never recomputes
 // one, so re-enabling could not re-confirm anything and the newly-declared capability stayed ungranted forever.
 // It failed CLOSED, so it was a dead-end UX rather than a hole; `setGrant` is the missing half. Do not
@@ -30,7 +30,7 @@
 // Both arms are the SAME rule, because what the owner consented to is what the plugin may REACH,
 // not which capability NAMES it holds: `net.fetch` is parameterized by its exact-host allowlist, so swapping
 // `api.vendor.example` for `collector.attacker.example` re-arms the egress wall at an unconfirmed destination
-// while the capability set is byte-identical. Comparing capabilities alone was blind to that (P3-H).
+// while the capability set is byte-identical. Comparing capabilities alone is blind to that.
 // A strictly NARROWING change (a dropped capability or host) carries forward silently — see `widenedNetHosts`.
 // WITHOUT widened reach, a plugin that was ENABLED is re-activated on the NEW bundle (the enabled state is
 // preserved — only a superset forces re-confirmation).
@@ -153,7 +153,7 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps, consentP
     // The egress half of the same re-consent rule. Compared against the PRIOR MANIFEST's `netHosts` (the row's
     // persisted manifest json is the record of what was confirmed at install/last re-grant) — there is no
     // `granted_net_hosts` column: `granted_capabilities ⊆ declared` is the capability ledger, and the manifest
-    // plus the row's UNANSWERED delta are the host ledger. TRUTH-REPAIR (2026-08-24): this used to say
+    // plus the row's UNANSWERED delta are the host ledger. TRUTH-REPAIR: this used to say
     // activation forwards the manifest's list "verbatim" to the SSRF wall, and that was the hole rather than
     // the design — verbatim meant one `setEnabled` toggle armed `safeFetch` at a destination a standing
     // re-consent covered. Activation now forwards `declared \ withheldNetHosts` (`consentedNetHosts`), so the
@@ -171,7 +171,7 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps, consentP
     // chose across a bundle swap that asks for nothing new.
     const reactivate = existing.status === "enabled" && !widened;
 
-    // #820 — WHAT THE OLD BUNDLE HELD, read BEFORE the swap clears the links (the `uninstall` read-before-
+    // WHAT THE OLD BUNDLE HELD, read BEFORE the swap clears the links (the `uninstall` read-before-
     // delete rule one verb over): after `applyUpgrade` the prior link rows are gone and nothing names those
     // ids. It is the reap candidate set, and it deliberately does NOT need a diff against the new set — the
     // CAS is content-addressed, so an image the new bundle still ships keeps the SAME assetId and the new
@@ -242,7 +242,7 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps, consentP
       throw err;
     }
     // The old bundle asset is now unreferenced (the row points at the new asset) — reap it, and with it every
-    // image the OLD bundle held (#820). `reapIfOrphan` re-checks references per id, so a within-user dedup that
+    // image the OLD bundle held. `reapIfOrphan` re-checks references per id, so a within-user dedup that
     // reused the SAME asset (identical bytes — an unchanged bundle zip, or a sprite this version still ships)
     // is never reaped, and neither is one a second plugin holds. Only what this upgrade genuinely dropped goes.
     // The old resident is already stopped, so a failed reap must not stand between the swap and reactivation.
@@ -258,7 +258,7 @@ export function createUpgrade(ctx: PluginContext, deps: ActivationDeps, consentP
     }
 
     // A reach-WIDENING upgrade is the other way a plugin starts standing on its owner's answer, so it
-    // brings the owner's aggregate consent ask along with it (#1041). `raised` = this row entered the
+    // brings the owner's aggregate consent ask along with it. `raised` = this row entered the
     // pending state here; an upgrade that only cleared it corrects the standing row's number in place.
     await consentPrompt.refresh(caller.userId, refusal.pending && !existing.pendingReconsent);
 

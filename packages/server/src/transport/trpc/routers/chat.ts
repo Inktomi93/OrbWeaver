@@ -80,7 +80,7 @@ const getMemberCardSchema = z.strictObject({
   timeZone: reportedTimeZoneSchema,
 });
 
-// The swipe strip's step-target resolver (chat-surface-lane follow-up to #19): `ChatService.listMessageVariants`
+// The swipe strip's step-target resolver: `ChatService.listMessageVariants`
 // (domain/chat/verbs/read.ts createListMessageVariants) returns the full sibling-variant set for a slot —
 // `{variantId, idx}[]`, no content — so a step to an idx this session hasn't rendered (e.g. a cold page
 // load) resolves through the real list instead of only what `useVariantHistory` observed live. Member-gated
@@ -99,7 +99,7 @@ const sendSchema = z
     content: z.string(),
     personaId: typeIdSchema(ID_PREFIX.persona).nullish(),
     blocks: sendContentBlocksSchema.optional(),
-    // #67 — inline images the user attached (asset ids). The send verb TRUST-BOUNDARY-checks each is the
+    // Inline images the user attached (asset ids). The send verb TRUST-BOUNDARY-checks each is the
     // actor's own asset (rejecting a foreign/gone id), then persists a `message_assets` row + a body ref per id.
     attachmentAssetIds: z.array(assetIdSchema).max(ASSET_LIST_LIMIT_MAX).optional(),
     intent: userIntentSchema.optional(),
@@ -131,7 +131,7 @@ const swipeSchema = z.strictObject({
   timeZone: reportedTimeZoneSchema,
 });
 
-// The remaining guided-generation verbs (chat-surface-lane task #27 — the composer WAND):
+// The remaining guided-generation verbs (the composer WAND):
 // `ChatService.continueTurn`/`impersonateStream`/`generate` (domain/chat/verbs/turn.ts createContinueTurn/
 // createImpersonateStream/createGenerate). continueTurn/generate persist + bus-emit + are mutations;
 // `impersonateStream` is the NON-PERSISTING, STREAMING one (owner ruling) — a SUBSCRIPTION that yields text
@@ -179,7 +179,7 @@ const generateSchema = z.strictObject({
   timeZone: reportedTimeZoneSchema,
 });
 
-// The step-BACK verb (task #19 — swipe-strip's left chevron): `ChatService.selectVariant`
+// The step-BACK verb (swipe-strip's left chevron): `ChatService.selectVariant`
 // (domain/chat/verbs/edit.ts createSelectVariant) was already fully implemented — author-or-host gate,
 // sibling-ownership belt, the runtime-variables re-fold for the newly-selected pointer, `variantSelected`
 // emit — but had never been exposed on this router (the same MISSING-API shape `abort` was in before
@@ -192,15 +192,14 @@ const selectVariantSchema = z.strictObject({
   timeZone: reportedTimeZoneSchema,
 });
 
-// The Stop verb (task #18 — the composer's mid-stream STOP): `ChatService.abort` (domain/chat/verbs/
+// The Stop verb (the composer's mid-stream STOP): `ChatService.abort` (domain/chat/verbs/
 // turn.ts createAbort) was already fully implemented — active-turns registry, turn-owner-only, an
 // idempotent no-op with nothing in flight — but had never been exposed on this router (MISSING-API,
 // swept via `sg`/grep before this addition; no test or call site referenced `chat.abort`). Thin
 // pass-through, same shape as `getChat` (chatId only — `AbortParams extends ChatScopedParams {}`).
 const abortSchema = z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat) });
 
-// The per-message ACTION cluster (edit-in-place · hide-from-AI · delete · fork; the chat-surface lane's
-// task #24-adjacent brief): `editMessage`/`setMessageHidden`/`deleteMessages`/`forkChat`
+// The per-message ACTION cluster (edit-in-place · hide-from-AI · delete · fork): `editMessage`/`setMessageHidden`/`deleteMessages`/`forkChat`
 // (domain/chat/verbs/edit.ts + fork.ts) were ALL already fully implemented — author-or-host gated,
 // D26-correct, bus-emitting — but none had ever been exposed on this router (the SAME MISSING-API
 // shape `abort`/`selectVariant` were in before 2026-07-04c; swept via grep before this addition, no
@@ -270,7 +269,7 @@ const moveMessageSchema = z.strictObject({
   toSeq: z.int().min(0),
 });
 
-// `reattributePersona` (task #60 — the persona-attribution / {{user}} history fix; neo `usePersonaReattribute`
+// `reattributePersona` (the persona-attribution / {{user}} history fix; neo `usePersonaReattribute`
 // / ST `#persona_sync_name`): re-stamp a set of USER rows' `personaId`. Author-or-host PER row + role/ownership
 // belts are enforced INSIDE the verb (no router-level authz — the sibling canon-edit shape). `scope` picks the
 // rows: `{kind:"messages"}` for an explicit set (one row or a client-assembled batch), `{kind:"mine"}` for the
@@ -298,7 +297,7 @@ const forkChatSchema = z.strictObject({
   title: z.string().nullish(),
 });
 
-// The CONTEXT-panel cluster (task #28 — the chat right-region: room-overrides · preview-request ·
+// The CONTEXT-panel cluster (the chat right-region: room-overrides · preview-request ·
 // manual injections). Same MISSING-API shape as the clusters above: `setRoomOverrides`
 // (verbs/participants.ts), `previewAssembly` (verbs/read.ts), and
 // `setChatInjection`/`listChatInjections`/`deleteChatInjection` (verbs/chat-lifecycle.ts) were ALL
@@ -345,7 +344,7 @@ const setUserMacroValuesSchema = z.strictObject({
   values: userMacroValuesSchema,
 });
 
-// #24: the picks pane's read — the pickable user-macro DECLARATIONS + the room's stored picks. Member-gated
+// The picks pane's read — the pickable user-macro DECLARATIONS + the room's stored picks. Member-gated
 // INSIDE the verb (`requireParticipant`), so a stranger's chatId is a leak-free NOT_FOUND.
 const getUserMacroPicksSchema = z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat) });
 
@@ -453,7 +452,7 @@ const deleteChatInjectionSchema = z.strictObject({
 // `updateTitle`/`star`/`archive`/`delete` (domain/chat/verbs/chat-lifecycle.ts) were ALL already fully
 // implemented — HOST-only via `requireHost`, DB-backed, bus-emitting
 // (`chatUpdated`/`chatDeleted`) — but none had ever been exposed on this router (the SAME MISSING-API shape
-// the #28/#29 clusters + the guided-generations cluster were in; swept via grep before this addition, no
+// the CONTEXT-panel clusters + the guided-generations cluster were in; swept via grep before this addition, no
 // call site referenced any of the four). Thin pass-throughs; authz lives INSIDE each verb. `title` is
 // required + nullable (`UpdateTitleParams.title: string | null` — null clears the title).
 const updateTitleSchema = z.strictObject({
@@ -481,17 +480,17 @@ const setChatAnchorPersonaSchema = z.strictObject({
   personaId: typeIdSchema(ID_PREFIX.persona).nullable(),
 });
 
-// The GROUP-ROSTER-CONTROLS cluster (task #29 — the cast bar + per-member controls): the two
+// The GROUP-ROSTER-CONTROLS cluster (the cast bar + per-member controls): the two
 // per-member setters `setParticipantDisabled` (mute/unmute) + `setParticipantTalkativeness` (the 0–1
 // `natural`-policy sampling weight) and `forceCharacterTurn` (host summons one member to speak next)
 // were ALL already fully implemented in domain/chat (verbs/participants.ts + verbs/turn.ts) — host-gated
 // inside the verbs, DB-backed (chatParticipants columns), bus-emitting — but none had ever been
-// exposed on this router (the same MISSING-API shape the #28 CONTEXT-panel cluster + the guided-generations
+// exposed on this router (the same MISSING-API shape the CONTEXT-panel cluster + the guided-generations
 // cluster were in; swept via grep before this addition, no call site referenced any of the three). Thin
 // pass-throughs; authz lives INSIDE each verb (`requireHost`, the sibling-cluster shape). `forceCharacterTurn`
 // mirrors `generate` minus the persona/speaker knobs (chatId + the target characterId + the optional
 // intent/guided steer — the DERIVED `userIntentSchema`/`guidedSteerSchema` wire boundary, as `send`/`generate`).
-// NOTE (#29): a MUTED member is still force-summonable — mute is passive arbitration exclusion, not a host-
+// NOTE: a MUTED member is still force-summonable — mute is passive arbitration exclusion, not a host-
 // override block (the verb's presence-only target check, verbs/turn.ts).
 // Add a character to an existing chat's roster (J7 add-member — the character-bar "+"). Host-only INSIDE the
 // verb (`requireHost`) + the single-owner invariant (a foreign character reads as missing, leak-
@@ -591,7 +590,7 @@ export const chatRouter = t.router({
     .output(chatLineageViewSchema)
     .input(chatIdInputSchema)
     .query(({ ctx, input }) => ctx.services.chat.getChatLineage({ principal: ctx.auth, chatId: input.chatId })),
-  // The honest-refusal pre-send gate (#54): the deterministic serveability verdict for the chat's own
+  // The honest-refusal pre-send gate: the deterministic serveability verdict for the chat's own
   // resolved connection — the composer disables SEND + the guided fire actions when `!available`. Member-gated
   // inside the verb; fires no turn/API call (a configured hosted connection reads available, never pre-flighted).
   checkSendAvailability: authedProcedure
@@ -741,7 +740,7 @@ export const chatRouter = t.router({
     .output(strictTwin(forkResultSchema))
     .input(forkChatSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.forkChat({ principal: ctx.auth, ...input })),
-  // The CONTEXT-panel cluster (task #28 — see the schemas' header note above). Thin pass-throughs.
+  // The CONTEXT-panel cluster (see the schemas' header note above). Thin pass-throughs.
   setRoomOverrides: authedProcedure
     .output(roomOverridesSchema)
     .input(setRoomOverridesSchema)
@@ -762,9 +761,9 @@ export const chatRouter = t.router({
     .input(z.strictObject({ chatId: typeIdSchema(ID_PREFIX.chat), enabled: z.boolean() }))
     .mutation(({ ctx, input }) => ctx.services.chat.setHostDisplayScripts({ principal: ctx.auth, ...input })),
 
-  // #1742 — the room's regex levers (the Regex section's master + one switch per tier). Host-gated in the
+  // The room's regex levers (the Regex section's master + one switch per tier). Host-gated in the
   // verb like every other `chatMetadata` write here; ONE lever per call because the write is one JSON path
-  // (#1450). The tier key is validated by the contracts schema, so a lever naming a tier this build cannot
+  //. The tier key is validated by the contracts schema, so a lever naming a tier this build cannot
   // address is refused at the door rather than stored as a flag nothing draws.
   setRegexAllow: authedProcedure
     .output(hostTierRegexAllowSchema)
@@ -779,7 +778,7 @@ export const chatRouter = t.router({
     )
     .mutation(({ ctx, input }) => ctx.services.chat.setRegexAllow({ principal: ctx.auth, ...input })),
 
-  // #1742 — the Regex section's body: what runs in this room, in run order, by tier. HOST-only in the verb
+  // The Regex section's body: what runs in this room, in run order, by tier. HOST-only in the verb
   // (three of the four tiers are the host's own library, D19); a member's rack is `regex.listForChat`.
   listEffectiveRegex: authedProcedure
     .output(effectiveRegexViewSchema)
@@ -878,7 +877,7 @@ export const chatRouter = t.router({
     .output(z.void())
     .input(deleteChatInjectionSchema)
     .mutation(({ ctx, input }) => ctx.services.chat.deleteChatInjection({ principal: ctx.auth, ...input })),
-  // The group-roster-controls cluster (task #29 — see the schemas' header note above). Thin pass-throughs.
+  // The group-roster-controls cluster (see the schemas' header note above). Thin pass-throughs.
   addCharacterToChat: authedProcedure
     .output(strictTwin(participantViewSchema))
     .input(addCharacterToChatSchema)

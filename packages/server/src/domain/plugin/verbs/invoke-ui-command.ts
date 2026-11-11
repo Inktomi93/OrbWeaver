@@ -33,7 +33,7 @@ import type { PluginContext, PluginRegistry, PluginService } from "../contract/s
 import { getById } from "../persistence/plugins.ts";
 import { resolveUiOutcome } from "../substrate/ui-outbox.ts";
 
-/** RE-VALIDATE the client's typed `values` (#791) against the RESIDENT command's OWN declared specs — the
+/** RE-VALIDATE the client's typed `values` against the RESIDENT command's OWN declared specs — the
  *  membrane trust boundary: a bag missing a required arg, mistyping one, or naming an off-enum value is a typed
  *  refusal, so `onRun` only ever sees well-typed, in-enum, required-present values. A command that declared no
  *  args validates an empty schema (extra keys stripped) and receives `{}`. Throws on refusal; returns the parsed,
@@ -118,7 +118,7 @@ export function createInvokeUiCommand(ctx: PluginContext, registry: PluginRegist
       throw new Error(`plugin host: no command '${name}' on this plugin`);
     }
     validateComposerDraftMode(params, command, existing);
-    // (3a) TYPED ARGS (#791) — the membrane trust boundary, re-derived from the resident command's OWN specs.
+    // (3a) TYPED ARGS — the membrane trust boundary, re-derived from the resident command's OWN specs.
     const typedValues = validateCommandValues(name, command.args ?? [], values);
     // (4) CHAT SCOPE — admitted leak-free, exactly as the snippet gate does it. A room the caller cannot read is
     // indistinguishable from one that does not exist.

@@ -104,8 +104,8 @@ export const portableTextFileSchema = z.strictObject({ filename: z.string(), fil
 export const importLandingSchema = z.strictObject({ created: z.boolean(), name: z.string(), renamedFrom: z.string().nullable() });
 
 // ── the uniform file envelope (spec R7/R8) ───────────────────────────────────────────────────────────
-// Every orb-NATIVE portable file carries this header. Re-minted 2026-08-03 WITH consumers (the original
-// `PortableEnvelope` died unconsumed in `c1a8f726c7` because each serde re-spelled it structurally — the
+// Every orb-NATIVE portable file carries this header. It has consumers (an unconsumed
+// envelope dies because each serde re-spells it structurally — the
 // drift that let world-info spell the version key `version` and persona ship no envelope at all): the ONE
 // consumer is `@orb/server/primitives/serde/lib`, the spine every orb-native JSON serde is defined through, so a
 // family can no longer re-spell it. Foreign wire formats (ST cards, ST chat jsonl) carry no envelope by
@@ -122,7 +122,7 @@ export interface PortableEnvelope {
 // Why a portable file did not parse. One axis for every orb-native family, so the per-file import outcome
 //  can say "written by a newer orbweaver" instead of the old uniform "not a valid X file".
 //
-//  `invalid-encoding` (#1460) is DISTINCT from `not-json`: the shared decode boundary
+//  `invalid-encoding` is DISTINCT from `not-json`: the shared decode boundary
 //  (`@orb/server/primitives/serde/lib`'s `decodeObject`) used a non-fatal `TextDecoder`, so malformed UTF-8 bytes
 //  silently became U+FFFD and the corrupted string still passed `JSON.parse` — a corrupted artifact "imported
 //  successfully" with altered text. Byte fidelity is checked BEFORE `JSON.parse` even runs, so a file that

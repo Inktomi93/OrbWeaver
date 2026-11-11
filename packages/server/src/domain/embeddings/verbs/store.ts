@@ -3,8 +3,7 @@
 // injected role op → assert the produced vector's width matches the pinned generation's (the bound embedder's
 // stated `dims`, else `SpaceMismatchError`) → upsert (never touches `hub_score`).
 //
-// THE STAMPED TAG IS THE PROVIDER'S, NOT THE CALLER'S, and that is a recorded ruling (issue 724,
-// `088209c8be`): a request-time snapshot can go stale between parameter construction and the live role call,
+// THE STAMPED TAG IS THE PROVIDER'S, NOT THE CALLER'S, and that is a recorded ruling: a request-time snapshot can go stale between parameter construction and the live role call,
 // so `EmbedResult.model` is the honest answer for which geometry the vector is actually in. The case to pin:
 // "stamps the model that actually produced the vector when the live role changed".
 //
@@ -19,7 +18,7 @@
 // arm is added. `digest` carries a precomputed `contentHash` (memory folds it; not recomputed here). There is
 // Image writes bind the expected owner through the asset FK; no Principal is constructed here.
 //
-// The `segment` lens is NOT an arm here: verbatim segments are written in BATCHES (`store-segments.ts`, #172)
+// The `segment` lens is NOT an arm here: verbatim segments are written in BATCHES (`store-segments.ts`)
 // so the corpus sweep can submit one embed flood instead of one awaited embed per block. Same hash gate, same
 // space tripwire, same single write path — a batch shape, because its producer holds a batch of work.
 
@@ -152,8 +151,8 @@ async function isImageLensCurrent(
  *  `force` bypasses the staleness short-circuit — bulk re-index). */
 async function storeImage(ctx: EmbeddingsContext, p: ImageRawStoreParams | ImageCaptionedStoreParams, generation: PinnedGeneration): Promise<StoreResult> {
   const hash = contentHash(p.content);
-  // THE CAPTIONED LENS IS CURRENT ONLY WHEN IT ALSO CARRIES ITS FACET BREAKDOWN (issue #164). `content_hash`
-  // covers the BYTES, and the bytes did not change when the VL breakdown landed on 2026-08-18 — so a
+  // THE CAPTIONED LENS IS CURRENT ONLY WHEN IT ALSO CARRIES ITS FACET BREAKDOWN. `content_hash`
+  // covers the BYTES, and the bytes did not change when the VL breakdown was added — so a
   // hash-only short-circuit answers `noop` for every pre-existing captioned row and no backfill can ever
   // reach them without `force` (which would pointlessly re-embed the raw lens for the whole box too). The
   // sweep's own pre-check in `verbs/embed-assets` uses the identical two-condition test; keeping the rule in

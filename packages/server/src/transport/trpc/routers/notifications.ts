@@ -3,7 +3,7 @@
 // `notifications` domain (caller-scoped — every read/write is scoped to `principal.userId` inside the
 // verb).
 //
-// THE INBOX TRIO IS `authedProcedure` (#1627 — the prior ruling survives, its INPUT changed).
+// THE INBOX TRIO IS `authedProcedure` (the prior ruling survives, its INPUT changed).
 // The whole router rode `multiHumanProcedure` because every notification SOURCE was multi-human
 // (invite/kick/host-handoff delivery), so a deployment that cannot seat a second human (single-user, or
 // local with the `localMultiUser` AppSetting off — the B4 axis) refused the inbox as NOT_FOUND. Single-human sources
@@ -11,7 +11,7 @@
 // crash policy notifying the INSTALLING OWNER — `domain/plugin/activation/crash-policy.ts`) and
 // `automation-notice` (the auto-disable notice to the rule AUTHOR, including the owner-GLOBAL lane that
 // has no chat at all — `domain/automation/engine/dispatch.ts::notifyAutoDisabled`), with the plugin
-// CONSENT prompt (#924/#1041) joining them. The BELT ITSELF IS UNTOUCHED — `multiHumanProcedure` still
+// CONSENT prompt joining them. The BELT ITSELF IS UNTOUCHED — `multiHumanProcedure` still
 // carries `presence` below and the whole invites router; what changed is which surfaces are multi-human.
 //
 // WHAT HOLDS THE TRIO NOW, stated so the widening can be checked rather than trusted: none of the three
@@ -24,12 +24,12 @@
 // The live inbox stream used to live here as `notifications`. It FOLDED into the multiplexed socket at
 // SSE-1 S3: it is now the `notifications` ROOM (`transport/trpc/stream/sources/notifications.ts`), carrying
 // the same durable-first resume (live listener first, `list`-paged replay of `seq > cursor`, then live). The
-// belt travelled with it onto that room's `authorizeAttach` and came OFF there with #1627 for the same
+// belt travelled with it onto that room's `authorizeAttach` and is OFF there for the same
 // reason it came off here — the room is `authedProcedure` reachable and self-scoped by `principal.userId`. The
 // presence ref-count and the host-return `drainDeferredTurns` edge moved to the socket with it
 // (`routers/stream.ts`, spec §5.6 — owner-ruled §14.4).
 //
-// `presence` (#1039) is the DISCLOSURE half of that same ref-count, and it homes here because presence was
+// `presence` is the DISCLOSURE half of that same ref-count, and it homes here because presence was
 // designed as part of the D16 human-to-human invite/notifications system — `PresenceView` already lives in
 // `@orb/contracts/notifications`, so a second router would have split one concept across two front doors. It
 // is the one procedure on this router that does NOT delegate to `ctx.services`: presence is transport-owned
@@ -77,7 +77,7 @@ export const notificationsRouter = t.router({
       }),
     ),
 
-  // Presence disclosure (#1039) — "which of these people are online right now". The AUDIENCE decision and
+  // Presence disclosure — "which of these people are online right now". The AUDIENCE decision and
   // the seam a later membership tightening edits live in `presence-disclosure.ts`; this line is wire
   // plumbing only, so the policy can never end up half-stated in two places. The `.max()` is the trust
   // boundary: an over-bound ask is a BAD_REQUEST before the registry is touched.

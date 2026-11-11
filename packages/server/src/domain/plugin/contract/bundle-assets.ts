@@ -1,4 +1,4 @@
-// domain/plugin/contract/bundle-assets — the two shapes the #820 bundle-image route passes ACROSS slots, and
+// domain/plugin/contract/bundle-assets — the two shapes the bundle-image route passes ACROSS slots, and
 // therefore the ones that need a contract home rather than a local declaration: what the funnel produces
 // (bytes + the mime its magic sniff proved) and what persistence writes (the minted CAS id keyed by the zip
 // path). They are two halves of one journey — `ui/assets/<name>` → CAS asset → `plugin_assets` link — and
@@ -11,7 +11,7 @@
 
 import type { AssetId } from "@orb/kit/ids";
 
-/** ONE already-validated bundle image, as `parseBundle` hands it out (#820 seam 11).
+/** ONE already-validated bundle image, as `parseBundle` hands it out.
  *
  *  EVERY WALL IS UPSTREAM OF THIS TYPE, which is why it carries no validation of its own: the path shape, the
  *  count/size/aggregate bomb caps and the magic-byte format check all ran in `substrate/manifest` before a

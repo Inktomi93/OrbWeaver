@@ -1,4 +1,4 @@
-// verb: listBundleAssets — the path → CAS-id map for ONE owned plugin's bundle-shipped images (#820 seam 11).
+// verb: listBundleAssets — the path → CAS-id map for ONE owned plugin's bundle-shipped images.
 // It is what turns a UI node's `bundleAsset: "ui/assets/happy.png"` into an `assetId` the renderer can hand to
 // the owner-scoped `assets.resolveBlobRefs`; the guest never learns an id, and the SPEC never carries one.
 //

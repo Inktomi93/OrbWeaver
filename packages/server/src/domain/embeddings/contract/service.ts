@@ -175,7 +175,7 @@ export interface EmbeddingsService {
   readonly store: (params: StoreParams) => Promise<StoreResult>;
   /**
    * The verbatim-segment write path — a BATCH, because segments are the one lens whose producer has the whole
-   * corpus's work in hand at once (#172, the owner batching ruling: "batch by phase, toss it all at vLLM, its
+   * corpus's work in hand at once (the owner batching ruling: "batch by phase, toss it all at vLLM, its
    * scheduler can handle it"). It hash-gates every chunk on `(chatId, blockIdx, chunkIdx, model)`, embeds ALL
    * the survivors in ONE call — no client-side throttle or round-robin; the provider surface owns how that
    * lands on the wire — and then upserts each row. Results are index-aligned to the input.

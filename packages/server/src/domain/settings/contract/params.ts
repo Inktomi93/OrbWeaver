@@ -19,7 +19,7 @@ interface UserSettingsActorParams {
   readonly principal: Principal;
 }
 
-/** `resetUserConfig` (#1771) — the whole-blob repair. Principal ONLY: it takes no id, so "reset someone
+/** `resetUserConfig` — the whole-blob repair. Principal ONLY: it takes no id, so "reset someone
  *  else's settings" is not a request this verb can be asked to make. */
 export interface ResetUserConfigParams extends UserSettingsActorParams {}
 
@@ -27,7 +27,7 @@ export interface UpdateUserSettingsSectionParams extends UserSettingsActorParams
   readonly input: UpdateUserSettingsSectionInput;
 }
 
-/** `addExternalBackground` (side-eye F-P0-2) — materialize a user-pasted external image URL into an owned CAS
+/** `addExternalBackground` — materialize a user-pasted external image URL into an owned CAS
  *  asset and return a ready `BackgroundLibraryEntry`. A DISCRETE action (never the keystroke autosave path):
  *  the URL is fetched+magic-verified+stored server-side, so it can never persist a paintable external URL. */
 export interface AddExternalBackgroundParams extends UserSettingsActorParams {

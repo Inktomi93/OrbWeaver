@@ -91,7 +91,7 @@ export class PluginNoSourceUrlError extends DomainOperationError {
   }
 }
 
-/** A one-click `upgradeFromShowcase` on a plugin this build ships NO bundle for (#1740) — a hand-installed
+/** A one-click `upgradeFromShowcase` on a plugin this build ships NO bundle for — a hand-installed
  *  plugin, or a slug the shipped set dropped. DISTINCT from `PluginNotFoundError` for the same reason its
  *  stored-url sibling above is: the plugin exists and is the caller's own; what is absent is a shipped bundle to
  *  upgrade FROM. Thrown AFTER the owner-scoped load (so a stranger gets NOT_FOUND first and this can never oracle
@@ -138,7 +138,7 @@ export class CapabilityNotGrantedError extends DomainOperationError {
  *  under a rendered consent screen cannot make the owner grant a name they did not choose. `net.fetch` is the
  *  one capability that breaks that property: its REACH is the manifest's `netHosts`, which the owner never
  *  names. Without this pin, an `upgrade` landing between "the screen rendered `api.vendor.example`" and "the
- *  owner clicked allow" would arm the egress wall at whatever the NEW manifest declares — the P3-H hole,
+ *  owner clicked allow" would arm the egress wall at whatever the NEW manifest declares — the host-swap hole,
  *  re-opened at the consent act rather than at the upgrade. So the caller echoes the exact host list it
  *  displayed, and a manifest host missing from that echo is a typed refusal. Fail-closed: an empty echo with
  *  `net.fetch` in the grant refuses every declared host. */

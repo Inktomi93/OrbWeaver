@@ -53,7 +53,7 @@ interface RegisteredMacro {
   readonly pluginId: PluginId;
   readonly slug: string;
   readonly name: string;
-  /** The PRE-#1391 spelling of {@link RegisteredMacro.name}, or `null` when the slug carries no hyphen and the
+  /** The LEGACY spelling of {@link RegisteredMacro.name}, or `null` when the slug carries no hyphen and the
    *  two spellings coincide. Carried per macro so the degrade alias below costs no second flatten at
    *  resolution time and no second source of truth about what the old name was. */
   readonly legacyName: string | null;
@@ -65,7 +65,7 @@ interface RegisteredMacro {
  *  re-validated manifest), so a guest can neither shadow a builtin (`{{char}}`) nor collide with another
  *  plugin; hyphens are illegal in the middle of a macro name run, so the slug's are transliterated.
  *
- *  IT DELEGATES TO THE TOOL MINT AND THAT IS THE POINT (#1391). This used to spell the flattening a second
+ *  IT DELEGATES TO THE TOOL MINT AND THAT IS THE POINT. This used to spell the flattening a second
  *  time (`slug.replaceAll("-", "_")`), which meant the macro plane and the tool plane were two homes for ONE
  *  namespace rule — and when the tool mint was made injective, the drift would have been silent in both
  *  directions. `pluginToolWireName` is the one mint (`contracts/plugin/registrations.ts`, where the
@@ -75,18 +75,18 @@ export function pluginMacroName(slug: string, guestName: string): string {
   return pluginToolWireName(slug, guestName);
 }
 
-/** The PRE-#1391 spelling of {@link pluginMacroName} — the slug's hyphens folded to a SINGLE underscore.
+/** The LEGACY spelling of {@link pluginMacroName} — the slug's hyphens folded to a SINGLE underscore.
  *
  *  THIS IS A DEGRADE PATH, NOT A SECOND MINT, and the distinction is the whole reason it may exist: nothing
  *  ever MINTS this name, and no registry key is derived from it. It exists only because a plugin macro's name
  *  is USER-TYPED CONTENT — a host writes `{{plugin_oracle_deck_omen}}` into a persona note, a scenario line or
  *  an author's note, and that prose is not a row this app may rewrite (unlike the `ToolCallRecord.name` and
- *  `run_tool` arm spellings, which #1391's boot migrations do rewrite). Renaming the macro with no fallback
- *  would silently render those references as "" — the exact silent-loss class #1649 ruled against.
+ *  `run_tool` arm spellings, which the boot migrations do rewrite). Renaming the macro with no fallback
+ *  would silently render those references as "" — the exact silent-loss class the owner ruled against.
  *
  *  The fallback is applied ONLY at `resolveForTurn`, ONLY when the legacy spelling is claimed by exactly one
  *  of the author's own macros, and ONLY when it does not shadow a live name (see the alias fold below). An
- *  ambiguous legacy name — which is precisely the pre-#1391 defect this row fixed — stays unresolved, i.e.
+ *  ambiguous legacy name — which is precisely the legacy mint's defect — stays unresolved, i.e.
  *  exactly today's behaviour. Returns `null` when the slug has no hyphen and the two spellings coincide. */
 function pluginMacroLegacyName(slug: string, guestName: string): string | null {
   if (!slug.includes("-")) {
@@ -147,7 +147,7 @@ export function createPluginMacroRegistry(logger: Logger, scheduleTimeout: Sched
     forInstaller.set(req.slug, entries);
     byInstaller.set(req.installer, forInstaller);
     return {
-      // THE HANDLE UNREGISTERS ITS OWN REGISTRATION, NOT THE KEY (#1480 item 5). `entries` is this call's
+      // THE HANDLE UNREGISTERS ITS OWN REGISTRATION, NOT THE KEY. `entries` is this call's
       // freshly-built array, so the identity check answers "does the map still hold what I put there?" —
       // a handle kept from a superseded registration is inert. Without it, `unregister` deleted whatever
       // (installer, slug) currently mapped to, so a stale handle silently evicted the registration that
@@ -236,12 +236,12 @@ function toDef(name: string, macro: RegisteredMacro, value: string | null): User
   };
 }
 
-/** The #1391 LEGACY-SPELLING fold: the extra defs that let prose written before the injective rename keep
+/** The LEGACY-SPELLING fold: the extra defs that let prose written before the injective rename keep
  *  resolving. See {@link pluginMacroLegacyName} for why this exists at all (a macro reference is user-typed
  *  content in a persona note or scenario line, and no migration can reach it).
  *
  *  TWO GUARDS, and both are refusals rather than guesses:
- *    • UNIQUENESS — a legacy spelling claimed by TWO of this author's macros is the pre-#1391 ambiguity itself
+ *    • UNIQUENESS — a legacy spelling claimed by TWO of this author's macros is the legacy mint's ambiguity itself
  *      (`foo-bar`/`baz` and `foo`/`bar_baz` both answered to `plugin_foo_bar_baz`). Resolving it would pick a
  *      winner the author never chose, so it resolves to nothing, exactly as it does today.
  *    • NO SHADOWING — a legacy spelling that equals some macro's LIVE name loses to the live name. The

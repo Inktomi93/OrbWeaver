@@ -61,7 +61,7 @@ export const tagRouter = t.router({
 
   // The character library's filter-chip vocabulary — the same owned rows as listTagsWithUsage, projected to
   // the four fields a chip reads. Split off because the rail was paying 433KB of five-junction management
-  // rows to paint eight chips (side-eye 2026-08-18 P2-6). No input: the vocabulary is keyless, so cycling a
+  // rows to paint eight chips. No input: the vocabulary is keyless, so cycling a
   // chip never re-keys (and never refetches) it.
   listTagFilterVocabulary: authedProcedure
     .output(z.array(tagFilterVocabularyEntrySchema))

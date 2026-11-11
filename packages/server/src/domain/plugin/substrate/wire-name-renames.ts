@@ -1,4 +1,4 @@
-// domain/plugin/substrate/wire-name-renames — WHICH persisted `plugin_…` namespaces the #1391 boot migrations
+// domain/plugin/substrate/wire-name-renames — WHICH persisted `plugin_…` namespaces the boot migrations
 // may rewrite, derived from the installed slug set. Pure: no db, no I/O, no clock.
 //
 // WHY IT LIVES IN THE PLUGIN DOMAIN AND NOT BESIDE EITHER MIGRATION. The persisted spellings sit in two OTHER
@@ -9,14 +9,14 @@
 // answer DOWN to each owning domain as plain data, and neither chat nor automation imports a sibling domain.
 //
 // THE MIGRATION CANNOT DECODE, WHICH IS THE WHOLE REASON THIS FILE IS CAREFUL. The OLD spelling was not
-// injective — that is the defect #1391 fixes — so a stored `plugin_foo_bar_baz` genuinely does not say whether
+// injective — that is the defect the injective mint fixes — so a stored `plugin_foo_bar_baz` genuinely does not say whether
 // it was minted by `("foo-bar","baz")` or by `("foo","bar_baz")`. There is no clever reading that recovers it.
 // The only honest posture is therefore a per-namespace one: rename a slug's namespace when the installed set
 // proves no other slug can be speaking through it, and REFUSE (leave the rows alone, loudly, via the boot
 // step's log) when it cannot. A guessed rename would move one plugin's persisted tool cards onto another
 // plugin's namespace — strictly worse than the stale name it replaced.
 
-/** The `-` → `_` transliteration as it stood BEFORE #1391. Nothing mints this; it exists only to recognise
+/** The `-` → `_` transliteration as it stood BEFORE the injective mint. Nothing mints this; it exists only to recognise
  *  what is already on disk. Its non-injectivity is the whole subject of this file. */
 function legacyFlat(slug: string): string {
   return slug.replaceAll("-", "_");
@@ -31,7 +31,7 @@ function liveFlat(slug: string): string {
 /** Can a wire name that begins with the flattened form `a` also be read as belonging to `b`? True when they
  *  are the same namespace, or when one is the other followed by a `_` — because a name under
  *  `plugin_<a>_<rest>` where `a === b + "_" + something` is exactly a name under `plugin_<b>_…` with a longer
- *  tool name. This is the pre-#1391 ambiguity stated as a predicate. */
+ *  tool name. This is the legacy mint's ambiguity stated as a predicate. */
 function sharesNamespace(a: string, b: string): boolean {
   return a === b || a.startsWith(`${b}_`) || b.startsWith(`${a}_`);
 }
@@ -51,7 +51,7 @@ function rivalsNamespaceOf(slug: string, other: string): boolean {
 }
 
 /**
- * The prefix rewrites the #1391 boot migrations may safely apply, given every installed plugin slug.
+ * The prefix rewrites the boot migrations may safely apply, given every installed plugin slug.
  *
  * ONE ENTRY PER HYPHENATED SLUG whose namespace no other installed slug can be mistaken for, as
  * `{ from: "plugin_<legacyFlat>_", to: "plugin_<liveFlat>_" }` — prefixes, not whole names, because the tool

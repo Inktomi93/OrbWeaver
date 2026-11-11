@@ -145,7 +145,7 @@ export interface PluginHostPort {
    *  so a refusal has no honest spelling in it. */
   readonly runSnippet: ProcessPluginHost["runSnippet"];
   /** A snapshot COPY of the instance's RUNTIME host.log ring: the activation drain, every later invocation's,
-   *  AND whatever a floated continuation logged between invocations (picked up on this read — #806), oldest-
+   *  AND whatever a floated continuation logged between invocations (picked up on this read), oldest-
    *  first, bounded and evicted from the front by the port. IN-MEMORY and per resident instance
    *  (`ASSUMES(single-replica)`) — a restart or a deactivate→activate cycle resets it. It is a recent-activity
    *  view for the owner, NOT an audit log of record: derive nothing security-load-bearing from what it contains
@@ -223,7 +223,7 @@ export type PluginRegistry = Map<PluginId, ResidentPlugin>;
  *   U1). Minted ONCE per service at compose (the resident-registry / suggestion-store
  *  precedent), `ASSUMES(single-replica)`, respawn wipes. The FACTORY (`createPluginSurfaceStateStore`) lives in
  *  `substrate/surface-state.ts` (the SnippetGate/NotifyFloor convention: seam TYPE in contract, factory in
- *  substrate). Keyed by pluginId + surfaceId + the OPTIONAL chatId (row 777 — the room dimension); cleared
+ *  substrate). Keyed by pluginId + surfaceId + the OPTIONAL chatId (the room dimension); cleared
  *  per-plugin on deactivate.
  *
  *  THE `chatId` AXIS IS A KEY, NOT A FILTER. `null` and a chat id name DIFFERENT rows, and neither falls back
@@ -300,7 +300,7 @@ export interface PluginContext {
   readonly fetchBundle: ScopedEgress["fetchPluginBundle"];
   /** Git I/O stays in outer tiers; the domain retains lifecycle and install policy. */
   readonly gitSource: Readonly<Pick<PluginGitSource, "clone" | "head">>;
-  /** The SHOWCASE bundles this build ships (#1740) — the SECOND byte source an update can come from, beside
+  /** The SHOWCASE bundles this build ships — the SECOND byte source an update can come from, beside
    *  `fetchBundle`'s remembered URL. Injected rather than imported for the same reason every other byte source
    *  is: `@orb/showcase-plugins` reads its bundles off DISK (`node:fs`), and the domain tier does not touch the
    *  filesystem (`domain-no-node-fs`; the `domain/import` staging seam is the same call). Wired at compose to
@@ -426,14 +426,14 @@ export interface PluginService {
    *  `unreachable`. Read-only — nothing persists. */
   readonly checkForUpdates: (params: CheckForUpdatesParams) => Promise<readonly PluginUpdateCheck[]>;
   /** TRUE ONE-CLICK UPGRADE (U8 2b): re-fetch from the plugin's REMEMBERED `source_url` (re-paste-free) and run
-   *  it through {@link upgrade} — #615's reach-widening→disabled wall applies, NEVER silent. Owner-scoped: a
+   *  it through {@link upgrade} — the reach-widening→disabled wall applies, NEVER silent. Owner-scoped: a
    *  foreign pluginId is a leak-free NOT_FOUND checked BEFORE any fetch; a file (`upload`) install has no source
    *  and is a typed `PluginNoSourceUrlError`. */
   readonly upgradeFromStoredUrl: (params: UpgradeFromStoredUrlParams) => Promise<PluginView>;
-  /** THE SEEDED-EXAMPLE TWIN (#1740): the same one-click upgrade, from the bundle this build SHIPS rather than a
+  /** THE SEEDED-EXAMPLE TWIN: the same one-click upgrade, from the bundle this build SHIPS rather than a
    *  remembered URL — the only path a DIVERGED showcase install has, since the boot auto-upgrade passes those
    *  over on purpose. Owner-scoped identically (foreign pluginId ⇒ leak-free NOT_FOUND before anything is
-   *  packed); a row this build ships no bundle for is a typed `PluginNotShowcaseError`; #615's wall applies
+   *  packed); a row this build ships no bundle for is a typed `PluginNotShowcaseError`; the re-consent wall applies
    *  because the bytes go through the SAME {@link upgrade}. */
   readonly upgradeFromShowcase: (params: UpgradeFromShowcaseParams) => Promise<PluginView>;
   /** RE-CONSENT: replace the confirmed capability subset (⊆ the PERSISTED manifest's declared set). The
@@ -468,8 +468,8 @@ export interface PluginService {
   readonly listSurfaces: (params: ListSurfacesParams) => Promise<readonly PluginSurfaceView[]>;
   /** One owned surface's published state (`null` if nothing published). Owner-scoped on `pluginId` (leak-free). */
   readonly getSurfaceState: (params: GetSurfaceStateParams) => Promise<PluginSurfaceState | null>;
-  /** One owned plugin's BUNDLE-SHIPPED image map — `ui/assets/<name>` → the CAS id it was unpacked to (#820
-   *  seam 11). Owner-scoped on `pluginId` (leak-free NOT_FOUND); the renderer resolves a node's declared
+  /** One owned plugin's BUNDLE-SHIPPED image map — `ui/assets/<name>` → the CAS id it was unpacked to
+   *  (seam 11). Owner-scoped on `pluginId` (leak-free NOT_FOUND); the renderer resolves a node's declared
    *  bundle path through it and then rides the same owner-scoped blob resolve every `assetId` already rides. */
   readonly listBundleAssets: (params: ListBundleAssetsParams) => Promise<readonly PluginBundleAssetView[]>;
   /** One owned `frame`-tier surface's DOCUMENT BYTES. Owner-scoped on `pluginId`

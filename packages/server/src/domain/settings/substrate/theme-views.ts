@@ -5,8 +5,8 @@
 // identifies a seed row without the domain-internal sentinel ids (the `preset` `toPresetSummary` /
 // `isSystemDefault` precedent), and (3) `isDefault` is derived from the default palette's sentinel id —
 // SAME reason, one rung further: this file is the ONLY place outside the seeder that may know which
-// sentinel is the default, and the flag is what the client reads instead (#1671; #1667 is what the client
-// did before it had one — it compared the row's DISPLAY NAME to a mirrored literal). Verbs map through
+// sentinel is the default, and the flag is what the client reads instead (without it the client
+// compares the row's DISPLAY NAME to a mirrored literal). Verbs map through
 // here instead of re-spelling the projection per verb, which is what makes the flag TOTAL over every
 // writer: `listThemes`, `getTheme`, `createTheme`, `duplicateTheme`, `promoteTheme` and `updateTheme` all
 // return `toThemeView(row)` and cannot omit it.

@@ -3,7 +3,7 @@ import { chatDigests, chatSegments, documentChunks } from "@orb/db";
 import type { CharacterId, ChatId, DocumentId, EmbedGenerationId } from "@orb/kit/ids";
 import { and, eq, gte, notInArray, or } from "drizzle-orm";
 
-/** The chat-memory SHRINK seam (stickler 2026-08-08 canon-message-identity, leg-2 refutation) — the
+/** The chat-memory SHRINK seam — the
  *  `pruneDocumentChunks` idiom for `chat_digests`. Memory's blocks are sliced by POSITION and stored keyed
  *  `(tier, blockIdx)`, so when the ingest set shrinks (a host hides a trailing span, rows are deleted, a
  *  compaction cutoff moves) the trailing block stops being produced — and the content-hash self-heal CANNOT
@@ -44,7 +44,7 @@ export async function pruneChatDigests(
   return rows.length;
 }
 
-/** THE STALENESS INVALIDATION (#1395) — the third memory delete, and the one the other two structurally
+/** THE STALENESS INVALIDATION — the third memory delete, and the one the other two structurally
  *  cannot cover. `pruneChatDigests` reclaims blocks that no longer EXIST; the content-hash self-heal
  *  re-summarizes blocks whose content CHANGED. Neither answers the third state: a block that still exists,
  *  whose hash mismatch already PROVED the stored digest stale, and whose re-summarize came back empty (a
@@ -58,7 +58,7 @@ export async function pruneChatDigests(
  *  construction — the caller passes only the keys whose re-digest it attempted and abandoned. Scope-keyed
  *  like its sibling, and `chat_digest_speakers` follows the FK CASCADE.
  *
- *  EACH KEY CARRIES THE HASH IT PROVED STALE, and the DELETE matches on it (#1543). Without that predicate
+ *  EACH KEY CARRIES THE HASH IT PROVED STALE, and the DELETE matches on it. Without that predicate
  *  the statement deletes "whatever is at this position now", and the position is not the row: the corpus
  *  backfill and the live per-turn build run over the same buckets, so a sibling pass can land a FRESH digest
  *  for this key between this pass's failed summarize and this delete — and the un-predicated delete would
@@ -98,7 +98,7 @@ export async function dropChatDigestKeys(
  *  that are no longer ingested. A stale segment is worse than dead weight — it carries a `(seqStart, seqEnd)`
  *  span the recall witnessing filter resolves digests through.
  *
- *  SINCE #172 a block is a ROW SET (chunks), so there is a SECOND ceiling: a block that used to need 5 chunks
+ *  A block is a ROW SET (chunks), so there is a SECOND ceiling: a block that used to need 5 chunks
  *  and now needs 2 (its content shrank, or the embed window grew) would strand chunks 2-4, still recallable
  *  and still claiming spans. `chunkCounts` carries the per-block ceiling for every block whose count is not
  *  1 — including `0` for a block past the pathological ceiling, which reclaims its whole set. Every block NOT

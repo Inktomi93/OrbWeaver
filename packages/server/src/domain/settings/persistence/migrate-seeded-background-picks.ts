@@ -1,5 +1,5 @@
 // domain/settings/persistence/migrate-seeded-background-picks — the `kind:"seeded"` background RETIREMENT's
-// settings half (owner ask 2026-09-18, "the weird seeded backgrounds").
+// settings half (owner ask, "the weird seeded backgrounds").
 //
 // WHY A DATA PASS AND NOT JUST THE SCHEMA'S `.catch`. `appearanceSettingsSchema`'s `backgroundImageKind`
 // already heals an unknown kind to `none`, so nothing CRASHES on an un-migrated row — it just silently

@@ -8,7 +8,7 @@
 // Flow: `parseBundle` (unzip+validate the untrusted bytes — throws `ManifestInvalidError` on a bad
 // zip/bomb/manifest) → the grant ⊆ declared check → per-owner slug-collision check → store the WHOLE bundle
 // in the caller's CAS (kind `"plugin"`) → store each `ui/assets/` image the bundle shipped as its own CAS
-// asset (#820 seam 11) → insert a `disabled` row AND its `plugin_assets` links in ONE batch (enabling is a
+// asset → insert a `disabled` row AND its `plugin_assets` links in ONE batch (enabling is a
 // second explicit act, like rules). The bundle funnel is SOURCE-AGNOSTIC: the CALLING verb states where the bytes came from (`source`,
 // U8 2b) and this verb records it verbatim — absent ⇒ a file upload (`origin:"upload"`, no `sourceUrl`);
 // `installFromUrl` passes `{ origin:"url", sourceUrl }` so a URL install records an HONEST origin + the URL the
@@ -44,7 +44,7 @@ export function createInstall(ctx: PluginContext): PluginService["install"] {
     const granted = normalizeGrant(manifest.capabilities, grant);
     const stored = await ctx.assets.store(caller, bundle, PLUGIN_BUNDLE_MIME);
     const now = ctx.now();
-    // #820 seam 11 — the bundle's own `ui/assets/` images, each written into the INSTALLER's CAS as its own
+    // The bundle's own `ui/assets/` images, each written into the INSTALLER's CAS as its own
     // asset under the caller's Principal (the shared `storeBundleAssets` writer, so install and upgrade
     // cannot drift). Ordering is load-bearing in two directions: the CAS writes precede the row so every
     // `plugin_assets` FK has a target, and the links ride the row's OWN batch below so a row can never exist

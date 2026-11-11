@@ -43,7 +43,7 @@ export function buildPluginStorage(handle: DatabaseHandle, nowMs: () => number):
         throw new PluginKvCapError(`at most ${PLUGIN_KV_MAX_KEYS} keys per plugin`);
       }
     },
-    // The ATOMIC arm (#1442), under the SAME ceiling predicate for the same reason: the create precondition is
+    // The ATOMIC arm, under the SAME ceiling predicate for the same reason: the create precondition is
     // the only arm that can consume a slot (`expected !== null` names a key that already exists), and it now
     // carries the cap inside its own INSERT rather than checking it one statement earlier.
     //

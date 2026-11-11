@@ -3,8 +3,7 @@
 // `PluginHostPort` runtime from `infra/plugin-host` + the `PluginHostOps` op bundle — P4) and the CAS ops. The
 // runtime + the host-fn bodies are wired UPWARD at compose; this domain sideways-imports nothing.
 //
-// AWAKE (truth-repaired 2026-08-24 — this header used to say DORMANT BY BUILD-ORDER / zero client callers,
-// and that died when the client wave landed). The arrival door exists: `packages/client/src/features/plugin`
+// AWAKE: the domain has client callers. The arrival door exists: `packages/client/src/features/plugin`
 // is the Settings → Plugins pane (dropzone → grant screen → install) plus the chat-side snippet console, and
 // it calls `trpc.plugin.*` for real (`lib/plugin-mutations.ts`).
 //
@@ -16,7 +15,7 @@
 // resolves that caller's own room role, `llm.quiet` spends that caller's credential), so a cross-owner
 // management path would be a confused-deputy escalation.
 //
-// THE SERVER-WIDE INSTALL IS BUILT (2026-08-24 — this header used to say UNBUILT with an open design), and it
+// THE SERVER-WIDE INSTALL IS BUILT (this header used to say UNBUILT with an open design), and it
 // is NOT a shared row: an admin PUBLISHES a bundle (`installForAllUsers`) and the server fans out one ordinary
 // per-owner row to every user, each disabled with an empty grant and a standing consent ask. So there is still
 // no shared principal and no consent junction — D147's two recorded open questions dissolved rather than got
@@ -51,12 +50,12 @@ export type {
 } from "./contract/service.ts";
 export type { ExamplePluginSeeder, ExamplePluginSeederDeps } from "./contract/showcase-seed.ts";
 export { createPluginGrantTasksOf } from "./persistence/grant-tasks.ts";
-// `listEnabledAcrossOwners` is the BOOT reactivation step's read (#1865) — the one deliberately
+// `listEnabledAcrossOwners` is the BOOT reactivation step's read — the one deliberately
 // un-owner-scoped query in the persistence file, projected to (pluginId, ownerId) so its consumer can only
 // ever drive each row's OWN owner's `setEnabled`. Its whole argument lives on the function's own doc.
 // `listEnabledAcrossOwners` crosses every owner's rows, so it takes `BootDatabaseHandle`, which only boot mints (D335).
 export { isPluginEnabledFor, listEnabledAcrossOwners } from "./persistence/plugins.ts";
-// The #1391 wire-name migration's plugin half: the slug census it reasons over, and the rename set it
+// The wire-name migration's plugin half: the slug census it reasons over, and the rename set it
 // derives. Both are read by `entry/boot/migrate-plugin-tool-wire-names`, which hands the answer DOWN to
 // chat and automation as plain data — neither of them may import this domain.
 // A boot verb that reads or writes rows of every owner takes `BootDatabaseHandle`, which only boot mints (D335).

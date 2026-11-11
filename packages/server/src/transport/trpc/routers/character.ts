@@ -204,12 +204,12 @@ export const characterRouter = t.router({
       }),
     ),
 
-  // Greeting studio (audit §3): owner-gated bounded completions that RETURN text and NEVER write — the
+  // Greeting studio: owner-gated bounded completions that RETURN text and NEVER write — the
   // client appends the accepted result to `characters.greetings` via `character.update`. Honest wire schemas
   // (no z.any): branded id + plain strings (the host's free-text steer +, for rewrite, the base greeting
   // text) + the picked transform KINDS. `transforms` is ENUM-validated, never prompt text: the fragment
   // bytes are `preset.greetingTransform.*` prose slots the verb resolves from the caller's preset (the
-  // templating fork, ARM B — owner 2026-08-09), the same doctrine `guidedSteerSchema.gameSteer` states.
+  // templating fork, ARM B — owner ruling), the same doctrine `guidedSteerSchema.gameSteer` states.
   rewriteGreeting: authedProcedure
     .output(generatedGreetingSchema)
     .input(

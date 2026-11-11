@@ -63,7 +63,7 @@ export const databankRouter = t.router({
       ctx.services.databank.get({ principal: ctx.auth, id: input.id, ...(input.includeText !== undefined ? { includeText: input.includeText } : {}) }),
     ),
 
-  // Keyset-paged, and EVERY lens is an input here (owner ruling 2026-08-13 — a paged list's filters are the
+  // Keyset-paged, and EVERY lens is an input here (owner ruling — a paged list's filters are the
   // server's, or they are a claim about rows the client never fetched). `cursor` rides as ONE field because
   // tRPC's `infiniteQueryOptions` threads exactly one `cursor` input through as the page param, overwriting
   // it wholesale per next-page fetch (the `character.list` shape); `search`/`phase`/`origin`/`limit` are
