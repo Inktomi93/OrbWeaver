@@ -10,8 +10,9 @@
 // prompt-silent — and a NEW plane is a ROW (the D110 "~7 coupled sites" shrinks its prompt sites to one).
 //
 // THE RULE (the D50 producer-coverage ratchet discipline): every top-level
-// `rpgExtractionSchema` key has a registry row, or a new writable plane is prompt-silent; review holds it. The registry
-// is the standing anti-drift mechanism the audit's "prompt-drift, not model failure" diagnosis demanded.
+// `rpgExtractionSchema` key has a registry row, or a new writable plane is prompt-silent; `everyPlane` makes a missing
+// row a `tsc` error. The registry is the standing anti-drift mechanism the audit's "prompt-drift, not model failure"
+// diagnosis demanded.
 //
 // THE #7 DECEPTION CLAUSE (recommendation A, §1.6): on a DECEPTION-ACTIVE game every fragment is prefixed with
 // the surface-only standing clause — the tracker records the players' SURFACE reality, never a hidden truth,
@@ -74,10 +75,14 @@ function rpgProse(ctx: ExtractionPromptContext, id: keyof typeof RPG_PROSE_SLOTS
   return spliceProseTokens(resolveProseFrom(RPG_PROSE_SLOTS[id], ctx.prose?.[id]).text, tokens);
 }
 
+/** A top-level key of the extraction schema. `RpgExtraction` also carries `sceneFollowUps`, which only the tool vehicles
+ *  fill and which no plane prompt teaches. */
+type ExtractionPlane = keyof typeof rpgExtractionSchema.shape;
+
 // One row per model-writable extraction plane: the schema field (the ratchet key) and its teaching-fragment
 //  builder (config/refs aware). A fragment builder returns the plane's teaching prose, or `null` when the plane is disabled this game.
 interface ExtractionPlanePrompt {
-  readonly plane: keyof RpgExtraction;
+  readonly plane: ExtractionPlane;
   readonly fragment: (ctx: ExtractionPromptContext) => string | null;
 }
 
@@ -120,10 +125,16 @@ function actorTrackerFragment(ctx: ExtractionPromptContext): string | null {
   return blocks.join("\n");
 }
 
-// The plane-prompt registry (§1.6). One row per top-level `rpgExtractionSchema` key — the ratchet asserts
-//  full coverage. `scene` folds the ambient/cast/day/emoji/plot gaps the audit named; `widgets` is now
+/** Returns the rows as given, and fails `tsc` while a schema key has no row. */
+function everyPlane<const Rows extends readonly ExtractionPlanePrompt[]>(
+  rows: Rows & ([Exclude<ExtractionPlane, Rows[number]["plane"]>] extends [never] ? unknown : never),
+): Rows {
+  return rows;
+}
+
+// The plane-prompt registry (§1.6). One row per top-level `rpgExtractionSchema` key, which `everyPlane` enforces. `scene` folds the ambient/cast/day/emoji/plot gaps the audit named; `widgets` is now
 //  prompted on the structured arm (the audit's "never mentioned" gap).
-const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
+const EXTRACTION_PLANE_PROMPTS = everyPlane([
   {
     plane: "scene",
     fragment: (ctx) => {
@@ -199,7 +210,7 @@ const EXTRACTION_PLANE_PROMPTS: readonly ExtractionPlanePrompt[] = [
       return `${base} ${rpgProse(ctx, "rpg.extract.journal.customLabels", { journalTypeLabels: lines.join("\n") })}`;
     },
   },
-];
+]);
 
 /** Compose the plane fragments into a teaching block for a system prompt — the SHARED body both the structured
  *  extraction and the cheap tool round walk (§1.6). Drops disabled planes (null fragments), and on a
