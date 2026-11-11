@@ -11,15 +11,15 @@ lane: wt/agent-a672cae2c753c5fe3
 
 ## What
 
-packages/server/src/domain/chat/engine/engine.ts has a path where a durable append that is dropped still resolves, so the engine cannot see the loss and carries on as if the row were written. The comment there pointed at an open design fork on how the failure should propagate; the fork has no item or decision record. Reproduce first: name the input or fault that drops the append and what the user sees afterwards.
+When the append of a chat event to the event log fails after canon has committed, the bus reports the drop and fans nothing (packages/server/src/domain/chat, the publication substrate and the bus; emit stays total by its flag). Reproduced on the composed root with the event-log insert refused: when the dropped event is the one that closes a turn, the reply is stored and a reload is correct, but every attached device keeps the turn open, with Stop in place of Send and a Stop press spinning until the device reattaches. A dropped announcement of a canon change outside a turn leaves other devices showing stale canon. Dropped in-turn events are harmless, because the closing event invalidates canon. The comment that described this cited a design fork with no record.
 
 ## Why
 
-A turn the engine believes it stored and did not is silent data loss in the transcript, the one thing chat persistence exists to prevent.
+Live devices hang on a log row that was never written, though canon is correct. The engine cannot fix it by failing the turn, because the turn succeeded.
 
 ## Done when
 
-The drop is reproduced in a test through the composed root with the storage edge scripted to fail, and the append's failure reaches the engine as a rejection it handles: the turn fails visibly or retries, by a recorded decision. If the path proves unreachable, it is closed with a type and the dead handling deleted.
+A dropped event that closes a turn or announces a canon change is still fanned live, without a sequence, by a per-event policy that is exhaustive over the event types. A test drops each closing event and shows an attached device's turn closes, the log has no gap and a reattach is still correct. A decision record holds the ruling and the server rule's durable-first sentence states the exception.
 
 ## Evidence
 
