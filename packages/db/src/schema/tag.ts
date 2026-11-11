@@ -92,7 +92,7 @@ export const tags = sqliteTable(
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 // character_tags — character ↔ tag junction. Target-derived owner (D23: reach the owner via `characterId` →
 // characters.ownerId — NO `ownerId` column). Composite PK `(characterId, tagId)`; both FKs CASCADE. Grows a
-// `status` enum (TAG_STATUSES) — the single proposed/accepted surface that replaces neo's `proposedTags`.
+// `status` enum (TAG_STATUSES) — the single pending/accepted surface that replaces neo's `proposedTags`.
 // ═══════════════════════════════════════════════════════════════════════════════════════════════════════
 
 export const characterTags = sqliteTable(
