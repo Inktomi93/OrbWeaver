@@ -1,3 +1,4 @@
+import { AlertDialog, AlertDialogActions, AlertDialogClose, AlertDialogPopup, AlertDialogTitle } from "@orb/ui/alert-dialog";
 import { Button } from "@orb/ui/button";
 import { Card } from "@orb/ui/card";
 import { CodeEditor } from "@orb/ui/code-editor";
@@ -17,8 +18,8 @@ import { Text } from "@orb/ui/text";
 import { ThemePreviewPane } from "@orb/ui/theme-swatch";
 import { TOKENS } from "@orb/ui/tokens";
 import { WeaveVeil } from "@orb/ui/web-weave";
-import type { ReactElement } from "react";
-import { useEffect, useState } from "react";
+import type { ComponentProps, ReactElement } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CtIsolation } from "./ct-isolated-subject.tsx";
 
 /** Exercise the production density map and its sanctioned variant overrides under real containment. */
@@ -267,6 +268,75 @@ export function SurfaceVeilCoverStory({ cover }: { readonly cover: "veil" | "pan
         </Stack>
       </main>
       {cover === "veil" ? <WeaveVeil open={veilOpen} label="Loading" /> : <div style={{ position: "fixed", inset: 0 }} />}
+    </CtIsolation>
+  );
+}
+
+// How long the closed dialog holds its closing phase before it unmounts.
+const LEAVING_HOLD_MS = 800;
+
+/**
+ * A control under a production alert dialog's layers. `leaving`: pressing Confirm closes the dialog and holds its closing phase for a
+ * beat before it unmounts, the way a slow exit leaves its backdrop over the page. `standing`: the dialog stays open.
+ */
+export function SurfaceLeavingCoverStory({ cover }: { readonly cover: "leaving" | "standing" }): ReactElement {
+  const actions = useRef<NonNullable<ComponentProps<typeof AlertDialog>["actionsRef"]>["current"]>(null);
+  const [open, setOpen] = useState(true);
+  return (
+    <CtIsolation subject="Enlarged-text leaving cover" isolates="A production control under a production alert dialog needs no application services.">
+      <main>
+        <Stack padding="section">
+          <h1>Leaving cover control</h1>
+          <Button variant="outline">Restore</Button>
+        </Stack>
+      </main>
+      <AlertDialog
+        actionsRef={actions}
+        onOpenChange={(next, details): void => {
+          if (cover === "standing") {
+            return;
+          }
+          if (!next) {
+            details.preventUnmountOnClose();
+            setTimeout(() => actions.current?.unmount(), LEAVING_HOLD_MS);
+          }
+          setOpen(next);
+        }}
+        open={open}
+      >
+        <AlertDialogPopup>
+          <AlertDialogTitle>Restore this version?</AlertDialogTitle>
+          <AlertDialogActions>
+            <AlertDialogClose render={<Button variant="outline">Confirm</Button>} />
+          </AlertDialogActions>
+        </AlertDialogPopup>
+      </AlertDialog>
+    </CtIsolation>
+  );
+}
+
+// A scroller narrower than its planted child, and a child far wider than the scroller.
+const SIDEWAYS_SCROLLER_PX = 160;
+const SIDEWAYS_CHILD_PX = 480;
+
+/**
+ * A sideways scroller holding a nested column: with `widened`, the column's second child is wider than the scroller. Beside it, inside
+ * the same scroller, a declared strip holds content wider still, which its own clip keeps from widening the scroller.
+ */
+export function SurfaceSidewaysStory({ widened }: { readonly widened: boolean }): ReactElement {
+  return (
+    <CtIsolation subject="Enlarged-text sideways scroller" isolates="A fixed-pixel scroller and its planted children need no application services.">
+      <main>
+        <div data-planted="scroller" style={{ inlineSize: SIDEWAYS_SCROLLER_PX, overflowX: "auto" }}>
+          <Stack>
+            <Text>Short line</Text>
+            {widened ? <div data-planted="widening" style={{ inlineSize: SIDEWAYS_CHILD_PX, blockSize: 1 }} /> : null}
+            <div data-sideways-strip={true} style={{ overflowX: "auto" }}>
+              <div style={{ inlineSize: 2 * SIDEWAYS_CHILD_PX, blockSize: 1 }} />
+            </div>
+          </Stack>
+        </div>
+      </main>
     </CtIsolation>
   );
 }

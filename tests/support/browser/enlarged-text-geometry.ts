@@ -15,6 +15,9 @@ const TRANSIENT_CHROME = '[data-slot="toast-root"], [data-slot="jump-to-latest"]
 // The boot veil lies over everything while it holds and dissolves after the app is ready, so a probe that runs under it reads the veil as every
 // control's cover. Its layout is not the resting one; the probes wait for it to leave.
 const BOOT_VEIL = '[data-slot="weave-veil"]';
+// A Base UI part that is animating out carries `data-ending-style` until it unmounts or rests closed: the backdrop of a dialog closed a
+// moment ago is portaled outside any scope and still takes the hit tests over it. The probes wait for every leaving part to go.
+const LEAVING_LAYER = "[data-ending-style]";
 // The text a control carries that the design truncates on purpose: a row's title and subtitle (the row's accessible name keeps the whole of
 // it) and a facet row's one-line preview. A control in a row's actions slot, or any other text in the row, is judged.
 const TRUNCATED_BY_DESIGN = [
@@ -285,8 +288,42 @@ function cutControlValues(
     });
 }
 
-/** A column that scrolls sideways has stopped reflowing; a strip of tabs or chips is built to scroll that way. */
+// How far one descendant's content reaches on x, found at a structural path from its scroller.
+interface SidewaysReach {
+  readonly path: string;
+  readonly reach: number;
+  readonly depth: number;
+}
+
+/**
+ * A column that scrolls sideways has stopped reflowing; a strip of tabs or chips is built to scroll that way. The finding names the
+ * descendant whose content reaches furthest past the scroller's inner edge, the deepest one on a tie, as a structural path from the
+ * scroller: that is the box that sets the overflow, where an ancestor only carries it. Content inside a box that clips or scrolls on x
+ * never widens the scroller, so it is passed over.
+ */
 function sidewaysColumns(subject: Element, { strips, subpixel }: { readonly strips: string; readonly subpixel: number }): string[] {
+  const clipsX = (element: Element): boolean => getComputedStyle(element).overflowX !== "visible";
+  const step = (element: Element): string => {
+    const slot = element.getAttribute("data-slot");
+    const index = element.parentElement === null ? 1 : [...element.parentElement.children].indexOf(element) + 1;
+    return `${element.tagName.toLowerCase()}:nth-child(${String(index)})${slot === null ? "" : `[data-slot="${slot}"]`}`;
+  };
+  const reaches = (element: Element, path: string, depth: number): SidewaysReach[] =>
+    [...element.children].flatMap((child) => {
+      const box = child.getBoundingClientRect();
+      const at = `${path} > ${step(child)}`;
+      // A box that keeps its own overflow contributes only its border box.
+      const own = { path: at, reach: box.left + (clipsX(child) ? box.width : Math.max(box.width, child.scrollWidth)), depth };
+      return clipsX(child) ? [own] : [own, ...reaches(child, at, depth + 1)];
+    });
+  const widening = (scroller: Element): string => {
+    // The edge of the unscrolled content box, so a checkpoint read at a scroll position names the same descendant.
+    const edge = scroller.getBoundingClientRect().left + scroller.clientLeft + scroller.clientWidth - scroller.scrollLeft;
+    const past = reaches(scroller, ":scope", 1).filter(({ reach }) => reach > edge + subpixel);
+    const furthest = Math.max(...past.map(({ reach }) => reach));
+    const found = past.filter(({ reach }) => reach >= furthest - subpixel).toSorted((left, right) => right.depth - left.depth)[0];
+    return found === undefined ? "no descendant past its edge" : `${found.path} by ${String(Math.round(found.reach - edge))}`;
+  };
   return [subject, ...subject.querySelectorAll("*")]
     .filter((element) => {
       const scrolls = /auto|scroll/u.test(getComputedStyle(element).overflowX);
@@ -296,7 +333,7 @@ function sidewaysColumns(subject: Element, { strips, subpixel }: { readonly stri
     })
     .map(
       (element) =>
-        `${element.tagName.toLowerCase()} ${element.getAttribute("data-slot") ?? element.className} scrolls sideways by ${String(element.scrollWidth - element.clientWidth)}`,
+        `${element.tagName.toLowerCase()} ${element.getAttribute("data-slot") ?? element.className} scrolls sideways by ${String(element.scrollWidth - element.clientWidth)}, widened by ${widening(element)}`,
     );
 }
 
@@ -325,6 +362,7 @@ export interface EnlargedTextGeometry {
 
 export async function enlargedTextGeometry(scope: Locator): Promise<EnlargedTextGeometry> {
   await scope.page().locator(BOOT_VEIL).waitFor({ state: "detached" });
+  await scope.page().waitForFunction((leaving) => document.querySelector(leaving) === null, LEAVING_LAYER);
   const controls = await scope.evaluate(controlGeometry, {
     reachable: REACHABLE,
     subpixel: LAYOUT_SUBPIXEL_PX,
