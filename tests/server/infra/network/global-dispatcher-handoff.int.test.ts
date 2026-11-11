@@ -2,7 +2,8 @@
 // Node reads it from its own bundled undici copy. A node or undici bump that breaks that handoff leaves every bare
 // fetch unguarded with no other test red, so this suite runs the platform fetch with no dispatcher in its init.
 // The install is a boot step, and no test root runs boot steps: the slot is process-global and shared by the worker.
-// So the suite calls the boot's own `installEgressFirewall` with the physical seams `createProcessSeams` hands it.
+// So the suite calls `installEgressFirewall` with the physical seams `createProcessSeams` hands it, and
+// `tests/server/entry/lifecycle.int.test.ts` proves the booted server process installs it.
 // @subject packages/server/src/infra/network/egress.ts
 
 import { createRequire } from "node:module";

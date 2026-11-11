@@ -1,3 +1,8 @@
+// The real server entry booted as a child process: signal-driven shutdown, and the boot's own egress firewall install.
+// A preload observer reports from inside the process over IPC and replaces no product code.
+// @subject packages/server/src/entry/lifecycle.ts
+
+import type { ChildProcess } from "node:child_process";
 import { spawn } from "node:child_process";
 import { once } from "node:events";
 import { connect } from "node:net";
@@ -7,9 +12,15 @@ import { AUTH_MODE_KEY, CSRF_HEADER } from "@orb/contracts/identity";
 import { ENV_NO_FILE_KEY } from "@orb/kit/env-file";
 import { SHUTDOWN_MESSAGES } from "@orb/server/infra/network";
 import { expect, test } from "@orb/testkit/node";
+import { servePhysicalPeer } from "@orb/testkit/node/composed";
 import { freeLoopbackPort } from "@orb/testkit/node/helpers";
 import { processEnvValue } from "@orb/tooling/floor/process/process-env";
 import { onTestFinished } from "vitest";
+import { z } from "zod";
+import { SSRF_BLOCKED } from "#server/infra/network/contract/egress.ts";
+
+const SERVER_ENTRY = fileURLToPath(new URL("../../../packages/server/src/entry/index.ts", import.meta.url));
+const LISTENING = '"msg":"boot: listening — healthz live"';
 
 /** A message as the server's JSON log line spells it. */
 const logged = (message: string): string => `"msg":${JSON.stringify(message)}`;
@@ -21,61 +32,98 @@ process.on("SIGTERM", () => {
   setImmediate(() => process.send?.({ signal }));
 });`;
 
-test("concurrent shutdown signals join the held native HTTP drain", { tags: "slow" }, async ({ importStagingDir }) => {
-  const port = await freeLoopbackPort();
-  const child = spawn(
-    process.execPath,
-    [
-      `--import=data:text/javascript,${encodeURIComponent(SIGNAL_OBSERVER)}`,
-      fileURLToPath(new URL("../../../packages/server/src/entry/index.ts", import.meta.url)),
-    ],
-    {
-      env: {
-        ["PATH"]: processEnvValue("PATH"),
-        ["HOME"]: processEnvValue("HOME"),
-        [ENV_NO_FILE_KEY]: "1",
-        ["DATA_DIR"]: importStagingDir,
-        ["PORT"]: String(port),
-        [AUTH_MODE_KEY]: "single-user",
-        ["LOCAL_LIGHT_PREFETCH"]: "off",
-        ["CORPUS_AUTOINDEX"]: "false",
-        ["EGRESS_FIREWALL"]: "false",
-        ["LOG_LEVEL"]: "info",
-      },
-      stdio: ["ignore", "pipe", "pipe", "ipc"],
+// A bare platform fetch from inside the booted process, run only when the test asks, so it starts after boot.
+const FETCH_OBSERVER = `process.on("message", (message) => {
+  if (typeof message?.fetch !== "string") return;
+  const url = message.fetch;
+  fetch(url).then(
+    async (response) => {
+      await response.arrayBuffer();
+      process.send?.({ url, status: response.status });
     },
+    (error) => process.send?.({ url, refusal: String(error?.cause?.message ?? error) }),
   );
+});`;
+
+const fetchReplySchema = z.object({ url: z.string(), status: z.number().optional(), refusal: z.string().optional() });
+
+interface Exit {
+  readonly code: number | null;
+  readonly signal: NodeJS.Signals | null;
+}
+
+interface ServerChild {
+  readonly child: ChildProcess;
+  readonly output: () => string;
+  readonly listening: Promise<void>;
+  readonly exited: Promise<Exit>;
+  readonly closed: Promise<unknown>;
+  /** Kill the process if it still runs, then wait for it and its stdio to close. */
+  readonly stop: () => Promise<void>;
+}
+
+/** Boot the real server entry with `observer` preloaded and `env` laid over the shared boot posture. */
+function spawnServer(observer: string, dataDir: string, port: number, env: Readonly<Record<string, string>> = {}): ServerChild {
+  const child = spawn(process.execPath, [`--import=data:text/javascript,${encodeURIComponent(observer)}`, SERVER_ENTRY], {
+    env: {
+      ["PATH"]: processEnvValue("PATH"),
+      ["HOME"]: processEnvValue("HOME"),
+      [ENV_NO_FILE_KEY]: "1",
+      ["DATA_DIR"]: dataDir,
+      ["PORT"]: String(port),
+      [AUTH_MODE_KEY]: "single-user",
+      ["LOCAL_LIGHT_PREFETCH"]: "off",
+      ["CORPUS_AUTOINDEX"]: "false",
+      ["EGRESS_FIREWALL"]: "false",
+      ["LOG_LEVEL"]: "info",
+      ...env,
+    },
+    stdio: ["ignore", "pipe", "pipe", "ipc"],
+  });
   let output = "";
   const listening = Promise.withResolvers<void>();
-  const receipts = [Promise.withResolvers<void>(), Promise.withResolvers<void>()];
-  const exited = new Promise<{ readonly code: number | null; readonly signal: NodeJS.Signals | null }>((resolve, reject) => {
+  const exited = new Promise<Exit>((resolve, reject) => {
     child.once("error", reject);
     child.once("exit", (code, signal) => resolve({ code, signal }));
   });
-  const processClosed = once(child, "close");
+  const closed = once(child, "close");
   const capture = (chunk: Buffer): void => {
     output += chunk.toString();
-    if (output.includes('"msg":"boot: listening — healthz live"')) {
+    if (output.includes(LISTENING)) {
       listening.resolve();
     }
   };
   child.stdout?.on("data", capture);
   child.stderr?.on("data", capture);
-  child.on("message", (message: unknown) => {
+  return {
+    child,
+    output: () => output,
+    listening: listening.promise,
+    exited,
+    closed,
+    stop: async (): Promise<void> => {
+      if (child.exitCode === null && child.signalCode === null) {
+        child.kill("SIGKILL");
+      }
+      await exited;
+      await closed;
+    },
+  };
+}
+
+test("concurrent shutdown signals join the held native HTTP drain", { tags: "slow" }, async ({ importStagingDir }) => {
+  const port = await freeLoopbackPort();
+  const server = spawnServer(SIGNAL_OBSERVER, importStagingDir, port);
+  const receipts = [Promise.withResolvers<void>(), Promise.withResolvers<void>()];
+  server.child.on("message", (message: unknown) => {
     if (typeof message === "object" && message !== null && "signal" in message && typeof message.signal === "number") {
       receipts[message.signal - 1]?.resolve();
     }
   });
   await using resources = new AsyncDisposableStack();
-  resources.defer(async () => {
-    if (child.exitCode === null && child.signalCode === null) {
-      child.kill("SIGKILL");
-    }
-    await exited;
-    await processClosed;
-  });
+  resources.defer(server.stop);
   onTestFinished(() => resources.disposeAsync());
-  expect(await Promise.race([listening.promise.then(() => "listening"), exited.then(() => "exited")]), output).toBe("listening");
+  expect(await Promise.race([server.listening.then(() => "listening"), server.exited.then(() => "exited")]), server.output()).toBe("listening");
   const socket = connect({ host: "127.0.0.1", port });
   const socketErrors: Error[] = [];
   socket.on("error", (error) => socketErrors.push(error));
@@ -101,20 +149,71 @@ test("concurrent shutdown signals join the held native HTTP drain", { tags: "slo
   });
   expect(await Promise.race([accepted.promise.then(() => "accepted"), closed.then(() => "closed")]), response).toBe("accepted");
   for (const [index, receipt] of receipts.entries()) {
-    child.kill("SIGTERM");
-    expect(await Promise.race([receipt.promise.then(() => "held"), exited.then(() => "exited")]), `SIGTERM ${String(index + 1)}:\n${output}`).toBe("held");
-    expect(output, `SIGTERM ${String(index + 1)} must retain the active request`).not.toContain(logged(SHUTDOWN_MESSAGES.httpDrained));
+    server.child.kill("SIGTERM");
+    expect(
+      await Promise.race([receipt.promise.then(() => "held"), server.exited.then(() => "exited")]),
+      `SIGTERM ${String(index + 1)}:\n${server.output()}`,
+    ).toBe("held");
+    expect(server.output(), `SIGTERM ${String(index + 1)} must retain the active request`).not.toContain(logged(SHUTDOWN_MESSAGES.httpDrained));
   }
   expect(socketErrors).toEqual([]);
-  expect(output).toContain(logged(SHUTDOWN_MESSAGES.draining));
-  expect(output).not.toContain(logged(SHUTDOWN_MESSAGES.complete));
+  expect(server.output()).toContain(logged(SHUTDOWN_MESSAGES.draining));
+  expect(server.output()).not.toContain(logged(SHUTDOWN_MESSAGES.complete));
   socket.destroy();
   await closed;
-  const exit = await exited;
-  await processClosed;
-  expect(exit, output).toEqual({ code: 0, signal: null });
+  const exit = await server.exited;
+  await server.closed;
+  expect(exit, server.output()).toEqual({ code: 0, signal: null });
   // The stage breadcrumbs `down` reads off the log: each one a real shutdown emits after the request is released.
   for (const stage of [SHUTDOWN_MESSAGES.httpDrained, SHUTDOWN_MESSAGES.closingServices, SHUTDOWN_MESSAGES.dbHousekeeping, SHUTDOWN_MESSAGES.complete]) {
-    expect(output).toContain(logged(stage));
+    expect(server.output()).toContain(logged(stage));
   }
+});
+
+test("the booted server's egress firewall refuses a bare fetch to an unlisted loopback peer and still reaches an allowlisted one", {
+  tags: "slow",
+}, async ({ importStagingDir }) => {
+  const received: string[] = [];
+  await using refused = await servePhysicalPeer((request) => {
+    received.push(`refused ${new URL(request.url).pathname}`);
+    return Promise.resolve(new Response("ok"));
+  });
+  await using admitted = await servePhysicalPeer((request) => {
+    received.push(`admitted ${new URL(request.url).pathname}`);
+    return Promise.resolve(new Response("ok"));
+  });
+  const server = spawnServer(FETCH_OBSERVER, importStagingDir, await freeLoopbackPort(), {
+    ["EGRESS_FIREWALL"]: "true",
+    ["EGRESS_ALLOWLIST"]: new URL(admitted.origin).host,
+  });
+  await using resources = new AsyncDisposableStack();
+  resources.defer(server.stop);
+  expect(await Promise.race([server.listening.then(() => "listening"), server.exited.then(() => "exited")]), server.output()).toBe("listening");
+
+  const fetchInside = async (url: string): Promise<z.infer<typeof fetchReplySchema>> => {
+    const reply = Promise.withResolvers<z.infer<typeof fetchReplySchema>>();
+    const onMessage = (message: unknown): void => {
+      const parsed = fetchReplySchema.safeParse(message);
+      if (parsed.success && parsed.data.url === url) {
+        reply.resolve(parsed.data);
+      }
+    };
+    server.child.on("message", onMessage);
+    try {
+      server.child.send({ fetch: url });
+      return await Promise.race([
+        reply.promise,
+        server.exited.then((exit) => Promise.reject(new Error(`the server exited (${JSON.stringify(exit)}) before answering ${url}:\n${server.output()}`))),
+      ]);
+    } finally {
+      server.child.off("message", onMessage);
+    }
+  };
+
+  const refusedUrl = `${refused.origin}/boot`;
+  expect(await fetchInside(refusedUrl)).toEqual({ url: refusedUrl, refusal: expect.stringContaining(SSRF_BLOCKED) });
+  // Positive control in the same process: the dispatcher boot installed still dials the allowlisted peer.
+  const admittedUrl = `${admitted.origin}/boot`;
+  expect(await fetchInside(admittedUrl)).toEqual({ url: admittedUrl, status: 200 });
+  expect(received).toEqual(["admitted /boot"]);
 });

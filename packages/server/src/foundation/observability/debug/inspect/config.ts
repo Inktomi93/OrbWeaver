@@ -167,7 +167,8 @@ function renderPolicyVerdict(stored: RenderPolicyOverride, deployment: Deploymen
 // These reads take no principal and read every owner's rows. Every caller is `/api/_debug/*`, and its gate admits
 // exactly two callers: a holder of the `DEBUG_TOKEN` operator secret (a box-level credential, not a principal), or a
 // principal the kernel judges the box OWNER (`debugGateAdmits`, `can(p,'owner',global)`) that arrived by a session
-// cookie, a verified forward-header JWT, or, on a development box only, the loopback owner fallback. A delegated
+// cookie, a verified forward-header JWT, or the loopback owner fallback where `resolveOwnerFallbackCredential` allows
+// it: `AUTH_FALLBACK=owner`, a non-production build, and no widened `AUTH_FALLBACK_TRUSTED_PEERS`. A delegated
 // `admin` is refused. Both callers are the box operator, so filtering these reads by the caller's own ownerId would
 // raise the confidentiality bar by zero while breaking the probe's actual job — answering "what does this row hold"
 // about OTHER users' rows for an operator debugging their deployment. There is no per-user principal at this seam to
